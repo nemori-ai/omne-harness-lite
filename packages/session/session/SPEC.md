@@ -454,7 +454,7 @@
 | --- | --- | --- | --- |
 | `segment` 起止 | 一个遥测段：start 开段，end 以 `outcome` 结束 | `omne.session.<operation>`，按操作名各一个定义 | `work` 是会话（owner `@omne-harness/session`，ref 为会话 id）；目录读没有 `work` |
 | `round-complete` | 事件 | `omne.session.round-complete`：`outcome` 枚举 `completed`、`failed`、`cancelled`、`unknown`；`operation` 引用 | `work` 是会话，`attempt` 是 Run（`run` 为 `null` 时没有 `attempt`） |
-| `SessionDiagnostic` | 事件 | `omne.session.diagnostic`（级别 `warn`）：`owner`、`step` 枚举；`reason` 枚举取诊断出口列出的四个本成员原因加 `other`。不输出 `detail` | `work` 是会话，`attempt` 是 Run |
+| `SessionDiagnostic` | 事件 | `omne.session.diagnostic`（级别 `warn`）：`owner`、`step` 枚举；`reason` 枚举取诊断出口列出的四个本成员原因、session-contract `SessionFailure` 的全部十六个失败种类，以及 `other`（不在表内的值）。不输出 `detail` | `work` 是会话，`attempt` 是 Run |
 
 - **作用域**：每条记录的 `component` 是 `session`，`instance` 由装配者给出。`scope` 按事件定（telemetry-contract TC-4、TC-15）：
   - 事件带 `tenant` 时，`scope` 是 `tenantScope(tenant)`。

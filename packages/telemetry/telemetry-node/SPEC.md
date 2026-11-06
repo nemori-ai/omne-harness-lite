@@ -8,7 +8,7 @@
 
 - 运行时：校验、有界队列、本地出口、计数、限频摘要与关闭报告。
 - 禁用实现。
-- Cordis 日志桥（三态）。
+- Cordis 日志桥（四态）。
 - `./cordis` 下的两个插件工厂。
 - 离线热点聚合：纯函数 `summarizeTelemetry` 与命令 `omne-telemetry-summary`（TN-11）。
 
@@ -27,7 +27,8 @@
 
 `createTelemetryRuntime(options)` 只在创建时校验一次选项：
 
-- `budgets` 的六个成员都必填，必须是正整数。本包不给预算默认值，数值来自配置（IC-14）。
+- `budgets` 的六个第一版成员都必填，必须是正整数。本包不给它们默认值，数值来自配置（IC-14）。
+- `budgets.maxSegmentLifetimeMs` 可选。在场时必须是正整数，缺席时取 3600000（1 小时）。缺省值的来源：卡 #1140 r2 第四轮闭包 tel-r4-node 的建议值。RFC-0013「资源预算」列出这项预算，没有给数值。
 - `generation` 是 1 到 128 个可打印 ASCII 字符，不含空格。
 - `instance` 必须是合法的 `OwnedRef`，规则沿用 `validateBinding`。
 - 非法选项抛 `TypeError`。
@@ -86,7 +87,7 @@
 
 ### TN-5 计数与限频摘要
 
-运行时保有下列计数：准入数、各原因的丢弃数、输出错误数、队列长度、打开的段数（TC-7）。这些计数不经过本管线。
+运行时保有下列计数：准入数、各原因的丢弃数、输出错误数、队列长度、打开的段数（TC-7）。这些计数不经过本管线。摘要行里输出错误是 `outputErrors`，过期的段是 `dropped.expired`。关闭报告里输出错误是 `droppedBy.output`（[TN-7](#tn-7-关闭)）。
 
 每次丢弃或输出错误之后，运行时可以调用一次 `summary(line)`。两次调用之间至少相隔 `summaryIntervalMs`（按 `clock.monotonicMs()` 计）。摘要是一行文本，含输出代与上面的计数。下列规则成立：
 
@@ -101,7 +102,9 @@
 - `startSegment` 先生成身份，再占位置。`randomBytes` 抛出或返回错误长度时，答 `dropped(invalid)`，不占位置。
 - 段的 `segment-start` 记录没有被准入时，段不打开，也不占位置。
 - `end` 的第一次有效调用结束段，并释放它的位置。之后的调用返回第一次的结果（TC-14）。
-- 从不结束的段一直占着位置。见[已知限制](#已知限制)。
+- 段打开的时间超过 `maxSegmentLifetimeMs` 时过期。运行时收回它的位置，按 `expired` 计一次。之后这个段的 `end` 答 `dropped(expired)`，不写出 `segment-end`，不再计数。之后这个段的 `event` 每条答 `dropped(expired)` 并计数。打开时间等于 `maxSegmentLifetimeMs` 的段没有过期。
+- 过期的检查时机：`startSegment` 占位置之前，段的 `event` 与 `end` 之前，每次准入之前，关闭开始时。运行时用 `clock.monotonicMs()` 比较打开时间，不起定时器。所以过期只在这些时机被发现。没有记录活动时，过期的段到关闭时才被收回。关闭时收回的位置进入关闭报告，不写摘要。
+- 运行时已开始关闭时，过期段的 `end` 答 `dropped(closed)`（TN-2 第 1 条优先）。关闭开始时的检查是最后一次：之后不再收回位置。在这次检查或更早被收回的段已经计过 `expired`，它的 `end` 答 `dropped(closed)` 但不再计数；关闭开始时还没超期的段，之后的 `end` 与 `event` 只计 `closed`，不另计 `expired`。每个段在关闭报告里至多计一次。
 
 ### TN-7 关闭
 
@@ -117,8 +120,8 @@
 | 成员        | 规则                                                                                                                                                                                                                 |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `admitted`  | 准入的记录数                                                                                                                                                                                                         |
-| `droppedBy` | 准入时按原因丢弃的记录数，只列出非零的原因                                                                                                                                                                           |
-| `dropped`   | `droppedBy` 的总和加上输出错误数。所以 `dropped` 减去 `droppedBy` 之和，就是准入后没有写出的记录数                                                                                                                   |
+| `droppedBy` | 按原因丢弃的记录数，键是 `CloseDropReason`：准入时丢弃的七个 `DropReason`，加上 `output`，即准入后在出口写失败的记录数。只列出非零的键                                                                           |
+| `dropped`   | `droppedBy` 各项之和                                                                                                                                                                                                 |
 | `pending`   | 期限到达时仍在队列里的记录数。这些记录不写出                                                                                                                                                                         |
 | `flush`     | 有 `pending` 时为 `deadline`；否则有过输出错误时为 `failed`；否则为 `completed-to-boundary`                                                                                                                          |
 | `boundary`  | `flush` 为 `completed-to-boundary` 时为 `local-sink`。其他情况下，有记录到达过出口时为 `local-sink`，否则为 `none`                                                                                                   |
@@ -136,15 +139,17 @@
 
 ### TN-9 Cordis 日志桥
 
-`createCordisLogBridge` 的 exporter 导出到 WARN（Cordis 4.0.4 的级别 ERROR 0、INFO 1、WARN 2、DEBUG 3）。DEBUG 不导出。每条消息变为一条 `log` 记录（TN-3）。桥有三个状态：
+`createCordisLogBridge` 的 exporter 导出到 WARN（Cordis 4.0.4 的级别 ERROR 0、INFO 1、WARN 2、DEBUG 3）。DEBUG 不导出。每条消息变为一条 `log` 记录（TN-3）。桥有四个状态：
 
 | 状态   | 进入                                   | 路径                                         | 计数                                          |
 | ------ | -------------------------------------- | -------------------------------------------- | --------------------------------------------- |
 | 引导   | 创建时                                 | 经 `write` 直接写出，并放进有界引导缓冲      | 缓冲满时 `bootstrapOverflow` 加一，消息仍写出 |
 | 就绪   | `attach(runtime, { replayBootstrap })` | 交给 `runtime.ingestLog`，由运行时准入与计数 | 运行时的计数                                  |
+| 直写   | `direct()`                             | 经 `write` 直接写出，不进缓冲                | 不计数。`write` 抛错时与其他状态一样计 `writeFailures` |
 | 关闭后 | `detach()`                             | 经 `write` 直接写出                          | 每条 `afterClose` 加一                        |
 
-- `replayBootstrap` 为真时，`attach` 先把缓冲里的消息标 `bootstrap: true` 交给运行时。运行时的出口与 `write` 相同时，用 `false`，因为这些消息已经写过一次。`attach` 与 `detach` 都清空缓冲。
+- `replayBootstrap` 为真时，`attach` 先把缓冲里的消息标 `bootstrap: true` 交给运行时。运行时的出口与 `write` 相同时，用 `false`，因为这些消息已经写过一次。`attach`、`direct` 与 `detach` 都清空缓冲。
+- `direct()` 供 `telemetry` 行是禁用实现的部署使用。行失败或缺席时应用不调用它，桥留在引导状态。它从引导或就绪进入直写：引导缓冲里已经写出的消息不重放，之后的 `attach` 回放不到任何消息。就绪时调用它，运行时不再收到消息。`detach()` 之后调用它不改变状态，桥仍在关闭后。
 - 文本用 `Logger.format` 生成，并截断到 `maxTextLength` 个字符。格式化抛错时，文本是固定的 `<the log message did not format>`，`formatFailures` 加一。
 - `write` 抛错时，`writeFailures` 加一，这条消息丢失。
 - exporter 从不向记日志的一方抛错（IC-12）。
@@ -209,7 +214,7 @@
 ## 已知限制
 
 - `log` 记录的 `text` 是自由文本，可能含租户标识。D06 裁定之前，`log` 记录不外传。第一版只有本地出口（stdout、stderr、本地文件），满足这一点。
-- 从不结束的段一直占着 `maxOpenSegments` 的位置。第一版没有实现段的最长存活期。
+- 段的过期只在 TN-6 列出的时机检查，没有定时器。运行时没有任何记录活动时，过期的段到关闭时才被收回。
 - `file` 出口的一次写入失败后，SonicBoom 保留没有写出的缓冲，并在下一次写入时先写它。所以计为输出错误的一条记录，之后可能仍出现在文件里。
 - `local-sink` 边界不包含 `fsync`。进程崩溃后，操作系统已接受但没有落盘的内容可能丢失。
 
@@ -219,14 +224,14 @@
 
 | 条款                        | 持续验证                                                                                      |
 | --------------------------- | --------------------------------------------------------------------------------------------- |
-| TN-1                        | `tests/runtime.spec.ts`「options」；`tests/file-outlet.spec.ts` 的打不开的文件                |
+| TN-1                        | `tests/runtime.spec.ts`「options」与「segment lifetime」的非法 `maxSegmentLifetimeMs`；`tests/file-outlet.spec.ts` 的打不开的文件 |
 | TN-2、TN-3                  | `tests/runtime.spec.ts`：记录形状、无效字段与绑定、超长记录、代理对象、指标、秘密样式的输入；「discard」三例：按原因计数且不写出、不可声称的原因与非定义答 `invalid`、关闭后答 `closed` |
 | TN-4                        | `tests/runtime.spec.ts`「outlet failures」；`tests/file-outlet.spec.ts` 的真实文件            |
 | TN-5                        | `tests/runtime.spec.ts`：写函数持续抛错时的摘要条数与计数，摘要出口抛错                       |
-| TN-6                        | `tests/runtime.spec.ts`「segments」                                                           |
-| TN-7                        | `tests/runtime.spec.ts`「close」与「close at the deadline」；`tests/file-outlet.spec.ts`      |
+| TN-6                        | `tests/runtime.spec.ts`「segments」；存活期、过期的计数、缺省值、恰好等于存活期、关闭时收回见「segment lifetime」 |
+| TN-7                        | `tests/runtime.spec.ts`「close」与「close at the deadline」；`droppedBy.output` 与 `dropped` 的求和见「outlet failures」；`tests/file-outlet.spec.ts` |
 | TN-8                        | `tests/disabled.spec.ts`                                                                      |
-| TN-9                        | `tests/log-bridge.spec.ts`，用真实的 Cordis `Context` 与 logger                               |
+| TN-9                        | `tests/log-bridge.spec.ts`，用真实的 Cordis `Context` 与 logger；直写态见「direct」           |
 | TN-10                       | `tests/cordis-entry.spec.ts`，用真实的 Cordis `Context`                                       |
 | TN-11                       | `tests/summary.spec.ts`，含运行时真实写出的记录；`tests/summary-cli.spec.ts` 在进程内调用命令 |
 | 根入口不依赖 Cordis（IC-4） | `tests/public-entry.spec.ts` 遍历构建产物的导入；`pnpm run lint:deps`                         |

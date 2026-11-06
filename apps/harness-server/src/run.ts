@@ -56,12 +56,51 @@ type ExecutionHostBinding = ReturnType<typeof createExecutionHostBinding>
 /** One stdout record. `kind` names it; the other fields are the record's own. */
 export type S0Record = { readonly kind: string } & Readonly<Record<string, unknown>>
 
+/** A text stream of the process: `process.stdout` or `process.stderr` in `bin.ts`. */
+export type TextSink = Readonly<{ write(text: string): unknown }>
+
+/** The application's record writer over `sink`: each record is one complete JSON line. */
+export function recordLineWriter(sink: TextSink): (record: unknown) => void {
+  return record => {
+    sink.write(`${JSON.stringify(record)}\n`)
+  }
+}
+
+/** The application's line writer over `sink`: each call writes one line. */
+export function lineWriter(sink: TextSink): (line: string) => void {
+  return line => {
+    sink.write(`${line}\n`)
+  }
+}
+
+/**
+ * Seals stdout after `shutdown-result`. The run's records go through `write` until it has written
+ * `shutdown-result`; a record that comes later (a `late-result` of a stop that ended after the
+ * deadline, or a log message after the bridge was detached) goes to `stderr` as one JSON line
+ * without a prefix, so `shutdown-result` stays the last line of stdout.
+ */
+function sealedAfterShutdownResult(
+  write: (record: S0Record) => void,
+  stderr: (line: string) => void,
+): (record: S0Record) => void {
+  let sealed = false
+  return record => {
+    if (sealed) {
+      stderr(JSON.stringify(record))
+      return
+    }
+    write(record)
+    if (record.kind === 'shutdown-result') sealed = true
+  }
+}
+
 export type RunS0Options = Readonly<{
   /** Parsed JSON of the distribution file. Validated at the boundary here. */
   distribution: unknown
   operator?: unknown
   readinessTimeoutMs: number
   shutdownDeadlineMs: number
+  /** The stdout record writer. `shutdown-result` is the last record it gets; later ones go to `stderr`. */
   write: (record: S0Record) => void
   /** Diagnostics for a person. Rejections before loading go here. */
   stderr: (line: string) => void
@@ -252,7 +291,8 @@ function trustFor(visibility: Visibility): Trust {
 }
 
 export async function runS0(options: RunS0Options): Promise<S0Result> {
-  const { write, stderr } = options
+  const { stderr } = options
+  const write = sealedAfterShutdownResult(options.write, stderr)
   const probes: Probes = { started: [], applied: [] }
   let barrierCalls = 0
   const result = (exitCode: S0Result['exitCode']): S0Result => ({
@@ -387,6 +427,7 @@ export type RunServeOptions = Readonly<{
   stateRoot: string
   /** The planned stop. After a successful startup the run waits for it. */
   stop: AbortSignal
+  /** The stdout record writer. `shutdown-result` is the last record it gets; later ones go to `stderr`. */
   write: (record: S0Record) => void
   /** Diagnostics for a person. Rejections before loading go here. */
   stderr: (line: string) => void
@@ -669,7 +710,9 @@ async function runServeWithHostFiles(
   options: RunServeOptions,
   hostFiles: HostFilesRuntime,
 ): Promise<ServeResult> {
-  const { write, stderr } = options
+  const { stderr } = options
+  // Sealed after `shutdown-result`; every writer below gets this one.
+  const write = sealedAfterShutdownResult(options.write, stderr)
   const executionHost = createExecutionHostBinding(hostFiles)
   // One stdout writer: the telemetry `stdout` outlet and the log bridge write through `write` too.
   // The `stderr` outlet gets the bare writer (one JSON record per line); only the summary line for

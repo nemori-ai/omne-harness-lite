@@ -32,11 +32,31 @@ const SEGMENT_PREFIX = 'omne.session.'
 export const SESSION_SEGMENT_DEFINITION_LIMIT = 64
 
 const ROUND_OUTCOMES = ['completed', 'failed', 'cancelled', 'unknown'] as const
+/**
+ * The reasons a diagnostic carries: this member's own four, then the closed failure kinds a Session
+ * port answers (session-contract `SessionFailure`), so an `unavailable` stays `unavailable`.
+ */
 const DIAGNOSTIC_REASONS = [
   'retries-exhausted',
   'agent-absent',
   'clock-refused',
   'attempt-replaced',
+  'archived',
+  'changed',
+  'commit-unknown',
+  'conflict',
+  'denied',
+  'frozen',
+  'invalid',
+  'quarantined',
+  'stale-advance',
+  'terminal',
+  'unavailable',
+  'unsupported',
+  'no-input',
+  'run-active',
+  'not-ready',
+  'login-required',
   'other',
 ] as const
 

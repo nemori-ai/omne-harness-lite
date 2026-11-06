@@ -1,14 +1,14 @@
 // The `telemetry` row in a `serve` tree, in one process: the entry diagnostic facade on the
-// capturing double (A2), the three states of the Cordis log bridge (A3, A5, A6, A7), a record
+// capturing double (A2), the states of the Cordis log bridge (A3, A5, A6, A7, B-5), a record
 // writer that throws (A8), the shutdown step and its report (A9), the disabled implementation
-// (A10), the factory numbers of the operator layer (A12) and the configuration boundary (A13). The
-// real `server-entry` row is in `serve.spec.ts`.
+// (A10, B-5), the factory numbers of the operator layer (A12) and the configuration boundary (A13,
+// B-6). The real `server-entry` row is in `serve.spec.ts`.
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { systemScope } from '@omne-harness/legal-identity'
-import { defineEvent } from '@omne-harness/telemetry-contract'
+import { defineEvent, defineSegment, isSegment } from '@omne-harness/telemetry-contract'
 import { createCapturingTelemetry } from '@omne-harness/telemetry-contract/testing'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -458,6 +458,46 @@ describe('A10: the disabled implementation', () => {
     expect(levelsOf(logsOf(run.records, 'logging-probe'))).toEqual(['error', 'info', 'warn'])
   })
 
+  /** A row that logs `count` warnings while its body runs. */
+  function chattyRow(count: number): Plugin.Object {
+    return defineRow({
+      row: 'chatty-probe',
+      implementation: 'real',
+      manifest: { provides: [], injects: [], sameProviderGroup: null },
+      lifecycle: { kind: 'none' },
+      plugin: {
+        name: 'chatty-probe',
+        apply(ctx: Context) {
+          const logger = ctx.logger('chatty-probe')
+          for (let n = 0; n < count; n += 1) logger.warn('chatty %d', n)
+        },
+      },
+    })
+  }
+
+  it('B-5: sets the bridge to direct writes, so more messages than the bootstrap buffer holds all reach stdout and none counts as overflow', async () => {
+    const count = 300 // more than TELEMETRY_BOOTSTRAP_RECORDS
+    const run = await serveOnce({
+      distribution: tree([
+        TELEMETRY({ implementation: 'disabled' }),
+        { id: 'chatty-probe', plugin: 'chatty' },
+      ]),
+      plugins: { stubPlugin, chatty: chattyRow(count) },
+      entryObjects: [],
+    })
+    expect(run.result.exitCode).toBe(0)
+    const logs = logsOf(run.records, 'chatty-probe')
+    expect(logs).toHaveLength(count)
+    expect(logs.at(-1)).toMatchObject({ fields: { text: `chatty ${count - 1}` } })
+    for (const record of logs) expect(record).not.toHaveProperty('generation')
+    expect(reportOf(run)).toMatchObject({
+      kind: 'closed',
+      generation: 'disabled',
+      bootstrapOverflow: 0,
+      writeFailures: 0,
+    })
+  })
+
   it('the node implementation admits the same events and writes them', async () => {
     const run = await serveOnce({
       distribution: tree([TELEMETRY(), { id: 'emitting-probe', plugin: 'emitting' }]),
@@ -500,6 +540,29 @@ describe('A12: the factory numbers come from the operator layer', () => {
     expect(run.state('telemetry')).toMatchObject({ state: 'ACTIVE' })
   })
 
+  it('B-6: loads a disabled row that gives neither an outlet nor budgets; the tree names no outlet', async () => {
+    const run = await serveOnce({
+      distribution: tree([TELEMETRY({ implementation: 'disabled' })]),
+      plugins: { stubPlugin },
+      entryObjects: [],
+    })
+    expect(run.result.exitCode).toBe(0)
+    expect(run.state('telemetry')).toMatchObject({ state: 'ACTIVE' })
+    expect(run.tree('telemetry')).toMatchObject({ telemetry: { implementation: 'disabled' } })
+    expect(run.tree('telemetry')?.['telemetry']).not.toHaveProperty('outlet')
+  })
+
+  it('B-6: refuses a node row without an outlet before loading, with invalid-config', async () => {
+    const run = await serveOnce({
+      distribution: tree([TELEMETRY({ implementation: 'node', budgets: BUDGETS })]),
+      plugins: { stubPlugin },
+      entryObjects: [],
+    })
+    expect(run.result.exitCode).toBe(2)
+    expect(run.stderr.join('\n')).toContain('invalid-config')
+    expect(run.of('row-state')).toEqual([])
+  })
+
   it('refuses an operator insert of the factory row, and the export on another row id', async () => {
     const inserted = await serveOnce({
       distribution: tree([PROBE]),
@@ -532,7 +595,11 @@ describe('A13: the row configuration', () => {
     expect(
       telemetryRowConfig.safeParse(node({ kind: 'file', path: 'relative.jsonl' })).success,
     ).toBe(false)
-    expect(Object.keys(telemetryRowConfig.shape)).toEqual(['implementation', 'outlet', 'budgets'])
+    // Each implementation has the same three keys and no other: no remote destination field.
+    expect(telemetryRowConfig.options.map(option => Object.keys(option.shape))).toEqual([
+      ['implementation', 'outlet', 'budgets'],
+      ['implementation', 'outlet', 'budgets'],
+    ])
   })
 
   it('has no remote destination field and rejects unknown keys at every level', () => {
@@ -544,9 +611,58 @@ describe('A13: the row configuration', () => {
       { ...valid, outlet: { kind: 'otlp', endpoint: 'https://collector.example' } },
       { ...valid, budgets: { ...BUDGETS, flushIntervalMs: 1 } },
       { ...valid, implementation: 'otel' },
+      { implementation: 'disabled', endpoint: 'https://collector.example' },
+      { implementation: 'disabled', outlet: { kind: 'http', url: 'https://collector.example' } },
+      { implementation: 'disabled', budgets: { ...BUDGETS, flushIntervalMs: 1 } },
     ]
     for (const config of rejected)
       expect(telemetryRowConfig.safeParse(config).success, JSON.stringify(config)).toBe(false)
+  })
+
+  it('B-6: a disabled row may leave out the outlet and the budgets, and keeps them when given; a node row needs both', () => {
+    for (const config of [
+      { implementation: 'disabled' },
+      { implementation: 'disabled', outlet: { kind: 'stdout' } },
+      { implementation: 'disabled', budgets: BUDGETS },
+      { implementation: 'disabled', outlet: { kind: 'stderr' }, budgets: BUDGETS },
+    ])
+      expect(telemetryRowConfig.safeParse(config).data, JSON.stringify(config)).toEqual(config)
+    for (const config of [
+      { implementation: 'node' },
+      { implementation: 'node', outlet: { kind: 'stdout' } },
+      { implementation: 'node', budgets: BUDGETS },
+    ])
+      expect(telemetryRowConfig.safeParse(config).success, JSON.stringify(config)).toBe(false)
+    // A given value is still checked.
+    expect(
+      telemetryRowConfig.safeParse({ implementation: 'disabled', budgets: { maxRecordBytes: 1 } })
+        .success,
+    ).toBe(false)
+  })
+
+  it('B-6: refuses a disabled row with an unknown key, and an implementation outside the union', () => {
+    for (const config of [
+      { implementation: 'disabled', foo: 1 },
+      { implementation: 'disabled', outlet: { kind: 'stdout' }, budgets: BUDGETS, foo: 1 },
+      { implementation: 'none' },
+      { implementation: 'Disabled' },
+      { implementation: 1 },
+      {},
+    ])
+      expect(telemetryRowConfig.safeParse(config).success, JSON.stringify(config)).toBe(false)
+  })
+
+  it('B-6: accepts maxSegmentLifetimeMs as an optional positive safe integer', () => {
+    const lifetime = { ...valid, budgets: { ...BUDGETS, maxSegmentLifetimeMs: 60_000 } }
+    expect(telemetryRowConfig.safeParse(lifetime).data).toEqual(lifetime)
+    for (const bad of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 2, '10', null])
+      expect(
+        telemetryRowConfig.safeParse({
+          ...valid,
+          budgets: { ...BUDGETS, maxSegmentLifetimeMs: bad },
+        }).success,
+        String(bad),
+      ).toBe(false)
   })
 
   it('requires every budget as a positive safe integer', () => {
@@ -559,5 +675,62 @@ describe('A13: the row configuration', () => {
           `${key}=${String(bad)}`,
         ).toBe(false)
     }
+  })
+})
+
+const probeSegment = defineSegment({ owner: 'test', name: 'omne.test.held', version: 1 })
+
+/** A consumer row that holds one segment open for `holdMs` while its body runs, then ends it. */
+function holdingRow(holdMs: number, ends: unknown[]): Plugin.Object {
+  return defineRow({
+    row: 'holding-probe',
+    implementation: 'real',
+    manifest: { provides: [], injects: [telemetryKey], sameProviderGroup: null },
+    lifecycle: { kind: 'none' },
+    plugin: {
+      name: 'holding-probe',
+      inject: [telemetryKey],
+      async apply(ctx: Context) {
+        const emitter = ctx.telemetry.bind({
+          scope: systemScope(),
+          component: 'holding-probe',
+          instance: { owner: 'test', ref: 'probe-1' },
+        })
+        const segment = emitter.startSegment(probeSegment)
+        if (!isSegment(segment)) throw new Error('the segment was not admitted')
+        await new Promise(resolve => setTimeout(resolve, holdMs))
+        ends.push(segment.end('ok'))
+      },
+    },
+  })
+}
+
+describe('B-6: maxSegmentLifetimeMs reaches the provider', () => {
+  const run = (budgets: Readonly<Record<string, number>>, ends: unknown[]) =>
+    serveOnce({
+      distribution: tree([
+        TELEMETRY({ implementation: 'node', outlet: { kind: 'stdout' }, budgets }),
+        { id: 'holding-probe', plugin: 'holding' },
+      ]),
+      plugins: { stubPlugin, holding: holdingRow(50, ends) },
+      entryObjects: [],
+    })
+
+  it('a segment held longer than the configured lifetime expires; its end answers dropped(expired)', async () => {
+    const ends: unknown[] = []
+    const expired = await run({ ...BUDGETS, maxSegmentLifetimeMs: 10 }, ends)
+    expect(expired.result.exitCode).toBe(0)
+    expect(ends).toEqual([{ kind: 'dropped', reason: 'expired' }])
+    expect(reportOf(expired)).toMatchObject({ droppedBy: { expired: 1 } })
+    expect(
+      expired.records.filter(r => r.kind === 'telemetry' && r['signal'] === 'segment-end'),
+    ).toEqual([])
+  })
+
+  it('without the budget the same segment ends within the provider default', async () => {
+    const ends: unknown[] = []
+    const kept = await run(BUDGETS, ends)
+    expect(ends).toEqual([{ kind: 'admitted' }])
+    expect(reportOf(kept)).toMatchObject({ dropped: 0, droppedBy: {} })
   })
 })

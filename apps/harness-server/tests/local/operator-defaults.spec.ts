@@ -142,7 +142,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
   })
 
-  it('gives the telemetry row its six budgets and leaves the implementation and the outlet to the release', () => {
+  it('gives the telemetry row its seven budgets and leaves the implementation and the outlet to the release', () => {
     const telemetry = configOf(layer, 'telemetry')
     expect(telemetry).toMatchObject({ implementation: 'node', outlet: { kind: 'stdout' } })
     const budgets = z
@@ -153,6 +153,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
         maxOpenSegments: z.number().int().positive(),
         maxLogTextLength: z.number().int().positive(),
         summaryIntervalMs: z.number().int().positive(),
+        maxSegmentLifetimeMs: z.number().int().positive(),
       })
       .strict()
       .safeParse(telemetry?.['budgets'])

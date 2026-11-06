@@ -186,6 +186,7 @@ describe('outlet failures (G1, G2)', () => {
     const report = await runtime.close(1000)
     // The runtime never feeds its own failures back into its queue.
     expect(report.admitted).toBe(16)
+    expect(report.droppedBy).toEqual({ output: 16 })
     expect(report.dropped).toBe(16)
     expect(report.flush).toBe('failed')
   })
@@ -224,7 +225,25 @@ describe('outlet failures (G1, G2)', () => {
     expect(written.map(record => fieldOf(record, 'request'))).toEqual(['a', 'b'])
     const report = await runtime.close(1000)
     expect(report.admitted).toBe(3)
+    expect(report.droppedBy).toEqual({ output: 1 })
     expect(report.dropped).toBe(1)
+  })
+
+  it('sums dropped over every key of droppedBy, with output among them', async () => {
+    const { runtime } = harness({
+      write: () => {
+        throw new Error('stdout closed')
+      },
+    })
+    const emitter = runtime.port.bind(systemBinding())
+    emitter.event(loginFailed, FIELDS)
+    emitter.event(loginFailed, bypass({ ...FIELDS, prompt: 'x' }))
+    runtime.port.discard(handling, 'policy')
+    await nextTurn()
+
+    const report = await runtime.close(1000)
+    expect(report.droppedBy).toEqual({ invalid: 1, policy: 1, output: 1 })
+    expect(report.dropped).toBe(3)
   })
 })
 
@@ -368,6 +387,143 @@ describe('segments (TC-14)', () => {
     expect(written).toHaveLength(1)
     expect(written[0]?.links).toEqual([inbound.carrier, local.carrier])
     expect(idsOf(written[0]).trace).not.toBe(inbound.traceId)
+  })
+})
+
+describe('segment lifetime (TN-6)', () => {
+  const DROPPED_EXPIRED = { kind: 'dropped', reason: 'expired' } as const
+
+  it('expires a segment open longer than maxSegmentLifetimeMs: its place frees, its end answers dropped(expired) and writes nothing, and a younger segment is unaffected', async () => {
+    const { runtime, clock, written } = harness({
+      budgets: { maxOpenSegments: 2, maxSegmentLifetimeMs: 100 },
+    })
+    const emitter = runtime.port.bind(systemBinding())
+    const old = emitter.startSegment(handling)
+    clock.advance(50)
+    const young = emitter.startSegment(handling)
+    if (!isSegment(old) || !isSegment(young)) throw new Error('expected two segments')
+    expect(emitter.startSegment(handling)).toEqual({ kind: 'dropped', reason: 'capacity' })
+
+    clock.advance(51)
+    // The old segment is 101 ms open, the young one 51 ms: one place is free again.
+    const third = emitter.startSegment(handling)
+    expect(isSegment(third)).toBe(true)
+    expect(old.end('ok')).toEqual(DROPPED_EXPIRED)
+    expect(old.end('ok')).toEqual(DROPPED_EXPIRED)
+    expect(young.end('ok')).toEqual({ kind: 'admitted' })
+    await nextTurn()
+
+    expect(written.map(record => record.signal)).toEqual([
+      'segment-start',
+      'segment-start',
+      'segment-start',
+      'segment-end',
+    ])
+    expect(written[3]).toMatchObject({ durationMs: 51 })
+    expect(idsOf(written[3])).toEqual(idsOf(written[1]))
+    const report = await runtime.close(1000)
+    expect(report.droppedBy).toEqual({ capacity: 1, expired: 1 })
+    expect(report.dropped).toBe(2)
+  })
+
+  it('counts an expired segment once, and each event on it after that under expired', async () => {
+    const { runtime, clock, summaries, written } = harness({
+      budgets: { maxSegmentLifetimeMs: 100 },
+    })
+    const segment = runtime.port.bind(systemBinding()).startSegment(handling)
+    if (!isSegment(segment)) throw new Error('expected a segment')
+    await nextTurn()
+    clock.advance(101)
+
+    expect(segment.event(loginFailed, FIELDS)).toEqual(DROPPED_EXPIRED)
+    expect(segment.event(loginFailed, FIELDS)).toEqual(DROPPED_EXPIRED)
+    expect(segment.end('failure')).toEqual(DROPPED_EXPIRED)
+    await nextTurn()
+
+    expect(summaries).toEqual([
+      'telemetry generation=g1 admitted=1 queued=0 openSegments=0 outputErrors=0 dropped.expired=1',
+    ])
+    expect(written.map(record => record.signal)).toEqual(['segment-start'])
+    expect((await runtime.close(1000)).droppedBy).toEqual({ expired: 3 })
+  })
+
+  it('keeps a segment open at exactly the lifetime, and expires it one millisecond later', () => {
+    const { runtime, clock } = harness({ budgets: { maxSegmentLifetimeMs: 100 } })
+    const emitter = runtime.port.bind(systemBinding())
+    const exact = emitter.startSegment(handling)
+    const over = emitter.startSegment(handling)
+    if (!isSegment(exact) || !isSegment(over)) throw new Error('expected two segments')
+
+    clock.advance(100)
+    expect(exact.end('ok')).toEqual({ kind: 'admitted' })
+    clock.advance(1)
+    expect(over.end('ok')).toEqual(DROPPED_EXPIRED)
+  })
+
+  it('uses one hour as the lifetime when the budget is absent', () => {
+    const { runtime, clock } = harness()
+    const emitter = runtime.port.bind(systemBinding())
+    const first = emitter.startSegment(handling)
+    const second = emitter.startSegment(handling)
+    if (!isSegment(first) || !isSegment(second)) throw new Error('expected two segments')
+
+    clock.advance(3_600_000)
+    expect(first.end('ok')).toEqual({ kind: 'admitted' })
+    clock.advance(1)
+    expect(second.end('ok')).toEqual(DROPPED_EXPIRED)
+  })
+
+  it('takes back the places of overdue segments at close, into the report and not a summary line', async () => {
+    const { runtime, clock, summaries, written } = harness({
+      budgets: { maxSegmentLifetimeMs: 100 },
+    })
+    const segment = runtime.port.bind(systemBinding()).startSegment(handling)
+    if (!isSegment(segment)) throw new Error('expected a segment')
+    clock.advance(101)
+
+    const report = await runtime.close(1000)
+    expect(report.droppedBy).toEqual({ expired: 1 })
+    expect(summaries).toEqual([])
+    expect(written.map(record => record.signal)).toEqual(['segment-start'])
+    expect(segment.end('ok')).toEqual({ kind: 'dropped', reason: 'closed' })
+  })
+
+  it('does not count the end of a segment taken back at the close check a second time', async () => {
+    const { runtime, clock, written } = harness({ budgets: { maxSegmentLifetimeMs: 100 } })
+    const segment = runtime.port.bind(systemBinding()).startSegment(handling)
+    if (!isSegment(segment)) throw new Error('expected a segment')
+    clock.advance(101)
+
+    const closing = runtime.close(1000)
+    expect(segment.end('ok')).toEqual({ kind: 'dropped', reason: 'closed' })
+
+    const report = await closing
+    expect(report.droppedBy).toEqual({ expired: 1 })
+    expect(report.dropped).toBe(1)
+    expect(written.map(record => record.signal)).toEqual(['segment-start'])
+  })
+
+  it('counts the end of a segment that outlives the lifetime after close began under closed only', async () => {
+    const { runtime, clock, written } = harness({ budgets: { maxSegmentLifetimeMs: 100 } })
+    const segment = runtime.port.bind(systemBinding()).startSegment(handling)
+    if (!isSegment(segment)) throw new Error('expected a segment')
+    clock.advance(100)
+
+    const closing = runtime.close(1000)
+    clock.advance(1)
+    expect(segment.event(loginFailed, FIELDS)).toEqual({ kind: 'dropped', reason: 'closed' })
+    expect(segment.end('ok')).toEqual({ kind: 'dropped', reason: 'closed' })
+
+    const report = await closing
+    expect(report.droppedBy).toEqual({ closed: 2 })
+    expect(report.dropped).toBe(2)
+    expect(written.map(record => record.signal)).toEqual(['segment-start'])
+  })
+
+  it('refuses a maxSegmentLifetimeMs that is present and not a positive integer', () => {
+    expect(() => harness({ budgets: { maxSegmentLifetimeMs: 0 } })).toThrow(/maxSegmentLifetimeMs/)
+    expect(() => harness({ budgets: { maxSegmentLifetimeMs: 1.5 } })).toThrow(TypeError)
+    expect(() => harness({ budgets: bypass({ maxSegmentLifetimeMs: '100' }) })).toThrow(TypeError)
   })
 })
 

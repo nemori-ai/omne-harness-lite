@@ -12,8 +12,11 @@ classDiagram
   class Pipeline {
     queue
     counts
+    places
     admit(record) Admission
     drop(reason) Dropped
+    openSegment() SegmentPlace
+    closeSegment(place) boolean
     close(deadlineMs)
   }
   class Outlet {
@@ -26,10 +29,11 @@ classDiagram
   }
   class Segment {
     carrier
+    place
     ended
   }
   class CordisLogBridge {
-    state: 引导 | 就绪 | 关闭后
+    state: 引导 | 就绪 | 直写 | 关闭后
     buffer
     counts
   }
@@ -47,11 +51,11 @@ classDiagram
 | 对象               | 身份与状态                                                                      | 生命周期                                   |
 | ------------------ | ------------------------------------------------------------------------------- | ------------------------------------------ |
 | `TelemetryRuntime` | 由应用创建，一个实例对应一次运行时生命                                          | 创建到 `close` 完成。关闭后不再接受记录    |
-| Pipeline           | 队列、计数、打开的段数、摘要时间、关闭的 Promise                                | 与运行时相同                               |
+| Pipeline           | 队列、计数、打开的段的位置（按打开时间有序）、摘要时间、关闭的 Promise          | 与运行时相同。段超过存活期时，pipeline 收回它的位置（TN-6） |
 | Outlet             | `writer` 无状态；`file` 持有 SonicBoom 与最近一次写入的失败标志                 | 运行时创建时打开，关闭时结束               |
 | Emitter            | 不可变的值，持有绑定快照与 scope 的记录形式。无效绑定共用一个丢弃一切的 emitter | 随持有者消失，不登记（IC-13）              |
-| Segment            | carrier、trace 与 span、开始时间、第一次 `end` 的结果                           | `startSegment` 到第一次有效的 `end`        |
-| `CordisLogBridge`  | 三个状态之一、引导缓冲、四个计数                                                | 应用创建，随根 logger 的 exporter 登记存在 |
+| Segment            | carrier、trace 与 span、位置（含打开时间）、第一次 `end` 的结果                 | `startSegment` 到第一次有效的 `end`，或到位置被收回 |
+| `CordisLogBridge`  | 四个状态之一、引导缓冲、四个计数                                                | 应用创建，随根 logger 的 exporter 登记存在 |
 | 插件类             | 每次工厂调用产生一个类，捕获交入的运行时                                        | 插件 fiber 的生命。effect 只登记兜底关闭   |
 
 禁用实现是与 `TelemetryRuntime` 同形的对象，只有一个计数与关闭的 Promise。

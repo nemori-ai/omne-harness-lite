@@ -22,7 +22,7 @@ import {
   type TelemetryPort,
 } from '@omne-harness/telemetry-contract'
 import type { TelemetryClock } from './options.ts'
-import type { Dropped, Pipeline } from './pipeline.ts'
+import { dropped, type Dropped, type Pipeline, type SegmentPlace } from './pipeline.ts'
 import { recordScope, type RecordScope, type RecordValues, type SegmentOutcome } from './record.ts'
 
 type Bound = Readonly<{ binding: Binding; scope: RecordScope }>
@@ -212,14 +212,15 @@ export function createPort(deps: EmitterDeps): TelemetryPort {
     bound: Bound,
     definition: SegmentDefinition,
     ids: Readonly<{ trace: string; span: string; carrier: Carrier }>,
+    place: SegmentPlace,
   ): Segment {
-    const startedAt = clock.monotonicMs()
     let ended: Admission | undefined
     return Object.freeze({
       carrier: ids.carrier,
       event(event: unknown, fields: unknown): Admission {
         return admitting(() => {
           if (ended !== undefined) return pipeline.drop('closed')
+          if (!pipeline.isOpen(place)) return pipeline.drop('expired')
           const checked = eventDefinition(event)
           const values = checked && checkedValues(checked, fields)
           if (checked === undefined || values === undefined) return pipeline.drop('invalid')
@@ -237,6 +238,12 @@ export function createPort(deps: EmitterDeps): TelemetryPort {
         return guarded(() => {
           if (ended !== undefined) return ended
           if (!OUTCOMES.includes(outcome)) return pipeline.drop('invalid')
+          // An expired segment was counted when its place was taken back; its end is not counted
+          // again, also after close began, when it answers `closed` like every record.
+          if (!pipeline.closeSegment(place)) {
+            ended = dropped(pipeline.accepting() ? 'expired' : 'closed')
+            return ended
+          }
           ended = pipeline.admit({
             ...head(bound, definition),
             signal: 'segment-end',
@@ -244,9 +251,8 @@ export function createPort(deps: EmitterDeps): TelemetryPort {
             span: ids.span,
             // OUTCOMES holds exactly the three outcomes.
             outcome: outcome as SegmentOutcome,
-            durationMs: clock.monotonicMs() - startedAt,
+            durationMs: clock.monotonicMs() - place.openedAt,
           })
-          pipeline.closeSegment()
           return ended
         })
       },
@@ -267,7 +273,8 @@ export function createPort(deps: EmitterDeps): TelemetryPort {
     // The identities come first: an entropy source that throws leaves no segment place taken.
     const ids = newIds()
     if (ids === undefined) return pipeline.drop('invalid')
-    if (!pipeline.openSegment()) return pipeline.drop('capacity')
+    const place = pipeline.openSegment()
+    if (place === undefined) return pipeline.drop('capacity')
     const start = head(bound, checked)
     const allLinks = [...(start.links ?? []), ...links]
     const admission = pipeline.admit({
@@ -277,8 +284,8 @@ export function createPort(deps: EmitterDeps): TelemetryPort {
       trace: ids.trace,
       span: ids.span,
     })
-    if (admission.kind === 'admitted') return startedSegment(bound, checked, ids)
-    pipeline.closeSegment()
+    if (admission.kind === 'admitted') return startedSegment(bound, checked, ids, place)
+    pipeline.closeSegment(place)
     return admission
   }
 

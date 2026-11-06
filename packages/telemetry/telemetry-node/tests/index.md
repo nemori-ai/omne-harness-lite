@@ -9,7 +9,7 @@
 - [runtime.spec.ts](runtime.spec.ts)：准入、记录形状、出口故障、有界队列、内容保护、段、派生与关闭
 - [file-outlet.spec.ts](file-outlet.spec.ts)：Pino 同步 destination 写的真实文件
 - [disabled.spec.ts](disabled.spec.ts)：禁用实现
-- [log-bridge.spec.ts](log-bridge.spec.ts)：日志桥三态
+- [log-bridge.spec.ts](log-bridge.spec.ts)：日志桥的四个状态（引导、就绪、直写、关闭后）
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：两个插件在真实 Context 上的提供与兜底关闭
 - [summary.spec.ts](summary.spec.ts)：离线聚合的分组、分位数、未结束段、坏行与筛选
 - [summary-cli.spec.ts](summary-cli.spec.ts)：命令行的输入、输出格式与退出码

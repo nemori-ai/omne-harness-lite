@@ -17,7 +17,7 @@ owner: chenyize
 顶层要求、观测约定和技术路线都已接受，但系统还没有把一次工作的失败原因、耗时和用量交到开发者、运维者和 agent 手里。第一版是本机单机部署，主要服务开发、运维和迭代。负责人在 2026-11-05 收窄了范围：第一版只做两条线。
 
 - **A 线：会话日志诊断投影。** 组合各拥有者的公开只读接口，产出 Run 时间线、失败及其原因、模型调用的耗时与用量、工具调用统计，做成 CLI 命令，人和 agent 都能用。按调用方的租户授权取数，不读存储内部。
-- **B 线：日志收集与热点分析。** 结构化 JSON 日志、三态 Cordis 日志桥、入口诊断，输出到本机；Session 与 Agent 的 measure 写成本地计时记录；离线聚合工具按操作统计 p50、p95；写明怎样用 Node 自带的 CPU profile。
+- **B 线：日志收集与热点分析。** 结构化 JSON 日志、Cordis 日志桥、入口诊断，输出到本机；Session 与 Agent 的 measure 写成本地计时记录；离线聚合工具按操作统计 p50、p95；写明怎样用 Node 自带的 CPU profile。
 
 OTel 链路与指标、Collector、运行中换输出、出口分区与撤权围栏、两套后端对账、产品化遥测推迟，只出设计（见[后续](#后续推迟项只出设计)）。
 
@@ -28,7 +28,7 @@ OTel 链路与指标、Collector、运行中换输出、出口分区与撤权围
 3. Model 契约声明了 `ModelDiagnostics.list`（`packages/model/model-contract/src/diagnostics.ts`）和服务键 `modelDiagnostics`（`model-cordis-contract`），没有实现，没有提供者行，也没有消费者。`ModelCalls.dispatches` 已实现，返回 `DispatchRecord`（`send`、`firstContent`、`terminal` 含 `fault.cause` 与 `upstreamStatus`、`account`）。存储的派发文档（`md_dispatch`：`record`、`logical_terminal`、`windows`、`events`、`diagnostics`）没有阶段时间，`DispatchRecord` 也没有。
 4. Tool 契约有 `readDiagnostics`，运行时把它转交账本；账本在当前增量对 `diagnostics`、`process`、`wait` 都答 `unsupported`（`packages/tool/tool/src/ledger.ts`）。`lookup`、`queryOperation`、`readResult`、`account` 可用。
 5. Session 历史读面 `SessionHistory.begin/next/since` 按种类分页；`call.bound`（SE18）的载荷带稳定调用引用文本，这是[外部读者取得稳定调用引用的唯一公开路径](../../packages/session/session-contract/SPEC.md#稳定调用引用的读取)。`HistoryEntry` 有 `id`、`revision`、`kind`、`schema`、`payload`、`origin`，不公开提交时间。公开 `read-history` 只披露部署配置列出的种类；本机单用户档列出 `message.user`、`message.assistant`、`message.tool`、`message.system_reminder`、`run.started`、`run.terminal`。
-6. 提案之前，`apps/harness-server` 的 `serve` 在根上登记日志导出器，把 Cordis 消息写成 stdout `log` 记录：只有 `level`、`name`、`text`，DEBUG 不导出，写出失败时这一条静默丢弃。B 线已把它改为三态日志桥，原来的 `log` 记录不再写出，见下文「B 线」与 [harness-server 进程输出](../../apps/harness-server/SPEC.md#进程输出与退出码)。
+6. 提案之前，`apps/harness-server` 的 `serve` 在根上登记日志导出器，把 Cordis 消息写成 stdout `log` 记录：只有 `level`、`name`、`text`，DEBUG 不导出，写出失败时这一条静默丢弃。B 线已把它改为日志桥，原来的 `log` 记录不再写出，见下文「B 线」与 [harness-server 进程输出](../../apps/harness-server/SPEC.md#进程输出与退出码)。
 7. `packages/access/server-entry` 定义了 10 种结构化诊断和可选的 `DiagnosticSink`。应用的 `server-entry` 行没有传入 sink，这些诊断全部丢弃。
 8. `session-cordis` 只把 `measure` 交给 Session 核心，不交 `diagnose`。应用的 `agent-host` 行注明 `measure` 本波不接。`SessionMeasure` 与 `AgentMeasure` 的事件不带租户。
 9. `@omne-harness/telemetry-contract` 与 `@omne-harness/telemetry-node` 已实现并合回（候选状态）。`@omne-harness/diagnostic` 已删除，关闭报告的三段语义进入 `CloseReport`。carrier 与 metric 有形状、有测试，没有消费者。
@@ -201,24 +201,26 @@ flowchart LR
 
 命令名等于操作名：`omne read-session-diagnostics --session <id> [--run <id>] [--tenant <tenant>] [--page-bytes <n>] [--json] [--server <url>]`。规则沿 [CLI 规格](../../apps/cli/SPEC.md#命令)：`tenant` 的来源次序同 `read-history`；命令按页读到 `exhausted` 为真；`--json` 是开关。
 
-人读输出每个 Run 一段：
+人读输出每个 Run 一段，全部 Run 之后集中列出缺口（每个缺口一行，写来源、对象与原因），规则以 [CLI 规格](../../apps/cli/SPEC.md#读诊断投影)为准：
 
 ```text
 Run <run> (entry <entry>, execution <execution>): failed
+  started: position <position> at unknown
+  attempts: 1 (released: ended 1)
   cause: <execution>/step-1/model-refused
   reason: model-refused capacity
   model calls: 1
-    main <reference> -> call <call>, 1 dispatch
-      <dispatch> <adapter>: not-sent, first content none-proven, pending
+    main <reference> -> call unknown (not-accepted), 0 dispatches, coverage unknown
   tool calls: 0
-  gaps: model timing not-recorded; tool diagnostics unsupported
+gaps: 1
+  model <reference>: not-accepted
 ```
 
-失败收场的派发一行形如 `<dispatch> <adapter>: sent, first content none-proven, failed upstream-unavailable http 504`。用量另起一行，写每项的数值与状态（`known`、`provisional`、`unknown`）。时长写 `unknown` 或毫秒。
+失败收场的派发一行形如 `<dispatch> <adapter>: sent, first content none-proven, failed upstream-unavailable http 504`。账目另起一行，写每项用量与费用的数值、单位与状态（`known`、`provisional`、`unknown`）。时长写 `unknown` 或毫秒；时长未知不另写缺口。带原因的未知写作 `unknown (<原因>)`。
 
 `--json` 输出结果对象，键同[命令结果与退出码](../../apps/cli/SPEC.md#命令结果与退出码)：`body` 是 `{ runs, gaps, complete }`，`request` 有 `messageId`（首页）与 `tenant`。
 
-退出码沿 CLI 规格：读完为 `0`，缺口不改变退出码；停在某页的 `outcome` 按映射（`denied` 等为 `3`，`basis-unavailable` 为 `4`）；没有可信答复为 `5`；读不完整的本地原因为 `1`，标准错误写 `omne read-session-diagnostics: incomplete after <n> runs: <原因>`。
+退出码沿 CLI 规格：读完为 `0`，缺口不改变退出码；停在某页的 `outcome` 按映射（`denied` 等为 `3`，`basis-unavailable` 为 `4`）；没有可信答复为 `5`；读不完整的本地原因为 `1`。凡是没读完（退出码 `1`、`3`、`4`、`5`），标准错误都写 `omne read-session-diagnostics: incomplete after <n> runs: <原因>`，并照常输出已经读到的 Run 与缺口。
 
 #### 与 CLI/Server 工作的接缝
 
@@ -302,7 +304,7 @@ flowchart TB
 - **声明式定义**：`defineEvent`、`defineMetric`、`defineSegment`。字段规则只有枚举、布尔值、有界有限数、不透明引用四种。没有自由文本入口。
 - **准入结果**：`admitted`，或带原因的 `dropped`（`disabled`、`sampled`、`invalid`、`policy`、`capacity`、`expired`、`closed`）。`admitted` 只是本地准入。
 - **端口**：`TelemetryPort.bind(binding)` 返回 `Emitter`；`TelemetryPort.discard(definition, reason)` 登记一条调用方没能组成的记录被丢弃（例如 TC-4 拿不到租户），只计入关闭报告，不写出，调用方只能声称 `invalid`、`policy`、`capacity`；`Emitter` 有 `event`、`record`、`startSegment`、派生 `bind(patch)`；`Segment` 有 `carrier`、`event`、幂等的 `end(outcome?)`。
-- **关闭报告**：`CloseReport` 写准入数、按原因分列的丢弃数、未决数、flush 结果、确认边界与 transport 结果。四个确认边界不混同。
+- **关闭报告**：`CloseReport` 写准入数、按原因分列的丢弃数、未决数、flush 结果、确认边界与 transport 结果。四个确认边界不混同。丢弃总数恒等于各原因之和；准入后在出口写失败的记录计入 `output`，它只出现在关闭报告里，不是准入结果。
 - **预留**：`Carrier`（W3C traceparent 子集）与 `defineMetric`、`Emitter.record` 有形状、有校验、有测试，第一版没有消费者。它们为后续的 OTel 链路与指标预留，第一版不扩展也不删除。成员文档标为「预留」。
 - **作用域规则**（TC-4）：`scope` 表达事实属于谁。属于某租户工作的事实拿不到租户就丢弃并计数，不改标 `system`；服务进程自身的事实用 `system` 加 `component`。
 
@@ -314,10 +316,10 @@ flowchart TB
 
 应用装配（已实现，候选，`apps/harness-server`）：
 
-- 新增一行 `telemetry`。行配置只放数据：实现名（`node` 或 `disabled`）、本地出口（`stdout`、`stderr` 或 `file` 带路径）、预算字段、关闭期限。配置用 Zod 在装载前校验，形状非法时以 `invalid-config` 拒绝整棵树，退出码 2，没有行装载；`file` 出口的文件打不开时运行时创建失败，本行 `FAILED`，退出码 3。
+- 新增一行 `telemetry`。行配置只放数据：实现名（`node` 或 `disabled`）、本地出口（`stdout`、`stderr` 或 `file` 带路径）、预算字段；`disabled` 时出口与预算可以省略。遥测关闭没有单独的期限字段，用停服期限剩下的部分，停服的期限只有一个拥有者。配置用 Zod 在装载前校验，形状非法时以 `invalid-config` 拒绝整棵树，退出码 2，没有行装载；`file` 出口的文件打不开时运行时创建失败，本行 `FAILED`，退出码 3。
 - 发射行把 `telemetryKey` 写进 `inject`，在行体里构造 facade，再交给成员工厂已有的可选参数。发射行必需注入 `telemetry`（D04）；遥测缺席是启动失败。第一版的发射行是 `server-entry`（入口诊断）、`session-provider` 与 `agent-host`（计时记录）。
-- **stdout 只有一个写者。** 应用入口的记录写函数是唯一向 fd 1 写记录的函数。遥测的 `stdout` 与 `stderr` 出口经它写出，`stderr` 出口的每条记录是一行完整 JSON，不带前缀。`file` 出口由提供者持有（Pino 同步 destination）。`shutdown-result` 是 stdout 的最后一行。
-- **Cordis 日志桥有三个状态**（已实现，TN-9）：引导（经写函数直接写出并放进有界引导缓冲）、就绪（交给 `telemetry` 服务，出口不是写函数时回放引导缓冲并标 `bootstrap: true`）、关闭后（直接写出并计 `afterClose`）。引导缓冲上限是发行常量，初值 256 条。
+- **stdout 只有一个写者。** 应用入口的记录写函数是唯一向 fd 1 写记录的函数。遥测的 `stdout` 出口经它写出；`stderr` 出口经应用的 stderr 行写函数写出，每条记录是一行完整 JSON，不带前缀。`file` 出口由提供者持有（Pino 同步 destination）。`shutdown-result` 是 stdout 的最后一行：写出它之后 stdout 封口，之后才到的记录（例如超期之后才结束的阶段日志）改写到 stderr。
+- **Cordis 日志桥有四个状态**（已实现，TN-9）：引导（经写函数直接写出并放进有界引导缓冲）、就绪（交给 `telemetry` 服务，出口不是写函数时回放引导缓冲并标 `bootstrap: true`）、直写（`telemetry` 行为 `disabled` 时，直接写出，不缓冲，不计溢出）、关闭后（直接写出并计 `afterClose`）。行 FAILED 或缺席时桥留在引导状态，消息照常直接写出。引导缓冲上限是发行常量，初值 256 条。
 - **关闭顺序。** 四个关闭阶段之后、撤根之前，增加显式的遥测关闭步骤。步骤先把日志桥切到关闭后状态，再关闭运行时，所以期限耗尽时撤根阶段的消息也走关闭后路径。它返回 `CloseReport`，协调者并入 `ShutdownReport`。
 - 对 IC 的兑现：唯一服务定义与键（IC-1～3）；根入口不导入 Cordis（IC-4、5）；一个提供者，键是能力名词（IC-6、7）；`inject` 字面量，禁用是在场实现（IC-8、9）；不新增 Cordis 事件（IC-10、11）；`Emitter` 不可变，随行撤除消失（IC-12、13）；配置是数据，行 id 是承诺（IC-14～16）；会话不是 Cordis 根，`scope` 不授权（IC-17、18）；配对与计数只在同一进程内成立（IC-19）。
 
@@ -325,7 +327,7 @@ flowchart TB
 
 两项新增，都在 B 线（已实现，候选）：
 
-- **计时记录。** `SessionMeasure` 与 `AgentMeasure` 的事件增加可选字段 `tenant`，产生事件的位置知道租户时填上。Session 的 facade 把段开始与结束投影为遥测段 `omne.session.<操作>`（每种操作一个定义；facade 至多缓存 64 个定义，超出的不缓存、照常发出；聚合时按操作分组），`round-complete` 为事件 `omne.session.round-complete`，`diagnose` 为事件 `omne.session.diagnostic`（`owner`、`step`、`reason` 是枚举，不输出 `detail` 文本）。Agent 的 facade 把 pass 投影为段 `omne.agent.pass.accept` 与 `omne.agent.pass.run`。目录读里，`pending` 的输入带租户，段按该租户作用域；`references` 与 `releasedScopes` 在 Session 契约里是系统作用域，段按 `system` 加 `component: 'session'` 记录。其余拿不到租户的事件按 TC-4 丢弃，经遥测端口计入关闭报告的 `droppedBy.invalid`，正常运行时这个计数应为 0。`session-cordis` 的插件输入增加可选的 `diagnose`。改动都是兼容的加法。段的时长由提供者用单调时钟计算，facade 不自己计时。配对表只放提供者已准入的段，所以它的大小不超过提供者的 `maxOpenSegments`；段结束后删除条目。
+- **计时记录。** `SessionMeasure` 与 `AgentMeasure` 的事件增加可选字段 `tenant`，产生事件的位置知道租户时填上。Session 的 facade 把段开始与结束投影为遥测段 `omne.session.<操作>`（每种操作一个定义；facade 至多缓存 64 个定义，超出的不缓存、照常发出；聚合时按操作分组），Session 实例自己的提交写下 `run.terminal` 时，`round-complete` 为事件 `omne.session.round-complete`（`session-ad02` 解读 Agent 事实写下的终态不发，这是 Session SPEC 的现行触发点，要不要扩到解读提交由 Session 拥有者裁定），`diagnose` 为事件 `omne.session.diagnostic`（`owner`、`step`、`reason` 是枚举，`reason` 含 Session 端口的全部失败种类，不输出 `detail` 文本）。Agent 的 facade 把 pass 投影为段 `omne.agent.pass.accept` 与 `omne.agent.pass.run`。目录读里，`pending` 的输入带租户，段按该租户作用域；`references` 与 `releasedScopes` 在 Session 契约里是系统作用域，段按 `system` 加 `component: 'session'` 记录。其余拿不到租户的事件按 TC-4 丢弃，经遥测端口计入关闭报告的 `droppedBy.invalid`，正常运行时这个计数应为 0。`session-cordis` 的插件输入增加可选的 `diagnose`。改动都是兼容的加法。段的时长由提供者用单调时钟计算，facade 不自己计时。配对表只放提供者已准入的段，所以它的大小不超过提供者的 `maxOpenSegments`；段结束后删除条目。
 - **离线聚合。** `telemetry-node` 增加纯函数 `summarizeTelemetry` 与命令行 `omne-telemetry-summary`：读 JSON Lines（`serve` 的 stdout 抓取或 `file` 出口的文件），按 `(owner, name)` 统计 `segment-end` 的计数、结局分布与 `durationMs` 的 min、p50、p95、p99、max（最近秩法）；只有开始没有结束的段计为 `unfinished`；事件与 `log` 按种类与级别计数；非法行跳过并计数；可以按租户文本与时间窗过滤；`--json` 输出机读报告，缺省输出按 p95 降序的人读表格。
 - **CPU profile。** 成员文档写明用 Node 自带的 `--cpu-prof` 对 `serve` 取样，与计时记录对照定位热点。它不是遥测记录，不经本管线。
 
@@ -344,9 +346,10 @@ flowchart TB
 
 | 对象 | 字段 | 超限行为 |
 | --- | --- | --- |
-| 单条记录 | `maxRecordBytes`、`maxFields`、`maxRefBytes`、`maxLinks` | `dropped(invalid)` 并计数 |
+| 单条记录 | `maxRecordBytes`；`log` 记录的 `maxLogTextLength` | 超过 `maxRecordBytes` 时 `dropped(invalid)` 并计数；日志文本截断到上限 |
+| 单条记录的结构上限 | `maxFields`、`refMaxBytes`、`maxLinks` 是契约常量 `TELEMETRY_LIMITS`，不是部署预算：定义与绑定的校验必须对所有提供者相同 | 定义或绑定时拒绝，记录时 `dropped(invalid)` |
 | 队列 | `maxQueueItems`、`maxQueueBytes` | `dropped(capacity)` |
-| 段 | `maxOpenSegments`、`maxSegmentLifetimeMs` | 超限的段丢弃；段的最长存活期第一版未实现（已知限制） |
+| 段 | `maxOpenSegments`、`maxSegmentLifetimeMs` | 超过打开上限的开始答 `dropped(capacity)`；打开超过最长存活期的段计入 `expired`，之后的结束答 `dropped(expired)` 且不写出 |
 | 自监控 | `summaryIntervalMs` | 限频的 stderr 摘要，不递归写回本管线 |
 | A 线投影 | `maxRuns`、`maxCallsPerRun`、`pageBytes` 上界 | 分页与 `truncated` 缺口 |
 
@@ -400,7 +403,7 @@ flowchart TB
 | --- | --- | --- |
 | `packages/telemetry/telemetry-contract` | 已实现（候选） | 保留。carrier 与 metric 标「预留」 |
 | `packages/telemetry/telemetry-cordis-contract` | 已实现（候选） | 保留。唯一服务定义 `telemetry` |
-| `packages/telemetry/telemetry-node` | 已实现（候选）：运行时、禁用实现、三态日志桥、两个插件、离线聚合 | 保留 |
+| `packages/telemetry/telemetry-node` | 已实现（候选）：运行时、禁用实现、日志桥、两个插件、离线聚合 | 保留 |
 | `packages/telemetry/diagnostic` | 已删除（D03） | 关闭报告三段语义进入 `CloseReport`；有界队列与 sink 故障的测试进入 `telemetry-node` |
 | `apps/harness-server/src/log-exporter.ts` | 已删除 | 由 `telemetry-node` 的日志桥替换 |
 | `server-entry` 的 `DiagnosticSink` | 形状不变 | 应用的 `server-entry` 行传入 facade 构造的 sink |
@@ -433,7 +436,7 @@ flowchart TB
 | 系统负责人：跨系统技术约定 | [当前承接与后续设计](../architecture/cross-cutting-concepts.md#当前承接与后续设计)的「观测基础契约」待承接 | 改为由 `telemetry-contract` 承接，指向成员 SPEC | 不建全局事件流；OTel 不取得事实权威 |
 | 联调轨道：应用装配 | [插件树](../architecture/runtime/application-assembly.md#插件树)没有 `telemetry` 行 | 新增 `telemetry` 行与遥测关闭步骤；`server-entry` 行新增注入；`model-records` 行提供 `modelDiagnostics` | 运行时对象不进树；受信可见性表同步 |
 | 包组织拥有者 | [目标目录](../package-organization.md#目标目录)的 `telemetry/` 组 | `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node` 三个成员；`diagnostic` 已删除 | 新成员有具名消费者 |
-| app-access 线 | [harness-server 进程输出](../../apps/harness-server/SPEC.md#进程输出与退出码)；[服务端接入会话位置](../../packages/access/server-entry/SPEC.md#会话位置)；[公开契约会话操作](../../packages/access/public-contract/SPEC.md#会话公开操作)；[CLI 命令](../../apps/cli/SPEC.md#命令) | 三态日志桥、`telemetry` 行、关闭步骤；新操作 `read-session-diagnostics`、SDK 转出诊断页类型、CLI 命令；`session-view` 模块 | stdout 唯一写者；`denied` 不披露存在性；只做加法 |
+| app-access 线 | [harness-server 进程输出](../../apps/harness-server/SPEC.md#进程输出与退出码)；[服务端接入会话位置](../../packages/access/server-entry/SPEC.md#会话位置)；[公开契约会话操作](../../packages/access/public-contract/SPEC.md#会话公开操作)；[CLI 命令](../../apps/cli/SPEC.md#命令) | 日志桥、`telemetry` 行、关闭步骤；新操作 `read-session-diagnostics`、SDK 转出诊断页类型、CLI 命令；`session-view` 模块 | stdout 唯一写者；`denied` 不披露存在性；只做加法 |
 | session-run 线（Session、Agent） | 各成员已有的诊断与测量回调；[Agent Journal 读面](../../packages/agent/agent-contract/SPEC.md#托管协调与运行实例) | measure 事件加可选 `tenant`，facade；`AgentJournalReading.readFinish?` | 回调形状不变；只做可加改动；失败诊断不带正文 |
 | model 线 | [诊断查询与保留](../../packages/model/model-contract/SPEC.md#诊断查询与保留)已接受字段与协议 | 实现 `ModelDiagnostics`；采用诊断读取资格映射与保留；可选的阶段时长 | 白名单字段；`timing` 证据不足时 `unknown`；游标不代替权限 |
 | tool-exec 线 | 账本对 `diagnostics` 答 `unsupported` | 不改 | 投影如实写 `unsupported` |
@@ -451,7 +454,7 @@ flowchart TB
 | 诊断的入口 | 自诊断只读工具放第五片 | A 线：组合各拥有者只读接口的 CLI 命令，人和 agent 都能用 | 冒烟暴露的真实需要；与 CLI/Server 的完整会话视图共用一份 |
 | 绑定的受信铸造 | `TrustedBinding` | 第一版普通校验值；分区目的地出现之前与 D06 一起裁定（D07） | 第一版没有分区目的地 |
 | stdout 写者 | 未规定 | 应用的记录写函数是唯一写者 | 进程级测试逐行解析 stdout |
-| 就绪前与关闭后的 Cordis 日志 | 未规定 | 三态日志桥，引导缓冲有界并回放，丢失计数 | 行 `FAILED` 与撤根阶段的消息最关键 |
+| 就绪前与关闭后的 Cordis 日志 | 未规定 | 日志桥（引导、就绪、直写、关闭后），引导缓冲有界并回放，丢失计数 | 行 `FAILED` 与撤根阶段的消息最关键 |
 | 无租户记录的作用域 | 未规定 | 作用域表达事实属于谁；部件自身事实用 `system` 加 `component` | 入口诊断与 Cordis 消息都不带租户 |
 | 事件定义目录 | 应用安装的发行目录 | 无全局目录（D08） | 字段规则已封闭 |
 | 出口围栏 | 与身份撤权共同 R/S 排序 | 建议以部署政策修订为围栏（D06 选项 B）；推迟 | 只影响推迟项；偏离已登记 |
@@ -510,7 +513,7 @@ flowchart TB
 
 | 消费者 | 切换内容 | 责任 |
 | --- | --- | --- |
-| `apps/harness-server` 的 `serve` 运维者与进程级测试 | 原 `log` 记录不再写出，Cordis 消息经三态日志桥成为遥测记录；新增 `telemetry` 行与关闭报告字段 | app-access 线 |
+| `apps/harness-server` 的 `serve` 运维者与进程级测试 | 原 `log` 记录不再写出，Cordis 消息经日志桥成为遥测记录；新增 `telemetry` 行与关闭报告字段 | app-access 线 |
 | `server-entry` 行 | 注入 `telemetry` 并传 `diagnostics`；注入 `agentJournal`、`modelDiagnostics`、`modelRuntime`，局部取得 `toolRuntime` | app-access 线 |
 | `model-records` 行 | 提供 `modelDiagnostics`；配置诊断读取资格映射与保留采用 | app-access 线接线，model 线提供插件 |
 | `session-cordis`、`agent-host` 行 | 接受 `diagnose` 与 `measure` 输入，构造 facade | session-run 线提供，app-access 线接线 |
@@ -564,7 +567,7 @@ flowchart TB
 | 三个遥测成员与 `diagnostic` 的删除 | `docs/package-organization.md` 目标目录；`packages/telemetry/README.md` | 不适用（未采用）；`packages/telemetry/README.md` 已按候选写入 | 未切换 |
 | 公共契约形状；carrier 与 metric 标预留 | `packages/telemetry/telemetry-contract` 的 SPEC、README | 不适用（未采用）；已按候选写入 | 未切换 |
 | Node 提供者、预算、自监控、关闭报告、日志桥、离线聚合 | `packages/telemetry/telemetry-node` 的 SPEC、README、`docs/flows.md` | 不适用（未采用）；已按候选写入 | 未切换 |
-| `telemetry` 行、三态日志桥、stdout 唯一写者、关闭步骤、接入点清单 | `apps/harness-server/SPEC.md`、`apps/harness-server/docs/rows/telemetry.md` | 不适用（未采用）；已按候选写入 | 未切换 |
+| `telemetry` 行、日志桥、stdout 唯一写者、关闭步骤、接入点清单 | `apps/harness-server/SPEC.md`、`apps/harness-server/docs/rows/telemetry.md` | 不适用（未采用）；已按候选写入 | 未切换 |
 | Session 与 Agent 的 measure `tenant` 与 facade | `packages/session/session`、`session-cordis`、`packages/agent/agent` 的 SPEC 与公开说明 | 不适用（未采用）；已按候选写入 | 未切换 |
 | `ModelDiagnostics` 的实现、读处理器、资格映射与保留采用 | `packages/model/model-storage-sql` 的 SPEC；`model-contract/docs/context.md` 的诊断段 | 不适用（未采用）；`model-storage-sql` 的 SPEC 已按候选写入 | 未切换 |
 | `AgentJournalReading.readFinish?` | `packages/agent/agent-contract` 的 SPEC 与公开接口页；`session-adapters` 的 SPEC | 不适用（未采用）；已按候选写入 | 未切换 |

@@ -1,6 +1,6 @@
 # 关键流程
 
-本文件说明四个流程：准入到出口、关闭、日志桥三态、离线热点分析。行为条款归 [SPEC.md](../SPEC.md)。
+本文件说明四个流程：准入到出口、关闭、日志桥的状态、离线热点分析。行为条款归 [SPEC.md](../SPEC.md)。
 
 ## 准入到出口
 
@@ -22,8 +22,8 @@ sequenceDiagram
 ```
 
 1. emitter 先看运行时是否已开始关闭，再核对定义、绑定快照与字段（TN-2）。
-2. pipeline 测量序列化字节，核对 `maxRecordBytes`、`maxQueueItems` 与 `maxQueueBytes`，入队后安排一次排空。
-3. 排空时 pipeline 按准入次序逐条写出。写出失败计一次输出错误，并可能触发一条限频摘要（TN-5）。
+2. pipeline 先收回过期段的位置（TN-6），再测量序列化字节，核对 `maxRecordBytes`、`maxQueueItems` 与 `maxQueueBytes`，入队后安排一次排空。
+3. 排空时 pipeline 按准入次序逐条写出。写出失败计一次输出错误，并可能触发一条限频摘要（TN-5）。输出错误在关闭报告里是 `droppedBy.output`（TN-7）。
 
 前提：出口的写函数是同步的。数据来源是调用方的定义、字段与绑定快照。去向是应用的写函数或运行时持有的文件。
 
@@ -52,22 +52,30 @@ sequenceDiagram
 
 ## 日志桥三态
 
+桥现在有四个状态。本节标题保留旧名，因为 `apps/harness-server` 的文档链接到它。
+
 ```mermaid
 stateDiagram-v2
   [*] --> 引导
   引导 --> 就绪: attach(runtime, { replayBootstrap })
+  引导 --> 直写: direct()
+  就绪 --> 直写: direct()
+  直写 --> 就绪: attach(runtime, …)，不回放
   就绪 --> 关闭后: detach()
   引导 --> 关闭后: detach()
+  直写 --> 关闭后: detach()
   note right of 引导: 直接写出，放进有界缓冲
   note right of 就绪: 交给 runtime.ingestLog
+  note right of 直写: 直接写出，不缓冲，不计数
   note right of 关闭后: 直接写出，afterClose 加一
 ```
 
-- 引导：进程启动后，到 `telemetry` 行 ACTIVE 之前。`telemetry` 行 FAILED 或缺席时，桥停在这里。
+- 引导：进程启动后，到 `telemetry` 行 ACTIVE 之前。
 - 就绪：应用在 `telemetry` 行 ACTIVE 之后调用 `attach`。运行时的出口不是桥的 `write` 时，用 `replayBootstrap: true` 回放缓冲。
-- 关闭后：应用的关闭步骤先调用 `detach`，再关闭运行时。从这时到撤根，消息直接写出并计数。关闭期限耗尽时，撤根阶段的消息也走这条路径。
+- 直写：`telemetry` 行是禁用实现时，应用调用 `direct`，这样引导缓冲不再计 `bootstrapOverflow`。切换时清空缓冲，之后的 `attach` 回放不到任何消息。行 FAILED 或缺席时应用不调用它：桥留在引导状态，消息照常直接写出，`bootstrapOverflow` 记下引导缓冲装不下、因而回放不到的条数（应用侧规则见 `apps/harness-server/docs/rows/telemetry.md`）。
+- 关闭后：应用的关闭步骤先调用 `detach`，再关闭运行时。从这时到撤根，消息直接写出并计数。关闭期限耗尽时，撤根阶段的消息也走这条路径。`detach` 之后的 `direct` 不改变状态。
 
-三个状态下，WARN 及以上的消息都到达某个出口。丢失只在 `write` 抛错时发生，并计入 `writeFailures`。状态的切换由应用驱动，桥不观察 Cordis 行的状态。
+四个状态下，WARN 及以上的消息都到达某个出口。丢失只在 `write` 抛错时发生，并计入 `writeFailures`。状态的切换由应用驱动，桥不观察 Cordis 行的状态。
 
 ## 离线热点分析
 

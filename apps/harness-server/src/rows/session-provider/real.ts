@@ -4,8 +4,9 @@
 //
 // Telemetry. The row injects `telemetry` (D04: required, so a tree without the row does not serve)
 // and builds the Session telemetry facade over it in the row body: `measure` turns each face
-// operation into a segment `omne.session.<operation>` and each Run end into the event
-// `omne.session.round-complete`, `diagnose` turns a coordinator step that stopped on a failure into
+// operation into a segment `omne.session.<operation>` and each `run.terminal` this Session instance
+// commits into the event `omne.session.round-complete` (a terminal that `session-ad02` commits from
+// Agent facts emits none, Session SPEC「测量事件」), `diagnose` turns a coordinator step that stopped on a failure into
 // the event `omne.session.diagnostic` (no detail text). Every record is scoped to the tenant of the
 // access and names the session as its work. The plugin factory hands the two observers to the
 // Session instance; the member does not know the telemetry key.

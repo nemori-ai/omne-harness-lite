@@ -367,7 +367,10 @@ const AGENT_HOST = {
  * The budgets of the `telemetry` row (the implementation and the outlet are release values). Like
  * every number of this profile they are unmeasured initial values: a few hundred records in flight
  * cover the diagnostics of one person's host, and the summary line on stderr is at most one in ten
- * seconds.
+ * seconds. `maxSegmentLifetimeMs` is one hour, the provider's default (`DEFAULT_SEGMENT_LIFETIME_MS`
+ * of `@omne-harness/telemetry-node`, proposed by the closure tel-r4-node of card #1140); RFC-0013
+ * names the budget without a number. It is written here so that the profile states every number
+ * it runs with.
  */
 const TELEMETRY_BUDGETS = {
   maxRecordBytes: 16_384,
@@ -376,6 +379,7 @@ const TELEMETRY_BUDGETS = {
   maxOpenSegments: 256,
   maxLogTextLength: 4096,
   summaryIntervalMs: 10_000,
+  maxSegmentLifetimeMs: 3_600_000,
 } as const
 
 const releaseSchema = z.object({

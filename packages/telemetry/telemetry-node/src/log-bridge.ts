@@ -28,6 +28,13 @@ export type CordisLogBridge = Readonly<{
    * outlet than the bridge's `write`; otherwise the messages are already there.
    */
   attach(runtime: TelemetryRuntime, options: Readonly<{ replayBootstrap: boolean }>): void
+  /**
+   * Writes later messages directly, without the bootstrap buffer and without a count. The buffer
+   * is cleared, so a later `attach` replays nothing. Use it when the telemetry row is the disabled
+   * implementation. When the row is FAILED or absent, leave the bridge in bootstrap. After `detach`
+   * the bridge stays after close.
+   */
+  direct(): void
   /** Writes later messages directly again, and counts them as `afterClose`. */
   detach(): void
   counts(): CordisLogBridgeCounts
@@ -36,13 +43,14 @@ export type CordisLogBridge = Readonly<{
 type BridgeState =
   | Readonly<{ kind: 'bootstrap' }>
   | Readonly<{ kind: 'ready'; runtime: TelemetryRuntime }>
+  | Readonly<{ kind: 'direct' }>
   | Readonly<{ kind: 'after-close' }>
 
 /**
- * The Cordis log bridge. It has three states: bootstrap (before the telemetry row is ready, or
- * while it is failed or absent), ready (attached to a runtime), and after close (detached). In
- * every state a message up to WARN reaches an outlet; DEBUG is not exported. Neither formatting
- * nor writing throws into the caller that logged.
+ * The Cordis log bridge. It has four states: bootstrap (before the telemetry row is ready), ready
+ * (attached to a runtime), direct (the row is the disabled implementation; a FAILED or absent row
+ * leaves the bridge in bootstrap), and after close (detached). In every state a message up to WARN reaches an outlet; DEBUG is not
+ * exported. Neither formatting nor writing throws into the caller that logged.
  */
 export function createCordisLogBridge(
   options: Readonly<{
@@ -88,6 +96,9 @@ export function createCordisLogBridge(
         if (buffer.length < bootstrapCapacity) buffer.push(input)
         else counts.bootstrapOverflow += 1
         return
+      case 'direct':
+        writeDirectly(input)
+        return
       case 'after-close':
         counts.afterClose += 1
         writeDirectly(input)
@@ -124,6 +135,11 @@ export function createCordisLogBridge(
         for (const input of buffer) runtime.ingestLog({ ...input, bootstrap: true })
       buffer = []
       state = { kind: 'ready', runtime }
+    },
+    direct() {
+      if (state.kind === 'after-close') return
+      buffer = []
+      state = { kind: 'direct' }
     },
     detach() {
       buffer = []

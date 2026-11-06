@@ -98,17 +98,25 @@ export function isSegment(value: unknown): value is Segment {
 }
 
 /**
- * What a provider reports when it closes. Four confirmation boundaries are distinct: the return
- * of a flush, the callback of a local write function, the acknowledgement of a collector
- * protocol, and the record being queryable in a back end. `flush` and `boundary` name the
- * strongest one that the provider saw; nothing in this report claims a later one.
+ * The keys of `CloseReport.droppedBy`: every `DropReason`, and `output` for a record that was
+ * admitted and then failed at the outlet. `output` is a fact of the close report only; it is never
+ * the reason of an `Admission`.
+ */
+export type CloseDropReason = DropReason | 'output'
+
+/**
+ * What a provider reports when it closes. `dropped` is the sum of the members of `droppedBy`.
+ * Four confirmation boundaries are distinct: the return of a flush, the callback of a local write
+ * function, the acknowledgement of a collector protocol, and the record being queryable in a back
+ * end. `flush` and `boundary` name the strongest one that the provider saw; nothing in this
+ * report claims a later one.
  */
 export type CloseReport = Readonly<{
   generation: string
   admission: 'closed'
   admitted: number
   dropped: number
-  droppedBy: Readonly<Partial<Record<DropReason, number>>>
+  droppedBy: Readonly<Partial<Record<CloseDropReason, number>>>
   pending: number
   flush: 'completed-to-boundary' | 'failed' | 'deadline' | 'unconfirmed'
   boundary: 'local-sink' | 'collector' | 'none'

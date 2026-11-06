@@ -35,6 +35,7 @@ const runtime = createTelemetryRuntime({
     maxOpenSegments: 1024,
     maxLogTextLength: 4096,
     summaryIntervalMs: 10_000,
+    maxSegmentLifetimeMs: 3_600_000,
   },
   summary: line => process.stderr.write(`${line}\n`),
 })
@@ -42,7 +43,7 @@ const runtime = createTelemetryRuntime({
 const report = await runtime.close(5000)
 ```
 
-The budget numbers in the example are examples, not defaults. This package has no budget defaults. The application configuration supplies the numbers.
+The budget numbers in the example are examples, not defaults. The six first-version budgets have no default: the application configuration supplies the numbers. `maxSegmentLifetimeMs` is optional and defaults to 3 600 000 ms (one hour), see SPEC.md TN-1 and TN-6.
 
 Import the Cordis integration from `@omne-harness/telemetry-node/cordis`:
 
@@ -125,7 +126,7 @@ SPEC.md                   Behavior beyond the public types
 documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
 ├── architecture.md       Modules, state and resource ownership, mechanisms
-├── flows.md              Admission to outlet, close, the three bridge states
+├── flows.md              Admission to outlet, close, the bridge states
 ├── object-model.md       Internal object model
 ├── public-api.md         Public boundary and definition index
 ├── context.md            Consumer use and position in the system

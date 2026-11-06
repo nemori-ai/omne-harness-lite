@@ -68,7 +68,7 @@ scope 必须由 `@omne-harness/legal-identity` 铸造。`validateBinding` 用 `a
 
 ### TC-7 提供者保有独立计数
 
-提供者保有下列计数：准入、采样、校验拒绝、政策丢弃、容量丢弃、过期段、输出错误、未决发送和当前输出代的状态。这些计数不经过同一条输出管线。第一版只在 `CloseReport` 与应用的关闭报告里暴露它们。
+提供者保有下列计数：准入、采样、校验拒绝、政策丢弃、容量丢弃、过期段、输出错误、未决发送和当前输出代的状态。这些计数不经过同一条输出管线。第一版只在 `CloseReport` 与应用的关闭报告里暴露它们。输出错误在 `CloseReport` 里是 `droppedBy.output`（[TC-15](#tc-15-端口与关闭报告)）。
 
 ### TC-8 定义只校验本地输入
 
@@ -147,7 +147,7 @@ carrier 文本是 W3C traceparent 的子集：`00-<trace>-<span>-<flags>`。
 
 `discard(definition, reason)` 登记一条调用方没能组成的记录：`definition` 是它本来会是的事件、指标或段定义，`reason` 是 `DiscardReason`，即 `DropReason` 中调用方可以声称的三个值 `invalid`、`policy`、`capacity`（其余四个是提供者自己的事实）。提供者按 `reason` 计数并答 `dropped(reason)`，不写出任何记录，不计入 `admitted`。`definition` 不是契约接受的定义，或 `reason` 不在 `DISCARD_REASONS` 里时，答 `dropped(invalid)` 并按 `invalid` 计数。提供者关闭后答 `dropped(closed)`。第一版的调用方是 Session 与 Agent 的 facade：属于租户工作却拿不到租户的记录（[TC-4](#tc-4-作用域只表达事实属于谁)）。`Emitter.bind(patch)` 派生一个新的 emitter，原 emitter 不变。派生只改 `work`、`attempt`、`call`、`adopted`、`links`。补丁里的其他成员不生效，补丁中值为 `undefined` 的成员也不生效。派生出的绑定仍按 TC-2 校验。
 
-`CloseReport` 报告提供者关闭时的事实。`dropped` 是总数，`droppedBy` 按 `DropReason` 分项。下面四个确认边界互不相同，报告不得混同：
+`CloseReport` 报告提供者关闭时的事实。`droppedBy` 按 `CloseDropReason` 分项：`DropReason` 的七个值，加上 `output`。`output` 计准入之后在出口写失败的记录。它只出现在关闭报告里，不是 `Admission` 的原因，`DropReason` 与 `DiscardReason` 不含它。`dropped` 恒等于 `droppedBy` 各项之和。下面四个确认边界互不相同，报告不得混同：
 
 1. `forceFlush` 返回。
 2. 本地写函数的回调。
@@ -177,7 +177,7 @@ carrier 文本是 W3C traceparent 的子集：`00-<trace>-<span>-<flags>`。
 | TC-5、TC-12                 | `tests/binding.spec.ts`、`tests/definitions.spec.ts`：上限处有效，超出一个无效 |
 | TC-6、TC-11                 | `tests/carrier.spec.ts`                                                        |
 | TC-8                        | `tests/definitions.spec.ts`、`tests/fields.spec.ts`（`optional` 标记）；类型层见 `tests/types.spec-d.ts` |
-| TC-14、TC-15                | `tests/capturing.spec.ts`；`discard` 的计数、不可声称的原因与非定义见同文件「discard」两例 |
+| TC-14、TC-15                | `tests/capturing.spec.ts`；`discard` 的计数、不可声称的原因与非定义见同文件「discard」两例；`CloseDropReason` 与 `droppedBy` 的键见 `tests/types.spec-d.ts` |
 | 安装闭包里没有 Cordis（IC-4） | `tests/public-entry.spec.ts` 遍历构建产物的导入，读 `package.json` 的依赖并沿 workspace 依赖找 Cordis；`pnpm run lint:deps` |
 
 未覆盖：TC-7 的计数与 `CloseReport` 的内容由提供者兑现，本包只给形状，验证归 `telemetry-node`。真实提供者对 TC-1、TC-2 的兑现也归 `telemetry-node` 的测试。`TelemetryService` 在真实 `Context` 上的提供、注入与撤除归 `telemetry-cordis-contract` 的测试。

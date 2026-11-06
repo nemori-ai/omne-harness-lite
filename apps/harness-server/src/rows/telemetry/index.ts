@@ -1,7 +1,8 @@
 // The `telemetry` row: a factory row like `execution-host`. The configuration is parsed before
 // loading, the runtime is created by this binding inside the row fiber, and the plugin is bound to
 // this one run. The binding also owns the Cordis log bridge: it is registered on the root before
-// any row loads, attached to the runtime when the row is active, and detached by the shutdown step.
+// any row loads, attached to the runtime when the row is active with the node implementation, set
+// to direct writes when it is active with the disabled one, and detached by the shutdown step.
 // stdout keeps one writer: the `stdout` outlet is the record writer the entry hands in.
 import { randomBytes } from 'node:crypto'
 import type { Context, Plugin } from '@deepseek-ai/cordis'
@@ -23,7 +24,11 @@ import {
 import { ConfigError } from '../../config-schema.ts'
 import { defineRow } from '../../row.ts'
 import type { TelemetryShutdownReport, TreeRow } from '../../types.ts'
-import { telemetryRowConfig, type TelemetryRowConfig } from './config.ts'
+import {
+  telemetryRowConfig,
+  type NodeTelemetryRowConfig,
+  type TelemetryRowConfig,
+} from './config.ts'
 import { processInstance } from './instance.ts'
 
 export { processInstance } from './instance.ts'
@@ -57,7 +62,7 @@ export type TelemetryBinding = Readonly<{
   plugin: Plugin.Object
   /** Parses the row configuration at the boundary. Throws `ConfigError('invalid-config')`. */
   parseConfig(value: unknown): TelemetryRowConfig
-  /** The extra members of the row's `tree` record: the implementation and the outlet kind. */
+  /** The extra members of the row's `tree` record: the implementation, and the outlet kind when one is configured. */
   describe(row: TreeRow): Readonly<Record<string, unknown>>
   /** Register `bridge.exporter` on the root logger before any row loads. */
   bridge: CordisLogBridge
@@ -72,7 +77,10 @@ const clock: TelemetryClock = {
     /* wall-clock: operation-timing -- durations, deadlines and the summary interval of the telemetry runtime. */ performance.now(),
 }
 
-function outletOf(config: TelemetryRowConfig, options: TelemetryBindingOptions): TelemetryOutlet {
+function outletOf(
+  config: NodeTelemetryRowConfig,
+  options: TelemetryBindingOptions,
+): TelemetryOutlet {
   const { outlet } = config
   switch (outlet.kind) {
     case 'stdout':
@@ -137,10 +145,13 @@ export function createTelemetryBinding(options: TelemetryBindingOptions): Teleme
         // The Service constructor registers `telemetry` on this fiber (Cordis 4.0.4).
         new Provider(ctx)
         runtime = opened
-        // The disabled implementation drops every log; Cordis messages keep the direct path, so a
-        // deployment without telemetry still sees its WARN messages and the drops count only events.
+        // The disabled implementation drops every log, so the bridge is not attached to it: Cordis
+        // messages take the direct path, a deployment without telemetry still sees its WARN
+        // messages, and the drops count only events. Direct, not bootstrap: no runtime will come, so
+        // nothing is buffered for a replay and nothing counts as bootstrap overflow.
         if (config.implementation === 'node')
           bridge.attach(opened, { replayBootstrap: config.outlet.kind !== 'stdout' })
+        else bridge.direct()
       },
     },
   })
@@ -155,7 +166,7 @@ export function createTelemetryBinding(options: TelemetryBindingOptions): Teleme
         : {
             telemetry: {
               implementation: configured.implementation,
-              outlet: configured.outlet.kind,
+              ...(configured.outlet === undefined ? {} : { outlet: configured.outlet.kind }),
             },
           },
     async close(deadlineMs) {

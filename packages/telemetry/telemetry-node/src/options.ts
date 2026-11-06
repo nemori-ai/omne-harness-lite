@@ -3,8 +3,10 @@ import { validateBinding, type OwnedRef } from '@omne-harness/telemetry-contract
 import type { TelemetryRecord } from './record.ts'
 
 /**
- * The run-time budgets. Every member is required: the numbers come from configuration, and the
- * code holds no default (IC-14).
+ * The run-time budgets. The six first-version members are required: the numbers come from
+ * configuration, and the code holds no default (IC-14). `maxSegmentLifetimeMs` came later and is
+ * optional, so that a configuration written before it keeps working; its default is
+ * `DEFAULT_SEGMENT_LIFETIME_MS` (TN-6).
  */
 export type TelemetryBudgets = Readonly<{
   /** The largest serialized record, in UTF-8 bytes. A larger record is `dropped(invalid)`. */
@@ -19,7 +21,19 @@ export type TelemetryBudgets = Readonly<{
   maxLogTextLength: number
   /** The shortest time between two self-monitoring summary lines. */
   summaryIntervalMs: number
+  /**
+   * The longest time a segment stays open, in milliseconds. A segment open for longer expires: it
+   * gives up its place, is counted under `droppedBy.expired`, and its `end` answers
+   * `dropped(expired)`.
+   */
+  maxSegmentLifetimeMs?: number
 }>
+
+/** The budgets after `parseOptions`: the optional member is resolved. */
+export type ResolvedBudgets = Readonly<Required<TelemetryBudgets>>
+
+/** One hour. The value that the closure tel-r4-node of card #1140 proposed; RFC-0013 names the budget without a number. */
+export const DEFAULT_SEGMENT_LIFETIME_MS = 3_600_000
 
 /**
  * Where records go. `writer` hands each record object to a write function of the application (the
@@ -64,16 +78,31 @@ function fail(message: string): never {
   throw new TypeError(`telemetry runtime: ${message}`)
 }
 
-function budgets(input: TelemetryBudgets): TelemetryBudgets {
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1
+}
+
+function budgets(input: TelemetryBudgets): ResolvedBudgets {
   for (const key of BUDGET_KEYS) {
     const value: unknown = input[key]
-    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1)
-      fail(`budget ${key} must be a positive integer`)
+    if (!isPositiveInteger(value)) fail(`budget ${key} must be a positive integer`)
   }
-  return Object.freeze(
-    Object.fromEntries(BUDGET_KEYS.map(key => [key, input[key]])),
-  ) as TelemetryBudgets
+  const lifetime: unknown = input.maxSegmentLifetimeMs
+  if (lifetime !== undefined && !isPositiveInteger(lifetime))
+    fail('budget maxSegmentLifetimeMs must be a positive integer when present')
+  return Object.freeze({
+    ...(Object.fromEntries(BUDGET_KEYS.map(key => [key, input[key]])) as Omit<
+      ResolvedBudgets,
+      'maxSegmentLifetimeMs'
+    >),
+    maxSegmentLifetimeMs: lifetime ?? DEFAULT_SEGMENT_LIFETIME_MS,
+  })
 }
+
+/** The options after the one-time check, with the budgets resolved. */
+export type ParsedOptions = Readonly<
+  Omit<TelemetryRuntimeOptions, 'budgets'> & { budgets: ResolvedBudgets }
+>
 
 function isValidInstance(instance: OwnedRef): boolean {
   // The binding rules own the shape of an OwnedRef; a probe binding reuses them.
@@ -89,7 +118,7 @@ const GENERATION = /^[\x21-\x7e]{1,128}$/
  * instance, the file path and the budgets. Functions are code, not configuration, and their types
  * hold. Throws TypeError for an invalid value.
  */
-export function parseOptions(options: TelemetryRuntimeOptions): TelemetryRuntimeOptions {
+export function parseOptions(options: TelemetryRuntimeOptions): ParsedOptions {
   if (typeof options.generation !== 'string' || !GENERATION.test(options.generation))
     fail('generation must be 1 to 128 printable ASCII characters without space')
   if (!isValidInstance(options.instance)) fail('instance must be a valid OwnedRef')

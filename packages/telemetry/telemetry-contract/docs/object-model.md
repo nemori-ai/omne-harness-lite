@@ -35,6 +35,7 @@ classDiagram
 - `Emitter` 持有一份绑定快照。`bind(patch)` 产生新的 `Emitter`，不改原对象。
 - `TelemetryPort.discard(definition, reason)` 不产生对象：它只让提供者按 `reason` 计一条调用方没能组成的记录（SPEC.md TC-15）。
 - `Segment` 由 `startSegment` 产生，持有自己的 `Carrier`。
+- `CloseReport` 是提供者关闭时给出的值。`droppedBy` 的键是 `CloseDropReason`：`DropReason` 加上 `output`（准入后在出口写失败的记录）。`dropped` 等于 `droppedBy` 各项之和（SPEC.md TC-15）。
 - `TelemetryService` 是唯一的 Cordis 服务定义，归 `telemetry-cordis-contract`；提供者继承它。本包只给它实现的端口类型。
 
 ## 生命周期

@@ -35,6 +35,7 @@ const runtime = createTelemetryRuntime({
     maxOpenSegments: 1024,
     maxLogTextLength: 4096,
     summaryIntervalMs: 10_000,
+    maxSegmentLifetimeMs: 3_600_000,
   },
   summary: line => process.stderr.write(`${line}\n`),
 })
@@ -42,7 +43,7 @@ const runtime = createTelemetryRuntime({
 const report = await runtime.close(5000)
 ```
 
-示例里的预算数只是示例，不是默认值。本包没有预算默认值，数值由应用的配置给出。
+示例里的预算数只是示例，不是默认值。六个第一版预算没有默认值，数值由应用的配置给出。`maxSegmentLifetimeMs` 可选，缺省 3600000 毫秒（1 小时），见 SPEC.md TN-1 与 TN-6。
 
 Cordis 集成从 `@omne-harness/telemetry-node/cordis` 导入：
 
@@ -120,7 +121,7 @@ SPEC.md                   公开类型以外的行为
 documentation.json        文档登记
 docs/                     内部设计、公开使用与集成
 ├── architecture.md       模块、状态与资源归属、机制
-├── flows.md              准入到出口、关闭、日志桥三态
+├── flows.md              准入到出口、关闭、日志桥的状态
 ├── object-model.md       内部对象模型
 ├── public-api.md         公开边界与定义索引
 ├── context.md            消费方式与系统位置

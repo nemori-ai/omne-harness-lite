@@ -152,6 +152,78 @@ describe('the Cordis log bridge: ready', () => {
   })
 })
 
+describe('the Cordis log bridge: direct', () => {
+  it('writes each later message directly without buffering it or counting an overflow, and a later attach replays nothing', async () => {
+    const { ctx, bridge, direct } = bridged({ bootstrapCapacity: 1 })
+    const { runtime, written } = harness()
+    const logger = ctx.logger('app')
+    logger.warn('buffered')
+
+    bridge.direct()
+    logger.warn('one')
+    logger.error('two')
+    logger.warn('three')
+    logger.debug('hidden')
+
+    expect(direct.map(record => fieldOf(record, 'text'))).toEqual([
+      'buffered',
+      'one',
+      'two',
+      'three',
+    ])
+    expect(bridge.counts()).toEqual({
+      bootstrapOverflow: 0,
+      afterClose: 0,
+      formatFailures: 0,
+      writeFailures: 0,
+    })
+    bridge.attach(runtime, { replayBootstrap: true })
+    await nextTurn()
+    expect(written).toEqual([])
+  })
+
+  it('stops handing messages to the runtime when direct() follows attach', async () => {
+    const { ctx, bridge, direct } = bridged()
+    const { runtime, written } = harness()
+    bridge.attach(runtime, { replayBootstrap: false })
+
+    bridge.direct()
+    ctx.logger('app').warn('direct')
+    await nextTurn()
+
+    expect(written).toEqual([])
+    expect(direct.map(record => fieldOf(record, 'text'))).toEqual(['direct'])
+  })
+
+  it('stays after close when direct() follows detach', () => {
+    const { ctx, bridge, direct } = bridged()
+    bridge.detach()
+
+    bridge.direct()
+    ctx.logger('app').warn('late')
+
+    expect(direct.map(record => fieldOf(record, 'text'))).toEqual(['late'])
+    expect(bridge.counts().afterClose).toBe(1)
+  })
+
+  it('counts a write that throws in the direct state as writeFailures', () => {
+    const { ctx, bridge } = bridged({
+      write: () => {
+        throw new Error('stdout closed')
+      },
+    })
+    bridge.direct()
+
+    expect(() => ctx.logger('app').error('lost')).not.toThrow()
+    expect(bridge.counts()).toEqual({
+      bootstrapOverflow: 0,
+      afterClose: 0,
+      formatFailures: 0,
+      writeFailures: 1,
+    })
+  })
+})
+
 describe('the Cordis log bridge: after close', () => {
   it('writes directly again after detach and counts each message', async () => {
     const { ctx, bridge, direct } = bridged()

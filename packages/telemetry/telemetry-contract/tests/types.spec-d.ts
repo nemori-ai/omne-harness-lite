@@ -5,6 +5,9 @@ import {
   defineEvent,
   defineMetric,
   type Admission,
+  type CloseDropReason,
+  type CloseReport,
+  type DropReason,
   type Emitter,
   type Fields,
   type Segment,
@@ -120,4 +123,17 @@ it('returns a segment or a dropped answer from startSegment', () => {
   expectTypeOf(emitter.startSegment).returns.toEqualTypeOf<
     Segment | Extract<Admission, { kind: 'dropped' }>
   >()
+})
+
+declare const report: CloseReport
+
+it('keys droppedBy by every drop reason and by output, and keeps output out of an admission', () => {
+  expectTypeOf<CloseDropReason>().toEqualTypeOf<DropReason | 'output'>()
+  expectTypeOf(report.droppedBy.output).toEqualTypeOf<number | undefined>()
+  expectTypeOf(report.droppedBy.expired).toEqualTypeOf<number | undefined>()
+  // @ts-expect-error `output` is a fact of the close report, never the reason of an admission.
+  const admission: Admission = { kind: 'dropped', reason: 'output' }
+  void admission
+  // @ts-expect-error `droppedBy` has no key outside CloseDropReason.
+  void report.droppedBy.unknown
 })

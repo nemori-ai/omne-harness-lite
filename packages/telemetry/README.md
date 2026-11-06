@@ -22,7 +22,7 @@
 
 ## 组合验证
 
-核对采集权限、传输失败及数据缺失可识别性。事件、指标、保留时限与后端尚待决定。`telemetry-contract` 的测试覆盖校验规则、carrier 格式、捕获替身与安装闭包里没有 Cordis。`telemetry-cordis-contract` 的测试覆盖服务键在真实 Cordis `Context` 上的提供、注入与撤除。它们不证明任何真实提供者或后端的行为。`telemetry-node` 的测试覆盖准入、有界队列、出口故障、真实文件出口、关闭报告、禁用实现、日志桥三态与真实 Cordis 上的插件。它不证明应用装配与关闭顺序，这些验证归 `apps/harness-server`。
+核对采集权限、传输失败及数据缺失可识别性。事件、指标、保留时限与后端尚待决定。`telemetry-contract` 的测试覆盖校验规则、carrier 格式、捕获替身与安装闭包里没有 Cordis。`telemetry-cordis-contract` 的测试覆盖服务键在真实 Cordis `Context` 上的提供、注入与撤除。它们不证明任何真实提供者或后端的行为。`telemetry-node` 的测试覆盖准入、有界队列、出口故障、真实文件出口、关闭报告、禁用实现、日志桥的四个状态与真实 Cordis 上的插件。它不证明应用装配与关闭顺序，这些验证归 `apps/harness-server`。
 
 ## 维护
 

@@ -303,13 +303,21 @@ describe('the diagnostic event', () => {
     expect(actingScopeEquals(record.binding.scope, tenantScope(tenant))).toBe(true)
   })
 
-  it('a reason outside the known values is `other`; a null run leaves no attempt', () => {
+  it('a failure kind a Session port answers stays itself; a reason outside the known values is `other`; a null run leaves no attempt', () => {
     const { capture, telemetry } = facade()
-    telemetry.diagnose({ ...diagnostic, owner: 'S1', step: 'read', run: null, reason: 'denied' })
-    const [record] = capture.records()
-    if (record?.kind !== 'event') throw new Error('shape')
-    expect(record.fields).toEqual({ owner: 'S1', step: 'read', reason: 'other' })
-    expect(record.binding.attempt).toBeUndefined()
+    telemetry.diagnose({
+      ...diagnostic,
+      owner: 'S1',
+      step: 'read',
+      run: null,
+      reason: 'unavailable',
+    })
+    telemetry.diagnose({ ...diagnostic, owner: 'S1', step: 'read', run: null, reason: 'exotic' })
+    const [known, outside] = capture.records()
+    if (known?.kind !== 'event' || outside?.kind !== 'event') throw new Error('shape')
+    expect(known.fields).toEqual({ owner: 'S1', step: 'read', reason: 'unavailable' })
+    expect(outside.fields).toEqual({ owner: 'S1', step: 'read', reason: 'other' })
+    expect(known.binding.attempt).toBeUndefined()
   })
 
   it('a tenant that legal-identity did not mint is discarded through the port as invalid; the detail text never reaches the port', () => {

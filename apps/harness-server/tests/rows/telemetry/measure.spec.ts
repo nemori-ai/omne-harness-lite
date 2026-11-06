@@ -13,7 +13,15 @@
 // `releasedScopes` segments of the system scope, and the close report counts no `invalid` drop. A
 // probe row then hands the test the port, and a Session segment without a tenant goes through the
 // facade to `discard`, which the close report counts under `droppedBy.invalid` (TC-4).
+// G3 writes through the application's own record writer (`recordLineWriter`, the one `bin.ts`
+// gives `process.stdout`) into a byte stream: a record with an `Error` object or a secret-like
+// text in a field that is not a reference is refused as `dropped(invalid)`, counted in
+// `shutdown-result`, and its text is nowhere in the bytes. G7 lets the Model double answer with a
+// text, so the Run of the release tree reaches its terminal entry; every segment start of the run
+// has its end, and with a short `maxSegmentLifetimeMs` the close report would count a segment
+// still open at close under `droppedBy.expired`.
 import { readFileSync } from 'node:fs'
+import { Writable } from 'node:stream'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context, Plugin } from '@deepseek-ai/cordis'
@@ -28,17 +36,23 @@ import { createSessionTelemetry } from '@omne-harness/session'
 import type { ResidentKey } from '@omne-harness/session-contract'
 import { testingTenant } from '@omne-harness/session-contract/testing'
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
-import type { TelemetryPort } from '@omne-harness/telemetry-contract'
+import { defineEvent, type TelemetryPort } from '@omne-harness/telemetry-contract'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
 import { summarizeTelemetry, type TelemetryRecord } from '@omne-harness/telemetry-node'
 import * as cordis from '../../../src/cordis.ts'
-import { runServe, type S0Record, type ServeResult } from '../../../src/run.ts'
+import {
+  lineWriter,
+  recordLineWriter,
+  runServe,
+  type S0Record,
+  type ServeResult,
+} from '../../../src/run.ts'
 import { agentHostRow } from '../../../src/rows/agent-host/index.ts'
 import { defineRow } from '../../../src/row.ts'
 import { sessionProviderRealRow } from '../../../src/rows/session-provider/real.ts'
 import { createTelemetryBinding, processInstance } from '../../../src/rows/telemetry/index.ts'
 import type { RowId } from '../../../src/types.ts'
-import { startModelGateway } from '../../fixtures/model-gateway.ts'
+import { startModelGateway, type GatewayScript } from '../../fixtures/model-gateway.ts'
 import { hostConfig, hostDoubles, principalObject } from '../agent-host/doubles.ts'
 import { TELEMETRY_ROW_CONFIG, connectable, until } from '../server-entry/support.ts'
 import { declared, loadTree, makeBase, storageRows } from '../session-fixtures/tree.ts'
@@ -81,25 +95,63 @@ const telemetryOf = (records: readonly S0Record[]) =>
 const named = (records: readonly S0Record[], name: string, signal: string) =>
   telemetryOf(records).filter(record => record['name'] === name && record['signal'] === signal)
 
+type ReleaseOptions = Readonly<{
+  /** The Model double's answers. Default: every call is refused. */
+  answer?: GatewayScript
+  /** Budgets added to the `telemetry` row of the test operator layer. */
+  budgets?: Readonly<Record<string, number>>
+  /** Lets `server-entry` serve the Run entries of the history, so a test can see `run.terminal`. */
+  runEntries?: boolean
+}>
+
+/** The test operator layer, with the changes of `options` to its `telemetry` and `server-entry` rows. */
+function releaseOperator(
+  layerOptions: Parameters<typeof operatorLayer>[0],
+  options: ReleaseOptions,
+): unknown {
+  const layer = operatorLayer(layerOptions) as { ops: Array<{ id: string; config: object }> }
+  return {
+    ops: layer.ops.map(op => {
+      if (op.id === 'telemetry' && options.budgets !== undefined) {
+        const config = op.config as { budgets: Readonly<Record<string, number>> }
+        return { ...op, config: { ...config, budgets: { ...config.budgets, ...options.budgets } } }
+      }
+      if (op.id === 'server-entry' && options.runEntries === true)
+        return {
+          ...op,
+          config: {
+            ...op.config,
+            historyKinds: ['message.user', 'message.assistant', 'run.started', 'run.terminal'],
+          },
+        }
+      return op
+    }),
+  }
+}
+
 /**
  * Runs the release tree in this process, with the real rows of `./cordis`, and gives `scenario` the
- * CLI. `omit` leaves rows out of the distribution. The Model route is the local gateway: every call
- * is refused, so the Run that an input starts ends the same way each time.
+ * CLI. `omit` leaves rows out of the distribution. The Model route is the local gateway: by default
+ * every call is refused, so the Run that an input starts ends the same way each time.
  */
 async function withRelease<T>(
   omit: readonly string[],
   scenario: (tools: Tools) => Promise<T>,
+  options: ReleaseOptions = {},
 ): Promise<{ value: T; run: Run }> {
   const dir = newScratch('telemetry-measure-')
   const port = await freePort()
   const home = join(dir.base, 'home-alice')
   const controller = new AbortController()
   const records: S0Record[] = []
-  const gateway = await startModelGateway()
+  const gateway = await startModelGateway(options.answer)
   gateway.trustInProcess()
   const finished: Promise<Run> = runServe({
     distribution: { ...release, rows: release.rows.filter(row => !omit.includes(row.id)) },
-    operator: operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: gateway.url }),
+    operator: releaseOperator(
+      { storageRoot: dir.storageRoot, port, modelRoute: gateway.url },
+      options,
+    ),
     plugins: { ...cordis },
     stateRoot: dir.stateRoot,
     stop: controller.signal,
@@ -500,6 +552,212 @@ describe('W6: the directory reads of the scanner, and a record without a tenant'
       expect(report.droppedBy).toEqual({ invalid: 1 })
       expect(report.dropped).toBe(1)
       expect(written.filter(record => record.signal !== 'log')).toEqual([])
+    },
+  )
+})
+
+/** The bytes a stream received, in order. */
+function byteSink(): Readonly<{ stream: Writable; bytes(): Buffer }> {
+  const chunks: Buffer[] = []
+  const stream = new Writable({
+    write(chunk: Buffer, _encoding, callback) {
+      chunks.push(chunk)
+      callback()
+    },
+  })
+  return { stream, bytes: () => Buffer.concat(chunks) }
+}
+
+const g3Event = defineEvent({
+  owner: 'test',
+  name: 'omne.test.g3',
+  version: 1,
+  level: 'warn',
+  schema: { code: { kind: 'enum', values: ['ok', 'fault'] } },
+})
+
+describe('G3: a record with an error object or a secret-like text, through the real record writer', () => {
+  it(
+    'is refused as dropped(invalid), counted in shutdown-result, and its text is not in the bytes written',
+    { timeout: 60_000 },
+    async () => {
+      const SECRET = 'sk-live-G3-0d4f9a7c1e2b'
+      const stdout = byteSink()
+      const stderr = byteSink()
+      const answers: unknown[] = []
+      const dir = newScratch('telemetry-g3-')
+      live.push(() => dir.remove())
+      const result = await runServe({
+        distribution: {
+          rows: [
+            { id: 'telemetry', plugin: 'telemetry', config: TELEMETRY_ROW_CONFIG },
+            { id: PORT_PROBE, plugin: 'portProbe', config: {} },
+          ],
+        },
+        plugins: {
+          stubPlugin: cordis.stubPlugin,
+          portProbe: portProbeRow(port => {
+            const emitter = port.bind({
+              scope: systemScope(),
+              component: 'g3-probe',
+              instance: processInstance,
+            })
+            // The field is an enum, not a reference: a value outside it is refused whole.
+            answers.push(
+              emitter.event(g3Event, { code: new Error(SECRET) as never }),
+              emitter.event(g3Event, { code: `Bearer ${SECRET}` as never }),
+              emitter.event(g3Event, { code: 'fault' }),
+            )
+          }),
+        },
+        entryObjects: [],
+        stateRoot: dir.stateRoot,
+        stop: AbortSignal.abort('test: stop'),
+        readinessTimeoutMs: 5000,
+        shutdownDeadlineMs: 2000,
+        write: recordLineWriter(stdout.stream),
+        stderr: lineWriter(stderr.stream),
+      })
+      expect(result.exitCode).toBe(0)
+      expect(answers).toEqual([
+        { kind: 'dropped', reason: 'invalid' },
+        { kind: 'dropped', reason: 'invalid' },
+        { kind: 'admitted' },
+      ])
+
+      const bytes = stdout.bytes()
+      expect(bytes.includes(Buffer.from(SECRET, 'utf8'))).toBe(false)
+      expect(stderr.bytes().includes(Buffer.from(SECRET, 'utf8'))).toBe(false)
+      expect(bytes.at(-1)).toBe(0x0a)
+      const lines = bytes.toString('utf8').split('\n').slice(0, -1)
+      const records = lines.map(line => JSON.parse(line) as S0Record)
+      // The positive control: the valid record of the same definition was written.
+      expect(named(records, 'omne.test.g3', 'event').map(record => record['fields'])).toEqual([
+        { code: 'fault' },
+      ])
+      expect(records.at(-1)).toMatchObject({
+        kind: 'shutdown-result',
+        telemetry: { kind: 'closed', admitted: 1, dropped: 2, droppedBy: { invalid: 2 } },
+      })
+    },
+  )
+})
+
+/** One SSE body: the events, then `[DONE]`. */
+const sse = (events: readonly unknown[]): string =>
+  `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`
+
+/** Every Model call is answered with one short text, so a Run ends with its terminal entry. */
+const textAnswer: GatewayScript = ({ body }) => ({
+  status: 200,
+  contentType: 'text/event-stream',
+  body: sse([
+    {
+      model: (JSON.parse(body) as { model?: string }).model ?? 'unknown',
+      provider: 'OpenAI',
+      choices: [{ delta: { content: 'done' } }],
+    },
+    { choices: [{ delta: {}, finish_reason: 'stop' }] },
+  ]),
+})
+
+/** The segment starts that have no end with the same trace and span. */
+function unended(records: readonly S0Record[]): S0Record[] {
+  const key = (record: S0Record) => `${String(record['trace'])}/${String(record['span'])}`
+  const ends = new Set(
+    telemetryOf(records)
+      .filter(record => record['signal'] === 'segment-end')
+      .map(key),
+  )
+  return telemetryOf(records).filter(
+    record => record['signal'] === 'segment-start' && !ends.has(key(record)),
+  )
+}
+
+/**
+ * Long enough for every segment of one Run. A segment that stays open outlives it while the test
+ * waits for the ends, so the wait times out and the close report would count it under `expired`.
+ */
+const G7_SEGMENT_LIFETIME_MS = 5000
+
+/** The Run of a `run.terminal` entry in the `--json` history, with its outcome; undefined before it. */
+function terminalOf(history: string): { run: string; outcome: string } | undefined {
+  try {
+    const parsed = JSON.parse(history) as {
+      body?: { entries?: Array<{ kind: string; payload: { terminal?: unknown } }> }
+    }
+    const entry = parsed.body?.entries?.find(candidate => candidate.kind === 'run.terminal')
+    return entry?.payload.terminal as { run: string; outcome: string } | undefined
+  } catch {
+    return undefined
+  }
+}
+
+describe('G7: the segment pairs of a real Run are released when the Run ends', () => {
+  it(
+    'every segment start of the run has its end, and the close report counts no segment open at close',
+    { timeout: 120_000 },
+    async () => {
+      const { value, run } = await withRelease(
+        [],
+        async tools => {
+          const started = await oneRun(tools)
+          let terminal: { run: string; outcome: string } | undefined
+          await until(
+            async () => {
+              const read = await tools.cli(['read-history', '--session', started.session, '--json'])
+              terminal = read.status === 0 ? terminalOf(read.stdout) : undefined
+              return terminal !== undefined
+            },
+            'the Run to reach its terminal entry (run.terminal in the history)',
+            60_000,
+          )
+          // The segments still in flight end within this wait; it returns as soon as every start
+          // written so far has its end. A segment that stays open never has one.
+          await until(
+            () => unended(tools.records).length === 0,
+            'every segment start of the run to have its end',
+            3 * G7_SEGMENT_LIFETIME_MS,
+          )
+          return { ...started, terminal }
+        },
+        {
+          answer: textAnswer,
+          budgets: { maxSegmentLifetimeMs: G7_SEGMENT_LIFETIME_MS },
+          runEntries: true,
+        },
+      )
+      expect(value.terminal).toMatchObject({ outcome: 'completed' })
+      const runId = value.terminal?.run ?? ''
+      expect(runId).toMatch(/^run_/)
+
+      // The segments of the Run: the Agent passes name it as their attempt, and the Session
+      // operations that start and feed it ran in this tree.
+      const starts = telemetryOf(run.records).filter(r => r['signal'] === 'segment-start')
+      const passes = starts.filter(
+        record =>
+          record['owner'] === 'agent' && JSON.stringify(record['attempt'] ?? null).includes(runId),
+      )
+      expect(passes.map(record => record['name'])).toContain('omne.agent.pass.run')
+      expect(starts.map(record => record['name'])).toEqual(
+        expect.arrayContaining(['omne.session.accept', 'omne.session.startRun']),
+      )
+
+      // The provider's count: no place was still held at the close.
+      const report = run.records.find(record => record.kind === 'shutdown-result')?.['telemetry']
+      expect(report).toMatchObject({ kind: 'closed', pending: 0, flush: 'completed-to-boundary' })
+      const droppedBy = (report as { droppedBy: Readonly<Record<string, number>> }).droppedBy
+      expect(droppedBy).not.toHaveProperty('expired')
+      expect(droppedBy).not.toHaveProperty('capacity')
+      // The records: each start has the end of the same trace and span.
+      expect(unended(run.records)).toEqual([])
+      const ends = telemetryOf(run.records).filter(r => r['signal'] === 'segment-end')
+      expect(ends).toHaveLength(starts.length)
+      // Every record the runtime admitted reached stdout: the runtime writes the generation on
+      // each record it forms, and the bridge's direct writes carry none.
+      expect((report as { admitted: number }).admitted).toBe(
+        telemetryOf(run.records).filter(record => 'generation' in record).length,
+      )
     },
   )
 })

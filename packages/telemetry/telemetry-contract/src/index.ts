@@ -22,6 +22,7 @@ export {
   DISCARD_REASONS,
   isSegment,
   type Admission,
+  type CloseDropReason,
   type CloseReport,
   type DiscardReason,
   type DropReason,
