@@ -1,13 +1,90 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { settlementFixture } from './settlement-values.ts'
+import { refProcess, settlementFixture } from './settlement-values.ts'
 import { auditQueues } from './start-values.ts'
-import { ok, operationId, evidence } from './runtime-values.ts'
+import { ok, operationId, evidence, text } from './runtime-values.ts'
 
 beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }))
 afterEach(async () => {
   vi.useRealTimers()
   await auditQueues()
 })
+
+it.each(['content', 'attachments', 'original-source', 'original-summary', 'process'] as const)(
+  'keeps raw custody when %s still references it at settlement',
+  async location => {
+    const f = await settlementFixture({
+      value: raw => {
+        const reference = {
+          kind: 'file' as const,
+          id: text('raw-reference', '').id,
+          visibility: { toHuman: true, toModel: true },
+          ref: raw.content,
+          transcript: null,
+        }
+        return {
+          content: location === 'content' ? [reference] : [text('answer', 'done')],
+          data: { kind: 'none' },
+          attachments: location === 'attachments' ? [raw.content] : [],
+          original:
+            location === 'original-source' || location === 'original-summary'
+              ? {
+                  kind: 'offloaded',
+                  source:
+                    location === 'original-source'
+                      ? raw.content
+                      : { ...raw.content, storage: 'external', key: 'independent-body' },
+                  summary:
+                    location === 'original-summary' ? [reference] : [text('summary', 'short')],
+                }
+              : { kind: 'none' },
+        }
+      },
+      process: raw =>
+        location === 'process'
+          ? [
+              {
+                ...refProcess('raw-history'),
+                content: {
+                  kind: 'file',
+                  id: text('raw-process', '').id,
+                  visibility: { toHuman: true, toModel: false },
+                  ref: raw.content,
+                  transcript: null,
+                },
+              },
+            ]
+          : [],
+    })
+    const before = await f.records()
+    const raw = before.find(
+      record => record.kind === 'material' && record.material.purpose === 'raw',
+    )
+    if (raw?.kind !== 'material') throw new Error('fixture has no raw material')
+    const preparation = before.find(
+      record =>
+        record.kind === 'material-use' &&
+        record.use.kind === 'preparation' &&
+        record.use.operation === raw.material.writeOperation,
+    )
+    expect(preparation).toBeDefined()
+    expect(ok(await f.preserve()).phase).toBe('settled')
+    const after = await f.records()
+    expect(after).toContainEqual(preparation)
+    expect(
+      after.flatMap(record =>
+        record.kind === 'material-cleanup' ? [record.cleanup.material] : [],
+      ),
+    ).not.toContainEqual(raw.material.material)
+    const commit = f.commits.find(input =>
+      input.writes.some(write => write.kind === 'put' && write.record.kind === 'result'),
+    )
+    expect(commit).toBeDefined()
+    expect(commit?.writes).not.toContainEqual({
+      kind: 'delete',
+      key: `material-use:preparation:${raw.material.writeOperation}`,
+    })
+  },
+)
 
 it('adopts the final channels and releases envelope and replaced raw preparation in the same result commit', async () => {
   const f = await settlementFixture()
