@@ -21,7 +21,6 @@ export function deleteMaterial(facts: MaterialDelete, port: ParticipantPort): Pa
       return conflict()
     const receipt: JsonValue = JSON.parse(text(current['receipt']))
     if (text(current['state']) === 'deleted') return participated({ kind: 'deleted', receipt })
-    if (facts.intent === 'material-fence') return participated({ kind: 'pending' })
     port.execute(
       `DELETE FROM tl_material_chunk WHERE tenant = ? AND call = ? AND material = ? AND idx IN
       (SELECT idx FROM tl_material_chunk WHERE tenant = ? AND call = ? AND material = ? ORDER BY idx LIMIT 128)`,
@@ -39,7 +38,6 @@ export function deleteMaterial(facts: MaterialDelete, port: ParticipantPort): Pa
     )
     return participated({ kind: 'deleted', receipt })
   }
-  if (facts.intent !== 'material-fence') return conflict()
   if (current === undefined)
     port.execute(
       `INSERT INTO tl_material

@@ -12,6 +12,7 @@ import { mintEvidence } from './evidence.ts'
 import type { Decision, Mint, Snapshot } from './ledger-decider.ts'
 import { sampleMaterialTime } from './ledger-material-custody.ts'
 import { materialExpirationWrites } from './ledger-material-expiration.ts'
+import { createMaterialReclaimer } from './ledger-material-reclaim.ts'
 import type { LedgerDomain, LedgerWrite } from './ledger-store.ts'
 
 type MaintenanceTransaction = <T>(
@@ -20,6 +21,13 @@ type MaintenanceTransaction = <T>(
   decide: (snapshot: Snapshot, mint: Mint) => Promise<Decision<T>>,
   unknown: Outcome<T, ToolFailure>,
 ) => Reply<T>
+
+export type MaterialMaintenancePorts<P> = Readonly<{
+  materials: ToolLedgerPorts<P>['materials']
+  entry(input: unknown): Reply<CallInput<P>>
+  authorize(input: CallInput<P>): Reply<void>
+  transact: MaintenanceTransaction
+}>
 
 async function expireMaterials<P>(
   snapshot: Snapshot,
@@ -72,14 +80,10 @@ async function expireMaterials<P>(
 }
 
 export function createLedgerMaterialMaintenance<P>(
-  ports: Readonly<{
-    materials: ToolLedgerPorts<P>['materials']
-    entry(input: unknown): Reply<CallInput<P>>
-    authorize(input: CallInput<P>): Reply<void>
-    transact: MaintenanceTransaction
-  }>,
+  ports: MaterialMaintenancePorts<P>,
 ): ToolLedgerMaintenance<P> {
   return {
+    reclaim: createMaterialReclaimer(ports),
     async expire(supplied) {
       const checked = await ports.entry(supplied)
       if ('failure' in checked) return checked

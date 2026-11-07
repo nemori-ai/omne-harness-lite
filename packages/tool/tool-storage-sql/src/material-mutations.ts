@@ -120,20 +120,19 @@ export async function eraseMaterial(
     digest: identity.ok.digest,
   }
   const facts = { ...input.address, operation: input.operation, digest: identity.ok.digest }
-  let answer = await io.commit(input.at, input.operation, {
+  const answer = await io.commit(input.at, input.operation, {
     ...facts,
-    intent: 'material-fence',
+    intent: 'material-erase',
     receipt,
   })
-  while ('ok' in answer && answer.ok['kind'] === 'pending')
-    answer = await io.commit(input.at, input.operation, { ...facts, intent: 'material-prune' })
   if ('failure' in answer) return answer
+  if (answer.ok['kind'] === 'pending') return succeed({ kind: 'pending' as const })
   const observed = canonicalValue(answer.ok['receipt']),
     expected = canonicalValue(receipt)
   return answer.ok['kind'] === 'deleted' &&
     'ok' in observed &&
     'ok' in expected &&
     observed.ok.text === expected.ok.text
-    ? succeed(receipt)
+    ? succeed({ kind: 'deleted' as const, receipt })
     : materialUnavailable('invalid material deletion receipt')
 }

@@ -96,8 +96,7 @@ function matchesWrite(current: Row, facts: MaterialWrite, state: string): boolea
 }
 
 export function commitMaterial(facts: MaterialFacts, port: ParticipantPort): ParticipantReply {
-  if (facts.intent === 'material-fence' || facts.intent === 'material-prune')
-    return deleteMaterial(facts, port)
+  if (facts.intent === 'material-erase') return deleteMaterial(facts, port)
   const key = materialKey(facts)
   const current = oneRow(
     port,

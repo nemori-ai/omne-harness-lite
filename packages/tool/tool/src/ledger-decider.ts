@@ -78,6 +78,7 @@ import {
 
 /** The records of one domain, indexed for the deciders and the read projections. */
 export type Snapshot = Readonly<{
+  materialMaintenanceAfter: ToolOperationId | null
   bodyExpirations: ReadonlyMap<string, BodyExpirationRecord>
   bodyPreparations: ReadonlyMap<string, BodyPreparationRecord>
   resultPolicies: ReadonlyMap<string, ResultPolicyRecord>
@@ -113,6 +114,7 @@ export function snapshotOf(
   const resultPreparations = new Map<string, ResultPreparationRecord>()
   const materials = new Map<string, MaterialRecord>()
   const materialUses = new Map<string, MaterialUseRecord>()
+  let materialMaintenanceAfter: ToolOperationId | null = null
   const materialCleanup = new Map<string, MaterialCleanupRecord>()
   let materialTime: MaterialTimeRecord | null = null
   const releases = new Map<string, EnvironmentReleaseRecord>()
@@ -142,6 +144,9 @@ export function snapshotOf(
         break
       case 'result-preparation':
         resultPreparations.set(record.preparation.id, record.preparation)
+        break
+      case 'material-maintenance':
+        materialMaintenanceAfter = record.after
         break
       case 'material':
         materials.set(record.material.writeOperation, record.material)
@@ -202,6 +207,7 @@ export function snapshotOf(
     resultPreparations,
     materials,
     materialUses,
+    materialMaintenanceAfter,
     materialCleanup,
     materialTime,
     domain,

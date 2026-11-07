@@ -46,6 +46,10 @@ export type ToolMaterialSeal = Readonly<{
   evidence: DurableEvidence
 }>
 
+export type ToolMaterialDeletion =
+  | Readonly<{ kind: 'pending' }>
+  | Readonly<{ kind: 'deleted'; receipt: DurableEvidence }>
+
 /** Immutable bytes and a persistent object fence. Uses, TTL and deletion authority belong to Tool. */
 export interface ToolMaterialStore<P> {
   write(
@@ -78,7 +82,7 @@ export interface ToolMaterialStore<P> {
         material: ToolMaterialRef
         authorization: DurableEvidence
       }>,
-  ): Reply<DurableEvidence>
+  ): Reply<ToolMaterialDeletion>
   inspectErase(
     input: Mutation<P> & Readonly<{ material: ToolMaterialRef }>,
   ): Reply<

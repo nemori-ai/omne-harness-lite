@@ -302,6 +302,7 @@ export type QueueReleaseRecord = Readonly<{ call: ToolCallId; basis: ReleaseBasi
 export type HostRecord = Readonly<{ key: string; value: unknown }>
 
 export type LedgerRecord =
+  | Readonly<{ kind: 'material-maintenance'; after: ToolOperationId }>
   | Readonly<{ kind: 'body-expiration'; expiration: BodyExpirationRecord }>
   | Readonly<{ kind: 'body-preparation'; body: BodyPreparationRecord }>
   | Readonly<{ kind: 'result-policy'; policy: ResultPolicyRecord }>
@@ -330,6 +331,8 @@ export type LedgerRecord =
 export function recordKey(record: LedgerRecord): string {
   if (isQueueRecord(record)) return queueRecordKey(record)
   switch (record.kind) {
+    case 'material-maintenance':
+      return 'material-maintenance'
     case 'body-expiration':
       return `body-expiration:${JSON.stringify([record.expiration.result, record.expiration.bodyId])}`
     case 'body-preparation':

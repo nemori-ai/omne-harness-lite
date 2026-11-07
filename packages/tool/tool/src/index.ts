@@ -7,6 +7,7 @@ export type {
   ToolLedgerQueues,
   ToolLedgerMaintenance,
   MaterialMaintenanceProgress,
+  MaterialReclamationProgress,
   ToolLedgerFacts,
   ToolLedgerPorts,
   ToolControlSubjects,

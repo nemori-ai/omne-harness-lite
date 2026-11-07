@@ -172,11 +172,11 @@ W3-A 按[材料协议](../tool-contract/docs/material-protocol.md)拆清实现�
 
 材料命令沿同一 `tool` 参加者执行。002 新增 `tl_material` 与 `tl_material_chunk`，依赖 001，不修改 001 的迁移文件。旧 raw/retain 迁移归 W3-C，不由新增空表自动完成。
 
-同一 tenant/call/material 的 begin 固定原写操作与输入摘要。chunk 仅接受原输入，不覆盖异值分块。seal 核完整长度及 SHA-256。fence 持久记录原删除操作及授权摘要，禁止后续 begin/chunk/seal。prune 每次最多删 128 块，剩余为零才记录 deleted，并解除载荷描述。对象围栏仍保留。
+同一 tenant/call/material 的 begin 固定原写操作与输入摘要。chunk 仅接受原输入，不覆盖异值分块。seal 核完整长度及 SHA-256。material-erase 首次持久记录原删除操作及授权摘要，禁止后续 begin/chunk/seal。后续同操作每次最多删 128 块，剩余为零才记录 deleted，并解除载荷描述。对象围栏仍保留。
 
 `tool.material.read` 采用 domain-serial，最多读取两行。每次字节读取限于一个分块且最多 65536 字节，通过 SQL substr 取范围。这个物理 IO 上限不定义模型的正文预算或 Tools.read_result 的语义页。未知、未封存、已围栏及损坏分别返回内部状态，由公开适配器按契约全化。
 
-当前已实现 worker、读 handler 与公开材料仓适配器。Tool 的资格核验、用途、时间水位、页租约和生产装配尚未完成。TTL 和删除授权仍归 Tool；SQL worker 不判断业务期限。
+当前已实现 worker、读 handler 与公开材料仓适配器。TTL、用途、资格及删除授权归 Tool；SQL worker 不判断业务期限。生产自动维护的索引与调度尚未完成。
 
 
 ## W3 公开材料仓
@@ -187,4 +187,6 @@ write 在第一次异步目录查询前复制字节及输入元数据。begin �
 
 inspect 核原写操作；inspectErase 核原删除操作。未封存、完整封存、持久围栏和删除完成分别返回对应状态。来自 SQL 的状态、seal 与字节页必须经解析，异常形状返回 unavailable，不猜测冲突或已删除。物理字节缺席、未准备完成、已围栏或损坏不能返回空成功页。仅材料末尾可以返回空页及 next=null。
 
-上述为字节仓行为。完整正文到期、语义页、用途解除与回收进度由 Tool 实现；当前新仓没有接入最终事实、结果结算或生产维护。
+erase 每次只提交一次 material-erase，不在适配器中循环。pending 表示围栏已建立或仍有分块；deleted 才携带完成回执。重试沿原 operation 和授权摘要推进，异操作或异授权冲突。inspectErase 不执行物理删除。
+
+上述为字节仓行为。最终事实、结果结算和正文读取已消费该仓，生产自动维护尚未接通。完整正文到期、语义页、用途解除与回收进度由 Tool 实现。

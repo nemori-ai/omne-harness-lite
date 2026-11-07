@@ -16,6 +16,7 @@ export type {
   ToolMaterialGeneration,
   ToolMaterialRef,
   ToolMaterialSeal,
+  ToolMaterialDeletion,
   ToolMaterialStore,
   ToolFinalEnvelope,
   ToolFinalPointer,

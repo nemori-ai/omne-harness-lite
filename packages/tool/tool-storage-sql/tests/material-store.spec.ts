@@ -68,6 +68,18 @@ const deletion = {
   operation: ok(decodeToolOperationId('delete-1')),
   authorization: source,
 }
+it('advances deletion in one durable step and leaves remaining chunks for the next call', async () => {
+  const { app, store } = await setup(2)
+  ok(await store.write({ ...input, bytes: new Uint8Array(258) }))
+  const before = app.faults.commits()
+  expect(ok(await store.erase(deletion))).toEqual({ kind: 'pending' })
+  expect(app.faults.commits() - before).toBe(1)
+  expect(ok(await store.erase(deletion))).toEqual({ kind: 'pending' })
+  expect(app.faults.commits() - before).toBe(2)
+  expect(ok(await store.inspectErase(deletion))).toEqual({ kind: 'pending' })
+  expect(ok(await store.erase(deletion))).toHaveProperty('kind', 'deleted')
+  expect(app.faults.commits() - before).toBe(3)
+})
 it.each([
   { ...material, label: 'caller metadata' },
   { ...material, provider: { ...provider, label: 'caller metadata' } },
@@ -102,9 +114,11 @@ it('recalls deletion and excludes late writes without conflating unknown with de
     failure: { kind: 'commit-unknown', operation: deletion.operation },
   })
   expect(ok(await store.inspectErase(deletion))).toEqual({ kind: 'pending' })
-  const receipt = ok(await store.erase(deletion))
+  const deleted = ok(await store.erase(deletion))
+  if (deleted.kind !== 'deleted') throw new Error('deletion is incomplete')
+  const receipt = deleted.receipt
   expect(ok(await store.inspectErase(deletion))).toEqual({ kind: 'deleted', receipt })
-  expect(ok(await store.erase(deletion))).toEqual(receipt)
+  expect(ok(await store.erase(deletion))).toEqual(deleted)
   expect(ok(await store.inspect(input))).toEqual({ kind: 'excluded', evidence: receipt })
   expect(await store.write({ ...input, bytes: new TextEncoder().encode('abcde') })).toEqual({
     failure: { kind: 'conflict', operation },
@@ -118,7 +132,10 @@ it('recalls deletion and excludes late writes without conflating unknown with de
 })
 it('can fence a not-yet-written object and reject another delete operation', async () => {
   const { store } = await setup()
-  const receipt = ok(await store.erase(deletion))
+  expect(ok(await store.erase(deletion))).toEqual({ kind: 'pending' })
+  const deleted = ok(await store.erase(deletion))
+  if (deleted.kind !== 'deleted') throw new Error('deletion is incomplete')
+  const receipt = deleted.receipt
   expect(ok(await store.inspect(input))).toEqual({ kind: 'excluded', evidence: receipt })
   const other = ok(decodeToolOperationId('delete-2'))
   expect(await store.inspectErase({ ...deletion, operation: other })).toEqual({

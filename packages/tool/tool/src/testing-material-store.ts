@@ -80,12 +80,12 @@ export function createMemoryToolMaterialStore<P>(): ToolMaterialStore<P> {
       const previous = deleted.get(address)
       if (previous !== undefined)
         return previous.operation === input.operation && previous.digest === digest
-          ? succeed(structuredClone(previous.receipt))
+          ? succeed({ kind: 'deleted', receipt: structuredClone(previous.receipt) })
           : fail({ kind: 'conflict', operation: input.operation })
       const receipt = { owner: 'testing-material-store', record: address, revision: '2', digest }
       deleted.set(address, { operation: input.operation, digest, receipt })
       values.delete(address)
-      return succeed(structuredClone(receipt))
+      return succeed({ kind: 'deleted', receipt: structuredClone(receipt) })
     },
     async inspectErase(input) {
       const previous = deleted.get(key(input))

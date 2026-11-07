@@ -17,10 +17,8 @@ export type MaterialBegin = MaterialWrite &
 export type MaterialChunk = MaterialWrite &
   Readonly<{ intent: 'material-chunk'; index: number; data: string }>
 export type MaterialSeal = MaterialWrite & Readonly<{ intent: 'material-seal' }>
-export type MaterialFence = MaterialWrite &
-  Readonly<{ intent: 'material-fence'; receipt: JsonValue }>
-export type MaterialPrune = MaterialWrite & Readonly<{ intent: 'material-prune' }>
-export type MaterialDelete = MaterialFence | MaterialPrune
+export type MaterialDelete = MaterialWrite &
+  Readonly<{ intent: 'material-erase'; receipt: JsonValue }>
 export type MaterialFacts = MaterialBegin | MaterialChunk | MaterialSeal | MaterialDelete
 
 export function materialAddress(value: JsonObject): MaterialAddress | null {
@@ -39,11 +37,10 @@ export function parseMaterialFacts(value: JsonObject): MaterialFacts | null {
 }
 
 function parseMaterialCommand(value: JsonObject, base: MaterialWrite): MaterialFacts | null {
-  if (value['intent'] === 'material-fence') {
+  if (value['intent'] === 'material-erase') {
     const receipt = value['receipt']
-    return receipt === undefined ? null : { ...base, intent: 'material-fence', receipt }
+    return receipt === undefined ? null : { ...base, intent: 'material-erase', receipt }
   }
-  if (value['intent'] === 'material-prune') return { ...base, intent: 'material-prune' }
   if (value['intent'] === 'material-seal') return { ...base, intent: 'material-seal' }
   if (value['intent'] === 'material-chunk') {
     const index = countOf(value, 'index')

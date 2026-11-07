@@ -284,6 +284,7 @@
 - `ToolLoadedRegistration` · `authoring.d.ts`
 - `ToolLoader` · `authoring.d.ts`
 - `ToolMaterialClock` · `materials.d.ts`
+- `ToolMaterialDeletion` · `materials.d.ts`
 - `ToolMaterialFingerprint` · `materials.d.ts`
 - `ToolMaterialGeneration` · `materials.d.ts`
 - `ToolMaterialId` · `materials.d.ts`
@@ -2126,6 +2127,12 @@ export type ToolMaterialSeal = Readonly<{
     sha256: string;
     evidence: DurableEvidence;
 }>;
+export type ToolMaterialDeletion = Readonly<{
+    kind: 'pending';
+}> | Readonly<{
+    kind: 'deleted';
+    receipt: DurableEvidence;
+}>;
 export interface ToolMaterialStore<P> {
     write(input: Mutation<P> & Readonly<{
         material: ToolMaterialRef;
@@ -2155,7 +2162,7 @@ export interface ToolMaterialStore<P> {
     erase(input: Mutation<P> & Readonly<{
         material: ToolMaterialRef;
         authorization: DurableEvidence;
-    }>): Reply<DurableEvidence>;
+    }>): Reply<ToolMaterialDeletion>;
     inspectErase(input: Mutation<P> & Readonly<{
         material: ToolMaterialRef;
     }>): Reply<Readonly<{
@@ -2802,7 +2809,7 @@ export type { SealedToolBody, ToolBodyCustody } from './body-custody.ts';
 export type { ToolBodyReader } from './body-reads.ts';
 export { toolBodyContract } from './contract.ts';
 export { decodeToolMaterialInstant } from './materials.ts';
-export type { ToolMaterialFingerprint, ToolMaterialInstant, ToolMaterialClock, ToolMaterialId, ToolMaterialGeneration, ToolMaterialRef, ToolMaterialSeal, ToolMaterialStore, ToolFinalEnvelope, ToolFinalPointer, ToolFinalCustody, } from './materials.ts';
+export type { ToolMaterialFingerprint, ToolMaterialInstant, ToolMaterialClock, ToolMaterialId, ToolMaterialGeneration, ToolMaterialRef, ToolMaterialSeal, ToolMaterialDeletion, ToolMaterialStore, ToolFinalEnvelope, ToolFinalPointer, ToolFinalCustody, } from './materials.ts';
 export { describedAdoption } from './adoption.ts';
 export type { AdoptionRules } from './adoption.ts';
 export { TOOL_IDENTITY_MAX_LENGTH, decodeToolCursor, decodeToolDeliveryId, decodeToolInstanceId, decodeToolMaterialId, decodeToolMaterialGeneration, decodeToolBodyId, decodeToolResultVersion, decodeToolRevision, decodeToolWaitId, } from './identity.ts';

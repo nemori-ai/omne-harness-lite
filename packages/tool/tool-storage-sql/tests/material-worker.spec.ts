@@ -86,23 +86,17 @@ it('rejects malformed chunks, wrong bounds and a complete stream with a wrong ha
 })
 const fence = {
   ...address,
-  intent: 'material-fence',
+  intent: 'material-erase',
   operation: 'delete-1',
   digest: 'authorization-1',
   receipt: { record: 'delete-1' },
-}
-const prune = {
-  ...address,
-  intent: 'material-prune',
-  operation: 'delete-1',
-  digest: 'authorization-1',
 }
 it('a delete fence excludes a late initial write, chunk and seal', async () => {
   const a = await app()
   expect(await commit(a, fence)).toMatchObject({ kind: 'committed' })
   for (const value of [begin, chunk(0, 'YWI='), seal])
     expect(await commit(a, value)).toMatchObject({ kind: 'rolled_back' })
-  expect(await commit(a, prune)).toMatchObject({ kind: 'committed' })
+  expect(await commit(a, fence)).toMatchObject({ kind: 'committed' })
   expect(await commit(a, begin)).toMatchObject({ kind: 'rolled_back' })
   expect(await commit(a, { ...fence, operation: 'delete-2' })).toMatchObject({
     kind: 'rolled_back',
@@ -124,7 +118,7 @@ it('deletes in bounded batches and resumes the original fence after restart', as
     expect(await commit(a, chunk(index, 'eA=='))).toMatchObject({ kind: 'committed' })
   expect(await commit(a, seal)).toMatchObject({ kind: 'committed' })
   expect(await commit(a, fence)).toMatchObject({ kind: 'committed' })
-  expect(await commit(a, prune)).toMatchObject({ kind: 'committed' })
+  expect(await commit(a, fence)).toMatchObject({ kind: 'committed' })
   expect(
     a.sqlite.inspect(domainNameOf(TENANT_A), 'SELECT COUNT(*) AS n FROM tl_material_chunk'),
   ).toEqual([{ n: 2n }])
@@ -132,11 +126,11 @@ it('deletes in bounded batches and resumes the original fence after restart', as
   const restarted = await openApp({ directory: a.directory, keep: true })
   try {
     expect(await commit(restarted, chunk(129, 'eA=='))).toMatchObject({ kind: 'rolled_back' })
-    expect(await commit(restarted, prune)).toMatchObject({
+    expect(await commit(restarted, fence)).toMatchObject({
       kind: 'committed',
       responses: [{ reply: { response: { kind: 'deleted', receipt: { record: 'delete-1' } } } }],
     })
-    expect(await commit(restarted, prune)).toMatchObject({ kind: 'committed' })
+    expect(await commit(restarted, fence)).toMatchObject({ kind: 'committed' })
     expect(
       restarted.sqlite.inspect(domainNameOf(TENANT_A), 'SELECT state, descriptor FROM tl_material'),
     ).toEqual([{ state: 'deleted', descriptor: null }])
@@ -176,12 +170,12 @@ it('rolls a failed prune back and keeps the fence effective', async () => {
   await commit(a, chunk(0, 'YWI='))
   await commit(a, fence)
   a.sqlite.failStatement(3)
-  expect(await commit(a, prune)).toMatchObject({ kind: 'rolled_back' })
+  expect(await commit(a, fence)).toMatchObject({ kind: 'rolled_back' })
   expect(
     a.sqlite.inspect(domainNameOf(TENANT_A), 'SELECT COUNT(*) AS n FROM tl_material_chunk'),
   ).toEqual([{ n: 1n }])
   expect(await commit(a, chunk(1, 'Yw=='))).toMatchObject({ kind: 'rolled_back' })
-  expect(await commit(a, prune)).toMatchObject({ kind: 'committed' })
+  expect(await commit(a, fence)).toMatchObject({ kind: 'committed' })
 })
 async function read(a: App, input: Readonly<Record<string, JsonValue>>) {
   return a.options.storage.read({

@@ -61,6 +61,8 @@ final 事件编码完整 `FinalEnvelope`，调用 final 指纹使用同一值，
 
 删除候选扫描只有定位权。Tool 在同一 call 域提交中重核全部用途结束、有效租约为空，再写删除授权和任务。该提交之后不再允许新用途或租约。byte provider 在对象顺序中先持久围栏，再删字节和载荷清单；迟到 write/seal 必须被该围栏拒绝。物理删除与 Tool 完成确认是独立步骤，均以原 key/generation/operation 恢复。
 
+`ToolMaterialStore.erase` 每次只推进一个有界持久步骤。返回 pending 表示仍未完成，只有 deleted 分支携带删除回执。`inspectErase` 仅观察原操作，不推进删除。观察到 pending 或 unknown 后，维护方重新核验资格，再以原授权和操作重试 erase；不能只轮询，也不能换操作。提供者不得在一次 erase 内循环清空任意大的对象。
+
 维护索引与相应账本写入同事务更新，扫描有界，不逐次载入无关调用历史。索引不代替本调用的权威守卫。provider 替换须保留原 adoption 的地址解析，或显式迁移；不能把缺席当作材料不存在。
 
 ## M05 有效时间

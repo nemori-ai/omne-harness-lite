@@ -91,9 +91,11 @@ it('keeps 5 MiB outside a ledger command, reads it and retains the fence across 
       expect(offset).toBe(bytes.length)
       expect(received.digest('hex')).toBe(hash)
       expect(
-        await commit({ ...erase, intent: 'material-fence', receipt: { operation: 'delete' } }),
+        await commit({ ...erase, intent: 'material-erase', receipt: { operation: 'delete' } }),
       ).toMatchObject({ kind: 'committed' })
-      expect(await commit({ ...erase, intent: 'material-prune' })).toMatchObject({
+      expect(
+        await commit({ ...erase, intent: 'material-erase', receipt: { operation: 'delete' } }),
+      ).toMatchObject({
         kind: 'committed',
         responses: [{ reply: { response: { kind: 'pending' } } }],
       })
@@ -114,11 +116,15 @@ it('keeps 5 MiB outside a ledger command, reads it and retains the fence across 
       expect(await commit({ ...write, intent: 'material-seal' })).toMatchObject({
         kind: 'rolled_back',
       })
-      expect(await commit({ ...erase, intent: 'material-prune' })).toMatchObject({
+      expect(
+        await commit({ ...erase, intent: 'material-erase', receipt: { operation: 'delete' } }),
+      ).toMatchObject({
         kind: 'committed',
         responses: [{ reply: { response: { kind: 'pending' } } }],
       })
-      expect(await commit({ ...erase, intent: 'material-prune' })).toMatchObject({
+      expect(
+        await commit({ ...erase, intent: 'material-erase', receipt: { operation: 'delete' } }),
+      ).toMatchObject({
         kind: 'committed',
         responses: [{ reply: { response: { kind: 'deleted' } } }],
       })

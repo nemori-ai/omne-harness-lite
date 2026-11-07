@@ -127,6 +127,11 @@ export type MaterialMaintenanceProgress = Readonly<{
 
 export type ToolLedgerMaintenance<P> = Readonly<{
   expire(input: CallAccess<P>): Reply<MaterialMaintenanceProgress>
+  reclaim(input: CallAccess<P>): Reply<MaterialReclamationProgress>
+}>
+
+export type MaterialReclamationProgress = Readonly<{
+  kind: 'idle' | 'blocked' | 'pending' | 'deleted'
 }>
 
 export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{

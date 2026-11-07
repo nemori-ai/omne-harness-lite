@@ -48,17 +48,16 @@ it('preserves 5 MiB through the public port and resumes an unknown deletion afte
   try {
     const initial = await openStorage(root, [TENANT_A], { maxCommandBytes: 1_048_576 })
     try {
-      let armed = true
+      let eraseSteps = 0
       const storage = {
         ...initial.storage,
         commit: async (...args: Parameters<typeof initial.storage.commit>) => {
           const result = await initial.storage.commit(...args)
           if (
-            armed &&
-            args[0].commands[0]?.facts['intent'] === 'material-prune' &&
-            result.kind === 'committed'
+            args[0].commands[0]?.facts['intent'] === 'material-erase' &&
+            result.kind === 'committed' &&
+            ++eraseSteps === 2
           ) {
-            armed = false
             return {
               kind: 'unknown',
               identity: args[0].identity,
@@ -94,6 +93,7 @@ it('preserves 5 MiB through the public port and resumes an unknown deletion afte
       }
       expect(total).toBe(bytes.length)
       expect(received.digest('hex')).toBe(digest)
+      expect(ok(await store.erase(deletion))).toEqual({ kind: 'pending' })
       expect(await store.erase(deletion)).toEqual({
         failure: { kind: 'commit-unknown', operation: deletion.operation },
       })
@@ -114,7 +114,10 @@ it('preserves 5 MiB through the public port and resumes an unknown deletion afte
       expect(await store.write({ ...input, bytes })).toEqual({
         failure: { kind: 'conflict', operation: input.operation },
       })
-      const receipt = ok(await store.erase(deletion))
+      expect(ok(await store.erase(deletion))).toEqual({ kind: 'pending' })
+      const deleted = ok(await store.erase(deletion))
+      if (deleted.kind !== 'deleted') throw new Error('deletion is incomplete')
+      const receipt = deleted.receipt
       expect(ok(await store.inspectErase(deletion))).toEqual({ kind: 'deleted', receipt })
       expect(ok(await store.inspect(input))).toEqual({ kind: 'excluded', evidence: receipt })
       expect(await store.read({ ...access, material, offset: '0', maxBytes: 1 })).toMatchObject({
