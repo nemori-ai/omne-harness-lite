@@ -12,6 +12,7 @@ import {
   ABORT,
   CALL,
   CALL_FAULTS,
+  CALL_RELEASE,
   CALL_SHUTDOWN,
   CALL_TWICE,
   CONTINUE,
@@ -84,6 +85,10 @@ describe('continue: invoke, then continueWithInput at the generation of that mom
 
 describe('call-shutdown: invoke, cancel and closeAll', () => {
   it('P1–P14 hold, P13 above all', () => holds(CALL_SHUTDOWN), EXPLORE_MS)
+})
+
+describe('call-release: invoke, cancel and release of the key', () => {
+  it('P1–P16 hold, P16 above all', () => holds(CALL_RELEASE), EXPLORE_MS)
 })
 
 describe('continue-shutdown: invoke, then continueWithInput, drop, closeAll', () => {

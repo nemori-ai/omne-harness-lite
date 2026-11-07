@@ -156,6 +156,17 @@ export const CONTINUE: Scenario = {
 }
 
 /**
+ * As `call`, with a `release` of the key: wherever the close of the connection lands, during the
+ * build the call started, between its build and its send, or after the send, nothing goes to the
+ * transport of the closed connection after it, a request or a cancel (P16, MC-10).
+ */
+export const CALL_RELEASE: Scenario = {
+  ...CALL,
+  name: 'call-release',
+  releases: 1,
+}
+
+/**
  * As `continue`, with `closeAll`: a continuation in flight at the shutdown answers as one that
  * starts after it, whatever step it waited at (P13 at the answer); the step after the store read
  * would refuse it with `unknown` once the shutdown closed its connection.

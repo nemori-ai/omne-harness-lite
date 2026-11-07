@@ -80,6 +80,8 @@ import {
   lateChanged,
   lostOnUsableFailure,
   sendsAfterShutdown,
+  sendsOnRefusing,
+  closeNotAtOnce,
   sentAfterShutdown,
   sentMismatch,
   staleLoseChanged,
@@ -492,6 +494,10 @@ class Run implements RunView, CallDesk, ReservationDesk {
   /** How the failures of requests on a ready connection ended (`failureEnding`). */
   readonly failureEndings = new Set<string>()
   shutAsked = false
+  /** The `seq` at which the close of each key began: transports opened before it refuse (P16). */
+  private readonly closedSince = new Map<string, number>()
+  /** The generations lost by `lose` on a current connection, as `key@generation` (P16). */
+  private readonly lostGenerations = new Set<string>()
   /** Indices of the calls made during the current step that were allowed to throw. */
   offered: number[] = []
   /** Set when the run is driven to rest: no throws, no deviations from then on. */
@@ -637,13 +643,16 @@ class Run implements RunView, CallDesk, ReservationDesk {
             pending.bound,
             pending.call.site,
             this.isLate(pending) ? 'late' : '',
+            this.closedOver(pending.call) ? 'closed' : '',
           ].join('|'),
         )
         .sort(),
       timers: this.timers.map(timer => timer.name),
       handles: handles.map(item => `${item.name}:${Math.min(item.releases, 2)}`),
       processes: processes.map(item => `${item.name}:${Math.min(item.stops, 1)}:${item.lastStop}`),
-      transports: transports.map(item => `${item.name}:${Math.min(item.closes, 1)}`),
+      transports: transports.map(
+        item => `${item.name}:${Math.min(item.closes, 1)}:${this.refuses(item.name) ? 'r' : ''}`,
+      ),
       requests: requests.map(item => `${item.id}:${Math.min(item.cancels, 2)}`),
       reservations: this.records.map(
         item => `${item.op}:${item.phase}:${Math.min(item.endings, 2)}`,
@@ -833,10 +842,12 @@ class Run implements RunView, CallDesk, ReservationDesk {
       subject: request.subject,
       context: request.context ?? contexts.getStore(),
       site: siteOf(),
+      transport: request.transport,
     }
     this.seq += 1
     this.report(connectsAfterShutdown(this, call))
     this.report(sendsAfterShutdown(this, call))
+    this.report(sendsOnRefusing(this, call))
     const op = this.ops.find(item => item.name === call.context?.op)
     this.report(crossesKeys(this, call, op?.key))
     if (op !== undefined) {
@@ -1062,11 +1073,45 @@ class Run implements RunView, CallDesk, ReservationDesk {
     )
   }
 
+  refuses(transport: string): boolean {
+    const record = this.ledger.transports.find(item => item.name === transport)
+    if (record === undefined) return false
+    const since = this.closedSince.get(record.key)
+    return (
+      (since !== undefined && record.opened < since) ||
+      this.lostGenerations.has(`${record.key}@${record.generation}`)
+    )
+  }
+
+  /** A pending `transports.open` whose key began closing after it was called: P16 for what it hands over. */
+  private closedOver(call: ScriptedPortCall): boolean {
+    const since = this.closedSince.get(call.key)
+    return call.port === 'transports.open' && since !== undefined && call.seq < since
+  }
+
+  /**
+   * The close of `keys` begins now, by `start`: transports opened before it refuse requests from
+   * now on, and no connection of the keys takes requests once `start` returned (P16).
+   */
+  private close<T>(
+    op: Op,
+    keys: readonly ModelKey[],
+    start: () => Promise<T>,
+    summary: (value: T) => string,
+  ): void {
+    for (const key of keys) this.closedSince.set(key.name, this.seq)
+    this.invoke(op, start, summary)
+    this.report(closeNotAtOnce(op, this.observe(), new Set(keys.map(key => key.name))))
+  }
+
   private release(name: string): void {
     const key = this.keyNamed(name)
     this.spend(this.left.releases, name)
-    this.invoke(
+    this.close(
       this.newOp('release', name),
+      this.keys.filter(
+        other => other.access.tenant === key.access.tenant && other.holding === key.holding,
+      ),
       () => this.table.close(key.access.tenant, key.holding),
       (report: ReleaseReport) => JSON.stringify(report),
     )
@@ -1074,8 +1119,9 @@ class Run implements RunView, CallDesk, ReservationDesk {
 
   private closeAll(): void {
     this.shutAsked = true
-    this.invoke(
+    this.close(
       this.newOp('closeAll', undefined),
+      this.keys,
       () => this.table.closeAll(),
       (closed: readonly ClosedEndpoint[]) => JSON.stringify(closed.map(item => item.process)),
     )
@@ -1089,6 +1135,8 @@ class Run implements RunView, CallDesk, ReservationDesk {
     const stale = !ensured.connection.isCurrent(ensured.generation)
     const before = this.observe()
     const op = this.newOp('lose', answered?.key)
+    if (!stale && answered?.key !== undefined)
+      this.lostGenerations.add(`${answered.key}@${ensured.generation}`)
     this.invoke(op, () => loseOn(this.table, ensured, STREAM_BROKEN), String)
     await drain()
     if (stale) this.report(staleLoseChanged(op, before, this.observe()))
@@ -1101,6 +1149,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
     const current = this.table.current(key.connectionKey)
     if (current === undefined) throw new Nondeterminism(`no current connection of ${name} to drop`)
     this.left.drops -= 1
+    this.lostGenerations.add(`${name}@${current.generation}`)
     this.invoke(this.newOp('lose', name), () => loseOn(this.table, current, STREAM_BROKEN), String)
   }
 

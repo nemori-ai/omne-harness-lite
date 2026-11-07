@@ -53,6 +53,41 @@ async function admitted(w: World, endpoint: EndpointRef, access: Access<Principa
 
 type Principal = Readonly<{ id: string }>
 
+/**
+ * Two connections of one tenant and holding on one adoption revision, one for each peer account:
+ * an adoption view that keeps one revision text while the credential binding changes. The
+ * contract forbids this (AV5); the key must still keep the accounts apart.
+ */
+async function twoAccounts() {
+  const w = world({ script: [{ discover: peer }, { discover: peer }] })
+  const base = adoptHttp(w, files)
+  w.credentials.store({
+    tenant: alice.tenant,
+    holding: files.holding,
+    binding: credentialBindingOf('other'),
+    secret: 's2',
+  })
+  let current: AdoptedEndpoint = base
+  const adoption: AdoptionView<Principal, string> = {
+    endpoints: async () => ({ ok: [current] }),
+    endpoint: async () => ({ ok: current }),
+  }
+  const ports = { ...w.ports, adoption }
+  const table = createConnectionTable(ports, w.config)
+  const first = await admit(ports, alice, files)
+  if (first.kind !== 'admitted') throw new Error('not admitted')
+  const ours = await table.ensure(first.endpoint, alice)
+  current = {
+    ...base,
+    settings: { ...base.settings, credential: VALUE(credentialBindingOf('other')) },
+  }
+  const second = await admit(ports, alice, files)
+  if (second.kind !== 'admitted') throw new Error('not admitted')
+  const theirs = await table.ensure(second.endpoint, alice)
+  if (!('ok' in ours) || !('ok' in theirs)) throw new Error('ensure failed')
+  return { w, table, ours: ours.ok, theirs: theirs.ok }
+}
+
 function tableOf(w: World): ConnectionTable<Principal> {
   return createConnectionTable(w.ports, w.config)
 }
@@ -659,38 +694,21 @@ describe('ensure: the connection key (invariant 1)', () => {
   })
 
   it('does not share a connection between two peer accounts of the same adoption revision', async () => {
-    // An adoption view that keeps one revision text while the credential binding changes. The
-    // contract forbids this (AV5); the key must still keep the accounts apart.
-    const w = world({ script: [{ discover: peer }, { discover: peer }] })
-    const base = adoptHttp(w, files)
-    w.credentials.store({
-      tenant: alice.tenant,
-      holding: files.holding,
-      binding: credentialBindingOf('other'),
-      secret: 's2',
-    })
-    let current: AdoptedEndpoint = base
-    const adoption: AdoptionView<Principal, string> = {
-      endpoints: async () => ({ ok: [current] }),
-      endpoint: async () => ({ ok: current }),
-    }
-    const ports = { ...w.ports, adoption }
-    const table = createConnectionTable(ports, w.config)
-    const first = await admit(ports, alice, files)
-    if (first.kind !== 'admitted') throw new Error('not admitted')
-    const ours = await table.ensure(first.endpoint, alice)
-    current = {
-      ...base,
-      settings: { ...base.settings, credential: VALUE(credentialBindingOf('other')) },
-    }
-    const second = await admit(ports, alice, files)
-    if (second.kind !== 'admitted') throw new Error('not admitted')
-    const theirs = await table.ensure(second.endpoint, alice)
-    if (!('ok' in ours) || !('ok' in theirs)) throw new Error('ensure failed')
-    expect(transportOf(theirs.ok)).not.toBe(transportOf(ours.ok))
-    expect(theirs.ok.catalogKey.account).toEqual({ kind: 'credential', binding: 'other' })
-    expect(ours.ok.catalogKey.account).toEqual({ kind: 'credential', binding: 'main' })
+    const { w, ours, theirs } = await twoAccounts()
+    expect(transportOf(theirs)).not.toBe(transportOf(ours))
+    expect(theirs.catalogKey.account).toEqual({ kind: 'credential', binding: 'other' })
+    expect(ours.catalogKey.account).toEqual({ kind: 'credential', binding: 'main' })
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
+  })
+
+  it('a close of the holding refuses requests on each of its connections at once, not one after the other (MC-10)', async () => {
+    const { table, ours, theirs } = await twoAccounts()
+    const closing = table.close(alice.tenant, files.holding)
+    const refused = { failure: { kind: 'not-sent', cause: 'connection-unavailable' } }
+    expect(ours.wire()).toEqual(refused)
+    expect(theirs.wire()).toEqual(refused)
+    expect(table.currentOf(alice.tenant, files.holding)).toEqual([])
+    expect(await closing).toEqual({ kind: 'released', process: 'no-process' })
   })
 
   it('closes the connection of an earlier adoption revision before using the new one', async () => {

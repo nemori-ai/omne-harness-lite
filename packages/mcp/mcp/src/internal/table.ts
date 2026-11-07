@@ -457,9 +457,9 @@ export function createConnectionTable<P, S>(
   async function close(tenant: TenantId, holding: EndpointHolding): Promise<ReleaseReport> {
     const found = entriesOf(tenantTextOf(tenant), holding)
     if (found.length === 0) return { kind: 'no-connection' }
-    let range: StopRange = 'no-process'
-    for (const entry of found) range = narrowest(range, await closeEntry(entry))
-    return { kind: 'released', process: range }
+    // Every connection of the holding refuses requests before the first wait (MC-10).
+    const ranges = await Promise.all(found.map(closeEntry))
+    return { kind: 'released', process: ranges.reduce<StopRange>(narrowest, 'no-process') }
   }
 
   /**
