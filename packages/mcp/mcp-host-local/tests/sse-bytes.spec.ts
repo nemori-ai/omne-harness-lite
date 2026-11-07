@@ -74,6 +74,24 @@ describe('the byte counter of an SSE event (SPEC H8)', () => {
     },
   )
 
+  it.each([
+    ['LF LF LF', '\n', '\n\n'],
+    ['CRLF CRLF CRLF', '\r\n', '\r\n\r\n'],
+    ['CR CR CR', '\r', '\r\r'],
+  ])(
+    'a line end right after the boundary adds no byte to the next event (%s)',
+    async (_name, end, extra) => {
+      const opening = `${eventOf(16, end)}${extra}`
+      expect(await through(16, [`${opening}${eventOf(16, end)}`])).toEqual({
+        passed: `${opening}${eventOf(16, end)}`,
+      })
+      const above = await through(16, [`${opening}${eventOf(17, end)}`])
+      expect(above.passed).toBe('')
+      expect(above.error).toBeInstanceOf(RangeError)
+      expect(String(above.error)).toContain('17 bytes read')
+    },
+  )
+
   it('a data line that ends with CRLF and an empty line that is a bare LF: the CRLF counts, the LF is the boundary', async () => {
     const first = eventOf(16, '\r\n')
     expect(await through(16, [`${first}\n${eventOf(16)}\n`])).toEqual({

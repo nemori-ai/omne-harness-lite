@@ -13,26 +13,26 @@ const CR = 0x0d
 type Position = 'line-start' | 'in-line' | 'cr-after-line' | 'cr-after-boundary'
 
 /**
- * One byte's effect: `add` counts it into the event; `reset` makes it part of an event boundary,
- * so the count starts again at zero.
+ * One byte's effect: without `reset` the byte counts into the event; with `reset` it is part of an
+ * event boundary, so the count starts again at zero.
  */
-type Move = Readonly<{ count: 'add' | 'reset'; next: Position }>
+type Move = Readonly<{ reset: boolean; next: Position }>
 
 const ON_LF: Readonly<Record<Position, Move>> = {
-  'line-start': { count: 'reset', next: 'line-start' },
-  'in-line': { count: 'add', next: 'line-start' },
-  'cr-after-line': { count: 'add', next: 'line-start' },
-  'cr-after-boundary': { count: 'reset', next: 'line-start' },
+  'line-start': { reset: true, next: 'line-start' },
+  'in-line': { reset: false, next: 'line-start' },
+  'cr-after-line': { reset: false, next: 'line-start' },
+  'cr-after-boundary': { reset: true, next: 'line-start' },
 }
 
 const ON_CR: Readonly<Record<Position, Move>> = {
-  'line-start': { count: 'reset', next: 'cr-after-boundary' },
-  'in-line': { count: 'add', next: 'cr-after-line' },
-  'cr-after-line': { count: 'reset', next: 'cr-after-boundary' },
-  'cr-after-boundary': { count: 'reset', next: 'cr-after-boundary' },
+  'line-start': { reset: true, next: 'cr-after-boundary' },
+  'in-line': { reset: false, next: 'cr-after-line' },
+  'cr-after-line': { reset: true, next: 'cr-after-boundary' },
+  'cr-after-boundary': { reset: true, next: 'cr-after-boundary' },
 }
 
-const ON_OTHER: Move = { count: 'add', next: 'in-line' }
+const ON_OTHER: Move = { reset: false, next: 'in-line' }
 
 function moveOf(position: Position, byte: number): Move {
   if (byte === LF) return ON_LF[position]
@@ -55,7 +55,7 @@ export class SseEventBytes extends TransformStream<Uint8Array, Uint8Array> {
       transform(chunk, controller) {
         for (const byte of chunk) {
           const move = moveOf(position, byte)
-          count = move.count === 'add' ? count + 1 : 0
+          count = move.reset ? 0 : count + 1
           position = move.next
           if (count > limit) {
             controller.error(
