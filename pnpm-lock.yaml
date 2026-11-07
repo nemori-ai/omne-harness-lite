@@ -1691,13 +1691,13 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.6.5
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
     devDependencies:
       '@omne-harness/identity-sql':
         specifier: workspace:*
         version: link:../../identity/identity-sql
-      '@omne-harness/legal-identity':
-        specifier: workspace:*
-        version: link:../../common/legal-identity
       '@omne-harness/scrypt':
         specifier: workspace:*
         version: link:../../identity/scrypt

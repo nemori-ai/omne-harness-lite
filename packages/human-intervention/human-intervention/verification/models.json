@@ -667,6 +667,48 @@
       "model": "models/GovernanceRecoveryPhase.tla",
       "config": "models/governancerecoveryphase-progress.cfg",
       "expected": "temporal:Completion"
+    },
+    {
+      "name": "governanceadmission-positive",
+      "model": "models/GovernanceAdmission.tla",
+      "config": "models/governanceadmission-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governanceadmission-owner",
+      "model": "models/GovernanceAdmission.tla",
+      "config": "models/governanceadmission-owner.cfg",
+      "expected": "AuthorizedOriginal"
+    },
+    {
+      "name": "governanceadmission-request",
+      "model": "models/GovernanceAdmission.tla",
+      "config": "models/governanceadmission-request.cfg",
+      "expected": "AuthorizedOriginal"
+    },
+    {
+      "name": "governanceadmission-policy",
+      "model": "models/GovernanceAdmission.tla",
+      "config": "models/governanceadmission-policy.cfg",
+      "expected": "AuthorizedOriginal"
+    },
+    {
+      "name": "governanceadmission-issued",
+      "model": "models/GovernanceAdmission.tla",
+      "config": "models/governanceadmission-issued.cfg",
+      "expected": "AuthorizedOriginal"
+    },
+    {
+      "name": "governanceadmission-member",
+      "model": "models/GovernanceAdmission.tla",
+      "config": "models/governanceadmission-member.cfg",
+      "expected": "AuthorizedOriginal"
+    },
+    {
+      "name": "governanceadmission-qualified",
+      "model": "models/GovernanceAdmission.tla",
+      "config": "models/governanceadmission-qualified.cfg",
+      "expected": "AuthorizedOriginal"
     }
   ]
 }

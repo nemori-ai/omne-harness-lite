@@ -1,5 +1,15 @@
 # HITL 合同与行为守护
 
+## 治理准入交集
+
+[GovernanceAdmission](models/GovernanceAdmission.tla) 将一个请求抽象为主体、scope、action、owner 和完整执行关口五元组。每一维有两个值；固定政策只允许同一主体、scope、action 下的两组 owner 与关口配对。issued、member 和 qualified 各有两种取值。调用方可在捕获后任意修改原请求及原政策对象。
+
+安全性质为 admitted 蕴含原捕获请求属于受信政策关系，且已发行、当前成员和资格都成立。初始化没有 admitted。Capture 固定原输入；ClientMutation 不改捕获值和内部政策；Decide 只有全部条件满足才设置 admitted。因此每个动作保持该安全性质。TLC 枚举上述有限状态，不是对任意主体发行机制的证明。
+
+六个负控分别取消发行、成员和资格检查，改读可变请求、改读可变政策，或将 owner 与关口拆开组合。它们必须分别破坏 AuthorizedOriginal。运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models GovernanceAdmission`，需要本页约定的 Java/JAR 环境。
+
+源码映射为 governance-local 的 admission.ts 中的 verify、current、grantsByKey、permits 和 check。输入结构及 action 变体由 admission-schema.ts 限定。模型中的关口是完整五字段绑定的抽象值；实现测试逐字段修改，另用真实 Identity SQL 检查撤权后的再次准入。模型不表示准入后资格仍保持；后续写入必须使用 Standing 保留及目的 SQL 围栏，也不证明公共服务、发行来源或 Cordis 已集成。
+
 ## 动态贡献与持久治理
 
 GovernanceLifecycle 增加两个贡献槽、两代提供者的有界交错。正例检查目录当前性、独立租约、旧代围栏、持久保管、scope、当前提交、来源及定义相容、不可变声明与单次消费。16 个负控分别破坏这些承诺或在 Ready 后停止消费，必须命中具名不变量或具名恢复进展性质。

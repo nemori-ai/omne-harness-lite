@@ -37,7 +37,8 @@
     "@omne-harness/permissions": "workspace:*",
     "canonicalize": "5.1.0",
     "zod": "catalog:",
-    "@omne-harness/identity": "workspace:*"
+    "@omne-harness/identity": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
@@ -45,7 +46,6 @@
     "vitest": "catalog:",
     "@omne-harness/sqlite-provider": "workspace:*",
     "@omne-harness/identity-sql": "workspace:*",
-    "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/scrypt": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*"
   }

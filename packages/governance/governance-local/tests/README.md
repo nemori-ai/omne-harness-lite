@@ -1,5 +1,7 @@
 # 持续测试
 
+`admission.spec.ts` 区分发行真实性、装配委托、当前成员及资格、来源真实性的责任。测试逐字段修改 EnforcementBinding，检查 owner 交叉组合及异步改参不能扩权，并使用生产 Identity SQL 撤权。当前测试没有把私有准入对象宣称为已导出的业务服务。
+
 `schema.spec.ts` 使用真实 SQLite 检查表键、状态约束、精确支持关系、磁盘重开与查询索引。`materials.spec.ts` 将生产迁移交给真实 Worker；其 schema-writer 是具名测试参与者，不是生产业务服务。`public-entry.spec.ts` 核对实际材料文件摘要。
 
 先运行本成员 build，再运行 test:fast。测试只创建隔离数据库，不消费生产数据。业务服务、授权和 Cordis 生命周期尚未实现，不宣称独立接受。

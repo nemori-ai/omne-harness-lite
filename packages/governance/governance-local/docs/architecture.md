@@ -1,5 +1,39 @@
 # 内部架构
 
+## 身份准入与装配委托
+
+`GovernanceAdmission` 只判断当前调用能否进入一个具名治理动作。Identity 判断主体发行和当前成员资格，可信装配固定委托范围，原发布拥有者证明声明及执行关口真实。三者不能相互代替。该对象仍为内部组件；公开命令服务、真实来源及 Cordis 生命周期尚未接通。
+
+```mermaid
+classDiagram
+  class GovernanceAdmission {
+    -tenantRef
+    -grants
+    +check(access, request)
+  }
+  class AdmissionGrant {
+    principalRef
+    scope
+    action
+    required
+  }
+  class OwnerDelegation {
+    ownerId
+    enforcementBindings
+  }
+  GovernanceAdmission --> PrincipalVerifier : issued principal
+  GovernanceAdmission --> TenantStandingSource : current membership
+  GovernanceAdmission *-- AdmissionGrant : isolated fixed copy
+  AdmissionGrant *-- OwnerDelegation : contribute only
+  GovernanceStandingCoordinator --> StandingReservations : later write retention
+```
+
+关系键为完整 principalRef、scope 和 action。相同键只能有一项，避免从不同政策拼接资格。contribute 的关口集合保留 owner 对应关系，逐项比较 capabilityId、enforcementKey、implementationRef、action 和 interpretationRef。它允许已授权关口的新发布版本，不要求为每个版本重新构造服务。
+
+方法在首次 await 前复制可序列化请求和编码 Access tenant。主体保持原发行对象，不能用 JSON 副本替换。返回的 request 是该次检查的隔离快照，后续来源核验必须消费它；required 是隔离数组。该读取没有保持资格，写路径仍须消费 StandingCoordinator 及 SQL 当前性围栏。
+
+固定策略在最多 128 条委托中建立 Map；每次按完整键查找。登记关口只检查该 owner 的有界集合，不查询历史治理操作，也不增加 SQL 表。Identity 当前成员读取继续由其公共服务负责。
+
 ## 模块与依赖
 
 `migration.ts` 拥有九张私表及索引。`materials.ts` 将实际模块映射成 SqlStorage 的固定迁移材料。根入口只导出该材料工厂。公共业务类型仍归 governance-contract，真实 Provider 尚未实现。

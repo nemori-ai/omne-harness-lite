@@ -189,6 +189,7 @@ export async function openStandingWorld(options: StandingWorldOptions = {}) {
     reassemble: (storage: SqlStorage, destinationResolver: StandingDestinationResolver) =>
       createIdentitySql({ ...providerOptions, storage, destinationResolver }),
     principal: issued.ok,
+    verifier: authority.verifier,
     principalRef: standingPrincipalRef(issued.ok),
     scope: actualScope,
     destination,
