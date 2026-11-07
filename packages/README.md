@@ -1,6 +1,6 @@
 # 产品包的目标维护入口
 
-本树按[产品包组织](../docs/package-organization.md)维护目标能力组、具名成员的规格与设计文档。源码、成员 manifest 和运行支持尚未建立；文档目录不是 workspace 成员。领域责任从[领域设计](../docs/domains/README.md)进入，组与成员文档按[成员文档规范](../docs/member-documentation.md)维护。
+本树按[产品包组织](../docs/package-organization.md)维护目标能力组与具名成员。已建立的成员有源码、成员 manifest 与运行支持，是 workspace 成员；尚未建立的组只有规格与设计文档。文档目录不是 workspace 成员。领域责任从[领域设计](../docs/domains/README.md)进入，组与成员文档按[成员文档规范](../docs/member-documentation.md)维护。
 
 ## 目标能力组
 
