@@ -94,13 +94,13 @@
 
 32. 答复带「传输不再可用」的标记。`TransportFailure` 的 `not-sent`（`connection-unavailable`、`session-ended`）与 `no-answer`、`PeerAnswer` 的 `no-answer` 与决策层 `WireAnswer` 的对应变体加可选字段 `unusable`。`not-sent`（`session-ended`）的字段只取 `session-ended`。标记是传输状态的投影：值是传输第一次不再可用时记下的原因，本端 `close()` 之后不带标记。标记由决策层写入，根导出加 `unusableAnswerOf` 与 `notSentFailureOf`。`streamGoneAnswerOf` 的参数从 `NoAnswerCause` 收窄为 `Exclude<UnusableCause, 'session-ended'>`。`UnusableCause` 收窄为 `stream-broken`、`process-exited`、`session-ended`，去掉没有生产者的 `abandoned`，定义移到 `outcomes.ts`，导出名不变。服务按标记与 `authorization-required` 判断就绪连接是否转为 `lost`，不再按失败的原因判断。`lost` 原因的定义在建连中同样成立。R1 的任务操作一句与 S2 对齐：复用现有连接时不核资格，要新建连接而资格不是 `granted` 时不建连接，答 `effect-unknown`（`no-connection`）；R7 的 `no-connection` 写明含资格不是 `granted`。性质：答复上的新字段是可加改动，字段可选。`streamGoneAnswerOf` 的参数收窄是 0.x 内对调用方不可加的公开签名改动，组内没有别的调用方。`UnusableCause` 的收窄在 0.x，没有外部消费者。行为改动：传输交出的失败答复带标记；就绪连接上单个请求失败而传输仍可用时（HTTP 上的流断开、5xx，不带标记的 `not-sent`），连接不再转为 `lost`，页请求改为 `page-failed` 与 `degraded`（`list-failed`），就绪连接上的 `discover` 失败改为 `degraded`（`discover-failed`）；建连中，`discover` 答不带标记的 `no-answer` 时 `lost` 原因从 `stream-broken` 改为 `preparation-failed`，stdio 上请求写不进去（X02）时从 `preparation-failed` 改为 `stream-broken`。见 [T1](#port-transport)、[T3](#port-transport)、[T8](#t8) 前言、[S5](#services)、[S7](#services)、[S8](#services)、[R1](#refusals)、[R7](#refusals)。
 
-33. `TaskAnswer` 的 `finished` 只带 `result` 或 `error`：类型从 `PeerAnswer` 收窄为 `Extract<PeerAnswer, { kind: 'result' | 'error' }>`，去掉 `no-answer`。没有应答一直是 `getTaskResult` 自己的 `TransportFailure`，类型现在与 T6 一致，`finished` 里不再能写出没有应答。出处：卡 [#1119](https://github.com/nemori-ai/omne-harness-lite/issues/1119) 正文「决定与剩余责任」一节。性质：对写方是 0.x 内不可加的公开类型改动。写方只有本包：`readTaskAnswer`（两种真实传输经 `taskAnswerOf` 用它）与 `./testing` 的脚本化传输；读方是 `@omne-harness/mcp` 的任务服务，它本来就不读 `no-answer` 这一支。行为不变。见 [T6](#port-transport)。
+33. `TaskAnswer` 的 `finished` 只带 `result` 或 `error`：类型从 `PeerAnswer` 收窄为 `Extract<PeerAnswer, { kind: 'result' | 'error' }>`，去掉 `no-answer`。没有应答是 `getTaskResult` 自己的 `TransportFailure`，类型与 T6 一致，`finished` 里写不出没有应答。性质：对写方是 0.x 内不可加的公开类型改动。写方只有本包：`readTaskAnswer`（两种真实传输经 `taskAnswerOf` 用它）与 `./testing` 的脚本化传输；读方是 `@omne-harness/mcp` 的任务服务，它本来就不读 `no-answer` 这一支。行为不变。见 [T6](#port-transport)。
 
 <a id="decisions-host"></a>
 
 ### 真实传输兑现时的裁定
 
-`@omne-harness/mcp-host-local` 兑现真实传输时，本页按它的设计作出下列决定。1–9 条随传输的设计作出，10–15 条在兑现之后补充。每条写明它加了什么或改了什么。
+`@omne-harness/mcp-host-local` 兑现真实传输时，本页按它的设计作出下列决定。每条写明它加了什么或改了什么。
 
 1. stdio 上解析不了的一行丢弃，流继续；由行内容引起的断流只有一种：一行超过行缓冲上界。见 T2。
 2. stdio 上探测在途时 `close()` 按 T5 答 `no-answer`（`abandoned`），不走旧一路。见 T5。
@@ -161,7 +161,7 @@
 
 ### 与组页的差异
 
-[领域设计裁定](#decisions)接受的十处差异，组页在依据表所列的修订 `26ab418a7` 上已按本页写回：对端账号只由 `peerAccountOf` 得出（K1）；动作定义不读任务支持方式（C3）；调用不带方式，是否建任务由对端决定（O2、R2）；明文 `http` 只用于回环主机（V3）；凭据缺值的答复（K1）；`taskResult` 另有 `cancelled`、`cancelTask` 只答已请求（S2）；`inputRequired` 的两项各自可选、至少有一项（O2）；未知的 `resultType` 答 `protocolError`（O5）；`CredentialUse` 按用途分型（CU1）。本页与组页现在没有差异。
+[领域设计裁定](#decisions)接受的十处差异，组页在依据表所列的修订 `26ab418a7` 上已按本页写回：对端账号只由 `peerAccountOf` 得出（K1）；动作定义不读任务支持方式（C3）；调用不带方式，是否建任务由对端决定（O2、R2）；明文 `http` 只用于回环主机（V3）；凭据缺值的答复（K1）；`taskResult` 另有 `cancelled`、`cancelTask` 只答已请求（S2）；`inputRequired` 的两项各自可选、至少有一项（O2）；未知的 `resultType` 答 `protocolError`（O5）；`CredentialUse` 按用途分型（CU1）。本页与组页没有差异。
 
 ## 结果与不变量
 
@@ -327,7 +327,7 @@
   - `cancel` 只按（租户、主体、关联键）在本次运行的在途表里定位，不核采用与资格。在途时答 `signalled`；关联键已结束时答 `no-call-in-flight`；表里没有时答 `unknown`。占位后、发出前，这次调用的停止信号已触发（收到 `cancel`，或调用方的 `signal` 中止）时，原调用答「未发出：`cancelled`」（R2）。
   - `continueWithInput` 的请求 `requestState` 与 `inputResponses` 两个字段都缺时，是前提违反：返回的 Promise 以 `TypeError` reject，不占位（同 R2 对 `args` 的规定）。
   - 连接换代之后，`continueWithInput` 在旧代际上的在途状态无法证明时答「未发出：`unknown`」，不在新代际上重发。它发出的 `CallRequest` 带 `continuation`：`requestState` 与 `inputResponses` 各自可选，只带 `requestState` 的重试合法。
-  - 服务在本次运行内保存已发出的任务表，键是（租户、主体、持有、任务号）。表项在本次运行内不删除；任务的终态交出之后再查询，仍转发给对端。任务表不跨重启，这是已知限制。
+  - 服务在本次运行内保存已发出的任务表，键是（租户、主体、持有、任务号）。表项在本次运行内不删除；任务的终态交出之后再查询，仍转发给对端。任务表不跨重启，这是已知限制，也是对[数据与状态架构「按用途确定持久范围」](../../../docs/architecture/data-and-state.md#按用途确定持久范围)的偏离：已发出的任务是对端上的业务事实，重启之后发起者不能再查询或取消它，四个任务操作答 `unknown`（拒绝，不交出别的主体的任务）。退出条件：消费者需要任务跨重启时，任务表改由一个耐久的端口持有。
   - `queryTask`、`taskResult`、`provideTaskInput`、`cancelTask` 只对发起者开放：非发起者、重启之后和表里没有的任务一律答 `unknown`，不随任务是否存在而变。
   - 四个任务操作的建连规则，`cancelTask` 也一样：复用现有连接时不核采用与资格。要新建连接时，经 `AdoptionView.endpoint` 核采用并取得建连材料，`UseEligibility` 必须答 `granted`；`AdoptionView` 答 `unknown` 时答 `Refusal` 的 `unknown`；未采用、资格不是 `granted` 或没有可以建连的材料时，不建连接，答 `effect-unknown`（`no-connection`）。S4 的配值缺陷算作没有可以建连的材料。
   - 传输答 `no-answer` 时，四个任务操作答 `effect-unknown`，带同一子因。传输答 `error-answer` 或 `answer-malformed` 时原样交出。
@@ -378,7 +378,7 @@
 
   「确认停止」指 `stop()` 答 `tree-confirmed`。准备失败或关闭后留下的进程与它确认的停止范围只记在 `lost` 状态的 `residual` 上，视图原样反映状态。关闭时确认停止，状态回到 `none`；否则状态是 `lost`（`close-unconfirmed`）并带 `residual`。重建成功或之后确认停止时，`residual` 清除。凭据在视图里报告为：`not-required`，`auth` 是 `none`；`absent`，配值缺失；`invalid`，配值被守卫拒绝；`present`，配值存在。视图不报告凭据值。
 
-- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。落点在途（进程尚未交来）时，报告该连接的进程范围为 `unconfirmed`，不报 `no-process`。`closeAll` 有实现方自己的编程错误（不是端口违约）时，以 `AggregateError` 拒绝，不交出确认范围；其余连接照常关闭。`closeAll` 之后本实例不再建立连接：`refresh` 答 `connection-unavailable`；`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」；四个任务操作答 `effect-unknown`（`no-connection`），与 S2「不建连接」相同。`closeAll` 之后，要连接的操作先判关停、不问端口，先于 S1 的采用核对。在途的操作（调用与任务操作在发出之前：等关口、读存储、建连的等待；`refresh` 在发布之前：读存储、取页、发布边界）不再开始下一步，答同样的结果；已发出的请求的结局不改，已发布的清单不改。「下一步」指操作次序里的一步（关口，采用与资格两问算一步；读存储；建连；取页；发布边界；发出）：已开始的一步照常走完，包括这一步内部的端口调用，以及建连这一步里向对端的协商；关停之后不开始新的一步。任务操作先按 S2 判发起者：不是发起者或表里没有时答 `unknown`，然后才判 `closeAll`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
+- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。落点在途（进程尚未交来）时，报告该连接的进程范围为 `unconfirmed`，不报 `no-process`。`release` 与 `closeAll` 有实现方自己的编程错误（不是端口违约）时，以 `AggregateError` 拒绝，不交出确认范围；其余连接照常关闭，错误在它们都关完之后交出。`closeAll` 之后本实例不再建立连接：`refresh` 答 `connection-unavailable`；`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」；四个任务操作答 `effect-unknown`（`no-connection`），与 S2「不建连接」相同。`closeAll` 之后，要连接的操作先判关停、不问端口，先于 S1 的采用核对。在途的操作（调用与任务操作在发出之前：等关口、读存储、建连的等待；`refresh` 在发布之前：读存储、取页、发布边界）不再开始下一步，答同样的结果；已发出的请求的结局不改，已发布的清单不改。「下一步」指操作次序里的一步（关口，采用与资格两问算一步；读存储；建连；取页；发布边界；发出）：已开始的一步照常走完，包括这一步内部的端口调用，以及建连这一步里向对端的协商；关停之后不开始新的一步。任务操作先按 S2 判发起者：不是发起者或表里没有时答 `unknown`，然后才判 `closeAll`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
 - **S9** 凭据句柄的取得与释放：每条连接按凭据配值调用一次 `CredentialUse.acquire`，所有 `credential` 来源变量共用这一个进程凭据句柄。进程凭据句柄在进程的 `stop()` 返回之后释放，不论它答哪种范围；准备失败时立即释放。HTTP 凭据句柄随连接关闭释放。关停例外：`closeAll` 时落点仍在途的连接，进程凭据句柄立即释放。之后迟到的进程照样停止一次，句柄不再释放第二次。
 
 ## 所有权、失败与生命周期
