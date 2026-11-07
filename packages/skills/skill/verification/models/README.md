@@ -12,7 +12,7 @@
 
 ## 维护
 
-承诺或实现结构变化时，复核模型的抽象是否仍然成立。改了模型或配置之后，重跑下表的全部配置，并更新表中的数字。
+承诺或实现结构变化时，复核模型的抽象是否仍然成立。改了模型或配置之后，重跑下表的全部配置，并按「结果」列判读。
 
 ## 本包事实
 
@@ -53,23 +53,23 @@
 
 ### 配置与结果
 
-工具：TLC 2.19（tla2tools.jar v1.7.4，rev 5a47802），Java 21，`-workers 2`。模型是 w3-skill-fix 第 3 轮的版本（S7、三种错指、带依据时引用带回依据的内容摘要；`ReadGate.tla` 的 SHA-256 前 16 位 `a7cf1233b473196a`）。全部配置关闭死锁检查：`Done` 让结束状态停留，模型不声明活性。正控配置都检查全部七个不变式（含 S7 的 `OwnMaterialOnly`）。用时是 2026-11-05 实测，同机有其他负载。
+工具：TLC 2.19（tla2tools.jar v1.7.4），`-workers 2`。全部配置关闭死锁检查：`Done` 让结束状态停留，模型不声明活性。正控配置都检查全部七个不变式（含 S7 的 `OwnMaterialOnly`）。
 
-| 配置 | 常量 | 不变式 | 初始状态 | 生成 / 不同状态 | 深度 | 用时 | 结果 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| [ReadGate.cfg](ReadGate.cfg) | `single`；无故障或 13 种故障之一（含三种错指 `misdirect-identity`、`misdirect-material`、`misdirect-digest`）；不中止；来源不变；两种来源 | 全部 | 580,608 | 2,590,632 / 1,976,328 | 8 | 34 s | 本范围内无反例 |
-| [ReadGate_Change.cfg](ReadGate_Change.cfg) | `single`；无故障；来源不变或在第 0–5 个答复之后变化；两种来源 | 全部 | 290,304 | 1,321,620 / 1,013,172 | 8 | 22 s | 本范围内无反例 |
-| [ReadGate_Abort.cfg](ReadGate_Abort.cfg) | `single`；无故障或来源 `undecided`；在第 0–6 个答复时中止；来源不变或在第 3 个答复后变化 | 全部 | 1,990,656 | 8,701,440 / 6,586,368 | 8 | 1 min 30 s | 本范围内无反例 |
-| [ReadGate_Disclosure.cfg](ReadGate_Disclosure.cfg) | `twin`；6 对隐藏方式；无故障、`x` 的读取判定或合法集合 `undecided`；不中止或预先中止 | 全部 | 909,792 | 9,963,000 / 6,386,040 | 8 | 1 min 20 s | 本范围内无反例 |
-| [ReadGate_Order.cfg](ReadGate_Order.cfg) | `same`；只有目录；`h` 被拒或被准许；读取判定或合法集合 `undecided` | 全部 | 2,160 | 83,160 / 47,736 | 9 | 4 s | 本范围内无反例 |
-| [ReadGate_FlawNoRefCheck.cfg](ReadGate_FlawNoRefCheck.cfg) | `single`；无故障或三种错指之一；边界解析不核对引用 | `OwnMaterialOnly` | 165,888 | 497,687 / 456,199（中止于反例） | 4 | 9 s | 找到反例：观察者对 `h` 没有读取权（`refused-shows`），对应端口把 `x` 的 `describe` 答成 `h` 的引用，结果写明身份 `h` |
-| [ReadGate_FlawRefusedAsBasis.cfg](ReadGate_FlawRefusedAsBasis.cfg) | 同 Disclosure；读取判定拒绝且带依据时答 `basis-unavailable` | `SameObservation` | 909,792 | 8,808,278 / 5,991,410（中止于反例） | 6 | 1 min 6 s | 找到反例：带 `h` 依据的 `describe`，`refused-hides` 答 `basis-unavailable`，`checked-only` 答 `not-available-to-you` |
-| [ReadGate_FlawUnknownAsEmpty.cfg](ReadGate_FlawUnknownAsEmpty.cfg) | 同 ReadGate 的旧故障集（不含错指）；目录把 `undecided` 压成空列表 | `WholeUnknown` | 456,192 | 1,311,558 / 1,197,510（中止于反例） | 3 | 19 s | 找到反例：合法集合 `undecided`，目录答空列表 |
-| [ReadGate_FlawNoEntryDigest.cfg](ReadGate_FlawNoEntryDigest.cfg) | 同 Change；第 10 步不核对条目摘要 | `NoMixedVersion` | 290,304 | 1,255,013 / 1,009,301（中止于反例） | 6 | 19 s | 找到反例：只按定位取字节的来源在快照之后换成材料 1，钉住材料 0 的 `read` 交出材料 1 的正文 |
-| [ReadGate_FlawNoCheckAfterSnapshot.cfg](ReadGate_FlawNoCheckAfterSnapshot.cfg) | 同 Abort；快照之后不查 `signal` | `AbortStops` | 1,990,656 | 7,550,526 / 6,205,272（中止于反例） | 5 | 1 min 22 s | 找到反例：在第 3 个答复（快照）时中止，快照 `undecided`，`read` 答 `source-unavailable` 而不是 `aborted` |
-| [ReadGate_FlawCompletionOrder.cfg](ReadGate_FlawCompletionOrder.cfg) | 同 Order；目录按完成次序列出条目 | `SameObservation` | 2,160 | 75,461 / 45,183（中止于反例） | 9 | 3 s | 找到反例：两个身份都被准许，两个运行以不同次序完成判定，条目次序不同 |
+| 配置 | 常量 | 不变式 | 结果 |
+| --- | --- | --- | --- |
+| [ReadGate.cfg](ReadGate.cfg) | `single`；无故障或 13 种故障之一（含三种错指 `misdirect-identity`、`misdirect-material`、`misdirect-digest`）；不中止；来源不变；两种来源 | 全部 | 本范围内无反例 |
+| [ReadGate_Change.cfg](ReadGate_Change.cfg) | `single`；无故障；来源不变或在第 0–5 个答复之后变化；两种来源 | 全部 | 本范围内无反例 |
+| [ReadGate_Abort.cfg](ReadGate_Abort.cfg) | `single`；无故障或来源 `undecided`；在第 0–6 个答复时中止；来源不变或在第 3 个答复后变化 | 全部 | 本范围内无反例 |
+| [ReadGate_Disclosure.cfg](ReadGate_Disclosure.cfg) | `twin`；6 对隐藏方式；无故障、`x` 的读取判定或合法集合 `undecided`；不中止或预先中止 | 全部 | 本范围内无反例 |
+| [ReadGate_Order.cfg](ReadGate_Order.cfg) | `same`；只有目录；`h` 被拒或被准许；读取判定或合法集合 `undecided` | 全部 | 本范围内无反例 |
+| [ReadGate_FlawNoRefCheck.cfg](ReadGate_FlawNoRefCheck.cfg) | `single`；无故障或三种错指之一；边界解析不核对引用 | `OwnMaterialOnly` | 必须报告 `OwnMaterialOnly` 被违反。反例形如：观察者对 `h` 没有读取权（`refused-shows`），对应端口把 `x` 的 `describe` 答成 `h` 的引用，结果写明身份 `h` |
+| [ReadGate_FlawRefusedAsBasis.cfg](ReadGate_FlawRefusedAsBasis.cfg) | 同 Disclosure；读取判定拒绝且带依据时答 `basis-unavailable` | `SameObservation` | 必须报告 `SameObservation` 被违反。反例形如：带 `h` 依据的 `describe`，`refused-hides` 答 `basis-unavailable`，`checked-only` 答 `not-available-to-you` |
+| [ReadGate_FlawUnknownAsEmpty.cfg](ReadGate_FlawUnknownAsEmpty.cfg) | 同 ReadGate 的故障集，但不含三种错指；目录把 `undecided` 压成空列表 | `WholeUnknown` | 必须报告 `WholeUnknown` 被违反。反例形如：合法集合 `undecided`，目录答空列表 |
+| [ReadGate_FlawNoEntryDigest.cfg](ReadGate_FlawNoEntryDigest.cfg) | 同 Change；第 10 步不核对条目摘要 | `NoMixedVersion` | 必须报告 `NoMixedVersion` 被违反。反例形如：只按定位取字节的来源在快照之后换成材料 1，钉住材料 0 的 `read` 交出材料 1 的正文 |
+| [ReadGate_FlawNoCheckAfterSnapshot.cfg](ReadGate_FlawNoCheckAfterSnapshot.cfg) | 同 Abort；快照之后不查 `signal` | `AbortStops` | 必须报告 `AbortStops` 被违反。反例形如：在第 3 个答复（快照）时中止，快照 `undecided`，`read` 答 `source-unavailable` 而不是 `aborted` |
+| [ReadGate_FlawCompletionOrder.cfg](ReadGate_FlawCompletionOrder.cfg) | 同 Order；目录按完成次序列出条目 | `SameObservation` | 必须报告 `SameObservation` 被违反。反例形如：两个身份都被准许，两个运行以不同次序完成判定，条目次序不同 |
 
-负控配置的非零退出本身不算通过：每个负控都必须报告指定的不变式被违反，上表记录了实际的反例。
+负控配置的非零退出本身不算通过：每个负控都必须报告指定的不变式被违反，上表写出每个负控的反例形状。
 
 ### 运行
 
@@ -81,7 +81,7 @@ tla2sany ReadGate.tla
 tlc -workers 2 -metadir "$TMPDIR/readgate-meta" -config ReadGate.cfg ReadGate.tla
 ```
 
-对上表每个 `.cfg` 运行一次。`-metadir` 指向任务 tmp，状态文件不进本目录。不缩小范围，也不改不变式来取得通过。
+对上表每个 `.cfg` 运行一次。`-metadir` 指向本目录之外的临时目录，状态文件不进本目录。不缩小范围，也不改不变式来取得通过。
 
 ### 未覆盖
 

@@ -90,7 +90,7 @@
 | 模型未覆盖 | S4（字节范围）；`inspect`；端口不终止；S7 的前提 R1（引用写明的身份与包定位不符）；S7 的「带依据时引用不带内容摘要」子情形（模型的观察看不出它，由探索器与用例承担） |
 | 已声明但未执行 | 无 |
 | 执行失败 | 无 |
-| 有限范围通过 | S1、S2、S3、S5、S6、S7 的 TLA+ 模型；S1–S7 的探索器。范围与数量见 [models/README.md](models/README.md) 与 [tests/model/README.md](../tests/model/README.md) |
+| 有限范围通过 | S1、S2、S3、S5、S6、S7 的 TLA+ 模型；S1–S7 的探索器。范围见 [models/README.md](models/README.md) 与 [tests/model/README.md](../tests/model/README.md) |
 | 实现尚未存在或真实组合未验证 | 真实的读取判定、对应端口与来源（`DirectorySource` 除外）与本包的组合 |
 
 有限范围通过不是无条件证明。模型没有精化证明：模型与实现的对应由探索器的场景与映射表支持，见 [models/README.md「与实现的对应」](models/README.md#mapping)。

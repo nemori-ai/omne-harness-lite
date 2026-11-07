@@ -10,9 +10,6 @@
 | --- | --- | --- |
 | [契约 SPEC](../skill-contract/SPEC.md) | 与本文件同一提交 | 「检查 Skill 包」全节；「读取的形状规则」全节（含 `bodyOffsetOf` 与请求终点）；「需求端口」的映射补充与「端口答复的统一处置」；「目录的匹配规则」；「符合性套件」的 `skillAccessConformance` 与 `skillCatalogConformance` |
 | [组工程设计](../docs/architecture.md) | `773d9f04c` | 「端口」的映射表；「检查与发现」；「读取」的 11 步与版本语义；「失败种类」 |
-| W2 Skill 线实施规格与第 1 轮评审裁定 | 2026-11-03 | 已定事项 1–10、15、16，其中 3（`gate` 收 `signal`）与 8（`describe` 带依据时依据所指材料）按第 1 轮裁定修正；映射三列；请求终点；读取判定答复在集合外答 `unknown` |
-| W3 Skill 线实施规格（reduce 裁定）、第 2 轮裁定 R1–R3、R5、R7 与第 3 轮裁定 S1、S3 | 2026-11-04 | 已定事项 1–5、7、8（实现部分）、10（删除重复定义）、13；端口答复在边界上完整解析（R1）；空的 `capabilities`（R2）；重复身份保留第一条（R3）。端口 reject 与畸形答复的统一处置取代 W2 的「端口抛出的错误原样抛出」 |
-| W3 闭包 w3-skill-fix 的 reduce 裁定（卡 #1119 r1） | 2026-11-04 | 裁定 1（引用身份一致，S7）、2（`inspect` 的映射按调用点分格）、3（没有合法头部的正文）、4（中止的前提）、6（成员导航） |
 
 ## 结果与不变量
 
@@ -39,7 +36,7 @@
 
 来源答复到服务失败只有一张表，`src/mapping.ts` 的 `sourceFailureTo`。三列：`inspect`、`snapshot` 与 `open`（`read`、`list`、`export` 的两次来源调用）。`inspect` 一列按它的两个调用点（`snapshot` 与 `open`）各有一格，`sourceFailureTo('inspect', failure, call)` 收调用点；另两列收 `basis`。表的内容是组页「端口」的映射表加契约「需求端口」的映射补充，这里不复制。
 
-- 快照阶段的 `entry-not-found` 与 `bytes-mismatch` 在每个操作里都答 `source-unavailable`，`inspect` 也是：快照不对某一个条目作答，这样作答的来源不守端口契约，本包把它当作此刻不可用（第 1 轮裁定；w3-skill-fix 裁定 2 把 `inspect` 的这一格从 `version-changed` 改成同一理由的 `source-unavailable`）。
+- 快照阶段的 `entry-not-found` 与 `bytes-mismatch` 在每个操作里都答 `source-unavailable`，`inspect` 也是：快照不对某一个条目作答，这样作答的来源不守端口契约，本包把它当作此刻不可用。
 - `version-changed` 只出现在 `open` 一格：快照列出的条目的字节变了。
 
 对应端口的五种答复在 `gate` 里映射，不在表里：`adopted` 通过，`known-unavailable` 组装替换件，`basis-not-lawful` 答 `basis-unavailable`，`none` 答 `not-available-to-you`，`unknown` 答 `unknown`。
@@ -75,7 +72,7 @@
 ### 正文与范围
 
 - `read` 正文时，第 10 步核对整个 `SKILL.md` 条目，第 11 步从契约 `bodyOffsetOf(bytes)` 给出的正文起点切页。
-- 字节没有合法的头部定界时，`bodyOffsetOf` 答 `undefined`，`read` 正文答 `source-unavailable`，不交内容（w3-skill-fix 裁定 3，取代第 1 轮的「整个条目当作正文」）。理由：正文起点不明的字节不是已知的正文，把它当正文会交出头部之外的未知字节。可达条件：所钉材料来自 `inspect` 通过的包时不可达，因为第 10 步核对了条目摘要，而 `inspect` 拒绝没有合法头部的 `SKILL.md`；只有资产记下的内容摘要不来自检查通过的包时才可达。这时来源交出的不是一个可用的 Skill 包，所以答「来源此刻不可用」。同一材料的资源不受影响。
+- 字节没有合法的头部定界时，`bodyOffsetOf` 答 `undefined`，`read` 正文答 `source-unavailable`，不交内容。理由：正文起点不明的字节不是已知的正文，把它当正文会交出头部之外的未知字节。可达条件：所钉材料来自 `inspect` 通过的包时不可达，因为第 10 步核对了条目摘要，而 `inspect` 拒绝没有合法头部的 `SKILL.md`；只有资产记下的内容摘要不来自检查通过的包时才可达。这时来源交出的不是一个可用的 Skill 包，所以答「来源此刻不可用」。同一材料的资源不受影响。
 - 字节范围由 `src/access/range.ts` 的纯函数 `sliceRange(bytes, encoding, requested?, bodyOffset?)` 实现，逐条按契约「读取的形状规则」。请求终点是请求起点加请求长度，不随实际起点后移而变；实际终点前移到不大于请求终点的上一个字符边界，早于实际起点时实际范围为空。文本条目的编码只有快照说的 `text`（严格 UTF-8）一种，字符边界按 UTF-8 续字节判断。
 - 范围的起点或长度为负数或非整数时，`read` 在调用任何端口之前抛 `TypeError`。
 
@@ -104,7 +101,7 @@
 本包没有状态、没有资源、没有外部效果。三个工厂交出普通对象，没有要释放的东西。三个端口的所有权归集成方。
 
 - 取消：`read`、`list` 与 `export` 在每次调用端口（`check`、`resolve`、`snapshot`、`open`）之前与每次端口返回之后各查一次 `signal`（`src/access/checkpoint.ts`）。已中止时答 `aborted`，不再调用端口，不交部分内容；已中止的 `signal` 使四个端口都不被调用。端口自己收不到 `signal`，一次已经发出的端口调用由端口跑完。`describe` 不收 `signal`。
-- 中止的活性有一个前提：每次端口调用都会结束（性质账本 P0）。中止的响应时间受端口时间限制；端口不结束时，操作不答复。本包不让端口调用与 `signal` 竞争：竞争会让迟到的答复无主，这是与端口拥有者的后续议题（w3-skill-fix 裁定 4，GS-05）。
+- 中止的活性有一个前提：每次端口调用都会结束（性质账本 P0）。中止的响应时间受端口时间限制；端口不结束时，操作不答复。本包不让端口调用与 `signal` 竞争：竞争会让迟到的答复无主，这是与端口拥有者的后续议题。
 - 不交部分内容：`aborted`、`version-changed` 与 `export` 的任一条目失败都只交失败对象，结果里没有内容字段。
 - 抛出：只有字节范围非法时抛 `TypeError`（调用方的错误，在任何端口之前）。来源的 `snapshot` 交来不是 `sealSnapshot` 造出的快照时，`inspect` 先经 `isSealedSnapshot` 核对，答 `source-unavailable`，不把它交给 `parseSkillPackage`。端口 reject、同步抛出或答复不合时本包不抛出：读取判定与对应端口当作 `unknown`，来源当作 `unavailable`，见[端口答复在运行期也封闭](#closed-sets)与契约[端口答复的统一处置](../skill-contract/SPEC.md#port-answer-closed)。
 - 目录：`createSkillCatalog` 交出普通对象，不收 `signal`，不持有资源。一起发出的读取判定由端口各自跑完。
@@ -114,26 +111,26 @@
 | 义务 | 测试 | 反例（改了什么会红） |
 | --- | --- | --- |
 | 公开根只导出三个工厂；每个阶段只答它那几步的失败种类；`export` 不会答 `adopted-material-changed` | `tests/public-entry.spec.ts`、`tests/types.spec-d.ts` | 多导出一个名字；把 `pin` 的 `moved` 改成固定联合 |
-| 映射表的每一行、三列，`inspect` 按调用点的两格 | `tests/mapping.spec.ts` | 任一格改值（M1：检查列 `entry-unreadable` → `outside-package`）；检查的快照格 `bytes-mismatch` 改回 `version-changed`（F3） |
-| `inspect` 对合法包与每种来源失败（快照与 `open` 各一张表），只读快照列出的控制文件 | `tests/inspection.spec.ts` | 不读 `.omne/skill.json`（M11）；open 失败当作文件不在（M15）；检查不分调用点（F3） |
-| 引用身份一致：别的身份、别的类别、带依据时别的来源层、资产版本与内容摘要，替换件的别的身份，都答 `unknown` 且不调用来源；一致的引用照常通过 | `tests/ref-identity.spec.ts`、`tests/answer-parse.spec.ts` | 去掉身份核对（F1a）、来源层核对（F1b）、资产版本核对（F1c）、内容摘要核对（F1d）、替换件身份核对（F1e） |
-| 没有合法头部的 `SKILL.md` 正文答 `source-unavailable`，同一材料的资源照读 | `tests/read.spec.ts` | 正文起点退回 0（F4） |
-| 第 1–3 步每个分支；集合外答复；两次端口调用前后的检查点 | `tests/gate.spec.ts` | 第 2 步注释掉（M5）；`none` 答 `unknown`（M12）；集合外答复放行；去掉任一检查点 |
+| 映射表的每一行、三列，`inspect` 按调用点的两格 | `tests/mapping.spec.ts` | 任一格改值（例如检查列 `entry-unreadable` → `outside-package`）；检查的快照格 `bytes-mismatch` 改答 `version-changed` |
+| `inspect` 对合法包与每种来源失败（快照与 `open` 各一张表），只读快照列出的控制文件 | `tests/inspection.spec.ts` | 不读 `.omne/skill.json`；open 失败当作文件不在；检查不分调用点 |
+| 引用身份一致：别的身份、别的类别、带依据时别的来源层、资产版本与内容摘要，替换件的别的身份，都答 `unknown` 且不调用来源；一致的引用照常通过 | `tests/ref-identity.spec.ts`、`tests/answer-parse.spec.ts` | 去掉身份核对、来源层核对、资产版本核对、内容摘要核对或替换件身份核对 |
+| 没有合法头部的 `SKILL.md` 正文答 `source-unavailable`，同一材料的资源照读 | `tests/read.spec.ts` | 正文起点退回 0 |
+| 第 1–3 步每个分支；集合外答复；两次端口调用前后的检查点 | `tests/gate.spec.ts` | 第 2 步注释掉；`none` 答 `unknown`；集合外答复放行；去掉任一检查点 |
 | `describe` 的两态、依据所指材料、不读字节 | `tests/describe.spec.ts` | 依据的 digest 改取 `SkillRef` 的 |
-| 第 5、7 步每个分支与中止 | `tests/pin.spec.ts` | 去掉快照摘要比较（M2）；`unsupported` 改答别的（M13） |
-| 第 10 步每个分支与中止 | `tests/bytes.spec.ts` | 去掉条目摘要比较（M7） |
-| 字节范围六条规则、请求终点、正文起点 | `tests/range.spec.ts` | 终点不前移（M4）；请求终点按实际起点算（P5） |
-| `read` 与 `list` 的次序（第 5 步在第 6 步前、范围校验在端口前）、失败、不缓存 | `tests/read.spec.ts` | 第 6 步提到第 5 步前；忽略正文起点（M10）；不过滤控制文件（M9） |
-| `export` 整包或失败 | `tests/export.spec.ts` | 跳过失败条目（M8） |
-| 没有可读包的材料带依据（PR3）：`describe` 交回依据，`read`、`list`、`export` 取快照后答 `basis-unavailable` 且不 `open`，坏路径答 `bad-path` | `tests/no-package.spec.ts` | 内存解析替身对无包材料不带回依据的内容摘要（第 3 轮手工变异 R3-2，5 例变红；变异的是契约的内存替身 `createMemoryResolution`，不是本成员的 `src/`） |
-| `skillAccessConformance()` 在本实现上、在两个世界（对应端口对 stranger 隐藏 / 对所有人作答）全绿；跳过第 2 步的服务在后者恰好 A1–A3 变红 | `tests/conformance.spec.ts` | 第 2 步注释掉（M5） |
-| `skillCatalogConformance()` 在本实现上全绿（`NotApplicable` 计为失败）。把 `refused` 也列出的实现恰好红四条：SC3「lists a granted identity and not a refused one」、SC5「filters to the identities of the request that are lawful and granted」与 SC7 的两条。把 `unknown` 压成空列表的实现恰好红两条：SC2「answers unknown when the lawful set is unknown」与 SC3「answers unknown when the read check of one identity is unknown」。核验按两种完成次序释放时答复相同 | `tests/catalog.spec.ts`、`tests/catalog-world.ts` | 过滤 `granted` 改成过滤非 `unknown`（W3-M1）；任一 `unknown` 改答空列表（W3-M2）；去掉排序（W3-M5）；匹配忽略说明（W3-M13）；只规范化查询一侧（W3-M14） |
-| 空的 `capabilities` 不调用任何端口；合法集合里重复的身份保留第一条 | `tests/catalog.spec.ts` | 去掉空请求的直接作答（W3-M23）；保留最后一条（W3-M24） |
-| `matches` 的规范化、分词与全词命中 | `tests/match.spec.ts` | 去掉 NFKC（W3-M3） |
-| 三个解析函数逐字段的畸形答复（缺失、类型不对、值域外）、只认自有属性、JSON 树的重新构造、冻结、深度上限与数字词法 | `tests/answer-parse.spec.ts` | 删掉任一字段的核对、放宽它的值域、改认原型链上的属性、去掉深度上限（第 3 轮的差分变异） |
-| 三类端口的判别值与载荷：集合外的答复、残缺的载荷、reject、同步抛出、读取时抛出，答复都按契约统一处置，不抛出 | `tests/port-answers.spec.ts` | 来源调用还原为直接查表、reject 原样上抛（W3-M4）；解析移出 `try`（W3-M17、W3-M17b）；列表跳过不合的项（W3-M18）；`open` 的 `ok` 接受文本（W3-M19）；`isSealedSnapshot` 不查登记（W3-M20）；JSON 节点不核对（W3-M21）；说明上限放宽一个字符（W3-M22b）；没有作答的核验当作 `refused`（W3-M25） |
+| 第 5、7 步每个分支与中止 | `tests/pin.spec.ts` | 去掉快照摘要比较；`unsupported` 改答别的 |
+| 第 10 步每个分支与中止 | `tests/bytes.spec.ts` | 去掉条目摘要比较 |
+| 字节范围六条规则、请求终点、正文起点 | `tests/range.spec.ts` | 终点不前移；请求终点按实际起点算 |
+| `read` 与 `list` 的次序（第 5 步在第 6 步前、范围校验在端口前）、失败、不缓存 | `tests/read.spec.ts` | 第 6 步提到第 5 步前；忽略正文起点；不过滤控制文件 |
+| `export` 整包或失败 | `tests/export.spec.ts` | 跳过失败条目 |
+| 没有可读包的材料带依据（PR3）：`describe` 交回依据，`read`、`list`、`export` 取快照后答 `basis-unavailable` 且不 `open`，坏路径答 `bad-path` | `tests/no-package.spec.ts` | 内存解析替身对无包材料不带回依据的内容摘要（变异的是契约的内存替身 `createMemoryResolution`，不是本成员的 `src/`） |
+| `skillAccessConformance()` 在本实现上、在两个世界（对应端口对 stranger 隐藏 / 对所有人作答）全绿；跳过第 2 步的服务在后者恰好 A1–A3 变红 | `tests/conformance.spec.ts` | 第 2 步注释掉 |
+| `skillCatalogConformance()` 在本实现上全绿（`NotApplicable` 计为失败）。把 `refused` 也列出的实现恰好红四条：SC3「lists a granted identity and not a refused one」、SC5「filters to the identities of the request that are lawful and granted」与 SC7 的两条。把 `unknown` 压成空列表的实现恰好红两条：SC2「answers unknown when the lawful set is unknown」与 SC3「answers unknown when the read check of one identity is unknown」。核验按两种完成次序释放时答复相同 | `tests/catalog.spec.ts`、`tests/catalog-world.ts` | 过滤 `granted` 改成过滤非 `unknown`；任一 `unknown` 改答空列表；去掉排序；匹配忽略说明；只规范化查询一侧 |
+| 空的 `capabilities` 不调用任何端口；合法集合里重复的身份保留第一条 | `tests/catalog.spec.ts` | 去掉空请求的直接作答；保留最后一条 |
+| `matches` 的规范化、分词与全词命中 | `tests/match.spec.ts` | 去掉 NFKC |
+| 三个解析函数逐字段的畸形答复（缺失、类型不对、值域外）、只认自有属性、JSON 树的重新构造、冻结、深度上限与数字词法 | `tests/answer-parse.spec.ts` | 删掉任一字段的核对、放宽它的值域、改认原型链上的属性、去掉深度上限 |
+| 三类端口的判别值与载荷：集合外的答复、残缺的载荷、reject、同步抛出、读取时抛出，答复都按契约统一处置，不抛出 | `tests/port-answers.spec.ts` | 来源调用还原为直接查表、reject 原样上抛；解析移出 `try`；列表跳过不合的项；`open` 的 `ok` 接受文本；`isSealedSnapshot` 不查登记；JSON 节点不核对；说明上限放宽一个字符；没有作答的核验当作 `refused` |
 
-M 与 F 编号是交付时的手工变异记录（W2 在 `tmp/closures/w2-skill/mutations/`，W3 在 `tmp/closures/w3-skill-catalog/mutations/`，F 在 `tmp/closures/w3-skill-fix/mut/`，R3 在 `tmp/closures/w3-skill-fix/r3/`），不随本文件维护。未覆盖：真实的读取判定、对应与来源；对同一个包的并发写入；内容存储来源；大集合下目录的性能。替身通过不证明真实端口的行为。
+未覆盖：真实的读取判定、对应与来源；对同一个包的并发写入；内容存储来源；大集合下目录的性能。替身通过不证明真实端口的行为。
 
 <a id="properties"></a>
 
@@ -151,4 +148,4 @@ M 与 F 编号是交付时的手工变异记录（W2 在 `tmp/closures/w2-skill/
 | S6 中止不交部分 | `signal` 在第 `k` 个端口答复时中止，操作恰好调用 `k` 次端口并答 `aborted`；中止的 `signal` 上从不调用端口 | 有限范围通过 | 有限范围通过 |
 | S7 引用身份一致 | 成功的操作只交所请求身份的材料：结果的身份是所请求的身份，交出的字节来自该身份的材料。引用指向别的身份，或带依据时指向别的材料，整次答 `unknown`，不调用来源 | 有限范围通过，不含带依据时引用不带内容摘要的子情形 | 有限范围通过 |
 
-模型是 [verification/models/ReadGate.tla](verification/models/ReadGate.tla)，在 TLC 2.19 上检查，配置与状态数见 [verification/models/README.md](verification/models/README.md)。探索器在 [tests/model/](tests/model/README.md)，驱动 `dist` 中的真实服务，端口是内存替身加故障包装。两者都是有限范围的结果，不是无条件证明。真实端口与本包的组合没有验证。
+模型是 [verification/models/ReadGate.tla](verification/models/ReadGate.tla)，在 TLC 2.19 上检查，配置与判读见 [verification/models/README.md](verification/models/README.md)。探索器在 [tests/model/](tests/model/README.md)，驱动 `dist` 中的真实服务，端口是内存替身加故障包装。两者都是有限范围的结果，不是无条件证明。真实端口与本包的组合没有验证。

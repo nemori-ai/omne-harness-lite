@@ -12,7 +12,7 @@
 | [src/fs.ts](../src/fs.ts)                             | `DirectoryFs` 接缝与默认接缝 `nodeFs`。只做读取，不分类                                                       | `node:fs/promises`                                                                    |
 | [src/cordis.ts](../src/cordis.ts)                     | `./cordis` 入口：插件 `skillPlugin`。造两个端口适配器与三个服务，把三个服务子类挂在装载它的 fiber 上          | `directory-source.ts`、`@omne-harness/skill`、`skill-cordis-contract`、`kernel-basis` |
 
-依赖只向下：`directory-source.ts` → `walk.ts` → `fs.ts`。根入口只依赖 Skill 契约与 `operation-result`，不认识 `@omne-harness/skill`、Cordis 或任何调用方。`cordis.ts` 在 `directory-source.ts` 之上：它是唯一认识 `@omne-harness/skill`、`skill-cordis-contract`、`@omne-harness/kernel-basis` 与 Cordis 的模块，由 `./cordis` 入口发布，根入口不导入它。它的依据是[Cordis 集成约定](../../../../docs/architecture/cordis-integration-conventions.md)与 W4 波包决定 1–4；条款见 [Cordis 集成](cordis.md)。
+依赖只向下：`directory-source.ts` → `walk.ts` → `fs.ts`。根入口只依赖 Skill 契约与 `operation-result`，不认识 `@omne-harness/skill`、Cordis 或任何调用方。`cordis.ts` 在 `directory-source.ts` 之上：它是唯一认识 `@omne-harness/skill`、`skill-cordis-contract`、`@omne-harness/kernel-basis` 与 Cordis 的模块，由 `./cordis` 入口发布，根入口不导入它。它的依据是[Cordis 集成约定](../../../../docs/architecture/cordis-integration-conventions.md)；条款见 [Cordis 集成](cordis.md)。
 
 本包没有长期状态。一次 `collect` 调用持有一份遍历状态 `Walk`：已读文件列表与访问计数。只有 `collect` 建它，调用返回之前外面看不到它。默认接缝每读一个文件就打开并关闭一个文件句柄。
 
@@ -26,7 +26,7 @@
 - **根内判定按整段比较。**`isWithin` 把两个路径按分隔符切开再逐段比较。字符串前缀比较会把根 `/x/pkg` 的兄弟 `/x/pkg-sibling` 当成根内。`snapshot` 与 `open` 共用这一个函数。
 - **根先解析，根名一处核对。**根自己是链接时，根内判定与根名都以解析后的目录为准。`resolveRoot` 是根名为空的唯一核对处，所以 `sealSnapshot` 的 `invalid-root-name` 是不可达的缺陷，来源以错误拒绝它。
 - **成环检测。**每个遍历位置记下从根到它的解析后目录。解析结果是其中之一时答 `entry-unreadable`。实际路径有限，所以无限下降必然重访这条路径上的某个目录，检测因此完整。
-- **访问预算。**不成环的链接仍能使访问次数指数增长。一次遍历最多访问 65536 个名字，超出答 `entry-unreadable`。这个数由领域设计裁定。
+- **访问预算。**不成环的链接仍能使访问次数指数增长。一次遍历最多访问 65536 个名字，超出答 `entry-unreadable`。
 - **确定的第一个失败。**遍历深度优先，每个目录按名字的码元序。文件系统列出名字的次序不固定，排序使多处缺陷的包总是得到同一个答复。
 - **非阻塞读。**默认接缝以 `O_NONBLOCK` 打开文件并读打开对象的种类。列出之后被换成管道的文件不会使读取等待写者。
 - **根入口没有类与类型断言。**接缝、来源与遍历位置都是对象字面量与函数。品牌值只经契约的守卫取得：包内路径经 `isPackagePath`，快照经 `sealSnapshot`。类只在 `./cordis` 入口：三个服务子类继承 skill-cordis-contract 的抽象 Service，Cordis 要求服务是类。它们只把调用转给构造好的服务，没有自己的状态。

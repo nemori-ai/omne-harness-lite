@@ -9,15 +9,8 @@
 | 依据 | 修订 | 本规格采用的范围 |
 | --- | --- | --- |
 | [组工程设计](../docs/architecture.md) | `773d9f04c` | 模型、资产正文与 Skill 包、端口、应用服务、检查与发现、包格式规则、读取、失败种类、验证 |
-| 领域设计裁定 | 2026-11-03 | 入口与各入口的内容；内容摘要算法；`SafeReason` 的形状；读取内容是文本或字节；正文起点；每页 65536 字节；中止为 `aborted`；`.omne/skill.json` 的形状与格式版本；四个设置类别；声明项编码；声明的 JSON 预算；YAML 头部的解析；`skillBodyContract` 只做可加扩展；`SkillResolution.adopted` 只交两种答复；快照只能经 `sealSnapshot` 构造。组页没有写的条款见[组页没有写的条款](#group-differences) |
 | 资产公开类型 `@omne-harness/assets` | `3289bee2f` | `BodyContract`、`CapabilityId`、`Declarations` |
 | [官方 Agent Skills 规格](https://agentskills.io/specification) | 2026-11-03 读取 | `SKILL.md` 的头部字段与目录结构 |
-| W3 Skill 线实施规格（reduce 裁定）、第 2 轮裁定 R1–R9 与第 3 轮裁定 S1–S3 | 2026-11-04 | 可加改动：公开根导出 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT`、`DECLARATION_LIMITS`、`sameCapability` 与 `isSkillDescription`；`./provider` 导出 `isSealedSnapshot`；[目录的匹配规则](#catalog-search)；[端口答复的统一处置](#port-answer-closed)；`open` 答 `entry-unreadable` 的映射；`skillCatalogConformance` |
-| W3 闭包 w3-skill-fix 的 reduce 裁定（卡 #1119 r1） | 2026-11-04 | 引用身份一致（GS-06，性质 S7）：统一处置核对表的 `resolve` 一行与 PR3 的内容摘要；`inspect` 的映射按调用点分格（GS-02）；中止活性的前提（GS-05）；生态兼容的放宽与兼容提示（见[兼容提示](#compatibility-hints)） |
-| w3-skill-fix 第 2 轮 reduce 裁定 N1、N2（2026-11-04T15:05Z） | 2026-11-04 | name 与包根目录名不同时接受并带提示，只有期望名字拒绝；说明的上限统一为公开根导出的 `DESCRIPTION_LIMIT`（16384） |
-| w3-skill-fix 第 2 轮 reduce 裁定 B1 | 2026-11-04 | 带依据时引用不带内容摘要算错指（S7）；端口对没有可读包的材料也带回依据的内容摘要（PR3），带依据的操作不答 `unsupported` |
-
-各裁定的内容写在下文对应的条款里。裁定编号（例如 G3、C19）只是过程标签，决定的内容已经写全在本页。
 
 <a id="entries"></a>
 
@@ -60,11 +53,11 @@
 
 下列条款[组工程设计](../docs/architecture.md)没有写，也不与组页冲突。本页是它们的唯一源。
 
-| 条款 | 本页条款 | 依据 |
-| --- | --- | --- |
-| 控制字节与快照不对应时 `parseSkillPackage` 答 `version-changed` | [前提与版本](#parse-preconditions) | 领域设计裁定 C1（2026-11-03） |
-| 只做检查的值公开守卫 `isX`，`toPackagePath` 仍规范化并答 `Outcome` | [值与守卫](#values) | 领域设计裁定，品牌授予规则（2026-11-03） |
-| `./testing` 的套件是无框架的用例列表 | [符合性套件](#conformance) | 领域设计裁定 C18（2026-11-03） |
+| 条款 | 本页条款 |
+| --- | --- |
+| 控制字节与快照不对应时 `parseSkillPackage` 答 `version-changed` | [前提与版本](#parse-preconditions) |
+| 只做检查的值公开守卫 `isX`，`toPackagePath` 仍规范化并答 `Outcome` | [值与守卫](#values) |
+| `./testing` 的套件是无框架的用例列表 | [符合性套件](#conformance) |
 
 ## 结果与不变量
 

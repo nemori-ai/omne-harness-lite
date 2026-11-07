@@ -2,7 +2,7 @@
 // characters up to three characters long is put in a package five ways: as a text resource, as
 // a binary resource (one 0xFF byte in front), and as the body of `SKILL.md` behind an LF and a
 // CRLF frontmatter, and as a `SKILL.md` without a frontmatter, whose body is not known: every
-// read of it answers `source-unavailable` alone (GS-04). Each is read through the real
+// read of it answers `source-unavailable` alone. Each is read through the real
 // `read` with every start and length up to two past the total, the page limit and one more, and
 // no range. One more package holds a region longer than a page with characters across the page
 // limit. The expected page comes from the rules of the contract SPEC "读取的形状规则": the actual
