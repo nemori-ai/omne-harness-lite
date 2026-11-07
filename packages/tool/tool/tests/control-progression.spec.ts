@@ -20,11 +20,10 @@ import {
   referenceFor,
   tenantA,
   text,
-  type Block,
 } from './runtime-values.ts'
 
 function fixture() {
-  const lives = new Map<string, ToolLiveExecution<Block>>()
+  const lives = new Map<string, ToolLiveExecution>()
   const stops: ControlDispatch[] = []
   const deniedActions: ToolLedgerAction[] = []
   let progress: ControlProgress = { kind: 'pending', diagnostic: 'not dispatched' }
@@ -34,7 +33,7 @@ function fixture() {
       ...base,
       start: async (...args) => {
         const started = ok(await base.start(...args))
-        const live: ToolLiveExecution<Block> = {
+        const live: ToolLiveExecution = {
           ...started,
           stop: async input => {
             stops.push(input)

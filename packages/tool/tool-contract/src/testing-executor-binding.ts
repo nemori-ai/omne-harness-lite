@@ -5,8 +5,10 @@
 import assert from 'node:assert/strict'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import type { ToolFinalEnvelope, ToolFinalCustody } from './materials.ts'
+import { decodeToolMaterialId, decodeToolMaterialGeneration } from './identity.ts'
 import type { FixedToolRequest } from './definitions.ts'
-import type { Access, DurableEvidence, ToolCallId } from './identity.ts'
+import type { Access, CallAccess, DurableEvidence, ToolCallId } from './identity.ts'
 import type {
   ToolExecutionFact,
   ToolExecutorBinding,
@@ -58,9 +60,9 @@ import {
 } from './testing-values.ts'
 
 type Start = Extract<ToolStartRecord, { kind: 'start' }>
-type Fact = ToolExecutionFact<ContentBlock>
+type Fact = ToolExecutionFact
 type FinalFact = Extract<Fact, { kind: 'final' }>
-type LiveOnly<P, E> = Extract<ToolExecutorBinding<P, ContentBlock, E>, { kind: 'live-only' }>
+type LiveOnly<P, E> = Extract<ToolExecutorBinding<P, E>, { kind: 'live-only' }>
 
 // ---------------------------------------------------------------------------------------------
 // The suite
@@ -149,7 +151,7 @@ export const executorBindingAnswers = {
 >
 
 /** A final fact that settles a start as completed. */
-export function completedFinal(): FinalFact {
+export function completedFinalEnvelope(): ToolFinalEnvelope<ContentBlock> {
   return {
     kind: 'final',
     raw: {
@@ -169,6 +171,30 @@ export function completedFinal(): FinalFact {
   }
 }
 
+/** A sealed pointer fixture for binding conformance; it does not provide durable custody. */
+export function completedFinal(): FinalFact {
+  const { result: _result, ...final } = completedFinalEnvelope()
+  const id = decodeToolMaterialId('conformance-final')
+  const generation = decodeToolMaterialGeneration('1')
+  if ('failure' in id || 'failure' in generation) throw new Error('Invalid fixture identity')
+  return {
+    ...final,
+    value: {
+      codec: 'tool-canonical-json-v1',
+      algorithm: 'sha256',
+      digest: 'a'.repeat(64),
+      bytes: '1',
+    },
+    envelope: {
+      material: { id: id.ok, generation: generation.ok, provider: adoption('materials') },
+      codec: adoption('tool-canonical-json-v1'),
+      bytes: '1',
+      sha256: 'a'.repeat(64),
+      evidence: evidence('sealed-final'),
+    },
+  }
+}
+
 function scene<P, E>(
   fixture: ToolExecutorBindingFixture<P, E>,
   access: Access<P> = fixture.access,
@@ -185,13 +211,13 @@ function scene<P, E>(
       : syntheticPermit(access, forCall, of, request)
   const startWith = (permit: StartPermit, record: Start = start) =>
     binding.start({ ...callAccess, start: record, permit, request }, fixture.environment)
-  const begin = async (): Promise<ToolLiveExecution<ContentBlock>> =>
+  const begin = async (): Promise<ToolLiveExecution> =>
     succeeded(await startWith(await permitFor(start, call)), 'start')
-  const lookup = async (): Promise<ToolStartLookup<ContentBlock>> =>
+  const lookup = async (): Promise<ToolStartLookup> =>
     succeeded(await binding.inspectStart({ ...callAccess, start }), 'inspectStart')
   const completion = completionOf(fixture, 'settle')
   /** What `inspectStart` finally tells; a provider that is not sure at first lands it by `settle`. */
-  const lookupFinal = (): Promise<ToolStartLookup<ContentBlock>> =>
+  const lookupFinal = (): Promise<ToolStartLookup> =>
     finalAnswer({
       ask: lookup,
       row: executorBindingAnswers.inspectStart,
@@ -213,7 +239,7 @@ function scene<P, E>(
    * end with `completeStop` and read with `inspectControl`, which every executor answers.
    */
   const stopLanded = async (
-    execution: ToolLiveExecution<ContentBlock>,
+    execution: ToolLiveExecution,
     control: ControlDispatch,
     first: ControlProgress,
   ): Promise<ControlProgress> => {
@@ -260,14 +286,14 @@ const deadline = (fixture: { readonly readDeadlineMs?: number }): number =>
  * several facts, so the suite counts facts and not batches); the stream is then closed.
  */
 async function readBatches(
-  execution: ToolLiveExecution<ContentBlock>,
+  execution: ToolLiveExecution,
   after: string | null,
   events: number,
   deadlineMs: number,
-): Promise<FactBatch<ContentBlock>[]> {
+): Promise<FactBatch[]> {
   const controller = new AbortController()
   const iterator = execution.facts({ after, signal: controller.signal })[Symbol.asyncIterator]()
-  const batches: FactBatch<ContentBlock>[] = []
+  const batches: FactBatch[] = []
   let seen = 0
   try {
     while (seen < events) {
@@ -284,19 +310,15 @@ async function readBatches(
 }
 
 /** The facts that the batches carry, in order. */
-const factsOf = (batches: readonly FactBatch<ContentBlock>[]) =>
-  batches.flatMap(batch => batch.events)
+const factsOf = (batches: readonly FactBatch[]) => batches.flatMap(batch => batch.events)
 
 /** The batches that arrive from the start of the stream within the quiet period of the fixture. */
-async function drain(
-  execution: ToolLiveExecution<ContentBlock>,
-  quietMs: number,
-): Promise<FactBatch<ContentBlock>[]> {
+async function drain(execution: ToolLiveExecution, quietMs: number): Promise<FactBatch[]> {
   const controller = new AbortController()
   const iterator = execution
     .facts({ after: null, signal: controller.signal })
     [Symbol.asyncIterator]()
-  const batches: FactBatch<ContentBlock>[] = []
+  const batches: FactBatch[] = []
   let timer: ReturnType<typeof setTimeout> | undefined
   const quiet = new Promise<'quiet'>(resolve => {
     timer = setTimeout(() => resolve('quiet'), quietMs)
@@ -747,7 +769,7 @@ type Waiter = () => void
 type Execution = {
   readonly start: Start
   readonly source: DurableEvidence
-  readonly batches: FactBatch<ContentBlock>[]
+  readonly batches: FactBatch[]
   readonly acknowledged: Map<string, DurableEvidence>
   readonly pending: Set<string>
   readonly controls: Map<string, ControlProgress>
@@ -760,7 +782,7 @@ type Execution = {
   continuity: DurableEvidence | null
   stopHeld: ControlDispatch | null
   blind: boolean
-  handle: ToolLiveExecution<ContentBlock> | null
+  handle: ToolLiveExecution | null
 }
 
 export interface MemoryToolExecutorBinding<P, E> {
@@ -770,6 +792,7 @@ export interface MemoryToolExecutorBinding<P, E> {
     launches(): number
     emit(start: Start, fact: Fact): Promise<void>
     finish(start: Start, final: FinalFact): Promise<void>
+    finishEnvelope(start: Start, final: ToolFinalEnvelope<ContentBlock>): Promise<void>
     loseContinuity(start: Start): Promise<void>
     blindInspection(start: Start): void
     pendingAcknowledgements(start: Start): number
@@ -787,7 +810,26 @@ const reply = <T>(outcome: Outcome<T, ToolFailure>): Promise<Outcome<T, ToolFail
  * joins the execution that exists. The executor keeps the facts it produced, so a stream read
  * from a cursor continues there, and it ends only when the channel is closed by the reader.
  */
-export function createMemoryToolExecutorBinding<P, E>(): MemoryToolExecutorBinding<P, E> {
+export function createMemoryToolExecutorBinding<P, E>(
+  custody?: ToolFinalCustody<P, ContentBlock>,
+): MemoryToolExecutorBinding<P, E> {
+  const accessByState = new WeakMap<Execution, CallAccess<P>>()
+  const seal = async (
+    state: Execution,
+    final: ToolFinalEnvelope<ContentBlock>,
+  ): Promise<FinalFact> => {
+    const access = accessByState.get(state)
+    if (custody === undefined || access === undefined) throw new Error('Final custody is required')
+    const answer = await custody.preserveFinal({
+      ...access,
+      start: state.start,
+      operation: operationId(`final-${state.start.operation}`),
+      source: state.source,
+      final,
+    })
+    if ('failure' in answer) throw new Error(JSON.stringify(answer.failure))
+    return answer.ok
+  }
   const executions = new Map<string, Execution>()
   const exclusions = new Map<string, DurableEvidence>()
   /** The executions whose next stop is answered as accepted only. */
@@ -825,22 +867,26 @@ export function createMemoryToolExecutorBinding<P, E>(): MemoryToolExecutorBindi
     state.pending.add(`batch-${index}`)
     wake(state)
   }
-  const stopFor = (state: Execution, control: ControlDispatch): void => {
+  const stopFor = async (state: Execution, control: ControlDispatch): Promise<void> => {
     // The executor ends and the final records why: a control interrupted it.
-    state.status = 'settled'
-    const final: FinalFact = {
-      ...completedFinal(),
+    const envelope: ToolFinalEnvelope<ContentBlock> = {
+      ...completedFinalEnvelope(),
       terminal: {
         kind: 'interrupted',
         cause: { kind: 'control', operation: control.operation, withdrawn: false },
       },
       effect: { kind: 'unknown', diagnostic: 'the executor was stopped' },
     }
+    const final =
+      custody === undefined
+        ? { ...completedFinal(), terminal: envelope.terminal, effect: envelope.effect }
+        : await seal(state, envelope)
+    state.status = 'settled'
     append(state, final)
     state.settled = { event: `event-${state.batches.length}`, fact: final }
   }
 
-  const handleOf = (state: Execution): ToolLiveExecution<ContentBlock> => {
+  const handleOf = (state: Execution): ToolLiveExecution => {
     state.handle ??= {
       facts: input => factsOf(state, input.after, input.signal),
       acknowledge: receipt => {
@@ -852,7 +898,7 @@ export function createMemoryToolExecutorBinding<P, E>(): MemoryToolExecutorBindi
         }
         return reply(succeed(ack))
       },
-      stop: control => {
+      stop: async control => {
         const asked = digestOf({
           kind: 'stop',
           inputDigest: control.inputDigest,
@@ -882,7 +928,7 @@ export function createMemoryToolExecutorBinding<P, E>(): MemoryToolExecutorBindi
           state.controls.set(control.operation, accepted)
           return reply(succeed(accepted))
         }
-        stopFor(state, control)
+        await stopFor(state, control)
         const stopped: ControlProgress = {
           kind: 'stopped',
           evidence: mint('stopped', { control: control.operation }),
@@ -909,7 +955,7 @@ export function createMemoryToolExecutorBinding<P, E>(): MemoryToolExecutorBindi
     state: Execution,
     after: string | null,
     signal: AbortSignal,
-  ): AsyncGenerator<FactBatch<ContentBlock>> {
+  ): AsyncGenerator<FactBatch> {
     let next = 0
     if (after !== null) {
       const at = state.batches.findIndex(batch => batch.cursor === after)
@@ -979,6 +1025,11 @@ export function createMemoryToolExecutorBinding<P, E>(): MemoryToolExecutorBindi
           handle: null,
         }
         executions.set(at, state)
+        accessByState.set(state, {
+          principal: input.principal,
+          tenant: input.tenant,
+          call: input.call,
+        })
       }
       return reply(succeed(handleOf(state)))
     },
@@ -1021,6 +1072,11 @@ export function createMemoryToolExecutorBinding<P, E>(): MemoryToolExecutorBindi
       state.settled = { event: `event-${state.batches.length}`, fact: final }
       return Promise.resolve()
     },
+    finishEnvelope: async (start, envelope) => {
+      const state = stateOf(start)
+      const final = await seal(state, envelope)
+      await controls.finish(start, final)
+    },
     loseContinuity: start => {
       const state = stateOf(start)
       state.status = 'lost'
@@ -1036,12 +1092,12 @@ export function createMemoryToolExecutorBinding<P, E>(): MemoryToolExecutorBindi
     },
     // Every answer of the double is final when the call returns, so nothing is left to land.
     settle: () => Promise.resolve(),
-    completeStop: start => {
+    completeStop: async start => {
       const state = stateOf(start)
       const control = state.stopHeld
       if (control === null) return Promise.resolve()
       state.stopHeld = null
-      stopFor(state, control)
+      await stopFor(state, control)
       state.controls.set(control.operation, {
         kind: 'stopped',
         evidence: mint('stopped', { control: control.operation }),

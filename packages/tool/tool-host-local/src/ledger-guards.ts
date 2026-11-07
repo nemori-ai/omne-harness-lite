@@ -55,7 +55,7 @@ export type LocalToolLedgerGuardsInput<P, E = unknown> = Readonly<{
   /** The value of `createLocalInvocationSource`; its `guard` becomes `guards.sources`. */
   sources: LocalInvocationSource<P>
   /** Recovers the original source confirmation; it answers `unavailable` when it cannot. */
-  bindings: Pick<ToolBindings<P, ToolMessageContentBlock, E>, 'recover'>
+  bindings: Pick<ToolBindings<P, E>, 'recover'>
   /** The value of `createLocalGrantVerifiers`. */
   grants: ReadonlyMap<string, ToolGrantVerifier<P>>
   /** Defaults to `localArgumentLimits`. */
@@ -102,9 +102,7 @@ export function createLocalToolLedgerGuards<P, E = unknown>(
   return Object.freeze({
     access: access.guard,
     sources: sources.guard,
-    factAcknowledgements: createToolFactAcknowledgementGuard<P, ToolMessageContentBlock, E>(
-      bindings,
-    ),
+    factAcknowledgements: createToolFactAcknowledgementGuard<P, E>(bindings),
     grants,
     starts: createLocalStartGuard<P>({
       access: access.start,

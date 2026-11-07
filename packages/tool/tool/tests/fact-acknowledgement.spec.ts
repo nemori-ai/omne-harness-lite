@@ -11,7 +11,10 @@ import {
   createToolLedger,
   type ToolFactAcknowledgementGuard,
 } from '@omne-harness/tool'
-import { createMemoryToolClock, completedFinal } from '@omne-harness/tool-contract/testing'
+import {
+  createMemoryToolClock,
+  completedFinalEnvelope as completedFinal,
+} from '@omne-harness/tool-contract/testing'
 import { admitCall, startHarness } from './start-values.ts'
 import {
   callId,
@@ -24,7 +27,6 @@ import {
   principalB,
   tenantA,
   tenantB,
-  type Block,
   type Principal,
   testSettlementPorts,
 } from './runtime-values.ts'
@@ -39,10 +41,10 @@ function deferred() {
 
 /** A real started memory execution supplies facts and its idempotent ACK to the recovery route. */
 async function fixture(options: { hold?: ReturnType<typeof deferred> } = {}) {
-  let live: ToolLiveExecution<Block> | undefined
+  let live: ToolLiveExecution | undefined
   let ackGuard: ToolFactAcknowledgementGuard<Principal> | undefined
   let recoveries = 0
-  const recoveredStarts: FactBatch<Block>['start'][] = []
+  const recoveredStarts: FactBatch['start'][] = []
   let attempts = 0
   let confirmations = 0
   let loseReply = false
@@ -87,7 +89,7 @@ async function fixture(options: { hold?: ReturnType<typeof deferred> } = {}) {
           recoveredStarts.push(input.start)
           recoveries += 1
           await options.hold?.promise
-          const recovery: ToolRecoveryBinding<Block> = {
+          const recovery: ToolRecoveryBinding = {
             acknowledge: acknowledgement,
             inspectStart: () =>
               Promise.resolve(succeed({ kind: 'unknown', diagnostic: 'live removed' })),
@@ -219,7 +221,7 @@ describe('trusted source fact acknowledgement', () => {
     const settle = recovery.tasks.find(task => task.kind === 'settle')
     if (settle?.kind !== 'settle') throw new Error('missing saved final')
     expect(ok(await rebuilt.facts.read({ ...f.access, basis: settle.basis })).fact).toEqual(
-      f.batch.events[0]?.fact,
+      completedFinal(),
     )
 
     expect(
@@ -481,7 +483,7 @@ describe('trusted source fact acknowledgement', () => {
         sourceReceipt: evidence('other'),
       }),
     ).toEqual({ failure: { kind: 'conflict', operation: f.input.operation } })
-    const next: FactBatch<Block> = {
+    const next: FactBatch = {
       ...f.batch,
       batch: 'second',
       after: f.batch.cursor,
@@ -507,7 +509,7 @@ describe('trusted source fact acknowledgement', () => {
 
   it('treats recovery-port failure as unavailable rather than forged', async () => {
     const f = await fixture()
-    const guard = createToolFactAcknowledgementGuard<unknown, Block, unknown>({
+    const guard = createToolFactAcknowledgementGuard<unknown, unknown>({
       recover: () =>
         Promise.resolve(fail({ kind: 'unavailable', dependency: 'source', diagnostic: 'secret' })),
     })

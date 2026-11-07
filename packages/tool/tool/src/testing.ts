@@ -75,8 +75,8 @@ export type TestToolDependenciesInput<P> = Readonly<{
   operationIdentities: ToolOperationIdentities
   sourceIssuer: ToolInvocationSourceIssuer<P>
   bindingsFor(
-    executor: ToolExecutorBinding<P, ContentBlock, MemoryEnvironment>,
-  ): ToolBindings<P, ContentBlock, MemoryEnvironment>
+    executor: ToolExecutorBinding<P, MemoryEnvironment>,
+  ): ToolBindings<P, MemoryEnvironment>
 }>
 
 export type TestToolDoubles<P> = Readonly<{
@@ -104,7 +104,9 @@ export function createTestToolDependencies<P>(
 ): TestToolDependencies<P> {
   const content = createMemoryToolContent<P>()
   const doubles: TestToolDoubles<P> = {
-    executor: createMemoryToolExecutorBinding<P, MemoryEnvironment>(),
+    executor: createMemoryToolExecutorBinding<P, MemoryEnvironment>({
+      preserveFinal: input => ledger.finalCustody.preserveFinal(input),
+    }),
     environment: createMemoryToolEnvironment<P>(),
     authority: createMemoryToolStartAuthority<P>(),
     clock: createMemoryToolClock(),

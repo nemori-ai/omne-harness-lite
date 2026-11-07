@@ -1,4 +1,3 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolFailure } from '@omne-harness/tool-contract'
 import type { FactBatch, ToolMaterialFingerprint } from '@omne-harness/tool-contract/provider'
@@ -9,23 +8,24 @@ export type FactValues = Readonly<{
   batch: ToolMaterialFingerprint
   events: readonly Readonly<{ event: string; value: ToolMaterialFingerprint }>[]
 }>
-export type StoredFactBatch<B extends ContentBlock> = Omit<FactBatch<B>, 'events'> &
+export type StoredFactBatch = Omit<FactBatch, 'events'> &
   Readonly<{
     value: ToolMaterialFingerprint
     events: readonly Readonly<{
       event: string
-      fact: StoredExecutionFact<B>
+      fact: StoredExecutionFact
       value: ToolMaterialFingerprint
     }>[]
   }>
 
-export function factValues<B extends ContentBlock>(
-  batch: FactBatch<B>,
-): Outcome<FactValues, ToolFailure> {
+export function factValues(batch: FactBatch): Outcome<FactValues, ToolFailure> {
   const seen = new Map<string, ToolMaterialFingerprint>()
   const events: { event: string; value: ToolMaterialFingerprint }[] = []
   for (const event of batch.events) {
-    const value = encodeToolMaterial(event.fact)
+    const value =
+      event.fact.kind === 'final'
+        ? succeed({ fingerprint: event.fact.value })
+        : encodeToolMaterial(event.fact)
     if ('failure' in value) return value
     const previous = seen.get(event.event)
     if (

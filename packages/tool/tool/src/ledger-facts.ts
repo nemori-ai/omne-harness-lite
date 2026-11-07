@@ -70,8 +70,8 @@ function updateProcess(
 /** The event history decides duplicate sequences, including historical updates after closure. */
 function processWrites<B extends ContentBlock>(
   snapshot: Snapshot<B>,
-  batch: StoredFactBatch<B>,
-  events: readonly FactEventRecord<B>[],
+  batch: StoredFactBatch,
+  events: readonly FactEventRecord[],
   adoption: Adoption,
 ): Outcome<readonly LedgerWrite<B>[], ToolFailure> {
   const current = new Map(
@@ -106,7 +106,7 @@ function processWrites<B extends ContentBlock>(
 
 function recallBatch<B extends ContentBlock>(
   snapshot: Snapshot<B>,
-  batch: Pick<FactBatch<B>, 'start' | 'source' | 'batch'>,
+  batch: Pick<FactBatch, 'start' | 'source' | 'batch'>,
   value: ToolMaterialFingerprint,
 ): Outcome<FactReceipt | null, ToolFailure> {
   const known = snapshot.batches.get(factKey(batch.start, batch.source.owner, batch.batch))
@@ -117,13 +117,10 @@ function recallBatch<B extends ContentBlock>(
 }
 
 type EventPlan<B extends ContentBlock> = Readonly<{
-  fresh: readonly FactEventRecord<B>[]
+  fresh: readonly FactEventRecord[]
   writes: readonly LedgerWrite<B>[]
 }>
-function factPlace<B extends ContentBlock>(
-  call: CallRecord,
-  batch: Pick<FactBatch<B>, 'start' | 'source'>,
-) {
+function factPlace(call: CallRecord, batch: Pick<FactBatch, 'start' | 'source'>) {
   return {
     tenant: call.tenant,
     call: call.call,
@@ -134,13 +131,13 @@ function factPlace<B extends ContentBlock>(
 function planEvents<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   call: CallRecord,
-  batch: StoredFactBatch<B>,
+  batch: StoredFactBatch,
   mint: Mint,
 ): Outcome<EventPlan<B>, ToolFailure> {
   const start = batch.start
   const place = factPlace(call, batch)
   const facts = new Map(snapshot.facts)
-  const fresh: FactEventRecord<B>[] = []
+  const fresh: FactEventRecord[] = []
   const writes: LedgerWrite<B>[] = []
   let final = [...facts.values()].find(
     record => record.start.operation === start.operation && record.fact.kind === 'final',
@@ -196,7 +193,7 @@ function planEvents<B extends ContentBlock>(
 export function checkFactBatch<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   start: ToolStartRecord,
-  batch: Omit<FactBatch<B>, 'events'>,
+  batch: FactBatch,
   value: ToolMaterialFingerprint,
 ): Outcome<FactReceipt | null, ToolFailure> {
   const call = snapshot.call
@@ -215,6 +212,21 @@ export function checkFactBatch<B extends ContentBlock>(
     (!sameFactValue(stream.start, start) || !sameFactValue(stream.source, batch.source))
   )
     return invalid('batch.source', 'source-conflict')
+  let final = [...snapshot.facts.values()].find(
+    record => record.start.operation === start.operation && record.fact.kind === 'final',
+  )?.fact
+  for (const event of batch.events) {
+    if (event.fact.kind !== 'final') continue
+    if (
+      final?.kind === 'final' &&
+      !sameFactValue(
+        [final.raw, final.terminal, final.effect],
+        [event.fact.raw, event.fact.terminal, event.fact.effect],
+      )
+    )
+      return invalid('batch.events.fact', 'final-conflict')
+    final = event.fact
+  }
   const recalled = recallBatch(snapshot, batch, value)
   if ('failure' in recalled) return recalled
   if (recalled.ok !== null) return succeed(recalled.ok)
@@ -233,7 +245,7 @@ export function checkFactBatch<B extends ContentBlock>(
 export function decideReceiveFacts<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   start: ToolStartRecord,
-  batch: StoredFactBatch<B>,
+  batch: StoredFactBatch,
   mint: Mint,
   adoption: Adoption,
 ): Decision<FactReceipt, B> {
@@ -253,7 +265,7 @@ export function decideReceiveFacts<B extends ContentBlock>(
 
 function commitBatch<B extends ContentBlock>(
   call: CallRecord,
-  batch: StoredFactBatch<B>,
+  batch: StoredFactBatch,
   mint: Mint,
   writes: LedgerWrite<B>[],
 ): Decision<FactReceipt, B> {
@@ -345,10 +357,7 @@ export function factProgress<B extends ContentBlock>(
 export function readSavedFact<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   basis: SavedFact<B>['evidence'],
-): Outcome<
-  Pick<FactEventRecord<B>, 'start' | 'source' | 'event' | 'fact' | 'evidence'>,
-  ToolFailure
-> {
+): Outcome<Pick<FactEventRecord, 'start' | 'source' | 'event' | 'fact' | 'evidence'>, ToolFailure> {
   if (snapshot.call === null) return invalid('call', 'unknown-call')
   const record = [...snapshot.facts.values()].find(fact => sameFactValue(fact.evidence, basis))
   if (record === undefined) return invalid('basis', 'unknown-fact-evidence')

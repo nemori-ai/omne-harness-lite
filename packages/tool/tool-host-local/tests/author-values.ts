@@ -105,12 +105,12 @@ export const loadAuthor = (
     services: {},
   })
 
-type Final = Extract<ToolExecutionFact<ContentBlock>, { kind: 'final' }>
+type Final = Extract<ToolExecutionFact, { kind: 'final' }>
 export async function bindingFixture(
   consume?: ToolStartAuthority<string>['consume'],
 ): Promise<ToolExecutorBindingFixture<string, unknown> & Readonly<{ pins(): string }>> {
   let launches = 0
-  const actors = new Map<string, LocalAuthorExecution<ContentBlock>>()
+  const actors = new Map<string, LocalAuthorExecution>()
   const completes = new Map<AbortSignal, (value: Final) => void>()
   const results = new Map<AbortSignal, Final>()
   const held = new Set<AbortSignal>()

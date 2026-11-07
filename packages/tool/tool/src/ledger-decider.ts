@@ -74,7 +74,7 @@ export type Snapshot<B extends ContentBlock> = Readonly<{
   operations: ReadonlyMap<string, OperationRecord>
   results: ReadonlyMap<string, ResultRecord<B>>
   releases: ReadonlyMap<string, EnvironmentReleaseRecord>
-  facts: ReadonlyMap<string, FactEventRecord<B>>
+  facts: ReadonlyMap<string, FactEventRecord>
   batches: ReadonlyMap<string, FactBatchRecord>
   streams: ReadonlyMap<string, FactStreamRecord>
   process: readonly ProcessRecord[]
@@ -93,7 +93,7 @@ export function snapshotOf<B extends ContentBlock>(
   const materialUses = new Map<string, MaterialUseRecord>()
   let materialTime: MaterialTimeRecord | null = null
   const releases = new Map<string, EnvironmentReleaseRecord>()
-  const facts = new Map<string, FactEventRecord<B>>()
+  const facts = new Map<string, FactEventRecord>()
   const batches = new Map<string, FactBatchRecord>()
   const streams = new Map<string, FactStreamRecord>()
   const process: ProcessRecord[] = []

@@ -9,7 +9,8 @@ import {
   type ToolRecoveryBinding,
 } from '@omne-harness/tool-contract/provider'
 import {
-  completedFinal,
+  completedFinalEnvelope as completedFinal,
+  completedFinal as completedFinalPointer,
   createMemoryToolClock,
   createMemoryToolStartAuthority,
 } from '@omne-harness/tool-contract/testing'
@@ -35,7 +36,6 @@ import {
   tenantA,
   tenantB,
   text,
-  type Block,
   type Principal,
   testSettlementPorts,
 } from './runtime-values.ts'
@@ -66,7 +66,7 @@ function fixture(
   } = {},
 ) {
   const signals = new Map<string, AbortSignal>()
-  const lives = new Map<string, ToolLiveExecution<Block>>()
+  const lives = new Map<string, ToolLiveExecution>()
   const stats = {
     readers: 0,
     maxReaders: 0,
@@ -95,7 +95,7 @@ function fixture(
         const result = await base.start(...args)
         if ('failure' in result) return result
         const original = result.ok
-        const wrapped: ToolLiveExecution<Block> = {
+        const wrapped: ToolLiveExecution = {
           ...original,
           facts: input => ({
             [Symbol.asyncIterator]: () => {
@@ -197,7 +197,7 @@ function fixture(
         const live = lives.get(liveKey(input.start))
         if (live === undefined)
           return fail({ kind: 'unavailable', dependency: 'source', diagnostic: 'unavailable' })
-        const recovery: ToolRecoveryBinding<Block> = {
+        const recovery: ToolRecoveryBinding = {
           acknowledge: receipt => live.acknowledge(receipt),
           inspectStart: () =>
             settledInspection
@@ -206,14 +206,7 @@ function fixture(
                     kind: 'settled',
                     source: evidence('source'),
                     event: 'final',
-                    fact: {
-                      ...completedFinal(),
-                      result: {
-                        ...completedFinal().result,
-                        content: [],
-                        original: { kind: 'none' },
-                      },
-                    },
+                    fact: completedFinalPointer(),
                   }),
                 )
               : Promise.resolve(succeed({ kind: 'live', execution: live })),

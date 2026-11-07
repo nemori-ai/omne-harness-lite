@@ -6,12 +6,10 @@ import type {
   CallAccess,
   FactBatch,
   ResultPolicy,
-  ToolFinalCustody,
   ToolFinalPointer,
   ToolMaterialStore,
 } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
-import { factTaskOperation } from './evidence.ts'
 import type { FactValues, StoredFactBatch } from './fact-values.ts'
 import { fixFinalCustodyInput } from './facts-boundary.ts'
 import type { Snapshot } from './ledger-decider.ts'
@@ -29,9 +27,9 @@ const unavailable = (diagnostic: string): Outcome<never, ToolFailure> =>
 
 function checkEventValues<B extends ContentBlock>(
   snapshot: Snapshot<B>,
-  batch: FactBatch<B>,
+  batch: FactBatch,
   values: FactValues,
-  final: FactEventRecord<B> | undefined,
+  final: FactEventRecord | undefined,
 ): Outcome<ReadonlyMap<string, FactValues['events'][number]['value']>, ToolFailure> {
   let finalValue = final?.value
   const valueByEvent = new Map(values.events.map(event => [event.event, event.value]))
@@ -50,14 +48,16 @@ function checkEventValues<B extends ContentBlock>(
   return succeed(valueByEvent)
 }
 
-export async function preserveFactMaterials<P, B extends ContentBlock>(
+export async function adoptFactMaterials<P, B extends ContentBlock>(
   access: CallAccess<P>,
   snapshot: Snapshot<B>,
-  batch: FactBatch<B>,
+  batch: FactBatch,
   values: FactValues,
-  custody: ToolFinalCustody<P, B>,
-): Reply<StoredFactBatch<B>> {
-  const events: StoredFactBatch<B>['events'][number][] = []
+  store: ToolMaterialStore<P> | undefined,
+  policy: ResultPolicy<B>,
+  adoption: Adoption,
+): Reply<StoredFactBatch> {
+  const events: StoredFactBatch['events'][number][] = []
   const final = [...snapshot.facts.values()].find(
     record => record.start.operation === batch.start.operation && record.fact.kind === 'final',
   )
@@ -68,23 +68,42 @@ export async function preserveFactMaterials<P, B extends ContentBlock>(
   for (const event of batch.events) {
     const value = valueByEvent.get(event.event)
     if (value === undefined) return invalid('batch.events', 'missing-fingerprint')
-    let fact: StoredExecutionFact<B>
+    let fact: StoredExecutionFact
     if (event.fact.kind !== 'final') fact = event.fact
     else {
       if (knownFinal === undefined) {
-        const preserved = await custody.preserveFinal({
-          ...access,
+        const pointer = event.fact
+        const identity = encodeToolMaterial({
           start: batch.start,
           source: batch.source,
-          operation: factTaskOperation('final-material', {
-            start: batch.start.operation,
+          value: pointer.value,
+        })
+        if ('failure' in identity) return identity
+        const material = [...snapshot.materials.values()].find(record =>
+          sameFactValue(record.material, pointer.envelope.material),
+        )
+        if (
+          material === undefined ||
+          material.state.kind !== 'sealed' ||
+          !sameFactValue(material.input, identity.ok.fingerprint) ||
+          !sameFactValue(material.state.seal, pointer.envelope)
+        )
+          return invalid('batch.events.fact', 'unowned-final-material')
+        const restored = await restoreSavedFact(
+          access,
+          {
+            start: batch.start,
             source: batch.source,
             event: event.event,
-          }),
-          final: event.fact,
-        })
-        if ('failure' in preserved) return preserved
-        knownFinal = preserved.ok
+            fact: pointer,
+            evidence: batch.source,
+          },
+          store,
+          policy,
+          adoption,
+        )
+        if ('failure' in restored) return restored
+        knownFinal = pointer
       }
       fact = knownFinal
     }
@@ -93,14 +112,11 @@ export async function preserveFactMaterials<P, B extends ContentBlock>(
   return succeed({ ...batch, value: values.batch, events })
 }
 
-type StoredSavedFact<B extends ContentBlock> = Pick<
-  FactEventRecord<B>,
-  'start' | 'source' | 'event' | 'fact' | 'evidence'
->
+type StoredSavedFact = Pick<FactEventRecord, 'start' | 'source' | 'event' | 'fact' | 'evidence'>
 
 export async function restoreSavedFact<P, B extends ContentBlock>(
   input: CallAccess<P>,
-  saved: StoredSavedFact<B>,
+  saved: StoredSavedFact,
   store: ToolMaterialStore<P> | undefined,
   policy: ResultPolicy<B>,
   adoption: Adoption,

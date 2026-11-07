@@ -67,6 +67,7 @@ export {
 } from './testing-environment.ts'
 export {
   completedFinal,
+  completedFinalEnvelope,
   createMemoryToolExecutorBinding,
   executorBindingAnswers,
   memoryToolExecutorBindingFixture,

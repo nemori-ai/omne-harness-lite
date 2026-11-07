@@ -25,8 +25,8 @@ import {
   type ToolClock,
   type ToolEnvironment,
   type ToolExecutorBinding,
-  type ToolLiveExecution,
-  type ToolExecutionFact,
+  type ToolFinalEnvelope,
+  type ToolFinalCustody,
   type ToolOutputCustody,
   type ToolStartAuthority,
 } from '@omne-harness/tool-contract/provider'
@@ -88,8 +88,8 @@ export type StartOptions = HarnessOptions &
     environmentsPort?: (base: TestEnvironments) => ToolEnvironment<Principal, TestEnvironment>
     bindingPort?: (base: LiveBinding) => LiveBinding
     bindingsPort?: (
-      base: ToolBindings<Principal, Block, TestEnvironment>,
-    ) => ToolBindings<Principal, Block, TestEnvironment>
+      base: ToolBindings<Principal, TestEnvironment>,
+    ) => ToolBindings<Principal, TestEnvironment>
     custodyPort?: (base: ToolOutputCustody<Principal>) => ToolOutputCustody<Principal>
     /** Builds over this memory instead of a new one: a second runtime over the same records. */
     memory?: MemoryToolLedgerStore<Block>
@@ -277,62 +277,28 @@ function testEnvironments(initial: ReadonlyMap<string, EnvironmentAnswer>): Test
  * binding was asked for, `executions` every executor run, `environments` what each run got.
  */
 export type TestBinding = Readonly<{
-  bindings: ToolBindings<Principal, Block, TestEnvironment>
+  bindings: ToolBindings<Principal, TestEnvironment>
   readonly attempts: string[]
   readonly executions: string[]
   readonly environments: TestEnvironment[]
   readonly inspected: ToolStartRecord[]
   readonly capsules: DurableEvidence[]
-  readonly controls: ReturnType<
-    typeof createMemoryToolExecutorBinding<Principal, TestEnvironment>
-  >['controls']
+  readonly controls: Omit<
+    ReturnType<typeof createMemoryToolExecutorBinding<Principal, TestEnvironment>>['controls'],
+    'finish'
+  > & {
+    finish(
+      start: Extract<ToolStartRecord, { kind: 'start' }>,
+      final: ToolFinalEnvelope<ContentBlock>,
+    ): Promise<void>
+  }
 }>
 
-type LiveBinding = Extract<
-  ToolExecutorBinding<Principal, Block, TestEnvironment>,
-  { kind: 'live-only' }
->
-
-function requireMessageResultBlock(block: ContentBlock): Block {
-  if (block.kind === 'text' || 'ref' in block) return block
-  throw new Error('the start fixture accepts only message-result blocks')
-}
-
-function messageExecution(execution: ToolLiveExecution<ContentBlock>): ToolLiveExecution<Block> {
-  return {
-    ...execution,
-    facts: async function* (input) {
-      for await (const batch of execution.facts(input)) {
-        yield {
-          ...batch,
-          events: batch.events.map(event => ({ ...event, fact: messageFact(event.fact) })),
-        }
-      }
-    },
-  }
-}
-
-function messageFact(fact: ToolExecutionFact<ContentBlock>): ToolExecutionFact<Block> {
-  if (fact.kind !== 'final') return fact
-  const result = fact.result
-  return {
-    ...fact,
-    result: {
-      ...result,
-      content: result.content.map(requireMessageResultBlock),
-      original:
-        result.original.kind === 'none'
-          ? result.original
-          : {
-              ...result.original,
-              summary: result.original.summary.map(requireMessageResultBlock),
-            },
-    },
-  }
-}
+type LiveBinding = Extract<ToolExecutorBinding<Principal, TestEnvironment>, { kind: 'live-only' }>
 
 function testBinding(
   authority: ToolStartAuthority<Principal>,
+  custody: ToolFinalCustody<Principal, ContentBlock>,
   wrap: (base: LiveBinding) => LiveBinding = base => base,
 ): TestBinding {
   const attempts: string[] = []
@@ -340,7 +306,7 @@ function testBinding(
   const environments: TestEnvironment[] = []
   const inspected: ToolStartRecord[] = []
   const capsules: DurableEvidence[] = []
-  const executor = createMemoryToolExecutorBinding<Principal, TestEnvironment>()
+  const executor = createMemoryToolExecutorBinding<Principal, TestEnvironment>(custody)
   const binding = wrap({
     kind: 'live-only',
     start: async (input, environment) => {
@@ -365,20 +331,13 @@ function testBinding(
       if ('failure' in live) return live
       executions.push(input.call)
       environments.push(environment)
-      return succeed(messageExecution(live.ok))
+      return succeed(live.ok)
     },
     inspectStart: async input => {
       inspected.push(input.start)
       const found = await executor.binding.inspectStart(input)
       if ('failure' in found) return found
-      if (found.ok.kind === 'settled') {
-        const fact = messageFact(found.ok.fact)
-        if (fact.kind !== 'final') throw new Error('the executor final is not final')
-        return succeed({ ...found.ok, fact })
-      }
-      return found.ok.kind === 'live'
-        ? succeed({ kind: 'live', execution: messageExecution(found.ok.execution) })
-        : succeed(found.ok)
+      return found
     },
   })
   return {
@@ -387,7 +346,7 @@ function testBinding(
     environments,
     inspected,
     capsules,
-    controls: executor.controls,
+    controls: { ...executor.controls, finish: executor.controls.finishEnvelope },
     bindings: {
       inspect: () => Promise.reject(new Error("inspect is the Catalog's")),
       resolve: () => Promise.resolve(succeed(binding)),
@@ -474,7 +433,22 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const host = testHost(spies, identities.instanceIdentities)
   const authority = options.authority ?? testAuthority()
   const authorityPort = options.authorityPort?.(authority) ?? authority
-  const binding = options.binding ?? testBinding(authorityPort, options.bindingPort)
+  const binding: TestBinding =
+    options.binding ??
+    testBinding(
+      authorityPort,
+      {
+        preserveFinal: input =>
+          ledger.finalCustody.preserveFinal({
+            ...input,
+            final: {
+              ...input.final,
+              result: ok(guards(options).policy.judgeResult(input.final.result)),
+            },
+          }),
+      },
+      options.bindingPort,
+    )
   const bindings = options.bindingsPort?.(binding.bindings) ?? binding.bindings
   const factAcknowledgements = createToolFactAcknowledgementGuard(bindings)
   const environments = testEnvironments(options.environment ?? new Map())

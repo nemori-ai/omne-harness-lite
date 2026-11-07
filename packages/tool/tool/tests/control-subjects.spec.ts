@@ -38,7 +38,7 @@ function fixture(options: StartOptions = {}) {
   let progress: ControlProgress = { kind: 'pending', diagnostic: 'not dispatched' }
   const checkedSubjects: string[] = []
   const directory = new Map<string, Principal>()
-  const lives = new Map<string, ToolLiveExecution<Block>>()
+  const lives = new Map<string, ToolLiveExecution>()
   const subjects = () =>
     testControlSubjects(
       {

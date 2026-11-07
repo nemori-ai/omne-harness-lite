@@ -192,7 +192,7 @@ export async function fixture(
       },
     },
   })
-  let bindings: ToolBindings<unknown, ToolMessageContentBlock, ToolEnvironmentValue> | undefined
+  let bindings: ToolBindings<unknown, ToolEnvironmentValue> | undefined
   const authority = authorityFor({ kind: 'official' }, 'read_file')
   const toolsAuthority = authorityFor({ kind: 'official' }, 'Tools')
   const verifier = {
@@ -698,6 +698,14 @@ export async function fixture(
     streamQuery,
     snapshot,
     settled,
+    async authorLookup(reference: ToolInvocationRef) {
+      const { call } = unbox(resolveToolInvocationRef(reference, tenantA))
+      const access = { tenant: tenantA, principal: principal(tenantA), call }
+      const recovery = unbox(await root.toolCommands.loadRecovery(access))
+      if (recovery.start === null) throw new Error('Missing author start')
+      const binding = unbox(await bindings.recover({ ...access, start: recovery.start }))
+      return unbox(await binding.inspectStart(recovery.start))
+    },
     tenantA,
     tenantB,
     revoke: () => {

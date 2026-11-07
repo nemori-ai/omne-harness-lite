@@ -178,7 +178,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
       Readonly<{ control: ToolOperationId; source: DurableEvidence; progress: ControlProgress }>,
   ): Reply<ControlRecord>
   receiveFacts(
-    input: CallAccess<P> & Readonly<{ start: ToolStartRecord; batch: FactBatch<B> }>,
+    input: CallAccess<P> & Readonly<{ start: ToolStartRecord; batch: FactBatch }>,
   ): Reply<FactReceipt>
   recordFactAcknowledgement(
     input: Mutation<P> & Readonly<{ receipt: FactReceipt; sourceReceipt: DurableEvidence }>,

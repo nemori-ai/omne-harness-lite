@@ -282,7 +282,7 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
         }),
     },
   }
-  const lives = new Map<string, ToolLiveExecution<ContentBlock>>()
+  const lives = new Map<string, ToolLiveExecution>()
   const executed = new Set<string>()
   let bindingError: unknown = null
   const providers: TestToolDependencies<string> = createTestToolDependencies({
@@ -430,7 +430,7 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
                   defaultResultPolicy,
                 ),
               )
-              await providers.doubles.executor.controls.finish(input.start, {
+              await providers.doubles.executor.controls.finishEnvelope(input.start, {
                 kind: 'final',
                 raw,
                 result: value,

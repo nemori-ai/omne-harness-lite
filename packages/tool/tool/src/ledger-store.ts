@@ -39,6 +39,7 @@ import type {
   ToolRecovery,
   ToolTask,
   ToolFinalPointer,
+  ToolFinalEnvelope,
   ToolMaterialFingerprint,
 } from '@omne-harness/tool-contract/provider'
 
@@ -178,16 +179,14 @@ export type SavedFact<B extends ContentBlock> = Readonly<{
   start: ToolStartRecord
   source: DurableEvidence
   event: string
-  fact: ToolExecutionFact<B>
+  fact: Exclude<ToolExecutionFact, { kind: 'final' }> | ToolFinalEnvelope<B>
   evidence: DurableEvidence
 }>
-export type StoredExecutionFact<B extends ContentBlock> =
-  | Exclude<ToolExecutionFact<B>, { kind: 'final' }>
-  | ToolFinalPointer
+export type StoredExecutionFact = Exclude<ToolExecutionFact, { kind: 'final' }> | ToolFinalPointer
 
-export type FactEventRecord<B extends ContentBlock> = Omit<SavedFact<B>, 'fact'> &
+export type FactEventRecord = Omit<SavedFact<ContentBlock>, 'fact'> &
   Readonly<{
-    fact: StoredExecutionFact<B>
+    fact: StoredExecutionFact
     value: ToolMaterialFingerprint
     tenant: TenantId
     call: ToolCallId
@@ -292,7 +291,7 @@ export type LedgerRecord<B extends ContentBlock> =
   | Readonly<{ kind: 'account'; account: AccountRecord }>
   | Readonly<{ kind: 'environment-release'; environmentRelease: EnvironmentReleaseRecord }>
   | Readonly<{ kind: 'task'; task: ToolTask }>
-  | Readonly<{ kind: 'fact-event'; fact: FactEventRecord<B> }>
+  | Readonly<{ kind: 'fact-event'; fact: FactEventRecord }>
   | Readonly<{ kind: 'fact-batch'; batch: FactBatchRecord }>
   | Readonly<{ kind: 'fact-stream'; stream: FactStreamRecord }>
   | Readonly<{ kind: 'process'; process: ProcessRecord }>

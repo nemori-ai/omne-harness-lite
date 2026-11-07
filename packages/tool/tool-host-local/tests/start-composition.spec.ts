@@ -47,7 +47,7 @@ function rejecting<T extends object>(methods: readonly string[]): T {
   return out as T
 }
 
-function liveExecution(): ToolLiveExecution<Block> {
+function liveExecution(): ToolLiveExecution {
   const later = () => Promise.reject(new Error('not read here'))
   return {
     facts: () => ({
@@ -97,7 +97,7 @@ function assembly(
   })
   const starts: string[] = []
   const executions: string[] = []
-  const binding: ToolExecutorBinding<Principal, Block, null> = {
+  const binding: ToolExecutorBinding<Principal, null> = {
     kind: 'live-only',
     start: async input => {
       starts.push(input.call)

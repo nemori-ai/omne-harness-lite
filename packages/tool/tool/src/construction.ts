@@ -117,7 +117,7 @@ export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   commands: ToolCommands<P, B>
   admissions: ToolLedgerAdmissions<P>
   queues: ToolLedgerQueues<P>
-  bindings: ToolBindings<P, B, E>
+  bindings: ToolBindings<P, E>
   environments: ToolEnvironment<P, E>
   decisions: ToolDecisionBridge<P>
   instances: ToolInstanceHost<P>

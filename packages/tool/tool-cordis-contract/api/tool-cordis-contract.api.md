@@ -184,12 +184,12 @@ export declare abstract class ToolCommandsService<P, B extends ContentBlock> ext
     abstract readonly recordTask: ToolCommands<P, B>['recordTask'];
 }
 export declare const toolCommandsKey = "toolCommands";
-export declare abstract class ToolBindingsService<P, B extends ContentBlock, E> extends Service implements ToolBindings<P, B, E>, ToolBindingRegistry<P, E, B> {
+export declare abstract class ToolBindingsService<P, B extends ContentBlock, E> extends Service implements ToolBindings<P, E>, ToolBindingRegistry<P, E, B> {
     static readonly provide = "toolBindings";
     constructor(ctx: Context);
-    abstract readonly inspect: ToolBindings<P, B, E>['inspect'];
-    abstract readonly resolve: ToolBindings<P, B, E>['resolve'];
-    abstract readonly recover: ToolBindings<P, B, E>['recover'];
+    abstract readonly inspect: ToolBindings<P, E>['inspect'];
+    abstract readonly resolve: ToolBindings<P, E>['resolve'];
+    abstract readonly recover: ToolBindings<P, E>['recover'];
     abstract readonly register: ToolBindingRegistry<P, E, B>['register'];
     abstract readonly snapshot: ToolBindingRegistry<P, E, B>['snapshot'];
     abstract readonly pins: ToolBindingRegistry<P, E, B>['pins'];

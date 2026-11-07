@@ -4,14 +4,7 @@ import { createToolLedger } from '@omne-harness/tool'
 import type { FactBatch } from '@omne-harness/tool-contract/provider'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import { settlementFixture } from './settlement-values.ts'
-import {
-  callId,
-  configurationOf,
-  guards,
-  ok,
-  testSettlementPorts,
-  type Block,
-} from './runtime-values.ts'
+import { callId, configurationOf, guards, ok, testSettlementPorts } from './runtime-values.ts'
 
 async function fixture() {
   const f = await settlementFixture()
@@ -41,7 +34,7 @@ async function fixture() {
   )
   const task = f.before.tasks.find(task => task.kind === 'settle')
   if (task?.kind !== 'settle') throw new Error('missing final task')
-  const receive = (batch: FactBatch<Block> = f.batch) =>
+  const receive = (batch: FactBatch = f.batch) =>
     ledger.commands.receiveFacts({ ...f.access, start: batch.start, batch })
   return { ...f, ledger, read, write, inspect, receive, revoked, basis: task.basis }
 }
@@ -75,7 +68,7 @@ it('recalls the received final and its aliases without reading or writing its ma
     batch: 'alias',
     after: f.batch.cursor,
     cursor: 'alias/end',
-    events: [{ event: 'alias', fact: f.final }],
+    events: [{ event: 'alias', fact: f.pointer }],
   }
   ok(await f.receive(alias))
   expect(f.read).not.toHaveBeenCalled()
@@ -120,11 +113,11 @@ it('rejects conflicting duplicate final events before material IO or acknowledge
     after: f.batch.cursor,
     cursor: 'conflicting/end',
     events: [
-      { event: 'new', fact: f.final },
+      { event: 'new', fact: f.pointer },
       {
         event: 'new',
         fact: {
-          ...f.final,
+          ...f.pointer,
           terminal: {
             kind: 'failed' as const,
             cause: 'executor' as const,

@@ -304,7 +304,7 @@ export function createDemo() {
               }),
             )
             // Publish the actual author's result as the source's final fact. Never seed ledger state.
-            await test.doubles.executor.controls.finish(input.start, {
+            await test.doubles.executor.controls.finishEnvelope(input.start, {
               kind: 'final',
               raw,
               result,

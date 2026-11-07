@@ -14,12 +14,15 @@ import {
 } from '@omne-harness/tool-contract'
 import {
   decodeToolInstanceId,
+  decodeToolMaterialId,
+  decodeToolMaterialGeneration,
   decodeToolWaitId,
   type FactBatch,
   type FactReceipt,
   type ResultPolicy,
   type ToolExecutionFact,
   type ToolFinalEnvelope,
+  type ToolFinalPointer,
 } from '@omne-harness/tool-contract/provider'
 
 import { readOwnSlot } from '@omne-harness/tool-contract/binding'
@@ -232,7 +235,7 @@ function fact<B extends ContentBlock>(
   value: unknown,
   policy: ResultPolicy<B>,
   adoption: Adoption,
-): Outcome<ToolExecutionFact<B>, ToolFailure> {
+): Outcome<Exclude<ToolExecutionFact, { kind: 'final' }> | ToolFinalEnvelope<B>, ToolFailure> {
   if (!object(value)) return invalid('batch.events.fact', 'shape')
   if (value.kind === 'process') {
     if (!closed(value, ['kind', 'blocks']) || !Array.isArray(value.blocks))
@@ -276,11 +279,71 @@ function fact<B extends ContentBlock>(
   })
 }
 
+function finalPointer(value: Data): Outcome<ToolFinalPointer, ToolFailure> {
+  if (
+    !closed(value, ['kind', 'raw', 'terminal', 'effect', 'value', 'envelope']) ||
+    !terminal(value.terminal) ||
+    !effect(value.effect)
+  )
+    return invalid('batch.events.fact', 'pointer-shape')
+  const original = raw(value.raw)
+  if ('failure' in original) return original
+  const fingerprint = value.value
+  const seal = value.envelope
+  if (
+    !closed(fingerprint, ['codec', 'algorithm', 'digest', 'bytes']) ||
+    fingerprint.codec !== 'tool-canonical-json-v1' ||
+    fingerprint.algorithm !== 'sha256' ||
+    typeof fingerprint.digest !== 'string' ||
+    !/^[a-f0-9]{64}$/u.test(fingerprint.digest) ||
+    !decimal(fingerprint.bytes) ||
+    !closed(seal, ['material', 'codec', 'bytes', 'sha256', 'evidence']) ||
+    !closed(seal.material, ['id', 'generation', 'provider']) ||
+    !text(seal.material.id) ||
+    !text(seal.material.generation) ||
+    seal.bytes !== fingerprint.bytes ||
+    seal.sha256 !== fingerprint.digest
+  )
+    return invalid('batch.events.fact', 'pointer-seal')
+  const id = decodeToolMaterialId(seal.material.id)
+  const generation = decodeToolMaterialGeneration(seal.material.generation)
+  const provider = judgeAdoptionField(seal.material.provider, 'material.provider')
+  const codec = judgeAdoptionField(seal.codec, 'material.codec')
+  const evidence = judgeEvidenceField(seal.evidence, 'material.evidence')
+  if (
+    'failure' in id ||
+    'failure' in generation ||
+    'failure' in provider ||
+    'failure' in codec ||
+    'failure' in evidence
+  )
+    return invalid('batch.events.fact', 'pointer-evidence')
+  return succeed({
+    kind: 'final',
+    raw: original.ok,
+    terminal: value.terminal,
+    effect: value.effect,
+    value: {
+      codec: 'tool-canonical-json-v1',
+      algorithm: 'sha256',
+      digest: fingerprint.digest,
+      bytes: fingerprint.bytes,
+    },
+    envelope: {
+      material: { id: id.ok, generation: generation.ok, provider: provider.ok },
+      codec: codec.ok,
+      bytes: fingerprint.bytes,
+      sha256: fingerprint.digest,
+      evidence: evidence.ok,
+    },
+  })
+}
+
 export function fixFactInput<B extends ContentBlock>(
   input: unknown,
   policy: ResultPolicy<B>,
   adoption: Adoption,
-): Outcome<Readonly<{ start: ToolStartRecord; batch: FactBatch<B> }>, ToolFailure> {
+): Outcome<Readonly<{ start: ToolStartRecord; batch: FactBatch }>, ToolFailure> {
   try {
     if (!object(input)) return invalid('input', 'type')
     const startSlot = readOwnSlot(input, 'start')
@@ -302,12 +365,17 @@ export function fixFactInput<B extends ContentBlock>(
     const source = judgeEvidenceField(data.source, 'batch.source')
     if ('failure' in original) return original
     if ('failure' in source) return source
-    const events: FactBatch<B>['events'][number][] = []
+    const events: FactBatch['events'][number][] = []
     for (const event of data.events) {
       if (!closed(event, ['event', 'fact']) || !text(event.event))
         return invalid('batch.events', 'shape')
-      const checked = fact(event.fact, policy, adoption)
+      const checked =
+        object(event.fact) && event.fact.kind === 'final'
+          ? finalPointer(event.fact)
+          : fact(event.fact, policy, adoption)
       if ('failure' in checked) return checked
+      if (checked.ok.kind === 'final' && 'result' in checked.ok)
+        return invalid('batch.events.fact', 'pointer-required')
       events.push({ event: event.event, fact: checked.ok })
     }
     // Fix policy-produced data too. A provider cannot mutate the accepted result during access.
@@ -375,7 +443,7 @@ export function fixFinalInput<B extends ContentBlock>(
   input: unknown,
   policy: ResultPolicy<B>,
   adoption: Adoption,
-): Outcome<Extract<ToolExecutionFact<B>, { kind: 'final' }>, ToolFailure> {
+): Outcome<ToolFinalEnvelope<B>, ToolFailure> {
   try {
     if (!object(input)) return invalid('input', 'type')
     const fields: Data = { kind: 'final' }

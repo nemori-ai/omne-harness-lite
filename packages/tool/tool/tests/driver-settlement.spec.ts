@@ -5,10 +5,10 @@ import {
   readToolInvocationRef,
   decodeToolRevision,
   type FactBatch,
-  type ToolExecutionFact,
+  type ToolFinalEnvelope,
   type ToolLiveExecution,
 } from '@omne-harness/tool-contract/provider'
-import { completedFinal } from '@omne-harness/tool-contract/testing'
+import { completedFinalEnvelope as completedFinal } from '@omne-harness/tool-contract/testing'
 import { startHarness, losingCommits, type StartOptions } from './start-values.ts'
 import {
   adoption,
@@ -39,10 +39,10 @@ function fixture(
   options: StartOptions & {
     channel?: 'end' | 'throw'
     returning?: Promise<void>
-    pendingFinal?: { seen: ReturnType<typeof deferred<FactBatch<Block>>>; resume: Promise<void> }
+    pendingFinal?: { seen: ReturnType<typeof deferred<FactBatch>>; resume: Promise<void> }
   } = {},
 ) {
-  const lives = new Map<string, ToolLiveExecution<Block>>()
+  const lives = new Map<string, ToolLiveExecution>()
   const controllers = new Map<string, AbortController>()
   const stats = {
     returns: 0,
@@ -75,7 +75,7 @@ function fixture(
         const started = await base.start(...args)
         if ('failure' in started) return started
         const original = started.ok
-        const live: ToolLiveExecution<Block> = {
+        const live: ToolLiveExecution = {
           ...original,
           acknowledge: receipt => {
             stats.acknowledgements += 1
@@ -174,7 +174,7 @@ function fixture(
   const final = async (
     call: string,
     terminal: ToolTerminal = { kind: 'completed' },
-  ): Promise<Extract<ToolExecutionFact<Block>, { kind: 'final' }>> => ({
+  ): Promise<ToolFinalEnvelope<Block>> => ({
     kind: 'final',
     raw: ok(
       await h.custody.preserve({
@@ -229,7 +229,7 @@ function fixture(
 
 describe('original final settlement in one shared driver', () => {
   it('settles a saved final with current minted access and releases its queue and delivery', async () => {
-    const seen = deferred<FactBatch<Block>>()
+    const seen = deferred<FactBatch>()
     const resumed = deferred<void>()
     const f = fixture({
       minted: new Set([tenantA]),
@@ -769,7 +769,7 @@ describe('original final settlement in one shared driver', () => {
   )
 
   it('F11 repairs the queue while an original next is still unresolved', async () => {
-    const seen = deferred<FactBatch<Block>>()
+    const seen = deferred<FactBatch>()
     const resume = deferred<void>()
     const f = fixture({ pendingFinal: { seen, resume: resume.promise } })
     const first = await f.invoke('first')

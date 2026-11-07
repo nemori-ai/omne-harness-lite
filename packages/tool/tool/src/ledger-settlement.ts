@@ -8,7 +8,7 @@ import type {
   ToolOperationId,
   ToolState,
 } from '@omne-harness/tool-contract'
-import type { ToolExecutionFact, ToolTask } from '@omne-harness/tool-contract/provider'
+import type { ToolFinalEnvelope, ToolTask } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
 import { mintEvidence, resultVersion } from './evidence.ts'
 import {
@@ -38,7 +38,7 @@ import {
   type SavedFact,
 } from './ledger-store.ts'
 
-type Final<B extends ContentBlock> = Extract<ToolExecutionFact<B>, { kind: 'final' }>
+type Final<B extends ContentBlock> = ToolFinalEnvelope<B>
 export type PreserveCommand<B extends ContentBlock> = WriteCommand &
   Readonly<{
     execution: ToolExecutionRef

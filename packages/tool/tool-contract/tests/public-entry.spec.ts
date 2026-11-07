@@ -166,6 +166,7 @@ it('exports the conformance suites and the non-durable doubles on the testing en
     'NotApplicable',
     'clockAnswers',
     'completedFinal',
+    'completedFinalEnvelope',
     'completionOf',
     'createMemoryAuthorizedToolStartAuthority',
     'createMemoryToolClock',

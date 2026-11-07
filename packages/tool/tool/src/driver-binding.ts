@@ -24,7 +24,7 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
     preparation: PreparationRecord,
   ) => Promise<Outcome<E, ToolFailure>>,
 ) {
-  const lives = new Map<string, ToolLiveExecution<B>>()
+  const lives = new Map<string, ToolLiveExecution>()
   const startKey = (access: CallAccess<P>, start: ToolStartRecord) =>
     JSON.stringify([tenantKey(access.tenant), access.call, start.operation])
   const invoke = async (
@@ -71,7 +71,7 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
     step: CallAccess<P>,
     recovery: ToolRecovery<B>,
     start: ToolStartRecord,
-  ): Promise<Outcome<ToolStartLookup<B>, ToolFailure>> => {
+  ): Promise<Outcome<ToolStartLookup, ToolFailure>> => {
     const access = { principal: step.principal, tenant: step.tenant, call: step.call }
     const binding = await bindings.resolve({ ...access, request: recovery.request })
     if ('failure' in binding) return binding

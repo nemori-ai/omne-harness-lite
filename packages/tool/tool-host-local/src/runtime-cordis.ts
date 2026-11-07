@@ -71,7 +71,15 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   let executor: ReturnType<typeof createRuntimeExecutor> | null = null
   let retired = false
   let forwarding: ToolForwardRuntime<unknown> | undefined
-  const authorExecution = createRuntimeAuthorExecution(input)
+  const authorExecution = createRuntimeAuthorExecution({
+    ...input,
+    finalCustody: {
+      preserveFinal: request =>
+        records === null
+          ? Promise.resolve(runtimeUnavailable('toolFinalCustody'))
+          : records.ledger.finalCustody.preserveFinal(request),
+    },
+  })
   const stages = createRuntimeStages(input, () => environment)
   const receivers: { current: DeliveryPosition<unknown, ToolMessageContentBlock>['receiver'] } = {
     current: async () =>

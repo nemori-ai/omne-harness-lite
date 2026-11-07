@@ -17,6 +17,7 @@ import {
   renderToolResult,
   type ToolMessageContentBlock,
   type ToolOutputCustody,
+  type ToolFinalCustody,
   type ToolWaiter,
 } from '@omne-harness/tool-contract/provider'
 import type { ToolOperationSlot } from '@omne-harness/tool-contract/binding'
@@ -75,12 +76,15 @@ export function createRuntimeAuthorExecution(
   input: Readonly<{
     configuration: ToolConfiguration
     custody: ToolOutputCustody<unknown>
+    finalCustody: ToolFinalCustody<unknown, ToolMessageContentBlock>
   }>,
 ): RuntimeAuthorExecution &
   Readonly<{ close(): void; pending(): number; retainedReturns(): number }> {
   const text = createLocalTextResults()
   const shutdown = new AbortController()
   const pending = new Map<string, Parameters<ToolOutputCustody<unknown>['preserve']>[0]>()
+  type FinalRequest = Parameters<typeof input.finalCustody.preserveFinal>[0]
+  const finals = new Map<string, FinalRequest>()
   const unencoded = new Map<AbortSignal, Parameters<RuntimeAuthorExecution['settle']>[0]>()
   const retry = () =>
     new Promise<void>(resolve => {
@@ -121,6 +125,27 @@ export function createRuntimeAuthorExecution(
       diagnostic: 'Original output custody remains unresolved after executor retirement.',
     })
   }
+  const retainFinal = async (request: FinalRequest) => {
+    const key = canonicalDigest([request.tenant, request.call, request.operation])
+    finals.set(key, request)
+    while (!shutdown.signal.aborted) {
+      try {
+        const answer = await input.finalCustody.preserveFinal(request)
+        if ('ok' in answer) {
+          finals.delete(key)
+          return answer
+        }
+        if (answer.failure.kind !== 'unavailable' && answer.failure.kind !== 'commit-unknown')
+          return answer
+      } catch {}
+      await retry()
+    }
+    return fail({
+      kind: 'unavailable' as const,
+      dependency: 'toolFinalCustody',
+      diagnostic: 'Final custody remains unresolved after executor retirement.',
+    })
+  }
   const absentWaits: ToolWaiter = {
     wait: async request =>
       fail({
@@ -131,7 +156,7 @@ export function createRuntimeAuthorExecution(
   }
   return {
     close: () => shutdown.abort(),
-    pending: () => pending.size,
+    pending: () => pending.size + finals.size,
     retainedReturns: () => unencoded.size,
     scope({ execution }) {
       const blocks = new Map<string, ProcessBlock>()
@@ -254,14 +279,25 @@ export function createRuntimeAuthorExecution(
           dependency: 'toolResultPolicy',
           diagnostic: projected.result.failure.reason,
         })
-      return succeed({
-        kind: 'final',
-        raw: raw.ok,
-        result: projected.result.ok,
-        terminal: interrupted ?? projected.terminal,
-        effect: {
-          kind: 'unknown',
-          diagnostic: 'Author completion does not prove the disposition of external effects.',
+      const finalOperation = decodeToolOperationId(`final:${canonicalDigest(call.start.operation)}`)
+      if ('failure' in finalOperation)
+        return fail({ kind: 'invalid', field: 'operation', reason: finalOperation.failure.reason })
+      return retainFinal({
+        principal: call.principal,
+        tenant: call.tenant,
+        call: call.call,
+        operation: finalOperation.ok,
+        start: call.start,
+        source: call.execution.source,
+        final: {
+          kind: 'final',
+          raw: raw.ok,
+          result: projected.result.ok,
+          terminal: interrupted ?? projected.terminal,
+          effect: {
+            kind: 'unknown',
+            diagnostic: 'Author completion does not prove the disposition of external effects.',
+          },
         },
       })
     },

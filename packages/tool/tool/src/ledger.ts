@@ -1,5 +1,5 @@
 import { factValues } from './fact-values.ts'
-import { preserveFactMaterials, restoreSavedFact } from './ledger-fact-material.ts'
+import { adoptFactMaterials, restoreSavedFact } from './ledger-fact-material.ts'
 import { createLedgerFinalCustody } from './ledger-final-custody.ts'
 import { matchEnvironmentAdoption } from './environment-adoption.ts'
 import { controlIntent } from './control-intent.ts'
@@ -1164,14 +1164,18 @@ export function createToolLedger<P, B extends ContentBlock>(
       const recalled = checkFactBatch(before.ok, fixed.ok.start, fixed.ok.batch, values.ok.batch)
       if ('failure' in recalled) return recalled
       if (recalled.ok !== null) return succeed(recalled.ok)
-      const prepared = await preserveFactMaterials(
+      const prepared = await adoptFactMaterials(
         checked.ok,
         before.ok,
         fixed.ok.batch,
         values.ok,
-        finalCustody,
+        settlement.materials?.store,
+        guards.policy,
+        toolLedgerAdoption,
       )
       if ('failure' in prepared) return prepared
+      const disclosure = await access(checked.ok, 'write')
+      if ('failure' in disclosure) return disclosure
       return transact(
         callDomain(checked.ok),
         null,

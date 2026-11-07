@@ -26,15 +26,15 @@ import {
 } from './live-author-execution.ts'
 
 type Start = Extract<ToolStartRecord, { kind: 'start' }>
-type StartInput<P, B extends ContentBlock, E> = Parameters<ToolExecutorBinding<P, B, E>['start']>[0]
-type Final<B extends ContentBlock> = Extract<ToolExecutionFact<B>, { kind: 'final' }>
+type StartInput<P, E> = Parameters<ToolExecutorBinding<P, E>['start']>[0]
+type Final = Extract<ToolExecutionFact, { kind: 'final' }>
 export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
   registry: LocalToolBindingRegistry<P, E, B>
   catalog: Pick<ToolCatalog<P>, 'inspect'>
   authority: ToolStartAuthority<P>
   scope(
     input: CallAccess<P> &
-      Readonly<{ start: Start; request: FixedToolRequest; execution: LocalAuthorExecution<B> }>,
+      Readonly<{ start: Start; request: FixedToolRequest; execution: LocalAuthorExecution }>,
   ): ToolExecutionScope
   capability?(
     input: CallAccess<P> & Readonly<{ start: Start; request: FixedToolRequest }>,
@@ -50,24 +50,24 @@ export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
         outcome:
           | Readonly<{ kind: 'returned'; value: unknown }>
           | Readonly<{ kind: 'failed'; reason: string }>
-        execution: LocalAuthorExecution<B>
+        execution: LocalAuthorExecution
       }>,
-  ): Reply<Final<B>>
+  ): Reply<Final>
 }>
 
 export function createLocalToolBindings<P, E, B extends ContentBlock>(
   dependencies: LocalToolBindingsInput<P, E, B>,
-): ToolBindings<P, B, E> {
+): ToolBindings<P, E> {
   type Bound = ToolBindingSelection<P, E, B> & {
     requestDigest: string
     accessKey: string
-    binding: Extract<ToolExecutorBinding<P, B, E>, { kind: 'live-only' }>
+    binding: Extract<ToolExecutorBinding<P, E>, { kind: 'live-only' }>
   }
   type Attempt = {
     digest: string
     start: Start
-    execution: LocalAuthorExecution<B>
-    answer: ReturnType<ToolExecutorBinding<P, B, E>['start']>
+    execution: LocalAuthorExecution
+    answer: ReturnType<ToolExecutorBinding<P, E>['start']>
   }
   const bindings = new Map<string, Bound>()
   const attempts = new Map<string, Attempt>()
@@ -78,10 +78,10 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     fail({ kind: 'unavailable' as const, dependency: 'toolBindings', diagnostic })
 
   const launch = async (
-    input: StartInput<P, B, E>,
+    input: StartInput<P, E>,
     environment: E,
     operation: ToolOperationSlot,
-    execution: LocalAuthorExecution<B>,
+    execution: LocalAuthorExecution,
   ): Promise<void> => {
     let parsed: unknown
     let outcome: Parameters<typeof dependencies.settle>[0]['outcome']
@@ -172,7 +172,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
             return Promise.resolve(unavailable(retained.failure.diagnostic))
           pin = retained.ok
         } else assigned = true
-        const execution = createLiveAuthorExecution<B>({
+        const execution = createLiveAuthorExecution({
           start: input.start,
           release: pin.release,
         })

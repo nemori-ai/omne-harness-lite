@@ -1,7 +1,7 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ProcessBlock, RawOutput, ToolTerminal, ToolResult } from '@omne-harness/tool-contract'
 import type {
-  ToolExecutionFact,
+  ToolFinalEnvelope,
   ToolOutputCustody,
   ToolEnvironment,
 } from '@omne-harness/tool-contract/provider'
@@ -108,7 +108,7 @@ export async function settlementFixture(
       source: evidence('original-source'),
     }),
   )
-  const final: Extract<ToolExecutionFact<Block>, { kind: 'final' }> = {
+  const final: ToolFinalEnvelope<Block> = {
     kind: 'final',
     raw,
     result: (typeof options.value === 'function' ? options.value(raw) : options.value) ?? {
@@ -121,6 +121,15 @@ export async function settlementFixture(
     effect: { kind: 'occurred', evidence: evidence('actual-effect') },
   }
   const process = typeof options.process === 'function' ? options.process(raw) : options.process
+  const pointer = ok(
+    await harness.ledger.finalCustody.preserveFinal({
+      ...access,
+      start: recovery.start,
+      source: evidence('final-source'),
+      operation: operationId('fixture-final'),
+      final,
+    }),
+  )
   const batch = {
     start: recovery.start,
     source: evidence('final-source'),
@@ -131,7 +140,7 @@ export async function settlementFixture(
       ...(process === undefined
         ? []
         : [{ event: 'process-event', fact: { kind: 'process' as const, blocks: process } }]),
-      { event: 'final-event', fact: final },
+      { event: 'final-event', fact: pointer },
     ],
   }
   ok(await harness.commands.receiveFacts({ ...access, start: batch.start, batch }))
@@ -187,6 +196,7 @@ export async function settlementFixture(
     lateClockSamples,
     access,
     final,
+    pointer,
     batch,
     ledger,
     input,

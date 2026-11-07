@@ -1,5 +1,4 @@
 // Durable state and protocol records exchanged with providers.
-import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ToolWaitSchemaSnapshot } from './author-context.ts'
@@ -256,20 +255,20 @@ export type SuspensionProgress =
   | Readonly<{ kind: 'suspended'; checkpoint: Checkpoint }>
   | Readonly<{ kind: 'not-suspended'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unknown' | 'rejected'; diagnostic: string }>
-export interface ToolRecoveryBinding<B extends ContentBlock> {
+export interface ToolRecoveryBinding {
   acknowledge(input: FactReceipt): Reply<DurableEvidence>
-  inspectStart(start: ToolStartRecord): Reply<ToolStartLookup<B>>
+  inspectStart(start: ToolStartRecord): Reply<ToolStartLookup>
   inspectSuspension(input: SuspensionRecord): Reply<SuspensionProgress>
   stop(input: ControlDispatch): Reply<ControlProgress>
   inspectControl(input: ControlDispatch): Reply<ControlProgress>
 }
-export type FactBatch<B extends ContentBlock> = Readonly<{
+export type FactBatch = Readonly<{
   start: ToolStartRecord
   source: DurableEvidence
   batch: string
   after: string | null
   cursor: string
-  events: readonly Readonly<{ event: string; fact: ToolExecutionFact<B> }>[]
+  events: readonly Readonly<{ event: string; fact: ToolExecutionFact }>[]
 }>
 export type FactReceipt = Readonly<{
   start: ToolOperationId

@@ -108,7 +108,19 @@ it.each([32, 5 * 1024 * 1024])(
       })
       if (!('ok' in judged)) throw new Error(JSON.stringify(judged.rejected))
       const block = judged.ok
-      const batch: FactBatch<typeof block> = {
+      const final = {
+        kind: 'final',
+        raw,
+        result: {
+          content: [block],
+          data: { kind: 'none' },
+          original: { kind: 'none' },
+          attachments: [],
+        },
+        terminal: { kind: 'completed' },
+        effect: { kind: 'occurred', evidence },
+      } as const
+      const batch: FactBatch = {
         start,
         source: evidence,
         batch: 'final',
@@ -117,18 +129,15 @@ it.each([32, 5 * 1024 * 1024])(
         events: [
           {
             event: 'final',
-            fact: {
-              kind: 'final',
-              raw,
-              result: {
-                content: [block],
-                data: { kind: 'none' },
-                original: { kind: 'none' },
-                attachments: [],
-              },
-              terminal: { kind: 'completed' },
-              effect: { kind: 'occurred', evidence },
-            },
+            fact: ok(
+              await ledger.finalCustody.preserveFinal({
+                ...world.access,
+                start,
+                source: evidence,
+                operation: ok(decodeToolOperationId('final-envelope')),
+                final,
+              }),
+            ),
           },
         ],
       }
@@ -144,7 +153,7 @@ it.each([32, 5 * 1024 * 1024])(
       const task = tasks[0]
       if (task?.kind !== 'settle') throw new Error('missing final recovery duty')
       const restored = ok(await ledger.facts.read({ ...world.access, basis: task.basis }))
-      expect(restored.fact).toEqual(batch.events[0]?.fact)
+      expect(restored.fact).toEqual(final)
       const retained = await storage.store.read({ kind: 'call', tenant, call: world.access.call })
       expect(retained.kind).toBe('complete')
       expect(Buffer.byteLength(JSON.stringify(retained))).toBeLessThan(100_000)

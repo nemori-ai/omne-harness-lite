@@ -56,6 +56,7 @@
 - `ToolArguments` · `definitions.d.ts`
 - `ToolAvailability` · `definitions.d.ts`
 - `ToolBackgroundCallsValue` · `background-calls.d.ts`
+- `ToolBodyDeclaration` · `definitions.d.ts`
 - `ToolCallId` · `identity.d.ts`
 - `ToolCatalog` · `authoring.d.ts`
 - `ToolCatalogSearchEntry` · `authoring.d.ts`
@@ -93,11 +94,13 @@
 - `ToolInvokeOutcome` · `operations.d.ts`
 - `ToolInvokeRequest` · `operations.d.ts`
 - `ToolLookup` · `results.d.ts`
+- `ToolOffloadingDeclaration` · `definitions.d.ts`
 - `ToolOperationId` · `identity.d.ts`
 - `ToolOperationLocation` · `reference.d.ts`
 - `ToolOperationParts` · `reference.d.ts`
 - `ToolOperationRef` · `reference.d.ts`
 - `ToolProgramDeclaration` · `definitions.d.ts`
+- `ToolPublishedSchema` · `definitions.d.ts`
 - `ToolReferenceFailure` · `reference.d.ts`
 - `ToolReferenceRejection` · `reference.d.ts`
 - `ToolRelation` · `results.d.ts`
@@ -149,6 +152,7 @@
 - `residentToolFacts` · `resident-key.d.ts`
 - `resolveToolInvocationRef` · `reference.d.ts`
 - `resolveToolOperationRef` · `reference.d.ts`
+- `returnSummary` · `return-description.d.ts`
 - `selectCommandText` · `command-call.d.ts`
 - `toolsCapabilityOf` · `tools-capability.d.ts`
 
@@ -247,6 +251,9 @@
 - `ToolExecutionScope` · `author-context.d.ts`
 - `ToolExecutor` · `execution.d.ts`
 - `ToolExecutorBinding` · `ports.d.ts`
+- `ToolFinalCustody` · `materials.d.ts`
+- `ToolFinalEnvelope` · `materials.d.ts`
+- `ToolFinalPointer` · `materials.d.ts`
 - `ToolForwardBinding` · `forwarding.d.ts`
 - `ToolForwardParent` · `forwarding.d.ts`
 - `ToolForwardRuntime` · `forwarding.d.ts`
@@ -265,6 +272,14 @@
 - `ToolLiveExecution` · `ports.d.ts`
 - `ToolLoadedRegistration` · `authoring.d.ts`
 - `ToolLoader` · `authoring.d.ts`
+- `ToolMaterialClock` · `materials.d.ts`
+- `ToolMaterialFingerprint` · `materials.d.ts`
+- `ToolMaterialGeneration` · `materials.d.ts`
+- `ToolMaterialId` · `materials.d.ts`
+- `ToolMaterialInstant` · `materials.d.ts`
+- `ToolMaterialRef` · `materials.d.ts`
+- `ToolMaterialSeal` · `materials.d.ts`
+- `ToolMaterialStore` · `materials.d.ts`
 - `ToolMessageContentBlock` · `results.d.ts`
 - `ToolOffloader` · `custody.d.ts`
 - `ToolOperation` · `authoring.d.ts`
@@ -316,6 +331,9 @@
 - `decodeToolDeliveryId` · `identity.d.ts`
 - `decodeToolInstanceId` · `identity.d.ts`
 - `decodeToolInvocationRef` · `reference.d.ts`
+- `decodeToolMaterialGeneration` · `identity.d.ts`
+- `decodeToolMaterialId` · `identity.d.ts`
+- `decodeToolMaterialInstant` · `materials.d.ts`
 - `decodeToolOperationRef` · `reference.d.ts`
 - `decodeToolResultVersion` · `identity.d.ts`
 - `decodeToolRevision` · `identity.d.ts`
@@ -349,6 +367,7 @@
 - `readToolInvocationRef` · `reference.d.ts`
 - `refreshAvailability` · `dynamics.d.ts`
 - `renderToolResult` · `result-rendering.d.ts`
+- `returnGuide` · `return-description.d.ts`
 - `sameBindingKey` · `dynamics.d.ts`
 - `sameShape` · `dynamics.d.ts`
 - `sameSourceLayer` · `dynamics.d.ts`
@@ -393,6 +412,7 @@
 - `ToolStartFenceFixture` · `testing-start-fence.d.ts`
 - `clockAnswers` · `testing-clock.d.ts`
 - `completedFinal` · `testing-executor-binding.d.ts`
+- `completedFinalEnvelope` · `testing-executor-binding.d.ts`
 - `completionOf` · `testing-case.d.ts`
 - `createMemoryAuthorizedToolStartAuthority` · `testing-start-authority.d.ts`
 - `createMemoryToolClock` · `testing-clock.d.ts`
@@ -420,11 +440,13 @@
 - `memoryToolStartAuthorityFixture` · `testing-start-authority.d.ts`
 - `memoryToolStartAuthorizationFixture` · `testing-start-authorization.d.ts`
 - `memoryToolStartFenceFixture` · `testing-start-fence.d.ts`
+- `ordinaryReturnFixture` · `testing-returns.d.ts`
 - `outputCustodyAnswers` · `testing-output-custody.d.ts`
 - `resendRecalls` · `testing-case.d.ts`
 - `resourceResponsesAnswers` · `testing-resource-responses.d.ts`
 - `runConformanceCase` · `testing-case.d.ts`
 - `startAuthorityAnswers` · `testing-start-authority.d.ts`
+- `structuredReturnFixture` · `testing-returns.d.ts`
 - `testingTenant` · `testing-values.d.ts`
 - `testingTenantText` · `testing-values.d.ts`
 - `testingWorkspace` · `testing-values.d.ts`
@@ -1256,10 +1278,56 @@ export type ToolProgramDeclaration = Readonly<{
     definition: ParameterContract;
     maxBytes: number;
 }>;
-export type ToolReturnDeclaration = Readonly<{
-    kind: 'ordinary' | 'structured';
-    program: ToolProgramDeclaration;
+export type ToolPublishedSchema = Readonly<{
+    identity: ToolSchemaIdentity;
+    definition: ParameterContract;
 }>;
+export type ToolBodyDeclaration = Readonly<{
+    kind: 'none';
+}> | Readonly<{
+    kind: 'text';
+    codec: Adoption;
+}> | Readonly<{
+    kind: 'json-document';
+    codec: Adoption;
+    document: ToolPublishedSchema;
+}> | Readonly<{
+    kind: 'json-lines';
+    codec: Adoption;
+    record: ToolPublishedSchema;
+}>;
+export type ToolOffloadingDeclaration = Readonly<{
+    inline: Readonly<{
+        kind: 'system';
+    }> | Readonly<{
+        kind: 'bounded';
+        maxInlineUtf8Bytes: number;
+    }>;
+    retention: Readonly<{
+        kind: 'system';
+    }> | Readonly<{
+        kind: 'bounded';
+        maxRetentionMs: number;
+    }>;
+}>;
+export type ToolReturnDeclaration = Readonly<{
+    program: ToolProgramDeclaration;
+    body: ToolBodyDeclaration;
+    offloading: ToolOffloadingDeclaration;
+}> & (Readonly<{
+    kind: 'ordinary';
+    value: Readonly<{
+        kind: 'encoded-value';
+        codec: Adoption;
+        value: ToolPublishedSchema;
+    }>;
+}> | Readonly<{
+    kind: 'structured';
+    value: Readonly<{
+        kind: 'tool-result';
+        contract: Adoption;
+    }>;
+}>);
 export type ToolAssetVersion = Readonly<{
     name: string;
     adoption: Adoption;
@@ -1652,7 +1720,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
     }>): Reply<ControlRecord>;
     receiveFacts(input: CallAccess<P> & Readonly<{
         start: ToolStartRecord;
-        batch: FactBatch<B>;
+        batch: FactBatch;
     }>): Reply<FactReceipt>;
     recordFactAcknowledgement(input: Mutation<P> & Readonly<{
         receipt: FactReceipt;
@@ -1797,6 +1865,8 @@ export type ToolIdentityRejection<K extends string> = Readonly<{
     reason: 'type' | 'empty' | 'length' | 'character';
 }>;
 export declare const TOOL_IDENTITY_MAX_LENGTH = 256;
+export declare function decodeToolMaterialId(text: unknown): Outcome<ToolIdentity<'ToolMaterialId'>, ToolIdentityRejection<'ToolMaterialId'>>;
+export declare function decodeToolMaterialGeneration(text: unknown): Outcome<ToolIdentity<'ToolMaterialGeneration'>, ToolIdentityRejection<'ToolMaterialGeneration'>>;
 export declare function decodeToolCallId(text: unknown): Outcome<ToolCallId, ToolIdentityRejection<'ToolCallId'>>;
 export declare function decodeToolOperationId(text: unknown): Outcome<ToolOperationId, ToolIdentityRejection<'ToolOperationId'>>;
 export declare function decodeToolInstanceId(text: unknown): Outcome<ToolInstanceId, ToolIdentityRejection<'ToolInstanceId'>>;
@@ -1814,7 +1884,7 @@ export { decodeToolCallId, decodeToolOperationId } from './identity.ts';
 export type { Access, Adoption, ConsumerRef, DurableEvidence, ToolCallId, ToolCursor, ToolDeliveryId, ToolIdentity, ToolIdentityRejection, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId, } from './identity.ts';
 export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, resolveToolInvocationRef, resolveToolOperationRef, } from './reference.ts';
 export type { ToolInvocationLocation, ToolInvocationParts, ToolInvocationRef, ToolOperationLocation, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
-export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolCommandDeclaration, ToolDefinition, ToolEnvironmentDeclaration, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
+export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolBodyDeclaration, ToolCommandDeclaration, ToolDefinition, ToolEnvironmentDeclaration, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolOffloadingDeclaration, ToolPublishedSchema, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
 export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
 export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, InvocationAccess, ProcessBlock, ToolCommandOutcome, ToolControl, ToolDefiniteFailure, ToolInvocationCommands, ToolInvocationContentReader, ToolInvocationQueries, ToolInvokeOutcome, ToolInvokeRequest, ToolReleaseDeliveryOutcome, ToolRuntime, ToolStreamDelta, ToolStreamEnd, ToolStreamObservation, ToolStreamReferences, ToolStreamSelection, ToolStreamSnapshot, } from './operations.ts';
 export type { ToolDecision, ToolWaitSchemaSnapshot } from './author-context.ts';
@@ -1835,6 +1905,7 @@ export { toolsCapabilityOf } from './tools-capability.ts';
 export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts';
 export type { ToolForwardIntent } from './forwarding.ts';
 export type { SearchArguments, SearchPage, InspectArguments, ToolUsageView, ToolFixedReadArguments, ToolsReadArguments, } from './tools-protocol.ts';
+export { returnSummary } from './return-description.ts';
 ```
 
 ## 声明文件 `json-tree.d.ts`
@@ -1938,6 +2009,105 @@ export declare function judgeToolState(value: unknown): Outcome<ToolState, Reado
     field: string;
     reason: string;
 }>>;
+```
+
+## 声明文件 `materials.d.ts`
+
+```ts
+import type { ContentBlock } from '@omne-harness/content-block';
+import { type Outcome } from '@omne-harness/operation-result';
+import type { RawOutput } from './custody.ts';
+import type { Adoption, CallAccess, DurableEvidence, Mutation, ToolIdentity } from './identity.ts';
+import type { ToolStartRecord } from './ports.ts';
+import type { Effect, Reply, ToolResult, ToolTerminal } from './results.ts';
+export type ToolMaterialFingerprint = Readonly<{
+    codec: 'tool-canonical-json-v1';
+    algorithm: 'sha256';
+    digest: string;
+    bytes: string;
+}>;
+export type ToolMaterialInstant = ToolIdentity<'ToolMaterialInstant'>;
+export declare function decodeToolMaterialInstant(value: unknown): Outcome<ToolMaterialInstant, Readonly<{
+    reason: 'canonical-utc';
+}>>;
+export interface ToolMaterialClock {
+    sample(): Reply<ToolMaterialInstant>;
+}
+export type ToolMaterialId = ToolIdentity<'ToolMaterialId'>;
+export type ToolMaterialGeneration = ToolIdentity<'ToolMaterialGeneration'>;
+export type ToolMaterialRef = Readonly<{
+    id: ToolMaterialId;
+    generation: ToolMaterialGeneration;
+    provider: Adoption;
+}>;
+export type ToolMaterialSeal = Readonly<{
+    material: ToolMaterialRef;
+    codec: Adoption;
+    bytes: string;
+    sha256: string;
+    evidence: DurableEvidence;
+}>;
+export interface ToolMaterialStore<P> {
+    write(input: Mutation<P> & Readonly<{
+        material: ToolMaterialRef;
+        codec: Adoption;
+        source: DurableEvidence;
+        bytes: Uint8Array;
+    }>): Reply<ToolMaterialSeal>;
+    inspect(input: Mutation<P> & Readonly<{
+        material: ToolMaterialRef;
+    }>): Reply<Readonly<{
+        kind: 'sealed';
+        seal: ToolMaterialSeal;
+    }> | Readonly<{
+        kind: 'pending' | 'unknown';
+    }> | Readonly<{
+        kind: 'excluded';
+        evidence: DurableEvidence;
+    }>>;
+    read(input: CallAccess<P> & Readonly<{
+        material: ToolMaterialRef;
+        offset: string;
+        maxBytes: number;
+    }>): Reply<Readonly<{
+        bytes: Uint8Array;
+        next: string | null;
+    }>>;
+    erase(input: Mutation<P> & Readonly<{
+        material: ToolMaterialRef;
+        authorization: DurableEvidence;
+    }>): Reply<DurableEvidence>;
+    inspectErase(input: Mutation<P> & Readonly<{
+        material: ToolMaterialRef;
+    }>): Reply<Readonly<{
+        kind: 'deleted';
+        receipt: DurableEvidence;
+    }> | Readonly<{
+        kind: 'pending' | 'unknown';
+    }>>;
+}
+export type ToolFinalEnvelope<B extends ContentBlock> = Readonly<{
+    kind: 'final';
+    raw: RawOutput;
+    result: ToolResult<B>;
+    terminal: ToolTerminal;
+    effect: Effect;
+}>;
+export type ToolFinalPointer = Readonly<{
+    kind: 'final';
+    raw: RawOutput;
+    terminal: ToolTerminal;
+    effect: Effect;
+    value: ToolMaterialFingerprint;
+    envelope: ToolMaterialSeal;
+}>;
+export interface ToolFinalCustody<P, B extends ContentBlock> {
+    preserveFinal(input: Mutation<P> & Readonly<{
+        start: ToolStartRecord;
+        source: DurableEvidence;
+        final: ToolFinalEnvelope<B>;
+    }>): Reply<ToolFinalPointer>;
+}
 ```
 
 ## 声明文件 `operations.d.ts`
@@ -2182,13 +2352,13 @@ import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { ToolDecision } from './author-context.ts';
 import type { ToolInspection } from './authoring.ts';
-import type { RawOutput } from './custody.ts';
+import type { ToolFinalPointer } from './materials.ts';
 import type { FixedToolRequest, ToolAvailability, ToolInvocation } from './definitions.ts';
 import type { ToolExecutionRef } from './execution.ts';
 import type { Access, Adoption, CallAccess, DurableEvidence, Mutation, ToolCallId, ToolInstanceId, ToolOperationId, ToolWaitId } from './identity.ts';
 import type { ProcessBlock, ToolDirectory, ToolHandle, ToolInvokeRequest, ToolDefiniteFailure, ToolRuntime } from './operations.ts';
 import type { ClockSegment, ControlDispatch, ControlProgress, DrainState, ExternalOperationResolution, FactBatch, FactReceipt, PreparationProgress, PreparationRecord, ProgramScheduling, ReleaseProgress, ReleaseRecord, ResponseProgress, ResponseRecord, StartPermit, SuspensionProgress, SuspensionRecord, ToolRecoveryBinding, WaitIntent } from './records.ts';
-import type { Effect, Reply, ToolResult, ToolTerminal } from './results.ts';
+import type { Reply } from './results.ts';
 export type DecisionValue = ToolDecision<JsonValue>;
 export interface ToolDecisionBridge<P> {
     inspectOperation(input: Mutation<P>): Reply<ExternalOperationResolution>;
@@ -2211,7 +2381,7 @@ export interface ToolDecisionBridge<P> {
         decision: DurableEvidence;
     }>): Reply<DecisionValue>;
 }
-export type ToolExecutionFact<B extends ContentBlock> = Readonly<{
+export type ToolExecutionFact = Readonly<{
     kind: 'process';
     blocks: readonly ProcessBlock[];
 }> | Readonly<{
@@ -2229,18 +2399,12 @@ export type ToolExecutionFact<B extends ContentBlock> = Readonly<{
     kind: 'account';
     event: string;
     value: CallAccount;
-}> | Readonly<{
-    kind: 'final';
-    raw: RawOutput;
-    result: ToolResult<B>;
-    terminal: ToolTerminal;
-    effect: Effect;
-}>;
-export interface ToolLiveExecution<B extends ContentBlock> {
+}> | ToolFinalPointer;
+export interface ToolLiveExecution {
     facts(input: Readonly<{
         after: string | null;
         signal: AbortSignal;
-    }>): AsyncIterable<FactBatch<B>>;
+    }>): AsyncIterable<FactBatch>;
     acknowledge(input: FactReceipt): Reply<DurableEvidence>;
     stop(input: ControlDispatch): Reply<ControlProgress>;
     inspectControl(input: ControlDispatch): Reply<ControlProgress>;
@@ -2257,7 +2421,7 @@ export type ToolStartRecord = Readonly<{
     kind: 'resume';
     checkpoint: DurableEvidence;
 }>);
-export type ToolStartLookup<B extends ContentBlock> = Readonly<{
+export type ToolStartLookup = Readonly<{
     kind: 'not-started';
     exclusion: DurableEvidence;
 }> | Readonly<{
@@ -2265,19 +2429,19 @@ export type ToolStartLookup<B extends ContentBlock> = Readonly<{
     diagnostic: string;
 }> | Readonly<{
     kind: 'live';
-    execution: ToolLiveExecution<B>;
+    execution: ToolLiveExecution;
 }> | Readonly<{
     kind: 'settled';
     source: DurableEvidence;
     event: string;
-    fact: Extract<ToolExecutionFact<B>, {
+    fact: Extract<ToolExecutionFact, {
         kind: 'final';
     }>;
 }> | Readonly<{
     kind: 'lost';
     continuity: DurableEvidence;
 }>;
-export type ToolExecutorBinding<P, B extends ContentBlock, E> = Readonly<{
+export type ToolExecutorBinding<P, E> = Readonly<{
     kind: 'live-only';
     start(input: CallAccess<P> & Readonly<{
         start: Extract<ToolStartRecord, {
@@ -2285,10 +2449,10 @@ export type ToolExecutorBinding<P, B extends ContentBlock, E> = Readonly<{
         }>;
         permit: StartPermit;
         request: FixedToolRequest;
-    }>, environment: E): Reply<ToolLiveExecution<B>>;
+    }>, environment: E): Reply<ToolLiveExecution>;
     inspectStart(input: CallAccess<P> & Readonly<{
         start: ToolStartRecord;
-    }>): Reply<ToolStartLookup<B>>;
+    }>): Reply<ToolStartLookup>;
 }> | Readonly<{
     kind: 'checkpointed';
     checkpointSchema: Adoption;
@@ -2298,10 +2462,10 @@ export type ToolExecutorBinding<P, B extends ContentBlock, E> = Readonly<{
         }>;
         permit: StartPermit;
         request: FixedToolRequest;
-    }>, environment: E): Reply<ToolLiveExecution<B>>;
+    }>, environment: E): Reply<ToolLiveExecution>;
     inspectStart(input: CallAccess<P> & Readonly<{
         start: ToolStartRecord;
-    }>): Reply<ToolStartLookup<B>>;
+    }>): Reply<ToolStartLookup>;
     suspend(input: SuspensionRecord): Reply<SuspensionProgress>;
     inspectSuspension(input: SuspensionRecord): Reply<SuspensionProgress>;
     resume(input: CallAccess<P> & Readonly<{
@@ -2310,7 +2474,7 @@ export type ToolExecutorBinding<P, B extends ContentBlock, E> = Readonly<{
         }>;
         permit: StartPermit;
         request: FixedToolRequest;
-    }>, environment: E): Reply<ToolLiveExecution<B>>;
+    }>, environment: E): Reply<ToolLiveExecution>;
 }>;
 export interface PreparedEnvironment<E> {
     readonly value: E;
@@ -2332,14 +2496,14 @@ export interface ToolEnvironment<P, E> {
         release: ReleaseRecord;
     }>): Reply<ReleaseProgress>;
 }
-export interface ToolBindings<P, B extends ContentBlock, E> {
+export interface ToolBindings<P, E> {
     inspect(input: ToolInspection<P>): Reply<ToolAvailability>;
     resolve(input: CallAccess<P> & Readonly<{
         request: FixedToolRequest;
-    }>): Reply<ToolExecutorBinding<P, B, E>>;
+    }>): Reply<ToolExecutorBinding<P, E>>;
     recover(input: CallAccess<P> & Readonly<{
         start: ToolStartRecord;
-    }>): Reply<ToolRecoveryBinding<B>>;
+    }>): Reply<ToolRecoveryBinding>;
 }
 export interface ToolInstanceHost<P> {
     install(driver: ToolDriver<P>): Readonly<{
@@ -2555,9 +2719,11 @@ export interface ProgramTools<B extends ContentBlock> {
 
 ```ts
 export { toolBodyContract } from './contract.ts';
+export { decodeToolMaterialInstant } from './materials.ts';
+export type { ToolMaterialFingerprint, ToolMaterialInstant, ToolMaterialClock, ToolMaterialId, ToolMaterialGeneration, ToolMaterialRef, ToolMaterialSeal, ToolMaterialStore, ToolFinalEnvelope, ToolFinalPointer, ToolFinalCustody, } from './materials.ts';
 export { describedAdoption } from './adoption.ts';
 export type { AdoptionRules } from './adoption.ts';
-export { TOOL_IDENTITY_MAX_LENGTH, decodeToolCursor, decodeToolDeliveryId, decodeToolInstanceId, decodeToolResultVersion, decodeToolRevision, decodeToolWaitId, } from './identity.ts';
+export { TOOL_IDENTITY_MAX_LENGTH, decodeToolCursor, decodeToolDeliveryId, decodeToolInstanceId, decodeToolMaterialId, decodeToolMaterialGeneration, decodeToolResultVersion, decodeToolRevision, decodeToolWaitId, } from './identity.ts';
 export type { CallAccess, Mutation } from './identity.ts';
 export type { ToolCredentialFailure, ToolCredentialRequest, ToolCredentials, ToolCredentialUsage, } from './credentials.ts';
 export { defaultResultPolicy, defaultResultPolicyAdoption, defaultResultPolicyRules, } from './result-policy.ts';
@@ -2592,12 +2758,12 @@ export type { ToolBackgroundCallSource, ToolBackgroundCallsSource, } from './bac
 export { COMMAND_CALL_ENCODINGS, commandArguments, commandExample, commandGuide, commandSignature, decodeCommandCall, describeCommandArgumentsRejection, encodeCommandCall, } from './command-call.ts';
 export { attachToolsCapability } from './tools-capability.ts';
 export type { ToolForwardParent, ToolForwardBinding, ToolForwardSourceOutcome, ToolForwardSource, ToolForwardRuntime, } from './forwarding.ts';
+export { returnGuide } from './return-description.ts';
 ```
 
 ## 声明文件 `records.d.ts`
 
 ```ts
-import type { ContentBlock } from '@omne-harness/content-block';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { ToolWaitSchemaSnapshot } from './author-context.ts';
@@ -2931,14 +3097,14 @@ export type SuspensionProgress = Readonly<{
     kind: 'unknown' | 'rejected';
     diagnostic: string;
 }>;
-export interface ToolRecoveryBinding<B extends ContentBlock> {
+export interface ToolRecoveryBinding {
     acknowledge(input: FactReceipt): Reply<DurableEvidence>;
-    inspectStart(start: ToolStartRecord): Reply<ToolStartLookup<B>>;
+    inspectStart(start: ToolStartRecord): Reply<ToolStartLookup>;
     inspectSuspension(input: SuspensionRecord): Reply<SuspensionProgress>;
     stop(input: ControlDispatch): Reply<ControlProgress>;
     inspectControl(input: ControlDispatch): Reply<ControlProgress>;
 }
-export type FactBatch<B extends ContentBlock> = Readonly<{
+export type FactBatch = Readonly<{
     start: ToolStartRecord;
     source: DurableEvidence;
     batch: string;
@@ -2946,7 +3112,7 @@ export type FactBatch<B extends ContentBlock> = Readonly<{
     cursor: string;
     events: readonly Readonly<{
         event: string;
-        fact: ToolExecutionFact<B>;
+        fact: ToolExecutionFact;
     }>[];
 }>;
 export type FactReceipt = Readonly<{
@@ -3556,6 +3722,14 @@ export type ToolLookup = Readonly<{
 }>;
 ```
 
+## 声明文件 `return-description.d.ts`
+
+```ts
+import type { ToolReturnDeclaration } from './definitions.ts';
+export declare function returnSummary(returns: ToolReturnDeclaration): string;
+export declare function returnGuide(returns: ToolReturnDeclaration): string;
+```
+
 ## 声明文件 `shape.d.ts`
 
 ```ts
@@ -3947,6 +4121,7 @@ export {};
 
 ```ts
 import type { ContentBlock } from '@omne-harness/content-block';
+import type { ToolFinalEnvelope, ToolFinalCustody } from './materials.ts';
 import type { FixedToolRequest } from './definitions.ts';
 import type { Access } from './identity.ts';
 import type { ToolExecutionFact, ToolExecutorBinding, ToolStartRecord } from './ports.ts';
@@ -3955,11 +4130,11 @@ import { type ConformanceCase } from './testing-case.ts';
 type Start = Extract<ToolStartRecord, {
     kind: 'start';
 }>;
-type Fact = ToolExecutionFact<ContentBlock>;
+type Fact = ToolExecutionFact;
 type FinalFact = Extract<Fact, {
     kind: 'final';
 }>;
-type LiveOnly<P, E> = Extract<ToolExecutorBinding<P, ContentBlock, E>, {
+type LiveOnly<P, E> = Extract<ToolExecutorBinding<P, E>, {
     kind: 'live-only';
 }>;
 export interface ToolExecutorBindingFixture<P, E> {
@@ -4013,6 +4188,7 @@ export declare const executorBindingAnswers: {
         recalled?: readonly ("accepted" | "pending" | "unknown")[];
     }>;
 };
+export declare function completedFinalEnvelope(): ToolFinalEnvelope<ContentBlock>;
 export declare function completedFinal(): FinalFact;
 export declare function toolExecutorBindingConformance<P, E>(): readonly ConformanceCase<ToolExecutorBindingFixture<P, E>>[];
 export interface MemoryToolExecutorBinding<P, E> {
@@ -4022,6 +4198,7 @@ export interface MemoryToolExecutorBinding<P, E> {
         launches(): number;
         emit(start: Start, fact: Fact): Promise<void>;
         finish(start: Start, final: FinalFact): Promise<void>;
+        finishEnvelope(start: Start, final: ToolFinalEnvelope<ContentBlock>): Promise<void>;
         loseContinuity(start: Start): Promise<void>;
         blindInspection(start: Start): void;
         pendingAcknowledgements(start: Start): number;
@@ -4030,7 +4207,7 @@ export interface MemoryToolExecutorBinding<P, E> {
         settle(): Promise<void>;
     }>;
 }
-export declare function createMemoryToolExecutorBinding<P, E>(): MemoryToolExecutorBinding<P, E>;
+export declare function createMemoryToolExecutorBinding<P, E>(custody?: ToolFinalCustody<P, ContentBlock>): MemoryToolExecutorBinding<P, E>;
 export declare function memoryToolExecutorBindingFixture(): ToolExecutorBindingFixture<string, {
     readonly resource: string;
 }>;
@@ -4292,6 +4469,19 @@ export declare function memoryToolResultReceiverFixture(): ToolResultReceiverFix
 export {};
 ```
 
+## 声明文件 `testing-returns.d.ts`
+
+```ts
+import type { ToolReturnDeclaration } from './definitions.ts';
+import type { Adoption } from './identity.ts';
+export declare function ordinaryReturnFixture(codec: Adoption): Extract<ToolReturnDeclaration, {
+    kind: 'ordinary';
+}>;
+export declare function structuredReturnFixture(contract: Adoption): Extract<ToolReturnDeclaration, {
+    kind: 'structured';
+}>;
+```
+
 ## 声明文件 `testing-start-authority.d.ts`
 
 ```ts
@@ -4469,6 +4659,7 @@ export declare function resourceWait(wait: string, options?: Readonly<{
 ## 声明文件 `testing.d.ts`
 
 ```ts
+export { ordinaryReturnFixture, structuredReturnFixture } from './testing-returns.ts';
 export { NotApplicable, completionOf, crossTenantAnswers, finalAnswer, isNotApplicable, isProgress, resendRecalls, runConformanceCase, type AnswerModel, type AnswerRow, type CaseVerdict, type Completion, type ConformanceCase, type CrossTenantAnswers, } from './testing-case.ts';
 export { createMemoryToolStartAuthority, memoryToolStartAuthorityFixture, startAuthorityAnswers, toolStartAuthorityConformance, type MemoryToolStartAuthority, type ToolStartAuthorityFixture, } from './testing-start-authority.ts';
 export { createMemoryAuthorizedToolStartAuthority, type MemoryAuthorizedToolStartAuthority, type ToolPermitReading, type ToolStartAuthorizationHandles, } from './testing-start-authority.ts';
@@ -4477,7 +4668,7 @@ export { memoryToolStartAuthorizationFixture, toolStartAuthorizationConformance,
 export { createMemoryToolResultReceiver, memoryToolResultReceiverFixture, toolResultReceiverConformance, type MemoryToolResultReceiver, type ToolResultReceiverFixture, } from './testing-result-receiver.ts';
 export { toolCredentialsConformance, type ToolCredentialEscape, type ToolCredentialEscapeExit, type ToolCredentialsFixture, } from './testing-credentials.ts';
 export { createMemoryToolEnvironment, environmentAnswers, memoryToolEnvironmentFixture, toolEnvironmentConformance, type MemoryEnvironment, type MemoryToolEnvironment, type ToolEnvironmentFixture, } from './testing-environment.ts';
-export { completedFinal, createMemoryToolExecutorBinding, executorBindingAnswers, memoryToolExecutorBindingFixture, toolExecutorBindingConformance, type MemoryToolExecutorBinding, type ToolExecutorBindingFixture, } from './testing-executor-binding.ts';
+export { completedFinal, completedFinalEnvelope, createMemoryToolExecutorBinding, executorBindingAnswers, memoryToolExecutorBindingFixture, toolExecutorBindingConformance, type MemoryToolExecutorBinding, type ToolExecutorBindingFixture, } from './testing-executor-binding.ts';
 export { createMemoryToolOutputCustody, memoryToolOutputCustodyFixture, outputCustodyAnswers, toolOutputCustodyConformance, type MemoryToolOutputCustody, type ToolOutputCustodyFixture, } from './testing-output-custody.ts';
 export { clockAnswers, createMemoryToolClock, memoryToolClockFixture, toolClockConformance, type MemoryToolClock, type ToolClockFixture, } from './testing-clock.ts';
 export { createMemoryToolDecisionBridge, decisionBridgeAnswers, memoryToolDecisionBridgeFixture, toolDecisionBridgeConformance, type MemoryToolDecisionBridge, type ToolDecisionBridgeFixture, } from './testing-decision-bridge.ts';

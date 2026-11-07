@@ -166,15 +166,15 @@ export const toolCommandsKey = ToolCommandsService.provide
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolBindingsService<P, B extends ContentBlock, E>
   extends Service
-  implements ToolBindings<P, B, E>, ToolBindingRegistry<P, E, B>
+  implements ToolBindings<P, E>, ToolBindingRegistry<P, E, B>
 {
   static readonly provide = 'toolBindings'
   constructor(ctx: Context) {
     super(ctx, ToolBindingsService.provide)
   }
-  abstract readonly inspect: ToolBindings<P, B, E>['inspect']
-  abstract readonly resolve: ToolBindings<P, B, E>['resolve']
-  abstract readonly recover: ToolBindings<P, B, E>['recover']
+  abstract readonly inspect: ToolBindings<P, E>['inspect']
+  abstract readonly resolve: ToolBindings<P, E>['resolve']
+  abstract readonly recover: ToolBindings<P, E>['recover']
   abstract readonly register: ToolBindingRegistry<P, E, B>['register']
   abstract readonly snapshot: ToolBindingRegistry<P, E, B>['snapshot']
   abstract readonly pins: ToolBindingRegistry<P, E, B>['pins']

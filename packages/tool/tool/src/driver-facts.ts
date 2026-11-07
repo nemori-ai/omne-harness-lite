@@ -22,18 +22,18 @@ import { isExcludedFailure } from './ledger-exclusion.ts'
 
 type Step<P> = CallAccess<P> & Readonly<{ instance: ToolInstanceId; signal: AbortSignal }>
 type Result = DriverStop | Readonly<{ kind: 'continue'; progressed: boolean }>
-type Ready<B extends ContentBlock> =
-  | Readonly<{ kind: 'batch'; batch: FactBatch<B> }>
+type Ready =
+  | Readonly<{ kind: 'batch'; batch: FactBatch }>
   | Readonly<{ kind: 'ended' }>
   | Readonly<{ kind: 'failed' }>
 type SessionKey = Readonly<{ call: string; start: ToolOperationId }>
-type Session<P, B extends ContentBlock> = {
+type Session<P> = {
   controller: AbortController
   signal: AbortSignal
   detach: () => void
-  iterator: AsyncIterator<FactBatch<B>>
+  iterator: AsyncIterator<FactBatch>
   next: Promise<void> | null
-  ready: Ready<B> | null
+  ready: Ready | null
   closing: Promise<void> | null
   resume: Step<P> | null
 }
@@ -54,7 +54,7 @@ export function createFactDriver<P, B extends ContentBlock, E>(
   binding: ReturnType<typeof createBindingInvoker<P, B, E>>,
   wake: (step: Step<P>, delayed: boolean) => void,
 ) {
-  const sessions = new Map<string, Map<ToolOperationId, Session<P, B>>>()
+  const sessions = new Map<string, Map<ToolOperationId, Session<P>>>()
   const callKey = (step: CallAccess<P>) => JSON.stringify([tenantKey(step.tenant), step.call])
   const keyOf = (step: CallAccess<P>, start: ToolStartRecord): SessionKey => ({
     call: callKey(step),
@@ -68,7 +68,7 @@ export function createFactDriver<P, B extends ContentBlock, E>(
     return [...new Set([step.signal, ...active])]
   }
 
-  const close = (key: SessionKey, session: Session<P, B>): void => {
+  const close = (key: SessionKey, session: Session<P>): void => {
     if (session.closing !== null) return
     session.detach()
     session.controller.abort()
@@ -90,7 +90,7 @@ export function createFactDriver<P, B extends ContentBlock, E>(
     })
   }
 
-  const listen = (key: SessionKey, session: Session<P, B>, step: Step<P>): void => {
+  const listen = (key: SessionKey, session: Session<P>, step: Step<P>): void => {
     session.detach()
     session.signal = step.signal
     const abort = () => close(key, session)
@@ -106,7 +106,7 @@ export function createFactDriver<P, B extends ContentBlock, E>(
     }
   }
 
-  const read = (session: Session<P, B>, step: Step<P>): void => {
+  const read = (session: Session<P>, step: Step<P>): void => {
     if (
       step.signal.aborted ||
       session.closing !== null ||
@@ -140,7 +140,7 @@ export function createFactDriver<P, B extends ContentBlock, E>(
   const liveOf = async (
     step: Step<P>,
     start: ToolStartRecord,
-  ): Promise<Outcome<ToolLiveExecution<B>, ToolFailure>> => {
+  ): Promise<Outcome<ToolLiveExecution, ToolFailure>> => {
     const live = binding.live(step, start)
     if (live !== undefined) return { ok: live }
     try {
@@ -246,7 +246,7 @@ export function createFactDriver<P, B extends ContentBlock, E>(
           closing: null,
           resume: null,
         }
-        const streams = sessions.get(key.call) ?? new Map<ToolOperationId, Session<P, B>>()
+        const streams = sessions.get(key.call) ?? new Map<ToolOperationId, Session<P>>()
         streams.set(key.start, session)
         sessions.set(key.call, streams)
         listen(key, session, step)

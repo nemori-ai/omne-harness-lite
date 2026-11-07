@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ToolFailure } from '@omne-harness/tool-contract'
-import { completedFinal } from '@omne-harness/tool-contract/testing'
+import { completedFinalEnvelope as completedFinal } from '@omne-harness/tool-contract/testing'
 import {
   admission,
   callId,

@@ -38,7 +38,7 @@ import type { RuntimeRecords } from './runtime-records.ts'
 import { createAbsentToolPorts } from './absent-ports.ts'
 import type { LocalToolControlSubjectsInput } from './control-subject-adapter.ts'
 
-type Bindings = ToolBindings<unknown, ToolMessageContentBlock, ToolEnvironmentValue>
+type Bindings = ToolBindings<unknown, ToolEnvironmentValue>
 export type RuntimeEnvironment = ToolEnvironment<unknown, ToolEnvironmentValue>
 export type LocalToolRuntimeInput = Readonly<{
   store: ToolLedgerStore<ToolMessageContentBlock>
