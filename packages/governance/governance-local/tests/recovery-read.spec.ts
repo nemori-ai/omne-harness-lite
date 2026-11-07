@@ -173,9 +173,12 @@ it('reads through the real Worker after reopen and removes a terminal only when 
     if (result.kind !== 'read') throw new Error(JSON.stringify(result))
     return recoveryPageSchema.parse(result.output)
   }
-  expect((await read()).items).toEqual([
-    { key: operation.ref, requestDigest: operation.requestDigest },
-  ])
+  expect(await read()).toEqual({
+    kind: 'page',
+    currentEpoch: 'first',
+    next: null,
+    items: [{ key: operation.ref, requestDigest: operation.requestDigest, acceptedEpoch: 'first' }],
+  })
   await w.call({ kind: 'standing-settled', binding: operation, reservation, outcome: 'committed' })
-  expect(await read()).toEqual({ kind: 'page', items: [], next: null })
+  expect(await read()).toEqual({ kind: 'page', currentEpoch: 'first', items: [], next: null })
 })

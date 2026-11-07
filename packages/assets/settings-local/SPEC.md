@@ -30,6 +30,16 @@ Provision and retire operations use owner revisions to reject stale editors. A r
 
 Target records specify allowed source slots and actions. They do not authorize copying another tenant's values or shared organization values into those slots. Every access grant must permit reading all persisted sources in that concrete target.
 
+## Current publication references
+
+The trusted standalone owner can associate a complete publisher, definition and version reference with a target through its existing provision command. A null reference leaves the target usable as ordinary Settings without claiming an original publication. Changing or clearing the reference uses the same owner revision check and transaction as the definition update. The reference is part of the original command identity's immutable content. It does not authorize execution or prove a publisher's statement.
+
+`settings.targets` owns the optional one-to-one `st_target_publication` relation. Its primary and foreign key is the complete stored target key. A named additive migration creates this relation without inferring references for existing targets. Target records, existing source reservation snapshots, values and original receipts retain their existing shape and contents. Retirement retains the association for custody but removes the target from current capture.
+
+Publication capture produces the existing Settings projection and a separate standalone publication fact from the same owner read in one transaction. Both retain the complete capture binding, target, definition reference and owner revision. The publication fact reports a null reference explicitly. The consumer must compare the complete original declaration with its trusted publisher, and separately verify current execution availability. It must not infer a publication from a matching Settings definition or promote the stored reference into permission.
+
+Capture remains bounded by 128 requested targets and the existing byte budget. Each publication association uses a target-key point lookup. A requested missing or retired standalone target is refused rather than omitted from a successful complete capture. Other owner policies remain the responsibility of their own projection providers.
+
 ## Coherent catalog capture
 
 `createSettingsCatalog` verifies an issued acting-for-tenant principal, the fixed deployment, the tenant transaction domain, and every explicitly requested target scope. Each read obtains a fresh Identity standing reservation for its unique capture operation and the configured qualifications. It does not reuse a prior page's permission decision.
@@ -114,7 +124,7 @@ The persistence owner's material set installs `st_governance_intent` and `st_gov
 
 A root key binds its principal, complete target and business operation within the fixed storage domain. A second unique constraint protects those components independently of the key encoding. Each attempt belongs to one root. Attempt IDs are globally unique within that domain. A partial unique index permits at most one prepared or submitted attempt per root. Attempt numbers range from 1 to 64. A next-attempt value of 65 means allocation is exhausted, not that the root is cancelled.
 
-Root state constrains result and abort-reason columns. Pending recovery has a partial index ordered by root key. Exact attempt lookup uses its unique ID index. Foreign keys remain within `settings.persistence`; other participants cannot read these private tables.
+Root state constrains result and abort-reason columns. Pending recovery has a partial index ordered by root key. Exact attempt lookup uses its unique ID index. Foreign keys remain within `settings.persistence`. Read-only planners use declared read permissions; other owners consume explicit facts.
 
 These constraints do not by themselves preserve command immutability or prevent terminal revival. The sole persistent writer must enforce the [root and attempt model](../settings/verification/README.md#原操作与准备尝试). Existing values, receipts and old terminals remain unchanged by this migration. Switching providers still requires draining old held reservations and explicitly preserving historical results. The presence of these tables does not complete that upgrade or authorize a direct-commit fallback in the final assembly.
 
@@ -130,7 +140,19 @@ Allocation preserves the full original command. A different transport requestId 
 
 Reads use two indexed point queries, each with LIMIT 1. They validate the stored command binding, attempt sequence, plan target, ready-basis digest, and exact SQL destination identity. They do not write or settle anything. The plan stores a SettingsCurrentBasis comparison projection. External reservation requests and custody checkpoints remain separate obligations and are not implemented by allocation.
 
-Tests exercise this writer through the real SQLite Worker with a test participant replacing admission. They cover concurrent allocation, rollback, reopen, immutable commands, exact-ID collisions, terminal recognition, and budget boundaries. Seeded terminal/history records test recognition; they do not prove the production seal service. Current admission, external custody orchestration, ready/commit plans, recovery routing, and the public preparation backend remain incomplete.
+Tests exercise this writer through the real SQLite Worker with a test participant replacing admission. They cover concurrent allocation, rollback, reopen, immutable commands, exact-ID collisions, terminal recognition, and budget boundaries. Seeded terminal/history records test recognition; they do not prove the production seal service. Checkpoint, ready, business-commit and recovery plans use production participants. The prepared coordinator and Identity attempt resolver consume these phases. Actual application current-fact and organization-source assembly remain incomplete.
+
+## Preparation checkpoint transaction
+
+The private checkpoint combination uses the same persistence, terminal and source owners as ready, business commit and recovery. Its read-only planner accepts a bound command from the trusted coordinator fact. It does not accept a client-selected plan or participant list. Allocation requires qualified coordinator admission. Custody recording preserves a previously requested obligation and does not require renewed permission to perform the business action.
+
+Checkpoint commands distinguish allocation, Standing plan/request/held/settled, source manifest/request/receipt. Each binds the original domain, principal, operation, command kind, digest and exact attempt. Source-update allocation starts its exact gate in the same transaction that inserts the root and attempt. Recognition of existing work does not start another gate. Contention, ID collision or downstream failure rolls back both effects. An existing root cannot change between an ordinary target change and a source update.
+
+A checkpoint cannot publish prepared, commit values or establish a business terminal. A late held receipt remains recordable on its original cancelled or sealed attempt. A settled receipt requires that attempt's terminal and matching outcome. It cannot revive the attempt or change a successor. The coordinator obtains authentic receipts from the actual owning services; structural validation is not proof of receipt provenance.
+
+The private preparation read handler returns root, exact attempt, Standing custody, one source member, or a bounded source metadata page. It uses existing indexed owner reads and never seals, advances or settles work. Pages contain at most 64 members; the handler permits at most 67 rows including root, attempt and manifest. The public coordinator must establish current disclosure authority before calling it. These internal reads do not grant callers access.
+
+Production combination tests cover allocation, custody, ready and business commit without fixture writes to the preparation relations. Named fixtures still provide coordinator admission, current material and external receipts. These tests do not establish public preparation access, external reservation orchestration or full C3b acceptance.
 
 ## Identity reservation custody
 
@@ -146,7 +168,7 @@ Custody readback uses indexed root, exact-attempt and custody lookups, each with
 
 ## Source retention relations
 
-`source-retention-schema.ts`, `source-retention-migration.ts` and `source-retention-records.ts` define the private source retention mechanism. Its owner is settings.source-retention. It owns only st_source_gate and st_source_reservation. settingsSqlMaterials installs the source relations and retention participant. Direct assignment, rebase and independent-target writers consume its same-transaction write permission. Authenticated source admission, prepared source-update completion and destination resolution remain incomplete.
+`source-retention-schema.ts`, `source-retention-migration.ts` and `source-retention-records.ts` define the private source retention mechanism. Its owner is settings.source-retention. It owns only st_source_gate and st_source_reservation. settingsSqlMaterials installs the source relations and retention participant. Direct assignment, rebase and independent-target writers consume its same-transaction write permission. Prepared business transactions can complete the exact source gate with the root result. Authenticated source admission, public coordination and destination resolution remain incomplete.
 
 A retained source identifies a complete Settings target in a fixed storage domain. A gate protects its definition, layout, values and locks together. An inheritance sourceId or an item name is not this gate's identity. Each gate stores one pending root update, with the full immutable identity and command digest. Another root is blocked. The same root with changed content conflicts.
 
@@ -200,7 +222,7 @@ A matching source receipt can move requested to held or directly to settled. Hel
 
 Manifest recognition reads its primary key. An exact member read uses three indexed point queries for root, attempt and member, each limited to one row. Recovery lists request metadata for an exact attempt through the composite primary key, with source_key continuation and a maximum page of64. It does not list snapshots. Recognizing one member does not rehash or read the full manifest.
 
-The immutable manifest partitions custody by attempt and source. Each member follows SettingsReservationCustody's state machine independently. The all-members-ready condition remains a preparation coordinator obligation. These private operations do not publish a ready basis, release external reservations or supply the public preparation backend.
+The immutable manifest partitions custody by attempt and source. Each member follows SettingsReservationCustody's state machine independently. The ready transition checks every required member. Obtaining and settling the external reservations remains a preparation coordinator obligation. These private operations do not publish a ready basis, release external reservations or supply the public preparation backend.
 
 
 ## Source readiness observation
@@ -209,7 +231,7 @@ The private source-readiness participant reads the source owner's gate and held 
 
 The fact binds the complete intent identity, exact attempt, command kind and command digest. It reports the full source, actual pending update and bounded held count. Caller-supplied counts or gate content are not read. The downstream planner must compare the complete binding and persistent root purpose. An absent gate with zero holds is an observation, not permission to write or a proof of source ownership.
 
-Ready, commit and seal use separate fixed combinations with exactly one finalization-plan producer. A read-only terminal observation precedes the planner. Shared terminal, source and persistence writers validate their respective actions in the same transaction. Seal does not depend on current governance or renewed qualification. Ready's nonterminal/no-action results cannot authorize business effects. The complete phase assemblies and public preparation backend remain implementation obligations.
+Ready, commit and seal use separate fixed combinations with exactly one finalization-plan producer. A read-only terminal observation precedes the planner. Shared terminal, source and persistence writers validate their respective actions in the same transaction. Seal does not depend on current governance or renewed qualification. Ready's nonterminal/no-action results cannot authorize business effects. The ready, business-commit and recovery combinations use production participants. The prepared coordinator consumes these combinations. The application supplies a tenant-local current composition. Organization-source adapters and actual consumer migration remain incomplete.
 
 
 私有根终结写者必须核对精确 attempt 与原命令绑定。成功不能从 preparing 直接发生。普通 seal 保持根开放，源修改 seal 终结根，取消可作用于没有活跃 attempt 的开放根。旧 aborted attempt 不得修改后继，已终结根不得复活。源修改的根终结须消费同事务来源写者的精确 finished 结果；形状相符不构成来源权威。所有 SQL 异常向事务拥有者传播，根和 attempt 不得部分提交。该私有模块尚不构成公开准备提供者。
@@ -218,4 +240,60 @@ Ready, commit and seal use separate fixed combinations with exactly one finaliza
 准备提供者的私有恢复组合必须在一次物理事务内执行terminal观察、原根计划、精确terminal记录、来源动作和持久终结。封口不得要求当前资格或来源快照。重复旧attempt只认回自己的终态，不能借根的后继结果改变其外部保留结果。内部取消选择与当前活跃attempt不符时整组拒绝；无活跃attempt的根可取消。空动作、finalized与直接写入open事实不可互换。该组合的实际参与者已实现；公共准备服务和resolver切换仍未完成。
 
 
-preparing发布为prepared之前，必须确认原命令及精确活跃attempt、可信当前依据、开放终态观察和全部必需held。缺少来源清单不得解释为空清单，settled不得解释为held。basis一经保存不能由重传替换，已终结或历史attempt不能重新发布。ready不产生业务或terminal效果。展开后的完整来源请求集合也必须满足本成员预算，不能只检查紧凑来源列表。私有关系写者已实现，生产current与ready组合尚未接通。
+preparing发布为prepared之前，必须确认原命令及精确活跃attempt、可信当前依据、开放终态观察和全部必需held。缺少来源清单不得解释为空清单，settled不得解释为held。basis一经保存不能由重传替换，已终结或历史attempt不能重新发布。ready不产生业务或terminal效果。展开后的完整来源请求集合也必须满足本成员预算，不能只检查紧凑来源列表。私有关系写者与ready事务组合已实现，应用current生产者和真实应用消费者尚未接通。
+
+### Preparation publication combination
+
+The ready combination uses the existing terminal observer, shared writers and one `settings.ready-plan` producer. It requires a `settings.preparation-current` fact. Only the trusted application adapter may produce that fact. A request supplies the exact attempt binding, not the current basis or custody requirements.
+
+The planner requires matching bindings and an absent terminal. It fixes the complete current basis, Identity requirements and external source manifest in the transaction plan. The terminal writer rechecks absence without creating a terminal. The source writer consumes an explicit no-action plan. The persistence writer alone applies the preparing-to-prepared transition and publishes its result.
+
+Missing custody returns pending. A changed basis returns rejection. Neither result changes the attempt to prepared. A sealed attempt conflicts. A later participant failure rolls back publication. Ready and seal share the same SQL domain ordering. If ready commits first, seal can subsequently abort that attempt. A prepared reference does not guarantee a future commit.
+
+Recovery combinations do not require current facts. The material catalog permits all phase planners, but each combination must select exactly one producer of the finalization plan. No new table or migration supports this transition. The Identity-qualified preparation provider supplies caller qualification and custody orchestration. Actual application current-fact and source composition remain incomplete.
+
+## Transaction-local value projection
+
+The optional `settingsValueProjectionMaterials()` participant reads assignments from the existing Settings-owned state relation. It consumes both native target-owner projections for the exact `SettingsProjectionBinding`. The combination must also contain the real Settings table owner. Applications must not read Settings tables to construct this fact themselves.
+
+`settingsValueProjectionCommand(binding)` produces `settingsValueProjectionFact`. Each result contains the target, definition, owner revision, source layout, grants, enabled state, stored assignment state and explicit absent/present status. An absent assignment has revision zero and an empty value list for each declared source. It does not mean that the target or a required owner is absent.
+
+Requested targets must all appear in the owner facts. Duplicate targets, another capture binding, incompatible stored definitions or source layouts, and unavailable requested targets cannot produce a successful empty result. Existing target and value budgets apply. Reads use one state-key lookup per projected target and do not scan assignment history.
+
+The read and its fact consumers share the same SqlStorage transaction. A committed assignment is visible to a later capture in the same domain order without a notification or remount. This local fact does not authorize the caller, prove Governance adoption, reserve a remote source, or grant a future execution. The trusted composition remains responsible for those checks.
+
+### Prepared business transaction
+
+The commit planner requires an open root and its exact prepared or submitted attempt. It reads the original command from persistence. The request cannot replace that command. Current business material, terminal observation and source readiness must bind the same request.
+
+The trusted current producer distinguishes available material, confirmed final business refusal and unavailable material. Unavailable facts never become a final refusal or an absent source. Available material carries the complete basis, definition and action grants. The planner checks the definition digest, full target and actual local value revision before using it. Secret assignments remain unsupported by this ordinary value store.
+
+The planner reuses the existing change and rebase decisions. Final command failures produce an abort-root plan before comparison drift is considered. Drift seals the ordinary attempt and leaves its root open. A source-update seal also aborts its root. Successful mutation requires matching preparation basis and held custody. Limits, incomplete custody and malformed facts cannot produce a successful write or an invented root abort.
+
+The plan type ties apply to a committed terminal and an open-gate check or committed source completion. Abort outcomes require an aborted terminal and either no source action or aborted source completion. Terminal and source actions bind the exact requested identity. The source owner checks an ordinary target has no pending update or held reservation. Source completion addresses only its own exact pending root. Aborted source completion preserves outstanding held obligations.
+
+The shared persistence writer saves assignment state, operation receipt, change record and root result in the same transaction as the terminal and source outcome. A later failure rolls everything back. A no-change result retains its value revision. Exact SQL retries return their original result after reopening. The prepared coordinator recognizes historical root results before requesting a new business transaction.
+
+Tests run these production participants in the real SQLite Worker. Current material and initial intent/custody/gate state remain named fixtures. These tests do not establish production caller qualification, organization-source management, public preparation or full application integration.
+
+## Protected preparation coordinator
+
+The preparation subpath supplies a service facet and a separate control facet. The service implements the Settings-owned preparation protocol and explicit maintenance rebase. It accepts business commands and references only. The host fixes storage domain, phase registrations, caller access, initial comparison-plan capture, transaction current producers and external reservation routes. These construction adapters are trusted capabilities, not client-supplied configuration.
+
+Every public call validates input and checks current disclosure or command access. Access results must bind the complete target and fixed storage scope. Root lookup also binds the authenticated principal. A repeated prepare recognizes the original semantic command and active attempt. Changing requestId does not change that command. A changed semantic command conflicts. A preparation reference cannot authorize another principal, target or command.
+
+Preparation persists allocation and each requested checkpoint before the corresponding external call. A lost reply is retried using the stored request. Ready rechecks the complete current basis and held custody. A confirmed basis change seals the exact attempt and does not automatically allocate a successor. Commit reads the original persisted command and uses the fixed business combination. Query performs no cleanup. Cancellation preserves prior committed effects and only terminates an open root.
+
+A durable SQL rolled_back receipt proves that the exact SQL attempt cannot later commit under that identity. The coordinator therefore seals the domain attempt and settles its obligations. An ordinary root stays open for a new explicit prepare; a source-update root follows the existing seal rule and also terminates its gate. The SQL receipt is not itself a business refusal. Unknown results preserve the original attempt and do not authorize replacement or release. A lost rollback reply can later be recognized through the existing receipt in an identity conflict; it is not reinterpreted as a successful command.
+
+Post-terminal settlement may be unavailable. The service preserves a known business result, while durable requested or held custody remains recoverable. It does not claim that those obligations were released. A read-only original-operation query never invokes settlement. Closing rejects new service and resolver calls, drains accepted calls and leaves shared storage ownership with the assembler.
+
+The Identity adapter verifies an issued acting-for-tenant principal, current membership and configured qualifications. Tenant-domain access must match the principal's canonical tenant. System-domain access also requires organization-settings-manage. Target ownership, organization eligibility and action policy remain the injected owner's responsibility. Reservation requests bind that same principal, canonical tenant, fixed destination and complete original request.
+
+The attempt resolver validates the versioned recovery envelope and the persisted requested/held/settled Standing request. It uses the exact fixed domain and attempt, then reads the actual terminal after sealing. It does not reacquire a qualification that withdrawal may already have removed. Wrong destination, malformed envelope, changed request or unavailable storage cannot produce a terminal response. Capture recovery stays with its capture owner; this resolver does not guess a capture route.
+
+Public-service tests use the real Worker combinations. Separate tests connect actual Identity issuance, standing, reservation, settlement and membership removal. They cover both withdrawal/commit orders and a paused commit. Current policy material and source routing remain named construction fixtures. These tests do not prove the application's actual Governance/organization source composition, old-consumer migration or full C3b acceptance.
+
+### Application current consumer
+
+The harness-server [prepared Settings composition](../../../apps/harness-server/docs/rows/settings-preparation.md) consumes the public preparation SPI. It derives initial and transaction-current material from the actual native owner, Governance and assignment projections. Its first implemented source scope is tenant-local. Organization sources, maintenance current for cross-definition rebase and the server consumer switch remain incomplete. This application evidence does not enlarge the package's independent acceptance claim.

@@ -308,3 +308,71 @@ flowchart LR
 settings.targets 独占目标表写入。settings.target-projection 只读目标表，不依赖来源写入许可，因此来源被保留时查询仍可继续。Settings 不读取其他领域的私有表。
 
 普通装配只安装写入观察。显式启用 sourceCapture 后，同一观察参与者还可从真实目标和配值表产生来源快照，装配必须登记这些表的拥有者。这仍是事务材料，尚不是公开的组织来源服务。生产更新排空、根终态同提交以及恢复协调继续由完整准备提交路径承担。
+
+## 公开准备服务的职责分离
+
+preparation-provider 提供客户端 service 和拥有者 control 两个入口。PreparationEngine 管原操作流程；PreparationSql 只执行固定事务组合及持久读取；PreparationCustody 管外部请求与回执顺序。Identity 适配器验证真实资格，来源服务继续拥有自己的保留状态。Settings 不读取外域私表。
+
+```mermaid
+classDiagram
+  class SettingsPreparationService {
+    prepareChange()
+    prepareRebase()
+    commitChange()
+    cancelChange()
+    getOperation()
+    readChanges()
+  }
+  class PreparationEngine {
+    originalIntent
+    explicitAttempt
+  }
+  class PreparationSql {
+    fixedPhaseRegistrations
+    read()
+    write()
+  }
+  class PreparationCustody {
+    reserve()
+    settle()
+  }
+  class IdentityAdapter {
+    verifyPrincipal()
+    readStanding()
+    reserve()
+  }
+  class AttemptDestination {
+    sealExactPersistedRequest()
+  }
+  SettingsPreparationService --> PreparationEngine
+  PreparationEngine --> PreparationSql
+  PreparationEngine --> PreparationCustody
+  PreparationCustody --> PreparationSql : 保存请求与回执
+  PreparationCustody --> IdentityAdapter : 公共保留契约
+  AttemptDestination --> PreparationSql : 不重新申请资格
+```
+
+```mermaid
+sequenceDiagram
+  participant Client as 调用者
+  participant Service as Settings 准备服务
+  participant SQL as 固定 Settings SQL 组合
+  participant Identity as Identity
+  Client->>Service: prepareChange
+  Service->>Identity: 验证主体和当前资格
+  Service->>SQL: 保存根、attempt 与 requested
+  Service->>Identity: 原请求 reserve
+  Identity-->>Service: held 回执
+  Service->>SQL: 保存回执，ready 重核当前依据
+  Service-->>Client: prepared 引用
+  Client->>Service: commitChange
+  Service->>Identity: 重新验证主体和资格
+  Service->>SQL: 读取当前依据并原子提交
+  SQL-->>Service: 已提交原结果
+  Service->>Identity: settle 原请求
+  Identity->>Service: 可信 destination 核验终态
+  Service-->>Identity: 精确 committed 终态
+  Service-->>Client: committed 原结果
+```
+
+此图是库级实际实现。来源保留按同一 requested/receipt 顺序运行，具体来源的认证与持久服务由装配方提供。真实应用 current、组织来源和旧写入路线的切换尚未完成。关闭只排空已受理调用，不删除持久准备记录，也不接管共享 SqlStorage 的生存期。

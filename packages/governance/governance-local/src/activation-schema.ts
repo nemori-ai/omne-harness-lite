@@ -1,3 +1,4 @@
+import { closeScopeSchema } from './scope.ts'
 import { z } from 'zod'
 import { GovernanceDigestSchema, GovernanceIdSchema } from '@omne-harness/governance-contract'
 import {
@@ -18,10 +19,13 @@ export const ADOPTION_CURRENT = {
 export const METADATA_PLANNER = 'governance.metadata-plan'
 export const MUTATION_PLANNER = 'governance.mutation-plan'
 export const ADOPTION_PLANNER = 'governance.adoption-plan'
+export const CAPTURE_PLANNER = 'governance.catalog-snapshot'
 export const ACTIVATION_PROTOCOL = 'governance-activation/1'
 export const controlRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('persist-stage'), input: persistStageSchema }),
   z.strictObject({ kind: z.literal('bootstrap'), input: bootstrapSchema }),
+  z.strictObject({ kind: z.literal('close-scope'), input: closeScopeSchema }),
+  z.strictObject({ kind: z.literal('retire-contribution'), binding: bindingSchema }),
   z.strictObject({ kind: z.literal('accept'), input: acceptSchema }),
   z.strictObject({ kind: z.literal('standing-prepare'), input: standingPlanSchema }),
   z.strictObject({
@@ -61,6 +65,7 @@ export const activationPlanSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('control'), request: controlRequestSchema }),
   z.strictObject({ kind: z.literal('observation'), request: businessRequestSchema }),
   businessPlan.extend({ kind: z.literal('mutation') }),
+  businessPlan.extend({ kind: z.literal('capture'), result: z.json() }),
   businessPlan.extend({ kind: z.literal('adoption'), evidence: adoptionEvidenceSchema }),
 ])
 export type ActivationPlan = z.infer<typeof activationPlanSchema>

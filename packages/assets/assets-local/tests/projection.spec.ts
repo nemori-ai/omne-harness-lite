@@ -142,10 +142,11 @@ it('can publish only projection facts in the two-owner consumer combination', ()
   expect(assetsSqlMaterials().participants[0]?.providesFacts.map(fact => fact.key)).toEqual([
     'settings.current',
     'settings.assets-projection',
+    'assets.current-publication',
   ])
   expect(
     assetsSqlMaterials({ settingsGuard: false }).participants[0]?.providesFacts.map(
       fact => fact.key,
     ),
-  ).toEqual(['settings.assets-projection'])
+  ).toEqual(['settings.assets-projection', 'assets.current-publication'])
 })

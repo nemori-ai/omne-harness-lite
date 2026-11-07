@@ -386,6 +386,7 @@ export async function openSettingsComposition(
       operationId: 'initial',
       expectedRevision: null,
       record: {
+        publicationRef: null,
         target,
         definition,
         sources: [

@@ -67,6 +67,7 @@ async function open(root?: string) {
   })
   const target = command().target
   const record = {
+    publicationRef: null,
     target,
     definition,
     sources: ownerSources('tenant'),

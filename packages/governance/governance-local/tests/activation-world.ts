@@ -10,6 +10,7 @@ import {
   type CommitRequestV2,
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
+import { CATALOG_CURRENT, CATALOG_SNAPSHOT } from '../src/catalog-schema.ts'
 import { governanceSqlMaterials } from '../src/materials.ts'
 import {
   ADOPTION_CURRENT,
@@ -35,6 +36,7 @@ export function activationCatalog(
 ): SqlMaterialCatalog {
   const base = governanceSqlMaterials()
   const url = new URL('./activation-current.mjs', import.meta.url)
+  const catalogUrl = new URL('./catalog-current.mjs', import.meta.url)
   return {
     catalogProtocol: 'sql-catalog/1',
     ...base,
@@ -42,6 +44,18 @@ export function activationCatalog(
     readHandlers: [...base.readHandlers, ...(extra?.readHandlers ?? [])],
     participants: [
       ...base.participants,
+      {
+        participant: 'fixture.governance-catalog-current',
+        protocol: CATALOG_CURRENT.protocol,
+        moduleUrl: catalogUrl.href,
+        codeDigest: createHash('sha256').update(readFileSync(catalogUrl)).digest('hex'),
+        ownedTables: [],
+        readTables: [],
+        requiresFacts: [],
+        providesFacts: [CATALOG_CURRENT],
+        allowedFunctions: [],
+        grouping: 'groupable',
+      },
       ...(extra?.participants ?? []),
       {
         participant: 'fixture.governance-current',
@@ -60,6 +74,7 @@ export function activationCatalog(
   }
 }
 export const plannerMembers = {
+  catalog: ['fixture.governance-catalog-current', CATALOG_SNAPSHOT.participant, GOVERNANCE_OWNER],
   metadata: [METADATA_PLANNER, GOVERNANCE_OWNER],
   mutation: [MUTATION_PLANNER, GOVERNANCE_OWNER],
   adoption: ['fixture.governance-current', ADOPTION_PLANNER, GOVERNANCE_OWNER],
@@ -95,7 +110,7 @@ export async function openActivation(
       manifestDigest: manifestDigest(checked.manifest),
     }
   }
-  for (const mode of ['metadata', 'mutation', 'adoption'] as const) {
+  for (const mode of ['metadata', 'mutation', 'adoption', 'catalog'] as const) {
     const result = await storage.registerCombination(combination(mode))
     if (result.kind !== 'registered') throw new Error(JSON.stringify(result))
   }

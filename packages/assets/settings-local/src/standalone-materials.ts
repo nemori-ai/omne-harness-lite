@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
+import { settingsStandalonePublicationFact } from './standalone-publication.ts'
 import { SOURCE_WRITE_FACT } from './source-write.ts'
 import { GUARD_FACT } from './schema.ts'
 import { settingsStandaloneProjectionFact } from './projection.ts'
 import {
   STANDALONE_MIGRATION,
+  STANDALONE_PUBLICATION_MIGRATION,
   STANDALONE_SOURCE_LAYOUT_MIGRATION,
   STANDALONE_ENABLEMENT_MIGRATION,
   STANDALONE_PARTICIPANT,
@@ -48,10 +50,11 @@ export function settingsStandaloneMaterials(
         protocol: STANDALONE_PROTOCOL,
         ...file('standalone-projection'),
         ownedTables: [],
-        readTables: ['st_targets'],
+        readTables: ['st_targets', 'st_target_publication'],
         requiresFacts: [],
         providesFacts: [
           settingsStandaloneProjectionFact,
+          settingsStandalonePublicationFact,
           ...(options.settingsGuard === false ? [] : [GUARD_FACT]),
         ],
         allowedFunctions: [],
@@ -59,6 +62,12 @@ export function settingsStandaloneMaterials(
       },
     ],
     migrations: [
+      {
+        ...STANDALONE_PUBLICATION_MIGRATION,
+        moduleUrl: file('standalone-publication-migration').moduleUrl,
+        checksum: file('standalone-publication-migration').codeDigest,
+        requires: [STANDALONE_SOURCE_LAYOUT_MIGRATION],
+      },
       {
         ...STANDALONE_SOURCE_LAYOUT_MIGRATION,
         moduleUrl: sources.moduleUrl,

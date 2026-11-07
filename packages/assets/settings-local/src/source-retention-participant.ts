@@ -1,4 +1,4 @@
-import { sourceFinalizationFactSchema, recoveryRequestSchema } from './finalization-schema.ts'
+import { sourceFinalizationFactSchema, finalizationRequestSchema } from './finalization-schema.ts'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { equal, json, withinBudget } from './encoding.ts'
 import {
@@ -6,6 +6,7 @@ import {
   readSourceReservation,
   reserveSource,
   finishSourceUpdate,
+  beginSourceUpdate,
 } from './source-retention-records.ts'
 import { sourceSnapshotFactSchema } from './source-snapshot.ts'
 import { sourceWriteObservationSchema, SOURCE_WRITE_FACT } from './source-write.ts'
@@ -48,18 +49,27 @@ function reserve(raw: unknown, port: ParticipantPort) {
   return { kind: 'participated' as const, response: json(response) }
 }
 function finalize(raw: unknown, port: ParticipantPort) {
-  const request = recoveryRequestSchema.parse(raw)
+  const request = finalizationRequestSchema.parse(raw)
   const fact = sourceFinalizationFactSchema.parse(port.requireFact(SOURCE_SNAPSHOT_FACT))
   if (!equal(request, fact.request))
     throw new Error('Settings source finalization request mismatch')
-  const result =
-    fact.action.kind === 'none'
-      ? { kind: 'none' as const }
-      : finishSourceUpdate(port, fact.action.update, fact.action.outcome)
+  const result = finalizeSource(port, fact.action)
   if (result.kind === 'blocked' || result.kind === 'conflict')
     return { kind: 'conflict' as const, basis: { reason: 'settings_source_finalization_conflict' } }
   port.provideFact(SOURCE_WRITE_FACT, json({ kind: 'finalized', request, result }))
   return { kind: 'participated' as const, response: json(result) }
+}
+function finalizeSource(
+  port: ParticipantPort,
+  action: ReturnType<typeof sourceFinalizationFactSchema.parse>['action'],
+) {
+  if (action.kind === 'none') return { kind: 'none' as const }
+  if (action.kind === 'begin') return beginSourceUpdate(port, action.update)
+  if (action.kind === 'finish') return finishSourceUpdate(port, action.update, action.outcome)
+  const gate = readSourceGate(port, action.source)
+  return gate.pending === null && gate.held === 0
+    ? { kind: 'checked-open' as const, source: action.source }
+    : { kind: 'blocked' as const }
 }
 export default {
   participant: SOURCE_RETENTION_OWNER,

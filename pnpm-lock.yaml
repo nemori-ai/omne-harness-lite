@@ -163,6 +163,18 @@ importers:
 
   apps/harness-server:
     dependencies:
+      '@omne-harness/settings-local':
+        specifier: workspace:*
+        version: link:../../packages/assets/settings-local
+      '@omne-harness/governance-local':
+        specifier: workspace:*
+        version: link:../../packages/governance/governance-local
+      '@omne-harness/assets-local':
+        specifier: workspace:*
+        version: link:../../packages/assets/assets-local
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../packages/assets/assets
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
@@ -199,6 +211,9 @@ importers:
       '@omne-harness/execution-environment-host-local':
         specifier: workspace:*
         version: link:../../packages/execution/execution-environment-host-local
+      '@omne-harness/governance-contract':
+        specifier: workspace:*
+        version: link:../../packages/governance/governance-contract
       '@omne-harness/identity':
         specifier: workspace:*
         version: link:../../packages/identity/identity
@@ -232,6 +247,9 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../packages/common/operation-result
+      '@omne-harness/permissions':
+        specifier: workspace:*
+        version: link:../../packages/assets/permissions
       '@omne-harness/pi-ai-openai':
         specifier: workspace:*
         version: link:../../packages/model/pi-ai-openai

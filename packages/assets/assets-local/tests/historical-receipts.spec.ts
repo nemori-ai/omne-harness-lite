@@ -12,7 +12,7 @@ const domain: DomainRef = {
 }
 const operations = [
   {
-    kind: 'hold',
+    kind: 'hold' as const,
     operationId: 'old-hold',
     holdingRef: 'holding-a',
     scopeRef: 'tenant-a',
@@ -22,7 +22,7 @@ const operations = [
     grants: [],
   },
   {
-    kind: 'changeHolding',
+    kind: 'changeHolding' as const,
     operationId: 'old-sources',
     holdingRef: 'holding-a',
     scopeRef: 'tenant-a',

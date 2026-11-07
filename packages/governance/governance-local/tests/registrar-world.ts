@@ -1,5 +1,6 @@
-import type { SqlStorage } from '@omne-harness/sql-contract'
+import type { SqlStorage, JsonValue } from '@omne-harness/sql-contract'
 import type { GovernanceDefinitionSource } from '@omne-harness/governance-contract'
+import type { StandingReservations } from '@omne-harness/identity'
 import { access } from '@omne-harness/legal-identity'
 import { GovernanceAdmission } from '../src/admission.ts'
 import { GovernanceRegistrar } from '../src/registrar.ts'
@@ -76,6 +77,10 @@ export async function openRegistrarWorld() {
       source?: GovernanceDefinitionSource
       mutation?: MutationCombination
       epoch?: string
+      reservations?: StandingReservations
+      current?: (
+        input: Parameters<import('../src/registrar-execution.ts').AdoptionProjection>[0],
+      ) => JsonValue
     } = {},
   ) {
     const sql = sqlFor(current, options.storage)
@@ -97,9 +102,31 @@ export async function openRegistrarWorld() {
           ],
         },
         { principalRef: base.principalRef, scope: base.scope, action: 'withdraw', required: [] },
+        { principalRef: base.principalRef, scope: base.scope, action: 'adopt', required: [] },
+        {
+          principalRef: base.principalRef,
+          scope: base.scope,
+          action: 'catalog-management',
+          required: [],
+        },
+        {
+          principalRef: base.principalRef,
+          scope: base.scope,
+          action: 'catalog-runtime',
+          required: [],
+        },
+        {
+          principalRef: base.principalRef,
+          scope: base.scope,
+          action: 'operation-read',
+          required: [],
+        },
       ],
     })
-    const standing = new GovernanceStandingCoordinator(sql, identity.reservations)
+    const standing = new GovernanceStandingCoordinator(
+      sql,
+      options.reservations ?? identity.reservations,
+    )
     const { combinationVersion, manifestDigest } = current.combination('mutation')
     const registrar = new GovernanceRegistrar({
       scope: base.scope,
@@ -107,12 +134,22 @@ export async function openRegistrarWorld() {
       transactionDomain: current.domain.transactionDomain,
       destination: base.destination,
       mutation: options.mutation ?? { combinationVersion, manifestDigest },
+      adoption: {
+        combinationVersion: current.combination('adoption').combinationVersion,
+        manifestDigest: current.combination('adoption').manifestDigest,
+      },
+      current: input => [
+        {
+          participant: 'fixture.governance-current',
+          facts: { evidence: options.current?.(input) ?? null },
+        },
+      ],
       definitions: options.source ?? source,
       sql,
       admission,
       standing,
     })
-    return { registrar, sql, standing }
+    return { registrar, sql, standing, admission }
   }
   return {
     ...base,

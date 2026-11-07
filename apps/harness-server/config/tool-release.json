@@ -1,6 +1,6 @@
 {
-  "format": "omne-harness/tool-release/1",
-  "generation": "sha256:d0edc8a64cd04aff0671d7d59722bb4647ebd698da9c8d23ec5a892036545134",
+  "format": "omne-harness/tool-release/2",
+  "generation": "sha256:e62dc494b454c0c341982f82903e1b92cf19be2b4ac360e29282d24f1d4d8b72",
   "artifacts": {
     "package": "@omne-harness/tool-definitions",
     "files": [
@@ -214,15 +214,15 @@
     "capabilities": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/capabilities",
-      "revision": "sha256:d0edc8a64cd04aff0671d7d59722bb4647ebd698da9c8d23ec5a892036545134",
-      "digest": "sha256:dc71467892fc59bf234c79a1ee547d071d15142741c3eb359cb8e04f6daa326a"
+      "revision": "sha256:e62dc494b454c0c341982f82903e1b92cf19be2b4ac360e29282d24f1d4d8b72",
+      "digest": "sha256:83a7b519c8fb5e24bf51218c70b8311dd8113047485acbe6e45cca8e500d035e"
     },
     "conversion": null,
     "attachmentAccess": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/attachment-access",
-      "revision": "sha256:d0edc8a64cd04aff0671d7d59722bb4647ebd698da9c8d23ec5a892036545134",
-      "digest": "sha256:c2f495b78d3d6998308e64a03de3221f1917a6a0b7af443afd4a3f55ac1d8fd1"
+      "revision": "sha256:e62dc494b454c0c341982f82903e1b92cf19be2b4ac360e29282d24f1d4d8b72",
+      "digest": "sha256:25f01a84de66f5cd6e3383eb5cfd2c654229bd0ba70e1290ff40f8e1b4c7d558"
     }
   },
   "entries": [
@@ -262,17 +262,353 @@
         "digest": "sha256:94108f64517d8751252caec2702b170d5c24e4326afa8c4abcfe0b47fb8d5129"
       },
       "definition": "sha256:794ef7d18ee65849ee5cf892eebb8b2acc94caa6471ec87de280088ecfb4d397",
+      "governance": {
+        "declaration": {
+          "reference": {
+            "ownerId": "harness-server.tool-release",
+            "definitionId": "tool.Shell",
+            "version": "11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322",
+            "digest": "780dc29c49ef1990cf16bf06eadd8b94a3afb56ad3913b2fdccc0998930fdffe"
+          },
+          "origin": {
+            "kind": "asset",
+            "assetId": "harness.tool.Shell",
+            "releaseRef": "harness.tool.Shell/11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322"
+          },
+          "settings": [
+            {
+              "providerId": "harness-server.tool-release",
+              "definitionId": "tool.Shell.permissions",
+              "version": "11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322",
+              "groups": [
+                {
+                  "id": "tool.Shell",
+                  "parentId": null,
+                  "title": "Shell 工具",
+                  "description": "Shell 调用的权限规则。",
+                  "order": 0
+                }
+              ],
+              "items": [
+                {
+                  "id": "invoke",
+                  "groupId": "tool.Shell",
+                  "category": "governance",
+                  "presentation": {
+                    "title": "Shell 调用权限",
+                    "description": "控制 Shell 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+                    "clear": "清除本层挑选与锁界，重新按当前来源求值。",
+                    "adoption": "next-boundary",
+                    "enumLabels": [
+                      {
+                        "value": "deny",
+                        "title": "不允许",
+                        "description": "不启动此工具调用。"
+                      },
+                      {
+                        "value": "ask",
+                        "title": "询问",
+                        "description": "需要取得适用的人工许可。"
+                      },
+                      {
+                        "value": "auto",
+                        "title": "自动",
+                        "description": "本项不要求另行询问。"
+                      }
+                    ]
+                  },
+                  "valueSchema": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "pick",
+                      "allowedSet"
+                    ],
+                    "properties": {
+                      "pick": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "deny",
+                              "ask",
+                              "auto"
+                            ]
+                          }
+                        ]
+                      },
+                      "allowedSet": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "deny",
+                                "ask",
+                                "auto"
+                              ]
+                            },
+                            "uniqueItems": true,
+                            "maxItems": 3
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "default": {
+                    "kind": "value",
+                    "value": {
+                      "pick": "ask",
+                      "allowedSet": null
+                    }
+                  },
+                  "merge": "override",
+                  "sensitivity": "ordinary"
+                }
+              ]
+            }
+          ],
+          "permissions": [
+            {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Shell",
+                  "releaseRef": "harness.tool.Shell/11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322"
+                },
+                "itemId": "invoke",
+                "revision": "11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322"
+              },
+              "capabilityId": "tool.Shell",
+              "enforcementKey": "tool.invoke",
+              "title": "Shell 调用权限",
+              "description": "控制 Shell 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "ask",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Shell.permissions",
+                "version": "11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322",
+                "itemId": "invoke",
+                "groupId": "tool.Shell",
+                "groupTitle": "Shell 工具",
+                "groupDescription": "Shell 调用的权限规则。"
+              }
+            }
+          ],
+          "enforcementBindings": [
+            {
+              "capabilityId": "tool.Shell",
+              "enforcementKey": "tool.invoke",
+              "implementationRef": "tool/c3ed352891a03126c04d2f7287aee83ec7e374ef999a685868c4b9688ebca32f",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            }
+          ]
+        },
+        "interpretations": [
+          {
+            "binding": {
+              "capabilityId": "tool.Shell",
+              "enforcementKey": "tool.invoke",
+              "implementationRef": "tool/c3ed352891a03126c04d2f7287aee83ec7e374ef999a685868c4b9688ebca32f",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            "definition": {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Shell",
+                  "releaseRef": "harness.tool.Shell/11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322"
+                },
+                "itemId": "invoke",
+                "revision": "11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322"
+              },
+              "capabilityId": "tool.Shell",
+              "enforcementKey": "tool.invoke",
+              "title": "Shell 调用权限",
+              "description": "控制 Shell 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "ask",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Shell.permissions",
+                "version": "11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322",
+                "itemId": "invoke",
+                "groupId": "tool.Shell",
+                "groupTitle": "Shell 工具",
+                "groupDescription": "Shell 调用的权限规则。"
+              }
+            },
+            "effects": [
+              {
+                "value": "deny",
+                "effect": "deny"
+              },
+              {
+                "value": "ask",
+                "effect": "need-decision"
+              },
+              {
+                "value": "auto",
+                "effect": "allow"
+              }
+            ]
+          }
+        ]
+      },
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/holding",
-        "revision": "sha256:d0edc8a64cd04aff0671d7d59722bb4647ebd698da9c8d23ec5a892036545134",
-        "digest": "sha256:1e8fd81bb1a75cc409f8480f3781d9750466c1c15556d6d34eaf2025f7d46a11"
+        "revision": "sha256:e62dc494b454c0c341982f82903e1b92cf19be2b4ac360e29282d24f1d4d8b72",
+        "digest": "sha256:b4ca406746a8c0e9a8e912e9c92b383c746bb309a84c36b541a79e779e8dae68"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/publication",
-        "revision": "sha256:d0edc8a64cd04aff0671d7d59722bb4647ebd698da9c8d23ec5a892036545134",
-        "digest": "sha256:9496272e6ed165a8a3956634dcc45ed91e693a116dbddea29fa86bd445e44b3c"
+        "revision": "sha256:e62dc494b454c0c341982f82903e1b92cf19be2b4ac360e29282d24f1d4d8b72",
+        "digest": "sha256:f2e30024d726eb6cbf78be6b80f2be85db16d6446f8f8575ed184467a43c384a"
       }
     },
     {
@@ -308,17 +644,353 @@
         "digest": "sha256:5bee1c48c061684e0fa0bac8cc65796a1ae64faa833c2a6267bb550b375e152b"
       },
       "definition": "sha256:d3ce96a7f8cafbfe17e1ea69f856fe28c95471cefcdc0c9e1faed1a9c9aae795",
+      "governance": {
+        "declaration": {
+          "reference": {
+            "ownerId": "harness-server.tool-release",
+            "definitionId": "tool.Files",
+            "version": "5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3",
+            "digest": "4e6dd69ae5dd7bb21c93f3adbda40d532caa2dc783f3174365c986a74bf1e858"
+          },
+          "origin": {
+            "kind": "asset",
+            "assetId": "harness.tool.Files",
+            "releaseRef": "harness.tool.Files/5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3"
+          },
+          "settings": [
+            {
+              "providerId": "harness-server.tool-release",
+              "definitionId": "tool.Files.permissions",
+              "version": "5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3",
+              "groups": [
+                {
+                  "id": "tool.Files",
+                  "parentId": null,
+                  "title": "Files 工具",
+                  "description": "Files 调用的权限规则。",
+                  "order": 0
+                }
+              ],
+              "items": [
+                {
+                  "id": "invoke",
+                  "groupId": "tool.Files",
+                  "category": "governance",
+                  "presentation": {
+                    "title": "Files 调用权限",
+                    "description": "控制 Files 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+                    "clear": "清除本层挑选与锁界，重新按当前来源求值。",
+                    "adoption": "next-boundary",
+                    "enumLabels": [
+                      {
+                        "value": "deny",
+                        "title": "不允许",
+                        "description": "不启动此工具调用。"
+                      },
+                      {
+                        "value": "ask",
+                        "title": "询问",
+                        "description": "需要取得适用的人工许可。"
+                      },
+                      {
+                        "value": "auto",
+                        "title": "自动",
+                        "description": "本项不要求另行询问。"
+                      }
+                    ]
+                  },
+                  "valueSchema": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "pick",
+                      "allowedSet"
+                    ],
+                    "properties": {
+                      "pick": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "deny",
+                              "ask",
+                              "auto"
+                            ]
+                          }
+                        ]
+                      },
+                      "allowedSet": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "deny",
+                                "ask",
+                                "auto"
+                              ]
+                            },
+                            "uniqueItems": true,
+                            "maxItems": 3
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "default": {
+                    "kind": "value",
+                    "value": {
+                      "pick": "ask",
+                      "allowedSet": null
+                    }
+                  },
+                  "merge": "override",
+                  "sensitivity": "ordinary"
+                }
+              ]
+            }
+          ],
+          "permissions": [
+            {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Files",
+                  "releaseRef": "harness.tool.Files/5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3"
+                },
+                "itemId": "invoke",
+                "revision": "5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3"
+              },
+              "capabilityId": "tool.Files",
+              "enforcementKey": "tool.invoke",
+              "title": "Files 调用权限",
+              "description": "控制 Files 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "ask",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Files.permissions",
+                "version": "5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3",
+                "itemId": "invoke",
+                "groupId": "tool.Files",
+                "groupTitle": "Files 工具",
+                "groupDescription": "Files 调用的权限规则。"
+              }
+            }
+          ],
+          "enforcementBindings": [
+            {
+              "capabilityId": "tool.Files",
+              "enforcementKey": "tool.invoke",
+              "implementationRef": "tool/a22ec0a040368d78de11c92a3df21ba60c745afbe9944add809ab5d85e390470",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            }
+          ]
+        },
+        "interpretations": [
+          {
+            "binding": {
+              "capabilityId": "tool.Files",
+              "enforcementKey": "tool.invoke",
+              "implementationRef": "tool/a22ec0a040368d78de11c92a3df21ba60c745afbe9944add809ab5d85e390470",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            "definition": {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Files",
+                  "releaseRef": "harness.tool.Files/5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3"
+                },
+                "itemId": "invoke",
+                "revision": "5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3"
+              },
+              "capabilityId": "tool.Files",
+              "enforcementKey": "tool.invoke",
+              "title": "Files 调用权限",
+              "description": "控制 Files 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "ask",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Files.permissions",
+                "version": "5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3",
+                "itemId": "invoke",
+                "groupId": "tool.Files",
+                "groupTitle": "Files 工具",
+                "groupDescription": "Files 调用的权限规则。"
+              }
+            },
+            "effects": [
+              {
+                "value": "deny",
+                "effect": "deny"
+              },
+              {
+                "value": "ask",
+                "effect": "need-decision"
+              },
+              {
+                "value": "auto",
+                "effect": "allow"
+              }
+            ]
+          }
+        ]
+      },
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/holding",
-        "revision": "sha256:d0edc8a64cd04aff0671d7d59722bb4647ebd698da9c8d23ec5a892036545134",
-        "digest": "sha256:33b106788529526f01e1718abe26c7c00bc3ec624e8294fd2edad81bc30e1602"
+        "revision": "sha256:e62dc494b454c0c341982f82903e1b92cf19be2b4ac360e29282d24f1d4d8b72",
+        "digest": "sha256:a118ad07f8a8a47857155a664aeedf72c5069514909369c815f39f1c433ea918"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/publication",
-        "revision": "sha256:d0edc8a64cd04aff0671d7d59722bb4647ebd698da9c8d23ec5a892036545134",
-        "digest": "sha256:0950f34901d1e2fc380c2416734e49f8212c5a39c7a81e2e25afa9428ad52425"
+        "revision": "sha256:e62dc494b454c0c341982f82903e1b92cf19be2b4ac360e29282d24f1d4d8b72",
+        "digest": "sha256:bb5e1168a7c1d73cdeae0ca7fb9f29080e17592a9697ecbfb1c8425ff9723106"
       }
     }
   ]

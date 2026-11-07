@@ -1,34 +1,28 @@
+import { createGovernanceCollection } from './collection.ts'
 import type {
   GovernanceAdoptionCommand,
   GovernanceSelection,
+  GovernanceDefinitionBundle,
 } from '@omne-harness/governance-contract'
 import type { SettingsTarget } from '@omne-harness/settings'
-import { canonical, digest, equal } from './encoding.ts'
+import { canonical, equal } from './encoding.ts'
 import type { Candidate } from './candidates.ts'
 import type { AdoptionEvidence } from './adoption-schema.ts'
 
 export type AdoptionMember = Readonly<{ candidate: Candidate; targets: readonly SettingsTarget[] }>
-const sorted = <T>(values: readonly T[]) =>
-  [...values].sort((a, b) => {
-    const left = canonical(a),
-      right = canonical(b)
-    return left < right ? -1 : left > right ? 1 : 0
-  })
 export function selectionDigest(
   command: Pick<GovernanceAdoptionCommand, 'scope' | 'expectedDeclarationRevision'>,
   members: readonly AdoptionMember[],
 ) {
-  return digest({
+  return createGovernanceCollection({
     scope: command.scope,
     declarationRevision: command.expectedDeclarationRevision,
-    complete: sorted(
-      members.map(({ candidate, targets }) => ({
-        contribution: candidate.contribution,
-        definition: candidate.declaration.reference,
-        selectedTargets: sorted(targets),
-      })),
-    ),
-  })
+    complete: members.map(({ candidate, targets }) => ({
+      contribution: candidate.contribution,
+      definition: candidate.declaration.reference,
+      selectedTargets: targets,
+    })),
+  }).digest
 }
 function selectMembers(
   candidates: readonly Candidate[],
@@ -71,14 +65,20 @@ function compatible(members: readonly AdoptionMember[]) {
       d.enforcementBindings.every(b => same(['enforcement', b.capabilityId, b.enforcementKey], b)),
   )
 }
-function targetMatches(
-  member: AdoptionMember,
+export function targetMatches(
+  declaration: GovernanceDefinitionBundle,
   target: SettingsTarget,
   facts: ReadonlyMap<string, AdoptionEvidence['targets'][number]>,
 ) {
   const fact = facts.get(canonical(target))
-  if (!fact?.enabled || !equal(fact.origin, member.candidate.declaration.origin)) return false
-  const definition = member.candidate.declaration.settings.find(
+  return fact !== undefined && fact.enabled && targetHasDefinition(declaration, fact)
+}
+export function targetHasDefinition(
+  declaration: GovernanceDefinitionBundle,
+  fact: AdoptionEvidence['targets'][number],
+) {
+  if (!equal(fact.origin, declaration.origin)) return false
+  const definition = declaration.settings.find(
     d =>
       d.providerId === fact.definitionRef.providerId &&
       d.definitionId === fact.definitionRef.definitionId &&
@@ -100,7 +100,9 @@ function evidenceMatches(members: readonly AdoptionMember[], evidence: AdoptionE
   if (bindings.size !== evidence.enforcementBindings.length) return false
   return members.every(
     member =>
-      member.targets.every(target => targetMatches(member, target, targets)) &&
+      member.targets.every(target =>
+        targetMatches(member.candidate.declaration, target, targets),
+      ) &&
       member.candidate.declaration.enforcementBindings.every(
         b => bindings.get(canonical([b.capabilityId, b.enforcementKey])) === canonical(b),
       ),

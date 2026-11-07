@@ -1,10 +1,11 @@
+import type { OperationRef } from './operation-schema.ts'
 import type { CommitRequestV2, SqlIdentity } from '@omne-harness/sql-contract'
-import type { GovernanceOperationRef } from '@omne-harness/governance-contract'
 import type { ReadPort } from '@omne-harness/sql-contract/worker'
 import {
   METADATA_PLANNER,
   MUTATION_PLANNER,
   ADOPTION_PLANNER,
+  CAPTURE_PLANNER,
   businessRequestSchema,
   controlRequestSchema,
   type ControlRequest,
@@ -16,11 +17,7 @@ import { readGovernanceStanding } from './standing-custody.ts'
 import { standingRecoverySchema } from './standing-schema.ts'
 import type { SqlStage } from './sql-stage-schema.ts'
 
-export function stageIdentity(
-  domain: string,
-  ref: GovernanceOperationRef,
-  stage: SqlStage,
-): SqlIdentity {
+export function stageIdentity(domain: string, ref: OperationRef, stage: SqlStage): SqlIdentity {
   const identity = operationIdentity(domain, ref)
   return stage === 'apply' ? identity : { ...identity, operation: 'governance.meta.' + stage }
 }
@@ -73,6 +70,7 @@ const businessPlanners = {
   contribute: MUTATION_PLANNER,
   withdraw: MUTATION_PLANNER,
   adopt: ADOPTION_PLANNER,
+  'internal.capture': CAPTURE_PLANNER,
 }
 function validateBusiness(
   binding: OperationBinding,
@@ -91,8 +89,9 @@ function validateBusiness(
     throw new Error('Governance apply envelope mismatch')
   const foreignPlanner = envelope.commands.some(
     command =>
-      [METADATA_PLANNER, MUTATION_PLANNER, ADOPTION_PLANNER].includes(command.participant) &&
-      command.participant !== planner,
+      [METADATA_PLANNER, MUTATION_PLANNER, ADOPTION_PLANNER, CAPTURE_PLANNER].includes(
+        command.participant,
+      ) && command.participant !== planner,
   )
   if (foreignPlanner) throw new Error('Governance apply has a foreign planner')
   return { planner, request: business }

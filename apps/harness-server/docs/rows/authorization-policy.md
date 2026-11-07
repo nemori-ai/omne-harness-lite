@@ -506,6 +506,8 @@
 
 ## 动作准入
 
+C3b 的动态解释协议见 [事务内权限解释](permission-interpretation.md)。当前静态路径尚未替换；下文继续描述实际已接线行为。
+
 动作规则采用 R2-D34（[#978 批复](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6577830437)）。`actionRules` 缺席或没有匹配规则时答 `unavailable`。`permissions` 非空或 `decision` 非 null 时也答 `unavailable`，本行不实现权限与人工决定解释器。
 
 行构造时严格解析配置，拒绝未知字段、空 revision、重复规则 id 和非法 effect。每条规则按 `tool` 精确匹配 `definition.name`，即可信 Tool 请求来源 describe 给出的工具定义名。规则不匹配 `original.name`：`original.name` 由模型给出。多命令工具在模型侧只有一个名字，即工具名，命令写在调用参数的 `command` 里（D-94）。所以一条 `Shell` 规则覆盖 Shell 的全部命令，对 `Shell` 的 deny 也不能用某个命令绕过（R2-D266）。`definition` 可省略或为 null；指定时逐项匹配 Adoption 的 owner、name、revision、digest。匹配的 deny 优先于所有 allow，与数组顺序无关。规则不可变，运维者用既有行配置 replace 后重载更新它。

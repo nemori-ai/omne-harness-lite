@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-本包实现 [治理贡献契约](../governance-contract/SPEC.md) 的本地持久提供者。领域职责和同提交要求归 [动态治理贡献](../../assets/docs/governance-contributions.md)。公共业务服务仍在实现；当前公开入口只提供迁移材料，不可作为已完成的 GovernanceCommands 或 GovernanceQueries 使用。
+本包实现 [治理贡献契约](../governance-contract/SPEC.md) 的本地持久提供者。领域职责和同提交要求归 [动态治理贡献](../../assets/docs/governance-contributions.md)。根入口提供迁移和 SQL 材料、Identity 目的解析器及普通应用服务工厂。真实发布来源与当前事实适配仍待接通，不能把普通工厂的组合测试视为完整提供者验收。
 
 ## 结果与不变量
 
@@ -32,13 +32,13 @@ accepted 保存原输入、受理 epoch 和原 SQL 身份，execution 为空。s
 
 `governanceSqlMigrations()` 返回固定模块、文件摘要和先决条件，不启动数据库或 Worker。装配者负责把材料加入真实 SqlStorage 组合并声明表拥有者；迁移执行和回滚归 SqlStorage。文件读取失败直接抛出，不返回假迁移。
 
-关系使用 STRICT 和 WITHOUT ROWID。修订上界与公开契约一致。数据库不开放客户端任意 SQL；Schema 校验之外的当前主体、来源权威、预算、原结果认回、精确撤除及重装围栏仍由后续业务提供者兑现。`./cordis` 尚未提供运行服务，不允许假装动态注册已接通。
+关系使用 STRICT 和 WITHOUT ROWID。修订上界与公开契约一致。数据库不开放客户端任意 SQL。应用服务核验当前主体、声明来源、预算和原结果，生命周期协调执行精确撤除及重装围栏。来源权威和当前事实仍须由受信装配提供。`./cordis` 尚未提供运行服务。
 
 ## 组合与验证
 
 [关系测试](tests/schema.spec.ts) 检查约束、支持边、磁盘重开及历史数据下的查询计划。[材料测试](tests/materials.spec.ts) 将实际迁移交给真实 SQLite Worker，并重开同一域。该测试的 mutation participant 是具名夹具，只用于证明安装和保管，不证明业务服务。
 
-[目标支持模型](../../human-intervention/human-intervention/verification/models/GovernanceTargetSupport.tla) 及其 [证明范围](../../human-intervention/human-intervention/verification/README.md#按租约保留目标支持) 定义集合不变量。完整公开入口、原操作恢复、当前事实、Identity 协调、Cordis 生命周期和独立验收仍须后续交付。
+[目标支持模型](../../human-intervention/human-intervention/verification/models/GovernanceTargetSupport.tla) 及其 [证明范围](../../human-intervention/human-intervention/verification/README.md#按租约保留目标支持) 定义集合不变量。真实当前事实、跨域消费者和完整独立验收仍须交付。公开入口、原操作恢复、Identity及Cordis生命周期已有组合验证。
 
 ### GL-06 原操作和租约事务
 
@@ -50,9 +50,9 @@ accepted 保存原输入、受理 epoch 和原 SQL 身份，execution 为空。s
 
 贡献登记同时保存定义副本、项、租约、声明修订和原结果。每份声明合计最多128项，规范编码最多256 KiB；每 scope 最多128个当前租约和1024个不同在线声明项。在途 accepted/submitted 最多32个，已有原操作认回不再消耗容量。发布者的摘要保持原值，本包只用自己的规范摘要作内部绑定。
 
-精确撤除同时删除该租约的目标支持、退出成员、清理无支持的采用投影、推进声明与采用修订并保存原结果。重复释放不重复推进修订。不同 registrar 或 generation 不可撤除。原注册结果保留，不被后续退出改写；未来公开 contribute 的当前观察还须单独读取租约状态。
+精确撤除同时删除该租约的目标支持、退出成员、清理无支持的采用投影、推进声明与采用修订并保存原结果。重复释放不重复推进修订。不同 registrar 或 generation 不可撤除。原注册结果保留，不被后续退出改写；公开contribute的当前观察单独读取租约状态。
 
-当前根入口仍只导出迁移材料。上述私有写者已有真实 Identity 测试组合，生产发布权威与公开应用协调器尚未接通；execution.authority 只保管协调器材料，其 JSON 形状本身不授予权限。目录与 Cordis 生命周期尚未实现。
+根入口导出材料、普通工厂与Identity目的解析器，Cordis子入口提供生命周期装配。生产发布权威仍待接通；execution.authority 只保管协调器材料，其 JSON 形状本身不授予权限。内部目录捕获与关闭协调按 GL-18/19 实现；普通组合与Cordis生命周期分别按GL-20/23实现，完整跨域消费者尚待接通。
 
 ### GL-07 原发布比较
 
@@ -60,7 +60,7 @@ accepted 保存原输入、受理 epoch 和原 SQL 身份，execution 为空。s
 
 成功值使用来源的隔离副本，后续修改请求或来源对象不能改变本次比较结果。原发布摘要保持原值；本包不以内部 SHA-256 替换它。来源声明继续受256 KiB及合计128项限制。该消费函数不写数据库，也不认证来源装配者。
 
-该机制的真实性依赖装配注入原发布权威及该权威遵守不可变版本规则。当前只有具名来源夹具测试；具名功能 producer、Assets 完整发布适配和公共应用协调器仍待接线。
+该机制的真实性依赖装配注入原发布权威及该权威遵守不可变版本规则。当前只有具名来源夹具测试；具名功能producer及Assets完整发布适配仍待接线，公共应用协调器已消费来源协议。
 
 ### GL-08 完整采用事务
 
@@ -84,7 +84,7 @@ collection.digest 覆盖 scope、声明修订及按规范 JSON 文本排序的�
 
 恢复入口消费 Identity 的受信目的路由，核对固定目的地址、事务域、版本化恢复引用及完整原请求。记录缺失或错绑返回 unavailable，不能作为释放依据。封口只终止同一个原操作，已有 committed 或 aborted 则返回该原终态。本地记录 settled 时必须已有相同终态。
 
-上述事务入口由 GL-14 的私有服务协调。真实 Identity、SqlStorage 和 SQLite 组合验证生产恢复适配器；公开恢复注册及 Cordis 生命周期装配仍未完成。
+上述事务入口由 GL-14 的私有服务协调。真实 Identity、SqlStorage 和 SQLite 组合验证生产恢复适配器；受信装配必须在Identity启动前注册目的解析器，Cordis入口按GL-23组合。
 
 ### GL-10 恢复集合
 
@@ -104,7 +104,7 @@ collection.digest 覆盖 scope、声明修订及按规范 JSON 文本排序的�
 
 已有原终态先认回，不重复执行业务。元数据组合不依赖目标当前事实，封口不因目标提供者缺失而失去执行路径。SQL 依赖缺失、计划错绑或非法计划导致拒绝或回滚，不能伪装成已保存的业务终态。
 
-这些材料仍是提供者内部接缝。原SQL阶段持久保管和私有Standing协调已有专责对象。公开入口的主体、发布来源、政策准入及恢复装配尚未完成；PLAN 不替代这些义务。
+这些材料是提供者内部接缝。原 SQL 阶段保管、Standing 协调及公开入口分别履行持久化、资格与应用准入责任。PLAN 不替代真实发布来源及当前事实拥有者的证明。
 
 ### GL-12 原 SQL 请求保管
 
@@ -118,7 +118,7 @@ apply 采用原业务 SQL 身份。其他阶段采用 governance.meta 加固定�
 
 公开协调器必须先确认保存成功，再读取和发送该完整请求。回包丢失时查询同一 SQL identity，或原样重送；核对回执的完整身份和 inputDigest。阶段表存在不证明调用者实际发送了相同请求，此项仍是公开协调器的履约责任。旧组合材料不可用时保留恢复责任，不得采用新材料重建旧请求。bootstrap 和首次 accept 尚无原操作外键，其固定身份及未知回包处理归启动和受理协议，不伪造阶段行。
 
-当前提供私有持久写者、只读材料和业务前置守护。完整公开协调器尚未完成。装配须为保存请求及读回设置足够的 SqlStorage 输入、输出预算；存储拒绝不能作为保存成功。该机制不宣称解决首次受理前的未知提交或缺失旧组合材料的问题。
+持久写者、只读材料和业务前置守护由公开工厂组合。装配须为保存请求及读回设置足够的 SqlStorage 输入、输出预算；存储拒绝不能作为保存成功。该机制不宣称解决首次受理前的未知提交或缺失旧组合材料的问题。
 
 ### GL-13 SQL 协调与当前观察
 
@@ -134,7 +134,7 @@ SqlOperationCoordinator 是提供者内部对象，注入 SqlStorage、固定租
 
 方法在一次调用中执行有限步骤，不无限轮询。调用方可以沿相同原身份继续恢复。原请求的单赋值允许复用刚取得的持久读回值发送，不必为同一不可变值再次查询。业务 writer 的原终态与当前性检查仍在提交时执行。
 
-该内部路径已有真实 Worker 的受理、并发观察、阶段保存、重开、丢失回包和错回执检查。GL-14的私有协调器将Identity reserve/settle接入此对象。公共准入、目录及 Cordis 生命周期仍未完成。不能据此宣称公开服务或完整 C3b 已验收。
+该内部路径已有真实 Worker 的受理、并发观察、阶段保存、重开、丢失回包和错回执检查。GL-14的私有协调器将Identity reserve/settle接入此对象。公共准入、目录与Cordis生命周期已有组合验证，真实发行与当前事实仍待接通。不能据此宣称公开服务或完整 C3b 已验收。
 
 
 ### GL-14 Standing 服务协调
@@ -172,3 +172,88 @@ Standing 请求先保管后获取。业务提交先确认 submit 的持久 execu
 贡献重传返回原 ContributionRef 及当前逻辑 state。状态点读核验完整租约、主体及 scope；当前 epoch 不匹配则投影 released。历史成功回执不变。点读只访问本域 scope 与 contribution 的主键，最多两行业务记录；未知与无权租约统一 denied。
 
 内部停止受理只关闭应用入口，不等于完整提供者关闭。停止后不开始新受理；已经保存的待决操作在下一可观察边界走 seal/settle。GC-08 的持久 scope 围栏、精确贡献撤除及资源排空仍由完整生命周期装配承担，不能用入口 promise 已结束替代该证明。
+
+
+### GL-17 采用命令与原操作查询
+
+采用命令复用登记、退出的身份准入、Standing 和原请求保管路径。装配者注入固定的当前事实命令工厂，工厂只接受完整操作绑定、原 epoch 和采用命令；它不接收客户端证据。首次 apply 保存整份 SQL 请求，后续恢复使用已保存请求，不重新调用工厂。已有终态先认回，因此发行或当前事实提供者离线不改变历史结果。实际当前事实仍须由同事务拥有者产生。
+
+queryOperation 每次核验 operation-read 资格，只访问已核主体自己的完整原键。查询不推进、封口或结算原操作。committed.original 保留提交时结果，与 contribute 重传返回当前租约状态的职责不同。accepted/submitted 返回 pending，持久 aborted 返回具名封口引用。领域记录缺失时须取得 SqlStorage 的五项未提交证明并再核对原记录；没有有效证明则返回 unknown。查询证明引用标明 sql-proof，不能被消费者当成持久关闭操作或新的执行许可。
+
+### GL-18 精确 scope 关闭
+
+关闭事务核对完整 scope 与当前 epoch。旧实例的关闭不能改变后继 epoch。当前实例在同一事务退出本 epoch 的贡献与选择关系、封口尚未终结的原操作并关闭 scope。已提交原回执和 Identity 保管记录不改写，Settings 值和权限不由本事务删除。修订达到上界时仍必须关闭，关闭状态本身拒绝后续业务。
+
+本地生命周期协调在开放回执之后重新观察当前 scope，防止旧开放回执掩盖已经关闭的状态。关闭恢复按既有索引每页至多64项，只封口、结算自身 epoch 的记录。每页返回后继位置和未结算数；一页完成不表示整个提供者已排空。关闭协调同步停止新调用，然后依次等待持久隔离、已接收调用和恢复分页。单次恢复有页数预算，后继位置跨重试保留；发现未结算责任时必须从首页再核对。超时或依赖失败返回 pending，旧引用保持关闭，未完成的关闭任务不会重复启动。只有隔离、调用排空和完整恢复扫描均确认后才返回 closed。共享 SQL 与 Identity 仍由装配拥有者关闭。调用方清理控制由GL-22定义，Cordis适配由GL-23定义。
+
+### GL-19 目录捕获与分页
+
+内部目录捕获在同一 SQL 事务读取当前 scope、贡献和采用关系，并消费装配方提供的完整当前事实。管理目录可以列出尚未采用的贡献及禁用目标；运行目录只列出实际采用且当前可用的贡献。相同定义的未采用兄弟租约不能借另一个租约进入运行结果。selectedTargets 只表示真实采用关系，不把管理查询匹配的目标伪装成已采用。
+
+每页核验独立的目录披露动作。游标绑定 scope、主体、模式、目标集合、epoch、声明和采用修订及实际目标与关口见证。新 capture 身份不进入跨页基准。任何绑定变化使旧游标失效。分页按定义键递增，每页最多100项、1MiB；单项超过预算返回 limited，不能跳过该项。来源不全返回 partial 和 unavailableOwners，不能返回完整空结果。返回回执核验原 SQL 身份、输入摘要、组合、manifest，以及页面 scope 和 epoch。
+
+目录在私有 internal.capture 原操作中保管完整请求及准入主体。该命名空间不进入公开三命令协议。受理后保存 Standing 计划并取得真实 held，再保存原 execution 和 apply 信封。只读目录参与者生成同事务计划，唯一治理写者核对原操作、held、scope/epoch 和原信封后保存 page/failure 终态；不能给目录第二份业务写权，也不能借目录改变采用集合。
+
+返回页面前必须确认原终态并完成资格结算。未知回包或结算失败对外 unavailable，持久恢复索引继续保管责任。恢复和关闭识别 internal.capture，晚到请求在原操作已封口时不能再次捕获。普通工厂提供目录及历史恢复；Cordis生命周期由GL-23提供。真实发行和当前关口事实仍由应用组合交付，不由调用者自报。
+
+### GL-20 普通工厂与启动恢复
+
+createGovernanceLocal 每次构造产生不可复用的新 epoch，调用者不能指定旧代。装配须保证同一 scope 只有一个合法启动者。工厂读取当前 epoch，再以该 epoch 为比较依据开放新代。普通业务调用不能重新开放 scope。
+
+启动恢复与当前调用使用不同代次。每页在同一 domain-serial 读取中取得 currentEpoch 及每条候选的 acceptedEpoch；最多读取一行 scope 和65行候选。只有 currentEpoch 等于本实例 epoch 时，启动恢复才处理该页。它跳过本代记录，并在封口前核对原操作键、请求摘要及 acceptedEpoch。后继实例产生的记录不能进入已经读回的旧页，后续页面须重新核对 currentEpoch。游标始终取最后扫描项，不能改成最后处理项。
+
+发送封口后必须重新观察原操作的持久终态，再结算资格。没有 Standing 请求只表示没有该项资格责任，不证明原操作已终结。封口未知且原操作仍待决时，恢复继续报告未完成，不公开服务。
+
+历史恢复完成整轮且没有未结算责任后，工厂再次核对本代仍开放，才返回 created 和应用服务。依赖不可用、页数预算耗尽或被继任实例替换时返回 unavailable，不公开服务。失败不会删除持久待恢复责任，后续构造可继续恢复。旧实例关闭仍能处理自己的代次，不以当前 scope 属于自己为结算前提。
+
+五个应用方法共用 GovernanceProviderLifetime。进入方法时先登记在途责任，再同步进入应用层的输入捕获，不能把输入捕获推迟到下一个微任务。同步异常仍通过该调用的 Promise 拒绝并退出在途集合。close 同步停受理，不以调用已返回替代持久隔离或资格结算。
+
+createGovernanceLocalDestination 可在 Identity 装配之前构造。它只消费固定 SQL 域、元数据组合和目的标识，提供已有 StandingDestinationResolver 协议，不授予 Identity 治理命令权限。普通工厂借用这些依赖，不负责销毁它们。
+
+### GL-21 精确生命周期撤除与退出额度
+
+内部 retire-contribution 命令只接受已有原贡献操作的完整绑定，不作为公开业务命令。协调器先点查原操作及摘要，再发送固定身份的元数据请求，防止 absent 或异摘要结果占用合法清理身份。命令不重新申请 Identity 业务资格，也不重新查询声明来源。此能力只能由受信提供者使用。
+
+写者对待决原操作封口。对已提交原操作，写者从原命令及原身份导出完整租约，再复用精确撤除逻辑。该事务不修改原 committed 回执，不撤除兄弟租约。旧代或已经关闭的 scope 只确认原贡献失去当前效力，不修改后继实例。retired 只证明治理事务内的封口或撤除，调用协调仍须确认原 Standing 结算及在途资源排空，才能报告生命周期 closed。
+
+每个 scope 至多128个 active 租约。最大修订为 Number.MAX_SAFE_INTEGER−1，新增贡献和采用要求两个修订都严格小于该上限减128。最后一次允许的新发布最多到达该阈值，给全部在线租约保留128次精确退出。每次真实退出各消耗一次修订并减少一个租约；重复退出不消耗修订，在最大修订上仍返回 already-released。
+
+该保证从满足预留规则的状态开始成立。旧实现或损坏数据若已耗尽退出额度，真实退出返回 revision limit，不饱和伪装新修订、不撤除兄弟、不报告清理完成。整体 scope 关闭仍按 GL-18 处理，不作为单个调用方退出的替代品。
+
+
+### GL-22 调用方贡献的清理责任
+
+内部贡献控制器在首次异步等待前登记调用方清理承担者。每次调用有独立的 registrar 入口闸门。准入核验主体和 scope 后，registrar 从捕获的命令导出完整原绑定，再交给控制器。此绑定只确定清理归属，不证明来源有效或业务成功。未获准调用不能加入已有责任，异摘要调用不能撤除原租约。
+
+相同完整绑定的调用共享一个幂等清理组。任一已附着调用方关闭，便同步关闭组内全部入口；不以引用计数延长原租约。其他原操作的入口保持独立。单次关闭超时返回 pending，提供者继续持有责任并按有界批次重试。每组最多一项在途清理，悬挂组不占用其他组的重试机会。
+
+缺失原记录时，必须先确认组内调用均已返回，再查询原 accept 的 SQL 身份。只有权威证明未提交且不在队列中，才能完成清理。业务 apply 未提交不足以证明 accept 不会晚到。已有原记录按 GL-21 撤除或封口，再确认原持久终态和 Standing 结算。清理期间有新调用附着，必须重新核对该组，不能沿用较早的排空判断。
+
+等待本地调用返回时，控制器由调用完成事件唤醒，不持续查询悬挂的声明来源。提供者关闭同时关闭普通入口及所有调用方入口，最后汇合 scope 恢复与贡献排空；任何一项待决都不报告 closed。共享 SQL 和 Identity 仍归外部装配拥有。控制器通过私有运行时供Cordis适配器消费，公共普通工厂不暴露内部清理权柄。
+
+
+### GL-23 Cordis装配与待决关闭
+
+Cordis插件只注入storage、principalVerifier、tenantStanding和standingReservations。其余来源与组合由受信配置提供。插件先登记提供者清理责任，再启动普通运行时；启动恢复完成后才构造唯一服务实现。显式卸载后的晚到启动不能发布服务。依赖变更期间的旧服务不能越过内核激活边界。
+
+contribute使用追踪后的调用方ctx登记清理。已失效ctx的INACTIVE_EFFECT映射为unavailable，其他异常保留。插件卸载关闭运行时入口，并调用同一幂等关闭任务。待决或异常后由后台驱动继续重试；一个任务尚未返回时不得另起同一关闭。只有运行时确认隔离、原责任结算和调用排空后才通知closed。
+
+配置的observeClose接收首次pending及最终closed。通知不构成业务确认，也不阻塞清理；观察失败只形成诊断。框架dispose完成不等于业务closed。受信装配须保持借用依赖可用，直至业务关闭确认；异常停机后的责任由已有持久恢复处理。
+
+### 采用集合的公开编码
+
+createGovernanceCollection是本后端的公开引用构造器。输入完整成员仅用于计算collection，不改变adopt命令的形状。摘要对象包含scope、declarationRevision和complete。每个成员包含contribution、definition及selectedTargets；definition是完整GovernanceDefinitionRef。先按各目标的规范JSON文本排序selectedTargets，再按成员的规范JSON文本排序complete，对整个对象取RFC8785规范JSON的UTF-8字节，计算SHA-256小写十六进制摘要。重复项不由构造器静默删除，实际adopt仍拒绝重复或不完整集合。
+
+该构造器不访问存储、不取得资格、不选择当前版本，也不返回允许。它让独立应用无需导入本包私有采用算法即可构造公开协议输入。未来其他后端必须遵守相同wire编码；当前仅提供local实现辅助。
+
+### GL-24 Transaction-local target projection
+
+The optional `governance.target-projection` material reads Governance-owned relations for one exact scope, epoch, definition and target. `governanceTargetProjectionCommand` binds the principal, capture and transaction domain as well. The complete output repeats this binding.
+
+Management mode requires an active contribution of the exact immutable definition. Runtime mode additionally requires the exact target in that epoch's adopted selection. A missing or closed scope, old epoch, missing declaration, mismatched full definition reference, absent selection or exceeded body budget returns a named unavailable observation. Invalid input or corrupt canonical bytes fails the transaction.
+
+The projection uses the existing scope key, current-contribution index, immutable-definition key and selected-target primary key. It checks the body size before loading the immutable declaration and reads at most one row per lookup. It does not scan historical operations or copy adoption state into another table.
+
+This material observes Governance state only. It does not establish the caller's authority, the target owner's current enablement or publication, Settings assignments, external constraints, interpreter presence or a future execution permit. A trusted composition must obtain those owners' facts with the same capture binding. A serialized earlier observation cannot substitute for a fresh read in a later operation.
+
+The local guarantee assumes the existing single-writer adoption/retirement invariants and SqlStorage transaction ordering. No remote retention protocol or cross-database atomicity follows from this read.

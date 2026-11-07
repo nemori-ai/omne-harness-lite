@@ -32,6 +32,14 @@ Each currentness change obtains a new durable owner sequence number. The project
 
 Capture accepts at most 128 targets. Management enumeration reads at most 129 holding identities and refuses overflow. It never truncates an oversized set into success. Commands and individual records have a 1 MiB text budget, a depth limit of 32 and a 50,000-node limit. Aggregate projections obey the same budget. Malformed persisted data does not become an empty or successful result.
 
+## Current publication projection
+
+Publication capture supplies the existing Settings projection and a separate Assets publication fact from the same selected-version reads. Each entry retains the complete target, owner revision and Settings definition reference, together with the actual asset reference, category, name, version, source and canonical body digest. Follow and pinned holdings use the same selected-version rule as normal capture. Equal Settings definitions do not make two asset releases interchangeable.
+
+The projection attests to this owner's current selection, not to a global publisher or current execution permission. The integration owner must resolve the native publication identity through an unambiguous trusted namespace mapping and compare the original declaration. Actual loaded enforcement remains a separate current fact. No caller can supply publication-result fields through the capture command. This projection creates no new asset publication column or approval protocol and does not rewrite historical versions or receipts.
+
+All scope, missing-target, enablement and aggregate budget rules of capture apply. The paired facts have identical capture bindings and come from one transaction; consumers must also match their target, definition reference and owner revision. Unloading an integration does not delete held assets, Settings values or publication history.
+
 ## Holding enablement
 
 A new holding is enabled. `changeHolding` accepts `setEnabled` with a boolean and the expected holding revision. The operation changes only that holding's enabled state. An effective change advances both holding and owner revisions in the same transaction. A repeated value leaves the revisions unchanged. Removal remains irreversible, including through `setEnabled`.

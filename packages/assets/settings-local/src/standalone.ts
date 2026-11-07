@@ -29,6 +29,14 @@ export function standaloneSettingsProjectionCommand(
 ): FactCommandV2 {
   return { participant: STANDALONE_PROJECTION, facts: { kind: 'capture', binding: json(binding) } }
 }
+export function standaloneSettingsPublicationCommand(
+  binding: SettingsProjectionBinding,
+): FactCommandV2 {
+  return {
+    participant: STANDALONE_PROJECTION,
+    facts: { kind: 'capturePublication', binding: json(binding) },
+  }
+}
 export function createStandaloneSettingsOwner(input: SettingsSqlTerminalOptions) {
   const options = { ...input, domain: domainSchema.parse(input.domain) }
   const identity = (operationId: string) => ({

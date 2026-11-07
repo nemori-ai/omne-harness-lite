@@ -2,15 +2,21 @@ import { z } from 'zod'
 import {
   GovernanceContributionRefSchema,
   GovernanceRevisionSchema,
+  GovernanceBasisSchema,
+  type GovernanceAdoptionOutcome,
+  type GovernanceOperationOutcome,
   type GovernanceContributionOutcome,
   type GovernanceWithdrawalOutcome,
   type GovernanceFailure,
 } from '@omne-harness/governance-contract'
-import type { OperationBinding, OperationRecord } from './operation-schema.ts'
+import type {
+  PublicOperationBinding as OperationBinding,
+  OperationRecord,
+} from './operation-schema.ts'
 import type { SqlOperationCoordinator } from './sql-coordinator.ts'
 import { digest, equal } from './encoding.ts'
 
-const failureSchema = z.discriminatedUnion('kind', [
+export const governanceFailureSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('invalid-input'), field: z.string(), reason: z.string() }),
   z.strictObject({ kind: z.literal('limited'), resource: z.string() }),
   z.strictObject({ kind: z.literal('denied') }),
@@ -41,16 +47,15 @@ export const isTerminal = (record: OperationRecord) =>
 function aborted(binding: OperationBinding, record: OperationRecord) {
   if (equal(record.result, { kind: 'sealed' }))
     return { kind: 'conflict' as const, reason: 'basis' as const }
-  const failure = failureSchema.safeParse(record.result)
+  const failure = governanceFailureSchema.safeParse(record.result)
   return failure.success && equal(failure.data, record.result)
     ? failure.data
     : unknownOperation(binding)
 }
-export async function registrationResult(
-  sql: SqlOperationCoordinator,
+function originalRegistration(
   binding: OperationBinding,
   record: OperationRecord,
-): Promise<GovernanceContributionOutcome> {
+): GovernanceContributionOutcome {
   if (record.state === 'aborted') return aborted(binding, record)
   if (record.state !== 'committed' || record.request.owner !== 'contribute')
     return unknownOperation(binding)
@@ -63,10 +68,18 @@ export async function registrationResult(
     generation: command.generation,
     registrationId: 'lease/' + digest(binding.ref),
   }
-  if (!equal(parsed.data.contribution, expected)) return unknownOperation(binding)
-  const current = await sql.contribution(expected, binding.ref.principalRef)
+  return equal(parsed.data.contribution, expected) ? parsed.data : unknownOperation(binding)
+}
+export async function registrationResult(
+  sql: SqlOperationCoordinator,
+  binding: OperationBinding,
+  record: OperationRecord,
+): Promise<GovernanceContributionOutcome> {
+  const original = originalRegistration(binding, record)
+  if (original.kind !== 'registered') return original
+  const current = await sql.contribution(original.contribution, binding.ref.principalRef)
   return current.kind === 'found'
-    ? { ...parsed.data, state: current.state }
+    ? { ...original, state: current.state }
     : unknownOperation(binding)
 }
 export function releaseResult(
@@ -84,3 +97,63 @@ export function releaseResult(
     : unknownOperation(binding)
 }
 export type RegistrarFailure = GovernanceFailure | ReturnType<typeof unknownOperation>
+
+export function adoptionResult(
+  binding: OperationBinding,
+  record: OperationRecord,
+): GovernanceAdoptionOutcome {
+  if (record.state === 'aborted') return aborted(binding, record)
+  if (record.state !== 'committed' || record.request.owner !== 'adopt')
+    return unknownOperation(binding)
+  const parsed = z
+    .strictObject({ kind: z.literal('adopted'), basis: GovernanceBasisSchema })
+    .safeParse(record.result)
+  return parsed.success &&
+    equal(parsed.data, record.result) &&
+    equal(parsed.data.basis.scope, binding.ref.scope) &&
+    parsed.data.basis.epoch === record.epoch
+    ? parsed.data
+    : unknownOperation(binding)
+}
+
+export function originalOperation(
+  binding: OperationBinding,
+  record: OperationRecord,
+): GovernanceOperationOutcome {
+  if (record.state === 'accepted' || record.state === 'submitted')
+    return { kind: 'pending', operation: binding.ref }
+  if (record.state === 'aborted')
+    return {
+      kind: 'not-committed',
+      operation: binding.ref,
+      sealRef: 'governance-seal/' + digest({ binding, result: record.result }),
+    }
+  return committedOperation(binding, record)
+}
+function committedOperation(
+  binding: OperationBinding,
+  record: OperationRecord,
+): GovernanceOperationOutcome {
+  switch (record.request.owner) {
+    case 'internal.capture':
+      return unknownOperation(binding)
+    case 'contribute': {
+      const result = originalRegistration(binding, record)
+      return result.kind === 'registered'
+        ? { kind: 'committed', original: { owner: 'contribute', result } }
+        : unknownOperation(binding)
+    }
+    case 'withdraw': {
+      const result = releaseResult(binding, record)
+      return result.kind === 'released' || result.kind === 'already-released'
+        ? { kind: 'committed', original: { owner: 'withdraw', result } }
+        : unknownOperation(binding)
+    }
+    case 'adopt': {
+      const result = adoptionResult(binding, record)
+      return result.kind === 'adopted'
+        ? { kind: 'committed', original: { owner: 'adopt', result } }
+        : unknownOperation(binding)
+    }
+  }
+}

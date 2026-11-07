@@ -52,9 +52,9 @@ export function command(operationId = 'one'): AcceptOperation {
     },
   }
 }
-export function binding(input: AcceptOperation) {
+export function binding<T extends AcceptOperation>(input: T) {
   return {
-    ref: requestRef(input.principalRef, input.request),
+    ref: requestRef<T['request']>(input.principalRef, input.request),
     requestDigest: digest(input.request),
   }
 }

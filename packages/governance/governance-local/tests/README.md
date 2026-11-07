@@ -6,7 +6,7 @@
 
 `schema.spec.ts` 使用真实 SQLite 检查表键、状态约束、精确支持关系、磁盘重开与查询索引。`materials.spec.ts` 将生产迁移交给真实 Worker；其 schema-writer 是具名测试参与者，不是生产业务服务。`public-entry.spec.ts` 核对实际材料文件摘要。
 
-先运行本成员 build，再运行 test:fast。测试只创建隔离数据库，不消费生产数据。业务服务、授权和 Cordis 生命周期尚未实现，不宣称独立接受。
+先运行本成员 build，再运行 test:fast。测试只创建隔离数据库，不消费生产数据。应用服务与Cordis生命周期已有组合测试；生产发行、current来源及完整独立验收仍开放。
 
 `operations.spec.ts` 使用生产私有事务函数及具名协调夹具，测试原操作恢复、登记和精确撤除。`definitions.spec.ts` 检查设置、权限与完整投影。这些操作测试中的准入仍是具名夹具。真实 Identity 组合由 standing.spec.ts 单独验证，发行者仍待接线。
 
@@ -22,3 +22,8 @@
 
 
 `standing-coordinator.spec.ts` 将真实Identity与生产Governance材料装在同一SqlStorage实例的独立事务域，验证受信恢复适配器和私有服务协调。`standing-world.ts`允许选择实际后端和目的适配器，已有私有事务测试仍用原夹具。数据库重开复用相同源码材料，测试不会把重装配等同于任意版本升级保证。
+
+
+provider.spec.ts和provider-world.ts验证普通工厂及私有运行时的启动、历史恢复和关闭。contribution-lifetime.spec.ts验证独立调用入口、共享原绑定、迟到accept、清理组竞争和原Standing结算。测试真实运行SQLite及Identity，声明与current来源仍是具名fixture。
+
+cordis-entry.spec.ts从公共Cordis入口启动实际4.0.4内核和调用方fiber。它验证精确清理、兄弟独立、启动期间显式卸载及依赖失效、旧引用拒绝、未知责任自动重试和重装。注入服务的业务实现来自真实SqlStorage及Identity测试装配，不把声明/current fixture报告为生产发行来源。

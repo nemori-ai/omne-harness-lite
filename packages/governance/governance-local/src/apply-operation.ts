@@ -1,13 +1,19 @@
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { boundOperation, finishOperation, conflict } from './operation.ts'
-import { executionSchema, type OperationBinding, type Execution } from './operation-schema.ts'
+import {
+  executionSchema,
+  type OperationBinding,
+  type Execution,
+  type OperationRecord,
+} from './operation-schema.ts'
 import { adoptContributions } from './adoption.ts'
 import type { AdoptionEvidence } from './adoption-schema.ts'
 import { equal } from './encoding.ts'
 import { readScope } from './scope.ts'
 import { registerContribution, releaseContribution } from './contribution.ts'
+import { PUBLICATION_REVISION_LIMIT } from './revision-budget.ts'
 
-function submittedOperation(
+export function submittedOperation(
   port: ParticipantPort,
   binding: OperationBinding,
   execution: Execution,
@@ -34,27 +40,41 @@ export function applyOperation(
   if (candidate.kind !== 'ready') return candidate
   const { record, current } = candidate
   if (
-    current.declarationRevision >= Number.MAX_SAFE_INTEGER - 1 ||
-    current.adoptionRevision >= Number.MAX_SAFE_INTEGER - 1
+    record.request.owner !== 'withdraw' &&
+    (current.declarationRevision >= PUBLICATION_REVISION_LIMIT ||
+      current.adoptionRevision >= PUBLICATION_REVISION_LIMIT)
   )
     return finishOperation(port, binding, 'aborted', { kind: 'limited', resource: 'revision' })
-  const result =
-    record.request.owner === 'adopt'
-      ? adoptContributions(
-          port,
-          binding,
-          record.epoch,
-          record.sqlIdentity.transactionDomain,
-          record.request.command,
-          evidence,
-        )
-      : record.request.owner === 'contribute'
-        ? registerContribution(port, binding, record.epoch, record.request.command)
-        : releaseContribution(port, binding, record.epoch, record.request.command)
+  const result = evaluateOperation(port, binding, record, evidence)
   const success =
     result.kind === 'adopted' ||
     result.kind === 'registered' ||
     result.kind === 'released' ||
     result.kind === 'already-released'
   return finishOperation(port, binding, success ? 'committed' : 'aborted', result)
+}
+
+function evaluateOperation(
+  port: ParticipantPort,
+  binding: OperationBinding,
+  record: OperationRecord,
+  evidence: AdoptionEvidence | undefined,
+) {
+  switch (record.request.owner) {
+    case 'adopt':
+      return adoptContributions(
+        port,
+        binding,
+        record.epoch,
+        record.sqlIdentity.transactionDomain,
+        record.request.command,
+        evidence,
+      )
+    case 'contribute':
+      return registerContribution(port, binding, record.epoch, record.request.command)
+    case 'withdraw':
+      return releaseContribution(port, binding, record.epoch, record.request.command)
+    case 'internal.capture':
+      throw new Error('Capture requires its own planner')
+  }
 }

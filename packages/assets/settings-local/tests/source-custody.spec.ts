@@ -173,7 +173,13 @@ it('recognizes a lost reply from the actual source participant after destination
       kind: 'provision',
       operationId: 'source',
       expectedRevision: null,
-      record: { target: command().target, definition, sources: ownerSources('tenant'), grants: [] },
+      record: {
+        publicationRef: null,
+        target: command().target,
+        definition,
+        sources: ownerSources('tenant'),
+        grants: [],
+      },
     }),
   ).toMatchObject({ kind: 'committed' })
   const sourceRef = { domain: provider.domain, target: command().target }

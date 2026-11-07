@@ -1,6 +1,6 @@
 {
   "model": "models/HumanDecision.tla",
-  "scope": "HJ0 finite behavioral models only; two cards/two competing replies, three calls/two sessions, three inputs/two sessions. Includes weak-fairness conditional progress. No runtime, SQL, power-loss, real scheduling fairness or distributed protocol proof. RecoveryRouting: one runtime replacement, durable answer/inbox and generation-fenced receiver with weak-fairness conditional delivery. AuthorityComposition: seven independent withdrawal sources and one protected commit; abstract atomic owner guards, not an implemented coordinator. RegistrationProtocol: one original operation and bounded duplicate IDs, durable registration/seal and volatile receipts. ContinuationComposition: two rounds with two cards, one runtime replacement, current authority/terminal fencing and recorded judgments; abstract atomic recording, no arbitrary external effect proof. IntakeControl: one session, three inputs, pending capacity two, two driver generations and archive/run cancellation; logical scheduling only. ExecutionSlots: three calls, one active slot, one human wait; human release, ready queue, reacquire and conditional progress under weak fairness. Continuation includes mixed allow/ask/deny judgments in the second round and ready-to-advance conditional progress. GovernanceAdoption: two leases and two adopters, complete candidates, revision/evidence guards and atomic bundle publication; trusted evidence is an abstract premise. GovernanceRecoveryPhase models one immutable original request, two input candidates and one SQL phase identity; rejected SQL attempts retain their identity even without a stage row. Under fixed material availability and fair valid retry/seal, preflight binding prevents poisoning and permits completion. No generic SQL rollback recovery, remote authentication or production refinement proof.",
+  "scope": "HJ0 finite behavioral models only; two cards/two competing replies, three calls/two sessions, three inputs/two sessions. Includes weak-fairness conditional progress. No runtime, SQL, power-loss, real scheduling fairness or distributed protocol proof. RecoveryRouting: one runtime replacement, durable answer/inbox and generation-fenced receiver with weak-fairness conditional delivery. AuthorityComposition: seven independent withdrawal sources and one protected commit; abstract atomic owner guards, not an implemented coordinator. RegistrationProtocol: one original operation and bounded duplicate IDs, durable registration/seal and volatile receipts. ContinuationComposition: two rounds with two cards, one runtime replacement, current authority/terminal fencing and recorded judgments; abstract atomic recording, no arbitrary external effect proof. IntakeControl: one session, three inputs, pending capacity two, two driver generations and archive/run cancellation; logical scheduling only. ExecutionSlots: three calls, one active slot, one human wait; human release, ready queue, reacquire and conditional progress under weak fairness. Continuation includes mixed allow/ask/deny judgments in the second round and ready-to-advance conditional progress. GovernanceAdoption: two leases and two adopters, complete candidates, revision/evidence guards and atomic bundle publication; trusted evidence is an abstract premise. GovernanceRecoveryPhase models one immutable original request, two input candidates and one SQL phase identity; rejected SQL attempts retain their identity even without a stage row. Under fixed material availability and fair valid retry/seal, preflight binding prevents poisoning and permits completion. No generic SQL rollback recovery, remote authentication or production refinement proof. GovernanceCatalogCapture: one internal catalog operation, one epoch replacement, retained Identity qualification, irreversible seal and settlement-before-disclosure. Atomic SQL, source authenticity and reliable custody are premises, not production verification. GovernanceExitCapacity checks fixed exit reserve with a small counter bound; the algebraic argument scales to 128 leases. GovernanceContributionLifetime models one original call, delayed acceptance, caller disposal and exact retirement with a sibling lease. Truthful absence/no-queued proof, immutable original binding, atomic SQL and identity settlement are external premises; this model does not prove provider restart, eventual cleanup under failed dependencies or Cordis runtime conformance.",
   "cases": [
     {
       "name": "intakecontrol-none",
@@ -739,6 +739,150 @@
       "model": "models/GovernanceRegistrar.tla",
       "config": "models/governanceregistrar-state.cfg",
       "expected": "NoStaleReply"
+    },
+    {
+      "name": "governancetargetpublication-positive",
+      "model": "models/GovernanceTargetPublication.tla",
+      "config": "models/governancetargetpublication-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancetargetpublication-release",
+      "model": "models/GovernanceTargetPublication.tla",
+      "config": "models/governancetargetpublication-release.cfg",
+      "expected": "ExactPublication"
+    },
+    {
+      "name": "governancetargetpublication-current",
+      "model": "models/GovernanceTargetPublication.tla",
+      "config": "models/governancetargetpublication-current.cfg",
+      "expected": "CurrentAtCommit"
+    },
+    {
+      "name": "governancetargetpublication-implementation",
+      "model": "models/GovernanceTargetPublication.tla",
+      "config": "models/governancetargetpublication-implementation.cfg",
+      "expected": "ImplementationPresent"
+    },
+    {
+      "name": "governancecatalogcapture-positive",
+      "model": "models/GovernanceCatalogCapture.tla",
+      "config": "models/governancecatalogcapture-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancecatalogcapture-held",
+      "model": "models/GovernanceCatalogCapture.tla",
+      "config": "models/governancecatalogcapture-held.cfg",
+      "expected": "QualifiedCapture"
+    },
+    {
+      "name": "governancecatalogcapture-epoch",
+      "model": "models/GovernanceCatalogCapture.tla",
+      "config": "models/governancecatalogcapture-epoch.cfg",
+      "expected": "CurrentCapture"
+    },
+    {
+      "name": "governancecatalogcapture-sealed",
+      "model": "models/GovernanceCatalogCapture.tla",
+      "config": "models/governancecatalogcapture-sealed.cfg",
+      "expected": "NoRevival"
+    },
+    {
+      "name": "governancecatalogcapture-disclosure",
+      "model": "models/GovernanceCatalogCapture.tla",
+      "config": "models/governancecatalogcapture-disclosure.cfg",
+      "expected": "SettledDisclosure"
+    },
+    {
+      "name": "governanceexitcapacity-positive",
+      "model": "models/GovernanceExitCapacity.tla",
+      "config": "models/governanceexitcapacity-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governanceexitcapacity-reserve",
+      "model": "models/GovernanceExitCapacity.tla",
+      "config": "models/governanceexitcapacity-reserve.cfg",
+      "expected": "ExitCapacity"
+    },
+    {
+      "name": "governanceexitcapacity-threshold",
+      "model": "models/GovernanceExitCapacity.tla",
+      "config": "models/governanceexitcapacity-threshold.cfg",
+      "expected": "ExitCapacity"
+    },
+    {
+      "name": "governanceexitcapacity-release",
+      "model": "models/GovernanceExitCapacity.tla",
+      "config": "models/governanceexitcapacity-release.cfg",
+      "expected": "ExitCapacity"
+    },
+    {
+      "name": "governancecontributionlifetime-positive",
+      "model": "models/GovernanceContributionLifetime.tla",
+      "config": "models/governancecontributionlifetime-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancecontributionlifetime-drain",
+      "model": "models/GovernanceContributionLifetime.tla",
+      "config": "models/governancecontributionlifetime-drain.cfg",
+      "expected": "ClosedIsQuiescent"
+    },
+    {
+      "name": "governancecontributionlifetime-late",
+      "model": "models/GovernanceContributionLifetime.tla",
+      "config": "models/governancecontributionlifetime-late.cfg",
+      "expected": "ClosedIsQuiescent"
+    },
+    {
+      "name": "governancecontributionlifetime-receipt",
+      "model": "models/GovernanceContributionLifetime.tla",
+      "config": "models/governancecontributionlifetime-receipt.cfg",
+      "expected": "PreservedReceipt"
+    },
+    {
+      "name": "governancecontributionlifetime-sibling",
+      "model": "models/GovernanceContributionLifetime.tla",
+      "config": "models/governancecontributionlifetime-sibling.cfg",
+      "expected": "SiblingPreserved"
+    },
+    {
+      "name": "governanceenforcementexecution-positive",
+      "model": "models/GovernanceEnforcementExecution.tla",
+      "config": "models/governanceenforcementexecution-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governanceenforcementexecution-implementation",
+      "model": "models/GovernanceEnforcementExecution.tla",
+      "config": "models/governanceenforcementexecution-implementation.cfg",
+      "expected": "ExactImplementation"
+    },
+    {
+      "name": "governanceenforcementexecution-manifest",
+      "model": "models/GovernanceEnforcementExecution.tla",
+      "config": "models/governanceenforcementexecution-manifest.cfg",
+      "expected": "ActualInterpreter"
+    },
+    {
+      "name": "governanceenforcementexecution-current",
+      "model": "models/GovernanceEnforcementExecution.tla",
+      "config": "models/governanceenforcementexecution-current.cfg",
+      "expected": "CurrentContribution"
+    },
+    {
+      "name": "governanceenforcementexecution-receipt",
+      "model": "models/GovernanceEnforcementExecution.tla",
+      "config": "models/governanceenforcementexecution-receipt.cfg",
+      "expected": "ReceiptIsNotCurrent"
+    },
+    {
+      "name": "governanceenforcementexecution-tenant",
+      "model": "models/GovernanceEnforcementExecution.tla",
+      "config": "models/governanceenforcementexecution-tenant.cfg",
+      "expected": "TenantIsolation"
     }
   ]
 }

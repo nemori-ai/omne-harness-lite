@@ -1,5 +1,33 @@
 # HITL 合同与行为守护
 
+## 目录捕获的资格与终态
+
+[GovernanceCatalogCapture](models/GovernanceCatalogCapture.tla) 补充一个内部捕获、一次 epoch 更换、成员撤权、资格保留和原操作封口的有限交错。请求身份、来源真实性、SQL同域原子提交及真实Identity保留协议仍是外部前提。本模型不产生这些证明，也不保证任意外部故障下恢复必然结束。
+
+Observe 表示查询或拒绝响应不改变持久状态。它允许受理前撤权及已终结操作保持静止，不作为恢复进展证据；本模型只检查下述安全性质。
+
+QualifiedCapture检查捕获时真实成员与held同时成立；CurrentCapture检查捕获时仍是原epoch。两项使用保存的提交时事实，之后合法结算、撤权或重装不改写原结果。NoRevival禁止已经封口的原操作变为成功。SettledDisclosure要求返回页面前已经结算。只有Capture建立成功记录，守卫及同动作取值建立前两项；Seal使正常Capture失去前置状态；Deliver必须经过Settle。其他动作保留上述关系，可以逐动作归纳。
+
+一个正例检查四项性质。四个负控分别移除held、epoch、sealed及结算门槛，每个只检查对应具名不变量。运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models GovernanceCatalogCapture`。实现映射为 governance-local 的 catalog-capture.ts、catalog-snapshot.ts、capture-operation.ts 及原有 Standing/SQL coordinator。错回执、完整绑定、重开、分页和未知结果必须另由真实组合验证。
+
+## 事务内权限解释
+
+[GovernanceEnforcementExecution](models/GovernanceEnforcementExecution.tla) 区分两个租户、三个动作、精确实现替换、贡献退出、解释器可执行性及历史回执重放。Judge 是一次原子的当前观察和判断。loaded 只抽象本次解释代码可执行，不表示在线 Tool 实例，也不引入 SQL active 表。固定发行映射、身份资格、完整来源及真实事务原子性是外部前提。
+
+ExactImplementation 要求成功判断仍对应请求的精确实现。ActualInterpreter 要求本次实际执行解释器。CurrentContribution 要求排序点贡献有效。ReceiptIsNotCurrent 禁止将历史回执用于新动作。TenantIsolation 要求观察域等于原动作租户。初态 history 为空。正确 Judge 的守卫及同动作保存建立这五项性质；Read、Replace、Withdraw 和 Unload 不改已有成功记录。正确协议没有 Replay 转移，因此可按转移归纳。模型不声称任意故障下的恢复活性。
+
+一个正例同时检查五项性质。五个负控分别取消精确实现检查、用清单代替实际执行、使用事务前快照、复用旧回执和改读另一租户。每个配置只检查对应具名不变量。运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models GovernanceEnforcementExecution`。
+
+应用协议归[事务内权限解释](../../../../apps/harness-server/docs/rows/permission-interpretation.md)。当前源码已实现解释映射验证、纯权限求值的应用解释及 SQL 支持/判断参与者。原发行和 current 的生产者、ActionAdmission 接线、撤除与实际消费的两种顺序仍需真实组合验收。模型及替身来源测试不能替代这些证据。
+
+## 当前发布与执行装载
+
+[GovernanceTargetPublication](models/GovernanceTargetPublication.tla) 保留两个具有相同Settings正文、不同原发布身份的版本。目标可切版，执行实现可卸载。Read是事务前普通观察，Apply必须重新读取当前发布与装载状态，并在同一动作保存提交时观察。原发行材料固定、当前SQL事务串行是模型前提，不由此模型证明。
+
+ExactPublication要求成功动作对应请求指定的原发布；CurrentAtCommit比较本次消费的修订与提交时修订；ImplementationPresent要求实际提交时实现仍装载。三项都比较保存的提交时事实，后续合法切版或卸载不改写历史成功。逐动作归纳中，只有Apply创建成功记录，其守卫与同动作读取建立三项性质；其他动作不改已有成功记录。
+
+一个正例检查三项性质。三个负控分别以同形正文替代发布身份、使用事务前快照、只核不可变关口声明，各检查其具名不变量。运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models GovernanceTargetPublication`。真实发行命名空间、目标字段、数据库排序、预算和卸载围栏仍需生产组合验证；此模型不等于这些实现已通过。
+
 ## 贡献命令的结果与当前状态
 
 [GovernanceRegistrar](models/GovernanceRegistrar.tla) 抽象一个贡献原操作、一份不可变发布证明、一条租约及原提交结果。Prepare 仅在来源可验证时保存 proven；后续来源离线不撤销该历史证明。Apply 仅从 prepared 前进，Seal 使该操作不能再次 Apply。声明的版本不变性及真实来源核验是外部前提，模型不发行来源权限。
@@ -162,3 +190,13 @@ GovernanceSqlCustody 把完整原操作及阶段抽象为两个互异的键，�
 `GovernanceRecoveryPhase`区分 SQL 的持久阶段回执与治理阶段行。错误请求进入固定 SQL 身份后，即使回滚且没有阶段行，也会占住该身份。模型固定一个不可变原请求、两个候选输入和一个阶段身份。正确输入为1，错误输入为2。NoPoison要求错误输入不能占用该固定身份，ExactStored要求保存的阶段匹配原请求。弱公平的正确重试与封口、稳定材料及可用存储是Completion前提。
 
 负控移除固定写阶段前的完整绑定核对，分别违反NoPoison和Completion。治理事务内的最终核对仍然必要，但它不能撤回SqlStorage对失败提交的持久记录。生产目的适配器必须先读取不可变请求并逐字段匹配，再进入固定阶段；原事务继续复核。此模型只刻画这一缺口，不证明整个SQL提供者或任意恶意调用的可用性。
+
+## 精确退出与修订额度
+
+GovernanceExitCapacity 检查新增登记、采用、退出及换代的计数变化。源码最多128个在线租约，模型使用2个租约、最大修订6，枚举阈值附近的交错。三项负控分别移除预留、把严格阈值改为包含端点、以及退出时不减少在线数量；每项必须破坏 ExitCapacity。
+
+一般论证不依赖小模型的数值。令最大修订为 M，在线上限为 C，阈值为 T=M−C。新增发布要求两个修订严格低于 T，因此最后一次成功递增至多到 T。之后不能新增登记或采用，至多 C 个在线租约各退出一次，修订至多达到 M。重复退出不递增。源码的 revision-budget.ts 固定 C=128，apply-operation.ts 守住发布阈值，contribution.ts 在已退出检查之后才核对真正递增的余量。测试 exit-capacity.spec.ts 在真实 SQLite 上验证阈值、128次退出及最大值上的重复退出。旧实现已经耗尽额度的状态不属于此归纳前提。
+
+GovernanceContributionLifetime 检查一次原调用、迟到的受理、调用方关闭和精确撤除。ClosedIsQuiescent 要求 closed 时没有原调用、迟到受理或活动租约。PreservedReceipt 要求已经 committed 的原回执不改写。SiblingPreserved 要求另一个租约不被清理。四项负控分别跳过排空、允许关闭后迟发、改写原回执和宽范围撤除。
+
+该模型假定可信的未提交且无排队证明、不可变原操作身份和原子 SQL。它不证明存储永久失败后的清理活性、进程重启或 Cordis 运行时行为。生产 contribution-retirement.ts 落实精确 SQL 撤除；caller fiber、提供者重试驱动及其实际装配验证仍须另行完成。Identity 结算继续由原 Standing 协调及其独立守护承担，不能用本模型替代。

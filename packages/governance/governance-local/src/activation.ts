@@ -1,3 +1,5 @@
+import { businessMode } from './business-plan.ts'
+import { applyCapture } from './capture-operation.ts'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
 import {
   ACTIVATION_PLAN,
@@ -8,7 +10,7 @@ import {
   type ActivationPlan,
 } from './activation-schema.ts'
 import { GOVERNANCE_OWNER } from './migration.ts'
-import { bootstrapScope } from './scope.ts'
+import { bootstrapScope, closeScope } from './scope.ts'
 import { acceptOperation, boundOperation, sealOperation, submitOperation } from './operation.ts'
 import {
   prepareGovernanceStanding,
@@ -18,14 +20,16 @@ import {
 import { applyStandingOperation, sealGovernanceStanding } from './standing-operation.ts'
 import { persistSqlStage, requireApplyStage } from './sql-stage.ts'
 import { digest, json } from './encoding.ts'
+import { retireContribution } from './contribution-retirement.ts'
 
 function control(
   port: ParticipantPort,
-  request: Exclude<ControlRequest, { kind: 'persist-stage' }>,
+  request: Exclude<
+    ControlRequest,
+    { kind: 'persist-stage' | 'bootstrap' | 'close-scope' | 'retire-contribution' }
+  >,
 ) {
   switch (request.kind) {
-    case 'bootstrap':
-      return bootstrapScope(port, request.input)
     case 'accept':
       return {
         kind: 'acceptance',
@@ -64,9 +68,10 @@ function applyPlan(port: ParticipantPort, plan: Exclude<ActivationPlan, { kind: 
     found.record.sqlIdentity.transactionDomain !== plan.transactionDomain
   )
     throw new Error('Governance plan binding changed')
-  if ((found.record.request.owner === 'adopt') !== (plan.kind === 'adoption'))
+  if (businessMode(found.record.request.owner) !== plan.kind)
     throw new Error('Governance plan owner mismatch')
   requireApplyStage(port, plan.request.binding, found.record.execution, plan.request.execution)
+  if (plan.kind === 'capture') return applyCapture(port, plan)
   return applyStandingOperation(
     port,
     plan.request.binding,
@@ -75,9 +80,18 @@ function applyPlan(port: ParticipantPort, plan: Exclude<ActivationPlan, { kind: 
   )
 }
 function metadata(port: ParticipantPort, request: ControlRequest) {
-  return request.kind === 'persist-stage'
-    ? persistSqlStage(port, request.input)
-    : control(port, request)
+  switch (request.kind) {
+    case 'bootstrap':
+      return bootstrapScope(port, request.input)
+    case 'close-scope':
+      return closeScope(port, request.input)
+    case 'retire-contribution':
+      return retireContribution(port, request.binding)
+    case 'persist-stage':
+      return persistSqlStage(port, request.input)
+    default:
+      return control(port, request)
+  }
 }
 export default {
   participant: GOVERNANCE_OWNER,

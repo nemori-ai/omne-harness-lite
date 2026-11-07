@@ -34,7 +34,16 @@ export const recoveryPageRequestSchema = z.strictObject({
 export type RecoveryPageRequest = z.infer<typeof recoveryPageRequestSchema>
 export const recoveryPageSchema = z.strictObject({
   kind: z.literal('page'),
-  items: z.array(z.strictObject({ key: keySchema, requestDigest: GovernanceDigestSchema })).max(64),
+  currentEpoch: GovernanceIdSchema,
+  items: z
+    .array(
+      z.strictObject({
+        key: keySchema,
+        requestDigest: GovernanceDigestSchema,
+        acceptedEpoch: GovernanceIdSchema,
+      }),
+    )
+    .max(64),
   next: keySchema.nullable(),
 })
 const rowSchema = z.tuple([
@@ -42,8 +51,9 @@ const rowSchema = z.tuple([
   GovernanceIdSchema,
   GovernanceIdSchema,
   GovernanceDigestSchema,
+  GovernanceIdSchema,
 ])
-export const recoveryCandidatesSql = `SELECT command_owner,principal_ref,operation_id,request_digest
+export const recoveryCandidatesSql = `SELECT command_owner,principal_ref,operation_id,request_digest,accepted_epoch
   FROM gc_operation INDEXED BY gc_operation_recovery
   WHERE scope_key=?
     AND (state IN ('accepted','submitted')
@@ -55,7 +65,8 @@ export function readRecoveryPage(port: ReadPort, raw: RecoveryPageRequest) {
   const input = recoveryPageRequestSchema.parse(raw)
   if (input.after && !equal(input.after.scope, input.scope))
     return { kind: 'conflict' as const, reason: 'basis' as const }
-  if (!readScope(port, input.scope)) return { kind: 'absent' as const }
+  const current = readScope(port, input.scope)
+  if (!current) return { kind: 'absent' as const }
   const { after } = input
   const rows = port.execute(recoveryCandidatesSql, [
     scopeKey(input.scope),
@@ -65,11 +76,16 @@ export function readRecoveryPage(port: ReadPort, raw: RecoveryPageRequest) {
     input.limit + 1,
   ]).rows
   const items = rows.slice(0, input.limit).map(row => {
-    const [owner, principalRef, operationId, requestDigest] = rowSchema.parse(row)
-    return { key: { scope: input.scope, owner, principalRef, operationId }, requestDigest }
+    const [owner, principalRef, operationId, requestDigest, acceptedEpoch] = rowSchema.parse(row)
+    return {
+      key: { scope: input.scope, owner, principalRef, operationId },
+      requestDigest,
+      acceptedEpoch,
+    }
   })
   return {
     kind: 'page' as const,
+    currentEpoch: current.epoch,
     items,
     next: rows.length > input.limit ? (items.at(-1)?.key ?? null) : null,
   }

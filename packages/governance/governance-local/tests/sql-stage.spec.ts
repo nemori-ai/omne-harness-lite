@@ -1,3 +1,4 @@
+import type { StageControlRequest } from '../src/sql-coordinator.ts'
 import { afterEach, expect, it } from 'vitest'
 import { inputDigestV2, type CommitRequestV2 } from '@omne-harness/sql-contract'
 import { openActivation } from './activation-world.ts'
@@ -5,11 +6,7 @@ import { command, binding, scope } from './operation-world.ts'
 import { standingCustodySchema } from '../src/standing-schema.ts'
 import { storedStageSchema, persistStageSchema, type SqlStage } from '../src/sql-stage-schema.ts'
 import { stageIdentity } from '../src/sql-stage-binding.ts'
-import {
-  METADATA_PLANNER,
-  MUTATION_PLANNER,
-  type ControlRequest,
-} from '../src/activation-schema.ts'
+import { METADATA_PLANNER, MUTATION_PLANNER } from '../src/activation-schema.ts'
 import { GOVERNANCE_OWNER } from '../src/migration.ts'
 import { digest, json } from '../src/encoding.ts'
 
@@ -178,7 +175,7 @@ it.each([
 })
 it('binds every metadata stage to its original operation and permits settlement after sealing', async () => {
   const { w, request, reservation } = await prepare()
-  const controls: ControlRequest[] = [
+  const controls: StageControlRequest[] = [
     {
       kind: 'standing-prepare',
       input: { operation: request.binding, destination: 'governance', required: [] },
@@ -194,12 +191,6 @@ it('binds every metadata stage to its original operation and permits settlement 
     { kind: 'standing-settled', binding: request.binding, reservation, outcome: 'aborted' },
   ]
   for (const control of controls) {
-    if (
-      control.kind === 'bootstrap' ||
-      control.kind === 'accept' ||
-      control.kind === 'persist-stage'
-    )
-      throw new Error('fixture stage')
     const combination = w.combination('metadata')
     const envelope = {
       identity: stageIdentity(w.domain.transactionDomain, request.binding.ref, control.kind),
@@ -276,7 +267,7 @@ it('rejects an oversized envelope before storing it', async () => {
 it('rejects metadata envelopes that address another operation or recovery route', async () => {
   const { w, request, reservation } = await prepare()
   const wrong = { ...request.binding, ref: { ...request.binding.ref, principalRef: 'bob' } }
-  const controls: ControlRequest[] = [
+  const controls: StageControlRequest[] = [
     { kind: 'seal', binding: wrong },
     {
       kind: 'standing-prepare',
@@ -299,12 +290,6 @@ it('rejects metadata envelopes that address another operation or recovery route'
     },
   ]
   for (const control of controls) {
-    if (
-      control.kind === 'bootstrap' ||
-      control.kind === 'accept' ||
-      control.kind === 'persist-stage'
-    )
-      throw new Error('fixture stage')
     const combination = w.combination('metadata')
     const envelope = {
       identity: stageIdentity(w.domain.transactionDomain, request.binding.ref, control.kind),

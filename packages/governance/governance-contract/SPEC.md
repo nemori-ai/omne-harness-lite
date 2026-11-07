@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-本成员拥有动态贡献、当前治理采用和受保护目录的公共协议。语义依据为[动态治理贡献](../../assets/docs/governance-contributions.md)与[领域边界](../../../docs/architecture/layers-and-dependencies.md)。本成员的类型与 Schema 已进入源码；持久提供者和生产消费者仍待实现与独立验收。
+本成员拥有动态贡献、当前治理采用和受保护目录的公共协议。语义依据为[动态治理贡献](../../assets/docs/governance-contributions.md)与[领域边界](../../../docs/architecture/layers-and-dependencies.md)。本成员的类型与 Schema 已进入源码。本地提供者的实现与验证状态见 [governance-local](../governance-local/README.md)；完整生产组合仍待独立验收。
 
 执行清单采用继续遵循 [AC-02](../../../docs/domains/assembly-and-handoff/adoption-coordination.md)。本协议不改变 adoptionCoordinator 的 prepare、validate、read，也不发行授权、修改设置或推进 HITL 等待。
 
@@ -35,6 +35,8 @@ ownerId、definitionId、version 唯一决定一个声明摘要。即使旧租�
 ### GC-04 完整发布
 
 adopt 核对当前 declarationRevision、adoptionRevision、所有当前候选、目标及真实关口。collection.digest 覆盖规范化的完整选择和声明摘要；提供者按权威当前集合重算，不相信调用方自报完整。一个 bundle 的 Settings 和 Permissions 一起发布。空集合只有在权威当前候选同为空时才可发布。
+
+collection.digest的wire编码固定为SHA-256小写十六进制：对包含scope、declarationRevision、complete的对象作RFC8785规范JSON编码并取UTF-8字节。complete的每项为contribution、definition和selectedTargets；definition为完整DefinitionRef。目标先按其规范JSON文本排序，成员再按其规范JSON文本排序。重复项仍非法。提供者重算的definition来自当前权威声明，不能由调用方替换。local后端公开createGovernanceCollection作为构造辅助，不替代采用检查。
 
 候选失败不替换旧份。精确撤除改变当前可用性与采用修订；最后支持租约退出时移除受影响运行选择。兄弟租约不被一起撤除，但旧依据仍须失效。每次修改与其回执在一个权威提交中成立。
 

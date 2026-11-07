@@ -146,6 +146,10 @@ export const workerCommandSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('mutate'), binding: mutationBindingSchema }),
   z.strictObject({ kind: z.literal('guard'), binding: SettingsSqlGuardBindingSchema }),
   z.strictObject({ kind: z.literal('capture'), binding: SettingsProjectionBindingSchema }),
+  z.strictObject({
+    kind: z.literal('capturePublication'),
+    binding: SettingsProjectionBindingSchema,
+  }),
 ])
 export const failureSchema = z.strictObject({
   kind: z.literal('rejected'),

@@ -32,6 +32,7 @@ export {
   createStandaloneSettingsOwner,
   standaloneSettingsGuards,
   standaloneSettingsProjectionCommand,
+  standaloneSettingsPublicationCommand,
   type StandaloneMutation,
 } from './standalone.ts'
 export { settingsCatalogMaterials } from './catalog-materials.ts'
@@ -48,3 +49,18 @@ export {
   settingsWithoutAssetsProjectionCommand,
 } from './without-assets.ts'
 export { createSettingsSelections } from './selections.ts'
+
+export {
+  settingsStandalonePublicationFact,
+  StandalonePublicationRefSchema,
+  StandalonePublicationProjectionSchema,
+  type StandalonePublicationRef,
+  type StandalonePublicationProjection,
+} from './standalone-publication.ts'
+export {
+  SettingsValueProjectionSchema,
+  settingsValueProjectionFact,
+  settingsValueProjectionCommand,
+  type SettingsValueProjection,
+} from './value-projection.ts'
+export { settingsValueProjectionMaterials } from './value-projection-materials.ts'

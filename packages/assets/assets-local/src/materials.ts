@@ -1,3 +1,4 @@
+import { assetsPublicationFact } from './publication.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { settingsAssetsProjectionFact, settingsSqlGuardFact } from '@omne-harness/settings-local'
@@ -40,6 +41,7 @@ export function assetsSqlMaterials(
         providesFacts: [
           ...(options.settingsGuard === false ? [] : [settingsSqlGuardFact]),
           settingsAssetsProjectionFact,
+          assetsPublicationFact,
         ],
         allowedFunctions: [],
         grouping: 'groupable',

@@ -102,7 +102,7 @@ export async function openIdentityWorld(
     combinationVersion: world.combination.combinationVersion,
     manifestDigest: world.combination.manifestDigest,
   }
-  const actualResolver = createSettingsStandingDestination({ ...terminalOptions, destination })
+  let actualResolver = createSettingsStandingDestination({ ...terminalOptions, destination })
   let available = true
   const resolver: StandingDestinationResolver = {
     seal: r =>
@@ -239,6 +239,9 @@ export async function openIdentityWorld(
     loginA,
     clock,
     terminal: createSettingsSqlTerminals(terminalOptions),
+    setResolver(value: StandingDestinationResolver) {
+      actualResolver = value
+    },
     setAvailable(value: boolean) {
       available = value
     },

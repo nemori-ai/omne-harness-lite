@@ -6,11 +6,14 @@ import {
   type DomainRef,
   type CommitRequestV2,
   type CommittedV2,
+  type SqlIdentity,
 } from '@omne-harness/sql-contract'
 import {
   GovernanceIdSchema,
   GovernanceDigestSchema,
   type GovernanceContributionRef,
+  type GovernanceOperationRef,
+  GovernanceOperationRefSchema,
 } from '@omne-harness/governance-contract'
 import {
   acceptSchema,
@@ -19,7 +22,12 @@ import {
   requestRef,
   type AcceptOperation,
   type OperationBinding,
+  type OperationRecord,
 } from './operation-schema.ts'
+import {
+  OPERATION_REFERENCE_HANDLER,
+  operationReferenceObservationSchema,
+} from './operation-reference-read.ts'
 import { OPERATION_HANDLER, observationSchema } from './operation-read.ts'
 import { stageIdentity } from './sql-stage-binding.ts'
 import { STAGE_HANDLER } from './sql-stage-read.ts'
@@ -59,7 +67,7 @@ const stageReplySchema = z.union([
 ])
 export type StageControlRequest = Exclude<
   ControlRequest,
-  { kind: 'bootstrap' | 'accept' | 'persist-stage' }
+  { kind: 'bootstrap' | 'close-scope' | 'accept' | 'persist-stage' | 'retire-contribution' }
 >
 export type SqlCoordinatorOptions = Readonly<{
   storage: SqlStorage
@@ -125,6 +133,61 @@ export class SqlOperationCoordinator {
     } catch {
       return unavailable()
     }
+  }
+  private matchingRecord(ref: GovernanceOperationRef, record: OperationRecord) {
+    return (
+      equal(requestRef(ref.principalRef, record.request), ref) &&
+      record.requestDigest === digest(record.request) &&
+      equal(record.sqlIdentity, operationIdentity(this.domain.transactionDomain, ref))
+    )
+  }
+  async lookup(raw: GovernanceOperationRef) {
+    const ref = GovernanceOperationRefSchema.parse(raw)
+    if (this.domain.scope.kind !== 'tenant' || ref.scope.tenantRef !== this.domain.scope.tenant)
+      return unavailable()
+    try {
+      const result = await this.storage.read({
+        domain: this.domain,
+        ...OPERATION_REFERENCE_HANDLER,
+        requestKey: randomUUID(),
+        input: json(ref),
+      })
+      if (result.kind !== 'read') return unavailable()
+      const found = operationReferenceObservationSchema.parse(result.output)
+      if (!equal(result.output, found) || !equal(found.ref, ref)) return unavailable()
+      if (found.record === null) return { kind: 'absent' as const }
+      if (!this.matchingRecord(ref, found.record)) return unavailable()
+      return { kind: 'found' as const, record: found.record }
+    } catch {
+      return unavailable()
+    }
+  }
+  async uncommitted(ref: GovernanceOperationRef) {
+    return this.notCommitted(ref, operationIdentity(this.domain.transactionDomain, ref))
+  }
+  async uncommittedAcceptance(ref: GovernanceOperationRef) {
+    return this.notCommitted(ref, {
+      ...operationIdentity(this.domain.transactionDomain, ref),
+      operation: 'governance.meta.accept',
+    })
+  }
+  private async notCommitted(ref: GovernanceOperationRef, identity: SqlIdentity) {
+    if (this.domain.scope.kind !== 'tenant' || ref.scope.tenantRef !== this.domain.scope.tenant)
+      return unavailable()
+    const proof = await querySql(this.storage, identity)
+    if (
+      proof.kind !== 'not_committed' ||
+      !equal(proof.identity, identity) ||
+      !equal(proof.proofs, {
+        writerGenerationExcluded: true,
+        oldTransactionTerminated: true,
+        databaseRecoveryFinished: true,
+        authoritativeReadSucceeded: true,
+        operationNotQueued: true,
+      })
+    )
+      return unavailable()
+    return { kind: 'not-committed' as const, operation: ref, sealRef: 'sql-proof/' + digest(proof) }
   }
   async contribution(contribution: GovernanceContributionRef, principalRef: string) {
     const input = contributionReadSchema.parse({ contribution, principalRef })
@@ -263,8 +326,10 @@ export class SqlOperationCoordinator {
     const request = controlRequestSchema.parse(raw)
     if (
       request.kind === 'bootstrap' ||
+      request.kind === 'close-scope' ||
       request.kind === 'accept' ||
-      request.kind === 'persist-stage'
+      request.kind === 'persist-stage' ||
+      request.kind === 'retire-contribution'
     )
       return unavailable()
     const previous = await this.readStage(binding, request.kind)
@@ -282,6 +347,19 @@ export class SqlOperationCoordinator {
       persistStageSchema.parse({ binding, stage: request.kind, envelope }),
     )
     return saved.kind === 'stored' ? submitSql(this.storage, saved.envelope) : saved
+  }
+  async retireContribution(raw: OperationBinding) {
+    const binding = bindingSchema.parse(raw)
+    if (binding.ref.owner !== 'contribute' || !this.inDomain(binding)) return unavailable()
+    const original = await this.observe(binding)
+    if (original.kind !== 'found') return original
+    return submitSql(
+      this.storage,
+      this.envelope(binding, 'governance.meta.retire-contribution', {
+        kind: 'retire-contribution',
+        binding,
+      }),
+    )
   }
   async send(binding: OperationBinding, stage: SqlStage) {
     const saved = await this.readStage(binding, stage)

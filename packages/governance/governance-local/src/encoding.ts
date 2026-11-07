@@ -1,10 +1,7 @@
+import type { OperationRef } from './operation-schema.ts'
 import { createHash } from 'node:crypto'
 import canonicalize from 'canonicalize'
-import type {
-  GovernanceScope,
-  GovernanceOperationRef,
-  GovernanceDefinitionRef,
-} from '@omne-harness/governance-contract'
+import type { GovernanceScope, GovernanceDefinitionRef } from '@omne-harness/governance-contract'
 import type { JsonValue, SqlIdentity } from '@omne-harness/sql-contract'
 
 export function canonical(value: unknown): string {
@@ -19,10 +16,7 @@ export const json = (value: unknown): JsonValue => JSON.parse(canonical(value))
 export const scopeKey = (scope: GovernanceScope) => digest(scope)
 export const definitionKey = (ref: GovernanceDefinitionRef) =>
   digest([ref.ownerId, ref.definitionId, ref.version])
-export function operationIdentity(
-  transactionDomain: string,
-  ref: GovernanceOperationRef,
-): SqlIdentity {
+export function operationIdentity(transactionDomain: string, ref: OperationRef): SqlIdentity {
   return {
     scope: { kind: 'tenant', tenant: ref.scope.tenantRef },
     transactionDomain,

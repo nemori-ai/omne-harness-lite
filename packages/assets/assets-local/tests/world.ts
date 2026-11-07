@@ -122,6 +122,7 @@ export const grants = [
 ]
 export async function openWorld(
   options: {
+    categories?: typeof categories
     config?: Partial<import('@omne-harness/sqlite-provider').SqliteStorageConfig>
     root?: string
     wrap?: (storage: SqlStorage) => SqlStorage
@@ -168,7 +169,7 @@ export async function openWorld(
     ...combination,
     domain,
     storage: options.ownerWrap?.(storage) ?? storage,
-    categories,
+    categories: options.categories ?? categories,
   })
   const backend = createSettingsSqlBackend({
     storage: options.wrap?.(storage) ?? storage,

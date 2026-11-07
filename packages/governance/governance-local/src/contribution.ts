@@ -8,6 +8,7 @@ import { definitionKey, digest, scopeKey } from './encoding.ts'
 import { saveDefinition, validateBundle } from './definition.ts'
 import type { OperationBinding } from './operation-schema.ts'
 import { readScope } from './scope.ts'
+import { CONTRIBUTION_LIMIT, REVISION_LIMIT } from './revision-budget.ts'
 export function collectionDigest(port: ParticipantPort, scope: string, epoch: string) {
   const rows = port.execute(
     "SELECT c.registration_id,c.contributor_id,c.generation,d.owner_id,d.definition_id,d.version,d.digest FROM gc_contribution c JOIN gc_definition d ON d.definition_key=c.definition_key WHERE c.scope_key=? AND c.epoch=? AND c.state='active' ORDER BY c.definition_key,c.registration_id LIMIT 129",
@@ -29,7 +30,7 @@ export function registerContribution(
     "SELECT registration_id FROM gc_contribution WHERE scope_key=? AND epoch=? AND state='active' LIMIT 129",
     [key, epoch],
   ).rows.length
-  if (count >= 128) return { kind: 'limited' as const, resource: 'contributions' }
+  if (count >= CONTRIBUTION_LIMIT) return { kind: 'limited' as const, resource: 'contributions' }
   const active = port.execute(
     "SELECT DISTINCT c.definition_key,d.item_count FROM gc_contribution c JOIN gc_definition d ON d.definition_key=c.definition_key WHERE c.scope_key=? AND c.epoch=? AND c.state='active' LIMIT 129",
     [key, epoch],
@@ -136,6 +137,8 @@ export function releaseContribution(
       contribution: ref,
       adoptionRevision: current.adoptionRevision,
     }
+  if (current.declarationRevision >= REVISION_LIMIT || current.adoptionRevision >= REVISION_LIMIT)
+    return { kind: 'limited' as const, resource: 'revision' }
   removeSupport(port, key, ref.registrationId, String(row[3]), epoch)
   port.execute(
     "UPDATE gc_contribution SET state='released' WHERE scope_key=? AND registration_id=?",

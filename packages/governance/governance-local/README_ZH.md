@@ -2,11 +2,13 @@
 
 ## 职责与状态
 
-本地治理贡献和采用提供者。当前已实现关系迁移及原操作、登记和撤除的私有事务写者，公开业务服务、当前事实和 Cordis 装配仍在开发，不能作为完整运行服务使用。
+本地治理贡献、采用和查询提供者。普通工厂已组合五个应用方法、Identity资格保留及持久恢复；Cordis适配器把贡献清理绑定到调用方fiber。生产声明发行来源和当前事实适配仍待接通，完整跨域组合尚未验收。
 
 ## 使用
 
-受信装配者从根入口导入 `governanceSqlMigrations`，把固定迁移材料交给 SqlStorage。它不自动注册参与者，也不取得业务授权。
+受信装配者从根入口导入 `governanceSqlMaterials`，把固定参与者、读取器和迁移交给SqlStorage。先构造 `createGovernanceLocalDestination` 并向Identity登记恢复路由，再调用 `createGovernanceLocal`。只有created结果公开服务与关闭方法。
+
+Cordis使用 `./cordis` 的 `createGovernanceLocalPlugin`。配置沿用普通工厂的受信输入，但storage和identity由inject提供。observeClose接收首次pending和最终closed通知，见[集成说明](docs/cordis.md)。
 
 ## 契约
 
@@ -18,11 +20,11 @@
 
 ## 配置与运行
 
-本包不创建数据库。租户写域、SQLite 运行预算和关闭由装配者提供。迁移与业务材料的受信目录不是客户端输入。
+本包不创建数据库。租户写域、SQLite 运行预算和关闭由装配者提供。迁移与业务材料的受信目录不是客户端输入。普通关闭返回pending时，拥有者继续保留依赖并重试；Cordis适配器自动继续关闭。
 
 ## 验证
 
-运行本成员 `typecheck`、`build` 和 `test:fast`。真实迁移、约束、重开及索引路径有测试，完整业务与生命周期尚未验收，见 [验证入口](verification/README.md)。
+运行本成员 `typecheck`、`build` 和 `test:fast`。真实SQLite、Identity与Cordis4.0.4已有组合测试；生产来源、同提交消费与完整独立验收仍开放，见 [验证入口](verification/README.md)。
 
 ## 维护
 

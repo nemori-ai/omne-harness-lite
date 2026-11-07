@@ -1,8 +1,58 @@
 # 内部架构
 
+## 普通提供者的装配与恢复
+
+工厂把应用服务与生命周期控制分开。只有启动成功才公开服务；共享 SQL 和 Identity 始终由外部装配拥有。创建 Identity 前可以先构造目的解析器，因此治理恢复与 Identity 的协作不需要相互构造服务。
+
+```mermaid
+classDiagram
+  class GovernanceLocal {
+    +service GovernanceContributions
+    +close() closed或pending
+  }
+  GovernanceLocal --> GovernanceProviderLifetime
+  GovernanceProviderLifetime --> GovernanceScopeLifecycle
+  GovernanceLocal --> GovernanceRegistrar
+  GovernanceLocal --> GovernanceCatalog
+  GovernanceRegistrar --> GovernanceAdmission
+  GovernanceRegistrar --> GovernanceStandingCoordinator
+  GovernanceCatalog --> GovernanceStandingCoordinator
+  GovernanceScopeLifecycle --> SqlOperationCoordinator
+  GovernanceScopeLifecycle --> GovernanceStandingCoordinator
+  GovernanceStandingCoordinator --> StandingReservations : 借用
+  SqlOperationCoordinator --> SqlStorage : 借用
+  GovernanceStandingDestination --> SqlOperationCoordinator
+  StandingReservations ..> GovernanceStandingDestination : 原请求封口
+```
+
+一次新装配相当于给服务换一枚不可复用的代次标识。它先隔离旧代，再处理旧代未完成的责任，最后允许新请求进入。每页恢复同时读取当前代次和候选操作的受理代次。旧页只包含读回时已经存在的操作；后继实例的新操作不会进入旧页。这个结论依赖原操作键和受理代次不可变、代次不复用，以及装配只有一个合法启动者。
+
+```mermaid
+sequenceDiagram
+  participant A as 受信装配
+  participant F as 普通工厂
+  participant S as SQL域
+  participant I as Identity
+  A->>F: 创建新实例
+  F->>S: 读取旧epoch并比较开放新epoch
+  loop 有界历史分页
+    F->>S: 同序读取currentEpoch和acceptedEpoch
+    F->>S: 核对原键与摘要后封口旧代操作
+    F->>I: 结算原资格保留
+  end
+  F->>S: 再确认本代仍开放
+  alt 完整恢复且仍为当前代
+    F-->>A: created和五个应用方法
+  else 未结算、超预算或已换代
+    F-->>A: unavailable，持久责任保留
+  end
+```
+
+关闭走另一条路径：它只处理自己代次的责任，即使当前 scope 已被新实例接管。入口先登记在途调用，再同步捕获命令。这样既能让关闭看见已经接收的工作，也能防止调用者在异步等待期间改写命令。
+
 ## 贡献与退出的应用组合
 
-内部 `GovernanceRegistrar` 实现 contribute 与 withdraw 的既有命令形状。它组合真实身份准入、完整声明来源消费、Standing 保留、原操作及 SQL 请求保管。它尚未随完整提供者导出，不提供 adopt、受保护目录或 Cordis caller-fiber 关闭。声明来源测试使用具名 fixture；具名功能及资产发布拥有者的生产适配仍须接入。
+`createGovernanceLocal` 组合贡献、退出、采用、受保护目录和原操作查询。内部 `GovernanceRegistrar` 承担命令与操作查询，目录捕获由独立组件承担。它们共用身份准入、Standing 保留、原操作及 SQL 请求保管。声明与当前事实测试使用具名 fixture；生产来源适配仍须接入；Cordis caller-fiber关闭见本文装配节。
 
 ```mermaid
 flowchart TD
@@ -39,11 +89,11 @@ classDiagram
 
 ContributionStateReader 只按 scope_key 和 registration_id 查精确租约，再点查 scope，最多两行。它核 registrar、contributor 和 generation 后才返回状态。旧 epoch 投影 released。原 OperationRecord.result 保留原提交状态，两种读数有不同用途。
 
-stopAccepting 同步拒绝新入口，并让已开始的调用在下一可观察边界封口原待决操作。它不释放共享 SqlStorage/Identity，也不证明租约已全部撤除。完整关闭仍须持久 scope 围栏及精确租约清理。业务已经确认成功时，源结算暂不可用只留下持久恢复责任，不能把成功改成失败。
+stopAccepting 同步拒绝新入口，并让已开始的调用在下一可观察边界封口原待决操作。它不释放共享 SqlStorage/Identity，也不证明租约已全部撤除。工厂的完整关闭通过生命周期协调执行持久 scope 围栏及精确租约清理。业务已经确认成功时，源结算暂不可用只留下持久恢复责任，不能把成功改成失败。
 
 ## 身份准入与装配委托
 
-`GovernanceAdmission` 只判断当前调用能否进入一个具名治理动作。Identity 判断主体发行和当前成员资格，可信装配固定委托范围，原发布拥有者证明声明及执行关口真实。三者不能相互代替。该对象仍为内部组件；公开命令服务、真实来源及 Cordis 生命周期尚未接通。
+`GovernanceAdmission` 只判断当前调用能否进入一个具名治理动作。Identity 判断主体发行和当前成员资格，可信装配固定委托范围，原发布拥有者证明声明及执行关口真实。三者不能相互代替。该对象为普通工厂的内部组件。真实来源适配仍待接通；Cordis生命周期见本文装配节。
 
 ```mermaid
 classDiagram
@@ -77,14 +127,14 @@ classDiagram
 
 ## 模块与依赖
 
-`migration.ts` 拥有九张私表及索引。`materials.ts` 将实际模块映射成 SqlStorage 的固定迁移材料。根入口只导出该材料工厂。公共业务类型仍归 governance-contract，真实 Provider 尚未实现。
+`migration.ts` 拥有九张私表及索引。`materials.ts` 将实际模块映射成 SqlStorage 的固定迁移材料。根入口导出 SQL 材料、普通应用工厂和 Identity 目的解析器。公共业务类型仍归 governance-contract。
 
 ```mermaid
 flowchart LR
   Assembly[装配者] --> Materials[governanceSqlMigrations]
   Materials --> SQL[SqlStorage迁移执行]
   SQL --> Relations[governance.activation私表]
-  Contract[governance-contract公共行为] -.-> Provider[待实现的业务Provider]
+  Contract[governance-contract公共行为] -.-> Provider[普通应用Provider]
   Provider -.-> Relations
 ```
 
@@ -92,7 +142,7 @@ flowchart LR
 
 注册与目标之间是多对多关系。`gc_member_target` 保留哪份注册支撑哪个目标，不能只保存声明下存在几个注册。选中定义和目标是当前采用的物化投影，业务参与者必须与支持边共同提交。
 
-待恢复枚举使用 `INDEXED BY gc_operation_pending` 固定本拥有者的部分索引，并保留完整 keyset 和 LIMIT。仅建立同前缀索引不足以保证 SQLite 不选主键范围。索引更名或删除须同步该查询；索引缺失时拒绝执行，不回退历史扫描。
+待恢复枚举使用 `INDEXED BY gc_operation_recovery` 固定本拥有者的部分索引，并保留完整 keyset 和 LIMIT。仅建立同前缀索引不足以保证 SQLite 不选主键范围。索引更名或删除须同步该查询；索引缺失时拒绝执行，不回退历史扫描。
 
 原操作表保存受理和提交中状态，为未知回执恢复留有持久入口。原身份不随 epoch 改变，旧请求不能通过换代获得新业务身份。epoch 是后续参与者核验的当前性字段，不是外键可证明的全局时序。
 
@@ -102,7 +152,7 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-  participant C as 待接线的应用协调器
+  participant C as 应用协调器
   participant V as resolveDefinition
   participant S as 原发布来源
   C->>V: 有限声明
@@ -113,11 +163,11 @@ sequenceDiagram
   V-->>C: verified / conflict / unavailable
 ```
 
-此图表示已实现的比较机制；原发布 producer 与公共协调器尚未接通。不同租户可以消费同一权威，不能各自用当地可编辑的定义副本冒充该权威。
+此图表示已实现的比较机制；公共协调器已经消费此机制，原发布 producer 仍待接通。不同租户可以消费同一权威，不能各自用当地可编辑的定义副本冒充该权威。
 
 ## 验证与维护
 
-Schema 测试运行真实 SQLite；材料测试运行真实 Worker。角色资格、动态生命周期及业务 current 来源尚无生产符合性证据。关系变化须同步 [对象模型](object-model.md)、[规格](../SPEC.md) 和实际迁移，不以更新旧迁移来兼容已发布数据。
+Schema 测试运行真实 SQLite；材料测试运行真实 Worker。真实 Identity 资格与普通工厂已有组合用例，Cordis动态生命周期已有实际fiber组合验证，业务current来源仍无生产符合性证据。关系变化须同步 [对象模型](object-model.md)、[规格](../SPEC.md) 和实际迁移，不以更新旧迁移来兼容已发布数据。
 
 ## 原操作与业务写者
 
@@ -125,7 +175,7 @@ Schema 测试运行真实 SQLite；材料测试运行真实 Worker。角色资�
 
 ```mermaid
 flowchart LR
-  Admission[待接线：Identity与发布来源协调器] -.-> Accept[acceptOperation]
+  Admission[Identity与发布来源协调器] -.-> Accept[acceptOperation]
   Accept --> Saved[持久原请求与SQL身份]
   Saved --> Submit[submitOperation固定执行内容]
   Submit --> Apply[applyOperation核对终态与epoch]
@@ -153,7 +203,7 @@ flowchart LR
   Plan -->|拒绝| Preserve[保留旧选择]
 ```
 
-目标投影携带原操作、事务域、epoch、目标来源、完整定义和ownerRevision。它保留目标拥有者的责任，治理写者不读取Settings或Assets私表。当前测试用具名投影夹具执行真实采用事务；生产fact桥接和Identity协调未接通。
+目标投影携带原操作、事务域、epoch、目标来源、完整定义和ownerRevision。它保留目标拥有者的责任，治理写者不读取Settings或Assets私表。当前测试用具名投影夹具执行真实采用事务；Identity 协调已经接通，生产 fact 桥接仍待完成。
 
 ## Identity 保留与恢复边界
 
@@ -161,7 +211,7 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-  participant C as 受信协调器，生产接线待完成
+  participant C as 受信协调器
   participant G as Governance 本地事务
   participant I as Identity 保留服务
   C->>G: 保存原操作及 requested
@@ -224,7 +274,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  C[公开协调器，待接线] --> P[persist-stage 元数据命令]
+  C[公开协调器] --> P[persist-stage 元数据命令]
   P --> W[唯一 activation 写者]
   W --> E[(gc_sql_stage 原请求)]
   E --> R[sql-stage-read 点查]
@@ -238,7 +288,7 @@ flowchart LR
 
 只读处理器使用 domain-serial 顺序，访问 gc_operation 和 gc_sql_stage。普通读回读取两行，Standing 阶段最多四行，无历史扫描。最大输出为4 MiB加1 KiB包装空间。主键同时服务唯一性与读取，不增加重复索引。
 
-保存和提交是两个事务，之间允许进程退出。恢复者必须取得原请求再提交。当前真实 Worker 用例验证这一边界，完整公共协调器及跨域真实来源接线仍待完成。参与者不能观察 SqlStorage 外层完整请求，因此写者的保管检查和协调器的原样发送检查都必须存在。
+保存和提交是两个事务，之间允许进程退出。恢复者必须取得原请求再提交。当前真实 Worker 用例验证这一边界，公共协调器已消费原请求，跨域真实来源接线仍待完成。参与者不能观察 SqlStorage 外层完整请求，因此写者的保管检查和协调器的原样发送检查都必须存在。
 
 ## 原操作受理与结果认回
 
@@ -267,7 +317,7 @@ sequenceDiagram
 
 重启后 executeControl 可以认回旧组合下的阶段。send 从持久阶段读回完整请求，提交未知则查询同一身份。不同命令内容不得借新的 metadata 配置替换旧阶段。调用期间用户对象变化也不能改变首次异步等待前已固定的输入。
 
-Identity预留和结算由下述Standing协调器接线，公共 GovernanceCommands/Queries 的准入与真实来源尚待完成。图中协调器是提供者内部实现，不是当前已完成的公开治理服务。
+Identity 预留和结算由下述 Standing 协调器接线，公共应用服务已经消费准入与来源协议。图中 SQL 协调器仍为提供者内部实现。生产来源适配尚未完成；Cordis装配已接入普通运行时。
 
 
 ## 真实 Standing 服务协调
@@ -319,4 +369,155 @@ sequenceDiagram
   C->>G: standing-settled并回读当前状态
 ```
 
-源端请求可能还未发送，或已 held 但回执丢失。两者都从持久请求恢复。业务提交与目的封口由同一原操作事务决定先后；源端随后结算。历史 held 回包不覆盖 settled。当前组合测试仍使用具名准入与来源依据夹具，不能据此宣称整个公开治理服务完成。
+源端请求可能还未发送，或已 held 但回执丢失。两者都从持久请求恢复。业务提交与目的封口由同一原操作事务决定先后；源端随后结算。历史 held 回包不覆盖 settled。Standing 协调器单元组合使用具名准入与来源依据夹具；普通工厂组合使用真实 Identity 和固定委托，定义及当前事实仍用具名夹具。两者均不替代整个提供者的独立验收。
+
+## 单个贡献的精确生命周期撤除
+
+内部清理能力与公开 withdraw 使用不同准入路径。公开命令仍核当前业务资格；可信生命周期清理只处理它持有的原操作，不在用户已经撤权后重新申请许可。两个路径复用同一精确租约撤除函数。
+
+```mermaid
+flowchart TD
+  L[贡献生命周期控制器] --> C[SqlOperationCoordinator.retireContribution]
+  C --> P[点查原操作与完整摘要]
+  P -->|已有匹配原操作| M[固定身份的metadata请求]
+  P -->|缺失或冲突| U[保留结果，不占用清理身份]
+  M --> W[唯一governance.activation写者]
+  W --> O{原状态}
+  O -->|待决| S[seal原操作]
+  O -->|已提交| R[导出原精确租约并release]
+  O -->|已中止或旧代| I[确认不再提供当前效力]
+  R --> H[保留原回执和兄弟租约]
+  S --> D[retired：治理事务完成]
+  H --> D
+  I --> D
+  D --> Q[原Standing结算及调用排空]
+```
+
+retired 不等于整个生命周期 closed。治理事务只负责原操作封口或精确撤除。外层控制器还要结算原资格保留，并确认不存在可能迟发的调用。
+
+最多128个在线租约各需要一次退出修订，因此新增登记与采用提前保留128步。这样数值边界不会让合法的新租约无法退出，也不需要为退出另建计数表。原状态已越过预留规则时，提供者保留明确的容量失败，不把关闭整个 scope 当成单租约退出。
+
+
+## 调用方清理的实然控制模型
+
+每个调用方都有自己的入口闸门。相同原操作的调用方共享一份清理责任；其中任意一个退出，都会让这份登记退出。另一个原操作拥有独立租约，不受影响。这个模型不使用引用计数，因此重传请求不会把原登记的生命延长。
+
+```mermaid
+classDiagram
+  class GovernanceContributionLifetime {
+    +contribute(registerCleanup, access, command)
+    +stopAccepting()
+    +close() closed或pending
+  }
+  class Caller {
+    state: open或closing或closed
+    settled: boolean
+    done: Promise
+  }
+  class OriginalGroup {
+    binding: 完整原身份及摘要
+    members: 调用方集合
+    work: 至多一个在途清理
+  }
+  GovernanceContributionLifetime *-- Caller
+  GovernanceContributionLifetime *-- OriginalGroup
+  Caller --> GovernanceRegistrar : 独立入口闸门
+  Caller --> OriginalGroup : 准入核验后附着
+  OriginalGroup --> GovernanceContributionCleanup
+  GovernanceContributionCleanup --> SqlOperationCoordinator : 精确撤除及accept证明
+  GovernanceContributionCleanup --> GovernanceStandingCoordinator : 原资格结算
+```
+
+调用方关闭先同步关闸，再由提供者收尾。定义来源卡住时，关闭保持 pending，但其他登记可以继续。数据库暂时不可用时，提供者保留该组并自动重试。每批只启动有限数量的组，每组只允许一个在途清理，避免一个未返回的请求拖住所有组。
+
+```mermaid
+sequenceDiagram
+  participant C as 调用方
+  participant L as 贡献控制器
+  participant R as 独立Registrar
+  participant S as SQL
+  participant I as Identity
+  C->>L: contribute
+  L->>C: 同步登记清理承担者
+  L->>R: 核验准入并执行
+  R-->>L: 核验后的原绑定
+  C->>L: dispose
+  L->>R: 同步stopAccepting
+  L->>S: retire原操作
+  alt 原记录缺失
+    L->>L: 确认所有本地调用已返回
+    L->>S: 查询原accept是否未提交且未排队
+  else 原记录存在
+    L->>S: 确认封口或精确撤除及原终态
+    L->>I: 结算原Standing
+  end
+  alt 证明与排空均完成
+    L-->>C: closed
+  else 超时或依赖不可用
+    L-->>C: pending，提供者继续持有并重试
+  end
+```
+
+普通工厂对外仍只有五个应用方法与关闭接口。内部运行时把贡献控制器交给Cordis适配器，公共根入口不导出它。实际fiber接线及卸载验证见下节。
+
+
+## Cordis生命周期的实然装配
+
+调用方fiber相当于登记的使用者，提供者fiber负责保管尚未结束的清理。二者的退出时间可以不同。调用方离开后，即使数据库暂时不可用，提供者仍会重试原操作，不会把这项责任丢给已经离开的调用方。
+
+```mermaid
+classDiagram
+  class GovernanceLocalPlugin {
+    +inject storage
+    +inject principalVerifier
+    +inject tenantStanding
+    +inject standingReservations
+  }
+  class LocalGovernanceService {
+    +contribute(access, command)
+    +withdraw(access, command)
+    +adopt(access, command)
+    +readCatalog(access, request)
+    +queryOperation(access, query)
+  }
+  GovernanceLocalPlugin --> GovernanceRuntime : 恢复后公开
+  GovernanceLocalPlugin --> RetainedShutdown : 提供者关闭及自动重试
+  LocalGovernanceService --|> GovernanceContributionsService
+  LocalGovernanceService --> CallerFiber : this.ctx登记effect
+  LocalGovernanceService --> GovernanceContributionLifetime
+  GovernanceRuntime --> GovernanceProviderLifetime
+  GovernanceRuntime --> GovernanceContributionLifetime
+  RetainedShutdown --> GovernanceRuntime : 单一在途close
+```
+
+服务继承公共契约已有的唯一Service定义，没有另建服务键。contribute使用普通函数保留Cordis追踪的调用方ctx。其他应用方法沿用普通服务入口，保持各自原有的准入与持久协调。
+
+```mermaid
+sequenceDiagram
+  participant A as 外部装配
+  participant P as 提供者fiber
+  participant R as 普通运行时
+  participant C as 调用方fiber
+  A->>P: 注入SQL及Identity
+  P->>P: 登记提供者清理责任
+  P->>R: 启动隔离及历史恢复
+  R-->>P: created
+  P->>P: 构造唯一Service并激活
+  C->>P: contribute
+  P->>C: 在调用方ctx登记清理
+  C->>P: 卸载调用方
+  P->>R: 精确贡献清理
+  A->>P: 卸载提供者
+  P->>R: 关闭入口并执行close
+  alt 本次关闭pending
+    P-->>A: 首次pending通知
+    loop 保留责任，单一在途任务
+      P->>R: 重试close
+    end
+  end
+  P-->>A: 确认后发送closed通知
+```
+
+Cordis会等待异步启动返回再完成卸载。启动仍悬挂时，没有可供消费者调用的服务，不能声称启动已取消。启动途中显式卸载或依赖失效的实际测试均检查没有晚到服务激活。进程重启仍靠持久恢复，不靠这张图中的JavaScript对象。
+
+此装配已有真实Cordis、SQLite和Identity测试。生产声明发行、当前事实和Settings/ActionAdmission接线仍未完成，不能据此宣称C3b整体验收通过。

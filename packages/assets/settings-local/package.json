@@ -17,6 +17,11 @@
       "source": "./src/identity.ts",
       "types": "./dist/identity.d.ts",
       "import": "./dist/identity.js"
+    },
+    "./preparation": {
+      "source": "./src/preparation.ts",
+      "types": "./dist/preparation.d.ts",
+      "import": "./dist/preparation.js"
     }
   },
   "files": [

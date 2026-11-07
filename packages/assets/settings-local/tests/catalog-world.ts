@@ -98,6 +98,7 @@ export async function openCatalogWorld(
       ownerRef: 'deployment',
     })
   const record = {
+    publicationRef: null,
     target: w.change.target,
     definition,
     sources: ownerSources('tenant'),

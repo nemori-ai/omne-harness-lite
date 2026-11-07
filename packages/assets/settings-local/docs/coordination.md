@@ -89,7 +89,7 @@ attempt 封口必须在一次物理提交中先读取 terminal observation，再
 逻辑键的不同分量保证不同种类、主体、域和 attempt 不混同。该论证依赖规范编码、摘要抗碰撞、完整绑定核对和可信路由。既有来源保留模型固定了身份；它不能替代上述绑定精化义务。实现验收应分别制造去掉 kind、换 attempt、跨域、同名 catalog 目标、旧 resolver 清新门和 unknown 分配后继的反例，并用真实数据库观察效果。
 
 
-恢复引用的内部编解码现位于 recovery-reference.ts。它严格接受 settings-recovery/1 的 capture/attempt 形状，要求规范 JSON，并按 Identity 的16384 UTF-8字节上限拒绝超限输入。恢复键区分完整域、主体、种类及精确操作身份。当前 resolver 与 terminal 仍使用旧路径，新编码尚未接入完整准备提供者；解码成功不证明资格或持久尝试存在。
+恢复引用的内部编解码现位于 recovery-reference.ts。它严格接受 settings-recovery/1 的 capture/attempt 形状，要求规范 JSON，并按 Identity 的16384 UTF-8字节上限拒绝超限输入。恢复键区分完整域、主体、种类及精确操作身份。准备服务的 attempt resolver 已使用新编码及终态命名空间；现行应用中的 capture 与旧写入路线仍待迁移。解码成功不证明资格或持久尝试存在。
 
 目标投影现携带 enabled。Assets 的禁用目标保留管理读取及配值管理能力，运行捕获拒绝该目标。独立 Settings 目标在现行提供者中投影 enabled=true；retire、声明撤除和运行采用仍由各自状态决定，不能以该字段替代。snapshot 和 catalog 保留字段，公共条目以 targetEnabled 展示，避免与同名配置项混淆。
 
@@ -101,7 +101,7 @@ ready只读检查业务terminal仍开放，不能复用consume写入committed。
 
 来源门的只读readiness投影先进入commit-plan，实际检查和清门由后续source-retention负责。同一事务内不允许它们之间插入另一写入。外部seal使用不依赖当前治理或来源就绪的独立seal-plan，再经同一终态、来源与持久写入链。ready、commit和seal组合分别选择一个plan生产者，不能把它们同时登记进一个组合。终态只读观察不依赖终态写入fact，因此不会与计划成环。各写者继续独占自己的表；不能拆成两个争用同一表的写者。数组排列不等于SqlStorage执行顺序。
 
-当前这部分是持久提供者的实现义务。intent-migration与preparing-migration已安装基础关系及preparing字段，intent-records提供私有分配/读取写者。standing-custody已提供Identity完整请求和回执的私有保管写者。真实协调调用、来源保留、ready/commit组合和生产接线尚未完成。
+checkpoint、ready、commit 和恢复事务组合已接通正式参与者。checkpoint 保存分配、Standing 和来源保管记录；源更新根与精确来源门共同建立。原操作认回不重新起门，迟到回执只能归入原 attempt；settled 记录须匹配该 attempt 的终态。公开准备服务及真实 Identity 资格/保留协调已接通；实际应用 current 生产者、组织来源与消费者切换尚未完成。
 
 ### Identity请求与回执的持久保管
 
@@ -119,7 +119,7 @@ ready只读检查业务terminal仍开放，不能复用consume写入committed。
 
 保留恢复枚举只返回请求与路由，不搬运设置值。待决门使用独立索引枚举，所以零held的待决修改仍会恢复。页长最多100，排序键来自完整身份摘要，点查继续核对完整绑定。数据库查询计划测试确认实际使用部分索引，不据此声称具体吞吐或延迟。
 
-真实source-snapshot和来源保留参与者已接通，赋值、rebase及独立目标写者遵守held/pending。关系测试中的终态仍由夹具提供。组织来源准入、目的resolver、根更新完成和资产拥有者失效接线尚未完成。只有完成这些组合后，才能声称SettingsSourceRetention模型的全部前提由实现兑现。
+真实source-snapshot和来源保留参与者已接通，赋值、rebase及独立目标写者遵守held/pending。关系测试中的终态仍由夹具提供。业务提交组合已实现根结果与精确源门的共同终结。组织来源准入、目的 resolver 和完整公开协调仍未完成。只有完成这些组合后，才能声称SettingsSourceRetention模型的全部前提由实现兑现。
 
 
 来源保留的目的身份还显式包含ownerRef。相同域、根和attempt属于不同目的拥有者时，应产生不同的保留身份。路由属于完整绑定，但不能替代拥有者身份。模型中的不同destination在源码中精化为这些身份分量的元组，索引摘要之外仍核对完整请求。摘要碰撞应冲突，不能认作另一拥有者的held。目的拥有者隔离由真实SQL测试检查，有限来源模型没有单独枚举摘要碰撞。
@@ -174,12 +174,12 @@ flowchart LR
 
 ready的终态动作仅观察，不写committed；来源动作为none，不清门。非终态观察不能满足成功提交，no-action不能授予write-open。实际写者必须核对动作种类及完整绑定。合成描述符已通过真实manifest校验，但真实组合和上述行为仍须在完整提供者中验证。
 
-`source-readiness`只读实际来源门和held数量，返回绑定完整根、命令及精确attempt的事实。它没有上游fact依赖，也不清门或释放保留。它要求组合登记来源表拥有者；登记不表示执行写者。真实SQL测试检查pending、held、零held重开、无关目标和错绑消费者，但源更新准入与完整提交尚未接通。
+`source-readiness`只读实际来源门和held数量，返回绑定完整根、命令及精确attempt的事实。它没有上游fact依赖，也不清门或释放保留。它要求组合登记来源表拥有者；登记不表示执行写者。真实SQL测试检查pending、held、零held重开、无关目标和错绑消费者，源门就绪事实已进入业务提交计划；源更新准入和公开协调仍未完成。
 
 
 ### 根与尝试的终结写入
 
-私有 `intent-settlement.ts` 在持久写者内落实已决定的 commit、最终业务拒绝、精确 attempt seal 和根取消。它只消费可信事务计划及来源写者的结果，不做准入、当前依据检查或配值计算。生产参与者尚未调用该模块。
+私有 `intent-settlement.ts` 在持久写者内落实已决定的 commit、最终业务拒绝、精确 attempt seal 和根取消。它只消费可信事务计划及来源写者的结果，不做准入、当前依据检查或配值计算。恢复与业务提交的正式持久参与者均消费该模块。
 
 每个 attempt 事件核对持久根的命令种类、语义摘要和精确 attempt 身份。preparing 不能成功提交。普通 seal 只将该 attempt 标为 aborted，根继续开放；已 aborted 的旧 attempt 不触碰后继。取消也可结束没有活跃 attempt 的开放根。已终结根保留原结果，不能再次分配。最终业务拒绝保存为 aborted，不能把它当成 SQL 冲突回滚。
 
@@ -200,15 +200,25 @@ attempt终态仍由st_terminals承载，但新记录带attempt标签与完整绑
 
 来源终结投影验证计划与terminal结果，随后向唯一来源写者发出精确动作。其finalized结果不满足直接写入所需的open事实。持久写者核验来源finished结果后再修改根和attempt。源根取消允许仍有held，但不释放这些保留；它们须由各自目的终态另行结算。
 
-真实组合测试覆盖封口认回、当前选择冲突、旧attempt隔离、根和精确门共同终结以及下游故障后的整组回滚。根分配和起始来源门由夹具设置，六个恢复参与者采用生产模块。公共prepare/commit、可信resolver装配、capture路径和旧held排空尚未完成。
+真实组合测试覆盖封口认回、当前选择冲突、旧attempt隔离、根和精确门共同终结以及下游故障后的整组回滚。根分配和起始来源门由夹具设置，六个恢复参与者采用生产模块。公开 prepare/commit 和 attempt resolver 已消费这些组合；应用中的 resolver 路由装配、capture 迁移与旧 held 排空尚未完成。
 
 
 ### preparing发布为prepared
 
-私有 `intent-ready.ts` 只更新精确attempt的basis及prepared状态。它核对原命令、活跃attempt、准备计划和当前basis相等，以及绑定相同attempt的开放终态观察。它不写业务值或terminal，不清来源门，也不释放外部保留。当前事实与开放观察必须由可信事务生产者提供；当前模块尚未接入完整生产ready组合。
+私有 `intent-ready.ts` 只更新精确attempt的basis及prepared状态。它核对原命令、活跃attempt、准备计划和当前basis相等，以及绑定相同attempt的开放终态观察。它不写业务值或terminal，不清来源门，也不释放外部保留。当前事实与开放观察必须由可信事务生产者提供；ready 事务组合已消费该模块；公开准备服务已消费该路径；实际应用 current 生产者与消费者切换尚未完成。
 
 普通change要求完整Identity请求及回执仍为held，destination、真实scope和资格集合须匹配当前要求。受信维护rebase使用显式维护权威分支，普通change不能以该分支跳过Identity。该分支的权威真实性归维护适配器，Schema不授予资格。
 
 来源必须有明确的完整清单。缺失清单不等于空集合；planned、requested或settled成员均不满足held要求。读取者核对清单摘要、完整请求向量和全部成员状态。一次主键范围查询最多返回1025条请求元数据，不加载快照，也不为每个来源重复读取根。展开后的请求向量同样受现有节点和字符串字节预算约束。空集合没有外部请求，改变空集合的路由不改变语义；非空集合的完整请求包含路由。
 
 当前真实Worker关系测试覆盖缺保留、部分保留、settled、显式空集合、绑定或basis变化、回滚、重开及封口后迟到ready。当前依据、开放终态观察和外部回执由具名夹具提供。这些测试不是动态治理current事实、真实外部保留或公开prepareChange的验收。
+
+## 公开准备协调与明确回滚
+
+preparation 子入口将 service 与 control 分开。service 接收 Settings 的业务命令和准备引用；control.destination 只交给 Identity 的可信恢复路由。构造时固定域、事务注册、当前依据生产者和外部保留端口，普通客户端不能选择这些材料。
+
+公开服务按原命令认回根与活跃 attempt，先持久记录 requested 再调用外部服务。getOperation 只读；commit 读取持久原命令并取得新的事务依据。已知业务结果不会因为事后 settlement 暂不可用而被改写，未清的保管义务仍留在持久记录中。
+
+SqlStorage 会保存明确 rolled_back 回执。因此该 SQL attempt 不能在原身份下改成成功提交。协调者在取得这份证据后封住精确 attempt，再按既有规则结算保留。普通根仍可接受下一次显式 prepare；源更新根遵守原有 seal 规则，同时终结并清理自己的门。结果 unknown 时不走该清理路径，也不自动换 attempt。
+
+真实 Identity 测试覆盖先撤权后提交、先提交后撤权，以及 SQL 受理前暂停提交时完成撤权。恢复直接核对持久 Standing 请求和终态，不重新申请已撤回资格。应用的 current 组装、组织来源、capture 迁移及旧调用者切换仍是未完成的集成义务。

@@ -10,7 +10,8 @@ import {
   type SettingsTargetProjection,
 } from '@omne-harness/settings-local'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
-import { canonical, equal, json, scopeRef, withinBudget } from './encoding.ts'
+import { canonical, digest, equal, json, scopeRef, withinBudget } from './encoding.ts'
+import { assetsPublicationFact, AssetsPublicationProjectionSchema } from './publication.ts'
 import { belongs, readDomain, readHolding, selectedVersion } from './records.ts'
 
 function targetView(
@@ -25,7 +26,7 @@ function targetView(
   if (!selected) return null
   if (selected.version.declaration.kind === 'none') return 'undeclared' as const
   const { definition, definitionRef } = selected.version.declaration
-  return SettingsTargetProjectionSchema.parse({
+  const view = SettingsTargetProjectionSchema.parse({
     target,
     enabled: holding.enabled,
     definition,
@@ -34,6 +35,7 @@ function targetView(
     grants: holding.grants,
     ownerRevision: selected.ownerRevision,
   })
+  return { view, version: selected.version }
 }
 export function guard(port: ParticipantPort, binding: SettingsSqlGuardBinding) {
   const fail = (reason: 'forbidden' | 'definition_changed' | 'limit_exceeded') => ({
@@ -44,8 +46,9 @@ export function guard(port: ParticipantPort, binding: SettingsSqlGuardBinding) {
     }),
   })
   if (!belongs(port, binding.domain)) return fail('forbidden')
-  const view = targetView(port, binding, binding.command.target)
-  if (!view || view === 'undeclared') return fail('forbidden')
+  const current = targetView(port, binding, binding.command.target)
+  if (!current || current === 'undeclared') return fail('forbidden')
+  const { view } = current
   if (!equal(view.definitionRef, binding.command.definitionRef)) return fail('definition_changed')
   if (!withinBudget(view)) return fail('limit_exceeded')
   port.provideFact(
@@ -77,8 +80,11 @@ function currentViews(
   port: ParticipantPort,
   binding: SettingsProjectionBinding,
   selected: readonly SettingsTargetProjection['target'][],
-): SettingsTargetProjection[] | undefined {
-  const views: SettingsTargetProjection[] = []
+) {
+  const views: {
+    view: SettingsTargetProjection
+    version: NonNullable<ReturnType<typeof selectedVersion>>['version']
+  }[] = []
   const seen = new Set<string>()
   for (const target of selected) {
     const key = canonical(target)
@@ -92,27 +98,68 @@ function currentViews(
     )
       continue
     if (!view || view === 'undeclared') return undefined
-    if (binding.request.mode === 'runtime' && !view.enabled) return undefined
+    if (binding.request.mode === 'runtime' && !view.view.enabled) return undefined
     views.push(view)
   }
   return views
 }
-export function capture(port: ParticipantPort, binding: SettingsProjectionBinding) {
-  const fail = (reason: 'forbidden' | 'limit_exceeded') => ({
+export function capture(
+  port: ParticipantPort,
+  binding: SettingsProjectionBinding,
+  publication = false,
+) {
+  const fail = (reason: 'forbidden' | 'limit_exceeded' | 'invalid_input') => ({
     kind: 'conflict' as const,
     basis: json({ binding, failure: { kind: 'rejected', reason } }),
   })
+  if (
+    publication &&
+    new Set(binding.request.targets.map(canonical)).size !== binding.request.targets.length
+  )
+    return fail('invalid_input')
   const current = readDomain(port)
   const scope = scopeRef(binding.domain)
   if (scope === null || (current && !equal(current.domain, binding.domain)))
     return fail('forbidden')
   const selected = captureTargets(port, binding, scope)
   if (selected.length > 128) return fail('limit_exceeded')
-  const views = currentViews(port, binding, selected)
-  if (!views) return fail('forbidden')
-  const projection = { binding, views }
+  const currentTargets = currentViews(port, binding, selected)
+  if (!currentTargets) return fail('forbidden')
+  const projection = { binding, views: currentTargets.map(current => current.view) }
   if (!withinBudget(projection)) return fail('limit_exceeded')
   const fact = json(SettingsOwnerProjectionSchema.parse(projection))
   port.provideFact(settingsAssetsProjectionFact, fact)
+  if (publication) return capturePublications(port, binding, currentTargets)
   return { kind: 'participated' as const, response: fact }
+}
+
+function capturePublications(
+  port: ParticipantPort,
+  binding: SettingsProjectionBinding,
+  currentTargets: NonNullable<ReturnType<typeof currentViews>>,
+) {
+  const publications = AssetsPublicationProjectionSchema.parse({
+    binding,
+    views: currentTargets.map(({ view, version }) => ({
+      target: view.target,
+      definitionRef: view.definitionRef,
+      ownerRevision: view.ownerRevision,
+      publicationRef: {
+        assetRef: version.assetRef,
+        category: version.category,
+        name: version.name,
+        version: version.version,
+        source: version.source,
+        bodyDigest: digest(version.body),
+      },
+    })),
+  })
+  if (!withinBudget(publications))
+    return {
+      kind: 'conflict' as const,
+      basis: json({ binding, failure: { kind: 'rejected', reason: 'limit_exceeded' } }),
+    }
+  const publicationFact = json(publications)
+  port.provideFact(assetsPublicationFact, publicationFact)
+  return { kind: 'participated' as const, response: publicationFact }
 }

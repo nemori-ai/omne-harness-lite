@@ -50,6 +50,15 @@ export function assetsSettingsProjectionCommand(binding: SettingsProjectionBindi
     facts: { kind: 'capture', binding: json(SettingsProjectionBindingSchema.parse(binding)) },
   }
 }
+export function assetsPublicationCommand(binding: SettingsProjectionBinding): FactCommandV2 {
+  return {
+    participant: PARTICIPANT,
+    facts: {
+      kind: 'capturePublication',
+      binding: json(SettingsProjectionBindingSchema.parse(binding)),
+    },
+  }
+}
 function publishCommand(options: AssetsLocalOptions, input: AssetsPublish) {
   if (!withinBudget(input)) return fail('limit_exceeded')
   const metadata = publishMetadataSchema.safeParse({

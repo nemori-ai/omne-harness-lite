@@ -1,6 +1,11 @@
-import type { CommitRequestV2 } from '@omne-harness/sql-contract'
+import type { CommitRequestV2, FactCommandV2 } from '@omne-harness/sql-contract'
 import type { GovernanceDefinitionSource } from '@omne-harness/governance-contract'
-import { MUTATION_PLANNER, METADATA_PLANNER, controlRequestSchema } from './activation-schema.ts'
+import {
+  MUTATION_PLANNER,
+  ADOPTION_PLANNER,
+  METADATA_PLANNER,
+  controlRequestSchema,
+} from './activation-schema.ts'
 import { GOVERNANCE_OWNER } from './migration.ts'
 import type { GovernanceAdmission } from './admission.ts'
 import type { SqlOperationCoordinator } from './sql-coordinator.ts'
@@ -12,11 +17,18 @@ import {
   type GovernanceRequest,
   type Execution,
   type OperationRecord,
-  type OperationBinding,
+  type PublicOperationBinding as OperationBinding,
 } from './operation-schema.ts'
 import { qualificationsSchema } from './standing-schema.ts'
 
-export type MutationRequest = Extract<GovernanceRequest, { owner: 'contribute' | 'withdraw' }>
+export type CommandRequest = GovernanceRequest
+export type AdoptionProjection = (
+  input: Readonly<{
+    binding: OperationBinding
+    epoch: string
+    command: Extract<GovernanceRequest, { owner: 'adopt' }>['command']
+  }>,
+) => readonly FactCommandV2[]
 export type Admitted = Extract<
   Awaited<ReturnType<GovernanceAdmission['check']>>,
   { kind: 'admitted' }
@@ -24,19 +36,19 @@ export type Admitted = Extract<
 export type MutationCombination = Omit<Execution, 'authority'>
 export const mutationCombinationSchema = executionSchema.omit({ authority: true })
 
-export function captureMutation(input: MutationRequest) {
+export function captureCommand(input: CommandRequest) {
   try {
     if (Buffer.byteLength(canonical(input)) > 1024 * 1024)
       return { kind: 'limited' as const, resource: 'command-bytes' }
     const parsed = requestSchema.safeParse(input)
-    if (parsed.success && parsed.data.owner !== 'adopt' && equal(input, parsed.data))
+    if (parsed.success && equal(input, parsed.data))
       return { kind: 'captured' as const, request: parsed.data }
   } catch {
     // Invalid local values do not enter persistence or identity checks.
   }
   return { kind: 'invalid-input' as const, field: 'command', reason: 'shape' }
 }
-function authority(request: MutationRequest, admitted: Admitted) {
+function authority(request: CommandRequest, admitted: Admitted) {
   return {
     protocol: 'governance-admission/1',
     principalRef: admitted.principalRef,
@@ -67,7 +79,7 @@ export async function registrarExecution(
   sql: SqlOperationCoordinator,
   binding: OperationBinding,
   record: OperationRecord | null,
-  request: MutationRequest,
+  request: CommandRequest,
   admitted: Admitted,
   source: GovernanceDefinitionSource,
   combination: MutationCombination,
@@ -110,6 +122,25 @@ export function mutationEnvelope(
     manifestDigest: execution.manifestDigest,
     commands: [
       { participant: MUTATION_PLANNER, facts: { request: json(request) } },
+      { participant: GOVERNANCE_OWNER, facts: { requestDigest: digest(request) } },
+    ],
+  }
+}
+
+export function adoptionEnvelope(
+  transactionDomain: string,
+  binding: OperationBinding,
+  execution: Execution,
+  current: readonly FactCommandV2[],
+): CommitRequestV2 {
+  const request = { binding, execution }
+  return {
+    identity: operationIdentity(transactionDomain, binding.ref),
+    combinationVersion: execution.combinationVersion,
+    manifestDigest: execution.manifestDigest,
+    commands: [
+      ...current,
+      { participant: ADOPTION_PLANNER, facts: { request: json(request) } },
       { participant: GOVERNANCE_OWNER, facts: { requestDigest: digest(request) } },
     ],
   }

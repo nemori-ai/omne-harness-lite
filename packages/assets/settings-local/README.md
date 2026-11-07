@@ -4,7 +4,7 @@
 
 Independent targets use this package's persistent owner. Asset targets consume [assets-local](../assets-local/README.md) owner facts. Neither declaration registration nor runtime selection creates a target or grants access. Ordinary tenant services verify an issued Identity principal and bind every target to that principal's tenant. Trusted deployment maintenance has a separate capability described below.
 
-Public types and Schemas are exported from [src/index.ts](src/index.ts). Non-type behavior belongs to [SPEC.md](SPEC.md). Read the Chinese [architecture explanation](docs/architecture.md) for module, object, and sequence diagrams, and [Identity coordination](docs/coordination.md) for reservations and recovery.
+Common types and Schemas are exported from [src/index.ts](src/index.ts). Prepared coordination is exported from [src/preparation.ts](src/preparation.ts). Non-type behavior belongs to [SPEC.md](SPEC.md). Read the Chinese [architecture explanation](docs/architecture.md) for module, object, and sequence diagrams, and [Identity coordination](docs/coordination.md) for reservations and recovery.
 
 ## Choose and register an assembly
 
@@ -30,6 +30,28 @@ const guards = createSettingsTargetGuards(project)
 `SettingsProjectionBinding` and these factories come from this package's root entry. With Assets installed, replace the empty contribution with the Asset owner's public projection command. The independent owner has separate mutation and read-only projection participants. Use the command factories rather than hard-coding their IDs. Each owner fact has exactly one producer. The central guard rejects mismatched bindings or duplicate complete targets. Settings never reads Asset or Identity private tables.
 
 For persistence without a catalog, `createSettingsSqlBackend` accepts a trusted `access` adapter and a same-transaction `guards` participant. `standaloneSettingsGuards` with default `settingsStandaloneMaterials()` supports the independent owner directly. Do not combine that direct guard producer with the central guard producer. Custom owner guards must implement the [fact protocol](SPEC.md#target-qualification).
+
+## Prepared command service
+
+The `@omne-harness/settings-local/preparation` entry provides the accepted prepare/commit/cancel/query protocol. `createSettingsPreparationBackend` accepts trusted assembly adapters. `createIdentityQualifiedSettingsPreparation` connects Identity verification, current tenant standing and actual reservations. Its system-domain form also requires organization-settings-manage; the target owner must still authorize the organization and action.
+
+Give ordinary clients only the returned `service`. Register `control.destination` with Identity's trusted resolver. `control.close()` rejects new calls and drains accepted calls; it does not close the shared SqlStorage or erase durable pending work. Do not expose construction adapters or recovery control as client commands.
+
+Register four fixed phase combinations from `settingsPreparationMaterials()` and the exported participant sets. Ready and commit also require the application's actual current-fact producers. Use these materials instead of the direct persistence writer set; registering both would claim the same tables twice. The constructor accepts fixed registration references, never participant choices from a client request.
+
+```ts
+const prepared = await backend.service.prepareChange(principal, command)
+if (prepared.kind === 'prepared') {
+  const result = await backend.service.commitChange(principal, {
+    requestId: command.requestId,
+    preparation: prepared.preparation,
+  })
+}
+```
+
+The preparation reference is not authority. Every call rechecks caller access, and commit consumes fresh transaction facts. `getOperation` only reads. An unknown reply retains the original operation identity. A confirmed SQL rollback seals that attempt before an explicit reprepare; an unknown SQL result does not permit that cleanup. Neither path rewrites expectedRevision or silently invents a replacement business operation.
+
+Application consumers still use the direct command route below. Switching them requires the actual current and organization-source adapters, replacement of the old write route, and draining its old reservations. The library factory does not establish that migration or full application acceptance. See [prepared coordination](SPEC.md#protected-preparation-coordinator) for the behavioral contract.
 
 ## Provide tenant services
 

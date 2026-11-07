@@ -15,6 +15,13 @@ import { GOVERNANCE_STAGE_MIGRATION, GOVERNANCE_SQL_TABLES } from './sql-stage-m
 import { OPERATION_HANDLER } from './operation-read.ts'
 import { STAGE_HANDLER } from './sql-stage-read.ts'
 import { RECOVERY_HANDLER } from './recovery-read.ts'
+import { CATALOG_CURRENT, CATALOG_SNAPSHOT } from './catalog-schema.ts'
+import { SCOPE_HANDLER } from './scope.ts'
+import { OPERATION_REFERENCE_HANDLER } from './operation-reference-read.ts'
+import {
+  GOVERNANCE_TARGET_PROJECTION,
+  governanceTargetProjectionFact,
+} from './target-projection.ts'
 import { CONTRIBUTION_HANDLER } from './contribution-read.ts'
 
 export function governanceSqlMigrations(): SqlMaterialCatalog['migrations'] {
@@ -93,6 +100,24 @@ export function governanceSqlMaterials(): Pick<
     readHandlers: [
       ...governanceRecoveryReadMaterials(),
       {
+        ...SCOPE_HANDLER,
+        ...participantFile('scope'),
+        ordering: 'domain-serial',
+        readTables: ['gc_scope'],
+        requiresMigrations: [GOVERNANCE_MIGRATION],
+        maxOutputBytes: 8 * 1024,
+        maxRowsRead: 1,
+      },
+      {
+        ...OPERATION_REFERENCE_HANDLER,
+        ...participantFile('operation-reference-read'),
+        ordering: 'domain-serial',
+        readTables: ['gc_operation'],
+        requiresMigrations: [GOVERNANCE_MIGRATION],
+        maxOutputBytes: 3 * 1024 * 1024,
+        maxRowsRead: 1,
+      },
+      {
         ...CONTRIBUTION_HANDLER,
         ...participantFile('contribution-read'),
         ordering: 'domain-serial',
@@ -121,6 +146,33 @@ export function governanceSqlMaterials(): Pick<
       },
     ],
     participants: [
+      {
+        ...GOVERNANCE_TARGET_PROJECTION,
+        ...participantFile('target-projection-participant'),
+        ownedTables: [],
+        readTables: ['gc_scope', 'gc_contribution', 'gc_definition', 'gc_selected_target'],
+        requiresFacts: [],
+        providesFacts: [governanceTargetProjectionFact],
+        allowedFunctions: [],
+        grouping: 'groupable',
+      },
+      {
+        ...CATALOG_SNAPSHOT,
+        ...participantFile('catalog-snapshot'),
+        ownedTables: [],
+        readTables: [
+          'gc_scope',
+          'gc_contribution',
+          'gc_definition',
+          'gc_member',
+          'gc_selected_target',
+          'gc_operation',
+        ],
+        requiresFacts: [CATALOG_CURRENT],
+        providesFacts: [ACTIVATION_PLAN],
+        allowedFunctions: [],
+        grouping: 'groupable',
+      },
       {
         participant: GOVERNANCE_OWNER,
         protocol: ACTIVATION_PROTOCOL,

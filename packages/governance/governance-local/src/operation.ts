@@ -1,4 +1,4 @@
-import type { GovernanceOperationRef } from '@omne-harness/governance-contract'
+import type { OperationRef } from './operation-schema.ts'
 import type { ParticipantPort, ReadPort } from '@omne-harness/sql-contract/worker'
 import { canonical, digest, equal, operationIdentity, scopeKey } from './encoding.ts'
 import {
@@ -14,13 +14,13 @@ import {
 } from './operation-schema.ts'
 import { readScope } from './scope.ts'
 export const conflict = () => ({ kind: 'conflict' as const, reason: 'operation' as const })
-export const operationParams = (ref: GovernanceOperationRef) => [
+export const operationParams = (ref: OperationRef) => [
   scopeKey(ref.scope),
   ref.owner,
   ref.principalRef,
   ref.operationId,
 ]
-export function readOperation(port: ReadPort, ref: GovernanceOperationRef) {
+export function readOperation(port: ReadPort, ref: OperationRef) {
   const row = port.execute(
     'SELECT request_json,request_digest,accepted_epoch,sql_identity_json,state,execution_json,result_json FROM gc_operation WHERE scope_key=? AND command_owner=? AND principal_ref=? AND operation_id=? LIMIT 1',
     operationParams(ref),

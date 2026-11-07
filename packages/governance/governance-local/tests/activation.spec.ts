@@ -214,3 +214,35 @@ it('rejects a current producer body that schema normalization would silently cha
     ),
   ).toMatchObject({ kind: 'rolled_back' })
 })
+
+it('closes only its exact epoch, seals pending operations and retains committed history', async () => {
+  const w = await open(),
+    input = command('committed-before-close')
+  const prepared = await prepare(w, input)
+  const committed = found.parse(await w.apply('mutation', prepared.request)).record
+  const pending = command('pending-before-close')
+  await w.control({ kind: 'accept', input: pending })
+  expect(await w.control({ kind: 'close-scope', input: { scope, epoch: 'first' } })).toEqual({
+    kind: 'closed',
+    scope,
+    epoch: 'first',
+  })
+  const sealed = await w.control({ kind: 'seal', binding: binding(pending) })
+  expect(sealed).toMatchObject({ record: { state: 'aborted', result: { kind: 'sealed' } } })
+  expect(
+    await w.response(await w.commit('mutation', w.businessCommands('mutation', prepared.request))),
+  ).toEqual({ kind: 'found', record: committed })
+  expect(await w.control({ kind: 'accept', input: command('too-late') })).toMatchObject({
+    kind: 'conflict',
+    reason: 'basis',
+  })
+  await w.control({ kind: 'bootstrap', input: { scope, epoch: 'second', previousEpoch: 'first' } })
+  expect(await w.control({ kind: 'close-scope', input: { scope, epoch: 'first' } })).toEqual({
+    kind: 'obsolete',
+    scope,
+    epoch: 'first',
+  })
+  expect(
+    await w.control({ kind: 'accept', input: { ...command('successor'), epoch: 'second' } }),
+  ).toMatchObject({ kind: 'found', record: { state: 'accepted' } })
+})

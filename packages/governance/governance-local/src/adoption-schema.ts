@@ -10,7 +10,7 @@ import {
   SettingsDefinitionRefSchema,
   SettingsTargetSchema,
 } from '@omne-harness/settings'
-import { bindingSchema } from './operation-schema.ts'
+import { publicBindingSchema as bindingSchema } from './operation-schema.ts'
 
 export const adoptionEvidenceSchema = z.strictObject({
   binding: bindingSchema,

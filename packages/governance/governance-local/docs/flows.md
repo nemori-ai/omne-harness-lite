@@ -2,7 +2,7 @@
 
 ## 流程
 
-当前可运行的是迁移材料装配。业务贡献与采用流程仍在实现。
+材料安装、普通应用服务和Cordis生命周期已实现。生产声明发行、current事实及跨域消费者仍待组合。
 
 ```mermaid
 sequenceDiagram
@@ -20,11 +20,11 @@ sequenceDiagram
 
 ## 失败与生命周期
 
-材料文件缺失不能静默变成空迁移。数据库约束失败使所在事务失败。重开读取同一数据库不重新创建已有关系；迁移的版本与摘要由 SqlStorage 认回。业务 unknown、seal、reserve 和 fiber 卸载的完整流程由后续 Provider 补齐，不由本迁移测试证明。
+材料文件缺失不能静默变成空迁移。数据库约束失败使所在事务失败。重开读取同一数据库不重新创建已有关系；迁移的版本与摘要由 SqlStorage 认回。unknown、seal、reserve及fiber卸载由应用协调器与生命周期控制负责，迁移测试不证明这些行为。
 
 ## 登记、撤除与恢复事务
 
-实际私有业务写者已接入 Worker 测试。测试协调器的主体、来源和资格材料是夹具，尚未成为生产入口。
+生产写者已经由普通应用协调器消费。低层操作测试保留具名夹具；应用与Cordis测试使用真实Identity和SQLite，声明/current仍为具名来源夹具。
 
 ```mermaid
 sequenceDiagram
@@ -41,4 +41,4 @@ sequenceDiagram
   C->>O: 重启后按原身份认回
 ```
 
-封口在业务之前成立时，迟到执行只返回 aborted。业务先成立时，封口认回 committed。换 epoch 隔离新业务，不删除旧操作结果。真正的 Identity reserve、settle 和可信目的地恢复尚待协调器接线。
+封口在业务之前成立时，迟到执行只返回 aborted。业务先成立时，封口认回 committed。换 epoch 隔离新业务，不删除旧操作结果。Identity reserve、settle和可信目的地恢复已接入应用协调器；完整生产来源和跨域消费仍待验收。

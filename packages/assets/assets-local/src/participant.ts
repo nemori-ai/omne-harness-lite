@@ -13,6 +13,7 @@ export default {
     const command = parsed.data
     if (command.kind === 'guard') return guard(port, command.binding)
     if (command.kind === 'capture') return capture(port, command.binding)
+    if (command.kind === 'capturePublication') return capture(port, command.binding, true)
     const result = mutate(port, command.binding)
     const response = json({ binding: command.binding, result })
     return result.kind === 'committed'

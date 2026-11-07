@@ -1,10 +1,23 @@
+import type { OperationRef } from './operation-schema.ts'
 import type { ReadPort } from '@omne-harness/sql-contract/worker'
 import { boundOperation } from './operation.ts'
 import { businessRequestSchema } from './activation-schema.ts'
 
-export function businessOriginal(port: ReadPort, raw: unknown, mode: 'mutation' | 'adoption') {
+const modes = {
+  contribute: 'mutation',
+  withdraw: 'mutation',
+  adopt: 'adoption',
+  'internal.capture': 'capture',
+} as const
+export const businessMode = (owner: OperationRef['owner']) => modes[owner]
+
+export function businessOriginal(
+  port: ReadPort,
+  raw: unknown,
+  mode: 'mutation' | 'adoption' | 'capture',
+) {
   const request = businessRequestSchema.parse(raw)
-  if ((request.binding.ref.owner === 'adopt') !== (mode === 'adoption'))
+  if (businessMode(request.binding.ref.owner) !== mode)
     throw new Error('Governance request requires another planner')
   const original = boundOperation(port, request.binding)
   if (

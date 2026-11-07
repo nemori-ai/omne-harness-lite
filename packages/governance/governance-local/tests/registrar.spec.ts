@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import { access } from '@omne-harness/legal-identity'
 import { openRegistrarWorld } from './registrar-world.ts'
+import { SCOPE_HANDLER } from '../src/scope.ts'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => {
@@ -69,15 +70,71 @@ it('does not accept an operation when the original declaration cannot be verifie
   expect(await sql.observe(w.binding('changed'))).toEqual({ kind: 'absent' })
 })
 
-it('recognizes simultaneous retries once and rejects a different command under the same key', async () => {
+it('preserves queued acceptance uncertainty and recognizes the original completion without a second lease', async () => {
   const w = await setup()
-  const { registrar } = w.services()
-  const responses = await Promise.all([
-    registrar.contribute(w.context, w.command('one')),
-    registrar.contribute(w.context, w.command('one')),
-  ])
-  expect(responses[0]).toMatchObject({ kind: 'registered' })
-  expect(responses[1]).toEqual(responses[0])
+  const entered = Promise.withResolvers<void>()
+  const proceed = Promise.withResolvers<void>()
+  let acceptPending = false
+  let accepts = 0
+  const storage: SqlStorage = {
+    ...w.activation.storage,
+    async commit(request, options) {
+      if (request.identity.operation === 'governance.meta.accept') {
+        accepts++
+        acceptPending = true
+        entered.resolve()
+        await proceed.promise
+        try {
+          return await w.activation.storage.commit(request, options)
+        } finally {
+          acceptPending = false
+        }
+      }
+      return w.activation.storage.commit(request, options)
+    },
+    async query(identity) {
+      return acceptPending && identity.operation === 'governance.meta.accept'
+        ? { kind: 'unknown', identity, diagnostic: 'operation_pending' }
+        : w.activation.storage.query(identity)
+    },
+  }
+  const { registrar } = w.services({ storage })
+  const first = registrar.contribute(w.context, w.command('one'))
+  await entered.promise
+  try {
+    expect(await registrar.contribute(w.context, w.command('one'))).toEqual({
+      kind: 'unknown',
+      operation: w.binding('one').ref,
+    })
+    expect(accepts).toBe(1)
+  } finally {
+    proceed.resolve()
+  }
+  const registered = await first
+  expect(registered).toMatchObject({ kind: 'registered', declarationRevision: 1, state: 'active' })
+  expect(await registrar.contribute(w.context, w.command('one'))).toEqual(registered)
+  expect(
+    await registrar.queryOperation(w.context, {
+      scope: w.scope,
+      owner: 'contribute',
+      operationId: 'one',
+    }),
+  ).toEqual({
+    kind: 'committed',
+    original: { owner: 'contribute', result: registered },
+  })
+  expect(accepts).toBe(1)
+  expect(
+    await w.activation.storage.read({
+      domain: w.activation.domain,
+      ...SCOPE_HANDLER,
+      requestKey: 'single-registration-revision',
+      input: w.scope,
+    }),
+  ).toMatchObject({
+    kind: 'read',
+    output: { current: { declarationRevision: 1 } },
+  })
   const changed = w.command('one')
   changed.generation = 'different'
   expect(await registrar.contribute(w.context, changed)).toEqual({
