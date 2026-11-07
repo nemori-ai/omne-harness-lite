@@ -677,12 +677,14 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     for (let k = 0; k < LIMIT && !sentBefore; k += 1) {
       let released = false
       const onReleased: boolean[] = []
+      let calls = 0
       const c = arrange(
         {},
         {
           shape: p => ({
             transports: reshapedTransports(p.ports.transports, (transport, opened) => ({
               call(request, signal, observe) {
+                calls += 1
                 if (opened === 1) onReleased.push(released)
                 return transport.call(request, signal, observe)
               },
@@ -704,6 +706,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
       ).not.toContain(true)
       if (result.kind === 'not-sent')
         expect(result.reason, `k=${k}`).toEqual({ kind: 'connection-unavailable' })
+      else expect(calls, `k=${k}: answered sent, but no transport was called`).toBeGreaterThan(0)
       sentBefore = onReleased.includes(false)
     }
     expect(sentBefore).toBe(true)

@@ -10,7 +10,11 @@ import {
   type EndpointRef,
   type PeerAccount,
 } from '@omne-harness/mcp-contract'
-import type { AdoptedEndpoint, AdoptionView } from '@omne-harness/mcp-contract/provider'
+import type {
+  AdoptedEndpoint,
+  AdoptionView,
+  ProcessLanding,
+} from '@omne-harness/mcp-contract/provider'
 import { admit, admitWithoutEligibility, type AdmittedEndpoint } from '../src/internal/gate.ts'
 import { loseOn } from '../src/internal/lost.ts'
 import { createConnectionTable, type ConnectionTable, type Ensured } from '../src/internal/table.ts'
@@ -786,4 +790,143 @@ describe('ensure: the adoption is read again before a build (MC-5)', () => {
     expect(w.transports.calls).toHaveLength(0)
     expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'none' })
   })
+})
+
+describe('ensure: a close against the build (MC-10, MC-5, decision 23)', () => {
+  const STOPPED = { failure: { stage: 'settings', reason: { kind: 'connection-unavailable' } } }
+
+  it('a release after the process started: the build answers the refusal and tears nothing down; the release stops the process once and reports what that stop confirmed', async () => {
+    const discover = deferred<typeof peer>()
+    const w = world({ script: [{ discover }] })
+    adoptStdio(w, files)
+    const table = tableOf(w)
+    const building = table.ensure(await admitted(w, files), alice)
+    await settled()
+    const releasing = table.close(alice.tenant, files.holding)
+    discover.resolve(peer)
+    expect(await building).toEqual(STOPPED)
+    expect(await releasing).toEqual({ kind: 'released', process: 'tree-confirmed' })
+    expect(w.landing.processes()).toEqual([{ stops: 1 }])
+    expect(w.trace).toEqual(['transport.close', 'process.stop'])
+  })
+
+  it('a release while the transport opens: the build asks no discover, and the release closes the transport that opened', async () => {
+    const open = deferred<'opened'>()
+    const w = world({ script: [{ open }] })
+    adoptHttp(w, files)
+    const table = tableOf(w)
+    const building = table.ensure(await admitted(w, files), alice)
+    await settled()
+    expect(w.transports.calls.map(call => call.kind)).toEqual(['open'])
+    const releasing = table.close(alice.tenant, files.holding)
+    open.resolve('opened')
+    expect(await building).toEqual(STOPPED)
+    expect(await releasing).toEqual({ kind: 'released', process: 'no-process' })
+    expect(w.transports.calls.map(call => call.kind)).toEqual(['open', 'close'])
+  })
+
+  it('a release while the build stops what the earlier connection left: the build asks no credential', async () => {
+    const w = world({ script: [{ discover: peer }], stop: 'root-only' })
+    adoptStdio(w, files, { auth: 'static', env: [{ name: 'TOKEN', source: 'credential' }] })
+    const second = deferred<void>()
+    let stops = 0
+    const landing: ProcessLanding<Principal> = {
+      async start(access, launch, env) {
+        const answer = await w.landing.start(access, launch, env)
+        if ('failure' in answer) return answer
+        const process = answer.ok
+        return {
+          ok: {
+            ...process,
+            async stop() {
+              stops += 1
+              if (stops === 2) await second.promise
+              return process.stop()
+            },
+          },
+        }
+      },
+    }
+    const table = createConnectionTable({ ...w.ports, landing }, w.config)
+    const endpoint = await admitted(w, files)
+    expect(await table.ensure(endpoint, alice)).toMatchObject({ ok: { generation: 1 } })
+    expect(await table.close(alice.tenant, files.holding)).toEqual({
+      kind: 'released',
+      process: 'root-only',
+    })
+    const building = table.ensure(endpoint, alice)
+    await settled()
+    expect(stops).toBe(2)
+    const releasing = table.close(alice.tenant, files.holding)
+    second.resolve()
+    expect(await building).toEqual(STOPPED)
+    await releasing
+    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
+  })
+
+  const SWEEPS = [
+    { close: 'release', joined: false },
+    { close: 'release', joined: true },
+    { close: 'closeAll', joined: false },
+    { close: 'closeAll', joined: true },
+  ] as const
+
+  it.each(SWEEPS)(
+    'at whichever microtask the $close begins (joined: $joined), an ensure that settles after it hands over no handle of the closed connection; the close stops the process once and reports tree-confirmed',
+    async ({ close, joined }) => {
+      const LIMIT = 40
+      let refused = false
+      let handed = false
+      for (let m = 0; m < LIMIT; m += 1) {
+        const discover = deferred<typeof peer>()
+        const w = world({ script: [{ discover }] })
+        adoptStdio(w, files)
+        const table = tableOf(w)
+        const endpoint = await admitted(w, files)
+        const first = table.ensure(endpoint, alice)
+        const answer = joined ? table.ensure(endpoint, alice) : first
+        await settled()
+        // A clock of microtask turns. A callback on `answer` runs at most one turn after the
+        // settlement, so an answer that settled before the close is seen at most one turn after.
+        let tick = 0
+        let running = true
+        const clock = (async () => {
+          while (running) {
+            await Promise.resolve()
+            tick += 1
+          }
+        })()
+        let answeredAt = Number.POSITIVE_INFINITY
+        void answer.then(() => {
+          answeredAt = tick
+        })
+        discover.resolve(peer)
+        while (tick < m) await Promise.resolve()
+        const closedAt = tick
+        const closing =
+          close === 'release' ? table.close(alice.tenant, files.holding) : table.closeAll()
+        const result = await answer
+        const report = await closing
+        running = false
+        await clock
+        if ('ok' in result) {
+          handed = true
+          expect(
+            answeredAt - closedAt,
+            `m=${m}: settled after the close began`,
+          ).toBeLessThanOrEqual(1)
+        } else {
+          refused = true
+          expect(result, `m=${m}`).toEqual(STOPPED)
+        }
+        expect(w.landing.processes(), `m=${m}`).toEqual([{ stops: 1 }])
+        expect(report, `m=${m}`).toEqual(
+          close === 'release'
+            ? { kind: 'released', process: 'tree-confirmed' }
+            : [{ ref: files, process: 'tree-confirmed' }],
+        )
+      }
+      expect({ refused, handed }).toEqual({ refused: true, handed: true })
+    },
+  )
 })

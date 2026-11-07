@@ -93,7 +93,9 @@ describe('closeAll releases the handles of the landings in flight at once (decis
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
     stalled.gate.resolve()
     expect(await refreshed).toEqual(REFUSED)
-    expect(await all).toEqual([{ ref: files, process: 'no-process' }])
+    // The build that sees the close tears nothing down; the close stops the process that landed
+    // and reports what that stop confirmed (MC-10).
+    expect(await all).toEqual([{ ref: files, process: 'tree-confirmed' }])
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
   })
@@ -152,7 +154,7 @@ describe('a build under way when the table shuts goes no further (decision 5)', 
     await settled()
     stalled.gate.resolve()
     expect(await refreshed).toEqual(REFUSED)
-    expect(await all).toEqual([{ ref: files, process: 'no-process' }])
+    expect(await all).toEqual([{ ref: files, process: 'tree-confirmed' }])
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(opens(w)).toBe(0)
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
@@ -196,7 +198,7 @@ describe('a build cut off by the shutdown marks nothing', () => {
     await settled()
     stalled.gate.resolve()
     expect(await refreshed).toEqual(REFUSED)
-    expect(await all).toEqual([{ ref: files, process: 'no-process' }])
+    expect(await all).toEqual([{ ref: files, process: 'tree-confirmed' }])
     expect(await w.store.read(ANONYMOUS_KEY)).toEqual(published)
   })
 

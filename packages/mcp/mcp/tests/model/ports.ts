@@ -408,22 +408,6 @@ export function scriptedPorts(
     return { requestId: record.id, answer }
   }
 
-  function taskCall<T>(
-    key: ModelKey,
-    transport: string,
-    port: PortName,
-    subject: string,
-    value: T,
-  ) {
-    return desk.open<Outcome<T, TransportFailure>>({
-      port,
-      key: key.name,
-      subject,
-      transport,
-      value: answer => (answer === 'ok' ? { ok: value } : { failure: notSentOf(answer) }),
-    })
-  }
-
   /** The `not-sent` of a failing call or task method: marked, unless the answer is `fail-usable`. */
   function notSentOf(answer: Exclude<Answer, 'reject'>): NotSent {
     return answer === USABLE_FAILURE ? NOT_SENT_USABLE : NOT_SENT
@@ -438,6 +422,15 @@ export function scriptedPorts(
       closes: 0,
     }
     ledger.transports.push(record)
+    /** A request on this transport: it carries the transport's name, the one P16 reads. */
+    const requestOn = <T>(asked: Omit<CallRequest<T>, 'key' | 'transport'>): Promise<T> =>
+      desk.open<T>({ ...asked, key: key.name, transport: record.name })
+    const taskCall = <T>(port: PortName, taskId: string, value: T) =>
+      requestOn<Outcome<T, TransportFailure>>({
+        port,
+        subject: taskId,
+        value: answer => (answer === 'ok' ? { ok: value } : { failure: notSentOf(answer) }),
+      })
     const transport: McpTransport = {
       generation,
       discover: () =>
@@ -459,11 +452,9 @@ export function scriptedPorts(
       listActions: () => notModelled('transport.listActions'),
       // The stop signal is not read: the explorer decides whether the call was sent (T5).
       call: () =>
-        desk.open<Outcome<SentCall, NotSent>>({
+        requestOn<Outcome<SentCall, NotSent>>({
           port: 'transport.call',
-          key: key.name,
           subject: record.name,
-          transport: record.name,
           value: (answer, call) =>
             answer === 'ok'
               ? { ok: sentCallFor(key, call.context) }
@@ -473,22 +464,17 @@ export function scriptedPorts(
         const request = ledger.requests.find(item => item.id === requestId)
         if (request === undefined) ledger.strayCancels.push(requestId)
         else request.cancels += 1
-        return desk.open({
+        return requestOn({
           port: 'transport.cancelRequest',
-          key: key.name,
           subject: requestId,
-          transport: record.name,
           value: () => undefined,
         })
       },
-      getTask: taskId =>
-        taskCall<TaskReport | 'expired'>(key, record.name, 'transport.getTask', taskId, WORKING),
-      updateTask: taskId =>
-        taskCall<'accepted'>(key, record.name, 'transport.updateTask', taskId, 'accepted'),
+      getTask: taskId => taskCall<TaskReport | 'expired'>('transport.getTask', taskId, WORKING),
+      updateTask: taskId => taskCall<'accepted'>('transport.updateTask', taskId, 'accepted'),
       getTaskResult: taskId =>
-        taskCall<TaskAnswer>(key, record.name, 'transport.getTaskResult', taskId, NOT_FINISHED),
-      cancelTask: taskId =>
-        taskCall<'requested'>(key, record.name, 'transport.cancelTask', taskId, 'requested'),
+        taskCall<TaskAnswer>('transport.getTaskResult', taskId, NOT_FINISHED),
+      cancelTask: taskId => taskCall<'requested'>('transport.cancelTask', taskId, 'requested'),
     }
     ledger.names.set(transport, record.name)
     return transport

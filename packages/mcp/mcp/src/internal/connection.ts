@@ -65,6 +65,17 @@ export class Connection {
     return this.#peer
   }
 
+  /** The peer while the connection takes requests (`ready` or `degraded`); else undefined. */
+  get usablePeer(): PeerIdentity | undefined {
+    const kind = this.#state.kind
+    return kind === 'ready' || kind === 'degraded' ? this.#peer : undefined
+  }
+
+  /** True once `close()` ran: the connection refuses requests from then on, for good. */
+  get closed(): boolean {
+    return this.#state.kind === 'closed'
+  }
+
   /**
    * A launch or negotiation attempt begins. Answers the generation this attempt has once it is
    * ready: under `on-attempt` it is committed now, failed attempts included; under

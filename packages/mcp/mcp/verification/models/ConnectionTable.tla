@@ -178,7 +178,7 @@ CloseEntry(x, e) ==
                           !.ents[e].st = IF "close-after-build" \in Bugs THEN @ ELSE "closed"],
            f |-> j]
 
-(* The build's check (build.ts `closedUnder`): its connection was closed:  *)
+(* The build's check (build.ts `guarded`): its connection was closed:      *)
 (* by its close, or by `closeAll`, which closes every connection. The      *)
 (* negative control "close-after-build" checks the shutdown instead.      *)
 ClosedUnder(x, e) ==
@@ -229,7 +229,7 @@ CallPcs == {"markW", "mstoreW", "tcloseW", "tstopW", "trelW", "lateW", "lstopW",
             "lcloseW"}
 FiberPcs == {"joinedW", "relOpW", "loseTearW", "ctearW", "buildW", "mtearW"}
 (* Waits for another fiber under the waiting fiber's bound (`within`). *)
-BoundedFiberPcs == {"blockedW", "pretearW", "failW", "shutTearW", "catchTearW"}
+BoundedFiberPcs == {"blockedW", "pretearW", "failW", "catchTearW"}
 InertPcs == {"queued", "done"}
 
 Expired(f) == f.t \in s.fired /\ ~(f.pc = "failW" /\ "unbounded-wrap" \in Bugs)
@@ -323,7 +323,8 @@ EnsureStep(i) ==
                      ELSE x1
 
 -----------------------------------------------------------------------------
-(* Internal steps: the build (build.ts `build`, `failed`, `shutDown`).     *)
+(* Internal steps: the build (build.ts `build`, `failed`, `ended`). The    *)
+(* close is checked after each step (build.ts `guarded`).                  *)
 
 BuildDone(x, i, res) ==
   LET e == x.fib[i].ent
@@ -348,6 +349,7 @@ BuildStep(i) ==
           [] f.pc = "pretearW" ->
              \/ /\ waited.pc = "done"
                 /\ IF waited.res = "err" THEN s' = [s EXCEPT !.fib[i].pc = "catch"]
+                   ELSE IF ClosedUnder(s, e) THEN s' = [s EXCEPT !.fib[i].pc = "shut"]
                    ELSE \E y \in Ask(s, i, "acquire", f.key, f.t, "acqW") : s' = y
              \/ /\ Expired(f) /\ s' = [s EXCEPT !.fib[i].pc = "failLose"]
           [] f.pc = "acqW" ->
@@ -386,8 +388,9 @@ BuildStep(i) ==
              IF Aborted(s, c)
              THEN s' = [SpawnLate(s, "closeLate", e, 0, c) EXCEPT !.fib[i].pc = "failLose"]
              ELSE IF ans = "ok"
-             THEN \E y \in Ask([s EXCEPT !.ents[e].tr = s.calls[c].made], i, "discover",
-                               s.calls[c].made, f.t, "discW") : s' = y
+             THEN LET x1 == [s EXCEPT !.ents[e].tr = s.calls[c].made]
+                  IN IF ClosedUnder(x1, e) THEN s' = [x1 EXCEPT !.fib[i].pc = "shut"]
+                     ELSE \E y \in Ask(x1, i, "discover", s.calls[c].made, f.t, "discW") : s' = y
              ELSE s' = [s EXCEPT !.fib[i].pc = "failLose"]
           [] f.pc = "discW" ->
              IF Aborted(s, c) \/ ans # "ok" THEN s' = [s EXCEPT !.fib[i].pc = "failLose"]
@@ -399,15 +402,15 @@ BuildStep(i) ==
              IF ClosedUnder(s, e) THEN s' = [s EXCEPT !.fib[i].pc = "shut"]
              ELSE LET r == MarkLost([s EXCEPT !.ents[e].st = "lost"], e)
                   IN s' = [r.st EXCEPT !.fib[i].pc = "failW", !.fib[i].wf = r.f]
-          [] f.pc \in {"failW", "shutTearW"} ->
+          [] f.pc = "failW" ->
              \/ /\ waited.pc = "done"
                 /\ s' = IF waited.res = "err" THEN [s EXCEPT !.fib[i].pc = "catch"]
                         ELSE BuildDone(s, i, "fail")
              \/ /\ Expired(f) /\ s' = BuildDone(s, i, "fail")
           [] f.pc = "shut" ->
-             (* `stopped`: the connection stays closed; nothing is marked. *)
-             LET r == Teardown(IF en.st = "closed" THEN s ELSE [s EXCEPT !.ents[e].st = "lost"], e)
-             IN s' = [r.st EXCEPT !.fib[i].pc = "shutTearW", !.fib[i].wf = r.f]
+             (* `ended` on a closed connection: the build answers at once; nothing is torn *)
+             (* down or marked. The close tears the entry down once the build ended.      *)
+             s' = BuildDone(IF en.st = "closed" THEN s ELSE [s EXCEPT !.ents[e].st = "lost"], i, "fail")
           [] f.pc = "catch" ->
              LET x1 == IF en.st = "preparing" THEN [s EXCEPT !.ents[e].st = "lost"] ELSE s
                  r == Teardown(x1, e)
@@ -714,7 +717,11 @@ P4_NoOkAfterShut == ~s.bad.okAfterShut
 (* P16 (MC-10): a close refuses requests in the step it begins, before it  *)
 (* waits for the build, and no `ensure` answers a connection whose close   *)
 (* began. The call port's half (no request on such a connection) is       *)
-(* Calls.tla's P16.                                                         *)
+(* Calls.tla's P16. A client action happens only at `Quiescent`, so the   *)
+(* steps between the build's `ready` and the answer (`joinedW`) are never *)
+(* split by a close here; the code re-checks the connection in the step   *)
+(* the answer settles in (table.ts `settledAnswer`), and that window is   *)
+(* checked by the unit cases, not by this model.                           *)
 P16_CloseRefusesAtOnce == \A e \in DOMAIN s.ents : s.ents[e].close # 0 => s.ents[e].st = "closed"
 P16_NoOkAfterClose == ~s.bad.okAfterClose
 

@@ -2,15 +2,18 @@
 // the build and covers the stop of what the key's earlier connection left, the credential, the
 // process start, the open, the negotiation and the wrap-up of a failure: once it fires, the build
 // waits for no port (SPEC P8 T2) and what is still under way goes on in the table's scope. Every
-// port is asked through `ask`, so a port breach is an answer, not an exception. A build whose
-// connection is closed under it (by `release`, a rebuild of another revision, or `closeAll`, which
-// closes every connection first: MC-10) goes no further than the step it is in and is wrapped up
-// without a mark. The builder writes the entry's resources and drives its `Connection`
-// (`attempt`, `ready`, `lose`); the table decides when the entry exists and when it closes.
+// port is asked through `ask`, so a port breach is an answer, not an exception. The build is a
+// sequence of steps, and the close is checked after each one (`guarded`): a build whose connection
+// is closed under it (by `release`, a rebuild of another revision, or `closeAll`: MC-10) goes no
+// further than the step it is in and answers at once, without a mark; the close that closed it
+// tears the entry down once the build ended. The builder writes the entry's resources and drives
+// its `Connection` (`attempt`, `ready`, `lose`); the table decides when the entry exists and when
+// it closes.
 import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   markUnavailable,
+  NOT_SENT_FAILURE,
   type CatalogKey,
   type ConnectionFailure,
   type EffectUnknown,
@@ -92,18 +95,30 @@ const PREPARATION_FAILED: Failed = {
   mark: 'connection-unavailable',
 }
 
+/** What a build whose connection was closed under it answers: the refusal after the shutdown. */
+const STOPPED: Outcome<never, EnsureFailure> = fail({
+  stage: 'settings',
+  reason: CONNECTION_UNAVAILABLE,
+})
+
 /** How a breach reads, per port (SPEC MC-15; contract T9 for the transport). */
 const CREDENTIAL_BREACH = fail<CredentialFailure>('unknown')
 const LANDING_BREACH = fail<LandingFailure>('unknown')
-const OPEN_BREACH = fail<TransportFailure>({ kind: 'not-sent', cause: 'connection-unavailable' })
+const OPEN_BREACH = fail<TransportFailure>(NOT_SENT_FAILURE)
 const DISCOVER_BREACH = fail<TransportFailure>({ kind: 'no-answer', cause: 'abandoned' })
 
+/** A step of the build found its connection closed (MC-10). */
+const CLOSED = 'closed'
+
 /**
- * True once the connection of the entry was closed: by its close, which refuses requests before it
- * waits for the build (MC-10), or by `closeAll`, which closes every connection.
+ * The check after each step of the build: once the connection was closed under the build (its
+ * close refuses requests before it waits for the build, MC-10), the build ends here, whatever the
+ * step answered. Called in the build's own continuation, so what follows a step that passed runs
+ * in the same synchronous run as the check: the last one is next to `ready`, and a closed
+ * connection never becomes ready.
  */
-function closedUnder(entry: Entry): boolean {
-  return entry.connection.state.kind === 'closed'
+function guarded<T>(entry: Entry, answer: Outcome<T, Failed>): Outcome<T, Failed | typeof CLOSED> {
+  return entry.connection.closed ? fail(CLOSED) : answer
 }
 
 /**
@@ -180,39 +195,54 @@ export function createBuilder<P, S>(
   }
 
   /**
-   * A preparation failed: refuse requests, close what was taken (S9 handle included), mark,
-   * report. Within the bound only: past it the wrap-up goes on in the scope, and the report says
-   * the mark is `pending`. A build that fails once its connection was closed is wrapped up like
-   * one the close stopped, without a mark (takeover ruling K3).
+   * A step failed on a connection that is not closed: refuse requests, close what was taken (S9
+   * handle included), mark, report. Within the bound only: past it the wrap-up goes on in the
+   * scope, and the report says the mark is `pending`.
    */
   async function failed(
     entry: Entry,
     how: Failed,
     bound: AbortSignal,
   ): Promise<Outcome<never, EnsureFailure>> {
-    if (closedUnder(entry)) return stopped(entry, bound)
     const marked = await within(markLost(entry, how.lost, how.mark).done, bound, scope)
     const catalog = marked.kind === 'answered' ? marked.value : 'pending'
     return fail({ stage: 'connect', reason: how.reason, catalog })
   }
 
   /**
-   * The connection was closed while the build was under way (MC-10; decision 5 and takeover ruling
-   * K3 for `closeAll`): wrapped up as a failed preparation (the handle released, a started process
-   * stopped) on a connection that stays `closed`, and nothing is marked: the close is a decision
-   * of this side, not a fact about the endpoint.
+   * How a step that did not pass ends the build; called in the same synchronous run as its check.
+   * A connection closed under the build (MC-10; decision 5 and takeover ruling K3 for `closeAll`),
+   * whether the step failed or not, answers at once with the refusal a call after the shutdown
+   * gets (decision 23), and nothing is marked: the close is a decision of this side, not a fact
+   * about the endpoint. The close tears the entry down once the build ended: that teardown is the
+   * only one after the close began, so the range the close reports is the one it confirmed.
+   * A failure on an open connection is `failed`.
    */
-  async function stopped(entry: Entry, bound: AbortSignal): Promise<Outcome<never, EnsureFailure>> {
-    await within(teardown(entry), bound, scope)
-    return fail({ stage: 'settings', reason: CONNECTION_UNAVAILABLE })
+  async function ended(
+    entry: Entry,
+    failure: Failed | typeof CLOSED,
+    bound: AbortSignal,
+  ): Promise<Outcome<never, EnsureFailure>> {
+    if (failure === CLOSED) return STOPPED
+    return failed(entry, failure, bound)
   }
 
+  /** The step that stops again what the key's earlier connection left, before the new attempt. */
+  async function leftoversStopped(
+    entry: Entry,
+    bound: AbortSignal,
+  ): Promise<Outcome<void, Failed>> {
+    const stopped = await within(teardown(entry), bound, scope)
+    return stopped.kind === 'expired' ? fail(PREPARATION_FAILED) : succeed(undefined)
+  }
+
+  /** The step that takes the credential handle; the entry holds it from the answer on. */
   async function acquireCredential(
     entry: Entry,
     access: Access<P>,
     prepared: PreparedSettings,
     bound: AbortSignal,
-  ): Promise<Outcome<CredentialHandle | undefined, Failed>> {
+  ): Promise<Outcome<void, Failed>> {
     const { credential, transport } = prepared
     if (credential.auth === 'none') return succeed(undefined)
     const holding = entry.ref.holding
@@ -236,7 +266,8 @@ export function createBuilder<P, S>(
         lost: 'preparation-failed',
         mark: 'credential-unavailable',
       })
-    return succeed(acquired.value.ok)
+    entry.credential = acquired.value.ok
+    return succeed(undefined)
   }
 
   /**
@@ -256,6 +287,10 @@ export function createBuilder<P, S>(
     }
   }
 
+  /**
+   * The step that prepares the transport material: for stdio, the process start, after which the
+   * entry holds the process; for HTTP, nothing is asked.
+   */
   async function materialOf(
     entry: Entry,
     access: Access<P>,
@@ -298,28 +333,40 @@ export function createBuilder<P, S>(
     return succeed({ kind: 'stdio', process: started.value.ok, generation, instructionsByteLimit })
   }
 
-  /** Opens the transport from `material` and negotiates on it, under the connection bound. */
-  async function negotiate(
+  /** The step that opens the transport from `material`; the entry holds it from the answer on. */
+  async function opened(
     entry: Entry,
     material: TransportMaterial,
     bound: AbortSignal,
-  ): Promise<Outcome<Readonly<{ transport: McpTransport; peer: PeerIdentity }>, Failed>> {
+  ): Promise<Outcome<McpTransport, Failed>> {
     const asked = ask(() => ports.transports.open(material, bound), OPEN_BREACH)
-    const opened = await within(asked, bound, scope, () => closeArrived)
-    if (opened.kind === 'expired') return fail(PREPARATION_FAILED)
-    if ('failure' in opened.value) return fail(failedOf(opened.value.failure))
-    const transport = opened.value.ok
-    entry.transport = transport
-    const discovered = await within(
+    const answer = await within(asked, bound, scope, () => closeArrived)
+    if (answer.kind === 'expired') return fail(PREPARATION_FAILED)
+    if ('failure' in answer.value) return fail(failedOf(answer.value.failure))
+    entry.transport = answer.value.ok
+    return succeed(answer.value.ok)
+  }
+
+  /** The step that negotiates on `transport`: the identity of the peer. */
+  async function discovered(
+    transport: McpTransport,
+    bound: AbortSignal,
+  ): Promise<Outcome<PeerIdentity, Failed>> {
+    const answer = await within(
       ask(() => transport.discover(), DISCOVER_BREACH),
       bound,
       scope,
     )
-    if (discovered.kind === 'expired') return fail(PREPARATION_FAILED)
-    if ('failure' in discovered.value) return fail(failedOf(discovered.value.failure))
-    return succeed({ transport, peer: discovered.value.ok })
+    if (answer.kind === 'expired') return fail(PREPARATION_FAILED)
+    if ('failure' in answer.value) return fail(failedOf(answer.value.failure))
+    return succeed(answer.value.ok)
   }
 
+  /**
+   * The steps of MC-5 in order, each followed by the check of the close (`guarded`); a step that
+   * takes a resource puts it in the entry before it answers, so the teardown finds it whichever
+   * way the build ends.
+   */
   async function build(
     entry: Entry,
     access: Access<P>,
@@ -328,25 +375,18 @@ export function createBuilder<P, S>(
     const generation = entry.connection.attempt()
     const bound = deps.startBound(prepared.bound, 'build')
     try {
-      // What the key's earlier connection left is stopped again before the new attempt.
-      const leftovers = await within(teardown(entry), bound, scope)
-      if (leftovers.kind === 'expired') return await failed(entry, PREPARATION_FAILED, bound)
-      const credential = await acquireCredential(entry, access, prepared, bound)
-      if ('failure' in credential) return await failed(entry, credential.failure, bound)
-      entry.credential = credential.ok
-      // The close is checked after each step that may hand over a resource: after the
-      // credential, after the process, and after the negotiation, in the same synchronous run as
-      // `ready`, so a closed connection never becomes ready.
-      if (closedUnder(entry)) return await stopped(entry, bound)
-      const material = await materialOf(entry, access, prepared, generation, bound)
-      if ('failure' in material) return await failed(entry, material.failure, bound)
-      if (closedUnder(entry)) return await stopped(entry, bound)
-      const negotiated = await negotiate(entry, material.ok, bound)
-      if ('failure' in negotiated) return await failed(entry, negotiated.failure, bound)
-      if (closedUnder(entry)) return await stopped(entry, bound)
-      const { transport, peer } = negotiated.ok
-      entry.connection.ready(peer)
-      return succeed(handleOf(entry, transport, peer))
+      const leftovers = guarded(entry, await leftoversStopped(entry, bound))
+      if ('failure' in leftovers) return await ended(entry, leftovers.failure, bound)
+      const credential = guarded(entry, await acquireCredential(entry, access, prepared, bound))
+      if ('failure' in credential) return await ended(entry, credential.failure, bound)
+      const material = guarded(entry, await materialOf(entry, access, prepared, generation, bound))
+      if ('failure' in material) return await ended(entry, material.failure, bound)
+      const transport = guarded(entry, await opened(entry, material.ok, bound))
+      if ('failure' in transport) return await ended(entry, transport.failure, bound)
+      const peer = guarded(entry, await discovered(transport.ok, bound))
+      if ('failure' in peer) return await ended(entry, peer.failure, bound)
+      entry.connection.ready(peer.ok)
+      return succeed(handleOf(entry, transport.ok, peer.ok))
     } catch (error: unknown) {
       // Only an error of this package reaches here: ports are asked through `ask`.
       if (entry.connection.state.kind === 'preparing') entry.connection.lose('preparation-failed')

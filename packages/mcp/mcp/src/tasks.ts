@@ -131,8 +131,9 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
 
   /**
    * The request under the connection bound (MC-17 step 4); it is asked before this yields, and
-   * only while the connection takes requests: once its close began (`closeAll` closes every
-   * connection) or it is lost, it gets the refusal a closed transport gives (T1, MC-10).
+   * only while the connection takes requests: once its close began (`ConnectionTable.close` and
+   * `closeAll` make every connection refuse before they first yield) or it is lost, it gets the
+   * refusal a closed transport gives (T1, MC-10).
    */
   async function answerOf<T>(
     on: OnConnection,

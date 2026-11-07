@@ -119,8 +119,9 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
    * invariant 5. A page the bound cuts off is a page without an answer, and so is a `listActions`
    * that breaches its contract (contract T9); an abort of the caller ends the listing as cancelled.
    * Each page goes out only while the connection takes requests, read in the same synchronous run
-   * as the request: once its close began (`closeAll` closes every connection: S8) or it is lost,
-   * the page gets the refusal a closed transport gives (T1, MC-10).
+   * as the request: once its close began (`ConnectionTable.close` and `closeAll` make every
+   * connection refuse before they first yield: S8) or it is lost, the page gets the refusal a
+   * closed transport gives (T1, MC-10).
    */
   async function listPages(
     ensured: Ensured,

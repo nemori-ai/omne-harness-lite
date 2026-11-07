@@ -4,19 +4,20 @@
 // after the bound are `late.ts`, the build is `build.ts`, and only `table.ts` puts an entry in or
 // takes it out, when `forgettable` says so (SPEC decision 20).
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type {
-  AdoptionRevision,
-  CatalogKey,
-  ConnectionFailure,
-  ConnectionKey,
-  EffectUnknown,
-  EndpointRef,
-  Generation,
-  Millis,
-  PeerIdentity,
-  Residual,
-  StopScope,
-  UnavailableReason,
+import {
+  NOT_SENT_FAILURE,
+  type AdoptionRevision,
+  type CatalogKey,
+  type ConnectionFailure,
+  type ConnectionKey,
+  type EffectUnknown,
+  type EndpointRef,
+  type Generation,
+  type Millis,
+  type PeerIdentity,
+  type Residual,
+  type StopScope,
+  type UnavailableReason,
 } from '@omne-harness/mcp-contract'
 import type {
   HttpCredentialHandle,
@@ -29,27 +30,26 @@ import type { Connection } from './connection.ts'
 import type { AdoptionRefusal } from './gate.ts'
 import type { SettingsFailure } from './settings.ts'
 
-/** The read-only view of a connection's generation; the aggregate itself stays in the table. */
+/**
+ * The read-only view of a connection: its generation, whether a generation is the present usable
+ * one, and whether its close began. The aggregate itself stays in the table.
+ */
 export type ConnectionView = Readonly<{
   readonly generation: Generation
+  readonly closed: boolean
   isCurrent(generation: Generation): boolean
 }>
 
 export type NotSent = Extract<TransportFailure, { kind: 'not-sent' }>
 
 /**
- * What a request gets on a connection that takes no requests: the refusal a closed transport
- * gives (contract T1), before the transport is asked.
- */
-export const REFUSED: NotSent = { kind: 'not-sent', cause: 'connection-unavailable' }
-
-/**
  * A usable connection, as it was when `ensure` answered: its key, the generation and the peer of
  * that moment, the adoption revision it was built under, and the bound its requests use. The
  * transport is reached through `wire` only: it answers the transport while the connection takes
- * requests, that is, while it is ready or degraded at `generation`, and `REFUSED` once its close
- * began, once it is lost, or once another generation replaced it (SPEC MC-10). A request reads
- * `wire` in the same synchronous run as the send, so no close can slip between them.
+ * requests, that is, while it is ready or degraded at `generation`, and the refusal a closed
+ * transport gives (contract T1, `NOT_SENT_FAILURE`) once its close began, once it is lost, or once
+ * another generation replaced it (SPEC MC-10). A request reads `wire` in the same synchronous run
+ * as the send, so no close can slip between them.
  */
 export type Ensured = Readonly<{
   key: ConnectionKey
@@ -80,8 +80,9 @@ export const CONNECTION_UNAVAILABLE: ConnectionUnavailable = { kind: 'connection
 /**
  * Why `ensure` answered with nothing marked: a setting defect, a missing credential (S4, K1), the
  * adoption read again (withdrawn, unreadable, another revision, or not answered within the
- * bound), a close or teardown in the way that did not end within the bound, or the table shut by
- * `closeAll`, before the build or during it.
+ * bound), a close or teardown in the way that did not end within the bound, the table shut by
+ * `closeAll` before the call, or the connection closed before the answer: under the build, or
+ * between the build and the answer (MC-5, MC-10, decision 23).
  */
 export type EnsureRefusal = SettingsFailure | AdoptionRefusal | ConnectionUnavailable
 
@@ -155,12 +156,8 @@ export function holdsNothing(held: Resources): boolean {
  * requests before it waits for the build (MC-10), so a closed entry can hold nothing for a moment
  * while its build is still under way.
  */
-export function forgettable(
-  entry: Resources & Readonly<{ connection: Connection; pending: unknown }>,
-): boolean {
-  return (
-    entry.connection.state.kind === 'closed' && entry.pending === undefined && holdsNothing(entry)
-  )
+export function forgettable(entry: Resources & Pick<Entry, 'connection' | 'pending'>): boolean {
+  return entry.connection.closed && entry.pending === undefined && holdsNothing(entry)
 }
 
 /**
@@ -216,19 +213,17 @@ export function viewOf(connection: Connection): ConnectionView {
     get generation() {
       return connection.generation
     },
+    get closed() {
+      return connection.closed
+    },
     isCurrent: (generation: Generation) => connection.isCurrent(generation),
   })
-}
-
-export function isUsable(entry: Entry): entry is Entry & { transport: McpTransport } {
-  const kind = entry.connection.state.kind
-  return entry.transport !== undefined && (kind === 'ready' || kind === 'degraded')
 }
 
 /** True when nothing of the entry is in flight and it refuses requests: only leftovers remain. */
 export function isSettled(entry: Entry): boolean {
   return (
-    entry.connection.state.kind === 'closed' &&
+    entry.connection.closed &&
     entry.pending === undefined &&
     entry.tearing === undefined &&
     entry.closing === undefined
@@ -247,13 +242,17 @@ export function handleOf(entry: Entry, transport: McpTransport, peer: PeerIdenti
     catalogKey: entry.catalogKey,
     adoptionRevision: entry.adoptionRevision,
     bound: entry.bound,
-    wire: () => (view.isCurrent(generation) ? succeed(transport) : fail(REFUSED)),
+    wire: () => (view.isCurrent(generation) ? succeed(transport) : fail(NOT_SENT_FAILURE)),
   }
 }
 
-export function ensuredOf(entry: Entry & { transport: McpTransport }): Ensured | undefined {
-  const peer = entry.connection.peer
-  return peer === undefined ? undefined : handleOf(entry, entry.transport, peer)
+/** The handle of the entry's connection while it takes requests, without building; else undefined. */
+export function ensuredOf(entry: Entry): Ensured | undefined {
+  const { transport } = entry
+  const peer = entry.connection.usablePeer
+  return transport === undefined || peer === undefined
+    ? undefined
+    : handleOf(entry, transport, peer)
 }
 
 /** The processes the entries of one holding left, as the status view reports them. */

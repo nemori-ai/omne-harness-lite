@@ -95,8 +95,9 @@ export interface RunView {
   observe(): readonly KeyObservation[]
   /**
    * True once the connection of the transport refuses requests (P16): the close of its key began
-   * (`release`, `closeAll`) after the transport's `transports.open` was called, or its generation
-   * was lost (`lose` on a current connection).
+   * (`release`, `closeAll`) after the transport's `transports.open` was called, or the explorer's
+   * own `lose` or `drop` step lost its generation. A loss the product reads from a marked answer
+   * is not counted, so a request it sends in the turns before that loss is not reported.
    */
   refuses(transport: string): boolean
 }

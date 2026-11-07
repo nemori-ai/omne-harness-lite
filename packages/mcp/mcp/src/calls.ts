@@ -33,16 +33,16 @@ import {
 import type { CallRequest, SentCall } from '@omne-harness/mcp-contract/provider'
 import { judgedTree } from './internal/caller-values.ts'
 import { classificationOf } from './internal/classification.ts'
-import { CONNECTION_UNAVAILABLE, type Ensured, type EnsureFailure } from './internal/entry.ts'
+import {
+  CONNECTION_UNAVAILABLE,
+  type Ensured,
+  type EnsureFailure,
+  type NotSent,
+} from './internal/entry.ts'
 import type { AdmittedEndpoint } from './internal/gate.ts'
 import { admitForUse, type UseGate } from './internal/guard.ts'
 import type { InFlightCalls, InFlightKey, Reservation } from './internal/in-flight.ts'
-import {
-  connectionFailureOf,
-  connectionFailureOfBuild,
-  loseIfLost,
-  type NotSent,
-} from './internal/lost.ts'
+import { connectionFailureOf, connectionFailureOfBuild, loseIfLost } from './internal/lost.ts'
 import { ask, waitAtMost, within } from './internal/port.ts'
 import { prepareSettings } from './internal/settings.ts'
 import { ensureOptionsOf, type ConnectionTable } from './internal/table.ts'
@@ -347,7 +347,8 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     )
     if (waited.kind === 'expired') {
       // The peer is told only while the connection takes requests: once its close began or it is
-      // lost, the transport settles its own requests (T5); `closeAll` closes every connection.
+      // lost, the transport settles its own requests (T5). `closeAll` makes every connection
+      // refuse before it first yields (`ConnectionTable.closeAll`).
       const wire = on.ensured.wire()
       if ('ok' in wire) scope.spawn(ask(() => wire.ok.cancelRequest(requestId), undefined))
       return sent(UNKNOWN_ABANDONED)
@@ -373,8 +374,9 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     const { ensured, known } = prepared.ok
     // Step 8: the last look, in the same synchronous run as the send. A stop that fired by now
     // keeps the call off the transport. So does a connection that stopped taking requests since
-    // `ensure` answered: its close began (`closeAll` closes every connection: P13) or it is lost
-    // (MC-10). That refusal is the one a closed transport gives (T1) and is answered as one.
+    // `ensure` answered: its close began (`ConnectionTable.close` and `closeAll` make every
+    // connection refuse before they first yield: P13) or it is lost (MC-10). That refusal is the
+    // one a closed transport gives (T1) and is answered as one.
     if (stop.aborted) return STOPPED
     const wire = ensured.wire()
     const called =

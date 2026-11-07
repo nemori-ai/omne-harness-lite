@@ -23,8 +23,6 @@ import {
 } from './entry.ts'
 import type { ConnectionTable } from './table.ts'
 
-export type { NotSent } from './entry.ts'
-
 export type Lost = Readonly<{ reason: LostReason; mark: UnavailableMark }>
 
 /**
