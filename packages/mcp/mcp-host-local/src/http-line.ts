@@ -17,6 +17,7 @@ import type {
   Outbound,
 } from './line.ts'
 import { AsyncQueue } from './queue.ts'
+import { SseEventBytes } from './sse-bytes.ts'
 
 type Fetch = typeof fetch
 
@@ -65,11 +66,15 @@ function mediaTypeOf(response: Response): string {
   return (response.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase() ?? ''
 }
 
-/** The events of an SSE body. */
+/**
+ * The events of an SSE body. The bound of one event is in raw bytes, before the decoder (H8); an
+ * event above it errors the stream, which the readers take as a broken stream.
+ */
 function eventsOf(body: ReadableStream<Uint8Array>): ReadableStream<EventSourceMessage> {
   return body
+    .pipeThrough(new SseEventBytes(BYTE_LIMIT))
     .pipeThrough(new TextDecoderStream())
-    .pipeThrough(new EventSourceParserStream({ maxBufferSize: BYTE_LIMIT }))
+    .pipeThrough(new EventSourceParserStream())
 }
 
 /** The JSON-RPC messages of a 2xx answer: the JSON body as one, the data of each SSE message event. */

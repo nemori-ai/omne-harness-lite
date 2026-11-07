@@ -540,6 +540,57 @@ describe('the events of a 2xx answer body (T2)', () => {
   })
 })
 
+describe('the byte bound of one SSE event (T2, SPEC H8)', () => {
+  const BYTE_LIMIT = 16_777_216
+  /** The id the transport gives the call: the first request id of the connection. */
+  const CALL_ID = 'r1'
+
+  /**
+   * A result whose answer event has `size` raw bytes before its empty line: `event: message`, then
+   * `data: ` and the answer with its line end. The padding is three-byte characters, so the event
+   * has far fewer characters than bytes, and the answer alone stays within the JSON byte limit.
+   */
+  function padOf(size: number): string {
+    const answerBytes = (pad: string) =>
+      Buffer.byteLength(JSON.stringify({ jsonrpc: '2.0', id: CALL_ID, result: { pad } }))
+    const padBytes = size - 'event: message\ndata: \n'.length - answerBytes('')
+    return '中'.repeat(Math.floor(padBytes / 3)) + 'x'.repeat(padBytes % 3)
+  }
+
+  /** The answer of a call whose answer event has `size` raw bytes; the first event is a decoy ping. */
+  async function answerOfEvent(size: number) {
+    const pad = padOf(size)
+    expect(pad.length).toBeLessThan(BYTE_LIMIT / 2)
+    const peer = await scripted({ calls: { echo: result({ pad }) } }, { sseNoise: true })
+    const transport = await open(materialOf(targetOf(peer)))
+    const sent = ok(await transport.call(echo, never), 'call')
+    const answer = await settledWithin(sent.answer, 10_000)
+    await transport.close()
+    await peer.close()
+    // The padding was measured for this id; another id would shift the event by its length.
+    expect(sent.requestId).toBe(CALL_ID)
+    return { pad, answer }
+  }
+
+  it('an event one byte above the bound breaks the stream, though it has fewer characters than the bound', async () => {
+    const { answer } = await answerOfEvent(BYTE_LIMIT + 1)
+    expect(answer).toStrictEqual({ settled: STREAM_BROKEN })
+  })
+
+  it('an event of exactly the bound in bytes is read: its message is the answer', async () => {
+    const { pad, answer } = await answerOfEvent(BYTE_LIMIT)
+    expect(answer).toMatchObject({
+      settled: {
+        kind: 'result',
+        result: {
+          kind: 'object',
+          entries: [{ key: 'pad', value: { kind: 'string', value: pad } }],
+        },
+      },
+    })
+  })
+})
+
 describe('the page and the headers (T2, T3)', () => {
   const bad = {
     name: 'bad',
