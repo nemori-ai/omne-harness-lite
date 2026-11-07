@@ -105,7 +105,7 @@ Missing modules or declarations require dependency preparation and a build in th
 
 ## Usage
 
-The ledger requires `ToolLedgerPorts` as its fifth argument. Set `content` to an explicit byte reader or `null`. Pass its `facts` read port into the runtime dependencies together with its commands, reads, admissions, and queues.
+The ledger requires `ToolLedgerPorts` as its fifth argument. Set `content` to an explicit byte reader or `null`. Pass its commands, reads, admissions, and queues into the runtime dependencies. The host restores pending result values through `delivery.read`; `facts` remains a trusted fact recovery port.
 
 ```ts
 const ledger = createToolLedger(store, guards, clock, configuration, {

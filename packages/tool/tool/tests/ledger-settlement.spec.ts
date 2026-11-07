@@ -55,7 +55,9 @@ describe('original execution settlement', () => {
     )
     const recovery = await f.load()
     expect(recovery.rawOutputs).toEqual([f.final.raw])
-    expect(recovery.result).toEqual(f.final.result)
+    expect(recovery.result).toMatchObject({
+      version: settled.phase === 'settled' ? settled.result : null,
+    })
     expect(recovery.tasks.map(task => task.kind).sort()).toEqual([
       'clock',
       'deliver',
@@ -63,7 +65,9 @@ describe('original execution settlement', () => {
       'release',
     ])
     expect(recovery.streams[0]?.pendingAcknowledgements).toHaveLength(1)
-    const first = f.commits[0]
+    const first = f.commits.find(commit =>
+      commit.writes.some(write => write.kind === 'put' && write.record.kind === 'result'),
+    )
     expect(first?.domain.kind).toBe('call')
     const puts = first?.writes.flatMap(write => (write.kind === 'put' ? [write.record] : [])) ?? []
     expect(puts.map(record => record.kind)).toEqual(
@@ -259,7 +263,17 @@ describe('independent output custody and call CAS', () => {
           retainResult: retain.mockImplementation(input => base.retainResult(input)),
         }),
       })
-      f.harness.memory.injectCommit(fault)
+      let injected = false
+      f.interceptCommit(input => {
+        if (
+          !injected &&
+          input.writes.some(write => write.kind === 'put' && write.record.kind === 'result')
+        ) {
+          injected = true
+          f.harness.memory.injectCommit(fault)
+        }
+        return f.harness.memory.commit(input)
+      })
       expect(failure(await f.preserve())).toEqual({
         kind: 'commit-unknown',
         operation: f.input.operation,
@@ -341,7 +355,11 @@ describe('downstream custody closure', () => {
         state: 'blocked',
         diagnostic: 'non-completed-output-barrier-unconfirmed',
       })
-      expect(f.commits[0]?.writes).toContainEqual(
+      expect(
+        f.commits.find(commit =>
+          commit.writes.some(write => write.kind === 'put' && write.record.kind === 'result'),
+        )?.writes,
+      ).toContainEqual(
         expect.objectContaining({
           kind: 'put',
           record: expect.objectContaining({
@@ -373,7 +391,7 @@ describe('downstream custody closure', () => {
         ],
       }
       ok(await f.ledger.commands.receiveFacts({ ...f.access, start: f.batch.start, batch: later }))
-      expect((await f.load()).result).toEqual(f.final.result)
+      expect((await f.resultPage()).value).toEqual(f.final.result)
       expect((await f.load()).tasks.filter(task => task.kind === 'fact-ack')).toHaveLength(2)
     },
   )
@@ -387,9 +405,11 @@ describe('downstream custody closure', () => {
     })
     expect((await f.records()).some(record => record.kind === 'environment-release')).toBe(false)
     expect(await f.harness.released()).toContain(f.access.call)
-    const originalResult = f.commits[0]?.writes.find(
-      write => write.kind === 'put' && write.record.kind === 'result',
-    )
+    const originalResult = f.commits
+      .find(commit =>
+        commit.writes.some(write => write.kind === 'put' && write.record.kind === 'result'),
+      )
+      ?.writes.find(write => write.kind === 'put' && write.record.kind === 'result')
     expect(originalResult).toMatchObject({
       kind: 'put',
       record: {
@@ -671,7 +691,17 @@ it('does not treat a negative operation query as excluding already retained exte
       },
     }),
   })
-  f.harness.memory.injectCommit('unknown-delayed')
+  let injected = false
+  f.interceptCommit(input => {
+    if (
+      !injected &&
+      input.writes.some(write => write.kind === 'put' && write.record.kind === 'result')
+    ) {
+      injected = true
+      f.harness.memory.injectCommit('unknown-delayed')
+    }
+    return f.harness.memory.commit(input)
+  })
   expect(failure(await f.preserve()).kind).toBe('commit-unknown')
   expect(
     ok(await f.ledger.reads.operation({ ...f.access, operation: f.input.operation })).kind,
@@ -928,7 +958,7 @@ it('separates retained result identities for different tenants, calls and origin
   ]
   for (const f of fixtures) {
     ok(await f.preserve())
-    expect((await f.load()).result).toEqual(f.final.result)
+    expect((await f.resultPage()).value).toEqual(f.final.result)
   }
   expect(requests).toHaveLength(4)
   expect(new Set(requests.map(input => input.operation)).size).toBe(4)
@@ -983,7 +1013,7 @@ it.each(['denied', 'unsupported', 'invalid'] as const)(
     ok(await f.preserve())
     expect(requests).toHaveLength(2)
     expect(requests[0]).toEqual(requests[1])
-    expect((await f.load()).result).toEqual(f.final.result)
+    expect((await f.resultPage()).value).toEqual(f.final.result)
   },
 )
 

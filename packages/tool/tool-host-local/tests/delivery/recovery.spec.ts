@@ -206,3 +206,22 @@ it('caller cancellation does not release a still-running call capacity slot', as
   await joined
   expect(f.receiver.push).toHaveBeenCalledTimes(1)
 })
+
+it('finishes an acknowledged delivery with unavailable result materials after a lost release reply', async () => {
+  const f = await fixture()
+  vi.mocked(f.input.commands.releaseDelivery).mockImplementationOnce(async input => {
+    const saved = await f.ledger.commands.releaseDelivery(input)
+    expect(saved).toHaveProperty('ok')
+    return fail({ kind: 'commit-unknown', operation: input.operation })
+  })
+  expect(await f.drive()).toEqual(succeed({ pending: 1 }))
+  vi.mocked(f.input.resultDelivery.read)
+    .mockClear()
+    .mockResolvedValue(
+      fail({ kind: 'unavailable', dependency: 'materials', diagnostic: 'released' }),
+    )
+  expect(await f.drive()).toEqual(succeed({ pending: 0 }))
+  expect(f.input.resultDelivery.read).not.toHaveBeenCalled()
+  expect(f.receiver.push).toHaveBeenCalledTimes(1)
+  expect(f.input.commands.releaseDelivery).toHaveBeenCalledTimes(1)
+})

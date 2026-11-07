@@ -218,6 +218,13 @@ export async function settlementFixture(
       return read.records
     },
     preserve: () => ledger.commands.preserveResult(input),
+    resultPage: async () => {
+      const recovery = ok(await ledger.commands.loadRecovery(access))
+      if (recovery.result === null) throw new Error('fixture has no result')
+      return ok(
+        await ledger.reads.result({ ...access, result: recovery.result.version, after: null }),
+      )
+    },
   }
 }
 

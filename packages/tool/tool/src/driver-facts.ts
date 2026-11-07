@@ -162,7 +162,7 @@ export function createFactDriver<P, B extends ContentBlock, E>(
     }
   }
 
-  const closeFinished = (step: CallAccess<P>, recovery: ToolRecovery<B>): void => {
+  const closeFinished = (step: CallAccess<P>, recovery: ToolRecovery): void => {
     if (recovery.state.phase !== 'settled' || recovery.start === null) return
     const blockedSource = recovery.tasks.some(
       task =>
@@ -179,7 +179,7 @@ export function createFactDriver<P, B extends ContentBlock, E>(
 
   const sourceGap = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     reason: 'settled-facts-source-ended' | 'settled-facts-source-unavailable',
     cancelled: () => boolean,
   ): Promise<Result> => {
@@ -207,7 +207,7 @@ export function createFactDriver<P, B extends ContentBlock, E>(
 
   const receive = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     cancelled: () => boolean,
   ): Promise<Result> => {
     const start = recovery.start

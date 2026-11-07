@@ -9,7 +9,7 @@ import type { ToolDependencies } from './construction.ts'
 export async function preserveSavedFinal<P, B extends ContentBlock, E>(
   { commands }: Pick<ToolDependencies<P, B, E>, 'commands'>,
   access: CallAccess<P>,
-  recovery: ToolRecovery<B>,
+  recovery: ToolRecovery,
   task: Extract<ToolTask, { basis: DurableEvidence }>,
   cancelled: () => boolean,
 ): Promise<Outcome<ToolState, ToolFailure> | null> {

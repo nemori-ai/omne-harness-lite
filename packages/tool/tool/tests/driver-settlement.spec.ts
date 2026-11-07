@@ -268,7 +268,17 @@ describe('original final settlement in one shared driver', () => {
         queue: { kind: 'released' },
         delivery: { kind: 'pending', consumer: first.payload.consumer },
       })
-      expect(saved.result).toEqual(final.result)
+      expect(saved.result).not.toBeNull()
+      if (saved.result === null) throw new Error('missing result reference')
+      expect(
+        ok(
+          await f.h.ledger.reads.result({
+            ...first.access,
+            result: saved.result.version,
+            after: null,
+          }),
+        ).value,
+      ).toEqual(final.result)
       expect(saved.tasks.some(task => task.kind === 'settle' || task.kind === 'queue')).toBe(false)
       expect(saved.tasks.some(task => task.kind === 'deliver')).toBe(true)
       expect(await f.h.released()).toContain(first.call)
@@ -859,7 +869,17 @@ it.each(['end', 'throw'] as const)(
     expect(f.stats.returns).toBe(1)
     expect(f.stats.readers).toBe(0)
     const saved = ok(await f.h.ledger.commands.loadRecovery(first.access))
-    expect(saved.result).toEqual(final.result)
+    expect(saved.result).not.toBeNull()
+    if (saved.result === null) throw new Error('missing result reference')
+    expect(
+      ok(
+        await f.h.ledger.reads.result({
+          ...first.access,
+          result: saved.result.version,
+          after: null,
+        }),
+      ).value,
+    ).toEqual(final.result)
     expect(saved.state).toMatchObject({
       phase: 'settled',
       terminal: final.terminal,

@@ -1,6 +1,11 @@
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { succeed } from '@omne-harness/operation-result'
-import { canonicalDigest, createToolDriver, type ToolDependencies } from '@omne-harness/tool'
+import {
+  canonicalDigest,
+  createToolDriver,
+  type ToolDependencies,
+  type ToolLedger,
+} from '@omne-harness/tool'
 import type { DurableEvidence } from '@omne-harness/tool-contract'
 import type {
   ToolDriver,
@@ -46,6 +51,7 @@ export function createRuntimeExecutor(
     ctx: Context
     settings: RuntimeCompositionInput
     dependencies: ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue>
+    resultDelivery: ToolLedger<unknown, ToolMessageContentBlock>['delivery']
     receiver: Parameters<
       typeof createLocalToolResultDelivery<unknown, ToolMessageContentBlock>
     >[0]['position']['receiver']
@@ -61,6 +67,7 @@ export function createRuntimeExecutor(
     store: settings.store,
     commands: dependencies.commands,
     reads: dependencies.reads,
+    resultDelivery: input.resultDelivery,
     identities: dependencies.operationIdentities,
     access: settings.access.guard,
     position: { access: settings.resolveAccess, receiver: input.receiver },

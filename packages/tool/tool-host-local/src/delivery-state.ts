@@ -4,7 +4,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest, type ToolLedgerStore } from '@omne-harness/tool'
 import {
   decodeToolOperationId,
-  judgeToolDelivery,
+  resolveToolInvocationRef,
   type DurableEvidence,
   type Reply,
   type ToolDelivery,
@@ -14,15 +14,18 @@ import {
   decodeToolRevision,
   judgeHandoff,
   type CallAccess,
+  type ToolMaterialFingerprint,
 } from '@omne-harness/tool-contract/provider'
 
 export type ResultPayload<B extends ContentBlock> = Extract<ToolDelivery<B>, { kind: 'result' }>
-export type DeliveryBase<B extends ContentBlock> = Omit<ResultPayload<B>, 'account'>
+type DeliveryDescriptor = Omit<ResultPayload<ContentBlock>, 'value'> &
+  Readonly<{ value: ToolMaterialFingerprint }>
+export type DeliveryBase = Omit<DeliveryDescriptor, 'account'>
 type Phase =
   | Readonly<{ kind: 'frozen' }>
   | Readonly<{ kind: 'saved' | 'release-unknown' | 'released' | 'done'; evidence: DurableEvidence }>
-export type DeliveryRecord<B extends ContentBlock> = Readonly<{
-  payload: ResultPayload<B>
+export type DeliveryRecord = Readonly<{
+  payload: DeliveryDescriptor
   digest: string
   task: ToolOperationId
   freeze: ToolOperationId
@@ -59,17 +62,24 @@ function parsePhase(value: unknown): Phase | null {
   return null
 }
 
-function parseRecord<B extends ContentBlock>(
+function parseRecord(
   value: unknown,
-  base: DeliveryBase<B>,
+  base: DeliveryBase,
   access: CallAccess<unknown>,
-): DeliveryRecord<B> | null {
+): DeliveryRecord | null {
   if (!object(value) || !object(value.payload)) return null
   const account =
     value.payload.account === null ? { ok: null } : judgeCallAccount(value.payload.account)
   if (!('ok' in account)) return null
-  const payload: ResultPayload<B> = { ...base, account: account.ok }
-  if ('failure' in judgeToolDelivery({ tenant: access.tenant, delivery: payload })) return null
+  const payload: DeliveryDescriptor = { ...base, account: account.ok }
+  const reference = resolveToolInvocationRef(payload.key.reference, access.tenant)
+  if ('failure' in reference) return null
+  if (
+    payload.account !== null &&
+    (payload.account.subject.kind !== 'tool_execution' ||
+      payload.account.subject.id !== reference.ok.call)
+  )
+    return null
   if (
     canonicalDigest(payload) !== canonicalDigest(value.payload) ||
     value.digest !== canonicalDigest(payload)
@@ -103,7 +113,7 @@ function parseRecord<B extends ContentBlock>(
 export function createDeliveryState<B extends ContentBlock>(store: ToolLedgerStore<B>) {
   const domain = (access: CallAccess<unknown>) =>
     ({ kind: 'host', tenant: access.tenant, key: 'result-delivery/v1' }) as const
-  const key = (access: CallAccess<unknown>, base: DeliveryBase<B>) =>
+  const key = (access: CallAccess<unknown>, base: DeliveryBase) =>
     JSON.stringify([
       access.call,
       base.key.kind,
@@ -114,8 +124,8 @@ export function createDeliveryState<B extends ContentBlock>(store: ToolLedgerSto
 
   async function load(
     access: CallAccess<unknown>,
-    base: DeliveryBase<B>,
-  ): Reply<DeliveryRecord<B> | null> {
+    base: DeliveryBase,
+  ): Reply<DeliveryRecord | null> {
     const read = await store.read(domain(access))
     if (read.kind !== 'complete') return deliveryUnavailable('delivery-store')
     const row = read.records.find(
@@ -129,9 +139,9 @@ export function createDeliveryState<B extends ContentBlock>(store: ToolLedgerSto
 
   async function save(
     access: CallAccess<unknown>,
-    next: DeliveryRecord<B>,
-    previous: DeliveryRecord<B> | null,
-  ): Reply<DeliveryRecord<B>> {
+    next: DeliveryRecord,
+    previous: DeliveryRecord | null,
+  ): Reply<DeliveryRecord> {
     for (let attempt = 0; attempt < 4; attempt += 1) {
       const read = await store.read(domain(access))
       if (read.kind !== 'complete') return deliveryUnavailable('delivery-store')

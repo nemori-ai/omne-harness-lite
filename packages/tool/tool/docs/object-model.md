@@ -53,7 +53,7 @@
 
 | 对象 | 分类与身份 | 负责什么 | 寿命与可见面 |
 | --- | --- | --- | --- |
-| ToolLedger | 冻结的工厂产物 `{ commands, reads, admissions, queues, facts }`，构造时固定 store、guards、clock、configuration、ToolLedgerPorts（custody、releaseInspection、content 字节读口或 null） | 命令入口做边界检查、资格、读取、决定和按修订号提交；读取入口核当前资格与结果关联，字节由显式 content 端口提供 | 无调用事实的私有副本；构造后不改 |
+| ToolLedger | 冻结的工厂产物 `{ commands, reads, admissions, queues, facts, finalCustody, delivery, controls }`，构造时固定 store、guards、clock、configuration、ToolLedgerPorts（custody、releaseInspection、content 字节读口或 null） | 命令入口做边界检查、资格、读取、决定和按修订号提交；读取入口核当前资格与结果关联，字节由显式 content 端口提供 | 无调用事实的私有副本；构造后不改 |
 | 决定器 | 纯函数，输入快照、一条命令、已核验的 guard 事实和本次铸造的修订号 | 输出“只回复不写”或“写入一组记录并回复” | 不读端口，不发通知，不运行工具 |
 | ToolLedgerStore | 端口，两个操作 read 与 commit，声明 durability | read 返回一个事务域的全部记录和域修订号；commit 在 expected 相符时原子写入 | 提供者拥有耐久；`none` 只出现在 `./testing` |
 | 事务域 | 判别联合：call（tenant + call）、queue（tenant + FIFO key）、host（tenant + key） | call 域拥有一次原调用的全部记录；queue 域拥有同 key 的顺序与名额；host 域供宿主保存自己的耐久记录 | 域修订号每次提交加一；本包不解释 host 域内容 |

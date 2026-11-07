@@ -62,7 +62,7 @@ async function existingVersions() {
   const late = async (ordinal: number): Promise<ResultRecord<Block>> => {
     const source = evidence(`fixture-late-source-${ordinal}`)
     const value = {
-      ...original.result.value,
+      ...f.final.result,
       content: [text(`late-${ordinal}`, `late ${ordinal}`)],
     }
     const raw = ok(
@@ -98,6 +98,7 @@ async function existingVersions() {
       custody: {
         kind: 'execution',
         final: evidence(`fixture-late-final-${f.batch.start.operation}-${ordinal}`),
+        finalValue: originalCustody.finalValue,
         raw,
         retainOperation,
         retained,
@@ -181,7 +182,7 @@ async function existingVersions() {
       relation: record.relation,
       actualTerminal: record.actual,
       source: record.source,
-      value: record.value,
+      value: record.relation === 'original' ? f.final.result : record.value,
       next: null,
     })
   }

@@ -18,6 +18,7 @@ import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import { settlementFixture } from './settlement-values.ts'
 import { testAssembly } from './testing-values.ts'
 import {
+  testSettlementPorts,
   configuration,
   dummyRequest,
   guards,
@@ -103,7 +104,12 @@ async function fixture(
     },
     createMemoryToolClock(),
     configuration(),
-    { custody: f.custody, releaseInspection: f.environment, content: content.reader },
+    {
+      materials: testSettlementPorts(f.harness.memory).materials,
+      custody: f.custody,
+      releaseInspection: f.environment,
+      content: content.reader,
+    },
   )
   const assembly = testAssembly()
   const runtime = createToolRuntime(
@@ -719,7 +725,12 @@ describe('fixed result and content reads through the runtime', () => {
       guards(),
       createMemoryToolClock(),
       configuration(),
-      { custody: f.f.custody, releaseInspection: f.f.environment, content: null },
+      {
+        materials: testSettlementPorts(f.f.harness.memory).materials,
+        custody: f.f.custody,
+        releaseInspection: f.f.environment,
+        content: null,
+      },
     )
     expect(
       await noContent.reads.content.read({

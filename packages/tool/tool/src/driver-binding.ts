@@ -29,7 +29,7 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
     JSON.stringify([tenantKey(access.tenant), access.call, start.operation])
   const invoke = async (
     step: CallAccess<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     start: Extract<ToolStartRecord, { kind: 'start' }>,
   ): Promise<Invocation> => {
     const access = { principal: step.principal, tenant: step.tenant, call: step.call }
@@ -69,7 +69,7 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
 
   const inspectBinding = async (
     step: CallAccess<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     start: ToolStartRecord,
   ): Promise<Outcome<ToolStartLookup, ToolFailure>> => {
     const access = { principal: step.principal, tenant: step.tenant, call: step.call }

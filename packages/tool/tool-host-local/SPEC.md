@@ -207,6 +207,14 @@ Tool 的原 call 域负责持久水位，时间工厂不拥有它。初次准备
 
 `createLocalToolRuntimePlugins` 组装生产实例宿主和实例身份。宿主在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不接受全局 instance。执行器在每次投递结果之后用一次新鲜恢复判定调用是否完成（已结清、没有 pending 任务、投递 pending 为 0）；完成的调用在没有 run 进行时退役，若有 run 正在进行则在该 run 结束时退役，重试 interval 不再重排它。同一租户的投递 run 按到达顺序轮流，后来的调用等自己的轮次；capacity 按在途的租户数计（每租户同时至多一个 run），一个租户在途加排队的 run 不超过 capacity，排队不占别的租户的名额（R2-D164、R2-D186）。超出时答 `unavailable`，`dependency` 为 `delivery-capacity`：它表示这个租户的在途加排队已满，或在途的租户数已满，不再表示“同租户已有 run 在途”。交付仍欠，由重试 interval 再推。组合测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger、本地启动协调器与实例宿主贯通。该证据不证明真实 SQL/Windows 端到端、claim、换实例接管或重启恢复。精确装配责任见[运行时组合工厂](docs/cordis.md#运行时组合工厂)。
 
+## 冻结交付的持久表示
+
+宿主冻结交付元数据、结果指纹、当时的 account、操作身份和阶段。冻结记录不保存第二份完整 ToolResult。指纹与最终版本绑定，重试不重新计算 account。
+
+只有 frozen 阶段的推送读取正文。宿主通过同一 ToolLedger 的 delivery.read 还原最终通道，核对指纹及完整 ToolDelivery，并在推送前重核当前资格。材料不可读时交付仍欠，不返回部分结果，也不释放责任。接收方已经可靠保存后的 saved、release-unknown、released 和 done 恢复只消费元数据与原回执，不依赖正文仍可读。
+
+这项表示迁移不新增交付阶段。原 frozen 到 saved 到 released 到 done 的提交顺序和未知操作认回保持不变。材料用途解除、期限和物理清理由 Tool 拥有，宿主记录不延长其寿命。
+
 ## 结果交付的推送退避
 
 执行器把结果推给冻结 owner 的接收方。接收方可能缺席，也可能在场却答 `unavailable`。后一种情形实测过：Journal 拒收一笔超限提交，同一笔被重推 714 次。两种情形走同一套退避（R2-D273、R2-D282）。

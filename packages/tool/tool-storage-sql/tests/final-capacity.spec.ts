@@ -26,9 +26,14 @@ const evidence = {
   digest: 'sha256:resources',
 }
 
-it.each([32, 5 * 1024 * 1024])(
-  'receives a %i byte final through the real SQLite worker with the production command limit',
-  async bytes => {
+it.each([
+  { bytes: 32, settle: false },
+  { bytes: 5 * 1024 * 1024, settle: false },
+  { bytes: 32, settle: true },
+  { bytes: 5 * 1024 * 1024, settle: true },
+])(
+  'receives a $bytes byte final and settles=$settle through the real SQLite command limit',
+  async ({ bytes, settle }) => {
     const root = await realpath(await mkdtemp(join(tmpdir(), 'tool-final-capacity-')))
     const storage = await openStorage(root, [tenant], { maxCommandBytes: 1_048_576 })
     try {
@@ -47,13 +52,17 @@ it.each([32, 5 * 1024 * 1024])(
         maxCommandBytes: 1_048_576,
         maxChunkBytes: 16_384,
       })
-      const ledger = world.ledgerOver(storage.store, {
-        provider,
-        store: materialStore,
-        clock: {
-          sample: async () => succeed(ok(decodeToolMaterialInstant('2026-11-07T00:00:00.000Z'))),
+      const ledger = world.ledgerOver(
+        storage.store,
+        {
+          provider,
+          store: materialStore,
+          clock: {
+            sample: async () => succeed(ok(decodeToolMaterialInstant('2026-11-07T00:00:00.000Z'))),
+          },
         },
-      })
+        storage.custody,
+      )
       ok(await ledger.admissions.admit(world.input))
       const context = async (name: string) => ({
         ...world.access,
@@ -154,6 +163,15 @@ it.each([32, 5 * 1024 * 1024])(
       if (task?.kind !== 'settle') throw new Error('missing final recovery duty')
       const restored = ok(await ledger.facts.read({ ...world.access, basis: task.basis }))
       expect(restored.fact).toEqual(final)
+      if (settle) {
+        const input = { ...(await context('settle')), basis: task.basis }
+        const settled = await ledger.commands.preserveResult(input)
+        expect(settled, JSON.stringify(settled)).toHaveProperty('ok.phase', 'settled')
+        expect(await ledger.commands.preserveResult(input)).toEqual(settled)
+        expect(
+          ok(await ledger.facts.read({ ...world.access, basis: task.basis })).fact,
+        ).toHaveProperty('kind', 'settled-final')
+      }
       const retained = await storage.store.read({ kind: 'call', tenant, call: world.access.call })
       expect(retained.kind).toBe('complete')
       expect(Buffer.byteLength(JSON.stringify(retained))).toBeLessThan(100_000)

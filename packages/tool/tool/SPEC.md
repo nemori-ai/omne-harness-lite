@@ -95,7 +95,7 @@ W3 的最终结果准备、正文页与材料释放增量依据 [#1168](https://
 
 账本由 `createToolLedger(store, guards, clock, configuration, ports)` 构造。runtime 由 `createToolRuntime(dependencies, configuration)` 构造。两者可以取同一个 `ToolConfiguration`：账本只读其中的 `resultPageBytes`、`ledgerCommitAttempts` 与 `queueCapacity`。数据形状与决定顺序见 [architecture](docs/architecture.md#本包的记录仓与决定器g1)。下列规则按编号对应测试。
 
-签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts }`。`configuration` 给出结果页大小、提交重试上限与队列容量，三者都只有一处来源，即 `ToolConfiguration`。第五参数 `ToolLedgerPorts<P>` 必填，提供 `custody.retainResult`、`releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`，不提供默认授权或旧构造。`facts` 是账本的受信恢复读口，runtime 的结算驱动只使用 commands，不再注入它。
+签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts, finalCustody, delivery, controls }`。`configuration` 给出结果页大小、提交重试上限与队列容量，三者都只有一处来源，即 `ToolConfiguration`。第五参数 `ToolLedgerPorts<P>` 必填，提供 `custody.retainResult`、`releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`，不提供默认授权或旧构造。`facts` 是账本的受信恢复读口，runtime 的结算驱动只使用 commands，不再注入它。
 
 ### 10 边界与资格
 
@@ -232,7 +232,7 @@ Store 分区与 ledger 授权分别验证。组合只核真实 ledger commands/r
 
 ### 19 写命令的边界
 
-`planPreparation`、`prepared`、`enqueue`、`prepareStart`、`rejectPending` 与 `recordStart` 取契约的 `WriteContext`。契约的 `WriteContext` 没有主体字段，所以宿主把自己的主体放在同一输入的 `principal` 里。每个写命令先检查 `WriteContext` 的形状，再问 `guards.access`，动作是 `write`，然后才读记录仓。缺租户、缺主体或主体不属于该租户都回复 `denied`（`action` 为 `write`），不读任何记录。`loadRecovery` 的动作是 `recover`。
+`planPreparation`、`prepared`、`enqueue`、`prepareStart`、`rejectPending` 与 `recordStart` 取契约的 `WriteContext`。契约的 `WriteContext` 没有主体字段，所以宿主把自己的主体放在同一输入的 `principal` 里。每个写命令先检查 `WriteContext` 的形状，再问 `guards.access`，动作是 `write`，然后才读记录仓。缺租户、缺主体或主体不属于该租户都回复 `denied`（`action` 为 `write`），不读任何记录。`loadRecovery` 的动作是 `recover`。恢复结果字段只含版本与来源凭据，不读取正文材料；完整结果由 `reads.result` 在当前资格下临时还原。
 
 每个写命令先认回：同操作号同输入摘要回复原回执，异摘要回复 `conflict`。然后比对 `expected` 与当前状态修订号，不符回复 `stale-revision`。调用记录不存在时回复 `invalid`（`call: unknown-call`）。阶段不符回复 `invalid`（`call: phase:<阶段>`）。
 
@@ -527,7 +527,7 @@ SourceVerdict 的 denied 表示来源真实、当前请求资格被拒。ledger 
 
 实现中，`ledger-final-custody` 校验实际 final 与原 start；`ledger-material-custody` 负责准备意图、水位、字节封存及未知认回。当前权限与业务关联由调用路径提供，共用机制不额外选择权限动作。
 
-[针对性用例](tests/final-custody.spec.ts)覆盖准备顺序、未知恢复、时钟回退、冲突重取、操作排除、当前资格、输入固定和删除交错。[SQL Linux 组合](../tool-storage-sql/tests/final-custody-live.spec.ts)覆盖 5 MiB envelope、实际分块读取、账本大小及 worker 重启认回。宿主已使用该入口封存精确 final，再发布引用。最终通道、TTL、用途解除和维护仍属于未完成的 W3 后续实现。
+[针对性用例](tests/final-custody.spec.ts)覆盖准备顺序、未知恢复、时钟回退、冲突重取、操作排除、当前资格、输入固定和删除交错。[SQL Linux 组合](../tool-storage-sql/tests/final-custody-live.spec.ts)覆盖 5 MiB envelope、实际分块读取、账本大小及 worker 重启认回。宿主已使用该入口封存精确 final，再发布引用。执行结果的 content、data、attachments 元数据和 original.summary 已分通道保管，结果账本保存引用；内容与摘要不假定相等。系统替代结果尚待迁移，当前存储类型的完整值分支只在这段迁移期间存在。旧 SQL retainResult 副本、TTL、用途解除和维护仍未完成，不能据此宣称 W3 生命周期交付。
 
 ### W3 事实接收迁移的当前实现
 

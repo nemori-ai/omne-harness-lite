@@ -2,6 +2,7 @@
 // store keeps records by key inside a transaction domain and interprets none of them. A durable
 // provider (#280) and the non-durable store of `./testing` implement the same port.
 import type { ContentBlock } from '@omne-harness/content-block'
+import type { ResultChannels } from './ledger-result-material.ts'
 import type {
   MaterialRecord,
   MaterialTimeRecord,
@@ -82,7 +83,7 @@ export type CallRecord = Readonly<{
   call: ToolCallId
   admission: ToolOperationId
   request: FixedToolRequest
-  initiator: ToolRecovery<never>['initiator']
+  initiator: ToolRecovery['initiator']
   state: ToolState
   preparations: readonly PreparationRecord[]
   environment: ConfirmedEnvironment | null
@@ -139,6 +140,7 @@ export type ResultCustody =
   | Readonly<{
       kind: 'execution'
       final: DurableEvidence
+      finalValue: ToolMaterialFingerprint
       raw: RawOutput
       retainOperation: ToolOperationId
       retained: DurableEvidence
@@ -159,7 +161,7 @@ export type ResultRecord<B extends ContentBlock> = Readonly<{
   terminal: ToolTerminal
   actual: ToolTerminal | null
   effect: Effect
-  value: ToolResult<B>
+  value: ToolResult<B> | ResultChannels
   delivery: DeliveryState
   source: DurableEvidence
   settledBy: ToolOperationId

@@ -1,8 +1,15 @@
 import { expectTypeOf, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { FixedToolRequest, Reply, ToolState } from '@omne-harness/tool-contract'
+import type {
+  FixedToolRequest,
+  Reply,
+  ToolState,
+  ToolResult,
+  ToolResultVersion,
+} from '@omne-harness/tool-contract'
 import type {
   Mutation,
+  CallAccess,
   ToolClock,
   ToolFinalCustody,
   ToolCommands,
@@ -57,6 +64,11 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
   >()
   expectTypeOf(createToolLedger<P, ContentBlock>).returns.toEqualTypeOf<
     Readonly<{
+      delivery: Readonly<{
+        read(
+          input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>,
+        ): Reply<ToolResult<ContentBlock>>
+      }>
       finalCustody: ToolFinalCustody<P, ContentBlock>
       controls: ToolLedgerControls<P>
       commands: ToolCommands<P, ContentBlock>

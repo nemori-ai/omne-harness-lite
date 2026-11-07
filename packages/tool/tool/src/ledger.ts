@@ -1,3 +1,6 @@
+import { createLedgerMaterialCustody } from './ledger-material-custody.ts'
+import { prepareResultChannels, readResultChannels } from './ledger-result-material.ts'
+import type { ResultRecord } from './ledger-store.ts'
 import { factValues } from './fact-values.ts'
 import { adoptFactMaterials, restoreSavedFact } from './ledger-fact-material.ts'
 import { createLedgerFinalCustody } from './ledger-final-custody.ts'
@@ -36,10 +39,12 @@ import {
   type ToolLookup,
   type ToolOperationId,
   type ToolResultVersion,
+  type ToolResult,
   type ToolStartRecord,
   type ToolState,
 } from '@omne-harness/tool-contract'
 import {
+  type CallAccess,
   decodeToolDeliveryId,
   decodeToolInstanceId,
   decodeToolResultVersion,
@@ -109,6 +114,7 @@ import {
   readAccount,
   readRecovery,
   readResultPage,
+  resultRecord,
   resolveOperation,
 } from './ledger-reads.ts'
 import {
@@ -142,6 +148,9 @@ import {
 } from './ledger-store.ts'
 
 export type ToolLedger<P, B extends ContentBlock> = Readonly<{
+  delivery: Readonly<{
+    read(input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>): Reply<ToolResult<B>>
+  }>
   finalCustody: ToolFinalCustody<P, B>
   controls: ToolLedgerControls<P>
   commands: ToolCommands<P, B>
@@ -1040,12 +1049,33 @@ export function createToolLedger<P, B extends ContentBlock>(
     if ('failure' in evidence)
       return unavailable('output-custody', 'result custody confirmation is unavailable')
     const confirmed = structuredClone(evidence.ok)
+    const channels = await prepareResultChannels<P, B>(
+      createLedgerMaterialCustody<P, B>({
+        materials: settlement.materials,
+        entry: value => entry(value, 'write'),
+        transact,
+      }),
+      { ...context.ok, source: checked.ok.saved.evidence },
+      final.result,
+      snapshot => {
+        if (excludedSince(snapshot, command.operation, before.ok.revision))
+          return excluded(command.operation)
+        const current = checkSettlement(snapshot, command)
+        return 'failure' in current ? current : succeed(undefined)
+      },
+    )
+    if ('failure' in channels)
+      return channels.failure.kind === 'commit-unknown' &&
+        channels.failure.operation !== command.operation
+        ? unavailable('result-material', 'result channel preparation is unresolved')
+        : channels
     const allowed = await access(context.ok, 'write')
     if ('failure' in allowed) return allowed
     const settled = await transact(
       callDomain(context.ok),
       command.operation,
-      (snapshot, mint) => decidePreserveResult(snapshot, command, final, confirmed, mint),
+      (snapshot, mint) =>
+        decidePreserveResult(snapshot, command, final, confirmed, channels.ok, mint),
       commitUnknown(command.operation),
       before.ok.revision,
     )
@@ -1082,6 +1112,17 @@ export function createToolLedger<P, B extends ContentBlock>(
     entry,
     transact,
   })
+
+  const resultValue = async (input: CallInput<P>, record: ResultRecord<B>) =>
+    'kind' in record.value
+      ? readResultChannels(
+          settlement.materials?.store,
+          input,
+          record.value,
+          guards.policy,
+          toolLedgerAdoption,
+        )
+      : succeed(record.value)
 
   const commands: ToolCommands<P, B> = {
     admit: async input => {
@@ -1249,14 +1290,26 @@ export function createToolLedger<P, B extends ContentBlock>(
           inputDigest: digestOf(fixed.ok),
         }
         return Promise.resolve(
-          succeed((snapshot, mint) =>
-            decidePlanRelease(
+          succeed(async (snapshot, mint) => {
+            let value: ToolResult<B> | null = null
+            const state = snapshot.call?.state
+            const record =
+              state?.phase === 'settled' ? snapshot.results.get(state.result) : undefined
+            if (!snapshot.operations.has(command.operation) && record !== undefined) {
+              const loaded = await resultValue(context, record)
+              if ('failure' in loaded) return { kind: 'reply', outcome: loaded }
+              const allowed = await access(context, 'write')
+              if ('failure' in allowed) return { kind: 'reply', outcome: allowed }
+              value = loaded.ok
+            }
+            return decidePlanRelease(
               snapshot,
               command,
               mint,
               unsupported('planRelease', 'independent output custody'),
-            ),
-          ),
+              value,
+            )
+          }),
         )
       })
     },
@@ -1339,12 +1392,20 @@ export function createToolLedger<P, B extends ContentBlock>(
       if ('failure' in allowed) return allowed
       const snapshot = await read(callDomain(fixed.ok))
       if ('failure' in snapshot) return snapshot
-      const page = readResultPage(snapshot.ok, {
-        result: fixed.ok.result,
-        after,
-        pageBytes: resultPageBytes,
-        adoption: toolLedgerAdoption,
-      })
+      const record = resultRecord(snapshot.ok, fixed.ok.result)
+      if ('failure' in record) return record
+      const value = await resultValue(fixed.ok, record.ok)
+      if ('failure' in value) return value
+      const page = readResultPage(
+        snapshot.ok,
+        {
+          result: fixed.ok.result,
+          after,
+          pageBytes: resultPageBytes,
+          adoption: toolLedgerAdoption,
+        },
+        value.ok,
+      )
       if ('failure' in page) return page
       const current = await access(fixed.ok, 'read-result')
       return 'failure' in current ? current : page
@@ -1365,6 +1426,7 @@ export function createToolLedger<P, B extends ContentBlock>(
       provider: settlement.content,
       authorize: access,
       load: input => read(callDomain(input)),
+      resultValue,
     }),
   }
 
@@ -1376,6 +1438,28 @@ export function createToolLedger<P, B extends ContentBlock>(
   })
 
   return Object.freeze({
+    delivery: Object.freeze({
+      read: async (input: Parameters<ToolLedger<P, B>['delivery']['read']>[0]) => {
+        const fixed = fixResultInput<P>(input, 'recover')
+        if ('failure' in fixed) return fixed
+        const before = await query(fixed.ok, 'recover', snapshot =>
+          resultRecord(snapshot, fixed.ok.result),
+        )
+        if ('failure' in before) return before
+        if (before.ok.delivery.kind === 'released') return invalid('result', 'delivery-released')
+        const value = await resultValue(fixed.ok, before.ok)
+        if ('failure' in value) return value
+        const after = await query(fixed.ok, 'recover', snapshot =>
+          resultRecord(snapshot, fixed.ok.result),
+        )
+        if ('failure' in after) return after
+        if (after.ok.delivery.kind === 'released') return invalid('result', 'delivery-released')
+        if (digestOf(after.ok) !== digestOf(before.ok))
+          return unavailable('result-delivery', 'result changed during material read')
+        const current = await access(fixed.ok, 'recover')
+        return 'failure' in current ? current : value
+      },
+    }),
     finalCustody,
     controls: Object.freeze(
       createLedgerControls<P, B>({ subjects: settlement.controlSubjects, entry, transact }),

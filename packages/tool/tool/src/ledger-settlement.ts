@@ -1,3 +1,4 @@
+import type { ResultChannels } from './ledger-result-material.ts'
 import { matchesFinalValue } from './fact-values.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -165,6 +166,7 @@ export function decidePreserveResult<B extends ContentBlock>(
   command: PreserveCommand,
   final: Final<B>,
   retained: DurableEvidence,
+  channels: ResultChannels,
   mint: Mint,
 ): Decision<ToolState, B> {
   const checked = checkSettlement(snapshot, command)
@@ -194,15 +196,16 @@ export function decidePreserveResult<B extends ContentBlock>(
           diagnostic,
         }
       : { kind: 'planned', operation: plan.release.operation }
-  const first = firstResultWrites(
+  const first = firstResultWrites<B>(
     command,
     call.request.consumer,
     final.terminal,
     final.effect,
-    final.result,
+    channels,
     {
       kind: 'execution',
       final: saved.evidence,
+      finalValue: saved.value,
       raw: final.raw,
       retainOperation,
       retained,

@@ -1,4 +1,3 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type { ScopeRef, SupplyAnswer, SupplyInput } from '@omne-harness/runtime-context-contract'
 import { backgroundCallsSchema, type ToolBackgroundCallsValue } from './background-calls.ts'
@@ -7,10 +6,7 @@ import { encodeToolInvocationRef } from './reference.ts'
 import type { ToolState } from './results.ts'
 
 /** Original committed facts and currently disclosable text, bound by their source to this call. */
-export type ToolBackgroundCallSource = Pick<
-  ToolRecovery<ContentBlock>,
-  'admission' | 'state' | 'tasks'
-> &
+export type ToolBackgroundCallSource = Pick<ToolRecovery, 'admission' | 'state' | 'tasks'> &
   Readonly<{
     tenant: TenantId
     requesterScope: ScopeRef

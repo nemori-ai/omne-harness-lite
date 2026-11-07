@@ -44,8 +44,9 @@ it('retries final custody with the same rendered bytes and operation without rer
   try {
     const reference = accepted(await world.api.invoke(world.invocation('retry-final')))
     expect((await world.settled(reference)).terminal.kind).toBe('completed')
-    expect(writes).toHaveLength(2)
-    expect(writes[1]).toEqual(writes[0])
+    const finalWrites = writes.filter(write => write.operation === writes[0]?.operation)
+    expect(finalWrites).toHaveLength(2)
+    expect(finalWrites[1]).toEqual(finalWrites[0])
     expect(world.launches()).toBe(1)
     expect(world.plugins.diagnostics().pendingOutputCustody).toBe(0)
     expect(await world.authorLookup(reference)).toMatchObject({ kind: 'settled' })

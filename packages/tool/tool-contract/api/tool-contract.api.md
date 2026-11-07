@@ -940,12 +940,11 @@ export {};
 ## 声明文件 `background-calls-projection.d.ts`
 
 ```ts
-import type { ContentBlock } from '@omne-harness/content-block';
 import { type TenantId } from '@omne-harness/legal-identity';
 import type { ScopeRef, SupplyAnswer, SupplyInput } from '@omne-harness/runtime-context-contract';
 import { type ToolBackgroundCallsValue } from './background-calls.ts';
 import type { ToolRecovery } from './execution.ts';
-export type ToolBackgroundCallSource = Pick<ToolRecovery<ContentBlock>, 'admission' | 'state' | 'tasks'> & Readonly<{
+export type ToolBackgroundCallSource = Pick<ToolRecovery, 'admission' | 'state' | 'tasks'> & Readonly<{
     tenant: TenantId;
     requesterScope: ScopeRef;
     description: SupplyAnswer<Pick<ToolBackgroundCallsValue['calls'][number], 'activity' | 'waiting'>>;
@@ -1583,7 +1582,7 @@ export type WriteContext = ToolExecutionRef & Readonly<{
     operation: ToolOperationId;
     expected: ToolRevision;
 }>;
-export type ToolRecovery<B extends ContentBlock> = Readonly<{
+export type ToolRecovery = Readonly<{
     state: ToolState;
     request: FixedToolRequest;
     admission: ToolOperationId;
@@ -1601,7 +1600,10 @@ export type ToolRecovery<B extends ContentBlock> = Readonly<{
     }> | null;
     invocations: readonly ToolStartRecord[];
     controls: readonly ControlRecord[];
-    result: ToolResult<B> | null;
+    result: Readonly<{
+        version: ToolResultVersion;
+        source: DurableEvidence;
+    }> | null;
     unresolved: readonly ToolOperationId[];
     preparations: readonly PreparationRecord[];
     waits: readonly WaitRecord[];
@@ -1640,7 +1642,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
         calls: readonly ToolCallId[];
         next: string | null;
     }>>;
-    loadRecovery(input: CallAccess<P>): Reply<ToolRecovery<B>>;
+    loadRecovery(input: CallAccess<P>): Reply<ToolRecovery>;
     claim(input: Mutation<P> & Readonly<{
         instance: ToolInstanceId;
         continuity: DurableEvidence;

@@ -32,6 +32,7 @@ import { scope } from './scope-values.ts'
 import { startHarness } from './start-values.ts'
 import { testAssembly } from './testing-values.ts'
 import {
+  testSettlementPorts,
   adoption,
   configurationOf,
   evidence,
@@ -294,6 +295,7 @@ export async function modelHost(
     createMemoryToolClock(),
     configurationOf({ resultPageBytes: options.resultPageBytes }),
     {
+      materials: testSettlementPorts(h.memory).materials,
       custody: content.custody,
       releaseInspection: h.environments,
       content: content.reader,

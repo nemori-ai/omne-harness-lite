@@ -180,6 +180,12 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
           ctx,
           settings: input,
           dependencies: dependencies(ctx),
+          resultDelivery: {
+            read: request =>
+              records === null || retired
+                ? runtimeUnavailable('toolResultDelivery')
+                : records.ledger.delivery.read(request),
+          },
           receiver: consumer => receivers.current(consumer),
         })
         ctx.effect(() => close)

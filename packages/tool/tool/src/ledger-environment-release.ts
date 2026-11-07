@@ -153,6 +153,7 @@ export function decidePlanRelease<B extends ContentBlock>(
   command: PlanReleaseCommand,
   mint: Mint,
   unsupported: Outcome<never, ToolFailure>,
+  value: ToolResult<B> | null,
 ): Decision<ReleaseRecord, B> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'plan-release')
   if ('failure' in known) return reply(known)
@@ -173,7 +174,8 @@ export function decidePlanRelease<B extends ContentBlock>(
     return reply(invalid('custody', 'not-original-result-custody'))
   if (
     result.terminal.kind !== 'completed' ||
-    !processCustodyCovered(snapshot, result.custody.raw, result.value)
+    value === null ||
+    !processCustodyCovered(snapshot, result.custody.raw, value)
   )
     return reply(unsupported)
   const planned = planEnvironmentRelease(snapshot, call, basis.proof, command.custody, mint)

@@ -134,6 +134,9 @@ async function world(
       operationIdentities: f.input.identities,
       instances: controlled.host,
     } as unknown as ExecutorInput['dependencies'],
+    resultDelivery: {
+      read: input => f.ledger.delivery.read({ ...input, principal: f.access.principal }),
+    },
     receiver:
       options.receiver ?? (f.input.position.receiver as unknown as ExecutorInput['receiver']),
   })

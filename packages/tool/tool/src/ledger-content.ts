@@ -8,6 +8,7 @@ import {
   type Reply,
   type ToolFailure,
   type ToolResultVersion,
+  type ToolResult,
 } from '@omne-harness/tool-contract'
 import {
   decodeToolResultVersion,
@@ -79,10 +80,10 @@ function contentInput<P>(input: ContentInput<P>): Outcome<ContentInput<P>, ToolF
 function association<B extends ContentBlock>(
   record: ResultRecord<B>,
   attachment: Attachment,
+  value: ToolResult<B>,
 ): Outcome<Readonly<{ raw: boolean }>, ToolFailure> {
   const raw = record.custody.kind === 'execution' ? record.custody.raw.content : null
   const exactRaw = raw !== null && sameAttachment(raw, attachment)
-  const value = record.value
   const refs = [
     ...value.attachments,
     ...value.content.flatMap(block => ('ref' in block ? [block.ref] : [])),
@@ -143,6 +144,7 @@ export function createLedgerContent<P, B extends ContentBlock>(
     provider: Pick<ToolContentReader<P>, 'read'> | null
     authorize(input: CallInput<P>, action: ToolLedgerAction): Reply<void>
     load(input: CallInput<P>): Reply<Snapshot<B>>
+    resultValue(input: CallInput<P>, record: ResultRecord<B>): Reply<ToolResult<B>>
   }>,
 ): ToolContentReader<P> {
   const locate = async (input: ResultInput<P>) => {
@@ -158,7 +160,9 @@ export function createLedgerContent<P, B extends ContentBlock>(
       if ('failure' in allowed) return allowed
       const before = await locate(value)
       if ('failure' in before) return before
-      const linked = association(before.ok, value.attachment)
+      const result = await ports.resultValue(value, before.ok)
+      if ('failure' in result) return result
+      const linked = association(before.ok, value.attachment, result.ok)
       if ('failure' in linked) return linked
       const permitted = await ports.authorize(
         value,
@@ -181,7 +185,9 @@ export function createLedgerContent<P, B extends ContentBlock>(
       if ('failure' in candidate) return candidate
       const after = await locate(value)
       if ('failure' in after) return after
-      const stillLinked = association(after.ok, value.attachment)
+      const currentValue = await ports.resultValue(value, after.ok)
+      if ('failure' in currentValue) return currentValue
+      const stillLinked = association(after.ok, value.attachment, currentValue.ok)
       if ('failure' in stillLinked) return stillLinked
       const current = await ports.authorize(
         value,

@@ -464,7 +464,7 @@ export function firstResultWrites<B extends ContentBlock>(
   consumer: ConsumerRef,
   terminal: ToolTerminal,
   effect: Effect,
-  value: ToolResult<B>,
+  value: ResultRecord<B>['value'],
   custody: ResultCustody,
   mint: Mint,
 ): Readonly<{ version: FirstVersion<B>; writes: readonly LedgerWrite<B>[] }> {

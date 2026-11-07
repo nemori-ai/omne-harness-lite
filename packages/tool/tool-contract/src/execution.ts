@@ -75,7 +75,7 @@ export type ToolExecutionRef = Readonly<{
 }>
 export type WriteContext = ToolExecutionRef &
   Readonly<{ operation: ToolOperationId; expected: ToolRevision }>
-export type ToolRecovery<B extends ContentBlock> = Readonly<{
+export type ToolRecovery = Readonly<{
   state: ToolState
   request: FixedToolRequest
   admission: ToolOperationId
@@ -86,7 +86,7 @@ export type ToolRecovery<B extends ContentBlock> = Readonly<{
   startRejection: Readonly<{ reason: string; exclusion: DurableEvidence }> | null
   invocations: readonly ToolStartRecord[]
   controls: readonly ControlRecord[]
-  result: ToolResult<B> | null
+  result: Readonly<{ version: ToolResultVersion; source: DurableEvidence }> | null
   unresolved: readonly ToolOperationId[]
   preparations: readonly PreparationRecord[]
   waits: readonly WaitRecord[]
@@ -119,7 +119,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
   scanPending(
     input: Access<P> & Readonly<{ after: string | null; limit: number }>,
   ): Reply<Readonly<{ calls: readonly ToolCallId[]; next: string | null }>>
-  loadRecovery(input: CallAccess<P>): Reply<ToolRecovery<B>>
+  loadRecovery(input: CallAccess<P>): Reply<ToolRecovery>
   claim(
     input: Mutation<P> & Readonly<{ instance: ToolInstanceId; continuity: DurableEvidence }>,
   ): Reply<ToolExecutionRef>

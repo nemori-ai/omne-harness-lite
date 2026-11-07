@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { readMaterialBytes } from './ledger-material-read.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Adoption, Reply, ToolFailure } from '@omne-harness/tool-contract'
@@ -6,7 +6,6 @@ import type {
   CallAccess,
   FactBatch,
   ResultPolicy,
-  ToolFinalPointer,
   ToolMaterialStore,
 } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
@@ -144,7 +143,7 @@ export async function restoreSavedFact<P, B extends ContentBlock>(
   }
   if (store === undefined) return unavailable('material provider is not connected')
   const pointer = saved.fact
-  const bytes = await readEnvelope(input, saved.fact.payload.envelope, store)
+  const bytes = await readMaterialBytes(input, saved.fact.payload.envelope, store)
   if ('failure' in bytes) return bytes
   let value: unknown
   try {
@@ -170,61 +169,4 @@ export async function restoreSavedFact<P, B extends ContentBlock>(
   )
     return unavailable('stored final identity does not match')
   return succeed({ ...saved, fact: final })
-}
-
-async function readEnvelope<P>(
-  access: CallAccess<P>,
-  envelope: ToolFinalPointer['envelope'],
-  store: ToolMaterialStore<P>,
-): Reply<Uint8Array> {
-  const expected = Number(envelope.bytes)
-  if (!Number.isSafeInteger(expected) || expected < 0) return unavailable('invalid envelope length')
-  const chunks: Uint8Array[] = []
-  const hash = createHash('sha256')
-  let offset = 0
-  try {
-    for (;;) {
-      const page = await readEnvelopePage(
-        store,
-        {
-          ...access,
-          material: envelope.material,
-          offset: String(offset),
-          maxBytes: 65536,
-        },
-        expected,
-      )
-      if ('failure' in page) return page
-      const { bytes, next } = page.ok
-      offset += bytes.length
-      chunks.push(bytes.slice())
-      hash.update(bytes)
-      if (next === null) break
-    }
-    if (offset !== expected || hash.digest('hex') !== envelope.sha256)
-      return unavailable('stored envelope is incomplete or corrupt')
-    return succeed(Buffer.concat(chunks))
-  } catch {
-    return unavailable('material read failed')
-  }
-}
-
-async function readEnvelopePage<P>(
-  store: ToolMaterialStore<P>,
-  input: Parameters<ToolMaterialStore<P>['read']>[0],
-  expected: number,
-): ReturnType<ToolMaterialStore<P>['read']> {
-  const page = await store.read(input)
-  if ('failure' in page) return page
-  const { bytes, next } = page.ok
-  const offset = Number(input.offset)
-  if (
-    !(bytes instanceof Uint8Array) ||
-    bytes.length > input.maxBytes ||
-    offset + bytes.length > expected
-  )
-    return unavailable('invalid material page')
-  if (next !== null && (bytes.length === 0 || next !== String(offset + bytes.length)))
-    return unavailable('invalid material continuation')
-  return succeed({ bytes: bytes.slice(), next })
 }

@@ -12,6 +12,7 @@ import type {
   ToolLookup,
   ToolOperationId,
   ToolResultVersion,
+  ToolResult,
 } from '@omne-harness/tool-contract'
 import type { ToolRecovery } from '@omne-harness/tool-contract/provider'
 import { invalid, tenantKey } from './boundary.ts'
@@ -164,6 +165,7 @@ export function resultRecord<B extends ContentBlock>(
 export function readResultPage<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   input: PageInput,
+  value: ToolResult<B>,
 ): Outcome<ResultPage<B>, ToolFailure> {
   const found = resultRecord(snapshot, input.result)
   if ('failure' in found) return found
@@ -179,11 +181,11 @@ export function readResultPage<B extends ContentBlock>(
   if ('failure' in start) return start
   // A cursor is issued only for a block that exists, so a cursor at or after the end is not one
   // of ours; a page is never empty (at least one block).
-  if (input.after !== null && start.ok >= record.value.content.length)
+  if (input.after !== null && start.ok >= value.content.length)
     return fail({ kind: 'invalid-cursor', reason: 'past-the-end' })
-  const page = pageBlocks(record.value.content, start.ok, input.pageBytes, input.adoption)
+  const page = pageBlocks(value.content, start.ok, input.pageBytes, input.adoption)
   if ('failure' in page) return page
-  const next = page.ok.end < record.value.content.length ? { ...bound, block: page.ok.end } : null
+  const next = page.ok.end < value.content.length ? { ...bound, block: page.ok.end } : null
   return succeed({
     result: record.result,
     terminal: record.terminal,
@@ -192,7 +194,7 @@ export function readResultPage<B extends ContentBlock>(
     relation: record.relation,
     delivery: record.delivery.delivery,
     source: record.source,
-    value: { ...record.value, content: page.ok.blocks },
+    value: { ...value, content: page.ok.blocks },
     next: next === null ? null : cursorText(next),
   })
 }
@@ -205,10 +207,11 @@ export function readResultPage<B extends ContentBlock>(
  */
 export function readRecovery<B extends ContentBlock>(
   snapshot: Snapshot<B>,
-): Outcome<ToolRecovery<B>, ToolFailure> {
+): Outcome<ToolRecovery, ToolFailure> {
   const call = snapshot.call
   if (call === null) return invalid('call', 'unknown-call')
-  const original = call.state.phase === 'settled' ? snapshot.results.get(call.state.result) : null
+  const original =
+    call.state.phase === 'settled' ? snapshot.results.get(call.state.result) : undefined
   return succeed({
     state: call.state,
     request: call.request,
@@ -220,7 +223,7 @@ export function readRecovery<B extends ContentBlock>(
     startRejection: call.startRejection,
     invocations: call.start === null ? [] : [call.start],
     controls: call.state.controls,
-    result: original === undefined || original === null ? null : original.value,
+    result: original === undefined ? null : { version: original.result, source: original.source },
     unresolved: [],
     preparations: call.preparations,
     waits: [],

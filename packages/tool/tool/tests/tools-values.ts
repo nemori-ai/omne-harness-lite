@@ -33,6 +33,7 @@ import { startHarness } from './start-values.ts'
 import { scope } from './scope-values.ts'
 import { testAssembly } from './testing-values.ts'
 import {
+  testSettlementPorts,
   adoption,
   configuration,
   evidence,
@@ -147,6 +148,7 @@ export async function sourceFixture(
     createMemoryToolClock(),
     config,
     {
+      materials: testSettlementPorts(f.harness.memory).materials,
       custody: content.custody,
       releaseInspection: f.environment,
       content: content.reader,

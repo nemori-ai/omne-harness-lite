@@ -1,5 +1,4 @@
 import { vi } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   createToolLedger,
@@ -15,6 +14,7 @@ import {
   decodeToolRevision,
   defaultResultPolicy,
   type ToolTask,
+  type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import {
   createMemoryToolClock,
@@ -35,7 +35,7 @@ export function ok<T>(answer: Outcome<T, unknown>): T {
 }
 
 export async function fixture() {
-  const store = createMemoryToolLedgerStore<ContentBlock>()
+  const store = createMemoryToolLedgerStore<ToolMessageContentBlock>()
   const access = { principal: 'host', tenant: tenantA, call: callId('original-call') }
   const consumer = request().consumer
   const version = ok(decodeToolResultVersion('result-1'))
@@ -53,7 +53,7 @@ export async function fixture() {
     delivery: delivery.delivery,
     consumer,
   }
-  const result: ResultRecord<ContentBlock> = {
+  const result: ResultRecord<ToolMessageContentBlock> = {
     ...access,
     result: version,
     relation: 'original',
@@ -108,7 +108,7 @@ export async function fixture() {
     ],
   })
   let revoked = false
-  const guards: ToolLedgerGuards<string, ContentBlock> = {
+  const guards: ToolLedgerGuards<string, ToolMessageContentBlock> = {
     access: {
       qualify: async () => (revoked ? { kind: 'denied', reason: 'revoked' } : { kind: 'allowed' }),
     },
@@ -131,17 +131,18 @@ export async function fixture() {
       content: null,
     },
   )
-  const pushes: ToolDelivery<ContentBlock>[] = []
-  const receive: ToolResultReceiver<string, ContentBlock>['push'] = async ({
+  const pushes: ToolDelivery<ToolMessageContentBlock>[] = []
+  const receive: ToolResultReceiver<string, ToolMessageContentBlock>['push'] = async ({
     delivery: payload,
   }) => {
     pushes.push(structuredClone(payload))
     return succeed({ key: payload.key, evidence: { ...evidence('saved'), owner: consumer.owner } })
   }
-  const receiver: ToolResultReceiver<string, ContentBlock> = { push: vi.fn(receive) }
+  const receiver: ToolResultReceiver<string, ToolMessageContentBlock> = { push: vi.fn(receive) }
   let identity = 0
-  const input: LocalDeliveryInput<string, ContentBlock> = {
+  const input: LocalDeliveryInput<string, ToolMessageContentBlock> = {
     store,
+    resultDelivery: { read: vi.fn(ledger.delivery.read) },
     commands: {
       ...ledger.commands,
       releaseDelivery: vi.fn(ledger.commands.releaseDelivery),

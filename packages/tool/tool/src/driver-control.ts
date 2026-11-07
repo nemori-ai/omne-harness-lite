@@ -30,7 +30,7 @@ export function createControlDriver<P, B extends ContentBlock, E>({
   return {
     stop: async (
       access: CallAccess<P>,
-      recovery: ToolRecovery<B>,
+      recovery: ToolRecovery,
       task: Extract<ToolTask, { kind: 'stop' }>,
     ): Promise<Outcome<void, ToolFailure>> => {
       const original = recovery.controls.find(item => item.operation === task.control.operation)

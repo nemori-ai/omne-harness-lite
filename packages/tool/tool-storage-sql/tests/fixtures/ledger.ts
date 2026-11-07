@@ -22,7 +22,7 @@ import {
   type FixedToolRequest,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
-import { defaultResultPolicy } from '@omne-harness/tool-contract/provider'
+import { defaultResultPolicy, type ToolOutputCustody } from '@omne-harness/tool-contract/provider'
 import {
   createMemoryToolClock,
   createMemoryToolEnvironment,
@@ -210,6 +210,7 @@ export async function ledgerWorld(tenant: TenantId) {
   const ledgerOver = (
     store: ToolLedgerStore<ContentBlock>,
     materials?: ToolLedgerPorts<Principal>['materials'],
+    custody?: ToolOutputCustody<Principal>,
   ) =>
     createToolLedger<Principal, ContentBlock>(
       store,
@@ -218,7 +219,7 @@ export async function ledgerWorld(tenant: TenantId) {
       { resultPageBytes: 4096, ledgerCommitAttempts: 4, queueCapacity: 16 },
       {
         materials: materials ?? memoryMaterials,
-        custody: createMemoryToolOutputCustody<Principal>(),
+        custody: custody ?? createMemoryToolOutputCustody<Principal>(),
         releaseInspection: createMemoryToolEnvironment<Principal>(),
         content: null,
       },
