@@ -479,33 +479,34 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 
 ## 28. Tools 固定结果适配器
 
-根入口的 `createToolResultReader` 消费普通 runtime 的 `queries.readResult` 和 `content.read`。它不取得 invoke、control、release 或 raw。工厂提供 `present`、固定引用的 `read` 和受信消费侧的 `readReply`，不注册工具作者或生成工具定义。完整 Tools 作者由独立的 `tool-definitions` 成员拥有。reader 直接内容可保留源 text、image、voice 或 video 内容；作者和消费者须按实际输出能力作兼容裁定，不能仅凭使用 reader 宣称支持所有模态。
+根入口的 `createToolResultReader` 消费普通 runtime 的 `queries.readResult`、`body.read` 和 `content.read`。它不取得 invoke、control、release 或 raw。工厂提供 `present`、固定引用的 `read` 和受信消费侧的 `readReply`，不注册工具作者或生成工具定义。完整 Tools 作者由独立的 `tool-definitions` 成员拥有。reader 直接内容可保留源 text、image、voice 或 video 内容；作者和消费者须按实际输出能力作兼容裁定，不能仅凭使用 reader 宣称支持所有模态。
 
-`read` 消费当前 Access 和固定读取参数：kind 为 result 或 attachment，非空 reference，after 为 null 或非空游标。调用者负责按已采用的工具参数契约完成 wire 解码，身份由受信宿主绑定。reader 不接收模型自报身份、文件路径、maxBytes 或 raw selector。工厂检查 JSON 参数预算和结果页预算。`createToolMessageResultCodec` 提供同一结构化结果的有界 codec；字节预算必须为正安全整数。
+`read` 消费当前 Access 和固定读取参数：kind 为 result、body 或 attachment，非空 reference，after 为 null 或非空游标。调用者负责按已采用的工具参数契约完成 wire 解码，身份由受信宿主绑定。reader 不接收模型自报身份、文件路径、maxBytes 或 raw selector。工厂检查 JSON 参数预算和结果页预算。`createToolMessageResultCodec` 提供同一结构化结果的有界 codec；字节预算必须为正安全整数。
 
 ### 引用与调用
 
 引用是公开、无状态、可解码的规范 UTF-8 JSON base64url，没有填充字符。前缀与 payload 之间使用句点。payload 数组为以下形状，首项为协议版本 1。
 
 - `tr1` 包含 `[1, invocationReference, resultVersion]`。内部身份必须通过契约 codec，并使用其规范形式。
-- `ta1` 包含 `[1, tr1, selector]`。selector 为非负安全整数索引或字符串 original。索引对应该固定版本的 attachments，original 对应卸载原文。
-- `tc1` 包含 `[1, kind, completeReference, projection, internalAfter]`。result 的 projection 为 full，原生 attachment 为 bytes，original 正文页的 projection 则固定声明的表示格式。读取前逐项比较分支、完整引用及投影。
+- `ta1` 包含 `[1, tr1, selector]`。selector 为非负安全整数索引，对应该固定版本的 attachments。正文不使用附件 selector。
+- `tb1` 包含 `[1, invocationReference, resultVersion, bodyId]`，定位同一结果的卸载正文。
+- `tc1` 包含 `[1, kind, completeReference, projection, internalAfter]`。result 的 projection 为 full，原生 attachment 为 bytes，body 文本页的 projection 为 text。读取前逐项比较分支、完整引用及投影。
 
 解码核协议、字段数、类型、规范编码及参数预算。所有发出的开始和续读提示检查整份调用 JSON 的预算，并用同一预算实际解码内部引用及 cursor。单个凭据、组合参数或内部 tuple 超限都不能发出可续读提示。引用编码不授予权限或无限寿命，也不依赖适配器内存表。结果释放和正文到期由原拥有者判断。正文游标绑定 bodyId、表示、固定版本和位置；旧字节投影游标不能被当成语义正文游标使用。未知版本、不可定位版本或错误游标不能换成最新结果或首屏。
 
 ### 模型内容与失败
 
-`present` 读原固定版本的首屏。`read_result` 每次读一页并生成新的 ToolResult。成功结果先给状态块，再保留源页块的顺序与 visibility，状态块身份避开源块。源 attachments 保持完整。新 data 和 original 都为 none，不转发源程序数据。原文卸载状态及 original 的 ta1 在文本中说明。上层调用方继续用 P14 projectToolResult 投影，固定附件块身份后追加合法逻辑附件地址。
+`present` 读原固定版本的首屏。`read_result` 每次读一页并生成新的 ToolResult。成功结果先给状态块，再保留源页块的顺序与 visibility，状态块身份避开源块。源 attachments 保持完整。新 data 和 original 都为 none，不转发源程序数据。原文卸载状态及 bodyReference 的 tb1 在文本中说明，并给出 kind=body 的完整调用。上层调用方继续用 P14 projectToolResult 投影，固定附件块身份后追加合法逻辑附件地址。
 
 状态分别说明 reading、sourceTerminal、content 遍历及 original。读取 failed 原工具可以成功。content=end 只结束内容块遍历，不表示附件或卸载原文字节已读。原生附件字节回应保持 mediaType、十进制 offset、bytes、base64 和 next。卸载正文回应走独立语义页，返回可读文本、JSON 完整值或明确片段、JSON Lines 完整记录，并带固定正文身份、位置、总字节数和期限。正文页不要求模型解码 base64，不把片段冒充合法 JSON 值。
 
-已知 ToolFailure 映射为固定错误码，仅保留受支持的 denied 动作说明。失败结果没有源内容、源附件或 next，不转发提供者诊断。元调用 completed 表示命令答复，不代表源读取成功。未知异常、非法作者输出或保管失败仍归既有故障管线。
+已知 ToolFailure 映射为固定错误码，保留受支持的 denied 动作说明和 not-found 的 target、reason。失败结果没有源内容、源附件或 next，不转发提供者诊断。元调用 completed 表示命令答复，不代表源读取成功。未知异常、非法作者输出或保管失败仍归既有故障管线。
 
 ### 预算与收取
 
-构造时固定 JsonLimits 和三个正安全整数预算。resultPageBytes 必须来自所装配 runtime 的相同配置。replyMaxBytes 限制完整新 ToolResult 的 JSON UTF-8 字节。contentPageBytes 限制附件字节。每个完整块必须装入一个 resultPageBytes，完整回应必须装入 replyMaxBytes。预算不足返回固定 unsupported，不截块、凭据或 schema。固定错误无法在预算内单页交付时，构造同步抛 TypeError。
+构造时固定 JsonLimits 和三个正安全整数预算。resultPageBytes 必须来自所装配 runtime 的相同配置。replyMaxBytes 限制完整新 ToolResult 的 JSON UTF-8 字节。contentPageBytes 限制附件字节，也作为正文页首次请求的字节预算。每个完整块必须装入一个 resultPageBytes，完整回应必须装入 replyMaxBytes。预算不足返回固定 unsupported，不截块、凭据或 schema。固定错误无法在预算内单页交付时，构造同步抛 TypeError。
 
-正文页在扣除元数据和读回说明后选取内容；成功非末页必须推进。最小完整记录超过预算时明确受限，不能递归卸载。原生附件与内容块遍历保持原独立预算。
+正文文本页先读取最多 contentPageBytes，再按实际 JSON 回应检查整块与完整回应预算。超限时沿同一游标减半请求预算，下限为首个完整字符的 UTF-8 字节数。不能裁短正文却沿用较远的 next。达到下限仍超限时返回 unsupported。每次重读重新准入，最多 ceil(log2(contentPageBytes)) + 2 次。正文页不递归卸载。原生附件与内容块遍历保持原独立预算。JSON 文档与 JSON Lines 的语义页尚未实现。
 
 源页加状态后可使新元回应再次分页。受信消费侧在调用收场后使用 readReply，沿同一 resultVersion 收齐新元回应，再投影给模型。它不生成第三个模型命令，不递归包装回应。每页 value 和累计完整 ToolResult 都受 replyMaxBytes 限制。累计大小只计一次共同元数据，再逐块增加 JSON 字节及数组分隔符。读取次数最多 `2 * ceil(replyMaxBytes / resultPageBytes) + 1`，推导值必须为安全整数。每页仍经真实读口检查当前资格。
 
@@ -569,3 +570,16 @@ SourceVerdict 的 denied 表示来源真实、当前请求资格被拒。ledger 
 ### 原始输出准备与启动次序
 
 `rawCustody.preserve` 在首次异步前固定字节、codec 和来源，再以原 call 域提交准备责任。新准备要求原启动记录存在，且调用处于 starting 或 running。执行器消费启动许可后可以先于 recordStart 产出结果，不能以尚未记录 running 拒绝该输出。已终结调用只允许认回既有同身份材料，不允许创建新准备。材料保管不授予执行权限，不证明启动许可已消费或业务已经结束。
+
+
+### 有限正文页租约
+
+`ToolReads.body.read` 从结果记录的独立正文描述读取，不依赖 delivery 通道或恢复完整 ToolResult。runtime 的 body 分面只解析受信调用引用，主体与租户沿 Access 传入。文本载荷使用 UTF-8；页保留完整字符及 U+FEFF。错误 UTF-8、错误提供者范围、空续页和提前 EOF 均明确失败。首字符不能装入预算时返回 invalid/maxBytes。
+
+准入同一次 call 域 CAS 保存页租约与时间水位。租约身份为成功准入的 call revision，未知提交不读取、不按候选身份释放。页预算取请求与 maxPageBytes 的较小值，租约最多 maxPageLeaseMs。两个配置均为正安全整数。初始发行值为 65536 字节、30000 毫秒，尚未做效果校准。
+
+每次材料 IO 前核当前 read-content 资格。完成 CAS 核原正文、完整租约身份、封存状态和时钟。租约仍有效时可交付期限前准入的一页；租约失效则丢弃正文。完成提交未知时不交出页面。明确完成后再次核资格，允许后同步返回，不再等待存储或其他 guard。
+
+首次观察到正文到期时，同 CAS 保存 body-expiration、时间水位、解除正文用途及清理待办。已记录到期不会因时钟回拨而复活。读取 original.source 的字节页共用此准入及完成机制，游标以 body-bytes-v1 区别于 text-utf8-v1。被替代 raw 副本没有独立原生引用或过程用途时拒绝读取。原生引用用途不随正文期限解除。
+
+作者验证入口为 [正文页](tests/body-reads.spec.ts)、[模型读回](tests/tools-body.spec.ts)及 SQL 的 final-capacity 重开场景。自动扫描、删除资格与物理回收仍待后续实现；有限租约及到期记录不等于自动回收交付。

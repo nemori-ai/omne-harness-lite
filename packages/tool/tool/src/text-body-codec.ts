@@ -3,15 +3,17 @@ import type { TextContentBlock } from '@omne-harness/content-block'
 import { describedAdoption } from '@omne-harness/tool-contract/provider'
 import type { MaterialBytes } from './material-codec.ts'
 
+export const textBodyCodec = describedAdoption({
+  owner: '@omne-harness/tool',
+  name: 'tool-model-text-utf8-v1',
+  revision: '1',
+})
+
 export function encodeTextBody(frames: readonly TextContentBlock[]): MaterialBytes {
   const bytes = new TextEncoder().encode(frames.map(frame => frame.text).join(''))
   return {
     bytes,
-    codec: describedAdoption({
-      owner: '@omne-harness/tool',
-      name: 'tool-model-text-utf8-v1',
-      revision: '1',
-    }),
+    codec: textBodyCodec,
     fingerprint: {
       algorithm: 'sha256',
       digest: createHash('sha256').update(bytes).digest('hex'),

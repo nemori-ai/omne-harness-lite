@@ -284,11 +284,11 @@ describe('fixed result and content reads through the runtime', () => {
     })
     expect(
       await f.runtime.content.read({ ...f.input, result: resultVersion('unknown') }),
-    ).toMatchObject({ failure: { kind: 'invalid', field: 'result' } })
+    ).toMatchObject({ failure: { kind: 'not-found', target: 'result', reason: 'missing' } })
     // R2-D357: another tenant's partition has no such call; it is answered as a missing one.
     expect(
       await f.runtime.content.read({ ...f.input, principal: principalB, tenant: tenantB }),
-    ).toMatchObject({ failure: { kind: 'invalid' } })
+    ).toMatchObject({ failure: { kind: 'not-found', target: 'result', reason: 'missing' } })
     expect(await f.runtime.content.read({ ...f.input, principal: principalB })).toMatchObject({
       failure: { kind: 'denied' },
     })
@@ -493,7 +493,7 @@ describe('fixed result and content reads through the runtime', () => {
     expect(ok(await f.runtime.content.raw(f.access))).toEqual(f.f.final.raw)
     expect(
       await f.runtime.content.raw({ ...f.access, result: resultVersion('wrong') }),
-    ).toMatchObject({ failure: { kind: 'invalid', field: 'result' } })
+    ).toMatchObject({ failure: { kind: 'not-found', target: 'result', reason: 'missing' } })
     const protectedInput = { ...f.input, attachment: raw.content }
     expect(ok(await f.runtime.content.read(protectedInput)).bytes.length).toBe(2)
     f.pauseStore(async () => {

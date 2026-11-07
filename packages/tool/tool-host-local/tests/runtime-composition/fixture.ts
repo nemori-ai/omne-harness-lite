@@ -81,6 +81,8 @@ export const configuration: ToolConfiguration = {
     maxRetentionMs: 86_400_000,
     maxBodyBytes: 16_777_216,
     previewUtf8Bytes: 1_024,
+    maxPageBytes: 65_536,
+    maxPageLeaseMs: 30_000,
   },
 }
 export type Author = (

@@ -121,6 +121,7 @@ import { checkSettlement, decidePreserveResult } from './ledger-settlement.ts'
 import { excluded, excludedSince, withExclusionsRemoved } from './ledger-exclusion.ts'
 import type { ToolLedgerAction, ToolLedgerGuards } from './ledger-guards.ts'
 import { createLedgerContent, fixResultInput } from './ledger-content.ts'
+import { createLedgerBodyReads } from './ledger-body-reads.ts'
 import { createQueueReconciler } from './ledger-queue.ts'
 import {
   lookupCall,
@@ -1499,7 +1500,14 @@ export function createToolLedger<P, B extends ContentBlock>(
     },
   }
 
+  const bodyReads = createLedgerBodyReads({
+    materials: settlement.materials,
+    configuration: configuration.offloading,
+    authorize: input => access(input, 'read-content'),
+    transact,
+  })
   const reads: ToolReads<P, B> = {
+    body: { read: bodyReads.read },
     lookup: input => fenced(input, 'lookup', 'admission', lookupCall, lookupFence),
     operation: input =>
       fenced(input, 'query-operation', 'operation', resolveOperation, operationFence),
@@ -1542,6 +1550,7 @@ export function createToolLedger<P, B extends ContentBlock>(
       ),
     account: input => query(input, 'account', snapshot => readAccount(snapshot)),
     content: createLedgerContent({
+      bodyBytes: bodyReads.bytes,
       adoption: toolLedgerAdoption,
       provider: settlement.content,
       materials: settlement.materials?.store,

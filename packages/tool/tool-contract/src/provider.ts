@@ -1,4 +1,5 @@
 export type { SealedToolBody, ToolBodyCustody } from './body-custody.ts'
+export type { ToolBodyReader } from './body-reads.ts'
 // The `./provider` entry of the Tool contract package: the provider protocol that only the Tool
 // implementation members use (SPEC「公开入口的分组」rules 2 and 3): ports that outside providers
 // implement, protocol records between providers, custody and account read/write ports, loading

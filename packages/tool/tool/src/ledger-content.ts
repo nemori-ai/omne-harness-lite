@@ -24,7 +24,9 @@ import { invalid, judgeCallInput, type CallInput } from './boundary.ts'
 import type { ToolLedgerAction } from './ledger-guards.ts'
 import type { Snapshot } from './ledger-decider.ts'
 import { resultRecord } from './ledger-reads.ts'
+import { sameFactValue } from './ledger-facts.ts'
 import type { ResultRecord } from './ledger-store.ts'
+import type { BodyReadInput } from './ledger-body-page.ts'
 
 type ResultInput<P> = CallInput<P> & Readonly<{ result: ToolResultVersion }>
 type ContentInput<P> = Parameters<ToolContentReader<P>['read']>[0]
@@ -111,6 +113,29 @@ function providerFailure(reason: string): Outcome<never, ToolFailure> {
   return fail({ kind: 'unavailable', dependency: 'content-reader', diagnostic: reason })
 }
 
+function replacedBodyRaw(
+  snapshot: Snapshot,
+  result: ResultRecord,
+  attachment: Attachment,
+): boolean {
+  if (result.value.original.kind !== 'offloaded' || result.custody.kind !== 'execution')
+    return false
+  const raw = result.custody.raw.content
+  if (
+    raw.storage !== materialStorage ||
+    raw.storage !== attachment.storage ||
+    raw.key !== attachment.key
+  )
+    return false
+  const seal = materialContentSeal(raw, snapshot)
+  if ('failure' in seal) return true
+  return ![...snapshot.materialUses.values()].some(
+    use =>
+      (use.kind === 'native-reference' || use.kind === 'process-history') &&
+      sameFactValue(use.material, seal.ok.material),
+  )
+}
+
 function copyPage<P>(page: ContentPage, input: ContentInput<P>): Outcome<ContentPage, ToolFailure> {
   const attachment = fixAttachment(page.attachment)
   if (
@@ -152,6 +177,7 @@ export function createLedgerContent<P, B extends ContentBlock>(
     authorize(input: CallInput<P>, action: ToolLedgerAction): Reply<void>
     load(input: CallInput<P>): Reply<Snapshot>
     resultValue(input: CallInput<P>, record: ResultRecord): Reply<ToolResult<B>>
+    bodyBytes(input: BodyReadInput<P>): Reply<ContentPage>
   }>,
 ): ToolContentReader<P> {
   const locate = async (input: ResultInput<P>) => {
@@ -169,6 +195,16 @@ export function createLedgerContent<P, B extends ContentBlock>(
       if ('failure' in allowed) return allowed
       const before = await locate(value)
       if ('failure' in before) return before
+      const original = before.ok.record.value.original
+      if (
+        original.kind === 'offloaded' &&
+        sameAttachment(original.body.description.source, value.attachment)
+      )
+        return ports.bodyBytes({ ...value, bodyId: original.body.description.bodyId })
+      if (replacedBodyRaw(before.ok.snapshot, before.ok.record, value.attachment)) {
+        const current = await ports.authorize(value, 'read-raw-content')
+        return 'failure' in current ? current : invalid('attachment', 'released-material')
+      }
       const result = await ports.resultValue(value, before.ok.record)
       if ('failure' in result) return result
       const linked = association(before.ok.record, value.attachment, result.ok)
@@ -222,7 +258,10 @@ export function createLedgerContent<P, B extends ContentBlock>(
       if (record.ok.record.custody.kind !== 'execution') return invalid('result', 'no-raw-output')
       const raw: RawOutput = structuredClone(record.ok.record.custody.raw)
       const current = await ports.authorize(fixed.ok, 'read-raw')
-      return 'failure' in current ? current : succeed(raw)
+      if ('failure' in current) return current
+      return replacedBodyRaw(record.ok.snapshot, record.ok.record, raw.content)
+        ? invalid('raw', 'released-material')
+        : succeed(raw)
     },
   })
 }

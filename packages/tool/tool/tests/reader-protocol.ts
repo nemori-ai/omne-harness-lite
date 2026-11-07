@@ -15,7 +15,7 @@ import {
 import { toolsAdoption } from '../src/tools-protocol.ts'
 export { toolsAdoption } from '../src/tools-protocol.ts'
 export type ReadArguments = Readonly<{
-  kind: 'result' | 'attachment'
+  kind: 'result' | 'attachment' | 'body'
   reference: string
   after: string | null
 }>
@@ -66,7 +66,7 @@ const readFields: readonly Field[] = [
     name: 'kind',
     type: 'string',
     required: true,
-    values: ['result', 'attachment'],
+    values: ['result', 'attachment', 'body'],
     description: 'Read result content blocks or attachment bytes.',
   },
   {
@@ -184,7 +184,7 @@ export function parameterCodecs(
         reference = fields.ok.get('reference'),
         after = fields.ok.get('after')
       if (
-        (kind !== 'result' && kind !== 'attachment') ||
+        (kind !== 'result' && kind !== 'attachment' && kind !== 'body') ||
         typeof reference !== 'string' ||
         after === undefined
       )

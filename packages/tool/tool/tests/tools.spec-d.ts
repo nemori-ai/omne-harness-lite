@@ -28,6 +28,7 @@ it('createToolResultReader consumes only the public result and content read port
     Readonly<{
       queries: Pick<ToolRuntime<P, ToolMessageContentBlock>['queries'], 'readResult'>
       content: Pick<ToolRuntime<P, ToolMessageContentBlock>['content'], 'read'>
+      body: ToolRuntime<P, ToolMessageContentBlock>['body']
     }>
   >()
   expectTypeOf<ToolResultReader<P>>().not.toHaveProperty('implementation')

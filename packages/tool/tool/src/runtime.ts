@@ -319,6 +319,20 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
       },
     }),
     catalog,
+    body: Object.freeze<ToolRuntime<P, B>['body']>({
+      read: async input => {
+        const resolved = invocationInput<P>(input, 'read-content')
+        return 'failure' in resolved
+          ? resolved
+          : reads.body.read({
+              ...resolved.ok,
+              result: input.result,
+              bodyId: input.bodyId,
+              after: input.after,
+              maxBytes: input.maxBytes,
+            })
+      },
+    }),
   }
   return Object.freeze(runtime)
 }

@@ -8,6 +8,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { ResultChannels } from './ledger-result-material.ts'
 import type {
   MaterialRecord,
+  BodyExpirationRecord,
   MaterialCleanupRecord,
   MaterialTimeRecord,
   MaterialUseRecord,
@@ -301,6 +302,7 @@ export type QueueReleaseRecord = Readonly<{ call: ToolCallId; basis: ReleaseBasi
 export type HostRecord = Readonly<{ key: string; value: unknown }>
 
 export type LedgerRecord =
+  | Readonly<{ kind: 'body-expiration'; expiration: BodyExpirationRecord }>
   | Readonly<{ kind: 'body-preparation'; body: BodyPreparationRecord }>
   | Readonly<{ kind: 'result-policy'; policy: ResultPolicyRecord }>
   | Readonly<{ kind: 'result-preparation'; preparation: ResultPreparationRecord }>
@@ -328,6 +330,8 @@ export type LedgerRecord =
 export function recordKey(record: LedgerRecord): string {
   if (isQueueRecord(record)) return queueRecordKey(record)
   switch (record.kind) {
+    case 'body-expiration':
+      return `body-expiration:${JSON.stringify([record.expiration.result, record.expiration.bodyId])}`
     case 'body-preparation':
       return `body-preparation:${record.body.operation}`
     case 'result-policy':

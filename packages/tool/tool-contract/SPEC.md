@@ -1240,6 +1240,9 @@ recordScheduling 同提交调度状态、计时段关闭/开启和下一计时�
 
 ### P08 过程、分页与全文交接
 
+`ToolReads.body.read` 接收原 call、固定 result、bodyId、after 和 maxBytes。ToolRuntime.body 的等价入口消费 InvocationAccess，模型不传主体或租户。当前 ToolBodyPage 的 text 分支交付完整 UTF-8 字符，附固定正文身份、表示、原字节数、截止时间、页位置和 next。首次 after 为 null，next 为 null 只结束该正文遍历。正文页与原生附件字节页使用不同游标，不能互换。该接口不要求读取或保留完整结果的交付副本。
+
+
 preserveProcess/receiveFacts 在发布之前保存块和游标。index 的 mode 开块后固定，sequence 严格递增；重复同值认回，封块后不可改。append 携带累计完整值且保留前序，replace 仅替换同 index。裁剪必须保留数量、原因及可追溯原过程保管依据，不删除已展示内容的必要事实。
 
 observe 先提供一致快照 C，再发 from=C 的 delta；读取快照和接续游标必须来自同一保存边界，不能在二者之间漏事件。观察请求没有 `after`：历史不可重放发 `gap`（`source-history`），缓冲超限发 `gap`（`buffer`），两者都结束本次观察，消费者经 `current` 重新取得引用与 snapshot（[公共流协议上的观察](#公共流协议上的观察)）。慢观察者不拖住执行；必要保存失败阻止发布，可选发送失败不使工具失败。readProcess 在无活体或终局后仍可取得持久快照；at 是 `ToolCursor`，指已保存版本，过期游标不能静默换成另一版本。人用过程不进入消费方的请求内容或程序执行方的正式数据通路。

@@ -147,11 +147,12 @@ export function resultRecord(
   snapshot: Snapshot,
   version: ToolResultVersion,
 ): Outcome<ResultRecord, ToolFailure> {
-  if (snapshot.call === null) return invalid('call', 'unknown-call')
+  if (snapshot.call === null)
+    return fail({ kind: 'not-found', target: 'result', reason: 'missing' })
   const record = snapshot.results.get(version)
   if (record !== undefined) return succeed(record)
   if (snapshot.call.state.phase !== 'settled') return fail({ kind: 'not-settled' })
-  return invalid('result', 'unknown-version')
+  return fail({ kind: 'not-found', target: 'result', reason: 'missing' })
 }
 
 /**

@@ -947,6 +947,8 @@ describe('gaps', () => {
       [{ kind: 'conflict', operation: 'op' }, 'unavailable'],
       [{ kind: 'commit-unknown', operation: 'op' }, 'unavailable'],
       [{ kind: 'not-settled' }, 'not-recorded'],
+      [{ kind: 'not-found', target: 'result', reason: 'missing' }, 'not-found'],
+      [{ kind: 'not-found', target: 'body', reason: 'expired' }, 'not-found'],
     ] as const)('Tool lookup, account and readDiagnostics %j -> %s', async (failure, reason) => {
       const entries = [started('e1', 'r1'), bound('e2', 'tool', 't1', 'action')]
       const tool = toolDouble({ t1: fail(failure) }, { t1: fail(failure) }, { t1: fail(failure) })

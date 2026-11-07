@@ -38,6 +38,7 @@ it.each([
     const storage = await openStorage(root, [tenant], { maxCommandBytes: 1_048_576 })
     try {
       const world = await ledgerWorld(tenant)
+      let now = '2026-11-07T00:00:00.000Z'
       const provider = {
         owner: 'capacity-fixture',
         name: 'materials',
@@ -55,7 +56,7 @@ it.each([
           maxChunkBytes: 16_384,
         }),
         clock: {
-          sample: async () => succeed(ok(decodeToolMaterialInstant('2026-11-07T00:00:00.000Z'))),
+          sample: async () => succeed(ok(decodeToolMaterialInstant(now))),
         },
       })
       const ledger = world.ledgerOver(storage.store, materials(storage))
@@ -260,6 +261,62 @@ it.each([
             record => record.kind === 'material-use' || record.kind === 'material-cleanup',
           ),
         ).toHaveLength(uses.length + cleanup.length)
+        if (offloaded && state.phase === 'settled') {
+          const value = ok(
+            await restoredLedger.delivery.read({ ...world.access, result: state.result }),
+          )
+          if (value.original.kind !== 'offloaded') throw new Error('missing body')
+          const request = {
+            ...world.access,
+            result: state.result,
+            bodyId: value.original.bodyId,
+            after: null,
+            maxBytes: 17,
+          }
+          const first = ok(await restoredLedger.reads.body.read(request))
+          expect(first.text).toBe('x'.repeat(17))
+          expect(first.position).toBe('0')
+          const second = ok(await restoredLedger.reads.body.read({ ...request, after: first.next }))
+          expect(second.text).toBe('x'.repeat(17))
+          expect(second.position).toBe('17')
+          const byteRequest = {
+            ...world.access,
+            result: state.result,
+            attachment: value.original.source,
+            after: null,
+            maxBytes: 3,
+          }
+          expect(ok(await restoredLedger.reads.content.read(byteRequest)).bytes).toEqual(
+            new Uint8Array([120, 120, 120]),
+          )
+          now = value.original.retention.expiresAt
+          const expired = { failure: { kind: 'not-found', target: 'body', reason: 'expired' } }
+          expect(await restoredLedger.reads.body.read({ ...request, after: second.next })).toEqual(
+            expired,
+          )
+          expect(await restoredLedger.reads.content.read(byteRequest)).toEqual(expired)
+          await reopened.close()
+          now = '2026-11-07T00:00:00.000Z'
+          const afterExpiry = await openStorage(root, [tenant], { maxCommandBytes: 1_048_576 })
+          try {
+            const again = world.ledgerOver(afterExpiry.store, materials(afterExpiry))
+            expect(await again.reads.body.read(request)).toEqual(expired)
+            const records = await afterExpiry.store.read({
+              kind: 'call',
+              tenant,
+              call: world.access.call,
+            })
+            if (records.kind !== 'complete') throw new Error('incomplete expiration recovery')
+            expect(records.records.filter(row => row.kind === 'body-expiration')).toHaveLength(1)
+            expect(
+              records.records.filter(
+                row => row.kind === 'material-use' && row.use.kind === 'page-lease',
+              ),
+            ).toHaveLength(0)
+          } finally {
+            await afterExpiry.close()
+          }
+        }
       } finally {
         await reopened.close()
       }

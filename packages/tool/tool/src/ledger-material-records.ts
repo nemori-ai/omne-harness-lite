@@ -14,6 +14,14 @@ import type {
 
 export type MaterialTimeRecord = Readonly<{ highWatermark: ToolMaterialInstant }>
 
+export type BodyExpirationRecord = Readonly<{
+  result: ToolResultVersion
+  bodyId: import('@omne-harness/tool-contract').ToolBodyId
+  material: ToolMaterialRef
+  expiredAt: ToolMaterialInstant
+  basis: DurableEvidence
+}>
+
 export type MaterialRecord = Readonly<{
   purpose: 'raw' | 'final' | 'result' | 'body'
   material: ToolMaterialRef
@@ -33,6 +41,14 @@ export type MaterialUseRecord = Readonly<{
   basis: DurableEvidence
 }> &
   (
+    | Readonly<{
+        kind: 'page-lease'
+        result: ToolResultVersion
+        bodyId: import('@omne-harness/tool-contract').ToolBodyId
+        admittedAt: ToolMaterialInstant
+        expiresAt: ToolMaterialInstant
+        writeOperation: ToolOperationId
+      }>
     | Readonly<{ kind: 'preparation'; operation: ToolOperationId }>
     | Readonly<{
         kind: 'native-reference' | 'process-history'

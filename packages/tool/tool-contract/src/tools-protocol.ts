@@ -15,7 +15,7 @@ export type ToolUsageView =
   | (Extract<ToolAvailability, { kind: 'available' }> & Readonly<{ usage: ToolUsage | null }>)
   | (Extract<ToolAvailability, { kind: 'known-unavailable' }> & Readonly<{ usage: null }>)
 export type ToolFixedReadArguments = Readonly<{
-  kind: 'result' | 'attachment'
+  kind: 'result' | 'attachment' | 'body'
   reference: string
   after: string | null
 }>

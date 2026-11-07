@@ -170,6 +170,7 @@ export async function sourceFixture(
     result: settled.result,
   }
   const reads = {
+    body: runtime.body,
     content: runtime.content,
     queries: {
       readResult: async (input: Parameters<typeof runtime.queries.readResult>[0]) => {

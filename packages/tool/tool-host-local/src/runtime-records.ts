@@ -92,6 +92,7 @@ export function publishRuntimeRecords(ctx: Context, records: RuntimeRecords): vo
     diagnostics = ledger.reads.diagnostics
     account = ledger.reads.account
     content = ledger.reads.content
+    body = ledger.reads.body
   }
   class Authority extends ToolStartAuthorityService<unknown> {
     exclude = authority.exclude

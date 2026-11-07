@@ -61,6 +61,7 @@ export function createReleaseToolsCapability(ctx: Context, config: ToolsCapabili
       },
     },
     content: { read: input => runtime()?.content.read(input) ?? Promise.resolve(unavailable()) },
+    body: { read: input => runtime()?.body.read(input) ?? Promise.resolve(unavailable()) },
   }
   const reader = createToolResultReader(reading, { ...config, arguments: ARGUMENTS })
   return createLocalToolForwarding<unknown>({

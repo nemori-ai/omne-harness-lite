@@ -117,7 +117,7 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
       expect(modelText(view)).not.toContain('PRIVATE-DIAGNOSTIC')
     }
     expect(modelField(view, 'content')).toBe('end')
-    expect(modelText(view)).toContain('Attachment and offloaded original bytes are separate reads')
+    expect(modelText(view)).toContain('Attachments use kind=attachment')
     expect(host.actions).not.toContain('read-content')
     const chunks: Buffer[] = []
     let read = model.attachment(initial, 0)
@@ -168,7 +168,7 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
     if (next === null) throw new Error('No continuation')
     // R2-D357: another tenant's partition has no such call; it is answered as a missing one.
     const foreign = await host.call('read_result', next, { principal: principalB, tenant: tenantB })
-    expectFailure(foreign.view, 'invalid')
+    expectFailure(foreign.view, 'not-found (result: missing)')
     expect(foreign.full.attachments).toEqual([])
     expect(foreign.call.state.terminal.kind).toBe('completed')
     host.denied.push('read-result')
@@ -225,7 +225,7 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
     ]
     for (const [index, bad] of cases.entries()) {
       const reply = await host.call('read_result', bad)
-      expectFailure(reply.view, index === 2 ? 'invalid' : 'invalid-cursor')
+      expectFailure(reply.view, index === 2 ? 'not-found (result: missing)' : 'invalid-cursor')
       expect(reply.full.attachments).toEqual([])
       expect(reply.call.state.terminal.kind).toBe('completed')
     }
@@ -252,16 +252,12 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
     const model = new PagingModel((await host.call('help', {})).view)
     const initial = await host.present()
     expect(modelField(initial, 'content')).toBe('end')
-    expect(modelField(initial, 'original')).toBe('offloaded; bytes unread')
+    expect(modelField(initial, 'original')).toBe('offloaded; text unread')
     expect(host.sourceDefinition.returns).toEqual(
       structuredReturnFixture(adoption('source-result')),
     )
     host.denied.push('read-raw')
-    for (const read of [
-      model.original(initial),
-      model.attachment(initial, 0),
-      model.attachment(initial, 1),
-    ]) {
+    for (const read of [model.attachment(initial, 0), model.attachment(initial, 1)]) {
       const before = host.actions.length
       const reply = await host.call('read_result', read)
       expectFailure(reply.view, 'denied (read-raw-content)')
@@ -272,6 +268,10 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
       expect(actions.at(-1)).toBe('read-raw-content')
       expect(host.actions.slice(before)).not.toContain('read-raw')
     }
+    host.denied.push('read-content')
+    const bodyReply = await host.call('read_result', model.original(initial))
+    expectFailure(bodyReply.view, 'denied (read-content)')
+    expect(modelText(bodyReply.view)).not.toContain('summary only')
     const bytesHost = await modelHost()
     const ordinaryInitial = await bytesHost.present()
     bytesHost.denied.push('read-raw')

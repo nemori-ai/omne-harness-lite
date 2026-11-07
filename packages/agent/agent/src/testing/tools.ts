@@ -21,6 +21,7 @@ export type ScriptedToolRuntime<P> = Readonly<{
   /** The observation face answers frames; the script answers the whole iterable of one call. */
   observation: Readonly<{ observe: Script<In<Observe<P>>, AsyncIterable<FrameOf<P>>> }>
   content: Readonly<{ [K in keyof Runtime<P>['content']]: ScriptOf<Runtime<P>['content'][K]> }>
+  body: Readonly<{ read: ScriptOf<Runtime<P>['body']['read']> }>
   catalog: Readonly<{ [K in keyof Runtime<P>['catalog']]: ScriptOf<Runtime<P>['catalog'][K]> }>
 }>
 
@@ -94,6 +95,7 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
   )
   const read = scriptedMethod<In<R['content']['read']>, Out<R['content']['read']>>(failing())
   const raw = scriptedMethod<In<R['content']['raw']>, Out<R['content']['raw']>>(failing())
+  const bodyRead = scriptedMethod<In<R['body']['read']>, Out<R['body']['read']>>(failing())
   const catalogInspect = scriptedMethod<In<R['catalog']['inspect']>, Out<R['catalog']['inspect']>>(
     failing(),
   )
@@ -117,6 +119,7 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
       instances: { current: current.call },
       observation: { observe: input => deferred(observe.call(input)) },
       content: { read: read.call, raw: raw.call },
+      body: { read: bodyRead.call },
       catalog: { inspect: catalogInspect.call, usage: usage.call, search: search.call },
     },
     invoke: invoke.script,
@@ -134,6 +137,7 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
     instances: { current: current.script },
     observation: { observe: observe.script },
     content: { read: read.script, raw: raw.script },
+    body: { read: bodyRead.script },
     catalog: { inspect: catalogInspect.script, usage: usage.script, search: search.script },
   }
 }

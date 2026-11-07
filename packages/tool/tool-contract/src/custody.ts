@@ -1,5 +1,6 @@
 // Output custody, durable reads, content pages and accounts.
 import type { CallAccount } from '@omne-harness/call-account'
+import type { ToolBodyReader } from './body-reads.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { OrganizationId, TenantId } from '@omne-harness/legal-identity'
 import type {
@@ -76,6 +77,7 @@ export interface ToolContentReader<P> {
   raw(input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>): Reply<RawOutput>
 }
 export interface ToolReads<P, B extends ContentBlock> {
+  readonly body: ToolBodyReader<P>
   lookup(input: CallAccess<P> & Readonly<{ admission: ToolOperationId }>): Reply<ToolLookup>
   operation(
     input: CallAccess<P> & Readonly<{ operation: ToolOperationId }>,

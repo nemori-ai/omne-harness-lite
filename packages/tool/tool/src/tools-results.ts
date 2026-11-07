@@ -49,7 +49,8 @@ export function failureResult(failure: ToolFailure): MessageResult {
     failure.reason === 'unknown-command'
       ? ' (unknown-command)'
       : ''
-  return message(formatError(`${failure.kind}${detail}${command}`))
+  const missing = failure.kind === 'not-found' ? ` (${failure.target}: ${failure.reason})` : ''
+  return message(formatError(`${failure.kind}${detail}${command}${missing}`))
 }
 export const budgetFailure = (): ToolFailure => ({
   kind: 'unsupported',

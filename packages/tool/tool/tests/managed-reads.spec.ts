@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { succeed } from '@omne-harness/operation-result'
+import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import type { ResultPage, ToolResult } from '@omne-harness/tool-contract'
 import {
   callId,
@@ -21,6 +22,18 @@ import {
 } from './runtime-values.ts'
 
 const access = { principal: principalA, tenant: tenantA }
+
+it('reports an authoritative missing result for a call that was never admitted', async () => {
+  const assembly = harness()
+  expect(
+    await assembly.runtime.queries.readResult({
+      ...access,
+      reference: referenceFor('missing-call', 'missing-admission'),
+      result: ok(decodeToolResultVersion('v1')),
+      after: null,
+    }),
+  ).toEqual({ failure: { kind: 'not-found', target: 'result', reason: 'missing' } })
+})
 
 describe('14 queries (P01)', () => {
   it('14 queries: lookup by the reference answers the authoritative state', async () => {
@@ -220,7 +233,7 @@ describe('15 result pages and the account (P08, P09)', () => {
         after: null,
       }),
     ).toEqual({
-      failure: { kind: 'invalid', field: 'result', reason: 'unknown-version' },
+      failure: { kind: 'not-found', target: 'result', reason: 'missing' },
     })
   })
 

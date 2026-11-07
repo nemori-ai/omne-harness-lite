@@ -40,6 +40,8 @@ export type ToolOffloadingConfiguration = Readonly<{
   maxRetentionMs: number
   maxBodyBytes: number
   previewUtf8Bytes: number
+  maxPageBytes: number
+  maxPageLeaseMs: number
 }>
 
 export type ToolConfiguration = ToolAuthorLimits &

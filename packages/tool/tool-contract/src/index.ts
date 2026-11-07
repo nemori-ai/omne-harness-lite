@@ -3,6 +3,7 @@
 // protocol is on `./provider`; the readers of the author inside a handle are on `./binding`. It
 // does not import Cordis or another Tool package.
 export { decodeToolCallId, decodeToolOperationId } from './identity.ts'
+export type { ToolBodyReadRequest, ToolBodyPage, ToolInvocationBodyReader } from './body-reads.ts'
 export type {
   Access,
   Adoption,

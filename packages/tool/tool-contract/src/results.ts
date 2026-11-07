@@ -94,6 +94,8 @@ export type ToolTerminal =
   | Readonly<{ kind: 'interrupted'; cause: InterruptionCause }>
   | Readonly<{ kind: 'no-response'; wait: ToolWaitId; reason: string }>
 export type ToolFailure =
+  | Readonly<{ kind: 'not-found'; target: 'result'; reason: 'released' | 'missing' }>
+  | Readonly<{ kind: 'not-found'; target: 'body'; reason: 'expired' | 'missing' }>
   | Readonly<{ kind: 'denied'; action: string }>
   | Readonly<{ kind: 'invalid'; field: string; reason: string }>
   | Readonly<{ kind: 'conflict'; operation: ToolOperationId }>

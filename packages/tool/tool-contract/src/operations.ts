@@ -249,6 +249,7 @@ export interface ToolInvocationContentReader<P> {
  * Dropping a reference or stopping an observation undoes nothing.
  */
 export interface ToolRuntime<P, B extends ContentBlock> {
+  readonly body: import('./body-reads.ts').ToolInvocationBodyReader<P>
   invoke(input: Access<P> & Readonly<{ request: ToolInvokeRequest }>): Promise<ToolInvokeOutcome>
   inspect(input: ToolInspection<P>): Reply<ToolAvailability>
   readonly queries: ToolInvocationQueries<P, B>

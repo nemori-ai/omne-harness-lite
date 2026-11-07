@@ -29,6 +29,11 @@ function provider(
 ): ToolsReadRuntime<Principal> {
   return {
     queries: { readResult: read },
+    body: {
+      read: async () => {
+        throw new Error('unexpected body read')
+      },
+    },
     content: {
       read: async () => {
         throw new Error('unexpected content read')
@@ -215,7 +220,7 @@ describe('fixed reader with a test-only command transport', () => {
     // R2-D357: another tenant's partition has no such call; it is answered as a missing one.
     expect(
       body(await f.tools.present({ ...f.access, principal: principalB, tenant: tenantB })),
-    ).toContain('invalid')
+    ).toContain('not-found (result: missing)')
   })
 })
 
@@ -536,7 +541,7 @@ it('declares text input and all supported direct output modalities for an actual
   expect(response.state.terminal.kind).toBe('completed')
 })
 
-it('keeps an offloaded original separate and propagates raw-byte qualification denial through the actual meta call', async () => {
+it('keeps an offloaded body separate and propagates body qualification denial through the actual meta call', async () => {
   const denied: import('@omne-harness/tool').ToolLedgerAction[] = []
   const f = await sourceFixture(
     async (raw, ledger, access) => ({
@@ -555,15 +560,15 @@ it('keeps an offloaded original separate and propagates raw-byte qualification d
   expect(token(initial, 'content')).toBe('end')
   expect(token(initial, 'original')).toContain('offloaded')
   expect(initial.original).toEqual({ kind: 'none' })
-  denied.push('read-raw')
+  denied.push('read-content')
   const registered = registeredFixture(f.tools)
   const response = await registered.invoke('read_result', {
-    kind: 'attachment',
-    reference: token(initial, 'originalReference'),
+    kind: 'body',
+    reference: token(initial, 'bodyReference'),
     after: null,
   })
   const value = ok(response.full)
-  expect(body(value)).toContain('denied (read-raw-content)')
+  expect(body(value)).toContain('denied (read-content)')
   expect(value.attachments).toEqual([])
   expect(value.content).toHaveLength(1)
   expect(body(value)).not.toContain('summary only')

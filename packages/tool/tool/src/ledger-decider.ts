@@ -15,6 +15,7 @@ import type { ResultChannels } from './ledger-result-material.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   MaterialRecord,
+  BodyExpirationRecord,
   MaterialCleanupRecord,
   MaterialTimeRecord,
   MaterialUseRecord,
@@ -77,6 +78,7 @@ import {
 
 /** The records of one domain, indexed for the deciders and the read projections. */
 export type Snapshot = Readonly<{
+  bodyExpirations: ReadonlyMap<string, BodyExpirationRecord>
   bodyPreparations: ReadonlyMap<string, BodyPreparationRecord>
   resultPolicies: ReadonlyMap<string, ResultPolicyRecord>
   resultPreparations: ReadonlyMap<string, ResultPreparationRecord>
@@ -105,6 +107,7 @@ export function snapshotOf(
   domain: LedgerDomain,
   read: Extract<LedgerRead, { kind: 'complete' }>,
 ): Snapshot {
+  const bodyExpirations = new Map<string, BodyExpirationRecord>()
   const bodyPreparations = new Map<string, BodyPreparationRecord>()
   const resultPolicies = new Map<string, ResultPolicyRecord>()
   const resultPreparations = new Map<string, ResultPreparationRecord>()
@@ -125,6 +128,12 @@ export function snapshotOf(
   const exclusions = new Map<string, ExclusionRecord>()
   for (const record of read.records) {
     switch (record.kind) {
+      case 'body-expiration':
+        bodyExpirations.set(
+          JSON.stringify([record.expiration.result, record.expiration.bodyId]),
+          record.expiration,
+        )
+        break
       case 'body-preparation':
         bodyPreparations.set(record.body.operation, record.body)
         break
@@ -187,6 +196,7 @@ export function snapshotOf(
     }
   }
   return {
+    bodyExpirations,
     bodyPreparations,
     resultPolicies,
     resultPreparations,

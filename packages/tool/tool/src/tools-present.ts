@@ -2,6 +2,7 @@ import type { Access } from '@omne-harness/tool-contract'
 import { readJsonText } from '@omne-harness/json-text'
 import { formatKeyValue, formatSuccess, formatUsage } from '@omne-harness/unix-format'
 import type { ToolsAccess, ToolsOptions, ToolsReadRuntime } from './tools.ts'
+import { createToolsBodyReader } from './tools-body.ts'
 import { protocol, type ReadArguments } from './tools-protocol.ts'
 import {
   bounded,
@@ -14,6 +15,7 @@ import {
 
 export function createToolsPresenter<P>(runtime: ToolsReadRuntime<P>, options: ToolsOptions) {
   const refs = protocol(options.arguments)
+  const readBody = createToolsBodyReader(runtime, options)
   const callable = (value: ReadArguments) => {
     const text = JSON.stringify(value)
     const parsed = readJsonText(text, options.arguments)
@@ -22,7 +24,9 @@ export function createToolsPresenter<P>(runtime: ToolsReadRuntime<P>, options: T
       'ok' in
       (value.kind === 'result'
         ? refs.readResult(value.reference)
-        : refs.readAttachment(value.reference))
+        : value.kind === 'body'
+          ? refs.readBody(value.reference)
+          : refs.readAttachment(value.reference))
     )
   }
   const finish = (value: MessageResult) => bounded(value, options)
@@ -37,7 +41,9 @@ export function createToolsPresenter<P>(runtime: ToolsReadRuntime<P>, options: T
     const next = page.next === null ? null : refs.cursor('result', reference, page.next)
     const attachments = page.value.attachments.map((_, index) => refs.attachment(reference, index))
     const original =
-      page.value.original.kind === 'none' ? 'none' : refs.attachment(reference, 'original')
+      page.value.original.kind === 'none'
+        ? 'none'
+        : refs.body({ ...access, bodyId: page.value.original.bodyId })
     if (
       ![
         reference,
@@ -48,7 +54,7 @@ export function createToolsPresenter<P>(runtime: ToolsReadRuntime<P>, options: T
       !callable({ kind: 'result', reference, after: null }) ||
       (next !== null && !callable({ kind: 'result', reference, after: next })) ||
       attachments.some(reference => !callable({ kind: 'attachment', reference, after: null })) ||
-      (original !== 'none' && !callable({ kind: 'attachment', reference: original, after: null }))
+      (original !== 'none' && !callable({ kind: 'body', reference: original, after: null }))
     )
       return error(budgetFailure())
     const state = formatKeyValue({
@@ -57,13 +63,13 @@ export function createToolsPresenter<P>(runtime: ToolsReadRuntime<P>, options: T
       sourceActualTerminal: page.actualTerminal?.kind ?? 'none',
       relation: page.relation,
       content: next === null ? 'end' : 'more',
-      original: original === 'none' ? 'none' : 'offloaded; bytes unread',
+      original: original === 'none' ? 'none' : 'offloaded; text unread',
       reference,
       next: next ?? 'null',
     })
     const instruction =
       next === null
-        ? 'Content traversal ended. Attachment and offloaded original bytes are separate reads.'
+        ? 'Content traversal ended. Read bodyReference with kind=body for offloaded text. Attachments use kind=attachment.'
         : formatUsage(
             'Tools',
             'read_result',
@@ -81,7 +87,16 @@ export function createToolsPresenter<P>(runtime: ToolsReadRuntime<P>, options: T
           section('Status', state),
           instruction,
           files,
-          ...(original === 'none' ? [] : [formatKeyValue({ originalReference: original })]),
+          ...(original === 'none'
+            ? []
+            : [
+                formatKeyValue({ bodyReference: original }),
+                formatUsage(
+                  'Tools',
+                  'read_result',
+                  JSON.stringify({ kind: 'body', reference: original, after: null }),
+                ),
+              ]),
         ]
           .filter(Boolean)
           .join('\n'),
@@ -93,6 +108,7 @@ export function createToolsPresenter<P>(runtime: ToolsReadRuntime<P>, options: T
   async function read(argumentsValue: ReadArguments, access: Access<P>): Promise<MessageResult> {
     const after = refs.after(argumentsValue)
     if ('failure' in after) return error(after.failure)
+    if (argumentsValue.kind === 'body') return readBody(argumentsValue, access, after.ok)
     if (argumentsValue.kind === 'result') {
       const source = refs.readResult(argumentsValue.reference)
       return 'failure' in source
@@ -106,12 +122,7 @@ export function createToolsPresenter<P>(runtime: ToolsReadRuntime<P>, options: T
     if ('failure' in first) return error(first.failure)
     if (first.ok.result !== source.result)
       return error({ kind: 'invalid', field: 'result', reason: 'another-version' })
-    const attachment =
-      selector === 'original'
-        ? first.ok.value.original.kind === 'offloaded'
-          ? first.ok.value.original.source
-          : undefined
-        : first.ok.value.attachments[selector]
+    const attachment = first.ok.value.attachments[selector]
     if (attachment === undefined)
       return error({ kind: 'invalid', field: 'reference', reason: 'attachment-selector' })
     const response = await runtime.content.read({

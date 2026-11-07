@@ -23,6 +23,7 @@ export function publishRuntimeFacade(
     instances = runtime.instances
     observation = runtime.observation
     content = runtime.content
+    body = runtime.body
     catalog = runtime.catalog
     receiver: DeliveryPosition<unknown, ToolMessageContentBlock>['receiver'] = async consumer => {
       const receiver = this.resultReceiver(consumer.owner)

@@ -73,14 +73,17 @@ export const toolsCommands = [
   {
     name: 'read_result',
     summary:
-      'Read a fixed result or attachment, query an invocation, or recover an existing forwarding slot.',
+      'Read a fixed result, offloaded text body, or attachment; query an invocation or recover an existing forwarding slot.',
     schema: {
-      oneOf: ['result', 'attachment', 'invocation', 'forwarding'].map(kind =>
+      oneOf: ['result', 'body', 'attachment', 'invocation', 'forwarding'].map(kind =>
         object(
           {
             kind: { const: kind },
             reference: string,
-            after: kind === 'result' || kind === 'attachment' ? nullableString : { type: 'null' },
+            after:
+              kind === 'result' || kind === 'body' || kind === 'attachment'
+                ? nullableString
+                : { type: 'null' },
           },
           ['kind', 'reference', 'after'],
         ),
@@ -124,7 +127,7 @@ function parseRead(
     reference = text(map.get('reference')),
     after = nullableText(map.get('after'))
   if (reference === undefined || after === undefined) return invalid()
-  if (kind === 'result' || kind === 'attachment')
+  if (kind === 'result' || kind === 'body' || kind === 'attachment')
     return succeed({ kind: 'read_result', arguments: { kind, reference, after } })
   if ((kind !== 'invocation' && kind !== 'forwarding') || after !== null) return invalid()
   const decoded = decodeToolInvocationRef(reference)

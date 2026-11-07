@@ -2,12 +2,14 @@ import { readJsonText, type JsonLimits, type JsonValue } from '@omne-harness/jso
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   type ToolFailure,
+  type ToolBodyId,
   type ToolFixedReadArguments,
   type ToolInvocationRef,
   type ToolResultVersion,
 } from '@omne-harness/tool-contract'
 import {
   decodeToolInvocationRef,
+  decodeToolBodyId,
   decodeToolResultVersion,
   describedAdoption,
 } from '@omne-harness/tool-contract/provider'
@@ -19,13 +21,16 @@ export const toolsAdoption = describedAdoption({
 })
 export type ReadArguments = ToolFixedReadArguments
 export type ResultReference = Readonly<{ reference: ToolInvocationRef; result: ToolResultVersion }>
+export type BodyReference = ResultReference & Readonly<{ bodyId: ToolBodyId }>
 export type AttachmentReference = Readonly<{
   source: ResultReference
   reference: string
-  selector: number | 'original'
+  selector: number
 }>
 
 export function protocol(limits: JsonLimits) {
+  const projection = (kind: ReadArguments['kind']) =>
+    kind === 'result' ? 'full' : kind === 'body' ? 'text' : 'bytes'
   const allowed = (text: string) =>
     text.length <= limits.maxStringLength && Buffer.byteLength(text) <= limits.maxBytes
   function encode(prefix: string, fields: readonly (string | number)[]): string {
@@ -76,10 +81,28 @@ export function protocol(limits: JsonLimits) {
   return {
     allowed,
     result: (value: ResultReference) => encode('tr1', [1, value.reference, value.result]),
-    attachment: (reference: string, selector: number | 'original') =>
-      encode('ta1', [1, reference, selector]),
+    body: (value: BodyReference) => encode('tb1', [1, value.reference, value.result, value.bodyId]),
+    readBody(text: string): Outcome<BodyReference, ToolFailure> {
+      const decoded = decode(text, 'tb1', 4)
+      if ('failure' in decoded) return decoded
+      const [, invocation, version, body] = decoded.ok
+      if (invocation?.kind !== 'string' || version?.kind !== 'string' || body?.kind !== 'string')
+        return fail({ kind: 'invalid', field: 'reference', reason: 'body-reference' })
+      const reference = decodeToolInvocationRef(invocation.value)
+      const result = decodeToolResultVersion(version.value)
+      const bodyId = decodeToolBodyId(body.value)
+      if (
+        'failure' in reference ||
+        'failure' in result ||
+        'failure' in bodyId ||
+        reference.ok !== invocation.value
+      )
+        return fail({ kind: 'invalid', field: 'reference', reason: 'body-reference' })
+      return succeed({ reference: reference.ok, result: result.ok, bodyId: bodyId.ok })
+    },
+    attachment: (reference: string, selector: number) => encode('ta1', [1, reference, selector]),
     cursor: (kind: ReadArguments['kind'], reference: string, after: string) =>
-      encode('tc1', [1, kind, reference, kind === 'result' ? 'full' : 'bytes', after]),
+      encode('tc1', [1, kind, reference, projection(kind), after]),
     readResult,
     readAttachment(text: string): Outcome<AttachmentReference, ToolFailure> {
       const decoded = decode(text, 'ta1', 3)
@@ -88,10 +111,9 @@ export function protocol(limits: JsonLimits) {
       if (
         reference?.kind !== 'string' ||
         !(
-          (selector?.kind === 'string' && selector.value === 'original') ||
-          (selector?.kind === 'number' &&
-            /^(0|[1-9][0-9]*)$/u.test(selector.lexeme) &&
-            Number.isSafeInteger(Number(selector.lexeme)))
+          selector?.kind === 'number' &&
+          /^(0|[1-9][0-9]*)$/u.test(selector.lexeme) &&
+          Number.isSafeInteger(Number(selector.lexeme))
         )
       )
         return fail({ kind: 'invalid', field: 'reference', reason: 'attachment-selector' })
@@ -100,7 +122,7 @@ export function protocol(limits: JsonLimits) {
       return succeed({
         source: source.ok,
         reference: reference.value,
-        selector: selector.kind === 'string' ? 'original' : Number(selector.lexeme),
+        selector: Number(selector.lexeme),
       })
     },
     after(input: ReadArguments): Outcome<string | null, ToolFailure> {
@@ -114,7 +136,8 @@ export function protocol(limits: JsonLimits) {
         reference?.kind !== 'string' ||
         reference.value !== input.reference ||
         projection?.kind !== 'string' ||
-        projection.value !== (input.kind === 'result' ? 'full' : 'bytes') ||
+        projection.value !==
+          (input.kind === 'result' ? 'full' : input.kind === 'body' ? 'text' : 'bytes') ||
         after?.kind !== 'string' ||
         after.value.length === 0
       )

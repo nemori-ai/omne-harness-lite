@@ -292,7 +292,11 @@ export function createLocalToolForwarding<P>(
         },
         async readResult(argumentsValue) {
           if (!live()) return statusResult(rejected())
-          if (argumentsValue.kind === 'result' || argumentsValue.kind === 'attachment') {
+          if (
+            argumentsValue.kind === 'result' ||
+            argumentsValue.kind === 'body' ||
+            argumentsValue.kind === 'attachment'
+          ) {
             const reader = input.reader()
             return reader === undefined
               ? statusResult(unavailable('tool-result-reader'))

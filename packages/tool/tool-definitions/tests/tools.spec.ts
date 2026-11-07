@@ -134,6 +134,21 @@ describe('Tools complete author', () => {
     expect(textOf(answer)).toBe('ERROR: unavailable')
   })
 
+  it('accepts body references and forwards the page cursor unchanged through the trusted capability', async () => {
+    const request = { kind: 'body', reference: 'tb1.fixed-body', after: 'tc1.fixed-page' } as const
+    let received: unknown
+    const bound = capability({
+      readResult: async args => {
+        received = args
+        return empty
+      },
+    })
+    expect(value(await call('read_result', request, bound))).toEqual(empty)
+    expect(received).toEqual(request)
+    const help = textOf(value(await call('help', { command: 'read_result' })))
+    expect(help).toContain('"const":"body"')
+  })
+
   it.each([
     ['search', { query: 'files', after: null, limit: 0 }],
     ['search', { query: 'files', after: null, limit: 3, tenant: 'other' }],

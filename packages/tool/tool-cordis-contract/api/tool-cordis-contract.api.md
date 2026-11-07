@@ -141,6 +141,7 @@ export declare abstract class ToolRuntimeService<P, B extends ContentBlock> exte
     abstract readonly instances: ToolRuntime<P, B>['instances'];
     abstract readonly observation: ToolRuntime<P, B>['observation'];
     abstract readonly content: ToolRuntime<P, B>['content'];
+    abstract readonly body: ToolRuntime<P, B>['body'];
     abstract readonly catalog: ToolRuntime<P, B>['catalog'];
 }
 export declare const toolRuntimeKey = "toolRuntime";
@@ -403,6 +404,7 @@ export declare abstract class ToolReadsService<P, B extends ContentBlock> extend
     abstract readonly diagnostics: ToolReads<P, B>['diagnostics'];
     abstract readonly account: ToolReads<P, B>['account'];
     abstract readonly content: ToolReads<P, B>['content'];
+    abstract readonly body: ToolReads<P, B>['body'];
 }
 export declare const toolReadsKey = "toolReads";
 export declare abstract class ToolCatalogService<P> extends Service implements ToolCatalog<P> {

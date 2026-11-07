@@ -100,5 +100,7 @@ function checkOffloading(configuration: ToolLedgerConfiguration): void {
     'maxRetentionMs',
     'maxBodyBytes',
     'previewUtf8Bytes',
+    'maxPageBytes',
+    'maxPageLeaseMs',
   ])
 }

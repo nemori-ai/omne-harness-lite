@@ -50,7 +50,7 @@ import {
 
 type View = readonly ToolMessageContentBlock[]
 export type ModelRead = Readonly<{
-  kind: 'result' | 'attachment'
+  kind: 'result' | 'attachment' | 'body'
   reference: string
   after: string | null
 }>
@@ -108,7 +108,7 @@ export class PagingModel {
     }
   }
   original(view: View): ModelRead {
-    return { kind: 'attachment', reference: modelField(view, 'originalReference'), after: null }
+    return { kind: 'body', reference: modelField(view, 'bodyReference'), after: null }
   }
 }
 
@@ -316,6 +316,7 @@ export async function modelHost(
   ).runtime
   let failNextSourceRead = false
   const reads = {
+    body: reader.body,
     queries: {
       readResult: async (access: Parameters<typeof reader.queries.readResult>[0]) => {
         if (failNextSourceRead && access.reference === sourceReference) {

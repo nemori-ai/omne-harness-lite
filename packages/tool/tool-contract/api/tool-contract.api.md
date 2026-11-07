@@ -58,6 +58,8 @@
 - `ToolBackgroundCallsValue` · `background-calls.d.ts`
 - `ToolBodyDeclaration` · `definitions.d.ts`
 - `ToolBodyId` · `identity.d.ts`
+- `ToolBodyPage` · `body-reads.d.ts`
+- `ToolBodyReadRequest` · `body-reads.d.ts`
 - `ToolBodyRepresentation` · `results.d.ts`
 - `ToolBodyRetention` · `results.d.ts`
 - `ToolCallId` · `identity.d.ts`
@@ -88,6 +90,7 @@
 - `ToolInspection` · `authoring.d.ts`
 - `ToolInstanceId` · `identity.d.ts`
 - `ToolInvocation` · `definitions.d.ts`
+- `ToolInvocationBodyReader` · `body-reads.d.ts`
 - `ToolInvocationCommands` · `operations.d.ts`
 - `ToolInvocationContentReader` · `operations.d.ts`
 - `ToolInvocationLocation` · `reference.d.ts`
@@ -238,6 +241,7 @@
 - `ToolBindingScope` · `authoring.d.ts`
 - `ToolBindings` · `ports.d.ts`
 - `ToolBodyCustody` · `body-custody.d.ts`
+- `ToolBodyReader` · `body-reads.d.ts`
 - `ToolChildren` · `program.d.ts`
 - `ToolClock` · `ports.d.ts`
 - `ToolCommands` · `execution.d.ts`
@@ -1049,6 +1053,39 @@ export interface ToolBodyCustody<P> {
 }
 ```
 
+## 声明文件 `body-reads.d.ts`
+
+```ts
+import type { CallAccess, ToolBodyId, ToolResultVersion } from './identity.ts';
+import type { InvocationAccess } from './operations.ts';
+import type { Reply, ToolBodyRepresentation } from './results.ts';
+export type ToolBodyReadRequest = Readonly<{
+    result: ToolResultVersion;
+    bodyId: ToolBodyId;
+    after: string | null;
+    maxBytes: number;
+}>;
+export type ToolBodyPage = Readonly<{
+    kind: 'text';
+    result: ToolResultVersion;
+    bodyId: ToolBodyId;
+    representation: Extract<ToolBodyRepresentation, {
+        kind: 'text';
+    }>;
+    bodyBytes: string;
+    expiresAt: string;
+    position: string;
+    text: string;
+    next: string | null;
+}>;
+export interface ToolBodyReader<P> {
+    read(input: CallAccess<P> & ToolBodyReadRequest): Reply<ToolBodyPage>;
+}
+export interface ToolInvocationBodyReader<P> {
+    read(input: InvocationAccess<P> & ToolBodyReadRequest): Reply<ToolBodyPage>;
+}
+```
+
 ## 声明文件 `catalog.d.ts`
 
 ```ts
@@ -1158,6 +1195,7 @@ export interface ToolCredentials<P, C> {
 
 ```ts
 import type { CallAccount } from '@omne-harness/call-account';
+import type { ToolBodyReader } from './body-reads.ts';
 import type { ContentBlock } from '@omne-harness/content-block';
 import type { OrganizationId, TenantId } from '@omne-harness/legal-identity';
 import type { Adoption, CallAccess, DurableEvidence, Mutation, ToolCallId, ToolCursor, ToolOperationId, ToolResultVersion, ToolWaitId } from './identity.ts';
@@ -1218,6 +1256,7 @@ export interface ToolContentReader<P> {
     }>): Reply<RawOutput>;
 }
 export interface ToolReads<P, B extends ContentBlock> {
+    readonly body: ToolBodyReader<P>;
     lookup(input: CallAccess<P> & Readonly<{
         admission: ToolOperationId;
     }>): Reply<ToolLookup>;
@@ -1920,6 +1959,7 @@ export declare function decodeToolRevision(text: unknown): Outcome<ToolRevision,
 
 ```ts
 export { decodeToolCallId, decodeToolOperationId } from './identity.ts';
+export type { ToolBodyReadRequest, ToolBodyPage, ToolInvocationBodyReader } from './body-reads.ts';
 export type { Access, Adoption, ConsumerRef, DurableEvidence, ToolBodyId, ToolCallId, ToolCursor, ToolDeliveryId, ToolIdentity, ToolIdentityRejection, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId, } from './identity.ts';
 export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, resolveToolInvocationRef, resolveToolOperationRef, } from './reference.ts';
 export type { ToolInvocationLocation, ToolInvocationParts, ToolInvocationRef, ToolOperationLocation, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
@@ -2338,6 +2378,7 @@ export interface ToolInvocationContentReader<P> {
     }>): Reply<RawOutput>;
 }
 export interface ToolRuntime<P, B extends ContentBlock> {
+    readonly body: import('./body-reads.ts').ToolInvocationBodyReader<P>;
     invoke(input: Access<P> & Readonly<{
         request: ToolInvokeRequest;
     }>): Promise<ToolInvokeOutcome>;
@@ -2758,6 +2799,7 @@ export interface ProgramTools<B extends ContentBlock> {
 
 ```ts
 export type { SealedToolBody, ToolBodyCustody } from './body-custody.ts';
+export type { ToolBodyReader } from './body-reads.ts';
 export { toolBodyContract } from './contract.ts';
 export { decodeToolMaterialInstant } from './materials.ts';
 export type { ToolMaterialFingerprint, ToolMaterialInstant, ToolMaterialClock, ToolMaterialId, ToolMaterialGeneration, ToolMaterialRef, ToolMaterialSeal, ToolMaterialStore, ToolFinalEnvelope, ToolFinalPointer, ToolFinalCustody, } from './materials.ts';
@@ -3655,6 +3697,14 @@ export type ToolTerminal = Readonly<{
     reason: string;
 }>;
 export type ToolFailure = Readonly<{
+    kind: 'not-found';
+    target: 'result';
+    reason: 'released' | 'missing';
+}> | Readonly<{
+    kind: 'not-found';
+    target: 'body';
+    reason: 'expired' | 'missing';
+}> | Readonly<{
     kind: 'denied';
     action: string;
 }> | Readonly<{
@@ -4810,7 +4860,7 @@ export type ToolUsageView = (Extract<ToolAvailability, {
     usage: null;
 }>);
 export type ToolFixedReadArguments = Readonly<{
-    kind: 'result' | 'attachment';
+    kind: 'result' | 'attachment' | 'body';
     reference: string;
     after: string | null;
 }>;
