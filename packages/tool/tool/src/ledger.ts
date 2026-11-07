@@ -8,6 +8,7 @@ import { prepareResultChannels, readResultChannels } from './ledger-result-mater
 import type { ResultRecord } from './ledger-store.ts'
 import { factValues } from './fact-values.ts'
 import { adoptFactMaterials, restoreSavedFact } from './ledger-fact-material.ts'
+import { createLedgerRawCustody } from './ledger-raw-custody.ts'
 import { createLedgerFinalCustody } from './ledger-final-custody.ts'
 import { matchEnvironmentAdoption } from './environment-adoption.ts'
 import { controlIntent } from './control-intent.ts'
@@ -50,6 +51,7 @@ import {
 } from '@omne-harness/tool-contract'
 import {
   type CallAccess,
+  type ToolOutputCustody,
   decodeToolDeliveryId,
   decodeToolInstanceId,
   decodeToolResultVersion,
@@ -156,6 +158,7 @@ export type ToolLedger<P, B extends ContentBlock> = Readonly<{
   delivery: Readonly<{
     read(input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>): Reply<ToolResult<B>>
   }>
+  rawCustody: Pick<ToolOutputCustody<P>, 'preserve' | 'inspect'>
   finalCustody: ToolFinalCustody<P, B>
   controls: ToolLedgerControls<P>
   commands: ToolCommands<P, B>
@@ -1521,6 +1524,12 @@ export function createToolLedger<P, B extends ContentBlock>(
         const current = await access(fixed.ok, 'recover')
         return 'failure' in current ? current : value
       },
+    }),
+    rawCustody: createLedgerRawCustody({
+      materials: settlement.materials,
+      entry,
+      load: input => read(callDomain(input)),
+      transact,
     }),
     finalCustody,
     controls: Object.freeze(

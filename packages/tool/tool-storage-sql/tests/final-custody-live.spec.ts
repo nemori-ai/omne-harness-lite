@@ -96,15 +96,16 @@ it.each([5 * 1024 * 1024])(
           outcome: { kind: 'started', acceptance: evidence },
         }),
       )
-      const raw = ok(
-        await storage.custody.preserve({
-          ...world.access,
-          operation: ok(decodeToolOperationId('raw')),
-          codec: { owner: 'fixture', name: 'text', revision: '1', digest: 'sha256:text' },
-          bytes: new TextEncoder().encode('raw source differs from the rendered final'),
-          source: evidence,
-        }),
-      )
+      const rawInput = {
+        ...world.access,
+        operation: ok(decodeToolOperationId('raw')),
+        codec: { owner: 'fixture', name: 'binary', revision: '1', digest: 'sha256:binary' },
+        bytes: new Uint8Array(bytes).fill(255),
+        source: evidence,
+      }
+      const raw = ok(await ledger.rawCustody.preserve(rawInput))
+      expect(raw.content.bytes).toBe(String(bytes))
+      expect(ok(await ledger.rawCustody.inspect(rawInput))).toEqual({ kind: 'retained', raw })
       const judged = judgeContentBlock({
         kind: 'text',
         id: 'answer',
@@ -137,6 +138,11 @@ it.each([5 * 1024 * 1024])(
       const domain = { kind: 'call' as const, tenant, call: world.access.call }
       const retained = await storage.store.read(domain)
       expect(retained.kind).toBe('complete')
+      if (retained.kind !== 'complete') throw new Error('ledger read incomplete')
+      const rawRecord = retained.records.find(
+        record => record.kind === 'material' && record.material.purpose === 'raw',
+      )
+      if (rawRecord?.kind !== 'material') throw new Error('raw preparation missing')
       expect(Buffer.byteLength(JSON.stringify(retained))).toBeLessThan(100_000)
       const reader = materials(storage).store
       const pages: Uint8Array[] = []
@@ -173,6 +179,25 @@ it.each([5 * 1024 * 1024])(
           },
         })
         expect(ok(await recovering.finalCustody.preserveFinal(input))).toEqual(pointer)
+        expect(ok(await recovering.rawCustody.inspect(rawInput))).toEqual({ kind: 'retained', raw })
+        expect(ok(await recovering.rawCustody.preserve(rawInput))).toEqual(raw)
+        let rawOffset = '0'
+        let readBytes = 0
+        for (;;) {
+          const page = ok(
+            await available.store.read({
+              ...world.access,
+              material: rawRecord.material.material,
+              offset: rawOffset,
+              maxBytes: 65_536,
+            }),
+          )
+          expect(page.bytes).toEqual(new Uint8Array(page.bytes.length).fill(255))
+          readBytes += page.bytes.length
+          if (page.next === null) break
+          rawOffset = page.next
+        }
+        expect(readBytes).toBe(bytes)
       } finally {
         await reopened.close()
       }

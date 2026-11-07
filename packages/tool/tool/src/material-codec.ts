@@ -1,13 +1,19 @@
 import { createHash } from 'node:crypto'
 import { types } from 'node:util'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { ToolFailure } from '@omne-harness/tool-contract'
-import type { ToolMaterialFingerprint } from '@omne-harness/tool-contract/provider'
+import type { Adoption, ToolFailure } from '@omne-harness/tool-contract'
+import {
+  describedAdoption,
+  type ToolMaterialFingerprint,
+} from '@omne-harness/tool-contract/provider'
 
-export type EncodedToolMaterial = Readonly<{
+export type MaterialBytes = Readonly<{
   bytes: Uint8Array
-  fingerprint: ToolMaterialFingerprint
+  codec: Adoption
+  fingerprint: Pick<ToolMaterialFingerprint, 'algorithm' | 'digest' | 'bytes'>
 }>
+
+export type EncodedToolMaterial = MaterialBytes & Readonly<{ fingerprint: ToolMaterialFingerprint }>
 
 /** M02.1 canonical data after the caller has encoded its domain identities. */
 export function encodeToolMaterial(value: unknown): Outcome<EncodedToolMaterial, ToolFailure> {
@@ -15,6 +21,11 @@ export function encodeToolMaterial(value: unknown): Outcome<EncodedToolMaterial,
     const bytes = new TextEncoder().encode(encodeValue(value, new Set()))
     return succeed({
       bytes,
+      codec: describedAdoption({
+        owner: '@omne-harness/tool',
+        name: 'tool-canonical-json-v1',
+        revision: '1',
+      }),
       fingerprint: {
         codec: 'tool-canonical-json-v1',
         algorithm: 'sha256',

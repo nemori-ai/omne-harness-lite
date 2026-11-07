@@ -9,7 +9,6 @@ import type {
   ToolOperationId,
 } from '@omne-harness/tool-contract'
 import {
-  describedAdoption,
   decodeToolMaterialId,
   decodeToolMaterialGeneration,
   decodeToolMaterialInstant,
@@ -31,7 +30,7 @@ import { put, reply, type Decision, type Mint, type Snapshot } from './ledger-de
 import { sameFactValue } from './ledger-facts.ts'
 import type { MaterialRecord, MaterialTimeRecord } from './ledger-material-records.ts'
 import type { LedgerDomain } from './ledger-store.ts'
-import type { EncodedToolMaterial } from './material-codec.ts'
+import type { MaterialBytes } from './material-codec.ts'
 
 const unavailable = (diagnostic: string): Outcome<never, ToolFailure> =>
   fail({ kind: 'unavailable', dependency: 'material-custody', diagnostic })
@@ -60,7 +59,12 @@ async function prepare<P>(
   if ('failure' in allowed) return reply(allowed)
   const known = snapshot.materials.get(input.operation)
   if (known !== undefined) {
-    if (!sameFactValue(known.input, record.input)) return reply(conflict(input.operation))
+    if (
+      known.purpose !== record.purpose ||
+      !sameFactValue(known.input, record.input) ||
+      !sameFactValue(known.codec, record.codec)
+    )
+      return reply(conflict(input.operation))
     if (known.state.kind === 'deleting' || known.state.kind === 'deleted')
       return reply(conflict(input.operation))
     return reply(succeed(known))
@@ -127,7 +131,8 @@ function materialFor(
   operation: ToolOperationId,
   input: ToolMaterialFingerprint,
   provider: Adoption,
-  namespace: string,
+  namespace: MaterialRecord['purpose'],
+  codec: Adoption,
 ): Outcome<MaterialRecord, ToolFailure> {
   const id = decodeToolMaterialId(
     `${namespace}:${createHash('sha256').update(operation).digest('hex')}`,
@@ -135,14 +140,11 @@ function materialFor(
   const generation = decodeToolMaterialGeneration('1')
   if ('failure' in id || 'failure' in generation) return invalid('operation', 'material-identity')
   return succeed({
+    purpose: namespace,
     material: { id: id.ok, generation: generation.ok, provider },
     writeOperation: operation,
     input,
-    codec: describedAdoption({
-      owner: '@omne-harness/tool',
-      name: 'tool-canonical-json-v1',
-      revision: '1',
-    }),
+    codec,
     state: { kind: 'preparing' },
   })
 }
@@ -203,7 +205,7 @@ export function createLedgerMaterialCustody<P>(
   const sealMaterial = async (
     input: MaterialInput<P>,
     record: MaterialRecord,
-    encoded: EncodedToolMaterial,
+    encoded: MaterialBytes,
   ): Reply<MaterialRecord> => {
     if (record.state.kind === 'sealed') return succeed(record)
     if (materials === undefined) return unavailable('material provider is not connected')
@@ -223,15 +225,21 @@ export function createLedgerMaterialCustody<P>(
   return {
     preserve: async (
       input: MaterialInput<P>,
-      encoded: EncodedToolMaterial,
+      encoded: MaterialBytes,
       identity: ToolMaterialFingerprint,
-      namespace: string,
+      namespace: MaterialRecord['purpose'],
       validate: PreparationCheck,
     ): Reply<ToolMaterialSeal> => {
       const allowed = await entry(input)
       if ('failure' in allowed) return allowed
       if (materials === undefined) return unavailable('material provider is not connected')
-      const candidate = materialFor(input.operation, identity, materials.provider, namespace)
+      const candidate = materialFor(
+        input.operation,
+        identity,
+        materials.provider,
+        namespace,
+        encoded.codec,
+      )
       if ('failure' in candidate) return candidate
       const record = candidate.ok
       const domain = { kind: 'call', tenant: input.tenant, call: input.call } as const
@@ -257,7 +265,7 @@ async function preserveBytes<P>(
   store: NonNullable<ToolLedgerPorts<P>['materials']>['store'],
   input: MaterialInput<P>,
   record: MaterialRecord,
-  encoded: EncodedToolMaterial,
+  encoded: MaterialBytes,
 ): Reply<ToolMaterialSeal> {
   const address = {
     principal: input.principal,

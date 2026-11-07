@@ -49,11 +49,13 @@ ToolCall 决定器输入当前持久状态、具名命令和已核验 guard 快�
 
 #### 本包的记录仓与决定器（G1）
 
-`createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts, finalCustody, delivery, controls }`。第五参数 `ToolLedgerPorts` 注入 `custody.retainResult`、原环境 `releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`。facts 只供受信事实恢复；runtime 结算经 commands 推进。宿主经同账本 delivery 分面取得待交付结果。`configuration` 给出结果页大小 `resultPageBytes`、修订冲突的重试上限 `ledgerCommitAttempts` 与队列容量 `queueCapacity`，三者都来自 `ToolConfiguration`。`admissions.admit` 回复状态与 `recovered`，`commands.admit` 是只回复状态的契约形状。源码在 [ledger.ts](../src/ledger.ts)、[ledger-decider.ts](../src/ledger-decider.ts)、[ledger-store.ts](../src/ledger-store.ts) 与 [ledger-reads.ts](../src/ledger-reads.ts)。
+`createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts, rawCustody, finalCustody, delivery, controls }`。第五参数 `ToolLedgerPorts` 注入 `custody.retainResult`、原环境 `releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`。facts 只供受信事实恢复；runtime 结算经 commands 推进。宿主经同账本 delivery 分面取得待交付结果。`configuration` 给出结果页大小 `resultPageBytes`、修订冲突的重试上限 `ledgerCommitAttempts` 与队列容量 `queueCapacity`，三者都来自 `ToolConfiguration`。`admissions.admit` 回复状态与 `recovered`，`commands.admit` 是只回复状态的契约形状。源码在 [ledger.ts](../src/ledger.ts)、[ledger-decider.ts](../src/ledger-decider.ts)、[ledger-store.ts](../src/ledger-store.ts) 与 [ledger-reads.ts](../src/ledger-reads.ts)。
 
 记录仓端口 `ToolLedgerStore` 只有两个操作。`read(domain)` 返回一个事务域的全部记录和当前修订号，或 `unavailable`；返回 `complete` 表示快照包含该域此前每一次已确认的提交。`commit({ domain, expected, revision, writes })` 在 `expected` 等于当前修订号时原子写入全部 `writes` 并把修订号改为 `revision`，否则回答 `conflict`；提交结果不确定时回答 `unknown`，记录仓不可用时回答 `unavailable`。记录仓不解释记录内容，也不做业务判断。`durability` 声明 `none` 或 `durable`；`none` 只能出现在 `./testing`。
 
 `ResultRecord` 只保存 content、data、附件元数据与作者 summary 的通道引用。完整值由读取分面还原，记录仓及纯决策不依赖内容块类型参数。`admit`、`rejectPending`、`recordStart(rejected)` 先准备系统结果，再提交结果与根操作回执。首次读取的修订号贯穿准备 IO，可靠否定答案仍能排除旧请求。完整准备的重试不重新生成文本，部分准备时允许重求纯系统文本，但异值不得覆盖材料。准备沿原入口权限，受理不额外要求 write 或 recover。
+
+`rawCustody` 提供 `ToolOutputCustody` 的 preserve 和 inspect 窄分面。它在原 call 域先记录材料准备责任，再写入原始字节，保留作者 codec。新准备要求调用已启动且仍运行；已封存操作可认回。重试异值冲突，未确认封存时 inspect 返回 unknown，不声称可靠排除。两入口均检查 write 资格，披露前再次检查。purpose 区分 raw、final 和 result 材料，不能把 final 当成 raw 认回。当前此分面已有独立入口，宿主生产接线及最终结果提交中的用途解除仍待完成。
 
 事务域是判别联合：`call` 域是 `(tenant, call)`，拥有一次原调用的全部记录；`queue` 域是 `(tenant, FIFO key)`，拥有同一 key 下各调用的顺序与名额；`host` 域是 `(tenant, key)`，供宿主提供者保存自己的耐久记录（例如 `tool-host-local` 的启动受理台账），本包不解释其内容。记录是判别联合，每种记录有一个唯一键：
 

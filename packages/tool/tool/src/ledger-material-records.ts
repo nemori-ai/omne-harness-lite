@@ -9,6 +9,7 @@ import type {
 export type MaterialTimeRecord = Readonly<{ highWatermark: ToolMaterialInstant }>
 
 export type MaterialRecord = Readonly<{
+  purpose: 'raw' | 'final' | 'result'
   material: ToolMaterialRef
   writeOperation: ToolOperationId
   input: ToolMaterialFingerprint

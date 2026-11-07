@@ -12,6 +12,7 @@ import type {
   CallAccess,
   ToolClock,
   ToolFinalCustody,
+  ToolOutputCustody,
   ToolCommands,
   ToolProvider,
   ToolReads,
@@ -70,6 +71,7 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
           input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>,
         ): Reply<ToolResult<ContentBlock>>
       }>
+      rawCustody: Pick<ToolOutputCustody<P>, 'preserve' | 'inspect'>
       finalCustody: ToolFinalCustody<P, ContentBlock>
       controls: ToolLedgerControls<P>
       commands: ToolCommands<P, ContentBlock>
