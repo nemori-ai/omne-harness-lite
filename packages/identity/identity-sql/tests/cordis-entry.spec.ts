@@ -207,7 +207,7 @@ describe('IdentitySqlPlugin', () => {
       const verifierFiber = await ctx.plugin(Verifier)
       const held = await reservations.reserve(reserveInput)
       if (held.kind !== 'held') throw new Error('held')
-      expect((await reservations.settle(held.reservation.id)).kind).toBe('unavailable')
+      expect((await reservations.settle(held.reservation)).kind).toBe('unavailable')
       class Resolver extends StandingDestinationResolverService {
         readonly seal: StandingDestinationResolver['seal'] = async reservation => ({
           kind: 'terminal',
@@ -216,7 +216,7 @@ describe('IdentitySqlPlugin', () => {
         })
       }
       const resolverFiber = await ctx.plugin(Resolver)
-      expect(await reservations.settle(held.reservation.id)).toMatchObject({
+      expect(await reservations.settle(held.reservation)).toMatchObject({
         kind: 'terminal',
         outcome: 'aborted',
       })
@@ -226,7 +226,7 @@ describe('IdentitySqlPlugin', () => {
         binding: { ...reserveInput.binding, operationId: 'cordis-2' },
       })
       if (secondHold.kind !== 'held') throw new Error('second hold')
-      expect((await reservations.settle(secondHold.reservation.id)).kind).toBe('unavailable')
+      expect((await reservations.settle(secondHold.reservation)).kind).toBe('unavailable')
       await verifierFiber.dispose()
       expect((await reservations.reserve(reserveInput)).kind).toBe('unavailable')
 

@@ -129,29 +129,41 @@ function reservation(raw: Record<string, unknown>, port: ParticipantPort): Parti
   return reply('held')
 }
 
-function finish(raw: Record<string, unknown>, port: ParticipantPort): ParticipantReply {
+function settleRequest(raw: Record<string, unknown>, port: ParticipantPort): ParticipantReply {
+  const fields = ['id', 'operationRef', 'binding', 'required', 'organization', 'account'] as const
   if (
-    !isText(raw['id']) ||
-    !isText(raw['binding']) ||
-    !isText(raw['required']) ||
+    !fields.every(field => isText(raw[field])) ||
     (raw['terminal'] !== 'aborted' && raw['terminal'] !== 'committed')
   )
-    return { kind: 'unsupported', basis: 'standing-finish' }
+    return { kind: 'unsupported', basis: 'standing-settle-request' }
+  const f = raw as Record<(typeof fields)[number], string> & { terminal: 'aborted' | 'committed' }
   const saved = oneRow(
     port,
-    'SELECT binding, required, state, terminal FROM id_standing_reservation WHERE reservation_id = ? LIMIT 1',
-    [raw['id']],
+    'SELECT reservation_id, binding, required, state, terminal FROM id_standing_reservation WHERE operation_ref = ? LIMIT 1',
+    [f.operationRef],
   )
-  if (saved === undefined) return reply('not-found')
-  if (text(saved['binding']) !== raw['binding'] || text(saved['required']) !== raw['required'])
+  if (saved === undefined) {
+    if (f.terminal !== 'aborted')
+      return { kind: 'failed', diagnostic: 'committed-reservation-missing' }
+    port.execute(
+      `INSERT INTO id_standing_reservation (reservation_id, operation_ref, binding, required, organization, account, state, terminal) VALUES (?, ?, ?, ?, ?, ?, 'settled', 'aborted')`,
+      [f.id, f.operationRef, f.binding, f.required, f.organization, f.account],
+    )
+    return reply('settled', { terminal: 'aborted' })
+  }
+  if (
+    text(saved['reservation_id']) !== f.id ||
+    text(saved['binding']) !== f.binding ||
+    text(saved['required']) !== f.required
+  )
     return reply('operation-conflict')
   if (text(saved['state']) === 'settled')
     return reply('settled', { terminal: text(saved['terminal']) })
   port.execute(
     `UPDATE id_standing_reservation SET state = 'settled', terminal = ? WHERE reservation_id = ? AND state = 'held'`,
-    [raw['terminal'], raw['id']],
+    [f.terminal, f.id],
   )
-  return reply('settled', { terminal: raw['terminal'] })
+  return reply('settled', { terminal: f.terminal })
 }
 
 export type Govern = (
@@ -276,8 +288,8 @@ export function standingCommand(
   switch (raw['kind']) {
     case 'standing-reserve':
       return reservation(raw, port)
-    case 'standing-finish':
-      return finish(raw, port)
+    case 'standing-settle-request':
+      return settleRequest(raw, port)
     case 'membership-admit':
       return admitIntent(raw, port, govern, parse)
     case 'membership-prepare':

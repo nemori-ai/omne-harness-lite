@@ -194,7 +194,7 @@ export function createIdentityQualifiedHitl(input: IdentityHitlOptions) {
             commands: independentControlCommands(command),
           })
         } finally {
-          await options.identity.reservations.settle(reservation.reservation.id)
+          await options.identity.reservations.settle(reservation.reservation)
         }
         return outcome(await operations.inspect(binding))
       }

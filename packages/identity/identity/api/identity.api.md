@@ -86,6 +86,7 @@
 - `StandingDestinationResolver` · `reservations.d.ts`
 - `StandingEvidence` · `standing.d.ts`
 - `StandingRecoveryPage` · `reservations.d.ts`
+- `StandingRequest` · `reservations.d.ts`
 - `StandingReservation` · `reservations.d.ts`
 - `StandingReservations` · `reservations.d.ts`
 - `StandingReserveOutcome` · `reservations.d.ts`
@@ -498,7 +499,7 @@ export type { StandingEvidence, TenantStandingReading, TenantStandingSource } fr
 export type { ClockReading, IdentityClock, IdentityOperations, IdentityOperationsOptions, IssuedLogin, IssueLoginInput, IssueLoginOutcome, LoginCredentialInput, LoginRecognition, LoginTerms, LoginTermsReading, LoginTermsSource, RecognizeLoginInput, RegisterAndActivateInput, RegisterAndActivateOutcome, } from './operations.ts';
 export type { BusinessAccessReport, ChangeMemberRoleInput, CreatedOrganization, CreateOrganizationInput, CreateOrganizationOutcome, CurrentTenantOutcome, GovernanceActing, GovernanceBasisUnavailable, GovernanceConflict, GovernanceDenied, GovernanceLogin, GovernanceNoChange, GovernanceNotVisible, IdentityGovernance, InvitationDispositionInput, InvitationDispositionOutcome, InvitationListOutcome, InvitationState, InvitationTerminal, InvitationTerms, InvitationTermsReading, InvitationTermsSource, IssueMemberInvitationInput, IssueMemberInvitationOutcome, LeaveOrganizationInput, LeaveOrganizationOutcome, MemberChangeOutcome, MemberInvitation, OrganizationMember, OrganizationMembersOutcome, OwnMembership, OwnMembershipsOutcome, OwnValidLoginsOutcome, QueryCreateOrganizationInput, QueryCreateOrganizationOutcome, QueryInvitationInput, QueryInvitationOutcome, QueryOrganizationMembersInput, RemoveMemberInput, RevokeLoginInput, RevokeLoginOutcome, SwitchCurrentTenantInput, SwitchCurrentTenantOutcome, ValidLogin, } from './governance.ts';
 export { standingPrincipalRef, standingReservationId, isStandingBinding, isStandingReservation, } from './reservations.ts';
-export type { StandingBinding, StandingReservation, StandingTerminal, StandingDestinationResolver, StandingReserveOutcome, StandingSettleOutcome, StandingRecoveryPage, StandingReservations, } from './reservations.ts';
+export type { StandingBinding, StandingRequest, StandingReservation, StandingTerminal, StandingDestinationResolver, StandingReserveOutcome, StandingSettleOutcome, StandingRecoveryPage, StandingReservations, } from './reservations.ts';
 export type { GovernanceOperationRef, GovernanceRecoveryOutcome, IdentityGovernanceRecovery, } from './governance.ts';
 ```
 
@@ -696,10 +697,12 @@ export type StandingBinding = Readonly<{
     targetRef: string;
     inputDigest: string;
 }>;
-export type StandingReservation = Readonly<{
-    id: string;
+export type StandingRequest = Readonly<{
     binding: StandingBinding;
     required: readonly Qualification[];
+}>;
+export type StandingReservation = StandingRequest & Readonly<{
+    id: string;
 }>;
 export type StandingTerminal = Readonly<{
     kind: 'terminal';
@@ -722,7 +725,7 @@ export type StandingReserveOutcome = Readonly<{
     diagnostic: string;
 }>;
 export type StandingSettleOutcome = StandingTerminal | Readonly<{
-    kind: 'not-found';
+    kind: 'operation-conflict';
 }> | Readonly<{
     kind: 'unavailable';
     diagnostic: string;
@@ -742,7 +745,7 @@ export interface StandingReservations {
         binding: StandingBinding;
         required: readonly Qualification[];
     }>): Promise<StandingReserveOutcome>;
-    settle(id: string): Promise<StandingSettleOutcome>;
+    settle(request: StandingRequest): Promise<StandingSettleOutcome>;
     recover(input?: Readonly<{
         after?: string;
         limit?: number;

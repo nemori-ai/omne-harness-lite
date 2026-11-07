@@ -1,6 +1,6 @@
 {
   "model": "models/SettingsComposition.tla",
-  "scope": "finite protocol model: 2 target/authority changes plus 1 assignment change, 2 readers, 1 write; no implementation, liveness, isolation, catalog paging or physical durability proof; StandingCommit: two operations, one membership and one invalidation; abstract atomic stores; safety only, no remote authentication or physical durability proof; SettingsSourceRetention: two destinations, two source updates, one crash; safety and conditional progress under eventual storage availability and weakly fair recovery; fixed identity bindings, abstract atomic source transactions, no production refinement proof; source write conditions abstract confirmed final business validity as a monotone boolean, not a schema or original binding proof; SettingsSourceIdentity: two ordered sources, four identity/layout replacements, one authority refresh, one prepare/write/rebase; finite safety only, authenticated ownership and SQL isolation are assumptions SettingsIntentAttempts checks finite root/attempt safety with two allowed attempts, immutable commands, exact current attempt, read-only queries and distinct ordinary/source sealing. No liveness or real provider guarantee. SettingsPreparationBootstrap models one durable attempt, two external reservations and one restart; safety only. External owners serialize reserve/settle and validate exact reservation bindings; SQL transactions and authentic providers are assumptions, not proved implementations. SettingsReservationCustody models one destination and two candidate request identities with lost/delayed replies; finite safety only. Authentic external replies, external idempotent reserve, and atomic journal writes are assumptions.",
+  "scope": "finite protocol model: 2 target/authority changes plus 1 assignment change, 2 readers, 1 write; no implementation, liveness, isolation, catalog paging or physical durability proof; StandingCommit: two operations, one membership and one invalidation; abstract atomic stores; safety only, no remote authentication or physical durability proof; SettingsSourceRetention: two destinations, two source updates, one crash; safety and conditional progress under eventual storage availability and weakly fair recovery; fixed identity bindings, abstract atomic source transactions, no production refinement proof; source write conditions abstract confirmed final business validity as a monotone boolean, not a schema or original binding proof; SettingsSourceIdentity: two ordered sources, four identity/layout replacements, one authority refresh, one prepare/write/rebase; finite safety only, authenticated ownership and SQL isolation are assumptions SettingsIntentAttempts checks finite root/attempt safety with two allowed attempts, immutable commands, exact current attempt, read-only queries and distinct ordinary/source sealing. No liveness or real provider guarantee. SettingsPreparationBootstrap models one durable attempt, two external reservations and one restart; safety only. External owners serialize reserve/settle and validate exact reservation bindings; SQL transactions and authentic providers are assumptions, not proved implementations. SettingsReservationCustody models one destination and two candidate request identities with lost/delayed replies; finite safety only. Authentic external replies, external idempotent reserve, and atomic journal writes are assumptions. StandingRequestSettlement: one original request, two candidate bindings, one delayed reserve and one restart; safety and conditional progress under weakly fair trusted settlement; source/destination atomic transactions and immutable SQL envelopes are assumptions, not implementation proofs.",
   "cases": [
     {
       "name": "positive",
@@ -324,6 +324,36 @@
       "model": "models/SettingsReservationCustody.tla",
       "config": "models/reservation-custody-release.cfg",
       "expected": "TerminalBeforeRelease"
+    },
+    {
+      "name": "standing-request-none",
+      "model": "models/StandingRequestSettlement.tla",
+      "config": "models/standing-request-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "standing-request-late",
+      "model": "models/StandingRequestSettlement.tla",
+      "config": "models/standing-request-late.cfg",
+      "expected": "NoLateHold"
+    },
+    {
+      "name": "standing-request-false-close",
+      "model": "models/StandingRequestSettlement.tla",
+      "config": "models/standing-request-false-close.cfg",
+      "expected": "TerminalBeforeCompletion"
+    },
+    {
+      "name": "standing-request-binding",
+      "model": "models/StandingRequestSettlement.tla",
+      "config": "models/standing-request-binding.cfg",
+      "expected": "BoundCompletion"
+    },
+    {
+      "name": "standing-request-no-close",
+      "model": "models/StandingRequestSettlement.tla",
+      "config": "models/standing-request-no-close.cfg",
+      "expected": "temporal:Completion"
     }
   ]
 }

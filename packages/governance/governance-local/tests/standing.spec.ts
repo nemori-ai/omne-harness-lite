@@ -62,7 +62,7 @@ it('requires the durable held receipt even when Identity already holds the reser
   expect(committed).toMatchObject({
     record: { state: 'committed', result: { kind: 'registered', declarationRevision: 1 } },
   })
-  expect(await w.identity.reservations.settle(held.reservation.id)).toMatchObject({
+  expect(await w.identity.reservations.settle(held.reservation)).toMatchObject({
     kind: 'terminal',
     outcome: 'committed',
   })
@@ -82,7 +82,7 @@ it('requires the durable held receipt even when Identity already holds the reser
 it('seals a requested original before releasing Identity without letting a late held reply revive it', async () => {
   const w = await open(),
     held = await reserve(w)
-  expect(await w.identity.reservations.settle(held.reservation.id)).toMatchObject({
+  expect(await w.identity.reservations.settle(held.reservation)).toMatchObject({
     kind: 'terminal',
     outcome: 'aborted',
   })
@@ -126,7 +126,7 @@ it('rejects early settlement, a different outcome and replacement of the origina
       }),
     ).toEqual(conflict)
   }
-  await w.identity.reservations.settle(held.reservation.id)
+  await w.identity.reservations.settle(held.reservation)
   expect(
     await w.call({
       kind: 'standing-settled',
@@ -221,7 +221,7 @@ it('keeps revocation pending while the destination is offline and resumes the or
   expect(
     await w.call({ kind: 'standing-apply', binding: held.operation, execution }),
   ).toMatchObject({ record: { state: 'aborted' } })
-  expect(await w.identity.reservations.settle(held.reservation.id)).toMatchObject({
+  expect(await w.identity.reservations.settle(held.reservation)).toMatchObject({
     kind: 'terminal',
     outcome: 'aborted',
   })
@@ -233,7 +233,7 @@ it('serializes a real Identity settlement against the business transaction into 
   await submit(w, held)
   const [business, settlement] = await Promise.all([
     w.call({ kind: 'standing-apply', binding: held.operation, execution }),
-    w.identity.reservations.settle(held.reservation.id),
+    w.identity.reservations.settle(held.reservation),
   ])
   const state = z
     .object({ record: z.object({ state: z.enum(['committed', 'aborted']) }) })

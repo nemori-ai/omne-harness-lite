@@ -181,3 +181,10 @@ source-snapshot的真实读取增量验证了模型中源快照的部分精化�
 
 
 `SettingsSourceRetention` 的源根封口及精确清门同提交，现有 `settings-local/tests/recovery-combination.spec.ts` 使用实际六参与者组合验证。来源保留仍为held时可以取消源修改，但不得顺便结算这些保留；下游失败须回滚terminal、门和根。初始准入与来源门使用夹具，实际业务成功提交、Identity恢复装配和物理断电仍不在这组证据内。
+
+
+## 尚未到达源端的 Standing 请求
+
+`StandingRequestSettlement.tla` 补充 Identity ID-19 的源端围栏协议。模型保留一个原请求、两个候选绑定、一次迟到或丢失的 reserve 和一次重启。它检查终态前不能完成结算、已完成不能重新 held、完成必须绑定原请求。在弱公平结算和可用目的地的前提下，原请求最终完成。四个反例分别取消围栏、跳过终态、错配绑定和把缺行当作无需处理。
+
+模型放在现有跨域 Standing 验证组，源预留和围栏仍由 Identity 拥有。SQL 封套不变、受信目的地以及原子数据库事务是模型前提。有限模型不证明真实实现、物理持久性、无限故障下进展或远程认证。实际提供者须用 SQLite 竞争、丢失响应和重开测试验证映射。

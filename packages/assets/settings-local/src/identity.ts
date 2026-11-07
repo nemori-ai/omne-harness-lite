@@ -202,7 +202,7 @@ export function createIdentityQualifiedSettings(
         return recover()
       case 'held': {
         const result = await backend.commit(principal, command)
-        const settled = await options.identity.reservations.settle(reservation.reservation.id)
+        const settled = await options.identity.reservations.settle(reservation.reservation)
         if (result.kind === 'committed') return result
         return settled.kind === 'terminal' ? recover() : unknown
       }

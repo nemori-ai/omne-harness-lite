@@ -265,7 +265,7 @@ export function createSettingsCatalog(
     } catch {
       result = fail('unavailable')
     }
-    const settled = await options.reservations.settle(held.reservation.id)
+    const settled = await options.reservations.settle(held.reservation)
     if (settled.kind !== 'terminal' || settled.outcome !== 'committed')
       return result.kind === 'rejected' ? result : fail('basis_changed')
     if (before.revision !== options.registry.snapshot().revision) return fail('basis_changed')

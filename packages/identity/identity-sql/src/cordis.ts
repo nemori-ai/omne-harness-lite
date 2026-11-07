@@ -110,7 +110,7 @@ class SqlReservationsService extends StandingReservationsService {
   constructor(ctx: Context, port: StandingReservations) {
     super(ctx)
     this.reserve = input => port.reserve(input)
-    this.settle = id => port.settle(id)
+    this.settle = request => port.settle(request)
     this.recover = input => port.recover(input)
   }
 }

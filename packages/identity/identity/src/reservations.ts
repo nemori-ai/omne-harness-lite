@@ -16,11 +16,12 @@ export type StandingBinding = Readonly<{
   inputDigest: string
 }>
 
-export type StandingReservation = Readonly<{
-  id: string
+export type StandingRequest = Readonly<{
   binding: StandingBinding
   required: readonly Qualification[]
 }>
+
+export type StandingReservation = StandingRequest & Readonly<{ id: string }>
 
 export type StandingTerminal = Readonly<{
   kind: 'terminal'
@@ -43,7 +44,7 @@ export type StandingReserveOutcome =
 
 export type StandingSettleOutcome =
   | StandingTerminal
-  | Readonly<{ kind: 'not-found' }>
+  | Readonly<{ kind: 'operation-conflict' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 export type StandingRecoveryPage =
@@ -64,7 +65,7 @@ export interface StandingReservations {
       required: readonly Qualification[]
     }>,
   ): Promise<StandingReserveOutcome>
-  settle(id: string): Promise<StandingSettleOutcome>
+  settle(request: StandingRequest): Promise<StandingSettleOutcome>
   recover(input?: Readonly<{ after?: string; limit?: number }>): Promise<StandingRecoveryPage>
 }
 
