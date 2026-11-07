@@ -505,7 +505,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 - **T6** 任务操作：
   - `getTask` 与 `getTaskResult` 都发 `tasks/get`。结果读得懂：是对象，`taskId` 是非空文本，`status` 是 `TaskStatus` 的五个值之一；`input_required` 带 `inputRequests` 对象；`completed` 带 `result`；`failed` 带 `error` 对象（形状不核，原样交出）。任务形状按 SEP-2663 2026-07-28：结果在顶层带 `taskId`、`status`；`tasks/update` 的参数是 `taskId` 与 `inputResponses`；`tasks/cancel` 的参数是 `taskId`；没有 `tasks/list`。
   - `getTask` 交出 `status`、`input_required` 时的 `inputRequests`（不可信值），以及提示 `pollIntervalMs`、`ttlMs`、`statusMessage`（各自如有，规则同 O2）。它不交出任务的结果。
-  - `getTaskResult`：`completed` 的 `result` 与 `failed` 的 `error` 作为 `finished` 的原样应答交出；`cancelled` 答 `cancelled`；其他状态答 `not-finished`。
+  - `getTaskResult`：`completed` 的 `result` 与 `failed` 的 `error` 作为 `finished` 的原样应答交出，`finished` 的应答只有 `result` 与 `error` 两种，没有 `no-answer`：没有应答是 `getTaskResult` 自己的 `TransportFailure`；`cancelled` 答 `cancelled`；其他状态答 `not-finished`。
   - `updateTask` 对端确认后答 `accepted`，`cancelTask` 对端确认后答 `requested`。两者都只是确认，终态经 `getTask` 得知。
   - 服务把 `no-answer` 答成 `effect-unknown`（S2）。
 - **T7** `answer-malformed` 的 `what`，每个值只在 T8 的对应行出现：

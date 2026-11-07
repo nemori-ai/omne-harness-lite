@@ -17,6 +17,7 @@ import type {
 } from '@omne-harness/mcp-contract'
 import type {
   EligibilityVerdict,
+  TaskAnswer,
   TransportFailure,
   WithheldReason,
 } from '@omne-harness/mcp-contract/provider'
@@ -44,4 +45,13 @@ test('each code list has exactly the members of its type', () => {
     Extract<EligibilityVerdict, { kind: 'refused' }>['reason']
   >()
   expectTypeOf<Members<'WithheldReason'>>().toEqualTypeOf<WithheldReason>()
+})
+
+test('a finished task answer holds a result or an error, never no-answer (SPEC T6)', () => {
+  expectTypeOf<Extract<TaskAnswer, { kind: 'finished' }>['answer']['kind']>().toEqualTypeOf<
+    'result' | 'error'
+  >()
+  // @ts-expect-error `no-answer` is a failure of `getTaskResult`, not the answer of a finished task.
+  const absent: TaskAnswer = { kind: 'finished', answer: { kind: 'no-answer', cause: 'abandoned' } }
+  void absent
 })
