@@ -506,7 +506,6 @@ const variants: readonly Variant<Fixture>[] = [
 // Providers that the contract allows are built in output-custody-legal.ts, at the port boundary.
 // ---------------------------------------------------------------------------------------------
 
-/** The cases that read an operation after a lost reply of a preserve. */
 const AFTER_LOST_REPLY = [NAMES.C1, NAMES.C2, NAMES.C3, NAMES.C4, NAMES.C10, NAMES.C12, NAMES.C13]
 /** The cases that read an inspect that is first `unknown`. */
 const AFTER_UNKNOWN_INSPECT = [NAMES.C4, NAMES.C7, NAMES.C10, NAMES.C12]

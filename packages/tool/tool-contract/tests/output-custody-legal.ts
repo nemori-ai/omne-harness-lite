@@ -21,12 +21,6 @@ export const without = <T extends object, K extends keyof T>(value: T, key: K): 
 export const outputKey = (input: { tenant: unknown; call: string; operation: string }): string =>
   JSON.stringify(['o', input.tenant, input.call, input.operation])
 
-/**
- * The generated provider of the table: the first answer of every method, for a new operation, is
- * `kind` (a lost reply for a preserve, `unknown` for an inspect), and every
- * read of it says so until `settle` resolves (`lagTurns` after, for a fixture that breaks the
- * completion contract).
- */
 export function generated(
   kind: string,
   options: Readonly<{ settle?: boolean; lagTurns?: number }> = {},

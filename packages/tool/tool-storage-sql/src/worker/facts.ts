@@ -40,7 +40,6 @@ export type ChunkFacts = CustodyAddress &
 
 export type ManifestKind = 'raw' | 'retain'
 
-/** The manifest that seals raw chunks. Historical retained projections are read-only. */
 export type ManifestFacts = CustodyAddress &
   Readonly<{
     intent: 'manifest'

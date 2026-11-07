@@ -1,7 +1,3 @@
-// The `tool` participant module's own guards, which the adapters' read-before-write hides from the
-// port tests: they hold when two writers race between a read and a commit. A chunk never changes a
-// sealed operation, a raw manifest requires exactly its declared bytes, and retired result
-// projections and facts of another protocol are refused.
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/sql-contract'

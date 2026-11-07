@@ -1,9 +1,3 @@
-// The durable ToolOutputCustody (P05) over the SQL storage contract (D2 decision 3). An original
-// of any size is kept in chunks of at most `maxChunkBytes`, one SQL commit each, and then sealed by
-// a manifest committed last; until the manifest is durable, `inspect` never answers `retained`. A
-// resend of an operation rewrites the same chunks and recalls the manifest; another input under a
-// sealed operation is a `conflict` that changes nothing. Custody rows are not ledger
-// records: they move no ledger domain revision (review N2).
 import { createHash, randomUUID } from 'node:crypto'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/sql-contract'
