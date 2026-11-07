@@ -4,7 +4,7 @@
 > 要引用，引[领域对象条目](../domain_objects/objects.md)、[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。
 
 - derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · `domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `product.0.0.1.legacy/PF-*/{README,design,flows}.md`（sealed provenance，不是当前采用）
-- 生成时间：2026-11-05
+- 生成时间：2026-11-07
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
 对象 **66** 个，变体 **30** 个，形态未定的词条 **2** 个，待裁 **12** 项。
@@ -50,7 +50,7 @@
 | [一次模型调用](../domain_objects/objects.md#ul-model-call--一次模型调用) | [UL-model-call](../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) | [会话](../domain_objects/objects.md#ul-session--会话)；主流程、拓展件与压缩调用归所属 Run，旁路提问等 Run 外调用直接归会话。Agent runtime 只持有句柄，销毁不取消执行。**转换件本版不发起模型调用** | — | PF-013（sealed provenance） | — |
 | [模型响应体](../domain_objects/objects.md#ul-model-response--模型响应体) | [UL-model-response](../ubiquitous_language/terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response) | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——它是一条效力为留痕的[记录条目](../domain_objects/objects.md#ul-record-entry--记录条目)的载荷，随日志留着；试过又失败的那几条不进方程、不进模型的上下文 | — | PF-013（sealed provenance） | 000（sealed provenance） |
 | [附件](../domain_objects/objects.md#ul-attachment--附件) | [UL-attachment](../ubiquitous_language/terms/execution-and-outcome.md#ul-attachment--附件--attachment) | 产出它的那次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)；实际存放在工具定义声明的那个存储里 | — | PF-006（sealed provenance） | — |
-| [被卸载的原始结果](../domain_objects/objects.md#ul-offloaded-result--被卸载的原始结果) | [UL-offloaded-result](../ubiquitous_language/terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 正文未述。它由一次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)产出，却从来没进过[会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——日志里只有那条占位；物理存放归属未述；原始全文持续可回取，不因卸载、压缩、Run 结束或会话归档过期 | — | PF-006（sealed provenance） | 012（sealed provenance） |
+| [被卸载的原始结果](../domain_objects/objects.md#ul-offloaded-result--被卸载的原始结果) | [UL-offloaded-result](../ubiquitous_language/terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 不随 Session、Run 或执行句柄的退出消失。Tool 负责在固定期限内保管，具体物理后端不决定其寿命。 | — | PD-tool-execution | — |
 | [日程](../domain_objects/objects.md#ul-schedule--日程) | [UL-schedule](../ubiquitous_language/terms/execution-and-outcome.md#ul-schedule--日程--schedule) | 正文未述；系统或租户归属不等于生命周期宿主 | 系统日程 | PF-021（sealed provenance） | — |
 | [定时作业](../domain_objects/objects.md#ul-scheduled-job--定时作业) | [UL-scheduled-job](../ubiquitous_language/terms/execution-and-outcome.md#ul-scheduled-job--定时作业--scheduled-job) | 正文未述；与来源日程和执行会话的关联不等于随它们消失 | — | PF-021（sealed provenance） | — |
 
@@ -132,13 +132,13 @@
 |---|---|
 | [会话](../domain_objects/objects.md#ul-session--会话) | [运行时 context 注册](../domain_objects/objects.md#ul-runtime-context-registration--运行时-context-注册)、[运行](../domain_objects/objects.md#ul-run--运行)、[agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime)、[装配清单](../domain_objects/objects.md#ul-assembly-manifest--装配清单)、[会话级沙箱](../domain_objects/objects.md#ul-session-sandbox--会话级沙箱)、[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)、[一次模型调用](../domain_objects/objects.md#ul-model-call--一次模型调用)、[决策卡片](../domain_objects/objects.md#ul-decision-card--决策卡片)、[会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文)、[入站到达](../domain_objects/objects.md#ul-inbound-arrival--入站到达)、[会话日志](../domain_objects/objects.md#ul-session-log--会话日志)、[待办条目](../domain_objects/objects.md#ul-todo-item--待办条目) |
 | [租户](../domain_objects/objects.md#ul-tenant--租户) | [工作区](../domain_objects/objects.md#ul-workspace--工作区)、[会话](../domain_objects/objects.md#ul-session--会话)、[租户级沙箱](../domain_objects/objects.md#ul-tenant-sandbox--租户级沙箱)、[沙箱数据](../domain_objects/objects.md#ul-sandbox-data--沙箱数据) |
-| [工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行) | [无状态沙箱](../domain_objects/objects.md#ul-stateless-sandbox--无状态沙箱)、[附件](../domain_objects/objects.md#ul-attachment--附件)、[被卸载的原始结果](../domain_objects/objects.md#ul-offloaded-result--被卸载的原始结果)、[决策卡片](../domain_objects/objects.md#ul-decision-card--决策卡片) |
 | [组织](../domain_objects/objects.md#ul-organization--组织) | [邀请](../domain_objects/objects.md#ul-invitation--邀请)、[隶属请求](../domain_objects/objects.md#ul-affiliation-request--隶属请求)、[租户](../domain_objects/objects.md#ul-tenant--租户) |
-| [会话日志](../domain_objects/objects.md#ul-session-log--会话日志) | [模型响应体](../domain_objects/objects.md#ul-model-response--模型响应体)、[被卸载的原始结果](../domain_objects/objects.md#ul-offloaded-result--被卸载的原始结果)、[消息](../domain_objects/objects.md#ul-message--消息) |
+| [工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行) | [无状态沙箱](../domain_objects/objects.md#ul-stateless-sandbox--无状态沙箱)、[附件](../domain_objects/objects.md#ul-attachment--附件)、[决策卡片](../domain_objects/objects.md#ul-decision-card--决策卡片) |
 | [账号](../domain_objects/objects.md#ul-account--账号) | [登录状态](../domain_objects/objects.md#ul-login-state--登录状态)、[租户](../domain_objects/objects.md#ul-tenant--租户) |
 | [Agent 执行](../domain_objects/objects.md#ul-agent-execution--agent-执行) | [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime)、[执行挂接](../domain_objects/objects.md#ul-execution-attachment--执行挂接) |
 | [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime) | [Agent 执行](../domain_objects/objects.md#ul-agent-execution--agent-执行)、[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行) |
 | [环境提供者](../domain_objects/objects.md#ul-environment-provider--环境提供者) | [受管资源](../domain_objects/objects.md#ul-managed-resource--受管资源)、[文件批次](../domain_objects/objects.md#ul-file-batch--文件批次) |
+| [会话日志](../domain_objects/objects.md#ul-session-log--会话日志) | [模型响应体](../domain_objects/objects.md#ul-model-response--模型响应体)、[消息](../domain_objects/objects.md#ul-message--消息) |
 | [运行时 context 注册](../domain_objects/objects.md#ul-runtime-context-registration--运行时-context-注册) | [runtime context 块](../domain_objects/objects.md#ul-context-block--runtime-context-块) |
 | [资产](../domain_objects/objects.md#ul-asset--资产) | [资产版本](../domain_objects/objects.md#ul-asset-version--资产版本) |
 | [租户级沙箱](../domain_objects/objects.md#ul-tenant-sandbox--租户级沙箱) | [沙箱数据](../domain_objects/objects.md#ul-sandbox-data--沙箱数据) |

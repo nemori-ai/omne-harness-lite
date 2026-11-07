@@ -321,8 +321,8 @@
 | [UL-tool-output](terms/execution-and-outcome.md#ul-tool-output--工具产出--tool-output) | 工具产出 | Tool Output | 三部分，**读者不同**；帧只给人看，agent 看不到 |
 | [UL-call-account](terms/execution-and-outcome.md#ul-call-account--调用账目--call-account) | 调用账目 | Call Account | 一次调用或执行花了什么、产出多少的账；**进日志不进上下文**，费用拿不到记未知 |
 | [UL-attachment](terms/execution-and-outcome.md#ul-attachment--附件--attachment) | 附件 | Attachment | 存进存储、不进对话，agent 自己去取 |
-| [UL-result-offloading](terms/execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading) | 结果卸载 | Result Offloading | 原始结果存起来、消息里换成带摘要的占位，**不是全卸载** |
-| [UL-offloaded-result](terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 被卸载的原始结果 | Offloaded Result | 太大而被卸载存起来的那份完整工具结果，日志里只有占位 |
+| [UL-result-offloading](terms/execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading) | 结果卸载 | Result Offloading | 另存模型正文，首次消息呈现预览和有限期读回引用 |
+| [UL-offloaded-result](terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 被卸载的原始结果 | Offloaded Result | 卸载后另存的完整模型正文，不含程序值与原生资源目标 |
 | [UL-delivery-release](terms/execution-and-outcome.md#ul-delivery-release--交付责任解除--delivery-release) | 交付责任解除 | Delivery Release | 生产方（一次模型调用或一次工具执行）对已收场结果所负交付责任的解除，消费方处理完成或可靠保管后成立，只有两条路径；**模型一侧叫 ACK**；**读到、展示、开始处理都不够**；**不是事件流确认** |
 | [UL-consumption-position](terms/execution-and-outcome.md#ul-consumption-position--消费位置--consumption-position) | 消费位置 | Consumption Position | 一次调用的结果要交回的那一处；发起时确定，换推进者、重建、恢复都不改；**结果不变成新输入** |
 | [UL-execution-outcome](terms/execution-and-outcome.md#ul-execution-outcome--执行收场--execution-outcome) | 执行收场 | Execution Outcome | 六种，**非完成的四种里只有一种是失败** |

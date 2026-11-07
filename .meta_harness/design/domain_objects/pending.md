@@ -38,14 +38,14 @@
 ### 跨会话的那个对象
 
 - **现象**：元能力产品说待办「归当前 Session，不跨会话继承」，「跨会话工作对象不由此入口补造」。它的边界一节写「跨会话待办对象仍待原产品与领域对象拥有者处理」，未决一节把它列为由领域对象待裁维护的缺项。它曾被叫作「目标」，但设计链里没有它的定义
-- **牵涉**：[元能力：产品规则](../product/meta-capabilities/design.md#meta-todo)（rev 4）；[元能力：产品规则](../product/meta-capabilities/design.md#协作拥有者与非目标)；[元能力：由其他拥有者维护的缺项](../product/meta-capabilities/design.md#由其他拥有者维护的缺项)（rev 4）
+- **牵涉**：[元能力：产品规则](../product/meta-capabilities/design.md#meta-todo)（rev 5）；[元能力：产品规则](../product/meta-capabilities/design.md#协作拥有者与非目标)；[元能力：由其他拥有者维护的缺项](../product/meta-capabilities/design.md#由其他拥有者维护的缺项)（rev 5）
 - **谁来裁**：产品负责人。它要不要做、归哪个 topic，都还没有人说过。元能力产品不保有这一缺项，把它交给原产品与领域对象拥有者
 - **闭合条件**：有 topic 认领它，或明确本版不做
 
 ### 一次派发
 
 - **现象**：`spawn` / `delegate` 的一次派发有状态（在跑 → 完成 · 失败 · 被中断）、可被查询与撤回、至多带一份报告；它由一次工具执行承载，产生一个子会话，**`spawn` 那种还要在子会话日志里落下一条起始输入记录**。元能力产品已明确后续普通消息沿输入规则，不把派发等同 Run；派发本身与承载工具执行如何建模仍需明确。词条 UL-agent-dispatch 讲的是派发这个过程
-- **牵涉**：[元能力：产品规则](../product/meta-capabilities/design.md#meta-agents)（rev 4）；[元能力：产品规则](../product/meta-capabilities/design.md#一次报告与后续消息)（rev 4）
+- **牵涉**：[元能力：产品规则](../product/meta-capabilities/design.md#meta-agents)（rev 5）；[元能力：产品规则](../product/meta-capabilities/design.md#一次报告与后续消息)（rev 5）
 - **挂着谁**：[派发报告](objects.md#ul-dispatch-report--派发报告)的宿主
 - **谁来裁**：系统架构设计；元能力产品提供派发工作、一次报告和显式撤回的产品语义
 - **闭合条件**：明确一次派发与承载工具执行的身份关系，不把它等同子会话或某一个 Run
@@ -53,14 +53,14 @@
 ### agent 之间的消息
 
 - **现象**：元能力产品定义了「谁能给谁发」的两条规则；普通消息已沿接收会话的输入与 Run 规则处理，但无派发关系主会话通信的精确身份、重试、不存在目标以及持久交接协议仍未闭合，不由入口命令名补造
-- **牵涉**：[元能力：先说谁能给谁发消息](../product/meta-capabilities/design.md#双向通信与消息失败)（rev 4）；[PF-014 §4 入站到达](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）
+- **牵涉**：[元能力：先说谁能给谁发消息](../product/meta-capabilities/design.md#双向通信与消息失败)（rev 5）；[PF-014 §4 入站到达](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）
 - **谁来裁**：元能力、Session 与入站拥有者
 - **闭合条件**：实际入站与消息拥有者明确普通通信的身份、持久交接、重试和目标不存在协议，并对应到消息类别
 
 ### 外部 harness 的 agent
 
 - **现象**：能被派发指向、「能不能派给它」本身是一项要被授予的权限；但它在本系统里有没有一条登记记录，完全未述
-- **牵涉**：[元能力：派给外部 harness 的 agent](../product/meta-capabilities/design.md#外部-harness-派发)（rev 4）
+- **牵涉**：[元能力：派给外部 harness 的 agent](../product/meta-capabilities/design.md#外部-harness-派发)（rev 5）
 - **谁来裁**：元能力产品拥有者
 - **闭合条件**：正文写明它靠什么被指到、由谁登记与撤销
 
@@ -81,7 +81,7 @@
 ### 工具贡献与登记键
 
 - **现象**：已采用的 RFC-0012 让一个工具实现在绑定登记表里登记为一份贡献。贡献由登记键区分：来源层、能力身份与资产版本。同一个键的第二次登记有认回、冲突与后继三种处置，release 只撤自己的 token。它有身份、有生灭，却没有词条；产品正文只说实现被装载与卸载，没有把贡献当作产品概念使用。本项判为技术对象：登记键是贡献的身份，不另立对象
-- **牵涉**：[RFC-0012 绑定登记表](../../../docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)；[工具执行产品页 定义、已知能力与一次执行](../product/tool-execution/design.md#resident-tools)（rev 6）
+- **牵涉**：[RFC-0012 绑定登记表](../../../docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)；[工具执行产品页 定义、已知能力与一次执行](../product/tool-execution/design.md#resident-tools)（rev 7）
 - **挂着谁**：[会话](objects.md#ul-session--会话)的常驻工具解析到哪一份贡献，取决于贡献的身份与生灭
 - **谁来裁**：系统架构设计，即 Tool 契约的拥有者（PanQiWei）。不是产品问题
 - **闭合条件**：Tool 契约写回 G7，定义贡献的身份、登记与撤除；或某个产品 topic 需要用它，并立了词条
@@ -89,7 +89,7 @@
 ### 换代协调者
 
 - **现象**：已采用的 RFC-0012 定义 Tool 宿主的一个服务 `toolGenerations`，它持有动态装载的插件句柄，按会话引用保留或卸载贡献，有装载、卸载与恢复后清扫三个动作。它是单例服务，有运行时实例，没有产品层面的身份。本项判为技术对象，不入统一语言
-- **牵涉**：[RFC-0012 加载、卸载、替换与换代协调者](../../../docs/rfcs/RFC-0012-tool-dynamics.md#加载卸载替换与换代协调者)；[工具执行产品页 TL-J01](../product/tool-execution/design.md#tl-j01)（rev 6）
+- **牵涉**：[RFC-0012 加载、卸载、替换与换代协调者](../../../docs/rfcs/RFC-0012-tool-dynamics.md#加载卸载替换与换代协调者)；[工具执行产品页 TL-J01](../product/tool-execution/design.md#tl-j01)（rev 7）
 - **谁来裁**：系统架构设计，即 Tool 契约与 Tool 宿主的拥有者（PanQiWei）。不是产品问题
 - **闭合条件**：Tool 宿主的 Cordis 正文与 LIFECYCLE-M02 写回协调者的归属与保留义务
 
