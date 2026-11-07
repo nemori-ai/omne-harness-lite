@@ -6,6 +6,7 @@
 
 - [README.md](README.md)：测试范围、真实依赖与替身
 - [public-entry.spec.ts](public-entry.spec.ts)：两个公开入口的导出（含 `summarizeTelemetry`）与构建产物的依赖闭包
+- [release.spec.ts](release.spec.ts)：同步释放通知、回滚、迟到 end 与空输出关闭
 - [runtime.spec.ts](runtime.spec.ts)：准入、记录形状、出口故障、有界队列、内容保护、段、派生与关闭
 - [file-outlet.spec.ts](file-outlet.spec.ts)：Pino 同步 destination 写的真实文件
 - [disabled.spec.ts](disabled.spec.ts)：禁用实现

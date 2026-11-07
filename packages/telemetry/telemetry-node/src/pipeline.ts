@@ -13,7 +13,11 @@ export type Dropped = Extract<Admission, { kind: 'dropped' }>
 type Queued = Readonly<{ record: TelemetryRecord; bytes: number }>
 
 /** One place among the open segments. The pipeline takes it back when the segment expires. */
-export type SegmentPlace = Readonly<{ openedAt: number }>
+export type SegmentPlace = {
+  readonly openedAt: number
+  state: 'open' | 'ended' | 'expired' | 'closed'
+  onRelease: (() => void) | undefined
+}
 
 /** What the emitters see of the pipeline. */
 export type Pipeline = Readonly<{
@@ -22,10 +26,10 @@ export type Pipeline = Readonly<{
   admit(record: TelemetryRecord): Admission
   drop(reason: DropReason): Dropped
   /** Takes one place among the open segments; undefined when they are all taken. */
-  openSegment(): SegmentPlace | undefined
+  openSegment(onRelease?: () => void): SegmentPlace | undefined
   /** True while the place is still open: the segment has not expired. */
   isOpen(place: SegmentPlace): boolean
-  /** Frees the place. False when the segment had expired, and the place was already taken back. */
+  /** Frees the place. False when the place was already released. */
   closeSegment(place: SegmentPlace): boolean
   close(deadlineMs: number): Promise<CloseReport>
 }>
@@ -85,10 +89,10 @@ export function createPipeline(
   /** At most one summary line per interval; it never passes through the queue. */
   function noteTrouble(): void {
     if (closing !== undefined) return
-    const now = clock.monotonicMs()
-    if (lastSummaryAt !== undefined && now - lastSummaryAt < budgets.summaryIntervalMs) return
-    lastSummaryAt = now
     try {
+      const now = clock.monotonicMs()
+      if (lastSummaryAt !== undefined && now - lastSummaryAt < budgets.summaryIntervalMs) return
+      lastSummaryAt = now
       input.summary(summaryLine())
     } catch {
       // The last local path failed too; the counts stay in the close report.
@@ -101,11 +105,24 @@ export function createPipeline(
     return dropped(reason)
   }
 
+  function release(place: SegmentPlace, state: Exclude<SegmentPlace['state'], 'open'>): boolean {
+    if (!places.delete(place)) return false
+    place.state = state
+    const notify = place.onRelease
+    place.onRelease = undefined
+    try {
+      notify?.()
+    } catch {
+      // Release is complete even when its observer fails.
+    }
+    return true
+  }
+
   /** Takes back the places of the segments that have outlived the budget, oldest first. */
   function expireSegments(now: number): void {
     for (const place of places) {
       if (now - place.openedAt <= budgets.maxSegmentLifetimeMs) return
-      places.delete(place)
+      release(place, 'expired')
       drop('expired')
     }
   }
@@ -177,7 +194,7 @@ export function createPipeline(
       droppedBy: Object.freeze(Object.fromEntries(lost)),
       pending,
       flush,
-      boundary: flush === 'completed-to-boundary' || reachedSink ? 'local-sink' : 'none',
+      boundary: reachedSink ? 'local-sink' : 'none',
       transport,
     })
   }
@@ -203,6 +220,7 @@ export function createPipeline(
     closing = Promise.resolve().then(() => finish(deadlineAt))
     // Counted after admission stopped, so the expiries reach the report and not a summary line.
     expireSegments(now)
+    for (const place of places) release(place, 'closed')
     drain(deadlineAt)
     return closing
   }
@@ -211,10 +229,10 @@ export function createPipeline(
     accepting: () => closing === undefined,
     admit,
     drop,
-    openSegment() {
+    openSegment(onRelease) {
       const now = sweep()
       if (places.size >= budgets.maxOpenSegments) return undefined
-      const place: SegmentPlace = Object.freeze({ openedAt: now })
+      const place: SegmentPlace = { openedAt: now, state: 'open', onRelease }
       places.add(place)
       return place
     },
@@ -223,8 +241,7 @@ export function createPipeline(
       return places.has(place)
     },
     closeSegment(place: SegmentPlace) {
-      sweep()
-      return places.delete(place)
+      return release(place, 'ended')
     },
     close,
   })

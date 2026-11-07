@@ -112,15 +112,14 @@ function diagnosticReason(reason: string): (typeof DIAGNOSTIC_REASONS)[number] {
  * the service and is bound to the `system` scope. A record of tenant work without a tenant is handed
  * to `port.discard` as `invalid` (TC-4), so the provider counts it. Nothing here throws.
  *
- * The open-segment table holds only the segments the provider admitted, and the provider admits a
- * start only within its own `maxOpenSegments`, so the table never grows past the provider's bound.
+ * The provider's release notification removes the paired handle, including on expiry and close.
  */
 export function createSessionTelemetry(
   port: TelemetryPort,
   base: SessionTelemetryBase,
 ): SessionTelemetry {
   const { instance } = base
-  const open = new Map<number, Segment>()
+  const open = new Map<number, { segment: Segment; lifetime: { released: boolean } }>()
   const definitions = new Map<string, SegmentDefinition>()
 
   /** The binding of one record, or undefined for a tenant that legal-identity did not mint. */
@@ -182,17 +181,22 @@ export function createSessionTelemetry(
       port.discard(definition, 'invalid')
       return
     }
-    const segment = port.bind(binding).startSegment(definition)
-    // A dropped start is the provider's count; there is nothing to pair the end with.
-    if (isSegment(segment)) open.set(event.span, segment)
+    const lifetime = { released: false }
+    const segment = port.bind(binding).startSegment(definition, {
+      onRelease() {
+        lifetime.released = true
+        if (open.get(event.span)?.lifetime === lifetime) open.delete(event.span)
+      },
+    })
+    if (isSegment(segment) && !lifetime.released) open.set(event.span, { segment, lifetime })
   }
 
   /** An end without an open start (dropped by the provider, or never started) ends nothing. */
   function end(event: Extract<SessionSegmentEvent, { phase: 'end' }>): void {
-    const segment = open.get(event.span)
-    if (segment === undefined) return
+    const entry = open.get(event.span)
+    if (entry === undefined) return
     open.delete(event.span)
-    segment.end(event.outcome)
+    entry.segment.end(event.outcome)
   }
 
   function roundComplete(event: SessionRoundCompleteEvent): void {

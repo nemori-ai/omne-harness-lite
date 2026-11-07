@@ -63,7 +63,7 @@ export interface Emitter {
   ): Admission
   startSegment(
     definition: SegmentDefinition,
-    options?: Readonly<{ links?: readonly Carrier[] }>,
+    options?: Readonly<{ links?: readonly Carrier[]; onRelease?: () => void }>,
   ): Segment | Extract<Admission, { kind: 'dropped' }>
   /** Derives an emitter with a changed correlation. The original emitter does not change. */
   bind(patch: Partial<Pick<Binding, 'work' | 'attempt' | 'call' | 'adopted' | 'links'>>): Emitter
@@ -108,8 +108,8 @@ export type CloseDropReason = DropReason | 'output'
  * What a provider reports when it closes. `dropped` is the sum of the members of `droppedBy`.
  * Four confirmation boundaries are distinct: the return of a flush, the callback of a local write
  * function, the acknowledgement of a collector protocol, and the record being queryable in a back
- * end. `flush` and `boundary` name the strongest one that the provider saw; nothing in this
- * report claims a later one.
+ * end. `flush` reports the drain result. `boundary` names the strongest boundary actually seen;
+ * a successful empty drain still has boundary `none`. Nothing here claims a later boundary.
  */
 export type CloseReport = Readonly<{
   generation: string

@@ -98,11 +98,7 @@ function checkedValues(
   return validateFields(schema, copy).kind === 'ok' ? (copy as RecordValues) : undefined
 }
 
-function linksOf(options: unknown): readonly Carrier[] | undefined {
-  if (options === undefined) return []
-  const members = ownData(options)
-  if (members === undefined) return undefined
-  const links = members.get('links')
+function linksOf(links: unknown): readonly Carrier[] | undefined {
   if (links === undefined) return []
   if (!Array.isArray(links) || links.length > TELEMETRY_LIMITS.maxLinks) return undefined
   const decoded: Carrier[] = []
@@ -112,6 +108,26 @@ function linksOf(options: unknown): readonly Carrier[] | undefined {
     decoded.push(result.carrier)
   }
   return decoded
+}
+
+function segmentOptions(options: unknown): Parameters<Emitter['startSegment']>[1] {
+  if (options === undefined) return {}
+  const members = ownData(options)
+  if (members === undefined) return undefined
+  const links = linksOf(members.get('links'))
+  const onRelease = members.get('onRelease')
+  if (links === undefined || (onRelease !== undefined && typeof onRelease !== 'function'))
+    return undefined
+  return {
+    links,
+    ...(onRelease === undefined
+      ? {}
+      : {
+          onRelease: () => {
+            onRelease()
+          },
+        }),
+  }
 }
 
 /**
@@ -240,19 +256,25 @@ export function createPort(deps: EmitterDeps): TelemetryPort {
           if (!OUTCOMES.includes(outcome)) return pipeline.drop('invalid')
           // An expired segment was counted when its place was taken back; its end is not counted
           // again, also after close began, when it answers `closed` like every record.
-          if (!pipeline.closeSegment(place)) {
-            ended = dropped(pipeline.accepting() ? 'expired' : 'closed')
+          if (!pipeline.isOpen(place)) {
+            ended =
+              place.state === 'closed'
+                ? pipeline.drop('closed')
+                : dropped(pipeline.accepting() ? 'expired' : 'closed')
             return ended
           }
-          ended = pipeline.admit({
-            ...head(bound, definition),
-            signal: 'segment-end',
-            trace: ids.trace,
-            span: ids.span,
-            // OUTCOMES holds exactly the three outcomes.
-            outcome: outcome as SegmentOutcome,
-            durationMs: clock.monotonicMs() - place.openedAt,
-          })
+          pipeline.closeSegment(place)
+          ended = guarded(() =>
+            pipeline.admit({
+              ...head(bound, definition),
+              signal: 'segment-end',
+              trace: ids.trace,
+              span: ids.span,
+              // OUTCOMES holds exactly the three outcomes.
+              outcome: outcome as SegmentOutcome,
+              durationMs: clock.monotonicMs() - place.openedAt,
+            }),
+          )
           return ended
         })
       },
@@ -268,25 +290,29 @@ export function createPort(deps: EmitterDeps): TelemetryPort {
 
   function startSegment(bound: Bound, definition: unknown, options: unknown): Segment | Dropped {
     const checked = segmentDefinition(definition)
-    const links = linksOf(options)
-    if (checked === undefined || links === undefined) return pipeline.drop('invalid')
-    // The identities come first: an entropy source that throws leaves no segment place taken.
+    const checkedOptions = segmentOptions(options)
+    if (checked === undefined || checkedOptions === undefined) return pipeline.drop('invalid')
     const ids = newIds()
     if (ids === undefined) return pipeline.drop('invalid')
-    const place = pipeline.openSegment()
+    const place = pipeline.openSegment(checkedOptions.onRelease)
     if (place === undefined) return pipeline.drop('capacity')
-    const start = head(bound, checked)
-    const allLinks = [...(start.links ?? []), ...links]
-    const admission = pipeline.admit({
-      ...start,
-      ...(allLinks.length > 0 && { links: allLinks }),
-      signal: 'segment-start',
-      trace: ids.trace,
-      span: ids.span,
-    })
-    if (admission.kind === 'admitted') return startedSegment(bound, checked, ids, place)
-    pipeline.closeSegment(place)
-    return admission
+    let segment: Segment | undefined
+    try {
+      const start = head(bound, checked)
+      const allLinks = [...(start.links ?? []), ...(checkedOptions.links ?? [])]
+      const admission = pipeline.admit({
+        ...start,
+        ...(allLinks.length > 0 && { links: allLinks }),
+        signal: 'segment-start',
+        trace: ids.trace,
+        span: ids.span,
+      })
+      if (admission.kind === 'dropped') return admission
+      segment = startedSegment(bound, checked, ids, place)
+      return segment
+    } finally {
+      if (segment === undefined) pipeline.closeSegment(place)
+    }
   }
 
   function boundEmitter(bound: Bound): Emitter {

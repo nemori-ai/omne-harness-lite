@@ -20,6 +20,7 @@
 // text, so the Run of the release tree reaches its terminal entry; every segment start of the run
 // has its end, and with a short `maxSegmentLifetimeMs` the close report would count a segment
 // still open at close under `droppedBy.expired`.
+import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { Writable } from 'node:stream'
 import { join } from 'node:path'
@@ -32,13 +33,19 @@ import {
   tenantScope,
   type ActingScope,
 } from '@omne-harness/legal-identity'
+import { createAgentTelemetry } from '@omne-harness/agent'
+import { decodeAgentExecutionId } from '@omne-harness/agent-contract'
 import { createSessionTelemetry } from '@omne-harness/session'
 import type { ResidentKey } from '@omne-harness/session-contract'
 import { testingTenant } from '@omne-harness/session-contract/testing'
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
-import { defineEvent, type TelemetryPort } from '@omne-harness/telemetry-contract'
+import { defineEvent, isSegment, type TelemetryPort } from '@omne-harness/telemetry-contract'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
-import { summarizeTelemetry, type TelemetryRecord } from '@omne-harness/telemetry-node'
+import {
+  createTelemetryRuntime,
+  summarizeTelemetry,
+  type TelemetryRecord,
+} from '@omne-harness/telemetry-node'
 import * as cordis from '../../../src/cordis.ts'
 import {
   lineWriter,
@@ -760,4 +767,71 @@ describe('G7: the segment pairs of a real Run are released when the Run ends', (
       )
     },
   )
+})
+
+describe('shared provider releases facade pairs', () => {
+  it('only forwards the active end after repeated expiry, and forwards none after close', async () => {
+    let time = 0
+    const written: TelemetryRecord[] = []
+    const runtime = createTelemetryRuntime({
+      generation: 'pair-release',
+      randomBytes,
+      instance: processInstance,
+      budgets: { ...TELEMETRY_ROW_CONFIG.budgets, maxOpenSegments: 1, maxSegmentLifetimeMs: 1 },
+      clock: { now: () => new Date(time), monotonicMs: () => time },
+      outlet: { kind: 'writer', write: record => written.push(record) },
+      summary: () => {},
+    })
+    let forwarded = 0
+    const port: TelemetryPort = {
+      ...runtime.port,
+      bind(binding) {
+        const emitter = runtime.port.bind(binding)
+        return {
+          ...emitter,
+          startSegment(definition, options) {
+            const segment = emitter.startSegment(definition, options)
+            return isSegment(segment)
+              ? {
+                  ...segment,
+                  end(outcome) {
+                    forwarded += 1
+                    return segment.end(outcome)
+                  },
+                }
+              : segment
+          },
+        }
+      },
+    }
+    const agent = createAgentTelemetry(port, { instance: processInstance })
+    const session = createSessionTelemetry(port, { instance: processInstance })
+    const tenant = testingTenant('org_app8c0pr0v1der000000000000', 'acc_app8c0pr0v1der000000000000')
+    const execution = decodeAgentExecutionId('release-execution')
+    if ('failure' in execution) throw new Error('expected an execution identity')
+    const executionId = execution.ok
+    function measure(span: number, phase: 'start' | 'end') {
+      const timing = phase === 'start' ? ({ phase } as const) : ({ phase, outcome: 'ok' } as const)
+      const common = { kind: 'segment', span, tenant, ...timing } as const
+      if (span % 2 === 0)
+        session.measure({ ...common, segment: 'session', session: null, operation: 'pending' })
+      else agent.measure({ ...common, segment: 'agent', pass: 'run', execution: executionId })
+    }
+    try {
+      for (let span = 1; span <= 20; span += 1) {
+        measure(span, 'start')
+        if (span < 20) time += 2
+      }
+      for (let span = 1; span <= 20; span += 1) measure(span, 'end')
+      expect(forwarded).toBe(1)
+      measure(21, 'start')
+      const closing = runtime.close(1000)
+      for (let span = 1; span <= 21; span += 1) measure(span, 'end')
+      expect(forwarded).toBe(1)
+      expect(await closing).toMatchObject({ droppedBy: { expired: 19 }, pending: 0 })
+      expect(written.filter(record => record.signal === 'segment-end')).toHaveLength(1)
+    } finally {
+      await runtime.close(1000)
+    }
+  })
 })

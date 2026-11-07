@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   decodeCarrier,
   defineEvent,
@@ -335,5 +335,50 @@ describe('isSegment', () => {
     expect(isSegment({ kind: 'dropped', reason: 'capacity' })).toBe(false)
     expect(isSegment(null)).toBe(false)
     expect(isSegment({ carrier: 'x' })).toBe(false)
+  })
+})
+
+describe('capture release', () => {
+  it('does not register callbacks for refused starts or invoke getters', () => {
+    const telemetry = createCapturingTelemetry({ capacity: 1 })
+    const emitter = telemetry.port.bind(aBinding())
+    const onRelease = vi.fn()
+    const getter = vi.fn(() => onRelease)
+    expect(emitter.startSegment(turn, { onRelease: 1 } as never)).toEqual({
+      kind: 'dropped',
+      reason: 'invalid',
+    })
+    const options = Object.defineProperty({}, 'onRelease', { get: getter })
+    expect(emitter.startSegment(turn, options)).toEqual({ kind: 'dropped', reason: 'invalid' })
+    expect(getter).not.toHaveBeenCalled()
+    expect(isSegment(emitter.startSegment(turn))).toBe(true)
+    expect(emitter.startSegment(turn, { onRelease })).toEqual({
+      kind: 'dropped',
+      reason: 'capacity',
+    })
+    telemetry.clear()
+    expect(onRelease).not.toHaveBeenCalled()
+  })
+
+  it('releases on end even when the end record is refused, and clear releases remaining handles', () => {
+    const telemetry = createCapturingTelemetry({ capacity: 2 })
+    const emitter = telemetry.port.bind(aBinding())
+    const ended = vi.fn(() => {
+      throw new Error('observer failed')
+    })
+    const cleared = vi.fn()
+    const first = started(emitter.startSegment(turn, { onRelease: ended }))
+    const second = started(emitter.startSegment(turn, { onRelease: cleared }))
+    expect(first.end('ok')).toEqual({ kind: 'dropped', reason: 'capacity' })
+    expect(ended).toHaveBeenCalledTimes(1)
+    telemetry.clear()
+    expect(cleared).toHaveBeenCalledTimes(1)
+    expect(telemetry.dropped()).toBe(0)
+    expect(second.end()).toEqual({ kind: 'dropped', reason: 'closed' })
+    second.end()
+    expect(telemetry.dropped()).toBe(1)
+    expect(telemetry.records()).toEqual([])
+    telemetry.clear()
+    expect(cleared).toHaveBeenCalledTimes(1)
   })
 })
