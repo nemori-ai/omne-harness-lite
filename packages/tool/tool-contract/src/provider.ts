@@ -5,6 +5,20 @@
 // value types only they reference. Every name is defined once, in the same modules as the root
 // entry; a name is exported from one entry only. It does not import Cordis or another Tool package.
 export { toolBodyContract } from './contract.ts'
+export { decodeToolMaterialInstant } from './materials.ts'
+export type {
+  ToolMaterialFingerprint,
+  ToolMaterialInstant,
+  ToolMaterialClock,
+  ToolMaterialId,
+  ToolMaterialGeneration,
+  ToolMaterialRef,
+  ToolMaterialSeal,
+  ToolMaterialStore,
+  ToolFinalEnvelope,
+  ToolFinalPointer,
+  ToolFinalCustody,
+} from './materials.ts'
 export { describedAdoption } from './adoption.ts'
 export type { AdoptionRules } from './adoption.ts'
 export {
@@ -12,6 +26,8 @@ export {
   decodeToolCursor,
   decodeToolDeliveryId,
   decodeToolInstanceId,
+  decodeToolMaterialId,
+  decodeToolMaterialGeneration,
   decodeToolResultVersion,
   decodeToolRevision,
   decodeToolWaitId,

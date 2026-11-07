@@ -7,7 +7,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ToolDecision } from './author-context.ts'
 import type { ToolInspection } from './authoring.ts'
-import type { RawOutput } from './custody.ts'
+import type { ToolFinalEnvelope } from './materials.ts'
 import type { FixedToolRequest, ToolAvailability, ToolInvocation } from './definitions.ts'
 import type { ToolExecutionRef } from './execution.ts'
 import type {
@@ -50,7 +50,7 @@ import type {
   ToolRecoveryBinding,
   WaitIntent,
 } from './records.ts'
-import type { Effect, Reply, ToolResult, ToolTerminal } from './results.ts'
+import type { Reply } from './results.ts'
 
 export type DecisionValue = ToolDecision<JsonValue>
 export interface ToolDecisionBridge<P> {
@@ -83,13 +83,7 @@ export type ToolExecutionFact<B extends ContentBlock> =
     }>
   | Readonly<{ kind: 'program-scheduling'; value: ProgramScheduling }>
   | Readonly<{ kind: 'account'; event: string; value: CallAccount }>
-  | Readonly<{
-      kind: 'final'
-      raw: RawOutput
-      result: ToolResult<B>
-      terminal: ToolTerminal
-      effect: Effect
-    }>
+  | ToolFinalEnvelope<B>
 export interface ToolLiveExecution<B extends ContentBlock> {
   facts(input: Readonly<{ after: string | null; signal: AbortSignal }>): AsyncIterable<FactBatch<B>>
   acknowledge(input: FactReceipt): Reply<DurableEvidence>

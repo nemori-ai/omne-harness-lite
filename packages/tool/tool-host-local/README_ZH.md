@@ -8,6 +8,8 @@
 
 本包是 Tool 启动排序域的第一个提供者（契约 SPEC 的 P04 与决定 G5）。`createLocalStartCoordinator` 为一台机器上的一个进程实现 `ToolStartAuthority`。应用装配把它作为 `ToolDependencies.authority` 交给 `@omne-harness/tool` 的 `createToolRuntime`。
 
+`createLocalToolMaterialClock` 提供 [M05](../tool-contract/docs/material-protocol.md#m05-有效时间) 的独立材料时间源，要求显式传入墙钟和单调源。非法读数、单调时间回退或源故障返回 unavailable，并保留上次合法锚点。工厂不保存持久水位，也不管理到期；这些 Tool 职责及生产接线尚未完成。
+
 ## 支持范围
 
 检出范围和跨包总表见[工具执行组的支持范围](../README.md#支持范围)。本节只写本包的部分。验证范围只说明测试核对了什么，不说明测试范围之外的行为已成立。

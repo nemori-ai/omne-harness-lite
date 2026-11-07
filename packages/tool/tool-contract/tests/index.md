@@ -3,6 +3,7 @@
 - [测试范围与运行入口](README.md)。
 - [根入口导出与导入方向测试](public-entry.spec.ts)。
 - [品牌身份解码测试](identity.spec.ts)。
+- [材料 UTC 时间值的规范形式](material-values.spec.ts)。
 - [默认结果政策测试](result-policy.spec.ts)。
 - [资产正文端口测试](contract.spec.ts)。
 - [资产正文 programmable 测试](body-programmable.spec.ts)。

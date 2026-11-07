@@ -39,6 +39,7 @@ export type {
   ToolEnvironmentDiagnostics,
 } from './environment-diagnostics.ts'
 export { createLocalToolClock, type LocalToolClockInput } from './clock.ts'
+export { createLocalToolMaterialClock, type LocalToolMaterialClockInput } from './material-clock.ts'
 export {
   createLocalToolBindingRegistry,
   type LocalToolAuthorityFailure,

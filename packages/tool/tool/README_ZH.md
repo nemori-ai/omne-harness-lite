@@ -8,6 +8,8 @@
 
 本包实现 `@omne-harness/tool-contract` 的契约。它管理并发、等待、取消与状态，两个实现在这里可以不同，所以不属于契约。本包不依赖 Cordis，独立程序不装 Cordis 也能执行工具。独立执行已实现。runtime 实现了托管路径的一部分。下一节列出五档支持范围。准确的支持范围见 [SPEC.md](SPEC.md#当前范围)。
 
+`encodeToolMaterial` 实现 [M02.1](../tool-contract/docs/material-protocol.md#m021-指纹编码-v1) 的规范 JSON 字节和 SHA-256 指纹。调用者先使用身份拥有者的 codec 转成数据。入口拒绝非数据值，不执行访问器或转换钩子。既有 `canonicalDigest` 编码不变。新编码器尚未接入 final 事实保管或结果卸载。验证见[固定向量测试](tests/material-codec.spec.ts)。
+
 ## 支持范围
 
 检出范围和跨包总表见[工具执行组的支持范围](../README.md#支持范围)。本节只写本包的部分。验证范围只说明测试核对了什么，不说明测试范围之外的行为已成立。

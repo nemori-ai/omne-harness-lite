@@ -8,6 +8,8 @@ The single-machine Tool host. The root entry provides the start coordinator, clo
 
 This package is the first provider of the Tool start ordering domain (contract SPEC P04, decision G5). `createLocalStartCoordinator` implements `ToolStartAuthority` for one process on one machine. An application assembly passes it to `createToolRuntime` of `@omne-harness/tool` as `ToolDependencies.authority`.
 
+`createLocalToolMaterialClock` provides the independent material time source specified by [M05](../tool-contract/docs/material-protocol.md#m05-有效时间). It requires explicit wall and monotonic sources. It reports unavailable for invalid readings, backward monotonic time or source failure. It preserves the last valid anchor after failure. This factory does not persist high watermarks or manage expiry. Those Tool duties and production wiring remain unfinished.
+
 ## Support range
 
 The checkout scope and the cross-package table are in [the group support range](../README.md#支持范围). This section states the part of this package. The verification scope tells what the tests check. It does not tell that behavior outside the tests holds.

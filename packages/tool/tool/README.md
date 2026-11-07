@@ -8,6 +8,8 @@ The Tool implementation without Cordis. The root entry exports independent execu
 
 This package implements the contract of `@omne-harness/tool-contract`. It manages concurrency, waits, cancellation and state, so two implementations may differ here and the package is not part of the contract. It does not depend on Cordis, so an independent program can execute a tool without a Cordis install. Independent execution is implemented. The runtime implements a part of the managed paths. The next section lists the five tiers of support. The exact support scope is in [SPEC.md](SPEC.md#当前范围).
 
+`encodeToolMaterial` implements the canonical JSON bytes and SHA-256 fingerprint specified by [M02.1](../tool-contract/docs/material-protocol.md#m021-指纹编码-v1). Callers encode domain identities before passing data to this function. It rejects non-data values without invoking accessors or hooks. The existing `canonicalDigest` encoding is unchanged. The new encoder is not yet connected to final-fact custody or result offloading. See [the fixed-vector tests](tests/material-codec.spec.ts).
+
 ## Support range
 
 The checkout scope and the cross-package table are in [the group support range](../README.md#支持范围). This section states the part of this package. The verification scope tells what the tests check. It does not tell that behavior outside the tests holds.
