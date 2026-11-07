@@ -8,7 +8,7 @@
 
 本包兑现 [telemetry-contract](../telemetry-contract/README_ZH.md) 的端口：校验每条记录，放进有界队列，排空到本地出口，保有计数，并在关闭时返回 `CloseReport`。本地出口是应用交入的记录写函数（stdout 或 stderr），或 Pino 10.4.0 同步 destination 写的文件。
 
-状态：候选，第一版。设计依据是 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 的 B 线。RFC-0013 还没有接受，所以 [SPEC.md](SPEC.md) 的全部条款都是候选。运行时、禁用实现、日志桥与两个插件已经实现并有测试。
+状态：第一版本地范围已采用。设计依据是 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 的 B 线。RFC revision 2 已采用本地范围，推迟项不在此次决定中。运行时、禁用实现、日志桥与两个插件已经实现并有测试。
 
 具名消费者：应用 `apps/harness-server` 创建运行时，装配 `telemetry` 行，并在关闭步骤里显式关闭运行时。
 

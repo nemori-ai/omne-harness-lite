@@ -1492,7 +1492,7 @@ handoff 项的恢复动作只有下列四种。它们不是任意命令或回调
 | handoff-record | recordHandoff 请求材料的明确分支（source-bound-request 或 observed-operation）、RhSemanticRequest 与 operation、可信的提供者绑定、固定的 recorded 或 excluded 来源；observed-operation 另保留真实调用依据 | record-message-handoff，即当前保管资格 | 合入原责任。原 recordHandoff 未知时先 query。source-bound 分支不声称已有历史调用。当前 Access 可变，规范语义固定；没有原 execution 时不创建 execution |
 | handoff-source-recovery | 原 P 与应用操作的完整请求及 query 身份，H、来源、位置与原材料 | 查询用当前 query 资格；新的来源应用或 retire 用当前挂接的推进资格 | 先按 query 认回。新的来源应用或 retire 仍须通过现有的 advance、expected 与生命周期检查。取消、失权或 ended 之后只读取与保管。本动作不表示必须执行应用操作或 prepare。应用操作 unknown 且未被排除时，不发新的应用操作，也不发新的 P |
 
-ended 在同一提交保存终局清单、各项处置、最后的 ended 事件、固定的观察集合与原结果。FinishIntent 消失后清单仍可经 load 读取。候选：实现了 `readFinish` 的提供者在 ended 之后仍按“[条件终结](#条件终结)”第 5 条给出最终候选的 FinishIntent。合法迟到记录在自身原子边界更新处置与 revision，不改原终态，不追加事件。
+ended 在同一提交保存终局清单、各项处置、最后的 ended 事件、固定的观察集合与原结果。FinishIntent 消失后清单仍可经 load 读取。实现了 `readFinish` 的提供者在 ended 之后仍按“[条件终结](#条件终结)”第 5 条给出最终候选的 FinishIntent。合法迟到记录在自身原子边界更新处置与 revision，不改原终态，不追加事件。
 
 tryFinish 在同一次提交固定每个尚需处置的 Passage 与 CardRound、原卡片请求集合、已有卡片、已知答复、原 present、lookup 与 invalidate 操作及精确采用。已有答复不能丢。终态后的卡片接续由“[扩展、卡片与材料](#扩展卡片与材料)”拥有。
 

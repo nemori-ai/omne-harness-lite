@@ -8,7 +8,7 @@ The Node provider of engineering telemetry. The first version has local outlets 
 
 This package implements the port of [telemetry-contract](../telemetry-contract/README.md). It checks each record, puts it in a bounded queue, drains the queue to a local outlet, keeps counts, and returns a `CloseReport` at close. The local outlet is a record writer that the application supplies (stdout or stderr), or a file that a Pino 10.4.0 synchronous destination writes.
 
-Status: candidate, first version. The design basis is line B of [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md). RFC-0013 is not accepted, so every clause of [SPEC.md](SPEC.md) is a candidate. The runtime, the disabled implementation, the log bridge and the two plugins exist and have tests.
+Status: adopted local first version. The design basis is line B of [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md). RFC-0013 is not accepted, so every clause of [SPEC.md](SPEC.md) is a candidate. The runtime, the disabled implementation, the log bridge and the two plugins exist and have tests.
 
 Named consumer: the application `apps/harness-server` creates the runtime, assembles the `telemetry` row, and closes the runtime explicitly in its shutdown step.
 

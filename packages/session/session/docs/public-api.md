@@ -12,7 +12,7 @@
 
 ### 现有导出
 
-根入口 [src/index.ts](../src/index.ts) 有下列导出。[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言运行时导出只有 `createSessionInstance`、`defaultSchedulingPolicy`、`createSessionTelemetry` 与两个事件定义。精确签名以源码为准，本页不保留第二套手写签名。导出的形状仍是候选，尚未技术接受。
+根入口 [src/index.ts](../src/index.ts) 有下列导出。[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言运行时导出只有 `createSessionInstance`、`defaultSchedulingPolicy`、`createSessionTelemetry` 与两个事件定义。精确签名以源码为准，本页不保留第二套手写签名。`createSessionTelemetry` 与两个遥测事件定义按 [RFC-0013 revision 2](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 的本地范围采用；其余导出的采用状态仍由本包 [SPEC](../SPEC.md) 所列依据决定。
 
 | 导出 | 种类 | 源码 |
 | --- | --- | --- |

@@ -12,7 +12,7 @@
 
 - 已实现：四张表与迁移 `001-model-records`；行与调用文档之间的解析；`createSqlModelStorage`，即 `ModelCommandStorage` 的 SQL 实现；参加者 `model`；读 handler `model.call` 与 `model.pending` 及各自的模块文件；静态材料 `modelStorageMaterials()` 及其 `codeDigest`；构造期核对；`createSqlModelCommands`，即共享核心的 22 个方法装在这份存储上；`createSendMirror`，即发送协调器。
 - 已实现：`./cordis` 的 `createSqlModelRecordsPlugin`，在记录插件上发布 `modelCommands`，并拥有独立的发送子插件。应用接线由应用装配承担。
-- 已实现（候选，待 RFC-0013 接受）：诊断读面 `createSqlModelDiagnostics`，即 `ModelDiagnostics.list` 在同一份记录上的实现；读 handler `model.diagnostics` 及其模块文件；`./cordis` 的 `createSqlModelDiagnosticsPlugin`，发布 `modelDiagnostics`。行为见[诊断读面](#诊断读面)。应用行的接线归应用装配。
+- 已实现，按 RFC-0013 revision 2 的本地范围采用：诊断读面 `createSqlModelDiagnostics`，即 `ModelDiagnostics.list` 在同一份记录上的实现；读 handler `model.diagnostics` 及其模块文件；`./cordis` 的 `createSqlModelDiagnosticsPlugin`，发布 `modelDiagnostics`。行为见[诊断读面](#诊断读面)。应用行的接线归应用装配。
 
 ### 耐久的 ModelCommands
 

@@ -2,7 +2,7 @@
 
 本页拥有治理位置与会话位置的入口职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。路径、方法、状态码、请求体上限和 SSE 格式只归[承载绑定表](../public-contract/docs/http-binding.md#承载绑定表)。观察接入的组合责任见[观察脱离与重附着](#观察脱离与重附着746)。各小节的采用依据见该节开头。
 
-下列条款由 #978 波 1 设计点 DP-2 采用，依据是 DP-2 决策记录（评论 6561904972）与 R1-D27（评论 6562041248）：本段第一段对会话位置和承载页的引用、「[位置与操作范围](#位置与操作范围)」整节（含各小节）、「[验证](#验证)」一节中会话位置与 HTTP 层的验证义务。其余条款保持各自原有的采用状态。「[会话诊断投影](#会话诊断投影)」小节，「会话位置」一节里写 `read-session-diagnostics` 的句子与表格内容，以及「[依赖](#依赖)」「[验证](#验证)」中会话诊断投影的条款，不在 DP-2 的采用范围内：它们是候选，待 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 接受。
+下列条款由 #978 波 1 设计点 DP-2 采用，依据是 DP-2 决策记录（评论 6561904972）与 R1-D27（评论 6562041248）：本段第一段对会话位置和承载页的引用、「[位置与操作范围](#位置与操作范围)」整节（含各小节）、「[验证](#验证)」一节中会话位置与 HTTP 层的验证义务。其余条款保持各自原有的采用状态。「[会话诊断投影](#会话诊断投影)」小节，「会话位置」一节里写 `read-session-diagnostics` 的句子与表格内容，以及「[依赖](#依赖)」「[验证](#验证)」中会话诊断投影的条款，不在 DP-2 的采用范围内：它们由 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) revision 2 的本地范围另行采用。
 
 「[治理位置](#治理位置)」「[成功业务访问的报告](#成功业务访问的报告)」「[登录失效时结束观察](#登录失效时结束观察)」三个小节，以及「[服务端的 HTTP 层责任](#服务端的-http-层责任)」与「[验证](#验证)」中治理端口的条款，按 Reduce 的 R2-D203、R2-D204 与身份治理交付规格的 F2、F3、C4、C5 修订。
 
@@ -91,7 +91,7 @@
 
 ### 会话位置
 
-会话位置提供公开契约的八个会话操作和两个观察操作。接入按公开契约的[会话判断次序](../public-contract/SPEC.md#会话判断次序)处理会话操作。下表写接入在每一步的职责。候选操作 `read-session-diagnostics` 的组合规则另见[会话诊断投影](#会话诊断投影)。
+会话位置提供公开契约的八个会话操作和两个观察操作。接入按公开契约的[会话判断次序](../public-contract/SPEC.md#会话判断次序)处理会话操作。下表写接入在每一步的职责。操作 `read-session-diagnostics` 的组合规则另见[会话诊断投影](#会话诊断投影)。
 
 | 步骤             | 接入的职责                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -99,8 +99,8 @@
 | 2 登录识别       | 把 `loginProof` 交给 identity 的登录识别，得到账号、登录和当前租户。接入不改写 `denied` 与 `basis-unavailable`，也不另持登录表                                                                                                                                                                                                                                                                                                                        |
 | 3 行事租户       | 只对 `create-session`：核对 `actingTenant` 等于该登录的当前选择，不等是 `denied`，响应不含实际选择                                                                                                                                                                                                                                                                                                                                                    |
 | 4 目标租户与主体 | 目标租户的账号等于识别出的账号时，用签发者签发代租户行事主体，规则见[登录到 Access](../../../docs/architecture/runtime/runtime-contract-handoff.md#登录到-access)。账号不等是 `denied`。签发者未安装或签发失败是 `basis-unavailable`                                                                                                                                                                                                                  |
-| 5 部署范围       | 用 `definitionMappings` 解析 `definition`。定义名不在映射内，或 `pageBytes` 超出部署上界，是 `invalid`。`create-session` 的映射条目没有 `initialModelSelection` 时，是 `basis-unavailable`，不调用 Session，记诊断 `session.definition-incomplete`。`read-session-diagnostics`（候选）：部署没有配置投影（`diagnosticsKinds`、`maxRuns`、`maxCallsPerRun`）时是 `basis-unavailable`，不调用 Session；游标不是本实例为该租户与会话签发的，是 `invalid` |
-| 6 Session 判断   | 按[操作到 Session 的映射](../../../docs/architecture/runtime/runtime-contract-handoff.md#操作到-session-的映射)调用 Session 的面。结果按公开契约的映射表对外表示。`read-session-diagnostics`（候选）先读 Session 历史，再读其他来源；其他来源的拒绝不改变 `outcome`                                                                                                                                                                                   |
+| 5 部署范围       | 用 `definitionMappings` 解析 `definition`。定义名不在映射内，或 `pageBytes` 超出部署上界，是 `invalid`。`create-session` 的映射条目没有 `initialModelSelection` 时，是 `basis-unavailable`，不调用 Session，记诊断 `session.definition-incomplete`。`read-session-diagnostics`：部署没有配置投影（`diagnosticsKinds`、`maxRuns`、`maxCallsPerRun`）时是 `basis-unavailable`，不调用 Session；游标不是本实例为该租户与会话签发的，是 `invalid` |
+| 6 Session 判断   | 按[操作到 Session 的映射](../../../docs/architecture/runtime/runtime-contract-handoff.md#操作到-session-的映射)调用 Session 的面。结果按公开契约的映射表对外表示。`read-session-diagnostics`先读 Session 历史，再读其他来源；其他来源的拒绝不改变 `outcome`                                                                                                                                                                                   |
 
 补充规则如下。
 
@@ -115,7 +115,7 @@
 
 ### 会话诊断投影
 
-本节是候选，待 RFC-0013 接受。设计依据是 [RFC-0013 的 A 线](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#a-线会话日志诊断投影)。它的裁定 DA1（组合承担者是本成员的 `session-view/` 模块）与 DA5（操作名 `read-session-diagnostics`）暂按 RFC 的建议推进，等 app-access 线拥有者与 CLI/Server 工作负责人确认。线上形状归公开契约的[会话诊断页](../public-contract/SPEC.md#会话诊断页)。
+本节按 RFC-0013 revision 2 的本地范围采用。设计依据是 [RFC-0013 的 A 线](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#a-线会话日志诊断投影)。它的裁定 DA1（组合承担者是本成员的 `session-view/` 模块）与 DA5（操作名 `read-session-diagnostics`）按 RFC revision 2 的接续采用记录执行。线上形状归公开契约的[会话诊断页](../public-contract/SPEC.md#会话诊断页)。
 
 接入是这个投影的组合承担者。投影只读：它不创建 Session、Run 或调用，不重新执行任何动作，不消耗派生额度，也不缓存跨请求的结果。它只经各拥有者的公开读口取数，不读存储内部。
 

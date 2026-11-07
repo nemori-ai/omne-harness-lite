@@ -28,7 +28,7 @@
 `createTelemetryRuntime(options)` 只在创建时校验一次选项：
 
 - `budgets` 的六个第一版成员都必填，必须是正整数。本包不给它们默认值，数值来自配置（IC-14）。
-- `budgets.maxSegmentLifetimeMs` 可选。在场时必须是正整数，缺席时取 3600000（1 小时）。缺省值的来源：卡 #1140 r2 第四轮闭包 tel-r4-node 的建议值。RFC-0013「资源预算」列出这项预算，没有给数值。
+- `budgets.maxSegmentLifetimeMs` 可选。在场时必须是正整数，缺席时取 3600000（1 小时）。这是第一版本地运行的默认资源上限，不是生产负载下的容量保证；部署可以显式覆盖。
 - `generation` 是 1 到 128 个可打印 ASCII 字符，不含空格。
 - `instance` 必须是合法的 `OwnedRef`，规则沿用 `validateBinding`。
 - 非法选项抛 `TypeError`。
