@@ -2,8 +2,8 @@ import type { GovernanceLocalOptions } from '@omne-harness/governance-local'
 import { openRegistrarWorld } from './registrar-world.ts'
 import { json } from '../src/encoding.ts'
 
-export async function openProviderWorld() {
-  const w = await openRegistrarWorld()
+export async function openProviderWorld(existing?: Awaited<ReturnType<typeof openRegistrarWorld>>) {
+  const w = existing ?? (await openRegistrarWorld())
   const definition = w.command('definition').declaration
   function combination(mode: Parameters<typeof w.activation.combination>[0]) {
     const { combinationVersion, manifestDigest } = w.activation.combination(mode)

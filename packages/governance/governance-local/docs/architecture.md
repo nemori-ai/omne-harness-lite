@@ -545,4 +545,16 @@ erDiagram
 
 恢复读取分别扫描业务/Identity部分索引与来源部分索引，每个最多65项，然后按完整键去重归并。终态未结算的来源仍在恢复集合内。所有关系属于 Governance，不查询 Settings 私表。
 
-已实现的是请求与来源责任保管。实际权限 current 事务、来源服务协调和旧装配重放仍待交付。旧 SQL 信封保留原字节，不代表它可以在新材料摘要下执行。
+来源协调器通过 Settings 公共端口取得、保管和结算快照。首次保留要求同一 capture 的 Identity held；清理只使用原持久请求。目的解析器仅消费 Governance SQL，因而可在 Identity 和 Settings 服务装配前构造，不产生运行时构造循环。
+
+```mermaid
+classDiagram
+  GovernanceScopeLifecycle --> GovernanceStandingCoordinator : 结算身份
+  GovernanceScopeLifecycle --> GovernanceSourceCoordinator : 结算来源
+  GovernanceSourceCoordinator --> SqlOperationCoordinator : 原请求与回执
+  GovernanceSourceCoordinator --> SettingsSourceReservations : reserve及settle
+  SettingsSourceReservations --> GovernanceSourceDestination : recognize及seal
+  GovernanceSourceDestination --> SqlOperationCoordinator : 精确认回及封口
+```
+
+启动恢复完成与关闭完成都要求两类责任已结算。来源依赖缺失时保留待决责任，借用服务的销毁仍归装配拥有者。实际权限 current 事务和旧装配重放仍待交付。旧 SQL 信封保留原字节，不代表它可以在新材料摘要下执行。

@@ -14,6 +14,7 @@ import {
   type Bootstrap,
   type OperationBinding,
 } from './operation-schema.ts'
+import type { GovernanceSourceCoordinator } from './source-coordinator.ts'
 import type { SourceCustody } from './source-custody.ts'
 import { digest, equal, json } from './encoding.ts'
 import { submitSql } from './sql-submission.ts'
@@ -31,6 +32,7 @@ export type ScopeLifecycleOptions = Readonly<{
   epoch: string
   sql: SqlOperationCoordinator
   standing: GovernanceStandingCoordinator
+  sources?: Pick<GovernanceSourceCoordinator<unknown>, 'settle'>
 }>
 const unavailable = () => ({ kind: 'unavailable' as const, owner: 'governance-lifecycle' })
 
@@ -189,7 +191,9 @@ export class GovernanceScopeLifecycle {
   }
   private async settle(binding: OperationBinding, source: SourceCustody) {
     const settled = await this.options.standing.settle(binding)
-    if (settled.kind !== 'settled' && settled.kind !== 'unplanned') return 'pending'
-    return source.kind === 'settled' || source.kind === 'not-required' ? 'settled' : 'pending'
+    const released = this.options.sources ? await this.options.sources.settle(binding) : source
+    const standingDone = settled.kind === 'settled' || settled.kind === 'unplanned'
+    const sourceDone = released.kind === 'settled' || released.kind === 'not-required'
+    return standingDone && sourceDone ? 'settled' : 'pending'
   }
 }

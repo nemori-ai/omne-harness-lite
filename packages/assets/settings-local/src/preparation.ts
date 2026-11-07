@@ -28,6 +28,7 @@ export {
   sourceSnapshotSchema as SettingsSourceSnapshotSchema,
 } from './source-retention-schema.ts'
 export { sourceCustodyReceiptSchema as SettingsSourceReceiptSchema } from './source-custody-schema.ts'
+export { sourceServiceReplySchema as SettingsSourceReplySchema } from './source-service-schema.ts'
 export {
   createIdentityQualifiedSettingsPreparation,
   type IdentityQualifiedPreparationOptions,

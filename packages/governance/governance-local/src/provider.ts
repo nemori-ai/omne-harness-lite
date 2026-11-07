@@ -21,6 +21,11 @@ import {
   GovernanceStandingCoordinator,
   GovernanceStandingDestination,
 } from './standing-coordinator.ts'
+import {
+  GovernanceSourceCoordinator,
+  type GovernanceSourceReservations,
+} from './source-coordinator.ts'
+import { GovernanceSourceDestination } from './source-destination.ts'
 import { GovernanceScopeLifecycle } from './scope-lifecycle.ts'
 import { GovernanceProviderLifetime } from './provider-lifetime.ts'
 import { GovernanceContributionLifetime } from './contribution-lifetime.ts'
@@ -49,6 +54,7 @@ export type GovernanceLocalOptions = GovernanceLocalCoordination &
       standing: TenantStandingSource
       reservations: StandingReservations
     }>
+    sourceReservations?: GovernanceSourceReservations<Principal>
     grants: readonly AdmissionGrant[]
     definitions: GovernanceDefinitionSource
     combinations: Readonly<{
@@ -66,6 +72,14 @@ export function createGovernanceLocalDestination(options: GovernanceLocalCoordin
     destination: GovernanceIdSchema.parse(options.destination),
     transactionDomain: options.domain.transactionDomain,
   })
+}
+
+export function createGovernanceLocalSourceDestination(
+  options: Pick<GovernanceLocalCoordination, 'storage' | 'domain' | 'metadata'> & {
+    sourceRoute: string
+  },
+) {
+  return new GovernanceSourceDestination(new SqlOperationCoordinator(options), options.sourceRoute)
 }
 
 async function recoverHistory(lifecycle: GovernanceScopeLifecycle, budget: number) {
@@ -118,7 +132,8 @@ export async function createGovernanceRuntime(input: GovernanceLocalOptions) {
     grants: options.grants,
   })
   const standing = new GovernanceStandingCoordinator(sql, options.identity.reservations)
-  const lifecycle = new GovernanceScopeLifecycle({ ...options, epoch, sql, standing })
+  const sources = new GovernanceSourceCoordinator(sql, options.sourceReservations)
+  const lifecycle = new GovernanceScopeLifecycle({ ...options, epoch, sql, standing, sources })
   const registrarOptions = {
     ...options,
     epoch,

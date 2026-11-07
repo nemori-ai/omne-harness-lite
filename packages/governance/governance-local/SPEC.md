@@ -269,4 +269,10 @@ The local guarantee assumes the existing single-writer adoption/retirement invar
 
 source-held 和 source-settled 分别保管完整 SQL 阶段信封。只读认回声明所需 Governance 表及迁移，不通过额外写权读取。来源已 settled 后，迟到 held 返回既有终态，不降级保管状态。来源责任从恢复集合退出，只证明本项责任已结算，不替代其他身份或业务责任。
 
-该保管机制不产生 PermissionCurrentBasis，也不授予业务动作权限。实际 permission planner、来源协调器、生产消费者及历史装配恢复仍须完成，不能以本节存储验证替代完整提供者验收。性质与证据范围见[来源保管证明](verification/proofs/permission-capture-custody.md)。
+来源协调器只消费 Settings 的 reserve/settle 公共端口。首次 reserve 前必须观察同一 capture 的 Identity held。Settings 回执经公共 schema 校验并精确匹配原 request，才可保管；拒绝保持原含义，异常或错绑返回 unavailable。保存后重新观察当前保管状态，不能把旧 SQL 重传的 held 回包当作最新状态。
+
+createGovernanceLocalSourceDestination 可在运行时启动前用固定 SQL 域、元数据组合和 sourceRoute 构造。recognize 只承认完整匹配的已保存请求；seal 只封口该原操作并观察其持久终态。恢复不依赖原客户端在线，也不重新构造业务主体。
+
+普通工厂可借用 sourceReservations。未装配来源服务只适用于没有来源责任的使用范围；已有 requested 或 held 责任不得因此消失。启动恢复及关闭必须分别结算 Identity 和 Settings 来源，任一责任待决时均不得报告恢复完成。Governance 不关闭借用的来源服务。来源端主动恢复可先封口原操作，Governance 随后仍须保管相同终态回执。
+
+该保管机制不产生 PermissionCurrentBasis，也不授予业务动作权限。实际 permission planner、生产消费者及历史装配恢复仍须完成，不能以本节协议组合验证替代完整提供者验收。性质与证据范围见[来源保管证明](verification/proofs/permission-capture-custody.md)。

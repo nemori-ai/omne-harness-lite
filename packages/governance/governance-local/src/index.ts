@@ -2,6 +2,7 @@ export { governanceSqlMigrations, governanceSqlMaterials } from './materials.ts'
 export {
   createGovernanceLocal,
   createGovernanceLocalDestination,
+  createGovernanceLocalSourceDestination,
   type GovernanceLocalOptions,
   type GovernanceLocalCoordination,
 } from './provider.ts'
@@ -31,3 +32,5 @@ export {
   type GovernanceTargetBinding,
   type GovernanceTargetProjection,
 } from './target-projection.ts'
+
+export type { GovernanceSourceReservations } from './source-coordinator.ts'

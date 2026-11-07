@@ -7,6 +7,9 @@ import {
   sourceUpdateSchema,
 } from './source-retention-schema.ts'
 import { sourceCustodyReceiptSchema } from './source-custody-schema.ts'
+import { failureSchema } from './schema.ts'
+
+export const sourceServiceReplySchema = z.union([sourceCustodyReceiptSchema, failureSchema])
 export const SOURCE_SERVICE_READ = {
   handler: 'settings.source-read',
   protocol: 'settings-source-read/1',

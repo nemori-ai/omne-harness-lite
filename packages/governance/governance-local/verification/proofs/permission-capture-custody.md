@@ -20,6 +20,14 @@ SqlStorage 将一个拥有者事务的写入原子提交，未提交写入回滚
 
 不存在已保存 held 的 requested 可以在 O=aborted 后认回合法 settled/aborted。这处理请求尚未到达源或回执丢失的情况，不允许把 not-found 自行解释成 settled。
 
+## 跨域协调与关闭
+
+令 I 表示原操作的 Identity 责任，S 表示 Settings 实际来源保留。首次调用来源 reserve 要求 I=held。目的 recognize 仅返回与已保存 R 完全相等的请求；来源回执的 R 经二次校验后才进入 C。因此跨域返回不能改写原计划。
+
+Settings 完成结算不自动更新 C。回包丢失时 C 仍为 requested 或 held，恢复集合继续包含它。重传相同 R 可读回来源终态，然后以原 source-settled 阶段保存；来源终态与原 O 不同则写者拒绝。该步骤保留终态一致和恢复不遗漏。
+
+关闭判据为 I∈{settled,unplanned} 且 C∈{settled,not-required}。任一来源服务缺失、失败或回复不合法均不能满足判据。启动历史恢复采用同一结算函数。这里证明的是完成声明的必要条件，不保证故障服务一定恢复，也不保证有限时间内关闭。
+
 ## 有界归并
 
 两条 SQL 查询分别按相同的完整键顺序取 n+1 个候选。归并比较使用 UTF-8 字节序，与 SQLite BINARY 一致。去重之后取前 n 个。
@@ -36,4 +44,8 @@ SqlStorage 将一个拥有者事务的写入原子提交，未提交写入回滚
 - [关闭测试](../../tests/scope-lifecycle.spec.ts) 检查身份已结算但来源未结算时仍报告 pending。
 - [恢复测试](../../tests/recovery-read.spec.ts) 检查有限页、去重责任、历史数据下的查询计划。
 
-未证明的部分包括旧装配摘要下的 pending envelope 重放、来源协调器的活性、外部服务故障、进程强杀、完整权限求值及准入消费者。迁移保留字节不能替代这些验证。
+- [来源协调测试](../../tests/source-coordinator.spec.ts) 组合真实 Identity、Settings 和 Governance，覆盖来源回包及 SQL 确认丢失、重开、错绑、拒绝和来源主动恢复。
+- [目的路由测试](../../tests/source-destination.spec.ts) 覆盖原请求认回、错绑定拒绝与封口终态观察。
+- [来源生命周期测试](../../tests/source-lifecycle.spec.ts) 覆盖缺少服务的启动拒绝、恢复结算、关闭及借用服务所有权。
+
+未证明的部分包括旧装配摘要下的 pending envelope 重放、来源协调器的活性、任意外部故障、进程强杀、完整权限求值及准入消费者。迁移保留字节不能替代这些验证。

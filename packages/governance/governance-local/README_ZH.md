@@ -8,6 +8,8 @@
 
 受信装配者从根入口导入 `governanceSqlMaterials`，把固定参与者、读取器和迁移交给SqlStorage。先构造 `createGovernanceLocalDestination` 并向Identity登记恢复路由，再调用 `createGovernanceLocal`。只有created结果公开服务与关闭方法。
 
+需要恢复Settings来源责任时，先用固定SQL域和sourceRoute构造 `createGovernanceLocalSourceDestination`，接入Settings目的路由，再把来源服务作为 `sourceReservations` 交给工厂。Governance借用该服务；历史来源责任未结算时，缺少服务会阻止启动恢复完成。见[公共接口](docs/public-api.md)。
+
 Cordis使用 `./cordis` 的 `createGovernanceLocalPlugin`。配置沿用普通工厂的受信输入，但storage和identity由inject提供。observeClose接收首次pending和最终closed通知，见[集成说明](docs/cordis.md)。
 
 ## 契约

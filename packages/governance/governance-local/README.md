@@ -12,6 +12,8 @@ Create `createGovernanceLocalDestination` before Identity and register its resol
 
 Only a `created` result exposes `service` and `close`. Startup creates a fresh epoch and recovers historical responsibilities before exposing the service. `unavailable` exposes no service. All five service methods use the same ingress and shutdown boundary.
 
+For source recovery, construct `createGovernanceLocalSourceDestination` from the same fixed SQL domain and the saved source route. Connect it to the Settings source service, then pass that service as `sourceReservations`. Governance borrows this dependency. Missing service with outstanding source custody prevents startup recovery from completing. See [public API](docs/public-api.md).
+
 For Cordis, import `createGovernanceLocalPlugin` from `@omne-harness/governance-local/cordis`. Supply the trusted assembly configuration without `storage` and `identity`; Cordis injects them. The required `observeClose` callback receives the first pending shutdown report, if any, and the final closed report. Callback completion does not control cleanup.
 
 ## Contracts
