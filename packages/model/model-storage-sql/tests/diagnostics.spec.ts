@@ -660,7 +660,7 @@ describe('pages in detail', () => {
 })
 
 describe('qualification in detail', () => {
-  it('asks the records authority one tenant-level facts question that never names the call', async () => {
+  it('asks the records authority one tenant-level inspect question that never names the call', async () => {
     const f = scene()
     const call = callId('question')
     await f.seeded(call)
@@ -676,7 +676,7 @@ describe('qualification in detail', () => {
     page(await face.list({ ...f.access(A, call), after: null, limit: 10 }))
     expect(asked).toEqual([
       {
-        action: 'facts',
+        action: 'inspect',
         access: { principal: f.principalOf(A), tenant: A },
         resource: { kind: 'tenant' },
       },

@@ -4,6 +4,13 @@
 
 受理入口在解构和 await 前同步调用共同 judgeAdmit。直接 Memory Commands 在 store.run 前执行同一判断；sendBinding 使用 judgeFixedModelRequest 后仍核原 digest。畸形重放先 invalid，合法异输入仍 conflict。预算、不可变性、资格例外及失败 Pointer 归[共同封闭契约](../model-contract/SPEC.md#封闭输入判断)，不代表供应商 token/context 检查。
 
+## 诊断只读动作
+
+依据 [#1140 DA2 采用](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)，Commands 的 `recall` 使用 `inspect`，`dispatches` 使用 `read-account`。两项动作分别读取调用身份与状态、派发及账目。它们不授予正文、执行、观察、控制或写入资格。`query` 与 admit 重放仍使用 `facts`，`recordLateFact` 仍使用 `account`。动作的公开形状归 [commands/types.ts](src/commands/types.ts)。
+
+主体分类、异步资格捕获、读前与读后复核由装配兑现。核心只向注入的权威询问相应动作，不根据主体形状自行放行。动作分离的回归在 [memory-dispatch.spec.ts](tests/memory-dispatch.spec.ts)，其中同一份有效迟到账目在只读资格下拒绝，在写资格下可保存。
+
+
 ## 独立执行
 
 独立函数 `executeModel` 执行一次供应商请求，不重试、不保管、不 ACK。其 signal 请求该次传输停止，返回事实仍须区分请求取消与真实停止。托管模式的观察 signal 不传给它。托管模式只有原调用的有效控制可以请求传输停止。

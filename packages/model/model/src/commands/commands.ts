@@ -199,7 +199,7 @@ export function callCommands<P>(
         if (typeof key !== 'string') return { failure: key }
         const root = core.storage.documents(key)
         const call = root.calls.get(input.call)
-        const auth = core.authorize(input, 'facts', call, input.call)
+        const auth = core.authorize(input, 'inspect', call, input.call)
         if ('failure' in auth) return auth
         if (
           'failure' in decodeModelOperationId(input.admission) ||
@@ -251,7 +251,7 @@ export function callCommands<P>(
       ),
     dispatches: input =>
       core.runRead(input, () =>
-        core.read(input, 'account', call => ({
+        core.read(input, 'read-account', call => ({
           ok: structuredClone(call.dispatches.map(d => d.record)),
         })),
       ),

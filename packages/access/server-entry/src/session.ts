@@ -475,6 +475,8 @@ async function readSessionDiagnostics(
     basis: { upper },
     gaps: page.gaps,
   }
+  const rechecked = await context.steps.recheck(request.proof, admitted.caller, target.tenant)
+  if (rechecked !== undefined) return answer(rechecked.outcome, {})
   return answer('succeeded', body)
 }
 

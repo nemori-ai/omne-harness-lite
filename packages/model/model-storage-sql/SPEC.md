@@ -47,7 +47,7 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 
 ### 诊断读面
 
-本节是候选，待 RFC-0013 接受，不在上文波 1 设计的采用范围内。本节拥有 `ModelDiagnostics.list`（[model-contract 诊断查询与保留](../model-contract/SPEC.md#诊断查询与保留)）在本成员上的实现。设计依据是 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) A 线「`ModelDiagnostics` 怎样实现」与裁定 DA2。公开类型与校验归 [diagnostics.ts](src/diagnostics.ts)、[cordis.ts](src/cordis.ts)。本节不重写契约的披露、分页与保留协议。
+本节采用 [#1140 的本轮决定](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)，不在上文波 1 设计的采用范围内。本节拥有 `ModelDiagnostics.list`（[model-contract 诊断查询与保留](../model-contract/SPEC.md#诊断查询与保留)）在本成员上的实现。设计依据是 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) A 线「`ModelDiagnostics` 怎样实现」与裁定 DA2。公开类型与校验归 [diagnostics.ts](src/diagnostics.ts)、[cordis.ts](src/cordis.ts)。本节不重写契约的披露、分页与保留协议。
 
 **数据来源。**读 handler `model.diagnostics` 按 `(tenant, call)` 读 `md_call.row_version`，再按 `seq` 升序读 `md_dispatch` 的 `tenant`、`call`、`seq`、`dispatch`、`record`、`logical_terminal` 列。它接受 `after`（上一页最后一行的 `seq`，首页为 null）与 `limit`，多读一行以判断有没有下一页。每条语句都带 `tenant = ?`。主线程再核对每行的租户与调用。
 
@@ -67,9 +67,9 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 
 **页。**`snapshot` 是本成员签发的 `DurableEvidence`：`owner` 为 `model-records`，`record` 为调用，`revision` 为 `row_version`，`digest` 为 SHA-256(租户文本、调用、`row_version`)。`retention` 是部署配置的保留采用。`coverage` 恒为 `complete-through-snapshot`，因为本成员还没有清理。清理实现后改为按实际前缀。
 
-**资格映射。**配置字段 `diagnosticsRead` 选择映射，现在只有 `tenant-self`：代租户行事的主体对自己租户的调用持有诊断读取资格。实现向记录的资格端口 `ModelCommandsAuthority.authorize` 提一个租户级问题（`action: 'facts'`，`resource: { kind: 'tenant' }`），不提调用。端口拒绝时整次 `denied`，`action` 为 `diagnostics`。端口 `unavailable` 时原样返回。这是部署的显式采用，不是普通调用读取资格的自动延伸。映射暂按 RFC-0013 DA2 的建议推进，等 model 线拥有者与数据保护拥有者确认。
+**资格映射。**配置字段 `diagnosticsRead` 选择映射，现在只有 `tenant-self`：代租户行事的主体对自己租户的调用持有诊断读取资格。实现向记录的资格端口 `ModelCommandsAuthority.authorize` 提一个租户级问题（`action: 'inspect'`，`resource: { kind: 'tenant' }`），不提调用。端口拒绝时整次 `denied`，`action` 为 `diagnostics`。端口 `unavailable` 时原样返回。这是部署的显式采用，不是普通调用读取资格的自动延伸。本映射按 [#1140 DA2 采用](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020) 实施。
 
-本成员只把租户级问题交给资格端口，不自己判断主体。所以 `tenant-self` 对哪些主体生效，由装配交来的资格端口决定。在 harness-server 的发行资格表下，`facts` 动作只放行会话工作主体与宿主主体，`tenant-self` 对登录得到的代租户主体不生效：这个主体读本租户的调用答 `denied`。见 harness-server 的 [Model 生产接线](../../../apps/harness-server/docs/rows/model-release.md#已知限制)。
+本成员只把租户级问题交给资格端口，不自己判断主体。装配决定 `inspect` 对哪些主体生效。harness-server 为经核验的本租户 login、work 提供读取资格，并保持 host 的单调用限制。应用为每次 `list` 独立取得异步读资格，在返回前直接复核该次资格，最后释放捕获；SQL 读者继续使用同一记录与资格端口。应用采用与生命周期归 harness-server 的 [Model 生产接线](../../../apps/harness-server/docs/rows/model-release.md)。
 
 **检查次序。**保留采用、租户文本、资格、`limit`、游标、事务域、读取。被拒绝的主体得不到调用是否存在、游标是否有效与 `limit` 是否合法的任何信息。
 

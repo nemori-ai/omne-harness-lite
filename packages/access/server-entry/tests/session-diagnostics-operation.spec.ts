@@ -3,7 +3,8 @@
 // cursor and its re-judged continuation, the absent ports and configuration, and the read-only
 // promise against the Session, Model and Tool doubles.
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ActingForTenantPrincipal } from '@omne-harness/identity'
+import type { ActingForTenantPrincipal, IdentityGovernance } from '@omne-harness/identity'
+import { parseDuration } from '@omne-harness/utc-instant'
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { HistoryEntry, HistoryPage, SessionHistory } from '@omne-harness/session-contract'
@@ -100,6 +101,8 @@ async function diagnosticsFixture(
     config?: Partial<ServerEntryConfig>
     ports?: boolean
     throwOnBegin?: boolean
+    afterRead?: () => Promise<void>
+    governance?: (base: IdentityGovernance) => IdentityGovernance
     /** False leaves the three projection fields out of the configuration. */
     configured?: boolean
   }> = {},
@@ -132,6 +135,7 @@ async function diagnosticsFixture(
       })
       const admitted = await target!.history.begin(input)
       if ('failure' in admitted) return admitted
+      await options.afterRead?.()
       return succeed(page(input.from))
     },
     next: input => target!.history.next(input),
@@ -187,6 +191,7 @@ async function diagnosticsFixture(
           } as never,
         }
   const fixture = await startFixture({
+    ...(options.governance === undefined ? {} : { governance: options.governance }),
     config: {
       maxPageBytes: 4096,
       ...(options.configured === false
@@ -251,6 +256,61 @@ const outcomeOf = (json: unknown): string => (json as { outcome: string }).outco
 const bodyOf = (json: unknown): Page => (json as { body: Page }).body
 
 describe('the judgment order of read-history', () => {
+  it('withholds the whole page when the login is revoked during projection', async () => {
+    let revoke = async () => {}
+    fixture = await diagnosticsFixture({ afterRead: () => revoke() })
+    const who = await login(fixture, 'alice')
+    const session = await createSession(fixture, who)
+    fixture.doubles.entries.push(...runEntries('private-run', 1))
+    revoke = async () => {
+      const recognized = await fixture!.identity.recognizeLogin({ loginProof: who.loginProof })
+      if (recognized.kind !== 'recognized') throw new Error('fixture login')
+      await fixture!.governance.revokeLogin({ login: recognized.login, target: recognized.login })
+    }
+    const reply = await firstPage(who, session)
+    expect(reply.status).toBe(403)
+    expect(reply.json).toMatchObject({ outcome: 'denied', body: {} })
+    expect(reply.text).not.toContain('private-run')
+  })
+
+  it.each([
+    'revoked-member',
+    'membership-unavailable',
+    'membership-throws',
+    'expired-login',
+  ] as const)('withholds projected rows when the final identity check is %s', async mode => {
+    let projected = false
+    fixture = await diagnosticsFixture({
+      afterRead: async () => {
+        projected = true
+        if (mode === 'expired-login') {
+          const duration = parseDuration('PT3601S')
+          if (!duration.ok) throw new Error('fixture duration')
+          fixture!.clock.advanceBy(duration.value)
+        }
+      },
+      governance: base => ({
+        ...base,
+        queryOwnMemberships: input => {
+          if (!projected) return base.queryOwnMemberships(input)
+          if (mode === 'membership-throws') throw new Error('private membership fault')
+          if (mode === 'membership-unavailable')
+            return Promise.resolve({ kind: 'basis-unavailable', diagnostic: 'fixture' })
+          if (mode === 'revoked-member')
+            return Promise.resolve({ kind: 'succeeded', memberships: [] })
+          return base.queryOwnMemberships(input)
+        },
+      }),
+    })
+    const who = await login(fixture, 'alice')
+    const session = await createSession(fixture, who)
+    fixture.doubles.entries.push(...runEntries('private-run', 1))
+    const reply = await firstPage(who, session)
+    expect(reply.status).toBe(mode.startsWith('membership-') ? 503 : 403)
+    expect(reply.json).toMatchObject({ body: {} })
+    expect(reply.text).not.toContain('private-run')
+  })
+
   it('reads the first page from begin with the configured kinds, backward from the newest, and the next page from the cursor', async () => {
     fixture = await diagnosticsFixture()
     const who = await login(fixture, 'alice')
