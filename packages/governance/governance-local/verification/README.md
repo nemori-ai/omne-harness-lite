@@ -13,3 +13,5 @@
 [sql-stage.spec.ts](../tests/sql-stage.spec.ts) 通过生产 planner、writer 和只读材料检查阶段单赋值、完整身份隔离、命令错绑、并发首次保存、预算、重启读回及丢失回包认回。缺少保管时业务不能发生。该组装配的身份回执仍为具名夹具，不能替代真实 Identity 或完整公共协调器验收。
 
 [GovernanceSqlCustody](../../../human-intervention/human-intervention/verification/models/GovernanceSqlCustody.tla) 检查两个原操作阶段键、两种完整请求和任意保存、发送、封口、提交交错。说明及源码映射见 [SQL 请求保管守护](../../../human-intervention/human-intervention/verification/README.md#sql-请求保管守护)。
+
+`SqlOperationCoordinator.send` 和 executeControl 只发送已确认保管的请求，落实 GovernanceSqlCustody 的 ExactSend 前提。accept 成功后重新读取当前 Operation，不使用历史受理回执继续业务。SqlSubmission 的完整回执校验与真实并发观察场景补充 GovernanceOperation 的原操作守护。模型仍假设底层存储满足自身契约，不证明任意故障下的恢复活性。

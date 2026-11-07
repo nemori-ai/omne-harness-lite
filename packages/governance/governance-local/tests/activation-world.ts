@@ -26,7 +26,7 @@ import { digest, json, operationIdentity } from '../src/encoding.ts'
 import { tenantRef } from './operation-world.ts'
 import { storedStageSchema, persistStageSchema, type SqlStage } from '../src/sql-stage-schema.ts'
 import { STAGE_HANDLER } from '../src/sql-stage-read.ts'
-import type { OperationBinding } from '../src/operation-schema.ts'
+import { acceptanceReceiptSchema, type OperationBinding } from '../src/operation-schema.ts'
 import { config } from './config.ts'
 
 type ParticipantCommand = CommitRequestV2['commands'][number]
@@ -173,8 +173,10 @@ export async function openActivation(existing?: string) {
     controlCommands,
     businessCommands,
     combination,
-    control: async (request: ControlRequest) =>
-      response(await commit('metadata', controlCommands(request))),
+    async control(request: ControlRequest) {
+      const result = await response(await commit('metadata', controlCommands(request)))
+      return request.kind === 'accept' ? acceptanceReceiptSchema.parse(result).outcome : result
+    },
     async apply(mode: 'mutation' | 'adoption', request: BusinessRequest, evidence?: JsonValue) {
       const saved = await response(
         await commit(

@@ -27,7 +27,11 @@ function control(
     case 'bootstrap':
       return bootstrapScope(port, request.input)
     case 'accept':
-      return acceptOperation(port, request.input)
+      return {
+        kind: 'acceptance',
+        input: request.input,
+        outcome: acceptOperation(port, request.input),
+      }
     case 'standing-prepare':
       return prepareGovernanceStanding(port, request.input)
     case 'standing-held':

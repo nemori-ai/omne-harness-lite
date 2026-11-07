@@ -12,6 +12,7 @@ import {
 } from './activation-schema.ts'
 import { GOVERNANCE_RECOVERY_MIGRATION } from './recovery-migration.ts'
 import { GOVERNANCE_STAGE_MIGRATION, GOVERNANCE_SQL_TABLES } from './sql-stage-migration.ts'
+import { OPERATION_HANDLER } from './operation-read.ts'
 import { STAGE_HANDLER } from './sql-stage-read.ts'
 import { RECOVERY_HANDLER } from './recovery-read.ts'
 
@@ -90,6 +91,15 @@ export function governanceSqlMaterials(): Pick<
     migrations: governanceSqlMigrations(),
     readHandlers: [
       ...governanceRecoveryReadMaterials(),
+      {
+        ...OPERATION_HANDLER,
+        ...participantFile('operation-read'),
+        ordering: 'domain-serial',
+        readTables: ['gc_operation'],
+        requiresMigrations: [GOVERNANCE_MIGRATION],
+        maxOutputBytes: 3 * 1024 * 1024,
+        maxRowsRead: 3,
+      },
       {
         ...STAGE_HANDLER,
         ...participantFile('sql-stage-read'),

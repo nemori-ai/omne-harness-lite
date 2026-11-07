@@ -117,3 +117,23 @@ classDiagram
 ```
 
 首次保存确定该阶段的完整请求。重复保存相同请求认回原值，不同请求冲突。封口后保留历史请求，允许身份结算继续，但业务写者先认回终态。持久事务函数承载这些行为，不为关系行增加无行为的包装类。
+
+## SQL 协调对象
+
+SqlOperationCoordinator 持有固定写域、元数据组合和 SqlStorage 引用。它没有另一份可写业务状态；OperationObservation 与 StoredStage 都来自持久读取。受理、阶段保存和发送是不同方法，恢复者可以从已有阶段继续，无须重新创建业务意图。
+
+```mermaid
+classDiagram
+  SqlOperationCoordinator --> SqlStorage : 注入
+  SqlOperationCoordinator --> OperationObservation : 当前点查
+  SqlOperationCoordinator --> StoredStage : 保存和读回
+  StoredStage *-- CommitRequestV2
+  SqlOperationCoordinator ..> SqlSubmission : 回执识别
+  SqlSubmission ..> SqlIdentity
+  SqlSubmission ..> CommittedV2
+  SqlSubmission ..> NotCommittedV2
+```
+
+SqlSubmission 区分已识别回执、回滚、存储未提交证明、未知、冲突和不可用。只有已识别成功回执携带业务回复。NotCommittedV2 由存储产生，协调器保留原证明，不构造替代值。领域终态仍由治理事务拥有，不能用运输层失败推导。
+
+AcceptanceReceipt 保存在 SqlStorage 原回执中，包含规范受理输入与结果。它也记录被拒绝的受理，因此原 Operation 行不存在时仍能核验旧请求。它不是新的业务实体；业务成功后的当前状态仍须读取 Operation。

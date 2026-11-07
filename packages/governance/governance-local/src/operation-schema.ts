@@ -54,6 +54,15 @@ export const recordSchema = z.strictObject({
   execution: executionSchema.nullable(),
   result: z.json().nullable(),
 })
+export const acceptanceReceiptSchema = z.strictObject({
+  kind: z.literal('acceptance'),
+  input: acceptSchema,
+  outcome: z.discriminatedUnion('kind', [
+    z.strictObject({ kind: z.literal('found'), record: recordSchema }),
+    z.strictObject({ kind: z.literal('conflict'), reason: z.enum(['operation', 'basis']) }),
+    z.strictObject({ kind: z.literal('limited'), resource: z.string() }),
+  ]),
+})
 export type OperationRecord = z.infer<typeof recordSchema>
 export function requestRef(principalRef: string, request: GovernanceRequest) {
   return {

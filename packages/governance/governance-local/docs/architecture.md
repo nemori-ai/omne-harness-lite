@@ -164,3 +164,32 @@ flowchart LR
 只读处理器使用 domain-serial 顺序，访问 gc_operation 和 gc_sql_stage。普通读回读取两行，Standing 阶段最多四行，无历史扫描。最大输出为4 MiB加1 KiB包装空间。主键同时服务唯一性与读取，不增加重复索引。
 
 保存和提交是两个事务，之间允许进程退出。恢复者必须取得原请求再提交。当前真实 Worker 用例验证这一边界，完整公共协调器及跨域真实来源接线仍待完成。参与者不能观察 SqlStorage 外层完整请求，因此写者的保管检查和协调器的原样发送检查都必须存在。
+
+## 原操作受理与结果认回
+
+`operation-read.ts` 点查原操作及 Standing 保管，最多三行，输出上限3 MiB。`sql-coordinator.ts` 注入固定写域和元数据组合，协调这些读取与已有生产参与者。`sql-submission.ts` 识别完整回执绑定及唯一写者回复。
+
+```mermaid
+sequenceDiagram
+  participant C as SQL协调器
+  participant O as 当前原操作读取
+  participant S as SqlStorage
+  C->>O: 完整原键与业务摘要
+  alt 已有原操作
+    O-->>C: 当前记录及身份保管
+  else 没有记录
+    C->>S: query 固定accept身份
+    alt 存储证明未提交
+      C->>S: 提交固定受理请求
+    else 未知
+      S-->>C: 保留unknown
+    end
+    C->>C: 核对原身份、摘要、组合及写者回执
+    C->>O: 受理成功后重读当前记录
+    O-->>C: 不用旧accepted覆盖新终态
+  end
+```
+
+重启后 executeControl 可以认回旧组合下的阶段。send 从持久阶段读回完整请求，提交未知则查询同一身份。不同命令内容不得借新的 metadata 配置替换旧阶段。调用期间用户对象变化也不能改变首次异步等待前已固定的输入。
+
+公共 GovernanceCommands/Queries 的准入、真实来源和 Identity 生命周期尚待接线。图中协调器是提供者内部实现，不是当前已完成的公开治理服务。
