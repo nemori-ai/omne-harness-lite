@@ -34,7 +34,7 @@ export function teardown(entry: Entry): Promise<StopRange> {
 
 /**
  * What the teardown confirmed: its stops, narrowed by every process still lingering and, when a
- * landing is still in flight, to `unconfirmed`: a process may still come (decision 5).
+ * landing is still in flight, to `unconfirmed`: a process may still come (MC-5).
  */
 function confirmedOf(entry: Entry, stopped: StopRange): StopRange {
   const stops = entry.lingering.reduce<StopRange>(
@@ -101,7 +101,7 @@ export async function releaseLanding(landing: Landing): Promise<void> {
 }
 
 /**
- * The exception of S9 at the shutdown (decision 6): the handle of every landing still in flight
+ * The exception of S9 at the shutdown (MC-14): the handle of every landing still in flight
  * is released now, all of them started at once, so the host does not wait on a landing that may
  * never answer. The process that lands later is stopped once; its handle is not released again.
  * A landing that already handed over a process is not in flight: its handle waits for the stop.

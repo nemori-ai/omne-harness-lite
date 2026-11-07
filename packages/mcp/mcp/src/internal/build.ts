@@ -211,9 +211,9 @@ export function createBuilder<P, S>(
 
   /**
    * How a step that did not pass ends the build; called in the same synchronous run as its check.
-   * A connection closed under the build (MC-10; decision 5 and takeover ruling K3 for `closeAll`),
+   * A connection closed under the build (MC-10; MC-5 and P4 for `closeAll`),
    * whether the step failed or not, answers at once with the refusal a call after the shutdown
-   * gets (decision 23), and nothing is marked: the close is a decision of this side, not a fact
+   * gets (MC-5), and nothing is marked: the close is a decision of this side, not a fact
    * about the endpoint. The close tears the entry down once the build ended: that teardown is the
    * only one after the close began, so the range the close reports is the one it confirmed.
    * A failure on an open connection is `failed`.
@@ -272,8 +272,8 @@ export function createBuilder<P, S>(
 
   /**
    * A landing still pending at its bound: the entry keeps it, with the handle it carries, until
-   * it answers (decision 20). The handle is released after the stop of the process that lands
-   * (S9), or at the shutdown (decision 6): `closeAll` releases the handle of every landing still
+   * it answers (MC-14). The handle is released after the stop of the process that lands
+   * (S9), or at the shutdown (MC-14): `closeAll` releases the handle of every landing still
    * pending, so one whose bound fires after the shutdown began holds no handle any more.
    */
   function landingOutlived(
@@ -317,7 +317,7 @@ export function createBuilder<P, S>(
           : [],
     }
     // From its start the landing is in flight: the handle goes with it, so a shutdown releases
-    // the handle at once, within the bound too (decision 6).
+    // the handle at once, within the bound too (MC-14).
     const landing = handOverToLanding(entry)
     const asked = ask(() => ports.landing.start(access, transport.launch, env), LANDING_BREACH)
     const started = await within(asked, bound, scope, () => landingOutlived(entry, landing))

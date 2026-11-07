@@ -209,7 +209,7 @@ export type Exploration = Readonly<{
   failureEndings: readonly string[]
 }>
 
-/** The same schedule replayed differently: a stop condition of the closure spec. */
+/** The same schedule replayed differently: the implementation is not deterministic under it, and the exploration stops. */
 export class Nondeterminism extends Error {
   override readonly name = 'Nondeterminism'
 }

@@ -1,4 +1,4 @@
-// The forget predicate of the connection table (SPEC decision 20): an entry leaves the table only
+// The forget predicate of the connection table (MC-14): an entry leaves the table only
 // when it refuses requests and holds nothing, and each of the five resources counts as holding.
 import { describe, expect, it } from 'vitest'
 import type { ConnectionKey } from '@omne-harness/mcp-contract'

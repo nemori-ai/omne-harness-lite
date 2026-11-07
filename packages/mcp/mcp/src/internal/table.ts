@@ -87,7 +87,7 @@ export interface ConnectionTable<P> {
   /**
    * A usable connection for the admitted endpoint: reused, or built in the order of SPEC S4–S9.
    * The answer holds as of the step it settles in: it never hands over a connection whose close
-   * began before that step (decision 23).
+   * began before that step (MC-5).
    */
   ensure(
     admitted: AdmittedEndpoint,
@@ -161,7 +161,7 @@ const REFUSED_AT_ANSWER: Outcome<never, EnsureFailure> = fail({
 })
 
 /**
- * What `ensure` answers, as of the step it settles in (decision 23): a handle whose connection
+ * What `ensure` answers, as of the step it settles in (MC-5): a handle whose connection
  * closed while the answer was on its way, after the build's last check or after a reuse was
  * decided, is not handed over. A close that begins after this step finds the caller with a handle
  * whose `wire` refuses (MC-16 step 8).
@@ -204,7 +204,7 @@ export function createConnectionTable<P, S>(
   const lastGeneration = new Map<string, Generation>()
   // One `ensure` at a time per tenant and holding decides which revision's connection exists.
   const turns = createTurns()
-  // Set by `closeAll`: from then on nothing connects (SPEC decision 5).
+  // Set by `closeAll`: from then on nothing connects (MC-5).
   let shut = false
   const builder = createBuilder(ports, config, { afterLanding: forget, scope, startBound })
 
@@ -214,7 +214,7 @@ export function createConnectionTable<P, S>(
     )
 
   /**
-   * The one place an entry leaves the table: when `forgettable` says so (decision 20). Called
+   * The one place an entry leaves the table: when `forgettable` says so (MC-14). Called
    * after every change of what the entry holds or of its state. Its generation stays, for the
    * next connection of the key.
    */
@@ -291,7 +291,7 @@ export function createConnectionTable<P, S>(
    * The adoption read again before a build (SPEC MC-5): the token is not trusted for the
    * revision, so a token of another revision cannot build a connection or close one. The read
    * is the gate's adoption-only read; one that does not answer within `bound` does not hold the
-   * critical section (decision 22).
+   * critical section (MC-5).
    */
   async function readAgain(
     admitted: AdmittedEndpoint,
@@ -338,7 +338,7 @@ export function createConnectionTable<P, S>(
 
   /**
    * The critical section of a holding: the adoption read again under what is left of the
-   * caller's bound (decision 22), the connections of other revisions closed (invariant 6), the
+   * caller's bound (MC-5), the connections of other revisions closed (invariant 6), the
    * key's close or teardown in flight waited for under the same bound, then the connection
    * reused, joined or built. The build itself runs outside the section. A table that is shut
    * refuses here, and so does a call whose bound fired while it waited for its turn: its caller
@@ -364,7 +364,7 @@ export function createConnectionTable<P, S>(
       if (shut || bound.aborted) return refused(CONNECTION_UNAVAILABLE)
       const blocking = blockingOf(tenantText, holding, keyText, ofOtherRevision)
       if (blocking !== undefined) {
-        // At most to this call's bound (decision 22): a close or teardown that does not end
+        // At most to this call's bound (MC-5): a close or teardown that does not end
         // within it goes on, in the scope when this call started it, else for the call that did.
         const waited = blocking.owned
           ? await within(blocking.work, bound, scope)
@@ -501,7 +501,7 @@ export function createConnectionTable<P, S>(
 
   /**
    * The shutdown: nothing connects after it; the handles of the landings in flight are released
-   * first, all at once (decision 6); then every entry is closed, all at once. It waits for both,
+   * first, all at once (MC-14); then every entry is closed, all at once. It waits for both,
    * then hands over the errors the table's background work raised.
    */
   async function closeAll(): Promise<readonly ClosedEndpoint[]> {

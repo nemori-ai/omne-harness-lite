@@ -1,6 +1,6 @@
-// The teardown of one entry (SPEC MC-10, decision 21): one entry point for the close order,
+// The teardown of one entry (SPEC MC-10, MC-14): one entry point for the close order,
 // every step runs when a port rejects, every process is asked to stop, and the breach is absorbed
-// as decision 4 says. The entry stays in the table while its teardown waits on a port. Also the
+// as MC-14 says. The entry stays in the table while its teardown waits on a port. Also the
 // landing still in flight at a release and at the shutdown (decisions 5 and 6).
 import { describe, expect, it } from 'vitest'
 import { only } from './doubles/calls.ts'
@@ -33,7 +33,7 @@ function closes(w: World): number {
   return w.transports.calls.filter(call => call.kind === 'close').length
 }
 
-describe('teardown: every step runs, whichever port rejects (decision 21)', () => {
+describe('teardown: every step runs, whichever port rejects (MC-14)', () => {
   it.each(COMBINATIONS.map(faults => [faults.join(' + '), faults] as const))(
     '%s rejecting: the transport is closed, the process stopped, the handle released once',
     async (_name, faults) => {
@@ -106,7 +106,7 @@ describe('teardown: every step runs, whichever port rejects (decision 21)', () =
   })
 })
 
-describe('every process is asked to stop, whichever stop rejects (decision 4)', () => {
+describe('every process is asked to stop, whichever stop rejects (MC-14)', () => {
   const CLOSES = [
     [
       'release',
@@ -181,7 +181,7 @@ describe('every process is asked to stop, whichever stop rejects (decision 4)', 
   })
 })
 
-describe('the entry stays while its teardown waits on a port (decision 20)', () => {
+describe('the entry stays while its teardown waits on a port (MC-14)', () => {
   // A resource leaves the entry only after its port answered. A late landing that answers in the
   // meantime makes the table look at the entry again; it has to find the entry still holding.
   const SHORT = { settings: { connectTimeout: VALUE(millisOf(50)) } }

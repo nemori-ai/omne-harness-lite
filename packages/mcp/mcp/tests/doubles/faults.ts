@@ -1,6 +1,6 @@
 // Test helper: the ports of a world whose close-order operations reject after they did their
 // work. That is a provider in breach of its contract (T5, PL1, CU1), which the table has to
-// absorb as SPEC decision 4 says. The inner double still records the call, so the trace and the
+// absorb as MC-14 says. The inner double still records the call, so the trace and the
 // counts show what ran before the rejection.
 import type { McpPorts, StopScope } from '@omne-harness/mcp-contract'
 import type {

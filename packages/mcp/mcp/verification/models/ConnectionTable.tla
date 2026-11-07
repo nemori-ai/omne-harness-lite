@@ -710,7 +710,7 @@ P2_NoneHoldsNothing ==
 P3_EveryProcessAsked == Quiescent /\ CloseAllDone => \A p \in DOMAIN s.ps : s.ps[p].stops >= 1
 
 (* P4: after closeAll was called, no process is started, no transport     *)
-(* opened, and no `ensure` answers a connection (decision 23, K3).        *)
+(* opened, and no `ensure` answers a connection (MC-5, P4).               *)
 P4_NoConnectAfterShut == ~s.bad.shutConnect
 P4_NoOkAfterShut == ~s.bad.okAfterShut
 

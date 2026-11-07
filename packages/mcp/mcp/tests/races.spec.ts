@@ -536,7 +536,7 @@ describe('a process that lands after the bound (R3-2, S9)', () => {
   })
 })
 
-describe('the adoption read again in the critical section is bounded (decision 22)', () => {
+describe('the adoption read again in the critical section is bounded (MC-5)', () => {
   it('a re-read that never answers: connection-unavailable at the bound, and the next ensure of the holding answers within its own bound', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
@@ -559,7 +559,7 @@ describe('the adoption read again in the critical section is bounded (decision 2
   })
 })
 
-describe('a teardown that does not answer holds no ensure past its bound (decision 22)', () => {
+describe('a teardown that does not answer holds no ensure past its bound (MC-5)', () => {
   const REFUSED = { failure: { kind: 'connection-unavailable' } }
 
   it('the close of an earlier revision hangs: two refreshes of the new revision answer connection-unavailable, then the close ends on its own', async () => {

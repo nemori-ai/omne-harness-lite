@@ -792,7 +792,7 @@ describe('ensure: the adoption is read again before a build (MC-5)', () => {
   })
 })
 
-describe('ensure: a close against the build (MC-10, MC-5, decision 23)', () => {
+describe('ensure: a close against the build (MC-10, MC-5, P16)', () => {
   const STOPPED = { failure: { stage: 'settings', reason: { kind: 'connection-unavailable' } } }
 
   it('a release after the process started: the build answers the refusal and tears nothing down; the release stops the process once and reports what that stop confirmed', async () => {
@@ -875,6 +875,7 @@ describe('ensure: a close against the build (MC-10, MC-5, decision 23)', () => {
     'at whichever microtask the $close begins (joined: $joined), an ensure that settles after it hands over no handle of the closed connection; the close stops the process once and reports tree-confirmed',
     async ({ close, joined }) => {
       const LIMIT = 40
+      const CLOCK_LIMIT = 1000
       let refused = false
       let handed = false
       for (let m = 0; m < LIMIT; m += 1) {
@@ -888,10 +889,12 @@ describe('ensure: a close against the build (MC-10, MC-5, decision 23)', () => {
         await settled()
         // A clock of microtask turns. A callback on `answer` runs at most one turn after the
         // settlement, so an answer that settled before the close is seen at most one turn after.
+        // The clock stops after CLOCK_LIMIT turns: a close that waits on a timer or I/O would
+        // otherwise starve the macrotask queue, and the test would spin instead of failing.
         let tick = 0
         let running = true
         const clock = (async () => {
-          while (running) {
+          while (running && tick < CLOCK_LIMIT) {
             await Promise.resolve()
             tick += 1
           }

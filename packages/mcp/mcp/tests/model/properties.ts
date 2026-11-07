@@ -153,7 +153,7 @@ export function connectsAfterShutdown(view: RunView, call: ScriptedPortCall): Fo
   ]
 }
 
-/** P4 (decision 23): an `ensure` that answers after `closeAll` began does not answer a connection. */
+/** P4 (MC-5): an `ensure` that answers after `closeAll` began does not answer a connection. */
 export function connectedAfterShutdown(view: RunView, op: OpView): Found[] {
   if (!view.shutAsked) return []
   return [

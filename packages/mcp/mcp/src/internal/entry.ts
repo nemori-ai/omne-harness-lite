@@ -2,7 +2,7 @@
 // it, the views the table hands out, the predicates the table decides on, and the moves that
 // keep a resource in one place. No I/O here: the close order is `teardown.ts`, the arrivals
 // after the bound are `late.ts`, the build is `build.ts`, and only `table.ts` puts an entry in or
-// takes it out, when `forgettable` says so (SPEC decision 20).
+// takes it out, when `forgettable` says so (MC-14).
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   NOT_SENT_FAILURE,
@@ -82,7 +82,7 @@ export const CONNECTION_UNAVAILABLE: ConnectionUnavailable = { kind: 'connection
  * adoption read again (withdrawn, unreadable, another revision, or not answered within the
  * bound), a close or teardown in the way that did not end within the bound, the table shut by
  * `closeAll` before the call, or the connection closed before the answer: under the build, or
- * between the build and the answer (MC-5, MC-10, decision 23).
+ * between the build and the answer (MC-5, MC-10, P16).
  */
 export type EnsureRefusal = SettingsFailure | AdoptionRefusal | ConnectionUnavailable
 
@@ -103,7 +103,7 @@ export type Lingering = Readonly<{ handle: ProcessHandle; confirmed: StopScope }
 /**
  * A landing in flight, with the handle the process it may hand over carries in its environment.
  * The handle is released once: after that process's stop (S9), or at the shutdown while the
- * landing is in flight (decision 6). `landed` once a landing past its bound handed over a
+ * landing is in flight (MC-14). `landed` once a landing past its bound handed over a
  * process: from then on the handle waits for that process's stop.
  */
 export type Landing = { credential: ProcessCredentialHandle | undefined; landed: boolean }
@@ -151,7 +151,7 @@ export function holdsNothing(held: Resources): boolean {
 }
 
 /**
- * The one condition an entry leaves the table on (decision 20): it refuses requests (`closed`),
+ * The one condition an entry leaves the table on (MC-14): it refuses requests (`closed`),
  * `holdsNothing`, and no build is in flight that may still put a resource in it. A close refuses
  * requests before it waits for the build (MC-10), so a closed entry can hold nothing for a moment
  * while its build is still under way.
