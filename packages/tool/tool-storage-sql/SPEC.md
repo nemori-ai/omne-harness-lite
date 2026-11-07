@@ -138,6 +138,10 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 提供者工厂继续不持有定时器或宿主生命周期。扫描调度及关闭排空由装配持有者承担。SQL 清单与字节后端可以分离，但最终材料耐久、Tool 提交和物理删除确认仍是三个可注入故障的边界。
 
+W3-A 按[材料协议](../tool-contract/docs/material-protocol.md)拆清实现职责。Tool 保管分面负责用途和时间；本包的字节分面负责精确 objectId/generation 的不可变存储。pending final envelope、raw 与最终通道均分块保存，不能在 tl_record 或 manifest answer 中重复完整载荷。账本只写引用、用途、时间水位、页租约与原操作依据。
+
+候选索引由同一 ledger participant 随账本写入共同维护，只输出有界 call/material 定位；其结果不能直接调用删除。对象 write/seal 和持久删除 tombstone 共排序，删除回执未知后仍拒绝旧写复活。删除覆盖全部 chunks 与含载荷的清单，保留必要的摘要回执和围栏。旧 adoption 的材料在换 provider 后仍须可认回；无法解析时答 unavailable，不能猜测 missing。
+
 ## 已知限制
 
 1. 同域共用写队列（R1-D2）：Tool 的提交与会话日志的提交在同一租户事务域排队。ST-09 或 E9 测量超过阈值时重开。

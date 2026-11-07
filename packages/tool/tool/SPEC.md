@@ -407,6 +407,10 @@ run 返回不等于 abort。session 仅在宿主给本连接的 signal 有效时
 
 ### 原 final 与独立保管
 
+W3-A 的目标表示按[材料协议 M01–M05](../tool-contract/docs/material-protocol.md)。本节下方原有 raw/value 入口和整结果保管是当前实现说明，须与其真实消费者同批迁移：pending final 只保存精确封存引用，settled 只保存凭据，ResultRecord 不再内嵌完整 ToolResult。`facts.read` 的恢复结果须区分 pending 与已结算；driver、批次认回、结算检查及 queue 释放依据均先读稳定身份，不能在结果提交后再次要求 raw/envelope 仍存在。
+
+材料业务由本包沿同一个 call 域 CAS 实现，SQL 只提供字节与索引机制。准备意图先于字节 IO；水位、到期、租约和用途的决定使用同一域的修订条件。包括确定到期的失败答复，必要状态仍须先提交。时间不可读或回退时拒绝新时间判定；已确定提交及已授权删除可以继续认回。旧路径未完成迁移前，不称 W3 文本生命周期已实现。
+
 `preserveResult` 使用 WriteContext，首次 await 前封闭复制 raw、value、terminal、effect 和执行定位。它逐次核当前 write 资格、tenant/call/instance/generation，先按 operation 和稳定摘要认回，再核 expected、原 start、当前执行与 settle.basis 指向的完整本域 final。raw、真实 terminal 和 effect 必须逐项匹配原执行 final。最终 value 从同一固定返回及采用归一化产生，不能要求它与卸载前的源展示值逐字相等；其完整派生依据和最终材料须在提交前验证。不同操作竞争先按 expected 返回 stale-revision，刷新后返回指向原 settledBy 的 conflict，不产生第二原结果或 delivery。任意 terminal 外形、reader 关闭、通道 end/throw、取消受理和 disposer 都不构成物理结束依据。
 
 账本主动调用第五构造参数的 custody.retainResult。retain 身份由原 settle 及完整 final 稳定派生，竞争协调者也使用同一保管身份。W3 在既有 settle 中记录 prepared 阶段，保存各最终通道的独立耐久依据和 raw 替代关系；提交未知时按此阶段认回，不能把已准备材料当孤儿。外部 retain 不放进 CAS 重试的纯决定器。同身份保管重送保持原 raw/value。确定失败保持原失败；保管 commit-unknown 或抛错返回 `unavailable`，dependency 为 `output-custody`，诊断固定且脱敏。它不冒充 call 的 commit-unknown。保管已应用但丢答仍未确认，不建立终局或释放依据，也不清除原任务。

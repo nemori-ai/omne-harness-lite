@@ -1198,6 +1198,8 @@ sequenceDiagram
 
 ### P05 执行事实与原输出
 
+W3-A 的精确 final 引用、pending/settled 恢复、最终通道提交、材料用途与有效时间，按[最终事实与材料保管协议](docs/material-protocol.md)增量实施。该协议的状态与实现范围在其开头单列；稳定事实身份不要求永久保留正文载荷。
+
 事实流以原 start、来源 owner、batch/event 身份和连续游标关联。receiveFacts 对同来源同 event 同内容去重，异内容拒绝；不依据当前实例代次丢掉合法旧执行事实。每个批次保存事实、对应状态和后续任务后，才产生 FactReceipt。执行源收到这个保管回执才能解除自己的未交付责任。流结束或抛错只意味着通道结束，不能代替 final。重连先从已保存 cursor 读；源无法续接时必须用原事实查询恢复或报告缺口，不能跳过 wait/final。
 
 receiveFacts 同提交 FactProgress（原 start/source、已保存 cursor）、原 FactReceipt 和 fact-ack 任务。loadRecovery.streams 返回每条源流的这些值及 pendingAcknowledgements。恢复者从该 cursor 续流；未确认回执经原 live execution 或 bindings.recover.acknowledge 重送。源按原 batch/custody 去重 ACK，回包未知保留原 fact-ack，不回退游标；recordFactAcknowledgement 核源确认后同提交清除待确认回执与任务。源已收场也须保留这个受限确认入口，不能因无live route遗失释放责任。

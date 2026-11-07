@@ -11,7 +11,18 @@ CASES = [('Handoff','positive',None),('Custody','positive',None),
          ('Materialization','positive',None),('Materialization','early-raw','RawUntilCommit'),
          ('Materialization','delete-data','FinalDataRecoverable'),
          ('Materialization','early-activate','ActivationOnlyAtCommit'),
-         ('Materialization','unknown-cleanup','UnknownIsNotFailure')]
+         ('Materialization','unknown-cleanup','UnknownIsNotFailure'),
+         ('FinalReceipt','positive',None),
+         ('FinalReceipt','untrusted','TrustedAdoption'),
+         ('FinalReceipt','missed-alias','AllAliasesSettled'),
+         ('FinalReceipt','changed-replay','ReplaySameValue'),
+         ('FinalReceipt','read-first','RecoveryIndependent'),
+         ('FinalReceipt','embedded','NoLedgerPayload'),
+         ('MaterialTime','positive',None),
+         ('MaterialTime','rollback','HighWatermarkSound'),
+         ('MaterialTime','missing-watermark','HighWatermarkSound'),
+         ('MaterialTime','revive','ExpiredStable'),
+         ('MaterialTime','late-page','NoLatePage')]
 parser=argparse.ArgumentParser()
 parser.add_argument('--case')
 parser.add_argument('--jar', default=os.environ.get('TLA2TOOLS_JAR'))

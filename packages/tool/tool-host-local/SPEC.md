@@ -146,6 +146,14 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 已知限制：标记只在铸造它的进程运行内可比，不耐久；`waitUntil` 的精度是计时器的精度；单调源由构造参数给出，调用方保证它不回退。
 
+## W3 材料时间源
+
+本节是 #1168 的待实施增量，不改变原 G4 的执行计时采用。材料使用独立的 `createLocalToolMaterialClock`，工厂显式接收 wallMs 与 monotonicMs。首次以墙钟初始化；随后每次输出 `max(当前墙钟, 上次输出 + 单调增量)`，再更新本地锚点。输入须有限且处于合法时间范围，单调读数回退时答 unavailable，不退回原 Date.now 路径。这样，同进程墙钟回拨不会回退或暂停有效时间。
+
+Tool 的原 call 域负责持久水位，时间工厂不拥有它。初次准备意图、每次激活、页准入/完成及到期裁定都在其状态提交中核样本不低于水位并更新水位。重启或另一实例的低样本被拒绝，追上后才能继续，原期限不重算。已到期事实不可逆，时间故障不阻止已经成立的提交或删除围栏认回。精确门槛归[材料协议 M05](../tool-contract/docs/material-protocol.md#m05-有效时间)。
+
+跨停机的实际流逝依赖可信墙钟，进程内进展依赖单调源。永久坏钟下可能停止新读与新删除授权，不声称完成校时或保证回收时限。真实装配必须验证回拨、重启低样本、两实例竞争、提交未知及时间恢复。
+
 ## 缺席端口（D-07）
 
 `createAbsentToolPorts` 返回 `toolDecisions`、`toolResourceResponses`、`toolChildren`。每个方法回复 `unavailable`，`dependency` 是端口名，`diagnostic` 写明被问的操作（`<端口>.<方法>`）。不抛出，不回复空成功。这三个端口在 M2 之后由各自的提供者取代。`toolOutputCustody` 不属于缺席端口，本包也不提供它。
@@ -243,6 +251,8 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 每个作者执行有独立 signal、事实流和控制记录。停止先返回 accepted，作者实际结束后才变为 stopped。事实按 cursor 重读，确认按 batch 认回；作者已结束且全部事实已有保管回执时解除 pin。未知返回、失去观察或保管失败继续保留责任。Scope 与最终结果转换是显式构造依赖。该执行绑定只支持 live-only，不承诺跨进程恢复。
 
+W3-A 按[精确 final 协议](../tool-contract/docs/material-protocol.md#m02-精确-final-与重放)迁移宿主事实缓存。绑定通过 Tool 的保管分面先登记准备责任，再封存这次真实 final。batches 与 settled lookup 只保存引用及指纹；FactReceipt 允许移除宿主重传缓存，不解除 Tool 的归一化用途。失去 live-only 连续性仍按原限制报告，不凭封存引用声称能重启任意作者函数。
+
 `./author` 导出 `contributeTool`、`createToolAuthorPlugin` 与 `createLocalToolGenerations`。作者插件静态依赖 toolBindings/toolGenerations，不提供服务键。贡献登记与撤除配对到作者 fiber 的 effect。服务适配器必须在普通函数中读取调用时的 `this.ctx`，用同步调用作用域把 fiber uid 传给登记表；箭头函数捕获提供者 Context 会产生错误归属。
 
 换代工厂接受长期宿主 Context、受信模块来源、装载器与持有者读取。来源适配器负责在 import 前核实现引用和包 digest；工厂先核权限，才调用它。相同键和 digest 认回，draining 不认回。确定性装载拒绝通过 `recordRejection` 保存依据后返回 rejected。引用读取失败保留并 reopen；有 pin 时保持 draining。没有完整的持有者采用依据目录时，sweep 返回 unavailable。该返回保留契约已有的目录缺口。
@@ -252,6 +262,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 [绑定回归测试](tests/author-binding-regressions.spec.ts)验证注册化身隔离、多命令的参数与操作选择，以及拒绝启动后的 pin 清理。跨 executor 同形回退的用例只证明安全拒绝与清理。
 
 ## 具名偏离：热换代作者保留
+
 
 按 [R2-D63](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6591819035)，本批只保证首次装载，以及 Reader 仍在但读取失败时保留贡献。持有者存在时热撤 Reader、协调者换代不撤作者的完整配对留在波 3。当前服务撤除会由 Cordis 卸载作者，贡献随之丢失；不宣称冻结契约的热换代保留义务已经兑现。上游 tool-cordis-contract/docs/cordis.md 的完整目标保持不变，不能把本偏离当作对其改写。
 

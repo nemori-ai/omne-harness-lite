@@ -1,6 +1,6 @@
 # 正文保管的有界模型与论证
 
-本目录维护 Tool 可靠交接、固定期限、读页与删除竞争、作者输出屏障及最终结果提交的候选验证资源。行为依据归 [Tool SPEC](../../../SPEC.md#有限期正文保管)，证据层级归[验证说明](../../../../../../docs/verification.md)。局部模型、人工归纳和实际提供者符合性分别判断。模型未机械组合或精化到产品代码。
+本目录维护 Tool 可靠交接、固定期限、读页与删除竞争、作者输出屏障、最终结果提交及事实重放的候选验证资源。行为依据归 [Tool SPEC](../../../SPEC.md#有限期正文保管)，证据层级归[验证说明](../../../../../../docs/verification.md)。局部模型、人工归纳和实际提供者符合性分别判断。模型未机械组合或精化到产品代码。
 
 ## 运行与判读
 
@@ -182,6 +182,15 @@ Materialization 另检查 CleanupWithoutAck：committed 最终导致 raw 删除�
 | Materialization-delete-data | 正文到期清理同时删除独立 data | FinalDataRecoverable |
 | Materialization-early-activate | 暂存 body 已写但最终结果未提交就起算期限 | ActivationOnlyAtCommit |
 | Materialization-unknown-cleanup | 把提交未知当作未提交，删除最终材料 | UnknownIsNotFailure |
+| FinalReceipt-untrusted | 首次采用未经封存字节核验的 final 指纹 | TrustedAdoption |
+| FinalReceipt-missed-alias | 最终提交只转换一个 final 事件，留下 pending 别名 | AllAliasesSettled |
+| FinalReceipt-changed-replay | 同一事件收到异值时仍认回成功 | ReplaySameValue |
+| FinalReceipt-read-first | 认回原提交或批次前先读已释放的 envelope | RecoveryIndependent |
+| FinalReceipt-embedded | 把完整 final payload 留在账本事件中 | NoLedgerPayload |
+| MaterialTime-rollback | 以较低时间覆盖持久水位 | HighWatermarkSound |
+| MaterialTime-missing-watermark | 页准入没有同提交时间水位 | HighWatermarkSound |
+| MaterialTime-revive | 清除已经持久成立的到期事实 | ExpiredStable |
+| MaterialTime-late-page | 租约截止后仍返回页成功 | NoLatePage |
 
 负控不同时检查会更早触发的其他不变量，以保证它确实走到指定性质的反例。每份原始日志包含 TLC 反例轨迹。负控命中说明测量可以识别该代表性错误，不证明所有近似错误都能被同一配置检出。
 
@@ -200,7 +209,7 @@ Materialization 另检查 CleanupWithoutAck：committed 最终导致 raw 删除�
 
 Handoff 的 claim 在复制全文路径上指消费者已持有自己的耐久材料。在共享物理对象路径上，必须由 Custody 的 program 或对应独立持有支持；取得裸引用不足以建立 Handoff.Commit。Custody 的 producer 表示尚未安全解除的程序材料责任，不能随卸载 TTL 自动撤销。
 
-四个模型未执行机械化组合或 refinement 检查。Writer.Publish 只表示 writer 候选准备好交给 settle，Materialization.FinishBarrier 消费相应屏障事实；它不能替代 Validate 或最终 Commit。Materialization.Commit 成立后，才允许 Handoff 接收最终版本，才对应 Custody 的已激活初态。三处身份必须对应同一正文、结果与材料代次。衔接要求是明确的未来实现义务，不从局部正控推出完整跨域实现已验证。卸载描述的可靠交接不赋予正文永久持有；Handoff 的无期限 claim 不得误用于续期卸载正文。
+这些模型未执行机械化组合或 refinement 检查。Writer.Publish 只表示 writer 候选准备好交给 settle，Materialization.FinishBarrier 消费相应屏障事实；它不能替代 Validate 或最终 Commit。Materialization.Commit 成立后，才允许 Handoff 接收最终版本，才对应 Custody 的已激活初态。三处身份必须对应同一正文、结果与材料代次。衔接要求是明确的未来实现义务，不从局部正控推出完整跨域实现已验证。卸载描述的可靠交接不赋予正文永久持有；Handoff 的无期限 claim 不得误用于续期卸载正文。
 
 ### 与正式行为正文的对应
 
@@ -235,4 +244,38 @@ Materialization 检查可恢复的准备/提交路径，不包含明确中止准
 
 版本固定为 1，版本 2 只作为不匹配请求。模型证明的是固定身份被围栏后不能复活；未覆盖存储地址复用、同地址新一代对象或旧删除误删新对象。实现必须使用不可复用材料身份，或补上能覆盖新旧代并存的模型及条件删除证据。旧代写入被正常 Next 排除是 provider 必须兑现的 fence 承诺，不是现实存储天然具备的性质。
 
-TLC 的四份正控、十四份负控只支持给定配置。人工归纳说明给出保护机制及其前提，不冒充无限域机器证明。实际产品、数据库、跨进程崩溃、权限隔离和主线装配均未验证。候选设计是否接受，由主任务及独立评审决定。
+TLC 的配置只支持其给定有限范围。原四模型含四份正控、十四份负控，新增 FinalReceipt 含一份正控、五份负控，MaterialTime 含一份正控、四份负控。具体运行通过数以每次 summary 的实际 case 列表为准，新增配置存在不代表已经通过。人工归纳说明给出保护机制及其前提，不冒充无限域机器证明。实际产品、数据库、跨进程崩溃、权限隔离和主线装配均未验证。候选设计是否接受，由主任务及独立评审决定。
+
+## 10. FinalReceipt 的事实重放检查
+
+这是 W3-A 内部材料协议的候选验证增量。它检查精确 final envelope 被释放后，事实身份、提交回执与去重是否仍可使用。它不接受候选接口，也不证明生产指纹算法。
+
+范围为一个调用、两个事件身份、一个固定原 final 和一个不同值。Seal 表示原 final 字节已经耐久，Receive 首次采用必须匹配这些字节。已提交后到达的同值 final 事件直接取得 settled 表示，不重新读取 envelope。这里只允许原已核验材料身份，未建模任意外来指针伪造。
+
+Commit 原子转换全部已经接收的 final 别名，并固定结果版本 1。ReleaseEnvelope 在提交后可以独立发生，不等待 receiptKnown。LoseReply 可丢失全部本地回执知识，Recover 仍从持久提交认回。Replay 用已保存的事件身份与原值判断，不依赖 bytes。正常模式没有业务重执行动作。
+
+| 不变量 | 保护的事实 | 生产对应 |
+| --- | --- | --- |
+| TrustedAdoption | 首次采用的值等于封存原值 | 受信 envelope 封存与输入指纹核验 |
+| AllAliasesSettled | 提交后所有已接收 final 都为 settled | 结果 CAS 同步转换全部别名；后来同值事件直接建 settled |
+| ReplaySameValue | 成功重放只能对应同一事件原值 | event/call/batch 指纹各自覆盖完整身份和有序输入 |
+| RecoveryIndependent | 原材料释放不导致认回先读取它 | operation 和批次认回先于 payload 解引用 |
+| NoLedgerPayload | 账本不保存完整 final 字节 | pending 引用、settled 凭据，不把暂存全文放入单条 SQL 记录 |
+| ReceiptStable | committed 与固定版本保持一致 | 重试不重新结算或改版本 |
+| PendingHasPayload | 未结算的已接收事实仍有原材料 | normalization 用途在最终通道提交前不得解除 |
+
+归纳依据是局部动作的保护点。Receive 不修改已存在事件的身份，Replay 只比较该身份，因而可以与材料删除独立。Commit 同时转换全部 received 元素，随后 Receive 只建立 settled 元素，保持 AllAliasesSettled。ReleaseEnvelope 仅在 committed 后执行，保持 PendingHasPayload。Recover 只读取提交事实，回执知识丢失不改变结果身份。
+
+模型以两个不同值代表受信 canonical 指纹的等值与不等值，假定无碰撞且编码稳定。它不覆盖具体哈希实现、批次顺序编码、租户权限、多结果版本、初始字节写入失败、部分清单删除、SQL 大字段上限或任意数量别名。NoLedgerPayload 是表示约束，不是空间或性能测量。实际容量须通过真实 SQL 大正文回归，编码正确性须通过篡改与重放测试。此模型只检查安全性，不对源恢复、首次最终提交或后台回收添加公平性保证。
+
+## 11. MaterialTime 的持久时间门
+
+本模型对应 W3-A 候选的材料时间门。它只检查 call 域的持久水位、到期锁存及有限页租约，不证明宿主时钟准确。样本取 0..3，可以按任意顺序到达，代表重启、多个宿主和回拨后的较低样本。正文固定截止点为 2，一页期限为准入值加 2，因此允许正文到期后、页租约到期前完成。
+
+Observe、Admit、Finish 和 CloseLease 都在接纳样本前检查它不低于持久 watermark。成功的动作与 watermark 同提交。observed 是证明用的历史观察集合，不要求产品保存一个无限时间序列。HighWatermarkSound 要求已经接纳的每个样本均不超过持久水位。发生重启时所有模型持久变量保持，下一个样本仍须经过原门。
+
+Observe 在到期时持久锁存 expired。everExpired 是证明用的历史事实，ExpiredStable 禁止把到期改回 live。Admit 先核正文未到期及样本小于正文截止点；Finish 不要求正文仍有效，但要求页租约仍有效。CloseLease 可以先结束租约，之后 Finish 不再可用。完成的页在 completed 中留下样本和当次期限，NoLatePage 对两者比较，不受后续状态覆盖影响。
+
+正常动作只接受不低于水位的样本，并同提交新水位，因此归纳保持 HighWatermarkSound。expired 只由 false 变为 true，保持 ExpiredStable。Finish 的守卫直接保护每个加入 completed 的元组；没有重写旧元组的动作。负控分别去掉这几个保护点，要求命中指定不变量。
+
+模型未展开身份资格、具体 SQL CAS、提交回包未知、时间工厂的墙钟/单调源算法、真实停机时长或多个同时在途页。观察到到期的提交回包丢失不改变持久状态，实际认回仍需 SQL 故障验证。时间源连续不可用时不承诺进展；任意向前伪造时间也不在时钟可信前提内。与 Custody 的组合义务是将同一次经持久时间门接纳的样本用于页/删除守卫，不能先过时间门再使用另一份较低读数。
