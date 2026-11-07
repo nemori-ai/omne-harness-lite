@@ -1,3 +1,4 @@
+import { adoptResultMaterials, releaseFinalPreparation } from './ledger-result-uses.ts'
 import type { ResultChannels } from './ledger-result-material.ts'
 import { matchesFinalValue } from './fact-values.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -213,11 +214,23 @@ export function decidePreserveResult<B extends ContentBlock>(
     },
     mint,
   )
+  const uses = adoptResultMaterials(snapshot, first.version.record)
+  if ('failure' in uses) return reply(uses)
+  if (saved.fact.kind !== 'final' || saved.fact.payload.kind !== 'pending')
+    return reply(invalid('final', 'pending-envelope-required'))
+  const released = releaseFinalPreparation(
+    snapshot,
+    saved.fact.payload.envelope,
+    first.version.record.source,
+  )
+  if ('failure' in released) return reply(released)
   const state = settledState(call, final, saved.evidence, first.version.delivery, mint)
   if ('failure' in state) return reply(state)
   const writes: LedgerWrite[] = [
     put({ kind: 'call', call: { ...call, state: state.ok } }),
     ...first.writes,
+    ...uses.ok,
+    ...released.ok,
     put(operationRecord(command, { kind: 'preserve-result', state: state.ok }, mint)),
     put({
       kind: 'task',

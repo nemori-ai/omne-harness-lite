@@ -97,7 +97,9 @@ W3 的最终结果准备、正文页与材料释放增量依据 [#1168](https://
 
 签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts, rawCustody, finalCustody, delivery, controls }`。`configuration` 给出结果页大小、提交重试上限与队列容量，三者都只有一处来源，即 `ToolConfiguration`。第五参数 `ToolLedgerPorts<P>` 必填，提供 `custody.retainResult`、`releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`，不提供默认授权或旧构造。`facts` 是账本的受信恢复读口，runtime 的结算驱动只使用 commands，不再注入它。
 
-`rawCustody` 提供 `ToolOutputCustody` 的 preserve 和 inspect 窄分面。它在原 call 域先记录材料准备责任，再写入原始字节，保留作者 codec。新准备要求调用已启动且仍运行；已封存操作可认回。重试异值冲突，未确认封存时 inspect 返回 unknown，不声称可靠排除。两入口均检查 write 资格，披露前再次检查。purpose 区分 raw、final 和 result 材料，不能把 final 当成 raw 认回。当前此分面已有独立入口，宿主生产接线及最终结果提交中的用途解除仍待完成。
+`rawCustody` 提供 `ToolOutputCustody` 的 preserve 和 inspect 窄分面。它在原 call 域先记录材料准备责任，再写入原始字节，保留作者 codec。新准备要求调用已启动且仍运行；已封存操作可认回。重试异值冲突，未确认封存时 inspect 返回 unknown，不声称可靠排除。两入口均检查 write 资格，披露前再次检查。purpose 区分 raw、final 和 result 材料，不能把 final 当成 raw 认回。当前此分面已有独立入口，宿主生产接线及 raw 用途解除仍待完成。
+
+结果提交在同一次 call CAS 中核对各最终通道的 sealed 材料和准备用途，将准备用途替换为绑定结果与交付身份的 delivery 用途。真实执行结果同时解除已替代 envelope 的准备用途并记录 material-cleanup 待办。系统受理拒绝、rejectPending 和 recordStart(rejected) 也采用通道用途转换。releaseDelivery 在可靠消费依据通过核验后，同提交解除对应 delivery 用途并记录清理待办。material-cleanup 只表达待检查的责任，不授权物理删除；维护仍须重核其他用途、租约与对象围栏。raw 的替代、正文 TTL 和维护执行尚未完成。
 
 ### 10 边界与资格
 

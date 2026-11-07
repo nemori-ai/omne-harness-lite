@@ -6,6 +6,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { ResultChannels } from './ledger-result-material.ts'
 import type {
   MaterialRecord,
+  MaterialCleanupRecord,
   MaterialTimeRecord,
   MaterialUseRecord,
 } from './ledger-material-records.ts'
@@ -303,6 +304,7 @@ export type LedgerRecord =
   | Readonly<{ kind: 'material'; material: MaterialRecord }>
   | Readonly<{ kind: 'material-use'; use: MaterialUseRecord }>
   | Readonly<{ kind: 'material-time'; time: MaterialTimeRecord }>
+  | Readonly<{ kind: 'material-cleanup'; cleanup: MaterialCleanupRecord }>
   | Readonly<{ kind: 'call'; call: CallRecord }>
   | Readonly<{ kind: 'operation'; operation: OperationRecord }>
   | Readonly<{ kind: 'result'; result: ResultRecord }>
@@ -331,6 +333,8 @@ export function recordKey(record: LedgerRecord): string {
       return `material-use:${record.use.id}`
     case 'material-time':
       return 'material-time'
+    case 'material-cleanup':
+      return `material-cleanup:${record.cleanup.writeOperation}`
     case 'call':
       return 'call'
     case 'operation':

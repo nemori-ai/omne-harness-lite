@@ -30,6 +30,11 @@ it('stores an unavailable admission as sealed result channels and still returns 
   if (stored.kind !== 'complete') throw new Error('missing call records')
   const result = stored.records.find(record => record.kind === 'result')
   expect(result).toMatchObject({ kind: 'result', result: { value: { kind: 'channels' } } })
+  const uses = stored.records.flatMap(record =>
+    record.kind === 'material-use' ? [record.use] : [],
+  )
+  expect(uses).toHaveLength(3)
+  expect(uses.every(use => use.kind === 'delivery')).toBe(true)
   const page = ok(
     await f.ledger.reads.result({
       principal: principalA,

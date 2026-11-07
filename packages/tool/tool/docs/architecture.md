@@ -55,12 +55,16 @@ ToolCall 决定器输入当前持久状态、具名命令和已核验 guard 快�
 
 `ResultRecord` 只保存 content、data、附件元数据与作者 summary 的通道引用。完整值由读取分面还原，记录仓及纯决策不依赖内容块类型参数。`admit`、`rejectPending`、`recordStart(rejected)` 先准备系统结果，再提交结果与根操作回执。首次读取的修订号贯穿准备 IO，可靠否定答案仍能排除旧请求。完整准备的重试不重新生成文本，部分准备时允许重求纯系统文本，但异值不得覆盖材料。准备沿原入口权限，受理不额外要求 write 或 recover。
 
-`rawCustody` 提供 `ToolOutputCustody` 的 preserve 和 inspect 窄分面。它在原 call 域先记录材料准备责任，再写入原始字节，保留作者 codec。新准备要求调用已启动且仍运行；已封存操作可认回。重试异值冲突，未确认封存时 inspect 返回 unknown，不声称可靠排除。两入口均检查 write 资格，披露前再次检查。purpose 区分 raw、final 和 result 材料，不能把 final 当成 raw 认回。当前此分面已有独立入口，宿主生产接线及最终结果提交中的用途解除仍待完成。
+`rawCustody` 提供 `ToolOutputCustody` 的 preserve 和 inspect 窄分面。它在原 call 域先记录材料准备责任，再写入原始字节，保留作者 codec。新准备要求调用已启动且仍运行；已封存操作可认回。重试异值冲突，未确认封存时 inspect 返回 unknown，不声称可靠排除。两入口均检查 write 资格，披露前再次检查。purpose 区分 raw、final 和 result 材料，不能把 final 当成 raw 认回。当前此分面已有独立入口，宿主生产接线及 raw 用途解除仍待完成。
+
+结果提交在同一次 call CAS 中核对各最终通道的 sealed 材料和准备用途，将准备用途替换为绑定结果与交付身份的 delivery 用途。真实执行结果同时解除已替代 envelope 的准备用途并记录 material-cleanup 待办。系统受理拒绝、rejectPending 和 recordStart(rejected) 也采用通道用途转换。releaseDelivery 在可靠消费依据通过核验后，同提交解除对应 delivery 用途并记录清理待办。material-cleanup 只表达待检查的责任，不授权物理删除；维护仍须重核其他用途、租约与对象围栏。raw 的替代、正文 TTL 和维护执行尚未完成。
 
 事务域是判别联合：`call` 域是 `(tenant, call)`，拥有一次原调用的全部记录；`queue` 域是 `(tenant, FIFO key)`，拥有同一 key 下各调用的顺序与名额；`host` 域是 `(tenant, key)`，供宿主提供者保存自己的耐久记录（例如 `tool-host-local` 的启动受理台账），本包不解释其内容。记录是判别联合，每种记录有一个唯一键：
 
 | 记录 | 键 | 内容 |
 | --- | --- | --- |
+| `material-use` | `material-use:{use.id}` | 准备责任，或绑定 result/delivery 的交付责任 |
+| `material-cleanup` | `material-cleanup:{writeOperation}` | 材料引用与用途解除依据；不是删除授权 |
 | `call` | `call` | 原调用：受理操作、固定请求、发起来源、当前 `ToolState`、已确认的环境、准备记录、启动记录、启动拒绝与执行引用 |
 | `operation` | `operation:<operation>` | 一次已提交操作：种类、规范输入摘要、提交修订号、具名回执（例如 admit 的 `ToolState`、releaseDelivery 的 `DeliveryState`、planPreparation 的 `PreparationRecord`、prepareStart 的启动记录） |
 | `result-preparation` | `result-preparation:<id>` | 系统替代结果的原操作、输入摘要、准备凭据，以及 preparing 或带通道引用的 prepared 状态；不充当根操作回执 |

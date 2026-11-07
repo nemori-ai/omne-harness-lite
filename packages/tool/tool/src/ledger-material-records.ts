@@ -1,4 +1,10 @@
-import type { Adoption, DurableEvidence, ToolOperationId } from '@omne-harness/tool-contract'
+import type {
+  Adoption,
+  DurableEvidence,
+  ToolOperationId,
+  ToolResultVersion,
+  ToolDeliveryId,
+} from '@omne-harness/tool-contract'
 import type {
   ToolMaterialFingerprint,
   ToolMaterialInstant,
@@ -23,8 +29,21 @@ export type MaterialRecord = Readonly<{
 
 export type MaterialUseRecord = Readonly<{
   id: string
-  kind: 'preparation'
   material: ToolMaterialRef
-  operation: ToolOperationId
+  basis: DurableEvidence
+}> &
+  (
+    | Readonly<{ kind: 'preparation'; operation: ToolOperationId }>
+    | Readonly<{
+        kind: 'delivery'
+        result: ToolResultVersion
+        delivery: ToolDeliveryId
+        writeOperation: ToolOperationId
+      }>
+  )
+
+export type MaterialCleanupRecord = Readonly<{
+  material: ToolMaterialRef
+  writeOperation: ToolOperationId
   basis: DurableEvidence
 }>

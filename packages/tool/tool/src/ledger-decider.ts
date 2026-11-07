@@ -1,3 +1,4 @@
+import { adoptResultMaterials, releaseResultMaterials } from './ledger-result-uses.ts'
 import type {
   PreparedSynthetic,
   ResultPreparationRecord,
@@ -12,6 +13,7 @@ import type { ResultChannels } from './ledger-result-material.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   MaterialRecord,
+  MaterialCleanupRecord,
   MaterialTimeRecord,
   MaterialUseRecord,
 } from './ledger-material-records.ts'
@@ -76,6 +78,7 @@ export type Snapshot = Readonly<{
   resultPreparations: ReadonlyMap<string, ResultPreparationRecord>
   materials: ReadonlyMap<string, MaterialRecord>
   materialUses: ReadonlyMap<string, MaterialUseRecord>
+  materialCleanup: ReadonlyMap<string, MaterialCleanupRecord>
   materialTime: MaterialTimeRecord | null
   domain: LedgerDomain
   revision: ToolRevision
@@ -101,6 +104,7 @@ export function snapshotOf(
   const resultPreparations = new Map<string, ResultPreparationRecord>()
   const materials = new Map<string, MaterialRecord>()
   const materialUses = new Map<string, MaterialUseRecord>()
+  const materialCleanup = new Map<string, MaterialCleanupRecord>()
   let materialTime: MaterialTimeRecord | null = null
   const releases = new Map<string, EnvironmentReleaseRecord>()
   const facts = new Map<string, FactEventRecord>()
@@ -123,6 +127,9 @@ export function snapshotOf(
         break
       case 'material-use':
         materialUses.set(record.use.id, record.use)
+        break
+      case 'material-cleanup':
+        materialCleanup.set(record.cleanup.writeOperation, record.cleanup)
         break
       case 'material-time':
         materialTime = record.time
@@ -171,6 +178,7 @@ export function snapshotOf(
     resultPreparations,
     materials,
     materialUses,
+    materialCleanup,
     materialTime,
     domain,
     releases,
@@ -268,6 +276,7 @@ export function decideAdmit<B extends ContentBlock>(
     return reply(invalid('request.mode', 'background-not-allowed'))
   if (request.availability.kind === 'known-unavailable')
     return settle(
+      snapshot,
       command,
       { kind: 'unavailable', reason: request.availability.reason },
       mint,
@@ -282,7 +291,8 @@ export function decideAdmit<B extends ContentBlock>(
       }),
     )
   const parsed = tools.arguments(request.arguments)
-  if ('failure' in parsed) return argumentsFailure(command, parsed.failure, mint, prepared)
+  if ('failure' in parsed)
+    return argumentsFailure(snapshot, command, parsed.failure, mint, prepared)
   return acceptWithinCapacity(command, mint)
 }
 
@@ -387,6 +397,7 @@ function stateOf(record: OperationRecord): ToolState {
 }
 
 function argumentsFailure(
+  snapshot: Snapshot,
   command: AdmitCommand,
   rejection: ToolArgumentsRejection,
   mint: Mint,
@@ -399,7 +410,13 @@ function argumentsFailure(
       return reply(invalid(`request.arguments.${rejection.field}`, rejection.reason))
     case 'invalid': {
       const diagnostic = `${rejection.field}: ${rejection.reason}`
-      return settle(command, { kind: 'failed', cause: 'arguments', diagnostic }, mint, prepared)
+      return settle(
+        snapshot,
+        command,
+        { kind: 'failed', cause: 'arguments', diagnostic },
+        mint,
+        prepared,
+      )
     }
     default: {
       const exhaustive: never = rejection
@@ -515,12 +532,13 @@ export function firstResultWrites(
 
 /** Synthetic settlement additionally records the work of producing a replacement result. */
 export function settlementWrites(
+  snapshot: Snapshot,
   place: Readonly<{ tenant: TenantId; call: ToolCallId; operation: ToolOperationId }>,
   consumer: ConsumerRef,
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
   value: ResultChannels,
   mint: Mint,
-): Readonly<{ version: FirstVersion; writes: readonly LedgerWrite[] }> {
+): Outcome<Readonly<{ version: FirstVersion; writes: readonly LedgerWrite[] }>, ToolFailure> {
   const first = firstResultWrites(
     place,
     consumer,
@@ -530,11 +548,14 @@ export function settlementWrites(
     { kind: 'synthetic' },
     mint,
   )
+  const uses = adoptResultMaterials(snapshot, first.version.record)
+  if ('failure' in uses) return uses
   const account = replacementAccount(place.call)
-  return {
+  return succeed({
     version: first.version,
     writes: [
       ...first.writes,
+      ...uses.ok,
       put({
         kind: 'account',
         account: {
@@ -552,11 +573,12 @@ export function settlementWrites(
         },
       }),
     ],
-  }
+  })
 }
 
 /** A logical terminal formed at admission: dummy unavailable or an arguments failure (P02). */
 function settle(
+  snapshot: Snapshot,
   command: AdmitCommand,
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
   mint: Mint,
@@ -570,7 +592,16 @@ function settle(
   if ('kind' in made) return made
   if ('failure' in made) return reply(made)
   const { tenant, call, request } = command
-  const settled = settlementWrites(command, request.consumer, terminal, made.ok, mint)
+  const settledReply = settlementWrites(
+    snapshot,
+    command,
+    request.consumer,
+    terminal,
+    made.ok,
+    mint,
+  )
+  if ('failure' in settledReply) return reply(settledReply)
+  const settled = settledReply.ok
   const state = logicalState(
     tenant,
     call,
@@ -728,6 +759,7 @@ export function decideRelease(
         call: { ...call, state: withDelivery(call, record, released, mint) },
       }),
       { kind: 'delete', key: taskKey({ kind: 'deliver', operation: record.settledBy }) },
+      ...releaseResultMaterials(snapshot, record, released.evidence),
     ],
     value: released,
   }

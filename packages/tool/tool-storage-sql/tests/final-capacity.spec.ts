@@ -44,25 +44,21 @@ it.each([
         revision: '1',
         digest: 'sha256:materials',
       }
-      const materialStore = createSqlToolMaterialStore({
-        storage: storage.storage,
-        domains: storage.domains,
-        combination: storage.combination,
+      const materials = (opened: typeof storage) => ({
         provider,
-        maxCommandBytes: 1_048_576,
-        maxChunkBytes: 16_384,
-      })
-      const ledger = world.ledgerOver(
-        storage.store,
-        {
+        store: createSqlToolMaterialStore({
+          storage: opened.storage,
+          domains: opened.domains,
+          combination: opened.combination,
           provider,
-          store: materialStore,
-          clock: {
-            sample: async () => succeed(ok(decodeToolMaterialInstant('2026-11-07T00:00:00.000Z'))),
-          },
+          maxCommandBytes: 1_048_576,
+          maxChunkBytes: 16_384,
+        }),
+        clock: {
+          sample: async () => succeed(ok(decodeToolMaterialInstant('2026-11-07T00:00:00.000Z'))),
         },
-        storage.custody,
-      )
+      })
+      const ledger = world.ledgerOver(storage.store, materials(storage), storage.custody)
       ok(await ledger.admissions.admit(world.input))
       const context = async (name: string) => ({
         ...world.access,
@@ -175,6 +171,47 @@ it.each([
       const retained = await storage.store.read({ kind: 'call', tenant, call: world.access.call })
       expect(retained.kind).toBe('complete')
       expect(Buffer.byteLength(JSON.stringify(retained))).toBeLessThan(100_000)
+      if (retained.kind !== 'complete') throw new Error('ledger read incomplete')
+      const uses = retained.records.filter(record => record.kind === 'material-use')
+      expect(uses).toHaveLength(settle ? 3 : 1)
+      expect(
+        uses.every(
+          record =>
+            record.kind === 'material-use' &&
+            record.use.kind === (settle ? 'delivery' : 'preparation'),
+        ),
+      ).toBe(true)
+      const cleanup = retained.records.filter(record => record.kind === 'material-cleanup')
+      expect(cleanup).toHaveLength(settle ? 1 : 0)
+      const state = ok(await ledger.commands.loadRecovery(world.access)).state
+      await storage.close()
+      const reopened = await openStorage(root, [tenant], { maxCommandBytes: 1_048_576 })
+      try {
+        const restoredLedger = world.ledgerOver(
+          reopened.store,
+          materials(reopened),
+          reopened.custody,
+        )
+        expect(ok(await restoredLedger.commands.loadRecovery(world.access)).state).toEqual(state)
+        const restored = await reopened.store.read({
+          kind: 'call',
+          tenant,
+          call: world.access.call,
+        })
+        if (restored.kind !== 'complete') throw new Error('reopened ledger read incomplete')
+        expect(
+          restored.records.filter(
+            record => record.kind === 'material-use' || record.kind === 'material-cleanup',
+          ),
+        ).toEqual(expect.arrayContaining([...uses, ...cleanup]))
+        expect(
+          restored.records.filter(
+            record => record.kind === 'material-use' || record.kind === 'material-cleanup',
+          ),
+        ).toHaveLength(uses.length + cleanup.length)
+      } finally {
+        await reopened.close()
+      }
     } finally {
       await storage.close()
       await rm(root, { recursive: true, force: true })

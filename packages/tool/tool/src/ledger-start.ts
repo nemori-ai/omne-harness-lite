@@ -731,7 +731,16 @@ function rejectionWrites(
   const made = syntheticChannels(command, { terminal, consumer: record.request.consumer }, prepared)
   if ('kind' in made) return made
   if ('failure' in made) return reply(made)
-  const settled = settlementWrites(command, record.request.consumer, terminal, made.ok, mint)
+  const settledReply = settlementWrites(
+    snapshot,
+    command,
+    record.request.consumer,
+    terminal,
+    made.ok,
+    mint,
+  )
+  if ('failure' in settledReply) return reply(settledReply)
+  const settled = settledReply.ok
   const { version, delivery } = settled.version
   const state = rejectedState(
     record,
