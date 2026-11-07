@@ -132,7 +132,7 @@ function rowsOf(storageRoot: string, options: { credential: boolean }) {
       id: 'session-storage',
       plugin: 'sessionStorageRow',
       config: {
-        combinationVersion: 'session-composite/5',
+        combinationVersion: 'session-composite/6',
         directoryFile: join(storageRoot, 'tenant-domains.json'),
         domainRule: 'organization-account/1',
       },

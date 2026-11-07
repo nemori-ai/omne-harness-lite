@@ -199,7 +199,7 @@ async function turnOnRelease(script: GatewayScript, shellResultMaxBytes?: number
     expect(history.status, history.body).toBe(200)
     expect(
       entriesOf(history.body).some(entry => entry.kind === 'run.terminal'),
-      'the Run must reach a terminal before shutdown',
+      `the Run must reach a terminal before shutdown; model requests=${gateway.requests()}; history kinds=${JSON.stringify(entriesOf(history.body).map(entry => entry.kind))}`,
     ).toBe(true)
     const modelRequests = gateway.requests()
     controller.abort('test: stop')
