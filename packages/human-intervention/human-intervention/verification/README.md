@@ -112,3 +112,16 @@ ConcurrentIntake 的操作身份是固定租户内的 `(session, acceptId)`，�
 | EffectHasReceipt | applyOperation 的业务效果和 finishOperation 在同一物理事务 | 只保存效果不保存结果 |
 
 模型将存储事务视作原子动作，不证明 SQLite 实现，也不认证 principal、发布来源或 execution 中的 authority。它不检查活性、公平性、物理断电和多个原操作之间的作用域隔离。真实 Worker 的回滚、重开、封口和重试反例见 governance-local 的 [操作测试](../../../governance/governance-local/tests/operations.spec.ts)。该测试的资格及来源仍是具名夹具，生产来源适配不能由模型或此测试代替。
+
+## 完整采用与竞争
+
+`GovernanceAdoption` 枚举两个租约、两个采用者、任意候选子集，以及准备、发布和撤除的交错。采用必须覆盖当时全部有效租约，使用当前修订和合法绑定事实，并同时发布整份Settings/Permissions。
+
+| 不变量 | 具名负控 | 实现映射 |
+| --- | --- | --- |
+| CompletePublication | 允许不完整候选 | adoption-plan.ts 的精确租约集合比较 |
+| CurrentPublication | 忽略采用准备的修订 | adoption.ts 的双修订与epoch检查 |
+| BoundEvidence | 接受无效事实 | adoption.ts 的操作绑定及 adoption-plan.ts 的目标/关口核对 |
+| AtomicBundle | 只发布Settings | 完整bundle选入与同事务关系替换 |
+
+模型将声明内容及目标/关口真实性抽象为具名条件，不证明这些事实的实际生产。它没有建模SQL索引、租户身份或分布式进程。真实回滚、并发赢家、重开、目标支持和错误事实测试见 [adoption.spec.ts](../../../governance/governance-local/tests/adoption.spec.ts)。这些测试的目标/current输入仍是夹具，不能代替生产桥接和完整C3b验收。

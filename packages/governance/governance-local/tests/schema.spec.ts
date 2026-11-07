@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import { afterEach, expect, it } from 'vitest'
+import { currentCandidatesSql } from '../src/candidates.ts'
 import { GOVERNANCE_TABLES } from '../src/migration.ts'
 import { openDatabase, scope, definition, lease, member, support } from './database.ts'
 const databases: DatabaseSync[] = []
@@ -176,4 +177,29 @@ it('uses bounded pending and current-support index paths in the presence of hist
       ['scope', 'epoch'],
     ),
   ).toContain('gc_contribution_current')
+})
+
+it('uses the production candidate join to exclude ten thousand old-epoch leases', () => {
+  const db = setup()
+  db.exec('BEGIN')
+  const insert = db.prepare(
+    "INSERT INTO gc_contribution VALUES ('scope',?,'publisher','generation','old','alice','definition','active',?)",
+  )
+  for (let i = 0; i < 10000; i++) insert.run('old-' + i, 'old-' + i)
+  lease(db, 'current')
+  db.exec('COMMIT')
+  const plan = db
+    .prepare('EXPLAIN QUERY PLAN ' + currentCandidatesSql)
+    .all('scope', 'epoch')
+    .map(row => row.detail)
+    .join('\n')
+  expect(plan).toMatch(/SEARCH c USING (?:COVERING )?INDEX gc_contribution_current/)
+  expect(plan).toMatch(/SEARCH d USING PRIMARY KEY/)
+  expect(plan).not.toMatch(/SCAN (?:c|d)\b/)
+  expect(
+    db
+      .prepare(currentCandidatesSql)
+      .all('scope', 'epoch')
+      .map(row => row.registration_id),
+  ).toEqual(['current'])
 })

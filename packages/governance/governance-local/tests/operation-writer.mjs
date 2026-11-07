@@ -23,7 +23,7 @@ export default {
         response = submitOperation(port, facts.binding, facts.execution)
         break
       case 'apply':
-        response = applyOperation(port, facts.binding, facts.execution)
+        response = applyOperation(port, facts.binding, facts.execution, facts.evidence)
         break
       case 'seal':
         response = sealOperation(port, facts.binding)
@@ -68,6 +68,22 @@ export default {
         response = { kind: 'seeded' }
         break
       }
+      case 'selection':
+        response = {
+          members: port.execute(
+            'SELECT registration_id,definition_key,epoch FROM gc_member WHERE scope_key=? ORDER BY registration_id LIMIT 129',
+            [scopeKey(facts.scope)],
+          ).rows,
+          definitions: port.execute(
+            'SELECT definition_key,epoch FROM gc_selected_definition WHERE scope_key=? ORDER BY definition_key LIMIT 129',
+            [scopeKey(facts.scope)],
+          ).rows,
+          targets: port.execute(
+            'SELECT definition_key,target_json FROM gc_selected_target WHERE scope_key=? ORDER BY definition_key,target_key LIMIT 129',
+            [scopeKey(facts.scope)],
+          ).rows,
+        }
+        break
       case 'targets':
         response = {
           kind: 'targets',

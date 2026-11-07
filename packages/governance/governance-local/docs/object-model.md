@@ -22,7 +22,7 @@ classDiagram
 
 租约持久状态为 active/released，关闭受理的内存阶段与持久撤除区分。撤除最终须与采用投影在一个事务完成。Scope 换 epoch 后旧行保留为历史，当前读取必须核对 epoch。
 
-声明与原结果不因租约撤除而删除。资产、设置值、身份和权限值的生灭各归原领域。当前阶段只建立结构，实际生命周期推进仍待实现。
+声明与原结果不因租约撤除而删除。资产、设置值、身份和权限值的生灭各归原领域。登记、采用、撤除和epoch围栏已有私有事务写者；公开服务及Cordis关闭流程仍待接线。
 
 Operation 的原请求与执行内容分别固定。前者表达业务意图，后者绑定实际组合和协调材料，不能因重试而用当前版本替换。当前源码用严格 Schema 的记录和事务函数表达这个状态机。
 
@@ -36,3 +36,22 @@ stateDiagram-v2
   committed --> committed: 认回原结果
   aborted --> aborted: 认回原终态
 ```
+
+## 采用的值对象
+
+Candidate 是当前租约及其不可变声明的读取结果，不发行新身份。AdoptionMember 把一个 Candidate 与其选择的完整目标集合组合。AdoptionEvidence 是同操作、同事务域、同epoch的消费投影，包含目标拥有者事实与实际关口映射，不授予权限。
+
+```mermaid
+classDiagram
+  Candidate --> Contribution
+  Candidate --> Definition
+  AdoptionMember --> Candidate
+  AdoptionMember --> SettingsTarget
+  AdoptionEvidence --> OperationBinding
+  AdoptionEvidence --> TargetOwnerFact
+  AdoptionEvidence --> EnforcementBinding
+  AdoptionPlan ..> AdoptionMember
+  AdoptionPlan ..> AdoptionEvidence
+```
+
+纯计划核对这些值，关系写者执行已成立的整份计划。数据关系、业务判断与外部事实生产分开承担责任；不为临时计划增加持久表，也不把目标拥有者的生命周期搬入治理域。

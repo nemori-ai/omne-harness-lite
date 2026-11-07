@@ -96,7 +96,7 @@ function removeSupport(
     [key, definition, epoch],
   )
 }
-function adoptionDigest(port: ParticipantPort, key: string, epoch: string) {
+export function adoptionDigest(port: ParticipantPort, key: string, epoch: string) {
   const members = port.execute(
     'SELECT registration_id,definition_key FROM gc_member WHERE scope_key=? AND epoch=? ORDER BY definition_key,registration_id LIMIT 129',
     [key, epoch],

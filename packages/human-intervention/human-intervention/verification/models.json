@@ -1,6 +1,6 @@
 {
   "model": "models/HumanDecision.tla",
-  "scope": "HJ0 finite behavioral models only; two cards/two competing replies, three calls/two sessions, three inputs/two sessions. Includes weak-fairness conditional progress. No runtime, SQL, power-loss, real scheduling fairness or distributed protocol proof. RecoveryRouting: one runtime replacement, durable answer/inbox and generation-fenced receiver with weak-fairness conditional delivery. AuthorityComposition: seven independent withdrawal sources and one protected commit; abstract atomic owner guards, not an implemented coordinator. RegistrationProtocol: one original operation and bounded duplicate IDs, durable registration/seal and volatile receipts. ContinuationComposition: two rounds with two cards, one runtime replacement, current authority/terminal fencing and recorded judgments; abstract atomic recording, no arbitrary external effect proof. IntakeControl: one session, three inputs, pending capacity two, two driver generations and archive/run cancellation; logical scheduling only. ExecutionSlots: three calls, one active slot, one human wait; human release, ready queue, reacquire and conditional progress under weak fairness. Continuation includes mixed allow/ask/deny judgments in the second round and ready-to-advance conditional progress.",
+  "scope": "HJ0 finite behavioral models only; two cards/two competing replies, three calls/two sessions, three inputs/two sessions. Includes weak-fairness conditional progress. No runtime, SQL, power-loss, real scheduling fairness or distributed protocol proof. RecoveryRouting: one runtime replacement, durable answer/inbox and generation-fenced receiver with weak-fairness conditional delivery. AuthorityComposition: seven independent withdrawal sources and one protected commit; abstract atomic owner guards, not an implemented coordinator. RegistrationProtocol: one original operation and bounded duplicate IDs, durable registration/seal and volatile receipts. ContinuationComposition: two rounds with two cards, one runtime replacement, current authority/terminal fencing and recorded judgments; abstract atomic recording, no arbitrary external effect proof. IntakeControl: one session, three inputs, pending capacity two, two driver generations and archive/run cancellation; logical scheduling only. ExecutionSlots: three calls, one active slot, one human wait; human release, ready queue, reacquire and conditional progress under weak fairness. Continuation includes mixed allow/ask/deny judgments in the second round and ready-to-advance conditional progress. GovernanceAdoption: two leases and two adopters, complete candidates, revision/evidence guards and atomic bundle publication; trusted evidence is an abstract premise.",
   "cases": [
     {
       "name": "intakecontrol-none",
@@ -583,6 +583,36 @@
       "model": "models/GovernanceOperation.tla",
       "config": "models/governanceoperation-partial.cfg",
       "expected": "EffectHasReceipt"
+    },
+    {
+      "name": "governanceadoption-positive",
+      "model": "models/GovernanceAdoption.tla",
+      "config": "models/governanceadoption-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governanceadoption-incomplete",
+      "model": "models/GovernanceAdoption.tla",
+      "config": "models/governanceadoption-incomplete.cfg",
+      "expected": "CompletePublication"
+    },
+    {
+      "name": "governanceadoption-stale",
+      "model": "models/GovernanceAdoption.tla",
+      "config": "models/governanceadoption-stale.cfg",
+      "expected": "CurrentPublication"
+    },
+    {
+      "name": "governanceadoption-evidence",
+      "model": "models/GovernanceAdoption.tla",
+      "config": "models/governanceadoption-evidence.cfg",
+      "expected": "BoundEvidence"
+    },
+    {
+      "name": "governanceadoption-partial",
+      "model": "models/GovernanceAdoption.tla",
+      "config": "models/governanceadoption-partial.cfg",
+      "expected": "AtomicBundle"
     }
   ]
 }

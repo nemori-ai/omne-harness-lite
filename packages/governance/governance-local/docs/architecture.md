@@ -62,3 +62,20 @@ flowchart LR
 ```
 
 恢复读索引排除历史终态。当前贡献扫描限129行，实际允许128；在线项统计按当前去重声明计算。重复租约共享声明的预算，不把同一声明的每个租约再算一遍项数。权威来源和作用域资格仍是应用协调器的实施缺口，不能用上述私有执行材料绕过。
+
+## 完整采用
+
+`candidates.ts` 只枚举当前epoch的有效租约，并按定义去重读取正文。`adoption-plan.ts` 比较完整选择、定义相容性、目标和实际关口。`adoption.ts` 在计划成立后替换关系并推进修订。`applyOperation` 将该效果与原结果共同提交。
+
+```mermaid
+flowchart LR
+  Current[当前租约索引] --> Candidates[去重声明及2 MiB预算]
+  Candidates --> Plan[完整采用计划]
+  Command[原命令及完整选择摘要] --> Plan
+  Facts[同操作目标与关口投影] --> Plan
+  Plan -->|全部成立| Replace[原子替换支持及选中关系]
+  Replace --> Receipt[采用修订与原回执]
+  Plan -->|拒绝| Preserve[保留旧选择]
+```
+
+目标投影携带原操作、事务域、epoch、目标来源、完整定义和ownerRevision。它保留目标拥有者的责任，治理写者不读取Settings或Assets私表。当前测试用具名投影夹具执行真实采用事务；生产fact桥接和Identity协调未接通。

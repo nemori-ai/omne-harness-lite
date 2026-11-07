@@ -30,8 +30,13 @@
 - `GovernanceContributions` · `ports.d.ts`
 - `GovernanceDefinitionBundle` · `schema.d.ts`
 - `GovernanceDefinitionBundleSchema` · `schema.d.ts`
+- `GovernanceDefinitionIdentity` · `source.d.ts`
+- `GovernanceDefinitionIdentitySchema` · `source.d.ts`
+- `GovernanceDefinitionRead` · `source.d.ts`
+- `GovernanceDefinitionReadSchema` · `source.d.ts`
 - `GovernanceDefinitionRef` · `schema.d.ts`
 - `GovernanceDefinitionRefSchema` · `schema.d.ts`
+- `GovernanceDefinitionSource` · `source.d.ts`
 - `GovernanceDigestSchema` · `schema.d.ts`
 - `GovernanceFailure` · `ports.d.ts`
 - `GovernanceIdSchema` · `schema.d.ts`
@@ -87,6 +92,7 @@ declare module '@deepseek-ai/cordis' {
 ```ts
 export * from './schema.ts';
 export * from './ports.ts';
+export * from './source.ts';
 ```
 
 ## 声明文件 `ports.d.ts`
@@ -867,4 +873,173 @@ export type GovernanceOperationQuery = z.infer<typeof GovernanceOperationQuerySc
 export type GovernanceOperationRef = z.infer<typeof GovernanceOperationRefSchema>;
 export type GovernanceCatalogRequest = z.infer<typeof GovernanceCatalogRequestSchema>;
 export type EnforcementBinding = z.infer<typeof EnforcementBindingSchema>;
+```
+
+## 声明文件 `source.d.ts`
+
+```ts
+import { z } from 'zod';
+export declare const GovernanceDefinitionIdentitySchema: z.ZodObject<{
+    ownerId: z.ZodString;
+    definitionId: z.ZodString;
+    version: z.ZodString;
+}, z.core.$strict>;
+export type GovernanceDefinitionIdentity = z.infer<typeof GovernanceDefinitionIdentitySchema>;
+export declare const GovernanceDefinitionReadSchema: z.ZodDiscriminatedUnion<[
+    z.ZodObject<{
+        kind: z.ZodLiteral<"definition">;
+        declaration: z.ZodObject<{
+            reference: z.ZodObject<{
+                ownerId: z.ZodString;
+                definitionId: z.ZodString;
+                version: z.ZodString;
+                digest: z.ZodString;
+            }, z.core.$strict>;
+            origin: z.ZodDiscriminatedUnion<[
+                z.ZodObject<{
+                    kind: z.ZodLiteral<"asset">;
+                    assetId: z.ZodString;
+                    releaseRef: z.ZodString;
+                }, z.core.$strict>,
+                z.ZodObject<{
+                    kind: z.ZodLiteral<"independent">;
+                    providerId: z.ZodString;
+                    definitionRef: z.ZodString;
+                }, z.core.$strict>
+            ], "kind">;
+            settings: z.ZodArray<z.ZodObject<{
+                providerId: z.ZodString;
+                definitionId: z.ZodString;
+                version: z.ZodString;
+                groups: z.ZodArray<z.ZodObject<{
+                    id: z.ZodString;
+                    parentId: z.ZodNullable<z.ZodString>;
+                    title: z.ZodString;
+                    description: z.ZodString;
+                    order: z.ZodNumber;
+                }, z.core.$strict>>;
+                items: z.ZodArray<z.ZodObject<{
+                    id: z.ZodString;
+                    groupId: z.ZodString;
+                    category: z.ZodEnum<{
+                        binding: "binding";
+                        governance: "governance";
+                        "placement-identity": "placement-identity";
+                        preference: "preference";
+                    }>;
+                    presentation: z.ZodObject<{
+                        title: z.ZodString;
+                        description: z.ZodString;
+                        impact: z.ZodString;
+                        clear: z.ZodString;
+                        adoption: z.ZodEnum<{
+                            creation: "creation";
+                            "next-boundary": "next-boundary";
+                            "next-read": "next-read";
+                            reload: "reload";
+                        }>;
+                        localizationKey: z.ZodOptional<z.ZodString>;
+                        unit: z.ZodOptional<z.ZodString>;
+                        enumLabels: z.ZodOptional<z.ZodArray<z.ZodObject<{
+                            value: z.ZodJSONSchema;
+                            title: z.ZodString;
+                            description: z.ZodString;
+                        }, z.core.$strict>>>;
+                    }, z.core.$strict>;
+                    valueSchema: z.ZodRecord<z.ZodString, z.ZodJSONSchema>;
+                    default: z.ZodDiscriminatedUnion<[
+                        z.ZodObject<{
+                            kind: z.ZodLiteral<"absent">;
+                        }, z.core.$strict>,
+                        z.ZodObject<{
+                            kind: z.ZodLiteral<"value">;
+                            value: z.ZodJSONSchema;
+                        }, z.core.$strict>
+                    ], "kind">;
+                    merge: z.ZodEnum<{
+                        disabled: "disabled";
+                        override: "override";
+                    }>;
+                    sensitivity: z.ZodEnum<{
+                        ordinary: "ordinary";
+                        secret: "secret";
+                    }>;
+                }, z.core.$strict>>;
+            }, z.core.$strict>>;
+            permissions: z.ZodArray<z.ZodObject<{
+                reference: z.ZodObject<{
+                    origin: z.ZodDiscriminatedUnion<[
+                        z.ZodObject<{
+                            kind: z.ZodLiteral<"asset">;
+                            assetId: z.ZodString;
+                            releaseRef: z.ZodString;
+                        }, z.core.$strict>,
+                        z.ZodObject<{
+                            kind: z.ZodLiteral<"independent">;
+                            providerId: z.ZodString;
+                            definitionRef: z.ZodString;
+                        }, z.core.$strict>
+                    ], "kind">;
+                    itemId: z.ZodString;
+                    revision: z.ZodString;
+                }, z.core.$strict>;
+                capabilityId: z.ZodString;
+                enforcementKey: z.ZodString;
+                title: z.ZodString;
+                description: z.ZodString;
+                approvalEffect: z.ZodString;
+                supportedScopes: z.ZodArray<z.ZodObject<{
+                    kind: z.ZodEnum<{
+                        "one-time-call": "one-time-call";
+                        session: "session";
+                        tenant: "tenant";
+                    }>;
+                    description: z.ZodString;
+                }, z.core.$strict>>;
+                assignmentLayers: z.ZodArray<z.ZodEnum<{
+                    organization: "organization";
+                    session: "session";
+                    tenant: "tenant";
+                }>>;
+                values: z.ZodArray<z.ZodObject<{
+                    id: z.ZodString;
+                    title: z.ZodString;
+                    description: z.ZodString;
+                    permitsOperation: z.ZodBoolean;
+                }, z.core.$strict>>;
+                comparison: z.ZodNullable<z.ZodObject<{
+                    strictOrder: z.ZodArray<z.ZodString>;
+                    distances: z.ZodArray<z.ZodArray<z.ZodNumber>>;
+                }, z.core.$strict>>;
+                defaultRule: z.ZodObject<{
+                    pick: z.ZodNullable<z.ZodString>;
+                    allowedSet: z.ZodNullable<z.ZodArray<z.ZodString>>;
+                }, z.core.$strict>;
+                settings: z.ZodNullable<z.ZodObject<{
+                    providerId: z.ZodString;
+                    definitionId: z.ZodString;
+                    version: z.ZodString;
+                    itemId: z.ZodString;
+                    groupId: z.ZodString;
+                    groupTitle: z.ZodString;
+                    groupDescription: z.ZodString;
+                }, z.core.$strict>>;
+            }, z.core.$strict>>;
+            enforcementBindings: z.ZodArray<z.ZodObject<{
+                capabilityId: z.ZodString;
+                enforcementKey: z.ZodString;
+                implementationRef: z.ZodString;
+                action: z.ZodString;
+                interpretationRef: z.ZodString;
+            }, z.core.$strict>>;
+        }, z.core.$strict>;
+    }, z.core.$strict>,
+    z.ZodObject<{
+        kind: z.ZodLiteral<"unavailable">;
+    }, z.core.$strict>
+], "kind">;
+export type GovernanceDefinitionRead = z.infer<typeof GovernanceDefinitionReadSchema>;
+export interface GovernanceDefinitionSource {
+    resolve(identity: GovernanceDefinitionIdentity): Promise<GovernanceDefinitionRead>;
+}
 ```
