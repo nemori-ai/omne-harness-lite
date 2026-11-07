@@ -67,3 +67,9 @@
 [serve 用例](../../tests/serve.spec.ts)证明发行树 46 真件、2 替身全部 `ACTIVE`，启动就绪、按序停止后退出 0。[session-ad14 行用例](../../tests/rows/session-ad14/index.spec.ts)与 [agent-host 行用例](../../tests/rows/agent-host/index.spec.ts)证明三行在 `agentConditions` 缺席时停在 `PENDING`，以及 `jointCommits` 漏写 `message` 时装载失败。[session-conditions 行用例](../../tests/rows/session-conditions/default-modes.spec.ts)证明租户默认模式只在映射条目仍代表创建所记来源时交出。[coding-agent 用例](../../tests/assembly/coding-agent.spec.ts)证明定义段经真实采用面组装成系统提示词。端到端一轮（Files、Shell 各调用一次）由 qa 在发行树上验收。
 
 [账目端口用例](../../tests/rows/request-context/accounting.spec.ts)与[行用例](../../tests/rows/request-context/index.spec.ts)证明来源核验与读取资格的放行、拒绝与不可用；[持有者事实用例](../../tests/entry/runtime-context-replay-facts.spec.ts)证明入口按调用在受信作用域读取 `sessionReplayFacts`，缺席时答不可用，根上的同名提供者伪造不了 `known`。
+
+## W3 结果承接的生产验证
+
+W3 只采用 Tool 已提交的归一化结果。消费方在 saved 前独立耐久保存内联材料，历史保存卸载预览及固定期限，程序 data 不自动成为模型消息。生产 Tool 接收方、同一 Journal 材料读口和 Session 适配必须共同验证，不能用测试世界的 reader 替代实际发行行。
+
+当前 `session-ad06` 行尚缺 `ToolDeliveryReader` 与 coordinator。Agent 已生产具名完整 facts schema；适配时须按 Agent 的公开读取契约及 AD-06 的原绑定验证连接，不能仅把三个参数的读取器强转为单参数函数。该接线纳入 W3-A 生产组合，D 复跑真实服务验收。Tool 解除回执进入日志的 `JC-RELEASE-TOOL-PATH` 是另一项责任，补齐材料读取不自动关闭它。

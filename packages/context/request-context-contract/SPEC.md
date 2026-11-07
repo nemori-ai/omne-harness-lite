@@ -620,3 +620,11 @@ flowchart LR
 明确缺项：派生请求、表示、预算与最终采用的精确协议归产品 [CONTEXT-M02](../../../.meta_harness/design/product/runtime-context/design.md#context-m02)；已展示在途内容的恢复兑现归 [CONTEXT-M03](../../../.meta_harness/design/product/runtime-context/design.md#context-m03)；压缩设置的调整范围归 [U04](../../../.meta_harness/design/product/runtime-context/design.md#u04)；压缩记录形状与来源拥有者的变更计数义务归 `packages/common/message` 及各来源拥有者；提示词变量通过 `volatility` 显式声明频率，段引用逐请求变量时拒绝；登记面三操作归 `PromptContributionRegistry`。真实的组读口、窄采用来源、日志重放与原账目来源核验由各来源拥有者的适配器兑现；本成员的替身只证明协议，不证明真实日志耐久、生产授权桥、真实撤权或 Runtime Context 生产者的组合。类型与操作组归 `src/`，本页不复制签名。
 
 操作组与进程内契约测试不等于生产集成或性能测试，不证明真实接口、隔离、断电耐久、模型兼容或外传正确。候选、自检、独立审阅和实施接受分别判断。
+
+## W3 返回结构的定义呈现
+
+本节为待评审增量。请求工具声明仍只投影已合法采用的常驻集合，每个工具一条 LLM 声明；非常驻工具通过 Tools.inspect 提供完整用法，不因 schema 可发现而自动加入调用集合。
+
+常驻定义与命令菜单附上同一返回声明导出的简短结构说明。详细 schema 通过合法 inspect/help 读取，不能把全部嵌套 schema 强制展开到每轮请求。返回模式、结构、正文格式或 schema 采用改变时，工具定义内容及其缓存身份必须改变。模型适配层只消费已形成的 Model 请求值，不解释 ToolResult 或读取卸载正文。
+
+请求组装消费已经提交并被采用的内联正文或预览。组装器不为到期正文自动调用工具、不延长期限，也不为了计量而加载完整卸载正文。工具原生内容 ref 的媒体加载仍归既有模型准备路径，不能以正文卸载复制实现。

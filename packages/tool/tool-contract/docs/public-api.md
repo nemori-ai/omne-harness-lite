@@ -232,3 +232,18 @@ ProgramTools.call 交回唯一 ToolResult 封装，其 data 为程序值，conte
 根入口的 [tools-capability.ts](../src/tools-capability.ts) 导出 `toolsCapabilityOf`、`ToolsCapability` 和 `ToolsExecuteAnswer`。[tools-protocol.ts](../src/tools-protocol.ts) 拥有 Search、Inspect 和固定读取的纯业务类型。完整工具概览的 `usage` 为 null，具体命令用法携带 `ToolUsage`。
 
 provider 入口导出 [forwarding.ts](../src/forwarding.ts) 的父证明、原槽关联、source 和 runtime 类型，以及 `attachToolsCapability`。这些构造值不进入普通 invoke 或模型参数。生命周期与未知恢复遵循 [可信单目标转发](../SPEC.md#可信单目标转发与执行能力)。
+
+## W3 正文契约增量
+
+本节导航待评审的 W3 增量，不表示当前导出已经支持。唯一行为正文见 [有限期正文保管](../SPEC.md#有限期正文保管)、[P11 writer](../SPEC.md#模型正文-writer) 与 [P13](../SPEC.md#p13-双返回形态与程序输出契约)。正式类型在实现切片同批迁移全部消费者。
+
+| 边界 | 必须表达的内容 | 不授予的能力 |
+| --- | --- | --- |
+| 每个操作的返回声明 | 原返回结构、程序值协议、无正文或 text/json-document/json-lines、精确 codec/schema、系统或作者收紧的内联与期限上限 | 不允许参数临时扩大系统上限 |
+| 已提交的卸载正文引用 | 原调用与结果版本、bodyId、表示及 schema、原 UTF-8 字节数、作者或机械预览、采用与 activatedAt/expiresAt | 地址与 schema 不构成当前读取资格 |
+| 调用期 writer | begin、顺序 append、带最后序号的 seal、原操作 inspect；明确拒绝、容量、未知及冲突 | 不提供全局存储、Session 或任意材料删除 |
+| 正文语义页 | 固定身份、表示、期限、位置及 next；可读文本、完整或片段 JSON、完整 JSON Lines 记录 | 不默认给模型 base64，不自动重执行，不递归卸载 |
+| 读取失败 | result 已释放、body 已到期、经核权确认的缺失；游标错误、不可用和拒绝分别表达 | 不得以缺失隐藏越权或暂时故障 |
+| 保管维护分面 | 按原交付解除回执释放材料用途；有界到期扫描；按原操作查询维护结果 | 不复制消费者 ACK 协议，不进入普通 ToolRuntime 的任意删除面 |
+
+结果 data 的完整读取资格仍生效。正文页不替代 data，不以 data=none 隐藏无权读取的字段。程序消费者从明确程序协议取值，模型消费者只采用获准的正文和原生引用投影。

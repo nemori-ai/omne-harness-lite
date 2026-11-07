@@ -79,3 +79,11 @@ TodoItems 采用 [Session Todo 契约](../../session/session-contract/SPEC.md)�
 - attachTodoItems 复用传入的同一 context 对象，以 WeakMap 登记。必须在产生新 context 的 Tools 附着之后调用。finish 先清除 Todo，再委托原 finish，重复调用返回同一 Promise。清理失败仍不恢复访问，也不撤销已提交效果。
 
 [Todo 作者测试](tests/todo-items.spec.ts)通过真实 commandArguments、参数解码、executeTool、输出校验和 codec 检查业务映射。Tools 组合使用真实 attachToolsCapability。绑定业务方法使用定向替身，未覆盖完整应用、SQL、真实 Agent 或自动 Runtime Context 投影。
+
+## W3 操作返回声明
+
+本节为待评审增量，具体作者行为保持各节责任。每条操作从其现有声明表生成返回结构、程序协议与正文格式，help/inspect 和注册定义共用该源。Tools 及各多命令工具保持 wrapped 编码，常驻/非常驻边界不变。
+
+作者捕获或返回字符串的 resultMaxBytes 与 Tool 的模型正文内联上限分别生效。作者已经截断或设施已经丢弃的输出不能被 runtime 卸载补回。截断须继续如实说明；W3 不顺带重做 Shell 的捕获和后台机制。普通完整返回由 runtime 判断是否卸载，结构化作者可使用同调用 writer 提供完整正文和符合预算的摘要。
+
+TodoItems 的业务分页仍由 Session 拥有。正文卸载不改 list 游标，也不让工具读取 Session 实例或要求模型提供身份。返回 schema 与失败分支必须包含实际可达结果，不能只描述成功值。

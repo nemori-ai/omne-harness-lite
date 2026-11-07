@@ -301,3 +301,11 @@ MODEL-E01 的共享 ref、消息校验和发送阶段读取仍待实现验证；
 [background-calls-rc.spec.ts](../tests/background-calls-rc.spec.ts)经公开 RC 入口消费声明与纯投影，覆盖当前来源重算、撤权、旧 generation、scope 终止和生产者撤除。可信目录、授权与 RC 持有者均是测试输入或非耐久替身。生产目录和可信说明来源尚缺，不能据此宣称生产供给、耐久恢复或完整组合通过。
 
 首次采用事实的共享验证见 [environment-allocation.spec.ts](../tests/environment-allocation.spec.ts) 与 [公共套件](../src/testing-environment-allocation.ts)。消费者反例分别在 [driver](../../tool/tests/driver-allocation.spec.ts) 和 [宿主](../../tool-host-local/tests/environment-allocation.spec.ts)。这些测试不证明真实 EE 的原登记、guard、ledger 或冷恢复映射。
+
+## W3 正文保管的验证义务
+
+[四个有界模型及论证](models/body-custody/README.md)分别保护交接、材料、writer 与最终结果提交。执行输出留任务 tmp。局部模型不证明跨库原子性，也不证明源码已实现这些动作。
+
+实际提供者须覆盖内联可靠承接后释放、最终通道独立于 raw、提交未知不清理、正文到期不删 data/原生资源、页租约与删除竞争、writer 未 await 输出、确认丢失、撤权和租户隔离。还须验证分块材料部分删除后的重启、历史分类迁移、生产维护驱动及遥测失效不改变业务。
+
+模型动作到实际提交点逐项映射，不能只给状态数。程序中间结果使用既有 ProgramTools 的受信消费者验证，不将该证据称为完整 Code 工具交付。真实 Linux agent 任务验证预览和分页的可用性、到期识别及资源成本，有限模型和测试替身不能代替它。

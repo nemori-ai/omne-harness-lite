@@ -1878,6 +1878,14 @@ saved 与 outlet 完成互不等待。宿主状态持有出站任务引用和驱
 
 原操作以及未知或排除记录不得因这些响应而清除。查询 unavailable 不能抹掉原 unknown；只有后续权威查询确认 committed 或 excluded 后才能更新该未知状态。接收方不得自动为已排除的交付创建另一 operation。内部诊断保存在宿主持有的接收状态中，接收组件重装配不清除它。
 
+#### W3 Tool 材料承接
+
+Tool 交付的“完整材料”指最终已提交的归一化 ToolDelivery，不是已被替代的作者 raw 或卸载正文的另一份全文。原版本、预览、程序 data、原生引用及正文期限随实际交付保持；接收方不能为存储节省而删掉合法 data，也不能把它自动投影进模型消息。未通过此接收路径的程序子调用不因执行过就进入 Session 历史。
+
+接收方返回 saved 前须独立耐久保存所需内联材料，或保存满足其消费责任的可靠引用。不能只指向即将被 Tool 解除用途的副本。卸载正文由 Tool 在固定期限内保管，消费者保存预览和期限即可，不另复制全文续期。正文到期后，尚未完成的预览交付可以继续，读回失败不得自动重执行原工具。
+
+Tool 的交付解除回执仍由原生产者产生。Agent 不代发任意材料删除，也不建立第二套 ACK 协议。接收共同提交、Tool 解除、材料清理和 Session 历史分别有各自责任及失败记录；`JC-RELEASE-TOOL-PATH` 未解决前不声称原回执已进入日志。本段是 W3 待评审增量，实际 schema 升级和消费者迁移须同批验证。
+
 #### 接收共同提交
 
 `AgentReceivedCommits<P, B>` 是结果接收方保存一次交付的独立端口。其 `commit` 接收 `ReceivedCommitInput`，由 `ExecutionMutation`、不含 material 的 `ReceivedEntry` 草稿与完整 `Material<B>` 组成。输入不带 Authority，调用方不预造材料证据。`query` 只接收指向原操作的 `ExecutionMutation`。公开类型的唯一来源是源码，本节规定这些值的行为。

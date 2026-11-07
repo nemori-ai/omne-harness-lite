@@ -2,6 +2,8 @@
 
 本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。本包兑现的端口契约归它们的拥有者：记录仓端口 `ToolLedgerStore` 归 [`@omne-harness/tool`](../tool/src/ledger-store.ts)，原件保管端口 `ToolOutputCustody` 归 [`@omne-harness/tool-contract`](../tool-contract/SPEC.md#p05-执行事实与原输出)，SQL 操作语义归 [`@omne-harness/sql-contract`](../../storage/sql-contract/SPEC.md)。本文件不复制这些契约，只写本包怎样兑现它们。
 
+W3 的材料用途、期限、页租约及删除协议为 [#1168](https://github.com/nemori-ai/omne-harness-lite/issues/1168) 的待评审增量，尚未由本提供者实现。现有已知限制保留为实现差距，不作为继续永久保管正文的兼容依据。
+
 ## 范围与依据
 
 本包是 Tool 记录仓与原件保管的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore` 与 `ToolOutputCustody`，并导出静态材料 `toolStorageMaterials()`。`createSqlToolGuardedHostCommit` 另提供带原调用修订条件的 host 提交，供受信集成方写资源许可。
@@ -76,7 +78,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ### TS-05 结果投影保管
 
-`retainResult` 只在同一租户、同一调用已有封存的原件，且该原件的封印等于 `raw.custody.digest` 时进行。否则答 `invalid`（`field: 'raw'`）。投影值按严格 JSON 编码，在它自己的操作下按 TS-04 分块保管，清单记录它保管在哪个原件之上。参加者在清单提交时再核一次该原件仍已封存。同一操作重送答原证据，另一投影答 `conflict`。原件不因此改变。
+`retainResult` 只在同一租户、同一调用已有封存的原件，且该原件的封印等于 `raw.custody.digest` 时进行。否则答 `invalid`（`field: 'raw'`）。投影值按严格 JSON 编码，在它自己的操作下按 TS-04 分块保管，清单记录它保管在哪个原件之上。参加者在清单提交时再核一次该原件仍已封存。同一操作重送答原证据，另一投影答 `conflict`。原件字节不因此改变。最终投影须可独立恢复；raw 派生依据只保留定位和验证所需元数据，不能使读投影依赖已经获准释放的 raw 字节。最终提交前 raw 仍有归一化用途，提交后按用途解除和删除任务处理。
 
 ### TS-06 修订号
 
@@ -92,7 +94,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ### TS-09 读取次序
 
-`ToolLedgerStore.read` 用 `domain-serial`。保管的两个读（清单、块）用 `snapshot`，因为清单一经提交不再改变。sql-contract §9.3 把「可能写入排除记录的 Tool `lookup`/`queryOperation`」留在写路径（评审 N4）。在本包这一层，排除记录由账本以 `ToolLedgerStore.commit` 写入，按修订号条件提交，提交本身在写路径上。读只给出排除决定所依据的修订号，读与条件提交之间落下的任何写都使该提交答 `conflict`。
+`ToolLedgerStore.read` 用 `domain-serial`。字节清单内容不可变，读取使用 `snapshot`。W3 在内容读取前通过同材料身份及代次的权威门取得页租约，并核对用途、期限与删除围栏；仅凭不可变清单不足以授权与删除并发的读取。sql-contract §9.3 把「可能写入排除记录的 Tool `lookup`/`queryOperation`」留在写路径（评审 N4）。在本包这一层，排除记录由账本以 `ToolLedgerStore.commit` 写入，按修订号条件提交，提交本身在写路径上。读只给出排除决定所依据的修订号，读与条件提交之间落下的任何写都使该提交答 `conflict`。
 
 ### TS-10 材料
 
@@ -123,13 +125,26 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 - 每次提交使用新的 SQL 操作键（`tool.ledger`、`tool.guarded-host`、`tool.chunk`、`tool.manifest`）。端口按自己的记录认回结果，不认回 SQL 回执。
 - 已提交的写入与保管不因任何对象被丢弃而撤销。
 
+## W3 材料保管与回收设计
+
+精确行为归 [Tool 有限期正文保管](../tool-contract/SPEC.md#有限期正文保管)。本包沿既有 SQL 参加者兑现 Tool 账本与材料状态，不另建跨域存储权威。
+
+- 最终通道先写成耐久材料，再由 Tool 权威提交结果版本、用途、固定期限及待删除任务。准备材料的清单不能反向要求永久保留 raw。Tool 结果提交未知时查原 operation，不能因扫描不到关联就删除在途材料。
+- 材料身份、代次和用途是回收依据。相同字节可以共享物理材料，但每项独立用途须完整登记；引用计数的数字本身不代替用途证据。原生引用的目标不登记为可删除的 Tool 正文。
+- 页准入和删除围栏在同材料顺序中核验。删除任务固定精确 key 和代次；IO 在 SQL 事务外执行，成功后确认原任务。未知或失败保持待办。过期只关闭正文新读，不清除仍有程序用途或有效页租约的材料。
+- 受信维护端口以有限批量扫描和推进。租户过滤同时覆盖清单、块、用途、租约、任务及认回路径；跨租户相同调用号不能共用材料。SQL 内部 base64 信封仍是传输编码，不作为模型正文协议。
+- 历史迁移先提供预演清单。可信结果提交时刻可作期限起点，否则在迁移提交时一次固定。无法确认所有权的材料隔离报告，不能按字段名或路径猜测为 Tool 自有正文。迁移同身份可认回，原生附件目标不在删除集合。
+- 空间验证分别记录源字节、材料副本、索引、回执、WAL、临时文件及数据库空闲页。逻辑释放、可复用空间和操作系统文件缩小分别报告；不为缩小文件而无条件阻塞前台执行 VACUUM。
+
+提供者工厂继续不持有定时器或宿主生命周期。扫描调度及关闭排空由装配持有者承担。SQL 清单与字节后端可以分离，但最终材料耐久、Tool 提交和物理删除确认仍是三个可注入故障的边界。
+
 ## 已知限制
 
 1. 同域共用写队列（R1-D2）：Tool 的提交与会话日志的提交在同一租户事务域排队。ST-09 或 E9 测量超过阈值时重开。
 2. 两条不等式（评审 N1）。左侧上界归 `tool` 的 P08 拥有者，在它给出之前是已知限制：
    - 一次 `ToolLedgerStore.commit` 的写入集，编码后加信封不超过 `storage` 行的 `maxCommandBytes`。超过时提供者拒绝（`command_limit`），端口答 `unavailable`。
    - 一个账本域的全部记录，编码后不超过读 handler 的 `maxOutputBytes`（4194304）与提供者的 `maxReadResultBytes`，记录数不超过 100000。超过时读答 `unavailable`。
-3. 原件全文永久保留，与会话日志在同一个 SQLite 文件里增长，没有到期删除（评审 N7）。重开阈值的归属由 Reduce 在 RI 时定。
+3. 当前实现没有材料到期删除，Tool 材料与会话日志在同一个 SQLite 文件里增长。它尚不满足 W3 的有限期正文契约，须由本波新增用途及删除流程闭合；不能保留为生产永久全文政策。
 4. `inspect` 对从未保管的操作答 `unknown`（U1），P05 拥有者另定时再改。
 5. 只验证了单进程。两个进程共用一个库、真实 SQLite 提供者的 Worker、持久与断电都未验证，留联调 A。
 6. 每次提交（包括每个块）在提供者的回执表里留下一条回执。原件越大，回执越多。

@@ -4,6 +4,36 @@
 
 本页只列契约对象。实现包 `tool` 自有的对象见 tool 对象模型（`tool/docs/object-model.md`）。
 
+## 正文保管的关系与职责
+
+以下是 [有限期正文保管](../SPEC.md#有限期正文保管) 的职责关系，不要求逐项建立类、服务或进程。
+
+```mermaid
+classDiagram
+    class ToolOperation
+    class ReturnDeclaration
+    class ExecutionScope
+    class BodyWriter
+    class PreparedResult
+    class CommittedResult
+    class MaterialUse
+    class BodyReader
+    class CustodyMaintenance
+    ToolOperation *-- ReturnDeclaration : 固定返回结构与策略
+    ExecutionScope *-- BodyWriter : 限定调用和输出屏障
+    BodyWriter --> PreparedResult : 封存待采用正文
+    PreparedResult --> CommittedResult : 一次最终提交
+    CommittedResult *-- MaterialUse : 各通道保管用途
+    BodyReader --> MaterialUse : 核资格期限和页租约
+    CustodyMaintenance --> MaterialUse : 用途结束后围栏删除
+```
+
+返回声明是值，随精确操作采用固定。writer 是调用期能力，其退出不能丢掉已受理写入。prepared 是现有 settle 的阶段，不能对模型开放。committed 固定结果版本、通道关联与正文期限，后续交付和读取不能改写该版本。材料用途由 Tool 权威记录管理；字节提供者兑现耐久、定址读取和精确删除。
+
+策略计量、预览选择和合法转换是纯判定。writer、读取及维护分别暴露最小接口；普通作者没有全局保管权限，维护者没有执行工具或任意读取结果的权限。Tool 不认识 Session 实例，只核其公开交接证据。Cordis 负责组装这些能力及管理提供者生命周期，不决定材料属于哪个业务通道。
+
+到期状态、页租约和物理删除状态分开。读者持有有界租约并不续正文 TTL；删除围栏禁止新增用途。原生文件目标不作为 Tool 自有材料登记。相同材料被程序数据等独立用途持有时，只有全部用途结束才可物理删除。
+
 ## 调用方怎样使用
 
 下例是职责伪代码。每个操作都要处理成功、拒绝和未知三类结果。它不表示某个实现已经提供全部操作，实现范围见各实现包的 SPEC。
@@ -29,7 +59,7 @@
     拒绝：读取资格不足时整次拒绝，不伪装为 data=none
     未知：读到内容不等于已承接，承接结果未知时不解除交付
     承接后调用 commands.releaseDelivery，带消费位置和交接证据
-        只解除这一版的交付关系，不删除全文
+        解除这一版的交付用途，正文期限独立
         回执未知时用返回的操作引用经 queries.queryOperation 认回，不重新发送意图
 
 控制方对原调用提交 commands.control：stop、withdraw（必须带 reach）或 background
@@ -80,7 +110,7 @@ Tool 建模自己承担的责任：一次原调用的真实执行、等待、控
 | ClockSegment / ToolTiming | 值及累计记录，来源 + epoch + marker | 前台实际运行量、暂停点和未知 | 转换同提交；不会恢复归零 |
 | Checkpoint / SuspensionRecord | 协议值，原暂停 operation | schema、已做效果、已消费答复、旧执行排除 | checkpoint 只供唯一后继 resume；普通函数没有它 |
 | RawOutput / ToolResult | 不可变结果值，保管身份及 resultVersion | 原值无损保管、展示内容、具名程序数据和附件 | 独立于执行环境；renderer 或输出校验失败也保留原件 |
-| Delivery | 聚合内实体，resultVersion + delivery + consumer | 待交付或已解除关系、生产侧回执 | 每个晚到版本各有一项；解除不删除全文 |
+| Delivery | 聚合内实体，resultVersion + delivery + consumer | 待交付或已解除关系、生产侧回执 | 每个晚到版本各有一项；解除后按材料用途判断，不改变正文期限 |
 | ProcessProjection | 持久投影，call + cursor + block index | 已展示过程的快照和增量顺序 | 无活体仍能读取；不能进入消费方的请求内容 |
 | AccountFact | 不可变来源事实，owner/event/start/revision | 原执行用量、未知和费用修订 | 调用终局后继续补录；读取账目不授正文权 |
 | FactProgress | 持久源流记录，start + source | 已保存cursor、待确认FactReceipt | receiveFacts同提交，恢复经loadRecovery，不读私表 |
@@ -337,7 +367,7 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | [CAP-TL06](../verification/README.md#产品到成员的覆盖) 等待答复 | WaitIntent/WaitRecord、ResponseRecord、ToolDecisionBridge、ToolResourceResponses | 一次等待只有一个有效答复；登记或确认丢失后可认回；Ask 不用资源超时 |
 | [CAP-TL07](../verification/README.md#产品到成员的覆盖) 结果及采用 | ToolAuthor、OutputCodec、ResultPolicy、RawOutput、ToolResult | 原件先于渲染与政策检查保管；失败不重跑，不假报耐久 |
 | [CAP-TL08](../verification/README.md#产品到成员的覆盖) 过程观察 | ProcessBlock、公共 `StreamFrame` 上的 `ToolStreamSnapshot` / `ToolStreamDelta` / `ToolStreamEnd`、ProcessSnapshot、ProcessProjection | 保存先于展示；快照与增量无缝隙；人用内容不进入消费方的请求 |
-| [CAP-TL09](../verification/README.md#产品到成员的覆盖) 保管全文取回 | RawOutput、ContentReader、ToolOffloader、Delivery | 回执丢失后可认回；每个晚到版本各有交付；解除不删除全文 |
+| [CAP-TL09](../verification/README.md#产品到成员的覆盖) 保管全文取回 | RawOutput、ContentReader、ToolOffloader、Delivery | 回执丢失后可认回；每个晚到版本各有交付；解除不改变正文期限，不删除原生资源 |
 | [CAP-TL10](../verification/README.md#产品到成员的覆盖) 控制与撤回 | ToolControl、ControlDispatch/Progress、PhysicalExecution | 受理不等于已停；拒绝或未知不假报停止；withdraw 的 reach 必填且范围分别生效；reach 不及目标当时的关系时回 rejected（out-of-reach），调用不变 |
 | [CAP-TL11](../verification/README.md#产品到成员的覆盖) 原调用恢复 | ToolRecovery、ToolTask、RecoveryBinding、Checkpoint、DrainState | 响应丢失或查询未知时认回原操作；被围栏的旧协调者不再推进；恢复不产生第二次执行 |
 | [CAP-TL12](../verification/README.md#产品到成员的覆盖) 执行账 | CallAccount、recordAccount、ToolAccounts | 同源事实不重计；修订替代原值；未知不当作零；读取账目不披露内容 |
