@@ -14,6 +14,12 @@ export const SOURCE_SERVICE_READ = {
 export const sourceServiceReadSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('reservation'), request: sourceRequestSchema }),
   z.strictObject({ kind: z.literal('holds'), page: sourcePageSchema }),
+  z.strictObject({
+    kind: z.literal('source-holds'),
+    source: sourceReferenceSchema,
+    page: sourcePageSchema,
+  }),
+  z.strictObject({ kind: z.literal('update-readiness'), update: sourceUpdateSchema }),
   z.strictObject({ kind: z.literal('updates'), page: sourcePageSchema }),
 ])
 export const sourceSettlementFactSchema = z.strictObject({
@@ -68,3 +74,12 @@ export type SettingsSourceDestination = {
     request: z.infer<typeof sourceRequestSchema>,
   ): Promise<z.infer<typeof sourceDestinationResultSchema>>
 }
+
+export const sourceUpdateReadinessSchema = z.union([
+  z.strictObject({ kind: z.literal('conflict') }),
+  z.strictObject({
+    kind: z.enum(['ready', 'draining']),
+    held: z.number().int().min(0).max(128),
+    update: sourceUpdateSchema,
+  }),
+])

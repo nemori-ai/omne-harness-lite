@@ -106,3 +106,5 @@ pnpm --filter @omne-harness/settings-local run test:fast
 ## Maintenance entry points
 
 Change assignment semantics in Settings first, then update persistence and its conformity tests. Change target existence, declarations, versions, or sources in the actual target owner and its invalidation writers. Change capture bindings in [projection.ts](src/projection.ts) together with both owner producers and the catalog tests. Keep the public behavior, assembly instructions, diagrams, and test guide aligned when those boundaries change.
+
+For a source update, use `control.recoverSource(source, page)` to drain only the affected source. Continue through returned cursors and retry unavailable items in a later scan from null. A prepared source update with outstanding holds returns rejected/unavailable and remains pending. Retry its original preparation after settlement; the final business transaction still checks the exact gate and current authority.

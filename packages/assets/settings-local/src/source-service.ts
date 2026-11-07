@@ -7,6 +7,8 @@ import type { SettingsSqlAccessGrant } from './types.ts'
 import type { PreparationRegistration } from './preparation-types.ts'
 import {
   sourcePageSchema,
+  sourceReferenceSchema,
+  type SourceReference,
   sourceRequestSchema,
   SOURCE_SNAPSHOT_PARTICIPANT,
   SOURCE_RETENTION_OWNER,
@@ -152,6 +154,19 @@ export function createSettingsSourceReservations<Context>(input: SettingsSourceO
     if (!equal(result.request, request)) return failure('operation_conflict')
     return write({ kind: 'settlement', settlement: { request, outcome: result.outcome } })
   }
+  async function recover(
+    request: Extract<z.infer<typeof sourceServiceReadSchema>, { kind: 'holds' | 'source-holds' }>,
+  ) {
+    const page = sourceHeldPageSchema.parse(await read(request))
+    const items: { request: SourceRequest; result: Reply }[] = []
+    for (const item of page.items) {
+      if (request.kind === 'source-holds' && !equal(item.request.source, request.source))
+        throw new Error('Settings source recovery scope mismatch')
+      const result = await settle(item.request).catch(() => failure('unavailable'))
+      items.push({ request: item.request, result })
+    }
+    return { kind: 'recovered' as const, items, after: page.after }
+  }
   return {
     service: {
       reserve(context: Context, raw: SourceRequest): Promise<Reply> {
@@ -167,15 +182,14 @@ export function createSettingsSourceReservations<Context>(input: SettingsSourceO
       recover(raw: SourcePage) {
         const parsed = sourcePageSchema.safeParse(raw)
         if (!parsed.success) return Promise.resolve(failure('invalid_input'))
-        return run(async () => {
-          const page = sourceHeldPageSchema.parse(await read({ kind: 'holds', page: parsed.data }))
-          const items: { request: SourceRequest; result: Reply }[] = []
-          for (const item of page.items) {
-            const result = await settle(item.request).catch(() => failure('unavailable'))
-            items.push({ request: item.request, result })
-          }
-          return { kind: 'recovered' as const, items, after: page.after }
-        })
+        return run(() => recover({ kind: 'holds', page: parsed.data }))
+      },
+      recoverSource(rawSource: SourceReference, rawPage: SourcePage) {
+        const source = sourceReferenceSchema.safeParse(rawSource)
+        const page = sourcePageSchema.safeParse(rawPage)
+        if (!source.success || !page.success) return Promise.resolve(failure('invalid_input'))
+        if (!equal(source.data.domain, options.domain)) return Promise.resolve(failure('forbidden'))
+        return run(() => recover({ kind: 'source-holds', source: source.data, page: page.data }))
       },
       pendingUpdates(raw: SourcePage) {
         const parsed = sourcePageSchema.safeParse(raw)

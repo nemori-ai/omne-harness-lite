@@ -195,6 +195,13 @@ function metadataPage<T>(
   }
   return { items, after }
 }
+function reservationMetadata(row: readonly unknown[]) {
+  const request = sourceRequestSchema.parse(JSON.parse(z.string().parse(row[1])))
+  const reservationId = z.string().parse(row[0])
+  if (sourceReservationKey(request) !== reservationId || sourceKey(request.source) !== row[2])
+    throw new Error('Invalid source recovery reservation')
+  return { reservationId, request }
+}
 export function recoverSourceHolds(port: ReadPort, raw: SourcePage) {
   const page = sourcePageSchema.parse(raw)
   const rows = port.execute(
@@ -203,12 +210,21 @@ export function recoverSourceHolds(port: ReadPort, raw: SourcePage) {
       ORDER BY reservation_key LIMIT ?`,
     [page.after ?? '', page.limit],
   ).rows
+  return metadataPage(rows, reservationMetadata)
+}
+export function recoverOneSourceHolds(port: ReadPort, raw: SourceReference, rawPage: SourcePage) {
+  const source = sourceReferenceSchema.parse(raw)
+  const page = sourcePageSchema.parse(rawPage)
+  const rows = port.execute(
+    `SELECT reservation_key, request_json, source_key
+      FROM st_source_reservation WHERE source_key = ? AND state = 'held' AND reservation_key > ?
+      ORDER BY reservation_key LIMIT ?`,
+    [sourceKey(source), page.after ?? '', page.limit],
+  ).rows
   return metadataPage(rows, row => {
-    const request = sourceRequestSchema.parse(JSON.parse(z.string().parse(row[1])))
-    const reservationId = z.string().parse(row[0])
-    if (sourceReservationKey(request) !== reservationId || sourceKey(request.source) !== row[2])
-      throw new Error('Invalid source recovery reservation')
-    return { reservationId, request }
+    const item = reservationMetadata(row)
+    if (!equal(item.request.source, source)) throw new Error('Invalid source recovery scope')
+    return item
   })
 }
 

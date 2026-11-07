@@ -16,7 +16,7 @@ import { definition } from './world.ts'
 export type Context = { allowed: boolean; principalRef: string }
 export async function openPreparedServiceWorld(
   configure?: (options: SettingsPreparationOptions<Context>) => SettingsPreparationOptions<Context>,
-  bound?: { scopeRef: string; principalRef: string },
+  bound?: { scopeRef?: string; principalRef?: string; sourceCapture?: boolean },
 ) {
   const input = allocation()
   const ids = randomIdentifiers()
@@ -31,7 +31,7 @@ export async function openPreparedServiceWorld(
   )
   mkdirSync(parent, { recursive: true })
   const root = realpathSync(mkdtempSync(join(parent, 'case-')))
-  const world = await openRecoveryWorld(root, input.identity.domain)
+  const world = await openRecoveryWorld(root, input.identity.domain, bound?.sourceCapture)
   let current: PreparationPlan = {
     kind: 'planned',
     basis: input.plan,

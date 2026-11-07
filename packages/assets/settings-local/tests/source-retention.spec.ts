@@ -202,6 +202,15 @@ it('uses bounded indexed recovery and constraints in the real installed relation
       ],
     ])
       expect(JSON.stringify(db.prepare(`EXPLAIN QUERY PLAN ${query}`).all(''))).toContain(index)
+    const scopedPlan = JSON.stringify(
+      db
+        .prepare(
+          "EXPLAIN QUERY PLAN SELECT reservation_key, request_json, source_key FROM st_source_reservation WHERE source_key = ? AND state = 'held' AND reservation_key > ? ORDER BY reservation_key LIMIT ?",
+        )
+        .all('', '', 100),
+    )
+    expect(scopedPlan).toContain('st_source_held')
+    expect(scopedPlan).not.toContain('TEMP B-TREE')
     expect(() => db.prepare('UPDATE st_source_gate SET pending_json = NULL').run()).toThrow()
     expect(() => db.prepare("UPDATE st_source_reservation SET state = 'settled'").run()).toThrow()
   } finally {

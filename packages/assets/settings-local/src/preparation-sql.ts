@@ -16,6 +16,8 @@ import { intentObservationSchema } from './preparation-observation.ts'
 import { intentAttemptIdentity } from './intent-records.ts'
 import type { IntentIdentity } from './intent-schema.ts'
 import type { SettingsPreparationOptions, PreparationPhase } from './preparation-types.ts'
+import { SOURCE_SERVICE_READ, sourceUpdateReadinessSchema } from './source-service-schema.ts'
+import type { SourceUpdate } from './source-retention-schema.ts'
 import { equal, json } from './encoding.ts'
 const participants = {
   checkpoint: SETTINGS_CHECKPOINT_PARTICIPANTS,
@@ -71,6 +73,19 @@ export class PreparationSql<Context> {
     if (result.kind === 'found' && !equal(result.identity, identity))
       throw new Error('Settings root observation binding mismatch')
     return result
+  }
+  async sourceUpdateReady(update: SourceUpdate) {
+    const result = await this.options.storage.read({
+      domain: this.options.domain,
+      ...SOURCE_SERVICE_READ,
+      requestKey: randomUUID(),
+      input: json({ kind: 'update-readiness', update }),
+    })
+    if (result.kind !== 'read') throw new Error('Settings source readiness unavailable')
+    const readiness = sourceUpdateReadinessSchema.parse(result.output)
+    if (readiness.kind === 'conflict' || !equal(readiness.update, update))
+      throw new Error('Settings source update no longer pending')
+    return readiness.kind === 'ready' && readiness.held === 0
   }
   async write(request: FinalizationRequest, extra: readonly FactCommandV2[] = []) {
     const phase: PreparationPhase =

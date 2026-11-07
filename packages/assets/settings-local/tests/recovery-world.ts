@@ -1,3 +1,5 @@
+import { sourceSnapshotMaterials } from '../src/source-snapshot-materials.ts'
+import { settingsStandaloneMaterials } from '../src/standalone-materials.ts'
 import { randomUUID, createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import {
@@ -51,8 +53,21 @@ function moduleFile(name: string) {
 export async function openRecoveryWorld(
   root: string,
   domain: DomainRef = allocation().identity.domain,
+  sourceCapture = false,
 ) {
-  const own = settingsRecoveryMaterials()
+  const base = settingsRecoveryMaterials()
+  const targets = settingsStandaloneMaterials()
+  const own = sourceCapture
+    ? {
+        ...base,
+        participants: [
+          ...base.participants.filter(p => p.participant !== 'settings.source-snapshot'),
+          ...sourceSnapshotMaterials({ capture: true }).participants,
+          ...targets.participants,
+        ],
+        migrations: [...base.migrations, ...targets.migrations],
+      }
+    : base
   const materials: SqlMaterialCatalog = {
     ...own,
     catalogProtocol: 'sql-catalog/1',

@@ -195,6 +195,15 @@ export class PreparationEngine<Context> {
     if (original) return original
     if (root.attempt?.attemptId !== ref.attemptId || root.attempt.status.state === 'preparing')
       return { kind: 'rejected', reason: 'basis_changed' }
+    if (
+      root.purpose.kind === 'source-update' &&
+      !(await this.sql.sourceUpdateReady({
+        source: { domain: root.identity.domain, target: root.identity.operation.target },
+        identity: root.identity,
+        commandDigest: intentCommandDigest(root.intent),
+      }))
+    )
+      return { kind: 'rejected', reason: 'unavailable' }
     return this.commitPrepared(context, root, ref.attemptId)
   }
   private async commitPrepared(

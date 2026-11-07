@@ -197,3 +197,7 @@ source-snapshot的真实读取增量验证了模型中源快照的部分精化�
 `source-service.spec.ts` 覆盖实际目的提交与封口的两种顺序、丢失来源回复、旧 attempt 与后继分离、重开、关闭排空及不存在的目的请求。`identity-sources.spec.ts` 覆盖真实成员资格、组织和租户绑定与撤回后的原责任恢复。`source-pagination.spec.ts` 验证长合法引用下按字节缩短页面仍不漏项；扫描只取元数据，保留现有 keyset 索引。
 
 这些证据精化了 TerminalBeforeRelease、SealedDestinationCannotCommit 与固定身份前提。组织管理员更新、真实共享上界求值和应用消费者接线仍有未完成项，不能把库组合测试写成完整 C3b 接受。
+
+`source-update-service.spec.ts` 对来源等待补充生产协调器反例。旧协调器在 held 时提交确定性 SQL，随后因回滚把原更新封口。现协调器先读取精确 pending 更新及 held 数；等待不产生业务 SQL 或终态。该读取只是调度判断，提交守卫仍在原事务内核验。用例覆盖等待后同一 preparation 提交、按来源恢复隔离、未知结果保留、取消与分页。来源与目的事务均为真实 SQLite 组合；Identity 和 current 在这些用例中是声明过的夹具，因此它们不证明完整组织管理员装配。
+
+这项细化保留现有来源模型的终态后释放和旧目的不可复活条件。它不增加新的模型状态或释放规则，也不承诺永久不可用目的最终恢复。`source-retention.spec.ts` 检查按 source_key 筛选的实际查询计划使用 st_source_held，且不增加排序临时树。
