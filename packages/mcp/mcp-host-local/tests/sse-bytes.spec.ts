@@ -58,6 +58,32 @@ describe('the byte counter of an SSE event (SPEC H8)', () => {
     expect(await through(16, [event, event, event])).toEqual({ passed: event.repeat(3) })
   })
 
+  it.each([
+    ['an LF', '\n'],
+    ['a CR', '\r'],
+    ['a CRLF', '\r\n'],
+  ])(
+    'a body that opens with %s opens with an empty line: the first event starts its count at zero',
+    async (_name, opening) => {
+      expect(await through(16, [`${opening}${eventOf(16)}\n`])).toEqual({
+        passed: `${opening}${eventOf(16)}\n`,
+      })
+      expect(await through(16, [`${opening}${eventOf(17)}\n`])).toMatchObject({
+        error: expect.any(RangeError),
+      })
+    },
+  )
+
+  it('a data line that ends with CRLF and an empty line that is a bare LF: the CRLF counts, the LF is the boundary', async () => {
+    const first = eventOf(16, '\r\n')
+    expect(await through(16, [`${first}\n${eventOf(16)}\n`])).toEqual({
+      passed: `${first}\n${eventOf(16)}\n`,
+    })
+    expect(await through(16, [`${eventOf(17, '\r\n')}\n`])).toMatchObject({
+      error: expect.any(RangeError),
+    })
+  })
+
   it('a CRLF split across two chunks is one line end: the LF of the empty line is not counted', async () => {
     const line = eventOf(16, '\r\n')
     // The empty line's CR closes one chunk and its LF opens the next, followed by a full event.
