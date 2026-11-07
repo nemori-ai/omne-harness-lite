@@ -20,6 +20,7 @@ import {
 } from '../src/index.ts'
 import {
   SESSION_PATH,
+  anotherLogin,
   baseConfig,
   createSession,
   login,
@@ -350,7 +351,8 @@ describe('the judgment order of read-history', () => {
         }),
       })
       const who = await login(fixture, 'alice')
-      const other = await login(fixture, 'bob')
+      const other =
+        mode === 'login-changed' ? await anotherLogin(fixture, who) : await login(fixture, 'bob')
       replacement = await fixture.identity.recognizeLogin({ loginProof: other.loginProof })
       const session = await createSession(fixture, who)
       fixture.doubles.entries.push(...runEntries('private-run', 1))

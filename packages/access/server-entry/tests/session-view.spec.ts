@@ -1227,11 +1227,20 @@ describe('the values the owners give', () => {
       { kind: 'cannot-fit', reason: 'elsewhere' },
       { kind: 'cannot-fit', reason: { kind: 'unknown', reason: 'unsupported' } },
     ],
-    [{ kind: 'guard' }, { kind: 'guard' }],
-    [{ kind: 'request-rejected' }, { kind: 'request-rejected' }],
-    [{ kind: 'compaction-invalid' }, { kind: 'compaction-invalid' }],
-    [{ kind: 'message-rejected' }, { kind: 'message-rejected' }],
-    [{ kind: 'extension-stop' }, { kind: 'extension-stop' }],
+    [{ kind: 'guard', diagnostic: 'private-failure-text' }, { kind: 'guard' }],
+    [
+      { kind: 'request-rejected', diagnostic: 'private-failure-text' },
+      { kind: 'request-rejected' },
+    ],
+    [
+      { kind: 'compaction-invalid', diagnostic: 'private-failure-text' },
+      { kind: 'compaction-invalid' },
+    ],
+    [
+      { kind: 'message-rejected', diagnostic: 'private-failure-text' },
+      { kind: 'message-rejected' },
+    ],
+    [{ kind: 'extension-stop', diagnostic: 'private-failure-text' }, { kind: 'extension-stop' }],
     [
       { kind: 'model-refused', call: 'c1', failure: { kind: 'exotic' } },
       { kind: 'model-refused', failure: { kind: 'unknown', reason: 'unsupported' } },
