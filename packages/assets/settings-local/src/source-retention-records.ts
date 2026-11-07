@@ -178,6 +178,23 @@ export function readSourceGate(port: ReadPort, raw: SourceReference) {
 export function readSourceReservation(port: ReadPort, raw: SourceRequest) {
   return readReservation(port, sourceRequestSchema.parse(raw))
 }
+function metadataPage<T>(
+  rows: readonly (readonly unknown[])[],
+  decode: (row: readonly unknown[]) => T,
+) {
+  const items: T[] = []
+  let bytes = 0
+  let after: string | null = null
+  for (const row of rows) {
+    const item = decode(row)
+    const size = Buffer.byteLength(canonical(item))
+    if (items.length > 0 && bytes + size > 1024 * 1024) break
+    items.push(item)
+    bytes += size
+    after = z.string().parse(row[0])
+  }
+  return { items, after }
+}
 export function recoverSourceHolds(port: ReadPort, raw: SourcePage) {
   const page = sourcePageSchema.parse(raw)
   const rows = port.execute(
@@ -186,14 +203,13 @@ export function recoverSourceHolds(port: ReadPort, raw: SourcePage) {
       ORDER BY reservation_key LIMIT ?`,
     [page.after ?? '', page.limit],
   ).rows
-  const items = rows.map(row => {
+  return metadataPage(rows, row => {
     const request = sourceRequestSchema.parse(JSON.parse(z.string().parse(row[1])))
     const reservationId = z.string().parse(row[0])
     if (sourceReservationKey(request) !== reservationId || sourceKey(request.source) !== row[2])
       throw new Error('Invalid source recovery reservation')
     return { reservationId, request }
   })
-  return { items, after: rows.length ? z.string().parse(rows[rows.length - 1]?.[0]) : null }
 }
 
 export function recoverSourceUpdates(port: ReadPort, raw: SourcePage) {
@@ -204,10 +220,9 @@ export function recoverSourceUpdates(port: ReadPort, raw: SourcePage) {
     ORDER BY source_key LIMIT ?`,
     [page.after ?? '', page.limit],
   ).rows
-  const items = rows.map(row => {
+  return metadataPage(rows, row => {
     const source = sourceReferenceSchema.parse(JSON.parse(z.string().parse(row[1])))
     if (sourceKey(source) !== row[0]) throw new Error('Invalid source recovery key')
     return decodeGate(row.slice(1), source)
   })
-  return { items, after: rows.length ? z.string().parse(rows[rows.length - 1]?.[0]) : null }
 }

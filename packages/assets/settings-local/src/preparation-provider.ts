@@ -11,6 +11,8 @@ import {
 } from '@omne-harness/settings'
 import type { StandingDestinationResolver } from '@omne-harness/identity'
 import { PreparationEngine } from './preparation-engine.ts'
+import { preparationSourceDestination } from './preparation-source-destination.ts'
+import type { SettingsSourceDestination } from './source-service-schema.ts'
 import { preparationDestination } from './preparation-destination.ts'
 import { operationObservation } from './preparation-observation.ts'
 import { changesSchema, HANDLER, PROTOCOL } from './schema.ts'
@@ -33,7 +35,11 @@ export function createSettingsPreparationBackend<Context>(
   options: SettingsPreparationOptions<Context>,
 ): {
   service: SettingsPreparationService<Context>
-  control: { close(): Promise<void>; destination: StandingDestinationResolver }
+  control: {
+    close(): Promise<void>
+    destination: StandingDestinationResolver
+    sourceDestination: SettingsSourceDestination
+  }
 } {
   const engine = new PreparationEngine(options)
   const active = new Set<Promise<unknown>>()
@@ -122,9 +128,26 @@ export function createSettingsPreparationBackend<Context>(
     },
   }
   const destination = preparationDestination(engine.sql)
+  const sourceDestination = preparationSourceDestination(engine.sql)
   return {
     service,
     control: {
+      sourceDestination: {
+        recognize(request) {
+          if (closing) return Promise.resolve({ kind: 'unavailable' as const })
+          const pending = sourceDestination.recognize(request)
+          active.add(pending)
+          void pending.then(() => active.delete(pending))
+          return pending
+        },
+        seal(request) {
+          if (closing) return Promise.resolve({ kind: 'unavailable' as const })
+          const pending = sourceDestination.seal(request)
+          active.add(pending)
+          void pending.then(() => active.delete(pending))
+          return pending
+        },
+      },
       close() {
         return (closing ??= Promise.allSettled(active).then(() => undefined))
       },

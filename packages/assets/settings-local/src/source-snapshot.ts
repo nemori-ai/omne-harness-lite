@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { sourceSettlementFactSchema } from './source-service-schema.ts'
 import { defineSettings } from '@omne-harness/settings'
 import type { ParticipantModule, ReadPort } from '@omne-harness/sql-contract/worker'
 import {
@@ -7,6 +8,7 @@ import {
   type SourceRequest,
 } from './source-retention-schema.ts'
 import {
+  isIndependentTargetInDomain,
   readStandaloneSettingsRecord,
   projectStandaloneSettingsRecord,
 } from './standalone-records.ts'
@@ -59,11 +61,7 @@ function captureSource(port: ReadPort, request: SourceRequest) {
   ) => ({ kind: 'unavailable' as const, reason })
   const { source } = request
   if (source.target.policyId !== 'independent') return unavailable('unsupported')
-  if (
-    source.domain.scope.kind === 'tenant' &&
-    source.target.scopeRef !== source.domain.scope.tenant
-  )
-    return unavailable('forbidden')
+  if (!isIndependentTargetInDomain(source.domain, source.target)) return unavailable('forbidden')
   const record = readStandaloneSettingsRecord(port, stateKey(source.domain.scope, source.target))
   if (!record || record.retired) return unavailable('forbidden')
   if (!equal(record.projection.target, source.target))
@@ -82,9 +80,13 @@ export default {
   participant: SOURCE_SNAPSHOT_PARTICIPANT,
   protocol: SOURCE_SNAPSHOT_PROTOCOL,
   execute(facts, port) {
-    if (facts['kind'] === 'write') return projectSourceWrite(facts, port)
     if (!withinBudget(facts))
       return { kind: 'failed', diagnostic: 'settings_source_snapshot_limit' }
+    if (facts['kind'] === 'settlement') {
+      port.provideFact(SOURCE_SNAPSHOT_FACT, json(sourceSettlementFactSchema.parse(facts)))
+      return { kind: 'participated', response: null }
+    }
+    if (facts['kind'] === 'write') return projectSourceWrite(facts, port)
     const parsed = sourceRequestSchema.safeParse(facts['request'])
     if (!parsed.success) return { kind: 'failed', diagnostic: 'settings_source_snapshot_input' }
     try {

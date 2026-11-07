@@ -132,6 +132,7 @@ export function settingsSqlMaterials(
       },
     ],
     readHandlers: [
+      ...retention.readHandlers,
       {
         handler: TERMINAL_HANDLER,
         protocol: TERMINAL_PROTOCOL,

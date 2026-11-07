@@ -140,7 +140,7 @@ Allocation preserves the full original command. A different transport requestId 
 
 Reads use two indexed point queries, each with LIMIT 1. They validate the stored command binding, attempt sequence, plan target, ready-basis digest, and exact SQL destination identity. They do not write or settle anything. The plan stores a SettingsCurrentBasis comparison projection. External reservation requests and custody checkpoints remain separate obligations and are not implemented by allocation.
 
-Tests exercise this writer through the real SQLite Worker with a test participant replacing admission. They cover concurrent allocation, rollback, reopen, immutable commands, exact-ID collisions, terminal recognition, and budget boundaries. Seeded terminal/history records test recognition; they do not prove the production seal service. Checkpoint, ready, business-commit and recovery plans use production participants. The prepared coordinator and Identity attempt resolver consume these phases. Actual application current-fact and organization-source assembly remain incomplete.
+Tests exercise this writer through the real SQLite Worker with a test participant replacing admission. They cover concurrent allocation, rollback, reopen, immutable commands, exact-ID collisions, terminal recognition, and budget boundaries. Seeded terminal/history records test recognition; they do not prove the production seal service. Checkpoint, ready, business-commit and recovery plans use production participants. The prepared coordinator and Identity attempt resolver consume these phases. Organization current/update assembly and application consumer migration remain incomplete.
 
 ## Preparation checkpoint transaction
 
@@ -207,7 +207,7 @@ Ordinary settingsSqlMaterials installs a write-only source observation participa
 
 A write observation describes the requested operation. It does not attest to source state or authorization. Reserve requires a captured snapshot fact bound to its complete destination request. The retention participant recognizes an existing reservation before attempting a new hold. Source settlement, root-owned update completion and recovery must later consume their own trusted evidence without requiring a fresh source snapshot.
 
-Tests use real Identity, Settings services, independent ownership, source capture and retention to exercise held-source rejection, unrelated writes, original receipts and competing writes. A separately seeded pending gate verifies restart behavior when its held count is zero. That seed does not establish the production update admission or recovery coordinator. Asset holding invalidation and organization-source admission require their own owning-domain integration.
+Tests use real Identity, Settings services, independent ownership, source capture and retention to exercise held-source rejection, unrelated writes, original receipts and competing writes. A separately seeded pending gate verifies restart behavior when its held count is zero. That seed does not establish the production update admission or recovery coordinator. Asset holding invalidation and organization management updates require their own owning-domain integration.
 
 
 ## Destination custody of source requests
@@ -297,3 +297,20 @@ Public-service tests use the real Worker combinations. Separate tests connect ac
 ### Application current consumer
 
 The harness-server [prepared Settings composition](../../../apps/harness-server/docs/rows/settings-preparation.md) consumes the public preparation SPI. It derives initial and transaction-current material from the actual native owner, Governance and assignment projections. Its first implemented source scope is tenant-local. Organization sources, maintenance current for cross-definition rebase and the server consumer switch remain incomplete. This application evidence does not enlarge the package's independent acceptance claim.
+
+
+## Source reservation provider
+
+The preparation entry exports `createSettingsSourceReservations`. Its service is a trusted coordinator port, not an ordinary client command surface. Construction fixes the source domain, SQL registration, access adapter and destination capability. Each reserve call checks current access and requires the grant to match the source target, scope and destination principal.
+
+A new hold also requires `destination.recognize` to confirm the exact persisted destination request. Recognition does not seal or grant authority. The prepared provider exposes this capability as `control.sourceDestination`. It checks its own domain, Settings ownership, immutable root command, exact attempt, source and full custody request. Missing, merely planned or changed requests are unavailable. A guessed route cannot create an orphan hold. A terminal established after recognition remains irreversible; a delayed hold can only be settled to that original terminal.
+
+The source snapshot and hold are written in one source transaction. Exact retries return the original immutable snapshot or settled receipt, including an absent assignment. Existing source reservations do not bypass current read authorization. Source updates and owner mutations remain subject to the source write gate.
+
+`settle` obtains the exact stored reservation and asks the fixed destination to seal or recognize its terminal. Only a matching terminal response releases the hold. Missing, unavailable, malformed or mismatched results do not release it. The source snapshot producer transports the trusted settlement envelope; the retention writer checks the same envelope and owns the state transition. Neither caller-supplied JSON nor an elapsed timeout is a terminal proof.
+
+`control.recover` reads at most 100 held metadata rows through the recovery index. It omits snapshot payloads and limits each response to a bounded metadata prefix. The cursor identifies the last returned row. A short page can have a continuation, so callers continue until the cursor is null. Unavailable items keep their holds and are retried on a later scan from null. `pendingUpdates` independently enumerates pending source gates, including gates with zero holds. It does not execute an administrator's original change. Close rejects new calls and drains accepted calls without closing shared storage or discarding durable holds.
+
+`createIdentityQualifiedSettingsSources` additionally verifies an issued acting-for-tenant principal, current membership, canonical destination tenant and source organization. The owner access adapter still decides disclosure of that concrete source target. Recovery uses the original obligation and does not acquire fresh membership or management authority. Organization targets use `scope=system`, `transactionDomain=system.settings` and a canonical organization scopeRef. Other system-domain independent targets remain unsupported.
+
+Public-provider tests combine actual standalone ownership, source snapshot/retention and prepared destination recovery in SQLite Workers. Fault-isolation tests use named destination responses; the prepared composition uses the actual destination capability. Identity tests use actual membership and revocation. These checks do not complete organization administrator current/update assembly, multi-tenant policy evaluation, old-consumer migration or full application acceptance.

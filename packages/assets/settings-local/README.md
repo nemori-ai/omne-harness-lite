@@ -53,6 +53,14 @@ The preparation reference is not authority. Every call rechecks caller access, a
 
 Application consumers still use the direct command route below. Switching them requires the actual current and organization-source adapters, replacement of the old write route, and draining its old reservations. The library factory does not establish that migration or full application acceptance. See [prepared coordination](SPEC.md#protected-preparation-coordinator) for the behavioral contract.
 
+## Provide a shared organization source
+
+Use `createIdentityQualifiedSettingsSources` from the preparation entry for organization reads. Construct it with the fixed `system.settings` domain, owner disclosure adapter and a trusted destination router. Route both `recognize` and `seal` to the prepared destination's `control.sourceDestination`; ordinary clients cannot supply a resolver. Register `settingsSqlMaterials({ sourceCapture: true })` in the source database. The source snapshot and retention participants form its fixed source combination.
+
+Pass the source provider's `service` as the prepared backend's `sources` port. It reserves an immutable source snapshot and settles only after a matching destination terminal. The control port exposes bounded hold recovery, pending-source-update enumeration and close/drain. Continue pages until `after` is null, even when a page contains fewer than the requested number of items. Source control belongs to trusted deployment and recovery code.
+
+The provider does not decide organization policy precedence or complete application assembly. Those responsibilities remain with the actual current-fact producer and the organization's Settings owner. See [source reservation provider](SPEC.md#source-reservation-provider) for guarantees and remaining integration scope.
+
 ## Provide tenant services
 
 1. Provision independent targets with `createStandaloneSettingsOwner`. Its `mutate` and `getOperation` are trusted owner capabilities. They are not tenant setting commands.

@@ -161,15 +161,15 @@ Seal可以终结preparing、prepared或submitted。不可逆终态阻止迟到Pu
 | TerminalBeforeRelease | release-before-terminal在目的终态前释放 |
 | OneReservationIdentity | 与不可变请求、先持久后调用共同检查，无单独负控 |
 
-`standing-custody.ts`及其具名迁移保存完整请求、requested检查点及回执。实际reserve和settle仍由Identity服务负责，调用顺序由后续准备协调器兑现。`standing-custody.spec.ts`包含真实Identity认回与SQLite重开，也包含合成终态回执。两类证据不能互换。
+`standing-custody.ts`及其具名迁移保存完整请求、requested检查点及回执。实际reserve和settle由Identity服务负责，公开准备协调器按持久请求和回执推进。`standing-custody.spec.ts`包含真实Identity认回与SQLite重开，也包含合成终态回执。两类证据不能互换。
 
 模型把外部回包真实性、Identity幂等性、目的终态和持久存储原子性作为前提。它只检查有限安全性，不证明任意规模、活性、生产调用顺序或完整恢复提供者。保管关系的存在不表示当前公共准备服务已经接线。
 
 
-来源保留模型的关系实现入口现为settings-local的source-retention-schema、source-retention-migration与source-retention-records。门和held通过真实SQL测试装配持久化，具名夹具提供快照及目的终态。持有上限、精确清门和独立pending枚举已有关系测试，模型中的真实来源快照、全部失效写者、目的封口和根终结原子性仍须生产组合兑现。该增量不把完整SourceHoldsProtectRevision视为已接受的运行保证。
+来源保留模型的关系实现归 settings-local 的 source-retention-schema、source-retention-migration 与 source-retention-records。门、held 上限、精确清门和独立 pending 枚举由真实 SQL 测试守护。公开来源服务另以实际快照和准备目的端验证终态前保留，见下文实现映射。组织管理更新与全部应用消费者仍未接齐，完整 SourceHoldsProtectRevision 尚不能声明为已接受的系统运行保证。
 
 
-source-snapshot的真实读取增量验证了模型中源快照的部分精化。实际拥有者、配值及锁来自同一SQL事务，事实绑定完整目的请求。真实来源保留与直接Settings失效写者已接通，组织来源准入、目的终态和完整根提交组合尚未完成，不能由该读取测试推出保留期间来源始终稳定。
+source-snapshot的真实读取增量验证了模型中源快照的部分精化。实际拥有者、配值及锁来自同一SQL事务，事实绑定完整目的请求。真实来源保留、直接 Settings 失效写者、组织读取资格和准备目的端终态已接通。组织管理员更新组合仍待实际应用验证，不能单凭读取测试推出完整系统保证。
 
 
 `source-custody.ts` 将同一保管状态机用于目的侧的每个来源请求。先在一个事务中固定完整集合，再按 `(attempt_id, source_key)` 分区推进。清单不可追加或替换，各成员只写自己的键，因此交错推进不改变其他成员的请求或终态。OneReservationIdentity按单一来源请求解释，不限制整个attempt只能有一个来源。
@@ -177,7 +177,7 @@ source-snapshot的真实读取增量验证了模型中源快照的部分精化�
 来源清单原子性、完整绑定和SQL键分区由实际数据库测试守护；现有单请求TLA模型没有枚举1024项清单或证明哈希无碰撞。进入prepared仍须核对全部必需成员，属于bootstrap模型及后续真实协调器的责任。丢包/重开测试使用实际来源快照和保留参与者；终态回执及旧attempt仍有夹具边界。不能把这些局部结论写成完整恢复服务已交付。
 
 
-`SettingsIntentAttempts` 的普通 seal、根取消、终态不复活与旧 attempt 隔离，现由 settings-local 私有 `intent-settlement.ts` 落实关系写入，测试入口为 `intent-settlement.spec.ts`。`SettingsPreparationBootstrap` 的 preparing 禁止成功也有对应反例。最终当前依据检查、terminal 原子组合及源门同提交仍由未完成的生产协调负责；模型通过和私有关系测试通过不能替代这些义务。
+`SettingsIntentAttempts` 的普通 seal、根取消、终态不复活与旧 attempt 隔离，现由 settings-local 私有 `intent-settlement.ts` 落实关系写入，测试入口为 `intent-settlement.spec.ts`。`SettingsPreparationBootstrap` 的 preparing 禁止成功也有对应反例。当前依据检查、terminal 原子组合及源门同提交由公开准备协调器和真实 Worker 组合兑现。组织管理 current、应用切换及完整独立验收仍未完成；模型通过和私有关系测试不能替代这些义务。
 
 
 `SettingsSourceRetention` 的源根封口及精确清门同提交，现有 `settings-local/tests/recovery-combination.spec.ts` 使用实际六参与者组合验证。来源保留仍为held时可以取消源修改，但不得顺便结算这些保留；下游失败须回滚terminal、门和根。初始准入与来源门使用夹具，实际业务成功提交、Identity恢复装配和物理断电仍不在这组证据内。
@@ -188,3 +188,12 @@ source-snapshot的真实读取增量验证了模型中源快照的部分精化�
 `StandingRequestSettlement.tla` 补充 Identity ID-19 的源端围栏协议。模型保留一个原请求、两个候选绑定、一次迟到或丢失的 reserve 和一次重启。它检查终态前不能完成结算、已完成不能重新 held、完成必须绑定原请求。在弱公平结算和可用目的地的前提下，原请求最终完成。四个反例分别取消围栏、跳过终态、错配绑定和把缺行当作无需处理。
 
 模型放在现有跨域 Standing 验证组，源预留和围栏仍由 Identity 拥有。SQL 封套不变、受信目的地以及原子数据库事务是模型前提。有限模型不证明真实实现、物理持久性、无限故障下进展或远程认证。实际提供者须用 SQLite 竞争、丢失响应和重开测试验证映射。
+
+
+### 来源服务与目的请求的实现映射
+
+`settings-local/source-service.ts` 将保留与收尾接到实际来源 SQL。`preparation-source-destination.ts` 在新保留前核对目的端已经持久化的完整请求，并通过原恢复组合封口精确 attempt。识别只读，不授予业务权限。识别后发生封口的竞争由不可逆终态处理：迟到来源保留不能使已封口目的重新提交，只能认回并结算该终态。
+
+`source-service.spec.ts` 覆盖实际目的提交与封口的两种顺序、丢失来源回复、旧 attempt 与后继分离、重开、关闭排空及不存在的目的请求。`identity-sources.spec.ts` 覆盖真实成员资格、组织和租户绑定与撤回后的原责任恢复。`source-pagination.spec.ts` 验证长合法引用下按字节缩短页面仍不漏项；扫描只取元数据，保留现有 keyset 索引。
+
+这些证据精化了 TerminalBeforeRelease、SealedDestinationCannotCommit 与固定身份前提。组织管理员更新、真实共享上界求值和应用消费者接线仍有未完成项，不能把库组合测试写成完整 C3b 接受。

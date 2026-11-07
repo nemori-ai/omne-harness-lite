@@ -26,3 +26,6 @@ export {
   createIdentityQualifiedSettingsPreparation,
   type IdentityQualifiedPreparationOptions,
 } from './identity-preparation.ts'
+export { createSettingsSourceReservations, type SettingsSourceOptions } from './source-service.ts'
+export type { SettingsSourceDestination } from './source-service-schema.ts'
+export { createIdentityQualifiedSettingsSources } from './identity-sources.ts'

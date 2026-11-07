@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
+import { SOURCE_SERVICE_READ } from './source-service-schema.ts'
 import { SOURCE_WRITE_FACT } from './source-write.ts'
 import {
   SOURCE_RETENTION_OWNER,
@@ -46,6 +47,16 @@ export function sourceRetentionMaterials(): Pick<
         requires: [],
       },
     ],
-    readHandlers: [],
+    readHandlers: [
+      {
+        ...SOURCE_SERVICE_READ,
+        ...file('source-service-read'),
+        ordering: 'snapshot',
+        readTables: SOURCE_RETENTION_TABLES,
+        requiresMigrations: [SOURCE_RETENTION_MIGRATION],
+        maxRowsRead: 100,
+        maxOutputBytes: 2 * 1024 * 1024,
+      },
+    ],
   }
 }

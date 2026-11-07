@@ -1,3 +1,4 @@
+import { organizationCodec } from '@omne-harness/legal-identity'
 import type { SettingsTarget } from '@omne-harness/settings'
 import type { DomainRef } from '@omne-harness/sql-contract'
 import { z } from 'zod'
@@ -20,9 +21,8 @@ export function projectStandaloneSettingsRecord(
 }
 
 export function isIndependentTargetInDomain(domain: DomainRef, target: SettingsTarget) {
-  return (
-    domain.scope.kind === 'tenant' &&
-    target.scopeRef === domain.scope.tenant &&
-    target.policyId === 'independent'
-  )
+  if (target.policyId !== 'independent') return false
+  return domain.scope.kind === 'tenant'
+    ? target.scopeRef === domain.scope.tenant
+    : domain.transactionDomain === 'system.settings' && organizationCodec.parse(target.scopeRef).ok
 }

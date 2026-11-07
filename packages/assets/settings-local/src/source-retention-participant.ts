@@ -1,7 +1,9 @@
 import { sourceFinalizationFactSchema, finalizationRequestSchema } from './finalization-schema.ts'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
+import { sourceSettlementFactSchema } from './source-service-schema.ts'
 import { equal, json, withinBudget } from './encoding.ts'
 import {
+  settleSource,
   readSourceGate,
   readSourceReservation,
   reserveSource,
@@ -48,6 +50,12 @@ function reserve(raw: unknown, port: ParticipantPort) {
         : fact.observation
   return { kind: 'participated' as const, response: json(response) }
 }
+function settle(raw: unknown, port: ParticipantPort) {
+  const fact = sourceSettlementFactSchema.parse(raw)
+  if (!equal(fact, port.requireFact(SOURCE_SNAPSHOT_FACT)))
+    return { kind: 'failed' as const, diagnostic: 'settings_source_settlement_binding' }
+  return { kind: 'participated' as const, response: json(settleSource(port, fact.settlement)) }
+}
 function finalize(raw: unknown, port: ParticipantPort) {
   const request = finalizationRequestSchema.parse(raw)
   const fact = sourceFinalizationFactSchema.parse(port.requireFact(SOURCE_SNAPSHOT_FACT))
@@ -77,6 +85,7 @@ export default {
   execute(facts, port) {
     if (!withinBudget(facts)) return { kind: 'failed', diagnostic: 'settings_source_input_limit' }
     try {
+      if (facts['kind'] === 'settlement') return settle(facts, port)
       if (facts['kind'] === 'finalize') return finalize(facts['request'], port)
       if (facts['kind'] === 'write') return write(facts, port)
       if (facts['kind'] === 'reserve') return reserve(facts['request'], port)
