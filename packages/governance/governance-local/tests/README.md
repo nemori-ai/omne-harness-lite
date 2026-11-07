@@ -1,5 +1,7 @@
 # 持续测试
 
+`registrar.spec.ts` 通过真实 Identity 和生产 SQL 材料调用贡献/退出应用方法。它验证并发认回、兄弟租约、当前状态与原回执分离、源离线、Worker 重开、保存 submit 后换当前配置、丢失业务回包及观察、停止入口和撤权交错。`registrar-world.ts` 的发布 source 是具名 fixture，测试不证明具体功能或资产发行权威已装配。数据库重开复用同一主体发行权威和相同 SQL 材料，不声明进程间身份认证或任意升级保证。
+
 `admission.spec.ts` 区分发行真实性、装配委托、当前成员及资格、来源真实性的责任。测试逐字段修改 EnforcementBinding，检查 owner 交叉组合及异步改参不能扩权，并使用生产 Identity SQL 撤权。当前测试没有把私有准入对象宣称为已导出的业务服务。
 
 `schema.spec.ts` 使用真实 SQLite 检查表键、状态约束、精确支持关系、磁盘重开与查询索引。`materials.spec.ts` 将生产迁移交给真实 Worker；其 schema-writer 是具名测试参与者，不是生产业务服务。`public-entry.spec.ts` 核对实际材料文件摘要。

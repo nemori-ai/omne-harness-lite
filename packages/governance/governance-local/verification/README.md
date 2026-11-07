@@ -1,5 +1,7 @@
 # 验证入口
 
+[registrar.spec.ts](../tests/registrar.spec.ts) 把 GL-13/14/15 的私有机制接到 contribute/withdraw 应用入口，并使用真实 SqlStorage/Identity 验证恢复。原操作终态和 SQL 单赋值继续由既有模型守护。[GovernanceRegistrar](../../../human-intervention/human-intervention/verification/models/GovernanceRegistrar.tla) 补充首次来源证明、原回执不变、来源离线认回和当前租约投影。该增量没有完成公开导出、adopt/current、目录和 Cordis 生命周期；完整 C3b 独立验收仍开放。
+
 [admission.spec.ts](../tests/admission.spec.ts) 检查发行主体、完整租户及可见性、显式 action 委托、逐 owner 的完整执行关口、当前资格和异步输入隔离。它包含真实 Identity SQL 撤回成员后的拒绝，其他条件使用具名受控来源逐项构造反例。有限证明与六个负控归 [治理准入交集](../../../human-intervention/human-intervention/verification/README.md#治理准入交集)。准入对象尚未接到完整公开服务，不能据此声称 C3b 已通过验收。
 
 关系检查见 [schema.spec.ts](../tests/schema.spec.ts)，真实迁移装配见 [materials.spec.ts](../tests/materials.spec.ts)。数据库实例由用例隔离创建并清理。

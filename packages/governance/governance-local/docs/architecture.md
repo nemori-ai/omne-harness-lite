@@ -1,5 +1,46 @@
 # 内部架构
 
+## 贡献与退出的应用组合
+
+内部 `GovernanceRegistrar` 实现 contribute 与 withdraw 的既有命令形状。它组合真实身份准入、完整声明来源消费、Standing 保留、原操作及 SQL 请求保管。它尚未随完整提供者导出，不提供 adopt、受保护目录或 Cordis caller-fiber 关闭。声明来源测试使用具名 fixture；具名功能及资产发布拥有者的生产适配仍须接入。
+
+```mermaid
+flowchart TD
+  Call[冻结完整命令与Access] --> Admission[GovernanceAdmission]
+  Admission --> Original[点查完整原操作]
+  Original -->|终态| Result[原结果解码]
+  Original -->|已有执行请求| Saved[读原execution或submit信封]
+  Original -->|首次准备| Source[GovernanceDefinitionSource]
+  Source --> Compare[完整发布比较]
+  Compare --> Accept[持久受理原操作]
+  Saved --> Accept
+  Accept --> Standing[真实Standing保留]
+  Standing --> Submit[确认持久execution]
+  Submit --> Custody[保存完整apply信封]
+  Custody --> Writer[生产planner与唯一writer]
+  Writer --> Result
+  Result --> Settle[结算原Standing]
+  Result --> Lease[精确租约当前状态点读]
+```
+
+首次准备验证来源，恢复读取原保管内容。执行 authority 由该入口从核验结果构造，绑定主体、scope、资格、原发布引用和完整声明摘要；调用方不能提供它。保存过的 execution 不随当前组合配置改变，原信封的组合及 manifest 必须继续可执行。需要更换这些材料时，仍须满足原恢复前提。
+
+```mermaid
+classDiagram
+  GovernanceRegistrar --> GovernanceAdmission
+  GovernanceRegistrar --> GovernanceDefinitionSource
+  GovernanceRegistrar --> GovernanceStandingCoordinator
+  GovernanceRegistrar --> SqlOperationCoordinator
+  SqlOperationCoordinator --> ContributionStateReader
+  ContributionStateReader --> GovernanceScope
+  ContributionStateReader --> ContributionLease
+  OperationRecord --> ContributionLease : original reference
+```
+
+ContributionStateReader 只按 scope_key 和 registration_id 查精确租约，再点查 scope，最多两行。它核 registrar、contributor 和 generation 后才返回状态。旧 epoch 投影 released。原 OperationRecord.result 保留原提交状态，两种读数有不同用途。
+
+stopAccepting 同步拒绝新入口，并让已开始的调用在下一可观察边界封口原待决操作。它不释放共享 SqlStorage/Identity，也不证明租约已全部撤除。完整关闭仍须持久 scope 围栏及精确租约清理。业务已经确认成功时，源结算暂不可用只留下持久恢复责任，不能把成功改成失败。
+
 ## 身份准入与装配委托
 
 `GovernanceAdmission` 只判断当前调用能否进入一个具名治理动作。Identity 判断主体发行和当前成员资格，可信装配固定委托范围，原发布拥有者证明声明及执行关口真实。三者不能相互代替。该对象仍为内部组件；公开命令服务、真实来源及 Cordis 生命周期尚未接通。

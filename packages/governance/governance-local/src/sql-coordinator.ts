@@ -7,7 +7,11 @@ import {
   type CommitRequestV2,
   type CommittedV2,
 } from '@omne-harness/sql-contract'
-import { GovernanceIdSchema, GovernanceDigestSchema } from '@omne-harness/governance-contract'
+import {
+  GovernanceIdSchema,
+  GovernanceDigestSchema,
+  type GovernanceContributionRef,
+} from '@omne-harness/governance-contract'
 import {
   acceptSchema,
   bindingSchema,
@@ -28,6 +32,11 @@ import {
 } from './sql-stage-schema.ts'
 import { METADATA_PLANNER, controlRequestSchema, type ControlRequest } from './activation-schema.ts'
 import { GOVERNANCE_OWNER } from './migration.ts'
+import {
+  CONTRIBUTION_HANDLER,
+  contributionReadSchema,
+  contributionReadingSchema,
+} from './contribution-read.ts'
 import { canonical, equal, json, digest, operationIdentity } from './encoding.ts'
 import {
   querySql,
@@ -113,6 +122,33 @@ export class SqlOperationCoordinator {
       )
         return unavailable()
       return observation
+    } catch {
+      return unavailable()
+    }
+  }
+  async contribution(contribution: GovernanceContributionRef, principalRef: string) {
+    const input = contributionReadSchema.parse({ contribution, principalRef })
+    if (
+      this.domain.scope.kind !== 'tenant' ||
+      input.contribution.scope.tenantRef !== this.domain.scope.tenant
+    )
+      return unavailable()
+    try {
+      const result = await this.storage.read({
+        domain: this.domain,
+        ...CONTRIBUTION_HANDLER,
+        requestKey: randomUUID(),
+        input: json(input),
+      })
+      if (result.kind !== 'read') return unavailable()
+      const reading = contributionReadingSchema.parse(result.output)
+      if (!equal(reading, result.output)) return unavailable()
+      if (
+        reading.kind === 'found' &&
+        !equal({ contribution: reading.contribution, principalRef: reading.principalRef }, input)
+      )
+        return unavailable()
+      return reading
     } catch {
       return unavailable()
     }

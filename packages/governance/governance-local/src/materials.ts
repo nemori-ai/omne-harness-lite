@@ -15,6 +15,7 @@ import { GOVERNANCE_STAGE_MIGRATION, GOVERNANCE_SQL_TABLES } from './sql-stage-m
 import { OPERATION_HANDLER } from './operation-read.ts'
 import { STAGE_HANDLER } from './sql-stage-read.ts'
 import { RECOVERY_HANDLER } from './recovery-read.ts'
+import { CONTRIBUTION_HANDLER } from './contribution-read.ts'
 
 export function governanceSqlMigrations(): SqlMaterialCatalog['migrations'] {
   const extension = import.meta.url.endsWith('.ts') ? 'ts' : 'js'
@@ -91,6 +92,15 @@ export function governanceSqlMaterials(): Pick<
     migrations: governanceSqlMigrations(),
     readHandlers: [
       ...governanceRecoveryReadMaterials(),
+      {
+        ...CONTRIBUTION_HANDLER,
+        ...participantFile('contribution-read'),
+        ordering: 'domain-serial',
+        readTables: ['gc_contribution', 'gc_scope'],
+        requiresMigrations: [GOVERNANCE_MIGRATION],
+        maxOutputBytes: 8 * 1024,
+        maxRowsRead: 2,
+      },
       {
         ...OPERATION_HANDLER,
         ...participantFile('operation-read'),

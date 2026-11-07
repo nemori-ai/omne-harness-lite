@@ -709,6 +709,36 @@
       "model": "models/GovernanceAdmission.tla",
       "config": "models/governanceadmission-qualified.cfg",
       "expected": "AuthorizedOriginal"
+    },
+    {
+      "name": "governanceregistrar-positive",
+      "model": "models/GovernanceRegistrar.tla",
+      "config": "models/governanceregistrar-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governanceregistrar-source",
+      "model": "models/GovernanceRegistrar.tla",
+      "config": "models/governanceregistrar-source.cfg",
+      "expected": "PreparedProof"
+    },
+    {
+      "name": "governanceregistrar-original",
+      "model": "models/GovernanceRegistrar.tla",
+      "config": "models/governanceregistrar-original.cfg",
+      "expected": "OriginalStable"
+    },
+    {
+      "name": "governanceregistrar-offline",
+      "model": "models/GovernanceRegistrar.tla",
+      "config": "models/governanceregistrar-offline.cfg",
+      "expected": "RecognizeOffline"
+    },
+    {
+      "name": "governanceregistrar-state",
+      "model": "models/GovernanceRegistrar.tla",
+      "config": "models/governanceregistrar-state.cfg",
+      "expected": "NoStaleReply"
     }
   ]
 }

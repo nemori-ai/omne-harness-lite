@@ -1,5 +1,15 @@
 # HITL 合同与行为守护
 
+## 贡献命令的结果与当前状态
+
+[GovernanceRegistrar](models/GovernanceRegistrar.tla) 抽象一个贡献原操作、一份不可变发布证明、一条租约及原提交结果。Prepare 仅在来源可验证时保存 proven；后续来源离线不撤销该历史证明。Apply 仅从 prepared 前进，Seal 使该操作不能再次 Apply。声明的版本不变性及真实来源核验是外部前提，模型不发行来源权限。
+
+OriginalStable 要求原成功只保留 active，不随 Release 改写。RecognizeOffline 要求已经提交的操作不会仅因来源离线而报告 unavailable。NoStaleReply 比较一次 Retry 返回值与同次观察的租约状态，不要求已经返回给调用者的旧值随未来退出而自动改变。PreparedProof 要求每份 prepared 都有其首次形成时的来源证明。初始化满足这些性质；Prepare、Apply、Seal、Release 和 Retry 的赋值分别保留对应关系，可以逐动作归纳。
+
+一个正例同时检查四项性质；四个负控分别取消首次来源检查、随退出改写原成功、在认回原成功前要求来源在线、用原成功状态代替当前租约状态。每个负控只检查具名不变量。运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models GovernanceRegistrar`，Java/JAR 采用本页运行约定。
+
+实现映射为 governance-local 的 registrar-execution.ts 首次来源消费及保管恢复，registrar.ts 原结果优先与 seal/settle 组合，registrar-results.ts 原结果解码，以及 contribution-read.ts 当前状态投影。跨 Identity 的持续资格依赖 Standing 既有模型，精确信封依赖 GovernanceSqlCustody。这个有限模型不证明完整生产发行路径、目录、Cordis 卸载或任意失败下的进展。
+
 ## 治理准入交集
 
 [GovernanceAdmission](models/GovernanceAdmission.tla) 将一个请求抽象为主体、scope、action、owner 和完整执行关口五元组。每一维有两个值；固定政策只允许同一主体、scope、action 下的两组 owner 与关口配对。issued、member 和 qualified 各有两种取值。调用方可在捕获后任意修改原请求及原政策对象。
