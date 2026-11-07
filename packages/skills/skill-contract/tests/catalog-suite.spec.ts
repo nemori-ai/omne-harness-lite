@@ -1,6 +1,6 @@
-// The shape of the `SkillCatalog` conformance suite: at least twelve cases, every decided item 2
-// to 7 of the W3 Skill spec named by a clause `SC2` to `SC7`, and the two non-disclosure cases
-// present. The suite runs on an implementation in `@omne-harness/skill`; this member has none.
+// The shape of the `SkillCatalog` conformance suite: at least twelve cases, every clause `SC2` to
+// `SC7` of the SPEC conformance suite (`SPEC.md#conformance`) named by a case, and the two
+// non-disclosure cases present. The suite runs on an implementation in `@omne-harness/skill`; this member has none.
 import { expect, it } from 'vitest'
 import { skillCatalogConformance } from '@omne-harness/skill-contract/testing'
 

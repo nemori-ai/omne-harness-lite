@@ -4,7 +4,7 @@
 
 ## 内容
 
-- [README.md](README.md)：探索的空间、组合数、用时、与模型的对应、已知反例与余下的前提
+- [README.md](README.md)：探索的空间、与模型的对应、已知反例与余下的前提
 - [world.ts](world.ts)：世界、孪生世界、日程与包装后的端口
 - [explore.ts](explore.ts)：请求、执行与报告
 - [disclosure.ts](disclosure.ts)：S1 无披露（自组合）

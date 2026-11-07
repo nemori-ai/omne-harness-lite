@@ -570,12 +570,12 @@ P1 各项来自独立消费者的需求。版本变化观察的首版范围是�
 
 ### Q-SK08 依赖或设施不足时的正文读取
 
-技术处置：负责人已裁定（2026-11-03），读取与工具、脚本所需的设施无关。产品 Q-SK08 随[产品页](../../../.meta_harness/design/product/skills/design.md)修订关闭。
+技术处置：负责人已裁定，读取与工具、脚本所需的设施无关。裁定记在产品页 [Q-SK08](../../../.meta_harness/design/product/skills/design.md#q-sk08-只有依赖或脚本设施不足时正文是否仍可读取)，产品 Q-SK08 随该页修订关闭。
 
 | 候选决定 | 依据层 |
 | --- | --- |
-| 读取只受读取权、`SkillResolution` 的答复与材料一致性约束。`SkillResolution` 答 `known-unavailable`（禁用、卸载或失去选入）时，Skill 返回 `unavailable-stand-in`。依赖在不在场、脚本有没有所需的设施，不改变读取结果 | 负责人裁定（2026-11-03）；G1 |
-| 本组没有回答依赖在不在场的需求端口，不求可用性，也没有待裁的失败种类。`describe` 与 `SkillCatalog` 只交依赖声明。依赖在不在场、一份 Skill 此刻能不能用，由调用方判定 | 负责人裁定（2026-11-03）；G1、G2 |
+| 读取只受读取权、`SkillResolution` 的答复与材料一致性约束。`SkillResolution` 答 `known-unavailable`（禁用、卸载或失去选入）时，Skill 返回 `unavailable-stand-in`。依赖在不在场、脚本有没有所需的设施，不改变读取结果 | 负责人裁定，见产品 [Q-SK08](../../../.meta_harness/design/product/skills/design.md#q-sk08-只有依赖或脚本设施不足时正文是否仍可读取)；G1 |
+| 本组没有回答依赖在不在场的需求端口，不求可用性，也没有待裁的失败种类。`describe` 与 `SkillCatalog` 只交依赖声明。依赖在不在场、一份 Skill 此刻能不能用，由调用方判定 | 负责人裁定，见产品 [Q-SK08](../../../.meta_harness/design/product/skills/design.md#q-sk08-只有依赖或脚本设施不足时正文是否仍可读取)；G1、G2 |
 
 ## 完整行为候选的正式承接缺口
 
