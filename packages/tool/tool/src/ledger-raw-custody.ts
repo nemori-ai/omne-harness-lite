@@ -94,7 +94,11 @@ export function createLedgerRawCustody<P>(
         snapshot => {
           if (snapshot.call === null || snapshot.call.start === null)
             return invalid('call', 'not-started')
-          if (!snapshot.materials.has(input.operation) && snapshot.call.state.phase !== 'running')
+          if (
+            !snapshot.materials.has(input.operation) &&
+            snapshot.call.state.phase !== 'starting' &&
+            snapshot.call.state.phase !== 'running'
+          )
             return invalid('call', 'not-running')
           return succeed(undefined)
         },

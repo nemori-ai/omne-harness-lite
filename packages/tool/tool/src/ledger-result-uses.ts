@@ -1,5 +1,8 @@
+import type { ContentBlock } from '@omne-harness/content-block'
+import type { ToolResult } from '@omne-harness/tool-contract'
+import { materialContentSeal } from './ledger-material-content.ts'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
-import type { DurableEvidence, ToolFailure } from '@omne-harness/tool-contract'
+import type { DurableEvidence, ToolFailure, RawOutput } from '@omne-harness/tool-contract'
 import type { ToolMaterialSeal } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
 import type { Snapshot } from './ledger-decider.ts'
@@ -30,6 +33,17 @@ function preparedMaterial(
   )
     return invalid('material', 'preparation-use-required')
   return succeed(material)
+}
+
+export function preparedRawMaterial(
+  snapshot: Snapshot,
+  raw: RawOutput,
+): Outcome<MaterialRecord, ToolFailure> {
+  const seal = materialContentSeal(raw.content, snapshot)
+  if ('failure' in seal) return seal
+  if (!sameFactValue(seal.ok.codec, raw.codec) || !sameFactValue(seal.ok.evidence, raw.custody))
+    return invalid('raw', 'not-original-material')
+  return preparedMaterial(snapshot, seal.ok, 'raw')
 }
 
 export function adoptResultMaterials(
@@ -76,6 +90,36 @@ export function releaseFinalPreparation(
   basis: DurableEvidence,
 ): Outcome<readonly LedgerWrite[], ToolFailure> {
   const prepared = preparedMaterial(snapshot, seal, 'final')
+  if ('failure' in prepared) return prepared
+  return succeed([
+    { kind: 'delete', key: `material-use:preparation:${prepared.ok.writeOperation}` },
+    cleanupMaterial(prepared.ok, basis),
+  ])
+}
+
+export function releaseReplacedRaw<B extends ContentBlock>(
+  snapshot: Snapshot,
+  raw: RawOutput,
+  value: ToolResult<B>,
+  basis: DurableEvidence,
+): Outcome<readonly LedgerWrite[], ToolFailure> {
+  const refs = [
+    ...value.attachments,
+    ...value.content.flatMap(block => ('ref' in block ? [block.ref] : [])),
+    ...(value.original.kind === 'offloaded'
+      ? [
+          value.original.source,
+          ...value.original.summary.flatMap(block => ('ref' in block ? [block.ref] : [])),
+        ]
+      : []),
+    ...[...snapshot.facts.values()].flatMap(saved =>
+      saved.fact.kind === 'process'
+        ? saved.fact.blocks.flatMap(block => ('ref' in block.content ? [block.content.ref] : []))
+        : [],
+    ),
+  ]
+  if (refs.some(ref => sameFactValue(ref, raw.content))) return succeed([])
+  const prepared = preparedRawMaterial(snapshot, raw)
   if ('failure' in prepared) return prepared
   return succeed([
     { kind: 'delete', key: `material-use:preparation:${prepared.ok.writeOperation}` },

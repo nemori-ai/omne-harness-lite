@@ -50,7 +50,6 @@ const PORTS = [
   'resultPolicy',
   'authority',
   'resources',
-  'custody',
   'catalog',
   'reads',
   'children',

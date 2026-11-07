@@ -58,6 +58,7 @@ export function digestOf(value: unknown): string {
 
 /** The record kinds the ledger mints evidence for. Each kind is one purpose (P01, P08, P09). */
 export type EvidenceKind =
+  | 'result-custody'
   | 'result-preparation'
   | 'material-preparation'
   | 'state'

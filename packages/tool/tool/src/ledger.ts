@@ -236,8 +236,6 @@ export function createToolLedger<P, B extends ContentBlock>(
   settlement: ToolLedgerPorts<P>,
 ): ToolLedger<P, B> {
   checkLedgerConfiguration(configuration)
-  if (typeof settlement?.custody?.retainResult !== 'function')
-    throw new TypeError('settlement.custody.retainResult: missing')
   if (typeof settlement?.releaseInspection?.inspectRelease !== 'function')
     throw new TypeError('settlement.releaseInspection.inspectRelease: missing')
   if (settlement.content !== null && typeof settlement.content?.read !== 'function')
@@ -1094,35 +1092,13 @@ export function createToolLedger<P, B extends ContentBlock>(
     const final = restored.ok.fact
     const qualified = await access(context.ok, 'write')
     if ('failure' in qualified) return qualified
-    let retained: Awaited<ReturnType<typeof settlement.custody.retainResult>>
-    try {
-      retained = await settlement.custody.retainResult({
-        principal: context.ok.principal,
-        tenant: context.ok.tenant,
-        call: context.ok.call,
-        operation: checked.ok.retainOperation,
-        raw: structuredClone(final.raw),
-        value: structuredClone(final.result),
-      })
-    } catch {
-      return unavailable('output-custody', 'result custody confirmation is unavailable')
-    }
-    if ('failure' in retained) {
-      if (retained.failure.kind === 'commit-unknown')
-        return unavailable('output-custody', 'result custody confirmation is unavailable')
-      return retained
-    }
-    const evidence = judgeEvidenceField(retained.ok, 'retained')
-    if ('failure' in evidence)
-      return unavailable('output-custody', 'result custody confirmation is unavailable')
-    const confirmed = structuredClone(evidence.ok)
     const channels = await prepareResultChannels<P, B>(
       createLedgerMaterialCustody<P>({
         materials: settlement.materials,
         entry: value => entry(value, 'write'),
         transact,
       }),
-      { ...context.ok, source: checked.ok.saved.evidence },
+      { ...context.ok, operation: checked.ok.task.operation, source: checked.ok.saved.evidence },
       final.result,
       snapshot => {
         if (excludedSince(snapshot, command.operation, before.ok.revision))
@@ -1141,8 +1117,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     const settled = await transact(
       callDomain(context.ok),
       command.operation,
-      (snapshot, mint) =>
-        decidePreserveResult(snapshot, command, final, confirmed, channels.ok, mint),
+      (snapshot, mint) => decidePreserveResult(snapshot, command, final, channels.ok, mint),
       commitUnknown(command.operation),
       before.ok.revision,
     )

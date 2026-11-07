@@ -1,7 +1,7 @@
 // The `tool` participant module's own guards, which the adapters' read-before-write hides from the
 // port tests: they hold when two writers race between a read and a commit. A chunk never changes a
-// sealed operation, a manifest seals only chunks that hold exactly its bytes, a retained projection
-// needs its raw output, and facts of another protocol are refused.
+// sealed operation, a raw manifest requires exactly its declared bytes, and retired result
+// projections and facts of another protocol are refused.
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/sql-contract'
@@ -78,8 +78,8 @@ describe('a manifest', () => {
     expect(rows('SELECT COUNT(*) AS n FROM tl_manifest')).toEqual([{ n: 0n }])
   })
 
-  it('of a retained projection needs the raw output it holds, sealed in the same call', () => {
-    const { port } = migratedPort()
+  it('rejects retired complete-result manifests without writing a projection', () => {
+    const { port, rows } = migratedPort()
     participant.execute(chunk('d1', 0, 'projection'), port)
     expect(
       participant.execute(
@@ -89,7 +89,8 @@ describe('a manifest', () => {
         }),
         port,
       ),
-    ).toEqual({ kind: 'conflict', basis: { reason: 'holder' } })
+    ).toEqual({ kind: 'unsupported', basis: { reason: 'facts' } })
+    expect(rows('SELECT COUNT(*) AS n FROM tl_manifest')).toEqual([{ n: 0n }])
   })
 })
 

@@ -113,7 +113,7 @@ describe('17 the runtime factory and later increments', () => {
     const ports = testSettlementPorts()
     expect(() =>
       createToolLedger(store, guards(), clock, configuration(), undefined as never),
-    ).toThrow('settlement.custody.retainResult: missing')
+    ).toThrow('settlement.releaseInspection.inspectRelease: missing')
     expect(() =>
       createToolLedger(store, guards(), clock, configuration(), {
         ...ports,

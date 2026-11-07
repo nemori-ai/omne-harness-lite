@@ -91,6 +91,9 @@ export type StartOptions = HarnessOptions &
       base: ToolBindings<Principal, TestEnvironment>,
     ) => ToolBindings<Principal, TestEnvironment>
     custodyPort?: (base: ToolOutputCustody<Principal>) => ToolOutputCustody<Principal>
+    resultMaterialsPort?: (
+      base: import('@omne-harness/tool-contract/provider').ToolMaterialStore<Principal>,
+    ) => import('@omne-harness/tool-contract/provider').ToolMaterialStore<Principal>
     /** Builds over this memory instead of a new one: a second runtime over the same records. */
     memory?: MemoryToolLedgerStore
     /** Wraps the memory store, to make one commit or read of the start path misbehave. */
@@ -452,15 +455,31 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const bindings = options.bindingsPort?.(binding.bindings) ?? binding.bindings
   const factAcknowledgements = createToolFactAcknowledgementGuard(bindings)
   const environments = testEnvironments(options.environment ?? new Map())
-  const originalCustody = testSettlementPorts(memory).custody
+  const originalCustody: ToolOutputCustody<Principal> = {
+    preserve: input => ledger.rawCustody.preserve(input),
+    inspect: input => ledger.rawCustody.inspect(input),
+  }
   const custody = options.custodyPort?.(originalCustody) ?? originalCustody
   const controlSubjects =
     options.controlSubjects === undefined
       ? testControlSubjects(guards(options).access)
       : options.controlSubjects
+  const materialPorts = testSettlementPorts(memory).materials
+  const resultMaterials = options.resultMaterialsPort?.(materialPorts.store)
   const settlement = {
-    materials: testSettlementPorts(memory).materials,
-    custody,
+    materials: {
+      ...materialPorts,
+      store:
+        resultMaterials === undefined
+          ? materialPorts.store
+          : {
+              ...materialPorts.store,
+              write: (input: Parameters<typeof materialPorts.store.write>[0]) =>
+                input.operation.startsWith('result-slot:')
+                  ? resultMaterials.write(input)
+                  : materialPorts.store.write(input),
+            },
+    },
     releaseInspection: environments,
     content: null,
     ...(controlSubjects === null ? {} : { controlSubjects }),
@@ -506,7 +525,6 @@ export function startHarness(options: StartOptions = {}): StartHarness {
       'invalidate',
       'resolve',
     ]),
-    custody,
     catalog: refusing('catalog', ['inspect', 'usage', 'search']),
     children: refusing('children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
     operationIdentities: identities.operationIdentities,

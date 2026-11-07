@@ -33,7 +33,6 @@ import {
   mintEvidence,
   operationId,
   tenantKey,
-  textResult,
 } from './testing-values.ts'
 
 /**
@@ -42,7 +41,7 @@ import {
  * a case that needs one that is missing is reported not applicable: `readBytes` reads the bytes
  * that a raw output holds; `failNext` makes the next new preserve fail before anything is kept;
  * `dropNextAnswer` makes the next new preserve keep the bytes but lose its answer. `settle` is for
- * a provider that answers `commit-unknown` to a `preserve` or a `retainResult`, or `unknown` to an
+ * a provider that answers `commit-unknown` to a `preserve` or `unknown` to an
  * `inspect`, while it completes the work: it resolves only after every such operation has
  * landed (the bytes are kept) and is visible to every read of the port, so that the operation
  * asked again, or inspected, tells its result; the suite asks once more after it and never polls.
@@ -67,7 +66,7 @@ export interface ToolOutputCustodyFixture<P> {
 }
 
 /**
- * The answer model of the output custody (P01, P05): a `preserve` or a `retainResult` whose
+ * The answer model of the output custody (P01, P05): a `preserve` whose
  * commit is not confirmed answers `commit-unknown`, and the original operation is then asked
  * again; an `inspect` may answer `unknown` until the output is visible. Every other answer is
  * final: the raw output or the evidence of the operation, which a resend recalls as it was.
@@ -75,7 +74,6 @@ export interface ToolOutputCustodyFixture<P> {
 export const outputCustodyAnswers = {
   preserve: { clause: 'P01', progress: [], lostReply: ['commit-unknown'] },
   inspect: { clause: 'P05', progress: ['unknown'] },
-  retainResult: { clause: 'P01', progress: [], lostReply: ['commit-unknown'] },
 } as const satisfies AnswerModel<keyof ToolOutputCustody<unknown>>
 
 const BYTES = new TextEncoder().encode('the raw output of the tool')
@@ -91,8 +89,6 @@ function scene<P>(fixture: ToolOutputCustodyFixture<P>, access: Access<P> = fixt
   const preserveOutcome = (operation = 'preserve-1', bytes: Uint8Array = BYTES) =>
     custody.preserve({ ...mutation(operation), codec, bytes: bytes.slice(), source: SOURCE })
   const inspect = (operation = 'preserve-1') => custody.inspect(mutation(operation))
-  const tryRetain = (raw: RawOutput, operation = 'retain-1', text = 'projection') =>
-    custody.retainResult({ ...mutation(operation), raw, value: textResult(text) })
   return {
     completion,
     /** What every call of the scene sends: its access and its call. */
@@ -131,20 +127,6 @@ function scene<P>(fixture: ToolOutputCustodyFixture<P>, access: Access<P> = fixt
           what: 'inspect',
         }),
         'inspect',
-      ),
-    tryRetain,
-    retain: async (raw: RawOutput, operation = 'retain-1'): Promise<DurableEvidence> =>
-      succeeded(await tryRetain(raw, operation), 'retainResult'),
-    /** The evidence of a retainResult; a lost reply is driven by `settle`. */
-    retainFinal: async (raw: RawOutput, operation = 'retain-1'): Promise<DurableEvidence> =>
-      succeeded(
-        await finalAnswer({
-          ask: () => tryRetain(raw, operation),
-          row: outputCustodyAnswers.retainResult,
-          completion,
-          what: 'retainResult',
-        }),
-        'retainResult',
       ),
     codec,
   }
@@ -237,29 +219,6 @@ export function toolOutputCustodyConformance<P>(): readonly ConformanceCase<
     ),
 
     conformanceCase(
-      'P05',
-      'a retainResult resent by its operation returns the original evidence',
-      async fixture => {
-        const s = scene(fixture)
-        const raw = await s.preserveFinal()
-        const first = await s.retainFinal(raw)
-        resendRecalls(
-          answers.retainResult,
-          { earlier: first, later: await s.retain(raw) },
-          'retainResult again',
-        )
-      },
-    ),
-
-    conformanceCase('P05', 'retainResult leaves the preserved original', async fixture => {
-      const s = scene(fixture)
-      const raw = await s.preserveFinal()
-      await s.retainFinal(raw)
-      const inspected = expectKind(await s.inspectFinal(), 'retained', 'inspect after retainResult')
-      assert.deepEqual(inspected.raw, raw)
-    }),
-
-    conformanceCase(
       'P01',
       'a preserve operation reused with other bytes is a conflict that changes nothing',
       async fixture => {
@@ -276,26 +235,6 @@ export function toolOutputCustodyConformance<P>(): readonly ConformanceCase<
           'inspect after the conflict',
         )
         assert.deepEqual(inspected.raw, raw)
-      },
-    ),
-
-    conformanceCase(
-      'P01',
-      'a retainResult operation reused for another result is a conflict that changes nothing',
-      async fixture => {
-        const s = scene(fixture)
-        const raw = await s.preserveFinal()
-        const first = await s.retainFinal(raw)
-        const other = await s.tryRetain(raw, 'retain-1', 'another projection')
-        assert.equal(
-          refused(other, 'retain of another result under the same operation').kind,
-          'conflict',
-        )
-        resendRecalls(
-          answers.retainResult,
-          { earlier: first, later: await s.retain(raw) },
-          'retainResult after the conflict',
-        )
       },
     ),
 
@@ -337,34 +276,6 @@ export function toolOutputCustodyConformance<P>(): readonly ConformanceCase<
         )
       },
     ),
-
-    conformanceCase(
-      'P05',
-      'another tenant cannot retain a result over the output of a tenant',
-      async fixture => {
-        const own = scene(fixture)
-        const other = scene(fixture, otherAccessOf(fixture))
-        const raw = await own.preserveFinal()
-        const first = await own.retainFinal(raw)
-        // The other tenant sends the raw output itself; the retained evidence still identifies it.
-        await crossTenantAnswers({
-          ask: {
-            real: () => other.tryRetain(raw),
-            ghost: () => other.tryRetain({ ...raw, custody: evidence('ghost-custody') }),
-          },
-          row: answers.retainResult,
-          completion: other.completion,
-          identifying: identifyingValues(fixture.access.tenant, first),
-          submitted: [...other.sends, 'retain-1', raw, textResult('projection')],
-          what: 'retainResult by another tenant',
-        })
-        resendRecalls(
-          answers.retainResult,
-          { earlier: first, later: await own.retain(raw) },
-          'retainResult by the own tenant',
-        )
-      },
-    ),
   ]
 }
 
@@ -396,7 +307,6 @@ export function createMemoryToolOutputCustody<P>(): MemoryToolOutputCustody<P> {
     string,
     { raw: RawOutput; bytes: Uint8Array; tenant: string; call: ToolCallId }
   >()
-  const retained = new Map<string, { evidence: DurableEvidence; digest: string }>()
   /** What each preserve operation asked: the same identity with other bytes is a conflict. */
   const preserved = new Map<string, string>()
   let failing = false
@@ -456,33 +366,6 @@ export function createMemoryToolOutputCustody<P>(): MemoryToolOutputCustody<P> {
       return reply(
         succeed(found === undefined ? { kind: 'unknown' } : { kind: 'retained', raw: found.raw }),
       )
-    },
-    retainResult: input => {
-      // The result is kept over an output that this tenant preserved for this call, and no other.
-      const held = [...outputs.values()].some(
-        entry =>
-          entry.tenant === tenantKey(input.tenant) &&
-          entry.call === input.call &&
-          entry.raw.custody.digest === input.raw.custody.digest,
-      )
-      if (!held)
-        return reply(
-          fail({ kind: 'invalid', field: 'raw', reason: 'no output of this call was preserved' }),
-        )
-      const at = keyOf(input.tenant, input.call, input.operation)
-      const digest = digestOf({ kind: 'retain', raw: input.raw.custody, value: input.value })
-      let kept = retained.get(at)
-      if (kept !== undefined && kept.digest !== digest)
-        return reply(fail({ kind: 'conflict', operation: input.operation }))
-      if (kept === undefined) {
-        minted += 1
-        kept = {
-          evidence: mintEvidence(`custody/result/${minted}`, { at, raw: input.raw.custody }),
-          digest,
-        }
-        retained.set(at, kept)
-      }
-      return reply(succeed(kept.evidence))
     },
   }
 

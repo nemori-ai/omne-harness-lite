@@ -58,7 +58,7 @@ it.each([
           sample: async () => succeed(ok(decodeToolMaterialInstant('2026-11-07T00:00:00.000Z'))),
         },
       })
-      const ledger = world.ledgerOver(storage.store, materials(storage), storage.custody)
+      const ledger = world.ledgerOver(storage.store, materials(storage))
       ok(await ledger.admissions.admit(world.input))
       const context = async (name: string) => ({
         ...world.access,
@@ -97,7 +97,7 @@ it.each([
         }),
       )
       const raw = ok(
-        await storage.custody.preserve({
+        await ledger.rawCustody.preserve({
           ...world.access,
           operation: ok(decodeToolOperationId('raw')),
           codec: { owner: 'fixture', name: 'text', revision: '1', digest: 'sha256:text' },
@@ -183,24 +183,20 @@ it.each([
       expect(Buffer.byteLength(JSON.stringify(retained))).toBeLessThan(100_000)
       if (retained.kind !== 'complete') throw new Error('ledger read incomplete')
       const uses = retained.records.filter(record => record.kind === 'material-use')
-      expect(uses).toHaveLength(settle ? 4 : 2)
+      expect(uses).toHaveLength(settle ? 4 : 3)
       expect(
         uses.filter(record => record.kind === 'material-use' && record.use.kind === 'delivery'),
       ).toHaveLength(settle ? 3 : 0)
       expect(
         uses.filter(record => record.kind === 'material-use' && record.use.kind === 'preparation'),
-      ).toHaveLength(settle ? 1 : 2)
+      ).toHaveLength(settle ? 1 : 3)
       const cleanup = retained.records.filter(record => record.kind === 'material-cleanup')
-      expect(cleanup).toHaveLength(settle ? 1 : 0)
+      expect(cleanup).toHaveLength(settle ? 2 : 0)
       const state = ok(await ledger.commands.loadRecovery(world.access)).state
       await storage.close()
       const reopened = await openStorage(root, [tenant], { maxCommandBytes: 1_048_576 })
       try {
-        const restoredLedger = world.ledgerOver(
-          reopened.store,
-          materials(reopened),
-          reopened.custody,
-        )
+        const restoredLedger = world.ledgerOver(reopened.store, materials(reopened))
         expect(ok(await restoredLedger.commands.loadRecovery(world.access)).state).toEqual(state)
         if (state.phase === 'settled') {
           const input = {

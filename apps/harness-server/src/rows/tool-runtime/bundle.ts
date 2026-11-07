@@ -25,7 +25,6 @@ import { createReleaseToolIdentity, releasePrincipalCodec } from './access.ts'
 import type { ToolRuntimeConfig } from './config.ts'
 import { createReleaseEnvironment } from './environment.ts'
 import {
-  lateCustody,
   lateMaterials,
   TOOL_MATERIAL_PROVIDER,
   lateStore,
@@ -97,7 +96,6 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
   })
   const input: LocalToolRuntimeInput = {
     store,
-    custody: lateCustody(holder),
     materials: {
       provider: TOOL_MATERIAL_PROVIDER,
       store: lateMaterials(holder),

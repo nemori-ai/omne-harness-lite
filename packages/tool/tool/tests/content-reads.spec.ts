@@ -14,6 +14,7 @@ import {
   type RawOutput,
   type ToolResult,
 } from '@omne-harness/tool-contract'
+import type { ToolMaterialStore } from '@omne-harness/tool-contract/provider'
 import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import { settlementFixture } from './settlement-values.ts'
 import { testAssembly } from './testing-values.ts'
@@ -67,6 +68,27 @@ async function fixture(
 
   const revoked = new Set<ToolLedgerAction>()
   let readHook: (() => Promise<void>) | null = null
+  let rawReadHook: (() => Promise<void>) | null = null
+  const rawMaterial = (await f.records()).find(
+    record => record.kind === 'material' && record.material.purpose === 'raw',
+  )
+  if (rawMaterial?.kind !== 'material') throw new Error('fixture has no raw material')
+  const materialPorts = testSettlementPorts(f.harness.memory).materials
+  const materials = {
+    ...materialPorts,
+    store: {
+      ...materialPorts.store,
+      read: async (input: Parameters<ToolMaterialStore<Principal>['read']>[0]) => {
+        const reply = await materialPorts.store.read(input)
+        if (input.material.id === rawMaterial.material.material.id) {
+          const hook = rawReadHook
+          rawReadHook = null
+          if (hook !== null) await hook()
+        }
+        return reply
+      },
+    },
+  }
   let qualificationHook: Readonly<{ action: ToolLedgerAction; run(): Promise<void> }> | null = null
   const store: ToolLedgerStore = {
     durability: 'none',
@@ -105,8 +127,7 @@ async function fixture(
     createMemoryToolClock(),
     configuration(),
     {
-      materials: testSettlementPorts(f.harness.memory).materials,
-      custody: f.custody,
+      materials,
       releaseInspection: f.environment,
       content: content.reader,
     },
@@ -138,6 +159,18 @@ async function fixture(
     input,
     revoked,
     qualificationActions,
+    afterRawRead: (hook: () => Promise<void>) => {
+      rawReadHook = hook
+    },
+    pauseRawRead: () => {
+      const entered = Promise.withResolvers<void>()
+      const resume = Promise.withResolvers<void>()
+      rawReadHook = async () => {
+        entered.resolve()
+        await resume.promise
+      }
+      return { entered: entered.promise, resume: () => resume.resolve() }
+    },
     revokeTenant: () => {
       tenantAllowed = false
     },
@@ -481,7 +514,7 @@ describe('fixed result and content reads through the runtime', () => {
       f.access.result,
     )
     f.revoked.delete('read-raw')
-    const pause = f.content.controls.pauseNextRead()
+    const pause = f.pauseRawRead()
     const read = f.runtime.content.read(protectedInput)
     await pause.entered
     f.revoked.add('read-raw')
@@ -501,7 +534,7 @@ describe('fixed result and content reads through the runtime', () => {
       f.content.controls.seed({
         ...f.f.access,
         attachment: alias,
-        bytes: await f.f.custody.controls.readBytes(f.f.final.raw),
+        bytes: new TextEncoder().encode('original bytes'),
       }),
     )
     f.revoked.add('read-raw')
@@ -509,12 +542,9 @@ describe('fixed result and content reads through the runtime', () => {
       failure: { kind: 'denied', action: 'read-raw-content' },
     })
     f.revoked.delete('read-raw')
-    const pause = f.content.controls.pauseNextRead()
-    const reading = f.runtime.content.read({ ...f.input, attachment: alias })
-    await pause.entered
-    f.revoked.add('read-raw')
-    pause.resume()
-    expect(await reading).toEqual({ failure: { kind: 'denied', action: 'read-raw-content' } })
+    expect(await f.runtime.content.read({ ...f.input, attachment: alias })).toEqual({
+      failure: { kind: 'invalid', field: 'attachment', reason: 'not-owned-material' },
+    })
   })
 
   it('does not associate an unregistered raw-address description, even when bytes are seeded', async () => {
@@ -524,7 +554,7 @@ describe('fixed result and content reads through the runtime', () => {
       f.content.controls.seed({
         ...f.f.access,
         attachment: alias,
-        bytes: await f.f.custody.controls.readBytes(f.f.final.raw),
+        bytes: new TextEncoder().encode('original bytes'),
       }),
     )
     expect(await f.runtime.content.read({ ...f.input, attachment: alias })).toEqual({
@@ -552,11 +582,11 @@ describe('fixed result and content reads through the runtime', () => {
         f.content.controls.seed({
           ...f.f.access,
           attachment: alias,
-          bytes: await f.f.custody.controls.readBytes(f.f.final.raw),
+          bytes: new TextEncoder().encode('original bytes'),
         }),
       ).toMatchObject({ failure: { kind: 'unavailable', dependency: 'memory-content' } })
       expect(await f.runtime.content.read({ ...f.input, attachment: alias })).toMatchObject({
-        failure: { kind: 'unavailable', dependency: 'memory-content' },
+        failure: { kind: 'invalid', field: 'attachment', reason: 'not-owned-material' },
       })
     },
   )
@@ -566,10 +596,10 @@ describe('fixed result and content reads through the runtime', () => {
       content: [],
       data: { kind: 'none' },
       original: { kind: 'none' },
-      attachments: [{ ...raw.content, key: 'ordinary-copy' }],
+      attachments: [{ ...raw.content, storage: 'test-bytes', key: 'ordinary-copy' }],
     }))
-    const ordinary = { ...f.f.final.raw.content, key: 'ordinary-copy' }
-    const bytes = await f.f.custody.controls.readBytes(f.f.final.raw)
+    const ordinary = { ...f.f.final.raw.content, storage: 'test-bytes', key: 'ordinary-copy' }
+    const bytes = new TextEncoder().encode('original bytes')
     ok(f.content.controls.seed({ ...f.f.access, attachment: ordinary, bytes }))
     f.revoked.add('read-raw')
     expect(ok(await f.runtime.content.read({ ...f.input, attachment: ordinary })).bytes).toEqual(
@@ -589,15 +619,11 @@ describe('fixed result and content reads through the runtime', () => {
       }))
       const entered = Promise.withResolvers<void>()
       const resume = Promise.withResolvers<void>()
-      f.content.controls.failNext({
-        kind: 'reply',
-        replace: page => {
-          f.pauseQualification('read-raw-content', async () => {
-            entered.resolve()
-            await resume.promise
-          })
-          return page
-        },
+      f.afterRawRead(async () => {
+        f.pauseQualification('read-raw-content', async () => {
+          entered.resolve()
+          await resume.promise
+        })
       })
       const reading = f.runtime.content.read({ ...f.input, attachment: f.f.final.raw.content })
       await entered.promise
@@ -617,12 +643,8 @@ describe('fixed result and content reads through the runtime', () => {
     'discards raw bytes when the last qualification is %s',
     async failure => {
       const f = await fixture()
-      f.content.controls.failNext({
-        kind: 'reply',
-        replace: page => {
-          f.failQualification(failure)
-          return page
-        },
+      f.afterRawRead(async () => {
+        f.failQualification(failure)
       })
       const reading = await f.runtime.content.read({
         ...f.input,
@@ -727,7 +749,6 @@ describe('fixed result and content reads through the runtime', () => {
       configuration(),
       {
         materials: testSettlementPorts(f.f.harness.memory).materials,
-        custody: f.f.custody,
         releaseInspection: f.f.environment,
         content: null,
       },

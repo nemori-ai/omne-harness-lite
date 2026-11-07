@@ -27,7 +27,7 @@ import {
   type Variant,
 } from './conformance-harness.ts'
 import { maskKinds, maskedMethods } from './generated-provider.ts'
-import { generated, oneTenant, outputKey, resultKey } from './output-custody-legal.ts'
+import { generated, oneTenant, outputKey } from './output-custody-legal.ts'
 import { answersAnotherFinalDuringProgress, regressesAfterFinal } from './resend-violators.ts'
 import { adoption, evidence } from './tool-values.ts'
 
@@ -39,13 +39,9 @@ const NAMES = {
   C5: 'inspect retains nothing for an operation never preserved',
   C6: 'a failed preserve never answers durable',
   C7: 'a preserve whose answer was lost is recalled by its operation',
-  C8: 'a retainResult resent by its operation returns the original evidence',
-  C9: 'retainResult leaves the preserved original',
   C10: 'a preserve operation reused with other bytes is a conflict that changes nothing',
-  C11: 'a retainResult operation reused for another result is a conflict that changes nothing',
   C12: 'another tenant learns nothing of an output by inspect',
   C13: 'another tenant does not receive the output of a tenant',
-  C14: 'another tenant cannot retain a result over the output of a tenant',
 } as const
 
 type Fixture = ToolOutputCustodyFixture<string>
@@ -129,7 +125,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'inspect never recalls a retained output',
-    fails: [NAMES.C4, NAMES.C7, NAMES.C9, NAMES.C12, NAMES.C10],
+    fails: [NAMES.C4, NAMES.C7, NAMES.C12, NAMES.C10],
     fixture: variant(() => ({
       port: { inspect: () => Promise.resolve(succeed({ kind: 'unknown' as const })) },
     })),
@@ -197,45 +193,6 @@ const variants: readonly Variant<Fixture>[] = [
           },
           inspect: async input =>
             lost ? succeed({ kind: 'unknown' as const }) : real.inspect(input),
-        },
-      }
-    }),
-  },
-  {
-    name: 'a resent retainResult answers fresh evidence',
-    fails: [NAMES.C8, NAMES.C14, NAMES.C11],
-    fixture: variant(real => {
-      let answers = 0
-      return {
-        port: {
-          retainResult: async input => {
-            const answer = await real.retainResult(input)
-            if ('failure' in answer) return answer
-            answers += 1
-            return answers === 1
-              ? answer
-              : succeed({ ...answer.ok, digest: `sha256:fresh-${answers}` })
-          },
-        },
-      }
-    }),
-  },
-  {
-    // Keeping the result lets the provider drop the original.
-    name: 'retainResult drops the preserved original',
-    fails: [NAMES.C9],
-    fixture: variant(real => {
-      let retained = false
-      return {
-        port: {
-          retainResult: input => {
-            retained = true
-            return real.retainResult(input)
-          },
-          inspect: async input =>
-            retained
-              ? succeed({ kind: 'excluded' as const, evidence: evidence('dropped') })
-              : real.inspect(input),
         },
       }
     }),
@@ -326,38 +283,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    name: 'a foreign retainResult is denied when the output exists',
-    fails: [NAMES.C14],
-    fixture: variant(real => ({
-      port: {
-        retainResult: async input => {
-          if (!isForeign(input.tenant) || input.raw.custody.record === 'ghost-custody')
-            return real.retainResult(input)
-          return fail({ kind: 'denied', action: 'retain' })
-        },
-      },
-    })),
-  },
-  {
-    // The foreign retention uses up the retention of the tenant: its own comes out different.
-    name: 'a foreign retainResult changes the retention of the tenant',
-    fails: [NAMES.C14],
-    fixture: variant(real => {
-      let spent = false
-      return {
-        port: {
-          retainResult: async input => {
-            if (isForeign(input.tenant)) spent = true
-            const answer = await real.retainResult(input)
-            return spent && !isForeign(input.tenant) && 'ok' in answer
-              ? succeed({ ...answer.ok, digest: 'sha256:spent' })
-              : answer
-          },
-        },
-      }
-    }),
-  },
-  {
     // The key is blank for the caller; the bytes are still kept under the real key.
     name: 'the key of the content is blank',
     fails: [NAMES.C1],
@@ -414,10 +339,7 @@ const variants: readonly Variant<Fixture>[] = [
     // Preserve and inspect agree with each other; only the content or custody is flawed.
     name,
     // A blank custody digest is also refused by the retain cases, which hand the raw output back.
-    fails:
-      name === 'the digest of the custody is blank'
-        ? [NAMES.C1, NAMES.C8, NAMES.C9, NAMES.C11, NAMES.C14]
-        : [NAMES.C1],
+    fails: name === 'the digest of the custody is blank' ? [NAMES.C1] : [NAMES.C1],
     fixture: variant(real => ({
       port: {
         preserve: async input => {
@@ -492,7 +414,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'inspect answers another raw output',
-    fails: [NAMES.C4, NAMES.C7, NAMES.C9, NAMES.C12, NAMES.C10],
+    fails: [NAMES.C4, NAMES.C7, NAMES.C12, NAMES.C10],
     fixture: variant(real => ({
       port: {
         inspect: async input => {
@@ -530,34 +452,6 @@ const variants: readonly Variant<Fixture>[] = [
                   custody: { ...answer.ok.custody, digest: 'sha256:after-lost' },
                 })
               : answer
-          },
-        },
-      }
-    }),
-  },
-  {
-    // A retained result takes the place of the preserved original.
-    name: 'retainResult replaces the preserved original',
-    fails: [NAMES.C9],
-    fixture: variant(real => {
-      let retained = false
-      return {
-        port: {
-          retainResult: input => {
-            retained = true
-            return real.retainResult(input)
-          },
-          inspect: async input => {
-            const answer = await real.inspect(input)
-            return !retained || 'failure' in answer || answer.ok.kind !== 'retained'
-              ? answer
-              : succeed({
-                  kind: 'retained' as const,
-                  raw: {
-                    ...answer.ok.raw,
-                    custody: { ...answer.ok.raw.custody, digest: 'sha256:projection' },
-                  },
-                })
           },
         },
       }
@@ -606,43 +500,16 @@ const variants: readonly Variant<Fixture>[] = [
       },
     })),
   },
-  {
-    // The conflict is named invalid: the reuse of the identity is refused, but not as a conflict.
-    name: 'a retainResult operation reused for another result is refused as invalid',
-    fails: [NAMES.C11],
-    fixture: variant(real => ({
-      port: {
-        retainResult: async input => {
-          const answer = await real.retainResult(input)
-          return 'failure' in answer && answer.failure.kind === 'conflict'
-            ? fail({ kind: 'invalid', field: 'operation', reason: 'the operation is taken' })
-            : answer
-        },
-      },
-    })),
-  },
 ]
 
 // ---------------------------------------------------------------------------------------------
 // Providers that the contract allows are built in output-custody-legal.ts, at the port boundary.
 // ---------------------------------------------------------------------------------------------
 
-/** The cases that read an operation after a lost reply of a preserve or a retainResult. */
-const AFTER_LOST_REPLY = [
-  NAMES.C1,
-  NAMES.C2,
-  NAMES.C3,
-  NAMES.C4,
-  NAMES.C8,
-  NAMES.C9,
-  NAMES.C10,
-  NAMES.C11,
-  NAMES.C12,
-  NAMES.C13,
-  NAMES.C14,
-]
+/** The cases that read an operation after a lost reply of a preserve. */
+const AFTER_LOST_REPLY = [NAMES.C1, NAMES.C2, NAMES.C3, NAMES.C4, NAMES.C10, NAMES.C12, NAMES.C13]
 /** The cases that read an inspect that is first `unknown`. */
-const AFTER_UNKNOWN_INSPECT = [NAMES.C4, NAMES.C7, NAMES.C9, NAMES.C10, NAMES.C12]
+const AFTER_UNKNOWN_INSPECT = [NAMES.C4, NAMES.C7, NAMES.C10, NAMES.C12]
 const needs = (handle: string, names: readonly string[]): Record<string, string> =>
   Object.fromEntries(names.map(name => [name, handle]))
 
@@ -664,22 +531,6 @@ const resendRule: readonly Variant<Fixture>[] = [
             progress: input => fail({ kind: 'commit-unknown', operation: input.operation }),
           },
           input => real.preserve(input),
-        ),
-      },
-    })),
-  },
-  {
-    name: 'a resent retainResult goes back from the evidence to a lost reply',
-    fails: [NAMES.C8, NAMES.C11, NAMES.C14],
-    fixture: variant(real => ({
-      port: {
-        retainResult: regressesAfterFinal(
-          {
-            row: outputCustodyAnswers.retainResult,
-            key: resultKey,
-            progress: input => fail({ kind: 'commit-unknown', operation: input.operation }),
-          },
-          input => real.retainResult(input),
         ),
       },
     })),
@@ -716,27 +567,6 @@ const resendRule: readonly Variant<Fixture>[] = [
       }
     },
   },
-  {
-    name: 'a resend of a retainResult during its lost reply answers another evidence than the one that lands',
-    fails: [NAMES.C8, NAMES.C9, NAMES.C11, NAMES.C14],
-    fixture: () => {
-      const lost = generated('commit-unknown')()
-      return {
-        ...lost,
-        custody: {
-          ...lost.custody,
-          retainResult: answersAnotherFinalDuringProgress(
-            {
-              row: outputCustodyAnswers.retainResult,
-              key: resultKey,
-              other: () => succeed(evidence('result/early')),
-            },
-            input => lost.custody.retainResult(input),
-          ),
-        },
-      }
-    },
-  },
 ]
 
 const legal: readonly LegalProvider<Fixture>[] = [
@@ -750,7 +580,6 @@ const legal: readonly LegalProvider<Fixture>[] = [
     notApplicable: {
       [NAMES.C12]: 'otherAccess',
       [NAMES.C13]: 'otherAccess',
-      [NAMES.C14]: 'otherAccess',
     },
   },
 ]
@@ -782,7 +611,6 @@ const lateSettle: readonly Variant<Fixture>[] = [
 const CROSS_TENANT: Readonly<Record<keyof ToolOutputCustody<string>, string>> = {
   preserve: NAMES.C13,
   inspect: NAMES.C12,
-  retainResult: NAMES.C14,
 }
 
 describe('ToolOutputCustody conformance suite', () => {
@@ -813,7 +641,6 @@ describe('ToolOutputCustody conformance suite', () => {
       [NAMES.C7]: 'dropNextAnswer',
       [NAMES.C12]: 'otherAccess',
       [NAMES.C13]: 'otherAccess',
-      [NAMES.C14]: 'otherAccess',
     })
   })
 
@@ -856,11 +683,7 @@ describe('ToolOutputCustody conformance suite', () => {
   })
 
   it('masks every method of the table that has progress or a lost reply', () => {
-    expect(maskedMethods(outputCustodyAnswers).sort()).toEqual([
-      'inspect',
-      'preserve',
-      'retainResult',
-    ])
+    expect(maskedMethods(outputCustodyAnswers).sort()).toEqual(['inspect', 'preserve'])
   })
 
   it('names the tenant of the second access: the cross-tenant cases fail on one tenant twice', async () => {
@@ -868,7 +691,7 @@ describe('ToolOutputCustody conformance suite', () => {
       const base = memoryToolOutputCustodyFixture()
       return { ...base, otherAccess: base.access }
     }
-    const cross = [NAMES.C12, NAMES.C13, NAMES.C14]
+    const cross = [NAMES.C12, NAMES.C13]
     const verdict = await judge(cases, same)
     expect([...verdict.failed].sort()).toEqual([...cross].sort())
     for (const name of cross)

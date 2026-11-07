@@ -40,22 +40,18 @@ export type ChunkFacts = CustodyAddress &
 
 export type ManifestKind = 'raw' | 'retain'
 
-/**
- * The manifest that seals the chunks of `operation`. `seal` is the custody digest a raw output
- * names, or the digest of the retained evidence. A retained projection `holds` the raw output it
- * was kept over: the operation and the seal of that output in the same tenant and call.
- */
+/** The manifest that seals raw chunks. Historical retained projections are read-only. */
 export type ManifestFacts = CustodyAddress &
   Readonly<{
     intent: 'manifest'
-    kind: ManifestKind
+    kind: 'raw'
     digest: string
     bytes: number
     chunks: number
     sha256: string
     seal: string
     answer: JsonValue
-    holds: Readonly<{ operation: string; seal: string }> | null
+    holds: null
   }>
 
 export type ToolFacts = LedgerFacts | GuardedHostFacts | ChunkFacts | ManifestFacts | MaterialFacts
@@ -66,7 +62,6 @@ export type StopBasis =
   | Readonly<{ reason: 'call-changed' }>
   | Readonly<{ reason: 'operation' }>
   | Readonly<{ reason: 'chunks' }>
-  | Readonly<{ reason: 'holder' }>
 
 export type ParticipantAnswer =
   | Readonly<{ kind: 'committed' }>
@@ -166,14 +161,6 @@ function chunkOf(value: JsonObject): ChunkFacts | null {
   return { ...address, intent: 'chunk', digest, index, data }
 }
 
-function holdsOf(value: JsonValue | undefined): ManifestFacts['holds'] | undefined {
-  if (value === null) return null
-  if (!isObject(value)) return undefined
-  const operation = textOf(value, 'operation')
-  const seal = textOf(value, 'seal')
-  return operation === null || seal === null ? undefined : { operation, seal }
-}
-
 /** What a manifest declares about the kept bytes and its own answer. */
 function declaredOf(
   value: JsonObject,
@@ -193,14 +180,14 @@ function manifestOf(value: JsonObject): ManifestFacts | null {
   const declared = declaredOf(value)
   const bytes = countOf(value, 'bytes')
   const chunks = countOf(value, 'chunks')
-  const holds = holdsOf(value['holds'])
+  const holds = value['holds']
   if (
     address === null ||
-    (kind !== 'raw' && kind !== 'retain') ||
+    kind !== 'raw' ||
     declared === null ||
     bytes === null ||
     chunks === null ||
-    holds === undefined
+    holds !== null
   )
     return null
   return { ...address, ...declared, intent: 'manifest', kind, bytes, chunks, holds }

@@ -79,7 +79,7 @@ Normal completed settlement closes the reader without waiting for ACK confirmati
 
 ## Settlement and resource release
 
-`receiveFacts` saves the final and its settle task. It does not settle the call. `preserveResult` reads that original final and confirms `custody.retainResult` before committing one original result, delivery, actual effect, ended evidence, and successor tasks. Retries retain the original identities. Applied but unanswered custody is still unconfirmed.
+`receiveFacts` saves the final and its settle task. It does not settle the call. `preserveResult` reads that original final and confirms the owned raw output and sealed result channels before committing one original result, delivery, actual effect, ended evidence, and successor tasks. Retries retain the original identities. Applied but unanswered custody is still unconfirmed.
 
 `planRelease` recovers one canonical plan per original preparation, including after its task closes. Normal completed output needs independent custody for every historical reference. A file address alone is insufficient. Abnormal finals retain blocked cleanup and source responsibilities. `recordRelease` checks reported released evidence through the original environment's `inspectRelease`. It does not call environment `release`. Slot release and environment release are separate.
 

@@ -234,7 +234,7 @@ describe('canonical environment cleanup ledger', () => {
             ...f.access,
             operation: operationId('forbidden-plan'),
             preparation: firstPreparation(f),
-            custody: result.result.custody.retained,
+            custody: result.result.custody.materialized,
           }),
         ).kind,
       ).toBe('unsupported')
@@ -268,7 +268,7 @@ describe('canonical environment cleanup ledger', () => {
           ...f.access,
           operation: operationId('incomplete-plan'),
           preparation: firstPreparation(f),
-          custody: result.result.custody.retained,
+          custody: result.result.custody.materialized,
         }),
       ).kind,
     ).toBe('unsupported')
@@ -310,7 +310,7 @@ describe('canonical environment cleanup ledger', () => {
         ...f.access,
         operation: operationId('content-identity-plan'),
         preparation: firstPreparation(f),
-        custody: result.result.custody.retained,
+        custody: result.result.custody.materialized,
       }
       const planned = await f.ledger.commands.planRelease(input)
       if (kind === 'covered-ref') {

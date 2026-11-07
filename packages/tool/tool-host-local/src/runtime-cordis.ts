@@ -73,6 +73,16 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   let forwarding: ToolForwardRuntime<unknown> | undefined
   const authorExecution = createRuntimeAuthorExecution({
     ...input,
+    custody: {
+      preserve: request =>
+        records === null
+          ? Promise.resolve(runtimeUnavailable('toolRawCustody'))
+          : records.ledger.rawCustody.preserve(request),
+      inspect: request =>
+        records === null
+          ? Promise.resolve(runtimeUnavailable('toolRawCustody'))
+          : records.ledger.rawCustody.inspect(request),
+    },
     finalCustody: {
       preserveFinal: request =>
         records === null

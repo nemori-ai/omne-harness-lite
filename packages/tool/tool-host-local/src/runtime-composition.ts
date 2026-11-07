@@ -19,7 +19,6 @@ import {
   type ToolInstanceHost,
   type ToolMessageContentBlock,
   type ToolClock,
-  type ToolOutputCustody,
   type ToolForwardSource,
   type ToolForwardBinding,
   type CallAccess,
@@ -42,7 +41,6 @@ type Bindings = ToolBindings<unknown, ToolEnvironmentValue>
 export type RuntimeEnvironment = ToolEnvironment<unknown, ToolEnvironmentValue>
 export type LocalToolRuntimeInput = Readonly<{
   store: ToolLedgerStore
-  custody: ToolOutputCustody<unknown>
   materials: NonNullable<ToolLedgerPorts<unknown>['materials']>
   content: ToolLedgerPorts<unknown>['content']
   sources: LocalInvocationSource<unknown, ToolMessageContentBlock>
@@ -209,7 +207,6 @@ export function createRuntimeDependencies(
     authority: records.authority,
     clock: input.clock,
     resultPolicy: defaultResultPolicy,
-    custody: input.custody,
     decisions: absent.toolDecisions,
     resources: absent.toolResourceResponses,
     children: absent.toolChildren,

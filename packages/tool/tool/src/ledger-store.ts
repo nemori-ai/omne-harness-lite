@@ -144,8 +144,7 @@ export type ResultCustody =
       final: DurableEvidence
       finalValue: ToolMaterialFingerprint
       raw: RawOutput
-      retainOperation: ToolOperationId
-      retained: DurableEvidence
+      materialized: DurableEvidence
       cleanup: CleanupDuty
     }>
 

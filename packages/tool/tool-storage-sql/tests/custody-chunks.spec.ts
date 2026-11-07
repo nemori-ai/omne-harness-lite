@@ -11,7 +11,6 @@ import {
   decodeToolCallId,
   decodeToolOperationId,
   type DurableEvidence,
-  type RawOutput,
   type ToolCallId,
   type ToolOperationId,
 } from '@omne-harness/tool-contract'
@@ -172,7 +171,7 @@ describe('A3: an original several times larger than one chunk', () => {
 })
 
 describe('A8: custody rows and manifests move no ledger domain revision', () => {
-  it('preserve and retainResult leave the call domain of the same call at its revision', async () => {
+  it('legacy raw custody leaves the call domain of the same call at its revision', async () => {
     const a = await app()
     const custody = createSqlToolOutputCustody<string>(a.custodyOptions({ maxChunkBytes: CHUNK }))
     const domain = { kind: 'call', tenant: TENANT_A, call: call('call-1') } as const
@@ -186,7 +185,7 @@ describe('A8: custody rows and manifests move no ledger domain revision', () => 
       }),
     ).toEqual({ kind: 'committed' })
     const before = await a.store.read(domain)
-    const raw: RawOutput = ok(
+    ok(
       await custody.preserve({
         ...mutation('call-1', 'preserve-1'),
         codec,
@@ -194,17 +193,8 @@ describe('A8: custody rows and manifests move no ledger domain revision', () => 
         source,
       }),
     )
-    ok(
-      await custody.retainResult({
-        ...mutation('call-1', 'retain-1'),
-        raw,
-        value: { content: [], data: { kind: 'none' }, original: { kind: 'none' }, attachments: [] },
-      }),
-    )
     expect(before).toEqual({ kind: 'complete', revision: '1', records: [record] })
     expect(await a.store.read(domain)).toEqual(before)
-    // A projection is not an original: inspect of its operation recalls no raw output (TS-08).
-    expect(ok(await custody.inspect(mutation('call-1', 'retain-1')))).toEqual({ kind: 'unknown' })
   })
 })
 

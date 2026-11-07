@@ -448,7 +448,7 @@ recover 使用 scanPending/loadRecovery 从原事实找待办，再分别接续�
 
 | 编号 | 决定 | 归属包 |
 | --- | --- | --- |
-| G1 | 账本工厂 `createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts, finalCustody, delivery, controls }`。第五参数 `ToolLedgerPorts` 显式提供结果保管 `custody.retainResult`、原环境释放核验 `releaseInspection.inspectRelease` 与显式字节读口 `content` 或 `null`；`facts` 供恢复消费者按精确 evidence 读取本域已存原事实。构造类型与使用范围由 `tool` 拥有。`queues` 只承载队列域的对账（`reconcile`，回复与读法见 tool 包第 22 条（`tool/SPEC.md#22-跨域提交与修复`）），由同一个账本实现提供，不经 `ToolCommands`。记录仓端口 `ToolLedgerStore` 按事务域读取一组记录，再按修订号原子提交一组写入 | `tool` 根入口 |
+| G1 | 账本工厂 `createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts, rawCustody, finalCustody, delivery, controls }`。第五参数 `ToolLedgerPorts` 显式提供材料端口 `materials`、原环境释放核验 `releaseInspection.inspectRelease` 与显式字节读口 `content` 或 `null`；`facts` 供恢复消费者按精确 evidence 读取本域已存原事实。构造类型与使用范围由 `tool` 拥有。`queues` 只承载队列域的对账（`reconcile`，回复与读法见 tool 包第 22 条（`tool/SPEC.md#22-跨域提交与修复`）），由同一个账本实现提供，不经 `ToolCommands`。记录仓端口 `ToolLedgerStore` 按事务域读取一组记录，再按修订号原子提交一组写入 | `tool` 根入口 |
 | G2 | `createIndependentToolScope(input)` 构造独立执行作用域：本地接收者、显式上限、内存等待历史，按 [P11](#p11-作者输出与等待原语) 只承诺 `local` 回执。输入类型是 `IndependentToolScopeInput` | `tool` 根入口；输入类型在 `tool-contract` |
 | G3 | 具名默认结果政策只接受文本块与共享引用块，拒绝 thinking、inline 媒体与嵌套容器（[P14](#p14-附件引用与消费方交付)）。其身份是 `defaultResultPolicyAdoption` | `tool-contract` 根入口 |
 | G4 | 宿主时钟适配器：同进程单调时钟加进程 epoch，跨进程比较返回 unknown（[P07](#p07-计时控制与检查点)） | `tool-host-local` 根入口 |
@@ -1208,7 +1208,7 @@ receiveFacts 同提交 FactProgress（原 start/source、已保存 cursor）、�
 
 托管作者须声明覆盖全部合法 R 的无损 codec。编码失败或 renderer 抛错是明确的提供者故障。编码失败时保留原对象/源责任、记录诊断并阻止释放唯一保管者，不能报告原输出已耐久；若源也失去连续性，记录原输出丢失的真实故障，不伪造空原件。renderer 或 policy 失败发生在原件保管之后，形成 result 失败结果并保留 raw 引用，不重新执行。纯 executeTool 不提供这些耐久保证。
 
-retainResult 将最终投影及附件转为独立耐久保管，再由 preserveResult 同提交结果版本、terminal、effect、原消费位置、delivery 和后续任务。原件保管成功而终局提交未知时按原 operation 查询，两边均不放弃责任。诊断不携秘密正文。保管失败不能改写成成功或已交付。final 的原版本只成立一次；后来真实收场走 recordLateResult，原逻辑终局及版本不被覆盖。
+Tool 材料机制将最终各通道及附件元数据分别可靠保管，再由 preserveResult 同提交结果版本、材料引用、terminal、effect、原消费位置、delivery 和后续任务。原生附件目标仍由原拥有者管理。原件保管成功而终局提交未知时按原 operation 查询，两边均不放弃责任。诊断不携秘密正文。保管失败不能改写成成功或已交付。final 的原版本只成立一次；后来真实收场走 recordLateResult，原逻辑终局及版本不被覆盖。
 
 ### P06 内部等待与答复
 

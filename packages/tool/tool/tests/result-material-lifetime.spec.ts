@@ -9,13 +9,15 @@ afterEach(async () => {
   await auditQueues()
 })
 
-it('adopts the final channels and releases envelope preparation in the same result commit', async () => {
+it('adopts the final channels and releases envelope and replaced raw preparation in the same result commit', async () => {
   const f = await settlementFixture()
   const before = await f.records()
   const envelope = before.find(
     record => record.kind === 'material' && record.material.purpose === 'final',
   )
   if (envelope?.kind !== 'material') throw new Error('fixture has no final envelope')
+  const raw = before.find(record => record.kind === 'material' && record.material.purpose === 'raw')
+  if (raw?.kind !== 'material') throw new Error('fixture has no raw material')
   const result = ok(await f.preserve())
   if (result.phase !== 'settled') throw new Error('result did not settle')
   const records = await f.records()
@@ -34,16 +36,27 @@ it('adopts the final channels and releases envelope preparation in the same resu
     kind: 'delete',
     key: `material-use:preparation:${envelope.material.writeOperation}`,
   })
+  expect(writes).toContainEqual({
+    kind: 'delete',
+    key: `material-use:preparation:${raw.material.writeOperation}`,
+  })
+  const cleanup = writes.flatMap(write =>
+    write.kind === 'put' && write.record.kind === 'material-cleanup' ? [write.record.cleanup] : [],
+  )
+  expect(cleanup.map(item => item.material)).toEqual(
+    expect.arrayContaining([raw.material.material, envelope.material.material]),
+  )
+  expect(cleanup).toHaveLength(2)
   expect(
     writes.filter(write => write.kind === 'put' && write.record.kind === 'material-use'),
   ).toHaveLength(3)
 })
 
-it('records cleanup responsibility when envelope and delivery uses end', async () => {
+it('records cleanup responsibility when raw, envelope and delivery uses end', async () => {
   const f = await settlementFixture()
   const state = ok(await f.preserve())
   if (state.phase !== 'settled' || state.delivery === null) throw new Error('missing delivery')
-  expect((await f.records()).filter(record => record.kind === 'material-cleanup')).toHaveLength(1)
+  expect((await f.records()).filter(record => record.kind === 'material-cleanup')).toHaveLength(2)
   const release = {
     ...f.access,
     operation: operationId('release-material-delivery'),
@@ -58,9 +71,9 @@ it('records cleanup responsibility when envelope and delivery uses end', async (
   const released = ok(await f.ledger.commands.releaseDelivery(release))
   const after = await f.records()
   expect(after.filter(record => record.kind === 'material-use')).toEqual([])
-  expect(after.filter(record => record.kind === 'material-cleanup')).toHaveLength(4)
+  expect(after.filter(record => record.kind === 'material-cleanup')).toHaveLength(5)
   expect(ok(await f.ledger.commands.releaseDelivery(release))).toEqual(released)
-  expect((await f.records()).filter(record => record.kind === 'material-cleanup')).toHaveLength(4)
+  expect((await f.records()).filter(record => record.kind === 'material-cleanup')).toHaveLength(5)
 })
 
 it.each(['unknown-applied', 'unknown-dropped'] as const)(
@@ -86,7 +99,7 @@ it.each(['unknown-applied', 'unknown-dropped'] as const)(
       uncertain.filter(record => record.kind === 'material-use' && record.use.kind === 'delivery'),
     ).toHaveLength(applied ? 3 : 0)
     expect(uncertain.filter(record => record.kind === 'material-cleanup')).toHaveLength(
-      applied ? 1 : 0,
+      applied ? 2 : 0,
     )
     const state = ok(await f.preserve())
     expect(state.phase).toBe('settled')
@@ -97,7 +110,7 @@ it.each(['unknown-applied', 'unknown-dropped'] as const)(
     expect(
       after.filter(record => record.kind === 'material-use' && record.use.kind === 'delivery'),
     ).toHaveLength(3)
-    expect(after.filter(record => record.kind === 'material-cleanup')).toHaveLength(1)
+    expect(after.filter(record => record.kind === 'material-cleanup')).toHaveLength(2)
   },
 )
 
@@ -157,12 +170,12 @@ it.each(['unknown-applied', 'unknown-dropped'] as const)(
     const uncertain = await f.records()
     expect(uncertain.filter(record => record.kind === 'material-use')).toHaveLength(applied ? 0 : 3)
     expect(uncertain.filter(record => record.kind === 'material-cleanup')).toHaveLength(
-      applied ? 4 : 1,
+      applied ? 5 : 2,
     )
     const receipt = ok(await f.ledger.commands.releaseDelivery(input))
     const after = await f.records()
     expect(after.filter(record => record.kind === 'material-use')).toEqual([])
-    expect(after.filter(record => record.kind === 'material-cleanup')).toHaveLength(4)
+    expect(after.filter(record => record.kind === 'material-cleanup')).toHaveLength(5)
     expect(
       after.filter(
         record =>

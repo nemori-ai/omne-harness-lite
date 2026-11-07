@@ -138,7 +138,6 @@ describe('18 testing dependency assembly', () => {
     expect(a.dependencies.authority).toBe(a.doubles.authority)
     expect(a.dependencies.decisions).toBe(a.doubles.decisions)
     expect(a.dependencies.resources).toBe(a.doubles.resources)
-    expect(a.dependencies.custody).toBe(a.doubles.custody)
     expect(a.doubles.content.custody).toBe(a.doubles.custody)
     expect(a.doubles.content.durability).toBe('none')
     const before = b.dependencies.clock.now()

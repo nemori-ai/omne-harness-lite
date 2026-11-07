@@ -31,7 +31,7 @@ import { releaseBasisOf } from './ledger-start.ts'
 
 /** Domain-separated digests fit even when a provider's original operation is at its size limit. */
 export function settlementOperation(
-  purpose: 'retain-result' | 'release-environment',
+  purpose: 'release-environment',
   place: unknown,
 ): ToolOperationId {
   const decoded = decodeToolOperationId(`${purpose}:${digestOf(place)}`)
@@ -169,7 +169,7 @@ export function decidePlanRelease<B extends ContentBlock>(
   const result = snapshot.results.get(call.state.result)
   if (
     result?.custody.kind !== 'execution' ||
-    !sameFactValue(result.custody.retained, command.custody)
+    !sameFactValue(result.custody.materialized, command.custody)
   )
     return reply(invalid('custody', 'not-original-result-custody'))
   if (

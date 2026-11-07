@@ -205,7 +205,6 @@ export async function modelHost(
   let sourceExecutions = 0
   const positions: string[] = []
   const h = startHarness({
-    custodyPort: () => content.custody,
     resultPageBytes: options.resultPageBytes,
     bindingPort: base => ({
       ...base,
@@ -214,7 +213,7 @@ export async function modelHost(
         if ('failure' in live) return live
         const source = start.request.command === null
         const preserve = (bytes: Uint8Array, codec: RawOutput['codec']) =>
-          content.custody.preserve({
+          h.ledger.rawCustody.preserve({
             principal: start.principal,
             tenant: start.tenant,
             call: start.call,
@@ -296,7 +295,6 @@ export async function modelHost(
     configurationOf({ resultPageBytes: options.resultPageBytes }),
     {
       materials: testSettlementPorts(h.memory).materials,
-      custody: content.custody,
       releaseInspection: h.environments,
       content: content.reader,
     },

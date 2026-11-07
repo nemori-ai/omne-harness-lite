@@ -2,8 +2,7 @@
 // of any size is kept in chunks of at most `maxChunkBytes`, one SQL commit each, and then sealed by
 // a manifest committed last; until the manifest is durable, `inspect` never answers `retained`. A
 // resend of an operation rewrites the same chunks and recalls the manifest; another input under a
-// sealed operation is a `conflict` that changes nothing. A retained projection is kept the same way
-// under its own operation and holds the raw output it was kept over. Custody rows are not ledger
+// sealed operation is a `conflict` that changes nothing. Custody rows are not ledger
 // records: they move no ledger domain revision (review N2).
 import { createHash, randomUUID } from 'node:crypto'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -30,12 +29,6 @@ const unavailable = (diagnostic: string): Outcome<never, ToolFailure> =>
   fail({ kind: 'unavailable', dependency: TOOL_STORAGE_OWNER, diagnostic })
 const conflict = (operation: ToolOperationId): Outcome<never, ToolFailure> =>
   fail({ kind: 'conflict', operation })
-const notPreserved: Outcome<never, ToolFailure> = fail({
-  kind: 'invalid',
-  field: 'raw',
-  reason: 'no output of this call was preserved',
-})
-
 type Json = Readonly<Record<string, JsonValue>>
 
 function textAt(value: Json, key: string): string | null {
@@ -123,25 +116,10 @@ const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes)
 /** The content key of a raw output: its call and preserve operation, as JSON text. */
 const contentKey = (call: string, operation: string): string => JSON.stringify([call, operation])
 
-function preservedAt(raw: RawOutput, call: string): string | null {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw.content.key)
-  } catch {
-    return null
-  }
-  return Array.isArray(parsed) &&
-    parsed.length === 2 &&
-    parsed[0] === call &&
-    typeof parsed[1] === 'string'
-    ? parsed[1]
-    : null
-}
-
 /** What one custody operation keeps: its bytes, and the manifest that seals them. */
 type Keeping = CustodyAddress &
   Readonly<{
-    kind: ManifestKind
+    kind: 'raw'
     digest: string
     bytes: Uint8Array
     seal: string
@@ -293,60 +271,7 @@ export function createSqlToolOutputCustody<P>(
       : succeed({ kind: 'retained', raw })
   }
 
-  /** The operation that preserved `raw` in this call, when its manifest seals exactly `raw`. */
-  const heldRawOperation = async (
-    at: TenantDomain,
-    call: string,
-    raw: RawOutput,
-  ): Reply<string> => {
-    const operation = preservedAt(raw, call)
-    if (operation === null) return notPreserved
-    const held = await manifest(at, { tenant: at.tenant, call, operation })
-    if ('failure' in held) return held
-    return held.ok?.kind !== 'raw' || held.ok.seal !== raw.custody.digest
-      ? notPreserved
-      : succeed(operation)
-  }
-
-  const retainResult: ToolOutputCustody<P>['retainResult'] = async input => {
-    const resolved = await resolveTenant(options, input.tenant)
-    if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
-    const at = resolved.at
-    const held = await heldRawOperation(at, input.call, input.raw)
-    if ('failure' in held) return held
-    const rawOperation = held.ok
-    const encoded = jsonField(input.value, 'value')
-    if ('failure' in encoded) return encoded
-    const value = encoded.ok
-    const address = { tenant: at.tenant, call: input.call, operation: input.operation }
-    const digest = canonicalDigest({ kind: 'retain', raw: input.raw.custody.digest, value })
-    const existing = await manifest(at, address)
-    if ('failure' in existing) return existing
-    if (existing.ok !== null)
-      return recall(existing.ok, 'retain', digest, input.operation, evidenceOf)
-    const evidence: DurableEvidence = {
-      owner: TOOL_STORAGE_OWNER,
-      record: `retain/${input.call}/${input.operation}`,
-      revision: '1',
-      digest: canonicalDigest({ ...address, digest }),
-    }
-    const sealed = await keep(at, input.operation, {
-      ...address,
-      kind: 'retain',
-      digest,
-      bytes: new TextEncoder().encode(JSON.stringify(value)),
-      seal: evidence.digest,
-      answer: evidence,
-      holds: { operation: rawOperation, seal: input.raw.custody.digest },
-    })
-    if ('failure' in sealed) return sealed
-    const answer = evidenceOf(sealed.ok)
-    return answer === null
-      ? unavailable('custody: the manifest answer is not evidence')
-      : succeed(answer)
-  }
-
-  return { preserve, inspect, retainResult }
+  return { preserve, inspect }
 }
 
 /** The answer of a sealed operation: recalled for the same input, a conflict for another. */
@@ -374,7 +299,6 @@ function stopped(
   const stop = answer.responses[answer.responses.length - 1]?.reply
   const reason = stop?.kind === 'conflict' && isObject(stop.basis) ? stop.basis['reason'] : null
   if (reason === 'operation' || reason === 'chunks') return conflict(operation)
-  if (reason === 'holder') return notPreserved
   return unavailable(
     `custody commit rolled back: ${stop?.kind === 'failed' ? stop.category : (stop?.kind ?? 'no reply')}`,
   )

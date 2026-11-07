@@ -570,11 +570,6 @@ export function harness(options: HarnessOptions = {}): Harness {
     ...(options.sourceThrows === undefined ? {} : { throws: options.sourceThrows }),
   })
   const identities = createTestToolIdentities()
-  const custody = stub<ToolDependencies<Principal, Block, null>['custody']>(spies, 'custody', [
-    'preserve',
-    'inspect',
-    'retainResult',
-  ])
   const environments = stub<ToolDependencies<Principal, Block, null>['environments']>(
     spies,
     'environments',
@@ -582,7 +577,6 @@ export function harness(options: HarnessOptions = {}): Harness {
   )
   const settlement = {
     materials: testSettlementPorts(store).materials,
-    custody,
     releaseInspection: environments,
     content: null,
   }
@@ -621,7 +615,6 @@ export function harness(options: HarnessOptions = {}): Harness {
       'invalidate',
       'resolve',
     ]),
-    custody,
     catalog: stub(spies, 'catalog', ['inspect', 'usage', 'search']),
     children: stub(spies, 'children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
     operationIdentities: identities.operationIdentities,

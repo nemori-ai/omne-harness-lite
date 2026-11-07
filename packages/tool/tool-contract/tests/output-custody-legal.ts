@@ -20,12 +20,10 @@ export const without = <T extends object, K extends keyof T>(value: T, key: K): 
 
 export const outputKey = (input: { tenant: unknown; call: string; operation: string }): string =>
   JSON.stringify(['o', input.tenant, input.call, input.operation])
-export const resultKey = (input: { tenant: unknown; call: string; operation: string }): string =>
-  JSON.stringify(['r', input.tenant, input.call, input.operation])
 
 /**
  * The generated provider of the table: the first answer of every method, for a new operation, is
- * `kind` (a lost reply for a preserve and a retainResult, `unknown` for an inspect), and every
+ * `kind` (a lost reply for a preserve, `unknown` for an inspect), and every
  * read of it says so until `settle` resolves (`lagTurns` after, for a fixture that breaks the
  * completion contract).
  */
@@ -44,7 +42,6 @@ export function generated(
       {
         preserve: { key: outputKey, creates: true, answer: lost },
         inspect: { key: outputKey, creates: true, answer: kindOf => succeed({ kind: kindOf }) },
-        retainResult: { key: resultKey, creates: true, answer: lost },
       },
       mask,
       kind,

@@ -64,7 +64,6 @@ async function fixture(name = 'settlement', forge = false) {
       {
         materials,
         content: null,
-        custody: f.custody,
         releaseInspection: f.environment,
       },
     )

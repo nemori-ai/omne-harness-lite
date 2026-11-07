@@ -2,7 +2,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { ProcessBlock, RawOutput, ToolTerminal, ToolResult } from '@omne-harness/tool-contract'
 import type {
   ToolFinalEnvelope,
-  ToolOutputCustody,
+  ToolMaterialStore,
   ToolEnvironment,
 } from '@omne-harness/tool-contract/provider'
 import { readToolInvocationRef } from '@omne-harness/tool-contract/provider'
@@ -56,7 +56,7 @@ export async function settlementFixture(
     wrapReleaseInspection?: (
       environment: ToolEnvironment<Principal, unknown>,
     ) => Pick<ToolEnvironment<Principal, unknown>, 'adoption' | 'inspectRelease'>
-    wrapCustody?: (custody: ToolOutputCustody<Principal>) => ToolOutputCustody<Principal>
+    wrapMaterials?: (store: ToolMaterialStore<Principal>) => ToolMaterialStore<Principal>
     wrapAccess?: (access: ToolAccessGuard<Principal>) => ToolAccessGuard<Principal>
   }> = {},
 ) {
@@ -104,9 +104,8 @@ export async function settlementFixture(
   const recovery = ok(await harness.commands.loadRecovery(access))
   if (recovery.start === null || recovery.execution === null)
     throw new Error('fixture did not start')
-  const custody = options.wrapCustody?.(ports.custody) ?? ports.custody
   const raw = ok(
-    await ports.custody.preserve({
+    await harness.ledger.rawCustody.preserve({
       ...access,
       operation: operationId('raw-output'),
       codec: adoption('codec'),
@@ -172,6 +171,8 @@ export async function settlementFixture(
     },
   }
   const guard = guards()
+  const materialPorts = testSettlementPorts(harness.memory).materials
+  const materialStore = options.wrapMaterials?.(materialPorts.store) ?? materialPorts.store
   const ledger = createToolLedger(
     store,
     {
@@ -182,8 +183,7 @@ export async function settlementFixture(
     configurationOf({}),
     {
       content: null,
-      materials: testSettlementPorts(harness.memory).materials,
-      custody,
+      materials: { ...materialPorts, store: materialStore },
       releaseInspection:
         options.wrapReleaseInspection?.(ports.releaseInspection) ?? ports.releaseInspection,
     },
@@ -201,6 +201,7 @@ export async function settlementFixture(
   }
   return {
     harness,
+    materialStore,
     lateClockSamples,
     access,
     final,

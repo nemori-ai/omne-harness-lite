@@ -79,7 +79,7 @@ abort 阻止该连接的新读取、调度和命令。已发出的 ledger/source
 
 ## 原结果与环境清理
 
-`receiveFacts` 保存 final 与 settle 待办，不直接终局。`preserveResult` 核对本域原 final，主动确认 `custody.retainResult` 后，原子建立唯一原结果、delivery、真实 effect、ended 与全部后继任务。重试保持原身份。保管已生效但丢答仍不等于已确认。
+`receiveFacts` 保存 final 与 settle 待办，不直接终局。`preserveResult` 核对本域原 final，确认 raw 归属和最终通道材料封存后，原子建立唯一原结果、delivery、真实 effect、ended 与全部后继任务。重试保持原身份。保管已生效但丢答仍不等于已确认。
 
 `planRelease` 按原 preparation 认回唯一 canonical 计划，任务关闭后不重建。正常 completed 的全部历史外部引用必须已有独立保管；旧 file 地址不足以证明覆盖。非正常 final 保留 blocked 清理与来源责任。`recordRelease` 经原环境 inspectRelease 核验已报告的 released，不调用环境 release。名额释放不等于环境资源释放。
 
@@ -196,7 +196,7 @@ tool/
 
 ## 内容与原输出读取
 
-账本第五参数为 `ToolLedgerPorts`，必须显式给出 `content` 字节读口或 `null`，另保留 `custody.retainResult` 与 `releaseInspection.inspectRelease`。`content:null` 使有关联的字节读取回复 `unsupported`，不关闭结果页或 raw 元数据读取。
+账本第五参数为 `ToolLedgerPorts`，必须显式给出 `content` 字节读口或 `null`，另保留 `materials` 与 `releaseInspection.inspectRelease`。`content:null` 使原生外部附件的字节读取回复 `unsupported`，Tool 自有材料仍由 `materials` 读取，不关闭结果页或 raw 元数据读取。
 
 `queries.readResult` 固定结果版本并在返回完整块页前复核 `read-result`。`content.read` 先核五字段附件关联，再按已知原件的 storage/key 选完整操作；未登记变体不能仅凭同地址关联，已登记同址变体不能因描述字段不同降权。不同地址不因相同摘要被一律标成原件。随后核当前资格、提供者返回的身份、范围及 EOF。IO 后再次核关联与资格，返回独立字节副本。字节页可能切在 UTF-8 字符中间，消费者按媒体类型收齐后解码。
 

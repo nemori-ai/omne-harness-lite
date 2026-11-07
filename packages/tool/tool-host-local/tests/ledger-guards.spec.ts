@@ -28,10 +28,7 @@ import {
   defaultResultPolicy,
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
-import {
-  createMemoryToolEnvironment,
-  createMemoryToolOutputCustody,
-} from '@omne-harness/tool-contract/testing'
+import { createMemoryToolEnvironment } from '@omne-harness/tool-contract/testing'
 import {
   createLocalGrantVerifiers,
   createLocalInvocationSource,
@@ -112,7 +109,6 @@ function assembly() {
     { resultPageBytes: 4_096, ledgerCommitAttempts: 4, queueCapacity: 16 },
     {
       materials: createMemoryToolMaterials<P>(),
-      custody: createMemoryToolOutputCustody<P>(),
       releaseInspection: createMemoryToolEnvironment<P>(),
       content: null,
     },

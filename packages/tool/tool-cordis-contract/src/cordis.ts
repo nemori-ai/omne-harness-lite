@@ -539,7 +539,6 @@ export abstract class ToolOutputCustodyService<P> extends Service implements Too
   }
   abstract readonly preserve: ToolOutputCustody<P>['preserve']
   abstract readonly inspect: ToolOutputCustody<P>['inspect']
-  abstract readonly retainResult: ToolOutputCustody<P>['retainResult']
 }
 export const toolOutputCustodyKey = ToolOutputCustodyService.provide
 

@@ -10,7 +10,6 @@ import {
   type ToolTask,
 } from '@omne-harness/tool-contract/provider'
 import {
-  adoption,
   evidence,
   judged,
   ok,
@@ -68,22 +67,7 @@ async function existingVersions() {
       content: [text(`late-${ordinal}`, `late ${ordinal}`)],
     }
     expectedValues.push(value)
-    const raw = ok(
-      await f.custody.preserve({
-        ...f.access,
-        operation: operationId(`fixture-late-raw-${ordinal}`),
-        codec: adoption('codec'),
-        bytes: new TextEncoder().encode(`late ${ordinal}`),
-        source,
-      }),
-    )
-    const retainOperation = operationId(`fixture-late-retain-${ordinal}`)
-    const retained = ok(
-      await f.custody.retainResult({ ...f.access, operation: retainOperation, raw, value }),
-    )
-    expect(new TextDecoder().decode(await f.custody.controls.readBytes(raw))).toBe(
-      `late ${ordinal}`,
-    )
+    const raw = originalCustody.raw
     return {
       ...original.result,
       result: ok(decodeToolResultVersion(`fixture-late-${ordinal}`)),
@@ -109,8 +93,7 @@ async function existingVersions() {
         final: evidence(`fixture-late-final-${f.batch.start.operation}-${ordinal}`),
         finalValue: originalCustody.finalValue,
         raw,
-        retainOperation,
-        retained,
+        materialized: source,
         cleanup: originalCustody.cleanup,
       },
     }

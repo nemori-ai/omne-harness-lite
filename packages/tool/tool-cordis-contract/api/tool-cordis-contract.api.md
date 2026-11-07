@@ -445,7 +445,6 @@ export declare abstract class ToolOutputCustodyService<P> extends Service implem
     constructor(ctx: Context);
     abstract readonly preserve: ToolOutputCustody<P>['preserve'];
     abstract readonly inspect: ToolOutputCustody<P>['inspect'];
-    abstract readonly retainResult: ToolOutputCustody<P>['retainResult'];
 }
 export declare const toolOutputCustodyKey = "toolOutputCustody";
 export declare abstract class ToolChildrenService<P> extends Service implements ToolChildren<P> {

@@ -6,7 +6,6 @@ import { decodeToolInstanceId, defaultResultPolicy } from '@omne-harness/tool-co
 import {
   createMemoryToolClock,
   createMemoryToolEnvironment,
-  createMemoryToolOutputCustody,
 } from '@omne-harness/tool-contract/testing'
 import {
   canonicalDigest,
@@ -68,7 +67,6 @@ function ledger(store: ToolLedgerStore, controlSubjects: ToolControlSubjects<str
     {
       controlSubjects,
       content: null,
-      custody: createMemoryToolOutputCustody<string>(),
       releaseInspection: createMemoryToolEnvironment<string>(),
     },
   )

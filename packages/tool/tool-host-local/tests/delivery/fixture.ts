@@ -23,7 +23,6 @@ import {
 import {
   createMemoryToolClock,
   createMemoryToolEnvironment,
-  createMemoryToolOutputCustody,
 } from '@omne-harness/tool-contract/testing'
 import { callId, operationId, evidence, request, tenantA } from '../coordinator-values.ts'
 import { createLocalTextResults } from '../../src/text-results.ts'
@@ -139,7 +138,6 @@ export async function fixture() {
     { resultPageBytes: 4096, ledgerCommitAttempts: 4, queueCapacity: 16 },
     {
       materials,
-      custody: createMemoryToolOutputCustody<string>(),
       releaseInspection: createMemoryToolEnvironment<string>(),
       content: null,
     },

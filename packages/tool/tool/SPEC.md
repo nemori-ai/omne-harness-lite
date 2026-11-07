@@ -95,7 +95,7 @@ W3 的最终结果准备、正文页与材料释放增量依据 [#1168](https://
 
 账本由 `createToolLedger(store, guards, clock, configuration, ports)` 构造。runtime 由 `createToolRuntime(dependencies, configuration)` 构造。两者可以取同一个 `ToolConfiguration`：账本只读其中的 `resultPageBytes`、`ledgerCommitAttempts` 与 `queueCapacity`。数据形状与决定顺序见 [architecture](docs/architecture.md#本包的记录仓与决定器g1)。下列规则按编号对应测试。
 
-签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts, rawCustody, finalCustody, delivery, controls }`。`configuration` 给出结果页大小、提交重试上限与队列容量，三者都只有一处来源，即 `ToolConfiguration`。第五参数 `ToolLedgerPorts<P>` 必填，提供 `custody.retainResult`、`releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`，不提供默认授权或旧构造。`facts` 是账本的受信恢复读口，runtime 的结算驱动只使用 commands，不再注入它。
+签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts, rawCustody, finalCustody, delivery, controls }`。`configuration` 给出结果页大小、提交重试上限与队列容量，三者都只有一处来源，即 `ToolConfiguration`。第五参数 `ToolLedgerPorts<P>` 必填，提供 `materials`、`releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`，不提供默认授权或旧构造。`facts` 是账本的受信恢复读口，runtime 的结算驱动只使用 commands，不再注入它。
 
 `rawCustody` 提供 `ToolOutputCustody` 的 preserve 和 inspect 窄分面。它在原 call 域先记录材料准备责任，再写入原始字节，保留作者 codec。新准备要求调用已启动且仍运行；已封存操作可认回。重试异值冲突，未确认封存时 inspect 返回 unknown，不声称可靠排除。两入口均检查 write 资格，披露前再次检查。purpose 区分 raw、final 和 result 材料，不能把 final 当成 raw 认回。当前此分面已有独立入口，宿主生产接线及 raw 用途解除仍待完成。
 
@@ -411,21 +411,21 @@ run 返回不等于 abort。session 仅在宿主给本连接的 signal 有效时
 
 ### 原 final 与独立保管
 
-W3-A 的目标表示按[材料协议 M01–M05](../tool-contract/docs/material-protocol.md)。pending final 已只保存精确封存引用，settled 只保存凭据，preserveResult 按原 basis 结算。执行结果与系统替代结果的 ResultRecord 均只保存通道引用与完整值指纹，完整 ToolResult 由读取口还原。原 raw/retainResult 保管副本、用途解除与 TTL 仍待收口，不能据通道迁移声称全部副本已收口。`facts.read` 的恢复结果须区分 pending 与已结算；driver、批次认回、结算检查及 queue 释放依据均先读稳定身份，不能在结果提交后再次要求 raw/envelope 仍存在。
+W3-A 的目标表示按[材料协议 M01–M05](../tool-contract/docs/material-protocol.md)。pending final 已只保存精确封存引用，settled 只保存凭据，preserveResult 按原 basis 结算。执行结果与系统替代结果的 ResultRecord 均只保存通道引用与完整值指纹，完整 ToolResult 由读取口还原。raw 已由 Tool 材料机制保管，结果结算不再写 retainResult 完整副本。结果 CAS 解除 final 与已被替代 raw 的准备责任，并保存清理任务。仍被引用 raw 的用途转换与 TTL 尚待收口，不能据此声称全部生命周期已实现。`facts.read` 的恢复结果须区分 pending 与已结算；driver、批次认回、结算检查及 queue 释放依据均先读稳定身份，不能在结果提交后再次要求 raw/envelope 仍存在。
 
 材料业务由本包沿同一个 call 域 CAS 实现，SQL 只提供字节与索引机制。准备意图先于字节 IO；水位、到期、租约和用途的决定使用同一域的修订条件。包括确定到期的失败答复，必要状态仍须先提交。时间不可读或回退时拒绝新时间判定；已确定提交及已授权删除可以继续认回。旧路径未完成迁移前，不称 W3 文本生命周期已实现。
 
 `preserveResult` 使用 WriteContext 和原事实 basis，首次 await 前固定 basis 与执行定位。它逐次核当前 write 资格、tenant/call/instance/generation，先按 operation、basis 和执行身份摘要认回。尚未提交时才核 expected、原 start、当前执行与 settle.basis，恢复已封存的本域 final。raw、真实 terminal 和 effect 由原 final 取得，调用者不能另传替代正文。材料读取和外部保管之后均重核原调用资格。最终 value 从同一固定返回及采用归一化产生，不能要求它与卸载前的源展示值逐字相等；其完整派生依据和最终材料须在提交前验证。不同操作竞争先按 expected 返回 stale-revision，刷新后返回指向原 settledBy 的 conflict，不产生第二原结果或 delivery。任意 terminal 外形、reader 关闭、通道 end/throw、取消受理和 disposer 都不构成物理结束依据。
 
-账本主动调用第五构造参数的 custody.retainResult。retain 身份由原 settle 及完整 final 稳定派生，竞争协调者也使用同一保管身份。W3 在既有 settle 中记录 prepared 阶段，保存各最终通道的独立耐久依据和 raw 替代关系；提交未知时按此阶段认回，不能把已准备材料当孤儿。外部 retain 不放进 CAS 重试的纯决定器。同身份保管重送保持原 raw/value。确定失败保持原失败；保管 commit-unknown 或抛错返回 `unavailable`，dependency 为 `output-custody`，诊断固定且脱敏。它不冒充 call 的 commit-unknown。保管已应用但丢答仍未确认，不建立终局或释放依据，也不清除原任务。
+账本通过第五构造参数的 materials 准备最终通道。每个槽位绑定原 settle 任务的 operation 及固定 final，不随竞争协调者的命令 operation 改变。准备记录持有独立耐久依据，提交未知时认回同一材料，不能把已准备材料当孤儿。字节 IO 不放进 CAS 重试的纯决定器。同身份重送保持原值。明确失败保持原失败；材料仓未知或抛错返回材料依赖不可用，不冒充 call 的 commit-unknown。尚未确认封存时不建立终局或释放依据。
 
-确认保管后，一个 call CAS 同提交唯一 original 版本、完整结果、真实 effect、原 consumer 与 pending delivery、execution custody 的 raw/final/retain 回执、settled 状态、execution.ended、preserve 回执、全部同 start final 别名的 settled 凭据、deliver 和 queue 待办，以及全部必要 release、清理和 clock 责任。W3 同一次结果提交固定各通道用途和正文 activatedAt/expiresAt，解除被最终通道完整替代的 raw 用途并保存清理任务。成功提交后的重试认回原期限，不重新起算。字节仓库与 call CAS 分步确认，任何一方未知都不冒充两者共同提交。前台关系成为 final，后台保留原关系。已确认的外部保管不因后继冲突而声称撤销。未执行替代结果仍用 synthetic 保管种类，不伪造 raw 或真实执行账目。
+确认保管后，一个 call CAS 同提交唯一 original 版本、通道引用、真实 effect、原 consumer 与 pending delivery、execution custody 的 raw/final/materialized 凭据、settled 状态、execution.ended、preserve 回执、全部同 start final 别名的 settled 凭据、deliver 和 queue 待办，以及全部必要 release、清理和 clock 责任。W3 同一次结果提交固定各通道用途和正文 activatedAt/expiresAt，解除被最终通道完整替代的 raw 用途并保存清理任务。成功提交后的重试认回原期限，不重新起算。字节仓库与 call CAS 分步确认，任何一方未知都不冒充两者共同提交。前台关系成为 final，后台保留原关系。已确认的外部保管不因后继冲突而声称撤销。未执行替代结果仍用 synthetic 保管种类，不伪造 raw 或真实执行账目。
 
 所有待写 operation 都受第 14 条的首次读取排除围栏保护，包括同提交自动 canonical plan 的身份。任一身份出现更新的否定围栏就停止本次提交。已提交回执认回优先，首次读取已看见的旧围栏允许同身份新尝试，并在成功提交时清除。自动计划回执不得覆盖其他种类或异输入回执；preserve 与 canonical plan 使用同一 operation 也 conflict。每次入口核当前 write 资格，CAS 每次重读重新核本域前提与完整历史保管闭包。
 
 ### call 与 queue 的独立提交
 
-主收场回执只证明 call 提交。即使认回已提交 preserve，也必须继续 releaseQueue tail，不再次 retain 或重写结果。它重读已 settled 且可信 execution.ended 的原 final 依据，随后 queue CAS 同提交 entry 删除与永久墓碑，最后 call CAS 关闭原 queue 待办。各域的 dropped/applied unknown 分别保留原操作和责任。queue 墓碑阻止迟到 order/enqueue 复活，call 与 queue 没有共同事务。启动拒绝保持第 22 条的原排除路径。
+主收场回执只证明 call 提交。即使认回已提交 preserve，也必须继续 releaseQueue tail，不再次准备材料或重写结果。它重读已 settled 且可信 execution.ended 的原 final 依据，随后 queue CAS 同提交 entry 删除与永久墓碑，最后 call CAS 关闭原 queue 待办。各域的 dropped/applied unknown 分别保留原操作和责任。queue 墓碑阻止迟到 order/enqueue 复活，call 与 queue 没有共同事务。启动拒绝保持第 22 条的原排除路径。
 
 driver 从原 settle 或 queue.basis 取得稳定事实凭据，以原 execution、task.operation 和当前 expected 重送 preserveResult。它不先调用 facts.read，也不注入材料恢复读口。成功后重读 loadRecovery，确认原 queue 待办消失才报告释放进展并 wake 等待者。任务仍在则返回具名 blocked `the original queue release is still unconfirmed`，避免把历史回执当作进展热循环。读取失败保留实际 failure 与适用重试。driver 取消后不发起新的结算命令或 wake。已经进入账本的结算命令继续承担原操作责任，不因 driver 取消回滚其可能已经提交的结果。等待者 reconcile 可先修复 queue，原调用仍负责关闭自己的待办。
 
@@ -531,13 +531,13 @@ SourceVerdict 的 denied 表示来源真实、当前请求资格被拒。ledger 
 
 实现中，`ledger-final-custody` 校验实际 final 与原 start；`ledger-material-custody` 负责准备意图、水位、字节封存及未知认回。当前权限与业务关联由调用路径提供，共用机制不额外选择权限动作。
 
-[针对性用例](tests/final-custody.spec.ts)覆盖准备顺序、未知恢复、时钟回退、冲突重取、操作排除、当前资格、输入固定和删除交错。[SQL Linux 组合](../tool-storage-sql/tests/final-custody-live.spec.ts)覆盖 5 MiB envelope、实际分块读取、账本大小及 worker 重启认回。宿主已使用该入口封存精确 final，再发布引用。执行结果的 content、data、attachments 元数据和 original.summary 已分通道保管，结果账本保存引用；内容与摘要不假定相等。系统替代结果尚待迁移，当前存储类型的完整值分支只在这段迁移期间存在。旧 SQL retainResult 副本、TTL、用途解除和维护仍未完成，不能据此宣称 W3 生命周期交付。
+[针对性用例](tests/final-custody.spec.ts)覆盖准备顺序、未知恢复、时钟回退、冲突重取、操作排除、当前资格、输入固定和删除交错。[SQL Linux 组合](../tool-storage-sql/tests/final-custody-live.spec.ts)覆盖 5 MiB envelope、实际分块读取、账本大小及 worker 重启认回。宿主已使用该入口封存精确 final，再发布引用。执行结果的 content、data、attachments 元数据和 original.summary 已分通道保管，结果账本保存引用；内容与摘要不假定相等。系统替代结果也已采用通道引用，存储类型不再保留完整值分支。旧完整投影的新写入已退出。固定 TTL、仍被引用 raw 的用途转换和维护尚未完成，不能据此宣称 W3 生命周期交付。
 
 ### W3 事实接收迁移的当前实现
 
 `receiveFacts` 只接收封存 final 引用。首次采用核对原调用的封存材料记录、start/source/value 身份和实际 envelope，材料读取后重核原调用的当前资格。call 域事实记录保存封存引用、完整原事实指纹和批次指纹，不内嵌 final 正文。已接收批次及同值 final 别名先认回，不访问字节仓。异值事件、final 元数据及指纹冲突拒绝，不生成成功 ACK。未知指纹编码版本返回 unsupported。
 
-`facts.read` 对 pending 返回完整原 final，对 settled 返回结果版本和结算凭据。pending 在恢复资格检查后按有界字节页加载 envelope，核总长度、SHA-256、规范值指纹及 raw/terminal/effect 身份，再核当前资格后返回。缺失、损坏或不连续页返回 unavailable，未知指纹编码版本返回 unsupported。当前准备材料用途保留，因此尚未执行 envelope 的自动清理。
+`facts.read` 对 pending 返回完整原 final，对 settled 返回结果版本和结算凭据。pending 在恢复资格检查后按有界字节页加载 envelope，核总长度、SHA-256、规范值指纹及 raw/terminal/effect 身份，再核当前资格后返回。缺失、损坏或不连续页返回 unavailable，未知指纹编码版本返回 unsupported。结果 CAS 解除 envelope 准备用途并登记清理待办；物理删除由后续清理协调执行。
 
 宿主完成缓存已只保存封存引用。pending/settled 转换已接入结算及别名接收。最终结果通道材料、固定 TTL 和维护仍须继续实现，不能以本节声称完整 W3 生命周期可用。
 
@@ -547,3 +547,7 @@ SourceVerdict 的 denied 表示来源真实、当前请求资格被拒。ledger 
 `content.read` 对 `@omne-harness/tool/material` 引用从当前 call 的封存 raw 材料中匹配完整 Attachment，不解析调用者的 key 来选择材料或提供者。引用必须已关联当前结果。Tool 材料仓承担字节读取，原生附件继续使用已装配的外部内容提供者。内部地址没有匹配材料时明确拒绝，不能回退到外部提供者。
 
 内部 raw 字节游标绑定 tenant、call、结果版本、完整 Attachment 和位置。读取前后核对原结果关联、封存材料及当前 `read-raw-content` 联合资格。页长度、起止位置与提供者续读位置必须一致。该入口保留二进制字节，不是面向模型的正文语义分页。有限页租约、TTL 与删除协调仍由后续生命周期实现提供，本次读回接线不授予删除权限。
+
+### 原始输出准备与启动次序
+
+`rawCustody.preserve` 在首次异步前固定字节、codec 和来源，再以原 call 域提交准备责任。新准备要求原启动记录存在，且调用处于 starting 或 running。执行器消费启动许可后可以先于 recordStart 产出结果，不能以尚未记录 running 拒绝该输出。已终结调用只允许认回既有同身份材料，不允许创建新准备。材料保管不授予执行权限，不证明启动许可已消费或业务已经结束。

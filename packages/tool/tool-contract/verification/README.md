@@ -97,9 +97,9 @@ ToolOperation 与 ToolImplementation 将各命令的作者和返回契约封闭�
 | B20、B21 | CAP-TL11 | TL-V07 | 同一操作号用于另一个输入，是 conflict 且没有效果（停止与启动各一条，P01） |
 | B22、B23 | CAP-TL11 | TL-V07 | 另一租户读不到启动；同一启动操作在另一租户是它自己的执行 |
 | C1–C5 | CAP-TL07、CAP-TL09 | TL-V05、[TL-V06](#tl-v06) | 先保管再答复（内容与保管证据逐项有名字），按操作去重，inspect 认回且不编造 |
-| C6–C9 | CAP-TL07、CAP-TL09 | TL-V05、TL-V06 | 保管失败不答耐久，答复丢失按操作认回，retainResult 去重且不动原件 |
-| C10、C11 | CAP-TL07、CAP-TL09 | TL-V05、TL-V06 | 同一操作号用于另一份字节或另一个结果，是 conflict 且没有效果（P01） |
-| C12–C14 | CAP-TL07、CAP-TL09 | TL-V05、TL-V06 | 另一租户读不到输出，不被给予输出，也不能在别人的原输出上保管结果 |
+| C6、C7 | CAP-TL07、CAP-TL09 | TL-V05、TL-V06 | 保管失败不答耐久，答复丢失按操作认回 |
+| C10 | CAP-TL07、CAP-TL09 | TL-V05、TL-V06 | 同一操作号用于另一份字节，是 conflict 且没有效果（P01） |
+| C12、C13 | CAP-TL07、CAP-TL09 | TL-V05、TL-V06 | 另一租户读不到输出，也不能改变原输出 |
 | K1–K5 | CAP-TL04、CAP-TL11 | [TL-V03](#tl-v03)、TL-V07 | begin 只产生标记；没有提交的计时段不影响别的段；elapsed 按标记计时；时间倒退不增加额度；不可比较的 epoch 不被计时 |
 | K6–K9 | CAP-TL04 | TL-V03 | waitUntil 到时回 elapsed，信号中止回 cancelled，不提前回 elapsed |
 | S1–S5 | CAP-TL06 | [TL-V04](#tl-v04) | ensure 按原 call 与 wait 认回同一登记；inspect 认回、不编造；两个 wait 两个登记；租户之间不串 |

@@ -127,7 +127,6 @@ export function createTestToolDependencies<P>(
     input.configuration,
     {
       materials: createMemoryToolMaterials<P>(),
-      custody: doubles.custody,
       releaseInspection: doubles.environment,
       content: content.reader,
     },
@@ -150,7 +149,6 @@ export function createTestToolDependencies<P>(
       resultPolicy: input.guards.policy,
       authority: doubles.authority,
       resources: doubles.resources,
-      custody: doubles.custody,
       catalog: input.catalog,
       children: input.children,
       operationIdentities: input.operationIdentities,
@@ -381,7 +379,6 @@ export function toolLedgerStoreCompositionConformance(): readonly ConformanceCas
     createLedger: createToolLedger,
     source: createTestInvocationSource,
     clock: createMemoryToolClock,
-    custody: createMemoryToolOutputCustody,
     environment: createMemoryToolEnvironment,
   })
 }

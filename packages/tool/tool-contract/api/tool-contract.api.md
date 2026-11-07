@@ -1142,10 +1142,6 @@ export interface ToolOutputCustody<P> {
         kind: 'excluded';
         evidence: DurableEvidence;
     }>>;
-    retainResult(input: Mutation<P> & Readonly<{
-        raw: RawOutput;
-        value: ToolResult<ContentBlock>;
-    }>): Reply<DurableEvidence>;
 }
 export type ProcessSnapshot = Readonly<{
     cursor: ToolCursor;
@@ -4318,14 +4314,6 @@ export declare const outputCustodyAnswers: {
         readonly clause: 'P05';
         readonly progress: readonly [
             "unknown"
-        ];
-    };
-    readonly retainResult: {
-        readonly clause: 'P01';
-        readonly progress: readonly [
-        ];
-        readonly lostReply: readonly [
-            "commit-unknown"
         ];
     };
 };

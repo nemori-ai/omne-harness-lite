@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createToolLedger } from '@omne-harness/tool'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import { settlementFixture } from './settlement-values.ts'
-import { auditQueues } from './start-values.ts'
+import { auditQueues, startHarness, admitCall } from './start-values.ts'
 import {
   adoption,
   configurationOf,
@@ -61,6 +61,41 @@ async function fixture() {
     },
   }
 }
+
+it('preserves output produced before the binding start answer is recorded', async () => {
+  const answers: unknown[] = []
+  const h = startHarness({
+    bindingPort: base => ({
+      ...base,
+      start: async (input, environment) => {
+        const live = await base.start(input, environment)
+        if ('failure' in live) return live
+        expect((await h.state(input.call)).phase).toBe('starting')
+        answers.push(
+          await h.ledger.rawCustody.preserve({
+            principal: input.principal,
+            tenant: input.tenant,
+            call: input.call,
+            operation: operationId('immediate-author-output'),
+            codec: adoption('immediate-codec'),
+            source: evidence('immediate-return'),
+            bytes: new Uint8Array([1, 2, 3]),
+          }),
+        )
+        return live
+      },
+    }),
+  })
+  await admitCall(h, 'immediate-output')
+  await h.drive('immediate-output')
+  expect(answers).toEqual([
+    expect.objectContaining({
+      ok: expect.objectContaining({
+        content: expect.objectContaining({ bytes: '3' }),
+      }),
+    }),
+  ])
+})
 
 it('preserves the exact raw bytes and codec after durably recording preparation responsibility', async () => {
   const f = await fixture()

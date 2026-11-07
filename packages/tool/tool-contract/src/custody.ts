@@ -41,9 +41,6 @@ export interface ToolOutputCustody<P> {
     | Readonly<{ kind: 'unknown' }>
     | Readonly<{ kind: 'excluded'; evidence: DurableEvidence }>
   >
-  retainResult(
-    input: Mutation<P> & Readonly<{ raw: RawOutput; value: ToolResult<ContentBlock> }>,
-  ): Reply<DurableEvidence>
 }
 export type ProcessSnapshot = Readonly<{
   cursor: ToolCursor

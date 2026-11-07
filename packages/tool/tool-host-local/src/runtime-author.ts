@@ -75,7 +75,7 @@ function interruption(call: Parameters<RuntimeAuthorExecution['settle']>[0]): To
 export function createRuntimeAuthorExecution(
   input: Readonly<{
     configuration: ToolConfiguration
-    custody: ToolOutputCustody<unknown>
+    custody: Pick<ToolOutputCustody<unknown>, 'preserve' | 'inspect'>
     finalCustody: ToolFinalCustody<unknown, ToolMessageContentBlock>
   }>,
 ): RuntimeAuthorExecution &

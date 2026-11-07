@@ -101,7 +101,6 @@
 | 启动围栏 `consume` | consume mints a fresh acceptance each time | a resent consume goes back from started to unknown | a resend of a consume during unknown answers another acceptance than the one that lands |
 | 执行者绑定 `stop` | a resent stop answers other evidence | a resent stop goes back from accepted to pending | a resend during progress answers another final than the one that lands |
 | 输出保管 `preserve` | a resent preserve answers fresh custody | a resent preserve goes back from the raw output to a lost reply | a resend of a preserve during its lost reply answers another raw output than the one that lands |
-| 输出保管 `retainResult` | a resent retainResult answers fresh evidence | a resent retainResult goes back from the evidence to a lost reply | a resend of a retainResult during its lost reply answers another evidence than the one that lands |
 | 外部对端 `ensure`（决策桥与资源应答共有） | a resent ensure answers a fresh registration | a resent ensure goes back from the registration to a lost reply | a resend of an ensure during its lost reply answers another registration than the one that lands |
 | 外部对端 `invalidate`（同上） | a resent invalidation answers fresh evidence | a resent invalidation goes back from the evidence to a lost reply | a resend of an invalidation during its lost reply answers another evidence than the one that lands |
 | 资源应答 `expire` | a resent expire answers a fresh expiry | a resent expire goes back from the expiry to a lost reply | a resend of an expire during its lost reply answers another expiry than the one that lands |
@@ -392,16 +391,12 @@
 | `if ('ok' in inspected) assert.notEqual(inspected.ok.kind, 'retained')` | inspect fabricates a retained output for an unknown operation |
 | `assert.ok(isProgress(lost, answers.preserve), 'the lost answer is a lost reply')` | a failed preserve answers a raw output；a preserve whose answer was to be lost answers the raw output |
 | `assert.deepEqual(recalled, inspected.raw)` | a preserve resent alone answers fresh custody；inspect answers another raw output；a preserve resent after a lost answer answers fresh custody |
-| `resendRecalls( answers.retainResult, { earlier: first, later: await s.` | a resent retainResult answers fresh evidence |
-| `assert.deepEqual(inspected.raw, raw)` | inspect answers another raw output；retainResult replaces the preserved original |
+| `assert.deepEqual(inspected.raw, raw)` | inspect answers another raw output |
 | `assert.equal( refused(other, 'preserve of other bytes under the same operation')` | a failed preserve answers a raw output |
 | `assert.deepEqual(inspected.raw, raw)` | inspect answers another raw output |
-| `assert.equal( refused(other, 'retain of another result under the same operation'` | a retainResult operation reused for another result is refused as invalid |
-| `resendRecalls( answers.retainResult, { earlier: first, later: await s.` | a resent retainResult answers fresh evidence |
 | `assert.deepEqual(again.raw, raw)` | inspect answers another raw output；a foreign inspect changes the raw output of the tenant |
 | `if ('ok' in foreign) assert.notDeepEqual(foreign.ok, raw)` | preserve ignores the tenant |
 | `resendRecalls( answers.preserve, { earlier: raw, later: await own.pres` | a resent preserve answers fresh custody；a foreign preserve replaces the output of the tenant；a preserve resent alone answers fresh custody |
-| `resendRecalls( answers.retainResult, { earlier: first, later: await ow` | a resent retainResult answers fresh evidence；a foreign retainResult changes the retention of the tenant |
 
 ### resource responses (RX)
 

@@ -78,7 +78,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ### TS-05 结果投影保管
 
-`retainResult` 只在同一租户、同一调用已有封存的原件，且该原件的封印等于 `raw.custody.digest` 时进行。否则答 `invalid`（`field: 'raw'`）。投影值按严格 JSON 编码，在它自己的操作下按 TS-04 分块保管，清单记录它保管在哪个原件之上。参加者在清单提交时再核一次该原件仍已封存。同一操作重送答原证据，另一投影答 `conflict`。原件字节不因此改变。最终投影须可独立恢复；raw 派生依据只保留定位和验证所需元数据，不能使读投影依赖已经获准释放的 raw 字节。最终提交前 raw 仍有归一化用途，提交后按用途解除和删除任务处理。
+`retainResult` 完整投影写入已退出公开保管端口。参加者拒绝新的 retain manifest，不再建立对 raw 的 holder 依赖。最终通道通过 ToolMaterialStore 分别保存，由 Tool 结果 CAS 管理用途及替代关系。既有 retain manifest 的读取和数据库记录暂时保留，显式历史迁移归 W3-C，不在接口迁移时直接删除旧数据。
 
 ### TS-06 修订号
 

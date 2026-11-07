@@ -81,7 +81,7 @@ it('S1 executes once, reads every original page, processes and releases its deli
     )
     assert.ok(savedResult.result.custody.kind === 'execution')
     assert.deepEqual(savedResult.result.custody.raw, savedFinal.fact.fact.raw)
-    assert.ok(savedResult.result.custody.retained.digest.length > 0)
+    assert.ok(savedResult.result.custody.materialized.digest.length > 0)
     assert.ok(
       records.records.some(record => record.kind === 'task' && record.task.kind === 'deliver'),
     )

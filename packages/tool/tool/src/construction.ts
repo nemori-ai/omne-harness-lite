@@ -28,7 +28,6 @@ import type {
   ToolInstanceHost,
   ToolInvocationSourceIssuer,
   ToolOperationIdentities,
-  ToolOutputCustody,
   ToolReads,
   ToolResourceResponses,
   ToolStartAuthority,
@@ -124,7 +123,6 @@ export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   resultPolicy: ResultPolicy<B>
   authority: ToolStartAuthority<P>
   resources: ToolResourceResponses<P>
-  custody: ToolOutputCustody<P>
   catalog: ToolCatalog<P>
   reads: ToolReads<P, B>
   children: ToolChildren<P>
@@ -152,7 +150,6 @@ export type ToolLedgerPorts<P> = Readonly<{
   /** A trusted identity owner. Absence disables new controls and pending propagation. */
   controlSubjects?: ToolControlSubjects<P>
   content: Pick<ToolContentReader<P>, 'read'> | null
-  custody: Pick<ToolOutputCustody<P>, 'retainResult'>
   releaseInspection: Pick<ToolEnvironment<P, unknown>, 'adoption' | 'inspectRelease'>
 }>
 

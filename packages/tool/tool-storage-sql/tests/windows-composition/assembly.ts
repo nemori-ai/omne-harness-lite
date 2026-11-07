@@ -300,7 +300,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     }
     const bundle = createLocalToolRuntimePlugins({
       store,
-      custody: sql.custody,
       materials: {
         provider: sql.materialProvider,
         store: sql.materialStore,

@@ -19,7 +19,6 @@ import type {
   ToolClock,
   ToolMaterialClock,
   ToolMaterialStore,
-  ToolOutputCustody,
 } from '@omne-harness/tool-contract/provider'
 import {
   createLocalToolClock,
@@ -39,7 +38,6 @@ export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins>
 /** `tool-records` 行在自己的受信上下文里建出的 SQL 端口。 */
 export type ToolSqlPorts = Readonly<{
   store: ToolLedgerStore
-  custody: ToolOutputCustody<unknown>
   materials: ToolMaterialStore<unknown>
   guarded: EnvironmentGuardedHostCommit
 }>
@@ -176,24 +174,6 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore {
       return answer
     },
   } satisfies ToolLedgerStore)
-}
-
-const custodyUnavailable = {
-  failure: {
-    kind: 'unavailable' as const,
-    dependency: 'tool-records',
-    diagnostic: 'no SQL output custody is installed',
-  },
-}
-
-/** 交给 bundle 的输出保管：逐次读当前 SQL 保管，缺席答 `unavailable`。 */
-export function lateCustody(holder: ToolRuntimeHolder): ToolOutputCustody<unknown> {
-  return Object.freeze({
-    preserve: input => holder.sql?.custody.preserve(input) ?? Promise.resolve(custodyUnavailable),
-    inspect: input => holder.sql?.custody.inspect(input) ?? Promise.resolve(custodyUnavailable),
-    retainResult: input =>
-      holder.sql?.custody.retainResult(input) ?? Promise.resolve(custodyUnavailable),
-  } satisfies ToolOutputCustody<unknown>)
 }
 
 export const TOOL_MATERIAL_PROVIDER = Object.freeze({

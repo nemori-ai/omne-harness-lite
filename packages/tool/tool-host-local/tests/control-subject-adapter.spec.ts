@@ -436,7 +436,6 @@ function ledgerFor(f: ReturnType<typeof fixture>) {
     {
       controlSubjects: f.build(),
       content: null,
-      custody: { retainResult: never },
       releaseInspection: { adoption: adoption('environment'), inspectRelease: never },
     },
   )

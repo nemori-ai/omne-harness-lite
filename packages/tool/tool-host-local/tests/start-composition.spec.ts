@@ -227,7 +227,6 @@ function assembly(
         'invalidate',
         'resolve',
       ]),
-      custody: rejecting(['preserve', 'inspect', 'retainResult']),
       catalog: rejecting(['inspect', 'usage', 'search']),
       children: rejecting(['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
     },

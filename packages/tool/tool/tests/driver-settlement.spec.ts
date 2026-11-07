@@ -376,11 +376,11 @@ describe('original final settlement in one shared driver', () => {
     const release = deferred<void>()
     let retains = 0
     const f = fixture({
-      custodyPort: base => ({
+      resultMaterialsPort: base => ({
         ...base,
-        retainResult: input => {
+        write: input => {
           retains += 1
-          return base.retainResult(input)
+          return base.write(input)
         },
       }),
       store: memory => ({
@@ -407,7 +407,7 @@ describe('original final settlement in one shared driver', () => {
     await flush()
     const running = f.h.runOnce(first.call, first.controller.signal)
     await committing.promise
-    expect(retains).toBe(1)
+    expect(retains).toBe(3)
     expect((await f.load(first.call)).state.phase).toBe('running')
     await f.h.runOnce(second.call, second.controller.signal)
     expect(f.h.binding.executions).toEqual([first.call])
@@ -422,12 +422,12 @@ describe('original final settlement in one shared driver', () => {
     const retained = deferred<void>()
     const retaining = deferred<void>()
     const f = fixture({
-      custodyPort: base => ({
+      resultMaterialsPort: base => ({
         ...base,
-        retainResult: async input => {
+        write: async input => {
           retaining.resolve()
           await retained.promise
-          return base.retainResult(input)
+          return base.write(input)
         },
       }),
     })
@@ -518,11 +518,11 @@ describe('original final settlement in one shared driver', () => {
             },
             mode,
           ),
-        custodyPort: base => ({
+        resultMaterialsPort: base => ({
           ...base,
-          retainResult: input => {
+          write: input => {
             retains += 1
-            return base.retainResult(input)
+            return base.write(input)
           },
         }),
         commands: base => ({
@@ -544,7 +544,7 @@ describe('original final settlement in one shared driver', () => {
       await f.pump()
       expect((await f.load(first.call)).tasks.some(task => task.kind === 'queue')).toBe(false)
       expect(f.h.binding.executions).toEqual([first.call, second.call])
-      expect(retains).toBe(1)
+      expect(retains).toBe(3)
       expect(new Set(operations).size).toBe(1)
       expect(operations.length).toBeGreaterThanOrEqual(2)
       expect(await f.h.released()).toContain(first.call)
@@ -557,11 +557,11 @@ describe('original final settlement in one shared driver', () => {
     let allowRelease = false
     let retains = 0
     const f = fixture({
-      custodyPort: base => ({
+      resultMaterialsPort: base => ({
         ...base,
-        retainResult: input => {
+        write: input => {
           retains += 1
-          return base.retainResult(input)
+          return base.write(input)
         },
       }),
       store: memory => ({
@@ -597,7 +597,7 @@ describe('original final settlement in one shared driver', () => {
     expect(f.h.binding.executions).toEqual([first.call, second.call])
     await f.h.runOnce(first.call, first.controller.signal)
     expect((await f.load(first.call)).tasks.some(task => task.kind === 'queue')).toBe(false)
-    expect(retains).toBe(1)
+    expect(retains).toBe(3)
     await f.close()
   })
 

@@ -414,7 +414,7 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
               )
               const bytes = ok(author.codec.encode(checked))
               const raw = ok(
-                await providers.dependencies.custody.preserve({
+                await providers.ledger.rawCustody.preserve({
                   ...input,
                   operation: ok(await identities.operationIdentities.newOperation()),
                   codec: author.codec.adoption,

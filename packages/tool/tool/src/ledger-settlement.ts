@@ -1,4 +1,9 @@
-import { adoptResultMaterials, releaseFinalPreparation } from './ledger-result-uses.ts'
+import {
+  adoptResultMaterials,
+  releaseFinalPreparation,
+  preparedRawMaterial,
+  releaseReplacedRaw,
+} from './ledger-result-uses.ts'
 import type { ResultChannels } from './ledger-result-material.ts'
 import { matchesFinalValue } from './fact-values.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -7,7 +12,6 @@ import type {
   DurableEvidence,
   ToolExecutionRef,
   ToolFailure,
-  ToolOperationId,
   ToolState,
 } from '@omne-harness/tool-contract'
 import type { ToolFinalEnvelope, ToolTask } from '@omne-harness/tool-contract/provider'
@@ -24,11 +28,7 @@ import {
   type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
-import {
-  planEnvironmentRelease,
-  processCustodyCovered,
-  settlementOperation,
-} from './ledger-environment-release.ts'
+import { planEnvironmentRelease, processCustodyCovered } from './ledger-environment-release.ts'
 import { sameFactValue } from './ledger-facts.ts'
 import type { WriteCommand } from './ledger-start.ts'
 import {
@@ -53,7 +53,6 @@ export type SettlementCheck =
       call: CallRecord
       saved: FactEventRecord
       task: Extract<ToolTask, { kind: 'queue' | 'settle' | 'account' | 'facts' | 'clock' }>
-      retainOperation: ToolOperationId
     }>
 
 export function checkSettlement(
@@ -94,6 +93,8 @@ export function checkSettlement(
     !sameFactValue(task.basis, command.basis)
   )
     return invalid('final', 'not-original-final')
+  const raw = preparedRawMaterial(snapshot, saved.fact.raw)
+  if ('failure' in raw) return raw
   if (call.state.relation === 'background' && saved.fact.terminal.kind === 'no-response')
     return invalid('terminal', 'background-no-response')
   return succeed({
@@ -101,12 +102,6 @@ export function checkSettlement(
     call,
     task,
     saved,
-    retainOperation: settlementOperation('retain-result', {
-      tenant: call.tenant,
-      call: call.call,
-      settle: task.operation,
-      final: saved.evidence,
-    }),
   })
 }
 
@@ -166,19 +161,24 @@ export function decidePreserveResult<B extends ContentBlock>(
   snapshot: Snapshot,
   command: PreserveCommand,
   final: Final<B>,
-  retained: DurableEvidence,
   channels: ResultChannels,
   mint: Mint,
 ): Decision<ToolState> {
   const checked = checkSettlement(snapshot, command)
   if ('failure' in checked) return reply(checked)
   if (checked.ok.kind === 'recalled') return reply(succeed(checked.ok.state))
-  const { call, saved, task, retainOperation } = checked.ok
+  const { call, saved, task } = checked.ok
   if (!matchesFinalValue(saved.value, final)) return reply(invalid('final', 'not-original-final'))
+  const materialized = mintEvidence(
+    'result-custody',
+    { tenant: call.tenant, call: call.call, operation: command.operation },
+    mint.revision,
+    { final: saved.evidence, raw: final.raw, channels },
+  )
   const completed = final.terminal.kind === 'completed'
   const covered = completed && processCustodyCovered(snapshot, final.raw, final.result)
   const planned = covered
-    ? planEnvironmentRelease(snapshot, call, saved.evidence, retained, mint)
+    ? planEnvironmentRelease(snapshot, call, saved.evidence, materialized, mint)
     : succeed(null)
   if ('failure' in planned) return reply(planned)
   const plan = planned.ok
@@ -208,8 +208,7 @@ export function decidePreserveResult<B extends ContentBlock>(
       final: saved.evidence,
       finalValue: saved.value,
       raw: final.raw,
-      retainOperation,
-      retained,
+      materialized,
       cleanup,
     },
     mint,
@@ -224,6 +223,13 @@ export function decidePreserveResult<B extends ContentBlock>(
     first.version.record.source,
   )
   if ('failure' in released) return reply(released)
+  const rawRelease = releaseReplacedRaw(
+    snapshot,
+    final.raw,
+    final.result,
+    first.version.record.source,
+  )
+  if ('failure' in rawRelease) return reply(rawRelease)
   const state = settledState(call, final, saved.evidence, first.version.delivery, mint)
   if ('failure' in state) return reply(state)
   const writes: LedgerWrite[] = [
@@ -231,6 +237,7 @@ export function decidePreserveResult<B extends ContentBlock>(
     ...first.writes,
     ...uses.ok,
     ...released.ok,
+    ...rawRelease.ok,
     put(operationRecord(command, { kind: 'preserve-result', state: state.ok }, mint)),
     put({
       kind: 'task',

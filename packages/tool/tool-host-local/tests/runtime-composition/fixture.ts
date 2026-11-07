@@ -375,7 +375,6 @@ export async function fixture(
   }
   const input: LocalToolRuntimeInput = {
     store,
-    custody,
     materials: createMemoryToolMaterials(),
     content: null,
     sources,

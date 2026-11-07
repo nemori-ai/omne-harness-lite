@@ -129,25 +129,12 @@ function chunksHold(facts: ManifestFacts, port: ParticipantPort): boolean {
   return total === facts.bytes && hash.digest('hex') === facts.sha256
 }
 
-/** True when a retained projection's raw output is sealed in the same tenant and call. */
-function holderSealed(facts: ManifestFacts, port: ParticipantPort): boolean {
-  if (facts.holds === null) return true
-  const row = oneRow(
-    port,
-    `SELECT seal FROM tl_manifest
-      WHERE tenant = ? AND call = ? AND operation = ? AND kind = 'raw' LIMIT 1`,
-    [facts.tenant, facts.call, facts.holds.operation],
-  )
-  return row !== undefined && text(row['seal']) === facts.holds.seal
-}
-
 function seal(facts: ManifestFacts, port: ParticipantPort): ParticipantReply {
   const existing = sealed(port, facts)
   if (existing !== null)
     return existing.digest === facts.digest
       ? participated({ kind: 'sealed', answer: existing.answer })
       : stopped({ reason: 'operation' })
-  if (!holderSealed(facts, port)) return stopped({ reason: 'holder' })
   if (!chunksHold(facts, port)) return stopped({ reason: 'chunks' })
   // A crash of a longer attempt may have left chunks past the end; they are never read, so drop them.
   port.execute(

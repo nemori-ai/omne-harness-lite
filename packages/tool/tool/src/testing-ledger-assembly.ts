@@ -42,7 +42,6 @@ export type LedgerAssemblyDependencies = StoreCaseDependencies &
     createLedger: Factory
     source: typeof createTestInvocationSource<Principal>
     clock(): Parameters<Factory>[2]
-    custody(): Parameters<Factory>[4]['custody']
     environment(): Parameters<Factory>[4]['releaseInspection']
   }>
 const adoption = (name: string): Adoption => ({
@@ -240,7 +239,7 @@ export async function ledgerAssembly(
     guards,
     deps.clock(),
     { resultPageBytes: 4096, ledgerCommitAttempts: 4, queueCapacity: 16 },
-    { custody: deps.custody(), releaseInspection: deps.environment(), content: null },
+    { releaseInspection: deps.environment(), content: null },
   )
   return {
     ledger,

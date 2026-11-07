@@ -32,7 +32,6 @@ import {
   createSqlToolGuardedHostCommit,
   createSqlToolLedgerStore,
   createSqlToolMaterialStore,
-  createSqlToolOutputCustody,
 } from '@omne-harness/tool-storage-sql'
 import {
   closeEnvironmentSchemaProvider,
@@ -65,11 +64,6 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
   }
   const sql = Object.freeze({
     store: createSqlToolLedgerStore(options),
-    custody: createSqlToolOutputCustody<unknown>({
-      ...options,
-      maxCommandBytes: config.maxCommandBytes,
-      maxChunkBytes: config.maxChunkBytes,
-    }),
     materials: createSqlToolMaterialStore({
       ...options,
       provider: TOOL_MATERIAL_PROVIDER,
