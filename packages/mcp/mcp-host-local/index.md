@@ -15,7 +15,7 @@
 - [src/](src/index.md)：两个公开入口（根入口与 `./cordis`）、协议会话、两条线路、Cordis 插件与辅助模块
 - [tests/](tests/index.md)：快层（内存线路、`fetch` 替身）与慢层（真实进程、本机端口）的测试，含 Cordis 插件的两个用例文件（快层不起进程，慢层起脚本化 stdio 对端），以及 A/B 两层对端夹具
 - [schema/](schema/index.md)：对外 Schema（本包没有）
-- [verification/](verification/index.md)：性质 V1–V6 的 TLA+ 模型、模型与实现的映射、运行记录；`proofs/sdk/` 是 SPEC 复用表的论证与探针输出摘录
+- [verification/](verification/index.md)：性质 V1–V6 的 TLA+ 模型、模型与实现的映射、运行命令与证据状态；`proofs/sdk/` 是 SPEC 复用表的论证与探针输出摘录
 - [adr/](adr/index.md)：实现取舍与理由（本包没有）
 - [examples/](examples/index.md)：使用示例（本包没有）
 - [resources/](resources/index.md)：运行所需的非源码资源（本包没有）

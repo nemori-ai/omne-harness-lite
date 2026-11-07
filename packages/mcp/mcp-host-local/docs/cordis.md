@@ -2,7 +2,7 @@
 
 本包提供 MCP 组的 Cordis 插件：`./cordis` 入口的插件工厂 `createMcpPlugin`。插件行为的唯一规范正文是 [SPEC「Cordis 插件」](../SPEC.md#cordis-plugin)：配置、端口的现取与缺席时的答复、换代、撤除与已知限制。本页写装配怎样用它、它依赖什么、它用到的 Cordis 机制，以及它怎样符合 IC 约定。服务键与抽象类归 [mcp-cordis-contract](../../mcp-cordis-contract/docs/cordis.md)，服务的行为归 [mcp 的 SPEC](../../mcp/SPEC.md) 与 [mcp-contract 的 SPEC](../../mcp-contract/SPEC.md)。Cordis 采用发布包 `@deepseek-ai/cordis@4.0.4`。本页是候选，尚未取得技术接受。
 
-本包的变体：根入口是传输工厂，没有 Cordis。本包原为 `module` 变体，没有模板采用标识。模板没有「升为提供者」的命令，所以按[现有成员不自动迁移](../../../../docs/package-organization.md)的规则，`src/cordis.ts`、`tests/cordis-entry.spec.ts` 与 `tests/cordis-journey.spec.ts` 手工补入，本包不贴模板标识。加 `./cordis` 之前的 `package-template scan` 读数：`variant` 为 `module`，`structure` 为 `pass`，`findings` 为 0，`integration` 为 `unknown`。加入之后，`scan` 把本成员读作 `service-provider` 变体，`structure` 仍为 `pass`，`findings` 为 0，`integration` 仍为 `unknown`。
+本包的变体：根入口是传输工厂，没有 Cordis。本包按 `module` 变体建立，没有模板采用标识。模板没有「升为提供者」的命令，所以按[现有成员不自动迁移](../../../../docs/package-organization.md)的规则，`src/cordis.ts`、`tests/cordis-entry.spec.ts` 与 `tests/cordis-journey.spec.ts` 手工补入，本包不贴模板标识。`package-template scan` 把本成员读作 `service-provider` 变体，`structure` 为 `pass`，`findings` 为 0，`integration` 为 `unknown`（原因见[未覆盖](#未覆盖)）。
 
 ## 集成入口
 
@@ -77,5 +77,5 @@
 
 ## 未覆盖
 
-- `docs/architecture/constraints.json` 没有映射本包 `src/` 与 mcp-cordis-contract 的入口责任，`package-template scan` 为此报 `integration` 为 `unknown`，IC-5、LAYER-DIP、LAYER-ENTRY 与角色（ROLE）的条目都是 `unknown`；IC-2 的条目是 `converged`。该文件归集成线，本包不改。上表的人工核对栏写出了核对的内容。
+- `docs/architecture/constraints.json` 没有映射本包 `src/` 与 mcp-cordis-contract 的入口责任，`package-template scan` 为此报 `integration` 为 `unknown`，IC-5、LAYER-DIP、LAYER-ENTRY 与角色（ROLE）的条目都是 `unknown`；IC-2 的条目是 `converged`。该文件在 `docs/architecture/` 下，不归本包，本包不改。上表的人工核对栏写出了核对的内容。
 - 其余见 [SPEC「Cordis 插件的验证」](../SPEC.md#cordis-plugin-verification)的「没有覆盖」。

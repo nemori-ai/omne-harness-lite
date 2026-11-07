@@ -55,6 +55,8 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 
 端口挂起在每个配置里都可能：答复端口的动作不被选中，TLC 检查每个前缀。`bad-caller-waits-workflow-*` 的反例就是这样一条前缀：登记之后凭据句柄没有答复，`close()`（或 `signal`）结算了在途项，调用方仍在等。两种断开在每个配置里也都可能发生。
 
+`bad-ended-sends-authorizing` 的反例：`r1`（读类）开始并交给线路，`r2`（写类，`tools/call`）开始并在授权中，`r1` 收到旧会话的 404（`SessionEnded(r1)`），会话转为不可用而 `r2` 没有被结算。随后句柄放行，`AuthDone(r2)` 把 `r2` 交给线路。
+
 断开的三条不变式：
 
 - `V2_NoWireAfterDead`：会话不可用之后，`sends` 与 `cred.auth` 不再变化。也就是不再交给线路，也不再调用 `authorize`。`reportRejection` 不在其内：会话结束之后仍在途的项可以被拒绝，按 T4 报告一次。
@@ -109,34 +111,10 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp-host-local/verification
 - 负控与变异须退出非零，TLC 报告的被违反不变式恰好是表里所列的那一条，并给出反例轨迹。
 - 退出码只在每个配置（或变异）都符合判读时为 0。超时、解析失败、求值错误、原文不唯一与未执行都不算通过。非零退出本身不算负控通过。
 
-## 运行记录
-
-运行环境：TLC2 Version 2.19 of 08 August 2024（tla2tools v1.7.4，`tla2tools.jar` SHA-256 `936a262061c91469…`），4 个工作线程。模型 SHA-256 `29eec8af205bca31…`，`run.py` SHA-256 `2f1fc35ee9f1c89b…`。
-
-| 配置                               | 结论                               | 不同状态数 | 生成状态数 | 深度 | 耗时  | 判读     |
-| ---------------------------------- | ---------------------------------- | ---------- | ---------- | ---- | ----- | -------- |
-| `valid-close`                      | 完成，没有错误                     | 9922       | 30649      | 16   | 1.6 s | 符合判读 |
-| `valid-signal`                     | 完成，没有错误                     | 315        | 686        | 11   | 1.1 s | 符合判读 |
-| `valid-no-handle`                  | 完成，没有错误                     | 315        | 686        | 11   | 1.1 s | 符合判读 |
-| `bad-resettle`                     | `V1_SettleOnce` 被违反             | 88         | 135        | 6    | 1.1 s | 符合判读 |
-| `bad-cred-after-close`             | `V2_NoCredentialAfterClose` 被违反 | 86         | 102        | 5    | 1.1 s | 符合判读 |
-| `bad-report-twice`                 | `V3_RejectAtMostOnce` 被违反       | 61         | 103        | 7    | 1.1 s | 符合判读 |
-| `bad-signal-dead`                  | `V4_SignalBounded` 被违反          | 22         | 23         | 6    | 1.2 s | 符合判读 |
-| `bad-close-settles-after-line`     | `V4_CloseBounded` 被违反           | 44         | 57         | 5    | 1.1 s | 符合判读 |
-| `bad-caller-waits-workflow-close`  | `V4_CloseBounded` 被违反           | 31         | 34         | 5    | 1.1 s | 符合判读 |
-| `bad-caller-waits-workflow-signal` | `V4_SignalBounded` 被违反          | 33         | 48         | 5    | 1.1 s | 符合判读 |
-| `bad-resend`                       | `V5_NoResendForCaller` 被违反      | 88         | 131        | 6    | 1.0 s | 符合判读 |
-| `bad-close-not-sent`               | `V6_ByPhase` 被违反                | 86         | 118        | 6    | 1.0 s | 符合判读 |
-| `bad-ended-sends-authorizing`      | `V2_NoWireAfterDead` 被违反        | 472        | 839        | 7    | 1.2 s | 符合判读 |
-
-运行于 2026-11-06（UTC 06:55），`run.py` 退出码 0，13 个配置用时约 15 秒（日志 `run.log`，SHA-256 前 16 位 `2975d496e3192163`）。深度是 TLC 状态图的深度，含内部步。正控的状态数是完整穷举，两次运行相同。加入两种断开之后，`valid-close` 从 2230 个不同状态增加到 9922 个，`valid-signal` 与 `valid-no-handle` 从 107 个增加到 315 个。负控与变异的状态数是 TLC 找到第一条反例时的计数，随工作线程的调度在两次运行之间略有不同。
-
-`bad-ended-sends-authorizing` 的反例有 6 个状态：`r1`（读类）开始并交给线路，`r2`（写类，`tools/call`）开始并在授权中，`r1` 收到旧会话的 404（`SessionEnded(r1)`），会话转为不可用而 `r2` 没有被结算。随后句柄放行，`AuthDone(r2)` 把 `r2` 交给线路。
-
-变异（同一环境，同一模型，紧接上面的配置运行）：22 个变异各自只违反目标不变式，`run.py --mutations` 退出码 0，用时约 30 秒（日志 `mutations.log`，SHA-256 前 16 位 `bcc146c707ec772e`）。每个变异的不同状态数在 22 到 1188 之间，深度 3 到 8。两份日志与每个配置的 `summary.json` 保存在任务过程目录，不入库。
+`summary.json` 的读法：深度是 TLC 状态图的深度，含内部步。正控的状态数是完整穷举，两次运行相同。负控与变异的状态数是 TLC 找到第一条反例时的计数，随工作线程的调度在两次运行之间略有不同。
 
 ## 本包事实
 
 - 当前内容：会话请求生命周期的模型、13 份配置、22 个有效动作的变异与运行脚本。
-- 状态：见上面的运行记录与 [SPEC.md「性质与证据」](../../SPEC.md#properties)。这不是证明，也不表示实现符合模型。
+- 状态：见 [SPEC.md「性质与证据」](../../SPEC.md#properties)。这不是证明，也不表示实现符合模型。
 - 负责人：本包的维护者。会话的结算次序或等待点变化时，先改模型的对应动作，再重跑全部配置与变异。
