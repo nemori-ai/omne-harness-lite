@@ -3,7 +3,11 @@
 // cursor and its re-judged continuation, the absent ports and configuration, and the read-only
 // promise against the Session, Model and Tool doubles.
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ActingForTenantPrincipal, IdentityGovernance } from '@omne-harness/identity'
+import type {
+  ActingForTenantPrincipal,
+  IdentityGovernance,
+  IdentityOperations,
+} from '@omne-harness/identity'
 import { parseDuration } from '@omne-harness/utc-instant'
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -103,6 +107,7 @@ async function diagnosticsFixture(
     throwOnBegin?: boolean
     afterRead?: () => Promise<void>
     governance?: (base: IdentityGovernance) => IdentityGovernance
+    identity?: (base: IdentityOperations) => IdentityOperations
     /** False leaves the three projection fields out of the configuration. */
     configured?: boolean
   }> = {},
@@ -192,6 +197,7 @@ async function diagnosticsFixture(
         }
   const fixture = await startFixture({
     ...(options.governance === undefined ? {} : { governance: options.governance }),
+    ...(options.identity === undefined ? {} : { identity: options.identity }),
     config: {
       maxPageBytes: 4096,
       ...(options.configured === false
@@ -276,6 +282,7 @@ describe('the judgment order of read-history', () => {
   it.each([
     'revoked-member',
     'membership-unavailable',
+    'membership-denied',
     'membership-throws',
     'expired-login',
   ] as const)('withholds projected rows when the final identity check is %s', async mode => {
@@ -294,6 +301,7 @@ describe('the judgment order of read-history', () => {
         queryOwnMemberships: input => {
           if (!projected) return base.queryOwnMemberships(input)
           if (mode === 'membership-throws') throw new Error('private membership fault')
+          if (mode === 'membership-denied') return Promise.resolve({ kind: 'denied' })
           if (mode === 'membership-unavailable')
             return Promise.resolve({ kind: 'basis-unavailable', diagnostic: 'fixture' })
           if (mode === 'revoked-member')
@@ -306,10 +314,56 @@ describe('the judgment order of read-history', () => {
     const session = await createSession(fixture, who)
     fixture.doubles.entries.push(...runEntries('private-run', 1))
     const reply = await firstPage(who, session)
-    expect(reply.status).toBe(mode.startsWith('membership-') ? 503 : 403)
+    expect(reply.status).toBe(
+      mode === 'membership-unavailable' || mode === 'membership-throws' ? 503 : 403,
+    )
+    expect(fixture.diagnostics.filter(event => event.operation === 'queryOwnMemberships')).toEqual(
+      mode === 'membership-throws'
+        ? [{ code: 'identity.fault', operation: 'queryOwnMemberships' }]
+        : [],
+    )
     expect(reply.json).toMatchObject({ body: {} })
     expect(reply.text).not.toContain('private-run')
   })
+
+  it.each(['unavailable', 'account-changed', 'login-changed'] as const)(
+    'withholds the page when final proof recognition is %s',
+    async mode => {
+      let projected = false
+      let replacement: Awaited<ReturnType<IdentityOperations['recognizeLogin']>> | undefined
+      fixture = await diagnosticsFixture({
+        afterRead: async () => {
+          projected = true
+        },
+        identity: base => ({
+          ...base,
+          recognizeLogin: async input => {
+            const original = await base.recognizeLogin(input)
+            if (!projected) return original
+            if (mode === 'unavailable') return { kind: 'basis-unavailable', diagnostic: 'fixture' }
+            if (original.kind !== 'recognized' || replacement?.kind !== 'recognized')
+              throw new Error('fixture recognition')
+            return mode === 'account-changed'
+              ? { ...original, account: replacement.account }
+              : { ...original, login: replacement.login }
+          },
+        }),
+      })
+      const who = await login(fixture, 'alice')
+      const other = await login(fixture, 'bob')
+      replacement = await fixture.identity.recognizeLogin({ loginProof: other.loginProof })
+      const session = await createSession(fixture, who)
+      fixture.doubles.entries.push(...runEntries('private-run', 1))
+      const reply = await firstPage(who, session)
+      expect(reply.status).toBe(mode === 'unavailable' ? 503 : 403)
+      expect(reply.json).toMatchObject({
+        outcome: mode === 'unavailable' ? 'basis-unavailable' : 'denied',
+        body: {},
+      })
+      expect(reply.text).not.toContain('private-run')
+      expect(fixture.diagnostics.filter(event => event.code === 'identity.fault')).toEqual([])
+    },
+  )
 
   it('reads the first page from begin with the configured kinds, backward from the newest, and the next page from the cursor', async () => {
     fixture = await diagnosticsFixture()

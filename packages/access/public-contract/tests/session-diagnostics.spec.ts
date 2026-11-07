@@ -206,6 +206,14 @@ const page: SessionDiagnosticsPage = {
 }
 const structuredCauses = [
   { kind: 'node-failed', node: 'E4', category: 'invariant', failureKind: 'unavailable' },
+  { kind: 'node-failed', node: 'E1', category: 'exception', failureKind: 'exception' },
+  {
+    kind: 'node-failed',
+    node: 'E2',
+    category: 'unsupported-path',
+    failureKind: 'unsupported-path',
+  },
+  { kind: 'node-failed', node: 'E3', category: 'rejected', failureKind: 'rejected' },
   { kind: 'unknown', reason: 'unsupported' },
   { kind: 'unknown', reason: 'not-recorded' },
   { kind: 'none' },
@@ -298,8 +306,14 @@ describe('read-session-diagnostics responses', () => {
     const body = withRun({
       terminal: { outcome: 'cancelled', cause: { record: null, structured } },
     })
-    expect(readResponse(wireOf('succeeded', body)).kind).toBe('response')
-    expect(encodeSuccess(body).kind).toBe('encoded')
+    const wire = wireOf('succeeded', body)
+    const read = readResponse(wire)
+    expect(read.kind).toBe('response')
+    if (read.kind === 'response' && read.response.outcome === 'succeeded')
+      expect(read.response.body).toEqual(body)
+    const encoded = encodeSuccess(body)
+    expect(encoded.kind).toBe('encoded')
+    if (encoded.kind === 'encoded') expect(decode(encoded.bytes)).toEqual(wire)
   })
 
   it('round trips a tool diagnostics entry whose phase and code are empty', () => {
