@@ -163,10 +163,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
   suspend(
     input: WriteContext & Readonly<{ suspension: SuspensionRecord; checkpoint: Checkpoint }>,
   ): Reply<ToolState>
-  preserveResult(
-    input: WriteContext &
-      Readonly<{ raw: RawOutput; value: ToolResult<B>; terminal: ToolTerminal; effect: Effect }>,
-  ): Reply<ToolState>
+  preserveResult(input: WriteContext & Readonly<{ basis: DurableEvidence }>): Reply<ToolState>
   recordResponse(
     input: WriteContext & Readonly<{ response: ResponseRecord; outcome: ResponseProgress }>,
   ): Reply<WaitRecord>

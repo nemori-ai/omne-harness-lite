@@ -19,6 +19,7 @@ import {
   type FactEventRecord,
   type LedgerWrite,
   type SavedFact,
+  type StoredExecutionFact,
 } from './ledger-store.ts'
 
 export function sameFactValue(left: unknown, right: unknown): boolean {
@@ -155,7 +156,7 @@ function planEvents<B extends ContentBlock>(
       event: event.event,
       value: event.value,
     })
-    const record = {
+    let record: FactEventRecord = {
       ...event,
       key,
       start,
@@ -181,7 +182,7 @@ function planEvents<B extends ContentBlock>(
             },
           }),
         )
-      }
+      } else if (final.fact.kind === 'final') record = { ...record, fact: final.fact }
     }
     facts.set(key, record)
     fresh.push(record)
@@ -193,7 +194,7 @@ function planEvents<B extends ContentBlock>(
 export function checkFactBatch<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   start: ToolStartRecord,
-  batch: FactBatch,
+  batch: FactBatch | StoredFactBatch,
   value: ToolMaterialFingerprint,
 ): Outcome<FactReceipt | null, ToolFailure> {
   const call = snapshot.call
@@ -212,7 +213,10 @@ export function checkFactBatch<B extends ContentBlock>(
     (!sameFactValue(stream.start, start) || !sameFactValue(stream.source, batch.source))
   )
     return invalid('batch.source', 'source-conflict')
-  let final = [...snapshot.facts.values()].find(
+  let final:
+    | StoredExecutionFact
+    | Extract<FactBatch['events'][number]['fact'], { kind: 'final' }>
+    | undefined = [...snapshot.facts.values()].find(
     record => record.start.operation === start.operation && record.fact.kind === 'final',
   )?.fact
   for (const event of batch.events) {

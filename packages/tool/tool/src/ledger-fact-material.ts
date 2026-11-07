@@ -89,13 +89,15 @@ export async function adoptFactMaterials<P, B extends ContentBlock>(
           !sameFactValue(material.state.seal, pointer.envelope)
         )
           return invalid('batch.events.fact', 'unowned-final-material')
+        const { envelope, ...identityFields } = pointer
+        const pending = { ...identityFields, payload: { kind: 'pending' as const, envelope } }
         const restored = await restoreSavedFact(
           access,
           {
             start: batch.start,
             source: batch.source,
             event: event.event,
-            fact: pointer,
+            fact: pending,
             evidence: batch.source,
           },
           store,
@@ -103,7 +105,7 @@ export async function adoptFactMaterials<P, B extends ContentBlock>(
           adoption,
         )
         if ('failure' in restored) return restored
-        knownFinal = pointer
+        knownFinal = pending
       }
       fact = knownFinal
     }
@@ -122,9 +124,27 @@ export async function restoreSavedFact<P, B extends ContentBlock>(
   adoption: Adoption,
 ): Reply<SavedFact<B>> {
   if (saved.fact.kind !== 'final') return succeed({ ...saved, fact: saved.fact })
+  if (saved.fact.value.codec !== 'tool-canonical-json-v1')
+    return fail({
+      kind: 'unsupported',
+      adoption,
+      reason: 'unsupported stored final fingerprint codec',
+    })
+  if (saved.fact.payload.kind === 'settled') {
+    const { kind: _kind, payload, ...identity } = saved.fact
+    return succeed({
+      ...saved,
+      fact: {
+        ...identity,
+        kind: 'settled-final',
+        result: payload.result,
+        settlement: payload.settlement,
+      },
+    })
+  }
   if (store === undefined) return unavailable('material provider is not connected')
   const pointer = saved.fact
-  const bytes = await readEnvelope(input, pointer, store)
+  const bytes = await readEnvelope(input, saved.fact.payload.envelope, store)
   if ('failure' in bytes) return bytes
   let value: unknown
   try {
@@ -154,10 +174,10 @@ export async function restoreSavedFact<P, B extends ContentBlock>(
 
 async function readEnvelope<P>(
   access: CallAccess<P>,
-  pointer: ToolFinalPointer,
+  envelope: ToolFinalPointer['envelope'],
   store: ToolMaterialStore<P>,
 ): Reply<Uint8Array> {
-  const expected = Number(pointer.envelope.bytes)
+  const expected = Number(envelope.bytes)
   if (!Number.isSafeInteger(expected) || expected < 0) return unavailable('invalid envelope length')
   const chunks: Uint8Array[] = []
   const hash = createHash('sha256')
@@ -168,7 +188,7 @@ async function readEnvelope<P>(
         store,
         {
           ...access,
-          material: pointer.envelope.material,
+          material: envelope.material,
           offset: String(offset),
           maxBytes: 65536,
         },
@@ -181,7 +201,7 @@ async function readEnvelope<P>(
       hash.update(bytes)
       if (next === null) break
     }
-    if (offset !== expected || hash.digest('hex') !== pointer.envelope.sha256)
+    if (offset !== expected || hash.digest('hex') !== envelope.sha256)
       return unavailable('stored envelope is incomplete or corrupt')
     return succeed(Buffer.concat(chunks))
   } catch {

@@ -113,7 +113,6 @@ export type ToolLedgerQueues<P> = Readonly<{
 export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   /** The ledger's original-controller check before a pending stop is sent. */
   controls?: ToolLedgerControls<P>
-  facts: ToolLedgerFacts<P, B>
   commands: ToolCommands<P, B>
   admissions: ToolLedgerAdmissions<P>
   queues: ToolLedgerQueues<P>
@@ -135,7 +134,7 @@ export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   sourceIssuer: ToolInvocationSourceIssuer<P>
 }>
 
-/** Trusted recovery consumers can recover complete original facts by their exact evidence. */
+/** Reads pending original facts or settled final receipts by their exact evidence. */
 export type ToolLedgerFacts<P, B extends ContentBlock> = Readonly<{
   read(
     input: CallAccess<P> & Readonly<{ basis: DurableEvidence }>,

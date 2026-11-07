@@ -160,7 +160,6 @@ export async function sourceFixture(
       reads: ledger.reads,
       admissions: ledger.admissions,
       queues: ledger.queues,
-      facts: ledger.facts,
     },
     config,
   ).runtime

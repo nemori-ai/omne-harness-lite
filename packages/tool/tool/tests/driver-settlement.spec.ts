@@ -19,6 +19,7 @@ import {
   request,
   tenantA,
   text,
+  testSettlementPorts,
   type Block,
   callId as readCall,
 } from './runtime-values.ts'
@@ -480,19 +481,31 @@ describe('original final settlement in one shared driver', () => {
   })
 
   it.each(['dropped', 'applied'] as const)(
-    'F05 repairs an %s unknown queue commit by replaying the original preserve task',
+    'F05 repairs an %s unknown queue commit without reading a released final envelope',
     async mode => {
       const operations: string[] = []
       let retains = 0
+      let releasedReads = 0
       const f = fixture({
         store: memory =>
           losingCommits(
             memory,
-            input =>
-              input.domain.kind === 'queue' &&
-              input.writes.some(
-                write => write.kind === 'put' && write.record.kind === 'queue-release',
-              ),
+            input => {
+              if (
+                input.domain.kind !== 'queue' ||
+                !input.writes.some(
+                  write => write.kind === 'put' && write.record.kind === 'queue-release',
+                )
+              )
+                return false
+              vi.spyOn(testSettlementPorts(memory).materials.store, 'read').mockImplementation(
+                async () => {
+                  releasedReads += 1
+                  throw new Error('the settled envelope has been released')
+                },
+              )
+              return true
+            },
             mode,
           ),
         custodyPort: base => ({
@@ -525,6 +538,7 @@ describe('original final settlement in one shared driver', () => {
       expect(new Set(operations).size).toBe(1)
       expect(operations.length).toBeGreaterThanOrEqual(2)
       expect(await f.h.released()).toContain(first.call)
+      expect(releasedReads).toBe(0)
       await f.close()
     },
   )
@@ -858,7 +872,7 @@ it.each(['end', 'throw'] as const)(
 )
 
 it.each(['cancelled', 'unavailable'] as const)(
-  'keeps the original final read %s from initiating preservation or wake',
+  'retains settlement responsibility when its entered command is %s without another driver wake',
   async mode => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const entered = deferred<void>()
@@ -922,16 +936,22 @@ it.each(['cancelled', 'unavailable'] as const)(
         },
       })
     else await expect(running).resolves.toMatchObject({ kind: 'blocked' })
-    expect(preserves).toBe(0)
+    expect(preserves).toBe(1)
     expect(f.h.host.scheduleAttempts).toHaveLength(schedules)
     const saved = await f.load(first.call)
-    expect(saved.state.phase).toBe('running')
-    expect(saved.result).toBeNull()
-    expect(saved.tasks).toContainEqual(
-      expect.objectContaining({ kind: 'settle', state: 'pending' }),
-    )
+    if (mode === 'unavailable') {
+      expect(saved.state.phase).toBe('running')
+      expect(saved.result).toBeNull()
+      expect(saved.tasks).toContainEqual(
+        expect.objectContaining({ kind: 'settle', state: 'pending' }),
+      )
+      expect(await f.h.released()).not.toContain(first.call)
+    } else {
+      expect(saved.state.phase).toBe('settled')
+      expect(saved.result).not.toBeNull()
+      expect(await f.h.released()).toContain(first.call)
+    }
     expect((await f.load(second.call)).state.phase).toBe('queued')
-    expect(await f.h.released()).not.toContain(first.call)
     expect(f.h.binding.executions).toEqual([first.call])
     await f.close()
   },

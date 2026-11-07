@@ -113,7 +113,6 @@ async function fixture(
       reads: ledger.reads,
       admissions: ledger.admissions,
       queues: ledger.queues,
-      facts: ledger.facts,
     },
     assembly.configuration,
   ).runtime

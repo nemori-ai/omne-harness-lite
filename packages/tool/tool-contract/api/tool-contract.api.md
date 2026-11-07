@@ -1700,10 +1700,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
         checkpoint: Checkpoint;
     }>): Reply<ToolState>;
     preserveResult(input: WriteContext & Readonly<{
-        raw: RawOutput;
-        value: ToolResult<B>;
-        terminal: ToolTerminal;
-        effect: Effect;
+        basis: DurableEvidence;
     }>): Reply<ToolState>;
     recordResponse(input: WriteContext & Readonly<{
         response: ResponseRecord;

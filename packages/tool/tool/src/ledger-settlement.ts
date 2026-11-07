@@ -35,30 +35,29 @@ import {
   type CleanupDuty,
   type LedgerWrite,
   type ResultRecord,
-  type SavedFact,
+  type FactEventRecord,
 } from './ledger-store.ts'
 
 type Final<B extends ContentBlock> = ToolFinalEnvelope<B>
-export type PreserveCommand<B extends ContentBlock> = WriteCommand &
+export type PreserveCommand = WriteCommand &
   Readonly<{
     execution: ToolExecutionRef
-    final: Final<B>
+    basis: DurableEvidence
   }>
-type OriginalFinal<B extends ContentBlock> = SavedFact<B> & Readonly<{ fact: Final<B> }>
-export type SettlementCheck<B extends ContentBlock> =
+export type SettlementCheck =
   | Readonly<{ kind: 'recalled'; state: ToolState }>
   | Readonly<{
       kind: 'fresh'
       call: CallRecord
-      saved: OriginalFinal<B>
+      saved: FactEventRecord
       task: Extract<ToolTask, { kind: 'queue' | 'settle' | 'account' | 'facts' | 'clock' }>
       retainOperation: ToolOperationId
     }>
 
 export function checkSettlement<B extends ContentBlock>(
   snapshot: Snapshot<B>,
-  command: PreserveCommand<B>,
-): Outcome<SettlementCheck<B>, ToolFailure> {
+  command: PreserveCommand,
+): Outcome<SettlementCheck, ToolFailure> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'preserve-result')
   if ('failure' in known) return known
   const call = snapshot.call
@@ -83,13 +82,14 @@ export function checkSettlement<B extends ContentBlock>(
   const task = snapshot.tasks.find(task => task.kind === 'settle')
   if (task === undefined || task.kind !== 'settle') return invalid('final', 'saved-final-required')
   const saved = [...snapshot.facts.values()].find(saved =>
-    sameFactValue(saved.evidence, task.basis),
+    sameFactValue(saved.evidence, command.basis),
   )
   if (
     saved === undefined ||
     saved.fact.kind !== 'final' ||
+    saved.fact.payload.kind !== 'pending' ||
     !sameFactValue(saved.start, call.start) ||
-    !matchesFinalValue(saved.value, command.final)
+    !sameFactValue(task.basis, command.basis)
   )
     return invalid('final', 'not-original-final')
   if (call.state.relation === 'background' && saved.fact.terminal.kind === 'no-response')
@@ -98,7 +98,7 @@ export function checkSettlement<B extends ContentBlock>(
     kind: 'fresh',
     call,
     task,
-    saved: { ...saved, fact: command.final },
+    saved,
     retainOperation: settlementOperation('retain-result', {
       tenant: call.tenant,
       call: call.call,
@@ -162,7 +162,8 @@ function settledState<B extends ContentBlock>(
 
 export function decidePreserveResult<B extends ContentBlock>(
   snapshot: Snapshot<B>,
-  command: PreserveCommand<B>,
+  command: PreserveCommand,
+  final: Final<B>,
   retained: DurableEvidence,
   mint: Mint,
 ): Decision<ToolState, B> {
@@ -170,7 +171,7 @@ export function decidePreserveResult<B extends ContentBlock>(
   if ('failure' in checked) return reply(checked)
   if (checked.ok.kind === 'recalled') return reply(succeed(checked.ok.state))
   const { call, saved, task, retainOperation } = checked.ok
-  const final = saved.fact
+  if (!matchesFinalValue(saved.value, final)) return reply(invalid('final', 'not-original-final'))
   const completed = final.terminal.kind === 'completed'
   const covered = completed && processCustodyCovered(snapshot, final.raw, final.result)
   const planned = covered
@@ -227,6 +228,25 @@ export function decidePreserveResult<B extends ContentBlock>(
     }),
     ...(plan?.writes ?? []),
   ]
+  for (const alias of snapshot.facts.values()) {
+    if (alias.fact.kind !== 'final' || !sameFactValue(alias.start, saved.start)) continue
+    writes.push(
+      put({
+        kind: 'fact-event',
+        fact: {
+          ...alias,
+          fact: {
+            ...alias.fact,
+            payload: {
+              kind: 'settled',
+              result: first.version.version,
+              settlement: state.ok.source,
+            },
+          },
+        },
+      }),
+    )
+  }
   if (plan === null)
     writes.push(put({ kind: 'task', task: { ...task, state: 'blocked', diagnostic } }))
   else writes.push({ kind: 'delete', key: taskKey(task) })

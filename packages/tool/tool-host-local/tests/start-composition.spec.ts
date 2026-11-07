@@ -182,7 +182,6 @@ function assembly(
       commands: ledger.commands,
       admissions: ledger.admissions,
       queues: ledger.queues,
-      facts: ledger.facts,
       reads: ledger.reads,
       bindings: {
         inspect: () => Promise.reject(new Error('catalog')),

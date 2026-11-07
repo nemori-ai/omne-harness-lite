@@ -174,22 +174,22 @@ export async function settlementFixture(
     configurationOf({}),
     {
       content: null,
+      materials: testSettlementPorts(harness.memory).materials,
       custody,
       releaseInspection:
         options.wrapReleaseInspection?.(ports.releaseInspection) ?? ports.releaseInspection,
     },
   )
   const before = ok(await ledger.commands.loadRecovery(access))
+  const task = before.tasks.find(task => task.kind === 'settle')
+  if (task?.kind !== 'settle') throw new Error('fixture final has no settlement task')
   const input = {
     ...access,
     ...recovery.execution,
     principal: access.principal,
     operation: operationId('preserve-result'),
     expected: before.state.revision,
-    raw: final.raw,
-    value: final.result,
-    terminal: final.terminal,
-    effect: final.effect,
+    basis: task.basis,
   }
   return {
     harness,

@@ -78,12 +78,7 @@ import type {
   ToolLedgerPorts,
   ToolLedgerControls,
 } from './construction.ts'
-import {
-  fixFactAcknowledgement,
-  fixFactBasis,
-  fixFactInput,
-  fixFinalInput,
-} from './facts-boundary.ts'
+import { fixFactAcknowledgement, fixFactBasis, fixFactInput } from './facts-boundary.ts'
 import { checkFactAcknowledgement, decideFactAcknowledgement } from './ledger-fact-ack.ts'
 import { checkFactBatch, decideReceiveFacts, readSavedFact, sameFactValue } from './ledger-facts.ts'
 import { digestOf, nextRevision } from './evidence.ts'
@@ -997,12 +992,12 @@ export function createToolLedger<P, B extends ContentBlock>(
   }
 
   const preserveResult: ToolCommands<P, B>['preserveResult'] = async input => {
-    const fixed = fixFinalInput(input, guards.policy, toolLedgerAdoption)
+    const fixed = fixFactBasis(input)
     if ('failure' in fixed) return fixed
     const context = await writeEntry(input)
     if ('failure' in context) return context
     const execution = executionOf(context.ok)
-    const fields = { final: fixed.ok, execution }
+    const fields = { basis: fixed.ok, execution }
     const command = { ...writeCommand(context.ok, fields), ...fields }
     const before = await peek(context.ok)
     if ('failure' in before) return before
@@ -1011,6 +1006,18 @@ export function createToolLedger<P, B extends ContentBlock>(
     const record = recordOf(before.ok)
     if ('failure' in record) return record
     if (checked.ok.kind === 'recalled') return releaseQueue(context.ok, record.ok, checked.ok.state)
+    const restored = await restoreSavedFact(
+      context.ok,
+      checked.ok.saved,
+      settlement.materials?.store,
+      guards.policy,
+      toolLedgerAdoption,
+    )
+    if ('failure' in restored) return restored
+    if (restored.ok.fact.kind !== 'final') return invalid('basis', 'original-final-required')
+    const final = restored.ok.fact
+    const qualified = await access(context.ok, 'write')
+    if ('failure' in qualified) return qualified
     let retained: Awaited<ReturnType<typeof settlement.custody.retainResult>>
     try {
       retained = await settlement.custody.retainResult({
@@ -1018,8 +1025,8 @@ export function createToolLedger<P, B extends ContentBlock>(
         tenant: context.ok.tenant,
         call: context.ok.call,
         operation: checked.ok.retainOperation,
-        raw: structuredClone(fixed.ok.raw),
-        value: structuredClone(fixed.ok.result),
+        raw: structuredClone(final.raw),
+        value: structuredClone(final.result),
       })
     } catch {
       return unavailable('output-custody', 'result custody confirmation is unavailable')
@@ -1033,10 +1040,12 @@ export function createToolLedger<P, B extends ContentBlock>(
     if ('failure' in evidence)
       return unavailable('output-custody', 'result custody confirmation is unavailable')
     const confirmed = structuredClone(evidence.ok)
+    const allowed = await access(context.ok, 'write')
+    if ('failure' in allowed) return allowed
     const settled = await transact(
       callDomain(context.ok),
       command.operation,
-      (snapshot, mint) => decidePreserveResult(snapshot, command, confirmed, mint),
+      (snapshot, mint) => decidePreserveResult(snapshot, command, final, confirmed, mint),
       commitUnknown(command.operation),
       before.ok.revision,
     )

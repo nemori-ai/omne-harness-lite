@@ -131,7 +131,7 @@ describe('original execution settlement', () => {
     expect((await f.records()).filter(record => record.kind === 'result')).toHaveLength(1)
   })
 
-  it.each(['raw', 'value', 'terminal', 'effect', 'instance', 'generation'] as const)(
+  it.each(['basis', 'instance', 'generation'] as const)(
     'rejects a substituted %s before custody',
     async field => {
       const retain = vi.fn<ToolOutputCustody<Principal>['retainResult']>()
@@ -139,10 +139,7 @@ describe('original execution settlement', () => {
         wrapCustody: base => ({ ...base, retainResult: retain }),
       })
       const changes = {
-        raw: { ...f.input.raw, custody: evidence('forged-raw') },
-        value: { ...f.input.value, content: [text('changed', 'forged')] },
-        terminal: { kind: 'failed', cause: 'executor', diagnostic: 'forged' } as const,
-        effect: { kind: 'not-started' } as const,
+        basis: evidence('foreign-final'),
         instance: 'foreign-instance',
         generation: 'foreign-generation',
       }
@@ -164,22 +161,22 @@ describe('original execution settlement', () => {
     expect(
       failure(await f.ledger.commands.preserveResult({ ...f.input, tenant: tenantB })).kind,
     ).toBe('denied')
-    const extra = { ...f.input, raw: { ...f.input.raw, extra: 'forged' } }
+    const extra = { ...f.input, basis: { ...f.input.basis, extra: 'forged' } }
     expect(failure(await f.ledger.commands.preserveResult(extra)).kind).toBe('invalid')
-    const raw = Object.defineProperty({}, 'codec', {
+    const basis = Object.defineProperty({}, 'record', {
       get() {
         throw new Error('secret')
       },
       enumerable: true,
     })
     expect(
-      failure(await f.ledger.commands.preserveResult({ ...f.input, raw: raw as never })).kind,
+      failure(await f.ledger.commands.preserveResult({ ...f.input, basis: basis as never })).kind,
     ).toBe('invalid')
     expect(
       failure(
         await f.ledger.commands.preserveResult({
           ...f.input,
-          value: { ...f.input.value, content: [text('changed', 'changed')] },
+          basis: evidence('changed-final'),
         }),
       ).kind,
     ).toBe('conflict')
@@ -273,7 +270,12 @@ describe('independent output custody and call CAS', () => {
           expect.arrayContaining(['queue', 'release', 'deliver', 'clock', 'fact-ack']),
         )
       else expect((await f.records()).some(record => record.kind === 'result')).toBe(false)
+      const materialRead = vi.spyOn(testSettlementPorts(f.harness.memory).materials.store, 'read')
+      if (fault === 'unknown-applied')
+        materialRead.mockRejectedValue(new Error('envelope released'))
       ok(await f.preserve())
+      if (fault === 'unknown-applied') expect(materialRead).not.toHaveBeenCalled()
+      else expect(materialRead).toHaveBeenCalled()
       expect(retain).toHaveBeenCalledTimes(fault === 'unknown-applied' ? 1 : 2)
       expect(new Set(retain.mock.calls.map(([input]) => input.operation)).size).toBe(1)
       if (fault === 'unknown-delayed')
@@ -998,4 +1000,64 @@ it('rejects malformed successful custody evidence without losing settlement resp
   expect((await f.load()).tasks).toEqual(f.before.tasks)
   expect((await f.records()).some(record => record.kind === 'result')).toBe(false)
   expect(await f.harness.released()).not.toContain(f.access.call)
+})
+
+it('settles every final alias in the result commit and recalls later aliases without the envelope', async () => {
+  const f = await settlementFixture()
+  const alias = {
+    ...f.batch,
+    batch: 'alias-before',
+    after: f.batch.cursor,
+    cursor: 'alias-before/end',
+    events: [{ event: 'alias-before', fact: f.pointer }],
+  }
+  ok(await f.ledger.commands.receiveFacts({ ...f.access, start: alias.start, batch: alias }))
+  const state = ok(
+    await f.ledger.commands.preserveResult({
+      ...f.input,
+      expected: (await f.load()).state.revision,
+    }),
+  )
+  const commit = f.commits.find(input =>
+    input.writes.some(write => write.kind === 'put' && write.record.kind === 'result'),
+  )
+  const settledFacts = commit?.writes.flatMap(write =>
+    write.kind === 'put' && write.record.kind === 'fact-event' ? [write.record.fact] : [],
+  )
+  expect(settledFacts).toHaveLength(2)
+  expect(settledFacts).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        event: 'alias-before',
+        fact: expect.objectContaining({ payload: expect.objectContaining({ kind: 'settled' }) }),
+      }),
+    ]),
+  )
+  const read = vi
+    .spyOn(testSettlementPorts(f.harness.memory).materials.store, 'read')
+    .mockRejectedValue(new Error('envelope no longer exists'))
+  for (const saved of settledFacts ?? []) {
+    expect(
+      ok(await f.ledger.facts.read({ ...f.access, basis: saved.evidence })).fact,
+    ).toMatchObject({
+      kind: 'settled-final',
+      raw: f.final.raw,
+      terminal: f.final.terminal,
+      effect: f.final.effect,
+      result: state.phase === 'settled' ? state.result : null,
+    })
+  }
+  const late = {
+    ...alias,
+    batch: 'alias-after',
+    after: alias.cursor,
+    cursor: 'alias-after/end',
+    events: [{ event: 'alias-after', fact: f.pointer }],
+  }
+  ok(await f.ledger.commands.receiveFacts({ ...f.access, start: late.start, batch: late }))
+  const saved = (await f.records()).find(
+    record => record.kind === 'fact-event' && record.fact.event === 'alias-after',
+  )
+  expect(saved).toMatchObject({ fact: { fact: { payload: { kind: 'settled' } } } })
+  expect(read).not.toHaveBeenCalled()
 })

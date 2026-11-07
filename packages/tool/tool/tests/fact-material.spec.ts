@@ -133,3 +133,28 @@ it('rejects conflicting duplicate final events before material IO or acknowledge
   expect(f.write).not.toHaveBeenCalled()
   expect(f.inspect).not.toHaveBeenCalled()
 })
+
+it.each(['pending', 'settled'] as const)(
+  'rejects an unsupported stored fingerprint codec during %s recovery without reading bytes',
+  async phase => {
+    const f = await fixture()
+    if (phase === 'settled') ok(await f.preserve())
+    const read = f.harness.memory.read.bind(f.harness.memory)
+    vi.spyOn(f.harness.memory, 'read').mockImplementation(async domain => {
+      const snapshot = await read(domain)
+      if (snapshot.kind === 'complete') {
+        for (const record of snapshot.records) {
+          if (record.kind === 'fact-event' && record.fact.fact.kind === 'final') {
+            Reflect.set(record.fact.fact.value, 'codec', 'tool-canonical-json-v2')
+          }
+        }
+      }
+      return snapshot
+    })
+    expect(await f.ledger.facts.read({ ...f.access, basis: f.basis })).toHaveProperty(
+      'failure.kind',
+      'unsupported',
+    )
+    expect(f.read).not.toHaveBeenCalled()
+  },
+)

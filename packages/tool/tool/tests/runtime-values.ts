@@ -599,7 +599,6 @@ export function harness(options: HarnessOptions = {}): Harness {
     commands: publicLedger.commands,
     admissions: publicLedger.admissions,
     queues: publicLedger.queues,
-    facts: publicLedger.facts,
     reads: publicLedger.reads,
     bindings: stub(spies, 'bindings', ['inspect', 'resolve', 'recover']),
     environments,

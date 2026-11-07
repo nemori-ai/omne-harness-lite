@@ -41,6 +41,7 @@ import type {
   ToolFinalPointer,
   ToolFinalEnvelope,
   ToolMaterialFingerprint,
+  ToolMaterialSeal,
 } from '@omne-harness/tool-contract/provider'
 
 /** The tenant identity as the contract types it; the ledger does not import legal-identity. */
@@ -174,15 +175,28 @@ export type AccountRecord = Readonly<{
   value: CallAccount
 }>
 
-/** Original facts are immutable custody records, separate from their downstream tasks. */
+type SettledFinal = Omit<ToolFinalPointer, 'kind' | 'envelope'> &
+  Readonly<{
+    kind: 'settled-final'
+    result: ToolResultVersion
+    settlement: DurableEvidence
+  }>
+
+/** Recovery returns an exact pending final or its committed settlement receipt. */
 export type SavedFact<B extends ContentBlock> = Readonly<{
   start: ToolStartRecord
   source: DurableEvidence
   event: string
-  fact: Exclude<ToolExecutionFact, { kind: 'final' }> | ToolFinalEnvelope<B>
+  fact: Exclude<ToolExecutionFact, { kind: 'final' }> | ToolFinalEnvelope<B> | SettledFinal
   evidence: DurableEvidence
 }>
-export type StoredExecutionFact = Exclude<ToolExecutionFact, { kind: 'final' }> | ToolFinalPointer
+export type StoredFinalFact = Omit<ToolFinalPointer, 'envelope'> &
+  Readonly<{
+    payload:
+      | Readonly<{ kind: 'pending'; envelope: ToolMaterialSeal }>
+      | Readonly<{ kind: 'settled'; result: ToolResultVersion; settlement: DurableEvidence }>
+  }>
+export type StoredExecutionFact = Exclude<ToolExecutionFact, { kind: 'final' }> | StoredFinalFact
 
 export type FactEventRecord = Omit<SavedFact<ContentBlock>, 'fact'> &
   Readonly<{

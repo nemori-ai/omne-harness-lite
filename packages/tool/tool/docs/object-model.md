@@ -158,7 +158,7 @@ stateDiagram-v2
 | 类别 | 内容 | 固定点与校验 |
 | --- | --- | --- |
 | 构造配置 | ToolConfiguration：作者限额、processBatchBytes、processBatchDelayMs、observerBufferBytes、resultPageBytes、reconciliationDelayMs、ledgerCommitAttempts、queueCapacity、可选的 driverStepsPerRun 与 driverRetryDelayMs | runtime 检查全部字段，账本只检查它读取的 resultPageBytes、ledgerCommitAttempts、queueCapacity；容量与 driverStepsPerRun 为正安全整数（driverStepsPerRun 缺省 16），处理延迟为非负安全整数，driverRetryDelayMs 缺省 1000、给出时是 1 到 2147483647 的整数；超出抛 `TypeError` |
-| 构造依赖 | ToolDependencies：显式依赖端口（含同账本的 `admissions`、`queues` 与 `facts`，以及来源 resolve） | 缺端口或配置不合法抛 `TypeError` |
+| 构造依赖 | ToolDependencies：显式依赖端口（含同账本的 `admissions`、`queues`，以及来源 resolve） | 缺端口或配置不合法抛 `TypeError` |
 | 受信快照 | ToolLedgerGuards | 构造时固定；缺答复是 unavailable |
 | 一次操作参数 | 契约的 WriteContext 或 Mutation；写命令的主体放在同一输入的 `principal` | 每个命令先查形状，再问资格，然后读记录仓 |
 | 短期资源 | 本进程的环境值、作用域的中止监听器 | 作用域在 finish 结束或取消后移除监听器 |

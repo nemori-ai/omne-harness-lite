@@ -62,17 +62,22 @@ it('S1 executes once, reads every original page, processes and releases its deli
     assert.equal(
       'result' in savedFinal.fact.fact,
       false,
-      'the fact ledger stores only a sealed reference',
+      'the fact ledger does not embed the final result',
     )
     const restored = await scene.providers.ledger.facts.read({
       ...scene.access,
       call: savedFinal.fact.call,
       basis: savedFinal.fact.evidence,
     })
-    assert.ok('ok' in restored && restored.ok.fact.kind === 'final')
+    assert.ok('ok' in restored && restored.ok.fact.kind === 'settled-final')
+    assert.equal(restored.ok.fact.result, savedResult.result.result)
+    assert.deepEqual(restored.ok.fact.terminal, savedResult.result.terminal)
+    assert.deepEqual(restored.ok.fact.effect, savedResult.result.effect)
     assert.deepEqual(
-      restored.ok.fact.result.content,
-      pages.flatMap(page => page.value.content),
+      restored.ok.fact.settlement,
+      savedFinal.fact.fact.payload.kind === 'settled'
+        ? savedFinal.fact.fact.payload.settlement
+        : null,
     )
     assert.ok(savedResult.result.custody.kind === 'execution')
     assert.deepEqual(savedResult.result.custody.raw, savedFinal.fact.fact.raw)

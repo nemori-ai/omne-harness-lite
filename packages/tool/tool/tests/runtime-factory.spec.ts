@@ -138,12 +138,6 @@ describe('17 the runtime factory and later increments', () => {
       ),
     ).toThrow('dependencies.operationIdentities: missing')
     expect(() =>
-      createToolRuntime({ ...dependencies, facts: undefined as never }, configuration()),
-    ).toThrow('dependencies.facts: missing')
-    expect(() =>
-      createToolRuntime({ ...dependencies, facts: {} as never }, configuration()),
-    ).toThrow('dependencies.facts.read: missing')
-    expect(() =>
       createToolRuntime({ ...dependencies, sourceIssuer: undefined as never }, configuration()),
     ).toThrow('dependencies.sourceIssuer: missing')
   })

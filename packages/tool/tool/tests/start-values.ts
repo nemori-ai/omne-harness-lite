@@ -484,7 +484,6 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     commands: options.commands?.(ledger.commands) ?? ledger.commands,
     admissions: publicLedger.admissions,
     queues: ledger.queues,
-    facts: ledger.facts,
     reads: options.readsPort?.(ledger.reads) ?? ledger.reads,
     bindings,
     environments: options.environmentsPort?.(environments) ?? environments,

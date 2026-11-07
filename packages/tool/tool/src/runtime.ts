@@ -42,7 +42,6 @@ const PORTS = [
   'commands',
   'admissions',
   'queues',
-  'facts',
   'bindings',
   'environments',
   'decisions',
@@ -67,8 +66,6 @@ function checkDependencies<P, B extends ContentBlock, E>(
     if (typeof value !== 'object' || value === null)
       throw new TypeError(`dependencies.${port}: missing`)
   }
-  if (typeof dependencies.facts.read !== 'function')
-    throw new TypeError('dependencies.facts.read: missing')
 }
 
 function unsupported(name: string, increment: string): Promise<Outcome<never, ToolFailure>> {
