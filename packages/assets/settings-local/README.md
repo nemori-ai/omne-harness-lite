@@ -108,3 +108,11 @@ pnpm --filter @omne-harness/settings-local run test:fast
 Change assignment semantics in Settings first, then update persistence and its conformity tests. Change target existence, declarations, versions, or sources in the actual target owner and its invalidation writers. Change capture bindings in [projection.ts](src/projection.ts) together with both owner producers and the catalog tests. Keep the public behavior, assembly instructions, diagrams, and test guide aligned when those boundaries change.
 
 For a source update, use `control.recoverSource(source, page)` to drain only the affected source. Continue through returned cursors and retry unavailable items in a later scan from null. A prepared source update with outstanding holds returns rejected/unavailable and remains pending. Retry its original preparation after settlement; the final business transaction still checks the exact gate and current authority.
+
+## Native organization management
+
+`settingsOrganizationCurrentMaterials(configuration)` supplies capture, ready and commit producers for independent organization targets. Register them with the existing Settings persistence and standalone owner. Each combination must include the owners of the tables its current producer reads. Source capture and prepared finalization use separate combinations because they provide the same source fact.
+
+`createOrganizationSettingsCurrent` returns the owner-access, plan and current-command adapters for `system.settings`. Compose them with `createIdentityQualifiedSettingsPreparation`; the current adapter is trusted assembly code and does not authenticate a caller by itself. Both use the same destination. The qualified service requires `organization-settings-manage`, and the current adapter restricts the target to the actor's actual organization.
+
+Native management does not require runtime Governance adoption. It reads the independent owner's definition, layout, grants and assignments. Ordinary changes require a matching stored definition/layout. Explicit rebase can read the historical assignment revision while the final rebase decision validates the proposed migration. Automatic recovery of pending updates without a live caller remains a separate, incomplete delivery requirement.

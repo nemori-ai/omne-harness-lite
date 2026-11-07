@@ -1,3 +1,7 @@
+import {
+  settingsOrganizationCurrentMaterials,
+  type OrganizationCurrentConfiguration,
+} from '../src/preparation.ts'
 import { sourceSnapshotMaterials } from '../src/source-snapshot-materials.ts'
 import { settingsStandaloneMaterials } from '../src/standalone-materials.ts'
 import { randomUUID, createHash } from 'node:crypto'
@@ -54,6 +58,7 @@ export async function openRecoveryWorld(
   root: string,
   domain: DomainRef = allocation().identity.domain,
   sourceCapture = false,
+  organizationCurrent?: OrganizationCurrentConfiguration,
 ) {
   const base = settingsRecoveryMaterials()
   const targets = settingsStandaloneMaterials()
@@ -74,6 +79,7 @@ export async function openRecoveryWorld(
     declaredCombinations: { tenant: null, system: null },
     participants: [
       ...own.participants,
+      ...(organizationCurrent ? settingsOrganizationCurrentMaterials(organizationCurrent) : []),
       {
         participant: 'fixture.commit-current',
         protocol: 'fixture-commit/1',
@@ -151,7 +157,9 @@ export async function openRecoveryWorld(
   if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
   const readyParticipants = [
     ...SETTINGS_READY_PARTICIPANTS,
-    'fixture.preparation-current',
+    ...(organizationCurrent
+      ? ['settings.organization-ready-current', 'settings.targets']
+      : ['fixture.preparation-current']),
     'fixture.recovery-rollback',
   ]
   const readyManifest = combinationManifest({ catalog: materials, participants: readyParticipants })
@@ -166,7 +174,9 @@ export async function openRecoveryWorld(
   if (readyRegistered.kind !== 'registered') throw new Error(JSON.stringify(readyRegistered))
   const commitParticipants = [
     ...SETTINGS_COMMIT_PARTICIPANTS,
-    'fixture.commit-current',
+    ...(organizationCurrent
+      ? ['settings.organization-commit-current', 'settings.targets']
+      : ['fixture.commit-current']),
     'fixture.recovery-rollback',
   ]
   const commitManifest = combinationManifest({

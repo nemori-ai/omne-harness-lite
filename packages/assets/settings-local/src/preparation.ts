@@ -29,3 +29,8 @@ export {
 export { createSettingsSourceReservations, type SettingsSourceOptions } from './source-service.ts'
 export type { SettingsSourceDestination } from './source-service-schema.ts'
 export { createIdentityQualifiedSettingsSources } from './identity-sources.ts'
+export {
+  createOrganizationSettingsCurrent,
+  settingsOrganizationCurrentMaterials,
+} from './organization-current.ts'
+export type { OrganizationCurrentConfiguration } from './organization-current-schema.ts'

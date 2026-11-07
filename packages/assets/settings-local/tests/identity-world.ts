@@ -166,6 +166,12 @@ export async function openIdentityWorld(
     governanceModelId: 'default-team',
   })
   if (organization.kind !== 'succeeded') throw new Error('identity fixture team')
+  const admin = authority.issuer.issueActingForTenant({
+    actor: actor.ok,
+    tenant: organization.tenant,
+    work: { owner: 'settings', work: 'organization-config' },
+  })
+  if (!('ok' in admin)) throw new Error('fixture administrator')
   await identity.governance.switchCurrentTenant({
     login: loginA.login,
     actingTenant: regA.tenant,
@@ -234,6 +240,7 @@ export async function openIdentityWorld(
     identity,
     backend,
     principal,
+    administrator: admin.ok,
     change,
     binding,
     loginA,
@@ -244,6 +251,25 @@ export async function openIdentityWorld(
     },
     setAvailable(value: boolean) {
       available = value
+    },
+    async demoteAdministrator() {
+      const promoted = await identity.governance.changeMemberRole({
+        login: loginA.login,
+        actingTenant: organization.tenant,
+        organization: team,
+        account: bob,
+        expectedRole: 'member',
+        targetRole: 'super-admin',
+      })
+      if (promoted.kind !== 'succeeded') return promoted
+      return identity.governance.changeMemberRole({
+        login: loginA.login,
+        actingTenant: organization.tenant,
+        organization: team,
+        account: ada,
+        expectedRole: 'super-admin',
+        targetRole: 'member',
+      })
     },
     remove: () =>
       identity.governance.removeMember({

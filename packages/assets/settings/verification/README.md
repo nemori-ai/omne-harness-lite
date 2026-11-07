@@ -177,7 +177,7 @@ source-snapshot的真实读取增量验证了模型中源快照的部分精化�
 来源清单原子性、完整绑定和SQL键分区由实际数据库测试守护；现有单请求TLA模型没有枚举1024项清单或证明哈希无碰撞。进入prepared仍须核对全部必需成员，属于bootstrap模型及后续真实协调器的责任。丢包/重开测试使用实际来源快照和保留参与者；终态回执及旧attempt仍有夹具边界。不能把这些局部结论写成完整恢复服务已交付。
 
 
-`SettingsIntentAttempts` 的普通 seal、根取消、终态不复活与旧 attempt 隔离，现由 settings-local 私有 `intent-settlement.ts` 落实关系写入，测试入口为 `intent-settlement.spec.ts`。`SettingsPreparationBootstrap` 的 preparing 禁止成功也有对应反例。当前依据检查、terminal 原子组合及源门同提交由公开准备协调器和真实 Worker 组合兑现。组织管理 current、应用切换及完整独立验收仍未完成；模型通过和私有关系测试不能替代这些义务。
+`SettingsIntentAttempts` 的普通 seal、根取消、终态不复活与旧 attempt 隔离，现由 settings-local 私有 `intent-settlement.ts` 落实关系写入，测试入口为 `intent-settlement.spec.ts`。`SettingsPreparationBootstrap` 的 preparing 禁止成功也有对应反例。当前依据检查、terminal 原子组合及源门同提交由公开准备协调器和真实 Worker 组合兑现。组织待决更新的自动恢复、应用切换及完整独立验收仍未完成；模型通过和私有关系测试不能替代这些义务。
 
 
 `SettingsSourceRetention` 的源根封口及精确清门同提交，现有 `settings-local/tests/recovery-combination.spec.ts` 使用实际六参与者组合验证。来源保留仍为held时可以取消源修改，但不得顺便结算这些保留；下游失败须回滚terminal、门和根。初始准入与来源门使用夹具，实际业务成功提交、Identity恢复装配和物理断电仍不在这组证据内。
@@ -201,3 +201,7 @@ source-snapshot的真实读取增量验证了模型中源快照的部分精化�
 `source-update-service.spec.ts` 对来源等待补充生产协调器反例。旧协调器在 held 时提交确定性 SQL，随后因回滚把原更新封口。现协调器先读取精确 pending 更新及 held 数；等待不产生业务 SQL 或终态。该读取只是调度判断，提交守卫仍在原事务内核验。用例覆盖等待后同一 preparation 提交、按来源恢复隔离、未知结果保留、取消与分页。来源与目的事务均为真实 SQLite 组合；Identity 和 current 在这些用例中是声明过的夹具，因此它们不证明完整组织管理员装配。
 
 这项细化保留现有来源模型的终态后释放和旧目的不可复活条件。它不增加新的模型状态或释放规则，也不承诺永久不可用目的最终恢复。`source-retention.spec.ts` 检查按 source_key 筛选的实际查询计划使用 st_source_held，且不增加排序临时树。
+
+原生组织管理依据由 `organization-current-material.ts` 和同名事务生产者读取 Settings 自有关系后生成。它把完整来源、真实 owner revision、定义和 grants 纳入依据，并保持调用者的真实租户 scopeRef。来源布局含外域 source 时返回 unsupported，不将缺少的依赖改成空清单。普通变更和历史配值 rebase 分别读取；后者仍由原迁移判定核验完整布局和赋值处置。
+
+`organization-current-service.spec.ts` 将该生产者接到真实独立目标、Identity 资格保留及准备提交组合，验证管理员、普通成员、跨组织拒绝、原结果、显式 rebase 和实际降权后的原操作封口。两个真实租户的来源保留及两种提交顺序覆盖既有 SourceRetention 不变量；目标租户的 current policy 是具名夹具，不能据此宣称真实 Permissions 上界求值或完整分布式精化已经通过。
