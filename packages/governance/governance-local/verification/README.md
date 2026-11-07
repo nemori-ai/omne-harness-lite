@@ -15,3 +15,10 @@
 [GovernanceSqlCustody](../../../human-intervention/human-intervention/verification/models/GovernanceSqlCustody.tla) 检查两个原操作阶段键、两种完整请求和任意保存、发送、封口、提交交错。说明及源码映射见 [SQL 请求保管守护](../../../human-intervention/human-intervention/verification/README.md#sql-请求保管守护)。
 
 `SqlOperationCoordinator.send` 和 executeControl 只发送已确认保管的请求，落实 GovernanceSqlCustody 的 ExactSend 前提。accept 成功后重新读取当前 Operation，不使用历史受理回执继续业务。SqlSubmission 的完整回执校验与真实并发观察场景补充 GovernanceOperation 的原操作守护。模型仍假设底层存储满足自身契约，不证明任意故障下的恢复活性。
+
+
+[standing-coordinator.spec.ts](../tests/standing-coordinator.spec.ts) 使用真实Identity源服务与生产Governance planner/writer，验证完整请求先保存、真实held、业务终态、目的封口、源结算和本地settled。用例包含两种竞争顺序及并发竞争、源回执丢失、目的SQL回包丢失、迟到held、错绑定与Worker重开。资格与路由协议使用生产实现；公开准入和来源/current仍是具名夹具。
+
+该组合把 GovernanceSqlCustody 的 ExactSend、SettingsReservationCustody 的 SettledCannotBecomeHeld 和 [StandingRequestSettlement](../../../assets/settings/verification/models/StandingRequestSettlement.tla) 的 NoLateHold 映射到实际协调链。有限模型各有自己的前提；组合测试不构成全系统归纳证明，不覆盖远程认证、任意代码升级、物理断电或无限故障下的进展。
+
+[GovernanceRecoveryPhase](../../../human-intervention/human-intervention/verification/models/GovernanceRecoveryPhase.tla)补充固定SQL阶段的失败回执模型。错资格的seal先返回unavailable，随后正确原请求仍须结算；真实红绿反例同时检查阶段行缺失及正确恢复成功，不能只观察没有写入业务行。

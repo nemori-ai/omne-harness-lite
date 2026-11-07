@@ -30,14 +30,19 @@ import { acceptanceReceiptSchema, type OperationBinding } from '../src/operation
 import { config } from './config.ts'
 
 type ParticipantCommand = CommitRequestV2['commands'][number]
-export function activationCatalog(): SqlMaterialCatalog {
+export function activationCatalog(
+  extra?: Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>,
+): SqlMaterialCatalog {
   const base = governanceSqlMaterials()
   const url = new URL('./activation-current.mjs', import.meta.url)
   return {
     catalogProtocol: 'sql-catalog/1',
     ...base,
+    migrations: [...base.migrations, ...(extra?.migrations ?? [])],
+    readHandlers: [...base.readHandlers, ...(extra?.readHandlers ?? [])],
     participants: [
       ...base.participants,
+      ...(extra?.participants ?? []),
       {
         participant: 'fixture.governance-current',
         protocol: ADOPTION_CURRENT.protocol,
@@ -59,9 +64,15 @@ export const plannerMembers = {
   mutation: [MUTATION_PLANNER, GOVERNANCE_OWNER],
   adoption: ['fixture.governance-current', ADOPTION_PLANNER, GOVERNANCE_OWNER],
 }
-export async function openActivation(existing?: string) {
+export async function openActivation(
+  existing?: string,
+  options: {
+    tenantRef?: string
+    extraMaterials?: Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
+  } = {},
+) {
   const root = existing ?? realpathSync(mkdtempSync(join(tmpdir(), 'governance-activation-')))
-  const materials = activationCatalog()
+  const materials = activationCatalog(options.extraMaterials)
   const made = await createSqliteStorage({
     config: config(root),
     materials,
@@ -70,7 +81,7 @@ export async function openActivation(existing?: string) {
   if (made.kind !== 'created') throw new Error(JSON.stringify(made))
   const { storage, control } = made
   const domain = {
-    scope: { kind: 'tenant' as const, tenant: tenantRef },
+    scope: { kind: 'tenant' as const, tenant: options.tenantRef ?? tenantRef },
     transactionDomain: 'governance-operations',
   }
   function combination(mode: keyof typeof plannerMembers) {

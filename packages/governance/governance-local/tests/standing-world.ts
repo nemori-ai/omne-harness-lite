@@ -16,6 +16,7 @@ import {
   identitySqlRegistration,
   randomIdentifiers,
 } from '@omne-harness/identity-sql'
+import type { SqlStorage } from '@omne-harness/sql-contract'
 import { tenant, tenantCodec } from '@omne-harness/legal-identity'
 import { openScrypt } from '@omne-harness/scrypt'
 import { parseDuration, parseInstant } from '@omne-harness/utc-instant'
@@ -27,7 +28,18 @@ function duration(text: string) {
   if (!d.ok) throw new Error('fixture duration')
   return d.value
 }
-export async function openStandingWorld() {
+type StandingWorld = Pick<
+  Awaited<ReturnType<typeof openOperations>>,
+  'root' | 'storage' | 'domain' | 'close'
+> & { call(facts: Record<string, unknown>): Promise<unknown> }
+type StandingWorldOptions = Readonly<{
+  openWorld?: (options: {
+    tenantRef: string
+    extraMaterials: ReturnType<typeof identitySqlMaterials>
+  }) => Promise<StandingWorld>
+  resolver?: (world: StandingWorld) => StandingDestinationResolver
+}>
+export async function openStandingWorld(options: StandingWorldOptions = {}) {
   const ids = randomIdentifiers(),
     ada = ids.account(),
     bob = ids.account()
@@ -42,7 +54,8 @@ export async function openStandingWorld() {
     tenantRef: encoded.value,
     visibility: { kind: 'tenant' as const, tenantRef: encoded.value },
   }
-  const world = await openOperations(undefined, {
+  const openWorld = options.openWorld ?? (input => openOperations(undefined, input))
+  const world = await openWorld({
     tenantRef: encoded.value,
     extraMaterials: identitySqlMaterials(),
   })
@@ -76,10 +89,12 @@ export async function openStandingWorld() {
   const clock = manualIdentityClock(instant.value)
   const destination = 'governance-contributions'
   let available = true
+  const destinationResolver = options.resolver?.(world)
   const resolver: StandingDestinationResolver = {
     async seal(reservation) {
       const unavailable = { kind: 'unavailable' as const, diagnostic: 'fixture-governance-offline' }
       if (!available) return unavailable
+      if (destinationResolver !== undefined) return destinationResolver.seal(reservation)
       const result = await world.call({
         kind: 'standing-seal',
         reservation,
@@ -97,7 +112,7 @@ export async function openStandingWorld() {
   }
   const accounts = [ada, bob],
     organizations = [personalA, personalB, team]
-  const identity = createIdentitySql({
+  const providerOptions: Parameters<typeof createIdentitySql>[0] = {
     storage: world.storage,
     clock: clock.clock,
     terms: adjustableLoginTerms({
@@ -125,7 +140,8 @@ export async function openStandingWorld() {
       },
       login: ids.login,
     },
-  })
+  }
+  const identity = createIdentitySql(providerOptions)
   async function person(name: string) {
     const credentials = { loginIdentifier: name, credential: 'secret-' + name }
     const registered = await identity.operations.registerAndActivate(credentials)
@@ -170,6 +186,8 @@ export async function openStandingWorld() {
   return {
     ...world,
     identity,
+    reassemble: (storage: SqlStorage, destinationResolver: StandingDestinationResolver) =>
+      createIdentitySql({ ...providerOptions, storage, destinationResolver }),
     principal: issued.ok,
     principalRef: standingPrincipalRef(issued.ok),
     scope: actualScope,

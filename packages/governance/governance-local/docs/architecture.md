@@ -192,4 +192,56 @@ sequenceDiagram
 
 重启后 executeControl 可以认回旧组合下的阶段。send 从持久阶段读回完整请求，提交未知则查询同一身份。不同命令内容不得借新的 metadata 配置替换旧阶段。调用期间用户对象变化也不能改变首次异步等待前已固定的输入。
 
-公共 GovernanceCommands/Queries 的准入、真实来源和 Identity 生命周期尚待接线。图中协调器是提供者内部实现，不是当前已完成的公开治理服务。
+Identity预留和结算由下述Standing协调器接线，公共 GovernanceCommands/Queries 的准入与真实来源尚待完成。图中协调器是提供者内部实现，不是当前已完成的公开治理服务。
+
+
+## 真实 Standing 服务协调
+
+`GovernanceStandingDestination` 只依赖 SQL 协调器和固定路由，负责先读原请求并核对完整绑定与资格，再把已验证请求交给 standing-seal 阶段。固定SQL身份也会被失败回执占用，这项预核对防止错误输入堵住后续合法恢复；事务内最终核对仍存在。`GovernanceStandingCoordinator` 组合 SQL 协调器与 Identity 的公开预留端口。它保管原请求，核对完整回执，并以当前存储观察返回 held 或 settled。两个对象都是提供者内部对象，不是新增领域服务键。
+
+```mermaid
+classDiagram
+  class GovernanceStandingDestination {
+    +seal(reservation) terminal或unavailable
+  }
+  class GovernanceStandingCoordinator {
+    +reserve(plan, principal) StandingProgress
+    +settle(operation) StandingProgress
+  }
+  class SqlOperationCoordinator {
+    +observe(binding)
+    +executeControl(binding, request)
+  }
+  class StandingReservations {
+    <<interface>>
+    +reserve(principal, request)
+    +settle(request)
+  }
+  GovernanceStandingDestination --> SqlOperationCoordinator
+  GovernanceStandingCoordinator --> SqlOperationCoordinator
+  GovernanceStandingCoordinator --> StandingReservations
+  StandingReservations ..> GovernanceStandingDestination : 受信目的路由
+```
+
+装配先创建 SQL 协调器和目的适配器，再将目的适配器交给 Identity，最后创建 Standing 协调器。恢复调用 settle 时不需要原主体。`standing-routing.ts` 为主线程适配器与事务写者共用规范恢复引用解析，核对租户、主体、摘要与固定目的。
+
+```mermaid
+sequenceDiagram
+  participant C as Standing协调器
+  participant G as Governance持久存储
+  participant I as Identity源服务
+  participant D as Governance目的适配器
+  C->>G: 固定standing-prepare阶段
+  C->>I: reserve原主体及持久请求
+  I-->>C: 精确held回执
+  C->>G: 固定standing-held阶段并回读
+  Note over C,G: 公开业务准入及current另有拥有者
+  C->>I: settle持久原请求
+  I->>D: seal精确请求
+  D->>G: 固定standing-seal阶段
+  G-->>I: 不可逆原终态
+  I-->>C: 源端已结算
+  C->>G: standing-settled并回读当前状态
+```
+
+源端请求可能还未发送，或已 held 但回执丢失。两者都从持久请求恢复。业务提交与目的封口由同一原操作事务决定先后；源端随后结算。历史 held 回包不覆盖 settled。当前组合测试仍使用具名准入与来源依据夹具，不能据此宣称整个公开治理服务完成。

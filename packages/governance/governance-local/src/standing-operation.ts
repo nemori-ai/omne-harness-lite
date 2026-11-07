@@ -5,8 +5,9 @@ import { boundOperation, sealOperation } from './operation.ts'
 import type { OperationBinding, Execution } from './operation-schema.ts'
 import type { AdoptionEvidence } from './adoption-schema.ts'
 import { readGovernanceStanding } from './standing-custody.ts'
-import { standingRecoverySchema, standingReceiptSchema } from './standing-schema.ts'
-import { canonical, equal } from './encoding.ts'
+import { standingReceiptSchema } from './standing-schema.ts'
+import { standingOperation } from './standing-routing.ts'
+import { equal } from './encoding.ts'
 
 export function applyStandingOperation(
   port: ParticipantPort,
@@ -21,26 +22,6 @@ export function applyStandingOperation(
   if (custody.kind !== 'held') return { kind: 'unavailable' as const, owner: 'identity-standing' }
   return applyOperation(port, operation, execution, evidence)
 }
-function recovery(
-  reservation: StandingReservation,
-  destination: string,
-  transactionDomain: string,
-) {
-  if (reservation.binding.owner !== 'governance' || reservation.binding.destination !== destination)
-    return undefined
-  try {
-    const parsed = standingRecoverySchema.safeParse(JSON.parse(reservation.binding.targetRef))
-    if (
-      !parsed.success ||
-      canonical(parsed.data) !== reservation.binding.targetRef ||
-      parsed.data.transactionDomain !== transactionDomain
-    )
-      return undefined
-    return parsed.data.operation
-  } catch {
-    return undefined
-  }
-}
 export function sealGovernanceStanding(
   port: ParticipantPort,
   rawReservation: StandingReservation,
@@ -53,7 +34,7 @@ export function sealGovernanceStanding(
   const parsed = standingReceiptSchema.safeParse(rawReservation)
   if (!parsed.success) return unavailable
   const reservation = parsed.data
-  const operation = recovery(reservation, route.destination, route.transactionDomain)
+  const operation = standingOperation(reservation, route)
   if (!operation) return unavailable
   const custody = readGovernanceStanding(port, operation)
   if (
