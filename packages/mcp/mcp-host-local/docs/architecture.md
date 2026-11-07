@@ -10,6 +10,7 @@ index.ts ──► factory.ts ──► options.ts            （RangeError）
                 │               │  ▲
                 ├──► stdio-line.ts │           limits.ts、queue.ts
                 ├──► http-line.ts ─┘           body.ts（eventsource-parser/stream）
+                │       └──► sse-bytes.ts（解码之前的字节上界）
                 └──► authorization.ts ──► body.ts（元数据取回）
 session.ts ──► 契约根：classifyWireEvent、readPeerMessage 与 T8 的决策层
 
@@ -45,7 +46,7 @@ cordis.ts ──► factory.ts、options.ts（类型）
 - **再发只在读类（SPEC H5）。** 契约的 `concludeAnswer` 给结论加「再发」标记（条件在契约 [T8](../../mcp-contract/SPEC.md#t8) D15、O05），契约的 `withOneResend` 按标记再发一次；`request()` 经它用新的请求号并重新授权。写类与调用从不经 `request()`：效果未知时由调用方决定。
 - **探测时限只在 stdio（SPEC H11）。** HTTP 上没有探测时限：没有应答时只由 `close()` 放开（契约 [T8](../../mcp-contract/SPEC.md#t8) D14、I05、O04）；`call` 另可由它的 `signal` 放开（C03）。stdio 上旧对端对 `server/discover` 可能永不作答，时限到了走旧一路；迟到的应答因为请求已不在途而丢弃。
 - **退出窗口（SPEC H12，契约 [T8](../../mcp-contract/SPEC.md#t8) 进程退出）。** 窗口的规则在契约。理由：进程先退出时继续读 stdout，让「答完就退出」的进程不丢应答。退出的观察直接挂在句柄的 promise 上，先于任何在它之后 `await` 它的调用方。
-- **字节上界（SPEC H8）。** stdio 的每一行与 HTTP 的 2xx 正文都以 16 MiB 为界，越界是流断开。错误状态的正文越界时读成空正文，按「纯」归类。理由：与契约 `classifyWireEvent` 的 JSON 上界同值；SDK 的 10 MiB 上界更严，本包不比它严。
+- **字节上界（SPEC H8）。** stdio 的每一行与 HTTP 的 2xx 正文都以 16 MiB 为界，越界是流断开。错误状态的正文越界时读成空正文，按「纯」归类。理由：与契约 `classifyWireEvent` 的 JSON 上界同值；SDK 的 10 MiB 上界更严，本包不比它严。SSE 正文由 `sse-bytes.ts` 在解码之前数原始字节：解析器的 `maxBufferSize` 按解码后的字符计，一个 3 字节的 UTF-8 字符只算 1，不能作字节上界。
 - **旧 HTTP+SSE 是 HTTP 线路的一种模式（SPEC H9）。** 它与 Streamable HTTP 共用 POST、头、凭据、授权发现与状态分类，只多一条 GET 流与一个 endpoint；做成第三条线路会重复这些。回退是否成立是契约 T3 的规则：线路只交出 GET 的事实，会话判定。会话把模式写进 `WireContext.mode`，让契约把 POST 的「2xx 而没有应答」归为 `waiting`。
 - **`fetch` 直接用（SPEC「与 SDK 的复用关系」）。** SDK 的两个 HTTP 传输类在 401/403、非 400 的错误正文与读不懂的 2xx 消息上都丢失契约要交出的事实，只能在 `fetch` 钩子里自己读应答；读了之后那两个类没有剩余价值。每次交换一个 `AbortController`，它随调用方的 `signal` 与关闭中止，交换结束时移除监听；`redirect: 'manual'`；不设超时。
 - **`open` 不发请求（SPEC H3）。** 持有者在时限到期后释放凭据句柄；`open` 不调用句柄、答复前再核 `signal`，于是没有它授权过的传输还会调用它。
