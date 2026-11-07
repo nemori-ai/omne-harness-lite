@@ -106,3 +106,20 @@ sequenceDiagram
 图中业务提交和结算不要求固定先后。若结算先封口，迟到提交只能认回 aborted。若业务先提交，结算认回 committed。目的端不可用时，Identity 保留不释放，撤权仍待恢复。
 
 复用 [StandingCommit 与 SettingsReservationCustody](../../../assets/settings/verification/README.md) 的模型义务。模型 operation 对应完整治理原操作，terminal 对应该行 committed/aborted，保管请求对应 held_json。有限模型验证以真实 Identity 和同事务封口为前提，不证明来源认证、服务可用性或跨进程部署。真实组合测试见 [持续测试](../tests/README.md)。
+
+## 同时恢复业务与未结算保留
+
+`recovery-migration.ts` 增加恢复部分索引，原迁移字节保持不变。`recovery-read.ts` 提供按同一 scope 做 keyset 分页的只读处理器。索引包含业务 pending，以及业务已终结但保管尚未 settled 的行。只扫描业务 pending 会漏掉提交成功后丢失结算回包的记录。
+
+```mermaid
+flowchart LR
+  Pending[accepted或submitted] --> Recovery[恢复候选索引]
+  Held[终态且requested或held] --> Recovery
+  Recovery --> Page[每页最多64个原键与摘要]
+  Page --> Original[按原键取得原请求和原结果]
+  Original --> Work[可信协调器认回或封口]
+  Work --> Settled[确认Identity结算]
+  Settled --> Exit[终态settled退出候选]
+```
+
+读取材料限定 gc_scope 和 gc_operation 两张表，使用 domain-serial 排序。每次最多读取66行，输出上限256 KiB。失败保持 unavailable，不能变成完整空页。一次分页只覆盖该轮观察到的集合，后续扫描从头发现并发插入。

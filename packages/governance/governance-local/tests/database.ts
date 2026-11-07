@@ -1,11 +1,10 @@
 import { DatabaseSync } from 'node:sqlite'
 import type { MigrationPort } from '@omne-harness/sql-contract/worker'
 import migration from '../src/migration.ts'
+import recoveryMigration from '../src/recovery-migration.ts'
 
-export function openDatabase(path = ':memory:', initialize = true) {
-  const db = new DatabaseSync(path)
-  db.exec('PRAGMA foreign_keys = ON')
-  const port: MigrationPort = {
+export function databasePort(db: DatabaseSync): MigrationPort {
+  return {
     execute(sql, params) {
       const statement = db.prepare(sql)
       statement.setReadBigInts(true)
@@ -27,8 +26,17 @@ export function openDatabase(path = ':memory:', initialize = true) {
       }
     },
   }
-  if (initialize) migration.up(port)
+}
+export function openDatabase(path = ':memory:', initialize = true) {
+  const db = new DatabaseSync(path)
+  db.exec('PRAGMA foreign_keys = ON')
+  const port = databasePort(db)
+  if (initialize) {
+    migration.up(port)
+    recoveryMigration.up(port)
+  }
   migration.verify(port)
+  recoveryMigration.verify(port)
   return db
 }
 export function scope(db: DatabaseSync, key = 'scope') {

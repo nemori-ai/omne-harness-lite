@@ -8,7 +8,7 @@ import {
   type SqlMaterialCatalog,
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
-import { governanceSqlMigrations } from '../src/materials.ts'
+import { governanceSqlMigrations, governanceRecoveryReadMaterials } from '../src/materials.ts'
 import { GOVERNANCE_TABLES } from '../src/migration.ts'
 import { json, digest } from '../src/encoding.ts'
 import { requestRef, type AcceptOperation, type Execution } from '../src/operation-schema.ts'
@@ -85,7 +85,10 @@ export async function openOperations(
       ...(options.extraMaterials?.participants ?? []),
     ],
     migrations: [...governanceSqlMigrations(), ...(options.extraMaterials?.migrations ?? [])],
-    readHandlers: options.extraMaterials?.readHandlers ?? [],
+    readHandlers: [
+      ...governanceRecoveryReadMaterials(),
+      ...(options.extraMaterials?.readHandlers ?? []),
+    ],
     declaredCombinations: { tenant: null, system: null },
   }
   const participants = ['governance.activation']
