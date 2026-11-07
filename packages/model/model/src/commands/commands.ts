@@ -60,8 +60,10 @@ import {
 } from './judge.ts'
 import {
   accountFact,
+  completesNotSentWindow,
   bump,
   expireReads,
+  hasDispatchContent,
   lateTerminal,
   mergeReceiveWindow,
   reduceFacts,
@@ -532,8 +534,10 @@ export function dispatchCommands<P>(
   }
   function receiveCompletion(
     call: CallDocument,
+    dispatch: DispatchDocument,
     input: Parameters<ModelCommands<P>['preserve']>[0],
   ): Outcome<boolean, ModelFailure> {
+    if (completesNotSentWindow(call, dispatch, input.window, input.facts)) return { ok: true }
     const adapter = core.adapter(call)
     if ('kind' in adapter) return { failure: adapter }
     const context = evidenceContext(input.tenant, call)
@@ -707,6 +711,8 @@ export function dispatchCommands<P>(
           if ('kind' in dispatch) return dispatch
           if (dispatch.record.send === 'started' && input.state !== 'started')
             return invalid('state', 'started-cannot-regress')
+          if (input.state === 'not-sent' && hasDispatchContent(dispatch))
+            return invalid('state', 'not-sent-content')
           if (input.state === 'started' && dispatch.record.materialization === null)
             return invalid('dispatch', 'not-materialized')
           dispatch.record = { ...dispatch.record, send: input.state }
@@ -762,7 +768,7 @@ export function dispatchCommands<P>(
                 return { failure: invalid('window', 'not-open') }
               const failure = reduceFacts(call, dispatch, input.facts)
               if (failure) return { failure }
-              const completed = receiveCompletion(call, input)
+              const completed = receiveCompletion(call, dispatch, input)
               if ('failure' in completed) return completed
               mergeReceiveWindow(call, dispatch, input.window, completed.ok)
               call.cursor = cursor(String(BigInt(call.cursor) + 1n))

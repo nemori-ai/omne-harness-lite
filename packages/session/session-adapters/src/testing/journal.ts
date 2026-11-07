@@ -2507,7 +2507,10 @@ export function createJournal<P>(
     candidate: FinishCandidate,
     operation: AgentOperationId,
   ): ReturnType<typeof buildObligations> {
-    const batches = cache(execution).batches
+    const takenInputs = new Map<InputId, InputBatchId>()
+    for (const event of execution.events)
+      if (event.body.kind === 'input-taken')
+        for (const input of event.body.batch.ordered) takenInputs.set(input, event.body.batch.id)
     return buildObligations(
       {
         id: execution.id,
@@ -2515,10 +2518,7 @@ export function createJournal<P>(
         revision: execution.revision,
         checkpoint: execution.checkpoint,
         inputs: execution.inputs,
-        batchOf: index => {
-          for (const [id, range] of batches) if (index >= range.from && index < range.to) return id
-          return null
-        },
+        committedInputBatchOf: input => takenInputs.get(input.id) ?? null,
         acceptanceOf: input => {
           for (const record of execution.handoffs)
             if (record.handoff.kind === 'input' && record.handoff.input === input.id)

@@ -445,6 +445,14 @@ start 返回事实而记录未确认时，原流和资源由 sender 有界保留
 
 内存测试的来源登记以 [commands/types.ts](src/commands/types.ts) 的 `ModelSendSource` 为准，同步围栏以 [testing/state.ts](src/testing/state.ts) 为准。SQL 实现的协调器（`@omne-harness/model-storage-sql` 的 `createSendMirror`）只有一处例外：主体获准、调用不在本进程镜像时，它答 `unavailable`（`qualification-unavailable`），内存实现答 `not-found`；主体未获准时两者都答 `denied`。缺 sending 配置没有默认成功凭据。脚本仅模拟外部传输；产品不得依赖 testing。共同 started 结果交出已确认的原 window 和唯一 facts 流。消费者使用 result.window 保存该流，Commands 仍核原 tenant、call、execution、dispatch 与 window 绑定。window 不授予访问权。driver 已接入该唯一事实消费者，按原窗口批量确认后发布。
 
+### 传输准备的明确拒绝
+
+prepare 或 materialize 返回结构化 denied、invalid、unsupported 时，发送边界分别记录 excluded、input-rejected、modality。此路径没有 start，也不生成物化回执。边界保留原拒绝，依次确认原接收窗口、not-sent 和安全的 ended/failed 事实，再由 driver 沿原调用结算。诊断只使用 transport-denied、transport-invalid、transport-unsupported，不保存外部失败正文。
+
+窗口、发送记录或终止写丢回执时，边界保留原 operation、expected 和完整参数。下一次 send 先认回原写，不重做 prepare/materialize。取得版本的读取失败也保留原拒绝。写入资格失效时返回真实拒绝，不补造终态。释放失败保留尝试与容量；已保存的业务终局仍可单独结算。
+
+Commands 以本域已确认 not-sent、无内容、原单条失败事实和其他窗口均闭合推导零内容。它不要求外域为从未启动的流伪造暂停证明。双向矛盾守护及原重试决定守护仍生效。证明和源码映射见 [零发送收尾](verification/proofs/not-sent.md)。
+
 ### 发送边界的出口
 
 下表列出产品发送边界与 driver 的全部出口。「结局」一列说明调用方会不会无限等待：
@@ -454,7 +462,7 @@ start 返回事实而记录未确认时，原流和资源由 sender 有界保留
 - 「重试」：同一驱动的下一次 drive 继续原阶段，原写只重放，不重新解析，也不再次 start。重试只消耗有界的瞬时故障，之后落到前两种结局。
 - 「等待」：driver 停在 `failed`，失败为 `unavailable`，调用不结算。这是已知限制，见本表最后一组。
 
-凭据缺失与读不出（带 fault 的确定拒绝）：
+凭据缺失与读不出，以及上述传输准备明确拒绝，均沿带 fault 的确定拒绝路径。下表的 credential 行以凭据为例，传输准备采用上一节的 cause：
 
 | 步骤与存储答复 | 边界答复 | driver | 结局 |
 | --- | --- | --- | --- |
@@ -479,10 +487,10 @@ start 返回事实而记录未确认时，原流和资源由 sender 有界保留
 | 出口 | 诊断 |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
 | 凭据端口答 `unavailable` 或抛出 | `credential-unavailable` |
-| 当前资格不可得、取得资源前已取消、传输 prepare 或物化失败 | `qualification-unavailable`、`cancelled-before-prepare`、`cancelled-before-start`、`transport-prepare-failed` 等 |
+| 当前资格不可得、取得资源前已取消、传输 prepare 或物化返回 unavailable 或抛错 | `qualification-unavailable`、`cancelled-before-prepare`、`cancelled-before-start`、`transport-prepare-failed` 等 |
 | 没有写终止的拒绝之后释放失败 | `resource-release-failed` |
 | 已经 start 而发送记录始终不能确认（例如执行被接管） | `send-record-unconfirmed`。可能已发送，所以不得改报未发，也不得判成 credential 失败 |
 
 消除它们需要为每个出口选定结局，例如以哪一种 `ModelFaultCause` 结算，这会改变 Model 的调用结局，每个出口的结局登记为 D-86。确定拒绝的机制不限于凭据：fence 拒绝带上 `fault`，边界就写终止，driver 就按记录结算。
 
-这张表由 TLC 模型 [SendBoundary.tla](../model-contract/verification/models/SendBoundary.tla) 检查：带 fault 的确定拒绝最终结算，或者以确定拒绝结束，可能已发送的调用不判成 credential 失败，重试不写第二个终止。性质、映射与负控见 [formal-mapping.md](../model-contract/verification/models/formal-mapping.md#发送边界)。
+表中的凭据拒绝路径由 TLC 模型 [SendBoundary.tla](../model-contract/verification/models/SendBoundary.tla) 检查：带 fault 的确定拒绝最终结算，或者以确定拒绝结束，可能已发送的调用不判成 credential 失败，重试不写第二个终止。性质、映射与负控见 [formal-mapping.md](../model-contract/verification/models/formal-mapping.md#发送边界)。新增传输拒绝与内部零内容依据的证明范围归 [零发送收尾](verification/proofs/not-sent.md)，不以旧模型运行代替。

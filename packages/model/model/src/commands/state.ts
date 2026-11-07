@@ -278,11 +278,44 @@ export function reduceFacts(
   dispatch: DispatchDocument,
   facts: readonly TransportFact[],
 ): ModelFailure | null {
+  if (
+    dispatch.record.send === 'not-sent' &&
+    facts.some(
+      fact => fact.kind !== 'account' && fact.kind !== 'diagnostic' && fact.kind !== 'ended',
+    )
+  )
+    return invalid('facts', 'not-sent-content')
   for (const fact of facts) {
     const failure = reduceFact(call, dispatch, fact)
     if (failure) return failure
   }
   return null
+}
+export function hasDispatchContent(dispatch: DispatchDocument): boolean {
+  return (
+    dispatch.record.firstContent === 'observed' ||
+    dispatch.blocks.length > 0 ||
+    dispatch.hadContent.size > 0
+  )
+}
+export function completesNotSentWindow(
+  call: CallDocument,
+  dispatch: DispatchDocument,
+  window: string,
+  facts: readonly TransportFact[],
+): boolean {
+  return (
+    dispatch.record.send === 'not-sent' &&
+    !hasDispatchContent(dispatch) &&
+    facts.length === 1 &&
+    facts[0]?.kind === 'ended' &&
+    facts[0].termination.kind === 'failed' &&
+    call.dispatches.every(item =>
+      [...item.windows].every(
+        ([id, state]) => (item === dispatch && id === window) || state === 'closed',
+      ),
+    )
+  )
 }
 /**
  * Records an actual terminal that arrived late. Content that does not form a message leaves the

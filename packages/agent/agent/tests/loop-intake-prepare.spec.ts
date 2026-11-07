@@ -451,9 +451,12 @@ describe('I1 prepares at the fixed input boundary', () => {
     }))
     assembly.controls.requests.prepare.always(input => ({ ok: readyPreparation(input) }))
     assembly.release.open()
-    expect(failure(await run(assembly))).toMatchObject({
+    ok(await run(assembly))
+    expect((await snapshot(assembly)).settlement.candidate?.failure).toMatchObject({
+      kind: 'node-failed',
       node: 'I1',
-      failure: { kind: 'unavailable', owner: 'requestPreparation' },
+      category: 'invariant',
+      failureKind: 'unavailable',
     })
     expect(calls).toBe(0)
     expect((await snapshot(assembly)).checkpoint.requestPreparation).toBeNull()
@@ -687,7 +690,7 @@ describe('I1 preparation outcomes', () => {
     expect((await snapshot(assembly)).state.kind).toBe('ended')
   })
 
-  it('revision 2: needs-compaction saves the real preparation and returns unsupported without F1', async () => {
+  it('needs-compaction preserves preparation and ends with unsupported-path', async () => {
     let prepared: Preparation | null = null
     let finalizations = 0
     const assembly = await loopAssembly([execution()], d => ({
@@ -709,12 +712,16 @@ describe('I1 preparation outcomes', () => {
       }
       return { ok: prepared }
     })
-    expect(failure(await run(assembly))).toEqual({ node: 'I1', failure: { kind: 'unsupported' } })
+    ok(await run(assembly))
     const read = await snapshot(assembly)
     expect(read.checkpoint.requestPreparation).toEqual(prepared)
-    expect(read.checkpoint.position).toBe('I1')
-    expect(finalizations).toBe(0)
-    expect(read.state.kind).not.toBe('ended')
+    expect(read.settlement.candidate?.failure).toMatchObject({
+      kind: 'node-failed',
+      node: 'I1',
+      category: 'unsupported-path',
+    })
+    expect(finalizations).toBe(1)
+    expect(read.state.kind).toBe('ended')
     expect(assembly.controls.requests.derive.calls).toHaveLength(0)
     expect(assembly.controls.requests.resume.calls).toHaveLength(0)
   })
