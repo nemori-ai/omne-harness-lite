@@ -6,6 +6,7 @@
 //    字节、页数、fsync、每步提交次数与 Journal 自有字节对 `sl_entry` 字节的比值，写到 `tmp/journal-bytes/`。
 //    现状基线曲线从这里来，数字记在 `docs/engineering/perf-baseline.md`。
 // 2. 增长用例（慢层）：20 步断言第 20 步的最大一次发布 ≤ 第 5 步 + 2 KiB；200 步断言累计自有字节 ≤ J0 + W × 步数。
+//    200 步的用例每次运行要几十分钟，默认跳过；改动触及 Journal 路径时设 OMNE_JOURNAL_GROWTH_200=1 运行。
 //    终态 provider（K-23 删桥）合入后启用（R2-D294、R2-D347）。没有完成的运行把记录里的终结事实写进
 //    `errors`，断言信息带上它，失败不静默。200 步必须正常结束；累计自有字节超出 J0 + W × 步数
 //    仍由现状用例记录（D-92，R2-D380）。防回退的是每个工具步
@@ -80,6 +81,11 @@ const MEASURE_CASES = [
 ] as const
 const selected = (process.env['OMNE_JOURNAL_BYTES'] ?? '').split(',').filter(item => item !== '')
 const chosen = (id: string): boolean => selected.includes('all') || selected.includes(id)
+/**
+ * The 200-step growth cases run only when asked: each run takes tens of minutes, so they are not
+ * part of every slow tier. Set OMNE_JOURNAL_GROWTH_200=1 when a change touches the Journal path.
+ */
+const growth200 = process.env['OMNE_JOURNAL_GROWTH_200'] === '1'
 
 /** 放开存储上限：同 line-through 联合世界的长跑上限（w2-world 的 LONG_RUN_LIMITS）。 */
 const RELAXED = { maxCommandBytes: 1 << 30 } as const
@@ -209,7 +215,7 @@ describe('Journal growth (R2-D294)', () => {
   for (const tier of TIERS_UNDER_GUARD) {
     it(
       `200 steps, ${tier} messages: every publication is bounded, and no tool step grows past its ceiling in own bytes or publications (R2-D294, R2-D380)`,
-      { tags: ['slow'], timeout: 7_200_000 },
+      { tags: ['slow'], timeout: 7_200_000, skip: !growth200 },
       async () => {
         const measured = await run200(tier)
         const tool = toolSteps(measured)
@@ -235,7 +241,7 @@ describe('Journal growth (R2-D294)', () => {
 
     it(
       `200 steps, ${tier} messages: the fact guard of the records passes`,
-      { tags: ['slow'], timeout: 7_200_000 },
+      { tags: ['slow'], timeout: 7_200_000, skip: !growth200 },
       async () => {
         const measured = await run200(tier)
         expect(measured.databases.length).toBeGreaterThan(0)
@@ -246,7 +252,7 @@ describe('Journal growth (R2-D294)', () => {
 
     it(
       `200 steps, ${tier} messages: no row of the former K-23 bridge (core.*) is written`,
-      { tags: ['slow'], timeout: 7_200_000 },
+      { tags: ['slow'], timeout: 7_200_000, skip: !growth200 },
       async () => {
         const measured = await run200(tier)
         expect(measured.databases.length).toBeGreaterThan(0)
@@ -256,7 +262,7 @@ describe('Journal growth (R2-D294)', () => {
 
     it(
       `200 steps, ${tier} messages: D-92 known limit (R2-D380), cumulative own bytes are above J0 + W × steps; once wave 3 fixes it this case turns red: then assert the linear bound as a plain case and remove this one`,
-      { tags: ['slow'], timeout: 7_200_000 },
+      { tags: ['slow'], timeout: 7_200_000, skip: !growth200 },
       async () => {
         const measured = await run200(tier)
         const judged = judgeLinearOwnBytes(measured.summary, 200)
@@ -270,7 +276,7 @@ describe('Journal growth (R2-D294)', () => {
 
     it(
       `200 steps, ${tier} messages: the closing step reaches a committed completed terminal (D-88)`,
-      { tags: ['slow'], timeout: 7_200_000 },
+      { tags: ['slow'], timeout: 7_200_000, skip: !growth200 },
       async () => {
         const measured = await run200(tier)
         expect(measured.admissions).toBe(201)
