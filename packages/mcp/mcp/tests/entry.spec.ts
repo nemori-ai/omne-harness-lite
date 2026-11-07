@@ -1,10 +1,23 @@
-// The forget predicate of the connection table (SPEC decision 20): an entry leaves the table only
+// The forget predicate of the connection table (MC-14): an entry leaves the table only
 // when it refuses requests and holds nothing, and each of the five resources counts as holding.
 import { describe, expect, it } from 'vitest'
 import type { ConnectionKey } from '@omne-harness/mcp-contract'
 import { Connection } from '../src/internal/connection.ts'
-import { forgettable, holdsNothing, type Resources } from '../src/internal/entry.ts'
-import { adoptionRevisionOf, generationOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
+import {
+  ensuredOf,
+  forgettable,
+  holdsNothing,
+  viewOf,
+  type Entry,
+  type Resources,
+} from '../src/internal/entry.ts'
+import {
+  adoptionRevisionOf,
+  generationOf,
+  endpointRefOf,
+  millisOf,
+  peerIdentityOf,
+} from '@omne-harness/mcp-contract/testing'
 import { alice, home } from './doubles/identities.ts'
 import { MAIN, TARGET, world } from './doubles/world.ts'
 
@@ -92,16 +105,75 @@ describe('forgettable: closed, and holding nothing', () => {
     return made
   }
 
+  const idle = { pending: undefined }
+
   it('is false for an entry that holds nothing but still takes requests', () => {
-    expect(forgettable({ ...nothing(), connection: connection(false) })).toBe(false)
+    expect(forgettable({ ...nothing(), ...idle, connection: connection(false) })).toBe(false)
   })
 
   it('is true for a closed entry that holds nothing', () => {
-    expect(forgettable({ ...nothing(), connection: connection(true) })).toBe(true)
+    expect(forgettable({ ...nothing(), ...idle, connection: connection(true) })).toBe(true)
   })
 
   it('is false for a closed entry that still waits on a landing', () => {
     const landings = [{ credential: undefined, landed: false }]
-    expect(forgettable({ ...nothing(), landings, connection: connection(true) })).toBe(false)
+    expect(forgettable({ ...nothing(), ...idle, landings, connection: connection(true) })).toBe(
+      false,
+    )
+  })
+
+  it('is false for a closed entry that holds nothing while its build is in flight (MC-10)', () => {
+    const pending = new Promise<never>(() => undefined)
+    expect(forgettable({ ...nothing(), pending, connection: connection(true) })).toBe(false)
+  })
+})
+
+describe('ensuredOf: a handle only for a connection that takes requests and has its transport', () => {
+  const key: ConnectionKey = {
+    tenant: home,
+    holding: files.holding,
+    adoptionRevision: adoptionRevisionOf('r1'),
+    account: { kind: 'anonymous' },
+  }
+
+  function entryOf(connection: Connection, held: Partial<Resources>): Entry {
+    return {
+      ...nothing(),
+      ...held,
+      ref: files,
+      tenantText: 'tenant',
+      keyText: 'key',
+      catalogKey: { tenant: home, account: key.account, holding: files.holding },
+      adoptionRevision: key.adoptionRevision,
+      bound: millisOf(1000),
+      connection,
+      view: viewOf(connection),
+      pending: undefined,
+      tearing: undefined,
+      closing: undefined,
+    }
+  }
+
+  function ready(): Connection {
+    const made = new Connection(key, 'on-attempt')
+    made.attempt()
+    made.ready(peerIdentityOf())
+    return made
+  }
+
+  it('answers the handle of a ready connection with its transport', async () => {
+    const { transport } = await samples()
+    expect(ensuredOf(entryOf(ready(), { transport }))?.generation).toBe(generationOf(1))
+  })
+
+  it('answers nothing for a ready connection whose transport is not there', () => {
+    expect(ensuredOf(entryOf(ready(), {}))).toBeUndefined()
+  })
+
+  it('answers nothing for a connection that has no peer to use, however it holds a transport', async () => {
+    const { transport } = await samples()
+    const preparing = new Connection(key, 'on-attempt')
+    preparing.attempt()
+    expect(ensuredOf(entryOf(preparing, { transport }))).toBeUndefined()
   })
 })

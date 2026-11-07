@@ -57,7 +57,7 @@ CONSTANTS
 DeviationNames == {"fail", "reject", "throw"}
 BugNames == {"stop-ignored-before-send", "cancel-twice", "no-release-on-refuse",
              "task-any-account", "key-blind-principal", "task-blind-principal",
-             "send-after-shut", "wait-answer-unstopped"}
+             "send-after-shut", "wait-answer-unstopped", "send-unguarded"}
 
 ASSUME Keys \subseteq {"A", "B", "C", "D"}
 ASSUME Callers \subseteq Keys /\ Cancellers \subseteq Keys /\ Taskers \subseteq Keys
@@ -120,7 +120,7 @@ Init ==
                  canc |-> [k \in Keys |-> IF k \in Cancellers THEN Cancels ELSE 0],
                  task |-> [k \in Keys |-> IF k \in Taskers THEN Tasks ELSE 0],
                  ab |-> Aborts, drop |-> Drops, ca |-> CloseAlls, dev |-> Budget],
-       bad |-> [sendAfterShut |-> FALSE],
+       bad |-> [sendAfterShut |-> FALSE, sendOnRefusing |-> FALSE],
        ev |-> "init"]
 
 View == [s EXCEPT !.ev = ""]
@@ -133,12 +133,24 @@ NewTimer(x) == [x EXCEPT !.nTimers = @ + 1, !.timers = Append(@, x.nTimers + 1)]
 
 Fired(x, c) == x.calls[c].bound # 0 /\ x.calls[c].bound \in x.fired
 
-(* What asking a port records before it answers: P13's history, the sends *)
-(* of the fiber.                                                            *)
+(* The connection of key `k` takes requests at generation `g` (MC-10): it  *)
+(* is usable at that generation, not lost, closed or replaced since.        *)
+Takes(x, k, g) == x.conn[k].st = "ready" /\ x.conn[k].gen = g
+
+(* The connection a request of fiber `i` goes on: the task's for a task   *)
+(* operation, the caller's key otherwise.                                   *)
+RequestKey(f) == IF f.kind = "task" THEN f.ck ELSE f.key
+
+(* What asking a port records before it answers: P13's and P16's history, *)
+(* the sends of the fiber.                                                  *)
 Count(x, i, port) ==
-  IF port = "call"
-  THEN [x EXCEPT !.fib[i].sends = @ + 1, !.bad.sendAfterShut = @ \/ x.shut]
-  ELSE x
+  LET f == x.fib[i]
+      x1 == IF port \in {"call", "task", "cancelReq"}
+            THEN [x EXCEPT !.bad.sendOnRefusing = @ \/ ~Takes(x, RequestKey(f), f.gen)]
+            ELSE x
+  IN IF port = "call"
+     THEN [x1 EXCEPT !.fib[i].sends = @ + 1, !.bad.sendAfterShut = @ \/ x.shut]
+     ELSE x1
 
 (* The outcomes of asking a port: a pending call, or, when the failure    *)
 (* model allows a throw, a call answered at once with the breach answer.  *)
@@ -201,11 +213,16 @@ SpawnCancelReq(x, i) ==
       x1 == [x EXCEPT !.reqs[r].cancels = @ + 1, !.fib[i].cancels = @ + 1]
   IN {[o.st EXCEPT !.calls[o.c].owner = 0] : o \in CallOutcomes(x1, i, "cancelReq", 0)}
 
-(* Step 11 once the stop fired: the peer is told once, in the scope, and  *)
-(* the call is `abandoned`. The negative control tells it twice.           *)
+(* Step 11 once the stop fired: the call is `abandoned`; the peer is told  *)
+(* once, in the scope, while the connection takes requests (MC-10): once   *)
+(* it is lost or closed, `closeAll` included, the transport settles its    *)
+(* own requests (T5). The negative controls tell it twice, or regardless.  *)
 Abandon(x, i) ==
-  LET once == SpawnCancelReq(x, i)
-  IN IF "cancel-twice" \in Bugs
+  LET f == x.fib[i]
+      once == SpawnCancelReq(x, i)
+  IN IF ~Takes(x, f.key, f.gen) /\ "send-unguarded" \notin Bugs
+     THEN {Ended(x, i, "abandoned")}
+     ELSE IF "cancel-twice" \in Bugs
      THEN {Ended(y, i, "abandoned") : y \in UNION {SpawnCancelReq(z, i) : z \in once}}
      ELSE {Ended(y, i, "abandoned") : y \in once}
 
@@ -234,11 +251,16 @@ Quiescent == \A i \in DOMAIN s.fib : ~Runnable(i)
 (* `sendOn`, `abandon`).                                                   *)
 
 (* After `ensure` answered `ok`: the continuation's generation, then the  *)
-(* send (MC-16 steps 8-10).                                                 *)
+(* send (MC-16 steps 8-10), only while the connection takes requests       *)
+(* (`wire`). Here the send is in the step `ensure` answered in, so no close *)
+(* comes between; the code's microtasks between them are the explorer's    *)
+(* and the unit cases' (verification/README.md).                           *)
 AfterEnsure(x, i) ==
   LET f == x.fib[i]
       x1 == [x EXCEPT !.fib[i].gen = x.conn[f.key].gen]
   IN IF f.kind = "continue" /\ x.conn[f.key].gen # f.issued
+     THEN {Refused(x1, i)}
+     ELSE IF ~Takes(x1, f.key, x1.fib[i].gen) /\ "send-unguarded" \notin Bugs
      THEN {Refused(x1, i)}
      ELSE Ask(x1, i, "call", 0, "callW")
 
@@ -506,6 +528,10 @@ P12_Isolation ==
        /\ f.kind = "task" /\ f.rec.account # "none" => f.rec.owner = f.key
        /\ f.kind = "task" /\ f.ck # "none" =>
             Tenant(f.ck) = Tenant(f.key) /\ Account(f.ck) = f.rec.account
+
+(* P16 (MC-10): no request, task request or cancel goes to a connection   *)
+(* that does not take requests at that generation any more.                 *)
+P16_NoRequestOnRefusing == ~s.bad.sendOnRefusing
 
 (* P13: after `closeAll`, no `transport.call`; a call started after it is not sent. *)
 P13_NoSendAfterShut ==

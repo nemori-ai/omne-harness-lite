@@ -155,6 +155,8 @@ export type ScriptedPortCall = Readonly<{
   context: Context | undefined
   /** The functions of `src/` on the stack when the call was made: where its answer goes. */
   site: string
+  /** The transport a request goes on (P16); `undefined` for every other port. */
+  transport: string | undefined
 }>
 
 /** A port call that threw or rejected on the explorer's say, with the call it belongs to. */
@@ -174,6 +176,8 @@ export type CallRequest<T> = Readonly<{
   port: PortName
   key: string
   subject: string
+  /** The transport a request goes on (P16): `transport.call`, `cancelRequest` and the task methods. */
+  transport?: string
   /** The value of an answer that does not reject, given the call as it was made. */
   value: (answer: Exclude<Answer, 'reject'>, call: ScriptedPortCall) => T
   /** Told how the call ended: an answer, or that it threw when it was made. */
@@ -202,6 +206,8 @@ export type TransportRecord = {
   readonly name: string
   readonly key: string
   readonly generation: Generation
+  /** The `seq` of the `transports.open` call that handed it over (P16). */
+  readonly opened: number
   closes: number
 }
 
@@ -402,28 +408,29 @@ export function scriptedPorts(
     return { requestId: record.id, answer }
   }
 
-  function taskCall<T>(key: ModelKey, port: PortName, subject: string, value: T) {
-    return desk.open<Outcome<T, TransportFailure>>({
-      port,
-      key: key.name,
-      subject,
-      value: answer => (answer === 'ok' ? { ok: value } : { failure: notSentOf(answer) }),
-    })
-  }
-
   /** The `not-sent` of a failing call or task method: marked, unless the answer is `fail-usable`. */
   function notSentOf(answer: Exclude<Answer, 'reject'>): NotSent {
     return answer === USABLE_FAILURE ? NOT_SENT_USABLE : NOT_SENT
   }
 
-  function transportFor(key: ModelKey, generation: Generation): McpTransport {
+  function transportFor(key: ModelKey, generation: Generation, opened: number): McpTransport {
     const record: TransportRecord = {
       name: nameOf('t', key, ledger.transports),
       key: key.name,
       generation,
+      opened,
       closes: 0,
     }
     ledger.transports.push(record)
+    /** A request on this transport: it carries the transport's name, the one P16 reads. */
+    const requestOn = <T>(asked: Omit<CallRequest<T>, 'key' | 'transport'>): Promise<T> =>
+      desk.open<T>({ ...asked, key: key.name, transport: record.name })
+    const taskCall = <T>(port: PortName, taskId: string, value: T) =>
+      requestOn<Outcome<T, TransportFailure>>({
+        port,
+        subject: taskId,
+        value: answer => (answer === 'ok' ? { ok: value } : { failure: notSentOf(answer) }),
+      })
     const transport: McpTransport = {
       generation,
       discover: () =>
@@ -445,9 +452,8 @@ export function scriptedPorts(
       listActions: () => notModelled('transport.listActions'),
       // The stop signal is not read: the explorer decides whether the call was sent (T5).
       call: () =>
-        desk.open<Outcome<SentCall, NotSent>>({
+        requestOn<Outcome<SentCall, NotSent>>({
           port: 'transport.call',
-          key: key.name,
           subject: record.name,
           value: (answer, call) =>
             answer === 'ok'
@@ -458,19 +464,17 @@ export function scriptedPorts(
         const request = ledger.requests.find(item => item.id === requestId)
         if (request === undefined) ledger.strayCancels.push(requestId)
         else request.cancels += 1
-        return desk.open({
+        return requestOn({
           port: 'transport.cancelRequest',
-          key: key.name,
           subject: requestId,
           value: () => undefined,
         })
       },
-      getTask: taskId =>
-        taskCall<TaskReport | 'expired'>(key, 'transport.getTask', taskId, WORKING),
-      updateTask: taskId => taskCall<'accepted'>(key, 'transport.updateTask', taskId, 'accepted'),
+      getTask: taskId => taskCall<TaskReport | 'expired'>('transport.getTask', taskId, WORKING),
+      updateTask: taskId => taskCall<'accepted'>('transport.updateTask', taskId, 'accepted'),
       getTaskResult: taskId =>
-        taskCall<TaskAnswer>(key, 'transport.getTaskResult', taskId, NOT_FINISHED),
-      cancelTask: taskId => taskCall<'requested'>(key, 'transport.cancelTask', taskId, 'requested'),
+        taskCall<TaskAnswer>('transport.getTaskResult', taskId, NOT_FINISHED),
+      cancelTask: taskId => taskCall<'requested'>('transport.cancelTask', taskId, 'requested'),
     }
     ledger.names.set(transport, record.name)
     return transport
@@ -569,9 +573,9 @@ export function scriptedPorts(
           port: 'transports.open',
           key: key.name,
           subject: process.name,
-          value: answer =>
+          value: (answer, call) =>
             answer === 'ok'
-              ? { ok: transportFor(key, material.generation) }
+              ? { ok: transportFor(key, material.generation, call.seq) }
               : { failure: OPEN_FAILED },
         })
       },

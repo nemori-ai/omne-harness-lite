@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "General MCP implementation: the Connection and ActionCatalog aggregates, the application services, and the in-memory CatalogStore",
+  "description": "General MCP implementation: the connection table with its Connection aggregate, the five application services on the requirement ports of @omne-harness/mcp-contract, and the in-memory CatalogStore",
   "engines": {
     "node": ">=24"
   },

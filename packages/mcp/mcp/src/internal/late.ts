@@ -30,7 +30,7 @@ export async function releaseArrived(
 /**
  * Settles a landing still pending after the bound on its answer. The process it hands over is
  * stopped once and kept when the stop confirmed less than the tree; the handle it carried is
- * released after that stop (S9), unless the shutdown released it first (decision 6). A landing
+ * released after that stop (S9), unless the shutdown released it first (MC-14). A landing
  * that fails brought no process: the handle is released on the answer. The landing leaves the
  * entry either way.
  */

@@ -33,7 +33,7 @@ MODULES = {case: 'Calls' for case in (
     'calls-valid-isolation', 'calls-live', 'calls-bad-send-despite-stop',
     'calls-bad-gate-unstopped', 'calls-bad-cancel-twice', 'calls-bad-no-release',
     'calls-bad-task-any-account', 'calls-bad-key-blind', 'calls-bad-task-blind',
-    'calls-bad-send-after-shut', 'calls-bad-wait-answer')}
+    'calls-bad-send-after-shut', 'calls-bad-wait-answer', 'calls-bad-send-unguarded')}
 
 # None: a positive control. A name: the invariant the case must violate. TEMPORAL: the case must
 # violate its only PROPERTY; TLC's temporal report does not name the property.
@@ -45,12 +45,14 @@ CASES = {
     'valid-throws': None,
     'live': None,
     'bad-no-absorb-close': 'P2_NoneHoldsNothing',
-    'bad-forget-open': 'P2_ForgetHoldsNothing',
     'bad-forget-open-late': 'P6_LateInvisible',
     'bad-no-shut': 'P4_NoConnectAfterShut',
     'bad-ok-after-shut': 'P4_NoOkAfterShut',
     'bad-abandon-landed': 'P1_ReleasedAfterStop',
     'bad-unbounded-wrap': 'P8_BoundedEnsure',
+    'bad-close-after-build': 'P16_CloseRefusesAtOnce',
+    'bad-close-after-build-ok': 'P16_NoOkAfterClose',
+    'bad-forget-building': 'P2_ForgetHoldsNothing',
     'probe-a1': 'P8_BoundedClose',
     'probe-live-hang': TEMPORAL,
     'calls-valid': None,
@@ -67,6 +69,7 @@ CASES = {
     'calls-bad-key-blind': 'P12_Isolation',
     'calls-bad-task-blind': 'P12_Isolation',
     'calls-bad-send-after-shut': 'P13_NoSendAfterShut',
+    'calls-bad-send-unguarded': 'P16_NoRequestOnRefusing',
     'calls-bad-wait-answer': TEMPORAL,
 }
 

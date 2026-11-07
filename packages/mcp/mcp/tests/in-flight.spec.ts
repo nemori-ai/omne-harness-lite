@@ -19,6 +19,7 @@ function connectionAt(generation: Generation): ConnectionView & { current: Gener
     get generation() {
       return view.current
     },
+    closed: false,
     isCurrent: (asked: Generation) => asked === view.current,
   }
   return view

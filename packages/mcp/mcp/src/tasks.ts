@@ -17,7 +17,11 @@ import {
   type TaskRef,
   type TaskReport,
 } from '@omne-harness/mcp-contract'
-import type { TaskAnswer, TransportFailure } from '@omne-harness/mcp-contract/provider'
+import type {
+  McpTransport,
+  TaskAnswer,
+  TransportFailure,
+} from '@omne-harness/mcp-contract/provider'
 import { classificationOf } from './internal/classification.ts'
 import type { Ensured, EnsureFailure } from './internal/entry.ts'
 import { decideForUse, type UseGate } from './internal/guard.ts'
@@ -125,12 +129,19 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
       .find(ensured => accountTextOf(ensured.key.account) === account)
   }
 
-  /** The request under the connection bound (MC-17 step 4); it is asked before this yields. */
+  /**
+   * The request under the connection bound (MC-17 step 4); it is asked before this yields, and
+   * only while the connection takes requests: once its close began (`ConnectionTable.close` and
+   * `closeAll` make every connection refuse before they first yield) or it is lost, it gets the
+   * refusal a closed transport gives (T1, MC-10).
+   */
   async function answerOf<T>(
     on: OnConnection,
-    send: (on: OnConnection) => Promise<Outcome<T, TransportFailure>>,
+    send: (transport: McpTransport) => Promise<Outcome<T, TransportFailure>>,
   ): Promise<Outcome<T, TransportFailure>> {
-    const asked = ask(() => send(on), ABANDONED)
+    const wire = on.ensured.wire()
+    if ('failure' in wire) return wire
+    const asked = ask(() => send(wire.ok), ABANDONED)
     const answered = await within(asked, startBound(on.ensured.bound, 'task'), scope)
     return answered.kind === 'answered' ? answered.value : ABANDONED
   }
@@ -161,22 +172,21 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
 
   /**
    * Steps 2–4 of MC-17, up to the transport's answer: nothing after the shutdown (S8); the
-   * connection, reused or built; then the shutdown once more, in the same synchronous run as the
-   * request (as MC-16 step 8), and the request. A reused connection goes from the first look at
-   * the shutdown to the request without a wait. A request the bound cuts off has no answer; a
-   * transport that breaches its contract gave none either (T9).
+   * connection, reused or built; then the request, which goes out only while the connection takes
+   * requests (as MC-16 step 8). A reused connection goes from the look at the shutdown to the
+   * request without a wait. A request the bound cuts off has no answer; a transport that breaches
+   * its contract gave none either (T9).
    */
   async function exchange<T>(
     access: Access<P>,
     task: TaskRef,
     record: TaskRecord,
-    send: (on: OnConnection) => Promise<Outcome<T, TransportFailure>>,
+    send: (transport: McpTransport) => Promise<Outcome<T, TransportFailure>>,
   ): Promise<Answered<T> | Unsent | Shut> {
     if (table.isShut()) return SHUT
     const reused = reusedOf(access, task, record)
     const connection = reused === undefined ? await built(access, task, record) : succeed(reused)
     if ('failure' in connection) return { unsent: connection.failure }
-    if (table.isShut()) return SHUT
     const on: OnConnection = { ensured: connection.ok, record }
     const answer = await answerOf(on, send)
     if ('failure' in answer && answer.failure.kind === 'not-sent')
@@ -211,7 +221,7 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
   async function request<T, R>(
     access: Access<P>,
     task: TaskRef,
-    send: (on: OnConnection) => Promise<Outcome<T, TransportFailure>>,
+    send: (transport: McpTransport) => Promise<Outcome<T, TransportFailure>>,
     read: (answer: T, on: OnConnection) => R,
   ): Promise<Outcome<R, OperationFailure>> {
     const record = tasks.get(keyOf(access, task))
@@ -233,19 +243,14 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
 
   return {
     queryTask: (access, task): Promise<Outcome<TaskReport | 'expired', OperationFailure>> =>
-      request(access, task, on => on.ensured.transport.getTask(task.taskId), asIs),
+      request(access, task, transport => transport.getTask(task.taskId), asIs),
     taskResult: (access, task) =>
-      request(access, task, on => on.ensured.transport.getTaskResult(task.taskId), resultOf),
+      request(access, task, transport => transport.getTaskResult(task.taskId), resultOf),
     provideTaskInput: async (access, task, inputResponses: JsonValue) => {
       const responses = judgedTree(inputResponses, 'the input responses of an MCP task')
-      return request(
-        access,
-        task,
-        on => on.ensured.transport.updateTask(task.taskId, responses),
-        asIs,
-      )
+      return request(access, task, transport => transport.updateTask(task.taskId, responses), asIs)
     },
     cancelTask: (access, task) =>
-      request(access, task, on => on.ensured.transport.cancelTask(task.taskId), asIs),
+      request(access, task, transport => transport.cancelTask(task.taskId), asIs),
   }
 }

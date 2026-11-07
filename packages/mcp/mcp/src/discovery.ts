@@ -118,20 +118,26 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
    * Reads pages until the last one, a failed one, or the page bound, under the listing bound of
    * invariant 5. A page the bound cuts off is a page without an answer, and so is a `listActions`
    * that breaches its contract (contract T9); an abort of the caller ends the listing as cancelled.
-   * Each page is asked only if the shutdown has not begun, read in the same synchronous run as
-   * the request (S8).
+   * Each page goes out only while the connection takes requests, read in the same synchronous run
+   * as the request: once its close began (`ConnectionTable.close` and `closeAll` make every
+   * connection refuse before they first yield: S8) or it is lost, the page gets the refusal a
+   * closed transport gives (T1, MC-10).
    */
   async function listPages(
     ensured: Ensured,
     signal: AbortSignal | undefined,
-  ): Promise<Pages | 'cancelled' | Shut> {
+  ): Promise<Pages | 'cancelled'> {
     const bound = startBound(ensured.bound, 'listing')
     const limit = signal === undefined ? bound : AbortSignal.any([signal, bound])
     const pages: Outcome<ListingPage, TransportFailure>[] = []
     let cursor: string | undefined
     for (let count = 0; count < config.maxListingPages; count += 1) {
-      if (table.isShut()) return SHUT
-      const page = ask(() => ensured.transport.listActions(cursor), fail(ABANDONED))
+      const wire = ensured.wire()
+      if ('failure' in wire) {
+        pages.push(wire)
+        break
+      }
+      const page = ask(() => wire.ok.listActions(cursor), fail(ABANDONED))
       const asked = await within(page, limit, scope)
       if (asked.kind === 'expired') {
         if (signal?.aborted === true) return 'cancelled'
@@ -227,7 +233,6 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     if ('failure' in read) return fail(UNKNOWN)
     const pages = await listPages(ensured, request.signal)
     if (pages === 'cancelled') return succeed(CANCELLED)
-    if (pages === SHUT) return SHUT
     return published(access, request, ensured, read.ok, pages)
   }
 

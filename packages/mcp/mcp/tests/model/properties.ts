@@ -25,6 +25,7 @@ export type Property =
   | 'P13'
   | 'P14'
   | 'P15'
+  | 'P16'
 
 /** One violation of a property: which check, and what it saw. */
 export type Found = Readonly<{ property: Property; signature: string; detail: string }>
@@ -92,6 +93,13 @@ export interface RunView {
   /** How many bounds were started for the client operation `op`, and how many of them fired. */
   boundsOf(op: string): Readonly<{ started: number; fired: number }>
   observe(): readonly KeyObservation[]
+  /**
+   * True once the connection of the transport refuses requests (P16): the close of its key began
+   * (`release`, `closeAll`) after the transport's `transports.open` was called, or the explorer's
+   * own `lose` or `drop` step lost its generation. A loss the product reads from a marked answer
+   * is not counted, so a request it sends in the turns before that loss is not reported.
+   */
+  refuses(transport: string): boolean
 }
 
 const NONE = '{"kind":"none"}'
@@ -145,7 +153,7 @@ export function connectsAfterShutdown(view: RunView, call: ScriptedPortCall): Fo
   ]
 }
 
-/** P4 (decision 23): an `ensure` that answers after `closeAll` began does not answer a connection. */
+/** P4 (MC-5): an `ensure` that answers after `closeAll` began does not answer a connection. */
 export function connectedAfterShutdown(view: RunView, op: OpView): Found[] {
   if (!view.shutAsked) return []
   return [
@@ -379,6 +387,47 @@ export function stoppedForeignCall(op: OpView, target: OpView | undefined): Foun
       detail: `${op.name} answered signalled while key ${op.key ?? '?'} had no call in flight`,
     },
   ]
+}
+
+/**
+ * P16 (MC-10, `ConnectionTable.tla` and `Calls.tla` `P16_NoRequestOnRefusing`): no request goes to
+ * a transport once its connection refuses requests: its close began, or it was lost. The close
+ * refuses requests before it waits for the build, and every request reads the connection in the
+ * same synchronous run as the send.
+ */
+export function sendsOnRefusing(view: RunView, call: ScriptedPortCall): Found[] {
+  if (call.transport === undefined || !view.refuses(call.transport)) return []
+  return [
+    {
+      property: 'P16',
+      signature: `P16-${call.port}-on-refusing`,
+      detail: `${call.port} on ${call.transport} of ${call.key} after its connection refuses requests (at ${call.site})`,
+    },
+  ]
+}
+
+/** A reported state in which a connection takes requests, or is being built to take them. */
+const TAKING_REQUESTS = /^\{"kind":"(preparing|ready|degraded)"/
+
+/**
+ * P16, at the step that begins a close (`release`, `closeAll`): before the step yields, no
+ * connection of the closed keys takes requests or is still being built (MC-10: the close refuses
+ * requests first, then waits for the build). Every connection of the closed keys at once, not
+ * one after the other.
+ */
+export function closeNotAtOnce(
+  op: OpView,
+  observed: readonly KeyObservation[],
+  closed: ReadonlySet<string>,
+): Found[] {
+  return observed
+    .filter(item => closed.has(item.key))
+    .filter(item => item.current !== '-' || TAKING_REQUESTS.test(item.state))
+    .map(item => ({
+      property: 'P16' as const,
+      signature: 'P16-close-not-at-once',
+      detail: `${op.name}: ${item.key} is ${item.state}, current ${item.current}, in the step its close began`,
+    }))
 }
 
 /** P13 (`P13_NoSendAfterShut`): after `closeAll` was called, no `transport.call` is made. */

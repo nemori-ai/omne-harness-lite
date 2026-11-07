@@ -30,7 +30,7 @@ function opens(w: World): number {
   return w.transports.calls.filter(call => call.kind === 'open').length
 }
 
-describe('closeAll releases the handles of the landings in flight at once (decision 6)', () => {
+describe('closeAll releases the handles of the landings in flight at once (MC-14)', () => {
   it('while the close of another entry waits on its transport', async () => {
     const closing = deferred<'closed'>()
     const w = world({ script: [...usualScript(), { close: closing }] })
@@ -93,7 +93,9 @@ describe('closeAll releases the handles of the landings in flight at once (decis
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
     stalled.gate.resolve()
     expect(await refreshed).toEqual(REFUSED)
-    expect(await all).toEqual([{ ref: files, process: 'no-process' }])
+    // The build that sees the close tears nothing down; the close stops the process that landed
+    // and reports what that stop confirmed (MC-10).
+    expect(await all).toEqual([{ ref: files, process: 'tree-confirmed' }])
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
   })
@@ -122,7 +124,7 @@ describe('closeAll releases the handles of the landings in flight at once (decis
   })
 })
 
-describe('a build under way when the table shuts goes no further (decision 5)', () => {
+describe('a build under way when the table shuts goes no further (MC-5)', () => {
   it('shut while the credential is asked: no process starts, no transport opens, the handle is released once', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files, WITH_CREDENTIAL)
@@ -152,13 +154,13 @@ describe('a build under way when the table shuts goes no further (decision 5)', 
     await settled()
     stalled.gate.resolve()
     expect(await refreshed).toEqual(REFUSED)
-    expect(await all).toEqual([{ ref: files, process: 'no-process' }])
+    expect(await all).toEqual([{ ref: files, process: 'tree-confirmed' }])
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(opens(w)).toBe(0)
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
   })
 
-  it('shut while negotiating: the same refusal as after the shutdown, not a connection about to be torn down (decision 23)', async () => {
+  it('shut while negotiating: the same refusal as after the shutdown, not a connection about to be torn down (MC-5)', async () => {
     const discover = deferred<PeerIdentity>()
     const w = world({ script: [{ discover }] })
     adoptStdio(w, files, WITH_CREDENTIAL)
@@ -196,11 +198,11 @@ describe('a build cut off by the shutdown marks nothing', () => {
     await settled()
     stalled.gate.resolve()
     expect(await refreshed).toEqual(REFUSED)
-    expect(await all).toEqual([{ ref: files, process: 'no-process' }])
+    expect(await all).toEqual([{ ref: files, process: 'tree-confirmed' }])
     expect(await w.store.read(ANONYMOUS_KEY)).toEqual(published)
   })
 
-  it('a build that fails after the shutdown began marks nothing either, and answers as after the shutdown (takeover ruling K3)', async () => {
+  it('a build that fails after the shutdown began marks nothing either, and answers as after the shutdown (MC-5, MC-10)', async () => {
     const w = world({ script: [...usualScript(), ...usualScript()] })
     adoptStdio(w, files)
     const bounds = manualBounds()

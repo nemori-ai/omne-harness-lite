@@ -8,14 +8,14 @@ The general MCP implementation: the core services of the MCP group on the five r
 
 This package implements the five application services of the contract: the category port `inspection`, the read port `discovery`, the call port `invoker`, and the two status port services `status` and `connections`. They share one connection table, one in-flight table and one task table. The table builds a connection from the ports (credential handle, process landing, transport factory), keeps its state in the `Connection` aggregate, and closes it in the order of the group design.
 
-Status: core implementation of W2, with the connection table lifecycle revised and the call port added in W3, on the candidate contract. The behavior is in [SPEC.md](SPEC.md), which cites the contract clauses and adds the decisions this package makes. The group design is [the group engineering design](../docs/architecture.md).
+Status: the connection table, refresh, the read ports and the call port are implemented, on the candidate contract. The behavior is in [SPEC.md](SPEC.md), which cites the contract clauses and adds the decisions this package makes. The group design is [the group engineering design](../docs/architecture.md).
 
 | Part                                                                           | State                                                                                        |
 | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
 | `createMcp`: `inspection`, `discovery`, `invoker`, `status`, `connections`     | Implemented. Tested on the contract's in-memory doubles and scripted transports              |
 | `createInMemoryCatalogStore`                                                   | Implemented. Passes the contract's `CatalogStore` suite; CS8 does not apply                  |
 | `Connection` and `InFlightCalls` aggregates, the gate, the tables              | Implemented as internal modules                                                              |
-| Listing tolerance (one invalid tool dropped and reported)                      | Not here yet; a later closure changes contract C1 for it                                     |
+| Listing tolerance (one invalid tool dropped and reported)                      | None. Contract C1 rejects the whole page when one item is invalid                            |
 | Real transports, the official SDK, real peers, real processes, durable storage | Not here. `@omne-harness/mcp-host-local` provides them; nothing here is verified on them     |
 | `list_changed` subscriptions, reconnection in the background                   | Not implemented. `changedNotified` stays false; a lost connection is rebuilt at the next use |
 

@@ -80,6 +80,8 @@ import {
   lateChanged,
   lostOnUsableFailure,
   sendsAfterShutdown,
+  sendsOnRefusing,
+  closeNotAtOnce,
   sentAfterShutdown,
   sentMismatch,
   staleLoseChanged,
@@ -207,7 +209,7 @@ export type Exploration = Readonly<{
   failureEndings: readonly string[]
 }>
 
-/** The same schedule replayed differently: a stop condition of the closure spec. */
+/** The same schedule replayed differently: the implementation is not deterministic under it, and the exploration stops. */
 export class Nondeterminism extends Error {
   override readonly name = 'Nondeterminism'
 }
@@ -330,18 +332,51 @@ const SOURCE_FRAME =
 /** Frames enough to reach the code a port call returns to; fewer frames format faster. */
 const SITE_FRAMES = 12
 
+/**
+ * V8's own text of a stack, as Node prints it when nothing replaces the formatter. A test runner
+ * installs a formatter that maps every frame through the source map; `siteOf` runs on every port
+ * call, so it formats the frames itself. The names and paths are V8's; only line and column, which
+ * a site does not use, may differ from the mapped ones.
+ */
+function plainStack(error: Error, frames: readonly NodeJS.CallSite[]): string {
+  return [String(error), ...frames.map(frame => `    at ${String(frame)}`)].join('\n')
+}
+
 /** The functions of `src/` on the stack of the caller, innermost first, as `name@file`. */
 function siteOf(): string {
-  const limit = Error.stackTraceLimit
+  const { prepareStackTrace, stackTraceLimit } = Error
   Error.stackTraceLimit = SITE_FRAMES
-  const stack = new Error('site').stack ?? ''
-  Error.stackTraceLimit = limit
+  Error.prepareStackTrace = plainStack
+  let stack: string
+  try {
+    stack = new Error('site').stack ?? ''
+  } finally {
+    Error.prepareStackTrace = prepareStackTrace
+    Error.stackTraceLimit = stackTraceLimit
+  }
   const frames: string[] = []
   for (const line of stack.split('\n')) {
     const match = SOURCE_FRAME.exec(line.trim())
     if (match !== null) frames.push(`${match[1] ?? '<anonymous>'}@${match[2] ?? '?'}`)
   }
   return frames.join(' < ')
+}
+
+/** What `wiredName` gives a handle that refuses requests: it reaches no transport. */
+const REFUSING = 'refusing'
+
+/** What `wiredName` gives a transport the scripted factory did not open. */
+const UNNAMED = 'unnamed'
+
+/** The name the ledger gave the transport a connection handle reaches. */
+function wiredName(ledger: Readonly<{ names: WeakMap<object, string> }>, ensured: Ensured): string {
+  const wire = ensured.wire()
+  return 'ok' in wire ? (ledger.names.get(wire.ok) ?? UNNAMED) : REFUSING
+}
+
+/** A generation of a key, as `lostGenerations` holds it. */
+function generationText(key: string, generation: number): string {
+  return `${key}@${generation}`
 }
 
 /**
@@ -486,6 +521,13 @@ class Run implements RunView, CallDesk, ReservationDesk {
   /** How the failures of requests on a ready connection ended (`failureEnding`). */
   readonly failureEndings = new Set<string>()
   shutAsked = false
+  /** The `seq` at which the close of each key began: transports opened before it refuse (P16). */
+  private readonly closedSince = new Map<string, number>()
+  /**
+   * The generations the explorer itself lost, by its `lose` and `drop` steps on a current
+   * connection (P16). A loss the product reads from a marked answer is not in it.
+   */
+  private readonly lostGenerations = new Set<string>()
   /** Indices of the calls made during the current step that were allowed to throw. */
   offered: number[] = []
   /** Set when the run is driven to rest: no throws, no deviations from then on. */
@@ -592,9 +634,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
         state: JSON.stringify(state),
         core: coreOf(state),
         current:
-          current === undefined
-            ? '-'
-            : `${this.ledger.names.get(current.transport) ?? '?'}@g${current.generation}`,
+          current === undefined ? '-' : `${wiredName(this.ledger, current)}@g${current.generation}`,
       }
     })
   }
@@ -633,13 +673,16 @@ class Run implements RunView, CallDesk, ReservationDesk {
             pending.bound,
             pending.call.site,
             this.isLate(pending) ? 'late' : '',
+            this.closedOver(pending.call) ? 'closed' : '',
           ].join('|'),
         )
         .sort(),
       timers: this.timers.map(timer => timer.name),
       handles: handles.map(item => `${item.name}:${Math.min(item.releases, 2)}`),
       processes: processes.map(item => `${item.name}:${Math.min(item.stops, 1)}:${item.lastStop}`),
-      transports: transports.map(item => `${item.name}:${Math.min(item.closes, 1)}`),
+      transports: transports.map(
+        item => `${item.name}:${Math.min(item.closes, 1)}:${this.refuses(item.name) ? 'r' : ''}`,
+      ),
       requests: requests.map(item => `${item.id}:${Math.min(item.cancels, 2)}`),
       reservations: this.records.map(
         item => `${item.op}:${item.phase}:${Math.min(item.endings, 2)}`,
@@ -829,10 +872,12 @@ class Run implements RunView, CallDesk, ReservationDesk {
       subject: request.subject,
       context: request.context ?? contexts.getStore(),
       site: siteOf(),
+      transport: request.transport,
     }
     this.seq += 1
     this.report(connectsAfterShutdown(this, call))
     this.report(sendsAfterShutdown(this, call))
+    this.report(sendsOnRefusing(this, call))
     const op = this.ops.find(item => item.name === call.context?.op)
     this.report(crossesKeys(this, call, op?.key))
     if (op !== undefined) {
@@ -1049,20 +1094,56 @@ class Run implements RunView, CallDesk, ReservationDesk {
             : `fail connect ${failure.reason.kind} ${failure.catalog}`
         }
         op.ensured = outcome.ok
-        const transport = this.ledger.names.get(outcome.ok.transport)
+        const transport = wiredName(this.ledger, outcome.ok)
         const record = this.ledger.transports.find(item => item.name === transport)
-        this.report(foreignTransport(op, record?.key))
+        // A handle that refuses reaches no transport, so P5 has nothing to compare; a transport
+        // the factory did not open is P5's to report.
+        if (transport !== REFUSING) this.report(foreignTransport(op, record?.key ?? UNNAMED))
         this.report(connectedAfterShutdown(this, op))
-        return `ok ${transport ?? '?'}@g${outcome.ok.generation}`
+        return `ok ${transport}@g${outcome.ok.generation}`
       },
     )
+  }
+
+  refuses(transport: string): boolean {
+    const record = this.ledger.transports.find(item => item.name === transport)
+    if (record === undefined) return false
+    const since = this.closedSince.get(record.key)
+    return (
+      (since !== undefined && record.opened < since) ||
+      this.lostGenerations.has(generationText(record.key, record.generation))
+    )
+  }
+
+  /** A pending `transports.open` whose key began closing after it was called: P16 for what it hands over. */
+  private closedOver(call: ScriptedPortCall): boolean {
+    const since = this.closedSince.get(call.key)
+    return call.port === 'transports.open' && since !== undefined && call.seq < since
+  }
+
+  /**
+   * The close of `keys` begins now, by `start`: transports opened before it refuse requests from
+   * now on, and no connection of the keys takes requests once `start` returned (P16).
+   */
+  private close<T>(
+    op: Op,
+    keys: readonly ModelKey[],
+    start: () => Promise<T>,
+    summary: (value: T) => string,
+  ): void {
+    for (const key of keys) this.closedSince.set(key.name, this.seq)
+    this.invoke(op, start, summary)
+    this.report(closeNotAtOnce(op, this.observe(), new Set(keys.map(key => key.name))))
   }
 
   private release(name: string): void {
     const key = this.keyNamed(name)
     this.spend(this.left.releases, name)
-    this.invoke(
+    this.close(
       this.newOp('release', name),
+      this.keys.filter(
+        other => other.access.tenant === key.access.tenant && other.holding === key.holding,
+      ),
       () => this.table.close(key.access.tenant, key.holding),
       (report: ReleaseReport) => JSON.stringify(report),
     )
@@ -1070,8 +1151,9 @@ class Run implements RunView, CallDesk, ReservationDesk {
 
   private closeAll(): void {
     this.shutAsked = true
-    this.invoke(
+    this.close(
       this.newOp('closeAll', undefined),
+      this.keys,
       () => this.table.closeAll(),
       (closed: readonly ClosedEndpoint[]) => JSON.stringify(closed.map(item => item.process)),
     )
@@ -1085,6 +1167,8 @@ class Run implements RunView, CallDesk, ReservationDesk {
     const stale = !ensured.connection.isCurrent(ensured.generation)
     const before = this.observe()
     const op = this.newOp('lose', answered?.key)
+    if (!stale && answered?.key !== undefined)
+      this.lostGenerations.add(generationText(answered.key, ensured.generation))
     this.invoke(op, () => loseOn(this.table, ensured, STREAM_BROKEN), String)
     await drain()
     if (stale) this.report(staleLoseChanged(op, before, this.observe()))
@@ -1097,6 +1181,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
     const current = this.table.current(key.connectionKey)
     if (current === undefined) throw new Nondeterminism(`no current connection of ${name} to drop`)
     this.left.drops -= 1
+    this.lostGenerations.add(generationText(name, current.generation))
     this.invoke(this.newOp('lose', name), () => loseOn(this.table, current, STREAM_BROKEN), String)
   }
 

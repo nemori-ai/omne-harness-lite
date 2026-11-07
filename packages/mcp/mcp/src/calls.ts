@@ -33,16 +33,16 @@ import {
 import type { CallRequest, SentCall } from '@omne-harness/mcp-contract/provider'
 import { judgedTree } from './internal/caller-values.ts'
 import { classificationOf } from './internal/classification.ts'
-import { CONNECTION_UNAVAILABLE, type Ensured, type EnsureFailure } from './internal/entry.ts'
+import {
+  CONNECTION_UNAVAILABLE,
+  type Ensured,
+  type EnsureFailure,
+  type NotSent,
+} from './internal/entry.ts'
 import type { AdmittedEndpoint } from './internal/gate.ts'
 import { admitForUse, type UseGate } from './internal/guard.ts'
 import type { InFlightCalls, InFlightKey, Reservation } from './internal/in-flight.ts'
-import {
-  connectionFailureOf,
-  connectionFailureOfBuild,
-  loseIfLost,
-  type NotSent,
-} from './internal/lost.ts'
+import { connectionFailureOf, connectionFailureOfBuild, loseIfLost } from './internal/lost.ts'
 import { ask, waitAtMost, within } from './internal/port.ts'
 import { prepareSettings } from './internal/settings.ts'
 import { ensureOptionsOf, type ConnectionTable } from './internal/table.ts'
@@ -346,8 +346,11 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       on.stop,
     )
     if (waited.kind === 'expired') {
-      if (!table.isShut())
-        scope.spawn(ask(() => on.ensured.transport.cancelRequest(requestId), undefined))
+      // The peer is told only while the connection takes requests: once its close began or it is
+      // lost, the transport settles its own requests (T5). `closeAll` makes every connection
+      // refuse before it first yields (`ConnectionTable.closeAll`).
+      const wire = on.ensured.wire()
+      if ('ok' in wire) scope.spawn(ask(() => wire.ok.cancelRequest(requestId), undefined))
       return sent(UNKNOWN_ABANDONED)
     }
     return sent(applyAnswer(on, waited.value))
@@ -369,15 +372,20 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     if (isHalted(prepared)) return prepared
     if ('failure' in prepared) return notSent(prepared.failure)
     const { ensured, known } = prepared.ok
-    // Step 8: the last look at the stop signal and the shutdown, in the same synchronous run as
-    // the send: a stop that fired by now keeps the call off the transport, and so does a
-    // shutdown that began since the last wait answered (P13).
+    // Step 8: the last look, in the same synchronous run as the send. A stop that fired by now
+    // keeps the call off the transport. So does a connection that stopped taking requests since
+    // `ensure` answered: its close began (`ConnectionTable.close` and `closeAll` make every
+    // connection refuse before they first yield: P13) or it is lost (MC-10). That refusal is the
+    // one a closed transport gives (T1) and is answered as one.
     if (stop.aborted) return STOPPED
-    if (table.isShut()) return SHUT
-    const called = await ask<Outcome<SentCall, NotSent> | CallBreached>(
-      () => ensured.transport.call(callRequestOf(send), stop, observerOf(send.request.observe)),
-      CALL_BREACHED,
-    )
+    const wire = ensured.wire()
+    const called =
+      'failure' in wire
+        ? wire
+        : await ask<Outcome<SentCall, NotSent> | CallBreached>(
+            () => wire.ok.call(callRequestOf(send), stop, observerOf(send.request.observe)),
+            CALL_BREACHED,
+          )
     if (called === CALL_BREACHED) {
       // T9: a `call` that breached left with an unknown effect; the place is a sent one.
       place.recordSent(ensured.connection, ensured.generation)

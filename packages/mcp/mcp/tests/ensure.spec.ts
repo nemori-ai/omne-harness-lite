@@ -1,7 +1,7 @@
 // The connection table's `ensure`: reuse, rebuild, single flight, the setting defects of SPEC S4,
 // the connection failures of R6 with their catalog marking, the credential handle lifecycle of
 // S9, the connection bound, and the key that keeps tenants and peer accounts apart.
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Access } from '@omne-harness/legal-identity'
 import {
   catalogKeyOf,
@@ -10,12 +10,19 @@ import {
   type EndpointRef,
   type PeerAccount,
 } from '@omne-harness/mcp-contract'
-import type { AdoptedEndpoint, AdoptionView } from '@omne-harness/mcp-contract/provider'
+import type {
+  AdoptedEndpoint,
+  AdoptionView,
+  ProcessLanding,
+} from '@omne-harness/mcp-contract/provider'
 import { admit, admitWithoutEligibility, type AdmittedEndpoint } from '../src/internal/gate.ts'
+import { Connection } from '../src/internal/connection.ts'
 import { loseOn } from '../src/internal/lost.ts'
-import { createConnectionTable, type ConnectionTable } from '../src/internal/table.ts'
+import { createConnectionTable, type ConnectionTable, type Ensured } from '../src/internal/table.ts'
+import type { Step } from './doubles/scripted-transport.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import {
+  adoptionRevisionOf,
   credentialBindingOf,
   jsonOf,
   millisOf,
@@ -38,6 +45,13 @@ import {
 const files = endpointRefOf('files')
 const peer = peerIdentityOf()
 
+/** The transport a usable connection hands to a request, read through its only door. */
+function transportOf(ensured: Ensured): unknown {
+  const wire = ensured.wire()
+  if ('failure' in wire) throw new Error(`the connection takes no requests: ${wire.failure.cause}`)
+  return wire.ok
+}
+
 async function admitted(w: World, endpoint: EndpointRef, access: Access<Principal> = alice) {
   const decision = await admit(w.ports, access, endpoint)
   if (decision.kind !== 'admitted') throw new Error(`not admitted: ${decision.kind}`)
@@ -45,6 +59,41 @@ async function admitted(w: World, endpoint: EndpointRef, access: Access<Principa
 }
 
 type Principal = Readonly<{ id: string }>
+
+/**
+ * Two connections of one tenant and holding on one adoption revision, one for each peer account:
+ * an adoption view that keeps one revision text while the credential binding changes. The
+ * contract forbids this (AV5); the key must still keep the accounts apart.
+ */
+async function twoAccounts(after: readonly Step[] = []) {
+  const w = world({ script: [{ discover: peer }, { discover: peer }, ...after] })
+  const base = adoptHttp(w, files)
+  w.credentials.store({
+    tenant: alice.tenant,
+    holding: files.holding,
+    binding: credentialBindingOf('other'),
+    secret: 's2',
+  })
+  let current: AdoptedEndpoint = base
+  const adoption: AdoptionView<Principal, string> = {
+    endpoints: async () => ({ ok: [current] }),
+    endpoint: async () => ({ ok: current }),
+  }
+  const ports = { ...w.ports, adoption }
+  const table = createConnectionTable(ports, w.config)
+  const first = await admit(ports, alice, files)
+  if (first.kind !== 'admitted') throw new Error('not admitted')
+  const ours = await table.ensure(first.endpoint, alice)
+  current = {
+    ...base,
+    settings: { ...base.settings, credential: VALUE(credentialBindingOf('other')) },
+  }
+  const second = await admit(ports, alice, files)
+  if (second.kind !== 'admitted') throw new Error('not admitted')
+  const theirs = await table.ensure(second.endpoint, alice)
+  if (!('ok' in ours) || !('ok' in theirs)) throw new Error('ensure failed')
+  return { w, table, ours: ours.ok, theirs: theirs.ok }
+}
 
 function tableOf(w: World): ConnectionTable<Principal> {
   return createConnectionTable(w.ports, w.config)
@@ -66,7 +115,7 @@ describe('ensure: reuse, rebuild and single flight', () => {
     const first = await table.ensure(token, alice)
     const second = await table.ensure(token, alice)
     if (!('ok' in first) || !('ok' in second)) throw new Error('ensure failed')
-    expect(second.ok.transport).toBe(first.ok.transport)
+    expect(transportOf(second.ok)).toBe(transportOf(first.ok))
     expect(second.ok.generation).toBe(first.ok.generation)
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
     expect(w.landing.started()).toHaveLength(1)
@@ -79,15 +128,19 @@ describe('ensure: reuse, rebuild and single flight', () => {
     const token = await admitted(w, files)
     const first = await table.ensure(token, alice)
     if (!('ok' in first)) throw new Error('first ensure failed')
+    const lostTransport = transportOf(first.ok)
     expect(
       await loseOn(table, first.ok, { reason: 'process-exited', mark: 'connection-unavailable' }),
     ).toBe('not-acquired')
     expect(first.ok.connection.isCurrent(first.ok.generation)).toBe(false)
+    expect(first.ok.wire()).toEqual({
+      failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+    })
     const second = await table.ensure(token, alice)
     if (!('ok' in second)) throw new Error('second ensure failed')
     expect(first.ok.generation).toBe(1)
     expect(second.ok.generation).toBe(2)
-    expect(second.ok.transport).not.toBe(first.ok.transport)
+    expect(transportOf(second.ok)).not.toBe(lostTransport)
     expect(second.ok.connection.isCurrent(second.ok.generation)).toBe(true)
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
     expect(w.landing.processes()[0]?.stops).toBe(1)
@@ -106,7 +159,7 @@ describe('ensure: reuse, rebuild and single flight', () => {
     discover.resolve(peer)
     const [a, b] = await Promise.all([first, second])
     if (!('ok' in a) || !('ok' in b)) throw new Error('ensure failed')
-    expect(a.ok.transport).toBe(b.ok.transport)
+    expect(transportOf(a.ok)).toBe(transportOf(b.ok))
     expect(a.ok.generation).toBe(b.ok.generation)
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
   })
@@ -609,6 +662,18 @@ describe('ensure: the connection bound', () => {
 })
 
 describe('ensure: the connection key (invariant 1)', () => {
+  it('answers no usable connection for a key that never connected, without throwing', () => {
+    const table = tableOf(world())
+    expect(
+      table.current({
+        tenant: alice.tenant,
+        holding: files.holding,
+        adoptionRevision: adoptionRevisionOf('r1'),
+        account: { kind: 'anonymous' },
+      }),
+    ).toBeUndefined()
+  })
+
   it('does not share a connection between two tenants with the same holding and adoption revision', async () => {
     const w = world({ script: [{ discover: peer }, { discover: peer }] })
     const { revision } = adoptStdio(w, files)
@@ -643,43 +708,71 @@ describe('ensure: the connection key (invariant 1)', () => {
     const theirs = await table.ensure(theirToken.endpoint, mallory)
     if (!('ok' in ours) || !('ok' in theirs)) throw new Error('ensure failed')
     expect(theirs.ok.adoptionRevision).toBe(ours.ok.adoptionRevision)
-    expect(theirs.ok.transport).not.toBe(ours.ok.transport)
+    expect(transportOf(theirs.ok)).not.toBe(transportOf(ours.ok))
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
   })
 
   it('does not share a connection between two peer accounts of the same adoption revision', async () => {
-    // An adoption view that keeps one revision text while the credential binding changes. The
-    // contract forbids this (AV5); the key must still keep the accounts apart.
-    const w = world({ script: [{ discover: peer }, { discover: peer }] })
-    const base = adoptHttp(w, files)
-    w.credentials.store({
-      tenant: alice.tenant,
-      holding: files.holding,
-      binding: credentialBindingOf('other'),
-      secret: 's2',
-    })
-    let current: AdoptedEndpoint = base
-    const adoption: AdoptionView<Principal, string> = {
-      endpoints: async () => ({ ok: [current] }),
-      endpoint: async () => ({ ok: current }),
-    }
-    const ports = { ...w.ports, adoption }
-    const table = createConnectionTable(ports, w.config)
-    const first = await admit(ports, alice, files)
-    if (first.kind !== 'admitted') throw new Error('not admitted')
-    const ours = await table.ensure(first.endpoint, alice)
-    current = {
-      ...base,
-      settings: { ...base.settings, credential: VALUE(credentialBindingOf('other')) },
-    }
-    const second = await admit(ports, alice, files)
-    if (second.kind !== 'admitted') throw new Error('not admitted')
-    const theirs = await table.ensure(second.endpoint, alice)
-    if (!('ok' in ours) || !('ok' in theirs)) throw new Error('ensure failed')
-    expect(theirs.ok.transport).not.toBe(ours.ok.transport)
-    expect(theirs.ok.catalogKey.account).toEqual({ kind: 'credential', binding: 'other' })
-    expect(ours.ok.catalogKey.account).toEqual({ kind: 'credential', binding: 'main' })
+    const { w, ours, theirs } = await twoAccounts()
+    expect(transportOf(theirs)).not.toBe(transportOf(ours))
+    expect(theirs.catalogKey.account).toEqual({ kind: 'credential', binding: 'other' })
+    expect(ours.catalogKey.account).toEqual({ kind: 'credential', binding: 'main' })
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
+  })
+
+  it('a close of the holding refuses requests on each of its connections at once, not one after the other (MC-10)', async () => {
+    const { table, ours, theirs } = await twoAccounts()
+    const closing = table.close(alice.tenant, files.holding)
+    const refused = { failure: { kind: 'not-sent', cause: 'connection-unavailable' } }
+    expect(ours.wire()).toEqual(refused)
+    expect(theirs.wire()).toEqual(refused)
+    expect(table.currentOf(alice.tenant, files.holding)).toEqual([])
+    expect(await closing).toEqual({ kind: 'released', process: 'no-process' })
+  })
+
+  it('a close that raised an error of this package on one connection waits for the others, then rejects with an AggregateError that holds the error (MC-10, P7)', async () => {
+    // The first connection's close stalls on its transport; the second connection's close hits a
+    // defect of this package after its teardown, when the table reads its generation to forget it.
+    const closing = deferred<'closed'>()
+    const { w, table, ours, theirs } = await twoAccounts([{ close: closing }])
+    const defect = new Error('a defect of this package while forgetting the entry')
+    let armed = false
+    const original = Object.getOwnPropertyDescriptor(Connection.prototype, 'generation')?.get
+    if (original === undefined) throw new Error('Connection has no generation getter')
+    const generation = vi
+      .spyOn(Connection.prototype, 'generation', 'get')
+      .mockImplementation(function (this: Connection) {
+        if (armed && this.key.account.kind === 'credential' && this.key.account.binding === 'other')
+          throw defect
+        return original.call(this)
+      })
+    try {
+      armed = true
+      const outcome = table.close(alice.tenant, files.holding).then(
+        () => 'resolved' as const,
+        (error: unknown) => error,
+      )
+      let answered = false
+      void outcome.then(() => {
+        answered = true
+      })
+      await settled()
+      // The second connection's close has failed; the first one's has not ended: no answer yet.
+      expect(answered).toBe(false)
+      expect(w.transports.calls.filter(call => call.kind === 'close')).toHaveLength(2)
+      closing.resolve('closed')
+      const thrown = await outcome
+      expect(thrown).toBeInstanceOf(AggregateError)
+      expect(thrown instanceof AggregateError ? thrown.errors : []).toEqual([defect])
+      expect(thrown instanceof Error ? thrown.message : '').toBe(
+        'the MCP connections of the holding did not close cleanly',
+      )
+      const refused = { failure: { kind: 'not-sent', cause: 'connection-unavailable' } }
+      expect(ours.wire()).toEqual(refused)
+      expect(theirs.wire()).toEqual(refused)
+    } finally {
+      generation.mockRestore()
+    }
   })
 
   it('closes the connection of an earlier adoption revision before using the new one', async () => {
@@ -688,11 +781,15 @@ describe('ensure: the connection key (invariant 1)', () => {
     const table = tableOf(w)
     const first = await table.ensure(await admitted(w, files), alice)
     if (!('ok' in first)) throw new Error('ensure failed')
+    const earlierTransport = transportOf(first.ok)
     w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
     const second = await table.ensure(await admitted(w, files), alice)
     if (!('ok' in second)) throw new Error('ensure failed')
     expect(first.ok.connection.isCurrent(first.ok.generation)).toBe(false)
-    expect(second.ok.transport).not.toBe(first.ok.transport)
+    expect(first.ok.wire()).toEqual({
+      failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+    })
+    expect(transportOf(second.ok)).not.toBe(earlierTransport)
     expect(w.transports.calls.map(call => call.kind)).toEqual([
       'open',
       'discover',
@@ -753,4 +850,146 @@ describe('ensure: the adoption is read again before a build (MC-5)', () => {
     expect(w.transports.calls).toHaveLength(0)
     expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'none' })
   })
+})
+
+describe('ensure: a close against the build (MC-10, MC-5, P16)', () => {
+  const STOPPED = { failure: { stage: 'settings', reason: { kind: 'connection-unavailable' } } }
+
+  it('a release after the process started: the build answers the refusal and tears nothing down; the release stops the process once and reports what that stop confirmed', async () => {
+    const discover = deferred<typeof peer>()
+    const w = world({ script: [{ discover }] })
+    adoptStdio(w, files)
+    const table = tableOf(w)
+    const building = table.ensure(await admitted(w, files), alice)
+    await settled()
+    const releasing = table.close(alice.tenant, files.holding)
+    discover.resolve(peer)
+    expect(await building).toEqual(STOPPED)
+    expect(await releasing).toEqual({ kind: 'released', process: 'tree-confirmed' })
+    expect(w.landing.processes()).toEqual([{ stops: 1 }])
+    expect(w.trace).toEqual(['transport.close', 'process.stop'])
+  })
+
+  it('a release while the transport opens: the build asks no discover, and the release closes the transport that opened', async () => {
+    const open = deferred<'opened'>()
+    const w = world({ script: [{ open }] })
+    adoptHttp(w, files)
+    const table = tableOf(w)
+    const building = table.ensure(await admitted(w, files), alice)
+    await settled()
+    expect(w.transports.calls.map(call => call.kind)).toEqual(['open'])
+    const releasing = table.close(alice.tenant, files.holding)
+    open.resolve('opened')
+    expect(await building).toEqual(STOPPED)
+    expect(await releasing).toEqual({ kind: 'released', process: 'no-process' })
+    expect(w.transports.calls.map(call => call.kind)).toEqual(['open', 'close'])
+  })
+
+  it('a release while the build stops what the earlier connection left: the build asks no credential', async () => {
+    const w = world({ script: [{ discover: peer }], stop: 'root-only' })
+    adoptStdio(w, files, { auth: 'static', env: [{ name: 'TOKEN', source: 'credential' }] })
+    const second = deferred<void>()
+    let stops = 0
+    const landing: ProcessLanding<Principal> = {
+      async start(access, launch, env) {
+        const answer = await w.landing.start(access, launch, env)
+        if ('failure' in answer) return answer
+        const process = answer.ok
+        return {
+          ok: {
+            ...process,
+            async stop() {
+              stops += 1
+              if (stops === 2) await second.promise
+              return process.stop()
+            },
+          },
+        }
+      },
+    }
+    const table = createConnectionTable({ ...w.ports, landing }, w.config)
+    const endpoint = await admitted(w, files)
+    expect(await table.ensure(endpoint, alice)).toMatchObject({ ok: { generation: 1 } })
+    expect(await table.close(alice.tenant, files.holding)).toEqual({
+      kind: 'released',
+      process: 'root-only',
+    })
+    const building = table.ensure(endpoint, alice)
+    await settled()
+    expect(stops).toBe(2)
+    const releasing = table.close(alice.tenant, files.holding)
+    second.resolve()
+    expect(await building).toEqual(STOPPED)
+    await releasing
+    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
+  })
+
+  const SWEEPS = [
+    { close: 'release', joined: false },
+    { close: 'release', joined: true },
+    { close: 'closeAll', joined: false },
+    { close: 'closeAll', joined: true },
+  ] as const
+
+  it.each(SWEEPS)(
+    'at whichever microtask the $close begins (joined: $joined), an ensure that settles after it hands over no handle of the closed connection; the close stops the process once and reports tree-confirmed',
+    async ({ close, joined }) => {
+      const LIMIT = 40
+      const CLOCK_LIMIT = 1000
+      let refused = false
+      let handed = false
+      for (let m = 0; m < LIMIT; m += 1) {
+        const discover = deferred<typeof peer>()
+        const w = world({ script: [{ discover }] })
+        adoptStdio(w, files)
+        const table = tableOf(w)
+        const endpoint = await admitted(w, files)
+        const first = table.ensure(endpoint, alice)
+        const answer = joined ? table.ensure(endpoint, alice) : first
+        await settled()
+        // A clock of microtask turns. A callback on `answer` runs at most one turn after the
+        // settlement, so an answer that settled before the close is seen at most one turn after.
+        // The clock stops after CLOCK_LIMIT turns: a close that waits on a timer or I/O would
+        // otherwise starve the macrotask queue, and the test would spin instead of failing.
+        let tick = 0
+        let running = true
+        const clock = (async () => {
+          while (running && tick < CLOCK_LIMIT) {
+            await Promise.resolve()
+            tick += 1
+          }
+        })()
+        let answeredAt = Number.POSITIVE_INFINITY
+        void answer.then(() => {
+          answeredAt = tick
+        })
+        discover.resolve(peer)
+        while (tick < m) await Promise.resolve()
+        const closedAt = tick
+        const closing =
+          close === 'release' ? table.close(alice.tenant, files.holding) : table.closeAll()
+        const result = await answer
+        const report = await closing
+        running = false
+        await clock
+        if ('ok' in result) {
+          handed = true
+          expect(
+            answeredAt - closedAt,
+            `m=${m}: settled after the close began`,
+          ).toBeLessThanOrEqual(1)
+        } else {
+          refused = true
+          expect(result, `m=${m}`).toEqual(STOPPED)
+        }
+        expect(w.landing.processes(), `m=${m}`).toEqual([{ stops: 1 }])
+        expect(report, `m=${m}`).toEqual(
+          close === 'release'
+            ? { kind: 'released', process: 'tree-confirmed' }
+            : [{ ref: files, process: 'tree-confirmed' }],
+        )
+      }
+      expect({ refused, handed }).toEqual({ refused: true, handed: true })
+    },
+  )
 })

@@ -41,7 +41,7 @@ CONSTANTS
 
 DeviationNames == {"fail", "reject", "unconfirmed", "throw"}
 BugNames == {"no-absorb-close", "forget-open", "no-shut", "ok-after-shut", "abandon-landed",
-             "unbounded-wrap"}
+             "unbounded-wrap", "close-after-build", "forget-building"}
 
 ASSUME Deviations \subseteq DeviationNames /\ Bugs \subseteq BugNames
 ASSUME {Ensures, Releases, Loses, Budget} \subseteq Nat /\ CloseAlls \in 0..1
@@ -67,7 +67,12 @@ NewEntry(k, g) ==
 HoldsNothing(en) ==
   /\ en.tr = 0 /\ en.pr = 0 /\ en.cr = 0 /\ en.ling = {} /\ en.lands = {}
 
-Forgettable(en) == (en.st = "closed" \/ "forget-open" \in Bugs) /\ HoldsNothing(en)
+(* An entry leaves the table only when it refuses requests, no build is in *)
+(* flight that may still put a resource in it, and it holds nothing.       *)
+Forgettable(en) ==
+  /\ en.st = "closed" \/ "forget-open" \in Bugs
+  /\ en.build = 0 \/ "forget-building" \in Bugs
+  /\ HoldsNothing(en)
 
 Usable(en) == en.st = "ready" /\ en.tr # 0
 
@@ -98,8 +103,8 @@ Init ==
        left |-> [ens |-> [k \in Keys |-> Ensures], rel |-> [k \in Keys |-> Releases],
                  ca |-> CloseAlls, lose |-> Loses, dev |-> Budget],
        lateTurn |-> FALSE, seen |-> Unseen,
-       bad |-> [shutConnect |-> FALSE, okAfterShut |-> FALSE, early |-> FALSE,
-                internal |-> FALSE],
+       bad |-> [shutConnect |-> FALSE, okAfterShut |-> FALSE, okAfterClose |-> FALSE,
+                early |-> FALSE, internal |-> FALSE],
        ev |-> "init"]
 
 (* `ev` names the last external action or synchronous throw, for traces only. *)
@@ -162,13 +167,22 @@ Teardown(x, e) ==
                    EXCEPT !.ents[e].tear = j],
            f |-> j]
 
-(* `closeEntry(entry)`: the entry's close in flight, or a new one. *)
+(* `closeEntry(entry)`: the entry's close in flight, or a new one. The    *)
+(* connection refuses requests in the step the close begins (MC-10); the  *)
+(* negative control "close-after-build" refuses only after the build.     *)
 CloseEntry(x, e) ==
   IF x.ents[e].close # 0 THEN [st |-> x, f |-> x.ents[e].close]
   ELSE LET j == Len(x.fib) + 1
        IN [st |-> [AddFiber(x, NewFiber("closeEnt", "waitBuild", x.ents[e].key, e))
-                   EXCEPT !.ents[e].close = j],
+                   EXCEPT !.ents[e].close = j,
+                          !.ents[e].st = IF "close-after-build" \in Bugs THEN @ ELSE "closed"],
            f |-> j]
+
+(* The build's check (build.ts `guarded`): its connection was closed:      *)
+(* by its close, or by `closeAll`, which closes every connection. The      *)
+(* negative control "close-after-build" checks the shutdown instead.      *)
+ClosedUnder(x, e) ==
+  IF "close-after-build" \in Bugs THEN x.shut ELSE x.ents[e].st = "closed"
 
 (* `markLost(entry)` after the connection was lost: the teardown, then the *)
 (* mark of the catalog.                                                     *)
@@ -215,7 +229,7 @@ CallPcs == {"markW", "mstoreW", "tcloseW", "tstopW", "trelW", "lateW", "lstopW",
             "lcloseW"}
 FiberPcs == {"joinedW", "relOpW", "loseTearW", "ctearW", "buildW", "mtearW"}
 (* Waits for another fiber under the waiting fiber's bound (`within`). *)
-BoundedFiberPcs == {"blockedW", "pretearW", "failW", "shutTearW", "catchTearW"}
+BoundedFiberPcs == {"blockedW", "pretearW", "failW", "catchTearW"}
 InertPcs == {"queued", "done"}
 
 Expired(f) == f.t \in s.fired /\ ~(f.pc = "failW" /\ "unbounded-wrap" \in Bugs)
@@ -302,12 +316,15 @@ EnsureStep(i) ==
              \/ /\ Expired(f) /\ s' = Leave(Done(s, i, "refused"), k)
           [] f.pc = "joinedW" ->
              LET b == s.fib[f.wf]
-                 x1 == [Done(s, i, b.res) EXCEPT !.fib[i].ent = b.ent, !.fib[i].gen = b.gen]
+                 closing == s.ents[b.ent].close # 0 \/ s.ents[b.ent].st = "closed"
+                 x1 == [Done(s, i, b.res) EXCEPT !.fib[i].ent = b.ent, !.fib[i].gen = b.gen,
+                                                 !.bad.okAfterClose = @ \/ (b.res = "ok" /\ closing)]
              IN s' = IF b.res = "ok" /\ s.closeAsked THEN [x1 EXCEPT !.bad.okAfterShut = TRUE]
                      ELSE x1
 
 -----------------------------------------------------------------------------
-(* Internal steps: the build (build.ts `build`, `failed`, `shutDown`).     *)
+(* Internal steps: the build (build.ts `build`, `failed`, `ended`). The    *)
+(* close is checked after each step (build.ts `guarded`).                  *)
 
 BuildDone(x, i, res) ==
   LET e == x.fib[i].ent
@@ -332,6 +349,7 @@ BuildStep(i) ==
           [] f.pc = "pretearW" ->
              \/ /\ waited.pc = "done"
                 /\ IF waited.res = "err" THEN s' = [s EXCEPT !.fib[i].pc = "catch"]
+                   ELSE IF ClosedUnder(s, e) THEN s' = [s EXCEPT !.fib[i].pc = "shut"]
                    ELSE \E y \in Ask(s, i, "acquire", f.key, f.t, "acqW") : s' = y
              \/ /\ Expired(f) /\ s' = [s EXCEPT !.fib[i].pc = "failLose"]
           [] f.pc = "acqW" ->
@@ -339,7 +357,7 @@ BuildStep(i) ==
              THEN s' = [SpawnLate(s, "relLate", e, 0, c) EXCEPT !.fib[i].pc = "failLose"]
              ELSE IF ans = "ok"
              THEN LET x1 == [s EXCEPT !.ents[e].cr = s.calls[c].made]
-                  IN IF x1.shut THEN s' = [x1 EXCEPT !.fib[i].pc = "shut"]
+                  IN IF ClosedUnder(x1, e) THEN s' = [x1 EXCEPT !.fib[i].pc = "shut"]
                      ELSE
                        (* `handOverToLanding`: from its start the landing is in flight and *)
                        (* carries the handle, so `closeAll` releases it within the bound. *)
@@ -363,33 +381,36 @@ BuildStep(i) ==
                                       !.lands[l].cr = 0, !.ents[e].lands = @ \ {l}]
                   IN IF ans = "ok"
                      THEN LET x1 == [x0 EXCEPT !.ents[e].pr = s.calls[c].made]
-                          IN IF x1.shut THEN s' = [x1 EXCEPT !.fib[i].pc = "shut"]
+                          IN IF ClosedUnder(x1, e) THEN s' = [x1 EXCEPT !.fib[i].pc = "shut"]
                              ELSE \E y \in Ask(x1, i, "open", s.calls[c].made, f.t, "openW") : s' = y
                      ELSE s' = [x0 EXCEPT !.fib[i].pc = "failLose"]
           [] f.pc = "openW" ->
              IF Aborted(s, c)
              THEN s' = [SpawnLate(s, "closeLate", e, 0, c) EXCEPT !.fib[i].pc = "failLose"]
              ELSE IF ans = "ok"
-             THEN \E y \in Ask([s EXCEPT !.ents[e].tr = s.calls[c].made], i, "discover",
-                               s.calls[c].made, f.t, "discW") : s' = y
+             THEN LET x1 == [s EXCEPT !.ents[e].tr = s.calls[c].made]
+                  IN IF ClosedUnder(x1, e) THEN s' = [x1 EXCEPT !.fib[i].pc = "shut"]
+                     ELSE \E y \in Ask(x1, i, "discover", s.calls[c].made, f.t, "discW") : s' = y
              ELSE s' = [s EXCEPT !.fib[i].pc = "failLose"]
           [] f.pc = "discW" ->
              IF Aborted(s, c) \/ ans # "ok" THEN s' = [s EXCEPT !.fib[i].pc = "failLose"]
-             ELSE IF s.shut /\ "ok-after-shut" \notin Bugs THEN s' = [s EXCEPT !.fib[i].pc = "shut"]
+             ELSE IF ClosedUnder(s, e) /\ "ok-after-shut" \notin Bugs
+             THEN s' = [s EXCEPT !.fib[i].pc = "shut"]
              ELSE s' = BuildDone([s EXCEPT !.ents[e].st = "ready"], i, "ok")
           [] f.pc = "failLose" ->
-             (* `failed`: after the shutdown began, wrapped up as the shutdown, no mark. *)
-             IF s.shut THEN s' = [s EXCEPT !.fib[i].pc = "shut"]
+             (* `failed`: once the connection was closed, wrapped up as the close, no mark. *)
+             IF ClosedUnder(s, e) THEN s' = [s EXCEPT !.fib[i].pc = "shut"]
              ELSE LET r == MarkLost([s EXCEPT !.ents[e].st = "lost"], e)
                   IN s' = [r.st EXCEPT !.fib[i].pc = "failW", !.fib[i].wf = r.f]
-          [] f.pc \in {"failW", "shutTearW"} ->
+          [] f.pc = "failW" ->
              \/ /\ waited.pc = "done"
                 /\ s' = IF waited.res = "err" THEN [s EXCEPT !.fib[i].pc = "catch"]
                         ELSE BuildDone(s, i, "fail")
              \/ /\ Expired(f) /\ s' = BuildDone(s, i, "fail")
           [] f.pc = "shut" ->
-             LET r == Teardown([s EXCEPT !.ents[e].st = "lost"], e)
-             IN s' = [r.st EXCEPT !.fib[i].pc = "shutTearW", !.fib[i].wf = r.f]
+             (* `ended` on a closed connection: the build answers at once; nothing is torn *)
+             (* down or marked. The close tears the entry down once the build ended.      *)
+             s' = BuildDone(IF en.st = "closed" THEN s ELSE [s EXCEPT !.ents[e].st = "lost"], i, "fail")
           [] f.pc = "catch" ->
              LET x1 == IF en.st = "preparing" THEN [s EXCEPT !.ents[e].st = "lost"] ELSE s
                  r == Teardown(x1, e)
@@ -689,9 +710,20 @@ P2_NoneHoldsNothing ==
 P3_EveryProcessAsked == Quiescent /\ CloseAllDone => \A p \in DOMAIN s.ps : s.ps[p].stops >= 1
 
 (* P4: after closeAll was called, no process is started, no transport     *)
-(* opened, and no `ensure` answers a connection (decision 23, K3).        *)
+(* opened, and no `ensure` answers a connection (MC-5, P4).               *)
 P4_NoConnectAfterShut == ~s.bad.shutConnect
 P4_NoOkAfterShut == ~s.bad.okAfterShut
+
+(* P16 (MC-10): a close refuses requests in the step it begins, before it  *)
+(* waits for the build, and no `ensure` answers a connection whose close   *)
+(* began. The call port's half (no request on such a connection) is       *)
+(* Calls.tla's P16. A client action happens only at `Quiescent`, so the   *)
+(* steps between the build's `ready` and the answer (`joinedW`) are never *)
+(* split by a close here; the code re-checks the connection in the step   *)
+(* the answer settles in (table.ts `settledAnswer`), and that window is   *)
+(* checked by the unit cases, not by this model.                           *)
+P16_CloseRefusesAtOnce == \A e \in DOMAIN s.ents : s.ents[e].close # 0 => s.ents[e].st = "closed"
+P16_NoOkAfterClose == ~s.bad.okAfterClose
 
 (* P5: an entry holds the resources of its own key only. The key itself is *)
 (* abstract here: how the code derives it is checked by the explorer.     *)

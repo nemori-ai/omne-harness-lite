@@ -18,11 +18,10 @@ import {
   type CatalogMark,
   type Ensured,
   type EnsureFailure,
+  type NotSent,
   type UnavailableMark,
 } from './entry.ts'
 import type { ConnectionTable } from './table.ts'
-
-export type NotSent = Extract<TransportFailure, { kind: 'not-sent' }>
 
 export type Lost = Readonly<{ reason: LostReason; mark: UnavailableMark }>
 
