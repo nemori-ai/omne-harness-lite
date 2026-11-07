@@ -37,7 +37,7 @@ describe('tool-release.mjs check', () => {
     const run = check(FORMAL)
     expect(run.stderr).toBe('')
     expect(run.status).toBe(0)
-    expect(run.stdout).toMatch(/^tool-release: ok entries=2 artifacts=\d+ generation=sha256:/)
+    expect(run.stdout).toMatch(/^tool-release: ok entries=4 artifacts=\d+ generation=sha256:/)
   })
 
   test('exits 1 and names the artifact when the manifest and the artifacts disagree', () => {

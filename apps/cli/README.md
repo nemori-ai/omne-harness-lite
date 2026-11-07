@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-The `omne` command line client for the Harness Server. It prints help or the build version. It also sends operations to the server through the SDK: `register`, `login`, `create-session`, `send-input`, `read-history`, `cancel-run`, `stop-call`, and 18 governance operations, one command for each (for example `create-organization`, `switch-current-tenant`, and `revoke-login`). It also has `credential set|show|unset`, which manages the model credential of the tenant. Use it to drive a Harness Server from a shell, a script, or a CI job without writing TypeScript against the SDK.
+The `omne` command line client for the Harness Server. It prints help or the build version. It also sends operations to the server through the SDK: `register`, `login`, `create-session`, `send-input`, `read-history`, `read-session-diagnostics`, `cancel-run`, `stop-call`, and 18 governance operations, one command for each (for example `create-organization`, `switch-current-tenant`, and `revoke-login`). It also has `credential set|show|unset`, which manages the model credential of the tenant. Use it to drive a Harness Server from a shell, a script, or a CI job without writing TypeScript against the SDK.
 
 ## Responsibility and status
 
@@ -11,7 +11,7 @@ This app owns the process entry `omne`, argument parsing, the 26 commands, the c
 Implemented:
 
 - `omne --help` and `omne --version`.
-- The 26 commands. Each command sends one public operation through the SDK and prints one JSON object. `read-history` reads all pages of a session history and prints text for a person, or one JSON object with `--json`. The 18 governance commands are named for their operations and act for the tenant that `login.json` holds. [SPEC.md](SPEC.md#治理命令) lists them. `credential set|show|unset` sets, shows or unsets the model credential of that tenant. It reads the secret from standard input or a hidden prompt, and it never prints the secret. See [SPEC.md](SPEC.md#模型凭据命令).
+- The 27 commands. Each command sends one public operation through the SDK and prints one JSON object. `read-history` reads all pages of a session history and prints text for a person, or one JSON object with `--json`. `read-session-diagnostics` reads all pages of the diagnostics of the runs of a session in the same two forms. The 18 governance commands are named for their operations and act for the tenant that `login.json` holds. [SPEC.md](SPEC.md#治理命令) lists them. `credential set|show|unset` sets, shows or unsets the model credential of that tenant. It reads the secret from standard input or a hidden prompt, and it never prints the secret. See [SPEC.md](SPEC.md#模型凭据命令).
 - `login.json` follows the governance results: `login` saves the `loginId` of the response, `switch-current-tenant` updates the tenant, and `revoke-login` deletes the file when it ends this login.
 - Credential entry without echo on a terminal, and from a pipe.
 - `login.json` in the state directory, written through a temporary file and a rename.
@@ -40,6 +40,8 @@ node apps/cli/dist/bin.js create-session --definition default
 node apps/cli/dist/bin.js send-input --session <id> --text 'hello'
 node apps/cli/dist/bin.js read-history --session <id>
 node apps/cli/dist/bin.js read-history --session <id> --json
+node apps/cli/dist/bin.js read-session-diagnostics --session <id>
+node apps/cli/dist/bin.js read-session-diagnostics --session <id> --run <run id> --json
 node apps/cli/dist/bin.js cancel-run --session <id> --run <run id>
 node apps/cli/dist/bin.js stop-call --session <id> --producer-kind model --call <call id>
 ```
@@ -52,7 +54,9 @@ The server address comes from `--server`, then `OMNE_SERVER`, then (for session 
 
 `read-history` reads the whole history, page by page. By default it prints one block for each entry: text, tool calls, tool results, and the start and end of each run. With `--json` it prints the raw entries in `body.entries`. If it cannot read to the end, it still prints the entries it has, writes the reason to standard error, and exits non-zero (`3` for `denied`, `4` for `basis-unavailable`, `5` when the result is uncertain, `1` for a page it cannot use). [SPEC.md](SPEC.md#读历史) has the rules.
 
-Every other command, and `read-history --json`, prints one JSON object to standard output. The object has four keys:
+`read-session-diagnostics` reads the diagnostics of the runs of a session, page by page: how each run started and ended, its attempts, the reason of a failure in the words of its owner (for example `reason: model-refused capacity`), each model dispatch with its timing and account, each tool call with its account and the diagnostics of Tool, the counts of the execution facts, and the gaps where a source gave no answer. By default it prints one block for each run. With `--json` it prints the runs and gaps in `body.runs` and `body.gaps`. `--run <id>` limits the read to one run. A gap is part of the result and does not change the exit code. An incomplete read exits as `read-history` does. [SPEC.md](SPEC.md#读诊断投影) has the rules and the text format.
+
+Every other command, and `read-history --json` or `read-session-diagnostics --json`, prints one JSON object to standard output. The object has four keys:
 
 | Key       | When it appears        | Content                                                      |
 | --------- | ---------------------- | ------------------------------------------------------------ |
@@ -118,8 +122,9 @@ Each module has one job:
 - `src/command-support.ts` holds what the runners share: the transport, the usage-error messages, and `loadLogin`, which reads the login file and opens the transport.
 - `src/credential-command.ts` holds the three subcommands of `credential`. The secret enters only through `src/credential.ts` and goes only into the request.
 - `src/governance-commands.ts` holds the 18 governance commands. Each is a small table: which options it accepts, how it checks them without the login, how it builds the request with it, and which local change follows the response.
-- `src/commands.ts` holds the seven account and session commands and puts the governance commands after them. `register` and `login` share one runner. Four session commands share another. `read-history` has its own runner. Each session command is a small table: which options it accepts, how it checks them, and how it builds the request.
+- `src/commands.ts` holds the eight account and session commands and puts the governance commands after them. `register` and `login` share one runner. Four session commands share another. `read-history` and `read-session-diagnostics` each have their own runner. Each session command is a small table: which options it accepts, how it checks them, and how it builds the request.
 - `src/history-command.ts` holds `read-history`: the page loop and the result object. `src/history-render.ts` renders one entry as text for a person.
+- `src/diagnostics-command.ts` holds `read-session-diagnostics`: the same page loop over the diagnostics page, and the result object with the runs and the gaps. `src/diagnostics-render.ts` renders the runs and the gaps as text for a person, typed on the page types the SDK passes through.
 - `src/options.ts` reads `--name value` pairs, and the switches such as `--json`, against a command's option list.
 - `src/report.ts` prints the result object and maps `result` and `outcome` to an exit code.
 - `src/credential.ts` reads the credential. `editCredential` is the pure line editor for a terminal.
@@ -172,6 +177,7 @@ The test kinds follow [package test responsibilities](../../docs/verification.md
 - Command tests run in this process. `tests/governance-commands.spec.ts` covers the 18 governance commands: one machine-readable result case for each, the `stage-not-provided` answer, the usage errors, the `loginId` that `login` saves, the login file after `switch-current-tenant`, and the deletion by `revoke-login`. `tests/commands.spec.ts` drives the production catalog with the real SDK HTTP transport against a real HTTP server on `127.0.0.1` (`tests/support/fake-service.ts`). The server answers each operation in the wire form of the public contract. Cases cover each command, the exit-code table, usage errors, the state directory rules, the server precedence, and the no-echo rule.
 - `tests/credential-command.spec.ts` covers the three subcommands of `credential`: the request of each subcommand, the output and exit code of each result, the usage errors, and a secret that does not appear in standard output, standard error or the state directory. The secret is a sentinel value. The process test reads it from a pipe.
 - `tests/read-history.spec.ts` covers `read-history` against a test service that answers like the public contract: a first-page request has `direction` and `pageBytes`, a cursor request has neither, and a cursor request that has them gets `protocol-rejected`. Cases cover paging over three pages, the request shape of each page, the text rendering of text, tool calls, tool results and run start and end, `--json`, the exit code of each outcome, and the reasons for an incomplete read.
+- `tests/read-session-diagnostics.spec.ts` covers `read-session-diagnostics` the same way: a first-page request has `run` and `pageBytes`, a cursor request has neither. Cases cover paging with the gaps of every page collected, the request shape with and without `--run`, the text of two failed runs (`model-refused capacity` and `no-reply upstream-unavailable 504`) with their dispatches, timing, accounts and gaps, a completed and an unfinished run, the attempts by kind, the execution facts of a run and of each call, the diagnostics entries of a tool call, a failure or reason that reads `unknown`, `--json`, the exit code of each outcome, a complete page with gaps that exits `0`, and the reasons for an incomplete read.
 - Process tests spawn `node dist/bin.js` from a temporary directory outside the repository. Each child gets a new environment with `PATH`, a temporary `HOME`, and optional `OMNE_HOME` and `OMNE_SERVER`. They are in the slow tier because every case starts a process.
 - Unit tests cover the credential reader and its line editor, the login state file, `parseArgv`, the catalog, and the state directory functions.
 - `tests/support/expected.ts` reads both help texts from SPEC.md, so the tests compare the build with the spec's own words.

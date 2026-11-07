@@ -56,7 +56,7 @@ TransportFact 表达块操作，VisibleBlock 表达归约后的当前状态。�
 | 租约 | 持有每个档案供应商的一个家族绑定、解析后的 lineage 与调用事实视图，交出计量器 | `acquire` 成功时形成。`release` 释放每个绑定一次，并清空事实视图 |
 | 解析后的 lineage | 被延续的调用、每条消息的来源调用，以及 lineage 引用的不同调用 | 在 `acquire` 的边界解析一次。形状不合格时返回具名 `invalid`（如 `lineage.sources`），不抛出 |
 | 调用事实视图 | 每个被引用调用的一次读取结果：发出记录、无此事实，或事实不可用 | 在 `acquire` 时以调用方的访问依据经 `dispatches` 读取。计量时不再读取 |
-| 租约计量器 | 同步判决锚点与来源，调用家族的 `measureCalibrated`，把判决写进 `RequestBudget.calibration` | 不持有访问依据，不读取事实。家族计量器只收到 MeterCalibration |
+| 租约计量器 | 同步判决锚点与来源，等待家族的 `measureCalibrated`，把判决写进 `RequestBudget.calibration` | 不持有访问依据，不读取事实。家族计量器只收到 MeterCalibration |
 
 ```mermaid
 classDiagram

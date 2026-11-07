@@ -81,6 +81,13 @@ const wires = {
     loginProof: 'proof',
     body: { tenant: tenantText, session, cursor: null, direction: 'backward', pageBytes: '65536' },
   },
+  'read-session-diagnostics': {
+    protocolVersion: version,
+    messageId: 'm',
+    operation: 'read-session-diagnostics',
+    loginProof: 'proof',
+    body: { tenant: tenantText, session, cursor: null, run: null, pageBytes: '65536' },
+  },
 } as const
 const operations = Object.keys(wires) as (keyof typeof wires)[]
 const nextPage = {
@@ -307,7 +314,12 @@ describe('step 1 rejections', () => {
     ['an empty string', ''],
     ['a number', 1],
   ])('rejects a session text with %s', (_name, value) => {
-    for (const operation of ['send-input', 'query-send-input', 'read-history'] as const)
+    for (const operation of [
+      'send-input',
+      'query-send-input',
+      'read-history',
+      'read-session-diagnostics',
+    ] as const)
       expectRejected(withBody(operation, { session: value }), 'field')
   })
 

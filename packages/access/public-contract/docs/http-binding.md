@@ -44,7 +44,7 @@
 | 治理 | `judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression` | `/governance-public/1` | POST | `application/json` | `application/json; charset=utf-8` | small |
 | 治理 | `disable-subject`、`restore-subject`、`end-subject`、`reopen-after-media-loss` | `/governance-public/1` | POST | `application/json` | `application/json; charset=utf-8` | small |
 | 治理 | `bind-model-credential`、`unbind-model-credential`、`describe-model-credential` | `/governance-public/1` | POST | `application/json` | `application/json; charset=utf-8` | small |
-| 会话 | `create-session`、`query-create-session`、`send-input`、`query-send-input`、`read-history`、`cancel-run`、`stop-call`、`cancel-observation` | `/session-public/1` | POST | `application/json` | `application/json; charset=utf-8` | input |
+| 会话 | `create-session`、`query-create-session`、`send-input`、`query-send-input`、`read-history`、`cancel-run`、`stop-call`、`read-session-diagnostics`、`cancel-observation` | `/session-public/1` | POST | `application/json` | `application/json; charset=utf-8` | input |
 | 会话 | `observe-session` | `/session-public/1` | POST | `application/json` | `text/event-stream; charset=utf-8`，见[SSE 观察](#sse-观察) | input |
 
 本表给每个操作同样的承载，与部署是否提供该操作无关。

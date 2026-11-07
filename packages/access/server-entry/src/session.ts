@@ -1,6 +1,7 @@
 // The session location (SPEC「会话位置」): the read dispatch, then the six steps of the public
-// contract's「会话判断次序」for the seven session operations, each reaching one Session face call
-// through the derived identities, and the mapping of Session results to public outcomes.
+// contract's「会话判断次序」for the eight session operations, each reaching Session through the
+// derived identities, and the mapping of Session results to public outcomes. The diagnostics
+// projection reads Session first and the other sources after it (`session-view/`).
 import { readJsonBytes, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
 import { judgeMessage, type Message } from '@omne-harness/message'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
@@ -14,6 +15,7 @@ import {
 } from '@omne-harness/public-contract'
 import type {
   DurableEvidence,
+  EntryId,
   HistoryPage,
   InputId,
   RunId,
@@ -44,6 +46,12 @@ import {
   type ObservationRegistry,
 } from './observation.ts'
 import { sessionAnswer, sessionProtocolRejected } from './session-codec.ts'
+import {
+  projectSessionDiagnostics,
+  type DiagnosticPorts,
+  type DiagnosticsCursors,
+  type DiagnosticsLimits,
+} from './session-view/index.ts'
 import type { PublicOutcome } from './status.ts'
 
 export type SessionContext = Readonly<{
@@ -54,6 +62,9 @@ export type SessionContext = Readonly<{
   registry: ObservationRegistry
   readLimits: JsonLimits
   diagnostics: DiagnosticSink | undefined
+  /** The read ports of the diagnostics projection and the sealer of its cursors. */
+  ports: DiagnosticPorts<ActingForTenantPrincipal>
+  cursors: DiagnosticsCursors
 }>
 
 type Request = SessionRequest
@@ -382,6 +393,103 @@ async function readHistory(
   return answer('succeeded', pageOf(result.ok))
 }
 
+type DiagnosticsRequest = SessionRequest<'read-session-diagnostics'>
+/**
+ * Where a read starts. `upper` is the Session upper bound the first page of this scan read, sealed
+ * in the cursor; null on a first page. A continued page reads toward older entries and sees nothing
+ * appended after that bound, so the basis of the whole scan is the first page's (SL10).
+ */
+type DiagnosticsStart = Readonly<{
+  run: string | null
+  pageBytes: number
+  from: string | null
+  upper: string | null
+}>
+
+/** The configured projection: the three fields come together (`checkConfig`), so one decides. */
+function diagnosticsConfig(
+  config: ServerEntryConfig,
+): Readonly<{ kinds: readonly string[]; limits: DiagnosticsLimits }> | undefined {
+  if (
+    config.diagnosticsKinds === undefined ||
+    config.maxRuns === undefined ||
+    config.maxCallsPerRun === undefined
+  )
+    return undefined
+  return {
+    kinds: config.diagnosticsKinds,
+    limits: { maxRuns: config.maxRuns, maxCallsPerRun: config.maxCallsPerRun },
+  }
+}
+
+/** Step 5 of read-session-diagnostics: the page bound on a first page, the sealed cursor on a next one. */
+function diagnosticsStart(
+  body: DiagnosticsRequest['body'],
+  target: Target,
+  context: SessionContext,
+): DiagnosticsStart | 'invalid' {
+  if (body.cursor === null)
+    return withinPageBound(body.pageBytes, context.config.maxPageBytes)
+      ? { run: body.run, pageBytes: Number(body.pageBytes), from: null, upper: null }
+      : 'invalid'
+  const state = context.cursors.open(
+    { tenant: target.tenantText, session: target.session },
+    body.cursor,
+  )
+  return state ?? 'invalid'
+}
+
+async function readSessionDiagnostics(
+  request: DiagnosticsRequest,
+  admitted: Admitted,
+  context: SessionContext,
+): Promise<Replied> {
+  const answer = answererOf(request, context)
+  const { target } = admitted
+  // A deployment without the projection configured has no basis to answer from (step 5).
+  const configured = diagnosticsConfig(context.config)
+  if (configured === undefined) return answer('basis-unavailable', {})
+  const start = diagnosticsStart(request.body, target, context)
+  if (start === 'invalid') return answer('invalid', {})
+  const result = await readCall(
+    () =>
+      projectSessionDiagnostics({
+        access: { principal: admitted.principal, tenant: target.tenant, session: target.session },
+        history: context.faces.history,
+        ports: context.ports,
+        kinds: configured.kinds,
+        limits: configured.limits,
+        run: start.run,
+        pageBytes: start.pageBytes,
+        from: start.from as EntryId | null,
+      }),
+    request.operation,
+    context,
+  )
+  if (result === 'basis-unavailable') return answer('basis-unavailable', {})
+  if (result.kind === 'failure') return answer(failureOutcome(result.failure), {})
+  const { page } = result
+  const upper = start.upper ?? page.upper
+  const next =
+    page.continueFrom === null
+      ? null
+      : context.cursors.seal(
+          { tenant: target.tenantText, session: target.session },
+          { from: page.continueFrom, run: start.run, pageBytes: start.pageBytes, upper },
+        )
+  const body: SessionSuccessBodies['read-session-diagnostics'] = {
+    runs: page.runs,
+    next,
+    exhausted: page.exhausted,
+    scannedThrough: page.scannedThrough,
+    basis: { upper },
+    gaps: page.gaps,
+  }
+  const rechecked = await context.steps.recheck(request.proof, admitted.caller, target.tenant)
+  if (rechecked !== undefined) return answer(rechecked.outcome, {})
+  return answer('succeeded', body)
+}
+
 async function cancelRun(
   request: SessionRequest<'cancel-run'>,
   admitted: Admitted,
@@ -535,6 +643,8 @@ function operate(
       )
     case 'read-history':
       return readHistory(request, admitted, context)
+    case 'read-session-diagnostics':
+      return readSessionDiagnostics(request, admitted, context)
     case 'cancel-run':
       return cancelRun(request, admitted, context)
     case 'stop-call':

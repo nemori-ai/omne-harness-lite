@@ -4,6 +4,7 @@
 // port answers with dispatch records, denials or unavailability; the lease and the meter are real.
 // Every expected amount is computed here with the o200k encoding over the token input.
 import { describe, expect, it } from 'vitest'
+import { sortedJsonText } from './support/sorted-json.ts'
 import { getEncoding } from 'js-tiktoken'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { createModelPreparationResources } from '@omne-harness/model'
@@ -49,7 +50,7 @@ import {
 const SOL = recordNamed('openai/gpt-5.6-sol')
 const ASTRA = recordNamed('openai/gpt-6-astra')
 const o200k = getEncoding('o200k_base')
-const count = (json: JsonValue): bigint => BigInt(o200k.encode(writeJsonText(json), [], []).length)
+const count = (json: JsonValue): bigint => BigInt(o200k.encode(sortedJsonText(json), [], []).length)
 const ceil10 = (amount: bigint): bigint => (amount * 10n + 99n) / 100n
 
 function unbox<T>(outcome: { ok: T } | { failure: unknown }): T {
@@ -184,19 +185,21 @@ async function leaseOf(
   )
 }
 
-type Measured = ReturnType<ModelInputMeter['measure']>
+type Measured = Awaited<ReturnType<ModelInputMeter['measure']>>
 
 /** Plans the request on the lease binding and measures through the lease meter. */
-function measureOn(
+async function measureOn(
   lease: ModelPreparationLease,
   record: OpenAiRecord,
   parts: RequestParts,
   change: (representation: MeterRepresentation) => MeterRepresentation = value => value,
-): Readonly<{
-  measured: Measured
-  representation: MeterRepresentation
-  request: FixedModelRequest
-}> {
+): Promise<
+  Readonly<{
+    measured: Measured
+    representation: MeterRepresentation
+    request: FixedModelRequest
+  }>
+> {
   const [binding] = lease.bindings
   const profile = officialProfile(record)
   const request = fixedRequest(record, parts)
@@ -208,7 +211,7 @@ function measureOn(
   if (!('ok' in planned)) throw new Error(`plan: ${JSON.stringify(planned.failure)}`)
   const representation = change(planned.ok.representation)
   return {
-    measured: binding.meter.measure({
+    measured: await binding.meter.measure({
       profile: profile.adoption,
       supplier: profile.definition.suppliers[0],
       context: profile.definition.context,
@@ -305,8 +308,8 @@ describe('the continuation anchor', () => {
   it('without a lineage the lease hands out the family meter and the budget is byte for byte the plain one', async () => {
     const lease = await leaseOf(SOL, new Map())
     const binding = await bindingOf(SOL)
-    const { measured, representation, request } = measureOn(lease, SOL, current)
-    const plain = binding.meter.measure({
+    const { measured, representation, request } = await measureOn(lease, SOL, current)
+    const plain = await binding.meter.measure({
       profile: officialProfile(SOL).adoption,
       supplier: officialProfile(SOL).definition.suppliers[0],
       context: officialProfile(SOL).definition.context,
@@ -323,7 +326,9 @@ describe('the continuation anchor', () => {
     })
     expect(JSON.stringify(measured)).toBe(JSON.stringify(plain))
     expect(budgetOf(measured)).not.toHaveProperty('calibration')
-    expect(inputCheckOf(budgetOf(measured)).amount).toBe(String(count(representation.tokenInput)))
+    expect(inputCheckOf(budgetOf(measured)).amount).toBe(
+      String(await count(representation.tokenInput)),
+    )
     expect(inputCheckOf(budgetOf(measured)).method).toEqual(componentAdoption(SOL, 'meter'))
     await Promise.all([lease.release(), binding.release()])
   })
@@ -333,14 +338,14 @@ describe('the continuation anchor', () => {
       [X, { ok: [recordOf(SOL, { messages: ids(SOL, previous) })] }],
     ])
     const lease = await leaseOf(SOL, answers, { continues: X })
-    const { measured, representation } = measureOn(lease, SOL, current)
+    const { measured, representation } = await measureOn(lease, SOL, current)
     const budget = budgetOf(measured)
     const items = unitsOf(representation.tokenInput)
     // units: [null (instruction), u1, a1, u2]; only u2 is new.
     expect(representation.units).toHaveLength(4)
     const delta =
-      count(envelope(representation.tokenInput, [items[3]!])) -
-      count(envelope(representation.tokenInput, []))
+      (await count(envelope(representation.tokenInput, [items[3]!]))) -
+      (await count(envelope(representation.tokenInput, [])))
     expect(delta).toBeGreaterThan(0n)
     expect(budget.calibration).toEqual({ anchor: { kind: 'hit' } })
     expect(inputCheckOf(budget)).toEqual({
@@ -374,8 +379,10 @@ describe('the continuation anchor', () => {
         { continues: X },
       )
     const [a, b, plain] = await Promise.all([lease('400'), lease('401'), leaseOf(SOL, new Map())])
-    const digests = [a, b, plain].map(
-      item => budgetOf(measureOn(item, SOL, current).measured).inputDigest,
+    const digests = await Promise.all(
+      [a, b, plain].map(
+        async item => budgetOf((await measureOn(item, SOL, current)).measured).inputDigest,
+      ),
     )
     expect(new Set(digests).size).toBe(3)
     await Promise.all([a, b, plain].map(item => item.release()))
@@ -432,12 +439,12 @@ describe('the continuation anchor', () => {
     'misses (%s) and falls back to full metering with the reason reported',
     async (reason, record) => {
       const lease = await leaseOf(SOL, new Map([[X, { ok: [record()] }]]), { continues: X })
-      const { measured, representation } = measureOn(lease, SOL, current)
+      const { measured, representation } = await measureOn(lease, SOL, current)
       const budget = budgetOf(measured)
       expect(budget.calibration).toEqual({ anchor: { kind: 'miss', reason } })
       expect(inputCheckOf(budget)).toMatchObject({
-        amount: String(count(representation.tokenInput)),
-        margin: String(ceil10(count(representation.tokenInput))),
+        amount: String(await count(representation.tokenInput)),
+        margin: String(ceil10(await count(representation.tokenInput))),
         method: componentAdoption(SOL, 'meter'),
       })
       await lease.release()
@@ -450,7 +457,7 @@ describe('the continuation anchor', () => {
       recordOf(SOL, { messages: ids(SOL, previous), dispatch: 'mdisp_y' }),
     ]
     const lease = await leaseOf(SOL, new Map([[X, { ok: two }]]), { continues: X })
-    expect(budgetOf(measureOn(lease, SOL, current).measured).calibration).toEqual({
+    expect(budgetOf((await measureOn(lease, SOL, current)).measured).calibration).toEqual({
       anchor: { kind: 'miss', reason: 'ambiguous-dispatch' },
     })
     await lease.release()
@@ -462,7 +469,7 @@ describe('the continuation anchor', () => {
       new Map([[X, { ok: [recordOf(SOL, { messages: ids(SOL, previous) })] }]]),
       { continues: X },
     )
-    const { measured, representation } = measureOn(
+    const { measured, representation } = await measureOn(
       lease,
       SOL,
       current,
@@ -470,7 +477,7 @@ describe('the continuation anchor', () => {
     )
     const budget = budgetOf(measured)
     expect(budget.calibration).toEqual({ anchor: { kind: 'miss', reason: 'units-missing' } })
-    expect(inputCheckOf(budget).amount).toBe(String(count(representation.tokenInput)))
+    expect(inputCheckOf(budget).amount).toBe(String(await count(representation.tokenInput)))
     await lease.release()
   })
 
@@ -488,8 +495,8 @@ describe('the continuation anchor', () => {
       continues: other,
       sources: [{ message: ids(SOL, current)[1]!, call: other }],
     })
-    const left = measureOn(denied, SOL, current).measured
-    const right = measureOn(missing, SOL, current).measured
+    const left = (await measureOn(denied, SOL, current)).measured
+    const right = (await measureOn(missing, SOL, current)).measured
     expect(JSON.stringify(left)).toBe(JSON.stringify(right))
     expect(budgetOf(left).calibration).toEqual({
       anchor: { kind: 'miss', reason: 'call-unreadable' },
@@ -503,7 +510,7 @@ describe('the continuation anchor', () => {
       new Map([[X, { failure: { kind: 'unavailable', dependency: 'store', diagnostic: 'down' } }]]),
       { continues: X },
     )
-    expect(budgetOf(measureOn(lease, SOL, current).measured).calibration).toEqual({
+    expect(budgetOf((await measureOn(lease, SOL, current)).measured).calibration).toEqual({
       anchor: { kind: 'miss', reason: 'facts-unavailable' },
     })
     await lease.release()
@@ -523,14 +530,19 @@ describe('the continuation anchor', () => {
     )
     const shrinking: ModelTextTokenizer = {
       definition: openAiTokenizerResources().definition,
-      count: segments => {
+      count: async segments => {
         const text = segments.map(segment => (segment.kind === 'text' ? segment.text : '')).join('')
         if (text.includes('"tools"')) return { ok: { tokens: String(text.length) } }
         return { ok: { tokens: text.includes('and then?') ? '1' : '50' } }
       },
     }
-    const meter = createOpenAiMeter(SOL, shrinking, CONFIG.margin).instance
-    const measured = meter.measureCalibrated(
+    const meter = createOpenAiMeter(
+      SOL,
+      shrinking,
+      CONFIG.margin,
+      CONFIG.maxSerializedBytes,
+    ).instance
+    const measured = await meter.measureCalibrated(
       {
         profile: officialProfile(SOL).adoption,
         supplier: officialProfile(SOL).definition.suppliers[0],
@@ -554,7 +566,7 @@ describe('the continuation anchor', () => {
   it('answers unavailable after the lease was released', async () => {
     const lease = await leaseOf(SOL, new Map(), { continues: X })
     await lease.release()
-    expect(measureOn(lease, SOL, current).measured).toEqual({
+    expect((await measureOn(lease, SOL, current)).measured).toEqual({
       failure: {
         kind: 'unavailable',
         dependency: 'model-preparation',
@@ -573,10 +585,10 @@ describe('carried encrypted reasoning as the output count of its source (M5)', (
 
   it('estimates instead of unavailable: the unit is counted once as O, the rest is tokenized', async () => {
     const lease = await leaseOf(SOL, sourceAnswer({ output: '18' }), { sources: sourcesOf(SOL) })
-    const { measured, representation } = measureOn(lease, SOL, currentWithReasoning)
+    const { measured, representation } = await measureOn(lease, SOL, currentWithReasoning)
     const budget = budgetOf(measured)
     // units: [null, u1, a1 (reasoning), u2]
-    const estimated = count(withoutUnit(representation.tokenInput, 2)) + 18n
+    const estimated = (await count(withoutUnit(representation.tokenInput, 2))) + 18n
     expect(inputCheckOf(budget)).toEqual({
       kind: 'estimate',
       amount: String(estimated),
@@ -598,12 +610,12 @@ describe('carried encrypted reasoning as the output count of its source (M5)', (
       [Y, { ok: [recordOf(SOL, { account: accountOf({ output: '18' }) })] }],
     ])
     const lease = await leaseOf(SOL, answers, { continues: X, sources: sourcesOf(SOL) })
-    const { measured, representation } = measureOn(lease, SOL, currentWithReasoning)
+    const { measured, representation } = await measureOn(lease, SOL, currentWithReasoning)
     const budget = budgetOf(measured)
     const items = unitsOf(representation.tokenInput)
     const delta =
-      count(envelope(representation.tokenInput, [items[3]!])) -
-      count(envelope(representation.tokenInput, []))
+      (await count(envelope(representation.tokenInput, [items[3]!]))) -
+      (await count(envelope(representation.tokenInput, [])))
     const estimated = delta + 18n
     expect(budget.calibration).toEqual({ anchor: { kind: 'hit' } })
     expect(inputCheckOf(budget)).toEqual({
@@ -631,7 +643,7 @@ describe('carried encrypted reasoning as the output count of its source (M5)', (
       ],
     ])
     const lease = await leaseOf(SOL, answers, { continues: X })
-    const budget = budgetOf(measureOn(lease, SOL, currentWithReasoning).measured)
+    const budget = budgetOf((await measureOn(lease, SOL, currentWithReasoning)).measured)
     expect(budget.calibration).toEqual({ anchor: { kind: 'hit' } })
     expect(inputCheckOf(budget).method.name).toBe(`${SOL.name}#meter+${ANCHORED_METHOD}`)
     await lease.release()
@@ -687,7 +699,7 @@ describe('carried encrypted reasoning as the output count of its source (M5)', (
     ],
   ] as const)('%s is a named unavailability, never zero', async (reason, lease) => {
     const acquired = await lease()
-    expect(measureOn(acquired, SOL, currentWithReasoning).measured).toEqual({
+    expect((await measureOn(acquired, SOL, currentWithReasoning)).measured).toEqual({
       failure: {
         kind: 'unavailable',
         dependency: '@omne-harness/pi-ai-openai',
@@ -699,7 +711,7 @@ describe('carried encrypted reasoning as the output count of its source (M5)', (
 
   it('without any lineage the family keeps its own name for the missing source', async () => {
     const lease = await leaseOf(SOL, new Map())
-    expect(measureOn(lease, SOL, currentWithReasoning).measured).toEqual({
+    expect((await measureOn(lease, SOL, currentWithReasoning)).measured).toEqual({
       failure: {
         kind: 'unavailable',
         dependency: '@omne-harness/pi-ai-openai',

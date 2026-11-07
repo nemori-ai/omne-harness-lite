@@ -8,7 +8,11 @@ import type {
   SessionId,
   SessionOperationId,
   SessionRevision,
+  WorkSnapshot,
 } from '@omne-harness/session-contract'
+
+/** The tenant whose work an event measures. The same legal-identity type as the access. */
+export type TenantId = WorkSnapshot['tenant']
 
 /** One face operation of Session, from the start of its work to its answer: the Session segment. */
 export type SessionSegmentEvent =
@@ -22,6 +26,13 @@ export type SessionSegmentEvent =
       operation: string
       /** Null for a directory read, which names no session. */
       session: SessionId | null
+      /** The tenant whose work this is: of the access, or the tenant input of `pending`. */
+      tenant?: TenantId
+      /**
+       * `system` for a read that the contract puts in system scope (`references`, `releasedScopes`):
+       * a fact of the service itself, which spans tenants. Never present together with `tenant`.
+       */
+      scope?: 'system'
     }>
   | Readonly<{
       kind: 'segment'
@@ -30,6 +41,8 @@ export type SessionSegmentEvent =
       span: number
       operation: string
       session: SessionId | null
+      tenant?: TenantId
+      scope?: 'system'
       /** `failure` for any answer that carries a failure and for a thrown error. */
       outcome: 'ok' | 'failure'
     }>
@@ -42,6 +55,8 @@ export type SessionSegmentEvent =
 export type SessionRoundCompleteEvent = Readonly<{
   kind: 'round-complete'
   session: SessionId
+  /** The tenant of the access that made the commit. */
+  tenant?: TenantId
   /** Null when the entry payload does not carry a decodable run. */
   run: RunId | null
   /** The terminal outcome of the Run, null when the payload does not carry one. */
@@ -57,6 +72,9 @@ export type SessionMeasureEvent = SessionSegmentEvent | SessionRoundCompleteEven
 /** Receives each event synchronously. It must not call back into the instance. */
 export type SessionMeasure = (event: SessionMeasureEvent) => void
 
+/** Whose fact a segment measures: one tenant's work, or the service itself. */
+export type SegmentOwner = TenantId | 'system'
+
 export type SessionMeasurer = Readonly<{
   /** Whether an observer was given. Work that only measurement needs is skipped without one. */
   active: boolean
@@ -65,6 +83,11 @@ export type SessionMeasurer = Readonly<{
     session: SessionId | null,
     run: () => Promise<T>,
     failed: (answer: T) => boolean,
+    /**
+     * Whose fact the segment measures: the tenant of the work, or `system` for a system-scope read.
+     * Every call site gives one; an absent value leaves the event with neither.
+     */
+    whose?: SegmentOwner,
   ): Promise<T>
   roundComplete(event: Omit<SessionRoundCompleteEvent, 'kind'>): void
 }>
@@ -88,9 +111,16 @@ export function createSessionMeasurer(measure: SessionMeasure | undefined): Sess
   }
   return {
     active: true,
-    async segment(operation, session, run, failed) {
+    async segment(operation, session, run, failed, whose) {
       const span = (spans += 1)
-      emit({ kind: 'segment', segment: 'session', phase: 'start', span, operation, session })
+      // An absent owner stays absent: an `undefined` member would still be a key of the event.
+      const where =
+        whose === undefined
+          ? { session }
+          : whose === 'system'
+            ? { session, scope: whose }
+            : { session, tenant: whose }
+      emit({ kind: 'segment', segment: 'session', phase: 'start', span, operation, ...where })
       let outcome: 'ok' | 'failure' = 'failure'
       try {
         const answer = await run()
@@ -103,7 +133,7 @@ export function createSessionMeasurer(measure: SessionMeasure | undefined): Sess
           phase: 'end',
           span,
           operation,
-          session,
+          ...where,
           outcome,
         })
       }

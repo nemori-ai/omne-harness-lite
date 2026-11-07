@@ -111,7 +111,10 @@ describe('assembly closed outcomes and source boundaries', () => {
     let calls = 0
     const p = {
       ...f.ports,
-      meter: { ...f.ports.meter, measure: () => ({ ok: f.budget(++calls % 2 ? '900' : '1') }) },
+      meter: {
+        ...f.ports.meter,
+        measure: async () => ({ ok: f.budget(++calls % 2 ? '900' : '1') }),
+      },
     }
     expect((await assemble(f.input, p, f.policies)).kind).toBe('needs-compaction')
     expect(
@@ -131,7 +134,7 @@ describe('assembly closed outcomes and source boundaries', () => {
     ).toBe('cannot-fit')
     const overflow = {
       ...f.ports,
-      meter: { ...f.ports.meter, measure: () => ({ ok: f.budget('1001') }) },
+      meter: { ...f.ports.meter, measure: async () => ({ ok: f.budget('1001') }) },
     }
     const result = await assemble(f.input, overflow, f.policies)
     expect(result).toMatchObject({ kind: 'cannot-fit', reason: 'fixed-part-over-limit' })
@@ -143,7 +146,7 @@ describe('assembly closed outcomes and source boundaries', () => {
       ...f.ports,
       meter: {
         ...f.ports.meter,
-        measure: () => ({
+        measure: async () => ({
           ok: {
             ...budget,
             checks: budget.checks.map(c => ({

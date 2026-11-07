@@ -346,6 +346,7 @@
 | [UL-schedule-catch-up-policy](terms/execution-and-outcome.md#ul-schedule-catch-up-policy--日程补跑策略--schedule-catch-up-policy) | 日程补跑策略 | Schedule Catch-up Policy | 日程声明是否补跑及当前时刻前最近最多补多少次；不重跑已有 Job。 |
 | [UL-schedule-overlap-policy](terms/execution-and-outcome.md#ul-schedule-overlap-policy--日程重叠策略--schedule-overlap-policy) | 日程重叠策略 | Schedule Overlap Policy | 同一日程的新工作遇到先前未结束动作时，选择跳过、停止先前后执行、独立并行或等待执行。 |
 | [UL-job-notification-policy](terms/execution-and-outcome.md#ul-job-notification-policy--作业通知策略--job-notification-policy) | 作业通知策略 | Job Notification Policy | 工作意图声明执行事件与通知内容要求，各 Job 持有自身采用的声明。 |
+| [UL-output-generation](terms/execution-and-outcome.md#ul-output-generation--输出代--output-generation) | 输出代 | Output Generation | 工程遥测提供者里整体准备、启用、排空、关闭的一组输出实现；**不是 Cordis 插件换代**；形态未定 |
 
 
 ## [交互与派发](terms/interaction-and-dispatch.md)
@@ -435,6 +436,10 @@
 | [UL-summary-step](terms/record-and-context.md#ul-summary-step--摘要步--summary-step) | 摘要步 | Summary Step | 一次内部模型调用生成覆盖范围的摘要，由协调者发起 |
 | [UL-business-calendar](terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 业务日历 | Business Calendar | 具有明确适用范围、可被指认与选用的一份日期分类知识，逐日回答工作日、假日等问题，由可追溯的业务日历版本承载。 |
 | [UL-business-calendar-version](terms/record-and-context.md#ul-business-calendar-version--业务日历版本--business-calendar-version) | 业务日历版本 | Business Calendar Version | 某份业务日历经过校验发布的一份不可变数据，带可区分的版本、覆盖范围、信息截至时点与权威出处；修订通过新版本表达。 |
+| [UL-engineering-telemetry](terms/record-and-context.md#ul-engineering-telemetry--工程遥测--engineering-telemetry) | 工程遥测 | Engineering Telemetry | 为工程诊断留下的工程日志、链路与指标的总称；**不是面向用户的观察**，不替代账目、授权依据或恢复事实 |
+| [UL-telemetry-record](terms/record-and-context.md#ul-telemetry-record--遥测记录--telemetry-record) | 遥测记录 | Telemetry Record | 交给工程遥测端口的一条事件、一个指标测量值或一个遥测段的开始或结束；**准入不是送达**，单条没有系统身份 |
+| [UL-telemetry-segment](terms/record-and-context.md#ul-telemetry-segment--遥测段--telemetry-segment) | 遥测段 | Telemetry Segment | 工程遥测里一段有起止的工作记录，可被因果链接引用；**结局不是业务终态**；形态未定 |
+| [UL-session-diagnostics-projection](terms/record-and-context.md#ul-session-diagnostics-projection--会话诊断投影--session-diagnostics-projection) | 会话诊断投影 | Session Diagnostics Projection | 一个会话的只读组合视图：以会话日志为骨架，读各拥有者的只读记录，读不到写缺口；**不是会话日志投影**，不是工程遥测 |
 
 | [UL-model-adaptation-binding](terms/capabilities-and-composition.md#ul-model-adaptation-binding--模型适配绑定--model-adaptation-binding) | 模型适配绑定 | Model Adaptation Binding | 调用所持有的精确适配版本与配置属性，更新不改变旧绑定 |
 | [UL-model-prefix-cache-policy](terms/capabilities-and-composition.md#ul-model-prefix-cache-policy--模型前缀缓存策略--model-prefix-cache-policy) | 模型前缀缓存策略 | Model Prefix Cache Policy | 绑定内的缓存配置属性，不代表真实缓存命中 |

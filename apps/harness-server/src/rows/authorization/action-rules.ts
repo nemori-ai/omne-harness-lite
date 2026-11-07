@@ -31,3 +31,22 @@ export const authorizationConfig = z.strictObject({
   maintenanceGrants: maintenanceGrantsSchema.optional(),
 })
 export type ActionRules = z.output<typeof actionRulesSchema>
+
+/** One rule selector for Agent actions and their Tool targets. Deny wins within the generation. */
+export function toolActionRule(
+  rules: ActionRules,
+  definition: NonNullable<ActionRules['rules'][number]['definition']>,
+) {
+  const matches = rules.rules.filter(
+    rule =>
+      rule.tool === definition.name &&
+      (rule.definition == null ||
+        (rule.definition.owner === definition.owner &&
+          rule.definition.name === definition.name &&
+          rule.definition.revision === definition.revision &&
+          rule.definition.digest === definition.digest)),
+  )
+  return (
+    matches.find(rule => rule.effect === 'deny') ?? matches.find(rule => rule.effect === 'allow')
+  )
+}

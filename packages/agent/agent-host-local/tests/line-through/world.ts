@@ -78,6 +78,7 @@ import {
   RegisteredReadsService,
   agentInstancesPlugin,
   agentJournalKey,
+  agentModelReceptionTargetsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -513,6 +514,7 @@ export type LineWorldOptions = Readonly<{
   wrapProvider?: <T extends object>(provider: T) => T
   /** Wraps the Model receiver the pusher resolves, for example to count what it saves. */
   wrapModelReceiver?: (receiver: AgentModelReceiver<unknown>) => AgentModelReceiver<unknown>
+  receptionTargets?: 'journal'
   /** Receives each publication of the session-log Journal the receivers write through. */
   journalReport?: (report: JournalPublicationReport) => void
 }>
@@ -704,6 +706,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   await mount(serviceOf(StorageService, storage, 'Storage'))
   await mount(serviceOf(TenantDomainLookupService, lookup, 'TenantDomainLookup'))
   await mount(serviceOf(SessionAccessCheckService, { check: sessionChecks.check }, 'AccessCheck'))
+  const sessionClock = createMemorySessionClock()
   for (const [Base, port, name] of [
     [SessionDelegatedTransactionsService, pair.delegated, 'DelegatedTransactions'],
     [
@@ -725,7 +728,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     [SessionEvidenceBridgeService, evidenceBridge, 'EvidenceBridge'],
     [SessionContextInputService, createMemorySessionContextInput<string>(), 'ContextInput'],
     [SessionIdleInputService, idle, 'IdleInput'],
-    [SessionClockService, createMemorySessionClock(), 'Clock'],
+    [SessionClockService, sessionClock, 'Clock'],
     [SessionNotifierService, createMemorySessionNotifier(), 'Notifier'],
     [ScopeReleasePortService, createMemoryScopeRelease(), 'ScopeRelease'],
   ] as const)
@@ -1029,6 +1032,10 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     if ('failure' in work) return lastExecution
     const { run } = work.ok
     if (run.kind === 'active') lastExecution = executionOf(run.execution.execution)
+    if (run.kind === 'terminal') {
+      const ended = work.ok.executions?.find(item => item.run === run.terminal.run)
+      if (ended !== undefined) lastExecution = executionOf(ended.execution.execution)
+    }
     return lastExecution
   }
   const reception = createLocalModelReceiver<unknown>(
@@ -1037,34 +1044,50 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       access: access.port,
       // The query of the original consumption binding has no product provider yet: the double
       // reads the Journal's public `load` of the execution the Run started.
-      targets: {
-        async forExecution(input) {
-          const loaded = await probeLog.load({ ...input.access, execution: input.execution })
-          if ('failure' in loaded) return loaded
-          const instance = loaded.ok.executionAttachment?.instance
-          return succeed(
-            loaded.ok.effects.flatMap(effect =>
-              effect.pending.kind === 'model' && instance !== undefined
-                ? [{ execution: input.execution, instance, pending: effect.pending }]
-                : [],
-            ),
-          )
-        },
-        async resolve(input) {
-          const execution = await runExecution()
-          if (execution !== null) {
-            const loaded = await probeLog.load({ ...input.access, execution })
-            if ('failure' in loaded) return loaded
-            const pending = loaded.ok.effects
-              .map(effect => effect.pending)
-              .find(item => item.kind === 'model' && item.reference === input.reference)
-            const instance = loaded.ok.executionAttachment?.instance
-            if (pending !== undefined && pending.kind === 'model' && instance !== undefined)
-              return succeed({ execution, instance, pending })
-          }
-          return fail({ kind: 'denied', action: 'resolve' })
-        },
-      },
+      targets:
+        options.receptionTargets === 'journal'
+          ? {
+              forExecution(input) {
+                const targets = ctx.get(agentModelReceptionTargetsKey)
+                if (targets === undefined)
+                  throw new Error('agentModelReceptionTargets is not provided')
+                return targets.forExecution(input)
+              },
+              resolve(input) {
+                const targets = ctx.get(agentModelReceptionTargetsKey)
+                if (targets === undefined)
+                  throw new Error('agentModelReceptionTargets is not provided')
+                return targets.resolve(input)
+              },
+            }
+          : {
+              async forExecution(input) {
+                const loaded = await probeLog.load({ ...input.access, execution: input.execution })
+                if ('failure' in loaded) return loaded
+                const instance = loaded.ok.executionAttachment?.instance
+                return succeed(
+                  loaded.ok.effects.flatMap(effect =>
+                    effect.pending.kind === 'model' && instance !== undefined
+                      ? [{ execution: input.execution, instance, pending: effect.pending }]
+                      : [],
+                  ),
+                )
+              },
+              async resolve(input) {
+                const execution = await runExecution()
+                if (execution !== null) {
+                  const loaded = await probeLog.load({ ...input.access, execution })
+                  if ('failure' in loaded) return loaded
+                  const pending = loaded.ok.effects
+                    .map(effect => effect.pending)
+                    .find(item => item.kind === 'model' && item.reference === input.reference)
+                  const instance = loaded.ok.executionAttachment?.instance
+                  if (pending !== undefined && pending.kind === 'model' && instance !== undefined)
+                    return succeed({ execution, instance, pending })
+                }
+                return fail({ kind: 'denied', action: 'resolve' })
+              },
+            },
       outlet,
       models: scripted.provider.runtime.calls,
       capacity: () => ({
@@ -1223,6 +1246,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     admits,
     runExecution,
     clock,
+    sessionClock,
     resolved,
     assembled,
     async close(): Promise<void> {

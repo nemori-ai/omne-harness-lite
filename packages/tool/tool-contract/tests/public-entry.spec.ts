@@ -36,6 +36,7 @@ it('exports on the root only the names members outside the Tool group import, an
     'resolveToolInvocationRef',
     'resolveToolOperationRef',
     'selectCommandText',
+    'toolsCapabilityOf',
   ])
 })
 
@@ -45,6 +46,7 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'COMMAND_CALL_ENCODINGS',
     'TOOL_IDENTITY_MAX_LENGTH',
     'TOOL_REFERENCE_MAX_LENGTH',
+    'attachToolsCapability',
     'commandArguments',
     'commandExample',
     'commandGuide',

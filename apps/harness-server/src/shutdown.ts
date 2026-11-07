@@ -1,5 +1,6 @@
 // 关闭协调器（s0-spec-r2 §9「步骤」「阶段规则」）。全部阶段共用截止时间 D；句柄超时记 incomplete，
-// 抛出记 failed，协调者继续下一阶段。报告确定后才调用 `assemblyReportSettled()`，之后才撤除根。
+// 抛出记 failed，协调者继续下一阶段。四个阶段之后是入口交来的遥测关闭步骤，报告确定后才调用
+// `assemblyReportSettled()`，之后才撤除根。
 import type { LifecycleEntry, LifecycleRegistry } from './lifecycle.ts'
 import { PHASE_ORDER } from './lifecycle.ts'
 import type {
@@ -9,6 +10,7 @@ import type {
   RowId,
   ShutdownReport,
   StopResult,
+  TelemetryShutdownReport,
 } from './types.ts'
 
 export type { ShutdownReport }
@@ -38,6 +40,7 @@ export type ShutdownAction =
   | 'report-fixed'
   | 'report-settled-call'
   | 'dispose-root'
+  | 'telemetry-close' // 存储阶段之后的遥测关闭步骤
   | 'late-result' // 报告确定前后才结束的句柄：只写诊断
   | 'diagnostic'
 
@@ -54,6 +57,8 @@ export type ShutdownOptions = Readonly<{
   log?: (record: ShutdownRecord) => void
   /** Entry-owned host retirement and final maintenance, bounded only for report collection. */
   afterBusiness?: () => Promise<HostFilesReport>
+  /** Entry-owned telemetry close after the storage phase, with the deadline D; bounded only for the report. */
+  afterStorage?: (deadlineMonotonicMs: number) => Promise<TelemetryShutdownReport>
   /** 步骤 9：撤除 Cordis 根。结果只进诊断。 */
   disposeRoot?: () => Promise<unknown> | unknown
 }>
@@ -156,28 +161,56 @@ async function outcomeOfRow(
   return { row, phase, result: { kind: 'not-registered' } }
 }
 
-/** Entry-owned host maintenance after the business phase, bounded by D only for the report. */
-async function collectHostFiles(
-  afterBusiness: () => Promise<HostFilesReport>,
-  phase: LifecyclePhase,
+/**
+ * An entry-owned appendix of the report (host-files maintenance, telemetry close), bounded by D only
+ * for the report: a throw is a diagnostic and `onFailure`, the deadline is `onDeadline` and a late
+ * completion is a diagnostic. The task itself goes on; the root disposer waits for it.
+ */
+async function collectAppendix<T>(
+  task: () => Promise<T>,
+  label: string,
+  phase: LifecyclePhase | null,
   { deadline, clock, log }: StopBudget,
-): Promise<HostFilesReport> {
-  const maintenance = Promise.resolve()
-    .then(afterBusiness)
-    .catch((): HostFilesReport => {
-      log('diagnostic', phase, null, 'host-files maintenance failed')
-      return { kind: 'unavailable', diagnostic: 'maintenance-failed' }
+  outcomes: Readonly<{ onFailure: () => T; onDeadline: () => T }>,
+): Promise<T> {
+  const settled = Promise.resolve()
+    .then(task)
+    .catch((): T => {
+      log('diagnostic', phase, null, `${label} failed`)
+      return outcomes.onFailure()
     })
   const timer = clock.after(deadline - clock.now())
-  const winner = await Promise.race([maintenance, timer.promise.then(() => null)])
+  const winner = await Promise.race([
+    settled.then(value => ({ value })),
+    timer.promise.then(() => null),
+  ])
   if (winner === null) {
-    void maintenance.then(() =>
-      log('late-result', phase, null, 'host-files maintenance completed after deadline'),
-    )
-    return { kind: 'unavailable', diagnostic: 'deadline' }
+    void settled.then(() => log('late-result', phase, null, `${label} completed after deadline`))
+    return outcomes.onDeadline()
   }
   timer.cancel()
-  return winner
+  return winner.value
+}
+
+const collectHostFiles = (
+  afterBusiness: () => Promise<HostFilesReport>,
+  phase: LifecyclePhase,
+  budget: StopBudget,
+): Promise<HostFilesReport> =>
+  collectAppendix(afterBusiness, 'host-files maintenance', phase, budget, {
+    onFailure: () => ({ kind: 'unavailable', diagnostic: 'maintenance-failed' }),
+    onDeadline: () => ({ kind: 'unavailable', diagnostic: 'deadline' }),
+  })
+
+const collectTelemetry = (
+  afterStorage: NonNullable<ShutdownOptions['afterStorage']>,
+  budget: StopBudget,
+): Promise<TelemetryShutdownReport> => {
+  budget.log('telemetry-close', null, null)
+  return collectAppendix(() => afterStorage(budget.deadline), 'telemetry close', null, budget, {
+    onFailure: () => ({ kind: 'unavailable', diagnostic: 'close-failed' }),
+    onDeadline: () => ({ kind: 'unavailable', diagnostic: 'deadline' }),
+  })
 }
 
 /** After the report is fixed, each live handle that asked for it is told so. A throw is a diagnostic. */
@@ -227,11 +260,17 @@ async function execute(
       hostFiles = await collectHostFiles(options.afterBusiness, phase, budget)
     }
   }
+  // Storage has stopped, so nothing of the tree writes diagnostics any more: close telemetry now.
+  const telemetry =
+    options.afterStorage === undefined
+      ? undefined
+      : await collectTelemetry(options.afterStorage, budget)
 
   const report: ShutdownReport = Object.freeze({
     overall: outcomes.every(o => o.result.kind === 'settled') ? 'settled' : 'incomplete',
     outcomes: Object.freeze(outcomes),
     ...(hostFiles === undefined ? {} : { hostFiles: Object.freeze(hostFiles) }),
+    ...(telemetry === undefined ? {} : { telemetry: Object.freeze(telemetry) }),
   })
   log('report-fixed', null, null, report.overall)
 

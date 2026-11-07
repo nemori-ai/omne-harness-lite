@@ -1,3 +1,4 @@
+import type { TodoItem } from './todos.ts'
 import type { SessionWorkEntryIndex } from './work-entry-values.ts'
 // The values of the work snapshot and the fixed inputs of the commands (SPEC「值与结果项的约束」).
 // Session keeps no continuation value: `ExecutionRef` points at the Agent's authoritative record.
@@ -381,6 +382,7 @@ export type WorkSnapshot = Readonly<{
   tasks: readonly RecoveryTask[]
   idle: Readonly<{ observation: IdleObservation; commit: DurableEvidence }> | null
   /** Missing optional projections represent no previously committed facts of that kind. */
+  todos?: readonly TodoItem[]
   executions?: readonly RunExecution[]
   residentKeys?: ResidentAdoption['keys']
   relation?: Relation

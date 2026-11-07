@@ -103,8 +103,8 @@ function exampleBinding(bound: Supplier): PiFamilyBinding {
     rules: { plan: () => ({ failure: refused }) },
     meter: {
       basis: counting,
-      measure: () => ({ failure: refused }),
-      measureCalibrated: () => ({ failure: refused }),
+      measure: async () => ({ failure: refused }),
+      measureCalibrated: async () => ({ failure: refused }),
     },
     replayFormat: null,
     tools: { convertToModelPayload: () => ({ failure: refused }) },

@@ -33,6 +33,36 @@ export const LOCAL_HISTORY_KINDS = [
   'run.terminal',
 ] as const
 
+/**
+ * The entry kinds `read-session-diagnostics` reads: every kind the projection knows
+ * (server-entry `PROJECTED_KINDS`, RFC-0013「数据来源与读取路径」), so the diagnostics of one
+ * person's host hide nothing from that person (DA4, adopted for now). A kind left out here is a
+ * `not-disclosed` gap of every read.
+ */
+export const LOCAL_DIAGNOSTICS_KINDS = [
+  'run.started',
+  'run.attempt-started',
+  'run.attempt-released',
+  'run.attempt-exited',
+  'control.requested',
+  'control.progress',
+  'run.terminal',
+  'call.bound',
+  'call.execution-fact',
+  'message.user',
+  'message.assistant',
+  'message.tool',
+  'message.tool_internal',
+  'message.system_reminder',
+  'message.compaction',
+] as const
+
+/**
+ * The bounds of one diagnostics page: the most Runs, and the most calls of one Run that enter the
+ * fan-out to Model and Tool. Initial values, not measured: a page of one person's session.
+ */
+export const LOCAL_DIAGNOSTICS_LIMITS = { maxRuns: 32, maxCallsPerRun: 64 } as const
+
 /** The adoption that the placeholder references of this profile name. */
 const ADOPTION = {
   owner: '@omne-harness/harness-server',
@@ -47,9 +77,28 @@ const PROFILES = {
   updatedAt: '2026-11-02T00:00:00Z',
 } as const
 
+export const LOCAL_TOKENIZERS = {
+  workers: 2,
+  maxLeases: 256,
+  maxQueuedJobs: 256,
+  maxQueuedBytes: 32 * 1024 * 1024,
+  maxInputBytes: 8 * 1024 * 1024,
+  maxLeaseQueuedJobs: 4,
+  maxCacheBytes: 16 * 1024 * 1024,
+  maxCacheEntries: 65_536,
+  maxLeaseCacheBytes: 256 * 1024,
+  maxLeaseCacheEntries: 8_192,
+  maxPieceBytes: 4_096,
+  jobTimeoutMs: 10_000,
+  maxWorkerOldSpaceMb: 768,
+  maxReplacementsPerMinute: 2,
+  cancellationGraceMs: 25,
+} as const
+
 const PREPARATION = {
   maxCitedCalls: 8,
   openai: {
+    maxSerializedBytes: 4 * 1024 * 1024,
     limits: {
       toolArguments: {
         maxBytes: 65_536,
@@ -112,6 +161,11 @@ function modelRecords(combinationVersion: string) {
     maxCommandBytes: MAX_COMMAND_BYTES,
     combinationVersion,
     send: { mirrorBytes: 4_194_304, maxClaims: 8 },
+    // The read face `modelDiagnostics`: a tenant reads its own calls; the retention is a placeholder adoption.
+    diagnostics: {
+      diagnosticsRead: 'tenant-self',
+      retention: { ...ADOPTION, name: 'local-single-user/model-diagnostics-retention' },
+    },
     initial: { maxRecords: 1024, maxBindings: 4, maxCallsPerBinding: 1024 },
     sendStage: {
       maxRetainedAttempts: 16,
@@ -158,7 +212,7 @@ function storage(storageRoot: string, shutdownDeadlineMs: number) {
     maxRequestBytes: 4_194_304,
     globalInFlightWriteBytes: 67_108_864,
     maxJsonMembers: 65_536,
-    maxResponseBytes: 65_536,
+    maxResponseBytes: 262_144,
     maxOperationResponseBytes: 1_048_576,
     globalWriteResponseBytes: 33_554_432,
     maxDiagnosticBytes: 4096,
@@ -328,6 +382,25 @@ const AGENT_HOST = {
   instanceIdleMs: 60_000,
 } as const
 
+/**
+ * The budgets of the `telemetry` row (the implementation and the outlet are release values). Like
+ * every number of this profile they are unmeasured initial values: a few hundred records in flight
+ * cover the diagnostics of one person's host, and the summary line on stderr is at most one in ten
+ * seconds. `maxSegmentLifetimeMs` is one hour, the provider's default (`DEFAULT_SEGMENT_LIFETIME_MS`
+ * of `@omne-harness/telemetry-node`, proposed by the closure tel-r4-node of card #1140); RFC-0013
+ * names the budget without a number. It is written here so that the profile states every number
+ * it runs with.
+ */
+const TELEMETRY_BUDGETS = {
+  maxRecordBytes: 16_384,
+  maxQueueItems: 1024,
+  maxQueueBytes: 4_194_304,
+  maxOpenSegments: 256,
+  maxLogTextLength: 4096,
+  summaryIntervalMs: 10_000,
+  maxSegmentLifetimeMs: 3_600_000,
+} as const
+
 const releaseSchema = z.object({
   rows: z.array(z.object({ id: z.string(), config: z.record(z.string(), z.unknown()).optional() })),
 })
@@ -380,6 +453,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
   const { locations, settings, platform } = input
   const path = pathsOf(platform)
   const local: ReadonlyArray<readonly [string, Readonly<Record<string, unknown>>]> = [
+    ['telemetry', { budgets: TELEMETRY_BUDGETS }],
     ['storage', storage(locations.storageRoot, input.shutdownDeadlineMs)],
     [
       'session-storage',
@@ -390,6 +464,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       },
     ],
     ['model-credential', { path: locations.vaultFile }],
+    ['model-tokenizers', LOCAL_TOKENIZERS],
     ['model-profiles', PROFILES],
     ['model-request-preparation', PREPARATION],
     ['model-host', MODEL_HOST],
@@ -407,10 +482,23 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           },
           // Files resolves a relative path against its own working directory (R2-D295).
           Files: { resultMaxBytes: TOOL_RESULT_BYTES, cwd: settings.workspace },
+          Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
+          TodoItems: { resultMaxBytes: 1_048_576 },
         },
       },
     ],
     ['tool-records', toolRecords(settings.workspace, combinationVersion)],
+    [
+      'tool-bindings',
+      {
+        tools: {
+          attemptMs: 250,
+          resultPageBytes: 65_536,
+          replyMaxBytes: 65_536,
+          contentPageBytes: 4096,
+        },
+      },
+    ],
     ['execution-host', { filesRoot: settings.workspace, stateDirectory: locations.hostFilesDir }],
     [
       'request-context',
@@ -421,7 +509,15 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
     ['agent-host', AGENT_HOST],
     ['session-ad03', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
     ['session-ad04', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
-    ['server-entry', { listenPort: settings.port, historyKinds: [...LOCAL_HISTORY_KINDS] }],
+    [
+      'server-entry',
+      {
+        listenPort: settings.port,
+        historyKinds: [...LOCAL_HISTORY_KINDS],
+        diagnosticsKinds: [...LOCAL_DIAGNOSTICS_KINDS],
+        ...LOCAL_DIAGNOSTICS_LIMITS,
+      },
+    ],
   ]
   return {
     ops: local.map(([id, config]) => ({

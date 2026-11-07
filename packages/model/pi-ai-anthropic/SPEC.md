@@ -22,6 +22,7 @@
 ## 结果与不变量
 
 <a id="记录"></a>
+
 ### 记录
 
 `ANTHROPIC_RECORDS` 是本包唯一的型号清单。档案、采用、指纹与夹具都从它派生。
@@ -52,6 +53,7 @@
 这些观察只涉及封存的四个型号。`claude-sonnet-5.5` 与 `claude-haiku-5.5` 没有同样的实测。这些观察不改变上面的规则。持续验证不覆盖网关的这些行为，见[测试说明](tests/README.md#未覆盖)。
 
 <a id="规则"></a>
+
 ### 规则
 
 每条记录为四个 hook 各指名一条规则。规则名带修订号，规则表用 `satisfies` 检查，写错名字编译失败。改变一条规则的行为时，必须新增规则名，并让新修订的记录引用它。
@@ -73,6 +75,7 @@
 引擎的解码器在收场后调用 `usage` hook 一次，用它的结果形成账目报告与诊断事实，见 [pi-ai-transport SPEC“账目”](../pi-ai-transport/SPEC.md#账目)。
 
 <a id="计量"></a>
+
 ### 计量
 
 每条记录的计量器由 `createAnthropicMeter` 构造，`binding.counting` 等于 `binding.meter.basis`。计量器实现 `CalibratedInputMeter`：`measure(input)` 等于 `measureCalibrated(input, 空校准)`，一套算法两个入口。算术由 pi-ai-transport 的 [`calibratedAmount`](../pi-ai-transport/SPEC.md#校准算术) 共用。计量器外壳由 pi-ai-transport 的[共用计量规则](../pi-ai-transport/SPEC.md#共用计量规则)给出：核对供应商与表示采用，拒绝待定媒体，调用共用算术，组装预算（方法名的拼接、输入摘要、单元追加 token 的求和）。本包只给出家族自己的部分：内容提取（哪个单元带推理状态、怎样计数）、图片规则、owner、输出组方法名，以及不可计数时的诊断名。
@@ -102,6 +105,7 @@
 5. 图片规则 `claude-patch-28/1`：两边都不超过 2576 像素且 `ceil(w/28) × ceil(h/28)` 不超过 4784 时，数额就是这个积。否则保持宽高比，二分查找满足两项限制的最大长边，短边取四舍五入且至少为 1，数额为缩放后尺寸的块数。尺寸不是正的安全整数时规则不适用。
 
 <a id="词表资源"></a>
+
 ### 词表资源
 
 `anthropicTokenizerResources()` 读取本包发布的 `resources/tokenizers/anthropic-legacy/claude.json`，返回 `TiktokenResources`：
@@ -114,6 +118,7 @@
 文件的来源、许可证与摘要写在 `resources/tokenizers/anthropic-legacy/provenance.json` 与 [provenance.json](provenance.json)。
 
 <a id="官方档案"></a>
+
 ### 官方档案
 
 `officialAnthropicProfiles({ retryPolicy, compactionTriggerPercent })` 为每条 `current` 记录给出一份 `ModelProfileDefinition`，按记录顺序。它只做计算，不取得绑定。
@@ -124,16 +129,17 @@
 - `retryPolicy` 是 Model 的策略，`compactionTriggerPercent` 是档案的配置项，二者都由装配传入。百分比不是 1 至 100 的十进制整数时，函数抛出 `RangeError`。
 
 <a id="家族与取得"></a>
+
 ### 家族与取得
 
-`createAnthropicFamily({ tokenizer, limits, margin })` 返回 `PiFamily`。它只做计算，不创建 tokenizer。`margin.percent` 不是非负十进制整数，或某一项不是对象时，它抛出 `RangeError`。
+`createAnthropicFamily({ tokenizer, executor, maxSerializedBytes, limits, margin })` 返回 `PiFamily`。executor 由宿主创建并拥有，家族只借用其 acquire 方法。maxSerializedBytes 是完整 JSON 的 UTF-8 字节上限，必须是正安全整数。`margin.percent` 不是非负十进制整数，或某一项不是对象时，它抛出 `RangeError`。
 
 家族的 `acquire(record, supplier, signal)` 按下列顺序进行：
 
 1. 配置的 tokenizer 定义与记录的不同：`unavailable`，诊断为 `tokenizer-definition-mismatch`。
-2. 第一次取得时初始化 tokenizer，之后复用同一结果。初始化失败：`unavailable`，诊断为 `tokenizer-<失败种类>`。
-3. `signal` 已中止：`unavailable`，诊断为 `cancelled`。
-4. 用 `bindChatCompletions` 构造绑定并返回。
+2. `signal` 已中止：`unavailable`，诊断为 `cancelled`。
+3. 用配置的完整 tokenizer definition 与原 signal 调用 executor.acquire。取得失败：`unavailable`，诊断为 `tokenizer-<失败种类>`。
+4. 用 `bindChatCompletions` 构造绑定并返回。构造抛错时先归还已取得的 tokenizer 租约，再抛出原异常。
 
 所有失败的 `dependency` 为 `@omne-harness/pi-ai-anthropic`。精确采用的查找、路由核对与绑定核对归家族表。
 
@@ -141,8 +147,8 @@
 
 - 记录是模块常量，家族表保存冻结副本。
 - 词表资源由装配方读取一次，归家族配置。家族不读文件。
-- tokenizer 由家族在第一次取得时创建，归该家族。tokenizer 没有需要释放的资源，所以绑定的 `release` 不释放任何东西，重复调用返回同一结果。
-- 规则、计量、`represent` 与 `measure` 都是纯计算，不读环境、秘密、网络或文件。
+- 每个绑定拥有独立 tokenizer 租约。绑定的 `release` 等待租约释放，失败时拒绝 Promise。宿主独占 executor.close，卸载单个家族或绑定不关闭共享池。
+- 规则与 `represent` 是同步计算。`measure` 与 `measureCalibrated` 等待全部计数后才返回完整预算，不读秘密或网络。完整 JSON 超过 maxSerializedBytes 时，在序列化、计数及摘要前返回 unavailable，依赖 tokenizer，诊断 serialized-input-too-large。不截断输入。
 - 契约规定失败值的边界（`acquire`、`plan`、`encode`、`measure`、hook）返回闭合失败；`createAnthropicFamily` 与 `officialAnthropicProfiles` 对不可用的配置抛出 `RangeError`；`anthropicTokenizerResources` 对不符的文件抛出 `TokenizerResourceError`；引擎对记录缺陷抛出的 `RangeError` 原样传出。
 
 ## 组合与验证

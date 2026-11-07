@@ -119,3 +119,7 @@ acceptance/               Empty now, fixtures/ is also empty
 ```
 
 Each directory has README.md for its role and current state, and index.md for navigation. See [index.md](index.md) for reading paths.
+
+## Session todos
+
+The coordinator work face exposes the four [Todo operations](../session-contract/SPEC.md#session-todo-状态与操作). Each call checks current access. Mutations use CP-01 and recover the original result before lifecycle refusal. Lists read the full authorized snapshot and return revision-bound pages. Todo events do not wake Agent work. Automatic Context projection is not enabled.

@@ -1,6 +1,6 @@
 {
   "format": "omne-harness/tool-release/2",
-  "generation": "sha256:e62dc494b454c0c341982f82903e1b92cf19be2b4ac360e29282d24f1d4d8b72",
+  "generation": "sha256:7237e1e9a4a0e9e8a19883341390bc9f23cde7532c56a0b17f840c17c13d6433",
   "artifacts": {
     "package": "@omne-harness/tool-definitions",
     "files": [
@@ -118,19 +118,19 @@
       },
       {
         "path": "dist/index.d.ts",
-        "sha256": "547980ac6ab09380704b0f948bc0468752d4c336a04dbdd381d71514fce3e7bb"
+        "sha256": "2f16bd8e0b0f74e74a03758dc03f55ac978798e0904a415ac35cb49c32cd05f8"
       },
       {
         "path": "dist/index.d.ts.map",
-        "sha256": "09cd267415f33f2e999efbc6182aa2d8a3be1c8116ef94454aa4aa8680932263"
+        "sha256": "f148bd4d636ee4d34a1e2458e4d7d50ade704df523abb027e53ffcd456350c1c"
       },
       {
         "path": "dist/index.js",
-        "sha256": "29504f51367d24f643c1e92cee5af0e4c790fb8039d58db6cae78053e5c982a4"
+        "sha256": "8f7932382a43426b88ff31bf39c96fa1e6735ca6752f51d96bbfc25342803d81"
       },
       {
         "path": "dist/index.js.map",
-        "sha256": "dc7aad8e62291c7ee014a5aa7956bfdf98e094435ba02f0a3185fb81507e6ef6"
+        "sha256": "93d699d9c86b2dae6be473427a201317bc71611af25f83617310243be46b7b7a"
       },
       {
         "path": "dist/protocol.d.ts",
@@ -197,11 +197,107 @@
         "sha256": "d81fe57a6630a9dfe68f29617dcab8411aab7274eb3ed498404912e620454857"
       },
       {
+        "path": "dist/todo-items-port.d.ts",
+        "sha256": "808c47f1c69c1776f4c27b942e74336cbf02aeb15861b12db17e242e42f000e1"
+      },
+      {
+        "path": "dist/todo-items-port.d.ts.map",
+        "sha256": "37cd71536884032ce7f37001ece364e335c68a58b2e2fa19db72b5d7abfb3958"
+      },
+      {
+        "path": "dist/todo-items-port.js",
+        "sha256": "a6b0ff80205959338678e02737cb3b265cc376d2fbba813cf857028de508f206"
+      },
+      {
+        "path": "dist/todo-items-port.js.map",
+        "sha256": "7f897a46901ffe4dcb2b38fa3a76539b423c5f3ed92274f6fca73aea97b402cd"
+      },
+      {
+        "path": "dist/todo-items-protocol.d.ts",
+        "sha256": "dbf0e48f368d3a1b7c656cd10ad9f421996f73b7a0b9e487dd7e673a95c30b01"
+      },
+      {
+        "path": "dist/todo-items-protocol.d.ts.map",
+        "sha256": "78fcb6ae65f6c6dce60a052f33d6037464a4cd062681ccc430295809d74594db"
+      },
+      {
+        "path": "dist/todo-items-protocol.js",
+        "sha256": "042781371ccb6a7cc1095d43f147dc79aaade7ea9d173be924932d35d3ca6f15"
+      },
+      {
+        "path": "dist/todo-items-protocol.js.map",
+        "sha256": "612d49f2fc950481a73c44b62a5cc96b0dbdb79d1ac4a0947cebf02c73f968f0"
+      },
+      {
+        "path": "dist/todo-items.d.ts",
+        "sha256": "ae3970b35438f88d5d2154f7022fccd378d508a597b8458ee46428ae222e3a9e"
+      },
+      {
+        "path": "dist/todo-items.d.ts.map",
+        "sha256": "98d3b8eb9bffa2b9de7b37fa25f53b8737e9bfd9880dbc696a3ecce232bbb7e9"
+      },
+      {
+        "path": "dist/todo-items.js",
+        "sha256": "a627fe4d6bd54e973d3dd57fadece803bd3efd2f6891c18da0d35cfccee55f30"
+      },
+      {
+        "path": "dist/todo-items.js.map",
+        "sha256": "e67725755a612c2e3c58abff3744e3445583d05616bfc3ece6fd50f2fa81f0d6"
+      },
+      {
+        "path": "dist/tools-presentation.d.ts",
+        "sha256": "8296a1969dc74d2673e6c696c63f480545df39db13d15d60d8b06a061783c1ef"
+      },
+      {
+        "path": "dist/tools-presentation.d.ts.map",
+        "sha256": "73acf9a79c8ac7c32b9d3720daeeba926d6ada79b2d285bd69254a361ac5500c"
+      },
+      {
+        "path": "dist/tools-presentation.js",
+        "sha256": "95117acbdc80223cec8dffb00e71bde96a16e6b161606adf040fa34196a83201"
+      },
+      {
+        "path": "dist/tools-presentation.js.map",
+        "sha256": "a4f225a8ae6149ebd07eeae2ac18e5d8d9569e8825a8f75c3c3d3a9cada469c8"
+      },
+      {
+        "path": "dist/tools-protocol.d.ts",
+        "sha256": "7c5ab71b8458fe49e865b612f9bd3ddcaf73f081b56dadc20a29a10947d4855d"
+      },
+      {
+        "path": "dist/tools-protocol.d.ts.map",
+        "sha256": "4a7297550120dc925c321f119f7f8f40ef08ed54d6b0a7e9421a162a9e1ec7e9"
+      },
+      {
+        "path": "dist/tools-protocol.js",
+        "sha256": "c206811df8f45ae75f4a0d969768daf499e7a1a0a89f3c73d8e4bb0d29510d87"
+      },
+      {
+        "path": "dist/tools-protocol.js.map",
+        "sha256": "6f420f0062999cff91e83649ff6966dfde8660690308564d94f1a8e79d314e34"
+      },
+      {
+        "path": "dist/tools.d.ts",
+        "sha256": "902bb160f99edd5688680fdae637113472e7f29b331621d7e980ecd4536facbc"
+      },
+      {
+        "path": "dist/tools.d.ts.map",
+        "sha256": "46fba8263e01f0765808bdcef1cbab1ac7bd83fb44a9a59d799e6783bd6cca64"
+      },
+      {
+        "path": "dist/tools.js",
+        "sha256": "a43517bea42b92369c8158dd7e8d91d79b46b67170249549533d2f7fd96e8d1b"
+      },
+      {
+        "path": "dist/tools.js.map",
+        "sha256": "fc11301fa7a7242f3cb40ebfeecc8ffaa2ab58ac3498fab60c8bea0cb7ce82e6"
+      },
+      {
         "path": "package.json",
-        "sha256": "e6a276b9edf1fe148d1d8443366c436bcf2994cb9fc2dd30fc40cbba8bb018db"
+        "sha256": "8b4675f7c357a7affd19884b4996fccae595b0ec11f16716962acb7adc41885b"
       }
     ],
-    "digest": "sha256:de28c1a49135cf0474792501358ea88ef8be8b013ecf9b5bfe4b0213ddda4dc7"
+    "digest": "sha256:309d2fd1fb360d675528e692884bff6d42f0134dbc1d04b52478044b66791cf7"
   },
   "consumer": {
     "input": [
@@ -214,15 +310,15 @@
     "capabilities": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/capabilities",
-      "revision": "sha256:e62dc494b454c0c341982f82903e1b92cf19be2b4ac360e29282d24f1d4d8b72",
-      "digest": "sha256:83a7b519c8fb5e24bf51218c70b8311dd8113047485acbe6e45cca8e500d035e"
+      "revision": "sha256:7237e1e9a4a0e9e8a19883341390bc9f23cde7532c56a0b17f840c17c13d6433",
+      "digest": "sha256:141f16f1703a2f3023e69c4f3f1f685b3b538df1f7cf1498b5e0d0be902e7bf0"
     },
     "conversion": null,
     "attachmentAccess": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/attachment-access",
-      "revision": "sha256:e62dc494b454c0c341982f82903e1b92cf19be2b4ac360e29282d24f1d4d8b72",
-      "digest": "sha256:25f01a84de66f5cd6e3383eb5cfd2c654229bd0ba70e1290ff40f8e1b4c7d558"
+      "revision": "sha256:7237e1e9a4a0e9e8a19883341390bc9f23cde7532c56a0b17f840c17c13d6433",
+      "digest": "sha256:f5171856221b662c7450b8f092b5508ab990c7607e44541f92217d38eeae6773"
     }
   },
   "entries": [
@@ -233,7 +329,7 @@
           "owner": "@omne-harness/harness-server",
           "name": "Shell",
           "revision": "0.0.0",
-          "digest": "sha256:55a32b6def81e4ca19417d59dea6e840db0c8d6040b30c2d7207ba099d1b0cc4"
+          "digest": "sha256:4c48fb9716642aa9f8a0e1e4ccd520c0795ef6b5095131e74ea99f48462e61ca"
         }
       },
       "requiredCapabilities": [],
@@ -246,7 +342,7 @@
           "revision": "2",
           "digest": "sha256:5bdad048d0f3b3b49e0d1d4bc427ce746a69c2b9099d70142d85c66da6a41326"
         },
-        "artifacts": "sha256:de28c1a49135cf0474792501358ea88ef8be8b013ecf9b5bfe4b0213ddda4dc7"
+        "artifacts": "sha256:309d2fd1fb360d675528e692884bff6d42f0134dbc1d04b52478044b66791cf7"
       },
       "construction": [
         "resultMaxBytes",
@@ -261,25 +357,25 @@
         "revision": "0.0.0",
         "digest": "sha256:94108f64517d8751252caec2702b170d5c24e4326afa8c4abcfe0b47fb8d5129"
       },
-      "definition": "sha256:794ef7d18ee65849ee5cf892eebb8b2acc94caa6471ec87de280088ecfb4d397",
+      "definition": "sha256:384e38838f1e9a6bdd9a87ff2051185f66e48c54f78cf7bacfedb2751af00a5f",
       "governance": {
         "declaration": {
           "reference": {
             "ownerId": "harness-server.tool-release",
             "definitionId": "tool.Shell",
-            "version": "11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322",
-            "digest": "780dc29c49ef1990cf16bf06eadd8b94a3afb56ad3913b2fdccc0998930fdffe"
+            "version": "da926f1ff74f16c00167eb4508ac924881fbf687b159100832cab04fb1c4846b",
+            "digest": "a28d9734fb35417b38c7584567f77f6b4aedf6bb768f8c4af5f869c4e3afe269"
           },
           "origin": {
             "kind": "asset",
             "assetId": "harness.tool.Shell",
-            "releaseRef": "harness.tool.Shell/11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322"
+            "releaseRef": "harness.tool.Shell/da926f1ff74f16c00167eb4508ac924881fbf687b159100832cab04fb1c4846b"
           },
           "settings": [
             {
               "providerId": "harness-server.tool-release",
               "definitionId": "tool.Shell.permissions",
-              "version": "11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322",
+              "version": "da926f1ff74f16c00167eb4508ac924881fbf687b159100832cab04fb1c4846b",
               "groups": [
                 {
                   "id": "tool.Shell",
@@ -382,10 +478,10 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Shell",
-                  "releaseRef": "harness.tool.Shell/11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322"
+                  "releaseRef": "harness.tool.Shell/da926f1ff74f16c00167eb4508ac924881fbf687b159100832cab04fb1c4846b"
                 },
                 "itemId": "invoke",
-                "revision": "11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322"
+                "revision": "da926f1ff74f16c00167eb4508ac924881fbf687b159100832cab04fb1c4846b"
               },
               "capabilityId": "tool.Shell",
               "enforcementKey": "tool.invoke",
@@ -462,7 +558,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Shell.permissions",
-                "version": "11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322",
+                "version": "da926f1ff74f16c00167eb4508ac924881fbf687b159100832cab04fb1c4846b",
                 "itemId": "invoke",
                 "groupId": "tool.Shell",
                 "groupTitle": "Shell 工具",
@@ -474,7 +570,7 @@
             {
               "capabilityId": "tool.Shell",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/c3ed352891a03126c04d2f7287aee83ec7e374ef999a685868c4b9688ebca32f",
+              "implementationRef": "tool/37d519682c01a90d9075f4146dca6d17567a47e68d622a73e09962c3ad4ca67a",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             }
@@ -485,7 +581,7 @@
             "binding": {
               "capabilityId": "tool.Shell",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/c3ed352891a03126c04d2f7287aee83ec7e374ef999a685868c4b9688ebca32f",
+              "implementationRef": "tool/37d519682c01a90d9075f4146dca6d17567a47e68d622a73e09962c3ad4ca67a",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -494,10 +590,10 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Shell",
-                  "releaseRef": "harness.tool.Shell/11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322"
+                  "releaseRef": "harness.tool.Shell/da926f1ff74f16c00167eb4508ac924881fbf687b159100832cab04fb1c4846b"
                 },
                 "itemId": "invoke",
-                "revision": "11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322"
+                "revision": "da926f1ff74f16c00167eb4508ac924881fbf687b159100832cab04fb1c4846b"
               },
               "capabilityId": "tool.Shell",
               "enforcementKey": "tool.invoke",
@@ -574,7 +670,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Shell.permissions",
-                "version": "11e9d45567fb40f73d6a7c896d8b7903589f5ae4b3e9e5a88d1b16903fba8322",
+                "version": "da926f1ff74f16c00167eb4508ac924881fbf687b159100832cab04fb1c4846b",
                 "itemId": "invoke",
                 "groupId": "tool.Shell",
                 "groupTitle": "Shell 工具",
@@ -601,14 +697,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/holding",
-        "revision": "sha256:e62dc494b454c0c341982f82903e1b92cf19be2b4ac360e29282d24f1d4d8b72",
-        "digest": "sha256:b4ca406746a8c0e9a8e912e9c92b383c746bb309a84c36b541a79e779e8dae68"
+        "revision": "sha256:7237e1e9a4a0e9e8a19883341390bc9f23cde7532c56a0b17f840c17c13d6433",
+        "digest": "sha256:9d6cf8be0987451b7e6c2fc69f4177aadc533f0e3553d84a4d92b672abcb3599"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/publication",
-        "revision": "sha256:e62dc494b454c0c341982f82903e1b92cf19be2b4ac360e29282d24f1d4d8b72",
-        "digest": "sha256:f2e30024d726eb6cbf78be6b80f2be85db16d6446f8f8575ed184467a43c384a"
+        "revision": "sha256:7237e1e9a4a0e9e8a19883341390bc9f23cde7532c56a0b17f840c17c13d6433",
+        "digest": "sha256:224b17058ac9a5242af67f3220fdd483e52478fb104de5ded4ce46b18c32c0b4"
       }
     },
     {
@@ -618,7 +714,7 @@
           "owner": "@omne-harness/harness-server",
           "name": "Files",
           "revision": "0.0.0",
-          "digest": "sha256:77549c7f04997792b6d5d90d88fcb7cf710d4e8875d689f7eae5aa87b9c4c8e4"
+          "digest": "sha256:cb67e219e1dc60ffe0bed1c36020e82c3e6460f769fd8e2c34296bac80291c5d"
         }
       },
       "requiredCapabilities": [],
@@ -631,7 +727,7 @@
           "revision": "2",
           "digest": "sha256:484152cb30b4cf06832aabcf493907a881e1c3a96998a6dae3a01572bf2facf2"
         },
-        "artifacts": "sha256:de28c1a49135cf0474792501358ea88ef8be8b013ecf9b5bfe4b0213ddda4dc7"
+        "artifacts": "sha256:309d2fd1fb360d675528e692884bff6d42f0134dbc1d04b52478044b66791cf7"
       },
       "construction": [
         "resultMaxBytes",
@@ -643,25 +739,25 @@
         "revision": "0.0.0",
         "digest": "sha256:5bee1c48c061684e0fa0bac8cc65796a1ae64faa833c2a6267bb550b375e152b"
       },
-      "definition": "sha256:d3ce96a7f8cafbfe17e1ea69f856fe28c95471cefcdc0c9e1faed1a9c9aae795",
+      "definition": "sha256:ba42e62567e41c5472e794bb89643353f62b9d203f8157fcab2e67bfcfb07780",
       "governance": {
         "declaration": {
           "reference": {
             "ownerId": "harness-server.tool-release",
             "definitionId": "tool.Files",
-            "version": "5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3",
-            "digest": "4e6dd69ae5dd7bb21c93f3adbda40d532caa2dc783f3174365c986a74bf1e858"
+            "version": "088a22f7553bcb6076f47031e1fe496f4b36085f523ec626c216c4f3f2feae0a",
+            "digest": "a37483c92e8c1402f65be916ca7f1de4bff08ae6bdce6a455a4414606d4834a1"
           },
           "origin": {
             "kind": "asset",
             "assetId": "harness.tool.Files",
-            "releaseRef": "harness.tool.Files/5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3"
+            "releaseRef": "harness.tool.Files/088a22f7553bcb6076f47031e1fe496f4b36085f523ec626c216c4f3f2feae0a"
           },
           "settings": [
             {
               "providerId": "harness-server.tool-release",
               "definitionId": "tool.Files.permissions",
-              "version": "5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3",
+              "version": "088a22f7553bcb6076f47031e1fe496f4b36085f523ec626c216c4f3f2feae0a",
               "groups": [
                 {
                   "id": "tool.Files",
@@ -764,10 +860,10 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Files",
-                  "releaseRef": "harness.tool.Files/5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3"
+                  "releaseRef": "harness.tool.Files/088a22f7553bcb6076f47031e1fe496f4b36085f523ec626c216c4f3f2feae0a"
                 },
                 "itemId": "invoke",
-                "revision": "5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3"
+                "revision": "088a22f7553bcb6076f47031e1fe496f4b36085f523ec626c216c4f3f2feae0a"
               },
               "capabilityId": "tool.Files",
               "enforcementKey": "tool.invoke",
@@ -844,7 +940,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Files.permissions",
-                "version": "5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3",
+                "version": "088a22f7553bcb6076f47031e1fe496f4b36085f523ec626c216c4f3f2feae0a",
                 "itemId": "invoke",
                 "groupId": "tool.Files",
                 "groupTitle": "Files 工具",
@@ -856,7 +952,7 @@
             {
               "capabilityId": "tool.Files",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/a22ec0a040368d78de11c92a3df21ba60c745afbe9944add809ab5d85e390470",
+              "implementationRef": "tool/a1a4825f3ab74ff08a1fdb912a6cea59c81f3f9d393a7197fcc45e61520f1351",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             }
@@ -867,7 +963,7 @@
             "binding": {
               "capabilityId": "tool.Files",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/a22ec0a040368d78de11c92a3df21ba60c745afbe9944add809ab5d85e390470",
+              "implementationRef": "tool/a1a4825f3ab74ff08a1fdb912a6cea59c81f3f9d393a7197fcc45e61520f1351",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -876,10 +972,10 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Files",
-                  "releaseRef": "harness.tool.Files/5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3"
+                  "releaseRef": "harness.tool.Files/088a22f7553bcb6076f47031e1fe496f4b36085f523ec626c216c4f3f2feae0a"
                 },
                 "itemId": "invoke",
-                "revision": "5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3"
+                "revision": "088a22f7553bcb6076f47031e1fe496f4b36085f523ec626c216c4f3f2feae0a"
               },
               "capabilityId": "tool.Files",
               "enforcementKey": "tool.invoke",
@@ -956,7 +1052,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Files.permissions",
-                "version": "5a30db07a62812601f23c4aab1780cd2f556d865533c343baebd0d7f153f31c3",
+                "version": "088a22f7553bcb6076f47031e1fe496f4b36085f523ec626c216c4f3f2feae0a",
                 "itemId": "invoke",
                 "groupId": "tool.Files",
                 "groupTitle": "Files 工具",
@@ -983,14 +1079,777 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/holding",
-        "revision": "sha256:e62dc494b454c0c341982f82903e1b92cf19be2b4ac360e29282d24f1d4d8b72",
-        "digest": "sha256:a118ad07f8a8a47857155a664aeedf72c5069514909369c815f39f1c433ea918"
+        "revision": "sha256:7237e1e9a4a0e9e8a19883341390bc9f23cde7532c56a0b17f840c17c13d6433",
+        "digest": "sha256:eba1484570ccc53aa5356d4b01fc48023add4d9665fd5c35f5c5d20bbc9e8a99"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/publication",
-        "revision": "sha256:e62dc494b454c0c341982f82903e1b92cf19be2b4ac360e29282d24f1d4d8b72",
-        "digest": "sha256:bb5e1168a7c1d73cdeae0ca7fb9f29080e17592a9697ecbfb1c8425ff9723106"
+        "revision": "sha256:7237e1e9a4a0e9e8a19883341390bc9f23cde7532c56a0b17f840c17c13d6433",
+        "digest": "sha256:ffeb2dd734d82da657440b354c252e81282e3c8394845dd91545e5fbad59e8a1"
+      }
+    },
+    {
+      "asset": {
+        "name": "Tools",
+        "adoption": {
+          "owner": "@omne-harness/harness-server",
+          "name": "Tools",
+          "revision": "0.0.0",
+          "digest": "sha256:f623dd5b90ad8713e45abec7b53f0d4b8ad2dcb3fa8c09c835ee12671269f9df"
+        }
+      },
+      "requiredCapabilities": [],
+      "module": {
+        "package": "@omne-harness/tool-definitions",
+        "export": "toolsToolModule",
+        "executor": {
+          "owner": "@omne-harness/tool-definitions",
+          "name": "Tools",
+          "revision": "1",
+          "digest": "sha256:651301f42e1284dd134047bc54e34c244f016a8d548055426cdd4e81cdb10584"
+        },
+        "artifacts": "sha256:309d2fd1fb360d675528e692884bff6d42f0134dbc1d04b52478044b66791cf7"
+      },
+      "construction": [
+        "resultMaxBytes",
+        "outputModalities"
+      ],
+      "settings": {
+        "owner": "@omne-harness/harness-server",
+        "name": "Tools.settings",
+        "revision": "0.0.0",
+        "digest": "sha256:7859283afca3b5b66c64e6d09cfb5d8638e15acbfe6f92673d88253bb9a8a153"
+      },
+      "definition": "sha256:eca8cf88832d6f66ccc84187ec9ed73f703244435163079acc3b54bddff96aa9",
+      "governance": {
+        "declaration": {
+          "reference": {
+            "ownerId": "harness-server.tool-release",
+            "definitionId": "tool.Tools",
+            "version": "20c8c1f0a189799babd94356ef7d9b9954a8f047ef2bd993955a2a2b37d5007e",
+            "digest": "d3cc56147bcdd36fa0e9ff49544f4b9acf61a56ad78f44fe518364bf8c06b984"
+          },
+          "origin": {
+            "kind": "asset",
+            "assetId": "harness.tool.Tools",
+            "releaseRef": "harness.tool.Tools/20c8c1f0a189799babd94356ef7d9b9954a8f047ef2bd993955a2a2b37d5007e"
+          },
+          "settings": [
+            {
+              "providerId": "harness-server.tool-release",
+              "definitionId": "tool.Tools.permissions",
+              "version": "20c8c1f0a189799babd94356ef7d9b9954a8f047ef2bd993955a2a2b37d5007e",
+              "groups": [
+                {
+                  "id": "tool.Tools",
+                  "parentId": null,
+                  "title": "Tools 工具",
+                  "description": "Tools 调用的权限规则。",
+                  "order": 0
+                }
+              ],
+              "items": [
+                {
+                  "id": "invoke",
+                  "groupId": "tool.Tools",
+                  "category": "governance",
+                  "presentation": {
+                    "title": "Tools 调用权限",
+                    "description": "控制 Tools 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+                    "clear": "清除本层挑选与锁界，重新按当前来源求值。",
+                    "adoption": "next-boundary",
+                    "enumLabels": [
+                      {
+                        "value": "deny",
+                        "title": "不允许",
+                        "description": "不启动此工具调用。"
+                      },
+                      {
+                        "value": "ask",
+                        "title": "询问",
+                        "description": "需要取得适用的人工许可。"
+                      },
+                      {
+                        "value": "auto",
+                        "title": "自动",
+                        "description": "本项不要求另行询问。"
+                      }
+                    ]
+                  },
+                  "valueSchema": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "pick",
+                      "allowedSet"
+                    ],
+                    "properties": {
+                      "pick": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "deny",
+                              "ask",
+                              "auto"
+                            ]
+                          }
+                        ]
+                      },
+                      "allowedSet": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "deny",
+                                "ask",
+                                "auto"
+                              ]
+                            },
+                            "uniqueItems": true,
+                            "maxItems": 3
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "default": {
+                    "kind": "value",
+                    "value": {
+                      "pick": "ask",
+                      "allowedSet": null
+                    }
+                  },
+                  "merge": "override",
+                  "sensitivity": "ordinary"
+                }
+              ]
+            }
+          ],
+          "permissions": [
+            {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Tools",
+                  "releaseRef": "harness.tool.Tools/20c8c1f0a189799babd94356ef7d9b9954a8f047ef2bd993955a2a2b37d5007e"
+                },
+                "itemId": "invoke",
+                "revision": "20c8c1f0a189799babd94356ef7d9b9954a8f047ef2bd993955a2a2b37d5007e"
+              },
+              "capabilityId": "tool.Tools",
+              "enforcementKey": "tool.invoke",
+              "title": "Tools 调用权限",
+              "description": "控制 Tools 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "ask",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Tools.permissions",
+                "version": "20c8c1f0a189799babd94356ef7d9b9954a8f047ef2bd993955a2a2b37d5007e",
+                "itemId": "invoke",
+                "groupId": "tool.Tools",
+                "groupTitle": "Tools 工具",
+                "groupDescription": "Tools 调用的权限规则。"
+              }
+            }
+          ],
+          "enforcementBindings": [
+            {
+              "capabilityId": "tool.Tools",
+              "enforcementKey": "tool.invoke",
+              "implementationRef": "tool/5ccad27dae4bfa9e911108050dc79b49768e6cdc7f80cc0cef5429302540a8fa",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            }
+          ]
+        },
+        "interpretations": [
+          {
+            "binding": {
+              "capabilityId": "tool.Tools",
+              "enforcementKey": "tool.invoke",
+              "implementationRef": "tool/5ccad27dae4bfa9e911108050dc79b49768e6cdc7f80cc0cef5429302540a8fa",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            "definition": {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Tools",
+                  "releaseRef": "harness.tool.Tools/20c8c1f0a189799babd94356ef7d9b9954a8f047ef2bd993955a2a2b37d5007e"
+                },
+                "itemId": "invoke",
+                "revision": "20c8c1f0a189799babd94356ef7d9b9954a8f047ef2bd993955a2a2b37d5007e"
+              },
+              "capabilityId": "tool.Tools",
+              "enforcementKey": "tool.invoke",
+              "title": "Tools 调用权限",
+              "description": "控制 Tools 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "ask",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Tools.permissions",
+                "version": "20c8c1f0a189799babd94356ef7d9b9954a8f047ef2bd993955a2a2b37d5007e",
+                "itemId": "invoke",
+                "groupId": "tool.Tools",
+                "groupTitle": "Tools 工具",
+                "groupDescription": "Tools 调用的权限规则。"
+              }
+            },
+            "effects": [
+              {
+                "value": "deny",
+                "effect": "deny"
+              },
+              {
+                "value": "ask",
+                "effect": "need-decision"
+              },
+              {
+                "value": "auto",
+                "effect": "allow"
+              }
+            ]
+          }
+        ]
+      },
+      "holding": {
+        "owner": "@omne-harness/harness-server",
+        "record": "tool-release.json#Tools/holding",
+        "revision": "sha256:7237e1e9a4a0e9e8a19883341390bc9f23cde7532c56a0b17f840c17c13d6433",
+        "digest": "sha256:e1edcc0f5b8dad3efd1c1cc71a4de9ddc46819c7dc2e361bbb4f79e88a06e193"
+      },
+      "publication": {
+        "owner": "@omne-harness/harness-server",
+        "record": "tool-release.json#Tools/publication",
+        "revision": "sha256:7237e1e9a4a0e9e8a19883341390bc9f23cde7532c56a0b17f840c17c13d6433",
+        "digest": "sha256:141efeed2f3fd6247f40cd365e2fd1635ff20eea44de64080f5726ec0c94b89a"
+      }
+    },
+    {
+      "asset": {
+        "name": "TodoItems",
+        "adoption": {
+          "owner": "@omne-harness/harness-server",
+          "name": "TodoItems",
+          "revision": "0.0.0",
+          "digest": "sha256:3f26c1b380612bbe4c7ea43b9327106b7c0454dded93f2c47f5798c0f01b1f2f"
+        }
+      },
+      "requiredCapabilities": [],
+      "module": {
+        "package": "@omne-harness/tool-definitions",
+        "export": "todoItemsToolModule",
+        "executor": {
+          "owner": "@omne-harness/tool-definitions",
+          "name": "TodoItems",
+          "revision": "1",
+          "digest": "sha256:e2d7e2cabf487d682d45145759537a5defade7d418ee4f1b4254b4e7d63964cb"
+        },
+        "artifacts": "sha256:309d2fd1fb360d675528e692884bff6d42f0134dbc1d04b52478044b66791cf7"
+      },
+      "construction": [
+        "resultMaxBytes"
+      ],
+      "settings": {
+        "owner": "@omne-harness/harness-server",
+        "name": "TodoItems.settings",
+        "revision": "0.0.0",
+        "digest": "sha256:598d2bb46bbb375846bec841b0b16a941f756d83df6d69cc3415b2abecff064f"
+      },
+      "definition": "sha256:1647a4f00090d3539896edf42f5216fde0dc90b56d3e893cd917795e8c9377ef",
+      "governance": {
+        "declaration": {
+          "reference": {
+            "ownerId": "harness-server.tool-release",
+            "definitionId": "tool.TodoItems",
+            "version": "ddc1bb978897555d043eec3cf7f2da045e59ba5684254573bda5dc6e6b09cec1",
+            "digest": "281591f3135888864266e9fac45b63f0b67eedb9365f572795208411618adb23"
+          },
+          "origin": {
+            "kind": "asset",
+            "assetId": "harness.tool.TodoItems",
+            "releaseRef": "harness.tool.TodoItems/ddc1bb978897555d043eec3cf7f2da045e59ba5684254573bda5dc6e6b09cec1"
+          },
+          "settings": [
+            {
+              "providerId": "harness-server.tool-release",
+              "definitionId": "tool.TodoItems.permissions",
+              "version": "ddc1bb978897555d043eec3cf7f2da045e59ba5684254573bda5dc6e6b09cec1",
+              "groups": [
+                {
+                  "id": "tool.TodoItems",
+                  "parentId": null,
+                  "title": "TodoItems 工具",
+                  "description": "TodoItems 调用的权限规则。",
+                  "order": 0
+                }
+              ],
+              "items": [
+                {
+                  "id": "invoke",
+                  "groupId": "tool.TodoItems",
+                  "category": "governance",
+                  "presentation": {
+                    "title": "TodoItems 调用权限",
+                    "description": "控制 TodoItems 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+                    "clear": "清除本层挑选与锁界，重新按当前来源求值。",
+                    "adoption": "next-boundary",
+                    "enumLabels": [
+                      {
+                        "value": "deny",
+                        "title": "不允许",
+                        "description": "不启动此工具调用。"
+                      },
+                      {
+                        "value": "ask",
+                        "title": "询问",
+                        "description": "需要取得适用的人工许可。"
+                      },
+                      {
+                        "value": "auto",
+                        "title": "自动",
+                        "description": "本项不要求另行询问。"
+                      }
+                    ]
+                  },
+                  "valueSchema": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "pick",
+                      "allowedSet"
+                    ],
+                    "properties": {
+                      "pick": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "deny",
+                              "ask",
+                              "auto"
+                            ]
+                          }
+                        ]
+                      },
+                      "allowedSet": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "deny",
+                                "ask",
+                                "auto"
+                              ]
+                            },
+                            "uniqueItems": true,
+                            "maxItems": 3
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "default": {
+                    "kind": "value",
+                    "value": {
+                      "pick": "ask",
+                      "allowedSet": null
+                    }
+                  },
+                  "merge": "override",
+                  "sensitivity": "ordinary"
+                }
+              ]
+            }
+          ],
+          "permissions": [
+            {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.TodoItems",
+                  "releaseRef": "harness.tool.TodoItems/ddc1bb978897555d043eec3cf7f2da045e59ba5684254573bda5dc6e6b09cec1"
+                },
+                "itemId": "invoke",
+                "revision": "ddc1bb978897555d043eec3cf7f2da045e59ba5684254573bda5dc6e6b09cec1"
+              },
+              "capabilityId": "tool.TodoItems",
+              "enforcementKey": "tool.invoke",
+              "title": "TodoItems 调用权限",
+              "description": "控制 TodoItems 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "ask",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.TodoItems.permissions",
+                "version": "ddc1bb978897555d043eec3cf7f2da045e59ba5684254573bda5dc6e6b09cec1",
+                "itemId": "invoke",
+                "groupId": "tool.TodoItems",
+                "groupTitle": "TodoItems 工具",
+                "groupDescription": "TodoItems 调用的权限规则。"
+              }
+            }
+          ],
+          "enforcementBindings": [
+            {
+              "capabilityId": "tool.TodoItems",
+              "enforcementKey": "tool.invoke",
+              "implementationRef": "tool/cf992bda51e056e278baa456a7f717817f4e3932a31aefe924dc989100c0f524",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            }
+          ]
+        },
+        "interpretations": [
+          {
+            "binding": {
+              "capabilityId": "tool.TodoItems",
+              "enforcementKey": "tool.invoke",
+              "implementationRef": "tool/cf992bda51e056e278baa456a7f717817f4e3932a31aefe924dc989100c0f524",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            "definition": {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.TodoItems",
+                  "releaseRef": "harness.tool.TodoItems/ddc1bb978897555d043eec3cf7f2da045e59ba5684254573bda5dc6e6b09cec1"
+                },
+                "itemId": "invoke",
+                "revision": "ddc1bb978897555d043eec3cf7f2da045e59ba5684254573bda5dc6e6b09cec1"
+              },
+              "capabilityId": "tool.TodoItems",
+              "enforcementKey": "tool.invoke",
+              "title": "TodoItems 调用权限",
+              "description": "控制 TodoItems 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "ask",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.TodoItems.permissions",
+                "version": "ddc1bb978897555d043eec3cf7f2da045e59ba5684254573bda5dc6e6b09cec1",
+                "itemId": "invoke",
+                "groupId": "tool.TodoItems",
+                "groupTitle": "TodoItems 工具",
+                "groupDescription": "TodoItems 调用的权限规则。"
+              }
+            },
+            "effects": [
+              {
+                "value": "deny",
+                "effect": "deny"
+              },
+              {
+                "value": "ask",
+                "effect": "need-decision"
+              },
+              {
+                "value": "auto",
+                "effect": "allow"
+              }
+            ]
+          }
+        ]
+      },
+      "holding": {
+        "owner": "@omne-harness/harness-server",
+        "record": "tool-release.json#TodoItems/holding",
+        "revision": "sha256:7237e1e9a4a0e9e8a19883341390bc9f23cde7532c56a0b17f840c17c13d6433",
+        "digest": "sha256:936e57a4d3198db2fda360b7a484818256098d06a3d1dc0d51d8e0433ccb1729"
+      },
+      "publication": {
+        "owner": "@omne-harness/harness-server",
+        "record": "tool-release.json#TodoItems/publication",
+        "revision": "sha256:7237e1e9a4a0e9e8a19883341390bc9f23cde7532c56a0b17f840c17c13d6433",
+        "digest": "sha256:51441015361e849bc770af34235589c1c738446d913f21f819bace80cb4d9c9e"
       }
     }
   ]

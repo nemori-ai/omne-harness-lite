@@ -123,7 +123,8 @@ export function createScan<P>(
       lifecycle.spawn(async () => {
         await round(tenant, new Set(), startup.ok.sessions, startup.ok.next)
         while (!stop.signal.aborted) {
-          if (!(await scheduling.wait(policy.recoveryScan.periodMs, stop.signal))) return
+          if ((await scheduling.wait(policy.recoveryScan.periodMs, stop.signal)) !== 'elapsed')
+            return
           const seen = new Set<string>()
           for (const reason of PERIODIC_REASONS) {
             const first = await page(tenant, null, reason)

@@ -3,6 +3,7 @@ import { projectPermissionSettings, type PermissionDefinition } from '@omne-harn
 import { canonicalDigest } from '@omne-harness/tool'
 import type { Adoption } from '@omne-harness/tool-contract'
 import { z } from 'zod'
+import type { ReleaseToolName } from './tool-release-manifest.ts'
 import {
   PERMISSION_INTERPRETATION,
   permissionInterpretationSchema,
@@ -64,7 +65,7 @@ function invocationPolicy(name: string) {
 
 /** Part of the release owner's canonical manifest, never derived from tenant assignments. */
 type ControlledTool = {
-  name: 'Shell' | 'Files'
+  name: ReleaseToolName
   adoption: Adoption
   module: { package: string; export: string; executor: Adoption; artifacts: string }
   definition: string

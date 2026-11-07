@@ -543,7 +543,7 @@ export function createToolLedger<P, B extends ContentBlock>(
       return unavailable('source-guard', thrown('source-guard'))
     }
     if (verdict.kind === 'trusted') return succeed(undefined)
-    if (verdict.kind === 'forged') return denied('admit')
+    if (verdict.kind === 'forged' || verdict.kind === 'denied') return denied('admit')
     return unavailable('source-guard', verdict.diagnostic)
   }
 
@@ -1175,6 +1175,7 @@ export function createToolLedger<P, B extends ContentBlock>(
           })
           if (verdict.kind === 'forged')
             return invalid('sourceReceipt', 'source-confirmation-mismatch')
+          if (verdict.kind === 'denied') return denied('write')
           if (verdict.kind !== 'trusted')
             return unavailable(
               'fact-acknowledgement-guard',

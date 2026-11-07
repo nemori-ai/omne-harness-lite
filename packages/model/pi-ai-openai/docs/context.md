@@ -7,9 +7,9 @@
 装配方创建家族并交给传输，示例见 [README_ZH.md“使用”](../README_ZH.md#使用)。
 
 - 依赖：本包、pi-ai-transport 与 tokenizer-tiktoken。本包自带 js-tiktoken 依赖，只用它的 o200k 秩数据。
-- 配置：tokenizer 资源、解码器限额与估算余量都由装配方给出，本包没有默认值。
+- 配置：tokenizer 资源、共享 executor、maxSerializedBytes、解码器限额与估算余量都由装配方给出，本包没有默认值。
 - 档案：`officialOpenAiProfiles` 给出纯数据的档案定义。档案的身份、修订与范围归 Model 的档案维护。
-- 释放：家族与绑定没有需要释放的资源。传输按家族表的规则调用 `release`。
+- 释放：每个绑定的 release 等待 tokenizer 租约清理。宿主在所有消费者停止后关闭共享 executor。
 
 ## 消费者与定位
 

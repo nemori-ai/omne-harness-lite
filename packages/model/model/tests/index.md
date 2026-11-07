@@ -24,3 +24,6 @@
 - [公开结果读取](runtime-reading.spec.ts)、[processed ACK 与交错风险](runtime-acknowledgement.spec.ts)、[分页准备预算](memory-paging.spec.ts)。
 - [准备资源与校准租约](preparation.spec.ts)：真实内存 Commands 上的锚点命中、清理后仍命中、另一租户与不存在同结果、每种不命中与扣留原因、按访问依据读取、全有全无取得与幂等释放。
 - [符合性装配](runtime-conformance-fixture.ts)、[消费者完成记录](completion-records.ts)、[真实收场准备](runtime-consumption-fixture.ts)。
+
+- [not-sent-window.spec.ts](not-sent-window.spec.ts) 检查零内容推导、双向矛盾拒绝与重试守卫。
+- [send-transport-refusal.spec.ts](send-transport-refusal.spec.ts) 检查发送前明确拒绝的结算、原写认回、失权与释放失败。

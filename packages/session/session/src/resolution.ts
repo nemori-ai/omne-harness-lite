@@ -33,7 +33,8 @@ export function createResolution<P>(
       lifecycle.spawn(async () => {
         try {
           for (let asked = 0; asked < policy.pendingResolution.maxAttempts; asked += 1) {
-            if (!(await scheduling.wait(policy.pendingResolution.retryIntervalMs))) return
+            if ((await scheduling.wait(policy.pendingResolution.retryIntervalMs)) !== 'elapsed')
+              return
             const principal = await scheduling.principal('maintainer', ref)
             if ('failure' in principal) continue
             const answer = await maintainer.work.queryOperation({

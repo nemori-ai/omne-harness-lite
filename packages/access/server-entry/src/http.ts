@@ -25,6 +25,7 @@ import type { ModelCredentialCustody } from './model-credentials.ts'
 import { createObservationRegistry } from './observation.ts'
 import { handleSession } from './session.ts'
 import { sessionProtocolRejected } from './session-codec.ts'
+import { createDiagnosticsCursors, type DiagnosticPorts } from './session-view/index.ts'
 import { SseStream } from './sse.ts'
 
 export const GOVERNANCE_PATH = '/governance-public/1'
@@ -48,7 +49,13 @@ export type ServerEntryDependencies = Readonly<{
    */
   modelCredentials?: ModelCredentialCustody
   diagnostics?: DiagnosticSink
-}>
+}> &
+  /**
+   * The read ports of the session diagnostics projection (SPEC「会话诊断投影」): Agent's finish
+   * read, Model's call lookup and attempt diagnostics, Tool's call lookup and account. Each may
+   * be absent; the projection then writes the corresponding gap with reason `unsupported`.
+   */
+  DiagnosticPorts<ActingForTenantPrincipal>
 
 export type Listening = Readonly<{ address: string; port: number }>
 
@@ -173,6 +180,9 @@ export function createServerEntry(input: {
     loginCheckIntervalMs: config.heartbeatIntervalMs,
     diagnostics,
   })
+  const ports: DiagnosticPorts<ActingForTenantPrincipal> = dependencies
+  // The cursor key lives as long as this entry: a cursor of another instance is `invalid`.
+  const cursors = createDiagnosticsCursors()
   const locations: readonly Location[] = [
     {
       path: GOVERNANCE_PATH,
@@ -217,6 +227,8 @@ export function createServerEntry(input: {
           registry,
           readLimits: readLimits(config, location.maxBytes),
           diagnostics,
+          ports,
+          cursors,
         })
 
   const write = (res: ServerResponse, answer: Answer): void => {

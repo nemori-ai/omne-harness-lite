@@ -20,6 +20,7 @@ export type {
   SessionIdentity,
   SessionOperationId,
   SessionRevision,
+  TodoItemId,
 } from './identity.ts'
 export type {
   AutoArchivePolicy,
@@ -266,3 +267,11 @@ export {
   judgeSessionIntake,
 } from './intake.ts'
 export type { SessionIntakeLimits } from './intake.ts'
+export type {
+  TodoItem,
+  VisibleTodoItem,
+  TodoMutationReceipt,
+  TodoPageCursor,
+  TodoPage,
+  SessionTodos,
+} from './todos.ts'

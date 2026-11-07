@@ -6,6 +6,7 @@
 // drained after the admission, is not asked here. The fence invalidation of its owner covers it.
 import type { AccessVerdict, StartVerdict, ToolStartGuard } from '@omne-harness/tool'
 import type { StartCoordinatorAccess } from './start-coordinator.ts'
+import type { ToolRequestAccess } from './ledger-guards.ts'
 
 /** The refusal reason of a call that is not direct: M2 has no programmatic call. */
 export const PROGRAMMATIC_NOT_IN_M2 = 'programmatic-not-in-m2'
@@ -13,7 +14,31 @@ export const PROGRAMMATIC_NOT_IN_M2 = 'programmatic-not-in-m2'
 export type LocalStartGuardInput<P> = Readonly<{
   /** The `start` view of the host access: the same adapter object that gives the ledger its access. */
   access: StartCoordinatorAccess<P>
+  requestAccess?: ToolRequestAccess<P>
 }>
+
+/** Re-read a configured policy and validate its answer at the provider boundary. */
+export async function qualifyRequestAccess<P>(
+  provider: ToolRequestAccess<P> | undefined,
+  input: Parameters<ToolRequestAccess<P>['qualify']>[0],
+): Promise<AccessVerdict> {
+  if (provider === undefined) return { kind: 'allowed' }
+  try {
+    const result: unknown = await provider.qualify(input)
+    if (typeof result === 'object' && result !== null && 'kind' in result) {
+      if (result.kind === 'allowed') return { kind: 'allowed' }
+      if (result.kind === 'denied' && 'reason' in result && typeof result.reason === 'string')
+        return { kind: 'denied', reason: result.reason }
+      if (
+        result.kind === 'unavailable' &&
+        'diagnostic' in result &&
+        typeof result.diagnostic === 'string'
+      )
+        return { kind: 'unavailable', diagnostic: result.diagnostic }
+    }
+  } catch {}
+  return { kind: 'unavailable', diagnostic: 'request-access unavailable' }
+}
 
 /**
  * Builds the start guard. A call whose invocation is not `direct` is `refused` without asking the
@@ -38,7 +63,15 @@ export function createLocalStartGuard<P>(input: LocalStartGuardInput<P>): ToolSt
           diagnostic: 'the start access threw an exception; its message is not reported',
         }
       }
-      if (verdict.kind === 'allowed') return { kind: 'allowed' }
+      if (verdict.kind === 'allowed') {
+        const policy = await qualifyRequestAccess(input.requestAccess, {
+          principal,
+          tenant,
+          call,
+          request,
+        })
+        return policy.kind === 'denied' ? { kind: 'refused', reason: policy.reason } : policy
+      }
       if (verdict.kind === 'denied') return { kind: 'refused', reason: 'qualification-denied' }
       return { kind: 'unavailable', diagnostic: verdict.diagnostic }
     },

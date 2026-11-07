@@ -2168,3 +2168,21 @@ SE12 记准入者的拒绝：before-admit 槽（用途提醒、内容型斜杠�
 | VC-FR10  | 大量无关旧 execution 有迟到保管，只准备少量 Q。读集合限于相关目录和必要后缀，不全历史 load。P-5 缺承接前缀仍不可释放未知输入。                                                                                                                                                                                                                                                                          |
 
 恢复排序机制须取得有限行为模型、精确配置和边界、实际结果及具名负控制，再核对模型前提。实现后另交公共入口、同根故障、跨租户、纯层负例及模型动作到真实发布点的对应。模型或轻量文档检查不证明实现接受、真实耐久、跨进程、Model ACK、新 scope 初始化或 SE12 拦截路径已经交付。
+
+## Session Todo 状态与操作
+
+本节承接 W2 S1 的冻结决定。公开类型归 [todos.ts](src/todos.ts)、[identity.ts](src/identity.ts) 与 [faces.ts](src/faces.ts)。`SessionTodos<P>` 是 `SessionWork<P>` 的四方法投影，不增加服务或状态拥有者。权威事实保存在 Session 日志，`WorkSnapshot.todos` 是其归约结果。旧快照缺少该字段时表示空集合。条目跨 Run 和 Agent 保留，归档、压缩和原操作认回不清除它。
+
+`addTodo` 保存非空白且至多 4096 UTF-8 字节的原文本，不 trim 或截断。条目依次为 pending、completed 或 removed。completed 可以由新操作再次声明完成并提交新修订，也可以移除。removed 保留 tombstone，后续新完成和移除都答 `todo-not-found`，不泄露文本。不提供修改、重开或批量替换。
+
+`deriveSessionOperation` 的 `todo-tool-call` 分支只用规范 tenant 文本、Session 和原调用文本。它不含命令、参数、Run、Agent、attempt、start 或时间。add 的 id 由 `['todo-item/1', tenantText, session, operation]` 的规范 SHA-256 生成，加 `todo_` 前缀。另一个原调用即使文本相同也产生另一条目。
+
+每次操作先按当前访问资格准入。同 operation、同意图先返回原回执，`receipt.recovered=true`，不重执行。改变文本、item 或命令答 conflict，零新日志。回执保存该次提交时的 item，后续移除不改变原 completed 回执。该回执不是当前状态声明。新写入按 archived、frozen、initializing 的顺序分别拒绝为 archived、frozen、not-ready，active 和 dormant 都可写，不依赖 Run 状态。
+
+三个日志种类是 `session.todo-added`、`session.todo-completed` 和 `session.todo-removed`。载荷分别为 item/text、item、item。`createdAt` 与 `changedAt` 取批次修订。归约拒绝重复 id、非法文本、未知目标和 removed 的后续转移，整批 quarantined。日志、快照、完整 `TodoMutationReceipt` 和访问证据必须同事务保存。`commit-unknown` 后保留原 operation 与意图认回；unknown 或 attempt-rejected 不证明原效果未发生。
+
+`listTodos` 每页重新核权，经同一授权 delegated view 读取完整快照，过滤 removed 并保留添加顺序。limit 必须是 1..100 的整数。cursor 只含 tenant/session/revision/after 四字段，tenant/session 必须属于本次访问，after 必须指向该修订的可见条目。坏 cursor 答 invalid(field=after)，旧修订答 changed。固定修订的 next 指向已返回的最后一项，只在后面确有条目时返回。它不是授权凭据，不禁止调用方选择合法 after 主动跳页。返回页面及条目是不可变快照。
+
+Todo 不进入 OpenWork、RecoveryTask、ADVANCE_KINDS，不启动或唤醒 Agent。读取失败、缺依赖和不存在 Session 不转成空列表。保留期继承原 Session 日志与操作记录，不新增 TTL 或另一数据库。完整快照读取沿 [SN-1](../session/SPEC.md#sn-1)，超过装配读界明确 unavailable，不声称 O(page) 或无限规模。
+
+持续验证入口为 [契约用例](tests/todos.spec.ts)、[机制用例](../session/tests/todos.spec.ts)、[真实 SQL 用例](../session-storage-sql/tests/todos.spec.ts) 和 [Cordis 用例](../session-cordis/tests/todos.spec.ts)。真实 SQL 用例覆盖六个写入点的回滚、并发、ACK 丢失和 SIGKILL 后认回。它们不证明外部撤权同步、断电耐久或 Tool 自动重放。自动 Runtime Context pending 投影仍被生产 producer 与 #677 阻断，不属于本节实现。

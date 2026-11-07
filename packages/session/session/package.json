@@ -27,7 +27,8 @@
   "dependencies": {
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
-    "@omne-harness/session-contract": "workspace:*"
+    "@omne-harness/session-contract": "workspace:*",
+    "@omne-harness/telemetry-contract": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness/session-cordis-contract": "workspace:*",

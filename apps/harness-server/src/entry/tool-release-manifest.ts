@@ -26,7 +26,7 @@ export const TOOL_RELEASE_FILE = 'tool-release.json'
 export const TOOL_RELEASE_OWNER = '@omne-harness/harness-server'
 export const TOOL_DEFINITIONS_PACKAGE = '@omne-harness/tool-definitions' as const
 
-/** 发行内置的两个作者与它们的固定导出、运维者层构造字段（L-TOOL 事实清单 §1）。表外的作者不进清单。 */
+/** 发行内置作者与它们的固定导出、运维者层构造字段（L-TOOL 事实清单 §1）。表外的作者不进清单。 */
 export const RELEASE_TOOLS = Object.freeze([
   Object.freeze({
     name: 'Shell',
@@ -37,6 +37,16 @@ export const RELEASE_TOOLS = Object.freeze([
     name: 'Files',
     export: 'filesToolModule',
     construction: Object.freeze(['resultMaxBytes', 'cwd']),
+  }),
+  Object.freeze({
+    name: 'Tools',
+    export: 'toolsToolModule',
+    construction: Object.freeze(['resultMaxBytes', 'outputModalities']),
+  }),
+  Object.freeze({
+    name: 'TodoItems',
+    export: 'todoItemsToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
   }),
 ] as const)
 
@@ -167,6 +177,8 @@ export async function importReleaseModules(packageRoot: string): Promise<Release
   return Object.freeze({
     shellToolModule: releaseModuleOf(namespace, 'shellToolModule'),
     filesToolModule: releaseModuleOf(namespace, 'filesToolModule'),
+    toolsToolModule: releaseModuleOf(namespace, 'toolsToolModule'),
+    todoItemsToolModule: releaseModuleOf(namespace, 'todoItemsToolModule'),
   })
 }
 

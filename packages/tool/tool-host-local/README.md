@@ -122,3 +122,28 @@ tool-host-local/
 The public contract of this provider belongs to the contract package [`@omne-harness/tool-contract`](../tool-contract/README.md). The full file navigation is in [index](index.md). The topic responsibilities are in [docs/README](docs/README.md).
 
 The runtime composition test submits an ordinary payload through invoke with paired source issuance and verification. The test host passes its instance identity explicitly to driver.run. This package supplies no production instance host, source issuer, identity issuer, claim or takeover protocol. See [the host boundary](SPEC.md#实例宿主与普通调用的边界).
+
+### Constructing a catalog
+
+`createLocalToolCatalog` requires `registry`, `availability`, `view`, and `search`.
+The assembly supplies a `LocalToolCatalogViewSource` with trusted scope evidence,
+an inclusion revision, and exact binding keys with `resident` flags. A null view
+returns unavailable. Search configuration is explicit, for example
+`{ k1: 1.2, b: 0.75, maxCachedCorpora: 8 }`.
+
+The catalog ranks the legal corpus with BM25 and checks the view again after
+asynchronous judgments. Versioned cursors reject changed search or disclosure
+inputs. The bounded cache retains only text indexes. See the
+[behavior and limits](SPEC.md#登记表与-catalog-的实现范围).
+
+### Trusted single-target forwarding
+
+Configure `createLocalInvocationSource` with optional `forwarding: { authority, isParent }`. Both are trusted provider inputs. The source exposes `forwarding`, `recoverBinding`, and `receiver`; ordinary callers cannot claim the reserved forwarding consumer. The runtime plugin factory exposes a lazy `forwarding()` getter and registers the dedicated receiver inside its facade.
+
+Use `createLocalToolForwarding` with lazy runtime, catalog, consumer profile, target preparation and result reader functions. Pass its `bind` method as the execution bindings' optional `capability` hook. Call its `close` during provider shutdown and inspect the returned unknown count. A parent finishing does not cancel its fixed target. Set host known-call capacity to at least two; resource concurrency may remain one.
+
+The [member specification](SPEC.md#单目标转发来源与保管) defines the current guarantees and test scope. Programmatic start and global restart discovery retain their existing restrictions. Protocol tests over an in-memory store do not establish durability.
+
+`ToolHostAccess.request` accepts an optional `ToolRequestAccess` for current target policy. The assembly passes it to the start guard and coordinator as `requestAccess`. A configured policy must answer on every preparation and consume attempt. Unavailable or malformed answers cannot authorize a start. See [request policy](SPEC.md#目标请求当前资格).
+
+Once execute accepts the fixed intent, the provider continues preparation after the author stops waiting. Shutdown drains that work. A late preparation failure can leave an issued parent reference unknown without a persistent slot. A zero pending count does not resolve that reference; inspect the unknown count separately.

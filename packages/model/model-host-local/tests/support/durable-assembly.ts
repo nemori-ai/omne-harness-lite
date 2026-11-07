@@ -478,8 +478,8 @@ function faultyStorage(inner: SqlStorage) {
 
 /** The actions the suite revokes, as the actions of the commands core. */
 const ACTIONS: Record<ConformanceAction, CommandAction> = {
-  inspect: 'facts',
-  dispatches: 'account',
+  inspect: 'inspect',
+  dispatches: 'read-account',
   cancel: 'control',
   connect: 'observe',
   observe: 'observe',

@@ -973,4 +973,99 @@
 - **出处**：[日历：身份与不可变版本](../../product/calendars/design.md#calendar-model)（rev 2）
 - **别混**：覆盖日期与信息截至时点是两个不同维度，更新失败不产生有效的新版本。
 
+## 工程遥测留下的记录
+
+本节的词描述运行状态，供工程人员与运维者诊断。它们不是协作事实，不替代上面的记录条目与会话日志。
+
+### UL-engineering-telemetry · 工程遥测 · Engineering Telemetry
+
+> **中**：**系统为工程诊断留下的运行记录的总称**，包括工程日志、链路与指标。
+> 它说明一个部件受理了什么、工作走到哪个阶段、在哪里失败、用了多少时间、丢弃了多少记录，
+> 供工程人员与运维者追踪和定位问题。它不承担业务账目、授权依据或恢复事实。
+> 普通记录可以被采样或丢弃，丢弃本身要计数并且可见。
+>
+> **EN**: **The collective name for the run-time records that the system keeps for engineering
+> diagnosis**: engineering logs, traces and metrics. They show what a component accepted, which
+> stage the work reached, where it failed, how long it took and how many records were dropped.
+> Engineers and operators use them to trace and locate faults. Engineering telemetry is not a
+> business account, an authorization basis or a recovery fact. An ordinary record can be sampled
+> out or dropped, and each drop is counted and visible.
+
+- **形态**：总称
+- **出处**：[跨系统技术约定 消息、记录与流](../../../../docs/architecture/cross-cutting-concepts.md#消息记录与流) · [观测与遥测](../../../../docs/architecture/cross-cutting-concepts.md#观测与遥测)；[项目要求 SYS-OBSERVABILITY](../../../../docs/requirements.md#全链路可观测可遥测与日志完备sys-observability)；名词由 chenyize 于 2026-11-05 采用（[#1140 的决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6663579066)，D01）
+- **别混 ①**：**不是面向用户的观察。**[公开契约的会话观察](../../../../packages/access/public-contract/SPEC.md#会话观察)（`observe-session`、`observation-frame`）把会话的流式内容交给获准的调用者；工程遥测给工程人员与运维者看，不承载会话正文。本系统里的 observation 只指前者
+- **别混 ②**：**不是[会话日志](#ul-session-log--会话日志--session-log)或[记录条目](#ul-record-entry--记录条目--record-entry)。**那两样是协作事实，丢了会影响接续或解释；工程遥测丢了只影响诊断
+- **注意**：开启工程遥测不授予外传用户数据的资格。采集不含正文与秘密，导出按接收方再核，见[观测与遥测](../../../../docs/architecture/cross-cutting-concepts.md#观测与遥测)
+- **弃用**：~~observation~~、~~「观察」~~（用作这一类记录、它的服务或成员的名字时）
+
+### UL-telemetry-record · 遥测记录 · Telemetry Record
+
+> **中**：**部件交给工程遥测端口的一条记录的总称**，分三种：一条事件、一个指标测量值、一个[遥测段](#ul-telemetry-segment--遥测段--telemetry-segment)的开始或结束。
+> 每条记录带一个作用域（某个租户，或系统）和发出它的部件名，可以再带工作、尝试、调用等关联引用。
+> 字段只取声明过的枚举、布尔值、有界数与不透明引用。
+> 端口对每条记录立即答一次本地准入结果：准入，或带原因的丢弃。准入不是送达。
+>
+> **EN**: **The collective name for one record that a component hands to the engineering-telemetry
+> port.** There are three kinds: an event, a metric measurement, and the start or the end of a
+> telemetry segment. Each record carries a scope (one tenant, or the system) and the name of the
+> component that emits it. It can also carry references to the work, the attempt and the call. Its
+> fields take only declared enum, boolean, bounded-number and opaque-reference values. For each
+> record the port returns one local admission result at once: admitted, or dropped with a reason.
+> Admission is not delivery.
+
+- **形态**：总称
+- **出处**：[跨系统技术约定 观测与遥测](../../../../docs/architecture/cross-cutting-concepts.md#观测与遥测)；[#1140 的决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6663579066)（chenyize 2026-11-05，D01 的配套词条）；记录形状见审议中的 [RFC-0013 公共契约形状](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#公共契约形状)（status `review`，未采用）
+- **别混**：**不是[记录条目](#ul-record-entry--记录条目--record-entry)。**记录条目为一件发生的事写下、不可变、带效力；遥测记录可以被采样或丢弃，不进状态转移方程，也不替代任何一条记录条目
+- **注意 ①**：**单条遥测记录没有系统身份**，系统不单独引用某一条。需要被指认、被链接的是遥测段
+- **注意 ②**：**作用域说的是记录的事实属于谁**，不说调用方知不知道租户。属于某个租户工作的记录，拿不到租户就被丢弃并计数；部件自身的事实用系统作用域，写明部件名，不带任何租户标识
+
+### UL-telemetry-segment · 遥测段 · Telemetry Segment
+
+> **中**：**工程遥测里一段有开始、有结束的工作记录。**一次会话操作、一次 Agent pass、一次模型派发各是一段。
+> 段有自己的链路身份（trace 与 span），别的段可以经因果链接引用它。段开始之后可以挂事件；
+> 结束时可以带结局 `ok`、`failure` 或 `unknown`；超过时限的段被截断并计数。
+> 长工作用多个短段，跨等待、恢复和扇出时用链接相连，不让一段保持数日。
+>
+> **EN**: **A record of one stretch of work with a start and an end in engineering telemetry.** One
+> session operation, one Agent pass and one model dispatch are each one segment. A segment has its
+> own trace identity (trace and span), and other segments can refer to it through causal links.
+> Events can attach to a segment after it starts. When it ends, it can carry the outcome `ok`,
+> `failure` or `unknown`. A segment that exceeds its time limit is truncated and counted. Long work
+> uses many short segments that are linked across waits, recovery and fan-out. No segment stays
+> open for days.
+
+- **形态**：未定
+- **出处**：[#1140 的决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6663579066)（chenyize 2026-11-05，D01 的配套词条）；形状见审议中的 [RFC-0013 公共契约形状](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#公共契约形状)（status `review`，未采用）；长工作用短段的要求见[跨系统技术约定 观测与遥测](../../../../docs/architecture/cross-cutting-concepts.md#观测与遥测)
+- **别混 ①**：**不是[运行](agent-runtime-loop.md#ul-run--运行--run)、[工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)或[一次模型调用](execution-and-outcome.md#ul-model-call--一次模型调用--model-call)本身。**段是对这些工作的一段工程投影，一项工作可以对应几段。段丢了，业务事实不受影响
+- **别混 ②**：**段的结局不是业务终态。**`ok` 不证明工作完成，`unknown` 也不改变原工作的结局
+- **注意**：Node 提供者可以把段映射为 OTel span。span 是输出端的表示，不是本词的定义
+- **待裁决**：它是不是领域对象还没有人裁过，见 [C-73](../conflicts.md#c-73遥测段是不是对象) 与[领域对象的待裁](../../domain_objects/pending.md#遥测段)
+
+## 跨拥有者的诊断读取
+
+本节的词描述从多个拥有者的记录组合出来的只读视图。它们不拥有事实，也不是工程遥测。
+
+### UL-session-diagnostics-projection · 会话诊断投影 · Session Diagnostics Projection
+
+> **中**：**一个会话的只读组合视图，回答这个会话的工作在哪里失败、为什么失败、用了多少时间与用量。**
+> 它以[会话日志](#ul-session-log--会话日志--session-log)里的运行与调用登记为骨架，
+> 再按调用方的授权读各拥有者公开的只读记录：Agent 给出运行怎样结束，模型与工具给出每次调用实际发生了什么。
+> 每次读取时现算，不另存一份，不改变任何状态，不重新执行任何动作。
+> 某个来源拒绝、不可用或不支持读取时，视图写一条带来源与原因的缺口，不推断那件事没有发生。
+>
+> **EN**: **A read-only composed view of one session. It answers where the work of the session
+> failed, why it failed, and how much time and usage it took.** The runs and the call
+> registrations in the [session log](#ul-session-log--会话日志--session-log) give its frame. The
+> view then reads the public read-only records of each owner, under the caller's authorization: the
+> Agent tells how a run ended, and the model and the tools tell what happened in each call. The view
+> is computed on each read. It keeps no copy, changes no state and repeats no action. When a source
+> refuses the read, is unavailable or does not support the read, the view writes a gap with the
+> source and the reason. It does not infer that the thing did not happen.
+
+- **形态**：视图
+- **出处**：[#1140 的范围变更记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6665535851)（chenyize 2026-11-05，A 线）；组合规则见审议中的 [RFC-0013 A 线](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#a-线会话日志诊断投影)（status `review`，未采用）
+- **别混 ①**：**不是[会话日志投影](#ul-session-log-projection--会话日志投影--session-log-projection)。**会话日志投影只从会话日志算出；本视图还读 Agent、模型与工具各自保管的记录，只用会话日志重算不出它
+- **别混 ②**：**不是[工程遥测](#ul-engineering-telemetry--工程遥测--engineering-telemetry)。**工程遥测是运行中留下、可以被丢弃的工程记录；本视图读的是拥有者保管的事实，读不到时写缺口
+- **注意**：读取按调用方的租户授权，每个来源各自核资格。一个来源的拒绝只成为缺口，不改变其他来源的结果
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

@@ -1,6 +1,16 @@
 {
   "rows": [
     {
+      "id": "telemetry",
+      "plugin": "telemetry",
+      "config": {
+        "implementation": "node",
+        "outlet": {
+          "kind": "stdout"
+        }
+      }
+    },
+    {
       "id": "storage",
       "plugin": "storageRow",
       "config": {
@@ -24,8 +34,26 @@
         "actionRules": {
           "revision": "release-1",
           "rules": [
-            { "id": "files", "effect": "allow", "tool": "Files" },
-            { "id": "shell", "effect": "allow", "tool": "Shell" }
+            {
+              "id": "files",
+              "effect": "allow",
+              "tool": "Files"
+            },
+            {
+              "id": "shell",
+              "effect": "allow",
+              "tool": "Shell"
+            },
+            {
+              "id": "tools",
+              "effect": "allow",
+              "tool": "Tools"
+            },
+            {
+              "id": "todos",
+              "effect": "allow",
+              "tool": "TodoItems"
+            }
           ]
         },
         "maintenanceGrants": {}
@@ -102,8 +130,8 @@
       "id": "session-handoff",
       "plugin": "sessionHandoffRow",
       "config": {
-        "combinationVersion": "session-composite/4",
-        "manifestDigest": "7321810ac9f7101addd9da7eb97d44d875c2df1626fedede0a0ff04a73d2f223"
+        "combinationVersion": "session-composite/5",
+        "manifestDigest": "c45689a24bded5096f90508a189c1244f4ff1e983c9e796e4fb05ab69b99cca6"
       }
     },
     {
@@ -115,8 +143,8 @@
       "id": "agent-journal",
       "plugin": "agentJournalRow",
       "config": {
-        "combinationVersion": "session-composite/4",
-        "manifestDigest": "7321810ac9f7101addd9da7eb97d44d875c2df1626fedede0a0ff04a73d2f223"
+        "combinationVersion": "session-composite/5",
+        "manifestDigest": "c45689a24bded5096f90508a189c1244f4ff1e983c9e796e4fb05ab69b99cca6"
       }
     },
     {
@@ -178,7 +206,7 @@
               "owner": "harness-server-release",
               "name": "coding",
               "revision": "1",
-              "digest": "sha256:7416fef0fb5889c7b32e361d5286a458d349f6c7ac872f9aef9fa748eb780c0c"
+              "digest": "sha256:b3310f03921fcc21db65559f929f0b016875666e596fa3618da57f30a0147a06"
             },
             "execution": {
               "owner": "harness-server-release",
@@ -229,6 +257,20 @@
                     "name": "Shell"
                   },
                   "resident": true
+                },
+                {
+                  "capability": {
+                    "category": "Tool",
+                    "name": "Tools"
+                  },
+                  "resident": true
+                },
+                {
+                  "capability": {
+                    "category": "Tool",
+                    "name": "TodoItems"
+                  },
+                  "resident": true
                 }
               ],
               "attributes": [
@@ -255,7 +297,7 @@
                 },
                 {
                   "id": "tools",
-                  "text": "# Tools: Files and Shell\n\nYou have two tools: Files and Shell. A call names one command and its fields. Each tool description shows the call form and lists the commands with their fields. For the full rules of one command, call the help command with name set to that command. An invalid call answers with the reason and the usage.\n\n## Files\n\n- Files works on text files in the authorized execution placement. Use Files first to read, write and search files. Its results are structured, they stay inside the placement, and you can check them easily.\n- Files handles UTF-8 text, keeps the original line endings and does not open images.\n- The edit and patch commands need an exact old_text that matches one location. The patch command checks all its edits before it submits them as one batch. If an edit does not match, read the file again, because the file can be different now.\n- A version is an observation, not a permission. If the result of a batch is unknown, check that batch by its original identity before you submit it again. This prevents a double change.\n\n## Shell\n\n- The execute command runs a script one time with the configured shell. Each call is a new process with its own cwd and env, without the host environment. The cwd argument is more reliable than a chain of cd commands.\n- The Shell info command shows the operating system and the shell that runs your scripts. Use it early. Write each script for that shell, not wrapped in powershell -Command or bash -c.\n- This release does not support background execution, and persistent terminals can be unavailable. A command that waits for input or never stops blocks the call. Use run-once test modes, non-interactive flags and git with --no-pager.\n- A completed call tells you only that the call finished. The exit status and the output tell you whether the command succeeded.\n- Use Shell to build, test, lint, run git, run the formatters and generators of the project, and examine the environment. Shell is also the right tool for file work when Files is unavailable, or when a project tool does the work better.\n## Results\n\nEach result has a size limit. The tool can cut a long result and keep its start and its end. A byte range, a filter or quieter flags give you the part that you need. Run independent reads and searches in parallel when you can. Edits to one file are safer in sequence.\n\n## Unavailable and denied\n\nThese two answers are different.\n\n- Unavailable means that a tool or command cannot do the work now. You can use a different tool for the same work, for example Shell when Files is unavailable. Tell the user which tool you used and why.\n- Guardrail: Denied means that an authorization rule or a boundary rule refused the action, for example for a path outside the placement. A denial is final for that action. Do not do the same action by a different route. Shell, a different path, a script, a link, a configuration change and an encoded payload are all different routes. Report the denied action, the reason from the tool, and what the user can change."
+                  "text": "# Tools: Files, Shell, Tools and TodoItems\n\nYou have four resident tools: Files, Shell, Tools and TodoItems. A call names one command and its fields. Each tool description shows the call form and lists the commands with their fields. For the full rules of one command, call the help command with name set to that command. An invalid call answers with the reason and the usage.\n\n## Files\n\n- Files works on text files in the authorized execution placement. Use Files first to read, write and search files. Its results are structured, they stay inside the placement, and you can check them easily.\n- Files handles UTF-8 text, keeps the original line endings and does not open images.\n- The edit and patch commands need an exact old_text that matches one location. The patch command checks all its edits before it submits them as one batch. If an edit does not match, read the file again, because the file can be different now.\n- A version is an observation, not a permission. If the result of a batch is unknown, check that batch by its original identity before you submit it again. This prevents a double change.\n\n## Shell\n\n- The execute command runs a script one time with the configured shell. Each call is a new process with its own cwd and env, without the host environment. The cwd argument is more reliable than a chain of cd commands.\n- The Shell info command shows the operating system and the shell that runs your scripts. Use it early. Write each script for that shell, not wrapped in powershell -Command or bash -c.\n- This release does not support background execution, and persistent terminals can be unavailable. A command that waits for input or never stops blocks the call. Use run-once test modes, non-interactive flags and git with --no-pager.\n- A completed call tells you only that the call finished. The exit status and the output tell you whether the command succeeded.\n- Use Shell to build, test, lint, run git, run the formatters and generators of the project, and examine the environment. Shell is also the right tool for file work when Files is unavailable, or when a project tool does the work better.\n## Results\n\nEach result has a size limit. The tool can cut a long result and keep its start and its end. A byte range, a filter or quieter flags give you the part that you need. Run independent reads and searches in parallel when you can. Edits to one file are safer in sequence.\n\n## Unavailable and denied\n\nThese two answers are different.\n\n- Unavailable means that a tool or command cannot do the work now. You can use a different tool for the same work, for example Shell when Files is unavailable. Tell the user which tool you used and why.\n- Guardrail: Denied means that an authorization rule or a boundary rule refused the action, for example for a path outside the placement. A denial is final for that action. Do not do the same action by a different route. Shell, a different path, a script, a link, a configuration change and an encoded payload are all different routes. Report the denied action, the reason from the tool, and what the user can change.\n\n## Tools\n\nTools search discovers lawful nonresident tools with BM25; inspect gives the usage of either resident or nonresident tools. Call resident tools directly. Tools execute only invokes nonresident targets; discovering a target does not add it to the direct tool list. These reads do not load tools or change this prompt. Tools execute takes a tool name, a command (or null for a function), and only that command's business arguments. A pending or unknown reply is not completion: copy its recovery call exactly, and do not repeat execute to replace it. Tools read_result reads the supplied fixed reference and cursor. A reference grants no access. A target denial remains final even when it is reached through Tools.\n\n\n## TodoItems\n\nUse a short TodoItems list for multi-step work; skip it for a simple one-step task. Add clear outcomes, mark them complete only after checking the result, and remove obsolete items explicitly. Completed items stay visible. The list belongs to this Session and persists across runs; call list when continuing. Pending items are not automatically injected into Context in this release. An unknown mutation outcome is not permission to add a replacement: preserve its original operation identity and report the uncertainty. List cursors are tied to a Session revision; on changed, start from the first page.\n"
                 },
                 {
                   "id": "reporting",
@@ -298,7 +340,12 @@
       "id": "agent-host",
       "plugin": "agentHostRow",
       "config": {
-        "jointCommits": ["message", "context-transition", "custody", "processed"],
+        "jointCommits": [
+          "message",
+          "context-transition",
+          "custody",
+          "processed"
+        ],
         "coordination": "coordinated"
       }
     },
@@ -320,6 +367,11 @@
     {
       "id": "model-converters",
       "plugin": "modelConvertersRow",
+      "config": {}
+    },
+    {
+      "id": "model-tokenizers",
+      "plugin": "modelTokenizersRow",
       "config": {}
     },
     {

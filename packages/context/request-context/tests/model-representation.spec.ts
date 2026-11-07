@@ -6,6 +6,7 @@
 // strategy stays in the evidence of this member. Nothing is sent.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { decodeRevision, type ModelProfile, type Supplier } from '@omne-harness/model-contract'
+import { createTiktokenExecutor, type TiktokenExecutor } from '@omne-harness/tokenizer-tiktoken'
 import { composeFamilies, type PiFamilyBinding } from '@omne-harness/pi-ai-transport'
 import {
   createOpenAiFamily,
@@ -61,30 +62,60 @@ const supplier: Supplier = {
   model: first.model,
   credential: { kind: 'factory' },
 }
-const family = createOpenAiFamily({
-  tokenizer: openAiTokenizerResources(),
-  limits: {
-    toolArguments: {
-      maxBytes: 65_536,
-      maxDepth: 32,
-      maxItems: 1_024,
-      maxMembers: 256,
-      maxStringLength: 65_536,
-      maxNumberLength: 64,
-    },
-    maxReasoningText: 65_536,
-  },
-  margin: { percent: '10', source: hex('margin-policy') },
-})
+let executor: TiktokenExecutor
 let binding: PiFamilyBinding
 beforeAll(async () => {
+  const resources = openAiTokenizerResources()
+  const created = await createTiktokenExecutor({
+    resources: [resources],
+    limits: {
+      workers: 1,
+      maxLeases: 16,
+      maxQueuedJobs: 16,
+      maxQueuedBytes: 4 * 1024 * 1024,
+      maxInputBytes: 4 * 1024 * 1024,
+      maxLeaseQueuedJobs: 4,
+      maxCacheBytes: 1024 * 1024,
+      maxCacheEntries: 8192,
+      maxLeaseCacheBytes: 256 * 1024,
+      maxLeaseCacheEntries: 2048,
+      maxPieceBytes: 4096,
+      jobTimeoutMs: 10_000,
+      maxWorkerOldSpaceMb: 256,
+      maxReplacementsPerMinute: 2,
+      cancellationGraceMs: 25,
+    },
+  })
+  if ('failure' in created) throw new Error(`executor: ${JSON.stringify(created.failure)}`)
+  executor = created.ok
+  const family = createOpenAiFamily({
+    tokenizer: resources,
+    limits: {
+      toolArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 1_024,
+        maxMembers: 256,
+        maxStringLength: 65_536,
+        maxNumberLength: 64,
+      },
+      maxReasoningText: 65_536,
+    },
+    margin: { percent: '10', source: hex('margin-policy') },
+    executor,
+    maxSerializedBytes: 4 * 1024 * 1024,
+  })
   const acquired = await composeFamilies([family]).acquire(supplier, new AbortController().signal)
   if (!('ok' in acquired)) throw new Error(`acquire: ${JSON.stringify(acquired.failure)}`)
   binding = acquired.ok
-})
+}, 30_000)
 afterAll(async () => {
-  await binding.release()
-})
+  try {
+    if (binding !== undefined) await binding.release()
+  } finally {
+    if (executor !== undefined) expect(await executor.close()).toEqual({ ok: undefined })
+  }
+}, 30_000)
 
 const rows = () => [
   historyRow(0, userMessage(0, 'read it')),
@@ -115,10 +146,10 @@ function candidateOf(result: AssemblyResult): RequestCandidate {
   return result.candidate
 }
 /** Plans and measures one assembled input with the family binding, as a lease would. */
-function planAndMeasure(assembled: RequestCandidate['assembled']) {
+async function planAndMeasure(assembled: RequestCandidate['assembled']) {
   const plan = binding.rules.plan({ profile, supplier, assembled })
   if (!('ok' in plan)) throw new Error(`plan refused: ${JSON.stringify(plan.failure)}`)
-  const measured = binding.meter.measure({
+  const measured = await binding.meter.measure({
     profile: profile.adoption,
     supplier: first,
     context: profile.definition.context,
@@ -138,7 +169,7 @@ describe('the request representation is the one the profile fixes', () => {
     // The lease ran the family plan and meter; a refused plan gives no candidate.
     const candidate = candidateOf(await f.operations().assemble(f.call))
     expect(candidate.assembled.representation).toEqual(profile.definition.representation)
-    const { plan, budget } = planAndMeasure(candidate.assembled)
+    const { plan, budget } = await planAndMeasure(candidate.assembled)
     expect(plan.representation.adoption).toEqual(profile.definition.representation)
     expect(budget.kind).toBe('complete')
     const input = budget.checks.find(check => check.metric === 'input-tokens')
@@ -161,7 +192,7 @@ describe('the request representation is the one the profile fixes', () => {
     if (planned.kind !== 'planned')
       throw new Error(`Expected a plan, got ${JSON.stringify(planned)}`)
     expect(planned.first.assembled.representation).toEqual(profile.definition.representation)
-    expect(planAndMeasure(planned.first.assembled).budget.kind).toBe('complete')
+    expect((await planAndMeasure(planned.first.assembled)).budget.kind).toBe('complete')
     // The window check after the summary measures through the lease as well.
     const step = await operations.deriveStep({
       call: f.call,

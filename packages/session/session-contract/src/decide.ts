@@ -4,6 +4,7 @@ import {
   pendingIntakeCount,
   type SessionIntakeLimits,
 } from './intake.ts'
+import { decideTodos } from './decide-todos.ts'
 import { requiredWorkEntries } from './work-entry-state.ts'
 import { decodeEntries } from './entries.ts'
 import { validateFrontierBatch } from './frontier-state.ts'
@@ -825,6 +826,10 @@ function decideCommand(
   )
     return rejected({ kind: 'denied', action: command.kind })
   switch (command.kind) {
+    case 'addTodo':
+    case 'removeTodo':
+    case 'markTodoComplete':
+      return decideTodos(previous, command, commandEvidence(command.input.operation, command.kind))
     case 'completeInitialization':
       return decideInitializationComplete(previous, command, guards, reads)
     case 'accept':

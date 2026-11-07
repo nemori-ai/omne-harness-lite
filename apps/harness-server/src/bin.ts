@@ -18,7 +18,7 @@ import {
 import { processSecretReader } from './local/secret-input.ts'
 import { localServeInputs } from './local/serve-local.ts'
 import { runSetup } from './local/setup.ts'
-import { runS0, runServe, type S0Record } from './run.ts'
+import { lineWriter, recordLineWriter, runS0, runServe, type S0Record } from './run.ts'
 
 class UsageError extends Error {}
 
@@ -108,8 +108,9 @@ async function commonOf(
   }
 }
 
-const write = (record: unknown) => process.stdout.write(`${JSON.stringify(record)}\n`)
-const stderr = (line: string) => process.stderr.write(`${line}\n`)
+// The one stdout record writer and the stderr line writer of the process.
+const write = recordLineWriter(process.stdout)
+const stderr = lineWriter(process.stderr)
 
 async function mainS0(argv: readonly string[]): Promise<number> {
   const { positionals, values } = parseArgs({

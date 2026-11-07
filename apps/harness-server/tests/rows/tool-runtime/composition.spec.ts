@@ -30,6 +30,7 @@ import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
 import { decodeScopeRef, type ScopeBindingSource } from '@omne-harness/runtime-context-contract'
 import type {
+  ResidentKey,
   SessionPrincipalBindingSource,
   SessionTransactionPort,
   WorkSnapshot,
@@ -79,6 +80,7 @@ import { defineRow } from '../../../src/row.ts'
 import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
 import type { EntryObjectModule } from '../../../src/types.ts'
 import { toolRowsOperatorConfig } from '../../r9/support.ts'
+import { compositionAuthority } from './composition-authority.ts'
 import { withLiveRows } from '../model/support.ts'
 import {
   TENANT_A,
@@ -226,7 +228,7 @@ function rowsOf(storageRoot: string) {
         id: 'session-storage',
         plugin: 'sessionStorageRow',
         config: {
-          combinationVersion: 'session-composite/4',
+          combinationVersion: 'session-composite/5',
           directoryFile: join(storageRoot, 'tenant-domains.json'),
           domainRule: 'organization-account/1',
         },
@@ -254,6 +256,7 @@ function rowsOf(storageRoot: string) {
 const entryObjects = (work: EntryObjectModule): readonly EntryObjectModule[] => [
   principalVerifier,
   principalIssuer,
+  compositionAuthority,
   toolReleaseRegistrant,
   toolContributionAuthority,
   toolClock,
@@ -386,9 +389,44 @@ async function call(runtime: Runtime, principal: unknown, request: ToolInvokeReq
 }
 
 /** Registers tenant A, installs the result receiver and waits until the catalog lists the authors. */
-async function ready(ctx: Context, saved: ToolDelivery<ToolMessageContentBlock>[]) {
+async function ready(
+  ctx: Context,
+  saved: ToolDelivery<ToolMessageContentBlock>[],
+  residents = true,
+) {
   // The session create registers tenant A's domain with the combination that holds `tool`.
-  const command = createCommand(TENANT_A, SESSION)
+  const base = createCommand(TENANT_A, SESSION)
+  // Named initialization fixture: these resident facts are committed through real Session SQL.
+  const command = {
+    ...base,
+    input: {
+      ...base.input,
+      creation: {
+        ...base.input.creation,
+        residentAdoption: {
+          residents: residents
+            ? ['Files', 'Shell'].map(capability => ({
+                capability,
+                version: 'fixture/1',
+                shape: json('{}'),
+                admitted: {
+                  owner: 'transport-fixture',
+                  record: capability,
+                  revision: '1',
+                  digest: capability,
+                },
+              }))
+            : [],
+          keys: residents
+            ? ['Files', 'Shell'].map(capability => ({
+                capability,
+                key: `transport:${capability}` as ResidentKey,
+              }))
+            : [],
+        },
+      },
+    },
+  }
   const created = await (ctx.get(sessionTransactionsKey) as SessionTransactionPort<string>).commit({
     access: access(TENANT_A, SESSION),
     command,
@@ -521,6 +559,37 @@ function expectRan(ran: Ran): void {
 }
 
 describe('Tool segment B: the release rows in one process composition', () => {
+  it('rejects a direct Agent call to an adopted but nonresident tool before any file write', async () => {
+    const { storageRoot } = workspace()
+    const { rows, tools } = rowsOf(storageRoot)
+    const policy = accessPolicyRow(allowAll)
+    await withLiveRows(
+      {
+        rows,
+        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+        entryObjects: entryObjects(workPrincipalsOverStandIn),
+        probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
+      },
+      async ctx => {
+        const saved: ToolDelivery<ToolMessageContentBlock>[] = []
+        const { runtime, principal } = await ready(ctx, saved, false)
+        const target = join(tools.filesRoot, 'must-not-exist.txt')
+        const request = await requestFor(
+          ctx,
+          principal,
+          'Files.write',
+          JSON.stringify({ path: target, text: 'forbidden', mode: 'create' }),
+        )
+        expect(await runtime.invoke({ principal, tenant: TENANT_A, request })).toMatchObject({
+          kind: 'rejected',
+          failure: { kind: 'denied' },
+        })
+        expect(() => readFileSync(target)).toThrow(expect.objectContaining({ code: 'ENOENT' }))
+        expect(saved).toEqual([])
+      },
+    )
+  })
+
   it(
     'settles Shell and Files according to host support through the production request source; another tenant is refused',
     { timeout: 180_000 },

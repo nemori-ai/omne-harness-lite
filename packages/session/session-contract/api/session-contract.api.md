@@ -201,12 +201,19 @@
 - `SessionRevision` · `identity.d.ts`
 - `SessionRunLookup` · `control-values.d.ts`
 - `SessionTakenRecord` · `history-values.d.ts`
+- `SessionTodos` · `todos.d.ts`
 - `SessionTransactionPort` · `ports.d.ts`
 - `SessionWork` · `faces.d.ts`
 - `SessionWorkEntryIndex` · `work-entry-values.d.ts`
 - `SessionWorkPrincipals` · `ports.d.ts`
 - `StartAdoption` · `faces.d.ts`
 - `StartedRun` · `faces.d.ts`
+- `TodoItem` · `todos.d.ts`
+- `TodoItemId` · `identity.d.ts`
+- `TodoMutationReceipt` · `todos.d.ts`
+- `TodoPage` · `todos.d.ts`
+- `TodoPageCursor` · `todos.d.ts`
+- `VisibleTodoItem` · `todos.d.ts`
 - `Waiting` · `values.d.ts`
 - `WorkSnapshot` · `values.d.ts`
 - `WorkspaceAttachment` · `values.d.ts`
@@ -338,7 +345,7 @@
 import type { Access, TenantId } from '@omne-harness/legal-identity';
 import type { DurableEvidence, ResidentKey, SessionAccess, SessionId } from './identity.ts';
 import type { MutationName, SessionCommand, SessionTransactionPort } from './ports.ts';
-export type SessionReadAccessOperation = 'readWork' | 'readInput' | 'queryOperation' | 'readModelSelection' | 'queryControlOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView';
+export type SessionReadAccessOperation = 'listTodos' | 'readWork' | 'readInput' | 'queryOperation' | 'readModelSelection' | 'queryControlOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView';
 type SessionMutationAccess<P> = {
     readonly [K in MutationName]: Readonly<{
         access: Access<P>;
@@ -713,6 +720,18 @@ export declare function resultRefusal(snapshot: WorkSnapshot, consumption: Consu
 export declare function decideResults(snapshot: WorkSnapshot, command: SessionCommand): Decision;
 ```
 
+## 声明文件 `decide-todos.d.ts`
+
+```ts
+import type { DurableEvidence } from './identity.ts';
+import type { WorkSnapshot } from './values.ts';
+import type { Decision } from './judgments.ts';
+import type { SessionCommand } from './ports.ts';
+export declare function decideTodos(snapshot: WorkSnapshot, command: Extract<SessionCommand, {
+    kind: 'addTodo' | 'removeTodo' | 'markTodoComplete';
+}>, source: DurableEvidence): Decision;
+```
+
 ## 声明文件 `decide.d.ts`
 
 ```ts
@@ -784,7 +803,7 @@ export {};
 import type { JsonValue } from '@omne-harness/json-text';
 import { type TenantId, type WorkspaceId } from '@omne-harness/legal-identity';
 import type { Message } from '@omne-harness/message';
-import type { Adoption, AgentInstanceRef, AttemptId, ConsumptionId, DurableEvidence, InputId, RunId, SessionId, SessionOperationId } from './identity.ts';
+import type { Adoption, AgentInstanceRef, AttemptId, ConsumptionId, DurableEvidence, InputId, RunId, SessionId, SessionOperationId, TodoItemId } from './identity.ts';
 import type { BoundedClose, InitializationResult, Participation, RecoveryTask, RunTerminal, SessionCreation, ResidentAdoption, ResidentTool, DeclarationChange, Relation, AutoArchivePolicy, IdleObservation, ControlProgress, ContextScopeBinding, CallBinding, ProducedResult, InputBatch, Waiting, ExecutionRef } from './values.ts';
 import type { EntryClass, HistoryEntry } from './faces.ts';
 import type { EncodedEntry } from './judgments.ts';
@@ -796,6 +815,13 @@ export type InitializationItem = Omit<Extract<RecoveryTask, {
     kind: 'initialization';
 }>, 'kind' | 'originalOperation' | 'state' | 'diagnostic'>;
 export type SessionEntry = Readonly<{
+    kind: 'session.todo-added';
+    item: TodoItemId;
+    text: string;
+}> | Readonly<{
+    kind: 'session.todo-completed' | 'session.todo-removed';
+    item: TodoItemId;
+}> | Readonly<{
     kind: 'session.created';
     tenant: TenantId;
     session: SessionId;
@@ -1043,11 +1069,12 @@ export declare function expandHistoryEntries(rows: readonly HistoryEntry[], crea
 ## 声明文件 `faces.d.ts`
 
 ```ts
+import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { Message } from '@omne-harness/message';
 import type { Outcome } from '@omne-harness/operation-result';
-import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
+import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionId, SessionOperationId, SessionRevision, TodoItemId } from './identity.ts';
 import type { ControlOperationResolution, SessionCallTerminal, SessionControlReceipt, SessionModelSelection } from './control-values.ts';
 import type { AutoArchivePolicy, BoundedClose, CallBinding, Control, ControlProgress, DeclarationChange, DerivedMessage, FreezeVerdict, IdleObservation, InitializationResult, Participation, ProducedResult, ProducerRef, Relation, ResidentAdoption, RoutedInput, RunTerminal, ScopeReleaseDisposition, SessionCreation, WorkSnapshot } from './values.ts';
 export type SessionFailure = Readonly<{
@@ -1061,6 +1088,9 @@ export type SessionFailure = Readonly<{
     kind: 'invalid';
     field: string;
     reason: string;
+}> | Readonly<{
+    kind: 'todo-not-found';
+    item: TodoItemId;
 }> | Readonly<{
     kind: 'conflict';
     operation: SessionOperationId;
@@ -1143,6 +1173,19 @@ export type StartAdoption = ResidentAdoption & Readonly<{
     verdict?: FreezeVerdict;
 }>;
 export interface SessionWork<P> {
+    addTodo(input: Mutation<P> & Readonly<{
+        text: string;
+    }>): Reply<TodoMutationReceipt>;
+    removeTodo(input: Mutation<P> & Readonly<{
+        item: TodoItemId;
+    }>): Reply<TodoMutationReceipt>;
+    markTodoComplete(input: Mutation<P> & Readonly<{
+        item: TodoItemId;
+    }>): Reply<TodoMutationReceipt>;
+    listTodos(input: SessionAccess<P> & Readonly<{
+        after: TodoPageCursor | null;
+        limit: number;
+    }>): Reply<TodoPage>;
     accept(input: Mutation<P> & Readonly<{
         value: RoutedInput;
     }>): Reply<CommitReceipt>;
@@ -1628,6 +1671,7 @@ export type AttemptId = SessionIdentity<'AttemptId'>;
 export type InputId = SessionIdentity<'SessionInputId'>;
 export type BatchId = SessionIdentity<'SessionBatchId'>;
 export type SessionOperationId = SessionIdentity<'SessionOperationId'>;
+export type TodoItemId = SessionIdentity<'TodoItemId'>;
 export type SessionRevision = SessionIdentity<'SessionRevision'>;
 export type ConsumptionId = SessionIdentity<'SessionConsumptionId'>;
 export type EntryId = SessionIdentity<'SessionEntryId'>;
@@ -1653,7 +1697,7 @@ export type AdvanceRef = Readonly<{
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { Adoption, AdvanceRef, AgentInstanceRef, AttemptId, BatchId, ConsumerRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionCallerClass, SessionId, SessionIdentity, SessionOperationId, SessionRevision, } from './identity.ts';
+export type { Adoption, AdvanceRef, AgentInstanceRef, AttemptId, BatchId, ConsumerRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionCallerClass, SessionId, SessionIdentity, SessionOperationId, SessionRevision, TodoItemId, } from './identity.ts';
 export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InitializationSource, InitializationSources, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, ResidentTool, ResultConsumption, RoutedInput, RunState, RunTerminal, ScopeReleaseDisposition, SessionCreation, SessionFrozen, Waiting, WorkSnapshot, WorkspaceAttachment, } from './values.ts';
 export type { AdmittedMessage, CommitReceipt, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionFaces, SessionFailure, SessionHistory, SessionManagement, SessionReconciliation, SessionWork, StartAdoption, StartedRun, } from './faces.ts';
 export { INGRESS_FAMILIES, deriveDriveOperation, deriveIngressOperation, deriveSessionOperation, type DriveOperationElements, type IngressFamily, type SessionOperationElements, } from './operations.ts';
@@ -1684,6 +1728,7 @@ export type { SessionWorkEntryIndex, SessionCallEntryReferences, SessionControlE
 export { mutationAccessRequest, readAccessRequest, type SessionAccessCheck, type SessionAccessDecision, type SessionAccessOperation, type SessionAccessRequest, type SessionAccessTarget, type SessionCheckedAccess, type SessionDelegatedTransactions, type SessionReadAccessOperation, } from './access.ts';
 export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, judgeSessionIntake, } from './intake.ts';
 export type { SessionIntakeLimits } from './intake.ts';
+export type { TodoItem, VisibleTodoItem, TodoMutationReceipt, TodoPageCursor, TodoPage, SessionTodos, } from './todos.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -2149,6 +2194,11 @@ import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvid
 import type { BoundedClose, CallBinding, Participation } from './values.ts';
 import type { ProducerFact } from './faces.ts';
 export type SessionOperationElements = Readonly<{
+    kind: 'todo-tool-call';
+    tenant: string;
+    session: SessionId;
+    call: string;
+}> | Readonly<{
     kind: 'startRun';
     session: SessionId;
     first: InputId;
@@ -2360,7 +2410,7 @@ export type SessionBlockDeclaration = Readonly<{
     consumers: readonly ('model' | 'coordinator')[];
     schema: Adoption;
 }>;
-export type MutationName = 'accept' | 'startRun' | 'claim' | 'reload' | 'recordMessage' | 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption' | 'bindExternalCall' | 'commitDerived' | 'release' | 'control' | 'finishRun' | 'create' | 'completeInitialization' | 'change' | 'setRelation' | 'configureAutoArchive' | 'considerAutoArchive' | 'recordIdle' | 'interrupt' | 'cancelRun' | 'stopCall' | 'freeze' | 'receive';
+export type MutationName = 'addTodo' | 'removeTodo' | 'markTodoComplete' | 'accept' | 'startRun' | 'claim' | 'reload' | 'recordMessage' | 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption' | 'bindExternalCall' | 'commitDerived' | 'release' | 'control' | 'finishRun' | 'create' | 'completeInitialization' | 'change' | 'setRelation' | 'configureAutoArchive' | 'considerAutoArchive' | 'recordIdle' | 'interrupt' | 'cancelRun' | 'stopCall' | 'freeze' | 'receive';
 export type Mutations = Pick<SessionWork<never> & SessionManagement<never> & SessionReconciliation<never>, MutationName>;
 export type SessionCommand = {
     readonly [K in MutationName]: Readonly<{
@@ -2644,6 +2694,20 @@ export declare function applyProducerFact(draft: Draft, entry: Extract<SessionEn
 export {};
 ```
 
+## 声明文件 `reduce-todos.d.ts`
+
+```ts
+import type { SessionEntry } from './entries.ts';
+import type { WorkSnapshot } from './values.ts';
+type Draft = {
+    -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K];
+};
+export declare function applyTodo(draft: Draft, entry: Extract<SessionEntry, {
+    kind: 'session.todo-added' | 'session.todo-completed' | 'session.todo-removed';
+}>, revision: WorkSnapshot['revision']): string | null;
+export {};
+```
+
 ## 声明文件 `reduce.d.ts`
 
 ```ts
@@ -2658,8 +2722,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:b142519eb2ff3eb8e63ec634422276460ca07585f19caf03412d836b1a31eecc";
-export declare const SESSION_RELEASE_DIGEST = "sha256:b142519eb2ff3eb8e63ec634422276460ca07585f19caf03412d836b1a31eecc";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:3abcec48c42a0f45922018403bc73b3c57490af537ae8a4257980350fa7f5875";
+export declare const SESSION_RELEASE_DIGEST = "sha256:3abcec48c42a0f45922018403bc73b3c57490af537ae8a4257980350fa7f5875";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3147,6 +3211,7 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
             observation: import("./values.ts").IdleObservation;
             commit: DurableEvidence;
         }> | null;
+        todos?: readonly import("./todos.ts").TodoItem[];
         executions?: readonly import("./values.ts").RunExecution[];
         residentKeys?: import("./values.ts").ResidentAdoption['keys'];
         relation?: import("./values.ts").Relation;
@@ -3237,9 +3302,44 @@ export { createMemorySessionHistorySource, type MemorySessionHistorySource, } fr
 export { createPolicySessionAccessCheck, createScriptedSessionAccessCheck, type ScriptedSessionAccessCheck, type SessionAccessScript, } from './testing-access.ts';
 ```
 
+## 声明文件 `todos.d.ts`
+
+```ts
+import type { CommitReceipt, SessionWork } from './faces.ts';
+import type { SessionId, SessionRevision, TodoItemId } from './identity.ts';
+export type TodoItem = Readonly<{
+    id: TodoItemId;
+    text: string;
+    status: 'pending' | 'completed' | 'removed';
+    createdAt: SessionRevision;
+    changedAt: SessionRevision;
+}>;
+export type VisibleTodoItem = TodoItem & Readonly<{
+    status: 'pending' | 'completed';
+}>;
+export type TodoMutationReceipt = Readonly<{
+    receipt: CommitReceipt;
+    item: TodoItem;
+}>;
+export type TodoPageCursor = Readonly<{
+    tenant: string;
+    session: SessionId;
+    revision: SessionRevision;
+    after: TodoItemId;
+}>;
+export type TodoPage = Readonly<{
+    revision: SessionRevision;
+    items: readonly VisibleTodoItem[];
+    next: TodoPageCursor | null;
+}>;
+export type SessionTodos<P> = Pick<SessionWork<P>, 'addTodo' | 'removeTodo' | 'markTodoComplete' | 'listTodos'>;
+export declare function validTodoText(text: unknown): text is string;
+```
+
 ## 声明文件 `values.d.ts`
 
 ```ts
+import type { TodoItem } from './todos.ts';
 import type { SessionWorkEntryIndex } from './work-entry-values.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { CompactionMessage, Message } from '@omne-harness/message';
@@ -3676,6 +3776,7 @@ export type WorkSnapshot = Readonly<{
         observation: IdleObservation;
         commit: DurableEvidence;
     }> | null;
+    todos?: readonly TodoItem[];
     executions?: readonly RunExecution[];
     residentKeys?: ResidentAdoption['keys'];
     relation?: Relation;

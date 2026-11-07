@@ -449,7 +449,7 @@ it('media measurements and meter representations are closed by kind', () => {
 it('a meter measures from the context limits and the other limits and returns a budget or a transport failure', () => {
   const meter: ModelInputMeter = {
     basis: counting,
-    measure: () => ({ ok: budget }),
+    measure: async () => ({ ok: budget }),
   }
   const input: Parameters<ModelInputMeter['measure']>[0] = {
     profile: adoption,
@@ -536,12 +536,12 @@ it('a calibration carries numbers and reasons only, and each miss and withholdin
 it('a calibrated meter is a plain meter with one more entry, and the report names reasons only', () => {
   const calibrated: CalibratedInputMeter = {
     basis: counting,
-    measure: () => ({ ok: budget }),
-    measureCalibrated: (_input, _calibration) => ({ ok: budget }),
+    measure: async () => ({ ok: budget }),
+    measureCalibrated: async (_input, _calibration) => ({ ok: budget }),
   }
   const plain: ModelInputMeter = calibrated
   // @ts-expect-error a plain meter has no calibration entry
-  const widened: CalibratedInputMeter = { basis: counting, measure: () => ({ ok: budget }) }
+  const widened: CalibratedInputMeter = { basis: counting, measure: async () => ({ ok: budget }) }
   const hit: CalibrationReport = { anchor: { kind: 'hit' } }
   const miss: CalibrationReport = { anchor: { kind: 'miss', reason: 'not-a-prefix' } }
   // @ts-expect-error a miss names its reason

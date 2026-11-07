@@ -20,6 +20,8 @@ import {
   type ToolMessageContentBlock,
   type ToolClock,
   type ToolOutputCustody,
+  type ToolForwardSource,
+  type ToolForwardBinding,
   type CallAccess,
 } from '@omne-harness/tool-contract/provider'
 import type { ToolEnvironmentValue } from './author-environment.ts'
@@ -29,11 +31,7 @@ import type {
 } from './execution-environment.ts'
 import type { EnvironmentGuardedHostCommit } from './environment-state.ts'
 import type { LocalInstanceInput } from './instance-host.ts'
-import {
-  createLocalOperationIdentities,
-  INVOCATION_SOURCE_DOMAIN_KEY,
-  type LocalInvocationSource,
-} from './invocation-source.ts'
+import { createLocalOperationIdentities, type LocalInvocationSource } from './invocation-source.ts'
 import type { ToolHostAccess } from './ledger-guards.ts'
 import type { LocalStartCoordinatorInput } from './start-coordinator.ts'
 import type { RuntimeRecords } from './runtime-records.ts'
@@ -46,7 +44,7 @@ export type LocalToolRuntimeInput = Readonly<{
   store: ToolLedgerStore<ToolMessageContentBlock>
   custody: ToolOutputCustody<unknown>
   content: ToolLedgerPorts<unknown>['content']
-  sources: LocalInvocationSource<unknown>
+  sources: LocalInvocationSource<unknown, ToolMessageContentBlock>
   access: ToolHostAccess<unknown>
   subjects: RuntimeSourceRecovery
   grants: ReadonlyMap<string, ToolGrantVerifier<unknown>>
@@ -155,7 +153,46 @@ export function createRuntimeDependencies(
   admit: (wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0] | null) => boolean,
   rejectAdmission: (wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0]) => void,
   knows: (wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0]) => boolean,
-): ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue> {
+): ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue> & {
+  forwardSource: ToolForwardSource<unknown>
+} {
+  const rejectedCapacity = () => ({
+    kind: 'rejected' as const,
+    failure: {
+      kind: 'unavailable' as const,
+      dependency: 'tool-executor',
+      diagnostic: 'The executor is absent, retired or its known-call capacity is full.',
+    },
+  })
+  const reserveKnownCall = async <T extends Pick<ToolForwardBinding, 'call' | 'recovered'>>(
+    tenant: CallAccess<unknown>['tenant'],
+    bound: T,
+  ): Promise<T | ReturnType<typeof rejectedCapacity>> => {
+    const wake = { tenant: tenant, call: bound.call }
+    if (bound.recovered && !knows(wake)) {
+      const prior = await input.store.read({ kind: 'call', ...wake })
+      if (prior.kind !== 'complete')
+        return {
+          kind: 'rejected',
+          failure: {
+            kind: 'unavailable',
+            dependency: 'tool-executor',
+            diagnostic: 'The original admission cannot be assigned to this executor.',
+          },
+        }
+      if (prior.records.some(row => row.kind === 'call')) return bound
+    }
+    if (!admit(wake))
+      return {
+        kind: 'rejected',
+        failure: {
+          kind: 'unavailable',
+          dependency: 'tool-executor',
+          diagnostic: 'The executor is retired or its known-call capacity is full.',
+        },
+      }
+    return bound
+  }
   const absent = createAbsentToolPorts<unknown>()
   return {
     ...records.ledger,
@@ -178,41 +215,23 @@ export function createRuntimeDependencies(
     operationIdentities: createLocalOperationIdentities(),
     sourceIssuer: {
       async resolve(request) {
-        if (!admit(null))
-          return {
-            kind: 'rejected',
-            failure: {
-              kind: 'unavailable',
-              dependency: 'tool-executor',
-              diagnostic: 'The executor is absent or retired.',
-            },
-          }
+        if (!admit(null)) return rejectedCapacity()
         const bound = await input.sources.issuer.resolve(request)
-        if (bound.kind !== 'bound') return bound
-        const wake = { tenant: request.tenant, call: bound.call }
-        if (bound.recovered && !knows(wake)) {
-          const prior = await input.store.read({ kind: 'call', ...wake })
-          if (prior.kind !== 'complete')
-            return {
-              kind: 'rejected',
-              failure: {
-                kind: 'unavailable',
-                dependency: 'tool-executor',
-                diagnostic: 'The original admission cannot be assigned to this executor.',
-              },
-            }
-          if (prior.records.some(row => row.kind === 'call')) return bound
-        }
-        if (!admit(wake))
-          return {
-            kind: 'rejected',
-            failure: {
-              kind: 'unavailable',
-              dependency: 'tool-executor',
-              diagnostic: 'The executor is retired or its known-call capacity is full.',
-            },
-          }
-        return bound
+        return bound.kind === 'bound' ? reserveKnownCall(request.tenant, bound) : bound
+      },
+    },
+    forwardSource: {
+      async resolve(request) {
+        if (!admit(null)) return rejectedCapacity()
+        const bound = await input.sources.forwarding.resolve(request)
+        return bound.kind === 'bound' ? reserveKnownCall(request.tenant, bound) : bound
+      },
+      async lookup(request) {
+        if (!admit(null)) return fail(rejectedCapacity().failure)
+        const found = await input.sources.forwarding.lookup(request)
+        if ('failure' in found || found.ok.kind !== 'bound') return found
+        const reserved = await reserveKnownCall(request.tenant, found.ok.binding)
+        return 'kind' in reserved && reserved.kind === 'rejected' ? fail(reserved.failure) : found
       },
     },
     instances: {
@@ -287,51 +306,14 @@ export function createRuntimeSourceAccess(
       )
         return runtimeUnavailable('invocation-source')
       const call = row.call
-      const { owner, work, position, purpose } = call.request.consumer
-      const key = `source:${JSON.stringify([owner, work, position, purpose])}`
-      const domain = await input.store.read({
-        kind: 'host',
+      const binding = await input.sources.recoverBinding({
         tenant: wake.tenant,
-        key: INVOCATION_SOURCE_DOMAIN_KEY,
+        call: call.call,
+        admission: call.admission,
+        request: call.request,
       })
-      if (domain.kind !== 'complete') return runtimeUnavailable('invocation-source')
-      const record = domain.records.find(value => value.kind === 'host' && value.host.key === key)
-      if (record?.kind !== 'host') return runtimeUnavailable('invocation-source')
-      const value: unknown = record.host.value
-      if (
-        typeof value !== 'object' ||
-        value === null ||
-        !('kind' in value) ||
-        value.kind !== 'invocation-source' ||
-        !('call' in value) ||
-        value.call !== call.call ||
-        !('admission' in value) ||
-        value.admission !== call.admission ||
-        !('fixedDigest' in value) ||
-        value.fixedDigest !== canonicalDigest(call.request) ||
-        !('invocation' in value) ||
-        canonicalDigest(value.invocation) !== canonicalDigest(call.request.invocation) ||
-        !('requestDigest' in value) ||
-        !('principal' in value)
-      )
-        return runtimeUnavailable('invocation-source')
-      const { invocation, ...request } = call.request
-      if (invocation.kind !== 'direct' || value.requestDigest !== canonicalDigest(request))
-        return runtimeUnavailable('invocation-source')
-      const source = {
-        owner: '@omne-harness/tool-host-local',
-        record: `invocation-source:${call.call}`,
-        revision: '1',
-        digest: canonicalDigest({
-          tenant: [wake.tenant.organization.text, wake.tenant.account.text],
-          call: call.call,
-          admission: call.admission,
-          requestDigest: value.requestDigest,
-        }),
-      }
-      if (canonicalDigest(source) !== canonicalDigest(invocation.source))
-        return runtimeUnavailable('invocation-source')
-      const session = sourceSession(value.principal, wake.tenant)
+      if ('failure' in binding) return runtimeUnavailable('invocation-source')
+      const session = sourceSession(binding.ok.principal, wake.tenant)
       if (session === null) return runtimeUnavailable('invocation-source-principal')
       const resolved = await input.recovery.resolveSessionWork({ tenant: wake.tenant, session })
       if ('failure' in resolved)
@@ -354,7 +336,8 @@ export function createRuntimeSourceAccess(
         operation: call.admission,
         request: call.request,
       })
-      if (verified.kind === 'forged') return fail({ kind: 'denied', action: 'recover' })
+      if (verified.kind === 'forged' || verified.kind === 'denied')
+        return fail({ kind: 'denied', action: 'recover' })
       if (verified.kind !== 'trusted') return runtimeUnavailable('invocation-source')
       for (const action of ['recover', 'write'] as const) {
         const verdict = await input.access.guard.qualify({ ...access, action })

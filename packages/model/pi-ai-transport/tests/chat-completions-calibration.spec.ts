@@ -71,10 +71,10 @@ function harness(count: (text: string) => bigint = text => BigInt(text.length)):
       units,
       reasoning,
       calibration: NONE,
-      count: (body): Outcome<bigint, TransportFailure> => {
+      count: async (body): Promise<Outcome<bigint, TransportFailure>> => {
         const text = writeJsonText(body)
         counts.push({ body, text })
-        return { ok: count(text) }
+        return { ok: await count(text) }
       },
       extra: indices => {
         extras.push(indices)
@@ -116,10 +116,10 @@ function messagesOf(body: JsonValue): readonly JsonValue[] {
 const items = messagesOf(tokenInput)
 
 describe('full metering', () => {
-  it('without a calibration and without a reasoning unit counts the token input itself once, with the margin on the whole', () => {
+  it('without a calibration and without a reasoning unit counts the token input itself once, with the margin on the whole', async () => {
     const plain = obj({ messages: arr([items[0]!, items[1]!, items[3]!]), tools: arr([]) })
     const h = harness()
-    const outcome = calibratedAmount(
+    const outcome = await calibratedAmount(
       h.input({ tokenInput: plain, units: [null, U1, U2], reasoning: [false, false, false] }),
     )
     expect(outcome).toEqual({
@@ -130,9 +130,9 @@ describe('full metering', () => {
     expect(h.extras).toEqual([[0, 1, 2]])
   })
 
-  it('replaces a reasoning unit by the output count of its source and counts the other units', () => {
+  it('replaces a reasoning unit by the output count of its source and counts the other units', async () => {
     const h = harness()
-    const outcome = calibratedAmount(
+    const outcome = await calibratedAmount(
       h.input({
         calibration: {
           anchor: null,
@@ -149,9 +149,9 @@ describe('full metering', () => {
     expect(h.extras).toEqual([[0, 1, 3]])
   })
 
-  it('a reasoning unit that no output count stands for is the named unavailability of the family', () => {
+  it('a reasoning unit that no output count stands for is the named unavailability of the family', async () => {
     const h = harness()
-    expect(calibratedAmount(h.input({}))).toEqual({
+    expect(await calibratedAmount(h.input({}))).toEqual({
       failure: {
         kind: 'unavailable',
         dependency: 'test-family',
@@ -160,7 +160,7 @@ describe('full metering', () => {
     })
     expect(h.counts).toEqual([])
     // Without units the unit cannot be looked up either: the same named unavailability.
-    expect(calibratedAmount({ ...h.input({}), units: undefined })).toEqual({
+    expect(await calibratedAmount({ ...h.input({}), units: undefined })).toEqual({
       failure: {
         kind: 'unavailable',
         dependency: 'test-family',
@@ -179,10 +179,10 @@ describe('full metering', () => {
     'supplier-changed',
   ] as const satisfies readonly OutputWithheld[])(
     'a withheld source (%s) is a named unavailability, never zero',
-    reason => {
+    async reason => {
       const h = harness()
       expect(
-        calibratedAmount(
+        await calibratedAmount(
           h.input({
             calibration: { anchor: null, outputs: [{ message: A1, kind: 'withheld', reason }] },
           }),
@@ -192,10 +192,10 @@ describe('full metering', () => {
     },
   )
 
-  it('adds the extra tokens of the counted units and never those of a replaced unit', () => {
+  it('adds the extra tokens of the counted units and never those of a replaced unit', async () => {
     const h = harness()
     h.input({}).extra([])
-    const outcome = calibratedAmount({
+    const outcome = await calibratedAmount({
       ...h.input({
         calibration: { anchor: null, outputs: [{ message: A1, kind: 'known', outputTokens: '1' }] },
       }),
@@ -215,9 +215,9 @@ describe('anchored metering', () => {
     inputTotal,
   })
 
-  it('counts only the units after the covered prefix, against the envelope without tools, and adds the anchor without margin', () => {
+  it('counts only the units after the covered prefix, against the envelope without tools, and adds the anchor without margin', async () => {
     const h = harness()
-    const outcome = calibratedAmount(
+    const outcome = await calibratedAmount(
       h.input({
         reasoning: [false, false, false, false],
         calibration: { anchor: anchorOf([U1, A1]), outputs: [] },
@@ -239,15 +239,17 @@ describe('anchored metering', () => {
     expect(h.extras).toEqual([[3]])
   })
 
-  it('a reasoning unit inside the prefix needs no source; a new one is counted as the output of its source', () => {
+  it('a reasoning unit inside the prefix needs no source; a new one is counted as the output of its source', async () => {
     const inside = harness()
     expect(
-      calibratedAmount(inside.input({ calibration: { anchor: anchorOf([U1, A1]), outputs: [] } })),
+      await calibratedAmount(
+        inside.input({ calibration: { anchor: anchorOf([U1, A1]), outputs: [] } }),
+      ),
     ).toMatchObject({ ok: { anchor: { kind: 'hit' }, substituted: false } })
 
     const after = harness()
     expect(
-      calibratedAmount(after.input({ calibration: { anchor: anchorOf([U1]), outputs: [] } })),
+      await calibratedAmount(after.input({ calibration: { anchor: anchorOf([U1]), outputs: [] } })),
     ).toEqual({
       failure: {
         kind: 'unavailable',
@@ -257,7 +259,7 @@ describe('anchored metering', () => {
     })
 
     const known = harness()
-    const outcome = calibratedAmount(
+    const outcome = await calibratedAmount(
       known.input({
         calibration: {
           anchor: anchorOf([U1], '300'),
@@ -277,10 +279,10 @@ describe('anchored metering', () => {
     expect(known.extras).toEqual([[3]])
   })
 
-  it('the request sent again, every unit covered, hits with a zero estimate and no margin', () => {
+  it('the request sent again, every unit covered, hits with a zero estimate and no margin', async () => {
     const h = harness()
     expect(
-      calibratedAmount(
+      await calibratedAmount(
         h.input({
           reasoning: [false, false, false, false],
           calibration: { anchor: anchorOf([U1, A1, U2], '512'), outputs: [] },
@@ -289,12 +291,12 @@ describe('anchored metering', () => {
     ).toEqual({ ok: { amount: 512n, margin: 0n, anchor: { kind: 'hit' }, substituted: false } })
   })
 
-  it('a negative envelope difference misses as continuation-shrank and the full path answers', () => {
+  it('a negative envelope difference misses as continuation-shrank and the full path answers', async () => {
     // The stand-in counter shrinks on the new unit: a non-monotonic count that real text never gives.
     const h = harness(text =>
       text.includes('"tools"') ? BigInt(text.length) : text.includes('three') ? 5n : 50n,
     )
-    const outcome = calibratedAmount(
+    const outcome = await calibratedAmount(
       h.input({
         reasoning: [false, false, false, false],
         calibration: { anchor: anchorOf([U1, A1]), outputs: [] },
@@ -312,13 +314,13 @@ describe('anchored metering', () => {
     expect(h.counts[2]?.body).toBe(tokenInput)
   })
 
-  it('refuses units that do not align, an anchor without units and an anchor total that is not a count', () => {
+  it('refuses units that do not align, an anchor without units and an anchor total that is not a count', async () => {
     const h = harness()
-    expect(calibratedAmount(h.input({ units: [null, U1] }))).toEqual({
+    expect(await calibratedAmount(h.input({ units: [null, U1] }))).toEqual({
       failure: { kind: 'invalid', field: 'representation.units', reason: 'length' },
     })
     expect(
-      calibratedAmount({
+      await calibratedAmount({
         ...h.input({
           reasoning: [false, false, false, false],
           calibration: { anchor: anchorOf([U1]), outputs: [] },
@@ -329,17 +331,17 @@ describe('anchored metering', () => {
       failure: { kind: 'invalid', field: 'representation.units', reason: 'missing' },
     })
     expect(
-      calibratedAmount(
+      await calibratedAmount(
         h.input({
           reasoning: [false, false, false, false],
           calibration: { anchor: anchorOf([U1], '12.5'), outputs: [] },
         }),
       ),
     ).toEqual({ failure: { kind: 'invalid', field: 'calibration.anchor', reason: 'input-total' } })
-    expect(calibratedAmount(h.input({ tokenInput: str('not an object') }))).toEqual({
+    expect(await calibratedAmount(h.input({ tokenInput: str('not an object') }))).toEqual({
       failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' },
     })
-    expect(() => calibratedAmount(h.input({ reasoning: [false] }))).toThrow(TypeError)
+    await expect(calibratedAmount(h.input({ reasoning: [false] }))).rejects.toThrow(TypeError)
   })
 })
 
@@ -355,27 +357,29 @@ describe('the failures of the inputs and of the family functions', () => {
   it.each([
     ['has no messages member', obj({ tools: arr([]) })],
     ['has a messages member that is not an array', obj({ messages: str('one') })],
-  ])('refuses a token input that %s', (_name, body) => {
+  ])('refuses a token input that %s', async (_name, body) => {
     const h = harness()
-    expect(calibratedAmount(h.input({ tokenInput: body, units: [], reasoning: [] }))).toEqual({
-      failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' },
-    })
+    expect(await calibratedAmount(h.input({ tokenInput: body, units: [], reasoning: [] }))).toEqual(
+      {
+        failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' },
+      },
+    )
   })
 
-  it('finds the messages member where it stands, not only as the first member', () => {
+  it('finds the messages member where it stands, not only as the first member', async () => {
     const later = obj({ parameters: str('[]'), messages: arr([items[1]!]) })
     const h = harness()
     expect(
-      calibratedAmount(h.input({ tokenInput: later, units: [U1], reasoning: [false] })),
+      await calibratedAmount(h.input({ tokenInput: later, units: [U1], reasoning: [false] })),
     ).toEqual({
       ok: { amount: len(later), margin: ceil10(len(later)), anchor: null, substituted: false },
     })
   })
 
-  it('refuses a known output count that is not a decimal count', () => {
+  it('refuses a known output count that is not a decimal count', async () => {
     const h = harness()
     expect(
-      calibratedAmount(
+      await calibratedAmount(
         h.input({
           calibration: {
             anchor: null,
@@ -388,35 +392,35 @@ describe('the failures of the inputs and of the family functions', () => {
     })
   })
 
-  it('throws for a margin percent that is not a decimal integer: a defect of the family', () => {
+  it('throws for a margin percent that is not a decimal integer: a defect of the family', async () => {
     const h = harness()
-    expect(() => calibratedAmount(h.input({ marginPercent: '1.5' }))).toThrow(RangeError)
+    await expect(calibratedAmount(h.input({ marginPercent: '1.5' }))).rejects.toThrow(RangeError)
   })
 
-  it('passes a failure of the extra tokens or of the counting on as the failure of the measurement', () => {
+  it('passes a failure of the extra tokens or of the counting on as the failure of the measurement', async () => {
     const none = { anchor: null, outputs: [] }
     const visible = [false, false, false, false]
     expect(
-      calibratedAmount({
+      await calibratedAmount({
         ...harness().input({ reasoning: visible, calibration: none }),
         extra: () => failure,
       }),
     ).toBe(failure)
     expect(
-      calibratedAmount({
+      await calibratedAmount({
         ...harness().input({ reasoning: visible, calibration: none }),
-        count: () => failure,
+        count: async () => failure,
       }),
     ).toBe(failure)
     // Anchored: the count of the empty envelope fails after the count of the new units succeeded.
     const counts: string[] = []
     expect(
-      calibratedAmount({
+      await calibratedAmount({
         ...harness().input({
           reasoning: visible,
           calibration: { anchor: anchorOf([U1, A1]), outputs: [] },
         }),
-        count: body => {
+        count: async body => {
           const text = writeJsonText(body)
           counts.push(text)
           return counts.length === 2 ? failure : { ok: BigInt(text.length) }
@@ -426,9 +430,9 @@ describe('the failures of the inputs and of the family functions', () => {
     expect(counts).toHaveLength(2)
   })
 
-  it('adds the extra tokens of the new units to the anchored estimate, with the margin on them', () => {
+  it('adds the extra tokens of the new units to the anchored estimate, with the margin on them', async () => {
     const h = harness()
-    const outcome = calibratedAmount({
+    const outcome = await calibratedAmount({
       ...h.input({
         reasoning: [false, false, false, false],
         calibration: { anchor: anchorOf([U1, A1]), outputs: [] },

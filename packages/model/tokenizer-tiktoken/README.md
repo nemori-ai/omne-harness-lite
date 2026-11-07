@@ -4,86 +4,74 @@
 
 ## Responsibility and status
 
-This member is the tiktoken engine adapter for `ModelTextTokenizer`. A family meter passes its own vocabulary and special-token table to it and gets a tokenizer. The group architecture defines the responsibility in [members and conditions](../docs/architecture.md#成员与新增条件) and [tokenizer resources and metering](../docs/architecture.md#tokenizer-的资源与计量分工).
+This package runs exact tiktoken counts in a bounded worker pool. The host supplies fixed family resources and explicit limits. Each family meter acquires a private lease. The package holds no vendor vocabulary and does not decide request permissions or complete input budgets.
 
-This package only wraps the engine. It checks the resources at initialization. `count` is a pure computation. This package holds no vendor vocabulary. `pi-ai-openai` consumes this package with the o200k vocabulary. `pi-ai-anthropic` consumes it with the `claude.json` vocabulary that it publishes.
+| Capability                                                   | Verification                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------------- |
+| Asynchronous executor, private leases, physical close        | Real worker tests and controlled lifecycle faults             |
+| Resource identity, Unicode, adjacent text and special tokens | Real js-tiktoken 1.0.21 with o200k and synthetic ranks        |
+| Exact regex-piece reuse with bounded lease caches            | Cache isolation, eviction and fixed-oracle differential tests |
+| Built worker entry in another process and directory          | Published-output and bounded regression tests                 |
 
-### Support levels
-
-The table has five levels. Each level states only checked facts. A commit that changes the support level updates this table, the Chinese README, [SPEC](SPEC.md) and the group page.
-
-| Level | Delivered | Entry | Verification |
-| --- | --- | --- | --- |
-| Public entry exported | Run-time value `createTiktokenTokenizer`; types `TiktokenRanks` and `TiktokenResources` | Root entry | `public-entry.spec.ts` checks that the root entry has one run-time export |
-| Initialization checks implemented | The implementation revision equals the installed js-tiktoken. The vocabulary digest and the configuration digest equal the SHA-256 of the canonical JSON. Any mismatch returns `unavailable` | Root entry; `src/tokenizer.ts`, `src/digest.ts`, `src/engine-version.ts` | Fast tier with the real js-tiktoken 1.0.21, o200k and a synthetic vocabulary. The digest constants come from outside this package |
-| Count implemented | Special-token spellings in text count as ordinary text. Adjacent text segments join before encoding. A special-token segment uses only the fixed table, else `unsupported-token`. An empty sequence counts `"0"`. Text that is not well-formed Unicode returns `invalid` | `ModelTextTokenizer.count` | Fast tier. o200k counts match the full js-tiktoken encoder. Synthetic counts match hand-computed values |
-| Build output verified | The build output initializes and counts in another process and another directory, with the same results as the source. A version mismatch also returns `unavailable` | `dist/index.js` | Slow tier, child process. No consumer installs the package outside the workspace |
-| Family consumers verified | `pi-ai-openai` passes the o200k ranks. `pi-ai-anthropic` passes `claude.json`: it checks the SHA-256 of the file when it reads it, and the count through this package equals the @anthropic-ai/tokenizer 0.0.4 reference of 150 | The tokenizer resource functions of the two family packages | The fast meter tests of the two family packages. These checks are in the family packages, not in this package. No consumer installs the package outside the workspace |
+Application load, family integration and the local pre-send latency target require their own combined verification. Package tests do not establish those results.
 
 ## Usage
 
-A family member imports the factory and the types from the root entry. It initializes once, before it publishes its metering:
+The host supplies `resources` and every field of `limits`. A family supplies the exact adopted `definition`. The controller belongs to the lease owner:
 
 ```ts
-import o200k from 'js-tiktoken/ranks/o200k_base'
-import { createTiktokenTokenizer } from '@omne-harness/tokenizer-tiktoken'
+import { createTiktokenExecutor } from '@omne-harness/tokenizer-tiktoken'
 
-const created = createTiktokenTokenizer({
-  definition, // TokenizerDefinition: the four adoptions that the family gives
-  ranks: { patStr: o200k.pat_str, specialTokens: o200k.special_tokens, bpeRanks: o200k.bpe_ranks },
-  specialTokens: { '<|endoftext|>': 199999 },
-})
+const created = await createTiktokenExecutor({ resources, limits })
 if ('failure' in created) throw new Error(created.failure.kind)
-created.ok.count([{ kind: 'text', text: 'hello world' }]) // { ok: { tokens: '2' } }
+const executor = created.ok
+try {
+  const acquired = executor.acquire(definition, controller.signal)
+  if ('failure' in acquired) throw new Error(acquired.failure.kind)
+  try {
+    const result = await acquired.ok.tokenizer.count([{ kind: 'text', text: 'hello world' }])
+    if ('failure' in result) throw new Error(result.failure.kind)
+    useCount(result.ok.tokens)
+  } finally {
+    await acquired.ok.release()
+  }
+} finally {
+  await executor.close()
+}
 ```
 
-Set `definition.implementation.revision` to the installed js-tiktoken version. Compute `vocabulary.digest` and `configuration.digest` as [SPEC "canonical JSON"](SPEC.md#规范-json) states. This package installs model-contract, operation-result and js-tiktoken. It does not install Cordis or any family. It has no Cordis entry; [Cordis integration](docs/cordis.md) gives the reason. [Use and context](docs/context.md) has more detail.
+Long-lived hosts share the executor across consumers and close it only during host shutdown. Families release their own leases. The Cordis entry exposes only borrowing methods; see [Cordis integration](docs/cordis.md).
 
 ## Contracts
 
-The [behavior specification](SPEC.md) owns the initialization checks, the canonical JSON, the count rules, ownership and failures. [model-contract](../model-contract/SPEC.md#分词与完整请求计量) owns the tokenizer types and the shared count rules. [Public API](docs/public-api.md) indexes the public entry.
+[SPEC](SPEC.md) owns resource checks, exact counting, admission limits, cache ownership and physical cleanup. [model-contract](../model-contract/SPEC.md#分词与完整请求计量) owns the tokenizer types and common counting rules. [Public API](docs/public-api.md) indexes source definitions.
 
 ## Design
 
-`tokenizer.ts` owns initialization and counting. `digest.ts` writes the canonical JSON and computes the digest. `engine-version.ts` reads the installed js-tiktoken version. [Internal architecture](docs/architecture.md) explains modules, mechanisms and reasons. [Key flows](docs/flows.md) and [object model](docs/object-model.md) give the rest.
+The main thread owns admission, deadlines and worker generations. Workers own vocabulary parsing, BPE and private lease caches. A lease stays on one slot, so its cache quota cannot multiply across workers. [Architecture](docs/architecture.md), [flows](docs/flows.md) and [object model](docs/object-model.md) describe the implementation.
 
 ## Configuration and operation
 
-This package has no configuration and no defaults. All input is the argument of `createTiktokenTokenizer`:
+`createTiktokenExecutor` accepts a fixed resource array and explicit limits. The package provides no defaults. Limits cover workers, live leases, queued jobs and bytes, input size, caches, timeout, worker heap and replacement rate.
 
-- `definition`: the four adoptions that the family gives.
-- `ranks`: the vocabulary that the family supplies.
-- `specialTokens`: the fixed table of special tokens that explicit segments can use.
-
-Initialization reads the js-tiktoken `package.json` once to get the installed version. `count` reads no file, does not use the current directory and does not use the network. A tokenizer holds no resource to release. Node.js 24 or later is necessary.
+Input and cache accounting use retained UTF-16 plus object overhead, not UTF-8 size or RSS. Counts return Promises. Cancellation can return a failure before physical work ends; release waits for cleanup and close waits for actual thread exit. Node.js 24 or later is required.
 
 ## Verification
 
-Run these commands at the repository root. The package engines require Node.js >=24. The pnpm version is 10.28.1.
+Run these commands from this member after workspace dependencies are built:
 
 ```sh
-pnpm turbo run typecheck test:fast --filter=@omne-harness/tokenizer-tiktoken
-pnpm turbo run test --filter=@omne-harness/tokenizer-tiktoken
-pnpm turbo run test:slow --filter=@omne-harness/tokenizer-tiktoken
-pnpm run lint:deps
-pnpm run check:docs
+pnpm run build
+pnpm run typecheck
+pnpm exec vitest run --mode fast --maxWorkers=1
+pnpm exec vitest run --mode slow --maxWorkers=1
 ```
 
-Turbo builds this package and its dependencies before `test`, `test:fast` and `test:slow`. The slow tier needs the build output. [Tests](tests/README.md) describes the tiers and the fixture. [SPEC "composition and verification"](SPEC.md#组合与验证) lists coverage and gaps.
-
-Results of `pnpm run package:template scan --member packages/model/tokenizer-tiktoken`:
-
-- `integration` is `unknown`, because `docs/architecture/constraints.json` has no entry for this member. The architecture owner keeps that entry. The structure check does not depend on it.
-- `adoption` is `current`: `package.json` has the `typescript-package@3.0.0` adoption marker with the variant `module`. `structure` is `pass`.
-- With `--check`, the exit code is 0. This result does not show that the integration check or the business acceptance is complete.
+[Tests](tests/README.md) states the real dependencies, fault seam and coverage limits. The worker tests create at most two workers per executor. They make no network requests.
 
 ## Maintenance
 
-- Upgrade js-tiktoken only with a reason. Change the catalog in `pnpm-workspace.yaml`, update `ENGINE_REVISION` in the tests and tell the family members to update `implementation.revision`.
-- A change to the canonical JSON makes every family digest invalid. Revise SPEC first and update all family members.
-- A change to the count rules updates SPEC, the tests and [key flows](docs/flows.md).
-- A new run-time dependency follows the dependency direction of the group architecture.
-- A change to the support level updates this table, the Chinese README, the [group page](../README.md) and [package organization](../../../docs/package-organization.md).
+Keep resource digests, fixed engine adoption, count semantics and all family consumers consistent when upgrading the engine. Update SPEC and the matching tests when limits or lifecycle behavior change. The root entry must not import Cordis; the separate Cordis entry owns its service definition. Root assembly owns thread shutdown.
 
 ## Directory structure and documentation roles
 

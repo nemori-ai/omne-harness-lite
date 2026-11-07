@@ -32,7 +32,7 @@ import { alice, loopAssembly, type LoopAssembly } from './loop-support.ts'
 type ReadInput = Parameters<ExecutionEntry<Principal>['ports']['journal']['readReplyAdmissions']>[0]
 type Commit = JournalCommit<Principal>
 
-const STOP: Failure = { kind: 'invalid', field: 'test', reason: 'stop at the evaluator' }
+const STOP: Failure = { kind: 'busy' }
 
 /** The coordinator of exec-1 whose evaluator stops at E4: E1 and E2 run, nothing is decided. */
 function stopping(assembly: LoopAssembly, change: Partial<ExecutionEntry<Principal>> = {}) {
@@ -341,13 +341,20 @@ describe('commit-time missing basis and the origin re-read', () => {
       { kind: 'invalid', field: 'from', reason: 'not of this execution' },
       { kind: 'denied', action: 'readReplyAdmissions' },
     ] as const) {
-      const { reads, authority, next } = await restartable(1, async (input, read) =>
+      const { assembly, reads, authority, next, cut } = await restartable(1, async (input, read) =>
         input.from.kind === 'prefix' ? fail(refusal) : read(input),
       )
-      expect(failure(await next().continueExecution(authority))).toEqual({
-        node: 'E2',
-        failure: refusal,
-      })
+      cut.on = false
+      const ran = await next().continueExecution(authority)
+      if (refusal.kind === 'denied') expect(failure(ran)).toEqual({ node: 'E2', failure: refusal })
+      else {
+        ok(ran)
+        expect((await load(assembly)).settlement.candidate?.failure).toMatchObject({
+          kind: 'node-failed',
+          node: 'E2',
+          failureKind: 'invalid',
+        })
+      }
       expect(reads.map(fromOf)).toEqual(['1'])
     }
   })

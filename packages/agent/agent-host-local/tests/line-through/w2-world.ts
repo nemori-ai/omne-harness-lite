@@ -41,6 +41,7 @@ import {
 } from '@omne-harness/agent-contract/testing'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantEquals } from '@omne-harness/legal-identity'
+import { agentToolReceptionTargetsKey } from '@omne-harness/agent-cordis-contract/cordis'
 import {
   decodeDispatchId,
   decodeResultVersion,
@@ -351,6 +352,9 @@ export type W2Options = Readonly<{
   progression?: 'evaluate-completion' | 'continue'
   /** Called with each `agentMessageHandoff.prepare` input of the Agent and its answer. */
   onHandoff?: (input: unknown, answer: unknown) => void
+  wrapAgentDependencies?: (dependencies: Dependencies) => Dependencies
+  wrapModelReceiver?: LineWorldOptions['wrapModelReceiver']
+  receptionTargets?: LineWorldOptions['receptionTargets']
   /**
    * The earlier context: `double` (default) is the history of the K-RQ holder double of CP3;
    * `session` is AD-04, the history source of the Session log.
@@ -429,6 +433,7 @@ export async function openW2World(options: W2Options) {
   // the scenario, when there is one, with the clock read at the call.
   /** How many Runs Session has ended in this process: the `round-complete` events it gave. */
   let roundsComplete = 0
+  const answeredTerminals = new Set<string>()
   /**
    * The receivers write through their own Journal copy, so the plugin's event stream does not wake the
    * Agent; it picks a saved result up at its reconciliation check (CP3). The doubles move the manual
@@ -467,6 +472,9 @@ export async function openW2World(options: W2Options) {
       combination,
     ],
     ...(options.report === undefined ? {} : { journalReport: options.report }),
+    ...(options.receptionTargets === undefined
+      ? {}
+      : { receptionTargets: options.receptionTargets }),
     handoff: 'external',
     // The manual clock is moved by `until`, far faster than real time: no instance idles out.
     hostConfig: {
@@ -480,9 +488,9 @@ export async function openW2World(options: W2Options) {
     // Real: the production factory, with the products' `measure` observer and the Tool request
     // source of R2-D36 (a double: a fixed full request of a fixed schema).
     hostPlugin:
-      options.onHandoff === undefined
+      options.onHandoff === undefined && options.wrapAgentDependencies === undefined
         ? createAgentHostLocalPlugin({ measure: observe, toolRequests: toolRequestSource })
-        : observedHandoffHost(options.onHandoff, toolRequestSource, observe),
+        : observedHandoffHost(options, toolRequestSource, observe),
     // `earlier: 'session'` is real (AD-04): the K-RQ holder sources over the Session log replace the
     // holder double. The narrow adoption source reads the Session's own record of fixed requests
     // (FIXED-FACTS F5). By default the earlier context is the history of the holder double.
@@ -532,6 +540,11 @@ export async function openW2World(options: W2Options) {
         if (commit === undefined) throw new Error('the Session transactions offer no commitLog')
         const answer = await commit.call(port, value)
         counters.ad02Commit('ok' in answer)
+        if (
+          'ok' in answer &&
+          value.observation.consequences.some(consequence => consequence.kind === 'ended')
+        )
+          answeredTerminals.add(String(value.observation.run))
         return answer
       },
     }),
@@ -552,15 +565,18 @@ export async function openW2World(options: W2Options) {
         },
       }
     },
-    wrapModelReceiver: receiver => ({
-      ...receiver,
-      push: async input => {
-        const delivery = options.modelDelivery?.(input.delivery) ?? input.delivery
-        const answer = await receiver.push({ ...input, delivery })
-        if ('ok' in answer) counters.receive('model')
-        return answer
-      },
-    }),
+    wrapModelReceiver: receiver => {
+      const wrapped = options.wrapModelReceiver?.(receiver) ?? receiver
+      return {
+        ...wrapped,
+        push: async input => {
+          const delivery = options.modelDelivery?.(input.delivery) ?? input.delivery
+          const answer = await wrapped.push({ ...input, delivery })
+          if ('ok' in answer) counters.receive('model')
+          return answer
+        },
+      }
+    },
     model: async admission => {
       counters.modelRequest()
       modelCalls.push(String(admission.call))
@@ -680,19 +696,35 @@ export async function openW2World(options: W2Options) {
         attachments: 10000,
         inFlight: 64,
       }),
-      targets: {
-        async resolve(input) {
-          const found = await targetsOf(input.access, await execution())
-          if ('failure' in found) return found
-          const target = found.ok.find(
-            item =>
-              item.pending.reference === input.reference &&
-              stable(item.pending.position) === stable(input.consumer),
-          )
-          return { ok: target ?? null }
-        },
-        forExecution: input => targetsOf(input.access, input.execution),
-      },
+      targets:
+        options.receptionTargets === 'journal'
+          ? {
+              resolve(input) {
+                const targets = w.ctx.get(agentToolReceptionTargetsKey)
+                if (targets === undefined)
+                  throw new Error('agentToolReceptionTargets is not provided')
+                return targets.resolve(input)
+              },
+              forExecution(input) {
+                const targets = w.ctx.get(agentToolReceptionTargetsKey)
+                if (targets === undefined)
+                  throw new Error('agentToolReceptionTargets is not provided')
+                return targets.forExecution(input)
+              },
+            }
+          : {
+              async resolve(input) {
+                const found = await targetsOf(input.access, await execution())
+                if ('failure' in found) return found
+                const target = found.ok.find(
+                  item =>
+                    item.pending.reference === input.reference &&
+                    stable(item.pending.position) === stable(input.consumer),
+                )
+                return { ok: target ?? null }
+              },
+              forExecution: input => targetsOf(input.access, input.execution),
+            },
     },
     toolState,
   )
@@ -917,7 +949,7 @@ export async function openW2World(options: W2Options) {
       // the wait are not counted.
       await until(async () => {
         const ended = await lastTerminal()
-        return ended !== null && ended !== before
+        return ended !== null && ended !== before && answeredTerminals.has(ended)
       }, ms)
     } finally {
       // A round that did not end still closes its counters, so the failure names the counts.
@@ -965,35 +997,30 @@ export async function openW2World(options: W2Options) {
   }
 }
 
-/**
- * The agent-host plugin over a wrapped factory that reports every `agentMessageHandoff.prepare` of the
- * Agent with its answer. A scenario that has to read the Agent's own handoffs again after a kill needs
- * it; it is the production factory `createAgentRuntime` with one observed dependency, and no scenario
- * but J5 takes it.
- */
 function observedHandoffHost(
-  onHandoff: (input: unknown, answer: unknown) => void,
+  options: Pick<W2Options, 'onHandoff' | 'wrapAgentDependencies'>,
   toolRequests: NonNullable<Dependencies['toolRequests']>,
   observe: (event: unknown) => void,
 ) {
-  return createAgentHostPlugin((dependencies: Dependencies, runtimeOptions) =>
-    createAgentRuntime(
-      {
-        ...dependencies,
-        toolRequests,
-        handoff: {
-          ...dependencies.handoff,
-          prepare: async input => {
-            const answer = await dependencies.handoff.prepare(input)
-            onHandoff(input, answer)
-            return answer
-          },
+  return createAgentHostPlugin((dependencies: Dependencies, runtimeOptions) => {
+    const observed: Dependencies = {
+      ...dependencies,
+      toolRequests,
+      handoff: {
+        ...dependencies.handoff,
+        prepare: async input => {
+          const answer = await dependencies.handoff.prepare(input)
+          options.onHandoff?.(input, answer)
+          return answer
         },
       },
+    }
+    return createAgentRuntime(
+      options.wrapAgentDependencies?.(observed) ?? observed,
       runtimeOptions,
       { measure: observe },
-    ),
-  )
+    )
+  })
 }
 
 /** The session that a head evidence of the Journal names (R2-D14, `historySessionOf`). */

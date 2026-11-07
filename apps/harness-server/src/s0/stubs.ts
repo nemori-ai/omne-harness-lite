@@ -18,6 +18,7 @@ type Entry = {
 const priv = (keys: readonly string[] = []): readonly string[] => keys.map(key => `s0.${key}`)
 
 const TABLE: Readonly<Record<string, Entry>> = {
+  telemetry: { provides: ['telemetry'] },
   storage: { provides: ['storage'], injects: ['storageHost'], phase: 'storage' },
   identity: {
     provides: ['identityOperations', 'tenantStanding', 'identityGovernance'],
@@ -50,6 +51,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'sessionDelegatedTransactions',
       'sessionPrincipals',
       'sessionWorkPrincipals',
+      'telemetry',
     ],
     phase: 'business',
   },
@@ -165,6 +167,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'modelRuntime',
       'agentClock',
       'agentHostPrincipal',
+      'telemetry',
     ],
     phase: 'business',
   },
@@ -180,14 +183,16 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'model-instances': { provides: ['modelInstances'], injects: ['modelPublicationAuthority'] },
   'model-converters': { provides: ['modelConverters'], injects: ['modelConverterAuthority'] },
   'model-profiles': { provides: ['modelProfiles'] },
+  'model-tokenizers': { provides: ['modelTokenizers'], phase: 'composition' },
   'model-request-preparation': {
     provides: ['modelRequestPreparation'],
-    injects: ['modelCommands'],
+    injects: ['modelCommands', 'modelTokenizers'],
   },
   'model-credential': { provides: ['modelCredential', 'modelCredentialCustody'] },
   'model-records': {
-    provides: ['modelCommands', 'modelSendBoundary'],
+    provides: ['modelCommands', 'modelSendBoundary', 'modelDiagnostics'],
     injects: ['storage', 'tenantDomainLookup', 'modelClock', 'principalVerifier', 'tenantStanding'],
+    group: 'model-records',
   },
   'tool-records': {
     provides: ['toolCommands', 'toolReads', 'toolStartAuthority', 'toolStartFence'],
@@ -243,7 +248,15 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'runtime-context': { provides: ['runtimeContext'], injects: ['runtimeContextTrust'] },
   'server-entry': {
-    injects: ['session', 'principalIssuer', 'definitionMappings'],
+    injects: [
+      'session',
+      'principalIssuer',
+      'definitionMappings',
+      'telemetry',
+      'agentJournal',
+      'modelDiagnostics',
+      'modelRuntime',
+    ],
     phase: 'entry',
   },
 }

@@ -856,4 +856,28 @@
 - **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 3）
 - **别混**：它不是连接件的事件订阅，也不复制或修改系统功能定义。不同订阅者的同刻工作分别去重。
 
+## 工程遥测的输出怎么换
+
+### UL-output-generation · 输出代 · Output Generation
+
+> **中**：**工程遥测提供者里作为一个整体被准备、启用、排空和关闭的一组输出实现及其资源**，
+> 包括日志输出、链路与指标导出器、目的地、采样与预算配置。每一代有代号。
+> 状态是准备中 → 生效 → 排空 → 关闭；准备失败时为失败。
+> 任一时刻最多一代生效，另外最多一代在准备或排空。换输出就是换一代：领域代码不改，发出记录的插件也不重跑。
+>
+> **EN**: **One set of output implementations and their resources inside the engineering-telemetry
+> provider that is prepared, activated, drained and closed as one unit.** The set includes the log
+> output, the trace and metric exporters, the destinations, and the sampling and budget settings.
+> Each generation has a generation number. Its states are preparing, active, draining and closed. It
+> becomes failed when preparation fails. At any time at most one generation is active, and at most
+> one other generation is preparing or draining. To change the output, the provider replaces the
+> generation. Domain code does not change, and the plugins that emit records do not run again.
+
+- **形态**：未定
+- **出处**：[#1140 的决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6663579066)（chenyize 2026-11-05，D01 的配套词条）；状态与协议见审议中的 [RFC-0013 输出代与关闭](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#输出代与关闭)（status `review`，未采用）；换输出不中断业务的目标见[项目要求 SYS-DYNAMIC](../../../../docs/requirements.md#完全动态目标sys-dynamic)
+- **别混 ①**：**不是 Cordis 插件换代。**输出代在同一个遥测服务实例里切换，插件树不变，依赖遥测服务的插件不重跑；Cordis 换代会重跑消费者插件，见[依赖换代与就绪](../../../../docs/architecture/deployment/cordis-and-lifecycle.md#依赖换代与就绪)
+- **别混 ②**：**不是[环境提供者](grounding-and-isolation.md#ul-environment-provider--环境提供者--environment-provider)的「代」或[生产者句柄](scope-and-resolution.md#ul-producer-handle--生产者句柄--producer-handle)的代际。**那些代属于别的对象，与工程遥测的输出无关
+- **注意**：已经开始的[遥测段](record-and-context.md#ul-telemetry-segment--遥测段--telemetry-segment)留在原代，到结束或截止；新记录进入新代。旧代排空有期限，超期截断并计数
+- **待裁决**：它是不是领域对象还没有人裁过，见 [C-74](../conflicts.md#c-74输出代是不是对象) 与[领域对象的待裁](../../domain_objects/pending.md#输出代)
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

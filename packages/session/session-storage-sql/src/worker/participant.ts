@@ -289,6 +289,16 @@ export function resultOf(
   receipt: CommitReceipt,
 ): unknown {
   switch (command.kind) {
+    case 'addTodo':
+    case 'removeTodo':
+    case 'markTodoComplete': {
+      const item = snapshot.todos?.find(todo =>
+        command.kind === 'addTodo'
+          ? todo.createdAt === receipt.revision
+          : todo.id === command.input.item,
+      )
+      return item === undefined ? null : { receipt, item }
+    }
     case 'create':
       return { receipt, state: snapshot }
     case 'startRun': {

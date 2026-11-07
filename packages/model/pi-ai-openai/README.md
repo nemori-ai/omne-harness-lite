@@ -29,7 +29,7 @@ Each level states only checked facts. A commit that changes the support level up
 
 ## Usage
 
-The assembly creates the family once and gives it to the transport:
+The assembly creates one executor with the family resources and explicit limits, then gives its acquire capability to the family:
 
 ```ts
 import { composeFamilies, createPiTransport } from '@omne-harness/pi-ai-transport'
@@ -40,6 +40,8 @@ import {
 } from '@omne-harness/pi-ai-openai'
 
 const openai = createOpenAiFamily({
+  executor, // shared executor owned by the assembly
+  maxSerializedBytes: 4 * 1024 * 1024,
   tokenizer: openAiTokenizerResources(),
   limits, // ChatCompletionsLimits: decoder buffer limits
   margin: { percent: '10', source: marginPolicy }, // the margin of every estimate
@@ -48,7 +50,7 @@ const families = composeFamilies([openai])
 const profiles = officialOpenAiProfiles({ retryPolicy, compactionTriggerPercent: '80' })
 ```
 
-`createOpenAiFamily` only computes. The first `acquire` initializes the tokenizer. The family shares the tokenizer between its bindings. The tokenizer holds nothing to release. This package has no Cordis entry. [Cordis integration](docs/cordis.md) gives the reason. [Use and context](docs/context.md) has more detail.
+`createOpenAiFamily` only computes. Each `acquire` borrows a private tokenizer lease from the configured executor. Binding release waits for that lease and rejects on cleanup failure. The assembly owns and closes the shared executor. This package has no Cordis entry. [Cordis integration](docs/cordis.md) gives the reason. [Use and context](docs/context.md) has more detail.
 
 ## Contracts
 

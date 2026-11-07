@@ -176,7 +176,7 @@ packages/
 │   ├── sql-contract/           SQL 存储契约：身份、结果、材料与清单摘要、关闭控制口、Cordis 服务定义、内存替身与符合性套件；已是 workspace 成员，提供者未建立
 │   └── <其他成员>/             存储机制与提供者
 ├── time/<具名时间能力>/        有独立消费者的时间能力
-├── telemetry/<具名观测能力>/   有真实共同需要的观测能力
+├── telemetry/                 本地工程遥测，见组入口
 ├── common/
 │   ├── json-text/              严格 JSON 文本读取、值树判定与原样写出
 │   ├── legal-identity/         合法身份文本
@@ -197,6 +197,8 @@ apps/<应用成员>/               客户端表现、个人设备daemon或云节
 tools/<开发工具>/              检查与开发工具
 scripts/                       仓库自动化
 ```
+
+telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node`，依据 [RFC-0013 revision 2](rfcs/RFC-0013-engineering-telemetry.md)，职责见[组入口](../packages/telemetry/README.md)。
 
 同一能力组内可以增加具名提供者或独立适配成员，前提是包边界有依据。单成员组仍提供稳定知识位置，不为目录对称增加转发层。time、telemetry和common须有实际共同语义及消费者，不能成为收纳未归属代码的目录。`util` 只放纯文本格式化。`unix-format` 和 `xml-format` 从封存的 [packages.0.0.1.legacy/util](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/util) 迁入，输出由迁来的测试锁定。它们不进入 `common`，因为还没有两个已确认的共同消费者。
 

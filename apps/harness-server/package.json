@@ -77,6 +77,7 @@
     "@omne-harness/runtime-context-cordis-contract": "workspace:*",
     "@omne-harness/schema-provider": "workspace:*",
     "@omne-harness/server-entry": "workspace:*",
+    "@omne-harness/session": "workspace:*",
     "@omne-harness/session-adapters": "workspace:*",
     "@omne-harness/session-contract": "workspace:*",
     "@omne-harness/session-cordis": "workspace:*",
@@ -85,6 +86,9 @@
     "@omne-harness/settings-local": "workspace:*",
     "@omne-harness/sql-contract": "workspace:*",
     "@omne-harness/sqlite-provider": "workspace:*",
+    "@omne-harness/telemetry-contract": "workspace:*",
+    "@omne-harness/telemetry-cordis-contract": "workspace:*",
+    "@omne-harness/telemetry-node": "workspace:*",
     "@omne-harness/tool": "workspace:*",
     "@omne-harness/tool-contract": "workspace:*",
     "@omne-harness/tool-cordis-contract": "workspace:*",
@@ -92,9 +96,11 @@
     "@omne-harness/tool-host-local": "workspace:*",
     "@omne-harness/tool-storage-sql": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@omne-harness/tokenizer-tiktoken": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/cli": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

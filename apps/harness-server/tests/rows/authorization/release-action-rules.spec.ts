@@ -17,7 +17,7 @@ const distribution: unknown = JSON.parse(
 )
 // `runServe` adds the `executionHost` factory binding to the allowlist (HOSTFILE-FACTORY-ROW); the
 // release now names it for `execution-host`, so reading the release tree needs the same entry.
-const allowlist = [...serveProfile().allowlist, 'executionHost']
+const allowlist = [...serveProfile().allowlist, 'executionHost', 'telemetry']
 
 function configOf(operator: unknown): unknown {
   const row = loadTree(distribution, operator, allowlist).rows.find(r => r.id === 'authorization')
