@@ -215,7 +215,8 @@ export function createBuilder<P, S>(
    * whether the step failed or not, answers at once with the refusal a call after the shutdown
    * gets (MC-5), and nothing is marked: the close is a decision of this side, not a fact
    * about the endpoint. The close tears the entry down once the build ended: that teardown is the
-   * only one after the close began, so the range the close reports is the one it confirmed.
+   * only one after the close began, so the range the close reports is the one it confirmed. The
+   * one exception is `catch`, reached only by an error of this package (P7).
    * A failure on an open connection is `failed`.
    */
   async function ended(

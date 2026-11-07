@@ -41,7 +41,7 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 | `bad-close-after-build`    | 负控                 | A    | 1        | 1         | 0          | 0      | 无                                          | 关闭等建连结束之后才拒绝请求。`P16_CloseRefusesAtOnce` 须违反                                    |
 | `bad-close-after-build-ok` | 负控                 | A    | 1        | 1         | 0          | 0      | 无                                          | 同一缺陷，建连核关停而不核连接已关闭，`ensure` 交出关闭已开始的连接。`P16_NoOkAfterClose` 须违反 |
 | `bad-no-shut`              | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | `closeAll` 不置关停。`P4_NoConnectAfterShut` 须违反                                              |
-| `bad-ok-after-shut`        | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | 协商之后不核关停。`P4_NoOkAfterShut` 须违反                                                      |
+| `bad-ok-after-shut`        | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | 最后一步之后不核连接已关闭。`P4_NoOkAfterShut` 须违反                                            |
 | `bad-abandon-landed`       | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | `closeAll` 也释放已交来进程的落点的句柄。`P1_ReleasedAfterStop` 须违反                           |
 | `bad-unbounded-wrap`       | 负控                 | A    | 1        | 0         | 0          | 0      | 无                                          | 失败的建连等收场与标记时不受时限。`P8_BoundedEnsure` 须违反                                      |
 

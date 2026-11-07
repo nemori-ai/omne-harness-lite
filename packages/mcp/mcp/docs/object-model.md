@@ -89,7 +89,7 @@ classDiagram
     InFlightCalls ..> Connection : 发出时的只读视图
 ```
 
-`Connection` 的状态是 `none`、`preparing`、`ready`、`degraded`、`lost`、`closed`；转移表与代际规则见 SPEC MC-6 与 `tests/connection.spec.ts` 的合法转移表。`Entry` 的形状在 `internal/entry.ts`，身份是连接键文本；一个租户与持有在任一时刻至多有一个未关闭的条目，关闭后仍带未确认进程或等待迟到落点的条目保留，状态视图合并它们的 `residual`。`AdoptedOnly` 与 `AdmittedEndpoint` 是值，不是实体：各证明一次采用通过与一次关口通过。`Ensured` 是 `ensure` 答复兑现那一刻的快照，带连接的只读视图与 `wire()`：传输只经它取得，连接在快照的代际上不再接受请求时它答拒绝。兑现之前连接的关闭已经开始，`ensure` 不交出快照（已定事项 23）。
+`Connection` 的状态是 `none`、`preparing`、`ready`、`degraded`、`lost`、`closed`；转移表与代际规则见 SPEC MC-6 与 `tests/connection.spec.ts` 的合法转移表。`Entry` 的形状在 `internal/entry.ts`，身份是连接键文本；一个租户与持有在任一时刻至多有一个未关闭的条目，关闭后仍带未确认进程或等待迟到落点的条目保留，状态视图合并它们的 `residual`。`AdoptedOnly` 与 `AdmittedEndpoint` 是值，不是实体：各证明一次采用通过与一次关口通过。`Ensured` 是 `ensure` 答复兑现那一刻的快照，带连接的只读视图与 `wire()`：传输只经它取得，连接在快照的代际上不再接受请求时它答拒绝。兑现之前连接的关闭已经开始，`ensure` 不交出快照（SPEC MC-5、P16）。
 
 ## 生命周期
 
