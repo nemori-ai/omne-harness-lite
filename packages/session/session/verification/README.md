@@ -20,3 +20,5 @@
 - 机制自有的验证义务在 [SPEC 的 VM 表](../SPEC.md#vm-机制的持续验证义务)；契约的验证义务在[会话契约的 VC 表](../../session-contract/SPEC.md#候选的持续验证义务)。
 - [control-propagation/](control-propagation/README.md) 是控制传播、重放与会话串行队列交错的有限模型，结论只覆盖它写明的范围。
 - `models/` 与 `proofs/` 目前没有内容。候选的形式模型是 Run 两层状态机与 `claim` 到 `resume` 之间的窗口，尚未立项。
+
+- [advance-wait/](advance-wait/README.md)：C2 有限重试、原操作身份和本地等待取消的有限模型及具名负控。

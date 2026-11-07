@@ -1,3 +1,5 @@
+import { createToolForwardRuntime } from '@omne-harness/tool'
+import type { ToolForwardRuntime } from '@omne-harness/tool-contract/provider'
 import type { Context } from '@deepseek-ai/cordis'
 import { fail } from '@omne-harness/operation-result'
 import type {
@@ -68,6 +70,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   let host: ToolInstanceHost<unknown> | null = null
   let executor: ReturnType<typeof createRuntimeExecutor> | null = null
   let retired = false
+  let forwarding: ToolForwardRuntime<unknown> | undefined
   const authorExecution = createRuntimeAuthorExecution(input)
   const stages = createRuntimeStages(input, () => environment)
   const receivers: { current: DeliveryPosition<unknown, ToolMessageContentBlock>['receiver'] } = {
@@ -96,6 +99,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   }
   const close = async () => {
     retired = true
+    forwarding = undefined
     lifetime.abort()
     authorExecution.close()
     await executor?.close()
@@ -108,6 +112,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   }
   return {
     authorExecution: publicAuthorExecution,
+    forwarding: () => forwarding,
     records: {
       name: 'local-tool-records',
       apply(ctx: Context) {
@@ -176,7 +181,12 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
       name: 'local-tool-runtime',
       inject: ['toolCommands', 'toolReads'],
       apply(ctx: Context) {
-        publishRuntimeFacade(ctx, input, dependencies(ctx), receivers)
+        const current = dependencies(ctx)
+        forwarding = createToolForwardRuntime(current, current.forwardSource)
+        publishRuntimeFacade(ctx, input, current, receivers)
+        ctx.effect(() => () => {
+          forwarding = undefined
+        })
       },
     },
     close,

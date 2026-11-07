@@ -132,7 +132,7 @@
 | 输入 | 快照；`readInput` 取得的输入内容（在 `session-adapters` 侧）；出站回执；Agent 事件页 |
 | 产出 | `startRun`、`claim`、`reload`、`release`、`finishRun`（PM-02 的准入拒绝）、`freeze`、`receive` 命令；`invoke`、`submit`、`resume`、`detach`、`query`、`inspect` 出站调用 |
 | 单写 | 每 Run 一个协调实例。跨进程由 attempt 序号、`expected` 与执行记录提供者的条件提交围栏保护，不用锁 |
-| 失败分支 | `startRun`：`run-active` 表示另一方已开，无害结束；`changed` 重新裁定；`frozen` 按上面的冻结行；`no-input`、`not-ready`、`login-required`、`archived`、`denied`、`invalid` 停止并记诊断，待处理输入保留。`invoke`：`denied` 有两种来源，协调器以一次新的读面操作（`readWork`，主体按 [cp-access](#cp-access) 取得）重读快照区分：快照里的推进资格已不指向本 attempt 时，本 attempt 已被取代，停止并交 C5；仍指向本 attempt 时，是访问裁定拒绝，停止，记录诊断，待处理输入与任务保留，不因此发起 `claim`；`busy` 等该 runtime 的终态事件后重试，退避按 `advance.retryDelaysMs`；`unavailable` 退避；`invalid` 按 [PM-02](../session-contract/SPEC.md#pm-02) 提交有界收束的 `finishRun`，同批写首条输入的 SE35 为拒收；该 `finishRun` 带协调器刚读到的 `revision`，答 `changed` 时重读快照再提交，次数不超过 `command.retriesOnChanged`；`commit-unknown` 以同一出站身份 `query`。`submit`：`terminal` 按 [PA-03](../session-contract/SPEC.md#pa-03) 不重试、不改去处；`invalid` 按 [PA-09](../session-contract/SPEC.md#pa-09) 写 SE35 为拒收；`commit-unknown` 先 `query`。`claim`、`reload`、`resume`、`detach` 的失败按 [PM-05](../session-contract/SPEC.md#pm-05)、[PM-06](../session-contract/SPEC.md#pm-06)、[PM-09](../session-contract/SPEC.md#pm-09) 至 [PM-12](../session-contract/SPEC.md#pm-12)。`freeze`：`commit-unknown` 以同一身份 `queryOperation`，认回前不再触发开 Run。Agent 端口缺席：出站调用不发出，任务保留，由 S1 或 S3 重放 |
+| 失败分支 | `startRun`：`run-active` 表示另一方已开，无害结束；`changed` 重新裁定；`frozen` 按上面的冻结行；`no-input`、`not-ready`、`login-required`、`archived`、`denied`、`invalid` 停止并记诊断，待处理输入保留。`invoke`：`denied` 有两种来源，协调器以一次新的读面操作（`readWork`，主体按 [cp-access](#cp-access) 取得）重读快照区分：快照里的推进资格已不指向本 attempt 时，本 attempt 已被取代，停止并交 C5；仍指向本 attempt 时，是访问裁定拒绝，停止，记录诊断，待处理输入与任务保留，不因此发起 `claim`；`busy` 等该 runtime 的终态事件后重试，退避按 `advance.retryDelaysMs`；`unavailable` 退避；`invalid` 按 [PM-02](../session-contract/SPEC.md#pm-02) 提交有界收束的 `finishRun`，同批写首条输入的 SE35 为拒收；该 `finishRun` 带协调器刚读到的 `revision`，答 `changed` 时先按 `advance.retryDelaysMs` 退避，再重读原 attempt 与快照后提交，次数不超过 `command.retriesOnChanged`。退避序列不足时沿用末项；原 attempt 已失效则停止。原提交 `commit-unknown` 时由 S4 查询，认回前不改原操作与请求；`commit-unknown` 以同一出站身份 `query`。`submit`：`terminal` 按 [PA-03](../session-contract/SPEC.md#pa-03) 不重试、不改去处；`invalid` 按 [PA-09](../session-contract/SPEC.md#pa-09) 写 SE35 为拒收；`commit-unknown` 先 `query`。`claim`、`reload`、`resume`、`detach` 的失败按 [PM-05](../session-contract/SPEC.md#pm-05)、[PM-06](../session-contract/SPEC.md#pm-06)、[PM-09](../session-contract/SPEC.md#pm-09) 至 [PM-12](../session-contract/SPEC.md#pm-12)。`freeze`：`commit-unknown` 以同一身份 `queryOperation`，认回前不再触发开 Run。Agent 端口缺席：出站调用不发出，任务保留，由 S1 或 S3 重放 |
 
 <a id="c3"></a>
 
@@ -177,6 +177,10 @@
 | 失败分支 | 任一拥有者 `unavailable`：保留该项，不把未知当失败，退避归 S3。`queryOperation` 为 `unknown`：保留在 `unresolved`。`inspect` 为 `missing` 且 `ExecutionRef.revision` 为空：按「已授予、尚未受理」重放 `invoke`；`revision` 非空：视为记录已按保留政策删除，保管改由 Session 单方提交（[AgentDrivePort](../session-contract/SPEC.md#agentdriveport)）。现行 Agent 适配不产生 `missing`，因为 Agent 的 `load` 不区分记录不存在与读取失败（[NP-05](../session-adapters/SPEC.md#np-05)）；这两个分支在该缺项闭合之前不会触发，「尚未受理」改由 `query` 的 `excluded` 判断。Tool 原确认不可读则 release 保持 pending；Model ACK 未决时只报告，不执行动作 |
 
 ### 调度器
+
+内部等待明确返回 elapsed、cancelled 或 refused。取消信号在时钟采样前登记；关闭和调用者取消均可结束本地等待，不依赖时钟端口最终答复。晚到采样不再建立计时器，晚到 elapsed 不恢复已结束的等待。取消本地等待不证明端口工作已物理停止。
+
+C2 在退避前登记本会话的等待句柄，再读取原 attempt。控制或终态提交唤醒这个句柄，协调器退出原等待后按最新快照重查。外部普通控制通知没有正在等待的 C2 时不额外触发开 Run。每次 invoke 前仍重新核推进权；通知只决定重查时机，不授予推进权。通知丢失时，原等待到期后的重读仍守住旧 attempt 不重发，但不保证即时唤醒。未应答的 Agent invoke、存储读取和其他外部 RPC 不在本地时钟等待取消保证内。
 
 调度器只决定什么时候再检查、检查哪个会话，检查结果交给协调器。每个调度器写触发源、看什么、交给谁、幂等、并发、停机与接续、可配置策略。策略字段见 [SchedulingPolicy](#schedulingpolicy)。
 
@@ -296,10 +300,12 @@
 
 `SchedulingPolicy` 是本成员工厂配置的一部分，形状归本成员的[构造入口](docs/public-api.md)。下表的初值是配置初值，不是契约承诺；实际值由装配决定，验证计划实测后可以改。
 
+`advance.retryDelaysMs` 必须非空。公开配置类型用非空元组表达这一条件，工厂仍校验运行时输入；因此沿用末项总有定义。
+
 | 字段 | 覆盖 | 含义 | 配置初值 |
 | --- | --- | --- | --- |
 | `command.retriesOnChanged` | CP-01 | 存储层返回 `changed` 时流水线重做的次数上限。只重做不带调用方 `expected` 的命令；带 `expected` 的命令把 `changed` 交给调用方 | 3 |
-| `advance.retryDelaysMs` | S1、C2 | Agent 返回 `busy` 或 `unavailable` 时的退避序列，用尽后交 S3 | `[1000, 5000, 30000]` |
+| `advance.retryDelaysMs` | S1、C2 | Agent 返回 `busy`、`unavailable` 或未定提交时的退避序列，用尽后交 S3。C2 有界收束遇到 `changed` 时也使用该序列，序列不足沿用末项，次数仍受 `command.retriesOnChanged` 限制 | `[1000, 5000, 30000]` |
 | `idle.checkIntervalMs` | S2 | 没有时钟等待能力时的轮询间隔 | 60000 |
 | `idle.clockToleranceMs` | S2 | 时钟采样允许的偏差 | 5000 |
 | `recoveryScan.periodMs` | S3 | 周期扫描间隔 | 30000 |
@@ -379,7 +385,7 @@
 - [CP-03](#cp-03) 的读路径。调用方类按契约的四面操作表核对，不在其中返回 `denied`，不调用 `check`。
 - [S1](#s1)，以及 [C2](#c2) 的开 Run 顺序：`judgeRunStart`、`startRun`、`invoke`、`receive(input-handover)`。`invoke` 答 `invalid` 时提交有界收束的 `finishRun`，它的 `expected` 是 Run 层修订，无关提交不使它答 `changed`（契约[推进命令的 expected](../session-contract/SPEC.md#run-layer-expected)，R2-D327）。`startRun` 带回冻结判定时提交 `freeze`。`startRun`、`claim`、`reload` 的 `instance` 按 XC-AGINST 第 2.1 节的会话槽引用规则计算。
 - 已授予而未受理的 Run（契约 [PA-06](../session-contract/SPEC.md#pa-06) 第 2 项、[PM-14](../session-contract/SPEC.md#pm-14) 第 2 行，R2-D327）：S1 读到 Run 为 active、`advance` 非空、首条输入仍待处理而没有 SE35 时，不调用 `judgeRunStart`，把会话交 C2 重放。C2 在会话串行队列里重读快照，以该 Run 的 OP-00 身份（首条输入与前继 Run）认回原 `startRun`，取得原回执，再以同一出站身份 `invoke`。触发来自提交通知、本地唤醒或 S3 按 `inputs` 找到的会话，所以重试序列用尽、进程崩溃或 Agent 端口缺席之后，Run 不会永远停在 active 而没有执行。`advance` 已转到后来的 attempt 时，重放需要那个 attempt 的授予依据，属于 C5 的接管，本成员记 `attempt-replaced` 诊断后停止。
-- C2 与 S1 的失败分支都记具名诊断（R2-D327）：`invoke` 的不可重试失败、重试序列用尽（`retries-exhausted`）、Agent 端口缺席（`agent-absent`）、退避等待不成立（`clock-refused`）、读快照失败，`receive`、`finishRun`、`freeze`、`startRun` 的失败（`commit-unknown` 交 S4，不算停止），以及 S1 读快照失败。`invoke` 答 `denied` 时按 C2 行重读快照：本 attempt 已被取代则停止，不记诊断；仍持有推进资格则记 `denied`。`startRun` 答 `run-active`、`frozen` 时按 C2 行无害结束，不记诊断。诊断带会话、租户、Run、步骤、原因与失败原文，不带正文，见[诊断出口](#诊断出口)。
+- C2 与 S1 的失败分支都记具名诊断（R2-D327）：`invoke` 的不可重试失败、重试序列用尽（`retries-exhausted`）、Agent 端口缺席（`agent-absent`）、时钟拒绝退避（`clock-refused`）、本地等待被控制或终态通知打断（`wait-cancelled`）、原 attempt 已失效（`advance-withdrawn`）、读快照失败，`receive`、`finishRun`、`freeze`、`startRun` 的失败（`commit-unknown` 交 S4，不算停止），以及 S1 读快照失败。`invoke` 答 `denied` 时按 C2 行重读快照：本 attempt 已被取代则记 `advance-withdrawn` 后停止；仍持有推进资格则记 `denied`。`startRun` 答 `run-active`、`frozen` 时按 C2 行无害结束，不记诊断。诊断带会话、租户、Run、步骤、原因与失败原文，不带正文，见[诊断出口](#诊断出口)。
 - [S4](#s4)：按同一操作身份查询，结局已知后交回原发起者，以同一身份重做。
 - [S3](#s3)：启动扫描读原因的并集，周期扫描读 `inputs`、`unresolved` 与 `controls`。有待处理输入的会话交 S1，每个未知操作交 S4，有 `propagating` 控制的会话交 C3。
 - [C3](#c3) 与 [S5](#s5) 的控制重放：控制提交、通知中的控制条目与扫描唤醒 C3，按 `controlReplay.intervalMs` 与 `controlReplay.maxReplays` 经 `AgentDrivePort.control` 送达原执行（`control.ts`）。
@@ -431,22 +437,48 @@
 
 | 事件 | 何时发出 | 字段 |
 | --- | --- | --- |
-| `segment`，`phase: 'start'` | 一次面操作（变更与读，含公开端口上的目录读）开始做它的工作，即核权之前 | `span`（进程内唯一，起止成对）、`operation`（命令种类或读操作名）、`session`（目录读为 `null`） |
+| `segment`，`phase: 'start'` | 一次面操作（变更与读，含公开端口上的目录读）开始做它的工作，即核权之前 | `span`（进程内唯一，起止成对）、`operation`（命令种类或读操作名）、`session`（目录读为 `null`）、`tenant`（这份工作的租户，见下文「作用域」）、`scope`（只有系统作用域的读带它，值为 `system`） |
 | `segment`，`phase: 'end'` | 同一面操作要交回答复时，含抛出 | 上列字段加 `outcome`：`ok`，或带 `failure` 的答复与抛出为 `failure` |
-| `round-complete` | 本实例的一次提交写下 `run.terminal` 条目之后、答复交回之前。认回（`recovered`）的提交与别的进程的提交不发 | `session`、`run`、`outcome`（终态结局）、`revision`、`entry`、`operation` |
+| `round-complete` | 本实例的一次提交写下 `run.terminal` 条目之后、答复交回之前。认回（`recovered`）的提交与别的进程的提交不发 | `session`、`tenant`、`run`、`outcome`（终态结局）、`revision`、`entry`、`operation` |
 
 - **时间**：事件不带时间。观察者在被同步调用的那一刻读自己的单调时钟，那一刻就是边界时刻，所以同一进程、同一时钟代次由观察者的拥有者保证。本成员不读 `Date.now`、`performance.now`，也不用注入的 `SessionClock`：它读 UTC 时刻、异步作答、测试会给它计次，不是单调时钟。
+- **作用域**：段事件说明它测量的事实属于谁，采集者据此给记录定作用域（telemetry-contract SPEC TC-4）。
+  - 变更与单会话读带 `tenant`，值是本次访问的租户（`SessionAccess.tenant`），类型与 `WorkSnapshot['tenant']` 相同。
+  - 目录读 `pending` 带 `tenant`，值是输入的 `tenant`。契约里这次读属于该租户的工作。
+  - 目录读 `references` 与 `releasedScopes` 带 `scope: 'system'`，不带 `tenant`。契约把这两个读定为系统作用域：它们跨租户，是服务自身的事实。
+  - 一个事件不同时带 `tenant` 与 `scope`。两个字段都是可选的兼容加法，没有它们的旧事件形状仍然成立。属于租户工作的事件不能改标为 `system`。
 - **一轮就是一次 Run**：`round-complete` 是明确的轮完成事实，不由输入受理推断。Session 不持有累计条目数，所以事件不带它；`revision` 是不透明的提交身份。要累计条目数的采集者自己读历史。
 - **段是包含式的**：Session 段包含它等待存储、身份桥与证据桥的时间，也包含嵌套的面操作。段之间不能相加成端到端耗时，扣除外部等待由采集者做。
 - **观察者抛出**不改变任何答复，也不留痕。观察者不得回调本实例。
 - **不在这里**：Agent 段与 Context 段由各自成员发出。跨成员的时钟与关联由采集者负责。
+
+### 遥测投影
+
+<a id="遥测投影"></a>本段按 RFC-0013 rev2 的本地 A/B 范围采用，见[本轮采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)。设计依据是 [RFC-0013「计时记录与离线聚合」](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#计时记录与离线聚合)。根入口的 `createSessionTelemetry(port, { instance })` 把[测量事件](#测量事件)与[诊断出口](#诊断出口)投影为 `@omne-harness/telemetry-contract` 的记录，返回 `{ measure, diagnose }`。装配者把 `measure` 与 `diagnose` 交给工厂的第三个参数。facade 只依赖 telemetry-contract 的根入口，不依赖提供者，不依赖 Cordis。源码在 [telemetry.ts](src/telemetry.ts)。
+
+| 事件 | 记录 | 定义（owner `session`） | 关联 |
+| --- | --- | --- | --- |
+| `segment` 起止 | 一个遥测段：start 开段，end 以 `outcome` 结束 | `omne.session.<operation>`，按操作名各一个定义 | `work` 是会话（owner `@omne-harness/session`，ref 为会话 id）；目录读没有 `work` |
+| `round-complete` | 事件 | `omne.session.round-complete`：`outcome` 枚举 `completed`、`failed`、`cancelled`、`unknown`；`operation` 引用 | `work` 是会话，`attempt` 是 Run（`run` 为 `null` 时没有 `attempt`） |
+| `SessionDiagnostic` | 事件 | `omne.session.diagnostic`（级别 `warn`）：`owner`、`step` 枚举；`reason` 枚举取诊断出口列出的四个本成员原因、session-contract `SessionFailure` 的全部十六个失败种类，以及 `other`（不在表内的值）。不输出 `detail` | `work` 是会话，`attempt` 是 Run |
+
+- **作用域**：每条记录的 `component` 是 `session`，`instance` 由装配者给出。`scope` 按事件定（telemetry-contract TC-4、TC-15）：
+  - 事件带 `tenant` 时，`scope` 是 `tenantScope(tenant)`。
+  - 段事件带 `scope: 'system'` 而不带 `tenant` 时，`scope` 是 `systemScope()`，记录里没有租户标识。只有 `references` 与 `releasedScopes` 两个系统作用域的读这样发。
+  - 其余情况 facade 不发记录：事件没有 `tenant` 也没有 `scope`，`tenant` 不是 legal-identity 铸造的值，或段事件同时带 `tenant` 与 `scope`。facade 把记录的定义交给 `port.discard(definition, 'invalid')`，由提供者按 `invalid` 计数（进 `CloseReport.droppedBy.invalid`）。这些记录不改标为 `system`。
+  - 操作名不满足契约字符集或长度时同样经 `discard` 计入 `invalid`，定义只写该段本来的名字。
+  - 每条记录各自 `port.bind`，不缓存 emitter，因为绑定的 `scope` 不能经 `Emitter.bind` 改写（TC-15）。
+- 有界：facade 用 `startSegment` 的 `onRelease` 同步删除配对项（telemetry-contract TC-14）。只有尚未释放的段进入配对表，end 也删除配对。早于 start 返回的通知阻止重新登记；旧通知按条目身份删除，不能误删复用 span 的新项。共享同一提供者的门面配对总数不超过其 `maxOpenSegments`；提供者关闭的同步释放阶段结束时，配对表为空。没有配对的 end 什么也不做。该界限不约束任意调用方主动保留的旧句柄，也不依赖 GC。
+- **计时**：facade 不读时钟。段的时长由提供者在 `startSegment` 与 `end` 之间计算。
+- **不抛错**：facade 不抛错。被 `startSegment` 丢弃的段由提供者计数，facade 不再计一次；facade 自己不保有任何计数。
 
 ### 已有测试
 
 成员测试在 `tests/`，逐项对应见 [tests/README.md](tests/README.md)。
 
 - session-contract 的事务套件经四个面运行：对内存替身对 21 例全部通过；对真实 sqlite-provider 上的 SQL 提供者对，21 例全部通过。
-- [测量事件](#测量事件)：起止成对、并发时的 `span`、读与目录读、失败结局、`run.terminal` 提交的轮完成事件（认回不重发、无通知器时仍发）、无观察者时不读条目、观察者抛出不改答复。
+- [测量事件](#测量事件)：起止成对、并发时的 `span`、读与目录读、失败结局、`run.terminal` 提交的轮完成事件（认回不重发、无通知器时仍发）、无观察者时不读条目、观察者抛出不改答复、变更与读的事件带租户、`pending` 带输入的租户、`references` 与 `releasedScopes` 带 `system` 而不带租户。
+- [遥测投影](#遥测投影)（`tests/telemetry.spec.ts`，用 telemetry-contract 的捕获替身）：段的名字、作用域、`work` 与结局；目录读没有 `work`；系统作用域的段绑定 `system`、没有 `work`、不经 `discard`；缺租户、未铸造的租户、同时带租户与 `system` 的段与非法操作名不发记录而经 `port.discard` 以 `invalid` 交给提供者计数；提供者丢弃的 start 不配对；定义缓存的上限；round-complete 与诊断事件的字段、`attempt` 与枚举收口；诊断不带 `detail`；经真实实例的一次 accept 与读，以及 `pending` 与 `references` 两个目录读。 释放配对由 `tests/telemetry.spec.ts` 核对早通知、span 复用和捕获替身 clear。真实 Node 提供者与两个门面的组合回归在 `apps/harness-server/tests/rows/telemetry/measure.spec.ts`，覆盖连续过期和关闭后的迟到 end。
 - [VM-13](#vm-机制的持续验证义务) 的计次与失败分支、跨租户拒绝、[VM-01](#vm-机制的持续验证义务) 的重做与上限、SS-02 的确定性计数（两个规模下各面操作的计数相同），各有用例。
 - 没有测试的义务：VM-02 至 VM-12 中本节「未实现」一表涉及的部分，以及崩溃矩阵。
 
@@ -519,3 +551,11 @@
 - 规模：超长会话的恢复快照读取、同日志解释吞吐与分页读取的实际尺度，按验证计划实测后写进存储提供者的声明边界。
 - 断电耐久：已确认提交在操作系统崩溃与断电下的耐久依赖存储提供者声明的部署与介质条件（[已确认保存的耐久边界](../../../docs/architecture/data-and-state.md#已确认保存的耐久边界)）。
 - 并发：两个进程对同一会话的协调器并发、每租户多扫描者，都要在租约协议定义之后实测。第一版靠装配单实例。
+
+## Session Todo 机制
+
+Todo 的状态、身份和失败语义归 [Session Todo 契约](../session-contract/SPEC.md#session-todo-状态与操作)。work face 的 addTodo、removeTodo、markTodoComplete 和 listTodos 只允许 coordinator caller。caller 选择面，每次仍须当前 SessionAccessCheck 准入。
+
+三个 mutation 复用 CP-01，先原 operation 认回，再做新写入的状态判断。listTodos 经 reads.session 绑定一次授权 delegated view，再读完整快照。没有页面缓存或第二份清单权威。分页拒绝非法 cursor、旧修订和越界 limit，返回值与其 item 副本均冻结。unknown、缺 Session 和不可用不转成空列表。
+
+Todo 日志不加入推进触发集合。tests/todos.spec.ts 验证分页、每页核权、移除隐藏、归档后认回与空工作状态。tests/todos-real.spec.ts 在真实 SQLite provider 上读取 20/200 项并记录本地暖缓存延迟样本。这些样本不是性能阈值，完整快照读取仍受 SN-1 限制。Context 自动投影未开通。

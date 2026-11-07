@@ -1,6 +1,8 @@
 // Test support of the Anthropic family: the family configuration of the tests, the records by name,
 // and builders that make contract values through the contract judge, so branded identities are
 // real. Every value here is a test parameter, not a package default.
+import { afterAll } from 'vitest'
+import { testExecutor } from './executor.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import {
   decodeRevision,
@@ -38,9 +40,23 @@ export const PROFILE = adoption('profile')
 export const RETRY = adoption('retry')
 export const MARGIN_SOURCE = adoption('margin-policy')
 
+export const EXECUTOR = await testExecutor([anthropicTokenizerResources()])
+const tokenLease = EXECUTOR.acquire(
+  anthropicTokenizerResources().definition,
+  new AbortController().signal,
+)
+if ('failure' in tokenLease) throw new Error(JSON.stringify(tokenLease.failure))
+export const TOKENIZER = tokenLease.ok.tokenizer
+afterAll(async () => {
+  const released = await tokenLease.ok.release()
+  if ('failure' in released) throw new Error(JSON.stringify(released.failure))
+})
+
 /** The family configuration of the tests. */
 export const CONFIG: AnthropicFamilyConfig = {
   tokenizer: anthropicTokenizerResources(),
+  executor: EXECUTOR,
+  maxSerializedBytes: 4 * 1024 * 1024,
   limits: {
     toolArguments: {
       maxBytes: 65_536,
@@ -55,7 +71,6 @@ export const CONFIG: AnthropicFamilyConfig = {
   margin: { percent: '10', source: MARGIN_SOURCE },
 }
 
-/** One family for the whole test run: the tokenizer initializes once per family. */
 export const FAMILY = createAnthropicFamily(CONFIG)
 
 /** The current record of the name: the only revision that profiles publish. */

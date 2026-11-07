@@ -90,7 +90,7 @@
 
 `HistorySource.read({ access, evidence, cursor, budgetBytes })` 读一页；序号是十进制文本 `HistorySequence`，游标 `HistoryCursor` 带它所属的依据。`compactionContext({ access, evidence, coverTo })` 用同一依据与身份读取 CM-02 的增量判断窗口。
 
-计量结果类型归 Model。每份候选经 Model 准备资源的租约按供应商计划与计量，请求字节取自 `rules.plan` 的物化表示，本成员没有序列化端口。`ConversionResultSource` 读口归本成员，读取的结果类型使用 Model 的 `ConversionResult`。两个策略经端口替换，本契约不内置生产策略。
+计量结果类型归 Model。每份候选经 Model 准备资源的租约按供应商计划并等待完整异步计量，请求字节取自 `rules.plan` 的物化表示，本成员没有序列化端口。`ConversionResultSource` 读口归本成员，读取的结果类型使用 Model 的 `ConversionResult`。两个策略经端口替换，本契约不内置生产策略。同一次 `planCompaction` 内部按完整档案与当前 lineage 精确复用至多四份租约，facts 保持首次快照；每次探测仍重新计划和计量，规划返回前等待全部释放。公开操作和准备资源接口保持原形状。
 
 ## 认回与恢复
 
@@ -109,3 +109,5 @@ historySourceConformance() 返回六项义务：read-requires-access、tenant-is
 HistorySourceFixture 的 createSource(fixture) 必须构造与 source 相同实现、相同配置的独立来源，供摘要链关系验证；它替代未使用的 commit 接缝，不是生产历史写口。夹具首个 epoch 至少有两个正字节行，各行与总字节数可由安全整数预算读取；entries 与 rows 应对应同一消息。套件会读取完整分页，再构造前行消息不同、后续行不变的独立夹具，要求全部后缀摘要随之前进，并核对分页边界的摘要一致。它不规定摘要算法、盐或编码，也不编辑活跃 epoch，不用 memory 的 SHA 算法作判定器。
 
 [conformance.spec.ts](../tests/conformance.spec.ts) 对六项义务分别注入只破坏对应行为的来源；摘要另有仅逐行计算、没有前缀依赖的反例。公开名字和入口不变，机读库存无需添加导出。
+
+`createScriptedInputMeter` 的脚本可返回预算结果或它的 Promise。计量器总是返回 Promise，调用者必须等待结果。

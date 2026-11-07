@@ -905,7 +905,7 @@ describe('fact 7: event sequence and cursor', () => {
     )
     ok(await finish(journal, opened))
     await reading
-    expect(pages.flat()).toEqual(['waiting', 'ended'])
+    expect(pages.flat()).toEqual(['waiting', 'input-taken', 'ended'])
   })
 })
 

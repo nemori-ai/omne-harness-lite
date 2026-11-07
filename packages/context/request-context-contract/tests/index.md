@@ -18,3 +18,6 @@
 - [trigger-fit.spec.ts](trigger-fit.spec.ts)：摘要之后的检查按整请求对照触发界线；计数器例、请求框架与「转换之后装得下」的生成用例。
 - [formal-guards.spec.ts](formal-guards.spec.ts)：形式性质的机读守卫 G1 至 G6，对应 [formal-mapping.md](../verification/formal-mapping.md)。
 - [schema-boundaries.spec.ts](schema-boundaries.spec.ts)：策略与块数值边界、表示偏好、连续消费进度、压缩计划的保留关系。
+
+- [measurement-session.spec.ts](measurement-session.spec.ts)：异步完整计量、同来源的候选复用、来源变化与跨操作隔离。
+- [measurement-session-lifecycle.spec.ts](measurement-session-lifecycle.spec.ts)：完整档案键、并发取得、忙租约与容量、逃逸回调、失败与关闭清理。

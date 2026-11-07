@@ -1836,10 +1836,10 @@ export interface ModelInputMeter {
         assembled: AssembledModelInput;
         parameters: readonly ParameterAdoption[];
         representation: MeterRepresentation;
-    }>): Outcome<RequestBudget, TransportFailure>;
+    }>): Promise<Outcome<RequestBudget, TransportFailure>>;
 }
 export interface CalibratedInputMeter extends ModelInputMeter {
-    measureCalibrated(input: Parameters<ModelInputMeter['measure']>[0], calibration: MeterCalibration): Outcome<RequestBudget, TransportFailure>;
+    measureCalibrated(input: Parameters<ModelInputMeter['measure']>[0], calibration: MeterCalibration): Promise<Outcome<RequestBudget, TransportFailure>>;
 }
 export type ReplayTreatment = Readonly<{
     index: number;
@@ -3422,9 +3422,9 @@ export type TokenizationFailure = Readonly<{
 }>;
 export interface ModelTextTokenizer {
     readonly definition: TokenizerDefinition;
-    count(input: readonly TokenizationSegment[]): Outcome<Readonly<{
+    count(input: readonly TokenizationSegment[]): Promise<Outcome<Readonly<{
         tokens: string;
-    }>, TokenizationFailure>;
+    }>, TokenizationFailure>>;
 }
 export type ModelCountingBasis = Readonly<{
     supplier: ProfileSupplier;

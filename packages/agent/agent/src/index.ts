@@ -18,6 +18,12 @@ export type {
   AgentRuntimeExtras,
   AgentSegmentEvent,
 } from './measure.ts'
+export {
+  agentPassSegments,
+  createAgentTelemetry,
+  type AgentTelemetry,
+  type AgentTelemetryBase,
+} from './telemetry.ts'
 export type {
   AgentRunEndedFailed,
   AgentRunEndedFailedReceiver,

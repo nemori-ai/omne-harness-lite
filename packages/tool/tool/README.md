@@ -237,17 +237,17 @@ The ledger checks all five attachment fields for association, then checks the st
 
 ## Model result retrieval
 
-`createTools` adds a real command author named `Tools`. Register `tools.implementation` through the assembly's binding provider; `tools.definition` is the definition derived from the meta tool's official governance. The commands are `help` and `read_result`. They accept text parameters and can preserve all four direct output modalities. Both return structured results with no program data. The author is not programmable.
+`createToolResultReader` reads and presents fixed tool results without registering an author. It consumes only `queries.readResult` and `content.read`. The full Tools author belongs to `@omne-harness/tool-definitions`. The reader can preserve text, image, voice and video blocks; each consuming author must declare and check its actual output modalities.
 
 Pass only `runtime.queries.readResult` and `runtime.content.read` to the factory. Fix `arguments`, `resultPageBytes`, `replyMaxBytes` and `contentPageBytes` at construction. Use the runtime's actual resultPageBytes value. Invalid configuration throws TypeError.
 
-After the source call settles, call `tools.present({ principal, tenant, reference, result })`. Project that result with `projectToolResult` and the attachment block identities fixed for this message. The model copies the visible reference and next into a new `Tools.read_result` request. `after:null` starts a read. A copied next continues it. A null next ends that traversal.
+After the source call settles, call `reader.present({ principal, tenant, reference, result })`. Project that result with `projectToolResult` and the attachment block identities fixed for this message. The model copies the visible reference and next into a new `Tools.read_result` request. `after:null` starts a read. A copied next continues it. A null next ends that traversal.
 
-The caller invokes the command through its own runtime with a new consumer position. After that meta call settles, use `tools.readReply` to collect its complete bounded response before projection. A response can itself require several runtime pages. readReply returns the full result or a named failure. It is a trusted consumer method, not a model command.
+The caller invokes the command through its own runtime with a new consumer position. After that meta call settles, use `reader.readReply` to collect its complete bounded response before projection. A response can itself require several runtime pages. readReply returns the full result or a named failure. It is a trusted consumer method, not a model command.
 
 A successful read can contain a failed source terminal. A completed meta call means the command answered, even when the source read failed. Content traversal end does not mean attachment or offloaded original bytes were read. Attachment pages use base64. Decode complete bytes according to mediaType. References grant no access, and every read checks current permissions. Tools exposes no raw selector and never calls content.raw.
 
-The factory checks full JSON response size and complete callable argument size. It returns unsupported when a complete block, help, credential or response cannot fit. It does not truncate source content. Fixed-version references have no TTL and survive adapter reconstruction and delivery release. Protocol, budget and provider requirements are in [SPEC section 28](SPEC.md#28-tools-固定结果适配器). The tests cover non-durable memory composition. Production storage, a real model and Cordis are not covered.
+The factory checks full JSON response size and complete callable argument size. It returns unsupported when a complete block, credential or response cannot fit. It does not truncate source content. Fixed-version references have no TTL and survive adapter reconstruction and delivery release. Protocol, budget and provider requirements are in [SPEC section 28](SPEC.md#28-tools-固定结果适配器). The tests cover non-durable memory composition. Production storage, a real model and Cordis are not covered.
 
 
 The host must align its admission argument limits with `ToolsOptions.arguments`. The runtime checks input before the author codec runs. A smaller host limit can reject a continuation that the author can otherwise parse. Keep both limits bounded and test the actual assembly.

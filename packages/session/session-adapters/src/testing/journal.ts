@@ -188,7 +188,13 @@ export type JournalWrite =
   | 'record'
   | 'preserve'
 
-export type JournalRead = 'load' | 'inputs' | 'readReplyAdmissions' | 'query' | 'read'
+export type JournalRead =
+  | 'load'
+  | 'inputs'
+  | 'readReplyAdmissions'
+  | 'readFinish'
+  | 'query'
+  | 'read'
 
 export type WriteFault =
   | Readonly<{ kind: 'unavailable' }>
@@ -2507,7 +2513,10 @@ export function createJournal<P>(
     candidate: FinishCandidate,
     operation: AgentOperationId,
   ): ReturnType<typeof buildObligations> {
-    const batches = cache(execution).batches
+    const takenInputs = new Map<InputId, InputBatchId>()
+    for (const event of execution.events)
+      if (event.body.kind === 'input-taken')
+        for (const input of event.body.batch.ordered) takenInputs.set(input, event.body.batch.id)
     return buildObligations(
       {
         id: execution.id,
@@ -2515,10 +2524,7 @@ export function createJournal<P>(
         revision: execution.revision,
         checkpoint: execution.checkpoint,
         inputs: execution.inputs,
-        batchOf: index => {
-          for (const [id, range] of batches) if (index >= range.from && index < range.to) return id
-          return null
-        },
+        committedInputBatchOf: input => takenInputs.get(input.id) ?? null,
         acceptanceOf: input => {
           for (const record of execution.handoffs)
             if (record.handoff.kind === 'input' && record.handoff.input === input.id)
@@ -5105,6 +5111,24 @@ export function createJournal<P>(
       if ('failure' in found) return found
       admissionStatistics.loads += 1
       return snapshotOf(found.ok)
+    },
+
+    // Agent SPEC "条件终结", the readFinish clause: the same read qualification as `load`; the
+    // current candidate's projection while settling, the final one after ended, null before any
+    // candidate. The finishing records keep the candidate past the end, so the projection is the
+    // one tryFinish compared.
+    async readFinish(input) {
+      const fault = readFault('readFinish')
+      if (fault !== undefined) return fault
+      const found = owned(input, 'readFinish')
+      if ('failure' in found) return found
+      const execution = found.ok
+      if (execution.state.kind !== 'settling' && execution.state.kind !== 'ended')
+        return succeed(null)
+      const intent = intentOf(execution.finishing)
+      if (intent === undefined)
+        return fail(damaged(`a ${execution.state.kind} execution without a finish candidate`))
+      return succeed(copy(intent))
     },
 
     async inputs(input) {

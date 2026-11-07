@@ -459,7 +459,25 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **负责与闭合条件**：工作区契约卡（[#837](https://github.com/nemori-ai/omne-harness-lite/issues/837) 剩余责任）在发布工作区契约成员时收敛两种用法：为动作或值另定说法，或给裸用加限定。产品正文与相关词条按结论回改后闭合。
 - **状态**：待收敛。
 
-### C-73：「摘要」的两种意思
+### C-73：遥测段是不是对象
+
+- **类型**：形态未定。2026-11-05 为工程遥测立词条时发现（[#1140](https://github.com/nemori-ai/omne-harness-lite/issues/1140)）。
+- **来源**：[遥测段](terms/record-and-context.md#ul-telemetry-segment--遥测段--telemetry-segment)按审议中的 [RFC-0013 公共契约形状](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#公共契约形状)写成：段有自己的链路身份，别的段经因果链接引用它，段有开始、结束与超时截断。没有任何产品正文提到这个概念，[跨系统技术约定 观测与遥测](../../../docs/architecture/cross-cutting-concepts.md#观测与遥测)只要求长工作可被追踪。
+- **差别**：按对象读，它有可引用的身份与生命周期，下游要为它立对象条目，条目的依据却找不到产品正文。按非对象读，它只是工程遥测提供者内部的技术概念，不进领域对象清单，身份与生灭只由提供者的契约说明。两种读法对「领域对象清单里有没有它」给出不同答案。
+- **处置**：词条形态写「未定」，[领域对象的待裁](../domain_objects/pending.md#遥测段)立一项。裁之前，下游不按任何一种读法立对象条目。RFC-0013 继续用这个词审议契约形状。
+- **负责与闭合条件**：产品负责人补一段产品正文定义它，形态改为对象并立条目；或者裁定它不是产品概念，形态改为非对象的取值。任一发生后闭合。
+- **状态**：待裁。
+
+### C-74：输出代是不是对象
+
+- **类型**：形态未定。2026-11-05 为工程遥测立词条时发现（[#1140](https://github.com/nemori-ai/omne-harness-lite/issues/1140)）。
+- **来源**：[输出代](terms/execution-and-outcome.md#ul-output-generation--输出代--output-generation)按审议中的 [RFC-0013 输出代与关闭](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#输出代与关闭)写成：每一代有代号，状态是准备中、生效、排空、关闭与失败，资源随代清理。没有任何产品正文提到这个概念，[项目要求 SYS-DYNAMIC](../../../docs/requirements.md#完全动态目标sys-dynamic)只要求运行时变化不造成系统性停机。
+- **差别**：按对象读，它有代号与状态机，下游要为它立对象条目，条目的依据却找不到产品正文。按非对象读，它只是工程遥测提供者内部的技术概念，身份与生灭只由提供者的契约说明。
+- **处置**：词条形态写「未定」，[领域对象的待裁](../domain_objects/pending.md#输出代)立一项。裁之前，下游不按任何一种读法立对象条目。RFC-0013 继续用这个词审议换代协议。
+- **负责与闭合条件**：产品负责人补一段产品正文定义它，形态改为对象并立条目；或者裁定它不是产品概念，形态改为非对象的取值。任一发生后闭合。
+- **状态**：待裁。
+
+### C-75：「摘要」的两种意思
 
 - **类型**：同名不同义。2026-11-03 为 Skill 与 MCP 立词条时发现。
 - **来源**：[Skill 包快照](terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)要用「内容摘要」指按内容算出的散列值（digest）。[同形](terms/reach-and-availability.md#ul-same-shape--同形--same-shape)里的「词汇表的拥有者、名称与摘要」也是这个意思。[上下文压缩](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction)、[摘要步](terms/record-and-context.md#ul-summary-step--摘要步--summary-step)与同形里的「命令摘要」用「摘要」指文字摘要（summary）。
@@ -468,7 +486,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **负责与闭合条件**：统一语言维护者。散列值的用法统一写成「内容摘要」或另定一个说法，并回改同形词条后闭合。
 - **状态**：待收敛。
 
-### C-74：工作区目录技能的Skill 材料依据中的资产版本
+### C-76：工作区目录技能的Skill 材料依据中的资产版本
 
 - **类型**：定义打架。2026-11-03 立[Skill 材料依据](terms/capabilities-and-composition.md#ul-material-basis--skill-材料依据--skill-material-basis)词条时发现。
 - **来源**：[Skill 材料依据](terms/capabilities-and-composition.md#ul-material-basis--skill-材料依据--skill-material-basis)只含能力标识、资产版本与Skill 包快照的内容摘要三项。[Skill 包快照](terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)「别混 ①」说工作区目录中的技能没有发布。[资产版本](terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version)是一次发布定下的内容。

@@ -542,6 +542,7 @@ import type { Adoption } from './refs.js';
 import type { RetentionMeasurement } from './ports.js';
 import type { AssemblyFailure, AssemblyUnknown, ProjectedHistory, ProjectedMessage, RequestFrame, SelectedModel, SummaryMaterial } from './values.js';
 import type { OperationContext } from './operation-context.js';
+import type { CandidateMeasure } from './measurement-session.js';
 export declare function projectWindow(view: ProjectedHistory, window: CompactionContext): ProjectedHistory;
 export declare function projectedOf(projected: ProjectedHistory, entries: readonly RecordEntryRef[]): readonly ProjectedMessage[];
 export declare function materialOf(projected: ProjectedHistory, covered: readonly CoveredEntry[], retained: readonly RecordEntryRef[]): SummaryMaterial;
@@ -550,8 +551,8 @@ export type CompactionCandidate = Readonly<{
     selection: SelectedModel;
     source: Adoption;
 }>;
-export declare function measureCompactionCandidate<P>(context: OperationContext<P>, candidate: CompactionCandidate, projected: readonly ProjectedMessage[], messages: readonly Message[], frame?: RequestFrame | null): Promise<M.RequestBudget | AssemblyFailure | AssemblyUnknown>;
-export declare function retentionMeasure<P>(context: OperationContext<P>, candidate: CompactionCandidate, projected: ProjectedHistory): (entries: readonly RecordEntryRef[]) => Promise<RetentionMeasurement>;
+export declare function measureCompactionCandidate<P>(context: OperationContext<P>, candidate: CompactionCandidate, projected: readonly ProjectedMessage[], messages: readonly Message[], frame?: RequestFrame | null, measure?: CandidateMeasure): Promise<M.RequestBudget | AssemblyFailure | AssemblyUnknown>;
+export declare function retentionMeasure<P>(context: OperationContext<P>, candidate: CompactionCandidate, projected: ProjectedHistory, measure: CandidateMeasure): (entries: readonly RecordEntryRef[]) => Promise<RetentionMeasurement>;
 ```
 
 ## 声明文件 `compaction-request.d.ts`
@@ -795,6 +796,18 @@ export declare function decimalParts(text: string): Readonly<{
 export declare function measuredAmount(check: import('@omne-harness/model-contract').BudgetCheck): bigint;
 ```
 
+## 声明文件 `measurement-session.d.ts`
+
+```ts
+import type * as M from '@omne-harness/model-contract';
+import type { SelectedModel } from './values.js';
+import { type MeasureContext, type MeasurementFailure } from './measurement.js';
+export type CandidateMeasure = (selection: SelectedModel, lineage: M.PreparationLineage, assembled: M.AssembledModelInput) => Promise<M.RequestBudget | MeasurementFailure>;
+export declare function withMeasurementSession<P, R extends {
+    kind: string;
+}>(context: MeasureContext<P>, operation: (measure: CandidateMeasure) => Promise<R>): Promise<R | MeasurementFailure>;
+```
+
 ## 声明文件 `measurement.d.ts`
 
 ```ts
@@ -805,8 +818,11 @@ export type MeasureContext<P> = Readonly<{
     access: Access<P>;
     preparation: M.ModelPreparationResources<P>;
 }>;
-type Failure = AssemblyFailure | AssemblyUnknown;
+export type MeasurementFailure = AssemblyFailure | AssemblyUnknown;
+type Failure = MeasurementFailure;
+export declare function leaseFailure(failure: M.ModelFailure): Failure;
 export declare function measureCandidate<P>(context: MeasureContext<P>, selection: SelectedModel, lineage: M.PreparationLineage, assembled: M.AssembledModelInput): Promise<M.RequestBudget | Failure>;
+export declare function measureWithLease(lease: M.ModelPreparationLease, profile: M.ModelProfile, assembled: M.AssembledModelInput): Promise<M.RequestBudget | Failure>;
 export {};
 ```
 
@@ -1751,7 +1767,7 @@ import type * as M from '@omne-harness/model-contract';
 import type { Outcome } from '@omne-harness/operation-result';
 import type { BlockId } from '@omne-harness/content-block';
 import type { ConversionResultSource, CompactionPolicyPort, RepresentationPolicyPort, CompactionPolicy, RepresentationPolicyConfig } from '../ports.js';
-export type MeterScript = (input: Parameters<M.ModelInputMeter['measure']>[0]) => Outcome<M.RequestBudget, M.TransportFailure>;
+export type MeterScript = (input: Parameters<M.ModelInputMeter['measure']>[0]) => Outcome<M.RequestBudget, M.TransportFailure> | Promise<Outcome<M.RequestBudget, M.TransportFailure>>;
 export interface ScriptedInputMeter extends M.ModelInputMeter {
     readonly durability: 'none';
     calls(): number;

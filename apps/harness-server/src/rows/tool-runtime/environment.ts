@@ -305,6 +305,12 @@ export function createReleaseEnvironment(
 
   const plan: EnvironmentInput['plan'] = {
     async requirement(request) {
+      if (request.preparation.request.availability.definition.declarations.environment === null)
+        return succeed({
+          allowedBindings: [{ kind: 'host_machine' as const }],
+          facilities: [],
+          isolation: [],
+        })
       const provider = options.schemaProvider()
       if (provider === null)
         return unavailable('tool-environments', 'the environment schema provider is not installed')

@@ -1,3 +1,4 @@
+import { listTodos } from './todos.ts'
 // The four faces as one caller class sees them (contract「四个面与公开操作」). Every mutation goes
 // through the command handler (SPEC CP-01); every read through the read paths (SPEC CP-03).
 import { fail } from '@omne-harness/operation-result'
@@ -48,6 +49,10 @@ export function createFaces<P>(
     }
 
   const work: SessionWork<P> = {
+    addTodo: mutation('addTodo'),
+    removeTodo: mutation('removeTodo'),
+    markTodoComplete: mutation('markTodoComplete'),
+    listTodos: value => reads.session(caller, 'listTodos', value, view => listTodos(view, value)),
     accept: mutation('accept'),
     readWork: value =>
       reads.session(caller, 'readWork', value, view =>
@@ -114,10 +119,11 @@ export function createFaces<P>(
 
   const reconciliation: SessionReconciliation<P> = {
     receive: mutation('receive'),
-    pending: value => reads.directory(caller, 'pending', port => port.pending(value)),
-    references: value => reads.directory(caller, 'references', port => port.references(value)),
+    pending: value => reads.directory(caller, 'pending', value.tenant, port => port.pending(value)),
+    references: value =>
+      reads.directory(caller, 'references', 'system', port => port.references(value)),
     releasedScopes: value =>
-      reads.directory(caller, 'releasedScopes', port => port.releasedScopes(value)),
+      reads.directory(caller, 'releasedScopes', 'system', port => port.releasedScopes(value)),
   }
 
   const pages = createHistoryPages()

@@ -15,3 +15,9 @@
 - [model-reception/](model-reception/README.md)：Model 结果接收、共同提交与账目重放的有限模型
 - [cancellation/](cancellation/README.md)：Run 取消与单调用中断的有限模型
 - [run-lifecycle/](run-lifecycle/README.md)：Run 驱动生命周期的有限模型、[运行记录](run-lifecycle/formal-runs.md)、[手写证明](run-lifecycle/proofs.md)与[机读守卫](run-lifecycle/guards/run-lifecycle.spec.ts)
+
+- [reservation/](reservation/README.md)：执行槽预占与本地宿主空闲回收的有限模型及运行守护
+
+- [failure-closure/](failure-closure/README.md)：节点故障收尾的有限安全性、有条件活性与具名负控
+- [failure-provenance/](failure-provenance/README.md)：共享 Failure 的来源隔离证明、有限正负控及真实 coordinator 回归
+- [finish-refusal/](finish-refusal/README.md)：相同完成意图被拒绝后保留候选、等待并重试的局部模型与实现守护

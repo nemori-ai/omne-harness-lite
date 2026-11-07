@@ -93,3 +93,6 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 这些是本地内存后端、消费者完成记录替身和脚本上游的真实产品组合。它们不证明消费者生产耐久、真实厂商、自动清理工作者或跨进程恢复。
 
 [admit-boundary.spec.ts](admit-boundary.spec.ts) 驱动真实 runtime 与直接 Memory Commands，检查同步副本、畸形重放优先级、资格同一性及拒绝无容量/调度/发送副作用。
+
+- [not-sent-window.spec.ts](not-sent-window.spec.ts) 检查零内容推导、双向矛盾拒绝与重试守卫。
+- [send-transport-refusal.spec.ts](send-transport-refusal.spec.ts) 检查发送前明确拒绝的结算、原写认回、失权与释放失败。

@@ -8,7 +8,7 @@ import {
 } from '@omne-harness/authorization'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
-import { actionRulesSchema, type ActionRules } from './action-rules.ts'
+import { actionRulesSchema, toolActionRule, type ActionRules } from './action-rules.ts'
 import { classify } from './principals.ts'
 
 type Request = Parameters<ActionAdmission<unknown>['admit']>[0]
@@ -25,18 +25,7 @@ function unavailable(diagnostic: string): AdmissionDecision {
  * on a tool cannot be passed by naming one of its commands.
  */
 function ruleFor(rules: ActionRules, input: Request) {
-  const matches = rules.rules.filter(
-    rule =>
-      rule.tool === input.definition.name &&
-      (rule.definition == null ||
-        (rule.definition.owner === input.definition.owner &&
-          rule.definition.name === input.definition.name &&
-          rule.definition.revision === input.definition.revision &&
-          rule.definition.digest === input.definition.digest)),
-  )
-  return (
-    matches.find(rule => rule.effect === 'deny') ?? matches.find(rule => rule.effect === 'allow')
-  )
+  return toolActionRule(rules, input.definition)
 }
 
 async function decide(

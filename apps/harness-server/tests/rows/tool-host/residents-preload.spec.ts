@@ -24,7 +24,7 @@ import {
   type ReleaseFixture,
 } from './support.ts'
 
-const CODING = ['Files', 'Shell'] as const
+const CODING = ['Files', 'Shell', 'TodoItems', 'Tools'] as const
 const SYSTEM = { scope: 'system' } as const
 const roots: ReleaseFixture[] = []
 afterEach(async () => {
@@ -74,11 +74,11 @@ async function treeWith(preload: boolean, construction: unknown) {
 
 describe('the resident tools of a coding create follow the start load', () => {
   it(
-    'after the start load, the planner gives Files and Shell as residents',
+    'after the start load, the planner gives Files, Shell and Tools as residents',
     { timeout: 20_000 },
     async () => {
       const { live, plan } = await treeWith(true, TEST_CONSTRUCTION)
-      expect(await until(() => live() === 2)).toBe(true)
+      expect(await until(() => live() === 4)).toBe(true)
       const planned = await plan()
       if (!('ok' in planned)) throw new Error(`plan: ${JSON.stringify(planned)}`)
       expect(planned.ok.material.keys.map(pair => pair.capability)).toEqual([...CODING])
@@ -90,7 +90,7 @@ describe('the resident tools of a coding create follow the start load', () => {
     { timeout: 20_000 },
     async () => {
       const { live, warnings, plan } = await treeWith(true, {})
-      expect(await until(() => warnings() >= 2)).toBe(true)
+      expect(await until(() => warnings() >= 4)).toBe(true)
       expect(live()).toBe(0)
       expect(await plan()).toEqual({ failure: { kind: 'unavailable' } })
     },

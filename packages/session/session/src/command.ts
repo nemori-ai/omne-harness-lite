@@ -348,6 +348,7 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     for (const entry of entries.filter(candidate => candidate.kind === 'run.terminal'))
       measurer.roundComplete({
         session: access.session,
+        tenant: access.tenant,
         ...terminalOf(entry.payload),
         revision: receipt.revision,
         entry: entry.id,
@@ -449,6 +450,7 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
           return run(view.ok, access, command, 0)
         },
         answer => 'failure' in answer,
+        access.tenant,
       ),
     )
   }

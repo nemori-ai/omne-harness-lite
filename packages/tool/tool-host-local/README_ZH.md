@@ -122,3 +122,25 @@ tool-host-local/
 本提供者的公共契约归契约包 [`@omne-harness/tool-contract`](../tool-contract/README_ZH.md)。完整文件导航见 [index](index.md)。主题职责见 [docs/README](docs/README.md)。
 
 runtime 组合测试以 invoke 提交普通 payload，并配对来源签发器与核验器。测试宿主向 driver.run 显式提供 instance。本包不提供生产实例宿主、来源或身份签发器、claim 及接管协议。见 [SPEC 的宿主边界](SPEC.md#实例宿主与普通调用的边界)。
+
+### 构造目录
+
+`createLocalToolCatalog` 必须提供 registry、availability、view 与 search。
+应用注入 `LocalToolCatalogViewSource`，给出受信范围证据、纳入版本，以及带 resident 标记的精确绑定键。
+view 为 null 时返回 unavailable。search 显式配置，例如 `{ k1: 1.2, b: 0.75, maxCachedCorpora: 8 }`。
+
+目录只对合法语料做 BM25 排名，在异步判断后重读视图。
+搜索条件或披露材料变化会使游标失效。有界缓存只保存文本索引。
+完整行为与限制见[实现范围](SPEC.md#登记表与-catalog-的实现范围)。
+
+### 可信单目标转发
+
+`createLocalInvocationSource` 可配置 `forwarding: { authority, isParent }`。这是受信提供者配置。来源暴露 forwarding、recoverBinding 与 receiver，普通调用不能自报保留的 forwarding consumer。运行时插件工厂提供惰性 forwarding()，并在 facade 内注册专属 receiver。
+
+`createLocalToolForwarding` 接收惰性 runtime、catalog、consumer profile、目标 prepare 和 reader。把 bind 交给执行绑定的可选 capability 接缝。提供者退出时等待 close，并核对返回的 unknown 数。父调用结束不取消已固定目标。host known-call 容量至少为 2，资源并发仍可为 1。
+
+精确行为和验证边界见[成员规格](SPEC.md#单目标转发来源与保管)。programmatic 启动和全局重启发现保持既有限制。内存存储上的协议测试不能证明耐久性。
+
+`ToolHostAccess.request` 可选配置当前目标策略 `ToolRequestAccess`。装配将其作为 requestAccess 传给 start guard 与 coordinator。配置后每次 prepare 和 consume 尝试都重问策略。不可用或坏答复不能授予启动资格。精确结果见[目标请求当前资格](SPEC.md#目标请求当前资格)。
+
+execute 接受固定意图后，父调用结束等待不取消 provider 的准备工作。退出会等待这项工作。晚到准备失败时，已发出的原父引用可能因没有持久槽而继续未知。pending 为零不表示该引用已解决，须单独核对 unknown 数量。

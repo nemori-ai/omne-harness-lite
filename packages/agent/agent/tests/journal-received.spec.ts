@@ -72,7 +72,7 @@ function fixture() {
           checkpoint: { ...snapshot.checkpoint, inputBatch: inputs.batch },
           state: { kind: 'advancing' },
           handoff: null,
-          events: [],
+          events: [{ kind: 'input-taken', batch: inputs.batch }],
           effects: [],
           caller: { kind: 'none' },
           replyAdmission: null,

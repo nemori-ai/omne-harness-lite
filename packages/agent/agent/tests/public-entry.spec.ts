@@ -15,7 +15,7 @@ function forbidden(specifier: string): boolean {
   )
 }
 
-it('root entry exports the factory, evaluator, checkpoint, control advance, step limit default, producer receivers and the custody evidence; construction shapes are types', () => {
+it('root entry exports the factory, evaluator, checkpoint, control advance, step limit default, producer receivers, the custody evidence and the telemetry facade; construction shapes are types', () => {
   expect(Object.keys(agent).sort()).toEqual([
     'AGENT_CONSUMER_OWNER',
     'DEFAULT_MAX_RUN_STEPS',
@@ -23,10 +23,12 @@ it('root entry exports the factory, evaluator, checkpoint, control advance, step
     'agentCheckpointSchema',
     'agentEvaluator',
     'agentModelDeliverySchema',
+    'agentPassSegments',
     'agentToolDeliverySchema',
     'createAgentCustodyEvidence',
     'createAgentModelReceiver',
     'createAgentRuntime',
+    'createAgentTelemetry',
     'createAgentToolReceiver',
     'createModelReceiverState',
     'createToolReceiverState',
@@ -98,6 +100,7 @@ describe('implementation has no Cordis', () => {
       '@omne-harness/legal-identity': 'workspace:*',
       '@omne-harness/model-contract': 'workspace:*',
       '@omne-harness/operation-result': 'workspace:*',
+      '@omne-harness/telemetry-contract': 'workspace:*',
       '@omne-harness/tool-contract': 'workspace:*',
     })
     const declared = [

@@ -11,7 +11,19 @@
 
 ## 有词条，形态未定
 
-当前没有形态为「未定」的词条。出现时在这里立项，并同时登记在 conflicts.md。
+### 遥测段
+
+- **现象**：词条 [UL-telemetry-segment](../ubiquitous_language/terms/record-and-context.md#ul-telemetry-segment--遥测段--telemetry-segment) 形态为「未定」。审议中的工程遥测提案给段可引用的链路身份、开始、结束与超时截断，像一个对象；但没有任何产品正文定义它，对象条目的依据无处可指。两种读法见 [C-73](../ubiquitous_language/conflicts.md#c-73遥测段是不是对象)
+- **牵涉**：[RFC-0013 公共契约形状](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#公共契约形状)（status `review`，未采用）；[跨系统技术约定 观测与遥测](../../../docs/architecture/cross-cutting-concepts.md#观测与遥测)
+- **谁来裁**：产品负责人。补一段产品正文定义它，或裁定它不是产品概念。工程遥测目前没有产品 topic
+- **闭合条件**：有产品正文定义它并立对象条目，或产品负责人裁定它不是产品概念、词条形态改为非对象的取值
+
+### 输出代
+
+- **现象**：词条 [UL-output-generation](../ubiquitous_language/terms/execution-and-outcome.md#ul-output-generation--输出代--output-generation) 形态为「未定」。审议中的工程遥测提案给每一代代号与准备中、生效、排空、关闭、失败几种状态，像一个对象；但没有任何产品正文定义它，对象条目的依据无处可指。两种读法见 [C-74](../ubiquitous_language/conflicts.md#c-74输出代是不是对象)
+- **牵涉**：[RFC-0013 输出代与关闭](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#输出代与关闭)（status `review`，未采用）；[项目要求 SYS-DYNAMIC](../../../docs/requirements.md#完全动态目标sys-dynamic)
+- **谁来裁**：产品负责人。补一段产品正文定义它，或裁定它不是产品概念。工程遥测目前没有产品 topic
+- **闭合条件**：有产品正文定义它并立对象条目，或产品负责人裁定它不是产品概念、词条形态改为非对象的取值
 
 ## 没有词条
 

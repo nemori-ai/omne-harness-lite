@@ -27,6 +27,8 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import {
+  judgeAdoption,
+  judgeEvidence,
   judgeHandoffPrepare,
   type Access,
   type Adoption,
@@ -177,8 +179,66 @@ function decodeIntent(record: PreadmissionRecord) {
 
 function decodeOutcome(record: PreadmissionRecord): HandoffOutcome | null {
   if (record.outcome === null) return null
-  const outcome = record.outcome as Readonly<Record<string, JsonValue>>
-  return decodeState(outcome['outcome'] ?? null) as HandoffOutcome
+  const saved = outcomeMembers(decodeState(record.outcome))
+  const legacy = !('format' in saved)
+  if (!legacy && saved['format'] !== 'intent-relative-v1')
+    throw new TypeError('the preadmission outcome format is not supported')
+  const value = legacy ? outcomeMembers(saved['outcome']) : saved
+  const provider = judgeAdoption(value['provider'])
+  if ('failure' in provider) throw new TypeError('the preadmission provider is malformed')
+  const original = decodeIntent(record)
+  const evidence = recordEvidence(record)
+  const decision = restoreDecision(value['decision'], original.request, legacy)
+  if (saved['kind'] !== decision.kind)
+    throw new TypeError('the preadmission outcome kind does not match its decision')
+  if (
+    legacy &&
+    (canonical(value['request']) !== canonical(original.request) ||
+      canonical(value['origin']) !== canonical(original.origin) ||
+      canonical(value['qualification']) !== canonical(original.qualification) ||
+      canonical(value['record']) !== canonical(evidence))
+  )
+    throw new TypeError('the preadmission outcome does not match its intent')
+  return { ...original, provider: provider.ok, record: evidence, decision }
+}
+
+type StoredDecision =
+  | Omit<Extract<HandoffDecision, { kind: 'prepared' }>, 'message'>
+  | Extract<HandoffDecision, { kind: 'rejected' }>
+
+function outcomeMembers(value: unknown): Readonly<Record<string, unknown>> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    throw new TypeError('the preadmission outcome is malformed')
+  return value as Readonly<Record<string, unknown>>
+}
+
+function restoreDecision(
+  value: unknown,
+  request: HandoffRequest,
+  legacy: boolean,
+): HandoffDecision {
+  const decision = outcomeMembers(value)
+  switch (decision['kind']) {
+    case 'prepared': {
+      const admission = judgeEvidence(decision['admission'])
+      const message = candidateOf(request)
+      if (
+        'failure' in admission ||
+        (legacy ? canonical(decision['message']) !== canonical(message) : 'message' in decision)
+      )
+        throw new TypeError('the prepared preadmission outcome is malformed')
+      return { kind: 'prepared', message, admission: admission.ok }
+    }
+    case 'rejected': {
+      const evidence = judgeEvidence(decision['evidence'])
+      const reason = decision['reason']
+      if ('failure' in evidence || typeof reason !== 'string')
+        throw new TypeError('the rejected preadmission outcome is malformed')
+      return { kind: 'rejected', reason, evidence: evidence.ok }
+    }
+    default:
+      throw new TypeError('the preadmission decision is malformed')
+  }
 }
 
 /** The provider of one generation. */
@@ -517,22 +577,25 @@ function createMessageHandoff<P>(
   /** Step 6: the outcome of the saved intent, fixed once; the answer is the fixed one. */
   async function fixOutcome(bound: Bound, record: PreadmissionRecord): Reply<HandoffOutcome> {
     const original = decodeIntent(record)
-    const outcome: HandoffOutcome = {
-      request: original.request,
-      origin: original.origin,
-      provider: given.provider,
-      qualification: original.qualification,
-      record: recordEvidence(record),
-      decision: decide(original.request, original.qualification),
-    }
+    const decision = decide(original.request, original.qualification)
+    const stored: StoredDecision =
+      decision.kind === 'prepared' ? { kind: 'prepared', admission: decision.admission } : decision
     const fixed = await write(bound, {
       phase: 'outcome',
       tenant: bound.tenant,
       handoff: record.handoff,
-      outcome: { kind: outcome.decision.kind, outcome: encodeState(outcome) },
+      outcome: {
+        kind: decision.kind,
+        format: 'intent-relative-v1',
+        provider: encodeState(given.provider),
+        decision: encodeState(stored),
+      },
     })
     if ('failure' in fixed) return fixed
-    return succeed(decodeOutcome(fixed.ok) ?? outcome)
+    const outcome = decodeOutcome(fixed.ok)
+    return outcome === null
+      ? fail(unavailable('the preadmission write did not fix an outcome'))
+      : succeed(outcome)
   }
 
   async function prepare(input: Access<P> & HandoffPrepare): Reply<HandoffOutcome> {

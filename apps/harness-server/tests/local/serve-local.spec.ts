@@ -98,6 +98,12 @@ describe('localServeInputs', () => {
     expect(result.operator?.ops.find(op => op.id === 'model-credential')?.config).toEqual({
       path: join(h.home, 'state', 'model-vault.json'),
     })
+    // The telemetry row gets its budgets from the profile; the release gives none (A12).
+    expect(result.operator?.ops.find(op => op.id === 'telemetry')?.config).toMatchObject({
+      implementation: 'node',
+      outlet: { kind: 'stdout' },
+      budgets: { maxQueueItems: expect.any(Number) },
+    })
     expect(JSON.stringify(result)).not.toContain(key)
   })
 

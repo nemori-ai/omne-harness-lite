@@ -4,10 +4,10 @@
 > 要引用，引[领域对象条目](../domain_objects/objects.md)、[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。
 
 - derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · `domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `product.0.0.1.legacy/PF-*/{README,design,flows}.md`（sealed provenance，不是当前采用）
-- 生成时间：2026-11-03
+- 生成时间：2026-11-07
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
-对象 **69** 个，变体 **30** 个，形态未定的词条 **0** 个，待裁 **10** 项。
+对象 **69** 个，变体 **30** 个，形态未定的词条 **2** 个，待裁 **12** 项。
 
 **按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。这不是能力边界，也不是限界上下文；那是系统架构设计的事。
 
@@ -163,7 +163,8 @@
 
 ### 形态未定的词条
 
-无。
+- [UL-output-generation](../ubiquitous_language/terms/execution-and-outcome.md#ul-output-generation--输出代--output-generation)「输出代」
+- [UL-telemetry-segment](../ubiquitous_language/terms/record-and-context.md#ul-telemetry-segment--遥测段--telemetry-segment)「遥测段」
 
 ### 待裁
 
@@ -171,6 +172,8 @@
 
 | 待裁项 | 谁来裁 |
 |---|---|
+| [遥测段](../domain_objects/pending.md#遥测段) | 产品负责人。补一段产品正文定义它，或裁定它不是产品概念。工程遥测目前没有产品 topic |
+| [输出代](../domain_objects/pending.md#输出代) | 产品负责人。补一段产品正文定义它，或裁定它不是产品概念。工程遥测目前没有产品 topic |
 | [存储](../domain_objects/pending.md#存储) | PF-006 的 owner |
 | [跨会话的那个对象](../domain_objects/pending.md#跨会话的那个对象) | 产品负责人。它要不要做、归哪个 topic，都还没有人说过。元能力产品不保有这一缺项，把它交给原产品与领域对象拥有者 |
 | [一次派发](../domain_objects/pending.md#一次派发) | 系统架构设计；元能力产品提供派发工作、一次报告和显式撤回的产品语义 |

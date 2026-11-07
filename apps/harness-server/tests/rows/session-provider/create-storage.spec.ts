@@ -48,6 +48,7 @@ import {
   type Base,
   type LoadedTree,
 } from '../session-fixtures/tree.ts'
+import { disabledTelemetryRow } from '../telemetry/support.ts'
 import { TENANT_A, createGuards, textOf } from '../storage/fixtures/tree.ts'
 
 type CreateCommand = Extract<SessionCommand, { kind: 'create' }>
@@ -101,6 +102,7 @@ async function start(base: Base): Promise<LoadedTree> {
   const tree = await loadTree({
     base,
     rows: [
+      disabledTelemetryRow(),
       ...storageRows(base).specs,
       ...bridges(),
       runtimeContextDoubleRow(),

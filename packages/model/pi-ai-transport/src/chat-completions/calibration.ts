@@ -23,7 +23,7 @@ export type CalibrationArithmeticInput = Readonly<{
   reasoning: readonly boolean[]
   calibration: MeterCalibration
   /** Counts a token input of the family schema with the family tokenizer. */
-  count(tokenInput: JsonValue): Outcome<bigint, TransportFailure>
+  count(tokenInput: JsonValue): Promise<Outcome<bigint, TransportFailure>>
   /** The tokens the family adds for these units beyond their text, after its image rules. */
   extra(units: readonly number[]): Outcome<bigint, TransportFailure>
   /** The diagnostic of a reasoning unit that no output count stands for. */
@@ -127,9 +127,9 @@ function outputOf(context: Context, index: number): Outcome<bigint, TransportFai
  * of the others (before the tokenizer, as the family orders its checks), then the count of the
  * body, or the envelope difference when anchored.
  */
-function estimateOf(
+async function estimateOf(
   request: Readonly<{ context: Context; indices: readonly number[]; anchored: boolean }>,
-): Outcome<Estimate, TransportFailure> {
+): Promise<Outcome<Estimate, TransportFailure>> {
   const { context, indices, anchored } = request
   const { input, entries, items } = context
   let outputs = 0n
@@ -153,10 +153,10 @@ function estimateOf(
     !anchored && kept.length === items.length
       ? input.tokenInput
       : withMessages({ entries, units: kept, anchored })
-  const counted = input.count(body)
+  const counted = await input.count(body)
   if (!('ok' in counted)) return counted
   if (!anchored) return { ok: { text: counted.ok, outputs, extra: extra.ok, substituted } }
-  const empty = input.count(withMessages({ entries, units: [], anchored: true }))
+  const empty = await input.count(withMessages({ entries, units: [], anchored: true }))
   if (!('ok' in empty)) return empty
   return { ok: { text: counted.ok - empty.ok, outputs, extra: extra.ok, substituted } }
 }
@@ -175,17 +175,17 @@ function freshOf(
  * The anchored path: `null` when the envelope difference is negative (`continuation-shrank`), so
  * the full path answers.
  */
-function anchoredAmount(
+async function anchoredAmount(
   input: Readonly<{
     context: Context
     anchor: NonNullable<MeterCalibration['anchor']>
     units: NonNullable<CalibrationArithmeticInput['units']>
     percent: bigint
   }>,
-): Outcome<CalibratedAmount | null, TransportFailure> {
+): Promise<Outcome<CalibratedAmount | null, TransportFailure>> {
   const { context, anchor, units, percent } = input
   if (!DECIMAL.test(anchor.inputTotal)) return invalid('calibration.anchor', 'input-total')
-  const estimate = estimateOf({
+  const estimate = await estimateOf({
     context,
     indices: freshOf(units, new Set(anchor.covered)),
     anchored: true,
@@ -204,11 +204,11 @@ function anchoredAmount(
 }
 
 /** The full path over every unit; `shrank` records that an anchor was tried and missed. */
-function fullAmount(
+async function fullAmount(
   input: Readonly<{ context: Context; percent: bigint; shrank: boolean }>,
-): Outcome<CalibratedAmount, TransportFailure> {
+): Promise<Outcome<CalibratedAmount, TransportFailure>> {
   const { context, percent, shrank } = input
-  const estimate = estimateOf({
+  const estimate = await estimateOf({
     context,
     indices: context.items.map((_, index) => index),
     anchored: false,
@@ -259,9 +259,9 @@ function contextOf(input: CalibrationArithmeticInput): Outcome<Context, Transpor
  * misses the anchor (`continuation-shrank`) and the full path answers. A reasoning unit whose
  * source is withheld, or absent, is a named unavailability on the path that needs it, never zero.
  */
-export function calibratedAmount(
+export async function calibratedAmount(
   input: CalibrationArithmeticInput,
-): Outcome<CalibratedAmount, TransportFailure> {
+): Promise<Outcome<CalibratedAmount, TransportFailure>> {
   const checked = contextOf(input)
   if (!('ok' in checked)) return checked
   const context = checked.ok
@@ -270,7 +270,7 @@ export function calibratedAmount(
   if (anchor === null) return fullAmount({ context, percent, shrank: false })
   const { units } = input
   if (units === undefined) return invalid('representation.units', 'missing')
-  const anchored = anchoredAmount({ context, anchor, units, percent })
+  const anchored = await anchoredAmount({ context, anchor, units, percent })
   if (!('ok' in anchored)) return anchored
   return anchored.ok === null ? fullAmount({ context, percent, shrank: true }) : { ok: anchored.ok }
 }

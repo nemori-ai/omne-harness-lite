@@ -16,6 +16,7 @@
 | `SessionIngressFaces`                   | `src/faces.ts`       | Session 四个面中本成员实际调用的子集：`management.create`、`work.accept`、`work.queryOperation`、`work.cancelRun`、`work.stopCall`、`history.begin`、`history.next`。真实 `SessionService` 按结构满足它 |
 | `DefinitionResolver`                    | `src/faces.ts`       | 定义名到 `SessionCreation` 采用字段的解析函数。映射数据归 `definition-mappings`，装配注入函数                                                                                                           |
 | `DiagnosticSink`                        | `src/diagnostics.ts` | 结构化诊断。事件只有 code、path 与 operation，没有正文、证明、凭据、主体或依赖的错误文本                                                                                                                |
+| `AgentFinishReader`、`ModelCallInspector`、`ModelAttemptReader`、`ToolCallReader` | `src/session-view/sources.ts` | 会话诊断投影的四个读端口：Agent 的 `readFinish`、Model 的 `inspect` 与 `dispatches` 及 `ModelDiagnostics`、Tool 的 `lookup`、`account` 与 `readDiagnostics`。都可选；缺席是 `unsupported` 缺口 |
 
 本成员不调用 authorization。会话操作的资格由 Session 面在访问裁定里判断（handoff「登录到 Access」第 3 点）。治理操作的资格由 identity 在提交时判断（identity ID-18）。模型凭据操作的资格由 `modelCredentials` 端口判断。
 
@@ -25,7 +26,8 @@
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `http.ts`           | `createServerEntry`：只绑 `127.0.0.1` 的监听、承载页第 1 到第 5 步、按路径读取请求体并计数、分派到两个位置、写出答复、`stop`                     |
 | `governance.ts`     | 治理位置：声明不提供的 14 个操作的常量；`register-and-activate` 与 `issue-login` 交 identity；18 个治理操作的第 4、6 步与到治理端口的映射；3 个模型凭据操作的第 4、6 步、代租户行事主体与到 `modelCredentials` 的映射 |
-| `session.ts`        | 会话位置：读取分派、七个操作的判断次序第 2 到第 6 步、Session 结果到公开 `outcome` 的映射                                                        |
+| `session.ts`        | 会话位置：读取分派、八个操作的判断次序第 2 到第 6 步、Session 结果到公开 `outcome` 的映射；`read-session-diagnostics` 的配置核对、游标开封与封印、公开正文的组装 |
+| `session-view/`     | 会话诊断投影。`project.ts` 是纯投影：条目到 Run 骨架，各来源的答复到一个 Run 的视图与缺口；`sources.ts` 是来源适配：端口类型、失败种类到缺口原因的映射、抛错到 `unavailable`；`cursor.ts` 用本实例随机密钥封印续页游标；`index.ts` 是编排：按页读 Session、收集 Run、向来源扇出、合成页。它不认识 HTTP、Cordis 或 CLI |
 | `identity-steps.ts` | 登录识别，账号关系核对，签发代租户行事主体，成功业务访问的报告。系统主体在首次需要时签发一次并保留                                               |
 | `derivation.ts`     | 会话标识、输入标识、三族操作身份与登录入口证据的派生                                                                                             |
 | `observation.ts`    | 观察消息的手写读写、本实例的观察记录、取消与替换、连接关闭即取消、每轮的登录重核与按登录结束                                                     |
@@ -44,7 +46,7 @@
 
 ## 依赖抛错的两类
 
-`session.ts` 用两个包装区分调用类别。`commitCall` 包 `create`、`accept`、`cancelRun`、`stopCall`：抛错答 `unknown`，状态 500 带响应体。`readCall` 包 `queryOperation`、`history.begin`、`history.next`：抛错答 `basis-unavailable`。identity 的登录识别与签发者抛错也是 `basis-unavailable`，在 `identity-steps.ts`。
+`session.ts` 用两个包装区分调用类别。`commitCall` 包 `create`、`accept`、`cancelRun`、`stopCall`：抛错答 `unknown`，状态 500 带响应体。`readCall` 包 `queryOperation`、`history.begin`、`history.next` 与整个诊断投影：Session 抛错答 `basis-unavailable`。投影内 Agent、Model、Tool 端口的抛错不到达 `readCall`：`sources.ts` 把它们收成 `unavailable` 缺口，页照常返回。identity 的登录识别与签发者抛错也是 `basis-unavailable`，在 `identity-steps.ts`。
 
 Session 失败种类在该操作公开结果集之外时（例如 `login-required`），映射为 `basis-unavailable`。`unsupported` 按契约表映射为 `unsupported`，不看 `producer` 的种类；它只在 `stop-call` 的结果集里。编码函数会拒绝不在该操作结果集里的 `outcome`，这时答复是 `no-answer`。
 
@@ -90,7 +92,9 @@ Session 失败种类在该操作公开结果集之外时（例如 `login-require
 | `tests/model-credentials.spec.ts`    | 3 个模型凭据操作的第 4、6 步、交给端口的主体与租户、跨租户 `denied` 逐字节相同且不披露对方绑定、端口各结果的映射、端口抛错、没有端口时 `stage-not-provided`、秘密不进响应与诊断 |
 | `tests/business-access.spec.ts`      | 只有会话位置的 `succeeded` 与建立成功的观察报告业务访问；报告失败不改答复；只刷新报告的那份登录                                |
 | `tests/observation-login.spec.ts`    | 撤销立刻结束该登录的观察、到期在下一轮结束、不可判定时 `ended(unavailable)`、其他登录的取消得到 `not-found` 且不调用 Session    |
-| `tests/session-operations.spec.ts`   | 七个操作、判断次序逐步、denied 逐字节相同、两类依赖抛错                                                                        |
+| `tests/session-operations.spec.ts`   | 七个既有操作、判断次序逐步、denied 逐字节相同、两类依赖抛错                                                                    |
+| `tests/session-view.spec.ts`         | 纯投影对四个来源的替身：Run 骨架只来自 Session、两个分支的解析、结构化原因、每种缺口、截断与不披露、分页与 Run 过滤、自由文本不进视图、不调用写口 |
+| `tests/session-diagnostics-operation.spec.ts` | `read-session-diagnostics` 的判断次序、`denied` 与 `read-history` 逐字节相同、页上界、未配置、游标篡改与续页重核资格、端口缺席、只读 |
 | `tests/derivation.spec.ts`           | 每族只改一个字段身份就变；`messageId` 不进身份                                                                                 |
 | `tests/observation.spec.ts`          | 确认先于帧、心跳、取消、替换、连接关闭、确认前断开后名额释放与 `stop()` 返回、并发建立只放行一个、手写读取的每条封闭规则、stop |
 | `tests/sse-stream.spec.ts`           | 串行写入者在客户端已断开的响应上构造：立即关闭、不写字节、`finished` 落定                                                      |

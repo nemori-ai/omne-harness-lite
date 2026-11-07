@@ -917,3 +917,11 @@ releasedScopes(principal, scope = system, after, limit):
 | `accept` 的上限或背压策略：一个会话的待处理输入数上限，与超限时的拒绝原因（[W1 的代价与退化](#w1-cost)）                                                | 本成员提出字段与初值；超限的拒绝原因归 Session 契约拥有者                                                        | 没有上限。积累 P 条待处理输入的会话，每次 `accept` 的代价是 O(P)                                                                                                                                                                                                         |
 | 压缩覆盖范围的条目数上界（[W4](#w4)）                                                                                                                   | [request-context-contract](../../context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界) 的拥有者 | W4 在写事务里读出 `covers` 的全部条目，代价随覆盖范围线性增长。SQLite 下同一事务域的其他提交在此期间等待                                                                                                                                                                 |
 | 撤销归档之后，作用域引用会不会被复用（[W3](#w3) 的 SE28 行）                                                                                            | 执行环境契约的拥有者                                                                                             | 撤销归档时删除该会话在 `sl_released_scope_idx` 的行，R11 不再返回这些作用域。作用域引用若被复用，本成员不区分新旧两次使用                                                                                                                                                |
+
+## Todo 同事务结果与恢复
+
+Todo 消费 [Session Todo 契约](../session-contract/SPEC.md#session-todo-状态与操作)。参加者的 resultOf 从本事务归约后的快照产生完整 TodoMutationReceipt，和 sl_entry、sl_state/sl_state_item、sl_operation 及 sl_operation_evidence 一起提交。原操作的 item 状态保存在 sl_operation.result，不在提交后调用 readWork 拼回执。后续 remove 不改变原 complete 的认回结果。
+
+todos 使用现有快照分块，不新建 Todo 表或迁移。读取仍是完整 session.work 快照，装配推荐 20 MiB，超界返回 unavailable/read_limit，不交出部分清单。tests/todos.spec.ts 组合真实 sqlite-provider 文件库和 Worker，覆盖不同 item 并发、不可复活、六个写点的 SQL 故障全回滚、真实提交 ACK 丢失和 SIGKILL 后认回。故障触发器只存在于测试临时数据库。ACK 丢失由测试包装器在真实提交成功后丢弃应答，范围不包含真实网络故障。
+
+该用例还在 20/200 项的本地样本上记录完整读回复字节、延迟及实际插入快照分块的 UTF-8 字节。测试触发器只计 sl_state_item 的值，不计 head、log、operation、evidence 或 SQLite 页/WAL 写量。它不证明 O(page)、任意容量、跨进程多写者或断电耐久。原 Tool 调用的自动恢复仍归其实际组合拥有者。

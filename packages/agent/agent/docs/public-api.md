@@ -8,7 +8,7 @@
 
 - 构造身份绑定：实例身份、租户、安全作用域和精确的定义采用，写在 `AgentRuntimeBinding`。它们决定实例身份，不是可调整的配置。
 - 可序列化配置：`AgentConfiguration`，经过校验，不含业务身份、权限、秘密或运行对象。
-- 单次操作参数：当前主体、租户、操作身份、execution、输入和推进资格依据随每次调用传入，不在工厂中保存。
+- 单次操作参数：当前主体、租户、操作身份、execution、输入和推进资格依据随每次调用传入。未定写在当前 runtime 中保留完整原请求，直到原结果认回。
 - 注入依赖：`AgentDependencies`，是具名能力的只读记录，不是服务容器，也不提供按名称动态取用的方法。工厂不接受 Cordis Context 或任何可按键取用的容器。
 
 ```ts
@@ -103,6 +103,8 @@ export declare function createAgentRuntime<P, B extends ContentBlock>(
 - `failed`：运行失败的接收者，事件类型是 `AgentRunFailed`，行为见 SPEC 的[运行失败](../SPEC.md#运行失败)。缺省时执行槽照样改为 failed，只是不报告。
 - `endedFailed`：以 `fail` 结论终结的接收者，事件类型是 `AgentRunEndedFailed`，行为见 SPEC 的[以失败终结](../SPEC.md#以失败终结)。缺省时执行照样终结，只是不报告。
 
+确定节点故障会先进入 [F1/F2/F3 收尾](../SPEC.md#确定节点故障的收尾)。只有 Journal ended 才报告 endedFailed 并释放槽；暂时等待不报告 failed。仍无法继续的资格、依赖或责任按原 failed 与 quiesce unresolved 规则保留。接收者继续处理原 execution 的结果。
+
 创建先校验配置、安全作用域、精确采用和提供者能力，成功得到 idle 实例。提供者能力包括三项：Journal 绑定声明的 `capabilities.coordination` 与配置 `coordination` 严格相等；Journal 提供者对配置 `jointCommits` 中每一种共同提交声明了参加者；Journal 绑定已固定消息准入的历史组合登记。三项核对都在创建 runtime、登记或写状态之前完成。
 
 历史组合登记由 Journal 绑定在工厂开始之前固定，含历史拥有者的精确 Adoption、原准入记录 resolver、实际共享事务域身份，以及 message 与 context-transition 两个提交处理器。standalone 与 coordinated 两种绑定都需要它，`jointCommits` 为空的独立装配也需要它。工厂从可信的绑定构造结果核对这份登记，不从配置取得。它不是 AgentConfiguration 的取值项，因为 resolver 与提交处理器不是可序列化数据。规则见 SPEC 的“[真实历史的提交点](../../agent-contract/SPEC.md#真实历史的提交点)”。发布由宿主完成。失败撤除本次创建的临时资源，不能返回半就绪实例。提供登记句柄时，句柄的 instance 必须等于绑定的 instance。配置不能覆盖绑定。纯工厂没有自己的全局注册表。
@@ -190,9 +192,13 @@ quiesce 的形状与行为都不在本页：形状见契约包的 AgentRuntimeCo
 
 JavaScript 单线程下，任一 invoke 要么先于宿主的到期回调取得执行槽，宿主读到 `occupied` 而放弃回收，要么晚于回调到达，此时 runtime 已 draining。两条义务是工厂的行为，由 AG-01 对工厂真件验证。
 
+## invoke 的未定受理
+
+open 抛错或返回 commit-unknown 时，runtime 保持 reserved。同输入重试查询原 operation，并沿原 coordinator 认回原 authority。重试不重新执行消息准入。异输入返回 conflict。excluded 返回原 operation 的 conflict 并保留 reserved，新 operation 仍为 busy。当前接口没有可靠的 execution 缺席证明，load denied 不能用于释放预占。query unknown 或不可用不释放预占。完整边界见 [SPEC 的原写认回](../SPEC.md#原-journal-写的认回)。
+
 ## 控制推进
 
-`advanceControl(ports, access, execution, operation)` 按 Journal 已保存的控制记录推进一项已受理的控制，与执行句柄 `control` 受理之后的推进是同一个函数。ports 是 `AgentDependencies` 的 journal、models、tools 与 materials。取消建立意图并撤销推进资格；Model 或 Tool 中断只作用于原调用。每一步都在由该控制派生的 operation 下保存，所以同一 control operation 的重试认回已保存的步骤，不重复写。失败原样返回，调用方以同一 control operation 重试。Journal 里没有该控制时返回成功且不写。
+`advanceControl(ports, access, execution, operation)` 按 Journal 已保存的控制记录推进一项已受理的控制，与执行句柄 `control` 受理之后的推进是同一个函数。ports 是 `AgentDependencies` 的 journal、models、tools 与 materials。取消建立意图并撤销推进资格；Model 或 Tool 中断只作用于原调用。每一步都在由该控制派生的 operation 下保存，所以同一 control operation 的重试认回已保存的步骤，不重复写。确定失败原样返回。Journal 写抛错返回该原写的 commit-unknown，调用方仍以同一 control operation 重试。入口按 Journal 实例、tenant、execution 与 control operation 保留原写；重试先查询原 recording operation，再读取已保存阶段。不同控制可并行，同一控制的重入返回 busy。Journal 里没有该控制时返回成功且不写。
 
 本函数不核验主体，也不受理控制。调用方须先以操作名 control 核验主体，并经 `AgentJournal.control` 取得受理，再调用它。宿主的长期控制入口在执行由本宿主仍在运行的 runtime 持有时，用该 runtime 的依赖调用它，见 [agent-host-local SPEC](../../agent-host-local/SPEC.md#宿主插件)。
 

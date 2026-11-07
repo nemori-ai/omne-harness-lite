@@ -1,9 +1,14 @@
+import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
 // 建 Tool 运行时组的唯一 bundle（B 段，R2-D66 第 3 项，L-TOOL 事实清单 §3）：`createLocalToolRuntimePlugins` 的
 // 每个输入只取已核来源，缺席时由各自的窄代理答 `unavailable`。`tool-records` 行按运维者配置调用一次；同一运行的
 // 后续调用配置必须相同，否则装载失败（不建第二份 bundle，也不悄悄沿用旧配置）。
 import type { Context } from '@deepseek-ai/cordis'
 import { canonicalDigest } from '@omne-harness/tool'
-import { toolBindingsKey, toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
+import {
+  toolBindingsKey,
+  toolCatalogKey,
+  toolStartAuthorityKey,
+} from '@omne-harness/tool-cordis-contract/cordis'
 import {
   createLocalGrantVerifiers,
   createLocalInvocationSource,
@@ -13,6 +18,9 @@ import {
   type LocalToolRuntimeInput,
 } from '@omne-harness/tool-host-local/cordis'
 import { releaseOf } from '../../entry/tool-release.ts'
+import { isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
+import { toolTargetPolicyOf } from '../authorization/tool-target-policy.ts'
+import { currentTargetPolicy, withTargetAdmissionPolicy } from './target-policy.ts'
 import { createReleaseToolIdentity, releasePrincipalCodec } from './access.ts'
 import type { ToolRuntimeConfig } from './config.ts'
 import { createReleaseEnvironment } from './environment.ts'
@@ -66,6 +74,20 @@ function releasePermitRequirements(
 function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeConfig) {
   const identity = createReleaseToolIdentity(holder)
   const store = lateStore(holder)
+  const requestAccess = currentTargetPolicy({
+    authorization: () => toolTargetPolicyOf(root),
+    view: () => releaseCatalogViewOf(root),
+  })
+  const sources = createLocalInvocationSource({
+    store,
+    authority: identity.sourceAuthority,
+    principalCodec: releasePrincipalCodec,
+    commitAttempts: config.configuration.ledgerCommitAttempts,
+    forwarding: {
+      authority: () => root.get(toolStartAuthorityKey, false),
+      isParent: request => isReleaseToolsRequest(releaseOf(root), request),
+    },
+  })
   const environment = createReleaseEnvironment(holder, identity, {
     filesRoot: config.filesRoot,
     commitAttempts: config.configuration.ledgerCommitAttempts,
@@ -75,13 +97,8 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     store,
     custody: lateCustody(holder),
     content: null,
-    sources: createLocalInvocationSource({
-      store,
-      authority: identity.sourceAuthority,
-      principalCodec: releasePrincipalCodec,
-      commitAttempts: config.configuration.ledgerCommitAttempts,
-    }),
-    access: identity.access,
+    sources: { ...sources, guard: withTargetAdmissionPolicy(sources.guard, store, requestAccess) },
+    access: { ...identity.access, request: requestAccess },
     subjects: identity.subjects,
     grants: createLocalGrantVerifiers(RELEASE_TOOL_SCOPE),
     guardsOf: () => [],

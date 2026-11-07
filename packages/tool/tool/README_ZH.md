@@ -204,7 +204,7 @@ tool/
 
 ## 模型结果取回
 
-根入口的 createTools 提供真实 Tools 作者，只有 help 和 read_result：`implementation` 是实现侧，交绑定提供者登记；`definition` 由元工具的官方治理派生。两个命令都是 structured、program:none，元工具的治理声明 programmable:false。输入是文本参数。直接内容输出可保留四种模态，普通附件地址仍为文本。工厂只取得 queries.readResult 和 content.read。
+根入口的 createToolResultReader 只提供固定结果读取与呈现，不登记工具作者。present 返回首屏，read 按 result/attachment 引用读取，readReply 收齐有界回应。完整 Tools 作者归 tool-definitions。reader 可保留 text、image、voice、video 内容，消费者须按实际输出能力裁定。工厂只取得 queries.readResult 和 content.read。
 
 构造时固定 arguments、resultPageBytes、replyMaxBytes、contentPageBytes，resultPageBytes 使用所装配 runtime 的真实配置。原调用收场后，可信消费侧用 present 读取固定版本首屏，再以 P14 projectToolResult 和本消息固定的附件块身份投影。模型从可见帮助和状态复制 reference、next，用新 consumer 位置调用 read_result。after:null 开始，上一回应的 next 接续，next:null 明确结束所选遍历。
 

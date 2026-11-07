@@ -40,6 +40,7 @@ import { agentInstancesRow } from '../../../src/rows/agent-instances/index.ts'
 import { monotonicClock } from '../../../src/shutdown.ts'
 import type { StopResult } from '../../../src/types.ts'
 import { declared, loadTree, makeBase, type LoadedTree } from '../session-fixtures/tree.ts'
+import { disabledTelemetryRow } from '../telemetry/support.ts'
 import {
   caller,
   definition,
@@ -136,7 +137,12 @@ async function start(row: Plugin): Promise<Started> {
   const doubles = hostDoubles(null)
   const tree = await loadTree({
     base,
-    rows: [doubles.spec, declared(row, hostConfig), declared(agentInstancesRow)],
+    rows: [
+      disabledTelemetryRow(),
+      doubles.spec,
+      declared(row, hostConfig),
+      declared(agentInstancesRow),
+    ],
     entryObjects: [principalObject()],
   })
   release.push(() => tree.dispose())

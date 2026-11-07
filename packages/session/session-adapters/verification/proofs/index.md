@@ -4,4 +4,5 @@
 
 ## 内容
 
-- [README.md](README.md)：证明清单与假设。目前没有证明
+- [README.md](README.md)：证明清单与假设
+- [batch-budget.md](batch-budget.md)：业务事实与封套共用物理记录预算的计数证明

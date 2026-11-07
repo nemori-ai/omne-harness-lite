@@ -15,7 +15,7 @@ import { admits, type FaceOperation } from './callers.ts'
 import type { SessionDependencies } from './dependencies.ts'
 import { denied, guarded, messageOf, OWNERS, unavailable } from './failures.ts'
 import type { Lifecycle } from './lifecycle.ts'
-import type { SessionMeasurer } from './measure.ts'
+import type { SegmentOwner, SessionMeasurer } from './measure.ts'
 import { qualify } from './qualify.ts'
 
 export type Reads<P> = Readonly<{
@@ -26,10 +26,14 @@ export type Reads<P> = Readonly<{
     access: SessionAccess<P>,
     read: (view: SessionTransactionPort<P>) => Reply<T>,
   ): Reply<T>
-  /** One directory read on the public port, resolved at the call. */
+  /**
+   * One directory read on the public port, resolved at the call. `whose` is the tenant input of
+   * `pending`, or `system` for the two reads the contract puts in system scope.
+   */
   directory<T>(
     caller: SessionCallerClass,
     operation: Extract<FaceOperation, 'pending' | 'references' | 'releasedScopes'>,
+    whose: SegmentOwner,
     read: (port: SessionTransactionPort<P>) => Reply<T>,
   ): Reply<T>
 }>
@@ -59,10 +63,11 @@ export function createReads<P>(
             return guarded(OWNERS.delegated, operation, () => read(view.ok))
           },
           answer => 'failure' in answer,
+          access.tenant,
         ),
       )
     },
-    directory: async (caller, operation, read) => {
+    directory: async (caller, operation, whose, read) => {
       if (lifecycle.closed) return closed()
       if (!admits(caller, operation)) return fail(denied(operation))
       let port
@@ -80,6 +85,7 @@ export function createReads<P>(
           null,
           () => guarded(OWNERS.directory, operation, () => read(target)),
           answer => 'failure' in answer,
+          whose,
         ),
       )
     },

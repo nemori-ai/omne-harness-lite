@@ -6,7 +6,6 @@ import {
   encodeToolInvocationRef,
   encodeToolOperationRef,
   type Adoption,
-  type ToolCallId,
   type ToolDefiniteFailure,
   type ToolFailure,
   type ToolInvocationCommands,
@@ -18,14 +17,13 @@ import {
   type ToolOperationRef,
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
-import { type CallAccess } from '@omne-harness/tool-contract/provider'
 import {
   describedAdoption,
   judgeToolInvokeRequest,
-  type ToolInstanceHost,
   type ToolProvider,
   type ToolOperationIdentities,
 } from '@omne-harness/tool-contract/provider'
+import { admitResolvedInvocation, scheduleAcceptedCallBestEffort } from './runtime-admission.ts'
 import { checkToolConfiguration, driverRetryDelayMs, driverStepsPerRun } from './configuration.ts'
 import type { ToolConfiguration, ToolDependencies } from './construction.ts'
 import { createToolDriver } from './driver.ts'
@@ -87,16 +85,6 @@ const IDENTITIES = 'toolIdentities'
 
 function redactedPortExceptionDiagnostic(dependency: string): string {
   return `${dependency} threw an exception; its message is not reported`
-}
-
-async function scheduleAcceptedCallBestEffort<P>(
-  host: ToolInstanceHost<P>,
-  tenant: CallAccess<P>['tenant'],
-  call: ToolCallId,
-): Promise<void> {
-  try {
-    await host.schedule({ tenant, call })
-  } catch {}
 }
 
 function rejected(failure: ToolDefiniteFailure): ToolInvokeOutcome {
@@ -183,7 +171,7 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
 ): ToolRuntime<P, B> {
   checkToolConfiguration(configuration)
   checkDependencies(dependencies)
-  const { commands, reads, admissions, instances, catalog } = dependencies
+  const { commands, reads, instances, catalog } = dependencies
   const { operationIdentities, sourceIssuer } = dependencies
   const stream = createStreamFacade<P, B>({ directory: instances.directory, reads })
 
@@ -213,47 +201,14 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
     if ('failure' in reference) return { kind: 'association-unknown' }
     if (bound.kind === 'issuance-unknown')
       return { kind: 'commit-unknown', reference: reference.ok }
-    const fixed = { ...request, invocation: bound.invocation }
-    let admitted: Awaited<ReturnType<typeof admissions.admit>>
-    try {
-      admitted = await admissions.admit({
-        principal,
-        tenant,
-        call: call.ok,
-        operation: admission.ok,
-        request: fixed,
-      })
-    } catch {
-      return { kind: 'commit-unknown', reference: reference.ok }
-    }
-    if ('failure' in admitted)
-      return admitted.failure.kind === 'commit-unknown'
-        ? { kind: 'commit-unknown', reference: reference.ok }
-        : rejected(admitted.failure)
-    if (admitted.ok.state.phase === 'accepted') {
-      let needsWake = true
-      if (admitted.ok.recovered) {
-        try {
-          const current = await reads.lookup({
-            principal,
-            tenant,
-            call: call.ok,
-            admission: admission.ok,
-          })
-          if ('ok' in current && current.ok.kind === 'found')
-            needsWake = ['accepted', 'preparing', 'queued', 'starting'].includes(
-              current.ok.state.phase,
-            )
-        } catch {}
-      }
-      if (needsWake) await scheduleAcceptedCallBestEffort(instances, tenant, call.ok)
-    }
-    return {
-      kind: 'accepted',
-      reference: reference.ok,
-      state: admitted.ok.state,
-      recovered: bound.recovered || admitted.ok.recovered,
-    }
+    return admitResolvedInvocation(dependencies, {
+      principal,
+      tenant,
+      call: call.ok,
+      admission: admission.ok,
+      request: { ...request, invocation: bound.invocation },
+      recovered: bound.recovered,
+    })
   }
 
   const runtime: ToolRuntime<P, B> = {

@@ -5,6 +5,7 @@
 // tool calls (R2-D297), in the generated logs and in the batches the memory Journal appends, and
 // the finishing records are checked to be the projection of the folded facts.
 import { describe, expect, it } from 'vitest'
+import { EXECUTION_BATCH_MAX_FACTS } from '@omne-harness/session-storage-sql/participants'
 import {
   BATCH_MAX_FACTS,
   BATCH_OVERHEAD_BYTES,
@@ -314,6 +315,30 @@ describe('F5 no copy: a fact holds references, never the content of another owne
     expect(encoded).toMatchObject({
       failure: { kind: 'oversize', factKind: 'passage.declared', ord: batch.facts.length + 1 },
     })
+  })
+
+  it('every accepted fact count leaves room for the physical batch envelope', () => {
+    expect(EXECUTION_BATCH_MAX_FACTS).toBe(256)
+    const { log } = scene(random(9), { rounds: 1, executions: 1 })
+    const batch = log[0]!
+    for (let count = 0; count <= EXECUTION_BATCH_MAX_FACTS; count += 1) {
+      const facts: FactBody[] = Array.from({ length: count }, (_, index) => ({
+        kind: 'ack.through',
+        sequence: index + 1,
+      }))
+      const encoded = encodeBatch(scope, batch.pub, 0, { ...batch, facts })
+      if (count < EXECUTION_BATCH_MAX_FACTS) {
+        expect(encoded).toHaveProperty('ok')
+        if ('failure' in encoded) throw new Error(JSON.stringify(encoded.failure))
+        expect(encoded.ok.rows).toHaveLength(count + 1)
+        expect(encoded.ok.rows[0]?.kind).toBe('batch')
+        expect(encoded.ok.rows.length).toBeLessThanOrEqual(EXECUTION_BATCH_MAX_FACTS)
+      } else {
+        expect(encoded).toEqual({
+          failure: { kind: 'too-many', facts: count, limit: EXECUTION_BATCH_MAX_FACTS - 1 },
+        })
+      }
+    }
   })
 
   it('a batch with more than BATCH_MAX_FACTS facts is refused by encode and by decide', () => {

@@ -56,7 +56,7 @@ import {
 
 type Principal = ReturnType<typeof fixture>['principal']
 type Commands = ModelCommands<Principal>
-type Measured = ReturnType<ModelInputMeter['measure']>
+type Measured = Awaited<ReturnType<ModelInputMeter['measure']>>
 
 // --- request material ------------------------------------------------------------------------
 
@@ -186,8 +186,8 @@ function stubFamily(): StubFamily {
   })
   const meter: CalibratedInputMeter = {
     basis,
-    measure: input => meter.measureCalibrated(input, { anchor: null, outputs: [] }),
-    measureCalibrated: (_input, calibration) => {
+    measure: async input => await meter.measureCalibrated(input, { anchor: null, outputs: [] }),
+    measureCalibrated: async (_input, calibration) => {
       calibrations.push(calibration)
       return budgetOf(calibration)
     },
@@ -387,12 +387,12 @@ function inputWith(
   }
 }
 
-function measureWith(
+async function measureWith(
   lease: ModelPreparationLease,
   fixed: FixedModelRequest,
   change: (representation: MeterRepresentation) => MeterRepresentation = value => value,
-): Measured {
-  return lease.bindings[0].meter.measure(inputWith(lease, fixed, change))
+): Promise<Measured> {
+  return await lease.bindings[0].meter.measure(inputWith(lease, fixed, change))
 }
 
 function reportOf(measured: Measured): RequestBudget['calibration'] {
@@ -506,8 +506,8 @@ describe('a lease over the real memory Commands', () => {
     if (meter === undefined) throw new Error('fixture')
     expect(lease.bindings[0].meter.basis).toEqual(meter.basis)
     const input = inputWith(lease, requestWith(two))
-    const measured = lease.bindings[0].meter.measure(input)
-    expect(JSON.stringify(measured)).toBe(JSON.stringify(meter.measure(input)))
+    const measured = await lease.bindings[0].meter.measure(input)
+    expect(JSON.stringify(measured)).toBe(JSON.stringify(await meter.measure(input)))
     expect(reportOf(measured)).toBeUndefined()
     expect(reads).toEqual([])
     await lease.release()
@@ -520,7 +520,7 @@ describe('a lease over the real memory Commands', () => {
     const family = stubFamily()
     const lease = await acquire({ commands, bindings: family.bindings }, f.admit, { continues: X })
     const current = requestWith(three)
-    const measured = measureWith(lease, current)
+    const measured = await measureWith(lease, current)
     expect(reportOf(measured)).toEqual({ anchor: { kind: 'hit' } })
     expect(family.calibrations).toEqual([
       { anchor: { covered: ids(requestWith(two)), inputTotal: '123' }, outputs: [] },
@@ -536,14 +536,14 @@ describe('a lease over the real memory Commands', () => {
     family.silent = true
     const lease = await acquire({ commands, bindings: family.bindings }, f.admit, { continues: X })
     const supplierName = `${adoption.owner}/${adoption.name}@${adoption.revision}`
-    expect(() => measureWith(lease, requestWith(three))).toThrow(TypeError)
-    expect(() => measureWith(lease, requestWith(three))).toThrow(supplierName)
+    await expect(measureWith(lease, requestWith(three))).rejects.toThrow(TypeError)
+    await expect(measureWith(lease, requestWith(three))).rejects.toThrow(supplierName)
     await lease.release()
     // Without a handed anchor the family has nothing to report: the miss of the lease stands.
     const missed = await acquire({ commands, bindings: family.bindings }, f.admit, {
       continues: callId('missing'),
     })
-    expect(reportOf(measureWith(missed, requestWith(three)))).toEqual({
+    expect(reportOf(await measureWith(missed, requestWith(three)))).toEqual({
       anchor: { kind: 'miss', reason: 'call-unreadable' },
     })
     await missed.release()
@@ -580,7 +580,9 @@ describe('a lease over the real memory Commands', () => {
     expect(record?.account).not.toBeNull()
     const family = stubFamily()
     const lease = await acquire({ commands, bindings: family.bindings }, f.admit, { continues: X })
-    expect(reportOf(measureWith(lease, requestWith(three)))).toEqual({ anchor: { kind: 'hit' } })
+    expect(reportOf(await measureWith(lease, requestWith(three)))).toEqual({
+      anchor: { kind: 'hit' },
+    })
     expect(family.calibrations[0]?.anchor).toEqual({
       covered: ids(requestWith(two)),
       inputTotal: '123',
@@ -613,7 +615,7 @@ describe('a lease over the real memory Commands', () => {
       ].map(async ({ access, lineage }) => {
         const family = stubFamily()
         const lease = await acquire({ commands, bindings: family.bindings }, access, lineage)
-        const measured = measureWith(lease, requestWith(three))
+        const measured = await measureWith(lease, requestWith(three))
         await lease.release()
         return { measured, calibrations: family.calibrations }
       }),
@@ -648,7 +650,7 @@ describe('anchor misses, each with its own reason and a fallback to full meterin
       f.admit,
       lineage,
     )
-    const measured = measureWith(lease, current, change)
+    const measured = await measureWith(lease, current, change)
     await lease.release()
     expect(family.calibrations[0]?.anchor).toBeNull()
     return reportOf(measured)
@@ -764,7 +766,7 @@ describe('anchor misses, each with its own reason and a fallback to full meterin
       f.admit,
       { continues: X },
     )
-    expect(reportOf(measureWith(lease, current))).toEqual({ anchor: { kind: 'hit' } })
+    expect(reportOf(await measureWith(lease, current))).toEqual({ anchor: { kind: 'hit' } })
     await lease.release()
   })
 })
@@ -785,7 +787,7 @@ describe('sources: the output count of each declared source, or why it is withhe
       f.admit,
       lineage,
     )
-    reportOf(measureWith(lease, history))
+    reportOf(await measureWith(lease, history))
     await lease.release()
     return family.calibrations[0]?.outputs
   }
@@ -916,7 +918,7 @@ describe('acquire: reads, limits and all-or-nothing bindings', () => {
       { principal: f.principal, tenant: f.tenant, call: X },
       { principal: f.principal, tenant: f.tenant, call: Y },
     ])
-    reportOf(measureWith(lease, requestWith(two)))
+    reportOf(await measureWith(lease, requestWith(two)))
     expect(reads).toHaveLength(2)
     await lease.release()
   })
@@ -1155,7 +1157,7 @@ describe('release', () => {
     expect(second).toBe(first)
     expect(await first).toEqual({})
     expect(family.released).toBe(1)
-    expect(measureWith(lease, requestWith(two))).toEqual({
+    expect(await measureWith(lease, requestWith(two))).toEqual({
       failure: {
         kind: 'unavailable',
         dependency: 'model-preparation',
@@ -1172,9 +1174,9 @@ describe('release', () => {
       f.admit,
     )
     const input = inputWith(lease, requestWith(two))
-    expect('ok' in lease.bindings[0].meter.measure(input)).toBe(true)
+    expect('ok' in (await lease.bindings[0].meter.measure(input))).toBe(true)
     expect(await lease.release()).toEqual({})
-    expect(lease.bindings[0].meter.measure(input)).toEqual({
+    expect(await lease.bindings[0].meter.measure(input)).toEqual({
       failure: {
         kind: 'unavailable',
         dependency: 'model-preparation',
@@ -1249,7 +1251,7 @@ describe('anchor boundaries', () => {
       f.admit,
       { continues: X },
     )
-    const report = reportOf(measureWith(lease, current))
+    const report = reportOf(await measureWith(lease, current))
     await lease.release()
     return { report, handed: family.calibrations[0]?.anchor }
   }
@@ -1328,7 +1330,7 @@ describe('source boundaries', () => {
       f.admit,
       { sources: [{ message: a1, call: Y }] },
     )
-    reportOf(measureWith(lease, history))
+    reportOf(await measureWith(lease, history))
     await lease.release()
     return family.calibrations[0]?.outputs
   }
@@ -1388,7 +1390,7 @@ describe('source boundaries', () => {
       f.admit,
       { continues: X },
     )
-    reportOf(measureWith(lease, fixed))
+    reportOf(await measureWith(lease, fixed))
     await lease.release()
     expect(family.calibrations[0]?.outputs).toEqual([
       { message: fixed.messages[2]?.id, kind: 'withheld', reason: 'source-missing' },
@@ -1414,7 +1416,7 @@ describe('lineage boundaries', () => {
         f.admit,
         lineage,
       )
-      expect(reportOf(measureWith(lease, requestWith(two)))).toBeUndefined()
+      expect(reportOf(await measureWith(lease, requestWith(two)))).toBeUndefined()
       expect(reads).toEqual([])
       await lease.release()
     },
@@ -1536,7 +1538,7 @@ describe('options and routes', () => {
         return {
           ok: {
             ...bound.ok,
-            meter: { ...bound.ok.meter, measureCalibrated: () => ({ failure }) },
+            meter: { ...bound.ok.meter, measureCalibrated: async () => ({ failure }) },
           },
         }
       },
@@ -1551,7 +1553,135 @@ describe('options and routes', () => {
       f.admit,
       { continues: X },
     )
-    expect(measureWith(lease, requestWith(three))).toEqual({ failure })
+    expect(await measureWith(lease, requestWith(three))).toEqual({ failure })
     await lease.release()
   })
+})
+
+describe('asynchronous preparation release', () => {
+  it('owns the full supplier list before the first binding waits', async () => {
+    const f = fixture()
+    const family = stubFamily()
+    const gate = Promise.withResolvers<void>()
+    const suppliers: [typeof profileSupplier, ...(typeof profileSupplier)[]] = [
+      { ...profileSupplier, model: 'first' },
+      { ...profileSupplier, model: 'second' },
+    ]
+    const bound: string[] = []
+    const resources = createModelPreparationResources<Principal>({
+      commands: stubStore(new Map()),
+      maxCitedCalls: 8,
+      supplierOf,
+      bindings: {
+        async acquire(supplier, signal) {
+          bound.push(supplier.model)
+          if (supplier.model === 'first') await gate.promise
+          return family.bindings.acquire(supplier, signal)
+        },
+      },
+    })
+    const changing = { ...profile, definition: { ...profile.definition, suppliers } }
+    const pending = resources.acquire({ ...f.admit, profile: changing })
+    changing.definition.suppliers.pop()
+    gate.resolve()
+    const lease = unbox(await pending)
+    expect(bound).toEqual(['first', 'second'])
+    expect(lease.bindings).toHaveLength(2)
+    await lease.release()
+  })
+
+  it.each([undefined, { continues: X }])(
+    'aborts and drains a pending measurement before release completes (%j)',
+    async lineage => {
+      const family = stubFamily()
+      const pending = Promise.withResolvers<Awaited<ReturnType<ModelInputMeter['measure']>>>()
+      const signals: AbortSignal[] = []
+      const events: string[] = []
+      const lease = await acquire(
+        {
+          commands: stubStore(new Map()),
+          bindings: {
+            async acquire(supplier, signal) {
+              signals.push(signal)
+              const bound = await family.bindings.acquire(supplier, signal)
+              if (!('ok' in bound)) return bound
+              return {
+                ok: {
+                  ...bound.ok,
+                  meter: {
+                    basis,
+                    measure: () => pending.promise,
+                    measureCalibrated: () => pending.promise,
+                  },
+                  async release() {
+                    events.push('binding-release')
+                    await bound.ok.release()
+                  },
+                },
+              }
+            },
+          },
+        },
+        fixture().admit,
+        lineage,
+      )
+      const input = inputWith(lease, requestWith(two))
+      const measurement = lease.bindings[0].meter.measure(input)
+      let finished = false
+      const released = lease.release().then(result => {
+        finished = true
+        return result
+      })
+      expect(signals[0]?.aborted).toBe(true)
+      await Promise.resolve()
+      expect(finished).toBe(false)
+      expect(events).toEqual([])
+      const unavailable = {
+        failure: {
+          kind: 'unavailable',
+          dependency: 'model-preparation',
+          diagnostic: 'preparation-lease-released',
+        },
+      }
+      expect(await lease.bindings[0].meter.measure(input)).toEqual(unavailable)
+      pending.resolve({
+        ok: { kind: 'complete', inputDigest: 'late', checks: [], counting: [basis] },
+      })
+      expect(await measurement).toEqual(unavailable)
+      expect(await released).toEqual({})
+      expect(events).toEqual(['binding-release'])
+      expect(family.released).toBe(1)
+    },
+    5000,
+  )
+})
+
+it('keeps release idempotent when an abort listener releases the same lease again', async () => {
+  const family = stubFamily()
+  const signals: AbortSignal[] = []
+  const lease = await acquire(
+    {
+      commands: stubStore(new Map()),
+      bindings: {
+        acquire(supplier, signal) {
+          signals.push(signal)
+          return family.bindings.acquire(supplier, signal)
+        },
+      },
+    },
+    fixture().admit,
+  )
+  const reentered: Promise<Awaited<ReturnType<ModelPreparationLease['release']>>>[] = []
+  signals[0]?.addEventListener(
+    'abort',
+    () => {
+      reentered.push(lease.release())
+    },
+    { once: true },
+  )
+  const release = lease.release()
+  expect(reentered).toEqual([release])
+  expect(reentered[0]).toBe(release)
+  expect(await release).toEqual({})
+  expect(family.released).toBe(1)
 })
