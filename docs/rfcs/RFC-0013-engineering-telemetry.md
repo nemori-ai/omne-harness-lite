@@ -152,7 +152,7 @@ flowchart LR
 | `retention` | 部署配置的采用 | 缺少采用时整个查询面 `unavailable`（Model 契约） |
 | `coverage` | 当前没有清理，恒为 `complete-through-snapshot` | 清理实现后改为按实际前缀 |
 
-服务由 `model-records` 行提供：`model-storage-sql/cordis` 增加插件工厂 `createSqlModelDiagnosticsPlugin`，提供 `modelDiagnostics`；行的 `provides` 加这个键，与 `modelCommands` 同一提供者组，因为它读同一个租户域的同一份文档。worker 半边增加读处理器 `model.diagnostics`，按 `(tenant, call)` 读 `md_call` 与按 `seq` 排序的 `md_dispatch`，支持 `after` 与 `limit`。
+服务由 `model-records` 行提供：`model-storage-sql` 提供 `createSqlModelDiagnostics`；应用用 `ModelDiagnosticsService` 包装每次读取的异步资格，提供 `modelDiagnostics`；行的 `provides` 加这个键，与 `modelCommands` 同一提供者组，因为它读同一个租户域的同一份文档。worker 半边增加读处理器 `model.diagnostics`，按 `(tenant, call)` 读 `md_call` 与按 `seq` 排序的 `md_dispatch`，支持 `after` 与 `limit`。
 
 资格：Model 契约要求「没有调用级诊断权限时整次拒绝」，且普通调用读取资格不自动授予它。本提案建议第一版在本机单用户档里显式采用一条映射：代租户行事的主体对自己租户的调用持有诊断读取资格（配置字段 `diagnosticsRead: 'tenant-self'`）。这是部署的显式采用，不是隐式授予。映射按[#1140 接续采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)的 DA2 范围采用，行为归 Model 与应用资格映射。
 
