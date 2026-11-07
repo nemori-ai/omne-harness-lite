@@ -478,13 +478,14 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const bindings = options.bindingsPort?.(binding.bindings) ?? binding.bindings
   const factAcknowledgements = createToolFactAcknowledgementGuard(bindings)
   const environments = testEnvironments(options.environment ?? new Map())
-  const originalCustody = testSettlementPorts().custody
+  const originalCustody = testSettlementPorts(memory).custody
   const custody = options.custodyPort?.(originalCustody) ?? originalCustody
   const controlSubjects =
     options.controlSubjects === undefined
       ? testControlSubjects(guards(options).access)
       : options.controlSubjects
   const settlement = {
+    materials: testSettlementPorts(memory).materials,
     custody,
     releaseInspection: environments,
     content: null,

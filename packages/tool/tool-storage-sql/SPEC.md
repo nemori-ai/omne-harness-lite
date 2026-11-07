@@ -98,7 +98,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ### TS-10 材料
 
-`toolStorageMaterials()` 返回一个参加者 `tool`、一条迁移 `tool/001-tool-ledger-custody` 与三个读 handler。参加者拥有全部 `tl_` 表，不读其他参加者的表，不需要也不提供事实，声明为 `singleton`。每个模块以构建固定的 `file:` URL 与文件字节的 SHA-256 描述。handler 的 `maxOutputBytes` 为 4194304，等于提供者 `maxReadResultBytes` 的初值。
+`toolStorageMaterials()` 返回一个参加者 `tool`、两条迁移 `tool/001-tool-ledger-custody`、`tool/002-tool-materials` 与四个读 handler。参加者拥有全部 `tl_` 表，不读其他参加者的表，不需要也不提供事实，声明为 `singleton`。每个模块以构建固定的 `file:` URL 与文件字节的 SHA-256 描述。handler 的 `maxOutputBytes` 为 4194304，等于提供者 `maxReadResultBytes` 的初值。
 
 ### TS-11 带原调用条件的 host 提交
 
@@ -167,3 +167,24 @@ W3-A 按[材料协议](../tool-contract/docs/material-protocol.md)拆清实现�
 | 启动围栏            | `tests/start-coordinator.spec.ts`：`tool-host-local` 的协调器在本仓上运行三组启动套件，并在重开后重建                                                                                        | 授权套件的用例全部不适用（协调器没有授权消费点）                                                 |
 | TS-10               | `tests/materials.spec.ts`、`tests/public-entry.spec.ts`                                                                                                                                      | 真实的三方材料合并由应用侧验证                                                                   |
 | TS-11               | `tests/guarded-host-commit.spec.ts`：真实 Tool 终局、两个 SQLite 连接竞争、租户隔离、丢答、操作中失败与重开                                                                                  | 使用 node:sqlite 测试提供者和真实参加者。未验证 sqlite-provider Worker、组提交、跨进程竞争或断电 |
+
+## W3 材料 worker 的实现映射
+
+材料命令沿同一 `tool` 参加者执行。002 新增 `tl_material` 与 `tl_material_chunk`，依赖 001，不修改 001 的迁移文件。旧 raw/retain 迁移归 W3-C，不由新增空表自动完成。
+
+同一 tenant/call/material 的 begin 固定原写操作与输入摘要。chunk 仅接受原输入，不覆盖异值分块。seal 核完整长度及 SHA-256。fence 持久记录原删除操作及授权摘要，禁止后续 begin/chunk/seal。prune 每次最多删 128 块，剩余为零才记录 deleted，并解除载荷描述。对象围栏仍保留。
+
+`tool.material.read` 采用 domain-serial，最多读取两行。每次字节读取限于一个分块且最多 65536 字节，通过 SQL substr 取范围。这个物理 IO 上限不定义模型的正文预算或 Tools.read_result 的语义页。未知、未封存、已围栏及损坏分别返回内部状态，由公开适配器按契约全化。
+
+当前已实现 worker、读 handler 与公开材料仓适配器。Tool 的资格核验、用途、时间水位、页租约和生产装配尚未完成。TTL 和删除授权仍归 Tool；SQL worker 不判断业务期限。
+
+
+## W3 公开材料仓
+
+`createSqlToolMaterialStore` 返回 `ToolMaterialStore`。受信装配提供 provider adoption、已有租户目录及 SQL 组合。材料地址包含完整 provider adoption、材料 id 和 generation，调用及租户另外进入 SQL 主键。provider 不匹配返回 unavailable，不把不同提供者的空仓解释为 unknown。主体资格由调用本仓的 Tool 边界核验，本仓不读取 Session。
+
+write 在第一次异步目录查询前复制字节及输入元数据。begin 固定分块布局，重试使用已存布局；修改工厂分块配置不改变未完成对象。封存的同输入直接认回原 seal，异输入冲突。适配器按实际 JSON 命令字节数检查配置上限。已受理或抛错而无法确认写入结果时返回 commit-unknown，保留原 operation；不会在未知状态下继续下一步。
+
+inspect 核原写操作；inspectErase 核原删除操作。未封存、完整封存、持久围栏和删除完成分别返回对应状态。来自 SQL 的状态、seal 与字节页必须经解析，异常形状返回 unavailable，不猜测冲突或已删除。物理字节缺席、未准备完成、已围栏或损坏不能返回空成功页。仅材料末尾可以返回空页及 next=null。
+
+上述为字节仓行为。完整正文到期、语义页、用途解除与回收进度由 Tool 实现；当前新仓没有接入最终事实、结果结算或生产维护。

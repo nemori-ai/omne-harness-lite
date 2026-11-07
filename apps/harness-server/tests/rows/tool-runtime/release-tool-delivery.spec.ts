@@ -19,6 +19,7 @@ import {
   runOmne,
   savedLoginProof,
   savedTenant,
+  toolRowsOperatorConfig,
 } from '../../r9/support.ts'
 import { connectable, until } from '../server-entry/support.ts'
 
@@ -78,25 +79,30 @@ const toolsThenText =
   }
 
 /** The operator layer with `read-history` listing the tool result and the Run boundaries too. */
-function withHistoryKinds(layer: unknown): unknown {
+function withHistoryKinds(
+  layer: unknown,
+  construction?: ReturnType<typeof toolRowsOperatorConfig>['construction'],
+): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
-      op.id === 'server-entry'
-        ? {
-            ...op,
-            config: {
-              ...op.config,
-              historyKinds: [
-                'message.user',
-                'message.assistant',
-                'message.tool',
-                'run.started',
-                'run.terminal',
-              ],
-            },
-          }
-        : op,
+      op.id === 'tool-host' && construction !== undefined
+        ? { ...op, config: { construction } }
+        : op.id === 'server-entry'
+          ? {
+              ...op,
+              config: {
+                ...op.config,
+                historyKinds: [
+                  'message.user',
+                  'message.assistant',
+                  'message.tool',
+                  'run.started',
+                  'run.terminal',
+                ],
+              },
+            }
+          : op,
     ),
   }
 }
@@ -133,7 +139,7 @@ const blocksOf = (entry: Entry | undefined): readonly Record<string, unknown>[] 
  * Runs one turn on the release tree with the gateway `script`: register, log in, create a coding
  * session, send one input and read the history until the Run ends, then stop the server.
  */
-async function turnOnRelease(script: GatewayScript) {
+async function turnOnRelease(script: GatewayScript, shellResultMaxBytes?: number) {
   const dir = newScratch('tool-delivery-')
   const port = await freePort()
   const home = join(dir.base, 'home')
@@ -142,10 +148,17 @@ async function turnOnRelease(script: GatewayScript) {
   const stderr: string[] = []
   const gateway = await startModelGateway(script)
   gateway.trustInProcess()
+  const { construction } = toolRowsOperatorConfig({ storageRoot: dir.storageRoot })
   const finished = runServe({
     distribution: release,
     operator: withHistoryKinds(
       operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: gateway.url }),
+      shellResultMaxBytes === undefined
+        ? undefined
+        : {
+            ...construction,
+            Shell: { ...construction.Shell, resultMaxBytes: shellResultMaxBytes },
+          },
     ),
     plugins: { ...cordis },
     stateRoot: dir.stateRoot,
@@ -184,6 +197,10 @@ async function turnOnRelease(script: GatewayScript) {
     )
       history = await post(port, request)
     expect(history.status, history.body).toBe(200)
+    expect(
+      entriesOf(history.body).some(entry => entry.kind === 'run.terminal'),
+      'the Run must reach a terminal before shutdown',
+    ).toBe(true)
     const modelRequests = gateway.requests()
     controller.abort('test: stop')
     stopped = true
@@ -191,6 +208,15 @@ async function turnOnRelease(script: GatewayScript) {
     const unsettled = records.filter(record => record.kind === 'shutdown-result')
     expect(result.exitCode, JSON.stringify(unsettled)).toBe(0)
     return { entries: entriesOf(history.body), modelRequests }
+  } catch (cause) {
+    const logs = records.filter(
+      record => record.kind === 'telemetry' && 'signal' in record && record.signal === 'log',
+    )
+    const lifecycle = records.filter(record => record.kind !== 'telemetry')
+    throw new Error(
+      `release turn failed: ${JSON.stringify({ logs: logs.slice(0, 20), lifecycle: lifecycle.slice(-10), stderr: stderr.slice(-10) })}`,
+      { cause },
+    )
   } finally {
     if (!stopped) controller.abort('test: stop')
     await finished.catch(() => undefined)
@@ -207,6 +233,64 @@ const resultText = (entry: Entry | undefined): string =>
     .join('')
 
 describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => {
+  it.skipIf(process.platform !== 'linux')(
+    'W3-A Linux control executes a small Shell command through the same release assembly',
+    { timeout: 240_000 },
+    async () => {
+      const { entries } = await turnOnRelease(
+        toolsThenText([
+          {
+            id: 'call_small_result',
+            arguments: JSON.stringify({
+              command: 'execute',
+              params: { script: "printf 'W3-SMALL-OK\\n'" },
+            }),
+          },
+        ]),
+        8 * 1024 * 1024,
+      )
+      expect(resultText(entries.find(entry => entry.kind === 'message.tool'))).toContain(
+        'W3-SMALL-OK',
+      )
+      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
+    },
+  )
+
+  it.skipIf(process.platform !== 'linux')(
+    'W3-A presents a bounded preview for a five MiB Shell result on the release tree',
+    { timeout: 240_000 },
+    async () => {
+      const seen: string[] = []
+      const script =
+        "printf 'W3-BEGIN\\n'; head -c 5242880 /dev/zero | tr '\\000' 'x'; printf '\\nW3-END\\n'"
+      const { entries, modelRequests } = await turnOnRelease(
+        toolsThenText(
+          [
+            {
+              id: 'call_large_result',
+              arguments: JSON.stringify({ command: 'execute', params: { script } }),
+            },
+          ],
+          seen,
+        ),
+        8 * 1024 * 1024,
+      )
+      expect(blocksOf(entries[2])).toMatchObject([
+        { kind: 'tool_call', name: 'Shell', callId: 'call_large_result' },
+      ])
+      const result = entries.find(entry => entry.kind === 'message.tool')
+      expect(result, JSON.stringify(entries.map(entry => entry.kind))).toBeDefined()
+      const preview = resultText(result)
+      expect(preview).toContain('W3-BEGIN')
+      expect(preview).toContain('W3-END')
+      expect(preview).toContain('read_result')
+      expect(Buffer.byteLength(preview, 'utf8')).toBeLessThanOrEqual(65_536)
+      expect(seen[1]).not.toContain('x'.repeat(65_537))
+      expect(modelRequests).toBe(2)
+      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
+    },
+  )
+
   it(
     'Shell info runs, its result and the final reply enter the history, the Run completes and the stop settles',
     { timeout: 240_000 },

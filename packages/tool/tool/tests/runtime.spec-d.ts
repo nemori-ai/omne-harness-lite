@@ -4,6 +4,7 @@ import type { FixedToolRequest, Reply, ToolState } from '@omne-harness/tool-cont
 import type {
   Mutation,
   ToolClock,
+  ToolFinalCustody,
   ToolCommands,
   ToolProvider,
   ToolReads,
@@ -56,6 +57,7 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
   >()
   expectTypeOf(createToolLedger<P, ContentBlock>).returns.toEqualTypeOf<
     Readonly<{
+      finalCustody: ToolFinalCustody<P, ContentBlock>
       controls: ToolLedgerControls<P>
       commands: ToolCommands<P, ContentBlock>
       reads: ToolReads<P, ContentBlock>

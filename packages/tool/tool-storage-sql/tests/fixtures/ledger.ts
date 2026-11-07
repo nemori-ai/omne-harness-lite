@@ -13,8 +13,9 @@ import {
   canonicalDigest,
   type ToolLedgerGuards,
   type ToolLedgerStore,
+  type ToolLedgerPorts,
 } from '@omne-harness/tool'
-import { createTestInvocationSource } from '@omne-harness/tool/testing'
+import { createMemoryToolMaterials, createTestInvocationSource } from '@omne-harness/tool/testing'
 import {
   decodeToolCallId,
   type Adoption,
@@ -205,13 +206,18 @@ export async function ledgerWorld(tenant: TenantId) {
       },
     },
   }
-  const ledgerOver = (store: ToolLedgerStore<ContentBlock>) =>
+  const memoryMaterials = createMemoryToolMaterials<Principal>()
+  const ledgerOver = (
+    store: ToolLedgerStore<ContentBlock>,
+    materials?: ToolLedgerPorts<Principal>['materials'],
+  ) =>
     createToolLedger<Principal, ContentBlock>(
       store,
       guards,
       createMemoryToolClock(),
       { resultPageBytes: 4096, ledgerCommitAttempts: 4, queueCapacity: 16 },
       {
+        materials: materials ?? memoryMaterials,
         custody: createMemoryToolOutputCustody<Principal>(),
         releaseInspection: createMemoryToolEnvironment<Principal>(),
         content: null,

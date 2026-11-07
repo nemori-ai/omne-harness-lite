@@ -171,7 +171,7 @@ describe('trusted source fact acknowledgement', () => {
       },
       createMemoryToolClock(),
       configurationOf({}),
-      testSettlementPorts(),
+      testSettlementPorts(f.harness.memory),
     )
     const commits = f.harness.memory.commits
     expect(await ledger.commands.recordFactAcknowledgement(f.input)).toEqual({
@@ -207,7 +207,7 @@ describe('trusted source fact acknowledgement', () => {
       guards(),
       createMemoryToolClock(),
       configurationOf({}),
-      testSettlementPorts(),
+      testSettlementPorts(f.harness.memory),
     )
     expect(ok(await rebuilt.commands.recordFactAcknowledgement(f.input))).toEqual(progress)
     expect(f.recoveries()).toBe(1)
@@ -300,7 +300,7 @@ describe('trusted source fact acknowledgement', () => {
       },
       createMemoryToolClock(),
       configurationOf({}),
-      testSettlementPorts(),
+      testSettlementPorts(f.harness.memory),
     )
     const failed = await ledger.commands.recordFactAcknowledgement(f.input)
     expect(failed).toHaveProperty('failure.kind', 'unavailable')
@@ -403,7 +403,7 @@ describe('trusted source fact acknowledgement', () => {
       },
       createMemoryToolClock(),
       configurationOf({}),
-      testSettlementPorts(),
+      testSettlementPorts(f.harness.memory),
     )
     const input = {
       ...f.input,

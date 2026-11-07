@@ -3,6 +3,11 @@
 // writes with the value to reply after the commit. It reads no port, runs no tool and mints no
 // time of its own.
 import type { ContentBlock } from '@omne-harness/content-block'
+import type {
+  MaterialRecord,
+  MaterialTimeRecord,
+  MaterialUseRecord,
+} from './ledger-material-records.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   ConsumerRef,
@@ -60,6 +65,9 @@ import {
 
 /** The records of one domain, indexed for the deciders and the read projections. */
 export type Snapshot<B extends ContentBlock> = Readonly<{
+  materials: ReadonlyMap<string, MaterialRecord>
+  materialUses: ReadonlyMap<string, MaterialUseRecord>
+  materialTime: MaterialTimeRecord | null
   domain: LedgerDomain
   revision: ToolRevision
   call: CallRecord | null
@@ -81,6 +89,9 @@ export function snapshotOf<B extends ContentBlock>(
   domain: LedgerDomain,
   read: Extract<LedgerRead<B>, { kind: 'complete' }>,
 ): Snapshot<B> {
+  const materials = new Map<string, MaterialRecord>()
+  const materialUses = new Map<string, MaterialUseRecord>()
+  let materialTime: MaterialTimeRecord | null = null
   const releases = new Map<string, EnvironmentReleaseRecord>()
   const facts = new Map<string, FactEventRecord<B>>()
   const batches = new Map<string, FactBatchRecord>()
@@ -94,6 +105,15 @@ export function snapshotOf<B extends ContentBlock>(
   const exclusions = new Map<string, ExclusionRecord>()
   for (const record of read.records) {
     switch (record.kind) {
+      case 'material':
+        materials.set(record.material.writeOperation, record.material)
+        break
+      case 'material-use':
+        materialUses.set(record.use.id, record.use)
+        break
+      case 'material-time':
+        materialTime = record.time
+        break
       case 'environment-release':
         releases.set(record.environmentRelease.release.preparation, record.environmentRelease)
         break
@@ -135,6 +155,9 @@ export function snapshotOf<B extends ContentBlock>(
     }
   }
   return {
+    materials,
+    materialUses,
+    materialTime,
     domain,
     releases,
     facts,

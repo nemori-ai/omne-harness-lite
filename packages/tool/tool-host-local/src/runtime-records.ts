@@ -38,6 +38,7 @@ export function createRuntimeRecords(
     controlSubjects: input.controlSubjects,
     content: input.content,
     custody: input.custody,
+    materials: input.materials,
     releaseInspection: stages.environments,
   }
   const ledger = createToolLedger(input.store, guards, input.clock, input.configuration, ports)

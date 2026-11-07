@@ -16,3 +16,4 @@ export {
 } from './guarded-host-commit.ts'
 export { createSqlToolOutputCustody } from './custody.ts'
 export { TOOL_PARTICIPANT, toolStorageMaterials, type ToolStorageMaterials } from './materials.ts'
+export { createSqlToolMaterialStore, type SqlToolMaterialStoreOptions } from './material-store.ts'

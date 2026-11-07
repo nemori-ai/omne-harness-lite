@@ -31,6 +31,7 @@ import {
 import {
   createSqlToolGuardedHostCommit,
   createSqlToolLedgerStore,
+  createSqlToolMaterialStore,
   createSqlToolOutputCustody,
 } from '@omne-harness/tool-storage-sql'
 import {
@@ -43,7 +44,7 @@ import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { ensureToolRuntimeBundle } from './bundle.ts'
 import { toolRuntimeConfigSchema, type ToolRuntimeConfig } from './config.ts'
-import { awaitBundle, toolRuntimeHolder } from './holder.ts'
+import { awaitBundle, toolRuntimeHolder, TOOL_MATERIAL_PROVIDER } from './holder.ts'
 
 const INTEGRATOR = { [executionEnvironmentKey]: { caller: 'integrator' as const } }
 
@@ -66,6 +67,12 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
     store: createSqlToolLedgerStore<ToolMessageContentBlock>(options),
     custody: createSqlToolOutputCustody<unknown>({
       ...options,
+      maxCommandBytes: config.maxCommandBytes,
+      maxChunkBytes: config.maxChunkBytes,
+    }),
+    materials: createSqlToolMaterialStore({
+      ...options,
+      provider: TOOL_MATERIAL_PROVIDER,
       maxCommandBytes: config.maxCommandBytes,
       maxChunkBytes: config.maxChunkBytes,
     }),

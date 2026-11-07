@@ -38,6 +38,9 @@ it.each([
   })
 })
 
+const sparse: unknown[] = []
+sparse.length = 2
+
 it.each([
   undefined,
   NaN,
@@ -48,7 +51,7 @@ it.each([
   () => 1,
   { optional: undefined },
   [undefined],
-  new Array(2),
+  sparse,
   new Date(0),
   new Map(),
   new Set(),

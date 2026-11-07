@@ -10,6 +10,7 @@ import {
 import { createSqliteStorage, type SqliteStorageConfig } from '@omne-harness/sqlite-provider'
 import {
   createSqlToolLedgerStore,
+  createSqlToolMaterialStore,
   createSqlToolOutputCustody,
   createSqlToolGuardedHostCommit,
   toolStorageMaterials,
@@ -19,7 +20,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 
 // The budget scenario produces a 2,723,278-byte plan command, including retained request copies.
-const maxCommandBytes = 4_194_304
+const DEFAULT_MAX_COMMAND_BYTES = 4_194_304
 
 /**
  * Test fixture SQL capacity per R2-D115: aligned with production candidate (sqlite-provider
@@ -37,6 +38,7 @@ function configuration(
   storageRoot: string,
   readBytes: number,
   globalReadResultBytes = DEFAULT_GLOBAL_READ_RESULT_BYTES,
+  maxCommandBytes = DEFAULT_MAX_COMMAND_BYTES,
 ): SqliteStorageConfig {
   return {
     storageRoot,
@@ -86,8 +88,9 @@ function configuration(
 export async function openStorage(
   root: string,
   tenants: readonly TenantId[],
-  options: Readonly<{ globalReadResultBytes?: number }> = {},
+  options: Readonly<{ globalReadResultBytes?: number; maxCommandBytes?: number }> = {},
 ) {
+  const maxCommandBytes = options.maxCommandBytes ?? DEFAULT_MAX_COMMAND_BYTES
   await mkdir(root, { recursive: true })
   const materials = toolStorageMaterials()
   const catalog: SqlMaterialCatalog = {
@@ -111,6 +114,7 @@ export async function openStorage(
       root,
       Math.max(4_194_304, ...materials.readHandlers.map(item => item.maxOutputBytes)),
       options.globalReadResultBytes ?? DEFAULT_GLOBAL_READ_RESULT_BYTES,
+      maxCommandBytes,
     ),
     materials: catalog,
     closeLeases: {
@@ -159,13 +163,27 @@ export async function openStorage(
       },
     }
     const options = { storage: created.storage, domains, combination }
+    const materialProvider = {
+      owner: 'windows-composition',
+      name: 'materials',
+      revision: '1',
+      digest: 'sha256:materials',
+    }
     return {
       /** The raw storage, for the read-budget case that must not depend on the whole assembly. */
       storage: created.storage,
+      combination,
       domains,
       store: createSqlToolLedgerStore<ToolMessageContentBlock>(options),
       custody: createSqlToolOutputCustody<unknown>({
         ...options,
+        maxCommandBytes,
+        maxChunkBytes: 16384,
+      }),
+      materialProvider,
+      materialStore: createSqlToolMaterialStore({
+        ...options,
+        provider: materialProvider,
         maxCommandBytes,
         maxChunkBytes: 16384,
       }),

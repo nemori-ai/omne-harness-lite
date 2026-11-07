@@ -70,3 +70,7 @@ The cases have stable `name` and `clause` fields. Direct consumption and the evi
 [createToolForwardRuntime](../src/runtime-forwarding.ts) 接收窄准入依赖与 provider `ToolForwardSource`，返回独立 `ToolForwardRuntime`。普通 invoke 与该工厂共用 [runtime-admission.ts](../src/runtime-admission.ts)。来源、容量预约与结果接收责任见 [单目标转发准入](../SPEC.md#单目标转发准入)。
 
 `SourceVerdict.denied` 在 [ledger-guards.ts](../src/ledger-guards.ts) 区分真实来源的当前策略拒绝与 forged。准入拒绝和 fact acknowledgement 拒绝均保留原责任，见同节行为约定。
+
+## 精确 final 保管
+
+`createToolLedger` 返回的 `finalCustody` 实现已发布的 `ToolFinalCustody`。构造参数 `ToolLedgerPorts.materials` 提供材料仓、provider adoption 和独立材料时钟。缺少该接线时，`preserveFinal` 明确返回 unavailable。该入口的行为和迁移边界见 [实现规格](../SPEC.md#精确-final-准备与保管)。

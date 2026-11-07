@@ -120,3 +120,7 @@ examples 是可读教学与可重复运行的消费检查。正式三条场景�
 联调采集端传入 `measurement` 或按调用返回它的函数，并把 `emit` 接到采集器。跨 Model、Agent、Tool 比较时必须传入同一进程的同一个 `clock.read`，使用同一 clock/generation；各模块的默认时钟代次不能拼成一条时间轴。缺日志数、时钟不一致或非法时间明确记为 unmeasured，不补零。取消发 cancelled，不能把定义的等待时间当作实际完成时间。
 
 [tool-measurement.spec.ts](tool-measurement.spec.ts) 经真实独立执行入口验证事件、调用身份、取消及不可比较的时钟。该替身供测量联调使用，不是生产 Shell、Files 或真实后端，不证明 E9 延迟判据已达到。
+
+- [精确 final 准备与恢复](final-custody.spec.ts)覆盖持久意图先于 IO、未知提交、时间水位、原身份与资格、迟到封存。
+
+- [材料化事实的重放、损坏及冲突守护](fact-material.spec.ts)。

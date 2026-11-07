@@ -15,7 +15,7 @@
 | `src/worker/schema.ts`                 | 表、迁移身份、handler 名与读上限                                             | 无                   |
 | `src/worker/facts.ts`                  | 适配器与 Worker 模块共用的事实协议及其解析                                   | 无                   |
 | `src/worker/participant.ts`            | `tool` 参加者，在写事务内执行                                                | 无（数据库中的行）   |
-| `src/worker/migration.ts`、`read-*.ts` | 迁移与三个读 handler                                                         | 无                   |
+| `src/worker/migration.ts`、`read-*.ts` | 迁移与四个读 handler                                                         | 无                   |
 
 依赖方向：适配器依赖 `@omne-harness/tool` 根入口（`ToolLedgerStore`、`LedgerRecord`、`recordKey`、`isTenantShape`、`canonicalDigest`）、`@omne-harness/tool-contract`、`@omne-harness/sql-contract` 与 `legal-identity`。Worker 模块只依赖 `sql-contract` 的根与 `./worker` 入口。本包不导入任何 SQL 提供者、node:sqlite 或 Cordis。依赖 `tool` 根入口是有意的（评审 N8）：新增记录种类不需要改本包，因为记录仓按键保存记录，不解释记录。
 
@@ -39,3 +39,12 @@
 ## 验证与维护
 
 保证与持续验证的对应见 [SPEC.md 的组合与验证](../SPEC.md#组合与验证)。改动 Worker 模块会改变模块摘要与清单摘要，应用要登记新组合版本。改表结构要新增迁移，不改已发布的迁移。端口形状变化时同步 `tests/` 的套件接线。
+
+
+## W3 材料仓
+
+`material-store` 组合公开端口与租户定位，`material-values` 解析协议数据，`material-mutations` 承接封存及删除，`material-io` 映射 SQL 结果。工厂记住采用的 provider 与配置，不保存材料状态。状态始终在原租户 SQL 域。
+
+002 新增 `tl_material` 和 `tl_material_chunk`。完整材料引用的规范编码、租户和调用共同定位一代对象。独立对象表固定输入摘要、分块布局、封存和删除状态，分块表保存字节。它们不推进 `tl_domain` 修订，不代替 Tool 的准备意图、用途或时间水位。
+
+删除先记录持久围栏，后按原操作分批删块。观察到最后一批完成才返回删除凭据。新 writer、重试 writer 和迟到 writer 都经过同一对象状态检查。业务删除前提与授权仍由 Tool 提供。精确行为归 [W3 公开材料仓](../SPEC.md#w3-公开材料仓)。

@@ -9,7 +9,7 @@ import {
   type ToolLedgerStore,
   type LedgerWrite,
 } from '@omne-harness/tool'
-import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
+import { createMemoryToolLedgerStore, createMemoryToolMaterials } from '@omne-harness/tool/testing'
 import type {
   ToolDelivery,
   ToolInvokeOutcome,
@@ -376,6 +376,7 @@ export async function fixture(
   const input: LocalToolRuntimeInput = {
     store,
     custody,
+    materials: createMemoryToolMaterials(),
     content: null,
     sources,
     access,

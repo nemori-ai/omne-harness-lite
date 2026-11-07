@@ -353,7 +353,7 @@ describe('atomic custody and recovery', () => {
       guards(),
       createMemoryToolClock(),
       configurationOf({}),
-      testSettlementPorts(),
+      testSettlementPorts(harness.memory),
     )
     const recovery = ok(await rebuilt.commands.loadRecovery(access))
     const tasks = recovery.tasks.filter(task => task.kind === 'settle')
@@ -627,7 +627,7 @@ describe('fixed producer boundary and current access', () => {
       },
       createMemoryToolClock(),
       configurationOf({}),
-      testSettlementPorts(),
+      testSettlementPorts(harness.memory),
     )
     ok(await ledger.commands.receiveFacts({ ...access, start: mutable.start, batch: mutable }))
     const recovery = ok(await ledger.commands.loadRecovery(access))
@@ -705,7 +705,7 @@ describe('fixed producer boundary and current access', () => {
       },
       createMemoryToolClock(),
       configurationOf({}),
-      testSettlementPorts(),
+      testSettlementPorts(harness.memory),
     )
     expect(await ledger.commands.receiveFacts({ ...access, start: batch.start, batch })).toEqual({
       failure: {

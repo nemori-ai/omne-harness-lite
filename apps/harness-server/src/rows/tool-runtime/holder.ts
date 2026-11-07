@@ -17,10 +17,16 @@ import type { Context } from '@deepseek-ai/cordis'
 import { canonicalDigest, type ToolLedgerStore } from '@omne-harness/tool'
 import type {
   ToolClock,
+  ToolMaterialClock,
+  ToolMaterialStore,
   ToolMessageContentBlock,
   ToolOutputCustody,
 } from '@omne-harness/tool-contract/provider'
-import { createLocalToolClock, type LocalToolForwarding } from '@omne-harness/tool-host-local'
+import {
+  createLocalToolClock,
+  createLocalToolMaterialClock,
+  type LocalToolForwarding,
+} from '@omne-harness/tool-host-local'
 import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-local/cordis'
 
 type EnvironmentGuardedHostCommit = LocalToolRuntimeInput['environment']['guarded']
@@ -35,6 +41,7 @@ export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins>
 export type ToolSqlPorts = Readonly<{
   store: ToolLedgerStore<ToolMessageContentBlock>
   custody: ToolOutputCustody<unknown>
+  materials: ToolMaterialStore<unknown>
   guarded: EnvironmentGuardedHostCommit
 }>
 
@@ -44,6 +51,7 @@ export type ToolRuntimeHolder = {
   /** Late forwarding work is drained by the business shutdown before the runtime closes. */
   toolsForwarding: LocalToolForwarding<unknown> | null
   readonly clock: ToolClock
+  readonly materialClock: ToolMaterialClock
   /** 当前 SQL 端口；`tool-records` 行不在时为 null。 */
   sql: ToolSqlPorts | null
   /** 执行域的 schema-provider；`tool-environments` 行装载时交来，撤除时收回。 */
@@ -97,6 +105,12 @@ export function toolRuntimeHolder(ctx: Context): ToolRuntimeHolder {
   const created: ToolRuntimeHolder = {
     toolsForwarding: null,
     clock: createLocalToolClock(),
+    materialClock: createLocalToolMaterialClock({
+      wallMs: () =>
+        /* wall-clock: clock-source -- Tool 材料时钟的墙钟输入，水位由原 call 域持久核验 */ Date.now(),
+      monotonicMs: () =>
+        /* wall-clock: clock-source -- Tool 材料时钟的同进程单调输入 */ performance.now(),
+    }),
     sql: null,
     schemaProvider: null,
     workPrincipals: () => undefined,
@@ -181,6 +195,31 @@ export function lateCustody(holder: ToolRuntimeHolder): ToolOutputCustody<unknow
     retainResult: input =>
       holder.sql?.custody.retainResult(input) ?? Promise.resolve(custodyUnavailable),
   } satisfies ToolOutputCustody<unknown>)
+}
+
+export const TOOL_MATERIAL_PROVIDER = Object.freeze({
+  owner: '@omne-harness/tool-storage-sql',
+  name: 'tool-material',
+  revision: '1',
+  digest: 'sha256:tool-material/1',
+})
+
+export function lateMaterials(holder: ToolRuntimeHolder): ToolMaterialStore<unknown> {
+  const unavailable = {
+    failure: {
+      kind: 'unavailable' as const,
+      dependency: 'tool-records',
+      diagnostic: 'no SQL material store is installed',
+    },
+  }
+  return Object.freeze({
+    write: input => holder.sql?.materials.write(input) ?? Promise.resolve(unavailable),
+    inspect: input => holder.sql?.materials.inspect(input) ?? Promise.resolve(unavailable),
+    read: input => holder.sql?.materials.read(input) ?? Promise.resolve(unavailable),
+    erase: input => holder.sql?.materials.erase(input) ?? Promise.resolve(unavailable),
+    inspectErase: input =>
+      holder.sql?.materials.inspectErase(input) ?? Promise.resolve(unavailable),
+  } satisfies ToolMaterialStore<unknown>)
 }
 
 /** 交给 bundle 的守护宿主提交：逐次读当前 SQL 端口，缺席答 `unavailable`。 */

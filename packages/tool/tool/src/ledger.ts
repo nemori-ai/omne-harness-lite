@@ -1,3 +1,6 @@
+import { factValues } from './fact-values.ts'
+import { preserveFactMaterials, restoreSavedFact } from './ledger-fact-material.ts'
+import { createLedgerFinalCustody } from './ledger-final-custody.ts'
 import { matchEnvironmentAdoption } from './environment-adoption.ts'
 import { controlIntent } from './control-intent.ts'
 import { controlProgress } from './control-progress.ts'
@@ -51,6 +54,7 @@ import {
   type ToolClock,
   type ToolCommands,
   type ToolReads,
+  type ToolFinalCustody,
 } from '@omne-harness/tool-contract/provider'
 import {
   denied,
@@ -81,7 +85,7 @@ import {
   fixFinalInput,
 } from './facts-boundary.ts'
 import { checkFactAcknowledgement, decideFactAcknowledgement } from './ledger-fact-ack.ts'
-import { decideReceiveFacts, readSavedFact, sameFactValue } from './ledger-facts.ts'
+import { checkFactBatch, decideReceiveFacts, readSavedFact, sameFactValue } from './ledger-facts.ts'
 import { digestOf, nextRevision } from './evidence.ts'
 import {
   decideAdmit,
@@ -143,6 +147,7 @@ import {
 } from './ledger-store.ts'
 
 export type ToolLedger<P, B extends ContentBlock> = Readonly<{
+  finalCustody: ToolFinalCustody<P, B>
   controls: ToolLedgerControls<P>
   commands: ToolCommands<P, B>
   reads: ToolReads<P, B>
@@ -1061,6 +1066,14 @@ export function createToolLedger<P, B extends ContentBlock>(
     }
   }
 
+  const finalCustody = createLedgerFinalCustody({
+    materials: settlement.materials,
+    policy: guards.policy,
+    adoption: toolLedgerAdoption,
+    entry,
+    transact,
+  })
+
   const commands: ToolCommands<P, B> = {
     admit: async input => {
       const admitted = await admissions.admit(input)
@@ -1142,13 +1155,28 @@ export function createToolLedger<P, B extends ContentBlock>(
     receiveFacts: async input => {
       const fixed = fixFactInput(input, guards.policy, toolLedgerAdoption)
       if ('failure' in fixed) return fixed
+      const values = factValues(fixed.ok.batch)
+      if ('failure' in values) return values
       const checked = await entry(input, 'write')
       if ('failure' in checked) return checked
+      const before = await read(callDomain(checked.ok))
+      if ('failure' in before) return before
+      const recalled = checkFactBatch(before.ok, fixed.ok.start, fixed.ok.batch, values.ok.batch)
+      if ('failure' in recalled) return recalled
+      if (recalled.ok !== null) return succeed(recalled.ok)
+      const prepared = await preserveFactMaterials(
+        checked.ok,
+        before.ok,
+        fixed.ok.batch,
+        values.ok,
+        finalCustody,
+      )
+      if ('failure' in prepared) return prepared
       return transact(
         callDomain(checked.ok),
         null,
         (snapshot, mint) =>
-          decideReceiveFacts(snapshot, fixed.ok.start, fixed.ok.batch, mint, toolLedgerAdoption),
+          decideReceiveFacts(snapshot, fixed.ok.start, prepared.ok, mint, toolLedgerAdoption),
         unavailable('ledger-store', 'fact custody outcome is unknown; resubmit the original batch'),
       )
     },
@@ -1335,6 +1363,7 @@ export function createToolLedger<P, B extends ContentBlock>(
   })
 
   return Object.freeze({
+    finalCustody,
     controls: Object.freeze(
       createLedgerControls<P, B>({ subjects: settlement.controlSubjects, entry, transact }),
     ),
@@ -1346,7 +1375,20 @@ export function createToolLedger<P, B extends ContentBlock>(
       read: async input => {
         const basis = fixFactBasis(input)
         if ('failure' in basis) return basis
-        return query(input, 'recover', snapshot => readSavedFact(snapshot, basis.ok))
+        const saved = await query(input, 'recover', snapshot => readSavedFact(snapshot, basis.ok))
+        if ('failure' in saved) return saved
+        const context = await entry(input, 'recover')
+        if ('failure' in context) return context
+        const restored = await restoreSavedFact(
+          context.ok,
+          saved.ok,
+          settlement.materials?.store,
+          guards.policy,
+          toolLedgerAdoption,
+        )
+        if ('failure' in restored) return restored
+        const allowed = await entry(input, 'recover')
+        return 'failure' in allowed ? allowed : restored
       },
     } satisfies ToolLedgerFacts<P, B>),
   })

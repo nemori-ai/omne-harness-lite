@@ -19,7 +19,9 @@ import {
   type FactReceipt,
   type ResultPolicy,
   type ToolExecutionFact,
+  type ToolFinalEnvelope,
 } from '@omne-harness/tool-contract/provider'
+
 import { readOwnSlot } from '@omne-harness/tool-contract/binding'
 import {
   invalid,
@@ -394,5 +396,34 @@ export function fixFinalInput<B extends ContentBlock>(
     return succeed(structuredClone(checked.ok))
   } catch {
     return invalid('result', 'unserializable-or-invalid-data')
+  }
+}
+
+export function fixFinalCustodyInput<B extends ContentBlock>(
+  input: unknown,
+  policy: ResultPolicy<B>,
+  adoption: Adoption,
+): Outcome<
+  Readonly<{ start: ToolStartRecord; source: DurableEvidence; final: ToolFinalEnvelope<B> }>,
+  ToolFailure
+> {
+  try {
+    if (!object(input)) return invalid('input', 'type')
+    const fields: Data = {}
+    for (const key of ['start', 'source', 'final']) {
+      const slot = readOwnSlot(input, key)
+      if (slot.kind !== 'value') return invalid(key, 'own-data-required')
+      fields[key] = copyData(slot.value)
+    }
+    const checkedStart = start(fields.start)
+    if ('failure' in checkedStart) return checkedStart
+    const source = judgeEvidenceField(fields.source, 'source')
+    if ('failure' in source) return source
+    const final = fact(fields.final, policy, adoption)
+    if ('failure' in final) return final
+    if (final.ok.kind !== 'final') return invalid('final', 'final-required')
+    return succeed({ start: checkedStart.ok, source: source.ok, final: structuredClone(final.ok) })
+  } catch {
+    return invalid('final', 'unserializable-or-invalid-data')
   }
 }

@@ -2,6 +2,7 @@
 // the inputs and outputs of the read handlers. The adapters build these values and the Worker
 // modules parse them, so the protocol has one definition. Every value is strict JSON.
 import type { JsonValue } from '@omne-harness/sql-contract'
+import { parseMaterialFacts, type MaterialFacts } from './material-facts.ts'
 import { countOf, isObject, textOf, type JsonObject } from './support.ts'
 
 /** The three ledger domain kinds; `name` is the call, the queue key or the host key. */
@@ -57,7 +58,7 @@ export type ManifestFacts = CustodyAddress &
     holds: Readonly<{ operation: string; seal: string }> | null
   }>
 
-export type ToolFacts = LedgerFacts | GuardedHostFacts | ChunkFacts | ManifestFacts
+export type ToolFacts = LedgerFacts | GuardedHostFacts | ChunkFacts | ManifestFacts | MaterialFacts
 
 /** Why the participant stopped a command; the adapters map each reason to one port answer. */
 export type StopBasis =
@@ -217,7 +218,7 @@ export function parseFacts(facts: JsonObject): ToolFacts | null {
     case 'manifest':
       return manifestOf(facts)
     default:
-      return null
+      return parseMaterialFacts(facts)
   }
 }
 

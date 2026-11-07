@@ -1,3 +1,8 @@
+export {
+  createMemoryToolMaterialStore,
+  createMemoryToolMaterials,
+} from './testing-material-store.ts'
+import { createMemoryToolMaterials } from './testing-material-store.ts'
 import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -118,7 +123,12 @@ export function createTestToolDependencies<P>(
     },
     doubles.clock,
     input.configuration,
-    { custody: doubles.custody, releaseInspection: doubles.environment, content: content.reader },
+    {
+      materials: createMemoryToolMaterials<P>(),
+      custody: doubles.custody,
+      releaseInspection: doubles.environment,
+      content: content.reader,
+    },
   )
   return {
     durability: 'none',

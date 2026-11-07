@@ -136,3 +136,7 @@ executor 退役后不能在同一 bundle 重装。close 结束本代调度、观
 停止先关闭新的扫描与 writer 准入，结束本代调度，再等待已接管操作完成或把责任留给可恢复记录。扫描取消不撤销正在执行的删除，也不把 unknown 改成未发生。依赖缺席或换代期间不产生新代假回执；恢复接续原操作和代次，不重复业务效果。驱动不能在每个会话创建一份，也不能在每次调用启动完整扫描。
 
 正文读取租约、准备材料和物理删除由各自端口负责。close/dispose 只结束宿主本代资源，是否达到业务排空仍由持久 inventory 判断。记录查询、扫描延迟、重试和清理结果通过既有 telemetry 观测；观测失效不改变业务确认。
+
+### W3 材料依赖
+
+`LocalToolRuntimeInput.materials` 必填，包含 byte provider adoption、材料仓和独立材料时钟。runtime records 将它交给原 Tool 账本。宿主不决定 TTL，也不在材料提供者缺席时建立内存替代仓。完整 final 发布与生命周期的后续迁移范围见 [材料协议](../../tool-contract/docs/material-protocol.md)。

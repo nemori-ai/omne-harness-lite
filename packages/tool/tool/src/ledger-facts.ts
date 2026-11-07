@@ -8,6 +8,8 @@ import type {
   ToolStartRecord,
 } from '@omne-harness/tool-contract'
 import type { FactBatch, FactProgress, FactReceipt } from '@omne-harness/tool-contract/provider'
+import type { StoredFactBatch } from './fact-values.ts'
+import type { ToolMaterialFingerprint } from '@omne-harness/tool-contract/provider'
 import { invalid, tenantKey } from './boundary.ts'
 import { canonicalJson, factTaskOperation, mintEvidence } from './evidence.ts'
 import { put, reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
@@ -68,7 +70,7 @@ function updateProcess(
 /** The event history decides duplicate sequences, including historical updates after closure. */
 function processWrites<B extends ContentBlock>(
   snapshot: Snapshot<B>,
-  batch: FactBatch<B>,
+  batch: StoredFactBatch<B>,
   events: readonly FactEventRecord<B>[],
   adoption: Adoption,
 ): Outcome<readonly LedgerWrite<B>[], ToolFailure> {
@@ -104,22 +106,12 @@ function processWrites<B extends ContentBlock>(
 
 function recallBatch<B extends ContentBlock>(
   snapshot: Snapshot<B>,
-  batch: FactBatch<B>,
+  batch: Pick<FactBatch<B>, 'start' | 'source' | 'batch'>,
+  value: ToolMaterialFingerprint,
 ): Outcome<FactReceipt | null, ToolFailure> {
   const known = snapshot.batches.get(factKey(batch.start, batch.source.owner, batch.batch))
   if (known === undefined) return succeed(null)
-  const events = known.events
-    .map(event => snapshot.facts.get(factKey(known.start, known.source.owner, event)))
-    .map(record => (record === undefined ? null : { event: record.event, fact: record.fact }))
-  const original = {
-    start: known.start,
-    source: known.source,
-    batch: known.batch,
-    after: known.after,
-    cursor: known.cursor,
-    events,
-  }
-  return sameFactValue(original, batch)
+  return sameFactValue(known.value, value)
     ? succeed(known.receipt)
     : invalid('batch', 'batch-conflict')
 }
@@ -128,7 +120,10 @@ type EventPlan<B extends ContentBlock> = Readonly<{
   fresh: readonly FactEventRecord<B>[]
   writes: readonly LedgerWrite<B>[]
 }>
-function factPlace<B extends ContentBlock>(call: CallRecord, batch: FactBatch<B>) {
+function factPlace<B extends ContentBlock>(
+  call: CallRecord,
+  batch: Pick<FactBatch<B>, 'start' | 'source'>,
+) {
   return {
     tenant: call.tenant,
     call: call.call,
@@ -139,7 +134,7 @@ function factPlace<B extends ContentBlock>(call: CallRecord, batch: FactBatch<B>
 function planEvents<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   call: CallRecord,
-  batch: FactBatch<B>,
+  batch: StoredFactBatch<B>,
   mint: Mint,
 ): Outcome<EventPlan<B>, ToolFailure> {
   const start = batch.start
@@ -154,13 +149,14 @@ function planEvents<B extends ContentBlock>(
     const key = factKey(start, batch.source.owner, event.event)
     const known = facts.get(key)
     if (known !== undefined) {
-      if (!sameFactValue(known.fact, event.fact)) return invalid('batch.events', 'event-conflict')
+      if (!sameFactValue(known.value, event.value)) return invalid('batch.events', 'event-conflict')
       continue
     }
     const evidence = mintEvidence('fact-event', { ...place, event: event.event }, mint.revision, {
       start,
       source: batch.source,
-      ...event,
+      event: event.event,
+      value: event.value,
     })
     const record = {
       ...event,
@@ -172,7 +168,7 @@ function planEvents<B extends ContentBlock>(
       call: call.call,
     }
     if (event.fact.kind === 'final') {
-      if (final !== undefined && !sameFactValue(final.fact, event.fact))
+      if (final !== undefined && !sameFactValue(final.value, event.value))
         return invalid('batch.events.fact', 'final-conflict')
       if (final === undefined) {
         final = record
@@ -197,15 +193,14 @@ function planEvents<B extends ContentBlock>(
   return succeed({ fresh, writes })
 }
 
-export function decideReceiveFacts<B extends ContentBlock>(
+export function checkFactBatch<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   start: ToolStartRecord,
-  batch: FactBatch<B>,
-  mint: Mint,
-  adoption: Adoption,
-): Decision<FactReceipt, B> {
+  batch: Omit<FactBatch<B>, 'events'>,
+  value: ToolMaterialFingerprint,
+): Outcome<FactReceipt | null, ToolFailure> {
   const call = snapshot.call
-  if (call === null) return reply(invalid('call', 'unknown-call'))
+  if (call === null) return invalid('call', 'unknown-call')
   if (
     call.start === null ||
     !sameFactValue(start, batch.start) ||
@@ -213,25 +208,40 @@ export function decideReceiveFacts<B extends ContentBlock>(
     start.execution.call !== call.call ||
     tenantKey(start.execution.tenant) !== tenantKey(call.tenant)
   )
-    return reply(invalid('start', 'not-original-invocation'))
+    return invalid('start', 'not-original-invocation')
   const stream = snapshot.streams.get(factKey(start, batch.source.owner))
   if (
     stream !== undefined &&
     (!sameFactValue(stream.start, start) || !sameFactValue(stream.source, batch.source))
   )
-    return reply(invalid('batch.source', 'source-conflict'))
-  const recalled = recallBatch(snapshot, batch)
-  if ('failure' in recalled) return reply(recalled)
-  if (recalled.ok !== null) return reply(succeed(recalled.ok))
+    return invalid('batch.source', 'source-conflict')
+  const recalled = recallBatch(snapshot, batch, value)
+  if ('failure' in recalled) return recalled
+  if (recalled.ok !== null) return succeed(recalled.ok)
   if (batch.after !== (stream?.cursor ?? null))
-    return reply(fail({ kind: 'invalid-cursor', reason: 'non-contiguous-fact-batch' }))
+    return fail({ kind: 'invalid-cursor', reason: 'non-contiguous-fact-batch' })
   const used = [...snapshot.batches.values()].some(
     record =>
       factKey(record.start, record.source.owner) === factKey(start, batch.source.owner) &&
       record.cursor === batch.cursor,
   )
   if (used || batch.cursor === batch.after)
-    return reply(fail({ kind: 'invalid-cursor', reason: 'reused-fact-boundary' }))
+    return fail({ kind: 'invalid-cursor', reason: 'reused-fact-boundary' })
+  return succeed(null)
+}
+
+export function decideReceiveFacts<B extends ContentBlock>(
+  snapshot: Snapshot<B>,
+  start: ToolStartRecord,
+  batch: StoredFactBatch<B>,
+  mint: Mint,
+  adoption: Adoption,
+): Decision<FactReceipt, B> {
+  const checked = checkFactBatch(snapshot, start, batch, batch.value)
+  if ('failure' in checked) return reply(checked)
+  if (checked.ok !== null) return reply(succeed(checked.ok))
+  const call = snapshot.call
+  if (call === null) return reply(invalid('call', 'unknown-call'))
   const events = planEvents(snapshot, call, batch, mint)
   if ('failure' in events) return reply(events)
   const writes = [...events.ok.writes]
@@ -243,7 +253,7 @@ export function decideReceiveFacts<B extends ContentBlock>(
 
 function commitBatch<B extends ContentBlock>(
   call: CallRecord,
-  batch: FactBatch<B>,
+  batch: StoredFactBatch<B>,
   mint: Mint,
   writes: LedgerWrite<B>[],
 ): Decision<FactReceipt, B> {
@@ -253,7 +263,12 @@ function commitBatch<B extends ContentBlock>(
     start: start.operation,
     batch: batch.batch,
     cursor: batch.cursor,
-    custody: mintEvidence('fact-custody', { ...place, batch: batch.batch }, mint.revision, batch),
+    custody: mintEvidence(
+      'fact-custody',
+      { ...place, batch: batch.batch },
+      mint.revision,
+      batch.value,
+    ),
   }
   const { source: _previousSource, ...body } = call.state
   const state = { ...body, revision: mint.revision }
@@ -330,7 +345,10 @@ export function factProgress<B extends ContentBlock>(
 export function readSavedFact<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   basis: SavedFact<B>['evidence'],
-): Outcome<SavedFact<B>, ToolFailure> {
+): Outcome<
+  Pick<FactEventRecord<B>, 'start' | 'source' | 'event' | 'fact' | 'evidence'>,
+  ToolFailure
+> {
   if (snapshot.call === null) return invalid('call', 'unknown-call')
   const record = [...snapshot.facts.values()].find(fact => sameFactValue(fact.evidence, basis))
   if (record === undefined) return invalid('basis', 'unknown-fact-evidence')

@@ -46,3 +46,10 @@
 - [ledger-environment-release.ts](ledger-environment-release.ts)：历史保管闭包、canonical 计划与释放观察。
 - [cleanup-boundary.ts](cleanup-boundary.ts)：清理 Mutation 的封闭复制。
 - [driver-settlement.ts](driver-settlement.ts)：按原 task 恢复 final 和 preserveResult。
+
+- [精确 final 保管](ledger-final-custody.ts)负责原 call 域准备、封存认回与字节仓交接。
+- [材料账本记录](ledger-material-records.ts)定义材料状态、准备用途及时间水位。
+
+- [事实指纹与批次身份](fact-values.ts)。
+- [事实材料准备与完整恢复](ledger-fact-material.ts)。
+- [非耐久材料仓测试替身](testing-material-store.ts)。

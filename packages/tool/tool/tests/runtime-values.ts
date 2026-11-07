@@ -42,6 +42,7 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import {
+  createMemoryToolMaterials,
   createTestInvocationSource,
   createTestToolIdentities,
   type TestInvocationSource,
@@ -579,7 +580,12 @@ export function harness(options: HarnessOptions = {}): Harness {
     'environments',
     ['prepare', 'inspectPreparation', 'release', 'inspectRelease'],
   )
-  const settlement = { custody, releaseInspection: environments, content: null }
+  const settlement = {
+    materials: testSettlementPorts(store).materials,
+    custody,
+    releaseInspection: environments,
+    content: null,
+  }
   const ledger = createToolLedger(store, guards(options), clock, config, settlement)
   const publicLedger = createToolLedger(
     store,
@@ -821,8 +827,18 @@ export function putsExclusion(input: LedgerCommitInput<Block>): boolean {
   return input.writes.some(write => write.kind === 'put' && write.record.kind === 'exclusion')
 }
 
-export function testSettlementPorts() {
+const materialStores = new WeakMap<
+  object,
+  ReturnType<typeof createMemoryToolMaterials<Principal>>
+>()
+export function testSettlementPorts(memory?: object) {
+  const materials =
+    memory === undefined
+      ? createMemoryToolMaterials<Principal>()
+      : (materialStores.get(memory) ?? createMemoryToolMaterials<Principal>())
+  if (memory !== undefined) materialStores.set(memory, materials)
   return {
+    materials,
     content: null,
     custody: createMemoryToolOutputCustody<Principal>(),
     releaseInspection: createMemoryToolEnvironment<Principal>(),

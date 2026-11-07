@@ -31,13 +31,15 @@ import type {
   SqlCell,
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
+import materialMigration from '../../src/worker/migration-material.ts'
 import migration from '../../src/worker/migration.ts'
 import participant from '../../src/worker/participant.ts'
+import readMaterial from '../../src/worker/read-material.ts'
 import readChunk from '../../src/worker/read-chunk.ts'
 import readLedger from '../../src/worker/read-ledger.ts'
 import readManifest from '../../src/worker/read-manifest.ts'
 
-const HANDLERS: readonly ReadHandlerModule[] = [readLedger, readManifest, readChunk]
+const HANDLERS: readonly ReadHandlerModule[] = [readLedger, readManifest, readChunk, readMaterial]
 
 export type SqliteStorageOptions = Readonly<{
   /** The directory that holds one database file per transaction domain. */
@@ -162,26 +164,25 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
         }
         rowsOf(db, 'INSERT INTO _sql_binding (scope) VALUES (?)', [scopeText(scope)])
       }
-      const done = rowsOf(db, 'SELECT 1 AS done FROM _sql_migration WHERE owner = ? AND id = ?', [
-        migration.owner,
-        migration.id,
-      ])
-      if (done.length === 0) {
-        const port = {
-          execute: (sql: string, params: readonly SqlValue[]) => execute(db, sql, params),
-        }
-        db.exec('BEGIN IMMEDIATE')
-        migration.up(port)
-        const verdict = migration.verify(port)
-        if (verdict.kind !== 'verified') {
-          db.exec('ROLLBACK')
-          throw new Error(`migration failed: ${verdict.diagnostic}`)
-        }
-        rowsOf(db, 'INSERT INTO _sql_migration (owner, id) VALUES (?, ?)', [
-          migration.owner,
-          migration.id,
+      for (const step of [migration, materialMigration]) {
+        const done = rowsOf(db, 'SELECT 1 AS done FROM _sql_migration WHERE owner = ? AND id = ?', [
+          step.owner,
+          step.id,
         ])
-        db.exec('COMMIT')
+        if (done.length === 0) {
+          const port = {
+            execute: (sql: string, params: readonly SqlValue[]) => execute(db, sql, params),
+          }
+          db.exec('BEGIN IMMEDIATE')
+          step.up(port)
+          const verdict = step.verify(port)
+          if (verdict.kind !== 'verified') {
+            db.exec('ROLLBACK')
+            throw new Error(`migration failed: ${verdict.diagnostic}`)
+          }
+          rowsOf(db, 'INSERT INTO _sql_migration (owner, id) VALUES (?, ?)', [step.owner, step.id])
+          db.exec('COMMIT')
+        }
       }
       const scopeRow = rowsOf(db, 'SELECT scope FROM _sql_binding LIMIT 1')[0]
       const parsed: StorageScope =
@@ -382,5 +383,6 @@ export function migratedPort(): Readonly<{
     provideFact: () => undefined,
   }
   migration.up(port)
+  materialMigration.up(port)
   return { port, rows: (sql, params = []) => rowsOf(db, sql, params) }
 }

@@ -3,6 +3,11 @@
 // provider (#280) and the non-durable store of `./testing` implement the same port.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
+  MaterialRecord,
+  MaterialTimeRecord,
+  MaterialUseRecord,
+} from './ledger-material-records.ts'
+import type {
   Access,
   ControlReceipt,
   ControlRecord,
@@ -33,6 +38,8 @@ import type {
   ToolCommands,
   ToolRecovery,
   ToolTask,
+  ToolFinalPointer,
+  ToolMaterialFingerprint,
 } from '@omne-harness/tool-contract/provider'
 
 /** The tenant identity as the contract types it; the ledger does not import legal-identity. */
@@ -84,6 +91,11 @@ export type CallRecord = Readonly<{
 
 /** The complete named result of one committed operation (P01 `committed.receipt`). */
 export type OperationReceipt =
+  | Readonly<{
+      kind: 'prepare-material'
+      material: MaterialRecord['material']
+      basis: DurableEvidence
+    }>
   | Readonly<{ kind: 'admit'; state: ToolState }>
   | Readonly<{ kind: 'control'; control: ControlReceipt; subject?: DurableEvidence }>
   | Readonly<{ kind: 'record-control'; control: ControlRecord }>
@@ -169,13 +181,20 @@ export type SavedFact<B extends ContentBlock> = Readonly<{
   fact: ToolExecutionFact<B>
   evidence: DurableEvidence
 }>
-export type FactEventRecord<B extends ContentBlock> = SavedFact<B> &
+export type StoredExecutionFact<B extends ContentBlock> =
+  | Exclude<ToolExecutionFact<B>, { kind: 'final' }>
+  | ToolFinalPointer
+
+export type FactEventRecord<B extends ContentBlock> = Omit<SavedFact<B>, 'fact'> &
   Readonly<{
+    fact: StoredExecutionFact<B>
+    value: ToolMaterialFingerprint
     tenant: TenantId
     call: ToolCallId
     key: string
   }>
 export type FactBatchRecord = Readonly<{
+  value: ToolMaterialFingerprint
   tenant: TenantId
   call: ToolCallId
   start: ToolStartRecord
@@ -264,6 +283,9 @@ export type QueueReleaseRecord = Readonly<{ call: ToolCallId; basis: ReleaseBasi
 export type HostRecord = Readonly<{ key: string; value: unknown }>
 
 export type LedgerRecord<B extends ContentBlock> =
+  | Readonly<{ kind: 'material'; material: MaterialRecord }>
+  | Readonly<{ kind: 'material-use'; use: MaterialUseRecord }>
+  | Readonly<{ kind: 'material-time'; time: MaterialTimeRecord }>
   | Readonly<{ kind: 'call'; call: CallRecord }>
   | Readonly<{ kind: 'operation'; operation: OperationRecord }>
   | Readonly<{ kind: 'result'; result: ResultRecord<B> }>
@@ -284,6 +306,12 @@ export type LedgerRecord<B extends ContentBlock> =
 export function recordKey<B extends ContentBlock>(record: LedgerRecord<B>): string {
   if (isQueueRecord(record)) return queueRecordKey(record)
   switch (record.kind) {
+    case 'material':
+      return `material:${record.material.writeOperation}`
+    case 'material-use':
+      return `material-use:${record.use.id}`
+    case 'material-time':
+      return 'material-time'
     case 'call':
       return 'call'
     case 'operation':

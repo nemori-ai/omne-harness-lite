@@ -58,6 +58,7 @@ export function digestOf(value: unknown): string {
 
 /** The record kinds the ledger mints evidence for. Each kind is one purpose (P01, P08, P09). */
 export type EvidenceKind =
+  | 'material-preparation'
   | 'state'
   | 'result'
   | 'delivery'
@@ -131,7 +132,7 @@ export function deliveryId(ordinal: number): ToolDeliveryId {
 
 /** Purpose and full locator determine a distinct task identity within the call domain. */
 export function factTaskOperation(
-  purpose: 'settle' | 'fact-ack' | 'facts-blocked',
+  purpose: 'settle' | 'fact-ack' | 'facts-blocked' | 'final-material',
   locator: unknown,
 ) {
   const text = `${purpose}:${digestOf(locator)}`

@@ -21,6 +21,7 @@ import {
   type ParticipantAnswer,
   type StopBasis,
 } from './facts.ts'
+import { commitMaterial } from './participant-material.ts'
 import { PARTICIPANT, PROTOCOL } from './schema.ts'
 import { oneRow, text } from './support.ts'
 
@@ -177,6 +178,7 @@ const participant: ParticipantModule = {
   execute(input, port) {
     const facts = parseFacts(input)
     if (facts === null) return { kind: 'unsupported', basis: { reason: 'facts' } }
+    if ('material' in facts) return commitMaterial(facts, port)
     switch (facts.intent) {
       case 'ledger':
         return commitLedger(facts, port)

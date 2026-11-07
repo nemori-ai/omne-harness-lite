@@ -51,3 +51,7 @@
 - [canonical 环境清理与报告核验](ledger-environment-release.spec.ts)。
 - [多 operation 排除交错](exclusion-interleavings.spec.ts)。
 - [收场、同 slot 后继、ACK 与异常来源组合](driver-settlement.spec.ts)。
+
+- [精确 final 准备与恢复](final-custody.spec.ts)覆盖持久意图先于 IO、未知提交、时间水位、原身份与资格、迟到封存。
+
+- [材料化事实的重放、损坏及冲突守护](fact-material.spec.ts)。

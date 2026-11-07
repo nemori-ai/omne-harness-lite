@@ -18,3 +18,14 @@
 - [worker/migration.ts](worker/migration.ts)：迁移
 - [worker/read-ledger.ts](worker/read-ledger.ts)、[worker/read-manifest.ts](worker/read-manifest.ts)、[worker/read-chunk.ts](worker/read-chunk.ts)：读 handler
 - [worker/schema.ts](worker/schema.ts)、[worker/facts.ts](worker/facts.ts)、[worker/support.ts](worker/support.ts)：表、事实协议与行访问
+
+- [worker/material-facts.ts](worker/material-facts.ts)：材料命令与边界解析
+- [worker/participant-material.ts](worker/participant-material.ts)：准备、不可变分块与封存
+- [worker/material-delete.ts](worker/material-delete.ts)：持久围栏与分批删除
+- [worker/migration-material.ts](worker/migration-material.ts)：002 材料表迁移
+- [worker/read-material.ts](worker/read-material.ts)：状态查询与有界字节读取
+
+- [material-store.ts](material-store.ts)：公开材料仓工厂、身份定位与端口组合
+- [material-mutations.ts](material-mutations.ts)：封存准备、分块提交与删除接续
+- [material-values.ts](material-values.ts)：规范编码、seal 和观察结果解析
+- [material-io.ts](material-io.ts)：有界 SQL 提交、读取与失败映射

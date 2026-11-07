@@ -12,7 +12,7 @@ Tool 记录仓与原件保管的 SQL 提供者。根入口导出 `createSqlToolL
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `createSqlToolLedgerStore`                   | 已实现。`durability: 'durable'`。每次调用是一次 `domain-serial` 读，或一次按修订号条件的 SQL 提交 |
 | `createSqlToolOutputCustody`                 | 已实现。任意大小的原件分块保存，最后提交清单封存                                                  |
-| `toolStorageMaterials()`                     | 已实现。一个参加者 `tool`、一条迁移、三个读 handler，全部在 `tl_` 表上                            |
+| `toolStorageMaterials()`                     | 已实现。一个参加者 `tool`、两条迁移、四个读 handler，全部在 `tl_` 表上                            |
 | `./cordis` 插件、`tool-records` 行、目录合并 | 不在本包，归应用侧（波 B 与 L-APP）                                                               |
 | 真实 SQLite 提供者、两个进程、断电           | 未验证，留联调 A                                                                                  |
 
@@ -47,7 +47,7 @@ const custody = createSqlToolOutputCustody({
 
 ## 设计
 
-`src/ledger-store.ts` 与 `src/custody.ts` 是两个适配器。`src/tenant.ts` 经目录解析租户的事务域。`src/worker/` 里的 Worker 模块是 `tool` 参加者、迁移与三个读 handler，它们共用 `src/worker/facts.ts` 的事实协议。[docs/architecture.md](docs/architecture.md) 写表与机制，[docs/flows.md](docs/flows.md) 写提交与保管的流程。
+`src/ledger-store.ts` 与 `src/custody.ts` 是两个适配器。`src/tenant.ts` 经目录解析租户的事务域。`src/worker/` 里的 Worker 模块是 `tool` 参加者、迁移与四个读 handler，它们共用 `src/worker/facts.ts` 的事实协议。[docs/architecture.md](docs/architecture.md) 写表与机制，[docs/flows.md](docs/flows.md) 写提交与保管的流程。
 
 ## 配置与运行
 
@@ -101,3 +101,5 @@ acceptance/               独立验收；fixtures/ 放其输入
 ```
 
 每个目录有 README.md 说明职责，有 index.md 作导航。阅读路径见 [index.md](index.md)。
+
+W3 材料 worker 已实现不可变分块、完整内容封存校验、有界字节读取、持久写入围栏和分批删除。根入口新增 `createSqlToolMaterialStore`，公开 `ToolMaterialStore` 适配器已实现，Tool 生命周期尚未接通。Linux 公开接口测试覆盖 5 MiB 材料，以及删除提交未知后重启接续，不代表完整 offloading 或掉电恢复已经验收。

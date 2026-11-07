@@ -1,3 +1,4 @@
+import { matchesFinalValue } from './fact-values.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -88,7 +89,7 @@ export function checkSettlement<B extends ContentBlock>(
     saved === undefined ||
     saved.fact.kind !== 'final' ||
     !sameFactValue(saved.start, call.start) ||
-    !sameFactValue(saved.fact, command.final)
+    !matchesFinalValue(saved.value, command.final)
   )
     return invalid('final', 'not-original-final')
   if (call.state.relation === 'background' && saved.fact.terminal.kind === 'no-response')
@@ -97,7 +98,7 @@ export function checkSettlement<B extends ContentBlock>(
     kind: 'fresh',
     call,
     task,
-    saved: { ...saved, fact: saved.fact },
+    saved: { ...saved, fact: command.final },
     retainOperation: settlementOperation('retain-result', {
       tenant: call.tenant,
       call: call.call,

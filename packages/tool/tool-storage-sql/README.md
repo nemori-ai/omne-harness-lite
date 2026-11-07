@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-The SQL provider of the Tool ledger store and of the output custody. Its root entry exports `createSqlToolLedgerStore` (a durable `ToolLedgerStore`), `createSqlToolOutputCustody` (a durable `ToolOutputCustody`) and the static materials `toolStorageMaterials()`. It works on any provider of the SQL storage contract and imports no provider.
+The SQL provider of the Tool ledger store and of the output custody. Its root entry exports `createSqlToolLedgerStore` (a durable `ToolLedgerStore`), `createSqlToolOutputCustody` (a durable `ToolOutputCustody`), `createSqlToolMaterialStore` (immutable material bytes and deletion fences), and the static materials `toolStorageMaterials()`. It works on any provider of the SQL storage contract and imports no provider.
 
 ## Responsibility and status
 
@@ -12,7 +12,7 @@ This package keeps the durable records of the Tool ledger and the originals of t
 | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `createSqlToolLedgerStore`                           | Implemented. `durability: 'durable'`. One `domain-serial` read and one revision-conditioned SQL commit per call |
 | `createSqlToolOutputCustody`                         | Implemented. Originals of any size are kept in chunks and sealed by a manifest committed last                   |
-| `toolStorageMaterials()`                             | Implemented. One participant `tool`, one migration, three read handlers, all on `tl_` tables                    |
+| `toolStorageMaterials()`                             | Implemented. One participant `tool`, two migrations, four read handlers, all on `tl_` tables                    |
 | `./cordis` plugin, `tool-records` row, catalog merge | Not in this package. They belong to the application (wave B and L-APP)                                          |
 | Real SQLite provider, two processes, power loss      | Not verified. Left to integration A                                                                             |
 
@@ -101,3 +101,5 @@ acceptance/               Independent acceptance; fixtures/ holds its inputs
 ```
 
 Each directory has README.md for its role and index.md for navigation. See [index.md](index.md) for reading paths.
+
+The W3 material worker now supports immutable chunks, verified sealing, bounded byte reads, persistent write fences and batched deletion. The public `ToolMaterialStore` adapter is implemented. Tool lifecycle wiring is still pending. The Linux public-port test covers a 5 MiB material and deletion resumed after an unknown commit and worker restart. It does not establish complete offloading or power-loss recovery.

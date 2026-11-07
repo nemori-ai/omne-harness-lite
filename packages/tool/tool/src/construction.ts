@@ -32,6 +32,8 @@ import type {
   ToolReads,
   ToolResourceResponses,
   ToolStartAuthority,
+  ToolMaterialClock,
+  ToolMaterialStore,
 } from '@omne-harness/tool-contract/provider'
 
 export type ToolConfiguration = ToolAuthorLimits &
@@ -142,6 +144,12 @@ export type ToolLedgerFacts<P, B extends ContentBlock> = Readonly<{
 
 /** Explicit ledger providers. A null content reader disables byte reads only. */
 export type ToolLedgerPorts<P> = Readonly<{
+  /** M01: byte custody only; the call ledger owns preparation and lifetime. */
+  materials?: Readonly<{
+    provider: import('@omne-harness/tool-contract').Adoption
+    store: ToolMaterialStore<P>
+    clock: ToolMaterialClock
+  }>
   /** A trusted identity owner. Absence disables new controls and pending propagation. */
   controlSubjects?: ToolControlSubjects<P>
   content: Pick<ToolContentReader<P>, 'read'> | null

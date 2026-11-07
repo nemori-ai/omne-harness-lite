@@ -1,3 +1,4 @@
+import { matchesFinalValue } from './fact-values.ts'
 // The pure deciders of the way from an accepted call to a recorded start (P02, P03, P04): the
 // queue domain (order, readiness, head and slot, release) and the call domain (preparation plan
 // and confirmation, enqueue, start intent, start record, first-start rejection). Each decision
@@ -266,7 +267,13 @@ export function releaseBasisOf<B extends ContentBlock>(snapshot: Snapshot<B>): R
     digestOf(record.execution) !== digestOf(record.start.execution) ||
     digestOf(result.custody.final) !== digestOf(proof) ||
     digestOf(result.custody.raw) !== digestOf(saved.fact.raw) ||
-    digestOf(result.value) !== digestOf(saved.fact.result) ||
+    !matchesFinalValue(saved.value, {
+      kind: 'final',
+      raw: saved.fact.raw,
+      result: result.value,
+      terminal: saved.fact.terminal,
+      effect: saved.fact.effect,
+    }) ||
     digestOf(result.terminal) !== digestOf(saved.fact.terminal) ||
     digestOf(result.effect) !== digestOf(saved.fact.effect)
   )

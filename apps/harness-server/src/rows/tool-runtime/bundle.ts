@@ -26,6 +26,8 @@ import type { ToolRuntimeConfig } from './config.ts'
 import { createReleaseEnvironment } from './environment.ts'
 import {
   lateCustody,
+  lateMaterials,
+  TOOL_MATERIAL_PROVIDER,
   lateStore,
   toolRuntimeHolder,
   type ToolRuntimeBundle,
@@ -96,6 +98,11 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
   const input: LocalToolRuntimeInput = {
     store,
     custody: lateCustody(holder),
+    materials: {
+      provider: TOOL_MATERIAL_PROVIDER,
+      store: lateMaterials(holder),
+      clock: holder.materialClock,
+    },
     content: null,
     sources: { ...sources, guard: withTargetAdmissionPolicy(sources.guard, store, requestAccess) },
     access: { ...identity.access, request: requestAccess },

@@ -4,6 +4,8 @@
 
 ## 内容
 
+- [大 final 的实际 SQLite 容量回归](final-capacity.spec.ts)：生产单命令上限，含小结果对照；W3-A 实施中的失败用例。
+
 - [README.md](README.md)：测试范围、真实依赖与替身
 - [public-entry.spec.ts](public-entry.spec.ts)：公开入口与导入边界
 - [ledger-store-conformance.spec.ts](ledger-store-conformance.spec.ts)：两组记录仓套件（G1、P01）
@@ -17,3 +19,11 @@
 - [materials.spec.ts](materials.spec.ts)：材料与组合有效性
 - [participant.spec.ts](participant.spec.ts)：参加者模块自身的守卫
 - [fixtures/](fixtures/index.md)：测试固定输入
+
+- [material-worker.spec.ts](material-worker.spec.ts)：材料 SQL 命令、重放、围栏、回滚、读页及重启
+- [material-worker-live.spec.ts](material-worker-live.spec.ts)：实际 SQL worker 的 5 MiB 保管、读回与删除恢复
+
+- [material-store.spec.ts](material-store.spec.ts)：公开材料仓的隔离、重放、输入快照与失败全化
+- [material-store-live.spec.ts](material-store-live.spec.ts)：公开仓接口经实际 SQL worker 的 5 MiB 读写和删除恢复
+
+- [实际 SQL 的精确 final 保管](final-custody-live.spec.ts)验证 5 MiB envelope 不进入 call 账本，并从重启后的 sealed 记录认回。旧完整事实接收容量测试仍独立保留。

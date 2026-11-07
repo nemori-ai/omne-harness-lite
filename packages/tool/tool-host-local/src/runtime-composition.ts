@@ -43,6 +43,7 @@ export type RuntimeEnvironment = ToolEnvironment<unknown, ToolEnvironmentValue>
 export type LocalToolRuntimeInput = Readonly<{
   store: ToolLedgerStore<ToolMessageContentBlock>
   custody: ToolOutputCustody<unknown>
+  materials: NonNullable<ToolLedgerPorts<unknown>['materials']>
   content: ToolLedgerPorts<unknown>['content']
   sources: LocalInvocationSource<unknown, ToolMessageContentBlock>
   access: ToolHostAccess<unknown>

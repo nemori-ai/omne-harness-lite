@@ -11,6 +11,8 @@ import type {
   ReadHandlerDescriptor,
   ReadOrdering,
 } from '@omne-harness/sql-contract'
+import { MATERIAL_READ_HANDLER } from './worker/read-material.ts'
+import { MATERIAL_MIGRATION, MATERIAL_TABLES } from './worker/migration-material.ts'
 import {
   CHUNK_READ_HANDLER,
   LEDGER_READ_HANDLER,
@@ -52,6 +54,13 @@ type Handler = Readonly<{
  */
 const HANDLERS: readonly Handler[] = [
   {
+    handler: MATERIAL_READ_HANDLER,
+    file: 'read-material',
+    ordering: 'domain-serial',
+    tables: MATERIAL_TABLES,
+    rows: 2,
+  },
+  {
     handler: LEDGER_READ_HANDLER,
     file: 'read-ledger',
     ordering: 'domain-serial',
@@ -84,6 +93,7 @@ export type ToolStorageMaterials = Readonly<{
 export function toolStorageMaterials(): ToolStorageMaterials {
   const participant = module('participant')
   const migration = module('migration')
+  const materialMigration = module('migration-material')
   return {
     participants: [
       {
@@ -91,7 +101,7 @@ export function toolStorageMaterials(): ToolStorageMaterials {
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: TOOL_TABLES,
+        ownedTables: [...TOOL_TABLES, ...MATERIAL_TABLES],
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
@@ -101,6 +111,12 @@ export function toolStorageMaterials(): ToolStorageMaterials {
     ],
     migrations: [
       { ...migrationRef, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
+      {
+        ...MATERIAL_MIGRATION,
+        moduleUrl: materialMigration.moduleUrl,
+        checksum: materialMigration.digest,
+        requires: [migrationRef],
+      },
     ],
     readHandlers: HANDLERS.map(item => {
       const file = module(item.file)
@@ -111,7 +127,8 @@ export function toolStorageMaterials(): ToolStorageMaterials {
         codeDigest: file.digest,
         ordering: item.ordering,
         readTables: item.tables,
-        requiresMigrations: [migrationRef],
+        requiresMigrations:
+          item.handler === MATERIAL_READ_HANDLER ? [MATERIAL_MIGRATION] : [migrationRef],
         maxOutputBytes: READ_OUTPUT_BYTES,
         maxRowsRead: item.rows,
       }

@@ -19,3 +19,7 @@
 `guarded-host-commit.spec.ts` 在同一数据库文件上打开两个独立 SQLite 连接。测试运行真实 Tool 终局与 SQL 参加者，安排许可和终局的先后，并覆盖 host 冲突、丢答、租户过滤与重开。排队交错由提交包装器控制，不代表生产 Worker 调度的验证。
 
 测试在 node:sqlite 测试提供者（`fixtures/sqlite-storage.ts`）上运行本包真实的 Worker 模块。提供者每个事务域一个数据库文件，回执与参加者的写入在同一个事务里提交，所以关闭再打开同一目录可以认回已提交的操作。`fixtures/faults.ts` 在提供者之上一次布置一个故障：受理前拒绝、答复丢失、提交未执行、提交后抛错、延迟落地、提交前中断与读不可用。账本、保管与启动协调器的其他端口用 `@omne-harness/tool/testing` 与 `@omne-harness/tool-contract/testing` 的内存替身。测试提供者不建模 Worker、队列、组提交与断电，通过不证明这些性质。
+
+`material-store.spec.ts` 用上述 SQLite 组合验证公开材料仓接口。`material-store-live.spec.ts` 在真实 sqlite-provider Worker 上运行 5 MiB 场景；只有一次删除回包丢失由包装器注入，字节和围栏仍由真实提供者提交。该测试关闭再打开提供者，不模拟操作系统断电。
+
+- [实际 SQL 的精确 final 保管](final-custody-live.spec.ts)验证 5 MiB envelope 不进入 call 账本，并从重启后的 sealed 记录认回。旧完整事实接收容量测试仍独立保留。

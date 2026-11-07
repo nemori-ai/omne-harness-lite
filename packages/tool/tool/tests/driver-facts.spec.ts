@@ -381,7 +381,7 @@ describe('managed original facts', () => {
       guards(),
       createMemoryToolClock(),
       configurationOf({}),
-      testSettlementPorts(),
+      testSettlementPorts(f.h.memory),
     )
     expect(ok(await rebuilt.facts.read({ ...c.access, basis: settle.basis })).fact).toEqual(
       completedFinal(),

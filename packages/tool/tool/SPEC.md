@@ -516,3 +516,21 @@ release 待办先查询原 `ReleaseRecord`，pending 时向环境提供者发送
 resume 只查询来源已有槽。槽未确认时回复 association-unknown，不推断历史准入未发生。目标 identities 已知而写入回执未知时回复 commit-unknown，引用保持不变。此工厂不扩大普通 ToolRuntime 接口；宿主还须提供相同的容量预约与独立结果接收者。
 
 SourceVerdict 的 denied 表示来源真实、当前请求资格被拒。ledger 将其映射为 denied admit，不写入新准入。forged 继续表示来源证明不匹配。共用此判定的 fact acknowledgement 对 denied 返回 denied write，保留原待确认责任，不把拒绝当作可信来源或暂时不可读。
+
+## 精确 final 准备与保管
+
+`ledger.finalCustody.preserveFinal` 实现 [M01、M02、M05](../tool-contract/docs/material-protocol.md) 的初次准备和精确 envelope 封存。它在首次 await 前固定协议数据，校验原执行和当前 write 资格。原准备 operation 同输入认回，异输入 conflict。构造时固定 provider adoption，非法 adoption 抛 TypeError。迁移期间未配置 materials 的入口回复 unavailable，不退回完整账本载荷。
+
+原 call 域同一次 CAS 写入材料准备记录、具名准备用途、操作回执和时间高水位。此回执不证明字节耐久。CAS 冲突重新取样，低于原水位回复 unavailable。准备提交未知时不访问字节提供者；已有准备认回不要求新时间。随后 inspect/write 原身份，验证 seal 的地址、codec、字节数、摘要和证据形状，再提交 sealed。非法观察或 seal 明确失败，写入或 sealed 提交未知保留原 operation 和准备责任。已经删除或进入删除的材料拒绝迟到封存。
+
+返回 pointer 前再次核当前 write 资格。重建 ledger 后可从 sealed 记录认回，无须查询字节或时间源。准备材料只含 exact final；它不重跑 renderer。账本记录不含该正文。
+
+[针对性用例](tests/final-custody.spec.ts)覆盖准备顺序、未知恢复、时钟回退、冲突重取、操作排除、当前资格、输入固定和删除交错。[SQL Linux 组合](../tool-storage-sql/tests/final-custody-live.spec.ts)覆盖 5 MiB envelope、实际分块读取、账本大小及 worker 重启认回。该入口尚未替换生产事实流中的完整 final。最终通道、TTL、用途解除、维护和装配仍属于未完成的 W3 后续实现。
+
+### W3 事实接收迁移的当前实现
+
+`receiveFacts` 当前仍接收完整 final，但在保存事实前通过 `finalCustody` 封存它。call 域事实记录保存封存引用、完整原事实指纹和批次指纹，不内嵌 final 正文。已接收批次及同值 final 别名先认回，不访问字节仓。异值事件和 final 拒绝，不生成成功 ACK。
+
+`facts.read` 仍返回完整原 final。它在恢复资格检查后按有界字节页加载 envelope，核总长度、SHA-256、规范值指纹及 raw/terminal/effect 身份，再核当前资格后返回。缺失、损坏或不连续页返回 unavailable。当前准备材料用途保留，因此尚未执行 envelope 的自动清理。
+
+这是事实接收的迁移状态。宿主缓存、pending/settled 转换、最终结果通道材料、固定 TTL 和维护仍须继续实现，不能以本节声称完整 W3 生命周期可用。
