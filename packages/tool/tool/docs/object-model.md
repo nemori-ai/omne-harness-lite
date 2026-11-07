@@ -202,7 +202,7 @@ stateDiagram-v2
 | CAP-TL04 队列 | queue 域、queue-entry、ToolGrantVerifier | 同 key FIFO 与名额由一个队列事务裁定；两租户同 owner 同 key 不共队列 |
 | CAP-TL06、CAP-TL08 作者入口 | IndependentToolScope、executeTool | emit 按受理顺序到达；wait 的 key、容量与取消按 P11 处理 |
 | CAP-TL07 原结果 | ledger-settlement、ledger-environment-release、driver | 独立 retain 确认后原结果及后继责任同提交，queue 墓碑与清理计划分别保留原身份 |
-| CAP-TL09 交付 | 读取投影、releaseDelivery 决定 | 结果按完整块分页；解除后全文仍可读 |
+| CAP-TL09 交付 | 读取投影、releaseDelivery 决定 | 结果按固定版本分页；内联材料承接后可释放，卸载正文只在固定期限内可读 |
 | CAP-TL12 账目 | 账目记录 | 逻辑终局账目取 SPEC 第 11 条列出的值。这是本包的读法，待契约拥有者确认，见 [SPEC](../SPEC.md#11-操作幂等p01) |
 
 其余能力（前后台关系、未交付控制分支、等待、恢复扫描与退出）尚未实现。本页不证明它们。

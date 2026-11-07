@@ -1,8 +1,7 @@
 # Tool 协议模型索引
 
-<!-- documentation:placeholder -->
-
-- [目录职责与待补内容](README.md)。
+- [正文保管模型与论证](body-custody/README.md)包含四个有界模型、指定负控和运行入口。
+- [目录职责](README.md)。
 - [包索引](../../index.md)。
 
-本目录当前没有其他资源。
+模型检查不代替实现和部署验收。
