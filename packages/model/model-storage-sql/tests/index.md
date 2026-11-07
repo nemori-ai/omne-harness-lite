@@ -21,3 +21,5 @@
 ## 运行
 
 在本包目录运行 `NO_COLOR=1 pnpm exec vitest run --mode fast`。用例经包名导入 `dist`，改源码后先构建本包。
+
+[not-sent-window.spec.ts](not-sent-window.spec.ts) 检查已确认未发送的零内容状态、SQL 原子拒绝和丢回执认回。

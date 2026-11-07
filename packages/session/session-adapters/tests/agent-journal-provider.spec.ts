@@ -53,6 +53,7 @@ import {
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
+import { succeed } from '@omne-harness/operation-result'
 import type {
   SessionAccess,
   SessionAccessDecision,
@@ -81,6 +82,7 @@ import type { DomainRef, SqlStorage, TenantDomainLookup } from '@omne-harness/sq
 import { StorageService, TenantDomainLookupService } from '@omne-harness/sql-contract/cordis'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
 import { createSessionLogJournal, materialSessionOf } from '../src/cordis/agent-journal.ts'
+import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
 import {
   createExecutionRoutedJournal,
   createSessionAgentJournalPlugin,
@@ -89,6 +91,7 @@ import {
 } from '../src/cordis/agent-journal-provider.ts'
 import { checkpoint, instance, ok, openInput, operation } from './fixtures/common-journal.ts'
 import {
+  cordisScene,
   handed,
   nextRun,
   sqlScene,
@@ -1532,6 +1535,20 @@ const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<strin
       checkpoint: s.checkpoint,
       installation: installation?.installation ?? null,
       acceptInput: async label => {
+        const interpreter = await cordisScene(s)
+        disposers.push(() => interpreter.dispose())
+        const interpretation = createSessionJournalInterpretationPlugin<string>({
+          coordinator: async () => succeed(s.access.principal),
+        })
+        await interpreter.mount(interpretation.plugin)
+        const interpreted = ok(
+          await interpretation.interpret({
+            tenant: s.access.tenant,
+            session: s.access.session,
+            execution: s.execution,
+          }),
+        )
+        expect(interpreted.waiting).toBe(0)
         const value = ordinaryInput(`input-${label}`)
         const accepted = ok(
           await s.port.commit({

@@ -37,7 +37,7 @@ function adopt(
   })
 }
 
-describe('P1 stops when the re-selection differs (#502 1.2 stand-in for the P1 self-loop of 1.5)', () => {
+describe('P1 ends an unsupported change of selection', () => {
   const changes: readonly (readonly [string, typeof selected.recipient])[] = [
     ['route', { ...selected.recipient, route: 'route-2' }],
     [
@@ -57,17 +57,24 @@ describe('P1 stops when the re-selection differs (#502 1.2 stand-in for the P1 s
       { ...selected.recipient, profile: { ...selected.recipient.profile, digest: 'other' } },
     ],
   ]
-  it.each(changes)('a changed %s stops the run at P1', async (_, recipient) => {
+  it.each(changes)('a changed %s ends the run and releases its slot', async (_, recipient) => {
     const assembly = await loopAssembly([execution(), execution('exec-2')])
     assembly.controls.selection.select.once(() => succeed(selected))
     assembly.controls.selection.select.once(() => succeed({ ...selected, recipient }))
     ok(await invoke(assembly))
-    await stoppedAt(assembly, 'P1')
+    await eventually(async () => (await shown(assembly)).kind === 'idle')
+    const read = ok(await assembly.dependencies.journal.load({ ...alice, execution: execution() }))
+    expect(read.state.kind).toBe('ended')
+    expect(read.settlement.candidate?.failure).toMatchObject({
+      kind: 'node-failed',
+      node: 'P1',
+      category: 'unsupported-path',
+    })
   })
 })
 
 describe('observe wakes on a change of the slot', () => {
-  it('an observation open before invoke shows idle, then occupied', async () => {
+  it('an observation open before invoke shows idle, reserved, then occupied', async () => {
     const assembly = await loopAssembly([execution()])
     const controller = new AbortController()
     const sequence = assembly.provider.observation
@@ -80,6 +87,10 @@ describe('observe wakes on a change of the slot', () => {
     const next = sequence.next()
     ok(await invoke(assembly))
     expect((await next).value).toMatchObject({
+      kind: 'state',
+      value: { kind: 'reserved', instance: instance() },
+    })
+    expect((await sequence.next()).value).toMatchObject({
       kind: 'state',
       value: { kind: 'occupied', execution: execution() },
     })
@@ -111,8 +122,8 @@ describe('slot release before E1 (SPEC 受理与单执行槽)', () => {
   })
 })
 
-describe('E4 stops outside the normal path (#502 1.2 limit)', () => {
-  it('a thrown value that cannot become text stops at E4 without an unhandled rejection', async () => {
+describe('E4 failure and authoritative stops', () => {
+  it('a thrown value that cannot become text ends without an unhandled rejection', async () => {
     const assembly = await loopAssembly([execution()])
     adopt(assembly, {
       ...agentEvaluator,
@@ -125,7 +136,11 @@ describe('E4 stops outside the normal path (#502 1.2 limit)', () => {
     process.on('unhandledRejection', onRejection)
     try {
       ok(await invoke(assembly))
-      expect((await stoppedAt(assembly, 'E4')).kind).not.toBe('ended')
+      await eventually(async () => (await shown(assembly)).kind === 'idle')
+      expect(
+        ok(await assembly.dependencies.journal.load({ ...alice, execution: execution() }))
+          .settlement.candidate?.failure,
+      ).toMatchObject({ kind: 'node-failed', node: 'E4', category: 'exception' })
       expect(rejections).toEqual([])
     } finally {
       process.off('unhandledRejection', onRejection)
@@ -145,14 +160,18 @@ describe('E4 stops outside the normal path (#502 1.2 limit)', () => {
     },
   )
 
-  it('an outcome without a table row stops as a coordinator defect', async () => {
+  it('an outcome without a table row ends as an invariant failure', async () => {
     const assembly = await loopAssembly([execution()])
     adopt(assembly, {
       ...agentEvaluator,
       next: () => succeed({ kind: 'wait', waiting: [] }),
     })
     ok(await invoke(assembly))
-    expect((await stoppedAt(assembly, 'E4')).kind).not.toBe('ended')
+    await eventually(async () => (await shown(assembly)).kind === 'idle')
+    expect(
+      ok(await assembly.dependencies.journal.load({ ...alice, execution: execution() })).settlement
+        .candidate?.failure,
+    ).toMatchObject({ kind: 'node-failed', node: 'E4', category: 'invariant' })
   })
 })
 
@@ -173,7 +192,7 @@ describe('the registration handle only receives a projection', () => {
     ok(await invoke(assembly))
     assembly.release.open()
     await eventually(async () => (await shown(assembly)).kind === 'idle')
-    expect(reported).toEqual(['occupied', 'idle'])
+    expect(reported).toEqual(['reserved', 'occupied', 'idle'])
     ok(await invoke(assembly, 'exec-2'))
   })
 })

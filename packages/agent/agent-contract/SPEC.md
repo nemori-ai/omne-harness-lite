@@ -1051,6 +1051,8 @@ runtime 可顺序承接多个 execution，同一时刻至多一个有效执行�
 
 #### 受理与单执行槽
 
+`AgentState.reserved` 表示执行槽已预占，但不证明 execution 已受理，因而只携带 instance。idle 只表示槽空闲。invoke 完成资格检查后重新核对 draining；成功预占时，必须在受理流程的第一个 await 前同步发布 reserved。明确未受理并释放槽后回 idle，原 open 结果未知时保持 reserved，继续按原 operation 认回。可靠受理并取得挂接后才发布 occupied。宿主的空闲回收只接受 idle，不把 reserved 当作空闲或已结束。
+
 invoke 先预约 runtime 的单执行槽，再由 Journal.open 幂等受理；resume 先预约，再由 Journal.attach 认回原记录。预约与槽共同防止重入：结果未知时保留预约，不释放槽再接另一项工作，open 明确未提交才释放。submit 不预约槽：它沿原 execution 的耐久视图受理，不要求活体 runtime、advance、grant、槽、resume 或 attach，规则见“[输入内容与水位线](#输入内容与水位线)”。首次 invoke 没有 execution 可供 P 或 Rh 写入，准入提供者先保存完整 InputEntry 作为受理前记录；它不占执行槽、不产生输入水位线、不授 advance、不触发开始扩展，也不使 invoke 成功。真正的新 open 才检查真实 runtime 的槽、绑定与适用 grant，并与协调参加者共同建立初始 execution、挂接与原完整结果；原实例与后继实例并发由当前资格与 Journal 排序决定唯一受理，晚到的旧请求不能再分配或重激活旧挂接。原 open 已成功的认回永久返回原 Authority，它只表达旧结果；后继实例的新推进权另走 resume 与 attach。Journal 在存储受理边界核对当前围栏和 execution 修订号。并发的新 invoke 返回 busy，不进入隐藏队列，排队属于调用方治理。runtime 处于 draining 或 disposed 时，新的 invoke 与 resume 返回 unavailable，不预约执行槽。撤权与新效果的准入必须有确定的顺序：先读取资格、再发送的做法不成立。撤权先成立时，后续准入被拒绝，已经合法发出的调用沿原身份查询和控制。单机协程或 Cordis disposer 不替代围栏证明。
 
 open 与 attach 由 Journal 提供者授予执行挂接：挂接身份、围栏代次和授予依据由提供者保存，并以 Authority 返回给 runtime。Journal 在写入之前核对绑定的协调模式与所需支持，在原子提交点核对当前资格、围栏与 execution 修订号。调用方提供的推进资格依据 grant 可以为空。grant 为空时，Journal 提供者单独授予挂接，这是独立调用路径。grant 非空时，它是外部协调者的推进资格依据，必须走“[提交参加者协议](#提交参加者协议)”所要求的共同核对：coordinated 绑定在同一次 open 或 attach 提交中核对它，核对失败返回 denied；standalone 绑定收到非空 grant 时在写前返回 unsupported，不把这次请求当作独立路径保存。coordinated 绑定在其授予规则要求 grant 时收到空 grant 返回 denied。某个 execution 首次建立时固定它的模式与不透明的外部关联，后续 attach 核对该关联，不允许经另一个 standalone 绑定降级。
@@ -1175,13 +1177,17 @@ tryFinish 的结果按下表返回。
 
 | 类别 | terminal 前须成立 | 可合法延续的责任 |
 | --- | --- | --- |
-| inputs | 普通候选不越过待承接输入。取消候选保留所有 accepted input 的身份、内容、原归属及终局处置 | 按原归属供读取或由原拥有者处置。不自动路由到新 execution |
+| inputs | 普通候选不越过待承接输入。结论为 fail 且失败为 node-failed 的候选，以及取消候选，保留所有 accepted input 的身份、内容、原归属及终局处置 | 按原归属供读取或由原拥有者处置。不自动路由到新 execution |
 | controls | 适用的取消与必要撤权已经成立。相关后续职责由合法存续方承接 | “[六个阶段](#六个阶段)”允许的 producer-confirmed、physically-stopped、duty-released 真实迟到阶段 |
 | operations | 可能改变候选的未定操作先恢复，不把 unknown 当未发生 | 已合法发出的调用、结果、费用和回执由原生产者与长期接收者负责 |
 | passages | 必需的终态前判断有真实有效结果：complete 与 failed 候选是落终态之前位置的作者经过，cancelled 候选是当前的判断记录。未定卡片和调用完整保留 | 终态后按原身份 lookup、read、invalidate 和保管，不重跑扩展，不采纳新业务效果 |
 | custody | 每项已收到且须交接的结果有真实完成依据或耐久保管，没有无人保管的窗口 | 原消费、释放确认、费用、未确认输出和固定观察按自身协议接续 |
 
 cancelled 候选的终态前判断由具名、精确版本的受信取消判断承担，complete 与 failed 候选继续使用作者的终态前扩展链。判断的判据、安装、记录与旧取消记录的迁移见“[取消判断与路线](#取消判断与路线)”。判断记录不授予永久许可。
+
+`node-failed` 表达 Agent 在节点推进中确定的本地故障。候选只保存节点标识、故障分类、原 Failure.kind 和共同的 step、时刻与来源，不保存任意错误正文、堆栈、请求或凭据。节点标识是观测值，不把实现的节点类型反向引入契约。来源分类在故障产生边界确定，不能解析 diagnostic 来取得。
+
+只有 conclusion 为 fail 且 failure 为 node-failed 时，Journal 才把尚未取入批次的 accepted input 记为 held。原输入记录是保管依据，处置保留完整 value、acceptance、origin 和 taken=null，并提供原 execution 的 input-read 接续。已取入批次的输入仍为 settled，不制造新的 input-taken。其他普通失败与 complete 的未取入输入仍为 pending。该规则不消除未知原写、Model/Tool 调用、Passage、卡片或其他未完成责任，也不改变当前资格、终态前判断和共同提交的要求。
 
 终结授权有两种。推进授权只用于仍然有效的普通完成或失败。取消授权必须对应已保存且当前适用的取消控制，结论只能是 cancelled，它不恢复旧挂接的推进权，也不允许借取消凭据提交 complete 或发新效果。取消授权不授予取消判断与收束资格，这两项资格由主体资格核验的 settle 操作名承担，见“[commitSettlement 的变体](#commitsettlement-的变体)”。两种资格都取不到时，旧实例停止推进并交接，由合法的恢复者沿原记录收束。取消后未处理的输入保留原归属和处置依据，不静默转入后继 execution。
 

@@ -400,25 +400,16 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     expect(evidenceAt(observed, 'H08')[1]).toContain('message.user,')
   })
 
-  // R2-D318 triage on the JO parent c9c6d7b93: the four red cases of H10 and H12 do not come from the
-  // checkpoint lane (narrowed checkpoint, whole-batch inputBatch, `voided`, attempt identities). They
-  // come from two Agent changes that the JO parent already carried before the checkpoint lane
-  // (R2-D303 pinned the same stops on the older base): b0204876e and R2-D268 (53fee8e88). The probes
-  // read the Journal snapshot and the received entries, and neither read depends on an identity
-  // encoding. The stops below follow the accepted contract.
-  // Without a trusted Tool request source the admission is unavailable, so the Agent denies the whole
-  // batch (agent-contract SPEC 「整批判断屏障与动作准入」 item 2, commit b0204876e) instead of
-  // stopping at A0. The loop then hands the denial over at T5 as a `tool` message, which the message
-  // bridge of this application refuses: it takes only `model-reply` sources (SPEC.md, known
-  // limitations). The loop stays at T5, no Tool runs and no second Model call follows.
-  it('records that the Agent loop denies the tool-call batch and stops at T5 before any Tool invocation', async () => {
+  // This assembly rejects action-denied messages. The Agent must end that failed node while
+  // H10 stays disconnected: there was no Tool invocation or second Model admission.
+  it('ends the failed denial hand-over without invoking a Tool or a second Model call', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
     expect(kindAt(observed, 'H10')).toBe('disconnected')
     expect(evidenceAt(observed, 'H10')).toEqual([
       'agent:the tool-call reply was admitted and handed over to Session',
       'agent:no second reply within 2000 event-loop turns',
       'caller-reported: Tool runtime invocations 0, execution-environment effects none, Model admissions 1',
-      'agent:journal state advancing at T5',
+      'agent:journal state ended at F3',
       'agent:no Model request carried a tool result',
     ])
   })

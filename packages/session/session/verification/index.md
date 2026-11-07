@@ -9,3 +9,5 @@
 - [control-propagation/](control-propagation/README.md)：C3 控制传播、S5 重放与会话串行队列交错的有限模型
 - [models/](models/index.md)：形式模型（目前为空）
 - [proofs/](proofs/index.md)：论证与证明（目前为空）
+
+- [advance-wait/](advance-wait/README.md)：C2 有限重试、原操作身份和本地等待取消的有限模型及具名负控。

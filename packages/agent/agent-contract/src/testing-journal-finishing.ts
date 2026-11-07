@@ -200,6 +200,21 @@ function noReplyContent(name: string, call: M.ModelCallId): Partial<FinishCandid
   }
 }
 
+function nodeFailedContent(name: string): Partial<FinishCandidateContent> {
+  return {
+    ...failedContent(name),
+    failure: {
+      kind: 'node-failed',
+      node: 'E4',
+      category: 'invariant',
+      failureKind: 'unavailable',
+      step: null,
+      at: '2026-11-06T00:00:00Z',
+      source: evidence(`node-failure/${name}`),
+    },
+  }
+}
+
 /** The content of a candidate that fails because the Model refused the admission of `call`. */
 function refusedContent(name: string, call: M.ModelCallId): Partial<FinishCandidateContent> {
   return {
@@ -275,6 +290,123 @@ async function savedToolIntent<P>(opened: AgentJournalCoreOpened<P>, name: strin
 /** The cases of the finishing chapter; the core suite appends them. */
 export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[] {
   return [
+    ...(['node-failed', 'ordinary-fail', 'complete'] as const).map(kind => ({
+      name: `node-failed input custody: ${kind} preserves the original untaken input`,
+      run: async () => {
+        const opened = await fixture.open(`node-input-${kind}`)
+        const before = await load(opened)
+        const read = {
+          ...opened.access,
+          execution: opened.execution,
+          watermark: before.inputWatermark,
+        }
+        const original = await ok(opened.journal.inputs(read), 'original input read')
+        const content: Partial<FinishCandidateContent> =
+          kind === 'node-failed'
+            ? nodeFailedContent(kind)
+            : kind === 'ordinary-fail'
+              ? failedContent(kind)
+              : { ...nodeFailedContent(kind), conclusion: { kind: 'complete' } }
+        const ready = await prepareOrdinaryEnd(opened, 'node-input', opened.authority, content)
+        const item = itemOf(ready, 'accepted-input')
+        assert.equal(item.taken, null)
+        assert.equal(item.disposition.kind, kind === 'node-failed' ? 'held' : 'pending')
+        const finished = await ok(
+          opened.journal.tryFinish(finishInput(opened, ready, 'node-input/end')),
+          'tryFinish with an untaken input',
+        )
+        if (kind === 'node-failed') {
+          assert.equal(finished.kind, 'ended')
+          const after = await load(opened)
+          assert.deepEqual(itemOf(after, 'accepted-input'), item)
+          assert.deepEqual(after.inputWatermark, before.inputWatermark)
+          assert.deepEqual(await ok(opened.journal.inputs(read), 'retained input read'), original)
+          assert.equal(
+            (await events(opened)).some(event => event.body.kind === 'input-taken'),
+            false,
+          )
+        } else {
+          assert.equal(finished.kind, 'blocked')
+          if (finished.kind === 'blocked') assert.equal(finished.reason, 'inputs')
+        }
+      },
+    })),
+    {
+      name: 'node-failed input custody: taken inputs remain settled and later untaken inputs stay held with their original acceptance',
+      run: async () => {
+        const opened = await fixture.open('node-input-mixed')
+        await takeInputs(opened)
+        const added = await opened.acceptInput('untaken')
+        const submit = newSubmit(opened, 'submit-untaken', added)
+        await ok(opened.journal.submit(submit), 'submit the later input')
+        const ready = await prepareOrdinaryEnd(
+          opened,
+          'mixed',
+          opened.authority,
+          nodeFailedContent('mixed'),
+        )
+        const inputs = itemsOf(ready).filter(item => item.kind === 'accepted-input')
+        assert.equal(inputs.length, 2)
+        for (const item of inputs) {
+          if (item.input === added.id) {
+            assert.equal(item.taken, null)
+            assert.equal(item.disposition.kind, 'held')
+            assert.deepEqual(item.value, added)
+            assert.equal(item.acceptance, submit.operation)
+            assert.deepEqual(item.origin, added.source ?? submit.lineage.original.outcome.record)
+          } else {
+            assert.notEqual(item.taken, null)
+            assert.equal(item.disposition.kind, 'settled')
+          }
+        }
+        const finished = await ok(
+          opened.journal.tryFinish(finishInput(opened, ready, 'mixed/end')),
+          'mixed input end',
+        )
+        assert.equal(finished.kind, 'ended')
+        assert.deepEqual(
+          itemsOf(await load(opened)).filter(item => item.kind === 'accepted-input'),
+          inputs,
+        )
+        assert.equal(
+          (await events(opened)).filter(event => event.body.kind === 'input-taken').length,
+          1,
+        )
+      },
+    },
+    {
+      name: 'node-failed input custody: a node failure cannot settle an unknown Model call',
+      run: async () => {
+        const opened = await fixture.open('node-input-unknown-model')
+        const { pending } = modelIntent(opened, 'node-pending-model')
+        await ok(
+          opened.journal.commit(
+            commitAt(opened, await load(opened), 'model-effect', opened.authority, {
+              effects: [{ action: pending.action, pending, authority: opened.authority }],
+            }),
+          ),
+          'original Model intent',
+        )
+        const ready = await prepareOrdinaryEnd(
+          opened,
+          'unknown-model',
+          opened.authority,
+          nodeFailedContent('unknown-model'),
+        )
+        assert.equal(itemOf(ready, 'accepted-input').disposition.kind, 'held')
+        assert.equal(itemOf(ready, 'call').disposition.kind, 'unknown')
+        await refused(
+          opened.journal.tryFinish(finishInput(opened, ready, 'unknown-model/end')),
+          'unavailable',
+          'the original Model responsibility is unknown',
+        )
+        assert.deepEqual(await load(opened), ready)
+        assert.equal(
+          (await events(opened)).some(event => event.body.kind === 'ended'),
+          false,
+        )
+      },
+    },
     {
       name: 'cancellation installation read returns the configured record without changing execution state',
       run: async () => {
@@ -287,17 +419,17 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         const before = await load(opened)
         const input = { ...opened.access, execution: opened.execution }
         if (opened.installation === null)
-          await refused(read(input), 'unavailable', 'missing installation')
+          await refused(read.call(opened.journal, input), 'unavailable', 'missing installation')
         else
           assert.deepEqual(
-            await ok(read(input), 'read cancellation installation'),
+            await ok(read.call(opened.journal, input), 'read cancellation installation'),
             opened.installation.record,
           )
         assert.deepEqual(await load(opened), before, 'the installation read writes no state')
         const other = await requireOtherAccess(opened)
         if (other !== undefined)
           await refused(
-            read({ ...other, execution: opened.execution }),
+            read.call(opened.journal, { ...other, execution: opened.execution }),
             'denied',
             'foreign installation read',
           )

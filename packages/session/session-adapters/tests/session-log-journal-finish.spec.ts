@@ -9,11 +9,11 @@
 // modules, with the AD-02 plugin on a real Cordis root.
 import { describe, expect, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
-import type { JournalCommit } from '@omne-harness/agent-contract'
+import type { FinishCandidateContent, JournalCommit } from '@omne-harness/agent-contract'
 import { evidence, ok, operation } from './fixtures/common-journal.ts'
 import { admitted, applied, load, prepared } from './fixtures/main-reply.ts'
 import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
-import { cordisScene, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
+import { cordisScene, handed, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 const count = (s: SqlScene, table: string): number =>
   Number(s.controls?.select(`SELECT COUNT(*) AS n FROM ${table}`).rows[0]?.[0] ?? -1)
@@ -52,7 +52,11 @@ async function take(s: SqlScene, authority: JournalCommit<string>['authority']) 
 }
 
 /** F1, F2 and prepareFinish of a complete candidate, as the coordinator writes them. */
-async function prepareEnd(s: SqlScene, authority: JournalCommit<string>['authority']) {
+async function prepareEnd(
+  s: SqlScene,
+  authority: JournalCommit<string>['authority'],
+  candidate: Partial<FinishCandidateContent> = {},
+) {
   const commit = async (step: 'F1' | 'F2', finish: JournalCommit<string>['finish']) => {
     const loaded = await load(s)
     ok(
@@ -79,6 +83,7 @@ async function prepareEnd(s: SqlScene, authority: JournalCommit<string>['authori
     failure: null,
     inputWatermark: evidence('replaced'),
     conditions: evidence('end-conditions'),
+    ...candidate,
   })
   await commit('F2', null)
   const settling = await load(s)
@@ -97,6 +102,90 @@ async function prepareEnd(s: SqlScene, authority: JournalCommit<string>['authori
 }
 
 describe('tryFinish on the production session-log Journal with the PA-02 finish check', () => {
+  for (const storage of ['double', 'real'] as const) {
+    it(
+      `node failure retains the original untaken input and candidate across a cold provider (${storage})`,
+      { tags: storage === 'real' ? ['slow'] : [] },
+      async () => {
+        const s = await sqlScene(`node-failure-${storage}`, { storage })
+        try {
+          const opened = ok(await s.view.journal.open(s.openInput))
+          ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
+          const before = await load(s)
+          const inputRead = {
+            ...s.access,
+            execution: s.execution,
+            watermark: before.inputWatermark,
+          }
+          const original = ok(await s.view.journal.inputs(inputRead))
+          const failure = {
+            kind: 'node-failed',
+            node: 'E4',
+            category: 'invariant',
+            failureKind: 'unavailable',
+            step: null,
+            at: '2026-11-06T00:00:00Z',
+            source: before.history,
+          } as const
+          const ready = await prepareEnd(s, opened.authority, {
+            origin: before.history,
+            conclusion: { kind: 'fail', cause: evidence('node-failure') },
+            failure,
+          })
+          if (ready.state.kind !== 'settling') throw new Error('settling expected')
+          const ended = ok(
+            await s.view.journal.tryFinish({
+              ...s.access,
+              execution: s.execution,
+              operation: operation('node-failure-end'),
+              authorization: { kind: 'advancement', authority: opened.authority },
+              expected: ready.revision,
+              intent: ready.state.intent,
+            }),
+          )
+          expect(ended.kind).toBe('ended')
+          const cold = s.fresh().journal
+          const after = ok(await cold.load({ ...s.access, execution: s.execution }))
+          expect(after.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'fail' } })
+          expect(after.settlement.candidate?.failure).toEqual(failure)
+          expect(after.inputWatermark).toEqual(before.inputWatermark)
+          expect(ok(await cold.inputs(inputRead))).toEqual(original)
+          const events = ok(
+            await cold.output.read({
+              ...s.access,
+              execution: s.execution,
+              after: null,
+              limit: 100,
+            }),
+          )
+          if (events.kind !== 'page') throw new Error('retained event page expected')
+          expect(events.events.filter(event => event.body.kind === 'input-taken')).toHaveLength(0)
+          expect(events.events.filter(event => event.body.kind === 'ended')).toHaveLength(1)
+          const c = await cordisScene(s)
+          try {
+            const interpretation = createSessionJournalInterpretationPlugin<string>({
+              coordinator: async () => succeed(s.access.principal),
+            })
+            await c.mount(interpretation.plugin)
+            ok(
+              await interpretation.interpret({
+                tenant: s.access.tenant,
+                session: s.access.session,
+                execution: s.execution,
+              }),
+            )
+            const work = ok(await s.port.readWork(s.access))
+            expect(work.run).toMatchObject({ kind: 'terminal', terminal: { outcome: 'failed' } })
+          } finally {
+            await c.dispose()
+          }
+        } finally {
+          await s.close()
+        }
+      },
+    )
+  }
+
   it('a conflict of the Session check is FinishResult.changed and writes nothing; after the hand-over the same tryFinish ends the execution with the reply in the history', async () => {
     const s = await sqlScene('finish-pa02')
     try {

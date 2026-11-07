@@ -499,6 +499,11 @@ export type FailureCandidate = Readonly<{
     at: AgentInstant;
     source: DurableEvidence;
 }> & (Readonly<{
+    kind: 'node-failed';
+    node: string;
+    category: 'exception' | 'invariant' | 'unsupported-path' | 'rejected';
+    failureKind: Failure['kind'];
+}> | Readonly<{
     kind: 'cannot-fit';
     reason: 'fixed' | 'after-compaction';
     context: DurableEvidence;
@@ -964,6 +969,9 @@ export type ExecutionSnapshot = Readonly<{
 }>;
 export type AgentState = Readonly<{
     kind: 'idle';
+    instance: AgentInstanceId;
+}> | Readonly<{
+    kind: 'reserved';
     instance: AgentInstanceId;
 }> | Readonly<{
     kind: 'occupied';

@@ -94,6 +94,7 @@
     "@omne-harness/tokenizer-tiktoken": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/cli": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
