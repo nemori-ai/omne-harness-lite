@@ -1,10 +1,4 @@
 // @module-tag slow
-// The `session-ad06` row: the real Tool log consumption plugin of Session (AD-06). The row is ACTIVE
-// once `session`, the Journal views `agentJournal`, `agentJournalEntries` (the entry port, R2-D318)
-// and `agentMaterials`, and `sessionTransactions` are present, and stays PENDING naming the missing
-// keys otherwise. Its reads of `session` reach the
-// provider as the `coordinator` caller class although the row wrapper declares its injects as a plain
-// list. The five providers here are contract stand-ins of this test, not the real rows.
 import { Service, type Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -13,16 +7,28 @@ import {
   agentMaterialsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { succeed } from '@omne-harness/operation-result'
-import type { SessionFaces, WorkSnapshot } from '@omne-harness/session-contract'
+import type {
+  SessionFaces,
+  SessionWorkPrincipals,
+  WorkSnapshot,
+} from '@omne-harness/session-contract'
 import { memoryAccess } from '@omne-harness/session-contract/testing'
 import {
   SessionService,
+  SessionWorkPrincipalsService,
   sessionKey,
   sessionTransactionsKey,
+  sessionWorkPrincipalsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { consumeSessionToolLog, sessionAd06Row } from '../../../src/rows/session-ad06/index.ts'
-import { declared, loadTree, makeBase, type LoadedTree } from '../session-fixtures/tree.ts'
+import {
+  BASE_ENTRY_OBJECTS,
+  declared,
+  loadTree,
+  makeBase,
+  type LoadedTree,
+} from '../session-fixtures/tree.ts'
 
 const access = memoryAccess({ kind: 'test-principal' })
 
@@ -91,11 +97,31 @@ afterEach(async () => {
   for (const close of release.splice(0).reverse()) await close()
 })
 
-async function start(options: { journalViews: boolean; callers?: unknown[] }): Promise<LoadedTree> {
+async function start(options: {
+  journalViews: boolean
+  callers?: unknown[]
+  coordinatorCalls?: unknown[]
+}): Promise<LoadedTree> {
   const base = makeBase()
   release.push(() => base.release())
   const tree = await loadTree({
     base,
+    entryObjects: BASE_ENTRY_OBJECTS.map(entry =>
+      entry.name !== sessionWorkPrincipalsKey || options.coordinatorCalls === undefined
+        ? entry
+        : {
+            ...entry,
+            install(ctx) {
+              class Principals extends SessionWorkPrincipalsService {
+                readonly forSession: SessionWorkPrincipals<unknown>['forSession'] = async input => {
+                  options.coordinatorCalls?.push(input)
+                  return succeed(access.principal)
+                }
+              }
+              new Principals(ctx)
+            },
+          },
+    ),
     rows: [
       sessionRow(options.callers ?? []),
       standIn('transactions-standin', sessionTransactionsKey, Transactions),
@@ -122,6 +148,7 @@ describe('the session-ad06 row: declaration', () => {
       manifest: {
         provides: [],
         injects: [
+          'sessionWorkPrincipals',
           'session',
           'agentJournal',
           'agentJournalEntries',
@@ -138,14 +165,53 @@ describe('the session-ad06 row: declaration', () => {
 
 describe('the session-ad06 row: on real Cordis 4.0.4', () => {
   it(
-    'is ACTIVE with its five dependencies, and reads `session` as the coordinator',
+    'keeps explicit consumption in its own root and removes it on disposal',
+    { timeout: 60_000 },
+    async () => {
+      const firstCalls: unknown[] = [],
+        secondCalls: unknown[] = []
+      const first = await start({ journalViews: true, callers: firstCalls })
+      const second = await start({ journalViews: true, callers: secondCalls })
+      const target = { ...access, execution: 'execution-1' as never }
+      await consumeSessionToolLog(first.root, target)
+      expect(firstCalls.length).toBeGreaterThan(0)
+      expect(secondCalls).toHaveLength(0)
+      await first.dispose()
+      expect(await consumeSessionToolLog(first.root, target)).toMatchObject({
+        failure: { kind: 'unavailable', owner: 'session-ad06' },
+      })
+      await consumeSessionToolLog(second.root, target)
+      expect(secondCalls.length).toBeGreaterThan(0)
+    },
+  )
+  it(
+    'uses the injected coordinator to consume a published execution',
+    { timeout: 60_000 },
+    async () => {
+      const callers: unknown[] = [],
+        coordinatorCalls: unknown[] = []
+      const tree = await start({ journalViews: true, callers, coordinatorCalls })
+      tree.root.emit(
+        'session-adapters/agent-published',
+        access.tenant,
+        access.session,
+        'execution-1' as never,
+      )
+      await expect
+        .poll(() => coordinatorCalls)
+        .toEqual([{ actor: 'coordinator', tenant: access.tenant, session: access.session }])
+      await expect.poll(() => callers.length).toBeGreaterThan(0)
+    },
+  )
+  it(
+    'is ACTIVE with its six dependencies, and reads `session` as the coordinator',
     { timeout: 60_000 },
     async () => {
       const callers: unknown[] = []
       const tree = await start({ journalViews: true, callers })
       expect(tree.state('session-ad06')).toMatchObject({ state: 'ACTIVE', missing: [] })
 
-      const answer = await consumeSessionToolLog({
+      const answer = await consumeSessionToolLog(tree.root, {
         principal: access.principal,
         tenant: access.tenant,
         session: access.session,
@@ -171,7 +237,7 @@ describe('the session-ad06 row: on real Cordis 4.0.4', () => {
         missing: ['agentJournal', 'agentJournalEntries', 'agentMaterials'],
       })
       expect(
-        await consumeSessionToolLog({
+        await consumeSessionToolLog(tree.root, {
           principal: access.principal,
           tenant: access.tenant,
           session: access.session,

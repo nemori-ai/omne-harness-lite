@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   createAgentToolReceiver,
   createToolReceiverState,
+  decodeAgentToolDeliveryMaterial,
   readToolDeliveryMaterial,
   type ToolReceiverDependencies,
   type ToolReceptionTarget,
@@ -510,6 +511,7 @@ it.each(['terminal', 'actualTerminal', 'effect', 'value', 'tenant'] as const)(
     if (material.kind !== 'facts') throw new Error('facts required')
     const decoded = readToolDeliveryMaterial(access, material, expected)
     expect(decoded).toEqual(s.delivery)
+    expect(decodeAgentToolDeliveryMaterial(material)?.delivery).toEqual(s.delivery)
     const original = plain(material.value)
     if (!object(original) || !object(original.delivery)) throw new Error('envelope required')
     if (field === 'tenant') Object.assign(original, { tenant: 'foreign' })
@@ -517,8 +519,23 @@ it.each(['terminal', 'actualTerminal', 'effect', 'value', 'tenant'] as const)(
     expect(
       readToolDeliveryMaterial(access, { ...material, value: json(original) }, expected),
     ).toBeNull()
+    expect(decodeAgentToolDeliveryMaterial({ ...material, value: json(original) })).toBeNull()
   },
 )
+
+it('checks the consuming tenant separately from decoding and rejects unknown schemas', async () => {
+  const s = await setup()
+  const foreign = toolDeliveryMaterial(otherTenant, s.delivery)
+  expect(decodeAgentToolDeliveryMaterial(foreign)?.delivery).toEqual(s.delivery)
+  expect(
+    readToolDeliveryMaterial(access, foreign, toolReceivedDraft(s.delivery, consumption('call-1'))),
+  ).toBeNull()
+  const material = toolDeliveryMaterial(access, s.delivery)
+  if (material.kind !== 'facts') throw new Error('facts required')
+  expect(
+    decodeAgentToolDeliveryMaterial({ ...material, schema: { ...material.schema, revision: '2' } }),
+  ).toBeNull()
+})
 
 it('treats a second push of a key that is still being written as unknown without a second commit', async () => {
   const s = await setup(),

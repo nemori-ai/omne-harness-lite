@@ -122,6 +122,12 @@
       ]
     },
     {
+      "row": "session-ad06",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
       "row": "session-ad09",
       "names": [
         "principalVerifier"
