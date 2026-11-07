@@ -454,7 +454,7 @@ C2 在退避前登记本会话的等待句柄，再读取原 attempt。控制或
 
 ### 遥测投影
 
-<a id="遥测投影"></a>本段是候选，待 RFC-0013 接受。设计依据是 [RFC-0013「计时记录与离线聚合」](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#计时记录与离线聚合)。根入口的 `createSessionTelemetry(port, { instance })` 把[测量事件](#测量事件)与[诊断出口](#诊断出口)投影为 `@omne-harness/telemetry-contract` 的记录，返回 `{ measure, diagnose }`。装配者把 `measure` 与 `diagnose` 交给工厂的第三个参数。facade 只依赖 telemetry-contract 的根入口，不依赖提供者，不依赖 Cordis。源码在 [telemetry.ts](src/telemetry.ts)。
+<a id="遥测投影"></a>本段按 RFC-0013 rev2 的本地 A/B 范围采用，见[本轮采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)。设计依据是 [RFC-0013「计时记录与离线聚合」](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#计时记录与离线聚合)。根入口的 `createSessionTelemetry(port, { instance })` 把[测量事件](#测量事件)与[诊断出口](#诊断出口)投影为 `@omne-harness/telemetry-contract` 的记录，返回 `{ measure, diagnose }`。装配者把 `measure` 与 `diagnose` 交给工厂的第三个参数。facade 只依赖 telemetry-contract 的根入口，不依赖提供者，不依赖 Cordis。源码在 [telemetry.ts](src/telemetry.ts)。
 
 | 事件 | 记录 | 定义（owner `session`） | 关联 |
 | --- | --- | --- | --- |
@@ -468,7 +468,7 @@ C2 在退避前登记本会话的等待句柄，再读取原 attempt。控制或
   - 其余情况 facade 不发记录：事件没有 `tenant` 也没有 `scope`，`tenant` 不是 legal-identity 铸造的值，或段事件同时带 `tenant` 与 `scope`。facade 把记录的定义交给 `port.discard(definition, 'invalid')`，由提供者按 `invalid` 计数（进 `CloseReport.droppedBy.invalid`）。这些记录不改标为 `system`。
   - 操作名不满足契约字符集或长度时同样经 `discard` 计入 `invalid`，定义只写该段本来的名字。
   - 每条记录各自 `port.bind`，不缓存 emitter，因为绑定的 `scope` 不能经 `Emitter.bind` 改写（TC-15）。
-- **有界**：facade 没有自己的段上限。配对表只保存提供者受理的段：被 `startSegment` 丢弃的 start 不进配对表，而提供者只在它自己的 `maxOpenSegments` 之内受理 start（telemetry-node TN-6），所以配对表的大小不超过提供者的上限。end 结束段后删除配对表条目；没有 start 的 end（提供者丢弃过，或从未开始）什么也不做，不计数。段定义按操作名缓存，最多 64 个（`SESSION_SEGMENT_DEFINITION_LIMIT`）；超过的操作名不缓存，每次 start 重新组成定义，记录照发。
+- 有界：facade 用 `startSegment` 的 `onRelease` 同步删除配对项（telemetry-contract TC-14）。只有尚未释放的段进入配对表，end 也删除配对。早于 start 返回的通知阻止重新登记；旧通知按条目身份删除，不能误删复用 span 的新项。共享同一提供者的门面配对总数不超过其 `maxOpenSegments`；提供者关闭的同步释放阶段结束时，配对表为空。没有配对的 end 什么也不做。该界限不约束任意调用方主动保留的旧句柄，也不依赖 GC。
 - **计时**：facade 不读时钟。段的时长由提供者在 `startSegment` 与 `end` 之间计算。
 - **不抛错**：facade 不抛错。被 `startSegment` 丢弃的段由提供者计数，facade 不再计一次；facade 自己不保有任何计数。
 
@@ -478,7 +478,7 @@ C2 在退避前登记本会话的等待句柄，再读取原 attempt。控制或
 
 - session-contract 的事务套件经四个面运行：对内存替身对 21 例全部通过；对真实 sqlite-provider 上的 SQL 提供者对，21 例全部通过。
 - [测量事件](#测量事件)：起止成对、并发时的 `span`、读与目录读、失败结局、`run.terminal` 提交的轮完成事件（认回不重发、无通知器时仍发）、无观察者时不读条目、观察者抛出不改答复、变更与读的事件带租户、`pending` 带输入的租户、`references` 与 `releasedScopes` 带 `system` 而不带租户。
-- [遥测投影](#遥测投影)（`tests/telemetry.spec.ts`，用 telemetry-contract 的捕获替身）：段的名字、作用域、`work` 与结局；目录读没有 `work`；系统作用域的段绑定 `system`、没有 `work`、不经 `discard`；缺租户、未铸造的租户、同时带租户与 `system` 的段与非法操作名不发记录而经 `port.discard` 以 `invalid` 交给提供者计数；提供者丢弃的 start 不配对；定义缓存的上限；round-complete 与诊断事件的字段、`attempt` 与枚举收口；诊断不带 `detail`；经真实实例的一次 accept 与读，以及 `pending` 与 `references` 两个目录读。
+- [遥测投影](#遥测投影)（`tests/telemetry.spec.ts`，用 telemetry-contract 的捕获替身）：段的名字、作用域、`work` 与结局；目录读没有 `work`；系统作用域的段绑定 `system`、没有 `work`、不经 `discard`；缺租户、未铸造的租户、同时带租户与 `system` 的段与非法操作名不发记录而经 `port.discard` 以 `invalid` 交给提供者计数；提供者丢弃的 start 不配对；定义缓存的上限；round-complete 与诊断事件的字段、`attempt` 与枚举收口；诊断不带 `detail`；经真实实例的一次 accept 与读，以及 `pending` 与 `references` 两个目录读。 释放配对由 `tests/telemetry.spec.ts` 核对早通知、span 复用和捕获替身 clear。真实 Node 提供者与两个门面的组合回归在 `apps/harness-server/tests/rows/telemetry/measure.spec.ts`，覆盖连续过期和关闭后的迟到 end。
 - [VM-13](#vm-机制的持续验证义务) 的计次与失败分支、跨租户拒绝、[VM-01](#vm-机制的持续验证义务) 的重做与上限、SS-02 的确定性计数（两个规模下各面操作的计数相同），各有用例。
 - 没有测试的义务：VM-02 至 VM-12 中本节「未实现」一表涉及的部分，以及崩溃矩阵。
 

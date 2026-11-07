@@ -6,7 +6,7 @@
 
 本包拥有工程遥测的纯契约：作用域绑定、声明式定义、字段与绑定的校验、carrier 编解码、准入结果、关闭报告的形状，以及有界捕获替身。本文件用「遥测」指工程遥测。
 
-状态：候选，第一版。设计依据是 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 的「[公共契约形状](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#公共契约形状)」与「[决定范围](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#决定范围)」。RFC-0013 还没有接受，所以本文件的全部条款都是候选范围。名词 `telemetry`（D01）已由负责人采用，见[决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6663579066)。「纯契约、Cordis 定义与 Node 提供者分成三个成员」（D02）与「不设全局目录」（D08）暂按建议推进，等裁定者确认。
+状态：第一版本地 A/B 范围按 RFC-0013 rev2 采用，见[本轮采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)。本包承担该范围的纯契约、释放通知与关闭边界。OTel、远端输出和热换等后续范围尚未采用。本轮采用不表示测试或准入通过。
 
 预留：`Carrier`（[TC-6](#tc-6-carrier-只含因果身份)、[TC-11](#tc-11-carrier-格式)）、`defineMetric` 与 `Emitter.record`（[TC-8](#tc-8-定义只校验本地输入)、[TC-15](#tc-15-端口与关闭报告)）有形状、有校验、有测试，第一版没有消费者。它们为推迟的 OTel 链路与指标预留，第一版不扩展也不删除。
 
@@ -92,7 +92,7 @@ scope 必须由 `@omne-harness/legal-identity` 铸造。`validateBinding` 用 `a
 - 捕获数达到 `capacity`（默认 1024）后，新记录答 `dropped(capacity)`。
 - `discard(definition, reason)` 按 `reason` 答 `dropped`，不捕获任何记录。`definition` 不带三种 `signal` 之一，或 `reason` 不是 `DiscardReason` 时，答 `dropped(invalid)`。
 - `dropped()` 计数每一条被丢弃的记录，含每次 `discard`，不区分原因。
-- `clear()` 清空捕获列表并把丢弃计数归零。
+- `clear()` 先同步释放所有开放段并通知，再清空捕获列表，把丢弃计数归零。它不写 `segment-end`。旧句柄的首次有效 `end` 答 `dropped(closed)` 并计一次，重复 `end` 返回同一结果；旧句柄的每次 `event` 答 `dropped(closed)` 并计数。清空后的新段仍可准入。
 - 它不导入 Cordis，任何输入都不使它抛错。
 
 ### TC-10 校验是契约的纯函数
@@ -140,6 +140,8 @@ carrier 文本是 W3C traceparent 的子集：`00-<trace>-<span>-<flags>`。
 - `end` 的结果只说明这个测量段的结果，不表示业务终态。
 - 段结束后，`Segment.event` 答 `dropped(closed)`。
 - `startSegment` 的 `links` 遵守 TC-5 与 TC-11。
+- `startSegment` 可带一个 `onRelease` 回调。它必须是函数；其他值答 `dropped(invalid)`。提供者在有效 `end`、发现过期、关闭，以及占位后 start 回滚时释放段。提供者先提交释放状态、退还位置、清断回调引用，再同步通知一次。释放不表示记录送达，也不伪造 `segment-end` 或额外的丢弃计数。非法 outcome 不释放，重复 `end` 不重复通知。
+- 回调只做有界清理，不得重入遥测端口或业务实例。提供者隔离回调异常，不能中止其他段的释放或改变操作结果。通知可能早于 `startSegment` 返回；调用方不能在返回后重新保留已释放的句柄。未占位的拒绝不登记或调用回调。
 
 ### TC-15 端口与关闭报告
 
@@ -154,7 +156,7 @@ carrier 文本是 W3C traceparent 的子集：`00-<trace>-<span>-<flags>`。
 3. Collector 协议的确认。
 4. 后端可以查询到这条记录。
 
-`flush` 与 `boundary` 只说明提供者实际看到的最强边界，不声称更后面的边界。`flush` 是 `completed-to-boundary` 时，`boundary` 写明到达的边界。这一语义承接已删除的 `@omne-harness/diagnostic` 成员（D03）关闭报告的三段：lastRecord（最后一条记录是否已交出）、flush（排空的计数或期限）、transport（传输关闭只能是未确认或期限）。
+`flush` 与 `boundary` 只说明提供者实际看到的最强边界，不声称更后面的边界。`flush` 是 `completed-to-boundary` 时，只说明准入队列已排空且没有输出错误；没有成功写出记录时，`boundary` 仍是 `none`。这一语义承接已删除的 `@omne-harness/diagnostic` 成员（D03）关闭报告的三段：lastRecord（最后一条记录是否已交出）、flush（排空的计数或期限）、transport（传输关闭只能是未确认或期限）。
 
 ## 所有权、失败与生命周期
 

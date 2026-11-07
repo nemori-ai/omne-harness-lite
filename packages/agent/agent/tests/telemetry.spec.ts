@@ -4,7 +4,7 @@
 // is what a provider would admit (TC-2, TC-4). A pass without a tenant goes to the port's
 // `discard`, so the provider counts it; the test records each discard by name and reason.
 import { actingScopeEquals, tenantScope } from '@omne-harness/legal-identity'
-import type { TelemetryPort } from '@omne-harness/telemetry-contract'
+import type { Emitter, TelemetryPort } from '@omne-harness/telemetry-contract'
 import { createCapturingTelemetry } from '@omne-harness/telemetry-contract/testing'
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentMeasureEvent } from '@omne-harness/agent'
@@ -150,6 +150,69 @@ describe('the Agent pass as a telemetry segment', () => {
       expect(actingScopeEquals(record.binding.scope, tenantScope(tenantA))).toBe(true)
       expect(record.binding.attempt).toEqual({ owner: '@omne-harness/agent', ref: 'exec-1' })
     }
+    expect(capture.dropped()).toBe(0)
+  })
+})
+
+describe('provider release and measurement pairing', () => {
+  it('does not restore a pair released before start returns', () => {
+    const capture = createCapturingTelemetry()
+    const endSegment = vi.fn()
+    const port: TelemetryPort = {
+      ...capture.port,
+      bind(binding) {
+        const emitter = capture.port.bind(binding)
+        return {
+          ...emitter,
+          startSegment(definition, options) {
+            const segment = emitter.startSegment(definition)
+            options?.onRelease?.()
+            return 'carrier' in segment ? { ...segment, end: endSegment } : segment
+          },
+        }
+      },
+    }
+    const telemetry = createAgentTelemetry(port, { instance })
+    telemetry.measure(start(1))
+    telemetry.measure(end(1, 'ok'))
+    expect(endSegment).not.toHaveBeenCalled()
+  })
+
+  it('an old release cannot remove the current pair of a reused measurement span', () => {
+    const capture = createCapturingTelemetry()
+    const releases: Array<NonNullable<Parameters<Emitter['startSegment']>[1]>> = []
+    const port: TelemetryPort = {
+      ...capture.port,
+      bind(binding) {
+        const emitter = capture.port.bind(binding)
+        return {
+          ...emitter,
+          startSegment(definition, options) {
+            releases.push(options ?? {})
+            return emitter.startSegment(definition)
+          },
+        }
+      },
+    }
+    const telemetry = createAgentTelemetry(port, { instance })
+    telemetry.measure(start(1))
+    telemetry.measure(start(1))
+    releases[0]?.onRelease?.()
+    telemetry.measure(end(1, 'ok'))
+    const records = capture.records()
+    expect(records).toHaveLength(3)
+    expect(records[2]).toMatchObject({
+      kind: 'segment-end',
+      segment: records[1]?.kind === 'segment-start' ? records[1].segment : undefined,
+    })
+  })
+
+  it('clear releases the pair so a late measurement end does not call a cleared segment', () => {
+    const { capture, telemetry } = facade()
+    telemetry.measure(start(1))
+    capture.clear()
+    telemetry.measure(end(1, 'ok'))
+    expect(capture.records()).toEqual([])
     expect(capture.dropped()).toBe(0)
   })
 })

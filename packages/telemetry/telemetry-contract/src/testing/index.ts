@@ -62,6 +62,7 @@ export type CapturedRecord =
     }>
 
 type Dropped = Extract<Admission, { kind: 'dropped' }>
+type CapturingPlace = { onRelease: (() => void) | undefined; released: boolean }
 
 const DEFAULT_CAPACITY = 1024
 const ADMITTED: Admission = Object.freeze({ kind: 'admitted' })
@@ -148,6 +149,7 @@ export function createCapturingTelemetry(options: Readonly<{ capacity?: number }
   let records: CapturedRecord[] = []
   let dropped = 0
   let segments = 0
+  const places = new Set<CapturingPlace>()
 
   function drop(reason: Dropped['reason']): Dropped {
     dropped += 1
@@ -178,11 +180,7 @@ export function createCapturingTelemetry(options: Readonly<{ capacity?: number }
     })
   }
 
-  function linksOf(options: unknown): readonly Carrier[] | undefined {
-    if (options === undefined) return Object.freeze([])
-    const read = dataMembers(options)
-    if (read.kind !== 'members') return undefined
-    const links = read.members.get('links')
+  function linksOf(links: unknown): readonly Carrier[] | undefined {
     if (links === undefined) return Object.freeze([])
     if (!Array.isArray(links) || links.length > TELEMETRY_LIMITS.maxLinks) return undefined
     const decoded: Carrier[] = []
@@ -194,17 +192,50 @@ export function createCapturingTelemetry(options: Readonly<{ capacity?: number }
     return Object.freeze(decoded)
   }
 
+  function segmentOptions(options: unknown): Parameters<Emitter['startSegment']>[1] {
+    if (options === undefined) return {}
+    const read = dataMembers(options)
+    if (read.kind !== 'members') return undefined
+    const links = linksOf(read.members.get('links'))
+    const onRelease = read.members.get('onRelease')
+    if (links === undefined || (onRelease !== undefined && typeof onRelease !== 'function'))
+      return undefined
+    return {
+      links,
+      ...(onRelease === undefined
+        ? {}
+        : {
+            onRelease: () => {
+              onRelease()
+            },
+          }),
+    }
+  }
+
+  function release(place: CapturingPlace): void {
+    if (!places.delete(place)) return
+    place.released = true
+    const notify = place.onRelease
+    place.onRelease = undefined
+    try {
+      notify?.()
+    } catch {
+      // Release is complete even when its observer fails.
+    }
+  }
+
   function startedSegment(
     binding: Binding,
     definition: SegmentDefinition,
     carrier: Carrier,
+    place: CapturingPlace,
   ): Segment {
     let ended: Admission | undefined
     return Object.freeze({
       carrier,
       event(event: EventDefinition<FieldSchema>, fields: unknown): Admission {
         return guarded(() => {
-          if (ended !== undefined) return drop('closed')
+          if (ended !== undefined || place.released) return drop('closed')
           if (!hasSignal(event, 'event') || validateFields(event, fields).kind !== 'ok')
             return drop('invalid')
           return admit({
@@ -220,6 +251,11 @@ export function createCapturingTelemetry(options: Readonly<{ capacity?: number }
         return guarded(() => {
           if (ended !== undefined) return ended
           if (!OUTCOMES.includes(outcome)) return drop('invalid')
+          if (place.released) {
+            ended = drop('closed')
+            return ended
+          }
+          release(place)
           ended = admit({
             kind: 'segment-end',
             binding,
@@ -259,19 +295,20 @@ export function createCapturingTelemetry(options: Readonly<{ capacity?: number }
       startSegment(definition: SegmentDefinition, options?: unknown): Segment | Dropped {
         return guarded(() => {
           if (binding === undefined || !hasSignal(definition, 'segment')) return drop('invalid')
-          const links = linksOf(options)
-          if (links === undefined) return drop('invalid')
+          const checkedOptions = segmentOptions(options)
+          if (checkedOptions === undefined) return drop('invalid')
           const carrier = nextCarrier()
           const admission = admit({
             kind: 'segment-start',
             binding,
             definition,
             segment: carrier,
-            links,
+            links: checkedOptions.links ?? [],
           })
-          return admission.kind === 'dropped'
-            ? admission
-            : startedSegment(binding, definition, carrier)
+          if (admission.kind === 'dropped') return admission
+          const place = { onRelease: checkedOptions.onRelease, released: false }
+          places.add(place)
+          return startedSegment(binding, definition, carrier, place)
         })
       },
       bind(patch: unknown): Emitter {
@@ -299,6 +336,7 @@ export function createCapturingTelemetry(options: Readonly<{ capacity?: number }
     records: () => Object.freeze([...records]),
     dropped: () => dropped,
     clear: () => {
+      for (const place of places) release(place)
       records = []
       dropped = 0
     },

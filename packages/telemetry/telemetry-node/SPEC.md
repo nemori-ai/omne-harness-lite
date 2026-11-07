@@ -12,7 +12,7 @@
 - `./cordis` 下的两个插件工厂。
 - 离线热点聚合：纯函数 `summarizeTelemetry` 与命令 `omne-telemetry-summary`（TN-11）。
 
-状态：候选，第一版。设计依据是 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 的 B 线：「[Cordis 承载与应用装配](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#cordis-承载与应用装配)」「[计时记录与离线聚合](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#计时记录与离线聚合)」「[资源预算](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#资源预算)」。RFC-0013 还没有接受，所以本文件的全部条款都是候选范围。
+状态：第一版本地 A/B 范围按 RFC-0013 rev2 采用，见[本轮采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)。本包承担本地提供者、同步释放与关闭边界。OTel、远端输出和热换等后续范围尚未采用。本轮采用不表示测试或准入通过。
 
 本包不拥有下列事项：
 
@@ -100,17 +100,19 @@
 - 打开的段不超过 `maxOpenSegments`。再开一个时，`startSegment` 答 `dropped(capacity)`。
 - 每个段有新的 trace 与 span 身份，由 `randomBytes` 生成，`sampled` 恒为真。入站的 carrier 只进 `links`，不成为本段的 trace（TC-6）。
 - `startSegment` 先生成身份，再占位置。`randomBytes` 抛出或返回错误长度时，答 `dropped(invalid)`，不占位置。
-- 段的 `segment-start` 记录没有被准入时，段不打开，也不占位置。
+- 段的 `segment-start` 记录没有被准入，或占位后形成记录时抛错，运行时退还位置并按 TC-14 通知释放。未占位的拒绝不登记回调。
 - `end` 的第一次有效调用结束段，并释放它的位置。之后的调用返回第一次的结果（TC-14）。
 - 段打开的时间超过 `maxSegmentLifetimeMs` 时过期。运行时收回它的位置，按 `expired` 计一次。之后这个段的 `end` 答 `dropped(expired)`，不写出 `segment-end`，不再计数。之后这个段的 `event` 每条答 `dropped(expired)` 并计数。打开时间等于 `maxSegmentLifetimeMs` 的段没有过期。
 - 过期的检查时机：`startSegment` 占位置之前，段的 `event` 与 `end` 之前，每次准入之前，关闭开始时。运行时用 `clock.monotonicMs()` 比较打开时间，不起定时器。所以过期只在这些时机被发现。没有记录活动时，过期的段到关闭时才被收回。关闭时收回的位置进入关闭报告，不写摘要。
-- 运行时已开始关闭时，过期段的 `end` 答 `dropped(closed)`（TN-2 第 1 条优先）。关闭开始时的检查是最后一次：之后不再收回位置。在这次检查或更早被收回的段已经计过 `expired`，它的 `end` 答 `dropped(closed)` 但不再计数；关闭开始时还没超期的段，之后的 `end` 与 `event` 只计 `closed`，不另计 `expired`。每个段在关闭报告里至多计一次。
+- 运行时已开始关闭时，过期段的 `end` 答 `dropped(closed)`（TN-2 第 1 条优先）。关闭开始时的检查是最后一次过期检查。随后运行时同步释放所有其余位置，并按 TC-14 通知；释放本身不计 `closed`，不写 `segment-end`。在这次检查或更早被收回的段已经计过 `expired`，它的 `end` 答 `dropped(closed)` 但不再计数；关闭开始时还没超期的段，之后的 `end` 与 `event` 只计 `closed`，不另计 `expired`。有效的迟到 `end` 保持幂等；运行时把这项计数资格留在旧句柄上，不另建终态总表。
+
+释放通知的同步时机、单次性与异常隔离按 TC-14。关闭释放包含尚未过期的段；回调抛错不阻断其他段的释放。
 
 ### TN-7 关闭
 
 `close(deadlineMs)` 按下面的次序进行：
 
-1. 停止准入。之后的端口操作与 `ingestLog` 答 `dropped(closed)`。
+1. 停止准入，完成最后一次过期检查，再释放其余开放段并同步通知。之后的端口操作与 `ingestLog` 答 `dropped(closed)`。
 2. 在 `clock.monotonicMs()` 到达期限之前，把队列同步排空到出口。
 3. 队列排空时，结束出口并在剩余时间内等待确认。期限到达时，运行时不再等待，直接结束出口。
 4. 返回 `CloseReport`。
@@ -124,7 +126,7 @@
 | `dropped`   | `droppedBy` 各项之和                                                                                                                                                                                                 |
 | `pending`   | 期限到达时仍在队列里的记录数。这些记录不写出                                                                                                                                                                         |
 | `flush`     | 有 `pending` 时为 `deadline`；否则有过输出错误时为 `failed`；否则为 `completed-to-boundary`                                                                                                                          |
-| `boundary`  | `flush` 为 `completed-to-boundary` 时为 `local-sink`。其他情况下，有记录到达过出口时为 `local-sink`，否则为 `none`                                                                                                   |
+| `boundary`  | 至少一条记录成功写到出口时为 `local-sink`，否则为 `none`。空队列的成功排空不表示已到达出口                                                                                                   |
 | `transport` | 期限到达时为 `unconfirmed`，从不写 `closed`。`writer` 出口排空后为 `closed`，因为运行时停止调用写函数，流归应用。`file` 出口在剩余时间内收到 `close` 事件为 `closed`，收到 `error` 为 `failed`，超时为 `unconfirmed` |
 
 `close` 不拒绝。重复调用返回第一次调用的同一个 Promise。非有限或负的期限按 0 处理。
@@ -228,8 +230,8 @@
 | TN-2、TN-3                  | `tests/runtime.spec.ts`：记录形状、无效字段与绑定、超长记录、代理对象、指标、秘密样式的输入；「discard」三例：按原因计数且不写出、不可声称的原因与非定义答 `invalid`、关闭后答 `closed` |
 | TN-4                        | `tests/runtime.spec.ts`「outlet failures」；`tests/file-outlet.spec.ts` 的真实文件            |
 | TN-5                        | `tests/runtime.spec.ts`：写函数持续抛错时的摘要条数与计数，摘要出口抛错                       |
-| TN-6                        | `tests/runtime.spec.ts`「segments」；存活期、过期的计数、缺省值、恰好等于存活期、关闭时收回见「segment lifetime」 |
-| TN-7                        | `tests/runtime.spec.ts`「close」与「close at the deadline」；`droppedBy.output` 与 `dropped` 的求和见「outlet failures」；`tests/file-outlet.spec.ts` |
+| TN-6                        | `tests/release.spec.ts` 核对同步通知、回滚、异常、关闭与迟到 end；`tests/runtime.spec.ts`「segments」；存活期、过期的计数、缺省值、恰好等于存活期、关闭时收回见「segment lifetime」 |
+| TN-7                        | `tests/release.spec.ts` 核对空输出边界；`tests/runtime.spec.ts`「close」与「close at the deadline」；`droppedBy.output` 与 `dropped` 的求和见「outlet failures」；`tests/file-outlet.spec.ts` |
 | TN-8                        | `tests/disabled.spec.ts`                                                                      |
 | TN-9                        | `tests/log-bridge.spec.ts`，用真实的 Cordis `Context` 与 logger；直写态见「direct」           |
 | TN-10                       | `tests/cordis-entry.spec.ts`，用真实的 Cordis `Context`                                       |
