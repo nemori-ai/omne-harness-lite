@@ -79,9 +79,10 @@ export function materialSnapshot(value: ToolMaterialRef) {
   const encoded = canonicalValue(value)
   if ('failure' in encoded) return encoded
   const material = materialOf(encoded.ok.data)
-  return material === null
-    ? fail({ kind: 'invalid', field: 'material', reason: 'identity' } as const)
-    : succeed({ material, key: encoded.ok.text })
+  if (material === null)
+    return fail({ kind: 'invalid', field: 'material', reason: 'identity' } as const)
+  const identity = canonicalValue(material)
+  return 'failure' in identity ? identity : succeed({ material, key: identity.ok.text })
 }
 export function snapshotWriteMetadata(
   value: Readonly<{ codec: Adoption; source: DurableEvidence }>,

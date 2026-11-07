@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Adoption, Reply, ToolFailure, ToolOperationId } from '@omne-harness/tool-contract'
@@ -147,7 +148,7 @@ function materialFor(
   input: ToolMaterialFingerprint,
   provider: Adoption,
 ): Outcome<MaterialRecord, ToolFailure> {
-  const id = decodeToolMaterialId(`final:${operation}`)
+  const id = decodeToolMaterialId(`final:${createHash('sha256').update(operation).digest('hex')}`)
   const generation = decodeToolMaterialGeneration('1')
   if ('failure' in id || 'failure' in generation) return invalid('operation', 'material-identity')
   return succeed({

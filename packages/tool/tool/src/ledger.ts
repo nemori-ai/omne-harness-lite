@@ -1373,12 +1373,14 @@ export function createToolLedger<P, B extends ContentBlock>(
     queues: Object.freeze(queues),
     facts: Object.freeze({
       read: async input => {
+        const context = judgeCallInput<P>(input, 'recover')
+        if ('failure' in context) return context
         const basis = fixFactBasis(input)
         if ('failure' in basis) return basis
-        const saved = await query(input, 'recover', snapshot => readSavedFact(snapshot, basis.ok))
+        const saved = await query(context.ok, 'recover', snapshot =>
+          readSavedFact(snapshot, basis.ok),
+        )
         if ('failure' in saved) return saved
-        const context = await entry(input, 'recover')
-        if ('failure' in context) return context
         const restored = await restoreSavedFact(
           context.ok,
           saved.ok,
@@ -1387,7 +1389,7 @@ export function createToolLedger<P, B extends ContentBlock>(
           toolLedgerAdoption,
         )
         if ('failure' in restored) return restored
-        const allowed = await entry(input, 'recover')
+        const allowed = await access(context.ok, 'recover')
         return 'failure' in allowed ? allowed : restored
       },
     } satisfies ToolLedgerFacts<P, B>),
