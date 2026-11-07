@@ -105,6 +105,16 @@ it.each([
           source: evidence,
         }),
       )
+      const binary = new Uint8Array([0, 255, 128, 13, 10, 0])
+      const materialRaw = ok(
+        await ledger.rawCustody.preserve({
+          ...world.access,
+          operation: ok(decodeToolOperationId('binary-attachment')),
+          codec: { owner: 'fixture', name: 'binary', revision: '1', digest: 'sha256:binary' },
+          bytes: binary,
+          source: evidence,
+        }),
+      )
       const judged = judgeContentBlock({
         kind: 'text',
         id: 'answer',
@@ -120,7 +130,7 @@ it.each([
           content: [block],
           data: { kind: 'none' },
           original: { kind: 'none' },
-          attachments: [],
+          attachments: [materialRaw.content],
         },
         terminal: { kind: 'completed' },
         effect: { kind: 'occurred', evidence },
@@ -173,14 +183,13 @@ it.each([
       expect(Buffer.byteLength(JSON.stringify(retained))).toBeLessThan(100_000)
       if (retained.kind !== 'complete') throw new Error('ledger read incomplete')
       const uses = retained.records.filter(record => record.kind === 'material-use')
-      expect(uses).toHaveLength(settle ? 3 : 1)
+      expect(uses).toHaveLength(settle ? 4 : 2)
       expect(
-        uses.every(
-          record =>
-            record.kind === 'material-use' &&
-            record.use.kind === (settle ? 'delivery' : 'preparation'),
-        ),
-      ).toBe(true)
+        uses.filter(record => record.kind === 'material-use' && record.use.kind === 'delivery'),
+      ).toHaveLength(settle ? 3 : 0)
+      expect(
+        uses.filter(record => record.kind === 'material-use' && record.use.kind === 'preparation'),
+      ).toHaveLength(settle ? 1 : 2)
       const cleanup = retained.records.filter(record => record.kind === 'material-cleanup')
       expect(cleanup).toHaveLength(settle ? 1 : 0)
       const state = ok(await ledger.commands.loadRecovery(world.access)).state
@@ -193,6 +202,22 @@ it.each([
           reopened.custody,
         )
         expect(ok(await restoredLedger.commands.loadRecovery(world.access)).state).toEqual(state)
+        if (state.phase === 'settled') {
+          const input = {
+            ...world.access,
+            result: state.result,
+            attachment: materialRaw.content,
+            maxBytes: 3,
+          }
+          const first = ok(await restoredLedger.reads.content.read({ ...input, after: null }))
+          expect(first.bytes).toEqual(new Uint8Array([0, 255, 128]))
+          expect(first.next).not.toBeNull()
+          const second = ok(
+            await restoredLedger.reads.content.read({ ...input, after: first.next }),
+          )
+          expect(second.bytes).toEqual(new Uint8Array([13, 10, 0]))
+          expect(second.next).toBeNull()
+        }
         const restored = await reopened.store.read({
           kind: 'call',
           tenant,

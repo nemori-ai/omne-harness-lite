@@ -55,7 +55,7 @@ ToolCall 决定器输入当前持久状态、具名命令和已核验 guard 快�
 
 `ResultRecord` 只保存 content、data、附件元数据与作者 summary 的通道引用。完整值由读取分面还原，记录仓及纯决策不依赖内容块类型参数。`admit`、`rejectPending`、`recordStart(rejected)` 先准备系统结果，再提交结果与根操作回执。首次读取的修订号贯穿准备 IO，可靠否定答案仍能排除旧请求。完整准备的重试不重新生成文本，部分准备时允许重求纯系统文本，但异值不得覆盖材料。准备沿原入口权限，受理不额外要求 write 或 recover。
 
-`rawCustody` 提供 `ToolOutputCustody` 的 preserve 和 inspect 窄分面。它在原 call 域先记录材料准备责任，再写入原始字节，保留作者 codec。新准备要求调用已启动且仍运行；已封存操作可认回。重试异值冲突，未确认封存时 inspect 返回 unknown，不声称可靠排除。两入口均检查 write 资格，披露前再次检查。purpose 区分 raw、final 和 result 材料，不能把 final 当成 raw 认回。当前此分面已有独立入口，宿主生产接线及 raw 用途解除仍待完成。
+`rawCustody` 提供 `ToolOutputCustody` 的 preserve 和 inspect 窄分面。它在原 call 域先记录材料准备责任，再写入原始字节，保留作者 codec。新准备要求调用已启动且仍运行；已封存操作可认回。重试异值冲突，未确认封存时 inspect 返回 unknown，不声称可靠排除。两入口均检查 write 资格，披露前再次检查。purpose 区分 raw、final 和 result 材料，不能把 final 当成 raw 认回。当前此分面已有独立入口，宿主生产接线及 raw 用途解除仍待完成。 `ledger-material-content` 把封存材料投影为 Attachment，并为 `content.read` 匹配当前 call 的原材料。读口不解码调用者地址来选仓库。内部 raw 读取使用联合资格，复核读取后的材料归属和结果关联；外部原生附件保持原提供者路由。该字节读口不替代语义正文页，也未实现有限页租约。
 
 结果提交在同一次 call CAS 中核对各最终通道的 sealed 材料和准备用途，将准备用途替换为绑定结果与交付身份的 delivery 用途。真实执行结果同时解除已替代 envelope 的准备用途并记录 material-cleanup 待办。系统受理拒绝、rejectPending 和 recordStart(rejected) 也采用通道用途转换。releaseDelivery 在可靠消费依据通过核验后，同提交解除对应 delivery 用途并记录清理待办。material-cleanup 只表达待检查的责任，不授权物理删除；维护仍须重核其他用途、租约与对象围栏。raw 的替代、正文 TTL 和维护执行尚未完成。
 

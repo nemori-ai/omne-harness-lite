@@ -1489,6 +1489,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     content: createLedgerContent({
       adoption: toolLedgerAdoption,
       provider: settlement.content,
+      materials: settlement.materials?.store,
       authorize: access,
       load: input => read(callDomain(input)),
       resultValue,

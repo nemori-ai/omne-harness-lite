@@ -11,7 +11,7 @@ import {
   judgeMutationInput,
   type CallInput,
 } from './boundary.ts'
-import { canonicalJson } from './evidence.ts'
+import { materialContent } from './ledger-material-content.ts'
 import { fixCleanupFields } from './cleanup-boundary.ts'
 import type { ToolLedgerPorts } from './construction.ts'
 import type { Snapshot } from './ledger-decider.ts'
@@ -47,13 +47,7 @@ function fixedInput<P>(supplied: RawInput<P>): Outcome<RawInput<P>, ToolFailure>
 function rawOf(seal: ToolMaterialSeal): RawOutput {
   return {
     codec: seal.codec,
-    content: {
-      storage: '@omne-harness/tool/material',
-      key: canonicalJson(seal.material),
-      mediaType: 'application/octet-stream',
-      bytes: seal.bytes,
-      digest: `sha256:${seal.sha256}`,
-    },
+    content: materialContent(seal),
     custody: seal.evidence,
   }
 }

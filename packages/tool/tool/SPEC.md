@@ -540,3 +540,10 @@ SourceVerdict 的 denied 表示来源真实、当前请求资格被拒。ledger 
 `facts.read` 对 pending 返回完整原 final，对 settled 返回结果版本和结算凭据。pending 在恢复资格检查后按有界字节页加载 envelope，核总长度、SHA-256、规范值指纹及 raw/terminal/effect 身份，再核当前资格后返回。缺失、损坏或不连续页返回 unavailable，未知指纹编码版本返回 unsupported。当前准备材料用途保留，因此尚未执行 envelope 的自动清理。
 
 宿主完成缓存已只保存封存引用。pending/settled 转换已接入结算及别名接收。最终结果通道材料、固定 TTL 和维护仍须继续实现，不能以本节声称完整 W3 生命周期可用。
+
+
+### Tool 自有 raw 材料的字节读取
+
+`content.read` 对 `@omne-harness/tool/material` 引用从当前 call 的封存 raw 材料中匹配完整 Attachment，不解析调用者的 key 来选择材料或提供者。引用必须已关联当前结果。Tool 材料仓承担字节读取，原生附件继续使用已装配的外部内容提供者。内部地址没有匹配材料时明确拒绝，不能回退到外部提供者。
+
+内部 raw 字节游标绑定 tenant、call、结果版本、完整 Attachment 和位置。读取前后核对原结果关联、封存材料及当前 `read-raw-content` 联合资格。页长度、起止位置与提供者续读位置必须一致。该入口保留二进制字节，不是面向模型的正文语义分页。有限页租约、TTL 与删除协调仍由后续生命周期实现提供，本次读回接线不授予删除权限。

@@ -15,6 +15,7 @@ import {
   type LedgerCommitInput,
   type ToolAccessGuard,
   type ToolLedgerStore,
+  type ToolLedger,
 } from '@omne-harness/tool'
 import { admitCall, startHarness } from './start-values.ts'
 import {
@@ -46,7 +47,12 @@ export async function settlementFixture(
     process?: readonly ProcessBlock[] | ((raw: RawOutput) => readonly ProcessBlock[])
     custody?: MemoryToolOutputCustody<Principal>
     attachments?: RawOutput['content'][]
-    value?: ToolResult<Block> | ((raw: RawOutput) => ToolResult<Block>)
+    value?:
+      | ToolResult<Block>
+      | ((
+          raw: RawOutput,
+          ledger: ToolLedger<Principal, Block>,
+        ) => ToolResult<Block> | Promise<ToolResult<Block>>)
     wrapReleaseInspection?: (
       environment: ToolEnvironment<Principal, unknown>,
     ) => Pick<ToolEnvironment<Principal, unknown>, 'adoption' | 'inspectRelease'>
@@ -111,7 +117,9 @@ export async function settlementFixture(
   const final: ToolFinalEnvelope<Block> = {
     kind: 'final',
     raw,
-    result: (typeof options.value === 'function' ? options.value(raw) : options.value) ?? {
+    result: (typeof options.value === 'function'
+      ? await options.value(raw, harness.ledger)
+      : options.value) ?? {
       content: [text('answer', 'done')],
       data: { kind: 'none' },
       original: { kind: 'none' },
