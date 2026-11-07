@@ -1,3 +1,4 @@
+import type { ResultPreparationRecord } from './ledger-result-preparation.ts'
 // The ledger store port (G1): one domain read and one revision-conditioned atomic commit. The
 // store keeps records by key inside a transaction domain and interprets none of them. A durable
 // provider (#280) and the non-durable store of `./testing` implement the same port.
@@ -94,6 +95,7 @@ export type CallRecord = Readonly<{
 
 /** The complete named result of one committed operation (P01 `committed.receipt`). */
 export type OperationReceipt =
+  | Readonly<{ kind: 'prepare-result'; basis: DurableEvidence }>
   | Readonly<{
       kind: 'prepare-material'
       material: MaterialRecord['material']
@@ -298,6 +300,7 @@ export type QueueReleaseRecord = Readonly<{ call: ToolCallId; basis: ReleaseBasi
 export type HostRecord = Readonly<{ key: string; value: unknown }>
 
 export type LedgerRecord<B extends ContentBlock> =
+  | Readonly<{ kind: 'result-preparation'; preparation: ResultPreparationRecord }>
   | Readonly<{ kind: 'material'; material: MaterialRecord }>
   | Readonly<{ kind: 'material-use'; use: MaterialUseRecord }>
   | Readonly<{ kind: 'material-time'; time: MaterialTimeRecord }>
@@ -321,6 +324,8 @@ export type LedgerRecord<B extends ContentBlock> =
 export function recordKey<B extends ContentBlock>(record: LedgerRecord<B>): string {
   if (isQueueRecord(record)) return queueRecordKey(record)
   switch (record.kind) {
+    case 'result-preparation':
+      return `result-preparation:${record.preparation.id}`
     case 'material':
       return `material:${record.material.writeOperation}`
     case 'material-use':

@@ -1,3 +1,10 @@
+import {
+  syntheticChannels,
+  type PreparedSynthetic,
+  type ResultPreparationRecord,
+  type SyntheticDecision,
+} from './ledger-result-preparation.ts'
+import type { ResultChannels } from './ledger-result-material.ts'
 // The pure admission decider (P01, P02) and the delivery release decider (P08). A decision reads
 // the domain snapshot and the command, and answers either a reply without writes or a set of
 // writes with the value to reply after the commit. It reads no port, runs no tool and mints no
@@ -65,6 +72,7 @@ import {
 
 /** The records of one domain, indexed for the deciders and the read projections. */
 export type Snapshot<B extends ContentBlock> = Readonly<{
+  resultPreparations: ReadonlyMap<string, ResultPreparationRecord>
   materials: ReadonlyMap<string, MaterialRecord>
   materialUses: ReadonlyMap<string, MaterialUseRecord>
   materialTime: MaterialTimeRecord | null
@@ -89,6 +97,7 @@ export function snapshotOf<B extends ContentBlock>(
   domain: LedgerDomain,
   read: Extract<LedgerRead<B>, { kind: 'complete' }>,
 ): Snapshot<B> {
+  const resultPreparations = new Map<string, ResultPreparationRecord>()
   const materials = new Map<string, MaterialRecord>()
   const materialUses = new Map<string, MaterialUseRecord>()
   let materialTime: MaterialTimeRecord | null = null
@@ -105,6 +114,9 @@ export function snapshotOf<B extends ContentBlock>(
   const exclusions = new Map<string, ExclusionRecord>()
   for (const record of read.records) {
     switch (record.kind) {
+      case 'result-preparation':
+        resultPreparations.set(record.preparation.id, record.preparation)
+        break
       case 'material':
         materials.set(record.material.writeOperation, record.material)
         break
@@ -155,6 +167,7 @@ export function snapshotOf<B extends ContentBlock>(
     }
   }
   return {
+    resultPreparations,
     materials,
     materialUses,
     materialTime,
@@ -240,9 +253,10 @@ export type Admitted = Readonly<{ state: ToolState; recovered: boolean }>
 export function decideAdmit<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   command: AdmitCommand,
-  tools: AdmitTools<B>,
+  tools: Pick<AdmitTools<B>, 'arguments'>,
   mint: Mint,
-): Decision<Admitted, B> {
+  prepared: PreparedSynthetic | null,
+): SyntheticDecision<Admitted, B> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'admit')
   if ('failure' in known) return reply(known)
   if (known.ok !== undefined) return reply(succeed({ state: stateOf(known.ok), recovered: true }))
@@ -255,8 +269,8 @@ export function decideAdmit<B extends ContentBlock>(
     return settle(
       command,
       { kind: 'unavailable', reason: request.availability.reason },
-      tools,
       mint,
+      prepared,
     )
   if (request.invocation.kind === 'programmatic' && definition.programmable !== true)
     return reply(
@@ -267,7 +281,7 @@ export function decideAdmit<B extends ContentBlock>(
       }),
     )
   const parsed = tools.arguments(request.arguments)
-  if ('failure' in parsed) return argumentsFailure(command, parsed.failure, tools, mint)
+  if ('failure' in parsed) return argumentsFailure(command, parsed.failure, mint, prepared)
   return acceptWithinCapacity(command, mint)
 }
 
@@ -377,9 +391,9 @@ function stateOf(record: OperationRecord): ToolState {
 function argumentsFailure<B extends ContentBlock>(
   command: AdmitCommand,
   rejection: ToolArgumentsRejection,
-  tools: AdmitTools<B>,
   mint: Mint,
-): Decision<Admitted, B> {
+  prepared: PreparedSynthetic | null,
+): SyntheticDecision<Admitted, B> {
   switch (rejection.kind) {
     case 'incomplete':
       return reply(invalid('request.arguments.complete', 'incomplete'))
@@ -387,7 +401,7 @@ function argumentsFailure<B extends ContentBlock>(
       return reply(invalid(`request.arguments.${rejection.field}`, rejection.reason))
     case 'invalid': {
       const diagnostic = `${rejection.field}: ${rejection.reason}`
-      return settle(command, { kind: 'failed', cause: 'arguments', diagnostic }, tools, mint)
+      return settle(command, { kind: 'failed', cause: 'arguments', diagnostic }, mint, prepared)
     }
     default: {
       const exhaustive: never = rejection
@@ -506,10 +520,10 @@ export function settlementWrites<B extends ContentBlock>(
   place: Readonly<{ tenant: TenantId; call: ToolCallId; operation: ToolOperationId }>,
   consumer: ConsumerRef,
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
-  value: ToolResult<B>,
+  value: ResultChannels,
   mint: Mint,
 ): Readonly<{ version: FirstVersion<B>; writes: readonly LedgerWrite<B>[] }> {
-  const first = firstResultWrites(
+  const first = firstResultWrites<B>(
     place,
     consumer,
     terminal,
@@ -547,13 +561,18 @@ export function settlementWrites<B extends ContentBlock>(
 function settle<B extends ContentBlock>(
   command: AdmitCommand,
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
-  tools: AdmitTools<B>,
   mint: Mint,
-): Decision<Admitted, B> {
-  const made = terminalText(terminal, tools.text)
+  prepared: PreparedSynthetic | null,
+): SyntheticDecision<Admitted, B> {
+  const made = syntheticChannels(
+    command,
+    { terminal, consumer: command.request.consumer },
+    prepared,
+  )
+  if ('kind' in made) return made
   if ('failure' in made) return reply(made)
   const { tenant, call, request } = command
-  const settled = settlementWrites(command, request.consumer, terminal, made.ok, mint)
+  const settled = settlementWrites<B>(command, request.consumer, terminal, made.ok, mint)
   const state = logicalState(
     tenant,
     call,

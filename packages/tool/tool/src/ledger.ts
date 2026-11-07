@@ -1,3 +1,8 @@
+import {
+  createResultPreparation,
+  type PreparedSynthetic,
+  type SyntheticDecider,
+} from './ledger-result-preparation.ts'
 import { createLedgerMaterialCustody } from './ledger-material-custody.ts'
 import { prepareResultChannels, readResultChannels } from './ledger-result-material.ts'
 import type { ResultRecord } from './ledger-store.ts'
@@ -590,6 +595,76 @@ export function createToolLedger<P, B extends ContentBlock>(
   const text = (terminal: Parameters<typeof terminalText<B>>[0]) =>
     terminalText(terminal, admitTools.text)
 
+  const settleSynthetic = async <T>(
+    context: MutationInput<P>,
+    action: 'admit' | 'write',
+    inputDigest: string,
+    decide: SyntheticDecider<T, B>,
+    since: Snapshot<B>['revision'] | null = null,
+  ): Reply<T> => {
+    const before = await read(callDomain(context))
+    if ('failure' in before) return before
+    const firstRead = since ?? before.ok.revision
+    if (excludedSince(before.ok, context.operation, firstRead)) return excluded(context.operation)
+    const initial = decide(before.ok, { revision: nextRevision(before.ok.revision) }, null)
+    let prepared: PreparedSynthetic | null = null
+    if (initial.kind === 'prepare-synthetic') {
+      const prepare = createResultPreparation<P, B>({
+        authorize: input => entry(input, action),
+        custody: createLedgerMaterialCustody<P, B>({
+          materials: settlement.materials,
+          entry: input => entry(input, action),
+          transact,
+        }),
+        transact,
+        text,
+      })
+      const value = await prepare({ ...context, inputDigest }, initial.need, snapshot => {
+        if (excludedSince(snapshot, context.operation, firstRead))
+          return excluded(context.operation)
+        const current = decide(snapshot, { revision: nextRevision(snapshot.revision) }, null)
+        if (
+          current.kind === 'prepare-synthetic' &&
+          digestOf(current.need) === digestOf(initial.need)
+        )
+          return succeed(undefined)
+        if (current.kind === 'reply' && 'failure' in current.outcome) return current.outcome
+        return unavailable(
+          'result-preparation',
+          'the original settlement changed during preparation',
+        )
+      })
+      if ('failure' in value) {
+        const current = await read(callDomain(context))
+        if ('failure' in current) return current
+        if (excludedSince(current.ok, context.operation, firstRead))
+          return excluded(context.operation)
+        if (!current.ok.operations.has(context.operation))
+          return value.failure.kind === 'commit-unknown' &&
+            value.failure.operation !== context.operation
+            ? unavailable('result-preparation', 'preparation has an unresolved commit')
+            : value
+      } else prepared = value.ok
+    }
+    return transact(
+      callDomain(context),
+      context.operation,
+      async (snapshot, mint) => {
+        const allowed = await access(context, action)
+        if ('failure' in allowed) return { kind: 'reply', outcome: allowed }
+        const decision = decide(snapshot, mint, prepared)
+        return decision.kind === 'prepare-synthetic'
+          ? {
+              kind: 'reply',
+              outcome: unavailable('result-preparation', 'prepared channels are unavailable'),
+            }
+          : decision
+      },
+      commitUnknown(context.operation),
+      firstRead,
+    )
+  }
+
   /** How many unreleased calls the request's queue holds, read before an admission (P02). */
   const queueLoad = async (
     checked: MutationInput<P>,
@@ -622,37 +697,29 @@ export function createToolLedger<P, B extends ContentBlock>(
 
   const admissions: ToolLedgerAdmissions<P> = {
     admit: async input => {
-      const fixed: {
-        value: Readonly<{ checked: MutationInput<P>; request: FixedToolRequest }> | null
-      } = { value: null }
-      const admitted = await mutate(input, 'admit', async checked => {
-        const judged = judgeFixedToolRequest(Reflect.get(input, 'request'))
-        if ('failure' in judged)
-          return invalid(`request.${judged.failure.field}`, judged.failure.reason)
-        const request = judged.ok
-        const trusted = await verifySource(checked, request)
-        if ('failure' in trusted) return trusted
-        const granted = await verifyGrant(checked, request)
-        if ('failure' in granted) return granted
-        const queue = await queueLoad(checked, request)
-        if ('failure' in queue) return queue
-        fixed.value = { checked, request }
-        const command = { ...checked, request, inputDigest: digestOf(request), queue: queue.ok }
-        return succeed((snapshot, mint) => decideAdmit(snapshot, command, admitTools, mint))
-      })
-      // A recalled admission answers the state of its first receipt, which is `accepted` even
-      // after the call settled and its entry was released. Only the first admission orders; a
-      // released call answers `released` and gets no entry, and a failed step leaves the
-      // ordinal to planPreparation.
-      if (
-        'ok' in admitted &&
-        !admitted.ok.recovered &&
-        admitted.ok.state.phase === 'accepted' &&
-        fixed.value !== null
-      ) {
-        const { checked, request } = fixed.value
-        await order(checked.tenant, checked, request)
-      }
+      const checked = judgeMutationInput<P>(input, 'admit')
+      if ('failure' in checked) return checked
+      const allowed = await access(checked.ok, 'admit')
+      if ('failure' in allowed) return allowed
+      const judged = judgeFixedToolRequest(Reflect.get(input, 'request'))
+      if ('failure' in judged)
+        return invalid(`request.${judged.failure.field}`, judged.failure.reason)
+      const request = judged.ok
+      const trusted = await verifySource(checked.ok, request)
+      if ('failure' in trusted) return trusted
+      const granted = await verifyGrant(checked.ok, request)
+      if ('failure' in granted) return granted
+      const queue = await queueLoad(checked.ok, request)
+      if ('failure' in queue) return queue
+      const command = { ...checked.ok, request, inputDigest: digestOf(request), queue: queue.ok }
+      const admitted = await settleSynthetic(
+        checked.ok,
+        'admit',
+        command.inputDigest,
+        (snapshot, mint, prepared) => decideAdmit(snapshot, command, admitTools, mint, prepared),
+      )
+      if ('ok' in admitted && !admitted.ok.recovered && admitted.ok.state.phase === 'accepted')
+        await order(checked.ok.tenant, checked.ok, request)
       return admitted
     },
   }
@@ -915,11 +982,11 @@ export function createToolLedger<P, B extends ContentBlock>(
     if ('failure' in before) return before
     const record = recordOf(before.ok)
     if ('failure' in record) return record
-    const settled = await transact(
-      callDomain(context.ok),
-      command.operation,
-      (snapshot, mint) => decideRejectPending(snapshot, command, text, mint),
-      commitUnknown(command.operation),
+    const settled = await settleSynthetic(
+      context.ok,
+      'write',
+      command.inputDigest,
+      (snapshot, mint, prepared) => decideRejectPending(snapshot, command, prepared, mint),
       before.ok.revision,
     )
     if ('failure' in settled) return settled
@@ -982,18 +1049,18 @@ export function createToolLedger<P, B extends ContentBlock>(
       segment = begun.ok
     }
     const timing = segment
-    const recorded = await transact(
-      callDomain(context.ok),
-      command.operation,
-      (snapshot, mint) =>
+    const recorded = await settleSynthetic(
+      context.ok,
+      'write',
+      command.inputDigest,
+      (snapshot, mint, prepared) =>
         decideRecordStart(
           snapshot,
           { ...command, segment: timing, execution: executionOf(context.ok) },
-          text,
+          prepared,
           digestOf,
           mint,
         ),
-      commitUnknown(command.operation),
       before.ok.revision,
     )
     if ('failure' in recorded) return recorded

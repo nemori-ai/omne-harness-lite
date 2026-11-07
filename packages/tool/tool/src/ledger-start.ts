@@ -1,3 +1,8 @@
+import {
+  syntheticChannels,
+  type PreparedSynthetic,
+  type SyntheticDecision,
+} from './ledger-result-preparation.ts'
 import { sameFactValue } from './ledger-facts.ts'
 // The pure deciders of the way from an accepted call to a recorded start (P02, P03, P04): the
 // queue domain (order, readiness, head and slot, release) and the call domain (preparation plan
@@ -728,13 +733,14 @@ function rejectionWrites<B extends ContentBlock>(
   record: CallRecord,
   command: WriteCommand,
   rejection: StartRejection,
-  text: TerminalText<B>,
+  prepared: PreparedSynthetic | null,
   mint: Mint,
-): Decision<ToolState, B> {
+): SyntheticDecision<ToolState, B> {
   const terminal = { kind: 'unavailable', reason: rejection.reason } as const
-  const made = text(terminal)
+  const made = syntheticChannels(command, { terminal, consumer: record.request.consumer }, prepared)
+  if ('kind' in made) return made
   if ('failure' in made) return reply(made)
-  const settled = settlementWrites(command, record.request.consumer, terminal, made.ok, mint)
+  const settled = settlementWrites<B>(command, record.request.consumer, terminal, made.ok, mint)
   const { version, delivery } = settled.version
   const state = rejectedState(
     record,
@@ -773,9 +779,9 @@ export type RejectPendingCommand = WriteCommand & StartRejection
 export function decideRejectPending<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   command: RejectPendingCommand,
-  text: TerminalText<B>,
+  prepared: PreparedSynthetic | null,
   mint: Mint,
-): Decision<ToolState, B> {
+): SyntheticDecision<ToolState, B> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'reject-pending')
   if ('failure' in known) return reply(known)
   if (known.ok !== undefined) return reply(succeed(stateOf(known.ok.receipt)))
@@ -786,7 +792,7 @@ export function decideRejectPending<B extends ContentBlock>(
   if (!PENDING_PHASES.includes(record.state.phase)) return reply(wrongPhase(record.state.phase))
   const rejection = { reason: command.reason, exclusion: command.exclusion }
   return withReceipt(
-    rejectionWrites(snapshot, record, command, rejection, text, mint),
+    rejectionWrites(snapshot, record, command, rejection, prepared, mint),
     command,
     'reject-pending',
     mint,
@@ -795,12 +801,12 @@ export function decideRejectPending<B extends ContentBlock>(
 
 /** Adds the operation receipt of a settlement decision to its writes. */
 function withReceipt<B extends ContentBlock>(
-  decided: Decision<ToolState, B>,
+  decided: SyntheticDecision<ToolState, B>,
   command: WriteCommand,
   kind: 'reject-pending' | 'record-start',
   mint: Mint,
-): Decision<ToolState, B> {
-  if (decided.kind === 'reply') return decided
+): SyntheticDecision<ToolState, B> {
+  if (decided.kind !== 'commit') return decided
   const receipt = operationRecord<B>(command, { kind, state: decided.value }, mint)
   return { ...decided, writes: [...decided.writes, put<B>(receipt)] }
 }
@@ -845,10 +851,10 @@ function startingCall<B extends ContentBlock>(
 export function decideRecordStart<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   command: RecordStartCommand,
-  text: TerminalText<B>,
+  prepared: PreparedSynthetic | null,
   recordDigest: (record: ToolStartRecord) => string,
   mint: Mint,
-): Decision<ToolState, B> {
+): SyntheticDecision<ToolState, B> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'record-start')
   if ('failure' in known) return reply(known)
   if (known.ok !== undefined) return reply(succeed(stateOf(known.ok.receipt)))
@@ -861,7 +867,7 @@ export function decideRecordStart<B extends ContentBlock>(
       return started(snapshot, record, command, mint)
     case 'rejected': {
       const rejection = { reason: outcome.reason, exclusion: outcome.exclusion }
-      const decided = rejectionWrites(snapshot, record, command, rejection, text, mint)
+      const decided = rejectionWrites(snapshot, record, command, rejection, prepared, mint)
       return withReceipt(decided, command, 'record-start', mint)
     }
     case 'not-started':

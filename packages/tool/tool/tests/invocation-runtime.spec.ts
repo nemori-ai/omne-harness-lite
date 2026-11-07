@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type { MemoryCommitFault } from '@omne-harness/tool/testing'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createToolRuntime, type ToolLedgerAction } from '@omne-harness/tool'
 import {
@@ -37,6 +38,29 @@ function runtimeAssembly() {
   const assembly = testAssembly()
   const provider = createToolRuntime(assembly.dependencies, assembly.configuration)
   return { ...assembly, provider, runtime: provider.runtime }
+}
+
+function faultAdmission(
+  store: ReturnType<typeof runtimeAssembly>['store'],
+  fault: MemoryCommitFault,
+) {
+  const commit = store.commit.bind(store)
+  let injected = false
+  vi.spyOn(store, 'commit').mockImplementation(input => {
+    if (
+      !injected &&
+      input.writes.some(
+        write =>
+          write.kind === 'put' &&
+          write.record.kind === 'operation' &&
+          write.record.operation.receipt.kind === 'admit',
+      )
+    ) {
+      injected = true
+      store.injectCommit(fault)
+    }
+    return commit(input)
+  })
 }
 
 describe('ordinary invocation and saved references', () => {
@@ -145,7 +169,7 @@ describe('ordinary invocation and saved references', () => {
     'recovers the original admission after %s and runtime reconstruction',
     async fault => {
       const base = runtimeAssembly()
-      base.store.injectCommit(fault)
+      faultAdmission(base.store, fault)
       const outcome = await base.runtime.invoke({
         principal: principalA,
         tenant: tenantA,
@@ -213,7 +237,7 @@ describe('ordinary invocation and saved references', () => {
 
   it('keeps unknown distinct from reliable exclusion and fences a delayed admission', async () => {
     const base = runtimeAssembly()
-    base.store.injectCommit('unknown-delayed')
+    faultAdmission(base.store, 'unknown-delayed')
     const outcome = await base.runtime.invoke({
       principal: principalA,
       tenant: tenantA,
@@ -359,9 +383,10 @@ describe('ordinary invocation and saved references', () => {
       consumer: dummyRequest().consumer,
       evidence: { kind: 'retained' as const, custody: evidence('kept', 'consumer') },
     }
+    const beforeRelease = base.store.commits
     const first = await base.runtime.commands.releaseDelivery(input)
     if (first.kind !== 'released') throw new Error(JSON.stringify(first))
-    expect(base.store.commits).toBe(2)
+    expect(base.store.commits).toBe(beforeRelease + 1)
     const releaseReplies: unknown[] = []
     const runtime = createToolRuntime(
       {
@@ -379,7 +404,7 @@ describe('ordinary invocation and saved references', () => {
     const unknown = await runtime.commands.releaseDelivery(input)
     if (unknown.kind !== 'commit-unknown') throw new Error(JSON.stringify(unknown))
     expect(readToolOperationRef(unknown.operation).operation).toBe('op-cmd-2')
-    expect(base.store.commits).toBe(2)
+    expect(base.store.commits).toBe(beforeRelease + 1)
     expect(
       await runtime.queries.queryOperation({
         principal: principalA,

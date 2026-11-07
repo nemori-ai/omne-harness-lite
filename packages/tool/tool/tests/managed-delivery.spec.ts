@@ -106,24 +106,38 @@ describe('16 delivery release (P08)', () => {
   it('16 release: one commit releases the result, records the receipt and the state, and removes the deliver task', async () => {
     const assembly = harness()
     await assembly.admitInternal(dummyRequest())
+    const beforeRelease = assembly.store.commits
     const released = releasedReceipt(
       await assembly.runtime.commands.releaseDelivery(release(retained)),
     )
-    expect(assembly.store.commits).toBe(2)
+    expect(assembly.store.commits).toBe(beforeRelease + 1)
     const read = await assembly.store.read({
       kind: 'call',
       tenant: tenantA,
       call: callId('call-1'),
     })
     if (read.kind !== 'complete') throw new Error('read failed')
-    expect(read.revision).toBe('2')
+    expect(read.revision).toBe(String(beforeRelease + 1))
     const of = <K extends string>(kind: K) => read.records.filter(record => record.kind === kind)
     expect(of('task')).toEqual([])
     expect(of('result')).toMatchObject([{ result: { delivery: released } }])
-    expect(of('call')).toMatchObject([{ call: { state: { delivery: released, revision: '2' } } }])
-    expect(of('operation')).toMatchObject([
-      { operation: { operation: 'op-1', revision: '1' } },
-      { operation: { operation: 'op-cmd-1', revision: '2', receipt: { delivery: released } } },
+    expect(of('call')).toMatchObject([
+      { call: { state: { delivery: released, revision: read.revision } } },
+    ])
+    expect(
+      of('operation').filter(
+        record =>
+          record.kind === 'operation' && ['op-1', 'op-cmd-1'].includes(record.operation.operation),
+      ),
+    ).toMatchObject([
+      { operation: { operation: 'op-1', revision: String(beforeRelease) } },
+      {
+        operation: {
+          operation: 'op-cmd-1',
+          revision: read.revision,
+          receipt: { delivery: released },
+        },
+      },
     ])
   })
 
@@ -139,6 +153,7 @@ describe('16 delivery release (P08)', () => {
   it('16 release: the consumer and the handoff are closed values, checked before any digest', async () => {
     const assembly = harness()
     await assembly.admitInternal(dummyRequest())
+    const beforeRelease = assembly.store.commits
     const withFunction = { ...consumer, work: () => 'work-1' }
     expect(
       await assembly.runtime.commands.releaseDelivery(
@@ -168,13 +183,14 @@ describe('16 delivery release (P08)', () => {
       kind: 'rejected',
       failure: { kind: 'invalid', field: 'consumer', reason: 'type' },
     })
-    expect(assembly.store.commits).toBe(1)
+    expect(assembly.store.commits).toBe(beforeRelease)
     releasedReceipt(await assembly.runtime.commands.releaseDelivery(release(retained)))
   })
 
   it('16 release: a second release answers the released state and writes nothing more', async () => {
     const assembly = harness()
     await assembly.admitInternal(dummyRequest())
+    const beforeRelease = assembly.store.commits
     const released = releasedReceipt(
       await assembly.runtime.commands.releaseDelivery(release(retained)),
     )
@@ -186,7 +202,7 @@ describe('16 delivery release (P08)', () => {
       kind: 'released',
       receipt: released,
     })
-    expect(assembly.store.commits).toBe(2)
+    expect(assembly.store.commits).toBe(beforeRelease + 1)
   })
 
   it('16 release: another consumer position is a conflict and the delivery stays pending', async () => {
@@ -246,6 +262,7 @@ describe('16 delivery release (P08)', () => {
   it('16 release: the same operation with another handoff is a conflict', async () => {
     const assembly = harness()
     await assembly.admitInternal(dummyRequest())
+    const beforeRelease = assembly.store.commits
     const { reference: _reference, ...payload } = release(retained)
     const mutation = {
       ...payload,
@@ -257,7 +274,7 @@ describe('16 delivery release (P08)', () => {
     expect(
       await assembly.ledger.commands.releaseDelivery({ ...mutation, evidence: processed }),
     ).toEqual({ failure: { kind: 'conflict', operation: 'op-2' } })
-    expect(assembly.store.commits).toBe(2)
+    expect(assembly.store.commits).toBe(beforeRelease + 1)
   })
 
   it.each([
