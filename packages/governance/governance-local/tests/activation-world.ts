@@ -24,6 +24,9 @@ import {
 import { GOVERNANCE_OWNER } from '../src/migration.ts'
 import { digest, json, operationIdentity } from '../src/encoding.ts'
 import { tenantRef } from './operation-world.ts'
+import { storedStageSchema, persistStageSchema, type SqlStage } from '../src/sql-stage-schema.ts'
+import { STAGE_HANDLER } from '../src/sql-stage-read.ts'
+import type { OperationBinding } from '../src/operation-schema.ts'
 import { config } from './config.ts'
 
 type ParticipantCommand = CommitRequestV2['commands'][number]
@@ -56,8 +59,8 @@ export const plannerMembers = {
   mutation: [MUTATION_PLANNER, GOVERNANCE_OWNER],
   adoption: ['fixture.governance-current', ADOPTION_PLANNER, GOVERNANCE_OWNER],
 }
-export async function openActivation() {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'governance-activation-')))
+export async function openActivation(existing?: string) {
+  const root = existing ?? realpathSync(mkdtempSync(join(tmpdir(), 'governance-activation-')))
   const materials = activationCatalog()
   const made = await createSqliteStorage({
     config: config(root),
@@ -136,7 +139,32 @@ export async function openActivation() {
       { participant: GOVERNANCE_OWNER, facts: { requestDigest: digest(request) } },
     ]
   }
+  async function readStage(binding: OperationBinding, stage: SqlStage) {
+    const result = await storage.read({
+      domain,
+      ...STAGE_HANDLER,
+      requestKey: randomUUID(),
+      input: json({ binding, stage }),
+    })
+    if (result.kind !== 'read') throw new Error(JSON.stringify(result))
+    return result.output
+  }
+  function envelope(
+    mode: 'mutation' | 'adoption',
+    request: BusinessRequest,
+    evidence?: JsonValue,
+  ): CommitRequestV2 {
+    return {
+      identity: operationIdentity(domain.transactionDomain, request.binding.ref),
+      combinationVersion: combination(mode).combinationVersion,
+      manifestDigest: combination(mode).manifestDigest,
+      commands: businessCommands(mode, request, evidence),
+    }
+  }
   return {
+    root,
+    readStage,
+    envelope,
     domain,
     storage: storage,
     execution,
@@ -148,18 +176,29 @@ export async function openActivation() {
     control: async (request: ControlRequest) =>
       response(await commit('metadata', controlCommands(request))),
     async apply(mode: 'mutation' | 'adoption', request: BusinessRequest, evidence?: JsonValue) {
-      const result = await storage.commit({
-        identity: operationIdentity(domain.transactionDomain, request.binding.ref),
-        combinationVersion: combination(mode).combinationVersion,
-        manifestDigest: combination(mode).manifestDigest,
-        commands: businessCommands(mode, request, evidence),
-      })
+      const saved = await response(
+        await commit(
+          'metadata',
+          controlCommands({
+            kind: 'persist-stage',
+            input: persistStageSchema.parse({
+              binding: request.binding,
+              stage: 'apply',
+              envelope: envelope(mode, request, evidence),
+            }),
+          }),
+        ),
+      )
+      if (typeof saved === 'object' && saved !== null && 'kind' in saved && saved.kind === 'found')
+        return saved
+      const stored = storedStageSchema.parse(await readStage(request.binding, 'apply'))
+      const result = await storage.commit(stored.envelope)
       return response(result)
     },
-    async close() {
+    async close(remove = true) {
       const result = await control.close({ initiator: 'disposal' })
       if (result.kind !== 'closed') throw new Error(JSON.stringify(result))
-      rmSync(root, { recursive: true, force: true })
+      if (remove) rmSync(root, { recursive: true, force: true })
     },
   }
 }

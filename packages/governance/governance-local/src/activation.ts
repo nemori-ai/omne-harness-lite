@@ -16,9 +16,13 @@ import {
   recordGovernanceSettled,
 } from './standing-custody.ts'
 import { applyStandingOperation, sealGovernanceStanding } from './standing-operation.ts'
+import { persistSqlStage, requireApplyStage } from './sql-stage.ts'
 import { digest, json } from './encoding.ts'
 
-function control(port: ParticipantPort, request: ControlRequest) {
+function control(
+  port: ParticipantPort,
+  request: Exclude<ControlRequest, { kind: 'persist-stage' }>,
+) {
   switch (request.kind) {
     case 'bootstrap':
       return bootstrapScope(port, request.input)
@@ -58,12 +62,18 @@ function applyPlan(port: ParticipantPort, plan: Exclude<ActivationPlan, { kind: 
     throw new Error('Governance plan binding changed')
   if ((found.record.request.owner === 'adopt') !== (plan.kind === 'adoption'))
     throw new Error('Governance plan owner mismatch')
+  requireApplyStage(port, plan.request.binding, found.record.execution, plan.request.execution)
   return applyStandingOperation(
     port,
     plan.request.binding,
     plan.request.execution,
     plan.kind === 'adoption' ? plan.evidence : undefined,
   )
+}
+function metadata(port: ParticipantPort, request: ControlRequest) {
+  return request.kind === 'persist-stage'
+    ? persistSqlStage(port, request.input)
+    : control(port, request)
 }
 export default {
   participant: GOVERNANCE_OWNER,
@@ -73,7 +83,7 @@ export default {
     const plan = activationPlanSchema.parse(port.requireFact(ACTIVATION_PLAN))
     if (digest(plan.request) !== input.requestDigest)
       throw new Error('Governance plan request mismatch')
-    const response = plan.kind === 'control' ? control(port, plan.request) : applyPlan(port, plan)
+    const response = plan.kind === 'control' ? metadata(port, plan.request) : applyPlan(port, plan)
     return { kind: 'participated', response: json(response) }
   },
 } satisfies ParticipantModule

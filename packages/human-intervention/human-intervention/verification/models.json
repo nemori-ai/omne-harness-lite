@@ -613,6 +613,42 @@
       "model": "models/GovernanceAdoption.tla",
       "config": "models/governanceadoption-partial.cfg",
       "expected": "AtomicBundle"
+    },
+    {
+      "name": "governancesqlcustody-positive",
+      "model": "models/GovernanceSqlCustody.tla",
+      "config": "models/governancesqlcustody-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancesqlcustody-replace",
+      "model": "models/GovernanceSqlCustody.tla",
+      "config": "models/governancesqlcustody-replace.cfg",
+      "expected": "Immutable"
+    },
+    {
+      "name": "governancesqlcustody-unprepared",
+      "model": "models/GovernanceSqlCustody.tla",
+      "config": "models/governancesqlcustody-unprepared.cfg",
+      "expected": "ExactSend"
+    },
+    {
+      "name": "governancesqlcustody-rebuild",
+      "model": "models/GovernanceSqlCustody.tla",
+      "config": "models/governancesqlcustody-rebuild.cfg",
+      "expected": "ExactSend"
+    },
+    {
+      "name": "governancesqlcustody-crosskey",
+      "model": "models/GovernanceSqlCustody.tla",
+      "config": "models/governancesqlcustody-crosskey.cfg",
+      "expected": "ExactSend"
+    },
+    {
+      "name": "governancesqlcustody-revive",
+      "model": "models/GovernanceSqlCustody.tla",
+      "config": "models/governancesqlcustody-revive.cfg",
+      "expected": "NoRevival"
     }
   ]
 }

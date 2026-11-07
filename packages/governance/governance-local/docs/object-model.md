@@ -99,3 +99,21 @@ classDiagram
 ```
 
 图中继承箭头表达判别联合的变体，不表示源码使用 class 继承。参与者的表访问能力由固定 SQL 材料约束，计划值不会取得外域对象的所有权。
+
+## 原 SQL 阶段请求
+
+SqlStageCustody 是原 Operation 拥有的不可变请求记录。Execution 表达业务执行绑定，CommitRequestV2 还包含实际命令正文。两者分开存放，避免完整请求包含自身。SQL 回执由 SqlStorage 拥有，治理域只保存发出请求的依据。
+
+```mermaid
+classDiagram
+  Operation "1" *-- "0..7" SqlStageCustody
+  SqlStageCustody --> SqlStage
+  SqlStageCustody *-- CommitRequestV2
+  CommitRequestV2 *-- SqlIdentity
+  CommitRequestV2 *-- FactCommandV2
+  Operation *-- Execution
+  FactCommandV2 ..> Execution : 业务请求绑定
+  SqlStorage ..> CommitRequestV2 : 提交与认回
+```
+
+首次保存确定该阶段的完整请求。重复保存相同请求认回原值，不同请求冲突。封口后保留历史请求，允许身份结算继续，但业务写者先认回终态。持久事务函数承载这些行为，不为关系行增加无行为的包装类。

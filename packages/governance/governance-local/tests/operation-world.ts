@@ -9,7 +9,7 @@ import {
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { governanceSqlMigrations, governanceRecoveryReadMaterials } from '../src/materials.ts'
-import { GOVERNANCE_TABLES } from '../src/migration.ts'
+import { GOVERNANCE_SQL_TABLES } from '../src/sql-stage-migration.ts'
 import { json, digest } from '../src/encoding.ts'
 import { requestRef, type AcceptOperation, type Execution } from '../src/operation-schema.ts'
 import { config } from './config.ts'
@@ -75,7 +75,7 @@ export async function openOperations(
         protocol: 'fixture-governance-operations/1',
         moduleUrl: url.href,
         codeDigest: createHash('sha256').update(readFileSync(url)).digest('hex'),
-        ownedTables: GOVERNANCE_TABLES,
+        ownedTables: GOVERNANCE_SQL_TABLES,
         readTables: [],
         requiresFacts: [],
         providesFacts: [],

@@ -126,7 +126,7 @@ flowchart LR
 
 ## 生产参与者的计划依赖
 
-`activation-schema.ts` 定义 control、mutation、adoption、observation 四种计划。`metadata-plan.ts` 只形成元数据计划。`business-plan.ts` 从已保存原操作取得业务绑定，两个业务计划参与者分别限制命令族。`activation.ts` 是九张表的唯一写者，消费计划后重新检查原记录。
+`activation-schema.ts` 定义 control、mutation、adoption、observation 四种计划。`metadata-plan.ts` 只形成元数据计划。`business-plan.ts` 从已保存原操作取得业务绑定，两个业务计划参与者分别限制命令族。`activation.ts` 是治理关系表的唯一写者，消费计划后重新检查原记录。
 
 ```mermaid
 flowchart LR
@@ -141,4 +141,26 @@ flowchart LR
 
 元数据和封口不依赖 ADOPTION_CURRENT，因而不需要当前目标服务在线。采用计划从 requireFact 取得当前证据，不读取外域私表。当前事实的真实生产桥接仍待完成，组合测试中的生产者明确标为夹具。
 
-私有事务的真实 Worker 证据包含登记、撤除、空集合采用、错绑定及元数据封口。公开协调器和 Cordis 接线没有因此变为完成。后续协调器须保存原 SQL 阶段信封，不能用当前 manifest 或随机阶段键重建旧操作。
+私有事务的真实 Worker 证据包含登记、撤除、空集合采用、错绑定及元数据封口。公开协调器和 Cordis 接线没有因此变为完成。阶段请求持久材料见下节。后续公开协调器须发送其读回值，不能用当前 manifest 或随机阶段键重建旧操作。
+
+## 恢复时发送原请求
+
+`sql-stage-migration.ts` 增加 gc_sql_stage。该表与既有九张关系表同属 governance.activation，原迁移字节不变。`sql-stage.ts` 承担单赋值保存与读回，`sql-stage-binding.ts` 核对原业务、元数据和 Standing 恢复绑定。`sql-stage-schema.ts` 使用 SqlStorage 的公开请求形状，限定治理域可接受的租户身份、阶段和预算。
+
+```mermaid
+flowchart LR
+  C[公开协调器，待接线] --> P[persist-stage 元数据命令]
+  P --> W[唯一 activation 写者]
+  W --> E[(gc_sql_stage 原请求)]
+  E --> R[sql-stage-read 点查]
+  R --> C
+  C -->|发送读回的完整请求| SQL[SqlStorage]
+  SQL --> Plan[业务 planner]
+  Plan --> W
+  W --> G[原终态优先或检查已保存请求]
+  G --> B[业务及原终态同事务]
+```
+
+只读处理器使用 domain-serial 顺序，访问 gc_operation 和 gc_sql_stage。普通读回读取两行，Standing 阶段最多四行，无历史扫描。最大输出为4 MiB加1 KiB包装空间。主键同时服务唯一性与读取，不增加重复索引。
+
+保存和提交是两个事务，之间允许进程退出。恢复者必须取得原请求再提交。当前真实 Worker 用例验证这一边界，完整公共协调器及跨域真实来源接线仍待完成。参与者不能观察 SqlStorage 外层完整请求，因此写者的保管检查和协调器的原样发送检查都必须存在。

@@ -125,3 +125,13 @@ ConcurrentIntake 的操作身份是固定租户内的 `(session, acceptId)`，�
 | AtomicBundle | 只发布Settings | 完整bundle选入与同事务关系替换 |
 
 模型将声明内容及目标/关口真实性抽象为具名条件，不证明这些事实的实际生产。它没有建模SQL索引、租户身份或分布式进程。真实回滚、并发赢家、重开、目标支持和错误事实测试见 [adoption.spec.ts](../../../governance/governance-local/tests/adoption.spec.ts)。这些测试的目标/current输入仍是夹具，不能代替生产桥接和完整C3b验收。
+
+## SQL 请求保管守护
+
+GovernanceSqlCustody 把完整原操作及阶段抽象为两个互异的键，把完整 CommitRequestV2 抽象为两个互异的值。检查命令为 `python3 packages/human-intervention/human-intervention/verification/check.py --models GovernanceSqlCustody`。需要现有 Java 及 TLA2TOOLS_JAR 环境。
+
+单赋值不变量要求 saved 等于首次保存的 first。发送不变量要求每个非空 sent 都等于同键的 saved。封口不变量要求 closed 后无业务效果。初始化满足三者；Store 仅写空槽，Send 仅复制同键持久值，Commit 仅作用于未终结原操作，Seal 不修改已提交结果。逐个动作保持不变量可给出归纳安全论证。TLC 在上述有限域枚举交错；五个负控分别允许替换、无保管发送、重建、串用其他键及封口后提交，必须破坏各自具名不变量。
+
+源码映射归 governance-local。gc_sql_stage 的完整主键、外键和完整正文比较落实单赋值；sql-stage-binding 核对租户、原操作、事务域、阶段身份、命令及执行绑定；生产 activation 在业务前检查已有保管，并先认回终态。真实 Worker 测试补充持久化、重开、并发保存及原回执查询。
+
+模型假定原子持久存储、可信协调器原样发送以及完整请求值可区分。Restart 是持久状态不变的动作，只表达丢失进程内状态，不验证文件系统断电恢复。模型不证明散列无碰撞、任意规模 SQL 性能、存储可用性或恢复活性。公共协调器的原样发送路径尚未实现，不能把该抽象前提计为已验收实现。

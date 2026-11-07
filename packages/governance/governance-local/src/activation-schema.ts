@@ -7,6 +7,7 @@ import {
   executionSchema,
 } from './operation-schema.ts'
 import { standingPlanSchema, standingReceiptSchema } from './standing-schema.ts'
+import { persistStageSchema } from './sql-stage-schema.ts'
 import { adoptionEvidenceSchema } from './adoption-schema.ts'
 
 export const ACTIVATION_PLAN = { key: 'governance.plan', protocol: 'governance-plan/1' }
@@ -19,6 +20,7 @@ export const MUTATION_PLANNER = 'governance.mutation-plan'
 export const ADOPTION_PLANNER = 'governance.adoption-plan'
 export const ACTIVATION_PROTOCOL = 'governance-activation/1'
 export const controlRequestSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('persist-stage'), input: persistStageSchema }),
   z.strictObject({ kind: z.literal('bootstrap'), input: bootstrapSchema }),
   z.strictObject({ kind: z.literal('accept'), input: acceptSchema }),
   z.strictObject({ kind: z.literal('standing-prepare'), input: standingPlanSchema }),

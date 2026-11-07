@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
-import { GOVERNANCE_MIGRATION, GOVERNANCE_OWNER, GOVERNANCE_TABLES } from './migration.ts'
+import { GOVERNANCE_MIGRATION, GOVERNANCE_OWNER } from './migration.ts'
 import {
   ACTIVATION_PLAN,
   ADOPTION_CURRENT,
@@ -11,12 +11,15 @@ import {
   ACTIVATION_PROTOCOL,
 } from './activation-schema.ts'
 import { GOVERNANCE_RECOVERY_MIGRATION } from './recovery-migration.ts'
+import { GOVERNANCE_STAGE_MIGRATION, GOVERNANCE_SQL_TABLES } from './sql-stage-migration.ts'
+import { STAGE_HANDLER } from './sql-stage-read.ts'
 import { RECOVERY_HANDLER } from './recovery-read.ts'
 
 export function governanceSqlMigrations(): SqlMaterialCatalog['migrations'] {
   const extension = import.meta.url.endsWith('.ts') ? 'ts' : 'js'
   const url = new URL(`./migration.${extension}`, import.meta.url)
   const recovery = new URL(`./recovery-migration.${extension}`, import.meta.url)
+  const stage = new URL(`./sql-stage-migration.${extension}`, import.meta.url)
   return [
     {
       ...GOVERNANCE_MIGRATION,
@@ -28,6 +31,12 @@ export function governanceSqlMigrations(): SqlMaterialCatalog['migrations'] {
       ...GOVERNANCE_RECOVERY_MIGRATION,
       moduleUrl: recovery.href,
       checksum: createHash('sha256').update(readFileSync(recovery)).digest('hex'),
+      requires: [GOVERNANCE_MIGRATION],
+    },
+    {
+      ...GOVERNANCE_STAGE_MIGRATION,
+      moduleUrl: stage.href,
+      checksum: createHash('sha256').update(readFileSync(stage)).digest('hex'),
       requires: [GOVERNANCE_MIGRATION],
     },
   ]
@@ -79,13 +88,24 @@ export function governanceSqlMaterials(): Pick<
   ]
   return {
     migrations: governanceSqlMigrations(),
-    readHandlers: governanceRecoveryReadMaterials(),
+    readHandlers: [
+      ...governanceRecoveryReadMaterials(),
+      {
+        ...STAGE_HANDLER,
+        ...participantFile('sql-stage-read'),
+        ordering: 'domain-serial',
+        readTables: ['gc_operation', 'gc_sql_stage'],
+        requiresMigrations: [GOVERNANCE_STAGE_MIGRATION],
+        maxOutputBytes: 4 * 1024 * 1024 + 1024,
+        maxRowsRead: 4,
+      },
+    ],
     participants: [
       {
         participant: GOVERNANCE_OWNER,
         protocol: ACTIVATION_PROTOCOL,
         ...participantFile('activation'),
-        ownedTables: GOVERNANCE_TABLES,
+        ownedTables: GOVERNANCE_SQL_TABLES,
         readTables: [],
         requiresFacts: [ACTIVATION_PLAN],
         providesFacts: [],

@@ -10,7 +10,7 @@ import {
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { governanceSqlMigrations } from '@omne-harness/governance-local'
-import { GOVERNANCE_TABLES } from '../src/migration.ts'
+import { GOVERNANCE_SQL_TABLES } from '../src/sql-stage-migration.ts'
 import { config } from './config.ts'
 
 it('installs the production migration through the real Worker and reopens the same domain', async () => {
@@ -24,7 +24,7 @@ it('installs the production migration through the real Worker and reopens the sa
         protocol: 'fixture-governance-schema/1',
         moduleUrl: url.href,
         codeDigest: createHash('sha256').update(readFileSync(url)).digest('hex'),
-        ownedTables: GOVERNANCE_TABLES,
+        ownedTables: GOVERNANCE_SQL_TABLES,
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
