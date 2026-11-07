@@ -349,6 +349,12 @@ function siteOf(): string {
  * keeps only processes whose stop was not confirmed reports `lost` (`close-unconfirmed`) to carry
  * its residual (SPEC MC-9); without the residual it is `none`.
  */
+/** The name the ledger gave the transport of a connection handle, while it takes requests. */
+function wiredName(ledger: Readonly<{ names: WeakMap<object, string> }>, ensured: Ensured): string {
+  const wire = ensured.wire()
+  return ('ok' in wire ? ledger.names.get(wire.ok) : undefined) ?? '?'
+}
+
 function coreOf(state: ConnectionState): string {
   if (state.kind === 'lost' && state.reason === 'close-unconfirmed') return '{"kind":"none"}'
   return JSON.stringify(state, (name, value: unknown) => (name === 'residual' ? undefined : value))
@@ -592,9 +598,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
         state: JSON.stringify(state),
         core: coreOf(state),
         current:
-          current === undefined
-            ? '-'
-            : `${this.ledger.names.get(current.transport) ?? '?'}@g${current.generation}`,
+          current === undefined ? '-' : `${wiredName(this.ledger, current)}@g${current.generation}`,
       }
     })
   }
@@ -1049,11 +1053,11 @@ class Run implements RunView, CallDesk, ReservationDesk {
             : `fail connect ${failure.reason.kind} ${failure.catalog}`
         }
         op.ensured = outcome.ok
-        const transport = this.ledger.names.get(outcome.ok.transport)
+        const transport = wiredName(this.ledger, outcome.ok)
         const record = this.ledger.transports.find(item => item.name === transport)
         this.report(foreignTransport(op, record?.key))
         this.report(connectedAfterShutdown(this, op))
-        return `ok ${transport ?? '?'}@g${outcome.ok.generation}`
+        return `ok ${transport}@g${outcome.ok.generation}`
       },
     )
   }

@@ -92,16 +92,25 @@ describe('forgettable: closed, and holding nothing', () => {
     return made
   }
 
+  const idle = { pending: undefined }
+
   it('is false for an entry that holds nothing but still takes requests', () => {
-    expect(forgettable({ ...nothing(), connection: connection(false) })).toBe(false)
+    expect(forgettable({ ...nothing(), ...idle, connection: connection(false) })).toBe(false)
   })
 
   it('is true for a closed entry that holds nothing', () => {
-    expect(forgettable({ ...nothing(), connection: connection(true) })).toBe(true)
+    expect(forgettable({ ...nothing(), ...idle, connection: connection(true) })).toBe(true)
   })
 
   it('is false for a closed entry that still waits on a landing', () => {
     const landings = [{ credential: undefined, landed: false }]
-    expect(forgettable({ ...nothing(), landings, connection: connection(true) })).toBe(false)
+    expect(forgettable({ ...nothing(), ...idle, landings, connection: connection(true) })).toBe(
+      false,
+    )
+  })
+
+  it('is false for a closed entry that holds nothing while its build is in flight (MC-10)', () => {
+    const pending = new Promise<never>(() => undefined)
+    expect(forgettable({ ...nothing(), pending, connection: connection(true) })).toBe(false)
   })
 })

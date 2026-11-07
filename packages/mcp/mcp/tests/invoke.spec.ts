@@ -671,6 +671,81 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(await state(c)).toEqual({ kind: 'ready' })
   })
 
+  it('step 8: at whichever microtask the close of the connection begins, it is not sent on after it; the call goes on a new connection or is not sent (MC-10)', async () => {
+    const LIMIT = 400
+    let sentBefore = false
+    for (let k = 0; k < LIMIT && !sentBefore; k += 1) {
+      let released = false
+      const onReleased: boolean[] = []
+      const c = arrange(
+        {},
+        {
+          shape: p => ({
+            transports: reshapedTransports(p.ports.transports, (transport, opened) => ({
+              call(request, signal, observe) {
+                if (opened === 1) onReleased.push(released)
+                return transport.call(request, signal, observe)
+              },
+            })),
+          }),
+        },
+      )
+      const digest = await published(c)
+      const call = c.invoker.invoke(alice, request(digest))
+      for (let i = 0; i < k; i += 1) await Promise.resolve()
+      // The table's close, which `release` reaches once its gate passed: it begins in this run.
+      released = true
+      const releasing = c.table.close(alice.tenant, files.holding)
+      const result = await call
+      await releasing
+      expect(
+        onReleased,
+        `k=${k}: the closed connection's transport was called after the close began`,
+      ).not.toContain(true)
+      if (result.kind === 'not-sent')
+        expect(result.reason, `k=${k}`).toEqual({ kind: 'connection-unavailable' })
+      sentBefore = onReleased.includes(false)
+    }
+    expect(sentBefore).toBe(true)
+  })
+
+  it('step 7: a release while the call builds the connection closes it first: the build goes no further, the call is not sent, and nothing is marked (MC-10, MC-5)', async () => {
+    const negotiating = deferred<void>()
+    const c = arrange(
+      {},
+      {
+        shape: p => ({
+          transports: reshapedTransports(p.ports.transports, (transport, opened) =>
+            opened === 2
+              ? {
+                  async discover() {
+                    await negotiating.promise
+                    return transport.discover()
+                  },
+                }
+              : {},
+          ),
+        }),
+      },
+    )
+    const digest = await published(c)
+    expect(await c.connections.release(alice, files)).toMatchObject({ ok: { kind: 'released' } })
+    const stored = await c.p.store.read(anonymousKey)
+    const call = c.invoker.invoke(alice, request(digest))
+    await settled()
+    expect(c.p.opens()).toBe(2)
+    const releasing = c.connections.release(alice, files)
+    await settled()
+    expect(await c.status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'none' } },
+    })
+    negotiating.resolve()
+    expect(await call).toEqual(CONNECTION_UNAVAILABLE)
+    expect(await releasing).toMatchObject({ ok: { kind: 'released' } })
+    expect(c.p.requests('tools/call')).toHaveLength(0)
+    expect(await c.p.store.read(anonymousKey)).toEqual(stored)
+  })
+
   it('step 11: the signal after the send, once closeAll began: unknown (abandoned), and the peer is not told; the transport closing settles its own requests (S8, T5)', async () => {
     let cancelRequests = 0
     const c = arrange(

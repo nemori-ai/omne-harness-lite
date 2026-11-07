@@ -3,7 +3,7 @@
 // keep a resource in one place. No I/O here: the close order is `teardown.ts`, the arrivals
 // after the bound are `late.ts`, the build is `build.ts`, and only `table.ts` puts an entry in or
 // takes it out, when `forgettable` says so (SPEC decision 20).
-import type { Outcome } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   AdoptionRevision,
   CatalogKey,
@@ -23,6 +23,7 @@ import type {
   McpTransport,
   ProcessCredentialHandle,
   ProcessHandle,
+  TransportFailure,
 } from '@omne-harness/mcp-contract/provider'
 import type { Connection } from './connection.ts'
 import type { AdoptionRefusal } from './gate.ts'
@@ -34,20 +35,31 @@ export type ConnectionView = Readonly<{
   isCurrent(generation: Generation): boolean
 }>
 
+export type NotSent = Extract<TransportFailure, { kind: 'not-sent' }>
+
 /**
- * A usable connection, as it was when `ensure` answered: its key, the transport, the generation
- * and the peer of that moment, the adoption revision it was built under, and the bound its
- * requests use.
+ * What a request gets on a connection that takes no requests: the refusal a closed transport
+ * gives (contract T1), before the transport is asked.
+ */
+export const REFUSED: NotSent = { kind: 'not-sent', cause: 'connection-unavailable' }
+
+/**
+ * A usable connection, as it was when `ensure` answered: its key, the generation and the peer of
+ * that moment, the adoption revision it was built under, and the bound its requests use. The
+ * transport is reached through `wire` only: it answers the transport while the connection takes
+ * requests, that is, while it is ready or degraded at `generation`, and `REFUSED` once its close
+ * began, once it is lost, or once another generation replaced it (SPEC MC-10). A request reads
+ * `wire` in the same synchronous run as the send, so no close can slip between them.
  */
 export type Ensured = Readonly<{
   key: ConnectionKey
-  transport: McpTransport
   generation: Generation
   connection: ConnectionView
   peer: PeerIdentity
   catalogKey: CatalogKey
   adoptionRevision: AdoptionRevision
   bound: Millis
+  wire(): Outcome<McpTransport, NotSent>
 }>
 
 /**
@@ -138,11 +150,17 @@ export function holdsNothing(held: Resources): boolean {
 }
 
 /**
- * The one condition an entry leaves the table on (decision 20): it refuses requests (`closed`)
- * and `holdsNothing`.
+ * The one condition an entry leaves the table on (decision 20): it refuses requests (`closed`),
+ * `holdsNothing`, and no build is in flight that may still put a resource in it. A close refuses
+ * requests before it waits for the build (MC-10), so a closed entry can hold nothing for a moment
+ * while its build is still under way.
  */
-export function forgettable(entry: Resources & Readonly<{ connection: Connection }>): boolean {
-  return entry.connection.state.kind === 'closed' && holdsNothing(entry)
+export function forgettable(
+  entry: Resources & Readonly<{ connection: Connection; pending: unknown }>,
+): boolean {
+  return (
+    entry.connection.state.kind === 'closed' && entry.pending === undefined && holdsNothing(entry)
+  )
 }
 
 /**
@@ -217,19 +235,25 @@ export function isSettled(entry: Entry): boolean {
   )
 }
 
-export function ensuredOf(entry: Entry & { transport: McpTransport }): Ensured | undefined {
-  const peer = entry.connection.peer
-  if (peer === undefined) return undefined
+/** The handle of the entry's present connection on `transport`, as `ensure` answers it. */
+export function handleOf(entry: Entry, transport: McpTransport, peer: PeerIdentity): Ensured {
+  const { view } = entry
+  const generation = view.generation
   return {
     key: entry.connection.key,
-    transport: entry.transport,
-    generation: entry.connection.generation,
-    connection: entry.view,
+    generation,
+    connection: view,
     peer,
     catalogKey: entry.catalogKey,
     adoptionRevision: entry.adoptionRevision,
     bound: entry.bound,
+    wire: () => (view.isCurrent(generation) ? succeed(transport) : fail(REFUSED)),
   }
+}
+
+export function ensuredOf(entry: Entry & { transport: McpTransport }): Ensured | undefined {
+  const peer = entry.connection.peer
+  return peer === undefined ? undefined : handleOf(entry, entry.transport, peer)
 }
 
 /** The processes the entries of one holding left, as the status view reports them. */

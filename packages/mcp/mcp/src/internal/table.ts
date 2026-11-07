@@ -176,12 +176,7 @@ export function createConnectionTable<P, S>(
   const turns = createTurns()
   // Set by `closeAll`: from then on nothing connects (SPEC decision 5).
   let shut = false
-  const builder = createBuilder(ports, config, {
-    afterLanding: forget,
-    shut: () => shut,
-    scope,
-    startBound,
-  })
+  const builder = createBuilder(ports, config, { afterLanding: forget, scope, startBound })
 
   const entriesOf = (tenantText: string, holding: EndpointHolding): Entry[] =>
     [...entries.values()].filter(
@@ -202,13 +197,16 @@ export function createConnectionTable<P, S>(
     entries.delete(entry.keyText)
   }
 
-  /** Closes one entry, once: a second close of the same entry joins the first. */
+  /**
+   * Closes one entry, once: a second close of the same entry joins the first. The order of MC-10:
+   * the connection refuses requests before this returns; a build in flight sees that at its next
+   * check and ends within its bound; then the entry is torn down and forgotten.
+   */
   function closeEntry(entry: Entry): Promise<StopRange> {
     if (entry.closing !== undefined) return entry.closing
+    if (entry.connection.state.kind !== 'closed') entry.connection.close()
     const closing = (async () => {
-      // A build in flight ends within its bound; the close takes its connection afterwards.
       while (entry.pending !== undefined) await entry.pending.catch(() => undefined)
-      if (entry.connection.state.kind !== 'closed') entry.connection.close()
       const range = await teardown(entry)
       forget(entry)
       return range

@@ -492,6 +492,27 @@ describe('refresh fails', () => {
     expect(await record(w)).toBe('absent')
   })
 
+  it('a release while the refresh waits on the store before the listing: no page is asked on the released connection; the listing is incomplete and nothing is published (MC-10, MC-7)', async () => {
+    const base = world({ script: usualScript() })
+    adoptStdio(base, files)
+    const store = armedStore(base.store)
+    const { w, discovery, connections } = core({
+      ...base,
+      ports: { ...base.ports, store: store.port },
+    })
+    const read = store.arm()
+    const pending = discovery.refresh(alice, { ref: files })
+    await read.reached
+    expect(await connections.release(alice, files)).toMatchObject({ ok: { kind: 'released' } })
+    const listed = w.transports.calls.filter(call => call.kind === 'listActions').length
+    read.release()
+    expect(await pending).toEqual({
+      ok: { kind: 'kept', reason: { kind: 'listing-incomplete', defect: 'page-failed' } },
+    })
+    expect(w.transports.calls.filter(call => call.kind === 'listActions')).toHaveLength(listed)
+    expect(await record(w)).toBe('absent')
+  })
+
   it('closeAll while a page is asked: connection-unavailable, not the listing-incomplete the page failure would give, and nothing is published (S8, MC-7)', async () => {
     const listing = deferred<ListingPage | TransportFailure>()
     const { w, discovery, connections } = core(

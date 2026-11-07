@@ -13,7 +13,7 @@ import {
 import type { AdoptedEndpoint, AdoptionView } from '@omne-harness/mcp-contract/provider'
 import { admit, admitWithoutEligibility, type AdmittedEndpoint } from '../src/internal/gate.ts'
 import { loseOn } from '../src/internal/lost.ts'
-import { createConnectionTable, type ConnectionTable } from '../src/internal/table.ts'
+import { createConnectionTable, type ConnectionTable, type Ensured } from '../src/internal/table.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import {
   credentialBindingOf,
@@ -37,6 +37,13 @@ import {
 
 const files = endpointRefOf('files')
 const peer = peerIdentityOf()
+
+/** The transport a usable connection hands to a request, read through its only door. */
+function transportOf(ensured: Ensured): unknown {
+  const wire = ensured.wire()
+  if ('failure' in wire) throw new Error(`the connection takes no requests: ${wire.failure.cause}`)
+  return wire.ok
+}
 
 async function admitted(w: World, endpoint: EndpointRef, access: Access<Principal> = alice) {
   const decision = await admit(w.ports, access, endpoint)
@@ -66,7 +73,7 @@ describe('ensure: reuse, rebuild and single flight', () => {
     const first = await table.ensure(token, alice)
     const second = await table.ensure(token, alice)
     if (!('ok' in first) || !('ok' in second)) throw new Error('ensure failed')
-    expect(second.ok.transport).toBe(first.ok.transport)
+    expect(transportOf(second.ok)).toBe(transportOf(first.ok))
     expect(second.ok.generation).toBe(first.ok.generation)
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
     expect(w.landing.started()).toHaveLength(1)
@@ -79,15 +86,19 @@ describe('ensure: reuse, rebuild and single flight', () => {
     const token = await admitted(w, files)
     const first = await table.ensure(token, alice)
     if (!('ok' in first)) throw new Error('first ensure failed')
+    const lostTransport = transportOf(first.ok)
     expect(
       await loseOn(table, first.ok, { reason: 'process-exited', mark: 'connection-unavailable' }),
     ).toBe('not-acquired')
     expect(first.ok.connection.isCurrent(first.ok.generation)).toBe(false)
+    expect(first.ok.wire()).toEqual({
+      failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+    })
     const second = await table.ensure(token, alice)
     if (!('ok' in second)) throw new Error('second ensure failed')
     expect(first.ok.generation).toBe(1)
     expect(second.ok.generation).toBe(2)
-    expect(second.ok.transport).not.toBe(first.ok.transport)
+    expect(transportOf(second.ok)).not.toBe(lostTransport)
     expect(second.ok.connection.isCurrent(second.ok.generation)).toBe(true)
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
     expect(w.landing.processes()[0]?.stops).toBe(1)
@@ -106,7 +117,7 @@ describe('ensure: reuse, rebuild and single flight', () => {
     discover.resolve(peer)
     const [a, b] = await Promise.all([first, second])
     if (!('ok' in a) || !('ok' in b)) throw new Error('ensure failed')
-    expect(a.ok.transport).toBe(b.ok.transport)
+    expect(transportOf(a.ok)).toBe(transportOf(b.ok))
     expect(a.ok.generation).toBe(b.ok.generation)
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
   })
@@ -643,7 +654,7 @@ describe('ensure: the connection key (invariant 1)', () => {
     const theirs = await table.ensure(theirToken.endpoint, mallory)
     if (!('ok' in ours) || !('ok' in theirs)) throw new Error('ensure failed')
     expect(theirs.ok.adoptionRevision).toBe(ours.ok.adoptionRevision)
-    expect(theirs.ok.transport).not.toBe(ours.ok.transport)
+    expect(transportOf(theirs.ok)).not.toBe(transportOf(ours.ok))
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
   })
 
@@ -676,7 +687,7 @@ describe('ensure: the connection key (invariant 1)', () => {
     if (second.kind !== 'admitted') throw new Error('not admitted')
     const theirs = await table.ensure(second.endpoint, alice)
     if (!('ok' in ours) || !('ok' in theirs)) throw new Error('ensure failed')
-    expect(theirs.ok.transport).not.toBe(ours.ok.transport)
+    expect(transportOf(theirs.ok)).not.toBe(transportOf(ours.ok))
     expect(theirs.ok.catalogKey.account).toEqual({ kind: 'credential', binding: 'other' })
     expect(ours.ok.catalogKey.account).toEqual({ kind: 'credential', binding: 'main' })
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
@@ -688,11 +699,15 @@ describe('ensure: the connection key (invariant 1)', () => {
     const table = tableOf(w)
     const first = await table.ensure(await admitted(w, files), alice)
     if (!('ok' in first)) throw new Error('ensure failed')
+    const earlierTransport = transportOf(first.ok)
     w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
     const second = await table.ensure(await admitted(w, files), alice)
     if (!('ok' in second)) throw new Error('ensure failed')
     expect(first.ok.connection.isCurrent(first.ok.generation)).toBe(false)
-    expect(second.ok.transport).not.toBe(first.ok.transport)
+    expect(first.ok.wire()).toEqual({
+      failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+    })
+    expect(transportOf(second.ok)).not.toBe(earlierTransport)
     expect(w.transports.calls.map(call => call.kind)).toEqual([
       'open',
       'discover',
