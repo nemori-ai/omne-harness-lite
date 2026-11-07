@@ -10,6 +10,7 @@ import { auditQueues, admitCall } from './start-values.ts'
 import { settlementFixture, refProcess } from './settlement-values.ts'
 import {
   adoption,
+  callId,
   evidence,
   guards,
   configurationOf,
@@ -1059,5 +1060,93 @@ it('settles every final alias in the result commit and recalls later aliases wit
     record => record.kind === 'fact-event' && record.fact.event === 'alias-after',
   )
   expect(saved).toMatchObject({ fact: { fact: { payload: { kind: 'settled' } } } })
+  expect(read).not.toHaveBeenCalled()
+})
+
+it.each(['material', 'retention'] as const)(
+  'does not commit a result after qualification is revoked during %s IO',
+  async boundary => {
+    let revokedCall: string | null = null
+    let revoke: () => void
+    const retained = vi.fn<ToolOutputCustody<Principal>['retainResult']>()
+    const f = await settlementFixture({
+      wrapAccess: base => ({
+        qualify: input =>
+          input.call === revokedCall
+            ? Promise.resolve({ kind: 'denied' as const, reason: 'revoked' })
+            : base.qualify(input),
+      }),
+      wrapCustody: base => ({
+        ...base,
+        retainResult: retained.mockImplementation(async input => {
+          const answer = await base.retainResult(input)
+          if (boundary === 'retention') revoke()
+          return answer
+        }),
+      }),
+    })
+    revoke = () => {
+      revokedCall = f.access.call
+      f.input.call = callId('still-authorized-call')
+    }
+    if (boundary === 'material') {
+      const store = testSettlementPorts(f.harness.memory).materials.store
+      const read = store.read.bind(store)
+      vi.spyOn(store, 'read').mockImplementation(async input => {
+        const answer = await read(input)
+        revoke()
+        return answer
+      })
+    }
+    expect(failure(await f.preserve()).kind).toBe('denied')
+    expect(retained).toHaveBeenCalledTimes(boundary === 'material' ? 0 : 1)
+    expect((await f.records()).some(record => record.kind === 'result')).toBe(false)
+    expect(await f.harness.released()).not.toContain(f.access.call)
+    revokedCall = null
+    expect((await f.load()).state.phase).toBe('running')
+    expect((await f.load()).tasks).toEqual(f.before.tasks)
+  },
+)
+
+it('uses the settled final when settlement overtakes an already prepared alias', async () => {
+  let writes = 0
+  let settle: (() => Promise<void>) | null = null
+  const f = await settlementFixture({
+    wrapAccess: base => ({
+      qualify: async input => {
+        if (settle !== null && input.action === 'write' && ++writes === 2) {
+          const finish = settle
+          settle = null
+          await finish()
+        }
+        return base.qualify(input)
+      },
+    }),
+  })
+  settle = async () => {
+    expect(ok(await f.preserve())).toHaveProperty('phase', 'settled')
+  }
+  const alias = {
+    ...f.batch,
+    batch: 'concurrent-alias',
+    after: f.batch.cursor,
+    cursor: 'concurrent-alias/end',
+    events: [{ event: 'concurrent-alias', fact: f.pointer }],
+  }
+  ok(await f.ledger.commands.receiveFacts({ ...f.access, start: alias.start, batch: alias }))
+  expect(settle).toBeNull()
+  const saved = (await f.records()).find(
+    record => record.kind === 'fact-event' && record.fact.event === 'concurrent-alias',
+  )
+  expect(saved).toMatchObject({ fact: { fact: { payload: { kind: 'settled' } } } })
+  if (saved?.kind !== 'fact-event') throw new Error('missing alias')
+  const read = vi
+    .spyOn(testSettlementPorts(f.harness.memory).materials.store, 'read')
+    .mockRejectedValue(new Error('released envelope'))
+  expect(
+    ok(await f.ledger.facts.read({ ...f.access, basis: saved.fact.evidence })).fact,
+  ).toMatchObject({
+    kind: 'settled-final',
+  })
   expect(read).not.toHaveBeenCalled()
 })
