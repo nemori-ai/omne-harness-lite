@@ -208,6 +208,81 @@ describe('read leases', () => {
   })
 })
 
+describe('host read leases', () => {
+  async function hostRead(read: TenantStandingSource['read']) {
+    const s = scene()
+    const principal = s.host()
+    const qualification = createModelQualification({
+      verifier: s.authority.verifier,
+      standing: { read },
+    })
+    const lifetime = { current: true }
+    const registration = {
+      principal,
+      tenant: TENANT,
+      call: CALL,
+      actor: { owner: ACTOR_OWNER, subject: 'standing:abc', revision: '7' },
+      current: () => lifetime.current,
+    }
+    const unregister = qualification.captureHost(registration)
+    const lease = await qualification.qualifyRead(
+      { principal, tenant: TENANT },
+      () => lifetime.current,
+    )
+    const check = () => lease.check('inspect', { kind: 'call', call: CALL, consumer: null })
+    return { qualification, registration, lifetime, unregister, lease, check }
+  }
+
+  it.each([
+    ['member', MEMBER, { ok: undefined }],
+    [
+      'membership revoked',
+      { kind: 'not-member', evidence: { record: 'standing:abc', revision: '8' } },
+      { failure: { kind: 'denied', action: 'inspect' } },
+    ],
+    [
+      'standing unavailable',
+      { kind: 'unavailable', diagnostic: 'standing offline' },
+      { failure: { kind: 'unavailable' } },
+    ],
+  ] as const)('rechecks host standing: %s', async (_name, reading, expected) => {
+    const s = await hostRead(async () => reading)
+    try {
+      expect(await s.check()).toMatchObject(expected)
+    } finally {
+      s.lease.release()
+      s.unregister()
+    }
+  })
+
+  it.each(['release', 'retire', 'unregister', 'replace'] as const)(
+    'denies a host read when %s happens while standing is pending',
+    async change => {
+      const pending = Promise.withResolvers<TenantStandingReading>()
+      const entered = Promise.withResolvers<void>()
+      const s = await hostRead(() => {
+        entered.resolve()
+        return pending.promise
+      })
+      const result = s.check()
+      await entered.promise
+      let removeReplacement: (() => void) | undefined
+      if (change === 'release') s.lease.release()
+      if (change === 'retire') s.lifetime.current = false
+      if (change === 'unregister') s.unregister()
+      if (change === 'replace') removeReplacement = s.qualification.captureHost(s.registration)
+      pending.resolve(MEMBER)
+      try {
+        expect(await result).toEqual({ failure: { kind: 'denied', action: 'inspect' } })
+      } finally {
+        s.lease.release()
+        s.unregister()
+        removeReplacement?.()
+      }
+    },
+  )
+})
+
 describe('authorize for W: what the admission point captured', () => {
   it('a principal nobody qualified answers unavailable, never ok (defect: a default admission)', () => {
     const s = scene()

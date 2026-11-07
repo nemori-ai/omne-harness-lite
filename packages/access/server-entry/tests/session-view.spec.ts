@@ -1228,6 +1228,10 @@ describe('the values the owners give', () => {
       { kind: 'cannot-fit', reason: { kind: 'unknown', reason: 'unsupported' } },
     ],
     [{ kind: 'guard' }, { kind: 'guard' }],
+    [{ kind: 'request-rejected' }, { kind: 'request-rejected' }],
+    [{ kind: 'compaction-invalid' }, { kind: 'compaction-invalid' }],
+    [{ kind: 'message-rejected' }, { kind: 'message-rejected' }],
+    [{ kind: 'extension-stop' }, { kind: 'extension-stop' }],
     [
       { kind: 'model-refused', call: 'c1', failure: { kind: 'exotic' } },
       { kind: 'model-refused', failure: { kind: 'unknown', reason: 'unsupported' } },
