@@ -137,3 +137,19 @@ classDiagram
 SqlSubmission 区分已识别回执、回滚、存储未提交证明、未知、冲突和不可用。只有已识别成功回执携带业务回复。NotCommittedV2 由存储产生，协调器保留原证明，不构造替代值。领域终态仍由治理事务拥有，不能用运输层失败推导。
 
 AcceptanceReceipt 保存在 SqlStorage 原回执中，包含规范受理输入与结果。它也记录被拒绝的受理，因此原 Operation 行不存在时仍能核验旧请求。它不是新的业务实体；业务成功后的当前状态仍须读取 Operation。
+
+## 来源保管值对象
+
+SourceCustody 是状态联合。requested 持有由原命令派生的请求，held 包含 Settings 回执与快照，settled 包含相同请求及终态。not-required 仅用于明确没有来源的命令。缺失 provider 不属于这个状态。
+
+```mermaid
+classDiagram
+  OperationRecord *-- DurableRequest
+  DurableRequest --> PermissionBasisRequest : permission变体保留原动作
+  OperationRecord "1" --> "0..1" SourceCustody : 完整原键
+  SourceCustody --> SettingsSourceRequest : 原请求绑定
+  SourceCustody --> SettingsSourceReceipt : held或settled
+  SqlOperationCoordinator --> SourceCustody : 生产只读观察
+```
+
+来源写者只维护保管状态，不修改原操作终态、不计算权限。SQL阶段保管复用既有协调器；来源服务和实际权限读取协调器尚待接入。

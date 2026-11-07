@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { PermissionBasisRequestSchema } from '@omne-harness/permissions'
+import { SettingsTargetSchema } from '@omne-harness/settings'
+import { SettingsSourceReferenceSchema } from '@omne-harness/settings-local/preparation'
 import {
   GovernanceContributionCommandSchema,
   GovernanceWithdrawalCommandSchema,
@@ -16,19 +19,38 @@ export const requestSchema = z.discriminatedUnion('owner', [
   z.strictObject({ owner: z.literal('adopt'), command: GovernanceAdoptionCommandSchema }),
 ])
 export type GovernanceRequest = z.infer<typeof requestSchema>
+const catalogCaptureCommandSchema = z.strictObject({
+  scope: GovernanceScopeSchema,
+  operationId: GovernanceIdSchema,
+  request: GovernanceCatalogRequestSchema,
+})
+export const permissionCaptureCommandSchema = z.strictObject({
+  scope: GovernanceScopeSchema,
+  operationId: GovernanceIdSchema,
+  permission: PermissionBasisRequestSchema,
+  target: SettingsTargetSchema,
+  source: SettingsSourceReferenceSchema.nullable(),
+  sourceRoute: GovernanceIdSchema,
+})
 export const captureRequestSchema = z.strictObject({
   owner: z.literal('internal.capture'),
-  command: z.strictObject({
-    scope: GovernanceScopeSchema,
-    operationId: GovernanceIdSchema,
-    request: GovernanceCatalogRequestSchema,
-  }),
+  command: z.union([catalogCaptureCommandSchema, permissionCaptureCommandSchema]),
 })
 export const durableRequestSchema = z.discriminatedUnion('owner', [
   ...requestSchema.options,
   captureRequestSchema,
 ])
 export type DurableRequest = z.infer<typeof durableRequestSchema>
+export function isCatalogCapture(
+  request: DurableRequest,
+): request is { owner: 'internal.capture'; command: z.infer<typeof catalogCaptureCommandSchema> } {
+  return request.owner === 'internal.capture' && 'request' in request.command
+}
+export function permissionSourcePlan(request: DurableRequest) {
+  if (request.owner !== 'internal.capture' || !('permission' in request.command)) return null
+  const { source, sourceRoute } = request.command
+  return source === null ? null : { source, route: sourceRoute }
+}
 export const operationRefSchema = GovernanceOperationRefSchema.extend({
   owner: z.enum(['contribute', 'withdraw', 'adopt', 'internal.capture']),
 })

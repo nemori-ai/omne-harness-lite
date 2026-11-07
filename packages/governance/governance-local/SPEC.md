@@ -26,7 +26,7 @@ accepted 保存原输入、受理 epoch 和原 SQL 身份，execution 为空。s
 
 ### GL-05 有界读取
 
-当前贡献通过 scope、epoch、state 索引访问。目标支持按 scope、epoch、definition、target 定位。恢复按仅含 accepted/submitted 的部分索引做 keyset 分页。声明历史不得成为当前目录的无条件全表输入。数据库规模测试的查询计划不构成端到端延迟保证。
+当前贡献通过 scope、epoch、state 索引访问。目标支持按 scope、epoch、definition、target 定位。恢复按 GL-10 的业务、身份及来源责任部分索引做 keyset 分页。声明历史不得成为当前目录的无条件全表输入。数据库规模测试的查询计划不构成端到端延迟保证。
 
 ## 所有权、失败与生命周期
 
@@ -88,9 +88,9 @@ collection.digest 覆盖 scope、声明修订及按规范 JSON 文本排序的�
 
 ### GL-10 恢复集合
 
-可信恢复读取包含两类原操作：业务仍为 accepted/submitted，或原操作仍保管 requested/held 身份请求。业务终态不表示外部保留已经结算，终态未结算记录不得遗漏。无保留或已 settled 的历史终态不进入恢复集合。
+可信恢复读取包含三类原操作：业务仍为 accepted/submitted、原操作仍保管 requested/held 身份请求，或权限读取仍保管 requested/held 设置来源请求。业务终态不表示外部保留已经结算，终态未结算记录不得遗漏。无保留或已 settled 的历史终态不进入恢复集合。
 
-具名增量迁移增加恢复部分索引，索引成员随业务状态和保管状态在原事务中更新。只读处理器固定使用该索引，每页最多64项及一项后继探测，只交回完整原键和摘要，不读取业务正文、执行信封或完整回执。游标绑定同一 scope，按命令族、主体和原 operationId 排序。
+业务和身份责任使用 gc_operation_recovery，设置来源责任使用 gc_permission_source_pending。索引成员随对应事务更新。只读处理器在同一读事务内分别读取最多65个候选，按 SQLite BINARY 的 UTF-8 顺序去重归并，交回最多64项及后继游标。它只交回完整原键、摘要及受理 epoch，不读取业务正文、执行信封或完整回执。游标绑定同一 scope，按命令族、主体和原 operationId 排序。
 
 分页不是跨页冻结快照。并发新增或重新进入恢复集合的记录可能排在旧游标之前，恢复者须在一轮结束后从头进行后续扫描。枚举只给出待处理候选，不证明业务未提交，不授予重试权限，也不证明外部保留已经释放。
 
@@ -200,7 +200,7 @@ queryOperation 每次核验 operation-read 资格，只访问已核主体自己�
 
 createGovernanceLocal 每次构造产生不可复用的新 epoch，调用者不能指定旧代。装配须保证同一 scope 只有一个合法启动者。工厂读取当前 epoch，再以该 epoch 为比较依据开放新代。普通业务调用不能重新开放 scope。
 
-启动恢复与当前调用使用不同代次。每页在同一 domain-serial 读取中取得 currentEpoch 及每条候选的 acceptedEpoch；最多读取一行 scope 和65行候选。只有 currentEpoch 等于本实例 epoch 时，启动恢复才处理该页。它跳过本代记录，并在封口前核对原操作键、请求摘要及 acceptedEpoch。后继实例产生的记录不能进入已经读回的旧页，后续页面须重新核对 currentEpoch。游标始终取最后扫描项，不能改成最后处理项。
+启动恢复与当前调用使用不同代次。每页在同一 domain-serial 读取中取得 currentEpoch 及每条候选的 acceptedEpoch；最多读取一行 scope 和两组各65行候选。只有 currentEpoch 等于本实例 epoch 时，启动恢复才处理该页。它跳过本代记录，并在封口前核对原操作键、请求摘要及 acceptedEpoch。后继实例产生的记录不能进入已经读回的旧页，后续页面须重新核对 currentEpoch。游标始终取最后扫描项，不能改成最后处理项。
 
 发送封口后必须重新观察原操作的持久终态，再结算资格。没有 Standing 请求只表示没有该项资格责任，不证明原操作已终结。封口未知且原操作仍待决时，恢复继续报告未完成，不公开服务。
 
@@ -257,3 +257,16 @@ The projection uses the existing scope key, current-contribution index, immutabl
 This material observes Governance state only. It does not establish the caller's authority, the target owner's current enablement or publication, Settings assignments, external constraints, interpreter presence or a future execution permit. A trusted composition must obtain those owners' facts with the same capture binding. A serialized earlier observation cannot substitute for a fresh read in a later operation.
 
 The local guarantee assumes the existing single-writer adoption/retirement invariants and SqlStorage transaction ordering. No remote retention protocol or cross-database atomicity follows from this read.
+
+
+### GL-25 权限读取的来源保管
+
+内部 capture 的 catalog 与 permission 命令是两个独立变体。旧 catalog 命令不增加默认字段，不改变原摘要。permission 命令保管原动作的 PermissionBasisRequest、完整 SettingsTarget、组织来源计划和恢复路由。每次 current 读取使用新的 capture operationId；同一次读取的恢复保持原身份。
+
+接受带来源的 permission 命令时，唯一治理写者在同一事务建立 gc_operation 和 gc_permission_source 关联行。关联行的完整主键及外键绑定原操作。SQL NULL 回执表示 requested；明确 source=null 的命令不产生该责任。缺失关联行是损坏，不能解释为无来源。
+
+来源请求仅由原命令、完整原操作绑定、主体和 SQL 域派生。回执必须通过 Settings 公共协议校验，并与该请求精确匹配。held 重传必须保留同一 snapshot；原操作终结后到达的 held 只能用于清理，不能复活原操作。settled 必须对应原 committed 或 aborted 终态。尚未收到 held 的 requested 也可以在原操作 aborted 后认回合法的 aborted 来源回执。
+
+source-held 和 source-settled 分别保管完整 SQL 阶段信封。只读认回声明所需 Governance 表及迁移，不通过额外写权读取。来源已 settled 后，迟到 held 返回既有终态，不降级保管状态。来源责任从恢复集合退出，只证明本项责任已结算，不替代其他身份或业务责任。
+
+该保管机制不产生 PermissionCurrentBasis，也不授予业务动作权限。实际 permission planner、来源协调器、生产消费者及历史装配恢复仍须完成，不能以本节存储验证替代完整提供者验收。性质与证据范围见[来源保管证明](verification/proofs/permission-capture-custody.md)。

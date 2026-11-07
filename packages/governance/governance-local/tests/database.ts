@@ -3,6 +3,7 @@ import type { MigrationPort } from '@omne-harness/sql-contract/worker'
 import migration from '../src/migration.ts'
 import stageMigration from '../src/sql-stage-migration.ts'
 import recoveryMigration from '../src/recovery-migration.ts'
+import sourceMigration from '../src/source-custody-migration.ts'
 
 export function databasePort(db: DatabaseSync): MigrationPort {
   return {
@@ -36,10 +37,12 @@ export function openDatabase(path = ':memory:', initialize = true) {
     migration.up(port)
     recoveryMigration.up(port)
     stageMigration.up(port)
+    sourceMigration.up(port)
   }
   migration.verify(port)
   recoveryMigration.verify(port)
   stageMigration.verify(port)
+  sourceMigration.verify(port)
   return db
 }
 export function scope(db: DatabaseSync, key = 'scope') {

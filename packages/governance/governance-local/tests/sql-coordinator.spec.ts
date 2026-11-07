@@ -14,6 +14,7 @@ import { standingCustodySchema } from '../src/standing-schema.ts'
 import { digest, json } from '../src/encoding.ts'
 import { openActivation } from './activation-world.ts'
 import { command, binding, scope } from './operation-world.ts'
+import { capture, held } from './permission-capture-world.ts'
 
 const worlds: Awaited<ReturnType<typeof openActivation>>[] = []
 afterEach(async () => {
@@ -49,6 +50,51 @@ async function setup() {
   await w.control({ kind: 'bootstrap', input: { scope, epoch: 'first', previousEpoch: null } })
   return w
 }
+it('persists, reads and replays source stages through the production read-handler authority', async () => {
+  const w = await setup(),
+    driver = coordinator(w),
+    input = capture(),
+    operation = binding(input)
+  expect(await driver.accept(input)).toMatchObject({ kind: 'found' })
+  const observed = await driver.observe(operation)
+  if (observed.kind !== 'found' || observed.source.kind !== 'requested')
+    throw new Error(JSON.stringify(observed))
+  const receipt = held(observed.source.request)
+  const hold = { kind: 'source-held' as const, binding: operation, receipt }
+  expect(await driver.executeControl(operation, hold)).toMatchObject({
+    kind: 'applied',
+    response: receipt,
+  })
+  expect(await driver.send(operation, 'source-held')).toMatchObject({
+    kind: 'applied',
+    response: receipt,
+  })
+  expect(
+    await driver.executeControl(operation, { kind: 'seal', binding: operation }),
+  ).toMatchObject({ kind: 'applied' })
+  const terminal = {
+    kind: 'settled' as const,
+    request: receipt.request,
+    reservationId: receipt.reservationId,
+    outcome: 'aborted' as const,
+  }
+  expect(
+    await driver.executeControl(operation, {
+      kind: 'source-settled',
+      binding: operation,
+      receipt: terminal,
+    }),
+  ).toMatchObject({ kind: 'applied', response: terminal })
+  expect(await driver.send(operation, 'source-settled')).toMatchObject({
+    kind: 'applied',
+    response: terminal,
+  })
+  expect(await driver.observe(operation)).toMatchObject({
+    kind: 'found',
+    source: terminal,
+    record: { state: 'aborted' },
+  })
+})
 async function prepare(w: Awaited<ReturnType<typeof openActivation>>, input = command()) {
   const operation = binding(input),
     driver = coordinator(w)

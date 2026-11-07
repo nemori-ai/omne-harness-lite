@@ -11,6 +11,8 @@ export const sqlStageSchema = z.enum([
   'seal',
   'standing-seal',
   'standing-settled',
+  'source-held',
+  'source-settled',
 ])
 export type SqlStage = z.infer<typeof sqlStageSchema>
 export const sqlEnvelopeSchema = z.strictObject({

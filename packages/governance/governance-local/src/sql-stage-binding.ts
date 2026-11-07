@@ -16,6 +16,7 @@ import type { OperationRecord, OperationBinding } from './operation-schema.ts'
 import { readGovernanceStanding } from './standing-custody.ts'
 import { standingRecoverySchema } from './standing-schema.ts'
 import type { SqlStage } from './sql-stage-schema.ts'
+import { readGovernanceSource } from './source-custody.ts'
 
 export function stageIdentity(domain: string, ref: OperationRef, stage: SqlStage): SqlIdentity {
   const identity = operationIdentity(domain, ref)
@@ -24,8 +25,10 @@ export function stageIdentity(domain: string, ref: OperationRef, stage: SqlStage
 function matchesStanding(
   port: ReadPort,
   binding: OperationBinding,
-  reservation: Extract<ControlRequest, { kind: 'standing-held' }>['reservation'],
+  request: Pick<Extract<ControlRequest, { kind: 'standing-held' }>, 'binding' | 'reservation'>,
 ) {
+  if (!equal(request.binding, binding)) return false
+  const { reservation } = request
   const custody = readGovernanceStanding(port, binding)
   return (
     'request' in custody &&
@@ -44,10 +47,12 @@ function matchesRecovery(
   const recovery = standingRecoverySchema.parse(JSON.parse(request.reservation.binding.targetRef))
   return (
     canonical(recovery) === request.reservation.binding.targetRef &&
-    equal(recovery.operation, binding) &&
     recovery.transactionDomain === request.route.transactionDomain &&
     request.reservation.binding.destination === request.route.destination &&
-    matchesStanding(port, binding, request.reservation)
+    matchesStanding(port, binding, {
+      binding: recovery.operation,
+      reservation: request.reservation,
+    })
   )
 }
 function controlBinding(port: ReadPort, binding: OperationBinding, request: ControlRequest) {
@@ -59,12 +64,27 @@ function controlBinding(port: ReadPort, binding: OperationBinding, request: Cont
       return equal(request.binding, binding)
     case 'standing-held':
     case 'standing-settled':
-      return equal(request.binding, binding) && matchesStanding(port, binding, request.reservation)
+      return matchesStanding(port, binding, request)
     case 'standing-seal':
       return matchesRecovery(port, binding, request)
+    case 'source-held':
+    case 'source-settled':
+      return matchesSource(port, binding, request)
     default:
       return false
   }
+}
+function matchesSource(
+  port: ReadPort,
+  binding: OperationBinding,
+  request: Extract<ControlRequest, { kind: 'source-held' | 'source-settled' }>,
+) {
+  const custody = readGovernanceSource(port, binding)
+  return (
+    equal(request.binding, binding) &&
+    'request' in custody &&
+    equal(custody.request, request.receipt.request)
+  )
 }
 const businessPlanners = {
   contribute: MUTATION_PLANNER,
@@ -77,6 +97,8 @@ function validateBusiness(
   record: OperationRecord,
   envelope: CommitRequestV2,
 ) {
+  if (record.request.owner === 'internal.capture' && 'permission' in record.request.command)
+    throw new Error('Permission capture requires its own business planner')
   const planner = businessPlanners[record.request.owner]
   const facts = envelope.commands.find(command => command.participant === planner)?.facts
   const business = businessRequestSchema.parse(facts?.request)

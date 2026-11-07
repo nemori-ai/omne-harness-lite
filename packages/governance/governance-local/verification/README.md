@@ -26,3 +26,9 @@
 该组合把 GovernanceSqlCustody 的 ExactSend、SettingsReservationCustody 的 SettledCannotBecomeHeld 和 [StandingRequestSettlement](../../../assets/settings/verification/models/StandingRequestSettlement.tla) 的 NoLateHold 映射到实际协调链。有限模型各有自己的前提；组合测试不构成全系统归纳证明，不覆盖远程认证、任意代码升级、物理断电或无限故障下的进展。
 
 [GovernanceRecoveryPhase](../../../human-intervention/human-intervention/verification/models/GovernanceRecoveryPhase.tla)补充固定SQL阶段的失败回执模型。错资格的seal先返回unavailable，随后正确原请求仍须结算；真实红绿反例同时检查阶段行缺失及正确恢复成功，不能只观察没有写入业务行。
+
+## 权限读取的组织来源保管
+
+[来源保管论证](proofs/permission-capture-custody.md)对应 GL-25。它说明原操作和来源责任的关系、有界恢复归并及假设，不构成新增机器证明。
+
+[保管测试](../tests/permission-capture-custody.spec.ts)运行真实 SQLite Worker；[迁移测试](../tests/permission-capture-migration.spec.ts)覆盖原行字节和实际旧域升级；[SQL 协调测试](../tests/sql-coordinator.spec.ts)检查生产读取声明及阶段认回。权限材料生产、来源服务协调及业务消费者仍是后续验收范围。

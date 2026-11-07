@@ -7,6 +7,7 @@ import {
   executionSchema,
   recordSchema,
   requestRef,
+  permissionSourcePlan,
   type AcceptOperation,
   type OperationBinding,
   type Execution,
@@ -80,6 +81,11 @@ export function acceptOperation(port: ParticipantPort, raw: AcceptOperation) {
       canonical(sqlIdentity),
     ],
   )
+  if (permissionSourcePlan(input.request) !== null)
+    port.execute(
+      'INSERT INTO gc_permission_source (scope_key,command_owner,principal_ref,operation_id,receipt_json) VALUES (?,?,?,?,NULL)',
+      operationParams(ref),
+    )
   return readOperation(port, ref)
 }
 export function submitOperation(port: ParticipantPort, binding: OperationBinding, raw: Execution) {

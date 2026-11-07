@@ -14,12 +14,19 @@ import {
 } from '../dist/operation.js'
 import { applyOperation } from '../dist/apply-operation.js'
 import { scopeKey, definitionKey } from '../dist/encoding.js'
+import { readGovernanceSource, recordGovernanceSource } from '../dist/source-custody.js'
 export default {
   participant: 'governance.activation',
   protocol: 'fixture-governance-operations/1',
   execute(facts, port) {
     let response
     switch (facts.kind) {
+      case 'source-read':
+        response = readGovernanceSource(port, facts.binding)
+        break
+      case 'source-record':
+        response = recordGovernanceSource(port, facts.binding, facts.receipt)
+        break
       case 'standing-prepare':
         response = prepareGovernanceStanding(port, facts.input)
         break

@@ -5,7 +5,7 @@ import { governanceSqlMigrations } from '@omne-harness/governance-local'
 
 it('exports fixed migration material with a digest of the actual module', () => {
   const migrations = governanceSqlMigrations()
-  expect(migrations).toHaveLength(3)
+  expect(migrations).toHaveLength(4)
   const migration = migrations[0]!
   expect(migration.owner).toBe('governance.activation')
   expect(migration.id).toBe('governance-relations-1')
@@ -14,6 +14,11 @@ it('exports fixed migration material with a digest of the actual module', () => 
   expect(migrations[1]?.requires).toEqual([{ owner: migration.owner, id: migration.id }])
   expect(migrations[2]?.id).toBe('governance-sql-stage-1')
   expect(migrations[2]?.requires).toEqual([{ owner: migration.owner, id: migration.id }])
+  expect(migrations[3]?.id).toBe('governance-source-custody-1')
+  expect(migrations[3]?.requires).toEqual([
+    { owner: migration.owner, id: 'governance-sql-stage-1' },
+    { owner: migration.owner, id: 'governance-recovery-index-1' },
+  ])
   for (const migration of migrations)
     expect(migration.checksum).toBe(
       createHash('sha256')

@@ -1733,6 +1733,9 @@ importers:
       '@omne-harness/settings':
         specifier: workspace:*
         version: link:../../assets/settings
+      '@omne-harness/settings-local':
+        specifier: workspace:*
+        version: link:../../assets/settings-local
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../storage/sql-contract

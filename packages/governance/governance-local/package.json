@@ -34,6 +34,7 @@
     "@omne-harness/sql-contract": "workspace:*",
     "@omne-harness/governance-contract": "workspace:*",
     "@omne-harness/settings": "workspace:*",
+    "@omne-harness/settings-local": "workspace:*",
     "@omne-harness/permissions": "workspace:*",
     "canonicalize": "5.1.0",
     "zod": "catalog:",

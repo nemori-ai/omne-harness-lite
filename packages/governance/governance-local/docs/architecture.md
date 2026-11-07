@@ -521,3 +521,28 @@ sequenceDiagram
 Cordis会等待异步启动返回再完成卸载。启动仍悬挂时，没有可供消费者调用的服务，不能声称启动已取消。启动途中显式卸载或依赖失效的实际测试均检查没有晚到服务激活。进程重启仍靠持久恢复，不靠这张图中的JavaScript对象。
 
 此装配已有真实Cordis、SQLite和Identity测试。生产声明发行、当前事实和Settings/ActionAdmission接线仍未完成，不能据此宣称C3b整体验收通过。
+
+## 权限读取的来源责任
+
+权限读取的原动作与读取操作分开。每次读取有新的 capture，原动作仍保存在 PermissionBasisRequest。Governance 保管读取终态，Settings 保管来源快照；权限规则继续由 Permissions 解释。
+
+```mermaid
+erDiagram
+  gc_operation ||--o| gc_permission_source : "同事务接受，完整原键"
+  gc_operation ||--o{ gc_sql_stage : "精确阶段信封"
+  gc_operation {
+    string request_json "不可变命令及source计划"
+    string state "accepted submitted committed aborted"
+  }
+  gc_permission_source {
+    string receipt_json "NULL表示requested，或held/settled"
+  }
+  gc_sql_stage {
+    string stage "含source-held与source-settled"
+    string envelope_json "保存后不改写"
+  }
+```
+
+恢复读取分别扫描业务/Identity部分索引与来源部分索引，每个最多65项，然后按完整键去重归并。终态未结算的来源仍在恢复集合内。所有关系属于 Governance，不查询 Settings 私表。
+
+已实现的是请求与来源责任保管。实际权限 current 事务、来源服务协调和旧装配重放仍待交付。旧 SQL 信封保留原字节，不代表它可以在新材料摘要下执行。

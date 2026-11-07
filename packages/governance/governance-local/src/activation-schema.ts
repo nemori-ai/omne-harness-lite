@@ -1,5 +1,6 @@
 import { closeScopeSchema } from './scope.ts'
 import { z } from 'zod'
+import { SettingsSourceReceiptSchema } from '@omne-harness/settings-local/preparation'
 import { GovernanceDigestSchema, GovernanceIdSchema } from '@omne-harness/governance-contract'
 import {
   acceptSchema,
@@ -28,6 +29,16 @@ export const controlRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('retire-contribution'), binding: bindingSchema }),
   z.strictObject({ kind: z.literal('accept'), input: acceptSchema }),
   z.strictObject({ kind: z.literal('standing-prepare'), input: standingPlanSchema }),
+  z.strictObject({
+    kind: z.literal('source-held'),
+    binding: bindingSchema,
+    receipt: SettingsSourceReceiptSchema.refine(receipt => receipt.kind === 'held'),
+  }),
+  z.strictObject({
+    kind: z.literal('source-settled'),
+    binding: bindingSchema,
+    receipt: SettingsSourceReceiptSchema.refine(receipt => receipt.kind === 'settled'),
+  }),
   z.strictObject({
     kind: z.literal('standing-held'),
     binding: bindingSchema,

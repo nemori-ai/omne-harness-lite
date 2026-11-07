@@ -9,6 +9,7 @@ import {
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { governanceSqlMigrations, governanceRecoveryReadMaterials } from '../src/materials.ts'
+import { GOVERNANCE_CUSTODY_TABLES } from '../src/source-custody-migration.ts'
 import { GOVERNANCE_SQL_TABLES } from '../src/sql-stage-migration.ts'
 import { json, digest } from '../src/encoding.ts'
 import { requestRef, type AcceptOperation, type Execution } from '../src/operation-schema.ts'
@@ -62,6 +63,7 @@ export async function openOperations(
   existing?: string,
   options: {
     tenantRef?: string
+    legacySchema?: boolean
     extraMaterials?: Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
   } = {},
 ) {
@@ -75,7 +77,7 @@ export async function openOperations(
         protocol: 'fixture-governance-operations/1',
         moduleUrl: url.href,
         codeDigest: createHash('sha256').update(readFileSync(url)).digest('hex'),
-        ownedTables: GOVERNANCE_SQL_TABLES,
+        ownedTables: options.legacySchema ? GOVERNANCE_SQL_TABLES : GOVERNANCE_CUSTODY_TABLES,
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
@@ -84,9 +86,14 @@ export async function openOperations(
       },
       ...(options.extraMaterials?.participants ?? []),
     ],
-    migrations: [...governanceSqlMigrations(), ...(options.extraMaterials?.migrations ?? [])],
+    migrations: [
+      ...governanceSqlMigrations().filter(
+        migration => !options.legacySchema || migration.id !== 'governance-source-custody-1',
+      ),
+      ...(options.extraMaterials?.migrations ?? []),
+    ],
     readHandlers: [
-      ...governanceRecoveryReadMaterials(),
+      ...(options.legacySchema ? [] : governanceRecoveryReadMaterials()),
       ...(options.extraMaterials?.readHandlers ?? []),
     ],
     declaredCombinations: { tenant: null, system: null },
@@ -100,7 +107,7 @@ export async function openOperations(
   }
   const combination = {
     ...domain,
-    combinationVersion: 'fixture/1',
+    combinationVersion: options.legacySchema ? 'fixture/1' : 'fixture/2',
     manifestDigest: manifestDigest(checked.manifest),
     participants,
   }

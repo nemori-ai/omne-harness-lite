@@ -6,6 +6,7 @@ import { finishOperation } from './operation.ts'
 import { catalogPageSchema } from './catalog-schema.ts'
 import { governanceFailureSchema } from './registrar-results.ts'
 import { equal } from './encoding.ts'
+import { isCatalogCapture } from './operation-schema.ts'
 
 export function applyCapture(
   port: ParticipantPort,
@@ -14,7 +15,7 @@ export function applyCapture(
   const { binding, execution } = plan.request
   const candidate = submittedOperation(port, binding, execution)
   if (candidate.kind !== 'ready') return candidate
-  if (candidate.record.request.owner !== 'internal.capture') throw new Error('Wrong capture owner')
+  if (!isCatalogCapture(candidate.record.request)) throw new Error('Wrong catalog capture request')
   const custody = readGovernanceStanding(port, binding)
   if (custody.kind !== 'held') return { kind: 'unavailable' as const, owner: 'identity-standing' }
   const result = catalogPageSchema.or(governanceFailureSchema).parse(plan.result)

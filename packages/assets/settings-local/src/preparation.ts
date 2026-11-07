@@ -23,6 +23,12 @@ export {
 export type { CommitCurrent as SettingsCommitCurrent } from './commit-current.ts'
 export type { SourceRequest as SettingsSourceRequest } from './source-retention-schema.ts'
 export {
+  sourceReferenceSchema as SettingsSourceReferenceSchema,
+  sourceRequestSchema as SettingsSourceRequestSchema,
+  sourceSnapshotSchema as SettingsSourceSnapshotSchema,
+} from './source-retention-schema.ts'
+export { sourceCustodyReceiptSchema as SettingsSourceReceiptSchema } from './source-custody-schema.ts'
+export {
   createIdentityQualifiedSettingsPreparation,
   type IdentityQualifiedPreparationOptions,
 } from './identity-preparation.ts'

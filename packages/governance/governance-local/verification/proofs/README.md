@@ -1,29 +1,7 @@
-# verification/proofs
+# 来源保管的证明范围
 
-<!-- documentation:placeholder -->
+本目录保存与本包源码对应的性质论证。论证须列明存储、来源权威和摘要假设，区分人工归纳、有限模型检查和实际运行证据。
 
-本目录承载本包的论证或证明。
+当前的[权限读取来源保管](permission-capture-custody.md)覆盖原请求绑定、终态一致、不复活、快照不替换与有界恢复归并。它不证明来源协调器、旧装配重放或完整业务准入。
 
-## 允许的内容
-
-<!-- documentation:placeholder -->
-
-证明源文件与说明。
-
-## 边界
-
-<!-- documentation:placeholder -->
-
-说明证明的性质、假设与适用范围。
-
-## 维护
-
-<!-- documentation:placeholder -->
-
-被证明的承诺变化时，复核证明是否仍然成立。
-
-## 本包事实
-
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+被证明的状态或转换变化时，同步更新论证与测试映射。模型与命令入口见[验证说明](../README.md)。

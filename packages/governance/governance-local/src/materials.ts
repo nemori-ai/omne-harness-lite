@@ -11,7 +11,11 @@ import {
   ACTIVATION_PROTOCOL,
 } from './activation-schema.ts'
 import { GOVERNANCE_RECOVERY_MIGRATION } from './recovery-migration.ts'
-import { GOVERNANCE_STAGE_MIGRATION, GOVERNANCE_SQL_TABLES } from './sql-stage-migration.ts'
+import { GOVERNANCE_STAGE_MIGRATION } from './sql-stage-migration.ts'
+import {
+  GOVERNANCE_SOURCE_MIGRATION,
+  GOVERNANCE_CUSTODY_TABLES,
+} from './source-custody-migration.ts'
 import { OPERATION_HANDLER } from './operation-read.ts'
 import { STAGE_HANDLER } from './sql-stage-read.ts'
 import { RECOVERY_HANDLER } from './recovery-read.ts'
@@ -29,6 +33,7 @@ export function governanceSqlMigrations(): SqlMaterialCatalog['migrations'] {
   const url = new URL(`./migration.${extension}`, import.meta.url)
   const recovery = new URL(`./recovery-migration.${extension}`, import.meta.url)
   const stage = new URL(`./sql-stage-migration.${extension}`, import.meta.url)
+  const source = new URL(`./source-custody-migration.${extension}`, import.meta.url)
   return [
     {
       ...GOVERNANCE_MIGRATION,
@@ -48,6 +53,12 @@ export function governanceSqlMigrations(): SqlMaterialCatalog['migrations'] {
       checksum: createHash('sha256').update(readFileSync(stage)).digest('hex'),
       requires: [GOVERNANCE_MIGRATION],
     },
+    {
+      ...GOVERNANCE_SOURCE_MIGRATION,
+      moduleUrl: source.href,
+      checksum: createHash('sha256').update(readFileSync(source)).digest('hex'),
+      requires: [GOVERNANCE_STAGE_MIGRATION, GOVERNANCE_RECOVERY_MIGRATION],
+    },
   ]
 }
 
@@ -60,10 +71,10 @@ export function governanceRecoveryReadMaterials(): SqlMaterialCatalog['readHandl
       moduleUrl: url.href,
       codeDigest: createHash('sha256').update(readFileSync(url)).digest('hex'),
       ordering: 'domain-serial',
-      readTables: ['gc_scope', 'gc_operation'],
-      requiresMigrations: [GOVERNANCE_RECOVERY_MIGRATION],
+      readTables: ['gc_scope', 'gc_operation', 'gc_permission_source'],
+      requiresMigrations: [GOVERNANCE_SOURCE_MIGRATION],
       maxOutputBytes: 256 * 1024,
-      maxRowsRead: 66,
+      maxRowsRead: 131,
     },
   ]
 }
@@ -130,17 +141,17 @@ export function governanceSqlMaterials(): Pick<
         ...OPERATION_HANDLER,
         ...participantFile('operation-read'),
         ordering: 'domain-serial',
-        readTables: ['gc_operation'],
-        requiresMigrations: [GOVERNANCE_MIGRATION],
+        readTables: ['gc_operation', 'gc_permission_source'],
+        requiresMigrations: [GOVERNANCE_SOURCE_MIGRATION],
         maxOutputBytes: 3 * 1024 * 1024,
-        maxRowsRead: 3,
+        maxRowsRead: 5,
       },
       {
         ...STAGE_HANDLER,
         ...participantFile('sql-stage-read'),
         ordering: 'domain-serial',
-        readTables: ['gc_operation', 'gc_sql_stage'],
-        requiresMigrations: [GOVERNANCE_STAGE_MIGRATION],
+        readTables: ['gc_operation', 'gc_sql_stage', 'gc_permission_source'],
+        requiresMigrations: [GOVERNANCE_SOURCE_MIGRATION],
         maxOutputBytes: 4 * 1024 * 1024 + 1024,
         maxRowsRead: 4,
       },
@@ -177,7 +188,7 @@ export function governanceSqlMaterials(): Pick<
         participant: GOVERNANCE_OWNER,
         protocol: ACTIVATION_PROTOCOL,
         ...participantFile('activation'),
-        ownedTables: GOVERNANCE_SQL_TABLES,
+        ownedTables: GOVERNANCE_CUSTODY_TABLES,
         readTables: [],
         requiresFacts: [ACTIVATION_PLAN],
         providesFacts: [],

@@ -8,7 +8,13 @@ import {
 import { closeScopeSchema, SCOPE_HANDLER } from './scope.ts'
 import { METADATA_PLANNER, type ControlRequest } from './activation-schema.ts'
 import { GOVERNANCE_OWNER } from './migration.ts'
-import { bootstrapSchema, bindingSchema, type Bootstrap } from './operation-schema.ts'
+import {
+  bootstrapSchema,
+  bindingSchema,
+  type Bootstrap,
+  type OperationBinding,
+} from './operation-schema.ts'
+import type { SourceCustody } from './source-custody.ts'
 import { digest, equal, json } from './encoding.ts'
 import { submitSql } from './sql-submission.ts'
 import { mutationCombinationSchema, type MutationCombination } from './registrar-execution.ts'
@@ -165,7 +171,7 @@ export class GovernanceScopeLifecycle {
     return { kind: 'page' as const, next: parsed.data.next, unsettled }
   }
   private async recoverOperation(item: z.infer<typeof recoveryPageSchema>['items'][number]) {
-    const { scope, sql, standing } = this.options
+    const { scope, sql } = this.options
     if (!equal(item.key.scope, scope)) return 'unavailable'
     const parsed = bindingSchema.safeParse({
       ref: item.key,
@@ -179,7 +185,11 @@ export class GovernanceScopeLifecycle {
     await sql.executeControl(binding, { kind: 'seal', binding })
     const terminal = await sql.observe(binding)
     if (terminal.kind !== 'found' || !isTerminal(terminal.record)) return 'pending'
-    const settled = await standing.settle(binding)
-    return settled.kind === 'settled' || settled.kind === 'unplanned' ? 'settled' : 'pending'
+    return this.settle(binding, terminal.source)
+  }
+  private async settle(binding: OperationBinding, source: SourceCustody) {
+    const settled = await this.options.standing.settle(binding)
+    if (settled.kind !== 'settled' && settled.kind !== 'unplanned') return 'pending'
+    return source.kind === 'settled' || source.kind === 'not-required' ? 'settled' : 'pending'
   }
 }

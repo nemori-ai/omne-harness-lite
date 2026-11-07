@@ -178,7 +178,7 @@ export default {
       return { kind: 'participated', response: null }
     }
     const found = boundOperation(port, original.request.binding)
-    if (found.kind !== 'found' || found.record.request.owner !== 'internal.capture')
+    if (found.kind !== 'found' || !isCatalogCapture(found.record.request))
       throw new Error('Missing capture operation')
     const binding: CatalogBinding = {
       scope: original.request.binding.ref.scope,
@@ -200,3 +200,4 @@ export default {
     return { kind: 'participated', response: null }
   },
 } satisfies ParticipantModule
+import { isCatalogCapture } from './operation-schema.ts'
