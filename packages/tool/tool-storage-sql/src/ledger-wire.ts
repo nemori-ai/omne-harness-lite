@@ -1,4 +1,3 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import {
   recordKey,
@@ -18,9 +17,7 @@ export function addressOf(tenant: string, domain: LedgerDomain): DomainAddress {
   return { tenant, kind: domain.kind, name: domain.kind === 'call' ? domain.call : domain.key }
 }
 
-export function writesOf<B extends ContentBlock>(
-  input: LedgerCommitInput<B>,
-): readonly LedgerWriteFact[] {
+export function writesOf(input: LedgerCommitInput): readonly LedgerWriteFact[] {
   return input.writes.map((write, index) =>
     write.kind === 'put'
       ? {

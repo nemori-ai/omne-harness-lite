@@ -27,7 +27,7 @@ import {
   type GuardResource,
   type StartCoordinatorAccess,
 } from '@omne-harness/tool-host-local'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { openApp, TENANT_A, TENANT_B, type App } from './fixtures/app.ts'
 import { fixedRequest } from './fixtures/ledger.ts'
@@ -49,7 +49,7 @@ const access: StartCoordinatorAccess<Principal> = {
       : { kind: 'denied', reason: 'not-qualified' },
 }
 
-const coordinator = (store: ToolLedgerStore<ContentBlock>) =>
+const coordinator = (store: ToolLedgerStore) =>
   createLocalStartCoordinator<Principal>({
     store,
     access,

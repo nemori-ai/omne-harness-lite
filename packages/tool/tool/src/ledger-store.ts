@@ -23,7 +23,6 @@ import type {
   ToolCallId,
   ToolExecutionRef,
   ToolOperationId,
-  ToolResult,
   ToolResultVersion,
   ToolRevision,
   ToolStartRecord,
@@ -155,7 +154,7 @@ export type EnvironmentReleaseRecord = Readonly<{
 }>
 
 /** One result version with its delivery relation. `settledBy` is the operation that made it. */
-export type ResultRecord<B extends ContentBlock> = Readonly<{
+export type ResultRecord = Readonly<{
   tenant: TenantId
   call: ToolCallId
   result: ToolResultVersion
@@ -163,7 +162,7 @@ export type ResultRecord<B extends ContentBlock> = Readonly<{
   terminal: ToolTerminal
   actual: ToolTerminal | null
   effect: Effect
-  value: ToolResult<B> | ResultChannels
+  value: ResultChannels
   delivery: DeliveryState
   source: DurableEvidence
   settledBy: ToolOperationId
@@ -299,14 +298,14 @@ export type QueueReleaseRecord = Readonly<{ call: ToolCallId; basis: ReleaseBasi
 /** A record of a host provider. The ledger stores it by key and never reads its value. */
 export type HostRecord = Readonly<{ key: string; value: unknown }>
 
-export type LedgerRecord<B extends ContentBlock> =
+export type LedgerRecord =
   | Readonly<{ kind: 'result-preparation'; preparation: ResultPreparationRecord }>
   | Readonly<{ kind: 'material'; material: MaterialRecord }>
   | Readonly<{ kind: 'material-use'; use: MaterialUseRecord }>
   | Readonly<{ kind: 'material-time'; time: MaterialTimeRecord }>
   | Readonly<{ kind: 'call'; call: CallRecord }>
   | Readonly<{ kind: 'operation'; operation: OperationRecord }>
-  | Readonly<{ kind: 'result'; result: ResultRecord<B> }>
+  | Readonly<{ kind: 'result'; result: ResultRecord }>
   | Readonly<{ kind: 'account'; account: AccountRecord }>
   | Readonly<{ kind: 'environment-release'; environmentRelease: EnvironmentReleaseRecord }>
   | Readonly<{ kind: 'task'; task: ToolTask }>
@@ -321,7 +320,7 @@ export type LedgerRecord<B extends ContentBlock> =
   | Readonly<{ kind: 'host'; host: HostRecord }>
 
 /** The unique key of a record inside its domain. A `put` with the same key replaces the record. */
-export function recordKey<B extends ContentBlock>(record: LedgerRecord<B>): string {
+export function recordKey(record: LedgerRecord): string {
   if (isQueueRecord(record)) return queueRecordKey(record)
   switch (record.kind) {
     case 'result-preparation':
@@ -363,12 +362,12 @@ export function recordKey<B extends ContentBlock>(record: LedgerRecord<B>): stri
   }
 }
 
-type QueueRecord<B extends ContentBlock> = Extract<
-  LedgerRecord<B>,
+type QueueRecord = Extract<
+  LedgerRecord,
   { kind: 'queue-entry' | 'queue-counter' | 'queue-release' }
 >
 
-function isQueueRecord<B extends ContentBlock>(record: LedgerRecord<B>): record is QueueRecord<B> {
+function isQueueRecord(record: LedgerRecord): record is QueueRecord {
   return (
     record.kind === 'queue-entry' ||
     record.kind === 'queue-counter' ||
@@ -377,7 +376,7 @@ function isQueueRecord<B extends ContentBlock>(record: LedgerRecord<B>): record 
 }
 
 /** The key of a record of a queue domain. */
-function queueRecordKey<B extends ContentBlock>(record: QueueRecord<B>): string {
+function queueRecordKey(record: QueueRecord): string {
   switch (record.kind) {
     case 'queue-entry':
       return queueEntryKey(record.entry.call)
@@ -415,8 +414,8 @@ export function hostKey(key: string): string {
 }
 
 /** A write by key. A `delete` of a key that holds no record is a no-op, not a failure. */
-export type LedgerWrite<B extends ContentBlock> =
-  | Readonly<{ kind: 'put'; record: LedgerRecord<B> }>
+export type LedgerWrite =
+  | Readonly<{ kind: 'put'; record: LedgerRecord }>
   | Readonly<{ kind: 'delete'; key: string }>
 
 /**
@@ -424,15 +423,15 @@ export type LedgerWrite<B extends ContentBlock> =
  * includes every commit that returned `committed` before the read began. A domain that was never
  * committed has revision `0` and no records.
  */
-export type LedgerRead<B extends ContentBlock> =
-  | Readonly<{ kind: 'complete'; revision: ToolRevision; records: readonly LedgerRecord<B>[] }>
+export type LedgerRead =
+  | Readonly<{ kind: 'complete'; revision: ToolRevision; records: readonly LedgerRecord[] }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-export type LedgerCommitInput<B extends ContentBlock> = Readonly<{
+export type LedgerCommitInput = Readonly<{
   domain: LedgerDomain
   expected: ToolRevision
   revision: ToolRevision
-  writes: readonly LedgerWrite<B>[]
+  writes: readonly LedgerWrite[]
 }>
 
 /**
@@ -446,10 +445,10 @@ export type LedgerCommit =
   | Readonly<{ kind: 'unknown'; diagnostic: string }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-export interface ToolLedgerStore<B extends ContentBlock> {
+export interface ToolLedgerStore {
   /** `none` is the store of `./testing`; a production assembly needs `durable`. */
   readonly durability: 'none' | 'durable'
-  read(domain: LedgerDomain): Promise<LedgerRead<B>>
+  read(domain: LedgerDomain): Promise<LedgerRead>
   /**
    * Atomic: all writes take effect together, or none does. Serialized with `read` per domain. A
    * committed commit sets the domain revision to `revision` whatever its write set holds: a set
@@ -457,5 +456,5 @@ export interface ToolLedgerStore<B extends ContentBlock> {
    * way as any other, because the ledger's exclusion fence depends on that advance. There is no
    * no-op shortcut.
    */
-  commit(input: LedgerCommitInput<B>): Promise<LedgerCommit>
+  commit(input: LedgerCommitInput): Promise<LedgerCommit>
 }

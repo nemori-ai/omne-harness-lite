@@ -81,9 +81,9 @@ export type PrincipalCodec<P> = Readonly<{
   decode(value: PrincipalJson): Outcome<P, Readonly<{ reason: string }>>
 }>
 
-export type LocalInvocationSourceInput<P, B extends ContentBlock = ContentBlock> = Readonly<{
+export type LocalInvocationSourceInput<P> = Readonly<{
   /** The ledger store of the runtime: its `host` domain keeps the bindings. */
-  store: ToolLedgerStore<B>
+  store: ToolLedgerStore
   /** Current consumer qualification and the stable comparison of subjects (identity's adapter). */
   authority: ToolInvokeAuthority<P>
   principalCodec: PrincipalCodec<P>
@@ -256,7 +256,7 @@ function nextRevision(revision: string) {
  * `TypeError`.
  */
 export function createLocalInvocationSource<P, B extends ContentBlock = ContentBlock>(
-  input: LocalInvocationSourceInput<P, B>,
+  input: LocalInvocationSourceInput<P>,
 ): LocalInvocationSource<P, B> {
   const { store, authority, principalCodec, commitAttempts } = input
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
@@ -274,8 +274,8 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
   /** The domain of the tenant read once, or the reason it could not be read. */
   const readDomain = async (
     tenant: TenantId,
-  ): Promise<Extract<LedgerRead<B>, { kind: 'complete' }> | string> => {
-    let result: LedgerRead<B>
+  ): Promise<Extract<LedgerRead, { kind: 'complete' }> | string> => {
+    let result: LedgerRead
     try {
       result = await store.read(domain(tenant))
     } catch {
@@ -285,7 +285,7 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
   }
 
   const bindingOf = (
-    read: Extract<LedgerRead<B>, { kind: 'complete' }>,
+    read: Extract<LedgerRead, { kind: 'complete' }>,
     key: string,
   ): Binding | null | 'unreadable' => {
     for (const record of read.records) {
@@ -358,7 +358,7 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
 
   /** Writes a new binding at the revision that was read; null when that revision moved. */
   const bind = async (
-    read: Extract<LedgerRead<B>, { kind: 'complete' }>,
+    read: Extract<LedgerRead, { kind: 'complete' }>,
     plan: IssuePlan,
   ): Promise<ToolInvocationSourceOutcome | null> => {
     const { tenant, key, request, requestDigest, call, admission, encoded } = plan

@@ -14,7 +14,7 @@ import {
   type ToolControlSubjects,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import { openApp, TENANT_A, type App } from './fixtures/app.ts'
 import { ledgerWorld } from './fixtures/ledger.ts'
 
@@ -31,10 +31,7 @@ function ok<T>(value: { ok: T } | { failure: unknown }): T {
   return value.ok
 }
 
-function ledger(
-  store: ToolLedgerStore<ContentBlock>,
-  controlSubjects: ToolControlSubjects<string>,
-) {
+function ledger(store: ToolLedgerStore, controlSubjects: ToolControlSubjects<string>) {
   return createToolLedger(
     store,
     {

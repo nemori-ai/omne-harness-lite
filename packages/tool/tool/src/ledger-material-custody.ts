@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   Adoption,
@@ -38,26 +38,24 @@ const unavailable = (diagnostic: string): Outcome<never, ToolFailure> =>
 const conflict = (operation: ToolOperationId): Outcome<never, ToolFailure> =>
   fail({ kind: 'conflict', operation })
 
-export type MaterialTransaction<B extends ContentBlock> = (
+export type MaterialTransaction = (
   domain: LedgerDomain,
   operation: ToolOperationId,
-  decide: (snapshot: Snapshot<B>, mint: Mint) => Promise<Decision<MaterialRecord, B>>,
+  decide: (snapshot: Snapshot, mint: Mint) => Promise<Decision<MaterialRecord>>,
   unknown: Outcome<MaterialRecord, ToolFailure>,
 ) => Reply<MaterialRecord>
 
 type MaterialInput<P> = MutationInput<P> & Readonly<{ source: DurableEvidence }>
-type PreparationCheck<B extends ContentBlock> = (
-  snapshot: Snapshot<B>,
-) => Outcome<void, ToolFailure>
+type PreparationCheck = (snapshot: Snapshot) => Outcome<void, ToolFailure>
 
-async function prepare<P, B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+async function prepare<P>(
+  snapshot: Snapshot,
   mint: Mint,
   input: MaterialInput<P>,
   record: MaterialRecord,
   clock: NonNullable<ToolLedgerPorts<P>['materials']>['clock'],
-  validate: PreparationCheck<B>,
-): Promise<Decision<MaterialRecord, B>> {
+  validate: PreparationCheck,
+): Promise<Decision<MaterialRecord>> {
   const allowed = validate(snapshot)
   if ('failure' in allowed) return reply(allowed)
   const known = snapshot.materials.get(input.operation)
@@ -149,11 +147,11 @@ function materialFor(
   })
 }
 
-function recordSeal<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+function recordSeal(
+  snapshot: Snapshot,
   record: MaterialRecord,
   seal: ToolMaterialSeal,
-): Decision<MaterialRecord, B> {
+): Decision<MaterialRecord> {
   const current = snapshot.materials.get(record.writeOperation)
   if (current === undefined || !sameFactValue(current.input, record.input))
     return reply(conflict(record.writeOperation))
@@ -188,11 +186,11 @@ function checkedSeal(
   })
 }
 
-export function createLedgerMaterialCustody<P, B extends ContentBlock>(
+export function createLedgerMaterialCustody<P>(
   dependencies: Readonly<{
     materials: ToolLedgerPorts<P>['materials']
     entry(input: unknown): Reply<CallInput<P>>
-    transact: MaterialTransaction<B>
+    transact: MaterialTransaction
   }>,
 ) {
   const { entry, transact } = dependencies
@@ -228,7 +226,7 @@ export function createLedgerMaterialCustody<P, B extends ContentBlock>(
       encoded: EncodedToolMaterial,
       identity: ToolMaterialFingerprint,
       namespace: string,
-      validate: PreparationCheck<B>,
+      validate: PreparationCheck,
     ): Reply<ToolMaterialSeal> => {
       const allowed = await entry(input)
       if ('failure' in allowed) return allowed

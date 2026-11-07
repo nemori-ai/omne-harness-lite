@@ -535,7 +535,7 @@ export function testHost(spies: Spies, identities: ToolInstanceIdentities): Test
 }
 
 export type Harness = Readonly<{
-  store: MemoryToolLedgerStore<Block>
+  store: MemoryToolLedgerStore
   ledger: ToolLedger<Principal, Block>
   provider: ToolProvider<Principal, Block>
   runtime: ToolProvider<Principal, Block>['runtime']
@@ -555,7 +555,7 @@ export type Harness = Readonly<{
 
 /** A real runtime over the non-durable store; only the ledger ports are real. */
 export function harness(options: HarnessOptions = {}): Harness {
-  const store = createMemoryToolLedgerStore<Block>()
+  const store = createMemoryToolLedgerStore()
   const spies: Spies = { calls: new Map() }
   const clock = stub<ToolDependencies<Principal, Block, null>['clock']>(spies, 'clock', [
     'now',
@@ -699,7 +699,7 @@ export function harness(options: HarnessOptions = {}): Harness {
 
 /** A ledger over another store, for a store that the memory store cannot imitate. */
 export function ledgerOver(
-  store: ToolLedgerStore<Block>,
+  store: ToolLedgerStore,
   options: HarnessOptions = {},
 ): ToolLedger<Principal, Block> {
   const spies: Spies = { calls: new Map() }
@@ -792,10 +792,10 @@ export function operationRefFor(
  * commits through this store is forwarded without a second interception.
  */
 export function interleaving(
-  memory: ToolLedgerStore<Block>,
-  matches: (input: LedgerCommitInput<Block>) => boolean,
+  memory: ToolLedgerStore,
+  matches: (input: LedgerCommitInput) => boolean,
   land: () => Promise<unknown>,
-): ToolLedgerStore<Block> {
+): ToolLedgerStore {
   let armed = true
   return {
     durability: 'none',
@@ -811,7 +811,7 @@ export function interleaving(
 }
 
 /** Whether a commit writes the operation record of `operation`: the commit of that operation. */
-export function putsOperation(operation: string): (input: LedgerCommitInput<Block>) => boolean {
+export function putsOperation(operation: string): (input: LedgerCommitInput) => boolean {
   return input =>
     input.writes.some(
       write =>
@@ -822,7 +822,7 @@ export function putsOperation(operation: string): (input: LedgerCommitInput<Bloc
 }
 
 /** Whether a commit writes an exclusion record: the fence of a negative answer. */
-export function putsExclusion(input: LedgerCommitInput<Block>): boolean {
+export function putsExclusion(input: LedgerCommitInput): boolean {
   return input.writes.some(write => write.kind === 'put' && write.record.kind === 'exclusion')
 }
 

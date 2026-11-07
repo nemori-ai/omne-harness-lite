@@ -17,7 +17,6 @@ import {
   TOOL_PARTICIPANT,
 } from '@omne-harness/tool-storage-sql'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 
 // The budget scenario produces a 2,723,278-byte plan command, including retained request copies.
 const DEFAULT_MAX_COMMAND_BYTES = 4_194_304
@@ -174,7 +173,7 @@ export async function openStorage(
       storage: created.storage,
       combination,
       domains,
-      store: createSqlToolLedgerStore<ToolMessageContentBlock>(options),
+      store: createSqlToolLedgerStore(options),
       custody: createSqlToolOutputCustody<unknown>({
         ...options,
         maxCommandBytes,

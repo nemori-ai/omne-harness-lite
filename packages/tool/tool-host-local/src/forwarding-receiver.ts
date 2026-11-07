@@ -24,8 +24,8 @@ import {
 
 /** Saves a complete delivery in the original source association before acknowledging custody. */
 export function createForwardingReceiver<P, B extends ContentBlock>(
-  input: LocalInvocationSourceInput<P, B>,
-  forwarding: ReturnType<typeof createInvocationForwarding<P, B>>,
+  input: LocalInvocationSourceInput<P>,
+  forwarding: ReturnType<typeof createInvocationForwarding<P>>,
 ): ToolResultReceiver<P, B> {
   const saveReceived = async (
     access: Access<P>,

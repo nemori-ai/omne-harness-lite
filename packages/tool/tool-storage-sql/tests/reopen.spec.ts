@@ -3,13 +3,17 @@
 // store finds the call and its result, and a repeated admission recalls the original without a
 // second record.
 import { afterEach, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
+import { succeed } from '@omne-harness/operation-result'
+
 import type { LedgerRecord } from '@omne-harness/tool'
-import { decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
+import {
+  decodeToolInstanceId,
+  decodeToolMaterialInstant,
+} from '@omne-harness/tool-contract/provider'
 import { decodeToolCallId, decodeToolOperationId } from '@omne-harness/tool-contract'
 import { openApp, TENANT_A, type App } from './fixtures/app.ts'
 import { ledgerWorld } from './fixtures/ledger.ts'
-import { createSqlToolOutputCustody } from '../src/index.ts'
+import { createSqlToolOutputCustody, createSqlToolMaterialStore } from '../src/index.ts'
 
 const opened: App[] = []
 
@@ -26,11 +30,32 @@ function ok<T>(answer: { ok: T } | { failure: unknown }): T {
 const instance = ok(decodeToolInstanceId('instance-1'))
 const rejectOperation = ok(decodeToolOperationId('reject-1'))
 
+function materials(app: App) {
+  const provider = {
+    owner: 'reopen-fixture',
+    name: 'materials',
+    revision: '1',
+    digest: 'sha256:materials',
+  }
+  return {
+    provider,
+    store: createSqlToolMaterialStore({
+      ...app.options,
+      provider,
+      maxCommandBytes: 1_048_576,
+      maxChunkBytes: 16_384,
+    }),
+    clock: {
+      sample: async () => succeed(ok(decodeToolMaterialInstant('2026-11-07T00:00:00.000Z'))),
+    },
+  }
+}
+
 it('a reopened store answers lookup and readResult, and recalls the admission without a second record', async () => {
   const first = await openApp({ keep: true })
   opened.push(first)
   const world = await ledgerWorld(TENANT_A)
-  const ledger = world.ledgerOver(first.store)
+  const ledger = world.ledgerOver(first.store, materials(first))
   const admitted = ok(await ledger.admissions.admit(world.input))
   expect(admitted.recovered).toBe(false)
   const settled = ok(
@@ -57,7 +82,7 @@ it('a reopened store answers lookup and readResult, and recalls the admission wi
 
   const second = await openApp({ directory: first.directory })
   opened.push(second)
-  const again = world.ledgerOver(second.store)
+  const again = world.ledgerOver(second.store, materials(second))
   expect(
     ok(await again.reads.lookup({ ...world.access, admission: world.input.operation })),
   ).toEqual(lookup)
@@ -69,7 +94,11 @@ it('a reopened store answers lookup and readResult, and recalls the admission wi
   expect(await second.store.read(domain)).toEqual(before)
   const operations = (read: typeof before) =>
     read.kind === 'complete'
-      ? read.records.filter((record: LedgerRecord<ContentBlock>) => record.kind === 'operation')
+      ? read.records.filter(
+          (record: LedgerRecord) =>
+            record.kind === 'operation' &&
+            [world.input.operation, rejectOperation].includes(record.operation.operation),
+        )
       : []
   expect(operations(before)).toHaveLength(2)
 })

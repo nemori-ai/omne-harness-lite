@@ -78,7 +78,7 @@ function contentInput<P>(input: ContentInput<P>): Outcome<ContentInput<P>, ToolF
 }
 
 function association<B extends ContentBlock>(
-  record: ResultRecord<B>,
+  record: ResultRecord,
   attachment: Attachment,
   value: ToolResult<B>,
 ): Outcome<Readonly<{ raw: boolean }>, ToolFailure> {
@@ -143,8 +143,8 @@ export function createLedgerContent<P, B extends ContentBlock>(
     adoption: Adoption
     provider: Pick<ToolContentReader<P>, 'read'> | null
     authorize(input: CallInput<P>, action: ToolLedgerAction): Reply<void>
-    load(input: CallInput<P>): Reply<Snapshot<B>>
-    resultValue(input: CallInput<P>, record: ResultRecord<B>): Reply<ToolResult<B>>
+    load(input: CallInput<P>): Reply<Snapshot>
+    resultValue(input: CallInput<P>, record: ResultRecord): Reply<ToolResult<B>>
   }>,
 ): ToolContentReader<P> {
   const locate = async (input: ResultInput<P>) => {

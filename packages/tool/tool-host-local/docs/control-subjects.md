@@ -8,7 +8,7 @@
 
 | 输入                 | 承诺                                                                                                                 |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `store`              | 与 Tool ledger 共用的 `ToolLedgerStore<B>`。生产装配必须提供耐久存储。                                               |
+| `store`              | 与 Tool ledger 共用的 `ToolLedgerStore`。生产装配必须提供耐久存储。                                               |
 | `project`            | 既有身份核验者的窄闭包。先核验真实 `P`，再返回 `LocalToolControlSubject`。字段相同的伪造对象不能通过。               |
 | `resolveSessionWork` | 按合法 `tenant` 和原始 opaque SessionId，经既有 Session 归属与身份签发链取得当前 `P`。不能将存储 JSON 当成受信主体。 |
 | `qualify`            | 既有 `ToolAccessGuard<P>['qualify']`。适配器固定请求 `action: 'control'`。                                           |

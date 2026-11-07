@@ -1,4 +1,3 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import { expect, it } from 'vitest'
@@ -25,11 +24,11 @@ function barrier() {
 }
 
 it('lets tenant B commit while A is blocked in its read and keeps A consume behind invalidation', async () => {
-  const memory = createMemoryToolLedgerStore<ContentBlock>()
+  const memory = createMemoryToolLedgerStore()
   const entered = barrier()
   const resume = barrier()
   let block = false
-  const store: ToolLedgerStore<ContentBlock> = {
+  const store: ToolLedgerStore = {
     durability: 'none',
     read: async domain => {
       if (block && domain.tenant.account.text === tenantA.account.text) {
@@ -78,13 +77,13 @@ it('lets tenant B commit while A is blocked in its read and keeps A consume behi
 })
 
 it('an earlier completed tail does not remove its blocked successor from the tenant queue', async () => {
-  const memory = createMemoryToolLedgerStore<ContentBlock>()
+  const memory = createMemoryToolLedgerStore()
   const first = barrier()
   const second = barrier()
   const firstEntered = barrier()
   const secondEntered = barrier()
   let reads = 0
-  const store: ToolLedgerStore<ContentBlock> = {
+  const store: ToolLedgerStore = {
     durability: 'none',
     read: async domain => {
       reads += 1

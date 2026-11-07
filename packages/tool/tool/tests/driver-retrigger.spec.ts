@@ -16,7 +16,6 @@ import {
   principalA,
   principalB,
   tenantA,
-  type Block,
 } from './runtime-values.ts'
 import {
   admitCall,
@@ -35,7 +34,7 @@ afterEach(async () => {
   await auditQueues()
 })
 
-type Commit = LedgerCommitInput<Block>
+type Commit = LedgerCommitInput
 
 /** Whether a commit is a queue-domain commit that gives a slot to an entry. */
 function holdsSlot(input: Commit): boolean {
@@ -280,7 +279,7 @@ describe('23 retrigger: when a failed run is run again', () => {
   it('23 retrigger: a run that met only unknown commits waits the retry delay instead of asking to run at once', async () => {
     const harness = startHarness({
       driverRetryDelayMs: 500,
-      store: (memory: MemoryToolLedgerStore<Block>): ToolLedgerStore<Block> =>
+      store: (memory: MemoryToolLedgerStore): ToolLedgerStore =>
         losingCommits(memory, putsOperation('op-c1/plan'), 'dropped', 1_000_000),
     })
     await admitCall(harness, 'c1')

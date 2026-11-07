@@ -46,6 +46,7 @@ it('testing entry exports the non-durable store, the access table double and its
     'createMemoryToolMaterials',
     'createTableToolAccess',
     'createTestInvocationSource',
+    'createTestResultChannels',
     'createTestToolDependencies',
     'createTestToolIdentities',
     'toolAccessGuardConformance',

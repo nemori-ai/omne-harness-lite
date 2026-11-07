@@ -92,9 +92,9 @@ export type StartOptions = HarnessOptions &
     ) => ToolBindings<Principal, TestEnvironment>
     custodyPort?: (base: ToolOutputCustody<Principal>) => ToolOutputCustody<Principal>
     /** Builds over this memory instead of a new one: a second runtime over the same records. */
-    memory?: MemoryToolLedgerStore<Block>
+    memory?: MemoryToolLedgerStore
     /** Wraps the memory store, to make one commit or read of the start path misbehave. */
-    store?: (memory: MemoryToolLedgerStore<Block>) => ToolLedgerStore<Block>
+    store?: (memory: MemoryToolLedgerStore) => ToolLedgerStore
     readsPort?: (
       base: ToolDependencies<Principal, Block, TestEnvironment>['reads'],
     ) => ToolDependencies<Principal, Block, TestEnvironment>['reads']
@@ -388,7 +388,7 @@ function refusing<T extends object>(name: string, methods: readonly string[]): T
 }
 
 export type StartHarness = Readonly<{
-  memory: MemoryToolLedgerStore<Block>
+  memory: MemoryToolLedgerStore
   runtime: ReturnType<typeof createToolRuntime<Principal, Block, TestEnvironment>>['runtime']
   rebuildRuntime(): ReturnType<
     typeof createToolRuntime<Principal, Block, TestEnvironment>
@@ -420,7 +420,7 @@ export type StartHarness = Readonly<{
 }>
 
 export function startHarness(options: StartOptions = {}): StartHarness {
-  const memory = options.memory ?? createMemoryToolLedgerStore<Block>()
+  const memory = options.memory ?? createMemoryToolLedgerStore()
   const store = options.store === undefined ? memory : options.store(memory)
   const spies: Spies = { calls: new Map() }
   const clock = testClock()
@@ -740,11 +740,11 @@ export async function toStarting(harness: StartHarness, call: string) {
  * `applied` writes and still answers unknown.
  */
 export function losingCommits(
-  memory: ToolLedgerStore<Block>,
-  matches: (input: LedgerCommitInput<Block>) => boolean,
+  memory: ToolLedgerStore,
+  matches: (input: LedgerCommitInput) => boolean,
   fault: 'dropped' | 'applied' | 'unavailable',
   times = 1,
-): ToolLedgerStore<Block> {
+): ToolLedgerStore {
   let left = times
   return {
     durability: 'none',
@@ -767,9 +767,9 @@ export function losingCommits(
  * a port (read 1); the transaction then reads again (read 2, or 3 after a port's own re-read).
  */
 export function landingAfterRead(
-  memory: ToolLedgerStore<Block>,
+  memory: ToolLedgerStore,
   land: () => Promise<unknown>,
-): Readonly<{ store: ToolLedgerStore<Block>; arm(afterReads: number): void }> {
+): Readonly<{ store: ToolLedgerStore; arm(afterReads: number): void }> {
   let left = 0
   return {
     arm: afterReads => {

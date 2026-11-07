@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import {
   managedResourceSchema,
   originalAcquisitionSchema,
@@ -59,7 +59,7 @@ export type EnvironmentAddress = Readonly<{
   operation: ToolOperationId
 }>
 export type EnvironmentStorageOptions = Readonly<{
-  store: ToolLedgerStore<ContentBlock>
+  store: ToolLedgerStore
   guarded?: EnvironmentGuardedHostCommit
   mode?: 'production' | 'test'
   commitAttempts?: number
@@ -69,7 +69,7 @@ export interface EnvironmentGuardedHostCommit {
     input: Readonly<{
       call: Extract<LedgerDomain, { kind: 'call' }>
       callExpected: ToolRevision
-      hostCommit: LedgerCommitInput<ContentBlock>
+      hostCommit: LedgerCommitInput
     }>,
   ): Promise<LedgerCommit | Readonly<{ kind: 'call-changed' }>>
 }
@@ -87,7 +87,7 @@ type StateChange<T> = (
 type CurrentResourceAuthorization = () => Promise<'authorized' | 'notAuthorized' | 'unavailable'>
 type CommitResult = LedgerCommit | Readonly<{ kind: 'call-changed' }>
 type MutationRead<T> = Outcome<{ state: T | null; mutation: string | null }, ToolFailure>
-const localClosures = new WeakMap<ToolLedgerStore<ContentBlock>, Map<string, Set<() => void>>>()
+const localClosures = new WeakMap<ToolLedgerStore, Map<string, Set<() => void>>>()
 
 export const environmentFailure = (diagnostic: string): Outcome<never, ToolFailure> =>
   fail({ kind: 'unavailable', dependency: 'execution-environment-adapter', diagnostic })
@@ -429,7 +429,7 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
   async function commitHost(
     address: EnvironmentAddress,
     preparation: PreparationRecord,
-    hostCommit: LedgerCommitInput<ContentBlock>,
+    hostCommit: LedgerCommitInput,
     authorize: CurrentResourceAuthorization | undefined,
     diagnostic: string,
   ): Promise<Outcome<CommitResult, ToolFailure>> {
@@ -488,7 +488,7 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
         digest: canonicalDigest(value),
       }))
       if ('failure' in next) return next
-      const hostCommit: LedgerCommitInput<ContentBlock> = {
+      const hostCommit: LedgerCommitInput = {
         domain: environmentDomain(address.tenant),
         expected: before.ok.revision,
         revision: revision.ok,
@@ -580,7 +580,7 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
         digest: canonicalDigest(value),
       }))
       if ('failure' in next) return next
-      const hostCommit: LedgerCommitInput<ContentBlock> = {
+      const hostCommit: LedgerCommitInput = {
         domain: environmentDomain(address.tenant),
         expected: before.ok.revision,
         revision: revision.ok,

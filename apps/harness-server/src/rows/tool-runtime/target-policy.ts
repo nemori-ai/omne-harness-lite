@@ -1,6 +1,6 @@
 import type { ToolLedgerStore, ToolSourceGuard } from '@omne-harness/tool'
 import { canonicalDigest } from '@omne-harness/tool'
-import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
+
 import {
   TOOL_FORWARDING_OWNER,
   type LocalToolCatalogViewSource,
@@ -11,7 +11,7 @@ import type { ToolTargetPolicy } from '../authorization/tool-target-policy.ts'
 /** Admission policy does not withdraw custody or maintenance of an already admitted call. */
 export function withTargetAdmissionPolicy(
   original: ToolSourceGuard<unknown>,
-  store: ToolLedgerStore<ToolMessageContentBlock>,
+  store: ToolLedgerStore,
   policy: ToolTargetPolicy,
 ): ToolSourceGuard<unknown> {
   return {

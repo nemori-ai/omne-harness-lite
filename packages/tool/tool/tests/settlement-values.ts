@@ -144,9 +144,9 @@ export async function settlementFixture(
     ],
   }
   ok(await harness.commands.receiveFacts({ ...access, start: batch.start, batch }))
-  const commits: LedgerCommitInput<Block>[] = []
-  let intercept: ToolLedgerStore<Block>['commit'] | null = null
-  const store: ToolLedgerStore<Block> = {
+  const commits: LedgerCommitInput[] = []
+  let intercept: ToolLedgerStore['commit'] | null = null
+  const store: ToolLedgerStore = {
     durability: 'none',
     read: domain => harness.memory.read(domain),
     commit: input => {
@@ -204,7 +204,7 @@ export async function settlementFixture(
     commits,
     custody: ports.custody,
     environment: ports.releaseInspection,
-    interceptCommit: (handler: ToolLedgerStore<Block>['commit'] | null) => {
+    interceptCommit: (handler: ToolLedgerStore['commit'] | null) => {
       intercept = handler
     },
     load: () => ledger.commands.loadRecovery(access).then(ok),

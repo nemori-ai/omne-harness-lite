@@ -6,7 +6,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest, type ToolAccessGuard, type ToolLedgerStore } from '@omne-harness/tool'
 import type { LocalToolControlSubject, PrincipalCodec } from '@omne-harness/tool-host-local'
 import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis'
-import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
+
 import type { FacilityGuard, OriginRef } from '@omne-harness/execution-environment-contract'
 import { hostObjectToken } from '@omne-harness/execution-environment-host-local'
 import { evidence, value } from './helpers.ts'
@@ -225,9 +225,9 @@ export function createAuthority(workspace: string, run: string) {
   }
 }
 
-export function witnessStore(store: ToolLedgerStore<ToolMessageContentBlock>) {
+export function witnessStore(store: ToolLedgerStore) {
   const calls = new Map<string, { execution: string; sources: Set<string> }>()
-  const wrapped: ToolLedgerStore<ToolMessageContentBlock> = {
+  const wrapped: ToolLedgerStore = {
     durability: store.durability,
     commit: input => store.commit(input),
     async read(domain) {

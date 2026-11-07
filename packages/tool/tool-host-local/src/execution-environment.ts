@@ -1,4 +1,3 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import {
   acquisitionRef,
   type AcquireInput,
@@ -131,7 +130,7 @@ export function createLocalEnvironmentPlanResolver<P>(
 export type LocalExecutionEnvironmentInput<P> = Readonly<{
   adoption: Adoption
   execution: ExecutionEnvironment<P>
-  store: ToolLedgerStore<ContentBlock>
+  store: ToolLedgerStore
   plans: EnvironmentPlanResolver<P>
   naming: FileObjectNaming<P>
   cleanup: OriginalCleanup<P>

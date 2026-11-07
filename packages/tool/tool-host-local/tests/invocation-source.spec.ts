@@ -4,7 +4,7 @@
 // parameters; the store is the in-memory store of `@omne-harness/tool/testing`, so these cases
 // prove behaviour over one store object, not durability.
 import { describe, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import { fail } from '@omne-harness/operation-result'
 import type {
   AccessVerdict,
@@ -73,7 +73,7 @@ type Fault =
 
 /** A store over the memory store that counts reads and commits and fails the next one on demand. */
 function observed() {
-  const memory = createMemoryToolLedgerStore<ContentBlock>()
+  const memory = createMemoryToolLedgerStore()
   const counts = { reads: 0, commits: 0 }
   let armed: { fault: Fault; times: number } | null = null
   const take = (...faults: Fault[]): Fault | null => {
@@ -83,16 +83,16 @@ function observed() {
     if (armed.times === 0) armed = null
     return fault
   }
-  const store: ToolLedgerStore<ContentBlock> = {
+  const store: ToolLedgerStore = {
     durability: 'none',
-    read: async (domain: LedgerDomain): Promise<LedgerRead<ContentBlock>> => {
+    read: async (domain: LedgerDomain): Promise<LedgerRead> => {
       counts.reads += 1
       const fault = take('read-unavailable', 'read-throws')
       if (fault === 'read-unavailable') return { kind: 'unavailable', diagnostic: 'store is down' }
       if (fault === 'read-throws') throw new Error('secret connection string')
       return memory.read(domain)
     },
-    commit: async (input: LedgerCommitInput<ContentBlock>): Promise<LedgerCommit> => {
+    commit: async (input: LedgerCommitInput): Promise<LedgerCommit> => {
       counts.commits += 1
       const fault = take('lost-reply', 'unknown-unwritten', 'conflict', 'commit-throws')
       if (fault === 'lost-reply') {
@@ -120,7 +120,7 @@ function observed() {
 }
 
 function source(
-  store: ToolLedgerStore<ContentBlock>,
+  store: ToolLedgerStore,
   authorityValue: ToolInvokeAuthority<P> = authority(),
   commitAttempts = 4,
 ) {

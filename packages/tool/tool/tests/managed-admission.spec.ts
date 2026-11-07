@@ -131,7 +131,7 @@ describe('10 boundary and qualification', () => {
       diagnostic: 'source-guard threw an exception; its message is not reported',
     })
     expect(unverified.store.commits).toBe(0)
-    const throwing: ToolLedgerStore<Block> = {
+    const throwing: ToolLedgerStore = {
       durability: 'none',
       read: () => Promise.reject(new Error(secret)),
       commit: () => Promise.reject(new Error(secret)),
@@ -605,10 +605,10 @@ describe('11 operation idempotency (P01)', () => {
   })
 
   it('11 idempotency: a commit that lands before the fence is recognised, not excluded', async () => {
-    const memory = createMemoryToolLedgerStore<Block>()
+    const memory = createMemoryToolLedgerStore()
     faultAdmission(memory, 'unknown-delayed')
     // The held commit lands just before the fence commit, as a slow store would apply it.
-    const racing: ToolLedgerStore<Block> = {
+    const racing: ToolLedgerStore = {
       durability: 'none',
       read: domain => memory.read(domain),
       commit: input => {
@@ -988,7 +988,7 @@ const EXCLUDED = {
  * admission must then stop, because its negative answer was already given (P01).
  */
 async function overtakenAdmission() {
-  const memory = createMemoryToolLedgerStore<Block>()
+  const memory = createMemoryToolLedgerStore()
   const query = { ...admission('call-1', 'op-1'), operation: operationId('op-1') }
   let negative: unknown = null
   let beforeRace = 0
@@ -1042,7 +1042,7 @@ describe('14 exclusion fence (P01)', () => {
   it('14 exclusion: an operation that committed before the fence is recalled, not excluded', async () => {
     // The retrying release of op-2 re-reads a domain where op-2 committed and a lookup fenced
     // op-2 after that (the admission is op-1, so op-2 is "not accepted"): recall wins.
-    const memory = createMemoryToolLedgerStore<Block>()
+    const memory = createMemoryToolLedgerStore()
     const ledger: ToolLedger<Principal, Block> = ledgerOver(
       interleaving(memory, putsOperation('op-2'), async () => {
         ok(await ledger.commands.releaseDelivery(releaseOf('op-2')))
@@ -1073,7 +1073,7 @@ describe('14 exclusion fence (P01)', () => {
   })
 
   it('14 exclusion: a later negative replaces the fence; a command that read the latest fence is not excluded by it', async () => {
-    const memory = createMemoryToolLedgerStore<Block>()
+    const memory = createMemoryToolLedgerStore()
     const query = { ...admission('call-1', 'op-1'), operation: operationId('op-1') }
     const ledger: ToolLedger<Principal, Block> = ledgerOver(
       interleaving(memory, putsOperation('op-1'), async () => {
@@ -1163,7 +1163,7 @@ describe('14 exclusion fence (P01)', () => {
   })
 })
 
-async function recordsOf(store: ToolLedgerStore<Block>): Promise<readonly LedgerRecord<Block>[]> {
+async function recordsOf(store: ToolLedgerStore): Promise<readonly LedgerRecord[]> {
   const read = await store.read({ kind: 'call', tenant: tenantA, call: callId('call-1') })
   if (read.kind !== 'complete') throw new Error('read failed')
   return read.records

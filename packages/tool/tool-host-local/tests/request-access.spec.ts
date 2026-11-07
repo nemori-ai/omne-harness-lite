@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import type { AccessVerdict, ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import {
@@ -19,7 +19,7 @@ import {
 } from './coordinator-values.ts'
 
 function fixture(answer: () => Promise<AccessVerdict>) {
-  const memory = createMemoryToolLedgerStore<ContentBlock>()
+  const memory = createMemoryToolLedgerStore()
   let conflict = false
   const asked: Parameters<ToolRequestAccess<Principal>['qualify']>[0][] = []
   const requestAccess = {
@@ -29,7 +29,7 @@ function fixture(answer: () => Promise<AccessVerdict>) {
     },
   }
   let onConflict = () => {}
-  const store: ToolLedgerStore<ContentBlock> = {
+  const store: ToolLedgerStore = {
     durability: 'none',
     read: memory.read,
     commit: async input => {

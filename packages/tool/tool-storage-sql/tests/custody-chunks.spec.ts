@@ -5,7 +5,7 @@
 // domain revision (review N2), and the factory refuses a chunk size that cannot fit a command.
 import { createHash, randomBytes } from 'node:crypto'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import type { LedgerRecord } from '@omne-harness/tool'
 import {
   decodeToolCallId,
@@ -176,7 +176,7 @@ describe('A8: custody rows and manifests move no ledger domain revision', () => 
     const a = await app()
     const custody = createSqlToolOutputCustody<string>(a.custodyOptions({ maxChunkBytes: CHUNK }))
     const domain = { kind: 'call', tenant: TENANT_A, call: call('call-1') } as const
-    const record: LedgerRecord<ContentBlock> = { kind: 'host', host: { key: 'k', value: 1 } }
+    const record: LedgerRecord = { kind: 'host', host: { key: 'k', value: 1 } }
     expect(
       await a.store.commit({
         domain,

@@ -1,4 +1,3 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
@@ -179,8 +178,8 @@ function matchesTarget(
   ).every(key => same(parent[key], target[key]))
 }
 
-export function createInvocationForwarding<P, B extends ContentBlock>(
-  input: LocalInvocationSourceInput<P, B>,
+export function createInvocationForwarding<P>(
+  input: LocalInvocationSourceInput<P>,
   directGuard: ToolSourceGuard<P>,
   identitiesOf: (
     tenant: LedgerDomain['tenant'],

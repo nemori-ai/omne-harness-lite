@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import type { ToolLedgerStore, AccessVerdict } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import {
@@ -45,11 +45,11 @@ function barrier() {
 async function fixture(
   options: Readonly<{
     missing?: boolean
-    wrap?: (memory: ToolLedgerStore<ContentBlock>) => ToolLedgerStore<ContentBlock>
+    wrap?: (memory: ToolLedgerStore) => ToolLedgerStore
     access?: StartCoordinatorAccess<string>
   }> = {},
 ) {
-  const memory = createMemoryToolLedgerStore<ContentBlock>()
+  const memory = createMemoryToolLedgerStore()
   const store = options.wrap?.(memory) ?? memory
   let answer = noPermit
   let thrown = false
@@ -134,7 +134,7 @@ async function fixture(
 
 describe('R2-D60 start permit requirements', () => {
   it('does not issue a permit without a requirement source', async () => {
-    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const store = createMemoryToolLedgerStore()
     const authority = createLocalStartCoordinator({
       store,
       access: access(),
@@ -367,7 +367,7 @@ describe('R2-D60 start permit requirements', () => {
     const principal = { subject: 'original' }
     let seen: FixedToolRequest | undefined
     const authority = createLocalStartCoordinator({
-      store: createMemoryToolLedgerStore<ContentBlock>(),
+      store: createMemoryToolLedgerStore(),
       access: {
         qualify: async () => {
           entered.open()
@@ -461,7 +461,7 @@ describe('R2-D60 start permit requirements', () => {
   it('passes distinct complete actions and identities to the source for two tenants', async () => {
     const seen: unknown[] = []
     const authority = createLocalStartCoordinator({
-      store: createMemoryToolLedgerStore<ContentBlock>(),
+      store: createMemoryToolLedgerStore(),
       access: access(),
       guardsOf: () => [],
       commitAttempts: 4,

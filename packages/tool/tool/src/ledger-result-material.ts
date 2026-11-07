@@ -33,15 +33,15 @@ export type ResultChannels = Readonly<{
       }>
 }>
 
-type Custody<P, B extends ContentBlock> = ReturnType<typeof createLedgerMaterialCustody<P, B>>
-type Validation<P, B extends ContentBlock> = Parameters<Custody<P, B>['preserve']>[4]
-type PreparationInput<P> = Parameters<Custody<P, ContentBlock>['preserve']>[0]
+type Custody<P> = ReturnType<typeof createLedgerMaterialCustody<P>>
+type Validation<P> = Parameters<Custody<P>['preserve']>[4]
+type PreparationInput<P> = Parameters<Custody<P>['preserve']>[0]
 
 export async function prepareResultChannels<P, B extends ContentBlock>(
-  custody: Custody<P, B>,
+  custody: Custody<P>,
   input: PreparationInput<P>,
   value: ToolResult<B>,
-  validate: Validation<P, B>,
+  validate: Validation<P>,
 ): Promise<Outcome<ResultChannels, ToolFailure>> {
   const encoded = encodeToolMaterial(value)
   if ('failure' in encoded) return encoded

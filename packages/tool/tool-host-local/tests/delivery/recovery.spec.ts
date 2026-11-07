@@ -130,7 +130,7 @@ it('lets another tenant finish while the first receiver remains unknown', async 
     revision: ok(decodeToolRevision('1')),
     writes: [
       { kind: 'put', record: { kind: 'call', call: { ...f.call, tenant: tenantB } } },
-      { kind: 'put', record: { kind: 'result', result: { ...f.result, tenant: tenantB } } },
+      { kind: 'put', record: { kind: 'result', result: await f.resultFor(other) } },
       { kind: 'put', record: { kind: 'task', task: f.task } },
     ],
   })

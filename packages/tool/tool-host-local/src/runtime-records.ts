@@ -13,7 +13,7 @@ import type { RuntimeCompositionInput, RuntimeStages } from './runtime-compositi
 
 export type RuntimeRecords = Readonly<{
   ledger: ToolLedger<unknown, ToolMessageContentBlock>
-  authority: ReturnType<typeof createLocalStartCoordinator<unknown, ToolMessageContentBlock>>
+  authority: ReturnType<typeof createLocalStartCoordinator<unknown>>
 }>
 
 export function createRuntimeRecords(

@@ -35,7 +35,7 @@ it('freezes before push and releases through the real ledger without recordTask'
     terminal: f.result.terminal,
     actualTerminal: f.result.actual,
     source: f.result.source,
-    value: f.result.value,
+    value: f.value,
     account: null,
   })
   const saved = await f.store.read(f.domain)
@@ -161,7 +161,7 @@ it.each(['version', 'owner', 'account', 'evidence'] as const)(
 it('freezes delivery metadata without storing another complete result', async () => {
   const f = await fixture()
   expect(await f.drive()).toEqual(succeed({ pending: 0 }))
-  expect(f.pushes[0]).toMatchObject({ value: f.result.value })
+  expect(f.pushes[0]).toMatchObject({ value: f.value })
   const stored = await f.store.read({
     kind: 'host',
     tenant: f.access.tenant,
@@ -180,7 +180,7 @@ it('keeps a frozen delivery owed while its result materials are unavailable', as
   expect(f.receiver.push).not.toHaveBeenCalled()
   expect(f.input.commands.releaseDelivery).not.toHaveBeenCalled()
   expect(await f.drive()).toEqual(succeed({ pending: 0 }))
-  expect(f.pushes[0]).toMatchObject({ value: f.result.value })
+  expect(f.pushes[0]).toMatchObject({ value: f.value })
   expect(f.input.accountAtFreeze).toHaveBeenCalledTimes(1)
 })
 

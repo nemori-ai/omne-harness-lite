@@ -1,4 +1,3 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolOperationId,
@@ -27,8 +26,8 @@ const unavailable = (diagnostic: string): Outcome<never, ToolFailure> =>
   fail({ kind: 'unavailable', dependency: 'control-subjects', diagnostic })
 
 /** Every CAS retry compares against that snapshot's winner before the intent is recalled. */
-export async function controlSubject<P, B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export async function controlSubject<P>(
+  snapshot: Snapshot,
   context: MutationInput<P>,
   subjects: ToolControlSubjects<P> | undefined,
 ): Reply<DurableEvidence> {
@@ -56,16 +55,16 @@ export async function controlSubject<P, B extends ContentBlock>(
   }
 }
 
-type ControlTransaction<B extends ContentBlock> = (
+type ControlTransaction = (
   domain: LedgerDomain,
   operation: ToolOperationId | null,
-  decide: (snapshot: Snapshot<B>, mint: Mint) => Promise<Decision<ControlRecord, B>>,
+  decide: (snapshot: Snapshot, mint: Mint) => Promise<Decision<ControlRecord>>,
   unknown: Outcome<ControlRecord, ToolFailure>,
 ) => Reply<ControlRecord>
 
 /** Resolve only the durable binding here; current qualification belongs to the provider. */
-function pendingController<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+function pendingController(
+  snapshot: Snapshot,
   call: CallRecord,
   control: ControlRecord,
 ): Outcome<DurableEvidence, ToolFailure> {
@@ -98,11 +97,11 @@ function pendingController<B extends ContentBlock>(
   return subject
 }
 
-export function createLedgerControls<P, B extends ContentBlock>(
+export function createLedgerControls<P>(
   dependencies: Readonly<{
     subjects: ToolControlSubjects<P> | undefined
     entry(input: unknown, action: 'write'): Reply<CallInput<P>>
-    transact: ControlTransaction<B>
+    transact: ControlTransaction
   }>,
 ): ToolLedgerControls<P> {
   const { subjects, entry, transact } = dependencies

@@ -36,7 +36,7 @@ function ok<T>(outcome: Outcome<T, ToolFailure>): T {
   return outcome.ok
 }
 
-function fixture(store: ToolLedgerStore<ContentBlock> = createMemoryToolLedgerStore()) {
+function fixture(store: ToolLedgerStore = createMemoryToolLedgerStore()) {
   const trusted = new WeakSet<Principal>()
   const current = new Map<string, Principal>()
   const revoked = new Set<string>()
@@ -49,7 +49,7 @@ function fixture(store: ToolLedgerStore<ContentBlock> = createMemoryToolLedgerSt
   }
   const a = mint('session-a')
   const b = mint('session-b')
-  const input: LocalToolControlSubjectsInput<Principal, ContentBlock> = {
+  const input: LocalToolControlSubjectsInput<Principal> = {
     store,
     project: async principal =>
       trusted.has(principal)
@@ -163,10 +163,10 @@ describe('persistent control subjects', () => {
   it.each(['unknown-applied', 'unknown-dropped', 'throw-applied', 'throw-dropped'] as const)(
     'recognizes only a confirmed original association after %s',
     async fault => {
-      const memory = createMemoryToolLedgerStore<ContentBlock>()
+      const memory = createMemoryToolLedgerStore()
       let armed = true
       const keys: string[] = []
-      const store: ToolLedgerStore<ContentBlock> = {
+      const store: ToolLedgerStore = {
         ...memory,
         commit: async input => {
           const write = input.writes[0]
@@ -193,7 +193,7 @@ describe('persistent control subjects', () => {
   )
 
   it('re-reads conflicts within its budget and cannot report an absent record as committed', async () => {
-    const memory = createMemoryToolLedgerStore<ContentBlock>()
+    const memory = createMemoryToolLedgerStore()
     let conflicts = 2
     let commits = 0
     const f = fixture({
@@ -388,7 +388,7 @@ describe('persistent control subjects', () => {
   )
 
   it('does not retry a commit that the store reports as unavailable', async () => {
-    const memory = createMemoryToolLedgerStore<ContentBlock>()
+    const memory = createMemoryToolLedgerStore()
     let commits = 0
     const f = fixture({
       ...memory,

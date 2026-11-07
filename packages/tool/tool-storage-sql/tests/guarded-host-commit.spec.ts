@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import { recordKey, type LedgerCommitInput, type LedgerDomain } from '@omne-harness/tool'
 import { decodeToolCallId, decodeToolOperationId } from '@omne-harness/tool-contract'
 import { decodeToolInstanceId, decodeToolRevision } from '@omne-harness/tool-contract/provider'
@@ -28,7 +28,7 @@ function ok<T>(answer: { ok: T } | { failure: unknown }): T {
 const revision = (value: string) => ok(decodeToolRevision(value))
 const host: LedgerDomain = { kind: 'host', tenant: TENANT_A, key: 'resource-permits' }
 const grant = { kind: 'host', host: { key: 'permit-1', value: { mutation: 'grant-1' } } } as const
-const hostCommit = (expected = '0'): LedgerCommitInput<ContentBlock> => ({
+const hostCommit = (expected = '0'): LedgerCommitInput => ({
   domain: host,
   expected: revision(expected),
   revision: revision(String(BigInt(expected) + 1n)),

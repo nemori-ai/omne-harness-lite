@@ -110,7 +110,7 @@ function parseRecord(
   }
 }
 
-export function createDeliveryState<B extends ContentBlock>(store: ToolLedgerStore<B>) {
+export function createDeliveryState(store: ToolLedgerStore) {
   const domain = (access: CallAccess<unknown>) =>
     ({ kind: 'host', tenant: access.tenant, key: 'result-delivery/v1' }) as const
   const key = (access: CallAccess<unknown>, base: DeliveryBase) =>

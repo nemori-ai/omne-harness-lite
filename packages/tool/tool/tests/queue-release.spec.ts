@@ -17,7 +17,6 @@ import {
   ok,
   principalA,
   tenantA,
-  type Block,
 } from './runtime-values.ts'
 import {
   admitCall,
@@ -40,7 +39,7 @@ afterEach(async () => {
 
 const resources = { owner: 'o', record: 'env', revision: '1', digest: 'd' }
 
-type Commit = LedgerCommitInput<Block>
+type Commit = LedgerCommitInput
 
 /** Whether a commit is a queue-domain commit that creates a queue entry. */
 function createsEntry(input: Commit): boolean {
@@ -102,14 +101,14 @@ type Fault = 'applied' | 'delayed' | 'read-fails' | 'crash'
  * that planPreparation is the step that creates the entry.
  */
 function windowStore(
-  memory: MemoryToolLedgerStore<Block>,
+  memory: MemoryToolLedgerStore,
   step: Step,
   fault: Fault,
   settle: () => Promise<void>,
   reads: { failing: number },
-): ToolLedgerStore<Block> {
+): ToolLedgerStore {
   let raced = false
-  const racing: ToolLedgerStore<Block> = {
+  const racing: ToolLedgerStore = {
     durability: 'none',
     read: async domain => {
       if (reads.failing > 0 && domain.kind === 'call') {
@@ -369,7 +368,7 @@ describe('22 queue step: the operation that moved an entry recalls it', () => {
   })
 
   it('22 queue step: a plan by another operation, after the first plan moved the entry past preparing, answers conflict and leaves the entry', async () => {
-    const memory = createMemoryToolLedgerStore<Block>()
+    const memory = createMemoryToolLedgerStore()
     const landing = landingAfterRead(memory, async () => {
       const preparation = ok(
         await harness.commands.planPreparation({

@@ -15,7 +15,7 @@ import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
-import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
+
 import {
   toolClockKey,
   toolCommandsKey,
@@ -64,7 +64,7 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
     combination: { combinationVersion: config.combinationVersion, manifestDigest: manifest.digest },
   }
   const sql = Object.freeze({
-    store: createSqlToolLedgerStore<ToolMessageContentBlock>(options),
+    store: createSqlToolLedgerStore(options),
     custody: createSqlToolOutputCustody<unknown>({
       ...options,
       maxCommandBytes: config.maxCommandBytes,

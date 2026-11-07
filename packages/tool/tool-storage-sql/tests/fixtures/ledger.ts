@@ -208,7 +208,7 @@ export async function ledgerWorld(tenant: TenantId) {
   }
   const memoryMaterials = createMemoryToolMaterials<Principal>()
   const ledgerOver = (
-    store: ToolLedgerStore<ContentBlock>,
+    store: ToolLedgerStore,
     materials?: ToolLedgerPorts<Principal>['materials'],
     custody?: ToolOutputCustody<Principal>,
   ) =>

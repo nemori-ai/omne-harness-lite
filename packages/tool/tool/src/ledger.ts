@@ -194,11 +194,8 @@ function unavailable(dependency: string, diagnostic: string): Outcome<never, Too
   return fail({ kind: 'unavailable', dependency, diagnostic })
 }
 
-type Decide<T, B extends ContentBlock> = (
-  snapshot: Snapshot<B>,
-  mint: Mint,
-) => Decision<T, B> | Promise<Decision<T, B>>
-type DecideQueue<T, B extends ContentBlock> = (snapshot: QueueSnapshot) => Decision<T, B>
+type Decide<T> = (snapshot: Snapshot, mint: Mint) => Decision<T> | Promise<Decision<T>>
+type DecideQueue<T> = (snapshot: QueueSnapshot) => Decision<T>
 
 /**
  * What a query answers when its exclusion fence has an unknown outcome. A negative answer is
@@ -229,7 +226,7 @@ type WriteEntry<P> = WriteInput & Readonly<{ principal: P }>
  * `TypeError`.
  */
 export function createToolLedger<P, B extends ContentBlock>(
-  store: ToolLedgerStore<B>,
+  store: ToolLedgerStore,
   guards: ToolLedgerGuards<P, B>,
   clock: ToolClock,
   configuration: ToolLedgerConfiguration,
@@ -274,7 +271,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     return succeed(result)
   }
 
-  const read = async (domain: LedgerDomain): Promise<Outcome<Snapshot<B>, ToolFailure>> => {
+  const read = async (domain: LedgerDomain): Promise<Outcome<Snapshot, ToolFailure>> => {
     const result = await readDomain(domain)
     return 'failure' in result ? result : succeed(snapshotOf(domain, result.ok))
   }
@@ -288,9 +285,9 @@ export function createToolLedger<P, B extends ContentBlock>(
 
   const commit = async (
     domain: LedgerDomain,
-    expected: Snapshot<B>['revision'],
-    revision: Snapshot<B>['revision'],
-    writes: readonly LedgerWrite<B>[],
+    expected: Snapshot['revision'],
+    revision: Snapshot['revision'],
+    writes: readonly LedgerWrite[],
   ): Promise<Awaited<ReturnType<typeof store.commit>>> => {
     try {
       return await store.commit({ domain, expected, revision, writes })
@@ -314,9 +311,9 @@ export function createToolLedger<P, B extends ContentBlock>(
   const transact = async <T>(
     domain: LedgerDomain,
     operation: ToolOperationId | null,
-    decide: Decide<T, B>,
+    decide: Decide<T>,
     unknown: Outcome<T, ToolFailure>,
-    since: Snapshot<B>['revision'] | null = null,
+    since: Snapshot['revision'] | null = null,
   ): Reply<T> => {
     let firstRead = since
     for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -351,7 +348,7 @@ export function createToolLedger<P, B extends ContentBlock>(
    */
   const transactQueue = async <T>(
     domain: Extract<LedgerDomain, { kind: 'queue' }>,
-    decide: DecideQueue<T, B>,
+    decide: DecideQueue<T>,
     unknown: Outcome<T, ToolFailure>,
   ): Reply<T> => {
     for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -401,7 +398,7 @@ export function createToolLedger<P, B extends ContentBlock>(
   const query = async <T>(
     input: unknown,
     action: ToolLedgerAction,
-    project: (snapshot: Snapshot<B>, checked: CallInput<P>) => Outcome<T, ToolFailure>,
+    project: (snapshot: Snapshot, checked: CallInput<P>) => Outcome<T, ToolFailure>,
   ): Reply<T> => {
     const checked = await entry(input, action)
     if ('failure' in checked) return checked
@@ -423,7 +420,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     input: unknown,
     action: ToolLedgerAction,
     field: 'admission' | 'operation',
-    project: (snapshot: Snapshot<B>, operation: ToolOperationId) => T,
+    project: (snapshot: Snapshot, operation: ToolOperationId) => T,
     fence: Fence<T>,
   ): Reply<T> => {
     const checked = await entry(input, action)
@@ -451,7 +448,7 @@ export function createToolLedger<P, B extends ContentBlock>(
   const mutate = async <T>(
     input: unknown,
     action: ToolLedgerAction,
-    decide: (checked: MutationInput<P>) => Promise<Outcome<Decide<T, B>, ToolFailure>>,
+    decide: (checked: MutationInput<P>) => Promise<Outcome<Decide<T>, ToolFailure>>,
   ): Reply<T> => {
     const checked = judgeMutationInput<P>(input, action)
     if ('failure' in checked) return checked
@@ -491,20 +488,20 @@ export function createToolLedger<P, B extends ContentBlock>(
   })
 
   /** The call record as the domain holds it now, for the steps that precede the transaction. */
-  const peek = async (context: WriteEntry<P>): Promise<Outcome<Snapshot<B>, ToolFailure>> =>
+  const peek = async (context: WriteEntry<P>): Promise<Outcome<Snapshot, ToolFailure>> =>
     read(callDomain(context))
 
   /** Whether the snapshot already holds the operation: the transaction will recall it. */
-  const committedBefore = (snapshot: Snapshot<B>, operation: ToolOperationId): boolean =>
+  const committedBefore = (snapshot: Snapshot, operation: ToolOperationId): boolean =>
     snapshot.operations.has(operation)
 
   /** The call of a pre-read, or the failure the transaction would give for its absence. */
-  const recordOf = (snapshot: Snapshot<B>): Outcome<CallRecord, ToolFailure> =>
+  const recordOf = (snapshot: Snapshot): Outcome<CallRecord, ToolFailure> =>
     snapshot.call === null ? invalid('call', 'unknown-call') : succeed(snapshot.call)
 
   /** The gate a cross-domain command checks on its pre-read, before it touches the queue. */
   const preGate = (
-    snapshot: Snapshot<B>,
+    snapshot: Snapshot,
     context: WriteEntry<P>,
   ): Outcome<CallRecord, ToolFailure> => {
     const record = recordOf(snapshot)
@@ -599,8 +596,8 @@ export function createToolLedger<P, B extends ContentBlock>(
     context: MutationInput<P>,
     action: 'admit' | 'write',
     inputDigest: string,
-    decide: SyntheticDecider<T, B>,
-    since: Snapshot<B>['revision'] | null = null,
+    decide: SyntheticDecider<T>,
+    since: Snapshot['revision'] | null = null,
   ): Reply<T> => {
     const before = await read(callDomain(context))
     if ('failure' in before) return before
@@ -611,7 +608,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     if (initial.kind === 'prepare-synthetic') {
       const prepare = createResultPreparation<P, B>({
         authorize: input => entry(input, action),
-        custody: createLedgerMaterialCustody<P, B>({
+        custody: createLedgerMaterialCustody<P>({
           materials: settlement.materials,
           entry: input => entry(input, action),
           transact,
@@ -779,7 +776,7 @@ export function createToolLedger<P, B extends ContentBlock>(
   const placeForPlan = async (
     context: WriteEntry<P>,
     command: WriteCommand,
-    before: Snapshot<B>,
+    before: Snapshot,
     planned: Readonly<{ request: FixedToolRequest; purpose: 'initial' | 'resume' }>,
   ): Promise<Outcome<QueueEntryRecord, ToolFailure>> => {
     const gated = preGate(before, context)
@@ -1001,7 +998,7 @@ export function createToolLedger<P, B extends ContentBlock>(
    */
   const beginSegment = async (
     context: WriteEntry<P>,
-    since: Snapshot<B>['revision'],
+    since: Snapshot['revision'],
     record: CallRecord,
     invocation: ToolStartRecord,
     outcome: StartProgress,
@@ -1117,7 +1114,7 @@ export function createToolLedger<P, B extends ContentBlock>(
       return unavailable('output-custody', 'result custody confirmation is unavailable')
     const confirmed = structuredClone(evidence.ok)
     const channels = await prepareResultChannels<P, B>(
-      createLedgerMaterialCustody<P, B>({
+      createLedgerMaterialCustody<P>({
         materials: settlement.materials,
         entry: value => entry(value, 'write'),
         transact,
@@ -1180,16 +1177,14 @@ export function createToolLedger<P, B extends ContentBlock>(
     transact,
   })
 
-  const resultValue = async (input: CallInput<P>, record: ResultRecord<B>) =>
-    'kind' in record.value
-      ? readResultChannels(
-          settlement.materials?.store,
-          input,
-          record.value,
-          guards.policy,
-          toolLedgerAdoption,
-        )
-      : succeed(record.value)
+  const resultValue = async (input: CallInput<P>, record: ResultRecord) =>
+    readResultChannels(
+      settlement.materials?.store,
+      input,
+      record.value,
+      guards.policy,
+      toolLedgerAdoption,
+    )
 
   const commands: ToolCommands<P, B> = {
     admit: async input => {
@@ -1497,7 +1492,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     }),
   }
 
-  const queues = createQueueReconciler<P, B>({
+  const queues = createQueueReconciler<P>({
     authorize: input => entry(input, 'recover'),
     read,
     readQueue,
@@ -1529,7 +1524,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     }),
     finalCustody,
     controls: Object.freeze(
-      createLedgerControls<P, B>({ subjects: settlement.controlSubjects, entry, transact }),
+      createLedgerControls<P>({ subjects: settlement.controlSubjects, entry, transact }),
     ),
     commands: Object.freeze(commands),
     reads: Object.freeze(reads),

@@ -11,7 +11,6 @@ import {
   principalA,
   referenceFor,
   tenantA,
-  type Block,
   testSettlementPorts,
 } from './runtime-values.ts'
 import { testAssembly } from './testing-values.ts'
@@ -84,7 +83,7 @@ describe('17 the runtime factory and later increments', () => {
   })
 
   it('17 factory: the ledger checks the configuration it reads and throws at construction', () => {
-    const store = createMemoryToolLedgerStore<Block>()
+    const store = createMemoryToolLedgerStore()
     const clock = testAssembly().dependencies.clock
     for (const [key, value] of [
       ['ledgerCommitAttempts', 0],
@@ -109,7 +108,7 @@ describe('17 the runtime factory and later increments', () => {
   })
 
   it('requires explicit settlement ports without the old construction fallback', () => {
-    const store = createMemoryToolLedgerStore<Block>()
+    const store = createMemoryToolLedgerStore()
     const clock = testAssembly().dependencies.clock
     const ports = testSettlementPorts()
     expect(() =>

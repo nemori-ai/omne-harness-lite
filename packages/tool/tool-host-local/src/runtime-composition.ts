@@ -41,7 +41,7 @@ import type { LocalToolControlSubjectsInput } from './control-subject-adapter.ts
 type Bindings = ToolBindings<unknown, ToolEnvironmentValue>
 export type RuntimeEnvironment = ToolEnvironment<unknown, ToolEnvironmentValue>
 export type LocalToolRuntimeInput = Readonly<{
-  store: ToolLedgerStore<ToolMessageContentBlock>
+  store: ToolLedgerStore
   custody: ToolOutputCustody<unknown>
   materials: NonNullable<ToolLedgerPorts<unknown>['materials']>
   content: ToolLedgerPorts<unknown>['content']
@@ -254,7 +254,7 @@ export function createRuntimeDependencies(
 }
 
 export type RuntimeSourceRecovery = Pick<
-  LocalToolControlSubjectsInput<unknown, ToolMessageContentBlock>,
+  LocalToolControlSubjectsInput<unknown>,
   'project' | 'resolveSessionWork'
 >
 

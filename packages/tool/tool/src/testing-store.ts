@@ -2,7 +2,7 @@
 // `durability: 'none'` and must not be assembled into production. Fault injection lets a test
 // make one read fail, or one commit answer unknown (applied, dropped, or held to land later),
 // unavailable or conflict.
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import type { ToolRevision } from '@omne-harness/tool-contract'
 import { INITIAL_REVISION } from './evidence.ts'
 import {
@@ -34,7 +34,7 @@ export type MemoryCommitFault =
 /** What happened to one held commit when it landed. */
 export type MemoryLanding = Readonly<{ kind: 'committed' }> | Readonly<{ kind: 'conflict' }>
 
-export interface MemoryToolLedgerStore<B extends ContentBlock> extends ToolLedgerStore<B> {
+export interface MemoryToolLedgerStore extends ToolLedgerStore {
   readonly durability: 'none'
   /** The next reads consume these faults in order; a read without a fault succeeds. */
   injectRead(...faults: readonly MemoryReadFault[]): void
@@ -51,9 +51,9 @@ export interface MemoryToolLedgerStore<B extends ContentBlock> extends ToolLedge
   readonly reads: number
 }
 
-type Domain<B extends ContentBlock> = {
+type Domain = {
   revision: ToolRevision
-  records: Map<string, LedgerRecord<B>>
+  records: Map<string, LedgerRecord>
 }
 
 /** The key of a domain: the JSON of its parts, so no identity text can collide with another. */
@@ -67,24 +67,24 @@ function copy<T>(value: T): T {
   return structuredClone(value)
 }
 
-export function createMemoryToolLedgerStore<B extends ContentBlock>(): MemoryToolLedgerStore<B> {
-  const domains = new Map<string, Domain<B>>()
+export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
+  const domains = new Map<string, Domain>()
   const readFaults: MemoryReadFault[] = []
   const commitFaults: MemoryCommitFault[] = []
-  const held: LedgerCommitInput<B>[] = []
+  const held: LedgerCommitInput[] = []
   let commits = 0
   let reads = 0
 
-  const domainOf = (domain: LedgerDomain): Domain<B> => {
+  const domainOf = (domain: LedgerDomain): Domain => {
     const key = domainKey(domain)
     const existing = domains.get(key)
     if (existing !== undefined) return existing
-    const created: Domain<B> = { revision: INITIAL_REVISION, records: new Map() }
+    const created: Domain = { revision: INITIAL_REVISION, records: new Map() }
     domains.set(key, created)
     return created
   }
 
-  const apply = (target: Domain<B>, input: LedgerCommitInput<B>): void => {
+  const apply = (target: Domain, input: LedgerCommitInput): void => {
     const records = new Map(target.records)
     for (const write of input.writes) {
       if (write.kind === 'put') records.set(recordKey(write.record), copy(write.record))
@@ -94,7 +94,7 @@ export function createMemoryToolLedgerStore<B extends ContentBlock>(): MemoryToo
     target.revision = input.revision
   }
 
-  const commit = (input: LedgerCommitInput<B>): LedgerCommit => {
+  const commit = (input: LedgerCommitInput): LedgerCommit => {
     const fault = commitFaults.shift()
     if (fault === 'unavailable') return { kind: 'unavailable', diagnostic: 'injected' }
     const target = domainOf(input.domain)
@@ -111,7 +111,7 @@ export function createMemoryToolLedgerStore<B extends ContentBlock>(): MemoryToo
     return { kind: 'committed' }
   }
 
-  const land = (input: LedgerCommitInput<B>): MemoryLanding => {
+  const land = (input: LedgerCommitInput): MemoryLanding => {
     const target = domainOf(input.domain)
     if (target.revision !== input.expected) return { kind: 'conflict' }
     apply(target, input)

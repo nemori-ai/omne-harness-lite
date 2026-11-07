@@ -3,7 +3,7 @@
 // planted in the same database (a corrupt or mixed store) are never read, recalled or overwritten.
 // A tenant the directory does not hold is not read and not written.
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import type { LedgerDomain, LedgerRecord } from '@omne-harness/tool'
 import {
   decodeToolCallId,
@@ -47,7 +47,7 @@ const callDomain = (tenant: TenantId): LedgerDomain => ({
   tenant,
   call: decoded(decodeToolCallId('shared')),
 })
-const record = (value: unknown): LedgerRecord<ContentBlock> => ({
+const record = (value: unknown): LedgerRecord => ({
   kind: 'host',
   host: { key: 'same', value },
 })

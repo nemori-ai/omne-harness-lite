@@ -94,7 +94,7 @@ describe('14 queries (P01)', () => {
     await assembly.admitInternal(dummyRequest())
     const operation = assembly.operationRefOf('call-1', 'op-1')
     const plain = ok(await assembly.runtime.queries.queryOperation({ ...access, operation }))
-    const reordering: ToolLedgerStore<Block> = {
+    const reordering: ToolLedgerStore = {
       durability: 'none',
       read: async domain => {
         const read = await assembly.store.read(domain)

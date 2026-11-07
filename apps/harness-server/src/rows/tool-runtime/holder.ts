@@ -19,7 +19,6 @@ import type {
   ToolClock,
   ToolMaterialClock,
   ToolMaterialStore,
-  ToolMessageContentBlock,
   ToolOutputCustody,
 } from '@omne-harness/tool-contract/provider'
 import {
@@ -39,7 +38,7 @@ export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins>
 
 /** `tool-records` 行在自己的受信上下文里建出的 SQL 端口。 */
 export type ToolSqlPorts = Readonly<{
-  store: ToolLedgerStore<ToolMessageContentBlock>
+  store: ToolLedgerStore
   custody: ToolOutputCustody<unknown>
   materials: ToolMaterialStore<unknown>
   guarded: EnvironmentGuardedHostCommit
@@ -136,7 +135,7 @@ const unavailableRead = (diagnostic: string) => ({ kind: 'unavailable' as const,
  * 结清，由之后的读补上）。
  * 声明 `durable`：它只转交给 SQL 记录仓，从不在内存里保存记录。
  */
-export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore<ToolMessageContentBlock> {
+export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore {
   return Object.freeze({
     durability: 'durable' as const,
     async read(domain) {
@@ -176,7 +175,7 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore<ToolMessag
             settleCall(holder, callKeyOf(write.record.call.tenant, write.record.call.call))
       return answer
     },
-  } satisfies ToolLedgerStore<ToolMessageContentBlock>)
+  } satisfies ToolLedgerStore)
 }
 
 const custodyUnavailable = {

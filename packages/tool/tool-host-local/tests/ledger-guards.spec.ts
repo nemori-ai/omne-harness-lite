@@ -14,7 +14,11 @@ import {
   type ToolAccessGuard,
   type ToolInvokeAuthority,
 } from '@omne-harness/tool'
-import { createMemoryToolLedgerStore, createTableToolAccess } from '@omne-harness/tool/testing'
+import {
+  createMemoryToolLedgerStore,
+  createTableToolAccess,
+  createMemoryToolMaterials,
+} from '@omne-harness/tool/testing'
 import {
   decodeToolCallId,
   decodeToolOperationId,
@@ -55,7 +59,7 @@ const scope = fixedRequest().scope
 
 /** The real ledger with the production guards over a store that counts its reads and commits. */
 function assembly() {
-  const memory = createMemoryToolLedgerStore<ToolMessageContentBlock>()
+  const memory = createMemoryToolLedgerStore()
   const counts = { reads: 0, commits: 0 }
   const store: typeof memory = {
     ...memory,
@@ -107,6 +111,7 @@ function assembly() {
     createLocalToolClock(),
     { resultPageBytes: 4_096, ledgerCommitAttempts: 4, queueCapacity: 16 },
     {
+      materials: createMemoryToolMaterials<P>(),
       custody: createMemoryToolOutputCustody<P>(),
       releaseInspection: createMemoryToolEnvironment<P>(),
       content: null,

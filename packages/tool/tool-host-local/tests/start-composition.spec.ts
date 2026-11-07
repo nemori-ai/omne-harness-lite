@@ -14,6 +14,7 @@ import {
   createTestInvocationSource,
   createTestToolIdentities,
   createMemoryToolLedgerStore,
+  createMemoryToolMaterials,
 } from '@omne-harness/tool/testing'
 import { type ToolInvocationRef, type ToolState } from '@omne-harness/tool-contract'
 import {
@@ -70,10 +71,10 @@ function liveExecution(): ToolLiveExecution {
 function assembly(
   options: Readonly<{
     beforeConsume?: () => Promise<void>
-    store?: (memory: ToolLedgerStore<Block>) => ToolLedgerStore<Block>
+    store?: (memory: ToolLedgerStore) => ToolLedgerStore
   }> = {},
 ) {
-  const memory = createMemoryToolLedgerStore<Block>()
+  const memory = createMemoryToolLedgerStore()
   const store = options.store === undefined ? memory : options.store(memory)
   const authority = coordinator(store)
   const identities = createTestToolIdentities()
@@ -358,6 +359,7 @@ describe('G5 under the runtime', () => {
 function testSettlementPorts() {
   return {
     content: null,
+    materials: createMemoryToolMaterials<Principal>(),
     custody: createMemoryToolOutputCustody<Principal>(),
     releaseInspection: createMemoryToolEnvironment<Principal>(),
   }

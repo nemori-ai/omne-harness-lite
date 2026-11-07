@@ -12,7 +12,6 @@ import {
   toolStreamCallCodec,
   type CallAccess,
   type ToolHandle,
-  type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import {
   decodeStreamId,
@@ -54,7 +53,7 @@ export function createRuntimePublication(
   input: Readonly<{
     execution: ToolExecutionRef
     access: ToolAccessGuard<unknown>
-    store: ToolLedgerStore<ToolMessageContentBlock>
+    store: ToolLedgerStore
     capacity: number
     bufferBytes: number
     bufferFrames: number

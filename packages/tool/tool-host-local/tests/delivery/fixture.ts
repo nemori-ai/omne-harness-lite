@@ -6,7 +6,11 @@ import {
   type ResultRecord,
   type ToolLedgerGuards,
 } from '@omne-harness/tool'
-import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
+import {
+  createMemoryToolLedgerStore,
+  createMemoryToolMaterials,
+  createTestResultChannels,
+} from '@omne-harness/tool/testing'
 import type { ToolDelivery, ToolResultReceiver } from '@omne-harness/tool-contract'
 import {
   decodeToolDeliveryId,
@@ -35,7 +39,7 @@ export function ok<T>(answer: Outcome<T, unknown>): T {
 }
 
 export async function fixture() {
-  const store = createMemoryToolLedgerStore<ToolMessageContentBlock>()
+  const store = createMemoryToolLedgerStore()
   const access = { principal: 'host', tenant: tenantA, call: callId('original-call') }
   const consumer = request().consumer
   const version = ok(decodeToolResultVersion('result-1'))
@@ -53,14 +57,22 @@ export async function fixture() {
     delivery: delivery.delivery,
     consumer,
   }
-  const result: ResultRecord<ToolMessageContentBlock> = {
+  const materials = createMemoryToolMaterials<string>()
+  const value = ok(createLocalTextResults().text('原始结果🙂\u0000\nunchanged payload'))
+  const result: ResultRecord = {
     ...access,
     result: version,
     relation: 'original',
     terminal: { kind: 'completed' },
     actual: null,
     effect: { kind: 'not-started' },
-    value: ok(createLocalTextResults().text('原始结果🙂\u0000\nunchanged payload')),
+    value: await createTestResultChannels({
+      materials,
+      access,
+      operation: task.operation,
+      source: evidence('original'),
+      value,
+    }),
     delivery,
     source: evidence('original'),
     settledBy: task.operation,
@@ -126,6 +138,7 @@ export async function fixture() {
     createMemoryToolClock(),
     { resultPageBytes: 4096, ledgerCommitAttempts: 4, queueCapacity: 16 },
     {
+      materials,
       custody: createMemoryToolOutputCustody<string>(),
       releaseInspection: createMemoryToolEnvironment<string>(),
       content: null,
@@ -162,9 +175,22 @@ export async function fixture() {
     worker.drive({ ...access, signal: new AbortController().signal })
   return {
     store,
+    resultFor: async (target: typeof access): Promise<ResultRecord> => ({
+      ...result,
+      tenant: target.tenant,
+      call: target.call,
+      value: await createTestResultChannels({
+        materials,
+        access: target,
+        operation: task.operation,
+        source: result.source,
+        value,
+      }),
+    }),
     input,
     access,
     result,
+    value,
     call,
     task,
     domain,

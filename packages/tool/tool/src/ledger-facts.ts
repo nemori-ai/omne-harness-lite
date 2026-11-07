@@ -69,12 +69,12 @@ function updateProcess(
 }
 
 /** The event history decides duplicate sequences, including historical updates after closure. */
-function processWrites<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+function processWrites(
+  snapshot: Snapshot,
   batch: StoredFactBatch,
   events: readonly FactEventRecord[],
   adoption: Adoption,
-): Outcome<readonly LedgerWrite<B>[], ToolFailure> {
+): Outcome<readonly LedgerWrite[], ToolFailure> {
   const current = new Map(
     snapshot.process
       .filter(record => record.start.operation === batch.start.operation)
@@ -83,7 +83,7 @@ function processWrites<B extends ContentBlock>(
   const history = [...snapshot.facts.values()]
     .filter(record => record.start.operation === batch.start.operation)
     .flatMap(record => (record.fact.kind === 'process' ? record.fact.blocks : []))
-  const writes: LedgerWrite<B>[] = []
+  const writes: LedgerWrite[] = []
   for (const event of events) {
     if (event.fact.kind !== 'process') continue
     for (const block of event.fact.blocks) {
@@ -105,8 +105,8 @@ function processWrites<B extends ContentBlock>(
   return succeed(writes)
 }
 
-function recallBatch<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+function recallBatch(
+  snapshot: Snapshot,
   batch: Pick<FactBatch, 'start' | 'source' | 'batch'>,
   value: ToolMaterialFingerprint,
 ): Outcome<FactReceipt | null, ToolFailure> {
@@ -117,9 +117,9 @@ function recallBatch<B extends ContentBlock>(
     : invalid('batch', 'batch-conflict')
 }
 
-type EventPlan<B extends ContentBlock> = Readonly<{
+type EventPlan = Readonly<{
   fresh: readonly FactEventRecord[]
-  writes: readonly LedgerWrite<B>[]
+  writes: readonly LedgerWrite[]
 }>
 function factPlace(call: CallRecord, batch: Pick<FactBatch, 'start' | 'source'>) {
   return {
@@ -129,17 +129,17 @@ function factPlace(call: CallRecord, batch: Pick<FactBatch, 'start' | 'source'>)
     owner: batch.source.owner,
   }
 }
-function planEvents<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+function planEvents(
+  snapshot: Snapshot,
   call: CallRecord,
   batch: StoredFactBatch,
   mint: Mint,
-): Outcome<EventPlan<B>, ToolFailure> {
+): Outcome<EventPlan, ToolFailure> {
   const start = batch.start
   const place = factPlace(call, batch)
   const facts = new Map(snapshot.facts)
   const fresh: FactEventRecord[] = []
-  const writes: LedgerWrite<B>[] = []
+  const writes: LedgerWrite[] = []
   let final = [...facts.values()].find(
     record => record.start.operation === start.operation && record.fact.kind === 'final',
   )
@@ -191,8 +191,8 @@ function planEvents<B extends ContentBlock>(
   return succeed({ fresh, writes })
 }
 
-export function checkFactBatch<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function checkFactBatch(
+  snapshot: Snapshot,
   start: ToolStartRecord,
   batch: FactBatch | StoredFactBatch,
   value: ToolMaterialFingerprint,
@@ -246,13 +246,13 @@ export function checkFactBatch<B extends ContentBlock>(
   return succeed(null)
 }
 
-export function decideReceiveFacts<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideReceiveFacts(
+  snapshot: Snapshot,
   start: ToolStartRecord,
   batch: StoredFactBatch,
   mint: Mint,
   adoption: Adoption,
-): Decision<FactReceipt, B> {
+): Decision<FactReceipt> {
   const checked = checkFactBatch(snapshot, start, batch, batch.value)
   if ('failure' in checked) return reply(checked)
   if (checked.ok !== null) return reply(succeed(checked.ok))
@@ -267,12 +267,12 @@ export function decideReceiveFacts<B extends ContentBlock>(
   return commitBatch(call, batch, mint, writes)
 }
 
-function commitBatch<B extends ContentBlock>(
+function commitBatch(
   call: CallRecord,
   batch: StoredFactBatch,
   mint: Mint,
-  writes: LedgerWrite<B>[],
-): Decision<FactReceipt, B> {
+  writes: LedgerWrite[],
+): Decision<FactReceipt> {
   const start = batch.start
   const place = factPlace(call, batch)
   const receipt: FactReceipt = {
@@ -341,9 +341,7 @@ function commitBatch<B extends ContentBlock>(
   return { kind: 'commit', writes, value: receipt }
 }
 
-export function factProgress<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
-): readonly FactProgress[] {
+export function factProgress(snapshot: Snapshot): readonly FactProgress[] {
   return [...snapshot.streams.values()].map(stream => ({
     start: stream.start,
     source: stream.source,
@@ -359,7 +357,7 @@ export function factProgress<B extends ContentBlock>(
 }
 
 export function readSavedFact<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+  snapshot: Snapshot,
   basis: SavedFact<B>['evidence'],
 ): Outcome<Pick<FactEventRecord, 'start' | 'source' | 'event' | 'fact' | 'evidence'>, ToolFailure> {
   if (snapshot.call === null) return invalid('call', 'unknown-call')

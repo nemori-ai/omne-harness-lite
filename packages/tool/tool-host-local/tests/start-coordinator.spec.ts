@@ -1,6 +1,6 @@
 // The local start coordinator (G5) as the start ordering domain of P04: permits, consume,
 // inspect, invalidate and exclude over the `host` domain of a non-durable ledger store.
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { describe, expect, it } from 'vitest'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
@@ -57,7 +57,7 @@ const consumeWith = (permit: StartPermit, call = 'c1') => ({
 
 describe('G5 the start ordering domain', () => {
   it('G5 order: an invalidation that returned before the consume rejects the start for good', async () => {
-    const authority = coordinator(createMemoryToolLedgerStore<ContentBlock>())
+    const authority = coordinator(createMemoryToolLedgerStore())
     const permit = await permitFor(authority, 'c1')
     ok(await authority.invalidate(invalidation('revoke-1')))
     const consumed = ok(await authority.consume(consumeWith(permit)))
@@ -74,7 +74,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 order: a consume that was accepted before the invalidation stays in flight', async () => {
-    const authority = coordinator(createMemoryToolLedgerStore<ContentBlock>())
+    const authority = coordinator(createMemoryToolLedgerStore())
     const permit = await permitFor(authority, 'c1')
     const accepted = ok(await authority.consume(consumeWith(permit)))
     expect(accepted.kind).toBe('started')
@@ -88,7 +88,7 @@ describe('G5 the start ordering domain', () => {
   it('G5 order: a concurrent invalidation and consume are decided in one order, and the answer agrees with it', async () => {
     const seen = new Set<string>()
     for (const invalidationFirst of [true, false]) {
-      const memory = createMemoryToolLedgerStore<ContentBlock>()
+      const memory = createMemoryToolLedgerStore()
       let entered = () => {}
       let resume = () => {}
       const firstRead = new Promise<void>(resolve => {
@@ -98,7 +98,7 @@ describe('G5 the start ordering domain', () => {
         resume = resolve
       })
       let block = false
-      const store: ToolLedgerStore<ContentBlock> = {
+      const store: ToolLedgerStore = {
         durability: 'none',
         read: async domain => {
           if (block) {
@@ -142,7 +142,7 @@ describe('G5 the start ordering domain', () => {
 
   it('G5 order: the invalidation evidence is given only after its commit', async () => {
     for (const answer of ['unknown', 'unavailable'] as const) {
-      const store = failingNextCommit(createMemoryToolLedgerStore<ContentBlock>(), answer)
+      const store = failingNextCommit(createMemoryToolLedgerStore(), answer)
       const authority = coordinator(store)
       const permit = await permitFor(authority, 'c1')
       store.arm()
@@ -153,7 +153,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 order: a resent invalidation returns its first evidence and moves the guard once', async () => {
-    const authority = coordinator(createMemoryToolLedgerStore<ContentBlock>())
+    const authority = coordinator(createMemoryToolLedgerStore())
     const first = ok(await authority.invalidate(invalidation('revoke-1')))
     expect(ok(await authority.invalidate(invalidation('revoke-1')))).toEqual(first)
     const permit = await permitFor(authority, 'c1')
@@ -161,7 +161,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 order: historical invalidation identity survives a later invalidation and coordinator reconstruction', async () => {
-    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const original = invalidation('revoke-1')
     const first = ok(await authority.invalidate(original))
@@ -186,7 +186,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 order: an applied invalidation with an unknown answer is recalled after reconstruction', async () => {
-    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     store.injectCommit('unknown-applied')
     expect(await authority.invalidate(invalidation('revoke-1'))).toEqual({
@@ -201,7 +201,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 identity: invalidation binds every guard field and ignores property order and extra fields', async () => {
-    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const original = invalidation('revoke-1')
     const first = ok(await authority.invalidate(original))
@@ -235,7 +235,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 identity: program guard identity includes every scope field', async () => {
-    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const scope = {
       kind: 'program',
@@ -269,7 +269,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 identity: open program guards bind their parent and scope across reconstruction', async () => {
-    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const store = createMemoryToolLedgerStore()
     const original = {
       ...invalidation('revoke-open'),
       guard: {
@@ -300,7 +300,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 identity: malformed guard fields are invalid before any ledger access', async () => {
-    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const original = invalidation('revoke-1')
     const closedScope = {
@@ -354,7 +354,7 @@ describe('G5 the start ordering domain', () => {
   ])(
     'G5 records: a stored %s without %s is unavailable rather than a historical answer',
     async (kind, field) => {
-      const store = createMemoryToolLedgerStore<ContentBlock>()
+      const store = createMemoryToolLedgerStore()
       const authority = coordinator(store)
       ok(await authority.invalidate(invalidation('revoke-1')))
       ok(
@@ -403,7 +403,7 @@ describe('G5 the start ordering domain', () => {
   )
 
   it('G5 identity: an exclusion alias binds its reason and survives coordinator reconstruction', async () => {
-    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const original = { ...callAccess('c1'), operation: operationId('op-a'), reason: 'first' }
     const first = ok(await authority.exclude(original))
@@ -426,7 +426,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 exclude: an unknown applied alias commit is recalled with its input binding', async () => {
-    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const original = { ...callAccess('c1'), operation: operationId('op-a'), reason: 'first' }
     const first = ok(await authority.exclude(original))
@@ -445,7 +445,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 inspect: an undecided start is not-started only after its outstanding permit was withdrawn', async () => {
-    const authority = coordinator(createMemoryToolLedgerStore<ContentBlock>())
+    const authority = coordinator(createMemoryToolLedgerStore())
     const stale = await permitFor(authority, 'c1')
     const inspected = ok(await authority.inspect({ ...callAccess('c1'), start: startOf('c1') }))
     expect(inspected.kind).toBe('not-started')
@@ -456,7 +456,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 consume: a permit the coordinator did not issue is not accepted', async () => {
-    const authority = coordinator(createMemoryToolLedgerStore<ContentBlock>())
+    const authority = coordinator(createMemoryToolLedgerStore())
     const permit = await permitFor(authority, 'c1')
     const forged = { ...permit, guards: [] }
     expect(await authority.consume(consumeWith(forged))).toEqual({
@@ -470,7 +470,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 consume: an unreadable acceptance ledger is unavailable, never an acceptance or a rejection', async () => {
-    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const permit = await permitFor(authority, 'c1')
     store.injectRead('unavailable')
@@ -485,7 +485,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 consume: a lost acceptance answer is unknown, and the acceptance is recalled after it', async () => {
-    const store = failingNextCommit(createMemoryToolLedgerStore<ContentBlock>(), 'unknown')
+    const store = failingNextCommit(createMemoryToolLedgerStore(), 'unknown')
     const authority = coordinator(store)
     const permit = await permitFor(authority, 'c1')
     store.arm()
@@ -494,7 +494,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 exclude: a call without an acceptance is excluded for good; an accepted one is in flight', async () => {
-    const authority = coordinator(createMemoryToolLedgerStore<ContentBlock>())
+    const authority = coordinator(createMemoryToolLedgerStore())
     const permit = await permitFor(authority, 'c1')
     const exclusion = ok(
       await authority.exclude({
@@ -538,7 +538,7 @@ describe('G5 the start ordering domain', () => {
   })
 
   it('G5 identity: two calls with the same start operation text keep separate acceptances', async () => {
-    const authority = coordinator(createMemoryToolLedgerStore<ContentBlock>())
+    const authority = coordinator(createMemoryToolLedgerStore())
     const shared = { ...startOf('c1'), operation: operationId('op/start') }
     const first = ok(
       await authority.prepare({ ...callAccess('c1'), start: shared, request: request() }),
@@ -553,7 +553,7 @@ describe('G5 the start ordering domain', () => {
 
 describe('G5 tenants and qualification', () => {
   it('G5 tenant: every operation denies a principal of another tenant before it reads', async () => {
-    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const permit = await permitFor(authority, 'c1')
     const reads = store.reads
@@ -583,7 +583,7 @@ describe('G5 tenants and qualification', () => {
   })
 
   it('G5 tenant: an invalidation in one tenant does not touch the guard of the same name in another', async () => {
-    const authority = coordinator(createMemoryToolLedgerStore<ContentBlock>())
+    const authority = coordinator(createMemoryToolLedgerStore())
     const accessB = { principal: principalB, tenant: tenantB as never, call: callId('c1') }
     const permitB = ok(
       await authority.prepare({ ...accessB, start: startOf('c1', tenantB), request: request() }),
@@ -601,7 +601,7 @@ describe('G5 tenants and qualification', () => {
   })
 
   it('G5 tenant: the same invalidation operation can bind a different guard in another tenant', async () => {
-    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const original = invalidation('revoke-1')
     const first = ok(await authority.invalidate(original))
@@ -621,7 +621,7 @@ describe('G5 tenants and qualification', () => {
   })
 
   it('G5 access: an unreadable qualification is unavailable, not an acceptance', async () => {
-    const authority = coordinator(createMemoryToolLedgerStore<ContentBlock>(), {
+    const authority = coordinator(createMemoryToolLedgerStore(), {
       unavailable: 'directory down',
     })
     expect(
@@ -635,7 +635,7 @@ describe('G5 tenants and qualification', () => {
     for (const commitAttempts of [0, 1.5])
       expect(() =>
         createLocalStartCoordinator({
-          store: createMemoryToolLedgerStore<ContentBlock>(),
+          store: createMemoryToolLedgerStore(),
           access: access(),
           guardsOf: () => [],
           commitAttempts,
@@ -647,7 +647,7 @@ describe('G5 tenants and qualification', () => {
     for (const turnTimeoutMs of [0, -1, 1.5])
       expect(() =>
         createLocalStartCoordinator({
-          store: createMemoryToolLedgerStore<ContentBlock>(),
+          store: createMemoryToolLedgerStore(),
           access: access(),
           guardsOf: () => [],
           commitAttempts: 4,
@@ -659,7 +659,7 @@ describe('G5 tenants and qualification', () => {
   // A store whose read never settles stands for a turn that holds the tenant section without ever
   // finishing. Every caller of that tenant must still answer within its bound: an answer that never
   // arrives is a silent failure, whatever holds the store.
-  const neverSettles = (): ToolLedgerStore<ContentBlock> => ({
+  const neverSettles = (): ToolLedgerStore => ({
     durability: 'none',
     read: () => new Promise(() => {}),
     commit: () => new Promise(() => {}),

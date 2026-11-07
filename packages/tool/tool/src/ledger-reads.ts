@@ -25,18 +25,15 @@ import type { CallAccount, ResultRecord } from './ledger-store.ts'
  * The current call state located by `admission`.
  * An absent admission in a complete snapshot is not accepted.
  */
-export function lookupCall<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
-  admission: ToolOperationId,
-): ToolLookup {
+export function lookupCall(snapshot: Snapshot, admission: ToolOperationId): ToolLookup {
   const call = snapshot.call
   if (call !== null && call.admission === admission) return { kind: 'found', state: call.state }
   return { kind: 'not-accepted', operation: admission }
 }
 
 /** The resolution of one operation. The receipt evidence points at the operation record. */
-export function resolveOperation<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function resolveOperation(
+  snapshot: Snapshot,
   operation: ToolOperationId,
 ): OperationResolution {
   const record = snapshot.operations.get(operation)
@@ -146,10 +143,10 @@ export type PageInput = Readonly<{
 }>
 
 /** The result record a read names, or why it cannot be read: not settled, or unknown version. */
-export function resultRecord<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function resultRecord(
+  snapshot: Snapshot,
   version: ToolResultVersion,
-): Outcome<ResultRecord<B>, ToolFailure> {
+): Outcome<ResultRecord, ToolFailure> {
   if (snapshot.call === null) return invalid('call', 'unknown-call')
   const record = snapshot.results.get(version)
   if (record !== undefined) return succeed(record)
@@ -163,7 +160,7 @@ export function resultRecord<B extends ContentBlock>(
  * projection and the next block position.
  */
 export function readResultPage<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+  snapshot: Snapshot,
   input: PageInput,
   value: ToolResult<B>,
 ): Outcome<ResultPage<B>, ToolFailure> {
@@ -205,9 +202,7 @@ export function readResultPage<B extends ContentBlock>(
  * program closure and scheduling are empty until their increments record them. Fact streams
  * project the saved cursor and the original receipts whose source confirmation is pending.
  */
-export function readRecovery<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
-): Outcome<ToolRecovery, ToolFailure> {
+export function readRecovery(snapshot: Snapshot): Outcome<ToolRecovery, ToolFailure> {
   const call = snapshot.call
   if (call === null) return invalid('call', 'unknown-call')
   const original =
@@ -239,9 +234,7 @@ export function readRecovery<B extends ContentBlock>(
 }
 
 /** The current account of the call: the latest revision of the one recorded source. */
-export function readAccount<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
-): Outcome<CallAccount, ToolFailure> {
+export function readAccount(snapshot: Snapshot): Outcome<CallAccount, ToolFailure> {
   if (snapshot.call === null) return invalid('call', 'unknown-call')
   const latest = snapshot.accounts.at(-1)
   if (latest === undefined) return invalid('call', 'no-account')

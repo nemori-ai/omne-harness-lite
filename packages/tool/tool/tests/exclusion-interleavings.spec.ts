@@ -33,7 +33,7 @@ const excludedOf = (op: string) => ({
   },
 })
 
-type Hook = { matches: (i: LedgerCommitInput<Block>) => boolean; land: () => Promise<unknown> }
+type Hook = { matches: (i: LedgerCommitInput) => boolean; land: () => Promise<unknown> }
 type Entry = {
   label: string
   ops: string[]
@@ -43,11 +43,11 @@ type Entry = {
   revision: string
 }
 function hooked() {
-  const memory = createMemoryToolLedgerStore<Block>()
+  const memory = createMemoryToolLedgerStore()
   const hooks: Hook[] = []
   const log: Entry[] = []
   let label = ''
-  const store: ToolLedgerStore<Block> = {
+  const store: ToolLedgerStore = {
     durability: 'none',
     read: d => memory.read(d),
     commit: async input => {

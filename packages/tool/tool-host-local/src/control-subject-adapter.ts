@@ -1,4 +1,3 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -30,8 +29,8 @@ export type LocalToolControlSubject = Readonly<{
   work: Readonly<{ owner: 'session'; work: string }>
 }>
 
-export type LocalToolControlSubjectsInput<P, B extends ContentBlock = ContentBlock> = Readonly<{
-  store: ToolLedgerStore<B>
+export type LocalToolControlSubjectsInput<P> = Readonly<{
+  store: ToolLedgerStore
   project(principal: P): Reply<LocalToolControlSubject>
   resolveSessionWork(input: Readonly<{ tenant: TenantId; session: string }>): Reply<P>
   qualify: ToolAccessGuard<P>['qualify']
@@ -197,8 +196,8 @@ async function guarded<T>(ask: () => Promise<Outcome<T, ToolFailure>>): Reply<T>
 }
 
 /** The store owns durability. Missing callbacks disable their operations, never authorize them. */
-export function createLocalToolControlSubjects<P, B extends ContentBlock = ContentBlock>(
-  input: LocalToolControlSubjectsInput<P, B>,
+export function createLocalToolControlSubjects<P>(
+  input: LocalToolControlSubjectsInput<P>,
 ): ToolControlSubjects<P> {
   const { store, project, resolveSessionWork, qualify, commitAttempts } = input
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
@@ -243,9 +242,7 @@ export function createLocalToolControlSubjects<P, B extends ContentBlock = Conte
     return unavailable()
   }
 
-  const readDomain = async (
-    context: Context,
-  ): Reply<Extract<LedgerRead<B>, { kind: 'complete' }>> => {
+  const readDomain = async (context: Context): Reply<Extract<LedgerRead, { kind: 'complete' }>> => {
     const read = await store.read(domain(context.tenant))
     if (
       read.kind !== 'complete' ||
@@ -258,7 +255,7 @@ export function createLocalToolControlSubjects<P, B extends ContentBlock = Conte
   }
 
   const bindingAt = (
-    read: Extract<LedgerRead<B>, { kind: 'complete' }>,
+    read: Extract<LedgerRead, { kind: 'complete' }>,
     context: Context,
     key: string,
   ): Outcome<Binding | null, ToolFailure> => {

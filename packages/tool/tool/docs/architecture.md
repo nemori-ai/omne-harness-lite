@@ -51,7 +51,9 @@ ToolCall 决定器输入当前持久状态、具名命令和已核验 guard 快�
 
 `createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts, finalCustody, delivery, controls }`。第五参数 `ToolLedgerPorts` 注入 `custody.retainResult`、原环境 `releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`。facts 只供受信事实恢复；runtime 结算经 commands 推进。宿主经同账本 delivery 分面取得待交付结果。`configuration` 给出结果页大小 `resultPageBytes`、修订冲突的重试上限 `ledgerCommitAttempts` 与队列容量 `queueCapacity`，三者都来自 `ToolConfiguration`。`admissions.admit` 回复状态与 `recovered`，`commands.admit` 是只回复状态的契约形状。源码在 [ledger.ts](../src/ledger.ts)、[ledger-decider.ts](../src/ledger-decider.ts)、[ledger-store.ts](../src/ledger-store.ts) 与 [ledger-reads.ts](../src/ledger-reads.ts)。
 
-记录仓端口 `ToolLedgerStore<B>` 只有两个操作。`read(domain)` 返回一个事务域的全部记录和当前修订号，或 `unavailable`；返回 `complete` 表示快照包含该域此前每一次已确认的提交。`commit({ domain, expected, revision, writes })` 在 `expected` 等于当前修订号时原子写入全部 `writes` 并把修订号改为 `revision`，否则回答 `conflict`；提交结果不确定时回答 `unknown`，记录仓不可用时回答 `unavailable`。记录仓不解释记录内容，也不做业务判断。`durability` 声明 `none` 或 `durable`；`none` 只能出现在 `./testing`。
+记录仓端口 `ToolLedgerStore` 只有两个操作。`read(domain)` 返回一个事务域的全部记录和当前修订号，或 `unavailable`；返回 `complete` 表示快照包含该域此前每一次已确认的提交。`commit({ domain, expected, revision, writes })` 在 `expected` 等于当前修订号时原子写入全部 `writes` 并把修订号改为 `revision`，否则回答 `conflict`；提交结果不确定时回答 `unknown`，记录仓不可用时回答 `unavailable`。记录仓不解释记录内容，也不做业务判断。`durability` 声明 `none` 或 `durable`；`none` 只能出现在 `./testing`。
+
+`ResultRecord` 只保存 content、data、附件元数据与作者 summary 的通道引用。完整值由读取分面还原，记录仓及纯决策不依赖内容块类型参数。`admit`、`rejectPending`、`recordStart(rejected)` 先准备系统结果，再提交结果与根操作回执。首次读取的修订号贯穿准备 IO，可靠否定答案仍能排除旧请求。完整准备的重试不重新生成文本，部分准备时允许重求纯系统文本，但异值不得覆盖材料。准备沿原入口权限，受理不额外要求 write 或 recover。
 
 事务域是判别联合：`call` 域是 `(tenant, call)`，拥有一次原调用的全部记录；`queue` 域是 `(tenant, FIFO key)`，拥有同一 key 下各调用的顺序与名额；`host` 域是 `(tenant, key)`，供宿主提供者保存自己的耐久记录（例如 `tool-host-local` 的启动受理台账），本包不解释其内容。记录是判别联合，每种记录有一个唯一键：
 
@@ -59,7 +61,8 @@ ToolCall 决定器输入当前持久状态、具名命令和已核验 guard 快�
 | --- | --- | --- |
 | `call` | `call` | 原调用：受理操作、固定请求、发起来源、当前 `ToolState`、已确认的环境、准备记录、启动记录、启动拒绝与执行引用 |
 | `operation` | `operation:<operation>` | 一次已提交操作：种类、规范输入摘要、提交修订号、具名回执（例如 admit 的 `ToolState`、releaseDelivery 的 `DeliveryState`、planPreparation 的 `PreparationRecord`、prepareStart 的启动记录） |
-| `result` | `result:<version>` | custody 区分 synthetic 与 execution，后者保留原 final/raw/retain 回执及清理责任。一个结果版本：原终局、实际终局、效果、完整 `ToolResult`、交付关系、来源证据、产生它的操作 |
+| `result-preparation` | `result-preparation:<id>` | 系统替代结果的原操作、输入摘要、准备凭据，以及 preparing 或带通道引用的 prepared 状态；不充当根操作回执 |
+| `result` | `result:<version>` | custody 区分 synthetic 与 execution，后者保留原 final/raw/retain 回执及清理责任。一个结果版本：原终局、实际终局、效果、各结果通道的封存引用与完整值指纹、交付关系、来源证据、产生它的操作 |
 | `environment-release` | 按原 preparation.operation 唯一定键 | canonical ReleaseRecord 与最后 ReleaseProgress；任务删除后保留，供同资源认回 |
 | `account` | `account:<event>` | 一笔账目修订及其来源 |
 | `task` | `task:<kind>:<operation>` | 一项待办，形状是契约的 `ToolTask` |
@@ -317,7 +320,7 @@ runtime.invoke 在第一次 await 前用契约判定器固定 payload，再通�
 
 ### 内容读取的责任
 
-[ledger-content.ts](../src/ledger-content.ts) 消费已保管的完整 ResultRecord。attachments、content ref、卸载原文与摘要 ref 建立完整五字段关联。原 raw.content 的完整 custody 描述也可建立关联。关联成立后，storage/key 与已知原件相同的描述均选择 `read-raw-content` 完整操作，未登记描述不能借同地址关联。不同地址不因相同摘要被标成原件。guard 在一个可信权限事实判定点核主体、租户、call 范围和两项基础资格；普通附件仍选 `read-content`。读取前固定输入，读取后重读结果关联并复核完整操作资格，最后交回独立 bytes 副本。末次允许后不再等待外部读取，资格事实的一致性归 guard；无法证明时返回 unavailable。
+[ledger-content.ts](../src/ledger-content.ts) 消费 ResultRecord 的归属元数据和从通道还原的完整值。attachments、content ref、卸载原文与摘要 ref 建立完整五字段关联。原 raw.content 的完整 custody 描述也可建立关联。关联成立后，storage/key 与已知原件相同的描述均选择 `read-raw-content` 完整操作，未登记描述不能借同地址关联。不同地址不因相同摘要被标成原件。guard 在一个可信权限事实判定点核主体、租户、call 范围和两项基础资格；普通附件仍选 `read-content`。读取前固定输入，读取后重读结果关联并复核完整操作资格，最后交回独立 bytes 副本。末次允许后不再等待外部读取，资格事实的一致性归 guard；无法证明时返回 unavailable。
 
 字节提供者拥有完整源长度/摘要、byte cursor 的身份及位置绑定。账本核响应身份、offset、范围、页预算和 EOF，不能凭一页自行证明完整源摘要。内存提供者在 [testing.ts](../src/testing.ts) 复用既有 custody double，preserve/inspect 后登记精确 tenant/call/Attachment 与字节，不保存结果关联或资格。正式 provider 仍须兑现其证明责任；内存组合声明 `durability:none`。
 

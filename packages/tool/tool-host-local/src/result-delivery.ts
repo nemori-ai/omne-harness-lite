@@ -42,7 +42,7 @@ export type DeliveryPosition<P, B extends ContentBlock> = Readonly<{
   receiver(consumer: ConsumerRef): Reply<ToolResultReceiver<P, B>>
 }>
 export type LocalDeliveryInput<P, B extends ContentBlock> = Readonly<{
-  store: ToolLedgerStore<B>
+  store: ToolLedgerStore
   commands: ToolCommands<P, B>
   reads: ToolReads<P, B>
   resultDelivery: ToolLedger<P, B>['delivery']
@@ -96,10 +96,7 @@ function storedTenantKey(value: unknown): string | null {
   return tenant === null ? null : tenantKey(tenant)
 }
 
-function resultBase<B extends ContentBlock>(
-  call: CallRecord,
-  result: ResultRecord<B>,
-): DeliveryBase | null {
+function resultBase(call: CallRecord, result: ResultRecord): DeliveryBase | null {
   const tenant = restoreTenant(call.tenant)
   if (tenant === null) return null
   const reference = encodeToolInvocationRef({ tenant, call: call.call, admission: call.admission })
@@ -108,11 +105,6 @@ function resultBase<B extends ContentBlock>(
     canonicalDigest(call.request.consumer) !== canonicalDigest(result.delivery.consumer)
   )
     return null
-  const value =
-    'kind' in result.value
-      ? { ok: { fingerprint: result.value.value } }
-      : encodeToolMaterial(result.value)
-  if ('failure' in value) return null
   return {
     kind: 'result',
     key: { kind: 'result', producer: 'tool', reference: reference.ok, result: result.result },
@@ -123,7 +115,7 @@ function resultBase<B extends ContentBlock>(
     actualTerminal: result.actual,
     effect: result.effect,
     source: result.source,
-    value: value.ok.fingerprint,
+    value: result.value.value,
   }
 }
 

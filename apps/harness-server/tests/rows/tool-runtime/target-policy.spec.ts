@@ -1,10 +1,7 @@
 import { expect, it } from 'vitest'
 import { canonicalDigest, type CallRecord, type ToolLedgerStore } from '@omne-harness/tool'
 import { decodeToolOperationId } from '@omne-harness/tool-contract'
-import {
-  decodeToolRevision,
-  type ToolMessageContentBlock,
-} from '@omne-harness/tool-contract/provider'
+import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { TOOL_FORWARDING_OWNER } from '@omne-harness/tool-host-local'
 import {
   currentTargetPolicy,
@@ -23,7 +20,7 @@ it('applies target policy to new admissions while retaining custody of an exactl
     let admitted: CallRecord | null = null
     let reads = 0,
       checks = 0
-    const store: ToolLedgerStore<ToolMessageContentBlock> = {
+    const store: ToolLedgerStore = {
       durability: 'none',
       read: async () => {
         reads++

@@ -9,11 +9,10 @@ import {
   storeKeyTenantShape as tenant,
   tenantA,
   tenantB,
-  type Block,
 } from './runtime-values.ts'
 
 const domain: LedgerDomain = { kind: 'call', tenant: tenantA, call: callId('call-1') }
-const task: LedgerRecord<Block> = {
+const task: LedgerRecord = {
   kind: 'task',
   task: {
     kind: 'queue',
@@ -26,7 +25,7 @@ const task: LedgerRecord<Block> = {
 
 describe('18 the non-durable store', () => {
   it('18 store: declares no durability, starts every domain at revision 0 and commits by revision', async () => {
-    const store = createMemoryToolLedgerStore<Block>()
+    const store = createMemoryToolLedgerStore()
     expect(store.durability).toBe('none')
     expect(await store.read(domain)).toEqual({ kind: 'complete', revision: '0', records: [] })
     const commit = {
@@ -49,8 +48,8 @@ describe('18 the non-durable store', () => {
   })
 
   it('18 store: a commit sets the domain revision whatever it writes: an exclusion alone, or nothing', async () => {
-    const store = createMemoryToolLedgerStore<Block>()
-    const exclusion: LedgerRecord<Block> = {
+    const store = createMemoryToolLedgerStore()
+    const exclusion: LedgerRecord = {
       kind: 'exclusion',
       exclusion: { operation: operationId('op-1'), revision: '1' as never },
     }
@@ -92,7 +91,7 @@ describe('18 the non-durable store', () => {
   })
 
   it('18 store: domains of different tenants and calls do not share records', async () => {
-    const store = createMemoryToolLedgerStore<Block>()
+    const store = createMemoryToolLedgerStore()
     await store.commit({
       domain,
       expected: '0' as never,
@@ -117,12 +116,12 @@ describe('18 the non-durable store', () => {
     },
   ] satisfies readonly {
     kind: 'queue' | 'host'
-    first: LedgerRecord<Block>
-    second: LedgerRecord<Block>
+    first: LedgerRecord
+    second: LedgerRecord
   }[])(
     '18 store: $kind domains with different keys keep separate records and revisions',
     async ({ kind, first, second }) => {
-      const store = createMemoryToolLedgerStore<Block>()
+      const store = createMemoryToolLedgerStore()
       const left: LedgerDomain = { kind, tenant: tenantA, key: 'left' }
       const right: LedgerDomain = { kind, tenant: tenantA, key: 'right' }
       const zero = ok(decodeToolRevision('0'))
@@ -154,7 +153,7 @@ describe('18 the non-durable store', () => {
   )
 
   it('18 store: equal identity text in call, queue and host domains does not share state', async () => {
-    const store = createMemoryToolLedgerStore<Block>()
+    const store = createMemoryToolLedgerStore()
     const entries = [
       { domain: { kind: 'call', tenant: tenantA, call: callId('shared') }, record: task },
       {
@@ -165,7 +164,7 @@ describe('18 the non-durable store', () => {
         domain: { kind: 'host', tenant: tenantA, key: 'shared' },
         record: { kind: 'host', host: { key: 'entry', value: { marker: 'host' } } },
       },
-    ] satisfies readonly { domain: LedgerDomain; record: LedgerRecord<Block> }[]
+    ] satisfies readonly { domain: LedgerDomain; record: LedgerRecord }[]
     for (const { domain, record } of entries) {
       expect(await store.read(domain)).toEqual({ kind: 'complete', revision: '0', records: [] })
       expect(
@@ -186,7 +185,7 @@ describe('18 the non-durable store', () => {
   })
 
   it('18 store: a read gives copies, so a caller cannot change what is stored', async () => {
-    const store = createMemoryToolLedgerStore<Block>()
+    const store = createMemoryToolLedgerStore()
     await store.commit({
       domain,
       expected: '0' as never,
@@ -202,7 +201,7 @@ describe('18 the non-durable store', () => {
   })
 
   it('18 store: injected faults are consumed in order and counted', async () => {
-    const store = createMemoryToolLedgerStore<Block>()
+    const store = createMemoryToolLedgerStore()
     store.injectRead('unavailable')
     store.injectCommit('unavailable', 'unknown-dropped')
     expect(await store.read(domain)).toEqual({ kind: 'unavailable', diagnostic: 'injected' })
@@ -220,7 +219,7 @@ describe('18 the non-durable store', () => {
   })
 
   it('18 store: an injected conflict writes nothing and the next commit is ordinary', async () => {
-    const store = createMemoryToolLedgerStore<Block>()
+    const store = createMemoryToolLedgerStore()
     store.injectCommit('conflict')
     const commit = {
       domain,
@@ -234,7 +233,7 @@ describe('18 the non-durable store', () => {
   })
 
   it('18 store: a delayed commit answers unknown and lands later only if its revision still holds', async () => {
-    const store = createMemoryToolLedgerStore<Block>()
+    const store = createMemoryToolLedgerStore()
     const commit = {
       domain,
       expected: '0' as never,
@@ -256,7 +255,7 @@ describe('18 the non-durable store', () => {
   })
 
   it('18 store: a call identity that contains the separator does not reach another domain', async () => {
-    const store = createMemoryToolLedgerStore<Block>()
+    const store = createMemoryToolLedgerStore()
     const slash: LedgerDomain = { kind: 'call', tenant: tenantA, call: callId('x/call-1') }
     await store.commit({
       domain: slash,
@@ -272,14 +271,14 @@ describe('18 the non-durable store', () => {
     expect(await store.read(other)).toEqual({ kind: 'complete', revision: '0', records: [] })
   })
   it('18 store: a rejected copy preserves every record and the revision', async () => {
-    const store = createMemoryToolLedgerStore<Block>()
+    const store = createMemoryToolLedgerStore()
     const host: LedgerDomain = { kind: 'host', tenant: tenantA, key: 'atomic-copy' }
-    const kept: LedgerRecord<Block> = { kind: 'host', host: { key: 'kept', value: { n: 1 } } }
-    const removed: LedgerRecord<Block> = { kind: 'host', host: { key: 'removed', value: [2] } }
+    const kept: LedgerRecord = { kind: 'host', host: { key: 'kept', value: { n: 1 } } }
+    const removed: LedgerRecord = { kind: 'host', host: { key: 'removed', value: [2] } }
     const next = {
       kind: 'host',
       host: { key: 'next', value: { n: 3 } },
-    } satisfies LedgerRecord<Block>
+    } satisfies LedgerRecord
     await store.commit({
       domain: host,
       expected: ok(decodeToolRevision('0')),

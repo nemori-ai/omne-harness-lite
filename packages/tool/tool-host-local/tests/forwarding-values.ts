@@ -1,5 +1,5 @@
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import type { CallRecord, ToolLedgerStore } from '@omne-harness/tool'
@@ -69,10 +69,10 @@ export function parentRequest(): ToolInvokeRequest {
 export async function forwardingFixture(
   options: { durableDeclaration?: boolean; consumed?: boolean } = {},
 ) {
-  const memory = createMemoryToolLedgerStore<ContentBlock>()
+  const memory = createMemoryToolLedgerStore()
   let nextCommit: 'lost' | 'unwritten' | 'unavailable' | null = null
   let allowed = true
-  const store: ToolLedgerStore<ContentBlock> = {
+  const store: ToolLedgerStore = {
     durability: options.durableDeclaration ? 'durable' : 'none',
     read: memory.read,
     async commit(input) {
@@ -87,7 +87,7 @@ export async function forwardingFixture(
       return memory.commit(input)
     },
   }
-  const authority = createLocalStartCoordinator<string, ContentBlock>({
+  const authority = createLocalStartCoordinator<string>({
     store,
     commitAttempts: 8,
     guardsOf: () => [],

@@ -27,6 +27,7 @@ import {
   type ToolLedgerQueues,
   type ToolLedgerFacts,
   type ToolLedgerStore,
+  type ResultRecord,
   type ToolLedgerPorts,
   type ToolLedgerControls,
 } from '@omne-harness/tool'
@@ -55,7 +56,7 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
   type P = { subject: string }
   expectTypeOf(createToolLedger<P, ContentBlock>).parameters.toEqualTypeOf<
     [
-      ToolLedgerStore<ContentBlock>,
+      ToolLedgerStore,
       ToolLedgerGuards<P, ContentBlock>,
       ToolClock,
       ToolLedgerConfiguration,
@@ -91,4 +92,9 @@ it('ledger content provider is explicit and may be disabled with null', () => {
     ToolContentReader<string>,
     'read'
   > | null>()
+})
+
+it('the result ledger accepts channel references and cannot store a complete ToolResult', () => {
+  expectTypeOf<ResultRecord['value']['kind']>().toEqualTypeOf<'channels'>()
+  expectTypeOf<ToolResult<ContentBlock>>().not.toExtend<ResultRecord['value']>()
 })

@@ -68,7 +68,7 @@ async function fixture(
   const revoked = new Set<ToolLedgerAction>()
   let readHook: (() => Promise<void>) | null = null
   let qualificationHook: Readonly<{ action: ToolLedgerAction; run(): Promise<void> }> | null = null
-  const store: ToolLedgerStore<Block> = {
+  const store: ToolLedgerStore = {
     durability: 'none',
     read: async domain => {
       const answer = await f.harness.memory.read(domain)

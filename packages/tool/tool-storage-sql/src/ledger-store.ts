@@ -3,7 +3,7 @@
 // `read` is one `domain-serial` read; `commit` is one SQL commit whose participant checks the
 // expected revision, applies the writes in order and sets the new revision, or writes nothing.
 import { randomUUID } from 'node:crypto'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import type { JsonValue } from '@omne-harness/sql-contract'
 import {
   recordKey,
@@ -23,31 +23,28 @@ import type { LedgerFacts, LedgerWriteFact } from './worker/facts.ts'
 import { LEDGER_READ_HANDLER, PROTOCOL } from './worker/schema.ts'
 import { isObject } from './worker/support.ts'
 
-export type SqlToolLedgerStore<B extends ContentBlock> = ToolLedgerStore<B> &
-  Readonly<{ durability: 'durable' }>
+export type SqlToolLedgerStore = ToolLedgerStore & Readonly<{ durability: 'durable' }>
 
 /**
  * The records of a read. The store interprets no record: it only checks that each one is the
  * record its row key names, so a row that does not hold its own record is reported, never served.
  */
-function recordsOf<B extends ContentBlock>(rows: JsonValue | undefined): LedgerRecord<B>[] | null {
+function recordsOf(rows: JsonValue | undefined): LedgerRecord[] | null {
   if (!Array.isArray(rows)) return null
-  const records: LedgerRecord<B>[] = []
+  const records: LedgerRecord[] = []
   for (const row of rows) {
     if (!isObject(row) || typeof row['key'] !== 'string' || !isObject(row['record'])) return null
     // The rows hold only records this store wrote from LedgerRecord values; the key check below
     // is the integrity check of that claim.
-    const record = row['record'] as unknown as LedgerRecord<B>
+    const record = row['record'] as unknown as LedgerRecord
     if (typeof record.kind !== 'string' || recordKey(record) !== row['key']) return null
     records.push(record)
   }
   return records
 }
 
-export function createSqlToolLedgerStore<B extends ContentBlock = ContentBlock>(
-  options: SqlToolStorageOptions,
-): SqlToolLedgerStore<B> {
-  const read = async (domain: LedgerDomain): Promise<LedgerRead<B>> => {
+export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToolLedgerStore {
+  const read = async (domain: LedgerDomain): Promise<LedgerRead> => {
     const resolved = await resolveTenant(options, domain.tenant)
     if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
     const answer = await options.storage.read({
@@ -63,14 +60,14 @@ export function createSqlToolLedgerStore<B extends ContentBlock = ContentBlock>(
       )
     const output = answer.output
     const revisionText = isObject(output) ? (output['revision'] ?? null) : undefined
-    const records = isObject(output) ? recordsOf<B>(output['records']) : null
+    const records = isObject(output) ? recordsOf(output['records']) : null
     const revision = decodeToolRevision(revisionText === null ? '0' : revisionText)
     if (records === null || !('ok' in revision))
       return unavailable('ledger read: the rows do not hold a ledger domain')
     return { kind: 'complete', revision: revision.ok, records }
   }
 
-  const commit = async (input: LedgerCommitInput<B>): Promise<LedgerCommit> => {
+  const commit = async (input: LedgerCommitInput): Promise<LedgerCommit> => {
     const resolved = await resolveTenant(options, input.domain.tenant)
     if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
     let writes: readonly LedgerWriteFact[]

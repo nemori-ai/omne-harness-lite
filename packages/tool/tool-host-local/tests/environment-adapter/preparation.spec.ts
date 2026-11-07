@@ -11,7 +11,7 @@ import {
 } from '@omne-harness/execution-environment-contract'
 import { succeed } from '@omne-harness/operation-result'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import type { PreparationRecord, ReleaseRecord } from '@omne-harness/tool-contract/provider'
 import { toolEnvironmentConformance } from '@omne-harness/tool-contract/testing'
 import {
@@ -34,7 +34,7 @@ import {
 } from '../coordinator-values.ts'
 
 function fixture() {
-  const store = createMemoryToolLedgerStore<ContentBlock>()
+  const store = createMemoryToolLedgerStore()
   const state = createEnvironmentStateStore({ store, mode: 'test' })
   const preparation: PreparationRecord = {
     tenant: tenantA,

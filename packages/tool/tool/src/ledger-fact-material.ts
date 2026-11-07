@@ -24,8 +24,8 @@ import { encodeToolMaterial } from './material-codec.ts'
 const unavailable = (diagnostic: string): Outcome<never, ToolFailure> =>
   fail({ kind: 'unavailable', dependency: 'fact-material', diagnostic })
 
-function checkEventValues<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+function checkEventValues(
+  snapshot: Snapshot,
   batch: FactBatch,
   values: FactValues,
   final: FactEventRecord | undefined,
@@ -49,7 +49,7 @@ function checkEventValues<B extends ContentBlock>(
 
 export async function adoptFactMaterials<P, B extends ContentBlock>(
   access: CallAccess<P>,
-  snapshot: Snapshot<B>,
+  snapshot: Snapshot,
   batch: FactBatch,
   values: FactValues,
   store: ToolMaterialStore<P> | undefined,

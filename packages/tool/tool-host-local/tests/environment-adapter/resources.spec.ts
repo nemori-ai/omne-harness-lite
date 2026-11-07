@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import {
   acquisitionRef,
   originRef,
@@ -31,7 +31,7 @@ function revision(text: string) {
 }
 
 async function fixture(retained = false) {
-  const store = createMemoryToolLedgerStore<ContentBlock>()
+  const store = createMemoryToolLedgerStore()
   const preparation: PreparationRecord = {
     tenant: tenantA,
     call: callId('call'),
@@ -184,7 +184,7 @@ async function fixture(retained = false) {
 it('cannot permit a resource that has no original acquisition record', async () => {
   const ledger = await createEnvironmentResourceLedger({
     state: createEnvironmentStateStore({
-      store: createMemoryToolLedgerStore<ContentBlock>(),
+      store: createMemoryToolLedgerStore(),
       mode: 'test',
     }),
     address: { tenant: tenantA, call: callId('call'), operation: operationId('prepare') },

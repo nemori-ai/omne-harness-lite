@@ -407,7 +407,7 @@ run 返回不等于 abort。session 仅在宿主给本连接的 signal 有效时
 
 ### 原 final 与独立保管
 
-W3-A 的目标表示按[材料协议 M01–M05](../tool-contract/docs/material-protocol.md)。pending final 已只保存精确封存引用，settled 只保存凭据，preserveResult 按原 basis 结算。最终通道迁移尚未完成，当前 ResultRecord 仍内嵌完整 ToolResult，不能据事实压缩声称全部副本已收口。`facts.read` 的恢复结果须区分 pending 与已结算；driver、批次认回、结算检查及 queue 释放依据均先读稳定身份，不能在结果提交后再次要求 raw/envelope 仍存在。
+W3-A 的目标表示按[材料协议 M01–M05](../tool-contract/docs/material-protocol.md)。pending final 已只保存精确封存引用，settled 只保存凭据，preserveResult 按原 basis 结算。执行结果与系统替代结果的 ResultRecord 均只保存通道引用与完整值指纹，完整 ToolResult 由读取口还原。原 raw/retainResult 保管副本、用途解除与 TTL 仍待收口，不能据通道迁移声称全部副本已收口。`facts.read` 的恢复结果须区分 pending 与已结算；driver、批次认回、结算检查及 queue 释放依据均先读稳定身份，不能在结果提交后再次要求 raw/envelope 仍存在。
 
 材料业务由本包沿同一个 call 域 CAS 实现，SQL 只提供字节与索引机制。准备意图先于字节 IO；水位、到期、租约和用途的决定使用同一域的修订条件。包括确定到期的失败答复，必要状态仍须先提交。时间不可读或回退时拒绝新时间判定；已确定提交及已授权删除可以继续认回。旧路径未完成迁移前，不称 W3 文本生命周期已实现。
 

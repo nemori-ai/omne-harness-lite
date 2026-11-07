@@ -41,7 +41,7 @@ export function settlementOperation(
 
 /** Immutable event history includes references replaced in the current process projection. */
 export function processCustodyCovered<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+  snapshot: Snapshot,
   raw: RawOutput,
   value: ToolResult<B>,
 ): boolean {
@@ -61,14 +61,14 @@ export function releaseIntent(preparation: PreparationRecord, custody: DurableEv
 }
 
 /** Both automatic and public planning use this canonical record and write set. */
-export function planEnvironmentRelease<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function planEnvironmentRelease(
+  snapshot: Snapshot,
   call: CallRecord,
   final: DurableEvidence,
   custody: DurableEvidence,
   mint: Mint,
 ): Outcome<
-  Readonly<{ release: ReleaseRecord; writes: readonly LedgerWrite<B>[] }> | null,
+  Readonly<{ release: ReleaseRecord; writes: readonly LedgerWrite[] }> | null,
   ToolFailure
 > {
   const environment = call.environment
@@ -128,7 +128,7 @@ export type RecordReleaseCommand = CleanupCommand &
   Readonly<{ release: unknown; outcome: ReleaseProgress }>
 export type RecordTaskCommand = CleanupCommand & Readonly<{ task: unknown; resolution: unknown }>
 
-function revisedCall<B extends ContentBlock>(call: CallRecord, mint: Mint): LedgerWrite<B> {
+function revisedCall(call: CallRecord, mint: Mint): LedgerWrite {
   const { source: _source, ...body } = call.state
   const state = { ...body, revision: mint.revision }
   return put({
@@ -149,12 +149,12 @@ function revisedCall<B extends ContentBlock>(call: CallRecord, mint: Mint): Ledg
 }
 
 export function decidePlanRelease<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+  snapshot: Snapshot,
   command: PlanReleaseCommand,
   mint: Mint,
   unsupported: Outcome<never, ToolFailure>,
   value: ToolResult<B> | null,
-): Decision<ReleaseRecord, B> {
+): Decision<ReleaseRecord> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'plan-release')
   if ('failure' in known) return reply(known)
   if (known.ok?.receipt.kind === 'plan-release') return reply(succeed(known.ok.receipt.release))
@@ -194,14 +194,14 @@ export function decidePlanRelease<B extends ContentBlock>(
       ...writes,
       ...(release.operation === command.operation
         ? []
-        : [put<B>(operationRecord(command, { kind: 'plan-release', release }, mint))]),
+        : [put(operationRecord(command, { kind: 'plan-release', release }, mint))]),
       revisedCall(call, mint),
     ],
   }
 }
 
-export function checkRelease<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function checkRelease(
+  snapshot: Snapshot,
   command: RecordReleaseCommand,
 ): Outcome<
   | Readonly<{ kind: 'recalled'; evidence: DurableEvidence }>
@@ -226,11 +226,11 @@ export function checkRelease<B extends ContentBlock>(
   return succeed({ kind: 'fresh', ...original })
 }
 
-export function decideRecordRelease<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideRecordRelease(
+  snapshot: Snapshot,
   command: RecordReleaseCommand,
   mint: Mint,
-): Decision<DurableEvidence, B> {
+): Decision<DurableEvidence> {
   const checked = checkRelease(snapshot, command)
   if ('failure' in checked) return reply(checked)
   if (checked.ok.kind === 'recalled') return reply(succeed(checked.ok.evidence))
@@ -265,12 +265,12 @@ export function decideRecordRelease<B extends ContentBlock>(
   }
 }
 
-export function decideRecordFactsTask<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideRecordFactsTask(
+  snapshot: Snapshot,
   command: RecordTaskCommand,
   mint: Mint,
   unsupported: Outcome<never, ToolFailure>,
-): Decision<DurableEvidence, B> {
+): Decision<DurableEvidence> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'record-task')
   if ('failure' in known) return reply(known)
   if (known.ok?.receipt.kind === 'record-task') return reply(succeed(known.ok.receipt.evidence))

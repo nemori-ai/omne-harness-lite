@@ -19,7 +19,6 @@ import {
   principalA,
   principalB,
   tenantA,
-  type Block,
   type Principal,
 } from './runtime-values.ts'
 
@@ -123,8 +122,8 @@ async function started(f: ReturnType<typeof fixture>, run: (signal: AbortSignal)
 }
 
 async function replaceRecords(
-  store: ToolLedgerStore<Block>,
-  replace: (record: LedgerRecord<Block>) => LedgerRecord<Block>,
+  store: ToolLedgerStore,
+  replace: (record: LedgerRecord) => LedgerRecord,
 ) {
   const domain = { kind: 'call', tenant: tenantA, call: access.call } as const
   const read = await store.read(domain)

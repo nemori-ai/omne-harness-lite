@@ -45,7 +45,7 @@ export function createLedgerFinalCustody<P, B extends ContentBlock>(
     policy: ResultPolicy<B>
     adoption: Adoption
     entry(input: unknown, action: 'write'): Reply<CallInput<P>>
-    transact: MaterialTransaction<B>
+    transact: MaterialTransaction
   }>,
 ): ToolFinalCustody<P, B> {
   const materials = createLedgerMaterialCustody({

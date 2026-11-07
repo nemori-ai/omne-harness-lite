@@ -12,7 +12,7 @@
 //   T  a principal of another tenant is denied by every operation and writes nothing.
 // The negative control runs the same driver and checker against a faulty authority with one
 // rule removed; the checker must report that rule.
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import { succeed } from '@omne-harness/operation-result'
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from '@omne-harness/tool/testing'
@@ -247,7 +247,7 @@ async function run(
 }
 
 /** The guard revision of tenant A as stored, read without the coordinator. */
-function guardRevisionReader(store: ToolLedgerStore<ContentBlock>) {
+function guardRevisionReader(store: ToolLedgerStore) {
   return async (): Promise<number | null> => {
     const read = await store.read({
       kind: 'host',
@@ -268,7 +268,7 @@ const SEEDS = Array.from({ length: 40 }, (_, i) => 1000 + i)
 
 describe('the start ordering domain keeps the StartFence properties under random drivers', () => {
   it.each(SEEDS)('seed %i: no property of the model is violated', async seed => {
-    const store: MemoryToolLedgerStore<ContentBlock> = createMemoryToolLedgerStore<ContentBlock>()
+    const store: MemoryToolLedgerStore = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const trace = await run(
       authority,

@@ -93,8 +93,8 @@ export async function fixture(
   forwardingPreparation?: () => Promise<void>,
 ) {
   const root = new Context()
-  const memory = createMemoryToolLedgerStore<ToolMessageContentBlock>()
-  const store: ToolLedgerStore<ToolMessageContentBlock> = {
+  const memory = createMemoryToolLedgerStore()
+  const store: ToolLedgerStore = {
     durability: 'durable',
     read: memory.read,
     commit: memory.commit,
@@ -430,7 +430,7 @@ export async function fixture(
           const call = await store.read(value.call)
           if (call.kind !== 'complete')
             return { kind: 'unavailable', diagnostic: 'fixture read failure' }
-          const writes: LedgerWrite<ToolMessageContentBlock>[] = []
+          const writes: LedgerWrite[] = []
           for (const write of value.hostCommit.writes) {
             if (write.kind === 'delete') writes.push(write)
             else if (write.record.kind === 'host')

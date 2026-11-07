@@ -6,7 +6,7 @@
 // stored permit, once, and only while every guard keeps that revision. An invalidation returns its
 // evidence only after its commit, so an invalidation that returned before a consume is always
 // seen by it (P04: an invalidation that holds first forbids the start).
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
@@ -86,12 +86,12 @@ export interface StartCoordinatorAccess<P> {
   ): Promise<AccessVerdict>
 }
 
-export type LocalStartCoordinatorInput<P, B extends ContentBlock = ContentBlock> = Readonly<{
+export type LocalStartCoordinatorInput<P> = Readonly<{
   /**
    * The ledger store whose `host` domain keeps the acceptance ledger: the same store the ledger
    * of the runtime uses, so one durable provider keeps both.
    */
-  store: ToolLedgerStore<B>
+  store: ToolLedgerStore
   /** Proves the principal, the tenant and the call; a forged tenant is denied. */
   access: StartCoordinatorAccess<P>
   requestAccess?: ToolRequestAccess<P>
@@ -618,32 +618,27 @@ function reply<T>(outcome: Outcome<T, ToolFailure>): Decision<T> {
   return { kind: 'reply', outcome }
 }
 
-function hostRecord<B extends ContentBlock>(
-  key: string,
-  value: CoordinatorRecord | null,
-): LedgerRecord<B> {
+function hostRecord(key: string, value: CoordinatorRecord | null): LedgerRecord {
   return { kind: 'host', host: { key, value } }
 }
 
 /** The store writes of a decision; a deleted key is addressed as the store keys a host record. */
-function writesOf<B extends ContentBlock>(
-  decision: Extract<Decision<unknown>, { kind: 'commit' }>,
-): LedgerWrite<B>[] {
+function writesOf(decision: Extract<Decision<unknown>, { kind: 'commit' }>): LedgerWrite[] {
   return [
     ...(decision.deletes ?? []).map(key => ({
       kind: 'delete' as const,
-      key: recordKey(hostRecord<B>(key, null)),
+      key: recordKey(hostRecord(key, null)),
     })),
     ...decision.puts.map(record => ({
       kind: 'put' as const,
-      record: hostRecord<B>(keyOf(record), record),
+      record: hostRecord(keyOf(record), record),
     })),
   ]
 }
 
 /** The host domain as the coordinator reads it. Any other record is a defect of the store. */
-function snapshotOf<B extends ContentBlock>(
-  read: Extract<LedgerRead<B>, { kind: 'complete' }>,
+function snapshotOf(
+  read: Extract<LedgerRead, { kind: 'complete' }>,
 ): Outcome<Snapshot, ToolFailure> {
   const records = new Map<string, CoordinatorRecord>()
   for (const record of read.records) {
@@ -663,8 +658,8 @@ function snapshotOf<B extends ContentBlock>(
  * commit; `exclude` rejects the whole pending invocation of a call that has no acceptance.
  * An unreadable ledger answers `unavailable`, never an acceptance or a rejection.
  */
-export function createLocalStartCoordinator<P, B extends ContentBlock = ContentBlock>(
-  input: LocalStartCoordinatorInput<P, B>,
+export function createLocalStartCoordinator<P>(
+  input: LocalStartCoordinatorInput<P>,
 ): ToolStartAuthority<P> {
   const { store, access, guardsOf, commitAttempts, permitRequirements, requestAccess } = input
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
@@ -770,7 +765,7 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
               domain: domain(tenant),
               expected: snapshot.ok.revision,
               revision,
-              writes: writesOf<B>(decision),
+              writes: writesOf(decision),
             })
           } catch {
             return unknown('the start ledger threw on commit')

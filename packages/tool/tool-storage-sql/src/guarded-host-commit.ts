@@ -1,4 +1,3 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import type { LedgerCommit, LedgerCommitInput, LedgerDomain } from '@omne-harness/tool'
 import type { ToolRevision } from '@omne-harness/tool-contract'
 import { NotJsonError } from './json.ts'
@@ -8,16 +7,16 @@ import { requestOf, resolveTenant, tenantText } from './tenant.ts'
 import type { GuardedHostFacts, LedgerWriteFact } from './worker/facts.ts'
 import { isObject } from './worker/support.ts'
 
-export type SqlToolGuardedHostCommitInput<B extends ContentBlock> = Readonly<{
+export type SqlToolGuardedHostCommitInput = Readonly<{
   call: Extract<LedgerDomain, { kind: 'call' }>
   callExpected: ToolRevision
-  hostCommit: LedgerCommitInput<B>
+  hostCommit: LedgerCommitInput
 }>
 
 export type SqlToolGuardedHostCommitResult = LedgerCommit | Readonly<{ kind: 'call-changed' }>
 
-export type SqlToolGuardedHostCommit<B extends ContentBlock> = Readonly<{
-  commit(input: SqlToolGuardedHostCommitInput<B>): Promise<SqlToolGuardedHostCommitResult>
+export type SqlToolGuardedHostCommit = Readonly<{
+  commit(input: SqlToolGuardedHostCommitInput): Promise<SqlToolGuardedHostCommitResult>
 }>
 
 function guardedAnswer(answer: CommitAnswer): SqlToolGuardedHostCommitResult {
@@ -37,9 +36,9 @@ function guardedAnswer(answer: CommitAnswer): SqlToolGuardedHostCommitResult {
  * The caller checks the live call snapshot before committing. This condition and the host CAS
  * run in one SQL transaction. A conflict requires a fresh call read and eligibility check.
  */
-export function createSqlToolGuardedHostCommit<B extends ContentBlock = ContentBlock>(
+export function createSqlToolGuardedHostCommit(
   options: SqlToolStorageOptions,
-): SqlToolGuardedHostCommit<B> {
+): SqlToolGuardedHostCommit {
   return {
     commit: async input => {
       const host = input.hostCommit

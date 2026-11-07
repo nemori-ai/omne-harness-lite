@@ -32,51 +32,34 @@ export type ResultPreparationRecord = Readonly<{
 }>
 export type PreparedSynthetic = ResultPreparationRecord &
   Readonly<{ state: Readonly<{ kind: 'prepared'; channels: ResultChannels }> }>
-export type SyntheticDecision<T, B extends ContentBlock> =
-  | Decision<T, B>
+export type SyntheticDecision<T> =
+  | Decision<T>
   | Readonly<{ kind: 'prepare-synthetic'; need: SyntheticNeed }>
-export type SyntheticDecider<T, B extends ContentBlock> = (
-  snapshot: Snapshot<B>,
+export type SyntheticDecider<T> = (
+  snapshot: Snapshot,
   mint: Mint,
   prepared: PreparedSynthetic | null,
-) => SyntheticDecision<T, B>
+) => SyntheticDecision<T>
 
-export function syntheticChannels(
-  command: Readonly<{ operation: ToolOperationId; inputDigest: string }>,
-  need: SyntheticNeed,
-  prepared: PreparedSynthetic | null,
-):
-  | Outcome<ResultChannels, ToolFailure>
-  | Readonly<{ kind: 'prepare-synthetic'; need: SyntheticNeed }> {
-  if (prepared === null) return { kind: 'prepare-synthetic', need }
-  if (
-    prepared.operation !== command.operation ||
-    prepared.inputDigest !== command.inputDigest ||
-    digestOf(prepared.need) !== digestOf(need)
-  )
-    return fail({ kind: 'conflict', operation: command.operation })
-  return succeed(prepared.state.channels)
-}
-
-type PreparationTransaction<B extends ContentBlock> = (
+type PreparationTransaction = (
   domain: LedgerDomain,
   operation: ToolOperationId,
-  decide: (snapshot: Snapshot<B>, mint: Mint) => Promise<Decision<ResultPreparationRecord, B>>,
+  decide: (snapshot: Snapshot, mint: Mint) => Promise<Decision<ResultPreparationRecord>>,
   unknown: Outcome<ResultPreparationRecord, ToolFailure>,
 ) => Reply<ResultPreparationRecord>
 
 export function createResultPreparation<P, B extends ContentBlock>(
   ports: Readonly<{
     authorize(input: unknown): Reply<CallInput<P>>
-    custody: ReturnType<typeof createLedgerMaterialCustody<P, B>>
-    transact: PreparationTransaction<B>
+    custody: ReturnType<typeof createLedgerMaterialCustody<P>>
+    transact: PreparationTransaction
     text: TerminalText<B>
   }>,
 ) {
   return async (
     input: MutationInput<P> & Readonly<{ inputDigest: string }>,
     need: SyntheticNeed,
-    validate: (snapshot: Snapshot<B>) => Outcome<void, ToolFailure>,
+    validate: (snapshot: Snapshot) => Outcome<void, ToolFailure>,
   ): Reply<PreparedSynthetic> => {
     const identity = decodeToolOperationId(
       `result-preparation:${createHash('sha256')
@@ -90,7 +73,7 @@ export function createResultPreparation<P, B extends ContentBlock>(
     const id = identity.ok
     const domain = { kind: 'call', tenant: input.tenant, call: input.call } as const
     const unknown = fail({ kind: 'commit-unknown', operation: id } as const)
-    const check = async (snapshot: Snapshot<B>) => {
+    const check = async (snapshot: Snapshot) => {
       const qualified = await ports.authorize(input)
       return 'failure' in qualified ? qualified : validate(snapshot)
     }

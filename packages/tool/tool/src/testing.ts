@@ -93,7 +93,7 @@ export type TestToolDoubles<P> = Readonly<{
 export type TestToolDependencies<P> = Readonly<{
   durability: 'none'
   dependencies: ToolDependencies<P, ContentBlock, MemoryEnvironment>
-  store: MemoryToolLedgerStore<ContentBlock>
+  store: MemoryToolLedgerStore
   ledger: ToolLedger<P, ContentBlock>
   doubles: TestToolDoubles<P>
 }>
@@ -115,7 +115,7 @@ export function createTestToolDependencies<P>(
     custody: content.custody,
     content,
   }
-  const store = createMemoryToolLedgerStore<ContentBlock>()
+  const store = createMemoryToolLedgerStore()
   const bindings = input.bindingsFor(doubles.executor.binding)
   const ledger = createToolLedger(
     store,
@@ -409,3 +409,5 @@ export function toolAccessGuardConformance<P>(): readonly ConformanceCase<
 >[] {
   return accessGuardCases<P>({ missing: ledgerStoreCaseDependencies.missing })
 }
+
+export { createTestResultChannels } from './testing-result-channels.ts'

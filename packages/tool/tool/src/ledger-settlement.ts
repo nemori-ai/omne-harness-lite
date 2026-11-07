@@ -55,8 +55,8 @@ export type SettlementCheck =
       retainOperation: ToolOperationId
     }>
 
-export function checkSettlement<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function checkSettlement(
+  snapshot: Snapshot,
   command: PreserveCommand,
 ): Outcome<SettlementCheck, ToolFailure> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'preserve-result')
@@ -124,7 +124,7 @@ function settledState<B extends ContentBlock>(
   call: CallRecord,
   final: Final<B>,
   basis: DurableEvidence,
-  delivery: ResultRecord<B>['delivery'],
+  delivery: ResultRecord['delivery'],
   mint: Mint,
 ): Outcome<ToolState, ToolFailure> {
   const current = call.state
@@ -162,13 +162,13 @@ function settledState<B extends ContentBlock>(
 }
 
 export function decidePreserveResult<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+  snapshot: Snapshot,
   command: PreserveCommand,
   final: Final<B>,
   retained: DurableEvidence,
   channels: ResultChannels,
   mint: Mint,
-): Decision<ToolState, B> {
+): Decision<ToolState> {
   const checked = checkSettlement(snapshot, command)
   if ('failure' in checked) return reply(checked)
   if (checked.ok.kind === 'recalled') return reply(succeed(checked.ok.state))
@@ -196,7 +196,7 @@ export function decidePreserveResult<B extends ContentBlock>(
           diagnostic,
         }
       : { kind: 'planned', operation: plan.release.operation }
-  const first = firstResultWrites<B>(
+  const first = firstResultWrites(
     command,
     call.request.consumer,
     final.terminal,
@@ -215,7 +215,7 @@ export function decidePreserveResult<B extends ContentBlock>(
   )
   const state = settledState(call, final, saved.evidence, first.version.delivery, mint)
   if ('failure' in state) return reply(state)
-  const writes: LedgerWrite<B>[] = [
+  const writes: LedgerWrite[] = [
     put({ kind: 'call', call: { ...call, state: state.ok } }),
     ...first.writes,
     put(operationRecord(command, { kind: 'preserve-result', state: state.ok }, mint)),
