@@ -1,9 +1,39 @@
 import { describe, expect, it } from 'vitest'
+import { tenantCodec } from '@omne-harness/legal-identity'
 import { interpretPermission } from '../../../src/rows/governance/permission-interpreter.ts'
 import { resolvePermissionInterpretation } from '../../../src/rows/governance/permission-interpretation.ts'
 import { permissionFixture } from './permission-fixture.ts'
 
 describe('transaction permission interpretation', () => {
+  it('preserves real composite tenant and target references through permission evaluation', () => {
+    const tenant = tenantCodec.parse(
+      '{"organization":"org_abcdefghjkmnpqrstvwxyz2345","account":"acc_abcdefghjkmnpqrstvwxyz2345"}',
+    )
+    if (!tenant.ok) throw new Error('invalid tenant fixture')
+    const encoded = tenantCodec.encode(tenant.value)
+    if (!encoded.ok) throw new Error('tenant encoding failed')
+    const input = permissionFixture()
+    const scope = {
+      ...input.action.request.scope,
+      tenantId: encoded.value,
+      targetId: JSON.stringify({
+        scopeRef: encoded.value,
+        policyId: 'independent',
+        targetRef: 'commands/permissions/shell',
+      }),
+    }
+    input.action.request.scope = scope
+    input.current.request.scope = structuredClone(scope)
+    input.current.evaluation.scope = structuredClone(scope)
+    input.pick('trusted')
+    expect(interpretPermission(input)).toMatchObject({
+      kind: 'allow',
+      evaluation: { scope },
+    })
+    input.action.request.scope = { ...scope, tenantId: `${encoded.value} ` }
+    expect(interpretPermission(input)).toEqual({ kind: 'unavailable', reason: 'binding' })
+  })
+
   it.each([
     ['blocked', 'deny'],
     ['review', 'need-decision'],

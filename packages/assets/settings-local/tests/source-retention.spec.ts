@@ -35,6 +35,35 @@ const reserve = (id = 'destination-attempt') => ({
   snapshot: sourceSnapshot(),
 })
 
+it('retains an owner-qualified read operation without fabricating a Settings change', async () => {
+  const original = sourceRequest()
+  const request = sourceRequestSchema.parse({
+    ...original,
+    destination: {
+      ...original.destination,
+      ownerRef: 'governance',
+      route: 'governance.permission-capture',
+      identity: {
+        ...original.destination.identity,
+        operation: { kind: 'permission-capture', captureId: 'capture-1' },
+      },
+    },
+  })
+  const world = await open()
+  const command = { kind: 'reserve' as const, request, snapshot: sourceSnapshot() }
+  const held = responses(await world.write([command]))
+  expect(held).toMatchObject([{ kind: 'held', request }])
+  await world.close()
+  const reopened = await open(world.root)
+  expect(responses(await reopened.write([command]))).toEqual(held)
+  expect(
+    responses(await reopened.write([{ kind: 'settle', input: { request, outcome: 'aborted' } }])),
+  ).toMatchObject([{ kind: 'settled', outcome: 'aborted' }])
+  expect(responses(await reopened.write([command]))).toMatchObject([
+    { kind: 'settled', outcome: 'aborted' },
+  ])
+})
+
 it('preserves the original immutable held snapshot across reopen and draining retries', async () => {
   const first = await open()
   const original = responses(await first.write([reserve()]))
@@ -52,6 +81,34 @@ it('preserves the original immutable held snapshot across reopen and draining re
     kind: 'draining',
     held: 1,
   })
+})
+
+it('persists an aborted unreserved request across reopen without holding the source', async () => {
+  const world = await open()
+  const request = sourceRequest()
+  const settled = responses(
+    await world.write([{ kind: 'settle', input: { request, outcome: 'aborted' } }]),
+  )
+  expect(settled).toMatchObject([{ kind: 'settled', request, outcome: 'aborted' }])
+  await world.close()
+  const reopened = await open(world.root)
+  expect(responses(await reopened.write([reserve()]))).toEqual(settled)
+  expect(output(await reopened.read({ kind: 'gate', source }))).toMatchObject({ held: 0 })
+  const changed = reserve()
+  changed.request.destination.commandDigest = 'c'.repeat(64)
+  expect(responses(await reopened.write([changed]))).toEqual([{ kind: 'conflict' }])
+})
+
+it('does not manufacture a committed source reservation that never existed', async () => {
+  const world = await open()
+  expect(
+    responses(
+      await world.write([
+        { kind: 'settle', input: { request: sourceRequest(), outcome: 'committed' } },
+      ]),
+    ),
+  ).toEqual([{ kind: 'conflict' }])
+  expect(responses(await world.write([reserve()]))).toMatchObject([{ kind: 'held' }])
 })
 
 it('rejects changed binding under the same reservation identity and never revives settled records', async () => {

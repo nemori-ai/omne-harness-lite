@@ -6,6 +6,7 @@ import type { PreparationSql } from './preparation-sql.ts'
 import { attemptBinding } from './preparation-observation.ts'
 import { attemptTerminalSchema } from './finalization-schema.ts'
 import { equal } from './encoding.ts'
+import { intentIdentitySchema } from './intent-schema.ts'
 const custodySchema = z.union([
   sourceCustodyReceiptSchema,
   z.strictObject({ kind: z.literal('not_found') }),
@@ -14,12 +15,14 @@ const custodySchema = z.union([
 export function preparationSourceDestination(sql: PreparationSql): SettingsSourceDestination {
   async function recognize(request: SourceRequest) {
     const destination = request.destination
+    const identity = intentIdentitySchema.safeParse(destination.identity)
     if (
       destination.ownerRef !== 'settings' ||
+      !identity.success ||
       !equal(destination.identity.domain, sql.options.domain)
     )
       return undefined
-    const root = await sql.root(destination.identity)
+    const root = await sql.root(identity.data)
     if (root.kind !== 'found') return undefined
     const binding = attemptBinding(root, destination.attemptId)
     if (binding.commandDigest !== destination.commandDigest) return undefined
@@ -27,7 +30,7 @@ export function preparationSourceDestination(sql: PreparationSql): SettingsSourc
       await sql.read({
         kind: 'source',
         input: {
-          identity: destination.identity,
+          identity: identity.data,
           attemptId: destination.attemptId,
           source: request.source,
         },

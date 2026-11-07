@@ -147,8 +147,10 @@ export function createSettingsSourceReservations<Context>(input: SettingsSourceO
     return write({ kind: 'reserve', request })
   }
   async function settle(request: SourceRequest): Promise<Reply> {
-    const previous = observation(await read({ kind: 'reservation', request }))
-    if (previous.kind !== 'held') return previous
+    const previous = sourceReservationObservationSchema.parse(
+      await read({ kind: 'reservation', request }),
+    )
+    if (previous.kind !== 'held' && previous.kind !== 'not_found') return observation(previous)
     const result = sourceDestinationResultSchema.parse(await options.seal(request))
     if (result.kind !== 'terminal') return failure('unavailable')
     if (!equal(result.request, request)) return failure('operation_conflict')

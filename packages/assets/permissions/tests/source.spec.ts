@@ -17,6 +17,26 @@ const request = {
 }
 
 describe('qualified permission source protocol', () => {
+  it.each(['tenantId', 'targetId', 'organizationId', 'sessionId'] as const)(
+    'rejects empty, oversized or control-character %s references',
+    field => {
+      for (const value of [
+        '',
+        'a'.repeat(4097),
+        'tenant\nother',
+        'tenant\u0000other',
+        'tenant\u007fother',
+      ]) {
+        expect(
+          PermissionBasisRequestSchema.safeParse({
+            ...request,
+            scope: { ...scope, [field]: value },
+          }).success,
+        ).toBe(false)
+      }
+    },
+  )
+
   it('preserves the original action and reads revisions from the provider result', () => {
     const current = { kind: 'current', request, evaluation: evaluation() }
     expect(PermissionCurrentBasisSchema.parse(JSON.parse(JSON.stringify(current)))).toEqual(current)

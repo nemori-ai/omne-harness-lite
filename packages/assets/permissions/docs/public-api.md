@@ -28,6 +28,8 @@ Settings 中只存一份 `{pick, allowedSet}` JSON 配值。Settings 的通用�
 
 `PermissionEvaluation` 明确本次 tenant、target、organization、session、deployment 和 logicalService。独立服务可将 organizationId、sessionId 置为 null。实际组织/会话来源若可用，必须有对应非空身份。
 
+tenantId、targetId、organizationId 和 sessionId 承载原拥有者的完整引用。引用非空、最长4096字符且不含控制字符，不作 trim 或重新编码。生产租户来源使用 Identity 的规范 tenantCodec 编码，提供者仍须核验其真实资格。目标引用必须绑定完整目标身份，不能只用标题或局部 key。结构合法不等于身份有效。deploymentId 与 logicalServiceId 继续使用命名标识符。
+
 默认来源来自声明。organization、tenant、session 三个必填槽分别为 available、absent 或 unavailable。absent 是调用方核验后的无配值事实，必须携带修订；unavailable 是无法读取，不能转换为 absent。available 携带具体定义引用、完整 scope、来源与修订。任何绑定不一致均拒绝，不借用其他租户、目标、服务或同 key 的值。
 
 `constraints` 为具名可信提供者提供的能力约束。bound 只收紧允许集；prohibition 直接禁止。每个 available 约束必须匹配本次完整 scope、capabilityId 和 enforcementKey。`requiredConstraintIds` 由受信集成方确定，不是用户可删的选项；漏项、unavailable 项和额外出现的不可读约束均阻止放行。调用方必须完整收集适用约束，包括工作区具名类别、AgentDefinition 和历史能力级锁界/主动禁止。

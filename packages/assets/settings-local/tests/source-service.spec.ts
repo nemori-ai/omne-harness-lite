@@ -7,6 +7,7 @@ import {
   type SettingsSourceRequest,
 } from '../src/preparation.ts'
 import { sourceRequest } from './source-retention-world.ts'
+import { intentIdentitySchema } from '../src/intent-schema.ts'
 const close: (() => Promise<void>)[] = []
 afterEach(async () => {
   for (const fn of close.splice(0).reverse()) await fn()
@@ -215,6 +216,27 @@ it('recovers an actual requested destination after losing the source reserve rep
   })
   expect(await sourceWorld.set()).toMatchObject({ kind: 'committed' })
 })
+it('closes an original request that never reached the source and fences its late reserve', async () => {
+  const { sourceWorld, target, requests } = await linked()
+  const reserve = sourceWorld.sources.service.reserve
+  sourceWorld.sources.service.reserve = async () => {
+    throw new Error('transport lost before reserve')
+  }
+  expect((await target.service.prepareChange(target.context, target.command)).kind).toBe('unknown')
+  const request = requests[0]!
+  const settled = await sourceWorld.sources.service.settle(request)
+  expect(settled).toMatchObject({ kind: 'settled', request, outcome: 'aborted' })
+  expect(await reserve(target.context.principalRef, request)).toEqual(settled)
+  expect(await target.control.sourceDestination.seal(request)).toMatchObject({
+    kind: 'terminal',
+    outcome: 'aborted',
+  })
+  expect(await sourceWorld.sources.control.recover({ after: null, limit: 100 })).toMatchObject({
+    kind: 'recovered',
+    items: [],
+  })
+  expect(await sourceWorld.set()).toMatchObject({ kind: 'committed' })
+})
 it('drains an accepted reserve while rejecting new calls and leaves shared storage open', async () => {
   const w = await openSourceServiceWorld({
     async seal(request) {
@@ -270,8 +292,49 @@ it('does not create a source hold for a destination request that was never durab
   expect(
     await sourceWorld.sources.service.reserve(target.context.principalRef, fabricated),
   ).toMatchObject({ kind: 'rejected' })
+  const foreignOperation = {
+    ...original,
+    destination: {
+      ...original.destination,
+      identity: {
+        ...original.destination.identity,
+        operation: { kind: 'permission-capture', captureId: 'foreign' },
+      },
+    },
+  }
+  expect(await target.control.sourceDestination.recognize(foreignOperation)).toEqual({
+    kind: 'unavailable',
+  })
+  expect(await target.control.sourceDestination.seal(foreignOperation)).toEqual({
+    kind: 'unavailable',
+  })
   expect(await sourceWorld.set()).toMatchObject({ kind: 'committed' })
 })
+
+it.each(['unavailable', 'mismatched', 'committed'] as const)(
+  'cannot close an absent reservation from a %s destination result',
+  async kind => {
+    const world = await openSourceServiceWorld({
+      async seal(request) {
+        if (kind === 'unavailable') return { kind: 'unavailable' }
+        return {
+          kind: 'terminal',
+          request:
+            kind === 'mismatched'
+              ? { ...request, destination: { ...request.destination, route: 'other' } }
+              : request,
+          outcome: kind === 'committed' ? 'committed' : 'aborted',
+        }
+      },
+    })
+    close.push(() => world.close())
+    const request = { ...sourceRequest(), source }
+    expect(await world.sources.service.settle(request)).toMatchObject({ kind: 'rejected' })
+    expect(
+      await world.sources.service.reserve(request.destination.identity.principalRef, request),
+    ).toMatchObject({ kind: 'held' })
+  },
+)
 it('recognizes a durable settlement after its SQL response is lost', async () => {
   let seals = 0
   const w = await openSourceServiceWorld({
@@ -336,7 +399,7 @@ it('cannot revive the destination when it seals between request recognition and 
       requestId: 'late',
       preparation: {
         protocol: 'settings-preparation/1',
-        operation: request.destination.identity.operation,
+        operation: intentIdentitySchema.parse(request.destination.identity).operation,
         attemptId: request.destination.attemptId,
         commandDigest: request.destination.commandDigest,
       },

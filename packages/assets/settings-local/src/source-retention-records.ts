@@ -62,11 +62,16 @@ const reservationRow = z.tuple([
 function decodeReservation(row: readonly unknown[], key: string) {
   const [requestJson, snapshotJson, state, outcome] = reservationRow.parse(row)
   const request = sourceRequestSchema.parse(JSON.parse(requestJson))
-  const snapshot = sourceSnapshotSchema.parse(JSON.parse(snapshotJson))
-  if (sourceReservationKey(request) !== key || !equal(request.source, snapshot.source))
+  if (sourceReservationKey(request) !== key) throw new Error('Invalid source reservation binding')
+  const rawSnapshot: unknown = JSON.parse(snapshotJson)
+  const snapshot = rawSnapshot === null ? null : sourceSnapshotSchema.parse(rawSnapshot)
+  if (snapshot === null) {
+    if (state !== 'settled' || outcome !== 'aborted')
+      throw new Error('Only an aborted source reservation can lack a snapshot')
+  } else if (!equal(request.source, snapshot.source))
     throw new Error('Invalid source reservation binding')
   if (state === 'held') {
-    if (outcome !== null) throw new Error('Held source reservation has terminal outcome')
+    if (outcome !== null || snapshot === null) throw new Error('Invalid held source reservation')
     return { kind: 'held' as const, reservationId: key, request, snapshot }
   }
   return {
@@ -120,11 +125,27 @@ export function reserveSource(port: ParticipantPort, raw: SourceRequest, current
 export function settleSource(port: ParticipantPort, raw: SourceSettlement) {
   const input = sourceSettlementSchema.parse(raw)
   const previous = readReservation(port, input.request)
-  if (previous.kind === 'not_found' || previous.kind === 'conflict') return previous
+  if (previous.kind === 'conflict') return previous
+  if (previous.kind === 'not_found') return abortUnreservedSource(port, input)
   if (previous.kind === 'settled') return previous.outcome === input.outcome ? previous : conflict()
   port.execute(
     "UPDATE st_source_reservation SET state = 'settled', outcome = ? WHERE reservation_key = ? AND state = 'held'",
     [input.outcome, previous.reservationId],
+  )
+  return readReservation(port, input.request)
+}
+function abortUnreservedSource(port: ParticipantPort, input: SourceSettlement) {
+  if (input.outcome !== 'aborted') return conflict()
+  ensureGate(port, input.request.source)
+  port.execute(
+    `INSERT INTO st_source_reservation
+    (reservation_key, source_key, request_json, snapshot_json, state, outcome)
+    VALUES (?, ?, ?, 'null', 'settled', 'aborted')`,
+    [
+      sourceReservationKey(input.request),
+      sourceKey(input.request.source),
+      canonical(input.request),
+    ],
   )
   return readReservation(port, input.request)
 }

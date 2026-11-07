@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SettingsReferenceSchema } from '@omne-harness/settings'
 
 const id = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,255}$/)
 const text = z.string().trim().min(1).max(2048)
@@ -57,10 +58,10 @@ export const PermissionDefinitionSchema = z.strictObject({
     .nullable(),
 })
 export const PermissionScopeSchema = z.strictObject({
-  tenantId: id,
-  targetId: id,
-  organizationId: id.nullable(),
-  sessionId: id.nullable(),
+  tenantId: SettingsReferenceSchema,
+  targetId: SettingsReferenceSchema,
+  organizationId: SettingsReferenceSchema.nullable(),
+  sessionId: SettingsReferenceSchema.nullable(),
   deploymentId: id,
   logicalServiceId: id,
 })

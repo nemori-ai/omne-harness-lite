@@ -261,7 +261,7 @@ it('paginates only held requests of the chosen source without losing continuatio
     expect(page.items.length).toBeLessThanOrEqual(1)
     for (const item of page.items) {
       expect(item.result.kind).toBe('settled')
-      const id = item.request.destination.identity.operation.operationId
+      const id = intentIdentitySchema.parse(item.request.destination.identity).operation.operationId
       expect(seen.has(id)).toBe(false)
       seen.add(id)
     }
@@ -307,3 +307,4 @@ it('keeps a source update pending if readiness cannot be read and retries its ex
     }),
   ).toMatchObject({ kind: 'committed' })
 })
+import { intentIdentitySchema } from '../src/intent-schema.ts'

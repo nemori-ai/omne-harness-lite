@@ -30,7 +30,11 @@ export const sourceReferenceSchema = z.strictObject({
 })
 export const sourceDestinationSchema = z.strictObject({
   ownerRef: SettingsReferenceSchema,
-  identity: intentIdentitySchema,
+  identity: z.strictObject({
+    domain: domainSchema,
+    principalRef: SettingsReferenceSchema,
+    operation: z.record(z.string(), z.json()),
+  }),
   attemptId: SettingsIdSchema,
   commandDigest: digestSchema,
   route: SettingsReferenceSchema,

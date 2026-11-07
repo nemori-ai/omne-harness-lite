@@ -214,3 +214,11 @@ source-snapshot的真实读取增量验证了模型中源快照的部分精化�
 未知读取不产生释放或封口。原业务SQL回滚沿既有seal转换终结源更新；ready阶段仅凭匹配原生生产者、协议和明确业务拒绝的持久回执才能封口。该差异防止把临时故障当成业务否定。取消或撤权与恢复提交仍由原终态和源门事务互斥，晚到held不能使终态回退。
 
 `organization-recovery.spec.ts` 将这条映射落实到真实数据库重开、Identity重装配、丢回包、并发和撤权场景。分页遵守源门128个held上限及每页字节预算，不把短页误判为结束。上述映射复用既有SourceRetention与Intent模型；它不是新的全系统形式化证明，也不证明分布式故障、公平调度或实际Permissions求值。
+
+### 未到达来源请求的取消
+
+Settings 来源保留复用 `StandingRequestSettlement.tla` 的同一状态转换。缺行、held 行和 settled 行对应模型 source 的 absent、held 和 settled。固定目的 resolver 的原请求封口对应 Seal，`source-retention-records.ts:settleSource` 的原子写入对应 Finish。源缺行时只能建立 aborted 终态，不能声称 committed。
+
+`source-service.spec.ts` 在真实 prepared destination 已保管请求后、来源 reserve 到达前注入故障。随后核验原请求取消、迟到 reserve 认回、无新 held 和源更新可继续。`source-retention.spec.ts` 补充重开后的终态、完整请求错绑及缺行伪 committed 拒绝。现有测试保留先 reserve 后 settle 的顺序。
+
+NoLateHold、TerminalBeforeCompletion、BoundCompletion 与条件活性 Completion 继续适用。真实性、原请求不可变、事务原子性及公平恢复是模型前提。有限模型与这些测试不证明真实 Permissions capture 或整条 ActionAdmission 已完成。
