@@ -50,10 +50,12 @@ const SESSION_ENDED = {
 }
 const SECRET = 'secret-token-7f3a'
 
-const factory = createLocalTransportFactory({
+const CLIENT = {
   clientInfo: { name: 'omne-harness-test', version: '0' },
   probeTimeoutMs: 300,
-})
+} as const
+
+const factory = createLocalTransportFactory(CLIENT)
 
 function ok<T>(outcome: { ok: T } | { failure: unknown }, what: string): T {
   if (!('ok' in outcome)) throw new Error(`${what} failed: ${JSON.stringify(outcome)}`)
@@ -110,7 +112,7 @@ async function scripted(
   script: PeerScript | ((target: string) => PeerScript),
   options: HttpPeerOptions = {},
 ): Promise<HttpPeer> {
-  return httpPeer(script, { kind: 'streamable-http' }, VERSIONS, options)
+  return httpPeer(script, { kind: 'streamable-http' }, VERSIONS, CLIENT, options)
 }
 
 const result = (value: PlainJson): PeerReply => ({ kind: 'result', result: value })

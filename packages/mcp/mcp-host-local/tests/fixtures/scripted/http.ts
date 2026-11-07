@@ -16,7 +16,10 @@ import {
   type Replies,
   type ScriptSource,
 } from '@omne-harness/mcp-contract/testing'
-import { createLocalTransportFactory } from '@omne-harness/mcp-host-local'
+import {
+  createLocalTransportFactory,
+  type LocalTransportOptions,
+} from '@omne-harness/mcp-host-local'
 
 const METADATA_PATH = '/.well-known/oauth-protected-resource'
 const servers = new Set<Server>()
@@ -559,7 +562,7 @@ function missingOf(request: Tracked): string {
 class Requests {
   private readonly tracked = new Map<number, Tracked>()
   private count = 0
-  /** Goes up when a request starts, is aborted, or reaches the server: then another round is due. */
+  /** Counts the rounds `newRound` opened. */
   private epoch = 0
   private waiters: (() => void)[] = []
 
@@ -580,14 +583,14 @@ class Requests {
       closed: false,
     }
     this.tracked.set(n, request)
-    signal?.addEventListener('abort', () => this.changed(true), { once: true })
-    this.changed(true)
+    signal?.addEventListener('abort', () => this.newRound(), { once: true })
+    this.newRound()
     const answer = globalThis.fetch(input, { ...init, headers })
     void answer.then(
       () => undefined,
       () => {
         request.rejected = true
-        this.changed(false)
+        this.progressed()
       },
     )
     return answer
@@ -604,22 +607,24 @@ class Requests {
     const tracked = typeof header === 'string' ? this.tracked.get(Number(header)) : undefined
     if (tracked === undefined) return () => undefined
     tracked.seen = true
-    this.changed(true)
+    this.newRound()
     response.on('close', () => {
       tracked.closed = true
-      this.changed(false)
+      this.progressed()
     })
     return () => {
       tracked.handled = true
-      this.changed(false)
+      this.progressed()
     }
   }
 
   /**
    * Resolves when the peer has recorded every request that started before, and one more turn of
-   * the event loop started no request and aborted none (a caller's promise may settle before the
-   * client sends what follows it, such as a cancellation or an answer to the peer). Rejects after
-   * `RECEIVED_WITHIN_MS` with the requests not yet recorded.
+   * the event loop started no request, aborted none and brought none to the server. A caller's
+   * promise may settle before the client sends what follows it, such as a cancellation or an
+   * answer to the peer; a request that reaches the server may make the peer send something the
+   * client answers with a request of its own. Rejects after `RECEIVED_WITHIN_MS` with the requests
+   * not yet recorded.
    */
   async settle(): Promise<void> {
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -647,8 +652,14 @@ class Requests {
     return new Promise(resolve => this.waiters.push(resolve))
   }
 
-  private changed(newRound: boolean): void {
-    if (newRound) this.epoch += 1
+  /** A request started, was aborted or reached the server: `settle` waits one more round. */
+  private newRound(): void {
+    this.epoch += 1
+    this.progressed()
+  }
+
+  /** A request moved on toward being recorded: the waiters look again. */
+  private progressed(): void {
     const waiters = this.waiters
     this.waiters = []
     for (const resume of waiters) resume()
@@ -662,17 +673,14 @@ function stuck(open: readonly Tracked[]): Error {
   )
 }
 
-/** The options of the factory `httpPeer` hands over, apart from its `fetch`. */
-const TRANSPORT_OPTIONS = {
-  clientInfo: { name: 'omne-harness-test', version: '0' },
-  probeTimeoutMs: 200,
-} as const
+/** The options of the client a test builds: `httpPeer` adds only its tracking `fetch`. */
+export type ClientOptions = Omit<LocalTransportOptions, 'fetch'>
 
 export type HttpPeer = Readonly<{
   material: TransportMaterial
   /**
-   * The transport factory whose `fetch` the peer tracks. `received()` waits only for the requests
-   * that went out through it.
+   * The transport factory on the test's client options whose `fetch` the peer tracks.
+   * `received()` waits only for the requests that went out through it.
    */
   factory: McpTransportFactory
   /**
@@ -726,6 +734,7 @@ export async function httpPeer(
   source: ScriptSource,
   needs: PeerNeeds,
   versions: readonly string[],
+  client: ClientOptions,
   options: HttpPeerOptions = {},
 ): Promise<HttpPeer> {
   let peer: Peer | undefined
@@ -769,7 +778,7 @@ export async function httpPeer(
   const built = peer
   return {
     material,
-    factory: createLocalTransportFactory({ ...TRANSPORT_OPTIONS, fetch: requests.fetch }),
+    factory: createLocalTransportFactory({ ...client, fetch: requests.fetch }),
     requestLines: () => [...built.requestLines],
     endlessBytes: () => built.endlessWritten,
     breakStreams: () => built.breakStreams(),
