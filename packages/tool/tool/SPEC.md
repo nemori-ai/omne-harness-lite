@@ -525,12 +525,12 @@ SourceVerdict 的 denied 表示来源真实、当前请求资格被拒。ledger 
 
 返回 pointer 前再次核当前 write 资格。重建 ledger 后可从 sealed 记录认回，无须查询字节或时间源。准备材料只含 exact final；它不重跑 renderer。账本记录不含该正文。
 
-[针对性用例](tests/final-custody.spec.ts)覆盖准备顺序、未知恢复、时钟回退、冲突重取、操作排除、当前资格、输入固定和删除交错。[SQL Linux 组合](../tool-storage-sql/tests/final-custody-live.spec.ts)覆盖 5 MiB envelope、实际分块读取、账本大小及 worker 重启认回。该入口尚未替换生产事实流中的完整 final。最终通道、TTL、用途解除、维护和装配仍属于未完成的 W3 后续实现。
+[针对性用例](tests/final-custody.spec.ts)覆盖准备顺序、未知恢复、时钟回退、冲突重取、操作排除、当前资格、输入固定和删除交错。[SQL Linux 组合](../tool-storage-sql/tests/final-custody-live.spec.ts)覆盖 5 MiB envelope、实际分块读取、账本大小及 worker 重启认回。宿主已使用该入口封存精确 final，再发布引用。最终通道、TTL、用途解除和维护仍属于未完成的 W3 后续实现。
 
 ### W3 事实接收迁移的当前实现
 
-`receiveFacts` 当前仍接收完整 final，但在保存事实前通过 `finalCustody` 封存它。call 域事实记录保存封存引用、完整原事实指纹和批次指纹，不内嵌 final 正文。已接收批次及同值 final 别名先认回，不访问字节仓。异值事件和 final 拒绝，不生成成功 ACK。
+`receiveFacts` 只接收封存 final 引用。首次采用核对原调用的封存材料记录、start/source/value 身份和实际 envelope，材料读取后重核原调用的当前资格。call 域事实记录保存封存引用、完整原事实指纹和批次指纹，不内嵌 final 正文。已接收批次及同值 final 别名先认回，不访问字节仓。异值事件、final 元数据及指纹冲突拒绝，不生成成功 ACK。未知指纹编码版本返回 unsupported。
 
 `facts.read` 仍返回完整原 final。它在恢复资格检查后按有界字节页加载 envelope，核总长度、SHA-256、规范值指纹及 raw/terminal/effect 身份，再核当前资格后返回。缺失、损坏或不连续页返回 unavailable。当前准备材料用途保留，因此尚未执行 envelope 的自动清理。
 
-这是事实接收的迁移状态。宿主缓存、pending/settled 转换、最终结果通道材料、固定 TTL 和维护仍须继续实现，不能以本节声称完整 W3 生命周期可用。
+宿主完成缓存已只保存封存引用。pending/settled 转换、最终结果通道材料、固定 TTL 和维护仍须继续实现，不能以本节声称完整 W3 生命周期可用。

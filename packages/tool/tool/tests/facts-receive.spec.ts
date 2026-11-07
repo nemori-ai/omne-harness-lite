@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { decodeToolInstanceId, decodeToolWaitId } from '@omne-harness/tool-contract/provider'
 import type { ProcessBlock, ToolTerminal } from '@omne-harness/tool-contract'
 import type {
@@ -1107,3 +1107,79 @@ it.each(['material', 'source', 'header'] as const)(
     expect((await records(f.harness)).some(record => record.kind === 'fact-event')).toBe(false)
   },
 )
+
+it('reports an unknown final fingerprint codec as unsupported without adopting it', async () => {
+  const f = await running()
+  const pointer = await f.seal(finalFact())
+  const store = testSettlementPorts(f.harness.memory).materials.store
+  const calls = [vi.spyOn(store, 'read'), vi.spyOn(store, 'write'), vi.spyOn(store, 'inspect')]
+  const before = f.harness.memory.commits
+  const answer = await Reflect.apply(f.harness.commands.receiveFacts, null, [
+    {
+      ...f.access,
+      start: f.batch.start,
+      batch: {
+        ...f.batch,
+        events: [
+          {
+            event: 'final',
+            fact: { ...pointer, value: { ...pointer.value, codec: 'tool-canonical-json-v2' } },
+          },
+        ],
+      },
+    },
+  ])
+  expect(answer).toHaveProperty('failure.kind', 'unsupported')
+  for (const call of calls) expect(call).not.toHaveBeenCalled()
+  expect(f.harness.memory.commits).toBe(before)
+  expect((await records(f.harness)).some(record => record.kind === 'fact-event')).toBe(false)
+})
+
+it('rechecks the original call before accepting a final read during permission revocation', async () => {
+  const f = await running()
+  const pointer = await f.seal(finalFact())
+  const input = {
+    ...f.access,
+    start: f.batch.start,
+    batch: { ...f.batch, events: [{ event: 'final', fact: pointer }] },
+  }
+  const ports = testSettlementPorts(f.harness.memory)
+  const base = guards()
+  const revoked = new Set<string>()
+  let reads = 0
+  const ledger = createToolLedger(
+    f.harness.memory,
+    {
+      ...base,
+      access: {
+        qualify: request =>
+          revoked.has(request.call)
+            ? Promise.resolve({ kind: 'denied' as const, reason: 'revoked' })
+            : base.access.qualify(request),
+      },
+    },
+    createMemoryToolClock(),
+    configurationOf({}),
+    {
+      ...ports,
+      materials: {
+        ...ports.materials,
+        store: {
+          ...ports.materials.store,
+          read: async page => {
+            reads += 1
+            const answer = await ports.materials.store.read(page)
+            revoked.add(f.access.call)
+            input.call = callId('still-authorized-call')
+            return answer
+          },
+        },
+      },
+    },
+  )
+  const before = f.harness.memory.commits
+  expect(await ledger.commands.receiveFacts(input)).toHaveProperty('failure.kind', 'denied')
+  expect(reads).toBeGreaterThan(0)
+  expect(f.harness.memory.commits).toBe(before)
+  expect((await records(f.harness)).some(record => record.kind === 'fact-event')).toBe(false)
+})

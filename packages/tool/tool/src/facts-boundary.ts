@@ -279,7 +279,7 @@ function fact<B extends ContentBlock>(
   })
 }
 
-function finalPointer(value: Data): Outcome<ToolFinalPointer, ToolFailure> {
+function finalPointer(value: Data, adoption: Adoption): Outcome<ToolFinalPointer, ToolFailure> {
   if (
     !closed(value, ['kind', 'raw', 'terminal', 'effect', 'value', 'envelope']) ||
     !terminal(value.terminal) ||
@@ -292,7 +292,7 @@ function finalPointer(value: Data): Outcome<ToolFinalPointer, ToolFailure> {
   const seal = value.envelope
   if (
     !closed(fingerprint, ['codec', 'algorithm', 'digest', 'bytes']) ||
-    fingerprint.codec !== 'tool-canonical-json-v1' ||
+    typeof fingerprint.codec !== 'string' ||
     fingerprint.algorithm !== 'sha256' ||
     typeof fingerprint.digest !== 'string' ||
     !/^[a-f0-9]{64}$/u.test(fingerprint.digest) ||
@@ -305,6 +305,14 @@ function finalPointer(value: Data): Outcome<ToolFinalPointer, ToolFailure> {
     seal.sha256 !== fingerprint.digest
   )
     return invalid('batch.events.fact', 'pointer-seal')
+  if (fingerprint.codec !== 'tool-canonical-json-v1')
+    return {
+      failure: {
+        kind: 'unsupported',
+        adoption,
+        reason: `unsupported final fingerprint codec: ${fingerprint.codec}`,
+      },
+    }
   const id = decodeToolMaterialId(seal.material.id)
   const generation = decodeToolMaterialGeneration(seal.material.generation)
   const provider = judgeAdoptionField(seal.material.provider, 'material.provider')
@@ -371,7 +379,7 @@ export function fixFactInput<B extends ContentBlock>(
         return invalid('batch.events', 'shape')
       const checked =
         object(event.fact) && event.fact.kind === 'final'
-          ? finalPointer(event.fact)
+          ? finalPointer(event.fact, adoption)
           : fact(event.fact, policy, adoption)
       if ('failure' in checked) return checked
       if (checked.ok.kind === 'final' && 'result' in checked.ok)
