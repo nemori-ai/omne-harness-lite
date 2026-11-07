@@ -105,7 +105,7 @@ export function createSkillAccess<P, S>(ports: SkillPorts<P, S>): SkillAccess<P,
       if (!('ok' in bytes)) return bytes
       // Step 11: the body starts after the closing delimiter. Bytes without a legal frontmatter
       // are no package that passed `inspect`, so where their body starts is not known: they are
-      // not given as a body (GS-04).
+      // not given as a body.
       const bodyOffset = part.ok.kind === 'body' ? bodyOffsetOf(bytes.ok) : 0
       if (bodyOffset === undefined) return fail(SOURCE_UNAVAILABLE)
       return succeed({

@@ -182,7 +182,7 @@ describe('a reference that agrees with the request passes', () => {
   })
 })
 
-describe('the reproduction of GS-06', () => {
+describe('a resolution that answers one reference with the material of another (S7)', () => {
   // alice may read alpha and not beta. The resolution answers alpha with the material of beta.
   it('gives alice nothing of beta when the resolution answers alpha with the reference of beta', async () => {
     const world = {
