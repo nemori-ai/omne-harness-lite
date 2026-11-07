@@ -1286,6 +1286,7 @@ describe('the discriminants of the Journal chapter', () => {
       | 'inputs'
       | 'readReplyAdmissions'
       | 'readCancellationInstallation'
+      | 'readFinish'
       | 'query'
       | 'output'
     >()

@@ -73,7 +73,7 @@ it('distinguishes original-admission facts from call-only observation and readin
       }),
     )
     expect(read.kind).toBe('started')
-    f.denied.add('facts')
+    f.denied.add('inspect')
     expect(
       await f.provider.runtime.calls.inspect({ ...access, reference: f.reference }),
     ).toMatchObject({ failure: { kind: 'denied' } })

@@ -30,7 +30,7 @@ flowchart LR
   C --> SF[会话四函数<br/>session-codec.ts]
 ```
 
-规则表的叶子种类各对应一个转换函数，转换器按表分派，其余四种规则（literal、object、array、one-of）走穷尽分支。`read-history` 的 `cursor` 出现规则用 one-of 规则表达：两种封闭对象形状，`cursor` 为 null 的形状必带 `direction` 与 `pageBytes`。one-of 的选项必须互斥，第一个转换成功的选项生效，本地值不记录命中的是哪一项。
+规则表的叶子种类各对应一个转换函数，转换器按表分派，其余四种规则（literal、object、array、one-of）走穷尽分支。`read-history` 的 `cursor` 出现规则用 one-of 规则表达：两种封闭对象形状，`cursor` 为 null 的形状必带 `direction` 与 `pageBytes`。`read-session-diagnostics` 同样：`cursor` 为 null 的形状必带 `run` 与 `pageBytes`。one-of 的选项必须互斥，第一个转换成功的选项生效，本地值不记录命中的是哪一项。会话诊断页的各个联合（结构化原因、调用解析、账目视图、派发结局）也用 one-of 表达，每个选项以字面量 `kind` 互斥。闭合枚举或 `unknown`（`model-refused` 的 `failure`、`cannot-fit` 的 `reason`）与 Tool 诊断条目数组或 `unknown`，选项以 JSON 类型互斥：字面量与对象，数组与对象。规则表在 `session-rules.ts` 里按页的层次组织，没有叶子种类之外的新转换器。
 
 ## 关联读取
 

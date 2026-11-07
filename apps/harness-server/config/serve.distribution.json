@@ -1,6 +1,16 @@
 {
   "rows": [
     {
+      "id": "telemetry",
+      "plugin": "telemetry",
+      "config": {
+        "implementation": "node",
+        "outlet": {
+          "kind": "stdout"
+        }
+      }
+    },
+    {
       "id": "storage",
       "plugin": "storageRow",
       "config": {

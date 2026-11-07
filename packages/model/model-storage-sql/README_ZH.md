@@ -6,14 +6,15 @@ Model 的 SQL 存储成员。它实现共享命令核心的存储端口 `ModelCo
 
 ## 职责与状态
 
-本包拥有五样东西：`md_call`、`md_dispatch`、`md_part`、`md_operation` 四张表及其迁移；从行到调用文档的解析；SQL 版 `ModelCommandStorage`，它的每次 run 读取、运行核心的工作、按 CAS 提交；参加者 `model` 与两个读 handler `model.call`、`model.pending`；把共享核心装在这份存储上的 `createSqlModelCommands`。
+本包拥有六样东西：`md_call`、`md_dispatch`、`md_part`、`md_operation` 四张表及其迁移；从行到调用文档的解析；SQL 版 `ModelCommandStorage`，它的每次 run 读取、运行核心的工作、按 CAS 提交；参加者 `model` 与三个读 handler `model.call`、`model.pending`、`model.diagnostics`；把共享核心装在这份存储上的 `createSqlModelCommands`；同一份行上的诊断读面 `createSqlModelDiagnostics`，即 `ModelDiagnostics.list`。
 
 本包不拥有 Model 命令的规则，它们归 `@omne-harness/model` 的共享核心。本包也不拥有提交协议、回执与租户事务域目录，它们归存储契约与应用。
 
 状态：`draft`。覆盖范围见 SPEC 的[实现现状](SPEC.md#实现现状)。
 
-- 已实现：`createSqlModelCommands`（给出 `send` 时同时给出共用核心的发送协调器）、`createSendMirror`、`createSqlModelStorage`、表与迁移、行解析、参加者、两个 handler 模块、静态材料 `modelStorageMaterials()` 及其 `codeDigest`、构造期核对。
+- 已实现：`createSqlModelCommands`（给出 `send` 时同时给出共用核心的发送协调器）、`createSendMirror`、`createSqlModelStorage`、表与迁移、行解析、参加者、三个 handler 模块、静态材料 `modelStorageMaterials()` 及其 `codeDigest`、构造期核对。
 - 已实现：`./cordis` 的 `createSqlModelRecordsPlugin`，发布 `modelCommands` 并拥有独立的发送子 fiber。
+- 已实现：`createSqlModelDiagnostics` 与 `./cordis` 的 `createSqlModelDiagnosticsPlugin`，发布 `modelDiagnostics`。页只带白名单字段。存储没有阶段时间，所以 `timing` 三项都是 `unknown`。字段映射、资格映射、游标与保留采用见 SPEC 的[诊断读面](SPEC.md#诊断读面)。
 - 已知差异：进程重启后，对重启前结论未定的写，`query` 可能回答 `not-committed`。与内存实现的全部差异见 SPEC 的[已知差异](SPEC.md#已知差异)。
 - 应用通过对象选项提供依赖映射与发送子插件。
 
@@ -59,6 +60,19 @@ const { commands } = createSqlModelCommands({
 
 采用 Cordis 4.0.4。缺凭据时，发送子 fiber 为 `PENDING`，记录 fiber 仍可为 `ACTIVE`，命令仍可查询。凭据恢复后子插件启动。子插件装载失败会记日志、进入 `FAILED`，显式等待该子 fiber 会拒绝，父记录 fiber 不会自动失败。应用须观察子 fiber 或日志来判断发送是否就绪。撤除记录 fiber 会撤除命令贡献并等待子插件清理，注入的存储仍归其提供者所有，已提交事实仍保存在存储中。
 
+### 诊断插件
+
+从 `@omne-harness/model-storage-sql/cordis` 导入 `createSqlModelDiagnosticsPlugin`，它发布 `modelDiagnostics`。把它与记录插件放在同一提供者组，因为它读同一个租户域的同一份文档。可编译的装载示例见[英文使用说明](README.md#diagnostics-plugin)。
+
+| 输入                           | 应用须提供的内容                                                                                                                 |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `options.inject`               | `resolve` 所需的完整服务键常量列表。不得包含本插件发布的 `modelDiagnostics`。                                                    |
+| `options.resolve(ctx, config)` | 本次激活使用的 `storage`、`domains` 与 `authority`。`authority` 与记录插件用同一个，两者对同一个资格问题只有一种回答。           |
+| `config.diagnosticsRead`       | 采用的资格映射。现在只有 `tenant-self`：代租户行事的主体可读自己租户的调用。这是部署的显式采用，不是普通调用读取资格的自动延伸。 |
+| `config.retention`             | 部署的保留采用，一条 `Adoption`。缺席时插件照常装载，每次 `list` 都返回 `unavailable`。                                          |
+
+不使用 Cordis 时，从根入口调用 `createSqlModelDiagnostics({ storage, domains, authority, diagnosticsRead, retention })`，得到带 `list` 的对象。可选的 `cursorKey`（32 字节）用来签游标。默认每个实例自取随机密钥，所以游标只在签发它的实例内有效。
+
 ## 契约
 
 公开类型与运行时校验在 [src/](src/index.md)。行为在 [SPEC](SPEC.md)。SPEC 还记录本包怎样兑现共享核心的存储端口，以及不变量 N1、N2、N3、N5、N6、N7。存储端口的类型归 `@omne-harness/model/commands`，根入口原样转导。
@@ -90,7 +104,7 @@ const { commands } = createSqlModelCommands({
 
 ## 验证
 
-[tests/](tests/index.md) 的用例在 `node:sqlite` 内存库上运行真实的参加者、迁移与读 handler，多数经共享核心运行 22 个方法，并对内存实现与本实现对拍账目套件。它们不覆盖真实提供者的 Worker、耐久性、队列与关闭。
+[tests/](tests/index.md) 的用例在 `node:sqlite` 内存库上运行真实的参加者、迁移与读 handler，多数经共享核心运行 22 个方法，并对内存实现与本实现对拍账目套件。[diagnostics.spec.ts](tests/diagnostics.spec.ts) 经真实参加者写入调用文档，经加载的 `model.diagnostics` 读取，并在真实 Cordis 里装载诊断插件。它们不覆盖真实提供者的 Worker、耐久性、队列与关闭。
 
 ## 维护
 

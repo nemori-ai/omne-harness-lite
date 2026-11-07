@@ -119,10 +119,11 @@ export function createFaces<P>(
 
   const reconciliation: SessionReconciliation<P> = {
     receive: mutation('receive'),
-    pending: value => reads.directory(caller, 'pending', port => port.pending(value)),
-    references: value => reads.directory(caller, 'references', port => port.references(value)),
+    pending: value => reads.directory(caller, 'pending', value.tenant, port => port.pending(value)),
+    references: value =>
+      reads.directory(caller, 'references', 'system', port => port.references(value)),
     releasedScopes: value =>
-      reads.directory(caller, 'releasedScopes', port => port.releasedScopes(value)),
+      reads.directory(caller, 'releasedScopes', 'system', port => port.releasedScopes(value)),
   }
 
   const pages = createHistoryPages()

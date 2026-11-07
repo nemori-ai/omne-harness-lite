@@ -6,14 +6,15 @@ The SQL storage member of Model. It implements `ModelCommandStorage`, the storag
 
 ## Responsibility and status
 
-This package owns five things: the four tables `md_call`, `md_dispatch`, `md_part`, and `md_operation` with their migration; the parse from rows to the call document; the SQL `ModelCommandStorage`, whose runs read, run the core's work, and commit with CAS; the participant `model` with the two read handlers `model.call` and `model.pending`; and `createSqlModelCommands`, which puts the shared core on this storage.
+This package owns six things: the four tables `md_call`, `md_dispatch`, `md_part`, and `md_operation` with their migration; the parse from rows to the call document; the SQL `ModelCommandStorage`, whose runs read, run the core's work, and commit with CAS; the participant `model` with the three read handlers `model.call`, `model.pending`, and `model.diagnostics`; `createSqlModelCommands`, which puts the shared core on this storage; and `createSqlModelDiagnostics`, the read face `ModelDiagnostics.list` over the same rows.
 
 The package does not own the rules of the Model commands. The shared core of `@omne-harness/model` owns them. It does not own the commit protocol, the receipts, or the tenant domain directory. The storage contract and the application own them.
 
 Status: `draft`. The [implementation status](SPEC.md#实现现状) of the SPEC gives the coverage.
 
-- Implemented: `createSqlModelCommands` (with `send`, also the send coordinator over the same core), `createSendMirror`, `createSqlModelStorage`, the tables and the migration, the row parse, the participant, the two handler modules, the static materials `modelStorageMaterials()` with their `codeDigest`, and the construction checks.
+- Implemented: `createSqlModelCommands` (with `send`, also the send coordinator over the same core), `createSendMirror`, `createSqlModelStorage`, the tables and the migration, the row parse, the participant, the three handler modules, the static materials `modelStorageMaterials()` with their `codeDigest`, and the construction checks.
 - Implemented: the `./cordis` factory `createSqlModelRecordsPlugin`, which publishes `modelCommands` and owns a separate send plugin fiber.
+- Implemented: `createSqlModelDiagnostics` and the `./cordis` factory `createSqlModelDiagnosticsPlugin`, which publishes `modelDiagnostics`. The page carries the whitelist fields only. Every `timing` is `unknown`, because the storage holds no phase times. The [diagnostics read face](SPEC.md#诊断读面) of the SPEC gives the field mapping, the qualification mapping, the cursor, and the retention adoption.
 - Known difference: after a restart, `query` can answer `not-committed` for a write whose outcome was unknown before the restart. The [known differences](SPEC.md#已知差异) of the SPEC give all differences from the memory commands.
 - The application supplies the dependency mapping and send plugin through object options.
 
@@ -78,6 +79,38 @@ For initial execution, `resolve` can return the runtime's `initialRun`. For obse
 
 With Cordis 4.0.4, missing credentials leave the send child `PENDING` while the records fiber becomes `ACTIVE`. Restoring credentials activates the child. A child startup error is logged, leaves that child `FAILED`, and rejects an explicit wait for that child. It does not fail the records fiber. Monitor the child or its logs to establish send readiness. Removing the records fiber removes both contributions and waits for child cleanup. The injected storage remains owned by its provider, and committed facts remain in storage.
 
+### Diagnostics plugin
+
+Use `createSqlModelDiagnosticsPlugin` from `./cordis` to publish `modelDiagnostics`. Put it in the same provider group as the records plugin. It reads the same documents of the same tenant domain.
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+import {
+  createSqlModelDiagnosticsPlugin,
+  type SqlModelDiagnosticsConfig,
+  type SqlModelDiagnosticsPluginOptions,
+} from '@omne-harness/model-storage-sql/cordis'
+
+export function installDiagnostics(
+  ctx: Context,
+  options: SqlModelDiagnosticsPluginOptions<unknown>,
+  config: SqlModelDiagnosticsConfig,
+) {
+  return ctx.plugin(createSqlModelDiagnosticsPlugin(options), config)
+}
+```
+
+The application must supply these mappings:
+
+| Input                          | Application responsibility                                                                                                                                                                                                                    |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options.inject`               | Supply the complete list of service key constants needed by `resolve`. Exclude `modelDiagnostics`, which this plugin provides.                                                                                                                |
+| `options.resolve(ctx, config)` | Return `storage`, `domains`, and `authority` for this activation. Use the same `authority` as the records plugin, so both answer one qualification question in one way.                                                                       |
+| `config.diagnosticsRead`       | The adopted qualification mapping. The only value is `tenant-self`: a principal that acts for the tenant may read the calls of that tenant. This is an explicit adoption of the deployment. It is not an extension of the ordinary call read. |
+| `config.retention`             | The retention adoption of the deployment, as an `Adoption`. Without it the plugin loads, and every `list` answers `unavailable`.                                                                                                              |
+
+Without Cordis, call `createSqlModelDiagnostics({ storage, domains, authority, diagnosticsRead, retention })` from the root entry. It returns an object with `list`. An optional `cursorKey` (32 bytes) signs the cursors. By default each instance draws its own random key, so a cursor is valid in the instance that issued it.
+
 ## Contracts
 
 The public types and the runtime checks are in [src/](src/index.md). The behavior is in the [SPEC](SPEC.md). The SPEC also records how this package meets the storage port of the shared core, and the invariants N1, N2, N3, N5, N6, and N7. The types of the storage port belong to `@omne-harness/model/commands`. The root entry exports them again without change.
@@ -109,7 +142,7 @@ Construction fails when `maxCallBytes` plus the 64 KiB command reserve is more t
 
 ## Verification
 
-The tests in [tests/](tests/index.md) run the real participant, migration, and read handlers on `node:sqlite` in-memory databases. Most of them run the 22 methods through the shared core. They compare the accounts suite on the memory and the SQL commands. [cordis.spec.ts](tests/cordis.spec.ts) adds real Cordis lifecycle and configuration checks with a named send-stage substitute. These tests do not cover real transport, the Worker, durability, queues, or close of the real provider.
+The tests in [tests/](tests/index.md) run the real participant, migration, and read handlers on `node:sqlite` in-memory databases. Most of them run the 22 methods through the shared core. They compare the accounts suite on the memory and the SQL commands. [cordis.spec.ts](tests/cordis.spec.ts) adds real Cordis lifecycle and configuration checks with a named send-stage substitute. [diagnostics.spec.ts](tests/diagnostics.spec.ts) writes call documents through the real participant, reads them through the loaded `model.diagnostics` handler, and loads the diagnostics plugin in real Cordis. These tests do not cover real transport, the Worker, durability, queues, or close of the real provider.
 
 ## Maintenance
 

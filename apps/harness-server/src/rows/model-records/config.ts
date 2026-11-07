@@ -6,9 +6,14 @@
 //   the materialization record bound, the factory credential query id, the official profiles input
 //   (equal to the `model-profiles` row), the preparation and OpenAI family configuration (equal to
 //   the `model-request-preparation` row), the network, the routes and the transport limits.
+// - `diagnostics`: the read face `modelDiagnostics` the row provides beside the commands (#1140 A5):
+//   the eligibility mapping `diagnosticsRead` (only `tenant-self`) and the retention adoption. The
+//   member's schema validates it; without `retention` every `list` answers `unavailable`.
 // Every number is the operator's; the release layer writes none.
 import {
+  createSqlModelDiagnosticsPlugin,
   createSqlModelRecordsPlugin,
+  type SqlModelDiagnosticsConfig,
   type SqlModelRecordsConfig,
 } from '@omne-harness/model-storage-sql/cordis'
 import { z } from 'zod'
@@ -84,12 +89,21 @@ const memberSchema = createSqlModelRecordsPlugin<unknown, never>({
   },
 }).Config
 
+/** The diagnostics read schema of the member, read the same way. */
+const diagnosticsSchema = createSqlModelDiagnosticsPlugin<unknown>({
+  inject: [],
+  resolve: () => {
+    throw new Error('the schema probe class is never activated')
+  },
+}).Config
+
 export type ModelRecordsConfig = Readonly<{
   app: ModelRecordsAppConfig
   member: SqlModelRecordsConfig
+  diagnostics: SqlModelDiagnosticsConfig
 }>
 
-/** Both parts of the row configuration, each by its owner's schema. */
+/** The three parts of the row configuration, each by its owner's schema. */
 export const modelRecordsConfig = {
   '~standard': {
     version: 1 as const,
@@ -104,7 +118,18 @@ export const modelRecordsConfig = {
         }
       const member = memberSchema['~standard'].validate(value)
       if ('issues' in member) return member
-      return { value: { app: app.data, member: member.value } satisfies ModelRecordsConfig }
+      const diagnostics = diagnosticsSchema['~standard'].validate(app.data['diagnostics'])
+      if ('issues' in diagnostics)
+        return {
+          issues: diagnostics.issues.map(issue => ({ message: `diagnostics: ${issue.message}` })),
+        }
+      return {
+        value: {
+          app: app.data,
+          member: member.value,
+          diagnostics: diagnostics.value,
+        } satisfies ModelRecordsConfig,
+      }
     },
   },
 }

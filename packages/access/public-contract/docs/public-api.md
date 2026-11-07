@@ -21,6 +21,8 @@
 | `TenantId`、`OrganizationId`、`AccountId`、`LoginStateId` | 类型 | [src/identity-text.ts](../src/identity-text.ts)，legal-identity 同名类型的转出 |
 | `SessionOperation`、`SessionRequestBodies`、`SessionRequest`、`SessionOutcomes`、`SessionSuccessBodies`、`SessionResponse` | 类型 | [src/session-messages.ts](../src/session-messages.ts) |
 | `SessionProtocolRejected`、`SessionHistoryEntry`、`SessionHistoryPage`、`SessionProducerRef`、`SessionTerminalSource` | 类型 | [src/session-messages.ts](../src/session-messages.ts) |
+| `SessionDiagnosticsPage`、`SessionRunDiagnostic`、`SessionRunAttempts`、`SessionRunTerminal`、`SessionRunCause`、`SessionRunControl`、`SessionModelCallDiagnostic`、`SessionModelAttemptDiagnostic`、`SessionToolCallDiagnostic`、`SessionToolDiagnosticEntry`、`SessionFactCount`、`SessionCallAccountView` | 类型 | [src/session-messages.ts](../src/session-messages.ts)，`read-session-diagnostics` 的成功正文 |
+| `SessionDiagnosticGap`、`SessionDiagnosticGapSource`、`SessionDiagnosticGapReason`、`SessionDiagnosticUnknown`、`SessionDiagnosticInstant`、`SessionDiagnosticMilliseconds`、`SessionAdoptionRef` | 类型 | [src/session-messages.ts](../src/session-messages.ts)，诊断页的缺口与未知值 |
 | `SessionCodecLimits`、`SessionDiagnostic`、`SessionRequestRead`、`SessionResponseRead`、`SessionEncodeResult`、`SessionResponseEncodeInput` | 类型 | [src/session-messages.ts](../src/session-messages.ts) |
 
 `SessionCodecLimits`、`SessionDiagnostic` 与 `SessionEncodeResult` 分别是治理一组同名类型的别名。两组共用 `ProofInput`。
@@ -32,7 +34,7 @@
 | 要查的内容 | 正文位置 |
 | --- | --- |
 | 治理消息的字段、`outcome`、判断次序与 body | [SPEC.md 共同消息](../SPEC.md#共同消息)至[本阶段不提供的操作](../SPEC.md#本阶段不提供的操作) |
-| 会话消息的版本、信封、body、判断次序、结果、会话中断操作与历史页 | [SPEC.md 会话公开操作](../SPEC.md#会话公开操作) |
+| 会话消息的版本、信封、body、判断次序、结果、会话中断操作、历史页与会话诊断页 | [SPEC.md 会话公开操作](../SPEC.md#会话公开操作) |
 | 治理四函数的参数与可见结果、预算与编程错误 | [SPEC.md 操作集合与函数](../SPEC.md#操作集合与函数) |
 | 会话四函数的参数与可见结果，以及与服务端接入的责任划分 | [SPEC.md 会话编解码函数](../SPEC.md#会话编解码函数) |
 | 本地值与线上表示、输入反射与诊断 | [SPEC.md 本地值与线上表示](../SPEC.md#本地值与线上表示) |

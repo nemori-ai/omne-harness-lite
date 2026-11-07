@@ -6,7 +6,7 @@
 
 ## 职责与状态
 
-本成员实现 37 项治理请求操作（其中 3 项管理行事租户的模型凭据）与 7 项会话操作，含会话中断的 `cancel-run` 与 `stop-call`。它还识别 4 项本阶段不提供的治理操作。[行为规格](SPEC.md) 拥有规则。[主入口](src/index.ts) 导出八个协议函数及其输入、结果类型，两种协议各四个，另导出租户、组织、账号、登录状态的[身份文本函数](SPEC.md#身份值的文本)八个。[治理消息类型](src/messages.ts) 与[会话消息类型](src/session-messages.ts) 把操作与允许的结果和正文关联。[公开接口导航](docs/public-api.md) 索引全部导出。
+本成员实现 37 项治理请求操作（其中 3 项管理行事租户的模型凭据）与 8 项会话操作，含会话中断的 `cancel-run` 与 `stop-call`，以及只读的会话诊断投影 `read-session-diagnostics`。它还识别 4 项本阶段不提供的治理操作。[行为规格](SPEC.md) 拥有规则。[主入口](src/index.ts) 导出八个协议函数及其输入、结果类型，两种协议各四个，另导出租户、组织、账号、登录状态的[身份文本函数](SPEC.md#身份值的文本)八个。[治理消息类型](src/messages.ts) 与[会话消息类型](src/session-messages.ts) 把操作与允许的结果和正文关联。[公开接口导航](docs/public-api.md) 索引全部导出。
 
 本成员不核验身份、不判断授权、不执行业务，也不选择传输保护协议。[承载绑定](docs/http-binding.md) 写两个位置的 HTTP 与 SSE 承载。identity 与 authorization 继续拥有身份、授权与业务操作的责任。Session 继续拥有会话业务规则。SDK 和 server-entry 是独立消费者，各自承担后续交付义务。
 

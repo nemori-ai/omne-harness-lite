@@ -4,6 +4,7 @@
 // time is the boundary time. No `Date.now` or `performance.now` is read here, and the injected
 // `AgentClock` is not used: it is a UTC reading that answers asynchronously and that tests count.
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
+import type { TenantId } from '@omne-harness/legal-identity'
 import type { AgentRunEndedFailedReceiver, AgentRunFailedReceiver } from './run-failure.ts'
 
 /**
@@ -25,6 +26,8 @@ export type AgentSegmentEvent =
       span: number
       pass: 'accept' | 'run'
       execution: AgentExecutionId
+      /** The tenant of the runtime binding. The factory always knows it. */
+      tenant?: TenantId
     }>
   | Readonly<{
       kind: 'segment'
@@ -33,6 +36,7 @@ export type AgentSegmentEvent =
       span: number
       pass: 'accept' | 'run'
       execution: AgentExecutionId
+      tenant?: TenantId
       /** `failure` for an answer that carries a failure and for a thrown error. */
       outcome: 'ok' | 'failure'
     }>
@@ -70,7 +74,11 @@ export type AgentMeasurer = Readonly<{
 /** Counts in the process, so the runtimes that share an observer never reuse a span. */
 let spans = 0
 
-export function createAgentMeasurer(measure: AgentMeasure | undefined): AgentMeasurer {
+/** `tenant` is the tenant of the runtime binding; every event of this measurer names it. */
+export function createAgentMeasurer(
+  measure: AgentMeasure | undefined,
+  tenant?: TenantId,
+): AgentMeasurer {
   if (measure === undefined) return { segment: (_pass, _execution, run) => run() }
   const emit = (event: AgentMeasureEvent): void => {
     try {
@@ -82,14 +90,16 @@ export function createAgentMeasurer(measure: AgentMeasure | undefined): AgentMea
   return {
     async segment(pass, execution, run, failed) {
       const span = (spans += 1)
-      emit({ kind: 'segment', segment: 'agent', phase: 'start', span, pass, execution })
+      // An absent tenant stays absent: an `undefined` member would still be a key of the event.
+      const who = tenant === undefined ? { execution } : { execution, tenant }
+      emit({ kind: 'segment', segment: 'agent', phase: 'start', span, pass, ...who })
       let outcome: 'ok' | 'failure' = 'failure'
       try {
         const answer = await run()
         outcome = failed(answer) ? 'failure' : 'ok'
         return answer
       } finally {
-        emit({ kind: 'segment', segment: 'agent', phase: 'end', span, pass, execution, outcome })
+        emit({ kind: 'segment', segment: 'agent', phase: 'end', span, pass, ...who, outcome })
       }
     },
   }

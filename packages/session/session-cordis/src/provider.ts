@@ -3,7 +3,7 @@
 // `ctx.provide`. State lives in `runtime` and not in `#private` fields, because a caller reads
 // the service through an extended copy of it and `#private` fields fail through that copy.
 import { Service, type Context } from '@deepseek-ai/cordis'
-import type { SessionMeasure } from '@omne-harness/session'
+import type { SessionInstanceOptions } from '@omne-harness/session'
 import type { SessionFaces } from '@omne-harness/session-contract'
 import {
   SessionService,
@@ -47,13 +47,17 @@ export class SessionProvider extends SessionService<unknown> {
 
   private readonly runtime: ProviderRuntime
 
-  /** `measure` is the observer of the measurement events; only the plugin factory hands it in. */
-  constructor(ctx: Context, config: SessionProviderConfig = {}, measure?: SessionMeasure) {
+  /** The observers of the session instance; only the plugin factory hands them in. */
+  constructor(
+    ctx: Context,
+    config: SessionProviderConfig = {},
+    observers: SessionProviderPluginInput = {},
+  ) {
     super(ctx)
     const resolved = resolveProviderConfig(config)
     if ('issues' in resolved)
       throw new TypeError(`invalid session provider configuration: ${resolved.issues[0]?.message}`)
-    this.runtime = startProvider(ctx, resolved.value, measure)
+    this.runtime = startProvider(ctx, resolved.value, observers)
   }
 
   get work(): SessionFaces<unknown>['work'] {
@@ -70,29 +74,26 @@ export class SessionProvider extends SessionService<unknown> {
   }
 }
 
-/** What the assembly entry hands to `createSessionProviderPlugin`. */
-export type SessionProviderPluginInput = Readonly<{
-  /**
-   * The observer of the Session measurement events, handed to the session instance of every load
-   * of the plugin (Session SPEC「测量事件」). It is a function, so it is not a configuration
-   * member. Absent: no event is built, as with `SessionProvider` itself.
-   */
-  measure?: SessionMeasure
-}>
+/**
+ * What the assembly entry hands to `createSessionProviderPlugin`: the observers of the session
+ * instance, `measure` (Session SPEC「测量事件」) and `diagnose` (Session SPEC「诊断出口」). The plugin
+ * hands them to `createSessionInstance` as they are, for every load. They are functions, so they
+ * are not configuration members. Absent, the instance behaves as with `SessionProvider` itself.
+ */
+export type SessionProviderPluginInput = SessionInstanceOptions
 
 /**
- * The plugin of `SessionProvider` with the measurement observer that the assembly entry hands in.
- * The `inject`, the configuration and the provided key are those of `SessionProvider`; the
- * observer is not a Cordis service and not a configuration member. Use the returned class as
+ * The plugin of `SessionProvider` with the observers that the assembly entry hands in. The
+ * `inject`, the configuration and the provided key are those of `SessionProvider`; an observer is
+ * not a Cordis service and not a configuration member. Use the returned class as
  * `ctx.plugin(Plugin, config)` does with `SessionProvider`.
  */
 export function createSessionProviderPlugin(
   input: SessionProviderPluginInput = {},
 ): typeof SessionProvider {
-  const { measure } = input
   return class SessionProviderMeasuredPlugin extends SessionProvider {
     constructor(ctx: Context, config: SessionProviderConfig = {}) {
-      super(ctx, config, measure)
+      super(ctx, config, input)
     }
   }
 }

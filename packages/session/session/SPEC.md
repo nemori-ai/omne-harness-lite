@@ -437,22 +437,48 @@ C2 在退避前登记本会话的等待句柄，再读取原 attempt。控制或
 
 | 事件 | 何时发出 | 字段 |
 | --- | --- | --- |
-| `segment`，`phase: 'start'` | 一次面操作（变更与读，含公开端口上的目录读）开始做它的工作，即核权之前 | `span`（进程内唯一，起止成对）、`operation`（命令种类或读操作名）、`session`（目录读为 `null`） |
+| `segment`，`phase: 'start'` | 一次面操作（变更与读，含公开端口上的目录读）开始做它的工作，即核权之前 | `span`（进程内唯一，起止成对）、`operation`（命令种类或读操作名）、`session`（目录读为 `null`）、`tenant`（这份工作的租户，见下文「作用域」）、`scope`（只有系统作用域的读带它，值为 `system`） |
 | `segment`，`phase: 'end'` | 同一面操作要交回答复时，含抛出 | 上列字段加 `outcome`：`ok`，或带 `failure` 的答复与抛出为 `failure` |
-| `round-complete` | 本实例的一次提交写下 `run.terminal` 条目之后、答复交回之前。认回（`recovered`）的提交与别的进程的提交不发 | `session`、`run`、`outcome`（终态结局）、`revision`、`entry`、`operation` |
+| `round-complete` | 本实例的一次提交写下 `run.terminal` 条目之后、答复交回之前。认回（`recovered`）的提交与别的进程的提交不发 | `session`、`tenant`、`run`、`outcome`（终态结局）、`revision`、`entry`、`operation` |
 
 - **时间**：事件不带时间。观察者在被同步调用的那一刻读自己的单调时钟，那一刻就是边界时刻，所以同一进程、同一时钟代次由观察者的拥有者保证。本成员不读 `Date.now`、`performance.now`，也不用注入的 `SessionClock`：它读 UTC 时刻、异步作答、测试会给它计次，不是单调时钟。
+- **作用域**：段事件说明它测量的事实属于谁，采集者据此给记录定作用域（telemetry-contract SPEC TC-4）。
+  - 变更与单会话读带 `tenant`，值是本次访问的租户（`SessionAccess.tenant`），类型与 `WorkSnapshot['tenant']` 相同。
+  - 目录读 `pending` 带 `tenant`，值是输入的 `tenant`。契约里这次读属于该租户的工作。
+  - 目录读 `references` 与 `releasedScopes` 带 `scope: 'system'`，不带 `tenant`。契约把这两个读定为系统作用域：它们跨租户，是服务自身的事实。
+  - 一个事件不同时带 `tenant` 与 `scope`。两个字段都是可选的兼容加法，没有它们的旧事件形状仍然成立。属于租户工作的事件不能改标为 `system`。
 - **一轮就是一次 Run**：`round-complete` 是明确的轮完成事实，不由输入受理推断。Session 不持有累计条目数，所以事件不带它；`revision` 是不透明的提交身份。要累计条目数的采集者自己读历史。
 - **段是包含式的**：Session 段包含它等待存储、身份桥与证据桥的时间，也包含嵌套的面操作。段之间不能相加成端到端耗时，扣除外部等待由采集者做。
 - **观察者抛出**不改变任何答复，也不留痕。观察者不得回调本实例。
 - **不在这里**：Agent 段与 Context 段由各自成员发出。跨成员的时钟与关联由采集者负责。
+
+### 遥测投影
+
+<a id="遥测投影"></a>本段按 RFC-0013 rev2 的本地 A/B 范围采用，见[本轮采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)。设计依据是 [RFC-0013「计时记录与离线聚合」](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#计时记录与离线聚合)。根入口的 `createSessionTelemetry(port, { instance })` 把[测量事件](#测量事件)与[诊断出口](#诊断出口)投影为 `@omne-harness/telemetry-contract` 的记录，返回 `{ measure, diagnose }`。装配者把 `measure` 与 `diagnose` 交给工厂的第三个参数。facade 只依赖 telemetry-contract 的根入口，不依赖提供者，不依赖 Cordis。源码在 [telemetry.ts](src/telemetry.ts)。
+
+| 事件 | 记录 | 定义（owner `session`） | 关联 |
+| --- | --- | --- | --- |
+| `segment` 起止 | 一个遥测段：start 开段，end 以 `outcome` 结束 | `omne.session.<operation>`，按操作名各一个定义 | `work` 是会话（owner `@omne-harness/session`，ref 为会话 id）；目录读没有 `work` |
+| `round-complete` | 事件 | `omne.session.round-complete`：`outcome` 枚举 `completed`、`failed`、`cancelled`、`unknown`；`operation` 引用 | `work` 是会话，`attempt` 是 Run（`run` 为 `null` 时没有 `attempt`） |
+| `SessionDiagnostic` | 事件 | `omne.session.diagnostic`（级别 `warn`）：`owner`、`step` 枚举；`reason` 枚举取诊断出口列出的四个本成员原因、session-contract `SessionFailure` 的全部十六个失败种类，以及 `other`（不在表内的值）。不输出 `detail` | `work` 是会话，`attempt` 是 Run |
+
+- **作用域**：每条记录的 `component` 是 `session`，`instance` 由装配者给出。`scope` 按事件定（telemetry-contract TC-4、TC-15）：
+  - 事件带 `tenant` 时，`scope` 是 `tenantScope(tenant)`。
+  - 段事件带 `scope: 'system'` 而不带 `tenant` 时，`scope` 是 `systemScope()`，记录里没有租户标识。只有 `references` 与 `releasedScopes` 两个系统作用域的读这样发。
+  - 其余情况 facade 不发记录：事件没有 `tenant` 也没有 `scope`，`tenant` 不是 legal-identity 铸造的值，或段事件同时带 `tenant` 与 `scope`。facade 把记录的定义交给 `port.discard(definition, 'invalid')`，由提供者按 `invalid` 计数（进 `CloseReport.droppedBy.invalid`）。这些记录不改标为 `system`。
+  - 操作名不满足契约字符集或长度时同样经 `discard` 计入 `invalid`，定义只写该段本来的名字。
+  - 每条记录各自 `port.bind`，不缓存 emitter，因为绑定的 `scope` 不能经 `Emitter.bind` 改写（TC-15）。
+- 有界：facade 用 `startSegment` 的 `onRelease` 同步删除配对项（telemetry-contract TC-14）。只有尚未释放的段进入配对表，end 也删除配对。早于 start 返回的通知阻止重新登记；旧通知按条目身份删除，不能误删复用 span 的新项。共享同一提供者的门面配对总数不超过其 `maxOpenSegments`；提供者关闭的同步释放阶段结束时，配对表为空。没有配对的 end 什么也不做。该界限不约束任意调用方主动保留的旧句柄，也不依赖 GC。
+- **计时**：facade 不读时钟。段的时长由提供者在 `startSegment` 与 `end` 之间计算。
+- **不抛错**：facade 不抛错。被 `startSegment` 丢弃的段由提供者计数，facade 不再计一次；facade 自己不保有任何计数。
 
 ### 已有测试
 
 成员测试在 `tests/`，逐项对应见 [tests/README.md](tests/README.md)。
 
 - session-contract 的事务套件经四个面运行：对内存替身对 21 例全部通过；对真实 sqlite-provider 上的 SQL 提供者对，21 例全部通过。
-- [测量事件](#测量事件)：起止成对、并发时的 `span`、读与目录读、失败结局、`run.terminal` 提交的轮完成事件（认回不重发、无通知器时仍发）、无观察者时不读条目、观察者抛出不改答复。
+- [测量事件](#测量事件)：起止成对、并发时的 `span`、读与目录读、失败结局、`run.terminal` 提交的轮完成事件（认回不重发、无通知器时仍发）、无观察者时不读条目、观察者抛出不改答复、变更与读的事件带租户、`pending` 带输入的租户、`references` 与 `releasedScopes` 带 `system` 而不带租户。
+- [遥测投影](#遥测投影)（`tests/telemetry.spec.ts`，用 telemetry-contract 的捕获替身）：段的名字、作用域、`work` 与结局；目录读没有 `work`；系统作用域的段绑定 `system`、没有 `work`、不经 `discard`；缺租户、未铸造的租户、同时带租户与 `system` 的段与非法操作名不发记录而经 `port.discard` 以 `invalid` 交给提供者计数；提供者丢弃的 start 不配对；定义缓存的上限；round-complete 与诊断事件的字段、`attempt` 与枚举收口；诊断不带 `detail`；经真实实例的一次 accept 与读，以及 `pending` 与 `references` 两个目录读。 释放配对由 `tests/telemetry.spec.ts` 核对早通知、span 复用和捕获替身 clear。真实 Node 提供者与两个门面的组合回归在 `apps/harness-server/tests/rows/telemetry/measure.spec.ts`，覆盖连续过期和关闭后的迟到 end。
 - [VM-13](#vm-机制的持续验证义务) 的计次与失败分支、跨租户拒绝、[VM-01](#vm-机制的持续验证义务) 的重做与上限、SS-02 的确定性计数（两个规模下各面操作的计数相同），各有用例。
 - 没有测试的义务：VM-02 至 VM-12 中本节「未实现」一表涉及的部分，以及崩溃矩阵。
 

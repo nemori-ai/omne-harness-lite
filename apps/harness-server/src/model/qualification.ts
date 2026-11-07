@@ -1,18 +1,3 @@
-// The qualification registry of the Model application module (`tmp/wire-model/design.md` §2, §4).
-//
-// Model asks three synchronous questions: `ModelCommandsAuthority.authorize`, `authority.execution`
-// and `ModelSendSource.current`. The facts they need come from two asynchronous ports, the identity
-// verifier and the tenant standing source. This module does not put the asynchronous ports behind
-// the synchronous answers. It verifies and reads at an asynchronous admission point and captures
-// the outcome; the synchronous answers only read what was captured:
-// - W (Session work principal): `qualify` runs before one call of the commands the host wraps and
-//   the capture is released after it. There is no cache that outlives the call.
-// - M (Model host work principal): the entry captures it in `modelHostAuthority.resolve`; the
-//   capture ends when the host fiber retires (`current`). Revocation between the two is #677.
-//
-// The ActorRef of both is the subject reference: the standing record of the tenant's own account
-// and its revision, as the identity standing source reads them. The execution reference names the
-// host binding the channel already verified: the instance and its generation.
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import { tenantStandingKey } from '@omne-harness/identity/cordis'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
@@ -27,6 +12,7 @@ import type {
 import type { ActorRef, ExecutionRef, SendDemand } from '@omne-harness/model-contract/provider'
 import type {
   CommandAction,
+  CommandResource,
   ModelCommandsAuthority,
   ModelSendSource,
 } from '@omne-harness/model/commands'
@@ -39,10 +25,12 @@ export const ACTOR_OWNER = tenantStandingKey
 
 const QUALIFICATION = 'model-access-qualification'
 
-/** The actions each class may take (R2-D33 plan A, the nine-action table). */
+/** The allowed purposes of each verified principal class. */
 const ACTIONS: Readonly<Record<CommandAction, readonly PrincipalClass[]>> = Object.freeze({
   admit: ['work'],
   facts: ['work', 'host'],
+  inspect: ['login', 'work', 'host'],
+  'read-account': ['login', 'work', 'host'],
   content: ['work', 'host'],
   control: ['work'],
   handoff: ['work', 'host'],
@@ -60,7 +48,7 @@ type Refusal =
 
 type Capture =
   | Readonly<{
-      kind: 'work'
+      kind: 'login' | 'work'
       tenant: TenantId
       actor: ActorRef
       current: () => boolean
@@ -139,7 +127,14 @@ function failureOf(refusal: Refusal, action: string): ModelFailure {
   }
 }
 
+export type ModelReadLease = Readonly<{
+  check(action: 'inspect' | 'read-account', resource: CommandResource): Reply<void>
+  release(): void
+}>
+
 export type ModelQualification = Readonly<{
+  qualifyRead(access: Access<unknown>, current: () => boolean): Promise<ModelReadLease>
+
   /**
    * Verifies `access.principal`, reads the standing of its tenant and captures the outcome for the
    * duration of one call. Returns the release. A principal the entry captured as M is left as it is.
@@ -196,8 +191,8 @@ export function createModelQualification(
       })
     if (verification.kind === 'rejected') return refused({ kind: 'rejected' })
     const who = classOf(verification.principal)
-    // Only W is admitted here. M is captured by the entry, never by a caller's own object.
-    if (who === null || who.kind !== 'work') return refused({ kind: 'rejected' })
+    // Host work is captured only by the entry after its binding is verified.
+    if (who === null || who.kind === 'host') return refused({ kind: 'rejected' })
     if (!sameTenant(who.principal.tenant, access.tenant))
       return refused({ kind: 'tenant-mismatch' })
     const subject = await readSubject(input.standing, who.principal.tenant)
@@ -208,7 +203,7 @@ export function createModelQualification(
         diagnostic: subject.diagnostic,
       })
     if (subject.kind === 'not-member') return refused({ kind: 'not-member' })
-    return { kind: 'work', tenant: who.principal.tenant, actor: subject.actor, current }
+    return { kind: who.kind, tenant: who.principal.tenant, actor: subject.actor, current }
   }
 
   const qualify: ModelQualification['qualify'] = async (access, current) => {
@@ -258,12 +253,10 @@ export function createModelQualification(
     bindings.clear()
   }
 
-  const authorize: ModelCommandsAuthority<unknown>['authorize'] = ({
-    action,
-    access,
-    resource,
-  }) => {
-    const capture = captured(access.principal)
+  function authorizeCapture(
+    capture: Capture | undefined,
+    { action, access, resource }: Parameters<ModelCommandsAuthority<unknown>['authorize']>[0],
+  ): Outcome<ActorRef, ModelFailure> {
     if (capture === undefined) return fail(unavailable(QUALIFICATION, 'principal-not-qualified'))
     if (capture.kind === 'refused') return fail(failureOf(capture.refusal, action))
     if (!sameTenant(capture.tenant, access.tenant) || !capture.current())
@@ -277,6 +270,38 @@ export function createModelQualification(
       if (resource.call !== capture.call) return fail(denied(action))
     }
     return succeed(capture.actor)
+  }
+
+  const authorize: ModelCommandsAuthority<unknown>['authorize'] = input =>
+    authorizeCapture(captured(input.access.principal), input)
+
+  const qualifyRead: ModelQualification['qualifyRead'] = async (access, current) => {
+    const host = captured(access.principal)
+    const release = await qualify(access, current)
+    let released = false
+    return {
+      async check(action, resource) {
+        if (released || !current()) return fail(denied(action))
+        const capture = host?.kind === 'host' ? host : await judge(access, current)
+        if (capture.kind === 'host') {
+          const subject = await readSubject(input.standing, capture.tenant)
+          if (subject.kind === 'not-member') return fail(denied(action))
+          if (subject.kind === 'unavailable')
+            return fail(unavailable(ACTOR_OWNER, subject.diagnostic))
+        }
+        if (released || !current()) return fail(denied(action))
+        // This result belongs to this read; another request cannot overwrite it in held.
+        if (capture.kind === 'host' && captured(access.principal) !== capture)
+          return fail(denied(action))
+        const result = authorizeCapture(capture, { action, access, resource })
+        return 'failure' in result ? result : succeed(undefined)
+      },
+      release() {
+        if (released) return
+        released = true
+        release()
+      },
+    }
   }
 
   const execution: ModelCommandsAuthority<unknown>['execution'] = (
@@ -324,6 +349,7 @@ export function createModelQualification(
 
   return Object.freeze({
     qualify,
+    qualifyRead,
     captureHost,
     recordHostBinding,
     dropHostBindings,

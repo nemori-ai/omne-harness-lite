@@ -1,7 +1,11 @@
 // 有序关闭（s0-spec-r2 §9）：登记服务与关闭协调器。句柄是替身，时钟是注入的假时钟；
-// 撤除与换代用例经真实 Cordis 4.0.4 的 fiber。
+// 撤除与换代用例经真实 Cordis 4.0.4 的 fiber。末尾的 B-7 在本进程跑一次 `runServe`，看关闭之后的 stdout 封口。
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
+import { stubPlugin } from '../src/cordis.ts'
+import { defineRow } from '../src/row.ts'
+import { serveOnce } from './fixtures/serve/harness.ts'
+import { TELEMETRY_ROW_CONFIG } from './rows/server-entry/support.ts'
 import {
   LifecycleRefusedError,
   LifecycleRegistry,
@@ -627,5 +631,60 @@ describe('X-5 启动期的停止状态与失败（§9 步骤 1、N-3，Reduce R-
       ['session-storage', 'failed'],
       ['storage', 'settled'],
     ])
+  })
+})
+
+describe('B-7 stdout 在 shutdown-result 之后封口', () => {
+  /** 业务阶段的行：stop 在期限之后才结束。 */
+  function lateStopRow(holdMs: number, done: () => void) {
+    return defineRow({
+      row: 'late-stop',
+      implementation: 'real',
+      manifest: { provides: [], injects: [], sameProviderGroup: null },
+      lifecycle: { kind: 'body', phase: 'business' },
+      body: async () => ({
+        stop: async () => {
+          await new Promise(resolve => setTimeout(resolve, holdMs))
+          setImmediate(done)
+          return { kind: 'settled' }
+        },
+      }),
+    })
+  }
+
+  it('期限之后才结束的 stop：stdout 最后一行是 shutdown-result，迟到诊断成为 stderr 上不带前缀的一行 JSON', async () => {
+    let finished = () => {}
+    const late = new Promise<void>(resolve => (finished = resolve))
+    const run = await serveOnce({
+      distribution: {
+        rows: [
+          { id: 'telemetry', plugin: 'telemetry', config: TELEMETRY_ROW_CONFIG },
+          { id: 'late-stop', plugin: 'lateStop', config: {} },
+        ],
+      },
+      plugins: { stubPlugin, lateStop: lateStopRow(200, () => finished()) },
+      entryObjects: [],
+      shutdownDeadlineMs: 50,
+    })
+    expect(run.records.at(-1)?.kind).toBe('shutdown-result')
+    expect(run.records.at(-1)).toMatchObject({
+      outcomes: [{ row: 'late-stop', result: { kind: 'incomplete' } }],
+    })
+    const before = run.records.length
+    await late
+    // 封口之后 stdout 没有新记录。
+    expect(run.records).toHaveLength(before)
+    expect(run.records.at(-1)?.kind).toBe('shutdown-result')
+    const json = run.stderr
+      .filter(line => !line.startsWith('serve: '))
+      .map(line => JSON.parse(line) as Readonly<Record<string, unknown>>)
+    expect(json).toContainEqual(
+      expect.objectContaining({
+        kind: 'shutdown-step',
+        action: 'late-result',
+        row: 'late-stop',
+        detail: 'after deadline: settled',
+      }),
+    )
   })
 })

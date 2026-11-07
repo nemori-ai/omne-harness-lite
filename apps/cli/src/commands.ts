@@ -27,6 +27,7 @@ import {
   type Option,
 } from './command-support.ts'
 import { credentialCommand } from './credential-command.ts'
+import { runReadSessionDiagnostics } from './diagnostics-command.ts'
 import { governanceCommands } from './governance-commands.ts'
 import { runReadHistory } from './history-command.ts'
 import { writeLoginState, type LoginState } from './login-state.ts'
@@ -384,6 +385,12 @@ export const productionCommands: readonly CommandSpec[] = [
     usage: '--session <id>',
     summary: 'Read the whole history of a session.',
     run: runReadHistory,
+  },
+  {
+    name: 'read-session-diagnostics',
+    usage: '--session <id>',
+    summary: 'Read the diagnostics of the runs of a session.',
+    run: runReadSessionDiagnostics,
   },
   {
     name: 'cancel-run',

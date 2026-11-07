@@ -31,6 +31,7 @@ import { agentInstancesRow } from '../../../src/rows/agent-instances/index.ts'
 import { sessionAd14Row } from '../../../src/rows/session-ad14/index.ts'
 import type { EntryObjectModule, RowId } from '../../../src/types.ts'
 import { declared, loadTree, makeBase, type LoadedTree } from '../session-fixtures/tree.ts'
+import { disabledTelemetryRow } from '../telemetry/support.ts'
 import {
   hostConfig,
   hostDoubles,
@@ -100,6 +101,7 @@ async function start(options: {
   const tree = await loadTree({
     base,
     rows: [
+      disabledTelemetryRow(),
       doubles.spec,
       sessionRow(),
       declared(agentHostRow, hostConfig),

@@ -85,6 +85,25 @@ const MODEL_TEST_ADOPTION = {
  */
 export const UNUSED_MODEL_ROUTE = 'https://127.0.0.1:9/api/v1/chat/completions'
 
+/** The entry kinds the session diagnostics projection reads (server-entry `PROJECTED_KINDS`). */
+export const DIAGNOSTICS_KINDS = [
+  'run.started',
+  'run.attempt-started',
+  'run.attempt-released',
+  'run.attempt-exited',
+  'control.requested',
+  'control.progress',
+  'run.terminal',
+  'call.bound',
+  'call.execution-fact',
+  'message.user',
+  'message.assistant',
+  'message.tool',
+  'message.tool_internal',
+  'message.system_reminder',
+  'message.compaction',
+] as const
+
 export function modelRowsOperatorConfig(options: { storageRoot: string; modelRoute?: string }) {
   const profiles = {
     retryPolicy: { owner: 'r9', name: 'retry', revision: '1', digest: '0'.repeat(64) },
@@ -150,6 +169,11 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     maxCommandBytes: 1_048_576,
     combinationVersion: 'session-composite/5',
     send: { mirrorBytes: 4_194_304, maxClaims: 8 },
+    // The read face `modelDiagnostics` (A12: the operator layer gives what the release does not).
+    diagnostics: {
+      diagnosticsRead: 'tenant-self',
+      retention: { ...MODEL_TEST_ADOPTION, name: 'model-diagnostics-retention' },
+    },
     initial: { maxRecords: 1024, maxBindings: 4, maxCallsPerBinding: 1024 },
     sendStage: {
       maxRetainedAttempts: 16,
@@ -357,7 +381,34 @@ export function operatorLayer(options: {
       },
       // SC4（R2-D162）：agent-host 换真件后，工厂数值与实例空闲时长归运维者层；整行替换时重抄发行层的两项。
       { kind: 'replace', id: 'agent-host', config: agentHostOperatorConfig() },
-      { kind: 'replace', id: 'server-entry', config: { listenPort: options.port } },
+      // The session diagnostics projection: every kind it knows, and test bounds (A12).
+      {
+        kind: 'replace',
+        id: 'server-entry',
+        config: {
+          listenPort: options.port,
+          diagnosticsKinds: [...DIAGNOSTICS_KINDS],
+          maxRuns: 32,
+          maxCallsPerRun: 64,
+        },
+      },
+      // 遥测行的预算归运维者层（R2-D229）；`replace` 整行替换，重抄发行层的实现与出口。测试值，未测量。
+      {
+        kind: 'replace',
+        id: 'telemetry',
+        config: {
+          implementation: 'node',
+          outlet: { kind: 'stdout' },
+          budgets: {
+            maxRecordBytes: 65_536,
+            maxQueueItems: 1024,
+            maxQueueBytes: 1_048_576,
+            maxOpenSegments: 16,
+            maxLogTextLength: 4096,
+            summaryIntervalMs: 1000,
+          },
+        },
+      },
     ],
   }
 }

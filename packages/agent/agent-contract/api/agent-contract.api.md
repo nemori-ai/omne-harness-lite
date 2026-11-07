@@ -2494,6 +2494,9 @@ export interface AgentJournalReading<P> {
         limit: number;
     }>): Reply<ReplyAdmissionPage>;
     query(input: ExecutionMutation<P>): ReturnType<AgentExecutionRecovery<P>['query']>;
+    readFinish?(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+    }>): Reply<FinishIntent | null>;
     readonly output: Pick<AgentExecutionEvents<P>, 'read' | 'events'>;
 }
 export type JournalCapabilities = Readonly<{

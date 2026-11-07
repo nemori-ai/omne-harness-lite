@@ -54,6 +54,14 @@ export type SessionRequestBodies = {
     readonly controlId: string
     readonly producer: SessionProducerRef
   }
+  /** `run` null reads every Run from the newest; otherwise one Run. Both occur only with a null cursor. */
+  'read-session-diagnostics':
+    | (SessionTarget & {
+        readonly cursor: null
+        readonly run: string | null
+        readonly pageBytes: string
+      })
+    | (SessionTarget & { readonly cursor: string })
 }
 export type SessionOperation = keyof SessionRequestBodies
 
@@ -80,6 +88,212 @@ export type SessionHistoryPage = {
   readonly next: string | null
   readonly exhausted: boolean
   readonly scannedThrough: string
+}
+// The session diagnostics page (SPEC「会话诊断页」). Every value a source did not give is an
+// explicit `unknown` with the reason of that read; nothing here says an event did not happen.
+export type SessionDiagnosticGapSource = 'session' | 'agent' | 'model' | 'tool'
+export type SessionDiagnosticGapReason =
+  | 'unsupported'
+  | 'unavailable'
+  | 'denied'
+  | 'not-disclosed'
+  | 'not-accepted'
+  | 'not-found'
+  | 'not-recorded'
+  | 'retention-expired'
+  | 'truncated'
+/** One read a source refused or could not serve. `subject` names what was asked for. */
+export type SessionDiagnosticGap = {
+  readonly source: SessionDiagnosticGapSource
+  readonly subject: string
+  readonly reason: SessionDiagnosticGapReason
+}
+/** A value the projection could not read, with the reason of that read. */
+export type SessionDiagnosticUnknown = {
+  readonly kind: 'unknown'
+  readonly reason: Exclude<SessionDiagnosticGapReason, 'not-disclosed' | 'truncated'>
+}
+export type SessionDiagnosticInstant =
+  | { readonly kind: 'known'; readonly instant: string }
+  | { readonly kind: 'unknown' }
+export type SessionDiagnosticMilliseconds =
+  | { readonly kind: 'known'; readonly milliseconds: string }
+  | { readonly kind: 'unknown' }
+/** An adoption of another owner, in the wire shape of this package. */
+export type SessionAdoptionRef = {
+  readonly owner: string
+  readonly name: string
+  readonly revision: string
+  readonly digest: string
+}
+/**
+ * The closed fields of Agent's finish candidate. `none`: a completed Run, whose finish the
+ * projection does not read. `no-failure`: a finish read without a failure candidate. `cause` of
+ * `no-reply` and `failure` of `model-refused` are the owner's closed kinds; no diagnostic text.
+ * A `failure` or `reason` outside the closed set is an `unknown` with its reason, never a
+ * plausible member of the set.
+ */
+export type SessionRunCause =
+  | {
+      readonly kind: 'node-failed'
+      readonly node: string
+      readonly category: 'exception' | 'invariant' | 'unsupported-path' | 'rejected'
+      readonly failureKind: string
+    }
+  | SessionDiagnosticUnknown
+  | { readonly kind: 'none' }
+  | { readonly kind: 'no-failure'; readonly conclusion: 'complete' | 'fail' | 'cancelled' }
+  | {
+      readonly kind: 'model-refused'
+      readonly failure: 'denied' | 'invalid' | 'unsupported' | 'capacity' | SessionDiagnosticUnknown
+    }
+  | {
+      readonly kind: 'no-reply'
+      readonly cause: string | null
+      readonly upstreamStatus: string | null
+    }
+  | { readonly kind: 'request-rejected' }
+  | {
+      readonly kind: 'cannot-fit'
+      readonly reason: 'fixed' | 'after-compaction' | SessionDiagnosticUnknown
+    }
+  | { readonly kind: 'compaction-invalid' }
+  | { readonly kind: 'message-rejected' }
+  | { readonly kind: 'extension-stop' }
+  | { readonly kind: 'guard' }
+export type SessionRunTerminal = {
+  readonly outcome: 'completed' | 'failed' | 'cancelled'
+  readonly cause: { readonly record: string | null; readonly structured: SessionRunCause }
+}
+/** The closed fields of a `control.requested` or `control.progress` entry; null where the entry carries none. */
+export type SessionRunControl = {
+  readonly position: string
+  readonly kind: 'requested' | 'progress'
+  readonly target: 'run' | 'producer' | 'session' | null
+  readonly intent: 'control' | 'interrupt' | 'auto-archive' | null
+  readonly state: 'committed' | 'propagating' | 'reconciled' | null
+}
+/** The attempt counts of a Run, each a decimal text, from the `run.attempt-*` entries. */
+export type SessionRunAttempts = {
+  readonly started: string
+  readonly released: {
+    readonly ended: string
+    readonly bounded: string
+    readonly cancelled: string
+    readonly released: string
+    readonly superseded: string
+  }
+  readonly exited: string
+}
+/** The `call.execution-fact` entries of one owner, counted by `fact.kind`. */
+export type SessionFactCount = { readonly kind: string; readonly count: string }
+/** One entry of the first page of Tool's diagnostics, without its evidence. */
+export type SessionToolDiagnosticEntry = {
+  readonly operation: string
+  readonly phase: string
+  readonly code: string
+}
+/** The usage and cost items of a call account: their source and numeric state, never a converted amount. */
+export type SessionCallAccountView = {
+  readonly kind: 'account'
+  readonly usage: readonly {
+    readonly name: string
+    readonly unit: string
+    readonly state: 'unknown' | 'known' | 'provisional'
+    readonly lexeme: string | null
+  }[]
+  readonly cost: readonly {
+    readonly source: string
+    readonly unit: string
+    readonly state: 'unknown' | 'known' | 'provisional'
+    readonly lexeme: string | null
+  }[]
+  readonly duration:
+    | { readonly kind: 'known'; readonly value: string }
+    | { readonly kind: 'unknown' }
+  readonly receipt: 'received' | 'late'
+}
+export type SessionModelAttemptDiagnostic = {
+  readonly dispatch: string
+  readonly revision: string
+  readonly adapter: SessionAdoptionRef
+  readonly send: 'not-sent' | 'sent' | 'unknown'
+  readonly firstContent: 'none-proven' | 'observed' | 'uncertain'
+  readonly outcome:
+    | { readonly kind: 'pending' }
+    | { readonly kind: 'completed'; readonly reason: 'stop' | 'limit' | 'tool-suggestions' }
+    | { readonly kind: 'interrupted' }
+    | { readonly kind: 'failed'; readonly cause: string; readonly upstreamStatus: string | null }
+  readonly timing: {
+    readonly materialize: SessionDiagnosticMilliseconds
+    readonly sendToFirstContent: SessionDiagnosticMilliseconds
+    readonly execution: SessionDiagnosticMilliseconds
+  }
+  /** The account of this dispatch. */
+  readonly account: SessionCallAccountView | SessionDiagnosticUnknown
+}
+export type SessionModelCallDiagnostic = {
+  readonly reference: string
+  readonly purpose: string
+  readonly call:
+    | {
+        readonly kind: 'found'
+        readonly call: string
+        readonly phase: 'accepted' | 'running' | 'retry-decision' | 'settled'
+      }
+    | SessionDiagnosticUnknown
+  readonly dispatches: readonly SessionModelAttemptDiagnostic[]
+  readonly coverage: 'complete-through-snapshot' | 'expired-prefix' | 'unknown'
+  readonly facts: readonly SessionFactCount[]
+}
+export type SessionToolCallDiagnostic = {
+  readonly reference: string
+  readonly state:
+    | {
+        readonly kind: 'found'
+        readonly call: string
+        readonly phase:
+          | 'accepted'
+          | 'preparing'
+          | 'queued'
+          | 'starting'
+          | 'running'
+          | 'suspended'
+          | 'settled'
+        readonly relation: 'foreground' | 'background'
+        readonly terminal: {
+          readonly kind: 'completed' | 'failed' | 'unavailable' | 'interrupted' | 'no-response'
+          readonly cause: string | null
+        } | null
+      }
+    | SessionDiagnosticUnknown
+  readonly account: SessionCallAccountView | SessionDiagnosticUnknown
+  readonly facts: readonly SessionFactCount[]
+  readonly diagnostics: readonly SessionToolDiagnosticEntry[] | SessionDiagnosticUnknown
+}
+export type SessionRunDiagnostic = {
+  readonly run: string
+  readonly entry: 'interactive' | 'dispatch'
+  readonly execution: string
+  readonly started: { readonly position: string; readonly at: SessionDiagnosticInstant }
+  readonly attempts: SessionRunAttempts
+  readonly controls: readonly SessionRunControl[]
+  readonly terminal: SessionRunTerminal | null
+  /** `registered` counts every `call.bound` of the Run; `projected` counts those that entered the fan-out. */
+  readonly calls: { readonly registered: string; readonly projected: string }
+  readonly modelCalls: readonly SessionModelCallDiagnostic[]
+  readonly toolCalls: readonly SessionToolCallDiagnostic[]
+  readonly messages: readonly { readonly kind: string; readonly count: string }[]
+  /** The execution facts not attributed to a projected call of the Run. */
+  readonly facts: readonly SessionFactCount[]
+}
+export type SessionDiagnosticsPage = {
+  readonly runs: readonly SessionRunDiagnostic[]
+  readonly next: string | null
+  readonly exhausted: boolean
+  readonly scannedThrough: string
+  readonly basis: { readonly upper: string }
+  readonly gaps: readonly SessionDiagnosticGap[]
 }
 export type SessionSuccessBodies = {
   'create-session': { readonly session: string; readonly recovered: boolean }
@@ -114,6 +328,7 @@ export type SessionSuccessBodies = {
           readonly source: SessionTerminalSource
         }
       }
+  'read-session-diagnostics': SessionDiagnosticsPage
 }
 export type SessionOutcomes = {
   'create-session':
@@ -152,6 +367,7 @@ export type SessionOutcomes = {
     | 'basis-unavailable'
     | 'unknown'
     | 'unsupported'
+  'read-session-diagnostics': 'succeeded' | 'denied' | 'invalid' | 'basis-unavailable'
 }
 
 export type SessionProtocolRejected = {

@@ -92,6 +92,12 @@ const requests = {
     operation: 'stop-call',
     body: { ...target, controlId: 'control-2', producer: { kind: 'model', call: 'call-1' } },
   },
+  'read-session-diagnostics': {
+    ...base,
+    messageId: 'm-diagnostics',
+    operation: 'read-session-diagnostics',
+    body: { ...target, cursor: null, run: null, pageBytes: '4096' },
+  },
 } as const satisfies { readonly [O in SessionOperation]: SessionRequest<O> }
 
 function wireOf(received: { body: Buffer }): Record<string, unknown> {

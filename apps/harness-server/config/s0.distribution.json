@@ -1,6 +1,11 @@
 {
   "rows": [
     {
+      "id": "telemetry",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "storage",
       "plugin": "stubPlugin",
       "config": {}

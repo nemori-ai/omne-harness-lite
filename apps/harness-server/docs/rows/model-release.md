@@ -11,7 +11,7 @@
 
 | 行 | 成员工厂 | 行给的对象 | 配置（只放数据，全部由运维者层给，发行层不写数值） |
 | --- | --- | --- | --- |
-| `model-records` | `createSqlModelRecordsPlugin`；行体以子 fiber 装 `createModelSendStagePlugin`，`coordinator` 只经闭包交给它 | `authority`、`evidence`、`send.sources`、`initialRun`、`manifestDigest`（本页下文） | 成员部分 `owners`（`work` 取 `exempt`）、`limits`、`maxCallBytes`、`maxCommandBytes`、`combinationVersion`、`send`；应用部分 `initial`（首次执行记录的三项上限）与 `sendStage`（`maxRetainedAttempts`、`materialization.maxRecords`、`factoryQueryId`、`profiles`、`preparation`、`network`、`routes`、`transportLimits`） |
+| `model-records` | `createSqlModelRecordsPlugin`；行体以子 fiber 装 `createModelSendStagePlugin`，`coordinator` 只经闭包交给它；同一插件体以 `ModelDiagnosticsService` 包装 `createSqlModelDiagnostics`，逐次核资格后提供 `modelDiagnostics` | `authority`、`evidence`、`send.sources`、`initialRun`、`manifestDigest`（本页下文）；诊断插件取同一个 `storage`、`domains` 与 `authority` | 成员部分 `owners`（`work` 取 `exempt`）、`limits`、`maxCallBytes`、`maxCommandBytes`、`combinationVersion`、`send`；应用部分 `initial`（首次执行记录的三项上限）与 `sendStage`（`maxRetainedAttempts`、`materialization.maxRecords`、`factoryQueryId`、`profiles`、`preparation`、`network`、`routes`、`transportLimits`）；诊断部分 `diagnostics`（`diagnosticsRead` 只取 `tenant-self`，`retention` 是保留采用，缺席时 `list` 答 `unavailable`） |
 | `model-host` | `createModelRuntimeLocalPlugin` 加 `createModelRuntime` | `executionChannel`、`releaseExecution`、`qualifyObservation`、`send`（按调用现取 `modelSendBoundary`）、`retry`（恒 `unavailable`）、推送账本 | `host` 四项、`runtime` 八项、`results` 五项，行体自校验 |
 | `model-request-preparation` | `createModelRequestPreparationPlugin` | OpenAI 家族 | `maxCitedCalls`、`openai.limits`、`openai.margin` |
 
@@ -29,16 +29,21 @@
 
 `compactionTriggerPercent` 对全部官方档案生效，`coding` 等单个定义不能另设。运维者层的推荐值是 `"80"`（R2-D124：出厂 coding agent 的压缩阈值 80%）；r9 与 serve 的测试运维层用这个值。发行层仍不写它。
 
-## 两类主体与 ActorRef
+## 诊断读面 `modelDiagnostics`
+
+`model-records` 行发布 `modelDiagnostics`，读取同一租户域里的调用与派发记录。`modelCommands`、`modelSendBoundary` 与它属于同一提供者组。`diagnosticsRead: tenant-self` 显式采用本租户诊断读取：每次调用先核验主体与当前成员资格，使用 `inspect` 只读动作，返回前再次核验，再释放资格租约；不依赖另一个并发调用留在共享表里的资格。登录主体 L 只得到 `inspect` 和 `read-account`，分别供调用身份/状态与派发账目读取，不能使用旧 `facts`、`account` 写路径。采用依据为 [RFC-0013 revision 2](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#决定范围)。配置 `retention` 缺席时每次 list 答 `unavailable`；阶段计时尚未记录，`timing` 三项为 `unknown`。唯一消费者仍是服务端会话诊断投影。
+
+## 主体类别与 ActorRef
 
 | 主体 | 形状 | 签发 | 核验 |
 | --- | --- | --- | --- |
+| L | `acting-for-tenant`，`actor.component === 'server-entry'`，`work.owner === 'identity-login'` | 入口按已识别登录签发 | 核验颁发来源、目标租户与当前成员；原 proof 在入口出站前复核 |
 | W | `acting-for-tenant`，`actor.component === 'sessionWorkPrincipals'`，`work.owner === 'session'` | 入口 `sessionWorkPrincipals` | `principalVerifier` 核为本运行签发，租户与 access 相等 |
 | M | `acting-for-tenant`，actor 是系统主体 `modelHostAuthority`，`work.owner === 'model'`，`work.work` 是 call id | `modelHostAuthority.resolve` 内的窄签发闭包（actor 与 `work.owner` 固定） | 只有 `resolve` 登记过的对象才算 M；同形对象没有登记项 |
 
 `ActorRef` 的来源（model-contract SPEC「ActorRef 是身份拥有者生成的可核验原事实引用」）：
 
-- `authorize` 返回的原主体引用：`owner` 是 `tenantStanding`（能重读同一记录的 standing 来源的服务键），`subject` 是 `standing.evidence.record`，`revision` 是 `standing.evidence.revision`。W 与 M 都指向租户账号的 standing 记录；M 代该账号行事。这是租户级的记录：同一租户的全部 W 与 M 共用一个 ActorRef（见已知限制）。
+- `authorize` 返回的原主体引用：`owner` 是 `tenantStanding`（能重读同一记录的 standing 来源的服务键），`subject` 是 `standing.evidence.record`，`revision` 是 `standing.evidence.revision`。L、W 与 M 都指向租户账号的 standing 记录；M 代该账号行事。这是租户级的记录：同一租户的全部 L、W 与 M 共用一个 ActorRef（见已知限制）。
 - `execution(ExecutionRef)` 返回的绑定引用：`owner` 是 `modelHostAuthority`，`subject` 是 `instance`，`revision` 是 `generation`。通道 gate 已核这两项属于本绑定记录，本模块再核 `instance` 等于 `resolve` 时 `channel.prepare` 返回的 instance。
 
 没有可核验来源的字段不编造：M 没有自己的签发记录修订，所以不另造 M 专用的 `revision`。
@@ -58,9 +63,9 @@
 
 `ModelCommandsAuthority.authorize`、`execution` 与 `ModelSendSource.current` 是同步的，`principalVerifier.verify` 与 `tenantStanding.read` 是异步的。应用不把异步读口塞进同步回调：
 
-- W 的受理点是 `model-host` 行交给 runtime 的命令包装（`src/model/commands-qualifying.ts`）：每个方法先核验主体、读 standing、把结果登记在表里，调用真件，finally 释放。捕获只活在这一次调用里。`qualifyObservation` 同法。
+- L 与 W 的受理点是 `model-host` 行交给 runtime 的命令包装（`src/model/commands-qualifying.ts`）：每个方法先核验主体、读 standing、把结果登记在表里，调用真件，finally 释放。捕获只活在这一次调用里。`recall` 与 `dispatches` 另持独立读租约，读前和读后都直接使用本次异步核验结果；共享表只供同步 authority 消费。`qualifyObservation` 保持原路径。
 - M 的受理点是 `resolve`。登记项随 `model-host` 行的 fiber 退役失效（`currentForReader` 的代次闭包）。
-- `authorize` 查表：没有登记项答 `unavailable`（`model-access-qualification`）；核验拒绝、不是成员、租户不符答 `denied`；核验或 standing 不可用答 `unavailable`；再按 R2-D33 方案 A 的九动作矩阵判：`admit`、`control` 只 W；`facts`、`content`、`handoff`、`account`、`observe` W 与 M；`recovery`、`send` 只 M 且限它绑定的那一个调用；租户级 `recovery`（`scanPending`）答 `unavailable`。
+- `authorize` 查表：未捕获资格答 `unavailable`；核验拒绝、非成员、租户不符或装配退役答 `denied`，核验或 standing 不可用答 `unavailable`。原九动作矩阵保持：`admit`、`control` 只 W；`facts`、`content`、`handoff`、`account`、`observe` 为 W/M；`recovery`、`send` 只 M。新只读动作 `inspect`、`read-account` 为 L/W/M；M 仍限原绑定调用，租户级 recovery 不支持。
 - `current(demand)`：`demand.principal` 是登记过的 M、租户与调用相等、宿主 fiber 未退役时 `authorized: true`；`noTenantBinding` 等于 `demand.supplier.credential.kind === 'factory'`（见已知限制：这使成员的工厂围栏永不拒绝）。
 
 ## 运行级组合与释放次序
@@ -102,7 +107,7 @@
 - **实时撤权（#677）**：M 的登记项只随宿主 fiber 退役失效；W 只在每次调用时重读 standing。撤权确认与下一次调用之间没有同步来源。
 - **直接经 `modelCommands` 服务的 W 调用没有受理点**，一律 `unavailable`（`principal-not-qualified`）。M2 树里这样的消费者只有 `model-request-preparation` 的世系读取，首次调用没有世系。
 - **`noTenantBinding` 等于 `demand.supplier.credential.kind === 'factory'`，所以成员的工厂围栏永不拒绝**：对工厂回退的全部防护依赖保管库的 `resolveFor`，它按 facts a.4 核对该租户是否持有任何绑定。供应商补全只在 `presentFor` 答该租户没有绑定时给工厂引用，见[模型凭据](#模型凭据)。
-- **ActorRef 是租户级的 standing 记录**：同一租户的全部 W 与 M 共用一个 ActorRef，`resolve` 第 3 步对原发起者的核对退化为「同一租户」。M2 是个人租户，按 R2-D33 方案 A 接受；按主体区分的 ActorRef 由入口签发者在波 3 给出。
+- **ActorRef 是租户级的 standing 记录**：同一租户的全部 L、W 与 M 共用一个 ActorRef，`resolve` 第 3 步对原发起者的核对退化为「同一租户」。M2 是个人租户，按 R2-D33 方案 A 接受；按主体区分的 ActorRef 由入口签发者在波 3 给出。
 - **W 的受理捕获以调用为期，不以入口为期**：一个 W 在宿主包装的命令调用进行中时，拿同一个 W 直接经 `modelCommands` 服务发起的调用也被放行（`authorize` 只查表里有没有这个对象的捕获）。调用结束后捕获释放，直接调用回到 `unavailable`。记录，不修。
 - **s0 树不变**：`config/s0.distribution.json` 与 s0 允许表没有改动，s0 只装 `stubPlugin`；真件只进 `serve.distribution.json`。
 - **`receive`、`lateFact`、`retry` 证据恒 `unavailable`**：首内容保持 `none-proven`，重试收场 `policy-unavailable`（首内容前停顿长期 `running`，用户仍可取消），晚到账目不补录。
@@ -122,5 +127,6 @@
 - [凭据管理的准入与保管](../../tests/rows/model/credential-custody.spec.ts)：真实参考准入与真实文件保管库上，只有代同一租户行事的登录主体能绑定、查看、解绑；他租户、会话工作主体与伪造主体在触到保管库之前答 `denied`；非成员租户答 `denied`，成员资格未知答 `basis-unavailable`；保管库读不出时答 `basis-unavailable` 且字节不变；插件卸载后写入答 `basis-unavailable`；宿主时钟读不出时不写。
 - [凭据保管的答复映射](../../tests/rows/model/credential-mapping.spec.ts)：保管端口对存储的每种答复（写入未确认、未存时间的绑定、时间无法解析、凭据端口抛出或拒绝）各有一个映射；供应商补全在任何情况下都不退回工厂引用。
 - `tests/serve.spec.ts` 的发行树：25 个真实行装载、接受、停止，退出 0。
+- [会话诊断的两个冒烟](../../tests/rows/session-diagnostics/flow.spec.ts)：真实 `serve` 进程里，上游 504 时 Agent 的 `no-reply` 原因带 `cause` 与 `upstreamStatus` 到达 CLI 的投影。同一调用的 Model 分支要求：登录主体经只读资格读 `modelDiagnostics`；已保存的 504 派发给出失败与上游状态，未记录的账目保持 `unknown`（原因 `not-recorded`）。
 
 这些用例证明接线与失败关闭，不证明一次真实的 OpenRouter 发送（S2-3，联调 B）。
