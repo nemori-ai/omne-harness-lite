@@ -1,6 +1,7 @@
+import { authorBody } from './ledger-author-body.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { ToolResult } from '@omne-harness/tool-contract'
-import { materialContentSeal } from './ledger-material-content.ts'
+import type { ToolRenderedResult } from '@omne-harness/tool-contract'
+import { materialContent, materialContentSeal } from './ledger-material-content.ts'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { DurableEvidence, ToolFailure, RawOutput } from '@omne-harness/tool-contract'
 import type { ToolMaterialSeal } from '@omne-harness/tool-contract/provider'
@@ -81,6 +82,42 @@ export function adoptResultMaterials(
       },
     )
   }
+  if (channels.original.kind === 'offloaded') {
+    const { seal, description } = channels.original.body
+    if (description.previewKind === 'author-summary') {
+      const authored = authorBody(snapshot, description.source)
+      if ('failure' in authored) return authored
+      const { retention, ...fixedDescription } = description
+      if (
+        !sameFactValue(authored.ok.prepared.description, fixedDescription) ||
+        !sameFactValue(authored.ok.prepared.seal, seal) ||
+        !sameFactValue(authored.ok.policy.adoption, retention.adoption)
+      )
+        return invalid('original.source', 'sealed-body-changed')
+    }
+    const prepared = preparedMaterial(snapshot, seal, 'body')
+    if ('failure' in prepared) return prepared
+    const material = prepared.ok
+    writes.push(
+      { kind: 'delete', key: `material-use:preparation:${material.writeOperation}` },
+      {
+        kind: 'put',
+        record: {
+          kind: 'material-use',
+          use: {
+            id: `body:${description.bodyId}`,
+            kind: 'offloaded-body',
+            material: material.material,
+            writeOperation: material.writeOperation,
+            result: result.result,
+            bodyId: description.bodyId,
+            expiresAt: description.retention.expiresAt,
+            basis: result.source,
+          },
+        },
+      },
+    )
+  }
   return succeed(writes)
 }
 
@@ -97,34 +134,66 @@ export function releaseFinalPreparation(
   ])
 }
 
-export function releaseReplacedRaw<B extends ContentBlock>(
+export function adoptRawMaterials<B extends ContentBlock>(
   snapshot: Snapshot,
   raw: RawOutput,
-  value: ToolResult<B>,
-  basis: DurableEvidence,
+  value: ToolRenderedResult<B>,
+  result: Pick<ResultRecord, 'result' | 'source'>,
 ): Outcome<readonly LedgerWrite[], ToolFailure> {
-  const refs = [
+  const prepared = preparedRawMaterial(snapshot, raw)
+  if ('failure' in prepared) return prepared
+  const nativeRefs = [
     ...value.attachments,
     ...value.content.flatMap(block => ('ref' in block ? [block.ref] : [])),
     ...(value.original.kind === 'offloaded'
-      ? [
-          value.original.source,
-          ...value.original.summary.flatMap(block => ('ref' in block ? [block.ref] : [])),
-        ]
+      ? value.original.summary.flatMap(block => ('ref' in block ? [block.ref] : []))
       : []),
-    ...[...snapshot.facts.values()].flatMap(saved =>
-      saved.fact.kind === 'process'
-        ? saved.fact.blocks.flatMap(block => ('ref' in block.content ? [block.content.ref] : []))
-        : [],
-    ),
   ]
-  if (refs.some(ref => sameFactValue(ref, raw.content))) return succeed([])
-  const prepared = preparedRawMaterial(snapshot, raw)
-  if ('failure' in prepared) return prepared
-  return succeed([
-    { kind: 'delete', key: `material-use:preparation:${prepared.ok.writeOperation}` },
-    cleanupMaterial(prepared.ok, basis),
-  ])
+  const processRefs = [...snapshot.facts.values()].flatMap(saved =>
+    saved.fact.kind === 'process'
+      ? saved.fact.blocks.flatMap(block => ('ref' in block.content ? [block.content.ref] : []))
+      : [],
+  )
+  const writes: LedgerWrite[] = []
+  for (const material of snapshot.materials.values()) {
+    if (material.purpose !== 'raw' || material.state.kind !== 'sealed') continue
+    const reference = materialContent(material.state.seal)
+    const purposes: ('native-reference' | 'process-history')[] = []
+    if (nativeRefs.some(ref => sameFactValue(ref, reference))) purposes.push('native-reference')
+    if (processRefs.some(ref => sameFactValue(ref, reference))) purposes.push('process-history')
+    if (purposes.length === 0 && material.writeOperation !== prepared.ok.writeOperation) continue
+    const checked = preparedMaterial(snapshot, material.state.seal, 'raw')
+    if ('failure' in checked) return checked
+    writes.push(...adoptRawUses(material, purposes, result))
+  }
+  return succeed(writes)
+}
+
+function adoptRawUses(
+  material: MaterialRecord,
+  purposes: readonly ('native-reference' | 'process-history')[],
+  result: Pick<ResultRecord, 'result' | 'source'>,
+): readonly LedgerWrite[] {
+  const writes: LedgerWrite[] = [
+    { kind: 'delete', key: `material-use:preparation:${material.writeOperation}` },
+  ]
+  for (const kind of purposes)
+    writes.push({
+      kind: 'put',
+      record: {
+        kind: 'material-use',
+        use: {
+          id: `${kind}:${result.result}:${material.writeOperation}`,
+          kind,
+          material: material.material,
+          writeOperation: material.writeOperation,
+          result: result.result,
+          basis: result.source,
+        },
+      },
+    })
+  if (purposes.length === 0) writes.push(cleanupMaterial(material, result.source))
+  return writes
 }
 
 function cleanupMaterial(

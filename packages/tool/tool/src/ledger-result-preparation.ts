@@ -15,8 +15,13 @@ import { digestOf, mintEvidence } from './evidence.ts'
 import { put, reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
 import type { LedgerDomain } from './ledger-store.ts'
 import type { TerminalText } from './ledger-start.ts'
+import type { BodyPolicy } from './result-offloading.ts'
 import type { createLedgerMaterialCustody } from './ledger-material-custody.ts'
-import { prepareResultChannels, type ResultChannels } from './ledger-result-material.ts'
+import {
+  prepareResultChannels,
+  type PreparedResultChannels,
+  type ResultChannels,
+} from './ledger-result-material.ts'
 
 export type SyntheticNeed = Readonly<{
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>
@@ -28,9 +33,14 @@ export type ResultPreparationRecord = Readonly<{
   inputDigest: string
   need: SyntheticNeed
   basis: DurableEvidence
-  state: Readonly<{ kind: 'preparing' }> | Readonly<{ kind: 'prepared'; channels: ResultChannels }>
+  policy: BodyPolicy
+  state:
+    | Readonly<{ kind: 'preparing' }>
+    | Readonly<{ kind: 'prepared'; channels: PreparedResultChannels }>
 }>
-export type PreparedSynthetic = ResultPreparationRecord &
+export type PendingSynthetic = ResultPreparationRecord &
+  Readonly<{ state: Readonly<{ kind: 'prepared'; channels: PreparedResultChannels }> }>
+export type PreparedSynthetic = Omit<ResultPreparationRecord, 'state'> &
   Readonly<{ state: Readonly<{ kind: 'prepared'; channels: ResultChannels }> }>
 export type SyntheticDecision<T> =
   | Decision<T>
@@ -54,13 +64,14 @@ export function createResultPreparation<P, B extends ContentBlock>(
     custody: ReturnType<typeof createLedgerMaterialCustody<P>>
     transact: PreparationTransaction
     text: TerminalText<B>
+    policy: BodyPolicy
   }>,
 ) {
   return async (
     input: MutationInput<P> & Readonly<{ inputDigest: string }>,
     need: SyntheticNeed,
     validate: (snapshot: Snapshot) => Outcome<void, ToolFailure>,
-  ): Reply<PreparedSynthetic> => {
+  ): Reply<PendingSynthetic> => {
     const identity = decodeToolOperationId(
       `result-preparation:${createHash('sha256')
         .update(input.operation)
@@ -106,6 +117,7 @@ export function createResultPreparation<P, B extends ContentBlock>(
           inputDigest: input.inputDigest,
           need,
           basis,
+          policy: ports.policy,
           state: { kind: 'preparing' },
         }
         return {
@@ -138,6 +150,8 @@ export function createResultPreparation<P, B extends ContentBlock>(
       ports.custody,
       { ...input, operation: id, source: intent.ok.basis },
       made.ok,
+      intent.ok.policy,
+      null,
       validate,
     )
     if ('failure' in channels) return channels

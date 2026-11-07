@@ -93,13 +93,29 @@ W3 的最终结果准备、正文页与材料释放增量依据 [#1168](https://
 
 ## 受理账本怎样满足 P01、P02、P08 与 P09
 
-账本由 `createToolLedger(store, guards, clock, configuration, ports)` 构造。runtime 由 `createToolRuntime(dependencies, configuration)` 构造。两者可以取同一个 `ToolConfiguration`：账本只读其中的 `resultPageBytes`、`ledgerCommitAttempts` 与 `queueCapacity`。数据形状与决定顺序见 [architecture](docs/architecture.md#本包的记录仓与决定器g1)。下列规则按编号对应测试。
+账本由 `createToolLedger(store, guards, clock, configuration, ports)` 构造。runtime 由 `createToolRuntime(dependencies, configuration)` 构造。两者可以取同一个 `ToolConfiguration`。账本读取 `resultPageBytes`、`ledgerCommitAttempts`、`queueCapacity` 与 `offloading`。数据形状与决定顺序见 [architecture](docs/architecture.md#本包的记录仓与决定器g1)。下列规则按编号对应测试。
 
-签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts, rawCustody, finalCustody, delivery, controls }`。`configuration` 给出结果页大小、提交重试上限与队列容量，三者都只有一处来源，即 `ToolConfiguration`。第五参数 `ToolLedgerPorts<P>` 必填，提供 `materials`、`releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`，不提供默认授权或旧构造。`facts` 是账本的受信恢复读口，runtime 的结算驱动只使用 commands，不再注入它。
+签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts, rawCustody, bodyCustody, finalCustody, delivery, controls }`。`configuration` 给出结果页大小、提交重试上限、队列容量与正文策略，唯一来源是 `ToolConfiguration`。第五参数 `ToolLedgerPorts<P>` 必填，提供 `materials`、`releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`，不提供默认授权或旧构造。`facts` 是账本的受信恢复读口，runtime 的结算驱动只使用 commands，不再注入它。
 
-`rawCustody` 提供 `ToolOutputCustody` 的 preserve 和 inspect 窄分面。它在原 call 域先记录材料准备责任，再写入原始字节，保留作者 codec。新准备要求调用已启动且仍运行；已封存操作可认回。重试异值冲突，未确认封存时 inspect 返回 unknown，不声称可靠排除。两入口均检查 write 资格，披露前再次检查。purpose 区分 raw、final 和 result 材料，不能把 final 当成 raw 认回。当前此分面已有独立入口，宿主生产接线及 raw 用途解除仍待完成。
+`rawCustody` 提供 `ToolOutputCustody` 的 preserve 和 inspect 窄分面。它在原 call 域先记录材料准备责任，再写入原始字节，保留作者 codec。新准备要求存在原 start，且调用处于 starting 或 running；已封存操作可认回。重试异值冲突，未确认封存时 inspect 返回 unknown，不声称可靠排除。两入口均检查 write 资格，披露前再次检查。purpose 区分 raw、body、final 和 result 材料，不能跨用途认回。宿主采用同一账本 raw 保管端口。
 
-结果提交在同一次 call CAS 中核对各最终通道的 sealed 材料和准备用途，将准备用途替换为绑定结果与交付身份的 delivery 用途。真实执行结果同时解除已替代 envelope 的准备用途并记录 material-cleanup 待办。系统受理拒绝、rejectPending 和 recordStart(rejected) 也采用通道用途转换。releaseDelivery 在可靠消费依据通过核验后，同提交解除对应 delivery 用途并记录清理待办。material-cleanup 只表达待检查的责任，不授权物理删除；维护仍须重核其他用途、租约与对象围栏。raw 的替代、正文 TTL 和维护执行尚未完成。
+结果提交在同一次 call CAS 中核对各最终通道的 sealed 材料和准备用途，将准备用途替换为绑定结果与交付身份的 delivery 用途。真实执行结果同时解除已替代 envelope 的准备用途并记录 material-cleanup 待办。系统受理拒绝、rejectPending 和 recordStart(rejected) 也采用通道用途转换。releaseDelivery 在可靠消费依据通过核验后，同提交解除对应 delivery 用途并记录清理待办。material-cleanup 只表达待检查的责任，不授权物理删除；维护仍须重核其他用途、租约与对象围栏。已替代 raw 在同次结算解除准备责任。仍被原生引用或历史过程引用的 raw 分别采用 native-reference 与 process-history 用途，两者可同时存在。交付释放不解除这两种用途。历史过程引用尚无释放协议，不能据此安排删除。维护执行尚未完成。
+
+### 正文封存与期限激活
+
+`bodyCustody` 是账本提供给受信绑定的文本保管端口，类型归 tool-contract provider 入口的 `ToolBodyCustody`。它接收原调用、start、操作、来源依据和完整文本帧，不接收任意存储地址。新准备只允许 starting 或 running。已有操作按固定输入认回，异输入冲突。
+
+准备意图先保存输入摘要、原声明和有效策略，再交接实际材料，最后登记 sealed。写入或登记未知时保留准备责任，inspect 区分 sealed、preparing 与 unknown。每次操作核验当前调用资格和原 start。封存回执包含正文身份、表示、大小、引用与保管依据，没有已激活期限。
+
+`offloading` 显式配置内联字节、最长保管毫秒、正文最大字节和机械预览字节，均为正安全整数。作者声明只能收紧内联及期限上限。首次准备固定有效策略，重试不改用新配置。
+
+作者或 renderer 返回 `ToolRenderedResult`。它的 original.source 只可采用同调用登记的 sealed body。结算核验完整引用和实际材料 seal，并在最终 CAS 中重核。作者 content 与 summary 的模型可见文本各自不得超过固定的有效内联上限。超限返回 invalid，保留准备责任，不重执行业务。
+
+普通返回按模型可见文本的 UTF-8 字节计量。等于有效上限仍内联，超过上限保存独立正文并生成有界首尾预览。data、原生引用和仅对人可见内容不计入阈值，保持各自含义。正文超出系统最大字节数时拒绝结算，不能静默截断原文。
+
+最终 `ToolResult` 在同次 CAS 中获得正文身份、表示、字节数、预览类别和固定期限。该写集同时建立 offloaded-body 用途、解除相应 preparation、记录结果和时间水位。原操作已提交时先认回原回执，不读材料、不重新取时钟，也不续期。期限溢出拒绝提交。交付释放不解除正文用途或改变期限。
+
+当前已实现文本准备、封存采用和期限激活。正文语义页、到期读取门禁、页租约、物理回收及完整作者 writer 仍待实现。包内验证不表示这些生命周期后半段已经交付。
 
 ### 10 边界与资格
 

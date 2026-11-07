@@ -2,7 +2,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import {
   decodeToolOperationId,
   type ToolOperationId,
-  type ToolResult,
+  type ToolRenderedResult,
   type DurableEvidence,
   type Adoption,
 } from '@omne-harness/tool-contract'
@@ -23,9 +23,11 @@ export async function createTestResultChannels<P, B extends ContentBlock>(
     access: CallAccess<P>
     operation: ToolOperationId
     source: DurableEvidence
-    value: ToolResult<B>
+    value: ToolRenderedResult<B>
   }>,
 ): Promise<ResultChannels> {
+  if (input.value.original.kind !== 'none')
+    throw new Error('offloaded fixtures require real body preparation')
   const value = encodeToolMaterial(input.value)
   if ('failure' in value) throw new Error('fixture result is not encodable')
   const slot = async (name: string, part: unknown) => {
@@ -61,13 +63,6 @@ export async function createTestResultChannels<P, B extends ContentBlock>(
     content: await slot('content', input.value.content),
     data: await slot('data', input.value.data),
     attachments: await slot('attachments', input.value.attachments),
-    original:
-      input.value.original.kind === 'none'
-        ? { kind: 'none' }
-        : {
-            kind: 'offloaded',
-            source: input.value.original.source,
-            summary: await slot('summary', input.value.original.summary),
-          },
+    original: { kind: 'none' },
   }
 }

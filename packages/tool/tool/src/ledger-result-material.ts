@@ -4,34 +4,63 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolOperationId,
+  type ToolOffloadedBody,
+  type ToolRenderedResult,
   type Adoption,
   type ToolFailure,
   type ToolResult,
 } from '@omne-harness/tool-contract'
+import {
+  decodeToolBodyId,
+  decodeToolMaterialInstant,
+  judgeCommittedToolResult,
+} from '@omne-harness/tool-contract/provider'
 import type {
   CallAccess,
   ResultPolicy,
   ToolMaterialFingerprint,
   ToolMaterialSeal,
   ToolMaterialStore,
+  ToolMaterialInstant,
 } from '@omne-harness/tool-contract/provider'
 import type { createLedgerMaterialCustody } from './ledger-material-custody.ts'
 import { encodeToolMaterial } from './material-codec.ts'
+import { materialContent } from './ledger-material-content.ts'
+import { planResultBody, type BodyPolicy } from './result-offloading.ts'
 
-export type ResultChannels = Readonly<{
+type ChannelSlots = Readonly<{
   kind: 'channels'
   value: ToolMaterialFingerprint
   content: ToolMaterialSeal
   data: ToolMaterialSeal
   attachments: ToolMaterialSeal
-  original:
-    | Readonly<{ kind: 'none' }>
-    | Readonly<{
-        kind: 'offloaded'
-        source: Extract<ToolResult<ContentBlock>['original'], { kind: 'offloaded' }>['source']
-        summary: ToolMaterialSeal
-      }>
 }>
+export type PreparedBody = Readonly<{
+  description: Omit<ToolOffloadedBody, 'retention'>
+  seal: ToolMaterialSeal
+  retentionMs: number
+  policy: Adoption
+}>
+export type PreparedResultChannels = ChannelSlots &
+  Readonly<{
+    original:
+      | Readonly<{ kind: 'none' }>
+      | Readonly<{
+          kind: 'offloaded'
+          summary: ToolMaterialSeal
+          body: PreparedBody
+        }>
+  }>
+export type ResultChannels = ChannelSlots &
+  Readonly<{
+    original:
+      | Readonly<{ kind: 'none' }>
+      | Readonly<{
+          kind: 'offloaded'
+          summary: ToolMaterialSeal
+          body: Readonly<{ description: ToolOffloadedBody; seal: ToolMaterialSeal }>
+        }>
+  }>
 
 type Custody<P> = ReturnType<typeof createLedgerMaterialCustody<P>>
 type Validation<P> = Parameters<Custody<P>['preserve']>[4]
@@ -40,9 +69,64 @@ type PreparationInput<P> = Parameters<Custody<P>['preserve']>[0]
 export async function prepareResultChannels<P, B extends ContentBlock>(
   custody: Custody<P>,
   input: PreparationInput<P>,
-  value: ToolResult<B>,
+  rendered: ToolRenderedResult<B>,
+  policy: BodyPolicy,
+  authored: PreparedBody | null,
   validate: Validation<P>,
-): Promise<Outcome<ResultChannels, ToolFailure>> {
+): Promise<Outcome<PreparedResultChannels, ToolFailure>> {
+  const planned = planResultBody(rendered, policy)
+  if ('failure' in planned) return planned
+  let value = rendered
+  let body: PreparedBody | null = authored
+  if (planned.ok.kind === 'author' && authored === null)
+    return fail({
+      kind: 'invalid',
+      field: 'original.source',
+      reason: 'same-call-sealed-body-required',
+    })
+  if (planned.ok.kind === 'text') {
+    const bytes = encodeToolMaterial(planned.ok.frames)
+    if ('failure' in bytes) return bytes
+    const identity = encodeToolMaterial({ source: input.source, policy, value: rendered })
+    if ('failure' in identity) return identity
+    const operation = decodeToolOperationId(
+      `result-body:${createHash('sha256').update(input.operation).digest('hex')}`,
+    )
+    if ('failure' in operation)
+      return fail({ kind: 'invalid', field: 'operation', reason: 'body-identity' })
+    const saved = await custody.preserve(
+      { ...input, operation: operation.ok },
+      bytes.ok,
+      identity.ok.fingerprint,
+      'body',
+      validate,
+    )
+    if ('failure' in saved) return saved
+    const id = decodeToolBodyId(
+      `body:${createHash('sha256').update(input.operation).digest('hex')}`,
+    )
+    if ('failure' in id) return fail({ kind: 'invalid', field: 'bodyId', reason: 'body-identity' })
+    if (policy.declaration.kind !== 'text')
+      return fail({ kind: 'invalid', field: 'body', reason: 'text-declaration-required' })
+    const source = materialContent(saved.ok)
+    body = {
+      seal: saved.ok,
+      description: {
+        source,
+        bodyId: id.ok,
+        representation: policy.declaration,
+        bodyBytes: planned.ok.bodyBytes,
+        previewKind: 'mechanical-head-tail',
+      },
+      retentionMs: policy.retentionMs,
+      policy: policy.adoption,
+    }
+    value = {
+      ...rendered,
+      content: planned.ok.content,
+      original: { kind: 'offloaded', source, summary: planned.ok.summary },
+    }
+  }
   const encoded = encodeToolMaterial(value)
   if ('failure' in encoded) return encoded
   const slot = async (name: string, part: unknown) => {
@@ -74,11 +158,12 @@ export async function prepareResultChannels<P, B extends ContentBlock>(
   if ('failure' in data) return data
   const attachments = await slot('attachments', value.attachments)
   if ('failure' in attachments) return attachments
-  let original: ResultChannels['original'] = { kind: 'none' }
+  let original: PreparedResultChannels['original'] = { kind: 'none' }
   if (value.original.kind === 'offloaded') {
     const summary = await slot('summary', value.original.summary)
     if ('failure' in summary) return summary
-    original = { kind: 'offloaded', source: value.original.source, summary: summary.ok }
+    if (body === null) return unavailable('body preparation is missing')
+    original = { kind: 'offloaded', body, summary: summary.ok }
   }
   return succeed({
     kind: 'channels',
@@ -127,12 +212,22 @@ export async function readResultChannels<P, B extends ContentBlock>(
   if (channels.original.kind === 'offloaded') {
     const summary = await readChannel(store, access, channels.original.summary)
     if ('failure' in summary) return summary
-    original = { kind: 'offloaded', source: channels.original.source, summary: summary.ok }
+    original = { kind: 'offloaded', ...channels.original.body.description, summary: summary.ok }
   }
   const value = { content: content.ok, data: data.ok, attachments: attachments.ok, original }
   const checked = policyResult(policy, value)
   if ('failure' in checked) return checked
-  const encoded = encodeToolMaterial(checked.ok)
+  const encoded = encodeToolMaterial({
+    ...checked.ok,
+    original:
+      checked.ok.original.kind === 'none'
+        ? checked.ok.original
+        : {
+            kind: 'offloaded',
+            source: checked.ok.original.source,
+            summary: checked.ok.original.summary,
+          },
+  })
   if (
     'failure' in encoded ||
     encoded.ok.fingerprint.digest !== channels.value.digest ||
@@ -146,6 +241,35 @@ function policyResult<B extends ContentBlock>(
   policy: ResultPolicy<B>,
   value: unknown,
 ): Outcome<ToolResult<B>, ToolFailure> {
-  const checked = policy.judgeResult(value as ToolResult<ContentBlock>)
+  const checked = judgeCommittedToolResult(policy, value)
   return 'failure' in checked ? unavailable('stored result violates its contract') : checked
+}
+
+export function activateResultChannels(
+  channels: PreparedResultChannels,
+  activatedAt: ToolMaterialInstant | null,
+): Outcome<ResultChannels, ToolFailure> {
+  if (channels.original.kind === 'none')
+    return succeed({ ...channels, original: channels.original })
+  if (activatedAt === null) return unavailable('body activation requires a trusted time')
+  const { body, summary } = channels.original
+  const expires = Date.parse(activatedAt) + body.retentionMs
+  if (!Number.isFinite(expires) || Math.abs(expires) > 8_640_000_000_000_000)
+    return fail({ kind: 'invalid', field: 'retention', reason: 'expiry-overflow' })
+  const decoded = decodeToolMaterialInstant(new Date(expires).toISOString())
+  if ('failure' in decoded) return unavailable('body expiry is not a canonical instant')
+  return succeed({
+    ...channels,
+    original: {
+      kind: 'offloaded',
+      summary,
+      body: {
+        seal: body.seal,
+        description: {
+          ...body.description,
+          retention: { adoption: body.policy, activatedAt, expiresAt: decoded.ok },
+        },
+      },
+    },
+  })
 }

@@ -8,7 +8,7 @@
 
 本包实现 `@omne-harness/tool-contract` 的契约。它管理并发、等待、取消与状态，两个实现在这里可以不同，所以不属于契约。本包不依赖 Cordis，独立程序不装 Cordis 也能执行工具。独立执行已实现。runtime 实现了托管路径的一部分。下一节列出五档支持范围。准确的支持范围见 [SPEC.md](SPEC.md#当前范围)。
 
-`encodeToolMaterial` 实现 [M02.1](../tool-contract/docs/material-protocol.md#m021-指纹编码-v1) 的规范 JSON 字节和 SHA-256 指纹。调用者先使用身份拥有者的 codec 转成数据。入口拒绝非数据值，不执行访问器或转换钩子。既有 `canonicalDigest` 编码不变。新编码器尚未接入 final 事实保管或结果卸载。验证见[固定向量测试](tests/material-codec.spec.ts)。
+`encodeToolMaterial` 实现 [M02.1](../tool-contract/docs/material-protocol.md#m021-指纹编码-v1) 的规范 JSON 字节和 SHA-256 指纹。调用者先使用身份拥有者的 codec 转成数据。入口拒绝非数据值，不执行访问器或转换钩子。既有 `canonicalDigest` 编码不变。final 事实保管与结果材料准备已使用此编码器。验证见[固定向量测试](tests/material-codec.spec.ts)。
 
 ## 支持范围
 
@@ -214,7 +214,7 @@ tool/
 
 读取成功、原工具终态、内容遍历和原文卸载分别表达。failed 原工具也可成功读取。元调用 completed 只表示命令答复。内容结束不表示附件或卸载原文字节已读。附件页提供 base64，收齐字节后按 mediaType 解码。引用不授权，每页仍核当前资格。原件字节经过[完整读取操作的资格判定](SPEC.md#27-固定结果与内容读取)中的 `read-raw-content` 一致判定，没有 raw selector 或 raw 口旁路。
 
-完整响应、块及完整可调用参数都受预算约束，不能装下时明确 unsupported。固定错误无法单页交付时构造抛 TypeError。固定版本引用无 TTL，适配器重建和交付解除不使它失效。精确协议及提供者前提见 [SPEC 第 28 条](SPEC.md#28-tools-固定结果适配器)。当前证据是非耐久内存组合，不含真实模型、生产存储或 Cordis。
+完整响应、块及完整可调用参数都受预算约束，不能装下时明确 unsupported。固定错误无法单页交付时构造抛 TypeError。适配器重建保留固定版本身份。卸载正文已在结算时获得固定期限；语义正文页、到期读取门禁与物理回收尚未实现，当前 reader 尚未提供完整卸载生命周期。精确协议及提供者前提见 [SPEC 第 28 条](SPEC.md#28-tools-固定结果适配器)。当前证据是非耐久内存组合，不含真实模型、生产存储或 Cordis。
 
 
 宿主的入站参数限制须与 `ToolsOptions.arguments` 对齐。runtime 先检查输入，作者 codec 再解释参数。较小的宿主上限可能拒绝作者本可解析的续读请求。两个层级均保留明确预算，并验证实际装配。

@@ -8,15 +8,10 @@ import {
 } from '@omne-harness/tool'
 import { createMemoryToolContent } from '@omne-harness/tool/testing'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
-import {
-  type Attachment,
-  type ContentPage,
-  type RawOutput,
-  type ToolResult,
-} from '@omne-harness/tool-contract'
+import { type Attachment, type ContentPage } from '@omne-harness/tool-contract'
 import type { ToolMaterialStore } from '@omne-harness/tool-contract/provider'
 import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
-import { settlementFixture } from './settlement-values.ts'
+import { settlementFixture, sealedText, type SettlementValue } from './settlement-values.ts'
 import { testAssembly } from './testing-values.ts'
 import {
   testSettlementPorts,
@@ -30,7 +25,6 @@ import {
   tenantA,
   tenantB,
   text,
-  type Block,
   type Principal,
 } from './runtime-values.ts'
 
@@ -46,10 +40,7 @@ function attachment(bytes = BYTES, key = 'content'): Attachment {
 }
 const resultVersion = (value: string) => ok(decodeToolResultVersion(value))
 
-async function fixture(
-  value?: ToolResult<Block> | ((raw: RawOutput) => ToolResult<Block>),
-  name = 'settlement',
-) {
+async function fixture(value?: SettlementValue, name = 'settlement') {
   const a = attachment()
   const content = createMemoryToolContent<Principal>()
   const f = await settlementFixture({
@@ -374,7 +365,14 @@ describe('fixed result and content reads through the runtime', () => {
         attachments: [],
       },
     ]) {
-      const f = await fixture(value)
+      const f = await fixture(async (_raw, ledger, access) =>
+        value.original.kind === 'none'
+          ? value
+          : {
+              ...value,
+              original: { ...value.original, source: (await sealedText(ledger, access)).source },
+            },
+      )
       ok(f.content.controls.seed({ ...f.f.access, attachment: empty, bytes: new Uint8Array() }))
       expect(ok(await f.runtime.content.read({ ...f.input, attachment: empty }))).toMatchObject({
         offset: '0',
@@ -722,7 +720,6 @@ describe('fixed result and content reads through the runtime', () => {
   })
 
   it('associates summary refs independently of the offloaded source', async () => {
-    const empty = attachment(new Uint8Array(), 'offloaded')
     const a = attachment()
     const ref = {
       kind: 'file' as const,
@@ -731,12 +728,16 @@ describe('fixed result and content reads through the runtime', () => {
       ref: a,
       transcript: null,
     }
-    const f = await fixture({
+    const f = await fixture(async (_raw, ledger, access) => ({
       content: [],
       data: { kind: 'none' },
-      original: { kind: 'offloaded', source: empty, summary: [ref] },
       attachments: [],
-    })
+      original: {
+        kind: 'offloaded',
+        source: (await sealedText(ledger, access)).source,
+        summary: [ref],
+      },
+    }))
     expect(await collect(f)).toEqual(Buffer.from(BYTES))
   })
 

@@ -1,3 +1,4 @@
+import { sealedText } from './settlement-values.ts'
 import { structuredReturnFixture } from '@omne-harness/tool-contract/testing'
 import { toolsAdoption } from '../src/tools-protocol.ts'
 import { createReaderFixture } from './reader-fixture.ts'
@@ -538,11 +539,11 @@ it('declares text input and all supported direct output modalities for an actual
 it('keeps an offloaded original separate and propagates raw-byte qualification denial through the actual meta call', async () => {
   const denied: import('@omne-harness/tool').ToolLedgerAction[] = []
   const f = await sourceFixture(
-    raw => ({
+    async (raw, ledger, access) => ({
       ...result([visible('summary', 'summary only')]),
       original: {
         kind: 'offloaded',
-        source: raw.content,
+        source: (await sealedText(ledger, access)).source,
         summary: [visible('summary', 'summary only')],
       },
       attachments: [raw.content],

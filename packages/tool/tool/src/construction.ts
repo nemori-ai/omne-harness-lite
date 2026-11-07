@@ -35,6 +35,13 @@ import type {
   ToolMaterialStore,
 } from '@omne-harness/tool-contract/provider'
 
+export type ToolOffloadingConfiguration = Readonly<{
+  maxInlineUtf8Bytes: number
+  maxRetentionMs: number
+  maxBodyBytes: number
+  previewUtf8Bytes: number
+}>
+
 export type ToolConfiguration = ToolAuthorLimits &
   Readonly<{
     processBatchBytes: number
@@ -42,6 +49,7 @@ export type ToolConfiguration = ToolAuthorLimits &
     observerBufferBytes: number
     /** The most bytes of whole content blocks on one result page (P08). */
     resultPageBytes: number
+    offloading: ToolOffloadingConfiguration
     reconciliationDelayMs: number
     /** How many times a ledger command re-reads and re-decides after a revision conflict. */
     ledgerCommitAttempts: number
@@ -70,7 +78,7 @@ export type ToolConfiguration = ToolAuthorLimits &
 /** The part of the configuration that the ledger reads. The same configuration value fits. */
 export type ToolLedgerConfiguration = Pick<
   ToolConfiguration,
-  'resultPageBytes' | 'ledgerCommitAttempts' | 'queueCapacity'
+  'resultPageBytes' | 'ledgerCommitAttempts' | 'queueCapacity' | 'offloading'
 >
 
 /**

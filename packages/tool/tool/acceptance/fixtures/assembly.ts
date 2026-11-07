@@ -88,6 +88,12 @@ const configuration: ToolConfiguration = {
   reconciliationDelayMs: 0,
   ledgerCommitAttempts: 8,
   queueCapacity: 4,
+  offloading: {
+    maxInlineUtf8Bytes: 65_536,
+    maxRetentionMs: 86_400_000,
+    maxBodyBytes: 16_777_216,
+    previewUtf8Bytes: 1_024,
+  },
 }
 
 function textResult(value: string): ToolResult<ContentBlock> {

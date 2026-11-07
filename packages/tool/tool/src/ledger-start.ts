@@ -18,7 +18,7 @@ import type {
   ToolExecutionRef,
   ToolFailure,
   ToolOperationId,
-  ToolResult,
+  ToolRenderedResult,
   ToolRevision,
   ToolStartRecord,
   ToolState,
@@ -671,7 +671,7 @@ function intentOf(receipt: OperationReceipt): StartIntent {
 /** The text factory of a terminal the ledger forms itself (dummy, first-start rejection). */
 export type TerminalText<B extends ContentBlock> = (
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
-) => Outcome<ToolResult<B>, ToolFailure>
+) => Outcome<ToolRenderedResult<B>, ToolFailure>
 
 /** The settled state of a first-start rejection: unavailable, nothing started, position released. */
 function rejectedState(

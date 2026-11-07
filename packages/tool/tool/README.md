@@ -8,7 +8,7 @@ The Tool implementation without Cordis. The root entry exports independent execu
 
 This package implements the contract of `@omne-harness/tool-contract`. It manages concurrency, waits, cancellation and state, so two implementations may differ here and the package is not part of the contract. It does not depend on Cordis, so an independent program can execute a tool without a Cordis install. Independent execution is implemented. The runtime implements a part of the managed paths. The next section lists the five tiers of support. The exact support scope is in [SPEC.md](SPEC.md#当前范围).
 
-`encodeToolMaterial` implements the canonical JSON bytes and SHA-256 fingerprint specified by [M02.1](../tool-contract/docs/material-protocol.md#m021-指纹编码-v1). Callers encode domain identities before passing data to this function. It rejects non-data values without invoking accessors or hooks. The existing `canonicalDigest` encoding is unchanged. The new encoder is not yet connected to final-fact custody or result offloading. See [the fixed-vector tests](tests/material-codec.spec.ts).
+`encodeToolMaterial` implements the canonical JSON bytes and SHA-256 fingerprint specified by [M02.1](../tool-contract/docs/material-protocol.md#m021-指纹编码-v1). Callers encode domain identities before passing data to this function. It rejects non-data values without invoking accessors or hooks. The existing `canonicalDigest` encoding is unchanged. Final-fact custody and result material preparation use this encoder. See [the fixed-vector tests](tests/material-codec.spec.ts).
 
 ## Support range
 
@@ -249,7 +249,7 @@ The caller invokes the command through its own runtime with a new consumer posit
 
 A successful read can contain a failed source terminal. A completed meta call means the command answered, even when the source read failed. Content traversal end does not mean attachment or offloaded original bytes were read. Attachment pages use base64. Decode complete bytes according to mediaType. References grant no access, and every read checks current permissions. Tools exposes no raw selector and never calls content.raw.
 
-The factory checks full JSON response size and complete callable argument size. It returns unsupported when a complete block, credential or response cannot fit. It does not truncate source content. Fixed-version references have no TTL and survive adapter reconstruction and delivery release. Protocol, budget and provider requirements are in [SPEC section 28](SPEC.md#28-tools-固定结果适配器). The tests cover non-durable memory composition. Production storage, a real model and Cordis are not covered.
+The factory checks full JSON response size and complete callable argument size. It returns unsupported when a complete block, credential or response cannot fit. It does not truncate source content. Adapter reconstruction preserves fixed-version identity. Offloaded bodies now carry a fixed deadline from settlement. Semantic body paging, deadline enforcement and physical cleanup are not yet implemented, so this reader does not yet provide the complete offloading lifecycle. Protocol, budget and provider requirements are in [SPEC section 28](SPEC.md#28-tools-固定结果适配器). The tests cover non-durable memory composition. Production storage, a real model and Cordis are not covered.
 
 
 The host must align its admission argument limits with `ToolsOptions.arguments`. The runtime checks input before the author codec runs. A smaller host limit can reject a continuation that the author can otherwise parse. Keep both limits bounded and test the actual assembly.

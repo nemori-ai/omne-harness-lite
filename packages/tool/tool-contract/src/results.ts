@@ -12,6 +12,7 @@ import type {
   Adoption,
   ConsumerRef,
   DurableEvidence,
+  ToolBodyId,
   ToolCallId,
   ToolDeliveryId,
   ToolInstanceId,
@@ -25,7 +26,7 @@ import type { ControlRecord, PhysicalExecution, QueuePosition, ToolTiming } from
 
 export type Attachment = ContentReference
 export type ToolMessageContentBlock = TextContentBlock | ReferenceContentBlock
-export type ToolResult<B extends ContentBlock> = Readonly<{
+export type ToolRenderedResult<B extends ContentBlock> = Readonly<{
   content: readonly B[]
   data: ToolResultData
   original:
@@ -37,6 +38,29 @@ export type ToolResult<B extends ContentBlock> = Readonly<{
       }>
   attachments: readonly Attachment[]
 }>
+export type ToolBodyRepresentation =
+  | Readonly<{ kind: 'text'; codec: Adoption }>
+  | Readonly<{ kind: 'json-document'; codec: Adoption; schema: ToolSchemaIdentity }>
+  | Readonly<{ kind: 'json-lines'; codec: Adoption; recordSchema: ToolSchemaIdentity }>
+export type ToolBodyRetention = Readonly<{
+  adoption: Adoption
+  activatedAt: import('./materials.ts').ToolMaterialInstant
+  expiresAt: import('./materials.ts').ToolMaterialInstant
+}>
+export type ToolOffloadedBody = Readonly<{
+  source: Attachment
+  bodyId: ToolBodyId
+  representation: ToolBodyRepresentation
+  bodyBytes: string
+  previewKind: 'author-summary' | 'mechanical-head-tail'
+  retention: ToolBodyRetention
+}>
+export type ToolResult<B extends ContentBlock> = Omit<ToolRenderedResult<B>, 'original'> &
+  Readonly<{
+    original:
+      | Readonly<{ kind: 'none' }>
+      | (Readonly<{ kind: 'offloaded'; summary: readonly B[] }> & ToolOffloadedBody)
+  }>
 export type ToolResultData =
   | Readonly<{ kind: 'none' }>
   | Readonly<{

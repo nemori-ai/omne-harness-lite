@@ -1,3 +1,4 @@
+import { sealedText } from './settlement-values.ts'
 import { structuredReturnFixture } from '@omne-harness/tool-contract/testing'
 import { toolsAdoption } from '../src/tools-protocol.ts'
 import { describe, expect, it } from 'vitest'
@@ -233,7 +234,7 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
 
   it('propagates real byte provider failure and checks raw qualification for an associated same-address description variant', async () => {
     const host = await modelHost({
-      value: raw => {
+      value: async (raw, ledger, access) => {
         const variant = { ...raw.content, mediaType: 'text/plain' }
         expect(variant).not.toEqual(raw.content)
         expect(variant.storage).toBe(raw.content.storage)
@@ -242,7 +243,7 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
           ...result([visible('summary', 'summary only')], [raw.content, variant]),
           original: {
             kind: 'offloaded',
-            source: raw.content,
+            source: (await sealedText(ledger, access)).source,
             summary: [visible('summary', 'summary only')],
           },
         }

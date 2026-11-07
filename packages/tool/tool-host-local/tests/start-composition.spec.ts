@@ -172,7 +172,17 @@ function assembly(
       elapsed: () => Promise.reject(new Error('timing')),
       waitUntil: () => Promise.reject(new Error('timing')),
     },
-    { resultPageBytes: 4_096, ledgerCommitAttempts: 8, queueCapacity: 8 },
+    {
+      resultPageBytes: 4_096,
+      ledgerCommitAttempts: 8,
+      queueCapacity: 8,
+      offloading: {
+        maxInlineUtf8Bytes: 65_536,
+        maxRetentionMs: 86_400_000,
+        maxBodyBytes: 16_777_216,
+        previewUtf8Bytes: 1_024,
+      },
+    },
     testSettlementPorts(),
   )
   let driver: ToolDriver<Principal> | null = null
@@ -242,6 +252,12 @@ function assembly(
       reconciliationDelayMs: 0,
       ledgerCommitAttempts: 8,
       queueCapacity: 8,
+      offloading: {
+        maxInlineUtf8Bytes: 65_536,
+        maxRetentionMs: 86_400_000,
+        maxBodyBytes: 16_777_216,
+        previewUtf8Bytes: 1_024,
+      },
     },
   )
   let reference: ToolInvocationRef | undefined

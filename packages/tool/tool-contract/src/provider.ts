@@ -1,3 +1,4 @@
+export type { SealedToolBody, ToolBodyCustody } from './body-custody.ts'
 // The `./provider` entry of the Tool contract package: the provider protocol that only the Tool
 // implementation members use (SPEC「公开入口的分组」rules 2 and 3): ports that outside providers
 // implement, protocol records between providers, custody and account read/write ports, loading
@@ -28,6 +29,7 @@ export {
   decodeToolInstanceId,
   decodeToolMaterialId,
   decodeToolMaterialGeneration,
+  decodeToolBodyId,
   decodeToolResultVersion,
   decodeToolRevision,
   decodeToolWaitId,
@@ -40,6 +42,7 @@ export type {
   ToolCredentialUsage,
 } from './credentials.ts'
 export {
+  judgeCommittedToolResult,
   defaultResultPolicy,
   defaultResultPolicyAdoption,
   defaultResultPolicyRules,

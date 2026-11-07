@@ -4,6 +4,7 @@ import type { Access } from '@omne-harness/legal-identity'
 
 declare const toolIdentity: unique symbol
 export type ToolIdentity<K extends string> = string & { readonly [toolIdentity]: K }
+export type ToolBodyId = ToolIdentity<'ToolBodyId'>
 export type ToolCallId = ToolIdentity<'ToolCallId'>
 export type ToolOperationId = ToolIdentity<'ToolOperationId'>
 export type ToolInstanceId = ToolIdentity<'ToolInstanceId'>
@@ -41,6 +42,12 @@ function decodeIdentity<K extends string>(
   if (!IDENTITY_TEXT.test(text)) return fail({ field: kind, reason: 'character' })
   // The checks above are the only way to mint the brand. A brand has no runtime value to build.
   return succeed(text as ToolIdentity<K>)
+}
+
+export function decodeToolBodyId(
+  text: unknown,
+): Outcome<ToolBodyId, ToolIdentityRejection<'ToolBodyId'>> {
+  return decodeIdentity('ToolBodyId', text)
 }
 
 export function decodeToolMaterialId(

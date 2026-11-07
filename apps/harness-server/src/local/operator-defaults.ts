@@ -359,6 +359,12 @@ function toolRecords(workspace: string, combinationVersion: string) {
       queueCapacity: 64,
       driverRetryDelayMs: 50,
       driverStepsPerRun: 32,
+      offloading: {
+        maxInlineUtf8Bytes: 65_536,
+        maxRetentionMs: 86_400_000,
+        maxBodyBytes: 16_777_216,
+        previewUtf8Bytes: 1_024,
+      },
     },
     capacity: 64,
     observersPerCall: 4,

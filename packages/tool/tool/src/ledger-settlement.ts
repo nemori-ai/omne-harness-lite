@@ -2,7 +2,7 @@ import {
   adoptResultMaterials,
   releaseFinalPreparation,
   preparedRawMaterial,
-  releaseReplacedRaw,
+  adoptRawMaterials,
 } from './ledger-result-uses.ts'
 import type { ResultChannels } from './ledger-result-material.ts'
 import { matchesFinalValue } from './fact-values.ts'
@@ -223,12 +223,7 @@ export function decidePreserveResult<B extends ContentBlock>(
     first.version.record.source,
   )
   if ('failure' in released) return reply(released)
-  const rawRelease = releaseReplacedRaw(
-    snapshot,
-    final.raw,
-    final.result,
-    first.version.record.source,
-  )
+  const rawRelease = adoptRawMaterials(snapshot, final.raw, final.result, first.version.record)
   if ('failure' in rawRelease) return reply(rawRelease)
   const state = settledState(call, final, saved.evidence, first.version.delivery, mint)
   if ('failure' in state) return reply(state)

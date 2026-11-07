@@ -9,10 +9,14 @@ import {
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { describedAdoption } from './adoption.ts'
 import type { ResultPolicy } from './execution.ts'
-import type { Adoption } from './identity.ts'
+import { decodeToolBodyId, type Adoption } from './identity.ts'
+import { decodeToolMaterialInstant } from './materials.ts'
 import { jsonValue } from './json-tree.ts'
-import type { ToolMessageContentBlock, ToolResult } from './results.ts'
+import type { ToolMessageContentBlock, ToolResult, ToolRenderedResult } from './results.ts'
 import {
+  decimal,
+  identity,
+  refine,
   describeRejection,
   isPlainObject,
   judgeAt,
@@ -123,18 +127,66 @@ const block: Check<ToolMessageContentBlock> = (value, at) => {
   return 'ok' in judged ? judged : reject(at, judged.failure.reason)
 }
 
-/** The closed shape of a whole result whose blocks pass the default policy. */
-export const toolResultShape: Check<ToolResult<ToolMessageContentBlock>> = record({
-  content: list(block),
-  data: variant('kind', {
-    none: record({ kind: literal('none') }),
-    json: record({
-      kind: literal('json'),
-      contract: adoption,
-      schema: schemaIdentity,
-      value: jsonValue,
-    }),
+const resultData = variant('kind', {
+  none: record({ kind: literal('none') }),
+  json: record({
+    kind: literal('json'),
+    contract: adoption,
+    schema: schemaIdentity,
+    value: jsonValue,
   }),
+})
+const bodyRepresentation = variant('kind', {
+  text: record({ kind: literal('text'), codec: adoption }),
+  'json-document': record({
+    kind: literal('json-document'),
+    codec: adoption,
+    schema: schemaIdentity,
+  }),
+  'json-lines': record({
+    kind: literal('json-lines'),
+    codec: adoption,
+    recordSchema: schemaIdentity,
+  }),
+})
+const bodyRetention = refine(
+  record({
+    adoption,
+    activatedAt: identity(decodeToolMaterialInstant),
+    expiresAt: identity(decodeToolMaterialInstant),
+  }),
+  (value, at) =>
+    Date.parse(value.expiresAt) > Date.parse(value.activatedAt)
+      ? undefined
+      : { field: at, reason: 'positive-retention' },
+)
+function committedResultShape<B extends ContentBlock>(
+  checkedBlock: Check<B>,
+): Check<ToolResult<B>> {
+  return record({
+    content: list(checkedBlock),
+    data: resultData,
+    attachments: list(contentReference),
+    original: variant('kind', {
+      none: record({ kind: literal('none') }),
+      offloaded: record({
+        kind: literal('offloaded'),
+        source: contentReference,
+        summary: list(checkedBlock),
+        bodyId: identity(decodeToolBodyId),
+        representation: bodyRepresentation,
+        bodyBytes: decimal,
+        previewKind: literal('author-summary', 'mechanical-head-tail'),
+        retention: bodyRetention,
+      }),
+    }),
+  })
+}
+export const toolResultShape = committedResultShape(block)
+export const toolRenderedResultShape: Check<ToolRenderedResult<ToolMessageContentBlock>> = record({
+  content: list(block),
+  data: resultData,
+  attachments: list(contentReference),
   original: variant('kind', {
     none: record({ kind: literal('none') }),
     offloaded: record({
@@ -143,8 +195,34 @@ export const toolResultShape: Check<ToolResult<ToolMessageContentBlock>> = recor
       summary: list(block),
     }),
   }),
-  attachments: list(contentReference),
 })
+export function judgeCommittedToolResult<B extends ContentBlock>(
+  policy: ResultPolicy<B>,
+  value: unknown,
+): Outcome<ToolResult<B>, Readonly<{ reason: string }>> {
+  const checkedBlock: Check<B> = (candidate, at) => {
+    const known = judgeContentBlock(candidate)
+    if ('rejected' in known) return reject(at, known.rejected)
+    const judged = policy.judge(known.ok)
+    return 'failure' in judged ? reject(at, judged.failure.reason) : judged
+  }
+  const checked = judgeAt(committedResultShape(checkedBlock), value, 'result')
+  if ('failure' in checked) return fail({ reason: describeRejection(checked.failure) })
+  const original = checked.ok.original
+  const rendered: ToolRenderedResult<B> = {
+    ...checked.ok,
+    original:
+      original.kind === 'none'
+        ? original
+        : {
+            kind: 'offloaded',
+            source: original.source,
+            summary: original.summary,
+          },
+  }
+  const admitted = policy.judgeResult(rendered)
+  return 'failure' in admitted ? admitted : checked
+}
 
 /**
  * The named default result policy (G3). `judge` admits one block; `judgeResult` admits a whole
@@ -153,8 +231,8 @@ export const toolResultShape: Check<ToolResult<ToolMessageContentBlock>> = recor
 export const defaultResultPolicy: ResultPolicy<ToolMessageContentBlock> = Object.freeze({
   adoption: defaultResultPolicyAdoption,
   judge: judgeBlock,
-  judgeResult(value: ToolResult<ContentBlock>) {
-    const checked = judgeAt(toolResultShape, value, 'result')
+  judgeResult(value: ToolRenderedResult<ContentBlock>) {
+    const checked = judgeAt(toolRenderedResultShape, value, 'result')
     return 'ok' in checked ? checked : fail({ reason: describeRejection(checked.failure) })
   },
 })

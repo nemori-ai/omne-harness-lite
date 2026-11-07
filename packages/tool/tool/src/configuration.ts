@@ -47,6 +47,7 @@ function isRuntimeBudget(key: string): boolean {
   return (
     (CAPACITIES as readonly string[]).includes(key) ||
     (DELAYS as readonly string[]).includes(key) ||
+    key === 'offloading' ||
     key === 'driverStepsPerRun' ||
     key === 'driverRetryDelayMs'
   )
@@ -65,6 +66,7 @@ export function checkToolConfiguration(configuration: ToolConfiguration): void {
     'configuration',
   )
   if ('failure' in limits) throw new TypeError(`${limits.failure.field}: ${limits.failure.reason}`)
+  checkOffloading(configuration)
   checkCapacities(configuration, CAPACITIES)
   if (
     Reflect.get(configuration, 'driverStepsPerRun') !== undefined &&
@@ -85,5 +87,18 @@ export function checkToolConfiguration(configuration: ToolConfiguration): void {
 export function checkLedgerConfiguration(configuration: ToolLedgerConfiguration): void {
   if (typeof configuration !== 'object' || configuration === null)
     throw new TypeError('configuration: type')
+  checkOffloading(configuration)
   checkCapacities(configuration, LEDGER_CAPACITIES)
+}
+
+function checkOffloading(configuration: ToolLedgerConfiguration): void {
+  const policy = configuration.offloading
+  if (typeof policy !== 'object' || policy === null)
+    throw new TypeError('configuration.offloading: required')
+  checkCapacities(policy, [
+    'maxInlineUtf8Bytes',
+    'maxRetentionMs',
+    'maxBodyBytes',
+    'previewUtf8Bytes',
+  ])
 }

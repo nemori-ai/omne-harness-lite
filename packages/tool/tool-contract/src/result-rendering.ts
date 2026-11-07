@@ -1,15 +1,14 @@
-// The synchronous rendering of an author return into one ToolResult (P13).
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { TextResultFactory, ToolAuthor } from './authoring.ts'
 import type { ResultPolicy } from './execution.ts'
 import { jsonTextBytes, jsonValue } from './json-tree.ts'
-import type { ToolResult, ToolResultData } from './results.ts'
+import type { ToolRenderedResult, ToolResultData } from './results.ts'
 import { describeRejection, isPlainObject, reject, slot, text, type Check } from './shape.ts'
 import { sameAdoption, sameSchemaIdentity } from './value-shapes.ts'
 
 type Step<T> = Outcome<T, Readonly<{ reason: string }>>
-type Rendering<B extends ContentBlock> = Step<ToolResult<B>>
+type Rendering<B extends ContentBlock> = Step<ToolRenderedResult<B>>
 type Author<B extends ContentBlock> = ToolAuthor<unknown, unknown, unknown, B>
 type Ordinary<B extends ContentBlock> = Extract<Author<B>, { kind: 'ordinary' }>
 type Structured<B extends ContentBlock> = Extract<Author<B>, { kind: 'structured' }>
@@ -121,7 +120,7 @@ function dataMismatch<B extends ContentBlock>(
 
 function judged<B extends ContentBlock>(
   policy: ResultPolicy<B>,
-  result: ToolResult<ContentBlock>,
+  result: ToolRenderedResult<ContentBlock>,
 ): Rendering<B> {
   const checked = policy.judgeResult(result)
   return 'ok' in checked ? checked : failed('policy', checked.failure.reason)
@@ -142,7 +141,7 @@ function renderOrdinary<B extends ContentBlock>(
   const data = programData(value, author.program)
   if ('failure' in data) return data
   // The policy judges the whole result, including the members that the text factory gave.
-  return judged(policy, { ...produced.ok, data: data.ok } as ToolResult<ContentBlock>)
+  return judged(policy, { ...produced.ok, data: data.ok } as ToolRenderedResult<ContentBlock>)
 }
 
 function renderStructured<B extends ContentBlock>(
@@ -150,8 +149,7 @@ function renderStructured<B extends ContentBlock>(
   author: Structured<B>,
   policy: ResultPolicy<B>,
 ): Rendering<B> {
-  // The structured overload types `value` as ToolResult<B>; the policy checks the real shape.
-  const result = judged(policy, value as ToolResult<ContentBlock>)
+  const result = judged(policy, value as ToolRenderedResult<ContentBlock>)
   if ('failure' in result) return result
   const mismatch = dataMismatch(result.ok.data, author.program)
   return mismatch === undefined ? result : failed('data', mismatch)
@@ -169,13 +167,13 @@ export function renderToolResult<A, R, E, B extends ContentBlock>(
 ): Rendering<B>
 /** Judges a structured return: whole-result policy, then the match of `data` and its program. */
 export function renderToolResult<A, E, B extends ContentBlock>(
-  value: ToolResult<B>,
+  value: ToolRenderedResult<B>,
   author: Extract<ToolAuthor<A, never, E, B>, { kind: 'structured' }>,
   text: TextResultFactory<B>,
   policy: ResultPolicy<B>,
 ): Rendering<B>
 /**
- * The author kind alone selects the path; the value is never probed for a ToolResult shape. The
+ * The author kind alone selects the path; the value is never probed for a ToolRenderedResult shape. The
  * function is a synchronous projection: it does not load a schema, check a business rule or
  * save anything. The managed binding runs the complete P13 pipeline around it. A failure of an
  * author capability, also a throw, is a failure Outcome.

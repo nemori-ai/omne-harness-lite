@@ -183,13 +183,20 @@ it.each([
       expect(Buffer.byteLength(JSON.stringify(retained))).toBeLessThan(100_000)
       if (retained.kind !== 'complete') throw new Error('ledger read incomplete')
       const uses = retained.records.filter(record => record.kind === 'material-use')
-      expect(uses).toHaveLength(settle ? 4 : 3)
+      const offloaded = settle && bytes > 65_536
+      expect(uses).toHaveLength(settle ? (offloaded ? 6 : 4) : 3)
       expect(
         uses.filter(record => record.kind === 'material-use' && record.use.kind === 'delivery'),
-      ).toHaveLength(settle ? 3 : 0)
+      ).toHaveLength(settle ? (offloaded ? 4 : 3) : 0)
       expect(
         uses.filter(record => record.kind === 'material-use' && record.use.kind === 'preparation'),
-      ).toHaveLength(settle ? 1 : 3)
+      ).toHaveLength(settle ? 0 : 3)
+      expect(uses.filter(record => record.use.kind === 'native-reference')).toHaveLength(
+        settle ? 1 : 0,
+      )
+      expect(uses.filter(record => record.use.kind === 'offloaded-body')).toHaveLength(
+        offloaded ? 1 : 0,
+      )
       const cleanup = retained.records.filter(record => record.kind === 'material-cleanup')
       expect(cleanup).toHaveLength(settle ? 2 : 0)
       const state = ok(await ledger.commands.loadRecovery(world.access)).state
@@ -199,6 +206,29 @@ it.each([
         const restoredLedger = world.ledgerOver(reopened.store, materials(reopened))
         expect(ok(await restoredLedger.commands.loadRecovery(world.access)).state).toEqual(state)
         if (state.phase === 'settled') {
+          const delivered = ok(
+            await restoredLedger.delivery.read({ ...world.access, result: state.result }),
+          )
+          expect(delivered.attachments).toEqual([materialRaw.content])
+          if (offloaded) {
+            expect(delivered.original).toMatchObject({
+              kind: 'offloaded',
+              bodyBytes: String(bytes),
+              previewKind: 'mechanical-head-tail',
+              retention: {
+                activatedAt: '2026-11-07T00:00:00.000Z',
+                expiresAt: '2026-11-08T00:00:00.000Z',
+              },
+            })
+            const visible = delivered.content
+              .flatMap(block => (block.kind === 'text' ? [block.text] : []))
+              .join('')
+            expect(Buffer.byteLength(visible)).toBeLessThanOrEqual(1024)
+            expect(visible).toContain('[offloaded]')
+          } else {
+            expect(delivered.original).toEqual({ kind: 'none' })
+            expect(delivered.content).toEqual([block])
+          }
           const input = {
             ...world.access,
             result: state.result,

@@ -1,3 +1,5 @@
+import type { BodyPreparationRecord } from './ledger-body-custody.ts'
+import type { ResultPolicyRecord } from './ledger-result-policy.ts'
 import { adoptResultMaterials, releaseResultMaterials } from './ledger-result-uses.ts'
 import type {
   PreparedSynthetic,
@@ -30,7 +32,7 @@ import type {
   ToolCallId,
   ToolFailure,
   ToolOperationId,
-  ToolResult,
+  ToolRenderedResult,
   ToolResultVersion,
   ToolRevision,
   ToolState,
@@ -75,6 +77,8 @@ import {
 
 /** The records of one domain, indexed for the deciders and the read projections. */
 export type Snapshot = Readonly<{
+  bodyPreparations: ReadonlyMap<string, BodyPreparationRecord>
+  resultPolicies: ReadonlyMap<string, ResultPolicyRecord>
   resultPreparations: ReadonlyMap<string, ResultPreparationRecord>
   materials: ReadonlyMap<string, MaterialRecord>
   materialUses: ReadonlyMap<string, MaterialUseRecord>
@@ -101,6 +105,8 @@ export function snapshotOf(
   domain: LedgerDomain,
   read: Extract<LedgerRead, { kind: 'complete' }>,
 ): Snapshot {
+  const bodyPreparations = new Map<string, BodyPreparationRecord>()
+  const resultPolicies = new Map<string, ResultPolicyRecord>()
   const resultPreparations = new Map<string, ResultPreparationRecord>()
   const materials = new Map<string, MaterialRecord>()
   const materialUses = new Map<string, MaterialUseRecord>()
@@ -119,6 +125,12 @@ export function snapshotOf(
   const exclusions = new Map<string, ExclusionRecord>()
   for (const record of read.records) {
     switch (record.kind) {
+      case 'body-preparation':
+        bodyPreparations.set(record.body.operation, record.body)
+        break
+      case 'result-policy':
+        resultPolicies.set(record.policy.operation, record.policy)
+        break
       case 'result-preparation':
         resultPreparations.set(record.preparation.id, record.preparation)
         break
@@ -175,6 +187,8 @@ export function snapshotOf(
     }
   }
   return {
+    bodyPreparations,
+    resultPolicies,
     resultPreparations,
     materials,
     materialUses,
@@ -244,7 +258,7 @@ export type AdmitCommand = Readonly<{
 /** The pure functions the admit decision needs: the strict argument parse and the text result. */
 export type AdmitTools<B extends ContentBlock> = Readonly<{
   arguments(input: ToolArguments): Outcome<ParsedToolArguments, ToolArgumentsRejection>
-  text(reason: string): Outcome<ToolResult<B>, Readonly<{ reason: string }>>
+  text(reason: string): Outcome<ToolRenderedResult<B>, Readonly<{ reason: string }>>
 }>
 
 /** What an admission decision answers: the state, and whether it recalled a committed admission. */
@@ -467,7 +481,7 @@ function replacementAccount(call: ToolCallId): CallAccount {
 export function terminalText<B extends ContentBlock>(
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
   text: AdmitTools<B>['text'],
-): Outcome<ToolResult<B>, ToolFailure> {
+): Outcome<ToolRenderedResult<B>, ToolFailure> {
   const made = text(describeTerminal(terminal))
   if ('ok' in made) return made
   return fail({

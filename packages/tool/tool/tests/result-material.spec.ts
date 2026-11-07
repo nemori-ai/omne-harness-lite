@@ -1,25 +1,20 @@
 import { expect, it, vi } from 'vitest'
-import { settlementFixture } from './settlement-values.ts'
-import { ok, testSettlementPorts, text } from './runtime-values.ts'
+import { settlementFixture, sealedText } from './settlement-values.ts'
+import { configuration, ok, testSettlementPorts, text } from './runtime-values.ts'
 
 it('keeps content and summary in independent materials and recovers without the original envelope', async () => {
-  const value = {
-    content: [text('body', '正文独立内容🙂')],
-    data: { kind: 'none' as const },
-    original: {
-      kind: 'offloaded' as const,
-      source: {
-        storage: 'files',
-        key: 'native-body',
-        mediaType: 'text/plain',
-        bytes: '40',
-        digest: 'sha256:native-body',
+  const f = await settlementFixture({
+    value: async (_raw, ledger, access) => ({
+      content: [text('body', '正文独立内容🙂')],
+      data: { kind: 'none' },
+      attachments: [],
+      original: {
+        kind: 'offloaded',
+        source: (await sealedText(ledger, access, '完整作者正文')).source,
+        summary: [text('summary', '作者提供不同摘要')],
       },
-      summary: [text('summary', '作者提供不同摘要')],
-    },
-    attachments: [],
-  }
-  const f = await settlementFixture({ value })
+    }),
+  })
   const settled = ok(await f.preserve())
   if (settled.phase !== 'settled') throw new Error('missing result')
   const records = await f.records()
@@ -37,7 +32,7 @@ it('keeps content and summary in independent materials and recovers without the 
     if (input.material.id === f.pointer.envelope.material.id) throw new Error('envelope removed')
     return originalRead(input)
   })
-  expect((await f.resultPage()).value).toEqual(value)
+  expect((await f.resultPage()).value).toMatchObject(f.final.result)
   read.mockRejectedValue(new Error('all byte storage is unavailable'))
   read.mockClear()
   expect((await f.load()).result).toEqual({ version: settled.result, source: record.result.source })
@@ -97,7 +92,10 @@ it('restores a complete delivery value independently of the model result page li
     original: { kind: 'none' as const },
     attachments: [],
   }
-  const f = await settlementFixture({ value })
+  const f = await settlementFixture({
+    value,
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 1_048_576 },
+  })
   const settled = ok(await f.preserve())
   if (settled.phase !== 'settled') throw new Error('missing result')
   expect(await f.ledger.delivery.read({ ...f.access, result: settled.result })).toEqual({

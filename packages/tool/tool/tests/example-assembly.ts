@@ -1,3 +1,4 @@
+import { judgeCommittedToolResult } from '@omne-harness/tool-contract/provider'
 import { createReaderFixture, type ReaderFixture } from './reader-fixture.ts'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -50,6 +51,12 @@ export const configuration: ToolConfiguration = {
   ledgerCommitAttempts: 8,
   queueCapacity: 16,
   driverStepsPerRun: 32,
+  offloading: {
+    maxInlineUtf8Bytes: 65_536,
+    maxRetentionMs: 86_400_000,
+    maxBodyBytes: 16_777_216,
+    previewUtf8Bytes: 1_024,
+  },
 }
 
 export function createDemo() {
@@ -353,7 +360,7 @@ export function createDemo() {
             ? reply
             : succeed({
                 ...reply.ok,
-                value: valueOf(defaultResultPolicy.judgeResult(reply.ok.value)),
+                value: valueOf(judgeCommittedToolResult(defaultResultPolicy, reply.ok.value)),
               })
         },
       },

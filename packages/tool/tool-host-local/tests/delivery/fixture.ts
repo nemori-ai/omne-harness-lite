@@ -135,7 +135,17 @@ export async function fixture() {
     store,
     guards,
     createMemoryToolClock(),
-    { resultPageBytes: 4096, ledgerCommitAttempts: 4, queueCapacity: 16 },
+    {
+      resultPageBytes: 4096,
+      ledgerCommitAttempts: 4,
+      queueCapacity: 16,
+      offloading: {
+        maxInlineUtf8Bytes: 65_536,
+        maxRetentionMs: 86_400_000,
+        maxBodyBytes: 16_777_216,
+        previewUtf8Bytes: 1_024,
+      },
+    },
     {
       materials,
       releaseInspection: createMemoryToolEnvironment<string>(),

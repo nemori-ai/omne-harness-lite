@@ -221,7 +221,17 @@ describe('18 testing dependency assembly', () => {
   it('18 propagates invalid ledger configuration and caller resolver exceptions', () => {
     expect(() =>
       testAssembly({
-        configuration: { resultPageBytes: 0, ledgerCommitAttempts: 1, queueCapacity: 1 },
+        configuration: {
+          resultPageBytes: 0,
+          ledgerCommitAttempts: 1,
+          queueCapacity: 1,
+          offloading: {
+            maxInlineUtf8Bytes: 65_536,
+            maxRetentionMs: 86_400_000,
+            maxBodyBytes: 16_777_216,
+            previewUtf8Bytes: 1_024,
+          },
+        },
       }),
     ).toThrow('configuration.resultPageBytes: range')
     const failure = new Error('resolver failed')

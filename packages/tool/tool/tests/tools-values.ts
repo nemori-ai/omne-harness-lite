@@ -1,3 +1,4 @@
+import { judgeCommittedToolResult } from '@omne-harness/tool-contract/provider'
 import { createReaderFixture, type ReaderFixture } from './reader-fixture.ts'
 import { createHash } from 'node:crypto'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -17,8 +18,8 @@ import {
   type Attachment,
   type ResultPage,
   type ToolArguments,
+  type ToolRenderedResult,
   type ToolResult,
-  type RawOutput,
 } from '@omne-harness/tool-contract'
 import {
   defaultResultPolicy,
@@ -28,7 +29,7 @@ import {
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import { checkMessage } from '../src/tools-results.ts'
-import { settlementFixture } from './settlement-values.ts'
+import { settlementFixture, type SettlementValue } from './settlement-values.ts'
 import { startHarness } from './start-values.ts'
 import { scope } from './scope-values.ts'
 import { testAssembly } from './testing-values.ts'
@@ -73,12 +74,12 @@ export const visible = (id: string, body: string) => ({
   ...text(id, body),
   visibility: { toHuman: true, toModel: true },
 })
-export function body(value: ToolResult<ToolMessageContentBlock>): string {
+export function body(value: ToolRenderedResult<ToolMessageContentBlock>): string {
   return value.content
     .flatMap(block => (block.kind === 'text' && block.visibility.toModel ? [block.text] : []))
     .join('\n')
 }
-export function token(value: ToolResult<ToolMessageContentBlock>, field: string): string {
+export function token(value: ToolRenderedResult<ToolMessageContentBlock>, field: string): string {
   const line = body(value)
     .split('\n')
     .find(
@@ -119,9 +120,7 @@ export async function authorRun(
   return checkMessage(ok(author.codec.decode(encoded)))
 }
 export async function sourceFixture(
-  value: ToolResult<Block> | ((raw: RawOutput) => ToolResult<Block>) = result([
-    visible('one', 'source'),
-  ]),
+  value: SettlementValue = result([visible('one', 'source')]),
   overrides: Partial<ToolsOptions> = {},
   deniedActions: ToolLedgerAction[] = [],
 ) {
@@ -176,7 +175,7 @@ export async function sourceFixture(
       readResult: async (input: Parameters<typeof runtime.queries.readResult>[0]) => {
         const response = await runtime.queries.readResult(input)
         if ('failure' in response) return response
-        const checked = defaultResultPolicy.judgeResult(response.ok.value)
+        const checked = judgeCommittedToolResult(defaultResultPolicy, response.ok.value)
         if ('failure' in checked) throw new Error(checked.failure.reason)
         return succeed({ ...response.ok, value: checked.ok })
       },

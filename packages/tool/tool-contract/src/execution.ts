@@ -51,6 +51,7 @@ import type {
   Effect,
   Reply,
   ToolResult,
+  ToolRenderedResult,
   ToolState,
   ToolTerminal,
   WaitState,
@@ -65,7 +66,9 @@ export interface ToolExecutor<A, R, E> {
 export interface ResultPolicy<B extends ContentBlock> {
   readonly adoption: Adoption
   judge(value: ContentBlock): Outcome<B, Readonly<{ reason: string }>>
-  judgeResult(value: ToolResult<ContentBlock>): Outcome<ToolResult<B>, Readonly<{ reason: string }>>
+  judgeResult(
+    value: ToolRenderedResult<ContentBlock>,
+  ): Outcome<ToolRenderedResult<B>, Readonly<{ reason: string }>>
 }
 export type ToolExecutionRef = Readonly<{
   tenant: TenantId

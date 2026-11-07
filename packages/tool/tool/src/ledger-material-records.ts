@@ -15,7 +15,7 @@ import type {
 export type MaterialTimeRecord = Readonly<{ highWatermark: ToolMaterialInstant }>
 
 export type MaterialRecord = Readonly<{
-  purpose: 'raw' | 'final' | 'result'
+  purpose: 'raw' | 'final' | 'result' | 'body'
   material: ToolMaterialRef
   writeOperation: ToolOperationId
   input: ToolMaterialFingerprint
@@ -34,6 +34,18 @@ export type MaterialUseRecord = Readonly<{
 }> &
   (
     | Readonly<{ kind: 'preparation'; operation: ToolOperationId }>
+    | Readonly<{
+        kind: 'native-reference' | 'process-history'
+        result: ToolResultVersion
+        writeOperation: ToolOperationId
+      }>
+    | Readonly<{
+        kind: 'offloaded-body'
+        result: ToolResultVersion
+        bodyId: import('@omne-harness/tool-contract').ToolBodyId
+        expiresAt: ToolMaterialInstant
+        writeOperation: ToolOperationId
+      }>
     | Readonly<{
         kind: 'delivery'
         result: ToolResultVersion

@@ -20,7 +20,7 @@ import type {
 } from './definitions.ts'
 import type { TextRenderer, ToolExecutor } from './execution.ts'
 import type { Access, Adoption, DurableEvidence, ToolCallId } from './identity.ts'
-import type { Reply, ToolResult } from './results.ts'
+import type { Reply, ToolRenderedResult } from './results.ts'
 
 export type ToolDeclarations = Readonly<{
   adoption: Adoption
@@ -122,9 +122,9 @@ export type ToolAuthor<A, R, E, B extends ContentBlock> = Readonly<{
       }>
     | Readonly<{
         kind: 'structured'
-        executor: ToolExecutor<A, ToolResult<B>, E>
-        codec: OutputCodec<ToolResult<B>>
-        output: ToolReturnValidator<A, ToolResult<B>>
+        executor: ToolExecutor<A, ToolRenderedResult<B>, E>
+        codec: OutputCodec<ToolRenderedResult<B>>
+        output: ToolReturnValidator<A, ToolRenderedResult<B>>
         program: ToolProgramContract
       }>
   )
@@ -287,7 +287,7 @@ export interface ToolBindingRegistry<P, E, B extends ContentBlock> {
   drain(key: ToolBindingKey): Outcome<ToolBindingDrain, ToolBindingKeyFailure>
 }
 export interface TextResultFactory<B extends ContentBlock> {
-  text(value: string): Outcome<ToolResult<B>, Readonly<{ reason: string }>>
+  text(value: string): Outcome<ToolRenderedResult<B>, Readonly<{ reason: string }>>
 }
 export type AvailabilityFacts = Readonly<{
   definition: ToolDefinition

@@ -426,6 +426,12 @@ export function configuration(overrides: Partial<ToolConfiguration> = {}): ToolC
     processBatchDelayMs: 0,
     observerBufferBytes: 65_536,
     resultPageBytes: 4_096,
+    offloading: {
+      maxInlineUtf8Bytes: 65_536,
+      maxRetentionMs: 86_400_000,
+      maxBodyBytes: 16_777_216,
+      previewUtf8Bytes: 1_024,
+    },
     reconciliationDelayMs: 0,
     ledgerCommitAttempts: 8,
     queueCapacity: 64,
@@ -437,6 +443,7 @@ export function configurationOf(options: HarnessOptions): ToolConfiguration {
   const defaults = configuration()
   return configuration({
     resultPageBytes: options.resultPageBytes ?? defaults.resultPageBytes,
+    offloading: options.offloading ?? defaults.offloading,
     ledgerCommitAttempts: options.ledgerCommitAttempts ?? defaults.ledgerCommitAttempts,
     queueCapacity: options.queueCapacity ?? defaults.queueCapacity,
     ...(options.driverStepsPerRun === undefined

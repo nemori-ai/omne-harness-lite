@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import {
+  judgeCommittedToolResult,
   defaultResultPolicy,
   defaultResultPolicyAdoption,
   defaultResultPolicyRules,
 } from '@omne-harness/tool-contract/provider'
-import { reference, result, text } from './tool-values.ts'
+import { adoption, reference, result, text } from './tool-values.ts'
 
 it('names the default result policy with a digest that a reader can recompute', () => {
   const digest = createHash('sha256').update(JSON.stringify(defaultResultPolicyRules)).digest('hex')
@@ -114,4 +115,56 @@ describe('default result policy', () => {
       ok: result([text('t', 'ok')], [ref]),
     })
   })
+})
+
+it('applies whole-result policy rules when reading a committed result', () => {
+  const policy = {
+    ...defaultResultPolicy,
+    judgeResult: () => ({ failure: { reason: 'required-result-evidence-missing' } }),
+  }
+  expect(judgeCommittedToolResult(policy, result([text('t', 'valid block')]))).toEqual({
+    failure: { reason: 'required-result-evidence-missing' },
+  })
+})
+
+it('requires runtime retention on committed bodies and keeps it out of author results', () => {
+  const rendered = {
+    ...result([text('preview', 'summary')]),
+    original: {
+      kind: 'offloaded' as const,
+      source: reference('materials', 'body'),
+      summary: [text('preview', 'summary')],
+    },
+  }
+  const committed = {
+    ...rendered,
+    original: {
+      ...rendered.original,
+      bodyId: 'body-one',
+      representation: { kind: 'text', codec: adoption('utf8') },
+      bodyBytes: '1000',
+      previewKind: 'mechanical-head-tail',
+      retention: {
+        adoption: adoption('retention'),
+        activatedAt: '2026-11-08T00:00:00.000Z',
+        expiresAt: '2026-11-08T01:00:00.000Z',
+      },
+    },
+  }
+  expect(defaultResultPolicy.judgeResult(rendered)).toHaveProperty('ok')
+  expect(judgeCommittedToolResult(defaultResultPolicy, rendered)).toHaveProperty('failure')
+  expect(defaultResultPolicy.judgeResult(committed)).toHaveProperty('failure')
+  expect(judgeCommittedToolResult(defaultResultPolicy, committed)).toEqual({ ok: committed })
+  expect(
+    judgeCommittedToolResult(defaultResultPolicy, {
+      ...committed,
+      original: {
+        ...committed.original,
+        retention: {
+          ...committed.original.retention,
+          expiresAt: committed.original.retention.activatedAt,
+        },
+      },
+    }),
+  ).toHaveProperty('failure')
 })

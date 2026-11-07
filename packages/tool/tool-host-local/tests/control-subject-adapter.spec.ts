@@ -432,7 +432,17 @@ function ledgerFor(f: ReturnType<typeof fixture>) {
     f.store,
     guards,
     createMemoryToolClock(),
-    { resultPageBytes: 4096, ledgerCommitAttempts: 3, queueCapacity: 10 },
+    {
+      resultPageBytes: 4096,
+      ledgerCommitAttempts: 3,
+      queueCapacity: 10,
+      offloading: {
+        maxInlineUtf8Bytes: 65_536,
+        maxRetentionMs: 86_400_000,
+        maxBodyBytes: 16_777_216,
+        previewUtf8Bytes: 1_024,
+      },
+    },
     {
       controlSubjects: f.build(),
       content: null,

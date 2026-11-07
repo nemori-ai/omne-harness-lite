@@ -1,3 +1,5 @@
+import type { BodyPreparationRecord } from './ledger-body-custody.ts'
+import type { ResultPolicyRecord } from './ledger-result-policy.ts'
 import type { ResultPreparationRecord } from './ledger-result-preparation.ts'
 // The ledger store port (G1): one domain read and one revision-conditioned atomic commit. The
 // store keeps records by key inside a transaction domain and interprets none of them. A durable
@@ -299,6 +301,8 @@ export type QueueReleaseRecord = Readonly<{ call: ToolCallId; basis: ReleaseBasi
 export type HostRecord = Readonly<{ key: string; value: unknown }>
 
 export type LedgerRecord =
+  | Readonly<{ kind: 'body-preparation'; body: BodyPreparationRecord }>
+  | Readonly<{ kind: 'result-policy'; policy: ResultPolicyRecord }>
   | Readonly<{ kind: 'result-preparation'; preparation: ResultPreparationRecord }>
   | Readonly<{ kind: 'material'; material: MaterialRecord }>
   | Readonly<{ kind: 'material-use'; use: MaterialUseRecord }>
@@ -324,6 +328,10 @@ export type LedgerRecord =
 export function recordKey(record: LedgerRecord): string {
   if (isQueueRecord(record)) return queueRecordKey(record)
   switch (record.kind) {
+    case 'body-preparation':
+      return `body-preparation:${record.body.operation}`
+    case 'result-policy':
+      return `result-policy:${record.policy.operation}`
     case 'result-preparation':
       return `result-preparation:${record.preparation.id}`
     case 'material':

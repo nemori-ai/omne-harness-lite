@@ -236,7 +236,7 @@ provider 入口导出 [forwarding.ts](../src/forwarding.ts) 的父证明、原�
 
 ## W3 正文契约增量
 
-本节导航待评审的 W3 增量，不表示当前导出已经支持。唯一行为正文见 [有限期正文保管](../SPEC.md#有限期正文保管)、[P11 writer](../SPEC.md#模型正文-writer) 与 [P13](../SPEC.md#p13-双返回形态与程序输出契约)。正式类型在实现切片同批迁移全部消费者。
+本节区分已导出的类型与仍待交付的行为。唯一行为正文见 [有限期正文保管](../SPEC.md#有限期正文保管)、[P11 writer](../SPEC.md#模型正文-writer) 与 [P13](../SPEC.md#p13-双返回形态与程序输出契约)。返回声明、结果阶段与正文保管类型已导出。调用期 writer、语义页和保管维护仍待实现。
 
 | 边界 | 必须表达的内容 | 不授予的能力 |
 | --- | --- | --- |
@@ -248,3 +248,8 @@ provider 入口导出 [forwarding.ts](../src/forwarding.ts) 的父证明、原�
 | 保管维护分面 | 按原交付解除回执释放材料用途；有界到期扫描；按原操作查询维护结果 | 不复制消费者 ACK 协议，不进入普通 ToolRuntime 的任意删除面 |
 
 结果 data 的完整读取资格仍生效。正文页不替代 data，不以 data=none 隐藏无权读取的字段。程序消费者从明确程序协议取值，模型消费者只采用获准的正文和原生引用投影。
+
+
+[results.ts](../src/results.ts) 区分作者返回的 `ToolRenderedResult` 与提交后的 `ToolResult`。后者的卸载分支要求身份、表示、字节数、预览类别及固定期限。provider 入口的 `judgeCommittedToolResult` 验证提交形状，并保留原 `ResultPolicy.judgeResult` 的整结果政策。
+
+provider 入口从 [body-custody.ts](../src/body-custody.ts) 导出 `ToolBodyCustody` 与 `SealedToolBody`。这是受信绑定与账本间的保管端口，接收实际完整文本帧。它不允许调用者登记任意路径，不替代作者 writer，也不通过封存回执授予公开读取资格。正文 seal 没有 TTL，只有结果提交才激活期限。

@@ -106,7 +106,17 @@ function assembly() {
     store,
     guards,
     createLocalToolClock(),
-    { resultPageBytes: 4_096, ledgerCommitAttempts: 4, queueCapacity: 16 },
+    {
+      resultPageBytes: 4_096,
+      ledgerCommitAttempts: 4,
+      queueCapacity: 16,
+      offloading: {
+        maxInlineUtf8Bytes: 65_536,
+        maxRetentionMs: 86_400_000,
+        maxBodyBytes: 16_777_216,
+        previewUtf8Bytes: 1_024,
+      },
+    },
     {
       materials: createMemoryToolMaterials<P>(),
       releaseInspection: createMemoryToolEnvironment<P>(),

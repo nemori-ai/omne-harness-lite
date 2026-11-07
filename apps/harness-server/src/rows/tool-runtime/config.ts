@@ -20,6 +20,12 @@ export const toolConfigurationSchema = z.strictObject({
   processBatchDelayMs: nonNegative,
   observerBufferBytes: positive,
   resultPageBytes: positive,
+  offloading: z.strictObject({
+    maxInlineUtf8Bytes: positive,
+    maxRetentionMs: positive,
+    maxBodyBytes: positive,
+    previewUtf8Bytes: positive,
+  }),
   reconciliationDelayMs: nonNegative,
   ledgerCommitAttempts: positive,
   queueCapacity: positive,

@@ -27,7 +27,7 @@ async function receiverFixture(durableDeclaration = true) {
       admission: target.admission,
     }),
   )
-  const payload: ToolDelivery<ContentBlock> = {
+  const payload: Extract<ToolDelivery<ContentBlock>, { kind: 'result' }> = {
     kind: 'result',
     key: {
       kind: 'result',

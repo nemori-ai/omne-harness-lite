@@ -5,7 +5,7 @@ import type {
   RawOutput,
   ToolOperationId,
   ToolFailure,
-  ToolResult,
+  ToolRenderedResult,
 } from '@omne-harness/tool-contract'
 import type {
   PreparationRecord,
@@ -43,7 +43,7 @@ export function settlementOperation(
 export function processCustodyCovered<B extends ContentBlock>(
   snapshot: Snapshot,
   raw: RawOutput,
-  value: ToolResult<B>,
+  value: ToolRenderedResult<B>,
 ): boolean {
   const retained = [raw.content, ...value.attachments]
   return [...snapshot.facts.values()].every(
@@ -153,7 +153,7 @@ export function decidePlanRelease<B extends ContentBlock>(
   command: PlanReleaseCommand,
   mint: Mint,
   unsupported: Outcome<never, ToolFailure>,
-  value: ToolResult<B> | null,
+  value: ToolRenderedResult<B> | null,
 ): Decision<ReleaseRecord> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'plan-release')
   if ('failure' in known) return reply(known)

@@ -1,3 +1,5 @@
+import type { SettlementRenderer } from './settlement-values.ts'
+import { judgeCommittedToolResult } from '@omne-harness/tool-contract/provider'
 import { structuredReturnFixture } from '@omne-harness/tool-contract/testing'
 import { createReaderFixture } from './reader-fixture.ts'
 import { createHash } from 'node:crypto'
@@ -153,7 +155,7 @@ export function sourceBlocks(): readonly ToolMessageContentBlock[] {
 export async function modelHost(
   input: Readonly<{
     terminal?: ToolTerminal
-    value?: (raw: RawOutput) => ToolResult<ToolMessageContentBlock>
+    value?: SettlementRenderer
   }> = {},
 ) {
   const content = createMemoryToolContent<Principal>()
@@ -233,7 +235,7 @@ export async function modelHost(
                 {
                   execute: async () => {
                     sourceExecutions += 1
-                    return sourceValue(raw)
+                    return sourceValue(raw, h.ledger, start)
                   },
                 },
                 environment,
@@ -324,7 +326,7 @@ export async function modelHost(
         if ('failure' in response) return response
         return succeed({
           ...response.ok,
-          value: ok(defaultResultPolicy.judgeResult(response.ok.value)),
+          value: ok(judgeCommittedToolResult(defaultResultPolicy, response.ok.value)),
         })
       },
     },

@@ -3,7 +3,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { RawOutput } from './custody.ts'
 import type { Adoption, CallAccess, DurableEvidence, Mutation, ToolIdentity } from './identity.ts'
 import type { ToolStartRecord } from './ports.ts'
-import type { Effect, Reply, ToolResult, ToolTerminal } from './results.ts'
+import type { Effect, Reply, ToolRenderedResult, ToolTerminal } from './results.ts'
 
 /** M02.1: identity of the canonical bytes, independent of their storage address and lifetime. */
 export type ToolMaterialFingerprint = Readonly<{
@@ -91,7 +91,7 @@ export interface ToolMaterialStore<P> {
 export type ToolFinalEnvelope<B extends ContentBlock> = Readonly<{
   kind: 'final'
   raw: RawOutput
-  result: ToolResult<B>
+  result: ToolRenderedResult<B>
   terminal: ToolTerminal
   effect: Effect
 }>
