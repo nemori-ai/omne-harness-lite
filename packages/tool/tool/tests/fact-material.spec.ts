@@ -4,7 +4,14 @@ import { createToolLedger } from '@omne-harness/tool'
 import type { FactBatch } from '@omne-harness/tool-contract/provider'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import { settlementFixture } from './settlement-values.ts'
-import { configurationOf, guards, ok, testSettlementPorts, type Block } from './runtime-values.ts'
+import {
+  callId,
+  configurationOf,
+  guards,
+  ok,
+  testSettlementPorts,
+  type Block,
+} from './runtime-values.ts'
 
 async function fixture() {
   const f = await settlementFixture()
@@ -12,9 +19,19 @@ async function fixture() {
   const read = vi.fn(ports.materials.store.read)
   const write = vi.fn(ports.materials.store.write)
   const inspect = vi.fn(ports.materials.store.inspect)
+  const revoked = new Set<string>()
+  const baseGuards = guards()
   const ledger = createToolLedger(
     f.harness.memory,
-    guards(),
+    {
+      ...baseGuards,
+      access: {
+        qualify: input =>
+          revoked.has(input.call)
+            ? Promise.resolve({ kind: 'denied' as const, reason: 'revoked' })
+            : baseGuards.access.qualify(input),
+      },
+    },
     createMemoryToolClock(),
     configurationOf({}),
     {
@@ -26,8 +43,22 @@ async function fixture() {
   if (task?.kind !== 'settle') throw new Error('missing final task')
   const receive = (batch: FactBatch<Block> = f.batch) =>
     ledger.commands.receiveFacts({ ...f.access, start: batch.start, batch })
-  return { ...f, ledger, read, write, inspect, receive, basis: task.basis }
+  return { ...f, ledger, read, write, inspect, receive, revoked, basis: task.basis }
 }
+
+it('rechecks the original call after material IO even when the caller changes the input', async () => {
+  const f = await fixture()
+  const input = { ...f.access, basis: f.basis }
+  const read = f.read.getMockImplementation()
+  if (read === undefined) throw new Error('missing material reader')
+  f.read.mockImplementation(async page => {
+    const result = await read(page)
+    f.revoked.add(f.access.call)
+    input.call = callId('still-authorized-call')
+    return result
+  })
+  expect(await f.ledger.facts.read(input)).toHaveProperty('failure.kind', 'denied')
+})
 
 it('recalls the received final and its aliases without reading or writing its material', async () => {
   const f = await fixture()

@@ -127,6 +127,18 @@ it('commits preparation responsibility and time before preserving the exact rend
   expect(f.sample).toHaveBeenCalledTimes(1)
 })
 
+it.each([250, 251, 256])(
+  'preserves and recalls a final with a %i-character operation',
+  async length => {
+    const f = await fixture()
+    const input = { ...f.input, operation: operationId('x'.repeat(length)) }
+    const pointer = ok(await f.exact.preserveFinal(input))
+    expect(ok(await f.rebuild().finalCustody.preserveFinal(input))).toEqual(pointer)
+    expect(f.written).toHaveLength(1)
+    expect(JSON.parse(new TextDecoder().decode(f.written[0]))).toEqual(f.final)
+  },
+)
+
 it('does not touch bytes after an unknown preparation commit and recovers the same responsibility', async () => {
   const f = await fixture()
   f.harness.memory.injectCommit('unknown-applied')

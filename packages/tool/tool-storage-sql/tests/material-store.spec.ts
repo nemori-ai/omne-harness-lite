@@ -68,6 +68,31 @@ const deletion = {
   operation: ok(decodeToolOperationId('delete-1')),
   authorization: source,
 }
+it.each([
+  { ...material, label: 'caller metadata' },
+  { ...material, provider: { ...provider, label: 'caller metadata' } },
+])('returns a usable reference for a material identity with extra fields: %j', async extended => {
+  const { store } = await setup()
+  const bytes = new TextEncoder().encode('ab')
+  const seal = ok(await store.write({ ...input, material: extended, bytes }))
+  expect(ok(await store.inspect({ ...input, material: seal.material }))).toEqual({
+    kind: 'sealed',
+    seal,
+  })
+  expect(
+    ok(await store.read({ ...access, material: seal.material, offset: '0', maxBytes: 2 })),
+  ).toEqual({ bytes, next: null })
+})
+it.each([
+  { ...material, label: 'caller metadata' },
+  { ...material, provider: { ...provider, label: 'caller metadata' } },
+])('keeps the deletion fence for a material identity with extra fields: %j', async extended => {
+  const { store } = await setup()
+  ok(await store.erase(deletion))
+  expect(await store.write({ ...input, material: extended, bytes: new Uint8Array([1]) })).toEqual({
+    failure: { kind: 'conflict', operation },
+  })
+})
 it('recalls deletion and excludes late writes without conflating unknown with deleted', async () => {
   const { app, store } = await setup()
   await store.write({ ...input, bytes: new TextEncoder().encode('abcde') })
