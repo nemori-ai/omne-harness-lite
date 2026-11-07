@@ -352,6 +352,7 @@ describe('the suite fails a transport that breaks the contract', () => {
       '[S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable',
       '[X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable',
       'Streamable HTTP: close() after the session ended (S07): the call still in flight and a later request carry no unusable',
+      'Streamable HTTP: a call stopped after the session ended (S07), before close(): abandoned, carrying session-ended',
       'stdio: close() after the process exited (S02): a later request carries no unusable',
     ])
   })
