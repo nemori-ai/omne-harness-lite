@@ -11,9 +11,11 @@ export type TerminalFrame =
   | Readonly<{ kind: 'fault' }>
 
 type FrameOf<K extends TerminalFrame['kind']> = Extract<TerminalFrame, { kind: K }>
-type FrameStep =
-  | Readonly<{ kind: 'frames'; frames: readonly TerminalFrame[] }>
-  | Readonly<{ kind: 'fault' }>
+/**
+ * The frames one push accepted, in order. A fault keeps the frames accepted before the refused
+ * line of the same push: they happened, and how the bytes were cut must not change the outcome.
+ */
+type FrameStep = Readonly<{ kind: 'frames' | 'fault'; frames: readonly TerminalFrame[] }>
 const base64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u
 
 function decode(
@@ -72,9 +74,9 @@ export function createTerminalReader(input: {
   // sentinel may be read before or after the started observation.
   let begun = false
   let between = 0
-  const fault = (): FrameStep => {
+  const fault = (frames: readonly TerminalFrame[] = []): FrameStep => {
     state = 'fault'
-    return { kind: 'fault' }
+    return { kind: 'fault', frames }
   }
   const inLeg = () => state === 'starting' || state === 'running'
   const enter = (from: typeof state, to: typeof state): boolean => {
@@ -127,7 +129,7 @@ export function createTerminalReader(input: {
         const tail = bytes.subarray(start)
         const end = tail.indexOf(10)
         const length = end < 0 ? tail.length : end
-        if (pending.length + length > input.maxControlBytes) return fault()
+        if (pending.length + length > input.maxControlBytes) return fault(frames)
         pending = Buffer.concat([pending, tail.subarray(0, length)])
         start += length + (end < 0 ? 0 : 1)
         if (end < 0) break
@@ -135,11 +137,11 @@ export function createTerminalReader(input: {
         try {
           value = JSON.parse(pending.toString('utf8'))
         } catch {
-          return fault()
+          return fault(frames)
         }
         pending = Buffer.alloc(0)
         const frame = decode(value, input.generation, input.maxChunkBytes)
-        if (frame === undefined || !apply(frame)) return fault()
+        if (frame === undefined || !apply(frame)) return fault(frames)
         frames.push(frame)
       }
       return { kind: 'frames', frames }

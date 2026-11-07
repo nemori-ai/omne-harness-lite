@@ -4,7 +4,7 @@
 // scope. Then the disposition itself with controllable ledgers: the rechecks around the commit
 // (C5), the unknown commit and its resolution, and the reasons a domain is stopped instead.
 import { randomUUID } from 'node:crypto'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readlinkSync } from 'node:fs'
 import { chmod, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -225,16 +225,25 @@ it('answers unavailable to a reservation before the markers were read', async ()
   expect(index.reserve(scopeOf('scope-a'), tenant, 'k1')).toBe('unavailable')
 })
 
-it.skipIf(!existsSync('/dev/fd'))('leaves no descriptor open after writing markers', async () => {
-  const f = await indexWith(await stateDirectory())
-  const scope = scopeOf('scope-descriptors')
-  const descriptors = () => readdirSync('/dev/fd').length
-  const before = descriptors()
-  for (let n = 0; n < 4; n++) expect((await handOver(f, scope)).handed.marker).toBe('written')
-  // The count is the whole process's: in a run that shares the process, another file's child may
-  // hold a pipe for a moment. A leaked marker descriptor never closes, so the count must settle.
-  await vi.waitFor(() => expect(descriptors()).toBeLessThan(before + 4), { timeout: 2_000 })
-})
+it.skipIf(!existsSync('/proc/self/fd'))(
+  'leaves no descriptor open after writing markers',
+  async () => {
+    const state = await stateDirectory()
+    const f = await indexWith(state)
+    const scope = scopeOf('scope-descriptors')
+    for (let n = 0; n < 4; n++) expect((await handOver(f, scope)).handed.marker).toBe('written')
+    // Other work in this process opens and closes descriptors too, so the count proves nothing.
+    // Only a descriptor that points into this index's state directory is this index's.
+    const targets = readdirSync('/proc/self/fd').flatMap(fd => {
+      try {
+        return [readlinkSync(join('/proc/self/fd', fd))]
+      } catch {
+        return []
+      }
+    })
+    expect(targets.filter(target => target.startsWith(state))).toEqual([])
+  },
+)
 
 it('writes the marker on commit with the fields a restart needs, and lists by scope and tenant only', async () => {
   const state = await stateDirectory()

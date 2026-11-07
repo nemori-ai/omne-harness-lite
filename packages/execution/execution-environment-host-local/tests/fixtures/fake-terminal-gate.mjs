@@ -13,7 +13,8 @@
 //   executes: one frame list per `{ c: 'execute' }` message, in order; a leg without a list gets no answer
 // A frame is an object with `t` and its fields. `leg` defaults to the id of the execute message,
 // `text` stands for `b` (the text in base64), `delayMs` waits that long after the previous frame,
-// and `raw` writes that text as the whole line (for lines that are not frames).
+// `raw` writes that text as the whole line (for lines that are not frames), and `joined: true`
+// puts the frame into the same write as the previous one, so the host reads both in one chunk.
 //
 // It also writes its pid to `<FAKE_DIR>/<unit>.pid` (the stand-in `systemctl` of
 // `fake-supervisor.mjs` kills it by that file) and appends every control line it reads to
@@ -35,11 +36,12 @@ function script() {
 
 let generation
 let executes = 0
-const send = line => process.stdout.write(`${line}\n`)
+const send = text => process.stdout.write(text)
 
 function play(frames, leg) {
   let at = 0
-  for (const { delayMs = 0, raw, text, ...frame } of frames) {
+  const writes = []
+  for (const { delayMs = 0, raw, text, joined = false, ...frame } of frames) {
     at += delayMs
     const line =
       raw !== undefined
@@ -50,8 +52,13 @@ function play(frames, leg) {
             generation,
             ...frame,
           })
-    if (at === 0) send(line)
-    else setTimeout(send, at, line)
+    const previous = writes.at(-1)
+    if (joined && previous !== undefined) previous.text += `${line}\n`
+    else writes.push({ at, text: `${line}\n` })
+  }
+  for (const { at, text } of writes) {
+    if (at === 0) send(text)
+    else setTimeout(send, at, text)
   }
 }
 

@@ -68,7 +68,7 @@ function deferred<T>(): Deferred<T> {
 }
 
 /** Waits for `promise`; fails the test when it has not settled within `ms`. */
-async function within<T>(promise: Promise<T>, what: string, ms = 3_000): Promise<T> {
+async function within<T>(promise: Promise<T>, what: string, ms = 10_000): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined
   const late = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error(`${what} did not settle within ${ms} ms`)), ms)
@@ -79,6 +79,12 @@ async function within<T>(promise: Promise<T>, what: string, ms = 3_000): Promise
     clearTimeout(timer)
   }
 }
+
+/**
+ * `vi.waitFor` with a bound that holds while the fake tools run as processes on a loaded machine.
+ * It only guards against a hang: the 1 s default ran out under mutation testing.
+ */
+const eventually = <T>(check: () => T | Promise<T>) => vi.waitFor(check, { timeout: 10_000 })
 
 /** A port call the test answers: `asked` settles with the argument when it is called. */
 function controlled<T>() {
@@ -176,7 +182,9 @@ async function setup(options: SetupOptions = {}) {
   if (options.gate !== undefined)
     await writeFile(join(fake, 'gate.json'), JSON.stringify(options.gate))
   const tools = await fakeTools(fake)
-  const stopBoundMs = options.settings?.stopBoundMs ?? 1_000
+  // Long enough that a stop the fake tools confirm is confirmed on a loaded machine; a test that
+  // needs the bound to pass first sets its own.
+  const stopBoundMs = options.settings?.stopBoundMs ?? 10_000
   const indexStops: string[] = []
   const bootId = await readBootId()
   const index = createRetainedProcessIndex({
@@ -354,7 +362,7 @@ function askedBefore<T>(asked: Promise<T>, handle: ProcessHandle, what: string):
 
 /** The domain was stopped once, under this acquisition, and left its pending set. */
 async function stoppedByAcquisition(f: Fixture, key: string) {
-  await vi.waitFor(() => expect(f.own.stopped).toEqual([[key, 'confirmed']]))
+  await eventually(() => expect(f.own.stopped).toEqual([[key, 'confirmed']]))
   expect(await f.kills()).toBe(1)
   expect(f.processes.stopped).toEqual([])
   expect(f.commands.unconfirmed()).toEqual([])
@@ -369,7 +377,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
         requestId: 'start-1',
         reason: 'unavailable',
       })
-      await vi.waitFor(() => expect(f.own.stopped).toHaveLength(1))
+      await eventually(() => expect(f.own.stopped).toHaveLength(1))
       expect(f.own.stopped[0]?.[1]).toBe('confirmed')
       expect(f.own.permits).toEqual([])
       expect(f.commands.unconfirmed()).toEqual([])
@@ -429,7 +437,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
         reason: 'unavailable',
       })
       await stoppedByAcquisition(f, f.own.permits[0] ?? '')
-      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go']))
+      await eventually(async () => expect(await f.controls()).toEqual(['go']))
     })
 
     it('answers unknown when the gate is not ready within the start bound, and keeps the resource for the release', async () => {
@@ -447,16 +455,21 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       expect(await f.controls()).toEqual([])
     })
 
-    it('answers unknown when the command does not start within the bound after GO', async () => {
-      const f = await setup({ gate: { onGo: 'silent' }, settings: { startBoundMs: 200 } })
-      expect(await within(f.start(), 'the start')).toEqual({
-        kind: 'unknown',
-        requestId: 'start-1',
-      })
-      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go']))
-      expect(await f.kills()).toBe(0)
-      expect(f.commands.unconfirmed()).toHaveLength(1)
-    })
+    it(
+      'answers unknown when the command does not start within the bound after GO',
+      { timeout: 20_000 },
+      async () => {
+        // The bound runs from the launch: it must outlast the gate's ready for GO to go out.
+        const f = await setup({ gate: { onGo: 'silent' }, settings: { startBoundMs: 2_000 } })
+        expect(await within(f.start(), 'the start')).toEqual({
+          kind: 'unknown',
+          requestId: 'start-1',
+        })
+        await eventually(async () => expect(await f.controls()).toEqual(['go']))
+        expect(await f.kills()).toBe(0)
+        expect(f.commands.unconfirmed()).toHaveLength(1)
+      },
+    )
   })
 
   describe('a gate that ends without an exit frame', () => {
@@ -485,13 +498,13 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
     it('reports none for a domain the gate read as empty, without waiting for an index that never loads', async () => {
       const f = await setup({
         gate: { exit: { code: 0, signal: null, members: 0 } },
-        settings: { startBoundMs: 4_000 },
+        settings: { startBoundMs: 10_000 },
         retained: index => ({ ...index, ready: () => new Promise<boolean>(() => undefined) }),
       })
       const { handle, key } = await started(f)
       const begun = performance.now()
       expect(await residueOf(handle)).toEqual({ kind: 'none' })
-      expect(performance.now() - begun).toBeLessThan(2_000)
+      expect(performance.now() - begun).toBeLessThan(5_000)
       await stoppedByAcquisition(f, key)
       expect(f.processes.plans).toEqual([])
     })
@@ -603,7 +616,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       const { handle, key } = await started(f)
       await askedBefore(plan.asked, handle, 'the plan')
       const stopping = handle.stop('forced')
-      await vi.waitFor(async () => expect(await f.kills()).toBe(1))
+      await eventually(async () => expect(await f.kills()).toBe(1))
       plan.answer('recorded')
       expect(await residueOf(handle)).toEqual({ kind: 'stopping', reason: 'closed' })
       expect(await within(stopping, 'the stop')).toBe('confirmed')
@@ -618,7 +631,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       const { handle, key } = await started(f)
       await askedBefore(plan.asked, handle, 'the plan')
       const releasing = f.commands.stopAll()
-      await vi.waitFor(async () => expect(await f.kills()).toBe(1))
+      await eventually(async () => expect(await f.kills()).toBe(1))
       plan.answer('recorded')
       expect(await residueOf(handle)).toEqual({ kind: 'stopping', reason: 'closed' })
       expect(await within(releasing, 'the release')).toEqual([])
@@ -649,7 +662,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       expect(f.own.plans.map(resource => resource.key)).toEqual([key])
       expect(f.processes.plans).toEqual(f.own.plans)
       expect(f.processes.adopts).toEqual([key])
-      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go', 'retain']))
+      await eventually(async () => expect(await f.controls()).toEqual(['go', 'retain']))
       expect(await f.list()).toMatchObject([
         { process: residue?.kind === 'retained' ? residue.process : {}, state: 'running' },
       ])
@@ -681,10 +694,10 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
         const { handle, key } = await started(f)
         expect(await residueOf(handle)).toMatchObject({ kind: 'retained' })
         close(f)
-        await vi.waitFor(() => expect(f.processes.stopped).toEqual([[key, 'confirmed']]))
+        await eventually(() => expect(f.processes.stopped).toEqual([[key, 'confirmed']]))
         expect(await f.kills()).toBe(1)
         expect(f.own.stopped).toEqual([])
-        await vi.waitFor(async () => expect(await f.list()).toEqual([]))
+        await eventually(async () => expect(await f.list()).toEqual([]))
       },
     )
 
@@ -736,7 +749,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       expect(await residueOf(handle)).toEqual({ kind: 'unknown' })
       expect(await within(handle.stop('graceful'), 'the stop')).toBe('unconfirmed')
       expect(f.processes.adopts).toEqual([key, key])
-      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go', 'retain']))
+      await eventually(async () => expect(await f.controls()).toEqual(['go', 'retain']))
       expect(await f.list()).toMatchObject([{ process: { id: key }, state: 'running' }])
       expect(await f.kills()).toBe(0)
       expect(f.own.stopped).toEqual([])
@@ -752,16 +765,16 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       const { handle, key } = await started(f)
       await askedBefore(adopt.asked, handle, 'the adopt')
       void handle.stop('forced')
-      await vi.waitFor(async () => expect(await f.kills()).toBe(1))
+      await eventually(async () => expect(await f.kills()).toBe(1))
       adopt.answer('unavailable')
       expect(await residueOf(handle)).toEqual({ kind: 'unknown' })
       expect(await within(f.commands.stopAll(), 'the release')).toEqual([])
       expect(f.processes.adopts).toEqual([key, key])
       // The commit took effect for a domain this acquisition had stopped: the index stops and records it.
-      await vi.waitFor(() => expect(f.processes.stopped).toEqual([[key, 'confirmed']]))
+      await eventually(() => expect(f.processes.stopped).toEqual([[key, 'confirmed']]))
       expect(f.own.stopped).toEqual([])
-      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go']))
-      await vi.waitFor(async () => expect(await f.list()).toEqual([]))
+      await eventually(async () => expect(await f.controls()).toEqual(['go']))
+      await eventually(async () => expect(await f.list()).toEqual([]))
     })
   })
 
@@ -770,7 +783,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       const f = await setup({ gate: { afterStarted: 'stay', onTerm: 'exit' } })
       const { handle, key } = await started(f)
       expect(await within(handle.stop('forced'), 'the stop')).toBe('confirmed')
-      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go']))
+      await eventually(async () => expect(await f.controls()).toEqual(['go']))
       await stoppedByAcquisition(f, key)
       expect(await within(handle.result, 'the outcome')).toMatchObject({
         kind: 'failed',
@@ -782,7 +795,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       const f = await setup({ gate: { afterStarted: 'stay', onTerm: 'exit' }, retention: 'none' })
       const { handle, key } = await started(f)
       expect(await within(handle.stop('graceful'), 'the stop')).toBe('confirmed')
-      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go', 'term']))
+      await eventually(async () => expect(await f.controls()).toEqual(['go', 'term']))
       expect(await residueOf(handle)).toEqual({ kind: 'stopping', reason: 'unbound' })
       await stoppedByAcquisition(f, key)
     })
@@ -791,7 +804,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       const f = await setup({ gate: { afterStarted: 'stay' }, settings: { graceMs: 100 } })
       const { handle, key } = await started(f)
       expect(await within(handle.stop('graceful'), 'the stop')).toBe('unconfirmed')
-      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go', 'term']))
+      await eventually(async () => expect(await f.controls()).toEqual(['go', 'term']))
       expect(f.own.stopped).toEqual([[key, 'unconfirmed']])
       expect(await f.kills()).toBe(0)
       expect(f.commands.unconfirmed().map(resource => resource.key)).toEqual([key])
@@ -815,16 +828,14 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       await askedBefore(adopt.asked, handle, 'the adopt')
       await f.hold(unit)
       const first = handle.stop('forced')
-      await vi.waitFor(async () => expect(await f.kills()).toBe(1))
+      await eventually(async () => expect(await f.kills()).toBe(1))
       adopt.answer('confirmed')
       expect(await residueOf(handle)).toEqual({ kind: 'stopping', reason: 'closed' })
       expect(await within(handle.stop('forced'), 'the second stop')).toBe('unconfirmed')
       expect(await f.list()).toMatchObject([{ process: { id: key }, state: 'stopping' }])
       await f.unhold(unit)
       expect(await within(first, 'the first stop', 5_000)).toBe('confirmed')
-      await vi.waitFor(() => expect(f.processes.stopped).toEqual([[key, 'confirmed']]), {
-        timeout: 5_000,
-      })
+      await eventually(() => expect(f.processes.stopped).toEqual([[key, 'confirmed']]))
       expect(await f.kills()).toBe(1)
       expect(f.own.stopped).toEqual([])
     })

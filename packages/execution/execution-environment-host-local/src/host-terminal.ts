@@ -422,8 +422,9 @@ export function createHostTerminals(input: Input): HostTerminals {
     launcher.stdout?.on('data', (bytes: Buffer) => {
       if (entry.state === 'invalid' || entry.state === 'closed') return
       const result = entry.reader.push(bytes)
-      if (result.kind === 'fault') return invalidate(entry)
+      // Frames accepted before a fault happened; the fault invalidates what comes after them.
       for (const value of result.frames) frame(entry, value)
+      if (result.kind === 'fault') invalidate(entry)
     })
     send(entry, {
       generation: ref.generation,

@@ -324,7 +324,7 @@ macOS 的平台前提（类型 `MacosPrerequisite`）。macOS 不做 P1、P3～P
 - 终端里的后台进程不使终端失效。段进行期间它们写出的字节属于这一段。
 - 没有段运行时，gate 也持续读 PTY。段间字节进有界缓冲，上界是 `betweenSegmentBytes`。下一段的结局在 `OutputSummary.between` 里带上保留的字节与计数，超出上界的字节只计入丢弃数。段间字节不混入段输出。
 
-控制格式错误、错误代、失联、哨兵顺序不可能（重复的段首、段首之前的段尾、段尾之后又有段内字节）都使结果为 `failed(effectUnknown)`，终端转为 `invalid`。不自动重放脚本或重建 shell。输出处理 `onlcr` 不改写 OSC 序列，这一点由真实 PTY 用例确认。
+控制格式错误、错误代、失联、哨兵顺序不可能（重复的段首、段首之前的段尾、段尾之后又有段内字节）都使结果为 `failed(effectUnknown)`，终端转为 `invalid`。不自动重放脚本或重建 shell。失效之前已经读到并被接受的帧照常生效，即使它们与失效在同一次读取里：先到的 `started` 使执行交出句柄，句柄的结果为 `failed(effectUnknown)`；先到的段内字节进入这一段的输出；先到的 `finished` 使这一段按退出码完成，之后终端才转为 `invalid`。所以同一串帧不论怎样分次读到，结局相同。输出处理 `onlcr` 不改写 OSC 序列，这一点由真实 PTY 用例确认。
 
 已知限制：脚本可以读到本段的随机数（例如 `declare -f` 显示驱动函数），从而伪造哨兵。后果只限这个终端：字节归属错乱，或因顺序不可能而失效。随机数防的是无意的字节冲突，不防同一脚本破坏自己的终端。
 
@@ -592,6 +592,8 @@ macOS 按 POSIX 会话收纳。进程可以用 `setsid` 离开会话，所以 ma
 - 2026-11-02 在 Node v26.12.0、WSL2（Ubuntu-24.04，内核 6.18.33.2-microsoft-standard-WSL2）上，本成员目录的快层 `vitest run --mode fast`：15 个测试文件、254 个测试，249 个通过、5 个跳过，退出码 0。跳过的 5 个中，4 个属于慢层，1 个只在非 Linux 宿主上运行（host-probe）。同一环境、同一提交上的慢层 `OMNE_HOST_COMMAND_LINUX=1 vitest run --mode slow`：4 个测试文件里的 20 个慢层测试通过，其中 16 个起真实的 systemd 用户 scope，运行后 `systemctl --user list-units 'omne-*'` 没有残留。两层合计 16 个测试文件、270 个测试。`typecheck` 无错误。本成员 `package.json` 声明的引擎是 `>=24`。
 - 2026-11-05 在 Node v26.12.0、Ubuntu 20.04（systemd 245，cgroup 混合模式，统一层级挂在 `/sys/fs/cgroup/unified`，内核 5.15.0-1084-aws，node-pty 用 g++-10 在本机编译），代码与提交 `005cb80e3` 相同：快层 30 个测试文件，311 个通过、36 个跳过，连续 3 次退出码 0。慢层设 `OMNE_HOST_COMMAND_LINUX=1 OMNE_HOST_TERMINAL_LINUX=1`：24 个测试文件，45 个测试通过，运行后 `systemctl --user list-units 'omne-*'` 没有残留。
 - 2026-11-05 同一环境，代码与提交 `02158d8c7` 相同：快层 33 个测试文件，365 个通过、36 个跳过，退出码 0。慢层设 `OMNE_HOST_COMMAND_LINUX=1 OMNE_HOST_TERMINAL_LINUX=1`：28 个测试文件，70 个测试通过、67 个跳过（其中 29 个是只在 Windows 上运行的用例），退出码 0，含 `host-command-residue`、`host-command-custody`、`host-retained-processes`、`host-command-release-scope`、`command-retention-conformance` 与 `host-terminal-segments`。之后的提交 `35ab21429` 只去掉一个未用的解构变量并整理格式，在它上面复跑了类型检查、`lint:oxlint` 与 `format:check`。
+- 2026-11-06 同一环境，代码与提交 `c6e971012` 相同：快层（`vitest run --mode fast`）40 个测试文件，981 个通过、36 个跳过，类型测试无错，退出码 0。慢层设 `OMNE_HOST_COMMAND_LINUX=1 OMNE_HOST_TERMINAL_LINUX=1`：29 个测试文件，73 个测试通过、70 个跳过，退出码 0，新增的 `host-containment` 用例证明经 `setsid` 与双重 fork 脱离的进程仍在执行域里并随之停止；运行后 `systemctl --user list-units 'omne-host-*'` 没有残留。差分变异（只跑快层，基线 `1b017574b`）本成员 2256 个变异体，得分 84.7%。第一遍有 19 个不计分（5 个没跑测试、14 个超时未复核），用新起的运行器逐个复跑后全部被杀。没有覆盖的 238 个变异体中，224 个在门进程外壳 `terminal-gate.ts` 与 `command-gate.ts`，外壳只由慢层覆盖。
+- 2026-11-06 同一环境，终端控制读取器的故障改为带出同次读取里先被接受的帧之后，代码与提交 `884a715fc` 相同：快层 40 个测试文件，986 个通过、36 个跳过；慢层 29 个测试文件，73 个通过、70 个跳过，运行后没有残留单元。改动行的差分变异 19 个变异体全部被杀。
 - 2026-11-06 在 macOS 15.8（24H23）、Apple arm64、Node v26.13.0 上，代码与提交 `f25d74286` 相同：快层 858 个通过、238 个跳过、0 个失败。macOS 慢层设 `OMNE_HOST_MACOS=1`：primitives 5 个、commands 14 个、terminals 11 个、终端一致性 7 个，全部通过。这台宿主上没有运行 Linux 慢层。
 - 以上运行都不在 Windows 上。只在 Linux 运行的用例在 Windows 上显示为跳过，跳过不是通过。
 

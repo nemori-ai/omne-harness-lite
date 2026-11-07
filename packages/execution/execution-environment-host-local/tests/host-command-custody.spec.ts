@@ -63,6 +63,12 @@ function deferred<T>(): Deferred<T> {
 
 const tick = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
+/**
+ * `vi.waitFor` with a bound that holds while the fake tools run as processes on a loaded machine.
+ * It only guards against a hang: the 1 s default ran out under mutation testing.
+ */
+const eventually = <T>(check: () => T | Promise<T>) => vi.waitFor(check, { timeout: 10_000 })
+
 const terminalLedger: RetainedTerminalLedger = {
   closed: new AbortController().signal,
   plan: async () => 'recorded',
@@ -128,7 +134,9 @@ async function setup(options: SetupOptions) {
   const fake = await temporary('omne-custody-fake-')
   const state = await temporary('omne-custody-state-')
   const tools = await fakeTools(fake)
-  const stopBoundMs = options.stopBoundMs ?? 1_000
+  // Long enough that a stop the fake tools confirm is confirmed on a loaded machine; a test that
+  // needs the bound to pass first sets its own.
+  const stopBoundMs = options.stopBoundMs ?? 10_000
   const indexStops: string[] = []
   const bootId = await readBootId()
   const index = createRetainedProcessIndex({
@@ -280,14 +288,14 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
         // Handed over: the release left it alone, the index holds it running.
         expect(await f.kills()).toBe(0)
         expect(f.indexStops).toEqual([])
-        await vi.waitFor(async () => expect(await f.retains()).toBe(1))
+        await eventually(async () => expect(await f.retains()).toBe(1))
         expect(f.processes.stopped).toEqual([])
         expect(await f.list()).toMatchObject([{ process: residue.process, state: 'running' }])
         expect(await f.gateAlive()).toBe(true)
       } else {
         // Interrupted before the custody changed: stopped once, under the retention scope.
         expect(residue).toEqual({ kind: 'stopping', reason: 'closed' })
-        await vi.waitFor(() => expect(f.processes.stopped).toEqual([[f.key, 'confirmed']]))
+        await eventually(() => expect(f.processes.stopped).toEqual([[f.key, 'confirmed']]))
         expect(await f.kills()).toBe(1)
         expect(await f.retains()).toBe(0)
         expect(await f.list()).toEqual([])
@@ -311,7 +319,7 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
       expect(await a).toEqual([])
       expect(await b).toEqual([])
       expect(f.processes.adopts).toHaveLength(2)
-      await vi.waitFor(async () => expect(await f.retains()).toBe(1))
+      await eventually(async () => expect(await f.retains()).toBe(1))
       expect(await f.list()).toMatchObject([{ process: { id: f.key }, state: 'running' }])
       expect(await f.kills()).toBe(0)
       expect(f.own.stopped).toEqual([])
@@ -341,7 +349,7 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
         expect(await a).toEqual([])
         expect(await b).toEqual([])
         expect(f.processes.adopts).toHaveLength(2)
-        await vi.waitFor(async () => expect(await f.retains()).toBe(1))
+        await eventually(async () => expect(await f.retains()).toBe(1))
         expect(await f.list()).toMatchObject([{ process: { id: f.key }, state: 'running' }])
         expect(await f.kills()).toBe(0)
         expect(f.own.stopped).toEqual([])
@@ -386,11 +394,11 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
       const f = await setup({ adopt: adopt.adopt })
       await adopt.asked
       const stopping = f.handle.stop('forced')
-      await vi.waitFor(async () => expect(await f.kills()).toBe(1))
+      await eventually(async () => expect(await f.kills()).toBe(1))
       adopt.answer('confirmed')
       expect(residueOf(await f.handle.result)).toEqual({ kind: 'stopping', reason: 'closed' })
       expect(await stopping).toBe('confirmed')
-      await vi.waitFor(() => expect(f.processes.stopped).toEqual([[f.key, 'confirmed']]))
+      await eventually(() => expect(f.processes.stopped).toEqual([[f.key, 'confirmed']]))
       expect(f.own.stopped).toEqual([])
       expect(await f.kills()).toBe(1)
       expect(f.indexStops).toEqual([])
@@ -408,7 +416,7 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
       f.released.abort()
       adopt.answer('confirmed')
       expect(residueOf(await f.handle.result)).toEqual({ kind: 'stopping', reason: 'closed' })
-      await vi.waitFor(async () => expect(await f.kills()).toBe(1))
+      await eventually(async () => expect(await f.kills()).toBe(1))
       expect(await f.list()).toMatchObject([{ process: { id: f.key }, state: 'stopping' }])
       expect(f.index.reserve(f.scope, tenant, 'another')).toBe('capacity')
       expect(await f.commands.stopAll()).toEqual([])
@@ -416,9 +424,7 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
       expect(f.processes.stopped).toEqual([])
       expect(f.own.stopped).toEqual([])
       await f.unhold()
-      await vi.waitFor(() => expect(f.processes.stopped).toEqual([[f.key, 'confirmed']]), {
-        timeout: 5_000,
-      })
+      await eventually(() => expect(f.processes.stopped).toEqual([[f.key, 'confirmed']]))
       expect(await f.list()).toEqual([])
       const place = f.index.reserve(f.scope, tenant, 'another')
       expect(typeof place).toBe('object')
@@ -433,7 +439,7 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
       await adopt.asked
       await f.hold()
       const stopping = f.handle.stop('forced')
-      await vi.waitFor(async () => expect(await f.kills()).toBe(1))
+      await eventually(async () => expect(await f.kills()).toBe(1))
       adopt.answer('confirmed')
       expect(residueOf(await f.handle.result)).toEqual({ kind: 'stopping', reason: 'closed' })
       expect(await f.list()).toMatchObject([{ process: { id: f.key }, state: 'stopping' }])
@@ -441,9 +447,7 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
       expect(f.commands.unconfirmed()).toEqual([])
       await f.unhold()
       expect(await stopping).toBe('confirmed')
-      await vi.waitFor(() => expect(f.processes.stopped).toEqual([[f.key, 'confirmed']]), {
-        timeout: 5_000,
-      })
+      await eventually(() => expect(f.processes.stopped).toEqual([[f.key, 'confirmed']]))
       expect(f.indexStops).toEqual([])
       expect(await f.kills()).toBe(1)
       expect(f.own.stopped).toEqual([])
@@ -451,31 +455,35 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
     })
   })
 
-  it('N4: an index whose markers never finish loading does not hold the disposition past the start bound', async () => {
-    let reserves = 0
-    const f = await setup({
-      adopt: async () => 'confirmed',
-      startBoundMs: 300,
-      retained: index => ({
-        ...index,
-        ready: () => new Promise<boolean>(() => undefined),
-        reserve: (...args) => {
-          reserves++
-          return index.reserve(...args)
-        },
-      }),
-    })
-    const startedAt = performance.now()
-    const residue = residueOf(await f.handle.result)
-    expect(performance.now() - startedAt).toBeLessThan(2_000)
-    expect(residue).toEqual({ kind: 'stopping', reason: 'policy' })
-    expect(reserves).toBe(0)
-    await vi.waitFor(() => expect(f.own.stopped).toEqual([[f.key, 'confirmed']]), {
-      timeout: 5_000,
-    })
-    expect(f.processes.adopts).toEqual([])
-    expect(await f.list()).toEqual([])
-  })
+  it(
+    'N4: an index whose markers never finish loading does not hold the disposition past the start bound',
+    { timeout: 20_000 },
+    async () => {
+      let reserves = 0
+      // The same bound covers the start, so it must outlast the gate's ready on a loaded machine.
+      const startBoundMs = 2_000
+      const f = await setup({
+        adopt: async () => 'confirmed',
+        startBoundMs,
+        retained: index => ({
+          ...index,
+          ready: () => new Promise<boolean>(() => undefined),
+          reserve: (...args) => {
+            reserves++
+            return index.reserve(...args)
+          },
+        }),
+      })
+      const startedAt = performance.now()
+      const residue = residueOf(await f.handle.result)
+      expect(performance.now() - startedAt).toBeLessThan(startBoundMs + 3_000)
+      expect(residue).toEqual({ kind: 'stopping', reason: 'policy' })
+      expect(reserves).toBe(0)
+      await eventually(() => expect(f.own.stopped).toEqual([[f.key, 'confirmed']]))
+      expect(f.processes.adopts).toEqual([])
+      expect(await f.list()).toEqual([])
+    },
+  )
 })
 
 it('HostTerminalOptions carries none of the options about processes a command leaves behind', () => {
