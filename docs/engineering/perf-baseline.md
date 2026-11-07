@@ -29,7 +29,7 @@ OMNE_JOURNAL_BYTES=20-small-release,20-3k-relaxed \
   pnpm exec vitest run --mode slow --typecheck.enabled=false tests/rows/storage/journal-bytes.spec.ts
 ```
 
-用例名是「步数-消息档-存储上限」。消息档 `small` 是脚本化小消息，`3k` 是 3 KiB 消息。存储上限 `release` 是发行配置的 1 MiB 单 command 上限，`relaxed` 放开这一上限。`OMNE_JOURNAL_BYTES=all` 跑全部。读数写到 `tmp/journal-bytes/`，库副本写到 `tmp/journal-facts/`。
+用例名是「步数-消息档-存储上限」。消息档 `small` 是脚本化小消息，`3k` 是 3 KiB 消息。存储上限 `release` 是发行配置的 1 MiB 单 command 上限，`relaxed` 放开这一上限。`OMNE_JOURNAL_BYTES=all` 跑全部。同一文件里的增长用例：20 步的每次慢层都跑；200 步的每次运行要几十分钟，默认跳过，设 `OMNE_JOURNAL_GROWTH_200=1` 时运行。改动触及 Journal 路径时运行它们。读数写到 `tmp/journal-bytes/`，库副本写到 `tmp/journal-facts/`。
 
 测量设施的快层测试在 `journal-measure.spec.ts`。字节和 WAL 的读法在 `fixtures/journal-measure.ts`。
 
