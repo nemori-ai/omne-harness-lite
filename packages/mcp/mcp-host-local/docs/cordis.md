@@ -1,6 +1,6 @@
 # Cordis 集成
 
-本包提供 MCP 组的 Cordis 插件：`./cordis` 入口的插件工厂 `createMcpPlugin`。插件行为的唯一规范正文是 [SPEC「Cordis 插件」](../SPEC.md#cordis-plugin)：配置、端口的现取与缺席时的答复、换代、撤除与已知限制。本页写装配怎样用它、它依赖什么、它用到的 Cordis 机制，以及它怎样符合 IC 约定。服务键与抽象类归 [mcp-cordis-contract](../../mcp-cordis-contract/docs/cordis.md)，服务的行为归 [mcp 的 SPEC](../../mcp/SPEC.md) 与 [mcp-contract 的 SPEC](../../mcp-contract/SPEC.md)。Cordis 采用发布包 `@deepseek-ai/cordis@4.0.4`。本页是候选，尚未取得技术接受。
+本包提供 MCP 组的 Cordis 插件：`./cordis` 入口的插件工厂 `createMcpPlugin`。插件行为的唯一规范正文是 [SPEC「Cordis 插件」](../SPEC.md#cordis-plugin)：配置、端口的现取与缺席时的答复、换代、撤除与已知限制。本页写装配怎样用它、它依赖什么、它用到的 Cordis 机制，以及它怎样符合 IC 约定。服务键与抽象类归 [mcp-cordis-contract](../../mcp-cordis-contract/docs/cordis.md)，服务的行为归 [mcp 的 SPEC](../../mcp/SPEC.md) 与 [mcp-contract 的 SPEC](../../mcp-contract/SPEC.md)。Cordis 采用发布包 `@deepseek-ai/cordis@4.0.4`。本页已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受。
 
 本包的变体：根入口是传输工厂，没有 Cordis。本包按 `module` 变体建立，没有模板采用标识。模板没有「升为提供者」的命令，所以按[现有成员不自动迁移](../../../../docs/package-organization.md)的规则，`src/cordis.ts`、`tests/cordis-entry.spec.ts` 与 `tests/cordis-journey.spec.ts` 手工补入，本包不贴模板标识。`package-template scan` 把本成员读作 `service-provider` 变体，`structure` 为 `pass`，`findings` 为 0，`integration` 为 `unknown`（原因见[未覆盖](#未覆盖)）。
 

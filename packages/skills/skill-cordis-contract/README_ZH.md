@@ -10,7 +10,7 @@ Skill 的 Cordis 定义成员，`service-contract` 变体。
 
 本成员不拥有任何行为。五个接口归 [skill-contract](../skill-contract/README_ZH.md)，三个服务的实现归 [skill](../skill/README_ZH.md)，提供三个服务的插件归 [skill-host-local](../skill-host-local/README_ZH.md)。两个端口服务（`skillReadCheck`、`skillResolution`）由别的领域提供。本成员只认通用角色：服务的消费者与端口的提供者。
 
-状态：Cordis 定义成员，行为是候选，尚未取得技术接受。采用依据是[组页](../README.md#成员与依赖)的成员分工与 [IC 约定](../../../docs/architecture/cordis-integration-conventions.md)。现在的实现情况如下：
+状态：Cordis 定义成员，行为已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受。采用依据是[组页](../README.md#成员与依赖)的成员分工与 [IC 约定](../../../docs/architecture/cordis-integration-conventions.md)。现在的实现情况如下：
 
 - 已实现：`./cordis` 导出五个抽象类与五个键常量（各取自对应类的 `provide`），并声明 `Context` 增补。根入口没有导出。
 - 已测试：五个键、导出集合、子类在真实 Cordis 4.0.4 `Context` 上的装载与卸载，以及根入口的导入边界。

@@ -8,7 +8,7 @@
 
 本成员拥有 Skill 包字节的一种来源：目录来源。它读目录的当前内容，不建索引，也不缓存。它把每种文件系统拒绝答成 `@omne-harness/skill-contract` 来源失败集合中的一种。它不检查包、不判定访问，也不比较字节与快照。这些工作归 `@omne-harness/skill`。本成员还拥有 Cordis 插件 `skillPlugin`（`./cordis` 入口）：它在目录来源之上构造 `@omne-harness/skill` 的三个服务，并提供在装载它的 fiber 上。
 
-状态：行为是候选，尚未取得技术接受。本来源在真实临时目录上通过契约套件 `skillPackageSourceConformance()`（PS7 不适用）。Cordis 插件部分是 `./cordis` 入口，提供插件 `skillPlugin`。
+状态：行为已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受。本来源在真实临时目录上通过契约套件 `skillPackageSourceConformance()`（PS7 不适用）。Cordis 插件部分是 `./cordis` 入口，提供插件 `skillPlugin`。
 
 ## 使用
 

@@ -1,6 +1,6 @@
 # @omne-harness/mcp-host-local 行为规格
 
-状态：候选规格，尚未取得技术接受。本包有两个入口。根入口是 `@omne-harness/mcp-contract` 的 `McpTransportFactory` 与 `McpTransport` 的实现方：stdio 与 Streamable HTTP 两种真实传输，含旧 HTTP+SSE 的回退，以及授权发现的取回。`./cordis` 入口是 MCP 的 Cordis 插件，它的行为见[Cordis 插件](#cordis-plugin)。行为条款归契约成员的 [SPEC](../mcp-contract/SPEC.md)。本页写下列内容：根入口的传输兑现契约的哪些条款、传输自定的事项、与官方 SDK 的复用关系、与协议和契约的偏离、`./cordis` 插件的行为，以及两个入口的验证。本页不复制条款正文。公开形状归 `src/` 的公开定义，导航在 [docs/public-api.md](docs/public-api.md)。
+状态：规格，已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受。本包有两个入口。根入口是 `@omne-harness/mcp-contract` 的 `McpTransportFactory` 与 `McpTransport` 的实现方：stdio 与 Streamable HTTP 两种真实传输，含旧 HTTP+SSE 的回退，以及授权发现的取回。`./cordis` 入口是 MCP 的 Cordis 插件，它的行为见[Cordis 插件](#cordis-plugin)。行为条款归契约成员的 [SPEC](../mcp-contract/SPEC.md)。本页写下列内容：根入口的传输兑现契约的哪些条款、传输自定的事项、与官方 SDK 的复用关系、与协议和契约的偏离、`./cordis` 插件的行为，以及两个入口的验证。本页不复制条款正文。公开形状归 `src/` 的公开定义，导航在 [docs/public-api.md](docs/public-api.md)。
 
 ## 范围与依据
 

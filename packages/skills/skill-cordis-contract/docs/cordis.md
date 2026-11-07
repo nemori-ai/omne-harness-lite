@@ -2,7 +2,7 @@
 
 本页是 Skill 各接缝的 Cordis 定义正文：服务键、抽象 `Service`、依赖分类，以及它们怎样符合 IC 约定。性质编号指本成员 [SPEC](../SPEC.md#结果与不变量) 的性质 1 至 8。领域行为归 [skill-contract SPEC](../../skill-contract/SPEC.md)。
 
-接受范围：本页是候选，尚未取得技术接受。Cordis 采用发布包 `@deepseek-ai/cordis@4.0.4`。
+接受范围：本页已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受。Cordis 采用发布包 `@deepseek-ai/cordis@4.0.4`。
 
 ## 集成入口
 

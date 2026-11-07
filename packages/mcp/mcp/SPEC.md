@@ -1,6 +1,6 @@
 # @omne-harness/mcp 行为规格
 
-状态：候选规格，尚未取得技术接受。本包是 `@omne-harness/mcp-contract` 五个应用服务接口的实现方。行为条款归契约成员的 [SPEC](../mcp-contract/SPEC.md)；本页只写两类内容：本包兑现哪些条款，以及契约没有定、由本包决定的事项。本页不复制条款正文。公开形状归 `src/` 的公开定义，导航在 [docs/public-api.md](docs/public-api.md)。
+状态：规格，已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受。本包是 `@omne-harness/mcp-contract` 五个应用服务接口的实现方。行为条款归契约成员的 [SPEC](../mcp-contract/SPEC.md)；本页只写两类内容：本包兑现哪些条款，以及契约没有定、由本包决定的事项。本页不复制条款正文。公开形状归 `src/` 的公开定义，导航在 [docs/public-api.md](docs/public-api.md)。
 
 ## 范围与依据
 

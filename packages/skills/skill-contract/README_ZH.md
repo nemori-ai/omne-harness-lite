@@ -8,7 +8,7 @@ Skill 能力组的纯契约成员。它提供 Skill 的值、失败、服务接�
 
 本成员拥有其他成员共用的 Skill 词汇：包格式规则、快照与内容摘要、失败种类、端口形状，以及 `skill` 类别的资产正文。它没有服务实现，没有来源，也没有运行时状态。`PackageInspection`、`SkillCatalog` 与 `SkillAccess` 只有接口，实现在 `@omne-harness/skill`。目录来源在 `@omne-harness/skill-host-local`。
 
-状态：形状与规则是候选，尚未取得技术接受。纯函数与内存替身有测试。本成员没有验证任何真实来源、读取权或对应。
+状态：形状与规则已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受。纯函数与内存替身有测试。本成员没有验证任何真实来源、读取权或对应。
 
 ## 使用
 

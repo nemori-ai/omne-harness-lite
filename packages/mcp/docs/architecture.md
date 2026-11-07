@@ -1,6 +1,6 @@
 # MCP能力组工程设计
 
-状态：工程设计草案。本页的模型、端口、服务、成员和决定都是候选。mcp-contract 已有实现（候选，尚未取得技术接受），行为正文是它的 [SPEC](../mcp-contract/SPEC.md)。mcp 已实现（候选，尚未取得技术接受）：`createMcp` 交出五个应用服务（`inspection`、`discovery`、`invoker`、`status`、`connections`），另有 `CatalogStore` 的内存实现，行为正文是它的 [SPEC](../mcp/SPEC.md)。mcp-host-local 已实现（候选，尚未取得技术接受）：stdio 与 Streamable HTTP 两种传输，含旧 HTTP+SSE 的回退，另在 `./cordis` 入口交出 Cordis 插件，行为正文是它的 [SPEC](../mcp-host-local/SPEC.md)。mcp-cordis-contract 已实现（候选，尚未取得技术接受）：七个抽象 Service 与它们的键，行为正文是它的 [SPEC](../mcp-cordis-contract/SPEC.md)。公开形状都没有取得技术接受。mcp 与 mcp-host-local 的组合在本机真实服务端上有端到端验证；插件在应用插件树中的装配没有执行。范围见组入口[组合验证](../README.md#组合验证)。本页不授予技术采用或运行支持，不能据此建立包、进程或数据库。
+状态：已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受。mcp-contract 已有实现（已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受），行为正文是它的 [SPEC](../mcp-contract/SPEC.md)。mcp 已实现（已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受）：`createMcp` 交出五个应用服务（`inspection`、`discovery`、`invoker`、`status`、`connections`），另有 `CatalogStore` 的内存实现，行为正文是它的 [SPEC](../mcp/SPEC.md)。mcp-host-local 已实现（已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受）：stdio 与 Streamable HTTP 两种传输，含旧 HTTP+SSE 的回退，另在 `./cordis` 入口交出 Cordis 插件，行为正文是它的 [SPEC](../mcp-host-local/SPEC.md)。mcp-cordis-contract 已实现（已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受）：七个抽象 Service 与它们的键，行为正文是它的 [SPEC](../mcp-cordis-contract/SPEC.md)。公开形状都没有取得技术接受。mcp 与 mcp-host-local 的组合在本机真实服务端上有端到端验证；插件在应用插件树中的装配没有执行。范围见组入口[组合验证](../README.md#组合验证)。本页不授予技术采用或运行支持，不能据此建立包、进程或数据库。
 
 本页拥有组内的边界、成员分解、模型、端口操作、对外接口、失败种类和技术处置。跨领域交接与端口的实现方归[领域交接设计](../../../docs/domains/mcp/architecture.md)，本页只链接，不重写。组内流程见[组内流程](key-flows.md)。
 
@@ -532,7 +532,7 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 ### 内容交付
 
-本节规则参考旧材料，按现行架构筛选。都是候选决定。本组只交付带类型、不丢信息的协议内容。内容怎样呈现，由调用方决定。
+本节规则参考旧材料，按现行架构筛选。本组只交付带类型、不丢信息的协议内容。内容怎样呈现，由调用方决定。
 
 `toContentBlocks` 的规则：
 
@@ -594,11 +594,11 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 ## 产品技术义务的处置
 
-下面五个小节承接产品第四章的 Q-MC02 至 Q-MC06。小节标题保持不变，供产品页链接。每节写技术处置：候选决定、依据层、剩余义务与拥有者。各节的决定都是候选决定，尚未取得技术接受。
+下面五个小节承接产品第四章的 Q-MC02 至 Q-MC06。小节标题保持不变，供产品页链接。每节写技术处置：决定、依据层、剩余义务与拥有者。
 
 ### Q-MC02 成员与公开身份/操作形状的技术归属
 
-处置：成员与身份有候选决定。四个成员的公开形状由各自的候选 SPEC 与公开类型给出，都尚未取得技术接受。
+处置：四个成员的公开形状由各自的 SPEC 与公开类型给出。
 
 | 候选决定                                                                                                                                                                                                                                                               | 依据层                                                                                                                                                                              |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -701,11 +701,11 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 ## 完整行为候选的正式承接缺口
 
-原任务的完整行为候选仍未分配、未采用。下表写明每份候选由哪个成员候选承接，以及经哪些端口与组外交接。mcp-contract、mcp、mcp-host-local 与 mcp-cordis-contract 都已有候选 SPEC 与实现，都尚未取得技术接受。承接在成员 SPEC 写成并取得技术接受后才成立，成立后同步唯一源与导航。本组不复制或薄化契约，也不在组根建立统一 SPEC。
+原任务的完整行为候选仍未分配、未采用。下表写明每份候选由哪个成员承接，以及经哪些端口与组外交接。mcp-contract、mcp、mcp-host-local 与 mcp-cordis-contract 都已有 SPEC 与实现，已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受。承接在成员 SPEC 写成并取得技术接受后才成立，成立后同步唯一源与导航。本组不复制或薄化契约，也不在组根建立统一 SPEC。
 
-| 原候选范围                      | 承接成员（候选）                                                                                                                                                                                                                                                                                                                                                                | 组外交接                                                                                    | 状态                             |
+| 原候选范围                      | 承接成员                                                                                                                                                                                                                                                                                                                                                                | 组外交接                                                                                    | 状态                             |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------- |
-| `discovery-and-adoption.md`     | mcp-contract：`ActionCatalog` 的类型、`mergeListing`、`digestDefinition`、`AdoptionView`、`UseEligibility` 与 `CatalogStore` 端口及其符合性套件。mcp：`ActionDiscovery`、`ActionCatalog` 聚合与 `CatalogStore` 的内存实现                                                                                                                                                       | 经 `AdoptionView` 与 `UseEligibility`；`CatalogStore` 的耐久实现接存储契约（剩余义务）      | 候选，已有实现，尚未取得技术接受 |
-| `endpoint-and-connection.md`    | mcp-contract：`EndpointDefinition`、`parseEndpointBody`、类别端口（含设置声明）、逐动作权限项的 `actionPermissionItems`、`McpTransport`、`CredentialUse`、`ProcessLanding` 端口。mcp：`EndpointInspection`、`Connections`、`EndpointStatus` 与 `Connection` 聚合。mcp-host-local：两种传输与授权发现，以及 `./cordis` 入口的 Cordis 插件。mcp-cordis-contract：服务定义与服务键 | 经 `CredentialUse` 与 `ProcessLanding`；资产 SPEC 的拥有者（`deriveDeclarations` 的上下文） | 候选，已有实现，尚未取得技术接受 |
-| `action-bridge-and-recovery.md` | mcp-contract：`toContentBlocks`、`classifyOutcome`、`CallOutcome`。mcp：`ActionInvoker` 的调用口与任务操作                                                                                                                                                                                                                                                                      | 原调用、等待、结果、dummy 与恢复不在本组                                                    | 候选，已有实现，尚未取得技术接受 |
+| `discovery-and-adoption.md`     | mcp-contract：`ActionCatalog` 的类型、`mergeListing`、`digestDefinition`、`AdoptionView`、`UseEligibility` 与 `CatalogStore` 端口及其符合性套件。mcp：`ActionDiscovery`、`ActionCatalog` 聚合与 `CatalogStore` 的内存实现                                                                                                                                                       | 经 `AdoptionView` 与 `UseEligibility`；`CatalogStore` 的耐久实现接存储契约（剩余义务）      | 已有实现，已接受 |
+| `endpoint-and-connection.md`    | mcp-contract：`EndpointDefinition`、`parseEndpointBody`、类别端口（含设置声明）、逐动作权限项的 `actionPermissionItems`、`McpTransport`、`CredentialUse`、`ProcessLanding` 端口。mcp：`EndpointInspection`、`Connections`、`EndpointStatus` 与 `Connection` 聚合。mcp-host-local：两种传输与授权发现，以及 `./cordis` 入口的 Cordis 插件。mcp-cordis-contract：服务定义与服务键 | 经 `CredentialUse` 与 `ProcessLanding`；资产 SPEC 的拥有者（`deriveDeclarations` 的上下文） | 已有实现，已接受 |
+| `action-bridge-and-recovery.md` | mcp-contract：`toContentBlocks`、`classifyOutcome`、`CallOutcome`。mcp：`ActionInvoker` 的调用口与任务操作                                                                                                                                                                                                                                                                      | 原调用、等待、结果、dummy 与恢复不在本组                                                    | 已有实现，已接受 |
 | 总览、完整不变式及持续验证范围  | 组合部分归本组 README「组合验证」；各成员的不变式归各自 SPEC；传输契约测试与符合性设施归 mcp-contract                                                                                                                                                                                                                                                                           | 组合验证拥有者                                                                              | 未承接                           |

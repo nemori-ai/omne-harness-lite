@@ -1,6 +1,6 @@
 # Cordis 集成
 
-本包提供本组的 Cordis 插件：`./cordis` 入口的 `skillPlugin`。服务键与抽象类归 [skill-cordis-contract](../../skill-cordis-contract/docs/cordis.md)，本页写插件怎样装载、依赖什么、撤除时发生什么，以及它怎样符合 IC 约定。行为条款归 [SPEC 的 Cordis 插件](../SPEC.md#cordis-插件)。Cordis 采用发布包 `@deepseek-ai/cordis@4.0.4`。本页是候选，尚未取得技术接受。
+本包提供本组的 Cordis 插件：`./cordis` 入口的 `skillPlugin`。服务键与抽象类归 [skill-cordis-contract](../../skill-cordis-contract/docs/cordis.md)，本页写插件怎样装载、依赖什么、撤除时发生什么，以及它怎样符合 IC 约定。行为条款归 [SPEC 的 Cordis 插件](../SPEC.md#cordis-插件)。Cordis 采用发布包 `@deepseek-ai/cordis@4.0.4`。本页已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受。
 
 本包的变体：根入口是纯函数工厂，没有 Cordis。`./cordis` 入口使它成为带 Cordis 插件的成员。模板没有把现有成员升为提供者的命令。按[现有成员不自动迁移](../../../../docs/package-organization.md)的规则，`src/cordis.ts` 与 `tests/cordis-entry.spec.ts` 手工补入。`package-template scan` 把本成员读作 `service-provider` 变体。
 

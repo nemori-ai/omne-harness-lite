@@ -1,6 +1,6 @@
 # MCP组内逻辑责任流程
 
-状态：工程设计草案。`@omne-harness/mcp-contract` 已有实现（候选，尚未取得技术接受）。`@omne-harness/mcp` 已实现（候选，尚未取得技术接受），含调用口，行为正文是它的 [SPEC](../mcp/SPEC.md)。`@omne-harness/mcp-host-local` 已实现两种传输与 Cordis 插件（候选，尚未取得技术接受），行为正文是它的 [SPEC](../mcp-host-local/SPEC.md)。`@omne-harness/mcp-cordis-contract` 已实现服务定义与服务键（候选，尚未取得技术接受），行为正文是它的 [SPEC](../mcp-cordis-contract/SPEC.md)。流程中的服务和端口都是候选，见[工程设计](architecture.md#模型)。完整公开行为仍在原任务的候选契约中，流程落位不表示已采用。跨领域交接见[领域流程](../../../docs/domains/mcp/key-flows.md)。本页只写本组承担的步骤。图中组外的一方合并为「调用方」，需求端口按端口名出现。
+状态：已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受。`@omne-harness/mcp-contract` 已有实现（已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受）。`@omne-harness/mcp` 已实现（已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受），含调用口，行为正文是它的 [SPEC](../mcp/SPEC.md)。`@omne-harness/mcp-host-local` 已实现两种传输与 Cordis 插件（已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受），行为正文是它的 [SPEC](../mcp-host-local/SPEC.md)。`@omne-harness/mcp-cordis-contract` 已实现服务定义与服务键（已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受），行为正文是它的 [SPEC](../mcp-cordis-contract/SPEC.md)。流程中的服务和端口见[工程设计](architecture.md#模型)。完整公开行为仍在原任务的候选契约中，流程落位不表示已采用。跨领域交接见[领域流程](../../../docs/domains/mcp/key-flows.md)。本页只写本组承担的步骤。图中组外的一方合并为「调用方」，需求端口按端口名出现。
 
 ## F-MC01 接入点采用、凭据和 MCP 连接
 

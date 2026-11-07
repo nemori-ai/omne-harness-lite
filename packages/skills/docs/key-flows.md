@@ -1,6 +1,6 @@
 # Skill组内逻辑责任流程
 
-状态：工程设计草案。流程中的服务与端口都是候选。`PackageInspection`、`SkillCatalog`、`SkillAccess` 与目录来源 `DirectorySource` 都已有成员实现（候选，尚未取得技术接受）。成员状态见[组入口](../README.md#成员与依赖)。流程只说明本组服务与端口怎样协作，不能因流程落位认为已采用。服务含义与失败种类见[工程设计](architecture.md)。图中只有本组的步骤，本组以外的参与者都合并成「调用方」。
+状态：已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受。`PackageInspection`、`SkillCatalog`、`SkillAccess` 与目录来源 `DirectorySource` 都已有成员实现（已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受）。成员状态见[组入口](../README.md#成员与依赖)。流程只说明本组服务与端口怎样协作，不能因流程落位认为已采用。服务含义与失败种类见[工程设计](architecture.md)。图中只有本组的步骤，本组以外的参与者都合并成「调用方」。
 
 ## 组内检查
 

@@ -8,7 +8,7 @@ The general MCP implementation: the core services of the MCP group on the five r
 
 This package implements the five application services of the contract: the category port `inspection`, the read port `discovery`, the call port `invoker`, and the two status port services `status` and `connections`. They share one connection table, one in-flight table and one task table. The table builds a connection from the ports (credential handle, process landing, transport factory), keeps its state in the `Connection` aggregate, and closes it in the order of the group design.
 
-Status: the connection table, refresh, the read ports and the call port are implemented, on the candidate contract. The behavior is in [SPEC.md](SPEC.md), which cites the contract clauses and adds the decisions this package makes. The group design is [the group engineering design](../docs/architecture.md).
+Status: the connection table, refresh, the read ports and the call port are implemented, on the accepted contract. The behavior is in [SPEC.md](SPEC.md), which cites the contract clauses and adds the decisions this package makes. The group design is [the group engineering design](../docs/architecture.md).
 
 | Part                                                                           | State                                                                                        |
 | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
