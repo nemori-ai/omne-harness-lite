@@ -525,6 +525,8 @@ SourceVerdict 的 denied 表示来源真实、当前请求资格被拒。ledger 
 
 返回 pointer 前再次核当前 write 资格。重建 ledger 后可从 sealed 记录认回，无须查询字节或时间源。准备材料只含 exact final；它不重跑 renderer。账本记录不含该正文。
 
+实现中，`ledger-final-custody` 校验实际 final 与原 start；`ledger-material-custody` 负责准备意图、水位、字节封存及未知认回。当前权限与业务关联由调用路径提供，共用机制不额外选择权限动作。
+
 [针对性用例](tests/final-custody.spec.ts)覆盖准备顺序、未知恢复、时钟回退、冲突重取、操作排除、当前资格、输入固定和删除交错。[SQL Linux 组合](../tool-storage-sql/tests/final-custody-live.spec.ts)覆盖 5 MiB envelope、实际分块读取、账本大小及 worker 重启认回。宿主已使用该入口封存精确 final，再发布引用。最终通道、TTL、用途解除和维护仍属于未完成的 W3 后续实现。
 
 ### W3 事实接收迁移的当前实现
