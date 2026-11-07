@@ -106,6 +106,8 @@ export function planResultBody<B extends ContentBlock>(
     (total, block) => total + BigInt(Buffer.byteLength(block.text, 'utf8')),
     0n,
   )
+  if (size > BigInt(policy.maxBodyBytes))
+    return fail({ kind: 'invalid', field: 'content', reason: 'body-too-large' })
   if (size <= BigInt(policy.inlineBytes)) return succeed({ kind: 'inline', value })
   if (policy.declaration.kind !== 'text')
     return fail({
@@ -113,8 +115,6 @@ export function planResultBody<B extends ContentBlock>(
       adoption: policy.adoption,
       reason: 'automatic offloading requires a text body declaration',
     })
-  if (size > BigInt(policy.maxBodyBytes))
-    return fail({ kind: 'invalid', field: 'content', reason: 'body-too-large' })
   const marker = '\n[offloaded]\n'
   const available = policy.previewBytes - Buffer.byteLength(marker, 'utf8')
   if (available < 0)

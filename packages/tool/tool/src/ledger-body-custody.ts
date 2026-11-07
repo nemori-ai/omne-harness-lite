@@ -223,6 +223,8 @@ export function createLedgerBodyCustody<P>(
       const fixed = fixedInput<P>(supplied)
       if ('failure' in fixed) return fixed
       const input = fixed.ok
+      const allowed = await ports.entry(input, 'write')
+      if ('failure' in allowed) return allowed
       const domain = { kind: 'call', tenant: input.tenant, call: input.call } as const
       const unknown = fail({ kind: 'commit-unknown', operation: input.operation } as const)
       const intent = await ports.transact<BodyPreparationRecord>(

@@ -537,3 +537,28 @@ it('rechecks author sealing after a competing commit removes its registration', 
     ),
   ).toEqual([])
 })
+
+it.each([64, 65])('enforces the body hard limit before inline selection: %i bytes', async bytes => {
+  const f = await settlementFixture({
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 128, maxBodyBytes: 64 },
+    value: {
+      content: [text('answer', 'x'.repeat(bytes))],
+      data: { kind: 'none' },
+      original: { kind: 'none' },
+      attachments: [],
+    },
+  })
+  if (bytes === 64) {
+    expect(ok(await f.preserve()).phase).toBe('settled')
+    expect((await f.resultPage()).value.original).toEqual({ kind: 'none' })
+  } else {
+    expect(await f.preserve()).toEqual({
+      failure: { kind: 'invalid', field: 'content', reason: 'body-too-large' },
+    })
+    expect(
+      (await f.records()).filter(
+        record => record.kind === 'result' || record.kind === 'material-cleanup',
+      ),
+    ).toEqual([])
+  }
+})

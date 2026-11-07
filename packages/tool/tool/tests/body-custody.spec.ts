@@ -162,3 +162,18 @@ it('rejects malformed text and simultaneous different content without overwritin
   ])
   expect(f.write).toHaveBeenCalledOnce()
 })
+
+it('denies preservation before ledger IO even when the ledger is unavailable', async () => {
+  const f = await fixture()
+  const read = vi.spyOn(f.h.memory, 'read').mockRejectedValue(new Error('injected storage outage'))
+  try {
+    expect(await f.custody.preserve({ ...f.input, principal: principalB })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+    expect(read).not.toHaveBeenCalled()
+    expect(f.write).not.toHaveBeenCalled()
+  } finally {
+    read.mockRestore()
+  }
+})
