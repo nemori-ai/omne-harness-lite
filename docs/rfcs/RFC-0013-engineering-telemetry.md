@@ -1,14 +1,14 @@
 ---
 id: RFC-0013
 title: 可替换的工程遥测
-revision: 1
-status: review
+revision: 2
+status: accepted
 owner: chenyize
 ---
 
 # RFC-0013：可替换的工程遥测
 
-规则与维护责任见[RFC入口](README.md)。本页不是当前规范。提案采用、规范写回、实现和交付接受分别判断。来源是 [#1140](https://github.com/nemori-ai/omne-harness-lite/issues/1140) 的设计、[第一份决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6663579066)与[范围变更记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6665535851)（卡 r2）。过程材料（设计稿、评审记录、调研、实施计划）由负责人保存，需要时向负责人索取。另一份输入是用户提供的交接包 omne-observability-handoff-2026-11-05（调查基线 `443bf66`），下文称「交接包」，它是候选，本提案不采用它的全文。CLI 与 Server 的设计交接包（2026-11-05 修订 2）下文称「CLI/Server 交接包」。
+规则与维护责任见[RFC入口](README.md)。本页记录第一版本地 A/B 路径的采用决定，见[#1140 接续采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)。现行行为以文末所列拥有者正文为准；后续设计不随本次采用。提案采用、规范写回、实现和交付接受分别判断。来源是 [#1140](https://github.com/nemori-ai/omne-harness-lite/issues/1140) 的设计、[第一份决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6663579066)与[范围变更记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6665535851)（卡 r2）。过程材料（设计稿、评审记录、调研、实施计划）由负责人保存，需要时向负责人索取。另一份输入是用户提供的交接包 omne-observability-handoff-2026-11-05（调查基线 `443bf66`），下文称「交接包」，它是候选，本提案不采用它的全文。CLI 与 Server 的设计交接包（2026-11-05 修订 2）下文称「CLI/Server 交接包」。
 
 本页用的名词见统一语言：[工程遥测](../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-engineering-telemetry--工程遥测--engineering-telemetry)、[遥测记录](../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-telemetry-record--遥测记录--telemetry-record)、[遥测段](../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-telemetry-segment--遥测段--telemetry-segment)、[输出代](../../.meta_harness/design/ubiquitous_language/terms/execution-and-outcome.md#ul-output-generation--输出代--output-generation)。遥测段与输出代的形态未定，见 [C-73](../../.meta_harness/design/ubiquitous_language/conflicts.md#c-73遥测段是不是对象)、[C-74](../../.meta_harness/design/ubiquitous_language/conflicts.md#c-74输出代是不是对象)。A 线的产物是[会话诊断投影](../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-session-diagnostics-projection--会话诊断投影--session-diagnostics-projection)（DA8）。
 
@@ -65,8 +65,8 @@ OTel 链路与指标、Collector、运行中换输出、出口分区与撤权围
 
 | 线 | 端到端行为 | 真实消费者 | 状态 |
 | --- | --- | --- | --- |
-| A 会话日志诊断投影 | 一条 CLI 命令读一个会话的 Run 时间线、失败原因、模型调用的耗时与用量、工具调用统计；缺口写「未知」 | 开发者、运维者；读自己会话的 agent | 已实现（候选）。Model 阶段时长（DA6）与 Session 提交时间（DA7）没有做，投影写 `unknown` |
-| B 日志收集与热点分析 | `serve` 的 Cordis 消息与入口诊断成为结构化记录，写到 stdout 或本地文件；Session 与 Agent 的操作成为计时记录；离线工具按操作统计分位数 | `serve` 的运维者；做热点分析的开发者 | 已实现（候选）：契约、Cordis 定义、Node 提供者、应用接线、计时记录与离线聚合 |
+| A 会话日志诊断投影 | 一条 CLI 命令读一个会话的 Run 时间线、失败原因、模型调用的耗时与用量、工具调用统计；缺口写「未知」 | 开发者、运维者；读自己会话的 agent | 已实现；本地范围已采用。Model 阶段时长（DA6）与 Session 提交时间（DA7）没有做，投影写 `unknown` |
+| B 日志收集与热点分析 | `serve` 的 Cordis 消息与入口诊断成为结构化记录，写到 stdout 或本地文件；Session 与 Agent 的操作成为计时记录；离线工具按操作统计分位数 | `serve` 的运维者；做热点分析的开发者 | 已实现；本地范围已采用：契约、Cordis 定义、Node 提供者、应用接线、计时记录与离线聚合 |
 | 后续 | OTel、Collector、输出代、出口分区与撤权、两套后端、产品化遥测 | 待具名 | 只出设计，见[后续](#后续推迟项只出设计) |
 
 ### A 线：会话日志诊断投影
@@ -109,8 +109,8 @@ flowchart LR
 | --- | --- | --- | --- |
 | Run 时间线：开始、attempt、控制、终态 | `SessionHistory.begin({ kinds, from: null, direction, pageBytes })` 与 `next`，种类取 `run.started`、`run.attempt-started`、`run.attempt-released`、`run.attempt-exited`、`control.requested`、`control.progress`、`run.terminal`、`call.bound`、`call.execution-fact`、`message.*`（只计数） | 已实现。attempt 按开始、按原因的释放与退出分别计数；`call.execution-fact` 按事实种类计数，带 `consumption` 且与某次投影调用相同的归到该调用，其余归到 Run。条目按日志位置排序；`HistoryEntry` 不公开提交时间，载荷带拥有者报告的发生时间时才显示时刻 | Session 的读取资格，`reader` 类，租户为目标会话的租户 |
 | 调用登记与稳定引用 | `call.bound` 载荷的 `kind`、`reference`、`purpose`（SE18） | 已实现 | 同上 |
-| Run 怎样结束、为什么 | `run.terminal` 的 `outcome` 与 `cause.record`；结构化原因经 Agent 的 `readFinish`（新增，见下节） | 记录已实现；结构化原因经 `readFinish` 读到（本提案新增，已实现，候选） | Agent Journal 的读取资格 |
-| 每次模型调用：发出、首内容、结局、原因、状态码、用量、耗时 | `ModelCalls.inspect(reference)` 解析稳定引用，得到调用；`ModelDiagnostics.list({ call, after, limit })` 给出每次派发的白名单字段；`ModelCalls.dispatches(call)` 给出每次派发记录的 `CallAccount`（用量、费用、时长），按派发身份与诊断条目对上 | `inspect`、`dispatches` 已在 mainline；`ModelDiagnostics` 由本提案实现（已实现，候选）。耗时见 DA6 | Model 的调用访问与诊断读取资格 |
+| Run 怎样结束、为什么 | `run.terminal` 的 `outcome` 与 `cause.record`；结构化原因经 Agent 的 `readFinish`（新增，见下节） | 记录已实现；结构化原因经 `readFinish` 读到（本提案新增，已实现；本地范围已采用） | Agent Journal 的读取资格 |
+| 每次模型调用：发出、首内容、结局、原因、状态码、用量、耗时 | `ModelCalls.inspect(reference)` 解析稳定引用，得到调用；`ModelDiagnostics.list({ call, after, limit })` 给出每次派发的白名单字段；`ModelCalls.dispatches(call)` 给出每次派发记录的 `CallAccount`（用量、费用、时长），按派发身份与诊断条目对上 | `inspect`、`dispatches` 已在 mainline；`ModelDiagnostics` 由本提案实现（已实现；本地范围已采用）。耗时见 DA6 | Model 的调用访问与诊断读取资格 |
 | 每次工具调用：状态、账目 | `ToolInvocationQueries.lookup(reference)`、`account(reference)` | 已实现 | Tool 的调用访问资格 |
 | 工具调用的诊断 | `readDiagnostics({ after: null })`，只读第一页 | 已接上。账本现在答 `unsupported`，投影写 `unknown` 与缺口；有下一页时另写缺口 `truncated`；条目只取 `operation`、`phase`、`code`，不带证据 | 同上 |
 
@@ -154,9 +154,9 @@ flowchart LR
 
 服务由 `model-records` 行提供：`model-storage-sql/cordis` 增加插件工厂 `createSqlModelDiagnosticsPlugin`，提供 `modelDiagnostics`；行的 `provides` 加这个键，与 `modelCommands` 同一提供者组，因为它读同一个租户域的同一份文档。worker 半边增加读处理器 `model.diagnostics`，按 `(tenant, call)` 读 `md_call` 与按 `seq` 排序的 `md_dispatch`，支持 `after` 与 `limit`。
 
-资格：Model 契约要求「没有调用级诊断权限时整次拒绝」，且普通调用读取资格不自动授予它。本提案建议第一版在本机单用户档里显式采用一条映射：代租户行事的主体对自己租户的调用持有诊断读取资格（配置字段 `diagnosticsRead: 'tenant-self'`）。这是部署的显式采用，不是隐式授予。映射归 model 线与数据保护拥有者裁定（DA2）。
+资格：Model 契约要求「没有调用级诊断权限时整次拒绝」，且普通调用读取资格不自动授予它。本提案建议第一版在本机单用户档里显式采用一条映射：代租户行事的主体对自己租户的调用持有诊断读取资格（配置字段 `diagnosticsRead: 'tenant-self'`）。这是部署的显式采用，不是隐式授予。映射按[#1140 接续采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)的 DA2 范围采用，行为归 Model 与应用资格映射。
 
-已知限制：应用的 Model 资格表只让会话工作主体与宿主读 Model 事实（`facts` 动作）。所以在这张资格表下，`tenant-self` 对登录得到的代租户主体不生效：这个主体读自己会话里的调用时，`inspect` 与 `ModelDiagnostics.list` 都答 `denied`。第一版投影把这类调用写成 `unknown`（原因 `denied`），派发为空。Run 的结构化失败原因仍经 Agent 的 `readFinish` 读到。资格表是否放行代租户主体读本租户的 Model 事实，由 DA2 的裁定者决定。
+应用显式为经核验的本租户登录主体提供诊断只读资格：调用身份/状态读使用 `inspect`，派发账目读使用 `read-account`。旧 `facts`、`account` 仍用于原业务路径，不向登录主体开放。每次读取独立取得资格，返回前复核；入口在释放整页响应前复核原登录和租户成员资格。此保证截止于该检查点，不声称撤权与网络最后一个字节原子。
 
 `timing` 要变成已知值，需要 Model 核心在 prepare、materialize、start、首内容、收场的事实点用同一单调时钟记录时长，写进派发文档（可加字段）。这归 model 线，是可选闭包（DA6）。没有它时，投影如实写 `unknown`。
 
@@ -227,7 +227,7 @@ gaps: 1
 | 交叉点 | 本提案现在做 | 留给 CLI/Server 工作 | 怎样避免两份 |
 | --- | --- | --- | --- |
 | 完整会话视图的组合承担者 | `server-entry/src/session-view/` 纯投影与来源适配；只组合已提交历史与各拥有者的只读事实 | 在途内容（生产者保管的流）、人工事项状态、视图版本发布（ViewCore）、多端同版本一致性（TH08）、ACP 映射 | 同一模块向外扩展；本提案不建第二个组合层，也不在 CLI 侧再组合一次 |
-| 公开操作与命令名 | `read-session-diagnostics`，只加 | 可以改名、合并进最终命令树或拆成子命令（access 与 apps 允许破坏性修改） | 本提案的 SPEC 条款标为候选，由对方的正式命令面取代 |
+| 公开操作与命令名 | `read-session-diagnostics`，只加 | 可以改名、合并进最终命令树或拆成子命令（access 与 apps 允许破坏性修改） | 本次采用沿现有命令面；后续修改按前发布演进政策同步消费者并替换原条款 |
 | 来源契约的可加扩展 | Agent `readFinish?`、Model `ModelDiagnostics` 实现、Model 阶段时长（可选）、Session 提交时间（可选） | 对方需要的其他来源扩展（输入与工作的关联认回、历史尾部读取） | 扩展都在原拥有者，形状不随客户端变化 |
 | 装配 | `server-entry` 行新增注入；`model-records` 行提供 `modelDiagnostics` | 新装配入口的阶段表与受信可见性表 | 接入点集中记录在应用文档，对方重构时带走 |
 | `apps/harness-server` 的 B 线接线 | `run.ts`、`shutdown.ts`、`rows/server-entry/index.ts`、日志桥的接入点压到最小，集中记录在 `apps/harness-server/docs/rows/telemetry.md` | 合入时机 | 同上 |
@@ -235,10 +235,10 @@ gaps: 1
 
 #### 验收
 
-接受级别 L2。至少复现冒烟的两个失败，投影要把原因直接显示出来：
+接受级别 L3：本轮改变租户读取资格和跨成员生命周期。至少复现冒烟的两个失败，投影要把原因直接显示出来：
 
 1. 同租户两个并发会话触发 `capacity`。依据是本机单用户档的 `model-records.limits.capacity.bytes`（1000000）与 `agent-context.resultCapacity.bytes`（524288）：两个并发调用的预留超过上限，第二个 `admit` 答 `capacity`，Agent 以 `model-refused` 结束 Run。投影显示 `terminal.outcome` 为 `failed`，`cause.record` 以 `model-refused` 结尾，`cause.structured` 为 `{ kind: 'model-refused', failure: 'capacity' }`；`modelCalls` 里该引用的 `call` 为 `unknown`，原因 `not-accepted`。
-2. 替身供应商在流里返回 504。投影显示 `cause.record` 含 `model-failed/<cause>/...`，`cause.structured` 带 `fault.cause` 与 `upstreamStatus: '504'`。同一调用的 Model 分支取决于 DA2：资格表放行代租户主体读本租户的 Model 事实之后，派发 `outcome` 为 `failed`，`upstreamStatus` 为 `504`，与 Agent 一致；放行之前，该调用写 `unknown`（原因 `denied`），派发为空，见[资格的已知限制](#modeldiagnostics-怎样实现)。
+2. 替身供应商在流里返回 504。投影显示 `cause.record` 含 `model-failed/<cause>/...`，`cause.structured` 带 `fault.cause` 与 `upstreamStatus: '504'`。同一调用的派发 `outcome` 为 `failed`，`upstreamStatus` 为 `504`，与 Agent 一致。不得以登录主体没有资格为由将这一必验路径降成缺口。
 
 其他验收：
 
@@ -284,14 +284,14 @@ flowchart TB
   App -. JSON Lines .-> A
 ```
 
-箭头是代码依赖方向，虚线是运行时的数据流。领域实现成员只依赖 `telemetry-contract` 的根入口。`telemetry-cordis-contract` 依赖纯契约，拥有服务定义。`telemetry-node` 依赖两者并实现服务。`apps/harness-server` 选择提供者并接线。`telemetry-contract` 只依赖 `@omne-harness/legal-identity`，不依赖任何领域成员，也不依赖 Cordis。三个成员已实现（候选），理由与分层见下表。
+箭头是代码依赖方向，虚线是运行时的数据流。领域实现成员只依赖 `telemetry-contract` 的根入口。`telemetry-cordis-contract` 依赖纯契约，拥有服务定义。`telemetry-node` 依赖两者并实现服务。`apps/harness-server` 选择提供者并接线。`telemetry-contract` 只依赖 `@omne-harness/legal-identity`，不依赖任何领域成员，也不依赖 Cordis。三个成员已实现；本地范围已采用，理由与分层见下表。
 
 | 层 | 拥有什么 | 不拥有什么 | 位置与状态 |
 | --- | --- | --- | --- |
-| 领域 facade | 本域的事件目录、测量起止点、从业务事实到允许字段的投影 | 输出格式、队列、后端 | Session 与 Agent 的 `src/telemetry.ts`；server-entry 的入口诊断 facade 在应用行。已实现（候选） |
-| 纯契约 | 作用域与关联值、声明式定义、端口操作、准入结果、Carrier 编解码、关闭报告、测试替身 | Node、Cordis、领域状态 | `packages/telemetry/telemetry-contract`，已实现（候选） |
-| 稳定服务 | 唯一 Cordis 服务 `telemetry` | 输出实现的选择、领域状态 | 定义在 `packages/telemetry/telemetry-cordis-contract` 的 `./cordis`，实现在 `telemetry-node/cordis`，已实现（候选） |
-| Node 提供者 | 本地出口、Pino 文件出口、预算、自监控、关闭报告、日志桥、离线聚合 | 领域语义、查询权限、OTel | `packages/telemetry/telemetry-node`，含离线聚合，已实现（候选） |
+| 领域 facade | 本域的事件目录、测量起止点、从业务事实到允许字段的投影 | 输出格式、队列、后端 | Session 与 Agent 的 `src/telemetry.ts`；server-entry 的入口诊断 facade 在应用行。已实现；本地范围已采用 |
+| 纯契约 | 作用域与关联值、声明式定义、端口操作、准入结果、Carrier 编解码、关闭报告、测试替身 | Node、Cordis、领域状态 | `packages/telemetry/telemetry-contract`，已实现；本地范围已采用 |
+| 稳定服务 | 唯一 Cordis 服务 `telemetry` | 输出实现的选择、领域状态 | 定义在 `packages/telemetry/telemetry-cordis-contract` 的 `./cordis`，实现在 `telemetry-node/cordis`，已实现；本地范围已采用 |
+| Node 提供者 | 本地出口、Pino 文件出口、预算、自监控、关闭报告、日志桥、离线聚合 | 领域语义、查询权限、OTel | `packages/telemetry/telemetry-node`，含离线聚合，已实现；本地范围已采用 |
 | 采集与后端 | 把本机 JSON Lines 送进 Loki 或 ELK 的采集器配置 | 领域构建产物 | 运维者资产，第一版不随仓库交付 |
 
 建三个成员，不建一个成员加几个入口（D02）：纯契约 `telemetry-contract`、Cordis 定义 `telemetry-cordis-contract`、Node 提供者 `telemetry-node`，照 `model-contract` 与 `model-cordis-contract` 的仓库约定。每个领域实现成员都只消费纯契约，它的生产安装闭包不能含 Pino，也不能含 Cordis；Agent 的公开入口测试守着后一条。
@@ -314,7 +314,7 @@ flowchart TB
 
 服务与插件已实现：`TelemetryService`（键 `telemetry`）、`createTelemetryNodePlugin`、`createDisabledTelemetryPlugin`。禁用是在场的实现（D04）。运行时资源在应用创建，插件只借用端口。
 
-应用装配（已实现，候选，`apps/harness-server`）：
+应用装配（已实现；本地范围已采用，`apps/harness-server`）：
 
 - 新增一行 `telemetry`。行配置只放数据：实现名（`node` 或 `disabled`）、本地出口（`stdout`、`stderr` 或 `file` 带路径）、预算字段；`disabled` 时出口与预算可以省略。遥测关闭没有单独的期限字段，用停服期限剩下的部分，停服的期限只有一个拥有者。配置用 Zod 在装载前校验，形状非法时以 `invalid-config` 拒绝整棵树，退出码 2，没有行装载；`file` 出口的文件打不开时运行时创建失败，本行 `FAILED`，退出码 3。
 - 发射行把 `telemetryKey` 写进 `inject`，在行体里构造 facade，再交给成员工厂已有的可选参数。发射行必需注入 `telemetry`（D04）；遥测缺席是启动失败。第一版的发射行是 `server-entry`（入口诊断）、`session-provider` 与 `agent-host`（计时记录）。
@@ -325,9 +325,9 @@ flowchart TB
 
 #### 计时记录与离线聚合
 
-两项新增，都在 B 线（已实现，候选）：
+两项新增，都在 B 线（已实现；本地范围已采用）：
 
-- **计时记录。** `SessionMeasure` 与 `AgentMeasure` 的事件增加可选字段 `tenant`，产生事件的位置知道租户时填上。Session 的 facade 把段开始与结束投影为遥测段 `omne.session.<操作>`（每种操作一个定义；facade 至多缓存 64 个定义，超出的不缓存、照常发出；聚合时按操作分组），Session 实例自己的提交写下 `run.terminal` 时，`round-complete` 为事件 `omne.session.round-complete`（`session-ad02` 解读 Agent 事实写下的终态不发，这是 Session SPEC 的现行触发点，要不要扩到解读提交由 Session 拥有者裁定），`diagnose` 为事件 `omne.session.diagnostic`（`owner`、`step`、`reason` 是枚举，`reason` 含 Session 端口的全部失败种类，不输出 `detail` 文本）。Agent 的 facade 把 pass 投影为段 `omne.agent.pass.accept` 与 `omne.agent.pass.run`。目录读里，`pending` 的输入带租户，段按该租户作用域；`references` 与 `releasedScopes` 在 Session 契约里是系统作用域，段按 `system` 加 `component: 'session'` 记录。其余拿不到租户的事件按 TC-4 丢弃，经遥测端口计入关闭报告的 `droppedBy.invalid`，正常运行时这个计数应为 0。`session-cordis` 的插件输入增加可选的 `diagnose`。改动都是兼容的加法。段的时长由提供者用单调时钟计算，facade 不自己计时。配对表只放提供者已准入的段，所以它的大小不超过提供者的 `maxOpenSegments`；段结束后删除条目。
+- **计时记录。** `SessionMeasure` 与 `AgentMeasure` 的事件增加可选字段 `tenant`，产生事件的位置知道租户时填上。Session 的 facade 把段开始与结束投影为遥测段 `omne.session.<操作>`（每种操作一个定义；facade 至多缓存 64 个定义，超出的不缓存、照常发出；聚合时按操作分组），Session 实例自己的提交写下 `run.terminal` 时，`round-complete` 为事件 `omne.session.round-complete`（`session-ad02` 解读 Agent 事实写下的终态不发，这是 Session SPEC 的现行触发点，要不要扩到解读提交由 Session 拥有者裁定），`diagnose` 为事件 `omne.session.diagnostic`（`owner`、`step`、`reason` 是枚举，`reason` 含 Session 端口的全部失败种类，不输出 `detail` 文本）。Agent 的 facade 把 pass 投影为段 `omne.agent.pass.accept` 与 `omne.agent.pass.run`。目录读里，`pending` 的输入带租户，段按该租户作用域；`references` 与 `releasedScopes` 在 Session 契约里是系统作用域，段按 `system` 加 `component: 'session'` 记录。其余拿不到租户的事件按 TC-4 丢弃，经遥测端口计入关闭报告的 `droppedBy.invalid`，正常运行时这个计数应为 0。`session-cordis` 的插件输入增加可选的 `diagnose`。改动都是兼容的加法。段的时长由提供者用单调时钟计算，facade 不自己计时。配对表只放提供者已准入的段，所以它的大小不超过提供者的 `maxOpenSegments`；提供者在结束、过期、关闭与启动回退时同步通知释放，facade 删除相应条目。
 - **离线聚合。** `telemetry-node` 增加纯函数 `summarizeTelemetry` 与命令行 `omne-telemetry-summary`：读 JSON Lines（`serve` 的 stdout 抓取或 `file` 出口的文件），按 `(owner, name)` 统计 `segment-end` 的计数、结局分布与 `durationMs` 的 min、p50、p95、p99、max（最近秩法）；只有开始没有结束的段计为 `unfinished`；事件与 `log` 按种类与级别计数；非法行跳过并计数；可以按租户文本与时间窗过滤；`--json` 输出机读报告，缺省输出按 p95 降序的人读表格。
 - **CPU profile。** 成员文档写明用 Node 自带的 `--cpu-prof` 对 `serve` 取样，与计时记录对照定位热点。它不是遥测记录，不经本管线。
 
@@ -401,16 +401,16 @@ flowchart TB
 
 | 成员或文件 | 状态 | 处置 |
 | --- | --- | --- |
-| `packages/telemetry/telemetry-contract` | 已实现（候选） | 保留。carrier 与 metric 标「预留」 |
-| `packages/telemetry/telemetry-cordis-contract` | 已实现（候选） | 保留。唯一服务定义 `telemetry` |
-| `packages/telemetry/telemetry-node` | 已实现（候选）：运行时、禁用实现、日志桥、两个插件、离线聚合 | 保留 |
+| `packages/telemetry/telemetry-contract` | 已实现；本地范围已采用 | 保留。carrier 与 metric 标「预留」 |
+| `packages/telemetry/telemetry-cordis-contract` | 已实现；本地范围已采用 | 保留。唯一服务定义 `telemetry` |
+| `packages/telemetry/telemetry-node` | 已实现；本地范围已采用：运行时、禁用实现、日志桥、两个插件、离线聚合 | 保留 |
 | `packages/telemetry/diagnostic` | 已删除（D03） | 关闭报告三段语义进入 `CloseReport`；有界队列与 sink 故障的测试进入 `telemetry-node` |
 | `apps/harness-server/src/log-exporter.ts` | 已删除 | 由 `telemetry-node` 的日志桥替换 |
 | `server-entry` 的 `DiagnosticSink` | 形状不变 | 应用的 `server-entry` 行传入 facade 构造的 sink |
-| Session 的 `SessionDiagnose`、`SessionMeasure`；Agent 的 `AgentMeasure` | 已实现（候选） | 事件加可选 `tenant`；facade 投影为段与事件；`span` 编号只做进程内配对键 |
-| `ModelDiagnostics`、`modelDiagnostics` | 已实现（候选） | 由 `model-records` 行提供 |
+| Session 的 `SessionDiagnose`、`SessionMeasure`；Agent 的 `AgentMeasure` | 已实现；本地范围已采用 | 事件加可选 `tenant`；facade 投影为段与事件；`span` 编号只做进程内配对键 |
+| `ModelDiagnostics`、`modelDiagnostics` | 已实现；本地范围已采用 | 由 `model-records` 行提供 |
 | Tool 的 `readDiagnostics` | 账本答 `unsupported` | 不改；投影如实写 |
-| `AgentJournalReading` | 已加可选 `readFinish?`（候选） | 旧提供者可以不实现 |
+| `AgentJournalReading` | 已加可选 `readFinish?`；已采用 | 旧提供者可以不实现 |
 
 ### 交付分期
 
@@ -418,15 +418,15 @@ flowchart TB
 
 | 线 | 工作项 | 端到端行为 | 主要写范围 | 依赖 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| B | 契约与 Node 提供者 | 纯契约、Cordis 定义与 Node 提供者三个成员可以独立消费 | `packages/telemetry/*` | 无 | 已实现（候选） |
-| B | 应用接线 | `serve` 的 stdout 出现 `omne.entry.diagnostic` 与 `omne.cordis.log` 记录；关闭报告带 `CloseReport` | `apps/harness-server` | 契约与提供者 | 已实现（候选） |
-| B | 计时记录 | Session 与 Agent 的操作成为带租户的遥测段 | `packages/session/session`、`session-cordis`、`packages/agent/agent` | 契约；应用接线之后再接行 | 已实现（候选） |
-| B | 离线聚合 | `omne-telemetry-summary` 对一份 JSON Lines 给出分位数表 | `packages/telemetry/telemetry-node` | 契约 | 已实现（候选） |
-| A | Model 诊断实现 | `modelDiagnostics` 对一个调用给出每次派发的白名单字段 | `packages/model/model-storage-sql` | 无 | 已实现（候选） |
-| A | Agent 结束候选读面 | `readFinish` 对已结束执行返回 `FinishIntent` | `packages/agent/agent-contract`、`agent-cordis-contract`、`packages/session/session-adapters` | 无 | 已实现（候选） |
-| A | 会话诊断投影与公开操作 | `read-session-diagnostics` 对一个会话返回 `SessionDiagnosticsPage` | `packages/access/public-contract`、`packages/access/server-entry` | Agent 结束候选读面的契约类型；现有 `ModelDiagnostics` 类型 | 已实现（候选） |
-| A | SDK 与 CLI | `omne read-session-diagnostics` 的人读与机读输出 | `packages/access/sdk`、`apps/cli` | 公开操作的契约 | 已实现（候选） |
-| A | 应用接线与验收 | 本机单用户档复现两个冒烟失败，投影显示原因 | `apps/harness-server` | Model 诊断实现、会话诊断投影；B 线的应用接线 | 已实现（候选）；Model 分支受 DA2 的已知限制 |
+| B | 契约与 Node 提供者 | 纯契约、Cordis 定义与 Node 提供者三个成员可以独立消费 | `packages/telemetry/*` | 无 | 已实现；本地范围已采用 |
+| B | 应用接线 | `serve` 的 stdout 出现 `omne.entry.diagnostic` 与 `omne.cordis.log` 记录；关闭报告带 `CloseReport` | `apps/harness-server` | 契约与提供者 | 已实现；本地范围已采用 |
+| B | 计时记录 | Session 与 Agent 的操作成为带租户的遥测段 | `packages/session/session`、`session-cordis`、`packages/agent/agent` | 契约；应用接线之后再接行 | 已实现；本地范围已采用 |
+| B | 离线聚合 | `omne-telemetry-summary` 对一份 JSON Lines 给出分位数表 | `packages/telemetry/telemetry-node` | 契约 | 已实现；本地范围已采用 |
+| A | Model 诊断实现 | `modelDiagnostics` 对一个调用给出每次派发的白名单字段 | `packages/model/model-storage-sql` | 无 | 已实现；本地范围已采用 |
+| A | Agent 结束候选读面 | `readFinish` 对已结束执行返回 `FinishIntent` | `packages/agent/agent-contract`、`agent-cordis-contract`、`packages/session/session-adapters` | 无 | 已实现；本地范围已采用 |
+| A | 会话诊断投影与公开操作 | `read-session-diagnostics` 对一个会话返回 `SessionDiagnosticsPage` | `packages/access/public-contract`、`packages/access/server-entry` | Agent 结束候选读面的契约类型；现有 `ModelDiagnostics` 类型 | 已实现；本地范围已采用 |
+| A | SDK 与 CLI | `omne read-session-diagnostics` 的人读与机读输出 | `packages/access/sdk`、`apps/cli` | 公开操作的契约 | 已实现；本地范围已采用 |
+| A | 应用接线与验收 | 本机单用户档复现两个冒烟失败，投影显示原因 | `apps/harness-server` | Model 诊断实现、会话诊断投影；B 线的应用接线 | 已实现；本地范围已采用；租户诊断采用 DA2 的只读资格 |
 | A | Model 阶段时长（可选） | `timing` 三项给出已知值 | `packages/model/model`、`model-storage-sql` | Model 诊断实现 | 没有做（DA6） |
 
 ### 受影响拥有者
@@ -491,7 +491,7 @@ flowchart TB
 | G7 | Run 与 Session 结束后，配对表不再保留它们的条目；配对表有界 | B |
 | G10 | 编译、fixture、机制探针、完整装配、独立 QA、生产与 mainline 准入分别报告，不合并成一个「通过」 | 全部 |
 | A1 | 同租户两个并发会话触发 `capacity`，投影显示 `model-refused` 与 `capacity` | A |
-| A2 | 替身供应商返回 504，投影的 Agent 结束原因显示 `fault.cause` 与 `upstreamStatus` 504；Model 分支在 DA2 放行之后与它一致，放行之前写缺口 `denied`，不写空 | A |
+| A2 | 替身供应商返回 504，投影的 Agent 结束原因显示 `fault.cause` 与 `upstreamStatus` 504；Model 分支与它一致；实际拒绝的其他读取写缺口 `denied`，不伪造数据 | A |
 | A3 | 另一租户读该会话答 `denied`，逐字节相同 | A |
 | A4 | 来源答 `unsupported`、`unavailable`、`denied` 时，投影写缺口，不写空数组，不推断「没有发生」 | A |
 | A5 | 篡改的游标答 `invalid`，不换范围；续页重新核资格 | A |
@@ -507,7 +507,7 @@ flowchart TB
 
 成立前提：单机、单进程。A 线以 Session 的会话为范围，不覆盖无 Session 的独立调用。跨进程只保留 Carrier 的可序列化边界。
 
-尚未覆盖：登录得到的代租户主体读 Model 分支（DA2 的资格表放行之前答 `denied`，投影写缺口）；Agent 停在失败上而 Run 没有终态的原因（见[后续](#投影读到-agent-停在失败上)）；Model 阶段时长（DA6 前为 `unknown`）；Session 提交时间（DA7 前只按位置排序）；Tool 诊断（账本未实现）；生产预算数值；Context、HITL、日程、通知与 MCP 的覆盖；推迟项的全部验证。
+尚未覆盖：Agent 停在失败上而 Run 没有终态的原因（见[后续](#投影读到-agent-停在失败上)）；Model 阶段时长（DA6 前为 `unknown`）；Session 提交时间（DA7 前只按位置排序）；Tool 诊断（账本未实现）；生产预算数值；Context、HITL、日程、通知与 MCP 的覆盖；推迟项的全部验证。
 
 消费者切换责任：
 
@@ -521,59 +521,65 @@ flowchart TB
 | Agent Journal 的实现者（session-adapters、测试替身） | 可选 `readFinish` | session-run 线 |
 | `pnpm-workspace.yaml` 的 catalog | `pino` 已加入；OTel 包组推迟 | engineering-toolchain 线知情 |
 
+## 与联调核心事实的衔接
+
+#1153 的 Tools/TodoItems 与异步计量沿原身份和账目读取，不新建遥测副本。#1160 的 `node-failed` 由原 Journal 结束候选提供，投影只取节点、分类与失败种类。发送前失败沿 Model 的 `not-sent` 和零内容证据，不将缺少网络响应当成成功。不能可靠完成原责任收尾的执行仍可能没有终态，诊断保持未知。
+
+provider 拥有段的预算、过期和释放。门面消费同步释放通知清理配对，不复制时钟，不以开始曾被准入推断未来仍占有容量。关闭报告中的排空结果与实际到达的输出边界分别成立：没有成功写出记录时，边界是 `none`。
+
 ## 决定范围
 
 - 有权决定者：负责人 chenyize（本卡与名词、分期、载体、验收环境、范围）；集成负责人 PanQiWei（成员准入、包组织、platform 线与轨道路线）；系统负责人（`docs/architecture`、出口围栏、SYS-DYNAMIC 判据）；app-access、session-run、model、tool-exec 线拥有者（各自路径）；CLI/Server 工作负责人（access 与 apps 的命令面与组合归属）；数据保护拥有者（出口政策、诊断读取资格映射）；产品负责人（租户级外传同意，遥测段与输出代的对象性）。
-- 决定日期及对应revision：未决定。2026-11-05 chenyize 采用了下表标为「已采用」的四项，并在同日收窄范围为 A、B 两线。这些不是对本提案 revision 1 的整体接受。
-- 采用范围：尚未采用。
-- 不采用范围及必要理由：尚未决定。下列事项不在本提案范围内：全域耐久事件总线（重复拥有业务事实）；用 `required` 让普通遥测取得耐久性（耐久归原记录拥有者）；默认全量 auto instrumentation（技术基础不默认）；把 Session 设为全系统 trace 根，或为无 Session 的工作伪造 Session（IC-17）；统一查询 DSL 或面板产品（没有具名消费者）；租户直接访问共享后端；跨进程与集群的收集（第一版单机）；迁移 `apps/cli` 的 stderr 诊断（CLI 不装服务端 Cordis 树）；A 线读存储内部或私有实现。
-- 未决与依赖停止点：见下表。DA1～DA5 暂按建议推进并已实现，等裁定者确认；裁定改变建议时，相应实现随之修改。DA6、DA7 不阻塞 A 线，缺席时投影写 `unknown`；推迟项的决定随推迟项一起推迟。
+- 决定日期及对应revision：2026-11-07，revision 2。本次采用由 PanQiWei 的接续授权和局部裁定形成，见[#1140 接续采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)；2026-11-05 chenyize 的四项决定及范围收窄保持。
+- 采用范围：第一版本地 A/B 路径及本轮生命周期、只读资格和 node-failed 投影修正。OTel、远端、输出热换与逐领域覆盖的后续设计未采用。
+- 不采用范围及必要理由：下列事项不在本提案范围内：全域耐久事件总线（重复拥有业务事实）；用 `required` 让普通遥测取得耐久性（耐久归原记录拥有者）；默认全量 auto instrumentation（技术基础不默认）；把 Session 设为全系统 trace 根，或为无 Session 的工作伪造 Session（IC-17）；统一查询 DSL 或面板产品（没有具名消费者）；租户直接访问共享后端；跨进程与集群的收集（第一版单机）；迁移 `apps/cli` 的 stderr 诊断（CLI 不装服务端 Cordis 树）；A 线读存储内部或私有实现。
+- 未决与依赖停止点：见下表。DA1～DA5 按本轮采用记录执行。DA6、DA7 不阻塞 A 线，缺席时投影写 `unknown`；推迟项的决定随推迟项一起推迟。
 
 | ID | 问题 | 建议 | 裁定者 | 状态 |
 | --- | --- | --- | --- | --- |
 | D01 | 名词用 `telemetry` 还是 `observation` | `telemetry` | chenyize；统一语言区 | 已采用（chenyize 2026-11-05） |
-| D02 | 新建 `telemetry-contract`、`telemetry-cordis-contract` 与 `telemetry-node` 三个成员 | 三个成员，纯契约与 Cordis 定义分开 | PanQiWei；包组织拥有者 | 暂按建议推进（已实现），等确认 |
-| D03 | `@omne-harness/diagnostic` 的处置 | 迁移后删除 | PanQiWei（platform 线） | 暂按建议推进（已删除），等确认 |
-| D04 | 稳定服务的注入方式 | 必需注入加 `DisabledTelemetryPlugin` | app-access 线拥有者 | 暂按建议推进，等确认 |
-| D05 | 默认日志出口与 stdout 归属 | 维持 stdout，出口是配置字段 | app-access 线拥有者；CLI/Server 工作负责人 | 暂按建议推进，等确认 |
+| D02 | 新建 `telemetry-contract`、`telemetry-cordis-contract` 与 `telemetry-node` 三个成员 | 三个成员，纯契约与 Cordis 定义分开 | PanQiWei；包组织拥有者 | 已采用（PanQiWei 2026-11-07；见接续采用记录） |
+| D03 | `@omne-harness/diagnostic` 的处置 | 迁移后删除 | PanQiWei（platform 线） | 已采用（PanQiWei 2026-11-07；见接续采用记录） |
+| D04 | 稳定服务的注入方式 | 必需注入加 `DisabledTelemetryPlugin` | app-access 线拥有者 | 已采用（PanQiWei 2026-11-07；见接续采用记录） |
+| D05 | 默认日志出口与 stdout 归属 | 维持 stdout，出口是配置字段 | app-access 线拥有者；CLI/Server 工作负责人 | 已采用（PanQiWei 2026-11-07；见接续采用记录） |
 | D06 | 出口围栏是否与身份撤权共同排序 | B；产品负责人先回答前提 | 系统负责人；数据保护拥有者；产品负责人 | 随推迟项一起推迟 |
 | D07 | `Binding` 是否受信铸造 | 分区目的地出现前重新裁定 | 系统负责人 | 随推迟项一起推迟 |
-| D08 | 是否设全局事件定义目录 | 不设 | platform 线拥有者 | 暂按建议推进，等确认 |
+| D08 | 是否设全局事件定义目录 | 不设 | platform 线拥有者 | 已采用（PanQiWei 2026-11-07；见接续采用记录） |
 | D09 | 第一版只能重启换输出，能否作为受限交付合入 | 可以，交付说明写明 | chenyize；系统负责人 | 已采用（chenyize 2026-11-05） |
 | D10 | 部署资产的仓库位置 | `apps/harness-server/deploy/` | workspace 拥有者；app-access 线拥有者 | 随推迟项一起推迟 |
 | D11 | 生产预算数值、后端版本与保留政策 | 部署拥有者提供 | 部署拥有者 | 预算数值第一版用本机单用户档初值；后端部分随推迟项推迟 |
-| D12 | 路线与轨道 | 每个闭包作为 mainline 上的 `integration` 卡 | PanQiWei；chenyize | 暂按建议推进，等确认 |
+| D12 | 路线与轨道 | 沿用 #1144 进入 integration/mainline，经独立验收与 gate | PanQiWei；chenyize | 已采用（PanQiWei 2026-11-07；见接续采用记录） |
 | D13 | 新承诺的接受载体 | 正式 RFC（本提案） | chenyize；系统负责人 | 已采用（chenyize 2026-11-05） |
 | D14 | 管理面的触发入口 | 倾向本地管理操作 | app-access 线拥有者；CLI/Server 工作负责人 | 随推迟项一起推迟 |
 | D15 | 执行环境诊断改为事件还是走日志桥 | 改为事件 | tool-exec 线拥有者 | 随逐领域覆盖推迟 |
 | D16 | Linux 验收环境 | 负责人提供 | chenyize | 已采用（chenyize 2026-11-05）；第一版两线全部本机可跑 |
-| DA1 | A 线组合承担者的位置 | `server-entry/src/session-view/` 模块；提成成员的时机交 CLI/Server 工作 | app-access 线拥有者；CLI/Server 工作负责人 | 暂按建议推进（已实现），等确认 |
-| DA2 | 第一版 Model 诊断读取资格的映射与提供者行 | 本机单用户档显式采用 `tenant-self`；`model-records` 行提供 | model 线拥有者；数据保护拥有者 | 暂按建议推进（已实现），等确认。发行资格表下 `tenant-self` 对登录主体不生效，见[已知限制](#modeldiagnostics-怎样实现) |
-| DA3 | Agent 结束候选的可加读面 | `AgentJournalReading.readFinish?` | session-run 线拥有者（Agent） | 暂按建议推进（已实现），等确认 |
-| DA4 | 投影披露的种类清单与每页上限 | 部署配置 `diagnosticsKinds`、`maxRuns`、`maxCallsPerRun`；本机单用户档列出全部骨架种类 | app-access 线拥有者；部署拥有者 | 暂按建议推进（已实现），等确认 |
-| DA5 | 公开操作与命令的名字 | `read-session-diagnostics` | CLI/Server 工作负责人 | 暂按建议推进（已实现），等确认；对方可改名 |
+| DA1 | A 线组合承担者的位置 | `server-entry/src/session-view/` 模块；提成成员的时机交 CLI/Server 工作 | app-access 线拥有者；CLI/Server 工作负责人 | 已采用（PanQiWei 2026-11-07；见接续采用记录） |
+| DA2 | 第一版 Model 诊断读取资格的映射与提供者行 | 本机档 tenant-self；inspect/read-account 只读动作，model-records 提供独立资格包裹 | model 线拥有者；数据保护拥有者 | 已采用（PanQiWei 2026-11-07；见接续采用记录） |
+| DA3 | Agent 结束候选的可加读面 | `AgentJournalReading.readFinish?` | session-run 线拥有者（Agent） | 已采用（PanQiWei 2026-11-07；见接续采用记录） |
+| DA4 | 投影披露的种类清单与每页上限 | 部署配置 `diagnosticsKinds`、`maxRuns`、`maxCallsPerRun`；本机单用户档列出全部骨架种类 | app-access 线拥有者；部署拥有者 | 已采用（PanQiWei 2026-11-07；见接续采用记录） |
+| DA5 | 公开操作与命令的名字 | `read-session-diagnostics` | CLI/Server 工作负责人 | 已采用（PanQiWei 2026-11-07；见接续采用记录） |
 | DA6 | Model 记录阶段时长 | 可加字段，同一单调时钟；`CallAccount.duration` 的语义先核对 | model 线拥有者 | 未决，不阻塞 A 线 |
 | DA7 | `HistoryEntry` 公开提交时间 | 可选字段 | session-run 线拥有者 | 未决，不阻塞 A 线 |
 | DA8 | 「会话诊断投影」词条 | 先立词条 | 统一语言区 | 已立词条[会话诊断投影](../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-session-diagnostics-projection--会话诊断投影--session-diagnostics-projection) |
 
 ## 写回现行正文
 
-本提案尚未采用，下表的写回义务在采用之后才产生。表列出采用后预计的写回位置，供审议核对。实施按候选推进：第三列写「已按候选写入」的目标源已经带有相应内容，并标为候选，待本提案接受；采用后把候选标记换成采用依据。
+本次本地 A/B 范围的采用依据是 #1140 接续采用记录。下表定位现行拥有者；采用不表示独立验收或集成已经完成。推迟项与对象形态仍保持原状态。
 
 | 采用条款范围 | 规范拥有者与目标源 | 写回定位状态 | 切换或解除依据及确认者 |
 | --- | --- | --- | --- |
-| 观测基础契约改为由 `telemetry-contract` 承接 | `docs/architecture/cross-cutting-concepts.md` 的「当前承接与后续设计」 | 不适用（未采用） | 未切换 |
-| `telemetry` 行、遥测关闭步骤、`server-entry` 行的新增注入、`model-records` 行提供 `modelDiagnostics` | `docs/architecture/runtime/application-assembly.md` 的插件树与受信可见性 | 不适用（未采用）；已按候选写入 | 未切换 |
-| 三个遥测成员与 `diagnostic` 的删除 | `docs/package-organization.md` 目标目录；`packages/telemetry/README.md` | 不适用（未采用）；`packages/telemetry/README.md` 已按候选写入 | 未切换 |
-| 公共契约形状；carrier 与 metric 标预留 | `packages/telemetry/telemetry-contract` 的 SPEC、README | 不适用（未采用）；已按候选写入 | 未切换 |
-| Node 提供者、预算、自监控、关闭报告、日志桥、离线聚合 | `packages/telemetry/telemetry-node` 的 SPEC、README、`docs/flows.md` | 不适用（未采用）；已按候选写入 | 未切换 |
-| `telemetry` 行、日志桥、stdout 唯一写者、关闭步骤、接入点清单 | `apps/harness-server/SPEC.md`、`apps/harness-server/docs/rows/telemetry.md` | 不适用（未采用）；已按候选写入 | 未切换 |
-| Session 与 Agent 的 measure `tenant` 与 facade | `packages/session/session`、`session-cordis`、`packages/agent/agent` 的 SPEC 与公开说明 | 不适用（未采用）；已按候选写入 | 未切换 |
-| `ModelDiagnostics` 的实现、读处理器、资格映射与保留采用 | `packages/model/model-storage-sql` 的 SPEC；`model-contract/docs/context.md` 的诊断段 | 不适用（未采用）；`model-storage-sql` 的 SPEC 已按候选写入 | 未切换 |
-| `AgentJournalReading.readFinish?` | `packages/agent/agent-contract` 的 SPEC 与公开接口页；`session-adapters` 的 SPEC | 不适用（未采用）；已按候选写入 | 未切换 |
-| `read-session-diagnostics` 操作、判断次序、响应形状 | `packages/access/public-contract/SPEC.md` 与 `docs/http-binding.md` | 不适用（未采用）；已按候选写入 | 未切换 |
-| 会话诊断投影的组合规则、缺口语义、分页与上限 | `packages/access/server-entry/SPEC.md` | 不适用（未采用）；已按候选写入 | 未切换 |
-| SDK 方法与 CLI 命令、输出、退出码 | `packages/access/sdk/SPEC.md`、`apps/cli/SPEC.md` | 不适用（未采用）；已按候选写入 | 未切换 |
+| 观测基础契约改为由 `telemetry-contract` 承接 | `docs/architecture/cross-cutting-concepts.md` 的「当前承接与后续设计」 | 已写回 | PanQiWei 2026-11-07 接续采用 |
+| `telemetry` 行、遥测关闭步骤、`server-entry` 行的新增注入、`model-records` 行提供 `modelDiagnostics` | `docs/architecture/runtime/application-assembly.md` 的插件树与受信可见性 | 已写回 | PanQiWei 2026-11-07 接续采用 |
+| 三个遥测成员与 `diagnostic` 的删除 | `docs/package-organization.md` 目标目录；`packages/telemetry/README.md` | 已写回 | PanQiWei 2026-11-07 接续采用 |
+| 公共契约形状；carrier 与 metric 标预留 | `packages/telemetry/telemetry-contract` 的 SPEC、README | 已写回 | PanQiWei 2026-11-07 接续采用 |
+| Node 提供者、预算、自监控、关闭报告、日志桥、离线聚合 | `packages/telemetry/telemetry-node` 的 SPEC、README、`docs/flows.md` | 已写回 | PanQiWei 2026-11-07 接续采用 |
+| `telemetry` 行、日志桥、stdout 唯一写者、关闭步骤、接入点清单 | `apps/harness-server/SPEC.md`、`apps/harness-server/docs/rows/telemetry.md` | 已写回 | PanQiWei 2026-11-07 接续采用 |
+| Session 与 Agent 的 measure `tenant` 与 facade | `packages/session/session`、`session-cordis`、`packages/agent/agent` 的 SPEC 与公开说明 | 已写回 | PanQiWei 2026-11-07 接续采用 |
+| `ModelDiagnostics` 的实现、读处理器、资格映射与保留采用 | `packages/model/model-storage-sql` 的 SPEC；`model-contract/docs/context.md` 的诊断段 | 已写回 | PanQiWei 2026-11-07 接续采用 |
+| `AgentJournalReading.readFinish?` | `packages/agent/agent-contract` 的 SPEC 与公开接口页；`session-adapters` 的 SPEC | 已写回 | PanQiWei 2026-11-07 接续采用 |
+| `read-session-diagnostics` 操作、判断次序、响应形状 | `packages/access/public-contract/SPEC.md` 与 `docs/http-binding.md` | 已写回 | PanQiWei 2026-11-07 接续采用 |
+| 会话诊断投影的组合规则、缺口语义、分页与上限 | `packages/access/server-entry/SPEC.md` | 已写回 | PanQiWei 2026-11-07 接续采用 |
+| SDK 方法与 CLI 命令、输出、退出码 | `packages/access/sdk/SPEC.md`、`apps/cli/SPEC.md` | 已写回 | PanQiWei 2026-11-07 接续采用 |
 | 推迟项的设计要点 | 本提案「后续」；重开时另立提案或修订 | 不适用（未采用） | 未切换 |
 | 遥测段、输出代、会话诊断投影的词条与对象性 | `.meta_harness/design/ubiquitous_language/`、`domain_objects/pending.md` | 词条已立；遥测段与输出代的形态待产品负责人裁定 | 未切换 |
 

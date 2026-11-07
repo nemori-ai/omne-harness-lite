@@ -17,7 +17,7 @@ PanQiWei 于 2026-10-14 接受本页对 #246 revision 1 的行为。依据是他
 - 「[安装闭包](#安装闭包)」中命令面实现后的一段。
 - 「[适用平台](#适用平台)」中登录状态文件的一句。
 
-「[治理命令](#治理命令)」、登录状态文件的 `loginId` 键、`switch-current-tenant` 与 `revoke-login` 对登录状态文件的改写和删除，以及帮助文本里的 18 个治理命令，属于 M2 身份租户收口（波 2）的候选，依据是 R2-D203 至 R2-D206 与规格 4.7 节 G 组。`read-history` 命令是波 3 的候选，依据是 R2-D279：端到端用例发现 CLI 没有读历史的入口。`read-session-diagnostics` 命令是候选，待 RFC-0013 接受，依据是 [RFC-0013 的 A 线](../../docs/rfcs/RFC-0013-engineering-telemetry.md#a-线会话日志诊断投影)。命令名按该提案的 DA5 暂时采用。
+「[治理命令](#治理命令)」、登录状态文件的 `loginId` 键、`switch-current-tenant` 与 `revoke-login` 对登录状态文件的改写和删除，以及帮助文本里的 18 个治理命令，属于 M2 身份租户收口（波 2）的候选，依据是 R2-D203 至 R2-D206 与规格 4.7 节 G 组。`read-history` 命令是波 3 的候选，依据是 R2-D279：端到端用例发现 CLI 没有读历史的入口。`read-session-diagnostics` 命令按 RFC-0013 revision 2 的本地范围采用，依据是 [RFC-0013 的 A 线](../../docs/rfcs/RFC-0013-engineering-telemetry.md#a-线会话日志诊断投影)。命令名按该提案的 DA5 采用。
 
 本页其余条款保持上面的接受状态。批复后，需要的话本页再改采用状态。候选依据是包组织页「最小 CLI 的接入边界」：CLI 通过 SDK 使用系统能力，不导入 server-entry。本卡验证环境接受本机 Node v26.0.0。`package.json` 的 engines 是 `>=24`。Node 24 没有另跑。
 

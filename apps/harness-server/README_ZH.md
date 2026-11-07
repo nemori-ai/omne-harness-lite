@@ -18,8 +18,8 @@ Harness Server 的应用装配。它经 Cordis 装载插件树，检查各行装
 - 关闭协调器和进程入口 `dist/bin.js`。
 - `./cordis` 导出，含 S0 替身插件。各行闭包把真实导出加进去。
 - 真实模式的子命令 `serve`、行声明 `defineRow`、入口对象注册表与装载前检查。见 [docs/real-mode.md](docs/real-mode.md)。
-- `telemetry` 行（工程遥测的 Node 提供者，候选，第一版）、三态 Cordis 日志桥、入口诊断事件 `omne.entry.diagnostic`，以及有序关闭里的遥测关闭步骤。见 [docs/rows/telemetry.md](docs/rows/telemetry.md)。
-- 应用里的会话诊断投影（候选，RFC-0013 A 线）：`model-records` 行提供 `modelDiagnostics`，`server-entry` 行注入 `agentJournal`、`modelDiagnostics`、`modelRuntime`，按调用现取 `toolRuntime`。本机单用户档披露投影的全部种类。见 [docs/rows/server-entry.md](docs/rows/server-entry.md) 与 [docs/rows/model-release.md](docs/rows/model-release.md#诊断读面-modeldiagnostics)。
+- `telemetry` 行（工程遥测的 Node 提供者，本地第一版）、三态 Cordis 日志桥、入口诊断事件 `omne.entry.diagnostic`，以及有序关闭里的遥测关闭步骤。见 [docs/rows/telemetry.md](docs/rows/telemetry.md)。
+- 应用里的会话诊断投影（RFC-0013 revision 2 A 线）：`model-records` 行提供 `modelDiagnostics`，`server-entry` 行注入 `agentJournal`、`modelDiagnostics`、`modelRuntime`，按调用现取 `toolRuntime`。本机单用户档披露投影的全部种类。见 [docs/rows/server-entry.md](docs/rows/server-entry.md) 与 [docs/rows/model-release.md](docs/rows/model-release.md#诊断读面-modeldiagnostics)。
 
 SPEC.md 里的有序关闭规则（启动次序、停止状态后不再调用 `start`、启动期 `start` 抛出的处置）已经实现。`tests/shutdown.spec.ts` 与 `tests/s0-process.spec.ts` 覆盖它们。
 

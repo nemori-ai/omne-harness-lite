@@ -31,7 +31,7 @@
 
 ## 诊断读面 `modelDiagnostics`
 
-`model-records` 行在同一插件体里装 model-storage-sql 的 `createSqlModelDiagnosticsPlugin`（候选，待 [RFC-0013](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 接受，A 线）。它读同一个租户域里的同一份调用与派发记录，所以三个键 `modelCommands`、`modelSendBoundary`、`modelDiagnostics` 属同提供者组 `model-records`。资格判定用记录插件的同一个 `authority`，即本页的资格登记表。`diagnosticsRead` 为 `tenant-self` 时，读取还要通过资格表的 `facts` 动作，而这个动作只放行会话工作主体 W 与宿主主体 M（见[同步资格桥](#同步资格桥)）。所以登录得到的代租户主体读不到本租户的调用：`inspect` 与 `list` 答 `denied`。是否放行归 RFC-0013 DA2 的裁定者，见[已知限制](#已知限制)。配置的 `retention` 是保留采用。缺席时每次 `list` 答 `unavailable`。在 Model 记录阶段时长之前（RFC-0013 DA6），`timing` 三项恒为 `unknown`。唯一的消费者是 `server-entry` 行的会话诊断投影。
+`model-records` 行发布 `modelDiagnostics`，读取同一租户域里的调用与派发记录。`modelCommands`、`modelSendBoundary` 与它属于同一提供者组。`diagnosticsRead: tenant-self` 显式采用本租户诊断读取：每次调用先核验主体与当前成员资格，使用 `inspect` 只读动作，返回前再次核验，再释放资格租约；不依赖另一个并发调用留在共享表里的资格。登录主体 L 只得到 `inspect` 和 `read-account`，分别供调用身份/状态与派发账目读取，不能使用旧 `facts`、`account` 写路径。采用依据为 [RFC-0013 revision 2](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#决定范围)。配置 `retention` 缺席时每次 list 答 `unavailable`；阶段计时尚未记录，`timing` 三项为 `unknown`。唯一消费者仍是服务端会话诊断投影。
 
 ## 两类主体与 ActorRef
 
@@ -64,7 +64,7 @@
 
 - W 的受理点是 `model-host` 行交给 runtime 的命令包装（`src/model/commands-qualifying.ts`）：每个方法先核验主体、读 standing、把结果登记在表里，调用真件，finally 释放。捕获只活在这一次调用里。`qualifyObservation` 同法。
 - M 的受理点是 `resolve`。登记项随 `model-host` 行的 fiber 退役失效（`currentForReader` 的代次闭包）。
-- `authorize` 查表：没有登记项答 `unavailable`（`model-access-qualification`）；核验拒绝、不是成员、租户不符答 `denied`；核验或 standing 不可用答 `unavailable`；再按 R2-D33 方案 A 的九动作矩阵判：`admit`、`control` 只 W；`facts`、`content`、`handoff`、`account`、`observe` W 与 M；`recovery`、`send` 只 M 且限它绑定的那一个调用；租户级 `recovery`（`scanPending`）答 `unavailable`。
+- `authorize` 查表：未捕获资格答 `unavailable`；核验拒绝、非成员、租户不符或装配退役答 `denied`，核验或 standing 不可用答 `unavailable`。原九动作矩阵保持：`admit`、`control` 只 W；`facts`、`content`、`handoff`、`account`、`observe` 为 W/M；`recovery`、`send` 只 M。新只读动作 `inspect`、`read-account` 为 L/W/M；M 仍限原绑定调用，租户级 recovery 不支持。
 - `current(demand)`：`demand.principal` 是登记过的 M、租户与调用相等、宿主 fiber 未退役时 `authorized: true`；`noTenantBinding` 等于 `demand.supplier.credential.kind === 'factory'`（见已知限制：这使成员的工厂围栏永不拒绝）。
 
 ## 运行级组合与释放次序
@@ -115,7 +115,6 @@
 - **官方档案采用摘要规则是 model-host-local 私有规则的复制**，由 `tests/model/sources.spec.ts` 对真实 `ModelProfilesLocalPlugin` 守护。
 - **数值没有测量依据**：r9 与 serve 测试的运维者层是测试值，E9 首测后按曲线改运维者层配置。
 - **宿主接管记录只在进程内**：重启后答 `unavailable`（R2-D33 自查收窄）。
-- **`modelDiagnostics` 对登录主体答 `denied`**：资格表的 `facts` 动作只放行 W 与 M，`diagnosticsRead: 'tenant-self'` 在这张表下对登录得到的代租户主体不生效。会话诊断投影把这类调用写成 `unknown`（原因 `denied`），派发为空。待 RFC-0013 DA2 的裁定者决定是否放行。
 
 ## 持续验证
 

@@ -1,6 +1,6 @@
 # `telemetry` 行
 
-本页是 `telemetry` 行的行规格。行的代码在 `src/rows/telemetry/`。它是工厂行，照 `execution-host` 的先例：配置在装载前解析，运行时由装配入口在行 fiber 里创建，插件按这一次运行绑定。设计依据是 [RFC-0013](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 的「[Cordis 承载与应用装配](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#cordis-承载与应用装配)」与「[计时记录与离线聚合](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#计时记录与离线聚合)」。RFC-0013 还没有接受，所以本页的全部条款都是候选范围。两种模式共同的规则归 [real-mode.md](../real-mode.md)。提供者自己的行为归 [telemetry-node 的 SPEC](../../../../packages/telemetry/telemetry-node/SPEC.md)（TN-1～TN-10），契约归 [telemetry-contract 的 SPEC](../../../../packages/telemetry/telemetry-contract/SPEC.md)（TC-1～TC-15）。
+本页是 `telemetry` 行的行规格。行的代码在 `src/rows/telemetry/`。它是工厂行，照 `execution-host` 的先例：配置在装载前解析，运行时由装配入口在行 fiber 里创建，插件按这一次运行绑定。设计依据是 [RFC-0013](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 的「[Cordis 承载与应用装配](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#cordis-承载与应用装配)」与「[计时记录与离线聚合](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#计时记录与离线聚合)」。本页条款属于 RFC-0013 revision 2 采用的本地输出范围。两种模式共同的规则归 [real-mode.md](../real-mode.md)。提供者自己的行为归 [telemetry-node 的 SPEC](../../../../packages/telemetry/telemetry-node/SPEC.md)（TN-1～TN-10），契约归 [telemetry-contract 的 SPEC](../../../../packages/telemetry/telemetry-contract/SPEC.md)（TC-1～TC-15）。
 
 ## 这一行做什么
 

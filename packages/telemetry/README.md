@@ -8,11 +8,11 @@
 
 ## 成员与依赖
 
-`telemetry-contract` 是 `@omne-harness/telemetry-contract`，状态为候选（第一版，RFC-0013）。根入口是工程遥测的纯契约：作用域绑定、声明式定义（字段可以标为可选）、字段与绑定校验、carrier 编解码、准入结果与关闭报告的形状。`./testing` 是有界捕获替身。本包在运行时只依赖 `@omne-harness/legal-identity`，不依赖 Cordis 或 Node 内置模块；它的安装闭包里没有 Cordis。
+`telemetry-contract` 是 `@omne-harness/telemetry-contract`，状态为第一版本地采用（RFC-0013 revision 2）。根入口是工程遥测的纯契约：作用域绑定、声明式定义（字段可以标为可选）、字段与绑定校验、carrier 编解码、准入结果与关闭报告的形状。`./testing` 是有界捕获替身。本包在运行时只依赖 `@omne-harness/legal-identity`，不依赖 Cordis 或 Node 内置模块；它的安装闭包里没有 Cordis。
 
-`telemetry-cordis-contract` 是 `@omne-harness/telemetry-cordis-contract`，状态为候选（第一版，RFC-0013）。`./cordis` 是唯一的服务定义 `telemetry`：抽象类 `TelemetryService` 与键常量 `telemetryKey`。根入口不导出值。它依赖纯契约与 `@deepseek-ai/cordis`。纯契约与 Cordis 定义分成两个成员，照 `model-contract` 与 `model-cordis-contract` 的先例：只依赖纯契约的领域实现成员，生产安装闭包里不出现 Cordis。
+`telemetry-cordis-contract` 是 `@omne-harness/telemetry-cordis-contract`，状态为第一版本地采用（RFC-0013 revision 2）。`./cordis` 是唯一的服务定义 `telemetry`：抽象类 `TelemetryService` 与键常量 `telemetryKey`。根入口不导出值。它依赖纯契约与 `@deepseek-ai/cordis`。纯契约与 Cordis 定义分成两个成员，照 `model-contract` 与 `model-cordis-contract` 的先例：只依赖纯契约的领域实现成员，生产安装闭包里不出现 Cordis。
 
-`telemetry-node` 是 `@omne-harness/telemetry-node`，状态为候选（第一版，RFC-0013），是这份契约的 Node 提供者，只有本地出口。根入口是运行时：校验、有界队列、本地出口（应用的写函数或 Pino 同步文件）、计数与关闭报告，以及禁用实现。`./cordis` 有两个插件工厂与 Cordis 日志桥，插件继承 `telemetry-cordis-contract` 的 `TelemetryService`。根入口不依赖 Cordis。具名消费者是应用装配 `apps/harness-server`。
+`telemetry-node` 是 `@omne-harness/telemetry-node`，状态为第一版本地采用（RFC-0013 revision 2），是这份契约的 Node 提供者，只有本地出口。根入口是运行时：校验、有界队列、本地出口（应用的写函数或 Pino 同步文件）、计数与关闭报告，以及禁用实现。`./cordis` 有两个插件工厂与 Cordis 日志桥，插件继承 `telemetry-cordis-contract` 的 `TelemetryService`。根入口不依赖 Cordis。具名消费者是应用装配 `apps/harness-server`。
 
 依赖方向：领域实现成员依赖 `telemetry-contract`；提供者与发射行依赖 `telemetry-contract` 与 `telemetry-cordis-contract`；`telemetry-cordis-contract` 依赖 `telemetry-contract`；`telemetry-contract` 不依赖任何领域成员。规则见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。
 

@@ -88,7 +88,7 @@
 | `serve.spec.ts`       | 全部 ACTIVE 后监听、有行 PENDING 时不监听、缺 Session 行时 PENDING、只绑回环、畸形配置与初值                                                                  |
 | `composition.spec.ts` | 注册、签发登录、会话操作到达 Session 面的主体由 `principalIssuer` 签发并被 `principalVerifier` 核验、调用方类、输出不含登录证明与凭据、缺 identity 行时的答复 |
 | `shutdown.spec.ts`    | `entry` 阶段最先停、停止后拒绝新连接、在途请求写完、下一阶段在其后                                                                                            |
-| `../session-diagnostics/flow.spec.ts` | 真实 `serve` 进程与真实 CLI：同租户并发两个会话时第二个 Run `model-refused capacity`；上游 504 时 `no-reply` 带 `cause` 与 `upstreamStatus`；同一调用的 Model 分支写 `unknown`（原因 `denied`）、派发为空（见已知限制）；他租户读 `denied` 退出 3；`shutdown-result` 仍是最后一行；本机单用户档 `serve` 不带参数可读诊断 |
+| `../session-diagnostics/flow.spec.ts` | 真实 `serve` 进程与真实 CLI：同租户并发两个会话时第二个 Run `model-refused capacity`；上游 504 时 `no-reply` 带 `cause` 与 `upstreamStatus`；同一调用的 Model 派发显示失败原因和状态码，账目缺失时明确未知；他租户读 `denied` 退出 3；`shutdown-result` 仍是最后一行；本机单用户档 `serve` 不带参数可读诊断 |
 
 ## 已知限制
 
@@ -97,4 +97,4 @@
 - 诊断事件只有在 `telemetry` 行以 `node` 实现就绪时写出。`disabled` 实现计数不写出，桥的引导态不接事件。
 - Session 与 identity 是契约替身。真实 Session 提供者按 `intake` 与 `reader` 核对调用方类的行为，要等真实提供者接入后验证。
 - 行的 fiber 在运行中被卸载时关闭监听的撤除动作，没有单独的用例。计划停止路径由 `shutdown.spec.ts` 覆盖。
-- `read-session-diagnostics` 的 Model 分支：登录得到的代租户主体读自己会话里的 Model 调用时，应用 Model 资格表（`src/model/qualification.ts`，R2-D33）的 `facts` 动作只放行会话工作主体与宿主，所以 `inspect` 与 `ModelDiagnostics.list` 答 `denied`，投影把该调用写成 `unknown`（原因 `denied`）、派发行为空。Run 的失败原因经 Agent 的 `readFinish` 读到，不受影响。是否放行代租户主体读本租户的 Model 事实，待 model 线与数据保护拥有者裁定（RFC-0013 DA2）。用例 `tests/rows/session-diagnostics/flow.spec.ts` 的 E2b 按现状断言。
+- `read-session-diagnostics` 的 Model 分支使用原调用者的 `inspect` / `read-account` 只读资格。每个读口独立核验并在读后复核；入口释放整页响应前重核原登录和租户成员资格。旧 `facts`、`account`、正文、控制和执行权限不向登录主体开放。采用依据为 [DA2 决定](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)。检查点与网络发送不构成撤权原子事务。

@@ -8,7 +8,7 @@
 
 本包拥有全部遥测提供者与发射领域共用的形状和规则。规则只在这里写一份。提供者调用 `validateFields` 与 `validateBinding`，不另写一份规则。
 
-状态：候选，第一版。设计依据是 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 的 B 线。RFC 还没有接受，所以 [SPEC.md](SPEC.md) 的全部条款都是候选。根入口与 `./testing` 已经实现并有测试。`health()` 随 OTel 推迟，第一版没有它。`Carrier`、`defineMetric` 与 `Emitter.record` 是预留：有形状、有校验、有测试，第一版没有消费者，为推迟的 OTel 链路与指标保留。
+状态：第一版本地范围已采用。设计依据是 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 的 B 线。RFC revision 2 已采用本地范围，推迟项不在此次决定中。根入口与 `./testing` 已经实现并有测试。`health()` 随 OTel 推迟，第一版没有它。`Carrier`、`defineMetric` 与 `Emitter.record` 是预留：有形状、有校验、有测试，第一版没有消费者，为推迟的 OTel 链路与指标保留。
 
 具名消费者：Cordis 定义成员 `telemetry-cordis-contract` 的抽象服务实现 `TelemetryPort`。Node 提供者 `telemetry-node` 用本包的函数校验。应用 `apps/harness-server` 声明入口诊断事件。Session 与 Agent 的遥测 facade 用本包的定义与端口。
 

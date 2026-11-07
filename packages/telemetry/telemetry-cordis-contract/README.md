@@ -8,7 +8,7 @@ The Cordis service definition of engineering telemetry: the abstract `TelemetryS
 
 This package owns the one Cordis seam of telemetry. A provider extends `TelemetryService` and implements `bind`. A consumer injects `telemetryKey`. The service authorizes nothing: the scope in a binding says whom a record belongs to, not what the caller may do.
 
-Status: candidate, first version. The design basis is D02 of [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) ( three members, after the precedent of `model-contract` and `model-cordis-contract`). The RFC is not accepted yet, so every clause in [SPEC.md](SPEC.md) is a candidate. The pure contract and the Cordis definition are two members so that a domain member which depends on the pure contract has no Cordis in its production install closure; the Agent public entry test watches for that.
+Status: adopted local first version. The design basis is D02 of [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) ( three members, after the precedent of `model-contract` and `model-cordis-contract`). RFC revision 2 adopts the local scope; deferred work remains outside that decision. The pure contract and the Cordis definition are two members so that a domain member which depends on the pure contract has no Cordis in its production install closure; the Agent public entry test watches for that.
 
 Named consumers: the Node provider `telemetry-node` extends `TelemetryService` in its `./cordis`. The application `apps/harness-server` injects `telemetryKey` in the `server-entry` row and provides it in the `telemetry` row.
 

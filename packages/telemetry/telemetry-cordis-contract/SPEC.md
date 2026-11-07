@@ -6,7 +6,7 @@
 
 本包拥有遥测唯一的 Cordis 服务定义 `telemetry`：抽象类 `TelemetryService`、键常量 `telemetryKey` 与 `Context.telemetry` 增补。
 
-状态：候选，第一版。设计依据是 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 的 D02（纯契约、Cordis 定义与 Node 提供者三个成员）。RFC 还没有接受，接受前本文件的全部条款都是候选范围。拆分的直接依据是仓库约定：纯契约成员的安装闭包里不能有 Cordis（IC-4），而 `dependencies` 属于整个包，所以 Cordis 定义不能与纯契约同包。
+状态：第一版本地范围已采用。设计依据是 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 的 D02（纯契约、Cordis 定义与 Node 提供者三个成员）。采用依据是 RFC revision 2 的接续采用记录。拆分的直接依据是仓库约定：纯契约成员的安装闭包里不能有 Cordis（IC-4），而 `dependencies` 属于整个包，所以 Cordis 定义不能与纯契约同包。
 
 本包不拥有：端口规则与校验（`telemetry-contract`）；提供者、运行时、出口与关闭报告（`telemetry-node`）；行、注入清单与装配（`apps/harness-server`）。
 

@@ -180,8 +180,8 @@ flowchart TD
 
 已知限制：
 
-- 在应用的 Model 资格表下，登录得到的代租户主体读自己会话里的 Model 调用时，`inspect` 与 `list` 答 `denied`。投影把该调用写成 `unknown`（原因 `denied`），派发为空。Run 的失败原因经 Agent 的 `readFinish` 读到，不受影响。是否放行归 RFC-0013 DA2 的裁定者，应用侧的说明见 harness-server 的 [server-entry 行](../../../apps/harness-server/docs/rows/server-entry.md#已知限制)。
-- 同一租户并发两个 Run 时，第二个 Run 的 Agent 可以在节点 P1 以 `unavailable`（`agent-context: call-input-busy`）停下，Session 的 `receive` 失败，这个 Run 没有终态。这是 Agent 与 agent-context 的既有缺陷。投影只能显示这个 Run 未结束（`terminal` 为 `null`）、零调用。原因只能从遥测记录查：Session 的 `omne.session.diagnostic` 事件与 Cordis 的 WARN 日志。投影还读不到 Agent 停在失败上的事实，这是后续改进项（RFC-0013「后续」）。
+- Model 读面按部署显式采用的租户只读资格返回；未授权、不支持或不可用仍形成缺口。应用的资格映射和登录返回检查归 [server-entry 行](../../../apps/harness-server/docs/rows/server-entry.md)。
+- Agent 已保存 `node-failed` 结束候选并完成原责任收尾时，投影读取其节点、分类与失败种类。原责任尚未得到可靠终态时，`terminal` 仍为 `null`；投影不据遥测日志推断业务结束。
 
 ### SessionOperationId 的派生规则
 
