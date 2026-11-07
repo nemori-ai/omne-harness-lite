@@ -22,7 +22,7 @@
 | CAP-TL06 等待答复 | WaitIntent/WaitRecord、ResponseRecord、DecisionBridge/ResourceResponses | [P06](../SPEC.md#p06-内部等待与答复) | 登记确认丢失、取消后登记迟到、answer确认丢失、答复与取消、资源超时不能用于Ask、普通消息不答原请求 |
 | CAP-TL07 结果及采用 | ToolAuthor、OutputCodec、ResultPolicy、RawOutput、ToolResult | [P05](../SPEC.md#p05-执行事实与原输出) | 普通对象content字段不改变分支、renderer抛错原件仍在、codec失败不假报耐久、policy拒绝不重跑；内容 ref 无需附件登记，附件仅文本且零媒体读取 |
 | CAP-TL08 过程观察 | ProcessBlock、公共 `StreamFrame` 上的 ToolStreamSnapshot / ToolStreamDelta / ToolStreamEnd、ProcessSnapshot | [P08](../SPEC.md#p08-过程分页与全文交接) | 保存前不得展示、快照/增量缝隙、慢观察gap、封块后写、无活体读已展示内容、人用内容不入消费方的请求 |
-| CAP-TL09 保管全文取回 | RawOutput、ContentReader、ToolOffloader、Delivery | P05、P08 | 保存成功本域回执丢失、retained/processed两路径、旧release不解除晚到版本、附件换引用、单块超页、消费方归档后仍可依法读 |
+| CAP-TL09 保管全文取回 | RawOutput、ContentReader、ToolOffloader、Delivery | P05、P08 | 保存成功本域回执丢失、retained/processed两路径、旧release不解除晚到版本、附件换引用、单块超页、归档后内联从消费方恢复、正文有效期内核权读取及到期拒绝 |
 | CAP-TL10 控制与撤回 | ToolControl、ControlDispatch/Progress、PhysicalExecution | P07 | stop已接受仍在跑、拒绝/未知不假报停止、withdraw先逻辑终局且名额保持、reach缺失或未知被拒、reach为foreground-and-unadmitted与all的范围分别验证；目标是后台关系（已转后台或发起即后台，不论是否已启动）时 foreground-and-unadmitted 回 rejected（out-of-reach）且调用不变；前台范围的撤回不阻已受理后台子安全resume |
 | CAP-TL11 原调用恢复 | ToolRecovery、ToolTask、RecoveryBinding、Checkpoint、DrainState | P01、P03、P04、P07、[P09](../SPEC.md#p09-账目恢复与退出) | prepare/release/suspend响应丢失、查询未知、旧协调者被围栏但物理执行继续、resume拒绝保留旧效果、交接清单变化 |
 | CAP-TL12 执行账 | CallAccount、recordAccount、ToolAccounts | P09 | 正常与迟到同源重复不重计、修订替代、未知非零、组织跨边界拒绝、账目读取不披露内容 |
@@ -269,7 +269,7 @@ TOOL-M01、TOOL-M02 的公开形状与契约函数已实现，runtime 与提供�
 <a id="tl-v06"></a>
 #### TL-V06 全文与真实账目
 
-验证作者摘要与机械首尾占位、保存失败、原附件地址、分页新返回和读取资格收窄；消费方归档、压缩、消费及确认后仍可在合法资格下取原文，旧占位不改。分别构造暂时不可读、地址失效和不存在，不混成删数据。重复通知和接续执行不重计原账，新取回调用记录真实新成本；迟到、未知费用和 dummy 实际处理分别表达。组织账目读取不授成员正文或其他组织明细，独立调用不造外部工作对象。
+验证作者摘要与机械首尾占位、保存失败、原附件地址、分页新返回和读取资格收窄；消费方归档、压缩、消费或确认不改变正文期限：内联从其独立承接材料恢复，Tool 已释放材料回复 result/released；卸载正文在有效期内核权取回，到期回复 body/expired。权威记录缺失按具名 missing 分支回答，旧占位不改。分别构造暂时不可读、地址失效和不存在，不混成删数据。重复通知和接续执行不重计原账，新取回调用记录真实新成本；迟到、未知费用和 dummy 实际处理分别表达。组织账目读取不授成员正文或其他组织明细，独立调用不造外部工作对象。
 
 MODEL-E01 的共享 ref、消息校验和发送阶段读取仍待实现验证；TOOL-M04 已提出保存及读取设计，真实故障验证仍未完成。TOOL-M03 的引用、承接、分页与费用协议未实现、真实存储故障与断电未验证前，不能声明这些边界已实现。
 
@@ -309,3 +309,7 @@ MODEL-E01 的共享 ref、消息校验和发送阶段读取仍待实现验证；
 实际提供者须覆盖内联可靠承接后释放、最终通道独立于 raw、提交未知不清理、正文到期不删 data/原生资源、页租约与删除竞争、writer 未 await 输出、确认丢失、撤权和租户隔离。还须验证分块材料部分删除后的重启、历史分类迁移、生产维护驱动及遥测失效不改变业务。
 
 模型动作到实际提交点逐项映射，不能只给状态数。程序中间结果使用既有 ProgramTools 的受信消费者验证，不将该证据称为完整 Code 工具交付。真实 Linux agent 任务验证预览和分页的可用性、到期识别及资源成本，有限模型和测试替身不能代替它。
+
+### 未封存作者正文的正常返回
+
+构造 begin/append 已耐久但从未请求 seal，随后普通 return 小字符串的调用；即使返回值未关联 writer，也必须明确失败，不能 completed、自动 seal 或无限等作者。暂存、诊断、实际效果和收场清理责任须保留。另以已受理 seal 但回执未知为对照，必须查询原操作，不误报从未请求。

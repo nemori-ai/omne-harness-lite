@@ -72,4 +72,4 @@
 
 W3 只采用 Tool 已提交的归一化结果。消费方在 saved 前独立耐久保存内联材料，历史保存卸载预览及固定期限，程序 data 不自动成为模型消息。生产 Tool 接收方、同一 Journal 材料读口和 Session 适配必须共同验证，不能用测试世界的 reader 替代实际发行行。
 
-当前 `session-ad06` 行尚缺 `ToolDeliveryReader` 与 coordinator。Agent 已生产具名完整 facts schema；适配时须按 Agent 的公开读取契约及 AD-06 的原绑定验证连接，不能仅把三个参数的读取器强转为单参数函数。该接线纳入 W3-A 生产组合，D 复跑真实服务验收。Tool 解除回执进入日志的 `JC-RELEASE-TOOL-PATH` 是另一项责任，补齐材料读取不自动关闭它。
+当前 `session-ad06` 行尚缺 `ToolDeliveryReader` 与 coordinator。Agent 已生产具名完整 facts schema；适配时须按 Agent 的公开读取契约及 AD-06 的原绑定验证连接，不能仅把三个参数的读取器强转为单参数函数。生产接线须经实际发行装配的组合验收，测试专用 reader 不能替代该证据。Tool 解除回执进入日志的 `JC-RELEASE-TOOL-PATH` 是另一项责任，补齐材料读取不自动关闭它。
