@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Run bounded TLC cases; exact named counterexamples, not generic errors, pass negatives."""
 import argparse, hashlib, json, os, pathlib, re, subprocess, time
 ROOT = pathlib.Path(__file__).resolve().parent
 JAR_SHA256 = '936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88'

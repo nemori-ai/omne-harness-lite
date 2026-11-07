@@ -243,7 +243,7 @@ provider 入口导出 [forwarding.ts](../src/forwarding.ts) 的父证明、原�
 | 已提交的卸载正文引用 | 原调用与结果版本、bodyId、表示及 schema、原 UTF-8 字节数、作者或机械预览、采用与 activatedAt/expiresAt | 地址与 schema 不构成当前读取资格 |
 | 调用期 writer | begin、顺序 append、带最后序号的 seal、原操作 inspect；明确拒绝、容量、未知及冲突 | 不提供全局存储、Session 或任意材料删除 |
 | 正文语义页 | 固定身份、表示、期限、位置及 next；可读文本、完整或片段 JSON、完整 JSON Lines 记录 | 不默认给模型 base64，不自动重执行，不递归卸载 |
-| 读取失败 | result 已释放、body 已到期、经核权确认的缺失；游标错误、不可用和拒绝分别表达 | 不得以缺失隐藏越权或暂时故障 |
+| 读取失败 | `not-found` 仅含 result/released、result/missing、body/expired、body/missing，定义和命令映射归[读取失败](../SPEC.md#正文与结果的读取失败)；其他失败保持区分 | 不得以缺失隐藏越权或暂时故障 |
 | 保管维护分面 | 按原交付解除回执释放材料用途；有界到期扫描；按原操作查询维护结果 | 不复制消费者 ACK 协议，不进入普通 ToolRuntime 的任意删除面 |
 
 结果 data 的完整读取资格仍生效。正文页不替代 data，不以 data=none 隐藏无权读取的字段。程序消费者从明确程序协议取值，模型消费者只采用获准的正文和原生引用投影。

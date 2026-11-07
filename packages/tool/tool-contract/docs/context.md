@@ -119,7 +119,7 @@ stateDiagram-v2
 
 先保管路径保存原内容或所需期内可靠引用、consumer 及后续责任，然后 releaseDelivery。先处理路径在 Tool 继续承担未交付材料责任时完成适用扩展和消息处理，保存完成事实，然后 releaseDelivery。处理失败或保存未知时保持 pending。正文卸载在最终结果提交前完成；两条消费路径均不延长正文期限。已可靠承接的内联副本在无剩余用途后可释放，原生资源由原拥有者管理。
 
-解除关系回执丢失时，原 call/result/delivery/consumer 和原 operation 足以认回。另一位置使用旧 delivery 必须拒绝。消费方的工作结束或归档后，合法消费者仍可通过 readResult 分页取原全文；新的取回调用只产生其自己的新内容和实际取回费用。
+解除关系回执丢失时，原 call/result/delivery/consumer 和原 operation 足以认回。另一位置使用旧 delivery 必须拒绝。消费方结束或归档不延长 Tool 的保管期限。已承接的内联内容由消费方从自己的材料恢复；Tool 材料已释放时返回 result/released。卸载正文仅在固定有效期内按当前资格分页读取，到期返回 body/expired；权威记录不存在时按[读取失败](../SPEC.md#正文与结果的读取失败)回答。新的取回调用只产生其自己的新内容和实际取回费用。
 
 | 交错或故障 | 必须观察的结果 | 后继验证者 |
 | --- | --- | --- |
