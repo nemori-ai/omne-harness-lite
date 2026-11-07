@@ -81,7 +81,7 @@ export type SentCall = Readonly<{ requestId: string; answer: Promise<PeerAnswer>
 
 /** What `tasks/get` says about the result of a task. */
 export type TaskAnswer =
-  | Readonly<{ kind: 'finished'; answer: PeerAnswer }>
+  | Readonly<{ kind: 'finished'; answer: Extract<PeerAnswer, { kind: 'result' | 'error' }> }>
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'not-finished' }>
   | Readonly<{ kind: 'expired' }>

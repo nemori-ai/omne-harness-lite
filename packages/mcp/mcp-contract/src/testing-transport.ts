@@ -1428,6 +1428,38 @@ const t1Cases = (): readonly Case[] => [
   ),
   conformanceCase(
     'T1',
+    'Streamable HTTP: a call stopped after the session ended (S07), before close(): abandoned, carrying session-ended',
+    async fixture =>
+      withPeer(
+        fixture,
+        {
+          ...SESSION_SCRIPT,
+          calls: { echo: SILENT },
+          listing: { '': { kind: 'http', status: 404 } },
+        },
+        { kind: 'streamable-http' },
+        async (peer, transport) => {
+          ok(await transport.discover(), 'discover')
+          const controller = new AbortController()
+          const sent = ok(await transport.call(echo, controller.signal), 'call')
+          await untilSent(peer, 'tools/call')
+          // S07 ends the transport and leaves the call that was sent in flight (T8).
+          assert.deepStrictEqual(await transport.listActions(), {
+            failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
+          })
+          // The transport is not usable, but not closed: the stop is not this side's close (T5, T1).
+          controller.abort()
+          assert.deepStrictEqual(await sent.answer, {
+            kind: 'no-answer',
+            cause: 'abandoned',
+            unusable: 'session-ended',
+          })
+          await transport.close()
+        },
+      ),
+  ),
+  conformanceCase(
+    'T1',
     'stdio: close() after the process exited (S02): a later request carries no unusable',
     async fixture =>
       withPeer(

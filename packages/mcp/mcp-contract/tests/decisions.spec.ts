@@ -688,6 +688,14 @@ describe('the probe and the paths of discover (T3, T8 D rows)', () => {
     }
   })
 
+  it('a probe on the legacy HTTP path is not sent, on the first probe and on the retry (I07)', () => {
+    for (const request of ['discover', 'discover-retry'] as const)
+      expect(concludeProbe({ kind: 'legacy-http' }, request, VERSIONS, BOUND), request).toEqual({
+        kind: 'final',
+        failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+      })
+  })
+
   it('discoverWith: identity on the modern path; the retry; the legacy path and which failure it reports', async () => {
     const identity = (version: string): WireAnswer => ({
       kind: 'result',

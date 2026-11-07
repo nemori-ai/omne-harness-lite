@@ -1,4 +1,6 @@
-// The five application services: the category port, the read port, the call and status ports.
+// The five application services of `McpServices`: `inspection` (`EndpointInspection`), `discovery`
+// (`ActionDiscovery`), `invoker` (`ActionInvoker`, the two ports `ActionCalls` and `TaskControl`
+// together), `status` (`EndpointStatus`) and `connections` (`Connections`).
 // Interfaces and result values only; the implementation is not part of this member.
 import type { BodyContract } from '@omne-harness/assets'
 import type { JsonValue } from '@omne-harness/json-text'

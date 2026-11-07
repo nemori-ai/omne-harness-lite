@@ -11,7 +11,6 @@
 | [IC 约定](../../../docs/architecture/cordis-integration-conventions.md) | [IC-1](../../../docs/architecture/cordis-integration-conventions.md#ic-1) 至 [IC-5](../../../docs/architecture/cordis-integration-conventions.md#ic-5)、[IC-7](../../../docs/architecture/cordis-integration-conventions.md#ic-7) 至 [IC-9](../../../docs/architecture/cordis-integration-conventions.md#ic-9) 对 MCP 的七个接缝的适用 |
 | [MCP 契约规格](../mcp-contract/SPEC.md)                                 | 三个服务接口 `ActionDiscovery`、`ActionInvoker`（`ActionCalls` 与 `TaskControl`）、`EndpointStatus`（[应用服务接口](../mcp-contract/SPEC.md#services)），四个需求端口 `AdoptionView`、`UseEligibility`、`CredentialUse`、`ProcessLanding`（AV、UE、CU、PL 各节）。它们的输入、结果与失败归该规格                                       |
 | [MCP 能力组](../README.md#成员与依赖)                                   | 本成员的职责与允许的依赖：只依赖 `mcp-contract` 与 Cordis 发布包                                                                                                                                                                                                                                                                       |
-| #1119 W4 MCP 线的实施规格与波包决定 1–4                                 | 键名表、抽象类的写法、四个端口按调用现取、`EndpointInspection` 与 `Connections` 不建键、不设 `./testing`（任务过程材料，不入库）                                                                                                                                                                                                       |
 
 Cordis 采用发布包 `@deepseek-ai/cordis@4.0.4`。
 
