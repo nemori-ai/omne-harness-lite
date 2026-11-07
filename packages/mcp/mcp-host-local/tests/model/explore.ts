@@ -127,7 +127,7 @@ export type Exploration = Readonly<{
   actions: readonly string[]
 }>
 
-/** The same schedule replayed differently: a stop condition of the closure spec. */
+/** The same schedule replayed differently: the implementation is not deterministic under it, and the exploration stops. */
 export class Nondeterminism extends Error {
   override readonly name = 'Nondeterminism'
 }
@@ -169,12 +169,28 @@ const SOURCE_FRAME =
 /** Frames enough to reach the code a port call returns to; fewer frames format faster. */
 const SITE_FRAMES = 12
 
+/**
+ * V8's own text of a stack, as Node prints it when nothing replaces the formatter. A test runner
+ * installs a formatter that maps every frame through the source map; `siteOf` runs on every port
+ * call, so it formats the frames itself. The names and paths are V8's; only line and column, which
+ * a site does not use, may differ from the mapped ones.
+ */
+function plainStack(error: Error, frames: readonly NodeJS.CallSite[]): string {
+  return [String(error), ...frames.map(frame => `    at ${String(frame)}`)].join('\n')
+}
+
 /** The functions of `src/` on the stack of the caller, innermost first, as `name@file`. */
 function siteOf(): string {
-  const limit = Error.stackTraceLimit
+  const { prepareStackTrace, stackTraceLimit } = Error
   Error.stackTraceLimit = SITE_FRAMES
-  const stack = new Error('site').stack ?? ''
-  Error.stackTraceLimit = limit
+  Error.prepareStackTrace = plainStack
+  let stack: string
+  try {
+    stack = new Error('site').stack ?? ''
+  } finally {
+    Error.prepareStackTrace = prepareStackTrace
+    Error.stackTraceLimit = stackTraceLimit
+  }
   const frames: string[] = []
   for (const line of stack.split('\n')) {
     const match = SOURCE_FRAME.exec(line.trim())

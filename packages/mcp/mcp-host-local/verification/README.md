@@ -72,7 +72,7 @@
 探索器的近似：
 
 - 状态按投影去重：消费者可见的操作、待决端口调用及其调用点（`src/` 的函数栈）与上下文、线路事件账本、计时与预算。投影不含 promise 的续体。用例「the projection」在 `http-call` 场景上核对去重与不去重找到同一组违例及其最短深度。
-- 每次重放都核对路径与上一状态的投影；本次运行没有一次偏离，所以在这些调度下实现是确定的。
+- 每次重放都核对路径与上一状态的投影。重放偏离时探索器以 `Nondeterminism` 失败，所以探索器通过表示在这些调度下实现是确定的。
 - 三个端口的调用可以答 `hang`：凭据句柄的 `authorize` 与 `reportRejection`，元数据取回 `fetchMetadata`。挂起的调用不再属于可答集合，永不答复，但留在状态投影里（`hung`）；`hang` 与 `reject`、`fail` 一样计入场景的 `breaches` 预算。带 `signal` 的端口调用在 `signal` 触发时当即收场：线路的 `send` 与 `openGet` 如 `line.ts` 所承诺；元数据取回的替身也这样做，它的端口是 `SessionOptions.fetchMetadata`，会话不依赖它遵守（SPEC 的端口失败模型）。已答 `hang` 的调用除外。
 - 探索器经内存线路驱动会话，不经 `stdio-line.ts` 与 `http-line.ts`：这两条线路的逐字节处置与写端次序由 `stdio.spec.ts`、`http.spec.ts`、`conformance.spec.ts` 承担，不在探索器的范围内。
 
@@ -95,34 +95,32 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp-host-local/verification
 
 ## 证据状态
 
-状态的词按 [docs/verification.md](../../../../docs/verification.md#分别表述这六种状态)「分别表述这六种状态」。每种状态对每条性质的结论在 [SPEC.md「性质与证据」](../SPEC.md#properties)。本节记录范围与运行。
+状态的词按 [docs/verification.md](../../../../docs/verification.md#分别表述这六种状态)「分别表述这六种状态」。每种状态对每条性质的结论在 [SPEC.md「性质与证据」](../SPEC.md#properties)。本节记录探索器各场景的范围与取数方法。
 
-探索器（Node v26.12.0，2026-11-06 UTC 05:02，提交 `72f977c81`，单线程测量，耗时只作量级；日志 `explore-counts-72f977c81.log`，SHA-256 前 16 位 `3e577b54f24e131a`，保存在任务过程目录，不入库）：
+探索器的场景：
 
-| 场景             | 上限                                                                                                                                                              | 状态数 | 重放数 | 最深调度 | 耗时   | 层  |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------ | -------- | ------ | --- |
-| `minimal`        | HTTP＋句柄；1 次 `call`（带 signal）；`close()`；`authorize` 可挂起（1 次端口违约）                                                                               | 31     | 40     | 5        | 0.06 s | 快  |
-| `http-call`      | HTTP＋句柄；1 次 `call`（带 signal）、`close()`；各类拒绝与交换失败；`authorize` 可答失败，句柄的两个方法与元数据取回可 reject 或挂起；1 次线路故障、1 次端口违约 | 125    | 215    | 9        | 0.11 s | 快  |
-| `http-peer`      | HTTP＋句柄；1 次 `call` 的应答流带对端 `ping`、`close()`                                                                                                          | 26     | 29     | 6        | 0.01 s | 快  |
-| `http-bare`      | HTTP 无句柄；`call`、`listActions`、`close()`；401/403 无句柄可听                                                                                                 | 442    | 609    | 8        | 0.18 s | 快  |
-| `stdio-call`     | stdio；`call`（带 signal）、`cancelRequest`、`close()`；线路可以断开（`ended`、`exited`、`broken` 各到达）；1 次端口违约                                          | 247    | 347    | 8        | 0.08 s | 快  |
-| `stdio-discover` | stdio；`discover`（探测时限可触发）、对端 `ping`、`close()`；线路可以断开（`ended`、`exited`、`broken` 各到达）；1 次端口违约                                     | 2677   | 4205   | 10       | 1.27 s | 快  |
-| `http-resend`    | HTTP＋句柄；`listActions`、`updateTask`、`close()`；流断开或空 2xx 两次                                                                                           | 2927   | 4110   | 12       | 1.78 s | 慢  |
-| `sse-fallback`   | HTTP＋句柄；只会旧 HTTP+SSE 的对端上 `discover`、`listActions`、`close()`；共用流可以断开（`broken` 到达）                                                        | 5190   | 7448   | 17       | 4.43 s | 慢  |
+| 场景             | 上限                                                                                                                                                              | 层  |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+| `minimal`        | HTTP＋句柄；1 次 `call`（带 signal）；`close()`；`authorize` 可挂起（1 次端口违约）                                                                               | 快  |
+| `http-call`      | HTTP＋句柄；1 次 `call`（带 signal）、`close()`；各类拒绝与交换失败；`authorize` 可答失败，句柄的两个方法与元数据取回可 reject 或挂起；1 次线路故障、1 次端口违约 | 快  |
+| `http-peer`      | HTTP＋句柄；1 次 `call` 的应答流带对端 `ping`、`close()`                                                                                                          | 快  |
+| `http-bare`      | HTTP 无句柄；`call`、`listActions`、`close()`；401/403 无句柄可听                                                                                                 | 快  |
+| `stdio-call`     | stdio；`call`（带 signal）、`cancelRequest`、`close()`；线路可以断开（`ended`、`exited`、`broken` 各到达）；1 次端口违约                                          | 快  |
+| `stdio-discover` | stdio；`discover`（探测时限可触发）、对端 `ping`、`close()`；线路可以断开（`ended`、`exited`、`broken` 各到达）；1 次端口违约                                     | 快  |
+| `http-resend`    | HTTP＋句柄；`listActions`、`updateTask`、`close()`；流断开或空 2xx 两次                                                                                           | 慢  |
+| `sse-fallback`   | HTTP＋句柄；只会旧 HTTP+SSE 的对端上 `discover`、`listActions`、`close()`；共用流可以断开（`broken` 到达）                                                        | 慢  |
 
-「状态数」是去重后的投影数，「重放数」是从头重放的调度数。每个场景都没有违例，也没有一次重放偏离。上限的完整写法在 [tests/model/scenarios.ts](../tests/model/scenarios.ts)。
+上限的完整写法在 [tests/model/scenarios.ts](../tests/model/scenarios.ts)。用例 `session-model.spec.ts` 断言每个场景没有违例；重放偏离时 `explore` 以 `Nondeterminism` 失败。
 
-取数的做法：对 `scenarios.ts` 的每个场景调用 `explore(scenario)`（`tests/model/explore.ts`），读返回值的 `states`、`runs`、`depth` 与 `elapsedMs`。用例 `session-model.spec.ts` 只断言没有违例，不打印这些数。快层与慢层的用例在同一个提交 `72f977c81` 上各通过一次：快层 8 条通过、3 条被慢层标签排除（日志 `explorer-fast-72f977c81.log`，`bae289f9f65055f0`），慢层 3 条通过、8 条被快层标签排除（`explorer-slow-72f977c81.log`，`7e49b8c6d7edb23b`）。
+取数的做法：对 `scenarios.ts` 的每个场景调用 `explore(scenario)`（`tests/model/explore.ts`），读返回值的 `states`、`runs`、`depth` 与 `elapsedMs`。`states` 是去重后的投影数，`runs` 是从头重放的调度数。用例只断言没有违例，不打印这些数。
 
-TLC（`TransportSession.tla` 的注释修订之后重跑，2026-11-06 UTC 06:55，TLC2 2.19，4 个工作线程，jar SHA-256 前 16 位 `936a262061c91469`，模型 `29eec8af205bca31`，`run.py` `2f1fc35ee9f1c89b`）：13 份配置都符合判读，退出 0（日志 `run.log`，`2975d496e3192163`）；正控 `valid-close` 9922 个不同状态、深度 16，`valid-signal` 与 `valid-no-handle` 各 315 个、深度 11；22 个有效动作的变异都符合判读，退出 0（日志 `mutations.log`，`bcc146c707ec772e`）。负控与变异的状态数是 TLC 找到第一条反例时的计数，随线程调度在两次运行之间略有不同。配置、上限与逐项结果见 [models/README.md](models/README.md#运行记录)。
-
-探索器的负控（`3327d8439` 上，`node tests/model/mutate.ts`，2026-11-06 UTC 06:58）：23 个负控全部变红，退出 0，源码按字节还原（`git status` 干净）；汇总日志 `mutants-run.log`，`3206b85acce773b0`；每个负控一份日志 `<负控名>.log`。所有日志都保存在任务过程目录，不入库。
+TLC 的配置、上限与判读见 [models/README.md](models/README.md#配置)，有效动作的变异见 [models/README.md](models/README.md#有效动作的变异)。
 
 <a id="两种证据能变红"></a>
 
 ## 两种证据能变红
 
-每条性质在两边都有能使它变红的缺陷。探索器一边是源码变异：[tests/model/mutants.ts](../tests/model/mutants.ts) 列出每个负控的缺陷、替换文本、用例与预期的变红原因，`node tests/model/mutate.ts` 把它放进 `src/`、运行用例、按字节还原源码。模型一边分两类：负控配置在模型里放进一处缺陷（`Bugs`），TLC 给出违反所列不变式的轨迹；有效动作的变异在模块的副本上改一段有效动作，正控配置的目标不变式变红（`run.py --mutations`）。第二类证明不变式量的是状态，不是缺陷分支里的标志。两类的表与运行记录见 [models/README.md](models/README.md#有效动作的变异)。
+每条性质在两边都有能使它变红的缺陷。探索器一边是源码变异：[tests/model/mutants.ts](../tests/model/mutants.ts) 列出每个负控的缺陷、替换文本、用例与预期的变红原因，`node tests/model/mutate.ts` 把它放进 `src/`、运行用例、按字节还原源码。模型一边分两类：负控配置在模型里放进一处缺陷（`Bugs`），TLC 给出违反所列不变式的轨迹；有效动作的变异在模块的副本上改一段有效动作，正控配置的目标不变式变红（`run.py --mutations`）。第二类证明不变式量的是状态，不是缺陷分支里的标志。两类的表见 [models/README.md](models/README.md#有效动作的变异)。
 
 | 性质                            | 探索器负控（缺陷 → 场景 → 变红的签名）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | TLC 负控（缺陷注入）                                                                                                                                                                                              | TLC 有效动作的变异（至少一个）                                                                                                                                                         |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -141,7 +139,7 @@ TLC（`TransportSession.tla` 的注释修订之后重跑，2026-11-06 UTC 06:55�
 
 V2 的探索器负控要换两处：`usable` 对 `closed` 的核对，与 `callHandle` 对 `closed` 的核对。工作流每一步经 `usable` 核对，每个凭据调用又经 `callHandle` 核对。两层各自守住「关闭之后不碰凭据」。只去掉一层，另一层仍然成立，所以单点变异不会变红。
 
-V1 的探索器负控：`Session.settle` 只在条目还在在途表里时兑现，兑现用 `Promise.withResolvers` 的 resolve，第二次调用没有作用。这一对守卫只拦「同一条目再被结算一次」。再结算一次没有端口调用，探索器的 V1 形式（为已结算的请求再调用端口）看不见它。手工去掉 `settle` 的表守卫（`if (!this.pending.delete(entry.id)) return` 改为 `this.pending.delete(entry.id)`），在现行代码的工作树外副本上重新构建，跑本包快层与慢层全部用例：没有用例因它变红，这个变异存活。它是等价变异，补不出能判定它的用例：
+V1 的探索器负控：`Session.settle` 只在条目还在在途表里时兑现，兑现用 `Promise.withResolvers` 的 resolve，第二次调用没有作用。这一对守卫只拦「同一条目再被结算一次」。再结算一次没有端口调用，探索器的 V1 形式（为已结算的请求再调用端口）看不见它。手工去掉 `settle` 的表守卫（`if (!this.pending.delete(entry.id)) return` 改为 `this.pending.delete(entry.id)`），重新构建，跑本包快层与慢层全部用例：没有用例因它变红，这个变异存活。它是等价变异，补不出能判定它的用例：
 
 - 去掉守卫之后，第二次 `settle` 只多做两件事：再调用一次已兑现的 resolve，它没有作用；在 `sent` 相带探测计时时再取消一次探测计时。
 - 会对已结算条目调用 `settle` 的只有两处：`sendOut` 里授权答失败，与 `enterDiscovery` 里发现结束。这两处的条目在 `authorizing` 或 `discovery` 相，不带探测计时。
@@ -160,5 +158,5 @@ V1 的探索器负控：`Session.settle` 只在条目还在在途表里时兑现
 ## 本包事实
 
 - 当前内容：会话请求生命周期的 TLA+ 模型、13 份配置、22 个有效动作的变异、运行脚本，以及 `tests/model/` 的有界穷举探索器（23 个负控，含线路用例的负控）。
-- 状态：见上面的运行记录与 [SPEC.md「性质与证据」](../SPEC.md#properties)。这不是证明，也不表示实现符合模型。
+- 状态：见 [SPEC.md「性质与证据」](../SPEC.md#properties)。这不是证明，也不表示实现符合模型。
 - 负责人：本包的维护者。会话的等待点或结算次序变化时，先改模型与探索器的对应动作，再重跑两种证据。

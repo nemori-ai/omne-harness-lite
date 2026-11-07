@@ -19,10 +19,12 @@ import { stdioPeer } from './fixtures/scripted/stdio.ts'
 
 const VERSIONS = ['2026-07-28']
 
-const factory = createLocalTransportFactory({
+const CLIENT = {
   clientInfo: { name: 'omne-harness-test', version: '0' },
   probeTimeoutMs: 200,
-})
+} as const
+
+const factory = createLocalTransportFactory(CLIENT)
 
 function fixtureOf(kinds: readonly TransportKind[]): TransportFixture {
   return {
@@ -34,8 +36,13 @@ function fixtureOf(kinds: readonly TransportKind[]): TransportFixture {
         const peer = await stdioPeer(script, needs, VERSIONS)
         return { factory, material: peer.material, received: peer.received, close: peer.close }
       }
-      const peer = await httpPeer(source, needs, VERSIONS)
-      return { factory, material: peer.material, received: peer.received, close: peer.close }
+      const peer = await httpPeer(source, needs, VERSIONS, CLIENT)
+      return {
+        factory: peer.factory,
+        material: peer.material,
+        received: peer.received,
+        close: peer.close,
+      }
     },
   }
 }

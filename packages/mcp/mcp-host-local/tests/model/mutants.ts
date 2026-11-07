@@ -196,7 +196,7 @@ export const MUTANTS: readonly Mutant[] = [
     name: 'mV6-authorizing-abandoned',
     breaks: 'V6',
     defect:
-      'a request still authorizing is answered `abandoned` by the signal: a SentCall for a request the peer never saw (the defect of T5 before this ruling)',
+      'a request still authorizing is answered `abandoned` by the signal: a SentCall for a request the peer never saw (T5 answers a request that is still authorizing `not-sent`)',
     file: 'src/session.ts',
     replacements: [
       {

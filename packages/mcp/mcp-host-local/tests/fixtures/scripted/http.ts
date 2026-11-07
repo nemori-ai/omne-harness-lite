@@ -3,7 +3,7 @@
 // transport (`GET` stream + endpoint), and makes itself unreachable where the script says `unsent`.
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { isConnectionTarget } from '@omne-harness/mcp-contract'
-import type { TransportMaterial } from '@omne-harness/mcp-contract/provider'
+import type { McpTransportFactory, TransportMaterial } from '@omne-harness/mcp-contract/provider'
 import {
   NotApplicable,
   generationOf,
@@ -16,6 +16,10 @@ import {
   type Replies,
   type ScriptSource,
 } from '@omne-harness/mcp-contract/testing'
+import {
+  createLocalTransportFactory,
+  type LocalTransportOptions,
+} from '@omne-harness/mcp-host-local'
 
 const METADATA_PATH = '/.well-known/oauth-protected-resource'
 const servers = new Set<Server>()
@@ -366,6 +370,7 @@ class Peer {
       return
     }
     const requestId = typeof id === 'string' ? id : String(id)
+    await this.options.beforeRecord?.(method)
     this.log.push({
       kind: 'request',
       id: requestId,
@@ -511,8 +516,178 @@ class Peer {
   }
 }
 
+/** The request header that carries the number the counting `fetch` gave the request. */
+const REQUEST_HEADER = 'x-omne-fixture-request'
+
+/** A request that is stuck: `received()` rejects when the log is not complete by then. */
+const RECEIVED_WITHIN_MS = 5_000
+
+/** What the fixture knows of one request that went out through the peer's factory. */
+type Tracked = {
+  readonly n: number
+  readonly url: string
+  readonly signal: AbortSignal | undefined
+  /** The `fetch` rejected. */
+  rejected: boolean
+  /** The server got the request: the peer's `handle()` was called for it. */
+  seen: boolean
+  /** The promise of `handle()` settled. */
+  handled: boolean
+  /** The answer's `close` event came. */
+  closed: boolean
+}
+
+/**
+ * The peer has recorded everything about the request: `handle()` settled (the peer records
+ * before it returns), and, when the client aborted the request, the answer closed (the peer
+ * records an aborted answer stream on `close`). A request that failed without reaching the
+ * server has nothing to record.
+ */
+function recorded(request: Tracked): boolean {
+  if (request.rejected && !request.seen) return true
+  return request.handled && (request.signal?.aborted !== true || request.closed)
+}
+
+function missingOf(request: Tracked): string {
+  if (!request.seen) return 'the peer did not get it and the fetch did not fail'
+  if (!request.handled) return 'handle() did not settle'
+  return 'the aborted answer did not close'
+}
+
+/**
+ * The requests that went out through the peer's factory, in step with what the server did with
+ * each. The counting `fetch` numbers every request and sends the number in `REQUEST_HEADER`; the
+ * server reads it back, so the two sides of one request are joined without a time window.
+ */
+class Requests {
+  private readonly tracked = new Map<number, Tracked>()
+  private count = 0
+  /** Counts the rounds `newRound` opened. */
+  private epoch = 0
+  private waiters: (() => void)[] = []
+
+  /** The `fetch` of the peer's factory: the global one, with each request numbered and tracked. */
+  readonly fetch: typeof fetch = (input, init) => {
+    this.count += 1
+    const n = this.count
+    const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : {}))
+    headers.set(REQUEST_HEADER, String(n))
+    const signal = init?.signal ?? undefined
+    const request: Tracked = {
+      n,
+      url: input instanceof Request ? input.url : String(input),
+      signal,
+      rejected: false,
+      seen: false,
+      handled: false,
+      closed: false,
+    }
+    this.tracked.set(n, request)
+    signal?.addEventListener('abort', () => this.newRound(), { once: true })
+    this.newRound()
+    const answer = globalThis.fetch(input, { ...init, headers })
+    void answer.then(
+      () => undefined,
+      () => {
+        request.rejected = true
+        this.progressed()
+      },
+    )
+    return answer
+  }
+
+  /**
+   * The server got a request. Returns what to call when `handle()` settled. A request without the
+   * header did not come through the peer's factory and is not tracked. The `close` listener goes on
+   * before `handle()` adds its own, so the peer records an aborted stream in the same `close`
+   * event, before a waiter resumes.
+   */
+  arrived(request: IncomingMessage, response: ServerResponse): () => void {
+    const header = request.headers[REQUEST_HEADER]
+    const tracked = typeof header === 'string' ? this.tracked.get(Number(header)) : undefined
+    if (tracked === undefined) return () => undefined
+    tracked.seen = true
+    this.newRound()
+    response.on('close', () => {
+      tracked.closed = true
+      this.progressed()
+    })
+    return () => {
+      tracked.handled = true
+      this.progressed()
+    }
+  }
+
+  /**
+   * Resolves when the peer has recorded every request that started before, and one more turn of
+   * the event loop started no request, aborted none and brought none to the server. A caller's
+   * promise may settle before the client sends what follows it, such as a cancellation or an
+   * answer to the peer; a request that reaches the server may make the peer send something the
+   * client answers with a request of its own. Rejects after `RECEIVED_WITHIN_MS` with the requests
+   * not yet recorded.
+   */
+  async settle(): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const late = new Promise<'late'>(resolve => {
+      timer = setTimeout(() => resolve('late'), RECEIVED_WITHIN_MS)
+    })
+    try {
+      for (;;) {
+        const round = this.epoch
+        const started = [...this.tracked.values()]
+        for (;;) {
+          const open = started.filter(request => !recorded(request))
+          if (open.length === 0) break
+          if ((await Promise.race([this.next(), late])) === 'late') throw stuck(open)
+        }
+        await new Promise(resolve => setImmediate(resolve))
+        if (this.epoch === round) return
+      }
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  private next(): Promise<void> {
+    return new Promise(resolve => this.waiters.push(resolve))
+  }
+
+  /** A request started, was aborted or reached the server: `settle` waits one more round. */
+  private newRound(): void {
+    this.epoch += 1
+    this.progressed()
+  }
+
+  /** A request moved on toward being recorded: the waiters look again. */
+  private progressed(): void {
+    const waiters = this.waiters
+    this.waiters = []
+    for (const resume of waiters) resume()
+  }
+}
+
+function stuck(open: readonly Tracked[]): Error {
+  const lines = open.map(request => `#${request.n} ${request.url}: ${missingOf(request)}`)
+  return new Error(
+    `the peer had not recorded these requests within ${RECEIVED_WITHIN_MS} ms: ${lines.join('; ')}`,
+  )
+}
+
+/** The options of the client a test builds: `httpPeer` adds only its tracking `fetch`. */
+export type ClientOptions = Omit<LocalTransportOptions, 'fetch'>
+
 export type HttpPeer = Readonly<{
   material: TransportMaterial
+  /**
+   * The transport factory on the test's client options whose `fetch` the peer tracks.
+   * `received()` waits only for the requests that went out through it.
+   */
+  factory: McpTransportFactory
+  /**
+   * The log, once the peer has recorded every request that went out through `factory` before the
+   * call, and what the client sent right after. Rejects when a request is not recorded within
+   * `RECEIVED_WITHIN_MS`.
+   */
   received(): Promise<readonly PeerReceived[]>
   /** The method and path of every request the peer got, in order. */
   requestLines(): readonly string[]
@@ -547,19 +722,30 @@ export type HttpPeerOptions = Readonly<{
    * event carrying a decoy answer with the request's id. A transport reads message events only.
    */
   sseNoise?: boolean
+  /**
+   * Called with the method of each request the peer takes, after the body is read and before the
+   * peer records it; the record and the answer wait for it. Only the fixture's own cases use it,
+   * to record a request late, as a peer under load may.
+   */
+  beforeRecord?: (method: string) => Promise<void>
 }>
 
 export async function httpPeer(
   source: ScriptSource,
   needs: PeerNeeds,
   versions: readonly string[],
+  client: ClientOptions,
   options: HttpPeerOptions = {},
 ): Promise<HttpPeer> {
   let peer: Peer | undefined
+  const requests = new Requests()
   const server = createServer((request, response) => {
-    void peer?.handle(request, response).catch(() => {
-      if (!response.headersSent) response.writeHead(500).end()
-    })
+    const handled = requests.arrived(request, response)
+    void (peer?.handle(request, response) ?? Promise.resolve())
+      .catch(() => {
+        if (!response.headersSent) response.writeHead(500).end()
+      })
+      .finally(handled)
   })
   servers.add(server)
   const port = await listenFree(server)
@@ -592,17 +778,13 @@ export async function httpPeer(
   const built = peer
   return {
     material,
+    factory: createLocalTransportFactory({ ...client, fetch: requests.fetch }),
     requestLines: () => [...built.requestLines],
     endlessBytes: () => built.endlessWritten,
     breakStreams: () => built.breakStreams(),
     endSessions: () => built.endSessions(),
     async received() {
-      let seen = log.length
-      for (;;) {
-        await new Promise(resolve => setTimeout(resolve, 12))
-        if (log.length === seen) break
-        seen = log.length
-      }
+      await requests.settle()
       return [...log]
     },
     async close() {

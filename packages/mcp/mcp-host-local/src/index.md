@@ -14,6 +14,7 @@
 - [stdio-line.ts](stdio-line.ts)：stdio 线路：按行读写、每一行的字节上界、退出窗口、stderr 读出丢弃、被 `signal` 中止的写、关闭时一律中止写端、单飞的关闭与 T5 的关闭次序（SPEC H6、H8、H12）
 - [http-line.ts](http-line.ts)：Streamable HTTP 线路：POST 与 JSON/SSE 应答、不跟随重定向、离开前失败的分法、2xx 正文的上界、回退 GET 的事实（`openGet`）、SSE 模式的共用流与 endpoint（SPEC H2、H8、H9、H10、H11）
 - [authorization.ts](authorization.ts)：一个 well-known 地址的元数据取回，按契约的 `WIRE_LIMITS` 读，不经凭据句柄
+- [sse-bytes.ts](sse-bytes.ts)：SSE 正文一个事件的字节上界：在解码之前数自上一个空行以来的原始字节，超过上界时以 `RangeError` 结束流（SPEC H8）
 - [body.ts](body.ts)：有字节上界地读出整个 HTTP 正文：错误状态的正文、回退 GET 的非 2xx 正文、授权元数据（SPEC H8）
 - [limits.ts](limits.ts)：字节上界 `BYTE_LIMIT`，取契约的 `WIRE_LIMITS.maxBytes`（16 MiB）
 - [queue.ts](queue.ts)：线路事件的异步队列

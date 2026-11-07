@@ -4,8 +4,8 @@
 
 ## 探针
 
-| 探针                                           | 它回答的问题                                                                                           | 复用表里引用它的行                                                                                         |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| 探针                                                                 | 它回答的问题                                                                                           | 复用表里引用它的行                                                                                         |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
 | [p3-http-errors.mjs](../../../tests/probes/p3-http-errors.mjs)       | 全局 `fetch`（undici）对每一种 HTTP 失败报出什么：`cause.code`、头前重置、体中断、中止、重定向、DNS    | `StreamableHTTPClientTransport`（不跟随重定向）；H10 的错误码集合                                          |
 | [p4-everything-sse.mjs](../../../tests/probes/p4-everything-sse.mjs) | 参考服务端 `server-everything` 的 `sse` 与 `streamableHttp` 两种模式在线上怎样答旧 HTTP+SSE 的各个信号 | `SSEClientTransport`；H9 的回退条件                                                                        |
 | [p5-sdk-parsing.mjs](../../../tests/probes/p5-sdk-parsing.mjs)       | SDK 的读法原语怎样处置契约 T2 列出的行与消息，以及 SDK 的版本常量                                      | `ReadBuffer`、`StreamableHTTPClientTransport`、`extractWWWAuthenticateParams`、常量、`parseJSONRPCMessage` |
@@ -28,7 +28,7 @@ node tests/probes/p5-sdk-parsing.mjs
 
 ## 关键摘录
 
-版本：`@modelcontextprotocol/client` 与 `@modelcontextprotocol/core` 2.4.0，`@modelcontextprotocol/server-everything` 2.1.0，Node 26.12.0。运行日期：2026-11-05。
+版本：`@modelcontextprotocol/client` 与 `@modelcontextprotocol/core` 2.4.0，`@modelcontextprotocol/server-everything` 2.1.0，Node 26.12.0。
 
 `p3`：
 
