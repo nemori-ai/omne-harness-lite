@@ -80,3 +80,22 @@ stateDiagram-v2
 ```
 
 保管状态与业务状态是不同维度。业务已终止时仍可能收到 held 回执，持有该历史回执不表示业务可以继续。业务入口必须先检查原终态。
+
+## 同事务计划
+
+ActivationPlan 是一次 SQL 事务内的判别值，不是持久任务或授权令牌。control 携带严格元数据请求，mutation/adoption 携带原业务绑定、epoch与事务域，adoption还携带具名当前事实。observation只允许认回缺失、冲突或原终态。
+
+```mermaid
+classDiagram
+  ActivationPlan <|-- ControlPlan
+  ActivationPlan <|-- MutationPlan
+  ActivationPlan <|-- AdoptionPlan
+  ActivationPlan <|-- ObservationPlan
+  MutationPlan --> OperationBinding
+  AdoptionPlan --> OperationBinding
+  AdoptionPlan --> AdoptionEvidence
+  ActivationWriter ..> ActivationPlan
+  ActivationWriter --> Operation
+```
+
+图中继承箭头表达判别联合的变体，不表示源码使用 class 继承。参与者的表访问能力由固定 SQL 材料约束，计划值不会取得外域对象的所有权。

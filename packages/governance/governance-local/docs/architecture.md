@@ -123,3 +123,22 @@ flowchart LR
 ```
 
 读取材料限定 gc_scope 和 gc_operation 两张表，使用 domain-serial 排序。每次最多读取66行，输出上限256 KiB。失败保持 unavailable，不能变成完整空页。一次分页只覆盖该轮观察到的集合，后续扫描从头发现并发插入。
+
+## 生产参与者的计划依赖
+
+`activation-schema.ts` 定义 control、mutation、adoption、observation 四种计划。`metadata-plan.ts` 只形成元数据计划。`business-plan.ts` 从已保存原操作取得业务绑定，两个业务计划参与者分别限制命令族。`activation.ts` 是九张表的唯一写者，消费计划后重新检查原记录。
+
+```mermaid
+flowchart LR
+  MP[metadata-plan] -->|PLAN，元数据组合| W[activation 唯一写者]
+  BP[mutation-plan] -->|PLAN，贡献变更组合| W
+  Owner[具名当前事实生产者] -->|ADOPTION_CURRENT| AP[adoption-plan]
+  AP -->|PLAN，采用组合| W
+  W --> Tx[业务效果、修订、原终态同提交]
+```
+
+三条 PLAN 路径互斥，不能把整张图一起登记成一个组合。生产材料工厂允许应用选出各自闭包，SqlStorage 拒绝同组合重复提供 PLAN，也拒绝调用写者时省略所需生产者。
+
+元数据和封口不依赖 ADOPTION_CURRENT，因而不需要当前目标服务在线。采用计划从 requireFact 取得当前证据，不读取外域私表。当前事实的真实生产桥接仍待完成，组合测试中的生产者明确标为夹具。
+
+私有事务的真实 Worker 证据包含登记、撤除、空集合采用、错绑定及元数据封口。公开协调器和 Cordis 接线没有因此变为完成。后续协调器须保存原 SQL 阶段信封，不能用当前 manifest 或随机阶段键重建旧操作。
