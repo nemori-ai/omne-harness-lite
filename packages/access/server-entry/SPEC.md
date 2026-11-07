@@ -142,7 +142,7 @@
    - 两处都没有、且条目带 `fact.producer` 时，取生产者。接收路径的 `execution` 事实只带生产者。
 
    条目有消费标识时，它等于某次进入扇出的调用的消费标识，事实就计入该调用的 `facts`。这时不再按生产者找。条目只有生产者时，某次进入扇出的调用在 `call.bound` 登记的生产者（`registration.binding.producer`，或旧形状的 `binding.producer`）的 `kind` 与 `call` 都与它相同，事实就计入该调用的 `facts`；有几次调用相同时取日志中最先登记的那次。其余事实计入 Run 的 `facts`。计数与条目在日志中的先后无关。
-4. 只对 `failed` 或 `cancelled` 的 Run 读 Agent 的 `readFinish`。`completed` 的 Run 的 `structured` 是 `none`。读到的结束候选只取闭合字段；没有候选时是 `unknown`，原因 `not-recorded`。
+4. 只对 `failed` 或 `cancelled` 的 Run 读 Agent 的 `readFinish`。`completed` 的 Run 的 `structured` 是 `none`。读到的结束候选只取闭合字段；`node-failed` 取原候选的 `node`、`category` 和 `failureKind`，不取异常原文；没有候选时是 `unknown`，原因 `not-recorded`。
 5. 每个来源的拒绝、不可用、不支持、找不到都成为缺口，带来源、对象与原因；对应的值写 `unknown` 并带同一原因。端口缺席或 `readFinish` 缺席是 `unsupported`。端口抛出异常是 `unavailable`，页照常返回。同一（来源、对象、原因）只记一条。 来源失败到缺口原因的映射：`denied`、`unavailable`、`unsupported` 照原名；`invalid` 出在引用字段上时是 `not-found`，出在其他字段（例如 limit、租户）上时是 `unavailable`；`not-settled` 是 `not-recorded`；其余失败种类（容量、冲突、提交未知、过期游标等）是 `unavailable`。只有 `modelCalls` 没有 `modelDiagnostics` 时，派发的缺口是 `unsupported`。
 6. 投影不跨来源推断：Session 没有登记的调用不出现；Model 或 Tool 的空答复不说明调用不存在。
 7. 部署不披露的种类（`PROJECTED_KINDS` 中不在 `diagnosticsKinds` 里的）记缺口 `not-disclosed`，`subject` 是种类名。接入只向 Session 请求披露的种类。

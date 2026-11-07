@@ -205,6 +205,7 @@ const page: SessionDiagnosticsPage = {
   ],
 }
 const structuredCauses = [
+  { kind: 'node-failed', node: 'E4', category: 'invariant', failureKind: 'unavailable' },
   { kind: 'unknown', reason: 'unsupported' },
   { kind: 'unknown', reason: 'not-recorded' },
   { kind: 'none' },
@@ -356,6 +357,25 @@ describe('read-session-diagnostics responses', () => {
         cause: 'upstream-unavailable',
         upstreamStatus: null,
         diagnostic: 'in-band-error',
+      }),
+    ],
+    [
+      'a node failure with raw exception text',
+      withTerminalCause({
+        kind: 'node-failed',
+        node: 'E4',
+        category: 'invariant',
+        failureKind: 'unavailable',
+        diagnostic: 'secret',
+      }),
+    ],
+    [
+      'a node failure with an unsupported category',
+      withTerminalCause({
+        kind: 'node-failed',
+        node: 'E4',
+        category: 'mystery',
+        failureKind: 'unavailable',
       }),
     ],
     [

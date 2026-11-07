@@ -134,6 +134,12 @@ export type SessionAdoptionRef = {
  * plausible member of the set.
  */
 export type SessionRunCause =
+  | {
+      readonly kind: 'node-failed'
+      readonly node: string
+      readonly category: 'exception' | 'invariant' | 'unsupported-path' | 'rejected'
+      readonly failureKind: string
+    }
   | SessionDiagnosticUnknown
   | { readonly kind: 'none' }
   | { readonly kind: 'no-failure'; readonly conclusion: 'complete' | 'fail' | 'cancelled' }

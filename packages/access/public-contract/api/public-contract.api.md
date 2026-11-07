@@ -823,7 +823,12 @@ export type SessionAdoptionRef = {
     readonly revision: string;
     readonly digest: string;
 };
-export type SessionRunCause = SessionDiagnosticUnknown | {
+export type SessionRunCause = {
+    readonly kind: 'node-failed';
+    readonly node: string;
+    readonly category: 'exception' | 'invariant' | 'unsupported-path' | 'rejected';
+    readonly failureKind: string;
+} | SessionDiagnosticUnknown | {
     readonly kind: 'none';
 } | {
     readonly kind: 'no-failure';

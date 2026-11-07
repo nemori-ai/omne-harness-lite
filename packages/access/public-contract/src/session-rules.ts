@@ -189,6 +189,12 @@ const closedOrUnknown = (...values: string[]): Rule => ({
 const runCause: Rule = {
   kind: 'one-of',
   rules: [
+    fieldsOf({
+      kind: literal('node-failed'),
+      node: text,
+      category: literal('exception', 'invariant', 'unsupported-path', 'rejected'),
+      failureKind: text,
+    }),
     unknownValue,
     fieldsOf({ kind: literal('none') }),
     fieldsOf({ kind: literal('no-failure'), conclusion: literal('complete', 'fail', 'cancelled') }),

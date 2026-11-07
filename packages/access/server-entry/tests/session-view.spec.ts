@@ -1210,6 +1210,16 @@ describe('the values the owners give', () => {
 
   it.each([
     [
+      {
+        kind: 'node-failed',
+        node: 'E4',
+        category: 'invariant',
+        failureKind: 'unavailable',
+        diagnostic: 'secret raw exception',
+      },
+      { kind: 'node-failed', node: 'E4', category: 'invariant', failureKind: 'unavailable' },
+    ],
+    [
       { kind: 'cannot-fit', reason: 'after-compaction' },
       { kind: 'cannot-fit', reason: 'after-compaction' },
     ],

@@ -623,6 +623,8 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 ### 会话诊断页
 
+诊断终态的 `node-failed` 原因只包含节点 `node`、分类 `category`（`exception`、`invariant`、`unsupported-path`、`rejected`）与失败种类 `failureKind`。这些字段来自 Agent 的原结束候选，不含异常消息、堆栈或诊断原文。
+
 `read-session-diagnostics` 的 `succeeded` body 是一个会话的只读组合视图：Session 历史给出 Run 的骨架与调用登记，Agent 给出 Run 怎样结束，Model 与 Tool 给出每次调用实际发生了什么。本节是候选，待 RFC-0013 接受；设计依据是 [RFC-0013 的 A 线](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#a-线会话日志诊断投影)。本节只拥有线上形状与它的闭合规则；来源怎样组合、每个来源读什么归[服务端接入](../server-entry/SPEC.md#会话诊断投影)。精确类型在 [src/session-messages.ts](src/session-messages.ts) 的 `SessionDiagnosticsPage`。
 
 | 成员 | 内容 |

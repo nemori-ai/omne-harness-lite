@@ -359,6 +359,13 @@ function causeOf(finish: RunAnswers['finish']): SessionRunCause {
   const { failure } = intent
   if (failure === null) return { kind: 'no-failure', conclusion: intent.conclusion.kind }
   switch (failure.kind) {
+    case 'node-failed':
+      return {
+        kind: 'node-failed',
+        node: failure.node,
+        category: failure.category,
+        failureKind: failure.failureKind,
+      }
     case 'model-refused':
       return {
         kind: 'model-refused',
@@ -375,8 +382,16 @@ function causeOf(finish: RunAnswers['finish']): SessionRunCause {
         kind: 'cannot-fit',
         reason: oneOf(failure.reason, FIT_REASONS) ?? unknown('unsupported'),
       }
-    default:
+    case 'request-rejected':
+    case 'compaction-invalid':
+    case 'message-rejected':
+    case 'extension-stop':
+    case 'guard':
       return { kind: failure.kind }
+    default: {
+      const exhaustive: never = failure
+      return exhaustive
+    }
   }
 }
 
