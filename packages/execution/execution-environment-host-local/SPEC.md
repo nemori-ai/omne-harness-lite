@@ -6,7 +6,7 @@
 
 本成员有两个入口：
 
-- 根入口与 Cordis 无关（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4)），导出 `createHostFiles`、`hostObjectToken`、`hostSegmentsBelowRoot`（宿主路径在宿主文件根下的位置，R2-D376）、`createHostFilesDomain` 与 `createHostFilesProvider`，以及类型 `HostFilesDomain`、`HostFilesDomainOptions`、`HostFilesQuotaPolicy`、`HostFilesProviderOptions`、`HostFilesDiagnostic`、`HostFilesLimits`（列表与搜索的上界）、`HostCommandOptions`（`command` 的上界）、`HostTerminalOptions`（`terminal` 的上界）、`HostCommandPrerequisite` 与 `HostTerminalPrerequisite`（平台前提项名）。
+- 根入口与 Cordis 无关（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4)），导出 `createHostFiles`、`hostObjectToken`、`hostSegmentsBelowRoot`（宿主路径在宿主文件根下的位置，R2-D376）、`createHostFilesDomain` 与 `createHostFilesProvider`，以及类型 `HostFilesDomain`、`HostFilesDomainOptions`、`HostFilesQuotaPolicy`、`HostFilesProviderOptions`、`HostFilesDiagnostic`、`HostFilesLimits`（列表与搜索的上界）、`HostCommandOptions`（`command` 的上界）、`HostTerminalOptions`（`terminal` 的上界）、`HostCommandPrerequisite`、`HostTerminalPrerequisite` 与 `MacosPrerequisite`（平台前提项名），以及 `CommandPrerequisite`（`HostCommandPrerequisite` 与 `MacosPrerequisite` 的并集）。
 - `./cordis` 导出 Service 子类 `ExecutionEnvironmentRegistry`、登记 `files` 设施声明的插件 `filesFacilityPlugin`、登记 `command` 设施声明的插件 `commandFacilityPlugin`、登记 `terminal` 设施声明的插件 `terminalFacilityPlugin`，以及插件工厂 `createHostFilesPlugin(domain)`：它返回登记一代宿主文件提供者的插件。配置类型 `HostFilesConfig` 也从这里导出。
 
 上层依据：系统页[执行环境](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备)的成员分工，领域页[文件使用的交接](../../../docs/domains/execution-environments/architecture.md#文件使用的交接)，契约的[设施协议](../execution-environment-contract/SPEC.md#设施协议)、[INV-EE04](../execution-environment-contract/SPEC.md#inv-ee04-原主体在实际边界继续受约束)、[INV-EE09](../execution-environment-contract/SPEC.md#inv-ee09-资源和秘密以最小必要条件提供)、[INV-EE13](../execution-environment-contract/SPEC.md#inv-ee13-控制请求与实际停止释放分别确认) 与 [INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)。
@@ -30,7 +30,7 @@
 | 设施键                 | `files`、`command` 与 `terminal`                                                                                                                    |
 | 隔离断言               | 空。本提供者不确认任何隔离                                                                                                                          |
 | 宿主文件根             | 提供者选项 `filesRoot`，绝对路径，可选。配置了它，这一代全部 `files` 请求受它限制，见[宿主文件根](#宿主文件根未接受)                                |
-| 状态目录               | 提供者选项 `stateDirectory`，绝对路径，可选。批次清单放在其中；前提 P2 的探测在其中建、删临时目录；没有它时批次答 `unavailable`，探测用系统临时目录 |
+| 状态目录               | 提供者选项 `stateDirectory`，绝对路径，可选。批次清单放在其中；前提 P2 的探测在其中建、删临时目录；没有它时批次答 `unavailable`，探测用系统临时目录。macOS 的冷索引也放在其中 |
 | 列表与搜索的上界       | 提供者选项 `limits`，`HostFilesLimits` 的部分值：`listPageLimit`、`searchEntryBudget`、`searchByteBudget`、`searchFileBytes`。缺省取初值            |
 | 宿主事实（`describe`） | 名称、代、版本、平台（`process.platform` 加 `os.release()`）、设施键、空隔离断言，以及合并后的前提（见下文）                                        |
 
@@ -40,14 +40,14 @@
 - `inspectAcquisition(原描述)` 读责任域的原记录：打开的答已获取（带原租约与证据），释放中的答待定（阶段 `releasing`，资源列出停止未确认的命令进程），已结清的答已结清，指纹不同的答冲突。没有记录时，原描述的提供者代是本责任域签发过的代则答未分配，否则答未知：新进程的责任域没有证据说明旧容量已经结清。配额域与本责任域不同的原描述按没有记录处理。
 - `listAcquisitions(作用域)` 列出请求方作用域是该作用域、尚未结清的全部获取的原描述，包括没有受管资源的获取。
 - `settleAcquisition(原描述)` 与查询做同样的定位，然后排空这份获取：封门面、使原租约以来源 `provider`、原因 `released` 失效、等在途操作、重试失败的关闭。什么都不剩时答已结清，否则答待处置（资源列出停止未确认的命令进程）。结清不重做文件写入，也不回滚已写入的字节。重复结清答已结清，不再返还名额。
-- 本提供者的文件操作不留下受管资源；命令与终端的 scope 单元是受管资源。`listRecoveryResources` 与 `recover` 只处理这些单元，见[宿主命令与终端](#宿主命令与终端)的资源级冷恢复。Windows 没有完整的冷资源索引，答 `unavailable`。Linux 与 Windows 之外的宿主答责任域已知的保留终端资源，没有时为空列表。Linux 上没有可达的用户管理器时答 `unavailable`，不答空列表。描述符、在途操作与失败关闭由获取路径（枚举与结清）覆盖，空的资源列表不证明没有这些责任。
+- 本提供者的文件操作不留下受管资源；命令与终端的执行域是受管资源：Linux 上是 scope 单元，Windows 上是 Job，macOS 上是 POSIX 会话。`listRecoveryResources` 与 `recover` 只处理这些执行域，见[宿主命令与终端](#宿主命令与终端)的资源级冷恢复。Windows 没有完整的冷资源索引，答 `unavailable`。macOS 从状态目录里的冷索引作答，并合并责任域已知的保留终端资源。macOS 上没有状态目录时答 `unavailable`。Linux、Windows 与 macOS 之外的宿主答责任域已知的保留终端资源，没有时为空列表。Linux 上没有可达的用户管理器时答 `unavailable`，不答空列表。描述符、在途操作与失败关闭由获取路径（枚举与结清）覆盖，空的资源列表不证明没有这些责任。
 - 本提供者不读账本：账本关闭后的拒绝由登记表的门在调用设施之前做（[INV-EE15](../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。直接调用 `createHostFilesProvider` 得到的租约原件不经过门。终端额外读取原账本的关闭信号，阻止关闭之后的创建与执行。请求方作用域随 `ProviderAcquireInput.scope` 到达，进入原描述与获取枚举。
 - `retire()` 先把提供者标为已退役，之后新的获取返回 `providerUnavailable`。然后它封住这一代全部尚未结清的获取的门面，使它们的租约原件以来源 `provider`、原因 `providerRetired` 失效，再逐份排空。每份都结清时返回已排空，并结束这一代对引擎诊断的订阅；否则返回待处置，资源列出停止未确认的命令进程，并给 `diagnose` 一条诊断。原记录与仍打开的描述符留在责任域，新的代经同一责任域查询与结清它们。待处置之后再调用 `retire()` 会再排空一次。
 - `drainBoundMs` 的初值是 10000，用于释放、结清与退役。它必须是有限的非负数，否则 `createHostFilesProvider` 抛出 `RangeError`。
 - 诊断 `HostFilesDiagnostic` 的 `kind` 有七种，`diagnose` 抛出都不改变结果。结果为待处置时：仍有在途操作时 `kind` 为 `drainBoundExceeded`，只剩关闭失败的描述符时为 `closePending`；带提供者名与代、在途操作数（文件操作与命令启动）、打开的描述符数与上界，释放或结清时另带获取键。命令进程的停止没有确认时为 `stopUnconfirmed`，缺平台前提而拒绝命令启动时为 `commandUnavailable`，缺终端前提时为 `terminalUnavailable`，三者见[宿主命令与终端](#宿主命令与终端)。保留进程的标记文件与单元不一致时为 `retainedMarker`，见[一次性命令留下的进程的兑现](#一次性命令留下的进程的兑现)。批次发布后删不掉临时文件时为 `temporaryFileRemains`：带提供者名与代、批次 id、已发布的路径、临时文件名与可选的错误码。`temporaryFileRemains` 来自文件引擎，不属于某一份获取，所以不带获取键。
 - 文件引擎的配置：提供者向责任域要一个按文件配置共用的引擎，配置是 `filesRoot`、`stateDirectory` 与 `limits`。这些值不合法时 `createHostFilesProvider` 在登记这一代之前抛出：路径不是绝对路径为 `TypeError`，上界不是正安全整数为 `RangeError`。三项都不给时，行为与没有这些选项之前相同。同一责任域里配置相同的提供者共用一个引擎，配置不同的各用一个，见[宿主文件责任域](#宿主文件责任域)。
 
-提供者事实里的前提是下列探测的合并。P2（`files` 的目录描述符前提，`probeHostFilesPrerequisite(stateDirectory)`）由 `describe()` 读取：满足或不满足的结果在这一代内保留，未知的结果下一次 `describe()` 再探。`command` 的 P1、P3～P6 由创建时开始的后台探测给出，见[宿主命令与终端](#宿主命令与终端)。合并规则：任一项不满足为 `unsatisfied`，否则任一项未知为 `unknown`，全部满足为 `satisfied`。不满足的项名不进宿主事实。
+提供者事实里的前提是下列探测的合并。P2（`files` 的目录描述符前提，`probeHostFilesPrerequisite(stateDirectory)`）由 `describe()` 读取：满足或不满足的结果在这一代内保留，未知的结果下一次 `describe()` 再探。`command` 的 P1、P3～P6 由创建时开始的后台探测给出，见[宿主命令与终端](#宿主命令与终端)。macOS 不做这几项探测，它的前提项见同一节的「macOS 的平台前提」。合并规则：任一项不满足为 `unsatisfied`，否则任一项未知为 `unknown`，全部满足为 `satisfied`。不满足的项名不进宿主事实。
 
 契约的提供者事实只有三态的前提，没有放宿主文件根的位置，严格的事实 Schema 也不接受多余的字段。所以配置了宿主文件根这件事不写进 `describe()`，而写进获取的证据（见 `acquire`）。要在 `describe()` 里看见它，需要契约增加一个字段，这归契约的拥有者。提供者事实不携带日期（日期由后续宿主事实块生产者在块级提供，见[契约 INV-EE17](../execution-environment-contract/SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。
 
@@ -190,7 +190,7 @@
 
 ### 宿主命令与终端
 
-本节写宿主提供者承担的 `command`。平台范围（Q-9）：Linux 兑现一次性命令的处置与保留，见[一次性命令留下的进程的兑现](#一次性命令留下的进程的兑现)。Windows 有一次性命令后端：根进程退出时停止 Job 里剩下的进程，结局不带 `residue`。macOS 没有命令后端。普通每获取的 `terminal` 见下文[持久终端](#持久终端)。机制见[架构的宿主命令机制](docs/architecture.md#宿主命令机制)。依据是 GATE-EE 候选第 3、4 节与 [D1 决策记录](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561322330)。本节没有经过独立技术接受。
+本节写宿主提供者承担的 `command`。平台范围（Q-9）：Linux 兑现一次性命令的处置与保留，见[一次性命令留下的进程的兑现](#一次性命令留下的进程的兑现)。Windows 有一次性命令后端：根进程退出时停止 Job 里剩下的进程，结局不带 `residue`。macOS（`darwin`）有一次性命令后端与持久终端后端。macOS 的执行域是 POSIX 会话，不满足封闭收纳，所以不保留进程：主进程退出之后整个会话被停止，结局的 `residue` 只有 `none` 与 `stopping` 两种，见 [macOS 的兑现](#macos-的兑现)。macOS 上的 `files` 照常提供已接受的四项，其余八项照旧答 `unavailable`。macOS 的机制见 [macOS 说明](docs/macos-execution.md)。普通每获取的 `terminal` 见下文[持久终端](#持久终端)。机制见[架构的宿主命令机制](docs/architecture.md#宿主命令机制)。依据是 GATE-EE 候选第 3、4 节与 [D1 决策记录](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561322330)。本节没有经过独立技术接受。
 
 提供者与终端：
 
@@ -230,6 +230,20 @@
 - 真实的 Bash、GNU `env`、`stty` 与 node-pty 不是前提。`files` 的目录描述符前提（P2）不约束 `command`，命令不使用身份目录。
 - 运行中 `systemd-run` 失败不改写探测结果，只影响这一次启动。
 
+macOS 的平台前提（类型 `MacosPrerequisite`）。macOS 不做 P1、P3～P6 的探测，改核对下列项：
+
+| 前提项名             | 核对                                                                                                     | 约束             |
+| -------------------- | -------------------------------------------------------------------------------------------------------- | ---------------- |
+| `command-line-tools` | `xcode-select -p` 成功。不成功时不调用 `/usr/bin/cc`，所以没有 Command Line Tools 的宿主不弹出安装对话框 | 命令与终端       |
+| `session-reader`     | 会话读取程序用 `/usr/bin/cc` 编译成功                                                                    | 命令与终端       |
+| `bash`               | `/bin/bash` 可执行                                                                                       | 终端             |
+| `node-pty`           | node-pty 与它的原生模块可以加载                                                                          | 终端             |
+| `spawn-helper`       | node-pty 的 `spawn-helper` 可执行                                                                        | 终端             |
+
+- 命令启动缺会话读取程序时答 `unavailable`，`commandUnavailable` 诊断写明 `command-line-tools` 或 `session-reader`。终端缺任一项时 `create` 答 `unavailable`，`terminalUnavailable` 诊断写明缺项。
+- `describe()` 的前提在 macOS 上合并两项读数：会话读取程序可用，终端的前提齐全。任一项缺少为 `unsatisfied`。
+- 缺工具或编译不成功的结果不保留。下一次用到会话读取程序时再试，所以装好 Command Line Tools 之后不需要重启进程。
+
 启动：
 
 1. 资源键是新的 UUID。执行域是 systemd 用户 scope 单元 `omne-host-<资源键>.scope`，单元描述是 `omne-host <请求方作用域的摘要> <资源键>`。受管资源的引用是 `{ unit, bootId }`，`bootId` 是本机当前的启动身份。
@@ -267,8 +281,8 @@
 
 资源级冷恢复（不含获取的结清）：
 
-- `listRecoveryResources(作用域)`：Windows 没有完整冷资源索引，答 `unavailable`，不能把当前进程的部分记录当成完整清单。Linux 上用 `systemctl --user show -p Id -p Description 'omne-host-*.scope'` 读本用户全部 `omne-host-*.scope` 单元的 `Id` 与 `Description`，列出描述里的作用域摘要与这个作用域相同的单元。正在停止的单元也在列表里。以下情况答 `unavailable`，不答空列表：列举命令失败；找不到 `systemctl`；输出里有一块含有不是 key=value 的行，或同一个键出现两次；有一块缺 `Id` 或 `Description`；有一块的 `Id` 不是 `omne-host-*.scope`。列表只略去格式正确、但不属于这个作用域的块：描述里的作用域摘要不同，或单元名不是 `omne-host-<uuid>.scope`（例如探测单元）。上一次启动的单元已随重启消失，所以不在列表里。列表另带保留进程索引里这个作用域的单元。索引的标记文件读不全时答 `unavailable`。其他平台没有命令后端，返回责任域已知的保留资源。
-- Linux 的 `recover(资源)`：提供者名不是本提供者，或引用不是本提供者写下的 `{ unit, bootId }`（单元名必须是 `omne-host-<uuid>.scope`），答 `unsupported`。所以恢复不能停止别的单元。启动身份已变时答 `confirmedStopped`，证据写明单元与当前的启动身份。否则按强制停止序列停止并核对：确认时答 `confirmedStopped`，证据带单元、`LoadState` 与 `ActiveState`；未确认时答 `pending`。它不重启命令，不接回输出，也不交出原结局。资源在保留进程索引里时，由索引停止它，并在确认之后删去它的标记文件。Windows 按[原 Job 引用恢复](docs/windows-execution.md#host-provider-integration)，格式不支持时答 `unsupported`，合法引用的 key 不匹配或停止未确认时答 `pending`。
+- `listRecoveryResources(作用域)`：Windows 没有完整冷资源索引，答 `unavailable`，不能把当前进程的部分记录当成完整清单。Linux 上用 `systemctl --user show -p Id -p Description 'omne-host-*.scope'` 读本用户全部 `omne-host-*.scope` 单元的 `Id` 与 `Description`，列出描述里的作用域摘要与这个作用域相同的单元。正在停止的单元也在列表里。以下情况答 `unavailable`，不答空列表：列举命令失败；找不到 `systemctl`；输出里有一块含有不是 key=value 的行，或同一个键出现两次；有一块缺 `Id` 或 `Description`；有一块的 `Id` 不是 `omne-host-*.scope`。列表只略去格式正确、但不属于这个作用域的块：描述里的作用域摘要不同，或单元名不是 `omne-host-<uuid>.scope`（例如探测单元）。上一次启动的单元已随重启消失，所以不在列表里。列表另带保留进程索引里这个作用域的单元。索引的标记文件读不全时答 `unavailable`。macOS 的列举读冷索引，见 [macOS 的兑现](#macos-的兑现)。Linux、Windows 与 macOS 之外的平台没有命令后端，返回责任域已知的保留资源。
+- Linux 的 `recover(资源)`：提供者名不是本提供者，或引用不是本提供者写下的 `{ unit, bootId }`（单元名必须是 `omne-host-<uuid>.scope`），答 `unsupported`。所以恢复不能停止别的单元。启动身份已变时答 `confirmedStopped`，证据写明单元与当前的启动身份。否则按强制停止序列停止并核对：确认时答 `confirmedStopped`，证据带单元、`LoadState` 与 `ActiveState`；未确认时答 `pending`。它不重启命令，不接回输出，也不交出原结局。资源在保留进程索引里时，由索引停止它，并在确认之后删去它的标记文件。Windows 按[原 Job 引用恢复](docs/windows-execution.md#host-provider-integration)，格式不支持时答 `unsupported`，合法引用的 key 不匹配或停止未确认时答 `pending`。macOS 按冷索引里的标记恢复，见 [macOS 的兑现](#macos-的兑现)。
 - 新进程对旧获取的结清仍答未知（见[宿主文件责任域](#宿主文件责任域)）。需要域外可信的进程退出证据的结清是 M2 之后的剩余责任。
 - 已知限制：列举依赖单元描述。同一用户的其他进程可以伪造描述。M2 单机、同一操作者，接受这一点。
 
@@ -295,7 +309,7 @@
 
 ### 持久终端
 
-采用范围是 #421 修订 6 的 TerminalFacility，包括普通每获取终端，以及 [R2-D37](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6579990443) 批准的 Session 保留终端。终端只在满足[平台前提](#宿主命令与终端)的 P1、P3～P6 时启动（终端有自己的一次探测，项目与命令的相同），另需 `/bin/bash`、`/usr/bin/mkfifo` 和可加载的 node-pty 1.1.0。前提缺少时 `create` 返回 `unavailable`，`terminalUnavailable` 诊断给出具体项。`describe` 合并这些前提与原文件、命令前提。
+采用范围是 #421 修订 6 的 TerminalFacility，包括普通每获取终端，以及 [R2-D37](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6579990443) 批准的 Session 保留终端。Linux 上，终端只在满足[平台前提](#宿主命令与终端)的 P1、P3～P6 时启动（终端有自己的一次探测，项目与命令的相同），另需 `/bin/bash`、`/usr/bin/mkfifo` 和可加载的 node-pty 1.1.0。前提缺少时 `create` 返回 `unavailable`，`terminalUnavailable` 诊断给出具体项。`describe` 合并这些前提与原文件、命令前提。macOS 的终端前提见[宿主命令与终端](#宿主命令与终端)的「macOS 的平台前提」，终端怎样运行见下文 [macOS 终端](#macos-终端)。
 
 每次获取有独立的终端表。`create` 在账本 `plan` 记录后准备 scope 与 gate，在 `permit` 确认后才发送 GO 创建 shell。创建结果丢失或超时保持 `unknown`，原 scope 仍由原获取承担。引用包含随机身份与代。其他获取的引用或错误代返回 `notFound`。
 
@@ -318,13 +332,28 @@ node-pty 只提供 PTY fork 和原始描述符。门采用 1.1.0 的原生接口
 
 `stop('forced')` 停止该终端的原 scope，不影响其他终端或命令。该 shell 随之失效，列表状态为 `invalid`，后续执行返回 `closed`。`stop('graceful')` 请求 shell 接收 SIGTERM，在 `graceMs` 内没有退出则返回 `unconfirmed`，不自动升级。关闭成功的状态为 `closed`。旧执行段的停止不能终止后续执行段。
 
-停止确认仍只来自 systemd 原 scope 的监督读数。调用 `node-pty.kill`、取得进程集合或控制回执都不等于停止。确认且原账本已记录 `stopped` 后，资源才离开待清理集合。原获取的释放、结清与提供者退役同时封终端门面，等待在途创建和执行接纳，再停止原 scope。未确认资源留在待处置结果。
+Linux 上，停止确认仍只来自 systemd 原 scope 的监督读数。调用 `node-pty.kill`、取得进程集合或控制回执都不等于停止。确认且原账本已记录 `stopped` 后，资源才离开待清理集合。原获取的释放、结清与提供者退役同时封终端门面，等待在途创建和执行接纳，再停止原 scope。未确认资源留在待处置结果。
 
-资源级冷恢复复用命令的 `{ unit, bootId }` 坐标与作用域描述。新进程只枚举、停止和结清原 scope，不执行旧脚本，不恢复交互 shell。监督者确认停止后尝试清除 gate 的两个私有 FIFO。清理不会递归遍历用户目录。
+Linux 上，资源级冷恢复复用命令的 `{ unit, bootId }` 坐标与作用域描述。新进程只枚举、停止和结清原 scope，不执行旧脚本，不恢复交互 shell。监督者确认停止后尝试清除 gate 的两个私有 FIFO。清理不会递归遍历用户目录。
 
 提供者选项 `terminal` 与插件配置 `terminal` 同形。命令已有的六个界值也适用于终端，初值相同。另有 `maxControlBytes`，初值 1 MiB，约束控制帧大小；`betweenSegmentBytes`，初值 256 KiB，是段间字节缓冲的上界；`columns` 与 `rows` 的初值为 80 和 24。请求的 `geometry` 覆盖尺寸初值。控制上界必须容纳一块 base64 输出及 256 字节帧头。所有数值为可覆盖的实现配置，不是工具结果的产品上限。
 
 本实现是有权限的 `host_machine`，不承诺同 UID 恶意程序隔离。Bash 驱动与 scope 观察的真实覆盖见[终端测试](tests/host-terminal-recovery.spec.ts)。段的字节归属在真实 PTY 上的覆盖见[段测试](tests/host-terminal-segments.spec.ts)，哨兵扫描的快层覆盖见 [terminal-sentinels.spec.ts](tests/terminal-sentinels.spec.ts)。段测试不能区分「读到 `EAGAIN` 即交出」：驱动先向 PTY 写段尾哨兵，再向 FIFO 写完成观察，本机上交出时段尾哨兵总已可读。这条规则的反例由形式模型的负控 N7 给出。Windows 的协议测试通过不能证明此 Linux 路径。
+
+#### macOS 终端
+
+macOS 上，上文的 scope 指终端的执行域。执行域是两个 POSIX 会话：gate 的会话与 shell 的会话。
+
+- 提供者以 `detached: true` 起 gate，所以 gate 调用 setsid，领一个新会话。node-pty 经 `spawn-helper` 以 `POSIX_SPAWN_SETSID` 起 shell，所以 shell 领第二个会话。
+- gate 在报就绪之前核对自己领着自己的会话。提供者核对 gate 的身份之后，在发 GO 之前把 gate 的会话写进冷索引的标记。shell 起来之后，提供者把 shell 的会话也写进同一个标记。
+- `spawn-helper` 的路径取自 node-pty 自己的 `loadNativeModule`。两个 FIFO 在 `$TMPDIR/omne-terminal-<资源键>.terminal` 里，用 `mkfifo -m 600` 创建。
+- Linux 的 Bash 驱动与分段源码不改动，在系统的 `/bin/bash` 3.2.57 上运行。所以上文段的完成与字节归属的规则在 macOS 上同样兑现，由真实 PTY 用例确认。
+- 停止与 `close` 停止两个会话。两个会话都空时才答 `confirmed`。确认之后删去 FIFO 目录与标记。
+- 提供者走掉时（GO 之后 gate 的控制通道结束），gate 停止两个会话，然后退出。
+- Session 保留终端在 macOS 上照常可用。
+- 段的停止与冷恢复的规则见 [macOS 的兑现](#macos-的兑现)。
+
+`host-terminal.ts` 接受可注入的 `TerminalPlatform`。没有注入时，它是不变的 Linux scope 实现。macOS 注入的实现在 `src/macos-execution/terminals.ts`。
 
 #### Session 保留终端
 
@@ -344,11 +373,11 @@ node-pty 只提供 PTY fork 和原始描述符。门采用 1.1.0 的原生接口
 
 ### 一次性命令留下的进程的兑现
 
-本节是宿主提供者在 Linux 上对契约[一次性命令留下的进程](../execution-environment-contract/SPEC.md#一次性命令留下的进程)的兑现，实现由 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 交付。契约的保留进程 `stop` 条款冻结，本提供者没有实现它。契约的[终端段的完成与字节归属](../execution-environment-contract/SPEC.md#终端段的完成与字节归属)见[持久终端](#持久终端)。
+本节是宿主提供者在 Linux 上对契约[一次性命令留下的进程](../execution-environment-contract/SPEC.md#一次性命令留下的进程)的兑现，实现由 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 交付。macOS 只兑现处置的停止一侧，不保留进程，见 [macOS 的兑现](#macos-的兑现)。契约的保留进程 `stop` 条款冻结，本提供者没有实现它。契约的[终端段的完成与字节归属](../execution-environment-contract/SPEC.md#终端段的完成与字节归属)见[持久终端](#持久终端)。
 
 本节的采用依据是 #1137 卡正文的「总体设计」，未经技术接受。目标：调用方与人一样能让自己起的进程活下去，同时每个活着的进程都恰好有一个归属方，能被列出，能被确认停止，宿主崩溃后能被找回。
 
-收纳：一次性命令的执行域是它的 systemd 用户 scope 单元。命令的子进程继承单元的 cgroup，`setsid` 与双重 fork 不能使进程离开单元，所以本提供者满足契约的封闭收纳。慢层用例 [host-containment.spec.ts](tests/host-containment.spec.ts) 在真实单元里核对这一点，命令与终端各一份。
+收纳：Linux 上，一次性命令的执行域是它的 systemd 用户 scope 单元。命令的子进程继承单元的 cgroup，`setsid` 与双重 fork 不能使进程离开单元，所以本提供者满足契约的封闭收纳。慢层用例 [host-containment.spec.ts](tests/host-containment.spec.ts) 在真实单元里核对这一点，命令与终端各一份。
 
 门在退出帧之后：
 
@@ -395,7 +424,7 @@ node-pty 只提供 PTY fork 和原始描述符。门采用 1.1.0 的原生接口
 
 Windows 的兑现（未实现，需要 Windows 宿主验证）：根进程退出时，可以保留就不终止 Job，bridge 继续持有 Job 句柄并读管道。变空检测沿用共用索引的轮询，或用 Job 完成端口的 `JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO`，由 Windows 兑现时验证后选定。bridge 意外退出时，`KILL_ON_JOB_CLOSE` 停止留下的进程，这是保守方向。冷恢复按标记文件里记下的 Job 名重开，因为保留账本不能枚举。
 
-macOS 没有命令后端。将来的提供者若只能按进程组或会话收纳，就不满足封闭收纳，不提供保留进程。
+macOS 按 POSIX 会话收纳。进程可以用 `setsid` 离开会话，所以 macOS 不满足封闭收纳，不提供保留进程。主进程退出之后，提供者停止整个会话，见 [macOS 的兑现](#macos-的兑现)。
 
 已知偏离，每条带收敛条件，或写明接受为本期范围：
 
@@ -407,11 +436,73 @@ macOS 没有命令后端。将来的提供者若只能按进程组或会话收�
 - 移交之后，命令写出的字节被读出丢弃，不保存，也没有读取它们的操作。接受为本期范围。收敛条件：读取保留进程输出立项时。
 - 保留进程索引的配置（`retainedPerScope`、`retainedPollMs`）、监督者与诊断去向，取自第一次建立该状态目录索引的那一代提供者。配置重载不改变它们，直到该状态目录的各代都退役。收敛条件：需要重载这几项时，索引按代登记它们，取最近加入的一代。
 - Windows 的一次性命令后端在根进程退出时停止 Job 里剩下的进程。它的结局不带 `residue`，也不交出保留扩展。收敛条件：Windows 兑现（见上文「Windows 的兑现」一段）。
+- macOS 的偏离。收敛条件尚未确定，归 #1137 的负责人：
+  - 调用 `setsid` 的进程离开执行域。它不被停止，也不被列出，终端的 `close` 仍答 `confirmed`。`tests/macos-execution/terminals.spec.ts` 的用例「known deviation」断言这一点。
+  - Shell 工具的帮助文本说留下的进程被保留，这在 macOS 上不成立。模型看到的是 `residue=stopping reason=uncontained` 与 `retained_processes=unavailable`。「进程收纳」事实（Backlog B4）留给 #1137 的负责人。
+  - 提供者死去时，门停止自己的会话。所以提供者死去之后，命令不继续运行。
+  - 提供者与门在 GO 之后、终端的 shell 会话记入标记之前一起死去时，标记里没有 shell 的会话，冷恢复不停止它。
+  - 读到一个成员与向它发信号之间，进程号在理论上可以被重用。这个窗口很窄，与按进程号 `kill` 的窗口同类。
 - Windows 终端：段的字节归属只在 Linux 兑现。Windows 终端仍按观察窗口归属字节，结局不带 `between`。ConPTY 会重绘输出，可能吞掉未知的 OSC 序列，这一点尚未在真实 ConPTY 上验证。收敛计划：在 Windows 宿主上验证 ConPTY 是否保留哨兵，成立就按 Linux 的做法兑现，不成立就保留按观察窗口归属，并写明这条限制。
 
 预期行为：句柄已确认停止之后再调用 `stop`，提供者再发一次停止，并再记一条 `confirmed`。集成方按已确认保持原事实，不改变结论。
 
 这些偏离的负责人是本成员 `execution-environment-host-local` 的拥有者。
+
+#### macOS 的兑现
+
+本节写宿主提供者在 macOS（`darwin`）上的一次性命令与终端的执行域。实现由 #1137 交付，代码在 `src/macos-execution/`。采用依据同本节首段，未经技术接受。机制与平台实验见 [macOS 说明](docs/macos-execution.md)。
+
+收纳：
+
+- 一次性命令的执行域是它的门领的 POSIX 会话。提供者以 `detached: true` 起门，所以门调用 setsid，领一个新会话。终端的执行域见 [macOS 终端](#macos-终端)。
+- 进程可以用 `setsid` 离开会话，所以 macOS 不满足契约的封闭收纳（形式映射的前提 P4，原语 Π1）。命令设施没有 `retention` 扩展，登记表也不给保留扩展。
+
+会话读取程序：
+
+- 会话读取程序是一个 C 程序，只用公开接口：`proc_listpids`（全部进程号与 `PROC_PPID_ONLY`）、`getsid`、`getpgid`、`kill`、`killpg`，以及带 `PROC_PIDT_SHORTBSDINFO` 与 `PROC_PIDTBSDINFO` 的 `proc_pidinfo`。源码在 `src/macos-execution/native-source.ts`。
+- 提供者在运行时用 `/usr/bin/cc` 把它编译到 `$TMPDIR/omne-macos-execution/<源码的 sha256>/omne-session`。Windows 后端的 bridge 用同样的做法。编译之前先运行 `xcode-select -p`，所以没有 Command Line Tools 的宿主不弹出安装对话框。缺工具时前提项是 `command-line-tools`，编译失败时是 `session-reader`。
+- 子命令是 `members`、`identity`、`children` 与 `stop`。读取程序从不把自己算作成员。僵尸进程不是成员。读取失败、超时或输出读不懂时，提供者按未知处理，不按空处理。
+- macOS 的 `pgrep` 没有 `-s`，`ps` 的 `sess` 列显示 0，所以系统自带的工具读不出会话成员。
+
+门：
+
+- 门的环境只有 `PATH=/usr/bin:/bin:/usr/sbin:/sbin`。所以提供者的环境变量（包括其中的秘密）不进入门的会话。命令的环境只有请求给出的变量。
+- 门的协议与 Linux 的门相同，命令门复用 `command-gate-core.ts`，终端门复用 `terminal-gate-core.ts`。
+- 门在读第一条控制行之前核对自己领着自己的会话。
+- 命令的主进程退出时，门用读取程序读会话里除门以外的成员数，写进退出帧。
+- GO 之后控制通道结束时，提供者已经走掉。门停止自己会话里的其他全部成员，然后退出。终端的门停止两个会话。
+
+启动：
+
+1. 账本 `plan`。资源引用是 `{ macosDomain, bootId, scope }`：`macosDomain` 是资源键，`bootId` 是 `kern.bootsessionuuid`，`scope` 是请求方作用域。
+2. 提供者起门，门报就绪。
+3. 提供者用读取程序核对门的身份：门活着，并且它的会话号等于它的进程号。不成立时停止门，答 `unavailable`。
+4. 有状态目录时，提供者在冷索引里写这个执行域的标记，记下门的会话号与会话首进程的启动时间。写不成时停止门，答 `unavailable`。
+5. 账本 `permit`。只有 `confirmed` 才发 GO。其余答案使启动停止执行域并记入账本，然后答 `rejected`。
+6. 门收到 GO 后起命令。命令起来时启动答 `done`。映像没有起来时答 `unavailable`。
+
+处置：主进程退出后，`residue` 按下面的次序判定。前一项成立时，后面的不再判定。不论哪一种，提供者都停止整个会话。停止的确认不推迟 `result`。
+
+1. 会话里除门以外没有成员：`none`。成员数读不出时按有留下的进程处理，不按空处理。
+2. 配置 `residuePolicy` 是 `stop`：`stopping`，原因 `policy`。
+3. 获取没有保留进程账本视图：`stopping`，原因 `unbound`。
+4. 获取的保留范围与请求方的作用域不同：`stopping`，原因 `policy`。
+5. 保留范围已封闭，获取已释放这个执行域，或这个执行域已被要求停止：`stopping`，原因 `closed`。
+6. 以上都不成立：`stopping`，原因 `uncontained`。
+
+停止与确认：
+
+- 强制停止向每个成员的进程组与每个成员发 `SIGKILL`，然后再读。连续两次读到空时答 `confirmed`。到 `stopBoundMs` 时答 `unconfirmed`。
+- 平和停止经门向命令的主进程发 `SIGTERM`，最多等 `graceMs`。主进程在这段时间里退出时，接着做强制停止并答它的结果。超时答 `unconfirmed`，不自动升级。
+- 停止一个记下的执行域之前，提供者核对每个会话首进程的身份。首进程号活着而启动时间不同时，这个进程号已被重用，跳过这个会话。首进程已不在时，仍带这个会话号的成员属于这个执行域。
+- 启动身份是 `kern.bootsessionuuid`。标记的启动身份与当前的不同时，执行域按已停止处理。
+- 每次停止都记入账本。确认的停止记入账本之后，提供者删去标记。
+
+冷索引：
+
+- 每个执行域一个标记，路径是 `<stateDirectory>/macos-domains/<资源键>.json`。标记在门就绪、身份核对之后，GO 之前写。终端的标记在 shell 起来之后带上 shell 的会话重写一次。
+- 列举要么完整，要么答 `unavailable`。有一个标记读不出时答 `unavailable`。没有状态目录时答 `unavailable`，不答空列表。
+- `recover(资源)`：提供者名不是本提供者，或引用不是 macOS 执行域的引用时答 `unsupported`。标记的启动身份不是当前的时答 `confirmedStopped`，并删去标记。没有标记时答 `confirmedStopped`：这个执行域没有发过 GO，或者已经被停止。标记读不出时答 `pending`。其余情况停止标记里的会话，确认时删去标记并答 `confirmedStopped`，否则答 `pending`。
 
 ### 撤除顺序
 
@@ -441,6 +532,7 @@ macOS 没有命令后端。将来的提供者若只能按进程组或会话收�
 | `command` 设施声明的登记     | `commandFacilityPlugin` 的 fiber                  | 重复登记抛出，插件 fiber 进入 `FAILED`                                                                               | 插件卸载，或服务撤除                                         |
 | 平台前提的探测结果           | 宿主提供者的一代                                  | 探测出错为未知；不满足时在 `probeRetryMs` 之后的启动再探测                                                           | 这一代被丢弃                                                 |
 | 命令进程与它的 scope 单元    | 所属获取的命令门面；单元由 systemd 用户管理器持有 | 停止未确认时作为受管资源留在这份获取，排空、结清、退役与 `maintain()` 再试；进程结束后由资源恢复按单元坐标列举与停止 | `systemctl --user show` 读到不活动或不存在，且结果已记入账本 |
+| macOS 的执行域（POSIX 会话）与它的标记 | 所属获取的命令或终端门面；标记在状态目录的冷索引里 | 停止未确认时作为受管资源留在这份获取，排空、结清与退役再试；提供者走掉时门停止自己的会话；进程结束后由冷恢复按标记停止 | 会话读取程序连续两次读到空，且结果已记入账本；之后删去标记 |
 | 移交保留范围的 scope 单元   | 保留范围，经保留进程账本；本进程里由保留进程索引读成员与停止 | 停止未确认时留在索引里，`maintain()` 再试；进程结束后由标记文件找回 | 进程全部自行退出、保留范围封闭或冷恢复停止，监督者确认，且结果已记入保留进程账本 |
 | 保留进程索引与标记文件       | 宿主文件责任域，按状态目录一个；标记文件在状态目录 | 写不成或删不掉时发出 `retainedMarker` 诊断；读不全时预留、列表与冷恢复列举答不可用 | 标记随保留进程的确认停止删去；索引随责任域丢弃 |
 | 命令的输出缓冲               | 这个进程的句柄                                    | 放不下的块整块丢弃并计数；读者放弃后全部计入丢弃                                                                     | 读者读完或放弃，且进程已有结局                               |
@@ -477,15 +569,22 @@ macOS 没有命令后端。将来的提供者若只能按进程组或会话收�
 | [host-containment.spec.ts](tests/host-containment.spec.ts) | 慢层，只在 Linux（命令部分要 `OMNE_HOST_COMMAND_LINUX=1`，终端部分另要 `OMNE_HOST_TERMINAL_LINUX=1`）：脚本经 `setsid` 与双重 fork 起两个脱离会话与父进程的进程；`/proc/<pid>/cgroup` 的统一层级路径以执行域的单元名结尾；命令留下它们时 `residue` 为 `retained`、进程数不小于 2，保留范围封闭后两者都不在、单元已停；没有保留绑定时以 `unbound` 停止；终端段照常完成，关闭终端答 `confirmed` 之后两者都不在 |
 | [host-scope.spec.ts](tests/host-scope.spec.ts) | 快层，只在 Linux，用 [假 systemctl](tests/fixtures/scripted-systemctl.mjs)：单元成员读数的每个结果，读失败从不成为空单元，`show` 的参数逐项核对 |
 | [command-gate-core.spec.ts](tests/command-gate-core.spec.ts) | 快层，不起进程：命令门进程的纯判断，请求解析、控制行的动作与 cgroup 读取的短路、数据帧的切分、退出之后的静默判定 |
-| [host-probe.spec.ts](tests/host-probe.spec.ts)                         | 平台前提 P1、P3～P6：不是 Linux 时启动答 `unavailable` 而 `files` 照常（只在非 Linux 运行）；`PATH` 里没有 `systemd-run` 时答 `unavailable` 且诊断写明缺项；用户管理器可达时 `satisfied`；去掉用户管理器的变量时答 `unavailable`，恢复后过了重探间隔可以启动；探测程序的退出与停止结果对应到哪些前提项 |
+| [host-probe.spec.ts](tests/host-probe.spec.ts)                         | 平台前提 P1、P3～P6：没有命令后端的平台上启动答 `unavailable` 而 `files` 照常（把平台伪装成 `freebsd`，在 Linux 与 macOS 上运行）；`PATH` 里没有 `systemd-run` 时答 `unavailable` 且诊断写明缺项；用户管理器可达时 `satisfied`；去掉用户管理器的变量时答 `unavailable`，恢复后过了重探间隔可以启动；探测程序的退出与停止结果对应到哪些前提项 |
 | [scope-cgroup.spec.ts](tests/scope-cgroup.spec.ts)                     | P5 与 P6 的解析：统一模式、混合模式、只有 v1、看不到统一层级挂载、挂载只露出子树（含挂载根就是单元自己）、根按整段比较、挂载点带转义时解析出的单元目录；进程是否在自己的单元里只按它的 cgroup 路径判断；只认完整的 `cgroup2` 行与以 `/` 开头的 `0::` 路径；Linux 上本测试进程的成员表列出它；探测程序不在自己的单元里时不以 0 退出（慢层，只在 Linux）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| [host-provider.spec.ts](tests/host-provider.spec.ts)                   | 宿主提供者声明的事实（版本等于 `package.json`、平台带 `os.release()`、设施键 `files` 与 `command`、前提三态之一、配额域、资源枚举按平台与用户管理器可达性分支、对意外资源答不支持）；租约的身份、证据（带版本）与两个设施键；沙箱落点与退役后的拒绝；经登记表的门，账本关闭后写入返回 `closed` 且文件不变，另一份获取的账本不受影响；没有在途操作时退役立即已排空，之后新操作 `closed`；界值非法抛 `RangeError`；退役只通知尚未释放的租约；命令启动的 `terminal` 与 `geometry` 答 `unsupported`、非法输入答 `invalidInput`，都不调用账本；命令选项的界值。收敛接线：配置了 `filesRoot` 的提供者对根外路径答 `notAuthorized`、根内照常，没有根时根外路径照常；配置了根时获取的证据多一个 `filesRoot` 条目；`limits` 的列表上界生效；非绝对路径与非正上界在创建时抛出；批次发布后删不掉临时文件时提供者的 `diagnose` 收到 `temporaryFileRemains`，抛出的 `diagnose` 不改结果；同一配置的两个在场提供者都收到它，退役已排空的不再收到；`describe()` 的前提合并 P2（状态目录不可用时为 `unknown`）                                                        |
+| [host-provider.spec.ts](tests/host-provider.spec.ts)                   | 宿主提供者声明的事实（版本等于 `package.json`、平台带 `os.release()`、设施键 `files` 与 `command`、前提三态之一、配额域、资源枚举按平台与用户管理器可达性分支、对意外资源答不支持；macOS 上没有状态目录时资源枚举答 `unavailable`，有状态目录时列出这个作用域的标记与保留终端，标记读不全时答 `unavailable`）；租约的身份、证据（带版本）与两个设施键；沙箱落点与退役后的拒绝；经登记表的门，账本关闭后写入返回 `closed` 且文件不变，另一份获取的账本不受影响；没有在途操作时退役立即已排空，之后新操作 `closed`；界值非法抛 `RangeError`；退役只通知尚未释放的租约；命令启动的 `terminal` 与 `geometry` 答 `unsupported`、非法输入答 `invalidInput`，都不调用账本；命令选项的界值。收敛接线：配置了 `filesRoot` 的提供者对根外路径答 `notAuthorized`、根内照常，没有根时根外路径照常；配置了根时获取的证据多一个 `filesRoot` 条目；`limits` 的列表上界生效；非绝对路径与非正上界在创建时抛出；批次发布后删不掉临时文件时提供者的 `diagnose` 收到 `temporaryFileRemains`，抛出的 `diagnose` 不改结果；同一配置的两个在场提供者都收到它，退役已排空的不再收到；`describe()` 的前提合并 P2（状态目录不可用时为 `unknown`）                                                        |
 | [host-provider-drain.spec.ts](tests/host-provider-drain.spec.ts)       | 用 `vi.mock` 让带标记路径的 `open` 停住，其余是真实文件系统：在途写入未结束时退役不返回、期间新操作 `closed`，写入结束后已排空；超过上界时待处置、受管资源为空、诊断 `inFlight` 为 1，放行后再退役已排空；经 Cordis 以 `{ drainBoundMs: 20 }` 装载后卸载，`ctx.logger` 先后收到诊断与 `RetirementPending`，卸载完成                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| [cordis-entry.spec.ts](tests/cordis-entry.spec.ts)                     | 装载两个访问端口服务、服务、`filesFacilityPlugin` 与宿主文件插件后经租约读文件；访问端口服务缺席或只装一个时落点解析为 `unavailable`，可信绑定把作用域绑到别的租户时为 `notAuthorized`；沙箱层没有提供者；宿主文件插件卸载后租约以 `providerRetired` 失效、宿主层没有匹配；只装提供者时落点为 `missingFacility`，卸载声明插件后已取到的设施返回 `unsupported`；服务卸载后键上没有服务、租约以 `registryClosed` 失效、新获取返回 `ownerStopped`；恢复授权服务缺席时恢复两操作返回 `unavailable`，装载后被现取、Windows 的完整冷资源枚举为 unavailable，其他平台沿各自列举前提判断（不记为不支持），卸载后又返回 `unavailable`；授权后释放作用域使宿主租约以 `scopeReleased` 失效，该作用域的再获取与落点解析为 `referenceExpired`；`describe` 列出该作用域的宿主落点；经服务登记的提供者退役待处置时，返回的撤除函数每次调用都再退役并抛出 `RetirementPending`；退役与关闭待处置时 fiber 卸载照常完成，`ctx.logger` 收到 `RetirementPending`；宿主文件插件只接受合法的 `drainBoundMs`，Service 与声明插件只接受空配置                                  |
-| [host-domain.spec.ts](tests/host-domain.spec.ts)                       | 用 `vi.mock` 让带标记路径的 `open` 停住，并让活描述符上的 `close` 按计数失败，其余是真实文件系统与真实描述符：一份获取释放时在途写入未结束为待处置、资源为空、名额仍占用，另一份获取照常写入，被释放的门面拒新操作，放行后结果回原请求，再释放才返还名额且只返还一次；读取后关闭失败的活描述符归原获取，退役不报已排空，租约失效后 `maintain()` 关闭它并结清；错误路径的描述符使结清先待处置、关闭后结清；同一文件的两份获取代际不同，一份获取关不了另一份的句柄；同一责任域里提供者重载后新代看到原占用、列出并查询旧获取为释放中、结清它，旧租约不复活；登记表重建后经恢复查询看到已分配、经 `recoverOwned` 的已知列表结清；降低上界不抹旧占用，并发抢最后一个名额只一个得到，全局上界单独报告；新进程的责任域对旧代答未知，自己签发的代答未分配，指纹不同答冲突；未知文件结果下结清不改字节；缺责任域或配额域为空时抛出；排空一份获取只停止它自己的命令进程，确认之后才结清（慢层）。收敛接线（经源码模块读责任域内部面）：释放与退役都封住引擎里这份获取的所有者，之后引擎的批次答 `closed`；配置相同的提供者共用一个引擎，根或上界不同的各用一个 |
+| [cordis-entry.spec.ts](tests/cordis-entry.spec.ts)                     | 装载两个访问端口服务、服务、`filesFacilityPlugin` 与宿主文件插件后经租约读文件；访问端口服务缺席或只装一个时落点解析为 `unavailable`，可信绑定把作用域绑到别的租户时为 `notAuthorized`；沙箱层没有提供者；宿主文件插件卸载后租约以 `providerRetired` 失效、宿主层没有匹配；只装提供者时落点为 `missingFacility`，卸载声明插件后已取到的设施返回 `unsupported`；服务卸载后键上没有服务、租约以 `registryClosed` 失效、新获取返回 `ownerStopped`；恢复授权服务缺席时恢复两操作返回 `unavailable`，装载后被现取、Windows 与没有状态目录的 macOS 的完整冷资源枚举为 unavailable，其他平台沿各自列举前提判断（不记为不支持），卸载后又返回 `unavailable`；授权后释放作用域使宿主租约以 `scopeReleased` 失效，该作用域的再获取与落点解析为 `referenceExpired`；`describe` 列出该作用域的宿主落点；经服务登记的提供者退役待处置时，返回的撤除函数每次调用都再退役并抛出 `RetirementPending`；退役与关闭待处置时 fiber 卸载照常完成，`ctx.logger` 收到 `RetirementPending`；宿主文件插件只接受合法的 `drainBoundMs`，Service 与声明插件只接受空配置                                  |
+| [host-domain.spec.ts](tests/host-domain.spec.ts)                       | 用 `vi.mock` 让带标记路径的 `open` 停住，并让活描述符上的 `close` 按计数失败，其余是真实文件系统与真实描述符：一份获取释放时在途写入未结束为待处置、资源为空、名额仍占用，另一份获取照常写入，被释放的门面拒新操作，放行后结果回原请求，再释放才返还名额且只返还一次；读取后关闭失败的活描述符归原获取，退役不报已排空，租约失效后 `maintain()` 关闭它并结清；错误路径的描述符使结清先待处置、关闭后结清；同一文件的两份获取代际不同，一份获取关不了另一份的句柄；同一责任域里提供者重载后新代看到原占用、列出并查询旧获取为释放中、结清它，旧租约不复活；登记表重建后经恢复查询看到已分配、经 `recoverOwned` 的已知列表结清（Windows 与没有状态目录的 macOS 上，这个提供者列在 `unavailable` 里）；降低上界不抹旧占用，并发抢最后一个名额只一个得到，全局上界单独报告；新进程的责任域对旧代答未知，自己签发的代答未分配，指纹不同答冲突；未知文件结果下结清不改字节；缺责任域或配额域为空时抛出；排空一份获取只停止它自己的命令进程，确认之后才结清（慢层）。收敛接线（经源码模块读责任域内部面）：释放与退役都封住引擎里这份获取的所有者，之后引擎的批次答 `closed`；配置相同的提供者共用一个引擎，根或上界不同的各用一个 |
 | [contract-conformance.spec.ts](tests/contract-conformance.spec.ts)     | 登记表经两个端口替身通过契约的环境套件，宿主提供者通过提供者套件（在途排空一项不适用）；五种故障的登记表被套件拒绝。Linux 上宿主提供者的启动探测在每项开始前完成，套件的等待上界只量各项操作                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | [root-segments.spec.ts](tests/root-segments.spec.ts)                   | 位置判断在 POSIX 上的行为：根下各段与根本身、同名前缀的邻居、父目录、`..`、相对路径与 NUL 不在根下、大小写敏感。Windows 分支由 `tests/windows-files/path-alias.spec.ts` 在真实 Windows 文件系统上覆盖 |
 | [public-entry.spec.ts](tests/public-entry.spec.ts)                     | 根入口的运行导出只有五个函数；根入口可达的模块（含文件树、批次、路径、命令、探测与门脚本）不导入 Cordis 或 `./cordis`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| [macos-execution/session.spec.ts](tests/macos-execution/session.spec.ts) | 快层，各平台都运行，读取程序用替身：会话读取程序的各种答复；读取失败、超时或读不懂时按未知处理，不按空处理；记下的执行域只停止仍属于它的会话，首进程号被重用的会话被跳过 |
+| [macos-execution/domain-index.spec.ts](tests/macos-execution/domain-index.spec.ts) | 快层，各平台都运行，真实临时状态目录：资源引用的读写；标记的写入、读取、按作用域列举与删除；列举要么完整，要么答 `unavailable` |
+| [macos-execution/decisions.spec.ts](tests/macos-execution/decisions.spec.ts) | 快层，各平台都运行，不起进程：`residue` 的各项原因与次序，成员数未知按有留下的进程处理；启动请求的检查；前提项名；门的环境 |
+| [macos-execution/primitives.spec.ts](tests/macos-execution/primitives.spec.ts) | 慢层，只在 macOS 且设了 `OMNE_HOST_MACOS=1` 时运行：Π2（会话成员）、不停 fork 的会话下的 Π3（停止与确认）、执行域身份、Πt（哨兵经真实 PTY） |
+| [macos-execution/commands.spec.ts](tests/macos-execution/commands.spec.ts) | 慢层，只在 macOS 且设了 `OMNE_HOST_MACOS=1` 时运行：C11、干净退出、命令环境与门的环境、四种原因下的 StopTruth、`closed`、强制停止与平和停止、释放、提供者被 `SIGKILL` 之后的冷恢复、没有状态目录时的列举、起不来的映像 |
+| [macos-execution/terminals.spec.ts](tests/macos-execution/terminals.spec.ts) | 慢层，只在 macOS 且设了 `OMNE_HOST_MACOS=1` 时运行：C7、200 段上的 C8、C9 与它的上界、C10、setsid 的已知偏离、哨兵、释放、提供者被 `SIGKILL` 之后的恢复、Session 保留终端 |
+| [macos-execution/terminal-conformance.spec.ts](tests/macos-execution/terminal-conformance.spec.ts) | 慢层，只在 macOS 且设了 `OMNE_HOST_MACOS=1` 时运行：契约的终端套件，7 条用例 |
 
 运行记录：
 
@@ -495,9 +594,10 @@ macOS 没有命令后端。将来的提供者若只能按进程组或会话收�
 - 2026-11-05 同一环境，代码与提交 `02158d8c7` 相同：快层 33 个测试文件，365 个通过、36 个跳过，退出码 0。慢层设 `OMNE_HOST_COMMAND_LINUX=1 OMNE_HOST_TERMINAL_LINUX=1`：28 个测试文件，70 个测试通过、67 个跳过（其中 29 个是只在 Windows 上运行的用例），退出码 0，含 `host-command-residue`、`host-command-custody`、`host-retained-processes`、`host-command-release-scope`、`command-retention-conformance` 与 `host-terminal-segments`。之后的提交 `35ab21429` 只去掉一个未用的解构变量并整理格式，在它上面复跑了类型检查、`lint:oxlint` 与 `format:check`。
 - 2026-11-06 同一环境，代码与提交 `c6e971012` 相同：快层（`vitest run --mode fast`）40 个测试文件，981 个通过、36 个跳过，类型测试无错，退出码 0。慢层设 `OMNE_HOST_COMMAND_LINUX=1 OMNE_HOST_TERMINAL_LINUX=1`：29 个测试文件，73 个测试通过、70 个跳过，退出码 0，新增的 `host-containment` 用例证明经 `setsid` 与双重 fork 脱离的进程仍在执行域里并随之停止；运行后 `systemctl --user list-units 'omne-host-*'` 没有残留。差分变异（只跑快层，基线 `1b017574b`）本成员 2256 个变异体，得分 84.7%。第一遍有 19 个不计分（5 个没跑测试、14 个超时未复核），用新起的运行器逐个复跑后全部被杀。没有覆盖的 238 个变异体中，224 个在门进程外壳 `terminal-gate.ts` 与 `command-gate.ts`，外壳只由慢层覆盖。
 - 2026-11-06 同一环境，终端控制读取器的故障改为带出同次读取里先被接受的帧之后，代码与提交 `884a715fc` 相同：快层 40 个测试文件，986 个通过、36 个跳过；慢层 29 个测试文件，73 个通过、70 个跳过，运行后没有残留单元。改动行的差分变异 19 个变异体全部被杀。
+- 2026-11-06 在 macOS 15.8（24H23）、Apple arm64、Node v26.13.0 上，代码与提交 `f25d74286` 相同：快层 858 个通过、238 个跳过、0 个失败。macOS 慢层设 `OMNE_HOST_MACOS=1`：primitives 5 个、commands 14 个、terminals 11 个、终端一致性 7 个，全部通过。这台宿主上没有运行 Linux 慢层。
 - 以上运行都不在 Windows 上。只在 Linux 运行的用例在 Windows 上显示为跳过，跳过不是通过。
 
-本成员不覆盖：契约意义的授予根（宿主提供者不声称它）、cgroup v2 纯统一模式宿主上的真实运行（P5 与 P6 的解析只由文本样本覆盖）、systemd 245 以外版本上 `systemctl show` 的列举输出（glob 无匹配时输出为空、退出码为 0，只在 245 上核实）、根内的绑定挂载（同一文件系统上设备号相同，核对挡不住）、macOS 上的 `files` 八项与 `command`（Windows 的后端与验证范围见 [Windows 说明](docs/windows-execution.md)）、真实的 `failed` 单元状态（只有判断函数的测试）、Runtime Context 块的发布、调用方类核对、同一 isolate 标签下重复装载的失败、配置校验失败时 fiber 进入 `FAILED`，以及真实进程退出之后的冷恢复结清。留下的进程另不覆盖：标记文件写完之前提供者崩溃的窗口、标记文件写不成与删不掉的真实故障、真实的提供者进程崩溃（慢层用新的责任域与提供者代替重启）。慢层的真实进程用例要设 `OMNE_HOST_COMMAND_LINUX=1` 才运行，准入不设它，所以准入不覆盖它们。持久化、真实端口适配与真实集成方的端到端组合也不在本成员。独立验收场景尚未形成。
+本成员不覆盖：契约意义的授予根（宿主提供者不声称它）、cgroup v2 纯统一模式宿主上的真实运行（P5 与 P6 的解析只由文本样本覆盖）、systemd 245 以外版本上 `systemctl show` 的列举输出（glob 无匹配时输出为空、退出码为 0，只在 245 上核实）、根内的绑定挂载（同一文件系统上设备号相同，核对挡不住）、macOS 上的 `files` 八项（Windows 的后端与验证范围见 [Windows 说明](docs/windows-execution.md)，macOS 的见 [macOS 说明](docs/macos-execution.md)）、真实的 `failed` 单元状态（只有判断函数的测试）、Runtime Context 块的发布、调用方类核对、同一 isolate 标签下重复装载的失败、配置校验失败时 fiber 进入 `FAILED`，以及真实进程退出之后的冷恢复结清。留下的进程另不覆盖：标记文件写完之前提供者崩溃的窗口、标记文件写不成与删不掉的真实故障、真实的提供者进程崩溃（慢层用新的责任域与提供者代替重启）。慢层的真实进程用例要设 `OMNE_HOST_COMMAND_LINUX=1` 才运行，准入不设它，所以准入不覆盖它们。macOS 的慢层用例要设 `OMNE_HOST_MACOS=1` 才运行，准入也不设它。持久化、真实端口适配与真实集成方的端到端组合也不在本成员。独立验收场景尚未形成。
 
 ### 明确缺项
 

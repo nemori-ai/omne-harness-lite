@@ -20,7 +20,7 @@ import type {
 } from '@omne-harness/execution-environment-contract'
 import { commandSettings, type HostCommandOptions } from './host-command.ts'
 import { terminalSettings, type HostTerminalOptions } from './host-terminal.ts'
-import { createHostPlatform } from './host-platform.ts'
+import { createHostPlatform, type CommandPrerequisite } from './host-platform.ts'
 import { readWindowsJobReference, stopWindowsResource } from './windows-execution/index.ts'
 import { retainedLegShell } from './host-retained-terminals.ts'
 import {
@@ -40,7 +40,8 @@ import {
 import type { HostFileDiagnostic, HostFilesLimits } from './host-files.ts'
 import { probeHostFilesPrerequisite } from './host-paths.ts'
 import { probeWindowsFilesPrerequisite } from './windows-files/facility.ts'
-import { type HostCommandPrerequisite, type HostTerminalPrerequisite } from './host-probe.ts'
+import { type HostTerminalPrerequisite } from './host-probe.ts'
+import { listMacosResources, recoverMacosResource } from './macos-execution/recovery.ts'
 import {
   forceStopScope,
   cleanupTerminalScope,
@@ -84,7 +85,7 @@ export type HostFilesDiagnostic =
       kind: 'commandUnavailable' | 'terminalUnavailable'
       provider: string
       generation: string
-      missing: readonly (HostCommandPrerequisite | HostTerminalPrerequisite)[]
+      missing: readonly (CommandPrerequisite | HostTerminalPrerequisite)[]
       acquisition: string
     }>
   | Readonly<{
@@ -250,6 +251,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     settings,
     terminal,
     windowsCapacity: internals.windowsCapacity,
+    stateDirectory: options.stateDirectory,
   })
   const filesPrerequisite = createFilesPrerequisiteReader(options.stateDirectory)
   const platform = Object.freeze({ os: process.platform, release: release() })
@@ -471,9 +473,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
             provider: name,
             scope: input.scope,
             settings: terminal,
-            unavailable: (
-              missing: readonly (HostCommandPrerequisite | HostTerminalPrerequisite)[],
-            ) =>
+            unavailable: (missing: readonly (CommandPrerequisite | HostTerminalPrerequisite)[]) =>
               report({
                 kind: 'terminalUnavailable',
                 provider: name,
@@ -538,6 +538,13 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     async listRecoveryResources(scope) {
       if (process.platform === 'win32') return { kind: 'unavailable' }
       const retainedShells = internals.retainedTerminals.resources(scope)
+      if (execution.macos !== undefined) {
+        // The cold index lists every domain whose marker exists; an unread marker makes no list.
+        const resources = await listMacosResources(execution.macos, scope, () =>
+          internals.retainedTerminals.resources(scope),
+        )
+        return resources === 'unavailable' ? { kind: 'unavailable' } : { kind: 'listed', resources }
+      }
       if (process.platform !== 'linux') return { kind: 'listed', resources: retainedShells }
       const systemctl = (await execution.supervisor())?.systemctl
       if (systemctl === undefined) return { kind: 'unavailable' }
@@ -572,6 +579,11 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
           evidence: null,
         }
       resource = retainedLegShell(resource) ?? resource
+      if (execution.macos !== undefined)
+        return {
+          status: await recoverMacosResource(execution.macos, resource, name),
+          evidence: null,
+        }
       if (process.platform === 'win32') {
         if (resource.provider !== name || readWindowsJobReference(resource.reference) === undefined)
           return { status: 'unsupported', evidence: null }
