@@ -93,8 +93,17 @@ function materialOf(target: ConnectionTarget, handle?: HttpCredentialHandle): Tr
   }
 }
 
+/** For the SDK's servers and other peers that are not the scripted one. */
 async function open(material: TransportMaterial): Promise<McpTransport> {
   return ok(await factory.open(material, never), 'open')
+}
+
+/**
+ * Through the scripted peer's own factory, whose requests the peer tracks: its `received()` waits
+ * for those requests only.
+ */
+async function openOn(peer: HttpPeer, handle?: HttpCredentialHandle): Promise<McpTransport> {
+  return ok(await peer.factory.open(materialOf(targetOf(peer), handle), never), 'open')
 }
 
 async function scripted(
@@ -180,7 +189,7 @@ describe('authorization (T4, R4)', () => {
       },
     })
     const handle = credential()
-    const transport = await open(materialOf(targetOf(scoped), handle))
+    const transport = await openOn(scoped, handle)
     const failed = await transport.listActions()
     expect(
       'failure' in failed &&
@@ -196,7 +205,7 @@ describe('authorization (T4, R4)', () => {
       listing: { '': { kind: 'http', status: 403, body: 'origin not allowed' } },
     })
     const other = credential()
-    const second = await open(materialOf(targetOf(forbidden), other))
+    const second = await openOn(forbidden, other)
     expect(await second.listActions()).toEqual(NOT_SENT)
     expect(other.rejections()).toBe(0)
     await second.close()
@@ -217,7 +226,7 @@ describe('authorization (T4, R4)', () => {
         },
       },
     }))
-    const transport = await open(materialOf(targetOf(rootOnly), credential()))
+    const transport = await openOn(rootOnly, credential())
     const failed = await transport.listActions()
     const fetched = (await rootOnly.received()).flatMap(entry =>
       entry.kind === 'fetch' ? [new URL(entry.url).pathname] : [],
@@ -237,7 +246,7 @@ describe('authorization (T4, R4)', () => {
         '': { kind: 'http', status: 401, headers: { 'www-authenticate': 'Bearer scope="x y"' } },
       },
     })
-    const bare = await open(materialOf(targetOf(none), credential()))
+    const bare = await openOn(none, credential())
     const unavailable = await bare.listActions()
     expect(
       'failure' in unavailable &&
@@ -271,7 +280,7 @@ describe('authorization (T4, R4)', () => {
         [NAMED]: { resource: target, authorization_servers: ['https://named.test'] },
       },
     }))
-    const transport = await open(materialOf(targetOf(peer), credential()))
+    const transport = await openOn(peer, credential())
     const failed = await transport.listActions()
     const fetched = (await peer.received()).flatMap(entry =>
       entry.kind === 'fetch' ? [new URL(entry.url).pathname] : [],
@@ -317,7 +326,7 @@ describe('the waits that the signal and close() govern (T5, T4, T9)', () => {
 
   it("the peer takes the request and sends no answer head: the call's signal settles the answer within the bound", async () => {
     const peer = await scripted({ calls: { echo: { kind: 'silent' } } }, { holdHeads: true })
-    const transport = await open(materialOf(targetOf(peer)))
+    const transport = await openOn(peer)
     const controller = new AbortController()
     const call = transport.call(echo, controller.signal)
     setTimeout(() => controller.abort(), 50)
@@ -333,7 +342,7 @@ describe('the waits that the signal and close() govern (T5, T4, T9)', () => {
   it("401 whose metadata fetch hangs: the call's signal ends the discovery within the bound; authorization-required, metadata unavailable, reportRejection once", async () => {
     const peer = await scripted({ calls: { echo: refused } }, { metadata: 'hangs' })
     const handle = credential()
-    const transport = await open(materialOf(targetOf(peer), handle))
+    const transport = await openOn(peer, handle)
     const controller = new AbortController()
     const call = transport.call(echo, controller.signal)
     setTimeout(() => controller.abort(), 50)
@@ -354,7 +363,7 @@ describe('the waits that the signal and close() govern (T5, T4, T9)', () => {
   it('401 whose metadata fetch hangs: close() ends the discovery within the bound with the same conclusion, reportRejection once before close() returned', async () => {
     const peer = await scripted({ listing: { '': refused } }, { metadata: 'hangs' })
     const handle = credential()
-    const transport = await open(materialOf(targetOf(peer), handle))
+    const transport = await openOn(peer, handle)
     const listing = transport.listActions()
     for (let round = 0; round < 200; round += 1) {
       if ((await peer.received()).some(entry => entry.kind === 'fetch')) break
@@ -379,7 +388,7 @@ describe('the waits that the signal and close() govern (T5, T4, T9)', () => {
 
   it('a metadata document that never ends counts as not fetched: the discovery settles with metadata unavailable', async () => {
     const peer = await scripted({ listing: { '': refused } }, { metadata: 'endless' })
-    const transport = await open(materialOf(targetOf(peer), credential()))
+    const transport = await openOn(peer, credential())
     // Two candidate addresses, each read up to the 16 MiB bound over the loopback.
     expect(await settledWithin(transport.listActions(), 10_000)).toMatchObject({
       settled: {
@@ -420,7 +429,7 @@ describe('the waits that the signal and close() govern (T5, T4, T9)', () => {
       },
     )
     const handle = credential()
-    const transport = await open(materialOf(targetOf(peer), handle))
+    const transport = await openOn(peer, handle)
     const discovering = transport.discover()
     await got
     await new Promise(resolve => setTimeout(resolve, 50))
@@ -440,7 +449,7 @@ describe('broken streams and re-sending (T8 D15, O05, O06, C04, O07)', () => {
     const peer = await scripted({
       listing: { '': [{ kind: 'stream-breaks' }, result({ tools: [] })] },
     })
-    const transport = await open(materialOf(targetOf(peer)))
+    const transport = await openOn(peer)
     expect(ok(await transport.listActions(), 'listActions')).toEqual({ tools: [] })
     const sent = requestsOf(await peer.received(), 'tools/list')
     expect(sent).toHaveLength(2)
@@ -451,7 +460,7 @@ describe('broken streams and re-sending (T8 D15, O05, O06, C04, O07)', () => {
     const twice = await scripted({
       listing: { '': [{ kind: 'stream-breaks' }, { kind: 'stream-breaks' }] },
     })
-    const second = await open(materialOf(targetOf(twice)))
+    const second = await openOn(twice)
     expect(await second.listActions()).toEqual({ failure: STREAM_BROKEN })
     expect(requestsOf(await twice.received(), 'tools/list')).toHaveLength(2)
     await second.close()
@@ -468,7 +477,7 @@ describe('broken streams and re-sending (T8 D15, O05, O06, C04, O07)', () => {
         },
       },
     })
-    const transport = await open(materialOf(targetOf(peer)))
+    const transport = await openOn(peer)
     const sent = ok(await transport.call(echo, never), 'call')
     expect(await sent.answer).toEqual(STREAM_BROKEN)
     expect(await transport.updateTask(taskIdOf('t1'), jsonOf({}))).toEqual({
@@ -487,7 +496,7 @@ describe('broken streams and re-sending (T8 D15, O05, O06, C04, O07)', () => {
     const peer = await scripted({
       calls: { echo: [{ kind: 'http', status: 503, body: 'down' }, result(DONE)] },
     })
-    const transport = await open(materialOf(targetOf(peer)))
+    const transport = await openOn(peer)
     const failed = ok(await transport.call(echo, never), 'call')
     expect(await failed.answer).toStrictEqual(STREAM_BROKEN)
     const next = ok(await transport.call(echo, never), 'call')
@@ -499,7 +508,7 @@ describe('broken streams and re-sending (T8 D15, O05, O06, C04, O07)', () => {
 
   it('a connection refused is not-sent; a reset before the answer head is stream-broken (X01 versus a broken stream)', async () => {
     const refused = await scripted({ listing: { '': { kind: 'unsent' } } })
-    const transport = await open(materialOf(targetOf(refused)))
+    const transport = await openOn(refused)
     expect(await transport.listActions()).toEqual(NOT_SENT)
     await transport.close()
     await refused.close()
@@ -522,7 +531,7 @@ describe('broken streams and re-sending (T8 D15, O05, O06, C04, O07)', () => {
         '': { kind: 'http', status: 302, headers: { location: 'http://127.0.0.1:1/elsewhere' } },
       },
     })
-    const transport = await open(materialOf(targetOf(peer)))
+    const transport = await openOn(peer)
     expect(await transport.listActions()).toEqual(NOT_SENT)
     expect(requestsOf(await peer.received(), 'tools/list')).toHaveLength(1)
     await transport.close()
@@ -533,7 +542,7 @@ describe('broken streams and re-sending (T8 D15, O05, O06, C04, O07)', () => {
 describe('the events of a 2xx answer body (T2)', () => {
   it('an SSE body whose first event is not a message event: only message events are read as answers', async () => {
     const peer = await scripted({ listing: { '': result({ tools: [] }) } }, { sseNoise: true })
-    const transport = await open(materialOf(targetOf(peer)))
+    const transport = await openOn(peer)
     expect(await transport.listActions()).toEqual({ ok: { tools: [] } })
     await transport.close()
     await peer.close()
@@ -562,7 +571,7 @@ describe('the byte bound of one SSE event (T2, SPEC H8)', () => {
     const pad = padOf(size)
     expect(pad.length).toBeLessThan(BYTE_LIMIT / 2)
     const peer = await scripted({ calls: { echo: result({ pad }) } }, { sseNoise: true })
-    const transport = await open(materialOf(targetOf(peer)))
+    const transport = await openOn(peer)
     const sent = ok(await transport.call(echo, never), 'call')
     const answer = await settledWithin(sent.answer, 10_000)
     await transport.close()
@@ -606,7 +615,7 @@ describe('the page and the headers (T2, T3)', () => {
 
   it('on the modern revision a tool with an invalid x-mcp-header declaration is withheld; on a legacy revision it is not checked', async () => {
     const modern = await scripted({ listing: { '': result({ tools: [bad, good] }) } })
-    const transport = await open(materialOf(targetOf(modern)))
+    const transport = await openOn(modern)
     const page = ok(await transport.listActions(), 'listActions')
     expect(toolNames(page.tools)).toEqual(['good'])
     expect(page.withheld).toEqual([{ name: { untrusted: 'bad' }, reason: 'header-invalid' }])
@@ -618,7 +627,7 @@ describe('the page and the headers (T2, T3)', () => {
       initialize: LEGACY,
       listing: { '': result({ tools: [bad, good] }) },
     })
-    const old = await open(materialOf(targetOf(legacy)))
+    const old = await openOn(legacy)
     expect(ok(await old.discover(), 'discover').protocolVersion).toBe(OFFERED_LEGACY_VERSION)
     const unchecked = ok(await old.listActions(), 'listActions')
     expect(toolNames(unchecked.tools)).toEqual(['bad', 'good'])
@@ -668,7 +677,7 @@ describe('the legacy session and cancellation (T3, T5, T8 S07)', () => {
 
   it('on the modern revision cancelRequest ends the answer stream and sends no notification', async () => {
     const peer = await scripted({ calls: { echo: { kind: 'silent' } } })
-    const transport = await open(materialOf(targetOf(peer)))
+    const transport = await openOn(peer)
     const sent = ok(await transport.call(echo, never), 'call')
     await transport.cancelRequest(sent.requestId)
     expect(await sent.answer).toEqual({ kind: 'no-answer', cause: 'abandoned' })
@@ -705,7 +714,7 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
   it('after initialize is refused with a plain 4xx, the GET stream and its endpoint carry initialize, the listing and a call', async () => {
     const peer = await scripted(sseScript, { legacySse: true })
     const handle = credential()
-    const transport = await open(materialOf(targetOf(peer), handle))
+    const transport = await openOn(peer, handle)
     expect(ok(await transport.discover(), 'discover').protocolVersion).toBe(OFFERED_LEGACY_VERSION)
     expect(toolNames(ok(await transport.listActions(), 'listActions').tools)).toEqual(['echo'])
     const sent = ok(await transport.call(echo, never), 'call')
@@ -729,7 +738,7 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
       { ...sseScript, listing: { '': { kind: 'silent' } } },
       { legacySse: true },
     )
-    const transport = await open(materialOf(targetOf(peer)))
+    const transport = await openOn(peer)
     ok(await transport.discover(), 'discover')
     const listing = transport.listActions()
     await new Promise(resolve => setTimeout(resolve, 50))
@@ -745,7 +754,7 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
 
   it('a 404 from the endpoint after initialize ends the session (S07)', async () => {
     const peer = await scripted(sseScript, { legacySse: true })
-    const transport = await open(materialOf(targetOf(peer)))
+    const transport = await openOn(peer)
     ok(await transport.discover(), 'discover')
     peer.endSessions()
     expect(await transport.listActions()).toStrictEqual(SESSION_ENDED)
@@ -756,7 +765,7 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
 
   it('the fallback that does not hold reports connection-unavailable: no stream, a cross-origin endpoint', async () => {
     const noStream = await scripted(sseScript)
-    const transport = await open(materialOf(targetOf(noStream)))
+    const transport = await openOn(noStream)
     expect(await transport.discover()).toEqual(NOT_SENT)
     await transport.close()
     await noStream.close()
@@ -765,7 +774,7 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
       legacySse: true,
       endpointOrigin: 'http://127.0.0.1:1',
     })
-    const second = await open(materialOf(targetOf(crossOrigin)))
+    const second = await openOn(crossOrigin)
     expect(await second.discover()).toEqual(NOT_SENT)
     expect(requestsOf(await crossOrigin.received(), 'initialize')).toHaveLength(1)
     await second.close()
@@ -798,7 +807,7 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
       },
     )
     const handle = credential()
-    const transport = await open(materialOf(targetOf(peer), handle))
+    const transport = await openOn(peer, handle)
     expect(await settledWithin(transport.discover())).toMatchObject({
       settled: {
         failure: {
@@ -831,4 +840,30 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
     await transport.close()
     await server.close()
   }, 30_000)
+})
+
+describe("the scripted peer's received() (fixture)", () => {
+  it('holds a request that the peer records 50 ms after it arrived', async () => {
+    let arrived = () => {}
+    const arrival = new Promise<void>(resolve => {
+      arrived = resolve
+    })
+    const peer = await scripted(
+      { calls: { echo: result(DONE) } },
+      {
+        async beforeRecord(method) {
+          if (method !== 'tools/call') return
+          arrived()
+          await new Promise(resolve => setTimeout(resolve, 50))
+        },
+      },
+    )
+    const transport = await openOn(peer)
+    const call = transport.call(echo, never)
+    await arrival
+    expect(requestsOf(await peer.received(), 'tools/call')).toHaveLength(1)
+    expect((await ok(await call, 'call').answer).kind).toBe('result')
+    await transport.close()
+    await peer.close()
+  })
 })

@@ -35,7 +35,12 @@ function fixtureOf(kinds: readonly TransportKind[]): TransportFixture {
         return { factory, material: peer.material, received: peer.received, close: peer.close }
       }
       const peer = await httpPeer(source, needs, VERSIONS)
-      return { factory, material: peer.material, received: peer.received, close: peer.close }
+      return {
+        factory: peer.factory,
+        material: peer.material,
+        received: peer.received,
+        close: peer.close,
+      }
     },
   }
 }
