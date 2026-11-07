@@ -268,7 +268,7 @@ describe('the model-records and model-host rows', () => {
       expect(value.seen).toEqual({
         failure: { kind: 'invalid', field: 'call', reason: 'not-found' },
       })
-      expect(value.denied).toEqual({ failure: { kind: 'denied', action: 'account' } })
+      expect(value.denied).toEqual({ failure: { kind: 'denied', action: 'read-account' } })
       expect(value.direct).toMatchObject({
         failure: { kind: 'unavailable', dependency: 'model-access-qualification' },
       })

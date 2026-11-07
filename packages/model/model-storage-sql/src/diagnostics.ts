@@ -484,7 +484,7 @@ function qualify<P>(
   switch (options.diagnosticsRead) {
     case 'tenant-self': {
       const result = options.authority.authorize({
-        action: 'facts',
+        action: 'inspect',
         access: { principal: access.principal, tenant: access.tenant },
         resource: { kind: 'tenant' },
       })

@@ -84,6 +84,130 @@ function scene(reading: TenantStandingReading | 'throw' = MEMBER) {
   return { authority, qualification, work, host, alive, authorize }
 }
 
+describe('login diagnostic qualification', () => {
+  it('admits issued login only for inspect and read-account, then releases the capture', async () => {
+    const s = scene()
+    const actor = okOf(s.authority.issuer.issueSystem({ component: 'server-entry' }), 'actor')
+    const principal = okOf(
+      s.authority.issuer.issueActingForTenant({
+        actor,
+        tenant: TENANT,
+        work: { owner: 'identity-login', work: 'login-1' },
+      }),
+      'login',
+    )
+    const release = await s.qualification.qualify({ principal, tenant: TENANT }, s.alive)
+    for (const action of ['inspect', 'read-account'] as const)
+      expect(s.authorize(action, principal), action).toHaveProperty('ok')
+    for (const action of [
+      'admit',
+      'facts',
+      'content',
+      'control',
+      'handoff',
+      'account',
+      'recovery',
+      'observe',
+      'send',
+    ] as const)
+      expect(s.authorize(action, principal), action).toEqual({
+        failure: { kind: 'denied', action },
+      })
+    release()
+    expect(s.authorize('inspect', principal)).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+})
+
+describe('read leases', () => {
+  function readerScene() {
+    const s = scene()
+    const actor = okOf(s.authority.issuer.issueSystem({ component: 'server-entry' }), 'actor')
+    const principal = okOf(
+      s.authority.issuer.issueActingForTenant({
+        actor,
+        tenant: TENANT,
+        work: { owner: 'identity-login', work: 'login-1' },
+      }),
+      'login',
+    )
+    let read: TenantStandingSource['read'] = async () => MEMBER
+    const qualification = createModelQualification({
+      verifier: s.authority.verifier,
+      standing: { read: input => read(input) },
+    })
+    return {
+      ...s,
+      principal,
+      qualification,
+      setRead(next: typeof read) {
+        read = next
+      },
+    }
+  }
+
+  it('a revoked check cannot borrow a concurrent successful capture of the same principal', async () => {
+    const s = readerScene()
+    const access = { principal: s.principal, tenant: TENANT }
+    const lease = await s.qualification.qualifyRead(access, s.alive)
+    const blocked = Promise.withResolvers<TenantStandingReading>()
+    s.setRead(() => blocked.promise)
+    const revoked = lease.check('inspect', { kind: 'tenant' })
+    // Let the verifier enter the held standing read before the competing qualification.
+    await Promise.resolve()
+    s.setRead(async () => MEMBER)
+    const other = await s.qualification.qualifyRead(access, s.alive)
+    blocked.resolve({ kind: 'not-member', evidence: { record: 'standing:abc', revision: '8' } })
+    expect(await revoked).toEqual({ failure: { kind: 'denied', action: 'inspect' } })
+    expect(await other.check('inspect', { kind: 'tenant' })).toEqual({ ok: undefined })
+    lease.release()
+    other.release()
+    expect(
+      s.qualification.authority.authorize({
+        action: 'inspect',
+        access,
+        resource: { kind: 'tenant' },
+      }),
+    ).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+
+  it('fails after retirement or release, and keeps standing failure explicit', async () => {
+    const s = readerScene()
+    let live = true
+    const access = { principal: s.principal, tenant: TENANT }
+    const lease = await s.qualification.qualifyRead(access, () => live)
+    s.setRead(async () => {
+      throw new Error('private standing details')
+    })
+    expect(await lease.check('inspect', { kind: 'tenant' })).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+    s.setRead(async () => MEMBER)
+    live = false
+    expect(await lease.check('inspect', { kind: 'tenant' })).toMatchObject({
+      failure: { kind: 'denied' },
+    })
+    live = true
+    lease.release()
+    expect(await lease.check('inspect', { kind: 'tenant' })).toMatchObject({
+      failure: { kind: 'denied' },
+    })
+  })
+
+  it('rejects copied and foreign login principals before naming a call', async () => {
+    const s = readerScene()
+    for (const access of [
+      { principal: structuredClone(s.principal), tenant: TENANT },
+      { principal: s.principal, tenant: OTHER },
+    ]) {
+      const lease = await s.qualification.qualifyRead(access, s.alive)
+      expect(await lease.check('inspect', { kind: 'tenant' })).toMatchObject({
+        failure: { kind: 'denied' },
+      })
+      lease.release()
+    }
+  })
+})
+
 describe('authorize for W: what the admission point captured', () => {
   it('a principal nobody qualified answers unavailable, never ok (defect: a default admission)', () => {
     const s = scene()
@@ -174,6 +298,8 @@ describe('authorize for W: what the admission point captured', () => {
     await s.qualification.qualify({ principal, tenant: TENANT }, s.alive)
     for (const action of [
       'admit',
+      'inspect',
+      'read-account',
       'facts',
       'content',
       'control',
@@ -222,6 +348,8 @@ describe('authorize for M: what resolve captured', () => {
     for (const action of [
       'recovery',
       'send',
+      'inspect',
+      'read-account',
       'facts',
       'content',
       'handoff',

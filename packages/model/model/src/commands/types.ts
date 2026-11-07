@@ -47,6 +47,8 @@ import type {
 /** The access purposes for which the commands ask the current authority. */
 export type CommandAction =
   | 'admit'
+  | 'inspect'
+  | 'read-account'
   | 'facts'
   | 'content'
   | 'control'

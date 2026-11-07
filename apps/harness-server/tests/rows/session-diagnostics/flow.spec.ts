@@ -212,21 +212,21 @@ describe('session diagnostics over real processes: the two smoke failures', () =
   )
 
   it(
-    'E2b: the Model branch of the same call is resolved, and its denied read shows as unknown, not as absent',
+    'E2b: the login reads its Model dispatch failure and explicit account state',
     { timeout: 120_000 },
     async () => {
-      // Pending decision (#1140, model line and data protection): the app's Model qualification
-      // table (src/model/qualification.ts, R2-D33) lets only the session work principal and the
-      // host read Model facts, so a login-derived principal reading its own call is denied. Until
-      // that is decided, the view must name the denial instead of dropping the call. When the
-      // decision lets the tenant read its call, this case turns into the dispatch-row check.
       const { run } = await untilRunEnded(bob, sessions.upstream, RUN_END_TIMEOUT_MS)
       const [call] = modelCallsOf(run)
       expect(run['calls'], JSON.stringify(run)).toEqual({ registered: '1', projected: '1' })
       expect(typeof call?.['reference'], JSON.stringify(run)).toBe('string')
-      expect(call?.['call']).toEqual({ kind: 'unknown', reason: 'denied' })
-      expect(call?.['dispatches']).toEqual([])
-      expect(call?.['coverage']).toBe('unknown')
+      expect(call?.['call']).toMatchObject({ kind: 'found', phase: 'settled' })
+      expect(call?.['dispatches']).toEqual([
+        expect.objectContaining({
+          outcome: { kind: 'failed', cause: 'upstream-unavailable', upstreamStatus: '504' },
+          account: { kind: 'unknown', reason: 'not-recorded' },
+        }),
+      ])
+      expect(call?.['coverage']).toBe('complete-through-snapshot')
       const text = await bob(['read-session-diagnostics', '--session', sessions.upstream])
       expect(text.status, text.stderr).toBe(0)
       expect(text.stdout).toContain('reason: no-reply upstream-unavailable 504')

@@ -89,7 +89,11 @@ function hostPlugin(config: ModelHostConfig): Plugin.Object {
         provider: ({ host, commands, clock }) =>
           createModelRuntime(
             {
-              commands: qualifyingCommands(commands, access => binding.qualify(access)),
+              commands: qualifyingCommands(
+                commands,
+                access => binding.qualify(access),
+                access => binding.qualifyRead(access),
+              ),
               clock,
               instances: host,
               send,
