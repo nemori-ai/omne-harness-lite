@@ -101,6 +101,7 @@ async function start(options: {
   journalViews: boolean
   callers?: unknown[]
   coordinatorCalls?: unknown[]
+  consumptionRow?: typeof sessionAd06Row
 }): Promise<LoadedTree> {
   const base = makeBase()
   release.push(() => base.release())
@@ -132,7 +133,7 @@ async function start(options: {
             standIn('materials-standin', agentMaterialsKey, Materials),
           ]
         : []),
-      declared(sessionAd06Row),
+      declared(options.consumptionRow ?? sessionAd06Row),
     ],
     readinessTimeoutMs: options.journalViews ? 10_000 : 2000,
   })
@@ -164,6 +165,46 @@ describe('the session-ad06 row: declaration', () => {
 })
 
 describe('the session-ad06 row: on real Cordis 4.0.4', () => {
+  it('keeps the newer generation available after the older generation is disposed', async () => {
+    const declaration = rowDeclarationOf(sessionAd06Row)
+    if (declaration === undefined) throw new Error('session-ad06 must declare its dependencies')
+    const generations: Array<Awaited<ReturnType<Context['plugin']>>> = []
+    const callers: unknown[] = []
+    const tree = await start({
+      journalViews: true,
+      callers,
+      consumptionRow: defineRow({
+        row: 'session-ad06',
+        implementation: 'real',
+        manifest: declaration.manifest,
+        lifecycle: { kind: 'none' },
+        plugin: {
+          ...sessionAd06Row,
+          async apply(ctx) {
+            generations.push(await ctx.plugin({ ...sessionAd06Row }))
+            generations.push(await ctx.plugin({ ...sessionAd06Row }))
+          },
+        },
+      }),
+    })
+    const [older, newer] = generations
+    if (older === undefined || newer === undefined) throw new Error('both generations must start')
+    const target = { ...access, execution: 'execution-1' as never }
+    expect(await consumeSessionToolLog(tree.root, target)).toMatchObject({
+      failure: { kind: 'unavailable', owner: 'session-history' },
+    })
+    await older.dispose()
+    callers.length = 0
+    expect(await consumeSessionToolLog(tree.root, target)).toMatchObject({
+      failure: { kind: 'unavailable', owner: 'session-history' },
+    })
+    expect(callers.length).toBeGreaterThan(0)
+    await newer.dispose()
+    expect(await consumeSessionToolLog(tree.root, target)).toMatchObject({
+      failure: { kind: 'unavailable', owner: 'session-ad06' },
+    })
+  })
+
   it(
     'keeps explicit consumption in its own root and removes it on disposal',
     { timeout: 60_000 },
