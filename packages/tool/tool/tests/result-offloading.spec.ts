@@ -83,6 +83,50 @@ const largeResult = () => ({
   attachments: [],
 })
 
+it('stores only model text as a range-readable UTF-8 body while preserving the other channels', async () => {
+  const hidden = { ...text('human', 'human-only'), visibility: { toHuman: true, toModel: false } }
+  const f = await settlementFixture({
+    definition: boundedDefinition(),
+    value: {
+      content: [text('first', '汉'.repeat(22)), hidden, text('last', '🙂\n')],
+      data: { kind: 'none' },
+      original: { kind: 'none' },
+      attachments: [],
+    },
+  })
+  ok(await f.preserve())
+  const page = await f.resultPage()
+  expect(page.value.content).toContainEqual(hidden)
+  expect(page.value.original).toMatchObject({
+    kind: 'offloaded',
+    bodyBytes: '71',
+    source: { bytes: '71' },
+  })
+  const body = (await f.records()).find(
+    record => record.kind === 'material' && record.material.purpose === 'body',
+  )
+  if (body?.kind !== 'material') throw new Error('body was not registered')
+  expect(body.material.codec).toMatchObject({ name: 'tool-model-text-utf8-v1', revision: '1' })
+  const decoder = new TextDecoder('utf-8', { fatal: true })
+  let offset: string | null = '0'
+  let restored = ''
+  for (let index = 0; index < 15 && offset !== null; index += 1) {
+    const request: Parameters<typeof f.materialStore.read>[0] = {
+      ...f.access,
+      material: body.material.material,
+      offset,
+      maxBytes: 5,
+    }
+    const part = ok(await f.materialStore.read(request))
+    expect(part.bytes.byteLength).toBeLessThanOrEqual(5)
+    expect(part.bytes.byteLength).toBeGreaterThan(0)
+    restored += decoder.decode(part.bytes, { stream: part.next !== null })
+    offset = part.next
+  }
+  expect(offset).toBeNull()
+  expect(restored).toBe(`${'汉'.repeat(22)}🙂\n`)
+})
+
 it('commits the bounded deadline, body use and preparation release with the result', async () => {
   const f = await settlementFixture({
     definition: boundedDefinition(),

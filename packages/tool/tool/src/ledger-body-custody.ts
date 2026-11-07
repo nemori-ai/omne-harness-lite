@@ -28,8 +28,13 @@ import { sameFactValue } from './ledger-facts.ts'
 import { materialContent } from './ledger-material-content.ts'
 import { createLedgerMaterialCustody, type MaterialTransaction } from './ledger-material-custody.ts'
 import type { LedgerDomain } from './ledger-store.ts'
-import { encodeToolMaterial, type EncodedToolMaterial } from './material-codec.ts'
+import {
+  encodeToolMaterial,
+  type EncodedToolMaterial,
+  type MaterialBytes,
+} from './material-codec.ts'
 import { resultBodyPolicy, type BodyPolicy } from './result-offloading.ts'
+import { encodeTextBody } from './text-body-codec.ts'
 
 export type BodyPreparationRecord = Readonly<{
   operation: ToolOperationId
@@ -91,7 +96,7 @@ type BodyInput<P> = MutationInput<P> &
   Readonly<{
     source: DurableEvidence
     start: unknown
-    encoded: EncodedToolMaterial
+    encoded: MaterialBytes
     fingerprint: EncodedToolMaterial['fingerprint']
     bodyBytes: string
   }>
@@ -121,7 +126,7 @@ function fixedInput<P>(supplied: unknown): Outcome<BodyInput<P>, ToolFailure> {
     ...context.ok,
     source: source.ok,
     start: fields.ok.start,
-    encoded: encoded.ok,
+    encoded: encodeTextBody(frames.ok),
     fingerprint: fingerprint.ok.fingerprint,
     bodyBytes: String(bytes),
   })

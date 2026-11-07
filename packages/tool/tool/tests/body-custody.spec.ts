@@ -77,6 +77,35 @@ it('seals same-call text with stable identity but no activated retention', async
   ).toBe(false)
 })
 
+it('stores the declared text payload without JSON framing and retains exact input identity', async () => {
+  const f = await fixture()
+  const input = { ...f.input, frames: [text('one', '正文'), text('two', '🙂\n"end"')] }
+  const body = ok(await f.custody.preserve(input))
+  expect(body.bodyBytes).toBe('16')
+  expect(body.source.bytes).toBe('16')
+  const write = f.write.mock.calls[0]?.[0]
+  if (write === undefined) throw new Error('body was not written')
+  expect(write.codec).toMatchObject({ name: 'tool-model-text-utf8-v1', revision: '1' })
+  const page = ok(
+    await f.ports.materials.store.read({
+      ...f.input,
+      material: write.material,
+      offset: '0',
+      maxBytes: 32,
+    }),
+  )
+  expect(new TextDecoder('utf-8', { fatal: true }).decode(page.bytes)).toBe('正文🙂\n"end"')
+  expect(page.next).toBeNull()
+  expect(ok(await f.rebuild().bodyCustody.preserve(input))).toEqual(body)
+  expect(
+    await f.custody.preserve({
+      ...input,
+      frames: [text('joined', '正文🙂\n"end"')],
+    }),
+  ).toHaveProperty('failure.kind', 'conflict')
+  expect(f.write).toHaveBeenCalledOnce()
+})
+
 it('refuses different content, another execution and another tenant without replacing the body', async () => {
   const f = await fixture()
   const first = ok(await f.custody.preserve(f.input))

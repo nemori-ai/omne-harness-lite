@@ -27,6 +27,7 @@ import type { createLedgerMaterialCustody } from './ledger-material-custody.ts'
 import { encodeToolMaterial } from './material-codec.ts'
 import { materialContent } from './ledger-material-content.ts'
 import { planResultBody, type BodyPolicy } from './result-offloading.ts'
+import { encodeTextBody } from './text-body-codec.ts'
 
 type ChannelSlots = Readonly<{
   kind: 'channels'
@@ -85,8 +86,7 @@ export async function prepareResultChannels<P, B extends ContentBlock>(
       reason: 'same-call-sealed-body-required',
     })
   if (planned.ok.kind === 'text') {
-    const bytes = encodeToolMaterial(planned.ok.frames)
-    if ('failure' in bytes) return bytes
+    const bytes = encodeTextBody(planned.ok.frames)
     const identity = encodeToolMaterial({ source: input.source, policy, value: rendered })
     if ('failure' in identity) return identity
     const operation = decodeToolOperationId(
@@ -96,7 +96,7 @@ export async function prepareResultChannels<P, B extends ContentBlock>(
       return fail({ kind: 'invalid', field: 'operation', reason: 'body-identity' })
     const saved = await custody.preserve(
       { ...input, operation: operation.ok },
-      bytes.ok,
+      bytes,
       identity.ok.fingerprint,
       'body',
       validate,
