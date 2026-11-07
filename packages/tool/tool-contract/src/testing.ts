@@ -2,6 +2,7 @@
 // and a non-durable double for each port that passes its suite. A suite returns a list of cases
 // and does not depend on a test framework; a case fails with a `node:assert` AssertionError. Each
 // double declares `durability: 'none'` and must not be assembled into production.
+export { ordinaryReturnFixture, structuredReturnFixture } from './testing-returns.ts'
 export {
   NotApplicable,
   completionOf,

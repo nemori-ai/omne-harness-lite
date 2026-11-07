@@ -152,7 +152,27 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
           descriptions: [],
         },
       },
-      returns: { kind: 'ordinary', program: { kind: 'none' } },
+      returns: {
+        kind: 'ordinary',
+        value: {
+          kind: 'encoded-value',
+          codec: adoption('utf8-output'),
+          value: {
+            identity: { id: 'string', revision: '1', digest: 'sha256:string' },
+            definition: {
+              schema: {
+                kind: 'object',
+                entries: [{ key: 'type', value: { kind: 'string', value: 'string' } }],
+              },
+              vocabulary: adoption('json-schema'),
+              descriptions: [],
+            },
+          },
+        },
+        program: { kind: 'none' },
+        body: { kind: 'text', codec: adoption('utf8') },
+        offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
+      },
       author: {
         kind: 'ordinary',
         parameters: parameterCodec,

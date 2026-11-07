@@ -10,6 +10,7 @@ import {
 } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolArguments, ToolCommandDeclaration, ToolDefinition } from './definitions.ts'
+import { returnGuide, returnSummary } from './return-description.ts'
 
 /**
  * The encodings of one call. `wrapped` is `{"command": <name>, "params": {…}}` and `params` may be
@@ -210,7 +211,8 @@ export function commandMenu(definition: CommandTable): string {
   return [
     `Call with ${form}. In signatures, ? marks an optional field and a|b lists the allowed values.`,
     ...definition.commands.map(
-      command => `${command.name} ${commandSignature(command.parameters)} - ${command.summary}`,
+      command =>
+        `${command.name} ${commandSignature(command.parameters)} - ${command.summary} ${returnSummary(command.returns)}`,
     ),
   ].join('\n')
 }
@@ -280,12 +282,13 @@ export function commandGuide(definition: CommandTable, command?: string): string
 
 function commandUsage(definition: CommandTable, command: ToolCommandDeclaration): string[] {
   const lines = [`Usage: ${commandExample(definition, command.name)}`, command.summary]
-  if (command.parameters.kind === 'executor-owned') return lines
+  if (command.parameters.kind === 'executor-owned') return [...lines, returnGuide(command.returns)]
   const { schema, descriptions } = command.parameters.value
   return [
     ...lines,
     `JSON Schema: ${writeJsonText(schema)}`,
     ...descriptions.map(item => `${item.path}: ${item.text}`),
+    returnGuide(command.returns),
   ]
 }
 

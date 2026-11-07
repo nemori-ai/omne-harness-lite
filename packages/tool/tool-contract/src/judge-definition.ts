@@ -11,6 +11,9 @@ import type {
   ToolDefinition,
   ToolImplementationFacts,
   ToolProgramDeclaration,
+  ToolBodyDeclaration,
+  ToolOffloadingDeclaration,
+  ToolPublishedSchema,
   ToolReturnDeclaration,
 } from './definitions.ts'
 import { COMMAND_CALL_ENCODINGS, flatConflict } from './command-call.ts'
@@ -64,10 +67,58 @@ export const programDeclaration: Check<ToolProgramDeclaration> = variant('kind',
   }),
 })
 
-export const returnDeclaration: Check<ToolReturnDeclaration> = record({
-  kind: literal('ordinary', 'structured'),
-  program: programDeclaration,
+const publishedSchema: Check<ToolPublishedSchema> = record({
+  identity: schemaIdentity,
+  definition: parameterContract,
 })
+
+const bodyDeclaration: Check<ToolBodyDeclaration> = variant('kind', {
+  none: record({ kind: literal('none') }),
+  text: record({ kind: literal('text'), codec: adoption }),
+  'json-document': record({
+    kind: literal('json-document'),
+    codec: adoption,
+    document: publishedSchema,
+  }),
+  'json-lines': record({ kind: literal('json-lines'), codec: adoption, record: publishedSchema }),
+})
+
+const offloadingDeclaration: Check<ToolOffloadingDeclaration> = record({
+  inline: variant('kind', {
+    system: record({ kind: literal('system') }),
+    bounded: record({ kind: literal('bounded'), maxInlineUtf8Bytes: positiveSafeInteger }),
+  }),
+  retention: variant('kind', {
+    system: record({ kind: literal('system') }),
+    bounded: record({ kind: literal('bounded'), maxRetentionMs: positiveSafeInteger }),
+  }),
+})
+
+const returnFields = {
+  program: programDeclaration,
+  body: bodyDeclaration,
+  offloading: offloadingDeclaration,
+}
+
+export const returnDeclaration: Check<ToolReturnDeclaration> = refine(
+  variant('kind', {
+    ordinary: record({
+      ...returnFields,
+      kind: literal('ordinary'),
+      value: record({ kind: literal('encoded-value'), codec: adoption, value: publishedSchema }),
+    }),
+    structured: record({
+      ...returnFields,
+      kind: literal('structured'),
+      value: record({ kind: literal('tool-result'), contract: adoption }),
+    }),
+  }),
+  (value, at) =>
+    value.body.kind === 'none' &&
+    (value.offloading.inline.kind !== 'system' || value.offloading.retention.kind !== 'system')
+      ? { field: member(at, 'offloading'), reason: 'body-required' }
+      : undefined,
+)
 
 function startsWith(path: readonly string[], prefix: readonly string[]): boolean {
   return prefix.length <= path.length && prefix.every((segment, index) => path[index] === segment)

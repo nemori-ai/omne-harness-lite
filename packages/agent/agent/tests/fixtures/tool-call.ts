@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { judgeBlockIdentity, type ContentBlock } from '@omne-harness/content-block'
 import type { ActionToolCall, ExecutionSnapshot, PendingCall } from '@omne-harness/agent-contract'
 import {
@@ -71,7 +72,7 @@ export function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolI
             vocabulary: adoption('json-schema'),
             descriptions: [],
           },
-          returns: { kind: 'ordinary', program: { kind: 'none' } },
+          returns: ordinaryReturnFixture(adoption('codec')),
         },
       },
       command: null,

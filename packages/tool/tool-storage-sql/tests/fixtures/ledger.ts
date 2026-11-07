@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 // A real Tool ledger (`createToolLedger` of `@omne-harness/tool`) over a given store, with a fixed
 // non-production trust model: one principal of one tenant is qualified, the invocation source is
 // the test source of `@omne-harness/tool/testing`, and the other ports are the in-memory doubles
@@ -87,7 +88,7 @@ function invokeRequest(): ToolInvokeRequest {
           vocabulary: adoption('json-schema'),
           descriptions: [],
         },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        returns: ordinaryReturnFixture(adoption('codec')),
       },
     },
     command: null,

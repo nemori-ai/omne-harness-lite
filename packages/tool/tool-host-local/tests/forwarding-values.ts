@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
@@ -58,7 +59,7 @@ export function parentRequest(): ToolInvokeRequest {
             name: 'execute',
             summary: 'Execute one target',
             parameters: { kind: 'executor-owned' },
-            returns: { kind: 'ordinary', program: { kind: 'none' } },
+            returns: ordinaryReturnFixture(adoption('codec')),
           },
         ],
       },

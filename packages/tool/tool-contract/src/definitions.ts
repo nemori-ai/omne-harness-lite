@@ -31,10 +31,34 @@ export type ToolProgramDeclaration =
       definition: ParameterContract
       maxBytes: number
     }>
-export type ToolReturnDeclaration = Readonly<{
-  kind: 'ordinary' | 'structured'
-  program: ToolProgramDeclaration
+export type ToolPublishedSchema = Readonly<{
+  identity: ToolSchemaIdentity
+  definition: ParameterContract
 }>
+export type ToolBodyDeclaration =
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'text'; codec: Adoption }>
+  | Readonly<{ kind: 'json-document'; codec: Adoption; document: ToolPublishedSchema }>
+  | Readonly<{ kind: 'json-lines'; codec: Adoption; record: ToolPublishedSchema }>
+export type ToolOffloadingDeclaration = Readonly<{
+  inline: Readonly<{ kind: 'system' }> | Readonly<{ kind: 'bounded'; maxInlineUtf8Bytes: number }>
+  retention: Readonly<{ kind: 'system' }> | Readonly<{ kind: 'bounded'; maxRetentionMs: number }>
+}>
+export type ToolReturnDeclaration = Readonly<{
+  program: ToolProgramDeclaration
+  body: ToolBodyDeclaration
+  offloading: ToolOffloadingDeclaration
+}> &
+  (
+    | Readonly<{
+        kind: 'ordinary'
+        value: Readonly<{ kind: 'encoded-value'; codec: Adoption; value: ToolPublishedSchema }>
+      }>
+    | Readonly<{
+        kind: 'structured'
+        value: Readonly<{ kind: 'tool-result'; contract: Adoption }>
+      }>
+  )
 /**
  * The published version of a tool asset: the capability name and the version adoption. A derived
  * definition carries `adoption` equal to this version; the binding key and `ToolAuthority` name the

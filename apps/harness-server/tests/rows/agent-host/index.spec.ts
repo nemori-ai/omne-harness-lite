@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 // @module-tag slow
 // The `agent-host` row: the real local Agent host (the plugin `createAgentHostLocalPlugin` of
 // `@omne-harness/agent-host-local/cordis` makes) on a real Cordis, carried by the row body in the
@@ -332,7 +333,7 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
           vocabulary: adoption('json-schema'),
           descriptions: [],
         },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        returns: ordinaryReturnFixture(adoption('codec')),
       },
     },
     command: null,

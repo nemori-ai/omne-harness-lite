@@ -1,3 +1,5 @@
+import { structuredReturnFixture } from '@omne-harness/tool-contract/testing'
+import { toolsAdoption } from '../src/tools-protocol.ts'
 import { describe, expect, it } from 'vitest'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import {
@@ -7,7 +9,7 @@ import {
   PagingModel,
   sourceBlocks,
 } from './tools-model-values.ts'
-import { ok, principalB, tenantB } from './runtime-values.ts'
+import { adoption, ok, principalB, tenantB } from './runtime-values.ts'
 import { result, visible } from './tools-values.ts'
 
 function expectFailure(view: readonly ToolMessageContentBlock[], code: string) {
@@ -43,7 +45,7 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
       throw new Error('Not commands')
     expect(host.definition.commands.map(command => command.name)).toEqual(['help', 'read_result'])
     for (const command of host.definition.commands)
-      expect(command.returns).toEqual({ kind: 'structured', program: { kind: 'none' } })
+      expect(command.returns).toEqual(structuredReturnFixture(toolsAdoption))
     const initial = await host.present()
     let view = initial
     const observed: ToolMessageContentBlock[] = []
@@ -250,7 +252,9 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
     const initial = await host.present()
     expect(modelField(initial, 'content')).toBe('end')
     expect(modelField(initial, 'original')).toBe('offloaded; bytes unread')
-    expect(host.sourceDefinition.returns).toEqual({ kind: 'structured', program: { kind: 'none' } })
+    expect(host.sourceDefinition.returns).toEqual(
+      structuredReturnFixture(adoption('source-result')),
+    )
     host.denied.push('read-raw')
     for (const read of [
       model.original(initial),

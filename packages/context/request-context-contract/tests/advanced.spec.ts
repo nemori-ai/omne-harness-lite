@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { it, expect } from 'vitest'
 import { judgeBlockIdentity } from '@omne-harness/content-block'
 import { judgeMessage } from '@omne-harness/message'
@@ -54,7 +55,7 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
       vocabulary: adoption,
       descriptions: [],
     },
-    returns: { kind: 'ordinary' as const, program: { kind: 'none' as const } },
+    returns: ordinaryReturnFixture(adoption),
   }
   const available: ToolAdoption = {
     resident: true,
@@ -73,6 +74,15 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
   expect(declareTools([available])).toEqual(declareTools([unavailable]))
   expect(declareTools([{ ...available, resident: false }]).direct).toEqual([])
   expect(declareTools([available]).programmatic).toHaveLength(1)
+  const changedBody: ToolAdoption = {
+    ...available,
+    availability: {
+      ...available.availability,
+      definition: { ...definition, returns: { ...definition.returns, body: { kind: 'none' } } },
+    },
+  }
+  expect(declareTools([changedBody]).digest).not.toBe(declareTools([available]).digest)
+  expect(declareTools([changedBody]).direct[0]?.description).toContain('Model body: none')
   expect(
     declareTools([
       {
@@ -87,7 +97,11 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
   // A function tool is declared as it is, and its route selects no command.
   expect(declareTools([available])).toMatchObject({
     direct: [
-      { name: 'lookup', description: 'lookup', argumentsSchema: definition.parameters.schema },
+      {
+        name: 'lookup',
+        description: 'lookup\n\nReturns fixture-value@1. Model body: text. Program data: none.',
+        argumentsSchema: definition.parameters.schema,
+      },
     ],
     routes: [{ declared: 'lookup', selection: { kind: 'none' } }],
   })
@@ -111,7 +125,7 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
   expect(declared.direct.map(item => item.name)).toEqual(['Files'])
   expect(declared.programmatic).toEqual(declared.direct)
   expect(declared.direct[0]?.description).toBe(
-    'Read and write files.\n\nCall with {"command": <name>, "params": {…fields}}. In signatures, ? marks an optional field and a|b lists the allowed values.\nread {} - read a file.\nwrite {} - write a file.',
+    'Read and write files.\n\nCall with {"command": <name>, "params": {…fields}}. In signatures, ? marks an optional field and a|b lists the allowed values.\nread {} - read a file. Returns fixture-value@1. Model body: text. Program data: none.\nwrite {} - write a file. Returns fixture-value@1. Model body: text. Program data: none.',
   )
   expect(JSON.stringify(declared.direct[0]?.argumentsSchema)).toContain(
     '{"key":"enum","value":{"kind":"array","items":[{"kind":"string","value":"read"},{"kind":"string","value":"write"}]}}',

@@ -1,3 +1,4 @@
+import { structuredReturnFixture } from '@omne-harness/tool-contract/testing'
 import { createReaderFixture } from './reader-fixture.ts'
 import { createHash } from 'node:crypto'
 import { judgeContentBlock } from '@omne-harness/content-block'
@@ -180,7 +181,7 @@ export async function modelHost(
       outputModalities: ['text', 'image', 'voice', 'video'],
     },
     returns: {
-      kind: 'structured',
+      ...structuredReturnFixture(adoption('source-result')),
       program:
         input.value === undefined
           ? {

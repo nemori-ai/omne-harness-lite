@@ -82,7 +82,24 @@ function commandTool(
           descriptions: [],
         },
       },
-      returns: { kind: 'ordinary', program: { kind: 'none' } },
+      returns: {
+        kind: 'ordinary',
+        value: {
+          kind: 'encoded-value',
+          codec: adoption('codec'),
+          value: {
+            identity: { id: 'fixture-value', revision: '1', digest: 'sha256:fixture-value' },
+            definition: {
+              schema: { kind: 'object', entries: [] },
+              vocabulary: adoption('json-schema'),
+              descriptions: [],
+            },
+          },
+        },
+        program: { kind: 'none' },
+        body: { kind: 'text', codec: adoption('utf8') },
+        offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
+      },
     })),
   }
 }

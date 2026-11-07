@@ -163,7 +163,24 @@ export function fixedRequest(): FixedToolRequest {
           vocabulary: adoption('json-schema'),
           descriptions: [{ path: 'path', text: 'The path value.' }],
         },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        returns: {
+          kind: 'ordinary',
+          value: {
+            kind: 'encoded-value',
+            codec: adoption('output'),
+            value: {
+              identity: { id: 'conformance-output', revision: '1', digest: 'sha256:output' },
+              definition: {
+                schema: { kind: 'object', entries: [] },
+                vocabulary: adoption('json-schema'),
+                descriptions: [],
+              },
+            },
+          },
+          program: { kind: 'none' },
+          body: { kind: 'text', codec: adoption('utf8') },
+          offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
+        },
       },
       executor: adoption('executor'),
     },

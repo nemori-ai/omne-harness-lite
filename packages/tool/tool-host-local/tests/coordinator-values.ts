@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 // Builders for the start coordinator tests: tenants with the shape of legal-identity's TenantId,
 // a principal that belongs to some tenants, a fixed request, a start record and an access guard
@@ -95,7 +96,7 @@ export function request(overrides: Partial<FixedToolRequest> = {}): FixedToolReq
           vocabulary: adoption('json-schema'),
           descriptions: [{ path: 'path', text: 'The path value.' }],
         },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        returns: ordinaryReturnFixture(adoption('codec')),
       },
       executor: adoption('exec'),
     },

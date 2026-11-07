@@ -43,12 +43,15 @@ export type {
   SourceLayer,
   ToolArguments,
   ToolAvailability,
+  ToolBodyDeclaration,
   ToolCommandDeclaration,
   ToolDefinition,
   ToolEnvironmentDeclaration,
   ToolImplementationShape,
   ToolInvocation,
   ToolProgramDeclaration,
+  ToolOffloadingDeclaration,
+  ToolPublishedSchema,
   ToolReturnDeclaration,
   ToolSchemaIdentity,
 } from './definitions.ts'
@@ -164,3 +167,4 @@ export type {
   ToolFixedReadArguments,
   ToolsReadArguments,
 } from './tools-protocol.ts'
+export { returnSummary } from './return-description.ts'

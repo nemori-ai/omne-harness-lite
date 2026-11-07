@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { describe, expect, it } from 'vitest'
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import { readJsonText } from '@omne-harness/json-text'
@@ -215,7 +216,7 @@ describe('Tools complete author', () => {
                     kind === 'schema'
                       ? { schema: tree(schema), vocabulary: adoption, descriptions: [] }
                       : { kind: 'executor-owned', usage, protocol: adoption },
-                  returns: { kind: 'ordinary', program: { kind: 'none' } },
+                  returns: ordinaryReturnFixture(adoption),
                 },
               })
             },
@@ -232,6 +233,12 @@ describe('Tools complete author', () => {
       expect(command).toBe('command: search')
       expect(description).toBe('Find a lawful nonresident tool.')
       expect(parameters).toBe(`parameters: ${kind === 'schema' ? JSON.stringify(schema) : usage}`)
+      expect(textOf(reply)).toContain(
+        'Returns fixture-value@1. Model body: text. Program data: none.',
+      )
+      expect(textOf(reply)).toContain(
+        'Return value schema fixture-value@1 (sha256:fixture-value): {}',
+      )
     },
   )
 
@@ -255,7 +262,7 @@ describe('Tools complete author', () => {
         name: 'Tools',
         programmable: false,
         availability: kind,
-        next: 'Inspect one command for its complete parameters.',
+        next: 'Inspect one command for its parameter and return schemas.',
       })
       expect(result.commands.map((command: { name: string }) => command.name)).toEqual([
         'help',

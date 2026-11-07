@@ -1,3 +1,5 @@
+import { structuredReturnFixture } from '@omne-harness/tool-contract/testing'
+import { toolsAdoption } from '../src/tools-protocol.ts'
 import { createReaderFixture } from './reader-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -54,7 +56,7 @@ describe('fixed reader with a test-only command transport', () => {
     if (definition.kind !== 'commands') throw new Error('not commands')
     expect(definition.commands.map(command => command.name)).toEqual(['help', 'read_result'])
     for (const command of definition.commands) {
-      expect(command.returns).toEqual({ kind: 'structured', program: { kind: 'none' } })
+      expect(command.returns).toEqual(structuredReturnFixture(toolsAdoption))
       expect(command.parameters.kind).toBe('declared')
     }
     const help = ok(await authorRun(f.tools, 'help', '{}'))

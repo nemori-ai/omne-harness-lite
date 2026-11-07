@@ -21,6 +21,7 @@ import { testingTenant, testingWorkspace } from '@omne-harness/tool-contract/tes
 import {
   adoption,
   commandsDefinition,
+  structuredReturns,
   declarations,
   evidence,
   functionDefinition,
@@ -124,7 +125,7 @@ describe('shapeOf and sameShape', () => {
       requiredCapabilities: [],
       programmable: true,
       declarations: { ...declarations(), inputModalities: ['text'] },
-      returns: { kind: 'structured', program: { kind: 'none' } },
+      returns: structuredReturns,
       parameters: {
         ...base.parameters,
         vocabulary: { ...base.parameters.vocabulary, revision: '9' },

@@ -56,7 +56,8 @@ export const toolsCommands = [
   },
   {
     name: 'inspect',
-    summary: 'Inspect a tool overview (command=null) or one command and its parameters.',
+    summary:
+      'Inspect a tool overview (command=null) or one command with its parameters and return schemas.',
     schema: object({ name: string, command: nullableString }, ['name', 'command']),
   },
   {

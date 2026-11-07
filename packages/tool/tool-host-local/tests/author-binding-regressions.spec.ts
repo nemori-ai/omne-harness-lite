@@ -1,9 +1,11 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { describe, expect, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createIndependentToolScope } from '@omne-harness/tool'
 import type { FixedToolRequest, ToolStartRecord } from '@omne-harness/tool-contract'
 import {
+  returnGuide,
   defineCommandTool,
   defineToolOperation,
   type ToolAuthority,
@@ -224,7 +226,7 @@ function commandModule(events: string[]): ToolImplementationModule<unknown, Cont
           usage: `Pass ${name}`,
           protocol: adoption(`protocol-${name}`),
         },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        returns: ordinaryReturnFixture(adoption(`codec-${name}`)),
         author: {
           kind: 'ordinary',
           parameters: {
@@ -346,6 +348,7 @@ describe('author binding command selection', () => {
         'read_file second: expected second.',
         'Usage: read_file {"command": "second", "params": {…}}',
         'Second command',
+        returnGuide(ordinaryReturnFixture(adoption('codec-second'))),
       ].join('\n'),
     })
     expect(fixture.settlements[0]?.operation.author.parameters.adoption.name).toBe(

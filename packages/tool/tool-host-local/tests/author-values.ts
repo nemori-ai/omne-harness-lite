@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { createIndependentToolScope, canonicalDigest } from '@omne-harness/tool'
@@ -54,7 +55,7 @@ export function authorModule(
       if (definition.kind !== 'function') throw new Error('function fixture')
       const operation = defineToolOperation({
         parameters: { kind: 'declared', value: definition.parameters },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        returns: ordinaryReturnFixture(adoption('codec')),
         author: {
           kind: 'ordinary',
           parameters: { adoption: adoption('parameters'), parse: parsed },

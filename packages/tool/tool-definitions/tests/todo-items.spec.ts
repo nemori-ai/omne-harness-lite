@@ -99,6 +99,30 @@ function author(maximum = 1048576) {
   if ('failure' in result) throw new Error(JSON.stringify(result.failure))
   return result.ok
 }
+it('publishes the actual string return contract for all Todo commands', () => {
+  const registration = readToolRegistration(author())
+  if (registration?.kind !== 'commands') throw new Error('commands')
+  expect(registration.operations).toHaveLength(5)
+  for (const [, operation] of registration.operations) {
+    expect(operation.returns).toMatchObject({
+      kind: 'ordinary',
+      value: {
+        kind: 'encoded-value',
+        codec: operation.author.codec.adoption,
+        value: {
+          definition: {
+            schema: {
+              kind: 'object',
+              entries: [{ key: 'type', value: { kind: 'string', value: 'string' } }],
+            },
+          },
+        },
+      },
+      body: { kind: 'text' },
+      offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
+    })
+  }
+})
 function fixture(maximum = 1048576) {
   const implementation = author(maximum)
   const registration = readToolRegistration(implementation)

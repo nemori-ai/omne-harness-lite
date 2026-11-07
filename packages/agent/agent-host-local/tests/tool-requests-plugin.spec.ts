@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 // `createAgentHostLocalPlugin({ toolRequests })` on real Cordis 4.0.4 (agent-host-local SPEC
 // 「Tool 请求来源的插件入口」, R2-D36): the trusted Tool request source given to the plugin factory
 // reaches the dependencies of every runtime the host builds, so a Tool action that the Model
@@ -136,7 +137,7 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
           vocabulary: adoption('json-schema'),
           descriptions: [],
         },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        returns: ordinaryReturnFixture(adoption('codec')),
       },
     },
     command: null,

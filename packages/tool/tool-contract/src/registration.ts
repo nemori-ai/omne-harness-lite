@@ -163,6 +163,11 @@ const OPERATION_RULES: readonly OperationRule[] = [
     spec.returns.kind === spec.author.kind
       ? undefined
       : { field: 'author.kind', reason: 'mode-mismatch' },
+  spec =>
+    spec.returns.kind === 'ordinary' &&
+    !sameAdoption(spec.returns.value.codec, spec.author.codec.adoption)
+      ? { field: 'author.codec.adoption', reason: 'value-codec-mismatch' }
+      : undefined,
   spec => programMismatch(spec.returns.program, spec.author.program),
 ]
 

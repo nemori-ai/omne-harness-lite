@@ -1,3 +1,4 @@
+import { structuredReturnFixture } from '@omne-harness/tool-contract/testing'
 // Test-only wrapper. The shipped Tools author belongs to tool-definitions.
 import { type Access } from '@omne-harness/tool-contract'
 import {
@@ -53,7 +54,7 @@ export function createReaderAuthor<P>(
       descriptor.name === 'help'
         ? defineToolOperation({
             parameters: { kind: 'declared', value: parameterContract(descriptor) },
-            returns: { kind: 'structured', program: { kind: 'none' } },
+            returns: structuredReturnFixture(codec.adoption),
             author: {
               ...common,
               parameters: codecs.help,
@@ -98,7 +99,7 @@ export function createReaderAuthor<P>(
           })
         : defineToolOperation({
             parameters: { kind: 'declared', value: parameterContract(descriptor) },
-            returns: { kind: 'structured', program: { kind: 'none' } },
+            returns: structuredReturnFixture(codec.adoption),
             author: { ...common, parameters: codecs.read, executor: { execute: read } },
           })
     if ('failure' in operation) throw new TypeError('Invalid Tools operation')

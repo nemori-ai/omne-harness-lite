@@ -1,3 +1,4 @@
+import { textBody } from './returns.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import { judgeMediaType, judgeModalities } from '@omne-harness/modality'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -82,7 +83,13 @@ export function createToolsAuthor(
   }
   const finish = (value: ToolResult<ToolMessageContentBlock>) =>
     'failure' in checked(value) ? failure() : value
-  const returns = { kind: 'structured', program: { kind: 'none' } } as const
+  const returns = {
+    kind: 'structured',
+    value: { kind: 'tool-result', contract: codec.adoption },
+    program: { kind: 'none' },
+    body: textBody,
+    offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
+  } as const
   const menu: CommandTable = {
     name: 'Tools',
     encoding: 'wrapped',
@@ -184,7 +191,8 @@ export const toolsToolModule: ToolImplementationModule<unknown, ToolMessageConte
   executor: describedAdoption({
     owner: '@omne-harness/tool-definitions',
     name: 'Tools',
-    revision: '1',
+    revision: '2',
+    returns: 'Published raw value, model body and system offloading policy.',
     commands: toolsCommands,
   }),
   createAuthor: createToolsAuthor,

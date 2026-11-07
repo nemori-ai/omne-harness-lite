@@ -70,7 +70,8 @@ export const shellToolModule: ToolImplementationModule<
   executor: describedAdoption({
     owner: '@omne-harness/tool-definitions',
     name: 'Shell',
-    revision: '2',
+    revision: '3',
+    returns: 'Published raw value, model body and system offloading policy.',
     changes:
       'One declaration with the command in the call, the shell and start directory in the description and help by command name.',
     commands: shellCommands,

@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 // The `./testing` entry: the registration-semantics suite of `ToolInstancesService.register` (IC-3)
 // and a non-durable register service that conforms to it, then the G7 suite of the binding registry
 // with its non-durable registry and the dynamics suite skeleton. The suites do not depend on a test
@@ -1322,7 +1323,7 @@ function fixtureDefinition(name: string, adoption: Adoption): ToolDefinition {
       },
       descriptions: [],
     },
-    returns: { kind: 'ordinary', program: { kind: 'none' } },
+    returns: ordinaryReturnFixture(adoption),
   }
 }
 

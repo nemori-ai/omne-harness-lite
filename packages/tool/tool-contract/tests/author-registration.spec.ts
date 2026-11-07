@@ -57,6 +57,18 @@ function shellOperation(): Operation {
 }
 
 describe('author registration', () => {
+  it('rejects an ordinary output codec that differs from the published value codec', () => {
+    const author = ordinaryAuthor()
+    const registered = defineToolOperation({
+      parameters: { kind: 'declared', value: parameters() },
+      returns: ordinaryReturns,
+      author: { ...author, codec: { ...author.codec, adoption: adoption('other-codec') } },
+    })
+    expect(registered).toEqual({
+      failure: { field: 'author.codec.adoption', reason: 'value-codec-mismatch' },
+    })
+  })
+
   it('author registration: a function tool projects its one operation into judged implementation facts', () => {
     let runs = 0
     const author = ordinaryAuthor()
@@ -215,19 +227,19 @@ describe('author registration', () => {
     } as const
     const accepted = defineToolOperation({
       parameters: { kind: 'declared', value: parameters() },
-      returns: { kind: 'ordinary', program: declared },
+      returns: { ...ordinaryReturns, program: declared },
       author: { ...author, program },
     })
     expect('ok' in accepted).toBe(true)
     const none = defineToolOperation({
       parameters: { kind: 'declared', value: parameters() },
-      returns: { kind: 'ordinary', program: declared },
+      returns: { ...ordinaryReturns, program: declared },
       author,
     })
     expect(none).toEqual({ failure: { field: 'author.program.kind', reason: 'program-mismatch' } })
     const other = defineToolOperation({
       parameters: { kind: 'declared', value: parameters() },
-      returns: { kind: 'ordinary', program: declared },
+      returns: { ...ordinaryReturns, program: declared },
       author: { ...author, program: { ...program, adoption: adoption('other') } },
     })
     expect(other).toEqual({

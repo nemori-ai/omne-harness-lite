@@ -224,3 +224,4 @@ export type {
   ToolForwardSource,
   ToolForwardRuntime,
 } from './forwarding.ts'
+export { returnGuide } from './return-description.ts'

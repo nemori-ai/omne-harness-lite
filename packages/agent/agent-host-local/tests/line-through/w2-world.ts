@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 // The joint world of wave 2 (C-JOINT, J1 to J6): the CP3 world with the parts that wave 2 adds.
 //
 // Real (the product parts under test; the CP3 list in ./world.ts stays true):
@@ -273,7 +274,7 @@ function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeRe
             vocabulary: adoption('json-schema'),
             descriptions: [],
           },
-          returns: { kind: 'ordinary', program: { kind: 'none' } },
+          returns: ordinaryReturnFixture(adoption('codec')),
         },
       },
       command: null,

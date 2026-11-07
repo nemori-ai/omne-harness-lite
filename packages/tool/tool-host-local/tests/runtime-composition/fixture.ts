@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { catalogSearch, catalogView } from '../catalog-view-fixture.ts'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { expect } from 'vitest'
@@ -239,7 +240,7 @@ export async function fixture(
         { kind: 'declared'; value: typeof parameters }
       >({
         parameters: { kind: 'declared', value: parameters },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        returns: ordinaryReturnFixture(adoption('output')),
         author: {
           kind: 'ordinary',
           parameters: { adoption: adoption('arguments'), parse: input => succeed(input.effective) },

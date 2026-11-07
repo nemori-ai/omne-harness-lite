@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import {
   createMemoryToolEnvironment,
@@ -152,7 +153,7 @@ export function functionDefinition(overrides: Partial<DefinitionMetadata> = {}):
     ...overrides,
     kind: 'function',
     parameters: parameters(),
-    returns: { kind: 'ordinary', program: { kind: 'none' } },
+    returns: ordinaryReturnFixture(adoption('codec')),
   }
 }
 
