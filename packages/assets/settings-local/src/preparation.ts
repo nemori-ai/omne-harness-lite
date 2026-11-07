@@ -34,3 +34,7 @@ export {
   settingsOrganizationCurrentMaterials,
 } from './organization-current.ts'
 export type { OrganizationCurrentConfiguration } from './organization-current-schema.ts'
+export {
+  createOrganizationSettingsRecovery,
+  type OrganizationRecoveryOptions,
+} from './organization-recovery.ts'

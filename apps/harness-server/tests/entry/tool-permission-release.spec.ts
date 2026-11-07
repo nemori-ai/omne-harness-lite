@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeAll, expect, it } from 'vitest'
@@ -113,7 +113,7 @@ it.each(['definition', 'interpretation', 'projection'] as const)(
     if (field === 'definition') entry.governance.declaration.permissions = []
     if (field === 'interpretation') entry.governance.interpretations = []
     if (field === 'projection') entry.governance.declaration.settings = []
-    const root = mkdtempSync(join(tmpdir(), 'tool-permission-release-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'tool-permission-release-')))
     try {
       const manifestPath = join(root, 'manifest.json')
       writeFileSync(manifestPath, JSON.stringify(manifest))

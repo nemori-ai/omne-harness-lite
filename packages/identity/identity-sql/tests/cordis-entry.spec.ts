@@ -207,6 +207,7 @@ describe('IdentitySqlPlugin', () => {
       const verifierFiber = await ctx.plugin(Verifier)
       const held = await reservations.reserve(reserveInput)
       if (held.kind !== 'held') throw new Error('held')
+      expect(await reservations.observe(reserveInput)).toEqual(held)
       expect((await reservations.settle(held.reservation)).kind).toBe('unavailable')
       class Resolver extends StandingDestinationResolverService {
         readonly seal: StandingDestinationResolver['seal'] = async reservation => ({

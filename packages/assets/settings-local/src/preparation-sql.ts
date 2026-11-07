@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { SettingsIdSchema } from '@omne-harness/settings'
-import type { FactCommandV2 } from '@omne-harness/sql-contract'
+import type { FactCommandV2, RolledBackV2 } from '@omne-harness/sql-contract'
 import { domainSchema, PARTICIPANT } from './schema.ts'
 import {
   SETTINGS_CHECKPOINT_PARTICIPANTS,
@@ -45,10 +45,20 @@ function phaseCommands(
     })),
   ]
 }
-export class PreparationRolledBack extends Error {}
-export class PreparationSql<Context> {
-  readonly options: SettingsPreparationOptions<Context>
-  constructor(options: SettingsPreparationOptions<Context>) {
+export class PreparationRolledBack extends Error {
+  readonly receipt: RolledBackV2
+  constructor(receipt: RolledBackV2) {
+    super('Settings phase has a durable rollback')
+    this.receipt = receipt
+  }
+}
+export type PreparationSqlOptions = Pick<
+  SettingsPreparationOptions<never>,
+  'storage' | 'domain' | 'destination' | 'registrations'
+>
+export class PreparationSql {
+  readonly options: PreparationSqlOptions
+  constructor(options: PreparationSqlOptions) {
     this.options = options
     domainSchema.parse(options.domain)
     for (const registration of Object.values(options.registrations)) {
@@ -105,11 +115,9 @@ export class PreparationSql<Context> {
       ...registration,
       commands: phaseCommands(phase, request, extra),
     })
-    if (
-      result.kind === 'rolled_back' ||
-      (result.kind === 'identity_conflict' && result.existing.kind === 'rolled_back')
-    )
-      throw new PreparationRolledBack('Settings attempt has a durable rollback')
+    if (result.kind === 'rolled_back') throw new PreparationRolledBack(result)
+    if (result.kind === 'identity_conflict' && result.existing.kind === 'rolled_back')
+      throw new PreparationRolledBack(result.existing)
     if (result.kind !== 'committed')
       throw new Error('Settings preparation transaction outcome unavailable')
     const reply = result.responses.find(value => value.participant === PARTICIPANT)?.reply.response

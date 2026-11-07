@@ -42,6 +42,13 @@ export type StandingReserveOutcome =
   | Readonly<{ kind: 'denied' | 'operation-conflict' | 'blocked' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
+/** Read-only original-request observation. not_found is not a terminal or a release proof. */
+export type StandingObservation =
+  | Readonly<{ kind: 'held'; reservation: StandingReservation }>
+  | StandingTerminal
+  | Readonly<{ kind: 'not_found' | 'operation-conflict' }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
 export type StandingSettleOutcome =
   | StandingTerminal
   | Readonly<{ kind: 'operation-conflict' }>
@@ -58,6 +65,7 @@ export type StandingRecoveryPage =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 export interface StandingReservations {
+  observe(request: StandingRequest): Promise<StandingObservation>
   reserve(
     input: Readonly<{
       principal: ActingForTenantPrincipal

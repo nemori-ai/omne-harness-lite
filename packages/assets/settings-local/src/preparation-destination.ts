@@ -9,11 +9,7 @@ import { attemptTerminalSchema } from './finalization-schema.ts'
 import { standingReadSchema } from './preparation-custody.ts'
 import type { PreparationSql } from './preparation-sql.ts'
 import { equal } from './encoding.ts'
-function route<Context>(
-  sql: PreparationSql<Context>,
-  destination: string,
-  reservation: StandingReservation,
-) {
+function route(sql: PreparationSql, destination: string, reservation: StandingReservation) {
   if (!isStandingReservation(reservation)) return undefined
   const outer = reservation.binding
   if (outer.owner !== 'settings' || outer.destination !== destination) return undefined
@@ -33,9 +29,7 @@ function route<Context>(
     commandDigest: reference.rootCommandDigest,
   }
 }
-export function preparationDestination<Context>(
-  sql: PreparationSql<Context>,
-): StandingDestinationResolver {
+export function preparationDestination(sql: PreparationSql): StandingDestinationResolver {
   const destination = SettingsReferenceSchema.parse(sql.options.destination)
   return {
     async seal(reservation) {

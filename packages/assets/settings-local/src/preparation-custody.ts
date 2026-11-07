@@ -10,7 +10,7 @@ import { sourceRequestSchema } from './source-retention-schema.ts'
 import { sourceCustodyReceiptSchema } from './source-custody-schema.ts'
 import type { CheckpointRequest } from './checkpoint-schema.ts'
 import type { SettingsAttemptBinding } from './attempt-binding.ts'
-import type { PreparationPlan } from './preparation-types.ts'
+import type { SettingsPreparationOptions, PreparationPlan } from './preparation-types.ts'
 import { PreparationSql } from './preparation-sql.ts'
 import { equal } from './encoding.ts'
 export const standingReadSchema = z.union([
@@ -47,9 +47,14 @@ function reserveFailure(
   return { kind: 'rejected', reason: reasons[kind] }
 }
 export class PreparationCustody<Context> {
-  private readonly sql: PreparationSql<Context>
-  constructor(sql: PreparationSql<Context>) {
+  private readonly sql: PreparationSql
+  private readonly obligations: Pick<SettingsPreparationOptions<Context>, 'standing' | 'sources'>
+  constructor(
+    sql: PreparationSql,
+    obligations: Pick<SettingsPreparationOptions<Context>, 'standing' | 'sources'>,
+  ) {
     this.sql = sql
+    this.obligations = obligations
   }
   private checkpoint(binding: SettingsAttemptBinding, command: CheckpointRequest['command']) {
     return this.sql.write({ kind: 'checkpoint', binding, command })
@@ -68,7 +73,7 @@ export class PreparationCustody<Context> {
     if (record.kind === 'held') return undefined
     if (record.kind === 'settled') return { kind: 'rejected', reason: 'basis_changed' }
     await this.checkpoint(binding, { kind: 'standing-request', input: ref })
-    const result = await this.sql.options.standing.reserve(context, record.request)
+    const result = await this.obligations.standing.reserve(context, record.request)
     if (result.kind !== 'held' && result.kind !== 'terminal') return reserveFailure(result.kind)
     this.matchStanding(record.request, result.reservation)
     const reservation = { ...result.reservation, required: [...result.reservation.required] }
@@ -120,7 +125,7 @@ export class PreparationCustody<Context> {
         kind: 'source-request',
         input: { ...ref, source: member.request.source },
       })
-      const result = await this.sql.options.sources.reserve(context, member.request)
+      const result = await this.obligations.sources.reserve(context, member.request)
       if (result.kind === 'rejected') return result
       const receipt = sourceCustodyReceiptSchema.parse(result)
       if (!equal(receipt.request, member.request))
@@ -134,7 +139,7 @@ export class PreparationCustody<Context> {
     const ref = { identity: binding.identity, attemptId: binding.attemptId }
     const standing = standingReadSchema.parse(await this.sql.read({ kind: 'standing', input: ref }))
     if (standing.kind !== 'requested' && standing.kind !== 'held') return true
-    const result = await this.sql.options.standing.settle(standing.request)
+    const result = await this.obligations.standing.settle(standing.request)
     if (result.kind !== 'terminal') return false
     this.matchStanding(standing.request, result.reservation)
     await this.checkpoint(binding, {
@@ -158,7 +163,7 @@ export class PreparationCustody<Context> {
       if (z.object({ kind: z.string() }).parse(manifest).kind === 'not_found') return complete
       for await (const member of this.sources(binding)) {
         if (member.state === 'planned' || member.state === 'settled') continue
-        const result = await this.sql.options.sources.settle(member.request)
+        const result = await this.obligations.sources.settle(member.request)
         if (result.kind !== 'settled') {
           complete = false
           continue

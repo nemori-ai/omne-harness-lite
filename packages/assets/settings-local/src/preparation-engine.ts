@@ -51,13 +51,13 @@ function prepared(root: ObservedIntent) {
     : undefined
 }
 export class PreparationEngine<Context> {
-  readonly sql: PreparationSql<Context>
+  readonly sql: PreparationSql
   readonly custody: PreparationCustody<Context>
   readonly options: SettingsPreparationOptions<Context>
   constructor(options: SettingsPreparationOptions<Context>) {
     this.options = options
     this.sql = new PreparationSql(options)
-    this.custody = new PreparationCustody(this.sql)
+    this.custody = new PreparationCustody(this.sql, options)
   }
   async authorize(
     context: Context,

@@ -205,3 +205,12 @@ source-snapshot的真实读取增量验证了模型中源快照的部分精化�
 原生组织管理依据由 `organization-current-material.ts` 和同名事务生产者读取 Settings 自有关系后生成。它把完整来源、真实 owner revision、定义和 grants 纳入依据，并保持调用者的真实租户 scopeRef。来源布局含外域 source 时返回 unsupported，不将缺少的依赖改成空清单。普通变更和历史配值 rebase 分别读取；后者仍由原迁移判定核验完整布局和赋值处置。
 
 `organization-current-service.spec.ts` 将该生产者接到真实独立目标、Identity 资格保留及准备提交组合，验证管理员、普通成员、跨组织拒绝、原结果、显式 rebase 和实际降权后的原操作封口。两个真实租户的来源保留及两种提交顺序覆盖既有 SourceRetention 不变量；目标租户的 current policy 是具名夹具，不能据此宣称真实 Permissions 上界求值或完整分布式精化已经通过。
+
+
+### 原组织更新恢复的实现映射
+
+`settings-local/src/organization-recovery.ts` 消费原根、attempt、Standing保管和SQL身份。Identity的`observe`是只读步，其抽象状态变化为ΔS=0；它不授权或结算。只有认回原held后，恢复器才复用既有ready/commit转换。不存在新的主体、attempt或资格授予转换。
+
+未知读取不产生释放或封口。原业务SQL回滚沿既有seal转换终结源更新；ready阶段仅凭匹配原生生产者、协议和明确业务拒绝的持久回执才能封口。该差异防止把临时故障当成业务否定。取消或撤权与恢复提交仍由原终态和源门事务互斥，晚到held不能使终态回退。
+
+`organization-recovery.spec.ts` 将这条映射落实到真实数据库重开、Identity重装配、丢回包、并发和撤权场景。分页遵守源门128个held上限及每页字节预算，不把短页误判为结束。上述映射复用既有SourceRetention与Intent模型；它不是新的全系统形式化证明，也不证明分布式故障、公平调度或实际Permissions求值。

@@ -2,6 +2,8 @@ import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { combinationManifest, manifestDigest, type DomainRef } from '@omne-harness/sql-contract'
+import type { StandingReservations } from '@omne-harness/identity'
+import type { SqlStorage } from '@omne-harness/sql-contract'
 import { organizationCodec } from '@omne-harness/legal-identity'
 import {
   createOrganizationSettingsCurrent,
@@ -11,7 +13,12 @@ import { createStandaloneSettingsOwner } from '../src/index.ts'
 import { openRecoveryWorld } from './recovery-world.ts'
 import { openIdentityWorld } from './identity-world.ts'
 import { definition, command } from './world.ts'
-export async function openOrganizationCurrentWorld() {
+export async function openOrganizationCurrentWorld(
+  options: {
+    wrapReservations?: (reservations: StandingReservations) => StandingReservations
+    wrapStorage?: (storage: SqlStorage) => SqlStorage
+  } = {},
+) {
   const identity = await openIdentityWorld()
   const organization = organizationCodec.encode(identity.administrator.tenant.organization)
   if (!organization.ok) throw new Error('Invalid organization fixture')
@@ -37,7 +44,7 @@ export async function openOrganizationCurrentWorld() {
       participants,
     })
     if (result.kind !== 'registered') throw new Error(JSON.stringify(result))
-    return registration
+    return { ...registration, participants }
   }
   const common = world.participants.filter(p => p !== 'fixture.recovery-rollback')
   const capture = await register('capture', [
@@ -91,10 +98,12 @@ export async function openOrganizationCurrentWorld() {
     identity: {
       verifier: identity.authority.verifier,
       standing: identity.identity.standing,
-      reservations: identity.identity.reservations,
+      reservations:
+        options.wrapReservations?.(identity.identity.reservations) ??
+        identity.identity.reservations,
     },
     backend: {
-      storage: world.storage,
+      storage: options.wrapStorage?.(world.storage) ?? world.storage,
       domain,
       destination: configuration.destination,
       registrations: world.registrations,
@@ -118,6 +127,7 @@ export async function openOrganizationCurrentWorld() {
     owner,
     record,
     sourceRegistration,
+    configuration,
     domain,
     target,
     root,

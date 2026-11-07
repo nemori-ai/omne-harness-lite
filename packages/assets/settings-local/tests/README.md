@@ -107,3 +107,10 @@ pnpm --filter @omne-harness/assets-local run test:fast
 
 
 `intent-ready.spec.ts` 通过真实Worker验证私有prepared发布：必需Identity/source保管、空集合与缺清单的差异、全部成员held、原绑定及basis、回滚与重开、封口后不复活，以及展开请求预算。当前依据、终态观察和held回执为具名夹具，不能替代实际生产者验收。
+
+
+## Original organization update recovery
+
+`organization-recovery.spec.ts` runs real SQLite providers and native organization current. It closes and reopens Settings storage, and separately remounts Identity storage/provider with a new principal verifier that has issued no principals. Original custody resumes through public observation. Faults drop actual accepted reservation/commit replies or make queries unavailable; they do not invent successful authority receipts.
+
+The suite covers requested and prepared custody, unavailable/missing qualification, original SQL identity, rollback, withdrawal races, concurrent recovery, close/drain, real tenant destination sealing and source pagination. A capture/retire/allocation race distinguishes definite native ready refusal from generic ready rollback. Ordinary consumer attempt sealing leaves its intent open for explicit reprepare; source-update sealing terminates its root and gate. These tests do not establish actual consumer Permissions policy, process-kill durability, full differential mutation or C3b independent acceptance.

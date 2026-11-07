@@ -327,6 +327,18 @@ export function coordinationOver(core: Core) {
     return { kind: 'ready', outcome: proof.outcome } as const
   }
 
+  const observe: StandingReservations['observe'] = async request => {
+    if (core.stopped()) return { kind: 'unavailable', diagnostic: 'provider-stopped' }
+    const reservation = requestReservation(request)
+    if (reservation === undefined) return { kind: 'unavailable', diagnostic: 'request-invalid' }
+    if (reservationTenant(reservation) === undefined)
+      return { kind: 'unavailable', diagnostic: 'request-tenant-invalid' }
+    const found = await settlementRecord(reservation)
+    if (found.kind === 'absent') return { kind: 'not_found' }
+    if (found.kind === 'held') return { kind: 'held', reservation }
+    return found
+  }
+
   const settle: StandingReservations['settle'] = async request => {
     if (core.stopped()) return { kind: 'unavailable', diagnostic: 'provider-stopped' }
     const reservation = requestReservation(request)
@@ -574,6 +586,7 @@ export function coordinationOver(core: Core) {
 
   return {
     reservations: Object.freeze({
+      observe,
       reserve,
       settle,
       recover: recoverReservations,

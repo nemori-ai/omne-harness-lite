@@ -11,9 +11,7 @@ const custodySchema = z.union([
   z.strictObject({ kind: z.literal('not_found') }),
   z.object({ kind: z.enum(['planned', 'requested']), request: sourceRequestSchema }),
 ])
-export function preparationSourceDestination<Context>(
-  sql: PreparationSql<Context>,
-): SettingsSourceDestination {
+export function preparationSourceDestination(sql: PreparationSql): SettingsSourceDestination {
   async function recognize(request: SourceRequest) {
     const destination = request.destination
     if (

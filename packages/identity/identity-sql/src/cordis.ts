@@ -104,11 +104,13 @@ class IdentitySqlGovernanceService extends IdentityGovernanceService {
 }
 
 class SqlReservationsService extends StandingReservationsService {
+  readonly observe: StandingReservations['observe']
   readonly reserve: StandingReservations['reserve']
   readonly settle: StandingReservations['settle']
   readonly recover: StandingReservations['recover']
   constructor(ctx: Context, port: StandingReservations) {
     super(ctx)
+    this.observe = request => port.observe(request)
     this.reserve = input => port.reserve(input)
     this.settle = request => port.settle(request)
     this.recover = input => port.recover(input)

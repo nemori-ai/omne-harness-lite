@@ -112,7 +112,7 @@ export async function openIdentityWorld(
   }
   const accounts = [ada, bob],
     organizations = [personalA, personalB, team]
-  const identity = createIdentitySql({
+  const identityOptions: Parameters<typeof createIdentitySql>[0] = {
     storage: world.storage,
     clock: clock.clock,
     terms: terms.source,
@@ -134,7 +134,8 @@ export async function openIdentityWorld(
       },
       login: ids.login,
     },
-  })
+  }
+  const identity = createIdentitySql(identityOptions)
   const regA = await identity.operations.registerAndActivate({
     loginIdentifier: 'ada',
     credential: 'ada-secret',
@@ -279,6 +280,34 @@ export async function openIdentityWorld(
         account: bob,
         expectedRole: 'member',
       }),
+    async remount() {
+      await backend.close()
+      identity.stop()
+      await world.close()
+      const reopened = await openWorld({
+        root: world.root,
+        scopeRef,
+        target,
+        principalRef,
+        sourceCapture: options.sourceCapture ?? false,
+        extraMaterials: identitySqlMaterials(),
+        ...(options.authority ? { authority: options.authority } : {}),
+      })
+      const registered = await reopened.storage.registerCombination(identitySqlRegistration())
+      if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
+      const mounted = createIdentitySql({
+        ...identityOptions,
+        storage: reopened.storage,
+        principalVerifier: inProcessPrincipalAuthority().verifier,
+      })
+      return {
+        identity: mounted,
+        async close() {
+          mounted.stop()
+          await reopened.close()
+        },
+      }
+    },
     async close() {
       await backend.close()
       identity.stop()

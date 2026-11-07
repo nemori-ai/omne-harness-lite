@@ -108,6 +108,7 @@ export type {
   StandingTerminal,
   StandingDestinationResolver,
   StandingReserveOutcome,
+  StandingObservation,
   StandingSettleOutcome,
   StandingRecoveryPage,
   StandingReservations,

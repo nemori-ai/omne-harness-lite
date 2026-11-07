@@ -1438,3 +1438,89 @@ it('reuses one canonical settlement envelope after an unsubmitted response is lo
   expect(envelopes).toHaveLength(2)
   expect(envelopes[1]).toEqual(envelopes[0])
 })
+
+it('observes the exact original reservation without creating, sealing or releasing anything', async () => {
+  let seals = 0
+  const fixture = await setup({
+    async seal(reservation) {
+      seals++
+      return { kind: 'terminal', reservation, outcome: 'aborted' }
+    },
+  })
+  const { reservations } = fixture.deployment.provider
+  const request = { binding: fixture.binding, required: [] }
+  expect(await reservations.observe(request)).toEqual({ kind: 'not_found' })
+  expect(seals).toBe(0)
+  const held = await fixture.reserve()
+  expect(held.kind).toBe('held')
+  expect(await reservations.observe(request)).toEqual(held)
+  expect(seals).toBe(0)
+  const settled = await reservations.settle(request)
+  expect(settled).toMatchObject({ kind: 'terminal', outcome: 'aborted' })
+  expect(await reservations.observe(request)).toEqual(settled)
+  expect(seals).toBe(1)
+})
+it('does not confuse a conflicting or unreadable reservation with an absent one', async () => {
+  let unavailable = false
+  const fixture = await setup(undefined, storage => ({
+    ...storage,
+    async read(request) {
+      if (unavailable && request.handler === 'identity.coordination')
+        throw new Error('reader offline')
+      return storage.read(request)
+    },
+  }))
+  expect((await fixture.reserve()).kind).toBe('held')
+  const reservations = fixture.deployment.provider.reservations
+  const request = { binding: fixture.binding, required: [] }
+  expect(
+    await reservations.observe({
+      ...request,
+      binding: { ...request.binding, inputDigest: 'changed' },
+    }),
+  ).toEqual({ kind: 'operation-conflict' })
+  expect(
+    await reservations.observe({ ...request, required: ['organization-settings-manage'] }),
+  ).toEqual({ kind: 'operation-conflict' })
+  expect(
+    await reservations.observe({
+      ...request,
+      binding: { ...request.binding, scopeRef: 'invalid' },
+    }),
+  ).toMatchObject({ kind: 'unavailable' })
+  unavailable = true
+  expect(await reservations.observe(request)).toMatchObject({ kind: 'unavailable' })
+  unavailable = false
+  expect(await reservations.observe(request)).toMatchObject({ kind: 'held' })
+  fixture.deployment.provider.stop()
+  expect(await reservations.observe(request)).toMatchObject({
+    kind: 'unavailable',
+    diagnostic: 'provider-stopped',
+  })
+})
+it('recognizes an accepted hold after the original reserve reply and receipt queries are lost', async () => {
+  const lost = new Set<string>()
+  const fixture = await setup(undefined, storage => ({
+    ...storage,
+    async commit(request) {
+      const result = await storage.commit(request)
+      if (request.commands.some(c => c.facts['kind'] === 'standing-reserve')) {
+        lost.add(request.identity.operationKey)
+        throw new Error('lost reserve reply')
+      }
+      return result
+    },
+    async query(identity) {
+      return lost.has(identity.operationKey)
+        ? { kind: 'unknown', identity, diagnostic: 'lost receipt' }
+        : storage.query(identity)
+    },
+  }))
+  expect((await fixture.reserve()).kind).toBe('unavailable')
+  expect(
+    await fixture.deployment.provider.reservations.observe({
+      binding: fixture.binding,
+      required: [],
+    }),
+  ).toMatchObject({ kind: 'held', reservation: { binding: fixture.binding, required: [] } })
+})

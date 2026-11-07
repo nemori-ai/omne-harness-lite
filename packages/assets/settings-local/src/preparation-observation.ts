@@ -27,7 +27,7 @@ const attemptSchema = z.strictObject({
   status: attemptStatusSchema,
   sqlIdentity: domainSchema.extend({
     operation: z.string(),
-    protocolVersion: z.string(),
+    protocolVersion: z.literal('2'),
     operationKey: z.string(),
   }),
 })

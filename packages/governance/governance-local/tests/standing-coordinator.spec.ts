@@ -128,6 +128,7 @@ function overridden(
   overrides: Partial<StandingReservations>,
 ): StandingReservations {
   return {
+    observe: input => source.observe(input),
     reserve: input => source.reserve(input),
     settle: input => source.settle(input),
     recover: input => source.recover(input),
