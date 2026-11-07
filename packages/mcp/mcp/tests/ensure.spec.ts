@@ -1,7 +1,7 @@
 // The connection table's `ensure`: reuse, rebuild, single flight, the setting defects of SPEC S4,
 // the connection failures of R6 with their catalog marking, the credential handle lifecycle of
 // S9, the connection bound, and the key that keeps tenants and peer accounts apart.
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Access } from '@omne-harness/legal-identity'
 import {
   catalogKeyOf,
@@ -16,10 +16,13 @@ import type {
   ProcessLanding,
 } from '@omne-harness/mcp-contract/provider'
 import { admit, admitWithoutEligibility, type AdmittedEndpoint } from '../src/internal/gate.ts'
+import { Connection } from '../src/internal/connection.ts'
 import { loseOn } from '../src/internal/lost.ts'
 import { createConnectionTable, type ConnectionTable, type Ensured } from '../src/internal/table.ts'
+import type { Step } from './doubles/scripted-transport.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import {
+  adoptionRevisionOf,
   credentialBindingOf,
   jsonOf,
   millisOf,
@@ -62,8 +65,8 @@ type Principal = Readonly<{ id: string }>
  * an adoption view that keeps one revision text while the credential binding changes. The
  * contract forbids this (AV5); the key must still keep the accounts apart.
  */
-async function twoAccounts() {
-  const w = world({ script: [{ discover: peer }, { discover: peer }] })
+async function twoAccounts(after: readonly Step[] = []) {
+  const w = world({ script: [{ discover: peer }, { discover: peer }, ...after] })
   const base = adoptHttp(w, files)
   w.credentials.store({
     tenant: alice.tenant,
@@ -659,6 +662,18 @@ describe('ensure: the connection bound', () => {
 })
 
 describe('ensure: the connection key (invariant 1)', () => {
+  it('answers no usable connection for a key that never connected, without throwing', () => {
+    const table = tableOf(world())
+    expect(
+      table.current({
+        tenant: alice.tenant,
+        holding: files.holding,
+        adoptionRevision: adoptionRevisionOf('r1'),
+        account: { kind: 'anonymous' },
+      }),
+    ).toBeUndefined()
+  })
+
   it('does not share a connection between two tenants with the same holding and adoption revision', async () => {
     const w = world({ script: [{ discover: peer }, { discover: peer }] })
     const { revision } = adoptStdio(w, files)
@@ -713,6 +728,51 @@ describe('ensure: the connection key (invariant 1)', () => {
     expect(theirs.wire()).toEqual(refused)
     expect(table.currentOf(alice.tenant, files.holding)).toEqual([])
     expect(await closing).toEqual({ kind: 'released', process: 'no-process' })
+  })
+
+  it('a close that raised an error of this package on one connection waits for the others, then rejects with an AggregateError that holds the error (MC-10, P7)', async () => {
+    // The first connection's close stalls on its transport; the second connection's close hits a
+    // defect of this package after its teardown, when the table reads its generation to forget it.
+    const closing = deferred<'closed'>()
+    const { w, table, ours, theirs } = await twoAccounts([{ close: closing }])
+    const defect = new Error('a defect of this package while forgetting the entry')
+    let armed = false
+    const original = Object.getOwnPropertyDescriptor(Connection.prototype, 'generation')?.get
+    if (original === undefined) throw new Error('Connection has no generation getter')
+    const generation = vi
+      .spyOn(Connection.prototype, 'generation', 'get')
+      .mockImplementation(function (this: Connection) {
+        if (armed && this.key.account.kind === 'credential' && this.key.account.binding === 'other')
+          throw defect
+        return original.call(this)
+      })
+    try {
+      armed = true
+      const outcome = table.close(alice.tenant, files.holding).then(
+        () => 'resolved' as const,
+        (error: unknown) => error,
+      )
+      let answered = false
+      void outcome.then(() => {
+        answered = true
+      })
+      await settled()
+      // The second connection's close has failed; the first one's has not ended: no answer yet.
+      expect(answered).toBe(false)
+      expect(w.transports.calls.filter(call => call.kind === 'close')).toHaveLength(2)
+      closing.resolve('closed')
+      const thrown = await outcome
+      expect(thrown).toBeInstanceOf(AggregateError)
+      expect(thrown instanceof AggregateError ? thrown.errors : []).toEqual([defect])
+      expect(thrown instanceof Error ? thrown.message : '').toBe(
+        'the MCP connections of the holding did not close cleanly',
+      )
+      const refused = { failure: { kind: 'not-sent', cause: 'connection-unavailable' } }
+      expect(ours.wire()).toEqual(refused)
+      expect(theirs.wire()).toEqual(refused)
+    } finally {
+      generation.mockRestore()
+    }
   })
 
   it('closes the connection of an earlier adoption revision before using the new one', async () => {

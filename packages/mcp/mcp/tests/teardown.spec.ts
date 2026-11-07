@@ -4,8 +4,9 @@
 // landing still in flight at a release and at the shutdown (decisions 5 and 6).
 import { describe, expect, it } from 'vitest'
 import { only } from './doubles/calls.ts'
+import { manualBounds } from './doubles/bounds.ts'
 import { core, type Core } from './doubles/core.ts'
-import { settled, type Deferred } from './doubles/deferred.ts'
+import { deferred, settled, type Deferred } from './doubles/deferred.ts'
 import { faulty, landingStoppingAs, type Fault, type StopAnswer } from './doubles/faults.ts'
 import { stallingLanding, stallingReleases, stallingStops } from './doubles/stalls.ts'
 import { millisOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
@@ -301,5 +302,83 @@ describe('a landing still in flight at the close (decisions 5, 6)', () => {
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
     expect(w.trace).toEqual(['credential.release', 'process.stop'])
+  })
+})
+
+describe('the stop of what the key left behind is part of the build and under its bound (MC-5)', () => {
+  it('a stop that hangs when the connection is rebuilt: the bound ends the build as preparation-failed, nothing is started, the process stays lingering', async () => {
+    const w = world({ script: [...usualScript(), ...usualScript()], stop: 'root-only' })
+    adoptStdio(w, files)
+    // The first stop of process 0 answers root-only at once; the second one waits on the gate.
+    const gate = deferred<void>()
+    let stops = 0
+    const landing: typeof w.landing = {
+      ...w.landing,
+      async start(access, launch, env) {
+        const answer = await w.landing.start(access, launch, env)
+        if ('failure' in answer) return answer
+        const process = answer.ok
+        return {
+          ok: {
+            ...process,
+            async stop() {
+              stops += 1
+              if (stops === 2) await gate.promise
+              return process.stop()
+            },
+          },
+        }
+      },
+    }
+    const bounds = manualBounds()
+    const c = core({ ...w, ports: { ...w.ports, landing } }, bounds.runtime)
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+    expect(await c.connections.release(alice, files)).toEqual({
+      ok: { kind: 'released', process: 'root-only' },
+    })
+    const rebuilt = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    expect(stops).toBe(2)
+    bounds.fire('build', 1)
+    expect(await rebuilt).toEqual({ failure: { kind: 'connection-unavailable' } })
+    // Nothing of the new attempt started: no second process, no second transport.
+    expect(w.landing.processes()).toEqual([{ stops: 1 }])
+    expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
+    expect(c.table.stateOf(alice.tenant, files.holding)).toEqual({
+      kind: 'lost',
+      reason: 'preparation-failed',
+      residual: [{ kind: 'process', confirmed: 'root-only' }],
+    })
+    gate.resolve()
+    await settled()
+  })
+})
+
+describe('the state of a holding reads its connection that takes requests (S7)', () => {
+  it('an older closed entry that still holds a process, listed before the ready one, does not decide the state', async () => {
+    const w = world({ script: usualScript(), stop: 'unconfirmed' })
+    adoptStdio(w, files)
+    // The first revision's landing outlives its bound; the second revision connects meanwhile;
+    // the process of the first then lands, and its stop confirms nothing.
+    const stalled = stallingLanding(w.landing, only(1))
+    const bounds = manualBounds()
+    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } }, bounds.runtime)
+    const first = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    expect(stalled.calls()).toBe(1)
+    w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
+    const second = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    // The second call closed the first connection and waits for its build, which ends at its bound.
+    bounds.fire('build', 0)
+    expect(await first).toEqual({ failure: { kind: 'connection-unavailable' } })
+    expect(await second).toMatchObject({ ok: { kind: 'published' } })
+    stalled.gate.resolve()
+    await settled()
+    // Process 0 is the second revision's; process 1 is the late one, stopped once, unconfirmed.
+    expect(w.landing.processes()).toEqual([{ stops: 0 }, { stops: 1 }])
+    expect(c.table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'ready' })
   })
 })

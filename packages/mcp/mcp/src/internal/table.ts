@@ -180,9 +180,21 @@ function holdingTextOf(tenantText: string, holding: EndpointHolding): string {
   return JSON.stringify([tenantText, holding])
 }
 
-/** The errors of this package that settled work raised, in order (SPEC P7). */
-function defectsOf(settled: readonly PromiseSettledResult<unknown>[]): unknown[] {
-  return settled.flatMap(item => (item.status === 'rejected' ? [item.reason] : []))
+/**
+ * Settled work sorted in one pass: what fulfilled, and the errors of this package that the rest
+ * raised, both in order (SPEC P7).
+ */
+function sortOut<T>(settled: readonly PromiseSettledResult<T>[]): {
+  values: T[]
+  defects: unknown[]
+} {
+  const values: T[] = []
+  const defects: unknown[] = []
+  for (const item of settled) {
+    if (item.status === 'fulfilled') values.push(item.value)
+    else defects.push(item.reason)
+  }
+  return { values, defects }
 }
 
 function later(left: Generation, right: Generation | undefined): Generation {
@@ -491,11 +503,9 @@ export function createConnectionTable<P, S>(
     if (found.length === 0) return { kind: 'no-connection' }
     // Every connection of the holding refuses requests before the first wait (MC-10); every close
     // is waited for, whatever the others answer, so no error is left without a destination (P7).
-    const closing = await Promise.allSettled(found.map(closeEntry))
-    const defects = defectsOf(closing)
+    const { values: ranges, defects } = sortOut(await Promise.allSettled(found.map(closeEntry)))
     if (defects.length > 0)
       throw new AggregateError(defects, 'the MCP connections of the holding did not close cleanly')
-    const ranges = closing.flatMap(item => (item.status === 'fulfilled' ? [item.value] : []))
     return { kind: 'released', process: ranges.reduce<StopRange>(narrowest, 'no-process') }
   }
 
@@ -514,10 +524,11 @@ export function createConnectionTable<P, S>(
         all.map(async entry => ({ ref: entry.ref, process: await closeEntry(entry) })),
       ),
     ])
-    const defects = [...defectsOf(abandoned), ...defectsOf(closing), ...scope.exit()]
+    const closed = sortOut(closing)
+    const defects = [...sortOut(abandoned).defects, ...closed.defects, ...scope.exit()]
     if (defects.length > 0)
       throw new AggregateError(defects, 'the MCP connection table did not close cleanly')
-    return closing.flatMap(item => (item.status === 'fulfilled' ? [item.value] : []))
+    return closed.values
   }
 
   return {
