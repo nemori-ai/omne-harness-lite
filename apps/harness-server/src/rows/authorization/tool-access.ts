@@ -25,6 +25,7 @@ const ACTIONS = {
   'release-delivery': true,
   account: true,
   recover: true,
+  'maintain-materials': false,
   write: true,
   start: true,
   invalidate: false,

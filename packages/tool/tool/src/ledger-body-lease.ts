@@ -17,6 +17,7 @@ import {
 import type { Decision, Mint, Snapshot } from './ledger-decider.ts'
 import { sameFactValue } from './ledger-facts.ts'
 import { sampleMaterialTime } from './ledger-material-custody.ts'
+import { materialExpirationWrites } from './ledger-material-expiration.ts'
 import type { MaterialUseRecord } from './ledger-material-records.ts'
 import type { LedgerWrite, ResultRecord } from './ledger-store.ts'
 import { textBodyCodec } from './text-body-codec.ts'
@@ -95,36 +96,23 @@ export async function admitBodyPage<P>(
     record: { kind: 'material-time', time: { highWatermark: sampled.ok } },
   }
   if (Date.parse(sampled.ok) >= Date.parse(use.expiresAt)) {
-    const expiration = {
-      result: input.result,
-      bodyId: input.bodyId,
-      material: body.seal.material,
-      expiredAt: sampled.ok,
-      basis: mintEvidence(
-        'body-expiration',
-        { tenant: input.tenant, call: input.call, result: input.result },
-        mint.revision,
-        { body: input.bodyId, time: sampled.ok },
-      ),
-    }
+    const basis = mintEvidence(
+      'body-expiration',
+      { tenant: input.tenant, call: input.call, result: input.result },
+      mint.revision,
+      { body: input.bodyId, time: sampled.ok },
+    )
     return {
       kind: 'commit',
       value: expired,
       writes: [
         timeWrite,
-        { kind: 'put', record: { kind: 'body-expiration', expiration } },
-        { kind: 'delete', key: `material-use:${use.id}` },
-        {
-          kind: 'put',
-          record: {
-            kind: 'material-cleanup',
-            cleanup: {
-              material: use.material,
-              writeOperation: use.writeOperation,
-              basis: expiration.basis,
-            },
-          },
-        },
+        ...materialExpirationWrites({
+          use,
+          time: sampled.ok,
+          basis,
+          cleanupExists: snapshot.materialCleanup.has(use.writeOperation),
+        }),
       ],
     }
   }

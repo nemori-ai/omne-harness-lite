@@ -42,6 +42,7 @@ export type ToolLedgerAction =
   | 'release-delivery'
   | 'account'
   | 'recover'
+  | 'maintain-materials'
   | 'write'
 
 export type AccessVerdict =

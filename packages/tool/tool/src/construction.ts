@@ -119,6 +119,16 @@ export type ToolLedgerQueues<P> = Readonly<{
   reconcile(input: CallAccess<P>): Reply<QueueReconciliation>
 }>
 
+export type MaterialMaintenanceProgress = Readonly<{
+  expiredBodies: number
+  expiredLeases: number
+  cleanupPending: boolean
+}>
+
+export type ToolLedgerMaintenance<P> = Readonly<{
+  expire(input: CallAccess<P>): Reply<MaterialMaintenanceProgress>
+}>
+
 export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   /** The ledger's original-controller check before a pending stop is sent. */
   controls?: ToolLedgerControls<P>

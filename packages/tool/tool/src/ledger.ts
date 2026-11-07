@@ -1,5 +1,6 @@
 import { authorBody } from './ledger-author-body.ts'
 import { createLedgerBodyCustody } from './ledger-body-custody.ts'
+import { createLedgerMaterialMaintenance } from './ledger-material-maintenance.ts'
 import type { ToolBodyCustody } from '@omne-harness/tool-contract/provider'
 import { pinResultPolicy } from './ledger-result-policy.ts'
 import { activateResultDecision } from './ledger-result-activation.ts'
@@ -95,6 +96,7 @@ import type {
   ToolLedgerFacts,
   ToolLedgerPorts,
   ToolLedgerControls,
+  ToolLedgerMaintenance,
 } from './construction.ts'
 import { fixFactAcknowledgement, fixFactBasis, fixFactInput } from './facts-boundary.ts'
 import { checkFactAcknowledgement, decideFactAcknowledgement } from './ledger-fact-ack.ts'
@@ -162,6 +164,7 @@ import {
 } from './ledger-store.ts'
 
 export type ToolLedger<P, B extends ContentBlock> = Readonly<{
+  maintenance: ToolLedgerMaintenance<P>
   delivery: Readonly<{
     read(input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>): Reply<ToolResult<B>>
   }>
@@ -1568,6 +1571,14 @@ export function createToolLedger<P, B extends ContentBlock>(
   })
 
   return Object.freeze({
+    maintenance: Object.freeze(
+      createLedgerMaterialMaintenance({
+        materials: settlement.materials,
+        entry: input => entry(input, 'maintain-materials'),
+        authorize: input => access(input, 'maintain-materials'),
+        transact,
+      }),
+    ),
     delivery: Object.freeze({
       read: async (input: Parameters<ToolLedger<P, B>['delivery']['read']>[0]) => {
         const fixed = fixResultInput<P>(input, 'recover')

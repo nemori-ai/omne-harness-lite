@@ -999,7 +999,12 @@ describe('Tool access qualification', () => {
         arguments: noArguments(),
       })
     }
-    for (const action of ['read-raw', 'read-raw-content', 'invalidate'] as const)
+    for (const action of [
+      'read-raw',
+      'read-raw-content',
+      'maintain-materials',
+      'invalidate',
+    ] as const)
       expect(await guard.qualify({ ...input, action } as never)).toMatchObject({
         kind: 'unavailable',
       })

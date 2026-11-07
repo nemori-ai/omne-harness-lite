@@ -67,6 +67,15 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
   >()
   expectTypeOf(createToolLedger<P, ContentBlock>).returns.toEqualTypeOf<
     Readonly<{
+      maintenance: Readonly<{
+        expire(input: CallAccess<P>): Reply<
+          Readonly<{
+            expiredBodies: number
+            expiredLeases: number
+            cleanupPending: boolean
+          }>
+        >
+      }>
       delivery: Readonly<{
         read(
           input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>,

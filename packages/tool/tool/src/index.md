@@ -53,3 +53,6 @@
 - [事实指纹与批次身份](fact-values.ts)。
 - [事实材料准备与完整恢复](ledger-fact-material.ts)。
 - [非耐久材料仓测试替身](testing-material-store.ts)。
+
+- [材料到期维护](ledger-material-maintenance.ts)负责受信调用级到期与租约收场。
+- [到期用途写集](ledger-material-expiration.ts)由读页与维护入口共用。
