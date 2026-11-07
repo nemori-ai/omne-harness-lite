@@ -1,18 +1,3 @@
-// The qualification registry of the Model application module (`tmp/wire-model/design.md` §2, §4).
-//
-// Model asks three synchronous questions: `ModelCommandsAuthority.authorize`, `authority.execution`
-// and `ModelSendSource.current`. The facts they need come from two asynchronous ports, the identity
-// verifier and the tenant standing source. This module does not put the asynchronous ports behind
-// the synchronous answers. It verifies and reads at an asynchronous admission point and captures
-// the outcome; the synchronous answers only read what was captured:
-// - Login and W (Session work principal): `qualify` runs before one call of the commands the host wraps and
-//   the capture is released after it. There is no cache that outlives the call.
-// - M (Model host work principal): the entry captures it in `modelHostAuthority.resolve`; the
-//   capture ends when the host fiber retires (`current`). Revocation between the two is #677.
-//
-// The ActorRef of both is the subject reference: the standing record of the tenant's own account
-// and its revision, as the identity standing source reads them. The execution reference names the
-// host binding the channel already verified: the instance and its generation.
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import { tenantStandingKey } from '@omne-harness/identity/cordis'
 import type { Access, TenantId } from '@omne-harness/legal-identity'

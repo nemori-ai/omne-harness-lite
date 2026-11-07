@@ -1,7 +1,3 @@
-// The admission point of caller principals: the `model-host` row hands the runtime
-// this wrapper of its commands. Every method first qualifies the access of its input (verify the
-// principal, read the standing of its tenant, capture the outcome), then calls the real method,
-// then releases the capture. The synchronous `authorize` inside the call reads the capture.
 import type { Access } from '@omne-harness/legal-identity'
 import type { CallAccess, Reply } from '@omne-harness/model-contract'
 import type { ModelReadLease } from './qualification.ts'
@@ -74,7 +70,6 @@ export function qualifyingCommands(
       lease.release()
     }
   }
-  // The completeness check covers the captured commands and the two read methods.
   return Object.freeze({
     ...wrapped,
     recall: (input: Parameters<ModelCommands<unknown>['recall']>[0]) =>

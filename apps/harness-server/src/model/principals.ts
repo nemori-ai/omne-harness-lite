@@ -1,10 +1,3 @@
-// The principal classes the Model application module admits (R2-D33 plan A, `tmp/wire-model/design.md` §1):
-// - Login, issued by server-entry for one recognized login.
-// - W, the Session work principal: `classify` of the authorization row gives column `work`.
-// - M, the Model host work principal: the entry issues it in `modelHostAuthority.resolve` with the
-//   system actor below and the work owner below. The call id is the work text.
-// A principal of any admitted shape is only admitted after `principalVerifier` verified it; the shape
-// selects the policy row, it never proves the origin.
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { classify } from '../rows/authorization/principals.ts'
 
