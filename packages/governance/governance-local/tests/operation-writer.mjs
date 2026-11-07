@@ -1,3 +1,10 @@
+import {
+  prepareGovernanceStanding,
+  readGovernanceStanding,
+  recordGovernanceHeld,
+  recordGovernanceSettled,
+} from '../dist/standing-custody.js'
+import { applyStandingOperation, sealGovernanceStanding } from '../dist/standing-operation.js'
 import { bootstrapScope } from '../dist/scope.js'
 import {
   acceptOperation,
@@ -13,6 +20,24 @@ export default {
   execute(facts, port) {
     let response
     switch (facts.kind) {
+      case 'standing-prepare':
+        response = prepareGovernanceStanding(port, facts.input)
+        break
+      case 'standing-read':
+        response = readGovernanceStanding(port, facts.binding)
+        break
+      case 'standing-held':
+        response = recordGovernanceHeld(port, facts.binding, facts.reservation)
+        break
+      case 'standing-settled':
+        response = recordGovernanceSettled(port, facts.binding, facts.reservation, facts.outcome)
+        break
+      case 'standing-apply':
+        response = applyStandingOperation(port, facts.binding, facts.execution, facts.evidence)
+        break
+      case 'standing-seal':
+        response = sealGovernanceStanding(port, facts.reservation, facts.route)
+        break
       case 'bootstrap':
         response = bootstrapScope(port, facts.input)
         break

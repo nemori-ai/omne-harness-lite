@@ -14,7 +14,7 @@ import {
 } from './operation-schema.ts'
 import { readScope } from './scope.ts'
 export const conflict = () => ({ kind: 'conflict' as const, reason: 'operation' as const })
-const params = (ref: GovernanceOperationRef) => [
+export const operationParams = (ref: GovernanceOperationRef) => [
   scopeKey(ref.scope),
   ref.owner,
   ref.principalRef,
@@ -23,7 +23,7 @@ const params = (ref: GovernanceOperationRef) => [
 export function readOperation(port: ReadPort, ref: GovernanceOperationRef) {
   const row = port.execute(
     'SELECT request_json,request_digest,accepted_epoch,sql_identity_json,state,execution_json,result_json FROM gc_operation WHERE scope_key=? AND command_owner=? AND principal_ref=? AND operation_id=? LIMIT 1',
-    params(ref),
+    operationParams(ref),
   ).rows[0]
   if (!row) return { kind: 'absent' as const }
   const record = recordSchema.parse({
@@ -72,7 +72,13 @@ export function acceptOperation(port: ParticipantPort, raw: AcceptOperation) {
   const sqlIdentity = operationIdentity(input.transactionDomain, ref)
   port.execute(
     "INSERT INTO gc_operation (scope_key,command_owner,principal_ref,operation_id,request_digest,request_json,accepted_epoch,sql_identity_json,state) VALUES (?,?,?,?,?,?,?,?,'accepted')",
-    [...params(ref), requestDigest, canonical(input.request), input.epoch, canonical(sqlIdentity)],
+    [
+      ...operationParams(ref),
+      requestDigest,
+      canonical(input.request),
+      input.epoch,
+      canonical(sqlIdentity),
+    ],
   )
   return readOperation(port, ref)
 }
@@ -88,7 +94,7 @@ export function submitOperation(port: ParticipantPort, binding: OperationBinding
       : conflict()
   port.execute(
     "UPDATE gc_operation SET state='submitted',execution_json=? WHERE scope_key=? AND command_owner=? AND principal_ref=? AND operation_id=? AND state='accepted'",
-    [canonical(execution), ...params(binding.ref)],
+    [canonical(execution), ...operationParams(binding.ref)],
   )
   return readOperation(port, binding.ref)
 }
@@ -108,7 +114,7 @@ export function finishOperation(
   if (state === 'committed' && previous.record.state !== 'submitted') return conflict()
   port.execute(
     "UPDATE gc_operation SET state=?,result_json=? WHERE scope_key=? AND command_owner=? AND principal_ref=? AND operation_id=? AND state IN ('accepted','submitted')",
-    [state, canonical(result), ...params(binding.ref)],
+    [state, canonical(result), ...operationParams(binding.ref)],
   )
   return readOperation(port, binding.ref)
 }

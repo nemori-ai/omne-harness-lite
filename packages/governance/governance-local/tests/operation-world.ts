@@ -58,7 +58,13 @@ export function binding(input: AcceptOperation) {
     requestDigest: digest(input.request),
   }
 }
-export async function openOperations(existing?: string) {
+export async function openOperations(
+  existing?: string,
+  options: {
+    tenantRef?: string
+    extraMaterials?: Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
+  } = {},
+) {
   const root = existing ?? realpathSync(mkdtempSync(join(tmpdir(), 'governance-operations-')))
   const url = new URL('./operation-writer.mjs', import.meta.url)
   const materials: SqlMaterialCatalog = {
@@ -76,16 +82,17 @@ export async function openOperations(existing?: string) {
         allowedFunctions: [],
         grouping: 'groupable',
       },
+      ...(options.extraMaterials?.participants ?? []),
     ],
-    migrations: governanceSqlMigrations(),
-    readHandlers: [],
+    migrations: [...governanceSqlMigrations(), ...(options.extraMaterials?.migrations ?? [])],
+    readHandlers: options.extraMaterials?.readHandlers ?? [],
     declaredCombinations: { tenant: null, system: null },
   }
   const participants = ['governance.activation']
   const checked = combinationManifest({ catalog: materials, participants })
   if (checked.kind !== 'manifest') throw new Error(JSON.stringify(checked))
   const domain = {
-    scope: { kind: 'tenant' as const, tenant: tenantRef },
+    scope: { kind: 'tenant' as const, tenant: options.tenantRef ?? tenantRef },
     transactionDomain: 'governance-operations',
   }
   const combination = {
@@ -125,6 +132,8 @@ export async function openOperations(existing?: string) {
   }
   return {
     root,
+    storage,
+    domain,
     commit,
     async call(facts: Record<string, unknown>) {
       const result = await commit(facts)

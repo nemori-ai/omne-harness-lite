@@ -55,3 +55,28 @@ classDiagram
 ```
 
 纯计划核对这些值，关系写者执行已成立的整份计划。数据关系、业务判断与外部事实生产分开承担责任；不为临时计划增加持久表，也不把目标拥有者的生命周期搬入治理域。
+
+## 原操作持有的身份保留
+
+StandingCustody 是 Operation 内的保管值，不是另一个资格拥有者。它保存向 Identity 发出的完整请求及原回执。身份资格和保留是否释放仍归 Identity。
+
+```mermaid
+classDiagram
+  Operation "1" *-- "0..1" StandingCustody
+  StandingCustody --> StandingRequest
+  StandingCustody --> StandingReservation
+  StandingRequest --> OperationBinding
+  StandingRequest --> RecoveryAddress
+  IdentityReservations ..> StandingReservation
+```
+
+```mermaid
+stateDiagram-v2
+  [*] --> requested: 原请求持久化
+  requested --> held: 匹配的真实回执
+  requested --> settled: 原终态及结算回执
+  held --> settled: 原终态及结算回执
+  settled --> settled: 认回，拒绝复活
+```
+
+保管状态与业务状态是不同维度。业务已终止时仍可能收到 held 回执，持有该历史回执不表示业务可以继续。业务入口必须先检查原终态。

@@ -36,12 +36,17 @@
     "@omne-harness/settings": "workspace:*",
     "@omne-harness/permissions": "workspace:*",
     "canonicalize": "5.1.0",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@omne-harness/identity": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
-    "@omne-harness/sqlite-provider": "workspace:*"
+    "@omne-harness/sqlite-provider": "workspace:*",
+    "@omne-harness/identity-sql": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/scrypt": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*"
   }
 }

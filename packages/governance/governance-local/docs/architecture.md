@@ -79,3 +79,30 @@ flowchart LR
 ```
 
 目标投影携带原操作、事务域、epoch、目标来源、完整定义和ownerRevision。它保留目标拥有者的责任，治理写者不读取Settings或Assets私表。当前测试用具名投影夹具执行真实采用事务；生产fact桥接和Identity协调未接通。
+
+## Identity 保留与恢复边界
+
+`standing-schema.ts` 定义请求、回执及保管状态。`standing-custody.ts` 通过完整原操作主键读写 held_json。它不读取 Identity 私表，也不发行资格。`standing-operation.ts` 提供身份保留路径的业务入口和精确封口入口，二者共用原操作终态。
+
+```mermaid
+sequenceDiagram
+  participant C as 受信协调器，生产接线待完成
+  participant G as Governance 本地事务
+  participant I as Identity 保留服务
+  C->>G: 保存原操作及 requested
+  G-->>C: 完整持久请求
+  C->>I: reserve 原请求
+  I-->>C: held 回执
+  C->>G: 保存匹配的 held
+  C->>G: submit 与 applyStandingOperation
+  G->>G: 业务效果与原终态同提交
+  C->>I: settle 原 reservationId
+  I->>G: 受信路由 sealGovernanceStanding
+  G-->>I: 原 committed 或 aborted
+  I-->>C: terminal 并释放保留
+  C->>G: 记录相同终态的 settled
+```
+
+图中业务提交和结算不要求固定先后。若结算先封口，迟到提交只能认回 aborted。若业务先提交，结算认回 committed。目的端不可用时，Identity 保留不释放，撤权仍待恢复。
+
+复用 [StandingCommit 与 SettingsReservationCustody](../../../assets/settings/verification/README.md) 的模型义务。模型 operation 对应完整治理原操作，terminal 对应该行 committed/aborted，保管请求对应 held_json。有限模型验证以真实 Identity 和同事务封口为前提，不证明来源认证、服务可用性或跨进程部署。真实组合测试见 [持续测试](../tests/README.md)。
