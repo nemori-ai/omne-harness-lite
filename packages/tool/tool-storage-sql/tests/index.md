@@ -19,6 +19,7 @@
 - [materials.spec.ts](materials.spec.ts)：材料与组合有效性
 - [participant.spec.ts](participant.spec.ts)：参加者模块自身的守卫
 - [fixtures/](fixtures/index.md)：测试固定输入
+- [body-reclaim-live.spec.ts](body-reclaim-live.spec.ts)：真实 SQLite 的读页与回收交错，覆盖有效及过期租约、附件、过程历史和交付材料隔离。
 
 - [material-worker.spec.ts](material-worker.spec.ts)：材料 SQL 命令、重放、围栏、回滚、读页及重启
 - [material-worker-live.spec.ts](material-worker-live.spec.ts)：实际 SQL worker 的 5 MiB 保管、读回与删除恢复

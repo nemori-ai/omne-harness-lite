@@ -10,3 +10,4 @@
 - [app.ts](app.ts)：测试应用的组装
 - [custody.ts](custody.ts)：按块读回原件
 - [ledger.ts](ledger.ts)：在给定记录仓上的真实账本
+- [live-body.ts](live-body.ts)：经公开账本命令创建持久卸载正文、独立附件及过程历史，供真实 SQL 读删交错测试使用。
