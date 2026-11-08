@@ -97,7 +97,7 @@ rm -rf "$stage"
 - 计划判全量时，中间轮用不带 `--coverage` 的 `pnpm run metrics`，基线按 `review-code`「度量与差分变异的基线」判定：它不占名额，只给圈复杂度。CRAP 要覆盖率，留到最终 head 上跑。
 - 差分变异的工作进程数在启动时按空闲 CPU 定一次，整次运行不变。启动日志写明进程数及其来历，启动后先看这一行。机器忙时启动，数会偏小，这时停掉，用 `VITEST_MAX_WORKERS=<n>` 指定后重启。没有设 `VITEST_MAX_WORKERS`、工作进程预算又不到本机核数的一半时，命令打一行告警，告警里有重启命令。每个进程的 CPU 占用都很低时，它在等待，缩小范围比加进程有效。变异阶段每 10 秒有一行进度转到标准输出，行首是成员路径。变异阶段不到 10 秒的成员没有进度行。规则见 `tools/test-runner/README_ZH.md`「差分变异」。
 - 差分变异读工作区，未提交和未跟踪的文件都算进去。变异在跑的那棵树，写者不改，写者另用一棵树。变异沙箱目录 `.stryker-tmp-*` 还在时，`pnpm run check:docs` 以 1 退出。全树检查放在变异结束后，或换一棵树跑。
-- gate 确认说明的实测上限是 1024 个字符。超限后同一运行仍在等待确认，缩短说明后可以对同一运行再确认。
+- gate 确认说明的上限按 UTF-8 编码算是 1024 字节，不是 1024 个字符。中文一个字占 3 字节，中文说明大约只能写 340 个字。`gate-cli.ts wait` 在发请求之前按字节核对。超限后同一运行仍在等待确认，缩短说明后可以对同一运行再确认。
 - 改动命中 `github-gate` 上 `gate/toolchain-paths.txt` 的 PR 要过两道确认：先 `repo-toolchain-review`，再 `publish`。清单里也有 `docs/architecture/constraints.json` 这类正文文件，改动前先读清单。`gate-cli.ts wait` 的 `--environments` 缺省只有 `publish`，这时要写 `--environments repo-toolchain-review,publish`。
 - `gate-release` 的 `npm-release` 确认是不可撤回的发版，不在代确认的授权里。自动模式的权限检查拦下它时不要绕过：把确认命令写成脚本交有权者运行，或请有权者在运行页面确认。
 - 会话的 stop hook 可能要求把提交改成 agent 署名。按贡献指南，作者是负责的人。线会话直接按贡献指南处理，不等人确认。

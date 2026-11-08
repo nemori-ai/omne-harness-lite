@@ -84,14 +84,19 @@ describe('gate wait', () => {
     expect(result).toEqual({ run: 42, conclusion: 'failure', approvals: [[7, 5]] })
   })
 
-  it('refuses a note over the limit in characters, before any request', async () => {
+  it('refuses a note over the limit in UTF-8 bytes, before any request', async () => {
     const g = gate([{ status: 'completed', conclusion: 'success' }])
-    // Astral characters count once each, though each takes two UTF-16 code units.
-    const astral = '😀'.repeat(NOTE_LIMIT)
-    expect(confirmationNote(astral)).toBe(astral)
-    await expect(waitGate({ ...options, note: `${astral}😀`, call: g.call })).rejects.toThrow(
-      'at most 1024',
+    // GitHub refused a 750-character note of 1220 UTF-8 bytes and took one of 604 bytes.
+    const atLimit = `${'中'.repeat(341)}a`
+    expect(new TextEncoder().encode(atLimit).length).toBe(NOTE_LIMIT)
+    expect(confirmationNote(atLimit)).toBe(atLimit)
+    const fewCharacters = '中'.repeat(342)
+    expect([...fewCharacters].length).toBeLessThan(NOTE_LIMIT)
+    await expect(waitGate({ ...options, note: fewCharacters, call: g.call })).rejects.toThrow(
+      'The confirmation note has 1026 bytes; GitHub keeps at most 1024',
     )
+    expect(() => confirmationNote(`${atLimit}a`)).toThrow('1025 bytes')
+    expect(confirmationNote(`  ${atLimit}\n`)).toBe(atLimit)
     expect(g.calls).toEqual([])
     expect(() => confirmationNote('  ')).toThrow('empty')
     await expect(waitGate({ ...options, environments: [], call: g.call })).rejects.toThrow(

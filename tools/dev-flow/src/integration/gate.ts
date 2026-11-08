@@ -2,19 +2,23 @@ import { REST_HEADERS, type GhCommand } from '../delivery/github-read.ts'
 import { array, record } from '../delivery/protocol.ts'
 import { IntegrationError } from './parse.ts'
 
-/** GitHub keeps at most this many characters of a deployment review comment. */
+/**
+ * The longest deployment review comment GitHub takes, in UTF-8 bytes. GitHub's message says
+ * "characters", but it refused a 750-character note of 1220 bytes and took one of 604 bytes.
+ */
 export const NOTE_LIMIT = 1024
 const TIMEOUT_MS = 15_000
+const utf8 = new TextEncoder()
 
-/** The confirmation note: non-empty and within the review comment limit, counted in characters. */
+/** The confirmation note: non-empty and within the review comment limit, counted in UTF-8 bytes. */
 export function confirmationNote(value: string): string {
   const note = value.trim()
-  const length = [...note].length
-  if (length === 0) throw new IntegrationError('input-error', 'The confirmation note is empty')
-  if (length > NOTE_LIMIT)
+  if (note.length === 0) throw new IntegrationError('input-error', 'The confirmation note is empty')
+  const bytes = utf8.encode(note).length
+  if (bytes > NOTE_LIMIT)
     throw new IntegrationError(
       'input-error',
-      `The confirmation note has ${length} characters; GitHub keeps at most ${NOTE_LIMIT}. Shorten it and point to a comment for the rest`,
+      `The confirmation note has ${bytes} bytes; GitHub keeps at most ${NOTE_LIMIT}. Shorten it and point to a comment for the rest`,
     )
   return note
 }
