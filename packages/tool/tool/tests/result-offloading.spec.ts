@@ -1,3 +1,4 @@
+import type { ToolDefinition } from '@omne-harness/tool-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { decodeToolMaterialInstant } from '@omne-harness/tool-contract/provider'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -667,3 +668,51 @@ it.each([{ maxBytes: 128 }, { maxStringLength: 128 }, { maxItems: 2 }, { maxMemb
     expect((await f.records()).some(row => row.kind === 'result')).toBe(false)
   },
 )
+
+it('settles equal bodies using each fixed command limit after a definition replacement', async () => {
+  const base = boundedDefinition()
+  const { parameters, returns, ...metadata } = base
+  const definition = (first: number, second: number): ToolDefinition => ({
+    ...metadata,
+    kind: 'commands',
+    encoding: 'wrapped',
+    commands: (
+      [
+        ['first', first],
+        ['second', second],
+      ] as const
+    ).map(([name, limit]) => ({
+      name,
+      summary: name,
+      parameters: { kind: 'declared', value: parameters },
+      returns: {
+        ...returns,
+        offloading: {
+          ...returns.offloading,
+          inline: { kind: 'bounded', maxInlineUtf8Bytes: limit },
+        },
+      },
+    })),
+  })
+  const original = definition(2048, 4096)
+  const value = { ...largeResult(), content: [text('answer', 'x'.repeat(3072))] }
+  const oldFirst = await settlementFixture({ definition: original, command: 'first', value })
+  const oldSecond = await settlementFixture({ definition: original, command: 'second', value })
+  const replacement = definition(4096, 2048)
+  const newFirst = await settlementFixture({ definition: replacement, command: 'first', value })
+  const newSecond = await settlementFixture({ definition: replacement, command: 'second', value })
+  for (const [fixture, expected, fixed] of [
+    [oldFirst, 'offloaded', original],
+    [oldSecond, 'none', original],
+    [newFirst, 'none', replacement],
+    [newSecond, 'offloaded', replacement],
+  ] as const) {
+    expect((await fixture.load()).request.availability.definition).toEqual(fixed)
+    expect(ok(await fixture.preserve()).phase).toBe('settled')
+    const result = (await fixture.resultPage()).value
+    expect(result.original.kind).toBe(expected)
+    if (expected === 'none') expect(result.content).toEqual(value.content)
+    else expect(result.original).toMatchObject({ bodyBytes: '3072' })
+    expect((await fixture.load()).request.availability.definition).toEqual(fixed)
+  }
+})

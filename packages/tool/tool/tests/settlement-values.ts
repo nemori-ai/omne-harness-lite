@@ -80,6 +80,7 @@ export async function settlementFixture(
     mode?: 'foreground' | 'background'
     terminal?: ToolTerminal
     definition?: ToolDefinition
+    command?: string
     offloading?: ToolConfiguration['offloading']
     readResultArguments?: JsonLimits
     wrapMaterialClock?: (clock: ToolMaterialClock) => ToolMaterialClock
@@ -115,7 +116,7 @@ export async function settlementFixture(
     const invoked = await harness.runtime.invoke({
       principal: principalB,
       tenant: tenantB,
-      request: request({ availability }),
+      request: request({ availability, command: options.command ?? null }),
     })
     if (invoked.kind !== 'accepted') throw new Error('fixture admission')
     const { call } = readToolInvocationRef(invoked.reference)
@@ -128,6 +129,7 @@ export async function settlementFixture(
   } else {
     await admitCall(harness, name, {
       availability,
+      command: options.command ?? null,
       ...(options.mode === 'background' ? { mode: 'background' as const } : {}),
     })
     await harness.drive(name)

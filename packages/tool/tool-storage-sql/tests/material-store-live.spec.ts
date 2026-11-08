@@ -130,3 +130,53 @@ it('preserves 5 MiB through the public port and resumes an unknown deletion afte
     await rm(root, { recursive: true, force: true })
   }
 })
+
+it('reads the same sealed material after reopening with a replacement provider object', async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'tool-material-replacement-')))
+  const bytes = Buffer.from('汉🙂'.repeat(1500))
+  try {
+    const initial = await openStorage(root, [TENANT_A], { maxCommandBytes: 1_048_576 })
+    const seal = await (async () => {
+      try {
+        const store = createSqlToolMaterialStore<string>({
+          storage: initial.storage,
+          domains: initial.domains,
+          combination: initial.combination,
+          provider,
+          maxCommandBytes: 1_048_576,
+          maxChunkBytes: 1024,
+        })
+        return ok(await store.write({ ...input, bytes }))
+      } finally {
+        await initial.close()
+      }
+    })()
+    const reopened = await openStorage(root, [TENANT_A], { maxCommandBytes: 1_048_576 })
+    try {
+      const replacement = createSqlToolMaterialStore<string>({
+        storage: reopened.storage,
+        domains: reopened.domains,
+        combination: reopened.combination,
+        provider,
+        maxCommandBytes: 1_048_576,
+        maxChunkBytes: 2048,
+      })
+      expect(ok(await replacement.inspect(input))).toEqual({ kind: 'sealed', seal })
+      const chunks: Uint8Array[] = []
+      let offset = '0'
+      for (;;) {
+        const page = ok(await replacement.read({ ...access, material, offset, maxBytes: 1500 }))
+        chunks.push(page.bytes)
+        if (page.next === null) break
+        expect(BigInt(page.next)).toBeGreaterThan(BigInt(offset))
+        offset = page.next
+      }
+      expect(Buffer.concat(chunks)).toEqual(bytes)
+      expect(ok(await replacement.inspect(input))).toEqual({ kind: 'sealed', seal })
+    } finally {
+      await reopened.close()
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
