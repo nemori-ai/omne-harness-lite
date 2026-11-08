@@ -1,3 +1,37 @@
+import type { LedgerRecord } from './ledger-store.ts'
+
+const unchangedKinds = {
+  'history-migration': true,
+  'historical-body-alias': true,
+  'body-writer': true,
+  'body-writer-scope': true,
+  'body-writer-append': true,
+  'material-maintenance-hint': true,
+  'material-maintenance': true,
+  'body-expiration': true,
+  'body-preparation': true,
+  'result-policy': true,
+  'result-preparation': true,
+  material: true,
+  'material-use': true,
+  'material-time': true,
+  'material-cleanup': true,
+  operation: true,
+  account: true,
+  'environment-release': true,
+  task: true,
+  'fact-stream': true,
+  process: true,
+  exclusion: true,
+  'queue-entry': true,
+  'queue-counter': true,
+  'queue-release': true,
+  host: true,
+} satisfies Record<
+  Exclude<LedgerRecord['kind'], 'call' | 'result' | 'fact-event' | 'fact-batch'>,
+  true
+>
+
 function object(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -63,7 +97,8 @@ export function hasCurrentToolLedgerRecordFormat(record: unknown): boolean {
         ['pending', 'settled'].includes(String(event.fact.payload.kind)))
     )
   }
-  if (record.kind !== 'result') return true
+  if (record.kind !== 'result')
+    return typeof record.kind === 'string' && Object.hasOwn(unchangedKinds, record.kind)
   const result = record.result
   return (
     object(result) &&

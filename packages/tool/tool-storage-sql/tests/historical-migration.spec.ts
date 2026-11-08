@@ -1162,3 +1162,77 @@ it('recovers a prepared body whose write reply was lost using its original mater
     material: { material: JSON.parse(String(before[0]!.material)) },
   })
 })
+
+it('quarantines an unknown responsibility mixed into otherwise current historical records', async () => {
+  const { app, access, migration } = await migrationWorld()
+  const command = await previewCommand(migration, access)
+  expect(ok(await migration.apply(command)).kind).toBe('published')
+  expect(ok(await migration.apply(command)).kind).toBe('cleaned')
+  await expect(migration.preview({ ...access, interpretations: [] })).resolves.toEqual({
+    ok: { kind: 'current' },
+  })
+  const database = new DatabaseSync(join(app.directory, `${domainNameOf(TENANT_A)}.db`))
+  try {
+    database
+      .prepare('INSERT INTO tl_record (tenant, kind, name, key, record) VALUES (?, ?, ?, ?, ?)')
+      .run(
+        String(fixture.tables.tl_domain![0]!.tenant),
+        'call',
+        access.call,
+        'future-responsibility:1',
+        JSON.stringify({ kind: 'future-responsibility-v2', pending: true }),
+      )
+  } finally {
+    database.close()
+  }
+  await expect(migration.preview({ ...access, interpretations: [] })).resolves.toEqual({
+    ok: { kind: 'quarantined', reason: 'unsupported-format' },
+  })
+})
+
+it.each(['inspect', 'abandon'] as const)(
+  'fixes the %s address before awaiting authorization',
+  async method => {
+    const { access, options, migration } = await migrationWorld()
+    const command = await previewCommand(migration, access)
+    const published = ok(await migration.apply(command))
+    const gate = Promise.withResolvers<void>()
+    const reads: unknown[] = []
+    const checked: unknown[] = []
+    const delayed = createToolHistoryMigration({
+      ...options,
+      authority: {
+        qualify: async input => {
+          checked.push({ tenant: input.tenant, call: input.call })
+          await gate.promise
+          return succeed(undefined)
+        },
+      },
+      store: {
+        ...options.store,
+        read: async domain => {
+          reads.push(domain)
+          return options.store.read(domain)
+        },
+      },
+    })
+    const request = { ...access, operation: command.operation }
+    const pending = delayed[method](request)
+    request.tenant = TENANT_B
+    request.call = ok(decodeToolCallId('foreign-call'))
+    request.operation = ok(decodeToolOperationId('foreign-operation'))
+    gate.resolve()
+    const answer = await pending
+    if (method === 'inspect') expect(answer).toEqual({ ok: published })
+    else
+      expect(answer).toMatchObject({ failure: { kind: 'conflict', operation: command.operation } })
+    expect(reads).toEqual([{ kind: 'call', tenant: access.tenant, call: access.call }])
+    expect(checked.length).toBeGreaterThan(0)
+    expect(
+      checked.every(
+        value =>
+          JSON.stringify(value) === JSON.stringify({ tenant: access.tenant, call: access.call }),
+      ),
+    ).toBe(true)
+  },
+)

@@ -157,12 +157,14 @@ export function createToolHistoryMigration<P>(
     }
   }
   const inspect: ToolHistoryMigration<P>['inspect'] = async input => {
-    const allowed = await entry(input)
-    if ('failure' in allowed) return allowed
     const parsed = judgeMutationInput<P>(input, 'recover')
     if ('failure' in parsed) return parsed
+    const allowed = await entry(parsed.ok)
+    if ('failure' in allowed) return allowed
     const current = await read(parsed.ok)
     if ('failure' in current) return current
+    const qualified = await entry(parsed.ok)
+    if ('failure' in qualified) return qualified
     const known = journal(current.ok.records, parsed.ok.operation)
     return known === null
       ? invalid('operation', 'unknown-history-migration')
@@ -662,13 +664,16 @@ export function createToolHistoryMigration<P>(
   }
 
   const abandon: ToolHistoryMigration<P>['abandon'] = async input => {
-    const allowed = await entry(input)
-    if ('failure' in allowed) return allowed
     const parsed = judgeMutationInput<P>(input, 'recover')
     if ('failure' in parsed) return parsed
+    input = parsed.ok
+    const allowed = await entry(input)
+    if ('failure' in allowed) return allowed
     for (let attempt = 0; attempt < configuration.ledgerCommitAttempts; attempt += 1) {
       const current = await read(parsed.ok)
       if ('failure' in current) return current
+      const observed = await entry(input)
+      if ('failure' in observed) return observed
       const known = journal(current.ok.records, parsed.ok.operation)
       if (known === null) return invalid('operation', 'unknown-history-migration')
       if (known.progress.kind === 'abandoned') return succeed(known.progress)
