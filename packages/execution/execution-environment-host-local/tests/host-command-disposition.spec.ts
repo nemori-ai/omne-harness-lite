@@ -103,7 +103,7 @@ function controlled<T>() {
 /** The script of the stand-in gate; see `fixtures/fake-supervisor.mjs`. */
 type GateScript = Readonly<{
   onRequest?: 'ready' | 'silent' | 'vanish'
-  onGo?: 'started' | 'spawnFailed' | 'silent'
+  onGo?: 'started' | 'spawnFailed' | 'silent' | 'startedThenGarbage'
   afterStarted?: 'exit' | 'stay' | 'vanish' | 'garbage'
   exit?: Readonly<Record<string, unknown>>
   exitAfterMs?: number
@@ -492,6 +492,17 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
         expect(f.processes.plans).toEqual([])
       },
     )
+
+    it('that writes started and a broken line in one read still hands over the started process, then fails it', async () => {
+      const f = await setup({ gate: { onGo: 'startedThenGarbage' } })
+      const { handle, key } = await started(f)
+      expect(await within(handle.result, 'the outcome')).toMatchObject({
+        kind: 'failed',
+        reason: 'effectUnknown',
+      })
+      await stoppedByAcquisition(f, key)
+      expect(f.processes.plans).toEqual([])
+    })
   })
 
   describe('the reason a domain is stopped instead of handed over', () => {

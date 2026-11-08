@@ -149,9 +149,10 @@ export type GateFrame =
       members: number | null
     }>
 
+/** A fault carries the frames this push accepted before the refused line, so the split never matters. */
 export type FrameStep =
   | Readonly<{ kind: 'frames'; frames: readonly GateFrame[] }>
-  | Readonly<{ kind: 'fault'; fault: string }>
+  | Readonly<{ kind: 'fault'; fault: string; frames: readonly GateFrame[] }>
 
 type Phase = 'launching' | 'ready' | 'running' | 'ended'
 
@@ -236,9 +237,9 @@ export function createGateReader(input: { maxChunkBytes: number }): Readonly<{
   let pending = Buffer.alloc(0)
   let phase: Phase = 'launching'
   let fault: string | undefined
-  const failed = (reason: string): FrameStep => {
+  const failed = (reason: string, frames: readonly GateFrame[] = []): FrameStep => {
     fault ??= reason
-    return { kind: 'fault', fault }
+    return { kind: 'fault', fault, frames }
   }
   return Object.freeze({
     push(bytes: Uint8Array): FrameStep {
@@ -246,24 +247,24 @@ export function createGateReader(input: { maxChunkBytes: number }): Readonly<{
       pending = Buffer.concat([pending, bytes])
       const frames: GateFrame[] = []
       for (let at = pending.indexOf(0x0a); at !== -1; at = pending.indexOf(0x0a)) {
-        if (at > maxLine) return failed('a frame line exceeds its bound')
+        if (at > maxLine) return failed('a frame line exceeds its bound', frames)
         const text = pending.subarray(0, at).toString('utf8')
         pending = pending.subarray(at + 1)
         let value: unknown
         try {
           value = JSON.parse(text)
         } catch {
-          return failed('a frame is not JSON')
+          return failed('a frame is not JSON', frames)
         }
         const frame = decodeFrame(value, input.maxChunkBytes)
-        if (typeof frame === 'string') return failed(frame)
+        if (typeof frame === 'string') return failed(frame, frames)
         const next = nextPhase(phase, frame)
         if (next !== 'launching' && next !== 'ready' && next !== 'running' && next !== 'ended')
-          return failed(next)
+          return failed(next, frames)
         phase = next
         frames.push(frame)
       }
-      if (pending.length > maxLine) return failed('a frame line exceeds its bound')
+      if (pending.length > maxLine) return failed('a frame line exceeds its bound', frames)
       return { kind: 'frames', frames }
     },
   })
@@ -1029,13 +1030,12 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     launcher.stdout?.on('data', (bytes: Buffer) => {
       if (ended) return
       const step = reader.push(bytes)
+      for (const frame of step.frames) applyFrame(entry, frame, onExit)
       if (step.kind === 'fault') {
         // A broken frame stream invalidates the resource: its outcome is unknown, and it is stopped.
         end()
         void forceStop(entry, tools)
-        return
       }
-      for (const frame of step.frames) applyFrame(entry, frame, onExit)
     })
     launcher.once('close', end)
     launcher.once('error', end)

@@ -333,12 +333,11 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
     gate.stdout?.on('data', (bytes: Buffer) => {
       if (entry.ended) return
       const step = frames.push(bytes)
+      for (const frame of step.frames) apply(frame)
       if (step.kind === 'fault') {
         end()
         void forceStop(entry)
-        return
       }
-      for (const frame of step.frames) apply(frame)
     })
     gate.once('exit', () => {
       entry.gateGone = true

@@ -12,7 +12,8 @@
 // it is killed. An optional `gate.json` in `FAKE_DIR` changes the script; absent keys keep the
 // behavior above:
 //   onRequest: 'ready' | 'silent' (never ready) | 'vanish' (exits before ready)
-//   onGo: 'started' | 'spawnFailed' | 'silent' (never started)
+//   onGo: 'started' | 'spawnFailed' | 'silent' (never started) | 'startedThenGarbage' (`started`
+//     and a line that is not JSON in one write, so the manager reads them in one chunk)
 //   afterStarted: 'exit' (the exit frame `exitAfterMs` later) | 'stay' | 'vanish' (exits 20 ms
 //     later, no exit frame) | 'garbage' (a line that is not JSON, 20 ms later)
 //   exitAfterMs: how long after `started` the exit frame comes (initial 20)
@@ -63,6 +64,7 @@ function gate() {
   const go = () => {
     if (plan.onGo === 'started') started()
     else if (plan.onGo === 'spawnFailed') send({ t: 'spawnFailed', code: 'ENOENT' })
+    else if (plan.onGo === 'startedThenGarbage') process.stdout.write('{"t":"started"}\ngarbage\n')
   }
   let first = true
   let pending = ''

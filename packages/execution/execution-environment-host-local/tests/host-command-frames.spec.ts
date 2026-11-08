@@ -96,6 +96,83 @@ it('faults on a line longer than the bound before its newline arrives', () => {
   expect(reader.push(encoder.encode('x'.repeat(4096))).kind).toBe('fault')
 })
 
+/** A seeded generator, so a failing split is reproduced by its seed. */
+function mulberry32(seed: number): () => number {
+  let state = seed >>> 0
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0
+    let t = state
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/** Every frame and the fault, from bytes fed in `parts`, until the first fault. */
+function outcomeOf(parts: readonly Uint8Array[]): {
+  frames: GateFrame[]
+  fault: string | undefined
+} {
+  const reader = createGateReader({ maxChunkBytes: 64 })
+  const frames: GateFrame[] = []
+  for (const part of parts) {
+    const step = reader.push(part)
+    frames.push(...step.frames)
+    if (step.kind === 'fault') return { frames, fault: step.fault }
+  }
+  return { frames, fault: undefined }
+}
+
+it('ends the same however the frames are split: frames before a refused line take effect, none after it', () => {
+  const good = [
+    line({ t: 'ready' }),
+    line({ t: 'started' }),
+    line(data('stdout', 'out\r\n')),
+    line(data('stderr', 'err')),
+    line({ t: 'exit', code: 0, signal: null }),
+  ]
+  const refused = [
+    encoder.encode('{"t":\n'),
+    line({ t: 'surprise' }),
+    line({ t: 'ready' }),
+    line(data('stdout', 'x'.repeat(65))),
+  ]
+  const random = mulberry32(1137)
+  for (let round = 0; round < 400; round += 1) {
+    const before = good.slice(0, 1 + Math.floor(random() * good.length))
+    const bad = refused[Math.floor(random() * refused.length)] as Uint8Array
+    const lines = [...before, bad, ...good.slice(0, 2)]
+    const reference = outcomeOf(lines)
+    const bytes = joined(...lines)
+    const parts: Uint8Array[] = []
+    for (let at = 0; at < bytes.length;) {
+      const size = 1 + Math.floor(random() * 96)
+      parts.push(bytes.slice(at, at + size))
+      at += size
+    }
+    expect(outcomeOf(parts), `round ${round}`).toEqual(reference)
+    expect(reference.fault, `round ${round}`).toBeDefined()
+  }
+})
+
+it('hands over the frames read before a refused line in the same read, and nothing after the fault', () => {
+  const reader = createGateReader({ maxChunkBytes: 64 })
+  const step = reader.push(
+    joined(
+      line({ t: 'ready' }),
+      line({ t: 'started' }),
+      line({ t: 'surprise' }),
+      line({ t: 'exit', code: 0, signal: null }),
+    ),
+  )
+  expect(step.kind).toBe('fault')
+  expect(step.frames).toEqual([{ kind: 'ready' }, { kind: 'started' }])
+  expect(reader.push(line({ t: 'exit', code: 0, signal: null }))).toMatchObject({
+    kind: 'fault',
+    frames: [],
+  })
+})
+
 it('faults on a data frame whose bytes exceed the chunk bound', () => {
   const reader = createGateReader({ maxChunkBytes: 4 })
   expect(
