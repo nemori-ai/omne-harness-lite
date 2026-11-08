@@ -656,6 +656,7 @@ function countingIndex(pending: number, maintained: string[], name: string): Ret
     list: async () => [],
     resources: () => [],
     stop: async () => 'confirmed',
+    stopRef: unused,
     closeScope: async () => [],
     watchClosure: () => undefined,
     recover: async () => undefined,

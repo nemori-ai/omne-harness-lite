@@ -489,6 +489,7 @@ export function resolveUnknownHandover(input: {
 
 type StartRequest = Parameters<CommandFacility<unknown>['start']>[0]
 type ListRequest = Parameters<CommandRetention<unknown>['list']>[0]
+type StopRetainedRequest = Parameters<NonNullable<CommandRetention<unknown>['stop']>>[0]
 
 /** The command side of one acquisition: its facility, its admission and its running processes. */
 export type HostCommands = Readonly<{
@@ -1179,13 +1180,28 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     return { kind: 'done', requestId: request.requestId, value: listed }
   }
 
+  /**
+   * Stops a retained process of the retention scope. Both modes run the forced stop sequence: the
+   * main process a graceful stop would signal has exited already.
+   */
+  const stopRetained = async (
+    request: StopRetainedRequest,
+  ): Promise<FacilityResult<{ readonly status: 'confirmed' | 'unconfirmed' }>> => {
+    if (sealed || retentionBinding === undefined) return rejected(request.requestId, 'closed')
+    const { index, scope, tenant: owner, processes: view } = retentionBinding
+    const answer = await index.stopRef(request.process, scope, owner, view)
+    if (answer === 'notFound' || answer === 'unavailable')
+      return rejected(request.requestId, answer)
+    return { kind: 'done', requestId: request.requestId, value: { status: answer } }
+  }
+
   const facility: CommandFacility<unknown> = {
     start(request) {
       const running = start(request)
       inFlight.add(running)
       return running.finally(() => inFlight.delete(running))
     },
-    ...(retentionBinding === undefined ? {} : { retention: { list } }),
+    ...(retentionBinding === undefined ? {} : { retention: { list, stop: stopRetained } }),
   }
 
   return Object.freeze({

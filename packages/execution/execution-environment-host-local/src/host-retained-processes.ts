@@ -112,6 +112,17 @@ export type RetainedProcessIndex = Readonly<{
   resources(scope: ScopeRef): readonly ManagedResource[]
   /** Stops the domain of `key`, records the stop on its ledger, removes its marker once confirmed. */
   stop(key: string): Promise<StopStatus>
+  /**
+   * Stops the retained process `ref` names when `scope` and `tenant` hold it, joining a stop in
+   * flight; `ledger` records it. When the index no longer holds it, `ledger.ended` decides: a
+   * confirmed end fact answers `confirmed`, none answers `notFound`, an unread one `unavailable`.
+   */
+  stopRef(
+    ref: RetainedProcessRef,
+    scope: ScopeRef,
+    tenant: TenantId,
+    ledger: RetainedProcessLedger,
+  ): Promise<StopStatus | 'notFound' | 'unavailable'>
   /** Stops every retained process of `scope`; `ledger` records those loaded without one. */
   closeScope(scope: ScopeRef, ledger?: RetainedProcessLedger): Promise<readonly ManagedResource[]>
   /**
@@ -572,6 +583,30 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       if (entry === undefined) return 'confirmed'
       if (entry.state === 'reserved') return 'unconfirmed'
       return stop(entry)
+    },
+    async stopRef(ref, scope, tenant, ledger) {
+      if (!(await ready())) return 'unavailable'
+      const owner = tenantText(tenant)
+      if (owner === undefined) return 'unavailable'
+      const entry = entries.get(ref.id)
+      if (
+        entry !== undefined &&
+        entry.state !== 'reserved' &&
+        entry.scope === scopeDigest(scope) &&
+        entry.tenant === owner &&
+        entry.generation === ref.generation
+      ) {
+        // A process loaded after a restart has no ledger; the caller's view of its scope records it.
+        entry.ledger ??= ledger
+        return stop(entry)
+      }
+      if (ledger.ended === undefined) return 'unavailable'
+      try {
+        const ended = await ledger.ended(ref.id)
+        return ended === 'confirmed' ? 'confirmed' : ended === 'none' ? 'notFound' : 'unavailable'
+      } catch {
+        return 'unavailable'
+      }
     },
     closeScope,
     watchClosure(signal, scope, ledger) {

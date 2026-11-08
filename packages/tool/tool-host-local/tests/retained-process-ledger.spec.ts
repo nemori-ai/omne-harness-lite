@@ -462,6 +462,33 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
     expect(await f.domain()).toEqual(before)
     expect(before.retainedFact).toMatchObject({ adopted: false, stop: 'active' })
   })
+
+  it('reads the end fact of a handed-over key from any view of the scope, only once its stop is confirmed', async () => {
+    const f = await fixture()
+    await f.reserved()
+    expect(await f.processes.ended(resource.key)).toBe('none')
+    expect(await f.processes.adopt(resource.key)).toBe('confirmed')
+    const view = await otherCallView(f)
+    expect(await f.processes.ended(resource.key)).toBe('none')
+    expect(await view.stopped(resource.key, 'unconfirmed')).toBe('recorded')
+    expect(await view.ended(resource.key)).toBe('none')
+    expect(await view.stopped(resource.key, 'confirmed')).toBe('recorded')
+    expect(await f.processes.ended(resource.key)).toBe('confirmed')
+    expect(await view.ended(resource.key)).toBe('confirmed')
+    expect(await view.ended('another-key')).toBe('none')
+  })
+
+  it('answers unavailable, not none, when the retention state cannot be read', async () => {
+    const f = await fixture()
+    await f.reserved()
+    expect(await f.processes.adopt(resource.key)).toBe('confirmed')
+    expect(await f.processes.stopped(resource.key, 'confirmed')).toBe('recorded')
+    const read = f.store.read.bind(f.store)
+    vi.spyOn(f.store, 'read').mockImplementation(async domain =>
+      domain.kind === 'host' ? { kind: 'unavailable', diagnostic: 'fixture' } : read(domain),
+    )
+    expect(await f.processes.ended(resource.key)).toBe('unavailable')
+  })
 })
 
 describe('the environment plan hands processes to acquire', () => {

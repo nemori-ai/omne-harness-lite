@@ -8,7 +8,7 @@ import { existsSync, readdirSync, readlinkSync } from 'node:fs'
 import { chmod, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   originRef,
@@ -578,6 +578,119 @@ it('recovers a retained process by its resource, and answers undefined for one i
   expect(await f.index.recover(resource)).toBe('confirmed')
   expect(ledger.stopped).toEqual([[key, 'confirmed']])
   expect(await f.index.stop(key)).toBe('confirmed')
+})
+
+/** A ledger whose `ended` reads the confirmed stops it recorded, as the retention scope's ledger does. */
+function endingLedger(ended?: (key: string) => Promise<'confirmed' | 'none' | 'unavailable'>) {
+  const stub = ledgerStub()
+  const ledger: RetainedProcessLedger = {
+    ...stub.ledger,
+    ended:
+      ended ??
+      (async key =>
+        stub.stopped.some(([k, status]) => k === key && status === 'confirmed')
+          ? 'confirmed'
+          : 'none'),
+  }
+  return { ledger, stopped: stub.stopped }
+}
+
+describe('stopping a retained process by its reference', () => {
+  it('stops it only for its scope, tenant and generation, joins a repeated stop, then answers from the end fact', async () => {
+    const f = await indexWith(await stateDirectory())
+    const scope = scopeOf('scope-a')
+    const ledger = endingLedger()
+    const { key, handed } = await handOver(f, scope, tenant, ledger)
+    const ref = handed.process
+    expect(await f.index.stopRef(ref, scopeOf('scope-b'), tenant, ledger.ledger)).toBe('notFound')
+    expect(await f.index.stopRef(ref, scope, otherTenant, ledger.ledger)).toBe('notFound')
+    expect(
+      await f.index.stopRef({ ...ref, generation: 'another' }, scope, tenant, ledger.ledger),
+    ).toBe('notFound')
+    expect(f.stub.stops).toEqual([])
+    const both = await Promise.all([
+      f.index.stopRef(ref, scope, tenant, ledger.ledger),
+      f.index.stopRef(ref, scope, tenant, ledger.ledger),
+    ])
+    expect(both).toEqual(['confirmed', 'confirmed'])
+    expect(f.stub.stops).toEqual([{ unit: unitOf(key), bootId }])
+    expect(ledger.stopped).toEqual([[key, 'confirmed']])
+    expect(await f.index.list(scope, tenant)).toEqual([])
+    expect(await f.index.stopRef(ref, scope, tenant, ledger.ledger)).toBe('confirmed')
+    expect(f.stub.stops).toHaveLength(1)
+  })
+
+  it('answers unconfirmed and keeps the process when the supervisor does not confirm', async () => {
+    const f = await indexWith(await stateDirectory())
+    const scope = scopeOf('scope-a')
+    const ledger = endingLedger()
+    const { key, handed } = await handOver(f, scope, tenant, ledger)
+    f.stub.answerStops({ status: 'unconfirmed' })
+    expect(await f.index.stopRef(handed.process, scope, tenant, ledger.ledger)).toBe('unconfirmed')
+    expect(ledger.stopped).toEqual([[key, 'unconfirmed']])
+    expect(await f.index.list(scope, tenant)).toMatchObject([{ state: 'stopping' }])
+  })
+
+  it('answers unavailable when the end fact cannot be read: no ended, a throw, or unavailable', async () => {
+    const f = await indexWith(await stateDirectory())
+    const scope = scopeOf('scope-a')
+    const ref = { id: 'never-handed-over', generation: 'g' }
+    const plain = ledgerStub()
+    expect(await f.index.stopRef(ref, scope, tenant, plain.ledger)).toBe('unavailable')
+    const throwing = endingLedger(async () => {
+      throw new Error('state unreadable')
+    })
+    expect(await f.index.stopRef(ref, scope, tenant, throwing.ledger)).toBe('unavailable')
+    const unreadable = endingLedger(async () => 'unavailable')
+    expect(await f.index.stopRef(ref, scope, tenant, unreadable.ledger)).toBe('unavailable')
+    expect(await f.index.stopRef(ref, scope, tenant, endingLedger().ledger)).toBe('notFound')
+  })
+
+  it('does not stop a reservation that is not handed over yet', async () => {
+    const f = await indexWith(await stateDirectory())
+    const scope = scopeOf('scope-a')
+    const reservation = f.index.reserve(scope, tenant, 'reserved-key')
+    if (typeof reservation === 'string') throw new Error('expected a reservation')
+    const ref = { id: 'reserved-key', generation: '' }
+    expect(await f.index.stopRef(ref, scope, tenant, endingLedger().ledger)).toBe('notFound')
+    expect(f.stub.stops).toEqual([])
+  })
+
+  it('records the stop of a process loaded after a restart on the ledger the caller gives', async () => {
+    const state = await stateDirectory()
+    const stub = supervisor()
+    const first = await indexWith(state, stub)
+    const scope = scopeOf('scope-a')
+    const { key, handed } = await handOver(first, scope)
+    first.index.retire('generation-1')
+    const second = await indexWith(state, stub)
+    const ledger = endingLedger()
+    expect(await second.index.stopRef(handed.process, scope, tenant, ledger.ledger)).toBe(
+      'confirmed',
+    )
+    expect(ledger.stopped).toEqual([[key, 'confirmed']])
+    second.index.retire('generation-1')
+  })
+
+  it('answers unavailable, and asks no ledger, when the markers cannot be read', async () => {
+    const state = await stateDirectory()
+    await writeFile(join(state, 'retained-processes'), 'not a directory')
+    const index = createRetainedProcessIndex({
+      stateDirectory: state,
+      provider: 'host-files',
+      capacityPerScope: 8,
+      pollMs: 60_000,
+      supervision: async () => supervisor().supervision,
+    })
+    const asked: string[] = []
+    const ledger = endingLedger(async key => {
+      asked.push(key)
+      return 'confirmed'
+    })
+    const ref = { id: 'k', generation: 'g' }
+    expect(await index.stopRef(ref, scopeOf('scope-a'), tenant, ledger.ledger)).toBe('unavailable')
+    expect(asked).toEqual([])
+  })
 })
 
 // ---------------------------------------------------------------------------------------------

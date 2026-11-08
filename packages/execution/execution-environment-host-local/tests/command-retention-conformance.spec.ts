@@ -106,15 +106,28 @@ const terminalLedger: RetainedTerminalLedger = {
   stopped: async () => 'recorded',
 }
 
-/** The retention scope: the scope owner's close signals, and the process ledger view over them. */
-function retentionScope() {
+/**
+ * The retention scope: the scope owner's close signals, and the process ledger view over them.
+ * Its `ended` reads the confirmed stops the view recorded, unless `ended` is false.
+ */
+function retentionScope(ended = true) {
   const released = new AbortController()
   const closed = new AbortController()
+  const endFacts = new Set<string>()
   const processes: RetainedProcessLedger = {
     closed: closed.signal,
     plan: async () => 'recorded',
     adopt: async () => 'confirmed',
-    stopped: async () => 'recorded',
+    stopped: async (key, status) => {
+      if (status === 'confirmed') endFacts.add(key)
+      return 'recorded'
+    },
+    ...(ended
+      ? {
+          ended: async (key: string): Promise<'confirmed' | 'none'> =>
+            endFacts.has(key) ? 'confirmed' : 'none',
+        }
+      : {}),
   }
   return {
     released,
@@ -141,7 +154,7 @@ async function hostSubject(): Promise<CommandRetentionSubject> {
     stateDirectory: state,
     command: { retainedPollMs: 200 },
   })
-  const scopes = [retentionScope(), retentionScope(), retentionScope()]
+  const scopes = [retentionScope(), retentionScope(), retentionScope(), retentionScope(false)]
 
   async function acquire(
     scope: ReturnType<typeof retentionScope>,
@@ -211,14 +224,15 @@ async function hostSubject(): Promise<CommandRetentionSubject> {
     env: { PATH: '/usr/bin:/bin' },
     outputMode: 'separate' as const,
   })
-  const [first, second, third] = scopes
-  if (first === undefined || second === undefined || third === undefined)
+  const [first, second, third, fourth] = scopes
+  if (first === undefined || second === undefined || third === undefined || fourth === undefined)
     throw new Error('unreachable')
 
   return {
     acquisition: await acquire(first, true),
     elsewhere: await acquire(second, true),
     unbound: await acquire(third, false),
+    withoutEnded: await acquire(fourth, true),
     commands: {
       clean: () => body('echo done'),
       leftover: () => body('sleep 300 & echo started'),
@@ -249,12 +263,14 @@ describe(
   { skip: !enabled },
   () => {
     for (const test of commandRetentionConformance({ subject: hostSubject, waitMs: 60_000 })) {
-      // The host provides neither retention.stop nor retention.output yet.
-      const pending = test.name.startsWith('V-EE30.') || test.name.startsWith('V-EE31.')
+      // A bare provider has no facility guard: the registry's gate asks it, and its tests cover
+      // the refusal. The host provides no retention.output yet.
+      const notApplicable =
+        test.name === 'V-EE30.guard-refuses-stop' || test.name.startsWith('V-EE31.')
       it(test.name, async () => {
         expect(await runConformanceCase(test)).toMatchObject({
           name: test.name,
-          status: pending ? 'not-applicable' : 'pass',
+          status: notApplicable ? 'not-applicable' : 'pass',
         })
       })
     }

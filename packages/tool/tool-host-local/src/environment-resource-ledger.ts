@@ -157,6 +157,8 @@ export type RetainedTerminalLedgerView = Pick<
   'closed' | 'plan' | 'permit' | 'adopt' | 'stopped'
 > &
   Readonly<{
+    /** Whether the scope holds a confirmed end fact for a handed-over key; any view reads it. */
+    ended(key: string): Promise<'confirmed' | 'none' | 'unavailable'>
     close(): Promise<'confirmed' | 'unavailable'>
     inspect(): Promise<readonly RetainedResourceFact[] | null>
   }>
@@ -323,6 +325,14 @@ export async function createRetainedTerminalLedger(
         })
       })
       return 'ok' in result ? 'recorded' : 'unavailable'
+    },
+    async ended(key) {
+      const result = await input.state.readRetention(input.address, input.scope)
+      if ('failure' in result) return 'unavailable'
+      const ended = result.ok?.resources.some(
+        item => item.adopted && item.resource.key === key && item.stop === 'confirmed',
+      )
+      return ended ? 'confirmed' : 'none'
     },
     async close() {
       if (!(await binding())) return 'unavailable'
