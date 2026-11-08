@@ -27,6 +27,7 @@ import {
 
 let injectCloseFailure = false
 let injectBridgeReplyFailure = false
+const openHandles = new Set<() => Promise<void>>()
 vi.mock('node:fs/promises', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
   return {
@@ -34,11 +35,16 @@ vi.mock('node:fs/promises', async importOriginal => {
     open: async (...args: Parameters<typeof actual.open>) => {
       const handle = await actual.open(...args)
       const originalClose = handle.close.bind(handle)
+      const release = async () => {
+        await originalClose()
+        openHandles.delete(release)
+      }
+      openHandles.add(release)
       handle.close = async () => {
         if (injectCloseFailure) {
           throw new Error('injected close failure')
         }
-        return originalClose()
+        return release()
       }
       return handle
     },
@@ -67,6 +73,8 @@ vi.mock('node:child_process', async importOriginal => {
 const roots: string[] = []
 
 afterEach(async () => {
+  // A deliberately failed close still owns a real descriptor after the assertion.
+  await Promise.all([...openHandles].map(close => close()))
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
 })
 
