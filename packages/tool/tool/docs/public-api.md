@@ -34,7 +34,7 @@
 
 `ToolAccessGuard.qualify` 的 `read-raw-content` 表示原件字节操作，须在一个可信权限事实判定点检查两项基础权限与主体/租户/call 范围。它不是可单独授予的新许可位。guard 无一致视图时答 unavailable。raw 元数据继续使用 read-raw；普通附件继续使用 read-content。精确失败与返回时序由 [SPEC 第 27 条](../SPEC.md#27-固定结果与内容读取)拥有。
 
-- [tools.ts](../src/tools.ts) 从根入口导出 createTools、Tools、ToolsAccess、ToolsOptions 和窄读依赖 ToolsReadRuntime。`implementation` 是 Tools 元工具的实现侧 `ToolImplementation`（[RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md)），交绑定提供者登记；`definition` 是以元工具的官方治理（常驻、不可编程、无必需能力，版本为 `toolsAdoption`）经 `deriveDefinition` 派生的 `ToolDefinition`。present 交首屏模型结果，readReply 是收齐新元调用回应的受信方法。签名由源码拥有，完整行为与预算见 [SPEC 第 28 条](../SPEC.md#28-tools-固定结果适配器)。
+- [tools.ts](../src/tools.ts) 从根入口导出 createToolResultReader、ToolResultReader、ToolsAccess、ToolsOptions 与 ToolsReadRuntime。present 返回固定结果首屏，read 按固定 result/attachment 引用读取，readReply 收齐有界新回应；工厂不注册作者。createToolMessageResultCodec 导出同一结构化结果的有界 codec。签名归源码，行为与预算见 [SPEC 第 28 条](../SPEC.md#28-tools-固定结果适配器)。
 
 Tools 的基本调用顺序和 JSON 参数示例见 [README](../README.md#model-result-retrieval)。宿主须对齐 runtime 入站参数限制与 ToolsOptions.arguments，固定当前身份和每次新调用的消费位置，再于 readReply 完整成功后调用 P14。结果身份为调用引用与结果版本的组合。模型无需获得这些宿主能力，投影与实际 help 足以完成接续。
 
@@ -64,3 +64,9 @@ The cases have stable `name` and `clause` fields. Direct consumption and the evi
 [driver.ts](../src/driver.ts) 消费 [P03](../../tool-contract/SPEC.md#p03-环境准备和释放) 的 allocated 事实。它先比对完整原准备与证据形状，再用同一适配器和原输入追加最多一次 prepare。allocated、pending、unknown 或不可用均保留准备任务，后续运行查询原事实。只有 prepared 写准备完成并进入执行队列。`environmentOf` 只重连 prepared，不通过 allocated 领取租约。原获取与无 E 时的结清仍归适配器，分配证据不能替代独立输出保管依据。
 
 验证使用公开 runtime/ledger 和有独立记录的非耐久环境替身，见 [driver-allocation.spec.ts](../tests/driver-allocation.spec.ts)。没有真实 EE 适配器或跨进程恢复证据，U16 丢失全部原事实的缺口保持。
+
+## 受信转发工厂
+
+[createToolForwardRuntime](../src/runtime-forwarding.ts) 接收窄准入依赖与 provider `ToolForwardSource`，返回独立 `ToolForwardRuntime`。普通 invoke 与该工厂共用 [runtime-admission.ts](../src/runtime-admission.ts)。来源、容量预约与结果接收责任见 [单目标转发准入](../SPEC.md#单目标转发准入)。
+
+`SourceVerdict.denied` 在 [ledger-guards.ts](../src/ledger-guards.ts) 区分真实来源的当前策略拒绝与 forged。准入拒绝和 fact acknowledgement 拒绝均保留原责任，见同节行为约定。

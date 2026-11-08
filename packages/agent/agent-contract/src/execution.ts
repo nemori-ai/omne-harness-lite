@@ -86,6 +86,7 @@ export type ExecutionSnapshot = Readonly<{
 }>
 export type AgentState =
   | Readonly<{ kind: 'idle'; instance: AgentInstanceId }>
+  | Readonly<{ kind: 'reserved'; instance: AgentInstanceId }>
   | Readonly<{
       kind: 'occupied'
       instance: AgentInstanceId

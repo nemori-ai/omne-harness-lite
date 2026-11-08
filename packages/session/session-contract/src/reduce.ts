@@ -1,3 +1,4 @@
+import { applyTodo } from './reduce-todos.ts'
 import { projectWorkEntries, requiredWorkEntries, unsettled } from './work-entry-state.ts'
 import type { SessionHistoryReads } from './history-values.ts'
 import { validateReplayHistory, validateInterpretationEntry } from './frontier-state.ts'
@@ -75,6 +76,10 @@ function apply(
   revision: WorkSnapshot['revision'],
 ): string | null {
   switch (entry.kind) {
+    case 'session.todo-added':
+    case 'session.todo-completed':
+    case 'session.todo-removed':
+      return applyTodo(draft, entry, revision)
     case 'session.created':
       return 'session.created after the first entry'
     case 'session.initialization-item': {

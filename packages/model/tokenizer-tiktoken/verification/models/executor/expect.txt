@@ -1,0 +1,5 @@
+positive.cfg pass
+bad-cancel-return.cfg PhysicalCapacity
+bad-late-success.cfg NoLateSuccess
+bad-stale-generation.cfg GenerationFence
+zero-queue.cfg pass

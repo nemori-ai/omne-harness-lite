@@ -16,6 +16,9 @@ import type { Harness } from './harness.ts'
 
 /** A caller class that each mutation admits (contract「四个面与公开操作」). */
 const CALLER: Readonly<Record<SessionCommand['kind'], SessionCallerClass>> = {
+  addTodo: 'coordinator',
+  removeTodo: 'coordinator',
+  markTodoComplete: 'coordinator',
   accept: 'intake',
   startRun: 'coordinator',
   claim: 'coordinator',

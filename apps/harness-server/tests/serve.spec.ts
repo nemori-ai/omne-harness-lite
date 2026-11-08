@@ -30,6 +30,35 @@ const release = JSON.parse(
   readFileSync(join(memberDir, 'config', 'serve.distribution.json'), 'utf8'),
 ) as { rows: Row[] }
 
+/**
+ * The test operator layer plus the `telemetry` replace: the release row carries no budgets (A12)
+ * and a `replace` swaps the whole row, so it restates the implementation and the outlet.
+ */
+function withTelemetry(layer: unknown): unknown {
+  const { ops } = layer as { ops: unknown[] }
+  return {
+    ops: [
+      ...ops,
+      {
+        kind: 'replace',
+        id: 'telemetry',
+        config: {
+          implementation: 'node',
+          outlet: { kind: 'stdout' },
+          budgets: {
+            maxRecordBytes: 65_536,
+            maxQueueItems: 1024,
+            maxQueueBytes: 1_048_576,
+            maxOpenSegments: 16,
+            maxLogTextLength: 4096,
+            summaryIntervalMs: 1000,
+          },
+        },
+      },
+    ],
+  }
+}
+
 const tree = (rows: readonly Row[]) => ({
   rows: rows.map(row => ({ id: row.id, plugin: row.plugin, config: row.config ?? {} })),
 })
@@ -52,7 +81,9 @@ beforeEach(() => {
 async function releaseOperator(): Promise<unknown> {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
   scratches.push(base)
-  return operatorLayer({ storageRoot: join(base, 'storage'), port: await freePort() })
+  return withTelemetry(
+    operatorLayer({ storageRoot: join(base, 'storage'), port: await freePort() }),
+  )
 }
 const scratches: string[] = []
 afterEach(() => {
@@ -60,14 +91,14 @@ afterEach(() => {
 })
 
 describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
-  it('the release tree of 46 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
+  it('the release tree of 48 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
     // The operator layer gives what the distribution file does not hold: absolute paths and the port.
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
       const port = await freePort()
       const run = await serveOnce({
         distribution: release,
-        operator: operatorLayer({ storageRoot: join(base, 'storage'), port }),
+        operator: withTelemetry(operatorLayer({ storageRoot: join(base, 'storage'), port })),
         readinessTimeoutMs: 15_000,
         shutdownDeadlineMs: 5000,
       })
@@ -79,6 +110,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
           .filter(([, kind]) => kind !== 's0-double')
           .map(([id, kind]) => `${String(id)}:${String(kind)}`),
       ).toEqual([
+        'telemetry:real',
         'storage:real',
         'identity:real',
         'authorization:real',
@@ -104,6 +136,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         'model-host:real',
         'model-instances:real',
         'model-converters:real',
+        'model-tokenizers:real',
         'model-profiles:real',
         'model-request-preparation:real',
         'model-credential:real',
@@ -132,9 +165,9 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         scope: 'serving',
         accepting: true,
         outcome: 'ready',
-        enabledRows: 48,
+        enabledRows: 50,
         barrierCalls: 1,
-        implementations: { real: 46, 'contract-double': 0, 's0-double': 2 },
+        implementations: { real: 48, 'contract-double': 0, 's0-double': 2 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])
@@ -143,9 +176,12 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
     }
   })
 
-  it('the release gives agent-journal the combination that the session-storage row registers', () => {
-    const row = release.rows.find(r => r.id === 'agent-journal')
-    expect(row).toMatchObject({ plugin: 'agentJournalRow', config: agentJournalCombination() })
+  it.each([
+    ['agent-journal', 'agentJournalRow'],
+    ['session-handoff', 'sessionHandoffRow'],
+  ])('the release gives %s the combination that session-storage registers', (id, plugin) => {
+    const row = release.rows.find(r => r.id === id)
+    expect(row).toMatchObject({ plugin, config: agentJournalCombination() })
   })
 
   it('R1-1: only s0.assemblyLifecycle carries the s0. prefix', async () => {

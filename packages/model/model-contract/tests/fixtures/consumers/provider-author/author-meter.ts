@@ -38,7 +38,7 @@ export function inputBound(context: MeterInput['context']): bigint {
 export function createWordMeter(basis: ModelCountingBasis): ModelInputMeter {
   return {
     basis,
-    measure(input) {
+    async measure(input) {
       const words = wordsIn(input.representation.tokenInput)
       const bound = inputBound(input.context)
       // In the counting basis of this meter a token is a word, so the count is exact. A count
@@ -89,8 +89,8 @@ export function createTokenizerOnlyMeter(
 ): ModelInputMeter {
   return {
     basis,
-    measure(input) {
-      const counted = tokenizer.count([
+    async measure(input) {
+      const counted = await tokenizer.count([
         { kind: 'text', text: textOf(input.representation.tokenInput) },
       ])
       if ('failure' in counted)

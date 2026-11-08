@@ -20,6 +20,7 @@ import type { OperationContext } from './operation-context.js'
 import { buildModelInput } from './model-input.js'
 import { lineageFor } from './model-input.js'
 import { measureCandidate } from './measurement.js'
+import type { CandidateMeasure } from './measurement-session.js'
 import { decimalParts, measuredAmount } from './internal.js'
 
 /** The projected messages of the window: the model view rows whose entry is in the window. */
@@ -75,6 +76,7 @@ export async function measureCompactionCandidate<P>(
   projected: readonly ProjectedMessage[],
   messages: readonly Message[],
   frame: RequestFrame | null = null,
+  measure?: CandidateMeasure,
 ): Promise<M.RequestBudget | AssemblyFailure | AssemblyUnknown> {
   const assembled = buildModelInput(candidate.selection, {
     system: frame?.system ?? [],
@@ -85,6 +87,7 @@ export async function measureCompactionCandidate<P>(
   })
   const lineage = lineageFor(context.access, projected, messages, null)
   if ('kind' in lineage) return lineage
+  if (measure !== undefined) return measure(candidate.selection, lineage, assembled)
   return measureCandidate(
     { access: context.access, preparation: context.sources.preparation },
     candidate.selection,
@@ -98,6 +101,7 @@ export function retentionMeasure<P>(
   context: OperationContext<P>,
   candidate: CompactionCandidate,
   projected: ProjectedHistory,
+  measure: CandidateMeasure,
 ): (entries: readonly RecordEntryRef[]) => Promise<RetentionMeasurement> {
   return async entries => {
     const items = projectedOf(projected, entries)
@@ -106,6 +110,8 @@ export function retentionMeasure<P>(
       candidate,
       items,
       items.map(item => item.message),
+      null,
+      measure,
     )
     if (budget.kind !== 'complete' && budget.kind !== 'deferred-media') {
       if (budget.kind === 'unknown') return { kind: 'unknown', diagnostic: budget.diagnostic }

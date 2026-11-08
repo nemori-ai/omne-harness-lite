@@ -23,7 +23,7 @@
 | `session-handoff` | `createSessionMessageHandoffPlugin({ coordinator, principalIdentity, provider })` | 协调者主体来源；主体身份文本；提供者采用身份 | `combinationVersion`、`manifestDigest`（与 `agent-journal` 行相同） |
 | `session-conditions`（SC1，R2-D145） | `createSessionConditionsPlugin({ defaultModes })` | 租户默认模式解析器 `defaultModesOf(definitionMappings)`：映射条目的模式采用须与创建所记来源逐字相等 | 无 |
 | `session-ad14`（SC4，R2-D162） | `createSessionAgentDrivePlugin({ coordinator })` | 协调者主体来源：每次调用现取受信的 `sessionWorkPrincipals`，缺席时答 `unavailable`，不调用 Agent 入口 | 无 |
-| `agent-host`（SC4，R2-D162） | `createAgentHostRow({ toolRequestsOf?, measure? })` 内的 `createAgentHostLocalPlugin`；发行导出 `agentHostRow` 不带构造输入 | `toolRequestsOf` 的生产组合归 Tool B 段；`measure` 接 E9 归 C1 | `jointCommits`（必须含 `message`，行 schema 装载时核对，R2-D93）与 `coordination` 由发行层写出；工厂数值、`loopGuardPolicy` 与 `instanceIdleMs` 由运维者层给，运维者层整行替换时重抄发行层的两项 |
+| `agent-host`（SC4，R2-D162） | `createAgentHostRow({ toolRequestsOf?, measure? })` 内的 `createAgentHostLocalPlugin`；发行导出 `agentHostRow` 交入 `toolRequestsOf`，不交入 `measure` | `toolRequestsOf` 的生产组合归 Tool B 段；`measure` 缺省是行自己在注入的 `telemetry` 上构造的 Agent 遥测 facade（RFC-0013 revision 2 本地范围），构造输入 `measure` 是测试用的替代观察者 | `jointCommits`（必须含 `message`，行 schema 装载时核对，R2-D93）与 `coordination` 由发行层写出；工厂数值、`loopGuardPolicy` 与 `instanceIdleMs` 由运维者层给，运维者层整行替换时重抄发行层的两项 |
 | `agent-instances`（SC4，R2-D162） | agent-cordis-contract 的 `agentInstancesPlugin` | 无 | 无 |
 
 协调者主体来源是 `src/rows/session-adapters/coordinator.ts`：行 inject 受信的 `sessionWorkPrincipals`，以 `forSession({ actor: 'coordinator', tenant, session })` 作答。它是运行时对象，不进配置。

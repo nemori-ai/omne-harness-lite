@@ -9,11 +9,13 @@
 | 导出名           | `sessionProviderRow`（`src/rows/session-provider/index.ts`，发行配置的 `plugin`）                  | 只经工厂取得，不在 `./cordis` 里                     |
 | 实现种类         | `real`：`@omne-harness/session-cordis` 的 `SessionProvider`                                        | `contract-double`                                    |
 | 提供             | `session`                                                                                          | `session`                                            |
-| 必需（`inject`） | `sessionAccessCheck`、`sessionDelegatedTransactions`、`sessionPrincipals`、`sessionWorkPrincipals` | 同左                                                 |
+| 必需（`inject`） | `sessionAccessCheck`、`sessionDelegatedTransactions`、`sessionPrincipals`、`sessionWorkPrincipals`、`telemetry` | 同左，不含 `telemetry`                               |
 | 阶段             | `business`，行体承载：行体在隔离的 `s0.assemblyLifecycle` 下装插件，取插件登记的句柄作为行句柄     | 无                                                   |
 | 配置             | `SessionProvider.Config`；发行给 `admission: 'none'`                                               | 无                                                   |
 
-真件的清单与 `src/s0/stubs.ts` 的同一行相同，含阶段；替身的清单除阶段外相同。`tests/rows/session-provider/manifest.spec.ts` 与 `real.spec.ts` 比较两者。
+真件的清单与 `src/s0/stubs.ts` 的同一行相同，含阶段；替身的清单除阶段与 `telemetry` 外相同。`tests/rows/session-provider/manifest.spec.ts` 与 `real.spec.ts` 比较两者。
+
+真件注入 `telemetry`（D04 必需），在行体里构造 Session 遥测 facade，把 `measure` 与 `diagnose` 经 `createSessionProviderPlugin` 交给插件：面操作成为段 `omne.session.<操作>`，Session 实例自己的提交写下 `run.terminal` 时是事件 `omne.session.round-complete`（由 `session-ad02` 解读 Agent 事实写下的终态不发，见 Session SPEC「测量事件」），协调器的具名诊断成为事件 `omne.session.diagnostic`（不带 detail 正文），都按所属工作的租户作用域。目录读取 `pending` 按输入的租户作用域，`references` 与 `releasedScopes` 按 `system` 作用域。没有租户、也不是系统作用域的记录经 `telemetry.discard` 计入提供者的 `invalid`。记录形状与 facade 配对表的上界见 [telemetry 行](telemetry.md#发射行怎样接入)。替身不发任何记录，所以不注入 `telemetry`。
 
 真件按调用现取 `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionIdleInput`、`sessionAgentDrive`、`sessionScopeRelease`、`sessionClock`、`sessionNotifier` 与 `sessionTransactions`（session-cordis 的端口接线）。某个端口缺席或是 S0 替身时，需要它的操作答 `unavailable`，`owner` 是该端口的服务键。发行树里 `create` 经过的端口都是真件：`session-ad09`、`session-ad10`（采用来源是 `adoption-sources` 行，它对 `create` 出具 Session 的初始化守卫，内容来自部署映射条目）、`session-ad12`（接在真件 `runtime-context` 与入口对象 `runtimeContextTrust` 上）。新租户经发行树的首个 `create` 成功，见 `tests/r9/` 与 `create-release.spec.ts`；`create.spec.ts` 的替身用例保留 S0 替身换回 `session-ad12` 时点名 `sessionContextInput` 的答法。
 
@@ -93,8 +95,9 @@ const row = createSessionProviderRow({ observe: arrival => arrivals.push(arrival
 
 | 文件                     | 覆盖                                                                                                                                         |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `manifest.spec.ts`       | `./cordis` 的导出是真件；替身的清单与 `stubs.ts` 的同一行相同，无关闭阶段                                                                    |
-| `real.spec.ts`           | 真件在真实存储行上 ACTIVE、经真实面作答、登记一个 `business` 句柄且先于存储行停止、缺 `sessionWorkPrincipals` 时 PENDING                     |
+| `manifest.spec.ts`       | `./cordis` 的导出是真件；替身的清单与 `stubs.ts` 的同一行除 `telemetry` 外相同，无关闭阶段                                                   |
+| `real.spec.ts`           | 真件在真实存储行上 ACTIVE、经真实面作答、登记一个 `business` 句柄且先于存储行停止、缺 `sessionWorkPrincipals` 时 PENDING。树里带禁用实现的 `telemetry` 行 |
+| `../telemetry/measure.spec.ts` | 真件在发行树里的测量段与诊断事件、缺 `telemetry` 时 PENDING，见 [telemetry 行](telemetry.md#测试)                                       |
 | `create.spec.ts`         | 真件加真实 `session-ad12` 在契约替身（内存事务、身份桥、证据桥、`runtimeContext`）上 `create` 成功；换回 S0 替身则点名 `sessionContextInput` |
 | `create-storage.spec.ts` | 真件在真实存储行上：新租户第一次 `create` 得到回执并登记进目录；同一存储上重开的树读回会话                                                   |
 | `create-release.spec.ts` | 发行路径的真实行（真实存储、发行映射的 `agent-adoptions`、`adoption-sources`、`session-ad10`、`runtime-context`、`session-ad12`、真件）加真实入口对象：按 `server-entry` 的方式构造的首个 `create` 成功，重开的树读回会话；映射没有的定义或别的候选答 `invalid`，不创建 |

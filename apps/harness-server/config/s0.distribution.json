@@ -1,6 +1,11 @@
 {
   "rows": [
     {
+      "id": "telemetry",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "storage",
       "plugin": "stubPlugin",
       "config": {}
@@ -132,6 +137,11 @@
     },
     {
       "id": "model-converters",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "model-tokenizers",
       "plugin": "stubPlugin",
       "config": {}
     },

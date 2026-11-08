@@ -37,6 +37,7 @@ import { sessionSlotReference } from './slot-reference.ts'
 export type Advance = Readonly<{
   /** Wakes S1 for one session. A trigger in flight absorbs later ones into one more check. */
   trigger(ref: SessionRef): void
+  interrupt(ref: SessionRef): boolean
 }>
 
 type Faces<P> = Readonly<Record<Actor, SessionFaces<P>>>
@@ -73,6 +74,7 @@ export function createAdvance<P>(
 ): Advance {
   const { dependencies, lifecycle, policy, scheduling, resolution, faces } = input
   const coordinator = faces.coordinator.work
+  const waiting = new Map<string, AbortController>()
 
   /** Records a stopped step. Nothing is reported once the instance closes: closing is no failure. */
   const report = (
@@ -173,27 +175,49 @@ export function createAdvance<P>(
       coordinator.readWork({ principal, ...ref }),
     )
     if ('failure' in snapshot) return reportFailure(ref, 'finishRun', run, snapshot)
+    if (
+      judgeAdvance(snapshot.ok, {
+        kind: 'attempt',
+        advance: started.advance,
+        expected: expectedRevision(snapshot.ok, 'release'),
+      }).kind !== 'ok'
+    )
+      return report(
+        ref,
+        'C2',
+        'finishRun',
+        run,
+        'advance-withdrawn',
+        'the original attempt no longer holds the advance',
+      )
     const bounded = { kind: 'admission-rejected' as const, input: started.first, rejection }
     const operation = deriveSessionOperation({ kind: 'bounded-close', run, basis: bounded })
-    const answer = await as('coordinator', ref, principal =>
-      coordinator.finishRun({
-        principal,
-        ...ref,
-        operation,
-        run,
-        expected: expectedRevision(snapshot.ok, 'finishRun'),
-        bounded,
-      }),
-    )
-    if ('failure' in answer && answer.failure.kind === 'changed') {
-      if (changes < policy.command.retriesOnChanged)
-        return closeRefused(ref, started, rejection, changes + 1)
-      return report(ref, 'C2', 'finishRun', run, 'retries-exhausted', answer.failure)
+    const request = {
+      ...ref,
+      operation,
+      run,
+      expected: expectedRevision(snapshot.ok, 'finishRun'),
+      bounded,
     }
-    // `terminal`: another terminal came first (PA-08); the Run has its end, nothing waits.
-    if (!('failure' in answer && answer.failure.kind === 'terminal'))
-      reportFailure(ref, 'finishRun', run, answer)
-    unknownTo(ref, answer, () => closeRefused(ref, started, rejection))
+    const send = async (): Promise<void> => {
+      if (lifecycle.closed) return
+      const answer = await as('coordinator', ref, principal =>
+        coordinator.finishRun({ principal, ...request }),
+      )
+      if ('failure' in answer && answer.failure.kind === 'changed') {
+        if (changes >= policy.command.retriesOnChanged)
+          return report(ref, 'C2', 'finishRun', run, 'retries-exhausted', answer.failure)
+        const delays = policy.advance.retryDelaysMs
+        const delay = delays[changes] ?? delays.reduce((_, last) => last)
+        if (await retryWait(ref, started, delay, 'finishRun'))
+          return closeRefused(ref, started, rejection, changes + 1)
+        return
+      }
+      if (!('failure' in answer && answer.failure.kind === 'terminal'))
+        reportFailure(ref, 'finishRun', run, answer)
+      unknownTo(ref, answer, send)
+    }
+    return send()
   }
 
   const invokeOnce = async (
@@ -245,6 +269,48 @@ export function createAdvance<P>(
   const retriable = (failure: DriveFailure): boolean =>
     failure.kind === 'busy' || failure.kind === 'unavailable' || failure.kind === 'commit-unknown'
 
+  const retryWait = async (
+    ref: SessionRef,
+    started: StartedRun,
+    delay: number,
+    step: 'invoke' | 'finishRun',
+  ): Promise<boolean> => {
+    const key = sessionKey(ref)
+    const stop = new AbortController()
+    waiting.set(key, stop)
+    try {
+      const holding = await stillAdvancing(ref, started)
+      if (typeof holding !== 'boolean') {
+        reportFailure(ref, step, started.advance.run, holding)
+        return false
+      }
+      if (!holding) {
+        report(
+          ref,
+          'C2',
+          step,
+          started.advance.run,
+          'advance-withdrawn',
+          'the original attempt no longer holds the advance',
+        )
+        return false
+      }
+      const result = await scheduling.wait(delay, stop.signal)
+      if (result === 'elapsed') return true
+      report(
+        ref,
+        'C2',
+        step,
+        started.advance.run,
+        result === 'cancelled' ? 'wait-cancelled' : 'clock-refused',
+        'the backoff wait did not elapse',
+      )
+      return false
+    } finally {
+      if (waiting.get(key) === stop) waiting.delete(key)
+    }
+  }
+
   /**
    * The outbound invoke with the identity derived from the committed start (OP-00). `busy`,
    * `unavailable` and an unknown outcome back off by `advance.retryDelaysMs`, always with the same
@@ -269,8 +335,15 @@ export function createAdvance<P>(
         return report(ref, 'C2', 'invoke', run, 'agent-absent', 'the Agent drive port is absent')
       const holding = await stillAdvancing(ref, started)
       if (typeof holding !== 'boolean') return reportFailure(ref, 'invoke', run, holding)
-      // Not this attempt's work any more: another attempt holds the advance, or the Run ended.
-      if (!holding) return
+      if (!holding)
+        return report(
+          ref,
+          'C2',
+          'invoke',
+          run,
+          'advance-withdrawn',
+          'the original attempt no longer holds the advance',
+        )
       const answer = await invokeOnce(port, {
         ...target,
         first: started.first,
@@ -281,11 +354,18 @@ export function createAdvance<P>(
       const failure = answer.failure
       if (failure.kind === 'invalid') return closeRefused(ref, started, failure.rejection)
       if (failure.kind === 'denied') {
-        // SPEC C2: a new read tells the two sources apart. A replaced attempt stops quietly (its
-        // successor goes on); an attempt that still holds the advance met an access refusal.
         const again = await stillAdvancing(ref, started)
         if (typeof again !== 'boolean') return reportFailure(ref, 'invoke', run, again)
         if (again) report(ref, 'C2', 'invoke', run, 'denied', failure)
+        else
+          report(
+            ref,
+            'C2',
+            'invoke',
+            run,
+            'advance-withdrawn',
+            'the original attempt no longer holds the advance',
+          )
         return
       }
       const delay = retriable(failure) ? delays[attempt] : undefined
@@ -299,8 +379,7 @@ export function createAdvance<P>(
           failure,
         )
       if (failure.kind === 'commit-unknown' && (await settled(port, target))) continue
-      if (!(await scheduling.wait(delay)))
-        return report(ref, 'C2', 'invoke', run, 'clock-refused', 'the backoff wait did not elapse')
+      if (!(await retryWait(ref, started, delay, 'invoke'))) return
     }
   }
 
@@ -410,6 +489,11 @@ export function createAdvance<P>(
 
   const triggers = new Map<string, { again: boolean }>()
   return {
+    interrupt: ref => {
+      const stop = waiting.get(sessionKey(ref))
+      stop?.abort()
+      return stop !== undefined
+    },
     trigger: ref => {
       if (lifecycle.closed) return
       const key = sessionKey(ref)

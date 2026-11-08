@@ -1,10 +1,5 @@
-// A run whose drive stops on a failure (SPEC「运行失败」, R2-D282). Before this, the drive dropped
-// the answer of `runExecution`, `waitForWake` answered `stopped` and the drive ended silently: the
-// slot stayed `running` and nobody was told. Now the slot becomes `failed` and the factory caller's
-// receiver gets one named report. The execution is not ended and its responsibility is not handed
-// over (ending the Run as failed and releasing its attachment when a node fails is not implemented
-// yet, planned for wave 3, R2-D285): it keeps the slot, shows occupied, and a quiesce still
-// answers it as remaining (R2-D285), never drained.
+// Permanent dependency failures retain the execution slot. A determinate node failure with
+// healthy settlement dependencies reaches Journal ended before the provider releases its slot.
 import { describe, expect, it } from 'vitest'
 import type { AgentRunFailed } from '@omne-harness/agent'
 import type { AgentRegistrationHandle, Failure } from '@omne-harness/agent-contract'
@@ -83,6 +78,51 @@ const quiesceOf = (assembly: Awaited<ReturnType<typeof failingAtI0>>['assembly']
   })
 
 describe('a run that stops on a node failure', () => {
+  it('ends a definite E1 failure, retains the untaken input and releases the original slot', async () => {
+    let first = true
+    const reports: AgentRunFailed[] = []
+    const assembly = await loopAssembly(
+      [execution(), execution('exec-2')],
+      d => ({
+        ...d,
+        journal: {
+          ...d.journal,
+          load(input) {
+            if (first) {
+              first = false
+              throw new Error('definite node failure')
+            }
+            return d.journal.load(input)
+          },
+        },
+      }),
+      undefined,
+      undefined,
+      { failed: event => reports.push(event) },
+    )
+    const handle = ok(await invoke(assembly))
+    const events = await eventsOf(handle)
+    expect(events.filter(event => event.body.kind === 'ended')).toHaveLength(1)
+    expect(events.some(event => event.body.kind === 'input-taken')).toBe(false)
+    const read = ok(
+      await assembly.dependencies.journal.load({ ...alice, execution: handle.execution }),
+    )
+    expect(read.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'fail' } })
+    expect(read.settlement.candidate?.failure).toMatchObject({ kind: 'node-failed', node: 'E1' })
+    const inputs = ok(
+      await assembly.dependencies.journal.inputs({
+        ...alice,
+        execution: handle.execution,
+        watermark: read.inputWatermark,
+      }),
+    )
+    expect(inputs.messages).toHaveLength(1)
+    await eventually(async () => (await shown(assembly)).kind === 'idle')
+    expect(reports).toEqual([])
+    assembly.release.open()
+    await eventsOf(ok(await invoke(assembly, 'exec-2')))
+  })
+
   it('reports once with tenant, instance, execution, node and failure, and keeps the execution in the slot', async () => {
     const reports: AgentRunFailed[] = []
     const { assembly } = await failingAtI0(event => reports.push(event))

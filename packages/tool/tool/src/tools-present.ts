@@ -1,7 +1,8 @@
 import type { Access } from '@omne-harness/tool-contract'
+import { readJsonText } from '@omne-harness/json-text'
 import { formatKeyValue, formatSuccess, formatUsage } from '@omne-harness/unix-format'
 import type { ToolsAccess, ToolsOptions, ToolsReadRuntime } from './tools.ts'
-import { parameterCodecs, protocol, type ReadArguments } from './tools-protocol.ts'
+import { protocol, type ReadArguments } from './tools-protocol.ts'
 import {
   bounded,
   budgetFailure,
@@ -13,11 +14,10 @@ import {
 
 export function createToolsPresenter<P>(runtime: ToolsReadRuntime<P>, options: ToolsOptions) {
   const refs = protocol(options.arguments)
-  const argumentsCodec = parameterCodecs(options.arguments).read
   const callable = (value: ReadArguments) => {
     const text = JSON.stringify(value)
-    const parsed = argumentsCodec.parse({ original: text, effective: text, complete: true })
-    if ('failure' in parsed || 'failure' in refs.after(value)) return false
+    const parsed = readJsonText(text, options.arguments)
+    if (parsed.kind !== 'ok' || 'failure' in refs.after(value)) return false
     return (
       'ok' in
       (value.kind === 'result'

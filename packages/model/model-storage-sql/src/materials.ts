@@ -1,4 +1,4 @@
-// The static materials of the Model records: one participant, one migration and two read handlers,
+// The static materials of the Model records: one participant, one migration and three read handlers,
 // as the SQL storage contract describes them (sql-contract §4). Each module is named by its file
 // URL and the SHA-256 of its bytes; a provider loads it by the default export of that file. The
 // application aggregates these with the materials of the other owners into one catalog and declares
@@ -11,6 +11,11 @@ import type {
   ParticipantDescriptor,
   ReadHandlerDescriptor,
 } from '@omne-harness/sql-contract'
+import {
+  DIAGNOSTICS_HANDLER,
+  DIAGNOSTICS_READ_MAX_OUTPUT_BYTES,
+  DIAGNOSTICS_READ_MAX_ROWS,
+} from './diagnostics.ts'
 import {
   CALL_HANDLER,
   CALL_READ_MAX_OUTPUT_BYTES,
@@ -44,8 +49,9 @@ type Handler = Readonly<{
 }>
 
 /**
- * Both reads are snapshots: `run` reads one call and commits against its row version (CAS), so a
- * read that misses a newer commit ends in a conflict and a new read, never in a lost write.
+ * All reads are snapshots: `run` reads one call and commits against its row version (CAS), so a
+ * read that misses a newer commit ends in a conflict and a new read, never in a lost write. The
+ * diagnostics read pins the row version in its cursor, so a page after a newer commit is invalid.
  */
 const HANDLERS: readonly Handler[] = [
   {
@@ -61,6 +67,13 @@ const HANDLERS: readonly Handler[] = [
     tables: [TABLES.call.name],
     rows: PENDING_READ_MAX_ROWS,
     bytes: PENDING_READ_MAX_OUTPUT_BYTES,
+  },
+  {
+    handler: DIAGNOSTICS_HANDLER,
+    file: 'handler-diagnostics',
+    tables: [TABLES.call.name, TABLES.dispatch.name],
+    rows: DIAGNOSTICS_READ_MAX_ROWS,
+    bytes: DIAGNOSTICS_READ_MAX_OUTPUT_BYTES,
   },
 ]
 

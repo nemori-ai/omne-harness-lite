@@ -4,6 +4,13 @@
 
 受理入口在解构和 await 前同步调用共同 judgeAdmit。直接 Memory Commands 在 store.run 前执行同一判断；sendBinding 使用 judgeFixedModelRequest 后仍核原 digest。畸形重放先 invalid，合法异输入仍 conflict。预算、不可变性、资格例外及失败 Pointer 归[共同封闭契约](../model-contract/SPEC.md#封闭输入判断)，不代表供应商 token/context 检查。
 
+## 诊断只读动作
+
+依据 [#1140 DA2 采用](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6703474020)，Commands 的 `recall` 使用 `inspect`，`dispatches` 使用 `read-account`。两项动作分别读取调用身份与状态、派发及账目。它们不授予正文、执行、观察、控制或写入资格。`query` 与 admit 重放仍使用 `facts`，`recordLateFact` 仍使用 `account`。动作的公开形状归 [commands/types.ts](src/commands/types.ts)。
+
+主体分类、异步资格捕获、读前与读后复核由装配兑现。核心只向注入的权威询问相应动作，不根据主体形状自行放行。动作分离的回归在 [memory-dispatch.spec.ts](tests/memory-dispatch.spec.ts)，其中同一份有效迟到账目在只读资格下拒绝，在写资格下可保存。
+
+
 ## 独立执行
 
 独立函数 `executeModel` 执行一次供应商请求，不重试、不保管、不 ACK。其 signal 请求该次传输停止，返回事实仍须区分请求取消与真实停止。托管模式的观察 signal 不传给它。托管模式只有原调用的有效控制可以请求传输停止。
@@ -103,7 +110,7 @@ quiesce 返回十进制字符串 `{ pending, running }`。`running` 是本 provi
 `resolve` 在获准发送时按当前资格返回五种结果之一。只有 `value` 携带秘密，并且只用于这一次发送。
 
 | 结果          | 含义                                             | 发送端行为                                                   |
-| ------------- | ------------------------------------------------ | ------------------------------------------------------------ |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `value`       | 当前资格允许                                     | 发出，并记下本次采用的值。`scope` 为 `tenant` 或 `factory`。 |
 | `absent`      | 没有这份凭据                                     | 不发送。产品发送边界把本次调用终结为失败，见下文。           |
 | `unreadable`  | 引用在，值暂时读不出                             | 不发送。产品发送边界把本次调用终结为失败，见下文。           |
@@ -231,7 +238,7 @@ operation 长期只保存 SHA-256 输入指纹、方法、调用、原提交修�
 receiver 在终止 preserve 的确认回执下固定原 ended、Snapshot 和独立的接收失败，先推进内部阶段再通知观察投影。终止确认后不再读取原流。completed 和 failed 保留原 ended。真实 interrupted 仅关联同次确认 Snapshot 的 ControlState.operation，不读取可变 dispatch.terminal 推断原终局。
 
 | 路径                                                                           | 当前实现状态                                                                              |
-| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
 | 原 completed、completed/limit、input-over-limit                                | 已实现收场。limit 保留正常完成及真实 trim，reported 未报告字段保持 null                   |
 | 无需新策略的 failed、首内容后失联                                              | 已实现原失败收场，保留已确认部分输出；接收失联仍沿 drive 返回失败                         |
 | 原有效控制及真实 interrupted；无 dispatch 的已保存控制                         | 已实现关联原控制收场；无 dispatch 时不发送                                                |
@@ -261,6 +268,7 @@ retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的�
 [第五课](examples/05-read-and-acknowledge.ts)演示公开读取及 processed ACK。[消费测试](tests/README.md#公开结果消费)验证真实 runtime、内存 Commands 和脚本上游，不证明生产耐久、真实厂商或跨进程恢复。
 
 <a id="ack-证据在栅栏外读取的证明"></a>
+
 ### ACK 证据在栅栏外读取的证明
 
 本节是人工成文证明，依据[验证说明](../../../docs/verification.md#证据要求何时触发)「依赖某性质放宽顺序控制」一行：ACK 的 owner 证据不再在写栅栏内问，改为栅栏外读、栅栏内核对，须证明放宽之后目标保证不变。按 R2-D262 的裁定不建形式模型，本证明没有经过机器检查。
@@ -288,7 +296,7 @@ Q 里还带执行代次（`execution`），所以比较比五项更严。栅栏�
 **交错逐条覆盖。**
 
 | 读取与写入之间发生的事 | 为什么命题仍成立 |
-| --- | --- |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
 | 另一个 ACK（另一操作）先提交 | 保管已是 `acknowledged`，Q 不含保管。写入沿原分支返回现有确认，不覆盖它；采用的答复仍须是对 Q(c₂) 的确认。同一操作已绑定时走认回，不用读到的答复 |
 | 清理推进或完成 | 清理只在 `acknowledged` 之后发生，不改变 Q；此时写入返回现有确认，不恢复保管 |
 | 换代（`claim`，代次加一） | 执行代次在 Q 里，Q(c₁) ≠ Q(c₂)，写入答 `unavailable`（`evidence-not-read-for-this-call`），不写；同一操作再来时按新代次提问 |
@@ -303,6 +311,8 @@ Q 里还带执行代次（`execution`），所以比较比五项更严。栅栏�
 ## 准备资源与校准租约
 
 `createModelPreparationResources(options)` 实现共同 [`ModelPreparationResources`](../model-contract/SPEC.md#档案和准备提供者的组合协议)。构造声明归 [preparation/resources.ts](src/preparation/resources.ts)。`options.commands` 只用 `dispatches`；`options.bindings` 是结构化端口，pi 家族贡献（`PiFamilyContributions`）直接满足它，本包不导入 pi-ai-transport；`options.supplierOf` 为每个档案供应商给出带凭据引用的 `Supplier`，与请求准备使用同一推导；`options.maxCitedCalls` 是一份 lineage 最多引用的调用数，来自配置，没有包默认值。`maxCitedCalls` 不是正安全整数时构造抛 `RangeError`。
+
+取得准备租约时，在第一次异步获取家族绑定前复制完整 ModelProfile；后续供应商枚举始终读取该快照，调用方修改原档案不能省掉供应商。访问主体保持原拥有者提供的对象身份，不复制或序列化泛型主体。
 
 `acquire(access & { profile, lineage? })` 按下列顺序执行：
 
@@ -322,7 +332,7 @@ Q 里还带执行代次（`execution`），所以比较比五项更严。栅栏�
    - 绑定取得失败：返回该失败。
 3. 有 lineage 时，以取得时的 `principal` 与 `tenant` 经 `commands.dispatches` 读取每个被引用调用一次。`denied` 与 `invalid` 折叠为无此事实；`unavailable` 等其他失败记为事实不可用。读取抛出异常时先释放绑定再抛出。取得不因读取失败而失败。
 
-租约的 `bindings` 与档案供应商同序。没有 lineage 时，`meter` 给家族计量器包一层：释放前，`basis` 与 `measure` 的结果与家族计量器逐字节相同。有 lineage 时，`meter.measure` 同步判决并委托家族的 `measureCalibrated`。每个原因的条件归 model-contract 的[锚点不命中的原因](../model-contract/SPEC.md#锚点不命中的原因)与[来源扣留的原因](../model-contract/SPEC.md#来源扣留的原因)。本包只规定判决顺序：
+租约的 `bindings` 与档案供应商同序。没有 lineage 时，`meter` 给家族计量器包一层：释放前，`basis` 与 `measure` 的结果与家族计量器逐字节相同。有 lineage 时，`meter.measure` 判决事实并等待家族的 `measureCalibrated`。每个原因的条件归 model-contract 的[锚点不命中的原因](../model-contract/SPEC.md#锚点不命中的原因)与[来源扣留的原因](../model-contract/SPEC.md#来源扣留的原因)。本包只规定判决顺序：
 
 - 锚点按下列顺序核对，第一个成立的原因决定结果：
   1. `not-declared`
@@ -355,7 +365,7 @@ Q 里还带执行代次（`execution`），所以比较比五项更严。栅栏�
 - 判决写进 `RequestBudget.calibration`：锚点不命中时写本包的原因；命中时沿用家族报告的 `hit` 或 `continuation-shrank`。校准值只含数字与原因，不含访问依据、租户或调用身份。
 - 租约交出锚点、而家族计量器的成功结果没有报告锚点判决时，家族违反了 `CalibratedInputMeter` 契约。租约抛出 `TypeError`，消息写明供应商采用，不把缺失的判决当作命中。
 
-`release` 释放每个绑定一次，重复调用返回同一结果；某个绑定的释放拒绝时结果为 `unavailable`，`dependency` 为该供应商采用的 `owner`，诊断为 `release-failed`。释放后，租约交出的每个计量器的 `measure` 都返回 `unavailable`（`dependency` 为 `model-preparation`，诊断为 `preparation-lease-released`），有无 lineage 相同。`release` 同时清空事实视图。事实视图不跨租约保留。
+`release` 同步拒绝新计量并中止 acquire 传给家族的原 controller。它等待所有在途计量结清，再释放每个绑定一次。异步结果返回时再次核对释放状态，释放后不交出迟到成功。重复调用返回同一结果；某个绑定的释放拒绝时结果为 `unavailable`，`dependency` 为该供应商采用的 `owner`，诊断为 `release-failed`。释放后，租约交出的每个计量器的 `measure` 都返回 `unavailable`（`dependency` 为 `model-preparation`，诊断为 `preparation-lease-released`），有无 lineage 相同。`release` 同时清空事实视图。事实视图不跨租约保留。已取得租约仍可跨 preparation 插件卸载存活；插件卸载不是宿主关闭。当前没有把 Agent run stop 接到 preparation signal。
 
 ## 首次执行记录与私有通道
 
@@ -398,7 +408,7 @@ continuity 绑定原调用、admission、instance、operation 和证据采用，
 十二项上限全部为显式正安全整数，不设生产默认值。`timing` 提供同一进程单调时间域与可取消等待。
 
 | 配置                                     | 约束                                       |
-| ---------------------------------------- | ------------------------------------------ |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
 | `maxSnapshotBytes`、`maxDeltaBytes`      | 完整首帧与差分帧的规范 UTF-8 JSON 字节上限 |
 | `maxQueuedFrames`、`maxQueuedBytes`      | 每个 iterator 的 FIFO 帧数与逻辑字节       |
 | `maxObserversPerTenant`、`maxObservers`  | 租户与全局活观察者名额                     |
@@ -442,6 +452,14 @@ start 返回事实而记录未确认时，原流和资源由 sender 有界保留
 
 内存测试的来源登记以 [commands/types.ts](src/commands/types.ts) 的 `ModelSendSource` 为准，同步围栏以 [testing/state.ts](src/testing/state.ts) 为准。SQL 实现的协调器（`@omne-harness/model-storage-sql` 的 `createSendMirror`）只有一处例外：主体获准、调用不在本进程镜像时，它答 `unavailable`（`qualification-unavailable`），内存实现答 `not-found`；主体未获准时两者都答 `denied`。缺 sending 配置没有默认成功凭据。脚本仅模拟外部传输；产品不得依赖 testing。共同 started 结果交出已确认的原 window 和唯一 facts 流。消费者使用 result.window 保存该流，Commands 仍核原 tenant、call、execution、dispatch 与 window 绑定。window 不授予访问权。driver 已接入该唯一事实消费者，按原窗口批量确认后发布。
 
+### 传输准备的明确拒绝
+
+prepare 或 materialize 返回结构化 denied、invalid、unsupported 时，发送边界分别记录 excluded、input-rejected、modality。此路径没有 start，也不生成物化回执。边界保留原拒绝，依次确认原接收窗口、not-sent 和安全的 ended/failed 事实，再由 driver 沿原调用结算。诊断只使用 transport-denied、transport-invalid、transport-unsupported，不保存外部失败正文。
+
+窗口、发送记录或终止写丢回执时，边界保留原 operation、expected 和完整参数。下一次 send 先认回原写，不重做 prepare/materialize。取得版本的读取失败也保留原拒绝。写入资格失效时返回真实拒绝，不补造终态。释放失败保留尝试与容量；已保存的业务终局仍可单独结算。
+
+Commands 以本域已确认 not-sent、无内容、原单条失败事实和其他窗口均闭合推导零内容。它不要求外域为从未启动的流伪造暂停证明。双向矛盾守护及原重试决定守护仍生效。证明和源码映射见 [零发送收尾](verification/proofs/not-sent.md)。
+
 ### 发送边界的出口
 
 下表列出产品发送边界与 driver 的全部出口。「结局」一列说明调用方会不会无限等待：
@@ -451,7 +469,7 @@ start 返回事实而记录未确认时，原流和资源由 sender 有界保留
 - 「重试」：同一驱动的下一次 drive 继续原阶段，原写只重放，不重新解析，也不再次 start。重试只消耗有界的瞬时故障，之后落到前两种结局。
 - 「等待」：driver 停在 `failed`，失败为 `unavailable`，调用不结算。这是已知限制，见本表最后一组。
 
-凭据缺失与读不出（带 fault 的确定拒绝）：
+凭据缺失与读不出，以及上述传输准备明确拒绝，均沿带 fault 的确定拒绝路径。下表的 credential 行以凭据为例，传输准备采用上一节的 cause：
 
 | 步骤与存储答复 | 边界答复 | driver | 结局 |
 | --- | --- | --- | --- |
@@ -474,12 +492,12 @@ start 返回事实而记录未确认时，原流和资源由 sender 有界保留
 已知限制：下列出口仍让调用方等待。前三行的失败是 `unavailable`，而同一个 dispatch 已不能再发送，driver 的 `failed` 阶段也不重试。最后一行是有意的：可能已发送的调用只能等原记录。
 
 | 出口 | 诊断 |
-| --- | --- |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
 | 凭据端口答 `unavailable` 或抛出 | `credential-unavailable` |
-| 当前资格不可得、取得资源前已取消、传输 prepare 或物化失败 | `qualification-unavailable`、`cancelled-before-prepare`、`cancelled-before-start`、`transport-prepare-failed` 等 |
+| 当前资格不可得、取得资源前已取消、传输 prepare 或物化返回 unavailable 或抛错 | `qualification-unavailable`、`cancelled-before-prepare`、`cancelled-before-start`、`transport-prepare-failed` 等 |
 | 没有写终止的拒绝之后释放失败 | `resource-release-failed` |
 | 已经 start 而发送记录始终不能确认（例如执行被接管） | `send-record-unconfirmed`。可能已发送，所以不得改报未发，也不得判成 credential 失败 |
 
 消除它们需要为每个出口选定结局，例如以哪一种 `ModelFaultCause` 结算，这会改变 Model 的调用结局，每个出口的结局登记为 D-86。确定拒绝的机制不限于凭据：fence 拒绝带上 `fault`，边界就写终止，driver 就按记录结算。
 
-这张表由 TLC 模型 [SendBoundary.tla](../model-contract/verification/models/SendBoundary.tla) 检查：带 fault 的确定拒绝最终结算，或者以确定拒绝结束，可能已发送的调用不判成 credential 失败，重试不写第二个终止。性质、映射与负控见 [formal-mapping.md](../model-contract/verification/models/formal-mapping.md#发送边界)。
+表中的凭据拒绝路径由 TLC 模型 [SendBoundary.tla](../model-contract/verification/models/SendBoundary.tla) 检查：带 fault 的确定拒绝最终结算，或者以确定拒绝结束，可能已发送的调用不判成 credential 失败，重试不写第二个终止。性质、映射与负控见 [formal-mapping.md](../model-contract/verification/models/formal-mapping.md#发送边界)。新增传输拒绝与内部零内容依据的证明范围归 [零发送收尾](verification/proofs/not-sent.md)，不以旧模型运行代替。

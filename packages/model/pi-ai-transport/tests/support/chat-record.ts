@@ -209,7 +209,7 @@ export function testMeter(record: ChatCompletionsRecord, probe: EngineProbe): Fa
     replay: adoption('replay'),
     evidence: adoption('evidence'),
   }
-  const unavailable = (): Outcome<never, TransportFailure> => ({
+  const unavailable = async (): Promise<Outcome<never, TransportFailure>> => ({
     failure: { kind: 'unavailable', dependency: 'meter', diagnostic: 'test' },
   })
   return {

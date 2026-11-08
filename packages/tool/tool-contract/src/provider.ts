@@ -216,3 +216,11 @@ export {
   describeCommandArgumentsRejection,
   encodeCommandCall,
 } from './command-call.ts'
+export { attachToolsCapability } from './tools-capability.ts'
+export type {
+  ToolForwardParent,
+  ToolForwardBinding,
+  ToolForwardSourceOutcome,
+  ToolForwardSource,
+  ToolForwardRuntime,
+} from './forwarding.ts'

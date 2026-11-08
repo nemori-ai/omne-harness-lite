@@ -207,6 +207,10 @@ export function createSessionProviderFaces(
   }
 
   const work: SessionFaces<unknown>['work'] = {
+    addTodo: unimplemented,
+    removeTodo: unimplemented,
+    markTodoComplete: unimplemented,
+    listTodos: unimplemented,
     accept: input => {
       const method = 'work.accept'
       const command: Accept = {

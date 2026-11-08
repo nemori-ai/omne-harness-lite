@@ -1,7 +1,3 @@
-// `pnpm run check` 的步骤表：每一步跑什么、先于它的是谁、重不重。顺序与依赖的含义归 scripts/README.md「check 的步骤图」；
-// 这里只把它写成机器能调度的形状。依赖关系与原来串行版本的语义一致：构建之后才跑类型检查、成员测试、验收、
-// 声明检查、契约快照核对、lint:rules 与 lint:deps；回路状态最后（让前面的失败先报，并读验收的账本）；其余常驻检查与 pytest
-// 不依赖任何步骤。
 import type { CheckStep, Command } from './check-graph.ts'
 import { pnpmCommand } from './support.ts'
 
@@ -79,7 +75,12 @@ export function checkSteps(inputs: StepInputs): CheckStep[] {
     step('test', ['build']),
     // 结构规则、验收的覆盖声明与提交署名；它导入的成员已在构建里。
     { name: 'lint:rules', command: run('lint:rules'), after: ['build', 'typecheck'], heavy: false },
-    { name: 'lint:oxlint', command: run('lint:oxlint'), after: [], heavy: false },
+    {
+      name: 'lint:oxlint',
+      command: run('lint:oxlint'),
+      after: ['build', 'typecheck'],
+      heavy: false,
+    },
     // dependency-cruiser 解析验收夹具对 dist 的导入。
     { name: 'lint:deps', command: run('lint:deps'), after: ['build', 'typecheck'], heavy: false },
     // 可执行验收驱动构建出来的 dist。

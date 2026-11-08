@@ -1,9 +1,3 @@
-// The two principal classes the Model application module admits (R2-D33 plan A, `tmp/wire-model/design.md` §1):
-// - W, the Session work principal: `classify` of the authorization row gives column `work`.
-// - M, the Model host work principal: the entry issues it in `modelHostAuthority.resolve` with the
-//   system actor below and the work owner below. The call id is the work text.
-// A principal of either shape is only admitted after `principalVerifier` verified it; the shape
-// selects the policy row, it never proves the origin.
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { classify } from '../rows/authorization/principals.ts'
 
@@ -12,7 +6,7 @@ export const MODEL_HOST_COMPONENT = 'modelHostAuthority'
 /** The `work.owner` of M: the Model domain owns the work, the work text is the call id. */
 export const MODEL_WORK_OWNER = 'model'
 
-export type PrincipalClass = 'work' | 'host'
+export type PrincipalClass = 'login' | 'work' | 'host'
 
 function isModelWork(value: unknown): value is ActingForTenantPrincipal {
   if (typeof value !== 'object' || value === null) return false
@@ -30,11 +24,12 @@ function isModelWork(value: unknown): value is ActingForTenantPrincipal {
   )
 }
 
-/** The policy class of a verified principal, by shape; a shape outside the two classes has none. */
+/** The policy class of a verified principal, by shape; a shape outside these classes has none. */
 export function classOf(
   principal: unknown,
 ): Readonly<{ kind: PrincipalClass; principal: ActingForTenantPrincipal }> | null {
   const who = classify(principal)
+  if (who?.column === 'login') return { kind: 'login', principal: who.principal }
   if (who?.column === 'work') return { kind: 'work', principal: who.principal }
   if (isModelWork(principal)) return { kind: 'host', principal }
   return null

@@ -130,7 +130,7 @@
 
 ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToolOperation 在本地封装该操作的 A/R 关系；defineFunctionTool 与 defineCommandTool 使用相同的操作句柄，只接收实现侧字段 `implementation: ToolImplementationDeclaration { description, backgroundAllowed, declarations }`，生成实现侧的 `ToolImplementation { facts }`。`facts` 是 `ToolImplementationFacts { implements, description, backgroundAllowed, declarations }`，其中 `implements` 是投影的形状（单函数的参数契约与返回声明，或命令表）。装载时 `deriveDefinition` 把它与资产治理声明派生为唯一 ToolDefinition，见[定义完整性与呈现](../SPEC.md#定义完整性与呈现)。句柄不公开 executor，不能作为脚本调用通路。构造成功不表示 schema 已异步装载或工具已可用。实现包另导出 `ToolImplementationModule { executor, createAuthor(construction) }`，装载器以 `{ asset, settings, module, services }` 调用 `load`，得到带登记键、派生 definition 与 shape 的 `ToolLoadedRegistration`；绑定登记表以 `ToolAuthority { layer, asset, holding, publication }` 登记，返回 `Outcome<ToolContribution, ToolContributionFailure>`，并提供 `snapshot(scope)`、`pins`、`close`、`reopen`、`drain`（类型已迁移，本地实现归 2.4）。精确绑定、命令选择及恢复规则见 [多命令协议](../SPEC.md#多命令作者注册与返回选择)，作者组合示例见 [flows](flows.md#多命令函数与独立返回)。
 
-- [authoring.ts](../src/authoring.ts)：声明与设置、消费方档案 `ToolConsumerProfile`、检查输入、用法、呈现、`ToolCatalog`、参数与输出 codec、返回校验器、程序输出、`ToolAuthor`、操作句柄、实现 `ToolImplementation` 与实现模块、登记键与同形投影 `ToolShape`、装载器与已装载登记、`ToolAuthority`、贡献与登记表 `ToolBindingRegistry`、文本结果工厂与可用性事实（含来源层 `layer`）。
+- [authoring.ts](../src/authoring.ts)：声明与设置、消费方档案 `ToolConsumerProfile`、检查输入、用法、呈现、`ToolCatalog`、搜索条目 `ToolCatalogSearchEntry`、参数与输出 codec、返回校验器、程序输出、`ToolAuthor`、操作句柄、实现 `ToolImplementation` 与实现模块、登记键与同形投影 `ToolShape`、装载器与已装载登记、`ToolAuthority`、贡献与登记表 `ToolBindingRegistry`、文本结果工厂与可用性事实（含来源层 `layer`）。
 - [command-call.ts](../src/command-call.ts)：多命令工具的单槽调用。根入口导出 `commandCallSchema`、`commandMenu`、`decodeCommandCallText`、`describeCommandCallRejection`、`selectCommandText`；provider 入口导出 `COMMAND_CALL_ENCODINGS`、`commandArguments`、`commandExample`、`commandGuide`、`commandSignature`、`decodeCommandCall`、`describeCommandArgumentsRejection`、`encodeCommandCall`。规则见 [SPEC](../SPEC.md#多命令工具的单槽调用)。
 - [registration.ts](../src/registration.ts)：`defineToolOperation`、`defineFunctionTool` 与 `defineCommandTool`（多命令要给 `encoding`，可给 `guide`）。构造时拒绝空命令表、非法名称、返回模式与作者种类不符，以及程序契约与声明不符。句柄与注册是当前执行域的能力，不交给脚本。
 - [binding.ts](../src/binding.ts)：子路径入口 `@omne-harness/tool-contract/binding`，只供受信的执行绑定提供者（G7）导入。`readToolOperation` 与 `readToolRegistration` 读取句柄内的作者与注册内的操作表（`ToolOperationSlot`、`ToolRegistrationSlot`）；不是 registration.ts 构造的值读作 `undefined`。根入口不导出它们，所以只持有句柄或注册的代码取不到 executor。`readOwnSlot(value, key)` 按自有属性读取不可信的值，答 `OwnSlot`：属性不存在（`absent`）、是访问器（`accessor`）或带值（`value`）；各实现用它以同一方式读取外来值，不触发 getter。这个入口与根入口一样不依赖 Cordis。
@@ -226,3 +226,9 @@ ProgramTools.call 交回唯一 ToolResult 封装，其 data 为程序值，conte
 
 
 `toolEnvironmentAllocationConformance` 与 `ToolEnvironmentAllocationFixture` 位于 `./testing`。适配器提供自己拥有的故障控制和分配、租约计数，套件检查丢答复后的只读查询、原键并发采用、登记丢失和采用失败。所有控制必需；没有这些事实来源的适配器不能用通用 pending 掩码冒充 allocated 路径。`createMemoryToolEnvironment.controls.allocateBeforeAdoption` 让下一次分配保存独立记录并丢失答复，`leases` 观察实际替身采用次数。`forgetRegistration` 与 `failAdoption` 注入原登记丢失和终局失败。`outstanding` 读取替身原分配表中的未释放数，这两种故障均不清除原分配。替身仅有进程内状态，不证明真实 EE guard/ledger、跨进程耐久或设施动作。
+
+## Tools 执行能力与可信转发
+
+根入口的 [tools-capability.ts](../src/tools-capability.ts) 导出 `toolsCapabilityOf`、`ToolsCapability` 和 `ToolsExecuteAnswer`。[tools-protocol.ts](../src/tools-protocol.ts) 拥有 Search、Inspect 和固定读取的纯业务类型。完整工具概览的 `usage` 为 null，具体命令用法携带 `ToolUsage`。
+
+provider 入口导出 [forwarding.ts](../src/forwarding.ts) 的父证明、原槽关联、source 和 runtime 类型，以及 `attachToolsCapability`。这些构造值不进入普通 invoke 或模型参数。生命周期与未知恢复遵循 [可信单目标转发](../SPEC.md#可信单目标转发与执行能力)。

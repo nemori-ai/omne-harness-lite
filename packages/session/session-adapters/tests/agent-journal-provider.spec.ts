@@ -25,6 +25,9 @@ import {
   type AgentReceivedCommits,
   type AgentReceivedRecords,
   type DurableEvidence,
+  type FailureCandidate,
+  type FinishCandidateContent,
+  type FinishIntent,
   type Material,
   type ModelReceptionTargets,
   type ToolReceptionTargets,
@@ -50,6 +53,7 @@ import {
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
+import { succeed } from '@omne-harness/operation-result'
 import type {
   SessionAccess,
   SessionAccessDecision,
@@ -78,6 +82,7 @@ import type { DomainRef, SqlStorage, TenantDomainLookup } from '@omne-harness/sq
 import { StorageService, TenantDomainLookupService } from '@omne-harness/sql-contract/cordis'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
 import { createSessionLogJournal, materialSessionOf } from '../src/cordis/agent-journal.ts'
+import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
 import {
   createExecutionRoutedJournal,
   createSessionAgentJournalPlugin,
@@ -86,6 +91,7 @@ import {
 } from '../src/cordis/agent-journal-provider.ts'
 import { checkpoint, instance, ok, openInput, operation } from './fixtures/common-journal.ts'
 import {
+  cordisScene,
   handed,
   nextRun,
   sqlScene,
@@ -93,6 +99,7 @@ import {
   type SqlSceneOptions,
 } from './fixtures/sql-scene.ts'
 import { m0Checkpoint } from './fixtures/adopted-request.ts'
+import { MODEL_CALL } from './fixtures/main-reply.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 
 // `FiberState` is a const enum of Cordis, so its members are not values to import: in Cordis 4.0.4
@@ -1252,6 +1259,210 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
   })
 })
 
+/** The failure of a candidate whose Model call the Model refused for capacity (RFC-0013 A2). */
+const refusedForCapacity = (): FailureCandidate => ({
+  step: null,
+  at: '2026-11-05T00:00:00Z',
+  source: evidence('failure/refused'),
+  kind: 'model-refused',
+  call: MODEL_CALL,
+  failure: { kind: 'capacity', required: { bytes: '1', blocks: '1', attachmentBytes: '0' } },
+})
+
+/** The failure of a candidate whose Model call settled as failed upstream, with the settlement's fault. */
+const noReplyWithFault = (): FailureCandidate => ({
+  step: null,
+  at: '2026-11-05T00:00:00Z',
+  source: evidence('failure/no-reply'),
+  kind: 'no-reply',
+  call: MODEL_CALL,
+  result: {
+    producer: { kind: 'model', call: MODEL_CALL },
+    version: 'v1',
+    delivery: null,
+    source: evidence('result/no-reply'),
+  },
+  fault: { cause: 'upstream-unavailable', upstreamStatus: '504', diagnostic: 'gateway timeout' },
+})
+
+/**
+ * Drives the scene's execution to its end with a failed candidate through `journal`: the hand-over
+ * of the initial input (so the Session finish check of PA-02 passes), the take, F1 with `failure`,
+ * F2, prepareFinish and tryFinish. Answers what `readFinish` saw at each of the three points: before
+ * any candidate, while settling, and after the end, with the intents the Journal itself projected.
+ */
+async function endWithFailure(
+  s: SqlScene,
+  journal: AgentJournal<string>,
+  failure: FailureCandidate,
+) {
+  const read = journal.readFinish
+  if (read === undefined) throw new Error('the Journal has no readFinish')
+  const readFinish = () => read({ ...s.access, execution: s.execution })
+  const load = async () => ok(await journal.load({ ...s.access, execution: s.execution }))
+  const opened = ok(await journal.open(s.openInput))
+  ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
+  const beforeCandidate = await readFinish()
+
+  const taken = await load()
+  const page = ok(
+    await journal.inputs({ ...s.access, execution: s.execution, watermark: taken.inputWatermark }),
+  )
+  const commit = async (
+    name: string,
+    step: 'take' | 'F1' | 'F2',
+    finish: FinishCandidateContent | null,
+  ) => {
+    const loaded = await load()
+    ok(
+      await journal.commit({
+        ...s.access,
+        execution: s.execution,
+        operation: operation(name),
+        authority: opened.authority,
+        expected: loaded.revision,
+        checkpoint:
+          step === 'take'
+            ? { ...loaded.checkpoint, inputBatch: page.batch }
+            : { ...loaded.checkpoint, position: step },
+        state: step === 'take' ? { kind: 'advancing' } : { kind: 'settling' },
+        events: step === 'take' ? [{ kind: 'input-taken', batch: page.batch }] : [],
+        effects: [],
+        caller: { kind: 'none' },
+        replyAdmission: null,
+        handoff: null,
+        finish,
+      }),
+    )
+  }
+  await commit('finish-take', 'take', null)
+  const atF1 = await load()
+  await commit('finish-F1', 'F1', {
+    origin: evidence('finish-origin'),
+    conclusion: { kind: 'fail', cause: evidence('finish-cause') },
+    failure,
+    inputWatermark: atF1.inputWatermark,
+    conditions: evidence('finish-conditions'),
+  })
+  const settling = await load()
+  if (settling.state.kind !== 'settling') throw new Error('settling expected after F1')
+  const whileSettling = await readFinish()
+
+  await commit('finish-F2', 'F2', null)
+  const prepared = await load()
+  if (prepared.state.kind !== 'settling') throw new Error('settling expected after F2')
+  ok(
+    await journal.prepareFinish({
+      ...s.access,
+      execution: s.execution,
+      operation: operation('finish-prepare'),
+      authorization: { kind: 'advancement', authority: opened.authority },
+      expected: prepared.revision,
+      candidate: prepared.state.intent.candidate,
+    }),
+  )
+  const ready = await load()
+  if (ready.state.kind !== 'settling') throw new Error('settling expected after prepareFinish')
+  const intent: FinishIntent = ready.state.intent
+  const finished = ok(
+    await journal.tryFinish({
+      ...s.access,
+      execution: s.execution,
+      operation: operation('finish-end'),
+      authorization: { kind: 'advancement', authority: opened.authority },
+      expected: ready.revision,
+      intent,
+    }),
+  )
+  if (finished.kind !== 'ended') throw new Error(`the end should be ended, got ${finished.kind}`)
+  const ended = await load()
+  const afterEnd = await readFinish()
+  return {
+    beforeCandidate,
+    settlingIntent: settling.state.intent,
+    whileSettling,
+    finalIntent: intent,
+    ended,
+    afterEnd,
+  }
+}
+
+describe('readFinish: the finish candidate of a settling or ended execution (RFC-0013 A2)', () => {
+  it('through the plugin, a model-refused end: null before any candidate, the current intent while settling, the final intent with the capacity refusal after the end', async () => {
+    const s = await scene('finish-refused')
+    const { journal } = await assembled(s)
+    const seen = await endWithFailure(s, journal(), refusedForCapacity())
+
+    expect(seen.beforeCandidate).toEqual({ ok: null })
+    expect(seen.whileSettling).toEqual({ ok: seen.settlingIntent })
+    expect(seen.ended.state.kind).toBe('ended')
+    expect(seen.afterEnd).toEqual({ ok: seen.finalIntent })
+    const final = ok(seen.afterEnd)
+    expect(final?.conclusion).toEqual({ kind: 'fail', cause: evidence('finish-cause') })
+    expect(final?.failure).toMatchObject({
+      kind: 'model-refused',
+      call: MODEL_CALL,
+      failure: { kind: 'capacity' },
+    })
+    expect(final?.obligations).not.toBeNull()
+  })
+
+  it('straight from forSession, a no-reply end carries the fault of the settlement: cause and upstreamStatus as written', async () => {
+    const s = await scene('finish-no-reply')
+    const { journal } = await direct(s)
+    const seen = await endWithFailure(s, journal(), noReplyWithFault())
+
+    expect(seen.afterEnd).toEqual({ ok: seen.finalIntent })
+    const final = ok(seen.afterEnd)
+    expect(final?.failure).toMatchObject({
+      kind: 'no-reply',
+      call: MODEL_CALL,
+      fault: { cause: 'upstream-unavailable', upstreamStatus: '504' },
+    })
+  })
+
+  it('answers the six members of the FinishIntent and nothing else: no checkpoint, no message body', async () => {
+    const s = await scene('finish-closed')
+    const { journal } = await assembled(s)
+    const seen = await endWithFailure(s, journal(), noReplyWithFault())
+    const final = ok(seen.afterEnd)
+    if (final === null) throw new Error('a final intent is expected')
+
+    expect(Object.keys(final).sort()).toEqual(
+      [
+        'beforeTerminal',
+        'candidate',
+        'conclusion',
+        'failure',
+        'inputWatermark',
+        'obligations',
+      ].sort(),
+    )
+    const text = JSON.stringify(final)
+    expect(text).not.toContain(JSON.stringify(s.initial.content))
+    expect(text).not.toContain('"checkpoint"')
+    expect(text).not.toContain('"permissions"')
+  })
+
+  it('an execution of another tenant and one no Run started get the same denied, and nothing is written', async () => {
+    const s = await scene('finish-denied')
+    const { journal, wiring } = await assembled(s)
+    const read = journal().readFinish
+    expect(read).toBeDefined()
+    if (read === undefined) return
+    await endWithFailure(s, journal(), refusedForCapacity())
+    const commits = s.commits.length
+    const unknown = ok(decodeAgentExecutionId('run_never/execution'))
+
+    const foreign = await read({ ...other, execution: s.execution })
+    const never = await read({ ...s.access, execution: unknown })
+    expect(foreign).toEqual({ failure: { kind: 'denied', action: 'readFinish' } })
+    expect(never).toEqual(foreign)
+    expect(s.commits.length).toBe(commits)
+    expect(wiring.indexReads.filter(tenant => tenant === textOf(other.tenant))).toHaveLength(1)
+  })
+})
+
 /**
  * The core suite's fixture through the plugin: each case opens its own scene and its own Cordis
  * root, and the execution through `agentJournal`. The Journal holds the test cancellation
@@ -1324,6 +1535,20 @@ const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<strin
       checkpoint: s.checkpoint,
       installation: installation?.installation ?? null,
       acceptInput: async label => {
+        const interpreter = await cordisScene(s)
+        disposers.push(() => interpreter.dispose())
+        const interpretation = createSessionJournalInterpretationPlugin<string>({
+          coordinator: async () => succeed(s.access.principal),
+        })
+        await interpreter.mount(interpretation.plugin)
+        const interpreted = ok(
+          await interpretation.interpret({
+            tenant: s.access.tenant,
+            session: s.access.session,
+            execution: s.execution,
+          }),
+        )
+        expect(interpreted.waiting).toBe(0)
         const value = ordinaryInput(`input-${label}`)
         const accepted = ok(
           await s.port.commit({

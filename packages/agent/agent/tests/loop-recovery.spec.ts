@@ -48,7 +48,11 @@ import {
   replyCandidate,
 } from './loop-support.ts'
 
-const STOP: Failure = { kind: 'invalid', field: 'test', reason: 'stop at the evaluator' }
+const STOP: Failure = {
+  kind: 'unavailable',
+  owner: 'test-evaluator',
+  diagnostic: 'pause at the evaluator',
+}
 
 function coordinator(assembly: LoopAssembly, change: Partial<ExecutionEntry<Principal>> = {}) {
   return createExecutionCoordinator({

@@ -105,3 +105,7 @@ acceptance/               Empty now, fixtures/ is also empty
 ```
 
 Each directory has README.md for its role and current state, and index.md for navigation. See [index.md](index.md) for reading paths.
+
+## Todo persistence
+
+Todo facts use the existing Session log and snapshot chunks. The participant stores the complete original item receipt with state and access evidence in the same transaction. [Real SQLite tests](tests/todos.spec.ts) cover concurrent items, six write faults, lost ACKs and recovery after process death. Reads still load the full snapshot and fail explicitly beyond the configured budget. These tests do not prove power-loss durability or automatic Tool replay.

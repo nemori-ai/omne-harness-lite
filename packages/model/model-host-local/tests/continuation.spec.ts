@@ -258,8 +258,8 @@ describe('the next request continues a settled and cleaned call X through the as
           ),
         ] as const
         const budgets = [
-          decoded(measureOn(leases[0], profile, withReply)),
-          decoded(measureOn(leases[1], profile, withoutReply)),
+          decoded(await measureOn(leases[0], profile, withReply)),
+          decoded(await measureOn(leases[1], profile, withoutReply)),
         ] as const
         for (const budget of budgets)
           expect(budget.calibration).toEqual({ anchor: { kind: 'hit' } })
@@ -334,8 +334,8 @@ describe('the next request continues a settled and cleaned call X through the as
               }),
             )
             const measured = [
-              measureOn(lease, profile, withReply),
-              measureOn(continued, profile, withoutReply),
+              await measureOn(lease, profile, withReply),
+              await measureOn(continued, profile, withoutReply),
             ]
             expect(await lease.release()).toEqual({})
             expect(await continued.release()).toEqual({})

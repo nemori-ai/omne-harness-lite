@@ -17,6 +17,12 @@
 // opened there), then the member creates the send child; the child captures its fiber into the
 // composition so the host can release it before the channel. A missing credential leaves the child
 // `PENDING` and the commands `ACTIVE`.
+//
+// The row also provides `modelDiagnostics` (#1140 A5, RFC-0013 A line): model-storage-sql's
+// `createSqlModelDiagnostics` over the same storage, the same tenant domains and the same
+// `authority` as the records plugin, in the same plugin body, so the three keys are one provider
+// group (`model-records`). The read eligibility and the retention adoption come from the row
+// configuration (`diagnostics`).
 import type { Context, Fiber, Plugin } from '@deepseek-ai/cordis'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
@@ -26,8 +32,10 @@ import {
   type ModelClock,
 } from '@omne-harness/model-contract/provider'
 import {
+  ModelDiagnosticsService,
   modelClockKey,
   modelCommandsKey,
+  modelDiagnosticsKey,
   modelSendBoundaryKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import {
@@ -36,6 +44,7 @@ import {
 } from '@omne-harness/model-host-local/cordis'
 import type { ModelMaterializationEvidenceReader } from '@omne-harness/model-host-local'
 import { createSqlModelRecordsPlugin } from '@omne-harness/model-storage-sql/cordis'
+import { createSqlModelDiagnostics } from '@omne-harness/model-storage-sql'
 import {
   createModelInitialRun,
   type ModelCommandsEvidence,
@@ -43,8 +52,11 @@ import {
 } from '@omne-harness/model/commands'
 import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
+import { modelTokenizersKey, type ModelTokenizers } from '@omne-harness/tokenizer-tiktoken/cordis'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
+import { currentForReader } from '../../entry/runtime-context-trust.ts'
+import { qualifyingDiagnostics } from './diagnostics.ts'
 import { agentCustodyOf, createModelEvidence } from '../../model/evidence.ts'
 import { modelRecordsPortOf } from '../../model/ports.ts'
 import { createModelQualification } from '../../model/qualification.ts'
@@ -128,6 +140,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
   // The credential port the send child injects. The stage's own preparation leases complete a
   // supplier through it, like the preparation row; outside the child's life there is none.
   const sendCredential: { port: CredentialPort | undefined } = { port: undefined }
+  const sendTokenizers: { port: ModelTokenizers | undefined } = { port: undefined }
   const Records = createSqlModelRecordsPlugin<unknown, ModelSendStageSettings>({
     inject: [...INJECT],
     resolve: () => ({
@@ -166,6 +179,13 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         families: composeFamilies([
           createOpenAiFamily({
             tokenizer: openAiTokenizerResources(),
+            executor: {
+              acquire: (definition, signal) =>
+                sendTokenizers.port?.acquire(definition, signal) ?? {
+                  failure: { kind: 'unavailable', diagnostic: 'tokenizer-provider-unavailable' },
+                },
+            },
+            maxSerializedBytes: sendStage.preparation.openai.maxSerializedBytes,
             limits: sendStage.preparation.openai.limits,
             margin: sendStage.preparation.openai.margin,
           }),
@@ -202,14 +222,17 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
       // The child's fiber is captured here, before the stage constructs, so the host can release it.
       const plugin: Plugin.Object = {
         name: 'model-send-stage',
-        inject: [...Stage.inject],
+        inject: [...Stage.inject, modelTokenizersKey],
         Config: Stage.Config,
         apply(child: Context, settings: ModelSendStageSettings) {
           handle.captureSendChild(child.fiber as Fiber)
           const port: CredentialPort | undefined = child.modelCredential
           sendCredential.port = port
+          const tokenizers = child.get(modelTokenizersKey)
+          sendTokenizers.port = tokenizers
           child.effect(() => () => {
             if (sendCredential.port === port) sendCredential.port = undefined
+            if (sendTokenizers.port === tokenizers) sendTokenizers.port = undefined
           })
           new Stage(child, settings)
         },
@@ -218,6 +241,24 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
     },
   })
   new Records(ctx, config.member)
+  // The read face over the same records: the same storage, domains and authority as the commands.
+  const current = currentForReader(new WeakMap(), ctx)
+  class Diagnostics extends ModelDiagnosticsService<unknown> {
+    readonly list
+    constructor() {
+      super(ctx)
+      this.list = qualifyingDiagnostics(
+        createSqlModelDiagnostics({
+          storage: given.storage,
+          domains: given.tenantDomainLookup,
+          authority: qualification.authority,
+          ...config.diagnostics,
+        }),
+        access => qualification.qualifyRead(access, current),
+      ).list
+    }
+  }
+  new Diagnostics()
 }
 
 const recordsPlugin: Plugin.Object = {
@@ -233,9 +274,9 @@ export const modelRecordsRow = defineRow({
   row: 'model-records',
   implementation: 'real',
   manifest: {
-    provides: [modelCommandsKey, modelSendBoundaryKey],
+    provides: [modelCommandsKey, modelSendBoundaryKey, modelDiagnosticsKey],
     injects: [...INJECT],
-    sameProviderGroup: null,
+    sameProviderGroup: 'model-records',
   },
   lifecycle: { kind: 'none' },
   plugin: recordsPlugin,

@@ -164,3 +164,5 @@ coverage-validation.ts 按历史、压缩、输入、快照、提示词、模型
 值类型集中在 `src/values.ts`，品牌引用与解码在 `src/refs.ts`。`src/refs.ts` 再导出 legal-identity 的 `Access` 与 exchange-refs 的 `Adoption`、`DurableEvidence`，不另写副本，结构判定留在 `src/schema-primitives.ts`。`src/schema.ts` 解码持久回流值与策略配置。纯操作依赖这些值，根入口只显式重导出。`src/testing/` 只拥有测试替身和用例列表，不拥有生产实现。
 
 请求字节取自 Model `rules.plan` 的物化表示，本成员没有序列化端口。转换结果读口归本成员，结果类型归 Model。`deriveStep` 由操作组稳定读取第五组的选定模型，以复核摘要及保留内容的预算。计划的 `basis` 保留增量判断窗口，用于核对覆盖边界的调用与结果配对。
+
+压缩规划在 `measurement-session.ts` 创建本次操作的租约表。完整档案和当前候选 lineage 是匹配键，访问身份由闭包固定。表最多保留四份可复用租约；满且全忙时新增的一次性租约在使用结束后释放。关闭会等待已开始的探测和全部释放，成功结果在清理后发布。此表不保存预算，也不跨操作存在。完整行为见 [RQ-05](../SPEC.md#rq-05-完整预算与候选完成)。

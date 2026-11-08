@@ -22,8 +22,8 @@ export type CredentialSelection = Readonly<{
 export type SendStart =
   | Readonly<{ kind: 'started'; facts: AsyncIterable<TransportFact> }>
   /**
-   * `fault` is set when the refusal is final for this call: the credential is missing or cannot be
-   * read. The boundary then records it as the terminal of the not-sent dispatch.
+   * `fault` marks a final credential or transport refusal. The boundary records it as the
+   * terminal of the not-sent dispatch.
    */
   | Readonly<{ kind: 'refused'; failure: ModelFailure; fault?: ModelFault }>
   | Readonly<{ kind: 'unknown'; diagnostic: string }>

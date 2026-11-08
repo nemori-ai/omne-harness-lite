@@ -87,12 +87,12 @@ async function transportPassesEveryObligation(): Promise<void> {
 
 async function tokenizerCountsAndNamesWhatItDoesNotKnow(): Promise<void> {
   const tokenizer = createWordTokenizer()
-  const counted = tokenizer.count([
+  const counted = await tokenizer.count([
     { kind: 'text', text: 'one two  three' },
     { kind: 'special-token', name: '<eos>' },
   ])
   expect('ok' in counted && counted.ok.tokens === '4', 'the tokenizer counted another number')
-  const refused = tokenizer.count([{ kind: 'special-token', name: '<mystery>' }])
+  const refused = await tokenizer.count([{ kind: 'special-token', name: '<mystery>' }])
   expect('failure' in refused, 'an unknown special token was counted')
   expect(
     refused.failure.kind === 'unsupported-token' && refused.failure.name === '<mystery>',
@@ -142,18 +142,18 @@ function measurement(text: string, media: 'none' | 'pending'): MeterInput {
 
 async function meterCountsDefersAndReportsOverLimit(): Promise<void> {
   const meter = createWordMeter(basis)
-  const counted = meter.measure(measurement('two words', 'none'))
+  const counted = await meter.measure(measurement('two words', 'none'))
   expect('ok' in counted, 'the meter refused an input within the limit')
   expect(counted.ok.kind === 'complete' && counted.ok.inputDigest === '2', 'wrong complete budget')
   const check = counted.ok.checks.find(item => item.metric === 'input-tokens')
   expect(check?.measurement.amount === '2' && check.limit === '3', 'the check holds another count')
-  const pending = meter.measure(measurement('two words', 'pending'))
+  const pending = await meter.measure(measurement('two words', 'pending'))
   expect('ok' in pending, 'the meter refused an input with pending media')
   expect(pending.ok.kind === 'deferred-media', `the budget is ${pending.ok.kind}`)
   expect(pending.ok.references[0].key === 'image-1', 'the pending reference was lost')
   // An input over the limit is reported, not refused: the check shows the count against the
   // limit, and the assembler judges from it.
-  const over = meter.measure(measurement('four words are too many', 'none'))
+  const over = await meter.measure(measurement('four words are too many', 'none'))
   expect('ok' in over, `the meter refused an input over the limit: ${JSON.stringify(over)}`)
   const overCheck = over.ok.checks.find(item => item.metric === 'input-tokens')
   expect(
@@ -168,7 +168,7 @@ async function meterCountsDefersAndReportsOverLimit(): Promise<void> {
  * from a measurement that names the count of input tokens, and from nothing else.
  */
 function judge(
-  outcome: ReturnType<ModelInputMeter['measure']>,
+  outcome: Awaited<ReturnType<ModelInputMeter['measure']>>,
   trigger: bigint,
 ): 'keep' | 'compress' | 'unmeasured' {
   if (!('ok' in outcome)) return 'unmeasured'
@@ -179,7 +179,7 @@ function judge(
 
 async function tokenizerCountIsNotAMeasurementOfTheRequest(): Promise<void> {
   const tokenizer = createWordTokenizer()
-  const tokenizerOnly = createTokenizerOnlyMeter(tokenizer, basis).measure(
+  const tokenizerOnly = await createTokenizerOnlyMeter(tokenizer, basis).measure(
     measurement('two words', 'none'),
   )
   expect('failure' in tokenizerOnly, 'a meter that only has a tokenizer gave a budget')
@@ -192,9 +192,12 @@ async function tokenizerCountIsNotAMeasurementOfTheRequest(): Promise<void> {
   expect(judge(tokenizerOnly, 1n) === 'unmeasured', 'the assembler judged from a tokenizer count')
   // The rule is not a refusal of everything: a meter with the whole counting basis is judged.
   const whole = createWordMeter(basis)
-  expect(judge(whole.measure(measurement('two words', 'none')), 2n) === 'keep', 'not kept at 2')
   expect(
-    judge(whole.measure(measurement('two words', 'none')), 1n) === 'compress',
+    judge(await whole.measure(measurement('two words', 'none')), 2n) === 'keep',
+    'not kept at 2',
+  )
+  expect(
+    judge(await whole.measure(measurement('two words', 'none')), 1n) === 'compress',
     'not compressed',
   )
 }

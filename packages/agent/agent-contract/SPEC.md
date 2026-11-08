@@ -1,6 +1,6 @@
 # Agent 能力的长期行为规格
 
-状态：调用身份与资格、调用登记、原消费位置、取消与恢复、结果保管及交接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是该接受范围内的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。本页其余内容及所引专题，即公开接口、扩展作者协议、对象模型、外部协调者前提、Loop 算法、恢复切点与机制，已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，同样是现行协作契约。“[生产者接收面](#生产者接收面)”一节，以及提交参加者协议中推进资格失效的冲突映射，属 [#672 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/672) 的写回，其接受在该卡交付时记录。仍然开放的事项由各专题与开放问题页逐项写明。设计接受不表示生产实现、提供者或运行验证已完成。
+状态：调用身份与资格、调用登记、原消费位置、取消与恢复、结果保管及交接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是该接受范围内的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。本页其余内容及所引专题，即公开接口、扩展作者协议、对象模型、外部协调者前提、Loop 算法、恢复切点与机制，已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，同样是现行协作契约。“[生产者接收面](#生产者接收面)”一节，以及提交参加者协议中推进资格失效的冲突映射，属 [#672 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/672) 的写回，其接受在该卡交付时记录。仍然开放的事项由各专题与开放问题页逐项写明。设计接受不表示生产实现、提供者或运行验证已完成。可选读口 `readFinish` 的条款（「[条件终结](#条件终结)」第 5 条、ended 之后的读取，以及两张操作表里的 `readFinish` 行）不在上述接受范围内：它们由 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) revision 2 的 DA3 另行采用。
 
 目标拥有者为 `packages/agent/agent-contract/`。本规格表达持续约束实现的行为。公开类型与机制的设计已按上述状态接受，提供者与实现的接受另行判断，不由设计接受代替。正式产品和全系统架构仍是上层依据。
 
@@ -1051,6 +1051,8 @@ runtime 可顺序承接多个 execution，同一时刻至多一个有效执行�
 
 #### 受理与单执行槽
 
+`AgentState.reserved` 表示执行槽已预占，但不证明 execution 已受理，因而只携带 instance。idle 只表示槽空闲。invoke 完成资格检查后重新核对 draining；成功预占时，必须在受理流程的第一个 await 前同步发布 reserved。明确未受理并释放槽后回 idle，原 open 结果未知时保持 reserved，继续按原 operation 认回。可靠受理并取得挂接后才发布 occupied。宿主的空闲回收只接受 idle，不把 reserved 当作空闲或已结束。
+
 invoke 先预约 runtime 的单执行槽，再由 Journal.open 幂等受理；resume 先预约，再由 Journal.attach 认回原记录。预约与槽共同防止重入：结果未知时保留预约，不释放槽再接另一项工作，open 明确未提交才释放。submit 不预约槽：它沿原 execution 的耐久视图受理，不要求活体 runtime、advance、grant、槽、resume 或 attach，规则见“[输入内容与水位线](#输入内容与水位线)”。首次 invoke 没有 execution 可供 P 或 Rh 写入，准入提供者先保存完整 InputEntry 作为受理前记录；它不占执行槽、不产生输入水位线、不授 advance、不触发开始扩展，也不使 invoke 成功。真正的新 open 才检查真实 runtime 的槽、绑定与适用 grant，并与协调参加者共同建立初始 execution、挂接与原完整结果；原实例与后继实例并发由当前资格与 Journal 排序决定唯一受理，晚到的旧请求不能再分配或重激活旧挂接。原 open 已成功的认回永久返回原 Authority，它只表达旧结果；后继实例的新推进权另走 resume 与 attach。Journal 在存储受理边界核对当前围栏和 execution 修订号。并发的新 invoke 返回 busy，不进入隐藏队列，排队属于调用方治理。runtime 处于 draining 或 disposed 时，新的 invoke 与 resume 返回 unavailable，不预约执行槽。撤权与新效果的准入必须有确定的顺序：先读取资格、再发送的做法不成立。撤权先成立时，后续准入被拒绝，已经合法发出的调用沿原身份查询和控制。单机协程或 Cordis disposer 不替代围栏证明。
 
 open 与 attach 由 Journal 提供者授予执行挂接：挂接身份、围栏代次和授予依据由提供者保存，并以 Authority 返回给 runtime。Journal 在写入之前核对绑定的协调模式与所需支持，在原子提交点核对当前资格、围栏与 execution 修订号。调用方提供的推进资格依据 grant 可以为空。grant 为空时，Journal 提供者单独授予挂接，这是独立调用路径。grant 非空时，它是外部协调者的推进资格依据，必须走“[提交参加者协议](#提交参加者协议)”所要求的共同核对：coordinated 绑定在同一次 open 或 attach 提交中核对它，核对失败返回 denied；standalone 绑定收到非空 grant 时在写前返回 unsupported，不把这次请求当作独立路径保存。coordinated 绑定在其授予规则要求 grant 时收到空 grant 返回 denied。某个 execution 首次建立时固定它的模式与不透明的外部关联，后续 attach 核对该关联，不允许经另一个 standalone 绑定降级。
@@ -1150,6 +1152,7 @@ FinishIntent 是 Journal 维护的当前候选投影，各节点按下列规则�
 2. 候选身份 `candidate`、`obligations` 与 `beforeTerminal` 由 Journal 填写，调用者不写。普通候选的 `candidate` 是首次 F1 操作的 AgentOperationId，取消候选的身份规则见“[取消判断与路线](#取消判断与路线)”。`obligations` 在准备态为 null，由 prepareFinish 填入。`beforeTerminal` 在候选固定时为 null。
 3. F2 把落终态之前位置的经过以普通 Passage 提交。该经过完成的那次提交成立时，Journal 把当前 author route 的 `beforeTerminal` 设为这次提交的依据。
 4. tryFinish 输入的 `intent` 只用于与当前 FinishIntent 投影做相等核对，不写入任何字段。两者不相等时返回 FinishResult.changed。
+5. 按 RFC-0013 revision 2 的 DA3 采用：可选读口 `readFinish` 读这份投影。输入是 Access 与 execution，资格沿与 `load` 相同的读取资格。execution 处于 settling 时返回当前候选的 FinishIntent。execution 处于 ended 时返回最终候选的 FinishIntent，即 tryFinish 核对过的那份。还没有候选时返回 null。另一租户的 execution 与不存在的 execution 都返回 denied，action 为 `readFinish`，两者不可区分。返回值只含 FinishIntent 的六个成员，`failure` 按失败候选的闭合字段原样给出（例如 `model-refused` 的 `failure.kind`，`no-reply` 的 `fault.cause` 与 `fault.upstreamStatus`），不带 checkpoint、消息正文或权限块。它不推进 revision，不改任何事实。提供者可以不实现它。消费者把成员缺席当作不支持，不当作 null。
 
 candidate 同身份配不同业务内容返回 conflict。业务前提真正变化时建立新候选并保存旧到新的替代链接，不改写原候选。只发行清单、确认事件或保存与判断无关的迟到事实不修改候选，也不机械重跑 F2；业务前提变化仍须重新核对。
 
@@ -1174,13 +1177,17 @@ tryFinish 的结果按下表返回。
 
 | 类别 | terminal 前须成立 | 可合法延续的责任 |
 | --- | --- | --- |
-| inputs | 普通候选不越过待承接输入。取消候选保留所有 accepted input 的身份、内容、原归属及终局处置 | 按原归属供读取或由原拥有者处置。不自动路由到新 execution |
+| inputs | 普通候选不越过待承接输入。结论为 fail 且失败为 node-failed 的候选，以及取消候选，保留所有 accepted input 的身份、内容、原归属及终局处置 | 按原归属供读取或由原拥有者处置。不自动路由到新 execution |
 | controls | 适用的取消与必要撤权已经成立。相关后续职责由合法存续方承接 | “[六个阶段](#六个阶段)”允许的 producer-confirmed、physically-stopped、duty-released 真实迟到阶段 |
 | operations | 可能改变候选的未定操作先恢复，不把 unknown 当未发生 | 已合法发出的调用、结果、费用和回执由原生产者与长期接收者负责 |
 | passages | 必需的终态前判断有真实有效结果：complete 与 failed 候选是落终态之前位置的作者经过，cancelled 候选是当前的判断记录。未定卡片和调用完整保留 | 终态后按原身份 lookup、read、invalidate 和保管，不重跑扩展，不采纳新业务效果 |
 | custody | 每项已收到且须交接的结果有真实完成依据或耐久保管，没有无人保管的窗口 | 原消费、释放确认、费用、未确认输出和固定观察按自身协议接续 |
 
 cancelled 候选的终态前判断由具名、精确版本的受信取消判断承担，complete 与 failed 候选继续使用作者的终态前扩展链。判断的判据、安装、记录与旧取消记录的迁移见“[取消判断与路线](#取消判断与路线)”。判断记录不授予永久许可。
+
+`node-failed` 表达 Agent 在节点推进中确定的本地故障。候选只保存节点标识、故障分类、原 Failure.kind 和共同的 step、时刻与来源，不保存任意错误正文、堆栈、请求或凭据。节点标识是观测值，不把实现的节点类型反向引入契约。来源分类在故障产生边界确定，不能解析 diagnostic 来取得。
+
+只有 conclusion 为 fail 且 failure 为 node-failed 时，Journal 才把尚未取入批次的 accepted input 记为 held。原输入记录是保管依据，处置保留完整 value、acceptance、origin 和 taken=null，并提供原 execution 的 input-read 接续。已取入批次的输入仍为 settled，不制造新的 input-taken。其他普通失败与 complete 的未取入输入仍为 pending。该规则不消除未知原写、Model/Tool 调用、Passage、卡片或其他未完成责任，也不改变当前资格、终态前判断和共同提交的要求。
 
 终结授权有两种。推进授权只用于仍然有效的普通完成或失败。取消授权必须对应已保存且当前适用的取消控制，结论只能是 cancelled，它不恢复旧挂接的推进权，也不允许借取消凭据提交 complete 或发新效果。取消授权不授予取消判断与收束资格，这两项资格由主体资格核验的 settle 操作名承担，见“[commitSettlement 的变体](#commitsettlement-的变体)”。两种资格都取不到时，旧实例停止推进并交接，由合法的恢复者沿原记录收束。取消后未处理的输入保留原归属和处置依据，不静默转入后继 execution。
 
@@ -1485,7 +1492,7 @@ handoff 项的恢复动作只有下列四种。它们不是任意命令或回调
 | handoff-record | recordHandoff 请求材料的明确分支（source-bound-request 或 observed-operation）、RhSemanticRequest 与 operation、可信的提供者绑定、固定的 recorded 或 excluded 来源；observed-operation 另保留真实调用依据 | record-message-handoff，即当前保管资格 | 合入原责任。原 recordHandoff 未知时先 query。source-bound 分支不声称已有历史调用。当前 Access 可变，规范语义固定；没有原 execution 时不创建 execution |
 | handoff-source-recovery | 原 P 与应用操作的完整请求及 query 身份，H、来源、位置与原材料 | 查询用当前 query 资格；新的来源应用或 retire 用当前挂接的推进资格 | 先按 query 认回。新的来源应用或 retire 仍须通过现有的 advance、expected 与生命周期检查。取消、失权或 ended 之后只读取与保管。本动作不表示必须执行应用操作或 prepare。应用操作 unknown 且未被排除时，不发新的应用操作，也不发新的 P |
 
-ended 在同一提交保存终局清单、各项处置、最后的 ended 事件、固定的观察集合与原结果。FinishIntent 消失后清单仍可经 load 读取。合法迟到记录在自身原子边界更新处置与 revision，不改原终态，不追加事件。
+ended 在同一提交保存终局清单、各项处置、最后的 ended 事件、固定的观察集合与原结果。FinishIntent 消失后清单仍可经 load 读取。实现了 `readFinish` 的提供者在 ended 之后仍按“[条件终结](#条件终结)”第 5 条给出最终候选的 FinishIntent。合法迟到记录在自身原子边界更新处置与 revision，不改原终态，不追加事件。
 
 tryFinish 在同一次提交固定每个尚需处置的 Passage 与 CardRound、原卡片请求集合、已有卡片、已知答复、原 present、lookup 与 invalidate 操作及精确采用。已有答复不能丢。终态后的卡片接续由“[扩展、卡片与材料](#扩展卡片与材料)”拥有。
 
@@ -2058,6 +2065,7 @@ J40 规定 `AgentExecutionId` 的唯一范围。
 | AgentJournal.commitSettlement | ExecutionMutation 与变体输入；候选、迁移与判断变体另带 expected 与取消授权 | 该变体的完整成功结果，见“[commitSettlement 的变体](#commitsettlement-的变体)” | denied；unavailable；conflict；changed；invalid（含 field 为 intent 或 operation）；terminal（新的候选、迁移或判断请求遇 ended）；commit-unknown。次序见同节的判定顺序 |
 | AgentJournal.recordTerminalObservation | 终态、PassageId、采用、观察依据 | 命令回执 | conflict（同一观察配不同值）；invalid（观察项不存在，field 为 passage；终态不匹配或尚不存在，field 为 terminal；采用不匹配，field 为 implementation）；denied；unavailable（读取失败或投影不全，不推成观察项不存在） |
 | AgentJournal.inputs、readReplyAdmissions | Access、execution、水位线；或下界 `from`、固定范围 `through`、游标、页限 | 有序的输入批；或 `(from, through]` 内序位连续的原事实页，带 `start`、`end` 与 `tail` | unavailable；denied（另一租户的前缀、游标或请求，或当前读取资格不成立）；invalid（前缀、游标或范围不属于本执行、伪造或越界）；范围读不完整返回缺口，原因为 retention、missing-fact、missing-basis 或 range-unavailable，不把空页当作完成，见“[回复准入的已核实前缀](#回复准入的已核实前缀)” |
+| AgentJournal.readFinish（可选） | Access、execution | settling 时为当前候选的 FinishIntent，ended 时为最终候选的 FinishIntent，没有候选时为 null | unavailable；denied（另一租户或不存在的 execution，或当前读取资格不成立，两者不可区分）。提供者未实现时成员缺席，不是失败，见“[条件终结](#条件终结)”第 5 条 |
 | AgentRuntimeControl.quiesce | Access、操作身份、原因依据 | drained 或 unresolved，附剩余 execution 与依据 | denied；conflict；unavailable |
 | AgentJournalEntries.read、receivedOf | Access、execution；read 另带游标 `after` 与页限 `limit`，receivedOf 另带 consumption | read 为按提交顺序的一页条目，带 `next` 与 `caughtUp`；receivedOf 为该 consumption 的全部 `received` 条目 | denied（跨租户、不存在或当前读取资格不成立）；invalid（`after` 不是已有位置，field 为 after）；unavailable（来源不可读，不当作没有条目） |
 | AgentJournalEntries.record | ExecutionMutation、Authority（`received` 为 null）、接收面条目 | 命令回执 | stale-advance（挂接已被取代或推进资格已撤销）；terminal（ended 之后写 `start-fence`）；invalid（推进者条目缺 Authority，field 为 authority）；conflict（同一操作配不同条目，或同一交付键配不同内容）；denied（跨租户，含调用引用的租户与 Access 不同）；unavailable；commit-unknown。见“[日志条目](#日志条目)” |
@@ -2091,6 +2099,7 @@ J40 规定 `AgentExecutionId` 的唯一范围。
 | Journal.recordTerminalObservation | 长期协调者以主体资格（record-terminal-observation）核验，目标是原 execution；另核观察与记录资格，不要求旧挂接有效 | 操作身份，重复同值认回 | 与 commit 同一排序 | 无，不追加事件 | 只为既有待观察项登记 |
 | Journal.inputs | 在已核验的操作之内调用；另核当前挂接的资格 | 只读，同一水位线返回同一批 | 与 submit 同一排序，只返回水位线以内已受理的输入 | 无 | 返回受理时保存的内容，不读取调用方另存的副本 |
 | Journal.readReplyAdmissions | 在已核验的操作或 load 之内调用；每页另核当前读取资格 | 只读，游标只在同一 tenant、execution、执行起源、`from` 与 `through` 内有效；同一请求返回同一事实与范围 | 不阻塞推进；分页期间新到的事实留给下一次 load | 无 | 范围内缺页返回缺口，不把空页当作完成；任何失败都不推进前缀 |
+| Journal.readFinish（可选） | 在已核验的操作或 load 之内调用；核对与 load 相同的当前读取资格 | 只读，同一 execution 的同一修订返回同一投影 | 不阻塞推进；settling 期间返回当前候选，ended 之后返回最终候选 | 无 | 不推进 revision；未实现的提供者没有这个成员 |
 | AgentRuntimeControl.quiesce | 主体资格（quiesce），目标是该实例；只交给宿主，不交给执行的调用方 | 操作身份 | 已在停用的 runtime 认回进行中的交接 | 无 | runtime 进入 draining，交清后撤登记并 disposed |
 | AgentJournalEntries.record | 推进者在已核验的操作之内调用，另核当前挂接。结果接收方在 push 的决定顺序里核验推送主体的当前接收资格，再写 `received`，另核保管资格，不要求挂接。结果接收方以主体资格（receive-result）在写入之前核验，目标是冻结 consumer 对应的 execution | 操作身份；`received` 的操作身份由交付键确定派生 | 与 commit 同一排序 | 条目在同一次提交里投影为一个 `entry` 事件；ended 之后写入的条目不追加事件 | `received` 在 ended 之后仍可写入 |
 | AgentReceivedCommits.commit | push 内先核主体资格（receive-result），另核租户与冻结消费绑定、保管资格；当前资格先于缓存认回，不要求挂接 | operation 与原 delivery；完整输入相同认回整项原 value，重复 operation 不改原 receipt 身份 | 与 Journal、entries、materials 同一权威提交序列；材料与条目一次发布，同 delivery 并发只提交一次 | 条目在同一次提交里投影为一个 `entry` 事件；ended 之后不追加事件，没有通知 | ended 后仍可保管，不恢复推进；已 excluded 的原 operation 不复活 |

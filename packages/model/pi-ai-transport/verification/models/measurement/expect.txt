@@ -1,0 +1,3 @@
+positive.cfg pass
+bad-live-digest.cfg DigestSnapshot
+bad-live-checks.cfg CheckSnapshot

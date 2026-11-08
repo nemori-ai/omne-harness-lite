@@ -88,26 +88,26 @@ function elapsed(start: MonotonicReading, end: MonotonicReading): MeasuredNumber
   return { state: 'measured', value: end.atMs - start.atMs }
 }
 
-function count(value: number | undefined): MeasuredNumber {
+async function count(value: number | undefined): Promise<MeasuredNumber> {
   if (value === undefined) return { state: 'unmeasured', reason: 'not-provided' }
   return Number.isSafeInteger(value) && value >= 0
     ? { state: 'measured', value }
     : { state: 'unmeasured', reason: 'invalid-count' }
 }
 
-function interval(
+async function interval(
   measurement: MeasurementContext,
   start: MonotonicReading,
   end: MonotonicReading,
   outcome: Interval['outcome'],
-): Interval {
+): Promise<Interval> {
   return {
     runId: measurement.runId,
     round: measurement.round,
     start,
     end,
     elapsedMs: elapsed(start, end),
-    logCount: count(measurement.logCount),
+    logCount: await count(measurement.logCount),
     outcome,
   }
 }
@@ -134,7 +134,7 @@ export async function measureModelPreparation<P>(
   } finally {
     const end = sample(clock)
     measurement.emit({
-      ...interval(measurement, start, end, outcome),
+      ...(await interval(measurement, start, end, outcome)),
       eventKind: 'stage-interval',
       stage: 'model-request-preparation',
     })
@@ -196,7 +196,7 @@ export function createMeasuredFixedDelayModel<P>(
       } finally {
         const end = sample(clock)
         measurement.emit({
-          ...interval(measurement, start, end, outcome),
+          ...(await interval(measurement, start, end, outcome)),
           eventKind: 'external-wait-interval',
           stage: 'model-fixed-delay',
           provider: 'measured-fixed-delay-model',

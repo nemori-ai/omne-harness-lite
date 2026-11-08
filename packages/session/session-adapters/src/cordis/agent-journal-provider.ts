@@ -123,6 +123,8 @@ export type ExecutionRoutedJournalOptions<P> = Readonly<{
 }>
 
 type Journal<P> = AgentJournal<P>
+/** The routed Journal implements the optional finish read, so the provider class can declare it present. */
+type RoutedJournal<P> = Journal<P> & Required<Pick<Journal<P>, 'readFinish'>>
 type Materials<P> = AgentMaterials<P, ContentBlock>
 /** The faces of one session's Journal: Journal, entries, materials and received commits. */
 type SessionView<P> = SessionLogJournalProvider<P>
@@ -268,7 +270,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     return routedWrite(action, scope, view => call(view.journal))
   }
 
-  const journal: Journal<P> = {
+  const journal: RoutedJournal<P> = {
     capabilities: {
       coordination: 'coordinated',
       participants: new Set(['message', 'context-transition', 'custody', 'processed']),
@@ -300,6 +302,14 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     inputs: input => routed('inputs', input, j => j.inputs(input)),
     readReplyAdmissions: input =>
       routed('readReplyAdmissions', input, j => j.readReplyAdmissions(input)),
+    readFinish: input =>
+      routed(
+        'readFinish',
+        input,
+        async j =>
+          (await j.readFinish?.(input)) ??
+          fail(unavailable('the session Journal has no finish read')),
+      ),
     query: input => routed('query', input, j => j.query(input)),
     output: {
       // The action names are the ones the core answers for an execution it does not hold.
@@ -639,6 +649,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
   readonly load: AgentJournal<unknown>['load']
   readonly inputs: AgentJournal<unknown>['inputs']
   readonly readReplyAdmissions: AgentJournal<unknown>['readReplyAdmissions']
+  readonly readFinish: NonNullable<AgentJournal<unknown>['readFinish']>
   readonly query: AgentJournal<unknown>['query']
   readonly output: AgentJournal<unknown>['output']
 
@@ -707,6 +718,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     this.load = journal.load
     this.inputs = journal.inputs
     this.readReplyAdmissions = journal.readReplyAdmissions
+    this.readFinish = journal.readFinish
     this.query = journal.query
     this.output = journal.output
     new SessionLogJournalEntries(ctx, routed.entries)

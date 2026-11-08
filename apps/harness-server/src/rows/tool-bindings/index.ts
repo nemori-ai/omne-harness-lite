@@ -26,6 +26,16 @@ import {
 import { defineRow } from '../../row.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { createReleaseAvailability } from './availability.ts'
+import { releaseCatalogViewOf } from './catalog-view.ts'
+import { z } from 'zod'
+import { isReleaseToolRequest, isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
+import { releaseOf } from '../../entry/tool-release.ts'
+import { createReleaseToolsCapability, toolsCapabilityConfig } from './tools-capability.ts'
+import { bindReleaseTodoItems } from './todo-items.ts'
+
+export const toolBindingsConfig = z
+  .strictObject({ tools: toolsCapabilityConfig.optional() })
+  .default({})
 
 type Input = LocalToolBindingsPluginInput<unknown, unknown, ToolMessageContentBlock>
 
@@ -89,12 +99,39 @@ export function bundleSettle(ctx: Context): Input['settle'] {
 const bindingsPlugin: Plugin.Object = {
   name: 'tool-bindings',
   inject: [toolContributionAuthorityKey],
-  apply(ctx: Context) {
+  Config: toolBindingsConfig,
+  apply(ctx: Context, raw: unknown) {
+    const config = toolBindingsConfig.parse(raw)
+    const tools =
+      config.tools === undefined ? null : createReleaseToolsCapability(ctx, config.tools)
+    const holder = toolRuntimeHolder(ctx)
+    if (tools !== null) {
+      if (holder.toolsForwarding !== null) throw new Error('Tools capability already installed')
+      holder.toolsForwarding = tools
+      ctx.effect(
+        () => () => {
+          void tools.close()
+        },
+        'tool-bindings.tools-capability',
+      )
+    }
     const Bindings = createLocalToolBindingsPlugin<unknown, unknown, ToolMessageContentBlock>({
       availability: createReleaseAvailability(ctx),
+      view: releaseCatalogViewOf(ctx),
+      search: { k1: 1.2, b: 0.75, maxCachedCorpora: 16 },
       authority: startAuthorityProxy(ctx),
       scope: bundleScope(ctx),
       settle: bundleSettle(ctx),
+      capability: (input, scope) => {
+        const release = releaseOf(ctx)
+        const withTools =
+          tools !== null && isReleaseToolsRequest(release, input.request)
+            ? tools.bind(input, scope)
+            : scope
+        return isReleaseToolRequest(release, input.request, 'TodoItems')
+          ? bindReleaseTodoItems(ctx, input, withTools)
+          : withTools
+      },
     })
     // Both services register in this row's fiber: `toolBindings` here, `toolCatalog` in its constructor.
     new Bindings(ctx)
