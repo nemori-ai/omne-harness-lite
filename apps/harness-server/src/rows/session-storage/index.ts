@@ -3,16 +3,16 @@
 // `sessionTransactions`（公开端口）、`sessionDelegatedTransactions`（受信，委派视图）、`tenantDomains`（部署枚举）、
 // `tenantDomainLookup`（受信，只读快照）、`sessionPrincipalBindings`（受信，会话归属读口）。
 // 登记规则：session-storage-sql 在每次读与提交都 `resolve` 租户的域（XP-6），而目录的 `resolve` 只查快照；
-// 只有访问裁定放行的 `create` 让本行登记该租户。公开端口在 `create` 提交前登记；委派视图绑定到一次放行的 `create`
+// 新租户仅由访问裁定放行的 `create` 登记。公开端口在 `create` 提交前登记；委派视图绑定到一次放行的 `create`
 // 时，视图解析该租户的域就登记（Session 核心先经视图 `queryOperation` 再提交，登记必须在第一次读之前）。
 // 读与被拒的 `create` 不登记，所以目录没有的租户没有会话：委派视图对它的会话读与提交答 `denied`（同「会话不存在」），不答
 // session-storage-sql 的 `unavailable`（`unregisteredTenantIsAbsent`）。
-// 已知限制：换 `combinationVersion` 不会为已登记的租户补登记（登记表不记版本），换版本需要另有拥有者定补登记的时机。
+// 发布服务前确认持久目录中每个租户的本次组合登记；失败或撤除时不发布。
 // 游标签名按调用现取 `sessionCursorSigning`（IC-9），不在 inject 里；入口对象缺席时五种读答 `unavailable`。
 // 部署枚举 `tenantDomains.enumerate` 每次调用都按调用现取受信键 `systemActionAuthorization`（`authorization` 行提供，
 // R2-D245），由它按发行授予表与运维者的收回、到期判断；本行不持有授予表。键缺席或答 `unavailable` 时枚举答
 // `unavailable`，不放行。
-import type { Context } from '@deepseek-ai/cordis'
+import { symbols, type Context } from '@deepseek-ai/cordis'
 import type { SystemActionAuthorization } from '@omne-harness/authorization'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import { fail, type Outcome } from '@omne-harness/operation-result'
@@ -57,6 +57,7 @@ import {
   tenantDomainsKey,
 } from '@omne-harness/sql-contract/cordis'
 import { defineRow, type RowHandle } from '../../row.ts'
+import { monotonicClock } from '../../shutdown.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { systemActionAuthorizationKey } from '../authorization/system-action-service.ts'
 import { boundAccessCheck } from './bound.ts'
@@ -86,8 +87,10 @@ type RegisterEntry = Parameters<Parameters<typeof openTenantDirectory>[0]['regis
 function registerWith(
   storage: SqlStorage,
   combination: Readonly<{ combinationVersion: string; manifestDigest: string }>,
+  isOpen: () => boolean,
 ): (entry: RegisterEntry) => Promise<RegisterOutcome> {
   return async entry => {
+    if (!isOpen()) return { kind: 'unavailable', diagnostic: 'session storage is stopping' }
     const input: CombinationRegistrationV2 = {
       scope: entry.domain.scope,
       transactionDomain: entry.domain.transactionDomain,
@@ -96,7 +99,8 @@ function registerWith(
       participants: [...SESSION_COMPOSITE_PARTICIPANTS],
     }
     let result = await storage.registerCombination(input)
-    if (result.kind === 'unknown') result = await storage.registerCombination(input)
+    if (result.kind === 'unknown' && isOpen()) result = await storage.registerCombination(input)
+    if (!isOpen()) return { kind: 'unavailable', diagnostic: 'session storage is stopping' }
     switch (result.kind) {
       case 'registered':
         return { kind: 'registered' }
@@ -348,10 +352,35 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
     combinationVersion: config.combinationVersion,
     manifestDigest: manifest.digest,
   }
+  let active = true
+  const origin = (value: object | undefined): unknown =>
+    value === undefined ? undefined : (Reflect.get(value, symbols.original) ?? value)
+  const storageOrigin = origin(storage)
+  const accessOrigin = origin(accessCheck)
+  const isOpen = () =>
+    active &&
+    ctx.fiber.uid !== null &&
+    origin(ctx.get(storageKey)) === storageOrigin &&
+    origin(ctx.get(sessionAccessCheckKey)) === accessOrigin
   const directory = openTenantDirectory({
     file: config.directoryFile,
-    register: registerWith(storage, combination),
+    register: registerWith(storage, combination, isOpen),
   })
+  ctx.effect(
+    () => () => {
+      active = false
+      void directory.close(monotonicClock.now())
+    },
+    'session-storage.directory',
+  )
+  const existing = await directory.access.snapshot()
+  if (existing.kind !== 'ready') throw new Error('session storage: directory is unavailable')
+  for (const entry of existing.value.entries) {
+    const registered = await directory.ensureRegistered(entry.tenant)
+    if (registered.kind !== 'ready')
+      throw new Error('session storage: current combination registration failed')
+  }
+  if (!isOpen()) throw new Error('session storage: stopped before publishing services')
   const base: SessionStorageOptions<unknown> = {
     storage,
     domains: directory.access,
@@ -374,6 +403,7 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   new PrincipalBindingsImpl(ctx, bindings)
   return {
     stop: deadline => {
+      active = false
       // 读口记住了已成立的归属，不再读存储，所以关闭要显式告诉它：此后一律答 `unavailable`。
       bindings.stop()
       return directory.close(deadline)

@@ -1,7 +1,7 @@
 // 租户到事务域的目录（装配页「租户到事务域的目录」，sql-contract §2.4）。目录由本行持有：
 // - 推导规则：`tenant/<organization>/<account>`，由租户的 tenantCodec 文本经 legal-identity 的公开 codec 推出，可逆。
 // - 登记表：存储根目录下的一个 JSON 文件，只记租户的 tenantCodec 文本；整体替换用「临时文件、刷盘、改名、刷盘目录」；只增不删不改。
-// - `resolve` 与 `lookup` 只查已发布的快照，不登记；登记只经 `ensureRegistered`，由组合行在放行的 `create` 之后调用。
+// - `resolve` 与 `lookup` 只查快照；组合行在启动或放行的 `create` 后经 `ensureRegistered` 确认本次组合登记。
 // - 登记表损坏，或写它的规则与配置的规则不同：打开失败，行 FAILED。不以空目录启动。
 import {
   closeSync,
@@ -129,7 +129,7 @@ export type TenantDirectory = Readonly<{
   /** 受信的只读查找（`tenantDomainLookup`）。 */
   lookup: TenantDomainLookup
   holds(tenantText: string): boolean
-  /** 登记并写入登记表；已登记的租户直接 `ready`。同一租户的并发调用共用一次登记。 */
+  /** 确认本次组合登记；仅新增租户写目录。同一租户的并发调用共用一次登记。 */
   ensureRegistered(tenantText: string): Promise<TenantDomainResolution>
   /** 停止新的登记，等在途登记结束或到达期限。 */
   close(deadlineMonotonicMs: number): Promise<StopResult>
@@ -144,6 +144,7 @@ export function openTenantDirectory(options: DirectoryOptions): TenantDirectory 
   const entries = new Map<string, TenantDomain>()
   for (const tenantText of readDirectoryFile(options.file))
     entries.set(tenantText, entryOf(tenantText))
+  const confirmed = new Set<string>()
   const inFlight = new Map<string, Promise<TenantDomainResolution>>()
   let closing = false
 
@@ -159,13 +160,16 @@ export function openTenantDirectory(options: DirectoryOptions): TenantDirectory 
     }
     const registered = await options.register(entry)
     if (registered.kind === 'unavailable') return unavailable(registered.diagnostic)
+    if (closing) return unavailable('the session storage composite is stopping')
     try {
-      writeDirectoryFile(options.file, [...entries.keys(), tenantText])
+      if (!entries.has(tenantText))
+        writeDirectoryFile(options.file, [...entries.keys(), tenantText])
     } catch {
       // 存储里的登记已经完成；登记表没写成，快照不变。下一次放行的 create 用相同输入再登记即可收敛。诊断不带路径或系统错误文本。
       return unavailable('the tenant domain directory could not be written')
     }
     entries.set(tenantText, entry)
+    confirmed.add(tenantText)
     return { kind: 'ready', entry }
   }
 
@@ -191,8 +195,10 @@ export function openTenantDirectory(options: DirectoryOptions): TenantDirectory 
     },
     holds: tenantText => entries.has(tenantText),
     ensureRegistered: tenantText => {
+      if (closing) return Promise.resolve(unavailable('the session storage composite is stopping'))
       const known = entries.get(tenantText)
-      if (known !== undefined) return Promise.resolve({ kind: 'ready', entry: known })
+      if (known !== undefined && confirmed.has(tenantText))
+        return Promise.resolve({ kind: 'ready', entry: known })
       const running = inFlight.get(tenantText)
       if (running !== undefined) return running
       const task = registerOne(tenantText).finally(() => inFlight.delete(tenantText))
