@@ -219,6 +219,19 @@ export function afterExit(wait: ExitWait): ExitStep {
   return wait.openStreams === 0 ? 'finish' : 'arm'
 }
 
+/** Where one chunk of the command's output goes. */
+export type ChunkRoute = 'frames' | 'relay' | 'discard'
+
+/**
+ * Before the exit frame a chunk goes out as data frames, and a full channel pauses the pipes. After
+ * it the chunk goes through the relay, which counts instead of pausing; once the manager is gone
+ * (the frame channel failed) nothing is sent, and the chunk is discarded.
+ */
+export function chunkRoute(state: Readonly<{ finished: boolean; detached: boolean }>): ChunkRoute {
+  if (!state.finished) return 'frames'
+  return state.detached ? 'discard' : 'relay'
+}
+
 /** The exit frame, with the count of the unit's other members, or null when it cannot be read. */
 export function exitFrame(status: ExitStatus, members: number | null): CommandFrame {
   return { t: 'exit', code: status.code, signal: status.signal, members }

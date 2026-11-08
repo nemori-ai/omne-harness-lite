@@ -229,29 +229,28 @@ function decodeFrame(value: unknown, maxChunkBytes: number): GateFrame | string 
   }
 }
 
+/** One frame kind's place in the gate's order: the phases that take it, the phase that follows (absent: the same), and the fault elsewhere. */
+type Transition = Readonly<{ from: readonly Phase[]; to?: Phase; fault: string }>
+
 /**
  * The order the gate must keep: ready, then started or a spawn failure, then data, then one exit;
  * after the exit, data and drop frames of what the unit still writes.
  */
-function nextPhase(phase: Phase, frame: GateFrame): Phase | string {
-  switch (frame.kind) {
-    case 'ready':
-      return phase === 'launching' ? 'ready' : 'ready out of order'
-    case 'started':
-      return phase === 'ready' ? 'running' : 'started out of order'
-    case 'spawnFailed':
-      return phase === 'ready' ? 'ended' : 'a spawn failure out of order'
-    case 'data':
-      return phase === 'running' || phase === 'exited' ? phase : 'data outside the running command'
-    case 'dropped':
-      return phase === 'exited' ? phase : 'a drop frame before the exit'
-    case 'exit':
-      return phase === 'running' ? 'exited' : 'an exit out of order'
-    default: {
-      const exhaustive: never = frame
-      return exhaustive
-    }
-  }
+const transitions: Readonly<Record<GateFrame['kind'], Transition>> = {
+  ready: { from: ['launching'], to: 'ready', fault: 'ready out of order' },
+  started: { from: ['ready'], to: 'running', fault: 'started out of order' },
+  spawnFailed: { from: ['ready'], to: 'ended', fault: 'a spawn failure out of order' },
+  data: { from: ['running', 'exited'], fault: 'data outside the running command' },
+  dropped: { from: ['exited'], fault: 'a drop frame before the exit' },
+  exit: { from: ['running'], to: 'exited', fault: 'an exit out of order' },
+}
+
+type PhaseStep = Readonly<{ phase: Phase } | { fault: string }>
+
+function nextPhase(phase: Phase, frame: GateFrame): PhaseStep {
+  const rule = transitions[frame.kind]
+  if (!rule.from.includes(phase)) return { fault: rule.fault }
+  return { phase: rule.to ?? phase }
 }
 
 /**
@@ -287,16 +286,9 @@ export function createGateReader(input: { maxChunkBytes: number }): Readonly<{
         }
         const frame = decodeFrame(value, input.maxChunkBytes)
         if (typeof frame === 'string') return failed(frame, frames)
-        const next = nextPhase(phase, frame)
-        if (
-          next !== 'launching' &&
-          next !== 'ready' &&
-          next !== 'running' &&
-          next !== 'exited' &&
-          next !== 'ended'
-        )
-          return failed(next, frames)
-        phase = next
+        const step = nextPhase(phase, frame)
+        if ('fault' in step) return failed(step.fault, frames)
+        phase = step.phase
         frames.push(frame)
       }
       if (pending.length > maxLine) return failed('a frame line exceeds its bound', frames)

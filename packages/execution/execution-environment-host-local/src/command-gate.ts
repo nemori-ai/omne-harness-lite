@@ -23,6 +23,7 @@ import type { Readable } from 'node:stream'
 import {
   afterExit,
   afterExitRelay,
+  chunkRoute,
   controlStep,
   cgroupNamesUnit,
   dataFrames,
@@ -32,6 +33,7 @@ import {
   spawnFailedFrame,
   splitLines,
   standardInput,
+  type ChunkRoute,
   type CommandFrame,
   type ControlAction,
   type ExitStatus,
@@ -133,13 +135,19 @@ function sendData(frame: CommandFrame): void {
   if (!send(frame)) pause()
 }
 
+type ChunkHandler = (chunk: Buffer, name: OutputStream, maxChunkBytes: number) => void
+
+const chunkHandlers: Readonly<Record<ChunkRoute, ChunkHandler>> = {
+  frames: (chunk, name, maxChunkBytes) => {
+    for (const frame of dataFrames(chunk, name, maxChunkBytes)) sendData(frame)
+    armQuiet()
+  },
+  relay: (chunk, name, maxChunkBytes) => relayAfterExit(relay, chunk, name, maxChunkBytes, send),
+  discard: () => undefined,
+}
+
 function forwardChunk(chunk: Buffer, name: OutputStream, maxChunkBytes: number): void {
-  if (finished) {
-    if (!detached) relayAfterExit(relay, chunk, name, maxChunkBytes, send)
-    return
-  }
-  for (const frame of dataFrames(chunk, name, maxChunkBytes)) sendData(frame)
-  armQuiet()
+  chunkHandlers[chunkRoute({ finished, detached })](chunk, name, maxChunkBytes)
 }
 
 function onStreamEnd(): void {

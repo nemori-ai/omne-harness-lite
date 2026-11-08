@@ -245,6 +245,63 @@ it.each([
   expect(reader.push(line({ t: 'ready' })).kind).toBe('fault')
 })
 
+describe('the order of the gate frames', () => {
+  const frames = {
+    ready: { t: 'ready' },
+    started: { t: 'started' },
+    spawnFailed: { t: 'spawnFailed', code: 'ENOENT' },
+    data: data('stdout', 'x'),
+    dropped: { t: 'x', s: 'stdout', n: 1 },
+    exit: { t: 'exit', code: 0, signal: null },
+  } as const
+  type Kind = keyof typeof frames
+  /** The frames that bring a fresh reader into each phase of the gate's order. */
+  const phases = {
+    launching: [],
+    ready: [frames.ready],
+    running: [frames.ready, frames.started],
+    exited: [frames.ready, frames.started, frames.exit],
+    ended: [frames.ready, frames.spawnFailed],
+  } as const
+  type PhaseName = keyof typeof phases
+  /** Where each frame is in order, and the fault it is named with anywhere else. */
+  const order: Record<Kind, { in: readonly PhaseName[]; fault: string }> = {
+    ready: { in: ['launching'], fault: 'ready out of order' },
+    started: { in: ['ready'], fault: 'started out of order' },
+    spawnFailed: { in: ['ready'], fault: 'a spawn failure out of order' },
+    data: { in: ['running', 'exited'], fault: 'data outside the running command' },
+    dropped: { in: ['exited'], fault: 'a drop frame before the exit' },
+    exit: { in: ['running'], fault: 'an exit out of order' },
+  }
+  const kinds = Object.keys(frames) as Kind[]
+  const names = Object.keys(phases) as PhaseName[]
+
+  it.each(kinds)('takes %s in its phases only, and names the fault anywhere else', kind => {
+    for (const phase of names) {
+      const reader = createGateReader({ maxChunkBytes: 64 })
+      framesOf(reader.push(joined(...phases[phase].map(frame => line(frame)))))
+      const step = reader.push(line(frames[kind]))
+      if (order[kind].in.includes(phase)) expect(step.kind, `${kind} in ${phase}`).toBe('frames')
+      else
+        expect(step, `${kind} in ${phase}`).toMatchObject({
+          kind: 'fault',
+          fault: order[kind].fault,
+        })
+    }
+  })
+
+  it('stays in the exited phase over data and drop frames, and in the running phase over data', () => {
+    const exited = createGateReader({ maxChunkBytes: 64 })
+    framesOf(exited.push(joined(...phases.exited.map(frame => line(frame)))))
+    framesOf(exited.push(joined(line(frames.data), line(frames.dropped), line(frames.data))))
+    expect(exited.push(line(frames.exit))).toMatchObject({ fault: 'an exit out of order' })
+    const running = createGateReader({ maxChunkBytes: 64 })
+    framesOf(running.push(joined(...phases.running.map(frame => line(frame)))))
+    framesOf(running.push(joined(line(frames.data), line(frames.data))))
+    expect(running.push(line(frames.exit)).kind).toBe('frames')
+  })
+})
+
 it('reads data and drop frames after the exit, where the unit still writes', () => {
   const reader = createGateReader({ maxChunkBytes: 64 })
   const step = reader.push(

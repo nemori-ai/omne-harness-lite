@@ -6,6 +6,7 @@ import {
   afterExit,
   afterExitRelay,
   cgroupNamesUnit,
+  chunkRoute,
   controlStep,
   dataFrames,
   drainAfterExit,
@@ -266,6 +267,16 @@ describe('controlStep', () => {
     expect(controlStep(accepted, line('go'), own.inOwnScope)).toEqual({ kind: 'ignore' })
     expect(controlStep(accepted, 'null', own.inOwnScope)).toEqual({ kind: 'ignore' })
     expect(controlStep(accepted, line(valid), own.inOwnScope)).toEqual({ kind: 'ignore' })
+  })
+})
+
+describe('chunkRoute', () => {
+  it('sends data frames before the exit frame, relays after it, and discards once the manager is gone', () => {
+    expect(chunkRoute({ finished: false, detached: false })).toBe('frames')
+    // Before the exit frame a gone manager changes nothing here: the frames are dropped at the send.
+    expect(chunkRoute({ finished: false, detached: true })).toBe('frames')
+    expect(chunkRoute({ finished: true, detached: false })).toBe('relay')
+    expect(chunkRoute({ finished: true, detached: true })).toBe('discard')
   })
 })
 
