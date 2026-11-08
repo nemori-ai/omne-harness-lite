@@ -3,7 +3,6 @@ import type {
   CommandOutcome,
   FacilityReason,
   FacilityRequest,
-  FacilityResult,
   OutputChunk,
   ProcessHandle,
   ResidueReport,
