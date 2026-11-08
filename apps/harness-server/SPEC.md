@@ -440,6 +440,10 @@ sequenceDiagram
 
 ### Tool 材料维护授权
 
+Tool历史格式升级必须先于当前执行宿主恢复和新调用准入。应用先停止旧拥有者的新写入，并取得执行、事实ACK、队列、环境和交付的具名收尾证据；Tool负责调用与材料分类，host负责自己的旧交付副本。SQL表结构迁移不等于业务结果已经转换。
+
+应用以受信维护身份运行只读预演与固定原操作的转换，不向模型开放迁移或删除入口。未识别格式、无法确认的来源及未完成责任明确隔离并报告。当前运行时不得读取半转换记录；有未处置旧责任时不能将该库报告为升级完成。重启沿同一迁移计划认回，不重新执行旧工具。正常启动只在格式与处置屏障通过后进入业务阶段。
+
 发行授予表为 tool-material-maintainer 提供 tool-material-scan 和 tool-material-maintain 两项目的。issueToolMaterialMaintainer 只经入口的受信 PrincipalIssuer 签发主体。应用访问适配器每次读取当前 SystemActionAuthorization，核验实际主体来源、真实租户身份、动作和原调用绑定。普通会话 Tool guard 仍不支持 maintain-materials。
 
 系统维护不读取当前成员资格来决定历史材料是否可清理。成员离组不删除租户及历史责任；持久分区仍由既有 TenantDomainLookup 和 SQL 提供者解析。伪造租户、复制主体、越权动作或撤销授予均不能获得维护权。缺当前授权来源或读口抛错明确不可用，不泄露异常文本。
