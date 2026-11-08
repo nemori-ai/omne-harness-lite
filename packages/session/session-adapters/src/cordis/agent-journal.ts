@@ -313,7 +313,7 @@ type Book<P> = {
   /** The executions whose facts were read whole (the open ones at the cold start, and on demand). */
   readonly loaded: Set<string>
   scratch: Scratch | null
-  queue: Promise<unknown>
+  queue: Promise<void>
   /** The unknown writes of this process, by the Journal core's operation key. */
   readonly held: Map<string, Held>
 }
@@ -949,8 +949,18 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
 
   /** Runs `task` after every earlier task of the same book: one writer per session in-process. */
   function serial<T>(book: Book<P>, task: () => Promise<T>): Promise<T> {
-    const run = book.queue.then(task, task)
-    book.queue = run.catch(() => undefined)
+    const run = book.queue.then(task, task).finally(() => {
+      if (
+        book.held.size === 0 &&
+        book.view.executions.size > 0 &&
+        [...book.view.executions.values()].every(execution => execution.finish.ended !== null)
+      )
+        book.copy = null
+    })
+    book.queue = run.then(
+      () => undefined,
+      () => undefined,
+    )
     return run
   }
 

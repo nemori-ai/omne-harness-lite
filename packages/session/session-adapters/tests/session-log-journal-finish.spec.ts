@@ -8,6 +8,10 @@
 // history as `message.assistant`. On the node:sqlite double that runs the published participant
 // modules, with the AD-02 plugin on a real Cordis root.
 import { describe, expect, it } from 'vitest'
+import { setImmediate as nextTurn } from 'node:timers/promises'
+import { setFlagsFromString } from 'node:v8'
+import { runInNewContext } from 'node:vm'
+import { decodePassageId, type Passage } from '@omne-harness/agent-contract'
 import { succeed } from '@omne-harness/operation-result'
 import type { FinishCandidateContent, JournalCommit } from '@omne-harness/agent-contract'
 import { evidence, ok, operation } from './fixtures/common-journal.ts'
@@ -241,4 +245,130 @@ describe('tryFinish on the production session-log Journal with the PA-02 finish 
       await s.close()
     }
   })
+})
+
+it('reclaims terminal working records while retaining the original observation and receipt in SQL', async () => {
+  setFlagsFromString('--expose-gc')
+  const gc: unknown = runInNewContext('gc')
+  if (typeof gc !== 'function') throw new Error('GC is required for the lifetime assertion')
+  const s = await sqlScene('terminal-working-copy')
+  try {
+    const passage: Passage = {
+      id: ok(decodePassageId('after-terminal')),
+      position: 'after_terminal',
+      dimension: null,
+      purpose: null,
+      action: null,
+      ordinal: 0,
+      declaration: {
+        name: 'observe',
+        position: 'after_terminal',
+        power: 'observe',
+        implementation: { kind: 'builtin', builtinName: 'observe' },
+      },
+      implementation: s.openInput.checkpoint.schema,
+      input: evidence('observer-input'),
+      effective: evidence('observer-effective'),
+      operations: [],
+      progress: { kind: 'requested', mode: { kind: 'fresh' } },
+    }
+    const second = { ...passage, id: ok(decodePassageId('second-terminal')) }
+    const earlier: Passage = {
+      ...passage,
+      id: ok(decodePassageId('before-model')),
+      position: 'before_model_call',
+      purpose: 'main',
+      declaration: { ...passage.declaration, position: 'before_model_call' },
+      progress: {
+        kind: 'applied',
+        rounds: [],
+        transition: evidence('before-model-applied'),
+        conclusion: {
+          position: 'before_model_call',
+          passage: ok(decodePassageId('before-model')),
+          extension: 'observe',
+          implementation: passage.implementation,
+          power: 'observe',
+          at: '2026-11-06T00:00:00Z',
+          output: { kind: 'observed' },
+        },
+      },
+    }
+    const opened = ok(
+      await s.view.journal.open({
+        ...s.openInput,
+        checkpoint: { ...s.openInput.checkpoint, passages: [passage, earlier, second] },
+      }),
+    )
+    ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
+    const before = await load(s)
+    expect(before.terminalObservations).toHaveLength(0)
+    expect(
+      ok(await s.fresh().journal.load({ ...s.access, execution: s.execution }))
+        .terminalObservations,
+    ).toHaveLength(0)
+    const ready = await prepareEnd(s, opened.authority, {
+      origin: before.history,
+      conclusion: { kind: 'fail', cause: evidence('node-failure') },
+      failure: {
+        kind: 'node-failed',
+        node: 'E4',
+        category: 'invariant',
+        failureKind: 'unavailable',
+        step: null,
+        at: '2026-11-06T00:00:00Z',
+        source: before.history,
+      },
+    })
+    if (ready.state.kind !== 'settling') throw new Error('settling expected')
+    const input = {
+      ...s.access,
+      execution: s.execution,
+      operation: operation('end-working-copy'),
+      authorization: { kind: 'advancement' as const, authority: opened.authority },
+      expected: ready.revision,
+      intent: ready.state.intent,
+    }
+    const ended = ok(await s.view.journal.tryFinish(input))
+    expect(ended.kind).toBe('ended')
+    async function observeWeakly() {
+      const snapshot = await load(s)
+      const observation = snapshot.terminalObservations[0]
+      if (observation === undefined) throw new Error('terminal observation missing')
+      return new WeakRef(observation)
+    }
+    const weak = await observeWeakly()
+    for (let round = 0; round < 4; round++) {
+      await nextTurn()
+      gc()
+    }
+    expect(weak.deref()).toBeUndefined()
+    expect(ok(await s.view.journal.tryFinish(input))).toEqual(ended)
+    const recovered = await load(s)
+    expect(recovered.state.kind).toBe('ended')
+    expect(recovered.terminalObservations).toHaveLength(2)
+    expect(recovered.terminalObservations[0]).toMatchObject({ passage: passage.id, observed: null })
+    expect(ok(await s.fresh().journal.load({ ...s.access, execution: s.execution }))).toEqual(
+      recovered,
+    )
+    if (ended.kind !== 'ended') throw new Error('ended expected')
+    const record = {
+      ...s.access,
+      execution: s.execution,
+      operation: operation('observe-second'),
+      terminal: ended.receipt.evidence,
+      passage: second.id,
+      implementation: second.implementation,
+      observed: evidence('second-observed'),
+    }
+    const receipt = ok(await s.view.journal.recordTerminalObservation(record))
+    expect(ok(await s.fresh().journal.recordTerminalObservation(record))).toEqual(receipt)
+    const confirmed = ok(await s.fresh().journal.load({ ...s.access, execution: s.execution }))
+    expect(confirmed.terminalObservations.map(item => [item.passage, item.observed])).toEqual([
+      [passage.id, null],
+      [second.id, record.observed],
+    ])
+  } finally {
+    await s.close()
+  }
 })
