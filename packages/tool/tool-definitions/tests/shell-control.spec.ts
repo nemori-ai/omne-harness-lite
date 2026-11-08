@@ -363,6 +363,25 @@ it('lists retained processes in info after the terminals, one line each', async 
   expect(info).not.toContain('retained_processes=')
 })
 
+it('names the containment the command facility declares after the shell line, and undeclared when it declares none', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const declaring = (containment: 'sealed' | 'none') => ({
+    ...fixture.environment,
+    command: { ...fixture.environment.command, containment },
+  })
+  expect(await run(author, 'info', {}, declaring('sealed'))).toContain(
+    'cwd="/initial"\nprocess_containment=sealed\n',
+  )
+  expect(await run(author, 'info', {}, declaring('none'))).toContain(
+    'cwd="/initial"\nprocess_containment=none\n',
+  )
+  // Absent is not sealed.
+  const undeclared = await run(author, 'info', {}, fixture.environment)
+  expect(undeclared).toContain('cwd="/initial"\nprocess_containment=undeclared\n')
+  expect(undeclared).not.toContain('process_containment=sealed')
+})
+
 it('says none only when the listing is empty', async () => {
   const fixture = shellFixture()
   const author = value(createShellAuthor(fixture.config))

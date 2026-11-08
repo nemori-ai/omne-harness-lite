@@ -47,7 +47,9 @@ it('states the four lifetime rules in help, one phrase per rule', async () => {
   expect(help).toContain('a process left running in the background by a one-shot command')
   expect(help).toContain('stays running after the call returns as a retained process')
   expect(help).toContain('info lists retained processes')
-  expect(help).toContain('until it exits or the execution environment closes its retention scope')
+  expect(help).toContain(
+    'until it exits, is stopped explicitly, or the execution environment closes its retention scope',
+  )
   expect(help).toContain('is stopped when it cannot be retained; the residue line gives the reason')
   // Background execution is unsupported; a one-shot call waits for the main process.
   expect(help).toContain('run_in_background is not supported now')
