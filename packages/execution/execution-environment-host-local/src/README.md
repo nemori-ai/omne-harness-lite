@@ -20,6 +20,7 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 - `root-segments.ts`：宿主路径在宿主文件根下的位置 `hostSegmentsBelowRoot`（R2-D376）；不跟随链接，只判断位置。Windows 文件后端与应用的路径守卫共用它，根入口导出它。
 - `host-paths.ts`、`host-file-tree.ts`、`host-file-batch.ts`：路径检查与宿主文件根的绑定、前提 P2 的探测；列表、搜索、建目录、删除、移动与复制；提交批次与恢复批次。它们只经 `host-files.ts` 使用，根入口不导出。
 - `host-command.ts`、`command-gate.ts`、`host-scope.ts`、`host-probe.ts`：Linux 上的命令设施与它的输出缓冲、门进程脚本、systemd scope 的启动、停止与列举、前提 P1、P3～P6 的探测。
+- `retained-tail.ts`：保留进程移交之后的输出尾部。每条流保留最新的字节，有容量上界，只在提供者进程的内存里。`host-command.ts` 创建它，保留进程索引读它。
 - `macos-execution/`：macOS 的命令与终端后端。`native-source.ts` 是会话读取程序的 C 源码，`compile.ts` 在运行时编译它，`session.ts` 调用它并核对执行域的身份，`domain-index.ts` 是状态目录里的冷索引，`residue.ts` 判定处置，`commands.ts` 是命令门面，`command-gate.ts` 与 `terminal-gate.ts` 是门进程脚本，`terminals.ts` 是终端的 `TerminalPlatform`，`recovery.ts` 承担冷索引的列举与恢复。机制见 [macOS 说明](../docs/macos-execution.md)。
 - `command-gate-core.ts`：命令门进程不碰 I/O 的判断（请求解析、控制行的动作、数据帧的切分、退出之后的静默判定）。被 `command-gate.ts` 与 `macos-execution/command-gate.ts` 导入，门进程脚本持有状态并做 I/O。
 - `scope-probe.ts`、`scope-cgroup.ts`：探测单元里运行的 P5 与 P6 程序脚本；从 `/proc/self/cgroup` 与 `/proc/self/mountinfo` 判断进程在 cgroup v2 统一层级里的位置与单元成员，平台前提探测、探测程序与终端 gate 共用，不假定挂载点。

@@ -15,7 +15,7 @@ Execution Environment 的纯契约成员，`module` 变体。
 - 已实现：全部公开类型、三个核心设施的协议与声明、需要声明的 JSON Schema 与 Standard Schema、采用身份、两条块声明、两个纯函数、`describeFacility` 与 `createRecoveryAccess`。
 - 已有测试：导出面、设施声明、块声明、不导入 Cordis、环境要求的解码、提供者匹配、需要声明的 schema 与摘要，以及类型测试。两个设施替身有单独的测试，也有装进脚本提供者租约后的往返测试；提供者套件以内存文件替身作已持设施运行。
 - 没有生产设施：本成员不实现任何生产设施或环境。宿主提供者在 [execution-environment-host-local](../execution-environment-host-local/README.md)。`./testing` 有内存文件与脚本命令两个设施替身。
-- 已实现：三面九操作的参数 schema、七个数据结果 schema 与 `operationSchemas`；登记面返回撤除函数，不另做结果 schema。`./testing` 提供用例列表与非耐久替身，含可编排的环境授权与作用域绑定；登记表运行公开执行环境套件，host-local 运行两个套件。设施自身逐操作 schema 留后续。
+- 已实现：三面十操作的参数 schema、八个数据结果 schema 与 `operationSchemas`；登记面返回撤除函数，不另做结果 schema。`./testing` 提供用例列表与非耐久替身，含可编排的环境授权与作用域绑定；登记表运行公开执行环境套件，host-local 运行两个套件。设施自身逐操作 schema 留后续。
 - 已实现：`./testing` 的两个设施替身。`createMemoryFileSystem` 给出内存 `files` 设施，实现读取、查看、写入、关闭与列表。`createScriptedCommandFacility` 给出脚本 `command` 设施，有输出块、终局与停止。替身只证明契约形状与判据，不证明真实进程、真实文件系统、授予根核对或隔离。
 - 未验证：SPEC 的大部分行为条款需要机制成员、提供者与真实集成方的组合验证。本成员不宣称租户隔离、资源关闭、耐久或恢复已经通过。
 

@@ -167,7 +167,7 @@ export const inject = {
 
 | 本地测试名（`tests/cordis-entry.spec.ts`） | 源码核对 | 实际断言与边界 |
 | --- | --- | --- |
-| `inject-object-config-reaches-service-resolve-config` | `service.ts:86-102`、`fiber.ts:238-245`、`context.ts:141-145`、`utils.ts:165-215` | 两个插件各读自己的声明；根读取 `{}`；另有祖先继承及九方法错面拒绝测试 |
+| `inject-object-config-reaches-service-resolve-config` | `service.ts:86-102`、`fiber.ts:238-245`、`context.ts:141-145`、`utils.ts:165-215` | 两个插件各读自己的声明；根读取 `{}`；另有祖先继承及十方法错面拒绝测试 |
 | `emit-filter-selects-listeners-by-extended-ctx` | `events.ts:165-174`、`context.ts:99-107` | 扩展上下文按元数据过滤，global监听绕过；调用方撤除后不再触发。只是内核事实，不给EE新增事件 |
 | `ctx-set-does-not-notify` | `reflect.ts:254-266` | `set` 更新读值，但不发 `internal/service`，不重跑依赖者；`provide` 的通知作为正对照 |
 

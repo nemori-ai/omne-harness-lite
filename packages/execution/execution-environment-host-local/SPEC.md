@@ -62,7 +62,7 @@
 | `terminal`                                                                   | `terminal`（见[持久终端](#持久终端)）                                                                   |
 | `drainBoundMs`                                                               | `drainBoundMs`                                                                                          |
 
-宿主文件插件现在的配置 Schema 只接受表中的字段，即路径、命令（含留下的进程的三项）、`terminal` 与 `drainBoundMs`，不接受四项列表与搜索上界；它们只能经直接创建提供者给出。
+宿主文件插件现在的配置 Schema 只接受表中的字段，即路径、命令（含留下的进程的四项）、`terminal` 与 `drainBoundMs`，不接受四项列表与搜索上界；它们只能经直接创建提供者给出。
 
 ### 宿主文件责任域
 
@@ -178,7 +178,7 @@
 
 ### Service 实现
 
-- `ExecutionEnvironmentRegistry<P>` `extends ExecutionEnvironmentService<P>`，不另写键（[IC-2](../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。构造时调用 `createEnvironmentRegistry`，把环境面与恢复面七个方法原样转给登记表。
+- `ExecutionEnvironmentRegistry<P>` `extends ExecutionEnvironmentService<P>`，不另写键（[IC-2](../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。构造时调用 `createEnvironmentRegistry`，把环境面与恢复面八个方法原样转给登记表。
 - 三个端口都不经构造参数进入。登记表的恢复授权、环境授权与可信绑定每次被调用时，Service 用自己装载时的上下文 `ctx.get` 现取 `executionRecoveryAuthority`、`executionEnvironmentAuthority` 与 `executionScopeBinding` 服务并转交（[IC-9](../../../docs/architecture/cordis-integration-conventions.md#ic-9)、[IC-16](../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。取不到时答不可用：没有装载恢复授权服务时，`recoverOwned` 与 `releaseScope` 以 `unavailable` 拒绝；没有装载环境授权或可信绑定服务时，环境面以 `unavailable` 拒绝，查询答查询不可用，不放行。服务方法里的 `this.ctx` 是调用方的上下文，不从那里取端口。
 - `registerFacility` 与 `registerProvider` 在方法里用 `this.ctx.effect` 调用登记表的同名方法。登记落在调用方插件的 fiber 上，调用方卸载即撤除（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）。`registerFacility` 返回的撤除函数调用同一个效应撤除。`registerProvider` 返回的撤除函数直接调用登记表的撤除函数：它可以重试，并发调用共用一次退役；效应只在调用方 fiber 卸载时调用一次登记表的撤除函数。
 - Service 子类与 `filesFacilityPlugin` 的配置只接受缺省、`null` 或空对象，其余值以「configuration accepts no fields」校验失败（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。
@@ -291,7 +291,7 @@ macOS 的平台前提（类型 `MacosPrerequisite`）。macOS 不做 P1、P3～P
 - 门在命令主进程退出后等输出安静 100 毫秒（`quietAfterExitMs`）。命令留在后台的进程可能还占着管道，只等管道关闭会无限等下去；100 毫秒内没有新字节就当输出已完整。已知限制：一个在主进程退出后隔了超过 100 毫秒才写出的后台进程，其输出落在退出帧之后，不进这次结局的计数。
 - 强制停止序列在两次 `systemctl show` 读数之间等 50 毫秒（`showPollMs`）。它只决定读数的频度，上界仍是 `stopBoundMs`。
 
-策略数值都是配置，代码里的数值只是初值。宿主文件插件的配置可以给出这九项：
+策略数值都是配置，代码里的数值只是初值。宿主文件插件的配置可以给出这十项：
 
 | 配置               | 初值   | 作用                                             |
 | ------------------ | ------ | ------------------------------------------------ |
@@ -306,7 +306,7 @@ macOS 的平台前提（类型 `MacosPrerequisite`）。macOS 不做 P1、P3～P
 | `retainedPollMs`   | 1000   | 两次读保留单元成员之间的间隔，正整数             |
 | `retainedOutputBytes` | 65536 | 每个保留进程每条流在移交之后保存的输出字节数，非负整数；0 不保存，`output` 答 `unsupported` |
 
-时间项必须是有限的非负数。`residuePolicy`、`retainedPerScope`、`retainedPollMs` 与 `retainedOutputBytes` 只约束一次性命令，终端的配置不接受它们。`retainedOutputBytes` 的初值依据一次测定：64 KiB 时读一次尾部不到 0.2 ms，每个保留进程约占 0.25 MiB；256 KiB 以上读的耗时进入毫秒级，内存约四倍。值不合法时 `createHostFilesProvider` 抛出 `RangeError`，插件配置校验失败。提供者选项另有 `filesRoot` 与 `stateDirectory` 两个字符串，插件配置要求它们是绝对路径。命令一侧只保存它们，不使用。
+时间项必须是有限的非负数。`residuePolicy`、`retainedPerScope`、`retainedPollMs` 与 `retainedOutputBytes` 只约束一次性命令，终端的配置不接受它们。`retainedOutputBytes` 的初值依据一次测定。读一次尾部的代价随容量线性增长。尾部实际占用的内存约为保存字节数的 1.3 到 1.8 倍。值不合法时 `createHostFilesProvider` 抛出 `RangeError`，插件配置校验失败。提供者选项另有 `filesRoot` 与 `stateDirectory` 两个字符串，插件配置要求它们是绝对路径。命令一侧只保存它们，不使用。
 
 ### 持久终端
 
@@ -429,7 +429,22 @@ macOS 上，上文的 scope 指终端的执行域。执行域是两个 POSIX 会
 - 只有在有提供者代加入、索引里有项时才读。退役的代退出读取，不停止保留进程。
 - `list`：先读全标记文件，读不全时答 `unavailable`。只列请求的保留范围与租户的项，不列预留。进程数是这次现读的读数，读不到时为「未知」。
 - 观察（契约[按保留范围观察](../execution-environment-contract/SPEC.md#按保留范围观察)）：提供者的 `retainedProcesses(保留范围, 租户)` 答索引的 `list`，规则同上一条。没有索引（不是 Linux，或者没有状态目录）时答空表。退役的代答空表：索引随状态目录留给其他代，这一代不再持有其中的项。同一状态目录的两代同时在册时，两代列出同一批保留进程，登记表合并时按引用去重。
-- `stop`（契约[停止](../execution-environment-contract/SPEC.md#停止)）：先读全标记文件，读不全时答 `rejected/unavailable`，不问账本。索引里有这一项，并且保留范围、租户、引用的 `id` 与 `generation` 都相同、不是预留时，停止它的单元，记入本次获取给出的保留进程账本视图；同一项上进行中的停止只有一个，重复的 `stop` 并入它。`mode` 的两态都走上文 `stop('forced')` 的强制停止序列（偏离见下文）。索引里没有这一项时，问账本视图的 `ended(id)`：`confirmed` 答 `confirmed`，`none` 答 `rejected/notFound`，没有 `ended`、抛出或答 `unavailable` 答 `rejected/unavailable`。命令设施封闭之后答 `rejected/closed`。
+- `stop`（契约[停止](../execution-environment-contract/SPEC.md#停止)）：
+  - 命令设施封闭之后答 `rejected/closed`。
+  - 先读全标记文件。读不全时答 `rejected/unavailable`，不问账本。
+  - 索引里有这一项，并且保留范围、租户、引用的 `id` 与 `generation` 都相同、不是预留时，停止它的单元。
+  - 停止记在移交那次获取给出的保留进程账本视图上。重启后加载回来的项还没有视图，停止记入这次调用给出的视图。
+  - 同一项上进行中的停止只有一个，重复的 `stop` 并入它。
+  - `mode` 的两态都走上文 `stop('forced')` 的强制停止序列（偏离见下文）。
+  - 索引里没有四项都相同的项时，问这次调用给出的账本视图的 `ended(id)`：`confirmed` 答 `confirmed`，`none` 答 `rejected/notFound`，没有 `ended`、抛出或答 `unavailable` 答 `rejected/unavailable`。
+- `output`（契约[输出](../execution-environment-contract/SPEC.md#输出)）：
+  - 命令设施封闭之后答 `rejected/closed`。
+  - 先读全标记文件。读不全时答 `rejected/unavailable`。
+  - 按 `stop` 的四项匹配找这一项。索引里没有匹配的项时答 `rejected/notFound`，已经离开索引的保留进程也是这样。
+  - 重启后加载回来的项没有尾部，答 `rejected/unavailable`。
+  - `retainedOutputBytes` 为 0 时答 `unsupported`。
+  - 移交时已经作为停止中的项进入索引的保留进程没有尾部，也答 `unsupported`。
+  - 其余情况读这一项的尾部，见上文「移交之后的输出」。
 - 封闭：保留范围的释放信号或保留进程账本的 `closed` 信号触发封闭，索引停止这个范围的全部保留进程。确认并记账的项删去标记文件。未确认的项留在索引里，`maintain()` 再试。
 - 提供者重启之后，第一次用到索引时读全部标记文件。启动身份不同、单元已不在、格式不是本版本的标记文件被删去，并发出 `retainedMarker` 诊断（`discarded`）。有一个标记文件读不出时，这次加载不完整：预留答不可用，`list` 与冷恢复的列举答 `unavailable`，下一次用到时再加载。
 - 标记文件写不成时，执行域仍归保留范围，并发出 `retainedMarker` 诊断（`notWritten`）。只要这一项还在索引里，不论运行中还是停止中，`maintain()` 每次都重写它，写成之后不再重写。确认停止之后标记文件删不掉时，诊断是 `notRemoved`。
@@ -442,15 +457,15 @@ macOS 按 POSIX 会话收纳。进程可以用 `setsid` 离开会话，所以 ma
 
 - 只移交给请求方自己的作用域。保留范围与请求方作用域不同的获取，处置原因是 `policy`，不是契约所列的任何一项不成立。接受为本期范围。收敛条件：出现保留范围与请求方作用域不同的装配时，扩展处置与冷恢复按保留范围列出。
 - 契约的原因里没有「不可用」一类。标记文件读不全时，本提供者用 `policy`。`plan` 答 `unavailable` 或超时时用 `unbound`。收敛条件：契约的原因集合加入「不可用」一类之后，这两处映射改用该类。
-- 标记窗口：`adopt` 确认之后、标记文件写完之前提供者崩溃时，重启后的索引里没有这个单元。契约把它记为[保留进程的恢复](../execution-environment-contract/SPEC.md#保留进程的恢复)的已知限制，本条引用它。本提供者的现状：冷恢复的列举仍按单元描述列出这个单元，但它不被列为保留进程，也不自行结清，只有该作用域的冷恢复会停止它。标记文件写不成、`maintain()` 还没有重写成功时也是这样。收敛条件：保留进程账本端口提供读取之后，加载时用账本补全索引。
+- 标记窗口：`adopt` 确认之后、标记文件写完之前提供者崩溃时，重启后的索引里没有这个单元。契约把它记为[保留进程的恢复](../execution-environment-contract/SPEC.md#保留进程的恢复)的已知限制，本条引用它。本提供者的现状：冷恢复的列举仍按单元描述列出这个单元，但它不被列为保留进程，也不自行结清，只有该作用域的冷恢复会停止它。标记文件写不成、`maintain()` 还没有重写成功时也是这样。重启之后，对它的 `stop` 答 `rejected/notFound`，与契约[停止](../execution-environment-contract/SPEC.md#停止)第 3、7 项不符：索引里没有它，账本里也没有它的收场事实，`ended` 答 `none`。`output` 也答 `rejected/notFound`。收敛条件：保留进程账本端口提供读取之后，加载时用账本补全索引。
 - 标记文件不记停止意图。停止还没有确认时提供者崩溃，重启后这一项按运行中加载：列出、占名额，直到它变空、被再次停止或保留范围再次封闭。显式 `stop` 的调用方按契约[停止](../execution-environment-contract/SPEC.md#停止)第 8 项用原身份再问，会重新发出停止。收敛条件：需要崩溃后自动续停时（例如会话归档的作用域释放接上之后，见 [harness-server 的 `releaseScope` 接线](../../../apps/harness-server/SPEC.md#releasescope-wiring)），把停止意图写进标记文件。
-- 提供者重启之后，加载的保留进程要等有获取给出该范围的保留进程账本视图才有账本可记。在这之前它们自行结清时，索引删去标记文件，但没有记 `stopped`。集成方接受同一保留范围任一视图为已移交的键记 `stopped`，所以任一获取给出该范围的视图之后就可以记账。收敛条件：同标记窗口一条，保留进程账本端口提供读取之后，加载时用账本补全索引。
+- 提供者重启之后，加载的保留进程要等有获取给出该范围的保留进程账本视图才有账本可记。在这之前它们自行结清时，索引删去标记文件，但没有记 `stopped`。集成方接受同一保留范围任一视图为已移交的键记 `stopped`，所以任一获取给出该范围的视图之后就可以记账。没有记 `stopped` 的项自行结清之后，对它的 `stop` 答 `rejected/notFound`，与契约[停止](../execution-environment-contract/SPEC.md#停止)第 3、7 项不符：索引里没有它，账本里也没有它的收场事实，`ended` 答 `none`。`output` 也答 `rejected/notFound`。收敛条件：同标记窗口一条，保留进程账本端口提供读取之后，加载时用账本补全索引。
 - 保留进程扩展的 `stop('graceful')` 与 `stop('forced')` 相同，都是强制停止序列。句柄的优雅停止把 `SIGTERM` 发给主进程，而保留进程的主进程已经退出。给单元里全部进程发 `SIGTERM` 再等，超时后要保持停止中而不自动升级，这与索引的维护循环（停止中的项会被再次停止）冲突。收敛条件：需要优雅停止保留进程时（例如后台任务要让服务自行收尾），监督者加「`SIGTERM` 后等宽限期」一步，索引为超时的项记下不升级。
 - 收场事实按键记：项离开索引之后，`stop` 只凭 `id` 问账本，所以 `id` 相同、`generation` 不同的引用也答 `confirmed`。资源键在一次移交里唯一，这个答复不披露别的保留进程。接受为本期范围。收敛条件：账本的收场事实带上代之后，`ended` 按引用回答。
 - 移交之后的输出尾部只在提供者进程的内存里。提供者进程重启后，加载回来的保留进程没有尾部，`output` 答 `unavailable`；门在管理者断开后继续排空管道并丢弃字节。收敛条件：需要跨重启读输出时，尾部移进门进程或写入状态目录。
-- 尾部的内存上界是尾部容量乘以流数再乘以存活的保留进程数。每个保留范围最多 `retainedPerScope` 个，但保留范围的个数不设上限；应用没有接 `releaseScope` 时，保留进程不随会话结束而停止，这个上界随会话数增长。收敛条件：同 `releaseScope` 接线一条。
+- 尾部保存的字节数的上界是尾部容量乘以流数再乘以存活的保留进程数。尾部实际占用的内存约为保存字节数的 1.3 到 1.8 倍。每个保留范围最多 `retainedPerScope` 个，但保留范围的个数不设上限；应用没有接 `releaseScope` 时，保留进程不随会话结束而停止，这个上界随会话数增长。收敛条件：同 `releaseScope` 接线一条。
 - 保留进程索引的配置（`retainedPerScope`、`retainedPollMs`）、监督者与诊断去向，取自第一次建立该状态目录索引的那一代提供者。配置重载不改变它们，直到该状态目录的各代都退役。收敛条件：需要重载这几项时，索引按代登记它们，取最近加入的一代。
-- Windows 的一次性命令后端在根进程退出时停止 Job 里剩下的进程。它的结局不带 `residue`，也不交出保留扩展。收敛条件：Windows 兑现（见上文「Windows 的兑现」一段）。
+- Windows 的一次性命令后端在根进程退出时停止 Job 里剩下的进程。它的结局不带 `residue`，也不交出保留扩展。Windows 的命令设施不声明 `containment`，所以 Shell 在 Windows 上的 `info` 写 `process_containment=undeclared`。收敛条件：Windows 兑现（见上文「Windows 的兑现」一段）。
 - macOS 的偏离。收敛条件尚未确定，归 #1137 的负责人：
   - 调用 `setsid` 的进程离开执行域。它不被停止，也不被列出，终端的 `close` 仍答 `confirmed`。`tests/macos-execution/terminals.spec.ts` 的用例「known deviation」断言这一点。
   - Shell 工具的帮助文本说留下的进程被保留，这在 macOS 上不成立。模型看到的是 `residue=stopping reason=uncontained`、`retained_processes=unavailable` 与 `process_containment=none`。
@@ -578,10 +593,10 @@ macOS 按 POSIX 会话收纳。进程可以用 `setsid` 离开会话，所以 ma
 | [host-command-residue.spec.ts](tests/host-command-residue.spec.ts) | 真实 systemd 用户 scope，慢层，只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行：整个单元移交，后台服务活过这次调用与获取的释放；`list` 列出保留进程，范围封闭停止并确认、记账；满额时新的停止、旧的保留；范围封闭之后新留下的进程以 `closed` 停止；新责任域里的新提供者按标记找回保留进程并在封闭时停止；别的保留范围与租户看不到它；全部自行退出后自行结清（记账、删标记、还名额）；提交结果未知时释放答待处置并再问；未知结果查明为封闭时在获取下停止；`unbound`、`policy`、别的保留范围、没有状态目录各自的原因，空单元为 `none`；移交之后句柄的两态停止答 `unconfirmed`，服务仍可访问 |
 | [host-command-release-scope.spec.ts](tests/host-command-release-scope.spec.ts) | 真实执行环境登记表、真实宿主提供者与真实 systemd 用户 scope，慢层，只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行：保留进程移交之后，登记表的 `releaseScope` 答 `recovered`，没有待处置项；`stopped` 列出它，或者为空（登记表先发封闭信号再枚举，索引可能在枚举之前就确认了停止，这时停止的记录在保留进程账本里）；调用一返回单元就已不活动；保留进程账本恰好一条 `confirmed`，获取账本没有；标记文件已删 |
 | [command-retention-conformance.spec.ts](tests/command-retention-conformance.spec.ts) | 真实宿主提供者与真实 systemd 用户 scope，慢层，只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行：契约命令保留套件的六条 `V-EE28.` 用例（处置结果的形状、`list` 不跨保留范围、移交之后句柄停止答 `unconfirmed`、范围封闭停止保留进程、没有账本视图时以 `unbound` 停止），以及 `V-EE30.` 的五条停止用例（确认即单元已停、不跨保留范围、重复停止合流、收场事实之后答 `confirmed`、没有 `ended` 答 `unavailable`），`V-EE31.` 的三条输出用例（留下的进程在移交之后写的字节经真实的门进入尾部、字节关系与 `from` 成立，不跨保留范围，停止之后答 `notFound`）。两条守卫用例（`V-EE30.guard-refuses-stop`、`V-EE31.guard-refuses-output`）在裸提供者上不适用：守卫由登记表的门调用，登记表的用例覆盖它们。另一获取只用「另一保留范围」形状，「另一租户」在契约自测里覆盖 |
-| [host-command-frames.spec.ts](tests/host-command-frames.spec.ts)       | 不起 scope，两个平台：帧按任意字节边界读取、各类非法帧使读取失效、整块丢弃与计数、单一读者、停止确认只认 `inactive` 或 `not-found`、只读回本提供者写下的单元引用、起不来的监督工具答失败；冷恢复列举读 `systemctl show` 块（属性次序不限，略去别的作用域与不带资源键的单元名，空输出为空列表），没有键的行、重复的键、缺属性的块、不是 `omne-host-*.scope` 的单元与列举失败都答 `unavailable`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| [host-command-frames.spec.ts](tests/host-command-frames.spec.ts)       | 不起 scope，两个平台：帧按任意字节边界读取、各类非法帧使读取失效、被拒的行之前的帧照常生效而之后的帧不再交出（结局与分块方式无关）、退出帧之后的数据帧与丢弃帧、每种故障的原因、行长上界（恰为上界的行收下，多一个字节即拒，未读完的行也按长度判定）、整块丢弃与计数、单一读者、停止确认只认 `inactive` 或 `not-found`、只读回本提供者写下的单元引用、起不来的监督工具答失败；冷恢复列举读 `systemctl show` 块（属性次序不限，略去别的作用域与不带资源键的单元名，空输出为空列表），没有键的行、重复的键、缺属性的块、不是 `omne-host-*.scope` 的单元与列举失败都答 `unavailable`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | [host-retained-processes.spec.ts](tests/host-retained-processes.spec.ts) | 不起 scope，监督读数用替身：名额含预留与停止中的项且不驱逐；标记读全之前预留答不可用；提交写标记，`list` 只按范围与租户列出；只剩门的单元被停止、记账并删标记，读不到的单元不动；重启后删去别的启动身份与已不在的单元的标记，其余现读成员后列出；标记读不全时答不可用且不占名额；按资源恢复；提交在途时的停止或释放；提交结果未知时保留预留，再问后两种结果；处置按契约次序取第一项不成立的原因；停止中的移交占名额、`list` 列为停止中、并入已发出的停止且只记一次账；写不成的标记由 `maintain()` 重写，停止中的项也重写；停止未确认时标记保留（含停止与标记写入重叠），新索引在同一状态目录上仍列出它并计入名额；按引用停止只认保留范围、租户、`id` 与 `generation` 都相同的项，重复停止并入一次，出索引之后按账本 `ended` 作答，读不到收场事实或标记时答不可用，重启加载回来的项记入调用方的账本；按引用读输出同样四项匹配，不保存时答 `unsupported`，重启加载回来的项答不可用，停止之后答 `notFound` |
 | [retained-tail.spec.ts](tests/retained-tail.spec.ts) | 尾部对参照模型的生成输入对拍（200 轮，固定种子）：保存的是最新一段连续字节且不超过容量、偏移与丢弃数、任意 `from`、多字节起点跳过的续字节、尾部变化时版本号增加而没有变化时不变；追加的字节被复制；严格解码判断替换；容量必须是正整数 |
-| [host-command-custody.spec.ts](tests/host-command-custody.spec.ts) | 快层，只在 Linux，用 [假监督工具](tests/fixtures/fake-supervisor.mjs) 驱动真实的命令门面与保留进程索引：adopt 答复之后第 0 到 14 个微任务时刻的释放，结果只有「停止并记一次账」或「保留且单元不被停」两种；并发与先后到达的再问只提交一次移交；移交之后句柄的两态停止答 `unconfirmed`，adopt 等待期间的停止照旧打断移交；打断的移交归保留范围、占名额、只记一次账；读标记超过处置期限时以 `policy` 停止；移交之前观察到的字节（退出之前与退出帧之后的）计入尾部的保留起点，移交之后的数据帧进尾部、丢弃帧记成缺口；容量 0 时输出答 `unsupported`；`HostTerminalOptions` 不带三个留下的进程的选项 |
+| [host-command-custody.spec.ts](tests/host-command-custody.spec.ts) | 快层，只在 Linux，用 [假监督工具](tests/fixtures/fake-supervisor.mjs) 驱动真实的命令门面与保留进程索引：adopt 答复之后第 0 到 14 个微任务时刻的释放，结果只有「停止并记一次账」或「保留且单元不被停」两种；并发与先后到达的再问只提交一次移交；移交之后句柄的两态停止答 `unconfirmed`，adopt 等待期间的停止照旧打断移交；打断的移交归保留范围、占名额、只记一次账；读标记超过处置期限时以 `policy` 停止；移交之前观察到的字节（退出之前与退出帧之后的）计入尾部的保留起点，移交之后的数据帧进尾部、丢弃帧记成缺口；容量 0 时输出答 `unsupported`；终端的选项 `HostTerminalOptions` 不带留下的进程的四项（含 `retainedOutputBytes`） |
 | [host-containment.spec.ts](tests/host-containment.spec.ts) | 慢层，只在 Linux（命令部分要 `OMNE_HOST_COMMAND_LINUX=1`，终端部分另要 `OMNE_HOST_TERMINAL_LINUX=1`）：脚本经 `setsid` 与双重 fork 起两个脱离会话与父进程的进程；`/proc/<pid>/cgroup` 的统一层级路径以执行域的单元名结尾；命令留下它们时 `residue` 为 `retained`、进程数不小于 2，保留范围封闭后两者都不在、单元已停；没有保留绑定时以 `unbound` 停止；终端段照常完成，关闭终端答 `confirmed` 之后两者都不在 |
 | [host-scope.spec.ts](tests/host-scope.spec.ts) | 快层，只在 Linux，用 [假 systemctl](tests/fixtures/scripted-systemctl.mjs)：单元成员读数的每个结果，读失败从不成为空单元，`show` 的参数逐项核对 |
 | [command-gate-core.spec.ts](tests/command-gate-core.spec.ts) | 快层，不起进程：命令门进程的纯判断，请求解析、控制行的动作与 cgroup 读取的短路、数据帧的切分、退出之后的静默判定 |

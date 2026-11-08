@@ -4,7 +4,7 @@
 
 服务键、抽象类、intercept 配置与登记协议归 [execution-environment-cordis-contract 的 Cordis 说明](../../execution-environment-cordis-contract/docs/cordis.md)，本成员继承这些定义，不重复提供键。登记表机制归 [execution-environment](../../execution-environment/docs/architecture.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)。
 
-现状：`src/cordis.ts` 已实现 Service 子类、`files`、`command` 与 `terminal` 声明插件、宿主文件插件工厂 `createHostFilesPlugin(domain)`、空配置 Schema 与宿主文件插件的配置 Schema。模板标记写明 Runtime Context 生产者插件和 `terminal` 提供者还没有接受；调用方类由定义成员的九个模板方法核对。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
+现状：`src/cordis.ts` 已实现 Service 子类、`files`、`command` 与 `terminal` 声明插件、宿主文件插件工厂 `createHostFilesPlugin(domain)`、空配置 Schema 与宿主文件插件的配置 Schema。模板标记写明 Runtime Context 生产者插件和 `terminal` 提供者还没有接受；调用方类由定义成员的十个模板方法核对。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
 
 ## 插件与配置
 

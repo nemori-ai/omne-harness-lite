@@ -66,7 +66,7 @@ export function apply(ctx: Context) {
 pnpm --filter @omne-harness/execution-environment-cordis-contract test
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。入口测试在真实 Cordis 4.0.4 中核对九方法、装载卸载、分面拒绝、调用方效应与三条机制读数，库存测试对照构建产物。覆盖和限制见 [tests/](tests/README.md)。结构检查通过不表示全部环境行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。入口测试在真实 Cordis 4.0.4 中核对十方法、装载卸载、分面拒绝、调用方效应与三条机制读数，库存测试对照构建产物。覆盖和限制见 [tests/](tests/README.md)。结构检查通过不表示全部环境行为已验证。
 
 ## 维护
 

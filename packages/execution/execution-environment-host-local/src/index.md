@@ -16,6 +16,7 @@
 - [host-command.ts](host-command.ts)：宿主命令设施：前置检查、启动、帧读取、有界缓冲、进程句柄与停止
 - [host-scope.ts](host-scope.ts)：systemd 用户 scope：起单元、强制停止与确认、按描述列举、引用的读写、读单元成员
 - [host-retained-processes.ts](host-retained-processes.ts)：保留进程索引：按保留范围计容量、标记文件、变空检测与自行结清、范围封闭、重启后从标记恢复
+- [retained-tail.ts](retained-tail.ts)：保留进程移交之后的输出尾部：每条流保留最新的字节，有容量上界，只在内存里
 - [host-probe.ts](host-probe.ts)：`command` 的平台前提探测（P1、P3～P6）
 - [command-gate.ts](command-gate.ts)：命令的门进程脚本，在命令的单元里运行，不被导入；退出帧带单元成员数，之后留在单元里读管道
 - [command-gate-core.ts](command-gate-core.ts)：命令门进程不碰 I/O 的判断：请求解析、控制行的动作、数据帧的切分、退出之后的静默判定

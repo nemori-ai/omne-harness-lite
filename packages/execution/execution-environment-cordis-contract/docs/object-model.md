@@ -44,7 +44,7 @@ classDiagram
   ExecutionEnvironment <|.. ExecutionEnvironmentService
   ProviderRegistrations <|.. ExecutionEnvironmentService
   ExecutionEnvironmentService <|-- ServiceImplementation
-  ExecutionEnvironmentService ..> ExecutionEnvironmentIntercept : 九方法读取与核对
+  ExecutionEnvironmentService ..> ExecutionEnvironmentIntercept : 十方法读取与核对
 ```
 
 图中 `ServiceImplementation` 是说明用的名字，代表 [execution-environment-host-local](../../execution-environment-host-local/docs/object-model.md) 的具体子类 `ExecutionEnvironmentRegistry`。`ExecutionEnvironment` 与 `ProviderRegistrations` 是契约根入口的操作类型。

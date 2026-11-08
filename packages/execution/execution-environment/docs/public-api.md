@@ -1,6 +1,6 @@
 # 执行环境登记表的公开接口导航
 
-本页是导出索引，不是第二套签名。精确类型归 `src/`，本成员的本地行为归 [SPEC](../SPEC.md)，九个操作的输入、结果与失败归 [execution-environment-contract SPEC](../../execution-environment-contract/SPEC.md)。
+本页是导出索引，不是第二套签名。精确类型归 `src/`，本成员的本地行为归 [SPEC](../SPEC.md)，十个操作的输入、结果与失败归 [execution-environment-contract SPEC](../../execution-environment-contract/SPEC.md)。
 
 ## 导出入口
 

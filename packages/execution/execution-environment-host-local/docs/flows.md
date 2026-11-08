@@ -191,7 +191,7 @@ sequenceDiagram
 | 平台前提 | P1 Linux、P3 `systemd-run` 与 `systemctl`、P4 用户管理器、P5 探测单元里的程序看得到 cgroup v2 统一层级、P6 程序被自己单元的目录列出且单元的强制停止得到确认，这几项都满足 | 缺任一项时启动答 `unavailable`，诊断写明缺项，不调用账本；不用猜测的进程号或假后端顶替         |
 | 门就绪   | 门进程核对自己在 scope 的 cgroup 里，才报就绪                                         | 就绪之前退出答 `unavailable`；超过 `startBoundMs` 答 `unknown`，资源留给释放、结清或退役去停止 |
 | GO       | 账本 `permit` 为 `confirmed` 才发 GO，GO 之前不启动用户命令                           | 其余答案或门面已封住时，强制停止这个单元并答 `rejected`，不发 GO                               |
-| 转发     | 门一侧管道写满时暂停读命令的两条管道，`drain` 后恢复；提供者一侧缓冲放不下时整块丢弃  | 非法帧、超长行、未知帧与次序不对的帧使资源失效，`result` 答 `failed`（`effectUnknown`）        |
+| 转发     | 退出帧之前，门一侧管道写满时暂停读命令的两条管道，`drain` 后恢复。退出帧之后，门不暂停，管道写满时丢弃读出的字节并按流计数。提供者一侧缓冲放不下时整块丢弃 | 非法帧、超长行、未知帧与次序不对的帧使资源失效，`result` 答 `failed`（`effectUnknown`）        |
 | 完成     | 只在收到退出帧时给出 `completed`                                                      | 没有收到退出帧时为 `failed`（`effectUnknown`）                                                 |
 
 ### F-EEH05 终端腿与回执

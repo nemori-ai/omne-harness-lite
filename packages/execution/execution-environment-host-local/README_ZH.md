@@ -62,7 +62,7 @@ await ctx.plugin(createHostFilesPlugin(domain))
 
 ## 配置与运行
 
-Service 子类与 `filesFacilityPlugin` 的配置只接受缺省、`null` 或空对象。宿主文件插件另接受 `drainBoundMs`：有限的非负毫秒数，是释放、结清或退役等在途文件操作的上界，初值 10000。插件另接受 `filesRoot` 与 `stateDirectory`（绝对路径）、`command` 设施的六项上界、一次性命令留下的进程的三项（`residuePolicy`、`retainedPerScope`、`retainedPollMs`）与 `terminal`。提供者选项还接受列表与搜索的上界（`limits`），插件配置现在不接受它们。结果为待处置时，`ctx.logger` 收到一条错误级诊断。配额策略是 `createHostFilesDomain` 的选项，不是插件配置；初值是每租户 64 个未结清的获取，没有全局上界。三个端口以 `executionEnvironmentAuthority`、`executionScopeBinding` 与 `executionRecoveryAuthority` 服务给出，不进插件树。一个 isolate 标签下只装一份服务。
+Service 子类与 `filesFacilityPlugin` 的配置只接受缺省、`null` 或空对象。宿主文件插件另接受 `drainBoundMs`：有限的非负毫秒数，是释放、结清或退役等在途文件操作的上界，初值 10000。插件另接受 `filesRoot` 与 `stateDirectory`（绝对路径）、`command` 设施的六项上界、一次性命令留下的进程的四项（`residuePolicy`、`retainedPerScope`、`retainedPollMs`、`retainedOutputBytes`）与 `terminal`。提供者选项还接受列表与搜索的上界（`limits`），插件配置现在不接受它们。结果为待处置时，`ctx.logger` 收到一条错误级诊断。配额策略是 `createHostFilesDomain` 的选项，不是插件配置；初值是每租户 64 个未结清的获取，没有全局上界。三个端口以 `executionEnvironmentAuthority`、`executionScopeBinding` 与 `executionRecoveryAuthority` 服务给出，不进插件树。一个 isolate 标签下只装一份服务。
 
 宿主文件设施在 Node 上运行，使用 `O_NOFOLLOW` 与设备号、inode 核对对象身份；没有 `O_NOFOLLOW` 的宿主（Windows 上的 Node）改为打开之后对末段 `lstat` 核对。`package.json` 声明的引擎是 `>=24`。宿主事实里的平台取 `process.platform` 加 `os.release()`，提供者版本取本包 `package.json` 的 `version`。宿主事实里的前提合并 `files` 的探测（P2）与 `command` 的探测（P1、P3～P6）：任一项不满足为 `unsatisfied`，否则任一项未知为 `unknown`。十二项 `files` 操作与宿主文件根在 Linux、macOS 与 Windows 上运行。[macOS 文件后端](docs/macos-files.md) 用 Command Line Tools 编译 C 辅助程序，每个请求持有目录描述符。`command` 在 Linux、Windows 与 macOS 上运行。macOS 上，提供者在运行时用 Command Line Tools 编译会话读取程序，冷索引放在 `stateDirectory` 里。起真实进程的命令测试在 Linux 上要设 `OMNE_HOST_COMMAND_LINUX=1`，在 macOS 上要设 `OMNE_HOST_MACOS=1` 才运行。
 
