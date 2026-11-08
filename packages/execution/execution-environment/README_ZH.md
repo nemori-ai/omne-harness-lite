@@ -39,7 +39,7 @@ await registry.close()
 
 - 公开形状归 `src/`。导出索引归[公开接口页](docs/public-api.md)。
 - 本成员的本地行为归 [SPEC](SPEC.md)：表与视图、落点解析、访问核验、获取、查询、逐操作门、释放、退役、恢复与关闭。
-- 九个操作的输入、结果与失败归 [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md)。
+- 十个操作的输入、结果与失败归 [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md)。
 - 内部对象的身份与生灭归[对象模型](docs/object-model.md)。
 
 调用工厂的一方拥有登记表实例，负责调用 `close()`。关闭先拒绝新的落点、获取与登记，再使全部租约失效，然后退役全部提供者。关闭不清空表，不撤回外部效果。退役待处置时，撤除函数抛出 `RetirementPending`。

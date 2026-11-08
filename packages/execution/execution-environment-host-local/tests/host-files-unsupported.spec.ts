@@ -30,7 +30,7 @@ let missing = ''
 let target = ''
 
 beforeEach(async () => {
-  Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
+  Object.defineProperty(process, 'platform', { value: 'freebsd', configurable: true })
   root = await realpath(await mkdtemp(join(tmpdir(), 'omne-exec-env-')))
   missing = join(root, 'missing', 'notes.txt')
   target = join(root, 'target', 'copy.txt')

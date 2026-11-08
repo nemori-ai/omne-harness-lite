@@ -11,6 +11,8 @@ import {
   type OriginRef,
   type Placement,
   type ResourceLedger,
+  type RetainedProcessLedger,
+  type RetainedTerminalLedger,
 } from '@omne-harness/execution-environment-contract'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
@@ -41,9 +43,11 @@ import {
 } from './environment-state.ts'
 
 export type EnvPreparationInput<P> = Parameters<ToolEnvironment<P, unknown>['prepare']>[0]
+/** Without `processes` no one-shot command is retained. */
 export type EnvironmentRetention = Readonly<{
   scope: ScopeRef
-  ledger: Pick<ResourceLedger, 'closed' | 'plan' | 'permit' | 'stopped'>
+  ledger: RetainedTerminalLedger
+  processes?: RetainedProcessLedger
 }>
 export type EnvironmentAcquisition<P> = AcquireInput<P> &
   Readonly<{ retention?: EnvironmentRetention }>
@@ -420,7 +424,8 @@ export function createLocalExecutionEnvironment<P>(
       canonicalDigest(original(request, plan)) === canonicalDigest(record.original) &&
       plan.acquire.guard === current.plan.acquire.guard &&
       plan.acquire.ledger === current.plan.acquire.ledger &&
-      plan.acquire.retention?.ledger === current.plan.acquire.retention?.ledger
+      plan.acquire.retention?.ledger === current.plan.acquire.retention?.ledger &&
+      plan.acquire.retention?.processes === current.plan.acquire.retention?.processes
     )
   }
 
@@ -548,7 +553,11 @@ export function createLocalExecutionEnvironment<P>(
         ...record,
         closed: true,
         release: { record: record.release.record, confirmed: true },
-        resources: record.resources.map(resource => ({ ...resource, stop: 'confirmed' })),
+        // A handed-over resource belongs to its retention scope; this release did not stop it.
+        resources: record.resources.map(resource => ({
+          ...resource,
+          stop: resource.stop === 'handedOver' ? 'handedOver' : 'confirmed',
+        })),
         evidence: record.release.confirmed
           ? record.evidence
           : receipt({ release: record.release.record, original: record.original, released: true }),

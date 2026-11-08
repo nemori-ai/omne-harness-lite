@@ -616,6 +616,9 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       const found = await removalTarget(request, parent, name)
       if ('kind' in found) return found
       const { stat, object } = found
+      // A mount point inside the root: its subtree check would compare against the other device.
+      if (paths.rooted && stat.dev !== (await parent.stat({ bigint: true })).dev)
+        return reject(requestId, 'notAuthorized')
       const target = fdPath(parent, name)
       if (stat.isDirectory() && request.recursive)
         return await removeSubtree(requestId, target, object, stat.dev)

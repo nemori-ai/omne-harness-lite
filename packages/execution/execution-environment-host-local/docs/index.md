@@ -10,6 +10,7 @@
 - [object-model.md](object-model.md)：服务实例、责任域、提供者、获取记录、句柄代际与生命周期
 - [public-api.md](public-api.md)：导出入口与定义索引
 - [context.md](context.md)：装配、点名、独立使用与定位
+- [macos-execution.md](macos-execution.md)：macOS 的命令与终端后端：门协议的差别、执行域的生命周期、会话读取程序、冷索引、终端、前提、已知偏离与平台实验
 
 ## 阅读路径
 

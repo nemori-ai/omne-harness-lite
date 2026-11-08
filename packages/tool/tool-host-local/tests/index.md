@@ -32,3 +32,4 @@
 - [包索引](../index.md)。
 
 - [预占返还与诊断边界](environment-boundaries.spec.ts)及其[夹具](environment-boundary-fixture.ts)。
+- [保留进程的移交提交与计划透传](retained-process-ledger.spec.ts)。

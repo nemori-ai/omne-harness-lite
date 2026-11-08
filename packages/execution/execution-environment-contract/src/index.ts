@@ -36,13 +36,24 @@ export type {
 
 export { commandFacility } from './facilities/command.ts'
 export type {
+  BetweenSegments,
   CommandFacility,
   CommandOutcome,
+  CommandRetention,
+  CommandRetentionOperation,
+  Containment,
   OutputChunk,
   OutputCount,
   OutputPolicy,
   OutputSummary,
   ProcessHandle,
+  ResidueReport,
+  ResidueStopReason,
+  RetainedOutput,
+  RetainedOutputFrom,
+  RetainedProcessInformation,
+  RetainedProcessRef,
+  RetainedStreamTail,
 } from './facilities/command.ts'
 
 export { terminalFacility } from './facilities/terminal.ts'
@@ -61,6 +72,7 @@ export type {
   RecoveryAccess,
   RecoveryAuthority,
   ResourceLedger,
+  RetainedProcessLedger,
   RetainedTerminalLedger,
   SessionTerminalRetention,
 } from './ports.ts'
@@ -138,6 +150,7 @@ export {
   inspectAcquisitionParamsSchema,
   inspectRecoveryAcquisitionParamsSchema,
   describeParamsSchema,
+  observeRetainedParamsSchema,
   recoverOwnedParamsSchema,
   releaseScopeParamsSchema,
   registerFacilityParamsSchema,
@@ -147,6 +160,7 @@ export {
   inspectAcquisitionResultSchema,
   inspectRecoveryAcquisitionResultSchema,
   describeResultSchema,
+  observeRetainedResultSchema,
   recoverOwnedResultSchema,
   releaseScopeResultSchema,
   operationSchemas,

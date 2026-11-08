@@ -153,9 +153,9 @@ for (const name of [
       )
     }
   })
-it('has only nine parameter and seven result schemas; no invented request envelope', () => {
-  expect(Object.keys(contract.operationSchemas)).toHaveLength(9)
-  expect(Object.values(contract.operationSchemas).filter(s => 'result' in s)).toHaveLength(7)
+it('has only ten parameter and eight result schemas; no invented request envelope', () => {
+  expect(Object.keys(contract.operationSchemas)).toHaveLength(10)
+  expect(Object.values(contract.operationSchemas).filter(s => 'result' in s)).toHaveLength(8)
   expect('facilityRequestSchema' in contract).toBe(false)
 })
 it('gives nested item reasons and does not coerce runtime ports or recovery access', async () => {
@@ -486,6 +486,14 @@ it('keeps registered provider objects and recovery authority objects unchanged',
   expect(read.value[1]).toBe(recovery)
 })
 
+it('keeps a provider object that offers retained-process observation unchanged', async () => {
+  const provider = createScriptedEnvironmentProvider({ retained: async () => [] })
+  expect(provider.retainedProcesses).toBeTypeOf('function')
+  const parsed = await contract.registerProviderParamsSchema['~standard'].validate([provider])
+  if (parsed.issues) throw new Error('valid provider refused')
+  expect(parsed.value[0]).toBe(provider)
+})
+
 it('provider facts compare facilities as sets rather than declaration order', async () => {
   const { environmentProviderConformance, runConformanceCase } =
     await import('@omne-harness/execution-environment-contract/testing')
@@ -756,6 +764,16 @@ it('requires authentic recovery authority and complete paired provider recovery 
       },
     ]),
   ).toHaveProperty('value')
+  expect(
+    await contract.registerProviderParamsSchema['~standard'].validate([
+      { ...provider, retainedProcesses: async () => [] },
+    ]),
+  ).toHaveProperty('value')
+  expect(
+    await contract.registerProviderParamsSchema['~standard'].validate([
+      { ...provider, retainedProcesses: [] },
+    ]),
+  ).toHaveProperty('issues')
   for (const field of [
     'name',
     'generation',
@@ -812,6 +830,79 @@ it('preserves access identity and refuses forged tenants before invoking any run
   }
 })
 
+it('accepts an optional retained-process ledger beside the retained terminal ledger and keeps its identity', async () => {
+  const { permit: _permit, ...processes } = ledger
+  const retention = { scope, ledger, processes }
+  const decoded = await contract.acquireParamsSchema['~standard'].validate([
+    access,
+    { ...input, retention },
+  ])
+  if (decoded.issues) throw new Error('retention with a process ledger refused')
+  expect(decoded.value[1].retention?.processes).toBe(processes)
+  const { adopt: _adopt, ...withoutAdopt } = processes
+  expect(
+    await contract.acquireParamsSchema['~standard'].validate([
+      access,
+      { ...input, retention: { ...retention, processes: withoutAdopt } },
+    ]),
+  ).toMatchObject({ issues: [{ path: [1, 'retention', 'processes'] }] })
+  expect(
+    await contract.acquireParamsSchema['~standard'].validate([
+      access,
+      { ...input, retention: { ...retention, processes: { ...processes, closed: {} } } },
+    ]),
+  ).toMatchObject({ issues: [{ path: [1, 'retention', 'processes'] }] })
+  const withEnded = { ...processes, ended: async () => 'none' as const }
+  expect(
+    await contract.acquireParamsSchema['~standard'].validate([
+      access,
+      { ...input, retention: { ...retention, processes: withEnded } },
+    ]),
+  ).toHaveProperty('value')
+  expect(
+    await contract.acquireParamsSchema['~standard'].validate([
+      access,
+      { ...input, retention: { ...retention, processes: { ...processes, ended: 'confirmed' } } },
+    ]),
+  ).toMatchObject({ issues: [{ path: [1, 'retention', 'processes'] }] })
+})
+
+it('decodes the observation of retained processes: access and scope in, a list or a refusal out', async () => {
+  expect(await contract.observeRetainedParamsSchema['~standard'].validate([access, scope])).toEqual(
+    { value: [access, scope] },
+  )
+  expect(
+    await contract.observeRetainedParamsSchema['~standard'].validate([
+      { ...access, tenant: { ...tenant } },
+      scope,
+    ]),
+  ).toHaveProperty('issues')
+  const item = {
+    process: { id: 'p1', generation: 'g1' },
+    origin: 'call-1',
+    handedOverAtMs: 1,
+    state: 'running',
+    processes: 'unknown',
+  }
+  const result = contract.observeRetainedResultSchema['~standard']
+  expect(
+    await result.validate([item, { ...item, state: 'stopping', processes: 2 }]),
+  ).toHaveProperty('value')
+  expect(await result.validate({ kind: 'rejected', reason: 'unavailable' })).toHaveProperty('value')
+  expect(await result.validate({ kind: 'unknown', cause: 'authority' })).toHaveProperty('value')
+  for (const broken of [
+    { ...item, state: 'ended' },
+    { ...item, processes: 'many' },
+    { ...item, handedOverAtMs: Number.NaN },
+    { ...item, origin: '' },
+    { ...item, process: { id: 'p1' } },
+  ])
+    expect(await result.validate([broken]), JSON.stringify(broken)).toHaveProperty('issues')
+  expect(contract.operationSchemas.observeRetained.params).toBe(
+    contract.observeRetainedParamsSchema,
+  )
+})
+
 it('exercises scripted provider lifecycle and the memory ledger close boundary', async () => {
   const decoded = await contract.acquireParamsSchema['~standard'].validate([access, input])
   if (decoded.issues) throw new Error('valid acquisition refused')
@@ -838,7 +929,10 @@ it('exercises scripted provider lifecycle and the memory ledger close boundary',
   const scripted = createScriptedEnvironmentProvider({
     acquire: async () => ({ kind: 'rejected', reason: 'unavailable' }),
   })
-  expect(await scripted.acquire(providerInput)).toEqual({ kind: 'rejected', reason: 'unavailable' })
+  expect(await scripted.acquire(providerInput)).toEqual({
+    kind: 'rejected',
+    reason: 'unavailable',
+  })
   const memory = createMemoryResourceLedger()
   const decodedResource = await contract.managedResourceSchema['~standard'].validate({
     key: 'r',

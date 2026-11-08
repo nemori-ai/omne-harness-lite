@@ -1,8 +1,10 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { lstat, readFile, rmdir, unlink } from 'node:fs/promises'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { ManagedResource, RecoveryListing } from '@omne-harness/execution-environment-contract'
+import { cgroupDirectory, scopeMembers } from './scope-cgroup.ts'
 
 /** The supervisor of the scopes: `systemctl` by absolute path, and the kill option it knows. */
 export type Supervisor = Readonly<{
@@ -61,7 +63,8 @@ export function scopeDescription(scope: ScopeRef, key: string): string {
   return `${descriptionPrefix} ${scopeDigest(scope)} ${key}`
 }
 
-function scopeDigest(scope: ScopeRef): string {
+/** The digest of a scope reference that unit descriptions and retained-process markers record. */
+export function scopeDigest(scope: ScopeRef): string {
   return createHash('sha256').update(scope.ref).digest('hex').slice(0, 32)
 }
 
@@ -192,6 +195,67 @@ async function readShow(tools: Supervisor, unit: string, timeoutMs: number) {
 }
 
 const delay = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
+
+/** The processes of one scope unit as the kernel lists them, or why they cannot be listed. */
+export type MembersReading =
+  | Readonly<{ kind: 'members'; pids: readonly number[]; directory: string }>
+  /** The supervisor reports the unit inactive or unknown: the domain is gone. */
+  | Readonly<{ kind: 'gone'; show: ScopeShow }>
+  /**
+   * No reading. With `show`, the supervisor answered but the unit's processes could not be listed
+   * (no control group, or an unreadable directory); without it the tool itself failed.
+   */
+  | Readonly<{ kind: 'unreadable'; show?: ScopeShow }>
+
+/** `systemctl show` of the unit with its control group path, read within `timeoutMs`. */
+async function readShowWithControlGroup(tools: Supervisor, unit: string, timeoutMs: number) {
+  const run = await runTool(
+    tools.systemctl,
+    ['--user', 'show', '-p', 'LoadState', '-p', 'ActiveState', '-p', 'ControlGroup', unit],
+    timeoutMs,
+  )
+  if (run.kind !== 'exited' || run.code !== 0) return undefined
+  const show = parseShow(run.stdout)
+  const controlGroup = run.stdout
+    .split('\n')
+    .find(line => line.startsWith('ControlGroup='))
+    ?.slice('ControlGroup='.length)
+    .trim()
+  return show === undefined ? undefined : { show, controlGroup: controlGroup ?? '' }
+}
+
+/**
+ * Reads the members of a scope unit. With a known `directory` it reads `cgroup.procs` there; an
+ * unreadable directory, or no directory, makes it ask the supervisor: a unit it reports inactive or
+ * unknown is gone, otherwise its `ControlGroup` path, placed under the unified mount of this process,
+ * names the directory. Nothing here turns a failed reading into an empty one.
+ */
+export async function readScopeMembers(input: {
+  tools: Supervisor
+  unit: string
+  boundMs: number
+  directory?: string | undefined
+}): Promise<MembersReading> {
+  if (input.directory !== undefined) {
+    const pids = scopeMembers(input.directory)
+    if (pids !== undefined) return { kind: 'members', pids, directory: input.directory }
+  }
+  const shown = await readShowWithControlGroup(input.tools, input.unit, input.boundMs)
+  if (shown === undefined) return { kind: 'unreadable' }
+  if (confirmationOf(shown.show) === 'confirmed') return { kind: 'gone', show: shown.show }
+  if (shown.controlGroup === '') return { kind: 'unreadable', show: shown.show }
+  let mountinfo: string
+  try {
+    mountinfo = readFileSync('/proc/self/mountinfo', 'utf8')
+  } catch {
+    return { kind: 'unreadable', show: shown.show }
+  }
+  const directory = cgroupDirectory(shown.controlGroup, mountinfo)
+  const pids = directory === undefined ? undefined : scopeMembers(directory)
+  return directory === undefined || pids === undefined
+    ? { kind: 'unreadable', show: shown.show }
+    : { kind: 'members', pids, directory }
+}
 
 /**
  * The forced stop of one execution domain: kill every process of the scope, stop the unit (exit

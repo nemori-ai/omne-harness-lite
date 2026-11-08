@@ -10,10 +10,15 @@ import { chmod, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { OutputChunk } from '@omne-harness/execution-environment-contract'
 import type { ScopeRef as ListedScope } from '@omne-harness/runtime-context-contract'
-import { createGateReader, createOutputBuffer, type GateFrame } from '../src/host-command.ts'
+import {
+  createGateReader,
+  createLateOutput,
+  createOutputBuffer,
+  type GateFrame,
+} from '../src/host-command.ts'
 import {
   confirmationOf,
   listScopes,
@@ -65,7 +70,7 @@ it('reads frames split at any byte boundary, in order, with the data bytes intac
     { kind: 'started' },
     { kind: 'data', stream: 'stdout', bytes: encoder.encode('one\r\n') },
     { kind: 'data', stream: 'stderr', bytes: encoder.encode('\u001b[31mtwo') },
-    { kind: 'exit', exit: { kind: 'code', code: 3 } },
+    { kind: 'exit', exit: { kind: 'code', code: 3 }, members: null },
   ])
 })
 
@@ -81,7 +86,7 @@ it('reports a signal exit and a spawn failure', () => {
         ),
       ),
     ).at(-1),
-  ).toEqual({ kind: 'exit', exit: { kind: 'signal', signal: 'SIGTERM' } })
+  ).toEqual({ kind: 'exit', exit: { kind: 'signal', signal: 'SIGTERM' }, members: null })
   const failed = createGateReader({ maxChunkBytes: 64 })
   expect(
     framesOf(failed.push(joined(line({ t: 'ready' }), line({ t: 'spawnFailed', code: 'ENOENT' })))),
@@ -94,6 +99,83 @@ it('faults on a line longer than the bound before its newline arrives', () => {
     2,
   )
   expect(reader.push(encoder.encode('x'.repeat(4096))).kind).toBe('fault')
+})
+
+/** A seeded generator, so a failing split is reproduced by its seed. */
+function mulberry32(seed: number): () => number {
+  let state = seed >>> 0
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0
+    let t = state
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/** Every frame and the fault, from bytes fed in `parts`, until the first fault. */
+function outcomeOf(parts: readonly Uint8Array[]): {
+  frames: GateFrame[]
+  fault: string | undefined
+} {
+  const reader = createGateReader({ maxChunkBytes: 64 })
+  const frames: GateFrame[] = []
+  for (const part of parts) {
+    const step = reader.push(part)
+    frames.push(...step.frames)
+    if (step.kind === 'fault') return { frames, fault: step.fault }
+  }
+  return { frames, fault: undefined }
+}
+
+it('ends the same however the frames are split: frames before a refused line take effect, none after it', () => {
+  const good = [
+    line({ t: 'ready' }),
+    line({ t: 'started' }),
+    line(data('stdout', 'out\r\n')),
+    line(data('stderr', 'err')),
+    line({ t: 'exit', code: 0, signal: null }),
+  ]
+  const refused = [
+    encoder.encode('{"t":\n'),
+    line({ t: 'surprise' }),
+    line({ t: 'ready' }),
+    line(data('stdout', 'x'.repeat(65))),
+  ]
+  const random = mulberry32(1137)
+  for (let round = 0; round < 400; round += 1) {
+    const before = good.slice(0, 1 + Math.floor(random() * good.length))
+    const bad = refused[Math.floor(random() * refused.length)] as Uint8Array
+    const lines = [...before, bad, ...good.slice(0, 2)]
+    const reference = outcomeOf(lines)
+    const bytes = joined(...lines)
+    const parts: Uint8Array[] = []
+    for (let at = 0; at < bytes.length;) {
+      const size = 1 + Math.floor(random() * 96)
+      parts.push(bytes.slice(at, at + size))
+      at += size
+    }
+    expect(outcomeOf(parts), `round ${round}`).toEqual(reference)
+    expect(reference.fault, `round ${round}`).toBeDefined()
+  }
+})
+
+it('hands over the frames read before a refused line in the same read, and nothing after the fault', () => {
+  const reader = createGateReader({ maxChunkBytes: 64 })
+  const step = reader.push(
+    joined(
+      line({ t: 'ready' }),
+      line({ t: 'started' }),
+      line({ t: 'surprise' }),
+      line({ t: 'exit', code: 0, signal: null }),
+    ),
+  )
+  expect(step.kind).toBe('fault')
+  expect(step.frames).toEqual([{ kind: 'ready' }, { kind: 'started' }])
+  expect(reader.push(line({ t: 'exit', code: 0, signal: null }))).toMatchObject({
+    kind: 'fault',
+    frames: [],
+  })
 })
 
 it('faults on a data frame whose bytes exceed the chunk bound', () => {
@@ -111,12 +193,38 @@ it.each([
   ['data before started', [line({ t: 'ready' }), line(data('stdout', 'early'))]],
   ['started before ready', [line({ t: 'started' })]],
   [
-    'data after the exit',
+    'data after a spawn failure',
+    [line({ t: 'ready' }), line({ t: 'spawnFailed', code: 'ENOENT' }), line(data('stdout', 'x'))],
+  ],
+  [
+    'a drop frame before the exit',
+    [line({ t: 'ready' }), line({ t: 'started' }), line({ t: 'x', s: 'stdout', n: 3 })],
+  ],
+  [
+    'a drop frame without a positive count',
     [
       line({ t: 'ready' }),
       line({ t: 'started' }),
       line({ t: 'exit', code: 0, signal: null }),
-      line(data('stdout', 'late')),
+      line({ t: 'x', s: 'stdout', n: 0 }),
+    ],
+  ],
+  [
+    'a drop frame of an unknown stream',
+    [
+      line({ t: 'ready' }),
+      line({ t: 'started' }),
+      line({ t: 'exit', code: 0, signal: null }),
+      line({ t: 'x', s: 'tty', n: 1 }),
+    ],
+  ],
+  [
+    'a second exit',
+    [
+      line({ t: 'ready' }),
+      line({ t: 'started' }),
+      line({ t: 'exit', code: 0, signal: null }),
+      line({ t: 'exit', code: 0, signal: null }),
     ],
   ],
   [
@@ -135,6 +243,211 @@ it.each([
   const reader = createGateReader({ maxChunkBytes: 64 })
   expect(reader.push(joined(...lines)).kind).toBe('fault')
   expect(reader.push(line({ t: 'ready' })).kind).toBe('fault')
+})
+
+describe('the order of the gate frames', () => {
+  const frames = {
+    ready: { t: 'ready' },
+    started: { t: 'started' },
+    spawnFailed: { t: 'spawnFailed', code: 'ENOENT' },
+    data: data('stdout', 'x'),
+    dropped: { t: 'x', s: 'stdout', n: 1 },
+    exit: { t: 'exit', code: 0, signal: null },
+  } as const
+  type Kind = keyof typeof frames
+  /** The frames that bring a fresh reader into each phase of the gate's order. */
+  const phases = {
+    launching: [],
+    ready: [frames.ready],
+    running: [frames.ready, frames.started],
+    exited: [frames.ready, frames.started, frames.exit],
+    ended: [frames.ready, frames.spawnFailed],
+  } as const
+  type PhaseName = keyof typeof phases
+  /** Where each frame is in order, and the fault it is named with anywhere else. */
+  const order: Record<Kind, { in: readonly PhaseName[]; fault: string }> = {
+    ready: { in: ['launching'], fault: 'ready out of order' },
+    started: { in: ['ready'], fault: 'started out of order' },
+    spawnFailed: { in: ['ready'], fault: 'a spawn failure out of order' },
+    data: { in: ['running', 'exited'], fault: 'data outside the running command' },
+    dropped: { in: ['exited'], fault: 'a drop frame before the exit' },
+    exit: { in: ['running'], fault: 'an exit out of order' },
+  }
+  const kinds = Object.keys(frames) as Kind[]
+  const names = Object.keys(phases) as PhaseName[]
+
+  it.each(kinds)('takes %s in its phases only, and names the fault anywhere else', kind => {
+    for (const phase of names) {
+      const reader = createGateReader({ maxChunkBytes: 64 })
+      framesOf(reader.push(joined(...phases[phase].map(frame => line(frame)))))
+      const step = reader.push(line(frames[kind]))
+      if (order[kind].in.includes(phase)) expect(step.kind, `${kind} in ${phase}`).toBe('frames')
+      else
+        expect(step, `${kind} in ${phase}`).toMatchObject({
+          kind: 'fault',
+          fault: order[kind].fault,
+        })
+    }
+  })
+
+  it('stays in the exited phase over data and drop frames, and in the running phase over data', () => {
+    const exited = createGateReader({ maxChunkBytes: 64 })
+    framesOf(exited.push(joined(...phases.exited.map(frame => line(frame)))))
+    framesOf(exited.push(joined(line(frames.data), line(frames.dropped), line(frames.data))))
+    expect(exited.push(line(frames.exit))).toMatchObject({ fault: 'an exit out of order' })
+    const running = createGateReader({ maxChunkBytes: 64 })
+    framesOf(running.push(joined(...phases.running.map(frame => line(frame)))))
+    framesOf(running.push(joined(line(frames.data), line(frames.data))))
+    expect(running.push(line(frames.exit)).kind).toBe('frames')
+  })
+})
+
+it('reads data and drop frames after the exit, where the unit still writes', () => {
+  const reader = createGateReader({ maxChunkBytes: 64 })
+  const step = reader.push(
+    joined(
+      line({ t: 'ready' }),
+      line({ t: 'started' }),
+      line({ t: 'exit', code: 0, signal: null, members: 1 }),
+      line(data('stdout', 'late')),
+      line({ t: 'x', s: 'stderr', n: 7 }),
+      line(data('stderr', 'after')),
+    ),
+  )
+  expect(step.kind).toBe('frames')
+  expect(step.frames.slice(3)).toEqual([
+    { kind: 'data', stream: 'stdout', bytes: encoder.encode('late') },
+    { kind: 'dropped', stream: 'stderr', count: 7 },
+    { kind: 'data', stream: 'stderr', bytes: encoder.encode('after') },
+  ])
+})
+
+describe('the output after the exit frame', () => {
+  const stream = (tail: ReturnType<ReturnType<typeof createLateOutput>['keep']>) => {
+    const read = tail.read()
+    if (read.kind !== 'tail') throw new Error(`expected a tail: ${JSON.stringify(read)}`)
+    return read.streams.map(item => ({ ...item, data: [...item.data] }))
+  }
+
+  it('counts the bytes before a handover without saving them, and saves them once a tail is kept', () => {
+    const late = createLateOutput()
+    late.append('stdout', encoder.encode('abc'))
+    late.drop('stderr', 2)
+    expect(late.observed()).toEqual({ stdout: 3, stderr: 2 })
+    const tail = late.keep({ capacity: 8, savedFrom: { stdout: 3, stderr: 2 } })
+    expect(tail.read()).toEqual({ kind: 'none' })
+    late.append('stdout', encoder.encode('de'))
+    late.drop('stdout', 1)
+    late.append('stdout', encoder.encode('f'))
+    expect(late.observed()).toEqual({ stdout: 7, stderr: 2 })
+    expect(stream(tail)).toMatchObject([
+      { stream: 'stdout', savedFrom: 3, start: 6, end: 7, discardedBytes: 3, data: [0x66] },
+    ])
+  })
+
+  it('closes the tail it kept, and a tail kept after the channel ended is closed from the start', () => {
+    const before = createLateOutput()
+    before.close()
+    expect(before.keep({ capacity: 8, savedFrom: { stdout: 0, stderr: 0 } }).closed()).toBe(true)
+    const after = createLateOutput()
+    const tail = after.keep({ capacity: 8, savedFrom: { stdout: 0, stderr: 0 } })
+    expect(tail.closed()).toBe(false)
+    after.close()
+    expect(tail.closed()).toBe(true)
+  })
+})
+
+describe('the fault reason and the line bound', () => {
+  // With a 64-byte chunk bound a line may hold ceil(64 / 3) * 4 + 256 = 344 bytes before its newline.
+  const bound = 344
+  const running = () => {
+    const reader = createGateReader({ maxChunkBytes: 64 })
+    framesOf(reader.push(joined(line({ t: 'ready' }), line({ t: 'started' }))))
+    return reader
+  }
+  /** A data frame line of exactly `length` bytes before its newline, padded with JSON spaces. */
+  const paddedData = (length: number) => {
+    const head = `{"t":"data","s":"stdout","b":"${Buffer.from('x').toString('base64')}"`
+    return encoder.encode(`${head}${' '.repeat(length - head.length - 1)}}\n`)
+  }
+
+  it('names the reason of each refusal', () => {
+    const reader = createGateReader({ maxChunkBytes: 64 })
+    expect(reader.push(encoder.encode('{"t":\n'))).toMatchObject({ fault: 'a frame is not JSON' })
+    expect(createGateReader({ maxChunkBytes: 64 }).push(line({ t: 'surprise' }))).toMatchObject({
+      fault: 'an unknown frame type',
+    })
+    expect(running().push(line({ t: 'ready' }))).toMatchObject({ fault: 'ready out of order' })
+  })
+
+  it('takes a complete line of exactly the bound and refuses one byte more, by its length', () => {
+    expect(framesOf(running().push(paddedData(bound)))).toEqual([
+      { kind: 'data', stream: 'stdout', bytes: encoder.encode('x') },
+    ])
+    expect(running().push(paddedData(bound + 1))).toMatchObject({
+      kind: 'fault',
+      fault: 'a frame line exceeds its bound',
+    })
+  })
+
+  it('waits on an unfinished line of exactly the bound and refuses it one byte later, by its length', () => {
+    const reader = running()
+    expect(reader.push(encoder.encode(`{${' '.repeat(bound - 1)}`))).toEqual({
+      kind: 'frames',
+      frames: [],
+    })
+    expect(reader.push(encoder.encode(' '))).toMatchObject({
+      kind: 'fault',
+      fault: 'a frame line exceeds its bound',
+    })
+  })
+})
+
+/** The exit frame a running reader yields for `fields`, or the fault it reports. */
+function exitOf(fields: object): GateFrame | string {
+  const reader = createGateReader({ maxChunkBytes: 64 })
+  framesOf(reader.push(joined(line({ t: 'ready' }), line({ t: 'started' }))))
+  const step = reader.push(line({ t: 'exit', ...fields }))
+  return step.kind === 'fault' ? step.fault : (step.frames.at(-1) ?? 'no frame')
+}
+
+it.each([
+  ['absent', {}, null],
+  ['null', { members: null }, null],
+  ['zero', { members: 0 }, 0],
+  ['three', { members: 3 }, 3],
+])(
+  'reads a member count that is %s as the gate wrote it; absent and null are unread',
+  (_, fields, members) => {
+    expect(exitOf({ code: 0, signal: null, ...fields })).toEqual({
+      kind: 'exit',
+      exit: { kind: 'code', code: 0 },
+      members,
+    })
+  },
+)
+
+it.each([-1, 1.5, '2', true, 2 ** 53])(
+  'faults on a member count of %s, which is not a whole number',
+  members => {
+    expect(exitOf({ code: 0, signal: null, members })).toBe(
+      'an exit frame has a member count that is not a whole number',
+    )
+  },
+)
+
+it.each([
+  ['a whole code over a signal', { code: 2, signal: 'SIGTERM' }, { kind: 'code', code: 2 }],
+  [
+    'a signal when the code is not whole',
+    { code: 1.5, signal: 'SIGKILL' },
+    { kind: 'signal', signal: 'SIGKILL' },
+  ],
+  ['an unknown exit when neither is there', { code: null, signal: null }, { kind: 'unknown' }],
+  ['an unknown exit for a code that is text', { code: '3' }, { kind: 'unknown' }],
+  ['an unknown exit for a signal that is not text', { code: null, signal: 9 }, { kind: 'unknown' }],
+])('reads %s', (_, fields, exit) => {
+  expect(exitOf({ ...fields, members: 1 })).toEqual({ kind: 'exit', exit, members: 1 })
 })
 
 async function drain(iterable: AsyncIterable<OutputChunk>): Promise<OutputChunk[]> {

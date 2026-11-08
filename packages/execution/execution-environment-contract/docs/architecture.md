@@ -21,7 +21,7 @@
 | `need-declaration.ts` | 工具环境声明 `EnvironmentNeedDeclaration`、它的 Standard Schema 与采用身份 | [工具环境声明](../SPEC.md#工具环境声明) |
 | `blocks.ts` | 两条块声明及其值类型，增补 Runtime Context 的 `ContextBlocks` | [INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露) |
 | `judge.ts` | 纯函数 `judgeRequirement` 与 `matchProviders` | [INV-EE02](../SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配)、[获取与租约](../SPEC.md#获取与租约) |
-| `operation-schemas.ts` | 三面九操作的参数、七个数据结果 schema 与索引 | [获取与租约](../SPEC.md#获取与租约)、[恢复](../SPEC.md#恢复) |
+| `operation-schemas.ts` | 三面十操作的参数、八个数据结果 schema 与索引 | [获取与租约](../SPEC.md#获取与租约)、[恢复](../SPEC.md#恢复) |
 | `testing/` | 非耐久替身、提供者与环境的契约用例列表 | [持续验证义务](../SPEC.md#持续验证义务) |
 | `decode.ts` | 内部解码器与 `standardSchema` 包装。根入口只再导出它的 `Issue` 类型，名为 `DecodeIssue` | [工具环境声明](../SPEC.md#工具环境声明) |
 
@@ -61,7 +61,7 @@ flowchart BT
 
 本成员不导入 `@deepseek-ai/cordis`。根入口按 [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 与 Cordis 无关，测试逐个源文件核对这一点，见 [Cordis 说明](cordis.md)。本成员也不导入 Tool、授权或任何上层工作流的契约。它们依赖本成员，反方向不成立。
 
-`operation-schemas.ts` 通过同一解码器形制提供三面九操作的参数与七个数据结果 schema。`testing/` 独立暴露非耐久替身与契约用例；测试框架由消费者选择，断言使用 `node:assert`。
+`operation-schemas.ts` 通过同一解码器形制提供三面十操作的参数与八个数据结果 schema。`testing/` 独立暴露非耐久替身与契约用例；测试框架由消费者选择，断言使用 `node:assert`。
 
 ## 关键机制与理由
 
@@ -372,7 +372,7 @@ flowchart BT
 | 匹配沿允许清单的顺序，不选清单外的层，拒绝原因取最接近的一项 | `match-providers.spec.ts` | 落点的歧义拒绝与获取时的重新核对由机制成员验证 |
 | 需要声明接受开放的设施键，拒绝未知字段与不存在的绑定层，`digest` 等于 schema 文件字节的摘要 | `need-declaration.spec.ts` | 改 schema 文件时同步 `digest`，形状变化时前进 `revision` |
 | `FacilitySet` 只给出声明点名的设施，示例按公开入口编译 | `facility-set.spec-d.ts` | 无 |
-| 三面九操作的参数与七个数据结果按 schema 逐项拒绝 | `operation-schemas.spec.ts` | 操作或结果变化时同步 |
+| 三面十操作的参数与八个数据结果按 schema 逐项拒绝 | `operation-schemas.spec.ts` | 操作或结果变化时同步 |
 | 提供者套件十六项义务能否定坏提供者（含配额、原获取查询、列出与结清） | `provider-conformance.spec.ts` | 套件变化时同步；执行环境套件由登记表成员与 host-local 运行 |
 | SPEC 的其余行为条款 | 没有。本成员没有运行实现 | [持续验证义务](../SPEC.md#持续验证义务) V-EE01 至 V-EE27，由机制成员、提供者与集成方的组合验证 |
 

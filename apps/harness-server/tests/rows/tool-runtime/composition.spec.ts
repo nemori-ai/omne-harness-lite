@@ -541,7 +541,11 @@ async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
 function expectRan(ran: Ran): void {
   const { value } = ran
   expect(value.shell.state.terminal).toMatchObject({ kind: 'completed' })
-  if (process.platform === 'linux' || process.platform === 'win32') {
+  if (
+    process.platform === 'linux' ||
+    process.platform === 'win32' ||
+    process.platform === 'darwin'
+  ) {
     expect(value.shell.text).toContain('tool-b-shell')
     expect(value.write.text).toMatch(/^done request=/u)
     expect(value.read.text).toContain('tool-b-files')

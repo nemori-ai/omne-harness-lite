@@ -7,15 +7,15 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 职责与状态
 
-本成员做两件事。第一，把 [execution-environment](../execution-environment/README_ZH.md) 的登记表装进 [execution-environment-cordis-contract](../execution-environment-cordis-contract/README_ZH.md) 定义的服务 `executionEnvironment`，承担登记即效应、服务撤除时的关闭与撤除失败的报告。第二，在宿主机上提供 `files` 与 `command` 设施：`files` 按请求点名的对象做十二项操作，可以配置宿主文件根；`command` 在 Linux 上运行命令，每个进程一个 systemd 用户 scope。领域行为归 [execution-environment-contract](../execution-environment-contract/README_ZH.md)。
+本成员做两件事。第一，把 [execution-environment](../execution-environment/README_ZH.md) 的登记表装进 [execution-environment-cordis-contract](../execution-environment-cordis-contract/README_ZH.md) 定义的服务 `executionEnvironment`，承担登记即效应、服务撤除时的关闭与撤除失败的报告。第二，在宿主机上提供 `files`、`command` 与 `terminal` 设施：`files` 按请求点名的对象做十二项操作，可以配置宿主文件根；`command` 在 Linux 上运行命令，每个进程一个 systemd 用户 scope，在 Windows 上也有后端，在 macOS 上每个进程一个 POSIX 会话；`terminal` 提供持久 shell。领域行为归 [execution-environment-contract](../execution-environment-contract/README_ZH.md)。
 
 状态：Service 实现成员，`draft`。宿主文件使用一节已被接受，见 [SPEC 宿主文件使用](SPEC.md#宿主文件使用)。采用依据还有[系统页执行环境](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备)与组的[主题与唯一拥有者](../docs/architecture.md#主题与唯一拥有者)。现在的实现情况如下：
 
-- 已实现：宿主文件设施的十二项操作与宿主文件根（只在 Linux 上；其他宿主上读取、查看、写入与关闭之外的八项答 `unavailable`）；Linux 上的 `command` 设施、它的平台前提探测（P1、P3～P6）与 scope 单元的资源级恢复；宿主文件责任域 `createHostFilesDomain`；宿主文件提供者：每份获取一个门面、配额、原获取查询、获取枚举与结清；Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin` 与 `commandFacilityPlugin`，以及插件工厂 `createHostFilesPlugin(domain)`。
-- 未实现：`terminal` 提供者、契约意义的授予根（宿主文件根是另一种限制）、非 Linux 宿主上的 `files` 八项与 `command`、Runtime Context 两条块的发布、调用方类核对、插件经 `definePlugin`，以及进程结束之后对旧容量的结清（需要域外的进程退出证据，是 M2 之后的剩余责任），见 SPEC [明确缺项](SPEC.md#明确缺项)。
+- 已实现：宿主文件设施的十二项操作与宿主文件根（Linux、macOS 与 Windows，机制见各平台说明）；Linux 上的 `command` 设施、它的平台前提探测（P1、P3～P6）与 scope 单元的资源级恢复；一次性命令留下的进程的处置与移交（只在 Linux 上）；Windows 的 `command` 后端（根进程退出时停止 Job 里剩下的进程，结局不带 `residue`）；持久 `terminal` 设施（Linux 与 Windows 各有后端，见 [Windows 说明](docs/windows-execution.md)）；macOS 的 `command` 与 `terminal` 后端（执行域是 POSIX 会话，主进程退出之后提供者停止整个会话，见 [macOS 说明](docs/macos-execution.md)）；宿主文件责任域 `createHostFilesDomain`；宿主文件提供者：每份获取一个门面、配额、原获取查询、获取枚举与结清；Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin` 与 `commandFacilityPlugin`，以及插件工厂 `createHostFilesPlugin(domain)`。
+- 未实现：契约意义的授予根（宿主文件根是另一种限制）、Linux、macOS 与 Windows 以外宿主上的 `files` 八项、macOS 上的保留进程（进程可以用 `setsid` 离开 POSIX 会话，所以 macOS 不满足封闭收纳）、Windows 上保留进程的移交、Runtime Context 两条块的发布、调用方类核对、插件经 `definePlugin`，以及进程结束之后对旧容量的结清（需要域外的进程退出证据，是 M2 之后的剩余责任），见 SPEC [明确缺项](SPEC.md#明确缺项)。
 - 未验证：同一 isolate 标签下重复装载失败、配置校验失败，都没有测试。
 
-现在没有应用装配本成员，也没有包依赖本成员。
+应用 `apps/harness-server` 装配本成员，见其[宿主文件工厂行](../../../apps/harness-server/docs/rows/execution-host.md)。
 
 ## 使用
 
@@ -62,9 +62,9 @@ await ctx.plugin(createHostFilesPlugin(domain))
 
 ## 配置与运行
 
-Service 子类与 `filesFacilityPlugin` 的配置只接受缺省、`null` 或空对象。宿主文件插件另接受 `drainBoundMs`：有限的非负毫秒数，是释放、结清或退役等在途文件操作的上界，初值 10000。插件另接受 `filesRoot` 与 `stateDirectory`（绝对路径）和 `command` 设施的六项上界。提供者选项还接受列表与搜索的上界（`limits`），插件配置现在不接受它们。结果为待处置时，`ctx.logger` 收到一条错误级诊断。配额策略是 `createHostFilesDomain` 的选项，不是插件配置；初值是每租户 64 个未结清的获取，没有全局上界。三个端口以 `executionEnvironmentAuthority`、`executionScopeBinding` 与 `executionRecoveryAuthority` 服务给出，不进插件树。一个 isolate 标签下只装一份服务。
+Service 子类与 `filesFacilityPlugin` 的配置只接受缺省、`null` 或空对象。宿主文件插件另接受 `drainBoundMs`：有限的非负毫秒数，是释放、结清或退役等在途文件操作的上界，初值 10000。插件另接受 `filesRoot` 与 `stateDirectory`（绝对路径）、`command` 设施的六项上界、一次性命令留下的进程的四项（`residuePolicy`、`retainedPerScope`、`retainedPollMs`、`retainedOutputBytes`）与 `terminal`。提供者选项还接受列表与搜索的上界（`limits`），插件配置现在不接受它们。结果为待处置时，`ctx.logger` 收到一条错误级诊断。配额策略是 `createHostFilesDomain` 的选项，不是插件配置；初值是每租户 64 个未结清的获取，没有全局上界。三个端口以 `executionEnvironmentAuthority`、`executionScopeBinding` 与 `executionRecoveryAuthority` 服务给出，不进插件树。一个 isolate 标签下只装一份服务。
 
-宿主文件设施在 Node 上运行，使用 `O_NOFOLLOW` 与设备号、inode 核对对象身份；没有 `O_NOFOLLOW` 的宿主（Windows 上的 Node）改为打开之后对末段 `lstat` 核对。`package.json` 声明的引擎是 `>=24`。宿主事实里的平台取 `process.platform` 加 `os.release()`，提供者版本取本包 `package.json` 的 `version`。宿主事实里的前提合并 `files` 的探测（P2）与 `command` 的探测（P1、P3～P6）：任一项不满足为 `unsatisfied`，否则任一项未知为 `unknown`。读取、查看、写入与关闭之外的 `files` 操作、宿主文件根和 `command` 只在 Linux 上运行。起真实进程的命令测试要设 `OMNE_HOST_COMMAND_LINUX=1` 才运行。
+宿主文件设施在 Node 上运行，使用 `O_NOFOLLOW` 与设备号、inode 核对对象身份；没有 `O_NOFOLLOW` 的宿主（Windows 上的 Node）改为打开之后对末段 `lstat` 核对。`package.json` 声明的引擎是 `>=24`。宿主事实里的平台取 `process.platform` 加 `os.release()`，提供者版本取本包 `package.json` 的 `version`。宿主事实里的前提合并 `files` 的探测（P2）与 `command` 的探测（P1、P3～P6）：任一项不满足为 `unsatisfied`，否则任一项未知为 `unknown`。十二项 `files` 操作与宿主文件根在 Linux、macOS 与 Windows 上运行。[macOS 文件后端](docs/macos-files.md) 用 Command Line Tools 编译 C 辅助程序，每个请求持有目录描述符。`command` 在 Linux、Windows 与 macOS 上运行。macOS 上，提供者在运行时用 Command Line Tools 编译会话读取程序，冷索引放在 `stateDirectory` 里。起真实进程的命令测试在 Linux 上要设 `OMNE_HOST_COMMAND_LINUX=1`，在 macOS 上要设 `OMNE_HOST_MACOS=1` 才运行。
 
 ## 验证
 

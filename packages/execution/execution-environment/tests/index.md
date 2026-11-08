@@ -11,6 +11,7 @@
 - [original.spec.ts](original.spec.ts)：原获取：两种查询、丢失答复后的采用、缓存表、恢复查询与获取组
 - [lease-gate.spec.ts](lease-gate.spec.ts)：逐操作门（含账本关闭）、失效与释放
 - [retention.spec.ts](retention.spec.ts)：保留范围核验、指纹、封闭信号与迟到答复，以及真实 registry 的跨获取附着接线
+- [command-retention.spec.ts](command-retention.spec.ts)：保留进程账本视图的传递与冲突、命令保留扩展的交出条件、`list` 逐次经过门与守卫、提供者有 `stop` 与 `output` 时才交出且各自经过门与守卫、命令设施的 `containment` 原样交出
 - [retention-boundaries.spec.ts](retention-boundaries.spec.ts)：撤权后的逐操作守卫、旧提供者拒绝、恢复交接及写入效果透传
 - [retained-provider.ts](retained-provider.ts)：保留终端协议的冻结替身，没有真实 shell、耐久账本或 Session 权威
 - [lifecycle.spec.ts](lifecycle.spec.ts)：登记、退役、关闭、描述与恢复

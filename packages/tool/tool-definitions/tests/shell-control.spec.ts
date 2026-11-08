@@ -5,7 +5,14 @@ import { expect, it } from 'vitest'
 import { createIndependentToolScope } from '@omne-harness/tool'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import { createShellAuthor, type ShellAuthorEnvironment } from '@omne-harness/tool-definitions'
-import type { ProcessHandle } from '@omne-harness/execution-environment-contract'
+import {
+  originRef,
+  type CommandOutcome,
+  type FacilityResult,
+  type ProcessHandle,
+  type ResidueReport,
+  type RetainedProcessInformation,
+} from '@omne-harness/execution-environment-contract'
 import { shellFixture } from './fixtures/shell.ts'
 import { run, value } from './run-author.ts'
 
@@ -134,6 +141,88 @@ it('distinguishes facility offset loss from tool truncation and retains output-f
   expect(result).not.toContain('tool truncated')
 })
 
+it('shows between-segment bytes apart from the segment output, before it', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const original = fixture.process('unused', 'terminal')
+  const environment: ShellAuthorEnvironment = {
+    ...fixture.environment,
+    command: {
+      start: async () => ({
+        kind: 'done',
+        requestId: 'fixture',
+        value: {
+          ...original,
+          output: {
+            async *[Symbol.asyncIterator]() {
+              yield {
+                stream: 'terminal',
+                observedOffset: 0,
+                data: new TextEncoder().encode('ok\n'),
+              }
+            },
+          },
+          result: Promise.resolve({
+            kind: 'completed',
+            exit: { kind: 'code', code: 0 },
+            durationMs: 3,
+            output: {
+              mode: 'terminal',
+              terminal: { observedBytes: 3, discardedBytes: 0 },
+              between: {
+                data: new TextEncoder().encode('late\n'),
+                count: { observedBytes: 9, discardedBytes: 4 },
+              },
+            },
+          }),
+        },
+      }),
+    },
+  }
+  const result = await run(author, 'execute', { script: 'printf ok' }, environment)
+  expect(result).toContain('between_segments observed_bytes=9 facility_discarded_bytes=4')
+  const between = result.indexOf('between_segments facility_discarded_bytes=4\nlate')
+  const segment = result.indexOf('terminal facility_gaps=none')
+  expect(between).toBeGreaterThan(-1)
+  expect(segment).toBeGreaterThan(between)
+  expect(result.slice(segment)).not.toContain('late')
+})
+
+it('shows no between-segment section when the provider reports none', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const original = fixture.process('unused', 'terminal')
+  const environment: ShellAuthorEnvironment = {
+    ...fixture.environment,
+    command: {
+      start: async () => ({
+        kind: 'done',
+        requestId: 'fixture',
+        value: {
+          ...original,
+          output: {
+            async *[Symbol.asyncIterator]() {
+              yield {
+                stream: 'terminal',
+                observedOffset: 0,
+                data: new TextEncoder().encode('ok\n'),
+              }
+            },
+          },
+          result: Promise.resolve({
+            kind: 'completed',
+            exit: { kind: 'code', code: 0 },
+            durationMs: 3,
+            output: { mode: 'terminal', terminal: { observedBytes: 3, discardedBytes: 0 } },
+          }),
+        },
+      }),
+    },
+  }
+  const result = await run(author, 'execute', { script: 'printf ok' }, environment)
+  expect(result).not.toContain('between_segments')
+})
+
 it('rejects missing shell configuration and malformed terminal/geometry before starting', async () => {
   const fixture = shellFixture()
   expect(
@@ -155,4 +244,190 @@ it('rejects missing shell configuration and malformed terminal/geometry before s
     run(author, 'execute', { script: 'x' }, fixture.environment, controller.signal),
   ).rejects.toThrow()
   expect(fixture.starts).toHaveLength(0)
+})
+
+/** One-shot environment whose process ends with the given outcome. */
+function endingWith(
+  fixture: ReturnType<typeof shellFixture>,
+  outcome: (completed: Extract<CommandOutcome, { kind: 'completed' }>) => CommandOutcome,
+): ShellAuthorEnvironment {
+  const original = fixture.process('out', 'separate')
+  return {
+    ...fixture.environment,
+    command: {
+      ...fixture.environment.command,
+      start: async () => ({
+        kind: 'done',
+        requestId: 'fixture',
+        value: {
+          ...original,
+          result: original.result.then(base =>
+            outcome(base as Extract<CommandOutcome, { kind: 'completed' }>),
+          ),
+        },
+      }),
+    },
+  }
+}
+
+async function residueOf(residue: ResidueReport | undefined): Promise<string> {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  return run(
+    author,
+    'execute',
+    { script: 'cmd &' },
+    endingWith(fixture, base => ({ ...base, ...(residue === undefined ? {} : { residue }) })),
+  )
+}
+
+it('writes one residue line right after the completed outcome line for each disposition', async () => {
+  const retained = {
+    kind: 'retained',
+    process: { id: 'domain-1', generation: '2' },
+    processes: 3,
+  } as const
+  const outcomeLine = 'completed exit={"kind":"code","code":0} duration_ms=1\n'
+  expect(await residueOf({ kind: 'none' })).toContain(`${outcomeLine}residue=none\nstdout `)
+  expect(await residueOf(retained)).toContain(
+    `${outcomeLine}residue=retained process={"id":"domain-1","generation":"2"} processes=3\nstdout `,
+  )
+  expect(await residueOf({ ...retained, processes: 'unknown' })).toContain(
+    'residue=retained process={"id":"domain-1","generation":"2"} processes=unknown\n',
+  )
+  expect(await residueOf({ kind: 'stopping', reason: 'unbound' })).toContain(
+    `${outcomeLine}residue=stopping reason=unbound\nstdout `,
+  )
+  expect(await residueOf({ kind: 'unknown' })).toContain(`${outcomeLine}residue=unknown\nstdout `)
+})
+
+it('writes no residue line when the outcome carries none or the command did not complete', async () => {
+  expect(await residueOf(undefined)).not.toContain('residue')
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const failed = await run(
+    author,
+    'execute',
+    { script: 'cmd &' },
+    endingWith(fixture, base => ({
+      kind: 'failed',
+      reason: 'effectUnknown',
+      observedDurationMs: 4,
+      output: base.output,
+    })),
+  )
+  expect(failed).toContain('unknown reason=effectUnknown')
+  expect(failed).not.toContain('residue')
+  // A terminal segment has no retention verdict of its own: the terminal owns its processes.
+  const session = await run(author, 'create_session', {}, fixture.environment)
+  expect(session).toContain('terminal=')
+  const segment = await run(
+    author,
+    'execute',
+    { script: 'pwd', terminal: { id: 'session', generation: '1' } },
+    fixture.environment,
+  )
+  expect(segment).toContain('completed')
+  expect(segment).not.toContain('residue')
+})
+
+const handedOver = (
+  id: string,
+  state: RetainedProcessInformation['state'],
+  processes: RetainedProcessInformation['processes'],
+): RetainedProcessInformation => ({
+  process: { id, generation: '1' },
+  origin: originRef(`call-${id}`),
+  handedOverAtMs: Date.UTC(2026, 10, 5, 8, 30, 15, 250),
+  state,
+  processes,
+})
+
+it('lists retained processes in info after the terminals, one line each', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  await run(author, 'create_session', {}, fixture.environment)
+  fixture.retained.push(handedOver('a', 'running', 2), handedOver('b', 'stopping', 'unknown'))
+  const info = await run(author, 'info', {}, fixture.environment)
+  const time = '2026-11-05T08:30:15.250Z'
+  const terminals = info.indexOf('terminal={"id":"session"')
+  const first = info.indexOf(
+    `retained_process={"id":"a","generation":"1"} state=running processes=2 origin="call-a" handed_over_at=${time}\n`,
+  )
+  const second = info.indexOf(
+    `retained_process={"id":"b","generation":"1"} state=stopping processes=unknown origin="call-b" handed_over_at=${time}`,
+  )
+  expect(terminals).toBeGreaterThan(-1)
+  expect(first).toBeGreaterThan(terminals)
+  expect(second).toBeGreaterThan(first)
+  expect(info).not.toContain('retained_processes=')
+})
+
+it('names the containment the command facility declares after the shell line, and undeclared when it declares none', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const declaring = (containment: 'sealed' | 'none') => ({
+    ...fixture.environment,
+    command: { ...fixture.environment.command, containment },
+  })
+  expect(await run(author, 'info', {}, declaring('sealed'))).toContain(
+    'cwd="/initial"\nprocess_containment=sealed\n',
+  )
+  expect(await run(author, 'info', {}, declaring('none'))).toContain(
+    'cwd="/initial"\nprocess_containment=none\n',
+  )
+  // Absent is not sealed.
+  const undeclared = await run(author, 'info', {}, fixture.environment)
+  expect(undeclared).toContain('cwd="/initial"\nprocess_containment=undeclared\n')
+  expect(undeclared).not.toContain('process_containment=sealed')
+})
+
+it('says none only when the listing is empty', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  expect(await run(author, 'info', {}, fixture.environment)).toContain('retained_processes=none')
+})
+
+it('says unavailable, never none, when retained processes cannot be read', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const withList = (
+    list: () => Promise<FacilityResult<readonly RetainedProcessInformation[]>>,
+  ) => ({
+    ...fixture.environment,
+    command: { ...fixture.environment.command, retention: { list } },
+  })
+  const absent = await run(
+    author,
+    'info',
+    {},
+    { ...fixture.environment, command: { start: fixture.environment.command.start } },
+  )
+  expect(absent).toContain('retained_processes=unavailable')
+  expect(absent).not.toContain('retained_processes=none')
+  const rejected = await run(
+    author,
+    'info',
+    {},
+    withList(async () => ({ kind: 'rejected', requestId: 'r', reason: 'notAuthorized' })),
+  )
+  expect(rejected).toContain('retained_processes=unavailable reason=notAuthorized')
+  expect(rejected).not.toContain('retained_processes=none')
+  const unknown = await run(
+    author,
+    'info',
+    {},
+    withList(async () => ({ kind: 'unknown', requestId: 'r' })),
+  )
+  expect(unknown).toContain('retained_processes=unavailable reason=unknown')
+  expect(unknown).not.toContain('retained_processes=none')
+  const unresolved = await run(
+    author,
+    'info',
+    {},
+    withList(async () => ({ kind: 'unresolved', requestId: 'r' })),
+  )
+  expect(unresolved).toContain('retained_processes=unavailable reason=unresolved')
+  // Terminal listing and placement facts still show when only the retained list is unreadable.
+  expect(unknown).toContain('os="fixtureOS"')
 })

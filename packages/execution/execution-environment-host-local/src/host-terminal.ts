@@ -10,6 +10,7 @@ import type {
   FacilityReason,
   FacilityResult,
   ManagedResource,
+  OutputSummary,
   ProcessHandle,
   ResourceLedger,
   RetainedTerminalLedger,
@@ -39,8 +40,13 @@ import {
 import { createTerminalReader, type TerminalFrame } from './terminal-control.ts'
 import { createTerminalOutput, type TerminalOutput } from './terminal-output.ts'
 import type { RetainedTerminalBackend, RetainedTerminalFactory } from './host-retained-terminals.ts'
+import type { MacosPrerequisite } from './macos-execution/commands.ts'
 
-export type HostTerminalOptions = HostCommandOptions &
+/** The terminal's bounds: the command bounds without the options about processes a command leaves behind. */
+export type HostTerminalOptions = Omit<
+  HostCommandOptions,
+  'residuePolicy' | 'retainedPerScope' | 'retainedPollMs' | 'retainedOutputBytes'
+> &
   Readonly<{
     /** Maximum bytes of one private control frame, including script and environment. Initial 1 MiB. */
     maxControlBytes?: number
@@ -49,9 +55,17 @@ export type HostTerminalOptions = HostCommandOptions &
     rows?: number
     /** Domain-wide retained shell capacity. Initial 64; unresolved reservations consume capacity. */
     retainedCapacity?: number
+    /** Bytes kept between two segments for the next result; later bytes are counted as discarded. Initial 256 KiB. */
+    betweenSegmentBytes?: number
   }>
 export type TerminalSettings = CommandSettings &
-  Readonly<{ maxControlBytes: number; columns: number; rows: number; retainedCapacity: number }>
+  Readonly<{
+    maxControlBytes: number
+    columns: number
+    rows: number
+    retainedCapacity: number
+    betweenSegmentBytes: number
+  }>
 
 export function terminalSettings(options: HostTerminalOptions = {}): TerminalSettings {
   const settings = {
@@ -60,8 +74,15 @@ export function terminalSettings(options: HostTerminalOptions = {}): TerminalSet
     columns: options.columns ?? 80,
     rows: options.rows ?? 24,
     retainedCapacity: options.retainedCapacity ?? 64,
+    betweenSegmentBytes: options.betweenSegmentBytes ?? 256 * 1024,
   }
-  for (const name of ['maxControlBytes', 'columns', 'rows', 'retainedCapacity'] as const)
+  for (const name of [
+    'maxControlBytes',
+    'columns',
+    'rows',
+    'retainedCapacity',
+    'betweenSegmentBytes',
+  ] as const)
     if (!Number.isSafeInteger(settings[name]) || settings[name] < 1)
       throw new RangeError(`${name} must be a positive safe integer`)
   if (settings.columns > 65535 || settings.rows > 65535)
@@ -87,14 +108,99 @@ type Input = Readonly<{
   scope: ScopeRef
   settings: TerminalSettings
   prerequisites: PrerequisiteProbe
-  unavailable(missing: readonly (HostTerminalPrerequisite | HostCommandPrerequisite)[]): void
+  unavailable(
+    missing: readonly (HostTerminalPrerequisite | HostCommandPrerequisite | MacosPrerequisite)[],
+  ): void
   closed?(): boolean
+  /** The platform of the domain; the Linux scope when absent. */
+  platform?: TerminalPlatform
   reservation?: Readonly<{
     resource: ManagedResource
     coordinate: ScopeCoordinate
     terminal: TerminalRef
   }>
 }>
+/** What admits, places, starts and stops a terminal's domain on one platform. */
+export type TerminalPlatform = Readonly<{
+  /** The platform's prerequisites: what is missing, or nothing. */
+  admit(): Promise<
+    readonly (HostTerminalPrerequisite | HostCommandPrerequisite | MacosPrerequisite)[] | 'ready'
+  >
+  bootId(): Promise<string | undefined>
+  /** A new domain of this boot, before any process: its key and where it lives. */
+  allocate(
+    bootId: string,
+  ): Readonly<{ key: string; coordinate: ScopeCoordinate; reference: ManagedResource['reference'] }>
+  /** Starts the gate of the domain; it reads the control channel on descriptor 3. */
+  launch(coordinate: ScopeCoordinate, resource: ManagedResource): ChildProcess
+  /** After the gate reported ready and before GO; false refuses the start. */
+  ready(
+    coordinate: ScopeCoordinate,
+    resource: ManagedResource,
+    gate: ChildProcess,
+  ): Promise<boolean>
+  /** After the shell opened; false invalidates the terminal. */
+  opened(
+    coordinate: ScopeCoordinate,
+    resource: ManagedResource,
+    gate: ChildProcess,
+  ): Promise<boolean>
+  /** Stops every process of the domain and confirms it empty; cleans up after a confirmed stop. */
+  stop(
+    coordinate: ScopeCoordinate,
+    resource: ManagedResource,
+    gate: ChildProcess,
+    gateExited: Promise<void>,
+  ): Promise<StopStatus>
+}>
+
+/** The Linux terminal domain: a systemd user scope, launched and stopped with the probed tools. */
+function linuxTerminalPlatform(
+  input: Pick<Input, 'scope' | 'settings' | 'prerequisites'>,
+): TerminalPlatform {
+  let tools: ScopeTools | undefined
+  return {
+    async admit() {
+      const reading = await input.prerequisites.ready()
+      const missing = await probeTerminalPrerequisites()
+      if (reading.kind === 'satisfied' && missing.length === 0) {
+        tools = reading.tools
+        return 'ready'
+      }
+      return [...missing, ...(reading.kind === 'unsatisfied' ? reading.missing : [])]
+    },
+    bootId: readBootId,
+    allocate(bootId) {
+      const { key, unit } = newScopeUnit()
+      const coordinate = { unit, bootId }
+      return { key, coordinate, reference: scopeReference(coordinate) }
+    },
+    launch(coordinate, resource) {
+      if (tools === undefined) throw new Error('a terminal launch before admission')
+      return launchScope({
+        tools,
+        unit: coordinate.unit,
+        description: scopeDescription(input.scope, resource.key),
+        command: process.execPath,
+        args: [gateScript, coordinate.unit],
+      })
+    },
+    ready: async () => true,
+    opened: async () => true,
+    async stop(coordinate, _resource, _gate, gateExited) {
+      if (tools === undefined) return 'unconfirmed'
+      const reading = await forceStopScope({
+        tools,
+        coordinate,
+        boundMs: input.settings.stopBoundMs,
+        launcherExited: gateExited,
+      })
+      if (reading.status === 'confirmed') await cleanupTerminalScope(coordinate.unit)
+      return reading.status
+    },
+  }
+}
+
 type CreateRequest = Parameters<TerminalFacility<unknown>['create']>[0]
 type ExecuteRequest = Parameters<TerminalFacility<unknown>['execute']>[0]
 type Deferred<T> = { promise: Promise<T>; settle(value: T): void }
@@ -103,6 +209,9 @@ type Leg = {
   started: Deferred<boolean>
   result: Deferred<CommandOutcome>
   output: TerminalOutput
+  /** Between-segment bytes delivered before the begin sentinel; set once the gate read it. */
+  between: Uint8Array[]
+  begun: { discarded: number } | undefined
   startedAt: number
   done: boolean
 }
@@ -110,7 +219,6 @@ type Entry = {
   ref: TerminalRef
   resource: ManagedResource
   coordinate: ScopeCoordinate
-  tools: ScopeTools
   launcher: ChildProcess
   launcherExited: Promise<void>
   control: Writable | undefined
@@ -181,25 +289,27 @@ function settleLeg(entry: Entry, code?: number): void {
   leg.started.settle(false)
   leg.output.close()
   const durationMs = Math.round(monotonicMs() - leg.startedAt)
+  const output = summary(leg)
   leg.result.settle(
     code === undefined
-      ? {
-          kind: 'failed',
-          reason: 'effectUnknown',
-          observedDurationMs: durationMs,
-          output: leg.output.summary(),
-        }
-      : {
-          kind: 'completed',
-          exit: { kind: 'code', code },
-          durationMs,
-          output: leg.output.summary(),
-        },
+      ? { kind: 'failed', reason: 'effectUnknown', observedDurationMs: durationMs, output }
+      : { kind: 'completed', exit: { kind: 'code', code }, durationMs, output },
   )
+}
+/** The segment counts, with the between-segment bytes once the gate attributed them to this leg. */
+function summary(leg: Leg): Extract<OutputSummary, { mode: 'terminal' }> {
+  if (leg.begun === undefined) return leg.output.summary()
+  const data = new Uint8Array(Buffer.concat(leg.between))
+  const discardedBytes = leg.begun.discarded
+  return {
+    ...leg.output.summary(),
+    between: { data, count: { observedBytes: data.length + discardedBytes, discardedBytes } },
+  }
 }
 
 export function createHostTerminals(input: Input): HostTerminals {
   const { settings, ledger } = input
+  const platform = input.platform ?? linuxTerminalPlatform(input)
   const entries = new Map<string, Entry>()
   const inFlight = new Set<Promise<unknown>>()
   let sealed = false
@@ -212,22 +322,19 @@ export function createHostTerminals(input: Input): HostTerminals {
     settleLeg(entry)
     entry.control?.end()
     entry.stopping ??= (async () => {
-      const reading = await forceStopScope({
-        tools: entry.tools,
-        coordinate: entry.coordinate,
-        boundMs: settings.stopBoundMs,
-        launcherExited: entry.launcherExited,
-      })
+      const status = await platform.stop(
+        entry.coordinate,
+        entry.resource,
+        entry.launcher,
+        entry.launcherExited,
+      )
       let recorded: Awaited<ReturnType<ResourceLedger['stopped']>> = 'unavailable'
       try {
-        recorded = await ledger.stopped(entry.resource.key, reading.status)
+        recorded = await ledger.stopped(entry.resource.key, status)
       } catch {
         /* The original ledger still owns the unsettled stop. */
       }
-      if (reading.status === 'confirmed') {
-        await cleanupTerminalScope(entry.coordinate.unit)
-        if (recorded === 'recorded') entry.confirmed = true
-      }
+      if (status === 'confirmed' && recorded === 'recorded') entry.confirmed = true
       return entry.confirmed ? 'confirmed' : 'unconfirmed'
     })().finally(() => {
       entry.stopping = undefined
@@ -254,6 +361,12 @@ export function createHostTerminals(input: Input): HostTerminals {
       case 'started':
         entry.leg?.started.settle(true)
         return
+      case 'between':
+        entry.leg?.between.push(value.bytes)
+        return
+      case 'begun':
+        if (entry.leg !== undefined) entry.leg.begun = { discarded: value.discarded }
+        return
       case 'data':
         entry.leg?.output.push(value.bytes)
         return
@@ -276,15 +389,8 @@ export function createHostTerminals(input: Input): HostTerminals {
     request: CreateRequest,
     coordinate: ScopeCoordinate,
     resource: ManagedResource,
-    tools: ScopeTools,
   ): Entry => {
-    const launcher = launchScope({
-      tools,
-      unit: coordinate.unit,
-      description: scopeDescription(input.scope, resource.key),
-      command: process.execPath,
-      args: [gateScript, coordinate.unit],
-    })
+    const launcher = platform.launch(coordinate, resource)
     const launcherExited = new Promise<void>(resolve => {
       launcher.once('exit', () => resolve())
       launcher.once('error', () => resolve())
@@ -296,7 +402,6 @@ export function createHostTerminals(input: Input): HostTerminals {
       ref,
       resource,
       coordinate,
-      tools,
       launcher,
       launcherExited,
       control,
@@ -317,8 +422,9 @@ export function createHostTerminals(input: Input): HostTerminals {
     launcher.stdout?.on('data', (bytes: Buffer) => {
       if (entry.state === 'invalid' || entry.state === 'closed') return
       const result = entry.reader.push(bytes)
-      if (result.kind === 'fault') return invalidate(entry)
+      // Frames accepted before a fault happened; the fault invalidates what comes after them.
       for (const value of result.frames) frame(entry, value)
+      if (result.kind === 'fault') invalidate(entry)
     })
     send(entry, {
       generation: ref.generation,
@@ -328,6 +434,7 @@ export function createHostTerminals(input: Input): HostTerminals {
       rows: request.geometry?.rows ?? settings.rows,
       maxChunkBytes: settings.maxChunkBytes,
       maxControlBytes: settings.maxControlBytes,
+      betweenSegmentBytes: settings.betweenSegmentBytes,
     })
     return entry
   }
@@ -350,30 +457,28 @@ export function createHostTerminals(input: Input): HostTerminals {
       Math.min(settings.maxControlBytes, 1024 * 1024)
     )
       return rejected(requestId, 'invalidInput')
-    const reading = await input.prerequisites.ready()
+    const admitted = await platform.admit()
     if (closed()) return rejected(requestId, 'closed')
-    const missing = await probeTerminalPrerequisites()
-    if (closed()) return rejected(requestId, 'closed')
-    if (reading.kind !== 'satisfied' || missing.length > 0) {
-      input.unavailable([...missing, ...(reading.kind === 'unsatisfied' ? reading.missing : [])])
+    if (admitted !== 'ready') {
+      input.unavailable(admitted)
       return rejected(requestId, 'unavailable')
     }
-    if (closed()) return rejected(requestId, 'closed')
-    const bootId = input.reservation?.coordinate.bootId ?? (await readBootId())
+    const bootId = input.reservation?.coordinate.bootId ?? (await platform.bootId())
     if (closed()) return rejected(requestId, 'closed')
     if (bootId === undefined) return rejected(requestId, 'unavailable')
-    const { key, unit } =
+    const allocated =
       input.reservation === undefined
-        ? newScopeUnit()
+        ? platform.allocate(bootId)
         : {
             key: input.reservation.resource.key,
-            unit: input.reservation.coordinate.unit,
+            coordinate: input.reservation.coordinate,
+            reference: input.reservation.resource.reference,
           }
-    const coordinate = { unit, bootId }
+    const { key, coordinate } = allocated
     const resource: ManagedResource = {
       key,
       provider: input.provider,
-      reference: scopeReference(coordinate),
+      reference: allocated.reference,
     }
     let planned: Awaited<ReturnType<ResourceLedger['plan']>>
     if (input.reservation !== undefined) reservationPlan = 'pending'
@@ -407,11 +512,15 @@ export function createHostTerminals(input: Input): HostTerminals {
           closed() ? 'closed' : permission === 'confirmed' ? 'unavailable' : permission,
         )
     }
-    const entry = launch(request, coordinate, resource, reading.tools)
+    const entry = launch(request, coordinate, resource)
     const deadline = monotonicMs() + settings.startBoundMs
     if (!(await within(entry.ready.promise, Math.max(0, deadline - monotonicMs())))) {
       await forceStop(entry)
       return { kind: 'unknown', requestId }
+    }
+    if (!(await platform.ready(coordinate, resource, entry.launcher))) {
+      await forceStop(entry)
+      return rejected(requestId, closed() ? 'closed' : 'unavailable')
     }
     if (closed()) {
       await forceStop(entry)
@@ -432,7 +541,8 @@ export function createHostTerminals(input: Input): HostTerminals {
     }
     if (
       !send(entry, { c: 'go' }) ||
-      !(await within(entry.opened.promise, Math.max(0, deadline - monotonicMs())))
+      !(await within(entry.opened.promise, Math.max(0, deadline - monotonicMs()))) ||
+      !(await platform.opened(coordinate, resource, entry.launcher))
     ) {
       await forceStop(entry)
       return { kind: 'unknown', requestId }
@@ -493,6 +603,8 @@ export function createHostTerminals(input: Input): HostTerminals {
       started: deferred(),
       result: deferred(),
       output: createTerminalOutput(settings),
+      between: [],
+      begun: undefined,
       startedAt: monotonicMs(),
       done: false,
     }
@@ -614,30 +726,39 @@ export function createHostTerminals(input: Input): HostTerminals {
   })
 }
 
+/** This boot's identity, read at once: a reservation is taken before its first wait. */
+const linuxBootIdNow = (): string | undefined => {
+  try {
+    const bootId = readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim()
+    return bootId === '' ? undefined : bootId
+  } catch {
+    return undefined
+  }
+}
+
 export function retainedHostTerminalFactory(
-  input: Omit<Input, 'ledger' | 'scope' | 'closed' | 'reservation'>,
+  input: Omit<Input, 'ledger' | 'scope' | 'closed' | 'reservation' | 'platform'> &
+    Readonly<{
+      /** The platform of each retained terminal's domain; the Linux scope when absent. */
+      platform?: (scope: ScopeRef) => TerminalPlatform
+      bootIdNow?: () => string | undefined
+    }>,
 ): RetainedTerminalFactory {
   return reservation => {
-    let bootId: string
-    try {
-      bootId = readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim()
-    } catch {
-      return undefined
-    }
-    if (bootId === '') return undefined
-    const { key, unit } = newScopeUnit()
-    const coordinate = { unit, bootId }
+    const bootId = (input.bootIdNow ?? linuxBootIdNow)()
+    if (bootId === undefined) return undefined
+    const platform =
+      input.platform?.(reservation.scope) ??
+      linuxTerminalPlatform({ ...input, scope: reservation.scope })
+    const { key, coordinate, reference } = platform.allocate(bootId)
     const terminal = Object.freeze({ id: key, generation: randomUUID() })
-    const resource: ManagedResource = {
-      key,
-      provider: input.provider,
-      reference: scopeReference(coordinate),
-    }
+    const resource: ManagedResource = { key, provider: input.provider, reference }
     const terminals = createHostTerminals({
       ...input,
       ledger: reservation.ledger,
       scope: reservation.scope,
       closed: reservation.closed,
+      platform,
       reservation: { terminal, resource, coordinate },
     })
     let started = false

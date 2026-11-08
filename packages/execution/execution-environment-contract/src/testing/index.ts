@@ -39,9 +39,12 @@ export {
 } from './memory-files.ts'
 export {
   createScriptedCommandFacility,
+  createScriptedRetentionStore,
   type CommandScript,
   type ScriptedCommandAnswer,
   type ScriptedCommandFacility,
+  type ScriptedCommandOptions,
+  type ScriptedRetentionStore,
 } from './scripted-command.ts'
 export {
   createScriptedTerminalFacility,
@@ -55,3 +58,10 @@ export {
   type TerminalConformanceSubject,
   type TerminalConformanceOptions,
 } from './terminal-conformance.ts'
+export {
+  commandRetentionConformance,
+  type CommandRetentionAcquisition,
+  type CommandRetentionBody,
+  type CommandRetentionOptions,
+  type CommandRetentionSubject,
+} from './command-retention-conformance.ts'

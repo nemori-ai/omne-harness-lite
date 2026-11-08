@@ -6,7 +6,7 @@
 
 ### 经 Cordis 使用
 
-装配 Cordis 的系统不直接导入本成员。Service 实现 [execution-environment-host-local](../../execution-environment-host-local/docs/cordis.md) 在构造时调用 `createEnvironmentRegistry`，把九个操作转给登记表，并在服务撤除时调用 `close()`。调用方经服务定义 `executionEnvironment` 使用登记表，见 [execution-environment-cordis-contract 的使用](../../execution-environment-cordis-contract/docs/context.md)。
+装配 Cordis 的系统不直接导入本成员。Service 实现 [execution-environment-host-local](../../execution-environment-host-local/docs/cordis.md) 在构造时调用 `createEnvironmentRegistry`，把十个操作转给登记表，并在服务撤除时调用 `close()`。调用方经服务定义 `executionEnvironment` 使用登记表，见 [execution-environment-cordis-contract 的使用](../../execution-environment-cordis-contract/docs/context.md)。
 
 ### 独立使用
 

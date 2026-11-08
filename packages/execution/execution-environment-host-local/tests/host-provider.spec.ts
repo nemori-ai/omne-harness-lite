@@ -1,11 +1,13 @@
 // The host files provider: declared facts, acquisition answers, the ledger check through the
 // registry gate, retirement and its drain, invalidation on retirement and release.
 import { execFile } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { release, tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { afterEach, expect, it, vi } from 'vitest'
+import { createDomainIndex, domainReference } from '../src/macos-execution/domain-index.ts'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   acquisitionRef,
@@ -14,6 +16,7 @@ import {
   type EnvironmentBinding,
   type EnvironmentLease,
   type FileSystemFacility,
+  type ManagedResource,
   type ObjectToken,
   type Placement,
   type ProviderAcquireInput,
@@ -27,6 +30,9 @@ import {
   type HostFilesDiagnostic,
 } from '@omne-harness/execution-environment-host-local'
 import manifest from '../package.json' with { type: 'json' }
+import { createHostFilesDomain as createSourceDomain, domainInternals } from '../src/host-domain.ts'
+import { createHostFilesProvider as createSourceProvider } from '../src/host-provider.ts'
+import { readBootId, scopeDigest, scopeReference } from '../src/host-scope.ts'
 
 const packageVersion = manifest.version
 
@@ -48,8 +54,14 @@ vi.mock('node:fs/promises', async importOriginal => {
 
 const roots: string[] = []
 
+const realPath = process.env['PATH']
+const realPlatform = Object.getOwnPropertyDescriptor(process, 'platform')
+
 afterEach(async () => {
   control.failUnlink = false
+  if (realPath === undefined) delete process.env['PATH']
+  else process.env['PATH'] = realPath
+  if (realPlatform) Object.defineProperty(process, 'platform', realPlatform)
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
 })
 
@@ -163,11 +175,14 @@ it('declares the host facilities, no isolation, and platform resource recovery a
     provider.generation,
   )
   expect(provider.quotaDomain).toBe('host-files')
-  // Windows has no complete cold index; Linux needs a reachable user manager.
+  // Windows has no complete cold index; Linux needs a reachable user manager; macOS keeps its
+  // index in the state directory, and this provider has none.
+  const complete =
+    process.platform === 'linux'
+      ? await userManagerReachable()
+      : process.platform !== 'win32' && process.platform !== 'darwin'
   expect(await provider.listRecoveryResources?.(scope1)).toEqual(
-    process.platform !== 'win32' && ((await userManagerReachable()) || process.platform !== 'linux')
-      ? { kind: 'listed', resources: [] }
-      : { kind: 'unavailable' },
+    complete ? { kind: 'listed', resources: [] } : { kind: 'unavailable' },
   )
   expect(
     await provider.recover?.({ key: 'r', provider: 'host-files', reference: { kind: 'null' } }),
@@ -209,6 +224,10 @@ it('hands out a host lease with its own identity and evidence, and the files and
   expect(acquired.lease.facility('files')).toBeDefined()
   expect(acquired.lease.facility('command')).toBeDefined()
   expect(acquired.lease.facility('terminal')).toBeDefined()
+  // Linux runs each command in its own systemd scope, macOS in a POSIX session that setsid can
+  // leave; the Windows backend declares nothing, which is not `sealed`.
+  const declared: Readonly<Record<string, string>> = { linux: 'sealed', darwin: 'none' }
+  expect(acquired.lease.facility('command')?.containment).toBe(declared[process.platform])
   expect(await acquired.lease.release()).toEqual({ kind: 'released' })
 })
 
@@ -641,3 +660,571 @@ it('merges the files prerequisite into the prerequisites it describes', async ({
   await broken.listRecoveryResources?.(scope1)
   expect((await broken.describe()).prerequisites).toBe('unknown')
 })
+
+// The processes one-shot commands left behind: the provider reads their markers from its state
+// directory and lists and stops them when the platform is Linux. The supervisor is a scripted
+// `systemctl` first on PATH (`fixtures/scripted-systemctl.mjs`), with no `systemd-run` beside it, so
+// the platform probe stops at its first prerequisite and no scope is ever started.
+const scriptedSystemctl = fileURLToPath(
+  new URL('./fixtures/scripted-systemctl.mjs', import.meta.url),
+)
+
+type Reply = { contains: string; code?: number; stdout?: string }
+
+async function retentionHost(replies: readonly Reply[]) {
+  const base = await realpath(await mkdtemp(join(tmpdir(), 'omne-retained-')))
+  roots.push(base)
+  const bin = join(base, 'bin')
+  const state = join(base, 'state')
+  await mkdir(bin)
+  await mkdir(join(state, 'retained-processes'), { recursive: true })
+  await writeFile(join(base, 'replies.json'), JSON.stringify(replies))
+  const path = join(bin, 'systemctl')
+  await writeFile(
+    path,
+    `#!/bin/sh\nSCRIPT_DIR='${base}' exec '${process.execPath}' '${scriptedSystemctl}' "$@"\n`,
+  )
+  await chmod(path, 0o755)
+  process.env['PATH'] = bin
+  return {
+    state,
+    markers: () => readdir(join(state, 'retained-processes')),
+    calls: async (): Promise<string[][]> =>
+      (await readFile(join(base, 'calls.log'), 'utf8').catch(() => ''))
+        .split('\n')
+        .filter(Boolean)
+        .map((line): string[] => JSON.parse(line)),
+  }
+}
+
+const retainedKey = '5b1d2c3e-4f50-4a61-8b72-93c4d5e6f708'
+const otherKey = '6c2e3d4f-5061-4b72-9c83-a4d5e6f70819'
+const foreignKey = '7d3f4e50-6172-4c83-8d94-b5e6f708192a'
+const unitOf = (key: string) => `omne-host-${key}.scope`
+const memberShow = (key: string) =>
+  `show -p LoadState -p ActiveState -p ControlGroup ${unitOf(key)}`
+const stateShow = (key: string) => `show -p LoadState -p ActiveState ${unitOf(key)}`
+const activeUnit = (key: string): Reply => ({
+  contains: memberShow(key),
+  stdout: 'LoadState=loaded\nActiveState=active\nControlGroup=\n',
+})
+
+async function writeMarker(
+  state: string,
+  key: string,
+  scope: ScopeRef,
+  bootId: string,
+): Promise<void> {
+  const encoded = tenantCodec.encode(tenant)
+  if (!encoded.ok) throw new Error('tenant fixture did not encode')
+  await writeFile(
+    join(state, 'retained-processes', `${key}.json`),
+    JSON.stringify({
+      version: 1,
+      key,
+      scope: scopeDigest(scope),
+      tenant: encoded.value,
+      unit: unitOf(key),
+      bootId,
+      origin: 'call-1',
+      generation: 'earlier-generation',
+      handedOverAtMs: 0,
+      gatePid: null,
+    }),
+  )
+}
+
+async function currentBoot(): Promise<string> {
+  const bootId = await readBootId()
+  if (bootId === undefined) throw new Error('this host gives no boot identity')
+  return bootId
+}
+
+function retainedProvider(
+  state: string | undefined,
+  diagnose?: (d: HostFilesDiagnostic) => void,
+  stopBoundMs = 5_000,
+) {
+  return createSourceProvider({
+    domain: createSourceDomain(),
+    ...(state === undefined ? {} : { stateDirectory: state }),
+    // The probe never retries into the real tools. Each supervisor call starts a process, so the bound is wide.
+    command: { probeRetryMs: 3_600_000, stopBoundMs },
+    ...(diagnose === undefined ? {} : { diagnose }),
+  })
+}
+
+onLinux('lists the retained processes of its state directory for their scope only', async () => {
+  const bootId = await currentBoot()
+  const host = await retentionHost([activeUnit(retainedKey), activeUnit(otherKey)])
+  await writeMarker(host.state, retainedKey, scope1, bootId)
+  await writeMarker(host.state, otherKey, scopeOf('scope-2'), bootId)
+  const provider = retainedProvider(host.state)
+  try {
+    expect(await provider.listRecoveryResources?.(scope1)).toEqual({
+      kind: 'listed',
+      resources: [
+        {
+          key: retainedKey,
+          provider: 'host-files',
+          reference: scopeReference({ unit: unitOf(retainedKey), bootId }),
+        },
+      ],
+    })
+    // The index read each unit through the provider's supervisor, with its control group path.
+    expect(await host.calls()).toContainEqual([
+      '--user',
+      'show',
+      '-p',
+      'LoadState',
+      '-p',
+      'ActiveState',
+      '-p',
+      'ControlGroup',
+      unitOf(retainedKey),
+    ])
+  } finally {
+    await provider.retire?.()
+  }
+})
+
+onLinux(
+  'observes the retained processes of one scope and tenant, retired or not: the index stays with the state directory',
+  async () => {
+    const bootId = await currentBoot()
+    const host = await retentionHost([activeUnit(retainedKey), activeUnit(otherKey)])
+    await writeMarker(host.state, retainedKey, scope1, bootId)
+    await writeMarker(host.state, otherKey, scopeOf('scope-2'), bootId)
+    const provider = retainedProvider(host.state)
+    const parsed = tenantCodec.parse(
+      JSON.stringify({
+        organization: 'org_0123456789abcdefghjkmnpqrs',
+        account: 'acc_1123456789abcdefghjkmnpqrs',
+      }),
+    )
+    if (!parsed.ok) throw new Error('tenant fixture did not parse')
+    let observed: Awaited<ReturnType<NonNullable<typeof provider.retainedProcesses>>> | undefined
+    try {
+      observed = await provider.retainedProcesses?.(scope1, tenant)
+      expect(observed).toMatchObject([
+        {
+          process: { id: retainedKey, generation: 'earlier-generation' },
+          origin: 'call-1',
+          state: 'running',
+        },
+      ])
+      expect(observed).toHaveLength(1)
+      expect(await provider.retainedProcesses?.(scope1, parsed.value)).toEqual([])
+    } finally {
+      await provider.retire?.()
+    }
+    // Retirement only stops this generation's polling: the retained processes stay with their
+    // scopes, and a retired generation still answers the index's reading, never an empty list
+    // while the index holds the process.
+    expect(await provider.retainedProcesses?.(scope1, tenant)).toEqual(observed)
+  },
+)
+
+onLinux('observes nothing when the index cannot read its markers, not an empty list', async () => {
+  const host = await retentionHost([])
+  await writeMarker(host.state, retainedKey, scope1, await currentBoot())
+  process.env['PATH'] = join(host.state, 'no-tools-here')
+  const provider = retainedProvider(host.state)
+  try {
+    expect(await provider.retainedProcesses?.(scope1, tenant)).toBe('unavailable')
+  } finally {
+    await provider.retire?.()
+  }
+})
+
+onLinux('keeps no retained-process index without a state directory', async () => {
+  const host = await retentionHost([activeUnit(retainedKey)])
+  await writeMarker(host.state, retainedKey, scope1, await currentBoot())
+  const domain = createSourceDomain()
+  const internals = domainInternals(domain)
+  if (internals === undefined) throw new Error('missing domain internals')
+  const requested: string[] = []
+  const original = internals.retainedProcesses
+  vi.spyOn(internals, 'retainedProcesses').mockImplementation((stateDirectory, make) => {
+    requested.push(stateDirectory)
+    return original(stateDirectory, make)
+  })
+  const without = createSourceProvider({ domain, command: { probeRetryMs: 3_600_000 } })
+  expect(requested).toEqual([])
+  const withState = createSourceProvider({
+    domain,
+    stateDirectory: host.state,
+    command: { probeRetryMs: 3_600_000 },
+  })
+  expect(requested).toEqual([host.state])
+  try {
+    // Nothing is retained without a state directory, so the marker on disk is not read for it.
+    expect(await without.listRecoveryResources?.(scope1)).toEqual({ kind: 'listed', resources: [] })
+    expect(await host.calls()).not.toContainEqual(expect.arrayContaining([unitOf(retainedKey)]))
+  } finally {
+    await without.retire?.()
+    await withState.retire?.()
+  }
+})
+
+it('keeps no retained-process index where the platform is not Linux', async () => {
+  const host = await retentionHost([])
+  const domain = createSourceDomain()
+  const internals = domainInternals(domain)
+  if (internals === undefined) throw new Error('missing domain internals')
+  const requested: string[] = []
+  const original = internals.retainedProcesses
+  vi.spyOn(internals, 'retainedProcesses').mockImplementation((stateDirectory, make) => {
+    requested.push(stateDirectory)
+    return original(stateDirectory, make)
+  })
+  Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
+  const provider = createSourceProvider({
+    domain,
+    stateDirectory: host.state,
+    command: { probeRetryMs: 3_600_000 },
+  })
+  expect(requested).toEqual([])
+  await provider.retire?.()
+})
+
+it('lists only the retained terminals where the platform is not Linux, without asking the supervisor', async () => {
+  const host = await retentionHost([])
+  const provider = createSourceProvider({
+    domain: createSourceDomain(),
+    stateDirectory: host.state,
+    command: { probeRetryMs: 3_600_000 },
+  })
+  Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
+  expect(await provider.listRecoveryResources?.(scope1)).toEqual({ kind: 'listed', resources: [] })
+  expect(await host.calls()).toEqual([])
+  Object.defineProperty(process, 'platform', realPlatform ?? { value: 'linux' })
+  await provider.retire?.()
+})
+
+onLinux(
+  'lists nothing when a retained-process marker cannot be read, not an empty list',
+  async () => {
+    const bootId = await currentBoot()
+    const host = await retentionHost([{ contains: memberShow(retainedKey), code: 1 }])
+    await writeMarker(host.state, retainedKey, scope1, bootId)
+    const provider = retainedProvider(host.state)
+    try {
+      expect(await provider.listRecoveryResources?.(scope1)).toEqual({ kind: 'unavailable' })
+      // The supervisor listing is not consulted once the markers are known to be incomplete.
+      expect(await host.calls()).not.toContainEqual(expect.arrayContaining(['Description']))
+    } finally {
+      await provider.retire?.()
+    }
+  },
+)
+
+onLinux('reports a marker of an earlier boot as discarded and lists nothing for it', async () => {
+  const host = await retentionHost([])
+  await writeMarker(host.state, retainedKey, scope1, 'a-boot-that-is-over')
+  const seen: HostFilesDiagnostic[] = []
+  const provider = retainedProvider(host.state, diagnostic => seen.push(diagnostic))
+  try {
+    expect(await provider.listRecoveryResources?.(scope1)).toEqual({
+      kind: 'listed',
+      resources: [],
+    })
+    expect(seen).toEqual([
+      {
+        kind: 'retainedMarker',
+        provider: 'host-files',
+        generation: provider.generation,
+        key: retainedKey,
+        unit: unitOf(retainedKey),
+        issue: 'discarded',
+      },
+    ])
+    expect(await host.markers()).toEqual([])
+  } finally {
+    await provider.retire?.()
+  }
+})
+
+onLinux(
+  'stops a listed retained process on recovery and answers confirmedStopped once the supervisor confirms',
+  async () => {
+    const bootId = await currentBoot()
+    const host = await retentionHost([
+      activeUnit(retainedKey),
+      { contains: stateShow(retainedKey), stdout: 'LoadState=loaded\nActiveState=inactive\n' },
+    ])
+    await writeMarker(host.state, retainedKey, scope1, bootId)
+    const provider = retainedProvider(host.state)
+    try {
+      const listed = await provider.listRecoveryResources?.(scope1)
+      if (listed?.kind !== 'listed')
+        throw new Error(`expected a listing: ${JSON.stringify(listed)}`)
+      const [resource] = listed.resources
+      if (resource === undefined) throw new Error('expected the retained process')
+      expect(await provider.recover?.(resource)).toEqual({
+        status: 'confirmedStopped',
+        evidence: null,
+      })
+      expect(await host.calls()).toContainEqual(
+        expect.arrayContaining(['kill', unitOf(retainedKey)]),
+      )
+      // The stop is the index's: it removed the marker, so no later reading lists the process again.
+      expect(await host.markers()).toEqual([])
+      expect(await provider.listRecoveryResources?.(scope1)).toEqual({
+        kind: 'listed',
+        resources: [],
+      })
+    } finally {
+      await provider.retire?.()
+    }
+  },
+)
+
+onLinux(
+  'answers pending, and keeps the marker, when the supervisor does not confirm the stop',
+  async () => {
+    const bootId = await currentBoot()
+    const host = await retentionHost([
+      activeUnit(retainedKey),
+      { contains: stateShow(retainedKey), stdout: 'LoadState=loaded\nActiveState=deactivating\n' },
+    ])
+    await writeMarker(host.state, retainedKey, scope1, bootId)
+    const provider = retainedProvider(host.state, undefined, 1_000)
+    try {
+      const listed = await provider.listRecoveryResources?.(scope1)
+      if (listed?.kind !== 'listed')
+        throw new Error(`expected a listing: ${JSON.stringify(listed)}`)
+      const [resource] = listed.resources
+      if (resource === undefined) throw new Error('expected the retained process')
+      expect(await provider.recover?.(resource)).toEqual({ status: 'pending', evidence: null })
+      expect(await host.markers()).toEqual([`${retainedKey}.json`])
+    } finally {
+      await provider.retire?.()
+    }
+  },
+)
+
+onLinux('does not treat a resource the index never held as a retained process', async () => {
+  const host = await retentionHost([activeUnit(retainedKey)])
+  await writeMarker(host.state, retainedKey, scope1, await currentBoot())
+  const provider = retainedProvider(host.state)
+  try {
+    expect(
+      await provider.recover?.({ key: 'r', provider: 'host-files', reference: { kind: 'null' } }),
+    ).toEqual({ status: 'unsupported', evidence: null })
+  } finally {
+    await provider.retire?.()
+  }
+})
+
+const shellA: ManagedResource = {
+  key: 'shell-a',
+  provider: 'host-files',
+  reference: { kind: 'null' },
+}
+const shellB: ManagedResource = {
+  key: 'shell-b',
+  provider: 'host-files',
+  reference: { kind: 'null' },
+}
+
+/** Puts a retained-terminal index in the domain that lists what the test says and recovers as told. */
+function withRetainedTerminals(
+  domain: ReturnType<typeof createSourceDomain>,
+  answers: {
+    listings: readonly (readonly ManagedResource[])[]
+    recovered?: 'confirmed' | 'unconfirmed'
+  },
+) {
+  const internals = domainInternals(domain)
+  if (internals === undefined) throw new Error('missing domain internals')
+  let listing = 0
+  const asked: ManagedResource[] = []
+  // The index of the domain is a frozen object: the domain keeps a stand-in that lists and recovers as told.
+  Reflect.set(internals, 'retainedTerminals', {
+    ...internals.retainedTerminals,
+    resources: (): readonly ManagedResource[] =>
+      answers.listings[Math.min(listing++, answers.listings.length - 1)] ?? [],
+    recover: async (resource: ManagedResource) => {
+      asked.push(resource)
+      return resource.key.startsWith('shell-') ? answers.recovered : undefined
+    },
+  })
+  return asked
+}
+
+onLinux(
+  'lists the retained terminals with the retained processes, one resource per key, also one that arrived during the listing',
+  async () => {
+    const bootId = await currentBoot()
+    const host = await retentionHost([activeUnit(retainedKey)])
+    await writeMarker(host.state, retainedKey, scope1, bootId)
+    const domain = createSourceDomain()
+    // The first reading names shell-a; the reading after the supervisor listing names shell-b only: both are listed.
+    withRetainedTerminals(domain, { listings: [[shellA], [shellB]] })
+    const provider = createSourceProvider({
+      domain,
+      stateDirectory: host.state,
+      command: { probeRetryMs: 3_600_000 },
+    })
+    try {
+      const listed = await provider.listRecoveryResources?.(scope1)
+      if (listed?.kind !== 'listed')
+        throw new Error(`expected a listing: ${JSON.stringify(listed)}`)
+      expect(listed.resources.map(resource => resource.key).sort()).toEqual(
+        [retainedKey, 'shell-a', 'shell-b'].sort(),
+      )
+    } finally {
+      await provider.retire?.()
+    }
+  },
+)
+
+it('lists the retained terminals where the platform is neither Linux, macOS nor Windows', async () => {
+  await retentionHost([])
+  const domain = createSourceDomain()
+  withRetainedTerminals(domain, { listings: [[shellA]] })
+  Object.defineProperty(process, 'platform', { value: 'freebsd', configurable: true })
+  const provider = createSourceProvider({ domain, command: { probeRetryMs: 3_600_000 } })
+  expect(await provider.listRecoveryResources?.(scope1)).toEqual({
+    kind: 'listed',
+    resources: [shellA],
+  })
+  await provider.retire?.()
+})
+
+it('on macOS answers unavailable without a state directory: there is no cold index', async () => {
+  await retentionHost([])
+  const domain = createSourceDomain()
+  withRetainedTerminals(domain, { listings: [[shellA]] })
+  Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
+  const provider = createSourceProvider({ domain, command: { probeRetryMs: 3_600_000 } })
+  expect(await provider.listRecoveryResources?.(scope1)).toEqual({ kind: 'unavailable' })
+  await provider.retire?.()
+})
+
+it('on macOS lists the marked domains of the scope with the retained terminals', async () => {
+  const host = await retentionHost([])
+  const domain = createSourceDomain()
+  withRetainedTerminals(domain, { listings: [[shellA]] })
+  Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
+  const provider = createSourceProvider({
+    domain,
+    stateDirectory: host.state,
+    command: { probeRetryMs: 3_600_000 },
+  })
+  const boot = 'B6C8C544-54F8-4C43-967D-A47FD7BEBA7D'
+  const marked: ManagedResource = {
+    key: retainedKey,
+    provider: provider.name,
+    reference: domainReference(retainedKey, boot, scope1),
+  }
+  const index = createDomainIndex(host.state)
+  const coordinate = { bootId: boot, sessions: [{ sid: 400, start: '1.000001' }] }
+  expect(await index.record(marked, scope1, coordinate)).toBe(true)
+  const elsewhere = {
+    ...marked,
+    key: otherKey,
+    reference: domainReference(otherKey, boot, scopeOf('scope-2')),
+  }
+  expect(await index.record(elsewhere, scopeOf('scope-2'), coordinate)).toBe(true)
+  expect(await provider.listRecoveryResources?.(scope1)).toEqual({
+    kind: 'listed',
+    resources: [marked, shellA],
+  })
+  await writeFile(join(host.state, 'macos-domains', `${foreignKey}.json`), 'torn')
+  expect(await provider.listRecoveryResources?.(scope1)).toEqual({ kind: 'unavailable' })
+  expect(await host.calls()).toEqual([])
+  await provider.retire?.()
+})
+
+onLinux('lists nothing when the supervisor cannot be found, not an empty list', async () => {
+  const host = await retentionHost([])
+  process.env['PATH'] = join(host.state, 'no-tools-here')
+  const provider = retainedProvider(host.state)
+  try {
+    expect(await provider.listRecoveryResources?.(scope1)).toEqual({ kind: 'unavailable' })
+  } finally {
+    await provider.retire?.()
+  }
+})
+
+onLinux('keeps a retained process pending while no supervisor can be found', async () => {
+  const bootId = await currentBoot()
+  const host = await retentionHost([activeUnit(retainedKey)])
+  await writeMarker(host.state, retainedKey, scope1, bootId)
+  process.env['PATH'] = join(host.state, 'no-tools-here')
+  const provider = retainedProvider(host.state)
+  try {
+    const resource: ManagedResource = {
+      key: retainedKey,
+      provider: 'host-files',
+      reference: scopeReference({ unit: unitOf(retainedKey), bootId }),
+    }
+    // The index cannot read its markers without the supervisor, so it does not hold the resource;
+    // the generic stop cannot reach the supervisor either: nothing is confirmed.
+    expect(await provider.recover?.(resource)).toEqual({ status: 'pending', evidence: null })
+    expect(await host.markers()).toEqual([`${retainedKey}.json`])
+  } finally {
+    await provider.retire?.()
+  }
+})
+
+it.each([
+  ['confirmed', 'confirmedStopped'],
+  ['unconfirmed', 'pending'],
+] as const)('answers %s from a retained terminal as %s on recovery', async (stop, status) => {
+  await retentionHost([])
+  const domain = createSourceDomain()
+  const asked = withRetainedTerminals(domain, { listings: [[shellA]], recovered: stop })
+  const provider = createSourceProvider({ domain, command: { probeRetryMs: 3_600_000 } })
+  try {
+    expect(await provider.recover?.(shellA)).toEqual({ status, evidence: null })
+    expect(asked).toEqual([shellA])
+  } finally {
+    await provider.retire?.()
+  }
+})
+
+const listUnits = 'show -p Id -p Description omne-host-*.scope'
+
+onLinux(
+  'lists nothing when the supervisor listing of scopes fails, not an empty list',
+  async () => {
+    const host = await retentionHost([{ contains: listUnits, code: 1 }])
+    const provider = retainedProvider(host.state)
+    try {
+      expect(await provider.listRecoveryResources?.(scope1)).toEqual({ kind: 'unavailable' })
+    } finally {
+      await provider.retire?.()
+    }
+  },
+)
+
+onLinux(
+  'lists the scopes the supervisor knows for the scope next to the retained processes',
+  async () => {
+    const bootId = await currentBoot()
+    const block = (key: string, owner: ScopeRef) =>
+      `Id=${unitOf(key)}\nDescription=omne-host ${scopeDigest(owner)} ${key}\n`
+    const host = await retentionHost([
+      activeUnit(retainedKey),
+      {
+        contains: listUnits,
+        stdout: `${block(otherKey, scope1)}\n${block(foreignKey, scopeOf('scope-2'))}`,
+      },
+    ])
+    await writeMarker(host.state, retainedKey, scope1, bootId)
+    const provider = retainedProvider(host.state)
+    try {
+      const listed = await provider.listRecoveryResources?.(scope1)
+      if (listed?.kind !== 'listed')
+        throw new Error(`expected a listing: ${JSON.stringify(listed)}`)
+      expect(listed.resources.map(resource => resource.key).sort()).toEqual(
+        [retainedKey, otherKey].sort(),
+      )
+    } finally {
+      await provider.retire?.()
+    }
+  },
+)

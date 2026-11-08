@@ -117,12 +117,14 @@ sequenceDiagram
 
 ### F-EEH04 宿主命令：门、许可与转发
 
-依据：[SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端未实现)、[架构的宿主命令机制](architecture.md#宿主命令机制)。只在 Linux 上实现。协议级流程是契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。
+依据：[SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端)、[架构的宿主命令机制](architecture.md#宿主命令机制)。本图是 Linux 路径。Windows 的一次性命令后端在根进程退出时停止 Job 里剩下的进程，见 [Windows 说明](windows-execution.md)。协议级流程是契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。
 
 ```mermaid
 sequenceDiagram
   participant M as 命令门面（宿主提供者）
   participant R as 资源账本
+  participant L as 保留进程账本（集成方）
+  participant I as 保留进程索引与标记文件（提供者）
   participant S as systemd 用户 scope
   participant G as 门进程
   participant T as 命令
@@ -140,27 +142,67 @@ sequenceDiagram
     M->>M: 有界缓冲，放不下的整块丢弃并计数
   end
   T-->>G: 主进程退出
-  G-->>M: 带退出码或信号的退出帧
-  M->>S: 强制停止序列，清掉留在后台的进程
+  G-->>M: 退出帧（退出码或信号，门以外的进程数）
+  G->>G: 留在单元里，继续读管道，从不暂停；帧通道写满时丢弃并累计
+  alt 没有留下的进程，或不能保留
+    M->>S: 强制停止序列，记入资源账本
+  else 可以保留
+    M->>I: 同步占一个名额（预留）
+    M->>L: plan
+    alt plan 答 closed，或答别的结果、抛出、超时
+      M->>I: 作废预留
+      M->>S: 强制停止序列，原因 closed 或 unbound
+    else plan 答 recorded
+      M->>M: 提交前复核：范围已封闭、获取已释放或已被要求停止？
+      alt 复核不成立
+        M->>I: 作废预留
+        M->>S: 强制停止序列，原因 closed
+      else 复核通过
+        M->>L: adopt
+        alt adopt 答 confirmed，提交时没有被打断
+          L-->>M: confirmed
+          M->>G: retain，然后关闭控制通道
+          M->>I: 帧通道交给这一项的尾部；写标记文件，之后按 retainedPollMs 读单元成员
+          G-->>M: 之后的数据帧与丢弃帧，进尾部
+        else adopt 答 confirmed，但等待期间被打断
+          L-->>M: confirmed
+          M->>I: 以停止中的项留在索引里
+          M->>S: 强制停止序列，确认后记入保留进程账本
+        else adopt 答 closed
+          L-->>M: closed
+          M->>I: 作废预留
+          M->>S: 强制停止序列，原因 closed
+        else 结果读不到（抛出或超时）
+          L--xM: 无答案
+          M->>M: residue 为 unknown，预留保留，归属记为未知
+          Note over M,L: 之后的停止与排空先用同一个键再问 adopt
+        end
+      end
+    end
+  end
 ```
+
+保留进程账本归集成方，索引与标记文件归提供者。图中有三支。提交前复核不成立时，提供者作废预留并停止执行域。`adopt` 的结果读不到时，归属记为未知，之后的停止与排空再问 `adopt`。`adopt` 确认时执行域已被打断时，执行域作为停止中的项留在索引里并立即停止。
+
+主进程退出之后的处置规则、各项停止原因与 `adopt` 结果未知时的处理见 [SPEC 一次性命令留下的进程的兑现](../SPEC.md#留下的进程的兑现)。处置在 `result` 交出之前完成，停止的确认不推迟 `result`。
 
 | 环节     | 结果                                                                                  | 失败与责任交接                                                                                 |
 | -------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | 平台前提 | P1 Linux、P3 `systemd-run` 与 `systemctl`、P4 用户管理器、P5 探测单元里的程序看得到 cgroup v2 统一层级、P6 程序被自己单元的目录列出且单元的强制停止得到确认，这几项都满足 | 缺任一项时启动答 `unavailable`，诊断写明缺项，不调用账本；不用猜测的进程号或假后端顶替         |
 | 门就绪   | 门进程核对自己在 scope 的 cgroup 里，才报就绪                                         | 就绪之前退出答 `unavailable`；超过 `startBoundMs` 答 `unknown`，资源留给释放、结清或退役去停止 |
 | GO       | 账本 `permit` 为 `confirmed` 才发 GO，GO 之前不启动用户命令                           | 其余答案或门面已封住时，强制停止这个单元并答 `rejected`，不发 GO                               |
-| 转发     | 门一侧管道写满时暂停读命令的两条管道，`drain` 后恢复；提供者一侧缓冲放不下时整块丢弃  | 非法帧、超长行、未知帧与次序不对的帧使资源失效，`result` 答 `failed`（`effectUnknown`）        |
+| 转发     | 退出帧之前，门一侧管道写满时暂停读命令的两条管道，`drain` 后恢复。退出帧之后，门不暂停，管道写满时丢弃读出的字节并按流计数。提供者一侧缓冲放不下时整块丢弃 | 非法帧、超长行、未知帧与次序不对的帧使资源失效，`result` 答 `failed`（`effectUnknown`）        |
 | 完成     | 只在收到退出帧时给出 `completed`                                                      | 没有收到退出帧时为 `failed`（`effectUnknown`）                                                 |
 
 ### F-EEH05 终端腿与回执
 
-依据：[SPEC 持久终端](../SPEC.md#持久终端)。创建按 plan、scope gate、permit、GO、shell 就绪的次序进行。每次执行先核对原获取与终端代，再占有 running 状态。驱动在原 shell 执行，控制 FIFO 报告开始与完成，gate 核对没有额外写者并排空 PTY 后交出终局，终端回到 idle。
+依据：[SPEC 持久终端](../SPEC.md#持久终端)。创建按 plan、scope gate、permit、GO、shell 就绪的次序进行。每次执行先核对原获取与终端代，再占有 running 状态。gate 为本段取随机数，经命令 FIFO 交给驱动。驱动在原 shell 执行，先向 PTY 写段首哨兵，脚本返回后写段尾哨兵，控制 FIFO 报告开始与完成。gate 收到完成观察并读到本段段尾哨兵之后交出终局，终端回到 idle。gate 在段首哨兵之前收到的段间字节随本段结局交出。
 
-控制损坏、恢复目录失败或额外后台写者使终端 invalid，结果保留 effectUnknown。关闭与释放停止原 scope，只有监督读数确认才答 confirmed。未确认的资源继续由原获取排空或冷恢复承担。
+控制损坏、恢复目录失败或哨兵顺序不可能使终端 invalid，结果保留 effectUnknown。与损坏同一次读到、排在它前面的帧先照常处理，所以一段在损坏之前已结束时按退出码完成。终端里的后台进程不使终端失效。关闭与释放停止原 scope，只有监督读数确认才答 confirmed。未确认的资源继续由原获取排空或冷恢复承担。
 
 ### F-EEH06 停止确认与冷恢复
 
-依据：[SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端未实现)的停止两态与资源级冷恢复。协议级流程是契约的 [F-EEC05](../../execution-environment-contract/docs/flows.md#f-eec05-恢复授权收场与作用域释放)。
+依据：[SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端)的停止两态与资源级冷恢复。协议级流程是契约的 [F-EEC05](../../execution-environment-contract/docs/flows.md#f-eec05-恢复授权收场与作用域释放)。
 
 ```mermaid
 sequenceDiagram

@@ -111,6 +111,11 @@ catalogs:
 
 packageExtensionsChecksum: sha256-3MGTjzmjlgnhjcqVqzjDdnL5Y1xWwi2kaTEc0nFiVqM=
 
+patchedDependencies:
+  node-pty@1.1.0:
+    hash: fafbe015bc6c5527a2279c7ef62bda81d72c7b5cf7514a00acae75a85e647773
+    path: patches/node-pty@1.1.0.patch
+
 importers:
 
   .:
@@ -1457,7 +1462,7 @@ importers:
         version: link:../../context/runtime-context-contract
       node-pty:
         specifier: 'catalog:'
-        version: 1.1.0
+        version: 1.1.0(patch_hash=fafbe015bc6c5527a2279c7ef62bda81d72c7b5cf7514a00acae75a85e647773)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -8042,7 +8047,7 @@ snapshots:
 
   node-addon-api@7.1.1: {}
 
-  node-pty@1.1.0:
+  node-pty@1.1.0(patch_hash=fafbe015bc6c5527a2279c7ef62bda81d72c7b5cf7514a00acae75a85e647773):
     dependencies:
       node-addon-api: 7.1.1
 

@@ -4,7 +4,8 @@
 // - `requirement`：经执行域的 schema-provider 校验 environment 声明并取值（与 `tool-host` 的 loader 同一路径，
 //   R2-D80）；声明不允许宿主机落点答 denied；provider 不在（`tool-environments` 行未装）答 unavailable。
 // - `binding`：origin 由调用与准备操作铸出并记进本运行的 origin 表；scope 就是固定请求的 requesterScope；
-//   保留终端的账本绑在同一 scope 上。
+//   保留终端的账本绑在同一 scope 上；同一个保留视图也作保留进程账本交出（`processes`），它的 `adopt` 在一个提交里
+//   同时结束本次获取账本对该键的责任（#1137）。
 // - `guard`：设施请求的主体经核验是本租户的会话工作主体、origin 是本运行铸的、请求里的每个路径都在文件根内：
 //   cwd，文件设施的 `path`、`move`/`copy` 的 `target.path`、`commitBatch` 的每个 `entries[].path`；带了这些字段
 //   却不是字符串路径的答 notAuthorized。位置与对象两条都在根内才算（R2-D374、R2-D376），见 `placeAgainstRoot`。
@@ -335,7 +336,11 @@ export function createReleaseEnvironment(
       origins.set(origin, callKeyOf(request.tenant, request.call))
       const view = await ledgers(request)
       const scope = request.preparation.request.requesterScope
-      return succeed({ origin, scope, retention: { scope, ledger: view.retained } })
+      return succeed({
+        origin,
+        scope,
+        retention: { scope, ledger: view.retained, processes: view.retained },
+      })
     },
     guard,
     ledger: async request => (await ledgers(request)).regular,

@@ -23,7 +23,9 @@ Linux 的 `retainedHostTerminalFactory` 在 `host-terminal.ts` 复用原 PTY gat
 | 同上                                                    | `src/host-command.ts`、`src/host-scope.ts`、`src/host-probe.ts` | 宿主命令设施、systemd 用户 scope 与平台前提探测，见[宿主命令机制](#宿主命令机制)                                                              |
 | 同上                                                    | `src/scope-cgroup.ts`                                           | 进程在 cgroup v2 统一层级里的位置与单元成员，只用 Node 的内置模块；平台前提探测、探测程序与终端 gate 共用（不从根入口导出）                   |
 | 门进程脚本，不是入口                                    | `src/command-gate.ts`                                           | 命令的门进程，由宿主命令设施按文件路径起                                                                                                      |
+| 门进程脚本导入的模块，不是入口                          | `src/command-gate-core.ts`                                      | 命令门进程不碰 I/O 的判断：请求解析、控制行的动作、数据帧的切分、输出块的去向与退出之后的静默判定（不从根入口导出）                                        |
 | 探测程序脚本，不是入口                                  | `src/scope-probe.ts`                                            | 平台前提 P5 与 P6 的探测程序，由平台前提探测按文件路径在探测单元里起                                                                          |
+| 同上                                                    | `src/macos-execution/`                                          | macOS 的命令与终端后端：会话读取程序、冷索引、处置与恢复，见 [macOS 说明](macos-execution.md)（不从根入口导出） |
 | `@omne-harness/execution-environment-host-local/cordis` | `src/cordis.ts`                                                 | Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin`、插件工厂 `createHostFilesPlugin`、空配置 Schema                      |
 
 | 模块                       | 持有的状态                                                                                                                                                                           | 承担的 SPEC 行为                                                                     |
@@ -53,12 +55,16 @@ flowchart LR
   Command --> Scope[host-scope.ts]
   Probe --> Scope
   Command -. 起门进程 .-> Gate[command-gate.ts]
+  Gate --> GateCore[command-gate-core.ts]
+  Gate --> Cgroup
   Probe --> Cgroup[scope-cgroup.ts]
   Probe -. 在探测单元里起 .-> ScopeProbe[scope-probe.ts]
   ScopeProbe --> Cgroup
   Provider --> Terminal[host-terminal.ts]
   Terminal -. 起 gate .-> TerminalGate[terminal-gate.ts]
   TerminalGate --> Cgroup
+  TerminalGate --> TerminalGateCore[terminal-gate-core.ts]
+  TerminalGateCore --> Sentinels[terminal-sentinels.ts]
   Cordis[./cordis] --> Provider
   Cordis --> EE[execution-environment]
   Cordis --> EECC[execution-environment-cordis-contract]
@@ -103,11 +109,11 @@ flowchart LR
 
 ### 八项操作经目录描述符落点
 
-列表、搜索、建目录、删除、移动、复制与批次先打开所需的目录，之后的建、删、改名都经 `/proc/self/fd/<描述符>/<名>`。理由：Node 没有 `openat`，而这条路径由内核按已打开的目录对象解析，目录在核对之后被改名或被换成符号链接，操作仍落在原目录里。按路径字符串再解析一次的做法没有这个性质。在 WSL（Ubuntu 24.04，内核 6.18）上做过原型：目录改名、原名换成指向外部的链接之后，独占新建、`rename`、`mkdir` 都落在改名后的原目录；`link` 到已有名得 `EEXIST`；`O_NOFOLLOW` 打开文件链接得 `ELOOP`；硬链接文件的 `fstat` 链接数为 2，而 `readlink /proc/self/fd/<fd>` 给出根内的路径，所以必须核链接数，不能只看路径。包测试 [host-file-root.spec.ts](../tests/host-file-root.spec.ts) 用 `vi.mock` 在调用之前停住，把目录换成链接，再放行。
+Linux 的列表、搜索、建目录、删除、移动、复制与批次先打开所需的目录，之后的建、删、改名都经 `/proc/self/fd/<描述符>/<名>`。理由：Node 没有 `openat`，而这条路径由内核按已打开的目录对象解析，目录在核对之后被改名或被换成符号链接，操作仍落在原目录里。按路径字符串再解析一次的做法没有这个性质。在 WSL（Ubuntu 24.04，内核 6.18）上做过原型：目录改名、原名换成指向外部的链接之后，独占新建、`rename`、`mkdir` 都落在改名后的原目录；`link` 到已有名得 `EEXIST`；`O_NOFOLLOW` 打开文件链接得 `ELOOP`；硬链接文件的 `fstat` 链接数为 2，而 `readlink /proc/self/fd/<fd>` 给出根内的路径，所以必须核链接数，不能只看路径。包测试 [host-file-root.spec.ts](../tests/host-file-root.spec.ts) 用 `vi.mock` 在调用之前停住，把目录换成链接，再放行。
 
-八项只在 Linux 宿主上实现，依赖平台前提 P2；其他宿主上答 `unavailable`，不另做降级路径。理由：降级路径是另一套没有这条性质的实现，M2 的验收在 Linux（D1 决定记录第 2 条）。代价：Windows 与 macOS 宿主上这八项不可用。
+macOS 后端用同一个 C 进程持有目录描述符，通过 `openat`、`unlinkat`、`renameat` 等公开接口操作。它不把 `/dev/fd` 当成 Linux 的描述符路径。批次在一个辅助进程内固定全部父目录，逐项发布前后与 TypeScript 清单写入握手。机制和前提见 [macOS 文件说明](macos-files.md)。Windows 后端见 [Windows 说明](windows-execution.md)。其他平台答 `unavailable`，不降级为重新解析字符串路径。
 
-`move` 与 `copy` 都靠预先核对加一次系统调用，核对与调用之间名可以被换掉。`remove` 与不覆盖的目录 `move` 的窗口关不上，但效果不出该目录。`commitBatch` 没有多路径原子性，用清单加回执留下可核对的事实：先写清单，再暂存，逐项发布，每发布一项追加回执；`recoverBatch` 只读清单与目标，把「有回执」「字节相同但没有回执」「冲突」分开，因为相同的字节不能证明是这个批次发布的。
+`move` 与 `copy` 都靠预先核对加一次系统调用，核对与调用之间名可以被换掉。`remove` 与 Linux 不覆盖的目录 `move` 的窗口关不上，但效果不出该目录。`commitBatch` 没有多路径原子性，用清单加回执留下可核对的事实：先写清单，再暂存，逐项发布，每发布一项追加回执；`recoverBatch` 只读清单与目标，把「有回执」「字节相同但没有回执」「冲突」分开，因为相同的字节不能证明是这个批次发布的。
 
 ### 宿主文件根不是授予根
 
@@ -127,7 +133,7 @@ flowchart LR
 
 ### Service 子类转发，登记落在调用方 fiber
 
-`ExecutionEnvironmentRegistry` 只做转发与生命周期：七个环境与恢复方法原样转给登记表，两个登记方法用 `this.ctx.effect` 包住登记表的同名方法，构造时登记一个关闭效应。`registerProvider` 返回给调用方的撤除函数直接调用登记表的撤除函数，不经效应，因为效应撤除只运行一次，经效应就不能重试待处置的退役。匹配、核验与恢复的规则都留在登记表。理由是登记表可以不装配 Cordis 独立使用，Service 子类不应改变它的行为（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。
+`ExecutionEnvironmentRegistry` 只做转发与生命周期：八个环境与恢复方法原样转给登记表，两个登记方法用 `this.ctx.effect` 包住登记表的同名方法，构造时登记一个关闭效应。`registerProvider` 返回给调用方的撤除函数直接调用登记表的撤除函数，不经效应，因为效应撤除只运行一次，经效应就不能重试待处置的退役。匹配、核验与恢复的规则都留在登记表。理由是登记表可以不装配 Cordis 独立使用，Service 子类不应改变它的行为（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。
 
 ### 三个端口缺省为不可用
 
@@ -191,9 +197,7 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 
 ## 宿主命令机制
 
-<a id="宿主命令与终端机制设计未实现"></a>
-
-本节说明宿主提供者怎样承担 `command`。行为以 SPEC 的[宿主命令与终端](../SPEC.md#宿主命令与终端)为准。设施的协议规则归契约的[设施协议](../../execution-environment-contract/SPEC.md#设施协议)，逐设施的展开见契约内部架构的 [`command`](../../execution-environment-contract/docs/architecture.md#command命令)，协议级流程见契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。`command` 只在 Linux 上实现。`terminal` 的 Linux 路径见[持久终端机制](#持久终端机制)。
+本节说明宿主提供者怎样承担 `command`。行为以 SPEC 的[宿主命令与终端](../SPEC.md#宿主命令与终端)为准。设施的协议规则归契约的[设施协议](../../execution-environment-contract/SPEC.md#设施协议)，逐设施的展开见契约内部架构的 [`command`](../../execution-environment-contract/docs/architecture.md#command命令)，协议级流程见契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。`command` 的处置与保留只在 Linux 上兑现。Windows 有一次性命令后端，见 [Windows 说明](windows-execution.md)。macOS 有一次性命令后端与持久终端后端，见下文 [macOS 的执行域](#macos-的执行域)。`terminal` 的 Linux 路径见[持久终端机制](#持久终端机制)。
 
 `command` 加在已有的宿主提供者上，与 `files` 由同一个提供者声明，不另立宿主提供者。理由：登记表在一层里只选一个提供者。按设施拆成几个宿主提供者时，需要 `files` 加 `command` 的工具在宿主层得不到落点（`missingFacility`）。再加一个合并的提供者，又会有两个提供者同时合格（`ambiguousEnvironment`）。
 
@@ -203,22 +207,27 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 | `src/scope-probe.ts`  | 探测单元里运行的程序脚本：看不到统一层级时以 3 退出，被自己单元的目录列出时以 0 退出，其余以 1 退出。不被任何模块导入 |
 | `src/scope-cgroup.ts` | 从 `/proc/self/cgroup` 与 `/proc/self/mountinfo` 判断进程在统一层级里的位置（在单元里、看不到层级、在别的单元、读不到）与单元成员。只用 Node 的内置模块，平台前提探测、探测程序与终端 gate 共用 |
 | `src/host-scope.ts`   | systemd 用户 scope：起单元、强制停止与确认、按描述列举、引用的读写       |
-| `src/command-gate.ts` | 门进程脚本。它在命令的单元里运行，只用 Node 的内置模块，不被任何模块导入 |
+| `src/command-gate.ts` | 门进程脚本。它在命令的单元里运行，只用 Node 的内置模块、`scope-cgroup.ts` 与 `command-gate-core.ts`，不被任何模块导入；它持有状态并做全部 I/O |
+| `src/command-gate-core.ts` | 门进程不碰 I/O 的判断：请求解析、`/proc/self/cgroup` 文本里的单元名、控制行的动作、数据帧的切分、输出块的去向（退出帧之前发帧、之后走中继、管理者断开后丢弃）、退出之后的静默判定与帧的组装。不导入别的模块，只被 `command-gate.ts` 导入 |
 | `src/host-command.ts` | 每份获取的命令门面：前置检查、启动、帧的读取、有界缓冲、进程句柄与停止   |
+| `src/host-retained-processes.ts` | 同一状态目录各代共用的保留进程索引：预留、提交、标记文件、列出、按引用停止与读输出、封闭、变空检测、重启加载 |
+| `src/retained-tail.ts` | 一个保留进程移交之后的输出尾部：每条流保留最新的字节，有容量上界，只在提供者进程的内存里 |
 
 | 机制               | 设计                                                                                                                                                                                                                                                                                                        |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 执行域             | 每个进程一个 systemd 用户 scope：`systemd-run --user --scope --collect --unit=omne-host-<资源键>.scope -p KillMode=control-group`。坐标 `{ unit, bootId }` 是 `ManagedResource.reference`。单元描述记下请求方作用域的摘要与资源键，供冷恢复列举                                                             |
 | 门与许可           | `systemd-run` 在单元里执行门进程。门先核对 `/proc/self/cgroup` 含有自己的单元，再报就绪。管理端在账本 `permit` 确认之后才发 GO，GO 只发一次。没有 GO 时门不起命令，控制管道关闭就退出                                                                                                                       |
 | 两条私有通道       | 控制通道是描述符 3，管理端写给门：先写请求（可执行文件、参数、目录、环境变量、标准输入），再写 GO 与平和停止。请求不进命令行参数，因为环境变量可能带秘密。帧通道是门的标准输出，一行一个 JSON 帧。门起命令时用第四条管道占住命令的描述符 3，控制通道不会漏进命令                                            |
-| 门一侧的暂停与恢复 | 门把命令的字节按单块上限切块并编码成帧。帧管道的写端返回 false 时，门暂停读命令的两条管道，`drain` 之后恢复。所以管理端读得慢时，命令被阻塞在自己的输出管道上，门的内存不随输出增长，字节也不丢                                                                                                             |
-| 帧的读取           | 管理端按行读帧，每行有上界（单块上限的 base64 长度加固定余量）。帧的次序固定：就绪，然后起来或映像失败，然后数据，最后一个退出。超长、非 JSON、未知帧、次序不对、超过单块上限，都使资源失效并强制停止                                                                                                       |
+| 门一侧的暂停与恢复 | 门把命令的字节按单块上限切块并编码成帧。退出帧之前，帧管道的写端返回 false 时，门暂停读命令的两条管道，`drain` 之后恢复。所以管理端读得慢时，命令被阻塞在自己的输出管道上，门的内存不随输出增长，字节也不丢。退出帧之后，门不再暂停，帧管道写满时丢弃读出的字节并按流计数                                                                                                             |
+| 帧的读取           | 管理端按行读帧，每行有上界（单块上限的 base64 长度加固定余量）。帧的次序固定：就绪，然后起来或映像失败，然后数据，然后一个退出。退出之后只能有数据帧与丢弃帧。超长、非 JSON、未知帧、次序不对、超过单块上限，都使资源失效并强制停止                                                                                                       |
 | 有界缓冲           | 管理端立刻读帧，两条流共用一个缓冲。放不下的块整块丢弃并计数，下一块的 `observedOffset` 写出缺口。只有一个读者，读者放弃后全部计入丢弃                                                                                                                                                                      |
-| 结局               | 门在主进程退出后等两条管道关闭，或者等输出安静 100 毫秒，再发退出帧。命令留在后台的进程可能占着管道，所以不能只等管道关闭。只有收到退出帧才是 `completed`，其余是 `failed`（`effectUnknown`）。不写回执文件，也没有身份目录                                                                                 |
+| 结局               | 门在主进程退出后等两条管道关闭，或者等输出安静 100 毫秒，再发退出帧。命令留在后台的进程可能占着管道，所以不能只等管道关闭。退出帧带门从 `cgroup.procs` 读出的门以外的进程数。只有收到退出帧才是 `completed`，其余是 `failed`（`effectUnknown`）。不写回执文件，也没有身份目录                                                                                 |
 | 停止与确认         | 强制停止：`systemctl --user kill --kill-whom=all --signal=SIGKILL`，再 `stop`（退出码 5 按已不在），等门进程退出，最后用 `systemctl --user show -p LoadState -p ActiveState` 读到 `inactive` 或 `not-found` 才报 `confirmed`，上界内会再读。平和停止只把 `SIGTERM` 发给主进程，超时报 `unconfirmed`，不升级 |
 | 超时               | 启动、平和停止与强制停止都有上界。启动超时答 `unknown`，资源留在这份获取，由释放、结清或退役停止                                                                                                                                                                                                            |
 | 平台前提           | P1 Linux、P3 `systemd-run` 与 `systemctl`、P4 用户管理器、P5 探测单元里的程序看得到 cgroup v2 统一层级、P6 同一个探测单元里的程序被自己单元的目录列出，单元的强制停止得到确认。探测程序是 `scope-probe.ts`，看不到统一层级时以 3 退出。提供者创建时在后台探测。不满足时启动答 `unavailable`，`files` 照常可用。不用猜测的进程号或假后端顶替                                                                                                               |
-| 冷恢复             | 列举用 `systemctl --user show -p Id -p Description 'omne-host-*.scope'` 读各单元的 key=value 块，选出描述属于这个作用域的单元。读不懂的块、缺属性的块与别的单元名使整个列举答 `unavailable`。恢复只接受本提供者写下的单元名。启动身份变了直接视为已停止，否则按强制停止序列停止并核对。它不重启命令，也不接回输出                                                                                                                           |
+| 处置与移交         | 退出帧之后门留在单元里读管道，从不暂停它们；帧通道可写时照常发数据帧，写满时丢弃并累计，恢复后先发丢弃帧。管理端按 SPEC 的次序处置：停止单元，或在保留进程索引里占名额、在保留进程账本 `plan` 与 `adopt` 之后移交保留范围。移交生效时归属同步改变，管理端给门发 `retain`、关闭控制通道，把帧通道交给索引项的尾部（`retained-tail.ts`）。`adopt` 结果未知时归属记为未知，停止与排空先再问 `adopt` |
+| 保留进程索引       | `host-retained-processes.ts`，一个状态目录一个，各代共用。标记文件 `<stateDirectory>/retained-processes/<资源键>.json` 是重启后的依据。按保留范围计名额。按 `retainedPollMs` 读单元的 `cgroup.procs`，门以外没有进程时停止、记 `stopped`、删标记。保留范围封闭时停止它的全部保留进程 |
+| 冷恢复             | 列举用 `systemctl --user show -p Id -p Description 'omne-host-*.scope'` 读各单元的 key=value 块，选出描述属于这个作用域的单元。读不懂的块、缺属性的块与别的单元名使整个列举答 `unavailable`。列举另带保留进程索引里这个作用域的单元，标记文件读不全时答 `unavailable`。恢复只接受本提供者写下的单元名。启动身份变了直接视为已停止，否则按强制停止序列停止并核对。它不重启命令，也不接回输出                                                                                                                           |
 
 理由：
 
@@ -254,12 +263,41 @@ sequenceDiagram
     M->>M: 有界缓冲，放不下的块丢弃并计数
   end
   T-->>G: 主进程退出
-  G-->>M: exit 帧
-  M->>S: kill（SIGKILL）与 stop
-  M->>S: systemctl --user show
-  S-->>M: inactive 或 not-found
-  M->>R: stopped(坐标, confirmed)
+  G-->>M: exit 帧（带门以外的进程数）
+  alt 处置为停止
+    M->>S: kill（SIGKILL）与 stop
+    M->>S: systemctl --user show
+    S-->>M: inactive 或 not-found
+    M->>R: stopped(坐标, confirmed)
+  else 处置为移交
+    M->>G: retain，关闭控制通道
+    Note over M,G: 单元归保留范围，由保留进程索引读成员、停止与记账
+    G-->>M: 之后的数据帧与丢弃帧，进这一项的尾部
+  end
 ```
+
+处置的次序与各项原因见 [SPEC 一次性命令留下的进程的兑现](../SPEC.md#留下的进程的兑现)。
+
+### macOS 的执行域
+
+macOS 上，执行域是 POSIX 会话。提供者以 `detached: true` 起门，门调用 setsid，领一个新会话。终端的 shell 由 node-pty 经 `spawn-helper` 起，领第二个会话。会话成员由一个运行时编译的 C 程序（会话读取程序）读出与停止，停止在连续两次读到空时才确认。每个执行域在 GO 之前把会话坐标写进状态目录里的标记，冷恢复按标记停止。
+
+理由：进程可以用 setsid 离开会话，所以会话不满足封闭收纳，本后端不保留进程，主进程退出之后停止整个会话。无特权时没有可用的封闭收纳：创建 coalition 答 `EPERM`，launchd 的路径依赖私有接口，未被采用。门的协议与 Linux 相同，命令门与终端门复用 `command-gate-core.ts` 与 `terminal-gate-core.ts`。Linux 的 Bash 驱动与分段源码不改动，在 `/bin/bash` 3.2.57 上运行。`host-terminal.ts` 经可注入的 `TerminalPlatform` 接入 macOS，没有注入时是不变的 Linux 实现。
+
+| 模块 | 承担 |
+| --- | --- |
+| `src/macos-execution/native-source.ts` | 会话读取程序的 C 源码，子命令 `members`、`identity`、`children`、`stop` |
+| `src/macos-execution/compile.ts` | 先核对 `xcode-select -p`，再用 `/usr/bin/cc` 把读取程序编译到 `$TMPDIR/omne-macos-execution/<sha256>/` |
+| `src/macos-execution/session.ts` | 调用读取程序，解析答复，读启动身份 `kern.bootsessionuuid`，核对会话首进程的身份，停止记下的执行域 |
+| `src/macos-execution/domain-index.ts` | 冷索引：`<stateDirectory>/macos-domains/<资源键>.json` 的写入、读取、列举与删除，资源引用的读写 |
+| `src/macos-execution/residue.ts` | 处置的判定：`none`，或 `stopping` 与它的原因 |
+| `src/macos-execution/commands.ts` | 每份获取的命令门面：前置检查、启动、身份核对、标记、许可、帧读取、停止与处置 |
+| `src/macos-execution/command-gate.ts` | 命令的门进程脚本，不被导入 |
+| `src/macos-execution/terminal-gate.ts` | 终端的门进程脚本，不被导入 |
+| `src/macos-execution/terminals.ts` | 终端的 `TerminalPlatform`：准入、两个会话的记录、停止与 FIFO 目录的清理 |
+| `src/macos-execution/recovery.ts` | 冷索引的列举与按标记恢复 |
+
+机制、生命周期、前提、已知偏离与平台实验见 [macOS 说明](macos-execution.md)。
 
 ## 持久终端机制
 
@@ -270,10 +308,12 @@ sequenceDiagram
 | `host-terminal.ts`    | 每获取终端表、准入、四态、创建许可、分段句柄与停止             |
 | `terminal-control.ts` | 有界帧解析、终端代与分段身份、顺序检查                         |
 | `terminal-output.ts`  | 原始字节、有界缓冲、唯一读者与丢弃计数                         |
-| `terminal-gate.ts`    | scope 内的 Bash 驱动、独立 FIFO、node-pty 原生描述符与输出排空 |
+| `terminal-gate.ts`    | gate 进程的 I/O 外壳：控制通道、帧、独立 FIFO、node-pty 原生描述符；持有当前状态，每个事件调用 `terminal-gate-core.ts` |
+| `terminal-gate-core.ts` | gate 不碰 I/O 的判断：初始配置与分段的解析、控制行的分行与上界、Bash 驱动与分段源码的文本、段归属的状态机（段间缓冲、完成观察、哨兵次序） |
+| `terminal-sentinels.ts` | 按本段随机数从 PTY 字节里认出段首、段尾哨兵，不做 I/O        |
 | `host-domain.ts`      | 文件、命令与终端门面的共同封闭及原获取排空                     |
 
-控制与 PTY 分开。完成观察后先检查仍可能写入的进程，再读取 PTY 至 EAGAIN。无法闭合分段边界时失效，不能把后续字节记到下一段。scope 的强制停止与冷恢复继续调用 `host-scope.ts`，进程集合不承担停止证明。
+控制与 PTY 分开。段的完成只看控制 FIFO 的完成观察。字节的归属只看 PTY 里的哨兵：两个通道之间没有先后顺序，所以交出段结果要两样都到，读到 `EAGAIN` 不算。额外进程不使终端失效。哨兵顺序不可能时失效，不把字节记到错的段。scope 的强制停止与冷恢复继续调用 `host-scope.ts`，进程集合不承担停止证明。
 
 分段驱动在同一 Bash 进程内用两层函数执行。内层只运行用户脚本，使 `return` 回到外层收尾。外层保存退出码、恢复临时 cwd 并发送完成观察。临时环境变量随外层函数返回而恢复，未被临时覆盖的环境变量变更仍保留。未指定临时 cwd 时，用户 `cd` 后的目录仍保留。`exit` 终止 shell，或临时 cwd 恢复失败时，原控制故障路径使终端失效，不发送成功完成观察。
 
@@ -305,6 +345,7 @@ sequenceDiagram
 | 根入口不导入 Cordis                                                                        | [public-entry.spec.ts](../tests/public-entry.spec.ts)                                                                                                                                                                                                                                                                                           | 新增根入口模块时加入文件清单                                                                                              |
 | 两条块的发布                                                                               | 没有                                                                                                                                                                                                                                                                                                                                            | 随 Runtime Context 生产者插件进入                                                                                         |
 | `command` 的宿主机制                                                                       | [host-command.spec.ts](../tests/host-command.spec.ts)（真实 `systemd-run`、门进程与 `systemctl`，只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行）、[host-command-frames.spec.ts](../tests/host-command-frames.spec.ts)（帧读取、缓冲与确认判断，两个平台）、[host-probe.spec.ts](../tests/host-probe.spec.ts)（改变真实环境后的前提探测）、[scope-cgroup.spec.ts](../tests/scope-cgroup.spec.ts)（统一层级的位置，用文本样本） | 真实的 `failed` 单元状态未验证；Windows 上的 `unavailable` 由派发者在 Windows 复跑；终端验证单列于下行                    |
+| macOS 的 `command` 与 `terminal`（会话、冷索引、处置与停止） | [tests/macos-execution/](../tests/macos-execution/)：快层的 `session.spec.ts`、`domain-index.spec.ts`、`decisions.spec.ts` 在各平台运行；慢层的 `primitives.spec.ts`、`commands.spec.ts`、`terminals.spec.ts`、`terminal-conformance.spec.ts` 只在 macOS 且设了 `OMNE_HOST_MACOS=1` 时运行 | 已知偏离的收敛条件，见 [macOS 说明](macos-execution.md#已知偏离) |
 
 维护规则：
 

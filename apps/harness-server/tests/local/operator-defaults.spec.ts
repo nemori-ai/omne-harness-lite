@@ -37,7 +37,14 @@ function hostEnvironment(platform: NodeJS.Platform): Record<string, string> {
   }
   return platform === 'win32'
     ? { ...secrets, Path: 'C:\\Tools;C:\\Windows', SystemRoot: 'C:\\Windows', USERPROFILE: 'C:\\u' }
-    : { ...secrets, PATH: '/opt/tools/bin:/usr/bin:/bin', HOME: '/u', LANG: 'C.UTF-8' }
+    : {
+        ...secrets,
+        PATH: '/opt/tools/bin:/usr/bin:/bin',
+        HOME: '/u',
+        LANG: 'C.UTF-8',
+        XDG_RUNTIME_DIR: '/run/user/1000',
+        DBUS_SESSION_BUS_ADDRESS: 'unix:path=/run/user/1000/bus',
+      }
 }
 
 function input(platform: NodeJS.Platform): LocalOperatorInput {
@@ -172,6 +179,8 @@ describe('localOperatorLayer over the bundled distribution', () => {
       PATH: '/opt/tools/bin:/usr/bin:/bin',
       HOME: '/u',
       LANG: 'C.UTF-8',
+      XDG_RUNTIME_DIR: '/run/user/1000',
+      DBUS_SESSION_BUS_ADDRESS: 'unix:path=/run/user/1000/bus',
       TMPDIR: '/h/state/host-files',
     })
     expect(shellEnv(localOperatorLayer(input('win32')))).toEqual({
