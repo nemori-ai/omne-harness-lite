@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto'
 
 import type { JsonValue } from '@omne-harness/sql-contract'
 import {
+  hasCurrentToolLedgerRecordFormat,
   recordKey,
   type LedgerCommit,
   type LedgerCommitInput,
@@ -26,16 +27,15 @@ import { isObject } from './worker/support.ts'
 export type SqlToolLedgerStore = ToolLedgerStore & Readonly<{ durability: 'durable' }>
 
 /**
- * The records of a read. The store interprets no record: it only checks that each one is the
- * record its row key names, so a row that does not hold its own record is reported, never served.
+ * Tool owns the format boundary. SQL checks it and the row key before exposing records.
  */
 function recordsOf(rows: JsonValue | undefined): LedgerRecord[] | null {
   if (!Array.isArray(rows)) return null
   const records: LedgerRecord[] = []
   for (const row of rows) {
     if (!isObject(row) || typeof row['key'] !== 'string' || !isObject(row['record'])) return null
-    // The rows hold only records this store wrote from LedgerRecord values; the key check below
-    // is the integrity check of that claim.
+    if (!hasCurrentToolLedgerRecordFormat(row['record'])) return null
+    // This is a format and key check, not a full validation of each record's fields.
     const record = row['record'] as unknown as LedgerRecord
     if (typeof record.kind !== 'string' || recordKey(record) !== row['key']) return null
     records.push(record)
@@ -63,7 +63,7 @@ export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToo
     const records = isObject(output) ? recordsOf(output['records']) : null
     const revision = decodeToolRevision(revisionText === null ? '0' : revisionText)
     if (records === null || !('ok' in revision))
-      return unavailable('ledger read: the rows do not hold a ledger domain')
+      return unavailable('ledger read: invalid domain or unsupported record format')
     return { kind: 'complete', revision: revision.ok, records }
   }
 
