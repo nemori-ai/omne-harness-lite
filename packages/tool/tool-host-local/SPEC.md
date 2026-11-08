@@ -259,6 +259,10 @@ Tool 的原 call 域负责持久水位，时间工厂不拥有它。初次准备
 
 每个作者执行有独立 signal、事实流和控制记录。停止先返回 accepted，作者实际结束后才变为 stopped。事实按 cursor 重读，确认按 batch 认回；作者已结束且全部事实已有保管回执时解除 pin。未知返回、失去观察或保管失败继续保留责任。Scope 与最终结果转换是显式构造依赖。该执行绑定只支持 live-only，不承诺跨进程恢复。
 
+作者返回值与 Scope 收场结论分别保存。绑定在作者返回后同步调用 `finish` 关闭新受理，把原 outcome 与完整 `closing` Promise 交给受信 `settle`。`settle` 须先保管原 R，再等待收场确认，不能因收场失败改写原 outcome。绑定的原 attempt 持有待结算输入；只有 final 确认并发布后才解除这份本地持有，回调抛错或保管拒绝不解除。该本地持有不是耐久回执，也不提供跨进程重跑作者的许可。
+
+生产结算先使用原作者 codec 保存 R；收场仍 pending 时不发布 final，unknown/unavailable 时保留原件并报告未结责任。已确认的收场失败可以产生失败终局，不能产生 completed。控制身份在收场确认时核原 tenant/call/start/operation，原 stop/withdraw 若在该确认前导致取消，保留其身份；确认后的控制不能改写这次收场事实。`finish` 同步抛错或异步拒绝全化为收场 unknown，原 R 保持不变。定制 `settle` 也须履行上述顺序与屏障义务；本地 Promise 不进入数据契约或持久证据。
+
 W3-A 按[精确 final 协议](../tool-contract/docs/material-protocol.md#m02-精确-final-与重放)迁移宿主事实缓存。绑定通过 Tool 的保管分面先登记准备责任，再封存这次真实 final。batches 与 settled lookup 只保存引用及指纹；FactReceipt 允许移除宿主重传缓存，不解除 Tool 的归一化用途。失去 live-only 连续性仍按原限制报告，不凭封存引用声称能重启任意作者函数。
 
 `./author` 导出 `contributeTool`、`createToolAuthorPlugin` 与 `createLocalToolGenerations`。作者插件静态依赖 toolBindings/toolGenerations，不提供服务键。贡献登记与撤除配对到作者 fiber 的 effect。服务适配器必须在普通函数中读取调用时的 `this.ctx`，用同步调用作用域把 fiber uid 传给登记表；箭头函数捕获提供者 Context 会产生错误归属。

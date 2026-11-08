@@ -37,7 +37,7 @@ const failureCodec = describedAdoption({
 })
 
 function interruption(call: Parameters<RuntimeAuthorExecution['settle']>[0]): ToolTerminal | null {
-  if (call.outcome.kind !== 'failed' || !call.execution.signal.aborted) return null
+  if (!call.execution.signal.aborted) return null
   const control: unknown = call.execution.signal.reason
   if (
     typeof control !== 'object' ||
@@ -202,7 +202,15 @@ export function createRuntimeAuthorExecution(
       return scope.ok
     },
     async settle(call) {
-      const interrupted = interruption(call)
+      const authorInterruption = call.outcome.kind === 'failed' ? interruption(call) : null
+      const closing = call.closing.then(outcome => ({
+        outcome,
+        interrupted:
+          authorInterruption ??
+          ('failure' in outcome && outcome.failure.kind === 'cancelled'
+            ? interruption(call)
+            : null),
+      }))
       const author = call.operation.author
       const operation = decodeToolOperationId(`${call.start.operation}/raw`)
       if ('failure' in operation)
@@ -244,6 +252,22 @@ export function createRuntimeAuthorExecution(
         source: call.execution.source,
       })
       if ('failure' in raw) return raw
+      const closed = await closing
+      if (
+        'failure' in closed.outcome &&
+        (closed.outcome.failure.kind === 'unknown' || closed.outcome.failure.kind === 'unavailable')
+      )
+        return fail({
+          kind: 'unavailable',
+          dependency: 'author-scope',
+          diagnostic: closed.outcome.failure.reason,
+        })
+      const executionFailure =
+        call.outcome.kind === 'failed'
+          ? call.outcome.reason
+          : 'failure' in closed.outcome
+            ? closed.outcome.failure.reason
+            : null
       let projected:
         | ReturnType<typeof failed>
         | {
@@ -251,7 +275,7 @@ export function createRuntimeAuthorExecution(
             terminal: ToolTerminal
           }
       try {
-        if (call.outcome.kind === 'failed') projected = failed(call.outcome.reason, 'executor')
+        if (executionFailure !== null) projected = failed(executionFailure, 'executor')
         else {
           const decoded = author.codec.decode(bytes)
           const argumentsValue = savedArguments(author, call.request)
@@ -293,7 +317,7 @@ export function createRuntimeAuthorExecution(
           kind: 'final',
           raw: raw.ok,
           result: projected.result.ok,
-          terminal: interrupted ?? projected.terminal,
+          terminal: closed.interrupted ?? projected.terminal,
           effect: {
             kind: 'unknown',
             diagnostic: 'Author completion does not prove the disposition of external effects.',

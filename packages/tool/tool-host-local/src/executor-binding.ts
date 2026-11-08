@@ -28,6 +28,24 @@ import {
 type Start = Extract<ToolStartRecord, { kind: 'start' }>
 type StartInput<P, E> = Parameters<ToolExecutorBinding<P, E>['start']>[0]
 type Final = Extract<ToolExecutionFact, { kind: 'final' }>
+
+function closeScope(
+  scope: ToolExecutionScope,
+  exit: Parameters<ToolExecutionScope['finish']>[0],
+): ReturnType<ToolExecutionScope['finish']> {
+  const unknown = () =>
+    fail({
+      kind: 'unknown' as const,
+      operation: 'scope.finish',
+      reason: 'The execution scope did not confirm its closing responsibility.',
+    })
+  try {
+    return scope.finish(exit).catch(unknown)
+  } catch {
+    return Promise.resolve(unknown())
+  }
+}
+
 export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
   registry: LocalToolBindingRegistry<P, E, B>
   catalog: Pick<ToolCatalog<P>, 'inspect'>
@@ -50,6 +68,7 @@ export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
         outcome:
           | Readonly<{ kind: 'returned'; value: unknown }>
           | Readonly<{ kind: 'failed'; reason: string }>
+        closing: ReturnType<ToolExecutionScope['finish']>
         execution: LocalAuthorExecution
       }>,
   ): Reply<Final>
@@ -63,11 +82,13 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     accessKey: string
     binding: Extract<ToolExecutorBinding<P, E>, { kind: 'live-only' }>
   }
+  type Settlement = Parameters<typeof dependencies.settle>[0]
   type Attempt = {
     digest: string
     start: Start
     execution: LocalAuthorExecution
     answer: ReturnType<ToolExecutorBinding<P, E>['start']>
+    settlement: { pending: Settlement | null }
   }
   const bindings = new Map<string, Bound>()
   const attempts = new Map<string, Attempt>()
@@ -82,10 +103,12 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     environment: E,
     operation: ToolOperationSlot,
     execution: LocalAuthorExecution,
+    settlement: Attempt['settlement'],
   ): Promise<void> => {
     let parsed: unknown
     let outcome: Parameters<typeof dependencies.settle>[0]['outcome']
     let scope: ToolExecutionScope | undefined
+    let closing: ReturnType<ToolExecutionScope['finish']> = Promise.resolve(succeed(undefined))
     try {
       // The arguments of a multi-command tool are the whole call; its command codec parses the
       // parameters only (D-94). Arguments that the command does not take fail with the reason
@@ -109,21 +132,26 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       scope = dependencies.scope({ ...input, execution })
       scope = dependencies.capability?.(input, scope) ?? scope
       const value = await operation.author.executor.execute(parsed, environment, scope.context)
-      const closed = await scope.finish('returned')
-      if ('failure' in closed) throw new Error(closed.failure.reason)
       outcome = { kind: 'returned', value }
+      closing = closeScope(scope, 'returned')
     } catch (error) {
-      if (scope !== undefined) await scope.finish('failed')
       outcome = { kind: 'failed', reason: error instanceof Error ? error.message : 'author failed' }
+      if (scope !== undefined) closing = closeScope(scope, 'failed')
     }
-    const settled = await dependencies.settle({
+    const pending: Settlement = {
       ...input,
       operation,
       arguments: parsed,
       outcome,
+      closing,
       execution,
-    })
-    if ('ok' in settled) execution.publish(settled.ok)
+    }
+    settlement.pending = pending
+    const settled = await dependencies.settle(pending)
+    if ('ok' in settled) {
+      execution.publish(settled.ok)
+      settlement.pending = null
+    } else execution.observationAvailable(false)
   }
 
   const makeBinding = (bound: Omit<Bound, 'binding'>): Bound['binding'] => {
@@ -176,6 +204,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
           start: input.start,
           release: pin.release,
         })
+        const settlement: Attempt['settlement'] = { pending: null }
         const answer = Promise.resolve().then(async () => {
           try {
             const consumed = await dependencies.authority.consume({
@@ -193,7 +222,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
                 ? fail({ kind: 'commit-unknown' as const, operation: input.start.operation })
                 : fail({ kind: 'denied' as const, action: 'start-author' })
             }
-            void launch(input, environment, operation, execution).catch(() => {
+            void launch(input, environment, operation, execution, settlement).catch(() => {
               execution.observationAvailable(false)
             })
             return succeed(execution.live)
@@ -202,7 +231,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
             return fail({ kind: 'commit-unknown' as const, operation: input.start.operation })
           }
         })
-        attempts.set(key, { digest, start: input.start, execution, answer })
+        attempts.set(key, { digest, start: input.start, execution, answer, settlement })
         return answer
       },
       async inspectStart(input) {
