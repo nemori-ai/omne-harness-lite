@@ -2,6 +2,7 @@ import { fail } from '@omne-harness/operation-result'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createToolLedger } from '@omne-harness/tool'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
+import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { admitCall, auditQueues, startHarness } from './start-values.ts'
 import {
   callId,
@@ -40,6 +41,34 @@ async function fixture() {
     if (read.kind !== 'complete') throw new Error('unreadable fixture')
     return read.records
   }
+  const retire = async () => {
+    const domain = { kind: 'call', tenant: access.tenant, call: access.call } as const
+    const stored = await h.memory.read(domain)
+    if (stored.kind !== 'complete') throw new Error('unreadable fixture')
+    const record = stored.records.find(record => record.kind === 'call')
+    if (record?.kind !== 'call' || record.call.execution === null)
+      throw new Error('fixture has no execution')
+    // Claim is not delivered; this fixture supplies its changed execution binding.
+    expect(
+      await h.memory.commit({
+        domain,
+        expected: stored.revision,
+        revision: ok(decodeToolRevision(String(BigInt(stored.revision) + 1n))),
+        writes: [
+          {
+            kind: 'put',
+            record: {
+              kind: 'call',
+              call: {
+                ...record.call,
+                execution: { ...record.call.execution, generation: 'new-coordinator' },
+              },
+            },
+          },
+        ],
+      }),
+    ).toHaveProperty('kind', 'committed')
+  }
   return {
     h,
     ports,
@@ -47,6 +76,7 @@ async function fixture() {
     storeWrite,
     rebuild,
     records,
+    retire,
     custody: rebuild().bodyCustody,
     input: {
       ...access,
@@ -57,6 +87,33 @@ async function fixture() {
     },
   }
 }
+
+it('refuses new body custody from a retired execution before writing material', async () => {
+  const f = await fixture()
+  await f.retire()
+  expect(await f.custody.preserve(f.input)).toHaveProperty('failure.kind', 'invalid')
+  expect(f.write).not.toHaveBeenCalled()
+  expect(ok(await f.custody.inspect(f.input))).toEqual({ kind: 'unknown' })
+})
+
+it('rechecks execution retirement when the admission commit loses its revision race', async () => {
+  const f = await fixture()
+  const commit = f.h.memory.commit.bind(f.h.memory)
+  let raced = false
+  vi.spyOn(f.h.memory, 'commit').mockImplementation(async input => {
+    if (
+      !raced &&
+      input.writes.some(write => write.kind === 'put' && write.record.kind === 'body-preparation')
+    ) {
+      raced = true
+      await f.retire()
+    }
+    return commit(input)
+  })
+  expect(await f.custody.preserve(f.input)).toHaveProperty('failure.kind', 'invalid')
+  expect(raced).toBe(true)
+  expect(f.write).not.toHaveBeenCalled()
+})
 
 it('seals same-call text with stable identity but no activated retention', async () => {
   const f = await fixture()
@@ -139,6 +196,28 @@ it('recovers a sealed material whose write reply was lost without writing twice'
   expect(ok(await f.custody.inspect(f.input))).toEqual({ kind: 'preparing' })
   const body = ok(await f.rebuild().bodyCustody.preserve(f.input))
   expect(ok(await f.custody.inspect(f.input))).toEqual({ kind: 'sealed', body })
+  expect(f.write).toHaveBeenCalledOnce()
+})
+
+it('recovers accepted custody after retirement without accepting a new operation', async () => {
+  const f = await fixture()
+  f.write.mockImplementationOnce(async input => {
+    await f.storeWrite(input)
+    return fail({ kind: 'commit-unknown', operation: input.operation })
+  })
+  expect(await f.custody.preserve(f.input)).toHaveProperty('failure.kind', 'commit-unknown')
+  await f.retire()
+  const recovered = f.rebuild().bodyCustody
+  const body = ok(await recovered.preserve(f.input))
+  expect(body.bodyBytes).toBe('10')
+  expect(ok(await recovered.inspect(f.input))).toEqual({ kind: 'sealed', body })
+  expect(ok(await recovered.preserve(f.input))).toEqual(body)
+  expect(
+    await recovered.preserve({ ...f.input, operation: operationId('late-new-body') }),
+  ).toHaveProperty('failure.kind', 'invalid')
+  expect(
+    await recovered.preserve({ ...f.input, frames: [text('part', 'changed')] }),
+  ).toHaveProperty('failure.kind', 'conflict')
   expect(f.write).toHaveBeenCalledOnce()
 })
 

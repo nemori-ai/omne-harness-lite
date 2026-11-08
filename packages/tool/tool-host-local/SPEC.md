@@ -265,6 +265,10 @@ Tool 的原 call 域负责持久水位，时间工厂不拥有它。初次准备
 
 W3-A 按[精确 final 协议](../tool-contract/docs/material-protocol.md#m02-精确-final-与重放)迁移宿主事实缓存。绑定通过 Tool 的保管分面先登记准备责任，再封存这次真实 final。batches 与 settled lookup 只保存引用及指纹；FactReceipt 允许移除宿主重传缓存，不解除 Tool 的归一化用途。失去 live-only 连续性仍按原限制报告，不凭封存引用声称能重启任意作者函数。
 
+正文 writer 由受信装配绑定原调用、执行代次和固定声明，再注入本次执行 Scope。作者不能提供这些身份。Scope 关闭时先拒绝新的正文操作，再通过 Tool 的正文写入端口确认已受理责任的保管或排除未受理操作。仅有本地 Promise 完成或 disposer 返回，不构成交接凭据。关闭答复未知时保留未结责任，不发布 completed。
+
+runtime 退出先停止新调用和 writer 新受理，再等待未登记操作完成登记或得到明确拒绝，最后释放本地执行持有。材料与账本依赖须存活到交接完成；依赖提前失效时报告 unknown 和未交接责任。后继 runtime 通过原调用的正文恢复端口接续持久库存，不复用旧 Scope，也不重新执行作者业务函数。该恢复只处理正文写入责任，不扩展上述 live-only 作者执行保证。
+
 `./author` 导出 `contributeTool`、`createToolAuthorPlugin` 与 `createLocalToolGenerations`。作者插件静态依赖 toolBindings/toolGenerations，不提供服务键。贡献登记与撤除配对到作者 fiber 的 effect。服务适配器必须在普通函数中读取调用时的 `this.ctx`，用同步调用作用域把 fiber uid 传给登记表；箭头函数捕获提供者 Context 会产生错误归属。
 
 换代工厂接受长期宿主 Context、受信模块来源、装载器与持有者读取。来源适配器负责在 import 前核实现引用和包 digest；工厂先核权限，才调用它。相同键和 digest 认回，draining 不认回。确定性装载拒绝通过 `recordRejection` 保存依据后返回 rejected。引用读取失败保留并 reopen；有 pin 时保持 draining。没有完整的持有者采用依据目录时，sweep 返回 unavailable。该返回保留契约已有的目录缺口。

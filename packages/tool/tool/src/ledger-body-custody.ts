@@ -155,6 +155,8 @@ function prepareBody<P>(
     (call.state.phase !== 'starting' && call.state.phase !== 'running')
   )
     return { kind: 'reply', outcome: invalid('call', 'not-running') }
+  if (!sameFactValue(call.execution, call.start.execution))
+    return { kind: 'reply', outcome: invalid('start', 'not-current-execution') }
   const policy = resultBodyPolicy(call.request, configuration, readResultArguments)
   if ('failure' in policy) return { kind: 'reply', outcome: policy }
   if (policy.ok.declaration.kind !== 'text')
