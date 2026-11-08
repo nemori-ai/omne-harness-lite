@@ -36,14 +36,16 @@ export async function apfsVolume(mountpoint?: string) {
     )
   } catch (error) {
     if ((await lstat(mount)).dev !== before.dev)
-      await run('/usr/bin/hdiutil', ['detach', mount], { timeout: 60_000 })
+      await run('/usr/bin/hdiutil', ['detach', '-force', mount], { timeout: 60_000 })
     await rm(base, { recursive: true, force: true })
     throw error
   }
   return {
     path: await realpath(mount),
     async dispose() {
-      await run('/usr/bin/hdiutil', ['detach', mount], { timeout: 60_000 })
+      // All assertions have finished; this image belongs only to the fixture.
+      // A busy disposable volume must not keep teardown running into the next case.
+      await run('/usr/bin/hdiutil', ['detach', '-force', mount], { timeout: 60_000 })
       await rm(base, { recursive: true, force: true })
     },
   }

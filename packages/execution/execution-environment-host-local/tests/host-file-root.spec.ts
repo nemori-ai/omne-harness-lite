@@ -98,12 +98,15 @@ beforeEach(async ({ skip }) => {
 const volumes: Awaited<ReturnType<typeof apfsVolume>>[] = []
 
 afterEach(async () => {
-  for (const volume of volumes.splice(0).reverse()) await volume.dispose()
+  const ownedVolumes = volumes.splice(0).reverse()
+  const ownedMounts = mounts.splice(0).reverse()
+  const ownedBases = bases.splice(0)
   hooks.rules.length = 0
+  for (const volume of ownedVolumes) await volume.dispose()
   // A mount made by a case goes before the tree it sits in, or `rm` would reach into the other device.
-  for (const mounted of mounts.splice(0).reverse()) await sudo(['umount', mounted])
+  for (const mounted of ownedMounts) await sudo(['umount', mounted])
   await Promise.all(
-    bases.splice(0).map(async base => {
+    ownedBases.map(async base => {
       await chmod(base, 0o700).catch(() => undefined)
       await rm(base, { recursive: true, force: true })
     }),

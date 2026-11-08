@@ -105,9 +105,11 @@ beforeEach(async ({ skip }) => {
 const volumes: Awaited<ReturnType<typeof apfsVolume>>[] = []
 
 afterEach(async () => {
-  for (const volume of volumes.splice(0).reverse()) await volume.dispose()
+  const ownedVolumes = volumes.splice(0).reverse()
+  const ownedRoots = roots.splice(0)
   faults.rules.length = 0
-  await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
+  for (const volume of ownedVolumes) await volume.dispose()
+  await Promise.all(ownedRoots.map(root => rm(root, { recursive: true, force: true })))
 })
 
 async function tree(base = tmpdir()) {
