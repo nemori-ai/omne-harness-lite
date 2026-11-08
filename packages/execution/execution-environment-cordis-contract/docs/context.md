@@ -6,7 +6,7 @@
 
 ### 集成方的适配器插件
 
-集成方的适配器插件 `inject` 本服务，调用环境面四个方法。访问身份、请求方作用域、环境要求、获取键、原调用引用、账本与守卫都作为参数传入。访问由装配入口装载的环境授权与可信绑定两个端口服务核对：
+集成方的适配器插件 `inject` 本服务，调用环境面五个方法。访问身份、请求方作用域、环境要求、获取键、原调用引用、账本与守卫都作为参数传入。访问由装配入口装载的环境授权与可信绑定两个端口服务核对：
 
 ```ts
 import type {} from '@omne-harness/execution-environment-cordis-contract/cordis'
@@ -39,7 +39,7 @@ export const inject = {
         或 ctx.executionEnvironment.inspectRecoveryAcquisition(恢复授权, 原获取描述)
 ```
 
-调用方类由九个模板方法核对，它只检查装配声明，不是访问控制，见 [Cordis 说明](cordis.md#intercept-配置与调用方类)。恢复授权每次由端口核对。
+调用方类由十个模板方法核对，它只检查装配声明，不是访问控制，见 [Cordis 说明](cordis.md#intercept-配置与调用方类)。恢复授权每次由端口核对。
 
 ### 提供者插件与设施拥有者插件
 
@@ -80,7 +80,7 @@ flowchart LR
 | 依赖方 | 怎样依赖 | 用什么 |
 | --- | --- | --- |
 | [execution-environment-host-local](../../execution-environment-host-local/README.md) | `extends ExecutionEnvironmentService`；`filesFacilityPlugin` 与 `createHostFilesPlugin(domain)` 造出的插件的 `inject` 用 `executionEnvironmentKey`；恢复授权、环境授权与作用域绑定每次分别用 `executionRecoveryAuthorityKey`、`executionEnvironmentAuthorityKey`、`executionScopeBindingKey` 现取 | 抽象类、键常量 |
-| 集成方的适配器插件 | 数组形式 `inject`，或对象形式带 `caller: 'integrator'` | 环境面四个方法 |
+| 集成方的适配器插件 | 数组形式 `inject`，或对象形式带 `caller: 'integrator'` | 环境面五个方法 |
 | 维护者插件 | 对象形式 `inject` 带 `caller: 'maintainer'` | 恢复面三个方法 |
 | 提供者与设施拥有者插件 | 对象形式 `inject` 带 `caller: provider` | 登记面两个方法 |
 | 装配入口 | 装载三个端口服务的子类，不进插件树 | `ExecutionRecoveryAuthorityService`、`ExecutionEnvironmentAuthorityService`、`ExecutionScopeBindingService` |

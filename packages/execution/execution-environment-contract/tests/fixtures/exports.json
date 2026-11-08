@@ -315,6 +315,26 @@
               "pending": false
             },
             {
+              "name": "Containment",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RetainedOutput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RetainedOutputFrom",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RetainedStreamTail",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "terminalFacility",
               "kind": "value",
               "pending": false
@@ -746,6 +766,16 @@
             },
             {
               "name": "describeResultSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "observeRetainedParamsSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "observeRetainedResultSchema",
               "kind": "value",
               "pending": false
             },

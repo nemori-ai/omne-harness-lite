@@ -81,19 +81,39 @@ function requiresRetention(key: FacilityKey, operation: string, request: unknown
   return operation === 'create' && isRecord(request) && request['retain'] === 'session'
 }
 
+type Presence = 'required' | 'optional'
+const byPresence = (operations: Readonly<Record<string, Presence>>, presence: Presence) =>
+  Object.keys(operations).filter(operation => operations[operation] === presence)
+
 /**
- * The retention extensions the registry hands out, and the operations each one must provide. Each
- * entry names every operation of its contract extension, so an operation added to the contract fails
- * to compile here instead of going missing from the extension the registry hands out.
+ * The retention extensions the registry hands out. Each entry names every operation of its contract
+ * extension, so an operation added to the contract fails to compile here instead of going missing
+ * from the extension the registry hands out. The extension is handed out only when the provider has
+ * every required operation; an optional one is handed out when the provider has it.
  */
-const retentionOperations = {
-  terminal: Object.keys({ attach: true, detach: true } satisfies Record<
+const retentionPresence = {
+  terminal: { attach: 'required', detach: 'required' } satisfies Record<
     TerminalRetentionOperation,
-    true
-  >),
-  command: Object.keys({ list: true } satisfies Record<CommandRetentionOperation, true>),
-} satisfies Partial<Record<FacilityKey, readonly string[]>>
-type RetainingKey = keyof typeof retentionOperations
+    Presence
+  >,
+  command: { list: 'required', stop: 'optional', output: 'optional' } satisfies Record<
+    CommandRetentionOperation,
+    Presence
+  >,
+} satisfies Partial<Record<FacilityKey, Readonly<Record<string, Presence>>>>
+type RetainingKey = keyof typeof retentionPresence
+const retentionOperations: Readonly<
+  Record<RetainingKey, Readonly<{ required: readonly string[]; optional: readonly string[] }>>
+> = {
+  terminal: {
+    required: byPresence(retentionPresence.terminal, 'required'),
+    optional: byPresence(retentionPresence.terminal, 'optional'),
+  },
+  command: {
+    required: byPresence(retentionPresence.command, 'required'),
+    optional: byPresence(retentionPresence.command, 'optional'),
+  },
+}
 
 function isRetainingKey(key: FacilityKey): key is RetainingKey {
   return Object.hasOwn(retentionOperations, key)
@@ -104,8 +124,17 @@ function supportsRetention(key: RetainingKey, facility: object, enabled: boolean
   return (
     enabled &&
     isRecord(retention) &&
-    retentionOperations[key].every(operation => typeof retention[operation] === 'function')
+    retentionOperations[key].required.every(operation => typeof retention[operation] === 'function')
   )
+}
+
+/** The operations of the provider's extension that the handed-out extension forwards. */
+function handedOperations(
+  key: RetainingKey,
+  extension: Readonly<Record<string, unknown>>,
+): readonly string[] {
+  const { required, optional } = retentionOperations[key]
+  return [...required, ...optional.filter(operation => typeof extension[operation] === 'function')]
 }
 
 /**
@@ -207,7 +236,7 @@ export function createLeaseView<P>(
             return undefined
           return Object.freeze(
             Object.fromEntries(
-              retentionOperations[key].map(operation => [
+              handedOperations(key, value).map(operation => [
                 operation,
                 retentionMethod(key, target, value, operation),
               ]),

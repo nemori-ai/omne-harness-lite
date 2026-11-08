@@ -39,15 +39,15 @@
 | 可信绑定服务键与抽象类 | `executionScopeBinding`，只由 `ExecutionScopeBindingService.provide` 给出，`executionScopeBindingKey` 取自它；抽象类 `implements` Runtime Context 契约的 `ScopeBindingSource` | 性质 10 |
 | 事件 | 没有 | 性质 6 |
 
-九个方法分三面。方法的输入、结果与失败归契约，本表只说明谁调用、本成员加了什么 Cordis 承诺。
+十个方法分三面。方法的输入、结果与失败归契约，本表只说明谁调用、本成员加了什么 Cordis 承诺。
 
 | 面 | 方法 | 调用方类 | 本成员加的 Cordis 承诺 |
 | --- | --- | --- | --- |
-| 环境面 | `resolvePlacement`、`acquire`、`inspectAcquisition`、`describe` | `integrator` | 没有额外承诺。访问身份、请求方作用域、要求、获取键、账本与守卫都是参数（[契约的获取与租约](../../execution-environment-contract/SPEC.md#获取与租约)）；访问由两个端口服务核对（性质 10） |
+| 环境面 | `resolvePlacement`、`acquire`、`inspectAcquisition`、`describe`、`observeRetained` | `integrator` | 没有额外承诺。访问身份、请求方作用域、要求、获取键、账本与守卫都是参数（[契约的获取与租约](../../execution-environment-contract/SPEC.md#获取与租约)）；访问由两个端口服务核对（性质 10） |
 | 恢复面 | `recoverOwned`、`releaseScope`、`inspectRecoveryAcquisition` | `maintainer` | 调用方类声明见 [intercept 配置与调用方类](#intercept-配置与调用方类)。恢复授权是参数，由端口核对（[契约的恢复](../../execution-environment-contract/SPEC.md#恢复)） |
 | 登记面 | `registerFacility`、`registerProvider` | `provider` | 登记即效应，登记落在调用方 fiber 上。见[登记与撤除协议](#登记与撤除协议) |
 
-九个公开成员都写成模板方法，不写成函数字段；它们先核对，再调用对应的 `protected abstract on…` 钩子。理由：经调用方取到的服务是一层代理，方法里读 `this.ctx` 得到调用方的上下文（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)）。登记面要靠这一点把效应落在调用方 fiber 上。
+十个公开成员都写成模板方法，不写成函数字段；它们先核对，再调用对应的 `protected abstract on…` 钩子。理由：经调用方取到的服务是一层代理，方法里读 `this.ctx` 得到调用方的上下文（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)）。登记面要靠这一点把效应落在调用方 fiber 上。
 
 设施不是服务，提供者也不是服务。设施拥有者与提供者都经 `executionEnvironment` 的登记面登记。
 
@@ -69,7 +69,7 @@ export const inject = {
 
 | 调用方类 | 用哪些方法 | 典型调用方 |
 | --- | --- | --- |
-| `integrator` | 环境面四个方法 | 集成方的适配器插件 |
+| `integrator` | 环境面五个方法 | 集成方的适配器插件 |
 | `maintainer` | 恢复面三个方法 | 维护者插件，持有集成方签发的恢复授权 |
 | `provider` | 登记面两个方法 | 提供者插件与设施拥有者插件 |
 
@@ -79,7 +79,7 @@ export const inject = {
 
 明确缺项：这条登记权限现在没有强制执行点，任何 `inject` 了本服务的插件都能调用登记面。强制执行点由服务定义的拥有者（本成员）与应用装配的拥有者一起定义。
 
-九个模板方法在入口通过 `this[Service.resolveConfig]()` 读取调用方声明。环境与恢复面未声明放行；登记面必须明确声明 `provider`。非法声明或错面调用被拒绝：七个有拒绝通道的方法以 `callerMismatch` 作答（两个查询是查询答复 `refused`，其余是 `rejected`），登记面抛出 `CallerClassMismatch`。祖先声明可继承，近者覆盖远者；完全未声明读取到 `{}`。这项核对不授予访问资格。真实装载读数及其边界见[机制读数与假设](#机制读数与假设)。
+十个模板方法在入口通过 `this[Service.resolveConfig]()` 读取调用方声明。环境与恢复面未声明放行；登记面必须明确声明 `provider`。非法声明或错面调用被拒绝：八个有拒绝通道的方法以 `callerMismatch` 作答（两个查询是查询答复 `refused`，其余是 `rejected`），登记面抛出 `CallerClassMismatch`。祖先声明可继承，近者覆盖远者；完全未声明读取到 `{}`。这项核对不授予访问资格。真实装载读数及其边界见[机制读数与假设](#机制读数与假设)。
 
 ## 登记与撤除协议
 
@@ -137,7 +137,7 @@ export const inject = {
 | [IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) 事件 | 不适用。本成员不声明事件 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 核对导出集合 |
 | [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应 | 登记面在方法里 `this.ctx.effect` 登记，不采用目录写法 | 机制有 basis。撤除验证归 Service 实现 |
 | [IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17) 作用域不是 Context 或 isolate | 作用域是操作参数 `ScopeRef` | 契约类型 |
-| [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 租户是参数 | 租户随访问身份进入。intercept 配置只声明调用方类，不授予资格 | 契约类型；九个模板方法与真实装载测试 |
+| [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 租户是参数 | 租户随访问身份进入。intercept 配置只声明调用方类，不授予资格 | 契约类型；十个模板方法与真实装载测试 |
 | [IC-19](../../../../docs/architecture/cordis-integration-conventions.md#ic-19) 同进程保证 | 本成员不持有状态。登记表的进程内副本归 [execution-environment](../../execution-environment/SPEC.md#范围与依据) | 不适用 |
 
 ## 机制读数与假设

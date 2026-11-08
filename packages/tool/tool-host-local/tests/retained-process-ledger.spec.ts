@@ -495,6 +495,7 @@ describe('the environment plan hands processes to acquire', () => {
       resolvePlacement: async () => placement,
       inspectRecoveryAcquisition: async () => ({ kind: 'queryUnavailable', cause: 'provider' }),
       describe: async () => [],
+      observeRetained: async () => [],
       recoverOwned: async () => ({ kind: 'unknown', cause: 'provider' }),
       releaseScope: async () => ({ kind: 'unknown', cause: 'provider' }),
     }

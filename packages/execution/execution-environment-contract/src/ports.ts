@@ -35,8 +35,14 @@ export type RetainedTerminalLedger = Pick<ResourceLedger, 'closed' | 'plan' | 'p
  * The retention scope's ledger for processes a one-shot command left. `plan` reserves a place,
  * `adopt` commits the handover; the integrator ends the acquisition ledger's duty for the same key
  * in that one durable commit. A repeated `adopt` of the same key answers the committed outcome.
+ * `ended` reads whether this scope's ledger holds a confirmed end fact for the key.
  */
-export type RetainedProcessLedger = Pick<ResourceLedger, 'closed' | 'plan' | 'adopt' | 'stopped'>
+export type RetainedProcessLedger = Pick<
+  ResourceLedger,
+  'closed' | 'plan' | 'adopt' | 'stopped'
+> & {
+  ended?(key: string): Promise<'confirmed' | 'none' | 'unavailable'>
+}
 
 /**
  * The integrator supplies a trusted live retention scope and its per-acquisition ledger views.

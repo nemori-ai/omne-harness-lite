@@ -271,7 +271,7 @@ schema 的规则：
 
 精确定义在 [operation-schemas.ts](../src/operation-schemas.ts)。参数是按位置解码的元组，逐项拒绝路径从参数下标开始。登记面的返回值是函数，没有结果 schema。设施自身逐操作 schema 留 Q-EE05。
 
-`operationSchemas` 按九个操作名索引。根入口同时导出 `OperationSchema`、`OperationName`、`providerFactsSchema`、`managedResourceSchema` 与 `originalAcquisitionSchema`。九个参数 schema 与七个结果 schema 见同一源码。`originalAcquisitionSchema` 解码集成方保存的原获取描述：租户按租户文本解码，作用域按完整父级链解码。
+`operationSchemas` 按十个操作名索引。根入口同时导出 `OperationSchema`、`OperationName`、`providerFactsSchema`、`managedResourceSchema` 与 `originalAcquisitionSchema`。十个参数 schema 与八个结果 schema 见同一源码。`originalAcquisitionSchema` 解码集成方保存的原获取描述：租户按租户文本解码，作用域按完整父级链解码。
 
 ### 日期类型
 
@@ -297,6 +297,6 @@ schema 的规则：
 两个替身的行为：
 
 - `createMemoryFileSystem` 给出内存文件设施 `facility`。替身建立时自己建立授予根，整棵内存树都在根内。文件请求与租约都不带根。路径只能是相对路径：绝对路径答 `rejected/invalidInput`，越过根的 `..` 答 `rejected/notAuthorized`。替身沿内存树逐段解析路径：`..` 之前的一段不存在或是文件时，路径未解析；文件路径带结尾的 `/` 时，路径也未解析。新建写入的父路径不是目录时答 `rejected/notFound`。它实现读取、查看、写入、关闭与列表。关闭时先核对路径：路径上没有对象，或对象不是 `named`，答 `rejected/conflict`。路径与 `named` 相符而句柄不是替身为该对象发出的，答 `rejected/invalidInput`。列表的 `limit` 须是正的安全整数，`0` 答 `rejected/invalidInput`。替换写入的 `expectedVersion` 不符时答 `rejected/conflict`，内容不变。其余七项操作答 `rejected/unsupported`。`objectToken` 给出路径现在所指对象的令牌，供调用方填 `named`；`''` 指授予根。`peek` 读出文件字节的副本，它不是设施调用。版本是 `v` 加每个对象的修订号，从 `v1` 起，每次写入加一。这比宿主文件的版本强，所以替身上的测试不证明真实提供者的版本粒度。
-- `createScriptedCommandFacility` 给出命令设施 `facility`。脚本对每次受理的 `start` 答复启动成功、`rejected` 或 `unknown`。启动成功时，替身按脚本交出输出块，`observedOffset` 按每一路累计，再给出终局。输出块的流或脚本终局的输出模式与请求的 `outputMode` 不符时，`start` 抛出 `TypeError`，这是脚本错误。`runs: 'untilStop'` 的进程在确认的停止之前不结束输出与终局。`stop` 按脚本答 `confirmed` 或 `unconfirmed`，记入 `stops`。替身不启动真实进程，也不读取宿主环境。
+- `createScriptedCommandFacility` 给出命令设施 `facility`。脚本对每次受理的 `start` 答复启动成功、`rejected` 或 `unknown`。启动成功时，替身按脚本交出输出块，`observedOffset` 按每一路累计，再给出终局。输出块的流或脚本终局的输出模式与请求的 `outputMode` 不符时，`start` 抛出 `TypeError`，这是脚本错误。`runs: 'untilStop'` 的进程在确认的停止之前不结束输出与终局。`stop` 按脚本答 `confirmed` 或 `unconfirmed`，记入 `stops`。给出 `retention` 选项时，替身像保留进程的提供者那样处置脚本里 `leaves` 的进程，并交出保留进程扩展：`retention.stop` 立即停止并确认，已停止的进程按收场事实答 `confirmed`，选项 `ended: false` 时答 `rejected/unavailable`；`retention.output` 把脚本的 `afterHandover` 块作为尾部交出，不丢弃字节；选项 `refuse` 列出的操作答 `rejected/notAuthorized`。`createScriptedRetentionStore` 的 `stopsIssued` 读出每个保留进程被发出停止的次数。替身不启动真实进程，也不读取宿主环境。
 
 两个替身的 `close()` 之后，新操作答 `rejected/closed` 且不改动任何内容。命令替身已交出的进程不受 `close()` 影响。调用方在脚本提供者的 `retire` 脚本里调用两个替身的 `close()`，提供者套件的退役用例因此可以检验已持设施。两个替身的 `durability` 为 `none`。它们只证明契约形状与判据，不证明真实进程、文件系统、授予根核对或隔离。

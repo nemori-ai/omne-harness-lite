@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import type { ScopeBindingSource } from '@omne-harness/runtime-context-contract'
+import type { TenantId } from '@omne-harness/legal-identity'
+import type { ScopeBindingSource, ScopeRef } from '@omne-harness/runtime-context-contract'
 import {
   acquisitionRef,
   originRef,
@@ -18,6 +19,7 @@ import {
   type ProviderAcquireInput,
   type EnvironmentBinding,
   type RecoveryAccess,
+  type RetainedProcessInformation,
 } from '../index.ts'
 import {
   createMemoryResourceLedger,
@@ -787,6 +789,99 @@ async function checkParamsSchemaRefusalHasItemReasons<P>(
   assert.deepEqual(result.issues[0]?.path, [1, 'origin'])
 }
 
+const retainedItem = (id: string): RetainedProcessInformation => ({
+  process: { id, generation: '1' },
+  origin: originRef('suite-retained'),
+  handedOverAtMs: 0,
+  state: 'running',
+  processes: 1,
+})
+
+async function checkObserveAsksAuthorityAndBinding<P>(
+  s: EnvironmentConformanceSubject<P>,
+  ports: Ports<P>,
+): Promise<void> {
+  const asked: [ScopeRef, TenantId][] = []
+  const provider = createScriptedEnvironmentProvider({
+    retained: async (scope, tenant) => {
+      asked.push([scope, tenant])
+      return [retainedItem('suite-retained-1')]
+    },
+  })
+  s.environment.registerProvider(provider)
+  assert.deepEqual(await s.environment.observeRetained(s.access, s.scope), [
+    retainedItem('suite-retained-1'),
+  ])
+  assert.deepEqual(ports.authority.calls.at(-1)?.action, {
+    kind: 'observe-retained',
+    scope: s.scope,
+  })
+  assert.equal(asked.length, 1)
+  assert.equal(asked[0]?.[0].ref, s.scope.ref, 'the provider is asked for the observed scope')
+  assert.equal(asked[0]?.[1], s.access.tenant, 'and for the tenant of the access')
+  const answers: [Parameters<typeof ports.authority.script>[0], unknown][] = [
+    [() => ({ kind: 'refused' }), { kind: 'rejected', reason: 'notAuthorized' }],
+    [() => ({ kind: 'unavailable' }), { kind: 'rejected', reason: 'unavailable' }],
+    [() => ({ kind: 'unknown' }), { kind: 'unknown', cause: 'authority' }],
+  ]
+  for (const [script, expected] of answers) {
+    ports.authority.script(script)
+    assert.deepEqual(await s.environment.observeRetained(s.access, s.scope), expected)
+  }
+  ports.authority.script(undefined)
+  assert.deepEqual(
+    await s.environment.observeRetained(s.access, anotherScope(s.scope, '-unbound')),
+    { kind: 'rejected', reason: 'notAuthorized' },
+  )
+  if (s.otherAccess)
+    assert.deepEqual(await s.environment.observeRetained(s.otherAccess, s.scope), {
+      kind: 'rejected',
+      reason: 'notAuthorized',
+    })
+  const forged = { ...s.access, tenant: { ...s.access.tenant } }
+  assert.deepEqual(await s.environment.observeRetained(forged, s.scope), {
+    kind: 'rejected',
+    reason: 'invalidInput',
+  })
+  ports.bindings.answer(s.scope, { kind: 'unknown' })
+  assert.deepEqual(await s.environment.observeRetained(s.access, s.scope), {
+    kind: 'unknown',
+    cause: 'scope-binding',
+  })
+  assert.equal(asked.length, 1, 'a refused observation reads no provider')
+  assert.equal(provider.calls.acquire, 0, 'an observation allocates nothing')
+}
+
+async function checkObserveIsCompleteOrUnavailable<P>(
+  s: EnvironmentConformanceSubject<P>,
+): Promise<void> {
+  let second: readonly RetainedProcessInformation[] | 'unavailable' = [
+    retainedItem('suite-retained-b'),
+  ]
+  const providers = [
+    createScriptedEnvironmentProvider({
+      name: 'suite-a',
+      retained: async () => [retainedItem('suite-retained-a')],
+    }),
+    createScriptedEnvironmentProvider({ name: 'suite-b', retained: async () => second }),
+    createScriptedEnvironmentProvider({ name: 'suite-c' }),
+  ]
+  for (const provider of providers) s.environment.registerProvider(provider)
+  const merged = await s.environment.observeRetained(s.access, s.scope)
+  assert.ok(Array.isArray(merged))
+  assert.deepEqual(merged.map(item => item.process.id).sort(), [
+    'suite-retained-a',
+    'suite-retained-b',
+  ])
+  second = 'unavailable'
+  assert.deepEqual(
+    await s.environment.observeRetained(s.access, s.scope),
+    { kind: 'rejected', reason: 'unavailable' },
+    'one provider that cannot answer makes the whole answer unavailable, never a partial list',
+  )
+  for (const provider of providers) assert.equal(provider.calls.acquire, 0)
+}
+
 export function executionEnvironmentConformance<P>(
   options: EnvironmentConformanceOptions<P>,
 ): readonly ConformanceCase[] {
@@ -933,6 +1028,16 @@ export function executionEnvironmentConformance<P>(
       options,
       'V-EE22.params-schema-refusal-has-item-reasons',
       checkParamsSchemaRefusalHasItemReasons,
+    ),
+    environmentCase(
+      options,
+      'V-EE32.observe-asks-authority-and-binding',
+      checkObserveAsksAuthorityAndBinding,
+    ),
+    environmentCase(
+      options,
+      'V-EE32.observe-is-complete-or-unavailable',
+      checkObserveIsCompleteOrUnavailable,
     ),
   ]
 }

@@ -36,9 +36,13 @@ it('keeps the command operation list and accepts commands without the retained-p
   type Legacy = Pick<CommandFacility<unknown>, 'start'>
   expectTypeOf<Legacy>().toExtend<CommandFacility<unknown>>()
   expectTypeOf<undefined>().toExtend<CommandFacility<unknown>['retention']>()
-  expectTypeOf<CommandRetentionOperation>().toEqualTypeOf<'list'>()
+  expectTypeOf<CommandRetentionOperation>().toEqualTypeOf<'list' | 'stop' | 'output'>()
   expectTypeOf<FacilityOperation<'command'>>().toEqualTypeOf<'start'>()
-  expectTypeOf<RetainedProcessLedger>().toEqualTypeOf<
+  expectTypeOf<undefined>().toExtend<CommandFacility<unknown>['containment']>()
+  expectTypeOf<
+    Pick<ResourceLedger, 'closed' | 'plan' | 'adopt' | 'stopped'>
+  >().toExtend<RetainedProcessLedger>()
+  expectTypeOf<RetainedProcessLedger>().toExtend<
     Pick<ResourceLedger, 'closed' | 'plan' | 'adopt' | 'stopped'>
   >()
   expectTypeOf<SessionTerminalRetention>().toExtend<{

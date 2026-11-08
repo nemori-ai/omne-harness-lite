@@ -269,6 +269,11 @@ export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService
   ): Operation<P, 'describe'>['result'] {
     return this.registry.describe(...args)
   }
+  protected onObserveRetained(
+    ...args: Operation<P, 'observeRetained'>['args']
+  ): Operation<P, 'observeRetained'>['result'] {
+    return this.registry.observeRetained(...args)
+  }
   protected onRecoverOwned(
     ...args: Operation<P, 'recoverOwned'>['args']
   ): Operation<P, 'recoverOwned'>['result'] {

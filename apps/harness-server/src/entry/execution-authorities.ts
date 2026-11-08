@@ -51,7 +51,10 @@ async function scopeFailure(
   }
 }
 
-function targetOf(action: EnvironmentAction, tenant: TenantId): Target {
+function targetOf(
+  action: Exclude<EnvironmentAction, { kind: 'observe-retained' }>,
+  tenant: TenantId,
+): Target {
   switch (action.kind) {
     case 'resolve':
     case 'describe':
@@ -78,6 +81,8 @@ export class EntryExecutionEnvironmentAuthority extends ExecutionEnvironmentAuth
   async authorize(
     ...[access, action]: Parameters<EnvironmentAuthority<unknown>['authorize']>
   ): Promise<AuthorityDecision<unknown>> {
+    // No observer identity is wired into this assembly yet, so nobody may observe retained processes.
+    if (action.kind === 'observe-retained') return { kind: 'refused' }
     const current = currentForReader(this.readers, this.ctx)
     const { principal, tenant } = access
     const target = targetOf(action, tenant)

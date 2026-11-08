@@ -249,8 +249,13 @@ describe(
   { skip: !enabled },
   () => {
     for (const test of commandRetentionConformance({ subject: hostSubject, waitMs: 60_000 })) {
+      // The host provides neither retention.stop nor retention.output yet.
+      const pending = test.name.startsWith('V-EE30.') || test.name.startsWith('V-EE31.')
       it(test.name, async () => {
-        expect(await runConformanceCase(test)).toEqual({ name: test.name, status: 'pass' })
+        expect(await runConformanceCase(test)).toMatchObject({
+          name: test.name,
+          status: pending ? 'not-applicable' : 'pass',
+        })
       })
     }
   },

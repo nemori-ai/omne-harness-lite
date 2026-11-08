@@ -7,8 +7,10 @@ import type {
   OutputChunk,
   ProcessHandle,
   ResidueReport,
+  RetainedOutput,
   RetainedProcessInformation,
   RetainedProcessRef,
+  RetainedStreamTail,
 } from '../index.ts'
 import { createScriptedProcess } from './scripted-process.ts'
 
@@ -30,6 +32,14 @@ export type ScriptedCommandAnswer =
        * explicit `outcome` that carries its own `residue` keeps it.
        */
       leaves?: number | 'unknown'
+      /**
+       * Chunks the retained process writes once the domain was handed over. Only with `leaves`;
+       * `retention.output` gives them as the tail, after the bytes `output` already counted.
+       */
+      afterHandover?: readonly Readonly<{
+        stream: OutputChunk['stream']
+        data: string | Uint8Array
+      }>[]
     }>
   | Readonly<{ kind: 'rejected'; reason: FacilityReason }>
   | Readonly<{ kind: 'unknown' }>
@@ -47,19 +57,26 @@ export type CommandScript<P = unknown> = (
 export type ScriptedRetentionStore = Readonly<{
   /** Closes the scope: its retained processes stop, and a later leftover there is stopped for `closed`. */
   closeScope(scope: string): void
-  /** True once the retained process's domain was stopped, by closing its scope. */
+  /** True once the retained process's domain was stopped, by closing its scope or by `retention.stop`. */
   stopped(process: RetainedProcessRef): boolean
+  /** How many domain stops `retention.stop` issued for the retained process. */
+  stopsIssued(process: RetainedProcessRef): number
 }>
 
+type RetainedStream = { readonly savedFrom: number; data: Uint8Array }
 type RetentionEntry = Readonly<{
   scope: string
   tenant: string
   information: RetainedProcessInformation
+  streams: ReadonlyMap<OutputChunk['stream'], RetainedStream>
 }>
 type RetentionInternals = Readonly<{
   entries: RetentionEntry[]
   closed: Set<string>
   stopped: Set<string>
+  /** End facts: scope, tenant and reference of every retained process whose stop was confirmed. */
+  ended: Set<string>
+  stopsIssued: Map<string, number>
   /** Process numbers across the facilities that share the store, so references never collide. */
   processes: { count: number }
 }>
@@ -70,20 +87,28 @@ export function createScriptedRetentionStore(): ScriptedRetentionStore {
     entries: [],
     closed: new Set(),
     stopped: new Set(),
+    ended: new Set(),
+    stopsIssued: new Map(),
     processes: { count: 0 },
   }
   const store: ScriptedRetentionStore = {
     closeScope(scope) {
       state.closed.add(scope)
-      for (const entry of state.entries)
-        if (entry.scope === scope) state.stopped.add(refKey(entry.information.process))
+      for (const entry of state.entries) if (entry.scope === scope) end(state, entry)
     },
     stopped: process => state.stopped.has(refKey(process)),
+    stopsIssued: process => state.stopsIssued.get(refKey(process)) ?? 0,
   }
   internals.set(store, state)
   return store
 }
 const refKey = (ref: RetainedProcessRef) => `${ref.id}\u0000${ref.generation}`
+const endKey = (scope: string, tenant: string, ref: RetainedProcessRef) =>
+  JSON.stringify([scope, tenant, ref.id, ref.generation])
+function end(state: RetentionInternals, entry: RetentionEntry): void {
+  state.stopped.add(refKey(entry.information.process))
+  state.ended.add(endKey(entry.scope, entry.tenant, entry.information.process))
+}
 
 export type ScriptedCommandOptions = Readonly<{
   /**
@@ -95,12 +120,18 @@ export type ScriptedCommandOptions = Readonly<{
    * closed; `stopping/unbound` when `ledger` is `false`. An answer without `leaves` gets `none`.
    * A retained domain is handed over: the handle's `stop` answers `unconfirmed` in both modes and
    * changes nothing. `retention.list` lists the scope's processes for the request's tenant.
+   * `retention.stop` stops one at once and confirms; a stopped one answers `confirmed` from its
+   * end fact. `retention.output` gives the chunks of the script's `afterHandover` as the tail.
    */
   retention?: Readonly<{
     store: ScriptedRetentionStore
     scope: string
     /** `false`: the acquisition has no retention process ledger view. Default `true`. */
     ledger?: boolean
+    /** `false`: the ledger view has no `ended`, so a stopped process's end fact is unreadable. */
+    ended?: boolean
+    /** Operations of the extension the facility guard refuses, answered `notAuthorized`. */
+    refuse?: readonly ('stop' | 'output')[]
   }>
 }>
 
@@ -147,7 +178,7 @@ export function createScriptedCommandFacility<P = unknown>(
 
   const facility: CommandFacility<P> = {
     ...(retaining && state !== undefined && retention !== undefined
-      ? { retention: { list: request => listRetained(state, retention.scope, request) } }
+      ? { retention: retentionExtension<P>(state, retention) }
       : {}),
     async start(request) {
       if (closed) return { kind: 'rejected', requestId: request.requestId, reason: 'closed' }
@@ -218,6 +249,7 @@ function dispose<P>(input: {
   state.entries.push({
     scope: retention.scope,
     tenant: JSON.stringify(request.access.tenant),
+    streams: retainedStreams(answer),
     information: {
       process: identity,
       origin: request.origin,
@@ -240,19 +272,102 @@ function withResidue(handle: ProcessHandle, residue: ResidueReport): ProcessHand
   return { ...handle, result }
 }
 
-async function listRetained<P>(
+const bytes = (data: string | Uint8Array) =>
+  typeof data === 'string' ? new TextEncoder().encode(data) : data
+
+/** Per stream: the bytes `output` counted before the handover, and the bytes written after it. */
+function retainedStreams(answer: Started): ReadonlyMap<OutputChunk['stream'], RetainedStream> {
+  const counted = new Map<OutputChunk['stream'], number>()
+  for (const chunk of answer.output ?? [])
+    counted.set(chunk.stream, (counted.get(chunk.stream) ?? 0) + bytes(chunk.data).length)
+  const streams = new Map<OutputChunk['stream'], RetainedStream>()
+  for (const chunk of answer.afterHandover ?? []) {
+    const stream = streams.get(chunk.stream) ?? {
+      savedFrom: counted.get(chunk.stream) ?? 0,
+      data: new Uint8Array(),
+    }
+    stream.data = new Uint8Array([...stream.data, ...bytes(chunk.data)])
+    streams.set(chunk.stream, stream)
+  }
+  return streams
+}
+
+type Retention = NonNullable<ScriptedCommandOptions['retention']>
+
+function retentionExtension<P>(
   state: RetentionInternals,
-  scope: string,
-  request: FacilityRequest<P>,
-): Promise<FacilityResult<readonly RetainedProcessInformation[]>> {
-  const tenant = JSON.stringify(request.access.tenant)
-  const value = state.entries
-    .filter(
+  retention: Retention,
+): NonNullable<CommandFacility<P>['retention']> {
+  const own = (request: FacilityRequest<P>, ref?: RetainedProcessRef) => {
+    const tenant = JSON.stringify(request.access.tenant)
+    return state.entries.filter(
       entry =>
-        entry.scope === scope &&
+        entry.scope === retention.scope &&
         entry.tenant === tenant &&
-        !state.stopped.has(refKey(entry.information.process)),
+        !state.stopped.has(refKey(entry.information.process)) &&
+        (ref === undefined || refKey(entry.information.process) === refKey(ref)),
     )
-    .map(entry => entry.information)
-  return { kind: 'done', requestId: request.requestId, value }
+  }
+  const refuse = (requestId: string, reason: FacilityReason) =>
+    ({ kind: 'rejected', requestId, reason }) as const
+  return {
+    async list(request) {
+      const value = own(request).map(entry => entry.information)
+      return { kind: 'done', requestId: request.requestId, value }
+    },
+    async stop(request) {
+      if (retention.refuse?.includes('stop')) return refuse(request.requestId, 'notAuthorized')
+      const [entry] = own(request, request.process)
+      if (entry !== undefined) {
+        end(state, entry)
+        const key = refKey(entry.information.process)
+        state.stopsIssued.set(key, (state.stopsIssued.get(key) ?? 0) + 1)
+        return { kind: 'done', requestId: request.requestId, value: { status: 'confirmed' } }
+      }
+      if (retention.ended === false) return refuse(request.requestId, 'unavailable')
+      const tenant = JSON.stringify(request.access.tenant)
+      return state.ended.has(endKey(retention.scope, tenant, request.process))
+        ? { kind: 'done', requestId: request.requestId, value: { status: 'confirmed' } }
+        : refuse(request.requestId, 'notFound')
+    },
+    async output(request) {
+      if (retention.refuse?.includes('output')) return refuse(request.requestId, 'notAuthorized')
+      const [entry] = own(request, request.process)
+      if (entry === undefined) return refuse(request.requestId, 'notFound')
+      const value: RetainedOutput =
+        entry.streams.size === 0
+          ? { kind: 'none' }
+          : {
+              kind: 'tail',
+              version: 1,
+              streams: [...entry.streams].map(([stream, kept]) =>
+                streamTail(stream, kept, request.from?.[stream]),
+              ),
+            }
+      return { kind: 'done', requestId: request.requestId, value }
+    },
+  }
+}
+
+/** The tail of one stream from `from` on. Nothing is discarded: the double keeps every byte. */
+function streamTail(
+  stream: OutputChunk['stream'],
+  kept: RetainedStream,
+  from: number | undefined,
+): RetainedStreamTail {
+  const end = kept.savedFrom + kept.data.length
+  const start = Math.min(Math.max(from ?? kept.savedFrom, kept.savedFrom), end)
+  const data = kept.data.slice(start - kept.savedFrom)
+  let skipped = 0
+  while (skipped < 3 && skipped < data.length && (data[skipped] ?? 0) >> 6 === 0b10) skipped++
+  const value = new TextDecoder().decode(data.subarray(skipped))
+  return {
+    stream,
+    savedFrom: kept.savedFrom,
+    start,
+    end,
+    discardedBytes: 0,
+    data,
+    text: { encoding: 'utf-8', value, start: start + skipped, replaced: value.includes('�') },
+  }
 }

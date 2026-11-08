@@ -513,7 +513,7 @@ flowchart TD
        之前从未保存    = start − savedFrom
 ```
 
-`from` 早于 `start` 时从 `start` 给；`from` 不早于 `end` 时 `data` 为空。`savedFrom + discardedBytes + data 的长度 = end`。
+图是没有 `from` 的答复：`start = savedFrom + discardedBytes`，即保存的第一个字节。任何答复都有 `start + data 的长度 = end`。`from` 早于保存的第一个字节时从保存的第一个字节给；`from` 落在保存的字节之间时 `start = from`；`from` 不早于 `end` 时 `start = end`，`data` 为空。
 
 | 环节 | 结果 | 失败与责任交接 |
 | --- | --- | --- |

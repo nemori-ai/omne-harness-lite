@@ -15,6 +15,7 @@ import {
   type EnvironmentAuthority,
   type EnvironmentBinding,
   type EnvironmentDescription,
+  type RetainedProcessInformation,
   type EnvironmentLease,
   type EnvironmentProvider,
   type ExecutionEnvironment,
@@ -1002,6 +1003,31 @@ export function createEnvironmentRegistry<P>(
         )
       }
       return descriptions
+    },
+
+    async observeRetained(access, input) {
+      if (!mintedTenant(access.tenant)) return rejected('invalidInput')
+      if (closed) return rejected('ownerStopped')
+      const scope = copyScope(input)
+      const checked = await checkAccess(ports, access, { kind: 'observe-retained', scope }, scope)
+      if (checked.kind !== 'granted') return lookupAnswer(checked)
+      const answers = await Promise.all(
+        providers.map(async ({ provider }) => {
+          if (provider.retainedProcesses === undefined) return []
+          try {
+            return await provider.retainedProcesses(scope, access.tenant)
+          } catch {
+            return 'unavailable' as const
+          }
+        }),
+      )
+      const items: RetainedProcessInformation[] = []
+      for (const answer of answers) {
+        // A provider that cannot answer makes the whole answer unknown, never a partial list.
+        if (answer === 'unavailable') return rejected('unavailable')
+        items.push(...answer)
+      }
+      return Object.freeze(items)
     },
 
     recoverOwned(scope, access, known) {

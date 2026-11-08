@@ -28,21 +28,44 @@ const obligations = [
   'V-EE28.handle-stop-after-handover-is-unconfirmed',
   'V-EE28.scope-close-stops-retained',
   'V-EE28.no-ledger-stops-with-reason',
+  'V-EE30.stop-confirms-a-stopped-domain',
+  'V-EE30.stop-stays-in-scope-and-tenant',
+  'V-EE30.repeated-stop-joins',
+  'V-EE30.stop-after-end-is-confirmed',
+  'V-EE30.stop-without-ended-is-unavailable',
+  'V-EE30.guard-refuses-stop',
+  'V-EE31.tail-keeps-the-byte-relation',
+  'V-EE31.output-stays-in-scope-and-tenant',
+  'V-EE31.output-after-stop-is-not-found',
+  'V-EE31.guard-refuses-output',
 ]
+const after = new TextEncoder().encode('tail \u2713\r\n')
 
 let sequence = 0
+type AcquisitionShape = Readonly<{
+  ledger?: boolean
+  ended?: boolean
+  refuse?: readonly ('stop' | 'output')[]
+}>
 function acquisition(
   store: ScriptedRetentionStore,
   scope: string,
   who: TenantId,
-  ledger = true,
+  shape: AcquisitionShape = {},
 ): CommandRetentionAcquisition {
   const scripted = createScriptedCommandFacility(
     request => ({
       kind: 'started',
       ...(request.args[0] === 'leftover' ? { leaves: 1 } : {}),
+      ...(request.args[0] === 'writing'
+        ? {
+            leaves: 1,
+            output: [{ stream: 'stdout' as const, data: 'before\n' }],
+            afterHandover: [{ stream: 'stdout' as const, data: after }],
+          }
+        : {}),
     }),
-    { retention: { store, scope, ledger } },
+    { retention: { store, scope, ...shape } },
   )
   return {
     facility: scripted.facility,
@@ -71,8 +94,17 @@ function subject(shape: Shape = 'other-scope', unbound = true): CommandRetention
       shape === 'other-scope'
         ? acquisition(store, 'scope-b', tenant)
         : acquisition(store, 'scope-a', otherTenant),
-    ...(unbound ? { unbound: acquisition(store, 'scope-c', tenant, false) } : {}),
-    commands: { clean: () => body('clean'), leftover: () => body('leftover') },
+    ...(unbound ? { unbound: acquisition(store, 'scope-c', tenant, { ledger: false }) } : {}),
+    refusing: acquisition(store, 'scope-a', tenant, { refuse: ['stop', 'output'] }),
+    withoutEnded: acquisition(store, 'scope-d', tenant, { ended: false }),
+    commands: {
+      clean: () => body('clean'),
+      leftover: () => body('leftover'),
+      writing: () => ({ body: body('writing'), after }),
+    },
+    async stopsIssued(process) {
+      return store.stopsIssued(process)
+    },
     async closeScope() {
       store.closeScope('scope-a')
     },

@@ -14,6 +14,7 @@ import {
   decodeJsonValue,
   decodeLiteral,
   decodeNonEmpty,
+  decodeNumber,
   decodeOrigin,
   decodeRequirement,
   decodeScope,
@@ -257,6 +258,15 @@ const description = record({
     'settled',
   ]),
 })
+const processCount: Decoder<number | 'unknown'> = (value, path) =>
+  value === 'unknown' ? accept(value) : decodeNumber(value, path)
+const retainedInformation = record({
+  process: record({ id: decodeString, generation: decodeString }),
+  origin: decodeOrigin,
+  handedOverAtMs: decodeNumber,
+  state: decodeLiteral(['running', 'stopping']),
+  processes: processCount,
+})
 const ownedRecovery = record({
   kind: literal('recovered'),
   scope: decodeScope,
@@ -307,7 +317,8 @@ function isProcessLedger(value: unknown): value is RetainedProcessLedger {
   return (
     isRecord(value) &&
     value['closed'] instanceof AbortSignal &&
-    ['plan', 'adopt', 'stopped'].every(key => typeof value[key] === 'function')
+    ['plan', 'adopt', 'stopped'].every(key => typeof value[key] === 'function') &&
+    (value['ended'] === undefined || typeof value['ended'] === 'function')
   )
 }
 const processLedger: Decoder<RetainedProcessLedger> = (value, path) =>
@@ -364,6 +375,10 @@ const provider: Decoder<EnvironmentProvider> = (value, path) => {
   if (list !== undefined || recover !== undefined) {
     const extra = hasFunctions(value, path, ['listRecoveryResources', 'recover'])
     if (!extra.ok) return extra
+  }
+  if (value['retainedProcesses'] !== undefined) {
+    const retained = hasFunctions(value, path, ['retainedProcesses'])
+    if (!retained.ok) return retained
   }
   // Data fields and callable members were checked; keep the original runtime object.
   return accept(value as unknown as EnvironmentProvider)
@@ -478,6 +493,9 @@ export const inspectRecoveryAcquisitionParamsSchema: OperationSchema<
 export const describeParamsSchema: OperationSchema<
   Parameters<ExecutionEnvironment<unknown>['describe']>
 > = standardSchema(pair(decodeAccess, decodeScope))
+export const observeRetainedParamsSchema: OperationSchema<
+  Parameters<ExecutionEnvironment<unknown>['observeRetained']>
+> = standardSchema(pair(decodeAccess, decodeScope))
 export const recoverOwnedParamsSchema: OperationSchema<
   Parameters<ExecutionEnvironment<unknown>['recoverOwned']>
 > = standardSchema(pairWithOptional(decodeScope, recoveryAccess, decodeArray(original)))
@@ -532,6 +550,14 @@ export const describeResultSchema: OperationSchema<
     ? decodeArray(description)(value, path)
     : variants('kind', { rejected, unknown: lookupUnknown })(value, path),
 )
+export const observeRetainedResultSchema: OperationSchema<
+  Awaited<ReturnType<ExecutionEnvironment<unknown>['observeRetained']>>
+> = standardSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['observeRetained']>>>(
+  (value, path) =>
+    Array.isArray(value)
+      ? decodeArray(retainedInformation)(value, path)
+      : variants('kind', { rejected, unknown: lookupUnknown })(value, path),
+)
 export const recoverOwnedResultSchema: OperationSchema<
   Awaited<ReturnType<ExecutionEnvironment<unknown>['recoverOwned']>>
 > = standardSchema(variants('kind', { recovered: ownedRecovery, rejected, unknown: lookupUnknown }))
@@ -568,6 +594,10 @@ export const operationSchemas: EnvironmentSchemas &
     result: inspectRecoveryAcquisitionResultSchema,
   }),
   describe: Object.freeze({ params: describeParamsSchema, result: describeResultSchema }),
+  observeRetained: Object.freeze({
+    params: observeRetainedParamsSchema,
+    result: observeRetainedResultSchema,
+  }),
   recoverOwned: Object.freeze({
     params: recoverOwnedParamsSchema,
     result: recoverOwnedResultSchema,
