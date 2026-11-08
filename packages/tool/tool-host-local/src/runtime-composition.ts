@@ -72,6 +72,8 @@ export type RuntimeCompositionInput = LocalToolRuntimeInput &
     resolveAccess: LocalInstanceInput<unknown>['resolveAccess']
   }>
 
+export type RuntimeCallPurpose = 'execute' | 'body-recovery'
+
 export const runtimeUnavailable = (dependency: string) =>
   Promise.resolve(
     fail({
@@ -149,7 +151,10 @@ export function createRuntimeDependencies(
   stages: RuntimeStages,
   records: RuntimeRecords,
   host: () => ToolInstanceHost<unknown> | null,
-  admit: (wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0] | null) => boolean,
+  admit: (
+    wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0] | null,
+    purpose?: RuntimeCallPurpose,
+  ) => boolean,
   rejectAdmission: (wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0]) => void,
   knows: (wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0]) => boolean,
 ): ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue> & {
@@ -179,7 +184,15 @@ export function createRuntimeDependencies(
             diagnostic: 'The original admission cannot be assigned to this executor.',
           },
         }
-      if (prior.records.some(row => row.kind === 'call')) return bound
+      const original = prior.records.find(row => row.kind === 'call')
+      if (original !== undefined) {
+        if (
+          original.call.state.phase !== 'settled' &&
+          prior.records.some(row => row.kind === 'body-writer-scope')
+        )
+          admit(wake, 'body-recovery')
+        return bound
+      }
     }
     if (!admit(wake))
       return {

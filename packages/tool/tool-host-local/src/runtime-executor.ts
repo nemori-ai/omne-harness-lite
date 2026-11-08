@@ -15,7 +15,11 @@ import type {
 } from '@omne-harness/tool-contract/provider'
 import { createLocalToolResultDelivery } from './result-delivery.ts'
 import { createRuntimePublication } from './runtime-publication.ts'
-import { waitRuntime, type RuntimeCompositionInput } from './runtime-composition.ts'
+import {
+  waitRuntime,
+  type RuntimeCallPurpose,
+  type RuntimeCompositionInput,
+} from './runtime-composition.ts'
 import type { ToolEnvironmentValue } from './author-environment.ts'
 
 type Wake = Parameters<ToolInstanceHost<unknown>['schedule']>[0]
@@ -34,6 +38,7 @@ type Recovered = Extract<
 >
 type Entry = {
   wake: Wake
+  readonly purpose: RuntimeCallPurpose
   publication: Publication | null
   fiber: Fiber | null
   started: boolean
@@ -104,12 +109,13 @@ export function createRuntimeExecutor(
     retryDelayMs: settings.configuration.driverRetryDelayMs ?? 1000,
   })
   const keyOf = (wake: Wake) => canonicalDigest([wake.tenant, wake.call])
-  const remember = (wake: Wake): boolean => {
+  const remember = (wake: Wake, purpose: RuntimeCallPurpose = 'execute'): boolean => {
     const key = keyOf(wake)
     if (calls.has(key)) return !abort.signal.aborted
     if (abort.signal.aborted || calls.size >= settings.capacity) return false
     calls.set(key, {
       wake,
+      purpose,
       publication: null,
       fiber: null,
       started: false,
@@ -118,7 +124,7 @@ export function createRuntimeExecutor(
       complete: false,
       progress: 'not-run',
       bodyRecovery: null,
-      bodyProgress: null,
+      bodyProgress: 'body-recovery/not-run',
     })
     return true
   }
@@ -310,8 +316,19 @@ export function createRuntimeExecutor(
         if ('failure' in before) return
         entry.started = true
         // A new executor cannot attach an old execution by resolving the latest providers.
-        if (before.ok.execution !== null && before.ok.execution.instance !== step.instance) {
-          foreignExecutionRuns += 1
+        const foreign =
+          before.ok.execution !== null && before.ok.execution.instance !== step.instance
+        if (entry.purpose === 'body-recovery' || foreign) {
+          if (foreign) foreignExecutionRuns += 1
+          if (
+            before.ok.start !== null &&
+            before.ok.state.phase !== 'settled' &&
+            entry.bodyProgress !== null
+          ) {
+            entry.progress = 'body-recovery-only'
+            recoverBody(step, before.ok.start, entry)
+            return
+          }
           if (calls.get(keyOf(step)) === entry) {
             calls.delete(keyOf(step))
             delivery.release(step)

@@ -128,10 +128,10 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
       stages,
       records,
       () => host,
-      wake =>
+      (wake, purpose) =>
         !retired &&
         executor !== null &&
-        (wake === null ? executor.live() : executor.remember(wake)),
+        (wake === null ? executor.live() : executor.remember(wake, purpose)),
       wake => executor?.rejectAdmission(wake),
       wake => executor?.knows(wake) ?? false,
     )
