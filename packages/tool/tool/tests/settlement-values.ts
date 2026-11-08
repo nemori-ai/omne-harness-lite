@@ -80,6 +80,7 @@ export async function settlementFixture(
     call?: string
     mode?: 'foreground' | 'background'
     terminal?: ToolTerminal
+    effect?: ToolFinalEnvelope<Block>['effect']
     definition?: ToolDefinition
     bodySchemas?: ToolLedgerPorts<Principal>['bodySchemas']
     command?: string
@@ -161,7 +162,7 @@ export async function settlementFixture(
       attachments: options.attachments ?? [],
     },
     terminal: options.terminal ?? { kind: 'completed' },
-    effect: { kind: 'occurred', evidence: evidence('actual-effect') },
+    effect: options.effect ?? { kind: 'occurred', evidence: evidence('actual-effect') },
   }
   const process = typeof options.process === 'function' ? options.process(raw) : options.process
   const pointer = ok(
