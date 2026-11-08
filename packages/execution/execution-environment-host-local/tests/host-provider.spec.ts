@@ -789,7 +789,7 @@ onLinux('lists the retained processes of its state directory for their scope onl
 })
 
 onLinux(
-  'observes the retained processes of one scope and tenant, and holds none once retired',
+  'observes the retained processes of one scope and tenant, retired or not: the index stays with the state directory',
   async () => {
     const bootId = await currentBoot()
     const host = await retentionHost([activeUnit(retainedKey), activeUnit(otherKey)])
@@ -803,8 +803,9 @@ onLinux(
       }),
     )
     if (!parsed.ok) throw new Error('tenant fixture did not parse')
+    let observed: Awaited<ReturnType<NonNullable<typeof provider.retainedProcesses>>> | undefined
     try {
-      const observed = await provider.retainedProcesses?.(scope1, tenant)
+      observed = await provider.retainedProcesses?.(scope1, tenant)
       expect(observed).toMatchObject([
         {
           process: { id: retainedKey, generation: 'earlier-generation' },
@@ -817,8 +818,10 @@ onLinux(
     } finally {
       await provider.retire?.()
     }
-    // The index stays with the state directory for other generations; this one holds none.
-    expect(await provider.retainedProcesses?.(scope1, tenant)).toEqual([])
+    // Retirement only stops this generation's polling: the retained processes stay with their
+    // scopes, and a retired generation still answers the index's reading, never an empty list
+    // while the index holds the process.
+    expect(await provider.retainedProcesses?.(scope1, tenant)).toEqual(observed)
   },
 )
 
