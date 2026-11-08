@@ -179,6 +179,15 @@ it.each([
       ok(await ledger.bodyWrites.reconcile({ ...access, start: recovery.start, maxOperations: 4 }))
         .pending,
     ).toBe(0)
+    if (scenario.name === 'duplicate key')
+      expect(
+        await ledger.bodyWrites.begin({
+          ...input,
+          key: 'another-report',
+          operation: sealInput.operation,
+          representation,
+        }),
+      ).toHaveProperty('failure.kind', 'conflict')
     const closed = ok(
       await ledger.bodyWrites.close({
         ...input,

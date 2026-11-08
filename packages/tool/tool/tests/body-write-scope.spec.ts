@@ -229,6 +229,61 @@ it('closes an unused writer locally without requiring custody access', async () 
   )
 })
 
+it.each(['returned', 'failed'] as const)(
+  'preserves the %s outcome when an unused writer is already cancelled',
+  async exit => {
+    const f = await fixture()
+    const close = vi.spyOn(f.h.ledger.bodyWrites, 'close')
+    f.signal.abort()
+    const result = await f.scope.finish(exit)
+    if (exit === 'returned') expect(result).toHaveProperty('failure.kind', 'cancelled')
+    else expect(result).toEqual({ ok: undefined })
+    expect(close).not.toHaveBeenCalled()
+    expect(f.scope.handoffConfirmed).toBe(true)
+  },
+)
+
+it.each([1, 2])(
+  'admits exactly %i frames at the local byte limit and rejects excess without consuming a sequence',
+  async count => {
+    const f = await fixture({ ...configuration(), authorBufferBytes: count * 200 })
+    ok(await f.scope.writer.begin('answer', f.representation))
+    const frame = { kind: 'text' as const, block: 'one', text: 'x'.repeat(109), end: false }
+    expect(Buffer.byteLength(JSON.stringify({ key: 'answer', sequence: '1', frame }))).toBe(200)
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    const write = f.store.write.bind(f.store)
+    vi.spyOn(f.store, 'write').mockImplementationOnce(async input => {
+      entered.resolve()
+      await release.promise
+      return write(input)
+    })
+    const first = f.scope.writer.append('answer', '1', frame)
+    const admitted = [first]
+    let rejected: ReturnType<typeof f.scope.writer.append> | undefined
+    try {
+      await Promise.race([
+        entered.promise,
+        first.then(result => {
+          expect(result).toHaveProperty('ok')
+        }),
+      ])
+      for (let index = 1; index < count; index++)
+        admitted.push(f.scope.writer.append('answer', String(index + 1), frame))
+      rejected = f.scope.writer.append('answer', String(count + 1), frame)
+    } finally {
+      release.resolve()
+    }
+    for (const result of await Promise.all(admitted)) ok(result)
+    expect(await rejected).toHaveProperty('failure.kind', 'capacity')
+    ok(await f.scope.writer.append('answer', String(count + 1), { ...frame, text: '', end: true }))
+    expect(ok(await f.scope.writer.seal('answer', String(count + 1))).bodyBytes).toBe(
+      String(109 * count),
+    )
+    ok(await f.scope.finish('returned'))
+  },
+)
+
 it('preserves cancellation when it arrives while durable close is confirming', async () => {
   const f = await fixture()
   ok(await f.scope.writer.begin('answer', f.representation))

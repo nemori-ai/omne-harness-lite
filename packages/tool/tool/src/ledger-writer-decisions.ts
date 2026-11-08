@@ -97,7 +97,8 @@ export function operationUsed(
       writer =>
         writer.operation === operation ||
         ((writer.state.kind === 'sealing' || writer.state.kind === 'sealed') &&
-          writer.state.operation === operation),
+          writer.state.operation === operation) ||
+        (writer.state.kind === 'failed' && writer.state.seal?.operation === operation),
     ) ||
     [...snapshot.writerAppends.values()].some(append => append.operation === operation) ||
     [...snapshot.writerScopes.values()].some(
