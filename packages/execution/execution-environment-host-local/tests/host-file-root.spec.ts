@@ -498,6 +498,34 @@ it('refuses rooted effects while P2 is unknown and retries after its directory e
   expect(await readFile(join(w.root, 'ok.txt'), 'utf8')).toBe('updated')
 })
 
+it('creates new files with the mode a plain create gets under the process umask', async () => {
+  const w = await world()
+  const reference = join(w.base, 'reference.txt')
+  await writeFile(reference, 'reference')
+  const expected = (await lstat(reference)).mode & 0o777
+  const written = join(w.root, 'written.txt')
+  done(
+    await w.facility.write({
+      ...request(written, w.rootToken, 'create'),
+      bytes: text('w'),
+      mode: 'create',
+    }),
+  )
+  const batched = join(w.root, 'dir', 'batched.txt')
+  const dirToken = await hostObjectToken(join(w.root, 'dir'))
+  done(
+    await w.facility.commitBatch({
+      requestId: 'batch',
+      access: { principal: 'subject-a', tenant },
+      origin: originRef('call-1'),
+      binding: { kind: 'host_machine' },
+      entries: [{ path: batched, named: dirToken, bytes: text('b'), expectedVersion: null }],
+    }),
+  )
+  expect((await lstat(written)).mode & 0o777).toBe(expected)
+  expect((await lstat(batched)).mode & 0o777).toBe(expected)
+})
+
 it('refuses a path that goes through a link to the outside, whatever the operation', async () => {
   const w = await world()
   await symlink(w.outside, join(w.root, 'linkdir'))
