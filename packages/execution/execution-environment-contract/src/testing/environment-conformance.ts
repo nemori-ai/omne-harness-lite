@@ -865,14 +865,21 @@ async function checkObserveIsCompleteOrUnavailable<P>(
     }),
     createScriptedEnvironmentProvider({ name: 'suite-b', retained: async () => second }),
     createScriptedEnvironmentProvider({ name: 'suite-c' }),
+    // A second generation of the same provider, holding the same retained process.
+    createScriptedEnvironmentProvider({
+      name: 'suite-a',
+      generation: 'g2',
+      retained: async () => [retainedItem('suite-retained-a')],
+    }),
   ]
   for (const provider of providers) s.environment.registerProvider(provider)
   const merged = await s.environment.observeRetained(s.access, s.scope)
   assert.ok(Array.isArray(merged))
-  assert.deepEqual(merged.map(item => item.process.id).sort(), [
-    'suite-retained-a',
-    'suite-retained-b',
-  ])
+  assert.deepEqual(
+    merged.map(item => item.process.id).sort(),
+    ['suite-retained-a', 'suite-retained-b'],
+    'a retained process listed by two providers appears once',
+  )
   second = 'unavailable'
   assert.deepEqual(
     await s.environment.observeRetained(s.access, s.scope),

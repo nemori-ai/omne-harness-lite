@@ -1290,6 +1290,8 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
   }
 
   const facility: CommandFacility<unknown> = {
+    // Every command runs in its own systemd scope, or does not run: no process can leave it.
+    containment: 'sealed',
     start(request) {
       const running = start(request)
       inFlight.add(running)

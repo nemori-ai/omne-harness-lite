@@ -224,6 +224,10 @@ it('hands out a host lease with its own identity and evidence, and the files and
   expect(acquired.lease.facility('files')).toBeDefined()
   expect(acquired.lease.facility('command')).toBeDefined()
   expect(acquired.lease.facility('terminal')).toBeDefined()
+  // Linux runs each command in its own systemd scope, macOS in a POSIX session that setsid can
+  // leave; the Windows backend declares nothing, which is not `sealed`.
+  const declared: Readonly<Record<string, string>> = { linux: 'sealed', darwin: 'none' }
+  expect(acquired.lease.facility('command')?.containment).toBe(declared[process.platform])
   expect(await acquired.lease.release()).toEqual({ kind: 'released' })
 })
 
@@ -779,6 +783,52 @@ onLinux('lists the retained processes of its state directory for their scope onl
       'ControlGroup',
       unitOf(retainedKey),
     ])
+  } finally {
+    await provider.retire?.()
+  }
+})
+
+onLinux(
+  'observes the retained processes of one scope and tenant, and holds none once retired',
+  async () => {
+    const bootId = await currentBoot()
+    const host = await retentionHost([activeUnit(retainedKey), activeUnit(otherKey)])
+    await writeMarker(host.state, retainedKey, scope1, bootId)
+    await writeMarker(host.state, otherKey, scopeOf('scope-2'), bootId)
+    const provider = retainedProvider(host.state)
+    const parsed = tenantCodec.parse(
+      JSON.stringify({
+        organization: 'org_0123456789abcdefghjkmnpqrs',
+        account: 'acc_1123456789abcdefghjkmnpqrs',
+      }),
+    )
+    if (!parsed.ok) throw new Error('tenant fixture did not parse')
+    try {
+      const observed = await provider.retainedProcesses?.(scope1, tenant)
+      expect(observed).toMatchObject([
+        {
+          process: { id: retainedKey, generation: 'earlier-generation' },
+          origin: 'call-1',
+          state: 'running',
+        },
+      ])
+      expect(observed).toHaveLength(1)
+      expect(await provider.retainedProcesses?.(scope1, parsed.value)).toEqual([])
+    } finally {
+      await provider.retire?.()
+    }
+    // The index stays with the state directory for other generations; this one holds none.
+    expect(await provider.retainedProcesses?.(scope1, tenant)).toEqual([])
+  },
+)
+
+onLinux('observes nothing when the index cannot read its markers, not an empty list', async () => {
+  const host = await retentionHost([])
+  await writeMarker(host.state, retainedKey, scope1, await currentBoot())
+  process.env['PATH'] = join(host.state, 'no-tools-here')
+  const provider = retainedProvider(host.state)
+  try {
+    expect(await provider.retainedProcesses?.(scope1, tenant)).toBe('unavailable')
   } finally {
     await provider.retire?.()
   }

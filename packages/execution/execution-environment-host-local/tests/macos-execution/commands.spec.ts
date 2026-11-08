@@ -70,6 +70,8 @@ describe('C11 and a clean exit', () => {
     if (!enabled) return ctx.skip()
     const { cwd, own, command } = await bound()
     expect(command.retention).toBeUndefined()
+    // A POSIX session can be left with setsid: the facility says so.
+    expect(command.containment).toBe('none')
     const handle = await started(command, request(cwd, 'echo hello; echo oops >&2'))
     const { outcome, text } = await finished(handle)
     expect(outcome).toMatchObject({

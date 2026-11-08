@@ -466,6 +466,8 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
 
   return Object.freeze({
     facility: {
+      // A POSIX session can be left with setsid, so nothing is retained here.
+      containment: 'none' as const,
       start(request: StartRequest) {
         const running = start(request)
         inFlight.add(running)

@@ -1021,13 +1021,15 @@ export function createEnvironmentRegistry<P>(
           }
         }),
       )
-      const items: RetainedProcessInformation[] = []
+      // Two generations of one provider may hold the same retained process: it is listed once.
+      const items = new Map<string, RetainedProcessInformation>()
       for (const answer of answers) {
         // A provider that cannot answer makes the whole answer unknown, never a partial list.
         if (answer === 'unavailable') return rejected('unavailable')
-        items.push(...answer)
+        for (const item of answer)
+          items.set(JSON.stringify([item.process.id, item.process.generation]), item)
       }
-      return Object.freeze(items)
+      return Object.freeze([...items.values()])
     },
 
     recoverOwned(scope, access, known) {

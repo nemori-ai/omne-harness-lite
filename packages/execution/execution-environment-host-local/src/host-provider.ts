@@ -625,6 +625,12 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         evidence: { kind: 'object', entries: [unit, ...states] },
       }
     },
+    async retainedProcesses(scope, tenant) {
+      // Without an index (not Linux, or no state directory) nothing is retained. The index stays
+      // with its state directory for the other generations: a retired one holds none of it.
+      if (retained === undefined || retired) return []
+      return retained.list(scope, tenant)
+    },
     async retire(): Promise<Retirement> {
       retired = true
       // Retained processes belong to their retention scopes: this generation only stops reading them.

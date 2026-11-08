@@ -323,7 +323,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 `observeRetained(访问身份, 保留范围)` 列出一个保留范围里的保留进程，不经过任何获取。它给观察者使用：观察者不发起执行，没有自己的获取，只需要知道某个保留范围里还有哪些保留进程。
 
 - 入口核对与 `describe` 相同：先核访问身份的租户是铸造的值，再请环境授权端口判断动作 `observe-retained`，再由可信绑定来源确认保留范围已绑定、租户等于访问身份的租户。答复的映射见[访问核验](#访问核验)。
-- 条目与 `list` 相同。执行环境向每个提供保留进程观察的提供者读一次完整列表并合并。任何一个提供者读不全时，整体答 `Rejected(unavailable)`，从不交出部分列表。
+- 条目与 `list` 相同。执行环境向每个提供保留进程观察的提供者读一次完整列表并合并。几个提供者（例如同一提供者同时在册的两代）列出同一保留进程（引用的 `id` 与 `generation` 都相同）时，合并的列表里它只出现一次。任何一个提供者读不全时，整体答 `Rejected(unavailable)`，从不交出部分列表。
 - 只给列表元数据。它不分配获取，不使用恢复授权，不复用别的调用的获取，也不授予执行、读输出或停止的权限。
 - 观察者被撤销或替换只撤销观察，不停止任何保留进程。
 
@@ -664,7 +664,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 | V-EE29 | 段的完成由静默或屏幕判定；读到暂时无数据就交出段结果，使本段前台字节落到段外；段间字节丢失或混入段内输出；终端因后台进程而失效；关闭终端后仍有进程活着（[终端段的完成与字节归属](#终端段的完成与字节归属)；模型 [TerminalSegments](verification/models/README.md#terminalsegments)） |
 | V-EE30 | 保留进程的 `stop` 未经监督者确认就答 `confirmed`；对别的保留范围或别的租户的引用答出存在性或停止了它；对同一保留进程的重复 `stop` 发出第二次停止；已停止的保留进程在收场事实保存期间答 `notFound`；资格读不到时仍发出停止（[停止](#停止)；模型 `Stop`） |
 | V-EE31 | `output` 交出移交之前的字节；偏移、丢弃数与字节数不满足 `start + data 的长度 = end`，或没有 `from` 时 `start` 不等于 `savedFrom + discardedBytes`；以字符数代替字节数；对别的保留范围或别的租户的引用交出内容；提供者重启后答出空尾部而不是 `unavailable`（[输出](#输出)） |
-| V-EE32 | `observeRetained` 不经环境授权就列出；一个提供者读不全时交出部分列表；列出别的保留范围或别的租户的保留进程；观察分配了获取或改变了保留进程的状态（[按保留范围观察](#按保留范围观察)） |
+| V-EE32 | `observeRetained` 不经环境授权就列出；一个提供者读不全时交出部分列表；同一保留进程在合并的列表里出现两次；列出别的保留范围或别的租户的保留进程；观察分配了获取或改变了保留进程的状态（[按保留范围观察](#按保留范围观察)） |
 
 `./testing` 的两个套件把部分义务写成可运行用例，用例名以义务编号为前缀。V-EE23 至 V-EE26 的用例如下；其余反例仍需机制成员、提供者与真实集成方的组合证据。套件用替身端口，不证明真实授权、真实绑定来源或耐久。`./testing` 另有内存文件设施与脚本命令设施两个替身。它们只证明契约形状与判据，不证明真实进程、文件系统、授予根核对或隔离。
 
@@ -676,7 +676,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 | V-EE26 | `recovery-settles-acquisitions-without-claiming-release`                                                | `list-includes-open-acquisition`                                                                          |
 | V-EE27 | 无                                                                                                      | 无；宿主文件的冷恢复见下方缺项                                                                            |
 
-V-EE28 另有命令保留套件 `commandRetentionConformance`，用例为 `V-EE28.clean-exit-reports-none`、`V-EE28.leftover-is-retained-and-listed`、`V-EE28.list-stays-in-scope-and-tenant`、`V-EE28.handle-stop-after-handover-is-unconfirmed`、`V-EE28.scope-close-stops-retained` 与 `V-EE28.no-ledger-stops-with-reason`。它覆盖处置结果的形状、`list` 不跨保留范围与租户、移交与句柄停止互斥、范围封闭停止保留进程。同一套件另有 V-EE30 与 V-EE31 的用例，名字以义务编号为前缀，覆盖 `stop` 的资格与答复、重复停止合流、收场事实之后答 `confirmed`、没有 `ended` 时答 `unavailable`，以及 `output` 的尾部关系与范围核对。V-EE32 的用例在公开执行环境套件里，覆盖观察入口的授权与「完整或不可用」。套件不覆盖容量、读数未知与提供者重启。
+V-EE28 另有命令保留套件 `commandRetentionConformance`，用例为 `V-EE28.clean-exit-reports-none`、`V-EE28.leftover-is-retained-and-listed`、`V-EE28.list-stays-in-scope-and-tenant`、`V-EE28.handle-stop-after-handover-is-unconfirmed`、`V-EE28.scope-close-stops-retained` 与 `V-EE28.no-ledger-stops-with-reason`。它覆盖处置结果的形状、`list` 不跨保留范围与租户、移交与句柄停止互斥、范围封闭停止保留进程。同一套件另有 V-EE30 与 V-EE31 的用例，名字以义务编号为前缀，覆盖 `stop` 的资格与答复、重复停止合流、收场事实之后答 `confirmed`、没有 `ended` 时答 `unavailable`，以及 `output` 的尾部关系与范围核对。V-EE32 的用例在公开执行环境套件里，覆盖观察入口的授权、合并去重与「完整或不可用」。套件不覆盖容量、读数未知与提供者重启。
 
 ### 明确缺项
 
