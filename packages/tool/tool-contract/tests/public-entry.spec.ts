@@ -83,6 +83,7 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'judgeConsumerRef',
     'judgeFixedToolRequest',
     'judgeHandoff',
+    'judgeHistoricalFixedToolRequest',
     'judgeImplementationFacts',
     'judgePreparationFact',
     'judgeToolArguments',

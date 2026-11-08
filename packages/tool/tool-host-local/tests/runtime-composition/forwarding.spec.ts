@@ -6,11 +6,11 @@ it('forwards through the real executor binding at resource concurrency one and r
   try {
     for (let i = 0; i < 4; i++) {
       const parent = accepted(await world.api.invoke(world.forwardInvocation(`parent-${i}`)))
-      await world.settled(parent)
+      await world.settledState(parent)
       const answer = world.forwarded[i]
       expect(answer).toMatchObject({ kind: 'pending', parent })
       if (answer?.kind !== 'pending') throw new Error(JSON.stringify(answer))
-      await world.settled(answer.reference)
+      await world.settledState(answer.reference)
       expect(world.launches()).toBe(i + 1)
       await expect.poll(() => world.plugins.diagnostics().executor?.knownCalls).toBe(0)
       expect(world.plugins.diagnostics().executor?.pacedDeliveries).toBe(0)
@@ -29,7 +29,7 @@ it('reports unavailable at host capacity one without running a target effect', a
   const world = await fixture(undefined, undefined, 1, true)
   try {
     const parent = accepted(await world.api.invoke(world.forwardInvocation('capacity-one')))
-    await world.settled(parent)
+    await world.settledState(parent)
     expect(world.forwarded).toMatchObject([
       { kind: 'rejected', failure: { kind: 'unavailable', dependency: 'tool-executor' } },
     ])
@@ -53,10 +53,10 @@ it('does not run a forwarded target when its current policy denies after prepara
   })
   try {
     const parent = accepted(await world.api.invoke(world.forwardInvocation('policy-target')))
-    await world.settled(parent)
+    await world.settledState(parent)
     const answer = world.forwarded[0]
     if (answer?.kind !== 'pending') throw new Error(JSON.stringify(answer))
-    await world.settled(answer.reference)
+    await world.settledState(answer.reference)
     expect(targetChecks).toBeGreaterThanOrEqual(3)
     expect(world.launches()).toBe(0)
     expect(unbox(await world.api.queries.lookup(world.query(answer.reference)))).toMatchObject({
@@ -79,7 +79,7 @@ it('continues a slow accepted preparation after the parent finishes and drains t
   try {
     const parent = accepted(await world.api.invoke(world.forwardInvocation('slow-preparation')))
     await entered.promise
-    await world.settled(parent)
+    await world.settledState(parent)
     expect(world.forwarded).toEqual([{ kind: 'association-unknown', parent }])
     expect((await world.plugins.forwarding()?.resume(world.query(parent)))?.kind).toBe(
       'association-unknown',
@@ -95,7 +95,7 @@ it('continues a slow accepted preparation after the parent finishes and drains t
     await expect(closing).resolves.toEqual({ pending: 0, unknown: 0 })
     const resumed = await world.plugins.forwarding()?.resume(world.query(parent))
     if (resumed?.kind !== 'accepted') throw new Error(JSON.stringify(resumed))
-    await world.settled(resumed.reference)
+    await world.settledState(resumed.reference)
     expect(world.launches()).toBe(1)
     const again = await world.plugins.forwarding()?.resume(world.query(parent))
     expect(again).toMatchObject({ kind: 'accepted', reference: resumed.reference, recovered: true })

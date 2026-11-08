@@ -1,3 +1,4 @@
+import type { HistoricalDefinition } from './historical-request.ts'
 // The closed judgment of a Tool definition (P02, P13, P15).
 import { capabilityId } from '@omne-harness/assets'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -244,7 +245,7 @@ const metadataOptional = { programmable: bool }
 export const implementationDeclaration: Check<ToolImplementationDeclaration> =
   record(declarationFields)
 
-const command = record({
+const commandFields = {
   name: commandName,
   summary: commandSummary,
   parameters: variant('kind', {
@@ -252,7 +253,8 @@ const command = record({
     'executor-owned': record({ kind: literal('executor-owned') }),
   }),
   returns: returnDeclaration,
-})
+}
+const command = record(commandFields)
 
 const functionShapeFields = {
   kind: literal('function'),
@@ -269,7 +271,10 @@ const commandsShapeOptional = { guide: nonBlank }
 
 /** A flat call shares its object with the fields, so no command may declare `command` itself. */
 function flatCallable<
-  T extends Readonly<{ encoding: string; commands: readonly ToolCommandDeclaration[] }>,
+  T extends Readonly<{
+    encoding: string
+    commands: readonly Pick<ToolCommandDeclaration, 'name' | 'parameters'>[]
+  }>,
 >(check: Check<T>): Check<T> {
   return refine(check, (value, at) => {
     if (value.encoding !== 'flat') return undefined
@@ -286,6 +291,31 @@ export const toolDefinition: Check<ToolDefinition> = variant('kind', {
   commands: flatCallable(
     record(
       { ...metadataFields, ...commandsShapeFields },
+      { ...metadataOptional, ...commandsShapeOptional },
+    ),
+  ),
+})
+
+const historicalReturns = record({
+  kind: literal('ordinary', 'structured'),
+  program: programDeclaration,
+})
+export const historicalToolDefinition: Check<HistoricalDefinition> = variant('kind', {
+  function: record(
+    { ...metadataFields, ...functionShapeFields, returns: historicalReturns },
+    metadataOptional,
+  ),
+  commands: flatCallable(
+    record(
+      {
+        ...metadataFields,
+        ...commandsShapeFields,
+        commands: unique(
+          nonEmpty(list(record({ ...commandFields, returns: historicalReturns }))),
+          entry => entry.name,
+          'name',
+        ),
+      },
       { ...metadataOptional, ...commandsShapeOptional },
     ),
   ),

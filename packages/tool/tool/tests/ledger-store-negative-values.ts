@@ -167,7 +167,7 @@ export function stateUsesDomainRevision(): ToolLedgerStoreFixture {
       ? {
           ...read,
           records: read.records.map(record =>
-            record.kind === 'call'
+            record.kind === 'call' && record.call.requestFormat !== 'historical-result'
               ? {
                   ...record,
                   call: {

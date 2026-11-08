@@ -588,6 +588,7 @@ export async function fixture(
     },
   })
   await authorFiber
+  const consumedResults: ToolDelivery<ToolMessageContentBlock>[] = []
   const defaultReceiver: ToolResultReceiver<unknown, ToolMessageContentBlock> = {
     async push(value) {
       deliveries.push(structuredClone(value.delivery))
@@ -603,7 +604,14 @@ export async function fixture(
       name: `consumer-${deliveries.length}`,
       inject: ['toolRuntime'],
       apply(ctx: Context) {
-        ctx.toolRuntime.registerResultReceiver('consumer', receiver ?? defaultReceiver)
+        const capture: ToolResultReceiver<unknown, ToolMessageContentBlock> = {
+          async push(value) {
+            const outcome = await (receiver ?? defaultReceiver).push(value)
+            if ('ok' in outcome) consumedResults.push(structuredClone(value.delivery))
+            return outcome
+          },
+        }
+        ctx.toolRuntime.registerResultReceiver('consumer', capture)
       },
     })
   let consumer = receive()
@@ -669,7 +677,7 @@ export async function fixture(
             },
     }
   }
-  async function settled(reference: ToolInvocationRef, tenant = tenantA) {
+  async function settledState(reference: ToolInvocationRef, tenant = tenantA) {
     try {
       await expect
         .poll(
@@ -689,13 +697,36 @@ export async function fixture(
     const found = unbox(await api.queries.lookup(query(reference, tenant)))
     if (found.kind !== 'found' || found.state.phase !== 'settled')
       throw new Error('Missing settlement')
-    return unbox(
-      await api.queries.readResult({
-        ...query(reference, tenant),
-        result: found.state.result,
-        after: null,
-      }),
+    return found.state
+  }
+  async function settled(reference: ToolInvocationRef, tenant = tenantA) {
+    const state = await settledState(reference, tenant)
+    const read = await api.queries.readResult({
+      ...query(reference, tenant),
+      result: state.result,
+      after: null,
+    })
+    if ('ok' in read) return read.ok
+    if (read.failure.kind !== 'not-found' || read.failure.reason !== 'released')
+      throw new Error(JSON.stringify(read.failure))
+    const version = state.result
+    const delivered = consumedResults.findLast(
+      item =>
+        item.kind === 'result' && item.key.reference === reference && item.key.result === version,
     )
+    if (delivered?.kind !== 'result')
+      throw new Error('released result has no consumer receipt in this fixture')
+    return {
+      result: delivered.key.result,
+      terminal: delivered.terminal,
+      effect: delivered.effect,
+      actualTerminal: delivered.actualTerminal,
+      relation: delivered.relation,
+      delivery: delivered.delivery,
+      source: delivered.source,
+      value: delivered.value,
+      next: null,
+    }
   }
   return {
     root,
@@ -741,6 +772,7 @@ export async function fixture(
     streamQuery,
     snapshot,
     settled,
+    settledState,
     async authorLookup(reference: ToolInvocationRef) {
       const { call } = unbox(resolveToolInvocationRef(reference, tenantA))
       const access = { tenant: tenantA, principal: principal(tenantA), call }

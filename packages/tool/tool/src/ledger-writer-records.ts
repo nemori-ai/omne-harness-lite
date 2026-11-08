@@ -1,9 +1,6 @@
+import type { ToolBodyFrame, ToolBodyWriterStatus } from '@omne-harness/tool-contract'
 import type { DurableEvidence, ToolOperationId, ToolStartRecord } from '@omne-harness/tool-contract'
-import type {
-  ToolBodyFrame,
-  ToolBodyWriterStatus,
-  ToolMaterialSeal,
-} from '@omne-harness/tool-contract/provider'
+import type { ToolMaterialSeal } from '@omne-harness/tool-contract/provider'
 import type { BodyPolicy } from './result-offloading.ts'
 
 export type PreparedBodyFrame =

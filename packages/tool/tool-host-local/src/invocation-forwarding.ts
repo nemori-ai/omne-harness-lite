@@ -2,7 +2,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
   isTenantShape,
-  type CallRecord,
+  type CurrentCallRecord,
   type LedgerDomain,
   type ToolSourceGuard,
 } from '@omne-harness/tool'
@@ -188,18 +188,19 @@ export function createInvocationForwarding<P>(
 ) {
   const readParent = async (
     access: Access<P> & { call: ToolForwardBinding['call'] },
-  ): Reply<CallRecord> => {
+  ): Reply<CurrentCallRecord> => {
     if (!isTenantShape(access.tenant)) return denied()
     const read = await input.store.read({ kind: 'call', tenant: access.tenant, call: access.call })
     if (read.kind !== 'complete') return unavailable()
     const row = read.records.find(row => row.kind === 'call')
     return row?.kind === 'call' &&
+      row.call.requestFormat !== 'historical-result' &&
       row.call.call === access.call &&
       same(row.call.tenant, access.tenant)
       ? succeed(row.call)
       : denied()
   }
-  const checkParent = async (parent: ToolForwardParent<P>): Reply<CallRecord> => {
+  const checkParent = async (parent: ToolForwardParent<P>): Reply<CurrentCallRecord> => {
     const read = await readParent(parent)
     if ('failure' in read) return read
     const row = read.ok
@@ -230,7 +231,10 @@ export function createInvocationForwarding<P>(
     if (qualified.kind === 'denied') return denied()
     return qualified.kind === 'allowed' ? succeed(row) : unavailable()
   }
-  const verifyStored = async (access: Access<P>, stored: StoredForward): Reply<CallRecord> => {
+  const verifyStored = async (
+    access: Access<P>,
+    stored: StoredForward,
+  ): Reply<CurrentCallRecord> => {
     const decoded = input.principalCodec.decode(stored.principal)
     if ('failure' in decoded) return unavailable()
     const subject = await input.authority.samePrincipal({

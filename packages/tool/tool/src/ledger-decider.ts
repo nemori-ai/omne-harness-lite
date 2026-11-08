@@ -1,3 +1,6 @@
+import { historicalExecutionUnavailable } from './history-request.ts'
+import type { HistoryMigrationRecord, HistoricalBodyAlias } from './history-contract.ts'
+import type { CurrentCallRecord } from './ledger-store.ts'
 import type {
   WriterRecord,
   WriterScopeRecord,
@@ -84,6 +87,8 @@ import {
 
 /** The records of one domain, indexed for the deciders and the read projections. */
 export type Snapshot = Readonly<{
+  migrations: ReadonlyMap<string, HistoryMigrationRecord>
+  historicalAliases: ReadonlyMap<string, HistoricalBodyAlias>
   writers: ReadonlyMap<string, WriterRecord>
   writerScopes: ReadonlyMap<string, WriterScopeRecord>
   writerAppends: ReadonlyMap<string, WriterAppendRecord>
@@ -118,6 +123,8 @@ export function snapshotOf(
   domain: LedgerDomain,
   read: Extract<LedgerRead, { kind: 'complete' }>,
 ): Snapshot {
+  const migrations = new Map<string, HistoryMigrationRecord>()
+  const historicalAliases = new Map<string, HistoricalBodyAlias>()
   const writers = new Map<string, WriterRecord>()
   const writerScopes = new Map<string, WriterScopeRecord>()
   const writerAppends = new Map<string, WriterAppendRecord>()
@@ -144,6 +151,15 @@ export function snapshotOf(
   const exclusions = new Map<string, ExclusionRecord>()
   for (const record of read.records) {
     switch (record.kind) {
+      case 'history-migration':
+        migrations.set(record.migration.operation, record.migration)
+        break
+      case 'historical-body-alias':
+        historicalAliases.set(
+          JSON.stringify([record.alias.result, record.alias.bodyId]),
+          record.alias,
+        )
+        break
       case 'body-writer':
         writers.set(record.writer.id, record.writer)
         break
@@ -227,6 +243,8 @@ export function snapshotOf(
     }
   }
   return {
+    migrations,
+    historicalAliases,
     writers,
     writerScopes,
     writerAppends,
@@ -420,7 +438,7 @@ export function queueTask(operation: ToolOperationId, basis: DurableEvidence): T
 }
 
 /** A fresh call record: nothing planned, confirmed, started or rejected yet. */
-function callRecord(command: AdmitCommand, state: ToolState): CallRecord {
+function callRecord(command: AdmitCommand, state: ToolState): CurrentCallRecord {
   const { tenant, call, operation, request } = command
   const { source } = request.invocation
   return {
@@ -809,6 +827,7 @@ export function decideRelease(
   }
   const call = snapshot.call
   if (call === null) throw new Error('releaseTarget checked the call record')
+  if (call.requestFormat === 'historical-result') return reply(historicalExecutionUnavailable(call))
   return {
     kind: 'commit',
     writes: [

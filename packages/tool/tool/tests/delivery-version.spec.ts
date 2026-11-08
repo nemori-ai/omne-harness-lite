@@ -44,7 +44,11 @@ async function existingVersions() {
   if (saved.kind !== 'complete') throw new Error('fixture store unreadable')
   const original = saved.records.find(record => record.kind === 'result')
   const callRecord = saved.records.find(record => record.kind === 'call')
-  if (original?.kind !== 'result' || callRecord?.kind !== 'call')
+  if (
+    original?.kind !== 'result' ||
+    callRecord?.kind !== 'call' ||
+    callRecord.call.requestFormat === 'historical-result'
+  )
     throw new Error('fixture records missing')
   const access = {
     principal: principalA,
@@ -202,6 +206,7 @@ describe('16 release isolation on existing version fixtures (P08)', () => {
         'late 1',
         'late 2',
       ])
+      const releasedVersions = new Set<number>()
       for (const index of indexes) {
         const target = f.versions[index]
         const before = await f.current()
@@ -240,7 +245,19 @@ describe('16 release isolation on existing version fixtures (P08)', () => {
         expect(await f.tasks()).toEqual(
           pendingTasks.filter(task => task.operation !== target.settledBy),
         )
-        expect(await Promise.all(f.versions.map(f.read))).toEqual(contents)
+        releasedVersions.add(index)
+        for (const [otherIndex, record] of f.versions.entries()) {
+          const page = await f.assembly.runtime.queries.readResult({
+            ...f.access,
+            result: record.result,
+            after: null,
+          })
+          expect(page).toEqual(
+            releasedVersions.has(otherIndex)
+              ? { failure: { kind: 'not-found', target: 'result', reason: 'released' } }
+              : { ok: contents[otherIndex] },
+          )
+        }
         expect(await f.assembly.runtime.commands.releaseDelivery(input)).toEqual(outcome)
         expect(f.assembly.store.commits).toBe(commits + 1)
       }

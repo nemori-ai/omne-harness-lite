@@ -1,3 +1,5 @@
+import { historicalExecutionUnavailable } from './history-request.ts'
+import type { CurrentCallRecord } from './ledger-store.ts'
 import { createLedgerBodyWrites } from './ledger-body-writer.ts'
 import type { ToolBodyWrites } from '@omne-harness/tool-contract/provider'
 import { authorBody } from './ledger-author-body.ts'
@@ -409,14 +411,18 @@ export function createToolLedger<P, B extends ContentBlock>(
     snapshot.operations.has(operation)
 
   /** The call of a pre-read, or the failure the transaction would give for its absence. */
-  const recordOf = (snapshot: Snapshot): Outcome<CallRecord, ToolFailure> =>
-    snapshot.call === null ? invalid('call', 'unknown-call') : succeed(snapshot.call)
+  const recordOf = (snapshot: Snapshot): Outcome<CurrentCallRecord, ToolFailure> => {
+    const call = snapshot.call
+    if (call === null) return invalid('call', 'unknown-call')
+    if (call.requestFormat === 'historical-result') return historicalExecutionUnavailable(call)
+    return succeed(call)
+  }
 
   /** The gate a cross-domain command checks on its pre-read, before it touches the queue. */
   const preGate = (
     snapshot: Snapshot,
     context: WriteEntry<P>,
-  ): Outcome<CallRecord, ToolFailure> => {
+  ): Outcome<CurrentCallRecord, ToolFailure> => {
     const record = recordOf(snapshot)
     if ('failure' in record) return record
     if (stateRevision(snapshot) !== context.expected)
@@ -673,7 +679,7 @@ export function createToolLedger<P, B extends ContentBlock>(
    */
   const releaseQueue = async (
     context: WriteEntry<P>,
-    record: CallRecord,
+    record: CurrentCallRecord,
     state: ToolState,
   ): Reply<ToolState> => {
     if (state.phase !== 'settled' || record.request.availability.kind !== 'available')
@@ -1442,6 +1448,8 @@ export function createToolLedger<P, B extends ContentBlock>(
       if ('failure' in snapshot) return snapshot
       const record = resultRecord(snapshot.ok, fixed.ok.result)
       if ('failure' in record) return record
+      if (record.ok.delivery.kind === 'released')
+        return fail({ kind: 'not-found', target: 'result', reason: 'released' })
       const value = await resultValue(fixed.ok, record.ok)
       if ('failure' in value) return value
       const page = readResultPage(

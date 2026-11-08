@@ -90,17 +90,17 @@ describe('16 delivery release (P08)', () => {
     expect(judged(found.state)).toMatchObject({ phase: 'settled', result: 'v1' })
     expect(judged(found.state).delivery).toEqual(released)
     expect(invoked.state.delivery).toEqual(before.state.delivery)
-    // The full text stays readable after the release.
-    const page = ok(
-      await assembly.runtime.queries.readResult({
+    await expect(
+      assembly.runtime.queries.readResult({
         principal: principalA,
         tenant: tenantA,
         reference: assembly.referenceOf('call-1'),
         result: 'v1' as ToolResultVersion,
         after: null,
       }),
-    )
-    expect(page.value.content.map(textOf).join('')).toContain('tool unavailable')
+    ).resolves.toMatchObject({
+      failure: { kind: 'not-found', target: 'result', reason: 'released' },
+    })
   })
 
   it('16 release: one commit releases the result, records the receipt and the state, and removes the deliver task', async () => {
@@ -283,7 +283,7 @@ describe('16 delivery release (P08)', () => {
     { path: 'retained', proof: retained, fault: 'unknown-applied' },
     { path: 'processed', proof: processed, fault: 'unknown-applied' },
   ] as const)(
-    '16 release: $path recognises the original operation after $fault without losing delivery or content',
+    '16 release: $path recognises the original operation after $fault without losing the receipt or retaining released content',
     async ({ proof, fault }) => {
       const assembly = harness()
       const invoked = await assembly.runtime.invoke({
@@ -346,7 +346,11 @@ describe('16 delivery release (P08)', () => {
       if (found.kind !== 'found' || found.state.phase !== 'settled')
         throw new Error('lost the settled call')
       expect(found.state.result).toBe(invoked.state.result)
-      expect(ok(await assembly.runtime.queries.readResult(readInput))).toEqual(originalPage)
+      expect(await assembly.runtime.queries.readResult(readInput)).toEqual(
+        fault === 'unknown-dropped'
+          ? { ok: originalPage }
+          : { failure: { kind: 'not-found', target: 'result', reason: 'released' } },
+      )
 
       const saved = await assembly.store.read({ kind: 'call', tenant: tenantA, call })
       if (saved.kind !== 'complete') throw new Error('fixture store unreadable')
@@ -397,7 +401,9 @@ describe('16 delivery release (P08)', () => {
       const final = ok(await assembly.runtime.queries.lookup(access))
       expect(final).toMatchObject({ kind: 'found', state: { delivery: released } })
       expect(await tasks()).toEqual([])
-      expect(ok(await assembly.runtime.queries.readResult(readInput))).toEqual(originalPage)
+      expect(await assembly.runtime.queries.readResult(readInput)).toEqual({
+        failure: { kind: 'not-found', target: 'result', reason: 'released' },
+      })
       expect(ok(await assembly.runtime.queries.queryOperation(query))).toEqual(resolution)
       const commits = assembly.store.commits
       expect(await assembly.runtime.commands.releaseDelivery(input)).toEqual({

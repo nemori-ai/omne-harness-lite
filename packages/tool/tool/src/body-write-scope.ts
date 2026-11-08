@@ -1,8 +1,8 @@
+import type { ToolBodyWriter } from '@omne-harness/tool-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { decodeToolOperationId, type ToolOperationId } from '@omne-harness/tool-contract'
 import type {
   ToolAuthorLimits,
-  ToolBodyWriter,
   ToolBodyWrites,
   ToolBodyWriteInput,
   ToolBodyWriteReply,

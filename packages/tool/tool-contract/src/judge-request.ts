@@ -1,3 +1,4 @@
+import type { HistoricalFixedToolRequest } from './historical-request.ts'
 // The closed judgment of a fixed request (342 values, definitions and the fixed request; P02).
 import { decodeScopeRef, type ScopeRef } from '@omne-harness/runtime-context-contract'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
@@ -10,7 +11,11 @@ import type {
 } from './definitions.ts'
 import type { ToolInvokeRequest } from './operations.ts'
 import { canonicalJsonText } from './dynamics.ts'
-import { environmentDeclaration, toolDefinition } from './judge-definition.ts'
+import {
+  environmentDeclaration,
+  toolDefinition,
+  historicalToolDefinition,
+} from './judge-definition.ts'
 import { toolArguments } from './parameter-codec.ts'
 import {
   filled,
@@ -43,19 +48,22 @@ const nonNegativeSafeInteger: Check<number> = (value, at) => {
   return Number.isSafeInteger(value) && value >= 0 ? succeed(value) : reject(at, 'range')
 }
 
-const availability: Check<ToolAvailability> = variant('kind', {
-  available: record({
-    kind: literal('available'),
-    definition: toolDefinition,
-    executor: adoption,
-    layer: sourceLayer,
-  }),
-  'known-unavailable': record({
-    kind: literal('known-unavailable'),
-    definition: toolDefinition,
-    reason: nonBlank,
-  }),
-})
+function availabilityFor<T>(definition: Check<T>) {
+  return variant('kind', {
+    available: record({
+      kind: literal('available'),
+      definition,
+      executor: adoption,
+      layer: sourceLayer,
+    }),
+    'known-unavailable': record({
+      kind: literal('known-unavailable'),
+      definition,
+      reason: nonBlank,
+    }),
+  })
+}
+const availability: Check<ToolAvailability> = availabilityFor(toolDefinition)
 
 const invocation: Check<ToolInvocation> = record({
   kind: literal('direct', 'programmatic'),
@@ -105,8 +113,13 @@ const callerFields = {
  * The command of a request selects one operation of the definition (P13). A function tool takes
  * no command. A multi-command tool needs a named command that it declares.
  */
+type RequestDefinition = Pick<ToolDefinition, 'declarations'> &
+  (
+    | Readonly<{ kind: 'function' }>
+    | Readonly<{ kind: 'commands'; commands: readonly Readonly<{ name: string }>[] }>
+  )
 function commandRule(
-  definition: ToolDefinition,
+  definition: RequestDefinition,
   command: string | null,
   at: string,
 ): ShapeRejection | undefined {
@@ -118,7 +131,11 @@ function commandRule(
   return known ? undefined : { field, reason: 'unknown-command' }
 }
 
-function requestRule(request: ToolInvokeRequest, at: string): ShapeRejection | undefined {
+function requestRule(
+  request: Omit<ToolInvokeRequest, 'availability'> &
+    Readonly<{ availability: Readonly<{ definition: RequestDefinition }> }>,
+  at: string,
+): ShapeRejection | undefined {
   const declared = request.availability.definition.declarations.environment
   const fixed = request.environment
   const matches =
@@ -162,4 +179,22 @@ export function judgeToolInvokeRequest(
   value: unknown,
 ): Outcome<ToolInvokeRequest, Readonly<{ field: string; reason: string }>> {
   return judgeUnknown(invokeToolRequest, value, 'ToolInvokeRequest')
+}
+
+/** The pre-W3 declaration is accepted only by this maintenance decoder, never by invocation admission. */
+export function judgeHistoricalFixedToolRequest(
+  value: unknown,
+): Outcome<HistoricalFixedToolRequest, ShapeRejection> {
+  return judgeUnknown(
+    refine(
+      record({
+        ...callerFields,
+        availability: availabilityFor(historicalToolDefinition),
+        invocation,
+      }),
+      requestRule,
+    ),
+    value,
+    'HistoricalFixedToolRequest',
+  )
 }

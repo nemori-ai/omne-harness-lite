@@ -1,3 +1,4 @@
+import { historicalExecutionUnavailable } from './history-request.ts'
 // Pure custody decisions. A batch advances only with its complete facts and downstream duties.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -16,7 +17,7 @@ import { sameFactValue, factTaskOperation, mintEvidence } from './evidence.ts'
 import { put, reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
 import {
   factKey,
-  type CallRecord,
+  type CurrentCallRecord,
   type FactEventRecord,
   type LedgerWrite,
   type SavedFact,
@@ -124,7 +125,7 @@ type EventPlan = Readonly<{
   fresh: readonly FactEventRecord[]
   writes: readonly LedgerWrite[]
 }>
-function factPlace(call: CallRecord, batch: Pick<FactBatch, 'start' | 'source'>) {
+function factPlace(call: CurrentCallRecord, batch: Pick<FactBatch, 'start' | 'source'>) {
   return {
     tenant: call.tenant,
     call: call.call,
@@ -134,7 +135,7 @@ function factPlace(call: CallRecord, batch: Pick<FactBatch, 'start' | 'source'>)
 }
 function planEvents(
   snapshot: Snapshot,
-  call: CallRecord,
+  call: CurrentCallRecord,
   batch: StoredFactBatch,
   mint: Mint,
 ): Outcome<EventPlan, ToolFailure> {
@@ -202,6 +203,7 @@ export function checkFactBatch(
 ): Outcome<FactReceipt | null, ToolFailure> {
   const call = snapshot.call
   if (call === null) return invalid('call', 'unknown-call')
+  if (call.requestFormat === 'historical-result') return historicalExecutionUnavailable(call)
   if (
     call.start === null ||
     !sameFactValue(start, batch.start) ||
@@ -261,6 +263,7 @@ export function decideReceiveFacts(
   if (checked.ok !== null) return reply(succeed(checked.ok))
   const call = snapshot.call
   if (call === null) return reply(invalid('call', 'unknown-call'))
+  if (call.requestFormat === 'historical-result') return reply(historicalExecutionUnavailable(call))
   const events = planEvents(snapshot, call, batch, mint)
   if ('failure' in events) return reply(events)
   const writes = [...events.ok.writes]
@@ -271,7 +274,7 @@ export function decideReceiveFacts(
 }
 
 function commitBatch(
-  call: CallRecord,
+  call: CurrentCallRecord,
   batch: StoredFactBatch,
   mint: Mint,
   writes: LedgerWrite[],

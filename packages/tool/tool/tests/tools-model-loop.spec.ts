@@ -143,7 +143,7 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
     expect(host.sourceExecutions()).toBe(1)
   })
 
-  it('retains visible credentials after delivery release and adapter reconstruction', async () => {
+  it('reports released for result-bound attachment reads after delivery and adapter reconstruction', async () => {
     const host = await modelHost()
     const model = new PagingModel((await host.call('help', {})).view)
     const initial = await host.present()
@@ -152,11 +152,9 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
     expect((await host.release()).kind).toBe('released')
     host.rebuild()
     const rebuilt = await host.present()
-    expect(modelField(rebuilt, 'reference')).toBe(modelField(initial, 'reference'))
-    expect(modelField(rebuilt, 'next')).toBe(modelField(initial, 'next'))
+    expectFailure(rebuilt, 'not-found (result: released)')
     const reply = await host.call('read_result', next)
-    expect(modelField(reply.view, 'reading')).toBe('success')
-    expect(modelField(reply.view, 'reference')).toBe(modelField(initial, 'reference'))
+    expectFailure(reply.view, 'not-found (result: released)')
     expect(host.sourceExecutions()).toBe(1)
   })
 

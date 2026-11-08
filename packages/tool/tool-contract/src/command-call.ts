@@ -310,7 +310,9 @@ export function describeCommandArgumentsRejection(
 }
 
 /** Whether a flat definition declares a field that the call itself uses. */
-export function flatConflict(commands: readonly ToolCommandDeclaration[]): string | undefined {
+export function flatConflict(
+  commands: readonly Pick<ToolCommandDeclaration, 'name' | 'parameters'>[],
+): string | undefined {
   for (const command of commands) {
     if (command.parameters.kind === 'executor-owned') return command.name
     const properties = member(command.parameters.value.schema, 'properties')

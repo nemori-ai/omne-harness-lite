@@ -303,7 +303,9 @@ describe('original final settlement in one shared driver', () => {
         }),
       ).toMatchObject({ kind: 'released' })
       expect((await f.load(first.call)).tasks.some(task => task.kind === 'deliver')).toBe(false)
-      expect(ok(await f.h.runtime.queries.readResult({ ...read, after: null }))).toEqual(original)
+      expect(await f.h.runtime.queries.readResult({ ...read, after: null })).toMatchObject({
+        failure: { kind: 'not-found', target: 'result', reason: 'released' },
+      })
       expect(f.h.binding.executions.filter(call => call === first.call)).toHaveLength(1)
     } finally {
       resumed.resolve()
@@ -334,7 +336,8 @@ describe('original final settlement in one shared driver', () => {
     const before = await f.h.memory.read(domain)
     if (before.kind !== 'complete') throw new Error('unreadable fixture')
     const call = before.records.find(record => record.kind === 'call')
-    if (call?.kind !== 'call') throw new Error('missing call')
+    if (call?.kind !== 'call' || call.call.requestFormat === 'historical-result')
+      throw new Error('missing call')
     expect(
       await f.h.memory.commit({
         domain,

@@ -129,7 +129,8 @@ export function beginWriter<P>(
   const refusal = newAdmission(snapshot, input.start)
   if (refusal !== null) return reply(succeed(fail(refusal)))
   if (operationUsed(snapshot, input.operation)) return reject('conflict', 'operation already used')
-  if (snapshot.call === null) return reject('invalid', 'original call required')
+  if (snapshot.call === null || snapshot.call.requestFormat === 'historical-result')
+    return reject('invalid', 'current original call required')
   const policy = resultBodyPolicy(
     snapshot.call.request,
     configuration.offloading,

@@ -114,3 +114,8 @@ export { createLocalToolForwarding } from './tool-forwarding.ts'
 export type { LocalToolForwarding, LocalToolForwardingInput } from './tool-forwarding.ts'
 
 export { TOOL_FORWARDING_OWNER } from './invocation-forwarding.ts'
+export {
+  createLocalHistoricalDeliveryMaintenance,
+  type HistoricalDeliveryCommit,
+  type HistoricalDeliveryProgress,
+} from './historical-delivery.ts'

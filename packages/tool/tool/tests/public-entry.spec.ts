@@ -17,11 +17,13 @@ function forbidden(specifier: string): boolean {
 it('root entry exports the independent execution functions, the ledger, the runtime factory and the two host-record checks', () => {
   expect(Object.keys(tool).sort()).toEqual([
     'canonicalDigest',
+    'checkToolResultBody',
     'createIndependentToolScope',
     'createToolBodyScope',
     'createToolDriver',
     'createToolFactAcknowledgementGuard',
     'createToolForwardRuntime',
+    'createToolHistoryMigration',
     'createToolLedger',
     'createToolMaterialMaintenance',
     'createToolMessageResultCodec',
@@ -30,6 +32,7 @@ it('root entry exports the independent execution functions, the ledger, the runt
     'createToolRuntimeFacade',
     'encodeToolMaterial',
     'executeTool',
+    'hasCurrentToolLedgerRecordFormat',
     'isTenantShape',
     'recordKey',
     'toolLedgerAdoption',

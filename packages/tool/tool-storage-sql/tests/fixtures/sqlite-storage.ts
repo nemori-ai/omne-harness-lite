@@ -40,8 +40,10 @@ import readMaterial from '../../src/worker/read-material.ts'
 import readChunk from '../../src/worker/read-chunk.ts'
 import readLedger from '../../src/worker/read-ledger.ts'
 import readManifest from '../../src/worker/read-manifest.ts'
+import readHistory from '../../src/worker/read-history.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
+  readHistory,
   readLedger,
   readManifest,
   readChunk,

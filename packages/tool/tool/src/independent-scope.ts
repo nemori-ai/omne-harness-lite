@@ -1,3 +1,4 @@
+import type { ToolBodyWriter } from '@omne-harness/tool-contract'
 // The independent execution scope (G2, P11): a local output ledger, one logical wait at a time,
 // cancellation through the given signal and the return barrier. It creates no ToolCall and
 // promises no durability; a success receipt is `local`.
@@ -8,7 +9,6 @@ import type {
   IndependentToolScopeInput,
   ToolAskRequest,
   ToolAuthorLimits,
-  ToolBodyWriter,
   ToolEmitReceipt,
   ToolExecutionContext,
   ToolExecutionScope,

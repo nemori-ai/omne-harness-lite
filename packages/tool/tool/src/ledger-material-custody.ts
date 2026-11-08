@@ -206,6 +206,7 @@ export function createLedgerMaterialCustody<P>(
     input: MaterialInput<P>,
     record: MaterialRecord,
     encoded: MaterialBytes,
+    validate: PreparationCheck,
   ): Reply<MaterialRecord> => {
     if (record.state.kind === 'sealed') return succeed(record)
     if (materials === undefined) return unavailable('material provider is not connected')
@@ -218,7 +219,10 @@ export function createLedgerMaterialCustody<P>(
     return transact(
       { kind: 'call', tenant: input.tenant, call: input.call },
       input.operation,
-      async snapshot => recordSeal(snapshot, record, seal.ok),
+      async snapshot => {
+        const allowed = validate(snapshot)
+        return 'failure' in allowed ? reply(allowed) : recordSeal(snapshot, record, seal.ok)
+      },
       fail({ kind: 'commit-unknown', operation: input.operation }),
     )
   }
@@ -251,7 +255,7 @@ export function createLedgerMaterialCustody<P>(
         unknown,
       )
       if ('failure' in prepared) return prepared
-      const completed = await sealMaterial(input, prepared.ok, encoded)
+      const completed = await sealMaterial(input, prepared.ok, encoded, validate)
       if ('failure' in completed) return completed
       const sealed = completed.ok
       if (sealed.state.kind !== 'sealed') return conflict(input.operation)

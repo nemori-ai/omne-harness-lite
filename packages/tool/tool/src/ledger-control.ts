@@ -1,3 +1,4 @@
+import { historicalExecutionUnavailable } from './history-request.ts'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   ControlProgress,
@@ -20,7 +21,7 @@ import {
   type Snapshot,
 } from './ledger-decider.ts'
 
-import { taskKey, type CallRecord } from './ledger-store.ts'
+import { taskKey, type CurrentCallRecord } from './ledger-store.ts'
 
 type Command = MutationInput<unknown> & Readonly<{ inputDigest: string }>
 type ControlCommand = Command & Readonly<{ intent: ToolControl; subject: DurableEvidence }>
@@ -32,10 +33,10 @@ type ProgressCommand = Command &
   }>
 
 function withControls(
-  call: CallRecord,
+  call: CurrentCallRecord,
   controls: readonly ControlRecord[],
   mint: Mint,
-): CallRecord {
+): CurrentCallRecord {
   const { source: _source, ...body } = call.state
   const state = { ...body, controls, revision: mint.revision }
   return {
@@ -57,6 +58,7 @@ export function decideControl(
   if (known.ok?.receipt.kind === 'control') return reply(succeed(known.ok.receipt.control))
   const call = snapshot.call
   if (call === null) return reply(invalid('call', 'unknown-call'))
+  if (call.requestFormat === 'historical-result') return reply(historicalExecutionUnavailable(call))
   if (
     command.intent.kind !== 'stop' ||
     call.start === null ||
@@ -149,6 +151,7 @@ export function decideRecordControl(
   if (known.ok?.receipt.kind === 'record-control') return reply(succeed(known.ok.receipt.control))
   const call = snapshot.call
   if (call === null) return reply(invalid('call', 'unknown-call'))
+  if (call.requestFormat === 'historical-result') return reply(historicalExecutionUnavailable(call))
   const original = call.state.controls.find(item => item.operation === command.control)
   if (original === undefined || !sameFactValue(original.source, command.source))
     return reply(invalid('control', 'not-original-control'))
@@ -192,7 +195,7 @@ export function decideRecordControl(
 
 /** A confirmed denial closes only propagation; execution and all other duties remain intact. */
 export function rejectControl(
-  call: CallRecord,
+  call: CurrentCallRecord,
   original: ControlRecord,
   mint: Mint,
 ): Decision<ControlRecord> {

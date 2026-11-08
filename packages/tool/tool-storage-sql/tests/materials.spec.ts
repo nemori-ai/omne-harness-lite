@@ -59,7 +59,7 @@ describe('the materials of the Tool storage', () => {
       ...materials.migrations.map(item => [item.moduleUrl, item.checksum] as const),
       ...materials.readHandlers.map(item => [item.moduleUrl, item.codeDigest] as const),
     ]
-    expect(modules.length).toBe(9)
+    expect(modules.length).toBe(10)
     for (const [url, digest] of modules) {
       expect(url.startsWith('file:')).toBe(true)
       expect(sha256(url)).toBe(digest)
@@ -71,6 +71,7 @@ describe('the materials of the Tool storage', () => {
       materials.readHandlers.map(item => [item.handler, item.ordering]),
     )
     expect(ordering).toEqual({
+      'tool.history.copies': 'domain-serial',
       'tool.material.maintenance': 'domain-serial',
       'tool.material.read': 'domain-serial',
       'tool.ledger.read': 'domain-serial',

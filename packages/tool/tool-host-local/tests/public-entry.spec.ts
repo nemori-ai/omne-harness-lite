@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import * as root from '@omne-harness/tool-host-local'
 import {
   describeImport,
   memberPath,
@@ -8,8 +9,7 @@ import {
   type ModuleKind,
 } from './module-graph.ts'
 
-it('root entry exports the local start coordinator (G5), the host clock (G4), the registry and Catalog (G7), the absent ports and the guard factories (TL-11)', async () => {
-  const root = (await import('@omne-harness/tool-host-local')) as Record<string, unknown>
+it('root entry exports the local start coordinator (G5), the host clock (G4), the registry and Catalog (G7), the absent ports and the guard factories (TL-11)', () => {
   expect(Object.keys(root).sort()).toEqual([
     'INVOCATION_SOURCE_DOMAIN_KEY',
     'PROGRAMMATIC_NOT_IN_M2',
@@ -20,6 +20,7 @@ it('root entry exports the local start coordinator (G5), the host clock (G4), th
     'createEnvironmentResourceLedger',
     'createEnvironmentStateStore',
     'createLocalGrantVerifiers',
+    'createLocalHistoricalDeliveryMaintenance',
     'createLocalInvocationSource',
     'createLocalOperationIdentities',
     'createLocalScheduledEnvironment',
@@ -28,6 +29,7 @@ it('root entry exports the local start coordinator (G5), the host clock (G4), th
     'createLocalTextResults',
     'createLocalToolBindingRegistry',
     'createLocalToolBindings',
+    'createLocalToolBodySchemas',
     'createLocalToolCatalog',
     'createLocalToolClock',
     'createLocalToolControlSubjects',

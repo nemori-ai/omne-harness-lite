@@ -125,6 +125,16 @@ export async function prepareResultChannels<P, B extends ContentBlock>(
       original: { kind: 'offloaded', source, summary: planned.ok.summary },
     }
   }
+  return preserveResultChannels(custody, input, value, body, validate)
+}
+
+export async function preserveResultChannels<P, B extends ContentBlock>(
+  custody: Custody<P>,
+  input: PreparationInput<P>,
+  value: ToolRenderedResult<B>,
+  body: PreparedBody | null,
+  validate: Validation<P>,
+): Promise<Outcome<PreparedResultChannels, ToolFailure>> {
   const encoded = encodeToolMaterial(value)
   if ('failure' in encoded) return encoded
   const slot = async (name: string, part: unknown) => {

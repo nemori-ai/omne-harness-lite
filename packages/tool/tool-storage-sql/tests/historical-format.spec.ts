@@ -6,6 +6,7 @@ import { decodeToolCallId } from '@omne-harness/tool-contract'
 import { openApp, TENANT_A, domainNameOf, textOf, type App } from './fixtures/app.ts'
 import { fixedRequest } from './fixtures/ledger.ts'
 import { encodeToolMaterial } from '@omne-harness/tool'
+import { createSqlToolHistoryLedgerStore } from '../src/index.ts'
 
 // Produced by f1ea8a298's runtime and SQL participant. Only the native-file path is redacted.
 // These are format fixtures, not proof of the original source digest or custody.
@@ -39,10 +40,26 @@ async function stored(fixtures: readonly StoredFixture[]) {
   const domain = { kind: 'call' as const, tenant: TENANT_A, call: call.ok }
   return {
     read: () => app.store.read(domain),
+    history: () => createSqlToolHistoryLedgerStore(app.options).read(domain),
     rows: () =>
       app.sqlite.inspect(domainNameOf(TENANT_A), 'SELECT key, record FROM tl_record ORDER BY key'),
   }
 }
+
+it('exposes unconverted records only through the maintenance store without writing them', async () => {
+  const app = await stored(historical)
+  const before = app.rows()
+  const result = await app.history()
+  expect(result.kind).toBe('complete')
+  if (result.kind !== 'complete') throw new Error('historical read unavailable')
+  expect(result.revision).toBe('1')
+  expect(result.records).toEqual(
+    expect.arrayContaining(historical.map(({ key, record }) => ({ key, record }))),
+  )
+  expect(result.records).toHaveLength(historical.length)
+  await expect(app.read()).resolves.toMatchObject({ kind: 'unavailable' })
+  expect(app.rows()).toEqual(before)
+})
 
 it.each(historical)('refuses a pre-W3 $kind without changing stored bytes', async fixture => {
   const app = await stored([fixture])
@@ -152,3 +169,19 @@ it('refuses a current fact fingerprint around an old inline final result', async
   ])
   await expect(app.read()).resolves.toMatchObject({ kind: 'unavailable' })
 })
+
+it.each(['settled', 'running'])(
+  'accepts marked historical requests only after settlement, phase=%s',
+  async phase => {
+    const original = historical.find(row => row.kind === 'call')!
+    const value = original.record as { kind: 'call'; call: Record<string, unknown> }
+    const record = {
+      kind: 'call',
+      call: { ...value.call, requestFormat: 'historical-result', state: { phase } },
+    }
+    const app = await stored([{ key: original.key, record }])
+    await expect(app.read()).resolves.toMatchObject({
+      kind: phase === 'settled' ? 'complete' : 'unavailable',
+    })
+  },
+)

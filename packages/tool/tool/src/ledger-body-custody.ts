@@ -154,6 +154,7 @@ function prepareBody<P>(
   const call = snapshot.call
   if (
     call === null ||
+    call.requestFormat === 'historical-result' ||
     call.start === null ||
     (call.state.phase !== 'starting' && call.state.phase !== 'running')
   )

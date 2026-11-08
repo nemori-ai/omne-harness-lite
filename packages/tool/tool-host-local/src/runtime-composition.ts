@@ -318,6 +318,12 @@ export function createRuntimeSourceAccess(
       )
         return runtimeUnavailable('invocation-source')
       const call = row.call
+      if (call.requestFormat === 'historical-result')
+        return fail({
+          kind: 'unsupported',
+          adoption: call.request.availability.definition.adoption,
+          reason: 'historical result cannot recover an execution source',
+        })
       const binding = await input.sources.recoverBinding({
         tenant: wake.tenant,
         call: call.call,

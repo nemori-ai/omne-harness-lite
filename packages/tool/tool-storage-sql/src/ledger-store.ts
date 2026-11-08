@@ -14,6 +14,9 @@ import {
   type LedgerRead,
   type LedgerRecord,
   type ToolLedgerStore,
+  type ToolHistoryStoredRecord,
+  type ToolHistoryLedgerRead,
+  type ToolHistoryLedgerStore,
 } from '@omne-harness/tool'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { NotJsonError } from './json.ts'
@@ -25,15 +28,24 @@ import { LEDGER_READ_HANDLER, PROTOCOL } from './worker/schema.ts'
 import { isObject } from './worker/support.ts'
 
 export type SqlToolLedgerStore = ToolLedgerStore & Readonly<{ durability: 'durable' }>
+export type SqlToolHistoryLedgerStore = ToolHistoryLedgerStore & Readonly<{ durability: 'durable' }>
+
+function storedRecordsOf(rows: JsonValue | undefined): ToolHistoryStoredRecord[] | null {
+  if (!Array.isArray(rows)) return null
+  const records: ToolHistoryStoredRecord[] = []
+  for (const row of rows) {
+    if (!isObject(row) || typeof row['key'] !== 'string' || row['record'] === undefined) return null
+    records.push({ key: row['key'], record: row['record'] })
+  }
+  return records
+}
 
 /**
  * Tool owns the format boundary. SQL checks it and the row key before exposing records.
  */
-function recordsOf(rows: JsonValue | undefined): LedgerRecord[] | null {
-  if (!Array.isArray(rows)) return null
+function recordsOf(rows: readonly ToolHistoryStoredRecord[]): LedgerRecord[] | null {
   const records: LedgerRecord[] = []
   for (const row of rows) {
-    if (!isObject(row) || typeof row['key'] !== 'string' || !isObject(row['record'])) return null
     if (!hasCurrentToolLedgerRecordFormat(row['record'])) return null
     // This is a format and key check, not a full validation of each record's fields.
     const record = row['record'] as unknown as LedgerRecord
@@ -43,8 +55,8 @@ function recordsOf(rows: JsonValue | undefined): LedgerRecord[] | null {
   return records
 }
 
-export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToolLedgerStore {
-  const read = async (domain: LedgerDomain): Promise<LedgerRead> => {
+function createStoredLedger(options: SqlToolStorageOptions): SqlToolHistoryLedgerStore {
+  const read = async (domain: LedgerDomain): Promise<ToolHistoryLedgerRead> => {
     const resolved = await resolveTenant(options, domain.tenant)
     if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
     const answer = await options.storage.read({
@@ -60,10 +72,10 @@ export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToo
       )
     const output = answer.output
     const revisionText = isObject(output) ? (output['revision'] ?? null) : undefined
-    const records = isObject(output) ? recordsOf(output['records']) : null
+    const records = isObject(output) ? storedRecordsOf(output['records']) : null
     const revision = decodeToolRevision(revisionText === null ? '0' : revisionText)
     if (records === null || !('ok' in revision))
-      return unavailable('ledger read: invalid domain or unsupported record format')
+      return unavailable('ledger read: invalid stored domain')
     return { kind: 'complete', revision: revision.ok, records }
   }
 
@@ -88,4 +100,23 @@ export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToo
   }
 
   return { durability: 'durable', read, commit }
+}
+
+export function createSqlToolHistoryLedgerStore(
+  options: SqlToolStorageOptions,
+): SqlToolHistoryLedgerStore {
+  return createStoredLedger(options)
+}
+
+export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToolLedgerStore {
+  const stored = createStoredLedger(options)
+  const read = async (domain: LedgerDomain): Promise<LedgerRead> => {
+    const answer = await stored.read(domain)
+    if (answer.kind !== 'complete') return answer
+    const records = recordsOf(answer.records)
+    return records === null
+      ? unavailable('ledger read: invalid domain or unsupported record format')
+      : { kind: 'complete', revision: answer.revision, records }
+  }
+  return { durability: 'durable', read, commit: stored.commit }
 }

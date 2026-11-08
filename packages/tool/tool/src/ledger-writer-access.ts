@@ -1,10 +1,7 @@
+import type { ToolBodyFrame } from '@omne-harness/tool-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Reply, ToolFailure, ToolOperationId } from '@omne-harness/tool-contract'
-import type {
-  ToolBodyWriteFailure,
-  ToolBodyWriteReply,
-  ToolBodyFrame,
-} from '@omne-harness/tool-contract/provider'
+import type { ToolBodyWriteFailure, ToolBodyWriteReply } from '@omne-harness/tool-contract/provider'
 import { judgeEvidenceField, judgeMutationInput, invalid, type CallInput } from './boundary.ts'
 import { fixCleanupFields } from './cleanup-boundary.ts'
 import type { ToolLedgerConfiguration, ToolLedgerPorts } from './construction.ts'
