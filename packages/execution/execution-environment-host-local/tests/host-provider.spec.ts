@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { afterEach, expect, it, vi } from 'vitest'
+import { createDomainIndex, domainReference } from '../src/macos-execution/domain-index.ts'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   acquisitionRef,
@@ -174,11 +175,14 @@ it('declares the host facilities, no isolation, and platform resource recovery a
     provider.generation,
   )
   expect(provider.quotaDomain).toBe('host-files')
-  // Windows has no complete cold index; Linux needs a reachable user manager.
+  // Windows has no complete cold index; Linux needs a reachable user manager; macOS keeps its
+  // index in the state directory, and this provider has none.
+  const complete =
+    process.platform === 'linux'
+      ? await userManagerReachable()
+      : process.platform !== 'win32' && process.platform !== 'darwin'
   expect(await provider.listRecoveryResources?.(scope1)).toEqual(
-    process.platform !== 'win32' && ((await userManagerReachable()) || process.platform !== 'linux')
-      ? { kind: 'listed', resources: [] }
-      : { kind: 'unavailable' },
+    complete ? { kind: 'listed', resources: [] } : { kind: 'unavailable' },
   )
   expect(
     await provider.recover?.({ key: 'r', provider: 'host-files', reference: { kind: 'null' } }),
@@ -1023,16 +1027,61 @@ onLinux(
   },
 )
 
-it('lists the retained terminals where the platform is not Linux', async () => {
+it('lists the retained terminals where the platform is neither Linux, macOS nor Windows', async () => {
   await retentionHost([])
   const domain = createSourceDomain()
   withRetainedTerminals(domain, { listings: [[shellA]] })
+  Object.defineProperty(process, 'platform', { value: 'freebsd', configurable: true })
   const provider = createSourceProvider({ domain, command: { probeRetryMs: 3_600_000 } })
-  Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
   expect(await provider.listRecoveryResources?.(scope1)).toEqual({
     kind: 'listed',
     resources: [shellA],
   })
+  await provider.retire?.()
+})
+
+it('on macOS answers unavailable without a state directory: there is no cold index', async () => {
+  await retentionHost([])
+  const domain = createSourceDomain()
+  withRetainedTerminals(domain, { listings: [[shellA]] })
+  Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
+  const provider = createSourceProvider({ domain, command: { probeRetryMs: 3_600_000 } })
+  expect(await provider.listRecoveryResources?.(scope1)).toEqual({ kind: 'unavailable' })
+  await provider.retire?.()
+})
+
+it('on macOS lists the marked domains of the scope with the retained terminals', async () => {
+  const host = await retentionHost([])
+  const domain = createSourceDomain()
+  withRetainedTerminals(domain, { listings: [[shellA]] })
+  Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
+  const provider = createSourceProvider({
+    domain,
+    stateDirectory: host.state,
+    command: { probeRetryMs: 3_600_000 },
+  })
+  const boot = 'B6C8C544-54F8-4C43-967D-A47FD7BEBA7D'
+  const marked: ManagedResource = {
+    key: retainedKey,
+    provider: provider.name,
+    reference: domainReference(retainedKey, boot, scope1),
+  }
+  const index = createDomainIndex(host.state)
+  const coordinate = { bootId: boot, sessions: [{ sid: 400, start: '1.000001' }] }
+  expect(await index.record(marked, scope1, coordinate)).toBe(true)
+  const elsewhere = {
+    ...marked,
+    key: otherKey,
+    reference: domainReference(otherKey, boot, scopeOf('scope-2')),
+  }
+  expect(await index.record(elsewhere, scopeOf('scope-2'), coordinate)).toBe(true)
+  expect(await provider.listRecoveryResources?.(scope1)).toEqual({
+    kind: 'listed',
+    resources: [marked, shellA],
+  })
+  await writeFile(join(host.state, 'macos-domains', `${foreignKey}.json`), 'torn')
+  expect(await provider.listRecoveryResources?.(scope1)).toEqual({ kind: 'unavailable' })
+  expect(await host.calls()).toEqual([])
   await provider.retire?.()
 })
 

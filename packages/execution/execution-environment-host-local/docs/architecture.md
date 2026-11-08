@@ -25,6 +25,7 @@ Linux 的 `retainedHostTerminalFactory` 在 `host-terminal.ts` 复用原 PTY gat
 | 门进程脚本，不是入口                                    | `src/command-gate.ts`                                           | 命令的门进程，由宿主命令设施按文件路径起                                                                                                      |
 | 门进程脚本导入的模块，不是入口                          | `src/command-gate-core.ts`                                      | 命令门进程不碰 I/O 的判断：请求解析、控制行的动作、数据帧的切分与退出之后的静默判定（不从根入口导出）                                        |
 | 探测程序脚本，不是入口                                  | `src/scope-probe.ts`                                            | 平台前提 P5 与 P6 的探测程序，由平台前提探测按文件路径在探测单元里起                                                                          |
+| 同上                                                    | `src/macos-execution/`                                          | macOS 的命令与终端后端：会话读取程序、冷索引、处置与恢复，见 [macOS 说明](macos-execution.md)（不从根入口导出） |
 | `@omne-harness/execution-environment-host-local/cordis` | `src/cordis.ts`                                                 | Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin`、插件工厂 `createHostFilesPlugin`、空配置 Schema                      |
 
 | 模块                       | 持有的状态                                                                                                                                                                           | 承担的 SPEC 行为                                                                     |
@@ -108,11 +109,11 @@ flowchart LR
 
 ### 八项操作经目录描述符落点
 
-列表、搜索、建目录、删除、移动、复制与批次先打开所需的目录，之后的建、删、改名都经 `/proc/self/fd/<描述符>/<名>`。理由：Node 没有 `openat`，而这条路径由内核按已打开的目录对象解析，目录在核对之后被改名或被换成符号链接，操作仍落在原目录里。按路径字符串再解析一次的做法没有这个性质。在 WSL（Ubuntu 24.04，内核 6.18）上做过原型：目录改名、原名换成指向外部的链接之后，独占新建、`rename`、`mkdir` 都落在改名后的原目录；`link` 到已有名得 `EEXIST`；`O_NOFOLLOW` 打开文件链接得 `ELOOP`；硬链接文件的 `fstat` 链接数为 2，而 `readlink /proc/self/fd/<fd>` 给出根内的路径，所以必须核链接数，不能只看路径。包测试 [host-file-root.spec.ts](../tests/host-file-root.spec.ts) 用 `vi.mock` 在调用之前停住，把目录换成链接，再放行。
+Linux 的列表、搜索、建目录、删除、移动、复制与批次先打开所需的目录，之后的建、删、改名都经 `/proc/self/fd/<描述符>/<名>`。理由：Node 没有 `openat`，而这条路径由内核按已打开的目录对象解析，目录在核对之后被改名或被换成符号链接，操作仍落在原目录里。按路径字符串再解析一次的做法没有这个性质。在 WSL（Ubuntu 24.04，内核 6.18）上做过原型：目录改名、原名换成指向外部的链接之后，独占新建、`rename`、`mkdir` 都落在改名后的原目录；`link` 到已有名得 `EEXIST`；`O_NOFOLLOW` 打开文件链接得 `ELOOP`；硬链接文件的 `fstat` 链接数为 2，而 `readlink /proc/self/fd/<fd>` 给出根内的路径，所以必须核链接数，不能只看路径。包测试 [host-file-root.spec.ts](../tests/host-file-root.spec.ts) 用 `vi.mock` 在调用之前停住，把目录换成链接，再放行。
 
-八项只在 Linux 宿主上实现，依赖平台前提 P2；其他宿主上答 `unavailable`，不另做降级路径。理由：降级路径是另一套没有这条性质的实现，M2 的验收在 Linux（D1 决定记录第 2 条）。代价：Windows 与 macOS 宿主上这八项不可用。
+macOS 后端用同一个 C 进程持有目录描述符，通过 `openat`、`unlinkat`、`renameat` 等公开接口操作。它不把 `/dev/fd` 当成 Linux 的描述符路径。批次在一个辅助进程内固定全部父目录，逐项发布前后与 TypeScript 清单写入握手。机制和前提见 [macOS 文件说明](macos-files.md)。Windows 后端见 [Windows 说明](windows-execution.md)。其他平台答 `unavailable`，不降级为重新解析字符串路径。
 
-`move` 与 `copy` 都靠预先核对加一次系统调用，核对与调用之间名可以被换掉。`remove` 与不覆盖的目录 `move` 的窗口关不上，但效果不出该目录。`commitBatch` 没有多路径原子性，用清单加回执留下可核对的事实：先写清单，再暂存，逐项发布，每发布一项追加回执；`recoverBatch` 只读清单与目标，把「有回执」「字节相同但没有回执」「冲突」分开，因为相同的字节不能证明是这个批次发布的。
+`move` 与 `copy` 都靠预先核对加一次系统调用，核对与调用之间名可以被换掉。`remove` 与 Linux 不覆盖的目录 `move` 的窗口关不上，但效果不出该目录。`commitBatch` 没有多路径原子性，用清单加回执留下可核对的事实：先写清单，再暂存，逐项发布，每发布一项追加回执；`recoverBatch` 只读清单与目标，把「有回执」「字节相同但没有回执」「冲突」分开，因为相同的字节不能证明是这个批次发布的。
 
 ### 宿主文件根不是授予根
 
@@ -196,7 +197,7 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 
 ## 宿主命令机制
 
-本节说明宿主提供者怎样承担 `command`。行为以 SPEC 的[宿主命令与终端](../SPEC.md#宿主命令与终端)为准。设施的协议规则归契约的[设施协议](../../execution-environment-contract/SPEC.md#设施协议)，逐设施的展开见契约内部架构的 [`command`](../../execution-environment-contract/docs/architecture.md#command命令)，协议级流程见契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。`command` 的处置与保留只在 Linux 上兑现。Windows 有一次性命令后端，见 [Windows 说明](windows-execution.md)。`terminal` 的 Linux 路径见[持久终端机制](#持久终端机制)。
+本节说明宿主提供者怎样承担 `command`。行为以 SPEC 的[宿主命令与终端](../SPEC.md#宿主命令与终端)为准。设施的协议规则归契约的[设施协议](../../execution-environment-contract/SPEC.md#设施协议)，逐设施的展开见契约内部架构的 [`command`](../../execution-environment-contract/docs/architecture.md#command命令)，协议级流程见契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。`command` 的处置与保留只在 Linux 上兑现。Windows 有一次性命令后端，见 [Windows 说明](windows-execution.md)。macOS 有一次性命令后端与持久终端后端，见下文 [macOS 的执行域](#macos-的执行域)。`terminal` 的 Linux 路径见[持久终端机制](#持久终端机制)。
 
 `command` 加在已有的宿主提供者上，与 `files` 由同一个提供者声明，不另立宿主提供者。理由：登记表在一层里只选一个提供者。按设施拆成几个宿主提供者时，需要 `files` 加 `command` 的工具在宿主层得不到落点（`missingFacility`）。再加一个合并的提供者，又会有两个提供者同时合格（`ambiguousEnvironment`）。
 
@@ -275,6 +276,27 @@ sequenceDiagram
 
 处置的次序与各项原因见 [SPEC 一次性命令留下的进程的兑现](../SPEC.md#留下的进程的兑现)。
 
+### macOS 的执行域
+
+macOS 上，执行域是 POSIX 会话。提供者以 `detached: true` 起门，门调用 setsid，领一个新会话。终端的 shell 由 node-pty 经 `spawn-helper` 起，领第二个会话。会话成员由一个运行时编译的 C 程序（会话读取程序）读出与停止，停止在连续两次读到空时才确认。每个执行域在 GO 之前把会话坐标写进状态目录里的标记，冷恢复按标记停止。
+
+理由：进程可以用 setsid 离开会话，所以会话不满足封闭收纳，本后端不保留进程，主进程退出之后停止整个会话。无特权时没有可用的封闭收纳：创建 coalition 答 `EPERM`，launchd 的路径依赖私有接口，未被采用。门的协议与 Linux 相同，命令门与终端门复用 `command-gate-core.ts` 与 `terminal-gate-core.ts`。Linux 的 Bash 驱动与分段源码不改动，在 `/bin/bash` 3.2.57 上运行。`host-terminal.ts` 经可注入的 `TerminalPlatform` 接入 macOS，没有注入时是不变的 Linux 实现。
+
+| 模块 | 承担 |
+| --- | --- |
+| `src/macos-execution/native-source.ts` | 会话读取程序的 C 源码，子命令 `members`、`identity`、`children`、`stop` |
+| `src/macos-execution/compile.ts` | 先核对 `xcode-select -p`，再用 `/usr/bin/cc` 把读取程序编译到 `$TMPDIR/omne-macos-execution/<sha256>/` |
+| `src/macos-execution/session.ts` | 调用读取程序，解析答复，读启动身份 `kern.bootsessionuuid`，核对会话首进程的身份，停止记下的执行域 |
+| `src/macos-execution/domain-index.ts` | 冷索引：`<stateDirectory>/macos-domains/<资源键>.json` 的写入、读取、列举与删除，资源引用的读写 |
+| `src/macos-execution/residue.ts` | 处置的判定：`none`，或 `stopping` 与它的原因 |
+| `src/macos-execution/commands.ts` | 每份获取的命令门面：前置检查、启动、身份核对、标记、许可、帧读取、停止与处置 |
+| `src/macos-execution/command-gate.ts` | 命令的门进程脚本，不被导入 |
+| `src/macos-execution/terminal-gate.ts` | 终端的门进程脚本，不被导入 |
+| `src/macos-execution/terminals.ts` | 终端的 `TerminalPlatform`：准入、两个会话的记录、停止与 FIFO 目录的清理 |
+| `src/macos-execution/recovery.ts` | 冷索引的列举与按标记恢复 |
+
+机制、生命周期、前提、已知偏离与平台实验见 [macOS 说明](macos-execution.md)。
+
 ## 持久终端机制
 
 行为归 [SPEC 持久终端](../SPEC.md#持久终端)。现有获取、配额与账本仍由 TS 责任域承担。每终端一个 scope，gate 与 Bash 在其中。每段的输出与终局属于独立的 ProcessHandle，终端身份不随分段改变。
@@ -321,6 +343,7 @@ sequenceDiagram
 | 根入口不导入 Cordis                                                                        | [public-entry.spec.ts](../tests/public-entry.spec.ts)                                                                                                                                                                                                                                                                                           | 新增根入口模块时加入文件清单                                                                                              |
 | 两条块的发布                                                                               | 没有                                                                                                                                                                                                                                                                                                                                            | 随 Runtime Context 生产者插件进入                                                                                         |
 | `command` 的宿主机制                                                                       | [host-command.spec.ts](../tests/host-command.spec.ts)（真实 `systemd-run`、门进程与 `systemctl`，只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行）、[host-command-frames.spec.ts](../tests/host-command-frames.spec.ts)（帧读取、缓冲与确认判断，两个平台）、[host-probe.spec.ts](../tests/host-probe.spec.ts)（改变真实环境后的前提探测）、[scope-cgroup.spec.ts](../tests/scope-cgroup.spec.ts)（统一层级的位置，用文本样本） | 真实的 `failed` 单元状态未验证；Windows 上的 `unavailable` 由派发者在 Windows 复跑；终端验证单列于下行                    |
+| macOS 的 `command` 与 `terminal`（会话、冷索引、处置与停止） | [tests/macos-execution/](../tests/macos-execution/)：快层的 `session.spec.ts`、`domain-index.spec.ts`、`decisions.spec.ts` 在各平台运行；慢层的 `primitives.spec.ts`、`commands.spec.ts`、`terminals.spec.ts`、`terminal-conformance.spec.ts` 只在 macOS 且设了 `OMNE_HOST_MACOS=1` 时运行 | 已知偏离的收敛条件，见 [macOS 说明](macos-execution.md#已知偏离) |
 
 维护规则：
 

@@ -323,14 +323,15 @@ it('reads the recovery authority service on each recovery, and answers unavailab
   expect(await service.releaseScope(scope('scope-1'), recoveryAccess)).toEqual(unavailable)
 
   const authority = await ctx.plugin(Authority)
-  // Recovery authorization succeeds even when Windows cannot enumerate all cold resources.
+  // Recovery authorization succeeds even when Windows, or macOS without a state directory, cannot
+  // enumerate all cold resources.
   expect(await service.recoverOwned(scope('scope-1'), recoveryAccess)).toMatchObject({
     kind: 'recovered',
     stopped: [],
     pending: [],
     unsupported: [],
     unavailable:
-      process.platform === 'win32'
+      process.platform === 'win32' || process.platform === 'darwin'
         ? [
             {
               name: 'host-files',

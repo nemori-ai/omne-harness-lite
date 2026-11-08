@@ -21,11 +21,22 @@
 - [command-gate-core.ts](command-gate-core.ts)：命令门进程不碰 I/O 的判断：请求解析、控制行的动作、数据帧的切分、退出之后的静默判定
 - [scope-probe.ts](scope-probe.ts)：P5 与 P6 的探测程序脚本，在探测单元里运行，不被导入
 - [scope-cgroup.ts](scope-cgroup.ts)：进程在 cgroup v2 统一层级里的位置与单元成员，取自进程从内核读到的报告
+- [macos-execution/](macos-execution/)：macOS 的命令与终端后端，机制见 [macOS 说明](../docs/macos-execution.md)
+  - [native-source.ts](macos-execution/native-source.ts)：会话读取程序的 C 源码，子命令 `members`、`identity`、`children`、`stop`
+  - [compile.ts](macos-execution/compile.ts)：共用编译器，先核对 `xcode-select -p`，再用 `/usr/bin/cc` 编译；会话读取程序缓存于 `$TMPDIR/omne-macos-execution/<sha256>/`，文件辅助程序使用独立的 `omne-macos-files` 缓存
+  - [session.ts](macos-execution/session.ts)：调用会话读取程序并解析答复，启动身份 `kern.bootsessionuuid`，会话首进程的身份核对，停止记下的执行域
+  - [domain-index.ts](macos-execution/domain-index.ts)：冷索引：`<stateDirectory>/macos-domains/` 下的标记，资源引用的读写
+  - [residue.ts](macos-execution/residue.ts)：处置的判定，`none` 或 `stopping` 与它的原因
+  - [commands.ts](macos-execution/commands.ts)：每份获取的命令门面：前置检查、启动、身份核对、标记、许可、帧读取、停止与处置
+  - [command-gate.ts](macos-execution/command-gate.ts)：命令的门进程脚本，领自己的会话，不被导入；复用 `../command-gate-core.ts`
+  - [terminal-gate.ts](macos-execution/terminal-gate.ts)：终端的门进程脚本，领自己的会话，不被导入；复用 `../terminal-gate-core.ts`
+  - [terminals.ts](macos-execution/terminals.ts)：终端的 `TerminalPlatform`：准入、gate 与 shell 两个会话的记录、停止与 FIFO 目录的清理
+  - [recovery.ts](macos-execution/recovery.ts)：冷索引的列举与按标记恢复
 - [cordis.ts](cordis.ts)：`./cordis` 入口：Service 子类、两个声明插件、宿主文件插件与两份配置 Schema
 
 ## 阅读路径
 
-先读[公开接口页](../docs/public-api.md)找到名称与依据。宿主文件读[架构的宿主文件使用](../docs/architecture.md#宿主文件使用)，再读 `host-files.ts`。宿主命令读[架构的宿主命令机制](../docs/architecture.md#宿主命令机制)，再读 `host-command.ts`、`host-scope.ts` 与 `command-gate.ts`；留下的进程再读 `host-retained-processes.ts`。装配读 [Cordis 说明](../docs/cordis.md)，再读 `cordis.ts`。
+先读[公开接口页](../docs/public-api.md)找到名称与依据。宿主文件读[架构的宿主文件使用](../docs/architecture.md#宿主文件使用)，再读 `host-files.ts`。宿主命令读[架构的宿主命令机制](../docs/architecture.md#宿主命令机制)，再读 `host-command.ts`、`host-scope.ts` 与 `command-gate.ts`；留下的进程再读 `host-retained-processes.ts`。macOS 读 [macOS 说明](../docs/macos-execution.md)，再读 `macos-execution/commands.ts` 与 `macos-execution/session.ts`。装配读 [Cordis 说明](../docs/cordis.md)，再读 `cordis.ts`。
 
 - [host-terminal.ts](host-terminal.ts)：终端准入、状态、分段与停止
 - [terminal-control.ts](terminal-control.ts)：有界控制帧与代际核验
@@ -33,3 +44,5 @@
 - [terminal-gate.ts](terminal-gate.ts)：scope 内的持久 Bash 与 PTY 驱动，gate 进程的 I/O 外壳
 - [terminal-gate-core.ts](terminal-gate-core.ts)：gate 不碰 I/O 的判断：消息解析、控制行的分行与上界、驱动与分段源码的文本、段归属的状态机
 - [terminal-sentinels.ts](terminal-sentinels.ts)：PTY 字节流里的段首、段尾哨兵，以及段内字节与段间字节的归属
+
+- [macos-files/](macos-files/)：macOS 文件操作、根身份、P2 探测、辅助进程协议与批次清单握手，见 [macOS 文件说明](../docs/macos-files.md)。

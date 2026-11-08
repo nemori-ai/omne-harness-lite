@@ -7,9 +7,9 @@
 - [README.md](README.md)：测试范围、真实依赖与替身、运行记录与当前缺口
 - [host-file-results.spec.ts](host-file-results.spec.ts)：宿主文件使用的结果
 - [host-files.spec.ts](host-files.spec.ts)：读取范围、查看、新建与预期版本
-- [host-files-unsupported.spec.ts](host-files-unsupported.spec.ts)：非 Linux 宿主与有根而前提不满足时答 `unavailable`
+- [host-files-unsupported.spec.ts](host-files-unsupported.spec.ts)：未支持的宿主与有根而前提不满足时答 `unavailable`
 - [host-file-tree.spec.ts](host-file-tree.spec.ts)：列表、搜索、建目录、删除、移动、复制
-- [host-file-root.spec.ts](host-file-root.spec.ts)：宿主文件根的四类逃逸、竞态与根的身份，只在 Linux
+- [host-file-root.spec.ts](host-file-root.spec.ts)：宿主文件根的四类逃逸、竞态与根的身份，在 Linux 与 macOS
 - [host-file-batch.spec.ts](host-file-batch.spec.ts)：提交批次与恢复批次
 - [host-file-edges.spec.ts](host-file-edges.spec.ts)：宿主文件设施的边界结果与版本一致
 - [host-provider.spec.ts](host-provider.spec.ts)：宿主提供者的事实、经登记表门的账本关闭、退役与退役通知、命令启动前不起进程的拒绝与命令选项的界值、保留进程索引的装配、恢复列举与恢复
@@ -35,6 +35,15 @@
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：服务、端口服务、两个声明插件与宿主文件插件的装载、卸载与恢复，以及插件配置
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口的导出集合与 Cordis 边界
 - [fixtures/](fixtures/index.md)：测试固定输入：假监督工具与假终端门进程脚本
+- [macos-execution/](macos-execution/)：macOS 的命令与终端后端，清单与运行方式见 [README.md](README.md#macos-验证)
+  - [session.spec.ts](macos-execution/session.spec.ts)：会话读取程序的答复，读取失败按未知处理；快层
+  - [domain-index.spec.ts](macos-execution/domain-index.spec.ts)：冷索引的标记，列举要么完整要么答 `unavailable`；快层
+  - [decisions.spec.ts](macos-execution/decisions.spec.ts)：`residue` 的原因、启动请求的检查、前提项名与门的环境；快层
+  - [primitives.spec.ts](macos-execution/primitives.spec.ts)：Π2、fork 下的 Π3、执行域身份、Πt；慢层，只在 macOS
+  - [commands.spec.ts](macos-execution/commands.spec.ts)：真实会话里的一次性命令；慢层，只在 macOS
+  - [terminals.spec.ts](macos-execution/terminals.spec.ts)：真实 PTY 与 Bash 3.2 上的终端；慢层，只在 macOS
+  - [terminal-conformance.spec.ts](macos-execution/terminal-conformance.spec.ts)：契约的终端套件，7 条用例；慢层，只在 macOS
+  - [fixture.ts](macos-execution/fixture.ts)：测试辅助：慢层共用的提供者、账本替身、获取与按进程号的核对
 
 - [host-terminal.spec.ts](host-terminal.spec.ts)：原始字节、控制协议与 Cordis 增量
 - [host-terminal-recovery.spec.ts](host-terminal-recovery.spec.ts)：真实 Linux PTY、分段与新进程资源恢复
@@ -42,3 +51,8 @@
 - [terminal-sentinels.spec.ts](terminal-sentinels.spec.ts)：哨兵的识别与跨块拼接，读缓冲复用时保留的半个哨兵不被覆盖，不起进程
 - [terminal-control.spec.ts](terminal-control.spec.ts)：终端门控制帧读取器的状态转移与帧解码，故障带出同一次读取里先被接受的帧，分块方式不改变结果；不起进程
 - [host-terminal-frames.spec.ts](host-terminal-frames.spec.ts)：门进程回的段间字节与 `begun` 帧在宿主一侧的处理，与故障同一次读取的帧照常生效，用假终端门进程；快层，只在 Linux
+
+- [macos-files/protocol.spec.ts](macos-files/protocol.spec.ts)：完整回复解析、坏回复、异常退出与超时。
+- [macos-files/native-helper.spec.ts](macos-files/native-helper.spec.ts)：真实辅助程序的目录持有、APFS 名字、树操作与批次握手。
+- [macos-files/native-hooks.ts](macos-files/native-hooks.ts)：测试版辅助程序的系统调用故障接缝。
+- [macos-files/volume.ts](macos-files/volume.ts)：独占临时 APFS 卷的创建、挂载与清理。

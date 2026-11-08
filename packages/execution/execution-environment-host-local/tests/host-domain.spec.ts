@@ -430,8 +430,9 @@ it('lets a rebuilt registry settle the original acquisition through the recovery
   if (result.kind !== 'recovered') throw new Error('expected a recovery')
   expect(result.settledAcquisitions).toEqual([{ original, outcome: 'settled' }])
   expect(result.unsupported).toEqual([])
+  // Windows, and macOS without a state directory, have no complete cold index.
   expect(result.unavailable).toEqual(
-    process.platform === 'win32'
+    process.platform === 'win32' || process.platform === 'darwin'
       ? [{ name: fresh.name, generation: fresh.generation, version: fresh.version }]
       : [],
   )
