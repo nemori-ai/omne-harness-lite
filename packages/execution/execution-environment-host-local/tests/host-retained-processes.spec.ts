@@ -1457,6 +1457,23 @@ it('listens once to a signal however many acquisitions give it, and records on t
   expect(stub.stops).toEqual([{ unit: unitOf('k1'), bootId }])
 })
 
+it('records the self-settlement of a process loaded after a restart on the view an acquisition gave for its scope, so a stop asked later answers confirmed', async () => {
+  const state = await stateDirectory()
+  await writeMarkerFile(state, 'k1.json', markerOf('k1'))
+  const stub = supervisor()
+  // Only the gate is left: the unit is empty and the maintenance settles it.
+  stub.members(unitOf('k1'), [gatePid])
+  const f = await indexWith(state, stub)
+  const view = endingLedger()
+  f.index.watchClosure(new AbortController().signal, scopeA, view.ledger)
+  expect(await f.index.maintain()).toBe(0)
+  expect(stub.stops).toEqual([{ unit: unitOf('k1'), bootId }])
+  expect(view.stopped).toEqual([['k1', 'confirmed']])
+  expect(await f.index.list(scopeA, tenant)).toEqual([])
+  const ref = { id: 'k1', generation: 'generation-0' }
+  expect(await f.index.stopRef(ref, scopeA, tenant, view.ledger)).toBe('confirmed')
+})
+
 it('closes the scope at once for a signal that has aborted, listens to nothing, and keeps the ledger for later closures', async () => {
   const state = await stateDirectory()
   await writeMarkerFile(state, 'k1.json', markerOf('k1'))

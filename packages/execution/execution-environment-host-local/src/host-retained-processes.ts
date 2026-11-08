@@ -401,10 +401,16 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     reference: scopeReference({ unit: entry.unit, bootId: entry.bootId }),
   })
 
+  /**
+   * Records the stop on the entry's ledger, or, for a process loaded after a restart that has none
+   * of its own, on the latest view an acquisition gave for its scope. Without any view the stop is
+   * not recorded (a known deviation of the SPEC).
+   */
   const recordStop = async (entry: Entry, status: StopStatus): Promise<boolean> => {
-    if (entry.ledger === undefined) return true
+    const ledger = entry.ledger ?? scopeLedgers.get(entry.scope)
+    if (ledger === undefined) return true
     try {
-      return (await entry.ledger.stopped(entry.key, status)) === 'recorded'
+      return (await ledger.stopped(entry.key, status)) === 'recorded'
     } catch {
       return false
     }
