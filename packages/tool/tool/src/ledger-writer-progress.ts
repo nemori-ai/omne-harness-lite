@@ -1,11 +1,10 @@
+import { prepareWriterAggregate, confirmWriterSeal } from './ledger-writer-seal.ts'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { SealedToolBody, ToolBodyWriteReply } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
-import { bodyOf, type BodyPreparationRecord } from './ledger-body-custody.ts'
 import { put, reply, type Snapshot } from './ledger-decider.ts'
 import { createLedgerMaterialCustody } from './ledger-material-custody.ts'
 import { readMaterialBytes } from './ledger-material-read.ts'
-import type { LedgerWrite } from './ledger-store.ts'
 import { fromReply, type WriterPorts, type WriterMutation } from './ledger-writer-access.ts'
 import {
   originalStart,
@@ -137,26 +136,14 @@ export function createWriterProgress<P>(
       body: encoded.fingerprint,
     })
     if ('failure' in identity) return fromReply(identity, state.operation)
-    const prepared = await transact<BodyPreparationRecord>(materialInput, snapshot => {
-      const current = snapshot.writers.get(writer.id)
-      if (current === undefined || current.state.kind === 'failed')
-        return reject('closed', 'writer was abandoned')
-      const known = snapshot.bodyPreparations.get(state.operation)
-      if (known !== undefined)
-        return known.inputDigest === identity.ok.fingerprint.digest
-          ? reply(succeed(succeed(known)))
-          : reject('conflict', 'aggregate preparation changed')
-      const body: BodyPreparationRecord = {
-        operation: state.operation,
-        start: writer.start,
-        source: state.source,
-        inputDigest: identity.ok.fingerprint.digest,
-        bodyBytes: encoded.fingerprint.bytes,
-        policy: writer.policy,
-        state: { kind: 'preparing' },
-      }
-      return commit(body, [put({ kind: 'body-preparation', body })])
-    })
+    const prepared = await transact(materialInput, snapshot =>
+      prepareWriterAggregate(
+        snapshot,
+        { ...writer, state },
+        encoded.fingerprint.bytes,
+        identity.ok.fingerprint.digest,
+      ),
+    )
     if ('failure' in prepared) return prepared
     const sealed = await custody.preserve(
       materialInput,
@@ -166,55 +153,9 @@ export function createWriterProgress<P>(
       snapshot => checkWriter(snapshot, writer),
     )
     if ('failure' in sealed) return fromReply(sealed, state.operation)
-    return transact(materialInput, snapshot => {
-      const current = snapshot.writers.get(writer.id)
-      const scope = snapshot.writerScopes.get(input.start.operation)
-      if (current === undefined || scope === undefined || current.state.kind === 'failed')
-        return reject('closed', 'writer was abandoned')
-      if (current.state.kind === 'sealed') return reply(succeed(succeed(current.state.body)))
-      if (current.state.kind !== 'sealing' || current.state.operation !== state.operation)
-        return reject('conflict', 'seal responsibility changed')
-      const preparation: BodyPreparationRecord = {
-        ...prepared.ok,
-        state: { kind: 'sealed', seal: sealed.ok },
-      }
-      const body = bodyOf(preparation)
-      if ('failure' in body) return reply(body)
-      const next: WriterRecord = { ...current, state: { ...state, kind: 'sealed', body: body.ok } }
-      const size = metadataSize(next)
-      const total = scope.metadataBytes - current.metadataBytes + size
-      if (total > scope.maxMetadataBytes)
-        return reply(
-          succeed(
-            fail({
-              kind: 'unavailable',
-              operation: state.operation,
-              reason: 'sealed body receipt exceeds metadata budget; preparation retained',
-            }),
-          ),
-        )
-      const writes: LedgerWrite[] = [
-        put({ kind: 'body-preparation', body: preparation }),
-        put({ kind: 'body-writer', writer: { ...next, metadataBytes: size } }),
-        put({ kind: 'body-writer-scope', scope: { ...scope, metadataBytes: total } }),
-      ]
-      for (const append of appendRecords(snapshot, writer.id)) {
-        if (append.state.kind !== 'retained')
-          return reject('busy', 'not every fragment is retained')
-        writes.push(
-          { kind: 'delete', key: `material-use:preparation:${append.operation}` },
-          put({
-            kind: 'material-cleanup',
-            cleanup: {
-              material: append.state.seal.material,
-              writeOperation: append.operation,
-              basis: sealed.ok.evidence,
-            },
-          }),
-        )
-      }
-      return commit(body.ok, writes)
-    })
+    return transact(materialInput, snapshot =>
+      confirmWriterSeal(snapshot, { ...writer, state }, prepared.ok, sealed.ok),
+    )
   }
   return { retainAppend, sealWriter }
 }

@@ -14,6 +14,11 @@ export type {
   ToolLedgerControls,
 } from './construction.ts'
 export { createIndependentToolScope } from './independent-scope.ts'
+export {
+  createToolBodyScope,
+  type ToolBodyScope,
+  type ToolBodyScopeInput,
+} from './body-write-scope.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
 export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.ts'
 export {

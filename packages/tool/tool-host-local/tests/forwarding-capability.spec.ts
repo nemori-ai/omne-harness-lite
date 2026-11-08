@@ -15,6 +15,12 @@ const scope = (signal = new AbortController().signal): ToolExecutionScope => ({
   context: {
     mode: 'managed',
     signal,
+    body: {
+      begin: async () => fail({ kind: 'unavailable', operation: 'begin', reason: 'unused' }),
+      append: async () => fail({ kind: 'unavailable', operation: 'append', reason: 'unused' }),
+      seal: async () => fail({ kind: 'unavailable', operation: 'seal', reason: 'unused' }),
+      inspect: async () => fail({ kind: 'unavailable', operation: 'inspect', reason: 'unused' }),
+    },
     emit: async () => fail({ kind: 'closed', reason: 'unused' }),
     wait: async () => fail({ kind: 'closed', reason: 'unused' }),
   },

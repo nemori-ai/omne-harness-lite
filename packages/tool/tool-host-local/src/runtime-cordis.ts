@@ -71,8 +71,29 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   let executor: ReturnType<typeof createRuntimeExecutor> | null = null
   let retired = false
   let forwarding: ToolForwardRuntime<unknown> | undefined
+  const bodyUnavailable = (operation: string) =>
+    Promise.resolve(
+      fail({
+        kind: 'unavailable' as const,
+        operation,
+        reason: 'The body writer records are unavailable.',
+      }),
+    )
   const authorExecution = createRuntimeAuthorExecution({
     ...input,
+    bodyWrites: {
+      begin: request =>
+        records?.ledger.bodyWrites.begin(request) ?? bodyUnavailable(request.operation),
+      append: request =>
+        records?.ledger.bodyWrites.append(request) ?? bodyUnavailable(request.operation),
+      seal: request =>
+        records?.ledger.bodyWrites.seal(request) ?? bodyUnavailable(request.operation),
+      inspect: request => records?.ledger.bodyWrites.inspect(request) ?? bodyUnavailable('inspect'),
+      close: request =>
+        records?.ledger.bodyWrites.close(request) ?? bodyUnavailable(request.operation),
+      reconcile: request =>
+        records?.ledger.bodyWrites.reconcile(request) ?? bodyUnavailable('reconcile'),
+    },
     custody: {
       preserve: request =>
         records === null
@@ -119,8 +140,12 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
     retired = true
     forwarding = undefined
     lifetime.abort()
-    authorExecution.close()
+    const bodyClose = await authorExecution.close()
     await executor?.close()
+    if ('failure' in bodyClose)
+      throw new Error(
+        `Tool body custody remains unresolved during retirement: ${bodyClose.failure.kind}`,
+      )
   }
   // A named type keeps the declaration on RuntimeAuthorExecution; an inferred one would inline
   // exchange-refs types that this member does not depend on.
@@ -190,6 +215,10 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
           ctx,
           settings: input,
           dependencies: dependencies(ctx),
+          bodyWrites: {
+            reconcile: request =>
+              records?.ledger.bodyWrites.reconcile(request) ?? bodyUnavailable('reconcile'),
+          },
           resultDelivery: {
             read: request =>
               records === null || retired
@@ -218,6 +247,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
       retired,
       pendingOutputCustody: authorExecution.pending(),
       retainedAuthorReturns: authorExecution.retainedReturns(),
+      pendingBodyScopes: authorExecution.pendingBodyScopes(),
       executor: executor?.diagnostics() ?? null,
     }),
   }

@@ -3,6 +3,8 @@
 - [源码职责与现状](README.md)。
 - [根入口](index.ts)。
 - [独立执行作用域](independent-scope.ts)。
+- [正文写入作用域](body-write-scope.ts)：本次调用的队列、背压与持久关闭交接。
+- [正文聚合封存决定](ledger-writer-seal.ts)：聚合准备和封存确认的原子写集。
 - [执行包装器](execute-tool.ts)。
 - [作者限额检查](limits.ts)。
 - [等待请求的 JSON 树](json-tree.ts)。

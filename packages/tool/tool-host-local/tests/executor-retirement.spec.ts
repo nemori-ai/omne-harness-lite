@@ -137,6 +137,7 @@ async function world(
     resultDelivery: {
       read: input => f.ledger.delivery.read({ ...input, principal: f.access.principal }),
     },
+    bodyWrites: f.ledger.bodyWrites,
     receiver:
       options.receiver ?? (f.input.position.receiver as unknown as ExecutorInput['receiver']),
   })

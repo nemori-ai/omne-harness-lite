@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
+import { adoption } from './runtime-values.ts'
 import type {
   IndependentToolScopeInput,
   ToolAuthorLimits,
@@ -37,6 +38,30 @@ function input(overrides: Partial<IndependentToolScopeInput> = {}): IndependentT
 }
 
 describe('1 createIndependentToolScope', () => {
+  it('exposes an unavailable body writer when independent execution has no custody', async () => {
+    const created = unwrap(createIndependentToolScope(input()))
+    expect(
+      await created.context.body.begin('answer', { kind: 'text', codec: adoption('utf8') }),
+    ).toHaveProperty('failure.kind', 'unavailable')
+    expect(
+      await created.context.body.append('answer', '1', {
+        kind: 'text',
+        block: 'one',
+        text: 'text',
+        end: true,
+      }),
+    ).toHaveProperty('failure.kind', 'unavailable')
+    expect(await created.context.body.seal('answer', '1')).toHaveProperty(
+      'failure.kind',
+      'unavailable',
+    )
+    expect(await created.context.body.inspect('answer')).toHaveProperty(
+      'failure.kind',
+      'unavailable',
+    )
+    expect(await created.finish('returned')).toEqual({ ok: undefined })
+  })
+
   it('1 scope: creates an independent context on the given signal', () => {
     const signal = new AbortController().signal
     const created = unwrap(createIndependentToolScope(input({ signal })))

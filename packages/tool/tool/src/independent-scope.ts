@@ -8,6 +8,7 @@ import type {
   IndependentToolScopeInput,
   ToolAskRequest,
   ToolAuthorLimits,
+  ToolBodyWriter,
   ToolEmitReceipt,
   ToolExecutionContext,
   ToolExecutionScope,
@@ -682,6 +683,16 @@ class IndependentContext implements ToolExecutionContext {
   readonly mode = 'independent' as const
   readonly signal: AbortSignal
   readonly #execution: Execution
+  readonly body: ToolBodyWriter = Object.freeze({
+    begin: async () =>
+      fail(unavailableOperation('begin', 'independent execution has no body custody')),
+    append: async () =>
+      fail(unavailableOperation('append', 'independent execution has no body custody')),
+    seal: async () =>
+      fail(unavailableOperation('seal', 'independent execution has no body custody')),
+    inspect: async () =>
+      fail(unavailableOperation('inspect', 'independent execution has no body custody')),
+  })
 
   constructor(execution: Execution) {
     this.signal = execution.signal

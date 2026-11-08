@@ -12,6 +12,7 @@ import type {
   ToolWaitId,
 } from './identity.ts'
 import type { Reply } from './results.ts'
+import type { ToolBodyWriter } from './body-writer.ts'
 
 export type ToolProcessUpdate =
   | Readonly<{ kind: 'append-text'; index: string; text: string; close: boolean }>
@@ -75,6 +76,7 @@ export interface ToolWaiter {
 export interface ToolExecutionContext extends ToolProcessEmitter, ToolWaiter {
   readonly mode: 'independent' | 'managed'
   readonly signal: AbortSignal
+  readonly body: ToolBodyWriter
 }
 export type ToolAuthorLimits = Readonly<{
   authorBufferBytes: number

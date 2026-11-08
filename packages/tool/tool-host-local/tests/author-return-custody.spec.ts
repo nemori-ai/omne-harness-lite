@@ -8,6 +8,7 @@ import {
 } from '@omne-harness/tool-contract/testing'
 import { createRuntimeAuthorExecution } from '../src/runtime-author.ts'
 import { configuration } from './runtime-composition/fixture.ts'
+import { unavailableBodyWrites } from './body-writer-values.ts'
 import type { ToolExecutionContext } from '@omne-harness/tool-contract/provider'
 import {
   authorAccess,
@@ -62,6 +63,7 @@ it.each(['receiver', 'finish-throw', 'finish-reject', 'settle-throw', 'real-sett
     const custody = createMemoryToolOutputCustody<unknown>()
     let finals = 0
     const runtime = createRuntimeAuthorExecution({
+      bodyWrites: unavailableBodyWrites,
       configuration,
       custody,
       finalCustody: {

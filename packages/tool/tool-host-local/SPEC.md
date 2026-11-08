@@ -269,6 +269,8 @@ W3-A 按[精确 final 协议](../tool-contract/docs/material-protocol.md#m02-精
 
 runtime 退出先停止新调用和 writer 新受理，再等待未登记操作完成登记或得到明确拒绝，最后释放本地执行持有。材料与账本依赖须存活到交接完成；依赖提前失效时报告 unknown 和未交接责任。后继 runtime 通过原调用的正文恢复端口接续持久库存，不复用旧 Scope，也不重新执行作者业务函数。该恢复只处理正文写入责任，不扩展上述 live-only 作者执行保证。
 
+正文恢复与调用事实推进独立。片段提供者不可用或不返回时，不得阻止已取得的最终失败结果结算；结算可明确放弃不再采用的正文。每个调用至多有一个在途正文恢复，整个宿主至多有 capacity 个。调用退役不提前归还仍在执行的恢复名额；操作终结才归还。诊断保留恢复失败类别及在途数量，不把普通调用推进成功解释为正文恢复成功。
+
 `./author` 导出 `contributeTool`、`createToolAuthorPlugin` 与 `createLocalToolGenerations`。作者插件静态依赖 toolBindings/toolGenerations，不提供服务键。贡献登记与撤除配对到作者 fiber 的 effect。服务适配器必须在普通函数中读取调用时的 `this.ctx`，用同步调用作用域把 fiber uid 传给登记表；箭头函数捕获提供者 Context 会产生错误归属。
 
 换代工厂接受长期宿主 Context、受信模块来源、装载器与持有者读取。来源适配器负责在 import 前核实现引用和包 digest；工厂先核权限，才调用它。相同键和 digest 认回，draining 不认回。确定性装载拒绝通过 `recordRejection` 保存依据后返回 rejected。引用读取失败保留并 reopen；有 pin 时保持 draining。没有完整的持有者采用依据目录时，sweep 返回 unavailable。该返回保留契约已有的目录缺口。

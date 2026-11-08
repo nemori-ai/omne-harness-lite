@@ -19,6 +19,7 @@ import {
   request,
 } from './coordinator-values.ts'
 import { configuration } from './runtime-composition/fixture.ts'
+import { unavailableBodyWrites } from './body-writer-values.ts'
 
 // Memory custody and the final receipt are provider doubles; these cases prove ordering, not durability.
 async function setup(closing: ReturnType<ToolExecutionScope['finish']>, holdRaw = false) {
@@ -51,6 +52,7 @@ async function setup(closing: ReturnType<ToolExecutionScope['finish']>, holdRaw 
   const release = Promise.withResolvers<void>()
   const finals: ToolFinalEnvelope<ToolMessageContentBlock>[] = []
   const runtime = createRuntimeAuthorExecution({
+    bodyWrites: unavailableBodyWrites,
     configuration,
     custody: {
       inspect: custody.inspect,

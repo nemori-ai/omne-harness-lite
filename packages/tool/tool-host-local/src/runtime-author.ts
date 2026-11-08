@@ -1,7 +1,8 @@
-import { fail, succeed } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
   createIndependentToolScope,
+  createToolBodyScope,
   type ToolConfiguration,
 } from '@omne-harness/tool'
 import {
@@ -19,6 +20,9 @@ import {
   type ToolOutputCustody,
   type ToolFinalCustody,
   type ToolWaiter,
+  type ToolBodyWrites,
+  type ToolExecutionScope,
+  type ToolPrimitiveFailure,
 } from '@omne-harness/tool-contract/provider'
 import type { ToolOperationSlot } from '@omne-harness/tool-contract/binding'
 import type { LocalToolBindingsInput } from './executor-binding.ts'
@@ -77,11 +81,18 @@ export function createRuntimeAuthorExecution(
     configuration: ToolConfiguration
     custody: Pick<ToolOutputCustody<unknown>, 'preserve' | 'inspect'>
     finalCustody: ToolFinalCustody<unknown, ToolMessageContentBlock>
+    bodyWrites: ToolBodyWrites<unknown>
   }>,
 ): RuntimeAuthorExecution &
-  Readonly<{ close(): void; pending(): number; retainedReturns(): number }> {
+  Readonly<{
+    close(): Promise<Outcome<void, ToolPrimitiveFailure>>
+    pending(): number
+    retainedReturns(): number
+    pendingBodyScopes(): number
+  }> {
   const text = createLocalTextResults()
   const shutdown = new AbortController()
+  const bodies = new Set<() => ReturnType<ToolExecutionScope['finish']>>()
   const pending = new Map<string, Parameters<ToolOutputCustody<unknown>['preserve']>[0]>()
   type FinalRequest = Parameters<typeof input.finalCustody.preserveFinal>[0]
   const finals = new Map<string, FinalRequest>()
@@ -155,10 +166,23 @@ export function createRuntimeAuthorExecution(
       }),
   }
   return {
-    close: () => shutdown.abort(),
+    async close() {
+      shutdown.abort()
+      const outcomes = await Promise.all([...bodies].map(finish => finish()))
+      return bodies.size === 0
+        ? succeed(undefined)
+        : (outcomes.find(answer => 'failure' in answer) ??
+            fail({
+              kind: 'unknown',
+              operation: 'body-scope-close',
+              reason: 'Body custody handoff remains unconfirmed.',
+            }))
+    },
+    pendingBodyScopes: () => bodies.size,
     pending: () => pending.size + finals.size,
     retainedReturns: () => unencoded.size,
-    scope({ execution }) {
+    scope({ execution, principal, tenant, call, start }) {
+      if (shutdown.signal.aborted) throw new Error('The author execution host has retired.')
       const blocks = new Map<string, ProcessBlock>()
       const scope = createIndependentToolScope({
         signal: execution.signal,
@@ -199,7 +223,47 @@ export function createRuntimeAuthorExecution(
         },
       })
       if ('failure' in scope) throw new TypeError(`Invalid author scope: ${scope.failure.reason}`)
-      return scope.ok
+      const body = createToolBodyScope({
+        binding: { principal, tenant, call, start, source: execution.source },
+        writes: input.bodyWrites,
+        signal: AbortSignal.any([execution.signal, shutdown.signal]),
+        limits: scope.ok.limits,
+      })
+      const local = scope.ok
+      let bodyClosing: ReturnType<ToolExecutionScope['finish']> | undefined
+      const finishBody = (exit: 'returned' | 'failed') => {
+        bodyClosing ??= body.finish(exit).then(answer => {
+          if (body.handoffConfirmed) bodies.delete(retireBody)
+          return answer
+        })
+        return bodyClosing
+      }
+      const retireBody = () => finishBody('failed')
+      bodies.add(retireBody)
+      let finished: ReturnType<ToolExecutionScope['finish']> | undefined
+      return {
+        context: {
+          mode: local.context.mode,
+          signal: local.context.signal,
+          body: body.writer,
+          emit: update => local.context.emit(update),
+          wait: local.context.wait.bind(local.context),
+        },
+        limits: local.limits,
+        finish(exit) {
+          finished ??= Promise.all([local.finish(exit), finishBody(exit)]).then(
+            outcomes =>
+              outcomes.find(
+                answer =>
+                  'failure' in answer &&
+                  (answer.failure.kind === 'unknown' || answer.failure.kind === 'unavailable'),
+              ) ??
+              outcomes.find(answer => 'failure' in answer) ??
+              succeed(undefined),
+          )
+          return finished
+        },
+      }
     },
     async settle(call) {
       const authorInterruption = call.outcome.kind === 'failed' ? interruption(call) : null

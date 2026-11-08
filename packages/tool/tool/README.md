@@ -4,6 +4,8 @@
 
 The Tool implementation without Cordis. The root entry exports independent execution: `createIndependentToolScope` builds an execution scope with a local receiver, explicit limits and an in-memory wait history, and `executeTool` runs one executor inside such a scope. It also exports the ledger factory `createToolLedger` with the store port `ToolLedgerStore` and the guard snapshot `ToolLedgerGuards`, the runtime factory `createToolRuntime` with its construction shapes `ToolDependencies` and `ToolConfiguration`, and a `./testing` entry with the non-durable store `createMemoryToolLedgerStore` and dependency assembly `createTestToolDependencies`.
 
+`createToolBodyScope` binds a body writer to a trusted invocation and a finite local buffer. Its return barrier waits for accepted writes; failure and cancellation require confirmed custody or exclusion before local responsibility ends. The host composes this scope with process output and waits. An independent execution without body custody exposes an unavailable writer.
+
 ## Responsibility and status
 
 This package implements the contract of `@omne-harness/tool-contract`. It manages concurrency, waits, cancellation and state, so two implementations may differ here and the package is not part of the contract. It does not depend on Cordis, so an independent program can execute a tool without a Cordis install. Independent execution is implemented. The runtime implements a part of the managed paths. The next section lists the five tiers of support. The exact support scope is in [SPEC.md](SPEC.md#当前范围).
