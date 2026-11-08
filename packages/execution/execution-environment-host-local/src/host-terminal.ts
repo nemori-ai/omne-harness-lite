@@ -45,7 +45,7 @@ import type { MacosPrerequisite } from './macos-execution/commands.ts'
 /** The terminal's bounds: the command bounds without the options about processes a command leaves behind. */
 export type HostTerminalOptions = Omit<
   HostCommandOptions,
-  'residuePolicy' | 'retainedPerScope' | 'retainedPollMs'
+  'residuePolicy' | 'retainedPerScope' | 'retainedPollMs' | 'retainedOutputBytes'
 > &
   Readonly<{
     /** Maximum bytes of one private control frame, including script and environment. Initial 1 MiB. */

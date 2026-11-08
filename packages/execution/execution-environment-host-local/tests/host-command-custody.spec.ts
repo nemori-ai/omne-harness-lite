@@ -292,6 +292,20 @@ function residueOf(outcome: CommandOutcome) {
   return outcome.residue
 }
 
+/** The retained process of a handover's residue. */
+function retainedOf(residue: ReturnType<typeof residueOf>) {
+  if (residue?.kind !== 'retained')
+    throw new Error(`expected a handover: ${JSON.stringify(residue)}`)
+  return residue.process
+}
+
+/** A data frame of `text` on stdout, as the gate writes it. */
+const stdout = (text: string) => ({
+  t: 'data',
+  s: 'stdout',
+  b: Buffer.from(text).toString('base64'),
+})
+
 /** An `adopt` the test answers: `asked` settles when it is called. */
 function controlledAdopt() {
   const answer = deferred<Adopt>()
@@ -491,17 +505,6 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
   })
 
   describe('the output of a domain handed over', () => {
-    const stdout = (text: string) => ({
-      t: 'data',
-      s: 'stdout',
-      b: Buffer.from(text).toString('base64'),
-    })
-    const retainedOf = (residue: ReturnType<typeof residueOf>) => {
-      if (residue?.kind !== 'retained')
-        throw new Error(`expected a handover: ${JSON.stringify(residue)}`)
-      return residue.process
-    }
-
     it('counts what the unit wrote before the handover as observed, saves what it writes after, and shows a drop as a gap', async () => {
       const adopt = controlledAdopt()
       const f = await setup({
@@ -582,6 +585,70 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
     })
   })
 
+  describe('the shape of a stop or output request, checked before the index is asked', () => {
+    it('answers invalidInput to a malformed process, mode or from, and neither asks the index nor issues a stop', async () => {
+      const asked = { stopRef: 0, output: 0 }
+      const f = await setup({
+        adopt: async () => 'confirmed',
+        retained: index => ({
+          ...index,
+          stopRef: (...args) => {
+            asked.stopRef++
+            return index.stopRef(...args)
+          },
+          output: (...args) => {
+            asked.output++
+            return index.output(...args)
+          },
+        }),
+      })
+      const process = retainedOf(residueOf(await f.handle.result))
+      const invalid = (requestId: string) => ({
+        kind: 'rejected',
+        requestId,
+        reason: 'invalidInput',
+      })
+      const refs: unknown[] = [
+        undefined,
+        null,
+        'k',
+        { id: '', generation: 'g' },
+        { id: 'k' },
+        { generation: 'g' },
+        { id: 'k', generation: 7 },
+      ]
+      for (const ref of refs) {
+        const bad = ref as RetainedProcessRef
+        expect(await f.stop(bad, 'forced'), JSON.stringify(ref)).toEqual(invalid('stop-1'))
+        expect(await f.output(bad), JSON.stringify(ref)).toEqual(invalid('output-1'))
+      }
+      for (const mode of ['now', undefined, 1, null])
+        expect(await f.stop(process, mode as 'forced'), String(mode)).toEqual(invalid('stop-1'))
+      const froms: unknown[] = [
+        5,
+        null,
+        [1],
+        { stdout: 1.5 },
+        { stdout: -1 },
+        { stdout: Number.NaN },
+        { stdout: '1' },
+        { stdout: 2 ** 53 },
+        { tty: 1 },
+        { stdout: 0, stderr: -3 },
+      ]
+      for (const from of froms)
+        expect(await f.output(process, from as RetainedOutputFrom), JSON.stringify(from)).toEqual(
+          invalid('output-1'),
+        )
+      expect(asked).toEqual({ stopRef: 0, output: 0 })
+      expect(f.indexStops).toEqual([])
+      expect(await f.kills()).toBe(0)
+      // A well-formed request reaches the index.
+      expect(await f.output(process, { stdout: 0, stderr: 0 })).toMatchObject({ kind: 'done' })
+      expect(asked).toEqual({ stopRef: 0, output: 1 })
+    })
+  })
+
   it(
     'N4: an index whose markers never finish loading does not hold the disposition past the start bound',
     { timeout: 20_000 },
@@ -614,13 +681,15 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
 })
 
 it('HostTerminalOptions carries none of the options about processes a command leaves behind', () => {
-  // The terminal never disposes of leftovers; the three options are the command facility's.
+  // The terminal never disposes of leftovers; the four options are the command facility's.
   // @ts-expect-error residuePolicy is not a terminal option
   const policy: HostTerminalOptions = { residuePolicy: 'stop' }
   // @ts-expect-error retainedPerScope is not a terminal option
   const perScope: HostTerminalOptions = { retainedPerScope: 1 }
   // @ts-expect-error retainedPollMs is not a terminal option
   const pollMs: HostTerminalOptions = { retainedPollMs: 1 }
-  for (const options of [policy, perScope, pollMs])
+  // @ts-expect-error retainedOutputBytes is not a terminal option
+  const outputBytes: HostTerminalOptions = { retainedOutputBytes: 1 }
+  for (const options of [policy, perScope, pollMs, outputBytes])
     expect(terminalSettings({ ...options, columns: 80 }).columns).toBe(80)
 })

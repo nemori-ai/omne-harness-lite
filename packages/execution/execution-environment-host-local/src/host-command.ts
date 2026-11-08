@@ -634,6 +634,42 @@ function requestIssue(request: StartRequest): FacilityReason | undefined {
   return undefined
 }
 
+const nonEmptyText = (value: unknown): value is string => typeof value === 'string' && value !== ''
+
+/** A retained process reference is an object whose `id` and `generation` are non-empty text. */
+const invalidProcessRef = (value: unknown) =>
+  typeof value !== 'object' ||
+  value === null ||
+  !nonEmptyText(Reflect.get(value, 'id')) ||
+  !nonEmptyText(Reflect.get(value, 'generation'))
+
+const outputStreams: readonly string[] = ['stdout', 'stderr', 'terminal']
+
+/** An offset of `from`: a known stream, and a whole number of bytes, zero or more. An absent value is no offset. */
+const invalidOffset = ([stream, offset]: readonly [string, unknown]) =>
+  !outputStreams.includes(stream) ||
+  (offset !== undefined && !(Number.isSafeInteger(offset) && Number(offset) >= 0))
+
+const invalidFrom = (value: unknown) =>
+  value !== undefined &&
+  (typeof value !== 'object' ||
+    value === null ||
+    Array.isArray(value) ||
+    Object.entries(value).some(invalidOffset))
+
+/** The shape of a retained-process stop, checked before the index is asked (the contract's `invalidInput`). */
+function stopRetainedIssue(request: StopRetainedRequest): FacilityReason | undefined {
+  if (invalidProcessRef(request.process)) return 'invalidInput'
+  if (request.mode !== 'graceful' && request.mode !== 'forced') return 'invalidInput'
+  return undefined
+}
+
+/** The shape of a retained-process output request, checked before the index is asked. */
+function outputRetainedIssue(request: OutputRetainedRequest): FacilityReason | undefined {
+  if (invalidProcessRef(request.process) || invalidFrom(request.from)) return 'invalidInput'
+  return undefined
+}
+
 /**
  * Who carries the stop duty for the domain. `acquisition` from the start; `reserved` while a
  * handover is being decided and committed (still this acquisition's); `unknown` while the commit's
@@ -1315,6 +1351,8 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
   const stopRetained = async (
     request: StopRetainedRequest,
   ): Promise<FacilityResult<{ readonly status: 'confirmed' | 'unconfirmed' }>> => {
+    const issue = stopRetainedIssue(request)
+    if (issue !== undefined) return rejected(request.requestId, issue)
     if (sealed || retentionBinding === undefined) return rejected(request.requestId, 'closed')
     const { index, scope, tenant: owner, processes: view } = retentionBinding
     const answer = await index.stopRef(request.process, scope, owner, view)
@@ -1327,6 +1365,8 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
   const outputRetained = async (
     request: OutputRetainedRequest,
   ): Promise<FacilityResult<RetainedOutput>> => {
+    const issue = outputRetainedIssue(request)
+    if (issue !== undefined) return rejected(request.requestId, issue)
     if (sealed || retentionBinding === undefined) return rejected(request.requestId, 'closed')
     const { index, scope, tenant: owner } = retentionBinding
     const answer = await index.output(request.process, scope, owner, request.from)
