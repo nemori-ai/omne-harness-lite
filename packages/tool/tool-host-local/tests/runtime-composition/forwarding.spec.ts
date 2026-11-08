@@ -231,6 +231,11 @@ it.each(['revoke', 'revoke-read', 'retire'] as const)(
       })
       await entered.promise
       if (change === 'revoke') world.revoke()
+      else if (change === 'revoke-read')
+        world.input.access.guard.qualify = async () => ({
+          kind: 'denied',
+          reason: 'read revoked',
+        })
       else await world.plugins.close()
       resume.resolve()
       await expect(pending).resolves.toMatchObject({
