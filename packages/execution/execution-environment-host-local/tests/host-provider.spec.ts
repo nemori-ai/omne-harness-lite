@@ -62,7 +62,13 @@ afterEach(async () => {
   if (realPath === undefined) delete process.env['PATH']
   else process.env['PATH'] = realPath
   if (realPlatform) Object.defineProperty(process, 'platform', realPlatform)
-  await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
+  // retire() does not wait for a supervisor call or marker write the index already started, and
+  // either can add an entry to a root while it is removed: retry on ENOTEMPTY instead of failing.
+  await Promise.all(
+    roots
+      .splice(0)
+      .map(root => rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })),
+  )
 })
 
 const tenant = (() => {
