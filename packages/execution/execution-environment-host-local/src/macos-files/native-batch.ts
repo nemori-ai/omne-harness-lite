@@ -50,7 +50,7 @@ static batch_item prepare_item(document *d) {
     struct stat parent = descriptor_stat(item.target.parent);
     match_identity(&parent, item.named, "conflict");
     if (exists) refuse("conflict");
-    item.mode = 0600;
+    item.mode = 0666;
   } else {
     if (!exists) refuse("unresolved");
     match_identity(&s, item.named, "conflict");

@@ -136,7 +136,7 @@ static void basic_operation(document *d, root r, FILE *out, const char *operatio
     if (expected || bool_field(d, "trailingSlash")) refuse("invalidInput");
     if (loc.is_root) refuse("notAuthorized");
     s = descriptor_stat(loc.parent); match_identity(&s, named, "conflict");
-    fd = hold(openat(loc.parent, loc.name, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600));
+    fd = hold(openat(loc.parent, loc.name, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0666));
     if (fd < 0) refuse(change_failure(errno));
     changed = 1;
     s = descriptor_stat(loc.parent); match_identity(&s, named, "conflict");
