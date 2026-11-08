@@ -1,3 +1,4 @@
+import { toolHistoryUpgraderPrincipal } from '../../../src/entry/tool-history-upgrader.ts'
 // Tool B 段的进程内组合：真实 Cordis 根上装 Tool 运行时五行、tool-bindings、tool-host（预装发行作者）、执行环境
 // 四行（宿主提供者真件），真实 SQLite 存储与会话存储组合（tool 参加者在同一登记里），真实入口对象（核验器、
 // 签发者、会话工作主体、发行来源权威与登记者、toolClock、toolPublicationAuthority、执行环境授权）。
@@ -98,8 +99,6 @@ import {
   TENANT_A,
   TENANT_B,
   access,
-  accessPolicyRow,
-  allowAll,
   createCommand,
   createGuards,
   providerConfig,
@@ -269,6 +268,8 @@ function rowsOf(storageRoot: string) {
 const entryObjects = (work: EntryObjectModule): readonly EntryObjectModule[] => [
   principalVerifier,
   principalIssuer,
+  tenantDomainScannerPrincipal,
+  toolHistoryUpgraderPrincipal,
   compositionAuthority,
   toolReleaseRegistrant,
   toolContributionAuthority,
@@ -489,7 +490,7 @@ type Ran = Readonly<{
 async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
   const { storageRoot } = workspace()
   const { rows, tools } = rowsOf(storageRoot)
-  const policy = accessPolicyRow(allowAll)
+
   const saved: ToolDelivery<ToolMessageContentBlock>[] = []
   const { value, run } = await withLiveRows(
     {
@@ -498,7 +499,7 @@ async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
         ...cordis,
         identityStandIn,
         residencyStandIn,
-        policyAccess: policy.plugin,
+        policyAccess: maintenancePolicy,
       },
       entryObjects: entryObjects(work),
       probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
@@ -579,7 +580,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
   it('closes the body schema domain when the real Tool records row is removed', async () => {
     const { storageRoot } = workspace()
     const { rows } = rowsOf(storageRoot)
-    const policy = accessPolicyRow(allowAll)
+
     const parse = (text: string) => {
       const read = readJsonText(text, {
         maxBytes: 1024,
@@ -604,7 +605,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
     const { value, run } = await withLiveRows(
       {
         rows,
-        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: maintenancePolicy },
         entryObjects: entryObjects(workPrincipalsOverStandIn),
         probe: [toolRuntimeKey],
       },
@@ -665,11 +666,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
           residencyStandIn,
           policyAccess: maintenancePolicy,
         },
-        entryObjects: [
-          ...entryObjects(workPrincipalsOverStandIn),
-          tenantDomainScannerPrincipal,
-          toolMaterialMaintainerPrincipal,
-        ],
+        entryObjects: [...entryObjects(workPrincipalsOverStandIn), toolMaterialMaintainerPrincipal],
         probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A],
       }
       const saved: ToolDelivery<ToolMessageContentBlock>[] = []
@@ -851,11 +848,11 @@ describe('Tool segment B: the release rows in one process composition', () => {
   it('rejects a direct Agent call to an adopted but nonresident tool before any file write', async () => {
     const { storageRoot } = workspace()
     const { rows, tools } = rowsOf(storageRoot)
-    const policy = accessPolicyRow(allowAll)
+
     await withLiveRows(
       {
         rows,
-        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: maintenancePolicy },
         entryObjects: entryObjects(workPrincipalsOverStandIn),
         probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
       },
@@ -893,13 +890,18 @@ describe('Tool segment B: the release rows in one process composition', () => {
     async () => {
       const { storageRoot } = workspace()
       const { rows, tools } = rowsOf(storageRoot)
-      const policy = accessPolicyRow(allowAll)
+
       const saved: ToolDelivery<ToolMessageContentBlock>[] = []
       const calls = 6
       const { value } = await withLiveRows(
         {
           rows,
-          plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+          plugins: {
+            ...cordis,
+            identityStandIn,
+            residencyStandIn,
+            policyAccess: maintenancePolicy,
+          },
           entryObjects: entryObjects(workPrincipalsOverStandIn),
           probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
         },
@@ -958,12 +960,17 @@ describe('Tool segment B: the release rows in one process composition', () => {
       // A junction outside the root that points into it: `..` from there is the outside directory.
       const outsideToIn = join(outside, 'to-ws')
       symlinkSync(child, outsideToIn, 'junction')
-      const policy = accessPolicyRow(allowAll)
+
       const saved: ToolDelivery<ToolMessageContentBlock>[] = []
       const { value } = await withLiveRows(
         {
           rows,
-          plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+          plugins: {
+            ...cordis,
+            identityStandIn,
+            residencyStandIn,
+            policyAccess: maintenancePolicy,
+          },
           entryObjects: entryObjects(workPrincipalsOverStandIn),
           probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
         },

@@ -120,7 +120,11 @@ it('reuses the original acquisition history when a real Cordis factory row reloa
       path,
       named: await hostObjectToken(path),
     })
-    if (process.platform === 'linux' || process.platform === 'win32') {
+    if (
+      process.platform === 'linux' ||
+      process.platform === 'win32' ||
+      process.platform === 'darwin'
+    ) {
       if (read.kind !== 'done') throw new Error(`expected done, got ${JSON.stringify(read)}`)
       expect(read.value.bytes).toBeInstanceOf(Uint8Array)
       expect(new Uint8Array(read.value.bytes)).toEqual(new TextEncoder().encode('kept'))

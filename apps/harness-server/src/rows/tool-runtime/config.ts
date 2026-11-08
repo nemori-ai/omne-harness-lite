@@ -1,3 +1,4 @@
+import { toolHistoryConfigSchema } from './history-config.ts'
 // Tool 运行时组的配置（B 段）：bundle 只建一次，建时就要全部数值，所以整组的配置只放在 `tool-records` 行上
 // （一个插件体、一个记录仓、一个启动协调器）。字段的含义归 `@omne-harness/tool` 的 `ToolConfiguration` 与
 // tool-host-local 的 `LocalToolRuntimeInput`；`maxCommandBytes`、`maxChunkBytes` 归 tool-storage-sql 的输出保管。
@@ -57,6 +58,7 @@ export const toolRuntimeConfigSchema = z.strictObject({
    * 两行不同时命名与提供者打开的对象对不上，调用答冲突或不可用。装载时不核两行相等（具名限制）。
    */
   filesRoot: absolutePath,
+  history: toolHistoryConfigSchema,
   /** 与 `session-storage` 行相等：Tool 参加者在会话存储组合里，同一事务域、同一登记。 */
   combinationVersion: z.string().min(1).max(1024),
   /** 交给 `storage` 行的同一个值（装配页 `tool-records` 行）。 */

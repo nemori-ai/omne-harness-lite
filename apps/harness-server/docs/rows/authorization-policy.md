@@ -77,11 +77,13 @@
 
 | 持有者组件名                   | 记录                                                     | 用途                                                                          |
 | ------------------------------ | -------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `toolResidencyPrincipal`       | `maintenance-grant/toolResidencyPrincipal`，修订 4       | `resident-references`                                                         |
-| `sessionPrincipals.maintainer` | `maintenance-grant/sessionPrincipals.maintainer`，修订 4 | `pending-sessions`                                                            |
-| `agent-host`                   | `maintenance-grant/agent-host`，修订 4                   | `agent-instance-publish`、`agent-instance-quiesce`、`agent-instance-withdraw` |
-| `tenant-domain-scanner`        | `maintenance-grant/tenant-domain-scanner`，修订 4        | `enumerate-tenants`                                                           |
-| `tool-material-maintainer`     | `maintenance-grant/tool-material-maintainer`，修订 4     | `tool-material-scan`、`tool-material-maintain` |
+| `toolResidencyPrincipal`       | `maintenance-grant/toolResidencyPrincipal`，修订 5       | `resident-references`                                                         |
+| `sessionPrincipals.maintainer` | `maintenance-grant/sessionPrincipals.maintainer`，修订 5 | `pending-sessions`                                                            |
+| `agent-host`                   | `maintenance-grant/agent-host`，修订 5                   | `agent-instance-publish`、`agent-instance-quiesce`、`agent-instance-withdraw` |
+| `tenant-domain-scanner`        | `maintenance-grant/tenant-domain-scanner`，修订 5        | `enumerate-tenants`                                                           |
+| `tool-material-maintainer`     | `maintenance-grant/tool-material-maintainer`，修订 5     | `tool-material-scan`、`tool-material-maintain` |
+
+| `tool-history-upgrader` | `maintenance-grant/tool-history-upgrader`，修订 5 | `tool-history-upgrade` |
 
 <!-- /policy:grants -->
 
@@ -127,6 +129,8 @@
 | `tenant-domain-scanner`        | 无 Session 或 Agent 格；只经部署枚举端口使用       |
 | `tool-material-maintainer`     | 无 Session 或 Agent 格；只经 Tool 材料扫描与维护入口使用 |
 | 其他系统主体                   | 无                                                 |
+
+| `tool-history-upgrader` | 无 Session 或 Agent 格；只经历史格式检查、升级与宿主副本压缩使用 |
 
 <!-- /policy:projection -->
 
@@ -581,3 +585,5 @@
 - 新增一个操作：上游枚举多一项时，成员的类型检查变红。补一行，补出处，补黄金表。
 - 新增一个系统动作：先在 `@omne-harness/authorization` 的矩阵里加行，再加矩阵格和授予记录。
 - 改授予表：改 `grants.ts` 的常量，修订常量随之加一，重新生成本页。运维者收紧的规则在 `grant-tightening.ts`。
+
+历史升级主体由入口单独签发。它只获 `tool-history-upgrade`，不能继承材料后台维护或业务调用用途。Tool 历史检查、转换与 host 压缩每次按具体租户和调用核验该主体的当前授予。verify 配置不调用转换写口；配置选择由应用负责，授权服务不解释配置。

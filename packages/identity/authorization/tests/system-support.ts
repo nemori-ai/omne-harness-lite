@@ -27,6 +27,16 @@ export type MatrixRow = Readonly<{
 
 export const ROWS: readonly MatrixRow[] = [
   {
+    purpose: 'tool-history-upgrade',
+    owner: 'tool',
+    name: 'upgrade-history',
+    branch: 'tenant',
+    resourceOwner: 'tool',
+    resourceKind: 'call',
+    key: 'call_1',
+    fixedArguments: true,
+  },
+  {
     purpose: 'tool-material-scan',
     owner: 'tool',
     name: 'scan-materials',

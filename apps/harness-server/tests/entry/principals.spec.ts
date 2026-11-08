@@ -1,3 +1,4 @@
+import { TOOL_HISTORY_UPGRADER_COMPONENT } from '../../src/rows/authorization/grants.ts'
 // R3 的主体权威（DP1-C17、DP5-C1、表 3-3）：核验器只认本权威签发的主体，系统主体对十行矩阵的裁定，
 // 入口对象是定义的子类，签发者不被模块对象持有。用例经服务键与 `referenceSystemActionAuthorization` 调用。
 import { describe, expect, it } from 'vitest'
@@ -175,7 +176,7 @@ describe('system principals against the release action matrix (验收 2)', () =>
     ),
   )
 
-  it('covers all twelve rows: each holder is allowed and other system principals are denied', async () => {
+  it('covers all thirteen rows: each holder is allowed and other system principals are denied', async () => {
     const { fixture, issuer, principals } = await installed()
     const authorization = referenceSystemActionAuthorization({
       verifier: verifierOf(fixture.env),
@@ -189,12 +190,13 @@ describe('system principals against the release action matrix (验收 2)', () =>
       [TOOL_RESIDENCY_COMPONENT]: systemOf(issuer, TOOL_RESIDENCY_COMPONENT),
       [AGENT_HOST_COMPONENT]: systemOf(issuer, AGENT_HOST_COMPONENT),
       [TENANT_DOMAIN_SCANNER_COMPONENT]: systemOf(issuer, TENANT_DOMAIN_SCANNER_COMPONENT),
+      [TOOL_HISTORY_UPGRADER_COMPONENT]: systemOf(issuer, TOOL_HISTORY_UPGRADER_COMPONENT),
       [TOOL_MATERIAL_MAINTAINER_COMPONENT]: systemOf(issuer, TOOL_MATERIAL_MAINTAINER_COMPONENT),
       // The installed `sessionPrincipals.maintainer`, not a fresh copy: S3 reads `pending` with it.
       [ENTRY_COMPONENTS.sessionMaintainer]: maintainer,
     }
     const outsiders: Principal[] = [principals.coordinator, systemOf(issuer, 'restart-scanner')]
-    expect(SYSTEM_ACTION_MATRIX).toHaveLength(12)
+    expect(SYSTEM_ACTION_MATRIX).toHaveLength(13)
     for (const row of SYSTEM_ACTION_MATRIX) {
       const holder = holderOf.get(row.purpose)
       for (const [component, principal] of Object.entries(holders)) {

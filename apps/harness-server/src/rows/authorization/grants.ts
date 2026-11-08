@@ -7,13 +7,14 @@ import type { MaintenanceGrant, MaintenanceGrantSource } from '@omne-harness/aut
 import type { SystemPurpose } from './cells.ts'
 
 /** The revision and generation of the table. Bump when a record changes. */
-export const MAINTENANCE_GRANT_REVISION = '4'
+export const MAINTENANCE_GRANT_REVISION = '5'
 
 /** The component name of the agent host maintenance principal (DP-1 table 3-3). */
 export const AGENT_HOST_COMPONENT = 'agent-host'
 /** The component name of the tool residency principal (AA:273, DP-1 table 3-4). */
 export const TOOL_RESIDENCY_COMPONENT = 'toolResidencyPrincipal'
 export const TENANT_DOMAIN_SCANNER_COMPONENT = 'tenant-domain-scanner'
+export const TOOL_HISTORY_UPGRADER_COMPONENT = 'tool-history-upgrader'
 export const TOOL_MATERIAL_MAINTAINER_COMPONENT = 'tool-material-maintainer'
 /**
  * The component name of the session maintainer, `SessionInternalPrincipals.maintainer` (DP-1 table
@@ -26,6 +27,7 @@ export type GrantHolder =
   | typeof AGENT_HOST_COMPONENT
   | typeof TOOL_RESIDENCY_COMPONENT
   | typeof TENANT_DOMAIN_SCANNER_COMPONENT
+  | typeof TOOL_HISTORY_UPGRADER_COMPONENT
   | typeof TOOL_MATERIAL_MAINTAINER_COMPONENT
   | typeof SESSION_MAINTAINER_COMPONENT
 
@@ -44,6 +46,9 @@ function record(component: GrantHolder, purposes: readonly SystemPurpose[]): Rel
 }
 
 export const MAINTENANCE_GRANTS: Readonly<Record<GrantHolder, ReleaseGrant>> = Object.freeze({
+  [TOOL_HISTORY_UPGRADER_COMPONENT]: record(TOOL_HISTORY_UPGRADER_COMPONENT, [
+    'tool-history-upgrade',
+  ]),
   [TOOL_MATERIAL_MAINTAINER_COMPONENT]: record(TOOL_MATERIAL_MAINTAINER_COMPONENT, [
     'tool-material-scan',
     'tool-material-maintain',

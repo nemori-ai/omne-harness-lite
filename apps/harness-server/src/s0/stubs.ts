@@ -197,7 +197,15 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'tool-records': {
     provides: ['toolCommands', 'toolReads', 'toolStartAuthority', 'toolStartFence'],
-    injects: ['storage', 'tenantDomainLookup', 'telemetry'],
+    injects: [
+      'storage',
+      'tenantDomainLookup',
+      'telemetry',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
+      'toolHistoryUpgraderPrincipal',
+      'systemActionAuthorization',
+    ],
     group: 'tool-start',
   },
   'tool-bindings': {

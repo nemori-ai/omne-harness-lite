@@ -179,3 +179,13 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 W3-A 的 bundle 将 Tool 材料保管实现与 SQL byte provider 组合，替代当前 content:null。holder 的晚绑定代理每次取得当前可用的提供者；撤除按本代条件执行，旧 disposer 不清除后继。已经进入的 IO 沿原 operation 结算或认回，不因依赖撤除假称已取消。保留原 adoption 的恢复路由，不能把旧引用交给另一个空仓。
 
 材料时间独立采用 [host-local 的材料时间工厂](../../../../packages/tool/tool-host-local/SPEC.md#w3-材料时间源)，不直接使用既有 ToolClock.now 的墙钟。Tool 在原 call 域持久核水位，holder 重建不清掉它。维护子插件依赖就绪后启动有界扫描，fiber effect 关闭新扫描并排空或保留在途未知；再次就绪先扫原待办。定时器与 disposer 都不是删除授权，精确协议归 [M01–M05](../../../../packages/tool/tool-contract/docs/material-protocol.md)。
+
+## 历史格式启动检查与显式升级
+
+`tool-records` 静态依赖 `tenantDomains`、入口签发的 `tenantDomainScannerPrincipal`、`toolHistoryUpgraderPrincipal` 和 `systemActionAuthorization`。SQL、目录与这些依赖撤除时，本行随依赖撤除。启动检查结束且原依赖仍有效后，才创建共享 bundle 和发布服务。
+
+运维者必须给 `history: {mode: "verify", interpretations: []}` 或显式 `upgrade`。本地默认层选择 verify。解释项为 `{tenant, call, values}`，tenant 使用 legal-identity 编码文本，call 使用 ToolCallId；同一地址不得重复。values 使用 Tool 的 HistoricalTextInterpretation，应用不猜编码或重新解释历史工具定义。
+
+verify 分页检查所有历史调用，再独立检查 host 整个交付域。旧格式、未完结迁移、孤立或未知记录均拒绝启动，不写转换。upgrade 只在没有未完成计划且 preview 已就绪时创建新操作；已有计划继续使用原操作、源指纹和解释。清理完成后压缩宿主副本，再重新检查当前格式。每次尝试有 ledgerCommitAttempts 上限；结果未知时停止本次启动，重启沿已保存计划继续。abandoning 只接续放弃，不在同一次启动中改成重新转换。
+
+升级前必须停止旧服务并排空旧写者。数据库锁不证明其他进程已停写。本行每次 SQL 请求前后及发布前核对原依赖。撤除不会撤销已经受理的写入，原 Tool journal 与 host 记录继续拥有其恢复责任。原生文件、程序消费副本和外部副作用不由升级启动行删除。
