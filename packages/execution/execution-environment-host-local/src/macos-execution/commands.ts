@@ -319,6 +319,9 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
         case 'data':
           buffer.push(frame.stream, frame.bytes)
           break
+        // macOS retains nothing, so it keeps no tail: a drop after the exit has nothing to mark.
+        case 'dropped':
+          break
         case 'exit':
           entry.exit = frame.exit
           entry.members = frame.members

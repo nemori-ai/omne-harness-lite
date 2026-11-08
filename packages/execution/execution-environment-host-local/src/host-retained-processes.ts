@@ -13,6 +13,8 @@ import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type {
   ManagedResource,
   OriginRef,
+  RetainedOutput,
+  RetainedOutputFrom,
   RetainedProcessInformation,
   RetainedProcessLedger,
   RetainedProcessRef,
@@ -25,6 +27,7 @@ import {
   type StopReading,
   type StopStatus,
 } from './host-scope.ts'
+import type { RetainedTail } from './retained-tail.ts'
 
 /** The supervisor readings the index needs; the host provider binds them to `systemctl`. */
 export type RetainedSupervision = Readonly<{
@@ -69,6 +72,8 @@ export type HandoverDetails = Readonly<{
   /** The gate's reading at exit; null when it could not read. */
   members: number | null
   ledger: RetainedProcessLedger
+  /** What the domain wrote after the handover, or `unsupported` when nothing is kept. Default `unsupported`. */
+  output?: RetainedTail | 'unsupported'
 }>
 
 export type Handover = Readonly<{ process: RetainedProcessRef; marker: 'written' | 'notWritten' }>
@@ -123,6 +128,16 @@ export type RetainedProcessIndex = Readonly<{
     tenant: TenantId,
     ledger: RetainedProcessLedger,
   ): Promise<StopStatus | 'notFound' | 'unavailable'>
+  /**
+   * What the retained process `ref` names wrote after the handover, when `scope` and `tenant` hold
+   * it. `notFound` once it left the index; `unavailable` for one loaded after a restart.
+   */
+  output(
+    ref: RetainedProcessRef,
+    scope: ScopeRef,
+    tenant: TenantId,
+    from?: RetainedOutputFrom,
+  ): Promise<RetainedOutput | 'notFound' | 'unavailable'>
   /** Stops every retained process of `scope`; `ledger` records those loaded without one. */
   closeScope(scope: ScopeRef, ledger?: RetainedProcessLedger): Promise<readonly ManagedResource[]>
   /**
@@ -154,6 +169,8 @@ type Entry = {
   state: 'reserved' | 'running' | 'stopping'
   members: number | 'unknown'
   ledger: RetainedProcessLedger | undefined
+  /** The tail; `unsupported` when nothing is kept; `unavailable` for one loaded after a restart. */
+  output: RetainedTail | 'unsupported' | 'unavailable'
   stopping: Promise<StopStatus> | undefined
   /**
    * The marker on disk: `written` or loaded; `notWritten` when the write failed and the
@@ -334,6 +351,8 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       state: 'running',
       members: reading.kind === 'members' ? countOf(reading.pids, gatePid) : 'unknown',
       ledger: undefined,
+      // The tail lived in the memory of the process that took the handover.
+      output: 'unavailable',
       stopping: undefined,
       marker: 'written',
     }
@@ -488,7 +507,26 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     entry.gatePid = details.gatePid
     entry.members = details.members ?? 'unknown'
     entry.ledger = details.ledger
+    entry.output = details.output ?? 'unsupported'
     return entry
+  }
+
+  /** The handed-over entry `ref` names, when `scope` and `tenant` hold it with the same generation. */
+  const held = (
+    ref: RetainedProcessRef,
+    scope: ScopeRef,
+    tenant: TenantId,
+  ): Entry | undefined | 'unavailable' => {
+    const owner = tenantText(tenant)
+    if (owner === undefined) return 'unavailable'
+    const entry = entries.get(ref.id)
+    return entry !== undefined &&
+      entry.state !== 'reserved' &&
+      entry.scope === scopeDigest(scope) &&
+      entry.tenant === owner &&
+      entry.generation === ref.generation
+      ? entry
+      : undefined
   }
 
   const closeScope = async (
@@ -525,6 +563,7 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
         state: 'reserved',
         members: 'unknown',
         ledger: undefined,
+        output: 'unsupported',
         stopping: undefined,
         marker: 'none',
       }
@@ -584,18 +623,19 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       if (entry.state === 'reserved') return 'unconfirmed'
       return stop(entry)
     },
+    async output(ref, scope, tenant, from) {
+      if (!(await ready())) return 'unavailable'
+      const entry = held(ref, scope, tenant)
+      if (entry === 'unavailable' || entry === undefined) return entry ?? 'notFound'
+      if (entry.output === 'unavailable') return 'unavailable'
+      if (entry.output === 'unsupported') return { kind: 'unsupported' }
+      return entry.output.read(from)
+    },
     async stopRef(ref, scope, tenant, ledger) {
       if (!(await ready())) return 'unavailable'
-      const owner = tenantText(tenant)
-      if (owner === undefined) return 'unavailable'
-      const entry = entries.get(ref.id)
-      if (
-        entry !== undefined &&
-        entry.state !== 'reserved' &&
-        entry.scope === scopeDigest(scope) &&
-        entry.tenant === owner &&
-        entry.generation === ref.generation
-      ) {
+      const entry = held(ref, scope, tenant)
+      if (entry === 'unavailable') return 'unavailable'
+      if (entry !== undefined) {
         // A process loaded after a restart has no ledger; the caller's view of its scope records it.
         entry.ledger ??= ledger
         return stop(entry)

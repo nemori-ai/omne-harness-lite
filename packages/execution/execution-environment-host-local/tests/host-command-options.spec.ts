@@ -55,6 +55,19 @@ describe.each(countOptions)('%s', name => {
   })
 })
 
+describe('retainedOutputBytes', () => {
+  it('accepts zero, which keeps no output, and more', () => {
+    for (const value of [0, 1, 65_536])
+      expect(commandOptionsIssue({ retainedOutputBytes: value })).toBe(undefined)
+  })
+
+  it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, '1', null])('refuses %s', value => {
+    expect(commandOptionsIssue({ retainedOutputBytes: value })).toBe(
+      'retainedOutputBytes must be a whole number of bytes, zero or more',
+    )
+  })
+})
+
 describe('residuePolicy', () => {
   it.each(['retain', 'stop'])('accepts %s', value => {
     expect(commandOptionsIssue({ residuePolicy: value })).toBe(undefined)
@@ -139,6 +152,7 @@ describe('commandSettings', () => {
       residuePolicy: 'retain',
       retainedPerScope: 8,
       retainedPollMs: 1_000,
+      retainedOutputBytes: 64 * 1024,
     })
     expect(settings).toEqual(commandDefaults)
     expect(Object.isFrozen(settings)).toBe(true)

@@ -19,6 +19,7 @@ import type {
   ProviderAcquireInput,
   ResidueReport,
   ResidueStopReason,
+  RetainedOutput,
   ResourceLedger,
   RetainedProcessInformation,
   RetainedProcessLedger,
@@ -26,6 +27,7 @@ import type {
 } from '@omne-harness/execution-environment-contract'
 import type { HostCommandPrerequisite, PrerequisiteProbe } from './host-probe.ts'
 import type { RetainedProcessIndex, RetainedReservation } from './host-retained-processes.ts'
+import { createRetainedTail, type RetainedTail } from './retained-tail.ts'
 import {
   forceStopScope,
   launchScope,
@@ -66,6 +68,8 @@ export type HostCommandOptions = Readonly<{
   retainedPerScope?: number
   /** Pause between two readings of the retained units' members. Initial 1000 ms. */
   retainedPollMs?: number
+  /** Bytes of output kept per stream of each retained process after the handover; 0 keeps none. Initial 65536. */
+  retainedOutputBytes?: number
 }>
 
 export type CommandSettings = Readonly<Required<HostCommandOptions>>
@@ -80,6 +84,7 @@ export const commandDefaults: CommandSettings = Object.freeze({
   residuePolicy: 'retain',
   retainedPerScope: 8,
   retainedPollMs: 1_000,
+  retainedOutputBytes: 64 * 1024,
 })
 
 /** What one option must be: a test of a present value, and the words the issue ends with. */
@@ -96,6 +101,10 @@ const timeRule: OptionRule = {
   mustBe: 'a finite number of milliseconds, zero or more',
 }
 const countRule: OptionRule = { accepts: wholeOneOrMore, mustBe: 'a whole number, one or more' }
+const keptBytesRule: OptionRule = {
+  accepts: value => Number.isSafeInteger(value) && Number(value) >= 0,
+  mustBe: 'a whole number of bytes, zero or more',
+}
 const policyRule: OptionRule = {
   accepts: value => value === 'retain' || value === 'stop',
   mustBe: "'retain' or 'stop'",
@@ -111,6 +120,7 @@ const optionRules: Readonly<Record<keyof HostCommandOptions, OptionRule>> = {
   probeRetryMs: timeRule,
   retainedPerScope: countRule,
   retainedPollMs: countRule,
+  retainedOutputBytes: keptBytesRule,
   residuePolicy: policyRule,
 }
 
@@ -142,6 +152,8 @@ export type GateFrame =
   | Readonly<{ kind: 'started' }>
   | Readonly<{ kind: 'spawnFailed'; code: string }>
   | Readonly<{ kind: 'data'; stream: 'stdout' | 'stderr'; bytes: Uint8Array }>
+  /** After the exit frame only: `count` bytes of `stream` the gate read but could not send. */
+  | Readonly<{ kind: 'dropped'; stream: 'stdout' | 'stderr'; count: number }>
   | Readonly<{
       kind: 'exit'
       exit: Extract<CommandOutcome, { kind: 'completed' }>['exit']
@@ -154,7 +166,8 @@ export type FrameStep =
   | Readonly<{ kind: 'frames'; frames: readonly GateFrame[] }>
   | Readonly<{ kind: 'fault'; fault: string; frames: readonly GateFrame[] }>
 
-type Phase = 'launching' | 'ready' | 'running' | 'ended'
+/** `exited`: after the exit frame, where the gate still relays what the unit writes; `ended`: no more frames. */
+type Phase = 'launching' | 'ready' | 'running' | 'exited' | 'ended'
 
 const base64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u
 
@@ -171,6 +184,15 @@ function decodeData(value: object, maxChunkBytes: number): GateFrame | string {
   const bytes = new Uint8Array(Buffer.from(text, 'base64'))
   if (bytes.length > maxChunkBytes) return 'a data frame exceeds the chunk bound'
   return { kind: 'data', stream, bytes }
+}
+
+function decodeDropped(value: object): GateFrame | string {
+  const stream: unknown = Reflect.get(value, 's')
+  const count: unknown = Reflect.get(value, 'n')
+  if (stream !== 'stdout' && stream !== 'stderr') return 'a drop frame names an unknown stream'
+  if (typeof count !== 'number' || !Number.isSafeInteger(count) || count <= 0)
+    return 'a drop frame has no positive count'
+  return { kind: 'dropped', stream, count }
 }
 
 function decodeExit(value: object): GateFrame | string {
@@ -198,6 +220,8 @@ function decodeFrame(value: unknown, maxChunkBytes: number): GateFrame | string 
       return decodeSpawnFailed(value)
     case 'data':
       return decodeData(value, maxChunkBytes)
+    case 'x':
+      return decodeDropped(value)
     case 'exit':
       return decodeExit(value)
     default:
@@ -205,7 +229,10 @@ function decodeFrame(value: unknown, maxChunkBytes: number): GateFrame | string 
   }
 }
 
-/** The order the gate must keep: ready, then started or a spawn failure, then data, then one exit. */
+/**
+ * The order the gate must keep: ready, then started or a spawn failure, then data, then one exit;
+ * after the exit, data and drop frames of what the unit still writes.
+ */
 function nextPhase(phase: Phase, frame: GateFrame): Phase | string {
   switch (frame.kind) {
     case 'ready':
@@ -215,9 +242,11 @@ function nextPhase(phase: Phase, frame: GateFrame): Phase | string {
     case 'spawnFailed':
       return phase === 'ready' ? 'ended' : 'a spawn failure out of order'
     case 'data':
-      return phase === 'running' ? 'running' : 'data outside the running command'
+      return phase === 'running' || phase === 'exited' ? phase : 'data outside the running command'
+    case 'dropped':
+      return phase === 'exited' ? phase : 'a drop frame before the exit'
     case 'exit':
-      return phase === 'running' ? 'ended' : 'an exit out of order'
+      return phase === 'running' ? 'exited' : 'an exit out of order'
     default: {
       const exhaustive: never = frame
       return exhaustive
@@ -259,7 +288,13 @@ export function createGateReader(input: { maxChunkBytes: number }): Readonly<{
         const frame = decodeFrame(value, input.maxChunkBytes)
         if (typeof frame === 'string') return failed(frame, frames)
         const next = nextPhase(phase, frame)
-        if (next !== 'launching' && next !== 'ready' && next !== 'running' && next !== 'ended')
+        if (
+          next !== 'launching' &&
+          next !== 'ready' &&
+          next !== 'running' &&
+          next !== 'exited' &&
+          next !== 'ended'
+        )
           return failed(next, frames)
         phase = next
         frames.push(frame)
@@ -490,6 +525,7 @@ export function resolveUnknownHandover(input: {
 type StartRequest = Parameters<CommandFacility<unknown>['start']>[0]
 type ListRequest = Parameters<CommandRetention<unknown>['list']>[0]
 type StopRetainedRequest = Parameters<NonNullable<CommandRetention<unknown>['stop']>>[0]
+type OutputRetainedRequest = Parameters<NonNullable<CommandRetention<unknown>['output']>>[0]
 
 /** The command side of one acquisition: its facility, its admission and its running processes. */
 export type HostCommands = Readonly<{
@@ -585,6 +621,10 @@ type ProcessEntry = {
   exit: Extract<GateFrame, { kind: 'exit' }>['exit'] | undefined
   /** The gate's reading of the unit's other members at exit; null when it could not read them. */
   members: number | null
+  /** Bytes per stream the gate relayed or dropped after the exit frame. */
+  readonly afterExit: { stdout: number; stderr: number }
+  /** The tail the handover gave to the index; frames after the exit frame go to it from then on. */
+  tail: RetainedTail | undefined
   /** A stop of this handle was asked for; set before the stop's first wait. */
   stopRequested: boolean
   /** The acquisition released the domain; set before the release's first wait. */
@@ -656,7 +696,17 @@ function applyFrame(entry: ProcessEntry, frame: GateFrame, exited: () => void): 
       entry.signal?.('spawnFailed')
       break
     case 'data':
-      entry.buffer.push(frame.stream, frame.bytes)
+      if (entry.exit === undefined) {
+        entry.buffer.push(frame.stream, frame.bytes)
+        break
+      }
+      // After the exit frame: counted as observed; saved only once a handover gave a tail.
+      entry.afterExit[frame.stream] += frame.bytes.length
+      entry.tail?.append(frame.stream, frame.bytes)
+      break
+    case 'dropped':
+      entry.afterExit[frame.stream] += frame.count
+      entry.tail?.drop(frame.stream, frame.count)
       break
     case 'exit':
       entry.exit = frame.exit
@@ -809,8 +859,34 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
   })
 
   /**
-   * The commit took effect and the domain is whole: the gate is told, this acquisition drops its
-   * channels, and the index takes the domain as running. The custody changed already.
+   * The tail of a domain handed over now: it starts saving at what each stream observed so far.
+   * Without a capacity the frame channel closes, and the gate discards what the unit writes.
+   */
+  const keepOutput = (entry: ProcessEntry): RetainedTail | 'unsupported' => {
+    const frames = entry.launcher.stdout
+    if (settings.retainedOutputBytes === 0 || frames === null) {
+      frames?.destroy()
+      return 'unsupported'
+    }
+    const counted = entry.buffer.summary()
+    const tail = createRetainedTail({
+      capacity: settings.retainedOutputBytes,
+      savedFrom: {
+        stdout: counted.stdout.observedBytes + entry.afterExit.stdout,
+        stderr: counted.stderr.observedBytes + entry.afterExit.stderr,
+      },
+    })
+    entry.tail = tail
+    // The open channel must not keep the provider's process alive by itself.
+    const unref: unknown = Reflect.get(frames, 'unref')
+    if (typeof unref === 'function') Reflect.apply(unref, frames, [])
+    return tail
+  }
+
+  /**
+   * The commit took effect and the domain is whole: the gate is told, this acquisition drops the
+   * control channel, the frame channel feeds the domain's tail, and the index takes the domain as
+   * running. The custody changed already.
    */
   const enterIndex = async (
     entry: ProcessEntry,
@@ -819,13 +895,13 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     if (retentionBinding === undefined) throw new Error('a handover without a retention binding')
     entry.sendControl({ c: 'retain' })
     entry.closeControl()
-    entry.launcher.stdout?.destroy()
+    const output = keepOutput(entry)
     entry.launcher.stderr?.destroy()
     entry.launcher.unref()
-    const handed = await retentionBinding.index.commit(
-      reservation,
-      handoverDetails(entry, retentionBinding.processes),
-    )
+    const handed = await retentionBinding.index.commit(reservation, {
+      ...handoverDetails(entry, retentionBinding.processes),
+      output,
+    })
     entry.custody = { kind: 'retained', process: handed.process }
     return handed.process
   }
@@ -975,6 +1051,8 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       startedAt: undefined,
       exit: undefined,
       members: null,
+      afterExit: { stdout: 0, stderr: 0 },
+      tail: undefined,
       stopRequested: false,
       released: false,
       stopping: undefined,
@@ -1028,12 +1106,16 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       // What the command left in its scope, or a gate that went away, is cleared by a forced stop.
       if (!entry.confirmed && entry.startedAt !== undefined) void forceStop(entry, tools)
     }
+    // Frames are read after the exit frame too: what the unit writes then may go to a retained tail.
+    let reading = true
     launcher.stdout?.on('data', (bytes: Buffer) => {
-      if (ended) return
+      if (!reading) return
       const step = reader.push(bytes)
       for (const frame of step.frames) applyFrame(entry, frame, onExit)
       if (step.kind === 'fault') {
         // A broken frame stream invalidates the resource: its outcome is unknown, and it is stopped.
+        // After the exit frame the outcome stands, and a handed-over domain is not this one's to stop.
+        reading = false
         end()
         void forceStop(entry, tools)
       }
@@ -1195,13 +1277,27 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     return { kind: 'done', requestId: request.requestId, value: { status: answer } }
   }
 
+  /** What a retained process of the retention scope wrote after the handover, from its tail. */
+  const outputRetained = async (
+    request: OutputRetainedRequest,
+  ): Promise<FacilityResult<RetainedOutput>> => {
+    if (sealed || retentionBinding === undefined) return rejected(request.requestId, 'closed')
+    const { index, scope, tenant: owner } = retentionBinding
+    const answer = await index.output(request.process, scope, owner, request.from)
+    if (answer === 'notFound' || answer === 'unavailable')
+      return rejected(request.requestId, answer)
+    return { kind: 'done', requestId: request.requestId, value: answer }
+  }
+
   const facility: CommandFacility<unknown> = {
     start(request) {
       const running = start(request)
       inFlight.add(running)
       return running.finally(() => inFlight.delete(running))
     },
-    ...(retentionBinding === undefined ? {} : { retention: { list, stop: stopRetained } }),
+    ...(retentionBinding === undefined
+      ? {}
+      : { retention: { list, stop: stopRetained, output: outputRetained } }),
   }
 
   return Object.freeze({

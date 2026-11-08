@@ -4,13 +4,16 @@
 //   `{"c":"go"}` at most once, `{"c":"term"}` for a graceful stop, and `{"c":"retain"}` after the
 //   exit frame when the manager handed the unit over to a retention scope;
 // - frames, standard output, gate to manager, one JSON object per line: `ready`, then `started` or
-//   `spawnFailed`, then `data` frames, then one `exit` with the count of the unit's other members.
+//   `spawnFailed`, then `data` frames, then one `exit` with the count of the unit's other members,
+//   then `data` and `x` (bytes dropped) frames of what the unit still writes.
 // The gate checks that it runs in its own unit before it reports ready, starts the command only on
 // GO, gives it only the requested environment, and pauses the command's pipes while its frame pipe
 // is full, so the bytes waiting between command and manager stay bounded. After the exit frame it
-// stays in the unit and keeps reading the command's two pipes, discarding the bytes, so processes
-// the command left behind never block on them or see SIGPIPE; the manager decides whether the unit
-// is stopped or kept, and a manager that went away leaves it to cold recovery. It is a script:
+// stays in the unit and keeps reading the command's two pipes without ever pausing them, so
+// processes the command left behind never block on them or see SIGPIPE: it relays the bytes while
+// the frame pipe takes them, counts them while it is full and reports the count once it drains, and
+// discards them once the manager is gone. The manager decides whether the unit is stopped or kept,
+// and a manager that went away leaves it to cold recovery. It is a script:
 // nothing imports it. It uses Node built-ins, the cgroup placement module and its pure judgments in
 // `command-gate-core.ts` only: this file keeps the state and does the I/O.
 import { spawn, type ChildProcess } from 'node:child_process'
@@ -19,9 +22,12 @@ import { Socket } from 'node:net'
 import type { Readable } from 'node:stream'
 import {
   afterExit,
+  afterExitRelay,
   controlStep,
   cgroupNamesUnit,
   dataFrames,
+  drainAfterExit,
+  relayAfterExit,
   exitFrame,
   spawnFailedFrame,
   splitLines,
@@ -48,6 +54,7 @@ let exitStatus: ExitStatus | undefined
 let openStreams = 2
 let quiet: ReturnType<typeof setTimeout> | undefined
 let finished = false
+const relay = afterExitRelay()
 
 function send(frame: CommandFrame): boolean {
   if (detached) return true
@@ -75,6 +82,11 @@ function resume(): void {
   armQuiet()
 }
 
+function onDrain(): void {
+  if (finished) drainAfterExit(relay, send)
+  else resume()
+}
+
 function onFramesError(): void {
   // A manager that went away leaves the command running; the gate keeps draining its pipes.
   detached = true
@@ -82,7 +94,7 @@ function onFramesError(): void {
 }
 
 process.stdout.on('error', onFramesError)
-process.stdout.on('drain', resume)
+process.stdout.on('drain', onDrain)
 
 const control = new Socket({ fd: 3, readable: true, writable: false })
 control.on('error', () => undefined)
@@ -100,7 +112,9 @@ function finish(): void {
   finished = true
   clearTimeout(quiet)
   send(exitFrame(status, otherMembers()))
-  // From here on the pipes are drained and discarded; the gate stays until its unit is stopped.
+  // From here on the pipes are never paused: output is relayed while the manager reads it and
+  // counted while it does not, and discarded once the manager is gone. The gate stays until its
+  // unit is stopped.
   paused = false
   streams().forEach(stream => stream.resume())
   setInterval(() => undefined, 2_147_483_647)
@@ -119,8 +133,11 @@ function sendData(frame: CommandFrame): void {
   if (!send(frame)) pause()
 }
 
-function relay(chunk: Buffer, name: OutputStream, maxChunkBytes: number): void {
-  if (finished) return
+function forwardChunk(chunk: Buffer, name: OutputStream, maxChunkBytes: number): void {
+  if (finished) {
+    if (!detached) relayAfterExit(relay, chunk, name, maxChunkBytes, send)
+    return
+  }
   for (const frame of dataFrames(chunk, name, maxChunkBytes)) sendData(frame)
   armQuiet()
 }
@@ -132,7 +149,7 @@ function onStreamEnd(): void {
 
 function forward(stream: Readable | null, name: OutputStream, maxChunkBytes: number): void {
   if (stream === null) return
-  stream.on('data', (chunk: Buffer) => relay(chunk, name, maxChunkBytes))
+  stream.on('data', (chunk: Buffer) => forwardChunk(chunk, name, maxChunkBytes))
   stream.on('end', onStreamEnd)
   stream.on('error', () => undefined)
 }
@@ -197,11 +214,10 @@ const controlHandlers: ControlHandlers = {
     run(action.request)
   },
   term: () => child?.kill('SIGTERM'),
-  // `retain`: the unit was handed over; the manager may drop both channels. Nothing changes here,
-  // the gate already drains and stays. A manager that stops the unit instead kills the gate with it.
-  retain: () => {
-    detached = true
-  },
+  // `retain`: the unit was handed over. The manager closes the control channel and keeps reading
+  // frames for the retained process's tail; a manager that closes the frame channel too makes the
+  // gate discard. A manager that stops the unit instead kills the gate with it.
+  retain: () => undefined,
 }
 
 function act<K extends ControlKind>(action: Extract<ControlAction, { kind: K }>): void {

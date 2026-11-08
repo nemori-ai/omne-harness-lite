@@ -23,6 +23,49 @@ export type CommandFrame =
   | Readonly<{ t: 'spawnFailed'; code: string }>
   | Readonly<{ t: 'data'; s: OutputStream; b: string }>
   | Readonly<{ t: 'exit'; code: number | null; signal: string | null; members: number | null }>
+  /** After the exit only: `n` bytes of stream `s` the gate read but could not send. */
+  | Readonly<{ t: 'x'; s: OutputStream; n: number }>
+
+/**
+ * The gate's relay after the exit frame. The pipes are never paused: while the frame channel takes
+ * frames, output goes as data frames; once a write reports a full channel, bytes are counted per
+ * stream instead, until the channel drains.
+ */
+export type AfterExitRelay = { dropping: boolean; readonly dropped: Record<OutputStream, number> }
+
+export function afterExitRelay(): AfterExitRelay {
+  return { dropping: false, dropped: { stdout: 0, stderr: 0 } }
+}
+
+/** One chunk after the exit. `send` answers false once the channel is full; that frame was taken. */
+export function relayAfterExit(
+  relay: AfterExitRelay,
+  chunk: Uint8Array,
+  stream: OutputStream,
+  maxChunkBytes: number,
+  send: (frame: CommandFrame) => boolean,
+): void {
+  for (let at = 0; at < chunk.length; at += maxChunkBytes) {
+    const part = chunk.subarray(at, at + maxChunkBytes)
+    const [frame] = dataFrames(part, stream, maxChunkBytes)
+    if (relay.dropping) relay.dropped[stream] += part.length
+    else if (frame !== undefined && !send(frame)) relay.dropping = true
+  }
+}
+
+/** The channel drained: the counted bytes go first as drop frames, then output flows again. */
+export function drainAfterExit(
+  relay: AfterExitRelay,
+  send: (frame: CommandFrame) => boolean,
+): void {
+  relay.dropping = false
+  for (const s of ['stdout', 'stderr'] as const) {
+    const n = relay.dropped[s]
+    if (n === 0) continue
+    relay.dropped[s] = 0
+    if (!send({ t: 'x', s, n })) relay.dropping = true
+  }
+}
 
 export type ExitStatus = Readonly<{ code: number | null; signal: string | null }>
 

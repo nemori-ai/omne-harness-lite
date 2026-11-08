@@ -236,6 +236,12 @@ async function hostSubject(): Promise<CommandRetentionSubject> {
     commands: {
       clean: () => body('echo done'),
       leftover: () => body('sleep 300 & echo started'),
+      // The leftover writes a check mark (three UTF-8 bytes) a second after the main process exits,
+      // well after the handover, then keeps running.
+      writing: () => ({
+        body: body("(sleep 1; printf 'tail \\342\\234\\223\\r\\n'; sleep 300) & echo before"),
+        after: new TextEncoder().encode('tail ✓\r\n'),
+      }),
     },
     async closeScope() {
       first.close()
@@ -264,9 +270,9 @@ describe(
   () => {
     for (const test of commandRetentionConformance({ subject: hostSubject, waitMs: 60_000 })) {
       // A bare provider has no facility guard: the registry's gate asks it, and its tests cover
-      // the refusal. The host provides no retention.output yet.
+      // the refusal.
       const notApplicable =
-        test.name === 'V-EE30.guard-refuses-stop' || test.name.startsWith('V-EE31.')
+        test.name === 'V-EE30.guard-refuses-stop' || test.name === 'V-EE31.guard-refuses-output'
       it(test.name, async () => {
         expect(await runConformanceCase(test)).toMatchObject({
           name: test.name,

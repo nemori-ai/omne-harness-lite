@@ -4,9 +4,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   afterExit,
+  afterExitRelay,
   cgroupNamesUnit,
   controlStep,
   dataFrames,
+  drainAfterExit,
+  relayAfterExit,
+  type CommandFrame,
   exitFrame,
   parseRequest,
   spawnFailedFrame,
@@ -126,6 +130,68 @@ describe('dataFrames', () => {
     expect(dataFrames(whole.subarray(2, 6), 'stdout', 8)).toEqual([
       { t: 'data', s: 'stdout', b: 'YWJjZA==' },
     ])
+  })
+})
+
+describe('the relay after the exit', () => {
+  const bytes = (text: string) => new Uint8Array(Buffer.from(text))
+  /** A channel that takes `room` frames, reporting full on the last one it takes. */
+  const channel = (room: number) => {
+    const sent: CommandFrame[] = []
+    return {
+      sent,
+      send(frame: CommandFrame) {
+        sent.push(frame)
+        return sent.length < room
+      },
+      grow(more: number) {
+        room = sent.length + more
+      },
+    }
+  }
+
+  it('sends data frames while the channel takes them, then counts the rest per stream', () => {
+    const relay = afterExitRelay()
+    const out = channel(2)
+    relayAfterExit(relay, bytes('abcdefghij'), 'stdout', 4, out.send)
+    expect(out.sent).toEqual([
+      { t: 'data', s: 'stdout', b: 'YWJjZA==' },
+      { t: 'data', s: 'stdout', b: 'ZWZnaA==' },
+    ])
+    expect(relay).toEqual({ dropping: true, dropped: { stdout: 2, stderr: 0 } })
+    relayAfterExit(relay, bytes('xyz'), 'stderr', 4, out.send)
+    expect(out.sent).toHaveLength(2)
+    expect(relay.dropped).toEqual({ stdout: 2, stderr: 3 })
+  })
+
+  it('reports the counted bytes as drop frames once the channel drains, then sends data again', () => {
+    const relay = afterExitRelay()
+    const out = channel(1)
+    relayAfterExit(relay, bytes('abcd'), 'stdout', 4, out.send)
+    relayAfterExit(relay, bytes('efgh'), 'stdout', 4, out.send)
+    relayAfterExit(relay, bytes('ij'), 'stderr', 4, out.send)
+    out.grow(10)
+    drainAfterExit(relay, out.send)
+    relayAfterExit(relay, bytes('k'), 'stdout', 4, out.send)
+    expect(out.sent.slice(1)).toEqual([
+      { t: 'x', s: 'stdout', n: 4 },
+      { t: 'x', s: 'stderr', n: 2 },
+      { t: 'data', s: 'stdout', b: 'aw==' },
+    ])
+    expect(relay).toEqual({ dropping: false, dropped: { stdout: 0, stderr: 0 } })
+  })
+
+  it('drops again when a drop frame fills the channel, and sends nothing for a stream with no gap', () => {
+    const relay = afterExitRelay()
+    const out = channel(1)
+    relayAfterExit(relay, bytes('abcd'), 'stdout', 4, out.send)
+    relayAfterExit(relay, bytes('e'), 'stdout', 4, out.send)
+    out.grow(1)
+    drainAfterExit(relay, out.send)
+    expect(out.sent.slice(1)).toEqual([{ t: 'x', s: 'stdout', n: 1 }])
+    expect(relay.dropping).toBe(true)
+    drainAfterExit(relay, out.send)
+    expect(out.sent).toHaveLength(2)
   })
 })
 

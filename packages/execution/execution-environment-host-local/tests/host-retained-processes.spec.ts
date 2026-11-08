@@ -27,6 +27,7 @@ import {
 } from '../src/host-retained-processes.ts'
 import type { MembersReading, ScopeCoordinate, StopReading } from '../src/host-scope.ts'
 import { scopeDigest, scopeReference } from '../src/host-scope.ts'
+import { createRetainedTail } from '../src/retained-tail.ts'
 
 function tenantOf(account: string): TenantId {
   const parsed = tenantCodec.parse(
@@ -669,6 +670,51 @@ describe('stopping a retained process by its reference', () => {
       'confirmed',
     )
     expect(ledger.stopped).toEqual([[key, 'confirmed']])
+    second.index.retire('generation-1')
+  })
+
+  it('reads the tail of a retained process for its scope, tenant and generation only', async () => {
+    const f = await indexWith(await stateDirectory())
+    const scope = scopeOf('scope-a')
+    const tail = createRetainedTail({ capacity: 16, savedFrom: { stdout: 5, stderr: 0 } })
+    const key = randomUUID()
+    const reservation = f.index.reserve(scope, tenant, key)
+    if (typeof reservation === 'string') throw new Error('expected a reservation')
+    f.stub.members(unitOf(key), [gatePid, 100])
+    const { process } = await f.index.commit(reservation, {
+      unit: unitOf(key),
+      bootId,
+      origin: originRef('call-1'),
+      gatePid,
+      members: 1,
+      ledger: endingLedger().ledger,
+      output: tail,
+    })
+    expect(await f.index.output(process, scope, tenant)).toEqual({ kind: 'none' })
+    tail.append('stdout', new TextEncoder().encode('later'))
+    expect(await f.index.output(process, scope, tenant, { stdout: 7 })).toMatchObject({
+      kind: 'tail',
+      streams: [{ stream: 'stdout', savedFrom: 5, start: 7, end: 10 }],
+    })
+    expect(await f.index.output(process, scopeOf('scope-b'), tenant)).toBe('notFound')
+    expect(await f.index.output(process, scope, otherTenant)).toBe('notFound')
+    expect(await f.index.output({ ...process, generation: 'x' }, scope, tenant)).toBe('notFound')
+    expect(await f.index.stopRef(process, scope, tenant, endingLedger().ledger)).toBe('confirmed')
+    expect(await f.index.output(process, scope, tenant)).toBe('notFound')
+  })
+
+  it('answers unsupported when nothing is kept, and unavailable for one loaded after a restart', async () => {
+    const state = await stateDirectory()
+    const stub = supervisor()
+    const first = await indexWith(state, stub)
+    const scope = scopeOf('scope-a')
+    const { handed } = await handOver(first, scope)
+    expect(await first.index.output(handed.process, scope, tenant)).toEqual({
+      kind: 'unsupported',
+    })
+    first.index.retire('generation-1')
+    const second = await indexWith(state, stub)
+    expect(await second.index.output(handed.process, scope, tenant)).toBe('unavailable')
     second.index.retire('generation-1')
   })
 

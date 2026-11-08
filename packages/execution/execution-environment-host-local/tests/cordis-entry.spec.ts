@@ -636,7 +636,7 @@ it('accepts the residue policy and the retained-process counts of the command, a
   const validate = createSourcePlugin(createSourceDomain()).Config['~standard'].validate
   for (const policy of ['retain', 'stop'])
     expect(validate({ residuePolicy: policy })).toStrictEqual({ value: { residuePolicy: policy } })
-  const counted = { retainedPerScope: 3, retainedPollMs: 500 }
+  const counted = { retainedPerScope: 3, retainedPollMs: 500, retainedOutputBytes: 0 }
   expect(validate(counted)).toStrictEqual({ value: counted })
   // A configuration without a policy carries no `residuePolicy` key, not even an undefined one.
   expect(validate({ stopBoundMs: 100 })).toStrictEqual({ value: { stopBoundMs: 100 } })
@@ -651,6 +651,8 @@ it('accepts the residue policy and the retained-process counts of the command, a
     { retainedPerScope: 1.5 },
     { retainedPollMs: 0 },
     { retainedPollMs: '5' },
+    { retainedOutputBytes: -1 },
+    { retainedOutputBytes: 2.5 },
     { residualPolicy: 'stop' },
   ])
     expect(validate(refused), JSON.stringify(refused)).toMatchObject({
@@ -682,6 +684,7 @@ async function handsOver() {
     residuePolicy: 'stop' as const,
     retainedPerScope: 3,
     retainedPollMs: 500,
+    retainedOutputBytes: 4096,
     stopBoundMs: 200,
   }
   loaded.push(await ctx.plugin(createSourcePlugin(createSourceDomain()), config))

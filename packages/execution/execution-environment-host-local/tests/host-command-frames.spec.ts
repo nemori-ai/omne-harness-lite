@@ -188,12 +188,38 @@ it.each([
   ['data before started', [line({ t: 'ready' }), line(data('stdout', 'early'))]],
   ['started before ready', [line({ t: 'started' })]],
   [
-    'data after the exit',
+    'data after a spawn failure',
+    [line({ t: 'ready' }), line({ t: 'spawnFailed', code: 'ENOENT' }), line(data('stdout', 'x'))],
+  ],
+  [
+    'a drop frame before the exit',
+    [line({ t: 'ready' }), line({ t: 'started' }), line({ t: 'x', s: 'stdout', n: 3 })],
+  ],
+  [
+    'a drop frame without a positive count',
     [
       line({ t: 'ready' }),
       line({ t: 'started' }),
       line({ t: 'exit', code: 0, signal: null }),
-      line(data('stdout', 'late')),
+      line({ t: 'x', s: 'stdout', n: 0 }),
+    ],
+  ],
+  [
+    'a drop frame of an unknown stream',
+    [
+      line({ t: 'ready' }),
+      line({ t: 'started' }),
+      line({ t: 'exit', code: 0, signal: null }),
+      line({ t: 'x', s: 'tty', n: 1 }),
+    ],
+  ],
+  [
+    'a second exit',
+    [
+      line({ t: 'ready' }),
+      line({ t: 'started' }),
+      line({ t: 'exit', code: 0, signal: null }),
+      line({ t: 'exit', code: 0, signal: null }),
     ],
   ],
   [
@@ -212,6 +238,26 @@ it.each([
   const reader = createGateReader({ maxChunkBytes: 64 })
   expect(reader.push(joined(...lines)).kind).toBe('fault')
   expect(reader.push(line({ t: 'ready' })).kind).toBe('fault')
+})
+
+it('reads data and drop frames after the exit, where the unit still writes', () => {
+  const reader = createGateReader({ maxChunkBytes: 64 })
+  const step = reader.push(
+    joined(
+      line({ t: 'ready' }),
+      line({ t: 'started' }),
+      line({ t: 'exit', code: 0, signal: null, members: 1 }),
+      line(data('stdout', 'late')),
+      line({ t: 'x', s: 'stderr', n: 7 }),
+      line(data('stderr', 'after')),
+    ),
+  )
+  expect(step.kind).toBe('frames')
+  expect(step.frames.slice(3)).toEqual([
+    { kind: 'data', stream: 'stdout', bytes: encoder.encode('late') },
+    { kind: 'dropped', stream: 'stderr', count: 7 },
+    { kind: 'data', stream: 'stderr', bytes: encoder.encode('after') },
+  ])
 })
 
 describe('the fault reason and the line bound', () => {

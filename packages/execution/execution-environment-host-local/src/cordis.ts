@@ -92,9 +92,9 @@ const commandFields = [
   'probeRetryMs',
 ] as const
 /** The command options about processes a command leaves behind; the terminal has none of them. */
-const residueCountFields = ['retainedPerScope', 'retainedPollMs'] as const
+const residueNumberFields = ['retainedPerScope', 'retainedPollMs', 'retainedOutputBytes'] as const
 const pathFields = ['filesRoot', 'stateDirectory'] as const
-const numberFields = ['drainBoundMs', ...commandFields, ...residueCountFields] as const
+const numberFields = ['drainBoundMs', ...commandFields, ...residueNumberFields] as const
 const hostFields: readonly string[] = [...numberFields, ...pathFields, 'terminal', 'residuePolicy']
 const terminalFields = [
   ...commandFields,
@@ -181,7 +181,7 @@ const hostFilesConfig: HostFilesConfigSchema = {
 
 function commandOptionsOf(config: HostFilesConfig): HostCommandOptions {
   const options: { -readonly [K in keyof HostCommandOptions]: HostCommandOptions[K] } = {}
-  for (const name of [...commandFields, ...residueCountFields])
+  for (const name of [...commandFields, ...residueNumberFields])
     if (config[name] !== undefined) options[name] = config[name]
   if (config.residuePolicy !== undefined) options.residuePolicy = config.residuePolicy
   return options
