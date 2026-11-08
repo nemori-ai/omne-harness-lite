@@ -9,23 +9,39 @@ export function writeEffectOf(value: object): string {
     : 'unreported'
 }
 
-const encoder = new TextEncoder()
 export function utf8Length(text: string): number {
-  return encoder.encode(text).byteLength
+  return Buffer.byteLength(text, 'utf8')
+}
+function codePointBytes(code: number): number {
+  return code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4
 }
 function prefix(text: string, maximum: number): string {
   let size = 0
-  let result = ''
+  let end = 0
   for (const char of text) {
-    const bytes = utf8Length(char)
+    const bytes = codePointBytes(char.codePointAt(0)!)
     if (size + bytes > maximum) break
-    result += char
+    end += char.length
     size += bytes
   }
-  return result
+  return text.slice(0, end)
 }
 function suffix(text: string, maximum: number): string {
-  return [...prefix([...text].reverse().join(''), maximum)].reverse().join('')
+  let size = 0
+  let start = text.length
+  while (start > 0) {
+    let units = 1
+    const last = text.charCodeAt(start - 1)
+    if (last >= 0xdc00 && last <= 0xdfff && start > 1) {
+      const previous = text.charCodeAt(start - 2)
+      if (previous >= 0xd800 && previous <= 0xdbff) units = 2
+    }
+    const bytes = units === 2 ? 4 : codePointBytes(last)
+    if (size + bytes > maximum) break
+    start -= units
+    size += bytes
+  }
+  return text.slice(start)
 }
 function truncateText(headText: string, tailText: string, total: number, maximum: number): string {
   let reserve = utf8Length(`\n[tool truncated bytes 0..${total} of ${total}]\n`)
@@ -51,14 +67,30 @@ export class TextWindow {
   private head = ''
   private tail = ''
   private total = 0
+  private remainingHead: number
+  private tailBytes = 0
   private readonly maximum: number
   constructor(maximum: number) {
     this.maximum = maximum
+    this.remainingHead = maximum
   }
   append(text: string): void {
-    this.total += utf8Length(text)
-    this.head = prefix(this.head + text, this.maximum)
-    this.tail = suffix(this.tail + text, this.maximum)
+    const bytes = utf8Length(text)
+    this.total += bytes
+    if (this.remainingHead > 0) {
+      this.head += bytes <= this.remainingHead ? text : prefix(text, this.remainingHead)
+      this.remainingHead = Math.max(0, this.remainingHead - bytes)
+    }
+    if (this.tailBytes + bytes <= this.maximum) {
+      this.tail += text
+      this.tailBytes += bytes
+    } else {
+      this.tail =
+        bytes >= this.maximum
+          ? suffix(text, this.maximum)
+          : suffix(this.tail, this.maximum - bytes) + text
+      this.tailBytes = utf8Length(this.tail)
+    }
   }
   render(maximum: number): string {
     if (this.total <= maximum) return this.head

@@ -104,7 +104,7 @@ async function call(
   if ('failure' in answer) throw new Error(JSON.stringify(answer.failure))
   return operation.author.output.check({ arguments: parsed.ok, value: answer.ok })
 }
-const textOf = (result: ToolResult<ContentBlock>) =>
+const textOf = (result: Readonly<{ content: readonly ContentBlock[] }>) =>
   result.content.flatMap(block => (block.kind === 'text' ? [block.text] : [])).join('\n')
 
 describe('Tools complete author', () => {
