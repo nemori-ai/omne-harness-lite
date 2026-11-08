@@ -189,9 +189,7 @@ it('rejects a facility whose scope closing stops nothing', async () => {
 // refuse it with the message of the assertion that guards that obligation.
 
 type Retention = NonNullable<CommandFacility<unknown>['retention']>
-type Stop = NonNullable<Retention['stop']>
-type Output = NonNullable<Retention['output']>
-type OutputRequest = Parameters<Output>[0]
+type OutputRequest = Parameters<NonNullable<Retention['output']>>[0]
 
 function operations(a: CommandRetentionAcquisition) {
   const retention = a.facility.retention
@@ -749,7 +747,10 @@ const tailViolations: readonly Omit<Violation, 'obligation'>[] = [
       return {
         ...s,
         acquisition: rewired(s.acquisition, ({ output }) => ({
-          output: ({ from: _, ...request }: OutputRequest) => output(request),
+          output(request) {
+            const { from: _, ...withoutFrom } = request
+            return output(withoutFrom)
+          },
         })),
       }
     },
