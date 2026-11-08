@@ -21,6 +21,16 @@ import type { BodyPolicy } from './result-offloading.ts'
 export interface ToolHistoryAuthority<P> {
   qualify(input: CallAccess<P>): Reply<void>
 }
+/** Trusted inventory while old writers are drained and the new executor has not started. */
+export interface ToolHistoryCallSource {
+  scan(
+    input: Readonly<{
+      tenant: CallAccess<unknown>['tenant']
+      after: string | null
+      limit: number
+    }>,
+  ): Reply<Readonly<{ calls: readonly ToolCallId[]; next: string | null }>>
+}
 export type HistoricalTextInterpretation = Readonly<{
   tool: Adoption
   rawCodec: RawOutput['codec']
@@ -69,7 +79,12 @@ export type HistoricalMigrationProgress = Readonly<{
         activatedAt: ToolMaterialInstant
       }>
   )
+export type HistoricalMigrationPlan = Readonly<{
+  progress: HistoricalMigrationProgress
+  interpretations: readonly HistoricalTextInterpretation[]
+}>
 export interface ToolHistoryMigration<P> {
+  plans(input: CallAccess<P>): Reply<readonly HistoricalMigrationPlan[]>
   preview(
     input: CallAccess<P> &
       Readonly<{

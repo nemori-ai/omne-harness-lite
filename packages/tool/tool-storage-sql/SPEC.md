@@ -99,13 +99,13 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ### TS-10 材料
 
-`toolStorageMaterials()` 返回一个参加者 `tool`、两条迁移 `tool/001-tool-ledger-custody`、`tool/002-tool-materials` 与四个读 handler。参加者拥有全部 `tl_` 表，不读其他参加者的表，不需要也不提供事实，声明为 `singleton`。每个模块以构建固定的 `file:` URL 与文件字节的 SHA-256 描述。handler 的 `maxOutputBytes` 为 4194304，等于提供者 `maxReadResultBytes` 的初值。
+`toolStorageMaterials()` 返回一个参加者 `tool`、三条迁移 `tool/001-tool-ledger-custody`、`tool/002-tool-materials`、`tool/003-tool-material-maintenance` 与七个读 handler。参加者拥有全部 `tl_` 表，不读其他参加者的表，不需要也不提供事实，声明为 `singleton`。每个模块以构建固定的 `file:` URL 与文件字节的 SHA-256 描述。handler 的 `maxOutputBytes` 为 4194304，等于提供者 `maxReadResultBytes` 的初值。
 
 ### TS-11 带原调用条件的 host 提交
 
 `createSqlToolGuardedHostCommit(options)` 返回独立的 `commit` 端口。调用方传入原调用域、此前读取的 `callExpected` 修订，以及现有的 host `LedgerCommitInput`。
 
-调用方在提交前必须核对主体资格、原调用尚未终局、原请求与准备匹配。本工厂不解析 `ToolState`，也不代替这些判断。它只保证已核对快照的修订在 host 写入时仍成立。调用方不能把已经终局的快照作为许可依据。
+资源许可的采用方在提交前必须核对主体资格、原调用尚未终局、原请求与准备匹配；不能把已经终局的快照作为许可依据。历史交付副本压缩的采用方则必须核对调用已终局、交付已释放、迁移已发布，以及旧副本与该发布的原结果匹配。本工厂不解析 `ToolState`，也不代替两种采用方各自的判断。它只保证已核对快照的修订在 host 写入时仍成立；历史压缩复用相同的 call 条件与 host CAS，不放宽资源许可的前提。
 
 参加者在同一个 SQL 操作事务内执行：
 
@@ -207,3 +207,9 @@ erase 每次只提交一次 material-erase，不在适配器中循环。pending 
 游标绑定版本、租户、时间截点、上界和位置，可在重开后继续。它不是授权凭证。无效输入在读取前拒绝；存储失败或损坏提示返回失败，不回答扫描完成。候选只返回调用身份，处理时仍须由 Tool 重核。无限坏项的修复、Host 公平调度、关闭和实际生产装配不由本提供者承诺。
 
 验证入口为 [候选源场景](tests/material-maintenance-source.spec.ts)及 [实际提供者重开与读预算](tests/material-maintenance-live.spec.ts)。它们不代替 Host 的自动维护验收。
+
+### TS-13 历史调用全库存
+
+`createSqlToolHistoryCallSource` 实现 Tool 的受信只读库存端口。以 tenant 为界，对 call 域、call 记录、旧 manifest/chunk 和当前 material/material_chunk 的调用身份做并集，按 SQLite BINARY 次序去重分页。每页1至128项，最多查询129项以确定后页；游标绑定租户及上一调用身份。孤立材料仍返回调用身份，交由Tool隔离，不能静默跳过。非法游标答invalid；读取失败、损坏身份或非法提供者输出答unavailable，不能冒充空库。
+
+处理器`tool.history.calls`采用domain-serial，声明读取上述六张表并要求材料迁移就绪。它不解释Tool结果，不授予维护资格，不修改数据。调用方须在排空旧写者且新executor未启动时扫描；跨页不承诺对并发写入的快照。host私有交付域须由host独立检查，不属于本端口。

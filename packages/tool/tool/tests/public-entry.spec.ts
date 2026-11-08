@@ -30,6 +30,7 @@ it('root entry exports the independent execution functions, the ledger, the runt
     'createToolResultReader',
     'createToolRuntime',
     'createToolRuntimeFacade',
+    'decodeHistoricalTextInterpretation',
     'encodeToolMaterial',
     'executeTool',
     'hasCurrentToolLedgerRecordFormat',

@@ -158,6 +158,92 @@ async function migrationWorld(selected = fixture, call = 'legacy-ordinary') {
   }
 }
 
+it('discovers a saved original migration after an unknown preparation commit', async () => {
+  const { app, access, options, migration } = await migrationWorld()
+  expect(ok(await migration.plans(access))).toEqual([])
+  const preview = ok(await migration.preview({ ...access, interpretations: [] }))
+  if (preview.kind !== 'ready') throw new Error('historical fixture is not ready')
+  const command = {
+    ...access,
+    operation: ok(decodeToolOperationId('recover-original-plan')),
+    source: preview.source,
+    interpretations: [],
+  }
+  app.faults.armCommit('unknown-applied')
+  expect(await migration.apply(command)).toHaveProperty('failure.kind', 'commit-unknown')
+  const restarted = createToolHistoryMigration(options)
+  const plans = ok(await restarted.plans(access))
+  expect(plans).toEqual([
+    {
+      progress: { kind: 'preparing', operation: command.operation, source: preview.source },
+      interpretations: [],
+    },
+  ])
+  const restored = plans[0]!
+  expect(
+    ok(
+      await restarted.apply({
+        ...access,
+        operation: restored.progress.operation,
+        source: restored.progress.source,
+        interpretations: restored.interpretations,
+      }),
+    ),
+  ).toMatchObject({ kind: 'published', operation: command.operation })
+  expect(ok(await restarted.plans(access))[0]?.progress.kind).toBe('published')
+  expect(ok(await restarted.apply(command)).kind).toBe('cleaned')
+  expect(ok(await restarted.plans(access))[0]?.progress.kind).toBe('cleaned')
+  const raw = app.sqlite.inspect(
+    domainNameOf(TENANT_A),
+    "SELECT record FROM tl_record WHERE kind = 'call' AND key = ?",
+    [`history-migration:${command.operation}`],
+  )[0]
+  const damaged = JSON.parse(String(raw?.record))
+  damaged.migration.progress.operation = 'another-operation'
+  app.sqlite.inspect(
+    domainNameOf(TENANT_A),
+    "UPDATE tl_record SET record = ? WHERE kind = 'call' AND key = ?",
+    [JSON.stringify(damaged), `history-migration:${command.operation}`],
+  )
+  expect(await restarted.plans(access)).toHaveProperty('failure.kind', 'invalid')
+})
+
+it('does not disclose migration plans after authority is withdrawn during the read', async () => {
+  const { access, options } = await migrationWorld()
+  let revoked = false
+  const migration = createToolHistoryMigration({
+    ...options,
+    authority: {
+      qualify: async () =>
+        revoked ? fail({ kind: 'denied', action: 'history-upgrade' }) : succeed(undefined),
+    },
+    store: {
+      ...options.store,
+      read: async input => {
+        const answer = await options.store.read(input)
+        revoked = true
+        return answer
+      },
+    },
+  })
+  expect(await migration.plans(access)).toHaveProperty('failure.kind', 'denied')
+})
+
+it('checks orphan host deliveries independently of the call inventory and preserves read failure', async () => {
+  const { app, access } = await migrationWorld()
+  app.sqlite.inspect(domainNameOf(TENANT_A), "DELETE FROM tl_record WHERE kind = 'call'")
+  app.sqlite.inspect(domainNameOf(TENANT_A), "DELETE FROM tl_domain WHERE kind = 'call'")
+  const host = createLocalHistoricalDeliveryMaintenance({
+    store: app.store,
+    guarded: createSqlToolGuardedHostCommit(app.options),
+    authority: { qualify: async () => succeed(undefined) },
+    commitAttempts: 4,
+  })
+  expect(await host.inspect(access)).toEqual({ ok: { kind: 'quarantined' } })
+  app.faults.failNextRead()
+  expect(await host.inspect(access)).toHaveProperty('failure.kind', 'unavailable')
+})
+
 it('converts and cleans a real drained ordinary result while retaining native and consumer data', async () => {
   const { app, access, world, materialPorts, migration } = await migrationWorld()
   const preview = ok(await migration.preview({ ...access, interpretations: [] }))
@@ -218,7 +304,9 @@ it('converts and cleans a real drained ordinary result while retaining native an
     authority: { qualify: async () => succeed(undefined) },
     commitAttempts: 4,
   })
+  await expect(host.inspect(access)).resolves.toEqual({ ok: { kind: 'quarantined' } })
   await expect(host.compact(command)).resolves.toEqual({ ok: { kind: 'compacted', records: 1 } })
+  await expect(host.inspect(access)).resolves.toEqual({ ok: { kind: 'current', records: 1 } })
   const hostAfter = app.sqlite.inspect(
     domainNameOf(TENANT_A),
     "SELECT record FROM tl_record WHERE kind = 'host'",

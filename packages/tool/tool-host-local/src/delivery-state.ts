@@ -67,7 +67,7 @@ function parsePhase(value: unknown): Phase | null {
   return null
 }
 
-function parseRecord(
+export function parseDeliveryRecord(
   value: unknown,
   base: DeliveryBase,
   access: CallAccess<unknown>,
@@ -138,7 +138,7 @@ export function createDeliveryState(store: ToolLedgerStore) {
     )
     if (row === undefined) return succeed(null)
     if (row.kind !== 'host') return deliveryUnavailable('delivery-record')
-    const parsed = parseRecord(row.host.value, base, access)
+    const parsed = parseDeliveryRecord(row.host.value, base, access)
     return parsed === null ? deliveryUnavailable('delivery-record') : succeed(parsed)
   }
 
@@ -160,7 +160,7 @@ export function createDeliveryState(store: ToolLedgerStore) {
           if ('ok' in operation && value.digest === canonicalDigest(value.payload))
             return fail({ kind: 'conflict', operation: operation.ok })
         }
-        const current = parseRecord(row.host.value, next.payload, access)
+        const current = parseDeliveryRecord(row.host.value, next.payload, access)
         if (current === null) return deliveryUnavailable('delivery-record')
         if (current.digest !== next.digest)
           return fail({ kind: 'conflict', operation: current.freeze })

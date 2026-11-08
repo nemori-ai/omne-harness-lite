@@ -5,6 +5,7 @@ import {
 } from './history-body.ts'
 import { adoptResultBody } from './ledger-result-uses.ts'
 import { createHash } from 'node:crypto'
+import { readHistoricalPlan } from './history-plan.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -166,6 +167,25 @@ export function createToolHistoryMigration<P>(
     return known === null
       ? invalid('operation', 'unknown-history-migration')
       : succeed(known.progress)
+  }
+  const plans: ToolHistoryMigration<P>['plans'] = async input => {
+    const allowed = await entry(input)
+    if ('failure' in allowed) return allowed
+    const current = await read(allowed.ok)
+    if ('failure' in current) return current
+    const found = []
+    for (const row of current.ok.records) {
+      if (
+        !row.key.startsWith('history-migration:') &&
+        !(historyObject(row.record) && row.record.kind === 'history-migration')
+      )
+        continue
+      const plan = readHistoricalPlan(row, allowed.ok, options.adoption)
+      if ('failure' in plan) return plan
+      found.push(plan.ok)
+    }
+    const qualified = await entry(allowed.ok)
+    return 'failure' in qualified ? qualified : succeed(found)
   }
   const preview: ToolHistoryMigration<P>['preview'] = async input => {
     const fixed = copyHistoryInput(input.interpretations)
@@ -722,5 +742,5 @@ export function createToolHistoryMigration<P>(
     }
     return unavailable('historical abandonment revision contention')
   }
-  return { preview, apply, inspect, abandon }
+  return { preview, apply, inspect, abandon, plans }
 }

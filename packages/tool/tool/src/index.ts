@@ -111,4 +111,5 @@ export {
   type ToolHistoryMigrationOptions,
 } from './history-migration.ts'
 export type * from './history-contract.ts'
+export { decodeHistoricalTextInterpretation } from './history-interpretation.ts'
 export type { HistoricalCallRecord, HistoricalFixedToolRequest } from './history-request.ts'

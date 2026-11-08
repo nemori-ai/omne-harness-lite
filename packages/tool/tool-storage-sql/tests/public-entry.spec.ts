@@ -27,6 +27,7 @@ describe('public entries', () => {
       'TOOL_PARTICIPANT',
       'TOOL_STORAGE_OWNER',
       'createSqlToolGuardedHostCommit',
+      'createSqlToolHistoryCallSource',
       'createSqlToolHistoryCopies',
       'createSqlToolHistoryLedgerStore',
       'createSqlToolHistorySourceReader',

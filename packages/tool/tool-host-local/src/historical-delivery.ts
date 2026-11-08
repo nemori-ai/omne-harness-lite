@@ -1,4 +1,5 @@
 import { fail, succeed } from '@omne-harness/operation-result'
+import { createHistoricalDeliveryInspection } from './historical-delivery-inspection.ts'
 import {
   canonicalDigest,
   encodeToolMaterial,
@@ -113,6 +114,7 @@ export function createLocalHistoricalDeliveryMaintenance<P>(
   }>,
 ) {
   return {
+    inspect: createHistoricalDeliveryInspection(options.store, options.authority),
     async compact(input: Mutation<P>): Reply<HistoricalDeliveryProgress> {
       try {
         for (let attempt = 0; attempt < options.commitAttempts; attempt += 1) {

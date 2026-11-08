@@ -28,3 +28,7 @@
 - [material-store-live.spec.ts](material-store-live.spec.ts)：公开仓接口经实际 SQL worker 的 5 MiB 读写和删除恢复
 
 - [实际 SQL 的精确 final 保管](final-custody-live.spec.ts)验证 5 MiB envelope 不进入 call 账本，并从重启后的 sealed 记录认回。旧完整事实接收容量测试仍独立保留。
+
+- [history-call-source.spec.ts](history-call-source.spec.ts)：全库存去重分页、孤立材料、租户隔离与失败全化。
+
+- [history-call-source-live.spec.ts](history-call-source-live.spec.ts)：实际SQLite worker的最大页与重启续页。

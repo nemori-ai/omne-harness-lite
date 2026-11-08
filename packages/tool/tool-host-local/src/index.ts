@@ -119,3 +119,4 @@ export {
   type HistoricalDeliveryCommit,
   type HistoricalDeliveryProgress,
 } from './historical-delivery.ts'
+export type { HistoricalDeliveryInspection } from './historical-delivery-inspection.ts'

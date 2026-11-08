@@ -96,7 +96,7 @@ function storedTenantKey(value: unknown): string | null {
   return tenant === null ? null : tenantKey(tenant)
 }
 
-function resultBase(call: CallRecord, result: ResultRecord): DeliveryBase | null {
+export function resultDeliveryBase(call: CallRecord, result: ResultRecord): DeliveryBase | null {
   const tenant = restoreTenant(call.tenant)
   if (tenant === null) return null
   const reference = encodeToolInvocationRef({ tenant, call: call.call, admission: call.admission })
@@ -568,7 +568,7 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     const sweep: Sweep = { owed: new Set(), certain: true }
     for (const row of read.records) {
       if (row.kind !== 'result' || signal.aborted) continue
-      const base = resultBase(call.call, row.result)
+      const base = resultDeliveryBase(call.call, row.result)
       if (
         base === null ||
         row.result.call !== access.call ||

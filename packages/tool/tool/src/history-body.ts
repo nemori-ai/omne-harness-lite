@@ -7,15 +7,12 @@ import {
   type ToolOperationId,
 } from '@omne-harness/tool-contract'
 import { decodeToolBodyId } from '@omne-harness/tool-contract/provider'
-import { invalid, judgeAdoptionField, judgeEvidenceField, type MutationInput } from './boundary.ts'
-import { fixAttachment, sameAttachment } from './ledger-content.ts'
+import { invalid, type MutationInput } from './boundary.ts'
+import { decodeHistoricalTextInterpretation } from './history-interpretation.ts'
+import { sameAttachment } from './ledger-content.ts'
 import { sameFactValue } from './evidence.ts'
 import { encodeToolMaterial, type MaterialBytes } from './material-codec.ts'
-import {
-  historyObject,
-  type HistoricalSource,
-  type HistoricalResultRecord,
-} from './history-source.ts'
+import { type HistoricalSource, type HistoricalResultRecord } from './history-source.ts'
 import type { HistoricalSourceReader, HistoricalTextInterpretation } from './history-contract.ts'
 import type { createLedgerMaterialCustody } from './ledger-material-custody.ts'
 import type { PreparedBody } from './ledger-result-material.ts'
@@ -37,42 +34,9 @@ export function historicalBodyInterpretations(
     return invalid('interpretations', 'encoding')
   const selected = new Map<string, HistoricalTextInterpretation>()
   for (const value of values) {
-    if (
-      !historyObject(value) ||
-      !historyObject(value.representation) ||
-      value.representation.kind !== 'text' ||
-      Object.keys(value).some(
-        key =>
-          !['tool', 'rawCodec', 'source', 'interpretation', 'representation', 'basis'].includes(
-            key,
-          ),
-      ) ||
-      Object.keys(value.representation).some(key => !['kind', 'codec'].includes(key))
-    )
-      return invalid('interpretations', 'encoding')
-    const tool = judgeAdoptionField(value.tool, 'tool')
-    const rawCodec = judgeAdoptionField(value.rawCodec, 'rawCodec')
-    const interpretation = judgeAdoptionField(value.interpretation, 'interpretation')
-    const codec = judgeAdoptionField(value.representation.codec, 'codec')
-    const basis = judgeEvidenceField(value.basis, 'basis')
-    const attachment = fixAttachment(value.source)
-    if (
-      'failure' in tool ||
-      'failure' in rawCodec ||
-      'failure' in interpretation ||
-      'failure' in codec ||
-      'failure' in basis ||
-      'failure' in attachment
-    )
-      return invalid('interpretations', 'encoding')
-    const fixed: HistoricalTextInterpretation = {
-      tool: tool.ok,
-      rawCodec: rawCodec.ok,
-      interpretation: interpretation.ok,
-      source: attachment.ok,
-      basis: basis.ok,
-      representation: { kind: 'text', codec: codec.ok },
-    }
+    const decoded = decodeHistoricalTextInterpretation(value)
+    if ('failure' in decoded) return decoded
+    const fixed = decoded.ok
     const matches = source.results.filter(
       result =>
         result.value.original.kind === 'offloaded' &&

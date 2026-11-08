@@ -21,3 +21,4 @@ export { TOOL_PARTICIPANT, toolStorageMaterials, type ToolStorageMaterials } fro
 export { createSqlToolMaterialStore, type SqlToolMaterialStoreOptions } from './material-store.ts'
 export { createSqlToolHistoryCopies } from './history-copies.ts'
 export { createSqlToolHistorySourceReader } from './history-source-reader.ts'
+export { createSqlToolHistoryCallSource } from './history-call-source.ts'
