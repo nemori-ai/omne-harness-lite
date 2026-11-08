@@ -8,8 +8,13 @@ import {
   encodeToolMaterial,
   createToolHistoryMigration,
   type ToolHistoryMigrationOptions,
+  type HistoricalTextInterpretation,
 } from '@omne-harness/tool'
-import { decodeToolCallId, decodeToolOperationId } from '@omne-harness/tool-contract'
+import {
+  decodeToolCallId,
+  decodeToolOperationId,
+  type ContentPage,
+} from '@omne-harness/tool-contract'
 import {
   decodeToolMaterialInstant,
   decodeToolResultVersion,
@@ -19,6 +24,7 @@ import {
   createSqlToolGuardedHostCommit,
   createSqlToolHistoryLedgerStore,
   createSqlToolHistoryCopies,
+  createSqlToolHistorySourceReader,
   createSqlToolMaterialStore,
 } from '../src/index.ts'
 import { openApp, TENANT_A, TENANT_B, domainNameOf, type App } from './fixtures/app.ts'
@@ -30,6 +36,9 @@ const fixture: {
   consumer: unknown
 } = JSON.parse(
   readFileSync(new URL('./fixtures/pre-w3-drained-ordinary.json', import.meta.url), 'utf8'),
+)
+const offloadedFixture: typeof fixture = JSON.parse(
+  readFileSync(new URL('./fixtures/pre-w3-drained-offloaded.json', import.meta.url), 'utf8'),
 )
 const opened: App[] = []
 afterEach(() => {
@@ -51,13 +60,13 @@ function ok<T>(value: { ok: T } | { failure: unknown }): T {
   if ('failure' in value) throw new Error(JSON.stringify(value.failure))
   return value.ok
 }
-async function historicalApp() {
+async function historicalApp(selected = fixture) {
   const app = await openApp()
   opened.push(app)
   const database = new DatabaseSync(join(app.directory, `${domainNameOf(TENANT_A)}.db`))
   try {
     for (const table of ['tl_domain', 'tl_record', 'tl_manifest', 'tl_chunk']) {
-      for (const row of fixture.tables[table] ?? []) {
+      for (const row of selected.tables[table] ?? []) {
         const columns = Object.keys(row)
         database
           .prepare(
@@ -76,17 +85,17 @@ async function historicalApp() {
     database.close()
   }
   writeFileSync(
-    join(app.directory, fixture.native.key),
-    Buffer.from(fixture.native.base64, 'base64'),
+    join(app.directory, selected.native.key),
+    Buffer.from(selected.native.base64, 'base64'),
   )
-  writeFileSync(join(app.directory, 'consumer.json'), JSON.stringify(fixture.consumer))
+  writeFileSync(join(app.directory, 'consumer.json'), JSON.stringify(selected.consumer))
   return app
 }
 
-async function migrationWorld() {
-  const app = await historicalApp()
+async function migrationWorld(selected = fixture, call = 'legacy-ordinary') {
+  const app = await historicalApp(selected)
   const world = await ledgerWorld(TENANT_A)
-  const access = { ...world.access, call: ok(decodeToolCallId('legacy-ordinary')) }
+  const access = { ...world.access, call: ok(decodeToolCallId(call)) }
   const materialPorts = {
     provider,
     store: createSqlToolMaterialStore<Principal>({ ...app.custodyOptions(), provider }),
@@ -100,6 +109,7 @@ async function migrationWorld() {
     authority: { qualify: async () => succeed(undefined) },
     materials: materialPorts,
     copies: createSqlToolHistoryCopies<Principal>(app.options),
+    sourceReader: createSqlToolHistorySourceReader<Principal>(app.options),
     resultPolicy: defaultResultPolicy,
     configuration: {
       ledgerCommitAttempts: 4,
@@ -239,14 +249,15 @@ it('converts and cleans a real drained ordinary result while retaining native an
 async function previewCommand(
   migration: ReturnType<typeof createToolHistoryMigration<Principal>>,
   access: Awaited<ReturnType<typeof migrationWorld>>['access'],
+  interpretations: readonly HistoricalTextInterpretation[] = [],
 ) {
-  const preview = ok(await migration.preview({ ...access, interpretations: [] }))
+  const preview = ok(await migration.preview({ ...access, interpretations }))
   if (preview.kind !== 'ready') throw new Error(JSON.stringify(preview))
   return {
     ...access,
     operation: ok(decodeToolOperationId('migrate-ordinary')),
     source: preview.source,
-    interpretations: [],
+    interpretations,
   }
 }
 
@@ -290,47 +301,72 @@ it('does not delete old copies before publication or when the proposed manifest 
   ).toHaveLength(2)
 })
 
-it('recalls a publication whose reply was lost without changing its activation time', async () => {
-  const { access, options, migration } = await migrationWorld()
-  const command = await previewCommand(migration, access)
-  let published = false
-  const interrupted = createToolHistoryMigration({
-    ...options,
-    store: {
-      ...options.store,
-      commit: async input => {
-        const answer = await options.store.commit(input)
-        if (
-          !published &&
-          answer.kind === 'committed' &&
-          input.writes.some(
-            write =>
-              write.kind === 'put' &&
-              write.record.kind === 'history-migration' &&
-              write.record.migration.progress.kind === 'published',
-          )
-        ) {
-          published = true
-          return { kind: 'unknown', diagnostic: 'lost reply' }
-        }
-        return answer
+it.each(['ordinary', 'offloaded'])(
+  'recalls a %s publication whose reply was lost without changing its activation time',
+  async kind => {
+    const { app, access, options, materialPorts, migration } = await migrationWorld(
+      kind === 'ordinary' ? fixture : offloadedFixture,
+      'legacy-' + kind,
+    )
+    const command = await previewCommand(
+      migration,
+      access,
+      kind === 'ordinary' ? [] : historicalBodyInput().interpretations,
+    )
+    let published = false
+    const interrupted = createToolHistoryMigration({
+      ...options,
+      store: {
+        ...options.store,
+        commit: async input => {
+          const answer = await options.store.commit(input)
+          if (
+            !published &&
+            answer.kind === 'committed' &&
+            input.writes.some(
+              write =>
+                write.kind === 'put' &&
+                write.record.kind === 'history-migration' &&
+                write.record.migration.progress.kind === 'published',
+            )
+          ) {
+            published = true
+            return { kind: 'unknown', diagnostic: 'lost reply' }
+          }
+          return answer
+        },
       },
-    },
-  })
-  await expect(interrupted.apply(command)).resolves.toMatchObject({
-    failure: { kind: 'commit-unknown', operation: command.operation },
-  })
-  const before = ok(await migration.inspect(command))
-  if (before.kind !== 'published') throw new Error('publication was not retained')
-  const restarted = createToolHistoryMigration(options)
-  const after = ok(await restarted.apply(command))
-  expect(after).toMatchObject({
-    kind: 'cleaned',
-    receipt: before.receipt,
-    activatedAt: before.activatedAt,
-  })
-  await expect(restarted.abandon(command)).resolves.toMatchObject({ failure: { kind: 'conflict' } })
-})
+    })
+    await expect(interrupted.apply(command)).resolves.toMatchObject({
+      failure: { kind: 'commit-unknown', operation: command.operation },
+    })
+    const before = ok(await migration.inspect(command))
+    if (before.kind !== 'published') throw new Error('publication was not retained')
+    materialPorts.clock.sample = async () =>
+      succeed(ok(decodeToolMaterialInstant('2026-11-08T12:00:00.000Z')))
+    const restarted = createToolHistoryMigration(options)
+    const after = ok(await restarted.apply(command))
+    expect(after).toMatchObject({
+      kind: 'cleaned',
+      receipt: before.receipt,
+      activatedAt: before.activatedAt,
+    })
+    if (kind === 'offloaded') {
+      const state = await app.store.read({ kind: 'call', tenant: access.tenant, call: access.call })
+      if (state.kind !== 'complete') throw new Error('missing call')
+      const result = state.records.find(row => row.kind === 'result')
+      if (result?.kind !== 'result' || result.result.value.original.kind !== 'offloaded')
+        throw new Error('missing body')
+      expect(result.result.value.original.body.description.retention).toMatchObject({
+        activatedAt: before.activatedAt,
+        expiresAt: '2026-11-09T00:00:00.000Z',
+      })
+    }
+    await expect(restarted.abandon(command)).resolves.toMatchObject({
+      failure: { kind: 'conflict' },
+    })
+  },
+)
 
 it('abandons only its prepared materials and does not publish or delete the old result', async () => {
   const { app, access, options, migration } = await migrationWorld()
@@ -642,4 +678,290 @@ it('recovers old-copy cleanup after the SQL transaction commits but its reply is
   const cleaned = ok(await restarted.apply(command))
   expect(cleaned).toMatchObject({ ...published, kind: 'cleaned' })
   expect(app.sqlite.inspect(domainNameOf(TENANT_A), 'SELECT operation FROM tl_chunk')).toEqual([])
+})
+
+function historicalBodyInput() {
+  const source = {
+    storage: '@omne-harness/tool-storage-sql',
+    key: '["legacy-offloaded","legacy-offloaded-raw"]',
+    mediaType: 'application/octet-stream',
+    bytes: '32799',
+    digest: 'sha256:0e181505330f729abc31822c4f6cfb2f0192739af5e2b8c6a670464444c2cb2c',
+  }
+  const interpretations = [
+    {
+      tool: { owner: 'test-owner', name: 'read_file', revision: '1', digest: 'sha256:read_file' },
+      rawCodec: {
+        owner: 'test-owner',
+        name: 'w3-migration-fixture-utf8-text-v1',
+        revision: '1',
+        digest: 'sha256:w3-migration-fixture-utf8-text-v1',
+      },
+      source,
+      interpretation: adoption,
+      representation: { kind: 'text' as const, codec: adoption },
+      basis: {
+        owner: 'history-test',
+        record: 'utf8-source-proof',
+        revision: '1',
+        digest: 'sha256:fixture-utf8',
+      },
+    },
+  ]
+  return { source, interpretations }
+}
+
+it('migrates the real historical UTF-8 body and reads the old reference through the current body lifetime', async () => {
+  const { app, access, options, materialPorts, world, migration } = await migrationWorld(
+    offloadedFixture,
+    'legacy-offloaded',
+  )
+  const { source, interpretations } = historicalBodyInput()
+  await expect(migration.preview({ ...access, interpretations: [] })).resolves.toMatchObject({
+    ok: { kind: 'quarantined', reason: 'encoding' },
+  })
+  const preview = ok(await migration.preview({ ...access, interpretations }))
+  expect(preview).toMatchObject({ kind: 'ready', results: [{ body: 'finite-text' }] })
+  if (preview.kind !== 'ready') throw new Error('expected a supported historical body')
+  const command = {
+    ...access,
+    operation: ok(decodeToolOperationId('migrate-body')),
+    source: preview.source,
+    interpretations,
+  }
+  const published = ok(await migration.apply(command))
+  expect(published.kind).toBe('published')
+  const ledger = world.ledgerOver(app.store, materialPorts)
+  const result = ok(decodeToolResultVersion('v1'))
+  const read = { ...access, result, attachment: source, after: null, maxBytes: 4093 }
+  await expect(
+    ledger.reads.content.read({ ...read, principal: { subject: 'bob' } }),
+  ).resolves.toMatchObject({ failure: { kind: 'denied' } })
+  await expect(ledger.reads.content.read({ ...read, tenant: TENANT_B })).resolves.toMatchObject({
+    failure: { kind: 'denied' },
+  })
+  await expect(ledger.reads.result({ ...access, result, after: null })).resolves.toMatchObject({
+    failure: { kind: 'not-found', target: 'result', reason: 'released' },
+  })
+  await expect(
+    ledger.reads.content.read({ ...read, after: 'legacy-cursor' }),
+  ).resolves.toMatchObject({
+    failure: { kind: 'invalid-cursor' },
+  })
+  const parts: Uint8Array[] = []
+  let cursor: string | null = null
+  do {
+    const page: ContentPage = ok(await ledger.reads.content.read({ ...read, after: cursor }))
+    expect(page.attachment).toEqual(source)
+    parts.push(page.bytes)
+    cursor = page.next
+  } while (cursor !== null)
+  const expected = Buffer.from(
+    'First evidence.\n' + '中间 evidence\n'.repeat(2048) + 'Last evidence.\n',
+  )
+  expect(Buffer.concat(parts)).toEqual(expected)
+  expect(ok(await createToolHistoryMigration(options).apply(command))).toMatchObject({
+    ...published,
+    kind: 'cleaned',
+  })
+  expect(
+    app.sqlite.inspect(
+      domainNameOf(TENANT_A),
+      "SELECT operation FROM tl_chunk WHERE call = 'legacy-offloaded'",
+    ),
+  ).toEqual([])
+  expect(ok(await ledger.reads.content.read(read)).bytes.length).toBe(4093)
+  const state = await app.store.read({ kind: 'call', tenant: access.tenant, call: access.call })
+  if (state.kind !== 'complete') throw new Error('converted ledger unavailable')
+  const converted = state.records.find(row => row.kind === 'result')
+  if (converted?.kind !== 'result' || converted.result.value.original.kind !== 'offloaded')
+    throw new Error('converted body missing')
+  const bodyId = converted.result.value.original.body.description.bodyId
+  const semantic = ok(
+    await ledger.reads.body.read({ ...access, result, bodyId, after: null, maxBytes: 4093 }),
+  )
+  if (semantic.kind !== 'text') throw new Error('text body expected')
+  expect(Buffer.from(semantic.text)).toEqual(expected.subarray(0, Buffer.byteLength(semantic.text)))
+  const host = createLocalHistoricalDeliveryMaintenance({
+    store: app.store,
+    guarded: createSqlToolGuardedHostCommit(app.options),
+    authority: options.authority,
+    commitAttempts: 4,
+  })
+  await expect(host.compact(command)).resolves.toEqual({ ok: { kind: 'compacted', records: 1 } })
+  await expect(host.compact(command)).resolves.toEqual({ ok: { kind: 'compacted', records: 0 } })
+  materialPorts.clock.sample = async () =>
+    succeed(ok(decodeToolMaterialInstant('2026-11-10T00:00:00.000Z')))
+  await expect(ledger.reads.content.read(read)).resolves.toMatchObject({
+    failure: { kind: 'not-found', target: 'body', reason: 'expired' },
+  })
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (ok(await ledger.maintenance.reclaim(access)).kind === 'idle') break
+  }
+  expect(
+    app.sqlite.inspect(
+      domainNameOf(TENANT_A),
+      "SELECT material FROM tl_material_chunk WHERE call = 'legacy-offloaded'",
+    ),
+  ).toEqual([])
+  expect(readFileSync(join(app.directory, offloadedFixture.native.key))).toEqual(
+    Buffer.from(offloadedFixture.native.base64, 'base64'),
+  )
+})
+
+it.each(['codec', 'tool', 'duplicate', 'source'])(
+  'quarantines an incorrect body interpretation: %s',
+  async problem => {
+    const { access, migration } = await migrationWorld(offloadedFixture, 'legacy-offloaded')
+    const { interpretations } = historicalBodyInput()
+    if (problem === 'codec') interpretations[0]!.rawCodec.digest = 'sha256:another'
+    if (problem === 'tool') interpretations[0]!.tool.digest = 'sha256:another'
+    if (problem === 'source') interpretations[0]!.source.mediaType = 'text/plain'
+    if (problem === 'duplicate') interpretations.push(interpretations[0]!)
+    await expect(migration.preview({ ...access, interpretations })).resolves.toMatchObject({
+      ok: { kind: 'quarantined', reason: 'encoding' },
+    })
+  },
+)
+
+it.each(['utf8', 'digest'])(
+  'refuses publication when the body source has invalid %s',
+  async problem => {
+    const { app, access, options, migration } = await migrationWorld(
+      offloadedFixture,
+      'legacy-offloaded',
+    )
+    const { interpretations } = historicalBodyInput()
+    const preview = ok(await migration.preview({ ...access, interpretations }))
+    if (preview.kind !== 'ready') throw new Error('expected preview')
+    const original = options.sourceReader!
+    const broken = createToolHistoryMigration({
+      ...options,
+      sourceReader: {
+        read: async input => {
+          const answer = await original.read(input)
+          if ('failure' in answer) return answer
+          const bytes = Uint8Array.from(answer.ok.bytes)
+          if (input.after === null) bytes[0] = problem === 'utf8' ? 255 : 71
+          return succeed({ ...answer.ok, bytes })
+        },
+      },
+    })
+    const command = {
+      ...access,
+      operation: ok(decodeToolOperationId('invalid-body')),
+      source: preview.source,
+      interpretations,
+    }
+    await expect(broken.apply(command)).resolves.toMatchObject({
+      failure: { kind: problem === 'utf8' ? 'unavailable' : 'invalid' },
+    })
+    expect(ok(await migration.inspect(command)).kind).toBe('preparing')
+    expect(
+      app.sqlite.inspect(
+        domainNameOf(TENANT_A),
+        "SELECT key FROM tl_record WHERE key LIKE 'historical-body-alias:%'",
+      ),
+    ).toEqual([])
+    expect(
+      app.sqlite.inspect(domainNameOf(TENANT_A), 'SELECT material FROM tl_material_chunk'),
+    ).toEqual([])
+    expect(
+      app.sqlite.inspect(
+        domainNameOf(TENANT_A),
+        "SELECT operation FROM tl_chunk WHERE call = 'legacy-offloaded'",
+      ).length,
+    ).toBeGreaterThan(0)
+  },
+)
+
+it('rejects a historical source cursor whose claimed offset differs from its chunk position', async () => {
+  const { access, options } = await migrationWorld(offloadedFixture, 'legacy-offloaded')
+  const { source } = historicalBodyInput()
+  const reader = options.sourceReader!
+  const input = {
+    ...access,
+    attachment: source,
+    result: ok(decodeToolResultVersion('v1')),
+    after: null,
+    maxBytes: 100,
+  }
+  const first = ok(await reader.read(input))
+  if (first.next === null) throw new Error('expected cursor')
+  const cursor = JSON.parse(first.next)
+  cursor.offset += 1
+  await expect(reader.read({ ...input, after: JSON.stringify(cursor) })).resolves.toMatchObject({
+    failure: { kind: 'invalid-cursor' },
+  })
+  const second = ok(await reader.read({ ...input, after: first.next }))
+  expect(second.offset).toBe('100')
+  expect(second.bytes.length).toBe(100)
+})
+
+it('fixes the supplied interpretation before the first asynchronous boundary', async () => {
+  const { access, migration } = await migrationWorld(offloadedFixture, 'legacy-offloaded')
+  const { interpretations } = historicalBodyInput()
+  const preview = ok(await migration.preview({ ...access, interpretations }))
+  if (preview.kind !== 'ready') throw new Error('expected preview')
+  const command = {
+    ...access,
+    operation: ok(decodeToolOperationId('fixed-body-input')),
+    source: preview.source,
+    interpretations,
+  }
+  const running = migration.apply(command)
+  interpretations[0]!.rawCodec.digest = 'sha256:changed-after-call'
+  await expect(running).resolves.toMatchObject({ ok: { kind: 'published' } })
+})
+
+it('abandons a prepared historical body without touching its old source', async () => {
+  const { app, access, options, migration } = await migrationWorld(
+    offloadedFixture,
+    'legacy-offloaded',
+  )
+  const command = await previewCommand(migration, access, historicalBodyInput().interpretations)
+  const interrupted = createToolHistoryMigration({
+    ...options,
+    materials: {
+      ...options.materials,
+      store: {
+        ...options.materials.store,
+        write: async input => {
+          await options.materials.store.write(input)
+          return fail({ kind: 'commit-unknown', operation: input.operation })
+        },
+      },
+    },
+  })
+  await expect(interrupted.apply(command)).resolves.toMatchObject({
+    failure: { kind: 'commit-unknown' },
+  })
+  expect(
+    app.sqlite.inspect(
+      domainNameOf(TENANT_A),
+      "SELECT material FROM tl_material_chunk WHERE call = 'legacy-offloaded'",
+    ).length,
+  ).toBeGreaterThan(0)
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    if (ok(await migration.abandon(command)).kind === 'abandoned') break
+  }
+  expect(ok(await migration.inspect(command)).kind).toBe('abandoned')
+  expect(
+    app.sqlite.inspect(
+      domainNameOf(TENANT_A),
+      "SELECT material FROM tl_material_chunk WHERE call = 'legacy-offloaded'",
+    ),
+  ).toEqual([])
+  expect(
+    app.sqlite.inspect(
+      domainNameOf(TENANT_A),
+      "SELECT operation FROM tl_chunk WHERE call = 'legacy-offloaded'",
+    ).length,
+  ).toBeGreaterThan(0)
+  expect(
+    app.sqlite.inspect(
+      domainNameOf(TENANT_A),
+      "SELECT key FROM tl_record WHERE key LIKE 'historical-body-alias:%'",
+    ),
+  ).toEqual([])
 })

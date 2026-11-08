@@ -45,7 +45,12 @@ function same(left: unknown, right: unknown) {
   return canonicalDigest(left) === canonicalDigest(right)
 }
 
-function compactRecord(value: unknown, result: ResultRecord, publication: unknown) {
+function compactRecord(
+  value: unknown,
+  result: ResultRecord,
+  publication: unknown,
+  originalValue: unknown,
+) {
   if (
     !object(value) ||
     !object(value.payload) ||
@@ -85,7 +90,7 @@ function compactRecord(value: unknown, result: ResultRecord, publication: unknow
   }
   if (same(payload.value, currentValue)) return { changed: false, value }
   const original = encodeToolMaterial(payload.value)
-  if ('failure' in original || !same(original.ok.fingerprint, result.value.value)) return null
+  if ('failure' in original || !same(original.ok.fingerprint, originalValue)) return null
   const compacted = { ...payload, value: currentValue }
   return {
     changed: true,
@@ -172,6 +177,9 @@ export function createLocalHistoricalDeliveryMaintenance<P>(
               value,
               result.result,
               migration.migration.progress.receipt,
+              migration.migration.originals.find(
+                original => original.result === result.result.result,
+              )?.value,
             )
             if (compacted === null) return unavailable()
             if (compacted.changed)

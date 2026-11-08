@@ -135,6 +135,7 @@ export type HistoryMigrationRecord = Readonly<{
   input: ToolMaterialFingerprint
   interpretations: readonly HistoricalTextInterpretation[]
   policies: readonly Readonly<{ result: ToolResultVersion; policy: BodyPolicy }>[]
+  originals: readonly Readonly<{ result: ToolResultVersion; value: ToolMaterialFingerprint }>[]
   cleanup: readonly HistoricalOwnedCopy[]
   progress: HistoricalMigrationProgress
 }>

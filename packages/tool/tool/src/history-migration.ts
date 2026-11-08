@@ -1,3 +1,9 @@
+import {
+  historicalBodyInterpretations,
+  historicalBodyOperation,
+  prepareHistoricalBody,
+} from './history-body.ts'
+import { adoptResultBody } from './ledger-result-uses.ts'
 import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -16,6 +22,7 @@ import type {
   HistoryMigrationRecord,
   ToolHistoryAuthority,
   ToolHistoryCopies,
+  HistoricalSourceReader,
   ToolHistoryMigration,
 } from './history-contract.ts'
 import {
@@ -59,6 +66,7 @@ export type ToolHistoryMigrationOptions<P> = Readonly<{
   authority: ToolHistoryAuthority<P>
   materials: NonNullable<ToolLedgerPorts<P>['materials']>
   copies: ToolHistoryCopies<P>
+  sourceReader?: HistoricalSourceReader<P>
   resultPolicy: ResultPolicy<ContentBlock>
   configuration: Pick<
     ToolConfiguration,
@@ -78,6 +86,15 @@ const keyOf = (operation: ToolOperationId) => `history-migration:${operation}`
 function fingerprint(value: unknown): Outcome<ToolMaterialFingerprint, ToolFailure> {
   const encoded = encodeToolMaterial(value)
   return 'failure' in encoded ? encoded : succeed(encoded.ok.fingerprint)
+}
+function copyHistoryInput<T>(value: T): Outcome<T, ToolFailure> {
+  const encoded = encodeToolMaterial(value)
+  if ('failure' in encoded) return invalid('history', 'invalid-input')
+  try {
+    return succeed(structuredClone(value))
+  } catch {
+    return invalid('history', 'invalid-input')
+  }
 }
 function journal(
   rows: readonly ToolHistoryStoredRecord[],
@@ -151,12 +168,17 @@ export function createToolHistoryMigration<P>(
       : succeed(known.progress)
   }
   const preview: ToolHistoryMigration<P>['preview'] = async input => {
+    const fixed = copyHistoryInput(input.interpretations)
+    if ('failure' in fixed) return fixed
+    input = { ...input, interpretations: fixed.ok }
     const allowed = await entry(input)
     if ('failure' in allowed) return allowed
     const readback = await read(allowed.ok)
     if ('failure' in readback) return readback
     const decoded = readHistoricalSource(allowed.ok, readback.ok.records, options.resultPolicy)
     if (decoded.kind !== 'ready') return succeed(decoded)
+    const interpretations = historicalBodyInterpretations(decoded.source, input.interpretations)
+    if ('failure' in interpretations) return succeed({ kind: 'quarantined', reason: 'encoding' })
     const ordered = [...readback.ok.records].sort((a, b) => a.key.localeCompare(b.key))
     const value = fingerprint(ordered)
     if ('failure' in value) return value
@@ -178,13 +200,16 @@ export function createToolHistoryMigration<P>(
       source,
       results: decoded.source.results.map(result => ({
         result: result.result,
-        body: 'none',
+        body: result.value.original.kind === 'none' ? 'none' : 'finite-text',
         retainedCopies: plan.retained,
         releasedCopies: plan.cleanup.length,
       })),
     })
   }
   const apply: ToolHistoryMigration<P>['apply'] = async input => {
+    const fixed = copyHistoryInput({ source: input.source, interpretations: input.interpretations })
+    if ('failure' in fixed) return fixed
+    input = { ...input, ...fixed.ok }
     const allowed = await entry(input)
     if ('failure' in allowed) return allowed
     const parsed = judgeMutationInput<P>(input, 'recover')
@@ -231,6 +256,14 @@ export function createToolHistoryMigration<P>(
           'source',
           decoded.kind === 'quarantined' ? decoded.reason : 'already-current',
         )
+      const interpreted = historicalBodyInterpretations(decoded.source, input.interpretations)
+      if ('failure' in interpreted) return interpreted
+      const originals = []
+      for (const result of decoded.source.results) {
+        const value = fingerprint(result.value)
+        if ('failure' in value) return value
+        originals.push({ result: result.result, value: value.ok })
+      }
       const copies = await inventory(parsed.ok)
       if ('failure' in copies) return copies
       if (copies.ok.unsealed.length > 0) return invalid('source', 'in-flight')
@@ -243,6 +276,7 @@ export function createToolHistoryMigration<P>(
         input: identity.ok,
         interpretations: input.interpretations,
         policies: decoded.source.results.map(result => ({ result: result.result, policy })),
+        originals,
         cleanup: plan.cleanup,
         progress: { kind: 'preparing', operation: parsed.ok.operation, source: input.source },
       }
@@ -320,6 +354,8 @@ export function createToolHistoryMigration<P>(
     const sourceRows = current.ok.records.filter(row => migration.source.keys.includes(row.key))
     const decoded = readHistoricalSource(input, sourceRows, options.resultPolicy)
     if (decoded.kind !== 'ready') return invalid('source', 'history-changed')
+    const interpretations = historicalBodyInterpretations(decoded.source, migration.interpretations)
+    if ('failure' in interpretations) return interpretations
     const adapted: ToolLedgerStore = {
       durability: 'durable',
       commit: store.commit.bind(store),
@@ -351,11 +387,38 @@ export function createToolHistoryMigration<P>(
     for (const result of decoded.source.results) {
       const operation = decodeToolOperationId(`history-result:${input.operation}:${result.result}`)
       if ('failure' in operation) return invalid('operation', 'history-result-identity')
+      const interpretation = interpretations.ok.get(result.result)
+      const fixedPolicy = migration.policies.find(policy => policy.result === result.result)
+      if (fixedPolicy === undefined) return invalid('policy', 'historical-policy-required')
+      const prepared =
+        interpretation === undefined
+          ? succeed(null)
+          : await prepareHistoricalBody(
+              { ...input, operation: operation.ok },
+              result,
+              interpretation,
+              {
+                policy: fixedPolicy.policy,
+                reader: options.sourceReader,
+                custody,
+                validate,
+                authorize: () => entry(input),
+              },
+            )
+      if ('failure' in prepared) return prepared
+      const body = prepared.ok
+      const rendered =
+        body !== null && result.value.original.kind === 'offloaded'
+          ? {
+              ...result.value,
+              original: { ...result.value.original, source: body.description.source },
+            }
+          : result.value
       const saved = await preserveResultChannels(
         custody,
         { ...input, operation: operation.ok, source: result.source },
-        result.value,
-        null,
+        rendered,
+        body,
         validate,
       )
       if ('failure' in saved) return saved
@@ -407,6 +470,28 @@ export function createToolHistoryMigration<P>(
             },
           }
           writes.push({ kind: 'put', record: { kind: 'result', result } })
+          if (
+            result.value.original.kind === 'offloaded' &&
+            old.value.original.kind === 'offloaded'
+          ) {
+            const uses = adoptResultBody(snapshot, result)
+            if ('failure' in uses) return { kind: 'reply', outcome: uses }
+            writes.push(...uses.ok, {
+              kind: 'put',
+              record: {
+                kind: 'historical-body-alias',
+                alias: {
+                  tenant: input.tenant,
+                  call: input.call,
+                  result: result.result,
+                  bodyId: result.value.original.body.description.bodyId,
+                  source: old.value.original.source,
+                  migration: input.operation,
+                  basis: receipt,
+                },
+              },
+            })
+          }
           const { result: _body, ...pointer } = final.fact
           writes.push({
             kind: 'put',
@@ -449,7 +534,14 @@ export function createToolHistoryMigration<P>(
         }
         const owned = new Set(
           channels
-            .flatMap(item => [item.channels.content, item.channels.data, item.channels.attachments])
+            .flatMap(item => [
+              item.channels.content,
+              item.channels.data,
+              item.channels.attachments,
+              ...(item.channels.original.kind === 'offloaded'
+                ? [item.channels.original.summary]
+                : []),
+            ])
             .map(seal => seal.material.id),
         )
         for (const material of snapshot.materials.values()) {
@@ -579,10 +671,15 @@ export function createToolHistoryMigration<P>(
       const owned = new Set(
         known.policies.flatMap(policy => {
           const operation = `history-result:${input.operation}:${policy.result}`
-          return ['content', 'data', 'attachments'].map(
-            slot =>
-              `result-slot:${createHash('sha256').update(operation).update('\0').update(slot).digest('hex')}`,
-          )
+          const body = decodeToolOperationId(operation)
+          const identity = 'ok' in body ? historicalBodyOperation(body.ok) : body
+          return [
+            ...['content', 'data', 'attachments', 'summary'].map(
+              slot =>
+                `result-slot:${createHash('sha256').update(operation).update('\0').update(slot).digest('hex')}`,
+            ),
+            ...('ok' in identity ? [identity.ok] : []),
+          ]
         }),
       )
       const progress: HistoricalMigrationProgress = {

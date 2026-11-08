@@ -8,7 +8,6 @@ import {
 } from '@omne-harness/tool-contract'
 import {
   judgeHistoricalFixedToolRequest,
-  judgeCommittedToolResult,
   judgeToolState,
   type CallAccess,
   type ResultPolicy,
@@ -141,7 +140,7 @@ export function readHistoricalSource(
       )
         return quarantine('pending-handoff')
       if (row.key !== `result:${payload.result}`) return quarantine('unsupported-format')
-      const checked = judgeCommittedToolResult(policy, payload.value)
+      const checked = policy.judgeResult(payload.value as ToolRenderedResult<ContentBlock>)
       if ('failure' in checked) return quarantine('unsupported-format')
       if (
         'failure' in judgeEvidenceField(payload.source, 'source') ||
@@ -150,7 +149,6 @@ export function readHistoricalSource(
         'failure' in judgeEvidenceField(payload.custody.retained, 'retained')
       )
         return quarantine('unsupported-format')
-      if (checked.ok.original.kind !== 'none') return quarantine('encoding')
       if (checked.ok.data.kind !== 'none') return quarantine('ownership')
       if (!sameFactValue(payload.tenant, access.tenant) || payload.call !== access.call)
         return quarantine('ownership')
@@ -159,7 +157,7 @@ export function readHistoricalSource(
     } else if (record.kind === 'fact-event') {
       if (!historyObject(payload) || !historyObject(payload.fact) || payload.fact.kind !== 'final')
         return quarantine('unsupported-format')
-      const checked = judgeCommittedToolResult(policy, payload.fact.result)
+      const checked = policy.judgeResult(payload.fact.result as ToolRenderedResult<ContentBlock>)
       if ('failure' in checked) return quarantine('unsupported-format')
       if (
         'failure' in judgeEvidenceField(payload.evidence, 'evidence') ||
@@ -305,6 +303,9 @@ export function historicalCopyPlan(
   const native = source.results.flatMap(result => [
     ...result.value.attachments,
     ...result.value.content.flatMap(block => ('ref' in block ? [block.ref] : [])),
+    ...(result.value.original.kind === 'offloaded'
+      ? result.value.original.summary.flatMap(block => ('ref' in block ? [block.ref] : []))
+      : []),
   ])
   for (const result of source.results) {
     const raw = copies.find(

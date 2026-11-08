@@ -96,29 +96,43 @@ export function adoptResultMaterials(
       )
         return invalid('original.source', 'sealed-body-changed')
     }
-    const prepared = preparedMaterial(snapshot, seal, 'body')
-    if ('failure' in prepared) return prepared
-    const material = prepared.ok
-    writes.push(
-      { kind: 'delete', key: `material-use:preparation:${material.writeOperation}` },
-      {
-        kind: 'put',
-        record: {
-          kind: 'material-use',
-          use: {
-            id: `body:${description.bodyId}`,
-            kind: 'offloaded-body',
-            material: material.material,
-            writeOperation: material.writeOperation,
-            result: result.result,
-            bodyId: description.bodyId,
-            expiresAt: description.retention.expiresAt,
-            basis: result.source,
-          },
+    const adopted = adoptResultBody(snapshot, result)
+    if ('failure' in adopted) return adopted
+    writes.push(...adopted.ok)
+  }
+  return succeed(writes)
+}
+
+export function adoptResultBody(
+  snapshot: Snapshot,
+  result: ResultRecord,
+): Outcome<readonly LedgerWrite[], ToolFailure> {
+  const original = result.value.original
+  if (original.kind !== 'offloaded') return succeed([])
+  const { seal, description } = original.body
+  const writes: LedgerWrite[] = []
+  const prepared = preparedMaterial(snapshot, seal, 'body')
+  if ('failure' in prepared) return prepared
+  const material = prepared.ok
+  writes.push(
+    { kind: 'delete', key: `material-use:preparation:${material.writeOperation}` },
+    {
+      kind: 'put',
+      record: {
+        kind: 'material-use',
+        use: {
+          id: `body:${description.bodyId}`,
+          kind: 'offloaded-body',
+          material: material.material,
+          writeOperation: material.writeOperation,
+          result: result.result,
+          bodyId: description.bodyId,
+          expiresAt: description.retention.expiresAt,
+          basis: result.source,
         },
       },
-    )
-  }
+    },
+  )
   return succeed(writes)
 }
 

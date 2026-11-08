@@ -29,6 +29,7 @@ describe('public entries', () => {
       'createSqlToolGuardedHostCommit',
       'createSqlToolHistoryCopies',
       'createSqlToolHistoryLedgerStore',
+      'createSqlToolHistorySourceReader',
       'createSqlToolLedgerStore',
       'createSqlToolMaterialMaintenanceSource',
       'createSqlToolMaterialStore',
