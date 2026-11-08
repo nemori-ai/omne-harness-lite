@@ -1,11 +1,9 @@
+import { TOOL_READ_ARGUMENTS } from '../../entry/tool-read-budget.ts'
 import { releaseCatalogViewOf } from './catalog-view.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { fail, succeed } from '@omne-harness/operation-result'
-import {
-  createToolMessageResultCodec,
-  createToolResultReader,
-  type ToolsReadRuntime,
-} from '@omne-harness/tool'
+import { createToolResultReader, type ToolsReadRuntime } from '@omne-harness/tool'
+import { defaultResultPolicy, judgeCommittedToolResult } from '@omne-harness/tool-contract/provider'
 import { toolCatalogKey, toolRuntimeKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { createLocalToolForwarding } from '@omne-harness/tool-host-local'
 import { z } from 'zod'
@@ -31,21 +29,12 @@ const unavailable = () =>
     dependency: 'toolRuntime',
     diagnostic: 'The current Tools runtime or adoption is unavailable.',
   })
-const ARGUMENTS = Object.freeze({
-  maxBytes: 65_536,
-  maxDepth: 32,
-  maxItems: 4096,
-  maxMembers: 256,
-  maxStringLength: 32_768,
-  maxNumberLength: 64,
-})
 
 /** Service lookup is lazy; installing the bindings row must not wait for its own runtime. */
 export function createReleaseToolsCapability(ctx: Context, config: ToolsCapabilityConfig) {
   const runtime = () => ctx.get(toolRuntimeKey, false)
   const release = () => releaseOf(ctx)
   const catalog = () => ctx.get(toolCatalogKey, false)
-  const codec = createToolMessageResultCodec(config.resultPageBytes)
   const reading: ToolsReadRuntime<unknown> = {
     queries: {
       async readResult(input) {
@@ -54,16 +43,17 @@ export function createReleaseToolsCapability(ctx: Context, config: ToolsCapabili
         const answer = await current.queries.readResult(input)
         if ('failure' in answer) return answer
         // The Cordis key erases the provider's content generic. Check its real page before narrowing.
-        const encoded = codec.encode(answer.ok.value)
-        if ('failure' in encoded) return unavailable()
-        const decoded = codec.decode(encoded.ok)
-        return 'failure' in decoded ? unavailable() : succeed({ ...answer.ok, value: decoded.ok })
+        const checked = judgeCommittedToolResult(defaultResultPolicy, answer.ok.value)
+        if ('failure' in checked) return unavailable()
+        if (Buffer.byteLength(JSON.stringify(checked.ok)) > config.resultPageBytes)
+          return unavailable()
+        return succeed({ ...answer.ok, value: checked.ok })
       },
     },
     content: { read: input => runtime()?.content.read(input) ?? Promise.resolve(unavailable()) },
     body: { read: input => runtime()?.body.read(input) ?? Promise.resolve(unavailable()) },
   }
-  const reader = createToolResultReader(reading, { ...config, arguments: ARGUMENTS })
+  const reader = createToolResultReader(reading, { ...config, arguments: TOOL_READ_ARGUMENTS })
   return createLocalToolForwarding<unknown>({
     runtime,
     catalog,

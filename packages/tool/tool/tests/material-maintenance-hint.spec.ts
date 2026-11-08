@@ -24,12 +24,12 @@ async function drain(f: Fixture) {
 it('commits ready, deadline and idle hints with the corresponding material transitions', async () => {
   let now = 0
   const f = await settlementFixture({
-    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 64, maxRetentionMs: 10 },
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 1024, maxRetentionMs: 10 },
     wrapMaterialClock: () => ({
       sample: async () => succeed(ok(decodeToolMaterialInstant(new Date(now).toISOString()))),
     }),
     value: {
-      content: [text('body', 'long body '.repeat(12))],
+      content: [text('body', 'long body '.repeat(105))],
       original: { kind: 'none' },
       data: { kind: 'none' },
       attachments: [],
@@ -135,12 +135,12 @@ it('schedules reclamation when delivery ends while retaining a native reference'
 
 it('backfills a fixed deadline even when the sampled time has already been committed', async () => {
   const f = await settlementFixture({
-    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 64, maxRetentionMs: 10 },
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 1024, maxRetentionMs: 10 },
     wrapMaterialClock: () => ({
       sample: async () => succeed(ok(decodeToolMaterialInstant('1970-01-01T00:00:00.000Z'))),
     }),
     value: {
-      content: [text('body', 'long body '.repeat(12))],
+      content: [text('body', 'long body '.repeat(105))],
       original: { kind: 'none' },
       data: { kind: 'none' },
       attachments: [],
@@ -180,7 +180,7 @@ it('keeps a live page deadline after body expiry and becomes ready when the page
   const f = await settlementFixture({
     offloading: {
       ...configuration().offloading,
-      maxInlineUtf8Bytes: 64,
+      maxInlineUtf8Bytes: 1024,
       maxRetentionMs: 10,
       maxPageLeaseMs: 20,
     },
@@ -198,7 +198,7 @@ it('keeps a live page deadline after body expiry and becomes ready when the page
       },
     }),
     value: {
-      content: [text('body', 'long body '.repeat(12))],
+      content: [text('body', 'long body '.repeat(105))],
       original: { kind: 'none' },
       data: { kind: 'none' },
       attachments: [],

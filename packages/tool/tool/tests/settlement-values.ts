@@ -1,3 +1,4 @@
+import type { JsonLimits } from '@omne-harness/json-text'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   ProcessBlock,
@@ -80,6 +81,7 @@ export async function settlementFixture(
     terminal?: ToolTerminal
     definition?: ToolDefinition
     offloading?: ToolConfiguration['offloading']
+    readResultArguments?: JsonLimits
     wrapMaterialClock?: (clock: ToolMaterialClock) => ToolMaterialClock
     process?: readonly ProcessBlock[] | ((raw: RawOutput) => readonly ProcessBlock[])
     custody?: MemoryToolOutputCustody<Principal>
@@ -202,7 +204,10 @@ export async function settlementFixture(
   const guard = guards()
   const materialPorts = testSettlementPorts(harness.memory).materials
   const materialStore = options.wrapMaterials?.(materialPorts.store) ?? materialPorts.store
-  const makeLedger = (offloading: ToolConfiguration['offloading'] | undefined) =>
+  const makeLedger = (
+    offloading: ToolConfiguration['offloading'] | undefined,
+    readResultArguments = options.readResultArguments,
+  ) =>
     createToolLedger(
       store,
       {
@@ -210,7 +215,10 @@ export async function settlementFixture(
         access: options.wrapAccess?.(guard.access) ?? guard.access,
       },
       clock,
-      configurationOf(offloading === undefined ? {} : { offloading }),
+      {
+        ...configurationOf(offloading === undefined ? {} : { offloading }),
+        ...(readResultArguments === undefined ? {} : { readResultArguments }),
+      },
       {
         content: null,
         materials: {
@@ -227,8 +235,8 @@ export async function settlementFixture(
   const task = before.tasks.find(task => task.kind === 'settle')
   if (task?.kind !== 'settle') throw new Error('fixture final has no settlement task')
   const input = {
-    ...access,
     ...recovery.execution,
+    ...access,
     principal: access.principal,
     operation: operationId('preserve-result'),
     expected: before.state.revision,
@@ -245,8 +253,8 @@ export async function settlementFixture(
     get ledger() {
       return ledger
     },
-    rebuild: (offloading: ToolConfiguration['offloading']) => {
-      ledger = makeLedger(offloading)
+    rebuild: (offloading: ToolConfiguration['offloading'], readResultArguments?: JsonLimits) => {
+      ledger = makeLedger(offloading, readResultArguments)
     },
     input,
     before,

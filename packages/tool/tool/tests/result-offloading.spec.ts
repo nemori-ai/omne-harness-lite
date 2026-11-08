@@ -20,8 +20,8 @@ afterEach(async () => {
 })
 
 it.each([
-  { content: `${'汉'.repeat(21)}a`, bytes: '64', original: 'none' },
-  { content: '汉'.repeat(22), bytes: '66', original: 'offloaded' },
+  { content: `${'汉'.repeat(682)}aa`, bytes: '2048', original: 'none' },
+  { content: '汉'.repeat(683), bytes: '2049', original: 'offloaded' },
 ] as const)('uses UTF-8 bytes at the declared inline boundary: $bytes', async sample => {
   const definition = functionDefinition()
   if (definition.kind !== 'function') throw new Error('fixture must define a function')
@@ -31,7 +31,7 @@ it.each([
       returns: {
         ...definition.returns,
         offloading: {
-          inline: { kind: 'bounded', maxInlineUtf8Bytes: 64 },
+          inline: { kind: 'bounded', maxInlineUtf8Bytes: 2048 },
           retention: { kind: 'bounded', maxRetentionMs: 1_000 },
         },
       },
@@ -50,15 +50,41 @@ it.each([
     expect(page.value.content).toEqual([text('answer', sample.content)])
   } else {
     expect(page.value.original).toMatchObject({
-      bodyBytes: '66',
+      bodyBytes: '2049',
       previewKind: 'mechanical-head-tail',
     })
     const visible = page.value.content.flatMap(block =>
       block.kind === 'text' && block.visibility.toModel ? [block.text] : [],
     )
-    expect(Buffer.byteLength(visible.join(''), 'utf8')).toBeLessThanOrEqual(64)
+    expect(Buffer.byteLength(visible.join(''), 'utf8')).toBeLessThanOrEqual(2048)
     expect(visible.join('')).not.toBe(sample.content)
+    expect(visible.join('')).toContain(
+      'Retention: 1000 ms from result publication; reads do not renew it.',
+    )
+    expect(visible.join('')).toContain(
+      'The body may already have expired when this result is delivered.',
+    )
+    expect(visible.join('')).toContain('bodyReference: tb1.')
+    expect(visible.join('')).toContain('Tools(command="read_result", params=')
   }
+})
+
+it('refuses offloading when the complete read instruction cannot fit the inline bound', async () => {
+  const f = await settlementFixture({
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 64 },
+    value: {
+      content: [text('answer', '汉'.repeat(22))],
+      data: { kind: 'none' },
+      original: { kind: 'none' },
+      attachments: [],
+    },
+  })
+  expect(await f.preserve()).toHaveProperty('failure', {
+    kind: 'invalid',
+    field: 'offloading.previewUtf8Bytes',
+    reason: 'preview-instruction-does-not-fit',
+  })
+  expect((await f.records()).some(record => record.kind === 'result')).toBe(false)
 })
 
 function boundedDefinition() {
@@ -69,7 +95,7 @@ function boundedDefinition() {
     returns: {
       ...definition.returns,
       offloading: {
-        inline: { kind: 'bounded' as const, maxInlineUtf8Bytes: 64 },
+        inline: { kind: 'bounded' as const, maxInlineUtf8Bytes: 2048 },
         retention: { kind: 'bounded' as const, maxRetentionMs: 1_000 },
       },
     },
@@ -77,7 +103,7 @@ function boundedDefinition() {
 }
 
 const largeResult = () => ({
-  content: [text('answer', '汉'.repeat(22))],
+  content: [text('answer', '汉'.repeat(683))],
   data: { kind: 'none' as const },
   original: { kind: 'none' as const },
   attachments: [],
@@ -88,7 +114,7 @@ it('stores only model text as a range-readable UTF-8 body while preserving the o
   const f = await settlementFixture({
     definition: boundedDefinition(),
     value: {
-      content: [text('first', '汉'.repeat(22)), hidden, text('last', '🙂\n')],
+      content: [text('first', '汉'.repeat(683)), hidden, text('last', '🙂\n')],
       data: { kind: 'none' },
       original: { kind: 'none' },
       attachments: [],
@@ -99,8 +125,8 @@ it('stores only model text as a range-readable UTF-8 body while preserving the o
   expect(page.value.content).toContainEqual(hidden)
   expect(page.value.original).toMatchObject({
     kind: 'offloaded',
-    bodyBytes: '71',
-    source: { bytes: '71' },
+    bodyBytes: '2054',
+    source: { bytes: '2054' },
   })
   const body = (await f.records()).find(
     record => record.kind === 'material' && record.material.purpose === 'body',
@@ -110,7 +136,7 @@ it('stores only model text as a range-readable UTF-8 body while preserving the o
   const decoder = new TextDecoder('utf-8', { fatal: true })
   let offset: string | null = '0'
   let restored = ''
-  for (let index = 0; index < 15 && offset !== null; index += 1) {
+  for (let index = 0; index < 512 && offset !== null; index += 1) {
     const request: Parameters<typeof f.materialStore.read>[0] = {
       ...f.access,
       material: body.material.material,
@@ -124,7 +150,7 @@ it('stores only model text as a range-readable UTF-8 body while preserving the o
     offset = part.next
   }
   expect(offset).toBeNull()
-  expect(restored).toBe(`${'汉'.repeat(22)}🙂\n`)
+  expect(restored).toBe(`${'汉'.repeat(683)}🙂\n`)
 })
 
 it('commits the bounded deadline, body use and preparation release with the result', async () => {
@@ -237,15 +263,15 @@ it.each(['unknown-applied', 'unknown-dropped'] as const)(
 )
 
 it.each([
-  { initialLimit: 64, laterLimit: 32, original: 'none' },
-  { initialLimit: 32, laterLimit: 64, original: 'offloaded' },
+  { initialLimit: 2048, laterLimit: 1024, original: 'none' },
+  { initialLimit: 1024, laterLimit: 2048, original: 'offloaded' },
 ] as const)(
   'keeps the original policy after interrupted preparation at $initialLimit bytes',
   async sample => {
     let failWrite = true
     const f = await settlementFixture({
       definition: boundedDefinition(),
-      value: { ...largeResult(), content: [text('answer', 'x'.repeat(48))] },
+      value: { ...largeResult(), content: [text('answer', 'x'.repeat(1536))] },
       offloading: {
         ...configuration().offloading,
         maxInlineUtf8Bytes: sample.initialLimit,
@@ -269,11 +295,14 @@ it.each([
     expect(await f.preserve()).toHaveProperty('failure.kind', 'unavailable')
     expect((await f.records()).filter(record => record.kind === 'result')).toHaveLength(0)
     failWrite = false
-    f.rebuild({
-      ...configuration().offloading,
-      maxInlineUtf8Bytes: sample.laterLimit,
-      maxRetentionMs: 2_000,
-    })
+    f.rebuild(
+      {
+        ...configuration().offloading,
+        maxInlineUtf8Bytes: sample.laterLimit,
+        maxRetentionMs: 2_000,
+      },
+      { ...configuration().readResultArguments, maxBytes: 128, maxStringLength: 128 },
+    )
     expect(ok(await f.preserve()).phase).toBe('settled')
     const page = await f.resultPage()
     expect(page.value.original.kind).toBe(sample.original)
@@ -346,18 +375,18 @@ it('refuses an overflowing deadline without publishing a result or body use', as
   ).toBe(true)
 })
 
-it.each([32, 96])(
-  'counts only model text and preserves native and program channels: %i',
-  async bytes => {
+it.each([512, 3072].flatMap(bytes => (['file', 'image'] as const).map(kind => ({ bytes, kind }))))(
+  'counts only model text and preserves native and program channels: $bytes $kind',
+  async ({ bytes, kind }) => {
     const reference = {
       storage: 'native-files',
-      key: 'report.csv',
-      mediaType: 'text/csv',
+      key: kind === 'file' ? 'report.csv' : 'chart.png',
+      mediaType: kind === 'file' ? 'text/csv' : 'image/png',
       bytes: '1000000',
       digest: 'sha256:native-report',
     }
     const native = {
-      kind: 'file' as const,
+      kind,
       id: text('native', '').id,
       visibility: { toHuman: true, toModel: true },
       ref: reference,
@@ -395,7 +424,7 @@ it.each([32, 96])(
     expect(
       delivered.content.filter(block => block.id === native.id || block.id === human.id),
     ).toEqual([native, human])
-    expect(delivered.original.kind).toBe(bytes <= 64 ? 'none' : 'offloaded')
+    expect(delivered.original.kind).toBe(bytes <= 2048 ? 'none' : 'offloaded')
     if (delivered.original.kind === 'offloaded')
       expect(delivered.original.bodyBytes).toBe(String(bytes))
   },
@@ -498,13 +527,13 @@ it.each(['content', 'summary'] as const)(
     const f = await settlementFixture({
       definition: boundedDefinition(),
       value: async (_raw, ledger, access) => ({
-        content: [text('answer', channel === 'content' ? '汉'.repeat(22) : 'short')],
+        content: [text('answer', channel === 'content' ? '汉'.repeat(683) : 'short')],
         data: { kind: 'none' },
         attachments: [],
         original: {
           kind: 'offloaded',
           source: (await sealedText(ledger, access)).source,
-          summary: [text('summary', channel === 'summary' ? '汉'.repeat(22) : 'short')],
+          summary: [text('summary', channel === 'summary' ? '汉'.repeat(683) : 'short')],
         },
       }),
     })
@@ -606,3 +635,35 @@ it.each([64, 65])('enforces the body hard limit before inline selection: %i byte
     ).toEqual([])
   }
 })
+
+it.each([{ maxBytes: 128 }, { maxStringLength: 128 }, { maxItems: 2 }, { maxMembers: 2 }])(
+  'does not publish an offloaded preview whose read instruction exceeds %j',
+  async limit => {
+    const f = await settlementFixture({
+      readResultArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 4096,
+        maxMembers: 256,
+        maxStringLength: 32_768,
+        maxNumberLength: 64,
+        ...limit,
+      },
+      offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 2048 },
+      value: {
+        content: [text('body', 'x'.repeat(3000))],
+        original: { kind: 'none' },
+        data: { kind: 'none' },
+        attachments: [],
+      },
+    })
+    expect(await f.preserve()).toMatchObject({
+      failure: {
+        kind: 'invalid',
+        field: 'readResultArguments',
+        reason: 'read-instruction-not-callable',
+      },
+    })
+    expect((await f.records()).some(row => row.kind === 'result')).toBe(false)
+  },
+)

@@ -17,6 +17,7 @@ import type { LedgerDomain } from './ledger-store.ts'
 import type { TerminalText } from './ledger-start.ts'
 import type { BodyPolicy } from './result-offloading.ts'
 import type { createLedgerMaterialCustody } from './ledger-material-custody.ts'
+import type { ResultReference } from './tools-protocol.ts'
 import {
   prepareResultChannels,
   type PreparedResultChannels,
@@ -65,6 +66,7 @@ export function createResultPreparation<P, B extends ContentBlock>(
     transact: PreparationTransaction
     text: TerminalText<B>
     policy: BodyPolicy
+    target: ResultReference
   }>,
 ) {
   return async (
@@ -153,6 +155,7 @@ export function createResultPreparation<P, B extends ContentBlock>(
       intent.ok.policy,
       null,
       validate,
+      ports.target,
     )
     if ('failure' in channels) return channels
     const saved = await ports.transact(

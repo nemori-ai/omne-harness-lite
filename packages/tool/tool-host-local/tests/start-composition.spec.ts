@@ -176,6 +176,14 @@ function assembly(
       resultPageBytes: 4_096,
       ledgerCommitAttempts: 8,
       queueCapacity: 8,
+      readResultArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 4096,
+        maxMembers: 256,
+        maxStringLength: 32_768,
+        maxNumberLength: 64,
+      },
       offloading: {
         maxInlineUtf8Bytes: 65_536,
         maxRetentionMs: 86_400_000,
@@ -254,6 +262,14 @@ function assembly(
       reconciliationDelayMs: 0,
       ledgerCommitAttempts: 8,
       queueCapacity: 8,
+      readResultArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 4096,
+        maxMembers: 256,
+        maxStringLength: 32_768,
+        maxNumberLength: 64,
+      },
       offloading: {
         maxInlineUtf8Bytes: 65_536,
         maxRetentionMs: 86_400_000,

@@ -591,7 +591,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
       const encodedTenant = tenantCodec.encode(TENANT_A)
       if (!encodedTenant.ok) throw new Error('invalid fixture tenant')
       const { rows, tools } = rowsOf(storageRoot)
-      tools.records.configuration.offloading.maxInlineUtf8Bytes = 64
+      tools.records.configuration.offloading.maxInlineUtf8Bytes = 1024
       tools.records.configuration.offloading.maxRetentionMs = 100
       const maintenance = {
         id: 'tool-material-maintenance',

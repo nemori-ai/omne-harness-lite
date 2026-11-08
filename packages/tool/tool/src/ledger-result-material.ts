@@ -28,6 +28,7 @@ import { encodeToolMaterial } from './material-codec.ts'
 import { materialContent } from './ledger-material-content.ts'
 import { planResultBody, type BodyPolicy } from './result-offloading.ts'
 import { encodeTextBody } from './text-body-codec.ts'
+import type { ResultReference } from './tools-protocol.ts'
 
 type ChannelSlots = Readonly<{
   kind: 'channels'
@@ -74,8 +75,11 @@ export async function prepareResultChannels<P, B extends ContentBlock>(
   policy: BodyPolicy,
   authored: PreparedBody | null,
   validate: Validation<P>,
+  target: ResultReference,
 ): Promise<Outcome<PreparedResultChannels, ToolFailure>> {
-  const planned = planResultBody(rendered, policy)
+  const id = decodeToolBodyId(`body:${createHash('sha256').update(input.operation).digest('hex')}`)
+  if ('failure' in id) return fail({ kind: 'invalid', field: 'bodyId', reason: 'body-identity' })
+  const planned = planResultBody(rendered, policy, { ...target, bodyId: id.ok })
   if ('failure' in planned) return planned
   let value = rendered
   let body: PreparedBody | null = authored
@@ -102,10 +106,6 @@ export async function prepareResultChannels<P, B extends ContentBlock>(
       validate,
     )
     if ('failure' in saved) return saved
-    const id = decodeToolBodyId(
-      `body:${createHash('sha256').update(input.operation).digest('hex')}`,
-    )
-    if ('failure' in id) return fail({ kind: 'invalid', field: 'bodyId', reason: 'body-identity' })
     if (policy.declaration.kind !== 'text')
       return fail({ kind: 'invalid', field: 'body', reason: 'text-declaration-required' })
     const source = materialContent(saved.ok)

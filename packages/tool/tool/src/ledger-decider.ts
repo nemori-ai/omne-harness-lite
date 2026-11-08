@@ -52,7 +52,7 @@ import {
   deliveryId,
   mintEvidence,
   digestOf,
-  resultVersion,
+  FIRST_RESULT_VERSION,
 } from './evidence.ts'
 import {
   taskKey,
@@ -535,7 +535,7 @@ export function firstResultWrites(
   mint: Mint,
 ): Readonly<{ version: FirstVersion; writes: readonly LedgerWrite[] }> {
   const { tenant, call, operation } = place
-  const version = resultVersion(1)
+  const version = FIRST_RESULT_VERSION
   const delivery = { kind: 'pending', delivery: deliveryId(1), consumer } as const
   const resultPlace = { tenant, call, result: version, delivery: delivery.delivery, operation }
   const record: ResultRecord = {

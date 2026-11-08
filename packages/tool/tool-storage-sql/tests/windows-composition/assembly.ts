@@ -90,6 +90,14 @@ const configuration: ToolConfiguration = {
   queueCapacity: 64,
   driverRetryDelayMs: 50,
   driverStepsPerRun: 32,
+  readResultArguments: {
+    maxBytes: 65_536,
+    maxDepth: 32,
+    maxItems: 4096,
+    maxMembers: 256,
+    maxStringLength: 32_768,
+    maxNumberLength: 64,
+  },
   offloading: {
     maxInlineUtf8Bytes: 65_536,
     maxRetentionMs: 86_400_000,

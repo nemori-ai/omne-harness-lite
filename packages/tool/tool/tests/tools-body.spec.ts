@@ -78,3 +78,36 @@ it('shrinks the body budget without advancing past text omitted from the actual 
   expect(pages).toBeGreaterThan(1)
   expect(actual).toBe(expected)
 })
+
+it.each([5, 6])('only emits a continuation accepted by its %i-item budget', async maxItems => {
+  const f = await sourceFixture(
+    async (_raw, ledger, access) => ({
+      ...result([visible('summary', 'summary')]),
+      original: {
+        kind: 'offloaded',
+        source: (await sealedText(ledger, access, 'abcdef')).source,
+        summary: [visible('summary', 'summary')],
+      },
+    }),
+    { contentPageBytes: 2, arguments: { ...options.arguments, maxItems } },
+  )
+  const reference = token(await f.tools.present(f.access), 'bodyReference')
+  const page = await f.tools.read({
+    ...f.access,
+    arguments: { kind: 'body', reference, after: null },
+  })
+  if (maxItems === 5) {
+    expect(page.content.some(block => block.id === 'Tools.body')).toBe(false)
+    expect(page.content.map(block => (block.kind === 'text' ? block.text : '')).join('')).toContain(
+      'unsupported',
+    )
+  } else {
+    const next = token(page, 'next')
+    expect(next).toMatch(/^tc1\./u)
+    const second = await f.tools.read({
+      ...f.access,
+      arguments: { kind: 'body', reference, after: next },
+    })
+    expect(second.content.find(block => block.id === 'Tools.body')).toMatchObject({ text: 'cd' })
+  }
+})

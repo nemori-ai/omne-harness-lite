@@ -1,3 +1,4 @@
+import { readJsonText } from '@omne-harness/json-text'
 // The construction-time checks of the configuration (342: capacities positive, delays
 // non-negative and finite, the driver retry delay a timer can hold, all verified at load). A bad configuration is an assembly defect, so
 // each check throws instead of building a runtime or a ledger that would misbehave later.
@@ -48,6 +49,7 @@ function isRuntimeBudget(key: string): boolean {
     (CAPACITIES as readonly string[]).includes(key) ||
     (DELAYS as readonly string[]).includes(key) ||
     key === 'offloading' ||
+    key === 'readResultArguments' ||
     key === 'driverStepsPerRun' ||
     key === 'driverRetryDelayMs'
   )
@@ -66,7 +68,7 @@ export function checkToolConfiguration(configuration: ToolConfiguration): void {
     'configuration',
   )
   if ('failure' in limits) throw new TypeError(`${limits.failure.field}: ${limits.failure.reason}`)
-  checkOffloading(configuration)
+  checkResultConfiguration(configuration)
   checkCapacities(configuration, CAPACITIES)
   if (
     Reflect.get(configuration, 'driverStepsPerRun') !== undefined &&
@@ -87,11 +89,12 @@ export function checkToolConfiguration(configuration: ToolConfiguration): void {
 export function checkLedgerConfiguration(configuration: ToolLedgerConfiguration): void {
   if (typeof configuration !== 'object' || configuration === null)
     throw new TypeError('configuration: type')
-  checkOffloading(configuration)
+  checkResultConfiguration(configuration)
   checkCapacities(configuration, LEDGER_CAPACITIES)
 }
 
-function checkOffloading(configuration: ToolLedgerConfiguration): void {
+function checkResultConfiguration(configuration: ToolLedgerConfiguration): void {
+  readJsonText('null', configuration.readResultArguments)
   const policy = configuration.offloading
   if (typeof policy !== 'object' || policy === null)
     throw new TypeError('configuration.offloading: required')

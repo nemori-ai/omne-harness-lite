@@ -436,6 +436,14 @@ function ledgerFor(f: ReturnType<typeof fixture>) {
       resultPageBytes: 4096,
       ledgerCommitAttempts: 3,
       queueCapacity: 10,
+      readResultArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 4096,
+        maxMembers: 256,
+        maxStringLength: 32_768,
+        maxNumberLength: 64,
+      },
       offloading: {
         maxInlineUtf8Bytes: 65_536,
         maxRetentionMs: 86_400_000,

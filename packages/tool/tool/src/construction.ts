@@ -1,3 +1,4 @@
+import type { JsonLimits } from '@omne-harness/json-text'
 // The construction shapes of the Tool runtime factory and the ledger factory. They belong to the
 // implementation, not to the contract: another implementation may take different dependencies
 // and configuration.
@@ -52,6 +53,7 @@ export type ToolConfiguration = ToolAuthorLimits &
     /** The most bytes of whole content blocks on one result page (P08). */
     resultPageBytes: number
     offloading: ToolOffloadingConfiguration
+    readResultArguments: JsonLimits
     reconciliationDelayMs: number
     /** How many times a ledger command re-reads and re-decides after a revision conflict. */
     ledgerCommitAttempts: number
@@ -80,7 +82,11 @@ export type ToolConfiguration = ToolAuthorLimits &
 /** The part of the configuration that the ledger reads. The same configuration value fits. */
 export type ToolLedgerConfiguration = Pick<
   ToolConfiguration,
-  'resultPageBytes' | 'ledgerCommitAttempts' | 'queueCapacity' | 'offloading'
+  | 'resultPageBytes'
+  | 'ledgerCommitAttempts'
+  | 'queueCapacity'
+  | 'offloading'
+  | 'readResultArguments'
 >
 
 /**

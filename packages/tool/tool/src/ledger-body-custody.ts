@@ -1,3 +1,4 @@
+import type { JsonLimits } from '@omne-harness/json-text'
 import { judgeContentBlock, type TextContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -136,6 +137,7 @@ function prepareBody<P>(
   snapshot: Snapshot,
   input: BodyInput<P>,
   configuration: ToolOffloadingConfiguration,
+  readResultArguments: JsonLimits,
 ): Decision<BodyPreparationRecord> {
   const known = snapshot.bodyPreparations.get(input.operation)
   if (known !== undefined)
@@ -153,7 +155,7 @@ function prepareBody<P>(
     (call.state.phase !== 'starting' && call.state.phase !== 'running')
   )
     return { kind: 'reply', outcome: invalid('call', 'not-running') }
-  const policy = resultBodyPolicy(call.request, configuration)
+  const policy = resultBodyPolicy(call.request, configuration, readResultArguments)
   if ('failure' in policy) return { kind: 'reply', outcome: policy }
   if (policy.ok.declaration.kind !== 'text')
     return {
@@ -209,6 +211,7 @@ export function createLedgerBodyCustody<P>(
   ports: Readonly<{
     materials: ToolLedgerPorts<P>['materials']
     configuration: ToolOffloadingConfiguration
+    readResultArguments: JsonLimits
     entry(input: unknown, action: 'write'): Reply<CallInput<P>>
     load(input: CallInput<P>): Reply<Snapshot>
     transact: BodyTransaction & MaterialTransaction
@@ -239,7 +242,7 @@ export function createLedgerBodyCustody<P>(
           const allowed = await check(input, snapshot, input.start)
           return 'failure' in allowed
             ? { kind: 'reply', outcome: allowed }
-            : prepareBody(snapshot, input, ports.configuration)
+            : prepareBody(snapshot, input, ports.configuration, ports.readResultArguments)
         },
         unknown,
       )

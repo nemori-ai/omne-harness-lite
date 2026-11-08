@@ -1,3 +1,4 @@
+import { TOOL_READ_ARGUMENTS } from '../../entry/tool-read-budget.ts'
 import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
 // 建 Tool 运行时组的唯一 bundle（B 段，R2-D66 第 3 项，L-TOOL 事实清单 §3）：`createLocalToolRuntimePlugins` 的
 // 每个输入只取已核来源，缺席时由各自的窄代理答 `unavailable`。`tool-records` 行按运维者配置调用一次；同一运行的
@@ -109,7 +110,7 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     guardsOf: () => [],
     permitRequirements: releasePermitRequirements(root, identity),
     clock: holder.clock,
-    configuration: config.configuration,
+    configuration: { ...config.configuration, readResultArguments: TOOL_READ_ARGUMENTS },
     // The bindings row is built for any environment value; at run time the value it hands to the
     // authors is the environment this bundle prepares, so the narrower type is the same object.
     bindings: () => root.get(toolBindingsKey) as ReturnType<LocalToolRuntimeInput['bindings']>,

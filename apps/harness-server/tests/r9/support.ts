@@ -360,6 +360,30 @@ export function operatorLayer(options: {
       // 运行时组的数值取 L-TOOL C06 组合用例的同一组值（tool-storage-sql windows-composition/assembly.ts）。
       { kind: 'replace', id: 'tool-host', config: { construction: tools.construction } },
       { kind: 'replace', id: 'tool-records', config: tools.records },
+      {
+        kind: 'replace',
+        id: 'tool-material-maintenance',
+        config: {
+          combinationVersion: tools.records.combinationVersion,
+          maxCommandBytes: tools.records.maxCommandBytes,
+          maxChunkBytes: tools.records.maxChunkBytes,
+          ledgerCommitAttempts: tools.records.configuration.ledgerCommitAttempts,
+          intervalMs: 1000,
+          pageSize: 32,
+        },
+      },
+      {
+        kind: 'replace',
+        id: 'tool-bindings',
+        config: {
+          tools: {
+            attemptMs: 250,
+            resultPageBytes: 65_536,
+            replyMaxBytes: 65_536,
+            contentPageBytes: 4096,
+          },
+        },
+      },
       { kind: 'replace', id: 'execution-host', config: tools.host },
       // B1（R2-D136）：Context 侧与 Session 适配行的数值归运维者层，发行层不写。这里是测试值：
       // 账目收件口的上限、agent-context 的采用身份与结果容量、AD-03/AD-04 的索引上界与页大小（成员初值）。

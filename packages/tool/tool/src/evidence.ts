@@ -131,6 +131,8 @@ export function resultVersion(ordinal: number): ToolResultVersion {
   return minted(decodeToolResultVersion(`v${ordinal}`), `v${ordinal}`)
 }
 
+export const FIRST_RESULT_VERSION = resultVersion(1)
+
 export function deliveryId(ordinal: number): ToolDeliveryId {
   return minted(decodeToolDeliveryId(`d${ordinal}`), `d${ordinal}`)
 }

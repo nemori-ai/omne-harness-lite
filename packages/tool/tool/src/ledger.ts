@@ -1,4 +1,5 @@
 import { authorBody } from './ledger-author-body.ts'
+import { firstResultReference } from './result-address.ts'
 import { createLedgerBodyCustody } from './ledger-body-custody.ts'
 import { createLedgerMaterialMaintenance } from './ledger-material-maintenance.ts'
 import { createLedgerTransactions, type Decide } from './ledger-transactions.ts'
@@ -515,6 +516,12 @@ export function createToolLedger<P, B extends ContentBlock>(
     const initial = decide(before.ok, { revision: nextRevision(before.ok.revision) }, null)
     let prepared: PendingSynthetic | null = null
     if (initial.kind === 'prepare-synthetic') {
+      const target = firstResultReference({
+        tenant: context.tenant,
+        call: context.call,
+        admission: before.ok.call?.admission ?? context.operation,
+      })
+      if ('failure' in target) return target
       const prepare = createResultPreparation<P, B>({
         authorize: input => entry(input, action),
         custody: createLedgerMaterialCustody<P>({
@@ -524,7 +531,8 @@ export function createToolLedger<P, B extends ContentBlock>(
         }),
         transact,
         text,
-        policy: systemBodyPolicy(configuration.offloading),
+        policy: systemBodyPolicy(configuration.offloading, configuration.readResultArguments),
+        target: target.ok,
       })
       const value = await prepare({ ...context, inputDigest }, initial.need, snapshot => {
         if (excludedSince(snapshot, context.operation, firstRead))
@@ -1028,7 +1036,11 @@ export function createToolLedger<P, B extends ContentBlock>(
     if ('failure' in authored) return authored
     const proposed =
       authored.ok === null
-        ? resultBodyPolicy(record.ok.request, configuration.offloading)
+        ? resultBodyPolicy(
+            record.ok.request,
+            configuration.offloading,
+            configuration.readResultArguments,
+          )
         : succeed(authored.ok.policy)
     if ('failure' in proposed) return proposed
     const policyInput = {
@@ -1055,6 +1067,8 @@ export function createToolLedger<P, B extends ContentBlock>(
       return policy.failure.kind === 'commit-unknown'
         ? unavailable('result-policy', 'result policy preparation is unresolved')
         : policy
+    const target = firstResultReference({ ...record.ok, tenant: context.ok.tenant })
+    if ('failure' in target) return target
     const channels = await prepareResultChannels<P, B>(
       createLedgerMaterialCustody<P>({
         materials: settlement.materials,
@@ -1071,6 +1085,7 @@ export function createToolLedger<P, B extends ContentBlock>(
         const current = checkSettlement(snapshot, command)
         return 'failure' in current ? current : succeed(undefined)
       },
+      target.ok,
     )
     if ('failure' in channels)
       return channels.failure.kind === 'commit-unknown' &&
@@ -1499,6 +1514,7 @@ export function createToolLedger<P, B extends ContentBlock>(
       },
     }),
     bodyCustody: createLedgerBodyCustody({
+      readResultArguments: configuration.readResultArguments,
       materials: settlement.materials,
       configuration: configuration.offloading,
       entry,

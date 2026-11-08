@@ -14,12 +14,12 @@ afterEach(async () => {
 it('deletes the expired body bytes after recording deletion authority in the original call', async () => {
   let now = 0
   const f = await settlementFixture({
-    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 64, maxRetentionMs: 10 },
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 1024, maxRetentionMs: 10 },
     wrapMaterialClock: () => ({
       sample: async () => succeed(ok(decodeToolMaterialInstant(new Date(now).toISOString()))),
     }),
     value: {
-      content: [text('body', '中🙂'.repeat(12))],
+      content: [text('body', '中🙂'.repeat(150))],
       original: { kind: 'none' },
       data: { kind: 'none' },
       attachments: [],
@@ -65,7 +65,7 @@ async function expiredFixture(options: Parameters<typeof settlementFixture>[0] =
     ...options,
     offloading: {
       ...configuration().offloading,
-      maxInlineUtf8Bytes: 64,
+      maxInlineUtf8Bytes: 1024,
       maxRetentionMs: 10,
       maxPageLeaseMs: 20,
     },
@@ -73,7 +73,7 @@ async function expiredFixture(options: Parameters<typeof settlementFixture>[0] =
       sample: async () => succeed(ok(decodeToolMaterialInstant(new Date(now).toISOString()))),
     }),
     value: options.value ?? {
-      content: [text('body', '中🙂'.repeat(12))],
+      content: [text('body', '中🙂'.repeat(150))],
       original: { kind: 'none' },
       data: { kind: 'none' },
       attachments: [],
@@ -116,7 +116,7 @@ it.each(['applied', 'dropped'] as const)(
     )
     expect(erase).not.toHaveBeenCalled()
     f.interceptCommit(null)
-    f.rebuild({ ...configuration().offloading, maxInlineUtf8Bytes: 64, maxRetentionMs: 10 })
+    f.rebuild({ ...configuration().offloading, maxInlineUtf8Bytes: 1024, maxRetentionMs: 10 })
     await drain(f)
     expect((await f.records()).filter(row => row.kind === 'material-cleanup')).toHaveLength(0)
   },
@@ -247,7 +247,7 @@ it('keeps an admitted page alive across body expiry and reclaims after the page 
   const f = await settlementFixture({
     offloading: {
       ...configuration().offloading,
-      maxInlineUtf8Bytes: 64,
+      maxInlineUtf8Bytes: 1024,
       maxRetentionMs: 10,
       maxPageLeaseMs: 20,
     },
@@ -265,7 +265,7 @@ it('keeps an admitted page alive across body expiry and reclaims after the page 
       },
     }),
     value: {
-      content: [text('body', '中🙂'.repeat(12))],
+      content: [text('body', '中🙂'.repeat(150))],
       original: { kind: 'none' },
       data: { kind: 'none' },
       attachments: [],
@@ -340,7 +340,7 @@ it('rejects foreign maintenance before reading or deleting materials', async () 
 it('keeps raw bytes that also have native and process uses while reclaiming the expired model body', async () => {
   const f = await expiredFixture({
     value: raw => ({
-      content: [text('body', 'long model body '.repeat(12))],
+      content: [text('body', 'long model body '.repeat(70))],
       data: { kind: 'none' },
       original: { kind: 'none' },
       attachments: [raw.content],

@@ -1,3 +1,4 @@
+import type { JsonLimits } from '@omne-harness/json-text'
 import type { ContentBlock, TextContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -8,6 +9,8 @@ import type {
   ToolReturnDeclaration,
 } from '@omne-harness/tool-contract'
 import { describedAdoption } from '@omne-harness/tool-contract/provider'
+import { formatUsage } from '@omne-harness/unix-format'
+import { callableRead, encodeBodyReference, type BodyReference } from './tools-protocol.ts'
 import type { ToolOffloadingConfiguration } from './construction.ts'
 
 export type BodyPolicy = Readonly<{
@@ -17,11 +20,13 @@ export type BodyPolicy = Readonly<{
   retentionMs: number
   maxBodyBytes: number
   previewBytes: number
+  readResultArguments: JsonLimits
 }>
 
 export function resultBodyPolicy(
   request: FixedToolRequest,
   system: ToolOffloadingConfiguration,
+  readResultArguments: JsonLimits,
 ): Outcome<BodyPolicy, ToolFailure> {
   const definition = request.availability.definition
   const declaration =
@@ -30,12 +35,13 @@ export function resultBodyPolicy(
       : definition.commands.find(command => command.name === request.command)?.returns
   if (declaration === undefined)
     return fail({ kind: 'invalid', field: 'command', reason: 'missing-return-declaration' })
-  return succeed(resolveBodyPolicy(declaration, system))
+  return succeed(resolveBodyPolicy(declaration, system, readResultArguments))
 }
 
 export function resolveBodyPolicy(
   declaration: Pick<ToolReturnDeclaration, 'body' | 'offloading'>,
   system: ToolOffloadingConfiguration,
+  readResultArguments: JsonLimits,
 ): BodyPolicy {
   const { inline, retention } = declaration.offloading
   return {
@@ -45,8 +51,10 @@ export function resolveBodyPolicy(
       revision: '1',
       declaration,
       system,
+      readResultArguments,
     }),
     declaration: declaration.body,
+    readResultArguments: { ...readResultArguments },
     inlineBytes:
       inline.kind === 'system'
         ? system.maxInlineUtf8Bytes
@@ -77,6 +85,7 @@ type BodyPlan<B extends ContentBlock> =
 export function planResultBody<B extends ContentBlock>(
   value: ToolRenderedResult<B>,
   policy: BodyPolicy,
+  address: BodyReference,
 ): Outcome<BodyPlan<B>, ToolFailure> {
   if (value.original.kind === 'offloaded') {
     for (const blocks of [value.content, value.original.summary]) {
@@ -115,8 +124,19 @@ export function planResultBody<B extends ContentBlock>(
       adoption: policy.adoption,
       reason: 'automatic offloading requires a text body declaration',
     })
+  const reference = encodeBodyReference(address)
+  const params = JSON.stringify({ kind: 'body', reference, after: null })
+  if (!callableRead({ kind: 'body', reference, after: null }, policy.readResultArguments))
+    return fail({
+      kind: 'invalid',
+      field: 'readResultArguments',
+      reason: 'read-instruction-not-callable',
+    })
+  const instruction = `\nBody bytes: ${size}\nRetention: ${policy.retentionMs} ms from result publication; reads do not renew it.\nThe body may already have expired when this result is delivered.\nbodyReference: ${reference}\n${formatUsage('Tools', 'read_result', params)}`
   const marker = '\n[offloaded]\n'
-  const available = policy.previewBytes - Buffer.byteLength(marker, 'utf8')
+  const available =
+    Math.min(policy.previewBytes, policy.inlineBytes - Buffer.byteLength(instruction, 'utf8')) -
+    Buffer.byteLength(marker, 'utf8')
   if (available < 0)
     return fail({
       kind: 'invalid',
@@ -127,7 +147,10 @@ export function planResultBody<B extends ContentBlock>(
   const head = Math.ceil(available / 2)
   const tail = Math.floor(available / 2)
   const preview =
-    utf8Slice(bytes, 0, head) + marker + utf8Slice(bytes, bytes.length - tail, bytes.length)
+    utf8Slice(bytes, 0, head) +
+    marker +
+    utf8Slice(bytes, bytes.length - tail, bytes.length) +
+    instruction
   let emitted = false
   const content = value.content.flatMap(block => {
     if (block.kind !== 'text' || !block.visibility.toModel) return [block]
@@ -147,7 +170,10 @@ function utf8Slice(bytes: Uint8Array, from: number, to: number): string {
   return new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(start, end))
 }
 
-export function systemBodyPolicy(system: ToolOffloadingConfiguration): BodyPolicy {
+export function systemBodyPolicy(
+  system: ToolOffloadingConfiguration,
+  readResultArguments: JsonLimits,
+): BodyPolicy {
   return resolveBodyPolicy(
     {
       body: {
@@ -161,5 +187,6 @@ export function systemBodyPolicy(system: ToolOffloadingConfiguration): BodyPolic
       offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
     },
     system,
+    readResultArguments,
   )
 }

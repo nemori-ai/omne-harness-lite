@@ -28,6 +28,10 @@ export type AttachmentReference = Readonly<{
   selector: number
 }>
 
+export function encodeBodyReference(value: BodyReference): string {
+  return `tb1.${Buffer.from(JSON.stringify([1, value.reference, value.result, value.bodyId])).toString('base64url')}`
+}
+
 export function protocol(limits: JsonLimits) {
   const projection = (kind: ReadArguments['kind']) =>
     kind === 'result' ? 'full' : kind === 'body' ? 'text' : 'bytes'
@@ -81,7 +85,7 @@ export function protocol(limits: JsonLimits) {
   return {
     allowed,
     result: (value: ResultReference) => encode('tr1', [1, value.reference, value.result]),
-    body: (value: BodyReference) => encode('tb1', [1, value.reference, value.result, value.bodyId]),
+    body: encodeBodyReference,
     readBody(text: string): Outcome<BodyReference, ToolFailure> {
       const decoded = decode(text, 'tb1', 4)
       if ('failure' in decoded) return decoded
@@ -145,4 +149,17 @@ export function protocol(limits: JsonLimits) {
       return succeed(after.value)
     },
   }
+}
+
+export function callableRead(input: ReadArguments, limits: JsonLimits): boolean {
+  const refs = protocol(limits)
+  if (readJsonText(JSON.stringify(input), limits).kind !== 'ok' || 'failure' in refs.after(input))
+    return false
+  const decoded =
+    input.kind === 'result'
+      ? refs.readResult(input.reference)
+      : input.kind === 'body'
+        ? refs.readBody(input.reference)
+        : refs.readAttachment(input.reference)
+  return 'ok' in decoded
 }

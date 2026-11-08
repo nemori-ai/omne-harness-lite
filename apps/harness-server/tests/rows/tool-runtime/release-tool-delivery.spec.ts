@@ -1,3 +1,7 @@
+import { largeBodyRelease, adoptLargeBody } from './large-body-release.ts'
+import { largeBodyModel } from './large-body-model.ts'
+import { LARGE_TOOL } from './large-body-author.ts'
+import { observeToolMaterials, inlineResultReleased } from './release-material-observation.ts'
 // @module-tag slow
 // 慢：本进程装发行树（真实 SQLite），每条命令起一个 `omne` 子进程，模型走本进程的本地网关。先构建 `apps/cli`。
 // 发行树上一次工具调用的结果交回 Agent（R2-D272 第二十层）：模型先答一个调用 Shell 的 info 命令，再答文字。工具执行完，
@@ -22,6 +26,7 @@ import {
   toolRowsOperatorConfig,
 } from '../../r9/support.ts'
 import { connectable, until } from '../server-entry/support.ts'
+import { bodyReadingModel } from './body-reading-model.ts'
 
 const release: unknown = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
@@ -130,6 +135,27 @@ type Entry = Readonly<{ kind: string; payload: Record<string, unknown> }>
 const entriesOf = (body: string): readonly Entry[] =>
   (JSON.parse(body) as { body: { entries: Entry[] } }).body.entries
 
+async function allHistory(port: number, request: ReturnType<typeof readHistory>) {
+  let page = await post(port, request)
+  const entries: Entry[] = []
+  const cursors = new Set<string>()
+  for (;;) {
+    if (page.status === 503) return page
+    expect(page.status, page.body).toBe(200)
+    const value = JSON.parse(page.body) as { body: { entries: Entry[]; next: string | null } }
+    entries.push(...value.body.entries)
+    const cursor = value.body.next
+    if (cursor === null) return { status: page.status, body: JSON.stringify({ body: { entries } }) }
+    expect(cursors.has(cursor), 'history cursor must advance').toBe(false)
+    cursors.add(cursor)
+    expect(cursors.size).toBeLessThan(128)
+    page = await post(port, {
+      ...request,
+      body: { tenant: request.body.tenant, session: request.body.session, cursor },
+    })
+  }
+}
+
 /** The blocks of a message entry. */
 const blocksOf = (entry: Entry | undefined): readonly Record<string, unknown>[] =>
   ((entry?.payload['message'] as { blocks?: Record<string, unknown>[] } | undefined)?.blocks ??
@@ -139,7 +165,12 @@ const blocksOf = (entry: Entry | undefined): readonly Record<string, unknown>[] 
  * Runs one turn on the release tree with the gateway `script`: register, log in, create a coding
  * session, send one input and read the history until the Run ends, then stop the server.
  */
-async function turnOnRelease(script: GatewayScript, shellResultMaxBytes?: number) {
+async function turnOnRelease(
+  script: GatewayScript,
+  shellResultMaxBytes?: number,
+  extension?: ReturnType<typeof largeBodyRelease>,
+  checkInlineRelease = false,
+) {
   const dir = newScratch('tool-delivery-')
   const port = await freePort()
   const home = join(dir.base, 'home')
@@ -150,7 +181,7 @@ async function turnOnRelease(script: GatewayScript, shellResultMaxBytes?: number
   gateway.trustInProcess()
   const { construction } = toolRowsOperatorConfig({ storageRoot: dir.storageRoot })
   const finished = runServe({
-    distribution: release,
+    distribution: extension === undefined ? release : adoptLargeBody(release),
     operator: withHistoryKinds(
       operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: gateway.url }),
       shellResultMaxBytes === undefined
@@ -160,7 +191,11 @@ async function turnOnRelease(script: GatewayScript, shellResultMaxBytes?: number
             Shell: { ...construction.Shell, resultMaxBytes: shellResultMaxBytes },
           },
     ),
-    plugins: { ...cordis },
+    plugins: {
+      ...cordis,
+      ...(extension === undefined ? {} : { toolHostRow: extension.toolHostRow }),
+    },
+    ...(extension === undefined ? {} : { entryObjects: extension.entryObjects }),
     stateRoot: dir.stateRoot,
     stop: controller.signal,
     readinessTimeoutMs: 15_000,
@@ -188,26 +223,49 @@ async function turnOnRelease(script: GatewayScript, shellResultMaxBytes?: number
     const sent = await cli(['send-input', '--session', session, '--text', 'list your files'])
     expect(sent.status, sent.stderr).toBe(0)
     const request = readHistory(savedTenant(home), session, savedLoginProof(home))
-    let history = await post(port, request)
+    let history = await allHistory(port, request)
     for (
       const end = Date.now() + 120_000;
       Date.now() < end &&
       !(history.status === 200 && entriesOf(history.body).some(e => e.kind === 'run.terminal'));
       await sleep(500)
     )
-      history = await post(port, request)
+      history = await allHistory(port, request)
     expect(history.status, history.body).toBe(200)
-    expect(
-      entriesOf(history.body).some(entry => entry.kind === 'run.terminal'),
-      `the Run must reach a terminal before shutdown; model requests=${gateway.requests()}; history kinds=${JSON.stringify(entriesOf(history.body).map(entry => entry.kind))}`,
-    ).toBe(true)
+    if (!entriesOf(history.body).some(entry => entry.kind === 'run.terminal')) {
+      const diagnostics = await cli(['read-session-diagnostics', '--session', session])
+      throw new Error(
+        `the Run must reach a terminal before shutdown; model requests=${gateway.requests()}; diagnostics=${JSON.stringify(diagnostics)}`,
+      )
+    }
     const modelRequests = gateway.requests()
+    if (checkInlineRelease) {
+      let physical = observeToolMaterials(dir.storageRoot)
+      for (
+        const end = Date.now() + 15_000;
+        !inlineResultReleased(physical) && Date.now() < end;
+        await sleep(100)
+      )
+        physical = observeToolMaterials(dir.storageRoot)
+      expect(inlineResultReleased(physical), JSON.stringify(physical)).toBe(true)
+      console.info('W3-INLINE-RELEASE', JSON.stringify(physical))
+      const reread = await allHistory(port, request)
+      expect(reread.status).toBe(200)
+      expect(entriesOf(reread.body)).toEqual(entriesOf(history.body))
+      expect(entriesOf(reread.body).filter(entry => entry.kind === 'message.tool')).toHaveLength(1)
+    }
     controller.abort('test: stop')
     stopped = true
     const result = await finished
     const unsettled = records.filter(record => record.kind === 'shutdown-result')
     expect(result.exitCode, JSON.stringify(unsettled)).toBe(0)
-    return { entries: entriesOf(history.body), modelRequests }
+    return {
+      entries: entriesOf(history.body),
+      modelRequests,
+      logs: records.filter(
+        record => record.kind === 'telemetry' && 'level' in record && record.level === 'warn',
+      ),
+    }
   } catch (cause) {
     const logs = records.filter(
       record => record.kind === 'telemetry' && 'signal' in record && record.signal === 'log',
@@ -234,6 +292,51 @@ const resultText = (entry: Entry | undefined): string =>
 
 describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => {
   it.skipIf(process.platform !== 'linux')(
+    'W3-A reads the complete offloaded UTF-8 body through callable Tools pages',
+    { timeout: 240_000 },
+    async () => {
+      const payload = `W3-BODY-BEGIN\n${'中🙂'.repeat(10_240)}\nW3-BODY-END\n`
+      const shell =
+        'awk \'BEGIN { printf "W3-BODY-BEGIN\\n"; for(i=0;i<10240;i++) printf "中🙂"; printf "\\nW3-BODY-END\\n" }\''
+      const model = bodyReadingModel(shell, FINAL)
+      const { entries, modelRequests } = await turnOnRelease(model.script, 131_072)
+      expect(model.errors).toEqual([])
+      expect(model.ended()).toBe(true)
+      expect(modelRequests).toBe(model.requests.length)
+      expect(modelRequests).toBeLessThanOrEqual(40)
+      expect(model.tools[0]).toContain('read_result')
+      expect(model.tools[0]).toContain('bodyReference')
+      expect(model.reads.length).toBeGreaterThanOrEqual(2)
+      expect(new Set(model.reads.map(read => JSON.stringify(read))).size).toBe(model.reads.length)
+      expect(new Set(model.reads.map(read => read.reference)).size).toBe(1)
+      const pages = entries
+        .filter(entry => entry.kind === 'message.tool')
+        .flatMap(entry => blocksOf(entry).filter(block => block['id'] === 'Tools.body'))
+      expect(pages.length).toBe(model.reads.length)
+      expect(pages.length).toBeGreaterThanOrEqual(2)
+      const texts = pages.map(block => {
+        expect(block['kind']).toBe('text')
+        expect(typeof block['text']).toBe('string')
+        const text = String(block['text'])
+        expect(text).not.toContain('\uFFFD')
+        expect(text.isWellFormed()).toBe(true)
+        expect(Buffer.byteLength(text, 'utf8')).toBeLessThanOrEqual(4096)
+        return text
+      })
+      expect(texts.join('')).toContain(payload)
+      expect(texts[0]).toContain('W3-BODY-BEGIN')
+      expect(texts.at(-1)).toContain('W3-BODY-END')
+      expect(model.tools.at(-1)).toContain('Body traversal ended.')
+      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
+      expect(
+        entries
+          .filter(entry => entry.kind === 'message.assistant')
+          .some(entry => blocksOf(entry).some(block => block['text'] === FINAL)),
+      ).toBe(true)
+    },
+  )
+
+  it.skipIf(process.platform !== 'linux')(
     'W3-A Linux control executes a small Shell command through the same release assembly',
     { timeout: 240_000 },
     async () => {
@@ -248,10 +351,37 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
           },
         ]),
         8 * 1024 * 1024,
+        undefined,
+        true,
       )
       expect(resultText(entries.find(entry => entry.kind === 'message.tool'))).toContain(
         'W3-SMALL-OK',
       )
+      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
+    },
+  )
+
+  it.skipIf(process.platform !== 'linux')(
+    'W3-A offloads a five MiB nonresident test author through the real release runtime',
+    { timeout: 240_000 },
+    async () => {
+      const model = largeBodyModel(FINAL)
+      const { entries, logs } = await turnOnRelease(model.script, undefined, largeBodyRelease())
+      expect(
+        model.errors,
+        JSON.stringify({ replies: model.replies.map(reply => reply.slice(0, 2000)), logs }),
+      ).toEqual([])
+      expect(model.completed()).toBe(true)
+      const preview = model.replies.at(-1) ?? ''
+      expect(preview).toContain('W3-BEGIN')
+      expect(preview).toContain('W3-END')
+      expect(preview).toContain('bodyReference: tb1.')
+      expect(Buffer.byteLength(preview)).toBeLessThanOrEqual(65_536)
+      for (const request of model.requests) {
+        const value = JSON.parse(request) as { tools: { function: { name: string } }[] }
+        expect(value.tools.map(tool => tool.function.name)).not.toContain(LARGE_TOOL)
+        expect(request).not.toContain('x'.repeat(65_537))
+      }
       expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
     },
   )

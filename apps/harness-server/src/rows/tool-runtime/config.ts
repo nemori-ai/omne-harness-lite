@@ -33,7 +33,7 @@ export const toolConfigurationSchema = z.strictObject({
   queueCapacity: positive,
   driverStepsPerRun: positive,
   driverRetryDelayMs: timerMs,
-}) satisfies z.ZodType<ToolConfiguration>
+}) satisfies z.ZodType<Omit<ToolConfiguration, 'readResultArguments'>>
 
 /** 与 `execution-host` 行的绝对路径同一规则。 */
 const absolutePath = z

@@ -56,3 +56,5 @@
 
 - [材料到期维护](ledger-material-maintenance.ts)负责受信调用级到期与租约收场。
 - [到期用途写集](ledger-material-expiration.ts)由读页与维护入口共用。
+
+- [首次结果读取身份](result-address.ts)从已授权的调用定位值和首次版本构造固定引用，供结果准备生成读回说明。

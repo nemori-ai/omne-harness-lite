@@ -19,7 +19,7 @@ async function fixture(options: Parameters<typeof settlementFixture>[0] = {}) {
     ...options,
     offloading: {
       ...configuration().offloading,
-      maxInlineUtf8Bytes: 64,
+      maxInlineUtf8Bytes: 1024,
       maxRetentionMs: 10,
       maxPageLeaseMs: 20,
       ...options.offloading,
@@ -29,7 +29,7 @@ async function fixture(options: Parameters<typeof settlementFixture>[0] = {}) {
       return options.wrapMaterialClock?.(clock) ?? clock
     },
     value: options.value ?? {
-      content: [text('body', '中🙂'.repeat(12))],
+      content: [text('body', '中🙂'.repeat(150))],
       data: { kind: 'none' },
       original: { kind: 'none' },
       attachments: [],
@@ -247,7 +247,7 @@ it('redecides after a competing expiration rather than counting it twice', async
 it('leaves native, process and delivery uses unchanged when the model body expires', async () => {
   const { f, advance } = await fixture({
     value: raw => ({
-      content: [text('body', '中🙂'.repeat(12))],
+      content: [text('body', '中🙂'.repeat(150))],
       data: { kind: 'none' },
       original: { kind: 'none' },
       attachments: [raw.content],

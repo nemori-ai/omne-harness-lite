@@ -1,9 +1,8 @@
 import type { Access } from '@omne-harness/tool-contract'
 import { judgeContentBlock } from '@omne-harness/content-block'
-import { readJsonText } from '@omne-harness/json-text'
 import { formatKeyValue, formatSuccess, formatUsage } from '@omne-harness/unix-format'
 import type { ToolsOptions, ToolsReadRuntime } from './tools.ts'
-import { protocol, type ReadArguments } from './tools-protocol.ts'
+import { callableRead, protocol, type ReadArguments } from './tools-protocol.ts'
 import {
   bounded,
   budgetFailure,
@@ -36,11 +35,7 @@ export function createToolsBodyReader<P>(runtime: ToolsReadRuntime<P>, options: 
       )
         return error(budgetFailure())
       const next = page.next === null ? null : refs.cursor('body', input.reference, page.next)
-      if (
-        next !== null &&
-        (!refs.allowed(next) ||
-          readJsonText(JSON.stringify({ ...input, after: next }), options.arguments).kind !== 'ok')
-      )
+      if (next !== null && !callableRead({ ...input, after: next }, options.arguments))
         return error(budgetFailure())
       const block = judgeContentBlock({
         kind: 'text',
