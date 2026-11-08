@@ -10,7 +10,7 @@ import { chmod, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { OutputChunk } from '@omne-harness/execution-environment-contract'
 import type { ScopeRef as ListedScope } from '@omne-harness/runtime-context-contract'
 import { createGateReader, createOutputBuffer, type GateFrame } from '../src/host-command.ts'
@@ -212,6 +212,52 @@ it.each([
   const reader = createGateReader({ maxChunkBytes: 64 })
   expect(reader.push(joined(...lines)).kind).toBe('fault')
   expect(reader.push(line({ t: 'ready' })).kind).toBe('fault')
+})
+
+describe('the fault reason and the line bound', () => {
+  // With a 64-byte chunk bound a line may hold ceil(64 / 3) * 4 + 256 = 344 bytes before its newline.
+  const bound = 344
+  const running = () => {
+    const reader = createGateReader({ maxChunkBytes: 64 })
+    framesOf(reader.push(joined(line({ t: 'ready' }), line({ t: 'started' }))))
+    return reader
+  }
+  /** A data frame line of exactly `length` bytes before its newline, padded with JSON spaces. */
+  const paddedData = (length: number) => {
+    const head = `{"t":"data","s":"stdout","b":"${Buffer.from('x').toString('base64')}"`
+    return encoder.encode(`${head}${' '.repeat(length - head.length - 1)}}\n`)
+  }
+
+  it('names the reason of each refusal', () => {
+    const reader = createGateReader({ maxChunkBytes: 64 })
+    expect(reader.push(encoder.encode('{"t":\n'))).toMatchObject({ fault: 'a frame is not JSON' })
+    expect(createGateReader({ maxChunkBytes: 64 }).push(line({ t: 'surprise' }))).toMatchObject({
+      fault: 'an unknown frame type',
+    })
+    expect(running().push(line({ t: 'ready' }))).toMatchObject({ fault: 'ready out of order' })
+  })
+
+  it('takes a complete line of exactly the bound and refuses one byte more, by its length', () => {
+    expect(framesOf(running().push(paddedData(bound)))).toEqual([
+      { kind: 'data', stream: 'stdout', bytes: encoder.encode('x') },
+    ])
+    expect(running().push(paddedData(bound + 1))).toMatchObject({
+      kind: 'fault',
+      fault: 'a frame line exceeds its bound',
+    })
+  })
+
+  it('waits on an unfinished line of exactly the bound and refuses it one byte later, by its length', () => {
+    const reader = running()
+    expect(reader.push(encoder.encode(`{${' '.repeat(bound - 1)}`))).toEqual({
+      kind: 'frames',
+      frames: [],
+    })
+    expect(reader.push(encoder.encode(' '))).toMatchObject({
+      kind: 'fault',
+      fault: 'a frame line exceeds its bound',
+    })
+  })
 })
 
 /** The exit frame a running reader yields for `fields`, or the fault it reports. */
