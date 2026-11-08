@@ -809,13 +809,16 @@ async function checkObserveAsksAuthorityAndBinding<P>(
     },
   })
   s.environment.registerProvider(provider)
-  assert.deepEqual(await s.environment.observeRetained(s.access, s.scope), [
-    retainedItem('suite-retained-1'),
-  ])
-  assert.deepEqual(ports.authority.calls.at(-1)?.action, {
-    kind: 'observe-retained',
-    scope: s.scope,
-  })
+  assert.deepEqual(
+    await s.environment.observeRetained(s.access, s.scope),
+    [retainedItem('suite-retained-1')],
+    'the observation lists what the provider holds',
+  )
+  assert.deepEqual(
+    ports.authority.calls.at(-1)?.action,
+    { kind: 'observe-retained', scope: s.scope },
+    'the environment authority is asked for observe-retained on the scope',
+  )
   assert.equal(asked.length, 1)
   assert.equal(asked[0]?.[0].ref, s.scope.ref, 'the provider is asked for the observed scope')
   assert.equal(asked[0]?.[1], s.access.tenant, 'and for the tenant of the access')
@@ -826,28 +829,36 @@ async function checkObserveAsksAuthorityAndBinding<P>(
   ]
   for (const [script, expected] of answers) {
     ports.authority.script(script)
-    assert.deepEqual(await s.environment.observeRetained(s.access, s.scope), expected)
+    assert.deepEqual(
+      await s.environment.observeRetained(s.access, s.scope),
+      expected,
+      'the authority answer maps to the observation answer',
+    )
   }
   ports.authority.script(undefined)
   assert.deepEqual(
     await s.environment.observeRetained(s.access, anotherScope(s.scope, '-unbound')),
     { kind: 'rejected', reason: 'notAuthorized' },
+    'an unbound scope is not authorized',
   )
   if (s.otherAccess)
-    assert.deepEqual(await s.environment.observeRetained(s.otherAccess, s.scope), {
-      kind: 'rejected',
-      reason: 'notAuthorized',
-    })
+    assert.deepEqual(
+      await s.environment.observeRetained(s.otherAccess, s.scope),
+      { kind: 'rejected', reason: 'notAuthorized' },
+      'a scope bound to another tenant is not authorized',
+    )
   const forged = { ...s.access, tenant: { ...s.access.tenant } }
-  assert.deepEqual(await s.environment.observeRetained(forged, s.scope), {
-    kind: 'rejected',
-    reason: 'invalidInput',
-  })
+  assert.deepEqual(
+    await s.environment.observeRetained(forged, s.scope),
+    { kind: 'rejected', reason: 'invalidInput' },
+    'an unminted tenant is invalid input',
+  )
   ports.bindings.answer(s.scope, { kind: 'unknown' })
-  assert.deepEqual(await s.environment.observeRetained(s.access, s.scope), {
-    kind: 'unknown',
-    cause: 'scope-binding',
-  })
+  assert.deepEqual(
+    await s.environment.observeRetained(s.access, s.scope),
+    { kind: 'unknown', cause: 'scope-binding' },
+    'an unknown binding leaves the observation unknown',
+  )
   assert.equal(asked.length, 1, 'a refused observation reads no provider')
   assert.equal(provider.calls.acquire, 0, 'an observation allocates nothing')
 }
@@ -874,7 +885,7 @@ async function checkObserveIsCompleteOrUnavailable<P>(
   ]
   for (const provider of providers) s.environment.registerProvider(provider)
   const merged = await s.environment.observeRetained(s.access, s.scope)
-  assert.ok(Array.isArray(merged))
+  assert.ok(Array.isArray(merged), 'every provider answered, so the observation is a list')
   assert.deepEqual(
     merged.map(item => item.process.id).sort(),
     ['suite-retained-a', 'suite-retained-b'],
@@ -886,7 +897,8 @@ async function checkObserveIsCompleteOrUnavailable<P>(
     { kind: 'rejected', reason: 'unavailable' },
     'one provider that cannot answer makes the whole answer unavailable, never a partial list',
   )
-  for (const provider of providers) assert.equal(provider.calls.acquire, 0)
+  for (const provider of providers)
+    assert.equal(provider.calls.acquire, 0, 'an observation allocates nothing')
 }
 
 export function executionEnvironmentConformance<P>(
