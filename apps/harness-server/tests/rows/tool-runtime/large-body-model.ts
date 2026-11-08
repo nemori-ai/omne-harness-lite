@@ -1,7 +1,7 @@
 import type { GatewayScript } from '../../fixtures/model-gateway.ts'
 import { LARGE_TOOL } from './large-body-author.ts'
 
-export function largeBodyModel(final: string) {
+export function largeBodyModel(final: string, readBody = false) {
   const requests: string[] = []
   const replies: string[] = []
   const errors: string[] = []
@@ -27,9 +27,9 @@ export function largeBodyModel(final: string) {
             : latest.content.map(block => block.text).join('\n')
         replies.push(text)
         if (
-          text.includes('W3-BEGIN') &&
-          text.includes('W3-END') &&
-          text.includes('bodyReference')
+          readBody
+            ? text.includes('Body traversal ended.')
+            : text.includes('W3-BEGIN') && text.includes('W3-END') && text.includes('bodyReference')
         ) {
           completed = true
         } else {
@@ -44,9 +44,10 @@ export function largeBodyModel(final: string) {
             const usages = [
               ...text.matchAll(/Tools\(command="read_result", params=(\{[^\n]*\})\)/gu),
             ]
-            const next = usages
-              .map(match => JSON.parse(match[1] ?? '') as { kind: string })
-              .find(
+            const candidates = usages.map(match => JSON.parse(match[1] ?? '') as { kind: string })
+            const next =
+              (readBody ? candidates.find(value => value.kind === 'body') : undefined) ??
+              candidates.find(
                 value =>
                   value.kind === 'forwarding' ||
                   value.kind === 'invocation' ||

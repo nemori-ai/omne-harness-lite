@@ -1,6 +1,7 @@
 import { largeBodyRelease, adoptLargeBody } from './large-body-release.ts'
 import { largeBodyModel } from './large-body-model.ts'
 import { LARGE_TOOL } from './large-body-author.ts'
+import { writerBodyAuthor, WRITER_BODY, WRITER_SUMMARY } from './writer-body-author.ts'
 import { observeToolMaterials, inlineResultReleased } from './release-material-observation.ts'
 // @module-tag slow
 // 慢：本进程装发行树（真实 SQLite），每条命令起一个 `omne` 子进程，模型走本进程的本地网关。先构建 `apps/cli`。
@@ -345,6 +346,36 @@ const resultText = (entry: Entry | undefined): string =>
     .join('')
 
 describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => {
+  it.skipIf(process.platform !== 'linux')(
+    'W3-B writes an author body, drains unawaited writes and reads every page through the release Agent',
+    { timeout: 240_000 },
+    async () => {
+      const author = writerBodyAuthor()
+      const model = largeBodyModel(FINAL, true)
+      const { entries } = await turnOnRelease(
+        model.script,
+        undefined,
+        largeBodyRelease(author.module),
+      )
+      expect(model.errors, JSON.stringify(model.replies)).toEqual([])
+      expect(model.completed()).toBe(true)
+      expect(author.executions()).toBe(1)
+      expect(author.pending).toHaveLength(2)
+      for (const pending of author.pending) expect(await pending).toHaveProperty('ok')
+      expect(model.replies.some(reply => reply.includes(WRITER_SUMMARY))).toBe(true)
+      const pages = entries
+        .filter(entry => entry.kind === 'message.tool')
+        .flatMap(entry => blocksOf(entry).filter(block => block['id'] === 'Tools.body'))
+      expect(pages.length).toBeGreaterThan(1)
+      expect(pages.map(page => String(page['text'])).join('')).toBe(WRITER_BODY)
+      for (const body of model.requests) {
+        const request = JSON.parse(body) as { tools: { function: { name: string } }[] }
+        expect(request.tools.map(tool => tool.function.name)).not.toContain(LARGE_TOOL)
+      }
+      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
+    },
+  )
+
   it.skipIf(process.platform !== 'linux')(
     'W3-A carries return schemas through native declarations, Tools.inspect and command help into model requests',
     { timeout: 240_000 },

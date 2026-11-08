@@ -16,7 +16,7 @@ import { releaseAuthorInput } from '../../../src/rows/tool-host/release-author.t
 import { tree } from '../tool-host/support.ts'
 import { LARGE_TOOL, largeBodyModule } from './large-body-author.ts'
 
-export function largeBodyRelease() {
+export function largeBodyRelease(author = largeBodyModule) {
   const entries = createToolReleaseEntries(async () => {
     const release = await loadProductionRelease()
     if (release.kind !== 'trusted') return release
@@ -24,16 +24,16 @@ export function largeBodyRelease() {
     if (base === undefined) throw new Error('release Shell missing')
     const entry = {
       ...base,
-      asset: { name: LARGE_TOOL, adoption: largeBodyModule.executor },
+      asset: { name: LARGE_TOOL, adoption: author.executor },
       requiredCapabilities: [],
       construction: [],
-      module: { ...base.module, export: 'largeBodyModule', executor: largeBodyModule.executor },
-      settings: largeBodyModule.executor,
+      module: { ...base.module, export: 'largeBodyModule', executor: author.executor },
+      settings: author.executor,
       holding: { ...base.holding, record: `test:${LARGE_TOOL}:holding` },
       publication: { ...base.publication, record: `test:${LARGE_TOOL}:publication` },
       definition: '',
     }
-    entry.definition = definitionDigest(largeBodyModule, governanceOf(entry), tree({}))
+    entry.definition = definitionDigest(author, governanceOf(entry), tree({}))
     const generation = canonicalDigest({ production: release.manifest.generation, test: entry })
     const evidence = (record: string, content: unknown) => ({
       owner: 'w3-release-test',
@@ -58,7 +58,7 @@ export function largeBodyRelease() {
           publication: evidence(`${item.asset.name}/publication`, item),
         })),
       },
-      modules: { ...release.modules, largeBodyModule },
+      modules: { ...release.modules, largeBodyModule: author },
     }
   })
   return {
