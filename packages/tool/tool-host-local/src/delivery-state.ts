@@ -1,7 +1,7 @@
 import { judgeCallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
-import { canonicalDigest, type ToolLedgerStore } from '@omne-harness/tool'
+import { canonicalDigest, hostKey, type ToolLedgerStore } from '@omne-harness/tool'
 import {
   decodeToolOperationId,
   resolveToolInvocationRef,
@@ -131,12 +131,10 @@ export function createDeliveryState(store: ToolLedgerStore) {
     access: CallAccess<unknown>,
     base: DeliveryBase,
   ): Reply<DeliveryRecord | null> {
-    const read = await store.read(domain(access))
+    const read = await store.readRecord(domain(access), hostKey(key(access, base)))
     if (read.kind !== 'complete') return deliveryUnavailable('delivery-store')
-    const row = read.records.find(
-      record => record.kind === 'host' && record.host.key === key(access, base),
-    )
-    if (row === undefined) return succeed(null)
+    const row = read.record
+    if (row === null) return succeed(null)
     if (row.kind !== 'host') return deliveryUnavailable('delivery-record')
     const parsed = parseDeliveryRecord(row.host.value, base, access)
     return parsed === null ? deliveryUnavailable('delivery-record') : succeed(parsed)
@@ -148,11 +146,10 @@ export function createDeliveryState(store: ToolLedgerStore) {
     previous: DeliveryRecord | null,
   ): Reply<DeliveryRecord> {
     for (let attempt = 0; attempt < 4; attempt += 1) {
-      const read = await store.read(domain(access))
+      const read = await store.readRecord(domain(access), hostKey(key(access, next.payload)))
       if (read.kind !== 'complete') return deliveryUnavailable('delivery-store')
-      const row = read.records.find(
-        record => record.kind === 'host' && record.host.key === key(access, next.payload),
-      )
+      const row = read.record
+      if (row !== null && row.kind !== 'host') return deliveryUnavailable('delivery-record')
       if (row?.kind === 'host') {
         const value = row.host.value
         if (object(value) && value.digest !== next.digest) {

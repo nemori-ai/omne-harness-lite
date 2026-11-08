@@ -34,6 +34,7 @@
 - SQL 的 `record-read-live.spec.ts` 使用真实 worker，检验完整域超过字节上限时目标读取仍可完成，并检验其他键写入后的旧修订冲突。
 - host 的 `environment-adapter/preparation.spec.ts` 与 `resources.spec.ts` 在整个环境域读取不可用时，仍检验获取、保留、关闭和结清后的资源事实；原资源并发与授权拒绝测试保持。
 - host 的 `runtime-composition/forwarding.spec.ts` 拒绝完整来源域读取，仍要求公开结果读回与原槽恢复成功。撤权和退休竞争仍须拒绝披露。
+- host 的 `delivery/history-budget.spec.ts` 在完整交付域读取不可用时，经公开交付入口完成首次推送及丢失释放答复后的恢复。目标记录不可读时保留责任，恢复读取后继续交付。交付键包含原调用、交付种类、生产者、调用引用及结果版本；保存仍以读取所得域修订提交 CAS，交付状态机和原操作绑定不变。
 
 来源宿主的 `nextRevision`、`nextSourceRevision` 和账本的 `nextRevision` 以递增值兑现修订号前提。本论证不覆盖违规提供相同或回退修订号的自定义写者。
 
