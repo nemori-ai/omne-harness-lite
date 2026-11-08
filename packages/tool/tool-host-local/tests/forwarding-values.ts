@@ -75,6 +75,7 @@ export async function forwardingFixture(
   const store: ToolLedgerStore = {
     durability: options.durableDeclaration ? 'durable' : 'none',
     read: memory.read,
+    readRecord: memory.readRecord,
     async commit(input) {
       const fault = nextCommit
       nextCommit = null

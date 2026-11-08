@@ -144,6 +144,17 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
         records: copy([...target.records.values()]),
       })
     },
+    readRecord: (domain, key) => {
+      reads += 1
+      if (readFaults.shift() === 'unavailable')
+        return Promise.resolve({ kind: 'unavailable', diagnostic: 'injected' })
+      const target = domainOf(domain)
+      return Promise.resolve({
+        kind: 'complete',
+        revision: target.revision,
+        record: copy(target.records.get(key) ?? null),
+      })
+    },
     commit: input => {
       commits += 1
       return Promise.resolve(commit(input))

@@ -14,7 +14,7 @@
 //   调用，长跑进程里这些表只随在途调用数增长，不随累计调用数增长（L3 评审 N5）。
 // - bundle 本身：由 `tool-records` 行按运维者配置建一次，其余四行等它建好再装自己的插件。
 import type { Context } from '@deepseek-ai/cordis'
-import { canonicalDigest, type ToolLedgerStore } from '@omne-harness/tool'
+import { canonicalDigest, type LedgerRecord, type ToolLedgerStore } from '@omne-harness/tool'
 import type {
   ToolClock,
   ToolMaterialClock,
@@ -136,29 +136,35 @@ const unavailableRead = (diagnostic: string) => ({ kind: 'unavailable' as const,
  * 声明 `durable`：它只转交给 SQL 记录仓，从不在内存里保存记录。
  */
 export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore {
+  const observe = (row: LedgerRecord) => {
+    if (row.kind !== 'call') return
+    const key = callKeyOf(row.call.tenant, row.call.call)
+    if (row.call.state.phase === 'settled') {
+      // The record says the call ended: release it whatever way that commit reached this process.
+      settleCall(holder, key)
+      return
+    }
+    if (row.call.execution === null) return
+    const execution = canonicalDigest(row.call.execution)
+    const old = holder.witnessed.get(key)
+    const current = old?.execution === execution ? old : { execution, sources: new Set<string>() }
+    current.sources.add(canonicalDigest(row.call.state.source))
+    holder.witnessed.set(key, current)
+  }
   return Object.freeze({
     durability: 'durable' as const,
     async read(domain) {
       const sql = holder.sql
       if (sql === null) return unavailableRead('tool-records: no SQL ledger store is installed')
       const answer = await sql.store.read(domain)
-      if (answer.kind === 'complete')
-        for (const row of answer.records) {
-          if (row.kind !== 'call') continue
-          const key = callKeyOf(row.call.tenant, row.call.call)
-          if (row.call.state.phase === 'settled') {
-            // The record says the call ended: release it whatever way that commit reached this process.
-            settleCall(holder, key)
-            continue
-          }
-          if (row.call.execution === null) continue
-          const execution = canonicalDigest(row.call.execution)
-          const old = holder.witnessed.get(key)
-          const current =
-            old?.execution === execution ? old : { execution, sources: new Set<string>() }
-          current.sources.add(canonicalDigest(row.call.state.source))
-          holder.witnessed.set(key, current)
-        }
+      if (answer.kind === 'complete') for (const row of answer.records) observe(row)
+      return answer
+    },
+    async readRecord(domain, key) {
+      const sql = holder.sql
+      if (sql === null) return unavailableRead('tool-records: no SQL ledger store is installed')
+      const answer = await sql.store.readRecord(domain, key)
+      if (answer.kind === 'complete' && answer.record !== null) observe(answer.record)
       return answer
     },
     async commit(input) {

@@ -229,6 +229,7 @@ export function witnessStore(store: ToolLedgerStore) {
   const calls = new Map<string, { execution: string; sources: Set<string> }>()
   const wrapped: ToolLedgerStore = {
     durability: store.durability,
+    readRecord: (domain, key) => store.readRecord(domain, key),
     commit: input => store.commit(input),
     async read(domain) {
       const answer = await store.read(domain)

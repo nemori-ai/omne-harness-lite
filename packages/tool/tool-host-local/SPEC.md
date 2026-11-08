@@ -297,6 +297,8 @@ runtime 退出先停止新调用和 writer 新受理，再等待未登记操作�
 
 ## 单目标转发来源与保管
 
+来源绑定及转发结果读回经 `ToolLedgerStore.readRecord` 取得精确消费者槽。它们不加载同租户的无关来源记录。返回的域修订号仍用于原 CAS，原主体、当前资格、完整请求、结果摘要和退休状态的检查保持不变。
+
 `createLocalInvocationSource` 可选的 forwarding 配置提供惰性 start authority 与精确发行采用判定 isParent。缺少配置只禁用转发，普通调用保持原行为。来源逐次核父 CallRecord、完整 request/start、原主体和当前 consumer 资格，并要求 authority.inspect 证实 consume.started。prepared start 本身不授予转发。父历史 settled 不阻止原槽恢复与结果接收。
 
 同一父调用只有 execute 槽。consumer owner 固定为 `@omne-harness/tool-host-local/tools-forwarding`，work 是父 call，position 为 execute，purpose 为 tools-target。普通 issuer 在读取关联前拒绝该 owner。来源自己生成 consumer；应用 prepareTarget 只提供业务目标。目标 scope、requesterScope、context、workspace、resources、limits 与 mode 继承父请求，batchDecision 为 null。目标 settings 和 environment 来自目标采用。

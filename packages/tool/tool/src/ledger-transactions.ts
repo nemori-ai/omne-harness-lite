@@ -16,7 +16,10 @@ function thrown(dependency: string): string {
   return `${dependency} threw an exception; its message is not reported`
 }
 
-export function createLedgerTransactions(store: ToolLedgerStore, attempts: number) {
+export function createLedgerTransactions(
+  store: Pick<ToolLedgerStore, 'read' | 'commit'>,
+  attempts: number,
+) {
   const readDomain = async (
     domain: LedgerDomain,
   ): Promise<

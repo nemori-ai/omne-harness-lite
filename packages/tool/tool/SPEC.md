@@ -279,6 +279,12 @@ runtime 的 `instances` 与 `observation` 由 [src/stream-facade.ts](src/stream-
 
 本包只对受控的进程内发布者（`tests/stream-source.ts`）验证门面，用例在 `tests/stream-observation.spec.ts`。这些用例不证明真实观察提供者的原子订阅边界与披露检查。生产实例目录 `ToolInstancesService.connect` 仍回复 `unsupported`，所以在生产装配里 `current` 透传 `unsupported`，`observe` 结束于 `unavailable`。
 
+### 记录仓单键读取
+
+`ToolLedgerStore.readRecord(domain, key)` 读取指定键的记录及所属域的修订号。键的含义由 `recordKey` 定义。记录不存在时返回 `record: null`；读取不可用时返回 `unavailable`，不能以不存在代替失败。从未提交的域返回修订号 `0`。
+
+记录和修订号来自同一个快照，具有完整域 `read` 的提交可见性及域内排序保证。单键读取不修改记录或修订号，不读取无关记录正文。返回值只包含单条 `record`，不能作为完整域的 `records` 消费。调用方仍以返回的域修订号执行原 CAS；其他键的并发写也会使旧修订提交冲突。
+
 ### 18 非耐久记录仓（`./testing`）
 
 `createMemoryToolLedgerStore` 声明 `durability: 'none'`。每个域从修订号 `0` 开始；`commit` 只在 `expected` 等于当前修订号时生效，否则回复 `conflict`。生效的提交不论写入集内容都把域修订号改为 `revision`：只写一条 `exclusion` 记录、不改任何记录、删除不存在的键，都同样推进修订号，没有空操作捷径。读取给出副本。域键是各段身份文本的 JSON，含分隔符的身份不会落到别的域。`injectRead` 与 `injectCommit` 按顺序注入下一次读取或提交的故障：

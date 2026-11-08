@@ -12,6 +12,7 @@ import {
   type LedgerCommitInput,
   type LedgerDomain,
   type LedgerRead,
+  type LedgerRecordRead,
   type LedgerRecord,
   type ToolLedgerStore,
   type ToolHistoryStoredRecord,
@@ -55,28 +56,37 @@ function recordsOf(rows: readonly ToolHistoryStoredRecord[]): LedgerRecord[] | n
   return records
 }
 
+async function readStored(
+  options: SqlToolStorageOptions,
+  domain: LedgerDomain,
+  key: string | null,
+) {
+  const resolved = await resolveTenant(options, domain.tenant)
+  if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
+  const answer = await options.storage.read({
+    domain: resolved.at.domain,
+    handler: LEDGER_READ_HANDLER,
+    protocol: PROTOCOL,
+    requestKey: randomUUID(),
+    input: { ...addressOf(resolved.at.tenant, domain), ...(key === null ? {} : { key }) },
+  })
+  if (answer.kind !== 'read')
+    return unavailable(`ledger read: ${answer.kind === 'cancelled' ? 'cancelled' : answer.reason}`)
+  const output = answer.output
+  const revisionText = isObject(output) ? (output['revision'] ?? null) : undefined
+  const records = isObject(output) ? storedRecordsOf(output['records']) : null
+  const revision = decodeToolRevision(revisionText === null ? '0' : revisionText)
+  if (records === null || !('ok' in revision))
+    return unavailable('ledger read: invalid stored domain')
+  return { kind: 'read', revision: revision.ok, rows: records } as const
+}
+
 function createStoredLedger(options: SqlToolStorageOptions): SqlToolHistoryLedgerStore {
   const read = async (domain: LedgerDomain): Promise<ToolHistoryLedgerRead> => {
-    const resolved = await resolveTenant(options, domain.tenant)
-    if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
-    const answer = await options.storage.read({
-      domain: resolved.at.domain,
-      handler: LEDGER_READ_HANDLER,
-      protocol: PROTOCOL,
-      requestKey: randomUUID(),
-      input: addressOf(resolved.at.tenant, domain),
-    })
-    if (answer.kind !== 'read')
-      return unavailable(
-        `ledger read: ${answer.kind === 'cancelled' ? 'cancelled' : answer.reason}`,
-      )
-    const output = answer.output
-    const revisionText = isObject(output) ? (output['revision'] ?? null) : undefined
-    const records = isObject(output) ? storedRecordsOf(output['records']) : null
-    const revision = decodeToolRevision(revisionText === null ? '0' : revisionText)
-    if (records === null || !('ok' in revision))
-      return unavailable('ledger read: invalid stored domain')
-    return { kind: 'complete', revision: revision.ok, records }
+    const answer = await readStored(options, domain, null)
+    return answer.kind === 'read'
+      ? { kind: 'complete', revision: answer.revision, records: answer.rows }
+      : answer
   }
 
   const commit = async (input: LedgerCommitInput): Promise<LedgerCommit> => {
@@ -118,5 +128,13 @@ export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToo
       ? unavailable('ledger read: invalid domain or unsupported record format')
       : { kind: 'complete', revision: answer.revision, records }
   }
-  return { durability: 'durable', read, commit: stored.commit }
+  const readRecord = async (domain: LedgerDomain, key: string): Promise<LedgerRecordRead> => {
+    const answer = await readStored(options, domain, key)
+    if (answer.kind !== 'read') return answer
+    const records = recordsOf(answer.rows)
+    if (records === null || records.length > 1 || (records[0] && recordKey(records[0]) !== key))
+      return unavailable('ledger read: invalid record or unsupported record format')
+    return { kind: 'complete', revision: answer.revision, record: records[0] ?? null }
+  }
+  return { durability: 'durable', read, readRecord, commit: stored.commit }
 }

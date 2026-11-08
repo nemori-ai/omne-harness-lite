@@ -378,8 +378,7 @@ export function createToolHistoryMigration<P>(
     if (decoded.kind !== 'ready') return invalid('source', 'history-changed')
     const interpretations = historicalBodyInterpretations(decoded.source, migration.interpretations)
     if ('failure' in interpretations) return interpretations
-    const adapted: ToolLedgerStore = {
-      durability: 'durable',
+    const adapted: Pick<ToolLedgerStore, 'read' | 'commit'> = {
       commit: store.commit.bind(store),
       read: async domain => {
         const answer = await store.read(domain)
@@ -600,8 +599,7 @@ export function createToolHistoryMigration<P>(
     input: MutationInput<P>,
     migration: HistoryMigrationRecord,
   ): Promise<Outcome<HistoricalMigrationProgress, ToolFailure>> {
-    const adapted: ToolLedgerStore = {
-      durability: 'durable',
+    const adapted: Pick<ToolLedgerStore, 'read' | 'commit'> = {
       commit: store.commit.bind(store),
       read: async domain => {
         const answer = await store.read(domain)

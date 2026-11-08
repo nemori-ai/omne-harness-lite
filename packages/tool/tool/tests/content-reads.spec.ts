@@ -83,6 +83,7 @@ async function fixture(value?: SettlementValue, name = 'settlement') {
   let qualificationHook: Readonly<{ action: ToolLedgerAction; run(): Promise<void> }> | null = null
   const store: ToolLedgerStore = {
     durability: 'none',
+    readRecord: f.harness.memory.readRecord,
     read: async domain => {
       const answer = await f.harness.memory.read(domain)
       const hook = readHook

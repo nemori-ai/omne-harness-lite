@@ -1,8 +1,5 @@
 # tool 论证与证明索引
 
-<!-- documentation:placeholder -->
-
-- [目录职责与待补内容](README.md)。
+- [目录职责](README.md)。
+- [单键读取保持域 CAS 的论证](record-read.md)。
 - [包索引](../../index.md)。
-
-本目录当前没有其他资源。

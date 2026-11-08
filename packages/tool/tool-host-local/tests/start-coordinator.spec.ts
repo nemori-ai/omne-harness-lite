@@ -100,6 +100,7 @@ describe('G5 the start ordering domain', () => {
       let block = false
       const store: ToolLedgerStore = {
         durability: 'none',
+        readRecord: memory.readRecord,
         read: async domain => {
           if (block) {
             block = false
@@ -661,6 +662,7 @@ describe('G5 tenants and qualification', () => {
   // arrives is a silent failure, whatever holds the store.
   const neverSettles = (): ToolLedgerStore => ({
     durability: 'none',
+    readRecord: () => new Promise(() => {}),
     read: () => new Promise(() => {}),
     commit: () => new Promise(() => {}),
   })

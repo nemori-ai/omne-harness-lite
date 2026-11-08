@@ -133,6 +133,7 @@ describe('10 boundary and qualification', () => {
     expect(unverified.store.commits).toBe(0)
     const throwing: ToolLedgerStore = {
       durability: 'none',
+      readRecord: () => Promise.reject(new Error(secret)),
       read: () => Promise.reject(new Error(secret)),
       commit: () => Promise.reject(new Error(secret)),
     }
@@ -610,6 +611,7 @@ describe('11 operation idempotency (P01)', () => {
     // The held commit lands just before the fence commit, as a slow store would apply it.
     const racing: ToolLedgerStore = {
       durability: 'none',
+      readRecord: memory.readRecord,
       read: domain => memory.read(domain),
       commit: input => {
         if (putsExclusion(input)) memory.landDelayed()

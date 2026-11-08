@@ -32,6 +32,30 @@ function control(
 const noFault = () => {}
 const negatives = [
   {
+    name: 'store.record-snapshot',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        readRecord: domain => store.readRecord(domain, 'host:absent'),
+      })),
+    message: 'Expected values to be strictly',
+  },
+  {
+    name: 'store.record-cas-other-key',
+    fixture: ignoreCas,
+    message: 'Expected values to be strictly',
+  },
+  {
+    name: 'store.record-isolation',
+    fixture: collapseDomains,
+    message: 'Expected values to be strictly',
+  },
+  {
+    name: 'store.record-unavailable',
+    fixture: () => control(() => ({ readUnavailable: noFault })),
+    message: 'Expected values to be strictly',
+  },
+  {
     name: 'store.snapshot',
     fixture: () =>
       readMap(read =>

@@ -30,10 +30,11 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
+  hostKey,
   isTenantShape,
   type AccessVerdict,
   type LedgerDomain,
-  type LedgerRead,
+  type LedgerRecordRead,
   type SourceVerdict,
   type ToolInvokeAuthority,
   type ToolLedgerStore,
@@ -271,7 +272,7 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
   const { store, authority, principalCodec, commitAttempts } = input
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
     throw new TypeError('commitAttempts: range')
-  if (typeof store?.read !== 'function') throw new TypeError('store: missing')
+  if (typeof store?.readRecord !== 'function') throw new TypeError('store: missing')
   if (typeof authority?.qualify !== 'function') throw new TypeError('authority: missing')
   if (typeof principalCodec?.encode !== 'function') throw new TypeError('principalCodec: missing')
 
@@ -281,13 +282,14 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
     key: INVOCATION_SOURCE_DOMAIN_KEY,
   })
 
-  /** The domain of the tenant read once, or the reason it could not be read. */
-  const readDomain = async (
+  /** The original consumer binding and its domain revision, or a read failure. */
+  const readBinding = async (
     tenant: TenantId,
-  ): Promise<Extract<LedgerRead, { kind: 'complete' }> | string> => {
-    let result: LedgerRead
+    key: string,
+  ): Promise<Extract<LedgerRecordRead, { kind: 'complete' }> | string> => {
+    let result: LedgerRecordRead
     try {
-      result = await store.read(domain(tenant))
+      result = await store.readRecord(domain(tenant), hostKey(key))
     } catch {
       return `the source store ${THROWN}`
     }
@@ -295,14 +297,11 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
   }
 
   const bindingOf = (
-    read: Extract<LedgerRead, { kind: 'complete' }>,
-    key: string,
+    read: Extract<LedgerRecordRead, { kind: 'complete' }>,
   ): Binding | null | 'unreadable' => {
-    for (const record of read.records) {
-      if (record.kind !== 'host' || record.host.key !== key) continue
-      return parseBinding(record.host.value) ?? 'unreadable'
-    }
-    return null
+    const record = read.record
+    if (record === null) return null
+    return record.kind === 'host' ? (parseBinding(record.host.value) ?? 'unreadable') : 'unreadable'
   }
 
   const decodePrincipal = (value: PrincipalJson): P | null => {
@@ -368,7 +367,7 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
 
   /** Writes a new binding at the revision that was read; null when that revision moved. */
   const bind = async (
-    read: Extract<LedgerRead, { kind: 'complete' }>,
+    read: Extract<LedgerRecordRead, { kind: 'complete' }>,
     plan: IssuePlan,
   ): Promise<ToolInvocationSourceOutcome | null> => {
     const { tenant, key, request, requestDigest, call, admission, encoded } = plan
@@ -426,9 +425,9 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
       const plan = { tenant, key, request, requestDigest, call, admission, encoded: kept.encoded }
 
       for (let attempt = 0; attempt < commitAttempts; attempt += 1) {
-        const read = await readDomain(tenant)
+        const read = await readBinding(tenant, key)
         if (typeof read === 'string') return unavailable('invocation-source', read)
-        const known = bindingOf(read, key)
+        const known = bindingOf(read)
         if (known === 'unreadable') return { kind: 'association-unknown' }
         if (known !== null) return recall(known, principal, requestDigest)
         const issued = await bind(read, plan)
@@ -443,9 +442,9 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
       const digests = digestsOf(request)
       if (digests === null) return { kind: 'forged', reason: 'request-not-canonical' }
       if (!isTenantShape(tenant)) return { kind: 'forged', reason: 'tenant-shape' }
-      const read = await readDomain(tenant)
+      const read = await readBinding(tenant, digests.key)
       if (typeof read === 'string') return { kind: 'unavailable', diagnostic: read }
-      const binding = bindingOf(read, digests.key)
+      const binding = bindingOf(read)
       if (binding === null) return { kind: 'forged', reason: 'unknown-source' }
       if (binding === 'unreadable')
         return { kind: 'unavailable', diagnostic: 'the stored binding cannot be read' }
@@ -482,11 +481,9 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
       })
     try {
       if (!isTenantShape(access.tenant)) return unavailable()
-      const read = await readDomain(access.tenant)
+      const read = await readBinding(access.tenant, consumerKey(access.request.consumer))
       if (typeof read === 'string') return unavailable()
-      const row = read.records.find(
-        row => row.kind === 'host' && row.host.key === consumerKey(access.request.consumer),
-      )
+      const row = read.record
       if (
         row?.kind !== 'host' ||
         !isRecord(row.host.value) ||

@@ -28,6 +28,8 @@ W3 的材料用途、期限、页租约及删除协议为 [#1168](https://github
 - 每行记录必须是它的行键所指的记录（`recordKey(record)` 等于行键）。不一致时答 `unavailable`，不交付这行。
 - 记录按 JSON 读回。读回的值不与调用方或存储共享引用。
 
+`readRecord(domain, key)` 在同一次 `domain-serial` 读中取得域修订号和指定键的记录。SQL 使用已有的 `(tenant, kind, name, key)` 主键查询，返回零或一行，不扫描其他记录正文。缺失、不可用、格式与行键核对遵循 TS-01。单键读不改变完整域读取的数量和字节限制。
+
 ### TS-02 记录仓提交
 
 `commit(input)` 是一次 SQL 提交，参加者为 `tool`。参加者在写事务内依次做下列事：

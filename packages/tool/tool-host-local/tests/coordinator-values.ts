@@ -192,6 +192,7 @@ export function failingNextCommit(
   let armed = false
   return {
     durability: 'none',
+    readRecord: (domain, key) => memory.readRecord(domain, key),
     arm: () => {
       armed = true
     },

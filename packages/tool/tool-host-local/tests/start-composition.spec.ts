@@ -399,6 +399,7 @@ describe('G5 under the runtime', () => {
     const harness = assembly({
       store: memory => ({
         durability: 'none',
+        readRecord: (domain, key) => memory.readRecord(domain, key),
         read: domain => memory.read(domain),
         commit: input => {
           if (

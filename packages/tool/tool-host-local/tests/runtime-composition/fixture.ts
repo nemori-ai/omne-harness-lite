@@ -136,6 +136,7 @@ export async function fixture(
   const store: ToolLedgerStore = {
     durability: 'durable',
     read: memory.read,
+    readRecord: memory.readRecord,
     commit: memory.commit,
   }
   const custody = createMemoryToolOutputCustody<unknown>()

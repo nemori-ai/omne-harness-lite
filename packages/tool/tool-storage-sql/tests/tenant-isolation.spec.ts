@@ -155,6 +155,21 @@ describe('rows of tenant B planted in the database of tenant A', () => {
     })
   })
 
+  it('a single-record read of tenant A ignores another tenant at the same key', async () => {
+    const a = await planted()
+    expect(await a.store.readRecord(callDomain(TENANT_A), 'host:same')).toEqual({
+      kind: 'complete',
+      revision: '0',
+      record: null,
+    })
+    expect(await commit(a, TENANT_A, 'of A')).toEqual({ kind: 'committed' })
+    expect(await a.store.readRecord(callDomain(TENANT_A), 'host:same')).toEqual({
+      kind: 'complete',
+      revision: '1',
+      record: record('of A'),
+    })
+  })
+
   it('a commit of tenant A is judged on its own revision and does not touch them', async () => {
     const a = await planted()
     expect(await commit(a, TENANT_A, 'of A')).toEqual({ kind: 'committed' })
@@ -183,6 +198,7 @@ describe('a tenant that the directory does not hold', () => {
     const a = await app()
     const domain = callDomain(UNREGISTERED)
     expect((await a.store.read(domain)).kind).toBe('unavailable')
+    expect((await a.store.readRecord(domain, 'host:same')).kind).toBe('unavailable')
     expect(
       (
         await a.store.commit({

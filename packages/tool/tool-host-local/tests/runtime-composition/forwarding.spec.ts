@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { accepted, fixture, unbox } from './fixture.ts'
 
@@ -207,7 +207,7 @@ it.each(['revoke', 'revoke-read', 'retire'] as const)(
     const world = await fixture(async () => 'private-saved-value', undefined, 2, true)
     const entered = Promise.withResolvers<void>()
     const resume = Promise.withResolvers<void>()
-    const read = world.store.read
+    const read = world.store.readRecord
     const qualify = world.input.access.guard.qualify
     try {
       const parent = accepted(await world.api.invoke(world.forwardInvocation('withdrawal')))
@@ -216,8 +216,8 @@ it.each(['revoke', 'revoke-read', 'retire'] as const)(
       if (answer?.kind !== 'pending') throw new Error('pending target required')
       const state = await world.settledState(answer.reference)
       await expect.poll(() => world.plugins.diagnostics().executor?.knownCalls).toBe(0)
-      world.store.read = async domain => {
-        const value = await read(domain)
+      world.store.readRecord = async (domain, key) => {
+        const value = await read(domain, key)
         if (domain.kind === 'host' && domain.key === 'invocation-source') {
           entered.resolve()
           await resume.promise
@@ -243,9 +243,54 @@ it.each(['revoke', 'revoke-read', 'retire'] as const)(
       })
     } finally {
       resume.resolve()
-      world.store.read = read
+      world.store.readRecord = read
       world.input.access.guard.qualify = qualify
       await world.close()
     }
   },
 )
+
+it('reads a forwarded result when unrelated source history prevents a full domain read', async () => {
+  const world = await fixture(async () => 'exact-result', undefined, 2, true)
+  try {
+    const parent = accepted(await world.api.invoke(world.forwardInvocation('keyed-read')))
+    await world.settledState(parent)
+    const target = world.forwarded[0]
+    if (target?.kind !== 'pending') throw new Error(JSON.stringify(target))
+    await world.settledState(target.reference)
+    const found = unbox(await world.api.queries.lookup(world.query(target.reference)))
+    if (found.kind !== 'found' || found.state.phase !== 'settled')
+      throw new Error('settled target required')
+    const read = world.store.read.bind(world.store)
+    const fullRead = vi.spyOn(world.store, 'read').mockImplementation(domain =>
+      domain.kind === 'host' && domain.key === 'invocation-source'
+        ? Promise.resolve({
+            kind: 'unavailable',
+            diagnostic: 'full source history exceeds budget',
+          })
+        : read(domain),
+    )
+    try {
+      expect(
+        await world.plugins.forwardedResult({
+          ...world.query(target.reference),
+          result: found.state.result,
+          after: null,
+        }),
+      ).toMatchObject({ ok: { value: { content: [{ kind: 'text', text: 'exact-result' }] } } })
+      expect(await world.plugins.forwarding()?.resume(world.query(parent))).toMatchObject({
+        kind: 'accepted',
+      })
+      expect(world.launches()).toBe(1)
+      expect(
+        fullRead.mock.calls.filter(
+          ([domain]) => domain.kind === 'host' && domain.key === 'invocation-source',
+        ),
+      ).toHaveLength(0)
+    } finally {
+      fullRead.mockRestore()
+    }
+  } finally {
+    await world.close()
+  }
+})

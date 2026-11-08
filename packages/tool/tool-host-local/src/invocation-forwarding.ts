@@ -1,6 +1,7 @@
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
+  hostKey,
   isTenantShape,
   type CurrentCallRecord,
   type LedgerDomain,
@@ -278,12 +279,13 @@ export function createInvocationForwarding<P>(
     return succeed(parent)
   }
   const storedOf = async (access: Access<P>, consumer: ConsumerRef) => {
-    const read = await input.store.read(sourceDomain(access.tenant))
-    if (read.kind !== 'complete') return unavailable()
-    const row = read.records.find(
-      row => row.kind === 'host' && row.host.key === sourceKey(consumer),
+    const read = await input.store.readRecord(
+      sourceDomain(access.tenant),
+      hostKey(sourceKey(consumer)),
     )
-    if (row === undefined) return succeed({ read, stored: null })
+    if (read.kind !== 'complete') return unavailable()
+    const row = read.record
+    if (row === null) return succeed({ read, stored: null })
     const stored = row.kind === 'host' ? parseForward(row.host.value) : null
     return stored === null ? unavailable() : succeed({ read, stored })
   }

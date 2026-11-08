@@ -41,6 +41,7 @@ export function collapseDomains(): ToolLedgerStoreFixture {
     return {
       ...store,
       read: domain => store.read(collapse(domain)),
+      readRecord: (domain, key) => store.readRecord(collapse(domain), key),
       commit: input => store.commit({ ...input, domain: collapse(input.domain) }),
     }
   })

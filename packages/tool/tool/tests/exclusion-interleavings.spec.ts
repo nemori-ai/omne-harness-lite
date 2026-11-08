@@ -49,6 +49,7 @@ function hooked() {
   let label = ''
   const store: ToolLedgerStore = {
     durability: 'none',
+    readRecord: memory.readRecord,
     read: d => memory.read(d),
     commit: async input => {
       const i = hooks.findIndex(h => h.matches(input))

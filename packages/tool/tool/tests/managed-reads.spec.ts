@@ -109,6 +109,12 @@ describe('14 queries (P01)', () => {
     const plain = ok(await assembly.runtime.queries.queryOperation({ ...access, operation }))
     const reordering: ToolLedgerStore = {
       durability: 'none',
+      readRecord: async (domain, key) => {
+        const read = await assembly.store.readRecord(domain, key)
+        return read.kind === 'complete' && read.record !== null
+          ? { ...read, record: reversed(read.record) }
+          : read
+      },
       read: async domain => {
         const read = await assembly.store.read(domain)
         return read.kind === 'complete' ? { ...read, records: read.records.map(reversed) } : read

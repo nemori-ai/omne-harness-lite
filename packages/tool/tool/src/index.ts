@@ -50,6 +50,7 @@ export type {
   LedgerCommitInput,
   LedgerDomain,
   LedgerRead,
+  LedgerRecordRead,
   LedgerRecord,
   LedgerWrite,
   OperationReceipt,
@@ -65,7 +66,7 @@ export type {
   StartRejection,
   ToolLedgerStore,
 } from './ledger-store.ts'
-export { recordKey } from './ledger-store.ts'
+export { recordKey, hostKey } from './ledger-store.ts'
 export { hasCurrentToolLedgerRecordFormat } from './ledger-record-format.ts'
 export type {
   ToolHistoryStoredRecord,

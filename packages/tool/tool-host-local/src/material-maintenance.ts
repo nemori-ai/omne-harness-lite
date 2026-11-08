@@ -39,6 +39,7 @@ export function createLocalToolMaterialMaintenance<P>(
     access: { qualify: supplied => scope.gate(() => input.access.qualify(supplied), stopped) },
     store: {
       durability: input.store.durability,
+      readRecord: (domain, key) => scope.gate(() => input.store.readRecord(domain, key), stopped),
       read: supplied => scope.gate(() => input.store.read(supplied), stopped),
       commit: supplied => scope.gate(() => input.store.commit(supplied), stopped),
     },

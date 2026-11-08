@@ -229,6 +229,10 @@ export async function ledgerAssembly(
       reads += 1
       return fixture.store.read(domain)
     },
+    readRecord: (domain, key) => {
+      reads += 1
+      return fixture.store.readRecord(domain, key)
+    },
     commit: command => {
       commits += 1
       return fixture.store.commit(command)

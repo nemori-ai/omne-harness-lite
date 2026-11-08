@@ -826,6 +826,7 @@ export function interleaving(
   let armed = true
   return {
     durability: 'none',
+    readRecord: memory.readRecord,
     read: domain => memory.read(domain),
     commit: async input => {
       if (armed && matches(input)) {

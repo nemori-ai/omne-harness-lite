@@ -173,6 +173,7 @@ describe('23 retrigger: a held slot whose start intent was excluded is redone by
     const harness: StartHarness = startHarness({
       store: memory => ({
         durability: 'none',
+        readRecord: memory.readRecord,
         read: async domain => {
           if (failing > 0 && domain.kind === 'call') {
             failing -= 1
@@ -297,6 +298,7 @@ describe('23 retrigger: when a failed run is run again', () => {
       driverRetryDelayMs: 60_000,
       store: memory => ({
         durability: 'none',
+        readRecord: memory.readRecord,
         // A reader that gives a negative answer about the start of c1 between the reads of
         // prepareStart: every start intent of c1 is excluded while it polls.
         read: async domain => {
@@ -356,6 +358,7 @@ describe('23 retrigger: when a failed run is run again', () => {
     const harness = startHarness({
       store: memory => ({
         durability: 'none',
+        readRecord: memory.readRecord,
         read: domain => memory.read(domain),
         // The host stops the run while its plan is being committed, and the store is down.
         commit: async input => {

@@ -12,6 +12,7 @@ import type {
   LedgerCommitInput,
   LedgerDomain,
   LedgerRead,
+  LedgerRecordRead,
   ToolInvokeAuthority,
   ToolLedgerStore,
 } from '@omne-harness/tool'
@@ -91,6 +92,13 @@ function observed() {
       if (fault === 'read-unavailable') return { kind: 'unavailable', diagnostic: 'store is down' }
       if (fault === 'read-throws') throw new Error('secret connection string')
       return memory.read(domain)
+    },
+    readRecord: async (domain: LedgerDomain, key: string): Promise<LedgerRecordRead> => {
+      counts.reads += 1
+      const fault = take('read-unavailable', 'read-throws')
+      if (fault === 'read-unavailable') return { kind: 'unavailable', diagnostic: 'store is down' }
+      if (fault === 'read-throws') throw new Error('secret connection string')
+      return memory.readRecord(domain, key)
     },
     commit: async (input: LedgerCommitInput): Promise<LedgerCommit> => {
       counts.commits += 1

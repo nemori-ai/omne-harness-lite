@@ -474,6 +474,14 @@ export type LedgerRead =
   | Readonly<{ kind: 'complete'; revision: ToolRevision; records: readonly LedgerRecord[] }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
+/**
+ * One record and the domain revision from the same snapshot as `read`.
+ * `null` means the key is absent. This result never represents the complete domain.
+ */
+export type LedgerRecordRead =
+  | Readonly<{ kind: 'complete'; revision: ToolRevision; record: LedgerRecord | null }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
 export type LedgerCommitInput = Readonly<{
   domain: LedgerDomain
   expected: ToolRevision
@@ -496,8 +504,10 @@ export interface ToolLedgerStore {
   /** `none` is the store of `./testing`; a production assembly needs `durable`. */
   readonly durability: 'none' | 'durable'
   read(domain: LedgerDomain): Promise<LedgerRead>
+  /** Reads only `key`, with the domain revision and ordering guarantees of `read`. */
+  readRecord(domain: LedgerDomain, key: string): Promise<LedgerRecordRead>
   /**
-   * Atomic: all writes take effect together, or none does. Serialized with `read` per domain. A
+   * Atomic: all writes take effect together, or none does. Serialized with both reads per domain. A
    * committed commit sets the domain revision to `revision` whatever its write set holds: a set
    * with one exclusion record, or a set that changes no record, advances the revision the same
    * way as any other, because the ledger's exclusion fence depends on that advance. There is no
