@@ -369,3 +369,22 @@ it('recognizes retained permit receipts without losing unknown stop responsibili
     { stop: 'unconfirmed', permitted: true },
   ])
 })
+
+it('maintains retained resources when unrelated environment history exceeds the full-read bound', async () => {
+  const f = await fixture(true)
+  const read = f.store.read.bind(f.store)
+  vi.spyOn(f.store, 'read').mockImplementation(domain =>
+    domain.kind === 'host' && domain.key === 'execution-environment/v1'
+      ? Promise.resolve({ kind: 'unavailable', diagnostic: 'full domain exceeds read bound' })
+      : read(domain),
+  )
+  const retained = await f.retention()
+  expect(await retained.plan(f.resource)).toBe('recorded')
+  expect(await retained.permit(f.resource.key)).toBe('confirmed')
+  expect(await f.ledger.close()).toBe('confirmed')
+  await f.finish()
+  expect(await retained.stopped(f.resource.key, 'confirmed')).toBe('recorded')
+  expect(await (await f.retention()).inspect()).toMatchObject([
+    { creator: { call: f.preparation.call }, stop: 'confirmed' },
+  ])
+})

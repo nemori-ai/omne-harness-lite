@@ -117,3 +117,28 @@ it('single-record reads preserve call witnesses and release them on the settled 
   holder.sql = null
   expect(await store.readRecord(domain, 'call')).toMatchObject({ kind: 'unavailable' })
 })
+
+it('absent and unavailable point reads leave existing call witnesses intact', async () => {
+  const { holder, state, store, forgotten, domain } = world()
+  state.rows = [row('c1', 'running')]
+  await store.readRecord(domain, 'call')
+  state.rows = []
+  expect(await store.readRecord(domain, 'missing')).toMatchObject({
+    kind: 'complete',
+    record: null,
+  })
+  if (holder.sql === null) throw new Error('fixture store required')
+  holder.sql = {
+    ...holder.sql,
+    store: {
+      ...holder.sql.store,
+      readRecord: async () => ({ kind: 'unavailable', diagnostic: 'storage offline' }),
+    },
+  }
+  expect(await store.readRecord(domain, 'call')).toEqual({
+    kind: 'unavailable',
+    diagnostic: 'storage offline',
+  })
+  expect(isWitnessed(holder, 'c1')).toBe(true)
+  expect(forgotten).toEqual([])
+})

@@ -482,9 +482,9 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
     await f.reserved()
     expect(await f.processes.adopt(resource.key)).toBe('confirmed')
     expect(await f.processes.stopped(resource.key, 'confirmed')).toBe('recorded')
-    const read = f.store.read.bind(f.store)
-    vi.spyOn(f.store, 'read').mockImplementation(async domain =>
-      domain.kind === 'host' ? { kind: 'unavailable', diagnostic: 'fixture' } : read(domain),
+    const read = f.store.readRecord.bind(f.store)
+    vi.spyOn(f.store, 'readRecord').mockImplementation(async (domain, key) =>
+      domain.kind === 'host' ? { kind: 'unavailable', diagnostic: 'fixture' } : read(domain, key),
     )
     expect(await f.processes.ended(resource.key)).toBe('unavailable')
   })

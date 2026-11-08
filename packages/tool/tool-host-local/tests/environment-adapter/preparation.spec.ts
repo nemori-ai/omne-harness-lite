@@ -410,3 +410,18 @@ for (const test of toolEnvironmentConformance<Principal, ToolEnvironmentValue>()
     })
   })
 }
+
+it('prepares an acquisition when unrelated environment history exceeds the full-read bound', async () => {
+  const f = fixture()
+  const read = f.store.read.bind(f.store)
+  vi.spyOn(f.store, 'read').mockImplementation(domain =>
+    domain.kind === 'host' && domain.key === 'execution-environment/v1'
+      ? Promise.resolve({ kind: 'unavailable', diagnostic: 'full domain exceeds read bound' })
+      : read(domain),
+  )
+  expect(await f.build().prepare(f.prepare)).toMatchObject({ ok: { kind: 'prepared' } })
+  expect(f.acquire).toHaveBeenCalledTimes(1)
+  expect(await f.state.read(f.preparation)).toMatchObject({
+    ok: { allocation: { kind: 'allocated' } },
+  })
+})

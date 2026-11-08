@@ -22,12 +22,17 @@
 
 **域隔离。** 查询先固定完整 `d`，再固定 `k`。改变租户、域种类或域键会选择另一映射，不能取得原域的记录。
 
+## 两个目标参与同一提交
+
+环境获取与保留范围分别读取 `(r1, M[k1])` 和 `(r2, M[k2])`。调用方仅在 `r1 = r2` 时组合两值，且 CAS 仍使用该域修订号。由修订号推进且不复用的前提，两次读取之间没有成功提交，因此组合等于同一完整域快照的两键投影。之后的写入由 CAS 拒绝。原跨 call/host 的原子围栏和当前授权检查不因投影改变。
+
 ## 实现与反例守护
 
 - 内存仓以域内 Map 的 `get(key)` 取值，并复制结果。
 - SQL worker 在原 `domain-serial` 读取内查询域修订和 `(tenant, kind, name, key)` 主键。读取不可用和缺失分开返回。端口对格式与请求键再次核对。
 - `toolLedgerStoreConformance` 的 `store.record-*` 用例约束缺失、删除、租户和域隔离、引用复制、其他键写入后的旧修订冲突及读取故障。
 - SQL 的 `record-read-live.spec.ts` 使用真实 worker，检验完整域超过字节上限时目标读取仍可完成，并检验其他键写入后的旧修订冲突。
+- host 的 `environment-adapter/preparation.spec.ts` 与 `resources.spec.ts` 在整个环境域读取不可用时，仍检验获取、保留、关闭和结清后的资源事实；原资源并发与授权拒绝测试保持。
 - host 的 `runtime-composition/forwarding.spec.ts` 拒绝完整来源域读取，仍要求公开结果读回与原槽恢复成功。撤权和退休竞争仍须拒绝披露。
 
 来源宿主的 `nextRevision`、`nextSourceRevision` 和账本的 `nextRevision` 以递增值兑现修订号前提。本论证不覆盖违规提供相同或回退修订号的自定义写者。

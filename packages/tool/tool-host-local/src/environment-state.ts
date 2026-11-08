@@ -11,6 +11,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { decodeScopeRef, type ScopeRef } from '@omne-harness/runtime-context-contract'
 import {
   canonicalDigest,
+  hostKey,
   type LedgerCommit,
   type LedgerCommitInput,
   type LedgerDomain,
@@ -382,11 +383,12 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
       ToolFailure
     >
   > {
-    const read = await options.store.read(environmentDomain(address.tenant))
-    if (read.kind !== 'complete') return environmentFailure('environment ledger read unavailable')
-    const found = read.records.find(
-      record => record.kind === 'host' && record.host.key === preparationKey(address),
+    const read = await options.store.readRecord(
+      environmentDomain(address.tenant),
+      hostKey(preparationKey(address)),
     )
+    if (read.kind !== 'complete') return environmentFailure('environment ledger read unavailable')
+    const found = read.record
     if (!found) return succeed({ revision: read.revision, state: null, mutation: null })
     if (
       found.kind !== 'host' ||
@@ -547,10 +549,10 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
   }
 
   async function retentionSnapshot(address: EnvironmentAddress, scope: ScopeRef) {
-    const read = await options.store.read(environmentDomain(address.tenant))
-    if (read.kind !== 'complete') return environmentFailure('retention ledger read unavailable')
     const key = retentionKey(scope)
-    const found = read.records.find(item => item.kind === 'host' && item.host.key === key)
+    const read = await options.store.readRecord(environmentDomain(address.tenant), hostKey(key))
+    if (read.kind !== 'complete') return environmentFailure('retention ledger read unavailable')
+    const found = read.record
     if (!found) return succeed({ revision: read.revision, state: null, mutation: null })
     if (
       found.kind !== 'host' ||
