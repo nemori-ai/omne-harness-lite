@@ -286,6 +286,8 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 `stop` 停止一个保留进程的整个执行域。请求带保留进程引用与 `mode`，`mode` 取命令设施停止的两态 `graceful` 与 `forced`。完成时答 `{ status }`，`status` 是 `confirmed` 或 `unconfirmed`。
 
+载荷形状不成立时，结果是 `rejected`，原因 `invalidInput`。形状指：引用是对象，`id` 与 `generation` 是非空字符串；`mode` 是两态之一。提供者在查索引之前核对形状，所以这个答复不披露引用在不在范围内，也不停止任何执行域。
+
 1. 资格三项同时成立：请求的租户等于保留进程所属的租户；引用在本次获取的保留范围内；当前设施守卫对这次 `stop` 放行。停止的授权由受信装配注入守卫，执行环境不判断授权的依据。引用的 `id` 与 `generation` 都要相同。
 2. 守卫不放行时，结果是 `rejected`，原因 `notAuthorized`。执行环境先问守卫，再查找引用，所以这个答复不披露 `ref` 在不在范围内。
 3. 守卫放行而 `ref` 不在本次获取的保留范围内时，结果是 `notFound`。执行环境不披露它在别处是否存在。
@@ -302,14 +304,18 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 `output` 读一个保留进程在移交之后的输出。移交之后，提供者为每条输出流维护一个有界的字节尾部：新字节追加在末尾，超出容量时从开头丢弃。尾部只在提供者进程的内存里，不持久化：移交之前的输出本来就不保存，尾部只服务移交之后的观察；写入文件还要另管磁盘配额、清理与重启后的归属，而提供者重启后保留进程照常由保留范围负责，读不到输出不影响停止与回收。
 
-请求带保留进程引用与可选的 `from`。`from` 按输出流给出源字节偏移（`stdout`、`stderr` 或 `terminal`）。资格与[停止](#停止)第 1 至 4 项相同，守卫核对的操作是 `output`。资格成立时，结果是下列之一：
+请求带保留进程引用与可选的 `from`。`from` 按输出流给出源字节偏移（`stdout`、`stderr` 或 `terminal`）。
+
+载荷形状不成立时，结果是 `rejected`，原因 `invalidInput`。形状指：引用与[停止](#停止)相同；`from` 有时是对象，键只取 `stdout`、`stderr`、`terminal`，值是非负安全整数。提供者在查索引之前核对形状，所以小数、负数或别的键不按最近的偏移读取。
+
+资格与[停止](#停止)第 1 至 4 项相同，守卫核对的操作是 `output`。资格成立时，结果是下列之一：
 
 - `tail`：带版本号与每条流的尾部。版本号在尾部每次变化时增加。每条流的尾部带：
   - `savedFrom`：开始保存的源字节偏移，即移交时这条流已经观察到的字节数。它之前的字节从未保存，执行环境不补造。
   - `start` 与 `end`：`data` 的第一个字节与最后一个字节之后的源字节偏移。`end` 等于这条流到现在观察到的字节数。`start + data 的长度 = end`。
   - `discardedBytes`：`savedFrom` 之后观察到、但不再保存的字节数。保存的第一个字节在 `savedFrom + discardedBytes`。
   - `data`：`start` 到 `end` 之间的原始字节，含 CRLF、ANSI 与回车，不按行或字符切。
-  - `text`：`data` 按 UTF-8 解码的文本，带编码名、文本对应的起始偏移与是否替换过无效序列。起点切在多字节字符中间时，文本跳过那几个续字节，起始偏移如实后移。字节数从不以字符数代替。
+  - `text`：`data` 按 UTF-8 解码的文本，带编码名、文本对应的起始偏移与是否替换过无效序列。起点切在多字节字符中间时，文本跳过那几个续字节，起始偏移如实后移。字节数从不以字符数代替。`text` 只是这次 `data` 的解码；跨次读取要拼接的是 `data`，不是 `text`。
   - 没有 `from`，或 `from` 早于保存的第一个字节时，从保存的第一个字节给：`start = savedFrom + discardedBytes`，调用方由此看出缺口。`from` 落在保存的字节之间时，`start = from`。`from` 不早于 `end` 时，`start = end`，`data` 为空。
 - `none`：移交之后各流都还没有观察到字节。
 - `unsupported`：提供者不为这个保留进程保存输出。
@@ -662,9 +668,9 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 | V-EE27 | 没有域外退出证据时新进程对旧容量答未分配或已结清；热重载被当作进程退出；未知的文件效果因容量结清被改写、重写或回滚                                                                                                                                                          |
 | V-EE28 | 主进程退出后执行域里有活着的进程却没有归属方；可以保留时被停止；满额时停止已保留的进程；范围封闭之后仍有执行域被移交进来；同一执行域既被移交又被停止；停止未经监督者确认就报告已停；枚举读不全时答空列表或使恢复前进；不满足封闭收纳的提供者交出保留进程扩展；保留进程的 `list` 跨保留范围或跨租户（[一次性命令留下的进程](#一次性命令留下的进程)；模型 [ProcessCustody](verification/models/README.md#processcustody)） |
 | V-EE29 | 段的完成由静默或屏幕判定；读到暂时无数据就交出段结果，使本段前台字节落到段外；段间字节丢失或混入段内输出；终端因后台进程而失效；关闭终端后仍有进程活着（[终端段的完成与字节归属](#终端段的完成与字节归属)；模型 [TerminalSegments](verification/models/README.md#terminalsegments)） |
-| V-EE30 | 保留进程的 `stop` 未经监督者确认就答 `confirmed`；对别的保留范围或别的租户的引用答出存在性或停止了它；对同一保留进程的重复 `stop` 发出第二次停止；已停止的保留进程在收场事实保存期间答 `notFound`；资格读不到时仍发出停止（[停止](#停止)；模型 `Stop`） |
-| V-EE31 | `output` 交出移交之前的字节；偏移、丢弃数与字节数不满足 `start + data 的长度 = end`，或没有 `from` 时 `start` 不等于 `savedFrom + discardedBytes`；以字符数代替字节数；对别的保留范围或别的租户的引用交出内容；提供者重启后答出空尾部而不是 `unavailable`（[输出](#输出)） |
-| V-EE32 | `observeRetained` 不经环境授权就列出；一个提供者读不全时交出部分列表；同一保留进程在合并的列表里出现两次；列出别的保留范围或别的租户的保留进程；观察分配了获取或改变了保留进程的状态（[按保留范围观察](#按保留范围观察)） |
+| V-EE30 | 保留进程的 `stop` 未经监督者确认就答 `confirmed`；对别的保留范围或别的租户的引用答出存在性或停止了它；对同一保留进程的重复 `stop` 发出第二次停止；已停止的保留进程在收场事实保存期间答 `notFound`，或对别的保留范围或别的租户答 `confirmed`；资格读不到时仍发出停止；载荷形状不成立时不答 `invalidInput`，或先查了索引（[停止](#停止)；模型 `Stop`） |
+| V-EE31 | `output` 交出移交之前的字节；偏移、丢弃数与字节数不满足 `start + data 的长度 = end`，或没有 `from` 时 `start` 不等于 `savedFrom + discardedBytes`；以字符数代替字节数；对别的保留范围或别的租户的引用交出内容；`from` 不是非负安全整数或缺引用时不答 `invalidInput`；提供者重启后答出空尾部而不是 `unavailable`（[输出](#输出)） |
+| V-EE32 | `observeRetained` 不经环境授权就列出；一个提供者读不全时交出部分列表；同一保留进程在合并的列表里出现两次；列出别的保留范围或别的租户的保留进程；观察分配了获取或改变了保留进程的状态（[按保留范围观察](#按保留范围观察)）。另在契约成员的受控执行环境上跑接受与否定 |
 
 `./testing` 的两个套件把部分义务写成可运行用例，用例名以义务编号为前缀。V-EE23 至 V-EE26 的用例如下；其余反例仍需机制成员、提供者与真实集成方的组合证据。套件用替身端口，不证明真实授权、真实绑定来源或耐久。`./testing` 另有内存文件设施与脚本命令设施两个替身。它们只证明契约形状与判据，不证明真实进程、文件系统、授予根核对或隔离。
 
@@ -676,7 +682,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 | V-EE26 | `recovery-settles-acquisitions-without-claiming-release`                                                | `list-includes-open-acquisition`                                                                          |
 | V-EE27 | 无                                                                                                      | 无；宿主文件的冷恢复见下方缺项                                                                            |
 
-V-EE28 另有命令保留套件 `commandRetentionConformance`，用例为 `V-EE28.clean-exit-reports-none`、`V-EE28.leftover-is-retained-and-listed`、`V-EE28.list-stays-in-scope-and-tenant`、`V-EE28.handle-stop-after-handover-is-unconfirmed`、`V-EE28.scope-close-stops-retained` 与 `V-EE28.no-ledger-stops-with-reason`。它覆盖处置结果的形状、`list` 不跨保留范围与租户、移交与句柄停止互斥、范围封闭停止保留进程。同一套件另有 V-EE30 与 V-EE31 的用例，名字以义务编号为前缀，覆盖 `stop` 的资格与答复、重复停止合流、收场事实之后答 `confirmed`、没有 `ended` 时答 `unavailable`，以及 `output` 的尾部关系与范围核对。V-EE32 的用例在公开执行环境套件里，覆盖观察入口的授权、合并去重与「完整或不可用」。套件不覆盖容量、读数未知与提供者重启。
+V-EE28 另有命令保留套件 `commandRetentionConformance`，用例为 `V-EE28.clean-exit-reports-none`、`V-EE28.leftover-is-retained-and-listed`、`V-EE28.list-stays-in-scope-and-tenant`、`V-EE28.handle-stop-after-handover-is-unconfirmed`、`V-EE28.scope-close-stops-retained` 与 `V-EE28.no-ledger-stops-with-reason`。它覆盖处置结果的形状、`list` 不跨保留范围与租户、移交与句柄停止互斥、范围封闭停止保留进程。同一套件另有 V-EE30 与 V-EE31 的用例，名字以义务编号为前缀，覆盖 `stop` 的资格与答复、重复停止合流、收场事实之后答 `confirmed` 且不跨保留范围与租户、没有 `ended` 时答 `unavailable` 且不发出停止，以及 `output` 的尾部关系与范围核对。`V-EE31.malformed-request-is-invalid-input` 覆盖 `stop` 与 `output` 的载荷形状：守卫放行时，缺引用、`from` 为小数或负数、`mode` 不是两态之一，都答 `invalidInput`，且不停止执行域。V-EE32 的用例在公开执行环境套件里，覆盖观察入口的授权、合并去重与「完整或不可用」。登记表成员在真实登记表上跑它们。本成员的测试另在受控执行环境上跑它们的接受与否定。V-EE30、V-EE31 的每条用例在本成员也各有只违反它的主体，用来证明检查能发现违约。套件不覆盖容量、读数未知与提供者重启。
 
 ### 明确缺项
 
