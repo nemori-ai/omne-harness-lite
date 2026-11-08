@@ -1,8 +1,9 @@
 import { expect, it } from 'vitest'
+import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { accepted, fixture, unbox } from './fixture.ts'
 
 it('forwards through the real executor binding at resource concurrency one and retires both calls', async () => {
-  const world = await fixture(undefined, undefined, 2, true)
+  const world = await fixture(async () => 'retained-payload', undefined, 2, true)
   try {
     for (let i = 0; i < 4; i++) {
       const parent = accepted(await world.api.invoke(world.forwardInvocation(`parent-${i}`)))
@@ -19,6 +20,24 @@ it('forwards through the real executor binding at resource concurrency one and r
       expect(world.launches()).toBe(i + 1)
       const found = unbox(await world.api.queries.lookup(world.query(answer.reference)))
       expect(found).toMatchObject({ kind: 'found', state: { delivery: { kind: 'released' } } })
+      if (found.kind !== 'found' || found.state.phase !== 'settled')
+        throw new Error('settled target required')
+      const page = await world.plugins.forwardedResult({
+        ...world.query(answer.reference),
+        result: found.state.result,
+        after: null,
+      })
+      expect(page).toMatchObject({ ok: { result: found.state.result, next: null } })
+      expect(page).toMatchObject({
+        ok: { value: { content: [{ kind: 'text', text: 'retained-payload' }] } },
+      })
+      await expect(
+        world.api.queries.readResult({
+          ...world.query(answer.reference),
+          result: found.state.result,
+          after: null,
+        }),
+      ).resolves.toMatchObject({ failure: { kind: 'not-found', reason: 'released' } })
     }
   } finally {
     await world.close()
@@ -106,3 +125,122 @@ it('continues a slow accepted preparation after the parent finishes and drains t
     await world.close()
   }
 })
+
+it('reads the saved forwarded result after rebuilding the runtime and refuses revoked access', async () => {
+  const world = await fixture(async () => 'saved-across-rebuild', undefined, 2, true)
+  try {
+    const parent = accepted(await world.api.invoke(world.forwardInvocation('retained')))
+    await world.settledState(parent)
+    const answer = world.forwarded[0]
+    if (answer?.kind !== 'pending') throw new Error('pending target required')
+    const state = await world.settledState(answer.reference)
+    await expect.poll(() => world.plugins.diagnostics().executor?.knownCalls).toBe(0)
+    const request = { ...world.query(answer.reference), result: state.result, after: null }
+    const reopened = await world.newExecutor()
+    try {
+      await expect(reopened.plugins.forwardedResult(request)).resolves.toMatchObject({
+        ok: { value: { content: [{ text: 'saved-across-rebuild' }] } },
+      })
+      await expect(
+        reopened.plugins.forwardedResult({ ...request, principal: 'mallory' }),
+      ).resolves.toMatchObject({ failure: { kind: 'denied' } })
+      world.revoke()
+      await expect(reopened.plugins.forwardedResult(request)).resolves.toMatchObject({
+        failure: { kind: 'denied' },
+      })
+    } finally {
+      await reopened.close()
+    }
+  } finally {
+    await world.close()
+  }
+})
+
+it('refuses a changed forwarding payload even when its stored digest was left intact', async () => {
+  const world = await fixture(async () => 'original-saved-value', undefined, 2, true)
+  try {
+    const parent = accepted(await world.api.invoke(world.forwardInvocation('tampered')))
+    await world.settledState(parent)
+    const answer = world.forwarded[0]
+    if (answer?.kind !== 'pending') throw new Error('pending target required')
+    const state = await world.settledState(answer.reference)
+    await expect.poll(() => world.plugins.diagnostics().executor?.knownCalls).toBe(0)
+    const domain = { kind: 'host', tenant: world.tenantA, key: 'invocation-source' } as const
+    const read = await world.store.read(domain)
+    if (read.kind !== 'complete') throw new Error('store required')
+    const row = read.records.find(
+      record =>
+        record.kind === 'host' &&
+        JSON.stringify(record.host.value).includes('original-saved-value'),
+    )
+    if (row?.kind !== 'host') throw new Error('saved copy required')
+    const changed: unknown = JSON.parse(
+      JSON.stringify(row.host.value).replace('original-saved-value', 'changed-saved-value'),
+    )
+    expect(
+      (
+        await world.store.commit({
+          domain,
+          expected: read.revision,
+          revision: unbox(decodeToolRevision(String(BigInt(read.revision) + 1n))),
+          writes: [
+            { kind: 'put', record: { kind: 'host', host: { ...row.host, value: changed } } },
+          ],
+        })
+      ).kind,
+    ).toBe('committed')
+    await expect(
+      world.plugins.forwardedResult({
+        ...world.query(answer.reference),
+        result: state.result,
+        after: null,
+      }),
+    ).resolves.toMatchObject({ failure: { kind: 'unavailable', dependency: 'forwarded-result' } })
+  } finally {
+    await world.close()
+  }
+})
+
+it.each(['revoke', 'revoke-read', 'retire'] as const)(
+  'refuses saved result disclosure when %s occurs during a store read',
+  async change => {
+    const world = await fixture(async () => 'private-saved-value', undefined, 2, true)
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const read = world.store.read
+    const qualify = world.input.access.guard.qualify
+    try {
+      const parent = accepted(await world.api.invoke(world.forwardInvocation('withdrawal')))
+      await world.settledState(parent)
+      const answer = world.forwarded[0]
+      if (answer?.kind !== 'pending') throw new Error('pending target required')
+      const state = await world.settledState(answer.reference)
+      await expect.poll(() => world.plugins.diagnostics().executor?.knownCalls).toBe(0)
+      world.store.read = async domain => {
+        const value = await read(domain)
+        if (domain.kind === 'host' && domain.key === 'invocation-source') {
+          entered.resolve()
+          await resume.promise
+        }
+        return value
+      }
+      const pending = world.plugins.forwardedResult({
+        ...world.query(answer.reference),
+        result: state.result,
+        after: null,
+      })
+      await entered.promise
+      if (change === 'revoke') world.revoke()
+      else await world.plugins.close()
+      resume.resolve()
+      await expect(pending).resolves.toMatchObject({
+        failure: { kind: change === 'retire' ? 'unavailable' : 'denied' },
+      })
+    } finally {
+      resume.resolve()
+      world.store.read = read
+      world.input.access.guard.qualify = qualify
+      await world.close()
+    }
+  },
+)

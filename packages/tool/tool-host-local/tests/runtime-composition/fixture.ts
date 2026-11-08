@@ -22,6 +22,7 @@ import type {
 } from '@omne-harness/tool-contract'
 import { resolveToolInvocationRef, toolsCapabilityOf } from '@omne-harness/tool-contract'
 import {
+  defaultResultPolicy,
   defineFunctionTool,
   defineCommandTool,
   defineToolOperation,
@@ -185,6 +186,7 @@ export async function fixture(
     ...(enableForwarding
       ? {
           forwarding: {
+            results: { access: access.guard, policy: defaultResultPolicy, pageBytes: 4096 },
             authority: () => root.get('toolStartAuthority'),
             isParent: (request: import('@omne-harness/tool-contract').FixedToolRequest) =>
               request.availability.definition.adoption.name === 'Tools',

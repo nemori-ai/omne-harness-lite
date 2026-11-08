@@ -156,6 +156,11 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   return {
     authorExecution: publicAuthorExecution,
     forwarding: () => forwarding,
+    async forwardedResult(request: Parameters<typeof input.sources.forwardedResult>[0]) {
+      if (retired) return runtimeUnavailable('forwarded-result')
+      const answer = await input.sources.forwardedResult(request)
+      return retired ? runtimeUnavailable('forwarded-result') : answer
+    },
     async recoverBodies(wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0]) {
       if (retired || records === null) return runtimeUnavailable('tool-body-recovery')
       const access = await input.resolveAccess(wake)

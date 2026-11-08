@@ -1,3 +1,7 @@
+import { createForwardedResultReader } from './forwarding-results.ts'
+import type { ToolAccessGuard } from '@omne-harness/tool'
+import type { ResultPolicy } from '@omne-harness/tool-contract/provider'
+import type { ToolInvocationQueries } from '@omne-harness/tool-contract'
 // The paired invocation source of the guard table (row 2) and the operation identity mint. The
 // issuer binds a tenant and a consumer to the identities of its original call, once, and recalls
 // them afterwards. The guard checks that a fixed request is the one that was bound. The binding is
@@ -92,6 +96,11 @@ export type LocalInvocationSourceInput<P> = Readonly<{
   forwarding?: Readonly<{
     authority(): ToolStartAuthority<P> | undefined
     isParent(request: FixedToolRequest): boolean
+    results?: Readonly<{
+      access: ToolAccessGuard<P>
+      policy: ResultPolicy<ContentBlock>
+      pageBytes: number
+    }>
   }>
 }>
 
@@ -102,6 +111,7 @@ export type LocalInvocationSource<P, B extends ContentBlock = ContentBlock> = Re
   guard: ToolSourceGuard<P>
   forwarding: ToolForwardSource<P>
   receiver: ToolResultReceiver<P, B>
+  forwardedResult: ToolInvocationQueries<P, ContentBlock>['readResult']
   /** Reads only the persisted subject projection; the caller must reissue and run guard.verify. */
   recoverBinding(
     input: Omit<CallAccess<P>, 'principal'> &
@@ -525,7 +535,14 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
       return unavailable()
     }
   }
-  return Object.freeze({ issuer, guard, forwarding: forwards.source, receiver, recoverBinding })
+  return Object.freeze({
+    issuer,
+    guard,
+    forwarding: forwards.source,
+    receiver,
+    forwardedResult: createForwardedResultReader(input, forwards),
+    recoverBinding,
+  })
 }
 
 /**

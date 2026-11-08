@@ -305,6 +305,11 @@ runtime 退出先停止新调用和 writer 新受理，再等待未登记操作�
 
 source.receiver 在同一关联内保存完整交付和 saved 证据。接收先核当前资格、原目标引用、完整 consumer 与交付关系。只有 durable store 确认提交后才 saved。提交未知回复 outcome-unknown，生产者保留 owed。读回比较实际 payload 摘要和原键，并核 receiver evidence，不能只相信 stored digest。result、late version 与 account 的键分开。
 
+配置 `forwarding.results` 后，`source.forwardedResult` 按原引用和固定结果版本读取消费方保管的副本。该配置提供 read-result 访问守卫、结果策略和正安全整数页预算。未配置时回复 unavailable。读口核原 call/admission、consumer、转发关联、原主体与当前资格，再核完整交付摘要和 saved 证据。它不能把账户记录或另一版本当成本次结果。损坏或无法确认的副本拒绝读取，不回退成成功。材料读取及关联核验后重新检查当前 read-result 资格。
+
+消费方分页复用 Tool 的完整内容块与固定游标规则。原生附件和卸载正文仍沿各自读口，保管副本不延长正文期限。Tool 普通查询在生产侧交付已释放时仍拒绝读取。应用仅在该明确状态下，把 Tools 的读取转到消费方读口；授权拒绝、存储不可用等失败不得触发回退。runtime bundle 退休后拒绝新读，也不交出退休期间返回的迟到结果。此读口不新增存储副本或回收任务。
+
+
 `createLocalToolForwarding` 惰性取得 runtime、forwarding、catalog、consumer profile、目标 prepare 与 reader。source/admission 尝试受正安全整数 attemptMs 约束。目标观察预算为零，只查一次状态，未 settled 即 pending。预算或父 abort 只结束等待，provider 继续承担已经发起的 promise。scope.finish 关闭新调用和等待，不发送 stop。provider.close 禁新工作、关闭 attachment 的等待并等待在途操作收口，返回 pending 与仍未知的原父数量。close 不能证明未知准入已撤销。
 
 execute 在入口核 live 与原固定 intent 并启动 provider work 后，provider 就承担该次 prepare、来源关联和准入。父 finish、abort 或观察超时不取消这项工作。继续时使用父固定请求解出的原意图，不因调用方随后修改参数而改目标。close 先禁新方法并结束观察，再等待已接受 work 收口。

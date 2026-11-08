@@ -1,3 +1,4 @@
+import { defaultResultPolicy } from '@omne-harness/tool-contract/provider'
 import { TOOL_READ_ARGUMENTS } from '../../entry/tool-read-budget.ts'
 import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
 // 建 Tool 运行时组的唯一 bundle（B 段，R2-D66 第 3 项，L-TOOL 事实清单 §3）：`createLocalToolRuntimePlugins` 的
@@ -88,6 +89,11 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     forwarding: {
       authority: () => root.get(toolStartAuthorityKey, false),
       isParent: request => isReleaseToolsRequest(releaseOf(root), request),
+      results: {
+        access: identity.access.guard,
+        policy: defaultResultPolicy,
+        pageBytes: config.configuration.resultPageBytes,
+      },
     },
   })
   const environment = createReleaseEnvironment(holder, identity, {

@@ -31,3 +31,6 @@
 ## 材料维护
 
 根入口导出 createLocalToolMaterialMaintenance、LocalToolMaterialMaintenanceInput 和 LocalToolMaterialMaintenance，精确形状归 [material-maintenance.ts](../src/material-maintenance.ts)。输入包含 Tool 窄维护依赖、候选源和独立扫描资格。工厂返回 expire/reclaim/scan/close，关闭及恢复承诺见 [SPEC](../SPEC.md#材料维护的关闭边界)。它不依赖 Cordis，也不启动后台任务。应用必须先 await close，再撤除它使用的提供者。
+
+
+`createLocalInvocationSource` 的 `forwardedResult` 读取该消费方已经保存的完整交付。启用条件和检查规则见 [单目标转发来源与保管](../SPEC.md#单目标转发来源与保管)。`createLocalToolRuntimePlugins` 暴露同名读口并守住 bundle 退休边界。该口供受信 Tools 适配器使用，不改变普通 Tool 查询的释放语义。

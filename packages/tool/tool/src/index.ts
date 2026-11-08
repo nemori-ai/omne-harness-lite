@@ -113,3 +113,5 @@ export {
 export type * from './history-contract.ts'
 export { decodeHistoricalTextInterpretation } from './history-interpretation.ts'
 export type { HistoricalCallRecord, HistoricalFixedToolRequest } from './history-request.ts'
+
+export { pageToolResult } from './result-page.ts'

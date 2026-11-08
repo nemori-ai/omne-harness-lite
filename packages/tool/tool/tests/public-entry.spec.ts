@@ -36,6 +36,7 @@ it('root entry exports the independent execution functions, the ledger, the runt
     'hasCurrentToolLedgerRecordFormat',
     'isTenantShape',
     'observeToolLedgerCommit',
+    'pageToolResult',
     'recordKey',
     'toolLedgerAdoption',
     'toolRuntimeAdoption',

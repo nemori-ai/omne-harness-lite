@@ -40,7 +40,16 @@ export function createReleaseToolsCapability(ctx: Context, config: ToolsCapabili
       async readResult(input) {
         const current = runtime()
         if (current === undefined) return unavailable()
-        const answer = await current.queries.readResult(input)
+        let answer = await current.queries.readResult(input)
+        if (
+          'failure' in answer &&
+          answer.failure.kind === 'not-found' &&
+          answer.failure.target === 'result' &&
+          answer.failure.reason === 'released'
+        ) {
+          answer = await (toolRuntimeHolder(ctx).bundle?.value.forwardedResult(input) ??
+            Promise.resolve(unavailable()))
+        }
         if ('failure' in answer) return answer
         // The Cordis key erases the provider's content generic. Check its real page before narrowing.
         const checked = judgeCommittedToolResult(defaultResultPolicy, answer.ok.value)
