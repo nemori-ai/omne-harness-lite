@@ -305,11 +305,13 @@ const isName = (value: unknown) => typeof value === 'string' && value.length > 0
 const isRef = (value: unknown) =>
   isRecord(value) && isName(value['id']) && isName(value['generation'])
 const isOffset = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0
+/** An absent offset is no offset, as for an optional field: `{ stdout: undefined }` reads from the first saved byte. */
 const isFrom = (value: unknown) =>
   value === undefined ||
   (isRecord(value) &&
     Object.entries(value).every(
-      ([stream, offset]) => streamNames.includes(stream) && isOffset(offset),
+      ([stream, offset]) =>
+        streamNames.includes(stream) && (offset === undefined || isOffset(offset)),
     ))
 
 function retentionExtension<P>(

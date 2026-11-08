@@ -306,7 +306,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 请求带保留进程引用与可选的 `from`。`from` 按输出流给出源字节偏移（`stdout`、`stderr` 或 `terminal`）。
 
-载荷形状不成立时，结果是 `rejected`，原因 `invalidInput`。形状指：引用与[停止](#停止)相同；`from` 有时是对象，键只取 `stdout`、`stderr`、`terminal`，值是非负安全整数。提供者在查索引之前核对形状，所以小数、负数或别的键不按最近的偏移读取。
+载荷形状不成立时，结果是 `rejected`，原因 `invalidInput`。形状指：引用与[停止](#停止)相同；`from` 有时是对象，键只取 `stdout`、`stderr`、`terminal`，值是非负安全整数；值缺省（`undefined`）的键与没有给出这条流的偏移相同。提供者在查索引之前核对形状，所以小数、负数或别的键不按最近的偏移读取。
 
 资格与[停止](#停止)第 1 至 4 项相同，守卫核对的操作是 `output`。资格成立时，结果是下列之一：
 
@@ -315,7 +315,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
   - `start` 与 `end`：`data` 的第一个字节与最后一个字节之后的源字节偏移。`end` 等于这条流到现在观察到的字节数。`start + data 的长度 = end`。
   - `discardedBytes`：`savedFrom` 之后观察到、但不再保存的字节数。保存的第一个字节在 `savedFrom + discardedBytes`。
   - `data`：`start` 到 `end` 之间的原始字节，含 CRLF、ANSI 与回车，不按行或字符切。
-  - `text`：`data` 按 UTF-8 解码的文本，带编码名、文本对应的起始偏移与是否替换过无效序列。起点切在多字节字符中间时，文本跳过那几个续字节，起始偏移如实后移。字节数从不以字符数代替。`text` 只是这次 `data` 的解码；跨次读取要拼接的是 `data`，不是 `text`。
+  - `text`：`data` 按 UTF-8 解码的文本，带编码名、文本对应的起始偏移与是否替换过无效序列。是否替换按严格解码判断：字节不是合法的 UTF-8 时为真，源字节里本来就有的 U+FFFD 不算替换。起点切在多字节字符中间时，文本跳过那几个续字节，起始偏移如实后移。字节数从不以字符数代替。`text` 只是这次 `data` 的解码；跨次读取要拼接的是 `data`，不是 `text`。
   - 没有 `from`，或 `from` 早于保存的第一个字节时，从保存的第一个字节给：`start = savedFrom + discardedBytes`，调用方由此看出缺口。`from` 落在保存的字节之间时，`start = from`。`from` 不早于 `end` 时，`start = end`，`data` 为空。
 - `none`：移交之后各流都还没有观察到字节。
 - `unsupported`：提供者不为这个保留进程保存输出。
