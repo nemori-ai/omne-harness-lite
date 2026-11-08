@@ -433,3 +433,15 @@ sequenceDiagram
 - `StubService` 使用动态服务键，只在 S0 替身内部使用，不对外导出。
 - IC-2：`s0-double` 占位对象以 `provide` 普通值提供，没有服务定义。只给 S0 替身行，真实消费者不得到占位（DP1-C11）。
 - IC-8：S0 的 `rowPlugin`（`src/run.ts` 的 `stubRowPlugin`）与 `serve` 的包装插件（`src/row.ts` 的 `defineRow`）的 `inject` 由清单计算，不是字面数组。补偿：`defineRow` 要求声明的 `injects` 包含被包装插件的字面 `inject`，不符即抛出。声明再由 `real-manifests-sync` 与 `stubs.ts` 比较。
+
+### Tool 材料维护授权
+
+发行授予表为 tool-material-maintainer 提供 tool-material-scan 和 tool-material-maintain 两项目的。issueToolMaterialMaintainer 只经入口的受信 PrincipalIssuer 签发主体。应用访问适配器每次读取当前 SystemActionAuthorization，核验实际主体来源、真实租户身份、动作和原调用绑定。普通会话 Tool guard 仍不支持 maintain-materials。
+
+系统维护不读取当前成员资格来决定历史材料是否可清理。成员离组不删除租户及历史责任；持久分区仍由既有 TenantDomainLookup 和 SQL 提供者解析。伪造租户、复制主体、越权动作或撤销授予均不能获得维护权。缺当前授权来源或读口抛错明确不可用，不泄露异常文本。
+
+生产入口安装 tenantDomainScannerPrincipal 和 toolMaterialMaintainerPrincipal，仅独立的 tool-material-maintenance 行可见。该行经公开 SQL 构造器连接同一材料仓，使用现有时钟、sweep 和串行 runner。目录枚举与材料维护分别出示对应主体，每次材料操作读取当前授权。普通工具执行不依赖该维护行。
+
+运维者提供 combinationVersion、maxCommandBytes、maxChunkBytes、ledgerCommitAttempts、intervalMs 和 pageSize。正常关闭在 business 阶段停止调度并排空，先于 composition/storage。截止时间到时返回 incomplete，不声称已取消外部操作。异常依赖撤除或装载失败同步触发同一关闭入口；Cordis 并发撤除不保证存储提供者等待维护排空，已受理操作和未知责任仍按原存储契约恢复。
+
+runner 的异常和维护失败有固定分类诊断，不输出正文、身份或原异常文本。目录接口当前仍提供完整快照，内存成本随租户数增长。候选读取和每步回收有独立上界。

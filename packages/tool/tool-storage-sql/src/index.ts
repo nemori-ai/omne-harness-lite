@@ -8,6 +8,7 @@ export {
   type SqlToolStorageOptions,
 } from './options.ts'
 export { createSqlToolLedgerStore, type SqlToolLedgerStore } from './ledger-store.ts'
+export { createSqlToolMaterialMaintenanceSource } from './maintenance-source.ts'
 export {
   createSqlToolGuardedHostCommit,
   type SqlToolGuardedHostCommit,

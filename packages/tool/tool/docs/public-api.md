@@ -80,3 +80,9 @@ The cases have stable `name` and `clause` fields. Direct consumption and the evi
 
 
 `bodyCustody` 实现 tool-contract provider 入口的 `ToolBodyCustody`。它消费同一材料仓并固定原调用的文本封存，返回 `SealedToolBody`。`offloading` 的系统配置及封存、结算与期限边界见 [正文封存与期限激活](../SPEC.md#正文封存与期限激活)。这不是作者执行上下文的完整 writer。
+
+## 受信材料维护候选
+
+`ToolMaterialMaintenanceSource` 和 `MaterialMaintenancePage` 由根入口导出，类型归 [material-maintenance-source.ts](../src/material-maintenance-source.ts)，行为归 [受信维护候选源](../SPEC.md#受信维护候选源)。候选源与 ToolLedgerStore 分离，不在普通 ToolRuntime 发布。
+
+`createToolMaterialMaintenance` 和 `ToolMaterialMaintenanceInput` 由根入口导出，形状归 [material-maintenance.ts](../src/material-maintenance.ts)。它只提供到期与回收，不取得正文读取或业务执行端口。非法提交重试上限在构造时抛 TypeError。维护资格仍由每次调用携带的主体与原调用绑定决定。

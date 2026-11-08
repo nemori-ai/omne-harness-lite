@@ -34,11 +34,25 @@ function row(
 }
 
 /**
- * The ten rows. Another system action needs a new row, with its existing duty and bound obligation.
+ * Another system action needs a new row, with its existing duty and bound obligation.
  * The three agent instance rows bind the agent host maintenance principal to its duty to publish an
  * acquired instance and to quiesce and withdraw it on retirement (XC-AGINST r2 §3.3 step 4, §3.4).
  */
 export const SYSTEM_ACTION_MATRIX: readonly SystemActionRow[] = Object.freeze([
+  row(
+    'tool-material-scan',
+    { owner: 'tool', name: 'scan-materials' },
+    'tenant',
+    { owner: 'tool', kind: 'tenant' },
+    'none',
+  ),
+  row(
+    'tool-material-maintain',
+    { owner: 'tool', name: 'maintain-materials' },
+    'tenant',
+    { owner: 'tool', kind: 'call' },
+    'none',
+  ),
   row(
     'resident-references',
     { owner: 'session', name: 'references' },

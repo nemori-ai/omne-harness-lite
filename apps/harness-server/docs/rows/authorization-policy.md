@@ -77,10 +77,11 @@
 
 | 持有者组件名                   | 记录                                                     | 用途                                                                          |
 | ------------------------------ | -------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `toolResidencyPrincipal`       | `maintenance-grant/toolResidencyPrincipal`，修订 3       | `resident-references`                                                         |
-| `sessionPrincipals.maintainer` | `maintenance-grant/sessionPrincipals.maintainer`，修订 3 | `pending-sessions`                                                            |
-| `agent-host`                   | `maintenance-grant/agent-host`，修订 3                   | `agent-instance-publish`、`agent-instance-quiesce`、`agent-instance-withdraw` |
-| `tenant-domain-scanner`        | `maintenance-grant/tenant-domain-scanner`，修订 3        | `enumerate-tenants`                                                           |
+| `toolResidencyPrincipal`       | `maintenance-grant/toolResidencyPrincipal`，修订 4       | `resident-references`                                                         |
+| `sessionPrincipals.maintainer` | `maintenance-grant/sessionPrincipals.maintainer`，修订 4 | `pending-sessions`                                                            |
+| `agent-host`                   | `maintenance-grant/agent-host`，修订 4                   | `agent-instance-publish`、`agent-instance-quiesce`、`agent-instance-withdraw` |
+| `tenant-domain-scanner`        | `maintenance-grant/tenant-domain-scanner`，修订 4        | `enumerate-tenants`                                                           |
+| `tool-material-maintainer`     | `maintenance-grant/tool-material-maintainer`，修订 4     | `tool-material-scan`、`tool-material-maintain` |
 
 <!-- /policy:grants -->
 
@@ -124,6 +125,7 @@
 | `sessionPrincipals.maintainer` | Session `pending`                                  |
 | `agent-host`                   | Agent `publish`、Agent `withdraw`、Agent `quiesce` |
 | `tenant-domain-scanner`        | 无 Session 或 Agent 格；只经部署枚举端口使用       |
+| `tool-material-maintainer`     | 无 Session 或 Agent 格；只经 Tool 材料扫描与维护入口使用 |
 | 其他系统主体                   | 无                                                 |
 
 <!-- /policy:projection -->
@@ -565,6 +567,7 @@
 - `adapters.spec.ts`：两个访问检查对真实的 `SessionAccessCheck` 与 `AgentAccessCheck` 契约运行，依赖是核验器和 `tenantStanding` 的测试替身，授权判定用的是 `@omne-harness/authorization` 的参考件。含依赖抛错时的 `unavailable`、原型链键、固定绑定、前置裁定、矩阵请求的形状、本页与源码的逐格核对，以及 `serveOnce` 下的活树用例。
 - `policy-golden.spec.ts`、`policy.spec.ts`、`policy.spec-d.ts`：表本身的逐格黄金表、审计和行完整性。
 - `grants.spec.ts`：授予表和读口。
+- `tool-material-access.spec.ts`：受信材料维护身份、两项精确用途、伪造身份和租户、撤权与依赖撤除。历史材料清理不依赖当前成员资格，生产维护行装配仍需独立验证。
 - `grant-tightening.spec.ts`：运维者收紧。模式的接受与拒绝，真实行上的收回、到期、表外标识、改用途和无时钟，每项都有对照用例。
 - `../session-storage/system-action-enumeration.spec.ts`：真实 `authorization` 行与真实 `session-storage` 行一起装载，收回与到期对租户枚举生效、本行不可用时枚举答 `unavailable`、根上同名冒充服务读不到，每项都有负控。
 - `tool-access.spec-d.ts`：同一个 qualify 对象满足两个 Tool 端口。`adapters.spec.ts` 还运行 Tool 五项符合性套件，包含失败依赖，以及动作规则、严格配置和撤除旧引用用例。

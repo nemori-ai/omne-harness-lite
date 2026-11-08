@@ -817,6 +817,7 @@ describe('12 logical terminals (P02)', () => {
     ).toEqual([
       'account',
       'call',
+      'material-maintenance-hint',
       'material-use',
       'material-use',
       'material-use',
@@ -1097,6 +1098,7 @@ describe('14 exclusion fence (P01)', () => {
     expect(await ledger.reads.operation(query)).toEqual({ ok: { kind: 'not-committed' } })
     expect(await recordsOf(memory)).toEqual([
       { kind: 'exclusion', exclusion: { operation: 'op-1', revision: '1' } },
+      { kind: 'material-maintenance-hint', hint: { kind: 'none' } },
     ])
     // Read after the first fence, overtaken by the second: excluded by the newer fence.
     expect(
@@ -1137,6 +1139,7 @@ describe('14 exclusion fence (P01)', () => {
     ).toEqual({ ok: { kind: 'not-committed' } })
     expect(await recordsOf(store)).toEqual([
       { kind: 'exclusion', exclusion: { operation: 'op-1', revision: '1' } },
+      { kind: 'material-maintenance-hint', hint: { kind: 'none' } },
     ])
     const admitted = accepted(await assembly.admitInternal(dummyRequest()))
     const committed = store.commits

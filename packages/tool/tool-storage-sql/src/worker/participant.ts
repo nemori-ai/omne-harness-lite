@@ -22,6 +22,7 @@ import {
   type StopBasis,
 } from './facts.ts'
 import { commitMaterial } from './participant-material.ts'
+import { projectMaterialMaintenance } from './maintenance-projection.ts'
 import { PARTICIPANT, PROTOCOL } from './schema.ts'
 import { oneRow, text } from './support.ts'
 
@@ -60,6 +61,7 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
      ON CONFLICT (tenant, kind, name) DO UPDATE SET revision = excluded.revision`,
     [...domain, facts.revision],
   )
+  projectMaterialMaintenance(facts, port)
   return participated({ kind: 'committed' })
 }
 

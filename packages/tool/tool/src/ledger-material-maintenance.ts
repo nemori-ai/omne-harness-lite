@@ -1,13 +1,9 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Reply, ToolFailure, ToolOperationId } from '@omne-harness/tool-contract'
-import type { ToolMaterialClock } from '@omne-harness/tool-contract/provider'
+import type { ToolMaterialClock, ToolMaterialStore } from '@omne-harness/tool-contract/provider'
 import type { CallInput } from './boundary.ts'
 import { invalid } from './boundary.ts'
-import type {
-  MaterialMaintenanceProgress,
-  ToolLedgerMaintenance,
-  ToolLedgerPorts,
-} from './construction.ts'
+import type { MaterialMaintenanceProgress, ToolLedgerMaintenance } from './construction.ts'
 import { mintEvidence } from './evidence.ts'
 import type { Decision, Mint, Snapshot } from './ledger-decider.ts'
 import { sampleMaterialTime } from './ledger-material-custody.ts'
@@ -23,7 +19,12 @@ type MaintenanceTransaction = <T>(
 ) => Reply<T>
 
 export type MaterialMaintenancePorts<P> = Readonly<{
-  materials: ToolLedgerPorts<P>['materials']
+  materials:
+    | Readonly<{
+        clock: ToolMaterialClock
+        store: Pick<ToolMaterialStore<P>, 'inspectErase' | 'erase'>
+      }>
+    | undefined
   entry(input: unknown): Reply<CallInput<P>>
   authorize(input: CallInput<P>): Reply<void>
   transact: MaintenanceTransaction
@@ -44,7 +45,10 @@ async function expireMaterials<P>(
   const uses = [...snapshot.materialUses.values()].filter(
     use => use.kind === 'offloaded-body' || use.kind === 'page-lease',
   )
-  if (uses.length === 0) return { kind: 'reply', outcome: succeed(progress) }
+  if (uses.length === 0)
+    return snapshot.materialMaintenanceHint === null
+      ? { kind: 'commit', value: progress, writes: [] }
+      : { kind: 'reply', outcome: succeed(progress) }
   const sampled = await sampleMaterialTime(clock, snapshot.materialTime)
   if ('failure' in sampled) return { kind: 'reply', outcome: sampled }
   const writes: LedgerWrite[] = []
@@ -70,7 +74,11 @@ async function expireMaterials<P>(
     else progress.expiredLeases += 1
   }
   progress.cleanupPending = cleanup.size > 0
-  if (writes.length === 0 && snapshot.materialTime?.highWatermark === sampled.ok)
+  if (
+    writes.length === 0 &&
+    snapshot.materialTime?.highWatermark === sampled.ok &&
+    snapshot.materialMaintenanceHint !== null
+  )
     return { kind: 'reply', outcome: succeed(progress) }
   writes.push({
     kind: 'put',

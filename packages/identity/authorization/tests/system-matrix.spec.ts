@@ -3,7 +3,7 @@ import { SYSTEM_ACTION_MATRIX, effectiveArgumentsOf } from '@omne-harness/author
 import { ROWS, grantOf, installed, requestFor, row } from './system-support.ts'
 
 describe('the system purpose matrix', () => {
-  it('has exactly the ten rows of the specification', () => {
+  it('has exactly the rows of the specification', () => {
     const table = SYSTEM_ACTION_MATRIX.map(entry => ({
       purpose: entry.purpose,
       owner: entry.operation.owner,
@@ -28,6 +28,8 @@ describe('the system purpose matrix', () => {
 
   it('binds the arguments of each row as the specification table says', () => {
     expect(SYSTEM_ACTION_MATRIX.map(entry => [entry.purpose, entry.arguments])).toEqual([
+      ['tool-material-scan', 'none'],
+      ['tool-material-maintain', 'none'],
       ['resident-references', 'none'],
       ['released-scopes', 'none'],
       ['enumerate-tenants', 'none'],
@@ -64,7 +66,7 @@ describe('the system purpose matrix', () => {
   )
 
   it.each(ROWS.map(value => [value.name, value] as const))(
-    'does not let the grants of the other nine rows allow %s',
+    'does not let the grants of the other rows allow %s',
     async (_name, value) => {
       const { scanner, grants, authorization } = installed()
       const others = ROWS.filter(other => other.name !== value.name).map(other => other.purpose)
@@ -101,7 +103,7 @@ describe('the system purpose matrix', () => {
     expect(decision).toMatchObject({ kind: 'denied', reason: 'grant-missing' })
   })
 
-  it('derives no wildcard: an operation outside the ten rows is forbidden whatever is granted', async () => {
+  it('derives no wildcard: an operation outside the matrix is forbidden whatever is granted', async () => {
     const { scanner, grants, authorization } = installed()
     grants.script({ kind: 'found', grant: grantOf([...ROWS.map(value => value.purpose), '*']) })
     const decision = await authorization.check(

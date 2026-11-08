@@ -41,6 +41,11 @@ export type {
 export { createLocalToolClock, type LocalToolClockInput } from './clock.ts'
 export { createLocalToolMaterialClock, type LocalToolMaterialClockInput } from './material-clock.ts'
 export {
+  createLocalToolMaterialMaintenance,
+  type LocalToolMaterialMaintenance,
+  type LocalToolMaterialMaintenanceInput,
+} from './material-maintenance.ts'
+export {
   createLocalToolBindingRegistry,
   type LocalToolAuthorityFailure,
   type LocalToolBindingRegistry,

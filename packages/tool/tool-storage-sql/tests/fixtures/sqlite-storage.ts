@@ -32,6 +32,8 @@ import type {
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
 import materialMigration from '../../src/worker/migration-material.ts'
+import maintenanceMigration from '../../src/worker/migration-maintenance.ts'
+import readMaintenance from '../../src/worker/read-maintenance.ts'
 import migration from '../../src/worker/migration.ts'
 import participant from '../../src/worker/participant.ts'
 import readMaterial from '../../src/worker/read-material.ts'
@@ -39,7 +41,13 @@ import readChunk from '../../src/worker/read-chunk.ts'
 import readLedger from '../../src/worker/read-ledger.ts'
 import readManifest from '../../src/worker/read-manifest.ts'
 
-const HANDLERS: readonly ReadHandlerModule[] = [readLedger, readManifest, readChunk, readMaterial]
+const HANDLERS: readonly ReadHandlerModule[] = [
+  readLedger,
+  readManifest,
+  readChunk,
+  readMaterial,
+  readMaintenance,
+]
 
 export type SqliteStorageOptions = Readonly<{
   /** The directory that holds one database file per transaction domain. */
@@ -164,7 +172,7 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
         }
         rowsOf(db, 'INSERT INTO _sql_binding (scope) VALUES (?)', [scopeText(scope)])
       }
-      for (const step of [migration, materialMigration]) {
+      for (const step of [migration, materialMigration, maintenanceMigration]) {
         const done = rowsOf(db, 'SELECT 1 AS done FROM _sql_migration WHERE owner = ? AND id = ?', [
           step.owner,
           step.id,

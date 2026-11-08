@@ -31,6 +31,7 @@ export { runtimeContextRow } from './rows/runtime-context/index.ts'
 export { toolBindingsRow } from './rows/tool-bindings/index.ts'
 export { toolHostRow } from './rows/tool-host/index.ts'
 export { toolResidencyRow } from './rows/tool-residency/index.ts'
+export { toolMaterialMaintenanceRow } from './rows/tool-material-maintenance/index.ts'
 export {
   toolEnvironmentsRow,
   toolExecutorRow,

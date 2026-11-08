@@ -9,6 +9,7 @@ import {
   type Reply,
   type ToolDelivery,
   type ToolOperationId,
+  type ToolOffloadedBody,
 } from '@omne-harness/tool-contract'
 import {
   decodeToolRevision,
@@ -18,8 +19,12 @@ import {
 } from '@omne-harness/tool-contract/provider'
 
 export type ResultPayload<B extends ContentBlock> = Extract<ToolDelivery<B>, { kind: 'result' }>
+export type ResultValueCommitment = Readonly<{
+  fingerprint: ToolMaterialFingerprint
+  original: Readonly<{ kind: 'none' }> | (Readonly<{ kind: 'offloaded' }> & ToolOffloadedBody)
+}>
 type DeliveryDescriptor = Omit<ResultPayload<ContentBlock>, 'value'> &
-  Readonly<{ value: ToolMaterialFingerprint }>
+  Readonly<{ value: ResultValueCommitment }>
 export type DeliveryBase = Omit<DeliveryDescriptor, 'account'>
 type Phase =
   | Readonly<{ kind: 'frozen' }>

@@ -400,6 +400,11 @@
       "config": {}
     },
     {
+      "id": "tool-material-maintenance",
+      "plugin": "toolMaterialMaintenanceRow",
+      "config": {}
+    },
+    {
       "id": "tool-bindings",
       "plugin": "toolBindingsRow",
       "config": {}

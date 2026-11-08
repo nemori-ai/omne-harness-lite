@@ -5,6 +5,31 @@ import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provid
 import { evidence } from '../coordinator-values.ts'
 import { accepted, fixture, unbox } from './fixture.ts'
 
+it(
+  'delivers an offloaded result with its committed body identity and retention',
+  { timeout: 15_000 },
+  async () => {
+    const world = await fixture(async () => 'offloaded-output '.repeat(5000))
+    try {
+      const reference = accepted(await world.api.invoke(world.invocation('offloaded-delivery')))
+      await world.settled(reference)
+      await expect.poll(() => world.deliveries.length, { timeout: 1000 }).toBe(1)
+      expect(world.deliveries[0]).toMatchObject({
+        kind: 'result',
+        value: {
+          original: {
+            kind: 'offloaded',
+            bodyId: expect.any(String),
+            retention: { activatedAt: expect.any(String), expiresAt: expect.any(String) },
+          },
+        },
+      })
+    } finally {
+      await world.close()
+    }
+  },
+)
+
 it('retains a sealed final pointer in author recovery instead of another complete result', async () => {
   const world = await fixture()
   try {
@@ -20,6 +45,12 @@ it('retains a sealed final pointer in author recovery instead of another complet
       value: { codec: 'tool-canonical-json-v1', algorithm: 'sha256' },
       envelope: { material: { generation: '1' } },
     })
+    await expect
+      .poll(async () => {
+        const found = unbox(await world.api.queries.lookup(world.query(reference)))
+        return found.kind === 'found' ? found.state.delivery?.kind : found.kind
+      })
+      .toBe('released')
     expect(world.launches()).toBe(1)
   } finally {
     await world.close()

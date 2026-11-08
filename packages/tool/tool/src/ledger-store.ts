@@ -12,6 +12,7 @@ import type {
   MaterialCleanupRecord,
   MaterialTimeRecord,
   MaterialUseRecord,
+  MaterialMaintenanceHint,
 } from './ledger-material-records.ts'
 import type {
   Access,
@@ -302,6 +303,7 @@ export type QueueReleaseRecord = Readonly<{ call: ToolCallId; basis: ReleaseBasi
 export type HostRecord = Readonly<{ key: string; value: unknown }>
 
 export type LedgerRecord =
+  | Readonly<{ kind: 'material-maintenance-hint'; hint: MaterialMaintenanceHint }>
   | Readonly<{ kind: 'material-maintenance'; after: ToolOperationId }>
   | Readonly<{ kind: 'body-expiration'; expiration: BodyExpirationRecord }>
   | Readonly<{ kind: 'body-preparation'; body: BodyPreparationRecord }>
@@ -331,6 +333,8 @@ export type LedgerRecord =
 export function recordKey(record: LedgerRecord): string {
   if (isQueueRecord(record)) return queueRecordKey(record)
   switch (record.kind) {
+    case 'material-maintenance-hint':
+      return 'material-maintenance-hint'
     case 'material-maintenance':
       return 'material-maintenance'
     case 'body-expiration':

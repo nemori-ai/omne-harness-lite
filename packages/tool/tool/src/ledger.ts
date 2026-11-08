@@ -1,6 +1,8 @@
 import { authorBody } from './ledger-author-body.ts'
 import { createLedgerBodyCustody } from './ledger-body-custody.ts'
 import { createLedgerMaterialMaintenance } from './ledger-material-maintenance.ts'
+import { createLedgerTransactions, type Decide } from './ledger-transactions.ts'
+import { createLedgerAccess } from './ledger-access.ts'
 import type { ToolBodyCustody } from '@omne-harness/tool-contract/provider'
 import { pinResultPolicy } from './ledger-result-policy.ts'
 import { activateResultDecision } from './ledger-result-activation.ts'
@@ -105,11 +107,9 @@ import { digestOf, nextRevision } from './evidence.ts'
 import {
   decideAdmit,
   decideRelease,
-  snapshotOf,
   stateRevision,
   terminalText,
   type Decision,
-  type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
 import { fixCleanupFields, fixReleaseOutcome } from './cleanup-boundary.ts'
@@ -120,7 +120,7 @@ import {
   decideRecordFactsTask,
 } from './ledger-environment-release.ts'
 import { checkSettlement, decidePreserveResult } from './ledger-settlement.ts'
-import { excluded, excludedSince, withExclusionsRemoved } from './ledger-exclusion.ts'
+import { excluded, excludedSince } from './ledger-exclusion.ts'
 import type { ToolLedgerAction, ToolLedgerGuards } from './ledger-guards.ts'
 import { createLedgerContent, fixResultInput } from './ledger-content.ts'
 import { createLedgerBodyReads } from './ledger-body-reads.ts'
@@ -158,7 +158,6 @@ import {
 import {
   type CallRecord,
   type LedgerDomain,
-  type LedgerWrite,
   type QueueEntryRecord,
   type ToolLedgerStore,
 } from './ledger-store.ts'
@@ -208,7 +207,6 @@ function unavailable(dependency: string, diagnostic: string): Outcome<never, Too
   return fail({ kind: 'unavailable', dependency, diagnostic })
 }
 
-type Decide<T> = (snapshot: Snapshot, mint: Mint) => Decision<T> | Promise<Decision<T>>
 type DecideQueue<T> = (snapshot: QueueSnapshot) => Decision<T>
 
 /**
@@ -253,105 +251,15 @@ export function createToolLedger<P, B extends ContentBlock>(
     throw new TypeError('settlement.content.read: missing (use null to disable byte reads)')
   const { resultPageBytes, ledgerCommitAttempts: attempts, queueCapacity } = configuration
 
-  const access = async (
-    input: CallInput<P>,
-    action: ToolLedgerAction,
-  ): Promise<Outcome<void, ToolFailure>> => {
-    let verdict: Awaited<ReturnType<typeof guards.access.qualify>>
-    try {
-      verdict = await guards.access.qualify({ ...input, action })
-    } catch {
-      return unavailable('access-guard', thrown('access-guard'))
-    }
-    if (verdict.kind === 'allowed') return succeed(undefined)
-    if (verdict.kind === 'denied') return denied(action)
-    return unavailable('access-guard', verdict.diagnostic)
-  }
+  const { access, entry } = createLedgerAccess(guards.access)
 
-  const readDomain = async (
-    domain: LedgerDomain,
-  ): Promise<
-    Outcome<Extract<Awaited<ReturnType<typeof store.read>>, { kind: 'complete' }>, ToolFailure>
-  > => {
-    let result: Awaited<ReturnType<typeof store.read>>
-    try {
-      result = await store.read(domain)
-    } catch {
-      return unavailable('ledger-store', thrown('ledger-store'))
-    }
-    if (result.kind === 'unavailable') return unavailable('ledger-store', result.diagnostic)
-    return succeed(result)
-  }
-
-  const read = async (domain: LedgerDomain): Promise<Outcome<Snapshot, ToolFailure>> => {
-    const result = await readDomain(domain)
-    return 'failure' in result ? result : succeed(snapshotOf(domain, result.ok))
-  }
+  const { readDomain, read, commit, transact } = createLedgerTransactions(store, attempts)
 
   const readQueue = async (
     domain: Extract<LedgerDomain, { kind: 'queue' }>,
   ): Promise<Outcome<QueueSnapshot, ToolFailure>> => {
     const result = await readDomain(domain)
     return 'failure' in result ? result : succeed(queueSnapshotOf(domain, result.ok))
-  }
-
-  const commit = async (
-    domain: LedgerDomain,
-    expected: Snapshot['revision'],
-    revision: Snapshot['revision'],
-    writes: readonly LedgerWrite[],
-  ): Promise<Awaited<ReturnType<typeof store.commit>>> => {
-    try {
-      return await store.commit({ domain, expected, revision, writes })
-    } catch {
-      // The store may have applied the writes before it threw, so the outcome is unknown.
-      return { kind: 'unknown', diagnostic: thrown('ledger-store') }
-    }
-  }
-
-  /**
-   * Reads, decides and commits by domain revision. A conflict re-reads and re-decides, at most
-   * `attempts` times; an unknown commit answers `unknown` and is not retried. A command keyed by
-   * `operation` stops with `excluded` when a re-read shows a negative answer about the operation
-   * given after its first read (P01: the negative excluded this very commit). Its write set
-   * checks and removes the fences of every operation receipt. A read passes `null`: another
-   * reader's fence does not exclude it, and it re-fences instead. A command that pre-reads the
-   * domain before its first transaction (to gate a queue step or a port call) passes that revision
-   * as `since`: the pre-read is its first read, so a negative answer given after it stops the
-   * command whatever the steps between the pre-read and the transaction did.
-   */
-  const transact = async <T>(
-    domain: LedgerDomain,
-    operation: ToolOperationId | null,
-    decide: Decide<T>,
-    unknown: Outcome<T, ToolFailure>,
-    since: Snapshot['revision'] | null = null,
-  ): Reply<T> => {
-    let firstRead = since
-    for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const snapshot = await read(domain)
-      if ('failure' in snapshot) return snapshot
-      firstRead ??= snapshot.ok.revision
-      if (operation !== null && excludedSince(snapshot.ok, operation, firstRead))
-        return excluded(operation)
-      const revision = nextRevision(snapshot.ok.revision)
-      const decision = await decide(snapshot.ok, { revision })
-      if (decision.kind === 'reply') return decision.outcome
-      const operations = new Set(operation === null ? [] : [operation])
-      for (const write of decision.writes) {
-        if (write.kind === 'put' && write.record.kind === 'operation')
-          operations.add(write.record.operation.operation)
-      }
-      for (const identity of operations) {
-        if (excludedSince(snapshot.ok, identity, firstRead)) return excluded(identity)
-      }
-      const writes = withExclusionsRemoved(decision.writes, operations)
-      const committed = await commit(domain, snapshot.ok.revision, revision, writes)
-      if (committed.kind === 'committed') return succeed(decision.value)
-      if (committed.kind === 'unknown') return unknown
-      if (committed.kind === 'unavailable') return unavailable('ledger-store', committed.diagnostic)
-    }
-    return unavailable('ledger-store', `${attempts} revision conflicts in a row`)
   }
 
   /**
@@ -394,17 +302,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     tenant,
     key: queueKeyOf(request),
   })
-
-  /** The boundary and the qualification of a read entry. */
-  const entry = async (
-    input: unknown,
-    action: ToolLedgerAction,
-  ): Promise<Outcome<CallInput<P>, ToolFailure>> => {
-    const checked = judgeCallInput<P>(input, action)
-    if ('failure' in checked) return checked
-    const allowed = await access(checked.ok, action)
-    return 'failure' in allowed ? allowed : checked
-  }
 
   /** A read entry: boundary, access, snapshot, projection. */
   const query = async <T>(

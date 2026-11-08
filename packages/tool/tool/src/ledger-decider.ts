@@ -19,6 +19,7 @@ import type {
   MaterialCleanupRecord,
   MaterialTimeRecord,
   MaterialUseRecord,
+  MaterialMaintenanceHint,
 } from './ledger-material-records.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -78,6 +79,7 @@ import {
 
 /** The records of one domain, indexed for the deciders and the read projections. */
 export type Snapshot = Readonly<{
+  materialMaintenanceHint: MaterialMaintenanceHint | null
   materialMaintenanceAfter: ToolOperationId | null
   bodyExpirations: ReadonlyMap<string, BodyExpirationRecord>
   bodyPreparations: ReadonlyMap<string, BodyPreparationRecord>
@@ -115,6 +117,7 @@ export function snapshotOf(
   const materials = new Map<string, MaterialRecord>()
   const materialUses = new Map<string, MaterialUseRecord>()
   let materialMaintenanceAfter: ToolOperationId | null = null
+  let materialMaintenanceHint: MaterialMaintenanceHint | null = null
   const materialCleanup = new Map<string, MaterialCleanupRecord>()
   let materialTime: MaterialTimeRecord | null = null
   const releases = new Map<string, EnvironmentReleaseRecord>()
@@ -130,6 +133,9 @@ export function snapshotOf(
   const exclusions = new Map<string, ExclusionRecord>()
   for (const record of read.records) {
     switch (record.kind) {
+      case 'material-maintenance-hint':
+        materialMaintenanceHint = record.hint
+        break
       case 'body-expiration':
         bodyExpirations.set(
           JSON.stringify([record.expiration.result, record.expiration.bodyId]),
@@ -208,6 +214,7 @@ export function snapshotOf(
     materials,
     materialUses,
     materialMaintenanceAfter,
+    materialMaintenanceHint,
     materialCleanup,
     materialTime,
     domain,

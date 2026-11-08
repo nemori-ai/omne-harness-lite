@@ -14,6 +14,11 @@ import type {
 
 export type MaterialTimeRecord = Readonly<{ highWatermark: ToolMaterialInstant }>
 
+export type MaterialMaintenanceHint =
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'ready' }>
+  | Readonly<{ kind: 'due'; at: ToolMaterialInstant }>
+
 export type BodyExpirationRecord = Readonly<{
   result: ToolResultVersion
   bodyId: import('@omne-harness/tool-contract').ToolBodyId

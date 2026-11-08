@@ -28,6 +28,7 @@ describe('public entries', () => {
       'TOOL_STORAGE_OWNER',
       'createSqlToolGuardedHostCommit',
       'createSqlToolLedgerStore',
+      'createSqlToolMaterialMaintenanceSource',
       'createSqlToolMaterialStore',
       'createSqlToolOutputCustody',
       'toolStorageMaterials',

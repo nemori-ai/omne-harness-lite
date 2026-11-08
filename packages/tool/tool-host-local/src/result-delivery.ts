@@ -115,7 +115,13 @@ function resultBase(call: CallRecord, result: ResultRecord): DeliveryBase | null
     actualTerminal: result.actual,
     effect: result.effect,
     source: result.source,
-    value: result.value.value,
+    value: {
+      fingerprint: result.value.value,
+      original:
+        result.value.original.kind === 'none'
+          ? { kind: 'none' }
+          : { kind: 'offloaded', ...result.value.original.body.description },
+    },
   }
 }
 
@@ -304,10 +310,21 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
       result: record.payload.key.result,
     })
     if ('failure' in value) return value
-    const encoded = encodeToolMaterial(value.ok)
+    const original = value.ok.original
+    const { summary: _summary, ...description } =
+      original.kind === 'offloaded' ? original : { ...original, summary: undefined }
+    const encoded = encodeToolMaterial({
+      ...value.ok,
+      original:
+        original.kind === 'none'
+          ? original
+          : { kind: 'offloaded', source: original.source, summary: original.summary },
+    })
     if (
       'failure' in encoded ||
-      canonicalDigest(encoded.ok.fingerprint) !== canonicalDigest(record.payload.value)
+      canonicalDigest(encoded.ok.fingerprint) !==
+        canonicalDigest(record.payload.value.fingerprint) ||
+      canonicalDigest(description) !== canonicalDigest(record.payload.value.original)
     )
       return deliveryUnavailable('delivery-value')
     const payload = { ...record.payload, value: value.ok }

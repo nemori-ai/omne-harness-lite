@@ -27,3 +27,7 @@
 [src/author.ts](../src/author.ts) 拥有 `./author` 作者 Cordis 入口，导出 `contributeTool`、`createToolAuthorPlugin`、`createLocalToolGenerations`。配置只含 authority、construction、settings。模块和实际服务是构造依赖。协调者的 `recordRejection` 必须保存可供采用点读取的拒绝依据。工厂不创建 Settings SDK，不自行实现 schema 提供者或持久结果保管。
 
 运行时组合使用 `./cordis` 的 `createLocalToolRuntimePlugins`，输入、六个插件与应用提供者责任见[运行时组合工厂](cordis.md#运行时组合工厂)。根入口另公开环境状态、普通资源账本、Session 保留账本及控制主体工厂。它们的形状分别由 [environment-state.ts](../src/environment-state.ts)、[environment-resource-ledger.ts](../src/environment-resource-ledger.ts) 和 [control-subject-adapter.ts](../src/control-subject-adapter.ts) 拥有。
+
+## 材料维护
+
+根入口导出 createLocalToolMaterialMaintenance、LocalToolMaterialMaintenanceInput 和 LocalToolMaterialMaintenance，精确形状归 [material-maintenance.ts](../src/material-maintenance.ts)。输入包含 Tool 窄维护依赖、候选源和独立扫描资格。工厂返回 expire/reclaim/scan/close，关闭及恢复承诺见 [SPEC](../SPEC.md#材料维护的关闭边界)。它不依赖 Cordis，也不启动后台任务。应用必须先 await close，再撤除它使用的提供者。

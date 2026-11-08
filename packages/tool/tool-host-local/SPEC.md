@@ -209,7 +209,7 @@ Tool 的原 call 域负责持久水位，时间工厂不拥有它。初次准备
 
 ## 冻结交付的持久表示
 
-宿主冻结交付元数据、结果指纹、当时的 account、操作身份和阶段。冻结记录不保存第二份完整 ToolResult。指纹与最终版本绑定，重试不重新计算 account。
+宿主冻结交付元数据、结果承诺、当时的 account、操作身份和阶段。结果承诺包含渲染通道的指纹及最终正文描述。前者覆盖 content、data、attachments、source 和 summary，后者覆盖 bodyId、表示、字节数、预览类型及期限。推送时分别核对，两部分均不得变化。冻结记录不保存第二份完整 ToolResult。结果承诺与最终版本绑定，重试不重新计算 account。
 
 只有 frozen 阶段的推送读取正文。宿主通过同一 ToolLedger 的 delivery.read 还原最终通道，核对指纹及完整 ToolDelivery，并在推送前重核当前资格。材料不可读时交付仍欠，不返回部分结果，也不释放责任。接收方已经可靠保存后的 saved、release-unknown、released 和 done 恢复只消费元数据与原回执，不依赖正文仍可读。
 
@@ -301,3 +301,13 @@ host-only `ToolRequestAccess.qualify` 接收真实 CallAccess 与完整 FixedToo
 start guard 先保留 M2 programmatic 围栏，再核当前调用身份，最后核目标策略。策略 denied 为 refused。coordinator 在 prepare 和 consume 的每次 CAS 重试中，于当前调用身份核验后、permitRequirements 前重问目标策略。prepare 的 denied 直接拒绝；consume 的 denied 用既有 rejected 与 exclusion 保存未启动事实，unavailable 保留 unknown，不写 acceptance。
 
 consume 与 inspect 先认回原 started 或 rejected 历史，不用新规则改写既成事实。新增策略不撤销已发生副作用，也不提供外部撤权与存储提交原子同步的保证。验证见 [请求策略反例](tests/request-access.spec.ts) 和 [真实执行绑定组合](tests/runtime-composition/forwarding.spec.ts)。
+
+## 材料维护的关闭边界
+
+createLocalToolMaterialMaintenance 封装 Tool 的窄维护入口，提供 expire、reclaim、scan 和 close。维护作用域先登记进行中的操作，再调用端口。close 同步停止新受理，并等待全部已受理操作返回。重复 close 返回同一个完成 Promise。
+
+每次调用账本 read/commit、材料 clock.sample、inspectErase/erase、维护资格或候选扫描之前，都同步检查作用域。关闭后不得发起新的能力调用。关闭前已受理的单次提供者操作可完成其内部有界步骤，close 不撤销提交或外部删除。一直挂起的操作使 close 一直未完成；应用 deadline 只能报告未完成，不能强报成功。
+
+关闭后不向调用方交付成功结果。返回 unavailable 时明确已受理步骤可能完成，不推导“未执行”。已发生的删除和未知提交依原账本的 cleanup/deleting 及操作身份恢复。新作用域继续使用原存储；普通业务账本不受维护关闭影响。
+
+scan 固定原主体、租户、时刻和游标，读取之前及返回之前检查当前扫描资格。候选源不授予维护权。此独立工厂不启动定时器或注册 Cordis 服务；生产轮询和提供者撤除次序由应用装配负责。

@@ -171,6 +171,11 @@
       "config": {}
     },
     {
+      "id": "tool-material-maintenance",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "tool-bindings",
       "plugin": "stubPlugin",
       "config": {}

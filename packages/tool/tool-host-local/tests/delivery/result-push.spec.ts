@@ -99,7 +99,13 @@ it('rejects a same-key payload change without replacing the original freeze', as
   const payload = f.pushes[0]
   if (payload?.kind !== 'result') throw new Error('expected result payload')
   const state = createDeliveryState(f.store)
-  const descriptor = { ...payload, value: ok(encodeToolMaterial(payload.value)).fingerprint }
+  const descriptor = {
+    ...payload,
+    value: {
+      fingerprint: ok(encodeToolMaterial(payload.value)).fingerprint,
+      original: { kind: 'none' as const },
+    },
+  }
   const original = ok(await state.load(f.access, descriptor))
   if (original === null) throw new Error('expected frozen record')
   const changed = {

@@ -35,6 +35,7 @@
     "model-credential",
     "model-records",
     "tool-records",
+    "tool-material-maintenance",
     "tool-bindings",
     "tool-runtime",
     "tool-executor",
@@ -192,6 +193,16 @@
       "names": [
         "storage",
         "tenantDomainLookup"
+      ]
+    },
+    {
+      "row": "tool-material-maintenance",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "systemActionAuthorization",
+        "tenantDomainScannerPrincipal",
+        "toolMaterialMaintainerPrincipal"
       ]
     },
     {

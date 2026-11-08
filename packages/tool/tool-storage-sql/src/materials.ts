@@ -13,6 +13,8 @@ import type {
 } from '@omne-harness/sql-contract'
 import { MATERIAL_READ_HANDLER } from './worker/read-material.ts'
 import { MATERIAL_MIGRATION, MATERIAL_TABLES } from './worker/migration-material.ts'
+import { MAINTENANCE_MIGRATION, MAINTENANCE_TABLES } from './worker/migration-maintenance.ts'
+import { MAINTENANCE_PAGE_LIMIT, MAINTENANCE_READ_HANDLER } from './maintenance-scan-wire.ts'
 import {
   CHUNK_READ_HANDLER,
   LEDGER_READ_HANDLER,
@@ -54,6 +56,13 @@ type Handler = Readonly<{
  */
 const HANDLERS: readonly Handler[] = [
   {
+    handler: MAINTENANCE_READ_HANDLER,
+    file: 'read-maintenance',
+    ordering: 'domain-serial',
+    tables: MAINTENANCE_TABLES,
+    rows: MAINTENANCE_PAGE_LIMIT + 2,
+  },
+  {
     handler: MATERIAL_READ_HANDLER,
     file: 'read-material',
     ordering: 'domain-serial',
@@ -94,6 +103,7 @@ export function toolStorageMaterials(): ToolStorageMaterials {
   const participant = module('participant')
   const migration = module('migration')
   const materialMigration = module('migration-material')
+  const maintenanceMigration = module('migration-maintenance')
   return {
     participants: [
       {
@@ -101,7 +111,7 @@ export function toolStorageMaterials(): ToolStorageMaterials {
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: [...TOOL_TABLES, ...MATERIAL_TABLES],
+        ownedTables: [...TOOL_TABLES, ...MATERIAL_TABLES, ...MAINTENANCE_TABLES],
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
@@ -111,6 +121,12 @@ export function toolStorageMaterials(): ToolStorageMaterials {
     ],
     migrations: [
       { ...migrationRef, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
+      {
+        ...MAINTENANCE_MIGRATION,
+        moduleUrl: maintenanceMigration.moduleUrl,
+        checksum: maintenanceMigration.digest,
+        requires: [migrationRef],
+      },
       {
         ...MATERIAL_MIGRATION,
         moduleUrl: materialMigration.moduleUrl,
@@ -128,7 +144,11 @@ export function toolStorageMaterials(): ToolStorageMaterials {
         ordering: item.ordering,
         readTables: item.tables,
         requiresMigrations:
-          item.handler === MATERIAL_READ_HANDLER ? [MATERIAL_MIGRATION] : [migrationRef],
+          item.handler === MATERIAL_READ_HANDLER
+            ? [MATERIAL_MIGRATION]
+            : item.handler === MAINTENANCE_READ_HANDLER
+              ? [MAINTENANCE_MIGRATION]
+              : [migrationRef],
         maxOutputBytes: READ_OUTPUT_BYTES,
         maxRowsRead: item.rows,
       }
