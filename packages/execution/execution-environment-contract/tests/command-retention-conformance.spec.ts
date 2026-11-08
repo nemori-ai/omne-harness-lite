@@ -38,6 +38,7 @@ const obligations = [
   'V-EE31.output-stays-in-scope-and-tenant',
   'V-EE31.output-after-stop-is-not-found',
   'V-EE31.guard-refuses-output',
+  'V-EE31.malformed-request-is-invalid-input',
 ]
 const after = new TextEncoder().encode('tail \u2713\r\n')
 

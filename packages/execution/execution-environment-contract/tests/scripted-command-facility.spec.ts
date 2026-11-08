@@ -401,3 +401,159 @@ it('rejects `leaves` on a process that runs until stopped', async () => {
   )
   await expect(cmd.facility.start(start())).rejects.toThrow(TypeError)
 })
+
+type Retention = NonNullable<CommandFacility<unknown>['retention']>
+type RetentionScope = Readonly<{
+  store: ReturnType<typeof createScriptedRetentionStore>
+  scope?: string
+  refuse?: readonly ('stop' | 'output')[]
+}>
+/** A retaining facility, one leftover handed over to its scope, and the extension's three operations. */
+async function handedOver(at: RetentionScope, script: CommandScript = leftover, request = start()) {
+  const cmd = createScriptedCommandFacility(script, {
+    retention: {
+      store: at.store,
+      scope: at.scope ?? 'scope',
+      ...(at.refuse === undefined ? {} : { refuse: at.refuse }),
+    },
+  })
+  const answer = await cmd.facility.start(request)
+  if (answer.kind !== 'done') throw new Error(`start: ${answer.kind}`)
+  const outcome = await settled(answer.value.result)
+  if (outcome.kind !== 'completed' || outcome.residue?.kind !== 'retained')
+    throw new Error('expected a retained leftover')
+  const retention: Retention | undefined = cmd.facility.retention
+  if (!retention?.stop || !retention.output) throw new Error('expected stop and output')
+  return {
+    ref: outcome.residue.process,
+    list: retention.list.bind(retention),
+    stop: retention.stop.bind(retention),
+    output: retention.output.bind(retention),
+  }
+}
+/** A payload outside the operation's type, as a caller outside TypeScript can send it. */
+const malformed = <T>(payload: unknown): T => payload as T
+const invalidInput = (request: { requestId: string }) => ({
+  kind: 'rejected',
+  requestId: request.requestId,
+  reason: 'invalidInput',
+})
+
+it('answers invalidInput to a stop or output whose process is not a reference', async () => {
+  const store = createScriptedRetentionStore()
+  const { ref, stop, output } = await handedOver({ store })
+  for (const process of [
+    undefined,
+    null,
+    ref.id,
+    { id: '', generation: ref.generation },
+    { id: ref.id, generation: '' },
+    { id: 1, generation: ref.generation },
+    { id: ref.id },
+  ]) {
+    const halt = start()
+    expect(await stop(malformed({ ...halt, process, mode: 'forced' })), 'stop').toEqual(
+      invalidInput(halt),
+    )
+    const read = start()
+    expect(await output(malformed({ ...read, process })), 'output').toEqual(invalidInput(read))
+  }
+  expect(store.stopped(ref)).toBe(false)
+})
+
+it('answers invalidInput to a stop whose mode is neither graceful nor forced, and stops nothing', async () => {
+  const store = createScriptedRetentionStore()
+  const { ref, stop } = await handedOver({ store })
+  for (const mode of [undefined, 'gentle', 'FORCED']) {
+    const request = start()
+    expect(await stop(malformed({ ...request, process: ref, mode }))).toEqual(invalidInput(request))
+  }
+  expect(store.stopped(ref)).toBe(false)
+  expect(store.stopsIssued(ref)).toBe(0)
+  expect(await stop({ ...start(), process: ref, mode: 'graceful' })).toMatchObject({
+    kind: 'done',
+    value: { status: 'confirmed' },
+  })
+})
+
+it('answers invalidInput to an output whose from is not per-stream non-negative safe integers', async () => {
+  const { ref, output } = await handedOver({ store: createScriptedRetentionStore() })
+  for (const from of [
+    null,
+    1,
+    [0],
+    { stdout: 1.5 },
+    { stdout: -1 },
+    { stdout: Number.MAX_SAFE_INTEGER + 1 },
+    { stdout: Number.NaN },
+    { stdout: '0' },
+    { stdout: undefined },
+    { stdin: 0 },
+  ]) {
+    const request = start()
+    expect(
+      await output(malformed({ ...request, process: ref, from })),
+      JSON.stringify(from),
+    ).toEqual(invalidInput(request))
+  }
+  expect(
+    await output({ ...start(), process: ref, from: { stdout: 0, stderr: 0, terminal: 0 } }),
+  ).toMatchObject({ kind: 'done' })
+  expect(
+    await output({ ...start(), process: ref, from: { stdout: Number.MAX_SAFE_INTEGER } }),
+  ).toMatchObject({ kind: 'done' })
+})
+
+it('checks the shape before it looks the process up and before its guard', async () => {
+  const store = createScriptedRetentionStore()
+  const { ref, stop, output } = await handedOver({ store })
+  const absent = { id: `${ref.id}-absent`, generation: ref.generation }
+  const halt = start()
+  expect(await stop(malformed({ ...halt, process: absent, mode: 'gentle' }))).toEqual(
+    invalidInput(halt),
+  )
+  const read = start()
+  expect(await output({ ...read, process: absent, from: { stdout: -1 } })).toEqual(
+    invalidInput(read),
+  )
+  const guarded = await handedOver({ store, refuse: ['stop', 'output'] })
+  const refused = start()
+  expect(await guarded.stop(malformed({ ...refused, process: ref, mode: 'gentle' }))).toEqual(
+    invalidInput(refused),
+  )
+})
+
+/** The stdout tail of a retained process whose script wrote `after` once the domain was handed over. */
+async function tailOf(
+  after: string | Uint8Array,
+  options: Readonly<{ before?: string | Uint8Array; from?: number }> = {},
+) {
+  const { ref, output } = await handedOver({ store: createScriptedRetentionStore() }, () => ({
+    kind: 'started',
+    leaves: 1,
+    ...(options.before === undefined
+      ? {}
+      : { output: [{ stream: 'stdout' as const, data: options.before }] }),
+    afterHandover: [{ stream: 'stdout' as const, data: after }],
+  }))
+  const answer = await output({
+    ...start(),
+    process: ref,
+    ...(options.from === undefined ? {} : { from: { stdout: options.from } }),
+  })
+  if (answer.kind !== 'done' || answer.value.kind !== 'tail') throw new Error('expected a tail')
+  const [tail] = answer.value.streams
+  if (tail === undefined) throw new Error('expected a stdout tail')
+  return tail
+}
+
+it('reports replaced only when the bytes are not valid UTF-8, not for a U+FFFD the source wrote', async () => {
+  expect((await tailOf('ok � done')).text).toMatchObject({
+    value: 'ok � done',
+    replaced: false,
+  })
+  expect((await tailOf(new Uint8Array([0x6f, 0xff, 0x6b]))).text).toMatchObject({
+    value: 'o�k',
+    replaced: true,
+  })
+})

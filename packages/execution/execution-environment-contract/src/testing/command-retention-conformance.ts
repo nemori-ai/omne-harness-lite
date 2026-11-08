@@ -434,6 +434,47 @@ async function checkOutputRefusedByGuard(s: CommandRetentionSubject): Promise<vo
   refused(await output(a, process), 'notAuthorized', 'the guard decides the read')
 }
 
+/** A payload outside the operation's type, as a caller outside TypeScript can send it. */
+const malformed = <T>(payload: unknown): T => payload as T
+
+/** The guard lets them through; the shape is checked before the index is read, so nothing stops. */
+async function checkMalformedRequest(s: CommandRetentionSubject): Promise<void> {
+  const retention = s.acquisition.facility.retention
+  if (!retention || (!retention.stop && !retention.output))
+    throw new NotApplicable('requires the retention extension to provide stop or output')
+  const { process } = await retained(s.acquisition, s.commands.leftover())
+  if (retention.stop) {
+    refused(
+      await retention.stop(malformed({ ...s.acquisition.request(), mode: 'forced' })),
+      'invalidInput',
+      'a stop without a process is invalidInput',
+    )
+    refused(
+      await retention.stop(malformed({ ...s.acquisition.request(), process, mode: 'gentle' })),
+      'invalidInput',
+      'a stop whose mode is neither graceful nor forced is invalidInput',
+    )
+  }
+  if (retention.output) {
+    refused(
+      await retention.output(malformed({ ...s.acquisition.request() })),
+      'invalidInput',
+      'an output without a process is invalidInput',
+    )
+    refused(
+      await output(s.acquisition, process, { stdout: 1.5 }),
+      'invalidInput',
+      'an output whose from is not a whole byte offset is invalidInput',
+    )
+    refused(
+      await output(s.acquisition, process, { stdout: -1 }),
+      'invalidInput',
+      'an output whose from is negative is invalidInput',
+    )
+  }
+  assert.equal(await s.domainStopped(process), false, 'a malformed request stops nothing')
+}
+
 async function checkNoLedger(s: CommandRetentionSubject): Promise<void> {
   if (!s.unbound) throw new NotApplicable('requires an acquisition without a process ledger view')
   assert.equal(s.unbound.facility.retention, undefined)
@@ -468,6 +509,7 @@ export function commandRetentionConformance(
     ['V-EE31.output-stays-in-scope-and-tenant', checkOutputScope],
     ['V-EE31.output-after-stop-is-not-found', checkOutputAfterStop],
     ['V-EE31.guard-refuses-output', checkOutputRefusedByGuard],
+    ['V-EE31.malformed-request-is-invalid-input', checkMalformedRequest],
   ]
   return cases.map(([name, check]) => ({
     name,

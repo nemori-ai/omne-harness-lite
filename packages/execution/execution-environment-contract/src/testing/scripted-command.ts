@@ -293,6 +293,25 @@ function retainedStreams(answer: Started): ReadonlyMap<OutputChunk['stream'], Re
 
 type Retention = NonNullable<ScriptedCommandOptions['retention']>
 
+/*
+ * The payload shapes of `stop` and `output`. They are checked before the guard and the index, so a
+ * malformed request is `invalidInput` whatever the reference names.
+ */
+const modes: readonly unknown[] = ['graceful', 'forced']
+const streamNames: readonly string[] = ['stdout', 'stderr', 'terminal']
+const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+const isName = (value: unknown) => typeof value === 'string' && value.length > 0
+const isRef = (value: unknown) =>
+  isRecord(value) && isName(value['id']) && isName(value['generation'])
+const isOffset = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0
+const isFrom = (value: unknown) =>
+  value === undefined ||
+  (isRecord(value) &&
+    Object.entries(value).every(
+      ([stream, offset]) => streamNames.includes(stream) && isOffset(offset),
+    ))
+
 function retentionExtension<P>(
   state: RetentionInternals,
   retention: Retention,
@@ -315,6 +334,8 @@ function retentionExtension<P>(
       return { kind: 'done', requestId: request.requestId, value }
     },
     async stop(request) {
+      if (!isRef(request.process) || !modes.includes(request.mode))
+        return refuse(request.requestId, 'invalidInput')
       if (retention.refuse?.includes('stop')) return refuse(request.requestId, 'notAuthorized')
       const [entry] = own(request, request.process)
       if (entry !== undefined) {
@@ -330,6 +351,8 @@ function retentionExtension<P>(
         : refuse(request.requestId, 'notFound')
     },
     async output(request) {
+      if (!isRef(request.process) || !isFrom(request.from))
+        return refuse(request.requestId, 'invalidInput')
       if (retention.refuse?.includes('output')) return refuse(request.requestId, 'notAuthorized')
       const [entry] = own(request, request.process)
       if (entry === undefined) return refuse(request.requestId, 'notFound')
@@ -359,7 +382,6 @@ function streamTail(
   const data = kept.data.slice(start - kept.savedFrom)
   let skipped = 0
   while (skipped < 3 && skipped < data.length && (data[skipped] ?? 0) >> 6 === 0b10) skipped++
-  const value = new TextDecoder().decode(data.subarray(skipped))
   return {
     stream,
     savedFrom: kept.savedFrom,
@@ -367,6 +389,15 @@ function streamTail(
     end,
     discardedBytes: 0,
     data,
-    text: { encoding: 'utf-8', value, start: start + skipped, replaced: value.includes('�') },
+    text: { encoding: 'utf-8', start: start + skipped, ...decode(data.subarray(skipped)) },
+  }
+}
+
+/** Strict decoding decides `replaced`, as the host does: a U+FFFD the source wrote is not a replacement. */
+function decode(data: Uint8Array): { value: string; replaced: boolean } {
+  try {
+    return { value: new TextDecoder('utf-8', { fatal: true }).decode(data), replaced: false }
+  } catch {
+    return { value: new TextDecoder().decode(data), replaced: true }
   }
 }
