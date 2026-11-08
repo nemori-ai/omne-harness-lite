@@ -28,7 +28,7 @@ export type BodyExpirationRecord = Readonly<{
 }>
 
 export type MaterialRecord = Readonly<{
-  purpose: 'raw' | 'final' | 'result' | 'body'
+  purpose: 'raw' | 'final' | 'result' | 'body' | 'body-fragment'
   material: ToolMaterialRef
   writeOperation: ToolOperationId
   input: ToolMaterialFingerprint

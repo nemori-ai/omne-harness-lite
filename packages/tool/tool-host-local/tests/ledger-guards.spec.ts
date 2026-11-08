@@ -109,6 +109,8 @@ function assembly() {
     {
       resultPageBytes: 4_096,
       ledgerCommitAttempts: 4,
+      authorBufferBytes: 65_536,
+      authorBufferItems: 128,
       queueCapacity: 16,
       readResultArguments: {
         maxBytes: 65_536,
@@ -125,6 +127,7 @@ function assembly() {
         previewUtf8Bytes: 1_024,
         maxPageBytes: 65_536,
         maxPageLeaseMs: 30_000,
+        maxWriterMetadataBytes: 1_048_576,
       },
     },
     {

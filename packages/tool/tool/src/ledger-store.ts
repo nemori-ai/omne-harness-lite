@@ -1,3 +1,8 @@
+import type {
+  WriterRecord,
+  WriterScopeRecord,
+  WriterAppendRecord,
+} from './ledger-writer-records.ts'
 import type { BodyPreparationRecord } from './ledger-body-custody.ts'
 import type { ResultPolicyRecord } from './ledger-result-policy.ts'
 import type { ResultPreparationRecord } from './ledger-result-preparation.ts'
@@ -303,6 +308,9 @@ export type QueueReleaseRecord = Readonly<{ call: ToolCallId; basis: ReleaseBasi
 export type HostRecord = Readonly<{ key: string; value: unknown }>
 
 export type LedgerRecord =
+  | Readonly<{ kind: 'body-writer'; writer: WriterRecord }>
+  | Readonly<{ kind: 'body-writer-scope'; scope: WriterScopeRecord }>
+  | Readonly<{ kind: 'body-writer-append'; append: WriterAppendRecord }>
   | Readonly<{ kind: 'material-maintenance-hint'; hint: MaterialMaintenanceHint }>
   | Readonly<{ kind: 'material-maintenance'; after: ToolOperationId }>
   | Readonly<{ kind: 'body-expiration'; expiration: BodyExpirationRecord }>
@@ -333,6 +341,12 @@ export type LedgerRecord =
 export function recordKey(record: LedgerRecord): string {
   if (isQueueRecord(record)) return queueRecordKey(record)
   switch (record.kind) {
+    case 'body-writer':
+      return `body-writer:${record.writer.id}`
+    case 'body-writer-scope':
+      return `body-writer-scope:${record.scope.start.operation}`
+    case 'body-writer-append':
+      return `body-writer-append:${record.append.id}`
     case 'material-maintenance-hint':
       return 'material-maintenance-hint'
     case 'material-maintenance':

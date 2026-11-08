@@ -222,6 +222,8 @@ describe('18 testing dependency assembly', () => {
     expect(() =>
       testAssembly({
         configuration: {
+          authorBufferBytes: 65_536,
+          authorBufferItems: 128,
           resultPageBytes: 0,
           ledgerCommitAttempts: 1,
           queueCapacity: 1,
@@ -240,6 +242,7 @@ describe('18 testing dependency assembly', () => {
             previewUtf8Bytes: 1_024,
             maxPageBytes: 65_536,
             maxPageLeaseMs: 30_000,
+            maxWriterMetadataBytes: 1_048_576,
           },
         },
       }),

@@ -90,7 +90,7 @@ export function checkLedgerConfiguration(configuration: ToolLedgerConfiguration)
   if (typeof configuration !== 'object' || configuration === null)
     throw new TypeError('configuration: type')
   checkResultConfiguration(configuration)
-  checkCapacities(configuration, LEDGER_CAPACITIES)
+  checkCapacities(configuration, [...LEDGER_CAPACITIES, 'authorBufferBytes', 'authorBufferItems'])
 }
 
 function checkResultConfiguration(configuration: ToolLedgerConfiguration): void {
@@ -105,5 +105,6 @@ function checkResultConfiguration(configuration: ToolLedgerConfiguration): void 
     'previewUtf8Bytes',
     'maxPageBytes',
     'maxPageLeaseMs',
+    'maxWriterMetadataBytes',
   ])
 }

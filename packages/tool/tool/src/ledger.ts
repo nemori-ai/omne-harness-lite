@@ -1,3 +1,5 @@
+import { createLedgerBodyWrites } from './ledger-body-writer.ts'
+import type { ToolBodyWrites } from '@omne-harness/tool-contract/provider'
 import { authorBody } from './ledger-author-body.ts'
 import { firstResultReference } from './result-address.ts'
 import { createLedgerBodyCustody } from './ledger-body-custody.ts'
@@ -168,6 +170,7 @@ export type ToolLedger<P, B extends ContentBlock> = Readonly<{
   delivery: Readonly<{
     read(input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>): Reply<ToolResult<B>>
   }>
+  bodyWrites: ToolBodyWrites<P>
   bodyCustody: ToolBodyCustody<P>
   rawCustody: Pick<ToolOutputCustody<P>, 'preserve' | 'inspect'>
   finalCustody: ToolFinalCustody<P, B>
@@ -1512,6 +1515,13 @@ export function createToolLedger<P, B extends ContentBlock>(
         const current = await access(fixed.ok, 'recover')
         return 'failure' in current ? current : value
       },
+    }),
+    bodyWrites: createLedgerBodyWrites({
+      materials: settlement.materials,
+      configuration,
+      entry,
+      load: input => read(callDomain(input)),
+      transact,
     }),
     bodyCustody: createLedgerBodyCustody({
       readResultArguments: configuration.readResultArguments,

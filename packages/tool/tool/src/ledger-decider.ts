@@ -1,3 +1,8 @@
+import type {
+  WriterRecord,
+  WriterScopeRecord,
+  WriterAppendRecord,
+} from './ledger-writer-records.ts'
 import type { BodyPreparationRecord } from './ledger-body-custody.ts'
 import type { ResultPolicyRecord } from './ledger-result-policy.ts'
 import { adoptResultMaterials, releaseResultMaterials } from './ledger-result-uses.ts'
@@ -79,6 +84,9 @@ import {
 
 /** The records of one domain, indexed for the deciders and the read projections. */
 export type Snapshot = Readonly<{
+  writers: ReadonlyMap<string, WriterRecord>
+  writerScopes: ReadonlyMap<string, WriterScopeRecord>
+  writerAppends: ReadonlyMap<string, WriterAppendRecord>
   materialMaintenanceHint: MaterialMaintenanceHint | null
   materialMaintenanceAfter: ToolOperationId | null
   bodyExpirations: ReadonlyMap<string, BodyExpirationRecord>
@@ -110,6 +118,9 @@ export function snapshotOf(
   domain: LedgerDomain,
   read: Extract<LedgerRead, { kind: 'complete' }>,
 ): Snapshot {
+  const writers = new Map<string, WriterRecord>()
+  const writerScopes = new Map<string, WriterScopeRecord>()
+  const writerAppends = new Map<string, WriterAppendRecord>()
   const bodyExpirations = new Map<string, BodyExpirationRecord>()
   const bodyPreparations = new Map<string, BodyPreparationRecord>()
   const resultPolicies = new Map<string, ResultPolicyRecord>()
@@ -133,6 +144,15 @@ export function snapshotOf(
   const exclusions = new Map<string, ExclusionRecord>()
   for (const record of read.records) {
     switch (record.kind) {
+      case 'body-writer':
+        writers.set(record.writer.id, record.writer)
+        break
+      case 'body-writer-scope':
+        writerScopes.set(record.scope.start.operation, record.scope)
+        break
+      case 'body-writer-append':
+        writerAppends.set(record.append.id, record.append)
+        break
       case 'material-maintenance-hint':
         materialMaintenanceHint = record.hint
         break
@@ -207,6 +227,9 @@ export function snapshotOf(
     }
   }
   return {
+    writers,
+    writerScopes,
+    writerAppends,
     bodyExpirations,
     bodyPreparations,
     resultPolicies,

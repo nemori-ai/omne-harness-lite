@@ -205,6 +205,7 @@ export async function modelHost(
     },
   } satisfies ToolDefinition
   let sourceExecutions = 0
+  let sourceFailure: unknown = null
   const positions: string[] = []
   const h = startHarness({
     resultPageBytes: options.resultPageBytes,
@@ -259,7 +260,10 @@ export async function modelHost(
           )
           return { raw, value }
         }
-        const { raw, value } = await output()
+        const { raw, value } = await output().catch(error => {
+          sourceFailure = error instanceof Error ? error.message : String(error)
+          throw error
+        })
         await h.binding.controls.finish(start.start, {
           kind: 'final',
           raw,
@@ -377,7 +381,10 @@ export async function modelHost(
         }
       }
     }
-    throw new Error('Invocation did not settle')
+    const recovery = ok(await h.ledger.commands.loadRecovery({ ...access, call }))
+    throw new Error(
+      `Invocation did not settle: ${JSON.stringify({ sourceFailure, state: recovery.state, tasks: recovery.tasks })}`,
+    )
   }
   const source = await invoke(null, {}, { principal: principalA, tenant: tenantA })
   ok(

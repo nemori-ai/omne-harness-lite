@@ -66,6 +66,8 @@ function ledger(store: ToolLedgerStore, controlSubjects: ToolControlSubjects<str
     {
       resultPageBytes: 4096,
       ledgerCommitAttempts: 4,
+      authorBufferBytes: 65_536,
+      authorBufferItems: 128,
       queueCapacity: 16,
       readResultArguments: {
         maxBytes: 65_536,
@@ -82,6 +84,7 @@ function ledger(store: ToolLedgerStore, controlSubjects: ToolControlSubjects<str
         previewUtf8Bytes: 1_024,
         maxPageBytes: 65_536,
         maxPageLeaseMs: 30_000,
+        maxWriterMetadataBytes: 1_048_576,
       },
     },
     {

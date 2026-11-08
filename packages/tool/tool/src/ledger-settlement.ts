@@ -4,6 +4,8 @@ import {
   preparedRawMaterial,
   adoptRawMaterials,
 } from './ledger-result-uses.ts'
+import { releaseUnusedWriters } from './ledger-writer-release.ts'
+import { checkBodyReferences } from './ledger-body-references.ts'
 import type { ResultChannels } from './ledger-result-material.ts'
 import { matchesFinalValue } from './fact-values.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -213,6 +215,14 @@ export function decidePreserveResult<B extends ContentBlock>(
     },
     mint,
   )
+  const references = checkBodyReferences(snapshot, [
+    ...final.result.attachments,
+    ...final.result.content.flatMap(block => ('ref' in block ? [block.ref] : [])),
+    ...(final.result.original.kind === 'offloaded'
+      ? final.result.original.summary.flatMap(block => ('ref' in block ? [block.ref] : []))
+      : []),
+  ])
+  if ('failure' in references) return reply(references)
   const uses = adoptResultMaterials(snapshot, first.version.record)
   if ('failure' in uses) return reply(uses)
   if (saved.fact.kind !== 'final' || saved.fact.payload.kind !== 'pending')
@@ -233,6 +243,7 @@ export function decidePreserveResult<B extends ContentBlock>(
     ...uses.ok,
     ...released.ok,
     ...rawRelease.ok,
+    ...releaseUnusedWriters(snapshot, final.result, first.version.record.source),
     put(operationRecord(command, { kind: 'preserve-result', state: state.ok }, mint)),
     put({
       kind: 'task',

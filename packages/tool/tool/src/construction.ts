@@ -43,6 +43,7 @@ export type ToolOffloadingConfiguration = Readonly<{
   previewUtf8Bytes: number
   maxPageBytes: number
   maxPageLeaseMs: number
+  maxWriterMetadataBytes: number
 }>
 
 export type ToolConfiguration = ToolAuthorLimits &
@@ -82,6 +83,8 @@ export type ToolConfiguration = ToolAuthorLimits &
 /** The part of the configuration that the ledger reads. The same configuration value fits. */
 export type ToolLedgerConfiguration = Pick<
   ToolConfiguration,
+  | 'authorBufferBytes'
+  | 'authorBufferItems'
   | 'resultPageBytes'
   | 'ledgerCommitAttempts'
   | 'queueCapacity'

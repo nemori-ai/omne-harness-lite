@@ -9,7 +9,7 @@ export const textBodyCodec = describedAdoption({
   revision: '1',
 })
 
-export function encodeTextBody(frames: readonly TextContentBlock[]): MaterialBytes {
+export function encodeTextBody(frames: readonly Pick<TextContentBlock, 'text'>[]): MaterialBytes {
   const bytes = new TextEncoder().encode(frames.map(frame => frame.text).join(''))
   return {
     bytes,

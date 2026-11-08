@@ -27,6 +27,7 @@ export const toolConfigurationSchema = z.strictObject({
     previewUtf8Bytes: positive,
     maxPageBytes: positive,
     maxPageLeaseMs: positive,
+    maxWriterMetadataBytes: positive,
   }),
   reconciliationDelayMs: nonNegative,
   ledgerCommitAttempts: positive,

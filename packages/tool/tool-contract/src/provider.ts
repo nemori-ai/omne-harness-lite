@@ -1,3 +1,15 @@
+export type {
+  ToolBodyFrame,
+  ToolBodyWriter,
+  ToolBodyWriterStatus,
+  ToolBodyBeginReceipt,
+  ToolBodyAppendReceipt,
+  ToolBodyWrites,
+  ToolBodyWriteInput,
+  ToolBodyWriteFailure,
+  ToolBodyWriteReply,
+  ToolBodyCloseReceipt,
+} from './body-writer.ts'
 export type { SealedToolBody, ToolBodyCustody } from './body-custody.ts'
 export type { ToolBodyReader } from './body-reads.ts'
 // The `./provider` entry of the Tool contract package: the provider protocol that only the Tool

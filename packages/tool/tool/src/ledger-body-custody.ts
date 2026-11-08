@@ -35,6 +35,7 @@ import {
   type MaterialBytes,
 } from './material-codec.ts'
 import { resultBodyPolicy, type BodyPolicy } from './result-offloading.ts'
+import { currentBodyExecution } from './ledger-body-admission.ts'
 import { encodeTextBody } from './text-body-codec.ts'
 
 export type BodyPreparationRecord = Readonly<{
@@ -155,7 +156,7 @@ function prepareBody<P>(
     (call.state.phase !== 'starting' && call.state.phase !== 'running')
   )
     return { kind: 'reply', outcome: invalid('call', 'not-running') }
-  if (!sameFactValue(call.execution, call.start.execution))
+  if (!currentBodyExecution(call, call.start))
     return { kind: 'reply', outcome: invalid('start', 'not-current-execution') }
   const policy = resultBodyPolicy(call.request, configuration, readResultArguments)
   if ('failure' in policy) return { kind: 'reply', outcome: policy }

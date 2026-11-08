@@ -239,6 +239,8 @@ export async function ledgerAssembly(
     guards,
     deps.clock(),
     {
+      authorBufferBytes: 65_536,
+      authorBufferItems: 128,
       resultPageBytes: 4096,
       ledgerCommitAttempts: 4,
       queueCapacity: 16,
@@ -257,6 +259,7 @@ export async function ledgerAssembly(
         previewUtf8Bytes: 1_024,
         maxPageBytes: 65_536,
         maxPageLeaseMs: 30_000,
+        maxWriterMetadataBytes: 1_048_576,
       },
     },
     { releaseInspection: deps.environment(), content: null },

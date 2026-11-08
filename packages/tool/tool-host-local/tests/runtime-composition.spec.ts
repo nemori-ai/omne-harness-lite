@@ -58,6 +58,7 @@ const configuration: ToolConfiguration = {
     previewUtf8Bytes: 1_024,
     maxPageBytes: 65_536,
     maxPageLeaseMs: 30_000,
+    maxWriterMetadataBytes: 1_048_576,
   },
 }
 
