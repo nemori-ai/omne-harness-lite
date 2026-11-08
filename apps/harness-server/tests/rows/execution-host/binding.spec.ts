@@ -80,6 +80,26 @@ it('allows operator replacement of the distribution factory configuration', asyn
   expect(outcome.errors.join('\n')).not.toContain('unknown-plugin')
 })
 
+it('hands the output capacity of retained processes to the host plugin, and refuses one that is not a byte count', async () => {
+  const row = (retainedOutputBytes: unknown) => ({
+    rows: [
+      {
+        id: 'execution-host',
+        plugin: 'executionHost',
+        config: { ...config, retainedOutputBytes },
+      },
+    ],
+  })
+  const kept = await run(row(0))
+  expect(kept.errors.join('\n')).not.toContain('invalid execution-host configuration')
+  expect(kept.result.exitCode).toBe(4)
+  for (const value of [-1, 1.5, 'all']) {
+    const refused = await run(row(value))
+    expect(refused.result.exitCode).toBe(2)
+    expect(refused.errors.join('\n')).toContain('invalid execution-host configuration')
+  }
+})
+
 it('rejects invalid host configuration without running preceding bodies or leaking input', async () => {
   const outcome = await run({
     rows: [

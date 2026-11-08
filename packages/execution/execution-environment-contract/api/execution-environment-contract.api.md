@@ -17,9 +17,13 @@
 - `AcquisitionState` · `lease.d.ts`
 - `AllocationCleanup` · `lease.d.ts`
 - `AllocationFailed` · `lease.d.ts`
+- `BetweenSegments` · `facilities/command.d.ts`
 - `BindingKind` · `binding.d.ts`
 - `CommandFacility` · `facilities/command.d.ts`
 - `CommandOutcome` · `facilities/command.d.ts`
+- `CommandRetention` · `facilities/command.d.ts`
+- `CommandRetentionOperation` · `facilities/command.d.ts`
+- `Containment` · `facilities/command.d.ts`
 - `DecodeIssue` = `Issue` · `decode.d.ts`
 - `EnvironmentAction` · `environment.d.ts`
 - `EnvironmentAdoption` · `lease.d.ts`
@@ -99,8 +103,16 @@
 - `RejectReason` · `lease.d.ts`
 - `Rejected` · `lease.d.ts`
 - `RequirementRefusal` · `judge.d.ts`
+- `ResidueReport` · `facilities/command.d.ts`
+- `ResidueStopReason` · `facilities/command.d.ts`
 - `ResourceLedger` · `ports.d.ts`
 - `ResourceRecovery` · `environment.d.ts`
+- `RetainedOutput` · `facilities/command.d.ts`
+- `RetainedOutputFrom` · `facilities/command.d.ts`
+- `RetainedProcessInformation` · `facilities/command.d.ts`
+- `RetainedProcessLedger` · `ports.d.ts`
+- `RetainedProcessRef` · `facilities/command.d.ts`
+- `RetainedStreamTail` · `facilities/command.d.ts`
 - `RetainedTerminalLedger` · `ports.d.ts`
 - `Retirement` · `environment.d.ts`
 - `SessionTerminalRetention` · `ports.d.ts`
@@ -134,6 +146,8 @@
 - `judgeRequirement` · `judge.d.ts`
 - `managedResourceSchema` · `operation-schemas.d.ts`
 - `matchProviders` · `judge.d.ts`
+- `observeRetainedParamsSchema` · `operation-schemas.d.ts`
+- `observeRetainedResultSchema` · `operation-schemas.d.ts`
 - `operationSchemas` · `operation-schemas.d.ts`
 - `originRef` · `identity.d.ts`
 - `originalAcquisitionSchema` · `operation-schemas.d.ts`
@@ -151,6 +165,10 @@
 ## 入口 `./testing` · `testing/index.d.ts`
 
 - `CaseVerdict` · `testing/case.d.ts`
+- `CommandRetentionAcquisition` · `testing/command-retention-conformance.d.ts`
+- `CommandRetentionBody` · `testing/command-retention-conformance.d.ts`
+- `CommandRetentionOptions` · `testing/command-retention-conformance.d.ts`
+- `CommandRetentionSubject` · `testing/command-retention-conformance.d.ts`
 - `CommandScript` · `testing/scripted-command.d.ts`
 - `ConformanceCase` · `testing/case.d.ts`
 - `EnvironmentAuthorityScript` · `testing/doubles.d.ts`
@@ -166,10 +184,12 @@
 - `ProviderScript` · `testing/doubles.d.ts`
 - `ScriptedCommandAnswer` · `testing/scripted-command.d.ts`
 - `ScriptedCommandFacility` · `testing/scripted-command.d.ts`
+- `ScriptedCommandOptions` · `testing/scripted-command.d.ts`
 - `ScriptedEnvironmentAuthority` · `testing/doubles.d.ts`
 - `ScriptedEnvironmentProvider` · `testing/doubles.d.ts`
 - `ScriptedFacilityGuard` · `testing/doubles.d.ts`
 - `ScriptedRecoveryAuthority` · `testing/doubles.d.ts`
+- `ScriptedRetentionStore` · `testing/scripted-command.d.ts`
 - `ScriptedScopeBindings` · `testing/doubles.d.ts`
 - `ScriptedTerminalAnswer` · `testing/scripted-terminal.d.ts`
 - `ScriptedTerminalFacility` · `testing/scripted-terminal.d.ts`
@@ -177,6 +197,7 @@
 - `TerminalConformanceOptions` · `testing/terminal-conformance.d.ts`
 - `TerminalConformanceSubject` · `testing/terminal-conformance.d.ts`
 - `TerminalScript` · `testing/scripted-terminal.d.ts`
+- `commandRetentionConformance` · `testing/command-retention-conformance.d.ts`
 - `createMemoryFileSystem` · `testing/memory-files.d.ts`
 - `createMemoryResourceLedger` · `testing/doubles.d.ts`
 - `createScriptedCommandFacility` · `testing/scripted-command.d.ts`
@@ -184,6 +205,7 @@
 - `createScriptedEnvironmentProvider` · `testing/doubles.d.ts`
 - `createScriptedFacilityGuard` · `testing/doubles.d.ts`
 - `createScriptedRecoveryAuthority` · `testing/doubles.d.ts`
+- `createScriptedRetentionStore` · `testing/scripted-command.d.ts`
 - `createScriptedScopeBindings` · `testing/doubles.d.ts`
 - `createScriptedTerminalFacility` · `testing/scripted-terminal.d.ts`
 - `environmentProviderConformance` · `testing/provider-conformance.d.ts`
@@ -321,6 +343,7 @@ import type { TenantId } from '@omne-harness/legal-identity';
 import type { AuthorityDecision, ScopeRef } from '@omne-harness/runtime-context-contract';
 import type { BindingKind, EnvironmentBinding, EnvironmentContinuity } from './binding.ts';
 import type { FacilityDescriptor, FacilityKey } from './facility.ts';
+import type { RetainedProcessInformation } from './facilities/command.ts';
 import type { Access, AcquisitionRef, OriginRef } from './identity.ts';
 import type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationFailed, EnvironmentLease, InstanceIdentity, LookupUnknown, OriginalAcquisition, Pending, Placement, ProviderIdentity, RecoveryInspection, Rejected, UnknownAcquisition } from './lease.ts';
 import type { FacilityGuard, ManagedResource, RecoveryAccess, ResourceLedger, SessionTerminalRetention } from './ports.ts';
@@ -446,6 +469,7 @@ export interface EnvironmentProvider {
     settleAcquisition(original: OriginalAcquisition): Promise<AcquisitionSettlement>;
     listRecoveryResources?(scope: ScopeRef): Promise<RecoveryListing>;
     recover?(resource: ManagedResource): Promise<ResourceRecovery>;
+    retainedProcesses?(scope: ScopeRef, tenant: TenantId): Promise<readonly RetainedProcessInformation[] | 'unavailable'>;
     retire(): Promise<Retirement>;
 }
 export type EnvironmentDescription = Readonly<{
@@ -512,6 +536,9 @@ export type EnvironmentAction = Readonly<{
 }> | Readonly<{
     kind: 'describe';
     scope: ScopeRef;
+}> | Readonly<{
+    kind: 'observe-retained';
+    scope: ScopeRef;
 }>;
 export interface EnvironmentAuthority<P> {
     authorize(access: Access<P>, action: EnvironmentAction): Promise<AuthorityDecision<P>>;
@@ -522,6 +549,7 @@ export interface ExecutionEnvironment<P> {
     inspectAcquisition(access: Access<P>, query: AcquisitionQuery): Promise<AcquisitionInspection>;
     inspectRecoveryAcquisition(access: RecoveryAccess, original: OriginalAcquisition): Promise<RecoveryInspection>;
     describe(access: Access<P>, scope: ScopeRef): Promise<readonly EnvironmentDescription[] | Rejected | LookupUnknown>;
+    observeRetained(access: Access<P>, scope: ScopeRef): Promise<readonly RetainedProcessInformation[] | Rejected | LookupUnknown>;
     recoverOwned(scope: ScopeRef, access: RecoveryAccess, known?: readonly OriginalAcquisition[]): Promise<OwnedRecovery | Rejected | LookupUnknown>;
     releaseScope(scope: ScopeRef, access: RecoveryAccess, known?: readonly OriginalAcquisition[]): Promise<OwnedRecovery | Rejected | LookupUnknown>;
 }
@@ -535,6 +563,7 @@ export interface ProviderRegistrations {
 
 ```ts
 import { type FacilityDescriptor, type FacilityRequest, type FacilityResult } from '../facility.ts';
+import type { OriginRef } from '../identity.ts';
 export type OutputChunk = {
     readonly stream: 'stdout' | 'stderr' | 'terminal';
     readonly data: Uint8Array;
@@ -549,6 +578,10 @@ export type OutputCount = {
     readonly observedBytes: number;
     readonly discardedBytes: number;
 };
+export type BetweenSegments = {
+    readonly data: Uint8Array;
+    readonly count: OutputCount;
+};
 export type OutputSummary = {
     readonly mode: 'separate';
     readonly stdout: OutputCount;
@@ -556,6 +589,24 @@ export type OutputSummary = {
 } | {
     readonly mode: 'terminal';
     readonly terminal: OutputCount;
+    readonly between?: BetweenSegments;
+};
+export type RetainedProcessRef = {
+    readonly id: string;
+    readonly generation: string;
+};
+export type ResidueStopReason = 'policy' | 'unbound' | 'closed' | 'capacity' | 'uncontained';
+export type ResidueReport = {
+    readonly kind: 'none';
+} | {
+    readonly kind: 'retained';
+    readonly process: RetainedProcessRef;
+    readonly processes: number | 'unknown';
+} | {
+    readonly kind: 'stopping';
+    readonly reason: ResidueStopReason;
+} | {
+    readonly kind: 'unknown';
 };
 export type CommandOutcome = {
     readonly kind: 'completed';
@@ -570,6 +621,7 @@ export type CommandOutcome = {
     };
     readonly durationMs: number;
     readonly output: OutputSummary;
+    readonly residue?: ResidueReport;
 } | {
     readonly kind: 'failed';
     readonly reason: 'unavailable' | 'effectUnknown';
@@ -587,7 +639,55 @@ export interface ProcessHandle {
     readonly result: Promise<CommandOutcome>;
     stop(mode: 'graceful' | 'forced'): Promise<'confirmed' | 'unconfirmed'>;
 }
+export type RetainedProcessInformation = {
+    readonly process: RetainedProcessRef;
+    readonly origin: OriginRef;
+    readonly handedOverAtMs: number;
+    readonly state: 'running' | 'stopping';
+    readonly processes: number | 'unknown';
+};
+export type RetainedOutputFrom = Readonly<Partial<Record<OutputChunk['stream'], number>>>;
+export type RetainedStreamTail = {
+    readonly stream: OutputChunk['stream'];
+    readonly savedFrom: number;
+    readonly start: number;
+    readonly end: number;
+    readonly discardedBytes: number;
+    readonly data: Uint8Array;
+    readonly text: {
+        readonly encoding: 'utf-8';
+        readonly value: string;
+        readonly start: number;
+        readonly replaced: boolean;
+    };
+};
+export type RetainedOutput = {
+    readonly kind: 'tail';
+    readonly version: number;
+    readonly streams: readonly RetainedStreamTail[];
+} | {
+    readonly kind: 'none';
+} | {
+    readonly kind: 'unsupported';
+};
+export interface CommandRetention<P> {
+    list(request: FacilityRequest<P>): Promise<FacilityResult<readonly RetainedProcessInformation[]>>;
+    stop?(request: FacilityRequest<P> & {
+        readonly process: RetainedProcessRef;
+        readonly mode: 'graceful' | 'forced';
+    }): Promise<FacilityResult<{
+        readonly status: 'confirmed' | 'unconfirmed';
+    }>>;
+    output?(request: FacilityRequest<P> & {
+        readonly process: RetainedProcessRef;
+        readonly from?: RetainedOutputFrom;
+    }): Promise<FacilityResult<RetainedOutput>>;
+}
+export type CommandRetentionOperation = keyof CommandRetention<unknown>;
+export type Containment = 'sealed' | 'none';
 export interface CommandFacility<P> {
+    readonly retention?: CommandRetention<P>;
+    readonly containment?: Containment;
     start(request: FacilityRequest<P> & {
         readonly executable: string;
         readonly args: readonly string[];
@@ -824,7 +924,7 @@ import type { Access, OriginRef } from './identity.ts';
 export interface EnvironmentFacilities {
 }
 export type FacilityKey = keyof EnvironmentFacilities & string;
-export type FacilityOperation<K extends FacilityKey> = Exclude<keyof EnvironmentFacilities[K], K extends 'terminal' ? 'retention' : never> & string;
+export type FacilityOperation<K extends FacilityKey> = Exclude<keyof EnvironmentFacilities[K], K extends 'command' ? 'retention' | 'containment' : K extends 'terminal' ? 'retention' : never> & string;
 export interface FacilityDescriptor<K extends FacilityKey> {
     readonly key: K;
     readonly operations: readonly FacilityOperation<K>[];
@@ -884,11 +984,11 @@ export type { EnvironmentFacilities, FacilityDescriptor, FacilityKey, FacilityOp
 export { filesFacility } from './facilities/files.ts';
 export type { FileBatchOutcome, FileBatchRecognition, FileBatchRef, FileEntry, FileIdentity, FileInformation, FileRequest, FileSystemFacility, FileTarget, FileVersion, FileWriteResult, HandleGeneration, ObjectToken, } from './facilities/files.ts';
 export { commandFacility } from './facilities/command.ts';
-export type { CommandFacility, CommandOutcome, OutputChunk, OutputCount, OutputPolicy, OutputSummary, ProcessHandle, } from './facilities/command.ts';
+export type { BetweenSegments, CommandFacility, CommandOutcome, CommandRetention, CommandRetentionOperation, Containment, OutputChunk, OutputCount, OutputPolicy, OutputSummary, ProcessHandle, ResidueReport, ResidueStopReason, RetainedOutput, RetainedOutputFrom, RetainedProcessInformation, RetainedProcessRef, RetainedStreamTail, } from './facilities/command.ts';
 export { terminalFacility } from './facilities/terminal.ts';
 export type { TerminalFacility, TerminalInformation, TerminalRef, TerminalRetention, TerminalRetentionOperation, } from './facilities/terminal.ts';
 export { createRecoveryAccess } from './ports.ts';
-export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, RetainedTerminalLedger, SessionTerminalRetention, } from './ports.ts';
+export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, RetainedProcessLedger, RetainedTerminalLedger, SessionTerminalRetention, } from './ports.ts';
 export type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationCleanup, AllocationFailed, LookupUnknown, OriginalAcquisition, OriginalInspection, RecoveryInspection, UnknownAcquisition, EnvironmentAdoption, EnvironmentLease, FacilitySet, InstanceIdentity, LeaseInvalidation, LeaseRelease, Pending, Placement, ProviderIdentity, RegistryInvalidationReason, RejectReason, Rejected, } from './lease.ts';
 export type { AcquireInput, AcquisitionListing, AcquisitionSettlement, EnvironmentAction, EnvironmentAuthority, EnvironmentDescription, EnvironmentProvider, ProviderAcquisitionStatus, ProviderQuota, QuotaAnswer, ExecutionEnvironment, OwnedRecovery, PlacementInput, PlatformFacts, ProviderAcquireInput, ProviderAcquisition, ProviderFacts, ProviderRegistrations, RecoveryListing, ResourceRecovery, Retirement, UnsupportedRecovery, } from './environment.ts';
 export { environmentNeedAdoption, environmentNeedSchema } from './need-declaration.ts';
@@ -900,7 +1000,7 @@ export type { ExecutionHostFactsValue, ExecutionPlacementEntry, ExecutionPlaceme
 export { judgeRequirement, matchProviders } from './judge.ts';
 export type { ProviderCapabilities, ProviderMatch, RequirementRefusal } from './judge.ts';
 export type { Issue as DecodeIssue } from './decode.ts';
-export { resolvePlacementParamsSchema, acquireParamsSchema, inspectAcquisitionParamsSchema, inspectRecoveryAcquisitionParamsSchema, describeParamsSchema, recoverOwnedParamsSchema, releaseScopeParamsSchema, registerFacilityParamsSchema, registerProviderParamsSchema, resolvePlacementResultSchema, acquireResultSchema, inspectAcquisitionResultSchema, inspectRecoveryAcquisitionResultSchema, describeResultSchema, recoverOwnedResultSchema, releaseScopeResultSchema, operationSchemas, providerFactsSchema, managedResourceSchema, originalAcquisitionSchema, } from './operation-schemas.ts';
+export { resolvePlacementParamsSchema, acquireParamsSchema, inspectAcquisitionParamsSchema, inspectRecoveryAcquisitionParamsSchema, describeParamsSchema, observeRetainedParamsSchema, recoverOwnedParamsSchema, releaseScopeParamsSchema, registerFacilityParamsSchema, registerProviderParamsSchema, resolvePlacementResultSchema, acquireResultSchema, inspectAcquisitionResultSchema, inspectRecoveryAcquisitionResultSchema, describeResultSchema, observeRetainedResultSchema, recoverOwnedResultSchema, releaseScopeResultSchema, operationSchemas, providerFactsSchema, managedResourceSchema, originalAcquisitionSchema, } from './operation-schemas.ts';
 export type { OperationSchema, OperationName } from './operation-schemas.ts';
 export type { HostDate } from './blocks.ts';
 ```
@@ -1178,6 +1278,7 @@ export declare const acquireParamsSchema: OperationSchema<Parameters<ExecutionEn
 export declare const inspectAcquisitionParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['inspectAcquisition']>>;
 export declare const inspectRecoveryAcquisitionParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['inspectRecoveryAcquisition']>>;
 export declare const describeParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['describe']>>;
+export declare const observeRetainedParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['observeRetained']>>;
 export declare const recoverOwnedParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['recoverOwned']>>;
 export declare const releaseScopeParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['releaseScope']>>;
 export declare const registerFacilityParamsSchema: OperationSchema<[
@@ -1195,6 +1296,7 @@ export declare const acquireResultSchema: OperationSchema<Awaited<ReturnType<Exe
 export declare const inspectAcquisitionResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['inspectAcquisition']>>>;
 export declare const inspectRecoveryAcquisitionResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['inspectRecoveryAcquisition']>>>;
 export declare const describeResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['describe']>>>;
+export declare const observeRetainedResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['observeRetained']>>>;
 export declare const recoverOwnedResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['recoverOwned']>>>;
 export declare const releaseScopeResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['releaseScope']>>>;
 export declare const providerFactsSchema: StandardSchemaV1<unknown, Readonly<{
@@ -1263,9 +1365,13 @@ export interface ResourceLedger {
     stopped(key: string, status: 'confirmed' | 'unconfirmed'): Promise<'recorded' | 'unavailable'>;
 }
 export type RetainedTerminalLedger = Pick<ResourceLedger, 'closed' | 'plan' | 'permit' | 'stopped'>;
+export type RetainedProcessLedger = Pick<ResourceLedger, 'closed' | 'plan' | 'adopt' | 'stopped'> & {
+    ended?(key: string): Promise<'confirmed' | 'none' | 'unavailable'>;
+};
 export type SessionTerminalRetention = Readonly<{
     scope: ScopeRef;
     ledger: RetainedTerminalLedger;
+    processes?: RetainedProcessLedger;
 }>;
 declare const recoveryAccessMark: unique symbol;
 export interface RecoveryAccess {
@@ -1316,12 +1422,50 @@ export declare function runConformanceCase(test: ConformanceCase): Promise<CaseV
 export declare function bounded<T>(promise: Promise<T>, ms: number): Promise<T>;
 ```
 
+## 声明文件 `testing/command-retention-conformance.d.ts`
+
+```ts
+import type { CommandFacility, FacilityRequest, RetainedProcessRef } from '../index.ts';
+import { type ConformanceCase } from './case.ts';
+type StartRequest = Parameters<CommandFacility<unknown>['start']>[0];
+export type CommandRetentionBody = Pick<StartRequest, 'executable' | 'args' | 'cwd' | 'env' | 'outputMode'>;
+export type CommandRetentionAcquisition = Readonly<{
+    facility: CommandFacility<unknown>;
+    request(): FacilityRequest<unknown>;
+}>;
+export type CommandRetentionSubject = Readonly<{
+    acquisition: CommandRetentionAcquisition;
+    elsewhere: CommandRetentionAcquisition;
+    commands: Readonly<{
+        clean(): CommandRetentionBody;
+        leftover(): CommandRetentionBody;
+        writing?(): Readonly<{
+            body: CommandRetentionBody;
+            after: Uint8Array;
+        }>;
+    }>;
+    closeScope(): Promise<void>;
+    domainStopped(process: RetainedProcessRef): Promise<boolean>;
+    stopsIssued?(process: RetainedProcessRef): Promise<number>;
+    refusing?: CommandRetentionAcquisition;
+    withoutEnded?: CommandRetentionAcquisition;
+    unbound?: CommandRetentionAcquisition;
+    dispose?(): Promise<void>;
+}>;
+export type CommandRetentionOptions = Readonly<{
+    subject(): CommandRetentionSubject | Promise<CommandRetentionSubject>;
+    waitMs?: number;
+}>;
+export declare function commandRetentionConformance(options: CommandRetentionOptions): readonly ConformanceCase[];
+export {};
+```
+
 ## 声明文件 `testing/doubles.d.ts`
 
 ```ts
 import { type TenantId } from '@omne-harness/legal-identity';
 import type { AuthorityDecision, ScopeBinding, ScopeBindingSource, ScopeRef } from '@omne-harness/runtime-context-contract';
-import type { Access, AcquisitionListing, AcquisitionSettlement, EnvironmentAction, EnvironmentAuthority, OriginalAcquisition, ProviderAcquisitionStatus, QuotaAnswer, EnvironmentProvider, EnvironmentFacilities, EnvironmentBinding, EnvironmentContinuity, FacilityGuard, FacilityKey, LeaseInvalidation, LeaseRelease, ManagedResource, ProviderAcquireInput, ProviderAcquisition, RecoveryAuthority, RecoveryListing, ResourceLedger, ResourceRecovery, Retirement } from '../index.ts';
+import type { Access, AcquisitionListing, AcquisitionSettlement, EnvironmentAction, EnvironmentAuthority, OriginalAcquisition, ProviderAcquisitionStatus, QuotaAnswer, EnvironmentProvider, EnvironmentFacilities, EnvironmentBinding, EnvironmentContinuity, FacilityGuard, FacilityKey, LeaseInvalidation, LeaseRelease, ManagedResource, ProviderAcquireInput, ProviderAcquisition, RecoveryAuthority, RecoveryListing, ResourceLedger, ResourceRecovery, RetainedProcessInformation, Retirement } from '../index.ts';
 export type ProviderScript = Readonly<{
     name?: string;
     generation?: string;
@@ -1347,6 +1491,7 @@ export type ProviderScript = Readonly<{
         list(scope: ProviderAcquireInput['scope']): Promise<RecoveryListing>;
         recover(resource: ManagedResource): Promise<ResourceRecovery>;
     };
+    retained?: (scope: ScopeRef, tenant: TenantId) => Promise<readonly RetainedProcessInformation[] | 'unavailable'>;
 }>;
 export declare function createScriptedEnvironmentProvider(script?: ProviderScript): EnvironmentProvider & {
     durability: 'none';
@@ -1361,6 +1506,7 @@ export declare function createScriptedEnvironmentProvider(script?: ProviderScrip
         inspect: number;
         listAcquisitions: number;
         settle: number;
+        retained: number;
     };
     invalidateLeases(value: LeaseInvalidation): void;
 };
@@ -1448,9 +1594,10 @@ export { environmentProviderConformance, type ProviderConformanceOptions, type P
 export { executionEnvironmentConformance, type EnvironmentConformanceOptions, type EnvironmentConformanceSubject, type EnvironmentConformancePorts, } from './environment-conformance.ts';
 export { createScriptedEnvironmentProvider, createMemoryResourceLedger, createScriptedFacilityGuard, createScriptedRecoveryAuthority, createScriptedEnvironmentAuthority, createScriptedScopeBindings, type EnvironmentAuthorityScript, type ScriptedEnvironmentAuthority, type ScriptedScopeBindings, type ProviderScript, type ScriptedEnvironmentProvider, type MemoryResourceLedger, type ScriptedFacilityGuard, type ScriptedRecoveryAuthority, } from './doubles.ts';
 export { createMemoryFileSystem, type MemoryFileSystem, type MemoryFileSystemOptions, } from './memory-files.ts';
-export { createScriptedCommandFacility, type CommandScript, type ScriptedCommandAnswer, type ScriptedCommandFacility, } from './scripted-command.ts';
+export { createScriptedCommandFacility, createScriptedRetentionStore, type CommandScript, type ScriptedCommandAnswer, type ScriptedCommandFacility, type ScriptedCommandOptions, type ScriptedRetentionStore, } from './scripted-command.ts';
 export { createScriptedTerminalFacility, type TerminalScript, type ScriptedTerminalAnswer, type ScriptedTerminalFacility, } from './scripted-terminal.ts';
 export { terminalFacilityConformance, type TerminalConformanceAcquisition, type TerminalConformanceSubject, type TerminalConformanceOptions, } from './terminal-conformance.ts';
+export { commandRetentionConformance, type CommandRetentionAcquisition, type CommandRetentionBody, type CommandRetentionOptions, type CommandRetentionSubject, } from './command-retention-conformance.ts';
 ```
 
 ## 声明文件 `testing/memory-files.d.ts`
@@ -1512,7 +1659,7 @@ export declare function environmentProviderConformance(options: ProviderConforma
 ## 声明文件 `testing/scripted-command.d.ts`
 
 ```ts
-import type { CommandFacility, CommandOutcome, FacilityReason, OutputChunk, ProcessHandle } from '../index.ts';
+import type { CommandFacility, CommandOutcome, FacilityReason, OutputChunk, ProcessHandle, RetainedProcessRef } from '../index.ts';
 export type ScriptedCommandAnswer = Readonly<{
     kind: 'started';
     output?: readonly Readonly<{
@@ -1522,6 +1669,11 @@ export type ScriptedCommandAnswer = Readonly<{
     outcome?: CommandOutcome;
     runs?: 'exit' | 'untilStop';
     stop?: 'confirmed' | 'unconfirmed';
+    leaves?: number | 'unknown';
+    afterHandover?: readonly Readonly<{
+        stream: OutputChunk['stream'];
+        data: string | Uint8Array;
+    }>[];
 }> | Readonly<{
     kind: 'rejected';
     reason: FacilityReason;
@@ -1530,6 +1682,21 @@ export type ScriptedCommandAnswer = Readonly<{
 }>;
 type StartRequest<P> = Parameters<CommandFacility<P>['start']>[0];
 export type CommandScript<P = unknown> = (request: StartRequest<P>) => ScriptedCommandAnswer | Promise<ScriptedCommandAnswer>;
+export type ScriptedRetentionStore = Readonly<{
+    closeScope(scope: string): void;
+    stopped(process: RetainedProcessRef): boolean;
+    stopsIssued(process: RetainedProcessRef): number;
+}>;
+export declare function createScriptedRetentionStore(): ScriptedRetentionStore;
+export type ScriptedCommandOptions = Readonly<{
+    retention?: Readonly<{
+        store: ScriptedRetentionStore;
+        scope: string;
+        ledger?: boolean;
+        ended?: boolean;
+        refuse?: readonly ('stop' | 'output')[];
+    }>;
+}>;
 export type ScriptedCommandFacility<P = unknown> = Readonly<{
     durability: 'none';
     facility: CommandFacility<P>;
@@ -1542,7 +1709,7 @@ type StopRecord = Readonly<{
     mode: 'graceful' | 'forced';
     answer: 'confirmed' | 'unconfirmed';
 }>;
-export declare function createScriptedCommandFacility<P = unknown>(script: CommandScript<P>): ScriptedCommandFacility<P>;
+export declare function createScriptedCommandFacility<P = unknown>(script: CommandScript<P>, options?: ScriptedCommandOptions): ScriptedCommandFacility<P>;
 export {};
 ```
 

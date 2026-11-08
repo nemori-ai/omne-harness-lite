@@ -33,11 +33,16 @@ import {
   type ReleaseRecord,
 } from '@omne-harness/tool-contract/provider'
 
+/**
+ * `handedOver`: a retention scope adopted the resource in the commit that wrote this value, so this
+ * acquisition no longer owns it. No later stop fact replaces it.
+ */
+export type ResourceStop = 'active' | 'unconfirmed' | 'confirmed' | 'handedOver'
 export type ResourceFact = Readonly<{
   resource: ManagedResource
   permitted: boolean
   adopted: boolean
-  stop: 'active' | 'unconfirmed' | 'confirmed'
+  stop: ResourceStop
 }>
 export type AllocationFact =
   | Readonly<{ kind: 'sent' | 'unknown' | 'allocated' | 'not-allocated' | 'settled' }>
@@ -84,6 +89,12 @@ type StateChange<T> = (
   state: T | null,
   receipt: (value: unknown) => DurableEvidence,
 ) => Outcome<T, ToolFailure>
+/** The two records of one handover commit: the acquisition that hands over and the adopting scope. */
+export type HandOverState = Readonly<{ acquisition: EnvironmentState; retention: RetentionState }>
+type HandOverChange = (
+  acquisition: EnvironmentState,
+  retention: RetentionState | null,
+) => Outcome<HandOverState, ToolFailure>
 type CurrentResourceAuthorization = () => Promise<'authorized' | 'notAuthorized' | 'unavailable'>
 type CommitResult = LedgerCommit | Readonly<{ kind: 'call-changed' }>
 type MutationRead<T> = Outcome<{ state: T | null; mutation: string | null }, ToolFailure>
@@ -218,12 +229,20 @@ async function decodeState(value: unknown): Promise<EnvironmentState | null> {
   }
 }
 
+const resourceStops: readonly unknown[] = [
+  'active',
+  'unconfirmed',
+  'confirmed',
+  'handedOver',
+] satisfies readonly ResourceStop[]
+const isResourceStop = (value: unknown): value is ResourceStop => resourceStops.includes(value)
+
 async function decodeResourceFact(item: unknown): Promise<ResourceFact | null> {
   if (
     !object(item) ||
     typeof item.permitted !== 'boolean' ||
     typeof item.adopted !== 'boolean' ||
-    (item.stop !== 'active' && item.stop !== 'unconfirmed' && item.stop !== 'confirmed')
+    !isResourceStop(item.stop)
   )
     return null
   const resource = await managedResourceSchema['~standard'].validate(item.resource)
@@ -619,6 +638,69 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     }
     return environmentFailure('retention ledger revision contention')
   }
+
+  /**
+   * One guarded commit that writes the retention record and the acquisition record together. Both
+   * live in the environment domain, so one revision condition covers both, and both envelopes carry
+   * the same mutation: either both changes are durable or neither is. A closed acquisition answers
+   * `not-settled`, as a guarded retention update does.
+   */
+  async function handOver(
+    address: EnvironmentAddress,
+    scope: ScopeRef,
+    change: HandOverChange,
+    authorize: CurrentResourceAuthorization,
+  ): Promise<Outcome<HandOverState, ToolFailure>> {
+    if (!options.guarded) return environmentFailure('atomic call and host commit unavailable')
+    const mutation = randomUUID()
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const before = await retentionSnapshot(address, scope)
+      if ('failure' in before) return before
+      const original = await snapshot(address)
+      if ('failure' in original) return original
+      if (original.ok.revision !== before.ok.revision) continue
+      if (!original.ok.state) return environmentFailure('handed-over acquisition missing')
+      if (original.ok.state.closed) return fail({ kind: 'not-settled' })
+      const revision = decodeToolRevision((BigInt(before.ok.revision) + 1n).toString())
+      if ('failure' in revision) return environmentFailure('invalid handover revision')
+      const next = change(original.ok.state, before.ok.state)
+      if ('failure' in next) return next
+      const put = (key: string, state: unknown): LedgerCommitInput['writes'][number] => ({
+        kind: 'put',
+        record: { kind: 'host', host: { key, value: { mutation, state } } },
+      })
+      const hostCommit: LedgerCommitInput = {
+        domain: environmentDomain(address.tenant),
+        expected: before.ok.revision,
+        revision: revision.ok,
+        writes: [
+          put(retentionKey(scope), encodeRetention(next.ok.retention)),
+          put(preparationKey(address), encodeState(next.ok.acquisition)),
+        ],
+      }
+      const committed = await commitHost(
+        address,
+        original.ok.state.preparation,
+        hostCommit,
+        authorize,
+        'current handover authorization unavailable',
+      )
+      if ('failure' in committed) return committed
+      // The writes are atomic: the mutation on the retention envelope proves both landed.
+      const result = await commitResult(
+        address,
+        committed.ok,
+        next.ok.retention,
+        mutation,
+        () => retentionSnapshot(address, scope),
+        'handover commit unavailable',
+        retentionKey(scope),
+      )
+      if (result === null) continue
+      return 'failure' in result ? result : succeed(next.ok)
+    }
+    return environmentFailure('handover revision contention')
+  }
   return Object.freeze({
     read,
     update,
@@ -630,6 +712,7 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     ) => update(address, change, authorize),
     readRetention,
     updateRetention,
+    handOver,
   })
 }
 export type EnvironmentStateStore = ReturnType<typeof createEnvironmentStateStore>

@@ -39,6 +39,33 @@ it('declares all Shell commands and explains platform, background and terminal s
   expect(info).toContain('shell=["/explicit-shell","-c"] cwd="/initial"')
 })
 
+it('states the four lifetime rules in help, one phrase per rule', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const help = await run(author, 'help', {}, fixture.environment)
+  // One-shot execution: what is left in the background becomes a retained process.
+  expect(help).toContain('a process left running in the background by a one-shot command')
+  expect(help).toContain('stays running after the call returns as a retained process')
+  expect(help).toContain('info lists retained processes')
+  expect(help).toContain(
+    'until it exits, is stopped explicitly, or the execution environment closes its retention scope',
+  )
+  expect(help).toContain('is stopped when it cannot be retained; the residue line gives the reason')
+  // Background execution is unsupported; a one-shot call waits for the main process.
+  expect(help).toContain('run_in_background is not supported now')
+  expect(help).toContain(
+    'a one-shot command waits until the main process exits and output is quiet',
+  )
+  // Terminal tasks live with the terminal.
+  expect(help).toContain('background tasks in a terminal live as long as the terminal')
+  expect(help).toContain('close_session stops every process in the terminal')
+  // Services meant to outlive the tool belong to the host service manager.
+  expect(help).toContain('systemd-run --user')
+  expect(help).toContain('an external effect of the command itself')
+  // The deployment does not stop retention scopes when a session ends, so help must not say so.
+  expect(help).not.toContain('session ends')
+})
+
 it('routes one-shot commands using explicit construction and per-call cwd/env', async () => {
   const fixture = shellFixture()
   const author = value(createShellAuthor(fixture.config))

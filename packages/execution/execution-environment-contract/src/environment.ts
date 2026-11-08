@@ -3,6 +3,7 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type { AuthorityDecision, ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { BindingKind, EnvironmentBinding, EnvironmentContinuity } from './binding.ts'
 import type { FacilityDescriptor, FacilityKey } from './facility.ts'
+import type { RetainedProcessInformation } from './facilities/command.ts'
 import type { Access, AcquisitionRef, OriginRef } from './identity.ts'
 import type {
   AcquisitionInspection,
@@ -166,6 +167,14 @@ export interface EnvironmentProvider {
   /** Stops a legitimate resource. It never re-grants old permits or reruns the original effect. */
   recover?(resource: ManagedResource): Promise<ResourceRecovery>
   /**
+   * The retained processes of one retention scope and tenant that this provider holds now.
+   * Failure is `unavailable`, never an empty list.
+   */
+  retainedProcesses?(
+    scope: ScopeRef,
+    tenant: TenantId,
+  ): Promise<readonly RetainedProcessInformation[] | 'unavailable'>
+  /**
    * Refuses new leases, closes facilities to new operations, waits for admitted ones and for the
    * acquisition responsibilities. Past its own bound it answers `pending`.
    */
@@ -239,6 +248,7 @@ export type EnvironmentAction =
   | Readonly<{ kind: 'inspect'; tenant: TenantId; acquisition: AcquisitionRef }>
   | Readonly<{ kind: 'inspect-original'; original: OriginalAcquisition }>
   | Readonly<{ kind: 'describe'; scope: ScopeRef }>
+  | Readonly<{ kind: 'observe-retained'; scope: ScopeRef }>
 
 /**
  * Needed port: checks ordinary access for one action. It issues no identity. `current()` of an
@@ -267,6 +277,14 @@ export interface ExecutionEnvironment<P> {
     access: Access<P>,
     scope: ScopeRef,
   ): Promise<readonly EnvironmentDescription[] | Rejected | LookupUnknown>
+  /**
+   * The retained processes of a retention scope across every provider. One provider that cannot
+   * answer makes the whole answer `unavailable`; a partial list is never given.
+   */
+  observeRetained(
+    access: Access<P>,
+    scope: ScopeRef,
+  ): Promise<readonly RetainedProcessInformation[] | Rejected | LookupUnknown>
   recoverOwned(
     scope: ScopeRef,
     access: RecoveryAccess,

@@ -99,17 +99,32 @@ describe('terminal byte ownership', () => {
 describe('terminal private frames', () => {
   const bytes = (value: unknown) => Buffer.from(`${JSON.stringify(value)}\n`)
   it('rejects another generation, late legs, and overlong frames permanently', () => {
-    const reader = createTerminalReader({ generation: 'g', maxChunkBytes: 8, maxControlBytes: 256 })
+    const reader = createTerminalReader({
+      generation: 'g',
+      maxChunkBytes: 8,
+      maxControlBytes: 256,
+      betweenSegmentBytes: 16,
+    })
     expect(reader.push(bytes({ t: 'ready', generation: 'other' }))).toMatchObject({ kind: 'fault' })
     expect(reader.push(bytes({ t: 'ready', generation: 'g' }))).toMatchObject({ kind: 'fault' })
-    const late = createTerminalReader({ generation: 'g', maxChunkBytes: 8, maxControlBytes: 256 })
+    const late = createTerminalReader({
+      generation: 'g',
+      maxChunkBytes: 8,
+      maxControlBytes: 256,
+      betweenSegmentBytes: 16,
+    })
     late.push(bytes({ t: 'ready', generation: 'g' }))
     late.push(bytes({ t: 'opened', generation: 'g', cwd: '/tmp' }))
     late.expectLeg('leg')
     expect(late.push(bytes({ t: 'started', generation: 'g', leg: 'old' }))).toMatchObject({
       kind: 'fault',
     })
-    const long = createTerminalReader({ generation: 'g', maxChunkBytes: 8, maxControlBytes: 256 })
+    const long = createTerminalReader({
+      generation: 'g',
+      maxChunkBytes: 8,
+      maxControlBytes: 256,
+      betweenSegmentBytes: 16,
+    })
     expect(long.push(Buffer.alloc(257, 97))).toMatchObject({ kind: 'fault' })
   })
 
@@ -118,6 +133,7 @@ describe('terminal private frames', () => {
       generation: 'g',
       maxChunkBytes: 128,
       maxControlBytes: 512,
+      betweenSegmentBytes: 16,
     })
     expect(reader.push(bytes({ t: 'ready', generation: 'g' }))).toMatchObject({ kind: 'frames' })
     expect(reader.push(bytes({ t: 'opened', generation: 'g', cwd: '/tmp' }))).toMatchObject({
@@ -126,6 +142,26 @@ describe('terminal private frames', () => {
     reader.expectLeg('leg')
     expect(reader.push(bytes({ t: 'started', generation: 'g', leg: 'leg' }))).toMatchObject({
       kind: 'frames',
+    })
+    // Segment data follows the begin sentinel; the between-segment bytes come before it.
+    expect(
+      reader.push(
+        Buffer.concat([
+          bytes({
+            t: 'between',
+            generation: 'g',
+            leg: 'leg',
+            b: Buffer.from('gap').toString('base64'),
+          }),
+          bytes({ t: 'begun', generation: 'g', leg: 'leg', discarded: 0 }),
+        ]),
+      ),
+    ).toEqual({
+      kind: 'frames',
+      frames: [
+        { kind: 'between', leg: 'leg', bytes: new Uint8Array(Buffer.from('gap')) },
+        { kind: 'begun', leg: 'leg', discarded: 0 },
+      ],
     })
     const forged = bytes({ t: 'finished', generation: 'g', leg: 'leg', code: 0, cwd: '/' })
     const result = reader.push(

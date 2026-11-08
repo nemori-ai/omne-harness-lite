@@ -9,10 +9,13 @@ export interface EnvironmentFacilities {}
 
 export type FacilityKey = keyof EnvironmentFacilities & string
 
-/** Operation names of one facility. */
+/**
+ * Operation names of one facility. A retention extension and the command facility's containment
+ * fact are not operations of their facility.
+ */
 export type FacilityOperation<K extends FacilityKey> = Exclude<
   keyof EnvironmentFacilities[K],
-  K extends 'terminal' ? 'retention' : never
+  K extends 'command' ? 'retention' | 'containment' : K extends 'terminal' ? 'retention' : never
 > &
   string
 

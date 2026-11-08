@@ -20,9 +20,14 @@ import type {
 } from '@omne-harness/execution-environment-contract'
 import { commandSettings, type HostCommandOptions } from './host-command.ts'
 import { terminalSettings, type HostTerminalOptions } from './host-terminal.ts'
-import { createHostPlatform } from './host-platform.ts'
+import { createHostPlatform, type CommandPrerequisite } from './host-platform.ts'
 import { readWindowsJobReference, stopWindowsResource } from './windows-execution/index.ts'
 import { retainedLegShell } from './host-retained-terminals.ts'
+import {
+  createRetainedProcessIndex,
+  type RetainedMarkerFact,
+  type RetainedProcessIndex,
+} from './host-retained-processes.ts'
 import {
   domainInternals,
   fingerprintOf,
@@ -35,12 +40,15 @@ import {
 import type { HostFileDiagnostic, HostFilesLimits } from './host-files.ts'
 import { probeHostFilesPrerequisite } from './host-paths.ts'
 import { probeWindowsFilesPrerequisite } from './windows-files/facility.ts'
-import { type HostCommandPrerequisite, type HostTerminalPrerequisite } from './host-probe.ts'
+import { probeMacosFilesPrerequisite } from './macos-files/prerequisite.ts'
+import { type HostTerminalPrerequisite } from './host-probe.ts'
+import { listMacosResources, recoverMacosResource } from './macos-execution/recovery.ts'
 import {
   forceStopScope,
   cleanupTerminalScope,
   listScopes,
   readBootId,
+  readScopeMembers,
   readScopeReference,
 } from './host-scope.ts'
 
@@ -78,8 +86,21 @@ export type HostFilesDiagnostic =
       kind: 'commandUnavailable' | 'terminalUnavailable'
       provider: string
       generation: string
-      missing: readonly (HostCommandPrerequisite | HostTerminalPrerequisite)[]
+      missing: readonly (CommandPrerequisite | HostTerminalPrerequisite)[]
       acquisition: string
+    }>
+  | Readonly<{
+      /**
+       * The marker of a retained process is out of step with its unit: it could not be written
+       * after the handover took effect, could not be removed after the confirmed stop, or was
+       * discarded at load because it was unreadable, from another boot or named a gone unit.
+       */
+      kind: 'retainedMarker'
+      provider: string
+      generation: string
+      key: string
+      unit: string
+      issue: RetainedMarkerFact['issue']
     }>
   | Readonly<{
       /**
@@ -161,7 +182,11 @@ function createFilesPrerequisiteReader(
   return async () => {
     if (settled !== undefined) return settled
     const reading = await (
-      process.platform === 'win32' ? probeWindowsFilesPrerequisite : probeHostFilesPrerequisite
+      process.platform === 'win32'
+        ? probeWindowsFilesPrerequisite
+        : process.platform === 'darwin'
+          ? probeMacosFilesPrerequisite
+          : probeHostFilesPrerequisite
     )(stateDirectory)
     if (reading !== 'unknown') settled = reading
     return reading
@@ -231,9 +256,37 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     settings,
     terminal,
     windowsCapacity: internals.windowsCapacity,
+    stateDirectory: options.stateDirectory,
   })
   const filesPrerequisite = createFilesPrerequisiteReader(options.stateDirectory)
   const platform = Object.freeze({ os: process.platform, release: release() })
+  const stateDirectory = options.stateDirectory
+  // The retained-process index lives with the state directory: without one, nothing is retained.
+  const retained: RetainedProcessIndex | undefined =
+    process.platform === 'linux' && stateDirectory !== undefined
+      ? internals.retainedProcesses(stateDirectory, () =>
+          createRetainedProcessIndex({
+            stateDirectory,
+            provider: name,
+            capacityPerScope: settings.retainedPerScope,
+            pollMs: settings.retainedPollMs,
+            async supervision() {
+              const tools = await execution.supervisor()
+              if (tools === undefined) return undefined
+              return {
+                bootId: readBootId,
+                members: ({ unit, directory }) =>
+                  readScopeMembers({ tools, unit, directory, boundMs: settings.stopBoundMs }),
+                stop: coordinate =>
+                  forceStopScope({ tools, coordinate, boundMs: settings.stopBoundMs }),
+              }
+            },
+            diagnose: fact =>
+              report({ kind: 'retainedMarker', provider: name, generation, ...fact }),
+          }),
+        )
+      : undefined
+  retained?.join(generation)
 
   const bindingKinds: readonly BindingKind[] = Object.freeze(['host_machine'])
   const continuity: EnvironmentContinuity = Object.freeze({ kind: 'not_guaranteed' })
@@ -406,7 +459,10 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
             ledger: input.ledger,
             provider: name,
             scope: input.scope,
+            tenant: input.tenant,
             settings,
+            retention: input.retention,
+            retained,
             unavailable: missing =>
               report({
                 kind: 'commandUnavailable',
@@ -422,9 +478,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
             provider: name,
             scope: input.scope,
             settings: terminal,
-            unavailable: (
-              missing: readonly (HostCommandPrerequisite | HostTerminalPrerequisite)[],
-            ) =>
+            unavailable: (missing: readonly (CommandPrerequisite | HostTerminalPrerequisite)[]) =>
               report({
                 kind: 'terminalUnavailable',
                 provider: name,
@@ -488,10 +542,19 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     // Windows has no complete cold owner index; partial live records cannot prove recovery complete.
     async listRecoveryResources(scope) {
       if (process.platform === 'win32') return { kind: 'unavailable' }
-      const retained = internals.retainedTerminals.resources(scope)
-      if (process.platform !== 'linux') return { kind: 'listed', resources: retained }
+      const retainedShells = internals.retainedTerminals.resources(scope)
+      if (execution.macos !== undefined) {
+        // The cold index lists every domain whose marker exists; an unread marker makes no list.
+        const resources = await listMacosResources(execution.macos, scope, () =>
+          internals.retainedTerminals.resources(scope),
+        )
+        return resources === 'unavailable' ? { kind: 'unavailable' } : { kind: 'listed', resources }
+      }
+      if (process.platform !== 'linux') return { kind: 'listed', resources: retainedShells }
       const systemctl = (await execution.supervisor())?.systemctl
       if (systemctl === undefined) return { kind: 'unavailable' }
+      // The retained-process markers are part of the index; unread markers make no complete listing.
+      if (retained !== undefined && !(await retained.ready())) return { kind: 'unavailable' }
       const listed = await listScopes({
         systemctl,
         scope,
@@ -500,20 +563,32 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       })
       if (listed.kind !== 'listed') return listed
       const resources = new Map(listed.resources.map(resource => [resource.key, resource]))
-      for (const resource of retained) resources.set(resource.key, resource)
+      for (const resource of retainedShells) resources.set(resource.key, resource)
       // A reservation may arrive while the supervisor listing is in flight.
       for (const resource of internals.retainedTerminals.resources(scope))
         resources.set(resource.key, resource)
+      for (const resource of retained?.resources(scope) ?? []) resources.set(resource.key, resource)
       return { kind: 'listed', resources: [...resources.values()] }
     },
     async recover(resource) {
-      const retained = await internals.retainedTerminals.recover(resource)
-      if (retained !== undefined)
+      const retainedShell = await internals.retainedTerminals.recover(resource)
+      if (retainedShell !== undefined)
         return {
-          status: retained === 'confirmed' ? 'confirmedStopped' : 'pending',
+          status: retainedShell === 'confirmed' ? 'confirmedStopped' : 'pending',
+          evidence: null,
+        }
+      const retainedProcess = await retained?.recover(resource)
+      if (retainedProcess !== undefined)
+        return {
+          status: retainedProcess === 'confirmed' ? 'confirmedStopped' : 'pending',
           evidence: null,
         }
       resource = retainedLegShell(resource) ?? resource
+      if (execution.macos !== undefined)
+        return {
+          status: await recoverMacosResource(execution.macos, resource, name),
+          evidence: null,
+        }
       if (process.platform === 'win32') {
         if (resource.provider !== name || readWindowsJobReference(resource.reference) === undefined)
           return { status: 'unsupported', evidence: null }
@@ -550,8 +625,17 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         evidence: { kind: 'object', entries: [unit, ...states] },
       }
     },
+    async retainedProcesses(scope, tenant) {
+      // Without an index (not Linux, or no state directory) nothing is retained. The index stays
+      // with its state directory, so a retired generation answers its reading like a live one: the
+      // retained processes belong to their scopes, not to the generation that read them.
+      if (retained === undefined) return []
+      return retained.list(scope, tenant)
+    },
     async retire(): Promise<Retirement> {
       retired = true
+      // Retained processes belong to their retention scopes: this generation only stops reading them.
+      retained?.retire(generation)
       const retainedDrain = internals.retainedTerminals.retire(generation)
       const own = [...internals.records()].filter(
         record => record.generation === generation && record.state !== 'settled',

@@ -122,6 +122,7 @@ function fixture() {
     resolvePlacement: async () => placement,
     inspectRecoveryAcquisition: async () => ({ kind: 'queryUnavailable', cause: 'provider' }),
     describe: async () => [],
+    observeRetained: async () => [],
     recoverOwned: async () => ({ kind: 'unknown', cause: 'provider' }),
     releaseScope: vi.fn<ExecutionEnvironment<Principal>['releaseScope']>(async () => ({
       kind: 'unknown',
@@ -166,7 +167,9 @@ function fixture() {
       },
     })
   const guard = { authorize: async () => 'authorized' as const }
-  const naming: FileObjectNaming<Principal> = { name: async () => succeed({ token: 'authorized' }) }
+  const naming: FileObjectNaming<Principal> = {
+    name: async () => succeed({ token: 'authorized' }),
+  }
   const release = async () => {
     const saved = await state.read(preparation)
     if (!('ok' in saved) || !saved.ok) throw new Error('missing preparation')

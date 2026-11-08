@@ -284,7 +284,10 @@ export async function fixture(
         },
         author: {
           kind: 'ordinary',
-          parameters: { adoption: adoption('arguments'), parse: input => succeed(input.effective) },
+          parameters: {
+            adoption: adoption('arguments'),
+            parse: input => succeed(input.effective),
+          },
           waits: [],
           executor: {
             async execute(args, environment, context) {
@@ -412,6 +415,7 @@ export async function fixture(
         : { kind: 'unrecorded' },
     inspectRecoveryAcquisition: async () => ({ kind: 'queryUnavailable', cause: 'provider' }),
     describe: async () => [],
+    observeRetained: async () => [],
     recoverOwned: async () => ({ kind: 'unknown', cause: 'provider' }),
     releaseScope: async () => ({ kind: 'unknown', cause: 'provider' }),
   }

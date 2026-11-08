@@ -31,6 +31,7 @@ import type {
   RecoveryListing,
   ResourceLedger,
   ResourceRecovery,
+  RetainedProcessInformation,
   Retirement,
 } from '../index.ts'
 export type ProviderScript = Readonly<{
@@ -66,6 +67,11 @@ export type ProviderScript = Readonly<{
     list(scope: ProviderAcquireInput['scope']): Promise<RecoveryListing>
     recover(resource: ManagedResource): Promise<ResourceRecovery>
   }
+  /** With it the provider offers `retainedProcesses` and answers with this script. */
+  retained?: (
+    scope: ScopeRef,
+    tenant: TenantId,
+  ) => Promise<readonly RetainedProcessInformation[] | 'unavailable'>
 }>
 type HeldRecord = {
   original: OriginalAcquisition
@@ -119,6 +125,7 @@ export function createScriptedEnvironmentProvider(script: ProviderScript = {}) {
     inspect: 0,
     listAcquisitions: 0,
     settle: 0,
+    retained: 0,
   }
   const records = new Map<string, HeldRecord>()
   function remember(input: ProviderAcquireInput, receipt: ProviderAcquisition): void {
@@ -173,6 +180,7 @@ export function createScriptedEnvironmentProvider(script: ProviderScript = {}) {
     },
   }
   const recoverable = script.recoverable
+  const retained = script.retained
   const provider: EnvironmentProvider = {
     name: script.name ?? 'scripted',
     generation: script.generation ?? 'g1',
@@ -295,6 +303,14 @@ export function createScriptedEnvironmentProvider(script: ProviderScript = {}) {
           },
         }
       : {}),
+    ...(retained
+      ? {
+          async retainedProcesses(scope: ScopeRef, tenant: TenantId) {
+            calls.retained++
+            return retained(scope, tenant)
+          },
+        }
+      : {}),
   }
   return Object.assign(provider, {
     durability: 'none' as const,
@@ -388,7 +404,11 @@ export function createScriptedEnvironmentAuthority<P>() {
       const answer = scripted?.(access, action)
       if (answer !== undefined) return answer
       const issued = revision
-      return { kind: 'authorized', principal: access.principal, current: () => issued === revision }
+      return {
+        kind: 'authorized',
+        principal: access.principal,
+        current: () => issued === revision,
+      }
     },
   }
   return Object.assign(authority, {

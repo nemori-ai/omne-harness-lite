@@ -181,9 +181,11 @@ Shell 进程不继承服务进程的环境。它的环境是 `server.json` 的 `
 | 平台     | 白名单                                                                                                                                                            |
 | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Windows  | `PATH`、`PATHEXT`、`SystemRoot`、`SystemDrive`、`WINDIR`、`ComSpec`、`USERPROFILE`、`APPDATA`、`LOCALAPPDATA`、`ProgramData`、`ProgramFiles`、`ProgramFiles(x86)` |
-| 其他平台 | `PATH`、`HOME`、`USER`、`LANG`、`LC_ALL`                                                                                                                          |
+| 其他平台 | `PATH`、`HOME`、`USER`、`LANG`、`LC_ALL`、`XDG_RUNTIME_DIR`、`DBUS_SESSION_BUS_ADDRESS`                                                                            |
 
 所以 Shell 里的 `PATH` 是运行 `setup` 时的 `PATH`，agent 能找到 `git`、`node`、`python` 这些工具。宿主上装了新工具、`PATH` 变了时，运行 `setup --reconfigure` 重新取。
+
+`XDG_RUNTIME_DIR` 与 `DBUS_SESSION_BUS_ADDRESS` 让命令找到当前用户的服务管理器，所以 agent 能像人一样用 `systemctl --user` 部署和查看本机服务。命令经服务管理器起的进程归宿主的服务管理器，不归执行环境，执行环境不负责它们的收尾；是否允许这样做由对命令的授权决定。这两个变量不是安全边界：命令可以按自己的用户号推出它们。`setup` 在没有用户会话的环境里运行时取不到它们，这时 Shell 里也没有。已有的 `server.json` 不含这两个变量，运行 `setup --reconfigure` 重新取。
 
 名字像秘密的变量不进 Shell 的环境：名字以 `TOKEN`、`KEY`、`SECRET`、`PASSWORD`、`PASSWD`、`CREDENTIAL`（可带复数 `S`）结尾，或以 `OPENROUTER_` 开头，不分大小写。白名单里没有这样的名字。有人手工把这样的名字写进 `shellEnvironment` 时，`serve` 认为配置不合格，以退出码 2 拒绝。生成运维者层时也再滤一次。
 
@@ -421,6 +423,8 @@ sequenceDiagram
 - 本机单用户档的 Shell 环境是 `setup` 当时的白名单值。`PATH` 之后变了，要运行 `setup --reconfigure` 才跟上。白名单以外的变量（例如代理设置）不进 Shell，需要时手工写进 `shellEnvironment`。
 - Windows 上 Shell 的 UTF-8 前导只管输出和读文件。`Set-Content`、`Out-File` 与 `>` 仍按 PowerShell 的默认编码写（Windows PowerShell 5.1 是 ANSI 页），前导不强制 BOM，因为 BOM 会破坏 `package.json` 之类的文件；要写 UTF-8 文件，脚本自己用 `[IO.File]::WriteAllText` 或 `-Encoding utf8`（5.1 带 BOM）。工具的 `stdin` 经 `$input` 读取时仍按控制台页解码，前导够不到它；脚本用 `[Console]::In.ReadToEnd()` 读才是 UTF-8。参数里的中文文本不受影响（命令行是 UTF-16）。验证见 `tests/local/shell-encoding.spec.ts`，它在 Windows 上用真实 `powershell.exe`，其他平台跳过；经执行宿主的 Windows 命令桥做过一次手工核对，没有固化成用例。
 - Windows 上 `setup` 不改也不读回访问控制列表，保护只靠用户目录的继承，前提见[权限](#setup)。
+- <a id="releasescope-wiring"></a>工具执行环境的绑定给每次获取（含一次性执行）交出保留范围与保留账本视图，同一个视图对象同时作保留终端账本与保留进程账本（`processes`）。保留范围就是请求方范围。应用现在没有调用登记表的 `releaseScope`：会话归档或关闭不会封闭保留范围，所以保留终端与一次性执行留下的保留进程都不会因会话结束而停止，保留进程只在自己退出或被显式停止时结束。触发条件是会话归档产生作用域释放（上层候选设计见[作用域释放](../../docs/architecture/runtime/control-and-recovery.md#作用域释放)）：归档与作用域释放插件归 Session，应用里 Session 提供者的归档相关操作还没有实现，作用域释放插件 `session-ad15` 仍是 S0 替身。接线之后，归档提交产生作用域释放任务，作用域释放插件凭恢复授权调用登记表的 `releaseScope`。执行环境一侧的入口已经就绪，接线不需要改执行环境。
+- 应用的环境授权对动作 `observe-retained`（按保留范围观察保留进程）答拒绝，执行环境把它映射为 `notAuthorized`。授予哪个观察身份由接上观察适配器的装配决定，在那之前没有调用方能观察。工具设施守卫的规则不变：会话主体与原调用核对通过即放行，保留进程的 `stop` 与 `output` 同样适用。
 - `omne` CLI 为读默认地址重复了[位置](#位置)的规则，因为应用之间不互相导入。改位置规则时两处要同时改，CLI 的 `tests/local-server.spec.ts` 与本应用的 `tests/local/locations.spec.ts` 各自固定一份。
 - 成员插件在插件体内自登记的行要等正式 `assemblyLifecycle` 被接受后再定承载（N-r2-3）。现在带阶段的行只经 `defineRow` 的两种承载进入。
 - 遥测（RFC-0013 revision 2 本地范围）第一版只有一代输出，按 `telemetry` 行配置在启动时固定，改出口或预算要重启进程（D09）。进程实例引用在模块装入时生成一次，同一进程里多次 `runServe` 共用。报告里的 `afterClose` 不计撤根期间的消息。其余见 [telemetry 行](docs/rows/telemetry.md#已知限制)。

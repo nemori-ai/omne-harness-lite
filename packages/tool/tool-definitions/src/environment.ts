@@ -1,5 +1,7 @@
 import type {
   CommandFacility,
+  CommandRetention,
+  Containment,
   FacilityRequest,
   FileSystemFacility,
   TerminalFacility,
@@ -15,6 +17,14 @@ type BoundFacility<T> = { readonly [K in keyof T]: BoundMethod<T[K]> }
 /** Optional consumer projection; old facilities fail closed for retained session operations. */
 type BoundTerminal = Omit<BoundFacility<TerminalFacility<unknown>>, 'retention'> & {
   readonly retention?: BoundFacility<TerminalRetention<unknown>>
+}
+/**
+ * Optional consumer projection; without it the retained processes cannot be read. `containment`
+ * is the provider's declared containment; absent is not `sealed`.
+ */
+type BoundCommand = Omit<BoundFacility<CommandFacility<unknown>>, 'retention' | 'containment'> & {
+  readonly retention?: BoundFacility<CommandRetention<unknown>>
+  readonly containment?: Containment
 }
 type FileOperations = Omit<
   BoundFacility<FileSystemFacility<unknown>>,
@@ -39,7 +49,7 @@ export type FilesAuthorEnvironment = Readonly<{
 }>
 
 export type ShellAuthorEnvironment = Readonly<{
-  command: BoundFacility<CommandFacility<unknown>>
+  command: BoundCommand
   terminal: BoundTerminal
   facts: Readonly<{
     os: string

@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import type {
   CommandFacility,
+  CommandRetention,
+  Containment,
   EnvironmentBinding,
   EnvironmentLease,
   FacilityKey,
@@ -39,7 +41,11 @@ export type EnvironmentFacts = Readonly<{
 }>
 export type ToolEnvironmentValue = Readonly<{
   files: AuthorFacility<FileSystemFacility<unknown>>
-  command: AuthorFacility<CommandFacility<unknown>>
+  command: Omit<AuthorFacility<CommandFacility<unknown>>, 'retention' | 'containment'> & {
+    readonly retention?: AuthorFacility<CommandRetention<unknown>>
+    /** The provider's containment as the lease gives it; absent is not `sealed`. */
+    readonly containment?: Containment
+  }
   terminal: Omit<AuthorFacility<TerminalFacility<unknown>>, 'retention'> & {
     readonly retention?: AuthorFacility<TerminalRetention<unknown>>
   }
@@ -168,7 +174,48 @@ export function createAuthorEnvironment<P>(input: AuthorEnvironmentInput<P>): To
     })
   }
 
+  type RetentionRequest<O extends keyof CommandRetention<unknown>> = BusinessRequest<
+    Parameters<NonNullable<CommandRetention<unknown>[O]>>[0]
+  >
+  const offered = input.lease.facility('command')
+  const containment = offered?.containment
   const command: ToolEnvironmentValue['command'] = {
+    ...(containment === undefined ? {} : { containment }),
+    ...(offered?.retention === undefined
+      ? {}
+      : {
+          retention: Object.freeze({
+            async list(request: RetentionRequest<'list'>) {
+              const common = base()
+              const retention = input.lease.facility('command')?.retention
+              return retention
+                ? retention.list({ ...request, ...common })
+                : absent(common.requestId)
+            },
+            ...(offered.retention.stop === undefined
+              ? {}
+              : {
+                  async stop(request: RetentionRequest<'stop'>) {
+                    const common = base()
+                    const retention = input.lease.facility('command')?.retention
+                    return retention?.stop
+                      ? retention.stop({ ...request, ...common })
+                      : absent(common.requestId)
+                  },
+                }),
+            ...(offered.retention.output === undefined
+              ? {}
+              : {
+                  async output(request: RetentionRequest<'output'>) {
+                    const common = base()
+                    const retention = input.lease.facility('command')?.retention
+                    return retention?.output
+                      ? retention.output({ ...request, ...common })
+                      : absent(common.requestId)
+                  },
+                }),
+          }),
+        }),
     async start(request) {
       const common = base()
       const facility = input.lease.facility('command')

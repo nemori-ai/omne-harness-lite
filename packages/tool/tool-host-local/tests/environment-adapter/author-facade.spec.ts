@@ -89,7 +89,10 @@ describe('current file authorization', () => {
   })
 })
 
-function fixture(terminal?: EnvironmentFacilities['terminal']) {
+function fixture(
+  terminal?: EnvironmentFacilities['terminal'],
+  command?: EnvironmentFacilities['command'],
+) {
   const files: FileSystemFacility<unknown> = {
     read: vi.fn(),
     write: vi.fn(),
@@ -104,7 +107,11 @@ function fixture(terminal?: EnvironmentFacilities['terminal']) {
     commitBatch: vi.fn(),
     recoverBatch: vi.fn(),
   }
-  const facilities: Partial<EnvironmentFacilities> = { files, ...(terminal ? { terminal } : {}) }
+  const facilities: Partial<EnvironmentFacilities> = {
+    files,
+    ...(terminal ? { terminal } : {}),
+    ...(command ? { command } : {}),
+  }
   const lease: EnvironmentLease = {
     placement: {
       kind: 'placement',
@@ -284,4 +291,117 @@ it('checks optional terminal attachment capabilities and keeps the current acqui
   expect(await retention.detach(target)).toMatchObject({ kind: 'rejected', reason: 'unavailable' })
   expect(attach).toHaveBeenCalledTimes(1)
   expect(detach).toHaveBeenCalledTimes(1)
+})
+
+it('lists retained processes with the current request identity only while the command facility offers it', async () => {
+  const start = vi.fn<EnvironmentFacilities['command']['start']>()
+  expect(fixture(undefined, { start }).value.command.retention).toBeUndefined()
+  const listed = [
+    {
+      process: { id: 'retained', generation: '1' },
+      origin: originRef('earlier'),
+      handedOverAtMs: 1,
+      state: 'running' as const,
+      processes: 'unknown' as const,
+    },
+  ]
+  const list = vi.fn<NonNullable<EnvironmentFacilities['command']['retention']>['list']>(
+    async request => ({ kind: 'done', requestId: request.requestId, value: listed }),
+  )
+  const f = fixture(undefined, { start, retention: { list } })
+  const retention = f.value.command.retention
+  if (retention === undefined) throw new Error('bound command retention missing')
+  const forged = {
+    requestId: 'forged',
+    origin: 'forged',
+    access: { principal: 'forged', tenant: 'forged' },
+    binding: { kind: 'forged' },
+  }
+  const answer = await retention.list(forged as unknown as Record<string, never>)
+  expect(list).toHaveBeenCalledTimes(1)
+  const sent = list.mock.calls[0]?.[0]
+  expect(sent).toMatchObject({
+    origin: 'original',
+    binding: { kind: 'host_machine' },
+    access: { principal: principalA, tenant: tenantA },
+  })
+  expect(sent?.requestId).not.toBe('forged')
+  expect(answer).toEqual({ kind: 'done', requestId: sent?.requestId, value: listed })
+  f.facilities.command = { start }
+  expect(await retention.list({})).toMatchObject({ kind: 'rejected', reason: 'unavailable' })
+  expect(list).toHaveBeenCalledTimes(1)
+  expect(retention.stop).toBeUndefined()
+  expect(retention.output).toBeUndefined()
+  expect(f.value.command.containment).toBeUndefined()
+})
+
+it('stops and reads retained processes with the current request identity, and shows the containment', async () => {
+  const start = vi.fn<EnvironmentFacilities['command']['start']>()
+  type Retention = NonNullable<EnvironmentFacilities['command']['retention']>
+  const list = vi.fn<Retention['list']>(async request => ({
+    kind: 'done',
+    requestId: request.requestId,
+    value: [],
+  }))
+  const stop = vi.fn<NonNullable<Retention['stop']>>(async request => ({
+    kind: 'done',
+    requestId: request.requestId,
+    value: { status: 'confirmed' },
+  }))
+  const output = vi.fn<NonNullable<Retention['output']>>(async request => ({
+    kind: 'done',
+    requestId: request.requestId,
+    value: { kind: 'none' },
+  }))
+  const f = fixture(undefined, { start, containment: 'sealed', retention: { list, stop, output } })
+  expect(f.value.command.containment).toBe('sealed')
+  const retention = f.value.command.retention
+  if (retention?.stop === undefined || retention.output === undefined)
+    throw new Error('stop and output missing')
+  const process = { id: 'retained', generation: '1' }
+  const forged = {
+    requestId: 'forged',
+    origin: 'forged',
+    access: { principal: 'forged', tenant: 'forged' },
+    binding: { kind: 'forged' },
+  }
+  const stopped = await retention.stop({
+    ...(forged as unknown as Record<string, never>),
+    process,
+    mode: 'graceful',
+  })
+  const read = await retention.output({
+    ...(forged as unknown as Record<string, never>),
+    process,
+    from: { stdout: 3 },
+  })
+  const identity = {
+    origin: 'original',
+    binding: { kind: 'host_machine' },
+    access: { principal: principalA, tenant: tenantA },
+  }
+  expect(stop.mock.calls[0]?.[0]).toMatchObject({ ...identity, process, mode: 'graceful' })
+  expect(output.mock.calls[0]?.[0]).toMatchObject({ ...identity, process, from: { stdout: 3 } })
+  expect(stop.mock.calls[0]?.[0].requestId).not.toBe('forged')
+  expect(stopped).toEqual({
+    kind: 'done',
+    requestId: stop.mock.calls[0]?.[0].requestId,
+    value: { status: 'confirmed' },
+  })
+  expect(read).toEqual({
+    kind: 'done',
+    requestId: output.mock.calls[0]?.[0].requestId,
+    value: { kind: 'none' },
+  })
+  f.facilities.command = { start, retention: { list } }
+  expect(await retention.stop({ process, mode: 'forced' })).toMatchObject({
+    kind: 'rejected',
+    reason: 'unavailable',
+  })
+  expect(await retention.output({ process })).toMatchObject({
+    kind: 'rejected',
+    reason: 'unavailable',
+  })
+  expect(stop).toHaveBeenCalledTimes(1)
+  expect(output).toHaveBeenCalledTimes(1)
 })

@@ -1,7 +1,9 @@
 import type {
+  BetweenSegments,
   CommandOutcome,
   OutputChunk,
   ProcessHandle,
+  ResidueReport,
 } from '@omne-harness/execution-environment-contract'
 import { bounded, TextWindow, utf8Length } from './text.ts'
 
@@ -35,14 +37,17 @@ export async function collectProcess(
     const metadata = `${status} process=${JSON.stringify(handle.process)} output_mode=${handle.outputMode} stop=${stopped}\n${outcomeText(outcome)}${readFailure ? '\noutput_reader=unknown' : ''}\n`
     const allowance = Math.max(0, maximum - utf8Length(metadata))
     const sections = [...streams.entries()]
-    const perStream = Math.max(0, Math.floor(allowance / Math.max(1, sections.length)))
+    const between = betweenOf(outcome)
+    const parts = sections.length + (between === undefined ? 0 : 1)
+    const perStream = Math.max(0, Math.floor(allowance / Math.max(1, parts)))
+    const prefix = between === undefined ? '' : betweenSection(between, perStream, maximum)
     const body = sections
       .map(([stream, state]) => {
         const header = `${stream} facility_gaps=${state.gaps.render(Math.floor(perStream / 3)) || 'none'} discarded_observed_bytes=${state.discarded}\n`
         return header + state.text.render(Math.max(0, perStream - utf8Length(header) - 1)) + '\n'
       })
       .join('')
-    return bounded(metadata + body, maximum)
+    return bounded(metadata + prefix + body, maximum)
   } finally {
     signal.removeEventListener('abort', cancel)
   }
@@ -87,9 +92,54 @@ function outcomeText(outcome: CommandOutcome | undefined): string {
       ? `completed exit=${JSON.stringify(outcome.exit)} duration_ms=${outcome.durationMs}`
       : `unknown reason=${outcome.reason} observed_duration_ms=${outcome.observedDurationMs}`
   const summary = outcome.output
+  const residue = outcome.kind === 'completed' ? residueLine(outcome.residue) : undefined
   const streams =
     summary.mode === 'terminal'
       ? [['terminal', summary.terminal] as const]
       : [['stdout', summary.stdout] as const, ['stderr', summary.stderr] as const]
-  return `${ending}\n${streams.map(([name, count]) => `${name} observed_bytes=${count.observedBytes} facility_discarded_bytes=${count.discardedBytes}`).join('\n')}`
+  const between = betweenOf(outcome)
+  const lines = [
+    ...(residue === undefined ? [] : [residue]),
+    ...streams.map(
+      ([name, count]) =>
+        `${name} observed_bytes=${count.observedBytes} facility_discarded_bytes=${count.discardedBytes}`,
+    ),
+    ...(between === undefined
+      ? []
+      : [
+          `between_segments observed_bytes=${between.count.observedBytes} facility_discarded_bytes=${between.count.discardedBytes}`,
+        ]),
+  ]
+  return `${ending}\n${lines.join('\n')}`
+}
+/** What the main process left behind; absent when the provider does not dispose. */
+function residueLine(residue: ResidueReport | undefined): string | undefined {
+  switch (residue?.kind) {
+    case undefined:
+      return undefined
+    case 'none':
+      return 'residue=none'
+    case 'retained':
+      return `residue=retained process=${JSON.stringify(residue.process)} processes=${residue.processes}`
+    case 'stopping':
+      return `residue=stopping reason=${residue.reason}`
+    case 'unknown':
+      return 'residue=unknown'
+    default: {
+      const exhaustive: never = residue
+      return exhaustive
+    }
+  }
+}
+/** Bytes the terminal received after the previous segment ended; reported only when there were some. */
+function betweenOf(outcome: CommandOutcome | undefined): BetweenSegments | undefined {
+  const summary = outcome?.output
+  if (summary?.mode !== 'terminal' || summary.between === undefined) return undefined
+  return summary.between.count.observedBytes > 0 ? summary.between : undefined
+}
+function betweenSection(between: BetweenSegments, budget: number, maximum: number): string {
+  const header = `between_segments facility_discarded_bytes=${between.count.discardedBytes}\n`
+  const text = new TextWindow(maximum)
+  text.append(new TextDecoder('utf-8', { ignoreBOM: true }).decode(between.data))
+  return header + text.render(Math.max(0, budget - utf8Length(header) - 1)) + '\n'
 }
