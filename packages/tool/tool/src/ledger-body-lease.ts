@@ -71,10 +71,15 @@ export async function admitBodyPage<P>(
     return bodyReply(expired)
   if (
     !sameFactValue(body.seal.codec, textBodyCodec) ||
-    body.description.representation.kind !== 'text'
+    (body.description.representation.kind !== 'text' &&
+      body.description.representation.kind !== 'json-document')
   )
     return bodyReply(
-      fail({ kind: 'unsupported', adoption: body.seal.codec, reason: 'text body codec required' }),
+      fail({
+        kind: 'unsupported',
+        adoption: body.seal.codec,
+        reason: 'supported UTF-8 body codec required',
+      }),
     )
   const use = snapshot.materialUses.get(`body:${input.bodyId}`)
   if (

@@ -1240,7 +1240,7 @@ recordScheduling 同提交调度状态、计时段关闭/开启和下一计时�
 
 ### P08 过程、分页与全文交接
 
-`ToolReads.body.read` 接收原 call、固定 result、bodyId、after 和 maxBytes。ToolRuntime.body 的等价入口消费 InvocationAccess，模型不传主体或租户。当前 ToolBodyPage 的 text 分支交付完整 UTF-8 字符，附固定正文身份、表示、原字节数、截止时间、页位置和 next。首次 after 为 null，next 为 null 只结束该正文遍历。正文页与原生附件字节页使用不同游标，不能互换。该接口不要求读取或保留完整结果的交付副本。
+`ToolReads.body.read` 接收原 call、固定 result、bodyId、after 和 maxBytes。ToolRuntime.body 的等价入口消费 InvocationAccess，模型不传主体或租户。ToolBodyPage 的 text 与 json-document 分支均在完整 UTF-8 字符边界返回正文，附固定正文身份、表示、原字节数、截止时间、页位置和 next。json-document 保留固定 schema 身份；仅从位置0开始且覆盖全部原文的页标为 complete，其余均标为 fragment。末页不因 next 为 null 就被标为完整文档。首次 after 为 null，next 为 null 只结束该正文遍历。正文页与原生附件字节页使用不同游标，不能互换。该接口不要求读取或保留完整结果的交付副本。
 
 
 preserveProcess/receiveFacts 在发布之前保存块和游标。index 的 mode 开块后固定，sequence 严格递增；重复同值认回，封块后不可改。append 携带累计完整值且保留前序，replace 仅替换同 index。裁剪必须保留数量、原因及可追溯原过程保管依据，不删除已展示内容的必要事实。

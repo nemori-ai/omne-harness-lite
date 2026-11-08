@@ -123,6 +123,10 @@ export async function sourceFixture(
   value: SettlementValue = result([visible('one', 'source')]),
   overrides: Partial<ToolsOptions> = {},
   deniedActions: ToolLedgerAction[] = [],
+  sourceOptions: Pick<
+    NonNullable<Parameters<typeof settlementFixture>[0]>,
+    'definition' | 'bodySchemas'
+  > = {},
 ) {
   const bytes = new TextEncoder().encode('中🙂\u0000')
   const attachment: Attachment = {
@@ -133,7 +137,7 @@ export async function sourceFixture(
     digest: `sha256:${createHash('sha256').update(bytes).digest('hex')}`,
   }
   const content = createMemoryToolContent<Principal>()
-  const f = await settlementFixture({ custody: content.custody, value })
+  const f = await settlementFixture({ ...sourceOptions, custody: content.custody, value })
   const settled = ok(await f.preserve())
   if (settled.phase !== 'settled') throw new Error('not settled')
   ok(content.controls.seed({ ...f.access, attachment, bytes }))

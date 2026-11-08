@@ -54,6 +54,13 @@ export function createToolsBodyReader<P>(runtime: ToolsReadRuntime<P>, options: 
             bodyBytes: page.bodyBytes,
             expiresAt: page.expiresAt,
             encoding: 'utf-8',
+            format: page.kind,
+            ...(page.kind === 'json-document'
+              ? {
+                  completeness: page.completeness,
+                  schema: JSON.stringify(page.representation.schema),
+                }
+              : {}),
             next: next ?? 'null',
           }),
           next === null

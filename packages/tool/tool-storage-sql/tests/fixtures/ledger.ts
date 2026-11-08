@@ -1,3 +1,4 @@
+import type { JsonLimits } from '@omne-harness/json-text'
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 // A real Tool ledger (`createToolLedger` of `@omne-harness/tool`) over a given store, with a fixed
 // non-production trust model: one principal of one tenant is qualified, the invocation source is
@@ -21,6 +22,7 @@ import {
   type Adoption,
   type FixedToolRequest,
   type ToolInvokeRequest,
+  type ToolBodyDeclaration,
 } from '@omne-harness/tool-contract'
 import { defaultResultPolicy } from '@omne-harness/tool-contract/provider'
 import {
@@ -59,7 +61,7 @@ const adoption = (name: string): Adoption => ({
   digest: `sha256:${name}`,
 })
 
-function invokeRequest(): ToolInvokeRequest {
+function invokeRequest(body?: ToolBodyDeclaration): ToolInvokeRequest {
   return {
     availability: {
       kind: 'available',
@@ -88,7 +90,10 @@ function invokeRequest(): ToolInvokeRequest {
           vocabulary: adoption('json-schema'),
           descriptions: [],
         },
-        returns: ordinaryReturnFixture(adoption('codec')),
+        returns: {
+          ...ordinaryReturnFixture(adoption('codec')),
+          ...(body === undefined ? {} : { body }),
+        },
       },
     },
     command: null,
@@ -130,7 +135,7 @@ export function fixedRequest(): FixedToolRequest {
 export type LedgerWorld = Awaited<ReturnType<typeof ledgerWorld>>
 
 /** The trust model and one admitted-to-be input of `tenant`; `ledgerOver` builds a ledger on a store. */
-export async function ledgerWorld(tenant: TenantId) {
+export async function ledgerWorld(tenant: TenantId, body?: ToolBodyDeclaration) {
   const principal: Principal = { subject: 'alice' }
   const qualify: ToolLedgerGuards<Principal, ContentBlock>['access']['qualify'] = async input =>
     input.principal.subject === 'alice' &&
@@ -148,7 +153,7 @@ export async function ledgerWorld(tenant: TenantId) {
           : { kind: 'denied', reason: 'different-subject' },
     },
   })
-  const request = invokeRequest()
+  const request = invokeRequest(body)
   const issued = await source.issuer.resolve({ principal, tenant, request })
   if (issued.kind !== 'bound') throw new Error('the fixture source must bind the invocation')
   const access = { principal, tenant, call: issued.call }
@@ -209,6 +214,10 @@ export async function ledgerWorld(tenant: TenantId) {
   const ledgerOver = (
     store: ToolLedgerStore,
     materials?: ToolLedgerPorts<Principal>['materials'],
+    bodyOptions: Readonly<{
+      schemas?: ToolLedgerPorts<Principal>['bodySchemas']
+      limits?: JsonLimits
+    }> = {},
   ) =>
     createToolLedger<Principal, ContentBlock>(
       store,
@@ -236,7 +245,7 @@ export async function ledgerWorld(tenant: TenantId) {
           maxPageBytes: 65_536,
           maxPageLeaseMs: 30_000,
           maxWriterMetadataBytes: 1_048_576,
-          jsonDocument: {
+          jsonDocument: bodyOptions.limits ?? {
             maxBytes: 1_048_576,
             maxDepth: 64,
             maxItems: 65_536,
@@ -256,6 +265,7 @@ export async function ledgerWorld(tenant: TenantId) {
       },
       {
         materials: materials ?? memoryMaterials,
+        ...(bodyOptions.schemas === undefined ? {} : { bodySchemas: bodyOptions.schemas }),
         releaseInspection: createMemoryToolEnvironment<Principal>(),
         content: null,
       },

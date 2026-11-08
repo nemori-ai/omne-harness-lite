@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
-import { decodeToolOperationId } from '@omne-harness/tool-contract'
+import { readJsonText, writeJsonText } from '@omne-harness/json-text'
+import { decodeToolOperationId, type ToolBodyDeclaration } from '@omne-harness/tool-contract'
 import {
   decodeToolInstanceId,
   decodeToolMaterialInstant,
@@ -47,30 +48,64 @@ function materials(storage: Awaited<ReturnType<typeof openStorage>>) {
   }
 }
 
-it.each(['append', 'seal'] as const)(
+it.each(['append', 'seal', 'json-seal'] as const)(
   'discovers and recovers unknown %s custody after SQLite workers restart',
   async phase => {
     const root = await realpath(await mkdtemp(join(tmpdir(), 'tool-writer-inventory-')))
     let storage: Awaited<ReturnType<typeof openStorage>> | null = null
     try {
       storage = await openStorage(root, [TENANT_A, TENANT_B])
-      const world = await ledgerWorld(TENANT_A)
+      const json = phase === 'json-seal'
+      const limits = {
+        maxBytes: 256,
+        maxDepth: 8,
+        maxItems: 32,
+        maxMembers: 16,
+        maxStringLength: 128,
+        maxNumberLength: 32,
+      }
+      const schema = readJsonText('{"type":"object","required":["rows"]}', limits)
+      if (schema.kind !== 'ok') throw new Error('invalid schema fixture')
+      const body: ToolBodyDeclaration = {
+        kind: 'json-document',
+        codec: provider,
+        document: {
+          identity: { id: 'rows', revision: '1', digest: 'rows-v1' },
+          definition: { schema: schema.value, vocabulary: provider, descriptions: [] },
+        },
+      }
+      const text = json ? '{ "rows": [1.0, "正文🙂"] }' : 'durable 正文🙂'
+      let checks = 0
+      const schemas = {
+        check: async (fixed: typeof body.document, read: ReturnType<typeof readJsonText>) => {
+          expect(fixed).toEqual(body.document)
+          if (read.kind !== 'ok') throw new Error('unreadable body')
+          expect(writeJsonText(read.value)).toBe('{"rows":[1.0,"正文🙂"]}')
+          checks++
+          return succeed(undefined)
+        },
+      }
+      const world = await ledgerWorld(TENANT_A, json ? body : undefined)
       const originalMaterials = materials(storage)
       let loseReply = false
-      const ledger = world.ledgerOver(storage.store, {
-        ...originalMaterials,
-        store: {
-          ...originalMaterials.store,
-          write: async request => {
-            const saved = await originalMaterials.store.write(request)
-            if (loseReply && 'ok' in saved) {
-              loseReply = false
-              return fail({ kind: 'commit-unknown', operation: request.operation })
-            }
-            return saved
+      const ledger = world.ledgerOver(
+        storage.store,
+        {
+          ...originalMaterials,
+          store: {
+            ...originalMaterials.store,
+            write: async request => {
+              const saved = await originalMaterials.store.write(request)
+              if (loseReply && 'ok' in saved) {
+                loseReply = false
+                return fail({ kind: 'commit-unknown', operation: request.operation })
+              }
+              return saved
+            },
           },
         },
-      })
+        { schemas, limits },
+      )
       ok(await ledger.admissions.admit(world.input))
       const context = async (name: string) => ({
         ...world.access,
@@ -110,13 +145,23 @@ it.each(['append', 'seal'] as const)(
       )
       const input = { ...world.access, start, source: evidence, key: 'answer' }
       const definition = world.input.request.availability.definition
-      if (definition.kind !== 'function' || definition.returns.body.kind !== 'text')
-        throw new Error('text declaration required')
+      if (definition.kind !== 'function') throw new Error('function declaration required')
+      const declared = definition.returns.body
+      if (declared.kind !== 'text' && declared.kind !== 'json-document')
+        throw new Error('unexpected representation')
+      const representation =
+        declared.kind === 'text'
+          ? declared
+          : {
+              kind: 'json-document' as const,
+              codec: declared.codec,
+              schema: declared.document.identity,
+            }
       ok(
         await ledger.bodyWrites.begin({
           ...input,
           operation: operation('begin'),
-          representation: definition.returns.body,
+          representation,
         }),
       )
       loseReply = phase === 'append'
@@ -124,7 +169,9 @@ it.each(['append', 'seal'] as const)(
         ...input,
         operation: operation('append'),
         sequence: '1',
-        frame: { kind: 'text', block: 'one', text: 'durable 正文🙂', end: true },
+        frame: json
+          ? { kind: 'json-fragment', text }
+          : { kind: 'text', block: 'one', text, end: true },
       })
       if (phase === 'append') expect(append).toHaveProperty('failure.kind', 'unknown')
       else {
@@ -150,7 +197,10 @@ it.each(['append', 'seal'] as const)(
         next: null,
       })
       const restoredMaterials = materials(storage)
-      const restored = world.ledgerOver(storage.store, restoredMaterials)
+      const restored = world.ledgerOver(storage.store, restoredMaterials, {
+        schemas,
+        limits: { ...limits, maxBytes: 1, maxDepth: 1 },
+      })
       const recovery = ok(await restored.commands.loadRecovery(world.access))
       if (recovery.start === null) throw new Error('original start missing')
       expect(recovery.start).toEqual(start)
@@ -183,7 +233,8 @@ it.each(['append', 'seal'] as const)(
           maxBytes: 128,
         }),
       )
-      expect(new TextDecoder().decode(page.bytes)).toBe('durable 正文🙂')
+      expect(new TextDecoder().decode(page.bytes)).toBe(text)
+      if (json) expect(checks).toBe(2)
       expect(page.next).toBeNull()
       expect(ok(await source.scan(scan))).toEqual({ calls: [world.access.call], next: null })
     } finally {

@@ -26,6 +26,7 @@ import {
   type ToolLedgerStore,
   type ToolLedger,
   type ToolConfiguration,
+  type ToolLedgerPorts,
 } from '@omne-harness/tool'
 import { admitCall, startHarness } from './start-values.ts'
 import {
@@ -80,6 +81,7 @@ export async function settlementFixture(
     mode?: 'foreground' | 'background'
     terminal?: ToolTerminal
     definition?: ToolDefinition
+    bodySchemas?: ToolLedgerPorts<Principal>['bodySchemas']
     command?: string
     offloading?: ToolConfiguration['offloading']
     readResultArguments?: JsonLimits
@@ -100,6 +102,7 @@ export async function settlementFixture(
     ...(options.custody === undefined ? {} : { custody: options.custody }),
   }
   const harness = startHarness({
+    ...(options.bodySchemas === undefined ? {} : { bodySchemas: options.bodySchemas }),
     environmentsPort: base => ({ ...base, adoption: ports.releaseInspection.adoption }),
   })
   const name = options.call ?? 'settlement'

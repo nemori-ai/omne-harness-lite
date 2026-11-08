@@ -120,11 +120,11 @@ export async function readBodyText<P>(
 ): Reply<ToolBodyPage> {
   const { store, maxBytes } = ports
   const { representation } = body.description
-  if (representation.kind !== 'text')
+  if (representation.kind !== 'text' && representation.kind !== 'json-document')
     return fail({
       kind: 'unsupported',
       adoption: representation.codec,
-      reason: 'text body required',
+      reason: 'text or JSON document body required',
     })
   try {
     const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
@@ -162,11 +162,9 @@ export async function readBodyText<P>(
         continue
       }
       const offset = start + BigInt(consumed)
-      return succeed({
-        kind: 'text',
+      const pagePosition = {
         result: input.result,
         bodyId: input.bodyId,
-        representation,
         bodyBytes: body.description.bodyBytes,
         expiresAt: body.description.retention.expiresAt,
         position: position.offset,
@@ -175,7 +173,17 @@ export async function readBodyText<P>(
           offset === total
             ? null
             : JSON.stringify({ version: 1, scope: position.scope, offset: String(offset) }),
-      })
+      }
+      return succeed(
+        representation.kind === 'text'
+          ? { ...pagePosition, kind: 'text', representation }
+          : {
+              ...pagePosition,
+              kind: 'json-document',
+              representation,
+              completeness: start === 0n && offset === total ? 'complete' : 'fragment',
+            },
+      )
     }
   } catch {
     return bodyUnavailable('material read or UTF-8 decoding failed')

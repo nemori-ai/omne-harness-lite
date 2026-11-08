@@ -37,6 +37,7 @@ import {
   type LedgerCommitInput,
   type ToolDependencies,
   type ToolLedgerStore,
+  type ToolLedgerPorts,
 } from '@omne-harness/tool'
 import { createMemoryToolExecutorBinding } from '@omne-harness/tool-contract/testing'
 import {
@@ -78,6 +79,7 @@ export type EnvironmentAnswer = 'prepared' | 'rejected' | 'unavailable' | 'pendi
 
 export type StartOptions = HarnessOptions &
   Readonly<{
+    bodySchemas?: ToolLedgerPorts<Principal>['bodySchemas']
     controlSubjects?: ToolControlSubjects<Principal> | null
     omitRuntimeControls?: boolean
     /** The answer of the environment provider by call; `prepared` when absent. */
@@ -467,6 +469,7 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const materialPorts = testSettlementPorts(memory).materials
   const resultMaterials = options.resultMaterialsPort?.(materialPorts.store)
   const settlement = {
+    ...(options.bodySchemas === undefined ? {} : { bodySchemas: options.bodySchemas }),
     materials: {
       ...materialPorts,
       store:

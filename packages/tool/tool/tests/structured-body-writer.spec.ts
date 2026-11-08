@@ -38,6 +38,9 @@ it.each([
   },
   { name: 'schema unsupported', frames: ['{"amount":', '1}'], valid: false },
   { name: 'schema rejects', frames: ['{"amount":', '1}'], valid: false },
+  { name: 'document depth', frames: ['{"amount":', '{"nested":1}}'], valid: false },
+  { name: 'byte boundary', frames: ['{ "amount": 1.2300e+4,', '"label":"正文🙂" }'], valid: true },
+  { name: 'byte overflow', frames: ['{ "amount": 1.2300e+4,', '"label":"正文🙂" }'], valid: false },
 ])('seals only a valid complete JSON document: $name', async scenario => {
   const definition = functionDefinition()
   if (definition.kind !== 'function') throw new Error('function fixture required')
@@ -71,28 +74,45 @@ it.each([
   const checked: string[] = []
   const writes = vi.spyOn(ports.materials.store, 'write')
   let validatorAvailable = false
+  const config = configurationOf({})
+  const fullBytes = Buffer.byteLength(scenario.frames.join(''))
+  const documentLimits = {
+    ...config.offloading.jsonDocument,
+    ...(scenario.name === 'document depth' ? { maxDepth: 1 } : {}),
+    ...(scenario.name === 'byte boundary' ? { maxBytes: fullBytes } : {}),
+    ...(scenario.name === 'byte overflow' ? { maxBytes: fullBytes - 1 } : {}),
+  }
   const makeLedger = () =>
-    createToolLedger(harness.memory, guards(), createMemoryToolClock(), configurationOf({}), {
-      ...ports,
-      bodySchemas: {
-        check: async (fixed: ToolPublishedSchema, read: JsonRead) => {
-          expect(fixed).toEqual(document)
-          if (read.kind !== 'ok') throw new Error('validator received unreadable JSON')
-          if (scenario.name === 'validator throws' && !validatorAvailable)
-            throw new Error('schema engine offline')
-          if (scenario.name === 'schema unsupported')
-            return fail({
-              kind: 'unsupported',
-              adoption: codec,
-              reason: 'schema construct unsupported',
-            })
-          if (scenario.name === 'schema rejects')
-            return fail({ kind: 'invalid', field: 'body', reason: 'schema mismatch' })
-          checked.push(writeJsonText(read.value))
-          return succeed(undefined)
+    createToolLedger(
+      harness.memory,
+      guards(),
+      createMemoryToolClock(),
+      {
+        ...config,
+        offloading: { ...config.offloading, jsonDocument: documentLimits },
+      },
+      {
+        ...ports,
+        bodySchemas: {
+          check: async (fixed: ToolPublishedSchema, read: JsonRead) => {
+            expect(fixed).toEqual(document)
+            if (read.kind !== 'ok') throw new Error('validator received unreadable JSON')
+            if (scenario.name === 'validator throws' && !validatorAvailable)
+              throw new Error('schema engine offline')
+            if (scenario.name === 'schema unsupported')
+              return fail({
+                kind: 'unsupported',
+                adoption: codec,
+                reason: 'schema construct unsupported',
+              })
+            if (scenario.name === 'schema rejects')
+              return fail({ kind: 'invalid', field: 'body', reason: 'schema mismatch' })
+            checked.push(writeJsonText(read.value))
+            return succeed(undefined)
+          },
         },
       },
-    })
+    )
   let ledger = makeLedger()
   const input = { ...access, start: recovery.start, source: evidence('json-writer'), key: 'answer' }
   const representation = { kind: 'json-document', codec, schema: document.identity } as const
@@ -104,14 +124,23 @@ it.each([
     }),
   )
   for (const [index, text] of scenario.frames.entries()) {
-    ok(
-      await ledger.bodyWrites.append({
-        ...input,
-        operation: operationId(`append-json-${index}`),
-        sequence: String(index + 1),
-        frame: { kind: 'json-fragment', text },
-      }),
-    )
+    const appended = await ledger.bodyWrites.append({
+      ...input,
+      operation: operationId(`append-json-${index}`),
+      sequence: String(index + 1),
+      frame: { kind: 'json-fragment', text },
+    })
+    if (scenario.name === 'byte overflow' && index === 1) {
+      expect(appended).toHaveProperty('failure.kind', 'too-large')
+      expect(ok(await ledger.bodyWrites.inspect(input))).toEqual({
+        kind: 'open',
+        nextSequence: '2',
+        confirmedThrough: '1',
+      })
+      expect(checked).toEqual([])
+      return
+    }
+    ok(appended)
   }
   expect(checked).toEqual([])
   const sealInput = {
@@ -138,7 +167,11 @@ it.each([
   if (!scenario.valid) {
     expect(sealed).toHaveProperty(
       'failure.kind',
-      scenario.name === 'schema unsupported' ? 'unsupported' : 'invalid',
+      scenario.name === 'schema unsupported'
+        ? 'unsupported'
+        : scenario.name === 'document depth'
+          ? 'too-large'
+          : 'invalid',
     )
     expect(checked).toEqual([])
     expect(ok(await ledger.bodyWrites.inspect(input))).toHaveProperty('kind', 'failed')

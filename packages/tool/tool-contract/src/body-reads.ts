@@ -9,17 +9,28 @@ export type ToolBodyReadRequest = Readonly<{
   maxBytes: number
 }>
 
-export type ToolBodyPage = Readonly<{
-  kind: 'text'
+type BodyPagePosition = Readonly<{
   result: ToolResultVersion
   bodyId: ToolBodyId
-  representation: Extract<ToolBodyRepresentation, { kind: 'text' }>
   bodyBytes: string
   expiresAt: string
   position: string
   text: string
   next: string | null
 }>
+
+export type ToolBodyPage = BodyPagePosition &
+  (
+    | Readonly<{
+        kind: 'text'
+        representation: Extract<ToolBodyRepresentation, { kind: 'text' }>
+      }>
+    | Readonly<{
+        kind: 'json-document'
+        representation: Extract<ToolBodyRepresentation, { kind: 'json-document' }>
+        completeness: 'complete' | 'fragment'
+      }>
+  )
 
 export interface ToolBodyReader<P> {
   read(input: CallAccess<P> & ToolBodyReadRequest): Reply<ToolBodyPage>

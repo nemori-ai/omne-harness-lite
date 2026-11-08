@@ -56,12 +56,17 @@
 - `ToolArguments` · `definitions.d.ts`
 - `ToolAvailability` · `definitions.d.ts`
 - `ToolBackgroundCallsValue` · `background-calls.d.ts`
+- `ToolBodyAppendReceipt` · `body-writer.d.ts`
+- `ToolBodyBeginReceipt` · `body-writer.d.ts`
 - `ToolBodyDeclaration` · `definitions.d.ts`
+- `ToolBodyFrame` · `body-writer.d.ts`
 - `ToolBodyId` · `identity.d.ts`
 - `ToolBodyPage` · `body-reads.d.ts`
 - `ToolBodyReadRequest` · `body-reads.d.ts`
 - `ToolBodyRepresentation` · `results.d.ts`
 - `ToolBodyRetention` · `results.d.ts`
+- `ToolBodyWriter` · `body-writer.d.ts`
+- `ToolBodyWriterStatus` · `body-writer.d.ts`
 - `ToolCallId` · `identity.d.ts`
 - `ToolCatalog` · `authoring.d.ts`
 - `ToolCatalogSearchEntry` · `authoring.d.ts`
@@ -240,8 +245,18 @@
 - `ToolBindingRegistry` · `authoring.d.ts`
 - `ToolBindingScope` · `authoring.d.ts`
 - `ToolBindings` · `ports.d.ts`
+- `ToolBodyAppendReceipt` · `body-writer.d.ts`
+- `ToolBodyBeginReceipt` · `body-writer.d.ts`
+- `ToolBodyCloseReceipt` · `body-writer.d.ts`
 - `ToolBodyCustody` · `body-custody.d.ts`
+- `ToolBodyFrame` · `body-writer.d.ts`
 - `ToolBodyReader` · `body-reads.d.ts`
+- `ToolBodyWriteFailure` · `body-writer.d.ts`
+- `ToolBodyWriteInput` · `body-writer.d.ts`
+- `ToolBodyWriteReply` · `body-writer.d.ts`
+- `ToolBodyWriter` · `body-writer.d.ts`
+- `ToolBodyWriterStatus` · `body-writer.d.ts`
+- `ToolBodyWrites` · `body-writer.d.ts`
 - `ToolChildren` · `program.d.ts`
 - `ToolClock` · `ports.d.ts`
 - `ToolCommands` · `execution.d.ts`
@@ -499,6 +514,7 @@ import type { SchemaIssue } from '@omne-harness/schema-provider';
 import type { ToolSchemaIdentity, ToolValueSchema } from './definitions.ts';
 import type { Adoption, CallAccess, DurableEvidence, ToolOperationId, ToolWaitId } from './identity.ts';
 import type { Reply } from './results.ts';
+import type { ToolBodyWriter } from './body-writer.ts';
 export type ToolProcessUpdate = Readonly<{
     kind: 'append-text';
     index: string;
@@ -574,6 +590,7 @@ export interface ToolWaiter {
 export interface ToolExecutionContext extends ToolProcessEmitter, ToolWaiter {
     readonly mode: 'independent' | 'managed';
     readonly signal: AbortSignal;
+    readonly body: ToolBodyWriter;
 }
 export type ToolAuthorLimits = Readonly<{
     authorBufferBytes: number;
@@ -1066,24 +1083,129 @@ export type ToolBodyReadRequest = Readonly<{
     after: string | null;
     maxBytes: number;
 }>;
-export type ToolBodyPage = Readonly<{
-    kind: 'text';
+type BodyPagePosition = Readonly<{
     result: ToolResultVersion;
     bodyId: ToolBodyId;
-    representation: Extract<ToolBodyRepresentation, {
-        kind: 'text';
-    }>;
     bodyBytes: string;
     expiresAt: string;
     position: string;
     text: string;
     next: string | null;
 }>;
+export type ToolBodyPage = BodyPagePosition & (Readonly<{
+    kind: 'text';
+    representation: Extract<ToolBodyRepresentation, {
+        kind: 'text';
+    }>;
+}> | Readonly<{
+    kind: 'json-document';
+    representation: Extract<ToolBodyRepresentation, {
+        kind: 'json-document';
+    }>;
+    completeness: 'complete' | 'fragment';
+}>);
 export interface ToolBodyReader<P> {
     read(input: CallAccess<P> & ToolBodyReadRequest): Reply<ToolBodyPage>;
 }
 export interface ToolInvocationBodyReader<P> {
     read(input: InvocationAccess<P> & ToolBodyReadRequest): Reply<ToolBodyPage>;
+}
+export {};
+```
+
+## 声明文件 `body-writer.d.ts`
+
+```ts
+import type { JsonValue } from '@omne-harness/json-text';
+import type { Outcome } from '@omne-harness/operation-result';
+import type { ToolPrimitiveFailure } from './author-context.ts';
+import type { SealedToolBody } from './body-custody.ts';
+import type { CallAccess, DurableEvidence, Mutation, ToolOperationId } from './identity.ts';
+import type { ToolStartRecord } from './ports.ts';
+import type { ToolBodyRepresentation, ToolFailure } from './results.ts';
+export type ToolBodyFrame = Readonly<{
+    kind: 'text';
+    block: string;
+    text: string;
+    end: boolean;
+}> | Readonly<{
+    kind: 'json-fragment';
+    text: string;
+}> | Readonly<{
+    kind: 'json-record';
+    value: JsonValue;
+}>;
+export type ToolBodyBeginReceipt = Readonly<{
+    key: string;
+    nextSequence: string;
+    custody: DurableEvidence;
+}>;
+export type ToolBodyAppendReceipt = Readonly<{
+    nextSequence: string;
+    custody: DurableEvidence;
+}>;
+export type ToolBodyWriterStatus = Readonly<{
+    kind: 'open';
+    nextSequence: string;
+    confirmedThrough: string;
+}> | Readonly<{
+    kind: 'sealing';
+    afterSequence: string;
+}> | Readonly<{
+    kind: 'sealed';
+    body: SealedToolBody;
+}> | Readonly<{
+    kind: 'failed';
+    failure: ToolPrimitiveFailure;
+}>;
+export interface ToolBodyWriter {
+    begin(key: string, representation: ToolBodyRepresentation): Promise<Outcome<ToolBodyBeginReceipt, ToolPrimitiveFailure>>;
+    append(key: string, sequence: string, frame: ToolBodyFrame): Promise<Outcome<ToolBodyAppendReceipt, ToolPrimitiveFailure>>;
+    seal(key: string, afterSequence: string): Promise<Outcome<SealedToolBody, ToolPrimitiveFailure>>;
+    inspect(key: string): Promise<Outcome<ToolBodyWriterStatus, ToolPrimitiveFailure>>;
+}
+export type ToolBodyWriteFailure = ToolPrimitiveFailure | Extract<ToolFailure, {
+    kind: 'denied';
+}>;
+export type ToolBodyWriteReply<T> = Promise<Outcome<T, ToolBodyWriteFailure>>;
+export type ToolBodyWriteInput<P> = Mutation<P> & Readonly<{
+    start: ToolStartRecord;
+    source: DurableEvidence;
+}>;
+export type ToolBodyCloseReceipt = Readonly<{
+    custody: DurableEvidence;
+    pendingOperations: readonly ToolOperationId[];
+    unsealedKeys: readonly string[];
+}>;
+export interface ToolBodyWrites<P> {
+    begin(input: ToolBodyWriteInput<P> & Readonly<{
+        key: string;
+        representation: ToolBodyRepresentation;
+    }>): ToolBodyWriteReply<ToolBodyBeginReceipt>;
+    append(input: ToolBodyWriteInput<P> & Readonly<{
+        key: string;
+        sequence: string;
+        frame: ToolBodyFrame;
+    }>): ToolBodyWriteReply<ToolBodyAppendReceipt>;
+    seal(input: ToolBodyWriteInput<P> & Readonly<{
+        key: string;
+        afterSequence: string;
+    }>): ToolBodyWriteReply<SealedToolBody>;
+    inspect(input: CallAccess<P> & Readonly<{
+        start: ToolStartRecord;
+        key: string;
+    }>): ToolBodyWriteReply<ToolBodyWriterStatus>;
+    close(input: ToolBodyWriteInput<P> & Readonly<{
+        exit: 'returned' | 'failed';
+    }>): ToolBodyWriteReply<ToolBodyCloseReceipt>;
+    reconcile(input: CallAccess<P> & Readonly<{
+        start: ToolStartRecord;
+        maxOperations: number;
+    }>): ToolBodyWriteReply<Readonly<{
+        examined: number;
+        pending: number;
+        custody: readonly DurableEvidence[];
+    }>>;
 }
 ```
 
@@ -1959,6 +2081,7 @@ export declare function decodeToolRevision(text: unknown): Outcome<ToolRevision,
 ## 声明文件 `index.d.ts`
 
 ```ts
+export type { ToolBodyFrame, ToolBodyWriter, ToolBodyWriterStatus, ToolBodyBeginReceipt, ToolBodyAppendReceipt, } from './body-writer.ts';
 export { decodeToolCallId, decodeToolOperationId } from './identity.ts';
 export type { ToolBodyReadRequest, ToolBodyPage, ToolInvocationBodyReader } from './body-reads.ts';
 export type { Access, Adoption, ConsumerRef, DurableEvidence, ToolBodyId, ToolCallId, ToolCursor, ToolDeliveryId, ToolIdentity, ToolIdentityRejection, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId, } from './identity.ts';
@@ -2805,6 +2928,7 @@ export interface ProgramTools<B extends ContentBlock> {
 ## 声明文件 `provider.d.ts`
 
 ```ts
+export type { ToolBodyFrame, ToolBodyWriter, ToolBodyWriterStatus, ToolBodyBeginReceipt, ToolBodyAppendReceipt, ToolBodyWrites, ToolBodyWriteInput, ToolBodyWriteFailure, ToolBodyWriteReply, ToolBodyCloseReceipt, } from './body-writer.ts';
 export type { SealedToolBody, ToolBodyCustody } from './body-custody.ts';
 export type { ToolBodyReader } from './body-reads.ts';
 export { toolBodyContract } from './contract.ts';
