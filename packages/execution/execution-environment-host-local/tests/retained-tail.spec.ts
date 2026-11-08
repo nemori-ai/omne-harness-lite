@@ -82,10 +82,13 @@ describe('the retained output tail against a reference model', () => {
       for (let step = 0; step < 30; step++) {
         const stream: TailStream = random() < 0.7 ? 'stdout' : 'stderr'
         const model = models[stream]
+        // An empty append and a drop of zero bytes leave the tail as it was.
+        let changed: boolean
         if (random() < 0.15) {
           const count = Math.floor(random() * 5)
           tail.drop(stream, count)
           for (let i = 0; i < count; i++) model.observed.push(null)
+          changed = count > 0
         } else {
           const length = Math.floor(random() * 12)
           const bytes = Uint8Array.from(
@@ -94,6 +97,7 @@ describe('the retained output tail against a reference model', () => {
           )
           tail.append(stream, bytes)
           model.observed.push(...bytes)
+          changed = length > 0
         }
         const answer = tail.read()
         const seen = (['stdout', 'stderr'] as const).filter(
@@ -104,7 +108,9 @@ describe('the retained output tail against a reference model', () => {
           continue
         }
         if (answer.kind !== 'tail') throw new Error(`round ${round}: expected a tail`)
-        expect(answer.version, `round ${round} step ${step}`).toBeGreaterThanOrEqual(lastVersion)
+        if (changed)
+          expect(answer.version, `round ${round} step ${step}`).toBeGreaterThan(lastVersion)
+        else expect(answer.version, `round ${round} step ${step}`).toBe(lastVersion)
         lastVersion = answer.version
         expect(answer.streams.map(item => item.stream)).toEqual(seen)
         for (const item of answer.streams) {

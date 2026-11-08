@@ -19,6 +19,7 @@ import {
   type ProcessHandle,
   type ResourceLedger,
   type RetainedProcessLedger,
+  type RetainedProcessRef,
   type RetainedTerminalLedger,
 } from '@omne-harness/execution-environment-contract'
 import { commandDefaults, createHostCommands } from '../src/host-command.ts'
@@ -128,12 +129,18 @@ type SetupOptions = {
   startBoundMs?: number
   /** Replaces the index the commands see; the real one is still built and ready. */
   retained?(index: RetainedProcessIndex): RetainedProcessIndex
+  /** The fake gate's script (`gate.json`); absent keys keep the fixture's behavior. */
+  gate?: Readonly<Record<string, unknown>>
+  /** `retainedOutputBytes` of the command settings; absent keeps the default. */
+  outputBytes?: number
 }
 
 async function setup(options: SetupOptions) {
   const fake = await temporary('omne-custody-fake-')
   const state = await temporary('omne-custody-state-')
   const tools = await fakeTools(fake)
+  if (options.gate !== undefined)
+    await writeFile(join(fake, 'gate.json'), JSON.stringify(options.gate))
   // Long enough that a stop the fake tools confirm is confirmed on a loaded machine; a test that
   // needs the bound to pass first sets its own.
   const stopBoundMs = options.stopBoundMs ?? 10_000
@@ -190,6 +197,7 @@ async function setup(options: SetupOptions) {
       ...commandDefaults,
       stopBoundMs,
       startBoundMs: options.startBoundMs ?? 3_000,
+      ...(options.outputBytes === undefined ? {} : { retainedOutputBytes: options.outputBytes }),
     },
     prerequisites: { facts: () => 'satisfied', ready: async () => ({ kind: 'satisfied', tools }) },
     retention: {
@@ -248,6 +256,18 @@ async function setup(options: SetupOptions) {
       }
     },
     list: () => index.list(scope, tenant),
+    /** What the retention extension answers for the output of `process`. */
+    output: (process: RetainedProcessRef) => {
+      const output = commands.facility.retention?.output
+      if (output === undefined) throw new Error('expected the output of the retention extension')
+      return output({
+        requestId: 'output-1',
+        access: { principal: 'subject-a', tenant },
+        origin: originRef('call-1'),
+        binding: { kind: 'host_machine' },
+        process,
+      })
+    },
   }
 }
 
@@ -452,6 +472,68 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
       expect(await f.kills()).toBe(1)
       expect(f.own.stopped).toEqual([])
       expect(await f.list()).toEqual([])
+    })
+  })
+
+  describe('the output of a domain handed over', () => {
+    const stdout = (text: string) => ({
+      t: 'data',
+      s: 'stdout',
+      b: Buffer.from(text).toString('base64'),
+    })
+    const retainedOf = (residue: ReturnType<typeof residueOf>) => {
+      if (residue?.kind !== 'retained')
+        throw new Error(`expected a handover: ${JSON.stringify(residue)}`)
+      return residue.process
+    }
+
+    it('counts what the unit wrote before the handover as observed, saves what it writes after, and shows a drop as a gap', async () => {
+      const adopt = controlledAdopt()
+      const f = await setup({
+        adopt: adopt.adopt,
+        gate: {
+          beforeExit: [stdout('ab')],
+          // Read in the chunk of the exit frame, so before the handover is asked for.
+          afterExit: [stdout('cde')],
+          onRetain: [stdout('XY'), { t: 'x', s: 'stdout', n: 2 }, stdout('Z')],
+        },
+      })
+      await adopt.asked
+      adopt.answer('confirmed')
+      const process = retainedOf(residueOf(await f.handle.result))
+      await eventually(async () => {
+        const answer = await f.output(process)
+        if (answer.kind !== 'done' || answer.value.kind !== 'tail')
+          throw new Error(`expected a tail: ${JSON.stringify(answer)}`)
+        expect(answer.value.streams).toHaveLength(1)
+        const [tail] = answer.value.streams
+        // Two bytes before the exit and three after it were observed before the handover; then
+        // XY was saved, the gap of 2 discarded it, and Z is what remains.
+        expect({ ...tail, data: [...(tail?.data ?? [])] }).toMatchObject({
+          stream: 'stdout',
+          savedFrom: 5,
+          start: 9,
+          end: 10,
+          discardedBytes: 4,
+          data: [0x5a],
+          text: { value: 'Z', start: 9, replaced: false },
+        })
+      })
+    })
+
+    it('keeps nothing with a capacity of 0: the output is unsupported', async () => {
+      const f = await setup({
+        adopt: async () => 'confirmed',
+        outputBytes: 0,
+        gate: { onRetain: [stdout('late')] },
+      })
+      const process = retainedOf(residueOf(await f.handle.result))
+      await eventually(async () => expect(await f.retains()).toBe(1))
+      expect(await f.output(process)).toEqual({
+        kind: 'done',
+        requestId: 'output-1',
+        value: { kind: 'unsupported' },
+      })
     })
   })
 

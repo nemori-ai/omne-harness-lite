@@ -19,6 +19,10 @@
 //   exitAfterMs: how long after `started` the exit frame comes (initial 20)
 //   exit: the fields of the exit frame after `started` (initial `{ code: 0, signal: null, members: 1 }`)
 //   onTerm: 'ignore' | 'exit' (answers `term` with `{ code: null, signal: 'SIGTERM', members: 1 }`)
+//   beforeExit: frames sent right after `started` (initial none)
+//   afterExit: frames sent in the same write as the exit frame, so the manager reads them in the
+//     chunk of the exit frame (initial none)
+//   onRetain: frames sent when `retain` arrives (initial none)
 //
 // `systemctl`: appends its arguments to `systemctl.log`. `kill <unit>` sends SIGKILL to the pid in
 // `<unit>.pid`; `stop` exits 0; `show` reports the unit `deactivating` while `<unit>.hold` exists,
@@ -42,6 +46,9 @@ function script() {
     exit: { code: 0, signal: null, members: 1 },
     exitAfterMs: 20,
     onTerm: 'ignore',
+    beforeExit: [],
+    afterExit: [],
+    onRetain: [],
     ...(existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {}),
   }
 }
@@ -52,11 +59,16 @@ function gate() {
   writeFileSync(`${directory}/${unit}.pid`, String(process.pid))
   const control = new Socket({ fd: 3, readable: true, writable: false })
   control.on('error', () => undefined)
-  const send = frame => process.stdout.write(`${JSON.stringify(frame)}\n`)
+  const lines = frames => frames.map(frame => `${JSON.stringify(frame)}\n`).join('')
+  const send = frame => process.stdout.write(lines([frame]))
   const started = () => {
     send({ t: 'started' })
+    for (const frame of plan.beforeExit) send(frame)
     if (plan.afterStarted === 'exit')
-      setTimeout(() => send({ t: 'exit', ...plan.exit }), plan.exitAfterMs)
+      setTimeout(
+        () => process.stdout.write(lines([{ t: 'exit', ...plan.exit }, ...plan.afterExit])),
+        plan.exitAfterMs,
+      )
     else if (plan.afterStarted === 'vanish') setTimeout(() => process.exit(0), 20)
     else if (plan.afterStarted === 'garbage')
       setTimeout(() => process.stdout.write('garbage\n'), 20)
@@ -85,7 +97,10 @@ function gate() {
       if (message.c === 'go') go()
       else if (message.c === 'term' && plan.onTerm === 'exit')
         send({ t: 'exit', code: null, signal: 'SIGTERM', members: 1 })
-      else if (message.c === 'retain') appendFileSync(`${directory}/retain.log`, `${unit}\n`)
+      else if (message.c === 'retain') {
+        appendFileSync(`${directory}/retain.log`, `${unit}\n`)
+        for (const frame of plan.onRetain) send(frame)
+      }
     }
   })
   process.stdout.on('error', () => undefined)
