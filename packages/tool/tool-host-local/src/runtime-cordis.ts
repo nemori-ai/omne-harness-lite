@@ -1,7 +1,7 @@
 import { createToolForwardRuntime } from '@omne-harness/tool'
 import type { ToolForwardRuntime } from '@omne-harness/tool-contract/provider'
 import type { Context } from '@deepseek-ai/cordis'
-import { fail } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   ToolInstanceHost,
   ToolMessageContentBlock,
@@ -156,6 +156,23 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   return {
     authorExecution: publicAuthorExecution,
     forwarding: () => forwarding,
+    async recoverBodies(wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0]) {
+      if (retired || records === null) return runtimeUnavailable('tool-body-recovery')
+      const access = await input.resolveAccess(wake)
+      if ('failure' in access) return access
+      const recovery = await records.ledger.commands.loadRecovery(access.ok)
+      if ('failure' in recovery) return recovery
+      if (recovery.ok.state.phase === 'settled' || recovery.ok.start === null)
+        return succeed({ queued: false })
+      if (retired || executor === null || host === null)
+        return runtimeUnavailable('tool-body-recovery')
+      const known = executor.knows(wake)
+      if (!executor.remember(wake, 'body-recovery'))
+        return runtimeUnavailable('tool-body-recovery-capacity')
+      const scheduled = await host.schedule(wake)
+      if ('failure' in scheduled && !known) executor.rejectAdmission(wake)
+      return scheduled
+    },
     records: {
       name: 'local-tool-records',
       apply(ctx: Context) {

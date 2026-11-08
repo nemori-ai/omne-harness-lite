@@ -616,7 +616,7 @@ SourceVerdict 的 denied 表示来源真实、当前请求资格被拒。ledger 
 
 计数只描述本次成功提交，不能跨重试累计成执行收据。提交 unknown 返回 unavailable，调用者随后从持久事实重新推进。冲突重新读取并取时；低于原水位返回 unavailable。已经锁存的到期事实不因回拨消失。入口在事务重试、取时后及返回前复核当前资格。
 
-本入口只产生持久清理意图，不读取或删除材料字节。针对性行为见 [材料维护测试](tests/material-maintenance.spec.ts)。持久候选索引和 Host 自动调度尚未接通。
+本入口只产生持久清理意图，不读取或删除材料字节。针对性行为见 [材料维护测试](tests/material-maintenance.spec.ts)。持久候选索引与应用维护调度见下文受信维护候选源及 harness-server 装配契约。
 
 ### 受信材料回收
 
@@ -632,9 +632,11 @@ SourceVerdict 的 denied 表示来源真实、当前请求资格被拒。ledger 
 
 Tool 在每次调用域提交中，将最终写集应用于材料用途和清理待办的临时映射，再计算 `material-maintenance-hint`，与业务事实同一次 CAS 保存。提示为 `none`、`ready` 或 `due(at)`：无定时用途和可尝试清理项时为 none；存在无用途的清理候选时为 ready；其余情况保存正文用途或页租约中最早的固定截止时间。独立原生引用、过程历史、交付或准备责任均保护其精确材料。计算不采样时钟、不延长期限、不修改输入快照。
 
+未结算调用存在正文 writer scope 时，提示为 ready，覆盖未封存、seal 未知和封存未关联的库存。只有已确认的最终结算才能退出这项候选条件；之后仍按材料用途和清理待办计算提示。writer、最终事实和提示在同一次调用 CAS 保存。
+
 提示只用于发现待维护调用，不授予删除权。候选处理仍须经当前维护资格、用途和删除围栏核验。旧调用缺少提示时，受信 `maintenance.expire` 通过调用 CAS 回填，包括没有定时用途或采样时间未变化的情况；未知提交不回答完成。已存在有效提示且无需业务写入时不为提示增加提交。
 
-公开状态与故障验证见 [维护提示测试](tests/material-maintenance-hint.spec.ts)。生产维护调度仍待接通。
+公开状态与故障验证见 [维护提示测试](tests/material-maintenance-hint.spec.ts)。生产维护调度由 harness-server 的独立维护行承担。
 
 ### 受信维护候选源
 

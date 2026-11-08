@@ -37,6 +37,12 @@ function fixture() {
     scanner: 'scanner',
     maintainer: 'maintainer',
     pageSize: 2,
+    recoverBodies: async request => {
+      expect(Object.keys(request).sort()).toEqual(['call', 'tenant'])
+      expect(request.tenant).toEqual(tenant)
+      events.push('recover-bodies')
+      return succeed({ queued: true })
+    },
     clock: { sample: async () => succeed(at) },
     maintenance: {
       scan: async ({ principal, limit, after }) => {
@@ -67,10 +73,56 @@ describe('production material maintenance sweep', () => {
     expect(events).toEqual([
       'enumerate:scanner',
       'scan:maintainer:2:null',
+      'recover-bodies',
       'expire:maintainer',
       'reclaim:maintainer',
     ])
     await sweep.close()
+  })
+
+  it('retries a full recovery queue in the next round while continuing independent material cleanup', async () => {
+    const { input, events, call, tenant } = fixture()
+    let attempts = 0
+    const sweep = createMaterialMaintenanceSweep({
+      ...input,
+      recoverBodies: async request => {
+        expect(request).toEqual({ tenant, call })
+        attempts++
+        return attempts === 1
+          ? fail({
+              kind: 'unavailable',
+              dependency: 'tool-body-recovery-capacity',
+              diagnostic: 'full',
+            })
+          : succeed({ queued: true })
+      },
+    })
+    expect(await sweep.advance()).toEqual(succeed({ calls: 1, failures: 1, roundComplete: true }))
+    expect(await sweep.advance()).toEqual(succeed({ calls: 1, failures: 0, roundComplete: true }))
+    expect(attempts).toBe(2)
+    expect(events.filter(event => event === 'reclaim:maintainer')).toHaveLength(2)
+    await sweep.close()
+  })
+
+  it('stops later maintenance IO while an accepted body wakeup drains', async () => {
+    const { input, events } = fixture()
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    const sweep = createMaterialMaintenanceSweep({
+      ...input,
+      recoverBodies: async () => {
+        entered.resolve()
+        await release.promise
+        return succeed({ queued: true })
+      },
+    })
+    const pending = sweep.advance()
+    await entered.promise
+    const closing = sweep.close()
+    release.resolve()
+    expect(await pending).toHaveProperty('failure.kind', 'unavailable')
+    await closing
+    expect(events).toEqual(['enumerate:scanner', 'scan:maintainer:2:null', 'close'])
   })
 
   it('continues an empty page, rotates tenants, and fixes the round time and directory', async () => {
@@ -240,7 +292,12 @@ describe('production material maintenance sweep', () => {
     release.resolve()
     expect(await pending).toHaveProperty('failure.kind', 'unavailable')
     await closing
-    expect(events).toEqual(['enumerate:scanner', 'scan:maintainer:2:null', 'close'])
+    expect(events).toEqual([
+      'enumerate:scanner',
+      'scan:maintainer:2:null',
+      'recover-bodies',
+      'close',
+    ])
   })
 
   it('retains a host close failure and returns the same close promise', async () => {

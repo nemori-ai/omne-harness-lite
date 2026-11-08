@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { fail } from '@omne-harness/operation-result'
+import { toolInstanceHostKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { SqlStorage, TenantDomainLookup, TenantDomains } from '@omne-harness/sql-contract'
 import {
   storageKey,
@@ -22,7 +24,7 @@ import { createToolMaterialMaintenanceAccess } from '../authorization/tool-mater
 import { systemActionAuthorizationKey } from '../authorization/system-action-service.ts'
 import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
-import { TOOL_MATERIAL_PROVIDER } from '../tool-runtime/holder.ts'
+import { TOOL_MATERIAL_PROVIDER, toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { createMaterialMaintenanceSweep } from '../tool-runtime/material-maintenance-sweep.ts'
 import { startMaterialMaintenanceRunner } from '../tool-runtime/material-maintenance-runner.ts'
 
@@ -48,6 +50,7 @@ export const toolMaterialMaintenanceRow = defineRow({
       systemActionAuthorizationKey,
       TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
       TOOL_MATERIAL_MAINTAINER_PRINCIPAL_KEY,
+      toolInstanceHostKey,
     ],
     sameProviderGroup: null,
   },
@@ -94,6 +97,15 @@ export const toolMaterialMaintenanceRow = defineRow({
       clock,
       maintenance,
       pageSize: config.pageSize,
+      recoverBodies: request =>
+        toolRuntimeHolder(ctx).bundle?.value.recoverBodies(request) ??
+        Promise.resolve(
+          fail({
+            kind: 'unavailable',
+            dependency: 'tool-body-recovery',
+            diagnostic: 'Tool runtime is unavailable.',
+          }),
+        ),
     })
     const logger = ctx.logger('tool-material-maintenance')
     const runner = startMaterialMaintenanceRunner({

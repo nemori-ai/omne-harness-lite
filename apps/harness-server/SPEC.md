@@ -446,6 +446,8 @@ sequenceDiagram
 
 生产入口安装 tenantDomainScannerPrincipal 和 toolMaterialMaintainerPrincipal，仅独立的 tool-material-maintenance 行可见。该行经公开 SQL 构造器连接同一材料仓，使用现有时钟、sweep 和串行 runner。目录枚举与材料维护分别出示对应主体，每次材料操作读取当前授权。普通工具执行不依赖该维护行。
 
+维护行显式依赖 toolInstanceHost。取得有界候选页后，先向同一运行时 bundle 发送正文恢复唤醒，再独立进行 expire/reclaim。唤醒只带 tenant/call，不能把维护主体作为正文写入主体；运行时从原调用来源重新取得并核验当前主体。恢复队列满或资格不可用计为本轮失败，持久候选留待下一轮。正文恢复不自动重跑作者，也不凭失联判定弃用。
+
 运维者提供 combinationVersion、maxCommandBytes、maxChunkBytes、ledgerCommitAttempts、intervalMs 和 pageSize。正常关闭在 business 阶段停止调度并排空，先于 composition/storage。截止时间到时返回 incomplete，不声称已取消外部操作。异常依赖撤除或装载失败同步触发同一关闭入口；Cordis 并发撤除不保证存储提供者等待维护排空，已受理操作和未知责任仍按原存储契约恢复。
 
 runner 的异常和维护失败有固定分类诊断，不输出正文、身份或原异常文本。目录接口当前仍提供完整快照，内存成本随租户数增长。候选读取和每步回收有独立上界。

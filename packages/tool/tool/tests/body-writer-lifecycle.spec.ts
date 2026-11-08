@@ -73,6 +73,10 @@ it.each(['append', 'seal'] as const)(
       pending: 0,
     })
     const records = await f.records()
+    expect(records.find(record => record.kind === 'material-maintenance-hint')).toEqual({
+      kind: 'material-maintenance-hint',
+      hint: { kind: 'none' },
+    })
     expect(
       records.filter(record => record.kind === 'material-use' && record.use.kind === 'preparation'),
     ).toEqual([])

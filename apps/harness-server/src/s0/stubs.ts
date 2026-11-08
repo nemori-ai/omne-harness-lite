@@ -222,6 +222,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'systemActionAuthorization',
       'tenantDomainScannerPrincipal',
       'toolMaterialMaintainerPrincipal',
+      'toolInstanceHost',
     ],
     phase: 'business',
   },

@@ -33,6 +33,7 @@ async function assembly(
   await root.plugin({
     apply(ctx: Context) {
       ctx.provide('storage', {})
+      ctx.provide('toolInstanceHost', {})
       ctx.provide('tenantDomainLookup', { lookup })
       ctx.provide('tenantDomains', { enumerate })
       ctx.provide('s0.assemblyLifecycle', {

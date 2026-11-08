@@ -571,3 +571,28 @@ it('preserves ordered text fragments across reconstruction and seals one readabl
   expect(new TextDecoder('utf-8', { fatal: true }).decode(page.bytes)).toBe('正文🙂\nend')
   expect(page.next).toBeNull()
 })
+
+it('keeps open and sealed unassociated writers discoverable in the durable maintenance inventory', async () => {
+  const f = await fixture()
+  const definition = f.request.availability.definition
+  if (definition.kind !== 'function' || definition.returns.body.kind !== 'text')
+    throw new Error('text required')
+  const hint = async () => {
+    const read = await f.harness.memory.read({ kind: 'call', ...f.access })
+    if (read.kind !== 'complete') throw new Error('unreadable fixture')
+    return read.records.find(record => record.kind === 'material-maintenance-hint')
+  }
+  const writer = f.rebuild().bodyWrites
+  ok(
+    await writer.begin({
+      ...f.input,
+      operation: operationId('inventory-begin'),
+      representation: definition.returns.body,
+    }),
+  )
+  expect(await hint()).toEqual({ kind: 'material-maintenance-hint', hint: { kind: 'ready' } })
+  ok(
+    await writer.seal({ ...f.input, operation: operationId('inventory-seal'), afterSequence: '0' }),
+  )
+  expect(await hint()).toEqual({ kind: 'material-maintenance-hint', hint: { kind: 'ready' } })
+})

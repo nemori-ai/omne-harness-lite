@@ -378,65 +378,85 @@ it('does not let a stuck fragment recovery block an already failed author settle
   }
 })
 
-it('a replacement host recovers admitted body fragments without attaching the old author', async () => {
-  const returned = Promise.withResolvers<string>()
-  const staged = Promise.withResolvers<void>()
-  const world = await fixture(async (_value, _environment, context) => {
-    const representation = ordinaryReturnFixture(adoption('output')).body
-    if (representation.kind !== 'text') throw new Error('text fixture required')
-    unbox(await context.body.begin('answer', representation))
-    const append = await context.body.append('answer', '1', {
-      kind: 'text',
-      block: 'one',
-      text: 'durable before replacement',
-      end: true,
+it.each(['invoke', 'maintenance', 'denied'] as const)(
+  'a replacement host recovers admitted body fragments via %s without attaching the old author',
+  async trigger => {
+    const returned = Promise.withResolvers<string>()
+    const staged = Promise.withResolvers<void>()
+    const world = await fixture(async (_value, _environment, context) => {
+      const representation = ordinaryReturnFixture(adoption('output')).body
+      if (representation.kind !== 'text') throw new Error('text fixture required')
+      unbox(await context.body.begin('answer', representation))
+      const append = await context.body.append('answer', '1', {
+        kind: 'text',
+        block: 'one',
+        text: 'durable before replacement',
+        end: true,
+      })
+      expect(append).toHaveProperty('failure.kind', 'unavailable')
+      staged.resolve()
+      return returned.promise
     })
-    expect(append).toHaveProperty('failure.kind', 'unavailable')
-    staged.resolve()
-    return returned.promise
-  })
-  let available = false
-  let recovered = false
-  let attempts = 0
-  const operations = new Set<string>()
-  const payloads = new Set<string>()
-  const write = world.input.materials.store.write.bind(world.input.materials.store)
-  vi.spyOn(world.input.materials.store, 'write').mockImplementation(async input => {
-    attempts++
-    operations.add(input.operation)
-    payloads.add(Buffer.from(input.bytes).toString('base64'))
-    if (!available)
-      return {
-        failure: { kind: 'unavailable', dependency: 'test-fragment', diagnostic: 'offline' },
+    let available = false
+    let recovered = false
+    let attempts = 0
+    const operations = new Set<string>()
+    const payloads = new Set<string>()
+    const write = world.input.materials.store.write.bind(world.input.materials.store)
+    vi.spyOn(world.input.materials.store, 'write').mockImplementation(async input => {
+      attempts++
+      operations.add(input.operation)
+      payloads.add(Buffer.from(input.bytes).toString('base64'))
+      if (!available)
+        return {
+          failure: { kind: 'unavailable', dependency: 'test-fragment', diagnostic: 'offline' },
+        }
+      const answer = await write(input)
+      if ('ok' in answer) recovered = true
+      return answer
+    })
+    let next: Awaited<ReturnType<typeof world.newExecutor>> | null = null
+    try {
+      const request = world.invocation('replacement-writer')
+      const reference = accepted(await world.api.invoke(request))
+      await staged.promise
+      await world.plugins.close()
+      const previousAttempts = attempts
+      next = await world.newExecutor()
+      const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
+      const wake = { tenant: world.tenantA, call: parts.call }
+      const restored = next
+      if (trigger === 'denied') {
+        world.revoke()
+        available = true
+        expect(await restored.plugins.recoverBodies(wake)).toHaveProperty('failure.kind', 'denied')
+        expect(attempts).toBe(previousAttempts)
+        expect(restored.plugins.diagnostics().executor?.knownCalls).toBe(0)
+        return
       }
-    const answer = await write(input)
-    if ('ok' in answer) recovered = true
-    return answer
-  })
-  let next: Awaited<ReturnType<typeof world.newExecutor>> | null = null
-  try {
-    const request = world.invocation('replacement-writer')
-    const reference = accepted(await world.api.invoke(request))
-    await staged.promise
-    await world.plugins.close()
-    const previousAttempts = attempts
-    next = await world.newExecutor()
-    expect(accepted(await next.api.invoke(request))).toBe(reference)
-    await expect.poll(() => attempts).toBeGreaterThan(previousAttempts)
-    expect(next.plugins.diagnostics().executor?.knownCalls).toBe(1)
-    expect(accepted(await next.api.invoke(request))).toBe(reference)
-    available = true
-    await expect.poll(() => recovered).toBe(true)
-    expect(operations.size).toBe(1)
-    expect(payloads.size).toBe(1)
-    expect(world.launches()).toBe(1)
-    expect(unbox(await next.api.instances.current(world.streamQuery(reference))).current).toBeNull()
-    const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
-    await next.schedule({ tenant: world.tenantA, call: parts.call })
-    await expect.poll(() => next?.plugins.diagnostics().executor?.knownCalls).toBe(0)
-  } finally {
-    returned.resolve('cleanup')
-    await next?.close()
-    await world.close()
-  }
-})
+      const wakeOriginal = async () => {
+        if (trigger === 'invoke')
+          expect(accepted(await restored.api.invoke(request))).toBe(reference)
+        else expect(await restored.plugins.recoverBodies(wake)).toEqual({ ok: { queued: true } })
+      }
+      await wakeOriginal()
+      await expect.poll(() => attempts).toBeGreaterThan(previousAttempts)
+      expect(next.plugins.diagnostics().executor?.knownCalls).toBe(1)
+      await wakeOriginal()
+      available = true
+      await expect.poll(() => recovered).toBe(true)
+      expect(operations.size).toBe(1)
+      expect(payloads.size).toBe(1)
+      expect(world.launches()).toBe(1)
+      expect(
+        unbox(await next.api.instances.current(world.streamQuery(reference))).current,
+      ).toBeNull()
+      await next.schedule(wake)
+      await expect.poll(() => next?.plugins.diagnostics().executor?.knownCalls).toBe(0)
+    } finally {
+      returned.resolve('cleanup')
+      await next?.close()
+      await world.close()
+    }
+  },
+)

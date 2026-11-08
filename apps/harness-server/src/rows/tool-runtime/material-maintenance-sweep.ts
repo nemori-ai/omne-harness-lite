@@ -1,7 +1,7 @@
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { TenantDomains } from '@omne-harness/sql-contract'
-import type { Reply } from '@omne-harness/tool-contract'
+import type { Reply, ToolCallId } from '@omne-harness/tool-contract'
 import type { ToolMaterialClock, ToolMaterialInstant } from '@omne-harness/tool-contract/provider'
 import type { LocalToolMaterialMaintenance } from '@omne-harness/tool-host-local'
 
@@ -17,6 +17,9 @@ export type MaterialSweepInput<P> = Readonly<{
   maintainer: P
   clock: ToolMaterialClock
   maintenance: LocalToolMaterialMaintenance<P>
+  recoverBodies(
+    input: Readonly<{ tenant: TenantId; call: ToolCallId }>,
+  ): Reply<Readonly<{ queued: boolean }>>
   pageSize: number
 }>
 
@@ -91,6 +94,9 @@ export function createMaterialMaintenanceSweep<P>(input: MaterialSweepInput<P>) 
     else {
       if (page.ok.next !== null) round.pending.set(key, { ...cursor, after: page.ok.next })
       for (const call of page.ok.calls) {
+        const recovery = await invoke(() => input.recoverBodies({ tenant: cursor.tenant, call }))
+        if (stopped) return closed()
+        if ('failure' in recovery) failures += 1
         const expired = await invoke(() => input.maintenance.expire({ ...request, call }))
         if (stopped) return closed()
         if ('failure' in expired) failures += 1
