@@ -1,5 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, vi } from 'vitest'
@@ -8,7 +8,7 @@ import { sessionStorageRow } from '../../../src/rows/session-storage/index.ts'
 import { TENANT_A, TENANT_B, textOf } from '../storage/fixtures/tree.ts'
 
 async function assembly(register: SqlStorage['registerCombination']) {
-  const directory = mkdtempSync(join(tmpdir(), 'registration-lifecycle-'))
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), 'registration-lifecycle-')))
   const file = join(directory, 'tenants.json')
   writeFileSync(
     file,

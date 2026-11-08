@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, realpath, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -45,7 +45,7 @@ const offloaded: HistoricalFixture = JSON.parse(
 
 export async function historyStorage(seed: boolean | 'offloaded', loseFirstPlanReply = false) {
   const original = seed === 'offloaded' ? offloaded : ordinary
-  const root = await mkdtemp(join(tmpdir(), 'tool-startup-history-'))
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'tool-startup-history-')))
   const config = toolRowsOperatorConfig({ storageRoot: join(root, 'storage') }).records
   const catalog = storageCatalog()
   const manifest = compositeManifestDigest(catalog)

@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -9,7 +9,7 @@ import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
 import { toolRowsOperatorConfig } from '../../r9/support.ts'
 
 it('does not create or publish the runtime while tenant inspection is pending or withdrawn', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'tool-history-row-'))
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'tool-history-row-')))
   const root = new Context()
   const logs: string[] = []
   root.logger.exporter({
