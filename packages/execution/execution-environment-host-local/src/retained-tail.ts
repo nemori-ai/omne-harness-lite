@@ -15,14 +15,22 @@ export type RetainedTail = Readonly<{
   /** `count` bytes of `stream` were observed but never reached the tail: the saved bytes restart after the gap. */
   drop(stream: TailStream, count: number): void
   read(from?: RetainedOutputFrom): RetainedOutput
+  /** The provider observes the streams no longer: the readings stop here, and nothing is appended. */
+  close(): void
+  closed(): boolean
 }>
 
+/**
+ * One stream's saved bytes in a ring of the capacity's size, allocated when the first byte arrives:
+ * the saved bytes end right before `writeAt` and wrap around the ring's end.
+ */
 type StreamState = {
   readonly savedFrom: number
   /** Observed after `savedFrom` and no longer saved. */
   discarded: number
-  /** Saved bytes in order; their total is at most the capacity after each append. */
-  chunks: Uint8Array[]
+  ring: Uint8Array | undefined
+  writeAt: number
+  /** Saved bytes, at most the capacity. */
   saved: number
 }
 
@@ -32,21 +40,24 @@ const continuation = (byte: number) => byte >> 6 === 0b10
 /**
  * A tail whose streams start saving at `savedFrom`: the bytes each stream had observed when the
  * domain was handed over. `capacity` is the bound of saved bytes per stream and must be positive; a
- * provider that saves nothing keeps no tail at all.
+ * provider that saves nothing keeps no tail at all. Each stream holds one buffer of the capacity's
+ * size, allocated when its first byte arrives.
  */
 export function createRetainedTail(input: {
   capacity: number
   savedFrom: Readonly<Record<TailStream, number>>
 }): RetainedTail {
-  if (!Number.isSafeInteger(input.capacity) || input.capacity <= 0)
+  const capacity = input.capacity
+  if (!Number.isSafeInteger(capacity) || capacity <= 0)
     throw new RangeError('a retained tail needs a positive capacity')
   const state = new Map<TailStream, StreamState>(
     streams.map(stream => [
       stream,
-      { savedFrom: input.savedFrom[stream], discarded: 0, chunks: [], saved: 0 },
+      { savedFrom: input.savedFrom[stream], discarded: 0, ring: undefined, writeAt: 0, saved: 0 },
     ]),
   )
   let version = 0
+  let open = true
   const of = (stream: TailStream): StreamState => {
     const found = state.get(stream)
     if (found === undefined) throw new TypeError(`unknown stream ${stream}`)
@@ -54,21 +65,37 @@ export function createRetainedTail(input: {
   }
   const end = (s: StreamState) => s.savedFrom + s.discarded + s.saved
 
-  function trim(s: StreamState): void {
-    while (s.saved > input.capacity) {
-      const first = s.chunks[0]
-      if (first === undefined) return
-      const over = s.saved - input.capacity
-      if (first.length <= over) {
-        s.chunks.shift()
-        s.saved -= first.length
-        s.discarded += first.length
-      } else {
-        s.chunks[0] = first.subarray(over)
-        s.saved -= over
-        s.discarded += over
-      }
+  /** Writes `bytes` (fewer than the capacity) at `writeAt`, wrapping around the ring's end. */
+  function write(s: StreamState, ring: Uint8Array, bytes: Uint8Array): void {
+    const first = Math.min(bytes.length, capacity - s.writeAt)
+    ring.set(bytes.subarray(0, first), s.writeAt)
+    ring.set(bytes.subarray(first), 0)
+    s.writeAt = (s.writeAt + bytes.length) % capacity
+  }
+
+  function append(s: StreamState, bytes: Uint8Array): void {
+    const ring = (s.ring ??= new Uint8Array(capacity))
+    if (bytes.length >= capacity) {
+      ring.set(bytes.subarray(bytes.length - capacity))
+      s.writeAt = 0
+    } else {
+      write(s, ring, bytes)
     }
+    const total = s.saved + bytes.length
+    s.saved = Math.min(total, capacity)
+    s.discarded += total - s.saved
+  }
+
+  /** One copy of the saved bytes from `offset` on, read out of the ring in order. */
+  function copyOut(s: StreamState, offset: number): Uint8Array {
+    const length = s.saved - offset
+    const data = new Uint8Array(length)
+    if (s.ring === undefined || length === 0) return data
+    const readAt = (s.writeAt - length + capacity) % capacity
+    const first = Math.min(length, capacity - readAt)
+    data.set(s.ring.subarray(readAt, readAt + first))
+    data.set(s.ring.subarray(0, length - first), first)
+    return data
   }
 
   function streamTail(
@@ -79,13 +106,7 @@ export function createRetainedTail(input: {
     const firstSaved = s.savedFrom + s.discarded
     const last = end(s)
     const start = Math.min(Math.max(from ?? firstSaved, firstSaved), last)
-    const all = new Uint8Array(s.saved)
-    let at = 0
-    for (const chunk of s.chunks) {
-      all.set(chunk, at)
-      at += chunk.length
-    }
-    const data = all.slice(start - firstSaved)
+    const data = copyOut(s, start - firstSaved)
     let skipped = 0
     while (skipped < 3 && skipped < data.length && continuation(data[skipped] ?? 0)) skipped++
     const text = data.subarray(skipped)
@@ -110,19 +131,14 @@ export function createRetainedTail(input: {
 
   return Object.freeze({
     append(stream, bytes) {
-      if (bytes.length === 0) return
-      const s = of(stream)
-      // A copy: the caller's buffer may be reused after this call.
-      s.chunks.push(bytes.slice())
-      s.saved += bytes.length
-      trim(s)
+      if (!open || bytes.length === 0) return
+      append(of(stream), bytes)
       version++
     },
     drop(stream, count) {
-      if (!Number.isSafeInteger(count) || count <= 0) return
+      if (!open || !Number.isSafeInteger(count) || count <= 0) return
       const s = of(stream)
       s.discarded += s.saved + count
-      s.chunks = []
       s.saved = 0
       version++
     },
@@ -135,5 +151,9 @@ export function createRetainedTail(input: {
         streams: observed.map(stream => streamTail(stream, of(stream), from?.[stream])),
       }
     },
+    close() {
+      open = false
+    },
+    closed: () => !open,
   })
 }

@@ -131,6 +131,36 @@ describe('the retained output tail against a reference model', () => {
     }
   })
 
+  it('keeps the newest capacity of bytes when they arrive one at a time, three times the capacity over', () => {
+    const capacity = 64
+    const tail = createRetainedTail({ capacity, savedFrom: { stdout: 10, stderr: 0 } })
+    const model: Model = { savedFrom: 10, observed: [] }
+    for (let i = 0; i < 3 * capacity; i++) {
+      const byte = i % 251
+      tail.append('stdout', Uint8Array.from([byte]))
+      model.observed.push(byte)
+    }
+    const read = tail.read()
+    if (read.kind !== 'tail') throw new Error('expected a tail')
+    const [stream] = read.streams
+    if (stream === undefined) throw new Error('expected the stdout stream')
+    checkStream(stream, model, capacity, undefined, 'byte by byte')
+    expect([...stream.data]).toEqual(model.observed.slice(2 * capacity))
+    expect(stream).toMatchObject({ start: 10 + 2 * capacity, end: 10 + 3 * capacity })
+  })
+
+  it('observes nothing once closed: the readings stay, appends and drops are ignored', () => {
+    const tail = createRetainedTail({ capacity: 8, savedFrom: { stdout: 0, stderr: 0 } })
+    tail.append('stdout', new TextEncoder().encode('kept'))
+    expect(tail.closed()).toBe(false)
+    const before = tail.read()
+    tail.close()
+    expect(tail.closed()).toBe(true)
+    tail.append('stdout', new TextEncoder().encode('late'))
+    tail.drop('stderr', 3)
+    expect(tail.read()).toEqual(before)
+  })
+
   it('raises the version only when a tail changes', () => {
     const tail = createRetainedTail({ capacity: 4, savedFrom: { stdout: 3, stderr: 0 } })
     expect(tail.read()).toEqual({ kind: 'none' })
