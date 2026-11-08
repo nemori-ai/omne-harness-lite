@@ -127,6 +127,8 @@ type PoolReader = {
   idleTimer: NodeJS.Timeout | null
 }
 
+type ReaderAcquisition = PoolReader | 'start-failed' | null
+
 type DomainReaders = {
   readonly queue: Task[]
   readonly readers: PoolReader[]
@@ -341,6 +343,10 @@ export class ReaderPool {
       }
       const reader = this.acquire(d, entry)
       if (reader === null) return
+      if (reader === 'start-failed') {
+        this.endQueued(task, unavailable('read_failed', 'worker_start_failed'))
+        continue
+      }
       d.queue.shift()
       task.leaveQueue = null
       task.phase = 'assigned'
@@ -353,7 +359,7 @@ export class ReaderPool {
   }
 
   /** A reader that fits the tag and is idle, or a new one, or null when the request must wait. */
-  private acquire(d: DomainReaders, entry: ReadyDomain): PoolReader | null {
+  private acquire(d: DomainReaders, entry: ReadyDomain): ReaderAcquisition {
     const scope = scopeKey(entry.scope)
     for (const reader of d.readers) {
       if (reader.state !== 'idle') continue
@@ -388,7 +394,7 @@ export class ReaderPool {
       for (const reader of d.readers) if (reader.state === 'idle') return void this.retire(reader)
   }
 
-  private spawn(d: DomainReaders, entry: ReadyDomain): PoolReader | null {
+  private spawn(d: DomainReaders, entry: ReadyDomain): ReaderAcquisition {
     this.readerGeneration += 1
     const generation = this.readerGeneration
     let leased: { name: string; lease: object }
@@ -411,15 +417,20 @@ export class ReaderPool {
       state: 'starting',
       idleTimer: null,
     }
-    reader.client = new ReaderClient(
-      {
-        file: this.domains.fileOf(entry.domain),
-        domain: entry.domain,
-        lockWaitMs: this.config.lockWaitMs,
-        generation,
-      },
-      () => this.exited(d, reader),
-    )
+    try {
+      reader.client = new ReaderClient(
+        {
+          file: this.domains.fileOf(entry.domain),
+          domain: entry.domain,
+          lockWaitMs: this.config.lockWaitMs,
+          generation,
+        },
+        () => this.exited(d, reader),
+      )
+    } catch {
+      this.domains.releaseLease(leased.lease)
+      return 'start-failed'
+    }
     d.readers.push(reader)
     this.readerCount += 1
     return reader
