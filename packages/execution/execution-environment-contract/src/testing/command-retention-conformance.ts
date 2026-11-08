@@ -90,8 +90,8 @@ export type CommandRetentionOptions = Readonly<{
   waitMs?: number
 }>
 
-function done<T>(answer: FacilityResult<T>): T {
-  assert.equal(answer.kind, 'done')
+function done<T>(answer: FacilityResult<T>, message?: string): T {
+  assert.equal(answer.kind, 'done', message)
   if (answer.kind !== 'done') throw new assert.AssertionError({ message: 'expected done' })
   return answer.value
 }
@@ -283,7 +283,8 @@ async function checkStopJoins(s: CommandRetentionSubject): Promise<void> {
     stop(s.acquisition, process, 'forced'),
     stop(s.acquisition, process, 'forced'),
   ])
-  for (const answer of answers) assert.deepEqual(done(answer), { status: 'confirmed' })
+  const joined = 'each of two concurrent stops confirms'
+  for (const answer of answers) assert.deepEqual(done(answer, joined), { status: 'confirmed' })
   if (s.stopsIssued)
     assert.equal(await s.stopsIssued(process), before + 1, 'a repeated stop joins the first')
 }
@@ -293,12 +294,20 @@ async function checkStopAfterEnd(s: CommandRetentionSubject): Promise<void> {
   const { process } = await retained(s.acquisition, s.commands.leftover())
   assert.deepEqual(done(await stop(s.acquisition, process, 'forced')), { status: 'confirmed' })
   const issued = await s.stopsIssued?.(process)
+  const kept = 'a stopped process answers confirmed while its end fact is kept, never notFound'
   assert.deepEqual(
-    done(await stop(s.acquisition, process, 'forced')),
+    done(await stop(s.acquisition, process, 'forced'), kept),
     { status: 'confirmed' },
-    'a stopped process answers confirmed while its end fact is kept, never notFound',
+    kept,
   )
   if (s.stopsIssued) assert.equal(await s.stopsIssued(process), issued, 'no second stop is issued')
+  // The qualification still holds after the end (item 7): the end fact answers its own scope only.
+  if (s.elsewhere.facility.retention?.stop)
+    refused(
+      await stop(s.elsewhere, process, 'forced'),
+      'notFound',
+      'an end fact does not cross the scope or tenant',
+    )
 }
 
 async function checkStopWithoutEnded(s: CommandRetentionSubject): Promise<void> {
@@ -307,11 +316,14 @@ async function checkStopWithoutEnded(s: CommandRetentionSubject): Promise<void> 
   requireStop(a)
   const { process } = await retained(a, s.commands.leftover())
   assert.deepEqual(done(await stop(a, process, 'forced')), { status: 'confirmed' })
+  const issued = await s.stopsIssued?.(process)
   refused(
     await stop(a, process, 'forced'),
     'unavailable',
     'without ended the end fact cannot be read, so the qualification is unavailable',
   )
+  if (s.stopsIssued)
+    assert.equal(await s.stopsIssued(process), issued, 'an unreadable qualification issues no stop')
 }
 
 async function checkStopRefusedByGuard(s: CommandRetentionSubject): Promise<void> {
@@ -336,7 +348,7 @@ function checkStreamTail(tail: RetainedStreamTail, from?: number): void {
     assert.equal(tail.start, firstSaved, 'the tail starts at the first saved byte')
   else assert.equal(tail.start, Math.min(from, tail.end), 'the tail starts at from')
   const skipped = tail.text.start - tail.start
-  assert.equal(tail.text.encoding, 'utf-8')
+  assert.equal(tail.text.encoding, 'utf-8', 'the text is UTF-8')
   assert.ok(skipped >= 0 && skipped <= 3, 'the text skips at most one cut character')
   assert.ok(
     tail.data.subarray(0, skipped).every(continuation),
@@ -347,7 +359,7 @@ function checkStreamTail(tail: RetainedStreamTail, from?: number): void {
     new TextDecoder().decode(tail.data.subarray(skipped)),
     'the text is the data decoded as UTF-8 from its start',
   )
-  assert.equal(typeof tail.text.replaced, 'boolean')
+  assert.equal(typeof tail.text.replaced, 'boolean', 'replaced is a boolean')
 }
 
 function stdoutOf(answer: RetainedOutput): RetainedStreamTail | undefined {
@@ -376,7 +388,7 @@ async function checkTail(s: CommandRetentionSubject, waitMs: number): Promise<vo
   }
   assert.equal(answer.kind, 'tail')
   if (answer.kind !== 'tail') return
-  assert.ok(Number.isInteger(answer.version))
+  assert.ok(Number.isInteger(answer.version), 'the version is a whole number')
   for (const tail of answer.streams) checkStreamTail(tail)
   const out = stdoutOf(answer)
   assert.ok(out)
@@ -401,9 +413,12 @@ async function checkOutputScope(s: CommandRetentionSubject): Promise<void> {
   requireOutput(s.acquisition)
   requireOutput(s.elsewhere)
   const { process } = await retained(s.acquisition, s.commands.leftover())
+  const holds = 'the scope that holds it reads it'
   assert.ok(
-    ['tail', 'none', 'unsupported'].includes(done(await output(s.acquisition, process)).kind),
-    'the scope that holds it reads it',
+    ['tail', 'none', 'unsupported'].includes(
+      done(await output(s.acquisition, process), holds).kind,
+    ),
+    holds,
   )
   refused(
     await output(s.elsewhere, process),
