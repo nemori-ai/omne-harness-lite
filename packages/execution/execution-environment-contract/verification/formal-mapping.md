@@ -37,7 +37,7 @@ ProcessCustody 的性质。「编号」一列是本页给每条性质的名字�
 | `NoLeak` | T1 | 平台满足封闭收纳时，没有进程活在所有执行域之外 | [收纳](../SPEC.md#收纳) | 留下的进程失去归属，没有人能列出或停止它 | N2（`pgroup`） |
 | `UniqueOwner` | T2（I1、I3、I4） | 每个活着的执行域恰有一个归属方，且该归属方没有结束责任 | [一次性命令留下的进程](../SPEC.md#一次性命令留下的进程)首段 | 活着的进程没有人负责 | 由 I1、I3、I4 的证明支持 |
 | `OneDisposition` | T3 | 主进程退出后，执行域或者被停止，或者被移交，不会两者都发生 | [移交](../SPEC.md#移交)第 2、3 项 | 一个执行域既被停止又被保留，`residue` 与实际不符 | N6（提交不复核阶段） |
-| `StopTruth` | T4（I4） | 报告已停的执行域里没有活进程 | [停止](../SPEC.md#停止条款冻结未实现)第 5 项；[保留进程的恢复](../SPEC.md#保留进程的恢复) | 未停的进程被当作已停，责任被提前解除 | 由 I4 的证明支持 |
+| `StopTruth` | T4（I4） | 报告已停的执行域里没有活进程 | [停止](../SPEC.md#停止)第 5 项；[保留进程的恢复](../SPEC.md#保留进程的恢复) | 未停的进程被当作已停，责任被提前解除 | 由 I4 的证明支持 |
 | `NoEntryAfterClose` | T5（I5） | 范围封闭之后，没有执行域进入该范围 | [移交](../SPEC.md#移交)第 2 项 | 保留范围封闭之后仍有进程被保留下来，无人收尾 | N5（提交不复核封闭） |
 | `ClosureTruth` | T5、T8 | 报告封闭完成时，该范围名下的执行域都已停止 | [保留进程的恢复](../SPEC.md#保留进程的恢复)；[恢复](../SPEC.md#恢复) | 封闭完成却仍有保留进程活着 | N4b（枚举不全当完整，只查封闭一侧） |
 | `NoEviction` | T6（I7） | 占用不超过容量；容量不足从不停止已保留的执行域 | [容量](../SPEC.md#容量) | 新的保留挤掉旧的保留进程 | N3（满额停最旧的） |
@@ -150,7 +150,7 @@ SPEC [保留进程的恢复](../SPEC.md#保留进程的恢复)的已知限制所
 | `PlanRet` | `decideDisposition`：先 `reserve()`（`host-retained-processes.ts`，同步占名额），再保留进程账本 `plan` | 预留在首个异步等待之前 |
 | `Commit` | `commitHandover`：保留进程账本 `adopt`；`apply` 的 `retained` 分支 → `enterIndex` | 归属在 `enterIndex` 里同步改为 `handedOver`，之后写标记文件，再改为 `retained` |
 | `Abort` | `reservation.abort()`：在 `decideDisposition`、`commitHandover` 与 `apply` 的 `retainedInterrupted` 分支 | |
-| `Stop`、`Kill`、`Confirm` | `forceStop`、`gracefulStop`；`host-scope.ts` 的 `forceStopScope`（`systemctl kill`、`stop`、`show`）；保留的执行域走索引的 `stop` | 停止的记账去当前承担责任的账本：获取账本或保留进程账本 |
+| `Stop`、`Kill`、`Confirm` | `forceStop`、`gracefulStop`；`host-scope.ts` 的 `forceStopScope`（`systemctl kill`、`stop`、`show`）；保留的执行域走索引的 `stop`；保留进程扩展的 `stop` 经登记表的门核对资格后落到同一个索引停止，每个执行域只有一个在途停止，重复的 `stop` 等它的读数（模型里 `stopping` 上 `Stop` 不可用） | 停止的记账去当前承担责任的账本：获取账本或保留进程账本 |
 | `Drain` | 索引的 `maintain()` → `observe()`：`readScopeMembers` 读单元的 `cgroup.procs`，门以外没有进程或单元已不在时停止并记 `stopped` | 每 `retainedPollMs` 读一次。读不到不当作空 |
 | `Expire` | 没有实现 | SPEC 没有这项配置 |
 | `Release`、`DrainSweep` | `stopAll`：获取排空时强制停止 `live` 里的执行域。已移交的执行域不在 `live` 里 | `DrainSweep` 对应冷恢复的 `listRecoveryResources` 与 `recover` |

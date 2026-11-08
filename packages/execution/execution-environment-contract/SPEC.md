@@ -6,7 +6,7 @@
 
 保留终端和写入效果增量依据 [R2-D37 与 R2-D38](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6579990443)采用。保留终端是逐获取归属规则的明确例外，范围见[保留终端](#保留终端)。其余身份、授权和普通终端行为保持原承诺。
 
-[终端段的完成与字节归属](#终端段的完成与字节归属)与[一次性命令留下的进程](#一次性命令留下的进程)两节依据 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 卡正文的「总体设计」写入，未经技术接受。两节都由宿主提供者在 Linux 上兑现，Windows 与 macOS 上没有兑现。保留进程的 `stop` 条款冻结，现在没有实现。两节的形式依据在 [verification/](verification/README.md)。
+[终端段的完成与字节归属](#终端段的完成与字节归属)与[一次性命令留下的进程](#一次性命令留下的进程)两节依据 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 卡正文的「总体设计」写入，未经技术接受。两节都由宿主提供者在 Linux 上兑现，Windows 与 macOS 上没有兑现。两节的形式依据在 [verification/](verification/README.md)。
 
 ## 范围与依据
 
@@ -208,7 +208,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 ### 一次性命令留下的进程
 
-本节由宿主提供者在 Linux 上兑现，见 host-local 的[一次性命令留下的进程的兑现](../execution-environment-host-local/SPEC.md#留下的进程的兑现)。Windows 与 macOS 上没有兑现，`stop` 条款现在没有实现。依据是 #1137 卡正文的「总体设计」，未经技术接受。形式依据是 [ProcessCustody](verification/models/README.md#processcustody)，性质与条款的对应见 [verification/formal-mapping.md](verification/formal-mapping.md)。
+本节由宿主提供者在 Linux 上兑现，见 host-local 的[一次性命令留下的进程的兑现](../execution-environment-host-local/SPEC.md#留下的进程的兑现)。Windows 与 macOS 上没有兑现。依据是 #1137 卡正文的「总体设计」，未经技术接受。形式依据是 [ProcessCustody](verification/models/README.md#processcustody)，性质与条款的对应见 [verification/formal-mapping.md](verification/formal-mapping.md)。
 
 一次性命令的执行域里可以有主进程之外的进程，例如命令用 `&` 起的服务。主进程退出之后，这些进程叫留下的进程。任何时刻，每个活着的进程都恰好有一个归属方：本次获取，或一个保留范围。
 
@@ -270,33 +270,68 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 #### 保留进程扩展
 
-`CommandFacility.retention` 是可选的 `CommandRetention` 扩展，形状仿照[保留终端](#保留终端)的 `TerminalRetention`，不改变 `command` 原有的操作名单：`FacilityOperation<'command'>` 仍只有 `start`，扩展的操作名是 `CommandRetentionOperation`。消费者调用前检查扩展。登记表只在获取带受信的保留范围与保留进程账本视图、并且提供者的扩展提供 `list` 时交出扩展。保留进程账本视图是 `SessionTerminalRetention` 的可选字段 `processes`，类型 `RetainedProcessLedger`。它与保留终端的账本视图分开：保留终端的账本没有 `adopt`。重复获取时 `processes` 也属于原获取固定的端口，换成别的对象是冲突。扩展的每次调用照旧经过原获取的门：核对设施登记、租户、原调用与绑定，并调用当前的设施守卫。
+`CommandFacility.retention` 是可选的 `CommandRetention` 扩展，形状仿照[保留终端](#保留终端)的 `TerminalRetention`，不改变 `command` 原有的操作名单：`FacilityOperation<'command'>` 仍只有 `start`，扩展的操作名是 `CommandRetentionOperation`。消费者调用前检查扩展。登记表只在获取带受信的保留范围与保留进程账本视图、并且提供者的扩展提供 `list` 时交出扩展。保留进程账本视图是 `SessionTerminalRetention` 的可选字段 `processes`，类型 `RetainedProcessLedger`。它与保留终端的账本视图分开：保留终端的账本没有 `adopt`。保留进程账本可以另带只读的 `ended(key)`，回答这个保留范围的账本里有没有该键已确认的收场事实（`confirmed`、`none` 或 `unavailable`），供[停止](#停止)第 7 项使用。重复获取时 `processes` 也属于原获取固定的端口，换成别的对象是冲突。扩展的每次调用照旧经过原获取的门：核对设施登记、租户、原调用与绑定，并调用当前的设施守卫。
 
-- `list` 列出当前获取的保留范围里的全部保留进程。每项带保留进程引用、发起它的原调用、移交时间、状态（运行中或停止中）、进程数或「未知」。列表项没有「输出是否可读」一项，因为本成员现在不定义读取输出的操作。列表只来自提供者耐久索引的完整读取（见[保留进程的恢复](#保留进程的恢复)）。读不全时答 `unavailable`，不把不完整的结果当作完整的列表。列表不跨保留范围，也不跨租户。
-- `stop(ref, mode)`：条款冻结，现在没有实现，见下面「停止」。
-- 本成员现在不定义读取保留进程输出的操作。
+- `list` 列出当前获取的保留范围里的全部保留进程。每项带保留进程引用、发起它的原调用、移交时间、状态（运行中或停止中）、进程数或「未知」。列表只来自提供者耐久索引的完整读取（见[保留进程的恢复](#保留进程的恢复)）。读不全时答 `unavailable`，不把不完整的结果当作完整的列表。列表不跨保留范围，也不跨租户。
+- `stop` 停止一个保留进程，见下面「停止」。
+- `output` 读一个保留进程在移交之后的输出尾部，见下面「输出」。
 
-与[保留终端](#保留终端)的差别：保留终端的 `list` 只列当前获取创建或附着的终端。保留进程的 `list` 有意按整个保留范围列出，因为它的用途是让后来的获取看到先前留下的进程。这一放宽要求两个条件同时成立：获取带受信的保留范围；当前设施守卫对这次 `list` 放行。保留终端的 `list` 规则不变。
+`stop` 与 `output` 是可选方法。提供者的扩展有哪个方法，登记表就经门交出哪个；`list` 是交出扩展的前提。消费者调用前检查方法是否存在。
 
-<a id="停止条款冻结未实现"></a>
+与[保留终端](#保留终端)的差别：保留终端的 `list` 只列当前获取创建或附着的终端。保留进程的 `list` 有意按整个保留范围列出，因为它的用途是让后来的获取看到先前留下的进程。这一放宽要求两个条件同时成立：获取带受信的保留范围；当前设施守卫对这次 `list` 放行。保留终端的 `list` 规则不变。`stop` 与 `output` 同样按整个保留范围找目标，条件相同。
 
-##### 停止（条款冻结，未实现）
+<a id="停止"></a>
 
-`stop(ref, mode)` 停止一个保留进程的整个执行域。`mode` 取命令设施停止的两态。本条款现在冻结，实现另行交付。`CommandRetention` 现在没有 `stop` 方法；实现时作为可选方法加入，不改变已有的形状。
+##### 停止
 
-1. 资格三项同时成立：请求的租户等于保留进程所属的租户；`ref` 在本次获取的保留范围内；当前设施守卫对这次 `stop` 放行。停止的授权由受信装配注入守卫，执行环境不判断授权的依据。
+`stop` 停止一个保留进程的整个执行域。请求带保留进程引用与 `mode`，`mode` 取命令设施停止的两态 `graceful` 与 `forced`。完成时答 `{ status }`，`status` 是 `confirmed` 或 `unconfirmed`。
+
+1. 资格三项同时成立：请求的租户等于保留进程所属的租户；引用在本次获取的保留范围内；当前设施守卫对这次 `stop` 放行。停止的授权由受信装配注入守卫，执行环境不判断授权的依据。引用的 `id` 与 `generation` 都要相同。
 2. `ref` 不在本次获取的保留范围内时，结果是 `notFound`。执行环境不披露它在别处是否存在。
 3. `ref` 在范围内，但守卫不放行时，结果是 `rejected`，原因 `notAuthorized`。
 4. 资格读不到时，结果是 `rejected`，原因 `unavailable`。提供者不发出停止。
 5. 停止整个执行域。监督者确认执行域已空时，结果是 `confirmed`。否则结果是 `unconfirmed`，保留范围继续承担这个执行域的责任。
 6. 对同一保留进程的重复 `stop` 并入进行中的停止，不发出第二次停止。
-7. 保留进程已经确认停止或自行结清之后，保留账本仍保存它的收场事实。在这期间，对它的 `stop` 仍按第 1 至 4 项核对资格，资格成立时答 `confirmed`，不答 `notFound`，也不再发出停止。`list` 不再列出它。
+7. 保留进程已经确认停止或自行结清之后，保留账本仍保存它的收场事实。在这期间，对它的 `stop` 仍按第 1 至 4 项核对资格，资格成立时答 `confirmed`，不答 `notFound`，也不再发出停止。`list` 不再列出它。提供者经保留进程账本的 `ended(key)` 读收场事实：答 `confirmed` 时 `stop` 答 `confirmed`；答 `none` 时 `stop` 答 `notFound`；账本没有 `ended` 或答 `unavailable` 时，资格读不到，`stop` 按第 4 项答 `rejected`，原因 `unavailable`。
 8. 结果未知时，调用方用原请求身份再问同一保留进程。由第 7 项，已经停止的保留进程答 `confirmed`，所以再问是安全的。调用方不新起一次停止去换一个结果。
 9. 知道引用、能列出它、曾经发起它，都不单独授予停止权。停止的控制者不必是原发起方。
+
+<a id="输出"></a>
+
+##### 输出
+
+`output` 读一个保留进程在移交之后的输出。移交之后，提供者为每条输出流维护一个有界的字节尾部：新字节追加在末尾，超出容量时从开头丢弃。尾部只在提供者进程的内存里，不持久化：移交之前的输出本来就不保存，尾部只服务移交之后的观察；写入文件还要另管磁盘配额、清理与重启后的归属，而提供者重启后保留进程照常由保留范围负责，读不到输出不影响停止与回收。
+
+请求带保留进程引用与可选的 `from`。`from` 按输出流给出源字节偏移（`stdout`、`stderr` 或 `terminal`）。资格与[停止](#停止)第 1 至 4 项相同，守卫核对的操作是 `output`。资格成立时，结果是下列之一：
+
+- `tail`：带版本号与每条流的尾部。版本号在尾部每次变化时增加。每条流的尾部带：
+  - `savedFrom`：开始保存的源字节偏移，即移交时这条流已经观察到的字节数。它之前的字节从未保存，执行环境不补造。
+  - `start` 与 `end`：`data` 的第一个字节与最后一个字节之后的源字节偏移。`end` 等于这条流到现在观察到的字节数。
+  - `discardedBytes`：`savedFrom` 之后观察到、但不再保存的字节数。`savedFrom + discardedBytes + data 的长度 = end`。
+  - `data`：`start` 到 `end` 之间的原始字节，含 CRLF、ANSI 与回车，不按行或字符切。
+  - `text`：`data` 按 UTF-8 解码的文本，带编码名、文本对应的起始偏移与是否替换过无效序列。起点切在多字节字符中间时，文本跳过那几个续字节，起始偏移如实后移。字节数从不以字符数代替。
+  - `from` 早于 `start` 时，从 `start` 给，调用方由 `start` 看出缺口。`from` 不早于 `end` 时，`data` 为空。
+- `none`：移交之后各流都还没有观察到字节。
+- `unsupported`：提供者不为这个保留进程保存输出。
+
+保留进程已经离开提供者的索引（停止已确认或自行结清）时，`output` 答 `notFound`。提供者进程重启后加载回来的保留进程没有尾部，`output` 答 `rejected`，原因 `unavailable`。读输出不改变保留进程的状态，也不授予停止权。
+
+<a id="按保留范围观察"></a>
+
+##### 按保留范围观察
+
+`observeRetained(访问身份, 保留范围)` 列出一个保留范围里的保留进程，不经过任何获取。它给观察者使用：观察者不发起执行，没有自己的获取，只需要知道某个保留范围里还有哪些保留进程。
+
+- 入口核对与 `describe` 相同：先核访问身份的租户是铸造的值，再请环境授权端口判断动作 `observe-retained`，再由可信绑定来源确认保留范围已绑定、租户等于访问身份的租户。答复的映射见[访问核验](#访问核验)。
+- 条目与 `list` 相同。执行环境向每个提供保留进程观察的提供者读一次完整列表并合并。任何一个提供者读不全时，整体答 `Rejected(unavailable)`，从不交出部分列表。
+- 只给列表元数据。它不分配获取，不使用恢复授权，不复用别的调用的获取，也不授予执行、读输出或停止的权限。
+- 观察者被撤销或替换只撤销观察，不停止任何保留进程。
 
 #### 收纳
 
 封闭收纳指：进程在创建时进入执行域，子进程继承成员关系，`setsid`、双重 fork、重新挂父都不能使进程离开执行域。不满足封闭收纳的提供者不交出保留进程扩展，处置一律走停止，原因 `uncontained`。这样的提供者只在确认执行域完整停止时答 `confirmed`。只按进程组或进程会话（POSIX session）收纳的平台不满足封闭收纳，因为进程可以用 `setsid` 离开。
+
+命令设施用可选字段 `containment` 声明收纳强度：`sealed` 表示满足封闭收纳，`none` 表示不满足。声明 `none` 的提供者不交出保留进程扩展。没有这个字段表示提供者没有声明，消费者不能把它当作 `sealed`。
 
 命令自己经宿主的服务管理器起的进程，不在执行域里，也不归执行环境。这是命令的外部效果，是否允许由对命令的授权决定。
 
@@ -306,7 +341,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 #### 保留进程的恢复
 
-保留进程索引由提供者维护。移交预留与已移交的执行域都记在这个索引里。提供者在 `adopt` 确认之后把执行域写入索引的耐久部分（下称耐久索引），并按耐久索引列出、监督、封闭与恢复保留进程。保留进程账本记归属：预留（`plan`）、提交（`adopt`）与停止（`stopped`）。保留进程账本不提供枚举：`RetainedProcessLedger` 只有 `closed`、`plan`、`adopt` 与 `stopped`。
+保留进程索引由提供者维护。移交预留与已移交的执行域都记在这个索引里。提供者在 `adopt` 确认之后把执行域写入索引的耐久部分（下称耐久索引），并按耐久索引列出、监督、封闭与恢复保留进程。保留进程账本记归属：预留（`plan`）、提交（`adopt`）与停止（`stopped`）。保留进程账本不提供枚举：`RetainedProcessLedger` 有 `closed`、`plan`、`adopt` 与 `stopped`，另有可选的 `ended`，它只回答单个键的收场事实，不列出。
 
 - `releaseScope` 停止该保留范围的全部保留进程与保留终端。未确认停止的项答待处置，不报告已释放。
 - 提供者进程重启后，保留进程仍能从耐久索引列出。保留范围封闭时照常停止。提供者不恢复与监督进程的连接，也不恢复输出读取。
@@ -323,7 +358,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 执行环境不签发身份，也不保存许可。普通入口经两个由集成方提供的端口核对访问：
 
-- 环境授权端口 `EnvironmentAuthority<P>`：对访问身份与一个动作答复授权判定。动作是封闭的判别联合：解析落点（作用域）、获取（原获取描述）、查询本地获取（租户与获取键）、查询原获取（原获取描述）、列出作用域（作用域）。判定的形状与 Runtime Context 的授权判定相同：已授权（带主体与 `current()`）、拒绝、不可用、未知。`current()` 是必需的同步前提：执行环境在最终的同步状态转移之前调用它，答假时按拒绝处理（规则见 Runtime Context 的[当前授权前提](../../context/runtime-context-contract/SPEC.md#当前授权前提)）。
+- 环境授权端口 `EnvironmentAuthority<P>`：对访问身份与一个动作答复授权判定。动作是封闭的判别联合：解析落点（作用域）、获取（原获取描述）、查询本地获取（租户与获取键）、查询原获取（原获取描述）、列出作用域（作用域）、按保留范围观察（保留范围）。判定的形状与 Runtime Context 的授权判定相同：已授权（带主体与 `current()`）、拒绝、不可用、未知。`current()` 是必需的同步前提：执行环境在最终的同步状态转移之前调用它，答假时按拒绝处理（规则见 Runtime Context 的[当前授权前提](../../context/runtime-context-contract/SPEC.md#当前授权前提)）。
 - 可信绑定来源 `ScopeBindingSource`：类型归 Runtime Context。它对一个作用域回答已绑定（带租户）、未绑定、不可用或未知。
 
 普通入口先核对访问身份里的租户是 legal-identity 铸造的值，再按下列顺序核对。前一项不成立，后面的不再执行：
@@ -336,7 +371,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 | 操作或阶段                               | 授权拒绝、未绑定或错租户                                                | 不可用                               | 未知                                                                             |
 | ---------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------ | -------------------------------------------------------------------------------- |
-| `resolvePlacement`、`describe`           | `Rejected(notAuthorized)`                                               | `Rejected(unavailable)`              | `LookupUnknown`（原因 `authority` 或 `scope-binding`）                           |
+| `resolvePlacement`、`describe`、`observeRetained` | `Rejected(notAuthorized)`                                               | `Rejected(unavailable)`              | `LookupUnknown`（原因 `authority` 或 `scope-binding`）                           |
 | `acquire`，调用提供者之前                | `Rejected(notAuthorized)`，零分配                                       | `Rejected(unavailable)`，零分配      | `UnknownAcquisition`（阶段 `preflight`），没有调用提供者，可以按原键重做核对     |
 | 查询本地获取                             | 拒绝；本租户没有可见记录为 `unrecorded`，不能探测外租户记录             | 查询不可用                           | 查询未知                                                                         |
 | 查询原获取                               | 拒绝（`notAuthorized`），含原获取描述的租户与访问身份不同；不调用提供者 | 查询不可用                           | 查询未知                                                                         |
@@ -377,7 +412,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 租户的线上形式归 legal-identity：跨序列化边界的租户写成它的租户文本，由 `tenantCodec` 解码并铸造。本成员的解码器（`judgeRequirement` 与两条块声明的 schema）接受租户文本，也原样保留本进程内已铸造的 `TenantId`。其他形状一律拒绝，包括形状与 `TenantId` 相同的手造对象。比较租户只用 legal-identity 的 `tenantEquals`。
 
-访问身份里的租户也必须是 legal-identity 铸造的值；执行环境用 `tenantEquals(租户, 租户)` 核对，未铸造的值不等于任何租户。执行环境在普通入口的最前面做这项核对。未铸造时，`resolvePlacement`、`acquire` 与 `describe` 以 `invalidInput` 拒绝，不写记录，也不调用端口或提供者。查询本地获取与查询原获取答复 `invalidInput`；它不表示记录状态，也不泄露某键是否存在。恢复入口不带访问身份，不做这项核对。
+访问身份里的租户也必须是 legal-identity 铸造的值；执行环境用 `tenantEquals(租户, 租户)` 核对，未铸造的值不等于任何租户。执行环境在普通入口的最前面做这项核对。未铸造时，`resolvePlacement`、`acquire`、`describe` 与 `observeRetained` 以 `invalidInput` 拒绝，不写记录，也不调用端口或提供者。查询本地获取与查询原获取答复 `invalidInput`；它不表示记录状态，也不泄露某键是否存在。恢复入口不带访问身份，不做这项核对。
 
 #### 获取的状态与答复
 
@@ -484,9 +519,9 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 | 操作                                      | 原因                                           | 触发条件                                                                                                                                                                                                                             |
 | ----------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `resolvePlacement`、`acquire`、`describe` | `invalidInput`                                 | 访问身份里的租户不是 legal-identity 铸造的值；先于其他核对                                                                                                                                                                           |
-| `resolvePlacement`、`acquire`、`describe` | `notAuthorized`                                | 环境授权端口拒绝；可信绑定未绑定或租户与访问身份不同                                                                                                                                                                                 |
-| `resolvePlacement`、`acquire`、`describe` | `unavailable`                                  | 环境授权端口或可信绑定来源答不可用                                                                                                                                                                                                   |
+| `resolvePlacement`、`acquire`、`describe`、`observeRetained` | `invalidInput`                                 | 访问身份里的租户不是 legal-identity 铸造的值；先于其他核对                                                                                                                                                                           |
+| `resolvePlacement`、`acquire`、`describe`、`observeRetained` | `notAuthorized`                                | 环境授权端口拒绝；可信绑定未绑定或租户与访问身份不同                                                                                                                                                                                 |
+| `resolvePlacement`、`acquire`、`describe`、`observeRetained` | `unavailable`                                  | 环境授权端口或可信绑定来源答不可用                                                                                                                                                                                                   |
 | `resolvePlacement`                        | `ownerStopped`                                 | 执行环境已关闭                                                                                                                                                                                                                       |
 | `resolvePlacement`                        | `referenceExpired`                             | 请求方作用域已释放；先于匹配                                                                                                                                                                                                         |
 | `resolvePlacement`                        | `noMatchingEnvironment`                        | 允许清单里没有一层有声明该层的在场提供者                                                                                                                                                                                             |
@@ -511,7 +546,8 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 | `acquire`                                 | 提供者给出的原因                               | 提供者拒绝时，原因原样交给集成方，取值仍在本集合内。例如接续时账本答 `unavailable`，提供者以 `unavailable` 拒绝（[INV-EE15](#inv-ee15-准备持有回收与确认保持一致)）                                                                  |
 | 查询本地获取与原获取                      | 领域查询答复；Cordis 错面答 `callerMismatch`   | 没有调用方租户在这个键下的记录时答复 `unrecorded`；访问身份里的租户未铸造时答复 `invalidInput`，这不是存储状态                                                                                                                       |
 | 有拒绝通道的操作                          | `callerMismatch`                               | Cordis 装配声明的调用者类别与操作面不符；登记面抛出，错误类型归集成契约                                                                                                                                                              |
-| `describe`                                | `ownerStopped`                                 | 执行环境已关闭                                                                                                                                                                                                                       |
+| `describe`、`observeRetained`             | `ownerStopped`                                 | 执行环境已关闭                                                                                                                                                                                                                       |
+| `observeRetained`                         | `unavailable`                                  | 授权与绑定通过之后，有一个提供者读不全它的保留进程，或读取抛出；不交出部分列表                                                                                                                                                       |
 | `recoverOwned`、`releaseScope`            | `notAuthorized`、`unavailable`、`invalidInput` | 恢复授权端口答不允许或不可用；已知列表的描述格式不合或作用域与参数不同为 `invalidInput`，先于授权核对                                                                                                                                |
 
 依据：产品第 2 版「环境要求与落点」「获取、采用记录与租约」「恢复授权与作用域收场」，以及 J43。这一节未经技术接受。
@@ -626,6 +662,9 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 | V-EE27 | 没有域外退出证据时新进程对旧容量答未分配或已结清；热重载被当作进程退出；未知的文件效果因容量结清被改写、重写或回滚                                                                                                                                                          |
 | V-EE28 | 主进程退出后执行域里有活着的进程却没有归属方；可以保留时被停止；满额时停止已保留的进程；范围封闭之后仍有执行域被移交进来；同一执行域既被移交又被停止；停止未经监督者确认就报告已停；枚举读不全时答空列表或使恢复前进；不满足封闭收纳的提供者交出保留进程扩展；保留进程的 `list` 跨保留范围或跨租户（[一次性命令留下的进程](#一次性命令留下的进程)；模型 [ProcessCustody](verification/models/README.md#processcustody)） |
 | V-EE29 | 段的完成由静默或屏幕判定；读到暂时无数据就交出段结果，使本段前台字节落到段外；段间字节丢失或混入段内输出；终端因后台进程而失效；关闭终端后仍有进程活着（[终端段的完成与字节归属](#终端段的完成与字节归属)；模型 [TerminalSegments](verification/models/README.md#terminalsegments)） |
+| V-EE30 | 保留进程的 `stop` 未经监督者确认就答 `confirmed`；对别的保留范围或别的租户的引用答出存在性或停止了它；对同一保留进程的重复 `stop` 发出第二次停止；已停止的保留进程在收场事实保存期间答 `notFound`；资格读不到时仍发出停止（[停止](#停止)；模型 `Stop`） |
+| V-EE31 | `output` 交出移交之前的字节；偏移、丢弃数与字节数不满足 `savedFrom + discardedBytes + data 的长度 = end`；以字符数代替字节数；对别的保留范围或别的租户的引用交出内容；提供者重启后答出空尾部而不是 `unavailable`（[输出](#输出)） |
+| V-EE32 | `observeRetained` 不经环境授权就列出；一个提供者读不全时交出部分列表；列出别的保留范围或别的租户的保留进程；观察分配了获取或改变了保留进程的状态（[按保留范围观察](#按保留范围观察)） |
 
 `./testing` 的两个套件把部分义务写成可运行用例，用例名以义务编号为前缀。V-EE23 至 V-EE26 的用例如下；其余反例仍需机制成员、提供者与真实集成方的组合证据。套件用替身端口，不证明真实授权、真实绑定来源或耐久。`./testing` 另有内存文件设施与脚本命令设施两个替身。它们只证明契约形状与判据，不证明真实进程、文件系统、授予根核对或隔离。
 
@@ -637,7 +676,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 | V-EE26 | `recovery-settles-acquisitions-without-claiming-release`                                                | `list-includes-open-acquisition`                                                                          |
 | V-EE27 | 无                                                                                                      | 无；宿主文件的冷恢复见下方缺项                                                                            |
 
-V-EE28 另有命令保留套件 `commandRetentionConformance`，用例为 `V-EE28.clean-exit-reports-none`、`V-EE28.leftover-is-retained-and-listed`、`V-EE28.list-stays-in-scope-and-tenant`、`V-EE28.handle-stop-after-handover-is-unconfirmed`、`V-EE28.scope-close-stops-retained` 与 `V-EE28.no-ledger-stops-with-reason`。它覆盖处置结果的形状、`list` 不跨保留范围与租户、移交与句柄停止互斥、范围封闭停止保留进程。它不覆盖容量、读数未知、提供者重启与保留进程的显式停止。
+V-EE28 另有命令保留套件 `commandRetentionConformance`，用例为 `V-EE28.clean-exit-reports-none`、`V-EE28.leftover-is-retained-and-listed`、`V-EE28.list-stays-in-scope-and-tenant`、`V-EE28.handle-stop-after-handover-is-unconfirmed`、`V-EE28.scope-close-stops-retained` 与 `V-EE28.no-ledger-stops-with-reason`。它覆盖处置结果的形状、`list` 不跨保留范围与租户、移交与句柄停止互斥、范围封闭停止保留进程。同一套件另有 V-EE30 与 V-EE31 的用例，名字以义务编号为前缀，覆盖 `stop` 的资格与答复、重复停止合流、收场事实之后答 `confirmed`、没有 `ended` 时答 `unavailable`，以及 `output` 的尾部关系与范围核对。V-EE32 的用例在公开执行环境套件里，覆盖观察入口的授权与「完整或不可用」。套件不覆盖容量、读数未知与提供者重启。
 
 ### 明确缺项
 

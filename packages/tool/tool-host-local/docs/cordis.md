@@ -130,9 +130,12 @@ Scope 与最终事实适配是 `createLocalToolBindings` 的构造依赖，返�
 - 一个 guarded 提交写两条记录：保留记录里本调用对该键的预留置为已许可、已接续；获取记录里该键的资源事实置为 `handedOver`。两条记录在同一个 host 域，提交只有一个修订条件，两份信封带同一个变更标识，所以要么都生效，要么都不生效。提交结果未知时按变更标识重读，认出才答 `confirmed`。
 - 本调用已经接续的键再 `adopt`，不写，答 `confirmed`；这就是丢答之后的查询。保留范围已关闭、获取记录已关闭或原调用已结清时答 `closed`。没有本调用对该键的预留、获取记录没有该键或该键已确认停止时答 `unavailable`。
 - `handedOver` 对本次获取是终态：获取账本之后的 `stopped` 不改它，`permit` 与 `adopt` 把它当作没有活动计划。
+- `ended(key)` 读保留记录：该键已接续、停止已确认时答 `confirmed`；保留记录里没有已接续的该键，或停止还没有确认时答 `none`；读不到保留记录时答 `unavailable`。它不看创建该键的是哪个调用，因为已接续的键归保留范围。
+
+作者环境把租约视图交出的命令保留扩展原样转交给作者：扩展存在的前提是有 `list`（契约[保留进程扩展](../../../execution/execution-environment-contract/SPEC.md#保留进程扩展)）；扩展另有 `stop`、`output` 时，作者一并看到，没有的方法作者也看不到。调用时补上本次调用的访问身份、原调用与绑定。命令设施的 `containment` 也原样转交。
 
 双写的原子性在内存存储加注入故障上验证（`tests/retained-process-ledger.spec.ts`），没有在 SQL 后端上单独验证。`createLocalToolControlSubjects` 按原主体绑定恢复并重新核验资格；JSON 中的主体描述不是可直接使用的主体。
 
-executor 退役后不能在同一 bundle 重装。close 结束本代调度、观察与本地等待，不表示外部效果撤销、物理资源停止或耐久待办解除。目录撤除结束旧观察为 stale-instance，执行真正完成才结束为 closed；当前权限拒绝先于上述结果。保留终端的 Session 结束回收由应用接到既有结束事件，重启重新附着不在本波支持范围。
+executor 退役后不能在同一 bundle 重装。close 结束本代调度、观察与本地等待，不表示外部效果撤销、物理资源停止或耐久待办解除。目录撤除结束旧观察为 stale-instance，执行真正完成才结束为 closed；当前权限拒绝先于上述结果。保留终端随会话归档的回收要等作用域释放接线（见 [harness-server 的 `releaseScope` 接线](../../../../apps/harness-server/SPEC.md#releasescope-wiring)）；重启后重新附着不在支持范围。
 
 `tests/runtime-composition/` 覆盖单进程真实工厂、发布、原结果推送、调用控制和退役。冻结外域输入的组合结果不能代替真实 SQL、Windows 设施和应用授权链的验证。Windows 独立入口必须收到真实装配 runner，未提供时失败。

@@ -224,7 +224,7 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 | 停止与确认         | 强制停止：`systemctl --user kill --kill-whom=all --signal=SIGKILL`，再 `stop`（退出码 5 按已不在），等门进程退出，最后用 `systemctl --user show -p LoadState -p ActiveState` 读到 `inactive` 或 `not-found` 才报 `confirmed`，上界内会再读。平和停止只把 `SIGTERM` 发给主进程，超时报 `unconfirmed`，不升级 |
 | 超时               | 启动、平和停止与强制停止都有上界。启动超时答 `unknown`，资源留在这份获取，由释放、结清或退役停止                                                                                                                                                                                                            |
 | 平台前提           | P1 Linux、P3 `systemd-run` 与 `systemctl`、P4 用户管理器、P5 探测单元里的程序看得到 cgroup v2 统一层级、P6 同一个探测单元里的程序被自己单元的目录列出，单元的强制停止得到确认。探测程序是 `scope-probe.ts`，看不到统一层级时以 3 退出。提供者创建时在后台探测。不满足时启动答 `unavailable`，`files` 照常可用。不用猜测的进程号或假后端顶替                                                                                                               |
-| 处置与移交         | 退出帧之后门留在单元里读管道并丢弃字节。管理端按 SPEC 的次序处置：停止单元，或在保留进程索引里占名额、在保留进程账本 `plan` 与 `adopt` 之后移交保留范围。移交生效时归属同步改变，管理端给门发 `retain` 并关闭通道。`adopt` 结果未知时归属记为未知，停止与排空先再问 `adopt` |
+| 处置与移交         | 退出帧之后门留在单元里读管道，从不暂停它们；帧通道可写时照常发数据帧，写满时丢弃并累计，恢复后先发丢弃帧。管理端按 SPEC 的次序处置：停止单元，或在保留进程索引里占名额、在保留进程账本 `plan` 与 `adopt` 之后移交保留范围。移交生效时归属同步改变，管理端给门发 `retain`、关闭控制通道，把帧通道交给索引项的尾部（`retained-tail.ts`）。`adopt` 结果未知时归属记为未知，停止与排空先再问 `adopt` |
 | 保留进程索引       | `host-retained-processes.ts`，一个状态目录一个，各代共用。标记文件 `<stateDirectory>/retained-processes/<资源键>.json` 是重启后的依据。按保留范围计名额。按 `retainedPollMs` 读单元的 `cgroup.procs`，门以外没有进程时停止、记 `stopped`、删标记。保留范围封闭时停止它的全部保留进程 |
 | 冷恢复             | 列举用 `systemctl --user show -p Id -p Description 'omne-host-*.scope'` 读各单元的 key=value 块，选出描述属于这个作用域的单元。读不懂的块、缺属性的块与别的单元名使整个列举答 `unavailable`。列举另带保留进程索引里这个作用域的单元，标记文件读不全时答 `unavailable`。恢复只接受本提供者写下的单元名。启动身份变了直接视为已停止，否则按强制停止序列停止并核对。它不重启命令，也不接回输出                                                                                                                           |
 
@@ -269,8 +269,9 @@ sequenceDiagram
     S-->>M: inactive 或 not-found
     M->>R: stopped(坐标, confirmed)
   else 处置为移交
-    M->>G: retain，关闭通道
+    M->>G: retain，关闭控制通道
     Note over M,G: 单元归保留范围，由保留进程索引读成员、停止与记账
+    G-->>M: 之后的数据帧与丢弃帧，进这一项的尾部
   end
 ```
 

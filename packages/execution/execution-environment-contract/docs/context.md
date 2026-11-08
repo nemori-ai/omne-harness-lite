@@ -99,7 +99,7 @@ export const browserFacility = describeFacility('example.browser', {
 
 | 端口 | 集成方要做的事 | 条款 |
 | --- | --- | --- |
-| `EnvironmentAuthority<P>` | 对访问身份与一个动作（解析落点、获取、查询本地获取、查询原获取、列出作用域）答授权判定：已授权（带同步的 `current()`）、拒绝、不可用或未知 | [访问核验](../SPEC.md#访问核验) |
+| `EnvironmentAuthority<P>` | 对访问身份与一个动作（解析落点、获取、查询本地获取、查询原获取、列出作用域、按保留范围观察）答授权判定：已授权（带同步的 `current()`）、拒绝、不可用或未知 | [访问核验](../SPEC.md#访问核验) |
 | `ScopeBindingSource` | 类型归 Runtime Context。对一个作用域答已绑定（带租户）、未绑定、不可用或未知。绑定由作用域持有者写入 | [访问核验](../SPEC.md#访问核验) |
 | `ResourceLedger` | 每次获取一份，耐久。先 `plan` 再 `permit`，许可确认之后提供者才发出效果。`adopt` 接续已有资源，`stopped` 记下停止结果。原调用的终局与资源许可写在同一耐久顺序里。账本关闭时触发 `closed` 信号，之后不再发新许可，登记表的门也不再开始新的设施操作 | [INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致) |
 | `FacilityGuard` | 按当前授权回答这次操作现在还允许吗。答 `authorized`、`notAuthorized` 或 `unavailable`。依据只在集成方一侧 | [获取与租约](../SPEC.md#获取与租约) |

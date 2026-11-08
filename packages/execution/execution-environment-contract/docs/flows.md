@@ -1,6 +1,6 @@
 # 执行环境契约的协议流程
 
-本页给出本成员的十一条协议级流程。每条流程有一张时序图和一张「失败与责任交接」表，并标出对应的 [SPEC](../SPEC.md) 条款。行为以 SPEC 为准，图只投影条款，不表示运行实现已经存在。F-EEC07、F-EEC08 与 F-EEC11 的状态行写出哪个提供者在哪个平台上兑现它们。
+本页给出本成员的十二条协议级流程。每条流程有一张图和一张「失败与责任交接」表，并标出对应的 [SPEC](../SPEC.md) 条款。行为以 SPEC 为准，图只投影条款，不表示运行实现已经存在。F-EEC07、F-EEC08、F-EEC11 与 F-EEC12 的状态行写出哪个提供者在哪个平台上兑现它们。
 
 图中的「执行环境」是 `ExecutionEnvironment` 的实现。不含 Cordis 的登记表机制归 [execution-environment](../../execution-environment/README.md)，它的机制级流程见该成员的 `docs/flows.md`。跨成员流程 F-EX01 至 F-EX04 归组的[协作入口](../../docs/key-flows.md)。本页各条注明对应的组流程 F-EX。对象的状态与转移见[对象模型](object-model.md#生命周期)。设施协议的规则见 SPEC [设施协议](../SPEC.md#设施协议)，逐设施的展开见[内部架构](architecture.md#设施协议)。
 
@@ -413,7 +413,7 @@ sequenceDiagram
 
 ### F-EEC11 一次性命令的处置与移交
 
-状态：宿主提供者在 Linux 上兑现，见 host-local 的[一次性命令留下的进程的兑现](../../execution-environment-host-local/SPEC.md#留下的进程的兑现)。保留进程的显式 `stop` 条款冻结，不在本条。
+状态：宿主提供者在 Linux 上兑现，见 host-local 的[一次性命令留下的进程的兑现](../../execution-environment-host-local/SPEC.md#留下的进程的兑现)。保留进程的停止与读输出见 [F-EEC12](#f-eec12-保留进程的停止与读输出)。
 
 条款：[处置](../SPEC.md#处置)、[移交](../SPEC.md#移交)、[容量](../SPEC.md#容量)、[保留进程的恢复](../SPEC.md#保留进程的恢复)、[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。本条展开 [F-EEC07](#f-eec07-命令的增量输出与终局) 的「处置」一环。
 
@@ -477,6 +477,51 @@ sequenceDiagram
 | `adopt` 确认时执行域已被打断 | 执行域仍归保留范围，作为停止中的项进耐久索引，占名额。提供者停止它，`residue` 是 `stopping`（`closed`） | 停止只记一次，记入保留进程账本，不记入获取账本 |
 | `adopt` 答 `closed` | 执行域归本次获取。提供者作废索引里的预留并停止执行域，`residue` 是 `stopping`（`closed`） | 停止记入获取账本。保留进程账本里那条 `plan` 留作没有提交的计划项 |
 | `adopt` 读不到 | `residue` 是 `unknown`。预留保留，归属未知 | 提供者用同一个键再 `adopt` 查询。查清之前，本次获取不结清，也不停止这个执行域，执行域不被重复移交，两份账本都不记 `stopped` |
+
+### F-EEC12 保留进程的停止与读输出
+
+状态：宿主提供者在 Linux 上兑现，见 host-local 的[一次性命令留下的进程的兑现](../../execution-environment-host-local/SPEC.md#留下的进程的兑现)。macOS 与 Windows 不交出保留进程扩展。
+
+条款：[停止](../SPEC.md#停止)、[输出](../SPEC.md#输出)、[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)。按保留范围观察只读列表，规则见 SPEC [按保留范围观察](../SPEC.md#按保留范围观察)，不另画图。
+
+前提：调用方持有一份带受信保留范围的获取，经它的命令设施调用保留进程扩展。登记表的门已核对设施登记、租户、原调用与绑定，设施守卫已放行。
+
+`stop` 在门之后的判定：
+
+```mermaid
+flowchart TD
+  S[stop：引用与 mode] --> F{提供者的索引里有该引用<br/>且保留范围、租户、代都相同}
+  F -- 有 --> J{已有在途停止}
+  J -- 有 --> W[等在途停止的读数，不发第二次停止]
+  J -- 没有 --> X[停止整个执行域]
+  W --> C{监督者确认执行域已空}
+  X --> C
+  C -- 是 --> OK[confirmed；记入保留进程账本；离开索引]
+  C -- 否 --> UN[unconfirmed；仍在索引与列表里]
+  F -- 没有 --> E{保留进程账本 ended 键}
+  E -- confirmed --> OK2[confirmed；不发停止]
+  E -- none --> NF[notFound]
+  E -- 没有 ended、不可用或抛出 --> UA[rejected：unavailable；不发停止]
+```
+
+`output` 的一条流的偏移轴：
+
+```text
+0 ──── savedFrom ──── start ════ data ════ end
+       │              │                    │
+       移交时已观察    丢弃的字节数          到现在已观察的字节数
+       之前从未保存    = start − savedFrom
+```
+
+`from` 早于 `start` 时从 `start` 给；`from` 不早于 `end` 时 `data` 为空。`savedFrom + discardedBytes + data 的长度 = end`。
+
+| 环节 | 结果 | 失败与责任交接 |
+| --- | --- | --- |
+| 资格 | 同租户、引用在本次获取的保留范围内、守卫放行 | 范围外 `notFound`，不披露别处是否存在；守卫拒绝 `rejected(notAuthorized)`；资格读不到 `rejected(unavailable)`，不发停止 |
+| 停止 | 监督者确认后 `confirmed` | 未确认时 `unconfirmed`，保留范围继续承担责任。结果未知时用原身份再问同一引用 |
+| 重复停止 | 并入在途停止 | 不发第二次停止 |
+| 已结束 | 收场事实保存期间答 `confirmed` | 账本读不到收场事实时 `rejected(unavailable)` |
+| 读输出 | `tail`、`none` 或 `unsupported` | 离开索引后 `notFound`；提供者重启后 `rejected(unavailable)`；读输出不授予停止权 |
 
 ## 失败与生命周期
 

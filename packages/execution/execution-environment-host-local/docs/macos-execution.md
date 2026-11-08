@@ -128,7 +128,7 @@ Bash 3.2 的结论：Linux 的 Bash 驱动与分段源码不改动，在系统�
 偏离的正文与负责人见 SPEC 的[已知偏离](../SPEC.md#留下的进程的兑现)。摘要如下：
 
 - 调用 `setsid` 的进程离开执行域。它不被停止，也不被列出，`close` 仍答 `confirmed`。`terminals.spec.ts` 的用例「known deviation」断言这一点。
-- Shell 工具的帮助文本说留下的进程被保留，这在 macOS 上不成立。模型看到 `residue=stopping reason=uncontained` 与 `retained_processes=unavailable`。「进程收纳」事实（Backlog B4）留给 #1137 的负责人。
+- Shell 工具的帮助文本说留下的进程被保留，这在 macOS 上不成立。模型看到 `residue=stopping reason=uncontained`、`retained_processes=unavailable` 与 `process_containment=none`。
 - 提供者死去时，门停止自己的会话。
 - 提供者与门在 GO 之后、终端的 shell 会话记入标记之前一起死去时，标记里没有 shell 的会话。
 - 读到一个成员与向它发信号之间，进程号在理论上可以被重用。这个窗口很窄，与按进程号 `kill` 的窗口同类。

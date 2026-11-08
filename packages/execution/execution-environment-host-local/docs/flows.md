@@ -143,7 +143,7 @@ sequenceDiagram
   end
   T-->>G: 主进程退出
   G-->>M: 退出帧（退出码或信号，门以外的进程数）
-  G->>G: 留在单元里，读管道并丢弃字节
+  G->>G: 留在单元里，继续读管道，从不暂停；帧通道写满时丢弃并累计
   alt 没有留下的进程，或不能保留
     M->>S: 强制停止序列，记入资源账本
   else 可以保留
@@ -161,8 +161,9 @@ sequenceDiagram
         M->>L: adopt
         alt adopt 答 confirmed，提交时没有被打断
           L-->>M: confirmed
-          M->>G: retain，然后关闭两条通道
-          M->>I: 写标记文件，之后按 retainedPollMs 读单元成员
+          M->>G: retain，然后关闭控制通道
+          M->>I: 帧通道交给这一项的尾部；写标记文件，之后按 retainedPollMs 读单元成员
+          G-->>M: 之后的数据帧与丢弃帧，进尾部
         else adopt 答 confirmed，但等待期间被打断
           L-->>M: confirmed
           M->>I: 以停止中的项留在索引里

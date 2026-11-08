@@ -23,7 +23,7 @@
 | [ProcessCustody](models/README.md#processcustody) | [一次性命令留下的进程](../SPEC.md#一次性命令留下的进程)、[保留终端](../SPEC.md#保留终端)的封闭与回收、[恢复](../SPEC.md#恢复) | 不泄漏、唯一归属、移交恰好一次、停止为真、封闭即终、不驱逐、保留活过获取、恢复覆盖、可保留即保留；三条活性 |
 | [TerminalSegments](models/README.md#terminalsegments) | [终端段的完成与字节归属](../SPEC.md#终端段的完成与字节归属) | 完成只看控制通道、前台字节不外流、全归属且保序、后台写入不使终端失效、一个终端同时只有一段 |
 
-两个模型对应的条款都已由宿主提供者在 Linux 上兑现，实现与模型动作的对应见 [formal-mapping.md](formal-mapping.md)。保留进程的 `stop` 条款冻结，现在没有实现，模型里的显式停止只说明目标语义。
+两个模型对应的条款都已由宿主提供者在 Linux 上兑现，实现与模型动作的对应见 [formal-mapping.md](formal-mapping.md)。保留进程扩展的 `stop` 对应模型里保留范围一侧的显式停止 `Stop`。
 
 运行全部配置的命令（在仓库根目录）：
 
