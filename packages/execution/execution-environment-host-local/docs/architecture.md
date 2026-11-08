@@ -23,7 +23,7 @@ Linux 的 `retainedHostTerminalFactory` 在 `host-terminal.ts` 复用原 PTY gat
 | 同上                                                    | `src/host-command.ts`、`src/host-scope.ts`、`src/host-probe.ts` | 宿主命令设施、systemd 用户 scope 与平台前提探测，见[宿主命令机制](#宿主命令机制)                                                              |
 | 同上                                                    | `src/scope-cgroup.ts`                                           | 进程在 cgroup v2 统一层级里的位置与单元成员，只用 Node 的内置模块；平台前提探测、探测程序与终端 gate 共用（不从根入口导出）                   |
 | 门进程脚本，不是入口                                    | `src/command-gate.ts`                                           | 命令的门进程，由宿主命令设施按文件路径起                                                                                                      |
-| 门进程脚本导入的模块，不是入口                          | `src/command-gate-core.ts`                                      | 命令门进程不碰 I/O 的判断：请求解析、控制行的动作、数据帧的切分与退出之后的静默判定（不从根入口导出）                                        |
+| 门进程脚本导入的模块，不是入口                          | `src/command-gate-core.ts`                                      | 命令门进程不碰 I/O 的判断：请求解析、控制行的动作、数据帧的切分、输出块的去向与退出之后的静默判定（不从根入口导出）                                        |
 | 探测程序脚本，不是入口                                  | `src/scope-probe.ts`                                            | 平台前提 P5 与 P6 的探测程序，由平台前提探测按文件路径在探测单元里起                                                                          |
 | 同上                                                    | `src/macos-execution/`                                          | macOS 的命令与终端后端：会话读取程序、冷索引、处置与恢复，见 [macOS 说明](macos-execution.md)（不从根入口导出） |
 | `@omne-harness/execution-environment-host-local/cordis` | `src/cordis.ts`                                                 | Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin`、插件工厂 `createHostFilesPlugin`、空配置 Schema                      |
@@ -208,7 +208,7 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 | `src/scope-cgroup.ts` | 从 `/proc/self/cgroup` 与 `/proc/self/mountinfo` 判断进程在统一层级里的位置（在单元里、看不到层级、在别的单元、读不到）与单元成员。只用 Node 的内置模块，平台前提探测、探测程序与终端 gate 共用 |
 | `src/host-scope.ts`   | systemd 用户 scope：起单元、强制停止与确认、按描述列举、引用的读写       |
 | `src/command-gate.ts` | 门进程脚本。它在命令的单元里运行，只用 Node 的内置模块、`scope-cgroup.ts` 与 `command-gate-core.ts`，不被任何模块导入；它持有状态并做全部 I/O |
-| `src/command-gate-core.ts` | 门进程不碰 I/O 的判断：请求解析、`/proc/self/cgroup` 文本里的单元名、控制行的动作、数据帧的切分、退出之后的静默判定与帧的组装。不导入别的模块，只被 `command-gate.ts` 导入 |
+| `src/command-gate-core.ts` | 门进程不碰 I/O 的判断：请求解析、`/proc/self/cgroup` 文本里的单元名、控制行的动作、数据帧的切分、输出块的去向（退出帧之前发帧、之后走中继、管理者断开后丢弃）、退出之后的静默判定与帧的组装。不导入别的模块，只被 `command-gate.ts` 导入 |
 | `src/host-command.ts` | 每份获取的命令门面：前置检查、启动、帧的读取、有界缓冲、进程句柄与停止   |
 | `src/host-retained-processes.ts` | 同一状态目录各代共用的保留进程索引：预留、提交、标记文件、列出、按引用停止与读输出、封闭、变空检测、重启加载 |
 | `src/retained-tail.ts` | 一个保留进程移交之后的输出尾部：每条流保留最新的字节，有容量上界，只在提供者进程的内存里 |

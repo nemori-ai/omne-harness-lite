@@ -28,6 +28,8 @@ const reachable = [
   'host-domain',
   'host-provider',
   'host-command',
+  'retained-tail',
+  'host-retained-processes',
   'host-scope',
   'host-probe',
   'command-gate',
