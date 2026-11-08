@@ -1,4 +1,4 @@
-import type { ToolRenderedResult } from '@omne-harness/tool-contract'
+import type { ToolRenderedResult, ToolBodyDeclaration } from '@omne-harness/tool-contract'
 import { tree } from '../tool-host/support.ts'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createToolMessageResultCodec } from '@omne-harness/tool'
@@ -22,6 +22,7 @@ const codec = createToolMessageResultCodec(8 * 1024 * 1024)
 export function createLargeBodyModule(
   executor: ToolExecutor<null, ToolRenderedResult<ToolMessageContentBlock>, unknown>,
   output: OutputCodec<ToolRenderedResult<ToolMessageContentBlock>> = codec,
+  body: ToolBodyDeclaration = { kind: 'text', codec: adoption },
 ): ToolImplementationModule<unknown, ToolMessageContentBlock> {
   return {
     executor: adoption,
@@ -45,7 +46,7 @@ export function createLargeBodyModule(
           kind: 'structured',
           value: { kind: 'tool-result', contract: output.adoption },
           program: { kind: 'none' },
-          body: { kind: 'text', codec: adoption },
+          body,
           offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
         },
         author: {

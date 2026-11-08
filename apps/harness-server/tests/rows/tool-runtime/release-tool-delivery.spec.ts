@@ -2,6 +2,7 @@ import { largeBodyRelease, adoptLargeBody } from './large-body-release.ts'
 import { largeBodyModel } from './large-body-model.ts'
 import { LARGE_TOOL } from './large-body-author.ts'
 import { writerBodyAuthor, WRITER_BODY, WRITER_SUMMARY } from './writer-body-author.ts'
+import { structuredBodyAuthor } from './structured-body-author.ts'
 import { observeToolMaterials, inlineResultReleased } from './release-material-observation.ts'
 // @module-tag slow
 // 慢：本进程装发行树（真实 SQLite），每条命令起一个 `omne` 子进程，模型走本进程的本地网关。先构建 `apps/cli`。
@@ -346,6 +347,55 @@ const resultText = (entry: Entry | undefined): string =>
     .join('')
 
 describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => {
+  it.skipIf(process.platform !== 'linux').each(['json-document', 'json-lines'] as const)(
+    'W3-B rejects a schema-invalid %s body and finishes the production Agent run',
+    { timeout: 240_000 },
+    async format => {
+      const author = structuredBodyAuthor(format, false)
+      const model = largeBodyModel(FINAL, false, 'failed')
+      const { entries } = await turnOnRelease(
+        model.script,
+        undefined,
+        largeBodyRelease(author.module),
+      )
+      expect(model.errors, JSON.stringify(model.replies)).toEqual([])
+      expect(model.completed()).toBe(true)
+      expect(author.executions()).toBe(1)
+      expect(model.replies.some(reply => /sourceTerminal\s*:\s*failed/.test(reply))).toBe(true)
+      expect(
+        entries
+          .filter(entry => entry.kind === 'message.tool')
+          .flatMap(blocksOf)
+          .some(block => block['id'] === 'Tools.body'),
+      ).toBe(false)
+      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
+    },
+  )
+
+  it.skipIf(process.platform !== 'linux').each(['json-document', 'json-lines'] as const)(
+    'W3-B reads a schema-validated %s author body through the production Agent',
+    { timeout: 240_000 },
+    async format => {
+      const author = structuredBodyAuthor(format)
+      const model = largeBodyModel(FINAL, true)
+      const { entries } = await turnOnRelease(
+        model.script,
+        undefined,
+        largeBodyRelease(author.module),
+      )
+      expect(model.errors, JSON.stringify(model.replies)).toEqual([])
+      expect(model.completed()).toBe(true)
+      expect(author.executions()).toBe(1)
+      const pages = entries
+        .filter(entry => entry.kind === 'message.tool')
+        .flatMap(entry => blocksOf(entry).filter(block => block['id'] === 'Tools.body'))
+      expect(pages.length).toBeGreaterThan(1)
+      expect(pages.map(page => String(page['text'])).join('')).toBe(author.original)
+      expect(model.replies.some(reply => reply.includes(format))).toBe(true)
+      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
+    },
+  )
+
   it.skipIf(process.platform !== 'linux')(
     'W3-B writes an author body, drains unawaited writes and reads every page through the release Agent',
     { timeout: 240_000 },

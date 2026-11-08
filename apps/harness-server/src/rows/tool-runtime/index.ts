@@ -39,6 +39,7 @@ import {
 } from '../../entry/schema-domain.ts'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { monotonicClock } from '../../shutdown.ts'
+import { createReleaseBodySchemas } from '../../entry/tool-body-schemas.ts'
 import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { ensureToolRuntimeBundle } from './bundle.ts'
@@ -89,6 +90,16 @@ const recordsPlugin: Plugin.Object = {
   apply(ctx: Context, value: unknown) {
     const config = toolRuntimeConfigSchema.parse(value)
     mountSql(ctx, config)
+    const holder = toolRuntimeHolder(ctx)
+    const body = createReleaseBodySchemas()
+    holder.bodySchemas = body.schemas
+    ctx.effect(
+      () => () => {
+        if (holder.bodySchemas === body.schemas) holder.bodySchemas = null
+        body.close()
+      },
+      'tool-records.body-schemas',
+    )
     const bundle = ensureToolRuntimeBundle(ctx, config)
     bundle.records.apply(ctx)
   },

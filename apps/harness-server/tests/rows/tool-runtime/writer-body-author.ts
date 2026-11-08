@@ -12,7 +12,7 @@ const frames = ['W3-BEGIN\n', '中🙂'.repeat(2048), '\nW3-END\n']
 export const WRITER_BODY = frames.join('')
 export const WRITER_SUMMARY = 'W3-BEGIN: author summary; the complete answer is in the body. W3-END'
 
-const codec: OutputCodec<ToolRenderedResult<ToolMessageContentBlock>> = {
+export const writerResultCodec: OutputCodec<ToolRenderedResult<ToolMessageContentBlock>> = {
   adoption: describedAdoption({ owner: 'w3-release-test', name: 'writer-output', revision: '1' }),
   encode(value) {
     const bytes = Buffer.from(JSON.stringify(value))
@@ -75,7 +75,7 @@ export function writerBodyAuthor() {
           },
         ]
         return ok(
-          codec.decode(
+          writerResultCodec.decode(
             Buffer.from(
               JSON.stringify({
                 content: summary,
@@ -88,7 +88,7 @@ export function writerBodyAuthor() {
         )
       },
     },
-    codec,
+    writerResultCodec,
   )
   return { module, executions: () => executions, pending }
 }

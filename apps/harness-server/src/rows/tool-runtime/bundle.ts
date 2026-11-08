@@ -97,6 +97,17 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
   })
   const input: LocalToolRuntimeInput = {
     store,
+    bodySchemas: {
+      check: (schema, read) =>
+        holder.bodySchemas?.check(schema, read) ??
+        Promise.resolve({
+          failure: {
+            kind: 'unavailable',
+            dependency: 'body-schema',
+            diagnostic: 'tool-records body schema provider is not mounted',
+          },
+        }),
+    },
     materials: {
       provider: TOOL_MATERIAL_PROVIDER,
       store: lateMaterials(holder),

@@ -84,6 +84,7 @@ import { createReleaseToolRequests } from '../../../src/entry/tool-requests.ts'
 import { toolClock, toolPublicationAuthority } from '../../../src/entry/tool-runtime-objects.ts'
 import { defineRow } from '../../../src/row.ts'
 import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
+import { TOOL_BODY_SCHEMA_VOCABULARY } from '../../../src/entry/tool-body-schemas.ts'
 import type { EntryObjectModule } from '../../../src/types.ts'
 import { toolRowsOperatorConfig } from '../../r9/support.ts'
 import { compositionAuthority } from './composition-authority.ts'
@@ -570,6 +571,51 @@ function expectRan(ran: Ran): void {
 }
 
 describe('Tool segment B: the release rows in one process composition', () => {
+  it('closes the body schema domain when the real Tool records row is removed', async () => {
+    const { storageRoot } = workspace()
+    const { rows } = rowsOf(storageRoot)
+    const policy = accessPolicyRow(allowAll)
+    const parse = (text: string) => {
+      const read = readJsonText(text, {
+        maxBytes: 1024,
+        maxDepth: 8,
+        maxItems: 32,
+        maxMembers: 16,
+        maxStringLength: 256,
+        maxNumberLength: 32,
+      })
+      if (read.kind !== 'ok') throw new Error('JSON fixture required')
+      return read
+    }
+    const schema = {
+      identity: { id: 'amount', revision: '1', digest: 'amount-v1' },
+      definition: {
+        schema: parse('{"type":"number"}').value,
+        vocabulary: TOOL_BODY_SCHEMA_VOCABULARY,
+        descriptions: [],
+      },
+    }
+    const read = parse('1.00')
+    const { value, run } = await withLiveRows(
+      {
+        rows,
+        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+        entryObjects: entryObjects(workPrincipalsOverStandIn),
+        probe: [toolRuntimeKey],
+      },
+      async ctx => {
+        const holder = toolRuntimeHolder(ctx)
+        const schemas = holder.bodySchemas
+        if (schemas == null) throw new Error('body schema provider was not mounted')
+        expect(await schemas.check(schema, read)).toHaveProperty('ok')
+        return { holder, schemas }
+      },
+    )
+    expect(run.result.exitCode).toBe(0)
+    expect(value.holder.bodySchemas).toBeNull()
+    expect(await value.schemas.check(schema, read)).toHaveProperty('failure.kind', 'unavailable')
+  })
+
   it.runIf(process.platform === 'linux').each([false, true])(
     'automatically reclaims an unread Shell body and preserves its native file (reopen=%s)',
     { timeout: 90_000 },

@@ -53,6 +53,7 @@ export type ToolRuntimeHolder = {
   sql: ToolSqlPorts | null
   /** 执行域的 schema-provider；`tool-environments` 行装载时交来，撤除时收回。 */
   schemaProvider: SchemaProvider | null
+  bodySchemas: NonNullable<LocalToolRuntimeInput['bodySchemas']> | null
   /** 当前会话工作主体读口；`tool-records` 行不在时为 undefined。 */
   workPrincipals: () => SessionWorkPrincipals<unknown> | undefined
   /** identity 的核验器，入口逐次现取；入口没有交来时为 undefined。 */
@@ -110,6 +111,7 @@ export function toolRuntimeHolder(ctx: Context): ToolRuntimeHolder {
     }),
     sql: null,
     schemaProvider: null,
+    bodySchemas: null,
     workPrincipals: () => undefined,
     verifier: () => undefined,
     standing: () => undefined,

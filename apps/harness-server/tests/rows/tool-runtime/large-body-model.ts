@@ -1,7 +1,11 @@
 import type { GatewayScript } from '../../fixtures/model-gateway.ts'
 import { LARGE_TOOL } from './large-body-author.ts'
 
-export function largeBodyModel(final: string, readBody = false) {
+export function largeBodyModel(
+  final: string,
+  readBody = false,
+  terminal: 'completed' | 'failed' = 'completed',
+) {
   const requests: string[] = []
   const replies: string[] = []
   const errors: string[] = []
@@ -27,9 +31,13 @@ export function largeBodyModel(final: string, readBody = false) {
             : latest.content.map(block => block.text).join('\n')
         replies.push(text)
         if (
-          readBody
-            ? text.includes('Body traversal ended.')
-            : text.includes('W3-BEGIN') && text.includes('W3-END') && text.includes('bodyReference')
+          terminal === 'failed'
+            ? /sourceTerminal\s*:\s*failed/.test(text)
+            : readBody
+              ? text.includes('Body traversal ended.')
+              : text.includes('W3-BEGIN') &&
+                text.includes('W3-END') &&
+                text.includes('bodyReference')
         ) {
           completed = true
         } else {

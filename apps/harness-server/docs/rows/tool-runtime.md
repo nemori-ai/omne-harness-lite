@@ -30,6 +30,12 @@ executor、runtime 六个插件和 `authorExecution`。五行装同一个 bundle
 业务停止时，`tool-executor` 关闭 bundle：执行宿主退役，作者执行不再接新。期限内完成答 `settled`，超时答
 `incomplete`。`tool-runtime` 不带关闭阶段，门面不持有在途工作。
 
+正文校验的词汇采用和预算归[发行入口](../../src/entry/tool-body-schemas.ts)。当前仅接受
+`tool-body-json-schema-static@1`的精确采用身份，使用schema-provider的静态JSON Schema子集；不表示支持所有JSON Schema构造。
+入口采用provider示例的初始预算：32个快照、32层、256个构造节点、50ms失败退避、3次尝试。这些值不是测量所得的容量建议，快照数也不是编译内存的字节上限。
+Tool固定每次调用的schema定义及正文解析限制，入口适配只给出验证结论，不改写正文或data。
+正常业务停服先排空Tool执行，之后撤除记录行并关闭schema域。强制撤除不声明在途保管已完成；它撤销新校验入口，已有持久责任仍由原调用恢复机制承接。
+
 Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话日志同一事务域、同一次登记。组合版本因此从
 `session-composite/2` 换到 `session-composite/3`。开发环境清存储根（R2-D98）。
 
@@ -38,6 +44,7 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 每项输入只取已核来源，缺席时由窄代理答 `unavailable`：
 
 - 记录仓、输出保管、守护提交：逐次读 `tool-records` 行交来的 SQL 端口。
+- 正文 schema：`tool-records` 行按入口预算创建独立的正文校验域，撤除时清空窄端口并关闭提供者。bundle每次检查现取端口，缺席返回unavailable。它不借用`tool-environments`的环境声明校验实例，也不把schema-provider或Cordis对象交给Tool领域。
 - 资格：`authorization` 行已有的 `createToolAccessGuard`，底下是 identity 的参考准入核验。
 - 控制主体投影：主体经 `principalVerifier` 核验，是会话工作主体才投影。其余答 `denied`。会话工作主体的判定只有
   [session-work.ts](../../src/rows/tool-runtime/session-work.ts) 一份，请求供给者用同一份：`kind` 是
