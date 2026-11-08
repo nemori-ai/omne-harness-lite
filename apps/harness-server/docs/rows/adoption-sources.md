@@ -2,11 +2,23 @@
 
 `adoption-sources` 行保留定义映射的 `prepare`。`create` 仍由该入口生成初始化守卫，不附冻结判定。
 
+## create 的模式注册
+
+`server-entry` 的应用包装为创建命令加入固定的 `session.modes` 来源和原操作派生的候选结果。候选结果不是准备成功证明。采用来源核对完整来源、原项、协议和结果，再请求 `sessionModesInstallation` 执行真实准备。调用方不能自选生产者、binding 或准备证据。
+
+首次创建尚未产生已提交的 Session scope。应用使用原 Runtime Context 实现构造一个隔离的初始准备视图，按 Session 原算法绑定本次创建的 scope，并复用应用 Identity 核验与生产者授权。视图只允许本次 prepare，不允许 commit 或 reader；完成后关闭。它不会成为实时 scope 来源。原 Session first-create 事务保证初始修订为 0，原子提交只接受一个创建者。本路径固定一个初始注册，不适用于已有会话或多个初始注册项。
+
+应用采用材料 `definition-mapping-entry/2` 保留映射条目，并保存 `contextPreparations`。数组元素是完整准备记录的规范 JSON 文本，避免把已有 JsonValue 树再多层展开；不是仅存摘要。每份记录包含原 tenant、session、createOperation、原项和完整编码注册决定，以及实际 coverage/currentRevision。只有完整判断与最终决定一致才写 ready 守卫。记录通过 SE01 保存，SE07 和 SE02 在同一 Session 批次提交；准备引用由原操作和原项确定。摘要用于核对所指正文，不授予权限，提交前不称其为耐久事实。
+
+原 operation 重传先通过 Session 公开工作读口认回 `initialization`。应用核完整原输入、采用材料协议、准备正文、原注册决定和结果，恢复原守卫；不再要求当前映射或生产者重新准备。当前访问资格仍由 Session 原调用边界核验。新操作不借旧准备材料授予动作权限。
+
+`sessionModesInstallation` 按调用读取，`session` 也作为局部读依赖，避免 `Session → adoption-sources → AD-03 → Session` 的启动注入环。实时 Context 只在 SE07 提交并经 AD-03 确认应用后供值。详见[会话运行装配](session-run-release.md)。
+
 ## create 的常驻工具
 
 映射条目的 `residentCapabilities` 列出该定义纳入的常驻工具。`agent-adoptions` 的表从定义的引用取这一项：取 `resident` 为 true 的引用，按定义里的顺序取能力名。定义是唯一的声明，表不另存一份。`resident` 为 true 但类别不是 `Tool` 的引用使表构建失败。
 
-`create` 时，`prepare` 用本次 `SessionAccess` 调用本行的规划器，`capabilities` 是这一项，`recorded` 为空。`toolBindings` 与 `toolGenerations` 每次调用时现取，行的 `inject` 仍只有 `definitionMappings`。规划结果写进初始化守卫的 `newResidents` 与 `residentBindings`。Session 按它们提交常驻工具，已提交快照的 `residents` 因此含这些工具。
+`create` 时，`prepare` 用本次 `SessionAccess` 调用本行的规划器，`capabilities` 是这一项，`recorded` 为空。`toolBindings` 与 `toolGenerations` 每次调用时现取，行注入 `definitionMappings` 与 `sessionWorkPrincipals`。规划结果写进初始化守卫的 `newResidents` 与 `residentBindings`。Session 按它们提交常驻工具，已提交快照的 `residents` 因此含这些工具。
 
 首次定义取自受信发行快照（`releaseOf`，即 `config/tool-release.json`），不取自调用方：
 

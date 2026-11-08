@@ -14,6 +14,12 @@ import {
   parseForward,
 } from './invocation-forwarding.ts'
 import { createForwardingReceiver } from './forwarding-receiver.ts'
+import {
+  invocationQualifier,
+  type LocalInvocationQualifier,
+  type ObserveInvocationRecord,
+  type ObserveInvocationOrigin,
+} from './invocation-qualification.ts'
 import { fail } from '@omne-harness/operation-result'
 import type { Reply, ToolResultReceiver } from '@omne-harness/tool-contract'
 import type {
@@ -258,6 +264,22 @@ function nextRevision(revision: string) {
 export function createLocalInvocationSource<P, B extends ContentBlock = ContentBlock>(
   input: LocalInvocationSourceInput<P, B>,
 ): LocalInvocationSource<P, B> {
+  return buildInvocationSource(input)
+}
+
+export function createLocalInvocationQualifier<P, B extends ContentBlock = ContentBlock>(
+  input: LocalInvocationSourceInput<P, B>,
+): LocalInvocationQualifier<P> {
+  return invocationQualifier(
+    (observe, origin) => buildInvocationSource(input, observe, origin).guard,
+  )
+}
+
+function buildInvocationSource<P, B extends ContentBlock>(
+  input: LocalInvocationSourceInput<P, B>,
+  observe?: ObserveInvocationRecord,
+  observeOrigin?: ObserveInvocationOrigin,
+): LocalInvocationSource<P, B> {
   const { store, authority, principalCodec, commitAttempts } = input
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
     throw new TypeError('commitAttempts: range')
@@ -287,9 +309,11 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
   const bindingOf = (
     read: Extract<LedgerRead<B>, { kind: 'complete' }>,
     key: string,
+    tenant?: TenantId,
   ): Binding | null | 'unreadable' => {
     for (const record of read.records) {
       if (record.kind !== 'host' || record.host.key !== key) continue
+      if (tenant !== undefined) observe?.(domain(tenant), record)
       return parseBinding(record.host.value) ?? 'unreadable'
     }
     return null
@@ -435,18 +459,25 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
       if (!isTenantShape(tenant)) return { kind: 'forged', reason: 'tenant-shape' }
       const read = await readDomain(tenant)
       if (typeof read === 'string') return { kind: 'unavailable', diagnostic: read }
-      const binding = bindingOf(read, digests.key)
+      const binding = bindingOf(read, digests.key, tenant)
       if (binding === null) return { kind: 'forged', reason: 'unknown-source' }
       if (binding === 'unreadable')
         return { kind: 'unavailable', diagnostic: 'the stored binding cannot be read' }
       if (!bindsTo(binding, call, operation, digests.fixed))
         return { kind: 'forged', reason: 'binding-mismatch' }
       const same = await sameSubject(principal, binding)
-      return subjectVerdict(same)
+      const verdict = subjectVerdict(same)
+      if (verdict.kind === 'trusted') observeOrigin?.({ call, admission: operation, request })
+      return verdict
     },
   }
 
-  const forwards = createInvocationForwarding(input, directGuard, invocationSourceIdentities)
+  const forwards = createInvocationForwarding(
+    input,
+    directGuard,
+    invocationSourceIdentities,
+    observe,
+  )
   const receiver = createForwardingReceiver(input, forwards)
   const guard: ToolSourceGuard<P> = {
     async verify(access) {

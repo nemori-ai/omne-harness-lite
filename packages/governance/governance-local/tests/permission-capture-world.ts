@@ -43,6 +43,11 @@ export function capture(scope = fixtureScope) {
           target: { ...target, scopeRef: 'org_00000000000000000000000001' },
         },
         sourceRoute: 'governance.permission-capture',
+        qualification: {
+          owner: 'fixture.action',
+          protocol: 'fixture-action/1',
+          observation: { revision: '1' },
+        },
       },
     },
   } satisfies AcceptOperation

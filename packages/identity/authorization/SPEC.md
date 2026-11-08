@@ -123,7 +123,9 @@ HJ0 的[动态治理贡献候选](../../assets/docs/governance-contributions.md)
 
 0.0.0 -> 0.1.0 完整承接产品 CAP-ID09 至 CAP-ID12 的授权部分，并消费 CAP-ID01 至 CAP-ID08 的身份与治理依据。完整支持以产品能力定义为准，不由本规格中的摘要缩减。
 
-公开形状仍须定义资源及动作接入、授权表达和解释结果、范围与操作关联、决定绑定、撤回与消费事实及可信提交查询接口。解释器、存储、并发消费、缓存、跨节点协议和共同完成机制归对应提供者及协调责任设计。
+公开形状仍须定义资源及动作接入、授权表达和解释结果、范围与操作关联、决定绑定、撤回与消费事实及可信提交查询接口。询问处理值 `InquiryPolicy` 与纯函数 `decideInquiry` 已由 [inquiry.ts](src/inquiry.ts) 发布；它们不包含 Session 模式词。解释器、存储、并发消费、缓存、跨节点协议和共同完成机制归对应提供者及协调责任设计。
+
+询问处理在结构化裁定之后应用。`prohibited` 始终拒绝，`unavailable` 保持不可用；无需询问的 `none` 保留自动路径。只有 `required` 消费策略，缺策略时不可用，三种策略分别拒绝、询问人和跳过询问。`continue` 只表示询问步骤可继续，不是准入许可，不替代身份、作用域、规则或消费时核验。完整有限输入验证见 `tests/inquiry.spec.ts`；跨域投影证明见 [Session 模式证明](../../session/session-adapters/verification/proofs/permission-mode.md)。
 
 技术设计不得用接口便利补充委托、灾后恢复资格或业务生命周期。产品缺口及邻域事项见[问题登记](../../../.meta_harness/design/product/identity-and-authorization/design.md#未决问题与待定事项)，能力落点见[架构映射](../docs/architecture.md#阶段覆盖与后续细化)。改变有效行为须同步依据、公开类型、消费者和验证，技术候选、实现、验证及交付接受分别记录。
 

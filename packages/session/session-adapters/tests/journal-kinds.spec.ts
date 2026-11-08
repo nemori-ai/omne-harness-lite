@@ -25,7 +25,7 @@ import {
 } from '@omne-harness/session-contract/testing'
 import {
   EXECUTION_RECORD_HANDLERS,
-  SESSION_PROTOCOL,
+  SESSION_READ_PROTOCOL,
   SESSION_WORK_HANDLER,
   decodeSessionWork,
 } from '@omne-harness/session-storage-sql/participants'
@@ -483,7 +483,7 @@ describe('a publication replaces the index of the held Session snapshot (session
     const whole = await s.storage.read({
       domain: s.domain,
       handler: SESSION_WORK_HANDLER,
-      protocol: SESSION_PROTOCOL,
+      protocol: SESSION_READ_PROTOCOL,
       requestKey: 'publish-index-whole',
       input: { tenant: s.domain.scope.tenant, session: s.access.session },
     })
@@ -518,7 +518,7 @@ describe('a joint commit with a Session participation folds its batch (session-s
     const whole = await s.storage.read({
       domain: s.domain,
       handler: SESSION_WORK_HANDLER,
-      protocol: SESSION_PROTOCOL,
+      protocol: SESSION_READ_PROTOCOL,
       requestKey: 'joint-fold-whole',
       input: { tenant: s.domain.scope.tenant, session: s.access.session },
     })

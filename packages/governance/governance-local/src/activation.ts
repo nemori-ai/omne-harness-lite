@@ -1,3 +1,5 @@
+import { finishExternalWrite } from './external-write-commit.ts'
+import { applyPermissionCapture } from './permission-operation.ts'
 import { businessMode } from './business-plan.ts'
 import { applyCapture } from './capture-operation.ts'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
@@ -19,7 +21,8 @@ import {
 } from './standing-custody.ts'
 import { applyStandingOperation, sealGovernanceStanding } from './standing-operation.ts'
 import { persistSqlStage, requireApplyStage } from './sql-stage.ts'
-import { digest, json } from './encoding.ts'
+import { isTerminal } from './registrar-results.ts'
+import { digest, json, equal } from './encoding.ts'
 import { retireContribution } from './contribution-retirement.ts'
 import { recordGovernanceSource } from './source-custody.ts'
 
@@ -65,21 +68,23 @@ function control(
 }
 function applyPlan(port: ParticipantPort, plan: Exclude<ActivationPlan, { kind: 'control' }>) {
   const found = boundOperation(port, plan.request.binding)
-  if (
-    found.kind !== 'found' ||
-    found.record.state === 'committed' ||
-    found.record.state === 'aborted'
-  )
-    return found
+  if (found.kind !== 'found' || isTerminal(found.record)) return found
   if (plan.kind === 'observation') throw new Error('Governance observation is not terminal')
   if (
-    found.record.epoch !== plan.epoch ||
-    found.record.sqlIdentity.transactionDomain !== plan.transactionDomain
+    !equal(
+      { epoch: found.record.epoch, transactionDomain: found.record.sqlIdentity.transactionDomain },
+      { epoch: plan.epoch, transactionDomain: plan.transactionDomain },
+    )
   )
     throw new Error('Governance plan binding changed')
-  if (businessMode(found.record.request.owner) !== plan.kind)
+  if (
+    businessMode(found.record.request.owner) !==
+    (plan.kind === 'permission-capture' ? 'capture' : plan.kind)
+  )
     throw new Error('Governance plan owner mismatch')
   requireApplyStage(port, plan.request.binding, found.record.execution, plan.request.execution)
+  if (plan.kind === 'external-write') return finishExternalWrite(port, plan.request, plan.result)
+  if (plan.kind === 'permission-capture') return applyPermissionCapture(port, plan)
   if (plan.kind === 'capture') return applyCapture(port, plan)
   return applyStandingOperation(
     port,

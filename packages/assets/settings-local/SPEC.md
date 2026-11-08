@@ -30,6 +30,12 @@ Provision and retire operations use owner revisions to reject stale editors. A r
 
 Target records specify allowed source slots and actions. They do not authorize copying another tenant's values or shared organization values into those slots. Every access grant must permit reading all persisted sources in that concrete target.
 
+## Current independent target queries
+
+The trusted standalone owner exposes `readTarget(target)` for conditional owner maintenance. The result is `found` with the public `SettingsTargetProjection` and retirement state, `not_found`, or a `SettingsFailure`. The factory fixes the SQL domain. A non-independent target or mismatched scope is forbidden. The handler performs one indexed lookup of the owner's target key and does not read assignments.
+
+A retired target remains observable as retired, not absent. An unavailable read, invalid stored data, or unmapped source layout does not become `not_found`. The result hides the stored source-layout representation. A returned owner revision is a snapshot, not a lock; a later mutation must still provide its expected revision. Close rejects new reads and drains accepted reads. This owner capability is not the authenticated product Settings query interface.
+
 ## Current publication references
 
 The trusted standalone owner can associate a complete publisher, definition and version reference with a target through its existing provision command. A null reference leaves the target usable as ordinary Settings without claiming an original publication. Changing or clearing the reference uses the same owner revision check and transaction as the definition update. The reference is part of the original command identity's immutable content. It does not authorize execution or prove a publisher's statement.
@@ -44,7 +50,11 @@ Capture remains bounded by 128 requested targets and the existing byte budget. E
 
 `createSettingsCatalog` verifies an issued acting-for-tenant principal, the fixed deployment, the tenant transaction domain, and every explicitly requested target scope. Each read obtains a fresh Identity standing reservation for its unique capture operation and the configured qualifications. It does not reuse a prior page's permission decision.
 
-One tenant SQL transaction consumes the capture terminal, obtains both owner projections, and reads Settings assignment state through `settings.snapshot`. Only each owner reads its own authority tables. The snapshot participant reads `st_states`, not Asset or Identity tables. Capture does not change assignment revisions or grant write rights. It does create an operation terminal and SQL receipt for coordination.
+One tenant SQL transaction consumes the catalog capture receipt, obtains both owner projections, and reads Settings assignment state through `settings.snapshot`. Only each owner reads its own authority tables. The snapshot participant reads `st_states`, not Asset or Identity tables. Capture does not change assignment revisions or grant write rights. It does create an operation terminal and SQL receipt for coordination.
+
+`settings.catalog-terminal` alone owns `st_catalog_terminals`. This immutable capture receipt is separate from the prepared mutation attempts in `st_terminals`. `settingsCatalogMaterials` installs its additive migration. The operation key supports a primary-key lookup; the record retains the complete domain, principal, target, operation and digest binding. A different binding at the same key conflicts. Capture and prepared mutation materials may coexist in one provider without registering a second writer for either relation.
+
+The trusted `createSettingsCatalogDestination` resolves catalog reservations through that same capture writer. The assembly gives it a distinct destination route. Capture changes an absent receipt to committed in the snapshot transaction. Sealing an absent receipt records aborted; sealing an existing receipt recognizes its original outcome. A sealed receipt cannot be consumed later, and failed snapshot transactions leave no committed receipt. Reassembly uses the persisted receipts. Existing mutation destinations retain their own protocol and do not interpret catalog receipts.
 
 Every explicitly requested target must appear in the qualified projections. A declaration must validate and match its exact reference digest. Persisted state must match that reference and the ordered source layout. A definition mismatch returns `definition_changed`. A source identity or order mismatch returns `basis_changed`. Invalid evaluation returns `incompatible`.
 
@@ -205,6 +215,8 @@ settings.targets remains the sole owner of st_targets and st_definitions. settin
 
 Ordinary settingsSqlMaterials installs a write-only source observation participant with no source table read permissions. settingsSqlMaterials({ sourceCapture: true }) selects the full snapshot producer under the same participant identity. That assembly must include the real independent-target owner. Register one variant only. This option supplies transaction materials, not a public authenticated source reservation service.
 
+settingsPreparationMaterials accepts the same sourceCapture option and defaults it to false. Enabling it selects that same snapshot producer without replacing prepared persistence or finalization. Source capture and prepared finalization publish the same fact in distinct combinations; a combination must not select both producers. The application registers the independent-target owner and the source reservation combination in system.settings. Enabling capture does not create a target, grant access, or turn a missing target into an empty source.
+
 A write observation describes the requested operation. It does not attest to source state or authorization. Reserve requires a captured snapshot fact bound to its complete destination request. The retention participant recognizes an existing reservation before attempting a new hold. Source settlement, root-owned update completion and recovery must later consume their own trusted evidence without requiring a fresh source snapshot.
 
 Tests use real Identity, Settings services, independent ownership, source capture and retention to exercise held-source rejection, unrelated writes, original receipts and competing writes. A separately seeded pending gate verifies restart behavior when its held count is zero. That seed does not establish the production update admission or recovery coordinator. Asset holding invalidation and organization management updates require their own owning-domain integration.
@@ -357,3 +369,11 @@ Ready has a separate SQL phase identity. Its rollback alone is not a business re
 Terminal recognition settles the original Identity request. If settlement is unavailable, the business result remains terminal and the hold remains a durable obligation for Identity recovery. Install the returned destination resolver for the same fixed route after remount. Close rejects new work and waits for admitted calls; closing does not release a hold or reverse an accepted destination seal.
 
 This local control does not authenticate remote calls or schedule its own background sweeps. Deployment owns invocation and destination routing. It does not implement runtime Permissions evaluation, the server consumer switch or distributed transport.
+
+## 同事务原配值观察
+
+Settings value projection 将同次目标投影与本域配值记录连接。目标拥有者、完整 capture 绑定和读取预算仍须成立；不能把目标缺失或错绑解释为已确认无配值。
+
+对已确认的合法目标，观察分别表达 absent、present 和 unavailable。absent 表示该目标尚无配值记录；present 携带当前配值状态；unavailable 保留当前目标投影及失败原因，不携带旧配值。定义或来源布局与已存配值不再匹配时使用 unavailable，不能退回空状态。
+
+局部配值不可用不回滚其他参与者已经取得的只读事实。消费者按职责处理该观察。Settings 准备与提交要求完整当前材料，因此不形成计划；Permissions 保留这个未知来源与其他合法来源，仍可根据已知禁止拒绝操作。此事实不是调用者资格证明，也不是未来写入许可。实现形状归 value-projection.ts。

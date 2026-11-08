@@ -1,3 +1,25 @@
+export {
+  SESSION_EXECUTION_CURRENT_FACT,
+  SESSION_EXECUTION_GUARD,
+  ExecutionCurrentSchema,
+  executionCurrentGuardFacts,
+  type ExecutionCurrent,
+} from './execution-current.ts'
+export {
+  SESSION_PERMISSION_CURRENT_HANDLER,
+  SESSION_PERMISSION_MODE_HANDLER,
+  SESSION_PERMISSION_CURRENT_FACT,
+  SESSION_PERMISSION_GUARD,
+  sessionPermissionGuardFacts,
+  decodeSessionPermissionCurrent,
+  decodeSessionPermissionMode,
+  type SessionPermissionRead,
+  type SessionPermissionCurrent,
+  type SessionPermissionReadResult,
+  type SessionPermissionMode,
+  type SessionPermissionModeResult,
+} from './permission-current.ts'
+import { SESSION_ORDINARY_BASIS, SESSION_COMMIT_PROTOCOL } from './commit-basis.ts'
 import { sessionIntakeLimits, type SessionIntakeLimits } from '@omne-harness/session-contract'
 // The participant vocabulary of the Session log combination: the participant names, their facts
 // protocols, the builders of the facts a committer sends and the decoders of the replies and read
@@ -24,15 +46,19 @@ export const SESSION_PARTICIPANT = 'session'
 export const EXECUTION_RECORD_PARTICIPANT = 'execution-record'
 /**
  * The participants of every Session log combination, in the execution order the storage fixes for
- * them (sql-contract SPEC 7.4: no fact dependency, so ascending names). `execution-record` runs
- * first, so the `session` participant of a joint commit reads the records of the same commit.
+ * them. The ordinary basis runs before Session by fact dependency. Among ready participants,
+ * ascending names keep execution-record before Session, so joint checks see the same commit.
  */
 export const SESSION_LOG_PARTICIPANTS: readonly [
   typeof EXECUTION_RECORD_PARTICIPANT,
+  typeof SESSION_ORDINARY_BASIS,
   typeof SESSION_PARTICIPANT,
-] = [EXECUTION_RECORD_PARTICIPANT, SESSION_PARTICIPANT]
+] = [EXECUTION_RECORD_PARTICIPANT, SESSION_ORDINARY_BASIS, SESSION_PARTICIPANT]
 
-export const SESSION_PROTOCOL = '1'
+/** Protocol of the Session write participant. */
+export const SESSION_PROTOCOL = SESSION_COMMIT_PROTOCOL
+/** Read handlers evolve separately from the write participant. */
+export const SESSION_READ_PROTOCOL = '1'
 export const EXECUTION_RECORD_PROTOCOL = '1'
 
 /** The read handler that reads the common log root G in one snapshot. */
@@ -1058,3 +1084,15 @@ export function decodeSessionInput(output: JsonValue): SessionInputRead | null {
       return null
   }
 }
+
+export {
+  SESSION_COMMIT_BASIS,
+  SESSION_COMMIT_RESULT,
+  SESSION_ORDINARY_BASIS,
+  SessionCommitBasisSchema,
+  SessionCommitResultSchema,
+  sessionCommitCommands,
+  sessionCommitDigest,
+  type SessionCommitBasis,
+  type SessionCommitResult,
+} from './commit-basis.ts'

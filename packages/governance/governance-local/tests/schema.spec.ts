@@ -1,7 +1,5 @@
-import {
-  currentTargetDefinitionSql,
-  selectedTargetSql,
-} from '../src/target-projection-participant.ts'
+import { selectedTargetSql } from '../src/target-projection-participant.ts'
+import { currentDefinitionSizeSql } from '../src/current-definition.ts'
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -201,14 +199,14 @@ it('uses the production candidate join to exclude ten thousand old-epoch leases'
   expect(plan).toMatch(/SEARCH d USING PRIMARY KEY/)
   expect(plan).not.toMatch(/SCAN (?:c|d)\b/)
   const targetDefinitionPlan = db
-    .prepare('EXPLAIN QUERY PLAN ' + currentTargetDefinitionSql)
+    .prepare('EXPLAIN QUERY PLAN ' + currentDefinitionSizeSql)
     .all('scope', 'epoch', 'definition')
     .map(row => row.detail)
     .join('\n')
   expect(targetDefinitionPlan).toMatch(/SEARCH c USING (?:COVERING )?INDEX gc_contribution_current/)
   expect(targetDefinitionPlan).toMatch(/SEARCH d USING PRIMARY KEY/)
   expect(targetDefinitionPlan).not.toMatch(/SCAN (?:c|d)\b/)
-  expect(db.prepare(currentTargetDefinitionSql).all('scope', 'epoch', 'definition')).toHaveLength(1)
+  expect(db.prepare(currentDefinitionSizeSql).all('scope', 'epoch', 'definition')).toHaveLength(1)
   const selectedPlan = db
     .prepare('EXPLAIN QUERY PLAN ' + selectedTargetSql)
     .all('scope', 'definition', 'target', 'epoch')

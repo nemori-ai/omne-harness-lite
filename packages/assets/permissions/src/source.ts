@@ -32,11 +32,13 @@ export const PermissionCurrentBasisSchema = z
   )
 export type PermissionBasisRequest = z.infer<typeof PermissionBasisRequestSchema>
 export type PermissionCurrentBasis = z.infer<typeof PermissionCurrentBasisSchema>
-export type PermissionBasisReading =
-  | PermissionCurrentBasis
-  | Readonly<{ kind: 'denied' }>
-  | Readonly<{ kind: 'unavailable'; sourceRef: string }>
-  | Readonly<{ kind: 'invalid-input'; reason: 'structure' | 'binding' }>
+export const PermissionBasisReadingSchema = z.union([
+  PermissionCurrentBasisSchema,
+  z.strictObject({ kind: z.literal('denied') }),
+  z.strictObject({ kind: z.literal('unavailable'), sourceRef: z.string() }),
+  z.strictObject({ kind: z.literal('invalid-input'), reason: z.enum(['structure', 'binding']) }),
+])
+export type PermissionBasisReading = z.infer<typeof PermissionBasisReadingSchema>
 
 /** Reads qualified facts for one operation; a reading is not a future execution permit. */
 export interface PermissionBasisSource<Context> {

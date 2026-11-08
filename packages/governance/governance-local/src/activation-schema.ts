@@ -1,8 +1,11 @@
+import { GovernanceExternalWriteResultSchema } from './external-write-protocol.ts'
+import { permissionCurrentSchema } from './permission-capture-schema.ts'
 import { closeScopeSchema } from './scope.ts'
 import { z } from 'zod'
 import { SettingsSourceReceiptSchema } from '@omne-harness/settings-local/preparation'
 import { GovernanceDigestSchema, GovernanceIdSchema } from '@omne-harness/governance-contract'
 import {
+  businessRequestSchema,
   acceptSchema,
   bindingSchema,
   bootstrapSchema,
@@ -62,11 +65,7 @@ export const controlRequestSchema = z.discriminatedUnion('kind', [
   }),
 ])
 export type ControlRequest = z.infer<typeof controlRequestSchema>
-export const businessRequestSchema = z.strictObject({
-  binding: bindingSchema,
-  execution: executionSchema,
-})
-export type BusinessRequest = z.infer<typeof businessRequestSchema>
+export { businessRequestSchema, type BusinessRequest } from './operation-schema.ts'
 const businessPlan = z.strictObject({
   request: businessRequestSchema,
   epoch: GovernanceIdSchema,
@@ -77,6 +76,11 @@ export const activationPlanSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('observation'), request: businessRequestSchema }),
   businessPlan.extend({ kind: z.literal('mutation') }),
   businessPlan.extend({ kind: z.literal('capture'), result: z.json() }),
+  businessPlan.extend({
+    kind: z.literal('external-write'),
+    result: GovernanceExternalWriteResultSchema,
+  }),
+  businessPlan.extend({ kind: z.literal('permission-capture'), current: permissionCurrentSchema }),
   businessPlan.extend({ kind: z.literal('adoption'), evidence: adoptionEvidenceSchema }),
 ])
 export type ActivationPlan = z.infer<typeof activationPlanSchema>

@@ -15,15 +15,21 @@ import {
 import { createSettingsCurrentProjection } from '../../../dist/rows/governance/settings-preparation.js'
 import { governanceAdoptionWorld } from './governance-adoption-world.ts'
 
-export async function settingsPreparationWorld() {
+export async function settingsPreparationWorld(
+  options: Parameters<typeof governanceAdoptionWorld>[0] = {},
+) {
   const configuration = {
     destination: 'settings.preparation',
     required: [],
     sourceRoute: 'settings.preparation',
   }
   const w = await governanceAdoptionWorld({
+    ...options,
     preparedSettings: true,
-    extraParticipants: settingsCurrentMaterials(configuration),
+    extraParticipants: [
+      ...settingsCurrentMaterials(configuration),
+      ...(options.extraParticipants ?? []),
+    ],
   })
   await w.setup()
   const registered = await w.service.contribute(w.access, {

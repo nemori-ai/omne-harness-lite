@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import { settingsStandalonePublicationFact } from './standalone-publication.ts'
+import { STANDALONE_READ } from './standalone-read-schema.ts'
 import { SOURCE_WRITE_FACT } from './source-write.ts'
 import { GUARD_FACT } from './schema.ts'
 import { settingsStandaloneProjectionFact } from './projection.ts'
@@ -87,6 +88,16 @@ export function settingsStandaloneMaterials(
         requires: [STANDALONE_MIGRATION],
       },
     ],
-    readHandlers: [],
+    readHandlers: [
+      {
+        ...STANDALONE_READ,
+        ...file('standalone-read'),
+        ordering: 'snapshot',
+        readTables: ['st_targets'],
+        requiresMigrations: [STANDALONE_SOURCE_LAYOUT_MIGRATION],
+        maxRowsRead: 1,
+        maxOutputBytes: 2 * 1024 * 1024,
+      },
+    ],
   }
 }

@@ -66,13 +66,17 @@ export function parentRequest(): ToolInvokeRequest {
   }
 }
 export async function forwardingFixture(
-  options: { durableDeclaration?: boolean; consumed?: boolean } = {},
+  options: {
+    durableDeclaration?: boolean
+    consumed?: boolean
+    store?: ToolLedgerStore<ContentBlock>
+  } = {},
 ) {
-  const memory = createMemoryToolLedgerStore<ContentBlock>()
+  const memory = options.store ?? createMemoryToolLedgerStore<ContentBlock>()
   let nextCommit: 'lost' | 'unwritten' | 'unavailable' | null = null
   let allowed = true
   const store: ToolLedgerStore<ContentBlock> = {
-    durability: options.durableDeclaration ? 'durable' : 'none',
+    durability: options.store?.durability ?? (options.durableDeclaration ? 'durable' : 'none'),
     read: memory.read,
     async commit(input) {
       const fault = nextCommit

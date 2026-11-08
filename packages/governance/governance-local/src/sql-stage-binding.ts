@@ -1,3 +1,5 @@
+import { validateExternalWriteStage } from './external-write-stage.ts'
+import { PERMISSION_SNAPSHOT } from './permission-capture-schema.ts'
 import type { OperationRef } from './operation-schema.ts'
 import type { CommitRequestV2, SqlIdentity } from '@omne-harness/sql-contract'
 import type { ReadPort } from '@omne-harness/sql-contract/worker'
@@ -97,9 +99,12 @@ function validateBusiness(
   record: OperationRecord,
   envelope: CommitRequestV2,
 ) {
-  if (record.request.owner === 'internal.capture' && 'permission' in record.request.command)
-    throw new Error('Permission capture requires its own business planner')
-  const planner = businessPlanners[record.request.owner]
+  if (record.request.owner === 'internal.external-write')
+    throw new Error('External write apply requires its owner planner')
+  const planner =
+    record.request.owner === 'internal.capture' && 'permission' in record.request.command
+      ? PERMISSION_SNAPSHOT.participant
+      : businessPlanners[record.request.owner]
   const facts = envelope.commands.find(command => command.participant === planner)?.facts
   const business = businessRequestSchema.parse(facts?.request)
   if (
@@ -111,9 +116,13 @@ function validateBusiness(
     throw new Error('Governance apply envelope mismatch')
   const foreignPlanner = envelope.commands.some(
     command =>
-      [METADATA_PLANNER, MUTATION_PLANNER, ADOPTION_PLANNER, CAPTURE_PLANNER].includes(
-        command.participant,
-      ) && command.participant !== planner,
+      [
+        METADATA_PLANNER,
+        MUTATION_PLANNER,
+        ADOPTION_PLANNER,
+        CAPTURE_PLANNER,
+        PERMISSION_SNAPSHOT.participant,
+      ].includes(command.participant) && command.participant !== planner,
   )
   if (foreignPlanner) throw new Error('Governance apply has a foreign planner')
   return { planner, request: business }
@@ -158,6 +167,10 @@ export function validateStageEnvelope(
   const commands = new Map(envelope.commands.map(command => [command.participant, command.facts]))
   if (commands.size !== envelope.commands.length)
     throw new Error('Duplicate governance stage participant')
+  if (stage === 'apply' && record.request.owner === 'internal.external-write') {
+    validateExternalWriteStage(binding, record, envelope)
+    return
+  }
   const plan =
     stage === 'apply'
       ? validateBusiness(binding, record, envelope)

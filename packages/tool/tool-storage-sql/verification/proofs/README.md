@@ -26,4 +26,4 @@
 
 <!-- documentation:placeholder -->
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+[原记录核回](record-current.md) 论证 TS-12 的条件安全性。它列出摘要、事务顺序及原拥有者核验的前提，不替代应用的权限捕获验收。修改原记录摘要、参加者顺序或消费者 fact 协议时，复核这些前提。

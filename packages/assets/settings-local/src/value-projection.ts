@@ -6,26 +6,34 @@ import {
   SettingsTargetProjectionSchema,
   type SettingsProjectionBinding,
 } from './projection.ts'
+import { failureSchema } from './schema.ts'
 import { json } from './encoding.ts'
 
 export const settingsValueProjectionFact = {
   key: 'settings.value-projection',
-  protocol: 'settings-value-projection/1',
+  protocol: 'settings-value-projection/2',
 }
 export const SETTINGS_VALUE_PROJECTION = {
   participant: 'settings.value-projection',
-  protocol: 'settings-value-projection/1',
+  protocol: 'settings-value-projection/2',
 }
 export const SettingsValueProjectionSchema = z.strictObject({
   binding: SettingsProjectionBindingSchema,
   views: z
     .array(
-      z.strictObject({
-        view: SettingsTargetProjectionSchema.extend({
-          state: SettingsStateSchema,
+      z.union([
+        z.strictObject({
+          view: SettingsTargetProjectionSchema.extend({
+            state: SettingsStateSchema,
+          }),
+          presence: z.enum(['absent', 'present']),
         }),
-        presence: z.enum(['absent', 'present']),
-      }),
+        z.strictObject({
+          presence: z.literal('unavailable'),
+          view: SettingsTargetProjectionSchema,
+          reason: failureSchema.shape.reason,
+        }),
+      ]),
     )
     .max(128),
 })

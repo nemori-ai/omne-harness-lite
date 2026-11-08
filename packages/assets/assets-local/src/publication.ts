@@ -6,7 +6,7 @@ import {
 } from '@omne-harness/settings-local'
 export const assetsPublicationFact = {
   key: 'assets.current-publication',
-  protocol: 'assets-publication/1',
+  protocol: 'assets-publication/2',
 }
 export const AssetPublicationRefSchema = z.strictObject({
   assetRef: SettingsReferenceSchema,
@@ -23,8 +23,10 @@ export const AssetsPublicationProjectionSchema = z.strictObject({
       SettingsTargetProjectionSchema.pick({
         target: true,
         ownerRevision: true,
-        definitionRef: true,
-      }).extend({ publicationRef: AssetPublicationRefSchema }),
+      }).extend({
+        definitionRef: SettingsTargetProjectionSchema.shape.definitionRef.nullable(),
+        publicationRef: AssetPublicationRefSchema,
+      }),
     )
     .max(128),
 })

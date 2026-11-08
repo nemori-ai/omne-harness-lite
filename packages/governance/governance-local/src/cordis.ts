@@ -15,7 +15,10 @@ import { retainGovernanceShutdown } from './cordis-shutdown.ts'
 type Principal = ActingForTenantPrincipal
 type Services = GovernanceContributions<Principal, Principal, Principal>
 type Runtime = Extract<Awaited<ReturnType<typeof createGovernanceRuntime>>, { kind: 'created' }>
-export type GovernanceLocalConfiguration = Omit<GovernanceLocalOptions, 'storage' | 'identity'> &
+export type GovernanceLocalConfiguration<ReadContext = Principal, WriteContext = Principal> = Omit<
+  GovernanceLocalOptions<ReadContext, WriteContext>,
+  'storage' | 'identity'
+> &
   Readonly<{
     observeClose: (report: GovernanceProviderClose) => void | Promise<void>
   }>
@@ -31,7 +34,7 @@ class LocalGovernanceService extends GovernanceContributionsService<
   readonly readCatalog: Services['readCatalog']
   readonly queryOperation: Services['queryOperation']
 
-  constructor(ctx: Context, runtime: Runtime) {
+  constructor(ctx: Context, runtime: Pick<Runtime, 'service' | 'contributions'>) {
     super(ctx)
     this.contribute = function (this: LocalGovernanceService, access, command) {
       const caller = this.ctx
@@ -63,11 +66,11 @@ class LocalGovernanceService extends GovernanceContributionsService<
   }
 }
 
-export function createGovernanceLocalPlugin() {
+export function createGovernanceLocalPlugin<ReadContext = Principal, WriteContext = Principal>() {
   return {
     name: 'governance-local',
     inject: [storageKey, principalVerifierKey, tenantStandingKey, standingReservationsKey],
-    async apply(ctx: Context, config: GovernanceLocalConfiguration) {
+    async apply(ctx: Context, config: GovernanceLocalConfiguration<ReadContext, WriteContext>) {
       let closing = false
       let close: ReturnType<typeof retainGovernanceShutdown> | undefined
       ctx.effect(

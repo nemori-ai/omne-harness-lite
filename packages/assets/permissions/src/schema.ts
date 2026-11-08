@@ -4,6 +4,20 @@ import { SettingsReferenceSchema } from '@omne-harness/settings'
 const id = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,255}$/)
 const text = z.string().trim().min(1).max(2048)
 const values = z.array(id).max(64)
+export const PermissionUpperBoundSchema = z
+  .strictObject({
+    capabilityId: id,
+    enforcementKey: id,
+    allowedSet: values.readonly(),
+  })
+  .readonly()
+export const PermissionUpperBoundsSchema = z
+  .array(PermissionUpperBoundSchema)
+  .min(1)
+  .max(64)
+  .readonly()
+export type PermissionUpperBound = z.infer<typeof PermissionUpperBoundSchema>
+
 export const PermissionOriginSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('asset'), assetId: id, releaseRef: id }),
   z.strictObject({ kind: z.literal('independent'), providerId: id, definitionRef: id }),

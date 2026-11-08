@@ -22,8 +22,10 @@ export default {
     const views: SettingsValueProjection['views'] = []
     for (const projection of projections) {
       const value = readProjectedSettingsState(port, binding.domain.scope, projection)
-      if ('kind' in value) return { kind: 'unsupported', basis: { reason: value.reason } }
-      views.push({ presence: value.presence, view: { ...projection, state: value.view.state } })
+      if ('kind' in value)
+        views.push({ presence: 'unavailable', view: projection, reason: value.reason })
+      else
+        views.push({ presence: value.presence, view: { ...projection, state: value.view.state } })
     }
     const result = json({ binding, views })
     if (!withinBudget(result)) return { kind: 'unsupported', basis: { reason: 'limit_exceeded' } }

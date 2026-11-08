@@ -1,3 +1,4 @@
+import { sessionCommitCommands } from '../src/participants.ts'
 // The Session storage over the real sqlite-provider: a real write Worker and read Worker pool, real
 // files in a temporary directory, built only through the public entry of the provider. The
 // node:sqlite double of the other specs of this member does not appear here.
@@ -158,7 +159,7 @@ describe('the access evidence through the real write Worker', () => {
     const answer = await app.storage.commit({
       identity: identityOf(TENANT_A, app.domainOf(TENANT_A), 'session.lookup'),
       ...app.combination,
-      commands: [
+      commands: sessionCommitCommands([
         {
           participant: 'session',
           facts: {
@@ -168,11 +169,12 @@ describe('the access evidence through the real write Worker', () => {
             operation: operationId('create-session-1'),
           },
         },
-      ],
+      ]),
     })
     expect(answer.kind).toBe('committed')
-    const response = (answer as unknown as { responses: { reply: { response: unknown } }[] })
-      .responses[0]?.reply.response
+    const response = (
+      answer as unknown as { responses: { participant: string; reply: { response: unknown } }[] }
+    ).responses.find(item => item.participant === 'session')?.reply.response
     expect(response).toMatchObject({
       kind: 'operation',
       evidence: { owner: 'conformance', record: 'access/create', revision: '1' },

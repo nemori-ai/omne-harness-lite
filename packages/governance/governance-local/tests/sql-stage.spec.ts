@@ -1,6 +1,15 @@
 import type { StageControlRequest } from '../src/sql-coordinator.ts'
+import { SqlOperationCoordinator } from '../src/sql-coordinator.ts'
+import { rmSync } from 'node:fs'
 import { afterEach, expect, it } from 'vitest'
-import { inputDigestV2, type CommitRequestV2 } from '@omne-harness/sql-contract'
+import {
+  combinationManifest,
+  manifestDigest,
+  inputDigestV2,
+  type CommitRequestV2,
+} from '@omne-harness/sql-contract'
+import { createSqliteStorage } from '@omne-harness/sqlite-provider'
+import { config } from './config.ts'
 import { openActivation } from './activation-world.ts'
 import { command, binding, scope } from './operation-world.ts'
 import { standingCustodySchema } from '../src/standing-schema.ts'
@@ -10,7 +19,7 @@ import { METADATA_PLANNER, MUTATION_PLANNER } from '../src/activation-schema.ts'
 import { GOVERNANCE_OWNER } from '../src/migration.ts'
 import { digest, json } from '../src/encoding.ts'
 
-const worlds: Awaited<ReturnType<typeof openActivation>>[] = []
+const worlds: Array<{ close(): Promise<unknown> }> = []
 afterEach(async () => {
   for (const w of worlds.splice(0)) await w.close()
 })
@@ -92,6 +101,89 @@ it('requires custody before effects and submits the saved request after closing 
     ]),
   })
   expect(await reopened.storage.commit(saved.envelope)).toEqual(receipt)
+})
+
+it('keeps an old pending envelope when its material is missing and later sends only that envelope under a new metadata combination', async () => {
+  const { w, request, envelope } = await prepare()
+  const saved = storedStageSchema.parse(await persist(w, request.binding, envelope))
+  await w.close(false)
+  worlds.splice(worlds.indexOf(w), 1)
+  const materials = {
+    ...w.materials,
+    participants: w.materials.participants.filter(item => item.participant !== MUTATION_PLANNER),
+  }
+  const opened = await createSqliteStorage({
+    config: config(w.root),
+    materials,
+    closeLeases: { admit: () => ({}), release() {} },
+  })
+  if (opened.kind !== 'created') throw new Error(JSON.stringify(opened))
+  const gap = {
+    async close(remove = true) {
+      expect(await opened.control.close({ initiator: 'disposal' })).toMatchObject({
+        kind: 'closed',
+      })
+      if (remove) rmSync(w.root, { recursive: true, force: true })
+    },
+  }
+  worlds.push(gap)
+  const participants = [...w.combination('metadata').participants, 'fixture.governance-current']
+  const manifest = combinationManifest({ catalog: materials, participants })
+  if (manifest.kind !== 'manifest') throw new Error(JSON.stringify(manifest))
+  const metadata = {
+    combinationVersion: 'activation-metadata/2',
+    manifestDigest: manifestDigest(manifest.manifest),
+  }
+  expect(metadata.manifestDigest).not.toBe(w.combination('metadata').manifestDigest)
+  expect(
+    await opened.storage.registerCombination({ ...w.domain, ...metadata, participants }),
+  ).toMatchObject({ kind: 'registered' })
+  const coordinator = new SqlOperationCoordinator({
+    storage: opened.storage,
+    domain: w.domain,
+    metadata,
+  })
+  expect(await coordinator.readStage(request.binding, 'apply')).toEqual(saved)
+  expect(await coordinator.send(request.binding, 'apply')).toEqual({
+    kind: 'unavailable',
+    owner: 'sql-coordination',
+  })
+  expect(await coordinator.observe(request.binding)).toMatchObject({
+    kind: 'found',
+    record: { state: 'submitted', result: null },
+  })
+  expect(
+    await coordinator.save({
+      binding: request.binding,
+      stage: 'apply',
+      envelope: { ...saved.envelope, ...metadata },
+    }),
+  ).toEqual({ kind: 'conflict', reason: 'operation' })
+  expect(await coordinator.readStage(request.binding, 'apply')).toEqual(saved)
+  await gap.close(false)
+  worlds.splice(worlds.indexOf(gap), 1)
+  const restored = await openActivation(w.root)
+  worlds.push(restored)
+  const recovery = new SqlOperationCoordinator({
+    storage: restored.storage,
+    domain: restored.domain,
+    metadata,
+  })
+  const first = await recovery.send(request.binding, 'apply')
+  expect(first).toMatchObject({
+    kind: 'applied',
+    receipt: {
+      identity: envelope.identity,
+      manifestDigest: envelope.manifestDigest,
+      inputDigest: saved.inputDigest,
+    },
+  })
+  expect(await recovery.send(request.binding, 'apply')).toEqual(first)
+  expect(await recovery.readStage(request.binding, 'apply')).toEqual(saved)
+  expect(await recovery.observe(request.binding)).toMatchObject({
+    kind: 'found',
+    record: { state: 'committed' },
+  })
 })
 it.each([
   'tenant',

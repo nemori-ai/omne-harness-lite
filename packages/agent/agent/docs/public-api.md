@@ -232,6 +232,12 @@ retry 只认回本次授权绑定集合中的未知操作。recover 从同一 Jo
 
 `@omne-harness/agent/testing` 的 `createToolReceiverFixture()` 在真实内存 Journal 中提交原 Tool PendingCall，提供显式访问与目标查询替身，用于宿主入口验证。它不运行真实 Tool host。
 
+## 原动作资格读口
+
+根入口导出 `createAgentActionQualification` 及 `AgentActionQualificationSources`。工厂接收原 `journal.load`、`entries.receivedOf`、`materials.read` 和可选的 `toolRequests.describe`；缺少 Tool 描述时无法取得资格。其返回的 `qualify` 输入与观察形状归 [agent-contract](../../agent-contract/src/action-qualification.ts)。
+
+将授权入口收到的原动作定位交给该读口，成功后由提交适配保存观察修订并交原持久拥有者核回。读取成功不等于允许执行。工厂不持有 Cordis 生命周期或独立状态，其可用性服从注入端口；旧端口在卸载后必须按其原契约拒绝服务。
+
 ## 测试 Journal 的保留引用故障
 
 `@omne-harness/agent/testing` 的 `createMemoryAgentJournal` 提供单进程、非耐久的测试 Journal。`MemoryAgentJournalOptions.retainedToolInvocationFaults` 仅在构造时严格为 `true` 才开启故障控制，默认关闭。以后修改 options 不改变开关。`createTestAgentDependencies({ journal: options })` 将同一选项传入，控制句柄为 `controls.journal`。

@@ -65,6 +65,16 @@
       "config": {}
     },
     {
+      "id": "governance",
+      "plugin": "governanceRow",
+      "config": {
+        "deploymentId": "harness-local",
+        "logicalServiceId": "harness-governance",
+        "recoveryPagesPerPass": 4,
+        "closeTimeoutMs": 3000
+      }
+    },
+    {
       "id": "session-provider",
       "plugin": "sessionProviderRow",
       "config": {
@@ -131,7 +141,7 @@
       "plugin": "sessionHandoffRow",
       "config": {
         "combinationVersion": "session-composite/5",
-        "manifestDigest": "c45689a24bded5096f90508a189c1244f4ff1e983c9e796e4fb05ab69b99cca6"
+        "manifestDigest": "9ed6f24c8de4e1ae28cbdc1add0992a725dfe1f669532fec0c2460e5f5dd9e51"
       }
     },
     {
@@ -144,7 +154,7 @@
       "plugin": "agentJournalRow",
       "config": {
         "combinationVersion": "session-composite/5",
-        "manifestDigest": "c45689a24bded5096f90508a189c1244f4ff1e983c9e796e4fb05ab69b99cca6"
+        "manifestDigest": "9ed6f24c8de4e1ae28cbdc1add0992a725dfe1f669532fec0c2460e5f5dd9e51"
       }
     },
     {

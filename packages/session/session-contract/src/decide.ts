@@ -1,3 +1,4 @@
+import { decidePermissionAssignment } from './permission-state.ts'
 import {
   DEFAULT_SESSION_INTAKE_LIMITS,
   judgeSessionIntake,
@@ -503,6 +504,24 @@ function decideHandover(
   ])
 }
 
+function decideDeclarationChange(
+  snapshot: WorkSnapshot,
+  command: Extract<SessionCommand, { kind: 'change' }>,
+  reads: DecideReads,
+): Decision {
+  const { declaration } = command.input
+  if (declaration.kind === 'permission-assignment')
+    return decidePermissionAssignment({
+      snapshot,
+      change: declaration,
+      operation: command.input.operation,
+      commandDigest: commandDigest(command),
+      basis: reads.permissionChange,
+      source: commandEvidence(command.input.operation, 'change'),
+    })
+  return decideChange(snapshot, command)
+}
+
 function decideChange(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'change' }>,
@@ -843,7 +862,7 @@ function decideCommand(
     case 'finishRun':
       return decideFinishRun(previous, command)
     case 'change':
-      return decideChange(previous, command)
+      return decideDeclarationChange(previous, command, reads)
     case 'claim':
     case 'reload':
     case 'release':

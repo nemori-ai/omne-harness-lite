@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-本包实现 [治理贡献契约](../governance-contract/SPEC.md) 的本地持久提供者。领域职责和同提交要求归 [动态治理贡献](../../assets/docs/governance-contributions.md)。根入口提供迁移和 SQL 材料、Identity 目的解析器及普通应用服务工厂。真实发布来源与当前事实适配仍待接通，不能把普通工厂的组合测试视为完整提供者验收。
+本包实现 [治理贡献契约](../governance-contract/SPEC.md) 的本地持久提供者。领域职责和同提交要求归 [动态治理贡献](../../assets/docs/governance-contributions.md)。根入口提供迁移和 SQL 材料、Identity 与 Settings 目的解析器、普通应用服务工厂及当前权限依据读取。受信装配提供真实发布、当前事实和原动作资格，组合测试不替代完整消费者验收。
 
 ## 结果与不变量
 
@@ -32,7 +32,7 @@ accepted 保存原输入、受理 epoch 和原 SQL 身份，execution 为空。s
 
 `governanceSqlMigrations()` 返回固定模块、文件摘要和先决条件，不启动数据库或 Worker。装配者负责把材料加入真实 SqlStorage 组合并声明表拥有者；迁移执行和回滚归 SqlStorage。文件读取失败直接抛出，不返回假迁移。
 
-关系使用 STRICT 和 WITHOUT ROWID。修订上界与公开契约一致。数据库不开放客户端任意 SQL。应用服务核验当前主体、声明来源、预算和原结果，生命周期协调执行精确撤除及重装围栏。来源权威和当前事实仍须由受信装配提供。`./cordis` 尚未提供运行服务。
+关系使用 STRICT 和 WITHOUT ROWID。修订上界与公开契约一致。数据库不开放客户端任意 SQL。应用服务核验当前主体、声明来源、预算和原结果，生命周期协调执行精确撤除及重装围栏。来源权威和当前事实由受信装配提供。`./cordis` 的贡献服务与关闭义务见 GL-23；当前权限依据由普通工厂提供。
 
 ## 组合与验证
 
@@ -261,7 +261,7 @@ The local guarantee assumes the existing single-writer adoption/retirement invar
 
 ### GL-25 权限读取的来源保管
 
-内部 capture 的 catalog 与 permission 命令是两个独立变体。旧 catalog 命令不增加默认字段，不改变原摘要。permission 命令保管原动作的 PermissionBasisRequest、完整 SettingsTarget、组织来源计划和恢复路由。每次 current 读取使用新的 capture operationId；同一次读取的恢复保持原身份。
+内部 capture 的 catalog 与 permission 命令是两个独立变体。旧 catalog 命令不增加默认字段，不改变原摘要。permission 命令保管原动作的 PermissionBasisRequest、独立 qualification 观察信封、完整 SettingsTarget、组织来源计划和恢复路由。每次 current 读取使用新的 capture operationId；同一次读取的恢复保持原身份。
 
 接受带来源的 permission 命令时，唯一治理写者在同一事务建立 gc_operation 和 gc_permission_source 关联行。关联行的完整主键及外键绑定原操作。SQL NULL 回执表示 requested；明确 source=null 的命令不产生该责任。缺失关联行是损坏，不能解释为无来源。
 
@@ -275,4 +275,80 @@ createGovernanceLocalSourceDestination 可在运行时启动前用固定 SQL 域
 
 普通工厂可借用 sourceReservations。未装配来源服务只适用于没有来源责任的使用范围；已有 requested 或 held 责任不得因此消失。启动恢复及关闭必须分别结算 Identity 和 Settings 来源，任一责任待决时均不得报告恢复完成。Governance 不关闭借用的来源服务。来源端主动恢复可先封口原操作，Governance 随后仍须保管相同终态回执。
 
-该保管机制不产生 PermissionCurrentBasis，也不授予业务动作权限。实际 permission planner、生产消费者及历史装配恢复仍须完成，不能以本节协议组合验证替代完整提供者验收。性质与证据范围见[来源保管证明](verification/proofs/permission-capture-custody.md)。
+该保管机制本身不产生 PermissionCurrentBasis，也不授予业务动作权限。当前结果的写入见 GL-26。生产消费者及历史装配恢复仍须完成，不能以本节协议组合验证替代完整提供者验收。性质与证据范围见[来源保管证明](verification/proofs/permission-capture-custody.md)。
+
+### GL-26 受保护的当前权限读取
+
+普通工厂的 permissionBasis 遵循 Permissions 的读取协议。未配置受信解析器与当前事实组合时返回 unavailable。读取context由装配定义，可以携带原动作定位。入口先解析请求，经principalOf取得真实主体，再独立核验主体、租户、组织、部署与服务范围。resolve取得同次已核验主体、请求与原context，认回拥有者事实并核对披露资格和完整动作绑定。context的形状、摘要和请求回显都不能作为资格证明。Governance不解释Agent或Tool原生模型，也不将context写入SQL封套；恢复继续使用原持久命令及结果。
+
+resolve 必须给出 qualification，包含具名 owner、protocol 与严格 JSON observation。该字段独立于 Settings 来源；Governance 只保管和比较完整值，不解释外域动作，也不因信封存在而授予资格。原请求摘要覆盖它，后续请求、当前事实或恢复不得替换观察。
+
+受信 project 端口接收原绑定、epoch、事务域及已固定 command，一次返回组合标识与当前事实命令。读取器在 await 前复制输入并解析输出快照，将选定组合固定到 execution 与原 SQL envelope。不同动作来源可使用同域已登记的不同具名组合，恢复只使用原 stage，不重跑 project 或重新取得 context。非法形状与未知组合不能返回成功。未固定的原上下文不写进封套。
+
+每次合法读取创建独立 capture，复用原操作、同次 Identity 保留和来源保管。只读 permission-snapshot 消费带绑定的当前事实；唯一写者在同一事务核原 submitted execution、当前 epoch、事务域、目标、来源计划、完整 qualification 和 PermissionBasisRequest。无同次 Identity held 不保存 current。错绑定或非法求值材料使该写入失败，不能修正输入后冒充原读取。带 qualification 的当前事实与 snapshot 参加者采用协议 2。
+
+组织配值只从原 capture 已保管的 held snapshot 取得。实际组织存在但没有来源计划或尚未取得快照时，该槽必须是 unavailable，不能信任输入的 absent。source 仍为 requested 时，写者保存 aborted 与局部 current，保留原来源责任；来源已 held 或明确不需要时保存 committed 与 current。业务终态、材料完整性与实际许可分开表达。
+
+原事务已保存结果后，清理失败不改写结果。读取可返回包含已知禁止的局部 current，恢复继续结算原责任。seal 若先胜出，迟到 apply 只能认回原终态，不能添加 current。provider close 仍按 GL-25 结清双重责任。
+
+current 不授予后续启动或写入许可。实际消费关口须重新读取或采用其拥有者的精确保留协议。Session 模式、AgentDefinition 约束和 HITL 决定不由本包解释；缺少对应拥有者事实不能解释成空约束。
+
+### GL-27 外部拥有者写意图的保管
+
+`internal.external-write` 是独立的内部原操作类型。治理保管外部拥有者的协议、目标引用、原命令摘要、完整 JSON 命令和结构化资格。外部拥有者解释命令与资格，治理不从 JSON 内容推导授权。受信装配必须先取得拥有者的资格，再受理原操作。
+
+治理请求摘要覆盖完整封套，包括 scope、operationId、write、source 和 sourceRoute。原操作按既有复合主键认回；同一定位下替换任何材料均冲突。重启不改变原请求、摘要、SQL 身份和受理代次。普通贡献、采用和目录捕获的 planner 不处理此类写意图；受保护业务效果须由外部拥有者的专属组合完成。
+
+需要 Settings 来源时，受理同时建立原来源责任。目的回调使用 `governance-external-write/1` 与完整原操作绑定。既有 capture 继续使用原协议，其持久请求不重写。认回必须匹配原路由与完整来源请求，seal 只终结原操作；尚未结算的 held 继续保留，不能将终结解释为清理已完成。
+
+`governance-external-write-1` 原子扩展操作和来源关系的 owner 约束。迁移保留三张关系的原字段值，含原命令、资格、身份、执行材料、held、结果、完整 SQL 封套及摘要。迁移按外键依赖重建关系和既有索引，任何失败均回滚。迁移备份表不成为运行时查询来源。既有迁移及已持久摘要不变。
+
+### GL-28 外部写意图的 SQL 封套
+
+外部意图的 submitted execution 固定 `governance-external-write-execution/1` 材料。该材料绑定原 requestDigest、指定外域 writer 和全部外域 SQL commands。writer 必须位于唯一参加者集合中；该集合不得包含治理 basis、terminal、唯一写者或其他治理业务 planner。
+
+保存 apply stage 时核对原 SQL 身份、binding、execution、组合版本与 manifest 摘要。最终封套必须精确包含原外域 commands 和三项治理协调命令。basis 与 terminal 必须携带相同的原 business request，治理写者必须携带该 request 的摘要。额外、重复、缺失或替换任何 facts 都使保存失败，不能静默修正。
+
+首次保存后沿用原完整封套。即使重排 commands 后 SqlStorage 的 inputDigest 相同，也不能替换已保存的顺序。重启认回保持原封套和摘要。此规则保护受信适配器已经确定的执行计划，不验证外域命令与资格的业务含义，也不使尚未装配的组合具备执行能力。SqlStorage 仍负责验证组合材料及提交，外域拥有者仍负责解释命令，治理终态仍由唯一治理写者保存。
+
+### GL-29 受信外域写协调出口
+
+可选 externalWrites 装配发布 execute(context, intent)。读取与写入各自保留独立 context 类型。调用者只提交原业务意图；入口在首次等待前复制意图，核验原主体对象及装配租户。受信 resolver 取得业务资格和来源，返回拒绝或不可用时不受理。Governance 不解释外域命令，也不以请求回显代替拥有者的资格核验。
+
+首次受理保存 qualification、source 和 required，原请求摘要覆盖全部材料。内部重试按租户、服务范围、主体和操作标识查找原记录，核对意图后采用原资格。prepare standing 的 required 必须等于原请求保存的资格集合，不得降低要求。公开贡献应用服务不因此获得内部操作查询入口。
+
+只有 Identity standing held，且来源 held 或明确不需要来源，才能计划外域执行。submitted 以后采用原 execution 与完整封套，不因 resolver 或装配配置改变而替换。terminal 仅在观察到持久 committed 或 aborted 后返回原 binding、持久原操作的 sqlIdentity 和 JSON 结果。无法确认终态时返回 unavailable，不声称未受理或已回滚。
+
+受信外域适配器可按 sqlIdentity 查询原业务回执，恢复具体业务失败。该身份不授予查询资格，不随重试或重装配改变。治理 sealed 不能替代业务的具体回滚原因；尚未提交业务或暂无法读取回执时，调用者不得重算或猜测原失败。
+
+提供者关闭停止新受理和新 apply。已受理操作的封存及结算继续由原协调器保管。结算暂时失败不改变已经确认的业务终态；关闭及重装配必须完成原责任恢复。此协调出口不替代外域业务参加者的资格、同提交及语义校验。
+
+
+### GL-30 外域效果与治理终态同提交
+
+外域写组合必须在原 transactionDomain 内依次取得治理 basis、外域拥有者依据、业务结果和治理 terminal，最后由治理唯一写者保存终态。治理 basis 只接受仍为 submitted、原 scope/epoch 开放、execution 与原 apply stage 一致、Identity held 且来源 held 或 not-required 的操作。已封口的原操作不能向业务写者供应依据。
+
+根入口导出的 basis/result SQL 事实协议使用 JSON 值。basis 携带原请求、代次、事务域、原命令和已保留来源快照。业务拥有者或其受信适配器验证完整实际业务 facts、原资格及当前领域约束。Governance 不解释外域命令，不读取外域私有表。
+
+结果必须精确匹配原 binding、execution 摘要和指定 writer。terminal 只发布治理计划，治理唯一写者再次核对原状态及保管后写入 committed 或 aborted。持久结果使用具名 external-write-result 封套，即使业务 result 为 JSON null，也不能与未有终态混淆。业务结果语义及 aborted 对业务效果的要求归外域拥有者。
+
+该组合中任一参加者停止，业务效果和本次治理终态一起回滚。事务外先前保存的受理及保管责任仍然存在，协调器按原操作封口与结算。按原 SQL 身份重试须认回同一回执；调用方丢失回执不授权再次产生效果。以上依赖 SqlStorage 的事务原子性、事实依赖排序和回执契约，不保证任意插件提供的资格或结果真实。
+
+### GL-31 当前注册声明与 Settings 目标分离
+
+当前声明事实不要求 Settings target。声明可包含不生成 Settings 投影的权限项。读取必须绑定完整 scope、epoch、原 principal/capture、事务域和精确定义引用，不借另一个声明的名称或局部标识匹配。
+
+只有 scope 开放、epoch 相同，且存在该 scope/epoch 下该精确定义的 active contribution，才能返回完整声明及注册/采用修订。声明撤下后，新读取返回 unavailable/definition；scope 关闭或代次不符返回 unavailable/scope。超过读取大小预算返回 unavailable/limit，损坏的存储正文不得冒充合法声明。
+
+本事实只证明当前注册声明。它不证明主体资格、运行时采用、资产持有、执行器存活或组织/租户无配值。原 target-projection 复用同一声明读取，并继续在 runtime 模式核对 selected target。Settings 原配值及外域适用约束仍由各自拥有者提供，不能从 settings=null 推导来源 absent。
+
+SQL 消费组合必须核对该事实与原受保护请求的完整绑定，并在同一事务中消费。单独持有旧事实、captureId 或 principalRef 不授予写入权，也不构成以后操作的当前依据。
+
+
+### GL-32 当前采用声明的事务事实
+
+`governanceSelectedDefinitionCommand` 读取与 GL-31 相同绑定下的声明，并额外核对当前 scope/epoch 的 `gc_selected_definition`。未采用、已撤回、旧 epoch、关闭 scope 或缺失声明均为 unavailable。它以独立的 `governanceSelectedDefinitionFact` 输出，不能用仅证明注册的 GL-31 事实替代。
+
+该事实不要求 Settings target，也不证明资产持有或执行资格。无配置权限的应用组合还须消费同事务的真实资产持有/选中发行事实、受信声明映射与执行支持、原 Agent/Tool/Session 守卫。只有具名组合已经证明当前声明没有 Settings 映射且无需配置来源时，组织/租户配置层才可记为不适用的 absent；实际应存在的配值来源缺失仍为 unavailable。无配置不得省略 Session 配值或 Agent 上界。
+
+查询使用原 scope/definition 主键并核 epoch，随后复用有大小上限的当前声明读取；不扫描历史操作，不新增业务表。原回执认回和新调用捕获仍分别履约。

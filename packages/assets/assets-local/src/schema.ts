@@ -184,6 +184,12 @@ export const holdingLookupSchema = z.strictObject({
   holdingRef: SettingsReferenceSchema,
   scopeRef: SettingsReferenceSchema,
 })
+export const assetLookupSchema = z.strictObject({ assetRef: SettingsReferenceSchema })
+export const assetResultSchema = z.union([
+  z.strictObject({ kind: z.literal('asset'), asset: assetSchema }),
+  z.strictObject({ kind: z.literal('absent') }),
+  failureSchema,
+])
 export const versionLookupSchema = z.strictObject({
   assetRef: SettingsReferenceSchema,
   version: SettingsIdSchema,
@@ -211,6 +217,7 @@ export const versionResultSchema = z.union([
   failureSchema,
 ])
 export const readRequestSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('asset'), domain: domainSchema, lookup: assetLookupSchema }),
   z.strictObject({ kind: z.literal('holding'), domain: domainSchema, lookup: holdingLookupSchema }),
   z.strictObject({ kind: z.literal('version'), domain: domainSchema, lookup: versionLookupSchema }),
 ])

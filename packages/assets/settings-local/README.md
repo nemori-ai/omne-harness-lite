@@ -55,7 +55,7 @@ Application consumers still use the direct command route below. Switching them r
 
 ## Provide a shared organization source
 
-Use `createIdentityQualifiedSettingsSources` from the preparation entry for organization reads. Construct it with the fixed `system.settings` domain, owner disclosure adapter and a trusted destination router. Route both `recognize` and `seal` to the prepared destination's `control.sourceDestination`; ordinary clients cannot supply a resolver. Register `settingsSqlMaterials({ sourceCapture: true })` in the source database. The source snapshot and retention participants form its fixed source combination.
+Use `createIdentityQualifiedSettingsSources` from the preparation entry for organization reads. Construct it with the fixed `system.settings` domain, owner disclosure adapter and a trusted destination router. Route both `recognize` and `seal` to the prepared destination's `control.sourceDestination`; ordinary clients cannot supply a resolver. Enable `sourceCapture: true` on `settingsPreparationMaterials` when the catalog uses prepared persistence, or on `settingsSqlMaterials` for direct persistence. Install only one writer set. The source snapshot and retention participants form its fixed source combination.
 
 Pass the source provider's `service` as the prepared backend's `sources` port. It reserves an immutable source snapshot and settles only after a matching destination terminal. The control port exposes bounded hold recovery, pending-source-update enumeration and close/drain. Continue pages until `after` is null, even when a page contains fewer than the requested number of items. Source control belongs to trusted deployment and recovery code.
 
@@ -63,7 +63,7 @@ The provider does not decide organization policy precedence or complete applicat
 
 ## Provide tenant services
 
-1. Provision independent targets with `createStandaloneSettingsOwner`. Its `mutate` and `getOperation` are trusted owner capabilities. They are not tenant setting commands.
+1. Provision independent targets with `createStandaloneSettingsOwner`. Its `readTarget`, `mutate` and `getOperation` are trusted owner capabilities, not tenant setting commands. Read the current target before a conditional update. `found` includes its public projection, owner revision and retirement state; absence is distinct from an unavailable read. Pass the observed revision to `mutate`, which still checks it atomically.
 2. Create a pure Settings registry and register live declarations. Registration represents declaration availability only.
 3. Create `createSettingsCatalog` with the fixed deployment, registry, Identity verifier and reservations, projection commands, clock, and cursor lifetime. Its `access` adapter can authorize the persistence backend against current target facts.
 4. Use `createIdentityQualifiedSettings` from `@omne-harness/settings-local/identity` for ordinary tenant writes and storage reads. Supply Identity's public verifier, standing source, and reservation service. Install `createSettingsStandingDestination` only in Identity's trusted recovery resolver.

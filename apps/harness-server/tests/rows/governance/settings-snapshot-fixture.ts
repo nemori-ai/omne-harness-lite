@@ -11,7 +11,9 @@ const definition = declaration.settings[0]!
 
 export function settingsSnapshotFixture() {
   const target = { policyId: 'asset', scopeRef: 'tenant-a', targetRef: 'shell' }
-  const snapshot: TargetSnapshot = {
+  const snapshot: TargetSnapshot & {
+    values: Extract<TargetSnapshot['values'], { presence: 'absent' | 'present' }>
+  } = {
     binding: {
       scope: {
         tenantRef: 'tenant-a',

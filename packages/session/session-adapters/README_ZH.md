@@ -69,7 +69,7 @@ export const inject = {
 pnpm turbo run test --filter=@omne-harness/session-adapters
 ```
 
-本包有 27 个运行测试与 2 个类型测试，见 [tests/](tests/README.md)。其中两个运行测试核对根入口与 `./cordis` 没有导出，其余 25 个运行测试检查 `./testing` 的内存提供者。[SPEC](SPEC.md#组合与验证) 的持续验证义务 VA-01 至 VA-19 尚未逐条对应到测试。结构检查通过不证明行为。
+公开入口测试核对当前已实现的导出。`tests/permission-mode.spec.ts` 验证精确默认采用、来源保持与 Authorization 边界，其[有限输入证明](verification/proofs/permission-mode.md)不证明生产发布或捕获链路。[SPEC](SPEC.md#组合与验证) 拥有更广的持续验证义务；结构检查通过不证明行为。
 
 ## 维护
 

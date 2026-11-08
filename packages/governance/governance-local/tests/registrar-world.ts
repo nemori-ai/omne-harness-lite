@@ -25,13 +25,30 @@ function sqlFor(world: Awaited<ReturnType<typeof openActivation>>, storage = wor
     metadata: { combinationVersion, manifestDigest },
   })
 }
-export async function openRegistrarWorld() {
+export async function openRegistrarWorld(
+  extra?: NonNullable<Parameters<typeof openActivation>[1]>['extraMaterials'],
+  storageConfig?: NonNullable<Parameters<typeof openActivation>[1]>['storageConfig'],
+) {
   let activation: Awaited<ReturnType<typeof openActivation>> | undefined
   let reopenOptions: Parameters<typeof openActivation>[1]
   const base = await openStandingWorld({
     async openWorld(options) {
-      reopenOptions = options
-      const opened = await openActivation(undefined, options)
+      reopenOptions = {
+        ...options,
+        ...(storageConfig === undefined ? {} : { storageConfig }),
+        extraMaterials: {
+          participants: [
+            ...(options.extraMaterials?.participants ?? []),
+            ...(extra?.participants ?? []),
+          ],
+          migrations: [...(options.extraMaterials?.migrations ?? []), ...(extra?.migrations ?? [])],
+          readHandlers: [
+            ...(options.extraMaterials?.readHandlers ?? []),
+            ...(extra?.readHandlers ?? []),
+          ],
+        },
+      }
+      const opened = await openActivation(undefined, reopenOptions)
       activation = opened
       return { ...opened, call: raw => opened.control(controlRequestSchema.parse(raw)) }
     },

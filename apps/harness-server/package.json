@@ -83,12 +83,14 @@
     "@omne-harness/session-cordis": "workspace:*",
     "@omne-harness/session-cordis-contract": "workspace:*",
     "@omne-harness/session-storage-sql": "workspace:*",
+    "@omne-harness/settings": "workspace:*",
     "@omne-harness/settings-local": "workspace:*",
     "@omne-harness/sql-contract": "workspace:*",
     "@omne-harness/sqlite-provider": "workspace:*",
     "@omne-harness/telemetry-contract": "workspace:*",
     "@omne-harness/telemetry-cordis-contract": "workspace:*",
     "@omne-harness/telemetry-node": "workspace:*",
+    "@omne-harness/tokenizer-tiktoken": "workspace:*",
     "@omne-harness/tool": "workspace:*",
     "@omne-harness/tool-contract": "workspace:*",
     "@omne-harness/tool-cordis-contract": "workspace:*",
@@ -96,11 +98,11 @@
     "@omne-harness/tool-host-local": "workspace:*",
     "@omne-harness/tool-storage-sql": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*",
-    "zod": "catalog:",
-    "@omne-harness/tokenizer-tiktoken": "workspace:*"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@omne-harness/cli": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

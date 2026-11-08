@@ -6,6 +6,12 @@ F1 在候选依据的修订未变时提交终结候选的业务内容，Journal 
 
 F4 从非空终态台账认回已登记观察，并把未登记项保留给长期 Journal 与合法观察者。本阶段不执行扩展求值、不虚构 observed。O0 不执行 Model ACK 或 release 记录；接收状态由宿主持有。O0 尚不经 Rh 保管 handoff 责任，见开放问题的[具名缺口](docs/architecture/open-questions.md#journal-联合表达的具名缺口) U-29。未确认输出不由 O0 代为确认，其他合法保管责任继续留在 Journal。终态责任可接续后，E9 释放执行槽并保持登记，旧 execution 仍可读，新 execution 可复用 runtime。这些回归只覆盖同一非耐久内存 Journal 上的新协调者，不证明实际杀进程或跨进程恢复。
 
+## 原动作资格读取
+
+`createAgentActionQualification` 装配独立只读服务，履行 [原动作资格读取](../agent-contract/SPEC.md#原动作资格读取)。它只消费原 Journal、received entries、材料读取和可信 Tool 描述端口。输入中的动作定位在首次等待前固定；principal 与 tenant 继续使用原 Access 身份。
+
+该服务与 Loop coordinator 共享原批次结果读取器，使用同一个 Model 交付解码及结果解释。它不另存 checkpoint，不写权限状态，不创建执行器。当前动作读取、材料读取和 Tool 描述不是一个数据库事务；返回的修订必须由实际提交适配在其拥有者事务中核回。局部证明及验证边界见 [原动作资格](verification/proofs/action-qualification.md)。
+
 ## 原 Journal 写的认回
 
 协调者在调用 open、commit、control、recordControl、commitSettlement、prepareFinish 或 tryFinish 前保存完整原请求与恢复节点。调用抛错与 commit-unknown 都保留原 operation、expected、业务输入及资格。认回前不提交另一个等待写。query committed 后读取权威快照，继续已保存的原路线。丢回执本身不建立业务失败候选。query unknown 或不可用时保留未定写与执行槽。

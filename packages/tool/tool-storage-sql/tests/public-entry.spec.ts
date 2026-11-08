@@ -25,10 +25,14 @@ describe('public entries', () => {
     expect(Object.keys(entry).sort()).toEqual([
       'CHUNK_ENVELOPE_BYTES',
       'TOOL_PARTICIPANT',
+      'TOOL_RECORDS_CURRENT_FACT',
+      'TOOL_RECORD_CURRENT',
       'TOOL_STORAGE_OWNER',
       'createSqlToolGuardedHostCommit',
       'createSqlToolLedgerStore',
       'createSqlToolOutputCustody',
+      'parseToolRecordsCurrent',
+      'toolRecordCurrentFacts',
       'toolStorageMaterials',
     ])
   })

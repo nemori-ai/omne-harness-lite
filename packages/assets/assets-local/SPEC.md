@@ -6,6 +6,12 @@ The trusted owner capability persists fixed asset versions, the latest published
 
 All operations use one configured tenant transaction domain. Holding `scopeRef` must equal the domain's tenant reference. Cross-scope and cross-domain bindings are refused. Registration alone creates no holding or setting right.
 
+## Current asset queries
+
+`readAsset` reads one asset in the owner's configured tenant domain. It returns the current asset identity, latest-version reference and publication revision, or explicit absence. A storage failure, malformed record or foreign binding is rejected, never reported as absence. The trusted caller remains responsible for authorization.
+
+The snapshot does not reserve a publication revision. Publishing after a concurrent change must fail the original expected-revision check. Asset revision, holding revision and domain owner sequence remain distinct. Reads use the existing domain row and asset primary key, with no collection scan. Closing rejects new reads and drains accepted reads without closing shared storage.
+
 ## Versions and holdings
 
 Publication derives declarations from the actual `PinnedBody` through its registered category contract. The persisted declaration includes a canonical JSON SHA-256 digest calculated by the server. Category, name, body, source and declaration are immutable for one asset/version pair. Reusing that pair with different content returns `version_conflict`.
@@ -34,11 +40,11 @@ Capture accepts at most 128 targets. Management enumeration reads at most 129 ho
 
 ## Current publication projection
 
-Publication capture supplies the existing Settings projection and a separate Assets publication fact from the same selected-version reads. Each entry retains the complete target, owner revision and Settings definition reference, together with the actual asset reference, category, name, version, source and canonical body digest. Follow and pinned holdings use the same selected-version rule as normal capture. Equal Settings definitions do not make two asset releases interchangeable.
+Publication capture supplies the existing Settings projection and a separate Assets publication fact from the same selected-version reads. Each entry retains the complete target, owner revision and nullable Settings definition reference, together with the actual asset reference, category, name, version, source and canonical body digest. Follow and pinned holdings use the same selected-version rule as normal capture. Equal Settings definitions do not make two asset releases interchangeable. A published version without a Settings declaration still supplies its actual publication; its definitionRef is null and it contributes no Settings view. Absence of configuration does not skip the holding, selected-version, scope or runtime enablement checks. The publication fact protocol is assets-publication/2.
 
 The projection attests to this owner's current selection, not to a global publisher or current execution permission. The integration owner must resolve the native publication identity through an unambiguous trusted namespace mapping and compare the original declaration. Actual loaded enforcement remains a separate current fact. No caller can supply publication-result fields through the capture command. This projection creates no new asset publication column or approval protocol and does not rewrite historical versions or receipts.
 
-All scope, missing-target, enablement and aggregate budget rules of capture apply. The paired facts have identical capture bindings and come from one transaction; consumers must also match their target, definition reference and owner revision. Unloading an integration does not delete held assets, Settings values or publication history.
+All scope, missing-target, enablement and aggregate budget rules of capture apply. The paired facts have identical capture bindings and come from one transaction; consumers that join a configured target must also match its target, non-null definition reference and owner revision. A publication with null definitionRef must not be treated as a configured Settings target. Unloading an integration does not delete held assets, Settings values or publication history.
 
 ## Holding enablement
 

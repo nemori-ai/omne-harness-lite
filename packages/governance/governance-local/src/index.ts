@@ -1,3 +1,7 @@
+export {
+  governanceSelectedDefinitionFact,
+  governanceSelectedDefinitionCommand,
+} from './selected-definition-projection.ts'
 export { governanceSqlMigrations, governanceSqlMaterials } from './materials.ts'
 export {
   createGovernanceLocal,
@@ -22,6 +26,15 @@ export {
   type CatalogCurrent as GovernanceCatalogCurrent,
 } from './catalog-schema.ts'
 export { createGovernanceCollection, type GovernanceCollectionMember } from './collection.ts'
+export {
+  GovernanceDefinitionBindingSchema,
+  GovernanceDefinitionProjectionSchema,
+  governanceDefinitionProjectionFact,
+  governanceDefinitionProjectionCommand,
+  GOVERNANCE_DEFINITION_PROJECTION as governanceDefinitionProjectionParticipant,
+  type GovernanceDefinitionBinding,
+  type GovernanceDefinitionProjection,
+} from './definition-projection.ts'
 
 export {
   GovernanceTargetBindingSchema,
@@ -34,3 +47,39 @@ export {
 } from './target-projection.ts'
 
 export type { GovernanceSourceReservations } from './source-coordinator.ts'
+
+export type {
+  GovernancePermissionOptions,
+  PermissionProjectionRequest,
+  PermissionProjection,
+  PermissionReadPlan,
+} from './permission-reader.ts'
+export {
+  permissionQualificationSchema as GovernancePermissionQualificationSchema,
+  type PermissionQualification as GovernancePermissionQualification,
+} from './permission-qualification.ts'
+export {
+  permissionCurrentSchema as GovernancePermissionCurrentSchema,
+  PERMISSION_CURRENT as governancePermissionCurrentFact,
+  type PermissionCurrent as GovernancePermissionCurrent,
+} from './permission-capture-schema.ts'
+
+export type {
+  GovernanceExternalWriteIntent,
+  GovernanceExternalWriteQualification,
+  GovernanceExternalWriteInput,
+  GovernanceExternalWriteOptions,
+  GovernanceExternalWriteOutcome,
+  GovernanceExternalWrites,
+} from './external-write.ts'
+
+export {
+  governanceExternalWriteBasisFact,
+  governanceExternalWriteResultFact,
+  GovernanceExternalWriteExecutionSchema,
+  type GovernanceExternalWriteExecution,
+  GovernanceExternalWriteBasisSchema,
+  GovernanceExternalWriteResultSchema,
+  type GovernanceExternalWriteBasis,
+  type GovernanceExternalWriteResult,
+} from './external-write-protocol.ts'

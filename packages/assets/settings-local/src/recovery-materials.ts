@@ -54,11 +54,10 @@ export const SETTINGS_COMMIT_PARTICIPANTS = [
   SOURCE_READINESS_PARTICIPANT,
 ]
 /** Private replacement catalog for the prepared provider; never mixed with the old writers. */
-export function settingsRecoveryMaterials(): Pick<
-  SqlMaterialCatalog,
-  'participants' | 'migrations' | 'readHandlers'
-> {
-  const base = settingsSqlMaterials()
+export function settingsRecoveryMaterials(
+  options: { sourceCapture?: boolean } = {},
+): Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'> {
+  const base = settingsSqlMaterials(options)
   const readers: ParticipantDescriptor[] = [
     {
       participant: 'settings.checkpoint-input',

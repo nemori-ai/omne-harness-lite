@@ -841,7 +841,13 @@ export function projectReceiving(
         pub: binding.pub,
         ord: 2,
         apply: () =>
-          bindTarget(state, execution, binding.instance, blob(context.blobs, binding.pending)),
+          bindTarget(
+            state,
+            execution,
+            binding.instance,
+            binding.definition,
+            blob(context.blobs, binding.pending),
+          ),
       })
     for (const result of view.results.values()) {
       const received = result.received

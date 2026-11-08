@@ -1,5 +1,7 @@
 # tool-host-local 公开接口
 
+`createLocalInvocationQualifier` 提供原来源资格读取，类型归 [invocation-qualification.ts](../src/invocation-qualification.ts)，非类型保证归 [SPEC 原来源资格观察](../SPEC.md#原来源资格观察)。它复用原来源 guard，输出供后续同事务核回的记录观察，不返回执行许可。
+
 `createLocalScheduledEnvironment` 包装一个 `ToolEnvironment`，把新准备按租户放入 DRR 队列。受信装配显式提供 [ToolEnvironmentSchedulingPolicy](../src/environment-policy.ts) 、当前资格核验和必填 `diagnostics` 接收者。`capacity` 限制全局排队数，`inFlight` 限制全局尚未结清数；租户策略给出权重与本租户上限。`retry` 与 `release` 只延迟或选择调用方已请求的原操作。实际获取、配额准入、原引用保存与结清事实继续由环境提供者负责。工厂见 [scheduled-environment.ts](../src/scheduled-environment.ts)，行为依据见 [环境调度](../SPEC.md#环境准备的租户调度)。
 
 调度队列和名额账只在本进程内保存，不能作为重启恢复的权威。原 prepare 已发出后，`pending`、`unknown`、抛错以及可能仍需清理的 `rejected` 都保留名额；可靠 `excluded` 允许原操作重新请求。已发送的原准备只有确认释放或排除才返还本地名额。尚未发送的准备在派发前资格或采用核验失败时归还本地预占，同键重试仍须通过当前核验。`release` 或 `inspectRelease` 确认 `released` 后，宿主移除该原操作尚未发出的排队项，并以 `unavailable` 结束本地准备等待，提供者的释放回执保持原样。已在途的答复仍交回调用者，但不能恢复已释放项的调度资格。释放输入在资格检查与策略等待之前固定，主体按原不透明引用传递。`allocated` 同样保留原名额。宿主核对它的完整原准备和证据形状，只有调用方重送原 prepare、策略选 recognize、原条目未退休且当前资格仍成立时，才在查询后调用一次原 prepare。wait 不查询或采用，inspect 只刷新事实。inspectPreparation 无论策略如何都不采用。查询后的首次采用沿原在途项，不新增 DRR 获取成本。

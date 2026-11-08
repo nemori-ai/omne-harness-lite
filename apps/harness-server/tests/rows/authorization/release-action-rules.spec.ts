@@ -1,9 +1,7 @@
-// The action rules of the release distribution (R2-D34 item 1, S4-6): the shipped default lets `Shell` and
-// `Files` run, and an operator adds one deny with the existing row-level `replace` and no code change.
-// The admission is the real one over the real reference authorization; only the standing source is a double.
+// Real release rules and identity checks, with explicit standing and current-permission fixtures.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { referenceAdmissionCheck } from '@omne-harness/authorization'
+import { decisionEvidence, referenceAdmissionCheck } from '@omne-harness/authorization'
 import { inProcessPrincipalAuthority } from '@omne-harness/identity'
 import { loadTree } from '../../../src/plugin-tree.ts'
 import { serveProfile } from '../../../src/profile.ts'
@@ -25,7 +23,7 @@ function configOf(operator: unknown): unknown {
   return row.config
 }
 
-function admissionFor(config: unknown) {
+function admissionFor(config: unknown, currentPermission = true) {
   const authority = inProcessPrincipalAuthority()
   const actor = okOf(authority.issuer.issueSystem({ component: 'sessionWorkPrincipals' }), 'actor')
   const principal = okOf(
@@ -50,7 +48,19 @@ function admissionFor(config: unknown) {
     permits: null,
   })
   const { actionRules } = authorizationConfig.parse(config)
-  const admission = createActionAdmission({ actionRules, readAdmission: () => identity })
+  const admission = createActionAdmission({
+    actionRules,
+    readAdmission: () => identity,
+    readPermission: () =>
+      currentPermission
+        ? {
+            check: async input => ({
+              kind: 'allow',
+              evidence: decisionEvidence('current-permission-fixture', '1', input.operation),
+            }),
+          }
+        : undefined,
+  })
   // `call` is `<tool>` or `<tool>.<command>`. The model calls the tool and names the command in the
   // arguments (D-94); the definition is the one the trusted Tool request source describes for it.
   return (call: string) => {
@@ -72,7 +82,12 @@ function admissionFor(config: unknown) {
 }
 
 describe('release action rules', () => {
-  it('allows Shell and Files by default and keeps every other tool unavailable', async () => {
+  it('requires current permission even for tools allowed by the release rules', async () => {
+    const admit = admissionFor(configOf(undefined), false)
+    expect(await admit('Files')).toMatchObject({ ok: { kind: 'unavailable' } })
+    expect(await admit('Shell')).toMatchObject({ ok: { kind: 'unavailable' } })
+  })
+  it('allows Shell and Files with current permission and keeps every other tool unavailable', async () => {
     const admit = admissionFor(configOf(undefined))
     expect(await admit('Files')).toMatchObject({ ok: { kind: 'allow' } })
     expect(await admit('Shell')).toMatchObject({ ok: { kind: 'allow' } })
@@ -82,11 +97,11 @@ describe('release action rules', () => {
   it('matches a multi-command call by its tool: the release rules cover every command of Shell and Files', async () => {
     const admit = admissionFor(configOf(undefined))
     expect(await admit('Shell.info')).toMatchObject({
-      ok: { kind: 'allow', evidence: { record: 'action-rule/shell' } },
+      ok: { kind: 'allow', evidence: { record: 'action-current-permission' } },
     })
     expect(await admit('Shell.run')).toMatchObject({ ok: { kind: 'allow' } })
     expect(await admit('Files.read')).toMatchObject({
-      ok: { kind: 'allow', evidence: { record: 'action-rule/files' } },
+      ok: { kind: 'allow', evidence: { record: 'action-current-permission' } },
     })
     expect(await admit('Other.run')).toMatchObject({ ok: { kind: 'unavailable' } })
   })

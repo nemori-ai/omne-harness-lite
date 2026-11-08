@@ -41,7 +41,7 @@ import {
   createToolAssetCategory,
   toolAssetPublication,
 } from '../../../src/rows/governance/tool-assets.ts'
-import { loadProductionRelease } from '../../../src/entry/tool-release.ts'
+import { loadProductionRelease, type ToolRelease } from '../../../src/entry/tool-release.ts'
 import { providerConfig } from '../storage/fixtures/tree.ts'
 
 export async function toolAssetsWorld(
@@ -50,9 +50,11 @@ export async function toolAssetsWorld(
     extraMaterials?: Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
     initialize?: (storage: SqlStorage) => Promise<string>
     preparedSettings?: boolean
+    release?: Extract<ToolRelease, { kind: 'trusted' }>
+    releaseParticipant?: SqlMaterialCatalog['participants'][number]
   } = {},
 ) {
-  const release = await loadProductionRelease()
+  const release = options.release ?? (await loadProductionRelease())
   if (release.kind !== 'trusted') throw new Error(JSON.stringify(release))
   const entry = release.manifest.entries.find(candidate => candidate.asset.name === 'Shell')
   if (entry === undefined) throw new Error('Shell publication absent')
@@ -72,7 +74,7 @@ export async function toolAssetsWorld(
       ...permissionSqlParticipants().filter(
         value => value.participant === SUPPORT_PARTICIPANT.participant,
       ),
-      toolPermissionReleaseParticipant(release),
+      options.releaseParticipant ?? toolPermissionReleaseParticipant(release),
       governanceCurrentParticipant(),
     ],
     migrations: [...assets.migrations, ...standalone.migrations, ...settings.migrations],
@@ -117,6 +119,8 @@ export async function toolAssetsWorld(
       reservedWriterSlots: 1,
       maxReadWorkersPerDomain: 1,
       groupMaxOperations: 1,
+      // Session creation with initial input carries nested typed guards, as in the Journal SQL fixture.
+      maxJsonDepth: 80,
     }),
     materials,
     closeLeases: { admit: () => ({}), release() {} },

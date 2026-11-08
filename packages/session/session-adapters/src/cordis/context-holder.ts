@@ -124,6 +124,16 @@ export type SessionContextHolderInput<P> = Readonly<{
     input: Readonly<{ tenant: TenantId; session: SessionId }>,
   ): Promise<Outcome<P, SessionCoordinatorPrincipalFailure>>
   translation: SessionContextTranslation
+  /** Notification after successful replay/application, never a substitute for the committed log. */
+  registrationApplied?(
+    input: Readonly<{
+      tenant: TenantId
+      session: SessionId
+      scope: ScopeRef
+      keys: readonly ContextBlockKey[]
+      ended: boolean
+    }>,
+  ): Promise<void>
   /** The most scopes the scope-to-session index keeps; the oldest goes first. */
   scopeIndexEntries?: number
   /** The page size of the history reads. */
@@ -187,6 +197,7 @@ type Known = Extract<SessionScopeLookupAnswer, { kind: 'known' }>
 
 /** The replay fiber as the holder plugin sees it. */
 interface ReplayFiber {
+  recoverSession(bound: Bound, scope: ScopeRef): Promise<ScopeView>
   ensure(scope: ScopeRef, tenant: TenantId): Promise<ScopeView>
 }
 
@@ -630,6 +641,21 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
     return next
   }
 
+  async function notifyRegistration(bound: Bound, scope: ScopeRef): Promise<void> {
+    const state = states.get(scope.ref)
+    if (closed || state === undefined || state.phase === 'failed') return
+    try {
+      await input.registrationApplied?.({
+        ...bound,
+        scope,
+        keys: Object.freeze([...state.final.keys()]),
+        ended: state.phase === 'ended',
+      })
+    } catch {
+      logger.warn('registration applied notification failed')
+    }
+  }
+
   async function recover(
     principal: P,
     bound: Bound,
@@ -673,6 +699,7 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
         final: folded.final,
         revision: finished.registrationRevision,
       })
+      await notifyRegistration(bound, scope)
     } catch (cause) {
       logger.warn(`the recovery of ${scope.ref} threw: ${describe(cause)}`)
       if (!closed) states.set(scope.ref, { phase: 'failed', replay: failedReplay })
@@ -709,6 +736,8 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
             final,
             revision: answer.registrationRevision,
           })
+          if (record.input.kind === 'registration' || endsScope(record.input))
+            await notifyRegistration(bound, scope)
           continue
         }
         case 'invalid':
@@ -842,6 +871,21 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
   }
 
   const fiber: ReplayFiber = {
+    async recoverSession(bound, scope) {
+      if (closed) return STOPPED
+      const key = sessionKeyOf(bound)
+      if (key === undefined) return { kind: 'unavailable', diagnostic: 'unminted tenant' }
+      const indexed = await indexScopes(shared, bound, key, readScopes, true)
+      if ('failure' in indexed) return { kind: 'unavailable', diagnostic: indexed.failure }
+      const owner = index.get(scope.ref)
+      if (
+        owner === undefined ||
+        !tenantEquals(owner.tenant, bound.tenant) ||
+        owner.session !== bound.session
+      )
+        return { kind: 'unseen' }
+      return fiber.ensure(scope, bound.tenant)
+    },
     async ensure(scope, tenant) {
       if (closed) return STOPPED
       let bound = index.get(scope.ref)
@@ -1290,6 +1334,22 @@ export function createSessionContextHolder<P>(input: SessionContextHolderInput<P
       shared.link.facts?.stepCommittedBlocks(scope, through) ?? Promise.resolve(UNAVAILABLE),
   }
   return {
+    /** Trusted assembly cold start: locate this exact scope from its original Session bindings. */
+    async recoverSession(
+      bound: Bound & Readonly<{ scope: ScopeRef }>,
+    ): Promise<Readonly<{ kind: 'ready' | 'absent' | 'unavailable' }>> {
+      const replay = shared.link.replay
+      if (replay === undefined) return { kind: 'unavailable' }
+      try {
+        const result = await replay.recoverSession(bound, bound.scope)
+        return {
+          kind:
+            result.kind === 'open' ? 'ready' : result.kind === 'ended' ? 'absent' : 'unavailable',
+        }
+      } catch {
+        return { kind: 'unavailable' }
+      }
+    },
     /** `session-ad03`: the holder that provides `runtimeContextReaderEligibility`. */
     holder: {
       name: 'session-ad03',

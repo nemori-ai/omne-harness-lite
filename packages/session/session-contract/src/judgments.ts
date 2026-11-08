@@ -1,3 +1,4 @@
+import type { SessionPermissionChangeBasis } from './permission-values.ts'
 import type { SessionIntakeLimits } from './intake.ts'
 // The nine pure domain services and the shapes they share with `decide` and `reduce`
 // (SPEC「领域服务与归约」). Inputs are the work snapshot and command parameters only: no time,
@@ -141,6 +142,7 @@ export type Decision =
   | Readonly<{ kind: 'rejected'; failure: SessionFailure }>
 /** Transaction-bound materials. Each branch requires only its original history, compaction or management inputs. */
 export type DecideReads = Readonly<{
+  permissionChange?: SessionPermissionChangeBasis
   intakeLimits?: SessionIntakeLimits
   history?: SessionHistoryReads
   compaction: CompactionContext | null

@@ -64,3 +64,7 @@ export {
   type SettingsValueProjection,
 } from './value-projection.ts'
 export { settingsValueProjectionMaterials } from './value-projection-materials.ts'
+export {
+  StandaloneTargetReadResultSchema,
+  type StandaloneTargetReadResult,
+} from './standalone-read-schema.ts'

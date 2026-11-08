@@ -9,7 +9,7 @@ import {
   type JsonValue,
   type CommitRequestV2,
 } from '@omne-harness/sql-contract'
-import { createSqliteStorage } from '@omne-harness/sqlite-provider'
+import { createSqliteStorage, type SqliteStorageConfig } from '@omne-harness/sqlite-provider'
 import { CATALOG_CURRENT, CATALOG_SNAPSHOT } from '../src/catalog-schema.ts'
 import { governanceSqlMaterials } from '../src/materials.ts'
 import {
@@ -83,13 +83,14 @@ export async function openActivation(
   existing?: string,
   options: {
     tenantRef?: string
+    storageConfig?: Partial<SqliteStorageConfig>
     extraMaterials?: Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
   } = {},
 ) {
   const root = existing ?? realpathSync(mkdtempSync(join(tmpdir(), 'governance-activation-')))
   const materials = activationCatalog(options.extraMaterials)
   const made = await createSqliteStorage({
-    config: config(root),
+    config: { ...config(root), ...options.storageConfig },
     materials,
     closeLeases: { admit: () => ({}), release() {} },
   })
@@ -189,6 +190,7 @@ export async function openActivation(
   }
   return {
     root,
+    materials,
     readStage,
     envelope,
     domain,

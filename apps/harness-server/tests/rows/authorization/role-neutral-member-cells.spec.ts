@@ -146,6 +146,8 @@ function extraFor(
 ): Record<string, unknown> {
   if (operation === 'accept') return cell.when?.kinds.includes('business') ? business : ordinary
   if (operation === 'receive') return scopeReleaseFact
+  if (operation === 'change')
+    return { declaration: { kind: 'permission-mode', value: 'never', authorization: evidence } }
   return {}
 }
 

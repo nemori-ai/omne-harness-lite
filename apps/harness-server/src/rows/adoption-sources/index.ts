@@ -2,7 +2,10 @@
 // row injects `definitionMappings` and reads no configuration of its own.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { definitionMappingsKey } from '@omne-harness/server-entry/cordis'
-import { sessionAdoptionSourceKey } from '@omne-harness/session-cordis-contract/cordis'
+import {
+  sessionAdoptionSourceKey,
+  sessionWorkPrincipalsKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
 import { AdoptionSourcesImpl } from './sources.ts'
 
@@ -11,7 +14,7 @@ export type { AdoptionDefinition, AdoptionPlannerInput, AdoptionPlannerOptions }
 
 const plugin: Plugin.Object = {
   name: 'adoption-sources',
-  inject: [definitionMappingsKey],
+  inject: [definitionMappingsKey, sessionWorkPrincipalsKey],
   apply(ctx: Context) {
     new AdoptionSourcesImpl(ctx, ctx.definitionMappings)
   },
@@ -22,7 +25,7 @@ export const adoptionSourcesRow = defineRow({
   implementation: 'real',
   manifest: {
     provides: [sessionAdoptionSourceKey],
-    injects: [definitionMappingsKey],
+    injects: [definitionMappingsKey, sessionWorkPrincipalsKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },

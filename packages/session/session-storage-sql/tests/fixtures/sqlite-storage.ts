@@ -1,3 +1,9 @@
+import readPermissionMode from '../../src/worker/read-permission-mode.ts'
+import permissionMigration from '../../src/worker/permission-current-migration.ts'
+import readPermissionCurrent from '../../src/worker/read-permission-current.ts'
+import ordinaryBasis from '../../src/worker/ordinary-basis.ts'
+import { SESSION_LOG_PARTICIPANTS } from '../../src/participants.ts'
+import type { FactKey, JsonValue } from '@omne-harness/sql-contract'
 // A test provider of `SqlStorage` on node:sqlite. The memory double of sql-contract has no SQL, so
 // it cannot run the Session participant or the read handlers; this one runs the real modules of
 // this member against one in-memory database per transaction domain. It models receipts, rollback
@@ -63,6 +69,8 @@ import attemptGrantMigration from '../../src/worker/attempt-grant-migration.ts'
 import statePartMigration from '../../src/worker/state-part-migration.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
+  readPermissionMode,
+  readPermissionCurrent,
   readWork,
   readWorkVersion,
   readBinding,
@@ -87,6 +95,7 @@ const HANDLERS: readonly ReadHandlerModule[] = [
 
 /** The participant modules by name; the execution order is the order of the commands. */
 const PARTICIPANTS: ReadonlyMap<string, ParticipantModule> = new Map([
+  [ordinaryBasis.participant, ordinaryBasis],
   [participant.participant, participant],
   [executionRecord.participant, executionRecord],
 ])
@@ -97,6 +106,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   evidenceMigration,
   stateItemMigration,
   attemptGrantMigration,
+  permissionMigration,
   preadmissionMigration,
   admissionAttemptMigration,
   statePartMigration,
@@ -217,9 +227,11 @@ export function createSqliteStorage(): SqliteStorage {
         responses: entries,
       }) as unknown as ReceiptV2
     domain.db.exec('BEGIN IMMEDIATE')
-    // The storage runs the commands in the fixed order of the combination: ascending names.
-    const ordered = [...request.commands].sort((a, b) =>
-      a.participant < b.participant ? -1 : a.participant > b.participant ? 1 : 0,
+    // This fixture models the three-member Session dependency order, not arbitrary SQL catalogs.
+    const facts = new Map<string, JsonValue>()
+    const order: readonly string[] = SESSION_LOG_PARTICIPANTS
+    const ordered = [...request.commands].sort(
+      (a, b) => order.indexOf(a.participant) - order.indexOf(b.participant),
     )
     for (const command of ordered) {
       const module = PARTICIPANTS.get(command.participant)
@@ -241,8 +253,16 @@ export function createSqliteStorage(): SqliteStorage {
               })
             return result
           },
-          requireFact: () => null,
-          provideFact: () => undefined,
+          requireFact: (key: FactKey) => {
+            const value = facts.get(JSON.stringify(key))
+            if (value === undefined) throw new Error('missing fixture transaction fact')
+            return value
+          },
+          provideFact: (key: FactKey, value: JsonValue) => {
+            const identity = JSON.stringify(key)
+            if (facts.has(identity)) throw new Error('duplicate fixture transaction fact')
+            facts.set(identity, structuredClone(value))
+          },
         }
         const raw = module.execute(structuredClone(command.facts), port)
         reply =

@@ -72,6 +72,12 @@ HJ0 的[动态治理贡献协议](../docs/governance-contributions.md)定义功�
 
 清除或解锁依本层当前管理资格进行，只改变后续求值，不撤销已经发生的操作或费用。移除持有使其配值退出，禁用持有保留配值。权限值变化和持有开关是不同事实。
 
+配值编辑与执行所控操作分别判断。编辑判断采用当前定义、允许配值层和编辑政策指定的适用约束，排除被修改层及其内层原配值。本层旧禁止不能使有资格的本层管理者永久不能修改。外层主动禁止和允许集合继续限制可能允许操作的新值。执行政策的约束不能仅因编辑对象包含该执行者，就被当作编辑资格；实际执行仍须消费全部适用执行约束。
+
+当前定义与拟写值合法时，明确不允许操作的 pick、空 allowedSet，以及仅含不允许操作值的 allowedSet，均为确定限制。它们不依赖未知外层来源来产生允许结果，因此来源暂不可读不妨碍保存这种限制。其余配值需要完整的适用当前来源，拟写 pick 和 allowedSet 中的允许操作值均须在共同界内。清除只表达删除本层配值，原项、身份及清除资格仍由写入拥有者核验。
+
+纯配值判断不授予写入资格，也不证明材料当前。真实写入须将原身份、精确命令、当前定义、适用来源及原项修订绑定，并在同事务或来源保管协议下保护这些条件。公开接口见[配值写入判断](docs/public-api.md#配值写入判断)，安全性前提见[配值限制论证](verification/assignment.md)。
+
 ## 实际准入、失效与在途行为
 
 <a id="admission-and-revocation"></a>
@@ -124,3 +130,9 @@ HJ0 的[动态治理贡献协议](../docs/governance-contributions.md)定义功�
 | [AR-J10](../../../.meta_harness/design/product/assets-and-rules/design.md#ar-j10)，CAP-AR10、16；[AR-F10](../../../docs/domains/assets-and-rules/key-flows.md#ar-f10)                                                                                                                                                                                                                                                                                                                                                                                             | [准入失效](#admission-and-revocation)、[恢复](#failure-and-recovery)              | 等待人工、排队和恢复跨过撤权后按原操作当前条件检查；权限服务故障不猜允许，旧缓存和备份不复活权利。确认丢失查询原写入，取消不回滚已成立事实，撤权不报告独立执行停止，解释不泄露秘密。                                                                         |
 
 分档顺序和距离、约束匹配、缓存有效性、版本、操作身份和原子准入仍沿本页表达缺项及 [ASSET-M01](../assets/docs/internals.md#asset-m01-完成与来源协议)细化。各执行方拥有真实控制及收场，本成员不以求值通过证明执行成功。
+
+## 声明式权限上界
+
+`PermissionUpperBound` 是可跨域消费的公共值，按 capabilityId 与 enforcementKey 标识关口，allowedSet 只限制允许值，不选择值或授予权限。`PermissionUpperBoundsSchema` 校验 1 至 64 项的结构，`definePermissionUpperBounds` 再拒绝重复关口和重复允许值。有效声明为不同关口的上界；每项允许集合最多 64 个不同标识，空集禁止。数组、元素及允许集合均冻结。
+
+声明拥有者负责无声明的语义和精确版本资格。Permissions 不依赖 Agent 或 Session。当前权限定义的值全集由动态声明提供；上界提及不受支持的值时，消费适配器报告来源不可用，不删掉该上界。

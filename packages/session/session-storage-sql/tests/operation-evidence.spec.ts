@@ -1,3 +1,4 @@
+import { sessionCommitCommands } from '../src/participants.ts'
 // The access evidence of an operation record: a commit that carried an allowed decision writes it
 // into `sl_operation_evidence` in the same transaction as the operation row, and the query
 // answer of the record carries it back. The record of another tenant is not reachable, a recall
@@ -82,7 +83,7 @@ function directCommit(a: App, command: SessionCommand, extra: Readonly<Record<st
     },
     combinationVersion: 'c1',
     manifestDigest: 'a'.repeat(64),
-    commands: [{ ...base, facts: { ...base.facts, ...extra } } as never],
+    commands: sessionCommitCommands([{ ...base, facts: { ...base.facts, ...extra } } as never]),
   })
 }
 
@@ -99,6 +100,7 @@ describe('the migration of the evidence table', () => {
       'session/003-operation-evidence',
       'session/004-state-items',
       'session/005-attempt-grant',
+      'session/006-permission-current',
       'execution-record/002-preadmission',
       'execution-record/003-admission-attempt',
       'execution-record/004-state-parts',
@@ -189,7 +191,7 @@ describe('the query answer of an operation record', () => {
       },
       combinationVersion: 'c1',
       manifestDigest: 'a'.repeat(64),
-      commands: [
+      commands: sessionCommitCommands([
         {
           participant: 'session',
           facts: {
@@ -199,7 +201,7 @@ describe('the query answer of an operation record', () => {
             operation: operationId(operation),
           },
         },
-      ],
+      ]),
     })
 
   it('carries the evidence of the record', async () => {
@@ -207,8 +209,9 @@ describe('the query answer of an operation record', () => {
     ok(await viewCommit(a, acceptCommand('one'), 'access/face/accept'))
     const result = await query(a, TENANT_A, SESSION, 'accept-one')
     expect(result.kind).toBe('committed')
-    const response = (result as never as { responses: { reply: { response: unknown } }[] })
-      .responses[0]?.reply.response
+    const response = (
+      result as never as { responses: { participant: string; reply: { response: unknown } }[] }
+    ).responses.find(item => item.participant === 'session')?.reply.response
     expect(response).toMatchObject({ kind: 'operation', evidence: evidence('access/face/accept') })
   })
 
@@ -216,8 +219,9 @@ describe('the query answer of an operation record', () => {
     const a = await created()
     ok(await viewCommit(a, acceptCommand('one'), 'access/face/accept'))
     const result = await query(a, TENANT_B, SESSION, 'accept-one')
-    const response = (result as never as { responses: { reply: { response: unknown } }[] })
-      .responses[0]?.reply.response
+    const response = (
+      result as never as { responses: { participant: string; reply: { response: unknown } }[] }
+    ).responses.find(item => item.participant === 'session')?.reply.response
     expect(response).toEqual({ kind: 'no-session' })
   })
 })

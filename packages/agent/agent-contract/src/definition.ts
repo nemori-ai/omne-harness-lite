@@ -1,3 +1,5 @@
+import type { PermissionUpperBound } from '@omne-harness/permissions'
+
 export const ATTRIBUTE_ITEMS = [
   'first_token_wait_limit',
   'post_first_token_stall_limit',
@@ -52,6 +54,7 @@ export type AgentDefinition = {
   readonly attributes: readonly AttributeDeclaration[]
   /** The system prompt sections, in order. Absent when the definition carries no prompt. */
   readonly instructions?: readonly InstructionSection[]
+  readonly permissionBounds?: readonly PermissionUpperBound[]
 }
 
 /** The attribute item of a text, or `undefined` when the text names no attribute item. */

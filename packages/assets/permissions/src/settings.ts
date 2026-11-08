@@ -7,14 +7,13 @@ export type PermissionSettingsProjection =
   | { kind: 'not-configurable' }
   | PermissionInputFailure
 
-export function projectPermissionSettings(input: unknown): PermissionSettingsProjection {
-  const declared = definePermission(input)
-  if (declared.kind !== 'defined') return declared
-  const permission = declared.definition
+export function permissionSettingsDefinition(
+  permission: PermissionDefinition,
+): SettingDefinitions | undefined {
   const mapping = permission.settings
-  if (mapping === null) return { kind: 'not-configurable' }
+  if (mapping === null) return undefined
   const ids = permission.values.map(value => value.id)
-  const result = defineSettings({
+  return {
     providerId: mapping.providerId,
     definitionId: mapping.definitionId,
     version: mapping.version,
@@ -68,7 +67,16 @@ export function projectPermissionSettings(input: unknown): PermissionSettingsPro
         sensitivity: 'ordinary',
       },
     ],
-  })
+  }
+}
+
+export function projectPermissionSettings(input: unknown): PermissionSettingsProjection {
+  const declared = definePermission(input)
+  if (declared.kind !== 'defined') return declared
+  const permission = declared.definition
+  const definition = permissionSettingsDefinition(permission)
+  if (definition === undefined) return { kind: 'not-configurable' }
+  const result = defineSettings(definition)
   if (result.kind !== 'defined') return { kind: 'invalid-input', reason: 'definition' }
   return { kind: 'projected', definition: result.definition, permission }
 }

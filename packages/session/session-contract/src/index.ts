@@ -275,3 +275,12 @@ export type {
   TodoPage,
   SessionTodos,
 } from './todos.ts'
+
+export type {
+  SessionPermissionAssignment,
+  SessionPermissions,
+  SessionPermissionChangeBasis,
+  SessionPermissionWriteQualification,
+} from './permission-values.ts'
+
+export { rebuildSessionPermissions, type SessionPermissionHistory } from './permission-history.ts'

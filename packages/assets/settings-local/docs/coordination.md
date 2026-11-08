@@ -32,7 +32,7 @@
 
 `createSettingsCatalog` 对每次捕获验证 principal、固定 deployment 与同租户目标。它为本次读取生成独立原操作，并向 Identity 申请短暂 held。捕获事务消费终态、要求两个目标拥有者的绑定投影，再读取 Settings 状态。它不增加配值 revision，也不授予写权限。
 
-Identity 通过同一可信 destination resolver 封口捕获原操作。只有匹配的 committed 终态完成 settlement 后，目录才可交回捕获依据；捕获被先行封口或 settlement 未完成时不能交回成功依据。这里的“短暂”描述预期用途，不承诺故障下的释放期限。目标不可用时，预留仍由 Identity 恢复负责。
+Identity 通过 `createSettingsCatalogDestination` 封口捕获原操作。装配为目录分配独立 destination；设置修改保留原目的地。目录回执由 `settings.catalog-terminal` 单独写入 `st_catalog_terminals`，不依赖 prepared 修改终态。只有匹配的 committed 终态完成 settlement 后，目录才可交回捕获依据；捕获被先行封口或 settlement 未完成时不能交回成功依据。这里的“短暂”描述预期用途，不承诺故障下的释放期限。目标不可用时，预留仍由 Identity 恢复负责。
 
 每一页都重新执行捕获，不用旧游标的权限。目录捕获前后核对 registry generation，分页依据包含实例、过期 epoch 与当前目标和配值。完整边界见 [SPEC 的目录条款](../SPEC.md#coherent-catalog-capture)。运行显式选择只证明消费意图，不替代 Identity 或目标资格，也不证明执行采用。
 
@@ -222,3 +222,18 @@ preparation 子入口将 service 与 control 分开。service 接收 Settings �
 SqlStorage 会保存明确 rolled_back 回执。因此该 SQL attempt 不能在原身份下改成成功提交。协调者在取得这份证据后封住精确 attempt，再按既有规则结算保留。普通根仍可接受下一次显式 prepare；源更新根遵守原有 seal 规则，同时终结并清理自己的门。结果 unknown 时不走该清理路径，也不自动换 attempt。
 
 真实 Identity 测试覆盖先撤权后提交、先提交后撤权，以及 SQL 受理前暂停提交时完成撤权。恢复直接核对持久 Standing 请求和终态，不重新申请已撤回资格。应用的 current 组装、组织来源、capture 迁移及旧调用者切换仍是未完成的集成义务。
+
+
+## 目录回执的状态守护
+
+目录操作固定完整 binding 为 b，存储状态为 absent、committed(b) 或 aborted(b)。SQL 主键是原主体、目标及 operationId 的稳定编码，完整 binding 还保留 domain 与 commandDigest。键相同而 binding 不同返回冲突。所有读写均按此主键定位。
+
+| 原状态 | consume(b) | seal(b) |
+| --- | --- | --- |
+| absent | 同捕获事务写 committed(b) | 写 aborted(b) |
+| committed(b) | 拒绝重复消费；SQL 原操作重试由原回执认回 | 认回 committed(b) |
+| aborted(b) | 拒绝，basis_changed | 认回 aborted(b) |
+
+以 absent 为基例，对上表归纳，终态不会改变，且 aborted 之后没有合法消费迁移。错误 binding 没有状态迁移。SQL 事务同时执行 consume、拥有者投影和 snapshot；任一失败均回滚，所以不存在“投影失败却留下成功捕获终态”。
+
+Identity 撤权的封口和捕获写入由同域 SQL 串行化。seal 先提交时，捕获不能成功；捕获先提交时，seal 只认回已经完成的效果。只有确认 committed settlement 后查询才交回成功。重装配不改变表内状态。该论证依赖 SQL 原子性、主键唯一性和受信 destination 绑定，不证明跨版本替换原组合的恢复，也不承诺故障情况下的清理时限。

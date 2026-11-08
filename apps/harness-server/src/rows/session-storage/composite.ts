@@ -1,5 +1,5 @@
 // 会话存储组合的声明（装配页「组合登记」，session-storage-sql `docs/cordis.md`「应用承担什么」）：参加者清单与清单摘要。
-// 参加者是 `[execution-record, session]` 加 `model`：`session` 参与者读的索引表归 `execution-record` 所有，所以两者必须
+// 参加者是 `[execution-record, session-ordinary-basis, session]` 加 `model`：`session` 参与者读的索引表归 `execution-record` 所有，所以两者必须
 // 同在一个组合里，否则提供者按目录核对参加者（sql-contract §6.2 第 5 步）会报 `read_table_unowned`；Model 的耐久记录仓
 // 与会话日志同一事务域（装配页「租户到事务域的目录」、R2-D6），所以 `model` 参加者并入同一组合，`model-records` 行以
 // 同一个 `combinationVersion` 与本函数算出的同一摘要提交。Tool 的耐久记录仓（`tool` 参加者）在 B 段同样并入，`tool-records`

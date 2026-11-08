@@ -9,7 +9,7 @@ import {
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { governanceSqlMigrations, governanceRecoveryReadMaterials } from '../src/materials.ts'
-import { GOVERNANCE_CUSTODY_TABLES } from '../src/source-custody-migration.ts'
+import { GOVERNANCE_EXTERNAL_WRITE_TABLES } from '../src/external-write-migration.ts'
 import { GOVERNANCE_SQL_TABLES } from '../src/sql-stage-migration.ts'
 import { json, digest } from '../src/encoding.ts'
 import { requestRef, type AcceptOperation, type Execution } from '../src/operation-schema.ts'
@@ -77,7 +77,9 @@ export async function openOperations(
         protocol: 'fixture-governance-operations/1',
         moduleUrl: url.href,
         codeDigest: createHash('sha256').update(readFileSync(url)).digest('hex'),
-        ownedTables: options.legacySchema ? GOVERNANCE_SQL_TABLES : GOVERNANCE_CUSTODY_TABLES,
+        ownedTables: options.legacySchema
+          ? GOVERNANCE_SQL_TABLES
+          : GOVERNANCE_EXTERNAL_WRITE_TABLES,
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
@@ -88,7 +90,9 @@ export async function openOperations(
     ],
     migrations: [
       ...governanceSqlMigrations().filter(
-        migration => !options.legacySchema || migration.id !== 'governance-source-custody-1',
+        migration =>
+          !options.legacySchema ||
+          !['governance-source-custody-1', 'governance-external-write-1'].includes(migration.id),
       ),
       ...(options.extraMaterials?.migrations ?? []),
     ],

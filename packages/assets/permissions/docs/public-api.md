@@ -54,7 +54,27 @@ C3b 使用现有 Settings 注册端口，核验真实声明、主体与目标资
 
 本包不实现贡献租约、ActivationFence、持久配值数据库、SQL 事务、使用资格筛选或执行器。HJ0 的 DG3/DG6/DG8 在本包只覆盖固定材料的绑定与规则性质，完整动态保证仍依赖组合交付。
 
+## 配值写入判断
+
+`judgePermissionAssignment` 接收目标 layer、拟写 rule 和 current 材料。精确类型与结果集合归 [assignment.ts](../src/assignment.ts)。它判断配值语义，不选择实际执行档位，不读取存储，也不校验登录身份。
+
+rule 为 null 表达清除。结构合法时返回 valid/clear，调用者仍须核验实际原项、精确定义、修订与当前管理资格。该结果不证明原项存在，也不允许绕过写者核验。当前声明撤下后，可以由拥有者依据所存原项合法清除。
+
+非空 rule 必须有合法当前声明、目标层和已知值。判断以外层原配值及输入中的适用约束为依据，排除被修改层与更内层原值。current 的 constraints 及 requiredConstraintIds 须由受信编辑政策提供，不能由编辑请求任意删减；它们不是从目标执行者自动推导的权限。
+
+确定不产生允许结果的配值返回 valid/restrictive。其余配值先检查外层主动禁止和空共同界，再报告缺来源。完整来源下，拟写的允许操作值均在共同界内才返回 valid/current-bounds。该检查不要求比较关系或可执行的挑选结果。未知值、非法层、重复允许值或适用来源错绑返回 invalid-input。
+
+所有 valid 分支只说明配值语义成立。写入拥有者仍须保护身份资格、当前定义、来源、命令绑定和修订，并将成功结果与实际写入一起提交。有限组合检查及论证边界见 [assignment.md](../verification/assignment.md)。
+
 ## 当前来源消费口
+
+### Settings 原配值转换
+
+readPermissionSettingsSource 接收已由拥有者读出的设置定义、来源描述及原配值，并输出一个 PermissionSource。它核对权限项对应的设置声明、层级与主体，保留 pick 和 allowedSet，不使用 Settings 合并后的有效值。Settings 通用 locked 不转换成权限允许集合。
+
+只有取得对应来源且本项没有配值时才返回 absent；来源读取失败保持 unavailable。错误定义、绑定或配值返回 invalid-input。此函数是纯转换，不验证调用者资格，也不证明材料当前。
+
+### 原动作的当前读取
 
 `PermissionBasisSource<Context>` 提供 `readCurrent(context, request)`。受信上下文与可序列化请求分开传递。精确形状归 [source.ts](../src/source.ts)。目前只交付协议和结构守护，尚无本包自带的真实来源提供者。
 
@@ -69,3 +89,9 @@ current 结果绑定原请求及 PermissionEvaluation。Schema核对两者的完
 已建立合法原动作绑定后，提供者收集本次材料。可核实的局部来源失败写入相应unavailable槽，连同已知禁止一起返回current，由求值器决定拒绝或不可用。原动作绑定事实仍未知、或无法建立任何受保护读取依据时返回unavailable，不能假称已确认无权。source端口的denied只表示读取资格已确认不成立；业务规则的denied由evaluatePermission产生。缺少来源实现时不能回退旧静态allow。
 
 原动作的实际启动或写入仍须按对应拥有者的协议重核来源，或取得与精确目的绑定的保留。一次读取、旧Context材料和历史current结果均不能免除该义务。C6的持久grant与同提交消费尚未由此接口交付。
+
+## 作者声明上界
+
+`PermissionUpperBoundSchema` 与 `PermissionUpperBoundsSchema` 只检查共同值的结构。`definePermissionUpperBounds` 接受未知输入，拒绝重复关口及重复允许值，并返回逐层冻结的独立副本。它不消费动态权限定义，不判定主体资格，也不读取 Agent 或 Session。
+
+消费方必须按当前权限定义解释允许值。声明中的值不再受支持时，该约束不可用，不能静默忽略。完整责任见 [声明式权限上界](../SPEC.md#声明式权限上界)。

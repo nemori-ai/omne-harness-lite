@@ -43,3 +43,21 @@ session-storage-sql 对目录缺项答 `unavailable`（[SPEC 失败表](../../..
 ```sh
 pnpm --filter @omne-harness/harness-server exec vitest run tests/rows/storage tests/rows/session-storage --typecheck.enabled=false
 ```
+
+## 受信的权限配值委派
+
+已核验的 `permission-assignment` 委派提交经 `withSessionPermissionCommit` 进入治理协调。它保留原主体、命令、资格及 guards，核对绑定后按调用现取应用受信键 `sessionPermissionBackend`。根上的同名服务不可替换该键。未登记租户先答 denied，不调用后端；普通命令继续沿原端口，不读取此键。缺后端或选择失败答 unavailable，owner 为 `harness.session-permission-write`。
+
+该键不是行的必需 inject，后端缺席不阻止普通会话服务启动。应用的 `sessionPermissionBackendModule` 只发布受信 reader；路由按原资格的租户选择后端，实际写入仍由 Governance 核验主体、持久绑定和提交依据。reader 不授予业务权限。
+
+入口适配器卸载后，保留的旧引用和卸载前尚未完成的后端选择均返回缺席。下次调用重新读取当前服务。已经交给后端的操作及其耐久责任由后端关闭协议结算，卸载发布适配器不声称撤销业务写入，也不关闭它未拥有的存储或治理实例。
+
+默认发行安装 Governance 行，按需开启租户 Governance/Assets/Settings 后端并保管关闭责任。行测试使用具名资格与后端替身验证接线和生命周期；组合测试验证真实登录、声明和映射写入；发行树测试验证默认装配。各自证据范围不能互相替代，也不直接授予交付接受。
+
+## 生产材料与治理组合
+
+默认 storageHost 异步构造生产材料目录。原 Session、Identity、Model 和 Tool 核心材料继续由 `storageCatalog` 提供；Governance、Assets、prepared Settings 及应用投影从各拥有者公开材料导出合并。Session 组合仍只选择原参加者，其 manifest 不因新增未选材料而变化。原始 Settings 修改写者不与 prepared 写者同时登记。
+
+应用 `governanceStorageCombinations` 定义元数据、声明修改、资产、采用、目录、Settings 目录和 Session 权限设清所需的组合。每组先经 SQL 契约检查唯一表拥有者、事实依赖及迁移闭包，再得到摘要。函数只描述组合；租户提供者仍须在原租户域显式登记，不能把材料目录存在视为业务实例已就绪。登记可以同身份重试，不能假设多组登记整体原子成功。
+
+Tool 发行快照核验成功才加入钉住该代次的发行参加者。快照不可用时，普通存储及原 Session 组合仍可装配，依赖 Tool 发行的治理组合拒绝构造。材料安装不发布资产、不创建租户持有、不采用声明，也不授予权限。这些行为仍归实际应用服务与其具名装配规则。

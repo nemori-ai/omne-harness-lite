@@ -17,11 +17,21 @@ type Input = Parameters<typeof currentGovernanceTargets>[0] & {
 }
 const equal = (left: unknown, right: unknown) => canonicalText(left) === canonicalText(right)
 
+function withoutState(
+  view: Extract<
+    SettingsValueProjection['views'][number],
+    { presence: 'absent' | 'present' }
+  >['view'],
+) {
+  const { state: _state, ...target } = view
+  return target
+}
+
 function exactValues(input: Input) {
   if (!equal(input.values.binding, input.capture) || input.values.views.length !== 1)
     return undefined
   const values = input.values.views[0]!
-  const { state: _state, ...valueTarget } = values.view
+  const valueTarget = values.presence === 'unavailable' ? values.view : withoutState(values.view)
   const native = [...input.assets.views, ...input.standalone.views]
   return native.length === 1 && equal(native[0], valueTarget) ? values : undefined
 }

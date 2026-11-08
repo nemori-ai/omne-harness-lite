@@ -25,8 +25,8 @@ import type { FactCommandV2, SqlMaterialCatalog } from '@omne-harness/sql-contra
 import { governanceCurrentParticipant } from './adoption-current.ts'
 import { SUPPORT_PARTICIPANT } from './permission-protocol.ts'
 
-export const TARGET_SNAPSHOT = { participant: 'harness.governance-target-snapshot', protocol: '1' }
-export const targetSnapshotFact = { key: 'harness.governance-target-snapshot', protocol: '1' }
+export const TARGET_SNAPSHOT = { participant: 'harness.governance-target-snapshot', protocol: '3' }
+export const targetSnapshotFact = { key: 'harness.governance-target-snapshot', protocol: '3' }
 export const targetSnapshotSchema = z.strictObject({
   binding: GovernanceTargetBindingSchema,
   declaration: GovernanceDefinitionBundleSchema,

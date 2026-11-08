@@ -6,6 +6,7 @@ import type { PendingCall, Reply } from './evaluation.ts'
 import type { CommandReceipt, ExecutionMutation } from './execution.ts'
 import type {
   Access,
+  Adoption,
   AgentExecutionId,
   AgentInstanceId,
   Authority,
@@ -192,12 +193,13 @@ export interface ModelReceptionTargets<P> {
 
 /**
  * The original consumption binding of one associated Tool call (J02 item 1): the execution and the
- * instance that committed the PendingCall, and that PendingCall. The provider keeps it after the
+ * instance and Agent definition that committed the PendingCall, and that PendingCall. The provider keeps it after the
  * checkpoint dropped the call, the attachment ended or the instance went away.
  */
 export type ToolReceptionTarget = Readonly<{
   execution: AgentExecutionId
   instance: AgentInstanceId
+  definition: Adoption
   pending: Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
 }>
 

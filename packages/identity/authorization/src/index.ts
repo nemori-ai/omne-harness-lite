@@ -3,6 +3,8 @@
 // reference pieces. SPEC.md owns the
 // behavior that these types cannot express.
 export { decideAdmission } from './admission.ts'
+export { decideInquiry } from './inquiry.ts'
+export type { InquiryPolicy, InquiryRequirement, InquiryDisposition } from './inquiry.ts'
 export type {
   AdmissionBasis,
   AdmissionCheck,

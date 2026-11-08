@@ -5,6 +5,7 @@ The owner-level tests use the public owner and fact interfaces with real SQLite 
 | File                                       | Defect detected                                                                                                                                      |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [settings-governance.spec.ts](settings-governance.spec.ts) | Real Identity, independent target and Assets holding combine through the same Settings application; removal, revocation, version re-adoption and undeclared assets preserve boundaries. |
+| [asset-read.spec.ts](asset-read.spec.ts) | Current publication revision is confused with holding or owner sequence; a stale snapshot overwrites a newer version; missing and unavailable results are conflated. |
 | [persistence.spec.ts](persistence.spec.ts) | A committed body, holding or operation disappears after reopening storage.                                                                           |
 | [holdings.spec.ts](holdings.spec.ts)       | Immutable versions change, stale revisions succeed, follow and pinned selections diverge incorrectly, or removed identities revive.                  |
 | [guards.spec.ts](guards.spec.ts)           | A removed holding, stale definition, revoked grant or changed source layout permits a Settings commit. A fresh holding inherits prior values.        |

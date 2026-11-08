@@ -80,7 +80,8 @@ export function currentGovernanceTargets(input: {
   }
   if (
     input.assets.views.length + input.standalone.views.length !== targets.length ||
-    input.assetPublications.views.length + input.standalonePublications.views.length !==
+    input.assetPublications.views.filter(view => view.definitionRef !== null).length +
+      input.standalonePublications.views.length !==
       targets.length
   )
     return undefined
@@ -130,7 +131,8 @@ export function currentGovernanceCatalog(input: Parameters<typeof currentGoverna
     else targets.push(found)
   }
   if (
-    input.assetPublications.views.length + input.standalonePublications.views.length !==
+    input.assetPublications.views.filter(view => view.definitionRef !== null).length +
+      input.standalonePublications.views.length !==
     all.length
   )
     return undefined

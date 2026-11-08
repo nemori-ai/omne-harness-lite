@@ -71,7 +71,12 @@ async function setup() {
         consumption: consumption(name),
         fixed: evidence(name),
       }
-      targets.set(pending.reference, { execution: execution(), instance: instance(), pending })
+      targets.set(pending.reference, {
+        execution: execution(),
+        instance: instance(),
+        definition: checkpoint().definition,
+        pending,
+      })
       return pending
     })
     ok(

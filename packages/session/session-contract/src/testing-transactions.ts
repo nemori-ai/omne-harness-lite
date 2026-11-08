@@ -570,7 +570,13 @@ function boundAccessCheck<P>(checked: SessionCheckedAccess<P>): SessionAccessChe
   return {
     check: async request =>
       withinBinding(checked.request, request)
-        ? { kind: 'allowed', evidence: checked.evidence }
+        ? {
+            kind: 'allowed',
+            evidence: checked.evidence,
+            ...(checked.writeQualification === undefined
+              ? {}
+              : { writeQualification: checked.writeQualification }),
+          }
         : { kind: 'denied' },
   }
 }

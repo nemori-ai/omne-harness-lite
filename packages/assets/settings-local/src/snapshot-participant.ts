@@ -4,7 +4,7 @@ import type { SettingsBasis, SettingsTargetView, SettingsFailure } from '@omne-h
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { targetViews } from './target-guard.ts'
 import { canonical, digest, equal, json, withinBudget } from './encoding.ts'
-import { TERMINAL_FACT } from './terminal-schema.ts'
+import { CATALOG_TERMINAL_FACT } from './catalog-terminal-schema.ts'
 import {
   SNAPSHOT_PARTICIPANT,
   SNAPSHOT_PROTOCOL,
@@ -71,7 +71,7 @@ export default {
     try {
       const input = SnapshotInputSchema.parse(facts['input'])
       const operation = snapshotOperation(input)
-      if (!equal(port.requireFact(TERMINAL_FACT), { binding: operation, kind: 'consume' }))
+      if (!equal(port.requireFact(CATALOG_TERMINAL_FACT), { binding: operation, kind: 'consume' }))
         return fail('forbidden')
       const projected = targetViews(port, input.binding)
       if (

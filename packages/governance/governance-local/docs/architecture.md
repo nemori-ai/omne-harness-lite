@@ -8,12 +8,17 @@
 classDiagram
   class GovernanceLocal {
     +service GovernanceContributions
+    +permissionBasis PermissionBasisSource
     +close() closed或pending
   }
   GovernanceLocal --> GovernanceProviderLifetime
   GovernanceProviderLifetime --> GovernanceScopeLifecycle
   GovernanceLocal --> GovernanceRegistrar
   GovernanceLocal --> GovernanceCatalog
+  GovernanceLocal --> GovernancePermissionReader
+  GovernancePermissionReader --> GovernanceStandingCoordinator
+  GovernancePermissionReader --> GovernanceSourceCoordinator
+  GovernancePermissionReader --> SqlOperationCoordinator
   GovernanceRegistrar --> GovernanceAdmission
   GovernanceRegistrar --> GovernanceStandingCoordinator
   GovernanceCatalog --> GovernanceStandingCoordinator
@@ -52,7 +57,7 @@ sequenceDiagram
 
 ## 贡献与退出的应用组合
 
-`createGovernanceLocal` 组合贡献、退出、采用、受保护目录和原操作查询。内部 `GovernanceRegistrar` 承担命令与操作查询，目录捕获由独立组件承担。它们共用身份准入、Standing 保留、原操作及 SQL 请求保管。声明与当前事实测试使用具名 fixture；生产来源适配仍须接入；Cordis caller-fiber关闭见本文装配节。
+`createGovernanceLocal` 组合贡献、退出、采用、受保护目录、原操作查询和当前权限依据读取。内部 `GovernanceRegistrar` 承担命令与操作查询，目录与权限捕获分别由独立组件承担。它们共用 Standing 保留、原操作及 SQL 请求保管。应用组合消费实际 Tool 发行、原生持有、采用与 Settings 配值，并通过原拥有者公开读口和同事务事实接入原动作资格及 Session/Agent 约束。Cordis caller-fiber关闭见本文装配节，权限读取规则见 GL-26。
 
 ```mermaid
 flowchart TD
@@ -317,7 +322,7 @@ sequenceDiagram
 
 重启后 executeControl 可以认回旧组合下的阶段。send 从持久阶段读回完整请求，提交未知则查询同一身份。不同命令内容不得借新的 metadata 配置替换旧阶段。调用期间用户对象变化也不能改变首次异步等待前已固定的输入。
 
-Identity 预留和结算由下述 Standing 协调器接线，公共应用服务已经消费准入与来源协议。图中 SQL 协调器仍为提供者内部实现。生产来源适配尚未完成；Cordis装配已接入普通运行时。
+Identity 预留和结算由下述 Standing 协调器接线，公共应用服务已经消费准入与来源协议。图中 SQL 协调器仍为提供者内部实现。生产来源适配由应用治理行提供，Cordis 装配接入普通运行时。
 
 
 ## 真实 Standing 服务协调
@@ -558,3 +563,117 @@ classDiagram
 ```
 
 启动恢复完成与关闭完成都要求两类责任已结算。来源依赖缺失时保留待决责任，借用服务的销毁仍归装配拥有者。实际权限 current 事务和旧装配重放仍待交付。旧 SQL 信封保留原字节，不代表它可以在新材料摘要下执行。
+
+## 外部拥有者写意图
+
+治理只保管原操作。外部拥有者仍负责业务解释和唯一业务写入。内部 external-write 将目标、原命令及其资格与治理 scope、主体、operationId 一起固定，复用既有主键、原操作状态和来源责任，不新增第二套业务状态。
+
+```mermaid
+classDiagram
+  class OperationRecord {
+    requestDigest
+    acceptedEpoch
+    sqlIdentity
+    state
+    execution
+    result
+  }
+  class ExternalWriteRequest {
+    scope
+    operationId
+    source
+    sourceRoute
+  }
+  class ExternalOwnerWrite {
+    owner
+    protocol
+    targetRef
+    commandDigest
+    command
+    qualification
+  }
+  OperationRecord *-- ExternalWriteRequest
+  ExternalWriteRequest *-- ExternalOwnerWrite
+  OperationRecord --> SourceCustody : 原来源责任
+  OperationRecord --> SqlStage : 原 SQL 封套
+```
+
+`external-write-schema.ts` 定义持久边界；`operation.ts` 仍是受理及终态的唯一写者。`source-custody.ts` 从原请求派生来源认回材料，`source-destination.ts` 按原路由认回和封口。`external-write-migration.ts` 在同一升级事务中保留父子记录并扩展 owner 约束。普通 mutation planner 不接受外部写意图，也不执行外域业务命令。
+
+外部原意图与 SQL 执行计划分开保存。execution.authority 固定外域 commands；三项治理协调命令另外由原 business request 构造，避免 execution 递归包含自身。`external-write-stage.ts` 比较完整参加者映射，`sql-stage.ts` 保存第一次完整封套并拒绝替换。业务解释和真正执行仍属于外部拥有者与选定的 SqlStorage 组合。
+
+```mermaid
+flowchart LR
+  Intent[原意图与资格] --> Binding[原操作 binding]
+  Fixed[submitted execution 中的外域 commands] --> Expected[预期参加者映射]
+  Binding --> Business[同一 business request]
+  Business --> Basis[治理 basis 命令]
+  Business --> Terminal[治理 terminal 命令]
+  Business --> Writer[治理唯一写者命令]
+  Basis --> Expected
+  Terminal --> Expected
+  Writer --> Expected
+  Envelope[最终 SQL 封套] --> Match[身份及完整映射相等]
+  Expected --> Match
+  Match --> Saved[保存第一份封套]
+  Saved --> Retry[重试与重启认回原封套]
+```
+
+## 受信外域写入口
+
+`GovernanceExternalWriteCoordinator` 消费受信 resolver 和 plan。resolver 拥有业务资格解释；plan 拥有外域命令到 SQL facts 的转换。协调器核验真实主体和租户，保留原资格、原身份与来源，再沿现有 SQL 协调器保存执行材料。它不导入 Session 私有模型。
+
+```mermaid
+sequenceDiagram
+  participant Caller as 受信消费者
+  participant Write as ExternalWriteCoordinator
+  participant Resolve as 领域资格适配器
+  participant SQL as SqlOperationCoordinator
+  participant Identity as Identity standing
+  participant Source as Settings 来源
+  Caller->>Write: execute(context, intent)
+  Write->>Write: 复制意图并核验主体和租户
+  Write->>SQL: 查找原操作
+  alt 首次请求
+    Write->>Resolve: 原主体及固定意图
+    Resolve-->>Write: qualification + required + source
+    Write->>SQL: 受理原请求
+  else 已受理
+    SQL-->>Write: 原资格和原执行材料
+  end
+  Write->>Identity: 保留原 required
+  Write->>Source: 保留原来源或明确不需要
+  Write->>SQL: 保存并提交原执行封套
+  Write->>SQL: 观察终态或 seal 后再观察
+  Write->>Identity: 结算原责任
+  Write->>Source: 结算原责任
+  Write-->>Caller: 已确认终态或 unavailable
+```
+
+提供者生命周期追踪 execute 的在途调用。关闭后新调用不可用；原操作的清理责任仍保存在 SQL 中。历史恢复扫描从同一 operationRefSchema 取得类型集合，因此外部写操作与原贡献操作一样进入恢复。该协调入口不另建表或调度器，不发布新的 Cordis 服务。外域成功组合仍须由其装配拥有者提供。
+
+
+## 同事务外域结果
+
+治理 basis 先读取原状态和保管。业务拥有者核对自身依据并独占业务写入。结果适配器将实际回执转为公共 JSON 事实，治理 terminal 与唯一写者完成绑定和终态校验。这个顺序没有互相等待的事实环，也不让 Governance 依赖 Session。
+
+```mermaid
+flowchart LR
+  B[治理原操作与保管 basis] --> A[外域依据适配器]
+  A --> W[外域唯一业务写者]
+  W --> R[实际业务结果适配器]
+  B --> T[治理 terminal]
+  R --> T
+  T --> G[治理唯一写者]
+  subgraph 同一 SQL 事务
+    B
+    A
+    W
+    R
+    T
+    G
+  end
+  G --> C[事务外结算原责任]
+```
+
+[external-write-commit.ts](../src/external-write-commit.ts) 只检查治理事实、执行摘要和指定写者。[external-write-protocol.ts](../src/external-write-protocol.ts) 拥有序列化边界。真实 Session 组合测试覆盖同提交、写后回滚和重试，但其业务资格和定义来自具名测试适配器，不能据此宣称生产 Session 授权接线完成。

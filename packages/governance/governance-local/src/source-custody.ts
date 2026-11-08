@@ -6,7 +6,7 @@ import {
 import type { ParticipantPort, ReadPort } from '@omne-harness/sql-contract/worker'
 import { boundOperation, conflict, operationParams } from './operation.ts'
 import type { OperationBinding, OperationRecord } from './operation-schema.ts'
-import { permissionSourcePlan } from './operation-schema.ts'
+import { operationSourcePlan } from './operation-schema.ts'
 import { canonical, equal } from './encoding.ts'
 
 export const sourceCustodySchema = z.union([
@@ -18,7 +18,7 @@ export type SourceCustody = z.infer<typeof sourceCustodySchema>
 export type SourceReceipt = z.infer<typeof SettingsSourceReceiptSchema>
 
 function sourceRequest(binding: OperationBinding, record: OperationRecord) {
-  const plan = permissionSourcePlan(record.request)
+  const plan = operationSourcePlan(record.request)
   if (plan === null) return null
   return SettingsSourceRequestSchema.parse({
     source: plan.source,
@@ -30,7 +30,13 @@ function sourceRequest(binding: OperationBinding, record: OperationRecord) {
           transactionDomain: record.sqlIdentity.transactionDomain,
         },
         principalRef: binding.ref.principalRef,
-        operation: { protocol: 'governance-permission-capture/1', binding },
+        operation: {
+          protocol:
+            record.request.owner === 'internal.external-write'
+              ? 'governance-external-write/1'
+              : 'governance-permission-capture/1',
+          binding,
+        },
       },
       attemptId: binding.ref.operationId,
       commandDigest: binding.requestDigest,

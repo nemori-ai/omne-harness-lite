@@ -8,6 +8,7 @@ const modes = {
   withdraw: 'mutation',
   adopt: 'adoption',
   'internal.capture': 'capture',
+  'internal.external-write': 'external-write',
 } as const
 export const businessMode = (owner: OperationRef['owner']) => modes[owner]
 

@@ -215,6 +215,21 @@ export async function openToolHostWorld(
   }
   const Bindings = createLocalToolBindingsPlugin<string, Environment, ToolMessageContentBlock>({
     authority: startAuthority,
+    view: {
+      read: async current =>
+        current.principal === 'principal:alice' &&
+        canonicalDigest(current.tenant) === canonicalDigest(access('source').tenant)
+          ? succeed({
+              scope: evidence('controlled-catalog'),
+              revision: '1',
+              entries: Object.values(authorities).map(authority => ({
+                key: { layer: authority.layer, asset: authority.asset },
+                resident: false,
+              })),
+            })
+          : fail({ kind: 'denied', action: 'catalog.read' }),
+    },
+    search: { k1: 1.2, b: 0.75, maxCachedCorpora: 2 },
     availability: {
       judge: async ({ definition }) =>
         succeed({

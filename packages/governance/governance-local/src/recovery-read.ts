@@ -7,18 +7,16 @@ import {
 import type { ReadPort, ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import { equal, scopeKey, json } from './encoding.ts'
 import { readScope } from './scope.ts'
+import { operationRefSchema } from './operation-schema.ts'
 
 export const RECOVERY_HANDLER = {
   handler: 'governance.recovery',
   protocol: 'governance-recovery-read/1',
 }
 const recoveryOwnerSchema = z.enum([
-  'contribute',
-  'withdraw',
-  'adopt',
+  ...operationRefSchema.shape.owner.options,
   'internal.bootstrap',
   'internal.close',
-  'internal.capture',
 ])
 const keySchema = z.strictObject({
   scope: GovernanceScopeSchema,

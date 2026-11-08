@@ -1,3 +1,5 @@
+import { externalWriteRequestSchema } from './external-write-schema.ts'
+import { permissionQualificationSchema } from './permission-qualification.ts'
 import { z } from 'zod'
 import { PermissionBasisRequestSchema } from '@omne-harness/permissions'
 import { SettingsTargetSchema } from '@omne-harness/settings'
@@ -28,6 +30,7 @@ export const permissionCaptureCommandSchema = z.strictObject({
   scope: GovernanceScopeSchema,
   operationId: GovernanceIdSchema,
   permission: PermissionBasisRequestSchema,
+  qualification: permissionQualificationSchema,
   target: SettingsTargetSchema,
   source: SettingsSourceReferenceSchema.nullable(),
   sourceRoute: GovernanceIdSchema,
@@ -39,6 +42,7 @@ export const captureRequestSchema = z.strictObject({
 export const durableRequestSchema = z.discriminatedUnion('owner', [
   ...requestSchema.options,
   captureRequestSchema,
+  externalWriteRequestSchema,
 ])
 export type DurableRequest = z.infer<typeof durableRequestSchema>
 export function isCatalogCapture(
@@ -46,13 +50,18 @@ export function isCatalogCapture(
 ): request is { owner: 'internal.capture'; command: z.infer<typeof catalogCaptureCommandSchema> } {
   return request.owner === 'internal.capture' && 'request' in request.command
 }
-export function permissionSourcePlan(request: DurableRequest) {
-  if (request.owner !== 'internal.capture' || !('permission' in request.command)) return null
+export function operationSourcePlan(request: DurableRequest) {
+  if (
+    request.owner !== 'internal.external-write' &&
+    !(request.owner === 'internal.capture' && 'permission' in request.command)
+  )
+    return null
+  if (!('source' in request.command)) return null
   const { source, sourceRoute } = request.command
   return source === null ? null : { source, route: sourceRoute }
 }
 export const operationRefSchema = GovernanceOperationRefSchema.extend({
-  owner: z.enum(['contribute', 'withdraw', 'adopt', 'internal.capture']),
+  owner: z.enum(['contribute', 'withdraw', 'adopt', 'internal.capture', 'internal.external-write']),
 })
 export type OperationRef = z.infer<typeof operationRefSchema>
 export const publicBindingSchema = z.strictObject({
@@ -84,6 +93,11 @@ export const executionSchema = z.strictObject({
   authority: z.json(),
 })
 export type Execution = z.infer<typeof executionSchema>
+export const businessRequestSchema = z.strictObject({
+  binding: bindingSchema,
+  execution: executionSchema,
+})
+export type BusinessRequest = z.infer<typeof businessRequestSchema>
 export const recordSchema = z.strictObject({
   request: durableRequestSchema,
   requestDigest: GovernanceDigestSchema,

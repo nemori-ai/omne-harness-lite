@@ -1,4 +1,4 @@
-// R2-D29 narrows readers to their Session work principal and refuses all producers.
+// Readers use Session work principals; the adopted modes producer is tenant-scoped.
 // Scope facts come from the shared application projection; absent production sources stay unavailable.
 // The holder facts (`replayFacts`) are read per call from `sessionReplayFacts`, which the facts
 // sub-plugin of row `session-ad03` provides (B1-GAP-REPLAY-FACTS-LINK closed, SC2); absent or
@@ -16,6 +16,7 @@ import type {
   Eligibility,
   HolderAction,
   HolderDecision,
+  ProducerAction,
   RuntimeContextAuthority,
   RuntimeContextTrust,
   ScopeBindingSource,
@@ -30,10 +31,17 @@ import {
   type SessionReplayFacts,
   type StepCommittedBlocks,
 } from '@omne-harness/session-adapters'
-import { sessionReplayFactsKey } from '@omne-harness/session-cordis-contract/cordis'
+import {
+  sessionReplayFactsKey,
+  sessionWorkPrincipalsKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
 import { verifierOf } from './principals.ts'
-import type { SessionScopeOwnershipSource, SessionScopeSource } from './session-scope-source.ts'
+import {
+  decideSessionModesProducer,
+  type SessionModesAuthoritySources,
+} from './session-modes-authority.ts'
+import type { SessionScopeSource } from './session-scope-source.ts'
 
 const REFUSED: AuthorityDecision<unknown> = Object.freeze({ kind: 'refused' })
 const UNAVAILABLE: AuthorityDecision<unknown> = Object.freeze({ kind: 'unavailable' })
@@ -71,10 +79,7 @@ function tenantOf(action: HolderAction<unknown>): TenantId | undefined {
   }
 }
 
-export type RuntimeContextAuthorityOptions = Readonly<{
-  verifier: PrincipalVerifier
-  scopeOwners?: SessionScopeOwnershipSource | undefined
-}>
+export type RuntimeContextAuthorityOptions = SessionModesAuthoritySources
 
 async function readerScopeDecision(
   options: RuntimeContextAuthorityOptions,
@@ -121,9 +126,15 @@ export function createRuntimeContextAuthority(
     holder(principal: unknown, action: HolderAction<unknown>): Promise<HolderDecision<unknown>> {
       return decide(principal, tenantOf(action))
     },
-    async producer(principal: unknown): Promise<AuthorityDecision<unknown>> {
+    async producer(
+      principal: unknown,
+      action: ProducerAction,
+    ): Promise<AuthorityDecision<unknown>> {
       const verification = await verify(options.verifier, principal)
-      return verification.kind === 'unavailable' ? UNAVAILABLE : REFUSED
+      if (verification.kind === 'unavailable') return UNAVAILABLE
+      if (verification.kind === 'rejected' || verification.principal.kind !== 'acting-for-tenant')
+        return REFUSED
+      return decideSessionModesProducer(options, verification.principal, action)
     },
     async reader(
       principal: unknown,
@@ -199,6 +210,7 @@ type Generation = { retired: boolean }
 type TrustState = Readonly<{
   verifier: PrincipalVerifier
   scopes: SessionScopeSource | undefined
+  sessionWork: SessionModesAuthoritySources['sessionWork']
   replayFacts: SessionReplayFacts
   currents: WeakMap<Context, () => boolean>
   /** 读取方上下文 → 绑定了该读取方代次的信任对象。 */
@@ -214,6 +226,7 @@ function trustFor(state: TrustState, reader: Context): RuntimeContextTrust<unkno
     authority: createRuntimeContextAuthority({
       verifier: state.verifier,
       scopeOwners: state.scopes?.scopeOwners,
+      sessionWork: state.sessionWork,
     }),
     bindings: state.scopes?.bindings ?? unavailableScopeBindings,
     current: { capture: () => ({ current }) },
@@ -230,11 +243,13 @@ class EntryRuntimeContextTrust extends RuntimeContextTrustService<unknown> {
     verifier: PrincipalVerifier,
     replayFacts: SessionReplayFacts,
     scopes?: SessionScopeSource,
+    sessionWork?: SessionModesAuthoritySources['sessionWork'],
   ) {
     super(ctx)
     this.state = {
       verifier,
       scopes,
+      sessionWork,
       replayFacts,
       currents: new WeakMap(),
       byReader: new WeakMap(),
@@ -266,7 +281,19 @@ export function createRuntimeContextTrustModule(
         () => readReplayFacts(env),
         diagnostic => logger.debug(diagnostic),
       )
-      new EntryRuntimeContextTrust(scope, verifierOf(env), replayFacts, scopes)
+      const sessionWork: NonNullable<SessionModesAuthoritySources['sessionWork']> = async input => {
+        const service = env.readTrusted(sessionWorkPrincipalsKey).get(sessionWorkPrincipalsKey)
+        if (service === undefined)
+          return {
+            failure: {
+              kind: 'unavailable',
+              owner: sessionWorkPrincipalsKey,
+              diagnostic: 'the session work principal source is not available',
+            },
+          }
+        return service.forSession(input)
+      }
+      new EntryRuntimeContextTrust(scope, verifierOf(env), replayFacts, scopes, sessionWork)
     },
   }
 }

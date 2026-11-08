@@ -9,3 +9,4 @@
 <!-- documentation:placeholder -->
 
 - [README.md](README.md)：证明清单与假设
+- [action-qualification.md](action-qualification.md)：原动作只读资格、输入固定及同事务核回的组合前提

@@ -9,7 +9,7 @@
 | 入口                                             | 源码                                          | 发布产物                                         | 调用者                                                                                                                                                        |
 | ------------------------------------------------ | --------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@omne-harness/session-storage-sql`              | [src/index.ts](../src/index.ts)               | `dist/index.js`、`dist/index.d.ts`               | 应用装配者，以及直接构造 [session](../../session/docs/public-api.md) 的独立调用方                                                                             |
-| `@omne-harness/session-storage-sql/participants` | [src/participants.ts](../src/participants.ts) | `dist/participants.js`、`dist/participants.d.ts` | 会话存储组合的目录写者，以及以 `storage` 自己提交的执行记录提供者（session-adapters 的 Journal 提供者）。只含参加者名、协议版本与编解码纯函数，不含提供者实现 |
+| `@omne-harness/session-storage-sql/participants` | [src/participants.ts](../src/participants.ts) | `dist/participants.js`、`dist/participants.d.ts` | 会话存储组合的目录写者，以及以 `storage` 自己提交的执行记录提供者（session-adapters 的 Journal 提供者）。只含参加者名、协议版本、依据校验与编解码纯函数，不含提供者实现 |
 
 `package.json` 的 `exports` 有 `.` 与 `./participants`。本包没有 `./cordis` 子路径，也没有对应源文件：会话存储组合由应用承担，见[装配边界](cordis.md)。根入口不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言导出集合、`./cordis` 不可导入，以及源码只从 `@omne-harness/sql-contract` 与 `@omne-harness/sql-contract/worker` 导入 SQL 形状。
 
@@ -55,3 +55,16 @@ SPEC 设计的内联阈值、大对象去向、`pageBytes` 上限、`maxScanPerP
 | 品牌字符串与 64 位位置的编码                                                        | [TB-03](../SPEC.md#tb-03)                                    |
 
 `sessionCommandFacts` 的可选预算参数只供可信集成使用，约束见 [可信传递](../SPEC.md#普通输入预算的可信传递)。
+
+## 提交依据与版本
+
+`./participants` 导出 `sessionCommitCommands`、`sessionCommitDigest`、`SessionCommitBasisSchema`、`SessionCommitResultSchema` 及关联类型和事实键。最终命令组装、普通与受保护依据和失败语义归[提交依据](commit-basis.md)。`SESSION_PROTOCOL` 只用于写参加者；`SESSION_READ_PROTOCOL` 用于读取 handler，不能互换。
+
+
+## 当前权限读取
+
+原执行的同事务核回另由 `SESSION_EXECUTION_GUARD`、`SESSION_EXECUTION_CURRENT_FACT`、`executionCurrentGuardFacts`、`ExecutionCurrentSchema` 和 `ExecutionCurrent` 提供，均从 `./participants` 导出。形状归 [execution-current.ts](../src/execution-current.ts)，行为归 [原执行修订核回](../SPEC.md#同事务原执行修订核回)。它读取原执行头，不复用 Session 权限关系或 Settings 配值。
+
+`./participants` 导出 `SESSION_PERMISSION_CURRENT_HANDLER`、`decodeSessionPermissionCurrent` 及其输入输出类型。精确形状归 [permission-current.ts](../src/permission-current.ts)，语义归 [当前权限关系](../SPEC.md#当前权限关系)。调用者是已经取得原访问资格的受信 SQL 组合方；该读口不是独立的身份授权服务。解码器区分 current、not-ready 与 malformed。
+
+`./participants` 还导出 `SESSION_PERMISSION_GUARD`、`SESSION_PERMISSION_CURRENT_FACT` 和 `sessionPermissionGuardFacts`，供受信捕获组合持久携带原定位及修订。参加者及其读表权限由 `sessionStorageMaterials` 提供，行为与消费义务见[同事务当前性守卫](../SPEC.md#同事务当前性守卫)。事实正文用现有 `decodeSessionPermissionCurrent` 解码。

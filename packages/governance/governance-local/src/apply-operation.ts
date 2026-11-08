@@ -74,6 +74,8 @@ function evaluateOperation(
       return registerContribution(port, binding, record.epoch, record.request.command)
     case 'withdraw':
       return releaseContribution(port, binding, record.epoch, record.request.command)
+    case 'internal.external-write':
+      throw new Error('External write requires its own planner')
     case 'internal.capture':
       throw new Error('Capture requires its own planner')
   }

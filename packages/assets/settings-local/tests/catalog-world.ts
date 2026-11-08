@@ -18,7 +18,11 @@ import {
   createSettingsMaintenance,
   createStandaloneSettingsOwner,
 } from '../src/index.ts'
-import { createIdentityQualifiedSettings } from '../src/identity.ts'
+import {
+  createSettingsCatalogDestination,
+  createSettingsStandingDestination,
+  createIdentityQualifiedSettings,
+} from '../src/identity.ts'
 import { openIdentityWorld } from './identity-world.ts'
 import { definition } from './world.ts'
 export async function openCatalogWorld(
@@ -54,6 +58,21 @@ export async function openCatalogWorld(
       },
     },
   })
+  const catalogDestination = `${w.destination}.catalog`
+  const readDestination = createSettingsCatalogDestination({
+    ...w.terminalOptions,
+    destination: catalogDestination,
+  })
+  const writeDestination = createSettingsStandingDestination({
+    ...w.terminalOptions,
+    destination: w.destination,
+  })
+  w.setResolver({
+    seal: reservation =>
+      reservation.binding.destination === catalogDestination
+        ? readDestination.seal(reservation)
+        : writeDestination.seal(reservation),
+  })
   const registry = createSettingsRegistry({ capacity: 16 })
   const registration = registry.registerContribution(definition)
   if (registration.kind !== 'registered') throw new Error('declaration fixture')
@@ -71,7 +90,7 @@ export async function openCatalogWorld(
     ...w.terminalOptions,
     storage: options.wrapCatalog?.(w.world.storage) ?? w.world.storage,
     deploymentRef: 'test',
-    destination: w.destination,
+    destination: catalogDestination,
     verifier: w.authority.verifier,
     reservations: w.identity.reservations,
     required: [],

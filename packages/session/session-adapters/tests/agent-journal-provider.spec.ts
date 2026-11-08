@@ -911,7 +911,7 @@ async function withToolCall(s: SqlScene, journal: AgentJournal<string>, name: st
 // another execution (the session core and the plugin both compare it; red when neither does).
 describe('agentToolReceptionTargets: the Tool result receiver face', () => {
   it('answers the binding the committed associated Tool call made, also from a new instance', async () => {
-    const s = await scene('tool-targets')
+    const s = await scene('tool-targets', { storage: 'real' })
     const first = await assembled(s)
     expect(first.plugin.store?.[agentToolReceptionTargetsKey]?.fiber === first.plugin).toBe(true)
     const { tool, instance: original } = await withToolCall(s, first.journal(), 'tool-targets')
@@ -921,11 +921,42 @@ describe('agentToolReceptionTargets: the Tool result receiver face', () => {
       reference: tool.pending.reference,
       execution: s.execution,
     }
-    const target = { execution: s.execution, instance: original, pending: tool.pending }
+    const target = {
+      execution: s.execution,
+      instance: original,
+      definition: s.checkpoint.definition,
+      pending: tool.pending,
+    }
     expect(ok(await first.toolTargets().resolve(query))).toEqual(target)
     expect(
       ok(await first.toolTargets().forExecution({ access: s.access, execution: s.execution })),
     ).toEqual([target])
+    const current = ok(await first.journal().load({ ...s.access, execution: s.execution }))
+    if (current.executionAttachment === null)
+      throw new Error('the test execution must still be attached')
+    ok(
+      await first.journal().commit({
+        ...s.access,
+        execution: s.execution,
+        operation: operation('change-after-original-tool-binding'),
+        authority: current.executionAttachment,
+        expected: current.revision,
+        checkpoint: {
+          ...current.checkpoint,
+          definition: { ...current.checkpoint.definition, revision: 'later' },
+          batch: null,
+          calls: [],
+        },
+        state: { kind: 'advancing' },
+        events: [],
+        effects: [],
+        caller: { kind: 'none' },
+        replyAdmission: null,
+        handoff: null,
+        finish: null,
+      }),
+    )
+    expect(ok(await first.toolTargets().resolve(query))).toEqual(target)
     await first.plugin.dispose()
     const second = await assembled(s)
     expect(ok(await second.toolTargets().resolve(query))).toEqual(target)

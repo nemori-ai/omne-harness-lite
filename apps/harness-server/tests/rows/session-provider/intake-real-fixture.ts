@@ -43,6 +43,7 @@ import {
 } from '../session-fixtures/tree.ts'
 import { createGuards } from '../storage/fixtures/tree.ts'
 import { releaseIdentityConfig } from '../identity/fixtures.ts'
+import { disabledTelemetryRow } from '../telemetry/support.ts'
 
 const definition: ResolvedDefinition = {
   candidate: { owner: 'fixture', name: 'assistant@1', revision: '1', digest: 'sha256:assistant' },
@@ -145,6 +146,7 @@ export async function openIntakeTree(maxPendingInputs = 2, maxInputBytes = 4096)
     base,
     rows: [
       ...rows,
+      disabledTelemetryRow(),
       declared(sessionStorageRow, {
         combinationVersion: 'session-composite/1',
         directoryFile: base.directoryFile,

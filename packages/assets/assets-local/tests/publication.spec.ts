@@ -119,3 +119,34 @@ it('refuses missing, foreign and disabled runtime targets', async () => {
   ).toMatchObject({ kind: 'committed' })
   expect(await capture(w)).toMatchObject({ kind: 'rolled_back' })
 })
+
+it('captures a real asset publication without requiring a Settings declaration', async () => {
+  const noSettings = createCategoryRegistry()
+  noSettings.register({
+    category: 'service',
+    schema: { kind: 'null' },
+    judge: () => ({ ok: true }),
+    deriveDeclarations: () => ({ entries: [] }),
+    references: () => [],
+    settings: () => null,
+  })
+  const w = await openWorld({ categories: noSettings })
+  worlds.push(w)
+  await w.setup()
+  expect(await capture(w)).toMatchObject({
+    views: [{ target, definitionRef: null, publicationRef: { assetRef: 'asset-a', version: '1' } }],
+  })
+  expect(await capture(w, [{ ...target, scopeRef: 'foreign' }])).toMatchObject({
+    kind: 'rolled_back',
+  })
+  expect(
+    await w.owner.changeHolding({
+      operationId: 'disable-unmapped',
+      holdingRef: target.targetRef,
+      scopeRef: target.scopeRef,
+      expectedRevision: 1,
+      change: { kind: 'setEnabled', enabled: false },
+    }),
+  ).toMatchObject({ kind: 'committed' })
+  expect(await capture(w)).toMatchObject({ kind: 'rolled_back' })
+})

@@ -11,7 +11,7 @@ import { equal } from './encoding.ts'
 import { isTerminal } from './registrar-results.ts'
 
 const sourceOperationSchema = z.strictObject({
-  protocol: z.literal('governance-permission-capture/1'),
+  protocol: z.enum(['governance-permission-capture/1', 'governance-external-write/1']),
   binding: bindingSchema,
 })
 const unavailable = () => ({ kind: 'unavailable' as const })

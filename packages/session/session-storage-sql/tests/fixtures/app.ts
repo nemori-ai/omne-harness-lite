@@ -1,3 +1,4 @@
+import { SESSION_LOG_PARTICIPANTS } from '../../src/participants.ts'
 // The composition of one test application: two tenants with their own transaction domains, a tenant
 // domain directory, an explicit access policy, a fixed cursor signing double, and over the SQLite
 // test provider the Session storage port, the pair of a public port and a delegated entry, and the
@@ -95,7 +96,7 @@ export async function app(
       transactionDomain: entry.domain.transactionDomain,
       combinationVersion: 'c1',
       manifestDigest: 'a'.repeat(64),
-      participants: ['execution-record', 'session'],
+      participants: SESSION_LOG_PARTICIPANTS,
     })
   const signing: FixedSessionCursorSigning = createFixedSessionCursorSigning()
   const denied = new Set<string>()
@@ -177,7 +178,7 @@ export async function app(
       transactionDomain: entry.domain.transactionDomain,
       combinationVersion: 'c1',
       manifestDigest: 'a'.repeat(64),
-      participants: ['execution-record', 'session'],
+      participants: SESSION_LOG_PARTICIPANTS,
     })
     directory.entries.push(entry)
     directory.revision = String(Number(directory.revision) + 1)

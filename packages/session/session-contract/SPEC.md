@@ -2186,3 +2186,19 @@ SE12 记准入者的拒绝：before-admit 槽（用途提醒、内容型斜杠�
 Todo 不进入 OpenWork、RecoveryTask、ADVANCE_KINDS，不启动或唤醒 Agent。读取失败、缺依赖和不存在 Session 不转成空列表。保留期继承原 Session 日志与操作记录，不新增 TTL 或另一数据库。完整快照读取沿 [SN-1](../session/SPEC.md#sn-1)，超过装配读界明确 unavailable，不声称 O(page) 或无限规模。
 
 持续验证入口为 [契约用例](tests/todos.spec.ts)、[机制用例](../session/tests/todos.spec.ts)、[真实 SQL 用例](../session-storage-sql/tests/todos.spec.ts) 和 [Cordis 用例](../session-cordis/tests/todos.spec.ts)。真实 SQL 用例覆盖六个写入点的回滚、并发、ACK 丢失和 SIGKILL 后认回。它们不证明外部撤权同步、断电耐久或 Tool 自动重放。自动 Runtime Context pending 投影仍被生产 producer 与 #677 阻断，不属于本节实现。
+
+
+## 会话逐权限配值
+
+会话逐权限配值是独立于模式、Agent 作者上界和人的持续许可的当前声明。公开形状由源码拥有，命令、修订、清除、重放及失败语义见 [Session 权限配值](docs/permission-assignments.md)。普通 change 的访问允许或非空授权引用不得替代专属写资格。受保护写必须绑定原操作和完整命令，不能把已结束的权限读取当作后续写入租约。
+
+Session 原持久写者已经实现受保护设值和清除。关系查询与迁移归 session-storage-sql；Agent/Tool 原动作资格、同捕获消费及完整交付接受仍需分别验证。
+
+
+### 权限状态的具名升级
+
+`rebuildSessionPermissions` 从完整原批次重建当前权限修订、赋值及模式采用。它复用原权限事件归约，不重新执行权限授权，也不改写历史条目的 schema、来源或摘要。传入的批次可省略不含创建、模式变更或权限赋值的批次；每个传入批次本身必须完整，顺序严格递增，不能超出快照修订。
+
+支持的解释采用由 [permission-history.ts](src/permission-history.ts) 固定：当前发布，以及 revision 4 的两个具名前序发布。`3abcec48…` 是加入原生配值前的发布，不能解释权限赋值事件；`8e67c698…` 已包含原生配值。这里的完整摘要是准入依据，其他摘要即使 revision 相同也拒绝。这不形成对任意旧字节的兼容承诺。
+
+创建的 tenant/session 与模式采用必须匹配快照。重复创建、缺失创建、未知或混合解释采用、修订次序矛盾、原配值快照与重建结果不一致均返回 invalid。重建结果携带当前解释采用，存储拥有者在原子升级中写回派生快照；它不得修改日志、原操作回执或 SQL 封套。缺少原 permissions 字段时，只能通过此重建路径取得状态，不能在普通读取中补空。

@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto'
+import canonicalize from 'canonicalize'
+import type { SettingDefinitions, SettingsChange } from '@omne-harness/settings'
 import { mkdtempSync, mkdirSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -34,6 +37,7 @@ export async function openSourceServiceWorld(
     Partial<Pick<SettingsSourceDestination, 'recognize'>>,
   existingRoot?: string,
   selectedSource = source,
+  selectedDefinition: SettingDefinitions = definition,
 ) {
   const parent = fileURLToPath(
     new URL('../../../../tmp/closures/settings-source-service/', import.meta.url),
@@ -81,7 +85,7 @@ export async function openSourceServiceWorld(
       record: {
         publicationRef: null,
         target: selectedSource.target,
-        definition,
+        definition: selectedDefinition,
         sources: [
           {
             sourceId: 'organization',
@@ -115,8 +119,10 @@ export async function openSourceServiceWorld(
     domain: selectedSource.domain,
     registration,
     destination: {
-      recognize: destination.recognize ?? (async request => ({ kind: 'known' as const, request })),
-      seal: destination.seal,
+      recognize:
+        destination.recognize?.bind(destination) ??
+        (async request => ({ kind: 'known' as const, request })),
+      seal: destination.seal.bind(destination),
     },
     access: {
       authorize: (principalRef: string, request: { source: typeof source }) =>
@@ -131,11 +137,22 @@ export async function openSourceServiceWorld(
     options,
     sources,
     owner,
-    set(value = true, expectedRevision = 0, operationId = 'set-source') {
+    set(
+      value: Extract<SettingsChange['action'], { kind: 'set' }>['value'] = true,
+      expectedRevision = 0,
+      operationId = 'set-source',
+    ) {
       return backend.commit(
         'admin',
         command({
           target: selectedSource.target,
+          definitionRef: {
+            providerId: selectedDefinition.providerId,
+            definitionId: selectedDefinition.definitionId,
+            version: selectedDefinition.version,
+            digest: createHash('sha256').update(canonicalize(selectedDefinition)!).digest('hex'),
+          },
+          itemId: selectedDefinition.items[0]!.id,
           sourceId: 'organization',
           action: { kind: 'set', value },
           expectedRevision,

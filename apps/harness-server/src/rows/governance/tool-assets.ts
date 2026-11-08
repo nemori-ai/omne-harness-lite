@@ -84,8 +84,14 @@ export function createToolAssetCategory(
     references: () => [],
     settings(body, context) {
       const entry = entryFor(body, context)
-      const definition = entry?.governance.declaration.settings[0]
-      if (entry?.governance.declaration.settings.length !== 1 || definition === undefined)
+      const declaration = entry?.governance.declaration
+      if (
+        declaration?.settings.length === 0 &&
+        declaration.permissions.every(value => value.settings === null)
+      )
+        return null
+      const definition = declaration?.settings[0]
+      if (declaration?.settings.length !== 1 || definition === undefined)
         throw new Error('Tool asset Settings declaration is unavailable')
       return definition
     },

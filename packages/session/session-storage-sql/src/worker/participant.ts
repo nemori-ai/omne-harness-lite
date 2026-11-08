@@ -1,3 +1,11 @@
+import { writePermissionCurrent } from './permission-current.ts'
+import { readSessionBasis } from './session-basis.ts'
+import {
+  SESSION_COMMIT_RESULT,
+  SESSION_COMMIT_PROTOCOL,
+  type SessionCommitBasis,
+} from '../commit-basis.ts'
+import type { SessionPermissionChangeBasis } from '@omne-harness/session-contract'
 // The `session` participant module (SPEC W1 steps 3 to 7, W2 for the shared commit). It runs inside
 // the provider's write transaction and uses the pure `decide` and `reduce` of session-contract:
 // this file reads their inputs, assigns positions, writes rows and maintains the derived rows. It
@@ -38,7 +46,6 @@ import { judgeEntries, type EntriesBatch } from './entries.ts'
 import { NO_FOCUS, readHistory, type HistoryBasis, type SessionHistory } from './history-index.ts'
 import { judgeLog, readCoveringHead, type CoveringSnapshot, type LogBatch } from './log.ts'
 import type { SessionWorkReply } from '../participants.ts'
-import { PROTOCOL } from './schema.ts'
 import { assemble, deepFreeze, writeState, type StoredState } from './state-rows.ts'
 import {
   assignPositions,
@@ -719,6 +726,7 @@ function writeBatch(
   const covered = BigInt(revision)
   const stored = writeState(port, { tenant, session, covered }, previous, snapshot)
   parsedSnapshots.wrote(tenant, session, covered, stored)
+  writePermissionCurrent(port, { tenant, session }, previous, snapshot, entries)
   maintainDerived(port, tenant, session, previous, snapshot)
   return { kind: 'written', epoch, bytes: stored.layout.bytes }
 }
@@ -1141,6 +1149,7 @@ function runCommand(
   evidence: string | null,
   port: ParticipantPort,
   intakeLimits: SessionIntakeLimits,
+  permissionChange: SessionPermissionChangeBasis | undefined,
 ): ParticipantReply {
   const start = commandStart(command, port)
   if (!isStart(start)) return start
@@ -1154,6 +1163,7 @@ function runCommand(
     history === null || previous === null ? previous : { ...previous, historyIndex: history.index }
   const decision: Decision = decide(prepared, command, guards, recordOf(command, start), {
     ...reads,
+    ...(permissionChange === undefined ? {} : { permissionChange }),
     intakeLimits,
     ...(history === null ? {} : { history: history.reads }),
   })
@@ -1358,6 +1368,7 @@ function intakeLimitsOf(value: JsonValue | undefined): SessionIntakeLimits | nul
 function runCommandFacts(
   facts: Readonly<Record<string, JsonValue>>,
   port: ParticipantPort,
+  basis: SessionCommitBasis,
 ): ParticipantReply {
   if (typeof facts['command'] !== 'object' || !Array.isArray(facts['guards']))
     return {
@@ -1386,7 +1397,12 @@ function runCommandFacts(
   const intakeLimits = intakeLimitsOf(facts['intakeLimits'])
   if (intakeLimits === null)
     return { kind: 'unsupported', basis: { reason: 'invalid intake limits' } }
-  const reply = runCommand(command, guards, evidence, port, intakeLimits)
+  const permissionChange =
+    basis.kind === 'permission-change' &&
+    basis.permissionChange.operation === command.input.operation
+      ? { ...basis.permissionChange, operation: command.input.operation }
+      : undefined
+  const reply = runCommand(command, guards, evidence, port, intakeLimits, permissionChange)
   // The digest of the command travels with the answer, so a later caller can tell a recall of the
   // same command from the same identity used for another command (SL07).
   return reply.kind === 'participated'
@@ -1408,29 +1424,43 @@ function runQueryFacts(
     : { kind: 'unsupported', basis: { reason: 'query facts are incomplete' } }
 }
 
+function executeSession(
+  facts: Readonly<Record<string, JsonValue>>,
+  port: ParticipantPort,
+  basis: SessionCommitBasis,
+): ParticipantReply {
+  switch (facts['intent']) {
+    case 'query':
+      return runQueryFacts(facts, port)
+    case 'entries':
+      return runEntries(facts, port)
+    case 'log':
+      return runLog(facts, port)
+    case 'check':
+      return runChecks(facts, port)
+    case 'command':
+      return runCommandFacts(facts, port, basis)
+    default:
+      return { kind: 'unsupported', basis: { reason: 'unknown Session intent' } }
+  }
+}
+
 const participant: ParticipantModule = {
   participant: 'session',
-  protocol: PROTOCOL,
+  protocol: SESSION_COMMIT_PROTOCOL,
   execute(facts, port) {
-    switch (facts['intent']) {
-      case 'query':
-        return runQueryFacts(facts, port)
-      case 'entries':
-        return runEntries(facts, port)
-      case 'log':
-        return runLog(facts, port)
-      case 'check':
-        return runChecks(facts, port)
-      case 'command':
-        return runCommandFacts(facts, port)
-      default:
-        return {
-          kind: 'unsupported',
-          basis: {
-            reason: 'the facts are neither a command, a check, a same-log commit nor a query',
-          },
-        }
-    }
+    const basis = readSessionBasis(facts, port)
+    if (basis === null)
+      return { kind: 'unsupported', basis: { reason: 'Session commit basis mismatch' } }
+    const reply = executeSession(facts, port, basis)
+    if (basis.kind === 'permission-change' && reply.kind === 'participated')
+      port.provideFact(SESSION_COMMIT_RESULT, {
+        coordination: basis.coordination,
+        commandsDigest: basis.commandsDigest,
+        operation: basis.permissionChange.operation,
+        response: reply.response,
+      })
+    return reply
   },
 }
 export default refusingMalformedEntries(participant)

@@ -29,6 +29,12 @@ import type {
 import { resolveCell, type BranchInput, type ResolvedCell, type SystemPurpose } from './cells.ts'
 import { AGENT_POLICY } from './agent-policy.ts'
 import { SESSION_POLICY } from './session-policy.ts'
+import {
+  preparePermissionWrite,
+  qualifyPermissionWrite,
+  type PreparedPermissionWrite,
+  type SessionPermissionLogin,
+} from './session-permission-write.ts'
 
 import { classOf } from '../../model/principals.ts'
 import { classify, SESSION_WORK_OWNER } from './principals.ts'
@@ -36,10 +42,11 @@ export { LOGIN_WORK_OWNER, SESSION_WORK_OWNER } from './principals.ts'
 export { createActionAdmission } from './action-admission.ts'
 export { createToolAccessGuard } from './tool-access.ts'
 
-/** The two dependencies of both checks. Both read again on every call. */
+/** Shared access ports; permission writes additionally require the current login source. */
 export type AccessPorts = Readonly<{
   admission: AdmissionCheck
   systemActions: SystemActionAuthorization
+  login?: SessionPermissionLogin
 }>
 
 /** The two access checks answer in the same three kinds. */
@@ -48,7 +55,7 @@ type Verdict = SessionAccessDecision & AgentAccessDecision
 type Plan =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-  | Readonly<{ kind: 'member'; input: AdmissionInput }>
+  | Readonly<{ kind: 'member'; input: AdmissionInput; permissionWrite?: PreparedPermissionWrite }>
   | Readonly<{ kind: 'matrix'; request: SystemActionRequest }>
 
 const DENIED: Plan = Object.freeze({ kind: 'denied' })
@@ -122,8 +129,12 @@ async function execute(plan: Plan, ports: AccessPorts): Promise<Verdict> {
       return Object.freeze({ kind: 'denied' })
     case 'unavailable':
       return unavailable(plan.diagnostic)
-    case 'member':
-      return fromDecision(await ports.admission.check(plan.input))
+    case 'member': {
+      const decision = fromDecision(await ports.admission.check(plan.input))
+      return decision.kind === 'allowed' && plan.permissionWrite !== undefined
+        ? qualifyPermissionWrite(plan.permissionWrite, decision.evidence, ports.login)
+        : decision
+    }
     case 'matrix':
       return fromDecision(await ports.systemActions.check(plan.request))
     default:
@@ -275,7 +286,7 @@ function planSession(input: SessionAccessRequest<unknown>): Plan {
     return DENIED
 
   const cell = resolveCell(SESSION_POLICY[operation][who.column], facts.branch)
-  return planCell(cell, who, {
+  const planned = planCell(cell, who, {
     member: principal => {
       const resource = sessionResource(target)
       if (tenant === null || resource === null) return null
@@ -290,6 +301,16 @@ function planSession(input: SessionAccessRequest<unknown>): Plan {
     },
     matrix: (purpose, principal) => sessionMatrixRequest(purpose, principal, target, tenant, facts),
   })
+  if (
+    planned.kind !== 'member' ||
+    !('command' in target) ||
+    target.command.kind !== 'change' ||
+    target.command.input.declaration.kind !== 'permission-assignment'
+  )
+    return planned
+  if (who.column !== 'login') return DENIED
+  const permissionWrite = preparePermissionWrite(target.command, who.principal)
+  return permissionWrite === null ? DENIED : { ...planned, permissionWrite }
 }
 
 /** The `kind` and `key` of the target in the vocabulary of the tenant admission check. */

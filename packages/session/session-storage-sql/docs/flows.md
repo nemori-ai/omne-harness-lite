@@ -15,6 +15,7 @@ sequenceDiagram
     participant S as session 命令处理器
     participant T as 事务端口实现
     participant P as 提供者（控制侧 + Worker）
+    participant B as 普通提交依据
     participant M as 参加者模块 session
     participant D as 表与索引
     S->>T: commit(command, guards)
@@ -23,9 +24,12 @@ sequenceDiagram
         Note over T,P: rolled_back 继续；not_committed 选用 k；committed 认回；unknown 返回 commit-unknown
     end
     T->>T: 访问裁定；取租户事务域；构造身份 scope、transactionDomain、operation、operationKey = JSON.stringify([SessionId, SessionOperationId, k])、protocolVersion 2；规范化 { command, guards, intakeLimits } 为 JSON
-    T->>P: commit(identity, combinationVersion, [{ participant: session, facts }])
+    T->>P: commit(identity, combinationVersion, sessionCommitCommands([session facts]))
     P->>P: 受理前核对；BEGIN IMMEDIATE；按身份读回执
+    P->>B: execute(完整 Session facts)
+    B->>P: provideFact(commit-basis)
     P->>M: execute(facts, port)
+    M->>M: 核对完整事实摘要
     M->>M: 核对材料集合
     M->>D: 点查 sl_operation 得到操作记录
     M->>D: 锁住并读 sl_journal（PostgreSQL 为 FOR UPDATE），读 sl_state 头行（头文本变了才读 sl_state_item），核 covered == tail
@@ -70,13 +74,17 @@ sequenceDiagram
     participant A as 执行记录提供者
     participant P as 提供者 Worker
     participant J as Agent 参加者模块
+    participant B as 普通提交依据
     participant M as 参加者模块 session
     participant D as 表与索引
-    A->>P: commit(Agent 身份, 组合版本, [Agent 命令, { participant: session, facts: Participation + 载荷 }])
+    A->>P: commit(Agent 身份, 组合版本, sessionCommitCommands([Agent facts, Session facts]))
     P->>P: BEGIN IMMEDIATE
     P->>J: execute(Agent facts, port)
     J->>D: 写 Agent 的记录
+    P->>B: execute(完整 Session facts)
+    B->>P: provideFact(commit-basis)
     P->>M: execute(session facts, port)
+    M->>M: 核对完整事实摘要
     M->>M: 核对 joint 与材料；按 OP-00 派生 Session 操作身份
     M->>D: 点查 sl_operation；读 sl_journal、sl_state
     M->>M: decide 参加分支（内部调用 judgeAdvance）
@@ -101,6 +109,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
+    participant B as 普通提交依据
     participant M as 参加者模块 session
     participant E as sl_entry
     participant V as sl_model_view

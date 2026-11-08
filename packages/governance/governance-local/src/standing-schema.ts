@@ -1,18 +1,14 @@
 import { z } from 'zod'
 import {
-  isQualification,
   isStandingBinding,
   isStandingReservation,
-  type Qualification,
   type StandingBinding,
 } from '@omne-harness/identity'
 import { GovernanceIdSchema } from '@omne-harness/governance-contract'
 import { bindingSchema } from './operation-schema.ts'
 
-export const qualificationsSchema = z
-  .array(z.custom<Qualification>(isQualification))
-  .max(16)
-  .transform(values => [...new Set(values)].sort())
+import { qualificationsSchema } from './qualification-schema.ts'
+export { qualificationsSchema } from './qualification-schema.ts'
 export const standingRequestSchema = z.strictObject({
   binding: z.custom<StandingBinding>(isStandingBinding),
   required: qualificationsSchema,

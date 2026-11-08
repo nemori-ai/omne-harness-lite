@@ -1,15 +1,17 @@
 # @omne-harness/session-storage-sql 行为规格
 
-状态：存储成员，`draft`。已实现事务端口、两个参加者 `session` 与 `execution-record`、共同日志根、`session` 的只读核对、`./participants` 子路径、静态材料与读 handler，见[实现现状](#实现现状)与[参加者模块与材料](#参加者模块与材料)。事件通道的解释提交 `commitLog`、K-5 同根索引读取、观察尾部前缀与准入记录见[已知限制](#已知限制)第 12、16、17 条。本成员只经 [sql-contract](../../storage/sql-contract/SPEC.md) 的公开形状使用 SQL；本页其余条款是设计目标，实现覆盖范围见下文[实现现状](#实现现状)。本成员是 Session 组里唯一接触介质的成员。它用 SQL 表兑现 [session-contract](../session-contract/SPEC.md) 声明的 `SessionTransactionPort`：提交、权威读、原操作查询、控制操作查询、模型选择读、历史读、epoch 视图读、待办扫描、引用查询与已释放作用域读。治理规则不在本页，本页只写表、索引、写路径、读路径、符合性与介质差异。
+状态：存储成员，`draft`。已实现事务端口、三个参加者 `session`、`execution-record` 与 `session-ordinary-basis`、共同日志根、`session` 的只读核对、`./participants` 子路径、静态材料与读 handler，见[实现现状](#实现现状)与[参加者模块与材料](#参加者模块与材料)。事件通道的解释提交 `commitLog`、K-5 同根索引读取、观察尾部前缀与准入记录见[已知限制](#已知限制)第 12、16、17 条。本成员只经 [sql-contract](../../storage/sql-contract/SPEC.md) 的公开形状使用 SQL；本页其余条款是设计目标，实现覆盖范围见下文[实现现状](#实现现状)。本成员是 Session 组里唯一接触介质的成员。它用 SQL 表兑现 [session-contract](../session-contract/SPEC.md) 声明的 `SessionTransactionPort`：提交、权威读、原操作查询、控制操作查询、模型选择读、历史读、epoch 视图读、待办扫描、引用查询与已释放作用域读。治理规则不在本页，本页只写表、索引、写路径、读路径、符合性与介质差异。
 
 本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。表与索引的列、键与约束在 [docs/object-model.md](docs/object-model.md)，写路径、压缩提交与派生重建的时序在 [docs/flows.md](docs/flows.md)，验证义务在 [docs/verification-obligations.md](docs/verification-obligations.md)。
 
 ## 范围与依据
 
+除核心日志参加者外，静态材料还提供按组合启用的只读守卫 `session-permission-guard` 与 `session-execution-guard`。它们分别核当前权限关系与原执行修订；不进入默认的 `SESSION_LOG_PARTICIPANTS`，也不增加业务表。
+
 本成员拥有四类东西：
 
 1. 权威表与派生索引的 SQL 形状，以及它们的迁移片段。
-2. 存储契约的两个参加者模块。`session` 在存储提供者的 Worker 内、在一次 `commit` 的事务里执行 Session 的事实语句。`execution-record` 在同一租户事务域里保存执行记录提供者（Agent Journal）的记录，不解释 Agent 的业务。
+2. 存储契约的三个参加者模块。`session` 在存储提供者的 Worker 内、在一次 `commit` 的事务里执行 Session 的事实语句。`execution-record` 在同一租户事务域里保存执行记录提供者（Agent Journal）的记录，不解释 Agent 的业务。`session-ordinary-basis` 不拥有表，只发布普通提交依据。
 3. `SessionTransactionPort<P>` 的 SQL 实现：把 Session 的命令翻译成存储契约的一次提交，把读操作翻译成 SQL 读取。
 4. 读路径 R1 至 R11 的算法与符合性套件。
 
@@ -44,10 +46,10 @@
 
 | 条款                                  | 现状                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 根入口导出                            | `createSessionStorage`、`createSessionStoragePair`、`createSessionPrincipalBindings`、`sessionStorageMaterials`、`SESSION_PARTICIPANT` 和它们的类型（含 `SessionStorageMaterialsOptions`）。子路径 `./participants` 导出两个参加者的词汇，见[对外部提交方的词汇](#对外部提交方的词汇)。没有 `./cordis` 子路径，也没有该源文件。会话存储组合由应用承担，本成员不建 Cordis 服务、目录或组合登记                                                                                                                                                                    |
+| 根入口导出                            | `createSessionStorage`、`createSessionStoragePair`、`createSessionPrincipalBindings`、`sessionStorageMaterials`、`SESSION_PARTICIPANT` 和它们的类型（含 `SessionStorageMaterialsOptions`）。子路径 `./participants` 导出参加者与提交依据的词汇，见[对外部提交方的词汇](#对外部提交方的词汇)。没有 `./cordis` 子路径，也没有该源文件。会话存储组合由应用承担，本成员不建 Cordis 服务、目录或组合登记                                                                                                                                                                    |
 | SQL 依赖                              | 只从 `@omne-harness/sql-contract` 与 `@omne-harness/sql-contract/worker` 导入。不导入 `packages/storage/**` 内部，`dependencies` 不含 `@omne-harness/sqlite-provider`，源码里没有 `node:sqlite`。`devDependencies` 有 sqlite-provider，只供 `tests/real-provider.spec.ts` 用它的公开入口                                                                                                                                                                                                                                  |
 | 端口操作                              | `commit`、`readWork`、`readInput`、`queryOperation`、`queryControlOperation`、`readModelSelection`、`commitEntries`、`commitLog`、`history`（`begin`、`next`、`since`、`readModelView`）、`pending`、`references`、`releasedScopes` 已实现。`commitEntries` 的步骤见[已知限制](#已知限制)第 1 条，`commitLog` 的步骤见第 16 条。`readWork` 的快照带同一快照里读出的 `historyIndex`，见第 12 条                                                                                                                                                                                                                                       |
-| 静态材料                              | 两个参加者 `execution-record` 与 `session`（`grouping` 都为 `singleton`）；十一个迁移 `session/001-session-log`、`session/002-execution-index`、`session/003-operation-evidence`、`session/004-state-items`、`session/005-attempt-grant`、`execution-record/001-execution-record`、`execution-record/002-preadmission`、`execution-record/003-admission-attempt`、`execution-record/004-state-parts`、`execution-record/005-fact-body` 与 `execution-record/006-fact-blob`；二十个 `snapshot` 读 handler：`session.work`、`session.work-version`、`session.binding`、`session.work-index`、`session.work-reads`、`session.input`、`session.model-selection`、`session.history`、`session.model-view`、`session.pending`、`session.references`、`session.released-scopes`、`session.history-root`、`session.execution`、`execution-record.facts`、`execution-record.open-executions`、`execution-record.events`、`execution-record.operation`、`execution-record.blob`、`execution-record.preadmission`。`session.work` 另读 `sl_state_item`、`sl_entry` 与 `er_` 同根索引表；`session.work-version` 只读 `sl_journal` 与 `er_root` 两次主键点查（[RT-04](#rt-04)）；`session.binding` 只读 `sl_journal` 的主键点查与 `sl_entry` 里第一批（修订 1）的条目，不读 `sl_state`（[BD-01](#bd-01)）。每个模块带文件摘要。参加者与迁移的材料变化改变组合的清单摘要，读 handler 不进清单，见第 17 条   |
+| 静态材料                              | 三个参加者 `execution-record`、`session-ordinary-basis` 与 `session`（`grouping` 都为 `singleton`）；十一个迁移 `session/001-session-log`、`session/002-execution-index`、`session/003-operation-evidence`、`session/004-state-items`、`session/005-attempt-grant`、`execution-record/001-execution-record`、`execution-record/002-preadmission`、`execution-record/003-admission-attempt`、`execution-record/004-state-parts`、`execution-record/005-fact-body` 与 `execution-record/006-fact-blob`；二十个 `snapshot` 读 handler：`session.work`、`session.work-version`、`session.binding`、`session.work-index`、`session.work-reads`、`session.input`、`session.model-selection`、`session.history`、`session.model-view`、`session.pending`、`session.references`、`session.released-scopes`、`session.history-root`、`session.execution`、`execution-record.facts`、`execution-record.open-executions`、`execution-record.events`、`execution-record.operation`、`execution-record.blob`、`execution-record.preadmission`。`session.work` 另读 `sl_state_item`、`sl_entry` 与 `er_` 同根索引表；`session.work-version` 只读 `sl_journal` 与 `er_root` 两次主键点查（[RT-04](#rt-04)）；`session.binding` 只读 `sl_journal` 的主键点查与 `sl_entry` 里第一批（修订 1）的条目，不读 `sl_state`（[BD-01](#bd-01)）。每个模块带文件摘要。参加者与迁移的材料变化改变组合的清单摘要，读 handler 不进清单，见第 17 条   |
 | 当前表                                | `sl_journal`、`sl_entry`、`sl_operation`、`sl_state`、`sl_state_item`、`sl_input`、`sl_model_view`、`sl_annotation_idx`、`sl_pending_idx`、`sl_resident_idx`、`sl_released_scope_idx`，另有 `sl_kind_idx` 与 `sl_operation_revision_idx` 两个二级索引。执行索引 `sl_execution_idx` 也归 `session`，见[执行索引](#执行索引)。操作的访问证据 `sl_operation_evidence` 也归 `session`，见[操作记录的访问证据](#操作记录的访问证据)。attempt 的授予 `sl_attempt_grant`（二级索引 `sl_attempt_grant_position_idx`）也归 `session`，见[attempt 的授予](#attempt-的授予)。`execution-record` 拥有 `er_root`、`er_operation`、`er_execution`、`er_fact`、`sl_blob`、`er_admission_idx`、`er_admission_attempt_idx`、`er_preadmission`，二级索引 `er_execution_session_idx`、`er_fact_execution`，唯一索引 `er_preadmission_entry_idx`、`er_fact_event`、`er_fact_operation`。迁移 006 删除了 `er_state`、`er_state_part`、`er_fact_idx`、`er_fact_body` 与 `er_batch_idx`，见[已知限制](#已知限制)第 18 条。列见[对象模型](docs/object-model.md)   |
 | 尚未实现的设计                        | `sl_batch`、`sl_ref_idx`、`sl_rebuild`；TB-04 在条目一侧的内联阈值与 `payload_ref`（`sl_blob` 已落地，只由 `execution-record` 写入）；R9 的追赶与重建、`fold_version`、解释版本记录与隔离；R4 的按关联定位；PostgreSQL；`maxScanPerPage` 与读路径的逐条披露核对；配置项「内联阈值」「大对象去向」「快照重建方式」。`sl_state` 落后时 handler 返回 `behind`，端口映射为 `unavailable`，没有自动追赶                                                                                                                                                                               |
 | 与设计的差异                          | 提交身份的 `protocolVersion` 为 `2`，`scope` 为租户域，`operationKey` 为 `JSON.stringify([SessionId, SessionOperationId, attempt])`。待办原因有八个，含 `initialization`（与 `PendingReason` 一致，下文 W3 与 R8 写「七个」处按八个读）。`sl_operation.form` 有 `batch`、`control`、`answer`、`entries`、`log` 五种，`answer` 行没有 `revision`。尝试代次上限初值为 8，游标有效期初值为 15 分钟。`commit` 先对各代次调用存储 `query`，不先点查 `sl_operation`；参加者模块不另核对材料集合，交给 `decide`；提交结果从回执的响应证据取出，不读回 `sl_operation` |
@@ -183,7 +185,9 @@ K-n 编号是 Session 组各成员共用的一套序列：本页用 K-1 至 K-5 
 
 ### 参加者模块与材料
 
-本成员向存储契约登记两个参加者。两个参加者属于同一个组合，在同一个租户事务域（契约 P-1，R1-D2）。只含 `session` 的组合不成立：`session` 的 `readTables` 引用 `execution-record` 的表，存储契约对它答 `combination_invalid`（sql-contract §4.3）。
+普通提交必须提供同事务 basis，完整事实摘要由 Session 写者核对。写参加者协议与读取协议分别演进，当前为 2 与 1。普通/受保护依据、组装函数与失败行为归[提交依据](docs/commit-basis.md)。
+
+本成员向存储契约登记三个参加者。普通组合中的三个参加者在同一个租户事务域（契约 P-1，R1-D2）。只含 `session` 的组合不成立：`session` 的 `readTables` 引用 `execution-record` 的表，存储契约对它答 `combination_invalid`（sql-contract §4.3）。
 
 `session` 在三种提交里出现：
 
@@ -282,7 +286,7 @@ Session 经 `AgentDrivePort` 交给 Agent 的 `grant` 是写入该 attempt 的 S
 
 <a id="对外部提交方的词汇"></a>
 
-子路径 `@omne-harness/session-storage-sql/participants` 导出两个参加者的数据格式词汇（P5 决策第 5 条）。它只导入编码函数与类型，不引入 `createSessionStorage` 等提供者实现（IC-5）。本成员的 `commit.ts` 与 `entries.ts` 也用它，成员内只有一份编解码。
+子路径 `@omne-harness/session-storage-sql/participants` 导出参加者及提交依据的数据格式词汇（P5 决策第 5 条）。它只导入纯编码、纯校验函数与类型，不引入 `createSessionStorage` 等提供者实现（IC-5）。本成员的 `commit.ts` 与 `entries.ts` 也用它，成员内只有一份编解码。
 
 - 名字与版本：`SESSION_PARTICIPANT`、`EXECUTION_RECORD_PARTICIPANT`、`SESSION_LOG_PARTICIPANTS`（按执行顺序）、两个协议版本，以及读 handler 名 `SESSION_HISTORY_ROOT_HANDLER`、`SESSION_WORK_HANDLER`、`SESSION_INPUT_HANDLER`、`SESSION_EXECUTION_HANDLER`、`EXECUTION_RECORD_HANDLERS`。
 - 构造：`sessionCommandFacts`、`sessionCheckFacts`、`sessionCheckDigest`、`executionRecordFacts`、`executionRecordBlobFacts`、`preadmissionFacts`，以及块摘要 `blobDigest` 与两个上界 `EXECUTION_BATCH_MAX_FACTS`、`EXECUTION_FACT_MAX_BYTES`。`executionRecordFacts` 只编码标识与索引成员，事实的 `body` 与事件投影里的 `consequences`、`control`、`batch` 原样传递。`preadmissionFacts` 只编码租户，意图与结果原样传递。
@@ -883,7 +887,7 @@ releasedScopes(principal, scope = system, after, limit):
 | 承诺                                                         | 精确位置                                                                                                                                                                            | 本成员怎样消费                                                                                                                                                              |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `commit`、`query`、`read` 的结果模型与拒绝顺序，响应证据     | [sql-contract §7 commit](../../storage/sql-contract/SPEC.md#7-commit)、[§8 query](../../storage/sql-contract/SPEC.md#8-query)、[§9 read](../../storage/sql-contract/SPEC.md#9-read) | W1 的映射与读路径路由                                                                                                                                                       |
-| 参加者端口、事实格与语句限制                                 | [sql-contract §7.4](../../storage/sql-contract/SPEC.md#74-参加者端口与事实格)                                                                                                       | 参加者模块只用 `execute`，`params` 只用允许的类型                                                                                                                           |
+| 参加者端口、事实格与语句限制                                 | [sql-contract §7.4](../../storage/sql-contract/SPEC.md#74-参加者端口与事实格)                                                                                                       | 参加者模块经 `requireFact`/`provideFact` 传递提交依据，SQL 语句只用 `execute`，`params` 只用允许的类型                                                                                                                           |
 | SQLite 提供者的启动、受理队列、两段回滚、未知条件            | [sqlite-provider 规格](../../storage/sqlite-provider/SPEC.md)                                                                                                                       | 失败分类表                                                                                                                                                                  |
 | `SessionTransactionPort` 六条义务                            | [SessionTransactionPort](../session-contract/SPEC.md#sessiontransactionport)                                                                                                        | W1 第 3 步核对完整材料；W1 第 6 步与 W6 对带 `expected` 的七种命令返回 `changed`；TB-04 的保管前提；W1 的尝试代次与 R7 的 `attempt-rejected`；读路径逐页核权；W5 的游标同存 |
 | 历史面四个读操作与三个对账读操作的结果与拒绝原因             | [SessionHistory](../session-contract/SPEC.md#sessionhistory)、[SessionReconciliation](../session-contract/SPEC.md#sessionreconciliation)                                            | R2、R5、R8、R10、R11                                                                                                                                                        |
@@ -933,3 +937,34 @@ Todo 消费 [Session Todo 契约](../session-contract/SPEC.md#session-todo-状�
 todos 使用现有快照分块，不新建 Todo 表或迁移。读取仍是完整 session.work 快照，装配推荐 20 MiB，超界返回 unavailable/read_limit，不交出部分清单。tests/todos.spec.ts 组合真实 sqlite-provider 文件库和 Worker，覆盖不同 item 并发、不可复活、六个写点的 SQL 故障全回滚、真实提交 ACK 丢失和 SIGKILL 后认回。故障触发器只存在于测试临时数据库。ACK 丢失由测试包装器在真实提交成功后丢弃应答，范围不包含真实网络故障。
 
 该用例还在 20/200 项的本地样本上记录完整读回复字节、延迟及实际插入快照分块的 UTF-8 字节。测试触发器只计 sl_state_item 的值，不计 head、log、operation、evidence 或 SQLite 页/WAL 写量。它不证明 O(page)、任意容量、跨进程多写者或断电耐久。原 Tool 调用的自动恢复仍归其实际组合拥有者。
+
+
+## 当前权限关系
+
+`session` 原事件写者在提交创建、权限配值或权限模式变更的同一事务维护 `sl_permission_head` 与 `sl_permission_assignment`。普通输入不改权限修订。原操作重传只认回回执，不重复推进修订。任一派生写失败时，提供者回滚事件、快照、操作记录和派生关系。
+
+`session.permission-current` 是受信 SQL 组合的逐键读口，公开形状归 [permission-current.ts](src/permission-current.ts)。它按 tenant/session 读 head，再按 tenant/session/capability/enforcement 读至多一项赋值；不读取完整快照或历史。没有 head 返回 not-ready；有 head 而没有该项返回 current 且 assignment 为 null。它保留原定义、rule、source、创建时模式采用和当前覆盖，不计算有效权限，也不裁定调用者身份。上层必须先取得原 Session 访问资格。读出的修订只证明该次读取，不能单凭预读代替稍后的同捕获守卫。
+
+`session.permission-mode` 为模式发布和恢复提供原拥有者依据。输入仅为 tenant/session；输出包含当前权限修订、当前来源、创建时模式采用、当前覆盖和独立的 creationSource。creationSource 是原创建批次证据，后续权限或模式变更不覆盖它。读取在同一读快照中取权限 head，并复用 `session.binding` 的原创建批次查询；它不需要权限项键、不读取完整工作快照，也不提供权限判定。缺 head 返回 not-ready；创建证据缺失、损坏或范围错配不能返回 current。该读取的成本包含原创建批次读取，不承诺逐项热读的两个点查成本。调用者资格和后续同捕获核验仍由原组合承担。
+
+`session/006-permission-current` 在提供者的原子迁移内，从原日志重建两表。迁移按会话和事件位置分页，用已有 `sl_operation_revision_idx` 找原批次回执，再按 `sl_entry` 主键范围取完整批次。原解释规则归 session-contract 的 `rebuildSessionPermissions`。它通过原 `writeState` 更新需要升级的分块快照，不直接改 head 而遗漏分块 token。
+
+升级保留原日志、操作记录、回执和 SQL 封套。快照未覆盖日志、批次缺口、原解释不支持、原快照或既有投影矛盾时失败并回滚，不发布空权限。重跑相同已完成迁移不增加修订或改变配值。相关行为验证见 `tests/permission-current.spec.ts`、`tests/permission-current-migration.spec.ts`；真实提供者迁移与重开由 `tests/permission-current-real.spec.ts` 覆盖，其原表输入来自具名种子迁移。它不替代并发捕获验收。
+
+### 同事务原执行修订核回
+
+`session-execution-guard` 是独立只读参加者。`executionCurrentGuardFacts` 携带原 tenant、session、execution 和 revision；精确形状归 [execution-current.ts](src/execution-current.ts)。输入来自原执行记录提供者的观察与 Session 归属，不由守卫授予来源资格。
+
+参加者在提交事务内按 `er_execution` 主键 `(tenant, execution)` 点读，核对 session 与 revision。没有匹配行或修订变化时统一返回 conflict/execution-not-current，不发布事实；非法输入返回 unsupported。完全匹配时发布 `SESSION_EXECUTION_CURRENT_FACT`，其正文是完整原定位与核回修订。该成员不解析 Agent checkpoint、权限或人的决定，不增加执行版本，不写日志或新业务表。Storage 自身记录本次组合回执的义务不变。
+
+装配者显式将守卫加入捕获组合。消费者声明 requiresFacts，并核对完整定位与原动作观察。该事实只在本事务有效。影响原动作资格的执行变更必须推进 revision；不推进的变更不能被本守卫识别。原 `execution-record` 发布者无事实依赖，名字序先于本守卫；同笔发布须在核回前执行。改变名称或依赖时必须重新建立顺序并运行同批更新反例。禁止在核回后由其他参加者写 er_execution。
+
+重复提交认回的旧回执是原操作结果，不是新的当前性检查。新动作使用新的原操作身份并重新捕获。当前权限、身份和 Tool 来源的核验仍由各拥有者负责。局部证明及真实 Worker 守护见 [原执行当前性](verification/proofs/execution-current.md)。
+
+### 同事务当前性守卫
+
+`session-permission-guard` 是本成员的只读参加者。`sessionPermissionGuardFacts` 将预读结果的定位、权限修订和来源转换成命令。守卫在当前 SQL 事务内重新读取原两张关系，核对修订与完整来源。匹配时发布 `SESSION_PERMISSION_CURRENT_FACT`，正文是拥有者重新读取的 current。缺关系答 conflict/not-ready；修订或来源变化答 conflict/changed；非法命令答 unsupported。失败时不发布事实，组合内的写入随该事务回滚。
+
+装配方将守卫显式加入需要它的组合；普通 Session 日志组合不自动添加它。消费者声明 requiresFacts，并核对事实的 tenant/session/权限键与原捕获目标。该事实只证明本事务观察到的当前状态，不授予访问资格、不判定动作归属、不解释模式，也不能在另一事务重用。跨领域捕获组合由装配拥有者接入。
+
+`tests/permission-current-guard-real.spec.ts` 使用真实 SQLite Worker 验证预读与模式变更的交错、旧依据事务回滚、新依据提交、普通消息保持修订、ABA 与来源错配。`tests/permission-current-assignment-guard.spec.ts` 用原事件写者验证设值和清除使旧依据失效；写资格为具名夹具。两者不替代 Governance 生产捕获及真实 Agent 动作资格验收。

@@ -1,3 +1,14 @@
+import {
+  PERMISSION_CURRENT_MIGRATION,
+  PERMISSION_CURRENT_TABLES,
+} from './worker/permission-current-schema.ts'
+import { SESSION_PERMISSION_CURRENT_FACT, SESSION_PERMISSION_GUARD } from './permission-current.ts'
+import {
+  SESSION_ORDINARY_BASIS,
+  SESSION_COMMIT_BASIS,
+  SESSION_COMMIT_RESULT,
+  SESSION_COMMIT_PROTOCOL,
+} from './commit-basis.ts'
 // The static materials of the Session storage: two participants (`session` and `execution-record`),
 // their ten migrations (four of `session`: the log, the execution index, the operation evidence
 // table and the snapshot chunks; six of `execution-record`: its records, the preadmission records,
@@ -10,6 +21,7 @@
 // aggregates these with the materials of the other owners into one catalog and declares the
 // combination; this member never builds a catalog, a Cordis service or a domain registration.
 import { createHash } from 'node:crypto'
+import { SESSION_EXECUTION_CURRENT_FACT, SESSION_EXECUTION_GUARD } from './execution-current.ts'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type {
@@ -160,6 +172,20 @@ const WORK_ROWS_READ = 4000
 
 export const HANDLERS: readonly Handler[] = [
   {
+    handler: 'session.permission-mode',
+    file: 'read-permission-mode',
+    tables: ['sl_permission_head', 'sl_journal', 'sl_entry'],
+    migrations: [PERMISSION_CURRENT_MIGRATION],
+    maxRowsRead: MAX_ROWS_READ + 1,
+  },
+  {
+    handler: 'session.permission-current',
+    file: 'read-permission-current',
+    tables: PERMISSION_CURRENT_TABLES,
+    migrations: [PERMISSION_CURRENT_MIGRATION],
+    maxRowsRead: 2,
+  },
+  {
     handler: 'session.work',
     file: 'read-work',
     // The snapshot with the history index of its pending inputs (history-index.ts).
@@ -305,7 +331,11 @@ export function sessionStorageMaterials(
   options: SessionStorageMaterialsOptions,
 ): SessionStorageMaterials {
   const readOutputLimitBytes = requireReadOutputLimit(options)
+  const permissionMigration = module('permission-current-migration')
+  const permissionGuard = module('permission-current-guard')
+  const executionGuard = module('execution-current-guard')
   const participant = module('participant')
+  const ordinaryBasis = module('ordinary-basis')
   const record = module('execution-record')
   const migration = module('migration')
   const recordMigration = module('execution-record-migration')
@@ -320,6 +350,30 @@ export function sessionStorageMaterials(
   const factBlobMigration = module('fact-blob-migration')
   return {
     participants: [
+      {
+        participant: SESSION_EXECUTION_GUARD,
+        protocol: '1',
+        moduleUrl: executionGuard.moduleUrl,
+        codeDigest: executionGuard.digest,
+        ownedTables: [],
+        readTables: ['er_execution'],
+        requiresFacts: [],
+        providesFacts: [SESSION_EXECUTION_CURRENT_FACT],
+        allowedFunctions: [],
+        grouping: 'singleton',
+      },
+      {
+        participant: SESSION_PERMISSION_GUARD,
+        protocol: '1',
+        moduleUrl: permissionGuard.moduleUrl,
+        codeDigest: permissionGuard.digest,
+        ownedTables: [],
+        readTables: PERMISSION_CURRENT_TABLES,
+        requiresFacts: [],
+        providesFacts: [SESSION_PERMISSION_CURRENT_FACT],
+        allowedFunctions: [],
+        grouping: 'singleton',
+      },
       {
         participant: EXECUTION_RECORD_PARTICIPANT,
         protocol: EXECUTION_RECORD_PROTOCOL,
@@ -343,19 +397,32 @@ export function sessionStorageMaterials(
       },
       {
         participant: SESSION_PARTICIPANT,
-        protocol: PROTOCOL,
+        protocol: SESSION_COMMIT_PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
         ownedTables: [
           ...SESSION_TABLES,
+          ...PERMISSION_CURRENT_TABLES,
           ...EXECUTION_INDEX_TABLES,
           ...OPERATION_EVIDENCE_TABLES,
           ...STATE_ITEM_TABLES,
           ...ATTEMPT_GRANT_TABLES,
         ],
         readTables: EXECUTION_RECORD_INDEX_TABLES,
+        requiresFacts: [SESSION_COMMIT_BASIS],
+        providesFacts: [SESSION_COMMIT_RESULT],
+        allowedFunctions: [],
+        grouping: 'singleton',
+      },
+      {
+        participant: SESSION_ORDINARY_BASIS,
+        protocol: '1',
+        moduleUrl: ordinaryBasis.moduleUrl,
+        codeDigest: ordinaryBasis.digest,
+        ownedTables: [],
+        readTables: [],
         requiresFacts: [],
-        providesFacts: [],
+        providesFacts: [SESSION_COMMIT_BASIS],
         allowedFunctions: [],
         grouping: 'singleton',
       },
@@ -396,6 +463,12 @@ export function sessionStorageMaterials(
         moduleUrl: attemptGrantMigration.moduleUrl,
         checksum: attemptGrantMigration.digest,
         requires: [stateItemMigrationRef],
+      },
+      {
+        ...PERMISSION_CURRENT_MIGRATION,
+        moduleUrl: permissionMigration.moduleUrl,
+        checksum: permissionMigration.digest,
+        requires: [attemptGrantMigrationRef],
       },
       {
         ...preadmissionMigrationRef,

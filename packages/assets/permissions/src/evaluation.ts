@@ -230,15 +230,36 @@ function select(
     ...basis,
   }
 }
-export function evaluatePermission(input: unknown): PermissionEvaluationResult {
+export type PermissionBounds = {
+  kind: 'bounded'
+  material: PermissionEvaluation
+  basis: PermissionEvidence
+  allowedSet: string[] | undefined
+  prohibited: boolean
+  missingBasis: string[]
+}
+
+export function permissionBounds(input: unknown): PermissionBounds | PermissionInputFailure {
   const parsed = PermissionEvaluationSchema.safeParse(input)
   if (!parsed.success) return { kind: 'invalid-input', reason: 'structure' }
   const material = parsed.data
   const invalid = validate(material)
   if (invalid) return invalid
-  const basis = evidence(material)
-  const allowedSet = allowedValues(material)
-  if (activeProhibition(material))
+  return {
+    kind: 'bounded',
+    material,
+    basis: evidence(material),
+    allowedSet: allowedValues(material),
+    prohibited: activeProhibition(material),
+    missingBasis: missingSources(material),
+  }
+}
+
+export function evaluatePermission(input: unknown): PermissionEvaluationResult {
+  const bounded = permissionBounds(input)
+  if (bounded.kind === 'invalid-input') return bounded
+  const { material, basis, allowedSet, missingBasis } = bounded
+  if (bounded.prohibited)
     return {
       kind: 'denied',
       reason: 'active-prohibition',
@@ -247,7 +268,6 @@ export function evaluatePermission(input: unknown): PermissionEvaluationResult {
     }
   if (allowedSet?.length === 0)
     return { kind: 'denied', reason: 'empty-bound', allowedSet, ...basis }
-  const missingBasis = missingSources(material)
   if (missingBasis.length > 0) return { kind: 'unavailable', missingBasis, ...basis }
   if (material.declaration.kind !== 'available' || allowedSet === undefined)
     return { kind: 'unavailable', missingBasis: ['declaration'], ...basis }

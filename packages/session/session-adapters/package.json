@@ -35,6 +35,7 @@
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
+    "@omne-harness/authorization": "workspace:*",
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/agent-contract": "workspace:*",
     "@omne-harness/agent-cordis-contract": "workspace:*",
@@ -54,7 +55,8 @@
     "@omne-harness/runtime-context-cordis-contract": "workspace:*",
     "@omne-harness/session-cordis-contract": "workspace:*",
     "@omne-harness/session-storage-sql": "workspace:*",
-    "@omne-harness/sql-contract": "workspace:*"
+    "@omne-harness/sql-contract": "workspace:*",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

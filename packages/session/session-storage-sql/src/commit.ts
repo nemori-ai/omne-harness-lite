@@ -1,3 +1,4 @@
+import { sessionCommitCommands } from './commit-basis.ts'
 // The write path (SQL r2 section 17): `commit`, `commitEntries` and the original-receipt lookup go
 // through the storage commit, the `session` participant. The response evidence of a rollback keeps
 // the original failure basis, so no failure is recomputed outside the transaction.
@@ -75,7 +76,7 @@ const requestOf = <P>(
 ): CommitRequestV2 => ({
   identity,
   ...context.options.combination,
-  commands: [command],
+  commands: sessionCommitCommands([command]),
 })
 
 const sessionFacts = (facts: Readonly<Record<string, JsonValue>>): FactCommandV2 => ({
@@ -278,7 +279,10 @@ async function lookup<P>(
   )
   if (result.kind !== 'committed')
     return failure(unavailable(`the receipt lookup did not commit: ${result.kind}`))
-  const answer = result.responses[0].reply.response as { kind: string }
+  const entry = result.responses.find(item => item.participant === SESSION_PARTICIPANT)
+  const answer = entry?.reply.kind === 'participated' ? entry.reply.response : null
+  if (typeof answer !== 'object' || answer === null || !('kind' in answer))
+    return failure(unavailable('the receipt lookup has no Session answer'))
   if (answer.kind === 'no-session') return failure({ kind: 'denied', action })
   return succeed(answer.kind === 'operation' ? (answer as Found) : null)
 }

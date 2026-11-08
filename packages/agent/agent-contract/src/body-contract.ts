@@ -1,3 +1,5 @@
+import { writeJsonText } from '@omne-harness/json-text'
+import { definePermissionUpperBounds } from '@omne-harness/permissions'
 import {
   capabilityId,
   readBodyText,
@@ -14,7 +16,7 @@ import { instructionsProblem } from './judge-definition.ts'
 const CATEGORY = 'AgentDefinition'
 
 const schemaRead = readBodyText(
-  '{"kind":"agent-definition-body","properties":{"name":"string","references":"[{capability:{category,name},resident?}]","attributes":"[{item}]","instructions?":"[{id,text}]"}}',
+  '{"kind":"agent-definition-body","properties":{"name":"string","references":"[{capability:{category,name},resident?}]","attributes":"[{item}]","instructions?":"[{id,text}]","permissionBounds?":"[{capabilityId,enforcementKey,allowedSet}]"}}',
   {
     maxBytes: 1000,
     maxDepth: 8,
@@ -36,6 +38,7 @@ type BodyRefusal =
   | 'unknown-attribute'
   | 'duplicate-attribute'
   | 'invalid-instructions'
+  | 'invalid-permission-bounds'
   | 'unknown-field'
 
 type Refused = { readonly ok: false; readonly rejected: BodyRefusal }
@@ -98,8 +101,15 @@ function decode(body: unknown, context?: JudgeContext): Decoded {
   if (!items.ok) return items
   const instructions = decodeInstructions(valueAt(members, 'instructions'))
   if (!instructions.ok) return instructions
+  const permissionBounds = valueAt(members, 'permissionBounds')
+  if (
+    permissionBounds !== undefined &&
+    definePermissionUpperBounds(JSON.parse(writeJsonText(permissionBounds))).kind ===
+      'invalid-input'
+  )
+    return reject('invalid-permission-bounds')
   // A body carries no version, so `version` is an unknown key like any other.
-  if (!onlyKeys(members, ['name', 'references', 'attributes', 'instructions']))
+  if (!onlyKeys(members, ['name', 'references', 'attributes', 'instructions', 'permissionBounds']))
     return reject('unknown-field')
   return { ok: true, references: references.ids, items: items.items }
 }

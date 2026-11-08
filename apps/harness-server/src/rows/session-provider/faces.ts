@@ -118,6 +118,7 @@ function snapshotOf(
     definition: { name: creation.definition.name, adopted: creation.definition.candidate },
     execution: creation.execution,
     declarations: evidenceOf('declarations', session),
+    permissions: { revision: '0', assignments: [] },
     revisions: { workspace: '0', declarations: record.revision },
     run: { kind: 'none' },
     pending: [...record.inputs],

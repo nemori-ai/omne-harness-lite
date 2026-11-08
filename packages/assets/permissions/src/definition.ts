@@ -1,5 +1,7 @@
 import {
   PermissionDefinitionSchema,
+  PermissionUpperBoundsSchema,
+  type PermissionUpperBound,
   type PermissionDefinition,
   type PermissionRule,
   type PermissionInputFailure,
@@ -63,4 +65,17 @@ export function definePermission(input: unknown): PermissionDefinitionResult {
   if (!parsed.success) return { kind: 'invalid-input', reason: 'structure' }
   if (!validDefinition(parsed.data)) return { kind: 'invalid-input', reason: 'definition' }
   return { kind: 'defined', definition: immutable(parsed.data) }
+}
+
+export type PermissionUpperBoundsResult =
+  | { kind: 'defined'; bounds: readonly PermissionUpperBound[] }
+  | PermissionInputFailure
+
+export function definePermissionUpperBounds(input: unknown): PermissionUpperBoundsResult {
+  const parsed = PermissionUpperBoundsSchema.safeParse(input)
+  if (!parsed.success) return { kind: 'invalid-input', reason: 'structure' }
+  const keys = parsed.data.map(bound => JSON.stringify([bound.capabilityId, bound.enforcementKey]))
+  if (!unique(keys) || parsed.data.some(bound => !unique(bound.allowedSet)))
+    return { kind: 'invalid-input', reason: 'definition' }
+  return { kind: 'defined', bounds: immutable(parsed.data) }
 }

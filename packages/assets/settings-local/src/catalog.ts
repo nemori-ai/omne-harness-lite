@@ -32,7 +32,7 @@ import {
   SNAPSHOT_PARTICIPANT,
   type SnapshotInput,
 } from './snapshot-schema.ts'
-import { TERMINAL_PARTICIPANT } from './terminal-schema.ts'
+import { CATALOG_TERMINAL } from './catalog-terminal-schema.ts'
 import type { SettingsSqlTerminalOptions } from './terminals.ts'
 import type { SettingsSqlGuards, SettingsSqlAccess } from './types.ts'
 import {
@@ -254,7 +254,7 @@ export function createSettingsCatalog(
         manifestDigest: options.manifestDigest,
         commands: [
           {
-            participant: TERMINAL_PARTICIPANT,
+            participant: CATALOG_TERMINAL.participant,
             facts: { kind: 'consume', binding: json(operation) },
           },
           ...options.project(capture.binding),

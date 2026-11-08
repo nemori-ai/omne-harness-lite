@@ -23,6 +23,7 @@ export function settingsCurrentMaterial(
   configuration: SettingsCurrentConfiguration,
 ): SettingsCurrentMaterial | undefined {
   const { binding, values } = snapshot
+  if (values.presence === 'unavailable') return undefined
   const { view, presence } = values
   if (
     view.sources.some(
