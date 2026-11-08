@@ -487,8 +487,8 @@ it('answers invalidInput to an output whose from is not per-stream non-negative 
     { stdout: Number.MAX_SAFE_INTEGER + 1 },
     { stdout: Number.NaN },
     { stdout: '0' },
+    { stdout: undefined },
     { stdin: 0 },
-    { stdin: undefined },
   ]) {
     const request = start()
     expect(
@@ -502,11 +502,6 @@ it('answers invalidInput to an output whose from is not per-stream non-negative 
   expect(
     await output({ ...start(), process: ref, from: { stdout: Number.MAX_SAFE_INTEGER } }),
   ).toMatchObject({ kind: 'done' })
-  // An absent offset is no offset: the type allows it, and it reads like no `from` for that stream.
-  const plain = start()
-  expect(await output({ ...plain, process: ref, from: { stdout: undefined } })).toEqual(
-    await output({ ...plain, process: ref }),
-  )
 })
 
 it('checks the shape before it looks the process up and before its guard', async () => {

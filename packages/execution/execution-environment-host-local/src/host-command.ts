@@ -637,10 +637,9 @@ const invalidProcessRef = (value: unknown) =>
 
 const outputStreams: readonly string[] = ['stdout', 'stderr', 'terminal']
 
-/** An offset of `from`: a known stream, and a whole number of bytes, zero or more. An absent value is no offset. */
+/** An offset of `from`: a known stream, and a whole number of bytes, zero or more. A stream without an offset has no key. */
 const invalidOffset = ([stream, offset]: readonly [string, unknown]) =>
-  !outputStreams.includes(stream) ||
-  (offset !== undefined && !(Number.isSafeInteger(offset) && Number(offset) >= 0))
+  !outputStreams.includes(stream) || !(Number.isSafeInteger(offset) && Number(offset) >= 0)
 
 const invalidFrom = (value: unknown) =>
   value !== undefined &&

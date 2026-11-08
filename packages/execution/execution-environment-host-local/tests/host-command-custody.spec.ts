@@ -633,6 +633,7 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
         { stdout: Number.NaN },
         { stdout: '1' },
         { stdout: 2 ** 53 },
+        { stdout: undefined },
         { tty: 1 },
         { stdout: 0, stderr: -3 },
       ]
