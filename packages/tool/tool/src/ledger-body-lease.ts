@@ -72,7 +72,8 @@ export async function admitBodyPage<P>(
   if (
     !sameFactValue(body.seal.codec, textBodyCodec) ||
     (body.description.representation.kind !== 'text' &&
-      body.description.representation.kind !== 'json-document')
+      body.description.representation.kind !== 'json-document' &&
+      body.description.representation.kind !== 'json-lines')
   )
     return bodyReply(
       fail({

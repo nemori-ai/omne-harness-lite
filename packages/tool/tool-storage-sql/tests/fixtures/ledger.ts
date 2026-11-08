@@ -253,7 +253,7 @@ export async function ledgerWorld(tenant: TenantId, body?: ToolBodyDeclaration) 
             maxStringLength: 1_048_576,
             maxNumberLength: 64,
           },
-          jsonRecord: {
+          jsonRecord: bodyOptions.limits ?? {
             maxBytes: 65_536,
             maxDepth: 32,
             maxItems: 4096,

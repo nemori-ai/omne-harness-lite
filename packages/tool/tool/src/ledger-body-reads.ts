@@ -15,6 +15,7 @@ import {
 } from './ledger-body-page.ts'
 import type { Decision, Mint, Snapshot } from './ledger-decider.ts'
 import type { LedgerDomain } from './ledger-store.ts'
+import { readBodyRecords } from './ledger-body-records.ts'
 
 type BodyTransaction = <T>(
   domain: LedgerDomain,
@@ -88,7 +89,12 @@ export function createLedgerBodyReads<P>(
     return 'failure' in current ? current : outcome
   }
   return {
-    read: input => read(input, 'text-utf8-v1', readBodyText),
+    read: input =>
+      read(input, 'text-utf8-v1', (request, body, position, access) =>
+        body.description.representation.kind === 'json-lines'
+          ? readBodyRecords(request, body, position, access)
+          : readBodyText(request, body, position, access),
+      ),
     bytes: input => read(input, 'body-bytes-v1', readBodyBytes),
   }
 }

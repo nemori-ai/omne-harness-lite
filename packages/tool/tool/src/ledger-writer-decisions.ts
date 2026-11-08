@@ -1,6 +1,6 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { DurableEvidence, ToolStartRecord } from '@omne-harness/tool-contract'
-import type { ToolBodyFrame, ToolPrimitiveFailure } from '@omne-harness/tool-contract/provider'
+import type { ToolPrimitiveFailure } from '@omne-harness/tool-contract/provider'
 import type { MutationInput } from './boundary.ts'
 import type { ToolLedgerConfiguration } from './construction.ts'
 import { digestOf, mintEvidence } from './evidence.ts'
@@ -11,6 +11,7 @@ import type {
   WriterAppendRecord,
   WriterRecord,
   WriterScopeRecord,
+  PreparedBodyFrame,
 } from './ledger-writer-records.ts'
 import { encodeToolMaterial } from './material-codec.ts'
 import { resultBodyPolicy } from './result-offloading.ts'
@@ -134,8 +135,8 @@ export function beginWriter<P>(
     configuration.readResultArguments,
   )
   if ('failure' in policy) return reply(policy)
-  if (policy.ok.declaration.kind !== 'text' && policy.ok.declaration.kind !== 'json-document')
-    return reject('unsupported', 'structured writer is not available')
+  if (policy.ok.declaration.kind === 'none')
+    return reject('unsupported', 'body writer requires a body declaration')
   if (!sameFactValue(bodyRepresentation(policy.ok.declaration), representation))
     return reject('invalid', 'representation must match the fixed declaration')
   const record: WriterRecord = {
@@ -175,7 +176,7 @@ export function admitAppend<P>(
   snapshot: Snapshot,
   input: WriterInput<P>,
   sequence: string,
-  frame: Extract<ToolBodyFrame, { kind: 'text' | 'json-fragment' }>,
+  frame: PreparedBodyFrame,
 ): WriterDecision<WriterAppendRecord> {
   const writerId = writerIdentity(input.start, input.key)
   const writer = snapshot.writers.get(writerId)
@@ -199,7 +200,9 @@ export function admitAppend<P>(
   if (
     writer.policy.declaration.kind === 'text'
       ? frame.kind !== 'text'
-      : frame.kind !== 'json-fragment'
+      : writer.policy.declaration.kind === 'json-document'
+        ? frame.kind !== 'json-fragment'
+        : frame.kind !== 'json-record'
   )
     return reject('invalid', 'frame must match the fixed body representation')
   if (sequence !== writer.nextSequence)
@@ -219,6 +222,7 @@ export function admitAppend<P>(
   if (writer.bodyBytes + bytes > writer.policy.maxBodyBytes)
     return reject('too-large', 'body size exceeded')
   if (
+    writer.policy.declaration.kind === 'json-document' &&
     writer.policy.jsonLimits !== null &&
     writer.bodyBytes + bytes > writer.policy.jsonLimits.maxBytes
   )
@@ -239,7 +243,7 @@ export function admitAppend<P>(
     frame:
       frame.kind === 'text'
         ? ({ kind: 'text', block: frame.block, end: frame.end } as const)
-        : ({ kind: 'json-fragment' } as const),
+        : ({ kind: frame.kind } as const),
     bodyBytes: bytes,
     metadataBytes: 0,
     stagedBytes,

@@ -117,7 +117,11 @@ export function createWriterAccess<P>(ports: WriterPorts<P>) {
     fields: readonly string[],
     keyed = true,
   ): ToolBodyWriteReply<
-    Readonly<{ input: WriterInput<P>; fields: Readonly<Record<string, unknown>> }>
+    Readonly<{
+      input: WriterInput<P>
+      fields: Readonly<Record<string, unknown>>
+      snapshot: Snapshot
+    }>
   > => {
     const context = judgeMutationInput<P>(supplied, 'write')
     if ('failure' in context) return fromReply(context, 'unadmitted')
@@ -144,7 +148,7 @@ export function createWriterAccess<P>(ports: WriterPorts<P>) {
       start,
       key: typeof fixed.ok.key === 'string' ? fixed.ok.key : '',
     }
-    return succeed({ input, fields: fixed.ok })
+    return succeed({ input, fields: fixed.ok, snapshot: loaded.ok })
   }
   const transact = async <T>(
     input: WriterInput<P>,

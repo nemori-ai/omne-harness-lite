@@ -6,6 +6,10 @@ import type {
 } from '@omne-harness/tool-contract/provider'
 import type { BodyPolicy } from './result-offloading.ts'
 
+export type PreparedBodyFrame =
+  | Extract<ToolBodyFrame, { kind: 'text' | 'json-fragment' }>
+  | Readonly<{ kind: 'json-record'; text: string }>
+
 export type WriterScopeRecord = Readonly<{
   start: ToolStartRecord
   bufferBytes: number
@@ -71,14 +75,14 @@ export type WriterAppendRecord = Readonly<{
   inputDigest: string
   frame:
     | Omit<Extract<ToolBodyFrame, { kind: 'text' }>, 'text'>
-    | Readonly<{ kind: 'json-fragment' }>
+    | Readonly<{ kind: 'json-fragment' | 'json-record' }>
   bodyBytes: number
   metadataBytes: number
   stagedBytes: number
   state:
     | Readonly<{
         kind: 'staged'
-        payload: Extract<ToolBodyFrame, { kind: 'text' | 'json-fragment' }>
+        payload: PreparedBodyFrame
       }>
     | Readonly<{ kind: 'retained'; seal: ToolMaterialSeal; custody: DurableEvidence }>
     | Readonly<{ kind: 'abandoned'; basis: DurableEvidence }>

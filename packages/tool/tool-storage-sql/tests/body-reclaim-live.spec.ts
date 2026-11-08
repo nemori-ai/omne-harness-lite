@@ -72,7 +72,7 @@ it.each(['valid', 'expired-before-io', 'expired-after-io'] as const)(
         await reading
       }
       const result = await reading
-      if (mode === 'valid') expect(ok(result).text).toBe('中🙂')
+      if (mode === 'valid') expect(ok(result)).toMatchObject({ kind: 'text', text: '中🙂' })
       else expect(result).toHaveProperty('failure.kind', 'unavailable')
       await reclaim(f, 'idle')
       expect(

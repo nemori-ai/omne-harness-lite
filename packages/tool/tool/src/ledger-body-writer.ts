@@ -10,7 +10,6 @@ import {
   createWriterAccess,
   fromReply,
   sequence,
-  bodyFrame,
   type WriterPorts,
 } from './ledger-writer-access.ts'
 import {
@@ -26,6 +25,7 @@ import {
   writerIdentity,
 } from './ledger-writer-decisions.ts'
 import { createWriterProgress } from './ledger-writer-progress.ts'
+import { prepareWriterFrame } from './ledger-writer-frame.ts'
 
 export function createLedgerBodyWrites<P>(ports: WriterPorts<P>): ToolBodyWrites<P> {
   const { bind, transact } = createWriterAccess(ports)
@@ -53,8 +53,14 @@ export function createLedgerBodyWrites<P>(ports: WriterPorts<P>): ToolBodyWrites
       const number = bound.ok.fields.sequence
       if (!sequence(number, false))
         return fail({ kind: 'invalid', reason: 'positive canonical sequence required' })
-      const frame = bodyFrame(bound.ok.fields.frame)
-      if ('failure' in frame) return fromReply(frame, bound.ok.input.operation)
+      const frame = await prepareWriterFrame(
+        bound.ok.fields.frame,
+        bound.ok.snapshot,
+        bound.ok.input,
+        number,
+        ports.bodySchemas,
+      )
+      if ('failure' in frame) return frame
       const admitted = await transact(bound.ok.input, snapshot =>
         admitAppend(snapshot, bound.ok.input, number, frame.ok),
       )

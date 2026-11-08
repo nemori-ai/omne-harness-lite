@@ -133,7 +133,7 @@ text 正文载荷采用 `tool-model-text-utf8-v1`。它按原顺序连接模型�
 
 `offloading` 显式配置内联字节、最长保管毫秒、正文最大字节和机械预览字节，均为正安全整数。作者声明只能收紧内联及期限上限。首次准备固定有效策略，重试不改用新配置。
 
-`offloading.jsonDocument` 与 `offloading.jsonRecord` 是必填的独立 `JsonLimits`。前者限制整份文档，后者限制单条记录；它们不借用调用参数或程序 data 的限制。writer 固定与其格式对应的限制，恢复不采用新的配置。JSON 文档在有限预算内聚合，当前实现不承诺常量内存。JSON Lines 写入和结构化语义读页的完整交付继续由 W3-B 验收。
+`offloading.jsonDocument` 与 `offloading.jsonRecord` 是必填的独立 `JsonLimits`。前者限制整份文档，后者限制单条记录；它们不借用调用参数或程序 data 的限制。writer 固定与其格式对应的限制，恢复不采用新的配置。JSON 文档及 JSON Lines 在有限正文总量内聚合封存，当前实现不承诺常量内存。
 
 `ToolConfiguration.readResultArguments` 是受信装配提供的读回参数 `JsonLimits`，也进入账本构造配置；它不同于原工具调用的 `guards.budgets.arguments`。自动正文准备使用固定预算检查整份 `Tools.read_result` 参数及引用内部编码。说明不可调用时返回 `invalid/readResultArguments`，不发布卸载占位。预览、原大小、从结果发布起算的固定保留期、不续期说明和读回调用共同受内联上限约束。交付可能晚于期限，首屏不承诺当前仍可读；实际截止时间沿结果描述及正文读取页返回。
 
@@ -145,7 +145,7 @@ text 正文载荷采用 `tool-model-text-utf8-v1`。它按原顺序连接模型�
 
 最终 `ToolResult` 在同次 CAS 中获得正文身份、表示、字节数、预览类别和固定期限。该写集同时建立 offloaded-body 用途、解除相应 preparation、记录结果和时间水位。原操作已提交时先认回原回执，不读材料、不重新取时钟，也不续期。期限溢出拒绝提交。交付释放不解除正文用途或改变期限。
 
-文本正文生命周期沿 W3-A 已有实现。本节新增 JSON 文档 writer 和 schema 窄校验端口。JSON文档语义页已实现；JSON Lines 与生产发行的结构化接线仍待完成；本包验证不表示完整 W3-B 已接受。
+文本正文生命周期沿 W3-A 已有实现。本节新增结构化 writer 和 schema 窄校验端口。JSON 文档及 JSON Lines 的写入与语义页已实现。生产发行的结构化接线仍待完成；本包验证不表示完整 W3-B 已接受。
 
 ### 10 边界与资格
 
@@ -534,7 +534,7 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 
 构造时固定 JsonLimits 和三个正安全整数预算。resultPageBytes 必须来自所装配 runtime 的相同配置。replyMaxBytes 限制完整新 ToolResult 的 JSON UTF-8 字节。contentPageBytes 限制附件字节，也作为正文页首次请求的字节预算。每个完整块必须装入一个 resultPageBytes，完整回应必须装入 replyMaxBytes。预算不足返回固定 unsupported，不截块、凭据或 schema。固定错误无法在预算内单页交付时，构造同步抛 TypeError。
 
-正文文本页先读取最多 contentPageBytes，再按实际 JSON 回应检查整块与完整回应预算。超限时沿同一游标减半请求预算，下限为首个完整字符的 UTF-8 字节数。不能裁短正文却沿用较远的 next。达到下限仍超限时返回 unsupported。每次重读重新准入，最多 ceil(log2(contentPageBytes)) + 2 次。正文页不递归卸载。原生附件与内容块遍历保持原独立预算。JSON 文档与 JSON Lines 的语义页尚未实现。
+正文页先读取最多 contentPageBytes，再按实际 JSON 回应检查整块与完整回应预算。超限时沿同一游标减半请求预算。文本及 JSON 文档的下限为首个完整字符的 UTF-8 字节数；JSON Lines 的下限为首条完整记录加 LF 的字节数。不能裁短正文却沿用较远的 next。达到下限仍超限时，文本返回 unsupported，JSON Lines 返回 record-too-large 及记录字节位置。每次重读重新准入，最多 ceil(log2(contentPageBytes)) + 2 次。正文页不递归卸载。原生附件与内容块遍历保持原独立预算。
 
 源页加状态后可使新元回应再次分页。受信消费侧在调用收场后使用 readReply，沿同一 resultVersion 收齐新元回应，再投影给模型。它不生成第三个模型命令，不递归包装回应。每页 value 和累计完整 ToolResult 都受 replyMaxBytes 限制。累计大小只计一次共同元数据，再逐块增加 JSON 字节及数组分隔符。读取次数最多 `2 * ceil(replyMaxBytes / resultPageBytes) + 1`，推导值必须为安全整数。每页仍经真实读口检查当前资格。
 
@@ -655,3 +655,11 @@ SQL 提供者的持久实现归 [TS-12](../tool-storage-sql/SPEC.md#ts-12-持久
 ### JSON 文档语义读页
 
 JSON文档复用正文页租约、期限与资格检查，在完整UTF-8字符边界分片。游标摘要已经包含固定表示及schema身份，不能与另一正文或字节投影互换。页不重新解析或改写原文；仅首个且覆盖全部正文的页为complete，其余为fragment。Tools.read_result把格式、完整性和固定schema身份写入元数据，与原文块共同计入实际序列化回复预算。超限时缩小读取页重读，游标只覆盖实际交付的字符。
+
+### JSON Lines 记录写入与读回
+
+append 在受理前用 `fixJsonTree` 判断记录树并有界编码，拒绝重复键和环。编码保留数值词法，再按 writer 固定的单记录限制解析，调用固定记录 schema 校验。暂存只保存编码文本加 LF。序号、正文总量和背压沿原受理事务核对；拒绝不占用序号。已受理的同操作重试沿固定输入摘要认回，不依赖 schema 服务再次可用。seal 只合并已经验证的记录，不重新采用 schema。
+
+读页最多扫描当前页预算字节，返回最后一个 LF 之前的完整记录。非零游标须位于 LF 之后。每条记录的有界解码限制由页字节预算派生；它不重设原写入限制，也不重新校验业务 schema。源材料已由 writer 验证且封存。空流返回空的最终记录页。首记录无法容纳时，底层返回 invalid/maxBytes，原因为 `first-record-does-not-fit:<字节位置>`；Tools 显示 record-too-large 和位置，不给截断记录或空的继续页。
+
+ToolBodyPage 返回 JsonValue 记录及固定 recordSchema 身份。Tools 用 json-text 写出完整记录，以 LF 分隔；不能把数值词法先转成 JavaScript Number。格式、schema、位置、游标及记录文本共同计入实际回复预算。

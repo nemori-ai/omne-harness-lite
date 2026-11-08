@@ -1,3 +1,4 @@
+import { textPage } from './body-read-values.ts'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { decodeToolMaterialInstant } from '@omne-harness/tool-contract/provider'
@@ -103,7 +104,7 @@ it('retains a live body before its deadline and does not renew it after retry or
   const { f, body, advance } = await fixture()
   advance(9)
   expect(ok(await f.ledger.maintenance.expire(f.access)).expiredBodies).toBe(0)
-  expect(ok(await f.ledger.reads.body.read(body)).text).toBe('中🙂')
+  expect(textPage(ok(await f.ledger.reads.body.read(body))).text).toBe('中🙂')
   advance(10)
   expect(ok(await f.ledger.maintenance.expire(f.access)).expiredBodies).toBe(1)
   const expired = (await f.records()).filter(row => row.kind === 'body-expiration')
@@ -176,7 +177,7 @@ it.each([10, 20])('preserves the active page until its own deadline at time %i',
   expect(await f.ledger.reads.body.read(body)).toHaveProperty('failure.reason', 'expired')
   resume.resolve()
   const result = await page
-  if (time === 10) expect(ok(result).text).toBe('中🙂')
+  if (time === 10) expect(textPage(ok(result)).text).toBe('中🙂')
   else expect(result).toHaveProperty('failure.kind', 'unavailable')
 })
 

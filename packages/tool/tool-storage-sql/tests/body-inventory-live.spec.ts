@@ -48,7 +48,7 @@ function materials(storage: Awaited<ReturnType<typeof openStorage>>) {
   }
 }
 
-it.each(['append', 'seal', 'json-seal'] as const)(
+it.each(['append', 'seal', 'json-seal', 'lines-append', 'lines-seal'] as const)(
   'discovers and recovers unknown %s custody after SQLite workers restart',
   async phase => {
     const root = await realpath(await mkdtemp(join(tmpdir(), 'tool-writer-inventory-')))
@@ -56,6 +56,8 @@ it.each(['append', 'seal', 'json-seal'] as const)(
     try {
       storage = await openStorage(root, [TENANT_A, TENANT_B])
       const json = phase === 'json-seal'
+      const lines = phase === 'lines-append' || phase === 'lines-seal'
+      const appendPhase = phase === 'append' || phase === 'lines-append'
       const limits = {
         maxBytes: 256,
         maxDepth: 8,
@@ -74,7 +76,11 @@ it.each(['append', 'seal', 'json-seal'] as const)(
           definition: { schema: schema.value, vocabulary: provider, descriptions: [] },
         },
       }
-      const text = json ? '{ "rows": [1.0, "正文🙂"] }' : 'durable 正文🙂'
+      const text = json
+        ? '{ "rows": [1.0, "正文🙂"] }'
+        : lines
+          ? '{"rows":[1.0,"正文🙂"]}\n'
+          : 'durable 正文🙂'
       let checks = 0
       const schemas = {
         check: async (fixed: typeof body.document, read: ReturnType<typeof readJsonText>) => {
@@ -85,7 +91,14 @@ it.each(['append', 'seal', 'json-seal'] as const)(
           return succeed(undefined)
         },
       }
-      const world = await ledgerWorld(TENANT_A, json ? body : undefined)
+      const world = await ledgerWorld(
+        TENANT_A,
+        json
+          ? body
+          : lines
+            ? { kind: 'json-lines', codec: provider, record: body.document }
+            : undefined,
+      )
       const originalMaterials = materials(storage)
       let loseReply = false
       const ledger = world.ledgerOver(
@@ -147,16 +160,21 @@ it.each(['append', 'seal', 'json-seal'] as const)(
       const definition = world.input.request.availability.definition
       if (definition.kind !== 'function') throw new Error('function declaration required')
       const declared = definition.returns.body
-      if (declared.kind !== 'text' && declared.kind !== 'json-document')
-        throw new Error('unexpected representation')
+      if (declared.kind === 'none') throw new Error('unexpected representation')
       const representation =
         declared.kind === 'text'
           ? declared
-          : {
-              kind: 'json-document' as const,
-              codec: declared.codec,
-              schema: declared.document.identity,
-            }
+          : declared.kind === 'json-lines'
+            ? {
+                kind: 'json-lines' as const,
+                codec: declared.codec,
+                recordSchema: declared.record.identity,
+              }
+            : {
+                kind: 'json-document' as const,
+                codec: declared.codec,
+                schema: declared.document.identity,
+              }
       ok(
         await ledger.bodyWrites.begin({
           ...input,
@@ -164,16 +182,20 @@ it.each(['append', 'seal', 'json-seal'] as const)(
           representation,
         }),
       )
-      loseReply = phase === 'append'
+      loseReply = appendPhase
+      const record = readJsonText('{"rows":[1.0,"正文🙂"]}', limits)
+      if (record.kind !== 'ok') throw new Error('record required')
       const append = await ledger.bodyWrites.append({
         ...input,
         operation: operation('append'),
         sequence: '1',
         frame: json
           ? { kind: 'json-fragment', text }
-          : { kind: 'text', block: 'one', text, end: true },
+          : lines
+            ? { kind: 'json-record', value: record.value }
+            : { kind: 'text', block: 'one', text, end: true },
       })
-      if (phase === 'append') expect(append).toHaveProperty('failure.kind', 'unknown')
+      if (appendPhase) expect(append).toHaveProperty('failure.kind', 'unknown')
       else {
         ok(append)
         loseReply = true
@@ -198,7 +220,7 @@ it.each(['append', 'seal', 'json-seal'] as const)(
       })
       const restoredMaterials = materials(storage)
       const restored = world.ledgerOver(storage.store, restoredMaterials, {
-        schemas,
+        ...(lines ? {} : { schemas }),
         limits: { ...limits, maxBytes: 1, maxDepth: 1 },
       })
       const recovery = ok(await restored.commands.loadRecovery(world.access))
@@ -215,14 +237,14 @@ it.each(['append', 'seal', 'json-seal'] as const)(
       ).toMatchObject({ pending: 0 })
       expect(ok(await restored.bodyWrites.inspect(input))).toHaveProperty(
         'kind',
-        phase === 'append' ? 'open' : 'sealed',
+        appendPhase ? 'open' : 'sealed',
       )
       const read = await storage.store.read({ kind: 'call', ...world.access })
       if (read.kind !== 'complete') throw new Error('unreadable call')
       const material = read.records.find(
         record =>
           record.kind === 'material' &&
-          record.material.purpose === (phase === 'append' ? 'body-fragment' : 'body'),
+          record.material.purpose === (appendPhase ? 'body-fragment' : 'body'),
       )
       if (material?.kind !== 'material') throw new Error('recovered material missing')
       const page = ok(
@@ -235,6 +257,7 @@ it.each(['append', 'seal', 'json-seal'] as const)(
       )
       expect(new TextDecoder().decode(page.bytes)).toBe(text)
       if (json) expect(checks).toBe(2)
+      if (lines) expect(checks).toBe(1)
       expect(page.next).toBeNull()
       expect(ok(await source.scan(scan))).toEqual({ calls: [world.access.call], next: null })
     } finally {

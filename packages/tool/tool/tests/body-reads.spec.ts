@@ -1,3 +1,4 @@
+import { textPage } from './body-read-values.ts'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 import {
@@ -102,7 +103,7 @@ it('applies the system page cap even when the caller requests more bytes', async
     offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 1024, maxPageBytes: 4 },
   })
   const page = ok(await f.ledger.reads.body.read({ ...input, maxBytes: 1000 }))
-  expect(page.text).toBe('中')
+  expect(textPage(page).text).toBe('中')
   expect(page.next).not.toBeNull()
 })
 
@@ -169,7 +170,7 @@ it('reads the body after reliable delivery release and deletion of the delivery 
   expect(
     await f.ledger.reads.result({ ...f.access, result: input.result, after: null }),
   ).toHaveProperty('failure')
-  expect(ok(await f.ledger.reads.body.read(input)).text).toBe('中🙂')
+  expect(textPage(ok(await f.ledger.reads.body.read(input))).text).toBe('中🙂')
 })
 
 it('does not expose a replaced raw copy as a route around the body lifetime', async () => {
@@ -259,7 +260,7 @@ it('finishes an admitted page after body expiry but denies the next page and lat
   })
   advance = true
   const page = ok(await f.ledger.reads.body.read(input))
-  expect(page.text).not.toBe('')
+  expect(textPage(page).text).not.toBe('')
   expect(await f.ledger.reads.body.read({ ...input, after: page.next })).toHaveProperty('failure', {
     kind: 'not-found',
     target: 'body',
@@ -331,7 +332,7 @@ it.each(['applied', 'dropped'] as const)(
     expect(await f.ledger.reads.body.read(input)).toHaveProperty('failure.kind', 'unavailable')
     expect(read).not.toHaveBeenCalled()
     f.interceptCommit(null)
-    expect(ok(await f.ledger.reads.body.read(input)).text).toBe('中🙂')
+    expect(textPage(ok(await f.ledger.reads.body.read(input))).text).toBe('中🙂')
     const leases = (await f.records()).filter(
       row => row.kind === 'material-use' && row.use.kind === 'page-lease',
     )
@@ -451,7 +452,7 @@ it('keeps independent leases for two concurrent reads of the same page', async (
     (await f.records()).filter(row => row.kind === 'material-use' && row.use.kind === 'page-lease'),
   ).toHaveLength(1)
   secondGate.resolve()
-  expect(ok(await second).text).toBe('中🙂')
+  expect(textPage(ok(await second)).text).toBe('中🙂')
   expect(
     (await f.records()).filter(row => row.kind === 'material-use' && row.use.kind === 'page-lease'),
   ).toEqual([])
@@ -467,7 +468,7 @@ it('accepts a valid provider that returns partial bytes of the first character',
   })
   short = true
   const page = ok(await f.ledger.reads.body.read(input))
-  expect(page.text).toBe('中')
+  expect(textPage(page).text).toBe('中')
   expect(page.next).not.toBeNull()
 })
 
@@ -499,10 +500,10 @@ it('reads UTF-8 text pages without splitting characters or dropping a BOM', asyn
     const page = ok(await f.ledger.reads.body.read(request))
     expect(page.kind).toBe('text')
     expect(page.position).toBe(String(Buffer.byteLength(restored)))
-    expect(Buffer.byteLength(page.text)).toBeLessThanOrEqual(4)
-    expect(page.text.length).toBeGreaterThan(0)
+    expect(Buffer.byteLength(textPage(page).text)).toBeLessThanOrEqual(4)
+    expect(textPage(page).text.length).toBeGreaterThan(0)
     expect(page.bodyId).toBe(input.bodyId)
-    restored += page.text
+    restored += textPage(page).text
     after = page.next
     if (after === null) break
   }

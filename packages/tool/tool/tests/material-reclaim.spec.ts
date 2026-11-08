@@ -1,3 +1,4 @@
+import { textPage } from './body-read-values.ts'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 import { decodeToolMaterialInstant } from '@omne-harness/tool-contract/provider'
@@ -297,7 +298,7 @@ it('keeps an admitted page alive across body expiry and reclaims after the page 
   } finally {
     resume.resolve()
   }
-  expect(ok(await page).text).toBe('中🙂')
+  expect(textPage(ok(await page)).text).toBe('中🙂')
   await drain(f)
 })
 

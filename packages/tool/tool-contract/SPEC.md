@@ -1253,6 +1253,8 @@ ToolOffloader 在真实返回已保管、最终结果提交之前准备派生表
 
 Tools.read_result 的模型正文页按声明格式返回。文本页包含可读 UTF-8 文本；JSON 文档页明确标注完整值或文档片段，片段不冒充独立合法 JSON；JSON Lines 按完整记录分页。成功的非末页必须推进固定正文中的位置，不能返回空页或将该页再次卸载形成循环。最小完整记录连同必要元数据超过页预算时，明确返回受限，只提示已装配且获准的替代消费方式。游标绑定表示、固定版本和原读取范围，不能由模型拼接内部路径。底层 content.read 继续提供字节接口，但模型协议不默认输出 base64。
 
+ToolBodyPage 的 json-lines 分支返回完整 JsonValue 记录和固定 recordSchema 身份，不携带截断的记录文本。position 与 next 定位原正文中的记录边界。记录数可以为零的情况只有空正文的最终页。返回值保留 JSON 数字词法；模型展示的再编码不能静默损失数值精度。
+
 releaseDelivery 以 result/delivery/consumer 精确定位，核 retained 或 processed 证据。同提交 pending→released、原操作回执和 Tool 生产侧证明。retained 保存可恢复引用/内容及后续责任；processed 保存必要处理与完成事实。提交未知时双方继续承担尚有效的原责任。卸载正文独立到期，原生资源与必要过程按各自规则保管。晚到版本有新 delivery，旧版本解除不影响它。缺当前合格消费者时保留未交付材料，不因此复活旧工作推进或延长正文期限。
 
 ### P09 账目、恢复与退出

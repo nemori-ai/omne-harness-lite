@@ -69,3 +69,62 @@ export function jsonDocumentFixture(text: string) {
     schema: body.document.identity,
   }
 }
+
+export function jsonLinesFixture(lines: readonly string[]) {
+  const document = jsonDocumentFixture('{}')
+  const declaration = document.definition.returns.body
+  const body = {
+    kind: 'json-lines' as const,
+    codec: adoption('json-lines'),
+    record: declaration.document,
+  }
+  const value: SettlementRenderer = async (_raw, ledger, access) => {
+    const start = ok(await ledger.commands.loadRecovery(access)).start
+    if (start === null) throw new Error('original start required')
+    const scope = createToolBodyScope({
+      binding: {
+        ...access,
+        start,
+        source: { owner: 'fixture', record: 'lines', revision: '1', digest: 'lines-v1' },
+      },
+      writes: ledger.bodyWrites,
+      signal: new AbortController().signal,
+      limits: { authorBufferBytes: 65536, authorBufferItems: 32 },
+    })
+    ok(
+      await scope.writer.begin('rows', {
+        kind: 'json-lines',
+        codec: body.codec,
+        recordSchema: body.record.identity,
+      }),
+    )
+    for (const [index, line] of lines.entries()) {
+      const read = readJsonText(line, jsonLimits)
+      if (read.kind !== 'ok') throw new Error('JSON record required')
+      ok(
+        await scope.writer.append('rows', String(index + 1), {
+          kind: 'json-record',
+          value: read.value,
+        }),
+      )
+    }
+    const sealed = ok(await scope.writer.seal('rows', String(lines.length)))
+    ok(await scope.finish('returned'))
+    return {
+      content: [visible('summary', 'JSON Lines report')],
+      data: { kind: 'none' },
+      attachments: [],
+      original: {
+        kind: 'offloaded',
+        source: sealed.source,
+        summary: [visible('summary', 'JSON Lines report')],
+      },
+    }
+  }
+  return {
+    definition: { ...document.definition, returns: { ...document.definition.returns, body } },
+    bodySchemas: document.bodySchemas,
+    value,
+    schema: body.record.identity,
+  }
+}

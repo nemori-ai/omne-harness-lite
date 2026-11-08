@@ -1,3 +1,4 @@
+import { textPage } from './body-read-values.ts'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createToolLedger, type ToolConfiguration } from '@omne-harness/tool'
@@ -486,11 +487,11 @@ it('adopts a writer body into paged results and starts retention at publication'
     maxBytes: 4,
   }
   const first = ok(await f.ledger.reads.body.read(input))
-  expect(first.text).toBe('甲')
+  expect(textPage(first).text).toBe('甲')
   const second = ok(await f.ledger.reads.body.read({ ...input, after: first.next }))
-  expect(second.text).toBe('🙂')
+  expect(textPage(second).text).toBe('🙂')
   const third = ok(await f.ledger.reads.body.read({ ...input, after: second.next }))
-  expect(third.text).toBe('乙')
+  expect(textPage(third).text).toBe('乙')
   expect(third.next).toBeNull()
   now = 6000
   expect(await f.ledger.reads.body.read(input)).toHaveProperty('failure.kind', 'not-found')

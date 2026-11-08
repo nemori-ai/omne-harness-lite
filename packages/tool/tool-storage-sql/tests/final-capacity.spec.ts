@@ -224,7 +224,11 @@ it.each([
             const visible = delivered.content
               .flatMap(block => (block.kind === 'text' ? [block.text] : []))
               .join('')
-            expect(Buffer.byteLength(visible)).toBeLessThanOrEqual(1024)
+            const instructionStart = visible.indexOf('\nBody bytes:')
+            expect(instructionStart).toBeGreaterThanOrEqual(0)
+            expect(Buffer.byteLength(visible.slice(0, instructionStart))).toBeLessThanOrEqual(1024)
+            expect(Buffer.byteLength(visible)).toBeLessThanOrEqual(65_536)
+            expect(visible.slice(instructionStart)).toContain('read_result')
             expect(visible).toContain('[offloaded]')
           } else {
             expect(delivered.original).toEqual({ kind: 'none' })
@@ -274,10 +278,10 @@ it.each([
             maxBytes: 17,
           }
           const first = ok(await restoredLedger.reads.body.read(request))
-          expect(first.text).toBe('x'.repeat(17))
+          expect(first).toMatchObject({ kind: 'text', text: 'x'.repeat(17) })
           expect(first.position).toBe('0')
           const second = ok(await restoredLedger.reads.body.read({ ...request, after: first.next }))
-          expect(second.text).toBe('x'.repeat(17))
+          expect(second).toMatchObject({ kind: 'text', text: 'x'.repeat(17) })
           expect(second.position).toBe('17')
           const byteRequest = {
             ...world.access,
