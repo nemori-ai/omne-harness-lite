@@ -1,3 +1,4 @@
+import { sameFactValue } from './evidence.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Adoption, Reply, ToolFailure } from '@omne-harness/tool-contract'
@@ -9,7 +10,7 @@ import type {
 import { invalid, judgeMutationInput, type CallInput } from './boundary.ts'
 import type { ToolLedgerPorts } from './construction.ts'
 import { fixFinalCustodyInput } from './facts-boundary.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import { createLedgerMaterialCustody, type MaterialTransaction } from './ledger-material-custody.ts'
 import { encodeToolMaterial, type EncodedToolMaterial } from './material-codec.ts'
 

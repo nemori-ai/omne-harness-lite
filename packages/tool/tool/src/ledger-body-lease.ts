@@ -6,7 +6,7 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
 import type { ToolOffloadingConfiguration } from './construction.ts'
-import { mintEvidence } from './evidence.ts'
+import { mintEvidence, sameFactValue } from './evidence.ts'
 import {
   bodyPosition,
   bodyUnavailable,
@@ -15,7 +15,7 @@ import {
   type StoredBody,
 } from './ledger-body-page.ts'
 import type { Decision, Mint, Snapshot } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import { sampleMaterialTime } from './ledger-material-custody.ts'
 import { materialExpirationWrites } from './ledger-material-expiration.ts'
 import type { MaterialUseRecord } from './ledger-material-records.ts'

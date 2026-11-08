@@ -1,3 +1,4 @@
+import { sameFactValue } from './evidence.ts'
 import { readMaterialBytes } from './ledger-material-read.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -12,7 +13,7 @@ import { invalid } from './boundary.ts'
 import type { FactValues, StoredFactBatch } from './fact-values.ts'
 import { fixFinalCustodyInput } from './facts-boundary.ts'
 import type { Snapshot } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import {
   factKey,
   type FactEventRecord,

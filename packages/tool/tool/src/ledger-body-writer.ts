@@ -3,9 +3,9 @@ import type { DurableEvidence } from '@omne-harness/tool-contract'
 import type { ToolBodyWrites } from '@omne-harness/tool-contract/provider'
 import { judgeCallInput } from './boundary.ts'
 import { fixCleanupFields } from './cleanup-boundary.ts'
-import { mintEvidence } from './evidence.ts'
+import { mintEvidence, sameFactValue } from './evidence.ts'
 import { put, reply } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import {
   createWriterAccess,
   fromReply,

@@ -29,6 +29,10 @@ export function canonicalJson(value: unknown): string {
   return JSON.stringify(canonical(value))
 }
 
+export function sameFactValue(left: unknown, right: unknown): boolean {
+  return canonicalJson(left) === canonicalJson(right)
+}
+
 function canonical(value: unknown): unknown {
   if (typeof value === 'object' && value !== null)
     return Array.isArray(value) ? value.map(canonical) : canonicalObject(value)

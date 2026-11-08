@@ -3,9 +3,9 @@ import type { DurableEvidence, ToolStartRecord } from '@omne-harness/tool-contra
 import type { ToolPrimitiveFailure } from '@omne-harness/tool-contract/provider'
 import type { MutationInput } from './boundary.ts'
 import type { ToolLedgerConfiguration } from './construction.ts'
-import { digestOf, mintEvidence } from './evidence.ts'
+import { digestOf, mintEvidence, sameFactValue } from './evidence.ts'
 import { put, reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import type { LedgerWrite } from './ledger-store.ts'
 import type {
   WriterAppendRecord,

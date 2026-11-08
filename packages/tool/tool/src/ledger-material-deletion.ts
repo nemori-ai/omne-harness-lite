@@ -3,9 +3,9 @@ import { decodeToolOperationId, type DurableEvidence } from '@omne-harness/tool-
 import type { CallInput } from './boundary.ts'
 import { invalid } from './boundary.ts'
 import type { MaterialReclamationProgress } from './construction.ts'
-import { digestOf, mintEvidence } from './evidence.ts'
+import { digestOf, mintEvidence, sameFactValue } from './evidence.ts'
 import { put, reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import type { MaterialRecord } from './ledger-material-records.ts'
 
 export type MaterialDeletionGrant = MaterialRecord &

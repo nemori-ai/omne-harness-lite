@@ -12,7 +12,7 @@ import type { StoredFactBatch } from './fact-values.ts'
 import type { ToolMaterialFingerprint } from '@omne-harness/tool-contract/provider'
 import { invalid, tenantKey } from './boundary.ts'
 import { checkBodyReferences } from './ledger-body-references.ts'
-import { canonicalJson, factTaskOperation, mintEvidence } from './evidence.ts'
+import { sameFactValue, factTaskOperation, mintEvidence } from './evidence.ts'
 import { put, reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
 import {
   factKey,
@@ -23,9 +23,6 @@ import {
   type StoredExecutionFact,
 } from './ledger-store.ts'
 
-export function sameFactValue(left: unknown, right: unknown): boolean {
-  return canonicalJson(left) === canonicalJson(right)
-}
 function unsupported(adoption: Adoption): Outcome<never, ToolFailure> {
   return fail({
     kind: 'unsupported',

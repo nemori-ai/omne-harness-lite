@@ -15,7 +15,7 @@ import type {
 } from '@omne-harness/tool-contract/provider'
 import { decodeToolOperationId } from '@omne-harness/tool-contract'
 import { invalid, type MutationInput } from './boundary.ts'
-import { digestOf, mintEvidence } from './evidence.ts'
+import { digestOf, mintEvidence, sameFactValue } from './evidence.ts'
 import {
   operationRecord,
   put,
@@ -25,7 +25,7 @@ import {
   type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import { taskKey, type CallRecord, type LedgerWrite } from './ledger-store.ts'
 import { releaseBasisOf } from './ledger-start.ts'
 

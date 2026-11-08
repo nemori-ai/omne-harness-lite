@@ -25,9 +25,9 @@ import {
 } from './boundary.ts'
 import { fixCleanupFields } from './cleanup-boundary.ts'
 import type { ToolLedgerPorts } from './construction.ts'
-import { mintEvidence } from './evidence.ts'
+import { mintEvidence, sameFactValue } from './evidence.ts'
 import { put, reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import type { MaterialRecord, MaterialTimeRecord } from './ledger-material-records.ts'
 import type { LedgerDomain } from './ledger-store.ts'
 import type { MaterialBytes } from './material-codec.ts'

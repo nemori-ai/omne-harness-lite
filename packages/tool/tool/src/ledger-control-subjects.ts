@@ -16,10 +16,10 @@ import {
 } from './boundary.ts'
 import { fixCleanupFields } from './cleanup-boundary.ts'
 import type { ToolControlSubjects, ToolLedgerControls } from './construction.ts'
-import { mintEvidence } from './evidence.ts'
+import { mintEvidence, sameFactValue } from './evidence.ts'
 import { rejectControl } from './ledger-control.ts'
 import { reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import type { CallRecord, LedgerDomain } from './ledger-store.ts'
 
 const unavailable = (diagnostic: string): Outcome<never, ToolFailure> =>

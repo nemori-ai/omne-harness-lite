@@ -18,7 +18,7 @@ import type {
 } from '@omne-harness/tool-contract'
 import type { ToolFinalEnvelope, ToolTask } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
-import { mintEvidence, resultVersion } from './evidence.ts'
+import { mintEvidence, resultVersion, sameFactValue } from './evidence.ts'
 import {
   firstResultWrites,
   operationRecord,
@@ -31,7 +31,7 @@ import {
   type Snapshot,
 } from './ledger-decider.ts'
 import { planEnvironmentRelease, processCustodyCovered } from './ledger-environment-release.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import type { WriteCommand } from './ledger-start.ts'
 import {
   taskKey,

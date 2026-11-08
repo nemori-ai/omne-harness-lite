@@ -4,7 +4,7 @@ import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { DurableEvidence, ToolFailure } from '@omne-harness/tool-contract'
 import type { FactProgress, FactReceipt } from '@omne-harness/tool-contract/provider'
 import { invalid, type MutationInput } from './boundary.ts'
-import { factTaskOperation, mintEvidence } from './evidence.ts'
+import { factTaskOperation, mintEvidence, sameFactValue } from './evidence.ts'
 import {
   operationRecord,
   put,
@@ -14,7 +14,7 @@ import {
   type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
-import { factProgress, sameFactValue } from './ledger-facts.ts'
+import { factProgress } from './ledger-facts.ts'
 import { factKey, taskKey, type FactBatchRecord } from './ledger-store.ts'
 
 export type FactAcknowledgementCommand = MutationInput<unknown> &

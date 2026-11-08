@@ -24,9 +24,9 @@ import {
 } from './boundary.ts'
 import { fixCleanupFields } from './cleanup-boundary.ts'
 import type { ToolLedgerPorts, ToolOffloadingConfiguration } from './construction.ts'
-import { digestOf } from './evidence.ts'
+import { digestOf, sameFactValue } from './evidence.ts'
 import type { Decision, Mint, Snapshot } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import { materialContent } from './ledger-material-content.ts'
 import { createLedgerMaterialCustody, type MaterialTransaction } from './ledger-material-custody.ts'
 import type { LedgerDomain } from './ledger-store.ts'

@@ -9,7 +9,7 @@ import type {
 } from '@omne-harness/tool-contract'
 import type { ControlDispatch } from '@omne-harness/tool-contract/provider'
 import { invalid, type MutationInput } from './boundary.ts'
-import { mintEvidence } from './evidence.ts'
+import { mintEvidence, sameFactValue } from './evidence.ts'
 import {
   operationRecord,
   put,
@@ -19,7 +19,7 @@ import {
   type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import { taskKey, type CallRecord } from './ledger-store.ts'
 
 type Command = MutationInput<unknown> & Readonly<{ inputDigest: string }>

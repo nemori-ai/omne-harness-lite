@@ -1,3 +1,4 @@
+import { sameFactValue } from './evidence.ts'
 import {
   materialStorage,
   materialContentSeal,
@@ -24,7 +25,7 @@ import { invalid, judgeCallInput, type CallInput } from './boundary.ts'
 import type { ToolLedgerAction } from './ledger-guards.ts'
 import type { Snapshot } from './ledger-decider.ts'
 import { resultRecord } from './ledger-reads.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import type { ResultRecord } from './ledger-store.ts'
 import type { BodyReadInput } from './ledger-body-page.ts'
 

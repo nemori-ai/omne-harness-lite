@@ -1,8 +1,9 @@
+import { sameFactValue } from './evidence.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { DurableEvidence, ToolRenderedResult } from '@omne-harness/tool-contract'
 import type { ToolPrimitiveFailure } from '@omne-harness/tool-contract/provider'
 import { put, type Snapshot } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import type { LedgerWrite } from './ledger-store.ts'
 import { appendRecords, metadataSize } from './ledger-writer-decisions.ts'
 import type { WriterAppendRecord, WriterRecord } from './ledger-writer-records.ts'

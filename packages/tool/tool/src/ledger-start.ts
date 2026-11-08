@@ -1,6 +1,6 @@
 import { syntheticChannels } from './ledger-decider.ts'
 import type { PreparedSynthetic, SyntheticDecision } from './ledger-result-preparation.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 // The pure deciders of the way from an accepted call to a recorded start (P02, P03, P04): the
 // queue domain (order, readiness, head and slot, release) and the call domain (preparation plan
 // and confirmation, enqueue, start intent, start record, first-start rejection). Each decision
@@ -30,7 +30,7 @@ import type {
   ToolTask,
 } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
-import { mintEvidence, digestOf } from './evidence.ts'
+import { mintEvidence, digestOf, sameFactValue } from './evidence.ts'
 import {
   operationRecord,
   put,

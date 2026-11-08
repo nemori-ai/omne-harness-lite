@@ -1,5 +1,6 @@
+import { sameFactValue } from './evidence.ts'
 import type { ToolStartRecord } from '@omne-harness/tool-contract'
-import { sameFactValue } from './ledger-facts.ts'
+
 import type { CallRecord } from './ledger-store.ts'
 
 export function currentBodyExecution(call: CallRecord, start: ToolStartRecord): boolean {

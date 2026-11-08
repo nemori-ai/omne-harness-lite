@@ -105,8 +105,8 @@ import type {
 } from './construction.ts'
 import { fixFactAcknowledgement, fixFactBasis, fixFactInput } from './facts-boundary.ts'
 import { checkFactAcknowledgement, decideFactAcknowledgement } from './ledger-fact-ack.ts'
-import { checkFactBatch, decideReceiveFacts, readSavedFact, sameFactValue } from './ledger-facts.ts'
-import { digestOf, nextRevision } from './evidence.ts'
+import { checkFactBatch, decideReceiveFacts, readSavedFact } from './ledger-facts.ts'
+import { digestOf, nextRevision, sameFactValue } from './evidence.ts'
 import {
   decideAdmit,
   decideRelease,

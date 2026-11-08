@@ -1,7 +1,8 @@
+import { sameFactValue } from './evidence.ts'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { DurableEvidence, ToolOperationId } from '@omne-harness/tool-contract'
 import type { Decision, Snapshot } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import type { BodyPolicy } from './result-offloading.ts'
 
 export type ResultPolicyRecord = Readonly<{

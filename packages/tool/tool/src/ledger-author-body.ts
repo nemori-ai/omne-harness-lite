@@ -1,9 +1,10 @@
+import { sameFactValue } from './evidence.ts'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Attachment, ToolFailure } from '@omne-harness/tool-contract'
 import { invalid } from './boundary.ts'
 import { bodyOf } from './ledger-body-custody.ts'
 import type { Snapshot } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import { materialContent } from './ledger-material-content.ts'
 import type { PreparedBody } from './ledger-result-material.ts'
 import type { BodyPolicy } from './result-offloading.ts'

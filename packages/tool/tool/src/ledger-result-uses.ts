@@ -1,3 +1,4 @@
+import { sameFactValue } from './evidence.ts'
 import { authorBody } from './ledger-author-body.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ToolRenderedResult } from '@omne-harness/tool-contract'
@@ -7,7 +8,7 @@ import type { DurableEvidence, ToolFailure, RawOutput } from '@omne-harness/tool
 import type { ToolMaterialSeal } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
 import type { Snapshot } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import type { MaterialRecord } from './ledger-material-records.ts'
 import type { LedgerWrite, ResultRecord } from './ledger-store.ts'
 
