@@ -557,3 +557,81 @@ it('reports replaced only when the bytes are not valid UTF-8, not for a U+FFFD t
     replaced: true,
   })
 })
+
+it('closing one scope of a shared store stops only the retained processes of that scope', async () => {
+  const store = createScriptedRetentionStore()
+  const closing = await handedOver({ store, scope: 'closing' })
+  const open = await handedOver({ store, scope: 'open' })
+  store.closeScope('closing')
+  expect(store.stopped(closing.ref)).toBe(true)
+  expect(store.stopped(open.ref)).toBe(false)
+  expect(await open.list(start())).toMatchObject({ kind: 'done', value: [{ process: open.ref }] })
+})
+
+it('answers a stop from its end fact only for the scope, tenant and reference that ended', async () => {
+  const store = createScriptedRetentionStore()
+  const own = await handedOver({ store })
+  expect(await own.stop({ ...start(), process: own.ref, mode: 'forced' })).toMatchObject({
+    kind: 'done',
+    value: { status: 'confirmed' },
+  })
+  expect(await own.stop({ ...start(), process: own.ref, mode: 'forced' })).toMatchObject({
+    kind: 'done',
+    value: { status: 'confirmed' },
+  })
+  const notFound = { kind: 'rejected', reason: 'notFound' }
+  const otherScope = await handedOver({ store, scope: 'other' })
+  expect(await otherScope.stop({ ...start(), process: own.ref, mode: 'forced' })).toMatchObject(
+    notFound,
+  )
+  const stranger = tenantCodec.parse(
+    JSON.stringify({
+      organization: 'org_0123456789abcdefghjkmnpqrs',
+      account: 'acc_zzzzzzzzzzzzzzzzzzzzzzzzzz',
+    }),
+  )
+  if (!stranger.ok) throw new Error('tenant fixture')
+  const request = start()
+  expect(
+    await own.stop({
+      ...request,
+      access: { ...request.access, tenant: stranger.value },
+      process: own.ref,
+      mode: 'forced',
+    }),
+  ).toMatchObject(notFound)
+  expect(
+    await own.stop({
+      ...start(),
+      process: { ...own.ref, generation: `${own.ref.generation}-next` },
+      mode: 'forced',
+    }),
+  ).toMatchObject(notFound)
+})
+
+it('counts scripted strings as UTF-8 bytes in the tail offsets and data', async () => {
+  const tail = await tailOf('✓!', { before: 'éé' })
+  expect(tail).toMatchObject({ savedFrom: 4, start: 4, end: 8, discardedBytes: 0 })
+  expect([...tail.data]).toEqual([...bytes('✓!')])
+  expect(tail.text).toEqual({ encoding: 'utf-8', value: '✓!', start: 4, replaced: false })
+})
+
+it('answers none for a retained process that wrote nothing after the handover', async () => {
+  const { ref, output } = await handedOver({ store: createScriptedRetentionStore() })
+  expect(await output({ ...start(), process: ref })).toMatchObject({
+    kind: 'done',
+    value: { kind: 'none' },
+  })
+})
+
+it('starts the text after the continuation bytes when from cuts a character', async () => {
+  const tail = await tailOf('✓✓', { before: 'ab', from: 3 })
+  expect(tail).toMatchObject({ savedFrom: 2, start: 3, end: 8 })
+  expect([...tail.data]).toEqual([0x9c, 0x93, 0xe2, 0x9c, 0x93])
+  expect(tail.text).toEqual({ encoding: 'utf-8', value: '✓', start: 5, replaced: false })
+})
+
+it('skips at most three continuation bytes, the most one cut character leaves', async () => {
+  const tail = await tailOf(new Uint8Array([0x80, 0x80, 0x80, 0x80, 0x41]))
+  expect(tail.text).toEqual({ encoding: 'utf-8', value: '�A', start: 3, replaced: true })
+})

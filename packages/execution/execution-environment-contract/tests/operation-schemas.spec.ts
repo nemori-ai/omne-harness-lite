@@ -486,6 +486,14 @@ it('keeps registered provider objects and recovery authority objects unchanged',
   expect(read.value[1]).toBe(recovery)
 })
 
+it('keeps a provider object that offers retained-process observation unchanged', async () => {
+  const provider = createScriptedEnvironmentProvider({ retained: async () => [] })
+  expect(provider.retainedProcesses).toBeTypeOf('function')
+  const parsed = await contract.registerProviderParamsSchema['~standard'].validate([provider])
+  if (parsed.issues) throw new Error('valid provider refused')
+  expect(parsed.value[0]).toBe(provider)
+})
+
 it('provider facts compare facilities as sets rather than declaration order', async () => {
   const { environmentProviderConformance, runConformanceCase } =
     await import('@omne-harness/execution-environment-contract/testing')
