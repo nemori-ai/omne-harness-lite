@@ -175,3 +175,93 @@ it('lists retained processes through the gate and the current guard on every cal
   })
   expect(calls.map(item => item.requestId)).toEqual(['r1'])
 })
+
+it('hands out stop and output only when the provider has them, each through the gate and the guard', async () => {
+  const asked: Array<readonly [string, string]> = []
+  const reached: string[] = []
+  let refuse = false
+  const guard: FacilityGuard<string> = {
+    authorize: async (facility, operation) => {
+      asked.push([facility, operation])
+      return refuse ? 'notAuthorized' : 'authorized'
+    },
+  }
+  const start: CommandFacility<unknown>['start'] = async item => ({
+    kind: 'rejected',
+    requestId: item.requestId,
+    reason: 'unsupported',
+  })
+  const full: CommandFacility<unknown> = {
+    start,
+    containment: 'sealed',
+    retention: {
+      list: async item => ({ kind: 'done', requestId: item.requestId, value: [] }),
+      stop: async item => {
+        reached.push(`stop:${item.mode}:${item.process.id}`)
+        return { kind: 'done', requestId: item.requestId, value: { status: 'confirmed' } }
+      },
+      output: async item => {
+        reached.push(`output:${item.process.id}`)
+        return { kind: 'done', requestId: item.requestId, value: { kind: 'none' } }
+      },
+    },
+  }
+  const acquire = async (facility: CommandFacility<unknown>) => {
+    const registry = registryWith([scriptedProvider({ facilities: { command: facility } })])
+    const placement = await placed(registry, requirement([host]))
+    const acquired = await registry.acquire(accessA, {
+      ...acquireInput(placement, 'acq-1', guard),
+      retention: { scope: scope('session'), ledger, processes },
+    })
+    if (acquired.kind !== 'acquired') throw new Error('expected acquired')
+    const granted = acquired.lease.facility('command')
+    if (granted === undefined) throw new Error('expected command')
+    return granted
+  }
+  const granted = await acquire(full)
+  expect(granted.containment).toBe('sealed')
+  const retention = granted.retention
+  if (retention?.stop === undefined || retention.output === undefined)
+    throw new Error('expected stop and output')
+  const process = listed.process
+  expect(await retention.stop({ ...request('s1'), process, mode: 'graceful' })).toEqual({
+    kind: 'done',
+    requestId: 's1',
+    value: { status: 'confirmed' },
+  })
+  expect(await retention.output({ ...request('o1'), process })).toEqual({
+    kind: 'done',
+    requestId: 'o1',
+    value: { kind: 'none' },
+  })
+  refuse = true
+  expect(await retention.stop({ ...request('s2'), process, mode: 'forced' })).toEqual({
+    kind: 'rejected',
+    requestId: 's2',
+    reason: 'notAuthorized',
+  })
+  expect(await retention.output({ ...request('o2'), process })).toEqual({
+    kind: 'rejected',
+    requestId: 'o2',
+    reason: 'notAuthorized',
+  })
+  refuse = false
+  expect(await retention.stop({ ...request('s3', accessB), process, mode: 'forced' })).toEqual({
+    kind: 'rejected',
+    requestId: 's3',
+    reason: 'notAuthorized',
+  })
+  expect(asked).toEqual([
+    ['command', 'stop'],
+    ['command', 'output'],
+    ['command', 'stop'],
+    ['command', 'output'],
+  ])
+  expect(reached).toEqual([`stop:graceful:${process.id}`, `output:${process.id}`])
+
+  const listOnly = await acquire(command(true, []))
+  expect(listOnly.containment).toBeUndefined()
+  expect(listOnly.retention?.list).toBeTypeOf('function')
+  expect(listOnly.retention?.stop).toBeUndefined()
+  expect(listOnly.retention?.output).toBeUndefined()
+})
