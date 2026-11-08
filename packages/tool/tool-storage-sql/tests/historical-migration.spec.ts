@@ -965,3 +965,112 @@ it('abandons a prepared historical body without touching its old source', async 
     ),
   ).toEqual([])
 })
+
+it('converges two migration handlers on the same operation and one body', async () => {
+  const { app, access, options, migration } = await migrationWorld(
+    offloadedFixture,
+    'legacy-offloaded',
+  )
+  const command = await previewCommand(migration, access, historicalBodyInput().interpretations)
+  const second = createToolHistoryMigration(options)
+  const concurrent = await Promise.all([migration.apply(command), second.apply(command)])
+  for (const answer of concurrent) {
+    if ('failure' in answer)
+      expect(['unavailable', 'stale-revision', 'conflict']).toContain(answer.failure.kind)
+  }
+  const first = ok(await migration.apply(command))
+  const repeated = ok(await second.apply(command))
+  expect(first.kind).toBe('cleaned')
+  expect(repeated).toEqual(first)
+  const state = await app.store.read({ kind: 'call', tenant: access.tenant, call: access.call })
+  if (state.kind !== 'complete') throw new Error('missing migrated call')
+  expect(state.records.filter(row => row.kind === 'history-migration')).toHaveLength(1)
+  expect(state.records.filter(row => row.kind === 'historical-body-alias')).toHaveLength(1)
+  expect(
+    state.records.filter(row => row.kind === 'material-use' && row.use.kind === 'offloaded-body'),
+  ).toHaveLength(1)
+})
+
+it('rejects a competing operation while the first migration owns the source', async () => {
+  const { app, access, options, migration } = await migrationWorld(
+    offloadedFixture,
+    'legacy-offloaded',
+  )
+  const command = await previewCommand(migration, access, historicalBodyInput().interpretations)
+  const entered = Promise.withResolvers<void>()
+  const resume = Promise.withResolvers<void>()
+  let paused = false
+  const first = createToolHistoryMigration({
+    ...options,
+    materials: {
+      ...options.materials,
+      store: {
+        ...options.materials.store,
+        write: async input => {
+          if (!paused) {
+            paused = true
+            entered.resolve()
+            await resume.promise
+          }
+          return options.materials.store.write(input)
+        },
+      },
+    },
+  })
+  const running = first.apply(command)
+  await entered.promise
+  try {
+    await expect(
+      migration.apply({ ...command, operation: ok(decodeToolOperationId('competing-migration')) }),
+    ).resolves.toMatchObject({ failure: { kind: 'conflict' } })
+  } finally {
+    resume.resolve()
+  }
+  expect(ok(await running).kind).toBe('published')
+  const state = await app.store.read({ kind: 'call', tenant: access.tenant, call: access.call })
+  if (state.kind !== 'complete') throw new Error('missing migrated call')
+  const journals = state.records.filter(row => row.kind === 'history-migration')
+  expect(journals).toHaveLength(1)
+  expect(journals[0]).toMatchObject({ migration: { operation: command.operation } })
+})
+
+it('recovers a prepared body whose write reply was lost using its original material identity', async () => {
+  const { app, access, options, migration } = await migrationWorld(
+    offloadedFixture,
+    'legacy-offloaded',
+  )
+  const command = await previewCommand(migration, access, historicalBodyInput().interpretations)
+  const interrupted = createToolHistoryMigration({
+    ...options,
+    materials: {
+      ...options.materials,
+      store: {
+        ...options.materials.store,
+        write: async input => {
+          const answer = await options.materials.store.write(input)
+          if ('failure' in answer) return answer
+          return fail({ kind: 'commit-unknown', operation: input.operation })
+        },
+      },
+    },
+  })
+  await expect(interrupted.apply(command)).resolves.toMatchObject({
+    failure: { kind: 'commit-unknown' },
+  })
+  const before = app.sqlite.inspect(
+    domainNameOf(TENANT_A),
+    "SELECT material FROM tl_material_chunk WHERE call = 'legacy-offloaded'",
+  )
+  expect(before.length).toBeGreaterThan(0)
+  const restarted = createToolHistoryMigration(options)
+  expect(ok(await restarted.apply(command)).kind).toBe('published')
+  const state = await app.store.read({ kind: 'call', tenant: access.tenant, call: access.call })
+  if (state.kind !== 'complete') throw new Error('missing migrated call')
+  const bodies = state.records.filter(
+    row => row.kind === 'material' && row.material.purpose === 'body',
+  )
+  expect(bodies).toHaveLength(1)
+  expect(bodies[0]).toMatchObject({
+    material: { material: JSON.parse(String(before[0]!.material)) },
+  })
+})
