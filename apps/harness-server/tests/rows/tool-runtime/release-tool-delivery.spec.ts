@@ -27,6 +27,7 @@ import {
 } from '../../r9/support.ts'
 import { connectable, until } from '../server-entry/support.ts'
 import { bodyReadingModel } from './body-reading-model.ts'
+import { toolRuntimeConfigSchema } from '../../../src/rows/tool-runtime/config.ts'
 
 const release: unknown = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
@@ -42,7 +43,7 @@ const serving = (body: string) => ({
   provider: 'OpenAI',
 })
 
-type Call = Readonly<{ id: string; arguments: string }>
+type Call = Readonly<{ id: string; arguments: string; name?: string }>
 
 /**
  * First request: the given calls of the release Shell. Every later request: the final text. The
@@ -67,7 +68,7 @@ const toolsThenText =
                         index: position,
                         id: call.id,
                         type: 'function',
-                        function: { name: 'Shell', arguments: call.arguments },
+                        function: { name: call.name ?? 'Shell', arguments: call.arguments },
                       })),
                     },
                   },
@@ -87,27 +88,42 @@ const toolsThenText =
 function withHistoryKinds(
   layer: unknown,
   construction?: ReturnType<typeof toolRowsOperatorConfig>['construction'],
+  maxInlineUtf8Bytes?: number,
 ): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
-      op.id === 'tool-host' && construction !== undefined
-        ? { ...op, config: { construction } }
-        : op.id === 'server-entry'
-          ? {
+      op.id === 'tool-records' && maxInlineUtf8Bytes !== undefined
+        ? (() => {
+            const config = toolRuntimeConfigSchema.parse(op.config)
+            return {
               ...op,
               config: {
-                ...op.config,
-                historyKinds: [
-                  'message.user',
-                  'message.assistant',
-                  'message.tool',
-                  'run.started',
-                  'run.terminal',
-                ],
+                ...config,
+                configuration: {
+                  ...config.configuration,
+                  offloading: { ...config.configuration.offloading, maxInlineUtf8Bytes },
+                },
               },
             }
-          : op,
+          })()
+        : op.id === 'tool-host' && construction !== undefined
+          ? { ...op, config: { construction } }
+          : op.id === 'server-entry'
+            ? {
+                ...op,
+                config: {
+                  ...op.config,
+                  historyKinds: [
+                    'message.user',
+                    'message.assistant',
+                    'message.tool',
+                    'run.started',
+                    'run.terminal',
+                  ],
+                },
+              }
+            : op,
     ),
   }
 }
@@ -170,39 +186,43 @@ async function turnOnRelease(
   shellResultMaxBytes?: number,
   extension?: ReturnType<typeof largeBodyRelease>,
   checkInlineRelease = false,
+  reopenLimit?: number,
 ) {
   const dir = newScratch('tool-delivery-')
   const port = await freePort()
   const home = join(dir.base, 'home')
-  const controller = new AbortController()
+  let controller = new AbortController()
   const records: S0Record[] = []
   const stderr: string[] = []
   const gateway = await startModelGateway(script)
   gateway.trustInProcess()
   const { construction } = toolRowsOperatorConfig({ storageRoot: dir.storageRoot })
-  const finished = runServe({
-    distribution: extension === undefined ? release : adoptLargeBody(release),
-    operator: withHistoryKinds(
-      operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: gateway.url }),
-      shellResultMaxBytes === undefined
-        ? undefined
-        : {
-            ...construction,
-            Shell: { ...construction.Shell, resultMaxBytes: shellResultMaxBytes },
-          },
-    ),
-    plugins: {
-      ...cordis,
-      ...(extension === undefined ? {} : { toolHostRow: extension.toolHostRow }),
-    },
-    ...(extension === undefined ? {} : { entryObjects: extension.entryObjects }),
-    stateRoot: dir.stateRoot,
-    stop: controller.signal,
-    readinessTimeoutMs: 15_000,
-    shutdownDeadlineMs: 5000,
-    write: record => records.push(record),
-    stderr: line => stderr.push(line),
-  })
+  const start = (maxInlineUtf8Bytes?: number) =>
+    runServe({
+      distribution: extension === undefined ? release : adoptLargeBody(release),
+      operator: withHistoryKinds(
+        operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: gateway.url }),
+        shellResultMaxBytes === undefined
+          ? undefined
+          : {
+              ...construction,
+              Shell: { ...construction.Shell, resultMaxBytes: shellResultMaxBytes },
+            },
+        maxInlineUtf8Bytes,
+      ),
+      plugins: {
+        ...cordis,
+        ...(extension === undefined ? {} : { toolHostRow: extension.toolHostRow }),
+      },
+      ...(extension === undefined ? {} : { entryObjects: extension.entryObjects }),
+      stateRoot: dir.stateRoot,
+      stop: controller.signal,
+      readinessTimeoutMs: 15_000,
+      shutdownDeadlineMs: 5000,
+      write: record => records.push(record),
+      stderr: line => stderr.push(line),
+    })
+  let finished = start()
   let stopped = false
   try {
     await until(() => connectable('127.0.0.1', port), 'the server to listen', 20_000)
@@ -259,8 +279,42 @@ async function turnOnRelease(
     const result = await finished
     const unsettled = records.filter(record => record.kind === 'shutdown-result')
     expect(result.exitCode, JSON.stringify(unsettled)).toBe(0)
+    let reopenedEntries: Entry[] | null = null
+    if (reopenLimit !== undefined) {
+      controller = new AbortController()
+      stopped = false
+      finished = start(reopenLimit)
+      await until(() => connectable('127.0.0.1', port), 'the reopened server to listen', 20_000)
+      const next = await cli([
+        'send-input',
+        '--session',
+        session,
+        '--text',
+        'continue from the saved result',
+      ])
+      expect(next.status, next.stderr).toBe(0)
+      let reread = await allHistory(port, request)
+      for (
+        const end = Date.now() + 120_000;
+        Date.now() < end &&
+        entriesOf(reread.body).filter(entry => entry.kind === 'run.terminal').length < 2;
+        await sleep(500)
+      )
+        reread = await allHistory(port, request)
+      expect(reread.status, reread.body).toBe(200)
+      reopenedEntries = [...entriesOf(reread.body)]
+      expect(reopenedEntries.filter(entry => entry.kind === 'run.terminal')).toHaveLength(2)
+      expect(reopenedEntries.slice(0, entriesOf(history.body).length)).toEqual(
+        entriesOf(history.body),
+      )
+      expect(gateway.requests()).toBe(modelRequests)
+      controller.abort('test: stop reopened server')
+      stopped = true
+      expect((await finished).exitCode).toBe(0)
+    }
     return {
       entries: entriesOf(history.body),
+      reopenedEntries,
       modelRequests,
       logs: records.filter(
         record => record.kind === 'telemetry' && 'level' in record && record.level === 'warn',
@@ -291,6 +345,80 @@ const resultText = (entry: Entry | undefined): string =>
     .join('')
 
 describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => {
+  it.skipIf(process.platform !== 'linux')(
+    'W3-A carries return schemas through native declarations, Tools.inspect and command help into model requests',
+    { timeout: 240_000 },
+    async () => {
+      const seen: string[] = []
+      const { entries } = await turnOnRelease(
+        toolsThenText(
+          [
+            {
+              id: 'inspect-todo-return',
+              name: 'Tools',
+              arguments: JSON.stringify({
+                command: 'inspect',
+                params: { name: 'TodoItems', command: 'add' },
+              }),
+            },
+            {
+              id: 'help-todo-return',
+              name: 'TodoItems',
+              arguments: JSON.stringify({ command: 'help', params: { command: 'add' } }),
+            },
+          ],
+          seen,
+        ),
+      )
+      const first = JSON.parse(seen[0] ?? '') as {
+        tools: { function: { name: string; description: string } }[]
+      }
+      const definition = first.tools.find(tool => tool.function.name === 'TodoItems')
+      expect(definition?.function.description).toContain(
+        'Returns string (string-output@1). Model body: text. Program data: none.',
+      )
+      expect(definition?.function.description).not.toContain('Return value schema')
+      const second = JSON.parse(seen[1] ?? '') as { messages: { role: string; content: string }[] }
+      const replies = second.messages.filter(message => message.role === 'tool')
+      expect(replies).toHaveLength(2)
+      for (const reply of replies) {
+        expect(reply.content).toContain('Return value schema string-output@1')
+        expect(reply.content).toContain('{"type":"string"}')
+      }
+      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
+    },
+  )
+
+  it.skipIf(process.platform !== 'linux')(
+    'W3-A refuses old tool history at the current limit after a real release restart',
+    { timeout: 300_000 },
+    async () => {
+      const result = await turnOnRelease(
+        toolsThenText([
+          {
+            id: 'call_old_inline',
+            arguments: JSON.stringify({
+              command: 'execute',
+              params: { script: 'awk \'BEGIN { for(i=0;i<1536;i++) printf "x" }\'' },
+            }),
+          },
+        ]),
+        undefined,
+        undefined,
+        true,
+        512,
+      )
+      expect(resultText(result.entries.find(entry => entry.kind === 'message.tool'))).toContain(
+        'x'.repeat(1536),
+      )
+      expect(result.entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
+      expect(result.reopenedEntries?.at(-1)?.payload['terminal']).toMatchObject({
+        outcome: 'failed',
+      })
+      expect(result.reopenedEntries?.filter(entry => entry.kind === 'message.tool')).toHaveLength(1)
+    },
+  )
+
   it.skipIf(process.platform !== 'linux')(
     'W3-A reads the complete offloaded UTF-8 body through callable Tools pages',
     { timeout: 240_000 },

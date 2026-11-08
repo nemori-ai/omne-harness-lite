@@ -74,6 +74,7 @@ import {
 } from '../../src/cordis.ts'
 import { FAMILIES, PLACEHOLDER, ROUTE_PATH, TRANSPORT_LIMITS, decoded } from './local-host.ts'
 import { factorySupplier } from './profiles.ts'
+import type { RequestDisclosure } from '@omne-harness/model-host-local'
 
 // --- Values -------------------------------------------------------------------------------------
 
@@ -593,6 +594,7 @@ class LineClock extends ModelClockService {
 }
 
 export type LineInput = Readonly<{
+  requestDisclosure?: RequestDisclosure
   /** A private directory for the vault file. */
   directory: string
   storage: FileStorage
@@ -666,6 +668,9 @@ export async function assembleLine(input: LineInput) {
   await load(preparation.plugin, { maxCitedCalls: 8 })
 
   const Stage = createModelSendStagePlugin({
+    ...(input.requestDisclosure === undefined
+      ? {}
+      : { requestDisclosure: input.requestDisclosure }),
     families: FAMILIES,
     coordinator: durable.coordinator,
     materialization: {

@@ -24,7 +24,11 @@ import { anthropicTokenizerResources, createAnthropicFamily } from '@omne-harnes
 import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
 import { composeFamilies, type ProxyConfig } from '@omne-harness/pi-ai-transport'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
-import { assembleLocalModel, createLocalCustodian } from '@omne-harness/model-host-local'
+import {
+  assembleLocalModel,
+  createLocalCustodian,
+  type LocalModelConfig,
+} from '@omne-harness/model-host-local'
 import { factorySupplier } from './profiles.ts'
 
 /** The value the vault holds in this environment: a placeholder, never a real key. */
@@ -148,6 +152,7 @@ function recording<P>(send: ModelSendBoundary<P>) {
 
 export type LocalHostInput = Readonly<{
   request: FixedModelRequest
+  requestDisclosure?: LocalModelConfig<unknown>['requestDisclosure']
   /** Names the call, the instance, the operations and the vault file. */
   label: string
   /** A private directory for the vault file. */
@@ -267,6 +272,9 @@ export function assembleLocalHost(input: LocalHostInput) {
     factorySecret: PLACEHOLDER,
   })
   const host = assembleLocalModel({
+    ...(input.requestDisclosure === undefined
+      ? {}
+      : { requestDisclosure: input.requestDisclosure }),
     credentials: custodian,
     materialization: {
       maxRecords: 4,

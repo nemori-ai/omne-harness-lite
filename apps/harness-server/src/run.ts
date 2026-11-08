@@ -14,6 +14,10 @@ import {
   type TelemetryBinding,
 } from './rows/telemetry/index.ts'
 import { checkModelRowConsistency } from './model/consistency.ts'
+import {
+  compileToolResultDisclosure,
+  installToolResultDisclosure,
+} from './model/tool-result-disclosure.ts'
 import { entryObjects as releaseEntryObjects } from './entry/index.ts'
 import {
   LifecycleRegistry,
@@ -746,6 +750,7 @@ async function runServeWithHostFiles(
   const manifests = options.manifests ?? profile.stubManifests
   let tree: ResolvedTree
   let rows: RowSpec[]
+  let disclosure: ReturnType<typeof compileToolResultDisclosure>
   try {
     validateFactoryRows({
       distribution: options.distribution,
@@ -755,6 +760,7 @@ async function runServeWithHostFiles(
     })
     tree = loadTree(options.distribution, options.operator, profile.allowlist)
     checkModelRowConsistency(tree.rows)
+    disclosure = compileToolResultDisclosure(tree.rows)
     parseFactoryConfigs(tree.rows, { executionHost, telemetry })
     rows = tree.rows.map(row => rowSpecOf(row, profile, manifests, probes))
   } catch (error) {
@@ -788,6 +794,7 @@ async function runServeWithHostFiles(
   // Messages up to WARN become `log` records before any row loads; without it Cordis exports up to
   // INFO only (R2-D253). The bridge hands them to the telemetry runtime once that row is active.
   root.logger.exporter(telemetry.bridge.exporter)
+  installToolResultDisclosure(root, disclosure)
   let loaded: readonly LoadedRow[] = []
   let shutdownReport: ReturnType<typeof runShutdown> | undefined
   const shutdown = () => {

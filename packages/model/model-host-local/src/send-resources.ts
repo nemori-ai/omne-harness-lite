@@ -5,6 +5,7 @@ import type { SendResource, SendResources } from '@omne-harness/model'
 import { isDeepStrictEqual } from 'node:util'
 import type {
   DispatchId,
+  FixedModelRequest,
   ModelCallId,
   ModelFailure,
   TransportFailure,
@@ -32,6 +33,8 @@ import {
   type ModelMaterializationEvidenceReader,
 } from './materialization-proof.ts'
 
+export type RequestDisclosure = (request: FixedModelRequest) => TransportFailure | null
+
 export type PiSendResourcesConfig = Readonly<{
   /** Created and closed by the caller. Every transport of these resources shares it. */
   network: NetworkResources
@@ -40,6 +43,8 @@ export type PiSendResourcesConfig = Readonly<{
   routes: Readonly<Record<string, PiRoute>>
   limits: PiTransportLimits
   materialization: PiMaterializationOptions
+  /** Fixed for this activation. A refusal leaves the request unchanged and prevents encoding. */
+  requestDisclosure?: RequestDisclosure
   /**
    * Told before each retry of a send whose request bytes had not left (`limits.connectRetry`), with
    * the call and the dispatch that retries. A throw is dropped. Absent: nobody is told.
@@ -115,7 +120,7 @@ export function sendResourcesOver<P>(
 ): PiSendResources<P> {
   const { config, createTransport } = input
   // The report hook is the send resources' own: the transport gets one per send, below.
-  const { onConnectRetry, ...transportBase } = config
+  const { onConnectRetry, requestDisclosure, ...transportBase } = config
   const proofs = materializationRecords(config.materialization)
   // The probe checks the configuration once, here, so a bad route or limit fails the assembly
   // and not the first send. It is never used; its close is awaited by `close`.
@@ -162,6 +167,8 @@ export function sendResourcesOver<P>(
             failure: { kind: 'invalid', field: 'demand', reason: 'binding' },
           })
         preparation ??= (async () => {
+          const refusal = requestDisclosure?.(request)
+          if (refusal !== undefined && refusal !== null) return { failure: refusal }
           const prepared = await pi.transport.prepare(request, supplier, dispatch)
           if (!('ok' in prepared)) return prepared
           if (inactive) {

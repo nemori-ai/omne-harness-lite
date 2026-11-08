@@ -89,6 +89,45 @@ afterAll(async () => {
 })
 
 describe('one call of each family through the assembled local send path', () => {
+  it('settles a disclosure refusal as not sent without reaching the HTTPS gateway', async () => {
+    const { request } = recordOf(CASES[0]!)
+    const beforeRequest = structuredClone(request)
+    const checked: unknown[] = []
+    const local = assembleLocalHost({
+      request,
+      label: 'disclosure-refused',
+      directory,
+      gateway: { url: server.url, ca: certificate.cert },
+      requestDisclosure: value => {
+        checked.push(value)
+        return { kind: 'denied', action: 'tool-result-disclosure' }
+      },
+    })
+    try {
+      const before = server.requests.length
+      const result = await local.drive()
+      expect(result.driven).toEqual({ ok: undefined })
+      expect(checked).toEqual([beforeRequest])
+      expect(request).toEqual(beforeRequest)
+      expect(server.requests.length).toBe(before)
+      const dispatches = decoded(
+        await local.commands.dispatches({ ...local.access, call: local.call }),
+      )
+      expect(dispatches).toHaveLength(1)
+      expect(dispatches[0]).toMatchObject({
+        send: 'not-sent',
+        terminal: { kind: 'failed', fault: { cause: 'excluded' } },
+      })
+      const recovered = decoded(
+        await local.commands.loadRecovery({ ...local.access, call: local.call }),
+      )
+      expect(recovered.request).toEqual(beforeRequest)
+      expect(recovered.state).toMatchObject({ phase: 'settled' })
+    } finally {
+      await local.close()
+    }
+  })
+
   it.each(CASES.map((item): [string, Case] => [item.name, item]))(
     '%s: the custodian credential reaches the gateway, the call settles and the account reaches ModelCommands',
     async (name, item) => {

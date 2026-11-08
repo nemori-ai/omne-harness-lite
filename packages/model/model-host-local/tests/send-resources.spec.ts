@@ -62,6 +62,7 @@ const ROUTES = {
 /** One transport the observing factory made: its slot and what each start read from it. */
 type Observed = {
   config: PiTransportConfig
+  prepares: number
   /** The slot value each start read, in order. */
   reads: (string | undefined)[]
   closes: number
@@ -93,12 +94,13 @@ function observingFactory() {
   /** The faults of each transport, by its position in `transports`. */
   const faults = new Map<number, Faults>()
   function createTransport(config: PiTransportConfig): PiTransport {
-    const observed: Observed = { config, reads: [], closes: 0, preparedCloses: 0 }
+    const observed: Observed = { config, prepares: 0, reads: [], closes: 0, preparedCloses: 0 }
     const fault = faults.get(transports.length) ?? {}
     transports.push(observed)
     return {
       transport: {
         async prepare(request) {
+          observed.prepares += 1
           if (fault.prepare !== undefined) return { failure: fault.prepare }
           return {
             ok: {
@@ -208,6 +210,7 @@ afterEach(async () => {
 function observed(
   faults: readonly (readonly [number, Faults])[] = [],
   onConnectRetry?: PiSendResourcesConfig['onConnectRetry'],
+  requestDisclosure?: (request: FixedModelRequest) => TransportFailure | null,
 ) {
   network = createNetworkResources({ maxConnections: 2, idleConnectionTimeoutMs: 1_000 })
   const factory = observingFactory()
@@ -220,11 +223,57 @@ function observed(
       limits: LIMITS,
       materialization: { maxRecords: 8, execution: () => ({ ok: DEMAND.initiator }) },
       ...(onConnectRetry === undefined ? {} : { onConnectRetry }),
+      ...(requestDisclosure === undefined ? {} : { requestDisclosure }),
     },
     createTransport: factory.createTransport,
   })
   return { factory, resources }
 }
+
+describe('current disclosure policy of a send resource', () => {
+  it('refuses the bound request before transport preparation and retains that refusal', async () => {
+    const checked: FixedModelRequest[] = []
+    const failure = { kind: 'denied', action: 'tool-result-disclosure' } as const
+    const { factory, resources } = observed([], undefined, request => {
+      checked.push(request)
+      return failure
+    })
+    try {
+      const resource = await acquired(resources)
+      const first = await resource.transport.prepare(REQUEST, REQUEST.suppliers[0], { resent: [] })
+      expect(first).toEqual({ failure })
+      expect(
+        await resource.transport.prepare(REQUEST, REQUEST.suppliers[0], { resent: [] }),
+      ).toEqual(first)
+      expect(checked).toEqual([REQUEST])
+      expect(factory.acquired()[0]?.prepares).toBe(0)
+    } finally {
+      await resources.close()
+    }
+  })
+
+  it('checks each new resource and leaves allowed fixed requests unchanged', async () => {
+    const checked: FixedModelRequest[] = []
+    const { factory, resources } = observed([], undefined, request => {
+      checked.push(request)
+      return null
+    })
+    try {
+      const before = structuredClone(REQUEST)
+      for (let index = 0; index < 2; index += 1) {
+        const resource = await acquired(resources)
+        expect(
+          await resource.transport.prepare(REQUEST, REQUEST.suppliers[0], { resent: [] }),
+        ).toHaveProperty('ok')
+      }
+      expect(checked).toEqual([REQUEST, REQUEST])
+      expect(REQUEST).toEqual(before)
+      expect(factory.acquired().map(item => item.prepares)).toEqual([1, 1])
+    } finally {
+      await resources.close()
+    }
+  })
+})
 
 describe('the report of a connect retry', () => {
   const event = {

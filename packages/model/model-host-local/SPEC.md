@@ -172,6 +172,8 @@
 - 构造时，发送资源用一个空凭据槽建一个探针传输，检查配置。传输拒绝的配置（路由不是纯 `https:` 地址、限额越界、家族贡献或网络资源不合格）让构造抛出 `RangeError`。探针不发送，构造时即开始关闭，发送资源的 `close` 等待其结果。
 - 每次 `acquire` 建一个新的 pi 传输。这个传输的凭据槽是本资源的私有闭包，其他资源读不到它。网络资源与家族贡献由所有资源共享。
 - `acquire` 先核当前 execution，再按显式的 `materialization.maxRecords` 预留名额，之后才创建真实传输。每资源捕获原 demand，`prepare` 核原 request、supplier 与空 resent，重复准备复用原 Promise。
+- 装配可给 `requestDisclosure`，同步检查固定请求是否满足本次宿主激活的披露政策。它须为无副作用的纯函数，不改请求，不读取可变政策。发送资源先核 demand 绑定，再调用它，允许后才准备 pi 传输。重复准备认回同一检查结果；新资源重新检查。省略表示独立宿主未采用上层披露政策，不表示满足任何应用的工具正文上限。
+- 检查返回 `denied`、`invalid` 或 `unsupported` 时，沿 Model 既有传输拒绝协议记录 not-sent 与失败终态。不能只返回未发送而跳过耐久记录。`unavailable` 或检查抛错保留既有不可用/认回责任，不当作允许。政策在一次激活内不变化，连接重试使用已检查的相同请求；新激活检查恢复的固定请求。已经发送或发送事实未知的请求保持原发送协议，不被新政策追溯改成未发送。
 - 同一 prepared 的并发 `materialize` 共享一个 Promise。底层真实成功产出处才登记完整非秘密绑定与回执；重复成功返回原对象，重复失败认回原失败，不再次物化。释放期间迟到的成功产物不登记，并关闭该产物。
 - `startWithCredential(materialized, value, signal)` 先核对 `materialized` 出自本资源。不是本资源交出的物化传输让调用抛出 `SendResourceDefect`，`reason` 为 `foreign-materialization`；资源释放后调用抛出 `SendResourceDefect`，`reason` 为 `resource-released`。这两种情形都不填槽，也不发送。
 - 核对通过后，资源填入凭据，同步调用 `materialized.start(signal)`，在 `finally` 中清空凭据槽。`start` 正常返回或抛出时，槽都在 `startWithCredential` 返回前清空。pi 传输在 `start` 的同步调用内读槽一次，所以凭据只在这次调用期间存在。

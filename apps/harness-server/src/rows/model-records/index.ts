@@ -57,6 +57,7 @@ import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { currentForReader } from '../../entry/runtime-context-trust.ts'
 import { qualifyingDiagnostics } from './diagnostics.ts'
+import { toolResultDisclosureOf } from '../../model/tool-result-disclosure.ts'
 import { agentCustodyOf, createModelEvidence } from '../../model/evidence.ts'
 import { modelRecordsPortOf } from '../../model/ports.ts'
 import { createModelQualification } from '../../model/qualification.ts'
@@ -112,6 +113,7 @@ function evidenceOf(
 
 /** One activation of the row: the plugin class is built for it, so every live object is in its closure. */
 function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
+  const requestDisclosure = toolResultDisclosureOf(ctx)
   const port = modelRecordsPortOf(ctx)
   if (port === undefined)
     throw new Error(
@@ -176,6 +178,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         handle.detach()
       })
       const Stage = createModelSendStagePlugin<unknown>({
+        requestDisclosure,
         families: composeFamilies([
           createOpenAiFamily({
             tokenizer: openAiTokenizerResources(),

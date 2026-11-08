@@ -24,5 +24,6 @@ export {
   type ConnectRetryReport,
   type PiSendResources,
   type PiSendResourcesConfig,
+  type RequestDisclosure,
   type SendResourceDefectReason,
 } from './send-resources.ts'
