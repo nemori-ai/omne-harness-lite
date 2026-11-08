@@ -676,6 +676,7 @@ export async function fixture(
     input,
     plugins,
     api,
+    external,
     directory,
     environments,
     executor,

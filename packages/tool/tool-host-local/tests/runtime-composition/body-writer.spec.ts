@@ -378,11 +378,11 @@ it('does not let a stuck fragment recovery block an already failed author settle
   }
 })
 
-it.each(['invoke', 'maintenance', 'denied'] as const)(
+it.each(['invoke', 'maintenance', 'denied', 'dependency'] as const)(
   'a replacement host recovers admitted body fragments via %s without attaching the old author',
   async trigger => {
     const returned = Promise.withResolvers<string>()
-    const staged = Promise.withResolvers<void>()
+    const staged = Promise.withResolvers<ToolBodyWriter>()
     const world = await fixture(async (_value, _environment, context) => {
       const representation = ordinaryReturnFixture(adoption('output')).body
       if (representation.kind !== 'text') throw new Error('text fixture required')
@@ -394,7 +394,7 @@ it.each(['invoke', 'maintenance', 'denied'] as const)(
         end: true,
       })
       expect(append).toHaveProperty('failure.kind', 'unavailable')
-      staged.resolve()
+      staged.resolve(context.body)
       return returned.promise
     })
     let available = false
@@ -419,8 +419,22 @@ it.each(['invoke', 'maintenance', 'denied'] as const)(
     try {
       const request = world.invocation('replacement-writer')
       const reference = accepted(await world.api.invoke(request))
-      await staged.promise
-      await world.plugins.close()
+      const writer = await staged.promise
+      if (trigger === 'dependency') {
+        await world.external.dispose()
+        expect(world.plugins.diagnostics().retired).toBe(true)
+        expect(
+          await writer.begin('late', { kind: 'text', codec: adoption('output') }),
+        ).toHaveProperty('failure.kind', 'cancelled')
+        expect(
+          await writer.append('answer', '2', {
+            kind: 'text',
+            block: 'late',
+            text: 'must not be admitted',
+            end: true,
+          }),
+        ).toHaveProperty('failure.kind', 'cancelled')
+      } else await world.plugins.close()
       const previousAttempts = attempts
       next = await world.newExecutor()
       const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
