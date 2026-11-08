@@ -40,6 +40,7 @@ import {
 import type { HostFileDiagnostic, HostFilesLimits } from './host-files.ts'
 import { probeHostFilesPrerequisite } from './host-paths.ts'
 import { probeWindowsFilesPrerequisite } from './windows-files/facility.ts'
+import { probeMacosFilesPrerequisite } from './macos-files/prerequisite.ts'
 import { type HostTerminalPrerequisite } from './host-probe.ts'
 import { listMacosResources, recoverMacosResource } from './macos-execution/recovery.ts'
 import {
@@ -181,7 +182,11 @@ function createFilesPrerequisiteReader(
   return async () => {
     if (settled !== undefined) return settled
     const reading = await (
-      process.platform === 'win32' ? probeWindowsFilesPrerequisite : probeHostFilesPrerequisite
+      process.platform === 'win32'
+        ? probeWindowsFilesPrerequisite
+        : process.platform === 'darwin'
+          ? probeMacosFilesPrerequisite
+          : probeHostFilesPrerequisite
     )(stateDirectory)
     if (reading !== 'unknown') settled = reading
     return reading

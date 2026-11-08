@@ -1,4 +1,4 @@
-// The host file root on the real Linux file system: the four ways a path can leave the root
+// The host file root on the real Linux and macOS file systems: the four ways a path can leave the root
 // (resolution outside it, `..`, a link to the outside, a hard link to an outside file), the races
 // around a directory swapped under the walk, and the root's own identity. Every refusal is checked
 // against a snapshot of the root and of the outside tree taken before and after the request.
@@ -22,6 +22,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { prepareNativeHooks, spawnWithNativeHooks } from './macos-files/native-hooks.ts'
+import { apfsVolume } from './macos-files/volume.ts'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   originRef,
@@ -37,34 +39,38 @@ import { probeHostFilesPrerequisite } from '../src/host-paths.ts'
 type Hook = { fn: string; match: string; run: () => Promise<void> }
 const hooks = vi.hoisted(() => ({ rules: [] as Hook[] }))
 
+async function beforeNative(fn: string, args: readonly unknown[]) {
+  const texts = args.filter((arg): arg is string => typeof arg === 'string')
+  const index = hooks.rules.findIndex(
+    rule => rule.fn === fn && texts.some(text => text.includes(rule.match)),
+  )
+  if (index < 0) return
+  const [rule] = hooks.rules.splice(index, 1)
+  await rule?.run()
+}
+
+vi.mock('../src/macos-files/launcher.ts', () => ({
+  spawnFilesHelper: (executable: string) => spawnWithNativeHooks(executable, beforeNative),
+}))
+
 vi.mock('node:fs/promises', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
-  /** Runs the first matching hook once, before the call it precedes reaches the file system. */
-  const before = async (fn: string, args: readonly unknown[]) => {
-    const texts = args.filter((arg): arg is string => typeof arg === 'string')
-    const index = hooks.rules.findIndex(
-      rule => rule.fn === fn && texts.some(text => text.includes(rule.match)),
-    )
-    if (index < 0) return
-    const [rule] = hooks.rules.splice(index, 1)
-    await rule?.run()
-  }
   return {
     ...actual,
     open: async (...args: Parameters<typeof actual.open>) => {
-      await before('open', args)
+      await beforeNative('open', args)
       return actual.open(...args)
     },
     rename: async (...args: Parameters<typeof actual.rename>) => {
-      await before('rename', args)
+      await beforeNative('rename', args)
       return actual.rename(...args)
     },
     mkdir: async (...args: Parameters<typeof actual.mkdir>) => {
-      await before('mkdir', args)
+      await beforeNative('mkdir', args)
       return actual.mkdir(...args)
     },
     link: async (...args: Parameters<typeof actual.link>) => {
-      await before('link', args)
+      await beforeNative('link', args)
       return actual.link(...args)
     },
   }
@@ -83,12 +89,16 @@ async function sudo(args: readonly string[]): Promise<boolean> {
   }
 }
 
-// These tests need `/proc/self/fd` and a POSIX file system; elsewhere they are skipped, not passed.
-beforeEach(({ skip }) => {
-  skip(process.platform !== 'linux')
+// Linux uses descriptor paths; macOS uses the native helper with the same behavior assertions.
+beforeEach(async ({ skip }) => {
+  skip(process.platform !== 'linux' && process.platform !== 'darwin')
+  if (process.platform === 'darwin') await prepareNativeHooks()
 })
 
+const volumes: Awaited<ReturnType<typeof apfsVolume>>[] = []
+
 afterEach(async () => {
+  for (const volume of volumes.splice(0).reverse()) await volume.dispose()
   hooks.rules.length = 0
   // A mount made by a case goes before the tree it sits in, or `rm` would reach into the other device.
   for (const mounted of mounts.splice(0).reverse()) await sudo(['umount', mounted])
@@ -422,14 +432,70 @@ it('refuses a last segment that is on another device than the directory that hol
   const w = await world()
   const mounted = join(w.root, 'mounted')
   await mkdir(mounted)
-  if (!(await sudo(['mount', '-t', 'tmpfs', 'tmpfs', mounted])))
-    skip('environment lacks the right to mount')
-  mounts.push(mounted)
+  if (process.platform === 'darwin') {
+    const volume = await apfsVolume(mounted).catch(() => undefined)
+    if (volume === undefined) skip('environment cannot attach an owned APFS volume')
+    else volumes.push(volume)
+  } else {
+    if (!(await sudo(['mount', '-t', 'tmpfs', 'tmpfs', mounted])))
+      skip('environment lacks the right to mount')
+    mounts.push(mounted)
+  }
   const named = await hostObjectToken(mounted)
   // Only the device sets this name apart: it is a directory, not a link, inside the root.
   expect((await lstat(mounted)).isDirectory()).toBe(true)
   const stat = await unchanged(w, () => w.facility.stat(request(mounted, named, 'mounted')))
   expect(stat).toEqual(refused('mounted', 'notAuthorized'))
+  await writeFile(join(mounted, 'keep.txt'), 'mounted content')
+  const removal = await unchanged(w, () =>
+    w.facility.remove({ ...request(mounted, named, 'mounted-remove'), recursive: true }),
+  )
+  expect(removal).toEqual(refused('mounted-remove', 'notAuthorized'))
+  expect(await readFile(join(mounted, 'keep.txt'), 'utf8')).toBe('mounted content')
+})
+
+it('keeps unrooted writes through an ancestor link and parent segments', async () => {
+  const w = await world({ root: false })
+  await symlink(w.root, join(w.base, 'via'))
+  for (const path of [join(w.base, 'via', 'ok.txt'), `${w.root}/dir/../ok.txt`]) {
+    const result = await w.facility.write({
+      ...request(path, w.okToken, 'unrooted'),
+      mode: 'replace',
+      bytes: text('updated'),
+    })
+    expect(result.kind).toBe('done')
+    expect(await readFile(join(w.root, 'ok.txt'), 'utf8')).toBe('updated')
+  }
+  expect(
+    (
+      await w.facility.list(
+        request(
+          `${w.root}/dir/../dir`,
+          await hostObjectToken(join(w.root, 'dir')),
+          'unrooted-list',
+        ),
+      )
+    ).kind,
+  ).toBe('done')
+})
+
+it('refuses rooted effects while P2 is unknown and retries after its directory exists', async () => {
+  const w = await world()
+  const stateDirectory = join(w.base, 'later-state')
+  const files = createHostFilesEngine({ root: w.root, stateDirectory }).facilityFor('probe')
+  const write = {
+    ...request(join(w.root, 'ok.txt'), w.okToken, 'probe-write'),
+    mode: 'replace' as const,
+    bytes: text('updated'),
+  }
+  expect(await files.write(write)).toEqual(refused('probe-write', 'unavailable'))
+  expect(await readFile(join(w.root, 'ok.txt'), 'utf8')).toBe('inside')
+  expect(await files.list(request(w.root, w.rootToken, 'probe-list'))).toEqual(
+    refused('probe-list', 'unavailable'),
+  )
+  await mkdir(stateDirectory)
+  expect((await files.write(write)).kind).toBe('done')
+  expect(await readFile(join(w.root, 'ok.txt'), 'utf8')).toBe('updated')
 })
 
 it('refuses a path that goes through a link to the outside, whatever the operation', async () => {

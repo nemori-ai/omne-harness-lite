@@ -22,7 +22,7 @@ SPEC 的行为变化时，同步对应测试与本目录 `index.md`。宿主文�
 - [host-files.spec.ts](host-files.spec.ts)：工作区目录外的读取、字节范围、查看、新建、父目录核对、预期版本与相对路径拒绝。
 - [host-files-unsupported.spec.ts](host-files-unsupported.spec.ts)：没有 `/proc/self/fd` 的宿主上，八项操作返回 `unavailable` 且不触碰文件系统；配置了根时全部操作返回 `unavailable`；没有根时已接受的四项照常。文件名沿用旧名，在 Linux 上把 `process.platform` 换成 `win32`，在 Windows 上是真实平台。
 - [host-file-tree.spec.ts](host-file-tree.spec.ts)：列表、搜索、建目录、删除、移动、复制，没有根：成功、各项拒绝、未知；分页与排序、符号链接不跟随、搜索的三个预算、递归删除不进入链接、不覆盖、替换时旧读者仍读到旧字节、跨设备为 `unsupported`。
-- [host-file-root.spec.ts](host-file-root.spec.ts)：宿主文件根，只在 Linux：根外路径与同名前缀的邻居、`..`、指向根外的符号链接（中间段与最后一段）、硬链接各一条用例，每条前后比较根与根外的快照；删除或改名硬链接的根内名只让根外对象的链接数减 1；目录被换成链接时新建、移动、建目录仍落在原目录；走到中间段时被换成链接；根被换成另一个目录；根打不开；有根时的四项照常。
+- [host-file-root.spec.ts](host-file-root.spec.ts)：宿主文件根，在 Linux 与 macOS：根外路径与同名前缀的邻居、`..`、指向根外的符号链接（中间段与最后一段）、硬链接各一条用例，每条前后比较根与根外的快照；删除或改名硬链接的根内名只让根外对象的链接数减 1；目录被换成链接时新建、移动、建目录仍落在原目录；走到中间段时被换成链接；根被换成另一个目录；根打不开；有根时的四项照常。
 - [host-file-batch.spec.ts](host-file-batch.spec.ts)：提交批次与恢复批次：成功与清单；提交前的各项拒绝不写任何东西；第 k 项冲突；发布失败；字节相同但没有回执；运行中为 `pending`；门面封住为 `closed`；没有状态目录；他租户读不到；进程在发布中途被杀之后新进程读到 `interrupted`（慢层）。
 - [host-file-edges.spec.ts](host-file-edges.spec.ts)：查看、写入与关闭不点名时的拒绝；新建前的各项拒绝与父目录缺失；宿主拒绝访问；未映射的打开错误为未知；关闭的绑定层与对象核对；多段读取、上限与文件末尾；同一文件状态在写入、读取、查看与新建后的版本一致；根目录查看；显式零起点。
 - [host-provider.spec.ts](host-provider.spec.ts)：宿主提供者的事实（版本、平台、设施键 `files` 与 `command`、前提三态之一、配额域、资源枚举按平台与用户管理器可达性分支、对意外资源答不支持）、租约内容、拒绝、经登记表门的账本关闭、无在途操作时的退役、界值核对与退役通知；命令启动的 `terminal` 与 `geometry` 答 `unsupported`、非法输入答 `invalidInput`，都不调用账本；命令选项的界值。收敛接线：`filesRoot` 经获取拿到的 `files` 对根外路径答 `notAuthorized`，没有根时照常；配置了根时证据多一个条目；`limits` 的列表上界生效；非绝对路径与非正上界在创建时抛出；批次发布后临时文件删不掉时，提供者的 `diagnose` 收到 `temporaryFileRemains`，同一配置的在场提供者都收到、已排空退役的不再收到；`describe()` 的前提合并状态目录上的 P2。用 `vi.mock` 让带标记的 `unlink` 按开关失败。保留进程：没有状态目录或不是 Linux 时不建索引；索引的监督接到成员读数与停止；恢复列举在标记读不全、监督工具找不到或列举失败时答 `unavailable`，并合并保留终端与保留进程；恢复先认保留终端，再认保留进程。这部分用假 `systemctl` 驱动，不起 scope。macOS（伪装平台）：没有状态目录时恢复列举答 `unavailable`；有状态目录时列出这个作用域的标记与保留终端，标记读不全时答 `unavailable`。Linux、Windows 与 macOS 之外的平台（伪装成 `freebsd`）只列保留终端。
@@ -54,7 +54,7 @@ SPEC 的行为变化时，同步对应测试与本目录 `index.md`。宿主文�
 
 运行记录：PanQiWei 接受时只在 Node v26.0.0、darwin 上运行过。当前的运行记录见 SPEC [组合与验证](../SPEC.md#组合与验证)。
 
-当前缺口：契约意义的授予根（宿主提供者不声称它）、同一文件系统上的绑定挂载、起点之外设备上的递归搜索与删除、macOS 上的 `files` 八项、同一 isolate 标签下重复装载、配置校验失败，都没有测试。`describe()` 看不到是否配置了根（契约没有位置），只测了证据里的条目。真实的 `failed` 单元状态没有构造出来，只有判断函数的测试。具名维护者由负责人指定。
+当前缺口：契约意义的授予根（宿主提供者不声称它）、同一文件系统上的绑定挂载、起点之外设备上的递归搜索与删除、同一 isolate 标签下重复装载、配置校验失败，都没有测试。`describe()` 看不到是否配置了根（契约没有位置），只测了证据里的条目。真实的 `failed` 单元状态没有构造出来，只有判断函数的测试。具名维护者由负责人指定。
 
 ## Linux 终端验证
 
@@ -99,3 +99,9 @@ OMNE_HOST_MACOS=1 pnpm exec vitest run --mode slow --typecheck.enabled=false tes
 ```
 
 慢层需要 Command Line Tools，以及权限为 0755 的 node-pty `spawn-helper`（由仓库的 `patches/node-pty@1.1.0.patch` 设置）。运行记录见 SPEC [组合与验证](../SPEC.md#组合与验证)。
+
+### macOS 文件验证
+
+`host-file-root`、`host-file-tree` 与 `host-file-batch` 在 Linux 与 macOS 使用同一组行为断言。Linux 在 Node 文件调用前注入，macOS 在仅测试版 C 辅助程序的系统调用前通过独立管道注入。生产辅助程序不含该接缝。跨设备测试在 macOS 使用 `hdiutil` 创建独占 APFS 卷，结束后先卸载再清理。批次崩溃测试在第一项回执写入后杀死主进程，核对后续项未发布，再用新引擎恢复。
+
+`macos-files/protocol.spec.ts` 覆盖坏回复、异常退出与超时。`native-helper.spec.ts` 使用真实 C 编译和文件系统，覆盖目录改名、链接、APFS 别名与批次握手。APFS 不允许构造无效 UTF-8 名字时，该用例跳过，不算通过。

@@ -19,6 +19,8 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { prepareNativeHooks, spawnWithNativeHooks } from './macos-files/native-hooks.ts'
+import { apfsVolume } from './macos-files/volume.ts'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   originRef,
@@ -40,6 +42,16 @@ function injected(fn: string, args: readonly unknown[]): Fault | undefined {
     rule => rule.fn === fn && rule.times > 0 && texts.some(text => text.includes(rule.match)),
   )
 }
+
+vi.mock('../src/macos-files/launcher.ts', () => ({
+  spawnFilesHelper: (executable: string) =>
+    spawnWithNativeHooks(executable, async (fn, paths) => {
+      const rule = injected(fn, paths)
+      if (rule === undefined) return
+      rule.times--
+      throw Object.assign(new Error(`injected ${rule.code}`), { code: rule.code })
+    }),
+}))
 
 vi.mock('node:fs/promises', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
@@ -85,11 +97,15 @@ vi.mock('node:fs/promises', async importOriginal => {
 const roots: string[] = []
 
 // These tests need `/proc/self/fd` and a POSIX file system; elsewhere they are skipped, not passed.
-beforeEach(({ skip }) => {
-  skip(process.platform !== 'linux')
+beforeEach(async ({ skip }) => {
+  skip(process.platform !== 'linux' && process.platform !== 'darwin')
+  if (process.platform === 'darwin') await prepareNativeHooks()
 })
 
+const volumes: Awaited<ReturnType<typeof apfsVolume>>[] = []
+
 afterEach(async () => {
+  for (const volume of volumes.splice(0).reverse()) await volume.dispose()
   faults.rules.length = 0
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
 })
@@ -645,7 +661,11 @@ it('refuses move for a missing source, an old version, a wrong name and an absen
 
 it('answers unsupported when the move would cross devices', async ({ skip }) => {
   // Without a second device the case cannot run; it is reported as skipped, not passed.
-  const other = await tree('/dev/shm').catch(() => undefined)
+  const volume =
+    process.platform === 'darwin' ? await apfsVolume().catch(() => undefined) : undefined
+  if (volume !== undefined) volumes.push(volume)
+  const other =
+    process.platform === 'darwin' ? volume?.path : await tree('/dev/shm').catch(() => undefined)
   const base = await tree()
   if (other === undefined || (await lstat(other)).dev === (await lstat(base)).dev)
     skip('environment has no second device')

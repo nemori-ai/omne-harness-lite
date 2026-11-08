@@ -23,7 +23,7 @@
 - [scope-cgroup.ts](scope-cgroup.ts)：进程在 cgroup v2 统一层级里的位置与单元成员，取自进程从内核读到的报告
 - [macos-execution/](macos-execution/)：macOS 的命令与终端后端，机制见 [macOS 说明](../docs/macos-execution.md)
   - [native-source.ts](macos-execution/native-source.ts)：会话读取程序的 C 源码，子命令 `members`、`identity`、`children`、`stop`
-  - [compile.ts](macos-execution/compile.ts)：先核对 `xcode-select -p`，再用 `/usr/bin/cc` 把会话读取程序编译到 `$TMPDIR/omne-macos-execution/<sha256>/`
+  - [compile.ts](macos-execution/compile.ts)：共用编译器，先核对 `xcode-select -p`，再用 `/usr/bin/cc` 编译；会话读取程序缓存于 `$TMPDIR/omne-macos-execution/<sha256>/`，文件辅助程序使用独立的 `omne-macos-files` 缓存
   - [session.ts](macos-execution/session.ts)：调用会话读取程序并解析答复，启动身份 `kern.bootsessionuuid`，会话首进程的身份核对，停止记下的执行域
   - [domain-index.ts](macos-execution/domain-index.ts)：冷索引：`<stateDirectory>/macos-domains/` 下的标记，资源引用的读写
   - [residue.ts](macos-execution/residue.ts)：处置的判定，`none` 或 `stopping` 与它的原因
@@ -44,3 +44,5 @@
 - [terminal-gate.ts](terminal-gate.ts)：scope 内的持久 Bash 与 PTY 驱动，gate 进程的 I/O 外壳
 - [terminal-gate-core.ts](terminal-gate-core.ts)：gate 不碰 I/O 的判断：消息解析、控制行的分行与上界、驱动与分段源码的文本、段归属的状态机
 - [terminal-sentinels.ts](terminal-sentinels.ts)：PTY 字节流里的段首、段尾哨兵，以及段内字节与段间字节的归属
+
+- [macos-files/](macos-files/)：macOS 文件操作、根身份、P2 探测、辅助进程协议与批次清单握手，见 [macOS 文件说明](../docs/macos-files.md)。

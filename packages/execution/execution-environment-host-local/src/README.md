@@ -31,3 +31,5 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 `index.ts` 与 `cordis.ts` 带 `PACKAGE_TEMPLATE_DRAFT` 注释，写明还没有接受的部分：终端真实后端的独立接受、Runtime Context 生产者插件、调用方类核对。具名维护者由负责人指定。
 
 终端实现由 `host-terminal.ts`、`terminal-control.ts`、`terminal-output.ts`、`terminal-gate.ts` 与 `terminal-gate-core.ts` 承担（`terminal-gate-core.ts` 是 gate 不碰 I/O 的判断与段归属的状态机，被 `terminal-gate.ts` 与 `macos-execution/terminal-gate.ts` 导入），接线与边界见[持久终端机制](../docs/architecture.md#持久终端机制)。
+
+- `macos-files/`：macOS 文件后端。`facility.ts` 映射设施结果，`paths.ts` 绑定根身份，`transport.ts` 调用原生进程，`batch.ts` 与 `batch-transport.ts` 管理清单握手。`native-*.ts` 拥有 C 源码，`protocol.ts` 校验回复。机制见 [macOS 文件说明](../docs/macos-files.md)。

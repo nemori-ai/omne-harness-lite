@@ -43,9 +43,18 @@ export function sessionReader(): Promise<SessionReader> {
 
 /** Compiles the reader into a content-addressed directory under `tools.cacheRoot`. */
 export async function compileSessionReader(tools: CompileTools): Promise<SessionReader> {
-  const digest = createHash('sha256').update(sessionReaderSource).digest('hex')
+  return compileNativeProgram(tools, 'omne-session', sessionReaderSource)
+}
+
+/** Compiles a public-API helper using the same tool check and content-addressed cache. */
+export async function compileNativeProgram(
+  tools: CompileTools,
+  name: string,
+  sourceText: string,
+): Promise<SessionReader> {
+  const digest = createHash('sha256').update(sourceText).digest('hex')
   const cache = join(tools.cacheRoot, digest)
-  const executable = join(cache, 'omne-session')
+  const executable = join(cache, name)
   try {
     await access(executable)
     return { kind: 'ready', path: executable }
@@ -60,9 +69,9 @@ export async function compileSessionReader(tools: CompileTools): Promise<Session
   await mkdir(cache, { recursive: true, mode: 0o700 })
   const stage = await mkdtemp(join(cache, 'compile-'))
   try {
-    const source = join(stage, 'omne-session.c')
-    const result = join(stage, 'omne-session')
-    await writeFile(source, sessionReaderSource)
+    const source = join(stage, `${name}.c`)
+    const result = join(stage, name)
+    await writeFile(source, sourceText)
     try {
       await run(tools.cc, ['-O2', '-Wall', '-o', result, source], {
         timeout: 60_000,

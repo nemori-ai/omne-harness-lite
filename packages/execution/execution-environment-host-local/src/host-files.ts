@@ -17,6 +17,10 @@ import { createWindowsBatch } from './windows-files/batch.ts'
 import { createHostFileTree, hostFilesLimits, type HostFilesLimits } from './host-file-tree.ts'
 import { createWindowsFiles, createWindowsRootIdentity } from './windows-files/facility.ts'
 import { windowsSegmentsBelow } from './root-segments.ts'
+import { createMacosFiles } from './macos-files/facility.ts'
+import { createMacosBatch } from './macos-files/batch.ts'
+import { createMacosPaths, createMacosRootIdentity } from './macos-files/paths.ts'
+import { macosFilesPrerequisite } from './macos-files/prerequisite.ts'
 import {
   createCodes,
   createHostPathsCore,
@@ -185,10 +189,15 @@ export function createHostFilesEngine(
     process.platform === 'win32' && options.root !== undefined
       ? createWindowsRootIdentity(options.root)
       : undefined
+  const macosRootIdentity =
+    process.platform === 'darwin' && options.root !== undefined
+      ? createMacosRootIdentity(options.root)
+      : undefined
   const core = createHostPathsCore({
     root: options.root,
     probeDirectory: options.stateDirectory,
   })
+  const macosPrerequisite = macosFilesPrerequisite(options.stateDirectory)
   /** The process instance of this engine; batches name it, so another process can tell they are not its own. */
   const generation = randomUUID()
   const running = new Set<string>()
@@ -718,13 +727,19 @@ export function createHostFilesEngine(
         if (!isHostPath(path)) return reject(requestId, 'invalidInput')
         if (named === null) return reject(requestId, 'notAuthorized')
         if (paths.rooted) {
-          const refusal =
-            process.platform === 'win32' && options.root !== undefined
-              ? (await windowsSegmentsBelow(options.root, path)) === undefined
-                ? reject(requestId, 'notAuthorized')
-                : undefined
-              : await gate(paths, requestId, [path])
-          if (refusal !== undefined) return refusal
+          if (process.platform === 'darwin') {
+            const located = await createMacosPaths(macosRootIdentity)(path)
+            if (!located.ok) return failed(requestId, located.failure, 'unresolved')
+            if (!(await macosPrerequisite())) return reject(requestId, 'unavailable')
+          } else {
+            const refusal =
+              process.platform === 'win32' && options.root !== undefined
+                ? (await windowsSegmentsBelow(options.root, path)) === undefined
+                  ? reject(requestId, 'notAuthorized')
+                  : undefined
+                : await gate(paths, requestId, [path])
+            if (refusal !== undefined) return refusal
+          }
         }
         if (handleObject.token !== namedToken) return unknown(requestId)
 
@@ -781,6 +796,38 @@ export function createHostFilesEngine(
       if (options.root !== undefined) {
         operations.read = windows.read
         operations.stat = windows.stat
+      }
+    }
+
+    if (process.platform === 'darwin') {
+      const macos = createMacosFiles({
+        ...(macosRootIdentity === undefined ? {} : { rootIdentity: macosRootIdentity }),
+        limits: bounds,
+        prerequisite: macosPrerequisite,
+        issue,
+      })
+      operations.list = macos.list
+      operations.search = macos.search
+      operations.mkdir = macos.mkdir
+      operations.remove = macos.remove
+      operations.move = macos.move
+      operations.copy = macos.copy
+      const macosBatch = createMacosBatch({
+        files: macos,
+        prerequisite: macosPrerequisite,
+        ...(macosRootIdentity === undefined ? {} : { rootIdentity: macosRootIdentity }),
+        ...(options.stateDirectory === undefined ? {} : { stateDirectory: options.stateDirectory }),
+        generation,
+        running,
+        sealed: () => sealed.has(owner),
+        diagnose: options.diagnose,
+      })
+      operations.commitBatch = macosBatch.commitBatch
+      operations.recoverBatch = macosBatch.recoverBatch
+      if (options.root !== undefined) {
+        operations.read = macos.read
+        operations.stat = macos.stat
+        operations.write = macos.write
       }
     }
 
