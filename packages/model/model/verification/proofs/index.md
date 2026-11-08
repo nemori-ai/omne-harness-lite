@@ -7,3 +7,5 @@
 - [README.md](README.md)：证明清单与假设
 
 - [not-sent.md](not-sent.md)：零发送收尾的不变量、前提和实现映射。
+
+- [finished-receiver.md](finished-receiver.md)：业务收场与释放双确认后的接收对象退役。

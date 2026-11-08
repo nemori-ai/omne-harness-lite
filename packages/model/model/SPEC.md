@@ -253,6 +253,8 @@ Activity 持有唯一的固定 settle 输入。首次写前读取当前资格、
 
 release 与业务收场分别记录。receiver 只启动一次 iterator.return 并缓存结果。driver 固定终止阶段后先发起 release，同时独立推进 settle，不先等待 release。原 drive 锁一直覆盖真实释放等待，防止第二消费者。释放挂起时 inspect 仍可读取已确认 Settlement。释放失败在收场确认后由 drive 返回，后续 drive 不重做 return 或 close。若同轮收场和释放都失败，先返回收场操作的失败，释放失败仍缓存，收场确认后再次可见。
 
+业务收场确认且资源释放成功后，活动退出 finish，丢弃 receiver 及其发送材料引用。活动仅保留 done，或保留原接收失败的 failed。公开观察继续使用已有确认快照。收场未知或释放未成功时，不执行此转换。
+
 settle 确认后先固定内部阶段，再安排附带状态刷新。刷新失败不重做业务写。后续取消、可信 recordLateFact 和事件重放不能改变原 Settlement 的 termination、version 或 source。未知事实不先展示。此实现仅在当前进程持有原确认依据时接续，不证明生产耐久、跨进程恢复或真实厂商停止。
 
 ## 结果消费支持

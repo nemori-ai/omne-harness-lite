@@ -263,6 +263,9 @@ export function createModelDriver<P>(
     const released = await releasing
     if ('failure' in result) return result
     if ('failure' in released) return released
+    active.stage = entry.receiveFailure
+      ? { kind: 'failed', failure: entry.receiveFailure }
+      : { kind: 'done' }
     return entry.receiveFailure ? { failure: entry.receiveFailure } : { ok: undefined }
   }
   function requiresOriginalClaim(
