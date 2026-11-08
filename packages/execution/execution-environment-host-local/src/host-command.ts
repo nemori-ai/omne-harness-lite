@@ -27,7 +27,7 @@ import type {
 } from '@omne-harness/execution-environment-contract'
 import type { HostCommandPrerequisite, PrerequisiteProbe } from './host-probe.ts'
 import type { RetainedProcessIndex, RetainedReservation } from './host-retained-processes.ts'
-import { createRetainedTail, type RetainedTail } from './retained-tail.ts'
+import { createRetainedTail, type RetainedTail, type TailStream } from './retained-tail.ts'
 import {
   forceStopScope,
   launchScope,
@@ -301,6 +301,54 @@ export function createGateReader(input: { maxChunkBytes: number }): Readonly<{
       }
       if (pending.length > maxLine) return failed('a frame line exceeds its bound', frames)
       return { kind: 'frames', frames }
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------------------------
+// Output after the exit frame
+
+/**
+ * What the unit writes after the exit frame: counted per stream from the exit frame on, and saved
+ * only once a handover gave the domain a tail. The frames reach it before the handover (in the exit
+ * frame's chunk, or while the commit is in flight) and after it alike.
+ */
+export type LateOutput = Readonly<{
+  /** Bytes per stream the gate relayed or dropped after the exit frame. */
+  observed(): Readonly<Record<TailStream, number>>
+  append(stream: TailStream, bytes: Uint8Array): void
+  drop(stream: TailStream, count: number): void
+  /** The handover: from now on the bytes go to a tail that saves the newest `capacity` bytes per stream after `savedFrom`. */
+  keep(input: { capacity: number; savedFrom: Readonly<Record<TailStream, number>> }): RetainedTail
+  /** The frame channel ended or broke: the provider observes the streams no longer, and the tail, kept now or later, is closed. */
+  close(): void
+}>
+
+export function createLateOutput(): LateOutput {
+  const observed: Record<TailStream, number> = { stdout: 0, stderr: 0 }
+  let tail: RetainedTail | undefined
+  let open = true
+  return Object.freeze({
+    observed: () => ({ ...observed }),
+    append(stream, bytes) {
+      observed[stream] += bytes.length
+      if (tail === undefined) return
+      tail.append(stream, bytes)
+    },
+    drop(stream, count) {
+      observed[stream] += count
+      if (tail === undefined) return
+      tail.drop(stream, count)
+    },
+    keep(input) {
+      tail = createRetainedTail(input)
+      if (!open) tail.close()
+      return tail
+    },
+    close() {
+      open = false
+      if (tail === undefined) return
+      tail.close()
     },
   })
 }
@@ -621,10 +669,8 @@ type ProcessEntry = {
   exit: Extract<GateFrame, { kind: 'exit' }>['exit'] | undefined
   /** The gate's reading of the unit's other members at exit; null when it could not read them. */
   members: number | null
-  /** Bytes per stream the gate relayed or dropped after the exit frame. */
-  readonly afterExit: { stdout: number; stderr: number }
-  /** The tail the handover gave to the index; frames after the exit frame go to it from then on. */
-  tail: RetainedTail | undefined
+  /** What the unit writes after the exit frame; a handover gives it the tail the index reads. */
+  readonly late: LateOutput
   /** A stop of this handle was asked for; set before the stop's first wait. */
   stopRequested: boolean
   /** The acquisition released the domain; set before the release's first wait. */
@@ -700,13 +746,10 @@ function applyFrame(entry: ProcessEntry, frame: GateFrame, exited: () => void): 
         entry.buffer.push(frame.stream, frame.bytes)
         break
       }
-      // After the exit frame: counted as observed; saved only once a handover gave a tail.
-      entry.afterExit[frame.stream] += frame.bytes.length
-      entry.tail?.append(frame.stream, frame.bytes)
+      entry.late.append(frame.stream, frame.bytes)
       break
     case 'dropped':
-      entry.afterExit[frame.stream] += frame.count
-      entry.tail?.drop(frame.stream, frame.count)
+      entry.late.drop(frame.stream, frame.count)
       break
     case 'exit':
       entry.exit = frame.exit
@@ -869,14 +912,14 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       return 'unsupported'
     }
     const counted = entry.buffer.summary()
-    const tail = createRetainedTail({
+    const late = entry.late.observed()
+    const tail = entry.late.keep({
       capacity: settings.retainedOutputBytes,
       savedFrom: {
-        stdout: counted.stdout.observedBytes + entry.afterExit.stdout,
-        stderr: counted.stderr.observedBytes + entry.afterExit.stderr,
+        stdout: counted.stdout.observedBytes + late.stdout,
+        stderr: counted.stderr.observedBytes + late.stderr,
       },
     })
-    entry.tail = tail
     // The open channel must not keep the provider's process alive by itself.
     const unref: unknown = Reflect.get(frames, 'unref')
     if (typeof unref === 'function') Reflect.apply(unref, frames, [])
@@ -1051,8 +1094,7 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       startedAt: undefined,
       exit: undefined,
       members: null,
-      afterExit: { stdout: 0, stderr: 0 },
-      tail: undefined,
+      late: createLateOutput(),
       stopRequested: false,
       released: false,
       stopping: undefined,
@@ -1114,12 +1156,16 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       for (const frame of step.frames) applyFrame(entry, frame, onExit)
       if (step.kind === 'fault') {
         // A broken frame stream invalidates the resource: its outcome is unknown, and it is stopped.
-        // After the exit frame the outcome stands, and a handed-over domain is not this one's to stop.
+        // After the exit frame the outcome stands, and a handed-over domain is not this one's to
+        // stop; its tail is closed, since nothing is observed from here on.
         reading = false
+        entry.late.close()
         end()
         void forceStop(entry, tools)
       }
     })
+    // The frame channel is gone: a tail the handover gave, or gives later, observes nothing more.
+    launcher.stdout?.once('close', () => entry.late.close())
     launcher.once('close', end)
     launcher.once('error', end)
     writable?.write(startMessage(request, settings.maxChunkBytes))

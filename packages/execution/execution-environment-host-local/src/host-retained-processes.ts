@@ -629,6 +629,8 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       if (entry === 'unavailable' || entry === undefined) return entry ?? 'notFound'
       if (entry.output === 'unavailable') return 'unavailable'
       if (entry.output === 'unsupported') return { kind: 'unsupported' }
+      // A closed tail observes its streams no longer: its readings would go stale, as after a restart.
+      if (entry.output.closed()) return 'unavailable'
       return entry.output.read(from)
     },
     async stopRef(ref, scope, tenant, ledger) {

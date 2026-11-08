@@ -13,7 +13,12 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import type { OutputChunk } from '@omne-harness/execution-environment-contract'
 import type { ScopeRef as ListedScope } from '@omne-harness/runtime-context-contract'
-import { createGateReader, createOutputBuffer, type GateFrame } from '../src/host-command.ts'
+import {
+  createGateReader,
+  createLateOutput,
+  createOutputBuffer,
+  type GateFrame,
+} from '../src/host-command.ts'
 import {
   confirmationOf,
   listScopes,
@@ -258,6 +263,41 @@ it('reads data and drop frames after the exit, where the unit still writes', () 
     { kind: 'dropped', stream: 'stderr', count: 7 },
     { kind: 'data', stream: 'stderr', bytes: encoder.encode('after') },
   ])
+})
+
+describe('the output after the exit frame', () => {
+  const stream = (tail: ReturnType<ReturnType<typeof createLateOutput>['keep']>) => {
+    const read = tail.read()
+    if (read.kind !== 'tail') throw new Error(`expected a tail: ${JSON.stringify(read)}`)
+    return read.streams.map(item => ({ ...item, data: [...item.data] }))
+  }
+
+  it('counts the bytes before a handover without saving them, and saves them once a tail is kept', () => {
+    const late = createLateOutput()
+    late.append('stdout', encoder.encode('abc'))
+    late.drop('stderr', 2)
+    expect(late.observed()).toEqual({ stdout: 3, stderr: 2 })
+    const tail = late.keep({ capacity: 8, savedFrom: { stdout: 3, stderr: 2 } })
+    expect(tail.read()).toEqual({ kind: 'none' })
+    late.append('stdout', encoder.encode('de'))
+    late.drop('stdout', 1)
+    late.append('stdout', encoder.encode('f'))
+    expect(late.observed()).toEqual({ stdout: 7, stderr: 2 })
+    expect(stream(tail)).toMatchObject([
+      { stream: 'stdout', savedFrom: 3, start: 6, end: 7, discardedBytes: 3, data: [0x66] },
+    ])
+  })
+
+  it('closes the tail it kept, and a tail kept after the channel ended is closed from the start', () => {
+    const before = createLateOutput()
+    before.close()
+    expect(before.keep({ capacity: 8, savedFrom: { stdout: 0, stderr: 0 } }).closed()).toBe(true)
+    const after = createLateOutput()
+    const tail = after.keep({ capacity: 8, savedFrom: { stdout: 0, stderr: 0 } })
+    expect(tail.closed()).toBe(false)
+    after.close()
+    expect(tail.closed()).toBe(true)
+  })
 })
 
 describe('the fault reason and the line bound', () => {

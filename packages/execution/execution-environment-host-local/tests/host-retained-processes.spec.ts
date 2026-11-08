@@ -703,6 +703,31 @@ describe('stopping a retained process by its reference', () => {
     expect(await f.index.output(process, scope, tenant)).toBe('notFound')
   })
 
+  it('answers unavailable for a tail that was closed, until the process left the index', async () => {
+    const f = await indexWith(await stateDirectory())
+    const scope = scopeOf('scope-a')
+    const tail = createRetainedTail({ capacity: 16, savedFrom: { stdout: 0, stderr: 0 } })
+    tail.append('stdout', new TextEncoder().encode('kept'))
+    const key = randomUUID()
+    const reservation = f.index.reserve(scope, tenant, key)
+    if (typeof reservation === 'string') throw new Error('expected a reservation')
+    f.stub.members(unitOf(key), [gatePid, 100])
+    const { process } = await f.index.commit(reservation, {
+      unit: unitOf(key),
+      bootId,
+      origin: originRef('call-1'),
+      gatePid,
+      members: 1,
+      ledger: endingLedger().ledger,
+      output: tail,
+    })
+    expect(await f.index.output(process, scope, tenant)).toMatchObject({ kind: 'tail' })
+    tail.close()
+    expect(await f.index.output(process, scope, tenant)).toBe('unavailable')
+    expect(await f.index.stopRef(process, scope, tenant, endingLedger().ledger)).toBe('confirmed')
+    expect(await f.index.output(process, scope, tenant)).toBe('notFound')
+  })
+
   it('answers unsupported when nothing is kept, and unavailable for one loaded after a restart', async () => {
     const state = await stateDirectory()
     const stub = supervisor()

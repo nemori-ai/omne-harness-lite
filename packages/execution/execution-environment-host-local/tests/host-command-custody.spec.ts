@@ -18,6 +18,7 @@ import {
   type CommandOutcome,
   type ProcessHandle,
   type ResourceLedger,
+  type RetainedOutputFrom,
   type RetainedProcessLedger,
   type RetainedProcessRef,
   type RetainedTerminalLedger,
@@ -256,8 +257,8 @@ async function setup(options: SetupOptions) {
       }
     },
     list: () => index.list(scope, tenant),
-    /** What the retention extension answers for the output of `process`. */
-    output: (process: RetainedProcessRef) => {
+    /** What the retention extension answers for the output of `process`, from `from` when given. */
+    output: (process: RetainedProcessRef, from?: RetainedOutputFrom) => {
       const output = commands.facility.retention?.output
       if (output === undefined) throw new Error('expected the output of the retention extension')
       return output({
@@ -266,6 +267,20 @@ async function setup(options: SetupOptions) {
         origin: originRef('call-1'),
         binding: { kind: 'host_machine' },
         process,
+        ...(from === undefined ? {} : { from }),
+      })
+    },
+    /** What the retention extension answers for a stop of `process`. */
+    stop: (process: RetainedProcessRef, mode: 'graceful' | 'forced') => {
+      const stop = commands.facility.retention?.stop
+      if (stop === undefined) throw new Error('expected the stop of the retention extension')
+      return stop({
+        requestId: 'stop-1',
+        access: { principal: 'subject-a', tenant },
+        origin: originRef('call-1'),
+        binding: { kind: 'host_machine' },
+        process,
+        mode,
       })
     },
   }
@@ -520,6 +535,36 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
         })
       })
     })
+
+    it.each([
+      ['the frame channel closed', 'closeStdout'],
+      ['the frame stream broke', 'garbage'],
+    ])(
+      'answers unavailable once %s after the handover, and notFound once the index let the process go',
+      { timeout: 20_000 },
+      async (_, afterRetain) => {
+        const f = await setup({
+          adopt: async () => 'confirmed',
+          gate: { onRetain: [stdout('XY')], afterRetain },
+        })
+        const process = retainedOf(residueOf(await f.handle.result))
+        const unavailable = { kind: 'rejected', requestId: 'output-1', reason: 'unavailable' }
+        await eventually(async () => expect(await f.output(process)).toEqual(unavailable))
+        // Still the retention scope's: listed as running, not stopped by anyone.
+        expect(await f.list()).toMatchObject([{ process, state: 'running' }])
+        expect(await f.kills()).toBe(0)
+        expect(await f.stop(process, 'forced')).toEqual({
+          kind: 'done',
+          requestId: 'stop-1',
+          value: { status: 'confirmed' },
+        })
+        expect(await f.output(process)).toEqual({
+          kind: 'rejected',
+          requestId: 'output-1',
+          reason: 'notFound',
+        })
+      },
+    )
 
     it('keeps nothing with a capacity of 0: the output is unsupported', async () => {
       const f = await setup({

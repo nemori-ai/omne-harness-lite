@@ -23,11 +23,13 @@
 //   afterExit: frames sent in the same write as the exit frame, so the manager reads them in the
 //     chunk of the exit frame (initial none)
 //   onRetain: frames sent when `retain` arrives (initial none)
+//   afterRetain: 'stay' | 'closeStdout' (closes the frame channel right after the `onRetain` frames)
+//     | 'garbage' (a line that is not JSON right after the `onRetain` frames)
 //
 // `systemctl`: appends its arguments to `systemctl.log`. `kill <unit>` sends SIGKILL to the pid in
 // `<unit>.pid`; `stop` exits 0; `show` reports the unit `deactivating` while `<unit>.hold` exists,
 // otherwise `inactive` and `not-found`.
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, closeSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { Socket } from 'node:net'
 
 const directory = process.env['FAKE_DIR'] ?? ''
@@ -49,6 +51,7 @@ function script() {
     beforeExit: [],
     afterExit: [],
     onRetain: [],
+    afterRetain: 'stay',
     ...(existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {}),
   }
 }
@@ -100,6 +103,8 @@ function gate() {
       else if (message.c === 'retain') {
         appendFileSync(`${directory}/retain.log`, `${unit}\n`)
         for (const frame of plan.onRetain) send(frame)
+        if (plan.afterRetain === 'closeStdout') closeSync(1)
+        else if (plan.afterRetain === 'garbage') process.stdout.write('garbage\n')
       }
     }
   })
