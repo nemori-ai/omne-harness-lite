@@ -438,6 +438,12 @@ sequenceDiagram
 - IC-2：`s0-double` 占位对象以 `provide` 普通值提供，没有服务定义。只给 S0 替身行，真实消费者不得到占位（DP1-C11）。
 - IC-8：S0 的 `rowPlugin`（`src/run.ts` 的 `stubRowPlugin`）与 `serve` 的包装插件（`src/row.ts` 的 `defineRow`）的 `inject` 由清单计算，不是字面数组。补偿：`defineRow` 要求声明的 `injects` 包含被包装插件的字面 `inject`，不符即抛出。声明再由 `real-manifests-sync` 与 `stubs.ts` 比较。
 
+### Tool 生命周期遥测
+
+`tool-records` 与 `tool-material-maintenance` 显式 inject `telemetry`，各自包装实际 SQL 记录仓的提交口。应用将 Tool 生命周期观察投影为 `omne.tool.material.lifecycle` 事件。作用域取真实租户；调用关联采用调用标识的 SHA-256 投影。事件字段只有阶段、闭合失败类别、条目数及可选正文总字节数，不包含正文、data、路径或自由异常文本。
+
+事件不参与结果交接、清理或升级准入。禁用、容量丢弃、出口失败、依赖缺席和关闭均不能改变 Tool 的原答复。该接线只使用独立事件，不分配 segment、长期配对表或独立定时器。持久状态仍从 Tool 查询，不能用遥测计数证明材料已清理。
+
 ### Tool 材料维护授权
 
 Tool历史格式升级必须先于当前执行宿主恢复和新调用准入。应用先停止旧拥有者的新写入，并取得执行、事实ACK、队列、环境和交付的具名收尾证据；Tool负责调用与材料分类，host负责自己的旧交付副本。SQL表结构迁移不等于业务结果已经转换。

@@ -233,6 +233,7 @@ function rowsOf(storageRoot: string) {
   return {
     tools,
     rows: [
+      { id: 'telemetry', plugin: 'telemetry', config: { implementation: 'disabled' } },
       { id: 'storage', plugin: 'storageRow', config: providerConfig(storageRoot) },
       { id: 'identity', plugin: 'identityStandIn' },
       { id: 'authorization', plugin: 'policyAccess' },

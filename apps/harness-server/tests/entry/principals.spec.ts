@@ -24,6 +24,8 @@ import {
   AGENT_HOST_COMPONENT,
   MAINTENANCE_GRANTS,
   TOOL_RESIDENCY_COMPONENT,
+  TENANT_DOMAIN_SCANNER_COMPONENT,
+  TOOL_MATERIAL_MAINTAINER_COMPONENT,
   releaseMaintenanceGrants,
 } from '../../src/rows/authorization/index.ts'
 import {
@@ -166,14 +168,14 @@ function requestFor(row: SystemActionRow, principal: SystemPrincipal): SystemAct
   }
 }
 
-describe('system principals against the ten-row matrix with the release grant table (验收 2)', () => {
+describe('system principals against the release action matrix (验收 2)', () => {
   const holderOf = new Map<string, string>(
     Object.entries(MAINTENANCE_GRANTS).flatMap(([component, grant]) =>
       grant.purposes.map(purpose => [purpose, component] as const),
     ),
   )
 
-  it('covers all ten rows: the holder of a row is allowed, every other issued system principal is denied grant-missing', async () => {
+  it('covers all twelve rows: each holder is allowed and other system principals are denied', async () => {
     const { fixture, issuer, principals } = await installed()
     const authorization = referenceSystemActionAuthorization({
       verifier: verifierOf(fixture.env),
@@ -186,11 +188,13 @@ describe('system principals against the ten-row matrix with the release grant ta
     const holders = {
       [TOOL_RESIDENCY_COMPONENT]: systemOf(issuer, TOOL_RESIDENCY_COMPONENT),
       [AGENT_HOST_COMPONENT]: systemOf(issuer, AGENT_HOST_COMPONENT),
+      [TENANT_DOMAIN_SCANNER_COMPONENT]: systemOf(issuer, TENANT_DOMAIN_SCANNER_COMPONENT),
+      [TOOL_MATERIAL_MAINTAINER_COMPONENT]: systemOf(issuer, TOOL_MATERIAL_MAINTAINER_COMPONENT),
       // The installed `sessionPrincipals.maintainer`, not a fresh copy: S3 reads `pending` with it.
       [ENTRY_COMPONENTS.sessionMaintainer]: maintainer,
     }
     const outsiders: Principal[] = [principals.coordinator, systemOf(issuer, 'restart-scanner')]
-    expect(SYSTEM_ACTION_MATRIX).toHaveLength(10)
+    expect(SYSTEM_ACTION_MATRIX).toHaveLength(12)
     for (const row of SYSTEM_ACTION_MATRIX) {
       const holder = holderOf.get(row.purpose)
       for (const [component, principal] of Object.entries(holders)) {

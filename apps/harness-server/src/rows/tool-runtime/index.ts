@@ -12,6 +12,10 @@
 // 四行等 `tool-records` 建好 bundle 再装；`tool-records` 一直不装时它们停在装载中，不答就绪。
 // 已知限制：bundle 每次运行只建一次，实例宿主与执行宿主不能在同一运行里重装（成员抛出，行 FAILED）。
 import type { Context, Plugin } from '@deepseek-ai/cordis'
+import { observeToolLedgerCommit } from '@omne-harness/tool'
+import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
+import { processInstance } from '../telemetry/instance.ts'
+import { createToolLifecycleTelemetry } from './telemetry.ts'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
@@ -63,8 +67,15 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
     domains,
     combination: { combinationVersion: config.combinationVersion, manifestDigest: manifest.digest },
   }
+  const store = createSqlToolLedgerStore(options)
   const sql = Object.freeze({
-    store: createSqlToolLedgerStore(options),
+    store: {
+      ...store,
+      commit: observeToolLedgerCommit(
+        store.commit,
+        createToolLifecycleTelemetry(() => ctx.get(telemetryKey, false), processInstance),
+      ),
+    },
     materials: createSqlToolMaterialStore({
       ...options,
       provider: TOOL_MATERIAL_PROVIDER,
@@ -85,7 +96,7 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
 
 const recordsPlugin: Plugin.Object = {
   name: 'tool-records',
-  inject: [storageKey, tenantDomainLookupKey],
+  inject: [storageKey, tenantDomainLookupKey, telemetryKey],
   Config: toolRuntimeConfigSchema,
   apply(ctx: Context, value: unknown) {
     const config = toolRuntimeConfigSchema.parse(value)
@@ -110,7 +121,7 @@ export const toolRecordsRow = defineRow({
   implementation: 'real',
   manifest: {
     provides: [toolCommandsKey, toolReadsKey, toolStartAuthorityKey, toolStartFenceKey],
-    injects: [storageKey, tenantDomainLookupKey],
+    injects: [storageKey, tenantDomainLookupKey, telemetryKey],
     sameProviderGroup: 'tool-start',
   },
   lifecycle: { kind: 'none' },

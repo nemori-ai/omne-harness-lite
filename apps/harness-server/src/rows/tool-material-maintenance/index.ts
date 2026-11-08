@@ -1,4 +1,8 @@
 import { z } from 'zod'
+import { observeToolLedgerCommit } from '@omne-harness/tool'
+import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
+import { processInstance } from '../telemetry/instance.ts'
+import { createToolLifecycleTelemetry } from '../tool-runtime/telemetry.ts'
 import { fail } from '@omne-harness/operation-result'
 import { toolInstanceHostKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { SqlStorage, TenantDomainLookup, TenantDomains } from '@omne-harness/sql-contract'
@@ -51,6 +55,7 @@ export const toolMaterialMaintenanceRow = defineRow({
       TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
       TOOL_MATERIAL_MAINTAINER_PRINCIPAL_KEY,
       toolInstanceHostKey,
+      telemetryKey,
     ],
     sameProviderGroup: null,
   },
@@ -74,8 +79,15 @@ export const toolMaterialMaintenanceRow = defineRow({
       monotonicMs: monotonicClock.now,
     })
     const access = createToolMaterialMaintenanceAccess(() => ctx.get(systemActionAuthorizationKey))
+    const store = createSqlToolLedgerStore(options)
     const maintenance = createLocalToolMaterialMaintenance({
-      store: createSqlToolLedgerStore(options),
+      store: {
+        ...store,
+        commit: observeToolLedgerCommit(
+          store.commit,
+          createToolLifecycleTelemetry(() => ctx.get(telemetryKey, false), processInstance),
+        ),
+      },
       materials: {
         clock,
         store: createSqlToolMaterialStore({

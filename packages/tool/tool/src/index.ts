@@ -22,6 +22,11 @@ export {
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
 export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.ts'
 export {
+  observeToolLedgerCommit,
+  type ToolLifecycleObservation,
+  type ToolLifecycleObserver,
+} from './lifecycle-observation.ts'
+export {
   createToolMaterialMaintenance,
   type ToolMaterialMaintenanceInput,
 } from './material-maintenance.ts'

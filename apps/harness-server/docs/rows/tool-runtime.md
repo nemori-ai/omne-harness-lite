@@ -13,7 +13,7 @@ executor、runtime 六个插件和 `authorExecution`。五行装同一个 bundle
 
 | 行                  | 装什么                                                             | 提供                                                                                           | 静态 inject                                                          |
 | ------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `tool-records`      | records 插件；在受信存储子树内建 SQL 记录仓、输出保管与守护提交    | `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`（同提供者组 `tool-start`） | `storage`、`tenantDomainLookup`                                      |
+| `tool-records`      | records 插件；在受信存储子树内建 SQL 记录仓、输出保管与守护提交    | `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`（同提供者组 `tool-start`） | `storage`、`tenantDomainLookup`、`telemetry` |
 | `tool-runtime`      | 门面插件                                                           | `toolRuntime`                                                                                  | `toolCommands`、`toolReads`                                          |
 | `tool-executor`     | 实例宿主装在行 fiber，长期执行宿主装在子 fiber。行体承载，业务阶段 | `toolInstanceHost`                                                                             | `toolCommands`、`toolClock`（子 fiber 另 inject `toolInstanceHost`） |
 | `tool-instances`    | 实例目录                                                           | `toolInstances`                                                                                | `toolPublicationAuthority`                                           |
@@ -38,6 +38,10 @@ Tool固定每次调用的schema定义及正文解析限制，入口适配只给�
 
 Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话日志同一事务域、同一次登记。组合版本因此从
 `session-composite/2` 换到 `session-composite/3`。开发环境清存储根（R2-D98）。
+
+## 生命周期观察
+
+记录行和独立材料维护行都把确认的 Tool 提交投影到既有 telemetry 行。事件为 `omne.tool.material.lifecycle`，语义与限制见[应用规格](../../SPEC.md#tool-生命周期遥测)和[Tool 规格](../../../../packages/tool/tool/SPEC.md#生命周期提交观察)。业务恢复沿耐久事实，不依赖事件是否成功输出。
 
 ## bundle 的输入
 

@@ -197,7 +197,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'tool-records': {
     provides: ['toolCommands', 'toolReads', 'toolStartAuthority', 'toolStartFence'],
-    injects: ['storage', 'tenantDomainLookup'],
+    injects: ['storage', 'tenantDomainLookup', 'telemetry'],
     group: 'tool-start',
   },
   'tool-bindings': {
@@ -223,6 +223,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'tenantDomainScannerPrincipal',
       'toolMaterialMaintainerPrincipal',
       'toolInstanceHost',
+      'telemetry',
     ],
     phase: 'business',
   },

@@ -1,4 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
+import { createDisabledTelemetry } from '@omne-harness/telemetry-node'
 import { expect, it, vi } from 'vitest'
 import type { TenantDomains } from '@omne-harness/sql-contract'
 import type { LifecycleHandle } from '../../../src/types.ts'
@@ -33,6 +34,7 @@ async function assembly(
   await root.plugin({
     apply(ctx: Context) {
       ctx.provide('storage', {})
+      ctx.provide('telemetry', createDisabledTelemetry().port)
       ctx.provide('toolInstanceHost', {})
       ctx.provide('tenantDomainLookup', { lookup })
       ctx.provide('tenantDomains', { enumerate })
