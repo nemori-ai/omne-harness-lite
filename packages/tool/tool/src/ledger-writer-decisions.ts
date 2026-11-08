@@ -15,6 +15,7 @@ import type {
 import { encodeToolMaterial } from './material-codec.ts'
 import { resultBodyPolicy } from './result-offloading.ts'
 import { currentBodyExecution } from './ledger-body-admission.ts'
+import { bodyRepresentation } from './body-representation.ts'
 
 export type WriterInput<P> = MutationInput<P> &
   Readonly<{
@@ -133,9 +134,9 @@ export function beginWriter<P>(
     configuration.readResultArguments,
   )
   if ('failure' in policy) return reply(policy)
-  if (policy.ok.declaration.kind !== 'text')
+  if (policy.ok.declaration.kind !== 'text' && policy.ok.declaration.kind !== 'json-document')
     return reject('unsupported', 'structured writer is not available')
-  if (!sameFactValue(policy.ok.declaration, representation))
+  if (!sameFactValue(bodyRepresentation(policy.ok.declaration), representation))
     return reject('invalid', 'representation must match the fixed declaration')
   const record: WriterRecord = {
     id,
@@ -174,7 +175,7 @@ export function admitAppend<P>(
   snapshot: Snapshot,
   input: WriterInput<P>,
   sequence: string,
-  frame: Extract<ToolBodyFrame, { kind: 'text' }>,
+  frame: Extract<ToolBodyFrame, { kind: 'text' | 'json-fragment' }>,
 ): WriterDecision<WriterAppendRecord> {
   const writerId = writerIdentity(input.start, input.key)
   const writer = snapshot.writers.get(writerId)
@@ -195,18 +196,33 @@ export function admitAppend<P>(
   const refusal = newAdmission(snapshot, input.start)
   if (refusal !== null) return reply(succeed(fail(refusal)))
   if (writer.state.kind !== 'open') return reject('closed', 'writer is not open')
+  if (
+    writer.policy.declaration.kind === 'text'
+      ? frame.kind !== 'text'
+      : frame.kind !== 'json-fragment'
+  )
+    return reject('invalid', 'frame must match the fixed body representation')
   if (sequence !== writer.nextSequence)
     return reject('conflict', 'sequence must be the next admitted sequence')
   if (operationUsed(snapshot, input.operation)) return reject('conflict', 'operation already used')
   if (
     appendRecords(snapshot, writerId).some(
-      record => record.frame.block === frame.block && record.frame.end,
+      record =>
+        frame.kind === 'text' &&
+        record.frame.kind === 'text' &&
+        record.frame.block === frame.block &&
+        record.frame.end,
     )
   )
     return reject('closed', 'text block is already closed')
   const bytes = Buffer.byteLength(frame.text, 'utf8')
   if (writer.bodyBytes + bytes > writer.policy.maxBodyBytes)
     return reject('too-large', 'body size exceeded')
+  if (
+    writer.policy.jsonLimits !== null &&
+    writer.bodyBytes + bytes > writer.policy.jsonLimits.maxBytes
+  )
+    return reject('too-large', 'JSON document validation budget exceeded')
   const scope = snapshot.writerScopes.get(input.start.operation)
   if (scope === undefined) return reject('invalid', 'writer scope missing')
   const stagedBytes = metadataSize(frame)
@@ -220,7 +236,10 @@ export function admitAppend<P>(
     operation: input.operation,
     source: input.source,
     inputDigest,
-    frame: { kind: 'text', block: frame.block, end: frame.end } as const,
+    frame:
+      frame.kind === 'text'
+        ? ({ kind: 'text', block: frame.block, end: frame.end } as const)
+        : ({ kind: 'json-fragment' } as const),
     bodyBytes: bytes,
     metadataBytes: 0,
     stagedBytes,
@@ -262,6 +281,14 @@ export function admitSeal<P>(
 ): WriterDecision<WriterRecord> {
   const writer = snapshot.writers.get(writerIdentity(input.start, input.key))
   if (writer === undefined) return reject('invalid', 'writer does not exist')
+  if (writer.state.kind === 'failed' && writer.state.seal !== null) {
+    const seal = writer.state.seal
+    return seal.operation === input.operation &&
+      seal.afterSequence === afterSequence &&
+      sameFactValue(seal.source, input.source)
+      ? reply(succeed(fail(writer.state.failure)))
+      : reject('conflict', 'different seal already admitted')
+  }
   if (writer.state.kind === 'sealing' || writer.state.kind === 'sealed')
     return writer.state.operation === input.operation &&
       writer.state.afterSequence === afterSequence &&
@@ -276,7 +303,7 @@ export function admitSeal<P>(
   if (operationUsed(snapshot, input.operation)) return reject('conflict', 'operation already used')
   const blocks = new Map<string, boolean>()
   for (const append of appendRecords(snapshot, writer.id))
-    blocks.set(append.frame.block, append.frame.end)
+    if (append.frame.kind === 'text') blocks.set(append.frame.block, append.frame.end)
   if ([...blocks.values()].some(closed => !closed))
     return reject('invalid', 'text blocks must be closed before seal')
   const next: WriterRecord = {

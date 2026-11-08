@@ -115,6 +115,10 @@ W3 的最终结果准备、正文页与材料释放增量依据 [#1168](https://
 
 append 的受理提交保存序号、输入摘要和完整 staged 输入。不可变材料确认后，在同一 call CAS 记录 retained 回执、移除 staged 输入并归还暂存预算。未确认时保留原输入，恢复仅重放该输入和原材料操作，不重调作者。staged 的序列化字节和条数采用原执行固定的作者缓冲上限，包含转义开销；同操作重试不重复计费。maxWriterMetadataBytes 固定限制每个原执行的全部 writer 和 append 元数据总量，包含 key、block 和回执索引；它不按单个 writer 重置，也不借用 wait history 配额。
 
+JSON 文档 writer 接收原文本片段，保持空白、数值词法和 UTF-8 字节。begin 从固定返回声明投影出正文表示，核对 codec 和 schema 身份。append 同时受正文总量和固定文档字节上限约束。seal 使用 json-text 按固定限制解析完整文档，拒绝 BOM、重复键及不完整 JSON，再调用受信 `bodySchemas.check` 校验固定的公开 schema。该端口不返回替代值，不能改写正文或程序 data。文本 writer 不依赖此端口。
+
+语法、结构预算、schema 不匹配和不支持的固定 schema 都是确定失败。它们在原 call CAS 中把 writer 转为 failed，保留原 seal 身份及失败，解除片段准备用途并登记清理。同输入重试认回失败，异 seal 输入冲突；关闭不再等待该 seal。未成功封存仍阻止正常输出被当作完整成功。校验端口缺失、暂时不可用或抛错则保留 sealing 责任，按原操作恢复，不能误判为确定失败。inspect 只投影公开失败，不披露内部操作或来源记录。
+
 片段材料不作为完整正文引用对作者发布。seal 先固定最后受理序号，再读取已确认片段，按正文总量上限聚合及校验。聚合材料已耐久而 writer 尚未确认封存时，仍保留片段和聚合的保管责任。writer sealed 与片段准备用途解除、清理待办登记在同一个 call CAS 完成。聚合正文保持 preparation，直到最终结果采用或具名恢复决定明确不再采用。seal 不启动 TTL。
 
 结果和过程输出采用时，按原调用 writer 库存核对材料身份，执行 [P11 的 source 使用限制](../tool-contract/SPEC.md#模型正文-writer)。该限制先于 native-reference 或 process-history 用途的创建；不能用新用途绕过正文期限。
@@ -129,6 +133,8 @@ text 正文载荷采用 `tool-model-text-utf8-v1`。它按原顺序连接模型�
 
 `offloading` 显式配置内联字节、最长保管毫秒、正文最大字节和机械预览字节，均为正安全整数。作者声明只能收紧内联及期限上限。首次准备固定有效策略，重试不改用新配置。
 
+`offloading.jsonDocument` 与 `offloading.jsonRecord` 是必填的独立 `JsonLimits`。前者限制整份文档，后者限制单条记录；它们不借用调用参数或程序 data 的限制。writer 固定与其格式对应的限制，恢复不采用新的配置。JSON 文档在有限预算内聚合，当前实现不承诺常量内存。JSON Lines 写入和结构化语义读页的完整交付继续由 W3-B 验收。
+
 `ToolConfiguration.readResultArguments` 是受信装配提供的读回参数 `JsonLimits`，也进入账本构造配置；它不同于原工具调用的 `guards.budgets.arguments`。自动正文准备使用固定预算检查整份 `Tools.read_result` 参数及引用内部编码。说明不可调用时返回 `invalid/readResultArguments`，不发布卸载占位。预览、原大小、从结果发布起算的固定保留期、不续期说明和读回调用共同受内联上限约束。交付可能晚于期限，首屏不承诺当前仍可读；实际截止时间沿结果描述及正文读取页返回。
 
 装配须使准备端预算与实际读回入口兼容。升级时，此要求覆盖所有尚未到期的已发布引用，不能因收紧读回预算使它们失去约定的读取能力。恢复继续使用原准备固定的预算；它不代替应用维护读取端兼容性的责任。
@@ -139,7 +145,7 @@ text 正文载荷采用 `tool-model-text-utf8-v1`。它按原顺序连接模型�
 
 最终 `ToolResult` 在同次 CAS 中获得正文身份、表示、字节数、预览类别和固定期限。该写集同时建立 offloaded-body 用途、解除相应 preparation、记录结果和时间水位。原操作已提交时先认回原回执，不读材料、不重新取时钟，也不续期。期限溢出拒绝提交。交付释放不解除正文用途或改变期限。
 
-当前已实现文本准备、封存采用和期限激活。正文语义页、到期读取门禁、页租约、物理回收及完整作者 writer 仍待实现。包内验证不表示这些生命周期后半段已经交付。
+文本正文生命周期沿 W3-A 已有实现。本节新增 JSON 文档 writer 和 schema 窄校验端口。结构化语义读页、JSON Lines 与生产发行的结构化接线仍待完成；本包验证不表示完整 W3-B 已接受。
 
 ### 10 边界与资格
 

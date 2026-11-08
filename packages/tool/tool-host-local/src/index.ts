@@ -86,6 +86,7 @@ export {
   type LocalStartGuardInput,
 } from './start-guard.ts'
 export { createLocalTextResults } from './text-results.ts'
+export { createLocalToolBodySchemas } from './body-schemas.ts'
 export {
   createEnvironmentStateStore,
   type EnvironmentAddress,

@@ -1517,6 +1517,7 @@ export function createToolLedger<P, B extends ContentBlock>(
       },
     }),
     bodyWrites: createLedgerBodyWrites({
+      bodySchemas: settlement.bodySchemas,
       materials: settlement.materials,
       configuration,
       entry,

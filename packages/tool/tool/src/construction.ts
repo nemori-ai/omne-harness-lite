@@ -1,4 +1,4 @@
-import type { JsonLimits } from '@omne-harness/json-text'
+import type { JsonLimits, JsonRead } from '@omne-harness/json-text'
 // The construction shapes of the Tool runtime factory and the ledger factory. They belong to the
 // implementation, not to the contract: another implementation may take different dependencies
 // and configuration.
@@ -12,6 +12,7 @@ import type {
   ToolState,
   ControlRecord,
   ToolOperationId,
+  ToolPublishedSchema,
 } from '@omne-harness/tool-contract'
 import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type { AccessVerdict } from './ledger-guards.ts'
@@ -44,6 +45,8 @@ export type ToolOffloadingConfiguration = Readonly<{
   maxPageBytes: number
   maxPageLeaseMs: number
   maxWriterMetadataBytes: number
+  jsonDocument: JsonLimits
+  jsonRecord: JsonLimits
 }>
 
 export type ToolConfiguration = ToolAuthorLimits &
@@ -175,6 +178,9 @@ export type ToolLedgerFacts<P, B extends ContentBlock> = Readonly<{
 
 /** Explicit ledger providers. A null content reader disables byte reads only. */
 export type ToolLedgerPorts<P> = Readonly<{
+  bodySchemas?: Readonly<{
+    check(schema: ToolPublishedSchema, read: Extract<JsonRead, { kind: 'ok' }>): Reply<void>
+  }>
   /** M01: byte custody only; the call ledger owns preparation and lifetime. */
   materials?: Readonly<{
     provider: import('@omne-harness/tool-contract').Adoption

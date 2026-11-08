@@ -98,6 +98,8 @@ function checkResultConfiguration(configuration: ToolLedgerConfiguration): void 
   const policy = configuration.offloading
   if (typeof policy !== 'object' || policy === null)
     throw new TypeError('configuration.offloading: required')
+  readJsonText('null', policy.jsonDocument)
+  readJsonText('null', policy.jsonRecord)
   checkCapacities(policy, [
     'maxInlineUtf8Bytes',
     'maxRetentionMs',

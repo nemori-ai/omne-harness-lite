@@ -10,7 +10,7 @@ import {
   createWriterAccess,
   fromReply,
   sequence,
-  textFrame,
+  bodyFrame,
   type WriterPorts,
 } from './ledger-writer-access.ts'
 import {
@@ -53,7 +53,7 @@ export function createLedgerBodyWrites<P>(ports: WriterPorts<P>): ToolBodyWrites
       const number = bound.ok.fields.sequence
       if (!sequence(number, false))
         return fail({ kind: 'invalid', reason: 'positive canonical sequence required' })
-      const frame = textFrame(bound.ok.fields.frame)
+      const frame = bodyFrame(bound.ok.fields.frame)
       if ('failure' in frame) return fromReply(frame, bound.ok.input.operation)
       const admitted = await transact(bound.ok.input, snapshot =>
         admitAppend(snapshot, bound.ok.input, number, frame.ok),
@@ -106,7 +106,7 @@ export function createLedgerBodyWrites<P>(ports: WriterPorts<P>): ToolBodyWrites
         case 'sealing':
           return succeed({ kind: 'sealing', afterSequence: writer.state.afterSequence })
         case 'failed':
-          return succeed(writer.state)
+          return succeed({ kind: 'failed', failure: writer.state.failure })
         case 'open': {
           let confirmedThrough = '0'
           for (const append of appendRecords(loaded.ok, writer.id)) {

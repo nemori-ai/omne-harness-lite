@@ -19,6 +19,7 @@ import {
 } from './ledger-writer-decisions.ts'
 
 export type WriterPorts<P> = Readonly<{
+  bodySchemas?: ToolLedgerPorts<P>['bodySchemas']
   materials: ToolLedgerPorts<P>['materials']
   configuration: ToolLedgerConfiguration
   entry(input: unknown, action: 'write'): Reply<CallInput<P>>
@@ -78,9 +79,20 @@ export function fromReply<T>(
 ): Outcome<T, ToolBodyWriteFailure> {
   return 'failure' in answer ? fail(primitive(answer.failure, operation)) : answer
 }
-export function textFrame(
+export function bodyFrame(
   value: unknown,
-): Outcome<Extract<ToolBodyFrame, { kind: 'text' }>, ToolFailure> {
+): Outcome<Extract<ToolBodyFrame, { kind: 'text' | 'json-fragment' }>, ToolFailure> {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    Reflect.get(value, 'kind') === 'json-fragment'
+  ) {
+    const fixed = fixCleanupFields(value, ['kind', 'text'])
+    if ('failure' in fixed) return fixed
+    return typeof fixed.ok.text === 'string' && fixed.ok.text.isWellFormed()
+      ? succeed({ kind: 'json-fragment', text: fixed.ok.text })
+      : invalid('frame', 'valid JSON text fragment required')
+  }
   const fixed = fixCleanupFields(value, ['kind', 'block', 'text', 'end'])
   if ('failure' in fixed) return fixed
   const f = fixed.ok

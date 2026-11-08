@@ -323,3 +323,11 @@ createLocalToolMaterialMaintenance 封装 Tool 的窄维护入口，提供 expir
 关闭后不向调用方交付成功结果。返回 unavailable 时明确已受理步骤可能完成，不推导“未执行”。已发生的删除和未知提交依原账本的 cleanup/deleting 及操作身份恢复。新作用域继续使用原存储；普通业务账本不受维护关闭影响。
 
 scan 固定原主体、租户、时刻和游标，读取之前及返回之前检查当前扫描资格。候选源不授予维护权。此独立工厂不启动定时器或注册 Cordis 服务；生产轮询和提供者撤除次序由应用装配负责。
+
+## 正文 schema 适配
+
+`createLocalToolBodySchemas` 消费装配提供的 schema-provider 和一个精确的 vocabulary 采用。它实现 Tool 账本的窄校验端口。provider 的创建、预算和关闭归装配；适配器不拥有另一个缓存，不读取 Session 或工具注册表。`LocalToolRuntimeInput.bodySchemas` 把此端口交给账本，缺席时结构化封存明确不可用。
+
+缓存身份取原公开 schema 的完整身份和定义摘要。相同标签下的不同定义不复用同一检查对象；恢复采用 writer 固定的定义。未知 vocabulary 或 provider 不支持的构造返回 unsupported。provider 关闭、容量拒绝及暂时失败返回 unavailable，schema 不匹配返回 invalid。
+
+本适配器只构造校验副本。正文和 schema 定义中的每个数字都按符号、去零系数及十进制指数比较原词法与 Number 回写词法。两者数学值相等且 Number 有限时，才把副本交给 provider 的 exact-or-reject 路径。正负零统一按数学零校验。不能无损投影的数字返回 unsupported，不转成字符串，不舍入原值。原正文、JsonValue、data 及 schema 身份保持不变。本版限制不是通用任意精度 JSON Schema 的支持承诺。

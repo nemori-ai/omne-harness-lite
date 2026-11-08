@@ -37,6 +37,7 @@ export function createRuntimeRecords(
   const ports: ToolLedgerPorts<unknown> = {
     controlSubjects: input.controlSubjects,
     content: input.content,
+    ...(input.bodySchemas === undefined ? {} : { bodySchemas: input.bodySchemas }),
     materials: input.materials,
     releaseInspection: stages.environments,
   }

@@ -10,6 +10,14 @@ const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
 const nonNegative = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER)
 /** 计时器能保持的最长延迟（`driverRetryDelayMs` 的上界，见 ToolConfiguration）。 */
 const timerMs = z.number().int().min(1).max(2_147_483_647)
+const jsonLimits = z.strictObject({
+  maxBytes: positive,
+  maxDepth: positive,
+  maxItems: positive,
+  maxMembers: positive,
+  maxStringLength: positive,
+  maxNumberLength: positive,
+})
 
 export const toolConfigurationSchema = z.strictObject({
   authorBufferBytes: positive,
@@ -28,6 +36,8 @@ export const toolConfigurationSchema = z.strictObject({
     maxPageBytes: positive,
     maxPageLeaseMs: positive,
     maxWriterMetadataBytes: positive,
+    jsonDocument: jsonLimits,
+    jsonRecord: jsonLimits,
   }),
   reconciliationDelayMs: nonNegative,
   ledgerCommitAttempts: positive,

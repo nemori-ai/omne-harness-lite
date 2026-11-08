@@ -1,5 +1,6 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { DurableEvidence, ToolRenderedResult } from '@omne-harness/tool-contract'
+import type { ToolPrimitiveFailure } from '@omne-harness/tool-contract/provider'
 import { put, type Snapshot } from './ledger-decider.ts'
 import { sameFactValue } from './ledger-facts.ts'
 import type { LedgerWrite } from './ledger-store.ts'
@@ -11,16 +12,31 @@ export function releaseUnusedWriters<B extends ContentBlock>(
   result: ToolRenderedResult<B>,
   basis: DurableEvidence,
 ): readonly LedgerWrite[] {
+  return releaseWriters(
+    snapshot,
+    [...snapshot.writers.values()].filter(
+      writer =>
+        writer.state.kind !== 'failed' &&
+        !(
+          writer.state.kind === 'sealed' &&
+          result.original.kind === 'offloaded' &&
+          sameFactValue(writer.state.body.source, result.original.source)
+        ),
+    ),
+    basis,
+    { kind: 'closed', reason: 'final result did not adopt this writer' },
+  )
+}
+
+export function releaseWriters(
+  snapshot: Snapshot,
+  writers: readonly WriterRecord[],
+  basis: DurableEvidence,
+  failure: ToolPrimitiveFailure,
+): readonly LedgerWrite[] {
   const writes: LedgerWrite[] = []
   const scopes = new Map(snapshot.writerScopes)
-  for (const writer of snapshot.writers.values()) {
-    if (writer.state.kind === 'failed') continue
-    if (
-      writer.state.kind === 'sealed' &&
-      result.original.kind === 'offloaded' &&
-      sameFactValue(writer.state.body.source, result.original.source)
-    )
-      continue
+  for (const writer of writers) {
     const operations = new Set<WriterAppendRecord['operation']>()
     if (writer.state.kind === 'sealing' || writer.state.kind === 'sealed') {
       operations.add(writer.state.operation)
@@ -30,7 +46,15 @@ export function releaseUnusedWriters<B extends ContentBlock>(
       ...writer,
       state: {
         kind: 'failed',
-        failure: { kind: 'closed', reason: 'final result did not adopt this writer' },
+        failure,
+        seal:
+          writer.state.kind === 'sealing' || writer.state.kind === 'sealed'
+            ? {
+                operation: writer.state.operation,
+                source: writer.state.source,
+                afterSequence: writer.state.afterSequence,
+              }
+            : null,
       },
     }
     const metadataBytes = metadataSize(next)

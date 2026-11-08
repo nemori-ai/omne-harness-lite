@@ -1,4 +1,5 @@
 import type { JsonLimits } from '@omne-harness/json-text'
+import { bodyRepresentation } from './body-representation.ts'
 import { judgeContentBlock, type TextContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -56,7 +57,8 @@ type BodyTransaction = <T>(
 ) => Reply<T>
 
 export function bodyOf(record: BodyPreparationRecord): Outcome<SealedToolBody, ToolFailure> {
-  if (record.state.kind !== 'sealed' || record.policy.declaration.kind !== 'text')
+  const representation = bodyRepresentation(record.policy.declaration)
+  if (record.state.kind !== 'sealed' || representation === null)
     return invalid('body', 'sealed-body-required')
   const id = decodeToolBodyId(
     `body:${digestOf({ operation: record.operation, start: record.start })}`,
@@ -65,7 +67,7 @@ export function bodyOf(record: BodyPreparationRecord): Outcome<SealedToolBody, T
   return succeed({
     source: materialContent(record.state.seal),
     bodyId: id.ok,
-    representation: record.policy.declaration,
+    representation,
     bodyBytes: record.bodyBytes,
     custody: record.state.seal.evidence,
   })

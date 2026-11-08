@@ -43,6 +43,7 @@ export type LocalToolRuntimeInput = Readonly<{
   store: ToolLedgerStore
   materials: NonNullable<ToolLedgerPorts<unknown>['materials']>
   content: ToolLedgerPorts<unknown>['content']
+  bodySchemas?: ToolLedgerPorts<unknown>['bodySchemas']
   sources: LocalInvocationSource<unknown, ToolMessageContentBlock>
   access: ToolHostAccess<unknown>
   subjects: RuntimeSourceRecovery

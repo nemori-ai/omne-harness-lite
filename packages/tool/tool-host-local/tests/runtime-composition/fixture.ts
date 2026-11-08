@@ -18,6 +18,7 @@ import type {
   ToolResultReceiver,
   ToolsExecuteAnswer,
   ToolForwardIntent,
+  ToolBodyDeclaration,
 } from '@omne-harness/tool-contract'
 import { resolveToolInvocationRef, toolsCapabilityOf } from '@omne-harness/tool-contract'
 import {
@@ -92,6 +93,22 @@ export const configuration: ToolConfiguration = {
     maxPageBytes: 65_536,
     maxPageLeaseMs: 30_000,
     maxWriterMetadataBytes: 1_048_576,
+    jsonDocument: {
+      maxBytes: 1_048_576,
+      maxDepth: 64,
+      maxItems: 65_536,
+      maxMembers: 65_536,
+      maxStringLength: 1_048_576,
+      maxNumberLength: 64,
+    },
+    jsonRecord: {
+      maxBytes: 65_536,
+      maxDepth: 32,
+      maxItems: 4096,
+      maxMembers: 4096,
+      maxStringLength: 65_536,
+      maxNumberLength: 64,
+    },
   },
 }
 export type Author = (
@@ -108,6 +125,10 @@ export async function fixture(
   enableForwarding = false,
   requestAccess?: ToolRequestAccess<unknown>,
   forwardingPreparation?: () => Promise<void>,
+  body?: Readonly<{
+    declaration: ToolBodyDeclaration
+    schemas: LocalToolRuntimeInput['bodySchemas']
+  }>,
 ) {
   const root = new Context()
   const memory = createMemoryToolLedgerStore()
@@ -257,7 +278,10 @@ export async function fixture(
         { kind: 'declared'; value: typeof parameters }
       >({
         parameters: { kind: 'declared', value: parameters },
-        returns: ordinaryReturnFixture(adoption('output')),
+        returns: {
+          ...ordinaryReturnFixture(adoption('output')),
+          ...(body === undefined ? {} : { body: body.declaration }),
+        },
         author: {
           kind: 'ordinary',
           parameters: { adoption: adoption('arguments'), parse: input => succeed(input.effective) },
@@ -394,6 +418,7 @@ export async function fixture(
     store,
     materials: createMemoryToolMaterials(),
     content: null,
+    ...(body === undefined ? {} : { bodySchemas: body.schemas }),
     sources,
     access,
     clock,

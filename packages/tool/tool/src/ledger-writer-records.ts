@@ -52,7 +52,14 @@ export type WriterRecord = Readonly<{
         source: DurableEvidence
         body: Extract<ToolBodyWriterStatus, { kind: 'sealed' }>['body']
       }>
-    | Extract<ToolBodyWriterStatus, { kind: 'failed' }>
+    | (Extract<ToolBodyWriterStatus, { kind: 'failed' }> &
+        Readonly<{
+          seal: Readonly<{
+            operation: ToolOperationId
+            source: DurableEvidence
+            afterSequence: string
+          }> | null
+        }>)
 }>
 
 export type WriterAppendRecord = Readonly<{
@@ -62,12 +69,17 @@ export type WriterAppendRecord = Readonly<{
   operation: ToolOperationId
   source: DurableEvidence
   inputDigest: string
-  frame: Omit<Extract<ToolBodyFrame, { kind: 'text' }>, 'text'>
+  frame:
+    | Omit<Extract<ToolBodyFrame, { kind: 'text' }>, 'text'>
+    | Readonly<{ kind: 'json-fragment' }>
   bodyBytes: number
   metadataBytes: number
   stagedBytes: number
   state:
-    | Readonly<{ kind: 'staged'; payload: Extract<ToolBodyFrame, { kind: 'text' }> }>
+    | Readonly<{
+        kind: 'staged'
+        payload: Extract<ToolBodyFrame, { kind: 'text' | 'json-fragment' }>
+      }>
     | Readonly<{ kind: 'retained'; seal: ToolMaterialSeal; custody: DurableEvidence }>
     | Readonly<{ kind: 'abandoned'; basis: DurableEvidence }>
 }>

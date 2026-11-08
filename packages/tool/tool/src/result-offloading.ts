@@ -20,6 +20,7 @@ export type BodyPolicy = Readonly<{
   retentionMs: number
   maxBodyBytes: number
   previewBytes: number
+  jsonLimits: JsonLimits | null
   readResultArguments: JsonLimits
 }>
 
@@ -54,6 +55,12 @@ export function resolveBodyPolicy(
       readResultArguments,
     }),
     declaration: declaration.body,
+    jsonLimits:
+      declaration.body.kind === 'json-document'
+        ? { ...system.jsonDocument }
+        : declaration.body.kind === 'json-lines'
+          ? { ...system.jsonRecord }
+          : null,
     readResultArguments: { ...readResultArguments },
     inlineBytes:
       inline.kind === 'system'

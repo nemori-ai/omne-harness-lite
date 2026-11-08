@@ -47,7 +47,8 @@
     "@omne-harness/tool-contract": "workspace:*",
     "@omne-harness/tool-cordis-contract": "workspace:*",
     "@omne-harness/stream-arrival": "workspace:*",
-    "@omne-harness/execution-environment-cordis-contract": "workspace:*"
+    "@omne-harness/execution-environment-cordis-contract": "workspace:*",
+    "@omne-harness/json-text": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

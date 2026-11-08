@@ -128,6 +128,22 @@ function assembly() {
         maxPageBytes: 65_536,
         maxPageLeaseMs: 30_000,
         maxWriterMetadataBytes: 1_048_576,
+        jsonDocument: {
+          maxBytes: 1_048_576,
+          maxDepth: 64,
+          maxItems: 65_536,
+          maxMembers: 65_536,
+          maxStringLength: 1_048_576,
+          maxNumberLength: 64,
+        },
+        jsonRecord: {
+          maxBytes: 65_536,
+          maxDepth: 32,
+          maxItems: 4096,
+          maxMembers: 4096,
+          maxStringLength: 65_536,
+          maxNumberLength: 64,
+        },
       },
     },
     {

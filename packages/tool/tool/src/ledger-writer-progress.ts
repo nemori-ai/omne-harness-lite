@@ -1,4 +1,5 @@
 import { prepareWriterAggregate, confirmWriterSeal } from './ledger-writer-seal.ts'
+import { readJsonBytes } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { SealedToolBody, ToolBodyWriteReply } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
@@ -17,9 +18,11 @@ import {
 import type { WriterAppendRecord, WriterRecord } from './ledger-writer-records.ts'
 import { encodeToolMaterial } from './material-codec.ts'
 import { encodeTextBody } from './text-body-codec.ts'
+import { releaseWriters } from './ledger-writer-release.ts'
+import { mintEvidence } from './evidence.ts'
 
 export function createWriterProgress<P>(
-  ports: Pick<WriterPorts<P>, 'materials' | 'load' | 'entry' | 'transact'>,
+  ports: Pick<WriterPorts<P>, 'materials' | 'load' | 'entry' | 'transact' | 'bodySchemas'>,
   transact: WriterMutation<P>,
 ) {
   const custody = createLedgerMaterialCustody({
@@ -108,6 +111,32 @@ export function createWriterProgress<P>(
       return fail({ kind: 'closed', reason: 'writer is not sealing' })
     const state = writer.state
     const materialInput = { ...input, operation: state.operation, source: state.source }
+    const rejectDocument = (
+      kind: 'invalid' | 'too-large' | 'unsupported',
+      reason: string,
+    ): ToolBodyWriteReply<SealedToolBody> =>
+      transact(materialInput, (snapshot, mint) => {
+        const current = snapshot.writers.get(writer.id)
+        if (current?.state.kind === 'failed') return reply(succeed(fail(current.state.failure)))
+        if (current?.state.kind !== 'sealing' || current.state.operation !== state.operation)
+          return reject('conflict', 'seal responsibility changed')
+        const failure = { kind, reason }
+        const basis = mintEvidence(
+          'body-write',
+          {
+            tenant: input.tenant,
+            call: input.call,
+            operation: state.operation,
+          },
+          mint.revision,
+          { failure, writer: writer.id },
+        )
+        return {
+          kind: 'commit',
+          value: fail(failure),
+          writes: releaseWriters(snapshot, [current], basis, failure),
+        }
+      })
     const loaded = await ports.load(input)
     if ('failure' in loaded) return fromReply(loaded, state.operation)
     const frames: { text: string }[] = []
@@ -123,12 +152,51 @@ export function createWriterProgress<P>(
       const bytes = await readMaterialBytes(input, retained.ok.state.seal, ports.materials.store)
       if ('failure' in bytes) return fromReply(bytes, state.operation)
       try {
-        frames.push({ text: new TextDecoder('utf-8', { fatal: true }).decode(bytes.ok) })
+        frames.push({
+          text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes.ok),
+        })
       } catch {
         return fail({ kind: 'invalid', reason: 'fragment has invalid UTF-8' })
       }
     }
     const encoded = encodeTextBody(frames)
+    if (writer.policy.declaration.kind === 'json-document') {
+      const limits = writer.policy.jsonLimits
+      if (limits === null)
+        return fail({ kind: 'invalid', reason: 'JSON validation budget missing' })
+      const read = readJsonBytes(encoded.bytes, limits)
+      if (read.kind !== 'ok')
+        return rejectDocument(
+          read.kind === 'budget' ? 'too-large' : 'invalid',
+          `JSON document ${read.kind}`,
+        )
+      if (ports.bodySchemas === undefined)
+        return fail({
+          kind: 'unavailable',
+          operation: state.operation,
+          reason: 'body schema checker missing',
+        })
+      try {
+        const checked = await ports.bodySchemas.check(writer.policy.declaration.document, read)
+        if (
+          'failure' in checked &&
+          (checked.failure.kind === 'invalid' || checked.failure.kind === 'unsupported')
+        )
+          return rejectDocument(
+            checked.failure.kind,
+            checked.failure.kind === 'invalid'
+              ? 'JSON document does not satisfy its fixed schema'
+              : checked.failure.reason,
+          )
+        if ('failure' in checked) return fromReply(checked, state.operation)
+      } catch {
+        return fail({
+          kind: 'unavailable',
+          operation: state.operation,
+          reason: 'body schema checker failed; sealing responsibility retained',
+        })
+      }
+    }
     const identity = encodeToolMaterial({
       writer: writer.id,
       operation: state.operation,
