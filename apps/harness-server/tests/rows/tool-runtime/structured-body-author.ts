@@ -19,7 +19,11 @@ function ok<T>(answer: { ok: T } | { failure: unknown }): T {
   return answer.ok
 }
 
-export function structuredBodyAuthor(format: 'json-document' | 'json-lines', valid = true) {
+export function structuredBodyAuthor(
+  format: 'json-document' | 'json-lines',
+  valid = true,
+  delivery: 'writer' | 'direct-small' | 'direct-large' = 'writer',
+) {
   const schema = {
     identity: { id: 'rows', revision: '1', digest: 'w3-structured-rows-v1' },
     definition: {
@@ -40,7 +44,7 @@ export function structuredBodyAuthor(format: 'json-document' | 'json-lines', val
   const rows = Array.from(
     { length: format === 'json-document' ? 1 : 12 },
     (_, i) =>
-      `{"amount":${valid ? `${i + 1}.00` : '"not a number"'},"label":"${'中文🙂'.repeat(format === 'json-document' ? 1500 : 100)}"}`,
+      `{"amount":${valid ? `${i + 1}.00` : '"not a number"'},"label":"${'中文🙂'.repeat(delivery === 'direct-small' ? 1 : format === 'json-document' ? 1500 : 100)}"}`,
   )
   const original = rows.join('\n') + (format === 'json-lines' ? '\n' : '')
   let executions = 0
@@ -48,6 +52,26 @@ export function structuredBodyAuthor(format: 'json-document' | 'json-lines', val
     {
       execute: async (_args, _environment, context) => {
         executions++
+        if (delivery !== 'writer')
+          return ok(
+            writerResultCodec.decode(
+              Buffer.from(
+                JSON.stringify({
+                  content: [
+                    {
+                      kind: 'text',
+                      id: 'direct',
+                      text: original,
+                      visibility: { toModel: true, toHuman: true },
+                    },
+                  ],
+                  data: { kind: 'none' },
+                  attachments: [],
+                  original: { kind: 'none' },
+                }),
+              ),
+            ),
+          )
         ok(
           await context.body.begin(
             'structured',
@@ -105,6 +129,7 @@ export function structuredBodyAuthor(format: 'json-document' | 'json-lines', val
     },
     writerResultCodec,
     body,
+    delivery === 'direct-large' ? 2048 : undefined,
   )
   return { module, original, executions: () => executions }
 }

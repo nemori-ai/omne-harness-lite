@@ -1039,11 +1039,13 @@ export function createToolLedger<P, B extends ContentBlock>(
     if ('failure' in authored) return authored
     const proposed =
       authored.ok === null
-        ? resultBodyPolicy(
-            record.ok.request,
-            configuration.offloading,
-            configuration.readResultArguments,
-          )
+        ? final.terminal.kind !== 'completed'
+          ? succeed(systemBodyPolicy(configuration.offloading, configuration.readResultArguments))
+          : resultBodyPolicy(
+              record.ok.request,
+              configuration.offloading,
+              configuration.readResultArguments,
+            )
         : succeed(authored.ok.policy)
     if ('failure' in proposed) return proposed
     const policyInput = {

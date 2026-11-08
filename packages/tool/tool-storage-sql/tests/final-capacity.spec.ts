@@ -224,7 +224,8 @@ it.each([
             const visible = delivered.content
               .flatMap(block => (block.kind === 'text' ? [block.text] : []))
               .join('')
-            const instructionStart = visible.indexOf('\nBody bytes:')
+            expect(visible).toContain('\nBody format: text\nBody bytes:')
+            const instructionStart = visible.indexOf('\nBody format:')
             expect(instructionStart).toBeGreaterThanOrEqual(0)
             expect(Buffer.byteLength(visible.slice(0, instructionStart))).toBeLessThanOrEqual(1024)
             expect(Buffer.byteLength(visible)).toBeLessThanOrEqual(65_536)

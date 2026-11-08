@@ -89,7 +89,7 @@ export async function prepareResultChannels<P, B extends ContentBlock>(
       field: 'original.source',
       reason: 'same-call-sealed-body-required',
     })
-  if (planned.ok.kind === 'text') {
+  if (planned.ok.kind === 'body') {
     const bytes = encodeTextBody(planned.ok.frames)
     const identity = encodeToolMaterial({ source: input.source, policy, value: rendered })
     if ('failure' in identity) return identity
@@ -106,15 +106,13 @@ export async function prepareResultChannels<P, B extends ContentBlock>(
       validate,
     )
     if ('failure' in saved) return saved
-    if (policy.declaration.kind !== 'text')
-      return fail({ kind: 'invalid', field: 'body', reason: 'text-declaration-required' })
     const source = materialContent(saved.ok)
     body = {
       seal: saved.ok,
       description: {
         source,
         bodyId: id.ok,
-        representation: policy.declaration,
+        representation: planned.ok.representation,
         bodyBytes: planned.ok.bodyBytes,
         previewKind: 'mechanical-head-tail',
       },

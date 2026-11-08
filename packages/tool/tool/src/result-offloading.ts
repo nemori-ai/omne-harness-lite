@@ -4,6 +4,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   FixedToolRequest,
   ToolBodyDeclaration,
+  ToolBodyRepresentation,
   ToolFailure,
   ToolRenderedResult,
   ToolReturnDeclaration,
@@ -12,6 +13,7 @@ import { describedAdoption } from '@omne-harness/tool-contract/provider'
 import { formatUsage } from '@omne-harness/unix-format'
 import { callableRead, encodeBodyReference, type BodyReference } from './tools-protocol.ts'
 import type { ToolOffloadingConfiguration } from './construction.ts'
+import { bodyRepresentation } from './body-representation.ts'
 
 export type BodyPolicy = Readonly<{
   adoption: ReturnType<typeof describedAdoption>
@@ -82,7 +84,8 @@ export function resolveBodyPolicy(
 type BodyPlan<B extends ContentBlock> =
   | Readonly<{ kind: 'inline' | 'author'; value: ToolRenderedResult<B> }>
   | Readonly<{
-      kind: 'text'
+      kind: 'body'
+      representation: ToolBodyRepresentation
       content: readonly B[]
       summary: readonly B[]
       frames: readonly TextContentBlock[]
@@ -125,11 +128,12 @@ export function planResultBody<B extends ContentBlock>(
   if (size > BigInt(policy.maxBodyBytes))
     return fail({ kind: 'invalid', field: 'content', reason: 'body-too-large' })
   if (size <= BigInt(policy.inlineBytes)) return succeed({ kind: 'inline', value })
-  if (policy.declaration.kind !== 'text')
+  const representation = bodyRepresentation(policy.declaration)
+  if (representation === null)
     return fail({
       kind: 'unsupported',
       adoption: policy.adoption,
-      reason: 'automatic offloading requires a text body declaration',
+      reason: 'automatic offloading requires a model body declaration',
     })
   const reference = encodeBodyReference(address)
   const params = JSON.stringify({ kind: 'body', reference, after: null })
@@ -139,7 +143,13 @@ export function planResultBody<B extends ContentBlock>(
       field: 'readResultArguments',
       reason: 'read-instruction-not-callable',
     })
-  const instruction = `\nBody bytes: ${size}\nRetention: ${policy.retentionMs} ms from result publication; reads do not renew it.\nThe body may already have expired when this result is delivered.\nbodyReference: ${reference}\n${formatUsage('Tools', 'read_result', params)}`
+  const schema =
+    representation.kind === 'json-document'
+      ? `\nSchema: ${JSON.stringify(representation.schema)}`
+      : representation.kind === 'json-lines'
+        ? `\nRecord schema: ${JSON.stringify(representation.recordSchema)}`
+        : ''
+  const instruction = `\nBody format: ${representation.kind}${schema}\nBody bytes: ${size}\nRetention: ${policy.retentionMs} ms from result publication; reads do not renew it.\nThe body may already have expired when this result is delivered.\nbodyReference: ${reference}\n${formatUsage('Tools', 'read_result', params)}`
   const marker = '\n[offloaded]\n'
   const available =
     Math.min(policy.previewBytes, policy.inlineBytes - Buffer.byteLength(instruction, 'utf8')) -
@@ -166,7 +176,14 @@ export function planResultBody<B extends ContentBlock>(
     return [{ ...block, text: preview }]
   })
   const summary = content.filter(block => block.kind === 'text' && block.visibility.toModel)
-  return succeed({ kind: 'text', content, summary, frames, bodyBytes: String(size) })
+  return succeed({
+    kind: 'body',
+    representation,
+    content,
+    summary,
+    frames,
+    bodyBytes: String(size),
+  })
 }
 
 function utf8Slice(bytes: Uint8Array, from: number, to: number): string {

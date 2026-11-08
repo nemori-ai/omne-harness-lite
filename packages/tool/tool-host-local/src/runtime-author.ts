@@ -1,9 +1,11 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
+  checkToolResultBody,
   createIndependentToolScope,
   createToolBodyScope,
   type ToolConfiguration,
+  type ToolLedgerPorts,
 } from '@omne-harness/tool'
 import {
   decodeToolOperationId,
@@ -82,6 +84,7 @@ export function createRuntimeAuthorExecution(
     custody: Pick<ToolOutputCustody<unknown>, 'preserve' | 'inspect'>
     finalCustody: ToolFinalCustody<unknown, ToolMessageContentBlock>
     bodyWrites: ToolBodyWrites<unknown>
+    bodySchemas?: ToolLedgerPorts<unknown>['bodySchemas']
   }>,
 ): RuntimeAuthorExecution &
   Readonly<{
@@ -96,6 +99,7 @@ export function createRuntimeAuthorExecution(
   const pending = new Map<string, Parameters<ToolOutputCustody<unknown>['preserve']>[0]>()
   type FinalRequest = Parameters<typeof input.finalCustody.preserveFinal>[0]
   const finals = new Map<string, FinalRequest>()
+  let validating = 0
   const unencoded = new Map<AbortSignal, Parameters<RuntimeAuthorExecution['settle']>[0]>()
   const retry = (signal = shutdown.signal) =>
     new Promise<void>(resolve => {
@@ -202,7 +206,7 @@ export function createRuntimeAuthorExecution(
             }))
     },
     pendingBodyScopes: () => bodies.size,
-    pending: () => pending.size + finals.size,
+    pending: () => pending.size + finals.size + validating,
     retainedReturns: () => unencoded.size,
     scope({ execution, principal, tenant, call, start }) {
       if (shutdown.signal.aborted) throw new Error('The author execution host has retired.')
@@ -391,6 +395,40 @@ export function createRuntimeAuthorExecution(
         }
       } catch {
         projected = failed('The original return contract threw.')
+      }
+      if ('failure' in projected.result)
+        return fail({
+          kind: 'unavailable',
+          dependency: 'toolResultPolicy',
+          diagnostic: projected.result.failure.reason,
+        })
+      if (projected.terminal.kind === 'completed') {
+        validating++
+        try {
+          for (;;) {
+            if (shutdown.signal.aborted)
+              return fail({
+                kind: 'unavailable',
+                dependency: 'bodySchemas',
+                diagnostic: 'Body validation remains unresolved after executor retirement.',
+              })
+            const checked = await checkToolResultBody({
+              request: call.request,
+              result: projected.result.ok,
+              configuration: input.configuration,
+              ...(input.bodySchemas === undefined ? {} : { schemas: input.bodySchemas }),
+            })
+            if ('ok' in checked) break
+            if (checked.failure.kind === 'invalid' || checked.failure.kind === 'unsupported') {
+              projected = failed(checked.failure.reason)
+              break
+            }
+            if (shutdown.signal.aborted) return checked
+            await retry()
+          }
+        } finally {
+          validating--
+        }
       }
       if ('failure' in projected.result)
         return fail({

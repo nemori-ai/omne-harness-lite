@@ -5,6 +5,7 @@ export function largeBodyModel(
   final: string,
   readBody = false,
   terminal: 'completed' | 'failed' = 'completed',
+  inlineBody?: string,
 ) {
   const requests: string[] = []
   const replies: string[] = []
@@ -33,11 +34,13 @@ export function largeBodyModel(
         if (
           terminal === 'failed'
             ? /sourceTerminal\s*:\s*failed/.test(text)
-            : readBody
-              ? text.includes('Body traversal ended.')
-              : text.includes('W3-BEGIN') &&
-                text.includes('W3-END') &&
-                text.includes('bodyReference')
+            : inlineBody !== undefined
+              ? text.includes(inlineBody)
+              : readBody
+                ? text.includes('Body traversal ended.')
+                : text.includes('W3-BEGIN') &&
+                  text.includes('W3-END') &&
+                  text.includes('bodyReference')
         ) {
           completed = true
         } else {

@@ -48,7 +48,7 @@ it.each([
       expect('ok' in sealed).toBe(scenario.valid)
       if (!scenario.valid) expect(sealed).toHaveProperty('failure.kind', 'invalid')
       checked = true
-      return 'author returned'
+      return scenario.text
     },
     undefined,
     32,

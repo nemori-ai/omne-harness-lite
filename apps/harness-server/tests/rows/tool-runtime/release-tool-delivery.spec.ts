@@ -347,6 +347,62 @@ const resultText = (entry: Entry | undefined): string =>
     .join('')
 
 describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => {
+  it
+    .skipIf(process.platform !== 'linux')
+    .each(
+      (['json-document', 'json-lines'] as const).flatMap(format =>
+        (['direct-small', 'direct-large'] as const).map(delivery => ({ format, delivery })),
+      ),
+    )(
+    'W3-B direct $delivery $format reaches the production Agent',
+    { timeout: 240_000 },
+    async ({ format, delivery }) => {
+      const author = structuredBodyAuthor(format, true, delivery)
+      const large = delivery === 'direct-large'
+      if (large) expect(Buffer.byteLength(author.original)).toBeGreaterThan(2048)
+      const model = largeBodyModel(FINAL, large, 'completed', large ? undefined : author.original)
+      const { entries } = await turnOnRelease(
+        model.script,
+        undefined,
+        largeBodyRelease(author.module),
+      )
+      expect(model.errors, JSON.stringify(model.replies)).toEqual([])
+      expect(model.completed()).toBe(true)
+      expect(author.executions()).toBe(1)
+      const pages = entries
+        .filter(entry => entry.kind === 'message.tool')
+        .flatMap(blocksOf)
+        .filter(block => block['id'] === 'Tools.body')
+      if (large) {
+        expect(pages.length).toBeGreaterThan(1)
+        expect(pages.map(page => String(page['text'])).join('')).toBe(author.original)
+      } else {
+        expect(pages).toHaveLength(0)
+        expect(model.replies.some(reply => reply.includes(author.original))).toBe(true)
+      }
+      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
+    },
+  )
+
+  it.skipIf(process.platform !== 'linux').each(['json-document', 'json-lines'] as const)(
+    'W3-B direct small invalid %s becomes a failed Tool result',
+    { timeout: 240_000 },
+    async format => {
+      const author = structuredBodyAuthor(format, false, 'direct-small')
+      const model = largeBodyModel(FINAL, false, 'failed')
+      const { entries } = await turnOnRelease(
+        model.script,
+        undefined,
+        largeBodyRelease(author.module),
+      )
+      expect(model.errors, JSON.stringify(model.replies)).toEqual([])
+      expect(model.completed()).toBe(true)
+      expect(author.executions()).toBe(1)
+      expect(model.replies.some(reply => /sourceTerminal\s*:\s*failed/.test(reply))).toBe(true)
+      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
+    },
+  )
+
   it.skipIf(process.platform !== 'linux').each(['json-document', 'json-lines'] as const)(
     'W3-B rejects a schema-invalid %s body and finishes the production Agent run',
     { timeout: 240_000 },

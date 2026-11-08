@@ -2,6 +2,7 @@ import { expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import { completedFinal, createMemoryToolOutputCustody } from '@omne-harness/tool-contract/testing'
+import type { Reply, ToolBodyDeclaration } from '@omne-harness/tool-contract'
 import type {
   ToolExecutionScope,
   ToolFinalEnvelope,
@@ -22,7 +23,11 @@ import { configuration } from './runtime-composition/fixture.ts'
 import { unavailableBodyWrites } from './body-writer-values.ts'
 
 // Memory custody and the final receipt are provider doubles; these cases prove ordering, not durability.
-async function setup(closing: ReturnType<ToolExecutionScope['finish']>, holdRaw = false) {
+async function setup(
+  closing: ReturnType<ToolExecutionScope['finish']>,
+  holdRaw = false,
+  validateBody?: () => Reply<void>,
+) {
   const loaded = unbox(await loadAuthor(authorModule(async () => 'unused')))
   const registration = readToolRegistration(loaded.implementation)
   if (registration?.kind !== 'function' || registration.operation.author.kind !== 'ordinary')
@@ -32,6 +37,9 @@ async function setup(closing: ReturnType<ToolExecutionScope['finish']>, holdRaw 
     ...original,
     author: {
       ...original.author,
+      ...(validateBody === undefined
+        ? {}
+        : { renderer: { render: () => succeed('{"amount":1.00}') } }),
       codec: {
         adoption: original.author.codec.adoption,
         encode: (value: unknown) => succeed(new TextEncoder().encode(JSON.stringify(value))),
@@ -51,9 +59,23 @@ async function setup(closing: ReturnType<ToolExecutionScope['finish']>, holdRaw 
   const entered = Promise.withResolvers<void>()
   const release = Promise.withResolvers<void>()
   const finals: ToolFinalEnvelope<ToolMessageContentBlock>[] = []
+  const body: ToolBodyDeclaration = {
+    kind: 'json-document',
+    codec: adoption('json'),
+    document: {
+      identity: { id: 'amount', revision: '1', digest: 'amount-v1' },
+      definition: {
+        schema: { kind: 'boolean', value: true },
+        vocabulary: adoption('test'),
+        descriptions: [],
+      },
+    },
+  }
+  if (loaded.definition.kind !== 'function') throw new Error('function fixture required')
   const runtime = createRuntimeAuthorExecution({
     bodyWrites: unavailableBodyWrites,
     configuration,
+    ...(validateBody === undefined ? {} : { bodySchemas: { check: validateBody } }),
     custody: {
       inspect: custody.inspect,
       async preserve(input) {
@@ -82,7 +104,13 @@ async function setup(closing: ReturnType<ToolExecutionScope['finish']>, holdRaw 
     request: request({
       availability: {
         kind: 'available',
-        definition: loaded.definition,
+        definition:
+          validateBody === undefined
+            ? loaded.definition
+            : {
+                ...loaded.definition,
+                returns: { ...loaded.definition.returns, body },
+              },
         executor: loaded.executor,
         layer: loaded.key.layer,
       },
@@ -204,5 +232,31 @@ it('keeps raw custody without publishing a final when closing responsibility is 
     expect(f.finals).toEqual([])
   } finally {
     f.runtime.close()
+  }
+})
+
+it('retains raw during validation and rejects a late successful check after retirement', async () => {
+  const checking = Promise.withResolvers<Awaited<Reply<void>>>()
+  const entered = Promise.withResolvers<void>()
+  let checks = 0
+  const f = await setup(Promise.resolve(succeed(undefined)), false, () => {
+    checks++
+    entered.resolve()
+    return checking.promise
+  })
+  try {
+    await entered.promise
+    expect(await f.read()).toBe('original-business-receipt')
+    expect(f.finals).toEqual([])
+    expect(f.runtime.pending()).toBe(1)
+    await f.runtime.close()
+    checking.resolve(succeed(undefined))
+    expect(await f.pending).toHaveProperty('failure.kind', 'unavailable')
+    expect(checks).toBe(1)
+    expect(f.finals).toEqual([])
+    expect(await f.read()).toBe('original-business-receipt')
+  } finally {
+    checking.resolve(succeed(undefined))
+    await f.runtime.close()
   }
 })

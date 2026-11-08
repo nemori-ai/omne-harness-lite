@@ -326,7 +326,9 @@ scan 固定原主体、租户、时刻和游标，读取之前及返回之前检
 
 ## 正文 schema 适配
 
-`createLocalToolBodySchemas` 消费装配提供的 schema-provider 和一个精确的 vocabulary 采用。它实现 Tool 账本的窄校验端口。provider 的创建、预算和关闭归装配；适配器不拥有另一个缓存，不读取 Session 或工具注册表。`LocalToolRuntimeInput.bodySchemas` 把此端口交给账本，缺席时结构化封存明确不可用。
+`createLocalToolBodySchemas` 消费装配提供的 schema-provider 和一个精确的 vocabulary 采用。它实现 Tool 的窄校验端口。provider 的创建、预算和关闭归装配；适配器不拥有另一个缓存，不读取 Session 或工具注册表。`LocalToolRuntimeInput.bodySchemas` 把此端口交给账本和作者归一化，缺席时结构化封存或直接正文校验明确不可用。
+
+直接正文校验位于 raw 保管、作者 scope 关闭及结果投影之后，final 保管之前。绑定调用 Tool 的 `checkToolResultBody`；invalid 或 unsupported 走原有 result 失败投影。其他未确认校验沿 driverRetryDelayMs 重试，保留同一原结果和 settlement，不再次执行作者。校验等待计入 pending 诊断。宿主退役阻止下一次检查和 final 保管；已发出的校验不声称被撤销。此重试只覆盖当前 live-only 作者绑定，不新增跨进程原函数恢复承诺。原结果的耐久保管不等于后继宿主已经具备重新运行任意 codec/renderer 的能力。
 
 缓存身份取原公开 schema 的完整身份和定义摘要。相同标签下的不同定义不复用同一检查对象；恢复采用 writer 固定的定义。未知 vocabulary 或 provider 不支持的构造返回 unsupported。provider 关闭、容量拒绝及暂时失败返回 unavailable，schema 不匹配返回 invalid。
 

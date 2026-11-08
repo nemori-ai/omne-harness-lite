@@ -23,6 +23,7 @@ export function createLargeBodyModule(
   executor: ToolExecutor<null, ToolRenderedResult<ToolMessageContentBlock>, unknown>,
   output: OutputCodec<ToolRenderedResult<ToolMessageContentBlock>> = codec,
   body: ToolBodyDeclaration = { kind: 'text', codec: adoption },
+  maxInlineUtf8Bytes?: number,
 ): ToolImplementationModule<unknown, ToolMessageContentBlock> {
   return {
     executor: adoption,
@@ -47,7 +48,13 @@ export function createLargeBodyModule(
           value: { kind: 'tool-result', contract: output.adoption },
           program: { kind: 'none' },
           body,
-          offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
+          offloading: {
+            inline:
+              maxInlineUtf8Bytes === undefined
+                ? { kind: 'system' }
+                : { kind: 'bounded', maxInlineUtf8Bytes },
+            retention: { kind: 'system' },
+          },
         },
         author: {
           kind: 'structured',

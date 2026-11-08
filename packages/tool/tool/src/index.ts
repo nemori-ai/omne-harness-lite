@@ -92,3 +92,4 @@ export {
 } from './tools.ts'
 export { createToolForwardRuntime } from './runtime-forwarding.ts'
 export { outputCodec as createToolMessageResultCodec } from './tools-results.ts'
+export { checkToolResultBody } from './result-body-validation.ts'

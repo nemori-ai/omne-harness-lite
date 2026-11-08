@@ -306,7 +306,8 @@ export async function fixture(
               typeof value === 'string'
                 ? succeed(new TextEncoder().encode(value))
                 : fail({ reason: 'not text' }),
-            decode: bytes => succeed(new TextDecoder().decode(bytes)),
+            decode: bytes =>
+              succeed(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)),
           },
           output: {
             adoption: adoption('output-check'),
