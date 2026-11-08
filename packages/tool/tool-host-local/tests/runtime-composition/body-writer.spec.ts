@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest'
+import { canonicalDigest } from '@omne-harness/tool'
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import type { ToolBodyWriter } from '@omne-harness/tool-contract'
 import { adoption } from '../coordinator-values.ts'
@@ -33,6 +34,176 @@ it('binds the author body writer to its invocation without author-supplied ident
     await world.close()
   }
 })
+
+it('recognizes a committed body close after its reply is lost without executing the author again', async () => {
+  const world = await fixture(async (_value, _environment, context) => {
+    const representation = ordinaryReturnFixture(adoption('output')).body
+    if (representation.kind !== 'text') throw new Error('text fixture required')
+    unbox(await context.body.begin('answer', representation))
+    unbox(
+      await context.body.append('answer', '1', {
+        kind: 'text',
+        block: 'one',
+        text: 'saved',
+        end: true,
+      }),
+    )
+    unbox(await context.body.seal('answer', '1'))
+    return 'original business receipt'
+  })
+  const commit = world.store.commit.bind(world.store)
+  const closingReceipts = new Set<string>()
+  let lostReply = false
+  vi.spyOn(world.store, 'commit').mockImplementation(async input => {
+    const closed = input.writes.flatMap(write =>
+      write.kind === 'put' &&
+      write.record.kind === 'body-writer-scope' &&
+      write.record.scope.state.kind === 'closed'
+        ? [write.record.scope.state]
+        : [],
+    )
+    const answer = await commit(input)
+    if (answer.kind === 'committed' && closed.length > 0) {
+      for (const state of closed) closingReceipts.add(canonicalDigest(state))
+      if (!lostReply) {
+        lostReply = true
+        return { kind: 'unknown', diagnostic: 'body close committed; response lost' }
+      }
+    }
+    return answer
+  })
+  try {
+    const reference = accepted(await world.api.invoke(world.invocation('close-reply-lost')))
+    const result = await world.settled(reference)
+    expect(result.terminal, JSON.stringify(result.terminal)).toEqual({ kind: 'completed' })
+    expect(lostReply).toBe(true)
+    expect(closingReceipts.size).toBe(1)
+    expect(world.launches()).toBe(1)
+  } finally {
+    await world.close()
+  }
+})
+
+it('keeps the return barrier pending until the closed writer inventory is recovered', async () => {
+  const world = await fixture(async (_value, _environment, context) => {
+    const representation = ordinaryReturnFixture(adoption('output')).body
+    if (representation.kind !== 'text') throw new Error('text fixture required')
+    unbox(await context.body.begin('answer', representation))
+    void context.body.append('answer', '1', {
+      kind: 'text',
+      block: 'one',
+      text: 'pending seal',
+      end: true,
+    })
+    void context.body.seal('answer', '1')
+    return 'original business receipt'
+  })
+  let closed = false
+  let fragment: string | undefined
+  let recoveredAfterClose = false
+  const commit = world.store.commit.bind(world.store)
+  vi.spyOn(world.store, 'commit').mockImplementation(async input => {
+    const answer = await commit(input)
+    if (
+      answer.kind === 'committed' &&
+      input.writes.some(
+        write =>
+          write.kind === 'put' &&
+          write.record.kind === 'body-writer-scope' &&
+          write.record.scope.state.kind === 'closed',
+      )
+    )
+      closed = true
+    return answer
+  })
+  const write = world.input.materials.store.write.bind(world.input.materials.store)
+  vi.spyOn(world.input.materials.store, 'write').mockImplementation(async input => {
+    fragment ??= input.operation
+    if (input.operation === fragment) {
+      if (!closed)
+        return {
+          failure: {
+            kind: 'unavailable',
+            dependency: 'test-fragment',
+            diagnostic: 'wait for close',
+          },
+        }
+      recoveredAfterClose = true
+    }
+    return write(input)
+  })
+  try {
+    const reference = accepted(await world.api.invoke(world.invocation('close-pending-writes')))
+    const result = await world.settled(reference)
+    expect(result.terminal, JSON.stringify(result.terminal)).toEqual({ kind: 'completed' })
+    expect(recoveredAfterClose).toBe(true)
+    expect(world.launches()).toBe(1)
+  } finally {
+    await world.close()
+  }
+})
+
+it.each(['stop', 'retire'] as const)(
+  'ends close retry on %s while preserving the original closing identity',
+  async mode => {
+    const world = await fixture(async (_value, _environment, context) => {
+      const representation = ordinaryReturnFixture(adoption('output')).body
+      if (representation.kind !== 'text') throw new Error('text fixture required')
+      unbox(await context.body.begin('answer', representation))
+      unbox(
+        await context.body.append('answer', '1', {
+          kind: 'text',
+          block: 'one',
+          text: 'saved',
+          end: true,
+        }),
+      )
+      unbox(await context.body.seal('answer', '1'))
+      return 'original business receipt'
+    })
+    const commit = world.store.commit.bind(world.store)
+    const intents = new Set<string>()
+    let attempts = 0
+    let retiring = false
+    vi.spyOn(world.store, 'commit').mockImplementation(async input => {
+      for (const write of input.writes) {
+        if (
+          write.kind !== 'put' ||
+          write.record.kind !== 'body-writer-scope' ||
+          write.record.scope.state.kind !== 'closed'
+        )
+          continue
+        const state = write.record.scope.state
+        intents.add(
+          canonicalDigest({ operation: state.operation, exit: state.exit, source: state.source }),
+        )
+        attempts++
+        if (!retiring && world.signals.get('{"value":"retry-stop"}')?.aborted !== true)
+          return { kind: 'unavailable', diagnostic: 'close provider temporarily unavailable' }
+      }
+      return commit(input)
+    })
+    try {
+      const reference = accepted(await world.api.invoke(world.invocation('retry-stop')))
+      await expect.poll(() => attempts).toBeGreaterThanOrEqual(2)
+      if (mode === 'stop') {
+        expect(
+          await world.api.commands.control({ ...world.query(reference), intent: { kind: 'stop' } }),
+        ).toHaveProperty('kind', 'committed')
+        expect((await world.settled(reference)).terminal).toHaveProperty('kind', 'interrupted')
+      } else {
+        retiring = true
+        await world.plugins.close()
+      }
+      expect(intents.size).toBe(1)
+      expect(world.plugins.diagnostics().pendingBodyScopes).toBe(0)
+      expect(world.launches()).toBe(1)
+    } finally {
+      retiring = true
+      await world.close()
+    }
+  },
+)
 
 it('closes author body admission when the host retires before the author returns', async () => {
   const entered = Promise.withResolvers<ToolBodyWriter>()

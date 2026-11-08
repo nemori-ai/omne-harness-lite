@@ -97,17 +97,40 @@ export function createRuntimeAuthorExecution(
   type FinalRequest = Parameters<typeof input.finalCustody.preserveFinal>[0]
   const finals = new Map<string, FinalRequest>()
   const unencoded = new Map<AbortSignal, Parameters<RuntimeAuthorExecution['settle']>[0]>()
-  const retry = () =>
+  const retry = (signal = shutdown.signal) =>
     new Promise<void>(resolve => {
       const done = () => {
         clearTimeout(timer)
-        shutdown.signal.removeEventListener('abort', done)
+        signal.removeEventListener('abort', done)
         resolve()
       }
       const timer = setTimeout(done, input.configuration.driverRetryDelayMs ?? 1000)
-      shutdown.signal.addEventListener('abort', done, { once: true })
-      if (shutdown.signal.aborted) done()
+      signal.addEventListener('abort', done, { once: true })
+      if (signal.aborted) done()
     })
+  const retainBodyClose = async (
+    request: Parameters<ToolBodyWrites<unknown>['close']>[0],
+    signal: AbortSignal,
+  ): ReturnType<ToolBodyWrites<unknown>['close']> => {
+    for (;;) {
+      let answer: Awaited<ReturnType<ToolBodyWrites<unknown>['close']>>
+      try {
+        answer = await input.bodyWrites.close(request)
+      } catch {
+        answer = fail({
+          kind: 'unknown',
+          operation: request.operation,
+          reason: 'Body close was not confirmed.',
+        })
+      }
+      const pending =
+        'failure' in answer
+          ? answer.failure.kind === 'unknown' || answer.failure.kind === 'unavailable'
+          : request.exit === 'returned' && answer.ok.pendingOperations.length > 0
+      if (!pending || signal.aborted) return answer
+      await retry(signal)
+    }
+  }
   const retain = async (request: Parameters<ToolOutputCustody<unknown>['preserve']>[0]) => {
     const key = canonicalDigest([request.tenant, request.call, request.operation])
     pending.set(key, request)
@@ -223,10 +246,18 @@ export function createRuntimeAuthorExecution(
         },
       })
       if ('failure' in scope) throw new TypeError(`Invalid author scope: ${scope.failure.reason}`)
+      const bodySignal = AbortSignal.any([execution.signal, shutdown.signal])
       const body = createToolBodyScope({
         binding: { principal, tenant, call, start, source: execution.source },
-        writes: input.bodyWrites,
-        signal: AbortSignal.any([execution.signal, shutdown.signal]),
+        writes: {
+          begin: request => input.bodyWrites.begin(request),
+          append: request => input.bodyWrites.append(request),
+          seal: request => input.bodyWrites.seal(request),
+          inspect: request => input.bodyWrites.inspect(request),
+          reconcile: request => input.bodyWrites.reconcile(request),
+          close: request => retainBodyClose(request, bodySignal),
+        },
+        signal: bodySignal,
         limits: scope.ok.limits,
       })
       const local = scope.ok
