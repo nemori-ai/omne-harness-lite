@@ -36,7 +36,7 @@
 
 `registerContribution` 与 `releaseContribution` 是装配端口；普通用户配值权不包含登记权。登记描述可序列化，运行时提供者对象通过依赖注入取得；远程适配使用能力引用，不传函数、Context 或数据库句柄。秘密替换/使用另设受限端口，不与普通 setValue 或目录读回共用明文通道。
 
-当前命令应用入口 `change` 采用 `set/clear/lock/unlock` 判别动作。服务器存储提供者计算内容摘要；客户端自报摘要不构成事实。当前公开应用服务与未来网络认证/信封适配分别实现，尚无 HTTP 接入。普通求值拒绝秘密明文。秘密保管的两个窄端口（管理面与使用面）在公开入口 `src/secrets.ts`，由 settings-local 的文件提供者兑现；秘密项命令入口尚未交付。
+当前命令应用入口 `change` 采用 `set/clear/lock/unlock` 判别动作。服务器存储提供者计算内容摘要；客户端自报摘要不构成事实。当前公开应用服务与未来网络认证/信封适配分别实现，尚无 HTTP 接入。普通求值拒绝秘密明文。秘密保管的两个窄端口（管理面与使用面）在公开入口 `src/secrets.ts`，由 settings-local 的文件提供者兑现；秘密项入口 `createSettingsSecretItems`（`src/secret-items.ts`，公开形状见 [SPEC 秘密设置项](../SPEC.md#secret-items)）只经管理面写入、清除与读有无，不经 `setValue` 或提交端口。
 
 纯核心拒绝递归引用 Schema、远程引用和正则约束，防止声明触发外部读取或不可控正则工作。支持范围由 `defineSettings` 明确校验，不支持的声明返回失败。数字需单位说明，枚举需逐值解释，声明默认值必须通过同一 Schema。输入有深度、节点、文本及项数上限。
 

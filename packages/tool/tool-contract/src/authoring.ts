@@ -3,6 +3,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Modality } from '@omne-harness/modality'
 import type { Outcome } from '@omne-harness/operation-result'
+import type { SettingItem } from '@omne-harness/settings'
 import type { ToolWaitContract } from './author-context.ts'
 import type {
   ParameterContract,
@@ -30,6 +31,12 @@ export type ToolDeclarations = Readonly<{
   outputModalities: readonly Modality[]
   settings: ToolSettingsDeclaration | null
 }>
+/**
+ * How a declared setting is shown to the person who configures it (P15): the presentation of a
+ * Settings item, minus the enum labels, which a tool declaration does not carry. The field
+ * meanings belong to `@omne-harness/settings`.
+ */
+export type ToolSettingPresentation = Omit<SettingItem['presentation'], 'enumLabels'>
 export type ToolSettingsDeclaration = Readonly<{
   schema: ParameterContract
   defaults: JsonValue
@@ -37,6 +44,7 @@ export type ToolSettingsDeclaration = Readonly<{
     path: readonly string[]
     category: 'preference' | 'binding' | 'placement-identity' | 'governance'
     sensitive: boolean
+    presentation: ToolSettingPresentation
   }>[]
 }>
 /** The consumer's own abilities. A consumer without a legal conversion gives `conversion: null`. */

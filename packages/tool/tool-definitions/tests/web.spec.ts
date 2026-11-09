@@ -11,7 +11,7 @@ import {
   deriveDefinition,
   judgeToolDefinition,
 } from '@omne-harness/tool-contract/provider'
-import { toolsCapabilityOf } from '@omne-harness/tool-contract'
+import { toolSettingDefinitions, toolsCapabilityOf } from '@omne-harness/tool-contract'
 import {
   attachWebAccess,
   createWebAuthor,
@@ -117,7 +117,7 @@ const BEGIN = '[external data begins'
 const END = '[external data ends]'
 
 describe('Web author: declaration and help', () => {
-  it('publishes one wrapped declaration with help, search and fetch, no environment and no settings', async () => {
+  it('publishes one wrapped declaration with help, search and fetch, no environment and one secret setting', async () => {
     const test = fixture()
     expect(judgeToolDefinition(test.definition)).toHaveProperty('ok')
     if (test.definition.kind !== 'commands') throw new Error('commands')
@@ -126,10 +126,12 @@ describe('Web author: declaration and help', () => {
     expect(test.implementation.facts.backgroundAllowed).toBe(false)
     expect(test.implementation.facts.declarations).toMatchObject({
       environment: null,
-      settings: null,
       inputModalities: ['text'],
       outputModalities: ['text'],
     })
+    expect(test.implementation.facts.declarations.settings?.items).toEqual([
+      expect.objectContaining({ path: ['exa', 'apiKey'], category: 'binding', sensitive: true }),
+    ])
     // The menu is not repeated in the description: the declaration adds it (D-94).
     expect(test.implementation.facts.description).not.toContain('{"command"')
     const help = await test.run('help', {})
@@ -141,6 +143,26 @@ describe('Web author: declaration and help', () => {
     expect(search).toContain('Usage: Web {"command": "search", "params": {query, limit?}}')
     expect(search).toContain('exa.apiKey')
     expect(test.decode('help', { name: 'browse' }).parsed).toHaveProperty('failure')
+  })
+
+  it('declares exa.apiKey as a secret Settings item', () => {
+    const test = fixture()
+    const projected = toolSettingDefinitions({
+      adoption: test.definition.adoption,
+      name: test.definition.name,
+      declaration: test.definition.declarations.settings,
+    })
+    expect(projected?.items).toEqual([
+      expect.objectContaining({
+        id: 'exa.apiKey',
+        category: 'binding',
+        sensitivity: 'secret',
+        default: { kind: 'absent' },
+        valueSchema: { type: 'string', minLength: 1 },
+      }),
+    ])
+    expect(projected?.items[0]?.presentation).toMatchObject({ adoption: 'next-read' })
+    expect(projected?.items[0]?.presentation.clear).toContain('fetch')
   })
 
   it('the definition does not depend on the construction values (the release manifest fixes it)', () => {

@@ -3,7 +3,7 @@
 // byte bound with its truncation marker (I-12) and one failure line per `WebFailure` kind (I-9).
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { CommandTable } from '@omne-harness/tool-contract'
+import type { CommandTable, ToolSettingsDeclaration } from '@omne-harness/tool-contract'
 import {
   commandGuide,
   defineCommandTool,
@@ -16,7 +16,7 @@ import {
   type ToolOperationParameters,
 } from '@omne-harness/tool-contract/provider'
 import { resultMaximumField } from './files.ts'
-import { parseConstruction, type Field } from './protocol.ts'
+import { adoption as vocabulary, parseConstruction, tree, type Field } from './protocol.ts'
 import { bounded } from './text.ts'
 import { webAccessOf, type FetchedPage, type SearchHit, type WebFailure } from './web-port.ts'
 import {
@@ -37,6 +37,50 @@ const EXTERNAL_DATA_BEGIN =
 const EXTERNAL_DATA_END = '[external data ends]'
 /** The Web setting that search needs; the host resolves it, the author only names it. */
 const SEARCH_KEY_SETTING = 'exa.apiKey'
+const SEARCH_KEY_PATH = ['exa', 'apiKey'] as const
+/**
+ * The one setting Web declares (P15): the Exa API key, a secret binding. Its value never reaches
+ * the author: the host resolves it per call through the Tool credential port. `defaults` is empty
+ * because a secret has no default.
+ */
+const settings: ToolSettingsDeclaration = {
+  schema: {
+    vocabulary,
+    schema: tree({
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        exa: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { apiKey: { type: 'string', minLength: 1 } },
+        },
+      },
+    }),
+    descriptions: [
+      {
+        path: SEARCH_KEY_SETTING,
+        text: 'The API key of the Exa search provider. Nonblank.',
+      },
+    ],
+  },
+  defaults: tree({}),
+  items: [
+    {
+      path: SEARCH_KEY_PATH,
+      category: 'binding',
+      sensitive: true,
+      presentation: {
+        title: 'Exa API key',
+        description:
+          'The API key that Web search sends to the Exa search provider. Without it, search answers unconfigured.',
+        impact: 'The next search uses the new key.',
+        clear: 'search answers unconfigured until a key is set again; fetch is not affected.',
+        adoption: 'next-read',
+      },
+    },
+  ],
+}
 
 const maxSearchResultsField: Field = {
   name: 'maxSearchResults',
@@ -200,7 +244,7 @@ export function createWebAuthor(
         attachments: [],
         inputModalities: ['text'],
         outputModalities: ['text'],
-        settings: null,
+        settings,
       },
     },
     encoding: ENCODING,
