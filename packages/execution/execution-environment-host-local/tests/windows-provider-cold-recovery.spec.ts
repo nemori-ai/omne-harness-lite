@@ -1,6 +1,6 @@
 /** @module-tag slow */
 import { randomUUID } from 'node:crypto'
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import type { ManagedResource } from '@omne-harness/execution-environment-contract'
@@ -55,6 +55,38 @@ it('lists a command Job of an earlier provider from the state directory and stop
     expect(await a.lease.release()).toEqual({ kind: 'released' })
   } finally {
     await later.retire()
+    await f.cleanup()
+  }
+}, 60_000)
+
+it('answers pending for a live Job whose marker is gone and confirms it once the name is gone', async context => {
+  if (process.platform !== 'win32') return context.skip()
+  const f = await fixture()
+  try {
+    const a = await f.acquire()
+    const handle = value(
+      await a.command.start({
+        ...a.call,
+        executable: process.execPath,
+        args: ['-e', 'setInterval(()=>{},1000)'],
+        cwd: f.root,
+        env: f.identity.env,
+        outputMode: 'separate',
+      }),
+    )
+    const listed = await f.provider.listRecoveryResources?.(a.input.scope)
+    if (listed?.kind !== 'listed') throw new Error('expected a listing')
+    const resource = listed.resources.find(item => item.key === handle.process.generation)
+    if (resource === undefined) throw new Error('the Job is not listed')
+    // The retained-process index holds a Job whose cold marker is gone; the name still exists.
+    await rm(join(f.root, 'windows-jobs', `${resource.key}.json`))
+    expect(await f.provider.recover?.(resource)).toEqual({ status: 'pending', evidence: null })
+    expect(await a.lease.release()).toEqual({ kind: 'released' })
+    expect(await f.provider.recover?.(resource)).toEqual({
+      status: 'confirmedStopped',
+      evidence: null,
+    })
+  } finally {
     await f.cleanup()
   }
 }, 60_000)

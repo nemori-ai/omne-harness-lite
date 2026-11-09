@@ -175,10 +175,14 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
           ? ((await within(entry.stopReply.promise, remaining())) ?? 'unconfirmed')
           : 'unconfirmed'
       if (status === 'unconfirmed' && remaining() > 0) {
-        // This process created the Job: a missing name means its last handle closed and
-        // `KILL_ON_JOB_CLOSE` stopped every member.
+        // Once the bridge reported the Job ready, this process knows it existed: a missing name
+        // means its last handle closed and `KILL_ON_JOB_CLOSE` stopped every member. Before that
+        // the Job may still be on its way, so a missing name proves nothing.
         const named = await stopWindowsJob(entry.name, remaining())
-        status = named === 'unconfirmed' ? 'unconfirmed' : 'confirmed'
+        status =
+          named === 'confirmed' || (named === 'absent' && entry.anchor !== undefined)
+            ? 'confirmed'
+            : 'unconfirmed'
       }
       if (status === 'confirmed') {
         entry.nativeStopped = true
@@ -267,8 +271,9 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       ...handoverDetails(entry, retentionBinding.processes),
       output,
     })
-    // The retained-process index holds the Job now, with its own marker.
-    await jobs?.forget(entry.resource.key)
+    // The retained-process index holds the Job now. The cold marker goes only once the index's own
+    // marker is written, so a restarted provider always finds the Job somewhere.
+    if (handed.marker === 'written') await jobs?.forget(entry.resource.key)
     return handed.process
   }
 
@@ -283,7 +288,9 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
           ? {}
           : { issued: entry.issued.then((status): StopReading => ({ status })) }),
       })
-      .finally(() => jobs?.forget(entry.resource.key))
+      .then(async status => {
+        if (status === 'confirmed') await jobs?.forget(entry.resource.key)
+      })
   }
 
   /** Carries out a disposition; the custody changes in the same step as the readings behind it. */

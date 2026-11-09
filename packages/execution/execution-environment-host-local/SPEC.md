@@ -534,7 +534,7 @@ macOS 上，上文的 scope 指终端的执行域。执行域是两个 POSIX 会
 - 移交之后帧流故障（非 JSON、未知帧、次序不对、超长）或帧通道关闭时，提供者不再观察这条流，尾部关闭：`output` 答 `rejected/unavailable`，与重启后加载的项相同，直到这一项离开索引（之后答 `rejected/notFound`）。门在退出帧之前故障的处理不变：结局 `failed`（`effectUnknown`），执行域被强制停止，此时还没有尾部。
 - 停止已确认或自行结清后，这一项离开索引，尾部随之释放。
 
-处置的次序（`src/host-command.ts` 的 `decideDisposition`）。前一项成立时，后面的不再判定：
+处置的次序（`src/command-custody.ts` 的 `decideDisposition`，Linux 与 Windows 共用）。前一项成立时，后面的不再判定：
 
 1. 退出帧报告门以外没有进程：停止单元，`residue` 是 `none`。读数未知时按有留下的进程处理。
 2. 配置 `residuePolicy` 是 `stop`：停止，原因 `policy`。
@@ -689,7 +689,7 @@ macOS 按 POSIX 会话收纳。进程可以用 `setsid` 离开会话，所以 ma
 启动的次序：
 
 1. 账本 `plan`。
-2. 有状态目录时，在冷索引里写这个资源的标记并刷盘。没有状态目录时不写标记，命令照常运行，冷恢复的列举答 `unavailable`。标记记下资源键、Job 名、启动身份、登录会话号、请求方作用域的摘要，以及状态 `acquisition`。启动身份是系统的启动时刻（`NtQuerySystemInformation` 的 `SystemTimeOfDayInformation`），会话号来自 `ProcessIdToSessionId`。
+2. 有状态目录时，在冷索引里写这个资源的标记并刷盘。没有状态目录时不写标记，命令照常运行，冷恢复的列举答 `unavailable`。标记记下资源、请求方作用域、启动身份与登录会话号；Job 名由资源引用给出。启动身份是系统的启动时刻（`NtQuerySystemInformation` 的 `SystemTimeOfDayInformation`），会话号来自 `ProcessIdToSessionId`。
 3. 桥创建 Job，启动锚，再以挂起状态创建用户进程。
 4. 桥报就绪之后，调用账本的 `permit`。只有 `confirmed` 才发 GO。其余答案使提供者先终止 Job 并确认停止，再记 `stopped`，然后答 `rejected`。
 
@@ -697,9 +697,9 @@ macOS 按 POSIX 会话收纳。进程可以用 `setsid` 离开会话，所以 ma
 
 - 桥不自己终止 Job。它报告主进程的退出码与除锚以外的成员数，处置由提供者决定。
 - 没有其他成员时，提供者停止 Job（含锚）并确认，结局的 `residue` 是 `none`。
-- 可以保留时（规则与 Linux 相同：策略、`retainedPerScope` 与保留范围未封闭），提供者把标记的状态改为 `retained` 并刷盘，再把 Job 交给保留进程索引，`residue` 是 `retained`。移交不清除 `KILL_ON_JOB_CLOSE`。
+- 可以保留时（规则与 Linux 相同：策略、`retainedPerScope` 与保留范围未封闭），提供者把 Job 交给保留进程索引，索引写下它自己的标记，`residue` 是 `retained`。索引的标记写成之后，提供者删去这个 Job 的冷索引标记；写不成时冷索引标记留下，重启之后的提供者仍能找到这个 Job。移交不清除 `KILL_ON_JOB_CLOSE`。
 - 不能保留时，提供者停止 Job 并确认，`residue` 是 `stopping`，带原因。读不到成员数时，按有留下的进程处理，不按空处理。
-- 处置确认之后（停止已确认并记入账本，或移交已提交），这个资源离开获取的待停止集合，桥退出。
+- 处置确认之后（停止已确认并记入账本，或移交已提交），这个资源离开获取的待停止集合。停止确认之后桥退出；移交之后桥继续排空管道，见下面的「桥与保留」。
 
 桥与保留：
 
@@ -721,8 +721,11 @@ macOS 按 POSIX 会话收纳。进程可以用 `setsid` 离开会话，所以 ma
   5. 同一次启动、同一会话、名字不存在时，答 `confirmedStopped`。名字不存在说明最后一个句柄已经关闭，`KILL_ON_JOB_CLOSE` 已经停止了全部成员。
   6. 确认之后删除标记。
 
+  保留进程索引持有的资源由索引停止，不经以上各步。资源已没有冷索引标记时，停止已经确认，或者保留进程索引持有这个 Job。这时按名字读成员：名字不存在答 `confirmedStopped`，名字存在答 `pending`。
+
 已知限制：
 
+- 普通终端的 Job 没有冷索引标记，`listRecoveryResources` 列出的是命令 Job、保留进程与保留终端，不含普通终端。提供者进程意外退出之后，终端宿主仍持有它的 Job，列举因此不完整，与 H-6 不符。收敛条件：终端宿主在控制端消失时停止自己的 Job，或者终端 Job 也写冷索引标记（本程切片 10）。
 - 锚进程自身崩溃不在形式模型里。锚崩溃并且桥已经退出时，最后一个句柄关闭，`KILL_ON_JOB_CLOSE` 停止全部成员，保留进程因此意外结束。冷恢复按上面第 5 条答 `confirmedStopped`，这个结论仍然如实。
 - Windows 没有信号，结局的 `exit` 只有退出码。强制停止的结局是 `failed(effectUnknown)`。
 - 优雅停止：命令以新进程组加隐藏的独立控制台创建。`stop('graceful')` 向它发 `CTRL_BREAK_EVENT`，在 `graceMs` 内主进程退出时，接着执行强制停止序列清理 Job，答该序列的结果。超时答 `unconfirmed`，不自动升级。主进程不是控制台程序时，直接答 `unconfirmed`。

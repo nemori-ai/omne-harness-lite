@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import type { ManagedResource } from '@omne-harness/execution-environment-contract'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import { createColdIndex, type ColdIndex } from '../cold-index.ts'
+import { askBridge } from './bridge.ts'
 import { stopWindowsJob, windowsIdentity, type WindowsIdentity } from './supervision.ts'
 
 /** The Job name in a Windows resource reference; undefined for any other reference. */
@@ -75,8 +76,7 @@ export async function listWindowsJobs(
 export type WindowsRecoverStatus = 'confirmedStopped' | 'pending'
 
 /**
- * The SPEC's decision for a command Job of this provider with an index. Without a marker the Job
- * never existed (the marker precedes it) or its stop was confirmed already. Another boot ended it.
+ * The SPEC's decision for a command Job of this provider with an index. Another boot ended it.
  * Another login session cannot address it, so nothing is known. In its own boot and session a
  * missing name means its last handle closed and `KILL_ON_JOB_CLOSE` stopped every member.
  */
@@ -86,7 +86,16 @@ export async function recoverWindowsJob(
   boundMs: number,
 ): Promise<WindowsRecoverStatus> {
   const marker = await index.read(resource.key)
-  if (marker === 'absent') return 'confirmedStopped'
+  // Without a marker the Job never existed, its stop was confirmed, or the retained-process index
+  // holds it. A name that still exists here is a live Job, so the answer is not a stop.
+  if (marker === 'absent') {
+    const reading = await askBridge(
+      { mode: 'members', name: commandJob(resource.key) },
+      frame => (frame.t === 'members' ? frame.reading : undefined),
+      boundMs,
+    )
+    return reading === 'gone' ? 'confirmedStopped' : 'pending'
+  }
   if (marker === 'unreadable') return 'pending'
   const self = await windowsIdentity(boundMs)
   if (self === undefined) return 'pending'
