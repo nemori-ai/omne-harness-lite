@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-The SQL storage contract: shapes, three pure functions, Cordis service definitions, and a conformance suite with a memory double.
+The SQL storage contract: shapes, four pure functions, Cordis service definitions, and a conformance suite with a memory double.
 
 ## Responsibility and status
 
@@ -14,7 +14,7 @@ Status: the design is adopted as the input of #687 revision 2 (comment 655493567
 
 Four entries:
 
-- `@omne-harness/sql-contract`: shapes and the three pure functions. It imports no Cordis.
+- `@omne-harness/sql-contract`: shapes and the four pure functions. It imports no Cordis.
 - `@omne-harness/sql-contract/worker`: interfaces of modules that provider Workers load. Types only. It imports no Cordis.
 - `@omne-harness/sql-contract/cordis`: `StorageService` (key `storage`), `StorageHostService` (key `storageHost`) and `TenantDomainsService` (key `tenantDomains`) and `TenantDomainLookupService` (key `tenantDomainLookup`). A consumer injects `storageKey` and does not import a provider.
 - `@omne-harness/sql-contract/testing`: `createMemorySqlStorage` and `runSqlStorageConformance`, and `createMemoryTenantDomainLookup` and `runTenantDomainLookupConformance`.
