@@ -159,7 +159,7 @@ W3-A 按[材料协议](../tool-contract/docs/material-protocol.md)拆清实现�
 | TS-06、TS-07        | `tests/custody-chunks.spec.ts`                                                                                                                                                               | 同上                                                                                             |
 | 重开                | `tests/reopen.spec.ts`：关闭再打开同一组数据库文件                                                                                                                                           | 进程内关闭与重开，不是进程终止或断电                                                             |
 | 启动围栏            | `tests/start-coordinator.spec.ts`：`tool-host-local` 的协调器在本仓上运行三组启动套件，并在重开后重建                                                                                        | 授权套件的用例全部不适用（协调器没有授权消费点）                                                 |
-| 历史无关（C7 host） | `tests/host-history-independence.spec.ts`：种入 2000 次 Tools 调用（来源绑定、控制主体、父与目标两次受理）后新调用能启动；计数记录仓显示一次 Tools 调用在宿主路径上读到的记录数与字节数在 20 与 2000 次历史下逐项相等，`start-guards` 大小单独报告 | 慢层；宿主的来源、控制与启动三条路径，交付与环境路径在 `tool-host-local` 用内存仓按键读验证 |
+| 历史无关（C7 host） | `tests/host-history-independence.spec.ts`：种入 2000 次 Tools 调用（来源绑定、控制主体、父与目标两次受理、环境获取与长寿命保留作用域里的保留终端、转发槽与一条收到的副本、父调用经真实账本驱动到 `done` 的结果交付）后新调用能启动；计数记录仓显示一次 Tools 调用在宿主路径上读到的记录数与字节数在 20 与 2000 次历史下逐项相等，保留作用域的大小两次相等，`start-guards` 大小单独报告 | 慢层；接收方、资格与材料是替身，账本与宿主工厂是真件 |
 | TS-10               | `tests/materials.spec.ts`、`tests/public-entry.spec.ts`                                                                                                                                      | 真实的三方材料合并由应用侧验证                                                                   |
 
 ## W3 材料 worker 的实现映射

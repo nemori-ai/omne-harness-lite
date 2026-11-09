@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-本目录放测试辅助代码，不放数据文件。`sqlite-storage.ts` 是 node:sqlite 上的 `SqlStorage` 测试提供者，`faults.ts` 是故障包装，`app.ts` 组装租户目录、登记与两个适配器，`custody.ts` 按块读回原件，`ledger.ts` 在给定记录仓上构造真实账本。数据全部由测试在临时目录中生成，测试结束时删除。
+本目录放测试辅助代码，不放数据文件。`sqlite-storage.ts` 是 node:sqlite 上的 `SqlStorage` 测试提供者，`faults.ts` 是故障包装，`app.ts` 组装租户目录、登记与两个适配器，`custody.ts` 按块读回原件，`ledger.ts` 在给定记录仓上构造真实账本，`host-paths.ts` 给历史无关关卡提供每调用的宿主值。数据全部由测试在临时目录中生成，测试结束时删除。
