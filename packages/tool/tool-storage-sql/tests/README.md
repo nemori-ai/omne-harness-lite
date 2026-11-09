@@ -22,4 +22,3 @@
 
 `material-store.spec.ts` 用上述 SQLite 组合验证公开材料仓接口。`material-store-live.spec.ts` 在真实 sqlite-provider Worker 上运行 5 MiB 场景；只有一次删除回包丢失由包装器注入，字节和围栏仍由真实提供者提交。该测试关闭再打开提供者，不模拟操作系统断电。
 
-- [实际 SQL 的精确 final 保管](final-custody-live.spec.ts)验证 5 MiB envelope 不进入 call 账本，并从重启后的 sealed 记录认回。旧完整事实接收容量测试仍独立保留。

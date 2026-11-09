@@ -2,7 +2,6 @@
 
 - [测试范围与运行入口](README.md)。
 - [根入口与导入方向测试](public-entry.spec.ts)。
-- [材料时间源](material-clock.spec.ts)：墙钟回拨、单调源错误、源恢复及连续采样。
 - [未交付入口与依赖方向测试](entry-boundary.spec.ts)。
 - [本地启动协调器测试](start-coordinator.spec.ts)。
 - [R2-D60 无需许可与失败关闭](start-permit-requirements.spec.ts)。

@@ -72,7 +72,6 @@ lookup 的真实账本回归核对释放前 pending、释放后当前 released�
 
 ## 固定结果与内容读取
 
-[content-reads.spec.ts](content-reads.spec.ts) 从真实 runtime 与 ledger 读取已保管原结果，验证完整附件关联、任意 bytes 分页、UTF-8 中间边界、空源、输入变更、IO 撤权、byte/block 游标隔离、错身份、假 EOF、原输出资格与 null provider。字节及 custody 为非耐久内存资源，不证明真实存储或生产耐久。原多页块拼接与元数据继续由 managed-reads 验证，收场与幂等仍由既有组合测试验证。
 
 
 原件字节回归保留旧版两次异步资格的失败反例。现行用例暂停末次 `read-raw-content` 判定后，分别撤销基础 raw、content 或租户关系，验证没有字节返回。测试 guard 从同一基础权限视图计算合取，不通过撤销新增标签代替真实权限变化。另核判定异常/不可用、后续页重新核权、最终允许后无外部读取、raw metadata 输入固定、summary 独立 ref 及窄读口冻结。
@@ -121,6 +120,4 @@ examples 是可读教学与可重复运行的消费检查。正式三条场景�
 
 [tool-measurement.spec.ts](tool-measurement.spec.ts) 经真实独立执行入口验证事件、调用身份、取消及不可比较的时钟。该替身供测量联调使用，不是生产 Shell、Files 或真实后端，不证明 E9 延迟判据已达到。
 
-- [精确 final 准备与恢复](final-custody.spec.ts)覆盖持久意图先于 IO、未知提交、时间水位、原身份与资格、迟到封存。
 
-- [材料化事实的重放、损坏及冲突守护](fact-material.spec.ts)。

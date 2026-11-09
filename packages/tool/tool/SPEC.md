@@ -535,7 +535,6 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 
 `content.raw` 前后独立核 `read-raw`，返回精确结果 execution custody 的 RawOutput 副本。synthetic 结果回复 `invalid`（`result: no-raw-output`）。原 raw.content 即使同时或重复列入普通附件，也不能绕过完整操作。完整操作拒绝为 `denied/read-raw-content`，入口内容门槛仍可拒绝为 `read-content`，raw 元数据拒绝为 `read-raw`。最终允许后不再等待 store、provider 或另一 guard。判定点之后发生的撤权约束后续读取，不追溯撤回已允许候选。content provider 为 null 时有关联的字节读取明确 unsupported；原结果、raw 元数据、交付解除、收场和调用幂等不受此配置改变。
 
-`./testing` 的 createMemoryToolContent 与 createTestToolDependencies 组合 `durability:none` 的 bytes/custody。原件登记复用既有 custody double，普通附件由显式 seed 登记；seed 不授予关联或权限。故障控制允许暂停一次读取、失败、抛错、删除字节或替换响应。它们只能支持非耐久内存组合证据，不支持真实文件存储或跨进程恢复声明。验证资源见 [content-reads.spec.ts](tests/content-reads.spec.ts)。
 
 ## 28. Tools 固定结果适配器
 

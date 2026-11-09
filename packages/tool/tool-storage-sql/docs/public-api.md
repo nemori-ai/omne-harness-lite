@@ -11,11 +11,8 @@
 | 导出                                                                                                                            | 定义                                                        | 行为条款                   |
 | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | -------------------------- |
 | `createSqlToolLedgerStore`、`SqlToolLedgerStore`                                                                                | [src/ledger-store.ts](../src/ledger-store.ts)               | TS-01、TS-02、TS-03、TS-09、TS-11 |
-| `createSqlToolOutputCustody`                                                                                                    | [src/custody.ts](../src/custody.ts)                         | TS-03 至 TS-08             |
 | `SqlToolStorageOptions`、`SqlToolOutputCustodyOptions`、`CHUNK_ENVELOPE_BYTES`、`TOOL_STORAGE_OWNER`                            | [src/options.ts](../src/options.ts)                         | TS-07                      |
 | `toolStorageMaterials`、`ToolStorageMaterials`、`TOOL_PARTICIPANT`                                                              | [src/materials.ts](../src/materials.ts)                     | TS-10                      |
-| `createSqlToolMaterialStore`、`SqlToolMaterialStoreOptions` | [src/material-store.ts](../src/material-store.ts) | [W3 公开材料仓](../SPEC.md#w3-公开材料仓) |
-| `createSqlToolMaterialMaintenanceSource` | [src/maintenance-source.ts](../src/maintenance-source.ts) | [TS-12](../SPEC.md#ts-12-持久材料维护候选) |
 
 端口形状 `ToolLedgerStore` 归 [`@omne-harness/tool`](../../tool/src/ledger-store.ts)，`ToolOutputCustody` 归 [`@omne-harness/tool-contract`](../../tool-contract/src/custody.ts)。
 

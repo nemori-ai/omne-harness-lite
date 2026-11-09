@@ -73,7 +73,7 @@ The cases have stable `name` and `clause` fields. Direct consumption and the evi
 
 ## 精确 final 保管
 
-`createToolLedger` 返回的 `finalCustody` 实现已发布的 `ToolFinalCustody`。构造参数 `ToolLedgerPorts.materials` 提供材料仓、provider adoption 和独立材料时钟。缺少该接线时，`preserveFinal` 明确返回 unavailable。该入口的行为和迁移边界见 [实现规格](../SPEC.md#精确-final-准备与保管)。
+`createToolLedger` 返回的 `finalCustody` 实现已发布的 `ToolFinalCustody`。构造参数 `ToolLedgerPorts.materials` 提供材料仓、provider adoption 和独立材料时钟。缺少该接线时，`preserveFinal` 明确返回 unavailable。该入口的行为和迁移边界见 [实现规格](../SPEC.md#最终事实的计划与结算)。
 
 
 `delivery.read({ principal, tenant, call, result })` 是宿主交付分面，返回固定版本的完整 ToolResult，不采用模型分页预算。它在材料 IO 前后核验 recover 资格与同一结果，已释放交付拒绝读取。读取失败不会解除交付责任。宿主不得把完整值另存为冻结记录；已保存交付的收尾只消费原回执。
@@ -83,9 +83,7 @@ The cases have stable `name` and `clause` fields. Direct consumption and the evi
 
 ## 受信材料维护候选
 
-`ToolMaterialMaintenanceSource` 和 `MaterialMaintenancePage` 由根入口导出，类型归 [material-maintenance-source.ts](../src/material-maintenance-source.ts)，行为归 [受信维护候选源](../SPEC.md#受信维护候选源)。候选源与 ToolLedgerStore 分离，不在普通 ToolRuntime 发布。
 
-`createToolMaterialMaintenance` 和 `ToolMaterialMaintenanceInput` 由根入口导出，形状归 [material-maintenance.ts](../src/material-maintenance.ts)。它只提供到期与回收，不取得正文读取或业务执行端口。非法提交重试上限在构造时抛 TypeError。维护资格仍由每次调用携带的主体与原调用绑定决定。
 
 
 `pageToolResult` 是生产侧与消费方保管共用的纯分页函数。输入是已核身份、固定版本元数据、完整 ToolResult 与页预算，输出保持完整内容块及绑定租户、调用、版本和投影的游标。它不读取仓库、不授权，也不改变保管期限。调用者须在取得完整值后和披露前完成自己的资格检查。源码见 [result-page.ts](../src/result-page.ts)。

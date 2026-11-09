@@ -178,4 +178,4 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 
 W3-A 的 bundle 将 Tool 材料保管实现与 SQL byte provider 组合，替代当前 content:null。holder 的晚绑定代理每次取得当前可用的提供者；撤除按本代条件执行，旧 disposer 不清除后继。已经进入的 IO 沿原 operation 结算或认回，不因依赖撤除假称已取消。保留原 adoption 的恢复路由，不能把旧引用交给另一个空仓。
 
-材料时间独立采用 [host-local 的材料时间工厂](../../../../packages/tool/tool-host-local/SPEC.md#w3-材料时间源)，不直接使用既有 ToolClock.now 的墙钟。Tool 在原 call 域持久核水位，holder 重建不清掉它。维护子插件依赖就绪后启动有界扫描，fiber effect 关闭新扫描并排空或保留在途未知；再次就绪先扫原待办。定时器与 disposer 都不是删除授权，精确协议归 [M01–M05](../../../../packages/tool/tool-contract/docs/material-protocol.md)。
+材料时间独立采用 [host-local 的材料时间工厂](../../../../packages/tool/tool-host-local/SPEC.md#宿主时钟g4)，不直接使用既有 ToolClock.now 的墙钟。Tool 在原 call 域持久核水位，holder 重建不清掉它。维护子插件依赖就绪后启动有界扫描，fiber effect 关闭新扫描并排空或保留在途未知；再次就绪先扫原待办。定时器与 disposer 都不是删除授权，精确协议归 [M01–M05](../../../../packages/tool/tool-contract/docs/material-protocol.md)。

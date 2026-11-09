@@ -247,3 +247,58 @@ it('settles equal bodies using each fixed command limit after a definition repla
     expect((await fixture.load()).request.availability.definition).toEqual(fixed)
   }
 })
+
+it.each([512, 9216].flatMap(bytes => (['file', 'image'] as const).map(kind => ({ bytes, kind }))))(
+  'counts only model text and keeps native blocks, attachments and program data equal to the author return: $bytes $kind',
+  async ({ bytes, kind }) => {
+    const reference = {
+      storage: 'native-files',
+      key: kind === 'file' ? 'report.csv' : 'chart.png',
+      mediaType: kind === 'file' ? 'text/csv' : 'image/png',
+      bytes: '1000000',
+      digest: 'sha256:native-report',
+    }
+    const native = {
+      kind,
+      id: text('native', '').id,
+      visibility: { toHuman: true, toModel: true },
+      ref: reference,
+      transcript: null,
+    }
+    const human = {
+      ...text('human', 'private'.repeat(1000)),
+      visibility: { toHuman: true, toModel: false },
+    }
+    const data = {
+      kind: 'json' as const,
+      contract: adoption('program'),
+      schema: { id: 'program', revision: '1', digest: 'sha256:program' },
+      value: { kind: 'number' as const, lexeme: '12345678901234567890' },
+    }
+    const f = await settlementFixture({
+      definition: boundedDefinition(),
+      value: {
+        content: [
+          text('a', 'x'.repeat(bytes / 2)),
+          native,
+          human,
+          text('b', 'y'.repeat(bytes / 2)),
+        ],
+        data,
+        original: { kind: 'none' },
+        attachments: [reference],
+      },
+    })
+    const settled = ok(await f.preserve())
+    if (settled.phase !== 'settled') throw new Error('missing settled result')
+    const delivered = ok(await f.ledger.delivery.read({ ...f.access, result: settled.result }))
+    expect(delivered.data).toEqual(data)
+    expect(delivered.attachments).toEqual([reference])
+    expect(
+      delivered.content.filter(block => block.id === native.id || block.id === human.id),
+    ).toEqual([native, human])
+    expect(delivered.original.kind).toBe(bytes <= 8192 ? 'none' : 'offloaded')
+    if (delivered.original.kind === 'offloaded')
+      expect(delivered.original.bodyBytes).toBe(String(bytes))
+  },
+)

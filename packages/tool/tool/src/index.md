@@ -4,7 +4,6 @@
 - [根入口](index.ts)。
 - [独立执行作用域](independent-scope.ts)。
 - [正文写入作用域](body-write-scope.ts)：本次调用的队列、背压与持久关闭交接。
-- [正文聚合封存决定](ledger-writer-seal.ts)：聚合准备和封存确认的原子写集。
 - [执行包装器](execute-tool.ts)。
 - [作者限额检查](limits.ts)。
 - [等待请求的 JSON 树](json-tree.ts)。
@@ -49,14 +48,8 @@
 - [cleanup-boundary.ts](cleanup-boundary.ts)：清理 Mutation 的封闭复制。
 - [driver-settlement.ts](driver-settlement.ts)：按原 task 恢复 final 和 preserveResult。
 
-- [精确 final 保管](ledger-final-custody.ts)负责原 call 域准备、封存认回与字节仓交接。
-- [材料账本记录](ledger-material-records.ts)定义材料状态、准备用途及时间水位。
 
 - [事实指纹与批次身份](fact-values.ts)。
-- [事实材料准备与完整恢复](ledger-fact-material.ts)。
-- [非耐久材料仓测试替身](testing-material-store.ts)。
 
-- [材料到期维护](ledger-material-maintenance.ts)负责受信调用级到期与租约收场。
-- [到期用途写集](ledger-material-expiration.ts)由读页与维护入口共用。
 
 - [首次结果读取身份](result-address.ts)从已授权的调用定位值和首次版本构造固定引用，供结果准备生成读回说明。
