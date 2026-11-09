@@ -134,6 +134,83 @@ describe('a Journal commit answered unavailable is a dependency wait', () => {
   })
 })
 
+describe('a read answered unavailable inside a node is a dependency wait too', () => {
+  // SPEC 依赖不可用时的等待: reads and writes alike. The live run in #1174 stopped at Q1 when the
+  // message admission could not read the Session snapshot, and at I3 when the Journal could not
+  // read the common root of the session (queue_full).
+  it('the message admission answering unavailable at Q1 waits and the run completes', async () => {
+    let prepares = 0
+    let refused = 0
+    const reports: AgentRunFailed[] = []
+    const assembly = await loopAssembly(
+      [execution()],
+      d => ({
+        ...d,
+        handoff: {
+          ...d.handoff,
+          prepare(input) {
+            prepares += 1
+            // The first prepare admits the invoke's own input; the second is Q1's reply.
+            if (prepares === 2 && refused === 0) {
+              refused += 1
+              return Promise.resolve(
+                fail({
+                  kind: 'unavailable',
+                  owner: 'session-adapters/message-handoff',
+                  diagnostic: 'the Session snapshot is not readable',
+                }),
+              )
+            }
+            return d.handoff.prepare(input)
+          },
+        },
+      }),
+      undefined,
+      undefined,
+      { failed: event => reports.push(event) },
+    )
+    assembly.release.open()
+    ok(await invoke(assembly))
+    await eventually(async () => refused === 1)
+    await checkTime(assembly)
+    expect(await ended(assembly)).toMatchObject({ conclusion: { kind: 'complete' } })
+    expect(reports).toEqual([])
+  })
+
+  it('a Journal load answering unavailable inside a node waits and the run completes', async () => {
+    let loads = 0
+    let refused = 0
+    const reports: AgentRunFailed[] = []
+    const assembly = await loopAssembly(
+      [execution()],
+      d => ({
+        ...d,
+        journal: {
+          ...d.journal,
+          load(input) {
+            loads += 1
+            // Past the first reads of E1 and E2, one later read of a node is unavailable.
+            if (loads === 4 && refused === 0) {
+              refused += 1
+              return Promise.resolve(fail(FULL))
+            }
+            return d.journal.load(input)
+          },
+        },
+      }),
+      undefined,
+      undefined,
+      { failed: event => reports.push(event) },
+    )
+    assembly.release.open()
+    ok(await invoke(assembly))
+    await eventually(async () => refused === 1)
+    await checkTime(assembly)
+    expect(await ended(assembly)).toMatchObject({ conclusion: { kind: 'complete' } })
+    expect(reports).toEqual([])
+  })
+})
+
 describe('a Journal commit answered with a definite failure ends the run', () => {
   it.each([
     { kind: 'invalid', field: 'storage', reason: 'command_limit' },

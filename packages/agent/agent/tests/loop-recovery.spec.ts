@@ -301,7 +301,7 @@ describe('E1 and E2 read-only recognition', () => {
   })
 
   it.each(['load', 'inputs', 'readReplyAdmissions', 'query'] as const)(
-    'NA-E2-2: unavailable %s saves dependency waiting instead of empty facts',
+    'NA-E2-2: unavailable %s waits on the dependency instead of reading empty facts',
     async method => {
       const assembly = await loopAssembly([execution()], d => ({
         ...d,
@@ -332,7 +332,9 @@ describe('E1 and E2 read-only recognition', () => {
       } else assembly.controls.journal.failNextRead(method)
       const ran = await c.runExecution()
       if (method === 'query') {
-        expect(failure(ran).failure.kind).toBe('unavailable')
+        // An unresolved original is waiting for its outcome: the wait stays in memory and saves
+        // nothing over it (Agent SPEC 依赖不可用时的等待).
+        ok(ran)
         expect((await load(assembly)).state.kind).toBe('advancing')
         return
       }
@@ -988,7 +990,8 @@ describe('a saved admission position in a new coordinator', () => {
     assembly.release.open()
     const first = coordinator(assembly)
     ok(await first.accept())
-    expect(failure(await first.runExecution())).toMatchObject({ node: 'Q1' })
+    // The admission is unavailable: the run waits at Q1 (Agent SPEC 依赖不可用时的等待).
+    ok(await first.runExecution())
     const saved = await load(assembly)
     expect(saved.checkpoint.position).toBe('Q2')
     expect(saved.checkpoint.currentHandoff).not.toBeNull()
@@ -1039,7 +1042,8 @@ describe('the Access of the admission calls (#963 N-2)', () => {
         initial: acceptedInput(`input-${id}`, `hello ${id}`),
       })
       ok(await entry.accept())
-      expect(failure(await entry.runExecution())).toMatchObject({ node: 'Q1' })
+      // The admission is unavailable: the run waits at Q1, and the next pass prepares again.
+      ok(await entry.runExecution())
       ok(await entry.runExecution())
     }
     expect(prepared).toEqual([
