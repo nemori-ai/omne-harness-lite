@@ -29,9 +29,9 @@
 
 请求路径的前几段要与配置的根相同，才算在根下。盘符与大小写不同的段按文字比较。写法不同的段（例如 8.3 短名与长名）在根自己的父目录下不跟随链接比较：两个名字是同一目录项（卷序号与文件 ID 相同）才算相同（R2-D374）。其他名字的联接即使指向根也不算。根以下的段不归一，仍由辅助进程逐段打开。路径越出根、含 `..` 或形式不合格时返回 `notAuthorized`。这个判断由根入口的 `hostSegmentsBelowRoot` 提供，在后端前面判断路径的守卫用同一个（R2-D376）。
 
-配置的根本身是联接或符号链接时不受支持。后端用 `lstat` 记下根的身份，得到的是链接本身，所以这样的根上 `list` 与 `stat` 返回 `notAuthorized`。其余操作在这样的根上不作保证。根要用真实路径配置；发行在读配置时取工作区的真实路径。
+配置的根本身是联接或符号链接时不受支持。后端经文件辅助进程记下根的身份，不跟随最后一段，得到的是链接本身，所以这样的根上 `list` 与 `stat` 返回 `notAuthorized`。其余操作在这样的根上不作保证。根要用真实路径配置；发行在读配置时取工作区的真实路径。
 
-每个请求打开根（未配置根时打开盘符根），再通过 `NtCreateFile` 的 `RootDirectory` 逐段打开子项。辅助进程保留全部祖先句柄，并拒绝中间重解析点和跨卷项。`FILE_OPEN_REPARSE_POINT` 使辅助进程检查链接本身。内容操作在实际句柄上核点名对象及硬链接数，之后才读取。对象 token 是卷序号与 128 位文件 ID，取自 `GetFileInformationByHandleEx(FileIdInfo)`。辅助进程的每次打开都带 `FILE_SHARE_READ`、`FILE_SHARE_WRITE` 与 `FILE_SHARE_DELETE`。
+每个请求打开根（未配置根时打开盘符根），再通过 `NtCreateFile` 的 `RootDirectory` 逐段打开子项。辅助进程保留全部祖先句柄。有根时拒绝中间重解析点和跨卷项。无根时中间的链接按路径重新打开以跟随它，与 POSIX 跟随祖先链接相同；最后一段仍不跟随。空段与 `.` 段不进入逐段打开；路径以 `.` 段结尾时，最后一段按中间段打开。`FILE_OPEN_REPARSE_POINT` 使辅助进程检查链接本身。内容操作在实际句柄上核点名对象及硬链接数，之后才读取。对象 token 是卷序号与 128 位文件 ID，取自 `GetFileInformationByHandleEx(FileIdInfo)`。辅助进程的每次打开都带 `FILE_SHARE_READ`、`FILE_SHARE_WRITE` 与 `FILE_SHARE_DELETE`。
 
 `list` 通过 `NtQueryDirectoryFile` 枚举已打开目录，条目名来自目录项。`search` 按字节序深度优先遍历，保留配置的条目、字节及单文件预算，不进入重解析目录。遇到以不共享读的方式被别的进程打开的文件时跳过它，并把结果标为 `truncated`。
 
@@ -39,7 +39,7 @@
 
 ## 收尾与未闭合项
 
-辅助进程在写答复帧之前关闭这个请求的原生句柄。结果中的句柄代次仍由原引擎签发和核所有者。它不表示仍有原生句柄打开。门面封闭及获取排空继续归共同生命周期。
+辅助进程在写答复帧之前关闭这个请求的原生句柄。结果中的句柄代次仍由原引擎签发和核所有者。它不表示仍有原生句柄打开。门面封闭及获取排空继续归共同生命周期：封闭由门面准入守，辅助进程不查所有者的封闭；已经准入的请求照常做完，排空等它们结束。
 
 已产生部分目录效果后的错误返回 unknown。调用方不能据此自动重做。已发生的创建、删除或移动不会因辅助进程退出而回滚。
 
@@ -59,6 +59,6 @@ Windows 不提供原位写。新建以 `NtCreateFile` 的 `FILE_CREATE` 实现�
 
 ## 验证
 
-真实 Windows 测试见[根的不同写法](../tests/windows-files/path-alias.spec.ts)、[读取与围栏](../tests/windows-files/read.spec.ts)、[名字操作](../tests/windows-files/tree.spec.ts)、[新建与替换](../tests/windows-files/write.spec.ts)及[复制与批次恢复](../tests/windows-files/batch.spec.ts)。这些测试不证明 Linux 行为、完整提供者组合或断电恢复。
+真实 Windows 测试见[有根与无根同一后端](../tests/windows-files/unified.spec.ts)、[根的不同写法](../tests/windows-files/path-alias.spec.ts)、[读取与围栏](../tests/windows-files/read.spec.ts)、[名字操作](../tests/windows-files/tree.spec.ts)、[新建与替换](../tests/windows-files/write.spec.ts)及[复制与批次恢复](../tests/windows-files/batch.spec.ts)。这些测试不证明 Linux 行为、完整提供者组合或断电恢复。
 
 [边界回归](../tests/windows-files/review-regressions.spec.ts)覆盖空版本、缺失对象映射，以及发布前复核期间封闭的交错。交错测试只暂停真实 stat 的返回，不替换文件系统结果。

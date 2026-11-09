@@ -12,7 +12,9 @@ public static partial class OmneFiles {
   [StructLayout(LayoutKind.Sequential)] struct Time { public uint low, high; }
   [StructLayout(LayoutKind.Sequential)] struct Info { public uint attributes; public Time created, accessed, modified; public uint volume, sizeHigh, sizeLow, links, indexHigh, indexLow; }
   [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern IntPtr CreateFileW(string path,uint access,uint share,IntPtr security,uint disposition,uint flags,IntPtr template);
+  [StructLayout(LayoutKind.Sequential)] struct IdInfo { public ulong volume, low, high; }
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool GetFileInformationByHandle(IntPtr handle,out Info info);
+  [DllImport("kernel32.dll", SetLastError=true)] static extern bool GetFileInformationByHandleEx(IntPtr handle,int infoClass,out IdInfo info,uint size);
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool CloseHandle(IntPtr handle);
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool ReadFile(IntPtr handle,byte[] data,uint length,out uint read,IntPtr overlapped);
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool SetFilePointerEx(IntPtr handle,long distance,out long position,uint method);
@@ -28,11 +30,17 @@ public static partial class OmneFiles {
     if (!GetFileInformationByHandle(handle,out info)) throw Error((uint)Marshal.GetLastWin32Error());
     return info;
   }
-  static string Token(Info info) { return info.volume.ToString()+":"+(((ulong)info.indexHigh<<32)|info.indexLow).ToString(); }
-  static object Metadata(Info info,string name) {
+  // The object token: the volume serial number in decimal and the 128-bit file ID in hexadecimal (FileIdInfo).
+  static string Token(IntPtr handle) {
+    IdInfo id;
+    if (!GetFileInformationByHandleEx(handle,18,out id,(uint)Marshal.SizeOf(typeof(IdInfo)))) throw Error((uint)Marshal.GetLastWin32Error());
+    return id.volume.ToString()+":"+id.high.ToString("x16")+id.low.ToString("x16");
+  }
+  static object Metadata(IntPtr handle,string name) {
+    Info info=Information(handle);
     long milliseconds=(long)((((ulong)info.modified.high<<32)|info.modified.low)/10000)-11644473600000L;
     ulong size=((ulong)info.sizeHigh<<32)|info.sizeLow;
-    return new { token=Token(info), version=milliseconds.ToString()+":"+size.ToString(), size=(double)size, modified=(double)milliseconds, type=(info.attributes&0x400)!=0?"symlink":(info.attributes&16)!=0?"directory":"file", name=name };
+    return new { token=Token(handle), version=milliseconds.ToString()+":"+size.ToString(), size=(double)size, modified=(double)milliseconds, type=(info.attributes&0x400)!=0?"symlink":(info.attributes&16)!=0?"directory":"file", name=name };
   }
   static IntPtr OpenRelative(IntPtr parent,string name,uint access,bool directory) {
     Unicode text=new Unicode(); text.length=checked((ushort)(name.Length*2)); text.maximum=text.length; text.buffer=Marshal.StringToHGlobalUni(name);
@@ -45,6 +53,39 @@ public static partial class OmneFiles {
       if(result<0) throw Error(RtlNtStatusToDosError(result));
       return handle;
     } finally { Marshal.FreeHGlobal(pointer); Marshal.FreeHGlobal(text.buffer); }
+  }
+  // The start of a request: the configured root, checked against its recorded token, or the drive root.
+  static IntPtr Root(string path,string expected,bool rooted,List<IntPtr> held) {
+    IntPtr handle=CreateFileW(path,0x100081,3,IntPtr.Zero,3,0x02200000,IntPtr.Zero);
+    if(handle==new IntPtr(-1)) throw Error((uint)Marshal.GetLastWin32Error());
+    held.Add(handle); Info info=Information(handle);
+    if((info.attributes&16)==0) throw new IOException(rooted?"unavailable":"unsupported");
+    if((info.attributes&0x400)!=0) throw new IOException(rooted?"notAuthorized":"unsupported");
+    if(rooted && Token(handle)!=expected) throw new IOException("notAuthorized");
+    return handle;
+  }
+  // The directory segments[index] below parent. Below a root, a reparse point or another volume is outside
+  // the root. Without a root, a link is followed by its path, as POSIX follows an ancestor link.
+  static IntPtr Step(IntPtr parent,string root,string[] segments,int index,bool rooted,uint volume,List<IntPtr> held) {
+    IntPtr child=OpenRelative(parent,segments[index],0x81,true); held.Add(child);
+    Info info=Information(child);
+    if((info.attributes&0x400)==0) {
+      if(rooted && info.volume!=volume) throw new IOException("notAuthorized");
+      return child;
+    }
+    if(rooted) throw new IOException("notAuthorized");
+    char back=(char)92; string path=new string(back,2)+"?"+back+root.TrimEnd(back,'/')+back+string.Join(back.ToString(),segments,0,index+1);
+    child=CreateFileW(path,0x100081,3,IntPtr.Zero,3,0x02000000,IntPtr.Zero);
+    if(child==new IntPtr(-1)) throw Error((uint)Marshal.GetLastWin32Error());
+    held.Add(child);
+    if((Information(child).attributes&16)==0) throw new IOException("unresolved");
+    return child;
+  }
+  // The directory that holds the last segment.
+  static IntPtr Parent(IntPtr start,string root,string[] segments,bool rooted,List<IntPtr> held) {
+    IntPtr current=start; uint volume=Information(start).volume;
+    for(int i=0;i<segments.Length-1;i++) current=Step(current,root,segments,i,rooted,volume,held);
+    return current;
   }
   static string[] Names(IntPtr directory,bool lossless=false) {
     List<string> names=new List<string>(); IntPtr data=Marshal.AllocHGlobal(65536);
@@ -112,39 +153,40 @@ public static partial class OmneFiles {
             state.bytes+=bytes.Length; found=Find(bytes,state.pattern);
           }
         }
-        if(found>=0) state.hits.Add(new SearchHit { path=path,token=Token(info),offsetBytes=state.content?found:-1 });
+        if(found>=0) state.hits.Add(new SearchHit { path=path,token=Token(child),offsetBytes=state.content?found:-1 });
         if(state.hits.Count>=state.want) return false;
         if(state.recursive && isDirectory && !reparse && info.volume==state.volume && !Visit(child,path,state)) return false;
       } finally { if(!CloseHandle(child)) throw new IOException("unknown"); }
     }
     return true;
   }
-  public static object Run(string root,string expectedRoot,string[] segments,string named,string operation,long offset,long limit,string pattern,bool content,bool recursive,long entryBudget,long byteBudget,long fileBytes,string requestedPath,bool rooted) {
+  // read, stat, list, search and identify. directory: the path ends in a separator or a "." segment, so it
+  // must name a directory; follow: it ends in a "." segment, so the last segment is resolved as a directory.
+  public static object Run(string root,string expectedRoot,string[] segments,string named,string operation,long offset,long limit,string pattern,bool content,bool recursive,long entryBudget,long byteBudget,long fileBytes,string requestedPath,bool rooted,bool directory,bool follow) {
     List<IntPtr> held=new List<IntPtr>();
     try {
-      IntPtr current=CreateFileW(root,0x100081,3,IntPtr.Zero,3,0x02200000,IntPtr.Zero);
-      if(current==new IntPtr(-1)) throw Error((uint)Marshal.GetLastWin32Error()); held.Add(current);
-      Info rootInfo=Information(current);
-      if((rootInfo.attributes&16)==0) throw new IOException(rooted?"unavailable":"unsupported");
-      if((rootInfo.attributes&0x400)!=0) throw new IOException(rooted?"notAuthorized":"unsupported");
-      if(Token(rootInfo)!=expectedRoot) throw new IOException("notAuthorized");
+      IntPtr current=Root(root,expectedRoot,rooted,held);
+      uint rootVolume=Information(current).volume;
       for(int i=0;i<segments.Length;i++) {
-        bool directory=i<segments.Length-1;
-        uint access=directory || operation=="list" || operation=="search"?0x81u:operation=="read"?0x80000080u:0x80u;
-        current=OpenRelative(current,segments[i],access,directory); held.Add(current);
+        if(i<segments.Length-1 || follow) { current=Step(current,root,segments,i,rooted,rootVolume,held); continue; }
+        uint parentVolume=Information(current).volume;
+        uint access=operation=="list" || operation=="search"?0x81u:operation=="read"?0x80000080u:0x80u;
+        current=OpenRelative(current,segments[i],access,false); held.Add(current);
         Info step=Information(current);
-        if((step.attributes&0x400)!=0) throw new IOException(i<segments.Length-1?"notAuthorized":"unsupported");
-        if(step.volume!=rootInfo.volume) throw new IOException("notAuthorized");
+        if((step.attributes&0x400)!=0 && operation!="identify") throw new IOException("unsupported");
+        if(step.volume!=(rooted?rootVolume:parentVolume)) throw new IOException("notAuthorized");
       }
       Info info=Information(current);
-      if(Token(info)!=named) throw new IOException("conflict");
+      if(directory && (info.attributes&16)==0) throw new IOException("unresolved");
+      if(operation=="identify") return new { info=Metadata(current,""), bytes="", entries=new object[0], next=-1 };
+      if(Token(current)!=named) throw new IOException("conflict");
       if(operation=="search") {
         if((info.attributes&16)==0) throw new IOException("unsupported");
         SearchState state=new SearchState { pattern=Convert.FromBase64String(pattern),content=content,recursive=recursive,rooted=rooted,entryBudget=entryBudget,byteBudget=byteBudget,fileBytes=fileBytes,want=offset+limit+1,volume=info.volume };
         Visit(current,requestedPath,state);
         long end=Math.Min(state.hits.Count,offset+limit); List<SearchHit> hits=new List<SearchHit>();
         for(long i=offset;i<end;i++) hits.Add(state.hits[(int)i]);
-        return new { info=Metadata(info,""), bytes="", entries=new object[0], next=state.hits.Count>offset+limit?offset+limit:-1, hits=hits.ToArray(), truncated=state.truncated };
+        return new { info=Metadata(current,""), bytes="", entries=new object[0], next=state.hits.Count>offset+limit?offset+limit:-1, hits=hits.ToArray(), truncated=state.truncated };
       }
       List<object> entries=new List<object>(); string bytes=""; bool eof=false;
       if(operation=="read") {
@@ -160,12 +202,12 @@ public static partial class OmneFiles {
         long end=Math.Min(names.Length,offset+limit);
         for(long i=offset;i<end;i++) {
           IntPtr child=OpenRelative(current,names[i],0x80,false);
-          try { entries.Add(Metadata(Information(child),names[i])); }
+          try { entries.Add(Metadata(child,names[i])); }
           finally { if(!CloseHandle(child)) throw new IOException("unknown"); }
         }
-        return new { info=Metadata(info,""), bytes=bytes, entries=entries.ToArray(), next=end<names.Length?end:-1 };
+        return new { info=Metadata(current,""), bytes=bytes, entries=entries.ToArray(), next=end<names.Length?end:-1 };
       }
-      return new { info=Metadata(info,""), bytes=bytes, entries=entries.ToArray(), next=-1, eof=eof };
+      return new { info=Metadata(current,""), bytes=bytes, entries=entries.ToArray(), next=-1, eof=eof };
     } finally { bool closed=true; for(int i=held.Count-1;i>=0;i--) closed=CloseHandle(held[i]) && closed; if(!closed) throw new IOException("unknown"); }
   }
 }

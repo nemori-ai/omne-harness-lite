@@ -11,30 +11,27 @@ import { parseReplyFrame, requestFrame, type NativeInput, type NativeReply } fro
  * The resident Windows files helper process and its request transport. Each step below is one
  * action of `verification/models/FilesHelper.tla` and runs in one synchronous section:
  *
- * - `request`: Enqueue. It checks the owner's seal again after the facade's admission (Admit).
- * - `pump`: Dispatch, checking the seal of every queued request before it is written; a sealed
- *   owner's queued request answers `closed` here (the queue part of Seal). Start and Restart.
+ * - `request`: Enqueue.
+ * - `pump`: Dispatch, Start and Restart.
  * - `received`: StartOk on the ready frame, ReceiveFrame on a reply. `startFailed`: StartFail.
  * - `expired`: RequestTimeout. `invalidate`: the host side of Terminate (frames read after it are
  *   dropped; the process is killed).
  * - `exited`, on the child's `close` event: HelperExit.
  *
- * The helper knows no engine or acquisition. It knows an owner only by asking whether it is sealed.
+ * The helper knows no engine, acquisition or owner. Sealing is the facade's admission: a sealed
+ * facade answers `closed` before a request is made, and a drain waits for the admitted operations
+ * to end. The helper does not check a seal at Enqueue or Dispatch.
  */
-
-/** An owner of requests, as far as the helper needs to know it. */
-export type OwnerTag = Readonly<{ sealed(): boolean }>
 
 /** A reply of the native operation, a native failure, or the helper's own answer. */
 export type HelperAnswer = NativeReply | Failure
 
 export type FilesHelper = Readonly<{
   /**
-   * Runs one native operation. `closed` when the owner is sealed before the request is written,
-   * `unavailable` when the helper does not start, `unknown` when the helper exits, is invalidated
-   * or exceeds `boundMs` after the request was written to it.
+   * Runs one native operation. `unavailable` when the helper does not start, `unknown` when the
+   * helper exits, is invalidated or exceeds `boundMs` after the request was written to it.
    */
-  request(owner: OwnerTag, input: NativeInput, boundMs?: number): Promise<HelperAnswer>
+  request(input: NativeInput, boundMs?: number): Promise<HelperAnswer>
 }>
 
 export type FilesHelperOptions = Readonly<{
@@ -55,7 +52,6 @@ type RequestState =
 
 type Request = {
   readonly id: number
-  readonly owner: OwnerTag
   readonly line: string
   readonly boundMs: number
   status: RequestState
@@ -116,8 +112,7 @@ export function createFilesHelper(options: FilesHelperOptions): FilesHelper {
     const child = ready?.child
     const waiting: Request[] = []
     for (const request of queue) {
-      if (request.owner.sealed()) answer(request, 'closed')
-      else if (ready !== undefined && child !== undefined && inFlight.size < inFlightLimit)
+      if (ready !== undefined && child !== undefined && inFlight.size < inFlightLimit)
         dispatch(ready, child, request)
       else waiting.push(request)
     }
@@ -243,13 +238,11 @@ export function createFilesHelper(options: FilesHelperOptions): FilesHelper {
   }
 
   return Object.freeze({
-    request(owner: OwnerTag, input: NativeInput, boundMs = requestBoundMs) {
+    request(input: NativeInput, boundMs = requestBoundMs) {
       return new Promise<HelperAnswer>(settle => {
-        if (owner.sealed()) return settle('closed')
         const id = nextRequest++
         queue.push({
           id,
-          owner,
           line: requestFrame(id, input),
           boundMs,
           status: { state: 'queued' },

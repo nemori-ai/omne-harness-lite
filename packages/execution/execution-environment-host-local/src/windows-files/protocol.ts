@@ -7,44 +7,63 @@ import type { Failure } from '../host-paths.ts'
  * turns it into types.
  */
 
-/** A request for `read`, `stat`, `list` or `search`. */
-export type RunInput = Readonly<{
+/**
+ * Where a request starts and how it walks. With a files root, `root` is the root and
+ * `expectedRoot` its recorded token; without one, `root` is the drive root and `expectedRoot` is
+ * empty. `segments` are opened one below the other from there.
+ */
+export type Start = Readonly<{
   root: string
   expectedRoot: string
   segments: readonly string[]
-  named: string
-  operation: 'read' | 'stat' | 'list' | 'search'
-  offset: number
-  limit: number
-  pattern: string
-  content: boolean
-  recursive: boolean
-  entryBudget: number
-  byteBudget: number
-  fileBytes: number
-  path: string
   rooted: boolean
 }>
 
-/** A request for `mkdir`, `remove` or `move`. */
-export type ChangeInput = Readonly<{
-  root: string
-  expectedRoot: string
-  segments: readonly string[]
-  named: string
-  operation: 'mkdir' | 'remove' | 'move'
-  recursive: boolean
-  version: string | null
-  targetRoot: string
-  expectedTargetRoot: string
-  targetSegments: readonly string[]
-  targetNamed: string
-  replace: boolean
-}>
+/**
+ * How the last segment is opened. `directory`: the path ends in a separator or a `.` segment, so
+ * it must name a directory. `follow`: it ends in a `.` segment, so the last segment is resolved as
+ * a directory on the way, as POSIX resolves `name/.`.
+ */
+export type Final = Readonly<{ directory: boolean; follow: boolean }>
+
+/** A request for `read`, `stat`, `list` or `search`. */
+export type RunInput = Start &
+  Final &
+  Readonly<{
+    named: string
+    operation: 'read' | 'stat' | 'list' | 'search'
+    offset: number
+    limit: number
+    pattern: string
+    content: boolean
+    recursive: boolean
+    entryBudget: number
+    byteBudget: number
+    fileBytes: number
+    path: string
+  }>
+
+/** The token and metadata of the object a path names, without a named object to check. */
+export type IdentifyInput = Start & Final & Readonly<{ operation: 'identify' }>
+
+/** A request for `mkdir`, `remove` or `move`. The target starts the same way as the source. */
+export type ChangeInput = Start &
+  Readonly<{
+    named: string
+    operation: 'mkdir' | 'remove' | 'move'
+    recursive: boolean
+    version: string | null
+    targetRoot: string
+    expectedTargetRoot: string
+    targetSegments: readonly string[]
+    targetNamed: string
+    replace: boolean
+  }>
 
 /** A request for `write`: exclusive creation, or replacement of the named object. */
-export type WriteInput = Pick<RunInput, 'root' | 'expectedRoot' | 'segments' | 'named'> &
+export type WriteInput = Start &
   Readonly<{
+    named: string
     operation: 'write'
     version: string | null
     trailingSlash: boolean
@@ -52,7 +71,7 @@ export type WriteInput = Pick<RunInput, 'root' | 'expectedRoot' | 'segments' | '
     bytes: string
   }>
 
-export type NativeInput = RunInput | ChangeInput | WriteInput
+export type NativeInput = RunInput | IdentifyInput | ChangeInput | WriteInput
 
 export type Metadata = Readonly<{
   token: string

@@ -39,12 +39,12 @@ public static partial class OmneFiles {
       }
     } finally { if(target!=IntPtr.Zero && !CloseHandle(target)) throw new IOException("unknown"); }
   }
-  public static object Write(string root,string expectedRoot,string[] segments,string named,string version,bool hasVersion,bool trailingSlash,bool create,string encoded) {
+  public static object Write(string root,string expectedRoot,string[] segments,string named,string version,bool hasVersion,bool trailingSlash,bool create,string encoded,bool rooted) {
     version=hasVersion?version:null;
     List<IntPtr> held=new List<IntPtr>(); IntPtr staged=IntPtr.Zero; bool published=false,created=false;
     try {
       if(segments.Length==0) throw new IOException("notAuthorized");
-      IntPtr rootHandle=Root(root,expectedRoot,held), parent=Parent(rootHandle,segments,held);
+      IntPtr rootHandle=Root(root,expectedRoot,rooted,held), parent=Parent(rootHandle,root,segments,rooted,held);
       string name=segments[segments.Length-1];
       CheckTarget(parent,name,named,version,create);
       if(trailingSlash) throw new IOException("unresolved");
@@ -55,7 +55,7 @@ public static partial class OmneFiles {
         Rename(staged,parent,name,true);
       }
       published=true;
-      return new { info=Metadata(Information(staged),""), bytes="", entries=new object[0], next=-1 };
+      return new { info=Metadata(staged,""), bytes="", entries=new object[0], next=-1 };
     } catch { if(created || published) throw new IOException("unknown"); throw; }
     finally {
       bool closed=true;

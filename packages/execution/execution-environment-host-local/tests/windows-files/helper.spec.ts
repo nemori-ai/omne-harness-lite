@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { createFilesHelper, type OwnerTag } from '../../src/windows-files/helper.ts'
+import { createFilesHelper } from '../../src/windows-files/helper.ts'
 import type { RunInput } from '../../src/windows-files/protocol.ts'
 
 const kills = vi.hoisted(() => ({
@@ -37,7 +37,6 @@ vi.mock('node:child_process', async importOriginal => {
 })
 
 const fake = fileURLToPath(new URL('./fake-helper.ts', import.meta.url))
-const open: OwnerTag = { sealed: () => false }
 let directory: string
 let log: string
 
@@ -92,6 +91,8 @@ function input(named: string, path = '-'): RunInput {
     fileBytes: 0,
     path,
     rooted: false,
+    directory: false,
+    follow: false,
   }
 }
 
@@ -122,9 +123,9 @@ const done = { info: { token: '1:1' } }
 
 it('P2: answers unknown for a written request when the process is killed, and keeps a queued one for the next process', async () => {
   const files = helper({ inFlightLimit: 1 })
-  const written = files.request(open, input('hold'))
+  const written = files.request(input('hold'))
   await reached('hold')
-  const queued = files.request(open, input('answer'))
+  const queued = files.request(input('answer'))
   const [first] = await pids()
   process.kill(first ?? 0)
   expect(await written).toBe('unknown')
@@ -137,55 +138,34 @@ it('P2: answers unknown for a written request when the process is killed, and ke
   )
 }, 30_000)
 
-it('P3, P6: never writes a queued request whose owner is sealed before its dispatch', async () => {
-  const files = helper({ inFlightLimit: 1 })
-  let sealed = false
-  const owner: OwnerTag = { sealed: () => sealed }
-  const blocking = files.request(open, input('hold'))
-  await reached('hold')
-  const queued = files.request(owner, input('answer', 'sealed-owner'))
-  sealed = true
-  const [first] = await pids()
-  process.kill(first ?? 0)
-  expect(await blocking).toBe('unknown')
-  expect(await queued).toBe('closed')
-  // A later request still runs, and the sealed owner's request reached no process.
-  expect(await files.request(open, input('answer'))).toMatchObject(done)
-  expect((await lines()).filter(line => line.includes('sealed-owner'))).toEqual([])
-}, 30_000)
-
 it('P1: a reply that never got its line end is no frame, so the request answers unknown', async () => {
   const files = helper()
-  expect(await files.request(open, input('emitExit', '{"v":1,"id":#self,"ok":#ok}'))).toBe(
-    'unknown',
-  )
+  expect(await files.request(input('emitExit', '{"v":1,"id":#self,"ok":#ok}'))).toBe('unknown')
   // A torn line invalidates the process; the request is unknown, not answered from the fragment.
-  expect(await files.request(open, input('emit', '{"v":1,"id":#self,"ok":{"info"\n'))).toBe(
-    'unknown',
-  )
-  expect(await files.request(open, input('answer'))).toMatchObject(done)
+  expect(await files.request(input('emit', '{"v":1,"id":#self,"ok":{"info"\n'))).toBe('unknown')
+  expect(await files.request(input('answer'))).toMatchObject(done)
 }, 30_000)
 
 it('P5: answers once, and drops a duplicate frame together with every frame read after it', async () => {
   const files = helper({ inFlightLimit: 4 })
-  const first = files.request(open, input('hold'))
+  const first = files.request(input('hold'))
   await reached('hold')
-  const second = files.request(open, input('hold'))
+  const second = files.request(input('hold'))
   await reached('hold', 2)
   const frame = (held: string) => `{"v":1,"id":${held},"ok":#ok}\n`
-  const trigger = files.request(open, input('emit', frame('#0') + frame('#0') + frame('#1')))
+  const trigger = files.request(input('emit', frame('#0') + frame('#0') + frame('#1')))
   expect(await first).toMatchObject(done)
   // The duplicate invalidated the process: the frame for the second request came too late.
   expect(await second).toBe('unknown')
   expect(await trigger).toBe('unknown')
-  expect(await files.request(open, input('answer'))).toMatchObject(done)
+  expect(await files.request(input('answer'))).toMatchObject(done)
   expect(await pids()).toHaveLength(2)
 }, 30_000)
 
 it('P6: a request past its bound kills the process, and answers unknown only once the process closed', async () => {
   kills.defer = true
   const files = helper()
-  const late = files.request(open, input('hold'), 100)
+  const late = files.request(input('hold'), 100)
   await kills.requested.promise
   const settledEarly = await Promise.race([
     late,
@@ -199,8 +179,8 @@ it('P6: a request past its bound kills the process, and answers unknown only onc
 it('answers the waiting requests unavailable when the helper cannot start, and starts again for the next', async () => {
   const files = helper({ starts: ['compileFails', 'exit', 'silent'], startBoundMs: 1_000 })
   for (let attempt = 0; attempt < 3; attempt++)
-    expect(await files.request(open, input('answer'))).toBe('unavailable')
-  expect(await files.request(open, input('answer'))).toMatchObject(done)
+    expect(await files.request(input('answer'))).toBe('unavailable')
+  expect(await files.request(input('answer'))).toMatchObject(done)
   // Nothing was written to a process that never became ready.
   expect((await lines()).filter(line => line.startsWith('request '))).toHaveLength(1)
 }, 30_000)

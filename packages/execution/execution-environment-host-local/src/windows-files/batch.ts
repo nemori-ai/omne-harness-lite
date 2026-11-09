@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { lstat, mkdir } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import { win32 } from 'node:path'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type {
@@ -19,6 +19,7 @@ import {
   type FileBatch,
 } from '../host-file-batch.ts'
 import { reject, unknown } from '../host-paths.ts'
+import { windowsObjectInfo } from './facility.ts'
 
 type Files = Pick<FileSystemFacility<unknown>, 'stat' | 'read' | 'write' | 'move' | 'remove'>
 type Commit = Parameters<FileSystemFacility<unknown>['commitBatch']>[0]
@@ -124,12 +125,13 @@ export function createWindowsBatch(options: {
           const stored = manifest.entries[index]
           if (stored === undefined) return uncertain('effectUnknown')
           const parentPath = win32.dirname(entry.path)
-          const parentInfo = await lstat(parentPath, { bigint: true })
+          const parent = await windowsObjectInfo(parentPath)
+          if (!parent.ok) return uncertain('effectUnknown')
           const path = win32.join(parentPath, stored.temp)
           const result = await files.write({
             ...request,
             path,
-            named: { token: `${parentInfo.dev}:${parentInfo.ino}` },
+            named: { token: parent.value.token },
             bytes: entry.bytes,
             mode: 'create',
           })
@@ -198,18 +200,17 @@ export function createWindowsBatch(options: {
         conflicting: string[] = []
       for (const entry of manifest.entries) {
         if (manifest.receipts.includes(entry.path)) continue
-        let token: string
-        try {
-          const stat = await lstat(entry.path, { bigint: true })
-          token = `${stat.dev}:${stat.ino}`
-        } catch (error) {
-          if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-            if (entry.expectedVersion !== null) conflicting.push(entry.path)
-            continue
-          }
-          return unknown(request.requestId)
+        const found = await windowsObjectInfo(entry.path)
+        if (!found.ok) {
+          if (found.failure !== 'unresolved') return unknown(request.requestId)
+          if (entry.expectedVersion !== null) conflicting.push(entry.path)
+          continue
         }
-        const read = await files.read({ ...request, path: entry.path, named: { token } })
+        const read = await files.read({
+          ...request,
+          path: entry.path,
+          named: { token: found.value.token },
+        })
         if (read.kind !== 'done') return unknown(request.requestId)
         if (read.value.bytes.length === entry.size && digest(read.value.bytes) === entry.sha256)
           matchingPrepared.push(entry.path)
