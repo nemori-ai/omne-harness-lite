@@ -502,9 +502,9 @@
 
 ### UL-offload-preview-budget · 卸载预览预算 · Offload Preview Budget
 
-> **中**：正文被卸载后，模型首次看到的全部内容的字节上限。它取以下三项中的最小值：作者预览上限、系统预览上限、[卸载触发阈值](#ul-offloading-threshold--卸载触发阈值--offloading-threshold)除以 k 后向下取整；作者未声明预览上限时取后两项中的较小值。k 由系统装配给定。作者内容、作者摘要、[机械预览](#ul-mechanical-preview--机械预览--mechanical-preview)及系统追加的描述头都计入它。
+> **中**：正文被卸载后，模型首次看到的预览部分的字节上限。预览部分指作者内容与作者摘要，或机械预览的节选；描述头是元信息，不计入它。它取以下三项中的最小值：作者预览上限、系统预览上限、[卸载触发阈值](#ul-offloading-threshold--卸载触发阈值--offloading-threshold)除以 k 后向下取整；作者未声明预览上限时取后两项中的较小值。k 由系统装配给定。作者内容、作者摘要和[机械预览](#ul-mechanical-preview--机械预览--mechanical-preview)的节选计入它；描述头另有固定上限。
 >
-> **EN**: The byte limit on everything the model sees first after a body is offloaded. It is the smallest of three values: the author's preview cap, the system preview cap, and the offloading threshold divided by k and rounded down. Without an author preview cap it is the smaller of the last two. Assembly sets k. Author content, the author summary, the mechanical preview and the header the system appends all count against it.
+> **EN**: The byte limit on the preview part the model sees first after a body is offloaded. The preview part is the author content and author summary, or the excerpts of the mechanical preview. The header is metadata and does not count. It is the smallest of three values: the author's preview cap, the system preview cap, and the offloading threshold divided by k and rounded down. Without an author preview cap it is the smaller of the last two. Assembly sets k. Author content, the author summary and the excerpts of the mechanical preview count against it; the header has its own fixed bound.
 
 - **形态**：属性
 - **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
@@ -513,9 +513,9 @@
 
 ### UL-mechanical-preview · 机械预览 · Mechanical Preview
 
-> **中**：正文被卸载而作者没有提供摘要时，系统按正文格式从正文算出、在首次模型消息中呈现的结构化预览。它由描述头和节选组成。描述头说明正文格式、总字节数、行数或记录数、正文 schema 的身份、到期时间及读回方式。节选使用剩余预算并与格式对齐：文本取首部和尾部，在行边界截断；JSON Lines 取开头和末尾的完整记录；JSON 文档给出键、值类型和数组长度的层级大纲。它整体不超过[卸载预览预算](#ul-offload-preview-budget--卸载预览预算--offload-preview-budget)，不含语义摘要，也不含截断的 JSON 文本。
+> **中**：正文被卸载而作者没有提供摘要时，系统按正文格式从正文算出、在首次模型消息中呈现的结构化预览。它由描述头和节选组成。描述头说明正文格式、总字节数、行数或记录数、正文 schema 的身份、到期时间及读回方式。节选与格式对齐，受卸载预览预算约束：文本取首部和尾部，在行边界截断；JSON Lines 取开头和末尾的完整记录；JSON 文档给出键、值类型和数组长度的层级大纲。节选不超过[卸载预览预算](#ul-offload-preview-budget--卸载预览预算--offload-preview-budget)；描述头是元信息，不计入该预算，只含固定字段和 schema 的身份，大小有固定上限。机械预览不含语义摘要，也不含截断的 JSON 文本。
 >
-> **EN**: The structured preview that the system computes from an offloaded body, by the body's format, when the author supplies no summary. It appears in the first model message. It has a header and excerpts. The header gives the body's format, total bytes, line or record count, schema identity, expiry time and how to read the body back. The excerpts use the remaining budget and follow the format: text gives the head and tail cut at line boundaries; JSON Lines gives the first and last complete records; a JSON document gives an outline of keys, value types and array lengths. The whole preview stays within the offload preview budget. It contains no semantic summary and no truncated JSON text.
+> **EN**: The structured preview that the system computes from an offloaded body, by the body's format, when the author supplies no summary. It appears in the first model message. It has a header and excerpts. The header gives the body's format, total bytes, line or record count, schema identity, expiry time and how to read the body back. The excerpts follow the format and stay within the offload preview budget: text gives the head and tail cut at line boundaries; JSON Lines gives the first and last complete records; a JSON document gives an outline of keys, value types and array lengths. The header is metadata outside that budget; it holds only fixed fields and the schema identity, so its size has a fixed bound. It contains no semantic summary and no truncated JSON text.
 
 - **形态**：视图
 - **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
