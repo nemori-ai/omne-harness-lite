@@ -33,6 +33,7 @@
   - [terminal-gate.ts](macos-execution/terminal-gate.ts)：终端的门进程脚本，领自己的会话，不被导入；复用 `../terminal-gate-core.ts`
   - [terminals.ts](macos-execution/terminals.ts)：终端的 `TerminalPlatform`：准入、gate 与 shell 两个会话的记录、停止与 FIFO 目录的清理
   - [recovery.ts](macos-execution/recovery.ts)：冷索引的列举与按标记恢复
+- [windows-native/compile.ts](windows-native/compile.ts)：Windows 原生程序共用的编译入口：用系统自带的 .NET Framework `csc.exe` 编译 C# 源码，按内容摘要缓存于 `%TEMP%\<缓存名>\<sha256>\`，每个进程编译一次，失败不留
 - [cordis.ts](cordis.ts)：`./cordis` 入口：Service 子类、两个声明插件、宿主文件插件与两份配置 Schema
 
 ## 阅读路径
