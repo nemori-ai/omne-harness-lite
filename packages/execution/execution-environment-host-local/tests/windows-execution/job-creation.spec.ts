@@ -16,7 +16,7 @@ it('keeps the child suspended and stoppable by Job name when the bridge crashes 
   const source = join(directory, 'bridge.cs')
   const executable = join(directory, 'bridge.exe')
   const creation =
-    'Check(CreateProcessW(r.executable,cmd,IntPtr.Zero,IntPtr.Zero,true,0x08080404,env,r.cwd,ref sx,out child));'
+    'Check(CreateProcessW(r.executable,cmd,IntPtr.Zero,IntPtr.Zero,true,0x08080604,env,r.cwd,ref sx,out child));'
   expect(nativeSource.split(creation)).toHaveLength(2)
   await writeFile(
     source,

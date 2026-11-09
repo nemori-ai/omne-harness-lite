@@ -61,6 +61,9 @@ public static partial class OmneWindowsBridge {
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool InitializeProcThreadAttributeList(IntPtr list,int count,uint flags,ref IntPtr size);
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool UpdateProcThreadAttribute(IntPtr list,uint flags,IntPtr attr,IntPtr value,IntPtr size,IntPtr previous,IntPtr returned);
   [DllImport("kernel32.dll")] static extern void DeleteProcThreadAttributeList(IntPtr list);
+  [DllImport("kernel32.dll",SetLastError=true)] static extern bool FreeConsole();
+  [DllImport("kernel32.dll",SetLastError=true)] static extern bool AttachConsole(uint pid);
+  [DllImport("kernel32.dll",SetLastError=true)] static extern bool GenerateConsoleCtrlEvent(uint ev,uint group);
 
   static readonly object OutputLock=new object(), JobLock=new object();
   static readonly JavaScriptSerializer Json=new JavaScriptSerializer { MaxJsonLength=2097152, RecursionLimit=16 };
@@ -107,6 +110,18 @@ public static partial class OmneWindowsBridge {
       } while(watch.ElapsedMilliseconds<bound);
       return false;
     }
+  }
+  /**
+   * CTRL_BREAK_EVENT to the main process's group on its hidden console, while the main process
+   * runs. The bridge attaches to that console only to send it and is not in the group, so the event
+   * does not reach it. False when the main process exited or has no console (a GUI program).
+   */
+  static bool Break() {
+    if(child.process==IntPtr.Zero || WaitForSingleObject(child.process,0)==0) return false;
+    FreeConsole();
+    if(!AttachConsole(child.pid)) return false;
+    try { return GenerateConsoleCtrlEvent(1,child.pid); }
+    finally { FreeConsole(); }
   }
   /**
    * The Job's processes other than the anchor and the console hosts (conhost.exe) that Windows
@@ -243,7 +258,9 @@ public static partial class OmneWindowsBridge {
       environment.Append('\0');if(keys.Count==0)environment.Append('\0');env=Marshal.StringToHGlobalUni(environment.ToString());
       StringBuilder cmd=new StringBuilder(Quote(r.executable));foreach(string arg in r.args)cmd.Append(' ').Append(Quote(arg));
       SX sx=new SX();sx.si.cb=(uint)Marshal.SizeOf(sx);sx.si.flags=0x100;sx.si.input=ir;sx.si.output=ow;sx.si.error=ew;sx.list=list;
-      Check(CreateProcessW(r.executable,cmd,IntPtr.Zero,IntPtr.Zero,true,0x08080404,env,r.cwd,ref sx,out child));
+      // CREATE_NO_WINDOW gives a console program its own hidden console, and
+      // CREATE_NEW_PROCESS_GROUP keeps that console's events away from the bridge's.
+      Check(CreateProcessW(r.executable,cmd,IntPtr.Zero,IntPtr.Zero,true,0x08080604,env,r.cwd,ref sx,out child));
       CloseHandle(ir);ir=IntPtr.Zero;CloseHandle(ow);ow=IntPtr.Zero;CloseHandle(ew);ew=IntPtr.Zero;
       stdout=Pump(orr,"stdout",r.maxChunkBytes);orr=IntPtr.Zero;stderr=Pump(er,"stderr",r.maxChunkBytes);er=IntPtr.Zero;
       IntPtr writer=iw;iw=IntPtr.Zero;
@@ -295,6 +312,7 @@ public static partial class OmneWindowsBridge {
       });waiter.IsBackground=true;waiter.Start();
       while((line=Line())!=null) {
         if(line=="stop")Emit(new {t="stopped",status=Stop()?"confirmed":"unconfirmed"});
+        else if(line=="break")Emit(new {t="break",sent=Break()});
         else if(line=="dispose")break;
       }
       // Without a controller the command keeps running in its anchored Job. The bridge drains its

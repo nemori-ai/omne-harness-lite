@@ -728,7 +728,7 @@ macOS 按 POSIX 会话收纳。进程可以用 `setsid` 离开会话，所以 ma
 - 普通终端的 Job 没有冷索引标记，`listRecoveryResources` 列出的是命令 Job、保留进程与保留终端，不含普通终端。提供者进程意外退出之后，终端宿主仍持有它的 Job，列举因此不完整，与 H-6 不符。收敛条件：终端宿主在控制端消失时停止自己的 Job，或者终端 Job 也写冷索引标记（本程切片 10）。
 - 锚进程自身崩溃不在形式模型里。锚崩溃并且桥已经退出时，最后一个句柄关闭，`KILL_ON_JOB_CLOSE` 停止全部成员，保留进程因此意外结束。冷恢复按上面第 5 条答 `confirmedStopped`，这个结论仍然如实。
 - Windows 没有信号，结局的 `exit` 只有退出码。强制停止的结局是 `failed(effectUnknown)`。
-- 优雅停止：命令以新进程组加隐藏的独立控制台创建。`stop('graceful')` 向它发 `CTRL_BREAK_EVENT`，在 `graceMs` 内主进程退出时，接着执行强制停止序列清理 Job，答该序列的结果。超时答 `unconfirmed`，不自动升级。主进程不是控制台程序时，直接答 `unconfirmed`。
+- 优雅停止：命令以新进程组加隐藏的独立控制台创建。`stop('graceful')` 向主进程的进程组发 `CTRL_BREAK_EVENT`。桥只为发送而附着到那个控制台，不在这个进程组里，所以收不到这个事件。在 `graceMs` 内主进程退出时，接着执行强制停止序列清理 Job，答该序列的结果；主进程留下的进程不移交给保留进程索引。超时答 `unconfirmed`，不自动升级。主进程不是控制台程序（没有控制台）或已经退出时，直接答 `unconfirmed`。
 - `executable` 以 `.bat` 或 `.cmd` 结尾（不区分大小写）时，启动答 `rejected(unsupported)`。`CreateProcessW` 对批处理文件会隐式经 `cmd.exe` 再解析一次参数，转义规则不兼容。要运行批处理文件，调用方显式执行 `cmd.exe /d /c`。
 
 ### 撤除顺序

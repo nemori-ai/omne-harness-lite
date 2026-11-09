@@ -18,6 +18,8 @@ export type BridgeFrame =
       readonly outputLost: boolean
     }
   | { readonly t: 'probe'; readonly ok: boolean }
+  /** CTRL_BREAK_EVENT reached the main process's console; false without a console or a running main. */
+  | { readonly t: 'break'; readonly sent: boolean }
   /** A named Job's live processes other than console hosts, or `gone` when the name does not exist. */
   | { readonly t: 'members'; readonly reading: readonly number[] | 'gone' }
   /** The boot time as Windows reports it, and the bridge's login session. */
@@ -82,6 +84,8 @@ function parseFrame(text: string, maxChunkBytes: number): BridgeFrame | undefine
       return exitFrame(fields)
     case 'probe':
       return typeof fields['ok'] === 'boolean' ? { t: 'probe', ok: fields['ok'] } : undefined
+    case 'break':
+      return typeof fields['sent'] === 'boolean' ? { t: 'break', sent: fields['sent'] } : undefined
     case 'members':
       return membersFrame(fields)
     case 'identity':
@@ -174,7 +178,7 @@ export async function startBridge(input: {
   child.stdin.write(`${JSON.stringify(input.request)}\n`)
   return {
     closed: closed.promise,
-    send(command: 'go' | 'stop' | 'dispose') {
+    send(command: 'go' | 'stop' | 'break' | 'dispose') {
       if (broken || child.stdin.destroyed || child.stdin.writableEnded) return false
       child.stdin.write(`${command}\n`)
       return true

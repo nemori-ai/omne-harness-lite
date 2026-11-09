@@ -115,9 +115,15 @@ type Entry = {
   finished: boolean
   confirmed: boolean
   nativeStopped: boolean
+  /** A stop was asked for, forced or graceful: the disposition after the exit stops the Job. */
   stopRequested: boolean
+  /** A forced stop was issued: the exit that follows is the stop's, so its effect is unknown. */
+  forcing: boolean
   released: boolean
   stopReply: ReturnType<typeof deferred<StopStatus>>
+  breakReply: ReturnType<typeof deferred<boolean>>
+  /** Resolves once the main process exited or the bridge went away. */
+  readonly ended: ReturnType<typeof deferred<void>>
   issued: Promise<StopStatus> | undefined
   stopping: Promise<StopStatus> | undefined
   recording:
@@ -140,6 +146,7 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
   const issueStop = (entry: Entry): Promise<StopStatus> => {
     entry.issued ??= (async (): Promise<StopStatus> => {
       entry.stopRequested = true
+      entry.forcing = true
       if (entry.nativeStopped) return 'confirmed'
       const deadline = now() + settings.stopBoundMs
       const remaining = () => Math.max(0, deadline - now())
@@ -281,11 +288,40 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     enterIndexStopping,
   })
 
+  /**
+   * CTRL_BREAK_EVENT to the main process's console, then the forced stop of the Job once the main
+   * process exited within `graceMs`. A main process without a console, or one that stays, answers
+   * `unconfirmed`; the stop does not escalate by itself.
+   */
+  const gracefulStop = async (entry: Entry): Promise<StopStatus> => {
+    if (!entry.finished) {
+      entry.stopRequested = true
+      entry.breakReply = deferred<boolean>()
+      const sent =
+        entry.bridge?.send('break') === true &&
+        (await within(entry.breakReply.promise, settings.stopBoundMs)) === true
+      const ended =
+        sent &&
+        (await within(
+          entry.ended.promise.then(() => true),
+          settings.graceMs,
+        ))
+      if (ended !== true) {
+        try {
+          await ledger.stopped(entry.resource.key, 'unconfirmed')
+        } catch {
+          /* Unconfirmed either way. */
+        }
+        return 'unconfirmed'
+      }
+    }
+    return forceStop(entry)
+  }
+
   /** A stop asked through the handle acts only on a Job this acquisition owns. */
   const stopHandle = async (entry: Entry, mode: 'graceful' | 'forced'): Promise<StopStatus> => {
-    if (mode === 'graceful') return 'unconfirmed'
     if (!(await custody.ownsForStop(entry, undefined))) return 'unconfirmed'
-    return forceStop(entry)
+    return mode === 'graceful' ? gracefulStop(entry) : forceStop(entry)
   }
 
   async function launch(
@@ -313,8 +349,11 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       confirmed: false,
       nativeStopped: false,
       stopRequested: false,
+      forcing: false,
       released: false,
       stopReply: deferred<StopStatus>(),
+      breakReply: deferred<boolean>(),
+      ended: deferred<void>(),
       issued: undefined,
       stopping: undefined,
       recording: undefined,
@@ -327,6 +366,7 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     const end = () => {
       if (entry.finished) return
       entry.finished = true
+      entry.ended.resolve()
       entry.buffer.close()
       outcome.resolve({
         kind: 'failed',
@@ -340,8 +380,9 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     /** The main process exited: the outcome waits for the disposition, which precedes any stop or handover. */
     const exited = (frame: Extract<BridgeFrame, { t: 'exit' }>) => {
       if (entry.finished) return
-      if (entry.stopRequested || frame.outputLost) return end()
+      if (entry.forcing || frame.outputLost) return end()
       entry.finished = true
+      entry.ended.resolve()
       entry.buffer.close()
       entry.members = frame.members
       const durationMs = elapsed()
@@ -396,11 +437,15 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
             if (frame.status === 'confirmed') entry.nativeStopped = true
             entry.stopReply.resolve(frame.status)
             break
+          case 'break':
+            entry.breakReply.resolve(frame.sent)
+            break
           case 'fault':
             entry.nativeStopped ||= frame.stopped === true
             ready.resolve(false)
             started.resolve(false)
             entry.stopReply.resolve(entry.nativeStopped ? 'confirmed' : 'unconfirmed')
+            entry.breakReply.resolve(false)
             entry.late.close()
             end()
             break
@@ -414,6 +459,7 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
         ready.resolve(false)
         started.resolve(false)
         entry.stopReply.resolve('unconfirmed')
+        entry.breakReply.resolve(false)
         // The frame channel is gone: a tail the handover gave, or gives later, observes nothing more.
         entry.late.close()
         end()
