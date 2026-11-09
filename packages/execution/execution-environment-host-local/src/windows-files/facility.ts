@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process'
 import { access, lstat, mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { win32 } from 'node:path'
@@ -20,217 +19,16 @@ import {
   openCodes,
   reject,
   unknown,
-  type Failure,
   type Outcome,
 } from '../host-paths.ts'
 import { windowsSegmentsBelow } from '../root-segments.ts'
-import { nativeSource } from './native-source.ts'
-import { nativeTree } from './native-tree.ts'
-import { nativeWrite } from './native-write.ts'
+import { getWindowsFilesHelper, type OwnerTag } from './helper.ts'
+import type { ChangeInput, Metadata, NativeInput, RunInput } from './protocol.ts'
 
-type Metadata = Readonly<{
-  token: string
-  version: string
-  size: number
-  modified: number
-  type: FileInformation['type']
-  name: string
-}>
-type Reply = Readonly<{ info: Metadata; bytes: string; entries: readonly Metadata[]; next: number }>
-type SearchReply = Reply &
-  Readonly<{
-    hits: readonly { path: string; token: string; offsetBytes: number }[]
-    truncated: boolean
-    eof: boolean
-  }>
+/** The probe runs outside any acquisition: its owner is never sealed. */
+const unsealed: OwnerTag = { sealed: () => false }
 
-function hit(value: unknown): SearchReply['hits'][number] {
-  if (
-    value === null ||
-    typeof value !== 'object' ||
-    !('path' in value) ||
-    typeof value.path !== 'string' ||
-    !('token' in value) ||
-    typeof value.token !== 'string' ||
-    !('offsetBytes' in value) ||
-    typeof value.offsetBytes !== 'number'
-  )
-    throw new Error('invalid native hit')
-  return { path: value.path, token: value.token, offsetBytes: value.offsetBytes }
-}
-
-function metadata(value: unknown): Metadata {
-  if (
-    value === null ||
-    typeof value !== 'object' ||
-    !('token' in value) ||
-    typeof value.token !== 'string' ||
-    !('version' in value) ||
-    typeof value.version !== 'string' ||
-    !('size' in value) ||
-    typeof value.size !== 'number' ||
-    !('modified' in value) ||
-    typeof value.modified !== 'number' ||
-    !('type' in value) ||
-    (value.type !== 'file' && value.type !== 'directory' && value.type !== 'symlink') ||
-    !('name' in value) ||
-    typeof value.name !== 'string'
-  )
-    throw new Error('invalid native metadata')
-  return {
-    token: value.token,
-    version: value.version,
-    size: value.size,
-    modified: value.modified,
-    type: value.type,
-    name: value.name,
-  }
-}
-
-function reply(value: unknown): SearchReply | Failure {
-  if (value === null || typeof value !== 'object') return 'unknown'
-  if ('failure' in value) {
-    switch (value.failure) {
-      case 'notAuthorized':
-      case 'unresolved':
-      case 'unsupported':
-      case 'busy':
-      case 'invalidInput':
-      case 'conflict':
-      case 'unavailable':
-        return value.failure
-      default:
-        return 'unknown'
-    }
-  }
-  if (
-    !('info' in value) ||
-    !('bytes' in value) ||
-    typeof value.bytes !== 'string' ||
-    !('entries' in value) ||
-    !Array.isArray(value.entries) ||
-    !('next' in value) ||
-    typeof value.next !== 'number'
-  )
-    return 'unknown'
-  const hits = 'hits' in value && Array.isArray(value.hits) ? value.hits.map(hit) : []
-  const truncated = 'truncated' in value && value.truncated === true
-  return {
-    info: metadata(value.info),
-    bytes: value.bytes,
-    entries: value.entries.map(metadata),
-    next: value.next,
-    hits,
-    truncated,
-    eof: 'eof' in value && value.eof === true,
-  }
-}
-
-const script = String.raw`
-$ErrorActionPreference='Stop'
-[Console]::InputEncoding=New-Object Text.UTF8Encoding($false)
-[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false)
-try {
-  $request=[Console]::In.ReadToEnd() | ConvertFrom-Json
-  Add-Type -TypeDefinition $request.source
-  if($request.operation -eq 'write') {
-    $result=[OmneFiles]::Write($request.root,$request.expectedRoot,[string[]]$request.segments,$request.named,$request.version,($null -ne $request.version),[bool]$request.trailingSlash,[bool]$request.create,$request.bytes)
-  } elseif($request.operation -in @('mkdir','remove','move')) {
-    $result=[OmneFiles]::Change($request.root,$request.expectedRoot,[string[]]$request.segments,$request.named,$request.operation,[bool]$request.recursive,$request.version,($null -ne $request.version),$request.targetRoot,$request.expectedTargetRoot,[string[]]$request.targetSegments,$request.targetNamed,[bool]$request.replace)
-  } else {
-    $result=[OmneFiles]::Run($request.root,$request.expectedRoot,[string[]]$request.segments,$request.named,$request.operation,[long]$request.offset,[long]$request.limit,$request.pattern,[bool]$request.content,[bool]$request.recursive,[long]$request.entryBudget,[long]$request.byteBudget,[long]$request.fileBytes,$request.path,[bool]$request.rooted)
-  }
-  [Console]::WriteLine(($result | ConvertTo-Json -Depth 8 -Compress))
-} catch {
-  $errorObject=$_.Exception
-  while($errorObject.InnerException) { $errorObject=$errorObject.InnerException }
-  [Console]::WriteLine((@{ failure=$errorObject.Message } | ConvertTo-Json -Compress))
-}
-`
-
-type NativeInput = Readonly<{
-  root: string
-  expectedRoot: string
-  segments: readonly string[]
-  named: string
-  operation: 'read' | 'stat' | 'list' | 'search'
-  offset: number
-  limit: number
-  pattern: string
-  content: boolean
-  recursive: boolean
-  entryBudget: number
-  byteBudget: number
-  fileBytes: number
-  path: string
-  rooted: boolean
-}>
-type ChangeInput = Readonly<{
-  root: string
-  expectedRoot: string
-  segments: readonly string[]
-  named: string
-  operation: 'mkdir' | 'remove' | 'move'
-  recursive: boolean
-  version: string | null
-  targetRoot: string
-  expectedTargetRoot: string
-  targetSegments: readonly string[]
-  targetNamed: string
-  replace: boolean
-}>
-
-type WriteInput = Pick<NativeInput, 'root' | 'expectedRoot' | 'segments' | 'named'> &
-  Readonly<{
-    operation: 'write'
-    version: string | null
-    trailingSlash: boolean
-    create: boolean
-    bytes: string
-  }>
-
-function invoke(
-  input: NativeInput | ChangeInput | WriteInput,
-  timeout?: number,
-): Promise<SearchReply | Failure> {
-  return new Promise(resolve => {
-    const child = spawn(
-      win32.join(
-        process.env.SystemRoot ?? 'C:\\Windows',
-        'System32',
-        'WindowsPowerShell',
-        'v1.0',
-        'powershell.exe',
-      ),
-      [
-        '-NoLogo',
-        '-NoProfile',
-        '-NonInteractive',
-        '-EncodedCommand',
-        Buffer.from(script, 'utf16le').toString('base64'),
-      ],
-      {
-        windowsHide: true,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        ...(timeout === undefined ? {} : { timeout }),
-      },
-    )
-    const chunks: Buffer[] = []
-    child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk))
-    child.stderr.resume()
-    child.stdin.on('error', () => undefined)
-    child.on('error', () => resolve('unavailable'))
-    child.on('close', code => {
-      if (code !== 0) return resolve('unknown')
-      try {
-        resolve(reply(JSON.parse(Buffer.concat(chunks).toString('utf8'))))
-      } catch {
-        resolve('unknown')
-      }
-    })
-    child.stdin.end(JSON.stringify({ ...input, source: nativeSource + nativeTree + nativeWrite }))
-  })
-}
+const probe = (input: NativeInput) => getWindowsFilesHelper().request(unsealed, input, 10_000)
 
 /** Checks handle-relative creation, reading, enumeration and removal in an owned temporary directory. */
 export async function probeWindowsFilesPrerequisite(
@@ -282,12 +80,16 @@ async function probeWindowsDirectory(
 ): Promise<ProviderFacts['prerequisites']> {
   const bytes = Buffer.from('omne-file-probe').toString('base64')
   const endpoint = { root, expectedRoot, segments: ['probe'], named: expectedRoot }
-  const created = await invoke(
-    { ...endpoint, operation: 'write', create: true, version: null, trailingSlash: false, bytes },
-    10_000,
-  )
+  const created = await probe({
+    ...endpoint,
+    operation: 'write',
+    create: true,
+    version: null,
+    trailingSlash: false,
+    bytes,
+  })
   if (typeof created === 'string') return created === 'unsupported' ? 'unsatisfied' : 'unknown'
-  const query: NativeInput = {
+  const query: RunInput = {
     ...endpoint,
     named: created.info.token,
     operation: 'read',
@@ -302,12 +104,15 @@ async function probeWindowsDirectory(
     path: win32.join(root, 'probe'),
     rooted: true,
   }
-  const read = await invoke(query, 10_000)
+  const read = await probe(query)
   if (typeof read === 'string' || read.bytes !== bytes) return 'unknown'
-  const listed = await invoke(
-    { ...query, operation: 'list', segments: [], named: expectedRoot, path: root },
-    10_000,
-  )
+  const listed = await probe({
+    ...query,
+    operation: 'list',
+    segments: [],
+    named: expectedRoot,
+    path: root,
+  })
   if (
     typeof listed === 'string' ||
     listed.entries.length !== 1 ||
@@ -315,21 +120,18 @@ async function probeWindowsDirectory(
     listed.entries[0].token !== created.info.token
   )
     return 'unknown'
-  const removed = await invoke(
-    {
-      ...endpoint,
-      named: created.info.token,
-      operation: 'remove',
-      recursive: false,
-      version: null,
-      targetRoot: root,
-      expectedTargetRoot: expectedRoot,
-      targetSegments: [],
-      targetNamed: '',
-      replace: false,
-    },
-    10_000,
-  )
+  const removed = await probe({
+    ...endpoint,
+    named: created.info.token,
+    operation: 'remove',
+    recursive: false,
+    version: null,
+    targetRoot: root,
+    expectedTargetRoot: expectedRoot,
+    targetSegments: [],
+    targetNamed: '',
+    replace: false,
+  })
   if (typeof removed === 'string') return 'unknown'
   try {
     await lstat(win32.join(root, 'probe'))
@@ -370,11 +172,18 @@ export function createWindowsFiles(
     rootIdentity?: () => Promise<string | undefined>
     limits: HostFilesLimits
     issue(object: ObjectToken): HandleGeneration
+    /**
+     * Whether the owner of this facility is sealed. The helper checks it when a request is queued
+     * and again before the request is written; a sealed owner's request answers `closed`.
+     */
+    sealed?: () => boolean
   }>,
 ): Pick<
   FileSystemFacility<unknown>,
   'read' | 'stat' | 'list' | 'search' | 'mkdir' | 'remove' | 'move' | 'write' | 'copy'
 > {
+  const owner: OwnerTag = { sealed: options.sealed ?? (() => false) }
+  const invoke = (input: NativeInput) => getWindowsFilesHelper().request(owner, input)
   const rootIdentity = options.rootIdentity
   const identity = (info: Metadata): FileIdentity => {
     const object = { token: info.token }
@@ -401,7 +210,7 @@ export function createWindowsFiles(
   const endpoint = async (
     path: string,
     parents = false,
-  ): Promise<Outcome<Pick<NativeInput, 'root' | 'expectedRoot' | 'segments'>>> => {
+  ): Promise<Outcome<Pick<RunInput, 'root' | 'expectedRoot' | 'segments'>>> => {
     let root = options.root ?? win32.dirname(path)
     if (options.root === undefined && parents) {
       for (;;) {
@@ -463,7 +272,7 @@ export function createWindowsFiles(
   }
   const run = async (
     request: Parameters<FileSystemFacility<unknown>['stat']>[0],
-    operation: NativeInput['operation'],
+    operation: RunInput['operation'],
     offset: number,
     limit: number,
     search?: Parameters<FileSystemFacility<unknown>['search']>[0],

@@ -4,7 +4,7 @@
 
 ## 允许的内容
 
-`models/` 下的形式模型，`proofs/` 下的论证或证明，以及说明文件。
+`models/` 下的形式模型，`proofs/` 下的论证或证明，`benchmarks/` 下的基准脚本（现有 [windows-files-latency.ts](benchmarks/windows-files-latency.ts)：Windows 单次文件操作的热态延迟），以及说明文件。
 
 ## 边界
 
