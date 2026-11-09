@@ -147,7 +147,9 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
   供给者的会话读口以 `coordinator` 调用方类读到会话快照；`reader` 调用方类被 Session 拒绝（`denied readWork`）。
 - [进程内组合](../../tests/rows/tool-runtime/composition.spec.ts)：真实 SQLite、真实五行与执行四行、真实入口对象，
   Shell 执行一次、Files 写读各一次，读回原结果，三次结果都交到原消费者；外租户的同一调用被拒。用发行的会话归属读口和会话
-  工作主体，Shell 与 Files 同样执行（G-OWNERSHIP，R2-D192）。替身见文件头。
+  工作主体，Shell 与 Files 同样执行（G-OWNERSHIP，R2-D192）。替身见文件头。加上 `tool-body-sweep` 行后，一次没人读的
+  卸载 Shell 正文在期限到后由清扫回收：正文条目变 `reclaimed`，正文读口答 `not-found expired`，租户域里没有正文块、清单
+  和到期行；命令自己写的文件仍在。
 - [首装](../../tests/rows/tool-host/preload.spec.ts)：发行行装好后两个作者在 `toolBindings` 里 live；不首装时登记表为空；
   缺运维者构造值时不装，日志写明作者与原因；首装的 access 是登记者本身；读快照时抛出只记日志，不成为未处理的拒绝。
 - [首装与常驻规划](../../tests/rows/tool-host/residents-preload.spec.ts)：首装成功时，create 用的采用规划器给出

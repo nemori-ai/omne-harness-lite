@@ -13,6 +13,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -21,6 +22,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import {
@@ -617,6 +619,122 @@ describe('Tool segment B: the release rows in one process composition', () => {
     expect(value.holder.bodySchemas).toBeNull()
     expect(await value.schemas.check(schema, read)).toHaveProperty('failure.kind', 'unavailable')
   })
+
+  it(
+    'the sweep reclaims an unread Shell body at its expiry and the native file the command wrote stays',
+    { timeout: 90_000 },
+    async () => {
+      const { storageRoot } = workspace()
+      const { rows, tools } = rowsOf(storageRoot)
+      // A 5000 byte output offloads at this threshold and its body expires 100 ms after publication.
+      tools.records.configuration.offloading.maxInlineUtf8Bytes = 4096
+      tools.records.configuration.offloading.previewUtf8Bytes = 256
+      tools.records.configuration.offloading.maxRetentionMs = 100
+      tools.records.configuration.offloading.permitMs = 10
+      tools.records.configuration.offloading.clockSkewMs = 1
+      tools.records.configuration.offloading.orphanGraceMs = 50
+      const sweep = {
+        id: 'tool-body-sweep',
+        plugin: 'toolBodySweepRow',
+        config: {
+          combinationVersion: tools.records.combinationVersion,
+          ledgerCommitAttempts: tools.records.configuration.ledgerCommitAttempts,
+          intervalMs: 20,
+          limit: 100,
+        },
+      }
+      const saved: ToolDelivery<ToolMessageContentBlock>[] = []
+      const { value, run } = await withLiveRows(
+        {
+          rows: [...rows, sweep],
+          plugins: {
+            ...cordis,
+            identityStandIn,
+            residencyStandIn,
+            policyAccess: maintenancePolicy,
+          },
+          entryObjects: entryObjects(workPrincipalsOverStandIn),
+          probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A],
+        },
+        async ctx => {
+          const { runtime, principal } = await ready(ctx, saved)
+          // `echo` and `>` read the same in sh and PowerShell; nothing reads the body back.
+          const request = await requestFor(
+            ctx,
+            principal,
+            'Shell.execute',
+            JSON.stringify({ script: `echo native > native.txt; echo ${'x'.repeat(5000)}` }),
+          )
+          const invoked = await runtime.invoke({ principal, tenant: TENANT_A, request })
+          if (invoked.kind !== 'accepted') throw new Error(`invoke: ${JSON.stringify(invoked)}`)
+          const delivered = await until(
+            'result delivery',
+            async () => saved.find(item => item.kind === 'result'),
+            item => item !== undefined,
+            30_000,
+          )
+          if (delivered?.kind !== 'result' || delivered.value.original.kind !== 'offloaded')
+            throw new Error(`expected an offloaded body: ${JSON.stringify(delivered)}`)
+          const bodyId = delivered.value.original.bodyId
+          const call = readToolInvocationRef(invoked.reference).call
+          const sql = toolRuntimeHolder(ctx).sql
+          if (sql === null) throw new Error('SQL not installed')
+          // The sweep runs on the application clock; the body entry ends `reclaimed`, not deleted.
+          const entry = await until(
+            'the sweep to reclaim the body',
+            async () => {
+              const answer = await sql.store.read({ kind: 'call', tenant: TENANT_A, call })
+              if (answer.kind !== 'complete') throw new Error('ledger read unavailable')
+              return answer.records.find(
+                record => record.kind === 'body-entry' && record.body.bodyId === bodyId,
+              )
+            },
+            record => record?.kind === 'body-entry' && record.body.state.kind === 'reclaimed',
+            20_000,
+          )
+          expect(entry).toMatchObject({
+            kind: 'body-entry',
+            body: { state: { kind: 'reclaimed' } },
+          })
+          expect(
+            await runtime.body.read({
+              principal,
+              tenant: TENANT_A,
+              reference: invoked.reference,
+              result: delivered.key.result,
+              bodyId,
+              after: null,
+              maxBytes: 64,
+            }),
+          ).toEqual({ failure: { kind: 'not-found', target: 'body', reason: 'expired' } })
+          return { call }
+        },
+      )
+      expect(run.result.exitCode).toBe(0)
+      expect(value.call).toBeDefined()
+      // The command's own file is not the Tool's to reclaim.
+      expect(existsSync(join(tools.filesRoot, 'native.txt'))).toBe(true)
+      // Physically: no body bytes and no due entry remain in the tenant's domain.
+      const domains = join(storageRoot, 'domains')
+      const counts = readdirSync(domains)
+        .filter(name => name.endsWith('.sqlite'))
+        .flatMap(name => {
+          const db = new DatabaseSync(join(domains, name), { readOnly: true })
+          try {
+            if (!db.prepare("SELECT name FROM sqlite_schema WHERE name='tl_body_chunk'").get())
+              return []
+            const n = (table: string) =>
+              Number((db.prepare(`SELECT count(*) AS n FROM ${table}`).get() as { n: number }).n)
+            return [
+              { chunks: n('tl_body_chunk'), manifests: n('tl_body_manifest'), due: n('tl_due') },
+            ]
+          } finally {
+            db.close()
+          }
+        })
+      expect(counts).toEqual([{ chunks: 0, manifests: 0, due: 0 }])
+    },
+  )
 
   it('rejects a direct Agent call to an adopted but nonresident tool before any file write', async () => {
     const { storageRoot } = workspace()
