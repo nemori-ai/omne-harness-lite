@@ -193,15 +193,22 @@ async function commitGeneration(
     case 'identity_conflict':
       if (result.existing.kind === 'rolled_back') return 'rolled back'
       return { kind: 'committed', receipt: result.existing, recalled: true }
-    case 'rejected_before_accept': {
-      const diagnostic = `storage rejected the commit: ${result.reason}`
-      if (result.reason === 'writer_not_current')
-        return { kind: 'unknown', diagnostic: 'the writer is not current', attempt }
-      return commitRejectionNature(result.reason) === 'temporary'
-        ? { kind: 'unavailable', diagnostic }
-        : { kind: 'refused', reason: result.reason, diagnostic }
-    }
+    case 'rejected_before_accept':
+      return beforeAccept(result.reason, attempt)
   }
+}
+
+/**
+ * A refusal before acceptance: `writer_not_current` leaves the generation unknown (SPEC step 6);
+ * the others follow sql-contract "提交拒绝原因的定性".
+ */
+function beforeAccept(reason: CommitRejectReason, attempt: number): JournalCommitResult {
+  if (reason === 'writer_not_current')
+    return { kind: 'unknown', diagnostic: 'the writer is not current', attempt }
+  const diagnostic = `storage rejected the commit: ${reason}`
+  return commitRejectionNature(reason) === 'temporary'
+    ? { kind: 'unavailable', diagnostic }
+    : { kind: 'refused', reason, diagnostic }
 }
 
 /**
