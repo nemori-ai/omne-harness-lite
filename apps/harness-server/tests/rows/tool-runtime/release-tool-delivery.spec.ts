@@ -3,7 +3,7 @@ import { largeBodyModel } from './large-body-model.ts'
 import { LARGE_TOOL } from './large-body-author.ts'
 import { writerBodyAuthor, WRITER_BODY, WRITER_SUMMARY } from './writer-body-author.ts'
 import { structuredBodyAuthor } from './structured-body-author.ts'
-import { observeToolMaterials, inlineResultReleased } from './release-material-observation.ts'
+import { observeToolResults, resultsReleased } from './release-material-observation.ts'
 // @module-tag slow
 // 慢：本进程装发行树（真实 SQLite），每条命令起一个 `omne` 子进程，模型走本进程的本地网关。先构建 `apps/cli`。
 // 发行树上一次工具调用的结果交回 Agent（R2-D272 第二十层）：模型先答一个调用 Shell 的 info 命令，再答文字。工具执行完，
@@ -187,7 +187,7 @@ async function turnOnRelease(
   script: GatewayScript,
   shellResultMaxBytes?: number,
   extension?: ReturnType<typeof largeBodyRelease>,
-  checkInlineRelease = false,
+  checkRelease: 'inline' | 'offloaded' | null = null,
   reopenLimit?: number,
 ) {
   const dir = newScratch('tool-delivery-')
@@ -261,20 +261,25 @@ async function turnOnRelease(
       )
     }
     const modelRequests = gateway.requests()
-    if (checkInlineRelease) {
-      let physical = observeToolMaterials(dir.storageRoot)
+    if (checkRelease !== null) {
+      // C6: once the Agent durably took the result, the record keeps the summary, not the values.
+      const offloaded = checkRelease === 'offloaded' ? 1 : 0
+      let physical = observeToolResults(dir.storageRoot)
       for (
         const end = Date.now() + 15_000;
-        !inlineResultReleased(physical) && Date.now() < end;
+        !resultsReleased(physical, offloaded) && Date.now() < end;
         await sleep(100)
       )
-        physical = observeToolMaterials(dir.storageRoot)
-      expect(inlineResultReleased(physical), JSON.stringify(physical)).toBe(true)
-      console.info('W3-INLINE-RELEASE', JSON.stringify(physical))
+        physical = observeToolResults(dir.storageRoot)
+      expect(resultsReleased(physical, offloaded), JSON.stringify(physical)).toBe(true)
+      console.info('W3-RELEASE', JSON.stringify(physical))
       const reread = await allHistory(port, request)
       expect(reread.status).toBe(200)
       expect(entriesOf(reread.body)).toEqual(entriesOf(history.body))
-      expect(entriesOf(reread.body).filter(entry => entry.kind === 'message.tool')).toHaveLength(1)
+      // One history entry per released result: the Agent keeps its copy, the Tool keeps the summary.
+      expect(entriesOf(reread.body).filter(entry => entry.kind === 'message.tool')).toHaveLength(
+        physical.length,
+      )
     }
     controller.abort('test: stop')
     stopped = true
@@ -540,7 +545,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
         ]),
         undefined,
         undefined,
-        true,
+        'inline',
         512,
       )
       expect(resultText(result.entries.find(entry => entry.kind === 'message.tool'))).toContain(
@@ -562,7 +567,12 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
       const shell =
         'awk \'BEGIN { printf "W3-BODY-BEGIN\\n"; for(i=0;i<10240;i++) printf "中🙂"; printf "\\nW3-BODY-END\\n" }\''
       const model = bodyReadingModel(shell, FINAL)
-      const { entries, modelRequests } = await turnOnRelease(model.script, 131_072)
+      const { entries, modelRequests } = await turnOnRelease(
+        model.script,
+        131_072,
+        undefined,
+        'offloaded',
+      )
       expect(model.errors).toEqual([])
       expect(model.ended()).toBe(true)
       expect(modelRequests).toBe(model.requests.length)
@@ -615,7 +625,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
         ]),
         8 * 1024 * 1024,
         undefined,
-        true,
+        'inline',
       )
       expect(resultText(entries.find(entry => entry.kind === 'message.tool'))).toContain(
         'W3-SMALL-OK',

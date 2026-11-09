@@ -1,54 +1,52 @@
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { canonicalDigest, type LedgerRecord } from '@omne-harness/tool'
+import type { LedgerRecord } from '@omne-harness/tool'
 
-/** Read-only physical evidence from the isolated test database. Never drives model reads. */
-export function observeToolMaterials(storageRoot: string) {
+/** One result record of the Tool ledger as the release leaves it (physical, read-only). */
+export type ObservedResult = Readonly<{
+  delivery: string
+  original: 'none' | 'offloaded'
+  /** The content blocks still held in the record. */
+  content: readonly unknown[]
+  /** The summary of the offloaded original, or `null` for an inline result. */
+  summary: readonly unknown[] | null
+  attachments: number
+}>
+
+/**
+ * Read-only physical evidence from the isolated test database: every result record of the one
+ * Tool ledger. Never drives model reads.
+ */
+export function observeToolResults(storageRoot: string): readonly ObservedResult[] {
   const directory = join(storageRoot, 'domains')
-  const found = []
+  const found: ObservedResult[][] = []
   for (const name of readdirSync(directory).filter(name => name.endsWith('.sqlite'))) {
     const db = new DatabaseSync(join(directory, name), { readOnly: true })
     try {
-      if (!db.prepare("SELECT name FROM sqlite_schema WHERE name='tl_material'").get()) continue
+      if (!db.prepare("SELECT name FROM sqlite_schema WHERE name='tl_record'").get()) continue
       const records = db
         .prepare('SELECT record FROM tl_record')
         .all()
         .map(row => JSON.parse(String(row['record'])) as LedgerRecord)
-      const results = records.filter(record => record.kind === 'result')
-      const chunks = new Map(
-        db
-          .prepare(
-            'SELECT material, count(*) AS count, sum(length(data)) AS bytes FROM tl_material_chunk GROUP BY material',
-          )
-          .all()
-          .map(row => [
-            canonicalDigest(JSON.parse(String(row['material']))),
-            { count: Number(row['count']), bytes: Number(row['bytes']) },
-          ]),
+      found.push(
+        records.flatMap(record =>
+          record.kind === 'result'
+            ? [
+                {
+                  delivery: record.result.delivery.kind,
+                  original: record.result.value.original.kind,
+                  content: record.result.value.content,
+                  summary:
+                    record.result.value.original.kind === 'offloaded'
+                      ? record.result.value.original.summary
+                      : null,
+                  attachments: record.result.value.attachments.length,
+                },
+              ]
+            : [],
+        ),
       )
-      const physical = new Map(
-        db
-          .prepare('SELECT material,state FROM tl_material')
-          .all()
-          .map(row => [canonicalDigest(JSON.parse(String(row['material']))), String(row['state'])]),
-      )
-      const materials: {
-        purpose: string
-        state: string
-        physicalState: string
-        bytes: number
-        chunks: number
-      }[] = []
-      found.push({
-        results: results.map(record => ({
-          delivery: record.result.delivery.kind,
-          original: record.result.value.original.kind,
-        })),
-        materials,
-        cleanup: 0,
-        uses: [] as string[],
-      })
     } finally {
       db.close()
     }
@@ -57,20 +55,22 @@ export function observeToolMaterials(storageRoot: string) {
   return found[0]
 }
 
-export function inlineResultReleased(value: ReturnType<typeof observeToolMaterials>) {
-  const copies = value.materials
+/**
+ * Every result is released and holds only what the release leaves (C6): no attachments, an inline
+ * result holds no content, an offloaded result holds exactly the summary of its original. The
+ * ledger holds `offloaded` offloaded results and at least one result.
+ */
+export function resultsReleased(results: readonly ObservedResult[], offloaded: 0 | 1): boolean {
   return (
-    value.results.length === 1 &&
-    value.results.every(result => result.delivery === 'released' && result.original === 'none') &&
-    copies.length > 0 &&
-    copies.every(
-      material =>
-        material.state === 'deleted' &&
-        material.physicalState === 'deleted' &&
-        material.bytes === 0 &&
-        material.chunks === 0,
-    ) &&
-    value.cleanup === 0 &&
-    value.uses.length === 0
+    results.length > 0 &&
+    results.filter(result => result.original === 'offloaded').length === offloaded &&
+    results.every(
+      result =>
+        result.delivery === 'released' &&
+        result.attachments === 0 &&
+        (result.original === 'none'
+          ? result.content.length === 0
+          : JSON.stringify(result.content) === JSON.stringify(result.summary)),
+    )
   )
 }
