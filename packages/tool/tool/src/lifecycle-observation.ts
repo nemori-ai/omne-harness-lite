@@ -30,7 +30,7 @@ function observations(input: LedgerCommitInput): readonly ToolLifecycleObservati
     if (record.kind === 'result' && record.result.delivery.kind !== 'released') {
       add('result-commit')
       if (record.result.value.original.kind === 'offloaded')
-        add('offload', Number(record.result.value.original.body.bodyBytes))
+        add('offload', Number(record.result.value.original.bodyBytes))
     } else if (
       record.kind === 'operation' &&
       record.operation.receipt.kind === 'release-delivery'

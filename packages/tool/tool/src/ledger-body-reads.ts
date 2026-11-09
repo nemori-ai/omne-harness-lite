@@ -66,14 +66,14 @@ function locate<P>(snapshot: Snapshot, input: BodyReadInput<P>): Outcome<Located
   const result = resultRecord(snapshot, input.result)
   if ('failure' in result) return result
   const original = result.ok.value.original
-  if (original.kind !== 'offloaded' || original.body.bodyId !== input.bodyId)
+  if (original.kind !== 'offloaded' || original.bodyId !== input.bodyId)
     return fail({ kind: 'not-found', target: 'body', reason: 'missing' })
   const entry = snapshot.bodies.get(input.bodyId)
   if (entry === undefined) return unavailable('body entry is missing')
   if (entry.state.kind === 'reclaimed' || entry.state.kind === 'orphaned') return expired()
   if (entry.state.kind !== 'linked' || entry.state.result !== input.result)
     return unavailable('body entry is not linked to this result')
-  return succeed({ body: original.body, entry })
+  return succeed({ body: original, entry })
 }
 
 /** Every cursor is signed over its whole content, so a cursor of another tenant, result or body fails. */

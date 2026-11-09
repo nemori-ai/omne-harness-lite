@@ -1,13 +1,13 @@
 import type { BodyEntryRecord } from './ledger-body-records.ts'
 import type { ResultPolicyRecord } from './ledger-result-policy.ts'
-import { adoptResultMaterials, releaseResultMaterials } from './ledger-result-uses.ts'
+import { settleResultBodies } from './ledger-result-uses.ts'
 import type {
   PreparedSynthetic,
   ResultPreparationRecord,
   SyntheticDecision,
   SyntheticNeed,
 } from './ledger-result-preparation.ts'
-import type { ResultChannels } from './ledger-result-material.ts'
+import type { ResultValue } from './ledger-result-material.ts'
 // The pure admission decider (P01, P02) and the delivery release decider (P08). A decision reads
 // the domain snapshot and the command, and answers either a reply without writes or a set of
 // writes with the value to reply after the commit. It reads no port, runs no tool and mints no
@@ -564,7 +564,7 @@ export function settlementWrites(
   place: Readonly<{ tenant: TenantId; call: ToolCallId; operation: ToolOperationId }>,
   consumer: ConsumerRef,
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
-  value: ResultChannels,
+  value: ResultValue,
   mint: Mint,
 ): Outcome<Readonly<{ version: FirstVersion; writes: readonly LedgerWrite[] }>, ToolFailure> {
   const first = firstResultWrites(
@@ -576,7 +576,7 @@ export function settlementWrites(
     { kind: 'synthetic' },
     mint,
   )
-  const uses = adoptResultMaterials(snapshot, first.version.record, null)
+  const uses = settleResultBodies(snapshot, first.version.record, null)
   if ('failure' in uses) return uses
   const account = replacementAccount(place.call)
   return succeed({
@@ -787,7 +787,6 @@ export function decideRelease(
         call: { ...call, state: withDelivery(call, record, released, mint) },
       }),
       { kind: 'delete', key: taskKey({ kind: 'deliver', operation: record.settledBy }) },
-      ...releaseResultMaterials(snapshot, record, released.evidence),
     ],
     value: released,
   }
@@ -825,7 +824,7 @@ export function syntheticChannels(
   need: SyntheticNeed,
   prepared: PreparedSynthetic | null,
 ):
-  | Outcome<ResultChannels, ToolFailure>
+  | Outcome<ResultValue, ToolFailure>
   | Readonly<{ kind: 'prepare-synthetic'; need: SyntheticNeed }> {
   if (prepared === null) return { kind: 'prepare-synthetic', need }
   if (
@@ -834,5 +833,5 @@ export function syntheticChannels(
     digestOf(prepared.need) !== digestOf(need)
   )
     return fail({ kind: 'conflict', operation: command.operation })
-  return succeed(prepared.state.channels)
+  return succeed(prepared.state.value)
 }

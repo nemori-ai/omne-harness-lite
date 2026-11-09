@@ -1,12 +1,12 @@
 import {
-  adoptResultMaterials,
+  settleResultBodies,
   releaseFinalPreparation,
   preparedRawMaterial,
   adoptRawMaterials,
 } from './ledger-result-uses.ts'
 import { checkBodyReferences } from './ledger-body-entries.ts'
 import type { ToolInstant } from '@omne-harness/tool-contract/provider'
-import type { ResultChannels } from './ledger-result-material.ts'
+import type { ResultValue } from './ledger-result-material.ts'
 import { matchesFinalValue } from './fact-values.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -163,7 +163,7 @@ export function decidePreserveResult<B extends ContentBlock>(
   snapshot: Snapshot,
   command: PreserveCommand,
   final: Final<B>,
-  channels: ResultChannels,
+  value: ResultValue,
   orphanDue: ToolInstant | null,
   mint: Mint,
 ): Decision<ToolState> {
@@ -176,7 +176,7 @@ export function decidePreserveResult<B extends ContentBlock>(
     'result-custody',
     { tenant: call.tenant, call: call.call, operation: command.operation },
     mint.revision,
-    { final: saved.evidence, raw: final.raw, channels },
+    { final: saved.evidence, raw: final.raw, value },
   )
   const completed = final.terminal.kind === 'completed'
   const covered = completed && processCustodyCovered(snapshot, final.raw, final.result)
@@ -205,7 +205,7 @@ export function decidePreserveResult<B extends ContentBlock>(
     call.request.consumer,
     final.terminal,
     final.effect,
-    channels,
+    value,
     {
       kind: 'execution',
       final: saved.evidence,
@@ -224,7 +224,7 @@ export function decidePreserveResult<B extends ContentBlock>(
       : []),
   ])
   if ('failure' in references) return reply(references)
-  const uses = adoptResultMaterials(snapshot, first.version.record, orphanDue)
+  const uses = settleResultBodies(snapshot, first.version.record, orphanDue)
   if ('failure' in uses) return reply(uses)
   if (saved.fact.kind !== 'final' || saved.fact.payload.kind !== 'pending')
     return reply(invalid('final', 'pending-envelope-required'))

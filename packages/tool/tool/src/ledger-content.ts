@@ -197,8 +197,8 @@ export function createLedgerContent<P, B extends ContentBlock>(
       const before = await locate(value)
       if ('failure' in before) return before
       const original = before.ok.record.value.original
-      if (original.kind === 'offloaded' && sameAttachment(original.body.source, value.attachment))
-        return ports.bodyBytes({ ...value, bodyId: original.body.bodyId })
+      if (original.kind === 'offloaded' && sameAttachment(original.source, value.attachment))
+        return ports.bodyBytes({ ...value, bodyId: original.bodyId })
       if (replacedBodyRaw(before.ok.snapshot, before.ok.record, value.attachment)) {
         const current = await ports.authorize(value, 'read-raw-content')
         return 'failure' in current ? current : invalid('attachment', 'released-material')

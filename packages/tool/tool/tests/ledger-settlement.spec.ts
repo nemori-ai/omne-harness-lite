@@ -5,7 +5,6 @@ import { settlementOperation } from '../src/ledger-environment-release.ts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
-import type { ToolMaterialStore } from '@omne-harness/tool-contract/provider'
 import { auditQueues, admitCall } from './start-values.ts'
 import { settlementFixture, refProcess } from './settlement-values.ts'
 import {
@@ -130,10 +129,8 @@ describe('original execution settlement', () => {
   it.each(['basis', 'instance', 'generation'] as const)(
     'rejects a substituted %s before custody',
     async field => {
-      const retain = vi.fn<ToolMaterialStore<Principal>['write']>()
-      const f = await settlementFixture({
-        wrapMaterials: base => ({ ...base, write: retain }),
-      })
+      const f = await settlementFixture()
+      const put = vi.spyOn(f.bodies.store, 'put')
       const changes = {
         basis: evidence('foreign-final'),
         instance: 'foreign-instance',
@@ -143,7 +140,7 @@ describe('original execution settlement', () => {
         failure(await f.ledger.commands.preserveResult({ ...f.input, [field]: changes[field] }))
           .kind,
       ).toBe('invalid')
-      expect(retain).not.toHaveBeenCalled()
+      expect(put).not.toHaveBeenCalled()
       expect((await f.load()).state.phase).toBe('running')
       expect(await f.harness.released()).not.toContain(f.access.call)
     },
@@ -200,135 +197,6 @@ describe('original execution settlement', () => {
       reason: 'saved-final-required',
     })
     expect(await f.harness.released()).not.toContain(f.access.call)
-  })
-})
-
-describe('independent output custody and call CAS', () => {
-  it.each(['unavailable', 'lost-answer', 'throw', 'not-saved'] as const)(
-    'keeps settlement retryable after custody %s',
-    async mode => {
-      const requests: Parameters<ToolMaterialStore<Principal>['write']>[0][] = []
-      let first = true
-      const f = await settlementFixture({
-        wrapMaterials: base => ({
-          ...base,
-          write: async input => {
-            requests.push(structuredClone(input))
-            if (!first) return base.write(input)
-            first = false
-            if (mode === 'unavailable')
-              return fail({
-                kind: 'unavailable',
-                dependency: 'output-custody',
-                diagnostic: 'retain unavailable',
-              })
-            if (mode === 'lost-answer') {
-              ok(await base.write(input))
-              return fail({ kind: 'commit-unknown', operation: input.operation })
-            }
-            if (mode === 'throw') throw new Error('secret-password')
-            return fail({ kind: 'commit-unknown', operation: input.operation })
-          },
-        }),
-      })
-      const refused = failure(await f.preserve())
-      expect(refused).toMatchObject({
-        kind: 'unavailable',
-        dependency: mode === 'unavailable' ? 'output-custody' : 'result-material',
-      })
-      expect(JSON.stringify(refused)).not.toContain('secret-password')
-      expect((await f.load()).state.phase).toBe('running')
-      expect((await f.load()).tasks.map(task => task.kind)).toContain('settle')
-      expect((await f.records()).some(record => record.kind === 'result')).toBe(false)
-      expect(await f.harness.released()).not.toContain(f.access.call)
-      ok(await f.preserve())
-      expect(requests).toHaveLength(mode === 'lost-answer' ? 3 : 4)
-      expect(new Set(requests.map(input => input.operation)).size).toBe(3)
-      if (mode !== 'lost-answer') expect(requests[0]).toEqual(requests[1])
-    },
-  )
-
-  it.each(['unknown-applied', 'unknown-dropped', 'unknown-delayed'] as const)(
-    'recovers the original call after %s',
-    async fault => {
-      const retain = vi.fn<ToolMaterialStore<Principal>['write']>()
-      const f = await settlementFixture({
-        wrapMaterials: base => ({
-          ...base,
-          write: retain.mockImplementation(input => base.write(input)),
-        }),
-      })
-      let injected = false
-      f.interceptCommit(input => {
-        if (
-          !injected &&
-          input.writes.some(write => write.kind === 'put' && write.record.kind === 'result')
-        ) {
-          injected = true
-          f.harness.memory.injectCommit(fault)
-        }
-        return f.harness.memory.commit(input)
-      })
-      expect(failure(await f.preserve())).toEqual({
-        kind: 'commit-unknown',
-        operation: f.input.operation,
-      })
-      const uncertain = await f.load()
-      expect(uncertain.state.phase).toBe(fault === 'unknown-applied' ? 'settled' : 'running')
-      if (fault === 'unknown-applied')
-        expect(uncertain.tasks.map(task => task.kind)).toEqual(
-          expect.arrayContaining(['queue', 'release', 'deliver', 'clock', 'fact-ack']),
-        )
-      else expect((await f.records()).some(record => record.kind === 'result')).toBe(false)
-      const materialRead = vi.spyOn(f.materialStore, 'read')
-      if (fault === 'unknown-applied')
-        materialRead.mockRejectedValue(new Error('envelope released'))
-      ok(await f.preserve())
-      if (fault === 'unknown-applied') expect(materialRead).not.toHaveBeenCalled()
-      else expect(materialRead).toHaveBeenCalled()
-      expect(retain).toHaveBeenCalledTimes(3)
-      expect(new Set(retain.mock.calls.map(([input]) => input.operation)).size).toBe(3)
-      if (fault === 'unknown-delayed')
-        expect(f.harness.memory.landDelayed()).toEqual([{ kind: 'conflict' }])
-      expect((await f.records()).filter(record => record.kind === 'result')).toHaveLength(1)
-      expect((await f.load()).tasks.some(task => task.kind === 'queue')).toBe(false)
-    },
-  )
-
-  it('retains once across CAS conflicts and rejects a concurrent exclusion after external custody', async () => {
-    const retain = vi.fn<ToolMaterialStore<Principal>['write']>()
-    const f = await settlementFixture({
-      wrapMaterials: base => ({
-        ...base,
-        write: retain.mockImplementation(input => base.write(input)),
-      }),
-    })
-    f.harness.memory.injectCommit('conflict', 'conflict')
-    ok(await f.preserve())
-    expect(retain).toHaveBeenCalledTimes(3)
-    const excluded = await settlementFixture({
-      wrapMaterials: base => ({
-        ...base,
-        write: async input => {
-          const result = await base.write(input)
-          expect(
-            ok(
-              await excluded.ledger.reads.operation({
-                ...excluded.access,
-                operation: excluded.input.operation,
-              }),
-            ).kind,
-          ).toBe('not-committed')
-          return result
-        },
-      }),
-    })
-    expect(failure(await excluded.preserve())).toMatchObject({
-      kind: 'unavailable',
-      dependency: 'ledger-store',
-      diagnostic: expect.stringContaining('was excluded by a negative answer'),
-    })
-    expect((await excluded.load()).state.phase).toBe('running')
   })
 })
 
@@ -434,13 +302,7 @@ describe('queue repair after committed settlement', () => {
   ] as const)(
     'replays the original receipt through %s %s without retaining twice',
     async (stage, fault) => {
-      const retain = vi.fn<ToolMaterialStore<Principal>['write']>()
-      const f = await settlementFixture({
-        wrapMaterials: base => ({
-          ...base,
-          write: retain.mockImplementation(input => base.write(input)),
-        }),
-      })
+      const f = await settlementFixture()
       let injected = false
       f.interceptCommit(async input => {
         const closes =
@@ -463,7 +325,6 @@ describe('queue repair after committed settlement', () => {
         expect((await f.load()).tasks.some(task => task.kind === 'queue')).toBe(true)
       const result = (await f.records()).find(record => record.kind === 'result')
       ok(await f.preserve())
-      expect(retain).toHaveBeenCalledTimes(3)
       expect((await f.records()).find(record => record.kind === 'result')).toEqual(result)
       expect((await f.load()).tasks.some(task => task.kind === 'queue')).toBe(false)
       expect(await f.harness.released()).toContain(f.access.call)
@@ -542,92 +403,6 @@ it('permits cleanup only for complete history reference identity, including raw 
   expect((await legacy.load()).tasks.some(task => task.kind === 'release')).toBe(false)
 })
 
-it('rechecks history after custody races with a new process fact', async () => {
-  let inserted = false
-  const f = await settlementFixture({
-    wrapMaterials: base => ({
-      ...base,
-      write: async input => {
-        const held = await base.write(input)
-        if (!inserted) {
-          inserted = true
-          const batch = {
-            ...f.batch,
-            batch: 'racing-process',
-            after: f.batch.cursor,
-            cursor: 'racing-cursor',
-            events: [
-              {
-                event: 'racing-ref',
-                fact: { kind: 'process' as const, blocks: [refProcess('not-retained')] },
-              },
-            ],
-          }
-          ok(await f.ledger.commands.receiveFacts({ ...f.access, start: f.batch.start, batch }))
-        }
-        return held
-      },
-    }),
-  })
-  expect(failure(await f.preserve()).kind).toBe('stale-revision')
-  expect((await f.load()).state.phase).toBe('running')
-  ok(
-    await f.ledger.commands.preserveResult({
-      ...f.input,
-      expected: (await f.load()).state.revision,
-    }),
-  )
-  expect((await f.load()).tasks.some(task => task.kind === 'release')).toBe(false)
-  expect((await f.load()).tasks.find(task => task.kind === 'settle')).toMatchObject({
-    state: 'blocked',
-  })
-})
-
-it('uses one custody identity for competing public preserves, with expected before winner conflict', async () => {
-  const inputs: Parameters<ToolMaterialStore<Principal>['write']>[0][] = []
-  let ready: (() => void) | undefined
-  const gate = new Promise<void>(resolve => {
-    ready = resolve
-  })
-  const f = await settlementFixture({
-    wrapMaterials: base => ({
-      ...base,
-      write: async input => {
-        inputs.push(structuredClone(input))
-        if (inputs.length === 2) ready?.()
-        await gate
-        return base.write(input)
-      },
-    }),
-  })
-  const other = { ...f.input, operation: operationId('another-preserve') }
-  const outcomes = await Promise.all([f.preserve(), f.ledger.commands.preserveResult(other)])
-  expect(outcomes.filter(outcome => 'ok' in outcome)).toHaveLength(1)
-  expect(outcomes.filter(outcome => 'failure' in outcome).map(failure)).toMatchObject([
-    { kind: 'stale-revision' },
-  ])
-  expect(inputs.length).toBeGreaterThanOrEqual(3)
-  expect(inputs.length).toBeLessThanOrEqual(6)
-  expect(new Set(inputs.map(input => input.operation)).size).toBe(3)
-  for (const operation of new Set(inputs.map(input => input.operation))) {
-    const matches = inputs.filter(input => input.operation === operation)
-    expect(matches.length).toBeLessThanOrEqual(2)
-    for (const request of matches) expect(request).toEqual(matches[0])
-  }
-  const winner = (await f.records()).find(record => record.kind === 'result')
-  if (winner?.kind !== 'result') throw new Error('missing winner')
-  const loser = winner.result.settledBy === other.operation ? f.input : other
-  expect(
-    failure(
-      await f.ledger.commands.preserveResult({
-        ...loser,
-        expected: (await f.load()).state.revision,
-      }),
-    ),
-  ).toEqual({ kind: 'conflict', operation: winner.result.settledBy })
-  expect((await f.records()).filter(record => record.kind === 'result')).toHaveLength(1)
-})
-
 it('does not release a logical ended state that lacks the original saved final proof', async () => {
   const f = await settlementFixture()
   const domain = { kind: 'call' as const, tenant: f.access.tenant, call: f.access.call }
@@ -679,39 +454,6 @@ it('retains the background relation and closes only its known paused time', asyn
   })
   expect((await f.load()).tasks.some(task => task.kind === 'clock')).toBe(false)
   expect(f.lateClockSamples).toEqual([])
-})
-
-it('does not treat a negative operation query as excluding already retained external bytes', async () => {
-  const requests: Parameters<ToolMaterialStore<Principal>['write']>[0][] = []
-  const f = await settlementFixture({
-    wrapMaterials: base => ({
-      ...base,
-      write: input => {
-        requests.push(structuredClone(input))
-        return base.write(input)
-      },
-    }),
-  })
-  let injected = false
-  f.interceptCommit(input => {
-    if (
-      !injected &&
-      input.writes.some(write => write.kind === 'put' && write.record.kind === 'result')
-    ) {
-      injected = true
-      f.harness.memory.injectCommit('unknown-delayed')
-    }
-    return f.harness.memory.commit(input)
-  })
-  expect(failure(await f.preserve()).kind).toBe('commit-unknown')
-  expect(
-    ok(await f.ledger.reads.operation({ ...f.access, operation: f.input.operation })).kind,
-  ).toBe('not-committed')
-  expect(f.harness.memory.landDelayed()).toEqual([{ kind: 'conflict' }])
-  ok(await f.preserve())
-  expect(requests).toHaveLength(3)
-  expect(new Set(requests.map(input => input.operation)).size).toBe(3)
-  expect((await f.records()).filter(record => record.kind === 'result')).toHaveLength(1)
 })
 
 it('does not replace a previous operation receipt with the canonical release operation', async () => {
@@ -788,13 +530,7 @@ it('does not write preserve and canonical plan receipts under the same operation
 })
 
 it('excludes an in-flight canonical plan commit and allows a fresh preserve with the same identities', async () => {
-  const retain = vi.fn<ToolMaterialStore<Principal>['write']>()
-  const f = await settlementFixture({
-    wrapMaterials: base => ({
-      ...base,
-      write: retain.mockImplementation(input => base.write(input)),
-    }),
-  })
+  const f = await settlementFixture()
   const operation = canonicalReleaseOperation(f)
   const originalFences = (await f.records()).filter(record => record.kind === 'exclusion')
   let intercepted = false
@@ -824,7 +560,6 @@ it('excludes an in-flight canonical plan commit and allows a fresh preserve with
     },
   })
   expect(intercepted).toBe(true)
-  expect(retain).toHaveBeenCalledTimes(3)
   const excluded = await f.records()
   expect(excluded.some(record => record.kind === 'result')).toBe(false)
   expect(excluded.some(record => record.kind === 'environment-release')).toBe(false)
@@ -842,9 +577,7 @@ it('excludes an in-flight canonical plan commit and allows a fresh preserve with
     { kind: 'not-committed' },
   )
 
-  const preparedWrites = structuredClone(retain.mock.calls)
   const settled = ok(await f.preserve())
-  expect(retain.mock.calls).toEqual(preparedWrites)
   const records = await f.records()
   expect(records.filter(record => record.kind === 'result')).toHaveLength(1)
   expect(records.filter(record => record.kind === 'environment-release')).toHaveLength(1)
@@ -862,7 +595,6 @@ it('excludes an in-flight canonical plan commit and allows a fresh preserve with
       'committed',
     )
   expect(ok(await f.preserve())).toEqual(settled)
-  expect(retain).toHaveBeenCalledTimes(3)
   expect(
     (await f.records()).filter(
       record =>
@@ -937,117 +669,6 @@ it('keeps the original unknown timing evidence through settlement', async () => 
   expect(f.lateClockSamples).toEqual([])
 })
 
-it('separates retained result identities for different tenants, calls and original finals', async () => {
-  const requests: Parameters<ToolMaterialStore<Principal>['write']>[0][] = []
-  const capture = (base: ToolMaterialStore<Principal>): ToolMaterialStore<Principal> => ({
-    ...base,
-    write: input => {
-      requests.push(structuredClone(input))
-      return base.write(input)
-    },
-  })
-  const fixtures = [
-    await settlementFixture({ call: 'first-retained-call', wrapMaterials: capture }),
-    await settlementFixture({ call: 'second-retained-call', wrapMaterials: capture }),
-    await settlementFixture({ tenant: 'b', wrapMaterials: capture }),
-    await settlementFixture({
-      call: 'first-retained-call',
-      wrapMaterials: capture,
-      terminal: { kind: 'failed', cause: 'executor', diagnostic: 'different original final' },
-    }),
-  ]
-  for (const f of fixtures) {
-    ok(await f.preserve())
-    expect((await f.resultPage()).value).toEqual(f.final.result)
-  }
-  expect(requests).toHaveLength(12)
-  expect(
-    new Set(
-      requests.slice(0, 9).map(input => JSON.stringify([input.tenant, input.call, input.material])),
-    ).size,
-  ).toBe(9)
-  const proofs: string[] = []
-  for (const [index, f] of fixtures.entries()) {
-    expect(requests[index * 3]).toMatchObject({
-      tenant: f.access.tenant,
-      call: f.access.call,
-    })
-    const result = (await f.records()).find(record => record.kind === 'result')
-    if (result?.kind !== 'result' || result.result.custody.kind !== 'execution')
-      throw new Error('missing custody proof')
-    proofs.push(result.result.custody.materialized.digest)
-    expect(result).toMatchObject({
-      kind: 'result',
-      result: {
-        custody: {
-          kind: 'execution',
-          materialized: expect.objectContaining({ owner: '@omne-harness/tool' }),
-        },
-        terminal: f.final.terminal,
-      },
-    })
-  }
-  expect(new Set(proofs).size).toBe(4)
-})
-
-it.each(['denied', 'unsupported', 'invalid'] as const)(
-  'returns the original definite custody %s without committing a result',
-  async kind => {
-    const definite =
-      kind === 'denied'
-        ? ({ kind, action: 'write' } as const)
-        : kind === 'unsupported'
-          ? ({
-              kind,
-              adoption: adoption('custody'),
-              reason: 'not supported',
-            } as const)
-          : ({ kind, field: 'raw', reason: 'custody rejected original' } as const)
-    let refused = true
-    const requests: Parameters<ToolMaterialStore<Principal>['write']>[0][] = []
-    const f = await settlementFixture({
-      wrapMaterials: base => ({
-        ...base,
-        write: input => {
-          requests.push(structuredClone(input))
-          return refused ? Promise.resolve(fail(definite)) : base.write(input)
-        },
-      }),
-    })
-    expect(await f.preserve()).toEqual(fail(definite))
-    expect((await f.load()).state).toEqual(f.before.state)
-    expect((await f.load()).tasks).toEqual(f.before.tasks)
-    expect((await f.records()).some(record => record.kind === 'result')).toBe(false)
-    expect(await f.harness.released()).not.toContain(f.access.call)
-    refused = false
-    ok(await f.preserve())
-    expect(requests).toHaveLength(4)
-    expect(requests[0]).toEqual(requests[1])
-    expect((await f.resultPage()).value).toEqual(f.final.result)
-  },
-)
-
-it('rejects malformed successful custody evidence without losing settlement responsibility', async () => {
-  const f = await settlementFixture({
-    wrapMaterials: base => ({
-      ...base,
-      write: async input => {
-        const answer = await base.write(input)
-        return 'failure' in answer
-          ? answer
-          : { ok: { ...answer.ok, evidence: { ...answer.ok.evidence, revision: '' } } }
-      },
-    }),
-  })
-  await expect(f.preserve()).resolves.toMatchObject({
-    failure: { kind: 'unavailable', dependency: 'material-custody' },
-  })
-  expect((await f.load()).state).toEqual(f.before.state)
-  expect((await f.load()).tasks).toEqual(f.before.tasks)
-  expect((await f.records()).some(record => record.kind === 'result')).toBe(false)
-  expect(await f.harness.released()).not.toContain(f.access.call)
-})
-
 it('settles every final alias in the result commit and recalls later aliases without the envelope', async () => {
   const f = await settlementFixture()
   const alias = {
@@ -1107,51 +728,6 @@ it('settles every final alias in the result commit and recalls later aliases wit
   expect(saved).toMatchObject({ fact: { fact: { payload: { kind: 'settled' } } } })
   expect(read).not.toHaveBeenCalled()
 })
-
-it.each(['material', 'retention'] as const)(
-  'does not commit a result after qualification is revoked during %s IO',
-  async boundary => {
-    let revokedCall: string | null = null
-    let revoke: () => void
-    const retained = vi.fn<ToolMaterialStore<Principal>['write']>()
-    const f = await settlementFixture({
-      wrapAccess: base => ({
-        qualify: input =>
-          input.call === revokedCall
-            ? Promise.resolve({ kind: 'denied' as const, reason: 'revoked' })
-            : base.qualify(input),
-      }),
-      wrapMaterials: base => ({
-        ...base,
-        write: retained.mockImplementation(async input => {
-          const answer = await base.write(input)
-          if (boundary === 'retention') revoke()
-          return answer
-        }),
-      }),
-    })
-    revoke = () => {
-      revokedCall = f.access.call
-      f.input.call = callId('still-authorized-call')
-    }
-    if (boundary === 'material') {
-      const store = f.materialStore
-      const read = store.read.bind(store)
-      vi.spyOn(store, 'read').mockImplementation(async input => {
-        const answer = await read(input)
-        revoke()
-        return answer
-      })
-    }
-    expect(failure(await f.preserve()).kind).toBe('denied')
-    expect(retained).toHaveBeenCalledTimes(boundary === 'material' ? 0 : 1)
-    expect((await f.records()).some(record => record.kind === 'result')).toBe(false)
-    expect(await f.harness.released()).not.toContain(f.access.call)
-    revokedCall = null
-    expect((await f.load()).state.phase).toBe('running')
-    expect((await f.load()).tasks).toEqual(f.before.tasks)
-  },
-)
 
 it('uses the settled final when settlement overtakes an already prepared alias', async () => {
   let writes = 0

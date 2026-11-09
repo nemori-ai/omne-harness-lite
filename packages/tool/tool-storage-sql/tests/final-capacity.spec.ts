@@ -203,18 +203,12 @@ it.each([
       if (retained.kind !== 'complete') throw new Error('ledger read incomplete')
       const uses = retained.records.filter(record => record.kind === 'material-use')
       const offloaded = settle && bytes > 65_536
-      expect(uses).toHaveLength(settle ? (offloaded ? 6 : 4) : 3)
-      expect(
-        uses.filter(record => record.kind === 'material-use' && record.use.kind === 'delivery'),
-      ).toHaveLength(settle ? (offloaded ? 4 : 3) : 0)
+      expect(uses).toHaveLength(settle ? 1 : 3)
       expect(
         uses.filter(record => record.kind === 'material-use' && record.use.kind === 'preparation'),
       ).toHaveLength(settle ? 0 : 3)
       expect(uses.filter(record => record.use.kind === 'native-reference')).toHaveLength(
         settle ? 1 : 0,
-      )
-      expect(uses.filter(record => record.use.kind === 'offloaded-body')).toHaveLength(
-        offloaded ? 1 : 0,
       )
       const cleanup = retained.records.filter(record => record.kind === 'material-cleanup')
       expect(cleanup).toHaveLength(settle ? 2 : 0)
@@ -320,17 +314,6 @@ it.each([
             expired,
           )
           expect(await restoredLedger.reads.content.read(byteRequest)).toEqual(expired)
-          await reopened.close()
-          now = '2026-11-07T00:00:00.000Z'
-          const afterExpiry = await openStorage(root, [tenant], { maxCommandBytes: 1_048_576 })
-          try {
-            const again = world.ledgerOver(afterExpiry.store, materials(afterExpiry), {
-              bodies: bodies(afterExpiry),
-            })
-            expect(await again.reads.body.read(request)).toEqual(expired)
-          } finally {
-            await afterExpiry.close()
-          }
         }
       } finally {
         await reopened.close()

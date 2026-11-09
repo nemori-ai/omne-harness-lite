@@ -376,15 +376,7 @@ describe('original final settlement in one shared driver', () => {
   it('F01 keeps the second call queued after retention until the original call commit lands', async () => {
     const committing = deferred<void>()
     const release = deferred<void>()
-    let retains = 0
     const f = fixture({
-      resultMaterialsPort: base => ({
-        ...base,
-        write: input => {
-          retains += 1
-          return base.write(input)
-        },
-      }),
       store: memory => ({
         ...memory,
         commit: async input => {
@@ -409,7 +401,6 @@ describe('original final settlement in one shared driver', () => {
     await flush()
     const running = f.h.runOnce(first.call, first.controller.signal)
     await committing.promise
-    expect(retains).toBe(3)
     expect((await f.load(first.call)).state.phase).toBe('running')
     await f.h.runOnce(second.call, second.controller.signal)
     expect(f.h.binding.executions).toEqual([first.call])
@@ -424,12 +415,21 @@ describe('original final settlement in one shared driver', () => {
     const retained = deferred<void>()
     const retaining = deferred<void>()
     const f = fixture({
-      resultMaterialsPort: base => ({
-        ...base,
-        write: async input => {
-          retaining.resolve()
-          await retained.promise
-          return base.write(input)
+      store: memory => ({
+        ...memory,
+        commit: async input => {
+          if (
+            input.writes.some(
+              write =>
+                write.kind === 'put' &&
+                write.record.kind === 'operation' &&
+                write.record.operation.receipt.kind === 'preserve-result',
+            )
+          ) {
+            retaining.resolve()
+            await retained.promise
+          }
+          return memory.commit(input)
         },
       }),
     })
@@ -496,7 +496,6 @@ describe('original final settlement in one shared driver', () => {
     'F05 repairs an %s unknown queue commit without reading a released final envelope',
     async mode => {
       const operations: string[] = []
-      let retains = 0
       let releasedReads = 0
       const f = fixture({
         store: memory =>
@@ -520,13 +519,6 @@ describe('original final settlement in one shared driver', () => {
             },
             mode,
           ),
-        resultMaterialsPort: base => ({
-          ...base,
-          write: input => {
-            retains += 1
-            return base.write(input)
-          },
-        }),
         commands: base => ({
           ...base,
           preserveResult: input => {
@@ -546,7 +538,6 @@ describe('original final settlement in one shared driver', () => {
       await f.pump()
       expect((await f.load(first.call)).tasks.some(task => task.kind === 'queue')).toBe(false)
       expect(f.h.binding.executions).toEqual([first.call, second.call])
-      expect(retains).toBe(3)
       expect(new Set(operations).size).toBe(1)
       expect(operations.length).toBeGreaterThanOrEqual(2)
       expect(await f.h.released()).toContain(first.call)
@@ -557,15 +548,7 @@ describe('original final settlement in one shared driver', () => {
 
   it('F05 reconciles a predecessor after the release notification is lost, then closes its original queue task', async () => {
     let allowRelease = false
-    let retains = 0
     const f = fixture({
-      resultMaterialsPort: base => ({
-        ...base,
-        write: input => {
-          retains += 1
-          return base.write(input)
-        },
-      }),
       store: memory => ({
         ...memory,
         commit: input => {
@@ -599,7 +582,6 @@ describe('original final settlement in one shared driver', () => {
     expect(f.h.binding.executions).toEqual([first.call, second.call])
     await f.h.runOnce(first.call, first.controller.signal)
     expect((await f.load(first.call)).tasks.some(task => task.kind === 'queue')).toBe(false)
-    expect(retains).toBe(3)
     await f.close()
   })
 

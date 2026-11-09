@@ -20,7 +20,6 @@ import {
   tenantA,
   text,
   textOf,
-  testSettlementPorts,
 } from './runtime-values.ts'
 import { settlementFixture } from './settlement-values.ts'
 
@@ -74,13 +73,7 @@ async function existingVersions() {
       relation: 'late',
       actual: { kind: 'completed' },
       effect: { kind: 'occurred', evidence: evidence(`fixture-effect-${ordinal}`) },
-      value: await createTestResultChannels({
-        materials: testSettlementPorts(f.harness.memory).materials,
-        access: f.access,
-        operation: operationId(`late-channels-${ordinal}`),
-        source,
-        value,
-      }),
+      value: createTestResultChannels({ value }),
       delivery: {
         kind: 'pending',
         delivery: ok(decodeToolDeliveryId(`fixture-delivery-${ordinal}`)),

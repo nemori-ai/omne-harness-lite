@@ -70,7 +70,6 @@ export type {
   ToolLedgerStore,
 } from './ledger-store.ts'
 export { recordKey, hostKey, CALL_RECORD_KEY } from './ledger-store.ts'
-export { hasCurrentToolLedgerRecordFormat } from './ledger-record-format.ts'
 export type {
   AccessVerdict,
   GrantVerdict,

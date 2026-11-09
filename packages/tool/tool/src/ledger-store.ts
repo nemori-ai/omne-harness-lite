@@ -5,7 +5,7 @@ import type { ResultPreparationRecord } from './ledger-result-preparation.ts'
 // store keeps records by key inside a transaction domain and interprets none of them. A durable
 // provider (#280) and the non-durable store of `./testing` implement the same port.
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { ResultChannels } from './ledger-result-material.ts'
+import type { ResultValue } from './ledger-result-material.ts'
 import type {
   MaterialRecord,
   MaterialCleanupRecord,
@@ -166,7 +166,7 @@ export type ResultRecord = Readonly<{
   terminal: ToolTerminal
   actual: ToolTerminal | null
   effect: Effect
-  value: ResultChannels
+  value: ResultValue
   delivery: DeliveryState
   source: DurableEvidence
   settledBy: ToolOperationId

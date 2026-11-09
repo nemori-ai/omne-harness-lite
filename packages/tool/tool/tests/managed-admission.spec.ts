@@ -818,22 +818,7 @@ describe('12 logical terminals (P02)', () => {
     expect(read.revision).toBe(admitted.state.revision)
     expect(
       final.writes.flatMap(write => (write.kind === 'put' ? [write.record.kind] : [])).sort(),
-    ).toEqual([
-      'account',
-      'call',
-      'material-maintenance-hint',
-      'material-use',
-      'material-use',
-      'material-use',
-      'operation',
-      'result',
-      'task',
-    ])
-    expect(
-      final.writes.filter(
-        write => write.kind === 'delete' && write.key.startsWith('material-use:preparation:'),
-      ),
-    ).toHaveLength(3)
+    ).toEqual(['account', 'call', 'material-maintenance-hint', 'operation', 'result', 'task'])
     expect(read.records.find(record => record.kind === 'task')).toEqual({
       kind: 'task',
       task: {

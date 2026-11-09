@@ -16,14 +16,9 @@ import { put, reply, type Decision, type Mint, type Snapshot } from './ledger-de
 import type { LedgerDomain } from './ledger-store.ts'
 import type { TerminalText } from './ledger-start.ts'
 import type { BodyPolicy } from './result-offloading.ts'
-import type { createLedgerMaterialCustody } from './ledger-material-custody.ts'
 import type { BodyWriting } from './ledger-body-writer.ts'
 import type { ResultReference } from './tools-protocol.ts'
-import {
-  prepareResultChannels,
-  type PreparedResultChannels,
-  type ResultChannels,
-} from './ledger-result-material.ts'
+import { prepareResult, type PreparedResult, type ResultValue } from './ledger-result-material.ts'
 
 export type SyntheticNeed = Readonly<{
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>
@@ -36,14 +31,12 @@ export type ResultPreparationRecord = Readonly<{
   need: SyntheticNeed
   basis: DurableEvidence
   policy: BodyPolicy
-  state:
-    | Readonly<{ kind: 'preparing' }>
-    | Readonly<{ kind: 'prepared'; channels: PreparedResultChannels }>
+  state: Readonly<{ kind: 'preparing' }> | Readonly<{ kind: 'prepared'; prepared: PreparedResult }>
 }>
 export type PendingSynthetic = ResultPreparationRecord &
-  Readonly<{ state: Readonly<{ kind: 'prepared'; channels: PreparedResultChannels }> }>
+  Readonly<{ state: Readonly<{ kind: 'prepared'; prepared: PreparedResult }> }>
 export type PreparedSynthetic = Omit<ResultPreparationRecord, 'state'> &
-  Readonly<{ state: Readonly<{ kind: 'prepared'; channels: ResultChannels }> }>
+  Readonly<{ state: Readonly<{ kind: 'prepared'; value: ResultValue }> }>
 export type SyntheticDecision<T> =
   | Decision<T>
   | Readonly<{ kind: 'prepare-synthetic'; need: SyntheticNeed }>
@@ -63,7 +56,6 @@ type PreparationTransaction = (
 export function createResultPreparation<P, B extends ContentBlock>(
   ports: Readonly<{
     authorize(input: unknown): Reply<CallInput<P>>
-    custody: ReturnType<typeof createLedgerMaterialCustody<P>>
     writeBody: BodyWriting<P>['writeBody']
     transact: PreparationTransaction
     text: TerminalText<B>
@@ -150,17 +142,15 @@ export function createResultPreparation<P, B extends ContentBlock>(
       return succeed({ ...intent.ok, state: intent.ok.state })
     const made = ports.text(need.terminal)
     if ('failure' in made) return made
-    const channels = await prepareResultChannels(
-      ports.custody,
+    const prepared = await prepareResult(
       { ...input, operation: id, source: intent.ok.basis },
       made.ok,
       intent.ok.policy,
       null,
-      validate,
       ports.target,
       ports.writeBody,
     )
-    if ('failure' in channels) return channels
+    if ('failure' in prepared) return prepared
     const saved = await ports.transact(
       domain,
       id,
@@ -171,12 +161,12 @@ export function createResultPreparation<P, B extends ContentBlock>(
         if (known === undefined || digestOf(known.basis) !== digestOf(intent.ok.basis))
           return reply(fail({ kind: 'conflict', operation: input.operation }))
         if (known.state.kind === 'prepared')
-          return digestOf(known.state.channels) === digestOf(channels.ok)
+          return digestOf(known.state.prepared) === digestOf(prepared.ok)
             ? reply(succeed(known))
             : reply(fail({ kind: 'conflict', operation: input.operation }))
         const record: ResultPreparationRecord = {
           ...known,
-          state: { kind: 'prepared', channels: channels.ok },
+          state: { kind: 'prepared', prepared: prepared.ok },
         }
         return {
           kind: 'commit',

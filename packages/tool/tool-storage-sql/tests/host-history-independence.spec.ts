@@ -347,11 +347,7 @@ async function deliveredOf(ports: Host, running: CallRecord, index: number) {
     terminal: { kind: 'completed' },
     actual: null,
     effect: { kind: 'not-started' },
-    value: await createTestResultChannels({
-      materials: ports.materials,
-      access: callAccess,
-      operation: task.operation,
-      source: evidence('original'),
+    value: createTestResultChannels({
       value: ok(createLocalTextResults().text(`parent result ${width(index)}`)),
     }),
     delivery: pending,

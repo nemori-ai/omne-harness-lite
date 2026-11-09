@@ -108,7 +108,6 @@ it('ledger content provider is explicit and may be disabled with null', () => {
   > | null>()
 })
 
-it('the result ledger accepts channel references and cannot store a complete ToolResult', () => {
-  expectTypeOf<ResultRecord['value']['kind']>().toEqualTypeOf<'channels'>()
-  expectTypeOf<ToolResult<ContentBlock>>().not.toExtend<ResultRecord['value']>()
+it('the result record keeps the committed ToolResult inline', () => {
+  expectTypeOf<ResultRecord['value']>().toEqualTypeOf<ToolResult<ContentBlock>>()
 })

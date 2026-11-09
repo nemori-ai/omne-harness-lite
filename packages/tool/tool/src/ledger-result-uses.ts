@@ -50,61 +50,24 @@ export function preparedRawMaterial(
 }
 
 /**
- * The result channels adopt their materials, and the body part of model `Settle` runs: the
- * referenced body is linked and scheduled, the other bodies of the call are orphaned at
- * `orphanDue` (null when the call never had a writer, as at an admission-time settlement).
+ * The body part of model `Settle`: the referenced body is linked and scheduled, the other bodies
+ * of the call are orphaned at `orphanDue` (null when the call never had a writer, as at an
+ * admission-time settlement).
  */
-export function adoptResultMaterials(
+export function settleResultBodies(
   snapshot: Snapshot,
   result: ResultRecord,
   orphanDue: ToolInstant | null,
 ): Outcome<readonly LedgerWrite[], ToolFailure> {
-  const channels = result.value
-  const seals = [
-    channels.content,
-    channels.data,
-    channels.attachments,
-    ...(channels.original.kind === 'offloaded' ? [channels.original.summary] : []),
-  ]
-  const writes: LedgerWrite[] = []
-  for (const seal of seals) {
-    const prepared = preparedMaterial(snapshot, seal, 'result')
-    if ('failure' in prepared) return prepared
-    const material = prepared.ok
-    writes.push(
-      { kind: 'delete', key: `material-use:preparation:${material.writeOperation}` },
-      {
-        kind: 'put',
-        record: {
-          kind: 'material-use',
-          use: {
-            id: `delivery:${result.result}:${material.writeOperation}`,
-            kind: 'delivery',
-            writeOperation: material.writeOperation,
-            material: material.material,
-            result: result.result,
-            delivery: result.delivery.delivery,
-            basis: result.source,
-          },
-        },
-      },
-    )
-  }
+  const original = result.value.original
   const linked =
-    channels.original.kind === 'offloaded'
-      ? {
-          bodyId: channels.original.body.bodyId,
-          result: result.result,
-          expiresAt: channels.original.body.retention.expiresAt,
-        }
+    original.kind === 'offloaded'
+      ? { bodyId: original.bodyId, result: result.result, expiresAt: original.retention.expiresAt }
       : null
-  if (linked === null && orphanDue === null) return succeed(writes)
+  if (linked === null && orphanDue === null) return succeed([])
   if (orphanDue === null)
     return invalid('original.source', 'body-settlement-requires-a-settlement-instant')
-  const bodies = settleBodyEntries(snapshot, linked, orphanDue)
-  if ('failure' in bodies) return bodies
-  writes.push(...bodies.ok)
-  return succeed(writes)
+  return settleBodyEntries(snapshot, linked, orphanDue)
 }
 
 export function releaseFinalPreparation(
@@ -197,23 +160,4 @@ function cleanupMaterial(
       },
     },
   }
-}
-
-export function releaseResultMaterials(
-  snapshot: Snapshot,
-  result: ResultRecord,
-  basis: DurableEvidence,
-): readonly LedgerWrite[] {
-  const writes: LedgerWrite[] = []
-  for (const use of snapshot.materialUses.values()) {
-    if (
-      use.kind !== 'delivery' ||
-      use.result !== result.result ||
-      use.delivery !== result.delivery.delivery
-    )
-      continue
-    writes.push({ kind: 'delete', key: `material-use:${use.id}` })
-    writes.push(cleanupMaterial(use, basis))
-  }
-  return writes
 }

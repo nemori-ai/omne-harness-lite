@@ -1,6 +1,5 @@
 import { expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
-import { encodeToolMaterial } from '@omne-harness/tool'
 import { type ToolOffloadedBody, type ToolResult } from '@omne-harness/tool-contract'
 import {
   decodeToolBodyId,
@@ -54,12 +53,7 @@ async function withOffloadedDeliveryPorts() {
             ...f.result,
             value: {
               ...f.result.value,
-              value: ok(encodeToolMaterial(rendered)).fingerprint,
-              original: {
-                kind: 'offloaded',
-                summary: f.result.value.content,
-                body: description,
-              },
+              original: { kind: 'offloaded', summary: f.result.value.content, ...description },
             },
           },
         },

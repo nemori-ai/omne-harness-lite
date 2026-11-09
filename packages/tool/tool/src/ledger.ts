@@ -17,9 +17,9 @@ import {
 } from './ledger-result-preparation.ts'
 import { createLedgerMaterialCustody } from './ledger-material-custody.ts'
 import {
-  prepareResultChannels,
+  prepareResult,
   preparedBodyOf,
-  readResultChannels,
+  readResultValue,
   type PreparedBody,
 } from './ledger-result-material.ts'
 import type { ResultRecord } from './ledger-store.ts'
@@ -567,11 +567,6 @@ export function createToolLedger<P, B extends ContentBlock>(
       if ('failure' in target) return target
       const prepare = createResultPreparation<P, B>({
         authorize: input => entry(input, action),
-        custody: createLedgerMaterialCustody<P>({
-          materials: settlement.materials,
-          entry: input => entry(input, action),
-          transact,
-        }),
         writeBody: bodyWriting.writeBody,
         transact,
         text,
@@ -620,14 +615,14 @@ export function createToolLedger<P, B extends ContentBlock>(
           }
         const pending = prepared
         return activateResultDecision(
-          pending.state.channels,
+          pending.state.prepared,
           settlement.bodies?.clock,
-          async channels => {
+          async value => {
             const qualified = await access(context, action)
             if ('failure' in qualified) return { kind: 'reply', outcome: qualified }
             const decision = decide(snapshot, mint, {
               ...pending,
-              state: { kind: 'prepared', channels },
+              state: { kind: 'prepared', value },
             })
             return decision.kind === 'prepare-synthetic'
               ? {
@@ -1114,29 +1109,18 @@ export function createToolLedger<P, B extends ContentBlock>(
         : policy
     const target = firstResultReference({ ...record.ok, tenant: context.ok.tenant })
     if ('failure' in target) return target
-    const channels = await prepareResultChannels<P, B>(
-      createLedgerMaterialCustody<P>({
-        materials: settlement.materials,
-        entry: value => entry(value, 'write'),
-        transact,
-      }),
+    const channels = await prepareResult<P, B>(
       { ...context.ok, operation: checked.ok.task.operation, source: checked.ok.saved.evidence },
       final.result,
       policy.ok,
       authored.ok?.prepared ?? null,
-      snapshot => {
-        if (excludedSince(snapshot, command.operation, before.ok.revision))
-          return excluded(command.operation)
-        const current = checkSettlement(snapshot, command)
-        return 'failure' in current ? current : succeed(undefined)
-      },
       target.ok,
       bodyWriting.writeBody,
     )
     if ('failure' in channels)
       return channels.failure.kind === 'commit-unknown' &&
         channels.failure.operation !== command.operation
-        ? unavailable('result-material', 'result channel preparation is unresolved')
+        ? unavailable('result-value', 'result preparation is unresolved')
         : channels
     const allowed = await access(context.ok, 'write')
     if ('failure' in allowed) return allowed
@@ -1205,14 +1189,8 @@ export function createToolLedger<P, B extends ContentBlock>(
     transact,
   })
 
-  const resultValue = async (input: CallInput<P>, record: ResultRecord) =>
-    readResultChannels(
-      settlement.materials?.store,
-      input,
-      record.value,
-      guards.policy,
-      toolLedgerAdoption,
-    )
+  const resultValue = async (_input: CallInput<P>, record: ResultRecord) =>
+    readResultValue(record.value, guards.policy)
 
   const commands: ToolCommands<P, B> = {
     admit: async input => {

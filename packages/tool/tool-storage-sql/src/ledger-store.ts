@@ -7,7 +7,6 @@ import { randomUUID } from 'node:crypto'
 
 import type { JsonValue } from '@omne-harness/sql-contract'
 import {
-  hasCurrentToolLedgerRecordFormat,
   recordKey,
   type DueEntry,
   type LedgerCommit,
@@ -61,14 +60,10 @@ function storedRecordsOf(rows: JsonValue | undefined): StoredRecord[] | null {
   return records
 }
 
-/**
- * Tool owns the format boundary. SQL checks it and the row key before exposing records.
- */
+/** A row key check before exposing records; the migration baseline keeps old formats out. */
 function recordsOf(rows: readonly StoredRecord[]): LedgerRecord[] | null {
   const records: LedgerRecord[] = []
   for (const row of rows) {
-    if (!hasCurrentToolLedgerRecordFormat(row['record'])) return null
-    // This is a format and key check, not a full validation of each record's fields.
     const record = row['record'] as unknown as LedgerRecord
     if (typeof record.kind !== 'string' || recordKey(record) !== row['key']) return null
     records.push(record)

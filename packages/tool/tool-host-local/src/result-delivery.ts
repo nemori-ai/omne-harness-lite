@@ -26,6 +26,7 @@ import {
   judgeHandoff,
   type CallAccess,
   type ToolCommands,
+  type ToolMaterialFingerprint,
   type ToolOperationIdentities,
   type ToolReads,
   type ToolTask,
@@ -35,6 +36,7 @@ import {
   deliveryUnavailable,
   type DeliveryBase,
   type DeliveryRecord,
+  type ResultValueCommitment,
 } from './delivery-state.ts'
 import { processMonotonicMs } from './clock.ts'
 
@@ -125,13 +127,35 @@ function resultDeliveryBase(call: CallRecord, result: ResultRecord): DeliveryBas
     effect: result.effect,
     source: result.source,
     value: {
-      fingerprint: result.value.value,
+      fingerprint: fingerprintOf(result.value),
       original:
         result.value.original.kind === 'none'
           ? { kind: 'none' }
-          : { kind: 'offloaded', ...result.value.original.body },
+          : offloadedDescription(result.value.original),
     },
   }
+}
+
+/** The body descriptor the delivery commits to: the offloaded original without its summary. */
+function offloadedDescription(
+  original: Extract<ResultRecord['value']['original'], { kind: 'offloaded' }>,
+): Extract<ResultValueCommitment['original'], { kind: 'offloaded' }> {
+  const { summary: _summary, ...description } = original
+  return description
+}
+
+/** The fingerprint of the channels as the model sees them: the body descriptor is not part of it. */
+function fingerprintOf(value: ResultRecord['value']): ToolMaterialFingerprint {
+  const original = value.original
+  const encoded = encodeToolMaterial({
+    ...value,
+    original:
+      original.kind === 'none'
+        ? original
+        : { kind: 'offloaded', source: original.source, summary: original.summary },
+  })
+  if ('failure' in encoded) throw new Error('a committed result value is always encodable')
+  return encoded.ok.fingerprint
 }
 
 /** The key of one call of one tenant: the owner of its table entries. */
@@ -320,18 +344,10 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     })
     if ('failure' in value) return value
     const original = value.ok.original
-    const { summary: _summary, ...description } =
-      original.kind === 'offloaded' ? original : { ...original, summary: undefined }
-    const encoded = encodeToolMaterial({
-      ...value.ok,
-      original:
-        original.kind === 'none'
-          ? original
-          : { kind: 'offloaded', source: original.source, summary: original.summary },
-    })
+    const description =
+      original.kind === 'offloaded' ? offloadedDescription(original) : { kind: 'none' as const }
     if (
-      'failure' in encoded ||
-      canonicalDigest(encoded.ok.fingerprint) !==
+      canonicalDigest(fingerprintOf(value.ok)) !==
         canonicalDigest(record.payload.value.fingerprint) ||
       canonicalDigest(description) !== canonicalDigest(record.payload.value.original)
     )
