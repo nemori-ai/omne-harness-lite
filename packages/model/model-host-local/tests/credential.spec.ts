@@ -1,10 +1,14 @@
-import { spawn, spawnSync } from 'node:child_process'
+// The Model credential custody over the secret vault: the five resolution results, tenant
+// isolation, rotation and revocation, close, cross-process updates and the injected send under
+// real Cordis 4.0.4. The file mechanics (lock, atomic publish, fault injection) are tested where
+// they live, in settings-local's `tests/secrets/`.
+import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import {
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   readdirSync,
+  readFileSync,
   realpathSync,
   rmdirSync,
   writeFileSync,
@@ -12,61 +16,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
-import { expect, it, vi } from 'vitest'
-
-declare global {
-  var __actualFs: typeof import('node:fs')
-}
-
-let injectedRename: ((from: string, to: string) => void) | undefined
-let injectedWriteSync:
-  | ((fd: number, buffer: Buffer, offset: number, length: number) => number)
-  | undefined
-let injectedFsyncSync: ((fd: number, flags: string | undefined) => void) | undefined
-
-const fdFlags = new Map<number, string>()
-
-vi.mock('node:fs', async importOriginal => {
-  const actual = await importOriginal<typeof import('node:fs')>()
-  globalThis.__actualFs = actual
-  return {
-    ...actual,
-    openSync: (path: string, flags: unknown, mode?: unknown) => {
-      const fd = (actual.openSync as any)(path, flags, mode)
-      fdFlags.set(fd as number, String(flags))
-      return fd
-    },
-    closeSync: (fd: number) => {
-      fdFlags.delete(fd)
-      return actual.closeSync(fd)
-    },
-    renameSync: (from: string, to: string) => {
-      if (injectedRename) return injectedRename(from, to)
-      return actual.renameSync(from, to)
-    },
-    writeSync: (
-      fd: number,
-      buffer: unknown,
-      offset?: unknown,
-      length?: unknown,
-      ...rest: unknown[]
-    ) => {
-      if (
-        injectedWriteSync &&
-        Buffer.isBuffer(buffer) &&
-        typeof offset === 'number' &&
-        typeof length === 'number'
-      ) {
-        return injectedWriteSync(fd, buffer, offset, length)
-      }
-      return (actual.writeSync as any)(fd, buffer, offset, length, ...rest)
-    },
-    fsyncSync: (fd: number) => {
-      if (injectedFsyncSync) return injectedFsyncSync(fd, fdFlags.get(fd))
-      return actual.fsyncSync(fd)
-    },
-  }
-})
+import { expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { type CredentialId } from '@omne-harness/model-contract'
 import {
@@ -427,7 +377,7 @@ it('a corrupt store through the plugin resolves unavailable', async () => {
 })
 
 it('the root entry and everything it reaches stay free of Cordis and the cordis entry', () => {
-  for (const name of ['index.ts', 'store.ts', 'records.ts']) {
+  for (const name of ['index.ts', 'store.ts']) {
     const source = readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
     expect(source.includes('@deepseek-ai/cordis'), name).toBe(false)
     expect(source.includes('model-cordis-contract'), name).toBe(false)
@@ -496,366 +446,6 @@ it('a later writer modifying another binding does not overwrite a revocation sav
   })
 })
 
-it('a failed rename keeps the last saved snapshot intact and does not publish the new secret', () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-  const path = join(dir, 'store.json')
-  const first = createLocalCustodian({ path, factorySecret: FACTORY })
-  const ref = reference()
-  first.put(ref, SECRET)
-  const backup = readFileSync(path, 'utf8')
-  // Inject a rename failure so the write reaches the publish stage but cannot complete.
-  let renamed = false
-  const injected = new Error('injected rename failure')
-  injectedRename = (from: string, to: string) => {
-    if (to === path) {
-      renamed = true
-      throw injected
-    }
-    return globalThis.__actualFs.renameSync(from, to)
-  }
-  expect(() => first.rotate(ref, ROTATED)).toThrow(
-    expect.objectContaining({
-      message: expect.stringMatching(/failed to update credential store/),
-      cause: injected,
-    }),
-  )
-  injectedRename = undefined
-  expect(renamed).toBe(true)
-  // The in-memory handle must not publish the uncommitted secret.
-  expect(first.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
-  // The last confirmed snapshot is unchanged on disk.
-  expect(readFileSync(path, 'utf8')).toEqual(backup)
-  const reopenedResult = openLocalCustodian({ path })
-  if (reopenedResult.kind !== 'open') throw new Error('store missing')
-  const reopened = reopenedResult.custodian
-  expect(reopened.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
-  expect(readdirSync(dir).filter(name => name.endsWith('.tmp'))).toEqual([])
-})
-
-it('a short write is retried until the whole snapshot is persisted', () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-  const path = join(dir, 'store.json')
-  const first = createLocalCustodian({ path, factorySecret: FACTORY })
-  const ref = reference()
-  first.put(ref, SECRET)
-  let shortWritten = false
-  injectedWriteSync = (fd: number, buffer: Buffer, offset: number, length: number) => {
-    if (!shortWritten && offset === 0) {
-      shortWritten = true
-      const partial = Math.min(17, length)
-      globalThis.__actualFs.writeSync(fd, buffer, 0, partial)
-      return partial
-    }
-    return globalThis.__actualFs.writeSync(fd, buffer, offset, length)
-  }
-  first.rotate(ref, ROTATED)
-  injectedWriteSync = undefined
-  expect(first.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: ROTATED })
-  const reopenedResult = openLocalCustodian({ path })
-  if (reopenedResult.kind !== 'open') throw new Error('store missing')
-  const reopened = reopenedResult.custodian
-  expect(reopened.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: ROTATED })
-})
-
-it('a write that makes no progress aborts and keeps the old snapshot', () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-  const path = join(dir, 'store.json')
-  const first = createLocalCustodian({ path, factorySecret: FACTORY })
-  const ref = reference()
-  first.put(ref, SECRET)
-  const backup = readFileSync(path, 'utf8')
-  injectedWriteSync = (fd: number, buffer: Buffer, offset: number, length: number) => {
-    if (offset === 0) {
-      return Math.min(17, length)
-    }
-    return 0
-  }
-  expect(() => first.rotate(ref, ROTATED)).toThrow(/failed to update credential store/)
-  injectedWriteSync = undefined
-  expect(first.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
-  expect(readFileSync(path, 'utf8')).toEqual(backup)
-  expect(readdirSync(dir).filter(name => name.endsWith('.tmp'))).toEqual([])
-  expect([...fdFlags.values()]).not.toContain('w')
-})
-
-it('a failed fsync of the temporary file keeps the old snapshot and names the fsync error as the cause', () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-  const path = join(dir, 'store.json')
-  const first = createLocalCustodian({ path, factorySecret: FACTORY })
-  const ref = reference()
-  first.put(ref, SECRET)
-  const backup = readFileSync(path, 'utf8')
-  const openBefore = new Map(fdFlags)
-  const injected = new Error('injected temporary file fsync failure')
-  injectedFsyncSync = (fd: number, flags: string | undefined) => {
-    if (flags === 'w') throw injected
-    return globalThis.__actualFs.fsyncSync(fd)
-  }
-  expect(() => first.rotate(ref, ROTATED)).toThrow(
-    expect.objectContaining({
-      message: expect.stringMatching(/failed to update credential store/),
-      cause: injected,
-    }),
-  )
-  injectedFsyncSync = undefined
-  expect(first.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
-  expect(readFileSync(path, 'utf8')).toEqual(backup)
-  expect(readdirSync(dir).filter(name => name.endsWith('.tmp'))).toEqual([])
-  expect(new Map(fdFlags)).toEqual(openBefore)
-})
-
-it('a successful update closes the temporary file and the parent directory it opened', () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-  const custodian = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
-  const ref = reference()
-  const openBefore = new Map(fdFlags)
-
-  custodian.put(ref, SECRET)
-  custodian.rotate(ref, ROTATED)
-
-  expect(new Map(fdFlags)).toEqual(openBefore)
-})
-
-it('a creation closes the temporary file and the parent directory it opened', () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-  const openBefore = new Map(fdFlags)
-
-  createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
-
-  expect(new Map(fdFlags)).toEqual(openBefore)
-})
-
-// The store syncs the parent directory after the rename only on POSIX: Windows cannot fsync a
-// directory handle (EPERM), so there the rename is the last step and no confirmation can fail.
-const postRenameConfirmation = it.skipIf(process.platform === 'win32')
-
-postRenameConfirmation(
-  'a failed parent directory fsync still closes the directory it opened',
-  () => {
-    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-    const first = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
-    const ref = reference()
-    first.put(ref, SECRET)
-    const openBefore = new Map(fdFlags)
-    injectedFsyncSync = (fd: number, flags: string | undefined) => {
-      if (flags === 'r') throw new Error('injected dir fsync failure')
-      return globalThis.__actualFs.fsyncSync(fd)
-    }
-    expect(() => first.rotate(ref, ROTATED)).toThrow(/confirmation incomplete/)
-    injectedFsyncSync = undefined
-    expect(new Map(fdFlags)).toEqual(openBefore)
-  },
-)
-
-it('a rename that fails still closes the temporary file it opened', () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-  const path = join(dir, 'store.json')
-  const first = createLocalCustodian({ path, factorySecret: FACTORY })
-  const ref = reference()
-  first.put(ref, SECRET)
-  const openBefore = new Map(fdFlags)
-  injectedRename = (from: string, to: string) => {
-    if (to === path) throw new Error('injected rename failure')
-    return globalThis.__actualFs.renameSync(from, to)
-  }
-  expect(() => first.rotate(ref, ROTATED)).toThrow(/failed to update credential store/)
-  injectedRename = undefined
-  expect(new Map(fdFlags)).toEqual(openBefore)
-})
-
-postRenameConfirmation(
-  'a post-rename confirmation failure reports the update may be visible',
-  () => {
-    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-    const path = join(dir, 'store.json')
-    const first = createLocalCustodian({ path, factorySecret: FACTORY })
-    const ref = reference()
-    first.put(ref, SECRET)
-    const injected = new Error('injected dir fsync failure')
-    injectedFsyncSync = (fd: number, flags: string | undefined) => {
-      if (flags === 'r') throw injected
-      return globalThis.__actualFs.fsyncSync(fd)
-    }
-    expect(() => first.rotate(ref, ROTATED)).toThrow(
-      expect.objectContaining({
-        message: expect.stringMatching(/confirmation incomplete/),
-        cause: injected,
-      }),
-    )
-    injectedFsyncSync = undefined
-    // The rename already published the new snapshot; subsequent reads see it.
-    expect(first.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: ROTATED })
-    const reopenedResult = openLocalCustodian({ path })
-    if (reopenedResult.kind !== 'open') throw new Error('store missing')
-    const reopened = reopenedResult.custodian
-    expect(reopened.resolve(ref, face())).toEqual({
-      kind: 'value',
-      scope: 'tenant',
-      value: ROTATED,
-    })
-  },
-)
-
-it('a creation whose first snapshot cannot be published throws with the write error as the cause and leaves no store', () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-  const path = join(dir, 'store.json')
-  const injected = new Error('injected rename failure')
-  injectedRename = (from: string, to: string) => {
-    if (to === path) throw injected
-    return globalThis.__actualFs.renameSync(from, to)
-  }
-  let thrown: unknown
-  try {
-    createLocalCustodian({ path, factorySecret: FACTORY })
-  } catch (error: unknown) {
-    thrown = error
-  }
-  injectedRename = undefined
-  expect(thrown).toMatchObject({
-    message: expect.stringMatching(/failed to create credential store/),
-  })
-  expect(thrown).toHaveProperty('cause', injected)
-  expect(readdirSync(dir)).toEqual([])
-})
-
-postRenameConfirmation(
-  'a creation whose confirmation fails after the rename reports the store may be visible, and it is',
-  () => {
-    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-    const path = join(dir, 'store.json')
-    const injected = new Error('injected dir fsync failure')
-    injectedFsyncSync = (fd: number, flags: string | undefined) => {
-      if (flags === 'r') throw injected
-      return globalThis.__actualFs.fsyncSync(fd)
-    }
-    let thrown: unknown
-    try {
-      createLocalCustodian({ path, factorySecret: FACTORY })
-    } catch (error: unknown) {
-      thrown = error
-    }
-    injectedFsyncSync = undefined
-    expect(thrown).toMatchObject({
-      message: expect.stringMatching(
-        /creation .* confirmation incomplete; verify state before retry/,
-      ),
-    })
-    expect(thrown).toHaveProperty('cause', injected)
-    expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({
-      closed: false,
-      factorySecret: FACTORY,
-      bindings: [],
-    })
-  },
-)
-
-it(
-  'a long-lived synchronous transaction does not let another process steal the lock',
-  { tags: ['slow'], timeout: 20_000 },
-  async () => {
-    // This test intentionally holds the lock through a multi-second synchronous pause.
-    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-    const path = join(dir, 'store.json')
-    const goPath = join(dir, 'go')
-    const resultPath = join(dir, 'child-result.json')
-    const first = createLocalCustodian({ path, factorySecret: FACTORY })
-    const refA = reference()
-    first.put(refA, SECRET)
-    const otherId = credentialId('cred-b')
-
-    const child = spawn(
-      process.execPath,
-      [
-        '--input-type=module',
-        '-e',
-        `import { openLocalCustodian } from './dist/index.js'
-       import { decodeCredentialId } from '@omne-harness/model-contract/provider'
-       function credentialId(text) {
-         const decoded = decodeCredentialId(text)
-         if (!('ok' in decoded)) throw new Error('fixture credential id')
-         return decoded.ok
-       }
-       import { existsSync, writeFileSync } from 'node:fs'
-       import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
-       function identity(accountText, organizationText) {
-         const account = accountCodec.parse(accountText)
-         const organization = organizationCodec.parse(organizationText)
-         if (!account.ok || !organization.ok) throw new Error('fixture identity')
-         return tenant(organization.value, account.value)
-       }
-       const start = Date.now()
-       while (!existsSync(${JSON.stringify(goPath)})) {
-         Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
-       }
-       const tenantB = identity('acc_abcdefghjkmnpqrstvwxyz2346', 'org_abcdefghjkmnpqrstvwxyz2346')
-       const result = openLocalCustodian({ path: ${JSON.stringify(path)} })
-       if (result.kind !== 'open') { process.stderr.write('child: store missing'); process.exit(1) }
-       const opened = result.custodian
-       const childId = credentialId('cred-c')
-       const refA = { id: credentialId('cred-a'), tenant: identity('acc_abcdefghjkmnpqrstvwxyz2345', 'org_abcdefghjkmnpqrstvwxyz2345'), purpose: 'model-send' }
-       opened.revoke(refA)
-       opened.put({ id: childId, tenant: tenantB, purpose: 'model-send' }, 'child-secret')
-       writeFileSync(${JSON.stringify(resultPath)}, JSON.stringify({ start, end: Date.now() }))`,
-      ],
-      { cwd: fileURLToPath(new URL('..', import.meta.url)) },
-    )
-
-    let delayed = false
-    injectedWriteSync = (fd: number, buffer: Buffer, offset: number, length: number) => {
-      if (offset === 0 && !delayed) {
-        delayed = true
-        writeFileSync(goPath, '')
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 6500)
-      }
-      return globalThis.__actualFs.writeSync(fd, buffer, offset, length)
-    }
-    const parentStart = Date.now()
-    first.put({ id: otherId, tenant: tenantB, purpose: MODEL_SEND }, 'parent-secret')
-    injectedWriteSync = undefined
-    const parentDuration = Date.now() - parentStart
-
-    const childStderr: string[] = []
-    child.stderr?.setEncoding('utf8')
-    child.stderr?.on('data', (chunk: string | Buffer) => {
-      childStderr.push(String(chunk))
-    })
-
-    await new Promise<void>((resolve, reject) => {
-      child.on('error', reject)
-      child.on('exit', code => {
-        if (code !== 0) reject(new Error(`child exited ${code}: ${childStderr.join('')}`))
-        else resolve()
-      })
-    })
-
-    const result = JSON.parse(readFileSync(resultPath, 'utf8'))
-    // The child must have waited for the parent's lock, not stolen it.
-    expect(result.end - result.start).toBeGreaterThanOrEqual(6000)
-    expect(parentDuration).toBeGreaterThanOrEqual(6500)
-
-    const reopenedResult = openLocalCustodian({ path })
-    if (reopenedResult.kind !== 'open') throw new Error('store missing')
-    const reopened = reopenedResult.custodian
-    const childId = credentialId('cred-c')
-    // The child's revoke survived the overlap.
-    expect(reopened.resolve(refA, face()).kind).toBe('denied')
-    expect(reopened.resolve({ id: otherId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual(
-      {
-        kind: 'value',
-        scope: 'tenant',
-        value: 'parent-secret',
-      },
-    )
-    expect(reopened.resolve({ id: childId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual(
-      {
-        kind: 'value',
-        scope: 'tenant',
-        value: 'child-secret',
-      },
-    )
-  },
-)
-
 it('a store with conflicting rows for the same holder is unavailable', () => {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
@@ -900,8 +490,8 @@ it('management operations report failure instead of silently returning', () => {
   // Block the unique temporary file path by creating a directory at the parent level?
   // Instead, corrupt the main store so refresh fails.
   writeFileSync(path, 'not-json')
-  expect(() => custodian.rotate(ref, ROTATED)).toThrow(/unavailable: corrupt/)
-  expect(() => custodian.revoke(ref)).toThrow(/unavailable: corrupt/)
+  expect(() => custodian.rotate(ref, ROTATED)).toThrow(/was not-written/)
+  expect(() => custodian.revoke(ref)).toThrow(/was not-written/)
 })
 
 it('put rejects a tenant that was never minted before it touches the store', () => {

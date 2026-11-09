@@ -1,17 +1,7 @@
-import {
-  closeSync,
-  readdirSync,
-  statSync,
-  fsyncSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  renameSync,
-  unlinkSync,
-  writeSync,
-} from 'node:fs'
-import { basename, dirname, join } from 'node:path'
-import { lockSync } from 'proper-lockfile'
+// The Model credential custody over the secret vault of settings-local. The vault keeps the file,
+// the lock and the atomic publish; this adapter keeps the Model meaning: which bindings are Model's,
+// how the official factory secret and the tenant credentials map onto binding keys, and the
+// judgment of presence and resolution, which stays in model and reads a whole snapshot.
 import { tenantEquals } from '@omne-harness/legal-identity'
 import {
   judgeGate,
@@ -19,19 +9,30 @@ import {
   judgeQualifiedPresence,
   judgeQualifiedResolution,
   judgeResolution,
+  type BindingLife,
   type CustodianState,
 } from '@omne-harness/model'
 import {
+  MODEL_SEND,
+  decodeCredentialId,
   sameCredentialHolder,
   type CredentialPort,
   type CredentialReference,
   type CredentialResolution,
 } from '@omne-harness/model-contract/provider'
+import { parseSecretText, type SecretBindingKey, type SecretText } from '@omne-harness/settings'
+import {
+  createSecretVault,
+  openSecretVault,
+  type SecretRecord,
+  type SecretVault,
+  type UnavailableCause as VaultUnavailableCause,
+} from '@omne-harness/settings-local/secrets'
+import { encodeInstant, parseInstant } from '@omne-harness/utc-instant'
 import { isIntegerAtLeast, isRecord } from './fields.ts'
-import { loadState, storeState, type LocalBinding, type LocalState } from './records.ts'
 
-/** Why a store file cannot be read: absent, not a valid snapshot, or a file-system error. */
-export type UnavailableCause = 'missing' | 'corrupt' | 'io'
+/** Why a vault file cannot be read: absent, not a valid vault, or a file-system error. */
+export type UnavailableCause = VaultUnavailableCause
 
 export type Diagnostic =
   | Readonly<{ stage: 'resolve'; outcome: CredentialResolution['kind']; tenantMatch: boolean }>
@@ -71,17 +72,40 @@ export type BindingRemoval = BindingWrite | Readonly<{ kind: 'absent' }>
 
 /**
  * What the custody shows of one binding. It never shows the secret. `life` is the state of the
- * binding, and `configuredAt` is the instant text of its last bind when the snapshot records it.
+ * binding, and `configuredAt` is the instant text of its last bind when the vault records it.
  */
 export type BindingView =
   | Readonly<{ kind: 'unbound' }>
-  | Readonly<{ kind: 'bound'; life: LocalBinding['life']; configuredAt?: string }>
+  | Readonly<{ kind: 'bound'; life: BindingLife; configuredAt?: string }>
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable' }>
 
 export type OpenResult =
   | Readonly<{ kind: 'open'; custodian: LocalCustodian }>
   | Readonly<{ kind: 'unavailable'; cause: UnavailableCause }>
+
+/** The owner of every Model binding in the vault. */
+export const MODEL_SECRET_OWNER = 'model'
+
+/**
+ * The key of the official factory secret: the deployment default of Model. Its target key holds a
+ * space, which `decodeCredentialId` never accepts, so no tenant credential id can collide with it.
+ * It is the target the pre-version vault file maps its `factorySecret` to.
+ */
+export const MODEL_FACTORY_SECRET_KEY: SecretBindingKey = Object.freeze({
+  scope: Object.freeze({ layer: 'official' as const }),
+  target: Object.freeze({ owner: MODEL_SECRET_OWNER, key: 'factory default' }),
+  purpose: MODEL_SEND,
+})
+
+/** The binding key of a tenant credential: the tenant scope, the Model target named by the id. */
+export function modelCredentialBindingKey(reference: CredentialReference): SecretBindingKey {
+  return {
+    scope: { layer: 'tenant', tenant: reference.tenant },
+    target: { owner: MODEL_SECRET_OWNER, key: reference.id },
+    purpose: reference.purpose,
+  }
+}
 
 type Settings = Readonly<{
   path: string
@@ -129,13 +153,12 @@ function requireIntegerAtLeast(value: unknown, name: string, minimum: number): n
   return value
 }
 
-function errorCode(error: unknown): string | undefined {
-  return typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    typeof error.code === 'string'
-    ? error.code
-    : undefined
+function vaultOptions(settings: Settings) {
+  return {
+    path: settings.path,
+    lockWaitMs: settings.lock.waitMs,
+    lockBackoffMs: settings.lock.backoffMs,
+  }
 }
 
 export type LocalCustodian = CredentialPort & {
@@ -150,7 +173,7 @@ export type LocalCustodian = CredentialPort & {
   revoke(reference: CredentialReference): void
   /**
    * Binds the secret to the reference, or replaces the secret and the time of the existing binding.
-   * The binding is active afterwards. A store failure is a result, not a throw.
+   * The binding is active afterwards. A vault failure is a result, not a throw.
    */
   bind(
     input: Readonly<{ reference: CredentialReference; secret: string; configuredAt: string }>,
@@ -163,183 +186,109 @@ export type LocalCustodian = CredentialPort & {
   close(): void
 }
 
-// Disable proper-lockfile's time-based takeover by setting `stale` to the
-// largest safe integer. With this value no finite clock jump can make a live
-// holder's lock appear stale, so another writer cannot steal it. We still
-// periodically update the lockfile mtime within Node's timer limit to keep the
-// library's internal bookkeeping happy. Crash recovery is manual: a leftover
-// `${path}.lock` means the owning process died and must be removed by an
-// operator after all writers are stopped.
-const STALE_NEVER_MS = Number.MAX_SAFE_INTEGER
-const LOCK_UPDATE_MS = 2 ** 31 - 1
+/** A Model binding as this custody reads it: the Model binding plus its time text, when known. */
+type LocalBinding = CustodianState['bindings'][number] & { readonly configuredAt?: string }
 
-function acquireLockSync(path: string, lock: Required<LockOptions>): () => void {
-  const deadline =
-    /* wall-clock: operation-timing -- Measure local lock wait. */ Date.now() + lock.waitMs
-  while (true) {
-    try {
-      return lockSync(path, { realpath: false, stale: STALE_NEVER_MS, update: LOCK_UPDATE_MS })
-    } catch (error: unknown) {
-      if (errorCode(error) !== 'ELOCKED') throw error
-      const remaining =
-        deadline - /* wall-clock: operation-timing -- Measure local lock wait. */ Date.now()
-      if (remaining <= 0) {
-        throw Object.assign(new Error(`timed out waiting for credential store lock at ${path}`), {
-          code: 'ELOCKED',
-          cause: error,
-        })
-      }
-      // Back off without yielding the event loop, since the public API is sync. A pause never runs
-      // past the deadline, so `waitMs` stays the upper bound even when `backoffMs` is larger.
-      Atomics.wait(
-        new Int32Array(new SharedArrayBuffer(4)),
-        0,
-        0,
-        Math.min(lock.backoffMs, remaining),
-      )
-    }
-  }
+type LocalState = Omit<CustodianState, 'bindings'> & { readonly bindings: readonly LocalBinding[] }
+
+/** Whether a vault record is a Model binding: the Model owner and the sending purpose. */
+function isModelRecord(record: SecretRecord): boolean {
+  return record.key.target.owner === MODEL_SECRET_OWNER && record.key.purpose === MODEL_SEND
 }
 
 /**
- * Creates the store when the path is empty, and adopts the store that is already there otherwise.
- * The decision is made under the lock, so two processes that start on the same empty path cannot
- * each write an empty snapshot over the other's bindings.
+ * The Model view of the vault: the official factory binding becomes the factory secret (an empty
+ * one when there is none), each tenant Model binding becomes a Model binding. A tenant binding
+ * whose target key is not a credential id makes the snapshot unreadable: it is not a Model binding
+ * this custody can judge. Records of other owners and purposes are not Model's and are skipped.
  */
-export function createLocalCustodian(options: CreateOptions): LocalCustodian {
-  const settings = settle(options)
+function modelState(records: readonly SecretRecord[], closed: boolean): LocalState | undefined {
+  let factorySecret = ''
+  const bindings: LocalBinding[] = []
+  for (const record of records) {
+    if (!isModelRecord(record)) continue
+    if (record.key.scope.layer === 'official') {
+      if (record.key.target.key === MODEL_FACTORY_SECRET_KEY.target.key)
+        factorySecret = record.secret
+      continue
+    }
+    const id = decodeCredentialId(record.key.target.key)
+    if (!('ok' in id)) return undefined
+    bindings.push({
+      id: id.ok,
+      tenant: record.key.scope.tenant,
+      purpose: MODEL_SEND,
+      secret: record.secret,
+      life: record.life,
+      ...(record.configuredAt === null ? {} : { configuredAt: encodeInstant(record.configuredAt) }),
+    })
+  }
+  return { closed, factorySecret, bindings }
+}
+
+function secretText(secret: string): SecretText {
+  const parsed = parseSecretText(secret)
+  if (!parsed.ok || parsed.value !== secret)
+    throw new TypeError(
+      `the secret is not a secret text (${parsed.ok ? 'whitespace' : parsed.reason})`,
+    )
+  return parsed.value
+}
+
+function timeOf(text: string | undefined) {
+  if (text === undefined) return null
+  const parsed = parseInstant(text)
+  if (!parsed.ok) throw new TypeError('configuredAt is not an instant text')
+  return parsed.value
+}
+
+const isModelRecordOf = (reference: CredentialReference) => (record: SecretRecord) =>
+  isModelRecord(record) &&
+  record.key.scope.layer === 'tenant' &&
+  record.key.target.key === reference.id &&
+  tenantEquals(record.key.scope.tenant, reference.tenant)
+
+/** Replaces or adds the record of the reference; a binding keeps the given life. */
+function withRecord(
+  records: readonly SecretRecord[],
+  reference: CredentialReference,
+  record: Omit<SecretRecord, 'key'>,
+): readonly SecretRecord[] {
+  return [
+    ...records.filter(item => !isModelRecordOf(reference)(item)),
+    { key: modelCredentialBindingKey(reference), ...record },
+  ]
+}
+
+function live(settings: Settings, vault: SecretVault): LocalCustodian {
   const { path } = settings
-  mkdirSync(dirname(path), { recursive: true })
-  const release = lockAndSweep(path, settings.lock)
-  try {
-    const existing = refresh(path, { closed: false })
-    if (existing.kind === 'state') return live(settings, existing.state)
-    if (existing.cause !== 'missing') {
-      throw new Error(`credential store at ${path} exists but is ${existing.cause}; not replaced`, {
-        cause: existing.error,
-      })
-    }
-    const state: LocalState = {
-      closed: false,
-      factorySecret: options.factorySecret,
-      bindings: [],
-    }
-    const result = atomicSave(path, state)
-    if (!result.ok) {
-      if (result.phase === 'published') {
-        throw new Error(
-          `credential store creation at ${path} confirmation incomplete; verify state before retry`,
-          { cause: result.cause },
-        )
-      }
-      throw new Error(`failed to create credential store at ${path}`, { cause: result.cause })
-    }
-    return live(settings, state)
-  } finally {
-    release()
-  }
-}
-
-/** Whether a vault file can be read, or why not. `locked` means the lock wait ran out. */
-export type VaultInspection =
-  | Readonly<{ kind: 'readable' }>
-  | Readonly<{ kind: 'unavailable'; cause: UnavailableCause | 'locked' }>
-
-/**
- * Checks that the file at `path` is a readable vault. It takes the file lock, removes the temporary
- * files that a crashed publish of this vault left behind, and reads the file. It never creates or
- * changes the vault itself. The path must already hold something: a missing path answers `missing`
- * without a lock.
- */
-export function inspectLocalCustodian(options: CustodianOptions): VaultInspection {
-  const settings = settle(options)
-  const { path } = settings
-  try {
-    statSync(path)
-  } catch (error: unknown) {
-    return { kind: 'unavailable', cause: errorCode(error) === 'ENOENT' ? 'missing' : 'io' }
-  }
-  let release: () => void
-  try {
-    release = lockAndSweep(path, settings.lock)
-  } catch (error: unknown) {
-    return { kind: 'unavailable', cause: errorCode(error) === 'ELOCKED' ? 'locked' : 'io' }
-  }
-  try {
-    const refreshed = refresh(path, { closed: false })
-    return refreshed.kind === 'state'
-      ? { kind: 'readable' }
-      : { kind: 'unavailable', cause: refreshed.cause }
-  } finally {
-    release()
-  }
-}
-
-/** The name `atomicSave` gives a temporary file of the vault at `path`: `<name>.<pid>.<ms>.<n>.tmp`. */
-function isOwnTemporary(path: string, name: string): boolean {
-  const prefix = `${basename(path)}.`
-  return name.startsWith(prefix) && /^\d+\.\d+\.\d+\.tmp$/.test(name.slice(prefix.length))
-}
-
-/**
- * Removes the temporary files of this vault that a publish left behind when its process ended
- * between the write and the rename. Such a file can hold the whole snapshot. The caller holds the
- * file lock, so no live writer is in the middle of its own temporary file. Only names of the
- * `atomicSave` pattern for this vault are removed. A failure to list or remove is ignored.
- */
-function sweepTemporaries(path: string): void {
-  const directory = dirname(path)
-  let names: string[]
-  try {
-    names = readdirSync(directory)
-  } catch {
-    return
-  }
-  for (const name of names) {
-    if (!isOwnTemporary(path, name)) continue
-    try {
-      unlinkSync(join(directory, name))
-    } catch {
-      // Best-effort: the next holder of the lock tries again.
-    }
-  }
-}
-
-/** Takes the file lock, then removes leftover temporary files of this vault. */
-function lockAndSweep(path: string, lock: Required<LockOptions>): () => void {
-  const release = acquireLockSync(path, lock)
-  sweepTemporaries(path)
-  return release
-}
-
-export function openLocalCustodian(options: CustodianOptions): OpenResult {
-  const settings = settle(options)
-  const refreshed = refresh(settings.path, { closed: false })
-  if (refreshed.kind === 'unavailable') return { kind: 'unavailable', cause: refreshed.cause }
-  return { kind: 'open', custodian: live(settings, refreshed.state) }
-}
-
-function live(settings: Settings, initial: LocalState): LocalCustodian {
-  const { path } = settings
-  const holder = { state: initial }
+  const holder = { state: { closed: false, factorySecret: '', bindings: [] } as LocalState }
   const notes: Diagnostic[] = []
   const note = (entry: Diagnostic) => {
     notes.push(entry)
     if (notes.length > settings.diagnosticsCapacity) notes.shift()
   }
   // The gate denials come from the judgment and need no snapshot, so they are answered before
-  // the disk is read; an unreadable store still denies what it would never have served.
+  // the disk is read; an unreadable vault still denies what it would never have served.
   const current = (): LocalState | undefined => {
-    const refreshed = refresh(path, holder.state)
-    if (refreshed.kind === 'unavailable') {
-      note({ stage: 'refresh', cause: refreshed.cause })
+    const snapshot = vault.snapshot()
+    const state =
+      snapshot === 'unavailable' ? undefined : modelState(snapshot.bindings, holder.state.closed)
+    if (state === undefined) {
+      note({ stage: 'refresh', cause: snapshot === 'unavailable' ? unavailableCause() : 'corrupt' })
       return undefined
     }
-    holder.state = refreshed.state
-    return holder.state
+    holder.state = state
+    return state
+  }
+  // The snapshot says only that the file is unreadable; the cause of the diagnostic comes from one
+  // more classification read, on this failure path only.
+  const unavailableCause = (): UnavailableCause => {
+    const opened = openSecretVault(vaultOptions(settings))
+    return opened.kind === 'unavailable' ? opened.cause : 'io'
   }
   // The one entry of every judgment: the gate first, then the snapshot from disk, and only then
-  // the judgment over it. An unreadable store answers `unavailable` after the gate passed.
+  // the judgment over it. An unreadable vault answers `unavailable` after the gate passed.
   const judged = <R>(
     reference: Parameters<typeof judgeGate>[1],
     judge: (state: LocalState) => R,
@@ -361,8 +310,31 @@ function live(settings: Settings, initial: LocalState): LocalCustodian {
     return answer
   }
   // A management operation must never serve a reference whose id another tenant holds.
-  const heldElsewhere = (state: LocalState, reference: CredentialReference): boolean =>
-    state.bindings.some(item => item.id === reference.id && !sameCredentialHolder(item, reference))
+  const heldElsewhere = (
+    records: readonly SecretRecord[],
+    reference: CredentialReference,
+  ): boolean =>
+    records.some(
+      record =>
+        isModelRecord(record) &&
+        record.key.scope.layer === 'tenant' &&
+        record.key.target.key === reference.id &&
+        !tenantEquals(record.key.scope.tenant, reference.tenant),
+    )
+  const ownRecord = (records: readonly SecretRecord[], reference: CredentialReference) =>
+    records.find(isModelRecordOf(reference))
+  // The throwing management operations: a vault failure is an exception with the result kind.
+  const mutate = (
+    change: (records: readonly SecretRecord[]) => readonly SecretRecord[] | undefined,
+  ): void => {
+    const written = vault.revise(change)
+    if (written === 'written') return
+    if (written === 'unconfirmed')
+      throw new Error(
+        `credential store update at ${path} confirmation incomplete; verify state before retry`,
+      )
+    throw new Error(`credential store update at ${path} was ${written}`)
+  }
   return {
     path,
     present: reference => judged(reference, state => judgePresence(state, reference)),
@@ -383,112 +355,99 @@ function live(settings: Settings, initial: LocalState): LocalCustodian {
       )
     },
     diagnostics: () => notes.slice(),
-    put(reference: CredentialReference, secret: string) {
+    put(reference, secret) {
       requireMintedTenant(reference)
-      mutate(settings, holder, refreshed => {
-        const binding = {
-          id: reference.id,
-          tenant: reference.tenant,
-          purpose: reference.purpose,
-          secret,
-          life: 'active' as const,
-        }
-        return {
-          ...refreshed,
-          bindings: [
-            ...refreshed.bindings.filter(item => !sameCredentialHolder(item, reference)),
-            binding,
-          ],
-        }
+      const value = secretText(secret)
+      mutate(records =>
+        withRecord(records, reference, { secret: value, life: 'active', configuredAt: null }),
+      )
+    },
+    rotate(reference, secret) {
+      requireMintedTenant(reference)
+      const value = secretText(secret)
+      mutate(records => {
+        const own = ownRecord(records, reference)
+        return own === undefined
+          ? undefined
+          : withRecord(records, reference, { ...own, secret: value })
       })
     },
-    rotate(reference: CredentialReference, secret: string) {
-      requireMintedTenant(reference)
-      mutate(settings, holder, refreshed => ({
-        ...refreshed,
-        bindings: refreshed.bindings.map(item =>
-          sameCredentialHolder(item, reference) ? { ...item, secret } : item,
-        ),
-      }))
+    replaceFactorySecret(secret) {
+      const factory = MODEL_FACTORY_SECRET_KEY
+      const isFactory = (record: SecretRecord) =>
+        isModelRecord(record) &&
+        record.key.scope.layer === 'official' &&
+        record.key.target.key === factory.target.key
+      // An empty factory secret is no deployment default: no official binding.
+      const value = secret === '' ? undefined : secretText(secret)
+      mutate(records => [
+        ...records.filter(record => !isFactory(record)),
+        ...(value === undefined
+          ? []
+          : [{ key: factory, secret: value, life: 'active' as const, configuredAt: null }]),
+      ])
     },
-    replaceFactorySecret(secret: string) {
-      mutate(settings, holder, refreshed => ({ ...refreshed, factorySecret: secret }))
-    },
-    revoke(reference: CredentialReference) {
+    revoke(reference) {
       requireMintedTenant(reference)
-      mutate(settings, holder, refreshed => ({
-        ...refreshed,
-        bindings: refreshed.bindings.map(item =>
-          sameCredentialHolder(item, reference) ? { ...item, life: 'revoked' as const } : item,
-        ),
-      }))
+      mutate(records => {
+        const own = ownRecord(records, reference)
+        return own === undefined
+          ? undefined
+          : withRecord(records, reference, { ...own, life: 'revoked' })
+      })
     },
     markUnreadable(reference) {
       requireMintedTenant(reference)
-      mutate(settings, holder, refreshed => ({
-        ...refreshed,
-        bindings: refreshed.bindings.map(item =>
-          sameCredentialHolder(item, reference) && item.life === 'active'
-            ? { ...item, life: 'unreadable' as const }
-            : item,
-        ),
-      }))
+      mutate(records => {
+        const own = ownRecord(records, reference)
+        return own === undefined || own.life !== 'active'
+          ? undefined
+          : withRecord(records, reference, { ...own, life: 'unreadable' })
+      })
     },
     bind({ reference, secret, configuredAt }) {
       if (!isMinted(reference) || holder.state.closed) return { kind: 'denied' }
+      const value = secretText(secret)
+      const time = timeOf(configuredAt)
       let refused = false
-      const written = tryMutate(settings, holder, refreshed => {
-        if (heldElsewhere(refreshed, reference)) {
+      const written = vault.revise(records => {
+        if (heldElsewhere(records, reference)) {
           refused = true
           return undefined
         }
-        const binding: LocalBinding = {
-          id: reference.id,
-          tenant: reference.tenant,
-          purpose: reference.purpose,
-          secret,
-          life: 'active',
-          configuredAt,
-        }
-        return {
-          ...refreshed,
-          bindings: [
-            ...refreshed.bindings.filter(item => !sameCredentialHolder(item, reference)),
-            binding,
-          ],
-        }
+        return withRecord(records, reference, { secret: value, life: 'active', configuredAt: time })
       })
-      return refused ? { kind: 'denied' } : written
+      return refused ? { kind: 'denied' } : { kind: written }
     },
     unbind({ reference }) {
       if (!isMinted(reference) || holder.state.closed) return { kind: 'denied' }
       let found: 'denied' | 'absent' | undefined
-      const written = tryMutate(settings, holder, refreshed => {
-        if (heldElsewhere(refreshed, reference)) found = 'denied'
-        else if (!refreshed.bindings.some(item => sameCredentialHolder(item, reference)))
-          found = 'absent'
+      const written = vault.revise(records => {
+        if (heldElsewhere(records, reference)) found = 'denied'
+        else if (ownRecord(records, reference) === undefined) found = 'absent'
         if (found !== undefined) return undefined
-        return {
-          ...refreshed,
-          bindings: refreshed.bindings.filter(item => !sameCredentialHolder(item, reference)),
-        }
+        return records.filter(record => !isModelRecordOf(reference)(record))
       })
-      if (found !== undefined && written.kind === 'written') return { kind: found }
-      return written
+      if (found !== undefined && written === 'written') return { kind: found }
+      return { kind: written }
     },
     describe({ reference }) {
       if (!isMinted(reference) || holder.state.closed) return { kind: 'denied' }
-      const state = current()
-      if (state === undefined) return { kind: 'unavailable' }
-      if (heldElsewhere(state, reference)) return { kind: 'denied' }
-      const binding = state.bindings.find(item => sameCredentialHolder(item, reference))
-      if (binding === undefined) return { kind: 'unbound' }
+      const snapshot = vault.snapshot()
+      if (snapshot === 'unavailable') return { kind: 'unavailable' }
+      if (modelState(snapshot.bindings, holder.state.closed) === undefined)
+        return { kind: 'unavailable' }
+      if (heldElsewhere(snapshot.bindings, reference)) return { kind: 'denied' }
+      const own = ownRecord(snapshot.bindings, reference)
+      if (own === undefined) return { kind: 'unbound' }
       return {
         kind: 'bound',
-        life: binding.life,
-        ...(binding.configuredAt === undefined ? {} : { configuredAt: binding.configuredAt }),
+        life: own.life,
+        ...(own.configuredAt === null ? {} : { configuredAt: encodeInstant(own.configuredAt) }),
       }
     },
+    // Close is the Model gate of this process only: the judgment denies afterwards, while the
+    // management operations still persist and the next process reads the file as it is.
     close() {
       holder.state = { ...holder.state, closed: true }
     },
@@ -519,164 +478,66 @@ function requireMintedTenant(reference: CredentialReference): void {
   }
 }
 
-type Mutation =
-  | Readonly<{ kind: 'written' }>
-  | Readonly<{ kind: 'not-written'; error: Error }>
-  | Readonly<{ kind: 'unconfirmed'; error: Error }>
+/** The first read of a vault that was just opened: a vault that is not a Model vault is corrupt. */
+function adopt(settings: Settings, vault: SecretVault): LocalCustodian | 'corrupt' | 'unavailable' {
+  const snapshot = vault.snapshot()
+  if (snapshot === 'unavailable') return 'unavailable'
+  if (modelState(snapshot.bindings, false) === undefined) return 'corrupt'
+  return live(settings, vault)
+}
 
 /**
- * One locked read, change and write. `change` answers `undefined` to write nothing; the result is
- * then `written` and the snapshot on disk stays as it was. A failure before the new snapshot
- * replaced the old one is `not-written`; a failure after that is `unconfirmed`.
+ * Creates the vault when the path is empty, with the factory secret as the official Model binding
+ * (none when it is empty), and adopts the vault that is already there otherwise. The decision is
+ * made under the lock, so two processes that start on the same empty path cannot each write an
+ * empty snapshot over the other's bindings. A file that cannot be read as a vault is not replaced.
  */
-function attemptMutation(
-  settings: Settings,
-  holder: { state: LocalState },
-  change: (refreshed: LocalState) => LocalState | undefined,
-): Mutation {
+export function createLocalCustodian(options: CreateOptions): LocalCustodian {
+  const settings = settle(options)
   const { path } = settings
-  let release: () => void
-  try {
-    release = lockAndSweep(path, settings.lock)
-  } catch (error: unknown) {
-    // The lock error keeps its own code (`ELOCKED` on a timeout) for the throwing operations.
-    if (error instanceof Error) return { kind: 'not-written', error }
-    const message = `credential store lock at ${path} was not taken`
-    return { kind: 'not-written', error: new Error(message, { cause: error }) }
-  }
-  try {
-    const refreshed = refresh(path, holder.state)
-    if (refreshed.kind === 'unavailable') {
-      const message = `credential store at ${path} is unavailable: ${refreshed.cause}`
-      return { kind: 'not-written', error: new Error(message, { cause: refreshed.error }) }
+  const seed =
+    options.factorySecret === ''
+      ? []
+      : [
+          {
+            key: MODEL_FACTORY_SECRET_KEY,
+            secret: secretText(options.factorySecret),
+            configuredAt: null,
+          },
+        ]
+  const built = createSecretVault({ ...vaultOptions(settings), seed })
+  switch (built.kind) {
+    case 'open': {
+      const custodian = adopt(settings, built.vault)
+      if (typeof custodian === 'string')
+        throw new Error(`credential store at ${path} exists but is ${custodian}; not replaced`)
+      return custodian
     }
-    const next = change(refreshed.state)
-    if (next === undefined) {
-      holder.state = refreshed.state
-      return { kind: 'written' }
+    case 'unavailable':
+      throw new Error(`credential store at ${path} exists but is ${built.cause}; not replaced`)
+    case 'locked':
+      throw Object.assign(new Error(`timed out waiting for credential store lock at ${path}`), {
+        code: 'ELOCKED',
+      })
+    case 'not-written':
+      throw new Error(`failed to create credential store at ${path}`)
+    case 'unconfirmed':
+      throw new Error(
+        `credential store creation at ${path} confirmation incomplete; verify state before retry`,
+      )
+    default: {
+      const unhandled: never = built
+      throw new Error(`unhandled creation result ${String(unhandled)}`)
     }
-    const result = atomicSave(path, next)
-    if (!result.ok) {
-      if (result.phase === 'published') {
-        const message = `credential store update at ${path} confirmation incomplete; verify state before retry`
-        return { kind: 'unconfirmed', error: new Error(message, { cause: result.cause }) }
-      }
-      const message = `failed to update credential store at ${path}`
-      return { kind: 'not-written', error: new Error(message, { cause: result.cause }) }
-    }
-    holder.state = next
-    return { kind: 'written' }
-  } finally {
-    release()
   }
 }
 
-/** A binding write for the management results: the kind only, never the error behind it. */
-function tryMutate(
-  settings: Settings,
-  holder: { state: LocalState },
-  change: (refreshed: LocalState) => LocalState | undefined,
-): BindingWrite {
-  return { kind: attemptMutation(settings, holder, change).kind }
+export function openLocalCustodian(options: CustodianOptions): OpenResult {
+  const settings = settle(options)
+  const opened = openSecretVault(vaultOptions(settings))
+  if (opened.kind === 'unavailable') return { kind: 'unavailable', cause: opened.cause }
+  const custodian = adopt(settings, opened.vault)
+  if (custodian === 'corrupt') return { kind: 'unavailable', cause: 'corrupt' }
+  if (custodian === 'unavailable') return { kind: 'unavailable', cause: 'io' }
+  return { kind: 'open', custodian }
 }
-
-function mutate(
-  settings: Settings,
-  holder: { state: LocalState },
-  change: (refreshed: LocalState) => LocalState,
-): void {
-  const mutation = attemptMutation(settings, holder, change)
-  if (mutation.kind !== 'written') throw mutation.error
-}
-
-// The closed cause set is what the public results carry; the error behind it travels with the
-// result so that the management operations can throw it as their `cause`.
-type Refreshed =
-  | Readonly<{ kind: 'state'; state: LocalState }>
-  | Readonly<{ kind: 'unavailable'; cause: UnavailableCause; error: unknown }>
-
-function refresh(path: string, current: Pick<CustodianState, 'closed'>): Refreshed {
-  let text: string
-  try {
-    text = readFileSync(path, 'utf8')
-  } catch (error: unknown) {
-    return { kind: 'unavailable', cause: errorCode(error) === 'ENOENT' ? 'missing' : 'io', error }
-  }
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(text)
-  } catch (error: unknown) {
-    return { kind: 'unavailable', cause: 'corrupt', error }
-  }
-  const loaded = loadState(parsed)
-  if (!loaded) {
-    return {
-      kind: 'unavailable',
-      cause: 'corrupt',
-      error: new TypeError(`the file at ${path} is not a credential store snapshot`),
-    }
-  }
-  // The closed flag is per-process; keep the current process decision.
-  return { kind: 'state', state: { ...loaded, closed: current.closed } }
-}
-
-function atomicSave(
-  path: string,
-  state: LocalState,
-):
-  | Readonly<{ ok: true }>
-  | Readonly<{ ok: false; phase: 'temp-write' | 'published'; cause: unknown }> {
-  const tmpPath = `${path}.${process.pid}.${/* wall-clock: internal-name -- Name a temporary store file. */ Date.now()}.${tmpCounter++}.tmp`
-  let fd: number | undefined
-  // 'published' means the main file has already been replaced; failures after
-  // that point leave the new state potentially visible and must be verified.
-  let phase: 'temp-write' | 'published' = 'temp-write'
-  try {
-    fd = openSync(tmpPath, 'w')
-    writeAll(fd, JSON.stringify(storeState(state)))
-    fsyncSync(fd)
-    closeSync(fd)
-    fd = undefined
-    renameSync(tmpPath, path)
-    phase = 'published'
-    // On POSIX, also sync the parent directory so the rename is durable.
-    if (process.platform !== 'win32') {
-      const dirFd = openSync(dirname(path), 'r')
-      try {
-        fsyncSync(dirFd)
-      } finally {
-        closeSync(dirFd)
-      }
-    }
-    return { ok: true }
-  } catch (error: unknown) {
-    if (fd !== undefined) {
-      try {
-        closeSync(fd)
-      } catch {
-        // Cleanup of a half-open file descriptor is best-effort.
-      }
-    }
-    // Always attempt to remove our own unique temporary file. If the rename
-    // already happened, the temporary file no longer exists and unlink fails
-    // safely; otherwise we clean up the partial snapshot.
-    try {
-      unlinkSync(tmpPath)
-    } catch {
-      // Cleanup of the temporary file is best-effort.
-    }
-    return { ok: false, phase, cause: error }
-  }
-}
-
-function writeAll(fd: number, data: string): void {
-  const buffer = Buffer.from(data)
-  let offset = 0
-  while (offset < buffer.length) {
-    const written = writeSync(fd, buffer, offset, buffer.length - offset)
-    if (written === 0) throw new Error('file write made no progress')
-    offset += written
-  }
-}
-
-let tmpCounter = 0

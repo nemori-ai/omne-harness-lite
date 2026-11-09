@@ -166,8 +166,21 @@ sequenceDiagram
 
 维护入口是可信部署拥有者能力，使用固定的 `maintenance/<ownerRef>` 身份，刻意绕过普通租户 Identity 资格路径。装配必须保护这个对象，不把它转发为用户或工具命令。它仍消费当前目标拥有者投影及不可逆终态，不能绕过已 retire 或已移除的目标。持久化 `readState` 是另一个受权原始检查入口，返回存储 reference 与状态，不等于当前目录求值成功。
 
+## 秘密保管子路径：一个文件、两个端口
+
+`./secrets`（`src/secrets/`）与 SQL 持久化互不依赖。它兑现 Settings 的 `SecretCustodyManagement` 与 `SecretCustodyUse`，存储是一个 JSON 文件，不经 SQL、Identity 或 Cordis。
+
+| 模块 | 职责 |
+| --- | --- |
+| `records.ts` | 文件格式：版本 2 的编码与读取，旧的无版本文件（Model 宿主的保管库）读成同样的绑定；键的相等与范围是否铸造 |
+| `store.ts` | 文件锁、残留临时文件清扫、原子发布（临时文件、`fsync`、重命名）、每次调用整份重读；`openSecretVault`、`createSecretVault`、`inspectSecretVault` 与保管库句柄 |
+| `init.ts` | 在宿主上建保管库：用户目录路径规则、路径上无对象、权限护栏（POSIX 模式位或 Windows 继承的访问控制）、读回确认，以及把读到的文本解析成 `SecretText` |
+| `terminal.ts`、`input.ts` | 关闭回显的终端读入与读入失败的原因码 |
+
+依赖方向是 `init.ts` 到 `store.ts` 到 `records.ts`，`terminal.ts` 只依赖 `input.ts`。保管库不认识目标的含义，不在范围之间选择，也没有「工厂」：Model 的工厂规则在 model-host-local 的适配里，它经 `snapshot()` 读整份绑定、经 `revise()` 在锁内改写。
+
 ## 维护与证据范围
 
 模块修改按拥有者推进。配值与求值规则先改纯 Settings，目标生命周期改真实目标拥有者，捕获绑定同时核对两个投影生产者与中央消费者。源码入口为 [catalog.ts](../src/catalog.ts)、[target-guard.ts](../src/target-guard.ts)、[snapshot-participant.ts](../src/snapshot-participant.ts)、[standalone-participant.ts](../src/standalone-participant.ts)和 [maintenance.ts](../src/maintenance.ts)。
 
-[测试说明](../tests/README.md)给出真实 SQLite、真实 Identity、独立目标和资产组合的归属。图解释当前实现，不证明独立接受或最终系统采用。本包没有最终 UI、tools 或 Cordis 插件，也没有 Calendar 消费证明。秘密项只提供安全元数据，值保持 absent，普通秘密配值不支持，目录与回执不返回秘密明文。
+[测试说明](../tests/README.md)给出真实 SQLite、真实 Identity、独立目标和资产组合的归属。图解释当前实现，不证明独立接受或最终系统采用。本包没有最终 UI、tools 或 Cordis 插件，也没有 Calendar 消费证明。秘密项在 SQL 目录里只提供安全元数据，值保持 absent，普通秘密配值不支持，目录与回执不返回秘密明文；秘密值只在 `./secrets` 的文件保管里。
