@@ -60,6 +60,7 @@ export function commandFixture(cwd: string, options: HostCommandOptions = {}) {
     ...windowsCommandInputs(),
     ledger,
     provider: 'test',
+    tenant: tenant.value,
     scope: scope.ok,
     settings: commandSettings(options),
   })

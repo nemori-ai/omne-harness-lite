@@ -6,33 +6,50 @@ import type {
   FacilityReason,
   FacilityResult,
   ManagedResource,
+  OriginRef,
   ProcessHandle,
   ResidueReport,
+  RetainedProcessLedger,
+  RetainedProcessRef,
 } from '@omne-harness/execution-environment-contract'
+import { decideDisposition, resolveUnknownHandover, type Disposition } from '../command-custody.ts'
 import {
+  custodyBindingOf,
+  loadedCustodyBinding,
+  retentionBindingOf,
+  retentionExtension,
+  retentionScopeClosed,
+} from '../command-retention.ts'
+import {
+  createLateOutput,
   createOutputBuffer,
   type HostCommands,
   type HostCommandsInput,
-  type ResiduePolicy,
+  type LateOutput,
+  type OutputBuffer,
 } from '../host-command.ts'
 import type { PrerequisiteProbe } from '../host-probe.ts'
+import type { RetainedReservation } from '../host-retained-processes.ts'
+import type { StopReading } from '../host-scope.ts'
 import { deferred, startBridge, within, type BridgeFrame } from './bridge.ts'
-import { windowsBridgeExecutable } from './compile.ts'
 import type { WindowsCommandReading, WindowsPrerequisite } from './prerequisites.ts'
+import {
+  retainedJobUnit,
+  stopWindowsJob,
+  windowsIdentity,
+  type WindowsIdentity,
+} from './supervision.ts'
 
-export type WindowsCommandsInput = Omit<
-  HostCommandsInput,
-  'prerequisites' | 'unavailable' | 'tenant'
-> &
+export type WindowsCommandsInput = Omit<HostCommandsInput, 'prerequisites' | 'unavailable'> &
   Readonly<{
     prerequisites: PrerequisiteProbe<WindowsCommandReading>
     unavailable(missing: readonly WindowsPrerequisite[]): void
   }>
 type StartRequest = Parameters<CommandFacility<unknown>['start']>[0]
 type StopStatus = 'confirmed' | 'unconfirmed'
-type LiveCommand = { readonly resource: ManagedResource; stop(): Promise<StopStatus> }
 const now = () =>
   /* wall-clock: operation-timing -- Bound native operations and measure process duration. */ performance.now()
+const monotonicDeadline = (boundMs: number) => now() + boundMs
 
 function invalid(request: StartRequest): FacilityReason | undefined {
   if (request.binding.kind !== 'host_machine') return 'unsupported'
@@ -64,18 +81,6 @@ function invalid(request: StartRequest): FacilityReason | undefined {
   return undefined
 }
 
-/**
- * The residue of a Job whose main process exited. Until the provider hands Jobs over, every
- * leftover is stopped; an unread count is not empty.
- */
-export function windowsResidue(
-  members: number | null,
-  policy: ResiduePolicy,
-): Extract<ResidueReport, { kind: 'none' | 'stopping' }> {
-  if (members === 0) return { kind: 'none' }
-  return { kind: 'stopping', reason: policy === 'stop' ? 'policy' : 'uncontained' }
-}
-
 export function readWindowsJobReference(
   reference: ManagedResource['reference'],
 ): string | undefined {
@@ -87,12 +92,11 @@ export function readWindowsJobReference(
     : undefined
 }
 
+/** The forced stop of the Job a resource names, by its name. */
 export async function stopWindowsResource(
   resource: ManagedResource,
   boundMs: number,
 ): Promise<StopStatus> {
-  const deadline = now() + boundMs
-  const remaining = () => Math.max(0, deadline - now())
   const name = readWindowsJobReference(resource.reference)
   if (
     process.platform !== 'win32' ||
@@ -101,93 +105,369 @@ export async function stopWindowsResource(
       name !== `Local\\omne-terminal-${resource.key}`)
   )
     return 'unconfirmed'
-  try {
-    if ((await within(windowsBridgeExecutable(), remaining())) === undefined) return 'unconfirmed'
-  } catch {
-    return 'unconfirmed'
-  }
-  const reply = deferred<StopStatus>()
-  if (remaining() <= 0) return 'unconfirmed'
-  const bridge = await startBridge({
-    request: { mode: 'recover', name, stopBoundMs: Math.ceil(remaining()) },
-    maxChunkBytes: 1,
-    onFrame: frame => {
-      if (frame.t === 'stopped') reply.resolve(frame.status)
-      if (frame.t === 'fault') reply.resolve('unconfirmed')
-    },
-    onClosed: () => reply.resolve('unconfirmed'),
-  })
-  const status = (await within(reply.promise, remaining())) ?? 'unconfirmed'
-  bridge.disconnect()
-  if (
-    (await within(
-      bridge.closed.then(() => true),
-      remaining(),
-    )) !== true
-  )
-    bridge.terminate()
-  return status
+  const status = await stopWindowsJob(name, boundMs)
+  // Without the Job's boot and session a missing name proves nothing.
+  return status === 'confirmed' ? 'confirmed' : 'unconfirmed'
 }
 
+/**
+ * Who carries the stop duty for the Job, with the meaning the Linux facility gives it:
+ * `acquisition` from the start; `reserved` while a handover is decided and committed; `unknown`
+ * while the commit's result is unread; `handedOver` once the commit took effect. Only the first two
+ * are this acquisition's. Every transition is synchronous, with the rechecks that justify it.
+ */
+type Custody =
+  | Readonly<{ kind: 'acquisition' }>
+  | Readonly<{ kind: 'reserved' }>
+  | Readonly<{ kind: 'handedOver' }>
+  | Readonly<{ kind: 'unknown'; reservation: RetainedReservation }>
+
+const ownedByAcquisition = (custody: Custody) =>
+  custody.kind === 'acquisition' || custody.kind === 'reserved'
+
+/** One command in its own anchored Job: the bridge, its frames, its custody and its stop. */
+type Entry = {
+  readonly resource: ManagedResource
+  readonly name: string
+  readonly origin: OriginRef
+  readonly identity: WindowsIdentity
+  readonly buffer: OutputBuffer
+  readonly late: LateOutput
+  bridge: Bridge | undefined
+  anchor: number | undefined
+  members: number | null
+  custody: Custody
+  went: boolean
+  finished: boolean
+  confirmed: boolean
+  nativeStopped: boolean
+  stopRequested: boolean
+  released: boolean
+  stopReply: ReturnType<typeof deferred<StopStatus>>
+  issued: Promise<StopStatus> | undefined
+  stopping: Promise<StopStatus> | undefined
+  recording:
+    | { readonly status: StopStatus; readonly result: Promise<'recorded' | 'unavailable'> }
+    | undefined
+  disposition: Promise<unknown> | undefined
+  resolving: Promise<void> | undefined
+}
+
+type Bridge = Awaited<ReturnType<typeof startBridge>>
+
 export function createWindowsHostCommands(input: WindowsCommandsInput): HostCommands {
-  const { settings, ledger } = input
-  const live = new Set<LiveCommand>()
+  const { settings, ledger, retention, retained, tenant } = input
+  const live = new Set<Entry>()
   const pending = new Set<Promise<unknown>>()
   let sealed = false
+  const retentionBinding = retentionBindingOf({ retention, retained, scope: input.scope, tenant })
+  const scopeClosed = () => retentionScopeClosed(retentionBinding)
+  const bindingOf = (entry: Entry) =>
+    custodyBindingOf({
+      policy: settings.residuePolicy,
+      retention,
+      binding: retentionBinding,
+      resource: entry.resource,
+    })
+
+  /** The native stop of the Job, once per sequence: through the bridge, else by the Job's name. */
+  const issueStop = (entry: Entry): Promise<StopStatus> => {
+    entry.issued ??= (async (): Promise<StopStatus> => {
+      entry.stopRequested = true
+      if (entry.nativeStopped) return 'confirmed'
+      const deadline = now() + settings.stopBoundMs
+      const remaining = () => Math.max(0, deadline - now())
+      entry.stopReply = deferred<StopStatus>()
+      let status: StopStatus =
+        entry.bridge?.send('stop') === true
+          ? ((await within(entry.stopReply.promise, remaining())) ?? 'unconfirmed')
+          : 'unconfirmed'
+      if (status === 'unconfirmed' && remaining() > 0) {
+        // This process created the Job: a missing name means its last handle closed and
+        // `KILL_ON_JOB_CLOSE` stopped every member.
+        const named = await stopWindowsJob(entry.name, remaining())
+        status = named === 'unconfirmed' ? 'unconfirmed' : 'confirmed'
+      }
+      if (status === 'confirmed') {
+        entry.nativeStopped = true
+        entry.bridge?.send('dispose')
+        entry.bridge?.disconnect()
+      }
+      return status
+    })()
+    return entry.issued
+  }
+
+  /**
+   * The forced stop of a Job this acquisition owns, recorded on its ledger once the disposition
+   * settled; a Job handed over meanwhile is the index's to stop and record.
+   */
+  const forceStop = (entry: Entry): Promise<StopStatus> => {
+    if (entry.confirmed) return Promise.resolve('confirmed')
+    if (entry.stopping !== undefined) return entry.stopping
+    if (!ownedByAcquisition(entry.custody)) return Promise.resolve('unconfirmed')
+    entry.stopping = (async (): Promise<StopStatus> => {
+      const deadline = now() + settings.stopBoundMs
+      const remaining = () => Math.max(0, deadline - now())
+      const status = await issueStop(entry)
+      await entry.disposition
+      if (!ownedByAcquisition(entry.custody)) return status
+      let recorded = false
+      let answered = false
+      try {
+        entry.recording ??= { status, result: ledger.stopped(entry.resource.key, status) }
+        const answer = await within(entry.recording.result, remaining())
+        answered = answer !== undefined
+        recorded = entry.recording.status === status && answer === 'recorded'
+        if (answer !== undefined) entry.recording = undefined
+      } catch {
+        entry.recording = undefined
+        /* Ledger failure retains responsibility. */
+      }
+      if (status === 'confirmed' && recorded) {
+        entry.confirmed = true
+        live.delete(entry)
+        if (entry.bridge !== undefined) await within(entry.bridge.closed, remaining())
+      }
+      return answered ? status : 'unconfirmed'
+    })().finally(() => {
+      entry.stopping = undefined
+      entry.issued = undefined
+    })
+    return entry.stopping
+  }
+
+  /** What the handover records about the Job, for the index. */
+  const handoverDetails = (entry: Entry, view: RetainedProcessLedger) => ({
+    unit: retainedJobUnit(entry.identity.session, entry.name),
+    bootId: entry.identity.boot,
+    origin: entry.origin,
+    gatePid: entry.anchor,
+    members: entry.members,
+    ledger: view,
+  })
+
+  /**
+   * The commit took effect and the Job is whole: the bridge stops reading control and keeps
+   * draining the pipes into the Job's tail, and the index holds the Job as running.
+   */
+  const enterIndex = async (
+    entry: Entry,
+    reservation: RetainedReservation,
+  ): Promise<RetainedProcessRef> => {
+    if (retentionBinding === undefined) throw new Error('a handover without a retention binding')
+    entry.bridge?.send('dispose')
+    const counted = entry.buffer.summary()
+    const late = entry.late.observed()
+    const output =
+      settings.retainedOutputBytes === 0
+        ? ('unsupported' as const)
+        : entry.late.keep({
+            capacity: settings.retainedOutputBytes,
+            savedFrom: {
+              stdout: counted.stdout.observedBytes + late.stdout,
+              stderr: counted.stderr.observedBytes + late.stderr,
+            },
+          })
+    entry.bridge?.unref()
+    const handed = await retentionBinding.index.commit(reservation, {
+      ...handoverDetails(entry, retentionBinding.processes),
+      output,
+    })
+    return handed.process
+  }
+
+  /** The commit took effect, but the Job was stopped, released or its scope closed meanwhile. */
+  const enterIndexStopping = (entry: Entry, reservation: RetainedReservation): void => {
+    if (retentionBinding === undefined) throw new Error('a handover without a retention binding')
+    entry.bridge?.send('dispose')
+    void retentionBinding.index.commitStopping(reservation, {
+      ...handoverDetails(entry, retentionBinding.processes),
+      ...(entry.issued === undefined
+        ? {}
+        : { issued: entry.issued.then((status): StopReading => ({ status })) }),
+    })
+  }
+
+  /** Carries out a disposition; the custody changes in the same step as the readings behind it. */
+  const apply = async (
+    entry: Entry,
+    decision: Disposition,
+    interrupted: () => boolean,
+  ): Promise<ResidueReport> => {
+    switch (decision.kind) {
+      case 'stop':
+        entry.custody = { kind: 'acquisition' }
+        void forceStop(entry)
+        return decision.residue
+      case 'unknown':
+        entry.custody = { kind: 'unknown', reservation: decision.reservation }
+        return { kind: 'unknown' }
+      case 'retained':
+      case 'retainedInterrupted': {
+        entry.custody = { kind: 'handedOver' }
+        live.delete(entry)
+        if (decision.kind === 'retainedInterrupted' || interrupted() || scopeClosed()) {
+          enterIndexStopping(entry, decision.reservation)
+          return { kind: 'stopping', reason: 'closed' }
+        }
+        const process = await enterIndex(entry, decision.reservation)
+        return { kind: 'retained', process, processes: entry.members ?? 'unknown' }
+      }
+      default: {
+        const exhaustive: never = decision
+        return exhaustive
+      }
+    }
+  }
+
+  /** The disposition after the exit frame, bounded by the start bound, the index's loading included. */
+  const dispose = async (entry: Entry): Promise<ResidueReport> => {
+    const deadline = monotonicDeadline(settings.startBoundMs)
+    const binding = await loadedCustodyBinding(
+      bindingOf(entry),
+      retentionBinding,
+      entry.members,
+      deadline,
+    )
+    entry.custody = { kind: 'reserved' }
+    const interrupted = () => entry.stopRequested || entry.released
+    const decision = await decideDisposition({
+      members: entry.members,
+      binding,
+      deadline,
+      interrupted,
+    })
+    return apply(entry, decision, interrupted)
+  }
+
+  /** Asks the commit again for a Job whose handover result is unread; one resolution at a time. */
+  const resolveUnknown = (entry: Entry): Promise<void> => {
+    entry.resolving ??= (async () => {
+      const custody = entry.custody
+      if (custody.kind !== 'unknown') return
+      const binding = bindingOf(entry)
+      if (typeof binding === 'string') return
+      const interrupted = () => entry.stopRequested
+      const decision = await resolveUnknownHandover({
+        binding,
+        reservation: custody.reservation,
+        deadline: monotonicDeadline(settings.startBoundMs),
+        interrupted,
+      })
+      if (decision.kind === 'unknown' || entry.custody.kind !== 'unknown') return
+      const running = apply(entry, decision, interrupted)
+      entry.disposition = running
+      const stopping = entry.stopping
+      await running
+      await stopping
+    })()
+      .catch(() => undefined)
+      .finally(() => {
+        entry.resolving = undefined
+      })
+    return entry.resolving
+  }
+
+  /** A stop asked through the handle acts only on a Job this acquisition owns. */
+  const stopHandle = async (entry: Entry, mode: 'graceful' | 'forced'): Promise<StopStatus> => {
+    if (mode === 'graceful') return 'unconfirmed'
+    if (entry.custody.kind === 'unknown') await resolveUnknown(entry)
+    if (!ownedByAcquisition(entry.custody)) return 'unconfirmed'
+    return forceStop(entry)
+  }
+
+  /** The release of one Job: the custody is read again here, so a handover meanwhile is left alone. */
+  const release = async (entry: Entry): Promise<void> => {
+    switch (entry.custody.kind) {
+      case 'acquisition':
+      case 'reserved':
+        await forceStop(entry)
+        return
+      case 'unknown':
+        await resolveUnknown(entry)
+        return
+      case 'handedOver':
+        return
+      default: {
+        const exhaustive: never = entry.custody
+        return exhaustive
+      }
+    }
+  }
 
   async function launch(
     request: StartRequest,
     resource: ManagedResource,
     name: string,
+    identity: WindowsIdentity,
   ): Promise<FacilityResult<ProcessHandle>> {
-    const buffer = createOutputBuffer({ maxBufferedBytes: settings.maxBufferedBytes })
     const ready = deferred<boolean>()
     const started = deferred<boolean>()
     const outcome = deferred<CommandOutcome>()
-    let stopReply = deferred<StopStatus>()
-    let stopping: Promise<StopStatus> | undefined
-    let recording:
-      | { readonly status: StopStatus; readonly result: Promise<'recorded' | 'unavailable'> }
-      | undefined
-    let confirmed = false
-    let nativeStopped = false
-    let finished = false
-    let went = false
-    let stopIssued = false
+    const entry: Entry = {
+      resource,
+      name,
+      origin: request.origin,
+      identity,
+      buffer: createOutputBuffer({ maxBufferedBytes: settings.maxBufferedBytes }),
+      late: createLateOutput(),
+      bridge: undefined,
+      anchor: undefined,
+      members: null,
+      custody: { kind: 'acquisition' },
+      went: false,
+      finished: false,
+      confirmed: false,
+      nativeStopped: false,
+      stopRequested: false,
+      released: false,
+      stopReply: deferred<StopStatus>(),
+      issued: undefined,
+      stopping: undefined,
+      recording: undefined,
+      disposition: undefined,
+      resolving: undefined,
+    }
     let startedAt = now()
     const elapsed = () => Math.max(0, Math.round(now() - startedAt))
     /** The bridge went away, its frames broke, or a stop ended the command: the effect is unknown. */
     const end = () => {
-      if (finished) return
-      finished = true
-      buffer.close()
+      if (entry.finished) return
+      entry.finished = true
+      entry.buffer.close()
       outcome.resolve({
         kind: 'failed',
         reason: 'effectUnknown',
         observedDurationMs: elapsed(),
-        output: buffer.summary(),
+        output: entry.buffer.summary(),
       })
       // What a command left in its Job, or a bridge that went away, is cleared by a forced stop.
-      if (went && !confirmed) void entry.stop()
+      if (entry.went && !entry.confirmed) void forceStop(entry)
     }
-    /** The main process exited; the provider, not the bridge, decides what becomes of the Job. */
+    /** The main process exited: the outcome waits for the disposition, which precedes any stop or handover. */
     const exited = (frame: Extract<BridgeFrame, { t: 'exit' }>) => {
-      if (finished) return
-      if (stopIssued || frame.outputLost) return end()
-      finished = true
-      buffer.close()
+      if (entry.finished) return
+      if (entry.stopRequested || frame.outputLost) return end()
+      entry.finished = true
+      entry.buffer.close()
+      entry.members = frame.members
       const durationMs = elapsed()
-      const residue = windowsResidue(frame.members, settings.residuePolicy)
-      void entry.stop()
-      outcome.resolve({
-        kind: 'completed',
-        exit: { kind: 'code', code: frame.code },
-        durationMs,
-        output: buffer.summary(),
-        residue,
-      })
+      const running = dispose(entry)
+        // A disposition that itself failed has no result: the Job stays with the acquisition.
+        .catch((): ResidueReport => ({ kind: 'unknown' }))
+        .then(residue => {
+          outcome.resolve({
+            kind: 'completed',
+            exit: { kind: 'code', code: frame.code },
+            durationMs,
+            output: entry.buffer.summary(),
+            residue,
+          })
+        })
+      entry.disposition = running
     }
-    const bridge = await startBridge({
+    entry.bridge = await startBridge({
       request: {
         mode: 'command',
         name,
@@ -203,94 +483,57 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       onFrame(frame) {
         switch (frame.t) {
           case 'ready':
+            entry.anchor = frame.anchor
             ready.resolve(true)
             break
           case 'started':
             startedAt = now()
             started.resolve(true)
             break
-          case 'data':
-            if (!finished) buffer.push(frame.s, Buffer.from(frame.b, 'base64'))
+          case 'data': {
+            const bytes = Buffer.from(frame.b, 'base64')
+            if (entry.finished) entry.late.append(frame.s, bytes)
+            else entry.buffer.push(frame.s, bytes)
             break
+          }
           case 'exit':
             exited(frame)
             break
-          case 'probe':
-            break
           case 'stopped':
-            if (frame.status === 'confirmed') nativeStopped = true
-            stopReply.resolve(frame.status)
+            if (frame.status === 'confirmed') entry.nativeStopped = true
+            entry.stopReply.resolve(frame.status)
             break
           case 'fault':
-            nativeStopped ||= frame.stopped === true
+            entry.nativeStopped ||= frame.stopped === true
             ready.resolve(false)
             started.resolve(false)
-            stopReply.resolve(nativeStopped ? 'confirmed' : 'unconfirmed')
+            entry.stopReply.resolve(entry.nativeStopped ? 'confirmed' : 'unconfirmed')
+            entry.late.close()
             end()
+            break
+          case 'probe':
+          case 'members':
+          case 'identity':
             break
         }
       },
       onClosed() {
         ready.resolve(false)
         started.resolve(false)
-        stopReply.resolve('unconfirmed')
+        entry.stopReply.resolve('unconfirmed')
+        // The frame channel is gone: a tail the handover gave, or gives later, observes nothing more.
+        entry.late.close()
         end()
       },
     })
-    const entry: LiveCommand = {
-      resource,
-      stop() {
-        if (confirmed) return Promise.resolve('confirmed')
-        stopIssued = true
-        stopping ??= (async (): Promise<StopStatus> => {
-          const deadline = now() + settings.stopBoundMs
-          const remaining = () => Math.max(0, deadline - now())
-          stopReply = deferred<StopStatus>()
-          const sent = !nativeStopped && bridge.send('stop')
-          let status: StopStatus = nativeStopped
-            ? 'confirmed'
-            : sent
-              ? ((await within(stopReply.promise, remaining())) ?? 'unconfirmed')
-              : 'unconfirmed'
-          if (status === 'unconfirmed' && remaining() > 0)
-            status = await stopWindowsResource(resource, remaining())
-          if (status === 'confirmed') {
-            nativeStopped = true
-            bridge.send('dispose')
-            bridge.disconnect()
-          }
-          let recorded = false
-          let answered = false
-          try {
-            recording ??= { status, result: ledger.stopped(resource.key, status) }
-            const answer = await within(recording.result, remaining())
-            answered = answer !== undefined
-            recorded = recording.status === status && answer === 'recorded'
-            if (answer !== undefined) recording = undefined
-          } catch {
-            recording = undefined
-            /* Ledger failure retains responsibility. */
-          }
-          if (status === 'confirmed' && recorded) {
-            confirmed = true
-            live.delete(entry)
-            await within(bridge.closed, remaining())
-          }
-          return answered ? status : 'unconfirmed'
-        })().finally(() => {
-          stopping = undefined
-        })
-        return stopping
-      },
-    }
     live.add(entry)
     const refuse = async (reason: FacilityReason): Promise<FacilityResult<never>> => {
-      await entry.stop()
+      await forceStop(entry)
       return { kind: 'rejected', requestId: request.requestId, reason }
     }
     const prepared = await within(ready.promise, settings.startBoundMs)
     if (prepared === undefined) {
-      bridge.disconnect()
+      entry.bridge.disconnect()
       return { kind: 'unknown', requestId: request.requestId }
     }
     if (!prepared) return refuse('unavailable')
@@ -302,8 +545,8 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     }
     if (permit !== 'confirmed') return refuse(permit)
     if (sealed || ledger.closed.aborted) return refuse('closed')
-    went = true
-    bridge.send('go')
+    entry.went = true
+    entry.bridge.send('go')
     const running = await within(started.promise, settings.startBoundMs)
     if (running !== true) return { kind: 'unknown', requestId: request.requestId }
     return {
@@ -312,31 +555,35 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       value: Object.freeze({
         process: Object.freeze({ id: name, generation: resource.key }),
         outputMode: 'separate',
-        output: buffer.output,
+        output: entry.buffer.output,
         outputPolicy: Object.freeze({
           maxBufferedBytes: settings.maxBufferedBytes,
           maxChunkBytes: settings.maxChunkBytes,
           overflow: 'discard',
         }),
         result: outcome.promise,
-        stop: (mode: 'graceful' | 'forced'): Promise<StopStatus> =>
-          mode === 'forced' ? entry.stop() : Promise.resolve('unconfirmed'),
+        stop: (mode: 'graceful' | 'forced') => stopHandle(entry, mode),
       }),
     }
   }
 
   async function start(request: StartRequest): Promise<FacilityResult<ProcessHandle>> {
+    const rejected = (reason: FacilityReason): FacilityResult<never> => ({
+      kind: 'rejected',
+      requestId: request.requestId,
+      reason,
+    })
     const issue = invalid(request)
-    if (issue !== undefined)
-      return { kind: 'rejected', requestId: request.requestId, reason: issue }
+    if (issue !== undefined) return rejected(issue)
     // The checks before anything exists, in the order of the Linux facility: request, platform, facade.
     const reading = await input.prerequisites.ready()
     if (reading.kind !== 'satisfied') {
       input.unavailable(reading.kind === 'unsatisfied' ? reading.missing : [])
-      return { kind: 'rejected', requestId: request.requestId, reason: 'unavailable' }
+      return rejected('unavailable')
     }
-    if (sealed || ledger.closed.aborted)
-      return { kind: 'rejected', requestId: request.requestId, reason: 'closed' }
+    if (sealed || ledger.closed.aborted) return rejected('closed')
+    const identity = await windowsIdentity(settings.stopBoundMs)
+    if (identity === undefined) return rejected('unavailable')
     const key = randomUUID()
     const name = `Local\\omne-command-${key}`
     const resource: ManagedResource = {
@@ -357,32 +604,40 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     } catch {
       /* A failed durable plan prevents native allocation. */
     }
-    if (planned !== 'recorded')
-      return { kind: 'rejected', requestId: request.requestId, reason: planned }
-    return launch(request, resource, name)
+    if (planned !== 'recorded') return rejected(planned)
+    return launch(request, resource, name, identity)
+  }
+
+  const facility: CommandFacility<unknown> = {
+    // Every command runs in its own Job with breakaway forbidden: no process can leave it.
+    containment: 'sealed',
+    start(request: StartRequest) {
+      const snapshot = {
+        ...request,
+        args: [...request.args],
+        env: { ...request.env },
+        ...(request.stdin === undefined ? {} : { stdin: new Uint8Array(request.stdin) }),
+      }
+      const work = start(snapshot)
+      pending.add(work)
+      return work.finally(() => pending.delete(work))
+    },
+    ...(retentionBinding === undefined
+      ? {}
+      : { retention: retentionExtension(retentionBinding, () => sealed) }),
   }
 
   return Object.freeze({
-    facility: {
-      start(request: StartRequest) {
-        const snapshot = {
-          ...request,
-          args: [...request.args],
-          env: { ...request.env },
-          ...(request.stdin === undefined ? {} : { stdin: new Uint8Array(request.stdin) }),
-        }
-        const work = start(snapshot)
-        pending.add(work)
-        return work.finally(() => pending.delete(work))
-      },
-    },
+    facility,
     seal() {
       sealed = true
     },
     inFlight: () => pending.size,
     settled: () => Promise.allSettled(pending).then(() => undefined),
     async stopAll() {
-      await Promise.all([...live].map(entry => entry.stop()))
+      const entries = [...live]
+      for (const entry of entries) entry.released = true
+      await Promise.all(entries.map(release))
       return [...live].map(entry => entry.resource)
     },
     unconfirmed: () => [...live].map(entry => entry.resource),

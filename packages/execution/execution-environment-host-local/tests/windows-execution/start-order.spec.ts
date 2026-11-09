@@ -38,6 +38,7 @@ function manager(reading: WindowsCommandReading) {
   const commands = createWindowsHostCommands({
     ledger,
     provider: 'test',
+    tenant: tenant.value,
     scope: scope.ok,
     settings: commandSettings(),
     prerequisites: { facts: () => reading.kind, ready: async () => reading },

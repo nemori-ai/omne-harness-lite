@@ -72,7 +72,7 @@ it('stops what the main process left and says why, without waiting for the stop 
   const pidFile = join(root, 'child.pid')
   // A Node child dies with its parent unless detached: libuv puts children in its own Job.
   for (const [policy, reason] of [
-    ['retain', 'uncontained'],
+    ['retain', 'unbound'],
     ['stop', 'policy'],
   ] as const) {
     const f = commandFixture(root, { residuePolicy: policy })

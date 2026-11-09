@@ -11,8 +11,8 @@ PACKAGE_TEMPLATE_DRAFT
 
 状态：Service 实现成员，`draft`。宿主文件使用一节已被接受，见 [SPEC 宿主文件使用](SPEC.md#宿主文件使用)。采用依据还有[系统页执行环境](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备)与组的[主题与唯一拥有者](../docs/architecture.md#主题与唯一拥有者)。现在的实现情况如下：
 
-- 已实现：宿主文件设施的十二项操作与宿主文件根（Linux、macOS 与 Windows，机制见各平台说明）；Linux 上的 `command` 设施、它的平台前提探测（P1、P3～P6）与 scope 单元的资源级恢复；一次性命令留下的进程的处置与移交（只在 Linux 上）；Windows 的 `command` 后端（根进程退出时停止 Job 里剩下的进程，结局不带 `residue`）；持久 `terminal` 设施（Linux 与 Windows 各有后端，见 [Windows 说明](docs/windows-execution.md)）；macOS 的 `command` 与 `terminal` 后端（执行域是 POSIX 会话，主进程退出之后提供者停止整个会话，见 [macOS 说明](docs/macos-execution.md)）；宿主文件责任域 `createHostFilesDomain`；宿主文件提供者：每份获取一个门面、配额、原获取查询、获取枚举与结清；Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin` 与 `commandFacilityPlugin`，以及插件工厂 `createHostFilesPlugin(domain)`。
-- 未实现：契约意义的授予根（宿主文件根是另一种限制）、Linux、macOS 与 Windows 以外宿主上的 `files` 八项、macOS 上的保留进程（进程可以用 `setsid` 离开 POSIX 会话，所以 macOS 不满足封闭收纳）、Windows 上保留进程的移交、Runtime Context 两条块的发布、调用方类核对、插件经 `definePlugin`，以及进程结束之后对旧容量的结清（需要域外的进程退出证据，是 M2 之后的剩余责任），见 SPEC [明确缺项](SPEC.md#明确缺项)。
+- 已实现：宿主文件设施的十二项操作与宿主文件根（Linux、macOS 与 Windows，机制见各平台说明）；Linux 上的 `command` 设施、它的平台前提探测（P1、P3～P6）与 scope 单元的资源级恢复；一次性命令留下的进程的处置与移交（Linux 与 Windows）；Windows 的 `command` 后端（每个命令一个带锚进程的 Job，根进程退出后由提供者决定处置，Job 可以移交保留范围）；持久 `terminal` 设施（Linux 与 Windows 各有后端，见 [Windows 说明](docs/windows-execution.md)）；macOS 的 `command` 与 `terminal` 后端（执行域是 POSIX 会话，主进程退出之后提供者停止整个会话，见 [macOS 说明](docs/macos-execution.md)）；宿主文件责任域 `createHostFilesDomain`；宿主文件提供者：每份获取一个门面、配额、原获取查询、获取枚举与结清；Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin` 与 `commandFacilityPlugin`，以及插件工厂 `createHostFilesPlugin(domain)`。
+- 未实现：契约意义的授予根（宿主文件根是另一种限制）、Linux、macOS 与 Windows 以外宿主上的 `files` 八项、macOS 上的保留进程（进程可以用 `setsid` 离开 POSIX 会话，所以 macOS 不满足封闭收纳）、Runtime Context 两条块的发布、调用方类核对、插件经 `definePlugin`，以及进程结束之后对旧容量的结清（需要域外的进程退出证据，是 M2 之后的剩余责任），见 SPEC [明确缺项](SPEC.md#明确缺项)。
 - 未验证：同一 isolate 标签下重复装载失败、配置校验失败，都没有测试。
 
 应用 `apps/harness-server` 装配本成员，见其[宿主文件工厂行](../../../apps/harness-server/docs/rows/execution-host.md)。

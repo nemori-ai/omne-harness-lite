@@ -149,7 +149,7 @@ packages/
 │   ├── execution-environment-contract/         Execution Environment 纯契约：已有身份、设施、八参数与六结果 schema、契约套件
 │   ├── execution-environment-cordis-contract/  Execution Environment 的唯一 Cordis 服务定义：已有模板方法、钩子与机制测试
 │   ├── execution-environment/                  不含 Cordis 的登记表机制：提供者与设施表、匹配、获取状态机、租约视图与逐操作门、恢复编排
-│   ├── execution-environment-host-local/       Service 实现与宿主提供者：已有 files 设施（十二项操作，八项只在 Linux 上是真实行为），以及 Linux 与 Windows 的 command 后端和持久 terminal；一次性命令留下的进程只在 Linux 兑现
+│   ├── execution-environment-host-local/       Service 实现与宿主提供者：已有 files 设施（十二项操作，八项只在 Linux 上是真实行为），以及 Linux 与 Windows 的 command 后端和持久 terminal；一次性命令留下的进程在 Linux 与 Windows 兑现
 │   └── image/                  图像字节的预算、打开、编码与关闭。技术设计已接受，已是 workspace 成员
 ├── calendar/calendar/          日历版本依据与日期计算
 ├── schedule/schedule/          日程、Job与整体结果

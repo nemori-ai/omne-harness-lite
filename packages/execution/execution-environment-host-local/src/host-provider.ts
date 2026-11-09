@@ -48,7 +48,6 @@ import {
   cleanupTerminalScope,
   listScopes,
   readBootId,
-  readScopeMembers,
   readScopeReference,
 } from './host-scope.ts'
 
@@ -262,25 +261,16 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
   const platform = Object.freeze({ os: process.platform, release: release() })
   const stateDirectory = options.stateDirectory
   // The retained-process index lives with the state directory: without one, nothing is retained.
+  // Linux and Windows hand domains over; macOS sessions are not sealed, so it keeps none.
   const retained: RetainedProcessIndex | undefined =
-    process.platform === 'linux' && stateDirectory !== undefined
+    (process.platform === 'linux' || process.platform === 'win32') && stateDirectory !== undefined
       ? internals.retainedProcesses(stateDirectory, () =>
           createRetainedProcessIndex({
             stateDirectory,
             provider: name,
             capacityPerScope: settings.retainedPerScope,
             pollMs: settings.retainedPollMs,
-            async supervision() {
-              const tools = await execution.supervisor()
-              if (tools === undefined) return undefined
-              return {
-                bootId: readBootId,
-                members: ({ unit, directory }) =>
-                  readScopeMembers({ tools, unit, directory, boundMs: settings.stopBoundMs }),
-                stop: coordinate =>
-                  forceStopScope({ tools, coordinate, boundMs: settings.stopBoundMs }),
-              }
-            },
+            supervision: () => execution.retainedSupervision(),
             diagnose: fact =>
               report({ kind: 'retainedMarker', provider: name, generation, ...fact }),
           }),

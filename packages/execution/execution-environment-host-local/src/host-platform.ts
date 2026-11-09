@@ -23,6 +23,9 @@ import { macosTerminalAdmission, macosTerminalPlatform } from './macos-execution
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import { windowsBridgeExecutable, windowsTerminalExecutable } from './windows-execution/compile.ts'
 import { createWindowsHostCommands } from './windows-execution/index.ts'
+import { windowsRetainedSupervision } from './windows-execution/supervision.ts'
+import type { RetainedSupervision } from './host-retained-processes.ts'
+import { forceStopScope, readBootId, readScopeMembers } from './host-scope.ts'
 import {
   probeWindowsCommands,
   type WindowsPrerequisite,
@@ -126,6 +129,7 @@ export function createHostPlatform(input: {
         }
       },
       supervisor: async () => undefined,
+      retainedSupervision: async () => undefined,
     }
   }
   if (process.platform === 'win32') {
@@ -149,6 +153,13 @@ export function createHostPlatform(input: {
         }
       },
       supervisor: async () => undefined,
+      /** Jobs are read and stopped by their names once the command prerequisites hold. */
+      async retainedSupervision(): Promise<RetainedSupervision | undefined> {
+        const reading = await probe.ready()
+        return reading.kind === 'satisfied'
+          ? windowsRetainedSupervision(input.settings.stopBoundMs)
+          : undefined
+      },
       macos: undefined,
     }
   }
@@ -160,6 +171,12 @@ export function createHostPlatform(input: {
     retryMs: input.terminal.probeRetryMs,
     boundMs: input.terminal.stopBoundMs,
   })
+  const supervisor = async () => {
+    const reading = await probe.ready()
+    return reading.kind === 'satisfied'
+      ? reading.tools
+      : resolveSupervisor(input.settings.stopBoundMs)
+  }
   return {
     async prerequisites(): Promise<readonly Prerequisite[]> {
       // describe() must return the current state, which means waiting for the probe to settle so a
@@ -180,11 +197,17 @@ export function createHostPlatform(input: {
       const shared = { ...options, prerequisites: terminalProbe }
       return { ordinary: createHostTerminals(shared), reserve: retainedHostTerminalFactory(shared) }
     },
-    async supervisor() {
-      const reading = await probe.ready()
-      return reading.kind === 'satisfied'
-        ? reading.tools
-        : resolveSupervisor(input.settings.stopBoundMs)
+    supervisor,
+    /** The scope units are read and stopped through the supervisor the probe resolved. */
+    async retainedSupervision(): Promise<RetainedSupervision | undefined> {
+      const tools = await supervisor()
+      if (tools === undefined) return undefined
+      const boundMs = input.settings.stopBoundMs
+      return {
+        bootId: readBootId,
+        members: ({ unit, directory }) => readScopeMembers({ tools, unit, directory, boundMs }),
+        stop: coordinate => forceStopScope({ tools, coordinate, boundMs }),
+      }
     },
     macos: undefined,
   }

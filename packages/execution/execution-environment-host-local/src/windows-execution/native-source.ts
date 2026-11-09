@@ -46,6 +46,8 @@ public static partial class OmneWindowsBridge {
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool QueryInformationJobObject(IntPtr h,int cls,IntPtr info,uint len,IntPtr ret);
   [DllImport("kernel32.dll",SetLastError=true)] static extern IntPtr OpenProcess(uint access,bool inherit,uint pid);
   [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool QueryFullProcessImageNameW(IntPtr process,uint flags,StringBuilder name,ref uint size);
+  [DllImport("kernel32.dll",SetLastError=true)] static extern bool ProcessIdToSessionId(uint pid,out uint session);
+  [DllImport("ntdll.dll")] static extern int NtQuerySystemInformation(int cls,byte[] info,int length,out int returned);
   [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool CreateProcessW(string app,StringBuilder cmd,IntPtr pa,IntPtr ta,bool inherit,uint flags,IntPtr env,string cwd,ref SX si,out PI pi);
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool TerminateJobObject(IntPtr job,uint code);
   [DllImport("kernel32.dll",SetLastError=true)] static extern uint ResumeThread(IntPtr thread);
@@ -113,26 +115,47 @@ public static partial class OmneWindowsBridge {
    */
   static int Members() {
     lock(JobLock) {
-      if(job==IntPtr.Zero) return -1;
-      const int capacity=4096;int size=8+capacity*IntPtr.Size;IntPtr list=Marshal.AllocHGlobal(size);
-      try {
-        if(!QueryInformationJobObject(job,3,list,(uint)size,IntPtr.Zero)) return -1;
-        int count=Marshal.ReadInt32(list,4),members=0;
-        for(int i=0;i<count;i++) {
-          uint pid=(uint)Marshal.ReadIntPtr(list,8+i*IntPtr.Size).ToInt64();
-          if(pid==anchor.pid) continue;
-          IntPtr process=OpenProcess(0x00101000,false,pid);
-          if(process==IntPtr.Zero) { if(Marshal.GetLastWin32Error()!=87) members++;continue; }
-          try {
-            StringBuilder name=new StringBuilder(1024);uint length=(uint)name.Capacity;
-            bool host=QueryFullProcessImageNameW(process,0,name,ref length) && WaitForSingleObject(process,0)==258 &&
-              string.Equals(Path.GetFileName(name.ToString()),"conhost.exe",StringComparison.OrdinalIgnoreCase);
-            if(!host && WaitForSingleObject(process,0)==258) members++;
-          } finally { CloseHandle(process); }
-        }
-        return members;
-      } finally { Marshal.FreeHGlobal(list); }
+      List<uint> pids=job==IntPtr.Zero ? null : JobProcesses(job);
+      if(pids==null) return -1;
+      pids.Remove(anchor.pid);
+      return pids.Count;
     }
+  }
+  /** The live processes of a Job other than its console hosts; null when they cannot be read. */
+  static List<uint> JobProcesses(IntPtr handle) {
+    const int capacity=4096;int size=8+capacity*IntPtr.Size;IntPtr list=Marshal.AllocHGlobal(size);
+    try {
+      if(!QueryInformationJobObject(handle,3,list,(uint)size,IntPtr.Zero)) return null;
+      int count=Marshal.ReadInt32(list,4);List<uint> pids=new List<uint>();
+      for(int i=0;i<count;i++) {
+        uint pid=(uint)Marshal.ReadIntPtr(list,8+i*IntPtr.Size).ToInt64();
+        IntPtr process=OpenProcess(0x00101000,false,pid);
+        if(process==IntPtr.Zero) { if(Marshal.GetLastWin32Error()!=87) pids.Add(pid);continue; }
+        try {
+          StringBuilder name=new StringBuilder(1024);uint length=(uint)name.Capacity;
+          bool host=QueryFullProcessImageNameW(process,0,name,ref length) &&
+            string.Equals(Path.GetFileName(name.ToString()),"conhost.exe",StringComparison.OrdinalIgnoreCase);
+          if(!host && WaitForSingleObject(process,0)==258) pids.Add(pid);
+        } finally { CloseHandle(process); }
+      }
+      return pids;
+    } finally { Marshal.FreeHGlobal(list); }
+  }
+  /** The members of a named Job, read from outside it; gone when the name no longer exists. */
+  static object ReadNamedMembers(string name) {
+    IntPtr named=OpenJobObjectW(0x0004,false,name);
+    if(named==IntPtr.Zero) return Marshal.GetLastWin32Error()==2 ? (object)new { t="members",gone=true } : new { t="fault" };
+    try {
+      List<uint> pids=JobProcesses(named);
+      return pids==null ? (object)new { t="fault" } : new { t="members",pids=pids.ToArray() };
+    } finally { CloseHandle(named); }
+  }
+  /** The boot time (SystemTimeOfDayInformation, offset 0) and this process's login session. */
+  static object Identity() {
+    byte[] info=new byte[48];int returned;
+    if(NtQuerySystemInformation(3,info,info.Length,out returned)!=0) return new { t="fault" };
+    uint session;Check(ProcessIdToSessionId((uint)Process.GetCurrentProcess().Id,out session));
+    return new { t="identity",boot=BitConverter.ToInt64(info,0).ToString(),session=session };
   }
   /** Starts the anchor in the Job. Only the Job handle is inherited, and only by the anchor. */
   static void StartAnchor() {
@@ -243,6 +266,8 @@ public static partial class OmneWindowsBridge {
       OmneRequest r=Json.Deserialize<OmneRequest>(Line());bound=r.stopBoundMs;
       if(r.mode=="recover") {
         job=OpenJobObjectW(0x000C,false,r.name);
+        // A missing name is reported as such: only the caller knows whether it proves the stop.
+        if(job==IntPtr.Zero && Marshal.GetLastWin32Error()==2) { Emit(new { t="stopped",status="unconfirmed",absent=true });return; }
         bool stopped=Stop();
         if(stopped) {
           try { using(EventWaitHandle oldRelease=EventWaitHandle.OpenExisting(r.name+"-release"))oldRelease.Set(); }
@@ -251,8 +276,10 @@ public static partial class OmneWindowsBridge {
         Emit(new { t="stopped", status=stopped?"confirmed":"unconfirmed" });
         return;
       }
+      if(r.mode=="members") { Emit(ReadNamedMembers(r.name));return; }
+      if(r.mode=="identity") { Emit(Identity());return; }
       if(r.mode=="probe") { bool ok;try { ok=Probe(r.name); } catch(Exception) { Stop();ok=false; } Emit(new { t="probe",ok=ok });return; }
-      OutputReader stdout,stderr;Prepare(r,out stdout,out stderr);Emit(new {t="ready"});
+      OutputReader stdout,stderr;Prepare(r,out stdout,out stderr);Emit(new {t="ready",anchor=anchor.pid});
       string line=Line();
       if(line!="go") { Emit(new {t="stopped",status=Stop()?"confirmed":"unconfirmed"});return; }
       Check(ResumeThread(child.thread)!=0xFFFFFFFF);Emit(new {t="started"});

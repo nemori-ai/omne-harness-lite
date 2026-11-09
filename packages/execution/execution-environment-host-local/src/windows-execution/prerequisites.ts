@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { access } from 'node:fs/promises'
 import { release } from 'node:os'
 import { join } from 'node:path'
-import { deferred, startBridge, within } from './bridge.ts'
+import { askBridge } from './bridge.ts'
 import { windowsBridgeExecutable } from './compile.ts'
 
 /** A Windows prerequisite a start found missing (SPEC, Windows platform prerequisites). */
@@ -51,25 +51,11 @@ export async function probeWindowsCommands(boundMs: number): Promise<WindowsComm
   } catch {
     return unsatisfied('dotnet-csc')
   }
-  const answer = deferred<boolean | undefined>()
-  const bridge = await startBridge({
-    request: { mode: 'probe', name: `Local\\omne-probe-${randomUUID()}`, stopBoundMs: boundMs },
-    maxChunkBytes: 1,
-    onFrame: frame => {
-      if (frame.t === 'probe') answer.resolve(frame.ok)
-      if (frame.t === 'fault') answer.resolve(false)
-    },
-    onClosed: () => answer.resolve(undefined),
-  })
-  const ok = await within(answer.promise, 2 * boundMs)
-  bridge.disconnect()
-  if (
-    (await within(
-      bridge.closed.then(() => true),
-      boundMs,
-    )) !== true
+  const ok = await askBridge(
+    { mode: 'probe', name: `Local\\omne-probe-${randomUUID()}`, stopBoundMs: boundMs },
+    frame => (frame.t === 'probe' ? frame.ok : undefined),
+    2 * boundMs,
   )
-    bridge.terminate()
   if (ok === undefined) return { kind: 'unknown' }
   return ok ? { kind: 'satisfied' } : unsatisfied('job-round-trip')
 }

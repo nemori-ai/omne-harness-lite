@@ -1,8 +1,13 @@
 import { spawn } from 'node:child_process'
 import { windowsBridgeExecutable } from './compile.ts'
 
+const now = () =>
+  /* wall-clock: operation-timing -- Bound a one-shot bridge question. */ performance.now()
+
 export type BridgeFrame =
-  | { readonly t: 'ready' | 'started' }
+  /** The Job, its anchor and the suspended process exist; `anchor` is the anchor's process id. */
+  | { readonly t: 'ready'; readonly anchor: number | undefined }
+  | { readonly t: 'started' }
   | { readonly t: 'fault'; readonly stopped?: boolean }
   | { readonly t: 'data'; readonly s: 'stdout' | 'stderr'; readonly b: string }
   /** The main process exited; `members` are the Job's other processes, null when unread. */
@@ -13,7 +18,16 @@ export type BridgeFrame =
       readonly outputLost: boolean
     }
   | { readonly t: 'probe'; readonly ok: boolean }
-  | { readonly t: 'stopped'; readonly status: 'confirmed' | 'unconfirmed' }
+  /** A named Job's live processes other than console hosts, or `gone` when the name does not exist. */
+  | { readonly t: 'members'; readonly reading: readonly number[] | 'gone' }
+  /** The boot time as Windows reports it, and the bridge's login session. */
+  | { readonly t: 'identity'; readonly boot: string; readonly session: number }
+  /** `absent` when a named stop found no Job of that name. */
+  | {
+      readonly t: 'stopped'
+      readonly status: 'confirmed' | 'unconfirmed'
+      readonly absent: boolean
+    }
 
 type Fields = Readonly<Record<string, unknown>>
 
@@ -28,9 +42,21 @@ function dataFrame({ s, b }: Fields, maxChunkBytes: number): BridgeFrame | undef
     : undefined
 }
 
+const count = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+
+function membersFrame({ pids, gone }: Fields): BridgeFrame | undefined {
+  if (gone === true) return { t: 'members', reading: 'gone' }
+  return Array.isArray(pids) && pids.every(count) ? { t: 'members', reading: pids } : undefined
+}
+
+function identityFrame({ boot, session }: Fields): BridgeFrame | undefined {
+  return typeof boot === 'string' && /^\d+$/u.test(boot) && count(session)
+    ? { t: 'identity', boot, session }
+    : undefined
+}
+
 function exitFrame({ code, members, outputLost }: Fields): BridgeFrame | undefined {
-  const count = (value: unknown): value is number =>
-    typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
   return typeof code === 'number' &&
     Number.isSafeInteger(code) &&
     (members === null || count(members)) &&
@@ -45,8 +71,9 @@ function parseFrame(text: string, maxChunkBytes: number): BridgeFrame | undefine
   const fields: Fields = { ...value }
   switch (fields['t']) {
     case 'ready':
+      return { t: 'ready', anchor: count(fields['anchor']) ? fields['anchor'] : undefined }
     case 'started':
-      return { t: fields['t'] }
+      return { t: 'started' }
     case 'fault':
       return { t: 'fault', stopped: fields['stopped'] === true }
     case 'data':
@@ -55,10 +82,14 @@ function parseFrame(text: string, maxChunkBytes: number): BridgeFrame | undefine
       return exitFrame(fields)
     case 'probe':
       return typeof fields['ok'] === 'boolean' ? { t: 'probe', ok: fields['ok'] } : undefined
+    case 'members':
+      return membersFrame(fields)
+    case 'identity':
+      return identityFrame(fields)
     case 'stopped': {
       const status = fields['status']
       return status === 'confirmed' || status === 'unconfirmed'
-        ? { t: 'stopped', status }
+        ? { t: 'stopped', status, absent: fields['absent'] === true }
         : undefined
     }
     default:
@@ -151,8 +182,56 @@ export async function startBridge(input: {
     disconnect() {
       child.stdin.end()
     },
+    /** The bridge and its pipes no longer keep the provider's process alive. */
+    unref() {
+      child.unref()
+      for (const stream of [child.stdin, child.stdout, child.stderr]) {
+        const unref: unknown = Reflect.get(stream, 'unref')
+        if (typeof unref === 'function') Reflect.apply(unref, stream, [])
+      }
+    },
     terminate() {
       child.kill()
     },
   }
+}
+
+/**
+ * Starts a bridge for one question that needs no command: the answer is the first frame `pick`
+ * accepts, within `boundMs`. A fault, a closed bridge or the bound answers `undefined`.
+ */
+export async function askBridge<T>(
+  request: object,
+  pick: (frame: BridgeFrame) => T | undefined,
+  boundMs: number,
+): Promise<T | undefined> {
+  const deadline = now() + boundMs
+  const remaining = () => Math.max(0, deadline - now())
+  try {
+    if ((await within(windowsBridgeExecutable(), remaining())) === undefined) return undefined
+  } catch {
+    return undefined
+  }
+  if (remaining() <= 0) return undefined
+  const answer = deferred<T | undefined>()
+  const bridge = await startBridge({
+    request,
+    maxChunkBytes: 1,
+    onFrame: frame => {
+      if (frame.t === 'fault') answer.resolve(undefined)
+      const picked = pick(frame)
+      if (picked !== undefined) answer.resolve(picked)
+    },
+    onClosed: () => answer.resolve(undefined),
+  })
+  const value = await within(answer.promise, remaining())
+  bridge.disconnect()
+  if (
+    (await within(
+      bridge.closed.then(() => true),
+      Math.max(remaining(), 1000),
+    )) !== true
+  )
+    bridge.terminate()
+  return value
 }

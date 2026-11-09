@@ -480,7 +480,7 @@ sequenceDiagram
 
 ### F-EEC12 保留进程的停止与读输出
 
-状态：宿主提供者在 Linux 上兑现，见 host-local 的[一次性命令留下的进程的兑现](../../execution-environment-host-local/SPEC.md#留下的进程的兑现)。macOS 与 Windows 不交出保留进程扩展。
+状态：宿主提供者在 Linux 与 Windows 上兑现，见 host-local 的[一次性命令留下的进程的兑现](../../execution-environment-host-local/SPEC.md#留下的进程的兑现)与[宿主层性质与平台对照](../../execution-environment-host-local/SPEC.md#宿主层性质与平台对照未接受)。macOS 不交出保留进程扩展。
 
 条款：[停止](../SPEC.md#停止)、[输出](../SPEC.md#输出)、[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)。按保留范围观察只读列表，规则见 SPEC [按保留范围观察](../SPEC.md#按保留范围观察)，不另画图。
 

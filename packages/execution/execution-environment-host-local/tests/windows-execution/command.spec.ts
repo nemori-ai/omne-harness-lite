@@ -43,6 +43,7 @@ describe('Windows Job commands', () => {
       ...windowsCommandInputs(),
       ledger,
       provider: 'test',
+      tenant: tenant.value,
       scope: scope.ok,
       settings: commandSettings({ startBoundMs: 20_000 }),
     })
@@ -82,6 +83,7 @@ describe('Windows Job commands', () => {
         ...windowsCommandInputs(),
         ledger: { ...ledger, permit: async () => 'closed' },
         provider: 'test',
+        tenant: tenant.value,
         scope: scope.ok,
         settings: commandSettings({ startBoundMs: 20_000 }),
       })
