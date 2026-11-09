@@ -7,6 +7,7 @@ it('publishes exactly the inventoried runtime values', async () => {
     'REQUEST_CONTEXT_REF_MAX_LENGTH',
     'SNAPSHOT_ANCHOR_RULE',
     'assembleSystemPrompt',
+    'callIdentity',
     'chooseRepresentations',
     'compactionPlanSchema',
     'compactionPolicySchema',
