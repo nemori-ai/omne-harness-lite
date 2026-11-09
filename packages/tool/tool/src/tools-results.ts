@@ -39,8 +39,7 @@ export function message(
 }
 export function failureResult(failure: ToolFailure): MessageResult {
   const detail =
-    failure.kind === 'denied' &&
-    ['read-result', 'read-content', 'read-raw-content', 'read-raw'].includes(failure.action)
+    failure.kind === 'denied' && ['read-result', 'read-content'].includes(failure.action)
       ? ` (${failure.action})`
       : ''
   const command =

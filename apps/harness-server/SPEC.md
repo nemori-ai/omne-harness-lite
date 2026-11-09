@@ -452,7 +452,7 @@ sequenceDiagram
 
 `session-storage`在发布服务前逐个确认持久目录内租户的当前组合登记。目录中的既有租户不依赖新的会话create触发补登记。登记失败或最终未知使行失败；关闭后不开始下一次登记或发布服务。该前置屏障沿SQL原有幂等登记和迁移事务。
 
-发行授予表为 tool-material-maintainer 提供 tool-material-scan 和 tool-material-maintain 两项目的。issueToolMaterialMaintainer 只经入口的受信 PrincipalIssuer 签发主体。应用访问适配器每次读取当前 SystemActionAuthorization，核验实际主体来源、真实租户身份、动作和原调用绑定。普通会话 Tool guard 仍不支持 maintain-materials。
+发行授予表没有 Tool 材料维护用途：`tool-material-scan`、`tool-material-maintain` 及 tool 动作 `maintain-materials`、`read-raw`、`read-raw-content` 已随材料维护行删除；到期正文由 `tool-body-sweep` 行排期、Tool 运行时按自己的到期索引回收。会话 Tool guard 的动作集合只有 `ToolLedgerAction`。
 
 系统维护不读取当前成员资格来决定历史材料是否可清理。成员离组不删除租户及历史责任；持久分区仍由既有 TenantDomainLookup 和 SQL 提供者解析。伪造租户、复制主体、越权动作或撤销授予均不能获得维护权。缺当前授权来源或读口抛错明确不可用，不泄露异常文本。
 

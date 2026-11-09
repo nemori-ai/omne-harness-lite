@@ -126,7 +126,7 @@ Runtime 与 Execution 的 `current()` 按 R2-D25 只保护调用方 fiber 的进
 
 `executionHost` 是运行入口的固定工厂绑定，不在 `./cordis` 另建责任域。预检拒绝错行绑定和运维 `insert`，允许 `replace`。`filesRoot` 与 `stateDirectory` 必须显式给宿主绝对路径，`maintainIntervalMs` 默认 60000。维护串行执行，重载不新增周期。R2-D32 的显式卸载、报告附录与 D 的限制见 [SPEC 的有序关闭](../SPEC.md#有序关闭)。Windows 当前文件根读取返回 `unavailable`，Linux 限定文件测试未执行不能计为通过。
 
-动作规则按 R2-D34 配置在授权行的 `actionRules`，精确匹配、deny 优先和证据规则归 [授权政策](rows/authorization-policy.md#动作准入)。无规则、无匹配、来源故障、非空 permissions 或非 null decision 均为 `unavailable`。`createToolAccessGuard(readAdmission)` 每次读取当前准入服务，同一个 qualify 对象可交给 ToolAccessGuard 与 StartCoordinatorAccess；`invalidate`、`read-raw`、`read-raw-content` 缺资格来源，均答 `unavailable`。`issueTenantDomainScanner(env)` 只能在受信签发器安装后调用，交消费者的只有枚举主体。公共 Tool 消费者与扫描者仍需集成接线。
+动作规则按 R2-D34 配置在授权行的 `actionRules`，精确匹配、deny 优先和证据规则归 [授权政策](rows/authorization-policy.md#动作准入)。无规则、无匹配、来源故障、非空 permissions 或非 null decision 均为 `unavailable`。`createToolAccessGuard(readAdmission)` 每次读取当前准入服务，同一个 qualify 对象可交给 ToolAccessGuard 与 StartCoordinatorAccess；`invalidate` 缺资格来源，答 `unavailable`。`issueTenantDomainScanner(env)` 只能在受信签发器安装后调用，交消费者的只有枚举主体。公共 Tool 消费者与扫描者仍需集成接线。
 
 真实模式在最终配置与受信预检成功后、入口对象及任何业务行安装前，从最终 real storage/session-storage 行配置调用 `prepareTenantDirectory`。全新根自动初始化，已有根缺表或坏表失败；不得增加人工准备步骤。独立 `preparation-failed` 退出 3，固定诊断及其余输出规则见 [SPEC](../SPEC.md#装载与可见性)。目录的单写前提与 Windows 目录项耐久限制继续适用。
 

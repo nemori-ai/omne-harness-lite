@@ -85,23 +85,6 @@ describe('createTableToolAccess', () => {
     })
   })
 
-  it('does not combine two base permissions into read-raw-content', async () => {
-    const { guard } = createTableToolAccess<Principal>({
-      principalKey: principal => principal.id,
-      allow: [
-        { principal: 'alice', tenant: tenantA(), action: 'read-content' },
-        { principal: 'alice', tenant: tenantA(), action: 'read-raw' },
-      ],
-    })
-    const verdict = await guard.qualify({
-      principal: alice,
-      tenant: tenantA(),
-      call,
-      action: 'read-raw-content',
-    })
-    expect(verdict.kind).toBe('denied')
-  })
-
   it('matches a call-bound rule only for that call, and a null-call rule only without a call', async () => {
     const { start } = table()
     const ask = (

@@ -86,12 +86,7 @@ export function createAuthority(workspace: string, run: string) {
   }
   const qualify: ToolAccessGuard<unknown>['qualify'] = async input => {
     const p = await project(input.principal)
-    if (
-      'failure' in p ||
-      !tenantEquals(input.tenant, tenant) ||
-      !input.call ||
-      ['read-raw', 'read-raw-content'].includes(input.action)
-    )
+    if ('failure' in p || !tenantEquals(input.tenant, tenant) || !input.call)
       return { kind: 'denied', reason: 'outside-the-named-test-session' }
     return { kind: 'allowed' }
   }

@@ -28,8 +28,6 @@ describe('the system purpose matrix', () => {
 
   it('binds the arguments of each row as the specification table says', () => {
     expect(SYSTEM_ACTION_MATRIX.map(entry => [entry.purpose, entry.arguments])).toEqual([
-      ['tool-material-scan', 'none'],
-      ['tool-material-maintain', 'none'],
       ['resident-references', 'none'],
       ['released-scopes', 'none'],
       ['enumerate-tenants', 'none'],

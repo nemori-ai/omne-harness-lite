@@ -37,12 +37,9 @@ export type ToolLedgerAction =
   | 'read-diagnostics'
   | 'read-result'
   | 'read-content'
-  | 'read-raw'
-  | 'read-raw-content'
   | 'release-delivery'
   | 'account'
   | 'recover'
-  | 'maintain-materials'
   | 'write'
 
 export type AccessVerdict =
@@ -54,11 +51,8 @@ export type AccessVerdict =
  * Answers whether the principal may perform `action` on the call of the tenant. The guard must
  * also prove that `tenant` is a tenant identity minted by legal-identity, not an object of the
  * same shape: the ledger checks only the shape and keys its records by the identity texts. A
- * forged tenant is `denied`. A missing answer is `unavailable`, never `allowed`.
- * `read-raw-content` is the raw-byte operation, not a separate permission. Its verdict must
- * check the current subject, tenant, call scope and both base permissions (`read-content` and
- * `read-raw`) at one consistent decision point. Separate asynchronous verdicts cannot prove
- * that conjunction. Without a consistent view, answer `unavailable`.
+ * forged tenant is `denied`. A missing answer is `unavailable`, never `allowed`. Every action
+ * is one permission; the guard composes none from others.
  */
 export interface ToolAccessGuard<P> {
   qualify(

@@ -305,9 +305,7 @@ function qualify(
     return { kind: 'unavailable', diagnostic: options.accessUnavailable }
   if (options.minted !== undefined && !options.minted.has(input.tenant))
     return { kind: 'denied', reason: 'not-a-minted-tenant' }
-  const baseActions: readonly ToolLedgerAction[] =
-    input.action === 'read-raw-content' ? ['read-content', 'read-raw'] : [input.action]
-  if (baseActions.some(action => options.deniedActions?.includes(action) === true))
+  if (options.deniedActions?.includes(input.action) === true)
     return { kind: 'denied', reason: 'action-not-granted' }
   const member = input.principal.tenants.includes(tenantKeyOf(input.tenant))
   return member ? { kind: 'allowed' } : { kind: 'denied', reason: 'not-a-member' }

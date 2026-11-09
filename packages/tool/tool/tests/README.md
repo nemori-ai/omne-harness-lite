@@ -74,7 +74,7 @@ lookup 的真实账本回归核对释放前 pending、释放后当前 released�
 
 
 
-原件字节回归保留旧版两次异步资格的失败反例。现行用例暂停末次 `read-raw-content` 判定后，分别撤销基础 raw、content 或租户关系，验证没有字节返回。测试 guard 从同一基础权限视图计算合取，不通过撤销新增标签代替真实权限变化。另核判定异常/不可用、后续页重新核权、最终允许后无外部读取、raw metadata 输入固定、summary 独立 ref 及窄读口冻结。
+原件字节读取及其 `read-raw-content` 资格用例已随 raw 保管一起删除：原始返回不进入任何保管端口，`ToolLedgerAction` 也不再含 `read-raw`、`read-raw-content`、`maintain-materials`。`access-guard.spec.ts` 的表替身用例覆盖无规则拒绝、伪造租户拒绝与另一租户拒绝。
 
 
 地址别名回归核对两个独立判断：完整五字段建立原结果关联，已关联描述的 storage/key 决定原件资格。已登记 mediaType/bytes/digest 变体不能降权，未登记同地址变体仍拒绝关联，不同地址同 digest 的合法普通内容保持普通内容资格。提供者继续独立验证完整描述和真实字节。

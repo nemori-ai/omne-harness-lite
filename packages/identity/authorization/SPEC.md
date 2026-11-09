@@ -260,8 +260,6 @@ Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessChe
 
 | 用途 | operation | target 分支与资源 | 参数 |
 | --- | --- | --- | --- |
-| `tool-material-scan` | tool `scan-materials` | 租户；tool `tenant` | 固定 |
-| `tool-material-maintain` | tool `maintain-materials` | 租户；tool `call` | 固定 |
 | `resident-references` | session `references` | 系统；session `resident-references` | 固定 |
 | `released-scopes` | session `releasedScopes` | 系统；session `released-scopes` | 固定 |
 | `enumerate-tenants` | tenant-domains `enumerate` | 系统；tenant-domains `registered-tenants` | 固定 |
@@ -275,7 +273,7 @@ Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessChe
 
 固定行的 `arguments` 是 `noArguments()`。需要矩阵之外的系统动作时，先给出该动作的既有职责与原义务绑定，再增行。
 
-两个 `tool-material-*` 行承接 Tool 已成立材料用途的到期与回收责任。扫描绑定精确租户，维护绑定该租户的原调用。它们不授予调用工具、读取正文或枚举部署租户的权利。当前成员资格不替代系统维护授权，成员退出不删除租户身份，也不解除历史材料的清理责任。调用键的合法性与持久分区解析由消费适配器和存储提供者分别核验。
+Tool 的到期正文由 Tool 运行时按自己的到期索引回收，应用只排期；它不需要系统动作，矩阵里没有 Tool 行。
 
 三个 `agent-instance-*` 行的持有者是 Agent 宿主维护主体。它的既有职责是发布已取得的实例，并在停用时让实例静默与撤回（XC-AGINST r2 第 3.3 节第 4 步与第 3.4 节）。实例身份在资源键里，`AgentAccessCheck` 的输入没有参数成员，所以三行都是固定参数。发布与预约的绑定由 Agent 自己的登记协议核对，不归本端口。租户分支的租户是实例所在分区。
 

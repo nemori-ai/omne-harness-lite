@@ -326,7 +326,7 @@ runtime.invoke 在第一次 await 前用契约判定器固定 payload，再通�
 
 ### 内容读取的责任
 
-[ledger-content.ts](../src/ledger-content.ts) 消费 ResultRecord 的归属元数据和从通道还原的完整值。attachments、content ref、卸载原文与摘要 ref 建立完整五字段关联。原 raw.content 的完整 custody 描述也可建立关联。关联成立后，storage/key 与已知原件相同的描述均选择 `read-raw-content` 完整操作，未登记描述不能借同地址关联。不同地址不因相同摘要被标成原件。guard 在一个可信权限事实判定点核主体、租户、call 范围和两项基础资格；普通附件仍选 `read-content`。读取前固定输入，读取后重读结果关联并复核完整操作资格，最后交回独立 bytes 副本。末次允许后不再等待外部读取，资格事实的一致性归 guard；无法证明时返回 unavailable。
+[ledger-content.ts](../src/ledger-content.ts) 消费 ResultRecord 的归属元数据和内联的完整值。attachments、content ref、卸载原文与摘要 ref 建立完整五字段关联；未登记描述不能借同地址关联。没有原件读口：原始返回不进入保管端口，动作集合里没有 `read-raw`、`read-raw-content`。guard 在一个可信权限事实判定点核主体、租户、call 范围和 `read-content`。读取前固定输入，读取后重读结果关联并复核资格，最后交回独立 bytes 副本。末次允许后不再等待外部读取，资格事实的一致性归 guard；无法证明时返回 unavailable。
 
 字节提供者拥有完整源长度/摘要、byte cursor 的身份及位置绑定。账本核响应身份、offset、范围、页预算和 EOF，不能凭一页自行证明完整源摘要。内存提供者在 [testing.ts](../src/testing.ts) 复用既有 custody double，preserve/inspect 后登记精确 tenant/call/Attachment 与字节，不保存结果关联或资格。正式 provider 仍须兑现其证明责任；内存组合声明 `durability:none`。
 

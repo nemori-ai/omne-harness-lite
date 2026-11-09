@@ -32,7 +32,7 @@
 - [ledger-content.ts](../src/ledger-content.ts) 实现结果与附件关联、IO 前后资格及页面核验。行为与 provider 证明责任见 [内容读取](../SPEC.md#27-固定结果与内容读取)。
 - [testing.ts](../src/testing.ts) 经 testing 入口导出 `createMemoryToolContent`、`MemoryToolContent` 与 `MemoryContentFault`。`createTestToolDependencies` 将它装配为 `doubles.content` 并复用其 custody。内存提供者只拥有字节及游标，不维护第二份结果账本。
 
-`ToolAccessGuard.qualify` 的 `read-raw-content` 表示原件字节操作，须在一个可信权限事实判定点检查两项基础权限与主体/租户/call 范围。它不是可单独授予的新许可位。guard 无一致视图时答 unavailable。raw 元数据继续使用 read-raw；普通附件继续使用 read-content。精确失败与返回时序由 [SPEC 第 27 条](../SPEC.md#27-固定结果与内容读取)拥有。
+`ToolAccessGuard.qualify` 的动作集合是 `ToolLedgerAction`，每个动作就是一项权限；没有 `read-raw`、`read-raw-content`（原始返回不进入保管端口）或 `maintain-materials`（到期正文由清扫回收，不是系统动作）。guard 无一致视图时答 unavailable。附件与正文字节使用 read-content。精确失败与返回时序由 [SPEC 第 27 条](../SPEC.md#27-固定结果与内容读取)拥有。
 
 - [tools.ts](../src/tools.ts) 从根入口导出 createToolResultReader、ToolResultReader、ToolsAccess、ToolsOptions 与 ToolsReadRuntime。present 返回固定结果首屏，read 按固定 result/attachment 引用读取，readReply 收齐有界新回应；工厂不注册作者。createToolMessageResultCodec 导出同一结构化结果的有界 codec。签名归源码，行为与预算见 [SPEC 第 28 条](../SPEC.md#28-tools-固定结果适配器)。
 
@@ -54,7 +54,7 @@ The cases have stable `name` and `clause` fields. Direct consumption and the evi
 
 [testing-access.ts](../src/testing-access.ts) 给出 `ToolAccessGuard` 的表替身与提供者套件。依据是 M2 冻结批 RD-TOOLHEAD r2。它们是 `./testing` 的可加导出，不改 `ToolAccessGuard` 的形状。
 
-- `createTableToolAccess({ principalKey, allow })` 按显式的允许表 `ToolAccessRule[]` 作答，返回 `TableToolAccess`。判定顺序：处于 `fail` 状态时答 `unavailable`。租户不是 legal-identity 铸出的值时答 `denied`，原因 `forged-tenant`。表里有一条规则的主体键、租户文本、动作与调用都匹配时答 `allowed`。否则答 `denied`，原因 `no-rule`。没有默认放行，另一租户的请求因租户不同找不到规则。规则省略 `call` 时匹配该租户的任意调用，`call: null` 只匹配不带调用的请求（`invalidate`）。`read-raw-content` 只认同名规则，一次查表就是一个判定点，不拼两个基础权限。
+- `createTableToolAccess({ principalKey, allow })` 按显式的允许表 `ToolAccessRule[]` 作答，返回 `TableToolAccess`。判定顺序：处于 `fail` 状态时答 `unavailable`。租户不是 legal-identity 铸出的值时答 `denied`，原因 `forged-tenant`。表里有一条规则的主体键、租户文本、动作与调用都匹配时答 `allowed`。否则答 `denied`，原因 `no-rule`。没有默认放行，另一租户的请求因租户不同找不到规则。规则省略 `call` 时匹配该租户的任意调用，`call: null` 只匹配不带调用的请求（`invalidate`）。一次查表就是一个判定点。
 - `start` 视图在结构上满足 tool-host-local 的 `StartCoordinatorAccess<P>`，与 `guard` 共用同一张表和同一个 `fail` 状态。tool 不依赖 tool-host-local，所以这里只给结构相容的类型 `TableStartAccess<P>`。可赋值的类型断言由 tool-host-local 的测试承担。
 - 替身声明 `durability: 'none'`，不能装配进生产。生产代码不导入 `./testing`。
 - `toolAccessGuardConformance()` 是每个守卫提供者都要通过的五条用例，夹具类型是 `ToolAccessGuardFixture<P>`：`allowed` 答 `allowed`；`unlisted` 答 `denied`；`otherTenant`（与 `allowed` 只差租户）答 `denied`；伪造租户答 `denied`；依赖失败（夹具的 `breakDependency`）答 `unavailable`，不答 `allowed`。夹具没有 `breakDependency` 时最后一条报告不适用。替身先跑这个套件，应用的真实守卫适配接上后跑同一套件。

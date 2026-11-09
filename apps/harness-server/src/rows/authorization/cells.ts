@@ -14,8 +14,6 @@ export function cite(text: string): Citation {
 
 /** The purposes of the system matrix that a policy cell may name. `auditPolicy` checks each against `SYSTEM_ACTION_MATRIX`. */
 export type SystemPurpose =
-  | 'tool-material-scan'
-  | 'tool-material-maintain'
   | 'enumerate-tenants'
   | 'resident-references'
   | 'released-scopes'

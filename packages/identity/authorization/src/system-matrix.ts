@@ -40,20 +40,6 @@ function row(
  */
 export const SYSTEM_ACTION_MATRIX: readonly SystemActionRow[] = Object.freeze([
   row(
-    'tool-material-scan',
-    { owner: 'tool', name: 'scan-materials' },
-    'tenant',
-    { owner: 'tool', kind: 'tenant' },
-    'none',
-  ),
-  row(
-    'tool-material-maintain',
-    { owner: 'tool', name: 'maintain-materials' },
-    'tenant',
-    { owner: 'tool', kind: 'call' },
-    'none',
-  ),
-  row(
     'resident-references',
     { owner: 'session', name: 'references' },
     'system',

@@ -200,7 +200,7 @@ tool/
 
 `queries.readResult` 固定结果版本并在返回完整块页前复核 `read-result`。`content.read` 先核五字段附件关联，再按已知原件的 storage/key 选完整操作；未登记变体不能仅凭同地址关联，已登记同址变体不能因描述字段不同降权。不同地址不因相同摘要被一律标成原件。随后核当前资格、提供者返回的身份、范围及 EOF。IO 后再次核关联与资格，返回独立字节副本。字节页可能切在 UTF-8 字符中间，消费者按媒体类型收齐后解码。
 
-提供者必须核完整源的长度和摘要，并把 byte cursor 绑定租户、调用、结果版本、完整附件、字节投影与位置。账本不解析提供者私有游标。`content.raw` 从精确结果的 execution custody 返回元数据，另核 `read-raw`。synthetic 结果回复 `invalid/result/no-raw-output`。raw 字节即使同时列入普通附件，也使用 `read-raw-content` 完整操作，在同一个可信权限事实判定点核主体、租户、call 范围及基础 `read-content` 和 `read-raw`。它不是独立许可位，不可用两次异步资格拼成允许，无法建立一致视图时须答 unavailable。账本在 IO 前与最终返回边界各做一次完整判定，最后允许后不再等待外部读取。诊断、账目或普通读取权限不能代替原件资格。
+提供者必须核完整源的长度和摘要，并把 byte cursor 绑定租户、调用、结果版本、完整附件、字节投影与位置。账本不解析提供者私有游标。没有原件读口，也没有原件权限：原始返回 R 不进入任何保管端口，`ToolLedgerAction` 不含 `read-raw`、`read-raw-content` 或 `maintain-materials`。每个动作就是一项权限，guard 不从别的动作拼出许可；无法建立一致视图时须答 unavailable。账本在 IO 前与最终返回边界各核一次 `read-content`，最后允许后不再等待外部读取。诊断、账目或普通读取权限各只授予自己的读取。
 
 `createTestToolDependencies` 的 `doubles.content` 组合非耐久内存 byte provider 与既有 custody double，preserve 成功后登记原件字节。`controls.seed` 显式登记其余附件并核长度和 SHA-256，暂停、失败、丢失和错误响应控制用于测试。登记不赋予某结果读取附件的权限。直接 provider 和 controls 是受信测试资源，授权验证走真实 runtime 入口。此组合不证明耐久存储或生产后端。
 
@@ -212,7 +212,7 @@ tool/
 
 元调用也会生成自己的 ToolResult。收场后先用受信方法 readReply 收齐它的全部有界页，再投影给模型。readReply 不是第三个模型命令。它返回完整结果或具名失败，绝不交付半份回应。
 
-读取成功、原工具终态、内容遍历和原文卸载分别表达。failed 原工具也可成功读取。元调用 completed 只表示命令答复。内容结束不表示附件或卸载原文字节已读。附件页提供 base64，收齐字节后按 mediaType 解码。引用不授权，每页仍核当前资格。原件字节经过[完整读取操作的资格判定](SPEC.md#27-固定结果与内容读取)中的 `read-raw-content` 一致判定，没有 raw selector 或 raw 口旁路。
+读取成功、原工具终态、内容遍历和原文卸载分别表达。failed 原工具也可成功读取。元调用 completed 只表示命令答复。内容结束不表示附件或卸载原文字节已读。附件页提供 base64，收齐字节后按 mediaType 解码。引用不授权，每页仍核当前资格。没有 raw selector，也没有原件读口（[固定结果与内容读取](SPEC.md#27-固定结果与内容读取)）。
 
 完整响应、块及完整可调用参数都受预算约束，不能装下时明确 unsupported。固定错误无法单页交付时构造抛 TypeError。适配器重建保留固定版本身份。卸载正文已在结算时获得固定期限；语义正文页、到期读取门禁与物理回收尚未实现，当前 reader 尚未提供完整卸载生命周期。精确协议及提供者前提见 [SPEC 第 28 条](SPEC.md#28-tools-固定结果适配器)。当前证据是非耐久内存组合，不含真实模型、生产存储或 Cordis。
 

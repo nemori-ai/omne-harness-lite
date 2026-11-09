@@ -529,11 +529,11 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 
 本实现消费 P05、P08 与 P14。三个入口在首次 await 前固定结果、引用及必要标量，附件复制五字段，主体保留合法身份。`readResult` 保留完整块分页，在返回候选页前再次核 `read-result`，撤权则舍弃候选。
 
-`content.read` 核正安全整数 maxBytes、固定版本、完整附件关联与 `read-content`。关联来自该版本的 attachments、content ref、offloaded original.source 或 summary ref；原件也可凭 execution custody 关联，但使用 `read-raw-content` 完整操作。该操作在同一个可信权限事实判定点核主体、合法租户、call 范围及基础 `read-content` 与 `read-raw`，不是独立许可位。无法建立一致视图时回复 `unavailable/access-guard`。关联后、provider IO 前及最终返回边界各核一次完整操作，不用分开异步结论合取。关联仍需五字段精确匹配 custody.raw 或已保管集合，不能仅凭同 storage/key 放行未登记描述。关联成立后，凡与该结果已知 raw.content 的 storage/key 相同，均选 `read-raw-content`，不因 mediaType/bytes/digest 差异降权。只比较已知逻辑地址，不猜物理别名；不同地址不因相同 digest 被一律标成原件。提供者 IO 后重读固定版本，核关联及当前资格，返回独立 byte copy。错误响应、错结果/附件、非法 offset、越界、超预算、零进度或未到已知长度的假 EOF 回复 `unavailable/content-reader`。提供者明确失败原样交回，抛错只给依赖名，不披露异常正文。
+`content.read` 核正安全整数 maxBytes、固定版本、完整附件关联与 `read-content`。关联来自该版本的 attachments、content ref、offloaded original.source 或 summary ref。guard 无法建立一致视图时回复 `unavailable/access-guard`。关联后、provider IO 前及最终返回边界各核一次 `read-content`。关联需五字段精确匹配已保管集合，不能仅凭同 storage/key 放行未登记描述。只比较已知逻辑地址，不猜物理别名。提供者 IO 后重读固定版本，核关联及当前资格，返回独立 byte copy。错误响应、错结果/附件、非法 offset、越界、超预算、零进度或未到已知长度的假 EOF 回复 `unavailable/content-reader`。提供者明确失败原样交回，抛错只给依赖名，不披露异常正文。
 
 配置的 content provider 必须证明完整源长度/摘要，并把 byte cursor 绑定 tenant/call/result/完整 Attachment/bytes 投影及位置。账本不解析其私有游标，因此自身范围核验不能代替这项证明。内存 provider 只支持 SHA-256，输入输出复制，首读空文件为 offset 0、空 bytes、next null。非首读指向或越过 EOF、负数、另一附件或结果及 block cursor 均拒绝为 `invalid-cursor`。
 
-`content.raw` 前后独立核 `read-raw`，返回精确结果 execution custody 的 RawOutput 副本。synthetic 结果回复 `invalid`（`result: no-raw-output`）。原 raw.content 即使同时或重复列入普通附件，也不能绕过完整操作。完整操作拒绝为 `denied/read-raw-content`，入口内容门槛仍可拒绝为 `read-content`，raw 元数据拒绝为 `read-raw`。最终允许后不再等待 store、provider 或另一 guard。判定点之后发生的撤权约束后续读取，不追溯撤回已允许候选。content provider 为 null 时有关联的字节读取明确 unsupported；原结果、raw 元数据、交付解除、收场和调用幂等不受此配置改变。
+没有原件读口，也没有原件权限：原始返回 R 不进入任何保管端口（见「最终事实的计划与结算」），`ToolLedgerAction` 不含 `read-raw`、`read-raw-content` 或 `maintain-materials`；每个动作就是一项权限，guard 不从别的动作拼出许可。最终允许后不再等待 store、provider 或另一 guard。判定点之后发生的撤权约束后续读取，不追溯撤回已允许候选。content provider 为 null 时有关联的字节读取明确 unsupported；原结果、交付解除、收场和调用幂等不受此配置改变。
 
 
 ## 28. Tools 固定结果适配器

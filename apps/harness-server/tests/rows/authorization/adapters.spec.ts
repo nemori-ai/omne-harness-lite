@@ -999,15 +999,9 @@ describe('Tool access qualification', () => {
         arguments: noArguments(),
       })
     }
-    for (const action of [
-      'read-raw',
-      'read-raw-content',
-      'maintain-materials',
-      'invalidate',
-    ] as const)
-      expect(await guard.qualify({ ...input, action } as never)).toMatchObject({
-        kind: 'unavailable',
-      })
+    expect(await guard.qualify({ ...input, action: 'invalidate' })).toMatchObject({
+      kind: 'unavailable',
+    })
     for (const principal of [w.login(), w.foreign(), { ...input.principal }])
       expect(await guard.qualify({ ...input, principal, action: 'admit' })).toMatchObject({
         kind: 'denied',
