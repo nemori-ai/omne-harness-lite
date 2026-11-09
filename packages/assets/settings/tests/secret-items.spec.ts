@@ -223,6 +223,111 @@ describe('createSettingsSecretItems: set', () => {
   })
 })
 
+describe('createSettingsSecretItems: one holding, several definitions', () => {
+  const shell: SettingsHoldingRef = {
+    asset: { category: 'tool', name: 'Shell' },
+    holding: { providerId: 'tool:shell-owner', definitionId: 'Shell' },
+  }
+
+  it('answers conflict, and calls no custody, while one holding has two live definitions', () => {
+    const { items, custody } = fixture({
+      definitions: [
+        definition(webHolding.providerId, 'Web', '1'),
+        definition(webHolding.providerId, 'Web', '2'),
+      ],
+    })
+    // The asset reference is unambiguous; the holding it resolves has two registered versions.
+    expect(items.set({ scope: tenantA, item: exaKey, secret: secret(SENTINEL), at: null })).toBe(
+      'conflict',
+    )
+    expect(items.clear({ scope: tenantA, item: exaKey })).toBe('conflict')
+    expect(items.describe({ scope: tenantA, item: exaKey })).toBe('conflict')
+    expect(items.items({ scope: tenantA })).toBe('conflict')
+    expect(items.items({ scope: tenantA, asset: { name: 'Web' } })).toBe('conflict')
+    expect(custody.bind).not.toHaveBeenCalled()
+    expect(custody.unbind).not.toHaveBeenCalled()
+    expect(custody.describe).not.toHaveBeenCalled()
+  })
+
+  it('does not count another definition of the same provider as a second definition of the holding', () => {
+    const { items } = fixture({
+      definitions: [
+        definition(webHolding.providerId, 'Web'),
+        definition(webHolding.providerId, 'Other'),
+      ],
+    })
+    expect(items.set({ scope: tenantA, item: exaKey, secret: secret(SENTINEL), at: null })).toBe(
+      'written',
+    )
+    expect(items.describe({ scope: tenantA, item: exaKey })).toMatchObject({ kind: 'bound' })
+    expect(items.items({ scope: tenantA })).toHaveLength(2)
+  })
+
+  it('one conflicting holding makes items conflict even when the other holdings are fine', () => {
+    const { items } = fixture({
+      definitions: [
+        definition(webHolding.providerId, 'Web', '1'),
+        definition(webHolding.providerId, 'Web', '2'),
+        definition('tool:shell-owner', 'Shell'),
+      ],
+      holdings: [shell, web],
+    })
+    expect(items.items({ scope: tenantA })).toBe('conflict')
+  })
+})
+
+describe('createSettingsSecretItems: items over several holdings', () => {
+  const shell: SettingsHoldingRef = {
+    asset: { category: 'tool', name: 'Shell' },
+    holding: { providerId: 'tool:shell-owner', definitionId: 'Shell' },
+  }
+  const both = () =>
+    fixture({
+      definitions: [
+        definition(webHolding.providerId, 'Web'),
+        definition('tool:shell-owner', 'Shell'),
+      ],
+      holdings: [web, shell],
+    })
+
+  it('without an asset lists the items of every holding the caller resolves', () => {
+    const { items } = both()
+    expect(
+      items.items({ scope: tenantA }) as readonly { asset: { name: string }; itemId: string }[],
+    ).toMatchObject([
+      { asset: { name: 'Web' }, itemId: 'exa.apiKey' },
+      { asset: { name: 'Web' }, itemId: 'limits.lines' },
+      { asset: { name: 'Shell' }, itemId: 'exa.apiKey' },
+      { asset: { name: 'Shell' }, itemId: 'limits.lines' },
+    ])
+  })
+
+  it('with an asset that names one holding lists that holding only', () => {
+    const { items } = both()
+    expect(items.items({ scope: tenantA, asset: { name: 'Shell' } })).toMatchObject([
+      { asset: { name: 'Shell' }, itemId: 'exa.apiKey' },
+      { asset: { name: 'Shell' }, itemId: 'limits.lines' },
+    ])
+  })
+
+  it.each(['denied', 'unavailable'] as const)(
+    'answers %s when the custody answers it for a later holding, and lists nothing',
+    refusal => {
+      const { items, custody } = both()
+      vi.mocked(custody.describe).mockImplementation(key =>
+        key.target.key.includes('Shell') ? refusal : { kind: 'unbound' },
+      )
+      expect(items.items({ scope: tenantA })).toBe(refusal)
+    },
+  )
+
+  it('answers denied when the custody denies the only holding', () => {
+    const { items, custody } = fixture({})
+    vi.mocked(custody.describe).mockReturnValueOnce('denied')
+    expect(items.items({ scope: tenantA })).toBe('denied')
+  })
+})
+
 describe('createSettingsSecretItems: target derivation', () => {
   function targetOf(holdings: readonly SettingsHoldingRef[], definitions: SettingDefinitions[]) {
     const { items, custody } = fixture({ definitions, holdings })

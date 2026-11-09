@@ -61,7 +61,7 @@ function plainText(html: string): string {
       if (code.startsWith('#')) return String.fromCodePoint(Number.parseInt(code.slice(1), 10))
       return ENTITIES[code.toLowerCase()] ?? whole
     })
-    .replace(/[ \t\f\v ]+/gu, ' ')
+    .replace(/[ \t\f\u000b ]+/gu, ' ') // oxlint-disable-line no-control-regex -- The vertical tab is listed on purpose; the escape form keeps the class parseable for mutation tooling.
     .replace(/\s*\n\s*/gu, '\n')
     .trim()
 }

@@ -99,7 +99,7 @@ function identityPorts(ctx: Context) {
 }
 
 type Known =
-  | Readonly<{ kind: 'holding'; registrationId: number; holding: SettingsHolding }>
+  | Readonly<{ kind: 'holding'; holding: SettingsHolding }>
   | Readonly<{ kind: 'no-settings' }>
   | Readonly<{ kind: 'refused' }>
 
@@ -154,7 +154,7 @@ export function createReleaseSettingsRegistry(ctx: Context) {
     const registered = registry.registerContribution(projected)
     if (registered.kind === 'registered') {
       const holding = { providerId: projected.providerId, definitionId: projected.definitionId }
-      known.set(name, { kind: 'holding', registrationId: registered.registrationId, holding })
+      known.set(name, { kind: 'holding', holding })
       return
     }
     known.set(name, { kind: 'refused' })
