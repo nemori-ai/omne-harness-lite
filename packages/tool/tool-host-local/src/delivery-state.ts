@@ -68,6 +68,19 @@ function parsePhase(value: unknown): Phase | null {
   return null
 }
 
+/**
+ * The value commitment a record froze. A later run recognises its record by the key of `base`,
+ * not by the value the ledger holds now: the release replaces the released channels of the
+ * result record with the summary (C6), so a base read after the release carries another
+ * fingerprint. The frozen push still compares the ledger value with this commitment.
+ */
+function frozenCommitment(payload: Record<string, unknown>): ResultValueCommitment | null {
+  const value = payload.value
+  if (!object(value) || !object(value.original) || typeof value.fingerprint !== 'object')
+    return null
+  return value as ResultValueCommitment
+}
+
 function parseDeliveryRecord(
   value: unknown,
   base: DeliveryBase,
@@ -77,7 +90,9 @@ function parseDeliveryRecord(
   const account =
     value.payload.account === null ? { ok: null } : judgeCallAccount(value.payload.account)
   if (!('ok' in account)) return null
-  const payload: DeliveryDescriptor = { ...base, account: account.ok }
+  const committed = frozenCommitment(value.payload)
+  if (committed === null) return null
+  const payload: DeliveryDescriptor = { ...base, value: committed, account: account.ok }
   const reference = resolveToolInvocationRef(payload.key.reference, access.tenant)
   if ('failure' in reference) return null
   if (
