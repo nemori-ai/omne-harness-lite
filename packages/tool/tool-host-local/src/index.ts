@@ -118,6 +118,7 @@ export {
 export type { LocalToolCatalogView, LocalToolCatalogViewSource } from './catalog-view.ts'
 export type { LocalToolCatalogSearchConfiguration } from './catalog-ranking.ts'
 
+export { createLocalToolResultDelivery, type LocalDeliveryInput } from './result-delivery.ts'
 export { createLocalToolForwarding } from './tool-forwarding.ts'
 export type { LocalToolForwarding, LocalToolForwardingInput } from './tool-forwarding.ts'
 

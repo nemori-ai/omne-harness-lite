@@ -41,6 +41,16 @@ export function sourceKey(consumer: ConsumerRef): string {
   return `source:${JSON.stringify([owner, work, position, purpose])}`
 }
 
+/** The key of one received copy of a forwarding slot: the slot's key, the delivery key's digest. */
+export function receivedCopyKey(consumer: ConsumerRef, keyDigest: string): string {
+  return `${sourceKey(consumer)}/delivery/${keyDigest}`
+}
+
+/** Whether `key` is the key of a received copy of the slot of `consumer`. */
+export function isReceivedCopyKey(consumer: ConsumerRef, key: string): boolean {
+  return key.startsWith(`${sourceKey(consumer)}/delivery/`)
+}
+
 /** The host domain of the binding of `consumer`: the `source` aggregate of the call it names. */
 export function sourceDomain(tenant: TenantId, consumer: ConsumerRef): LedgerDomain {
   return callHostDomain(tenant, 'source', invocationSourceIdentities(tenant, consumer).call)

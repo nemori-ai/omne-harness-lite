@@ -118,6 +118,7 @@ async function world(
       store: f.store,
       access: { guard: f.input.access },
       resolveAccess,
+      sources: { releaseReceivedCopies: async () => 'released' as const },
       capacity: 4,
       observersPerCall: 1,
       observerQueueFrames: 4,

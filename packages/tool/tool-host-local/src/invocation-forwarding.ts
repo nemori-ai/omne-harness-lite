@@ -3,6 +3,7 @@ import {
   canonicalDigest,
   hostKey,
   isTenantShape,
+  recordKey,
   type CallRecord,
   type LedgerDomain,
   type ToolSourceGuard,
@@ -15,6 +16,7 @@ import {
   type ConsumerRef,
   type FixedToolRequest,
   type Reply,
+  type ToolCallId,
   type ToolForwardIntent,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
@@ -29,9 +31,9 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import type { LocalInvocationSourceInput, PrincipalJson } from './invocation-source.ts'
 import { localArgumentLimits } from './ledger-guards.ts'
-import { sourceDomain, sourceKey } from './source-identities.ts'
+import { isReceivedCopyKey, receivedCopyKey, sourceDomain, sourceKey } from './source-identities.ts'
 
-export { sourceDomain, sourceKey }
+export { isReceivedCopyKey, receivedCopyKey, sourceDomain, sourceKey }
 
 export const TOOL_FORWARDING_OWNER = '@omne-harness/tool-host-local/tools-forwarding'
 export const forwardingConsumer = (call: string): ConsumerRef => ({
@@ -352,7 +354,6 @@ export function createInvocationForwarding<P>(
             fixedDigest: canonicalDigest(request),
             invocation: request.invocation,
             principal: input.principalCodec.encode(parent.principal),
-            received: [],
             origin: {
               kind: 'forwarded',
               parent: parent.call,
@@ -428,7 +429,49 @@ export function createInvocationForwarding<P>(
       }
     },
   }
-  return { source, recoverBinding, verifyStored, storedOf }
+  /**
+   * Releases the received copies of the forwarding slot of `parent` (C6: the copies go with the
+   * parent call's own result delivery). It reads the slot's domain whole: that domain holds one
+   * parent's slot and the copies of that parent's target, so its size is bounded by that one
+   * fan-out, never by the tenant's history. A call that is not a forwarding parent has nothing
+   * to release. Idempotent: a repeated release finds no copy and writes nothing.
+   */
+  const releaseReceivedCopies = async (
+    given: Readonly<{
+      tenant: LedgerDomain['tenant']
+      call: ToolCallId
+      request: FixedToolRequest
+    }>,
+  ): Promise<'released' | 'unavailable'> => {
+    if (input.forwarding === undefined || !input.forwarding.isParent(given.request))
+      return 'released'
+    const consumer = forwardingConsumer(given.call)
+    const domain = sourceDomain(given.tenant, consumer)
+    for (let attempt = 0; attempt < input.commitAttempts; attempt++) {
+      const read = await input.store.read(domain)
+      if (read.kind !== 'complete') return 'unavailable'
+      const copies = read.records.filter(
+        row => row.kind === 'host' && isReceivedCopyKey(consumer, row.host.key),
+      )
+      if (copies.length === 0) return 'released'
+      let committed
+      try {
+        committed = await input.store.commit({
+          domain,
+          expected: read.revision,
+          revision: nextSourceRevision(read.revision),
+          writes: copies.map(row => ({ kind: 'delete' as const, key: recordKey(row) })),
+        })
+      } catch {
+        return 'unavailable'
+      }
+      if (committed.kind === 'committed') return 'released'
+      if (committed.kind === 'unavailable') return 'unavailable'
+      // A conflict or an unknown answer: the next round reads what is left and deletes it.
+    }
+    return 'unavailable'
+  }
+  return { source, recoverBinding, verifyStored, storedOf, releaseReceivedCopies }
 }
 
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'

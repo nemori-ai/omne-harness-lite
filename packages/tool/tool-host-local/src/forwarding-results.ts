@@ -1,13 +1,15 @@
 import { fail, succeed } from '@omne-harness/operation-result'
-import { canonicalDigest, pageToolResult } from '@omne-harness/tool'
+import { canonicalDigest, hostKey, pageToolResult } from '@omne-harness/tool'
 import { resolveToolInvocationRef, type ToolInvocationQueries } from '@omne-harness/tool-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { judgeCommittedToolResult, judgeHandoff } from '@omne-harness/tool-contract/provider'
 import type { LocalInvocationSourceInput } from './invocation-source.ts'
+import { parseReceivedCopy } from './forwarding-receiver.ts'
 import {
   createInvocationForwarding,
   isObject,
-  sourceKey,
+  receivedCopyKey,
+  sourceDomain,
   TOOL_FORWARDING_OWNER,
 } from './invocation-forwarding.ts'
 
@@ -74,7 +76,6 @@ export function createForwardedResultReader<P>(
         return denied()
       const verified = await forwarding.verifyStored(access, stored)
       if ('failure' in verified) return verified
-      if (!Array.isArray(stored.raw.received)) return unavailable()
       const key = {
         kind: 'result' as const,
         producer: 'tool' as const,
@@ -82,11 +83,14 @@ export function createForwardedResultReader<P>(
         result: access.result,
       }
       const keyDigest = canonicalDigest(key)
-      const received: unknown = stored.raw.received.find(
-        (item: unknown) => isObject(item) && canonicalDigest(item.key) === keyDigest,
+      const copy = await input.store.readRecord(
+        sourceDomain(address.tenant, consumer),
+        hostKey(receivedCopyKey(consumer, keyDigest)),
       )
-      if (received === undefined) return missing()
-      if (!isObject(received) || !isObject(received.payload)) return unavailable()
+      if (copy.kind !== 'complete') return unavailable()
+      if (copy.record === null) return missing()
+      const received = parseReceivedCopy(copy.record)
+      if (received === null || !isObject(received.payload)) return unavailable()
       const value = judgeCommittedToolResult(config.policy, received.payload.value)
       if ('failure' in value) return unavailable()
       const page = {
@@ -115,7 +119,7 @@ export function createForwardedResultReader<P>(
         'failure' in handoff ||
         handoff.ok.kind !== 'retained' ||
         handoff.ok.custody.owner !== TOOL_FORWARDING_OWNER ||
-        handoff.ok.custody.record !== `${sourceKey(consumer)}/delivery/${keyDigest}` ||
+        handoff.ok.custody.record !== receivedCopyKey(consumer, keyDigest) ||
         handoff.ok.custody.digest !== digest
       )
         return unavailable()

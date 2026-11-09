@@ -16,6 +16,7 @@ import {
   encodeToolInvocationRef,
   judgeToolDelivery,
   type ConsumerRef,
+  type FixedToolRequest,
   type Reply,
   type ToolCallId,
   type ToolDelivery,
@@ -68,6 +69,14 @@ export type LocalDeliveryInput<P, B extends ContentBlock> = Readonly<{
   warn?: (message: string) => void
   /** A monotonic reading in milliseconds for that pacing. Absent: the process monotonic timer of `clock.ts`. */
   now?: () => number
+  /**
+   * Releases what the call's result delivery kept alive: the received copies of its forwarding
+   * slot (C6). Run after the delivery is released and before it is done; a delivery whose copies
+   * are not released stays short of `done`, and the next run tries again. Absent: nothing to release.
+   */
+  forwardedCopies?: (
+    call: Readonly<{ tenant: TenantId; call: ToolCallId; request: FixedToolRequest }>,
+  ) => Promise<'released' | 'unavailable'>
 }>
 
 /** The answer of `DeliveryPosition.receiver` when no receiver is registered for the owner. */
@@ -504,6 +513,7 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
 
   async function deliver(
     access: CallAccess<P>,
+    request: FixedToolRequest,
     base: DeliveryBase,
     task: ToolTask | undefined,
     signal: AbortSignal,
@@ -536,6 +546,13 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     )
       return false
     if (outcome.ok.phase.kind === 'done') return true
+    // The delivery is released: what it kept alive goes before the delivery is done.
+    if (
+      input.forwardedCopies !== undefined &&
+      (await input.forwardedCopies({ tenant: access.tenant, call: access.call, request })) !==
+        'released'
+    )
+      return false
     const finished = await state.save(
       access,
       { ...outcome.ok, phase: { kind: 'done', evidence: outcome.ok.phase.evidence } },
@@ -584,7 +601,10 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
           canonicalDigest(item.consumer) === canonicalDigest(base.consumer),
       )
       if (task === undefined && row.result.delivery.kind !== 'released') continue
-      if ((await deliver(qualified.ok, base, task, signal, sweep)) && task !== undefined)
+      if (
+        (await deliver(qualified.ok, call.call.request, base, task, signal, sweep)) &&
+        task !== undefined
+      )
         pending -= 1
     }
     // What this run did not see owed is saved, released, excluded or gone: its entry goes too.

@@ -29,6 +29,7 @@
 - [R2-D164 同租户投递的轮次](delivery/turns.spec.ts)。
 - [R2-D273 接收方缺席或查找答 unavailable 时的待推、具名 warn 与退避](delivery/absent-receiver.spec.ts)。
 - [R2-D282 接收方对推送答 unavailable 时的待推、具名 warn、退避与复位](delivery/unavailable-receiver.spec.ts)。
+- [C6 转发副本随父调用交付释放](delivery/forwarded-copies.spec.ts)。
 - [测试夹具](fixtures/index.md)。
 - [包索引](../index.md)。
 

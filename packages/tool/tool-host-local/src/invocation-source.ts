@@ -119,6 +119,13 @@ export type LocalInvocationSource<P, B extends ContentBlock = ContentBlock> = Re
     input: Omit<CallAccess<P>, 'principal'> &
       Readonly<{ admission: ToolOperationId; request: FixedToolRequest }>,
   ): Reply<{ principal: PrincipalJson }>
+  /**
+   * Releases the received copies of the forwarding slot of a parent call, once the parent's own
+   * result delivery is released (C6). A call that is not a forwarding parent has nothing to release.
+   */
+  releaseReceivedCopies(
+    input: Omit<CallAccess<P>, 'principal'> & Readonly<{ request: FixedToolRequest }>,
+  ): Promise<'released' | 'unavailable'>
 }>
 
 /** What the source keeps for one tenant and consumer. */
@@ -529,6 +536,7 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
     receiver,
     forwardedResult: createForwardedResultReader(input, forwards),
     recoverBinding,
+    releaseReceivedCopies: forwards.releaseReceivedCopies,
   })
 }
 

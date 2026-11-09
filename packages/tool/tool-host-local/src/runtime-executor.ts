@@ -81,6 +81,7 @@ export function createRuntimeExecutor(
     identities: dependencies.operationIdentities,
     access: settings.access.guard,
     position: { access: settings.resolveAccess, receiver: input.receiver },
+    forwardedCopies: settings.sources.releaseReceivedCopies,
     capacity: settings.capacity,
     // No receiver, or one that answers unavailable: the delivery stays owed, paced and named (R2-D273, R2-D282).
     pacing: {
