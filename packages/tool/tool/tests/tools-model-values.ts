@@ -306,6 +306,7 @@ export async function modelHost(
       reads: ledger.reads,
       admissions: ledger.admissions,
       queues: ledger.queues,
+      rejections: ledger.rejections,
       facts: ledger.facts,
       sourceIssuer: h.source.issuer,
       operationIdentities: h.identities.operationIdentities,

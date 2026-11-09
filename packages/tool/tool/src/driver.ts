@@ -29,7 +29,7 @@ import { createBindingInvoker } from './driver-binding.ts'
 import { createControlDriver } from './driver-control.ts'
 import { preserveSavedFinal } from './driver-settlement.ts'
 import { isExcludedFailure } from './ledger-exclusion.ts'
-import { queueKeyOf } from './ledger-start.ts'
+import { LEDGER_REJECTED_DIAGNOSTIC, queueKeyOf } from './ledger-start.ts'
 import type { TenantId } from './ledger-store.ts'
 
 /**
@@ -63,6 +63,12 @@ type Step<P> = CallAccess<P> & Readonly<{ instance: ToolInstanceId; signal: Abor
 type Continue = Readonly<{ kind: 'continue'; progressed: boolean }>
 type StepResult = Continue | DriverStop
 type RunFailures = { skipped: Set<string>; first: DriverStop | null; retry: boolean }
+/** The phases of a call that holds no start record; nothing of it ever ran. */
+const UNSTARTED: readonly ToolRecovery<ContentBlock>['state']['phase'][] = [
+  'accepted',
+  'preparing',
+  'queued',
+]
 const CONTINUE: Continue = { kind: 'continue', progressed: true }
 const STALLED: Continue = { kind: 'continue', progressed: false }
 const IDLE: DriverStop = { kind: 'idle' }
@@ -77,6 +83,7 @@ type Suffix =
   | 'start-failed'
   | 'exclude'
   | 'reject'
+  | 'ledger-rejected'
 
 function derivedOperation(
   admission: ToolOperationId,
@@ -129,7 +136,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
   policy: DriverPolicy,
 ): ToolDriverHandle<P> {
-  const { commands, queues, environments, authority, instances } = dependencies
+  const { commands, queues, rejections, environments, authority, instances } = dependencies
   const environmentsPrepared = new Map<string, E>()
   // Original preparations already sent in this process. Unconfirmed answers retain their query
   // responsibility; only a matching allocated fact permits one bounded adoption attempt.
@@ -295,6 +302,65 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     const settled = await commands.rejectPending({ ...write.ok, reason, exclusion })
     if ('ok' in settled) await wake(step.tenant, recovery.request)
     return after(settled)
+  }
+
+  /**
+   * Writes, or recalls and finishes, the minimal failure terminal (SPEC 23). A recalled receipt
+   * proves the call commit only, so the step counts as progress once its `queue` task is closed
+   * (SPEC 26), and the waiters of the key are woken then.
+   */
+  const settleRejected = async (
+    step: Step<P>,
+    recovery: ToolRecovery<B>,
+    reason: string,
+  ): Promise<StepResult> => {
+    const write = context(step, recovery, 'ledger-rejected')
+    if ('failure' in write) return { kind: 'failed', failure: write.failure }
+    const settled = await rejections.settle({ ...write.ok, reason })
+    if ('failure' in settled) return after(settled)
+    const current = await commands.loadRecovery(step)
+    if ('failure' in current) return { kind: 'failed', failure: current.failure }
+    const { operation } = write.ok
+    if (current.ok.tasks.some(task => task.kind === 'queue' && task.operation === operation))
+      return blocked('the queue release of the minimal failure terminal is still unconfirmed')
+    await wake(step.tenant, recovery.request)
+    return CONTINUE
+  }
+
+  /**
+   * SPEC 23: a step whose commit the store rejected for good (`invalid`, `field: storage`) is not
+   * repeated. A call that never started (no start record) settles with the minimal failure
+   * terminal instead. A call with a start record keeps the failure: its execution may run, and
+   * this increment writes no terminal for it.
+   */
+  const afterRejected = async (
+    step: Step<P>,
+    recovery: ToolRecovery<B>,
+    result: StepResult,
+  ): Promise<StepResult> => {
+    if (result.kind !== 'failed') return result
+    const { failure } = result
+    if (failure.kind !== 'invalid' || failure.field !== 'storage') return result
+    if (recovery.start !== null || !UNSTARTED.includes(recovery.state.phase)) return result
+    return settleRejected(step, recovery, failure.reason)
+  }
+
+  /**
+   * The store's reason when a settled call's open `queue` task belongs to its minimal failure
+   * terminal, or null: the release of that terminal is redone by resending it.
+   */
+  const ledgerRejectedReason = (
+    recovery: ToolRecovery<B>,
+    task: ToolOperationId,
+  ): string | null => {
+    const operation = derivedOperation(recovery.admission, 'ledger-rejected')
+    const { state } = recovery
+    if (!('ok' in operation) || task !== operation.ok) return null
+    if (state.phase !== 'settled' || state.terminal.kind !== 'failed') return null
+    const { diagnostic } = state.terminal
+    return diagnostic.startsWith(LEDGER_REJECTED_DIAGNOSTIC)
+      ? diagnostic.slice(LEDGER_REJECTED_DIAGNOSTIC.length)
+      : null
   }
 
   /** The host excludes the whole pending invocation, then the call settles (P04). */
@@ -603,7 +669,11 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     const rejection = recovery.startRejection
     if (rejection === null) {
       const task = recovery.tasks.find(task => task.kind === 'queue')
-      return task?.kind === 'queue' ? settle(step, recovery, task, cancelled) : IDLE
+      if (task?.kind !== 'queue') return IDLE
+      const reason = ledgerRejectedReason(recovery, task.operation)
+      return reason === null
+        ? settle(step, recovery, task, cancelled)
+        : settleRejected(step, recovery, reason)
     }
     if (recovery.start !== null)
       return recordStart(step, recovery, recovery.start, { kind: 'rejected', ...rejection })
@@ -740,7 +810,11 @@ export function createToolDriver<P, B extends ContentBlock, E>(
         call: step.call,
       })
       if ('failure' in recovery) return { kind: 'failed', failure: recovery.failure }
-      const result = await stepOf(step, recovery.ok, cancelled, failures)
+      const result = await afterRejected(
+        step,
+        recovery.ok,
+        await stepOf(step, recovery.ok, cancelled, failures),
+      )
       if (result.kind !== 'continue') return result
       progressed ||= result.progressed
     }

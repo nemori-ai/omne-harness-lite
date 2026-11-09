@@ -182,6 +182,7 @@ function assembly(
       commands: ledger.commands,
       admissions: ledger.admissions,
       queues: ledger.queues,
+      rejections: ledger.rejections,
       facts: ledger.facts,
       reads: ledger.reads,
       bindings: {
