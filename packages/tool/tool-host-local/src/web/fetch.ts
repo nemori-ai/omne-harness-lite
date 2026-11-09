@@ -99,14 +99,13 @@ export async function fetchPage(
         await response.body?.cancel()
         return fail({ kind: 'upstream', status: response.status })
       }
-      const header = response.headers.get('content-type')
-      const contentType = parseContentType(header)
+      const contentType = parseContentType(response.headers.get('content-type'))
       if (!isTextual(contentType.mediaType)) {
         await response.body?.cancel()
         return fail({ kind: 'not-text', mediaType: contentType.mediaType })
       }
       const body = await readCapped(response.body, options.maxBodyBytes)
-      const text = decodeText(body, contentType, header ?? contentType.mediaType)
+      const text = decodeText(body, contentType)
       if ('failure' in text) return text
       const markdown = HTML_TYPES.has(contentType.mediaType)
         ? htmlToMarkdown(text.ok).markdown

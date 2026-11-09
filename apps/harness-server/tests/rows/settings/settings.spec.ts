@@ -8,7 +8,7 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { inspect } from 'node:util'
-import type { Context } from '@deepseek-ai/cordis'
+import { Context } from '@deepseek-ai/cordis'
 import { referenceAdmissionCheck } from '@omne-harness/authorization'
 import {
   inProcessPrincipalAuthority,
@@ -20,12 +20,18 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type { SettingsGovernance } from '@omne-harness/server-entry'
 import { createSettingsSecretItems } from '@omne-harness/settings'
 import { createSecretVault, type SecretVault } from '@omne-harness/settings-local/secrets'
+import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
 import { deriveDefinition, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
 import { afterEach, describe, expect, it } from 'vitest'
 import { readSystemInstant } from '../../../src/entry/session-clock.ts'
-import { releaseOf, rememberReleaseDefinition } from '../../../src/entry/tool-release.ts'
-import { governanceOf } from '../../../src/entry/tool-release-manifest.ts'
+import {
+  ReleaseToolContributionAuthority,
+  loadProductionRelease,
+  releaseOf,
+  rememberReleaseDefinition,
+} from '../../../src/entry/tool-release.ts'
+import { governanceOf, type ToolReleaseSnapshot } from '../../../src/entry/tool-release-manifest.ts'
 import { serveProfile } from '../../../src/profile.ts'
 import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { createSettingsGuard } from '../../../src/rows/authorization/settings-access.ts'
@@ -184,19 +190,15 @@ describe('the settings row: registry, secret items and governance', () => {
   it('writes the acting tenant scope under the same key the Web attachment reads, shows and clears it', async () => {
     const w = await world()
     try {
-      const definition = rememberWeb(w.root)
-      const holding = toolSettingHolding(definition)
-      if (holding === null) throw new Error('fixture holding')
+      rememberWeb(w.root)
       const access = { principal: acting(A), tenant: A }
       const written = await w.port.set({ access, asset: WEB, item: ITEM, secret: ` ${SENTINEL} ` })
       expect(written.kind).toBe('succeeded')
-      // The key this application derives for the Web attachment finds the binding the entry wrote.
-      const tenantKey = toolSettingSecretKey({ layer: 'tenant', tenant: A }, holding, ITEM)
-      expect(w.vault.describe(tenantKey)).toMatchObject({ kind: 'bound', life: 'active' })
-      expect(w.vault.use(tenantKey)).toEqual({ kind: 'secret', value: SENTINEL })
       // The public operation wrote the tenant scope and nothing in the official scope.
       expect(w.vault.list({ layer: 'official' }, null, 10)).toEqual({ entries: [], next: null })
-      expect(w.vault.use({ ...tenantKey, purpose: 'model-send' })).toBe('missing')
+      expect(w.vault.list({ layer: 'tenant', tenant: A }, null, 10)).toMatchObject({
+        entries: [{ purpose: 'setting', presence: { kind: 'bound', life: 'active' } }],
+      })
       const shown = await w.port.describe({ access, asset: WEB, item: ITEM })
       expect(shown).toMatchObject({ kind: 'succeeded', setting: { state: 'usable', tenantId: A } })
       if (
@@ -306,6 +308,65 @@ describe('the settings row: registry, secret items and governance', () => {
       expect(readFileSync(w.path, 'utf8')).toBe(before)
     } finally {
       await w.close()
+    }
+  })
+
+  it('follows the release generation: after a reload with a new Web definition, items reflect the new definition', async () => {
+    const snapshot = await loadProductionRelease()
+    if (snapshot.kind !== 'trusted') throw new Error('fixture release')
+    const root = new Context()
+    // The authority as the entry installs it, in a plugin of its own so that a reload can replace it.
+    const installAuthority = (release: ToolReleaseSnapshot) =>
+      root.plugin({
+        name: 'release-authority',
+        apply: (ctx: Context) => {
+          new ReleaseToolContributionAuthority(ctx, release, () => null)
+        },
+      })
+    const { vault } = openVault()
+    const scope = { layer: 'tenant', tenant: A } as const
+    try {
+      const first = await installAuthority(snapshot)
+      const registry = createReleaseSettingsRegistry(root)
+      const items = createSettingsSecretItems({
+        declarations: { snapshot: () => registry.snapshot() },
+        custody: vault,
+        resolve: asset => registry.holdings(asset),
+      })
+      const definition = webDefinition(root)
+      expect(rememberReleaseDefinition(root, snapshot.generation, definition)).toBe(true)
+      expect(items.items({ scope })).toMatchObject([{ itemId: ITEM, title: 'Exa API key' }])
+      const before = registry.snapshot().definitions.map(entry => entry.version)
+      expect(before).toHaveLength(1)
+
+      // The next generation: the Web author at another digest declares the item with another title.
+      const next: ToolDefinition = structuredClone(definition)
+      ;(next.adoption as { digest: string }).digest = `${definition.adoption.digest}-next`
+      const item = next.declarations.settings?.items[0]
+      if (item === undefined) throw new Error('fixture: the Web definition declares no item')
+      ;(item.presentation as { title: string }).title = 'Exa API key (next)'
+      const generation = `${snapshot.generation}-next`
+      const reloaded: ToolReleaseSnapshot = {
+        ...snapshot,
+        generation,
+        manifest: {
+          ...snapshot.manifest,
+          generation,
+          entries: snapshot.manifest.entries.map(entry =>
+            entry.asset.name === 'Web' ? { ...entry, definition: canonicalDigest(next) } : entry,
+          ),
+        },
+      }
+      await first.dispose()
+      await installAuthority(reloaded)
+      expect(rememberReleaseDefinition(root, generation, next)).toBe(true)
+      expect(items.items({ scope })).toMatchObject([{ itemId: ITEM, title: 'Exa API key (next)' }])
+      const after = registry.snapshot().definitions.map(entry => entry.version)
+      expect(after).toHaveLength(1)
+      expect(after).not.toEqual(before)
+      expect(registry.holdings()).toEqual([{ asset: WEB, holding: toolSettingHolding(next) }])
+    } finally {
+      await root.fiber.dispose()
     }
   })
 

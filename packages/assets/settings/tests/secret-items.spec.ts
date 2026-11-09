@@ -8,6 +8,7 @@ import {
   createSettingsRegistry,
   createSettingsSecretItems,
   parseSecretText,
+  secretItemTarget,
   type SecretBindingKey,
   type SecretCustodyManagement,
   type SecretPresence,
@@ -263,6 +264,15 @@ describe('createSettingsSecretItems: target derivation', () => {
       key: JSON.stringify(['p:x', 'd', 'exa.apiKey']),
     })
     expect(JSON.parse(right.target.key)).toEqual(['p', 'x:d', 'exa.apiKey'])
+  })
+
+  it('secretItemTarget is the target the entry binds under, so an assembly derives the same key', () => {
+    const bound = targetOf([web], [definition(webHolding.providerId, 'Web')])
+    expect(secretItemTarget(webHolding, 'exa.apiKey')).toEqual(bound.target)
+    expect(secretItemTarget({ providerId: 'p:x', definitionId: 'd' }, 'exa.apiKey')).toEqual({
+      owner: 'setting',
+      key: JSON.stringify(['p:x', 'd', 'exa.apiKey']),
+    })
   })
 })
 

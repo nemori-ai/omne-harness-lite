@@ -283,6 +283,98 @@ describe('the pre-version file', () => {
   })
 })
 
+// The vaults on disk were written by boundaries that checked the text then (the Model host's
+// `bind` only asked for a non-empty string). Reading accepts what those files hold, as it is.
+describe('a stored secret is read as the file holds it', () => {
+  const stored = [
+    ['a trailing space', `${SECRET_A} `],
+    ['a leading space', ` ${SECRET_A}`],
+    ['a tab inside', `${SECRET_A}\t1`],
+    ['more characters than the length limit', 'k'.repeat(4097)],
+  ] as const
+
+  it.each(stored)('the pre-version file: %s', (_name, raw) => {
+    const path = scratch()
+    writeFileSync(
+      path,
+      JSON.stringify({
+        closed: false,
+        factorySecret: raw,
+        bindings: [
+          {
+            id: 'cred-a',
+            tenant: { organization: tenantA.organization.text, account: tenantA.account.text },
+            purpose: 'model-send',
+            secret: raw,
+            life: 'active',
+          },
+        ],
+      }),
+    )
+    const vault = opened(path)
+    expect(vault.use(FACTORY_KEY)).toEqual({ kind: 'secret', value: raw })
+    expect(vault.use(modelKey(tenantA, 'cred-a'))).toEqual({ kind: 'secret', value: raw })
+  })
+
+  it.each(stored)('the version 2 file: %s', (_name, raw) => {
+    const path = scratch()
+    writeFileSync(
+      path,
+      JSON.stringify({
+        version: 2,
+        bindings: [
+          {
+            scope: { layer: 'official' },
+            target: { owner: 'model', key: 'factory default' },
+            purpose: 'model-send',
+            secret: raw,
+            life: 'active',
+          },
+          {
+            scope: {
+              layer: 'tenant',
+              tenant: { organization: tenantA.organization.text, account: tenantA.account.text },
+            },
+            target: { owner: 'tool', key: 'Web/exa.apiKey' },
+            purpose: 'setting',
+            secret: raw,
+            life: 'active',
+            configuredAt: '2026-11-04T08:00:00Z',
+          },
+        ],
+      }),
+    )
+    const vault = opened(path)
+    expect(vault.use(FACTORY_KEY)).toEqual({ kind: 'secret', value: raw })
+    expect(vault.use(settingKey(tenantA, 'Web/exa.apiKey'))).toEqual({ kind: 'secret', value: raw })
+  })
+
+  it('an empty stored secret is still corrupt, and no new write can produce the texts above', () => {
+    const path = scratch()
+    writeFileSync(
+      path,
+      JSON.stringify({
+        version: 2,
+        bindings: [
+          {
+            scope: { layer: 'official' },
+            target: { owner: 'model', key: 'factory default' },
+            purpose: 'model-send',
+            secret: '',
+            life: 'active',
+          },
+        ],
+      }),
+    )
+    expect(openSecretVault({ path })).toEqual({ kind: 'unavailable', cause: 'corrupt' })
+    // The only maker of a `SecretText` rejects or changes each of them: a write goes through it.
+    for (const [, raw] of stored) {
+      const parsed = parseSecretText(raw)
+      expect(parsed.ok && parsed.value === raw, JSON.stringify(raw.slice(0, 40))).toBe(false)
+    }
+  })
+})
+
 describe('the four results of a write', () => {
   it('a bind is written, and binding the same value again is written too', () => {
     const vault = created(scratch())
@@ -356,12 +448,6 @@ describe('the four results of a write', () => {
     expect(vault.unbind(key)).toBe('removed')
     expect(vault.describe(key)).toEqual({ kind: 'unbound' })
     expect(vault.use(key)).toBe('missing')
-  })
-
-  it('a secret that is not a parsed secret text is refused as a programming error', () => {
-    const vault = created(scratch())
-    expect(() => vault.bind(settingKey(tenantA, 'x'), '' as SecretText, AT)).toThrow(TypeError)
-    expect(() => vault.bind(settingKey(tenantA, 'x'), 'a\nb' as SecretText, AT)).toThrow(TypeError)
   })
 })
 

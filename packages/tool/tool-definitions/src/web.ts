@@ -21,7 +21,6 @@ import { bounded } from './text.ts'
 import { webAccessOf, type FetchedPage, type SearchHit, type WebFailure } from './web-port.ts'
 import {
   webAdoption,
-  webCommandNames,
   webCommands,
   webContract,
   webParameterCodec,
@@ -96,14 +95,9 @@ const menu: CommandTable = {
   commands: webCommands.map(command => ({
     name: command.name,
     summary: command.summary,
-    parameters: { kind: 'declared', value: contractOf(command.name) },
+    parameters: { kind: 'declared', value: webContract(command.name) },
     returns,
   })),
-}
-function contractOf(name: string) {
-  const known = webCommandNames.find(candidate => candidate === name)
-  if (known === undefined) throw new TypeError(`Web has no command ${name}`)
-  return webContract(known)
 }
 
 function failureLine(failure: WebFailure): string {
@@ -182,9 +176,8 @@ export function createWebAuthor(
     string,
     { summary: string; operation: ToolOperation<null, ToolMessageContentBlock> }
   > = {}
-  for (const name of webCommandNames) {
-    const command = webCommands.find(candidate => candidate.name === name)
-    if (command === undefined) throw new TypeError(`Web has no command ${name}`)
+  for (const command of webCommands) {
+    const { name } = command
     const operation = defineToolOperation<
       WebArguments,
       string,

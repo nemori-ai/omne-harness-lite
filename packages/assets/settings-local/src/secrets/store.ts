@@ -17,17 +17,16 @@ import {
 } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { lockSync } from 'proper-lockfile'
-import {
-  parseSecretText,
-  type SecretBindingKey,
-  type SecretCustodyManagement,
-  type SecretCustodyUse,
-  type SecretListCursor,
-  type SecretListEntry,
-  type SecretListPage,
-  type SecretPresence,
-  type SecretText,
-  type SecretWriteResult,
+import type {
+  SecretBindingKey,
+  SecretCustodyManagement,
+  SecretCustodyUse,
+  SecretListCursor,
+  SecretListEntry,
+  SecretListPage,
+  SecretPresence,
+  SecretText,
+  SecretWriteResult,
 } from '@omne-harness/settings'
 import type { Instant } from '@omne-harness/utc-instant'
 import {
@@ -347,12 +346,6 @@ function asWrite(mutation: Mutation): SecretWriteResult {
   return mutation === 'locked' ? 'not-written' : mutation
 }
 
-function requireSecretText(secret: SecretText): void {
-  const parsed = parseSecretText(secret)
-  if (!parsed.ok || parsed.value !== secret)
-    throw new TypeError('the secret is not a parsed secret text')
-}
-
 function presenceOf(record: SecretRecord | undefined): SecretPresence {
   return record === undefined
     ? { kind: 'unbound' }
@@ -420,7 +413,6 @@ function live(settings: Settings): SecretVault {
   return {
     path,
     bind(key, secret, configuredAt) {
-      requireSecretText(secret)
       if (!isMintedScope(key.scope) || closed) return 'denied'
       return revise(bindings => [
         ...bindings.filter(item => !sameKey(item.key, key)),
@@ -516,7 +508,6 @@ export function openSecretVault(options: SecretVaultOptions): OpenSecretVaultRes
 export function createSecretVault(options: CreateSecretVaultOptions): CreateSecretVaultResult {
   const settings = settle(options)
   const { path } = settings
-  for (const seed of options.seed ?? []) requireSecretText(seed.secret)
   try {
     mkdirSync(dirname(path), { recursive: true })
   } catch {

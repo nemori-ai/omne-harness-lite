@@ -40,6 +40,7 @@ export { SettingsRebaseSchema, decideSettingsRebase, type SettingsRebase } from 
 export {
   SETTING_SECRET_PURPOSE,
   createSettingsSecretItems,
+  secretItemTarget,
   type SecretItemRef,
   type SecretItemRefusal,
   type SecretItemView,

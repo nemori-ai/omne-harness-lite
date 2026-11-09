@@ -34,14 +34,19 @@ export type SettingsHoldingRef = Readonly<{
   holding: SettingsHolding
 }>
 
-/** What a list shows of one item: the presence is read for a secret item only, and has no value. */
+/**
+ * What a list shows of one item, told apart by `sensitivity`: a secret item carries the presence
+ * read from the custody now (never a value); an ordinary item carries no presence.
+ */
 export type SecretItemView = Readonly<{
   asset: Readonly<{ category: string; name: string }>
   itemId: string
   title: string
-  sensitivity: SettingItem['sensitivity']
-  presence?: SecretPresence
-}>
+}> &
+  (
+    | Readonly<{ sensitivity: 'secret'; presence: SecretPresence }>
+    | Readonly<{ sensitivity: Exclude<SettingItem['sensitivity'], 'secret'> }>
+  )
 
 /** The answers of the entry that come before the custody is asked. */
 export type SecretItemRefusal = 'not-secret' | 'undeclared' | 'conflict'
@@ -89,9 +94,10 @@ const TARGET_OWNER = 'setting'
 /**
  * The target of a secret item: the holding and the item id, encoded as one JSON array of three
  * strings. JSON escapes the quotes and backslashes inside a string, so the encoding is injective;
- * a value that contains the separators cannot collide with another triple.
+ * a value that contains the separators cannot collide with another triple. This is the one place
+ * of the encoding: an assembly that derives the target of a holding it resolves calls it.
  */
-function targetOf(holding: SettingsHolding, itemId: string): SecretTarget {
+export function secretItemTarget(holding: SettingsHolding, itemId: string): SecretTarget {
   return {
     owner: TARGET_OWNER,
     key: JSON.stringify([holding.providerId, holding.definitionId, itemId]),
@@ -99,7 +105,7 @@ function targetOf(holding: SettingsHolding, itemId: string): SecretTarget {
 }
 
 function keyOf(scope: SecretScope, holding: SettingsHolding, itemId: string): SecretBindingKey {
-  return { scope, target: targetOf(holding, itemId), purpose: SETTING_SECRET_PURPOSE }
+  return { scope, target: secretItemTarget(holding, itemId), purpose: SETTING_SECRET_PURPOSE }
 }
 
 type Located =
@@ -156,19 +162,14 @@ export function createSettingsSecretItems(deps: SettingsSecretItemsDeps): Settin
   ): readonly SecretItemView[] | 'denied' | 'unavailable' {
     const views: SecretItemView[] = []
     for (const item of definition.items) {
-      const view = {
-        asset: ref.asset,
-        itemId: item.id,
-        title: item.presentation.title,
-        sensitivity: item.sensitivity,
-      }
+      const view = { asset: ref.asset, itemId: item.id, title: item.presentation.title }
       if (item.sensitivity !== 'secret') {
-        views.push(view)
+        views.push({ ...view, sensitivity: item.sensitivity })
         continue
       }
       const presence = custody.describe(keyOf(scope, ref.holding, item.id))
       if (presence === 'denied' || presence === 'unavailable') return presence
-      views.push({ ...view, presence })
+      views.push({ ...view, sensitivity: item.sensitivity, presence })
     }
     return views
   }

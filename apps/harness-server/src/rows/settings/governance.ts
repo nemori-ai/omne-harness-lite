@@ -70,24 +70,15 @@ function stateOf(presence: SecretPresence, tenantId: SettingsAccess['tenant']): 
     : { state, tenantId, configuredAt: presence.configuredAt }
 }
 
-/** The public view of a listed item; `undefined` when a secret item came without its presence. */
-function viewOf(
-  view: SecretItemView,
-  tenantId: SettingsAccess['tenant'],
-): SettingItemView | undefined {
-  const state: SettingItemView['state'] | undefined =
-    view.sensitivity === 'secret'
-      ? view.presence === undefined
-        ? undefined
-        : stateOf(view.presence, tenantId)
-      : { state: 'not-writable' }
-  if (state === undefined) return undefined
+/** The public view of a listed item: a secret item shows its presence, an ordinary one is not writable here. */
+function viewOf(view: SecretItemView, tenantId: SettingsAccess['tenant']): SettingItemView {
   return {
     asset: view.asset,
     item: view.itemId,
     title: view.title,
     sensitivity: view.sensitivity,
-    state,
+    state:
+      view.sensitivity === 'secret' ? stateOf(view.presence, tenantId) : { state: 'not-writable' },
   }
 }
 
@@ -112,13 +103,7 @@ export function createSettingsGovernance(input: SettingsGovernanceInput): Settin
       )
       if (listed === 'denied') return { kind: 'denied' }
       if (listed === 'unavailable' || listed === 'conflict') return { kind: 'basis-unavailable' }
-      const items: SettingItemView[] = []
-      for (const view of listed) {
-        const item = viewOf(view, access.tenant)
-        if (item === undefined) return { kind: 'basis-unavailable' }
-        items.push(item)
-      }
-      return { kind: 'succeeded', items }
+      return { kind: 'succeeded', items: listed.map(view => viewOf(view, access.tenant)) }
     },
 
     async set({ access, asset, item, secret }): Promise<SettingsSetOutcome> {

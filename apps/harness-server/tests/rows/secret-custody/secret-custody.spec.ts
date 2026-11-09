@@ -240,13 +240,17 @@ describe('the secret-custody row', () => {
     expect(readFileSync(path, 'utf8')).toBe('{not json')
   })
 
-  it('refuses a configuration without a path or with a lock wait that is not a count', () => {
-    const validate = secretCustodyConfig['~standard'].validate
-    expect(validate({})).toHaveProperty('issues', [{ message: expect.stringMatching(/path/) }])
-    expect(validate({ path: '' })).toHaveProperty('issues')
-    expect(validate({ path: '/v', lockWaitMs: -1 })).toHaveProperty('issues', [
-      { message: expect.stringMatching(/lockWaitMs/) },
-    ])
+  it('refuses a configuration without a path, with an unknown key, or with a lock wait that is not a count', () => {
+    const validate = (value: unknown) => secretCustodyConfig['~standard'].validate(value)
+    expect(validate({})).toMatchObject({ issues: [{ path: ['path'] }] })
+    expect(validate({ path: '' })).toMatchObject({ issues: [{ path: ['path'] }] })
+    expect(validate({ path: '/v', lockWaitMs: -1 })).toMatchObject({
+      issues: [{ path: ['lockWaitMs'] }],
+    })
+    expect(validate({ path: '/v', lockWaitMs: 1.5 })).toMatchObject({
+      issues: [{ path: ['lockWaitMs'] }],
+    })
+    expect(validate({ path: '/v', other: 1 })).toHaveProperty('issues')
     expect(validate({ path: '/v', lockWaitMs: 2000 })).toStrictEqual({
       value: { path: '/v', lockWaitMs: 2000 },
     })

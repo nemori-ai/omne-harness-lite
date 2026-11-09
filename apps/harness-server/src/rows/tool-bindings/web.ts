@@ -13,7 +13,7 @@
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { SecretCustodyManagement, SecretCustodyUse, SecretScope } from '@omne-harness/settings'
-import { SETTING_SECRET_PURPOSE } from '@omne-harness/settings'
+import { SETTING_SECRET_PURPOSE, secretItemTarget } from '@omne-harness/settings'
 import type { FixedToolRequest, ToolDefinition } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 import { attachWebAccess } from '@omne-harness/tool-definitions'
@@ -158,7 +158,7 @@ export function releaseExaKey(parent: Parent, custody: SecretCustodyReader): Exa
   const usage = {
     adoption: definition.adoption,
     purpose: SETTING_SECRET_PURPOSE,
-    target: toolSettingSecretKey({ layer: 'official' }, holding, EXA_KEY_ITEM).target.key,
+    target: secretItemTarget(holding, EXA_KEY_ITEM).key,
   }
   return () =>
     credentials.resolve({

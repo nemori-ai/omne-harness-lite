@@ -91,6 +91,13 @@ describe('Web fetch: media types', () => {
     })
   })
 
+  it('a charset the decoder does not know is not-text with the parsed media type, not the raw header', async () => {
+    expect(await failure(fixture.url('/unknown-charset'))).toEqual({
+      kind: 'not-text',
+      mediaType: 'text/plain',
+    })
+  })
+
   it('HTTP error statuses are upstream with the status', async () => {
     expect(await failure(fixture.url('/missing'))).toEqual({ kind: 'upstream', status: 404 })
     expect(await failure(fixture.url('/error'))).toEqual({ kind: 'upstream', status: 503 })

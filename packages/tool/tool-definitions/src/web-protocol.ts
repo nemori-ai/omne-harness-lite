@@ -18,7 +18,10 @@ export type WebArguments =
   | Readonly<{ kind: 'search'; query: string; limit: number | null }>
   | Readonly<{ kind: 'fetch'; url: string }>
 
-export const webCommands: readonly Command[] = [
+/** A Web command of the table: a `Command` whose name is one of `webCommandNames`. */
+export type WebCommand = Command & Readonly<{ name: WebCommandName }>
+
+export const webCommands: readonly WebCommand[] = [
   {
     name: 'help',
     summary: 'Read command usage.',
