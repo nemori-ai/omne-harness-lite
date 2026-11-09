@@ -165,11 +165,13 @@ describe('commitEntries writes in one transaction', () => {
       const before = tables(a)
       const progress = (await work(a)).entriesProgress
       a.provider.failWrite(pattern, nth)
+      // An environment error inside the transaction: the real provider answers unknown and keeps
+      // no rolled back receipt (sql-contract §7.6).
       const refused = failureOf(await a.port.commitEntries(input))
-      expect(refused.kind).toBe('unavailable')
+      expect(refused.kind).toBe('commit-unknown')
       expect(tables(a)).toEqual(before)
       expect((await work(a)).entriesProgress).toEqual(progress)
-      // The storage keeps the rolled back attempt: the original stays unknown (session-contract SL09).
+      // No receipt is kept for the attempt: the original stays unknown (session-contract SL09).
       expect(
         ok(
           await a.port.queryOperation({
@@ -177,7 +179,7 @@ describe('commitEntries writes in one transaction', () => {
             operation: input.observation.operation,
           }),
         ),
-      ).toMatchObject({ kind: 'attempt-rejected', original: 'unknown' })
+      ).toEqual({ kind: 'unknown' })
       a.provider.failWrite(null)
       ok<SessionEntriesReceipt>(await a.port.commitEntries(input))
       expect(tables(a).entries).toBe(before.entries + 2)

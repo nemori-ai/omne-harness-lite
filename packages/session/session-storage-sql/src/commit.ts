@@ -137,7 +137,12 @@ function fromRolledBack(receipt: ReceiptV2): Outcome<never, SessionFailure> {
         reason: 'the participant does not support the facts',
       })
     case 'failed':
-      return failure(unavailable(`participant failed (${decoded.diagnostic})`))
+      // The participant reports only temporary failures; a definite one is a conflict. Every other
+      // category is decided by the provider from the input and the committed data, so the same
+      // operation fails the same way (W1 step 9, sql-contract §7.6).
+      return stop.kind === 'failed' && stop.category !== 'participant_reported'
+        ? failure({ kind: 'invalid', field: 'storage', reason: stop.category })
+        : failure(unavailable(`participant failed (${decoded.diagnostic})`))
     case 'participated':
       return failure(unavailable('a rolled back receipt without a stopping response'))
   }
