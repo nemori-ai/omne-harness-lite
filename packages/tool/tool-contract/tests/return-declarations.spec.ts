@@ -30,9 +30,16 @@ describe('published return declarations', () => {
       offloading: {
         inline: { kind: 'bounded', maxInlineUtf8Bytes: 123 },
         retention: { kind: 'bounded', maxRetentionMs: 456 },
+        preview: { kind: 'bounded', maxPreviewUtf8Bytes: 78 },
       },
     }
     expect(judge(returns)).toMatchObject({ ok: { returns } })
+  })
+
+  it('accepts the system preview bound and an omitted one', () => {
+    const declared = { ...ordinary, offloading: { ...system, preview: { kind: 'system' } } }
+    expect(judge(declared)).toMatchObject({ ok: { returns: declared } })
+    expect(judge(ordinary)).toMatchObject({ ok: { returns: ordinary } })
   })
 
   it('preserves structured results without declaring a model body', () => {
@@ -85,6 +92,12 @@ describe('published return declarations', () => {
           offloading: { ...system, retention: { kind: 'bounded', maxRetentionMs: bound } },
         }),
       ).toHaveProperty('failure')
+      expect(
+        judge({
+          ...ordinary,
+          offloading: { ...system, preview: { kind: 'bounded', maxPreviewUtf8Bytes: bound } },
+        }),
+      ).toHaveProperty('failure')
     },
   )
 
@@ -92,6 +105,7 @@ describe('published return declarations', () => {
     for (const offloading of [
       { ...system, inline: { kind: 'bounded', maxInlineUtf8Bytes: 1 } },
       { ...system, retention: { kind: 'bounded', maxRetentionMs: 1 } },
+      { ...system, preview: { kind: 'bounded', maxPreviewUtf8Bytes: 1 } },
     ])
       expect(judge({ ...ordinary, body: { kind: 'none' }, offloading })).toHaveProperty('failure')
   })

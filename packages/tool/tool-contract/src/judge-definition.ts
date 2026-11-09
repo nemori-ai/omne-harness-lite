@@ -83,16 +83,24 @@ const bodyDeclaration: Check<ToolBodyDeclaration> = variant('kind', {
   'json-lines': record({ kind: literal('json-lines'), codec: adoption, record: publishedSchema }),
 })
 
-const offloadingDeclaration: Check<ToolOffloadingDeclaration> = record({
-  inline: variant('kind', {
-    system: record({ kind: literal('system') }),
-    bounded: record({ kind: literal('bounded'), maxInlineUtf8Bytes: positiveSafeInteger }),
-  }),
-  retention: variant('kind', {
-    system: record({ kind: literal('system') }),
-    bounded: record({ kind: literal('bounded'), maxRetentionMs: positiveSafeInteger }),
-  }),
-})
+const offloadingDeclaration: Check<ToolOffloadingDeclaration> = record(
+  {
+    inline: variant('kind', {
+      system: record({ kind: literal('system') }),
+      bounded: record({ kind: literal('bounded'), maxInlineUtf8Bytes: positiveSafeInteger }),
+    }),
+    retention: variant('kind', {
+      system: record({ kind: literal('system') }),
+      bounded: record({ kind: literal('bounded'), maxRetentionMs: positiveSafeInteger }),
+    }),
+  },
+  {
+    preview: variant('kind', {
+      system: record({ kind: literal('system') }),
+      bounded: record({ kind: literal('bounded'), maxPreviewUtf8Bytes: positiveSafeInteger }),
+    }),
+  },
+)
 
 const returnFields = {
   program: programDeclaration,
@@ -115,7 +123,9 @@ export const returnDeclaration: Check<ToolReturnDeclaration> = refine(
   }),
   (value, at) =>
     value.body.kind === 'none' &&
-    (value.offloading.inline.kind !== 'system' || value.offloading.retention.kind !== 'system')
+    (value.offloading.inline.kind !== 'system' ||
+      value.offloading.retention.kind !== 'system' ||
+      (value.offloading.preview ?? { kind: 'system' }).kind !== 'system')
       ? { field: member(at, 'offloading'), reason: 'body-required' }
       : undefined,
 )
