@@ -23,6 +23,9 @@ async function fixture(options: Parameters<typeof settlementFixture>[0] = {}) {
       maxInlineUtf8Bytes: 2048,
       maxRetentionMs: 10,
       maxPageLeaseMs: 20,
+      permitMs: 4,
+      clockSkewMs: 1,
+      orphanGraceMs: 7,
       ...options.offloading,
     },
     wrapMaterialClock: () => {

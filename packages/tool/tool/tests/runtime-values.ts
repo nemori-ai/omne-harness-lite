@@ -441,6 +441,9 @@ export function configuration(overrides: Partial<ToolConfiguration> = {}): ToolC
       previewUtf8Bytes: 1_024,
       maxPageBytes: 65_536,
       maxPageLeaseMs: 30_000,
+      permitMs: 4,
+      clockSkewMs: 1,
+      orphanGraceMs: 7,
       maxWriterMetadataBytes: 1_048_576,
       jsonDocument: {
         maxBytes: 1_048_576,

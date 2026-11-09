@@ -69,6 +69,9 @@ async function expiredFixture(options: Parameters<typeof settlementFixture>[0] =
       maxInlineUtf8Bytes: 2048,
       maxRetentionMs: 10,
       maxPageLeaseMs: 20,
+      permitMs: 4,
+      clockSkewMs: 1,
+      orphanGraceMs: 7,
     },
     wrapMaterialClock: () => ({
       sample: async () => succeed(ok(decodeToolMaterialInstant(new Date(now).toISOString()))),
@@ -251,6 +254,9 @@ it('keeps an admitted page alive across body expiry and reclaims after the page 
       maxInlineUtf8Bytes: 2048,
       maxRetentionMs: 10,
       maxPageLeaseMs: 20,
+      permitMs: 4,
+      clockSkewMs: 1,
+      orphanGraceMs: 7,
     },
     wrapMaterialClock: () => ({
       sample: async () => succeed(ok(decodeToolMaterialInstant(new Date(now).toISOString()))),

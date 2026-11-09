@@ -127,7 +127,8 @@
 | `due`、`Settle` 的排期、`Reclaim` 的 `unschedule` | `tool/src/ledger-store.ts` 的 `LedgerWrite` `schedule`/`unschedule` 与 `ToolLedgerStore.due`；内存仓 `tool/src/testing-store.ts`；SQL 参加者把 `tl_due` 写进同一事务，`tool.due.read` 读取。判据 `due.*`。提交排期与撤销排期的调用方在 M3、M5 | 索引已实现（M1、M2）；调用方待实现 |
 | `expiresAt`、`ReadBegin`、`ReadRefuse` | `tool` 包 `readPage` 的账本检查 | 待实现 |
 | `ReadFinish`、`StillValid`、`RecheckExpired` | `tool` 包 `readPage`：读完存储后的本地时钟复核，以及读不到时的账本复查规则 | 待实现 |
-| `off`、`Now(p)`、`Eps`、`W`、`G`、`D` | 时钟端口的 ε 契约；装配启动时校验 `G > W + 2ε` 与 `D > W + 2ε` | 待实现 |
+| `Eps`、`W`、`G`、`D` 的约束 | `tool/src/construction.ts` 的 `ToolOffloadingConfiguration.permitMs`（W）、`clockSkewMs`（ε）、`orphanGraceMs`（G）与 `maxRetentionMs`（D 的系统上限）；`tool/src/configuration.ts` 的 `checkResultConfiguration` 在启动时拒绝 `G ≤ W + 2ε` 与 `maxRetentionMs ≤ W + 2ε`；`tool/src/result-offloading.ts` 的 `offloadingRefusal` 在声明受理时拒绝 `D ≤ W + 2ε`（`retention-within-late-write-window`）。判据 `tests/body-parameters.spec.ts` | 已实现（M3） |
+| `off`、`Now(p)` | 每个参与者读自己的 `ToolInstantClock`：存储在 `verifyBodyPermit`（M1、M2），签发者、结算者与读者在 M3、M4 的写入与读回 | 存储已实现；其余随 M3、M4 |
 | `SweeperCrash` 与重跑 | `sweep(tenant, now, limit)` 的幂等重跑 | 待实现 |
 
 ## 8. 未覆盖

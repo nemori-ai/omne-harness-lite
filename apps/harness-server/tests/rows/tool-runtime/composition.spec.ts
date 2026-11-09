@@ -643,6 +643,9 @@ describe('Tool segment B: the release rows in one process composition', () => {
       const { rows, tools } = rowsOf(storageRoot)
       tools.records.configuration.offloading.maxInlineUtf8Bytes = 1024
       tools.records.configuration.offloading.maxRetentionMs = 100
+      tools.records.configuration.offloading.permitMs = 10
+      tools.records.configuration.offloading.clockSkewMs = 1
+      tools.records.configuration.offloading.orphanGraceMs = 50
       const maintenance = {
         id: 'tool-material-maintenance',
         plugin: 'toolMaterialMaintenanceRow',

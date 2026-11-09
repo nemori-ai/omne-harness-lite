@@ -60,12 +60,12 @@ export function resultBodyPolicy(
  * Admission of a call under the system bounds: its fixed return declaration must leave room for
  * the largest header and the preview within its threshold, or no result of it could be shown.
  */
-export function callOffloadingFits(
+export function callOffloadingRefusal(
   request: DeclaredCall,
   system: ToolOffloadingConfiguration,
-): boolean {
+): OffloadingRefusal | null {
   const declaration = returnDeclaration(request)
-  return declaration === undefined || offloadingFits(declaration, system)
+  return declaration === undefined ? null : offloadingRefusal(declaration, system)
 }
 
 export function resolveBodyPolicy(
@@ -279,21 +279,44 @@ function withHeader<B extends ContentBlock>(blocks: readonly B[], header: string
   )
 }
 
+/** W + 2ε: the time within which a write under an already issued permit may still land. */
+export function lateWriteWindowMs(
+  system: Pick<ToolOffloadingConfiguration, 'permitMs' | 'clockSkewMs'>,
+): number {
+  return system.permitMs + 2 * system.clockSkewMs
+}
+
+export type OffloadingRefusal =
+  | 'header-and-preview-exceed-threshold'
+  | 'retention-within-late-write-window'
+
 /**
  * Acceptance of a return declaration under the system bounds: the largest header plus the preview
- * budget must fit the offloading threshold, so no first screen exceeds L.
+ * budget must fit the offloading threshold, so no first screen exceeds L; and the retention must
+ * exceed W + 2ε, or a sweep at expiry could meet a late write of the body (model `ttl-too-small`).
  */
+export function offloadingRefusal(
+  declaration: Pick<ToolReturnDeclaration, 'body' | 'offloading'>,
+  system: ToolOffloadingConfiguration,
+): OffloadingRefusal | null {
+  const representation = bodyRepresentation(declaration.body)
+  if (representation === null) return null
+  const bounds = offloadingBounds(declaration.offloading, system)
+  if (
+    headerMax(representation, bounds.retentionMs, system.maxBodyBytes) + bounds.previewBytes >
+    bounds.inlineBytes
+  )
+    return 'header-and-preview-exceed-threshold'
+  return bounds.retentionMs > lateWriteWindowMs(system)
+    ? null
+    : 'retention-within-late-write-window'
+}
+
 export function offloadingFits(
   declaration: Pick<ToolReturnDeclaration, 'body' | 'offloading'>,
   system: ToolOffloadingConfiguration,
 ): boolean {
-  const representation = bodyRepresentation(declaration.body)
-  if (representation === null) return true
-  const bounds = offloadingBounds(declaration.offloading, system)
-  return (
-    headerMax(representation, bounds.retentionMs, system.maxBodyBytes) + bounds.previewBytes <=
-    bounds.inlineBytes
-  )
+  return offloadingRefusal(declaration, system) === null
 }
 
 /** The return declaration of the system's own results, accepted at startup like any author's. */

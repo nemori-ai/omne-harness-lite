@@ -58,6 +58,9 @@ const configuration: ToolConfiguration = {
     previewUtf8Bytes: 1_024,
     maxPageBytes: 65_536,
     maxPageLeaseMs: 30_000,
+    permitMs: 30_000,
+    clockSkewMs: 1_000,
+    orphanGraceMs: 60_000,
     maxWriterMetadataBytes: 1_048_576,
     jsonDocument: {
       maxBytes: 1_048_576,

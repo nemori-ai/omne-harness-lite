@@ -4,7 +4,7 @@ import { readJsonText } from '@omne-harness/json-text'
 // each check throws instead of building a runtime or a ledger that would misbehave later.
 import type { ToolConfiguration, ToolLedgerConfiguration } from './construction.ts'
 import { isPositiveSafeInteger, judgeAuthorLimits } from './limits.ts'
-import { offloadingFits, SYSTEM_RETURN } from './result-offloading.ts'
+import { lateWriteWindowMs, offloadingFits, SYSTEM_RETURN } from './result-offloading.ts'
 
 const LEDGER_CAPACITIES = [
   'resultPageBytes',
@@ -109,8 +109,19 @@ function checkResultConfiguration(configuration: ToolLedgerConfiguration): void 
     'maxPageBytes',
     'maxPageLeaseMs',
     'maxWriterMetadataBytes',
+    'permitMs',
+    'orphanGraceMs',
   ])
   if (policy.previewDivisor !== undefined) checkCapacities(policy, ['previewDivisor'])
+  if (!isNonNegativeSafeInteger(policy.clockSkewMs))
+    throw new TypeError('configuration.offloading.clockSkewMs: range')
+  // A sweep after the due instant and a late write within its permit must not meet (model
+  // negative controls `grace-too-small` and `ttl-too-small`).
+  const window = lateWriteWindowMs(policy)
+  if (policy.orphanGraceMs <= window)
+    throw new TypeError('configuration.offloading.orphanGraceMs: not-above-late-write-window')
+  if (policy.maxRetentionMs <= window)
+    throw new TypeError('configuration.offloading.maxRetentionMs: not-above-late-write-window')
   if (!offloadingFits(SYSTEM_RETURN, policy))
     throw new TypeError('configuration.offloading: header-and-preview-exceed-threshold')
 }

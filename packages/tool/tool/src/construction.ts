@@ -49,6 +49,12 @@ export type ToolOffloadingConfiguration = Readonly<{
   maxWriterMetadataBytes: number
   jsonDocument: JsonLimits
   jsonRecord: JsonLimits
+  /** W: how long one write permit lasts on the issuer's clock. */
+  permitMs: number
+  /** ε: the largest clock difference between any two participants of the deployment. */
+  clockSkewMs: number
+  /** G: the time after settlement at which an orphaned body is due for reclaim. Must exceed W + 2ε. */
+  orphanGraceMs: number
 }>
 
 export type ToolConfiguration = ToolAuthorLimits &

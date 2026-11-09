@@ -183,6 +183,9 @@ it('keeps a live page deadline after body expiry and becomes ready when the page
       maxInlineUtf8Bytes: 2048,
       maxRetentionMs: 10,
       maxPageLeaseMs: 20,
+      permitMs: 4,
+      clockSkewMs: 1,
+      orphanGraceMs: 7,
     },
     wrapMaterialClock: () => ({
       sample: async () => succeed(ok(decodeToolMaterialInstant(new Date(now).toISOString()))),

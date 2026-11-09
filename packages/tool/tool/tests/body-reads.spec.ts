@@ -247,6 +247,9 @@ it('finishes an admitted page after body expiry but denies the next page and lat
       maxInlineUtf8Bytes: 2048,
       maxRetentionMs: 10,
       maxPageLeaseMs: 100,
+      permitMs: 4,
+      clockSkewMs: 1,
+      orphanGraceMs: 7,
     },
     wrapMaterialClock: () => ({ sample: async () => succeed(instant(now)) }),
     wrapMaterials: store => ({
