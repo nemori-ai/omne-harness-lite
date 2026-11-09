@@ -643,6 +643,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // and a commit appends exactly its own events, so the cursor after it needs no read. W0 hands it
   // to the wait as the start of the observation (perf baseline 2.3).
   let held: HeldPosition | null = null
+  // The unavailable answers of Journal commits. Such a write took no effect (agent-contract
+  // "提交参加者协议"), so wherever the answer surfaces, the run waits on the Journal and writes the
+  // same step again (SPEC "依赖不可用时的等待").
+  const refusedWrites = new WeakSet<Failure>()
 
   async function exclusive<T>(
     node: LoopNode,
@@ -713,6 +717,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           return commit(node, to, write)
         }
       }
+      if (committed.failure.kind === 'unavailable') refusedWrites.add(committed.failure)
       return committed
     }
     held = heldAfter(held, after, committed.ok.revision, write.events?.length ?? 0)
@@ -745,15 +750,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     at: LoopNode,
     failure: Failure,
   ): Promise<Outcome<LoopNode, Failure>> {
-    // D5 5.1: the Journal lost the material of the prefix this commit carried. Drop the
-    // in-process prefix and wait in W0 with the saved one; the wake reads from it again.
-    if (failure.kind === 'unavailable' && failure.diagnostic.startsWith('missing-basis')) {
-      readPrefix = null
-      waitingAt = at
-      recheckDependency = null
-      waits = [{ kind: 'dependency', owner: failure.owner, position: at }]
-      return succeed('W0')
-    }
+    if (failure.kind === 'unavailable') return waitOnRefusedWrite(at, failure)
     if (failure.kind === 'changed' && ['F1', 'F2'].includes(at)) {
       finishRefused = true
       return succeed('R0')
@@ -780,10 +777,31 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         return 'failure' in next ? next : succeed({ to: next.ok, yielded: false })
       }
     }
-    return succeed({ to, yielded: at === 'W0' && ran.on === 'saved-wait' })
+    return succeed({
+      to,
+      yielded: at === 'W0' && (ran.on === 'saved-wait' || ran.on === 'unsaved-wait'),
+    })
   }
 
   const closingNodes: readonly LoopNode[] = ['F0', 'F1', 'F2', 'F3', 'F4', 'O0', 'E9', 'R0', 'W0']
+
+  /**
+   * The wait of a Journal write answered unavailable (SPEC "依赖不可用时的等待"). A non-closing
+   * node waits in W0 on the Journal and comes back to itself through E1. A closing node waits in
+   * the process, like the memory wait of F1 and F3: a waiting commit would change the state of a
+   * settling execution, and the storage is most likely still full.
+   */
+  function waitOnRefusedWrite(
+    at: LoopNode,
+    failure: Extract<Failure, { kind: 'unavailable' }>,
+  ): Outcome<LoopNode, Failure> {
+    // D5 5.1: the Journal lost the material of the prefix this commit carried. Drop the
+    // in-process prefix; the wake reads from the saved one again.
+    if (failure.diagnostic.startsWith('missing-basis')) readPrefix = null
+    if (closingNodes.includes(at)) return waitForFault(at, failure)
+    waitFor(at, failure, null)
+    return succeed('W0')
+  }
 
   function waitForFault(at: LoopNode, failure: Extract<Failure, { kind: 'unavailable' }>) {
     finishWait = true
@@ -796,6 +814,8 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       return nodeFailureCategory(failure) === null
         ? fail(failure)
         : fail({ kind: 'commit-unknown', operation: pendingCommit.operation })
+    if (failure.kind === 'unavailable' && refusedWrites.has(failure))
+      return waitOnRefusedWrite(at, failure)
     if (failure.kind === 'stale-advance' || failure.kind === 'denied') {
       const latest = await load()
       if ('ok' in latest) {
@@ -1595,6 +1615,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         events: [{ kind: 'waiting', waits }],
       })
       if ('failure' in saved) {
+        // The wait is not saved: it stays in the process, the execution keeps the state it had
+        // before W0, and the check time goes through E1, which comes back here if the Journal is
+        // still unavailable. It is not an unknown outcome, so it is not `pendingCommit`.
+        if (saved.failure.kind === 'unavailable') {
+          yieldedWait = true
+          return step('unsaved-wait', null)
+        }
         if (saved.failure.kind !== 'changed') return saved
         waking = true
         return step('reconciled', null)
@@ -1946,7 +1973,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return succeed({ entry: found, delivery, pending })
   }
 
-  type Sent = Readonly<{ batch: ActionBatch; progressed: boolean }>
+  /**
+   * `unavailable`: the Tool runtime rejected the invoke because a dependency of it is unavailable
+   * now; A2 waits on it and sends the same request again (SPEC "依赖不可用时的等待").
+   */
+  type Sent = Readonly<{
+    batch: ActionBatch
+    progressed: boolean
+    unavailable?: Extract<Failure, { kind: 'unavailable' }>
+  }>
 
   /** A2: every action denied at judgment gets its denied slot, saved before anything is sent. */
   async function slotDeniedAtJudgment(batch: ActionBatch): Promise<Outcome<Sent, Failure>> {
@@ -2008,6 +2043,14 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     if (result.kind === 'association-unknown') {
       uncertainToolActions.add(action.id)
       return succeed({ batch: next, progressed: false })
+    }
+    if (result.kind === 'rejected' && result.failure.kind === 'unavailable') {
+      const unavailable = {
+        kind: 'unavailable' as const,
+        owner: 'toolRuntime',
+        diagnostic: result.failure.diagnostic ?? result.failure.dependency,
+      }
+      return succeed({ batch: next, progressed: false, unavailable })
     }
     if (result.kind === 'rejected') {
       if (!fresh || uncertainToolActions.has(action.id))
@@ -2391,6 +2434,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         if (original.call === null && inFlight(batch).length >= limit) break
         const sent = await sendAction(batch, original)
         if ('failure' in sent) return sent
+        if (sent.ok.unavailable !== undefined) return waitFor('A2', sent.ok.unavailable, null)
         batch = sent.ok.batch
         progressed ||= sent.ok.progressed
       }

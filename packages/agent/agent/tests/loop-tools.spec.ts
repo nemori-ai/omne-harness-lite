@@ -277,6 +277,48 @@ describe('tool result round', () => {
     await secondModelCall(assembly)
   })
 
+  // Agent SPEC "依赖不可用时的等待": a rejected invoke whose failure is unavailable did not admit
+  // the call and does not refuse the action. A2 waits on the Tool runtime and sends the same
+  // request again at the check time; no denied slot is made.
+  it('waits on a rejected invoke whose failure is unavailable and sends the same request again', async () => {
+    const assembly = await toolAssembly()
+    let attempts = 0
+    assembly.controls.tools.invoke.always(async () => {
+      attempts += 1
+      return attempts === 1
+        ? {
+            kind: 'rejected',
+            failure: {
+              kind: 'unavailable',
+              dependency: 'ledger-store',
+              diagnostic: 'storage rejected the commit: queue_full',
+            },
+          }
+        : accepted('after-wait')
+    })
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly)
+    await eventually(async () => {
+      const read = await snapshot(assembly)
+      return read.state.kind === 'waiting' && read.checkpoint.position === 'A2'
+    })
+    const waiting = await snapshot(assembly)
+    expect(waiting.state).toEqual({
+      kind: 'waiting',
+      waits: [{ kind: 'dependency', owner: 'toolRuntime', position: 'A2' }],
+    })
+    expect(waiting.checkpoint.batch?.slots).toEqual([])
+    const now = ok(await assembly.dependencies.clock.now())
+    ok(assembly.controls.clock.advanceTo(new Date(Date.parse(now) + 2000).toISOString() as never))
+    const [pending] = await associatedTools(assembly, 1)
+    const requests = assembly.controls.tools.invoke.calls.map(call => call.request)
+    expect(requests).toHaveLength(2)
+    expect(requests[1]).toEqual(requests[0])
+    if (pending === undefined) throw new Error('the call after the wait is not associated')
+    ok(await pushToolResult(toolReceiver(assembly), toolDelivery(pending, { name: 'after-wait' })))
+    await secondModelCall(assembly)
+  })
+
   it('admits a denial message for each action when the whole batch is denied', async () => {
     const assembly = await toolAssembly()
     assembly.controls.admission.admit.always(() => ({

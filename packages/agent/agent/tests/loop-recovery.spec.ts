@@ -817,17 +817,16 @@ describe('R0 and W0 coordination', () => {
     )
   })
 
-  it('NA-W0-1: a failed waiting commit stays a failure and saves no event', async () => {
+  // Agent SPEC 依赖不可用时的等待: the wait stays in the process, the drive yields and nothing
+  // is saved; the check time goes through E1.
+  it('NA-W0-1: a waiting commit answered unavailable keeps the wait in the process and saves no event', async () => {
     const assembly = await loopAssembly([execution()])
     const c = coordinator(assembly)
     ok(await c.accept())
     const before = await load(assembly)
     assembly.controls.journal.failNextRead('load')
     assembly.controls.journal.failNext('commit', { kind: 'unavailable' })
-    expect(failure(await c.runExecution())).toMatchObject({
-      node: 'W0',
-      failure: { kind: 'unavailable' },
-    })
+    ok(await c.runExecution())
     expect(await load(assembly)).toEqual(before)
   })
 

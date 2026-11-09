@@ -240,7 +240,8 @@ describe('received Model result adoption', () => {
     expect(assembly.controls.requests.prepare.calls).toHaveLength(preparations)
   })
 
-  it('rebuilds the same ready intent after stopping before its publication', async () => {
+  // The first coordinator's M0 commit is unavailable: it waits, and its process stops in the wait.
+  it('rebuilds the same ready intent after the process stops in a wait before its publication', async () => {
     let stop = true,
       admits = 0
     const intents: JournalCommit<Principal>[] = []
@@ -272,7 +273,11 @@ describe('received Model result adoption', () => {
     }))
     const first = coordinator(assembly),
       authority = ok(await first.accept())
-    expect(failure(await first.runExecution())).toMatchObject({ node: 'M0' })
+    ok(await first.runExecution())
+    expect((await load(assembly)).state).toMatchObject({
+      kind: 'waiting',
+      waits: [{ kind: 'dependency', owner: 'cut', position: 'M0' }],
+    })
     expect((await load(assembly)).effects).toEqual([])
     expect(admits).toBe(0)
     stop = false
