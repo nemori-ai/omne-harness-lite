@@ -157,6 +157,21 @@ export function readResultValue<B extends ContentBlock>(
   return 'failure' in checked ? unavailable('stored result violates its contract') : checked
 }
 
+/**
+ * The channels once every delivery that needed them is released (Handoff model `Release`): the
+ * model channels give way to the summary of the offloaded original, or to nothing when the result
+ * was inline. `data` belongs to the program delivery, which a model release does not touch. The
+ * body descriptor and its expiry stay, so the body reads until it expires and the sweep reclaims it.
+ */
+export function releasedResultValue(value: ResultValue): ResultValue {
+  return {
+    content: value.original.kind === 'offloaded' ? value.original.summary : [],
+    data: value.data,
+    original: value.original,
+    attachments: [],
+  }
+}
+
 /** The settler fixes the expiry of the referenced body from its own clock (model `Settle`). */
 export function activateResult(
   prepared: PreparedResult,

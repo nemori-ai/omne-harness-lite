@@ -7,7 +7,7 @@ import type {
   SyntheticDecision,
   SyntheticNeed,
 } from './ledger-result-preparation.ts'
-import type { ResultValue } from './ledger-result-material.ts'
+import { releasedResultValue, type ResultValue } from './ledger-result-material.ts'
 // The pure admission decider (P01, P02) and the delivery release decider (P08). A decision reads
 // the domain snapshot and the command, and answers either a reply without writes or a set of
 // writes with the value to reply after the commit. It reads no port, runs no tool and mints no
@@ -707,7 +707,8 @@ function releaseTarget(
  * Decides one delivery release. Order: recall by operation; the version, delivery and consumer
  * must be the recorded ones; the handoff evidence must belong to the consumer; an already
  * released delivery answers its released state; otherwise the release is committed with a
- * Tool-side receipt, and the deliver task of that version is done.
+ * Tool-side receipt, the channel values of the record give way to their summary (C6), and the
+ * deliver task of that version is done.
  */
 export function decideRelease(
   snapshot: Snapshot,
@@ -737,7 +738,10 @@ export function decideRelease(
   return {
     kind: 'commit',
     writes: [
-      put({ kind: 'result', result: { ...record, delivery: released } }),
+      put({
+        kind: 'result',
+        result: { ...record, delivery: released, value: releasedResultValue(record.value) },
+      }),
       put(operationRecord(command, { kind: 'release-delivery', delivery: released }, mint)),
       put({
         kind: 'call',

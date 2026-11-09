@@ -1,6 +1,6 @@
 # Handoff：交接释放
 
-本目录的模型检查交接释放：消费方耐久承接后，Tool 才释放普通副本；同一采用身份只追加一次。性质的含义归领域文档的[性质与守护点](../../../../../../docs/domains/tool-execution/architecture.md#性质与守护点)，Tool 与 Session 的协议归[跨域交接](../../../../../../docs/domains/tool-execution/architecture.md#跨域交接)。模型守的是性质，与正文保管机制无关。实现对应见第 6 节，全部标为待实现。
+本目录的模型检查交接释放：消费方耐久承接后，Tool 才释放普通副本；同一采用身份只追加一次。性质的含义归领域文档的[性质与守护点](../../../../../../docs/domains/tool-execution/architecture.md#性质与守护点)，Tool 与 Session 的协议归[跨域交接](../../../../../../docs/domains/tool-execution/architecture.md#跨域交接)。模型守的是性质，与正文保管机制无关。实现对应见第 6 节。
 
 模型只证明列出的有限状态和假设，不证明实现。它检查安全性，不承诺消费者会回执、会完成处理或会恢复：消费者无限故障时，生产者保留责任正是正确行为。取消、容量背压和失败终结不由此模型推导。
 
@@ -60,12 +60,12 @@
 
 ## 6. 代码对应
 
-实现尚未开始。下表是计划中的对应位置，全部标为待实现。
+下表是对应位置：`Query`、`Release` 已实现，其余仍待实现。
 
 | 模型 | 计划中的代码位置 | 状态 |
 | --- | --- | --- |
 | `Commit`、`appended`、`binding` | Session 消费方对 ResultRecord（tenant/call/resultVersion）的耐久承接提交，沿用 retained/processed 协议 | 待实现 |
-| `Query`、`Release` | `tool` 包 `release(delivery)`：按消费方回执认回后，某个通道的值只在所有需要它的交付都释放后才替换为摘要 | 待实现 |
+| `Query`、`Release` | `tool` 包 `ledger-decider.ts` 的 `decideRelease`：`releaseTarget` 核对 retained/processed 回执属于原消费方（`Query`/`Process` 的依据），同一提交写入 `released` 交付、操作回执并把记录值换成 `releasedResultValue`（`ledger-result-material.ts`）：content 换成卸载原文的 summary（内联结果为空）、attachments 为空、data 与正文描述符不变；按操作认回与已释放状态回复使再次释放不再写入。测试：`tool/tests/managed-delivery.spec.ts`（C6 内联）、`tool-storage-sql/tests/release-live.spec.ts`（真实 SQLite，卸载） | 已实现 |
 | `Process` | 消费方在 Tool 仍保管时耐久记录处理完成 | 待实现 |
 | `LoseAck`、`Crash` | 回执丢失与重启后的按原身份认回 | 待实现 |
 | 程序消费者的独立交付 | 结果提交时依据固定请求中的发起方建立的程序交付；模型交付释放不影响 `data` | 待实现 |

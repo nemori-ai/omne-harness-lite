@@ -141,6 +141,38 @@ describe('16 delivery release (P08)', () => {
     ])
   })
 
+  it('16 release (C6): the released record keeps the summary of its channels, not the values', async () => {
+    const assembly = harness()
+    await assembly.admitInternal(dummyRequest())
+    const resultOf = async () => {
+      const read = await assembly.store.read({
+        kind: 'call',
+        tenant: tenantA,
+        call: callId('call-1'),
+      })
+      if (read.kind !== 'complete') throw new Error('read failed')
+      const record = read.records.find(record => record.kind === 'result')
+      if (record?.kind !== 'result') throw new Error('no result record')
+      return record.result
+    }
+    const before = await resultOf()
+    expect(before.value.content.length).toBeGreaterThan(0)
+    releasedReceipt(await assembly.runtime.commands.releaseDelivery(release(retained)))
+    const after = await resultOf()
+    expect(after.delivery.kind).toBe('released')
+    // An inline result has no offloaded summary: nothing of the model channels stays.
+    expect(after.value).toEqual({
+      content: [],
+      data: before.value.data,
+      original: before.value.original,
+      attachments: [],
+    })
+    const commits = assembly.store.commits
+    releasedReceipt(await assembly.runtime.commands.releaseDelivery(release(retained)))
+    expect(assembly.store.commits).toBe(commits)
+    expect(await resultOf()).toEqual(after)
+  })
+
   it('16 release: the release of a call that was never admitted is an unknown call', async () => {
     const assembly = harness()
     expect(await assembly.runtime.commands.releaseDelivery(release(retained))).toEqual({

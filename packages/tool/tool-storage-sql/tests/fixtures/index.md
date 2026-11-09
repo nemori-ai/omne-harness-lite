@@ -10,3 +10,4 @@
 - [app.ts](app.ts)：测试应用的组装
 - [ledger.ts](ledger.ts)：在给定记录仓上的真实账本
 - [host-paths.ts](host-paths.ts)：历史无关关卡里一次 Tools 调用在宿主路径上留下的值（Tools 父请求与目标、调用记录、环境准备与获取记录、保留终端），身份定宽
+- [settled-offloaded.ts](settled-offloaded.ts)：真实 SQL 账本与正文存储上一次收场、原文已卸载的调用
