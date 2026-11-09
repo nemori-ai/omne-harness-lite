@@ -1,9 +1,15 @@
 // The governance location: register and activate, issue a login, the four stage operations, the
 // fourteen operations this deployment declares not provided, protocol rejections, and an identity
-// fault. The eighteen governed operations are in governance-operations.spec.ts.
+// fault. The eighteen governed operations are in governance-operations.spec.ts, the three model
+// credential operations in model-credentials.spec.ts and the four setting operations in
+// settings.spec.ts.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { IdentityOperations } from '@omne-harness/identity'
-import { NOT_PROVIDED_GOVERNANCE_OPERATIONS } from '../src/governance.ts'
+import {
+  MODEL_CREDENTIAL_OPERATIONS,
+  NOT_PROVIDED_GOVERNANCE_OPERATIONS,
+  SETTING_OPERATIONS,
+} from '../src/governance.ts'
 import { GOVERNANCE_PATH, governance, send, startFixture, type Fixture } from './support/harness.ts'
 
 let fixture: Fixture | undefined
@@ -166,17 +172,19 @@ function countingRecognition(): Readonly<{
 }
 
 describe('operations this deployment does not provide', () => {
-  it('declares exactly the fourteen operations; with the two and the eighteen they are the 34', () => {
+  it('declares exactly the fourteen operations; with the two, the eighteen, the three credential and the four setting operations they are the 41', () => {
     expect([...NOT_PROVIDED_GOVERNANCE_OPERATIONS].sort()).toEqual(
       DECLARED.map(([operation]) => operation).sort(),
     )
     const all = new Set([
       ...NOT_PROVIDED_GOVERNANCE_OPERATIONS,
       ...GOVERNED,
+      ...MODEL_CREDENTIAL_OPERATIONS,
+      ...SETTING_OPERATIONS,
       'register-and-activate',
       'issue-login',
     ])
-    expect(all.size).toBe(34)
+    expect(all.size).toBe(41)
   })
 
   it('answers stage-not-provided to the four stage operations even with a bad body or proof', async () => {
