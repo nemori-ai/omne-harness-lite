@@ -160,9 +160,9 @@ export type RetainedTerminalLedgerView = Pick<
 > &
   Readonly<{
     /**
-     * Whether the scope holds a confirmed end fact for a handed-over key. The scope keeps no end
-     * facts: a confirmed stop removes the entry, so the answer is `none` for every key the scope
-     * does not hold, and `unavailable` when the scope cannot be read.
+     * Whether the scope holds the end fact of a handed-over process (stop clause 7): `confirmed`
+     * from the commit that confirmed its stop until the scope is released, `none` before and
+     * after, `unavailable` when the end fact cannot be read.
      */
     ended(key: string): Promise<'confirmed' | 'none' | 'unavailable'>
     close(): Promise<'confirmed' | 'unavailable'>
@@ -316,7 +316,8 @@ export async function createRetainedTerminalLedger(
      * A key the scope took over belongs to the retention scope, so any view of the scope records
      * its stop: after a provider restart no view of the creating call exists. A reservation the
      * scope did not take over stays the creating call's. A confirmed stop ends the scope's hold:
-     * the entry is removed, and a closed scope that holds nothing more loses its record.
+     * the entry is removed, a process's end fact is kept in the same commit, and a closed scope
+     * that holds nothing more loses its record and its end facts.
      */
     async stopped(key, status) {
       const bound = await binding()
@@ -358,14 +359,11 @@ export async function createRetainedTerminalLedger(
       })
       return 'ok' in result ? 'recorded' : 'unavailable'
     },
-    async ended() {
-      const result = await input.state.readRetention(input.address, input.scope)
-      return 'failure' in result ? 'unavailable' : 'none'
-    },
+    ended: key => input.state.readEnded(input.address, input.scope, key),
     /**
      * Closes the scope: nothing is taken over any more. What it holds stays until its stop is
-     * confirmed; a reservation nobody took over goes when its creator closes. The record goes
-     * with the last entry.
+     * confirmed; a reservation nobody took over goes when its creator closes. The record and the
+     * end facts go with the last entry.
      */
     async close() {
       if (!(await binding())) return 'unavailable'

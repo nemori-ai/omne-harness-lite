@@ -519,6 +519,41 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
     expect(await scopeKeys(f)).toEqual([])
   })
 
+  it('the release is conditioned on the scope it decided on: an end fact written in between is deleted on the retry', async () => {
+    const f = await fixture()
+    await f.reserved()
+    expect(await f.processes.adopt(resource.key)).toBe('confirmed')
+    expect(await f.processes.stopped(resource.key, 'confirmed')).toBe('recorded')
+    const domain = retentionDomain(tenantA, preparation.request.requesterScope)
+    const read = f.store.read.bind(f.store)
+    vi.spyOn(f.store, 'read').mockImplementationOnce(async target => {
+      const answer = await read(target)
+      if (answer.kind !== 'complete') throw new Error('fixture scope unavailable')
+      // Another end fact lands after the release named the domain's records.
+      const late = await f.realCommit({
+        domain,
+        expected: answer.revision,
+        revision: revision((BigInt(answer.revision) + 1n).toString()),
+        writes: [
+          {
+            kind: 'put',
+            record: {
+              kind: 'host',
+              host: {
+                key: 'ended/late',
+                value: { mutation: 'late', state: { resource: { ...resource, key: 'late' } } },
+              },
+            },
+          },
+        ],
+      })
+      if (late.kind !== 'committed') throw new Error('fixture late end fact')
+      return answer
+    })
+    expect(await f.processes.close()).toBe('confirmed')
+    expect(await scopeKeys(f)).toEqual([])
+  })
+
   it('reads an end fact by its key: one record, never the whole scope', async () => {
     const f = await fixture()
     await f.reserved()

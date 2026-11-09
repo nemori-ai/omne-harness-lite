@@ -103,7 +103,8 @@ export type RetainedResourceFact = Readonly<{
  * The record of one retention scope: the resources the scope still holds. An entry the scope
  * took over (`permitted` for a terminal, `adopted` for a process) lives until its stop is
  * confirmed; a reservation nobody took over lives until its creator closes. A closed scope with no
- * entry left has no record.
+ * entry left has no record. The end fact of an adopted process is not an entry: it is a record of
+ * its own in the scope's domain (`ended/<key>`), so this record holds live entries only.
  */
 export type RetentionState = Readonly<{
   scope: ScopeRef
@@ -155,6 +156,10 @@ export const retentionDomain = (tenant: TenantId, scope: ScopeRef) =>
   retentionHostDomain(tenant, canonicalDigest(scope))
 /** The key of the one record of a retention scope's domain. */
 export const RETENTION_RECORD_KEY = 'scope'
+/** The prefix of the end fact records of a retention scope's domain. */
+const ENDED_RECORD_PREFIX = 'ended/'
+/** The key of the end fact of the retained process `key` in its scope's domain. */
+export const endedRecordKey = (key: string): string => `${ENDED_RECORD_PREFIX}${key}`
 const callDomain = (address: Pick<EnvironmentAddress, 'tenant' | 'call'>): LedgerDomain => ({
   kind: 'call',
   tenant: address.tenant,
@@ -443,6 +448,22 @@ async function decodeRetention(value: unknown): Promise<RetentionState | null> {
 /** A closed scope that holds nothing has no record. */
 const emptied = (state: RetentionState): boolean => state.closed && state.resources.length === 0
 
+/**
+ * The processes whose hold ends between `before` and `next`: adopted in `before`, no longer
+ * adopted under their key in `next`. An adopted entry leaves its scope only by its confirmed stop,
+ * so each of them has ended, and its end fact is written in the commit that removes it.
+ */
+function endedBetween(
+  before: RetentionState | null,
+  next: RetentionState,
+): readonly ManagedResource[] {
+  const held = new Set(next.resources.filter(item => item.adopted).map(item => item.resource.key))
+  const ended = new Map<string, ManagedResource>()
+  for (const item of before?.resources ?? [])
+    if (item.adopted && !held.has(item.resource.key)) ended.set(item.resource.key, item.resource)
+  return [...ended.values()]
+}
+
 export function createEnvironmentStateStore(options: EnvironmentStorageOptions) {
   if (options.store.durability !== 'durable' && options.mode !== 'test')
     throw new TypeError('execution environments require a durable store')
@@ -728,7 +749,7 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
         item => item.permitted || item.adopted || !createdBy(item.creator, creator),
       )
       if (kept.length === before.ok.state.resources.length) return
-      const committed = await commitScope(address, scope, before.ok.revision, {
+      const committed = await commitScope(address, scope, before.ok, {
         ...before.ok.state,
         resources: kept,
       })
@@ -736,29 +757,47 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     }
   }
 
-  /** One commit of a scope's record at `expected`; an emptied closed scope deletes its record. */
-  function commitScope(
+  /**
+   * One commit of a scope's record at the revision of `before`. It writes the end fact of every
+   * process whose hold it ends next to the record. An emptied closed scope instead deletes its
+   * record and all its end facts: the release reads the scope's domain whole, once, to name them.
+   * The commit is conditioned on the revision of `before`, so an end fact written after that
+   * snapshot makes it a conflict, and the retry names it too.
+   */
+  async function commitScope(
     address: EnvironmentAddress,
     scope: ScopeRef,
-    expected: ToolRevision,
+    before: RetentionSnapshot,
     next: RetentionState,
     asserts: readonly LedgerAssertion[] = [],
     mutation = randomUUID(),
   ): Promise<LedgerCommit> {
+    const expected = before.revision
     const revision = decodeToolRevision((BigInt(expected) + 1n).toString())
     if ('failure' in revision)
-      return Promise.resolve({ kind: 'unavailable', diagnostic: 'invalid retention revision' })
-    return options.store.commit({
-      domain: retentionDomain(address.tenant, scope),
-      expected,
-      revision: revision.ok,
-      writes: [
-        emptied(next)
-          ? { kind: 'delete', key: hostKey(RETENTION_RECORD_KEY) }
-          : put(RETENTION_RECORD_KEY, mutation, next),
-      ],
-      asserts,
-    })
+      return { kind: 'unavailable', diagnostic: 'invalid retention revision' }
+    const domain = retentionDomain(address.tenant, scope)
+    let writes: LedgerWrite[]
+    if (emptied(next)) {
+      const whole = await options.store.read(domain)
+      if (whole.kind !== 'complete')
+        return { kind: 'unavailable', diagnostic: 'retention release read unavailable' }
+      writes = [
+        { kind: 'delete', key: hostKey(RETENTION_RECORD_KEY) },
+        ...whole.records.flatMap((record): LedgerWrite[] =>
+          record.kind === 'host' && record.host.key.startsWith(ENDED_RECORD_PREFIX)
+            ? [{ kind: 'delete', key: hostKey(record.host.key) }]
+            : [],
+        ),
+      ]
+    } else
+      writes = [
+        put(RETENTION_RECORD_KEY, mutation, next),
+        ...endedBetween(before.state, next).map(resource =>
+          put(endedRecordKey(resource.key), mutation, { resource }),
+        ),
+      ]
+    return options.store.commit({ domain, expected, revision: revision.ok, writes, asserts })
   }
 
   async function readRetention(
@@ -767,6 +806,28 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
   ): Promise<Outcome<RetentionState | null, ToolFailure>> {
     const result = await retentionSnapshot(address.tenant, scope)
     return 'failure' in result ? result : succeed(result.ok.state)
+  }
+
+  /**
+   * Whether the scope holds the end fact of the retained process `key`: one keyed read of
+   * `ended/<key>` in the scope's domain, never a read of the whole domain.
+   */
+  async function readEnded(
+    address: EnvironmentAddress,
+    scope: ScopeRef,
+    key: string,
+  ): Promise<'confirmed' | 'none' | 'unavailable'> {
+    const read = await envelope(
+      retentionDomain(address.tenant, scope),
+      endedRecordKey(key),
+      'end fact',
+    )
+    if ('failure' in read) return 'unavailable'
+    if (read.ok.mutation === null) return 'none'
+    const state = read.ok.state
+    return object(state) && object(state.resource) && state.resource.key === key
+      ? 'confirmed'
+      : 'unavailable'
   }
 
   /**
@@ -808,7 +869,7 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
       const committed = await commitScope(
         address,
         scope,
-        before.ok.revision,
+        before.ok,
         next.ok,
         [...call.ok, { domain: acquisitionDomain(address), revision: original.ok.revision }],
         mutation,
@@ -883,6 +944,7 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
       authorize: CurrentResourceAuthorization,
     ) => update(address, change, authorize),
     readRetention,
+    readEnded,
     updateRetention,
     handOver,
   })

@@ -35,7 +35,8 @@ export function tenantHostDomain(
 /**
  * The host domain of one environment retention scope: `retention@<scope digest>`. The scope spans
  * the calls of one session, so its record is shared by those calls and by no other scope: a
- * commit of one scope never contends with another session's.
+ * commit of one scope never contends with another session's. Next to that record the domain
+ * keeps one end fact per stopped retained process, until the scope is released.
  */
 export function retentionHostDomain(tenant: TenantId, scopeDigest: string): LedgerDomain {
   return { kind: 'host', tenant, key: `retention@${scopeDigest}` }
