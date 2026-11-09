@@ -21,6 +21,7 @@ class TestRuntime extends ToolRuntimeService<string, ContentBlock> {
   readonly instances = stub
   readonly observation = stub
   readonly content = stub
+  readonly body = stub
   readonly catalog = stub
   receiverOf(owner: string) {
     return this.resultReceiver(owner)
