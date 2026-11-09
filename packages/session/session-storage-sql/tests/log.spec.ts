@@ -106,7 +106,8 @@ describe('commitLog writes in one transaction', () => {
       const { a, observation } = await opened()
       const before = tables(a)
       a.provider.failWrite(pattern, nth)
-      expect(failureOf(await commitLog(a, observation)).kind).toBe('unavailable')
+      // An environment error inside the transaction is unknown (sql-contract §7.6).
+      expect(failureOf(await commitLog(a, observation)).kind).toBe('commit-unknown')
       expect(tables(a)).toEqual(before)
       a.provider.failWrite(null)
       const receipt = ok<SessionLogReceipt>(await commitLog(a, observation))

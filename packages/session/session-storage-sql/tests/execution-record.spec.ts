@@ -284,7 +284,8 @@ describe('the first publication: one commit with an execution-record and a sessi
       const a = await app()
       ok(await a.create(TENANT_A))
       const entries = count(a, 'sl_entry')
-      a.provider.failWrite(pattern)
+      // A constraint failure: a data error, so the commit rolls back explicitly (sql-contract §7.6).
+      a.provider.failWrite(pattern, 1, 19)
       const result = await joint(a, 'aop_fail', [
         executionRecordFacts(write()),
         sessionCommandFacts(acceptCommand('fail'), login),
