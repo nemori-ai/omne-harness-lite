@@ -136,6 +136,64 @@ describe('toolSettingDefinitions', () => {
       }),
     ).toThrow(/exa\.endpoint/)
   })
+
+  describe('a declared path the schema describes through something that is no object', () => {
+    const withSchema = (schema: string, path: readonly string[]) => {
+      const base = declaration([{ ...secretItem, path }])
+      return toolSettingDefinitions({
+        adoption: web,
+        name: 'Web',
+        declaration: { ...base, schema: { ...base.schema, schema: json(schema) } },
+      })
+    }
+
+    it('refuses a path whose first segment is missing, naming the item', () => {
+      expect(() =>
+        withSchema('{"type":"object","properties":{"exa":{"type":"object"}}}', ['nope', 'deeper']),
+      ).toThrow(
+        new TypeError('tool settings: the schema describes no object at the item nope.deeper'),
+      )
+    })
+
+    it.each([
+      ['properties is not an object', '{"type":"object","properties":5}'],
+      ['a segment holds a string', '{"type":"object","properties":{"exa":"text"}}'],
+      ['a segment holds an array', '{"type":"object","properties":{"exa":[1]}}'],
+      ['a segment holds a boolean schema', '{"type":"object","properties":{"exa":true}}'],
+      [
+        'the leaf holds a boolean schema',
+        '{"type":"object","properties":{"exa":{"type":"object","properties":{"apiKey":true}}}}',
+      ],
+      [
+        'the leaf holds a number',
+        '{"type":"object","properties":{"exa":{"type":"object","properties":{"apiKey":7}}}}',
+      ],
+    ])('refuses it when %s', (_name, schema) => {
+      expect(() => withSchema(schema, ['exa', 'apiKey'])).toThrow(
+        new TypeError('tool settings: the schema describes no object at the item exa.apiKey'),
+      )
+    })
+  })
+
+  it('gives an ordinary item an absent default when the default tree does not hold it', () => {
+    const lines = {
+      path: ['limits', 'lines'],
+      category: 'preference',
+      sensitive: false,
+      presentation: { ...presentation, title: 'Lines', unit: 'lines' },
+    } as const
+    for (const defaults of ['{}', '{"limits":{}}', '{"exa":{"apiKey":"x"}}', '{"limits":5}']) {
+      const projected = toolSettingDefinitions({
+        adoption: web,
+        name: 'Web',
+        declaration: declaration([secretItem, lines], defaults),
+      })
+      expect(
+        projected?.items.map(item => item.default),
+        defaults,
+      ).toEqual([{ kind: 'absent' }, { kind: 'absent' }])
+    }
+  })
 })
 
 describe('definition judgment of the settings presentation', () => {

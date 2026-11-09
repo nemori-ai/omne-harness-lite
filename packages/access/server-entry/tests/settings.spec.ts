@@ -200,6 +200,32 @@ describe('with a settings port', () => {
     }
   })
 
+  it('a login proof that is not recognized is denied and calls no port', async () => {
+    const settings = settingsDouble()
+    fixture = await startFixture({ dependencies: { settings: settings.port } })
+    const alice = await login(fixture, 'alice')
+    for (const operation of OPERATIONS) {
+      const reply = await call({ ...alice, loginProof: 'forged' }, operation, BODIES[operation])
+      expect(reply.status, operation).toBe(403)
+      expect(outcomeOf(reply), operation).toEqual({ outcome: 'denied', body: {} })
+      expect(reply.text, operation).not.toContain(SENTINEL)
+    }
+    expect(settings.seen).toEqual([])
+  })
+
+  it('list-settings hands the asset filter to the port when given and nothing when not', async () => {
+    const settings = settingsDouble()
+    fixture = await startFixture({ dependencies: { settings: settings.port } })
+    const alice = await login(fixture, 'alice')
+    await call(alice, 'list-settings', { asset: WEB })
+    await call(alice, 'list-settings', {})
+    const [filtered, unfiltered] = settings.seen
+    expect(settings.seen.map(({ method }) => method)).toEqual(['list', 'list'])
+    expect(filtered?.input).toEqual({ asset: WEB })
+    // An absent filter is absent on the port, not a key that holds undefined.
+    expect(Object.keys(unfiltered?.input ?? { asset: 'present' })).toEqual([])
+  })
+
   it('a client that names another tenant is denied or rejected, and the port is not called', async () => {
     const settings = settingsDouble()
     fixture = await startFixture({ dependencies: { settings: settings.port } })
