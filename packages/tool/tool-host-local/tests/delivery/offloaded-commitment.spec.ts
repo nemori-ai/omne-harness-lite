@@ -24,7 +24,7 @@ async function withOffloadedDeliveryPorts() {
     bodyId: ok(decodeToolBodyId('body-original')),
     representation: { kind: 'text', codec: adoption('text-codec') },
     bodyBytes: '1000',
-    previewKind: 'mechanical-head-tail',
+    previewKind: 'mechanical',
     retention: {
       adoption: adoption('retention'),
       activatedAt: ok(decodeToolMaterialInstant('2026-11-08T00:00:00.000Z')),

@@ -640,7 +640,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
       const preview = model.replies.at(-1) ?? ''
       expect(preview).toContain('W3-BEGIN')
       expect(preview).toContain('W3-END')
-      expect(preview).toContain('bodyReference: tb1.')
+      expect(preview).toContain('\nreference: tb1.')
       expect(Buffer.byteLength(preview)).toBeLessThanOrEqual(65_536)
       for (const request of model.requests) {
         const value = JSON.parse(request) as { tools: { function: { name: string } }[] }

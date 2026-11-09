@@ -215,7 +215,7 @@ it.each([
             expect(delivered.original).toMatchObject({
               kind: 'offloaded',
               bodyBytes: String(bytes),
-              previewKind: 'mechanical-head-tail',
+              previewKind: 'mechanical',
               retention: {
                 activatedAt: '2026-11-07T00:00:00.000Z',
                 expiresAt: '2026-11-08T00:00:00.000Z',
@@ -230,7 +230,7 @@ it.each([
             expect(Buffer.byteLength(visible.slice(0, instructionStart))).toBeLessThanOrEqual(1024)
             expect(Buffer.byteLength(visible)).toBeLessThanOrEqual(65_536)
             expect(visible.slice(instructionStart)).toContain('read_result')
-            expect(visible).toContain('[offloaded]')
+            expect(visible).toContain('\n[offloaded body]\n')
           } else {
             expect(delivered.original).toEqual({ kind: 'none' })
             expect(delivered.content).toEqual([block])

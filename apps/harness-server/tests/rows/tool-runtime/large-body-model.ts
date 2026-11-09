@@ -40,7 +40,7 @@ export function largeBodyModel(
                 ? text.includes('Body traversal ended.')
                 : text.includes('W3-BEGIN') &&
                   text.includes('W3-END') &&
-                  text.includes('bodyReference')
+                  text.includes('\nreference: tb1.')
         ) {
           completed = true
         } else {
