@@ -115,6 +115,8 @@ export function createForwardingReceiver<P, B extends ContentBlock>(
       if (committed.kind === 'unknown') return fail({ kind: 'outcome-unknown' })
       if (committed.kind === 'unavailable')
         return fail({ kind: 'unavailable', dependency: 'invocation-source' })
+      if (committed.kind === 'rejected')
+        return fail({ kind: 'invalid', field: 'storage', reason: committed.reason })
     }
     return fail({ kind: 'unavailable', dependency: 'invocation-source' })
   }

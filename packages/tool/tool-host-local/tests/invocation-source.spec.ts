@@ -70,6 +70,7 @@ type Fault =
   | 'read-unavailable'
   | 'read-throws'
   | 'commit-throws'
+  | 'rejected'
 
 /** A store over the memory store that counts reads and commits and fails the next one on demand. */
 function observed() {
@@ -94,7 +95,8 @@ function observed() {
     },
     commit: async (input: LedgerCommitInput<ContentBlock>): Promise<LedgerCommit> => {
       counts.commits += 1
-      const fault = take('lost-reply', 'unknown-unwritten', 'conflict', 'commit-throws')
+      const fault = take('lost-reply', 'unknown-unwritten', 'conflict', 'commit-throws', 'rejected')
+      if (fault === 'rejected') return { kind: 'rejected', reason: 'command_limit' }
       if (fault === 'lost-reply') {
         await memory.commit(input)
         return { kind: 'unknown', diagnostic: 'the answer was lost' }
@@ -428,6 +430,16 @@ describe('TL-11 invocation source: boundary and failure', () => {
       expect(retried).toMatchObject({ call: unknown.call, admission: unknown.admission })
       expect(retried.recovered).toBe(fault === 'lost-reply')
     }
+  })
+
+  it('TL-11 a commit the store rejects is a definite failure, not re-read and not unknown', async () => {
+    const { store, arm, counts } = observed()
+    arm('rejected', 4)
+    expect(await source(store).issuer.resolve(resolveInput())).toEqual({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'storage', reason: 'command_limit' },
+    })
+    expect(counts).toEqual({ reads: 1, commits: 1 })
   })
 
   it('TL-11 a commit that throws is issuance-unknown and reports no thrown text', async () => {

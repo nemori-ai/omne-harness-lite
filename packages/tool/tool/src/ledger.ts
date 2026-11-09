@@ -136,6 +136,7 @@ import {
 } from './ledger-start.ts'
 import {
   type CallRecord,
+  type LedgerCommit,
   type LedgerDomain,
   type LedgerWrite,
   type QueueEntryRecord,
@@ -277,12 +278,41 @@ export function createToolLedger<P, B extends ContentBlock>(
     expected: Snapshot<B>['revision'],
     revision: Snapshot<B>['revision'],
     writes: readonly LedgerWrite<B>[],
-  ): Promise<Awaited<ReturnType<typeof store.commit>>> => {
+  ): Promise<LedgerCommit> => {
     try {
       return await store.commit({ domain, expected, revision, writes })
     } catch {
       // The store may have applied the writes before it threw, so the outcome is unknown.
       return { kind: 'unknown', diagnostic: thrown('ledger-store') }
+    }
+  }
+
+  /**
+   * The reply of one commit answer, or null after a revision conflict: the caller re-reads and
+   * decides again. Only a conflict is retried. An unavailable store is temporary and the caller
+   * resends the same operation; a rejected commit can never be accepted, so it is the definite
+   * failure `invalid` (`field: storage`) at once, and it spends no attempt (SPEC 11).
+   */
+  const answerOf = <T>(
+    committed: LedgerCommit,
+    value: T,
+    unknown: Outcome<T, ToolFailure>,
+  ): Outcome<T, ToolFailure> | null => {
+    switch (committed.kind) {
+      case 'committed':
+        return succeed(value)
+      case 'conflict':
+        return null
+      case 'unknown':
+        return unknown
+      case 'unavailable':
+        return unavailable('ledger-store', committed.diagnostic)
+      case 'rejected':
+        return invalid('storage', committed.reason)
+      default: {
+        const exhaustive: never = committed
+        return exhaustive
+      }
     }
   }
 
@@ -324,9 +354,8 @@ export function createToolLedger<P, B extends ContentBlock>(
       }
       const writes = withExclusionsRemoved(decision.writes, operations)
       const committed = await commit(domain, snapshot.ok.revision, revision, writes)
-      if (committed.kind === 'committed') return succeed(decision.value)
-      if (committed.kind === 'unknown') return unknown
-      if (committed.kind === 'unavailable') return unavailable('ledger-store', committed.diagnostic)
+      const answer = answerOf(committed, decision.value, unknown)
+      if (answer !== null) return answer
     }
     return unavailable('ledger-store', `${attempts} revision conflicts in a row`)
   }
@@ -347,9 +376,8 @@ export function createToolLedger<P, B extends ContentBlock>(
       if (decision.kind === 'reply') return decision.outcome
       const revision = nextRevision(snapshot.ok.revision)
       const committed = await commit(domain, snapshot.ok.revision, revision, decision.writes)
-      if (committed.kind === 'committed') return succeed(decision.value)
-      if (committed.kind === 'unknown') return unknown
-      if (committed.kind === 'unavailable') return unavailable('ledger-store', committed.diagnostic)
+      const answer = answerOf(committed, decision.value, unknown)
+      if (answer !== null) return answer
     }
     return unavailable('ledger-store', `${attempts} revision conflicts in a row`)
   }

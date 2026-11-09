@@ -231,7 +231,7 @@ it('the participant refuses forged tenant and domain kinds even behind the adapt
     expect(
       (await guard.commit({ call: p.call, callExpected: p.callExpected, hostCommit: hostCommit() }))
         .kind,
-    ).toBe('unavailable')
+    ).toBe('rejected')
   }
   expect(await p.second.store.read(host)).toEqual({ kind: 'complete', revision: '0', records: [] })
 })
@@ -282,7 +282,7 @@ it('a failure after the first host write rolls back every write and the host rev
         },
       })
     ).kind,
-  ).toBe('unavailable')
+  ).toBe('rejected')
   expect(await p.second.store.read(host)).toEqual({ kind: 'complete', revision: '0', records: [] })
 })
 
@@ -315,6 +315,6 @@ it('unregistered tenants and non-JSON records do not submit SQL', async () => {
         },
       })
     ).kind,
-  ).toBe('unavailable')
+  ).toBe('rejected')
   expect(p.first.faults.commits()).toBe(before)
 })

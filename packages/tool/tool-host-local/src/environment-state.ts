@@ -481,6 +481,8 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     }
     if (result.kind === 'conflict' || result.kind === 'call-changed') return null
     if (result.kind === 'unavailable') return environmentFailure(diagnostic)
+    if (result.kind === 'rejected')
+      return fail({ kind: 'invalid', field: 'storage', reason: result.reason })
     const recognized = await reread()
     if ('ok' in recognized && recognized.ok.mutation === mutation && recognized.ok.state)
       return succeed(recognized.ok.state)
