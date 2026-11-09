@@ -19,6 +19,7 @@ const CODES = [
   'request.fault',
   'identity.fault',
   'model-credential.fault',
+  'settings.fault',
   'issuer.fault',
   'session.read-fault',
   'session.commit-fault',
