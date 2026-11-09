@@ -2523,7 +2523,7 @@ export type StepResult = Readonly<{
 export type PreparedInputKey = Readonly<{
     generation: SourceGeneration | null;
     principal: PrincipalKey;
-    identity: CallIdentity;
+    identity: Omit<AssemblyCall<unknown>, 'access'>;
     tokens: Readonly<Record<Exclude<GroupName, 'identity'>, GroupToken>>;
     rules: Readonly<{
         compaction: Adoption;

@@ -601,7 +601,7 @@ export type PreparedInputKey = Readonly<{
   /** The source set generation of a hosted operation group; `null` for a standalone group. */
   generation: SourceGeneration | null
   principal: PrincipalKey
-  identity: CallIdentity
+  identity: Omit<AssemblyCall<unknown>, 'access'>
   tokens: Readonly<Record<Exclude<GroupName, 'identity'>, GroupToken>>
   rules: Readonly<{ compaction: Adoption; configDigest: string; representation: Adoption }>
 }>
