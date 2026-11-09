@@ -7,5 +7,6 @@
 - [启动围栏模型](StartFence.tla)，性质与映射见 [formal-mapping.md](../formal-mapping.md)。它守单域 `start-coordinator` 的围栏，随该域一起退出。
 - [推送退避模型](DeliveryBackoff.tla)。
 - [启动受理与 guard 域的读集断言模型](start-consume/README.md)：调用域受理与租户级 guard 域失效的线性化，含具名负控和运行入口。
+- [保留作用域的三态生命周期模型](retention-scope/README.md)：开放、已关闭、已释放三态，条目与结束事实的生灭，作用域域与获取域的两侧断言，以及契约停止答复；含进展性质、具名负控和运行入口。
 - [启动围栏与推送退避的 WSL 运行入口](run-tlc.sh)。
 - [包索引](../../index.md)。
