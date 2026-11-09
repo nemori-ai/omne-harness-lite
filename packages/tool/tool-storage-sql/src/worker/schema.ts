@@ -17,6 +17,13 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
     tenant TEXT NOT NULL, call TEXT NOT NULL, operation TEXT NOT NULL, kind TEXT NOT NULL,
     digest TEXT NOT NULL, bytes INTEGER NOT NULL, chunks INTEGER NOT NULL, sha256 TEXT NOT NULL,
     seal TEXT NOT NULL, answer TEXT NOT NULL, PRIMARY KEY (tenant, call, operation)) STRICT`,
+  // The body store: immutable chunks of one body and the one manifest that seals them.
+  `CREATE TABLE tl_body_chunk (
+    tenant TEXT NOT NULL, call TEXT NOT NULL, body TEXT NOT NULL, seq INTEGER NOT NULL,
+    data BLOB NOT NULL, PRIMARY KEY (tenant, call, body, seq)) STRICT`,
+  `CREATE TABLE tl_body_manifest (
+    tenant TEXT NOT NULL, call TEXT NOT NULL, body TEXT NOT NULL, chunks INTEGER NOT NULL,
+    bytes INTEGER NOT NULL, digest TEXT NOT NULL, PRIMARY KEY (tenant, call, body)) STRICT`,
   // The due index of the ledger: one entry per scheduled key of a domain, read by tenant and instant.
   `CREATE TABLE tl_due (
     tenant TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, key TEXT NOT NULL,
@@ -29,6 +36,8 @@ export const TOOL_TABLES: readonly string[] = [
   'tl_record',
   'tl_chunk',
   'tl_manifest',
+  'tl_body_chunk',
+  'tl_body_manifest',
   'tl_due',
 ]
 
@@ -45,8 +54,11 @@ export const PROTOCOL = '1'
 export const LEDGER_READ_HANDLER = 'tool.ledger.read'
 export const MANIFEST_READ_HANDLER = 'tool.custody.manifest'
 export const CHUNK_READ_HANDLER = 'tool.custody.chunk'
+export const BODY_READ_HANDLER = 'tool.body.read'
 export const DUE_READ_HANDLER = 'tool.due.read'
 
+/** The most chunks one body read returns; the adapter reads a longer range in several reads. */
+export const BODY_READ_CHUNKS = 64
 /** The most due entries one read returns. */
 export const DUE_READ_ENTRIES = 1_000
 

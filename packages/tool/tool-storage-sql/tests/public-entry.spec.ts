@@ -26,6 +26,7 @@ describe('public entries', () => {
       'CHUNK_ENVELOPE_BYTES',
       'TOOL_PARTICIPANT',
       'TOOL_STORAGE_OWNER',
+      'createSqlToolBodyStore',
       'createSqlToolLedgerStore',
       'createSqlToolMaterialMaintenanceSource',
       'createSqlToolMaterialStore',

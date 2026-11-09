@@ -32,7 +32,7 @@ const DEFAULT_MAX_COMMAND_BYTES = 4_194_304
 const DEFAULT_GLOBAL_READ_RESULT_BYTES = 134217728
 
 /** Same provider policy dimensions as sqlite-provider/tests/support.ts, over this test's real root. */
-function configuration(
+export function configuration(
   storageRoot: string,
   readBytes: number,
   globalReadResultBytes = DEFAULT_GLOBAL_READ_RESULT_BYTES,

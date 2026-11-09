@@ -16,6 +16,8 @@ import { MATERIAL_MIGRATION, MATERIAL_TABLES } from './worker/migration-material
 import { MAINTENANCE_MIGRATION, MAINTENANCE_TABLES } from './worker/migration-maintenance.ts'
 import { MAINTENANCE_PAGE_LIMIT, MAINTENANCE_READ_HANDLER } from './maintenance-scan-wire.ts'
 import {
+  BODY_READ_CHUNKS,
+  BODY_READ_HANDLER,
   CHUNK_READ_HANDLER,
   DUE_READ_ENTRIES,
   DUE_READ_HANDLER,
@@ -91,6 +93,13 @@ const HANDLERS: readonly Handler[] = [
     ordering: 'snapshot',
     tables: ['tl_chunk'],
     rows: 1,
+  },
+  {
+    handler: BODY_READ_HANDLER,
+    file: 'read-body',
+    ordering: 'snapshot',
+    tables: ['tl_body_manifest', 'tl_body_chunk'],
+    rows: BODY_READ_CHUNKS + 1,
   },
   {
     handler: DUE_READ_HANDLER,

@@ -59,7 +59,7 @@ describe('the materials of the Tool storage', () => {
       ...materials.migrations.map(item => [item.moduleUrl, item.checksum] as const),
       ...materials.readHandlers.map(item => [item.moduleUrl, item.codeDigest] as const),
     ]
-    expect(modules.length).toBe(10)
+    expect(modules.length).toBe(11)
     for (const [url, digest] of modules) {
       expect(url.startsWith('file:')).toBe(true)
       expect(sha256(url)).toBe(digest)
@@ -76,6 +76,7 @@ describe('the materials of the Tool storage', () => {
       'tool.ledger.read': 'domain-serial',
       'tool.custody.manifest': 'snapshot',
       'tool.custody.chunk': 'snapshot',
+      'tool.body.read': 'snapshot',
       'tool.due.read': 'domain-serial',
     })
     for (const handler of materials.readHandlers) {

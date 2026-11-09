@@ -51,7 +51,19 @@ export type ManifestFacts = CustodyAddress &
     holds: null
   }>
 
-export type ToolFacts = LedgerFacts | ChunkFacts | ManifestFacts | MaterialFacts
+/** The address of one body of the body store. */
+export type BodyAddress = Readonly<{ tenant: string; call: string; body: string }>
+
+export type BodyPutFacts = BodyAddress & Readonly<{ intent: 'body-put'; seq: number; data: string }>
+
+export type BodySealFacts = BodyAddress &
+  Readonly<{ intent: 'body-seal'; chunks: number; bytes: number; digest: string }>
+
+export type BodyDeleteFacts = BodyAddress & Readonly<{ intent: 'body-delete' }>
+
+export type BodyFacts = BodyPutFacts | BodySealFacts | BodyDeleteFacts
+
+export type ToolFacts = LedgerFacts | ChunkFacts | ManifestFacts | MaterialFacts | BodyFacts
 
 /** Why the participant stopped a command; the adapters map each reason to one port answer. */
 export type StopBasis =
@@ -60,11 +72,18 @@ export type StopBasis =
   | Readonly<{ reason: 'assertion'; current: string }>
   | Readonly<{ reason: 'operation' }>
   | Readonly<{ reason: 'chunks' }>
+  /** The body holds other bytes at the sequence number, or another manifest seals it. */
+  | Readonly<{ reason: 'body-conflict' }>
+  /** The chunks do not hold what the manifest declares. */
+  | Readonly<{ reason: 'body-not-ready'; diagnostic: string }>
 
 export type ParticipantAnswer =
   | Readonly<{ kind: 'committed' }>
   | Readonly<{ kind: 'chunk' }>
   | Readonly<{ kind: 'sealed'; answer: JsonValue }>
+  | Readonly<{ kind: 'body-kept' }>
+  | Readonly<{ kind: 'body-sealed' }>
+  | Readonly<{ kind: 'body-deleted' }>
 
 /** One stored record with the key it is stored under, so the reader can check the two agree. */
 export type StoredRecord = Readonly<{ key: string; record: JsonValue }>
@@ -89,6 +108,13 @@ export type ManifestReadOutput = Readonly<{ manifest: ManifestRow | null }>
 export type ChunkReadInput = CustodyAddress & Readonly<{ index: number }>
 
 export type ChunkReadOutput = Readonly<{ data: string | null }>
+
+export type BodyReadInput = BodyAddress & Readonly<{ first: number; count: number }>
+
+export type BodyReadOutput = Readonly<{
+  manifest: Readonly<{ chunks: number; bytes: number; digest: string }> | null
+  chunks: readonly Readonly<{ seq: number; data: string }>[]
+}>
 
 export type DueReadInput = Readonly<{ tenant: string; now: string; limit: number }>
 
@@ -136,6 +162,40 @@ function writeOf(value: JsonValue): LedgerWriteFact | null {
       const record = value['record']
       return record === undefined ? null : { op: 'put', key, record }
     }
+    default:
+      return null
+  }
+}
+
+export function bodyAddressOf(value: JsonValue): BodyAddress | null {
+  if (!isObject(value)) return null
+  const tenant = textOf(value, 'tenant')
+  const call = textOf(value, 'call')
+  const body = textOf(value, 'body')
+  return tenant === null || call === null || body === null ? null : { tenant, call, body }
+}
+
+function bodyOf(value: JsonObject): BodyFacts | null {
+  const address = bodyAddressOf(value)
+  if (address === null) return null
+  switch (value['intent']) {
+    case 'body-put': {
+      const seq = countOf(value, 'seq')
+      const data = value['data']
+      return seq === null || typeof data !== 'string'
+        ? null
+        : { ...address, intent: 'body-put', seq, data }
+    }
+    case 'body-seal': {
+      const chunks = countOf(value, 'chunks')
+      const bytes = countOf(value, 'bytes')
+      const digest = textOf(value, 'digest')
+      return chunks === null || bytes === null || digest === null
+        ? null
+        : { ...address, intent: 'body-seal', chunks, bytes, digest }
+    }
+    case 'body-delete':
+      return { ...address, intent: 'body-delete' }
     default:
       return null
   }
@@ -220,6 +280,10 @@ export function parseFacts(facts: JsonObject): ToolFacts | null {
       return chunkOf(facts)
     case 'manifest':
       return manifestOf(facts)
+    case 'body-put':
+    case 'body-seal':
+    case 'body-delete':
+      return bodyOf(facts)
     default:
       return parseMaterialFacts(facts)
   }
@@ -234,6 +298,14 @@ export function parseChunkInput(value: JsonValue): ChunkReadInput | null {
   if (address === null || !isObject(value)) return null
   const index = countOf(value, 'index')
   return index === null ? null : { ...address, index }
+}
+
+export function parseBodyReadInput(value: JsonValue): BodyReadInput | null {
+  const address = bodyAddressOf(value)
+  if (address === null || !isObject(value)) return null
+  const first = countOf(value, 'first')
+  const count = countOf(value, 'count')
+  return first === null || count === null ? null : { ...address, first, count }
 }
 
 export function parseDueReadInput(value: JsonValue): DueReadInput | null {

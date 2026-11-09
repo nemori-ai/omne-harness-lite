@@ -8,6 +8,11 @@ export {
   type SqlToolStorageOptions,
 } from './options.ts'
 export { createSqlToolLedgerStore, type SqlToolLedgerStore } from './ledger-store.ts'
+export {
+  createSqlToolBodyStore,
+  type SqlToolBodyStore,
+  type SqlToolBodyStoreOptions,
+} from './body-store.ts'
 export { createSqlToolMaterialMaintenanceSource } from './maintenance-source.ts'
 export { createSqlToolOutputCustody } from './custody.ts'
 export { TOOL_PARTICIPANT, toolStorageMaterials, type ToolStorageMaterials } from './materials.ts'

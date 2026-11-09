@@ -21,6 +21,7 @@ import {
   type ParticipantAnswer,
   type StopBasis,
 } from './facts.ts'
+import { commitBody } from './participant-body.ts'
 import { commitMaterial } from './participant-material.ts'
 import { projectMaterialMaintenance } from './maintenance-projection.ts'
 import { PARTICIPANT, PROTOCOL } from './schema.ts'
@@ -194,6 +195,10 @@ const participant: ParticipantModule = {
         return keepChunk(facts, port)
       case 'manifest':
         return seal(facts, port)
+      case 'body-put':
+      case 'body-seal':
+      case 'body-delete':
+        return commitBody(facts, port)
       default: {
         const exhaustive: never = facts
         return exhaustive
