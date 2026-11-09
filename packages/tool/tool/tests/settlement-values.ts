@@ -3,8 +3,8 @@ import type { ToolInstantClock } from '@omne-harness/tool-contract/provider'
 import type { JsonLimits } from '@omne-harness/json-text'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
+  Attachment,
   ProcessBlock,
-  RawOutput,
   ToolDefinition,
   ToolTerminal,
   ToolRenderedResult,
@@ -12,14 +12,10 @@ import type {
 import type {
   CallAccess,
   ToolFinalEnvelope,
-  ToolMaterialStore,
   ToolEnvironment,
 } from '@omne-harness/tool-contract/provider'
 import { readToolInvocationRef } from '@omne-harness/tool-contract/provider'
-import {
-  createMemoryToolClock,
-  type MemoryToolOutputCustody,
-} from '@omne-harness/tool-contract/testing'
+import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import {
   createToolLedger,
   type LedgerCommitInput,
@@ -51,7 +47,6 @@ import {
 } from './runtime-values.ts'
 
 export type SettlementRenderer = (
-  raw: RawOutput,
   ledger: ToolLedger<Principal, Block>,
   access: CallAccess<Principal>,
 ) => ToolRenderedResult<Block> | Promise<ToolRenderedResult<Block>>
@@ -113,23 +108,22 @@ export async function settlementFixture(
     readResultArguments?: JsonLimits
     /** The participant clock of issuer, settler and reader; the memory body store reads it too. */
     bodyClock?: ToolInstantClock
-    process?: readonly ProcessBlock[] | ((raw: RawOutput) => readonly ProcessBlock[])
-    custody?: MemoryToolOutputCustody<Principal>
-    attachments?: RawOutput['content'][]
+    process?: readonly ProcessBlock[]
+    attachments?: Attachment[]
     value?: SettlementValue
     wrapReleaseInspection?: (
       environment: ToolEnvironment<Principal, unknown>,
     ) => Pick<ToolEnvironment<Principal, unknown>, 'adoption' | 'inspectRelease'>
-    wrapMaterials?: (store: ToolMaterialStore<Principal>) => ToolMaterialStore<Principal>
     wrapAccess?: (access: ToolAccessGuard<Principal>) => ToolAccessGuard<Principal>
   }> = {},
 ) {
-  const ports = {
-    ...testSettlementPorts(),
-    ...(options.custody === undefined ? {} : { custody: options.custody }),
-  }
+  const ports = testSettlementPorts()
   const harness = startHarness({
     ...(options.bodySchemas === undefined ? {} : { bodySchemas: options.bodySchemas }),
+    ...(options.offloading === undefined ? {} : { offloading: options.offloading }),
+    ...(options.readResultArguments === undefined
+      ? {}
+      : { readResultArguments: options.readResultArguments }),
     environmentsPort: base => ({ ...base, adoption: ports.releaseInspection.adoption }),
   })
   const name = options.call ?? 'settlement'
@@ -167,20 +161,10 @@ export async function settlementFixture(
   const recovery = ok(await harness.commands.loadRecovery(access))
   if (recovery.start === null || recovery.execution === null)
     throw new Error('fixture did not start')
-  const raw = ok(
-    await harness.ledger.rawCustody.preserve({
-      ...access,
-      operation: operationId('raw-output'),
-      codec: adoption('codec'),
-      bytes: new TextEncoder().encode('original bytes'),
-      source: evidence('original-source'),
-    }),
-  )
   const final: ToolFinalEnvelope<Block> = {
     kind: 'final',
-    raw,
     result: (typeof options.value === 'function'
-      ? await options.value(raw, harness.ledger, access)
+      ? await options.value(harness.ledger, access)
       : options.value) ?? {
       content: [text('answer', 'done')],
       data: { kind: 'none' },
@@ -190,16 +174,15 @@ export async function settlementFixture(
     terminal: options.terminal ?? { kind: 'completed' },
     effect: options.effect ?? { kind: 'occurred', evidence: evidence('actual-effect') },
   }
-  const process = typeof options.process === 'function' ? options.process(raw) : options.process
-  const pointer = ok(
-    await harness.ledger.finalCustody.preserveFinal({
-      ...access,
-      start: recovery.start,
-      source: evidence('final-source'),
-      operation: operationId('fixture-final'),
-      final,
-    }),
-  )
+  const process = options.process
+  const planned = await harness.ledger.finalPlanner.planFinal({
+    ...access,
+    start: recovery.start,
+    source: evidence('final-source'),
+    operation: operationId('fixture-final'),
+    final,
+  })
+  const pointer = 'ok' in planned ? planned.ok : final
   const batch = {
     start: recovery.start,
     source: evidence('final-source'),
@@ -213,7 +196,8 @@ export async function settlementFixture(
       { event: 'final-event', fact: pointer },
     ],
   }
-  ok(await harness.commands.receiveFacts({ ...access, start: batch.start, batch }))
+  if ('ok' in planned)
+    ok(await harness.commands.receiveFacts({ ...access, start: batch.start, batch }))
   const commits: LedgerCommitInput[] = []
   let intercept: ToolLedgerStore['commit'] | null = null
   const store: ToolLedgerStore = {
@@ -237,9 +221,7 @@ export async function settlementFixture(
   }
   const guard = guards()
   const settlementPorts = testSettlementPorts(harness.memory)
-  const materialPorts = settlementPorts.materials
   const bodies = settlementPorts.bodies
-  const materialStore = options.wrapMaterials?.(materialPorts.store) ?? materialPorts.store
   const makeLedger = (
     offloading: ToolConfiguration['offloading'] | undefined,
     readResultArguments = options.readResultArguments,
@@ -257,7 +239,6 @@ export async function settlementFixture(
       },
       {
         content: null,
-        materials: { ...materialPorts, store: materialStore },
         bodies: { ...bodies, clock: options.bodyClock ?? bodies.clock },
         releaseInspection:
           options.wrapReleaseInspection?.(ports.releaseInspection) ?? ports.releaseInspection,
@@ -266,18 +247,20 @@ export async function settlementFixture(
   let ledger = makeLedger(options.offloading)
   const before = ok(await ledger.commands.loadRecovery(access))
   const task = before.tasks.find(task => task.kind === 'settle')
-  if (task?.kind !== 'settle') throw new Error('fixture final has no settlement task')
+  if (task?.kind !== 'settle' && 'ok' in planned)
+    throw new Error('fixture final has no settlement task')
   const input = {
     ...recovery.execution,
     ...access,
     principal: access.principal,
     operation: operationId('preserve-result'),
     expected: before.state.revision,
-    basis: task.basis,
+    basis: task?.kind === 'settle' ? task.basis : evidence('unplanned-final'),
   }
   return {
     harness,
-    materialStore,
+    /** The plan of the final: the refusal a test asserts when planning itself is refused. */
+    planned,
     bodies,
     lateClockSamples,
     access,
@@ -293,7 +276,6 @@ export async function settlementFixture(
     input,
     before,
     commits,
-    custody: ports.custody,
     environment: ports.releaseInspection,
     interceptCommit: (handler: ToolLedgerStore['commit'] | null) => {
       intercept = handler

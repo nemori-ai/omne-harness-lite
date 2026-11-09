@@ -25,7 +25,6 @@ import {
   MAINTENANCE_GRANTS,
   TOOL_RESIDENCY_COMPONENT,
   TENANT_DOMAIN_SCANNER_COMPONENT,
-  TOOL_MATERIAL_MAINTAINER_COMPONENT,
   releaseMaintenanceGrants,
 } from '../../src/rows/authorization/index.ts'
 import {
@@ -189,7 +188,6 @@ describe('system principals against the release action matrix (验收 2)', () =>
       [TOOL_RESIDENCY_COMPONENT]: systemOf(issuer, TOOL_RESIDENCY_COMPONENT),
       [AGENT_HOST_COMPONENT]: systemOf(issuer, AGENT_HOST_COMPONENT),
       [TENANT_DOMAIN_SCANNER_COMPONENT]: systemOf(issuer, TENANT_DOMAIN_SCANNER_COMPONENT),
-      [TOOL_MATERIAL_MAINTAINER_COMPONENT]: systemOf(issuer, TOOL_MATERIAL_MAINTAINER_COMPONENT),
       // The installed `sessionPrincipals.maintainer`, not a fresh copy: S3 reads `pending` with it.
       [ENTRY_COMPONENTS.sessionMaintainer]: maintainer,
     }

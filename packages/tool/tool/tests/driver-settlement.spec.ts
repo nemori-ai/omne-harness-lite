@@ -177,17 +177,6 @@ function fixture(
     terminal: ToolTerminal = { kind: 'completed' },
   ): Promise<ToolFinalEnvelope<Block>> => ({
     kind: 'final',
-    raw: ok(
-      await h.custody.preserve({
-        principal: principalA,
-        tenant: tenantA,
-        call: readCall(call),
-        operation: operationId('raw'),
-        codec: adoption('codec'),
-        bytes: new TextEncoder().encode('raw'),
-        source: evidence('raw-source'),
-      }),
-    ),
     result: {
       ...completedFinal().result,
       content: [text('answer', 'done')],
@@ -509,12 +498,6 @@ describe('original final settlement in one shared driver', () => {
                 )
               )
                 return false
-              vi.spyOn(testSettlementPorts(memory).materials.store, 'read').mockImplementation(
-                async () => {
-                  releasedReads += 1
-                  throw new Error('the settled envelope has been released')
-                },
-              )
               return true
             },
             mode,

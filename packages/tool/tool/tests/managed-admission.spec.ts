@@ -818,7 +818,7 @@ describe('12 logical terminals (P02)', () => {
     expect(read.revision).toBe(admitted.state.revision)
     expect(
       final.writes.flatMap(write => (write.kind === 'put' ? [write.record.kind] : [])).sort(),
-    ).toEqual(['account', 'call', 'material-maintenance-hint', 'operation', 'result', 'task'])
+    ).toEqual(['account', 'call', 'operation', 'result', 'task'])
     expect(read.records.find(record => record.kind === 'task')).toEqual({
       kind: 'task',
       task: {
@@ -1087,7 +1087,6 @@ describe('14 exclusion fence (P01)', () => {
     expect(await ledger.reads.operation(query)).toEqual({ ok: { kind: 'not-committed' } })
     expect(await recordsOf(memory)).toEqual([
       { kind: 'exclusion', exclusion: { operation: 'op-1', revision: '1' } },
-      { kind: 'material-maintenance-hint', hint: { kind: 'none' } },
     ])
     // Read after the first fence, overtaken by the second: excluded by the newer fence.
     expect(
@@ -1128,7 +1127,6 @@ describe('14 exclusion fence (P01)', () => {
     ).toEqual({ ok: { kind: 'not-committed' } })
     expect(await recordsOf(store)).toEqual([
       { kind: 'exclusion', exclusion: { operation: 'op-1', revision: '1' } },
-      { kind: 'material-maintenance-hint', hint: { kind: 'none' } },
     ])
     const admitted = accepted(await assembly.admitInternal(dummyRequest()))
     const committed = store.commits

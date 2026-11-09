@@ -2,7 +2,6 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   DurableEvidence,
-  RawOutput,
   ToolOperationId,
   ToolFailure,
   ToolRenderedResult,
@@ -42,10 +41,9 @@ export function settlementOperation(
 /** Immutable event history includes references replaced in the current process projection. */
 export function processCustodyCovered<B extends ContentBlock>(
   snapshot: Snapshot,
-  raw: RawOutput,
   value: ToolRenderedResult<B>,
 ): boolean {
-  const retained = [raw.content, ...value.attachments]
+  const retained = value.attachments
   return [...snapshot.facts.values()].every(
     saved =>
       saved.fact.kind !== 'process' ||
@@ -175,7 +173,7 @@ export function decidePlanRelease<B extends ContentBlock>(
   if (
     result.terminal.kind !== 'completed' ||
     value === null ||
-    !processCustodyCovered(snapshot, result.custody.raw, value)
+    !processCustodyCovered(snapshot, value)
   )
     return reply(unsupported)
   const planned = planEnvironmentRelease(snapshot, call, basis.proof, command.custody, mint)

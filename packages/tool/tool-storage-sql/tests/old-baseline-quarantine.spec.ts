@@ -101,6 +101,10 @@ it('C9: a database created under the pre-r6 baseline is quarantined by the curre
   await writeFile(modulePath, OLD_MIGRATION_MODULE)
   const oldCatalog = catalogOf({
     ...materials,
+    participants: materials.participants.map(participant => ({
+      ...participant,
+      ownedTables: ['tl_domain', 'tl_record', 'tl_chunk', 'tl_manifest'],
+    })),
     migrations: [
       {
         ...OLD_BASELINE,

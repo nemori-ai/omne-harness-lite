@@ -5,8 +5,6 @@ export type {
   ToolLedgerAdmissions,
   ToolLedgerConfiguration,
   ToolLedgerQueues,
-  ToolLedgerMaintenance,
-  MaterialReclamationProgress,
   ToolLedgerFacts,
   ToolLedgerPorts,
   ToolControlSubjects,
@@ -20,20 +18,12 @@ export {
 } from './body-write-scope.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
 export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.ts'
-export type { ToolLedgerSweep } from './ledger-sweep.ts'
+export { createToolSweep, type ToolLedgerSweep } from './ledger-sweep.ts'
 export {
   observeToolLedgerCommit,
   type ToolLifecycleObservation,
   type ToolLifecycleObserver,
 } from './lifecycle-observation.ts'
-export {
-  createToolMaterialMaintenance,
-  type ToolMaterialMaintenanceInput,
-} from './material-maintenance.ts'
-export type {
-  MaterialMaintenancePage,
-  ToolMaterialMaintenanceSource,
-} from './material-maintenance-source.ts'
 export type {
   AccountRecord,
   SavedFact,
@@ -89,7 +79,7 @@ export type {
 // the same way as the ledger: the tenant shape and the canonical digest.
 export { isTenantShape } from './boundary.ts'
 export { digestOf as canonicalDigest } from './evidence.ts'
-export { encodeToolMaterial, type EncodedToolMaterial } from './material-codec.ts'
+export { encodeToolCanonical, type EncodedToolCanonical } from './canonical-codec.ts'
 export { createToolRuntime, createToolRuntimeFacade, toolRuntimeAdoption } from './runtime.ts'
 export { createToolDriver, type ToolDriverHandle, type DriverPolicy } from './driver.ts'
 export { createToolFactAcknowledgementGuard } from './fact-acknowledgements.ts'

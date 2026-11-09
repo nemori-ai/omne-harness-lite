@@ -11,6 +11,7 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import type { ToolLedgerPorts } from './construction.ts'
 import { put, type Decision, type Snapshot } from './ledger-decider.ts'
+import { createLedgerTransactions } from './ledger-transactions.ts'
 import type {
   DueEntry,
   LedgerDomain,
@@ -87,4 +88,21 @@ function scheduledBody(entry: DueEntry): Outcome<ToolBodyRef, ToolFailure> {
   if ('failure' in body)
     return unavailable('ledger-store', `the due index holds an illegal body key ${entry.key}`)
   return succeed({ tenant: entry.domain.tenant, call: entry.domain.call, body: body.ok })
+}
+
+/**
+ * The sweep an application schedules without holding a whole ledger: the same `due` read, store
+ * delete and reclaim commit as `ToolLedger.sweep`, over the store and body ports it is given.
+ */
+export function createToolSweep(
+  store: ToolLedgerStore,
+  bodies: ToolLedgerPorts<unknown>['bodies'],
+  ledgerCommitAttempts: number,
+): ToolLedgerSweep {
+  const { transact } = createLedgerTransactions(store, ledgerCommitAttempts)
+  return createLedgerSweep({
+    bodies,
+    due: (tenant, now, limit) => store.due(tenant, now, limit),
+    transact,
+  })
 }

@@ -36,7 +36,7 @@ function observations(input: LedgerCommitInput): readonly ToolLifecycleObservati
       record.operation.receipt.kind === 'release-delivery'
     ) {
       add('delivery-release')
-    } else if (record.kind === 'material' && record.material.state.kind === 'deleted') {
+    } else if (record.kind === 'body-entry' && record.body.state.kind === 'reclaimed') {
       add('reclaim')
     }
   }

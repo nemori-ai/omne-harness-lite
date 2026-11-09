@@ -13,13 +13,6 @@ import type { ResultValue } from './ledger-result-material.ts'
 // writes with the value to reply after the commit. It reads no port, runs no tool and mints no
 // time of its own.
 import type { ContentBlock } from '@omne-harness/content-block'
-import type {
-  MaterialRecord,
-  MaterialCleanupRecord,
-  MaterialTimeRecord,
-  MaterialUseRecord,
-  MaterialMaintenanceHint,
-} from './ledger-material-records.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   ConsumerRef,
@@ -80,14 +73,8 @@ import {
 export type Snapshot = Readonly<{
   /** The body entries of the call by body identity (BodyLifecycle `status`). */
   bodies: ReadonlyMap<string, BodyEntryRecord>
-  materialMaintenanceHint: MaterialMaintenanceHint | null
-  materialMaintenanceAfter: ToolOperationId | null
   resultPolicies: ReadonlyMap<string, ResultPolicyRecord>
   resultPreparations: ReadonlyMap<string, ResultPreparationRecord>
-  materials: ReadonlyMap<string, MaterialRecord>
-  materialUses: ReadonlyMap<string, MaterialUseRecord>
-  materialCleanup: ReadonlyMap<string, MaterialCleanupRecord>
-  materialTime: MaterialTimeRecord | null
   domain: LedgerDomain
   revision: ToolRevision
   call: CallRecord | null
@@ -112,12 +99,6 @@ export function snapshotOf(
   const bodies = new Map<string, BodyEntryRecord>()
   const resultPolicies = new Map<string, ResultPolicyRecord>()
   const resultPreparations = new Map<string, ResultPreparationRecord>()
-  const materials = new Map<string, MaterialRecord>()
-  const materialUses = new Map<string, MaterialUseRecord>()
-  let materialMaintenanceAfter: ToolOperationId | null = null
-  let materialMaintenanceHint: MaterialMaintenanceHint | null = null
-  const materialCleanup = new Map<string, MaterialCleanupRecord>()
-  let materialTime: MaterialTimeRecord | null = null
   const releases = new Map<string, EnvironmentReleaseRecord>()
   const facts = new Map<string, FactEventRecord>()
   const batches = new Map<string, FactBatchRecord>()
@@ -134,29 +115,11 @@ export function snapshotOf(
       case 'body-entry':
         bodies.set(record.body.bodyId, record.body)
         break
-      case 'material-maintenance-hint':
-        materialMaintenanceHint = record.hint
-        break
       case 'result-policy':
         resultPolicies.set(record.policy.operation, record.policy)
         break
       case 'result-preparation':
         resultPreparations.set(record.preparation.id, record.preparation)
-        break
-      case 'material-maintenance':
-        materialMaintenanceAfter = record.after
-        break
-      case 'material':
-        materials.set(record.material.writeOperation, record.material)
-        break
-      case 'material-use':
-        materialUses.set(record.use.id, record.use)
-        break
-      case 'material-cleanup':
-        materialCleanup.set(record.cleanup.writeOperation, record.cleanup)
-        break
-      case 'material-time':
-        materialTime = record.time
         break
       case 'environment-release':
         releases.set(record.environmentRelease.release.preparation, record.environmentRelease)
@@ -202,12 +165,6 @@ export function snapshotOf(
     bodies,
     resultPolicies,
     resultPreparations,
-    materials,
-    materialUses,
-    materialMaintenanceAfter,
-    materialMaintenanceHint,
-    materialCleanup,
-    materialTime,
     domain,
     releases,
     facts,

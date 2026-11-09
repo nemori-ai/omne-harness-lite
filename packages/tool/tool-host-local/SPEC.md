@@ -185,17 +185,9 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 已知限制：标记只在铸造它的进程运行内可比，不耐久；`waitUntil` 的精度是计时器的精度；单调源由构造参数给出，调用方保证它不回退。
 
-## W3 材料时间源
-
-本节归 #1168。独立时间工厂已实现，Tool 持久水位和生产接线尚未完成。原 G4 的执行计时采用不变。材料使用独立的 `createLocalToolMaterialClock`，工厂显式接收 wallMs 与 monotonicMs。首次以墙钟初始化；随后每次输出 `max(当前墙钟, 上次输出 + 单调增量)`，再更新本地锚点。输入须有限且处于合法时间范围，单调读数回退时答 unavailable，不退回原 Date.now 路径。这样，同进程墙钟回拨不会回退或暂停有效时间。
-
-Tool 的原 call 域负责持久水位，时间工厂不拥有它。初次准备意图、每次激活、页准入/完成及到期裁定都在其状态提交中核样本不低于水位并更新水位。重启或另一实例的低样本被拒绝，追上后才能继续，原期限不重算。已到期事实不可逆，时间故障不阻止已经成立的提交或删除围栏认回。精确门槛归[材料协议 M05](../tool-contract/docs/material-protocol.md#m05-有效时间)。
-
-跨停机的实际流逝依赖可信墙钟，进程内进展依赖单调源。永久坏钟下可能停止新读与新删除授权，不声称完成校时或保证回收时限。真实装配必须验证回拨、重启低样本、两实例竞争、提交未知及时间恢复。
-
 ## 缺席端口（D-07）
 
-`createAbsentToolPorts` 返回 `toolDecisions`、`toolResourceResponses`、`toolChildren`。每个方法回复 `unavailable`，`dependency` 是端口名，`diagnostic` 写明被问的操作（`<端口>.<方法>`）。不抛出，不回复空成功。这三个端口在 M2 之后由各自的提供者取代。`toolOutputCustody` 不属于缺席端口，本包也不提供它。
+`createAbsentToolPorts` 返回 `toolDecisions`、`toolResourceResponses`、`toolChildren`。每个方法回复 `unavailable`，`dependency` 是端口名，`diagnostic` 写明被问的操作（`<端口>.<方法>`）。不抛出，不回复空成功。这三个端口在 M2 之后由各自的提供者取代。
 
 ## 账本守卫（TL-11）
 
@@ -300,9 +292,9 @@ Tool 的原 call 域负责持久水位，时间工厂不拥有它。初次准备
 
 作者返回值与 Scope 收场结论分别保存。绑定在作者返回后同步调用 `finish` 关闭新受理，把原 outcome 与完整 `closing` Promise 交给受信 `settle`。`settle` 须先保管原 R，再等待收场确认，不能因收场失败改写原 outcome。绑定的原 attempt 持有待结算输入；只有 final 确认并发布后才解除这份本地持有，回调抛错或保管拒绝不解除。该本地持有不是耐久回执，也不提供跨进程重跑作者的许可。
 
-生产结算先使用原作者 codec 保存 R；收场仍 pending 时不发布 final，unknown/unavailable 时保留原件并报告未结责任。已确认的收场失败可以产生失败终局，不能产生 completed。控制身份在收场确认时核原 tenant/call/start/operation，原 stop/withdraw 若在该确认前导致取消，保留其身份；确认后的控制不能改写这次收场事实。`finish` 同步抛错或异步拒绝全化为收场 unknown，原 R 保持不变。定制 `settle` 也须履行上述顺序与屏障义务；本地 Promise 不进入数据契约或持久证据。
+生产结算在内存里用原作者 codec 编码并解码返回，渲染后交账本计划最终事实（`finalPlanner.planFinal`）；收场仍 pending 时不发布 final，unknown/unavailable 时保留原件并报告未结责任。已确认的收场失败可以产生失败终局，不能产生 completed。控制身份在收场确认时核原 tenant/call/start/operation，原 stop/withdraw 若在该确认前导致取消，保留其身份；确认后的控制不能改写这次收场事实。`finish` 同步抛错或异步拒绝全化为收场 unknown，原 R 保持不变。定制 `settle` 也须履行上述顺序与屏障义务；本地 Promise 不进入数据契约或持久证据。
 
-W3-A 按[精确 final 协议](../tool-contract/docs/material-protocol.md#m02-精确-final-与重放)迁移宿主事实缓存。绑定通过 Tool 的保管分面先登记准备责任，再封存这次真实 final。batches 与 settled lookup 只保存引用及指纹；FactReceipt 允许移除宿主重传缓存，不解除 Tool 的归一化用途。失去 live-only 连续性仍按原限制报告，不凭封存引用声称能重启任意作者函数。
+最终事实由账本在记录时计划：绑定把渲染结果交给 `planFinal`，得到首屏加正文条目引用的最终事实，再作为事实发布。batches 与 settled lookup 只保存引用及指纹；FactReceipt 允许移除宿主重传缓存，不解除 Tool 的归一化用途。失去 live-only 连续性仍按原限制报告，不凭封存引用声称能重启任意作者函数。
 
 正文 writer 由受信装配绑定原调用、执行代次和固定声明，再注入本次执行 Scope。作者不能提供这些身份。Scope 关闭时先拒绝新的正文操作，再通过 Tool 的正文写入端口确认已受理责任的保管或排除未受理操作。仅有本地 Promise 完成或 disposer 返回，不构成交接凭据。关闭答复未知时保留未结责任，不发布 completed。
 
@@ -359,16 +351,6 @@ host-only `ToolRequestAccess.qualify` 接收真实 CallAccess 与完整 FixedToo
 start guard 先保留 M2 programmatic 围栏，再核当前调用身份，最后核目标策略。策略 denied 为 refused。coordinator 在 prepare 和 consume 的每次 CAS 重试中，于当前调用身份核验后、permitRequirements 前重问目标策略。prepare 的 denied 直接拒绝；consume 的 denied 用既有 rejected 与 exclusion 保存未启动事实，unavailable 保留 unknown，不写 acceptance。
 
 consume 与 inspect 先认回原 started 或 rejected 历史，不用新规则改写既成事实。新增策略不撤销已发生副作用，也不提供外部撤权与存储提交原子同步的保证。验证见 [请求策略反例](tests/request-access.spec.ts) 和 [真实执行绑定组合](tests/runtime-composition/forwarding.spec.ts)。
-
-## 材料维护的关闭边界
-
-createLocalToolMaterialMaintenance 封装 Tool 的窄维护入口，提供 expire、reclaim、scan 和 close。维护作用域先登记进行中的操作，再调用端口。close 同步停止新受理，并等待全部已受理操作返回。重复 close 返回同一个完成 Promise。
-
-每次调用账本 read/commit、材料 clock.sample、inspectErase/erase、维护资格或候选扫描之前，都同步检查作用域。关闭后不得发起新的能力调用。关闭前已受理的单次提供者操作可完成其内部有界步骤，close 不撤销提交或外部删除。一直挂起的操作使 close 一直未完成；应用 deadline 只能报告未完成，不能强报成功。
-
-关闭后不向调用方交付成功结果。返回 unavailable 时明确已受理步骤可能完成，不推导“未执行”。已发生的删除和未知提交依原账本的 cleanup/deleting 及操作身份恢复。新作用域继续使用原存储；普通业务账本不受维护关闭影响。
-
-scan 固定原主体、租户、时刻和游标，读取之前及返回之前检查当前扫描资格。候选源不授予维护权。此独立工厂不启动定时器或注册 Cordis 服务；生产轮询和提供者撤除次序由应用装配负责。
 
 ## 正文 schema 适配
 

@@ -16,7 +16,7 @@ afterEach(auditQueues)
 it('presents a callable body reference and reads UTF-8 text through the invocation runtime', async () => {
   const expected = '\ufeff中🙂'.repeat(7)
   const f = await sourceFixture(
-    async (_raw, ledger, access) => ({
+    async (ledger, access) => ({
       ...result([visible('summary', 'summary only')]),
       original: {
         kind: 'offloaded',
@@ -51,7 +51,7 @@ it('shrinks the body budget without advancing past text omitted from the actual 
   const expected = '中🙂"\\\n'.repeat(600)
   const limits = { ...options, contentPageBytes: 4096, resultPageBytes: 4096, replyMaxBytes: 4096 }
   const f = await sourceFixture(
-    async (_raw, ledger, access) => ({
+    async (ledger, access) => ({
       ...result([visible('summary', 'summary only')]),
       original: {
         kind: 'offloaded',
@@ -81,7 +81,7 @@ it('shrinks the body budget without advancing past text omitted from the actual 
 
 it.each([5, 6])('only emits a continuation accepted by its %i-item budget', async maxItems => {
   const f = await sourceFixture(
-    async (_raw, ledger, access) => ({
+    async (ledger, access) => ({
       ...result([visible('summary', 'summary')]),
       original: {
         kind: 'offloaded',

@@ -1,20 +1,9 @@
-export {
-  createMemoryToolMaterialStore,
-  createMemoryToolMaterials,
-} from './testing-material-store.ts'
 import { randomBytes } from 'node:crypto'
 import type { ToolBodyPermitKey, ToolInstant } from '@omne-harness/tool-contract/provider'
-import { createMemoryToolMaterials } from './testing-material-store.ts'
 import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type {
-  Attachment,
-  ContentPage,
-  RawOutput,
-  ToolFailure,
-  ToolCatalog,
-} from '@omne-harness/tool-contract'
+import type { Attachment, ContentPage, ToolFailure, ToolCatalog } from '@omne-harness/tool-contract'
 import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type {
   ToolContentReader,
@@ -34,7 +23,6 @@ import {
   createMemoryToolDecisionBridge,
   createMemoryToolEnvironment,
   createMemoryToolExecutorBinding,
-  createMemoryToolOutputCustody,
   createMemoryToolResourceResponses,
   createMemoryToolStartAuthority,
   type MemoryEnvironment,
@@ -42,7 +30,6 @@ import {
   type MemoryToolDecisionBridge,
   type MemoryToolEnvironment,
   type MemoryToolExecutorBinding,
-  type MemoryToolOutputCustody,
   type MemoryToolResourceResponses,
   type MemoryToolStartAuthority,
   createManualInstantClock,
@@ -93,7 +80,6 @@ export type TestToolDoubles<P> = Readonly<{
   clock: MemoryToolClock
   decisions: MemoryToolDecisionBridge<P>
   resources: MemoryToolResourceResponses<P>
-  custody: MemoryToolOutputCustody<P>
   content: MemoryToolContent<P>
 }>
 
@@ -112,14 +98,13 @@ export function createTestToolDependencies<P>(
   const content = createMemoryToolContent<P>()
   const doubles: TestToolDoubles<P> = {
     executor: createMemoryToolExecutorBinding<P, MemoryEnvironment>({
-      preserveFinal: input => ledger.finalCustody.preserveFinal(input),
+      planFinal: input => ledger.finalPlanner.planFinal(input),
     }),
     environment: createMemoryToolEnvironment<P>(),
     authority: createMemoryToolStartAuthority<P>(),
     clock: createMemoryToolClock(),
     decisions: createMemoryToolDecisionBridge<P>(),
     resources: createMemoryToolResourceResponses<P>(),
-    custody: content.custody,
     content,
   }
   const store = createMemoryToolLedgerStore()
@@ -133,7 +118,6 @@ export function createTestToolDependencies<P>(
     doubles.clock,
     input.configuration,
     {
-      materials: createMemoryToolMaterials<P>(),
       bodies: createMemoryToolBodies(),
       releaseInspection: doubles.environment,
       content: content.reader,
@@ -191,7 +175,6 @@ export type MemoryContentFault =
 export type MemoryToolContent<P> = Readonly<{
   durability: 'none'
   reader: Pick<ToolContentReader<P>, 'read'>
-  custody: MemoryToolOutputCustody<P>
   controls: Readonly<{
     seed(input: Seed<P>): Outcome<void, ToolFailure>
     remove(input: Omit<Seed<P>, 'bytes'>): void
@@ -226,7 +209,6 @@ function integrity(attachment: Attachment, bytes: Uint8Array): boolean {
 
 /** Bytes only. Association and current authorization are always checked by the real ledger. */
 export function createMemoryToolContent<P>(): MemoryToolContent<P> {
-  const source = createMemoryToolOutputCustody<P>()
   const bytesByAddress = new Map<string, Uint8Array>()
   let fault: MemoryContentFault | null = null
   let pause: Readonly<{ entered(): void; resumed: Promise<void> }> | null = null
@@ -238,29 +220,6 @@ export function createMemoryToolContent<P>(): MemoryToolContent<P> {
       return missing('source length or sha256 digest does not match')
     bytesByAddress.set(keyOf({ ...input, attachment: attachment.ok }), bytes)
     return succeed(undefined)
-  }
-  const register = async (input: CallAccess<P>, raw: RawOutput): Promise<void> => {
-    const kept = seed({
-      ...input,
-      attachment: raw.content,
-      bytes: await source.controls.readBytes(raw),
-    })
-    if ('failure' in kept) throw new Error('memory custody returned inconsistent bytes')
-  }
-  const custody: MemoryToolOutputCustody<P> = {
-    ...source,
-    preserve: async input => {
-      const fixed = { ...input, bytes: Uint8Array.from(input.bytes) }
-      const answer = await source.preserve(fixed)
-      if ('ok' in answer) await register(fixed, answer.ok)
-      return structuredClone(answer)
-    },
-    inspect: async input => {
-      const fixed = { ...input }
-      const answer = await source.inspect(fixed)
-      if ('ok' in answer && answer.ok.kind === 'retained') await register(fixed, answer.ok.raw)
-      return structuredClone(answer)
-    },
   }
   const page = (input: ReadInput<P>): Outcome<ContentPage, ToolFailure> => {
     const bytes = bytesByAddress.get(keyOf(input))
@@ -314,7 +273,6 @@ export function createMemoryToolContent<P>(): MemoryToolContent<P> {
   }
   return {
     durability: 'none',
-    custody,
     reader: {
       read: async input => {
         const attachment = fixAttachment(input.attachment)

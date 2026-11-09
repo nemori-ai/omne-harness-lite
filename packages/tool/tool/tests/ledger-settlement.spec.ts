@@ -53,7 +53,6 @@ describe('original execution settlement', () => {
       expect.objectContaining({ call: f.access.call }),
     )
     const recovery = await f.load()
-    expect(recovery.rawOutputs).toEqual([f.final.raw])
     expect(recovery.result).toMatchObject({
       version: settled.phase === 'settled' ? settled.result : null,
     })
@@ -350,57 +349,6 @@ describe('queue repair after committed settlement', () => {
     expect((await f.load()).tasks.some(task => task.kind === 'queue')).toBe(false)
     expect(await f.harness.released()).toContain(f.access.call)
   })
-})
-
-it('permits cleanup only for complete history reference identity, including raw content', async () => {
-  const external = refProcess('attachment')
-  if (!('ref' in external.content)) throw new Error('fixture ref')
-  const f = await settlementFixture({
-    attachments: [external.content.ref],
-    process: raw => [
-      external,
-      {
-        ...refProcess('raw', '1'),
-        content: {
-          kind: 'file',
-          id: text('raw-ref', '').id,
-          visibility: { toHuman: true, toModel: false },
-          ref: raw.content,
-          transcript: null,
-        },
-      },
-    ],
-  })
-  ok(await f.preserve())
-  expect((await f.load()).tasks.some(task => task.kind === 'release')).toBe(true)
-  expect((await f.load()).tasks.some(task => task.kind === 'settle')).toBe(false)
-  const old = refProcess('uncovered-old')
-  const latest = refProcess('covered-new', '1')
-  if (!('ref' in latest.content)) throw new Error('fixture ref')
-  const replaced = await settlementFixture({
-    process: [old, latest],
-    attachments: [latest.content.ref],
-  })
-  ok(await replaced.preserve())
-  expect((await replaced.load()).tasks.some(task => task.kind === 'release')).toBe(false)
-  const legacy = await settlementFixture({
-    process: [
-      {
-        ...external,
-        content: {
-          kind: 'file',
-          id: text('legacy', '').id,
-          visibility: { toHuman: true, toModel: false },
-          storage: external.content.ref.storage,
-          key: external.content.ref.key,
-          mediaType: external.content.ref.mediaType,
-        },
-      },
-    ],
-    attachments: [external.content.ref],
-  })
-  ok(await legacy.preserve())
-  expect((await legacy.load()).tasks.some(task => task.kind === 'release')).toBe(false)
 })
 
 it('does not release a logical ended state that lacks the original saved final proof', async () => {
@@ -700,15 +648,11 @@ it('settles every final alias in the result commit and recalls later aliases wit
       }),
     ]),
   )
-  const read = vi
-    .spyOn(testSettlementPorts(f.harness.memory).materials.store, 'read')
-    .mockRejectedValue(new Error('envelope no longer exists'))
   for (const saved of settledFacts ?? []) {
     expect(
       ok(await f.ledger.facts.read({ ...f.access, basis: saved.evidence })).fact,
     ).toMatchObject({
       kind: 'settled-final',
-      raw: f.final.raw,
       terminal: f.final.terminal,
       effect: f.final.effect,
       result: state.phase === 'settled' ? state.result : null,
@@ -726,7 +670,6 @@ it('settles every final alias in the result commit and recalls later aliases wit
     record => record.kind === 'fact-event' && record.fact.event === 'alias-after',
   )
   expect(saved).toMatchObject({ fact: { fact: { payload: { kind: 'settled' } } } })
-  expect(read).not.toHaveBeenCalled()
 })
 
 it('uses the settled final when settlement overtakes an already prepared alias', async () => {
@@ -761,13 +704,9 @@ it('uses the settled final when settlement overtakes an already prepared alias',
   )
   expect(saved).toMatchObject({ fact: { fact: { payload: { kind: 'settled' } } } })
   if (saved?.kind !== 'fact-event') throw new Error('missing alias')
-  const read = vi
-    .spyOn(testSettlementPorts(f.harness.memory).materials.store, 'read')
-    .mockRejectedValue(new Error('released envelope'))
   expect(
     ok(await f.ledger.facts.read({ ...f.access, basis: saved.fact.evidence })).fact,
   ).toMatchObject({
     kind: 'settled-final',
   })
-  expect(read).not.toHaveBeenCalled()
 })

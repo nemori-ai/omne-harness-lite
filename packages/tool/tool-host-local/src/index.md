@@ -2,7 +2,6 @@
 
 - [源码职责与现状](README.md)。
 - [根入口](index.ts)。
-- [材料时间源](material-clock.ts)：非递减有效时间，不持有业务期限或持久水位。
 - [本地启动协调器](start-coordinator.ts)。
 - [可信许可需求来源](start-permit-requirements.ts)。
 - [环境调度工厂](scheduled-environment.ts)与[调度策略](environment-policy.ts)。

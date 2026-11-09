@@ -2,7 +2,6 @@
 // the inputs and outputs of the read handlers. The adapters build these values and the Worker
 // modules parse them, so the protocol has one definition. Every value is strict JSON.
 import type { JsonValue } from '@omne-harness/sql-contract'
-import { parseMaterialFacts, type MaterialFacts } from './material-facts.ts'
 import { countOf, isObject, textOf, type JsonObject } from './support.ts'
 
 /** The three ledger domain kinds; `name` is the call, the queue key or the host key. */
@@ -29,28 +28,6 @@ export type LedgerFacts = DomainAddress &
     asserts: readonly LedgerAssertionFact[]
   }>
 
-/** The key of one original or retained projection: the operation that kept it. */
-export type CustodyAddress = Readonly<{ tenant: string; call: string; operation: string }>
-
-/** One chunk of the bytes kept under `operation`. `digest` names the whole custody input. */
-export type ChunkFacts = CustodyAddress &
-  Readonly<{ intent: 'chunk'; digest: string; index: number; data: string }>
-
-export type ManifestKind = 'raw' | 'retain'
-
-export type ManifestFacts = CustodyAddress &
-  Readonly<{
-    intent: 'manifest'
-    kind: 'raw'
-    digest: string
-    bytes: number
-    chunks: number
-    sha256: string
-    seal: string
-    answer: JsonValue
-    holds: null
-  }>
-
 /** The address of one body of the body store. */
 export type BodyAddress = Readonly<{ tenant: string; call: string; body: string }>
 
@@ -63,15 +40,13 @@ export type BodyDeleteFacts = BodyAddress & Readonly<{ intent: 'body-delete' }>
 
 export type BodyFacts = BodyPutFacts | BodySealFacts | BodyDeleteFacts
 
-export type ToolFacts = LedgerFacts | ChunkFacts | ManifestFacts | MaterialFacts | BodyFacts
+export type ToolFacts = LedgerFacts | BodyFacts
 
 /** Why the participant stopped a command; the adapters map each reason to one port answer. */
 export type StopBasis =
   | Readonly<{ reason: 'revision'; current: string }>
   /** An assertion did not hold; `current` is the revision of the written domain. */
   | Readonly<{ reason: 'assertion'; current: string }>
-  | Readonly<{ reason: 'operation' }>
-  | Readonly<{ reason: 'chunks' }>
   /** The body holds other bytes at the sequence number, or another manifest seals it. */
   | Readonly<{ reason: 'body-conflict' }>
   /** The chunks do not hold what the manifest declares. */
@@ -79,8 +54,6 @@ export type StopBasis =
 
 export type ParticipantAnswer =
   | Readonly<{ kind: 'committed' }>
-  | Readonly<{ kind: 'chunk' }>
-  | Readonly<{ kind: 'sealed'; answer: JsonValue }>
   | Readonly<{ kind: 'body-kept' }>
   | Readonly<{ kind: 'body-sealed' }>
   | Readonly<{ kind: 'body-deleted' }>
@@ -92,22 +65,6 @@ export type LedgerReadOutput = Readonly<{
   revision: string | null
   records: readonly StoredRecord[]
 }>
-
-export type ManifestRow = Readonly<{
-  kind: ManifestKind
-  digest: string
-  bytes: string
-  chunks: string
-  sha256: string
-  seal: string
-  answer: JsonValue
-}>
-
-export type ManifestReadOutput = Readonly<{ manifest: ManifestRow | null }>
-
-export type ChunkReadInput = CustodyAddress & Readonly<{ index: number }>
-
-export type ChunkReadOutput = Readonly<{ data: string | null }>
 
 export type BodyReadInput = BodyAddress & Readonly<{ first: number; count: number }>
 
@@ -135,14 +92,6 @@ function domainOf(value: JsonObject): DomainAddress | null {
   const name = textOf(value, 'name')
   if (tenant === null || name === null || !isDomainKind(kind)) return null
   return { tenant, kind, name }
-}
-
-export function custodyAddressOf(value: JsonValue): CustodyAddress | null {
-  if (!isObject(value)) return null
-  const tenant = textOf(value, 'tenant')
-  const call = textOf(value, 'call')
-  const operation = textOf(value, 'operation')
-  return tenant === null || call === null || operation === null ? null : { tenant, call, operation }
 }
 
 function writeOf(value: JsonValue): LedgerWriteFact | null {
@@ -230,74 +179,22 @@ function ledgerOf(value: JsonObject): LedgerFacts | null {
   return { ...domain, intent: 'ledger', expected, revision, writes: parsed, asserts: assertions }
 }
 
-function chunkOf(value: JsonObject): ChunkFacts | null {
-  const address = custodyAddressOf(value)
-  const digest = textOf(value, 'digest')
-  const index = countOf(value, 'index')
-  const data = value['data']
-  if (address === null || digest === null || index === null || typeof data !== 'string') return null
-  return { ...address, intent: 'chunk', digest, index, data }
-}
-
-/** What a manifest declares about the kept bytes and its own answer. */
-function declaredOf(
-  value: JsonObject,
-): Pick<ManifestFacts, 'digest' | 'sha256' | 'seal' | 'answer'> | null {
-  const digest = textOf(value, 'digest')
-  const sha256 = textOf(value, 'sha256')
-  const seal = textOf(value, 'seal')
-  const answer = value['answer']
-  return digest === null || sha256 === null || seal === null || answer === undefined
-    ? null
-    : { digest, sha256, seal, answer }
-}
-
-function manifestOf(value: JsonObject): ManifestFacts | null {
-  const address = custodyAddressOf(value)
-  const kind = value['kind']
-  const declared = declaredOf(value)
-  const bytes = countOf(value, 'bytes')
-  const chunks = countOf(value, 'chunks')
-  const holds = value['holds']
-  if (
-    address === null ||
-    kind !== 'raw' ||
-    declared === null ||
-    bytes === null ||
-    chunks === null ||
-    holds !== null
-  )
-    return null
-  return { ...address, ...declared, intent: 'manifest', kind, bytes, chunks, holds }
-}
-
 /** The facts of one `tool` command, or null when they are not a command of this protocol. */
 export function parseFacts(facts: JsonObject): ToolFacts | null {
   switch (facts['intent']) {
     case 'ledger':
       return ledgerOf(facts)
-    case 'chunk':
-      return chunkOf(facts)
-    case 'manifest':
-      return manifestOf(facts)
     case 'body-put':
     case 'body-seal':
     case 'body-delete':
       return bodyOf(facts)
     default:
-      return parseMaterialFacts(facts)
+      return null
   }
 }
 
 export function parseDomainAddress(value: JsonValue): DomainAddress | null {
   return isObject(value) ? domainOf(value) : null
-}
-
-export function parseChunkInput(value: JsonValue): ChunkReadInput | null {
-  const address = custodyAddressOf(value)
-  if (address === null || !isObject(value)) return null
-  const index = countOf(value, 'index')
-  return index === null ? null : { ...address, index }
 }
 
 export function parseBodyReadInput(value: JsonValue): BodyReadInput | null {

@@ -1,9 +1,4 @@
-import {
-  settleResultBodies,
-  releaseFinalPreparation,
-  preparedRawMaterial,
-  adoptRawMaterials,
-} from './ledger-result-uses.ts'
+import { settleResultBodies } from './ledger-result-uses.ts'
 import { checkBodyReferences } from './ledger-body-entries.ts'
 import type { ToolInstant } from '@omne-harness/tool-contract/provider'
 import type { ResultValue } from './ledger-result-material.ts'
@@ -95,8 +90,6 @@ export function checkSettlement(
     !sameFactValue(task.basis, command.basis)
   )
     return invalid('final', 'not-original-final')
-  const raw = preparedRawMaterial(snapshot, saved.fact.raw)
-  if ('failure' in raw) return raw
   if (call.state.relation === 'background' && saved.fact.terminal.kind === 'no-response')
     return invalid('terminal', 'background-no-response')
   return succeed({
@@ -176,10 +169,10 @@ export function decidePreserveResult<B extends ContentBlock>(
     'result-custody',
     { tenant: call.tenant, call: call.call, operation: command.operation },
     mint.revision,
-    { final: saved.evidence, raw: final.raw, value },
+    { final: saved.evidence, value },
   )
   const completed = final.terminal.kind === 'completed'
-  const covered = completed && processCustodyCovered(snapshot, final.raw, final.result)
+  const covered = completed && processCustodyCovered(snapshot, final.result)
   const planned = covered
     ? planEnvironmentRelease(snapshot, call, saved.evidence, materialized, mint)
     : succeed(null)
@@ -210,7 +203,6 @@ export function decidePreserveResult<B extends ContentBlock>(
       kind: 'execution',
       final: saved.evidence,
       finalValue: saved.value,
-      raw: final.raw,
       materialized,
       cleanup,
     },
@@ -227,23 +219,13 @@ export function decidePreserveResult<B extends ContentBlock>(
   const uses = settleResultBodies(snapshot, first.version.record, orphanDue)
   if ('failure' in uses) return reply(uses)
   if (saved.fact.kind !== 'final' || saved.fact.payload.kind !== 'pending')
-    return reply(invalid('final', 'pending-envelope-required'))
-  const released = releaseFinalPreparation(
-    snapshot,
-    saved.fact.payload.envelope,
-    first.version.record.source,
-  )
-  if ('failure' in released) return reply(released)
-  const rawRelease = adoptRawMaterials(snapshot, final.raw, final.result, first.version.record)
-  if ('failure' in rawRelease) return reply(rawRelease)
+    return reply(invalid('final', 'pending-final-required'))
   const state = settledState(call, final, saved.evidence, first.version.delivery, mint)
   if ('failure' in state) return reply(state)
   const writes: LedgerWrite[] = [
     put({ kind: 'call', call: { ...call, state: state.ok } }),
     ...first.writes,
     ...uses.ok,
-    ...released.ok,
-    ...rawRelease.ok,
     put(operationRecord(command, { kind: 'preserve-result', state: state.ok }, mint)),
     put({
       kind: 'task',

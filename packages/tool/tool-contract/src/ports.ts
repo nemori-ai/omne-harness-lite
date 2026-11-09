@@ -7,7 +7,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ToolDecision } from './author-context.ts'
 import type { ToolInspection } from './authoring.ts'
-import type { ToolFinalPointer } from './materials.ts'
+import type { ToolPlannedFinal } from './materials.ts'
 import type { FixedToolRequest, ToolAvailability, ToolInvocation } from './definitions.ts'
 import type { ToolExecutionRef } from './execution.ts'
 import type {
@@ -83,7 +83,7 @@ export type ToolExecutionFact =
     }>
   | Readonly<{ kind: 'program-scheduling'; value: ProgramScheduling }>
   | Readonly<{ kind: 'account'; event: string; value: CallAccount }>
-  | ToolFinalPointer
+  | ToolPlannedFinal
 export interface ToolLiveExecution {
   facts(input: Readonly<{ after: string | null; signal: AbortSignal }>): AsyncIterable<FactBatch>
   acknowledge(input: FactReceipt): Reply<DurableEvidence>

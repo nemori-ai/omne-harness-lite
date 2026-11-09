@@ -1,10 +1,7 @@
 import { createMemoryToolBodies } from '@omne-harness/tool/testing'
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
-import {
-  createMemoryToolEnvironment,
-  createMemoryToolOutputCustody,
-} from '@omne-harness/tool-contract/testing'
+import { createMemoryToolEnvironment } from '@omne-harness/tool-contract/testing'
 // Builders and controllable ports for the managed-runtime tests. Each builder returns a fresh
 // value, so a test can change one field and keep the rest legal. Every port the logical-result
 // path must not touch is a throwing stub that counts its calls.
@@ -43,7 +40,6 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import {
-  createMemoryToolMaterials,
   createTestInvocationSource,
   createTestToolIdentities,
   type TestInvocationSource,
@@ -475,6 +471,7 @@ export function configurationOf(options: HarnessOptions): ToolConfiguration {
   return configuration({
     resultPageBytes: options.resultPageBytes ?? defaults.resultPageBytes,
     offloading: options.offloading ?? defaults.offloading,
+    readResultArguments: options.readResultArguments ?? defaults.readResultArguments,
     ledgerCommitAttempts: options.ledgerCommitAttempts ?? defaults.ledgerCommitAttempts,
     queueCapacity: options.queueCapacity ?? defaults.queueCapacity,
     ...(options.driverStepsPerRun === undefined
@@ -614,7 +611,6 @@ export function harness(options: HarnessOptions = {}): Harness {
     ['prepare', 'inspectPreparation', 'release', 'inspectRelease'],
   )
   const settlement = {
-    materials: testSettlementPorts(store).materials,
     bodies: testSettlementPorts(store).bodies,
     releaseInspection: environments,
     content: null,
@@ -860,27 +856,16 @@ export function putsExclusion(input: LedgerCommitInput): boolean {
   return input.writes.some(write => write.kind === 'put' && write.record.kind === 'exclusion')
 }
 
-const materialStores = new WeakMap<
-  object,
-  ReturnType<typeof createMemoryToolMaterials<Principal>>
->()
 const bodyStores = new WeakMap<object, ReturnType<typeof createMemoryToolBodies>>()
 export function testSettlementPorts(memory?: object) {
-  const materials =
-    memory === undefined
-      ? createMemoryToolMaterials<Principal>()
-      : (materialStores.get(memory) ?? createMemoryToolMaterials<Principal>())
-  if (memory !== undefined) materialStores.set(memory, materials)
   const bodies =
     memory === undefined
       ? createMemoryToolBodies()
       : (bodyStores.get(memory) ?? createMemoryToolBodies())
   if (memory !== undefined) bodyStores.set(memory, bodies)
   return {
-    materials,
     bodies,
     content: null,
-    custody: createMemoryToolOutputCustody<Principal>(),
     releaseInspection: createMemoryToolEnvironment<Principal>(),
   }
 }

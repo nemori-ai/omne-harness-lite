@@ -13,7 +13,6 @@ export type { ToolBodyReader } from './body-reads.ts'
 // value types only they reference. Every name is defined once, in the same modules as the root
 // entry; a name is exported from one entry only. It does not import Cordis or another Tool package.
 export { toolBodyContract } from './contract.ts'
-export { decodeToolMaterialInstant } from './materials.ts'
 export {
   decodeToolInstant,
   manifestOf,
@@ -38,18 +37,10 @@ export {
   type ToolInstantClock,
 } from './body-store.ts'
 export type {
-  ToolMaterialFingerprint,
-  ToolMaterialInstant,
-  ToolMaterialClock,
-  ToolMaterialId,
-  ToolMaterialGeneration,
-  ToolMaterialRef,
-  ToolMaterialSeal,
-  ToolMaterialDeletion,
-  ToolMaterialStore,
+  ToolCanonicalFingerprint,
   ToolFinalEnvelope,
-  ToolFinalPointer,
-  ToolFinalCustody,
+  ToolPlannedFinal,
+  ToolFinalPlanner,
 } from './materials.ts'
 export { describedAdoption } from './adoption.ts'
 export type { AdoptionRules } from './adoption.ts'
@@ -58,8 +49,6 @@ export {
   decodeToolCursor,
   decodeToolDeliveryId,
   decodeToolInstanceId,
-  decodeToolMaterialId,
-  decodeToolMaterialGeneration,
   decodeToolBodyId,
   decodeToolResultVersion,
   decodeToolRevision,
@@ -236,7 +225,6 @@ export type {
   ToolAccounts,
   ToolContentReader,
   ToolOffloader,
-  ToolOutputCustody,
   ToolReads,
 } from './custody.ts'
 export type {

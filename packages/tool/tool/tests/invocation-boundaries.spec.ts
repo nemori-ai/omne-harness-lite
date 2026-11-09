@@ -127,13 +127,6 @@ const entries: readonly Entry[] = [
     command: false,
     run: (r, input) => untrusted(r.body.read, input),
   },
-  {
-    name: 'content.raw',
-    action: 'read-raw',
-    field: 'reference',
-    command: false,
-    run: (r, input) => untrusted(r.content.raw, input),
-  },
 ]
 
 const access = {
@@ -198,7 +191,6 @@ describe.each(entries)('$name reference boundary', entry => {
       vi.spyOn(reads, 'result'),
       vi.spyOn(reads, 'account'),
       vi.spyOn(reads.content, 'read'),
-      vi.spyOn(reads.content, 'raw'),
       vi.spyOn(reads.body, 'read'),
       vi.spyOn(commands, 'releaseDelivery'),
       vi.spyOn(instances.directory, 'connect'),

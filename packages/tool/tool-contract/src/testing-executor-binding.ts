@@ -5,8 +5,7 @@
 import assert from 'node:assert/strict'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { ToolFinalEnvelope, ToolFinalCustody } from './materials.ts'
-import { decodeToolMaterialId, decodeToolMaterialGeneration } from './identity.ts'
+import type { ToolFinalEnvelope, ToolFinalPlanner } from './materials.ts'
 import type { FixedToolRequest } from './definitions.ts'
 import type { Access, CallAccess, DurableEvidence, ToolCallId } from './identity.ts'
 import type {
@@ -154,45 +153,15 @@ export const executorBindingAnswers = {
 export function completedFinalEnvelope(): ToolFinalEnvelope<ContentBlock> {
   return {
     kind: 'final',
-    raw: {
-      codec: adoption('output-codec'),
-      content: {
-        storage: 'conformance',
-        key: 'raw-1',
-        mediaType: 'application/octet-stream',
-        bytes: '3',
-        digest: 'sha256:raw',
-      },
-      custody: evidence('raw-custody'),
-    },
     result: textResult('done'),
     terminal: { kind: 'completed' },
     effect: { kind: 'occurred', evidence: evidence('effect') },
   }
 }
 
-/** A sealed pointer fixture for binding conformance; it does not provide durable custody. */
+/** The planned final of the conformance fixture: a result under the threshold stays as it is. */
 export function completedFinal(): FinalFact {
-  const { result: _result, ...final } = completedFinalEnvelope()
-  const id = decodeToolMaterialId('conformance-final')
-  const generation = decodeToolMaterialGeneration('1')
-  if ('failure' in id || 'failure' in generation) throw new Error('Invalid fixture identity')
-  return {
-    ...final,
-    value: {
-      codec: 'tool-canonical-json-v1',
-      algorithm: 'sha256',
-      digest: 'a'.repeat(64),
-      bytes: '1',
-    },
-    envelope: {
-      material: { id: id.ok, generation: generation.ok, provider: adoption('materials') },
-      codec: adoption('tool-canonical-json-v1'),
-      bytes: '1',
-      sha256: 'a'.repeat(64),
-      evidence: evidence('sealed-final'),
-    },
-  }
+  return completedFinalEnvelope()
 }
 
 function scene<P, E>(
@@ -811,7 +780,7 @@ const reply = <T>(outcome: Outcome<T, ToolFailure>): Promise<Outcome<T, ToolFail
  * from a cursor continues there, and it ends only when the channel is closed by the reader.
  */
 export function createMemoryToolExecutorBinding<P, E>(
-  custody?: ToolFinalCustody<P, ContentBlock>,
+  planner?: ToolFinalPlanner<P, ContentBlock>,
 ): MemoryToolExecutorBinding<P, E> {
   const accessByState = new WeakMap<Execution, CallAccess<P>>()
   const seal = async (
@@ -819,8 +788,8 @@ export function createMemoryToolExecutorBinding<P, E>(
     final: ToolFinalEnvelope<ContentBlock>,
   ): Promise<FinalFact> => {
     const access = accessByState.get(state)
-    if (custody === undefined || access === undefined) throw new Error('Final custody is required')
-    const answer = await custody.preserveFinal({
+    if (planner === undefined || access === undefined) throw new Error('Final planning is required')
+    const answer = await planner.planFinal({
       ...access,
       start: state.start,
       operation: operationId(`final-${state.start.operation}`),
@@ -877,10 +846,7 @@ export function createMemoryToolExecutorBinding<P, E>(
       },
       effect: { kind: 'unknown', diagnostic: 'the executor was stopped' },
     }
-    const final =
-      custody === undefined
-        ? { ...completedFinal(), terminal: envelope.terminal, effect: envelope.effect }
-        : await seal(state, envelope)
+    const final = planner === undefined ? envelope : await seal(state, envelope)
     state.status = 'settled'
     append(state, final)
     state.settled = { event: `event-${state.batches.length}`, fact: final }

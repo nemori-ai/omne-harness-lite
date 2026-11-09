@@ -321,11 +321,7 @@ describe('managed original facts', () => {
     expect(saved.streams[0]?.pendingAcknowledgements).toEqual([])
     expect(saved.tasks.some(task => task.kind === 'fact-ack')).toBe(false)
     expect(f.h.binding.controls.pendingAcknowledgements(start)).toBe(0)
-    const settle = saved.tasks.find(task => task.kind === 'settle')
-    if (settle?.kind !== 'settle') throw new Error('missing saved final')
-    expect(ok(await f.h.ledger.facts.read({ ...access, basis: settle.basis })).fact).toEqual(
-      completedFinal(),
-    )
+    expect(saved.state.phase).toBe('settled')
     expect(confirmations).toHaveLength(2)
     const original = confirmations[0]
     if (original === undefined) throw new Error('missing confirmation command')
@@ -365,20 +361,7 @@ describe('managed original facts', () => {
     expect(saved.streams[0]?.pendingAcknowledgements).toEqual([])
     expect(saved.tasks.some(task => task.kind === 'fact-ack')).toBe(false)
     expect(f.h.binding.controls.pendingAcknowledgements(c.start)).toBe(0)
-    expect(saved.state.phase).toBe('running')
-    expect(saved.state.queue.kind).toBe('held')
-    const settle = saved.tasks.find(task => task.kind === 'settle')
-    if (settle?.kind !== 'settle') throw new Error('missing final duty')
-    const rebuilt = createToolLedger(
-      f.h.memory,
-      guards(),
-      createMemoryToolClock(),
-      configurationOf({}),
-      testSettlementPorts(f.h.memory),
-    )
-    expect(ok(await rebuilt.facts.read({ ...c.access, basis: settle.basis })).fact).toEqual(
-      completedFinal(),
-    )
+    expect(saved.state.phase).toBe('settled')
     controller.abort()
     await flush()
     expect(f.stats).toMatchObject({ readers: 0, next: 0, maxReaders: 1, maxNext: 1, batches: 2 })
@@ -491,9 +474,7 @@ describe('managed original facts', () => {
     await f.pump()
     expect(receives).toBe(1)
     expect(ok(await f.h.commands.loadRecovery(first.access)).streams).toEqual([])
-    expect(
-      ok(await f.h.commands.loadRecovery(second.access)).tasks.some(task => task.kind === 'settle'),
-    ).toBe(true)
+    expect(ok(await f.h.commands.loadRecovery(second.access)).state.phase).toBe('settled')
     secondSignal.abort()
     await flush()
   })
@@ -930,11 +911,7 @@ describe('reader isolation and command outcomes', () => {
       const saved = ok(await f.h.commands.loadRecovery(second))
       expect(saved.streams[0]?.pendingAcknowledgements).toEqual([])
       expect(f.h.binding.controls.pendingAcknowledgements(secondStart)).toBe(0)
-      const settle = saved.tasks.find(task => task.kind === 'settle')
-      if (settle?.kind !== 'settle') throw new Error('missing second final')
-      expect(ok(await f.h.ledger.facts.read({ ...second, basis: settle.basis })).fact).toEqual(
-        completedFinal(),
-      )
+      expect(saved.state.phase).toBe('settled')
       const firstRecords = await f.h.memory.read({
         kind: 'call',
         tenant: first.tenant,

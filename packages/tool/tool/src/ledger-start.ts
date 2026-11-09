@@ -268,7 +268,6 @@ export function releaseBasisOf(snapshot: Snapshot): ReleaseBasis | null {
     digestOf(saved.start) !== digestOf(record.start) ||
     digestOf(record.execution) !== digestOf(record.start.execution) ||
     digestOf(result.custody.final) !== digestOf(proof) ||
-    digestOf(result.custody.raw) !== digestOf(saved.fact.raw) ||
     !sameFactValue(result.custody.finalValue, saved.value) ||
     digestOf(result.terminal) !== digestOf(saved.fact.terminal) ||
     digestOf(result.effect) !== digestOf(saved.fact.effect)

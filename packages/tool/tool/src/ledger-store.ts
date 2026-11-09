@@ -7,13 +7,6 @@ import type { ResultPreparationRecord } from './ledger-result-preparation.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ResultValue } from './ledger-result-material.ts'
 import type {
-  MaterialRecord,
-  MaterialCleanupRecord,
-  MaterialTimeRecord,
-  MaterialUseRecord,
-  MaterialMaintenanceHint,
-} from './ledger-material-records.ts'
-import type {
   Access,
   ControlReceipt,
   ControlRecord,
@@ -21,7 +14,6 @@ import type {
   ReleasedDelivery,
   DurableEvidence,
   Effect,
-  RawOutput,
   FixedToolRequest,
   ProcessBlock,
   ToolCallId,
@@ -44,10 +36,9 @@ import type {
   ToolCommands,
   ToolRecovery,
   ToolTask,
-  ToolFinalPointer,
   ToolFinalEnvelope,
-  ToolMaterialFingerprint,
-  ToolMaterialSeal,
+  ToolPlannedFinal,
+  ToolCanonicalFingerprint,
 } from '@omne-harness/tool-contract/provider'
 
 /** The tenant identity as the contract types it; the ledger does not import legal-identity. */
@@ -100,11 +91,6 @@ export type CallRecord = Readonly<{
 /** The complete named result of one committed operation (P01 `committed.receipt`). */
 export type OperationReceipt =
   | Readonly<{ kind: 'prepare-result'; basis: DurableEvidence }>
-  | Readonly<{
-      kind: 'prepare-material'
-      material: MaterialRecord['material']
-      basis: DurableEvidence
-    }>
   | Readonly<{ kind: 'admit'; state: ToolState }>
   | Readonly<{ kind: 'control'; control: ControlReceipt; subject?: DurableEvidence }>
   | Readonly<{ kind: 'record-control'; control: ControlRecord }>
@@ -146,8 +132,7 @@ export type ResultCustody =
   | Readonly<{
       kind: 'execution'
       final: DurableEvidence
-      finalValue: ToolMaterialFingerprint
-      raw: RawOutput
+      finalValue: ToolCanonicalFingerprint
       materialized: DurableEvidence
       cleanup: CleanupDuty
     }>
@@ -182,7 +167,7 @@ export type AccountRecord = Readonly<{
   value: CallAccount
 }>
 
-type SettledFinal = Omit<ToolFinalPointer, 'kind' | 'envelope'> &
+type SettledFinal = Pick<ToolPlannedFinal, 'terminal' | 'effect'> &
   Readonly<{
     kind: 'settled-final'
     result: ToolResultVersion
@@ -197,10 +182,11 @@ export type SavedFact<B extends ContentBlock> = Readonly<{
   fact: Exclude<ToolExecutionFact, { kind: 'final' }> | ToolFinalEnvelope<B> | SettledFinal
   evidence: DurableEvidence
 }>
-export type StoredFinalFact = Omit<ToolFinalPointer, 'envelope'> &
+/** The planned final stays in the record; its payload says whether a result committed it. */
+export type StoredFinalFact = ToolPlannedFinal &
   Readonly<{
     payload:
-      | Readonly<{ kind: 'pending'; envelope: ToolMaterialSeal }>
+      | Readonly<{ kind: 'pending' }>
       | Readonly<{ kind: 'settled'; result: ToolResultVersion; settlement: DurableEvidence }>
   }>
 export type StoredExecutionFact = Exclude<ToolExecutionFact, { kind: 'final' }> | StoredFinalFact
@@ -208,13 +194,13 @@ export type StoredExecutionFact = Exclude<ToolExecutionFact, { kind: 'final' }> 
 export type FactEventRecord = Omit<SavedFact<ContentBlock>, 'fact'> &
   Readonly<{
     fact: StoredExecutionFact
-    value: ToolMaterialFingerprint
+    value: ToolCanonicalFingerprint
     tenant: TenantId
     call: ToolCallId
     key: string
   }>
 export type FactBatchRecord = Readonly<{
-  value: ToolMaterialFingerprint
+  value: ToolCanonicalFingerprint
   tenant: TenantId
   call: ToolCallId
   start: ToolStartRecord
@@ -304,14 +290,8 @@ export type HostRecord = Readonly<{ key: string; value: unknown }>
 
 export type LedgerRecord =
   | Readonly<{ kind: 'body-entry'; body: BodyEntryRecord }>
-  | Readonly<{ kind: 'material-maintenance-hint'; hint: MaterialMaintenanceHint }>
-  | Readonly<{ kind: 'material-maintenance'; after: ToolOperationId }>
   | Readonly<{ kind: 'result-policy'; policy: ResultPolicyRecord }>
   | Readonly<{ kind: 'result-preparation'; preparation: ResultPreparationRecord }>
-  | Readonly<{ kind: 'material'; material: MaterialRecord }>
-  | Readonly<{ kind: 'material-use'; use: MaterialUseRecord }>
-  | Readonly<{ kind: 'material-time'; time: MaterialTimeRecord }>
-  | Readonly<{ kind: 'material-cleanup'; cleanup: MaterialCleanupRecord }>
   | Readonly<{ kind: 'call'; call: CallRecord }>
   | Readonly<{ kind: 'operation'; operation: OperationRecord }>
   | Readonly<{ kind: 'result'; result: ResultRecord }>
@@ -334,22 +314,10 @@ export function recordKey(record: LedgerRecord): string {
   switch (record.kind) {
     case 'body-entry':
       return `body:${record.body.bodyId}`
-    case 'material-maintenance-hint':
-      return 'material-maintenance-hint'
-    case 'material-maintenance':
-      return 'material-maintenance'
     case 'result-policy':
       return `result-policy:${record.policy.operation}`
     case 'result-preparation':
       return `result-preparation:${record.preparation.id}`
-    case 'material':
-      return `material:${record.material.writeOperation}`
-    case 'material-use':
-      return `material-use:${record.use.id}`
-    case 'material-time':
-      return 'material-time'
-    case 'material-cleanup':
-      return `material-cleanup:${record.cleanup.writeOperation}`
     case 'call':
       return CALL_RECORD_KEY
     case 'operation':

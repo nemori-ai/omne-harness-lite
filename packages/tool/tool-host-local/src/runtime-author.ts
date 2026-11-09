@@ -19,8 +19,7 @@ import {
   describedAdoption,
   renderToolResult,
   type ToolMessageContentBlock,
-  type ToolOutputCustody,
-  type ToolFinalCustody,
+  type ToolFinalPlanner,
   type ToolWaiter,
   type ToolBodyWrites,
   type ToolExecutionScope,
@@ -35,12 +34,6 @@ export type RuntimeAuthorExecution = Pick<
   LocalToolBindingsInput<unknown, ToolEnvironmentValue, ToolMessageContentBlock>,
   'scope' | 'settle'
 >
-
-const failureCodec = describedAdoption({
-  owner: '@omne-harness/tool-host-local',
-  name: 'author-failure-json',
-  revision: '1',
-})
 
 function interruption(call: Parameters<RuntimeAuthorExecution['settle']>[0]): ToolTerminal | null {
   if (!call.execution.signal.aborted) return null
@@ -81,8 +74,7 @@ function interruption(call: Parameters<RuntimeAuthorExecution['settle']>[0]): To
 export function createRuntimeAuthorExecution(
   input: Readonly<{
     configuration: ToolConfiguration
-    custody: Pick<ToolOutputCustody<unknown>, 'preserve' | 'inspect'>
-    finalCustody: ToolFinalCustody<unknown, ToolMessageContentBlock>
+    finalPlanner: ToolFinalPlanner<unknown, ToolMessageContentBlock>
     bodyWrites: ToolBodyWrites<unknown>
     bodySchemas?: ToolLedgerPorts<unknown>['bodySchemas']
   }>,
@@ -96,8 +88,7 @@ export function createRuntimeAuthorExecution(
   const text = createLocalTextResults()
   const shutdown = new AbortController()
   const bodies = new Set<() => ReturnType<ToolExecutionScope['finish']>>()
-  const pending = new Map<string, Parameters<ToolOutputCustody<unknown>['preserve']>[0]>()
-  type FinalRequest = Parameters<typeof input.finalCustody.preserveFinal>[0]
+  type FinalRequest = Parameters<typeof input.finalPlanner.planFinal>[0]
   const finals = new Map<string, FinalRequest>()
   let validating = 0
   const unencoded = new Map<AbortSignal, Parameters<RuntimeAuthorExecution['settle']>[0]>()
@@ -112,40 +103,13 @@ export function createRuntimeAuthorExecution(
       signal.addEventListener('abort', done, { once: true })
       if (signal.aborted) done()
     })
-  const retain = async (request: Parameters<ToolOutputCustody<unknown>['preserve']>[0]) => {
-    const key = canonicalDigest([request.tenant, request.call, request.operation])
-    pending.set(key, request)
-    while (!shutdown.signal.aborted) {
-      try {
-        const preserved = await input.custody.preserve(request)
-        if ('ok' in preserved) {
-          pending.delete(key)
-          return preserved
-        }
-        if (preserved.failure.kind !== 'unavailable' && preserved.failure.kind !== 'commit-unknown')
-          return preserved
-        const inspected = await input.custody.inspect(request)
-        if ('ok' in inspected && inspected.ok.kind === 'retained') {
-          pending.delete(key)
-          return succeed(inspected.ok.raw)
-        }
-      } catch {
-        // The original bytes and operation stay owned here when custody cannot answer.
-      }
-      await retry()
-    }
-    return fail({
-      kind: 'unavailable' as const,
-      dependency: 'toolOutputCustody',
-      diagnostic: 'Original output custody remains unresolved after executor retirement.',
-    })
-  }
-  const retainFinal = async (request: FinalRequest) => {
+  /** Plans the final on the ledger; a transient refusal retries until the host retires. */
+  const planFinal = async (request: FinalRequest) => {
     const key = canonicalDigest([request.tenant, request.call, request.operation])
     finals.set(key, request)
     while (!shutdown.signal.aborted) {
       try {
-        const answer = await input.finalCustody.preserveFinal(request)
+        const answer = await input.finalPlanner.planFinal(request)
         if ('ok' in answer) {
           finals.delete(key)
           return answer
@@ -157,8 +121,8 @@ export function createRuntimeAuthorExecution(
     }
     return fail({
       kind: 'unavailable' as const,
-      dependency: 'toolFinalCustody',
-      diagnostic: 'Final custody remains unresolved after executor retirement.',
+      dependency: 'toolFinalPlanner',
+      diagnostic: 'Final planning remains unresolved after executor retirement.',
     })
   }
   const absentWaits: ToolWaiter = {
@@ -183,7 +147,7 @@ export function createRuntimeAuthorExecution(
             }))
     },
     pendingBodyScopes: () => bodies.size,
-    pending: () => pending.size + finals.size + validating,
+    pending: () => finals.size + validating,
     retainedReturns: () => unencoded.size,
     scope({ execution, principal, tenant, call, start }) {
       if (shutdown.signal.aborted) throw new Error('The author execution host has retired.')
@@ -286,9 +250,6 @@ export function createRuntimeAuthorExecution(
             : null),
       }))
       const author = call.operation.author
-      const operation = decodeToolOperationId(`${call.start.operation}/raw`)
-      if ('failure' in operation)
-        return fail({ kind: 'invalid', field: 'operation', reason: operation.failure.reason })
       const failed = (reason: string, cause: 'executor' | 'result' = 'result') => ({
         result: text.text(reason),
         terminal: { kind: 'failed', cause, diagnostic: reason } satisfies ToolTerminal,
@@ -316,16 +277,6 @@ export function createRuntimeAuthorExecution(
       }
       unencoded.delete(call.execution.signal)
       const bytes = encoded.ok.slice()
-      const raw = await retain({
-        principal: call.principal,
-        tenant: call.tenant,
-        call: call.call,
-        operation: operation.ok,
-        codec: call.outcome.kind === 'returned' ? author.codec.adoption : failureCodec,
-        bytes,
-        source: call.execution.source,
-      })
-      if ('failure' in raw) return raw
       const closed = await closing
       if (
         'failure' in closed.outcome &&
@@ -414,7 +365,7 @@ export function createRuntimeAuthorExecution(
       const finalOperation = decodeToolOperationId(`final:${canonicalDigest(call.start.operation)}`)
       if ('failure' in finalOperation)
         return fail({ kind: 'invalid', field: 'operation', reason: finalOperation.failure.reason })
-      return retainFinal({
+      return planFinal({
         principal: call.principal,
         tenant: call.tenant,
         call: call.call,
@@ -423,7 +374,6 @@ export function createRuntimeAuthorExecution(
         source: call.execution.source,
         final: {
           kind: 'final',
-          raw: raw.ok,
           result: projected.result.ok,
           terminal: closed.interrupted ?? projected.terminal,
           effect: {

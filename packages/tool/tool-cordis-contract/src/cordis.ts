@@ -34,7 +34,6 @@ import {
   type ToolInstanceHost,
   type ToolLoader,
   type ToolOffloader,
-  type ToolOutputCustody,
   type ToolReads,
   type ToolResourceResponses,
   type ToolStartAuthority,
@@ -534,17 +533,6 @@ export abstract class ToolResourceResponsesService<P>
 export const toolResourceResponsesKey = ToolResourceResponsesService.provide
 
 /** @owner packages/tool/tool-cordis-contract */
-export abstract class ToolOutputCustodyService<P> extends Service implements ToolOutputCustody<P> {
-  static readonly provide = 'toolOutputCustody'
-  constructor(ctx: Context) {
-    super(ctx, ToolOutputCustodyService.provide)
-  }
-  abstract readonly preserve: ToolOutputCustody<P>['preserve']
-  abstract readonly inspect: ToolOutputCustody<P>['inspect']
-}
-export const toolOutputCustodyKey = ToolOutputCustodyService.provide
-
-/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolChildrenService<P> extends Service implements ToolChildren<P> {
   static readonly provide = 'toolChildren'
   constructor(ctx: Context) {
@@ -606,7 +594,6 @@ declare module '@deepseek-ai/cordis' {
     toolStartAuthority: ToolStartAuthorityService<unknown>
     toolStartFence: ToolStartFenceService<unknown>
     toolResourceResponses: ToolResourceResponsesService<unknown>
-    toolOutputCustody: ToolOutputCustodyService<unknown>
     toolChildren: ToolChildrenService<unknown>
     toolAccounts: ToolAccountsService<unknown>
     toolOffloader: ToolOffloaderService<unknown, ContentBlock>

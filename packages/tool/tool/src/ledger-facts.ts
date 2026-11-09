@@ -9,7 +9,7 @@ import type {
 } from '@omne-harness/tool-contract'
 import type { FactBatch, FactProgress, FactReceipt } from '@omne-harness/tool-contract/provider'
 import type { StoredFactBatch } from './fact-values.ts'
-import type { ToolMaterialFingerprint } from '@omne-harness/tool-contract/provider'
+import type { ToolCanonicalFingerprint } from '@omne-harness/tool-contract/provider'
 import { invalid, tenantKey } from './boundary.ts'
 import { checkBodyReferences } from './ledger-body-entries.ts'
 import { sameFactValue, factTaskOperation, mintEvidence } from './evidence.ts'
@@ -110,7 +110,7 @@ function processWrites(
 function recallBatch(
   snapshot: Snapshot,
   batch: Pick<FactBatch, 'start' | 'source' | 'batch'>,
-  value: ToolMaterialFingerprint,
+  value: ToolCanonicalFingerprint,
 ): Outcome<FactReceipt | null, ToolFailure> {
   const known = snapshot.batches.get(factKey(batch.start, batch.source.owner, batch.batch))
   if (known === undefined) return succeed(null)
@@ -197,7 +197,7 @@ export function checkFactBatch(
   snapshot: Snapshot,
   start: ToolStartRecord,
   batch: FactBatch | StoredFactBatch,
-  value: ToolMaterialFingerprint,
+  value: ToolCanonicalFingerprint,
 ): Outcome<FactReceipt | null, ToolFailure> {
   const call = snapshot.call
   if (call === null) return invalid('call', 'unknown-call')
@@ -225,10 +225,7 @@ export function checkFactBatch(
     if (event.fact.kind !== 'final') continue
     if (
       final?.kind === 'final' &&
-      !sameFactValue(
-        [final.raw, final.terminal, final.effect],
-        [event.fact.raw, event.fact.terminal, event.fact.effect],
-      )
+      !sameFactValue([final.terminal, final.effect], [event.fact.terminal, event.fact.effect])
     )
       return invalid('batch.events.fact', 'final-conflict')
     final = event.fact

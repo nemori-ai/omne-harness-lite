@@ -5,7 +5,7 @@ import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { expect } from 'vitest'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { canonicalDigest, type ToolConfiguration, type ToolLedgerStore } from '@omne-harness/tool'
-import { createMemoryToolLedgerStore, createMemoryToolMaterials } from '@omne-harness/tool/testing'
+import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import type {
   ToolDelivery,
   ToolInvokeOutcome,
@@ -27,7 +27,6 @@ import {
   type ToolMessageContentBlock,
   type ToolExecutionContext,
 } from '@omne-harness/tool-contract/provider'
-import { createMemoryToolOutputCustody } from '@omne-harness/tool-contract/testing'
 import {
   ToolClockService,
   ToolPublicationAuthorityService,
@@ -139,7 +138,6 @@ export async function fixture(
     due: memory.due,
     commit: memory.commit,
   }
-  const custody = createMemoryToolOutputCustody<unknown>()
   const clock = createLocalToolClock()
   const deliveries: ToolDelivery<ToolMessageContentBlock>[] = []
   const signals = new Map<string, AbortSignal>()
@@ -424,7 +422,6 @@ export async function fixture(
   }
   const input: LocalToolRuntimeInput = {
     store,
-    materials: createMemoryToolMaterials(),
     bodies: createMemoryToolBodies(),
     content: null,
     ...(body === undefined ? {} : { bodySchemas: body.schemas }),
@@ -724,7 +721,6 @@ export async function fixture(
     directory,
     environments,
     executor,
-    custody,
     store,
     deliveries,
     signals,

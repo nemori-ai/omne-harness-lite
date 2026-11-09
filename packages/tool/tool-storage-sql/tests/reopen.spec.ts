@@ -6,14 +6,10 @@ import { afterEach, expect, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 
 import type { LedgerRecord } from '@omne-harness/tool'
-import {
-  decodeToolInstanceId,
-  decodeToolMaterialInstant,
-} from '@omne-harness/tool-contract/provider'
+import { decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
 import { decodeToolCallId, decodeToolOperationId } from '@omne-harness/tool-contract'
 import { openApp, TENANT_A, type App } from './fixtures/app.ts'
 import { ledgerWorld } from './fixtures/ledger.ts'
-import { createSqlToolOutputCustody, createSqlToolMaterialStore } from '../src/index.ts'
 
 const opened: App[] = []
 
@@ -30,32 +26,11 @@ function ok<T>(answer: { ok: T } | { failure: unknown }): T {
 const instance = ok(decodeToolInstanceId('instance-1'))
 const rejectOperation = ok(decodeToolOperationId('reject-1'))
 
-function materials(app: App) {
-  const provider = {
-    owner: 'reopen-fixture',
-    name: 'materials',
-    revision: '1',
-    digest: 'sha256:materials',
-  }
-  return {
-    provider,
-    store: createSqlToolMaterialStore({
-      ...app.options,
-      provider,
-      maxCommandBytes: 1_048_576,
-      maxChunkBytes: 16_384,
-    }),
-    clock: {
-      sample: async () => succeed(ok(decodeToolMaterialInstant('2026-11-07T00:00:00.000Z'))),
-    },
-  }
-}
-
 it('a reopened store answers lookup and readResult, and recalls the admission without a second record', async () => {
   const first = await openApp({ keep: true })
   opened.push(first)
   const world = await ledgerWorld(TENANT_A)
-  const ledger = world.ledgerOver(first.store, materials(first))
+  const ledger = world.ledgerOver(first.store)
   const admitted = ok(await ledger.admissions.admit(world.input))
   expect(admitted.recovered).toBe(false)
   const settled = ok(
@@ -82,7 +57,7 @@ it('a reopened store answers lookup and readResult, and recalls the admission wi
 
   const second = await openApp({ directory: first.directory })
   opened.push(second)
-  const again = world.ledgerOver(second.store, materials(second))
+  const again = world.ledgerOver(second.store)
   expect(
     ok(await again.reads.lookup({ ...world.access, admission: world.input.operation })),
   ).toEqual(lookup)
@@ -101,29 +76,4 @@ it('a reopened store answers lookup and readResult, and recalls the admission wi
         )
       : []
   expect(operations(before)).toHaveLength(2)
-})
-
-it('a reopened custody still retains the original, and a resend recalls it', async () => {
-  const first = await openApp({ keep: true })
-  opened.push(first)
-  const mutation = {
-    principal: 'tester',
-    tenant: TENANT_A,
-    call: ok(decodeToolCallId('call-1')),
-    operation: ok(decodeToolOperationId('preserve-1')),
-  }
-  const input = {
-    ...mutation,
-    codec: { owner: 'test', name: 'bytes', revision: '1', digest: 'sha256:bytes' },
-    bytes: new TextEncoder().encode('kept across a restart'),
-    source: { owner: 'test', record: 'final', revision: '1', digest: 'sha256:final' },
-  }
-  const raw = ok(await createSqlToolOutputCustody<string>(first.custodyOptions()).preserve(input))
-  first.close()
-  const second = await openApp({ directory: first.directory })
-  opened.push(second)
-  const custody = createSqlToolOutputCustody<string>(second.custodyOptions())
-  expect(ok(await custody.inspect(mutation))).toEqual({ kind: 'retained', raw })
-  expect(ok(await custody.preserve(input))).toEqual(raw)
-  expect(second.faults.commits()).toBe(0)
 })

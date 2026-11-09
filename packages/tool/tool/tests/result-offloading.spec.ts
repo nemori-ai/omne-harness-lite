@@ -1,7 +1,6 @@
 import type { ToolBodyPage } from '@omne-harness/tool-contract'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
-import { decodeToolMaterialInstant } from '@omne-harness/tool-contract/provider'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { sealedText, settlementFixture } from './settlement-values.ts'
 import { auditQueues } from './start-values.ts'
@@ -162,14 +161,10 @@ it.each([64, 65])('enforces the body hard limit before inline selection: %i byte
     expect(ok(await f.preserve()).phase).toBe('settled')
     expect((await f.resultPage()).value.original).toEqual({ kind: 'none' })
   } else {
-    expect(await f.preserve()).toEqual({
+    expect(f.planned).toEqual({
       failure: { kind: 'invalid', field: 'content', reason: 'body-too-large' },
     })
-    expect(
-      (await f.records()).filter(
-        record => record.kind === 'result' || record.kind === 'material-cleanup',
-      ),
-    ).toEqual([])
+    expect((await f.records()).filter(record => record.kind === 'result')).toEqual([])
   }
 })
 
@@ -194,7 +189,7 @@ it.each([{ maxBytes: 128 }, { maxStringLength: 64 }, { maxItems: 2 }, { maxMembe
         attachments: [],
       },
     })
-    expect(await f.preserve()).toMatchObject({
+    expect(f.planned).toMatchObject({
       failure: {
         kind: 'invalid',
         field: 'readResultArguments',

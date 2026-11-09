@@ -33,8 +33,6 @@ import type {
   ToolReads,
   ToolResourceResponses,
   ToolStartAuthority,
-  ToolMaterialClock,
-  ToolMaterialStore,
   ToolBodyPermitKey,
   ToolBodyStore,
   ToolInstantClock,
@@ -142,14 +140,6 @@ export type ToolLedgerQueues<P> = Readonly<{
   reconcile(input: CallAccess<P>): Reply<QueueReconciliation>
 }>
 
-export type ToolLedgerMaintenance<P> = Readonly<{
-  reclaim(input: CallAccess<P>): Reply<MaterialReclamationProgress>
-}>
-
-export type MaterialReclamationProgress = Readonly<{
-  kind: 'idle' | 'blocked' | 'pending' | 'deleted'
-}>
-
 export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   /** The ledger's original-controller check before a pending stop is sent. */
   controls?: ToolLedgerControls<P>
@@ -193,12 +183,6 @@ export type ToolLedgerPorts<P> = Readonly<{
     store: ToolBodyStore
     permitKey: ToolBodyPermitKey
     clock: ToolInstantClock
-  }>
-  /** M01: byte custody only; the call ledger owns preparation and lifetime. */
-  materials?: Readonly<{
-    provider: import('@omne-harness/tool-contract').Adoption
-    store: ToolMaterialStore<P>
-    clock: ToolMaterialClock
   }>
   /** A trusted identity owner. Absence disables new controls and pending propagation. */
   controlSubjects?: ToolControlSubjects<P>

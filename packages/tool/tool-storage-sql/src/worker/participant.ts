@@ -1,29 +1,15 @@
 // The `tool` participant module. It runs inside the provider's write transaction, so every command
 // is atomic: a ledger commit checks the domain revision and its read-set assertions, then applies
-// its writes in input order; a
-// chunk keeps one piece of an original unless a manifest already seals the operation; a manifest
-// checks that the chunks hold exactly the declared bytes before it seals them. A stopping reply
-// rolls the whole command back. It never begins, commits or rolls back, and keeps no state between
+// its writes in input order; a body command keeps, seals or deletes the chunks of one body. A
+// stopping reply rolls the whole command back. It never begins, commits or rolls back, and keeps no state between
 // calls.
-import { createHash } from 'node:crypto'
-import type { JsonValue } from '@omne-harness/sql-contract'
 import type {
   ParticipantModule,
   ParticipantPort,
   ParticipantReply,
 } from '@omne-harness/sql-contract/worker'
-import {
-  parseFacts,
-  type ChunkFacts,
-  type CustodyAddress,
-  type LedgerFacts,
-  type ManifestFacts,
-  type ParticipantAnswer,
-  type StopBasis,
-} from './facts.ts'
+import { parseFacts, type LedgerFacts, type ParticipantAnswer, type StopBasis } from './facts.ts'
 import { commitBody } from './participant-body.ts'
-import { commitMaterial } from './participant-material.ts'
-import { projectMaterialMaintenance } from './maintenance-projection.ts'
 import { PARTICIPANT, PROTOCOL } from './schema.ts'
 import { oneRow, text } from './support.ts'
 
@@ -92,93 +78,7 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
      ON CONFLICT (tenant, kind, name) DO UPDATE SET revision = excluded.revision`,
     [...domain, facts.revision],
   )
-  projectMaterialMaintenance(facts, port)
   return participated({ kind: 'committed' })
-}
-
-const addressOf = (facts: CustodyAddress) => [facts.tenant, facts.call, facts.operation] as const
-
-/** The digest and answer of the manifest that seals `operation`, if one does. */
-function sealed(port: ParticipantPort, facts: CustodyAddress) {
-  const row = oneRow(
-    port,
-    'SELECT digest, answer FROM tl_manifest WHERE tenant = ? AND call = ? AND operation = ? LIMIT 1',
-    addressOf(facts),
-  )
-  return row === undefined
-    ? null
-    : { digest: text(row['digest']), answer: JSON.parse(text(row['answer'])) as JsonValue }
-}
-
-/** The bytes of a chunk as base64 gives them, or null when `data` is not canonical base64. */
-function decode(data: string): Uint8Array | null {
-  const bytes = Buffer.from(data, 'base64')
-  return bytes.toString('base64') === data ? new Uint8Array(bytes) : null
-}
-
-function keepChunk(facts: ChunkFacts, port: ParticipantPort): ParticipantReply {
-  const seal = sealed(port, facts)
-  // A sealed operation keeps its chunks: a resend of it writes nothing, another input conflicts.
-  if (seal !== null)
-    return seal.digest === facts.digest
-      ? participated({ kind: 'chunk' })
-      : stopped({ reason: 'operation' })
-  const bytes = decode(facts.data)
-  if (bytes === null) return { kind: 'failed', diagnostic: 'chunk data is not canonical base64' }
-  port.execute(
-    `INSERT INTO tl_chunk (tenant, call, operation, idx, data) VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT (tenant, call, operation, idx) DO UPDATE SET data = excluded.data`,
-    [...addressOf(facts), BigInt(facts.index), bytes],
-  )
-  return participated({ kind: 'chunk' })
-}
-
-/** True when the chunks 0 to `chunks - 1` exist and hold exactly `bytes` bytes of digest `sha256`. */
-function chunksHold(facts: ManifestFacts, port: ParticipantPort): boolean {
-  const hash = createHash('sha256')
-  let total = 0
-  for (let index = 0; index < facts.chunks; index += 1) {
-    const row = oneRow(
-      port,
-      'SELECT data FROM tl_chunk WHERE tenant = ? AND call = ? AND operation = ? AND idx = ? LIMIT 1',
-      [...addressOf(facts), BigInt(index)],
-    )
-    const data = row?.['data']
-    if (!(data instanceof Uint8Array)) return false
-    hash.update(data)
-    total += data.length
-  }
-  return total === facts.bytes && hash.digest('hex') === facts.sha256
-}
-
-function seal(facts: ManifestFacts, port: ParticipantPort): ParticipantReply {
-  const existing = sealed(port, facts)
-  if (existing !== null)
-    return existing.digest === facts.digest
-      ? participated({ kind: 'sealed', answer: existing.answer })
-      : stopped({ reason: 'operation' })
-  if (!chunksHold(facts, port)) return stopped({ reason: 'chunks' })
-  // A crash of a longer attempt may have left chunks past the end; they are never read, so drop them.
-  port.execute(
-    'DELETE FROM tl_chunk WHERE tenant = ? AND call = ? AND operation = ? AND idx >= ?',
-    [...addressOf(facts), BigInt(facts.chunks)],
-  )
-  port.execute(
-    `INSERT INTO tl_manifest
-      (tenant, call, operation, kind, digest, bytes, chunks, sha256, seal, answer)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      ...addressOf(facts),
-      facts.kind,
-      facts.digest,
-      BigInt(facts.bytes),
-      BigInt(facts.chunks),
-      facts.sha256,
-      facts.seal,
-      JSON.stringify(facts.answer),
-    ],
-  )
-  return participated({ kind: 'sealed', answer: facts.answer })
 }
 
 const participant: ParticipantModule = {
@@ -187,14 +87,9 @@ const participant: ParticipantModule = {
   execute(input, port) {
     const facts = parseFacts(input)
     if (facts === null) return { kind: 'unsupported', basis: { reason: 'facts' } }
-    if ('material' in facts) return commitMaterial(facts, port)
     switch (facts.intent) {
       case 'ledger':
         return commitLedger(facts, port)
-      case 'chunk':
-        return keepChunk(facts, port)
-      case 'manifest':
-        return seal(facts, port)
       case 'body-put':
       case 'body-seal':
       case 'body-delete':

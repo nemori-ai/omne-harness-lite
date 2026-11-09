@@ -14,11 +14,7 @@ import {
   type ToolAccessGuard,
   type ToolInvokeAuthority,
 } from '@omne-harness/tool'
-import {
-  createMemoryToolLedgerStore,
-  createTableToolAccess,
-  createMemoryToolMaterials,
-} from '@omne-harness/tool/testing'
+import { createMemoryToolLedgerStore, createTableToolAccess } from '@omne-harness/tool/testing'
 import {
   decodeToolCallId,
   decodeToolOperationId,
@@ -150,7 +146,6 @@ function assembly() {
       },
     },
     {
-      materials: createMemoryToolMaterials<P>(),
       releaseInspection: createMemoryToolEnvironment<P>(),
       content: null,
     },

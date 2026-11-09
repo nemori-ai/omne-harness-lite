@@ -29,7 +29,7 @@ import {
   type ResultRecord,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
-import { createMemoryToolMaterials, createTestResultChannels } from '@omne-harness/tool/testing'
+import { createTestResultChannels } from '@omne-harness/tool/testing'
 import {
   decodeToolOperationId,
   encodeToolInvocationRef,
@@ -158,8 +158,7 @@ async function host(store: ToolLedgerStore) {
   })
   const environments = createEnvironmentStateStore({ store })
   const world = await ledgerWorld(TENANT_A)
-  const materials = createMemoryToolMaterials<LedgerPrincipal>()
-  const ledger = world.ledgerOver(store, materials)
+  const ledger = world.ledgerOver(store)
   let operations = 0
   const delivery = createLocalToolResultDelivery<LedgerPrincipal, ContentBlock>({
     store,
@@ -194,7 +193,6 @@ async function host(store: ToolLedgerStore) {
     subjects,
     environments,
     delivery,
-    materials,
     principal: world.access.principal,
   }
 }

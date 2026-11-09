@@ -13,7 +13,6 @@ import {
   createLocalGrantVerifiers,
   createLocalInvocationSource,
   createLocalToolClock,
-  createLocalToolMaterialClock,
   createLocalToolLoader,
 } from '@omne-harness/tool-host-local'
 import {
@@ -337,14 +336,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     const bundle = createLocalToolRuntimePlugins({
       store,
       bodies: createMemoryToolBodies(),
-      materials: {
-        provider: sql.materialProvider,
-        store: sql.materialStore,
-        clock: createLocalToolMaterialClock({
-          wallMs: () => Date.now(),
-          monotonicMs: () => performance.now(),
-        }),
-      },
       content: null,
       sources,
       access: authority.access,

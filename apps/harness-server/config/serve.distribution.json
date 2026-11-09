@@ -132,7 +132,7 @@
       "plugin": "sessionHandoffRow",
       "config": {
         "combinationVersion": "session-composite/6",
-        "manifestDigest": "21936422e2d6026954e6ea0bb5fb5d0338f749c5e69581815b2df2af1adbc13f"
+        "manifestDigest": "9b0849b1a76f8b0fba12c2f4b456685633f5039f6b33d16350e61c7588109cf7"
       }
     },
     {
@@ -145,7 +145,7 @@
       "plugin": "agentJournalRow",
       "config": {
         "combinationVersion": "session-composite/6",
-        "manifestDigest": "21936422e2d6026954e6ea0bb5fb5d0338f749c5e69581815b2df2af1adbc13f"
+        "manifestDigest": "9b0849b1a76f8b0fba12c2f4b456685633f5039f6b33d16350e61c7588109cf7"
       }
     },
     {
@@ -401,8 +401,8 @@
       "config": {}
     },
     {
-      "id": "tool-material-maintenance",
-      "plugin": "toolMaterialMaintenanceRow",
+      "id": "tool-body-sweep",
+      "plugin": "toolBodySweepRow",
       "config": {}
     },
     {

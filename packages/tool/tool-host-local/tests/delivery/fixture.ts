@@ -6,11 +6,7 @@ import {
   type ResultRecord,
   type ToolLedgerGuards,
 } from '@omne-harness/tool'
-import {
-  createMemoryToolLedgerStore,
-  createMemoryToolMaterials,
-  createTestResultChannels,
-} from '@omne-harness/tool/testing'
+import { createMemoryToolLedgerStore, createTestResultChannels } from '@omne-harness/tool/testing'
 import type { ToolDelivery, ToolResultReceiver } from '@omne-harness/tool-contract'
 import {
   decodeToolDeliveryId,
@@ -56,7 +52,6 @@ export async function fixture() {
     delivery: delivery.delivery,
     consumer,
   }
-  const materials = createMemoryToolMaterials<string>()
   const value = ok(createLocalTextResults().text('原始结果🙂\u0000\nunchanged payload'))
   const result: ResultRecord = {
     ...access,
@@ -173,7 +168,6 @@ export async function fixture() {
       },
     },
     {
-      materials,
       releaseInspection: createMemoryToolEnvironment<string>(),
       content: null,
     },

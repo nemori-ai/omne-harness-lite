@@ -15,16 +15,8 @@
 // - bundle 本身：由 `tool-records` 行按运维者配置建一次，其余四行等它建好再装自己的插件。
 import type { Context } from '@deepseek-ai/cordis'
 import { canonicalDigest, type LedgerRecord, type ToolLedgerStore } from '@omne-harness/tool'
-import type {
-  ToolClock,
-  ToolMaterialClock,
-  ToolMaterialStore,
-} from '@omne-harness/tool-contract/provider'
-import {
-  createLocalToolClock,
-  createLocalToolMaterialClock,
-  type LocalToolForwarding,
-} from '@omne-harness/tool-host-local'
+import type { ToolClock } from '@omne-harness/tool-contract/provider'
+import { createLocalToolClock, type LocalToolForwarding } from '@omne-harness/tool-host-local'
 import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-local/cordis'
 
 import { randomBytes } from 'node:crypto'
@@ -44,7 +36,6 @@ export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins>
 /** `tool-records` 行在自己的受信上下文里建出的 SQL 端口。 */
 export type ToolSqlPorts = Readonly<{
   store: ToolLedgerStore
-  materials: ToolMaterialStore<unknown>
   bodies: NonNullable<LocalToolRuntimeInput['bodies']>
 }>
 
@@ -54,7 +45,6 @@ export type ToolRuntimeHolder = {
   /** Late forwarding work is drained by the business shutdown before the runtime closes. */
   toolsForwarding: LocalToolForwarding<unknown> | null
   readonly clock: ToolClock
-  readonly materialClock: ToolMaterialClock
   /** One permit key per process: the ledger signs with it, the SQL body store verifies with it. */
   readonly bodyPermitKey: ToolBodyPermitKey
   /** The participant clock of issuer, settler, store and reader in this process. */
@@ -113,12 +103,6 @@ export function toolRuntimeHolder(ctx: Context): ToolRuntimeHolder {
   const created: ToolRuntimeHolder = {
     toolsForwarding: null,
     clock: createLocalToolClock(),
-    materialClock: createLocalToolMaterialClock({
-      wallMs: () =>
-        /* wall-clock: clock-source -- Tool 材料时钟的墙钟输入，水位由原 call 域持久核验 */ Date.now(),
-      monotonicMs: () =>
-        /* wall-clock: clock-source -- Tool 材料时钟的同进程单调输入 */ performance.now(),
-    }),
     bodyPermitKey: { secret: randomBytes(32) },
     bodyClock: {
       now: () => {
@@ -210,31 +194,6 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore {
       return answer
     },
   } satisfies ToolLedgerStore)
-}
-
-export const TOOL_MATERIAL_PROVIDER = Object.freeze({
-  owner: '@omne-harness/tool-storage-sql',
-  name: 'tool-material',
-  revision: '1',
-  digest: 'sha256:tool-material/1',
-})
-
-export function lateMaterials(holder: ToolRuntimeHolder): ToolMaterialStore<unknown> {
-  const unavailable = {
-    failure: {
-      kind: 'unavailable' as const,
-      dependency: 'tool-records',
-      diagnostic: 'no SQL material store is installed',
-    },
-  }
-  return Object.freeze({
-    write: input => holder.sql?.materials.write(input) ?? Promise.resolve(unavailable),
-    inspect: input => holder.sql?.materials.inspect(input) ?? Promise.resolve(unavailable),
-    read: input => holder.sql?.materials.read(input) ?? Promise.resolve(unavailable),
-    erase: input => holder.sql?.materials.erase(input) ?? Promise.resolve(unavailable),
-    inspectErase: input =>
-      holder.sql?.materials.inspectErase(input) ?? Promise.resolve(unavailable),
-  } satisfies ToolMaterialStore<unknown>)
 }
 
 /** 见证核对：这个原调用在记录仓里有这个执行与这份来源证据。 */

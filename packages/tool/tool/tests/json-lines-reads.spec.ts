@@ -52,14 +52,7 @@ it('reports a record that cannot fit instead of returning a truncated or empty c
 it('keeps record boundaries with one-byte store pages and rejects a cursor inside a record', async () => {
   const lines = ['{"text":"中🙂","number":1.00}', '{"number":2e0}']
   const document = jsonLinesFixture(lines)
-  let short = false
-  const f = await settlementFixture({
-    ...document,
-    wrapMaterials: store => ({
-      ...store,
-      read: input => store.read({ ...input, maxBytes: short ? 1 : input.maxBytes }),
-    }),
-  })
+  const f = await settlementFixture(document)
   ok(await f.preserve())
   const result = await f.resultPage()
   if (result.value.original.kind !== 'offloaded') throw new Error('body required')
@@ -70,7 +63,6 @@ it('keeps record boundaries with one-byte store pages and rejects a cursor insid
     after: null,
     maxBytes: Buffer.byteLength(lines[0]!) + 1,
   }
-  short = true
   const first = ok(await f.ledger.reads.body.read(input))
   if (first.kind !== 'json-lines' || first.next === null) throw new Error('record page required')
   expect(first.records.map(writeJsonText)).toEqual([lines[0]])

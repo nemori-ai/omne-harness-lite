@@ -544,14 +544,13 @@ it('declares text input and all supported direct output modalities for an actual
 it('keeps an offloaded body separate and propagates body qualification denial through the actual meta call', async () => {
   const denied: import('@omne-harness/tool').ToolLedgerAction[] = []
   const f = await sourceFixture(
-    async (raw, ledger, access) => ({
+    async (ledger, access) => ({
       ...result([visible('summary', 'summary only')]),
       original: {
         kind: 'offloaded',
         source: (await sealedText(ledger, access)).source,
         summary: [visible('summary', 'summary only')],
       },
-      attachments: [raw.content],
     }),
     {},
     denied,

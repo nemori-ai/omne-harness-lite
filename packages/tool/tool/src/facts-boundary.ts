@@ -7,22 +7,18 @@ import {
   type Effect,
   type DurableEvidence,
   type ProcessBlock,
-  type RawOutput,
   type ToolFailure,
   type ToolStartRecord,
   type ToolTerminal,
 } from '@omne-harness/tool-contract'
 import {
   decodeToolInstanceId,
-  decodeToolMaterialId,
-  decodeToolMaterialGeneration,
   decodeToolWaitId,
   type FactBatch,
   type FactReceipt,
   type ResultPolicy,
   type ToolExecutionFact,
   type ToolFinalEnvelope,
-  type ToolFinalPointer,
 } from '@omne-harness/tool-contract/provider'
 
 import { readOwnSlot } from '@omne-harness/tool-contract/binding'
@@ -215,22 +211,6 @@ function effect(value: unknown): value is Effect {
     'ok' in judgeEvidenceField(value.evidence, 'effect.evidence')
   )
 }
-function raw(value: unknown): Outcome<RawOutput, ToolFailure> {
-  if (!closed(value, ['codec', 'content', 'custody']))
-    return invalid('batch.events.fact.raw', 'shape')
-  const codec = judgeAdoptionField(value.codec, 'raw.codec')
-  const custody = judgeEvidenceField(value.custody, 'raw.custody')
-  const content = judgeContentBlock({
-    kind: 'file',
-    id: 'raw',
-    visibility: { toHuman: false, toModel: false },
-    ref: value.content,
-    transcript: null,
-  })
-  if ('failure' in codec || 'failure' in custody || 'rejected' in content || !('ref' in content.ok))
-    return invalid('batch.events.fact.raw', 'shape')
-  return succeed({ codec: codec.ok, custody: custody.ok, content: content.ok.ref })
-}
 function fact<B extends ContentBlock>(
   value: unknown,
   policy: ResultPolicy<B>,
@@ -260,90 +240,19 @@ function fact<B extends ContentBlock>(
     return invalid('batch.events.fact.kind', 'variant')
   }
   if (
-    !closed(value, ['kind', 'raw', 'result', 'terminal', 'effect']) ||
+    !closed(value, ['kind', 'result', 'terminal', 'effect']) ||
     !terminal(value.terminal) ||
     !effect(value.effect)
   )
     return invalid('batch.events.fact', 'shape')
-  const original = raw(value.raw)
-  if ('failure' in original) return original
   // The result policy owns runtime validation and the narrower B, just as in result rendering.
   const result = policy.judgeResult(value.result as Parameters<typeof policy.judgeResult>[0])
   if ('failure' in result) return invalid('batch.events.fact.result', 'policy')
   return succeed({
     kind: 'final',
-    raw: original.ok,
     result: result.ok,
     terminal: value.terminal,
     effect: value.effect,
-  })
-}
-
-function finalPointer(value: Data, adoption: Adoption): Outcome<ToolFinalPointer, ToolFailure> {
-  if (
-    !closed(value, ['kind', 'raw', 'terminal', 'effect', 'value', 'envelope']) ||
-    !terminal(value.terminal) ||
-    !effect(value.effect)
-  )
-    return invalid('batch.events.fact', 'pointer-shape')
-  const original = raw(value.raw)
-  if ('failure' in original) return original
-  const fingerprint = value.value
-  const seal = value.envelope
-  if (
-    !closed(fingerprint, ['codec', 'algorithm', 'digest', 'bytes']) ||
-    typeof fingerprint.codec !== 'string' ||
-    fingerprint.algorithm !== 'sha256' ||
-    typeof fingerprint.digest !== 'string' ||
-    !/^[a-f0-9]{64}$/u.test(fingerprint.digest) ||
-    !decimal(fingerprint.bytes) ||
-    !closed(seal, ['material', 'codec', 'bytes', 'sha256', 'evidence']) ||
-    !closed(seal.material, ['id', 'generation', 'provider']) ||
-    !text(seal.material.id) ||
-    !text(seal.material.generation) ||
-    seal.bytes !== fingerprint.bytes ||
-    seal.sha256 !== fingerprint.digest
-  )
-    return invalid('batch.events.fact', 'pointer-seal')
-  if (fingerprint.codec !== 'tool-canonical-json-v1')
-    return {
-      failure: {
-        kind: 'unsupported',
-        adoption,
-        reason: `unsupported final fingerprint codec: ${fingerprint.codec}`,
-      },
-    }
-  const id = decodeToolMaterialId(seal.material.id)
-  const generation = decodeToolMaterialGeneration(seal.material.generation)
-  const provider = judgeAdoptionField(seal.material.provider, 'material.provider')
-  const codec = judgeAdoptionField(seal.codec, 'material.codec')
-  const evidence = judgeEvidenceField(seal.evidence, 'material.evidence')
-  if (
-    'failure' in id ||
-    'failure' in generation ||
-    'failure' in provider ||
-    'failure' in codec ||
-    'failure' in evidence
-  )
-    return invalid('batch.events.fact', 'pointer-evidence')
-  return succeed({
-    kind: 'final',
-    raw: original.ok,
-    terminal: value.terminal,
-    effect: value.effect,
-    value: {
-      codec: 'tool-canonical-json-v1',
-      algorithm: 'sha256',
-      digest: fingerprint.digest,
-      bytes: fingerprint.bytes,
-    },
-    envelope: {
-      material: { id: id.ok, generation: generation.ok, provider: provider.ok },
-      codec: codec.ok,
-      bytes: fingerprint.bytes,
-      sha256: fingerprint.digest,
-      evidence: evidence.ok,
-    },
   })
 }
 
@@ -377,13 +286,8 @@ export function fixFactInput<B extends ContentBlock>(
     for (const event of data.events) {
       if (!closed(event, ['event', 'fact']) || !text(event.event))
         return invalid('batch.events', 'shape')
-      const checked =
-        object(event.fact) && event.fact.kind === 'final'
-          ? finalPointer(event.fact, adoption)
-          : fact(event.fact, policy, adoption)
+      const checked = fact(event.fact, policy, adoption)
       if ('failure' in checked) return checked
-      if (checked.ok.kind === 'final' && 'result' in checked.ok)
-        return invalid('batch.events.fact', 'pointer-required')
       events.push({ event: event.event, fact: checked.ok })
     }
     // Fix policy-produced data too. A provider cannot mutate the accepted result during access.
@@ -446,7 +350,7 @@ export function fixFactAcknowledgement(
   }
 }
 
-export function fixFinalCustodyInput<B extends ContentBlock>(
+export function fixFinalPlanningInput<B extends ContentBlock>(
   input: unknown,
   policy: ResultPolicy<B>,
   adoption: Adoption,

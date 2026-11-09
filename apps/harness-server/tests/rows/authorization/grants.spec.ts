@@ -65,7 +65,6 @@ describe('the release grant table', () => {
       'agent-host',
       'sessionPrincipals.maintainer',
       'tenant-domain-scanner',
-      'tool-material-maintainer',
       'toolResidencyPrincipal',
     ])
   })
@@ -129,47 +128,6 @@ describe('the read port over the table', () => {
 })
 
 describe('with the reference system action authorization', () => {
-  it('grants material maintenance without granting tool execution or tenant enumeration', async () => {
-    const { authority, principal } = issuedSystem('tool-material-maintainer')
-    const authorization = referenceSystemActionAuthorization({
-      verifier: authority.verifier,
-      grants: releaseMaintenanceGrants(),
-      clock: null,
-    })
-    for (const [name, kind, expected] of [
-      ['scan-materials', 'tenant', 'allowed'],
-      ['maintain-materials', 'call', 'allowed'],
-      ['invoke', 'call', 'denied'],
-      ['read-content', 'call', 'denied'],
-    ] as const) {
-      const request: SystemActionRequest = {
-        principal,
-        scope: 'system',
-        operation: { owner: 'tool', name },
-        target: {
-          kind: 'tenant',
-          tenant: someTenant(),
-          resource: { owner: 'tool', kind, key: 'call_1' },
-        },
-        arguments: noArguments(),
-      }
-      expect((await authorization.check(request)).kind).toBe(expected)
-    }
-    expect(
-      (
-        await authorization.check({
-          principal,
-          scope: 'system',
-          operation: { owner: 'tenant-domains', name: 'enumerate' },
-          target: {
-            kind: 'system',
-            resource: { owner: 'tenant-domains', kind: 'registered-tenants', key: 'deployment' },
-          },
-          arguments: noArguments(),
-        })
-      ).kind,
-    ).toBe('denied')
-  })
   it.each(['publish', 'quiesce', 'withdraw'] as const)(
     'allows the issued agent host to %s and denies another issued system principal',
     async name => {

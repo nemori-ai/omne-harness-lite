@@ -310,7 +310,6 @@ describe('tool runtime double', () => {
       tools.port.queries.account(input),
       tools.port.instances.current({ access: input, reference: input }),
       tools.port.content.read(input),
-      tools.port.content.raw(input),
       tools.port.catalog.inspect(input),
       tools.port.catalog.usage(input),
       tools.port.catalog.search(input),

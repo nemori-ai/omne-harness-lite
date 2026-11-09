@@ -238,7 +238,6 @@ export interface ToolInvocationContentReader<P> {
         maxBytes: number
       }>,
   ): Reply<ContentPage>
-  raw(input: InvocationAccess<P> & Readonly<{ result: ToolResultVersion }>): Reply<RawOutput>
 }
 
 /**

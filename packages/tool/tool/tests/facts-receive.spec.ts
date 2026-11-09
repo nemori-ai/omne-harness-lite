@@ -47,7 +47,7 @@ async function running(options: Parameters<typeof startHarness>[0] = {}) {
     batch,
     seal: async (final: ToolFinalEnvelope<Block>) =>
       ok(
-        await harness.ledger.finalCustody.preserveFinal({
+        await harness.ledger.finalPlanner.planFinal({
           ...access,
           start: batch.start,
           source: batch.source,
@@ -110,17 +110,6 @@ async function records(harness: Awaited<ReturnType<typeof running>>['harness']) 
 function finalFact(): ToolFinalEnvelope<Block> {
   return {
     kind: 'final',
-    raw: {
-      codec: adoption('codec'),
-      custody: evidence('raw-custody'),
-      content: {
-        storage: 'memory',
-        key: 'original',
-        mediaType: 'application/json',
-        bytes: '123',
-        digest: 'sha256:raw',
-      },
-    },
     result: {
       content: [text('answer', 'done')],
       data: { kind: 'none' },
@@ -646,7 +635,7 @@ describe('fixed producer boundary and current access', () => {
     expect(recovery.streams[0]).toMatchObject({ start: original.start, source: original.source })
     expect((await records(harness)).filter(record => record.kind === 'fact-event')).toHaveLength(1)
   })
-  it.each(['accessor', 'cycle', 'extra', 'inline-result', 'hidden-process'] as const)(
+  it.each(['accessor', 'cycle', 'extra', 'hidden-process'] as const)(
     'rejects %s data without evaluating accessors or committing',
     async fault => {
       const { harness, access, batch } = await running()
@@ -661,10 +650,6 @@ describe('fixed producer boundary and current access', () => {
         })
       if (fault === 'cycle') Object.assign(mutable, { events: [mutable] })
       if (fault === 'extra') Object.assign(mutable, { extra: true })
-      if (fault === 'inline-result')
-        Object.assign(mutable, {
-          events: [{ event: 'final', fact: finalFact() }],
-        })
       if (fault === 'hidden-process')
         Object.assign(mutable, {
           events: [
@@ -1063,7 +1048,7 @@ describe('process validation and within-batch progression', () => {
 it('refuses a rendered final with an invalid result before preparing custody', async () => {
   const f = await running()
   const before = f.harness.memory.commits
-  const answer = await Reflect.apply(f.harness.ledger.finalCustody.preserveFinal, null, [
+  const answer = await Reflect.apply(f.harness.ledger.finalPlanner.planFinal, null, [
     {
       ...f.access,
       start: f.batch.start,
@@ -1076,110 +1061,4 @@ it('refuses a rendered final with an invalid result before preparing custody', a
     failure: { kind: 'invalid', field: 'batch.events.fact.result', reason: 'policy' },
   })
   expect(f.harness.memory.commits).toBe(before)
-})
-
-it.each(['material', 'source', 'header'] as const)(
-  'refuses a forged %s on first pointer adoption',
-  async fault => {
-    const f = await running()
-    const pointer = await f.seal(finalFact())
-    const candidate =
-      fault === 'material'
-        ? { ...pointer, envelope: { ...pointer.envelope, evidence: evidence('forged-seal') } }
-        : fault === 'header'
-          ? {
-              ...pointer,
-              terminal: {
-                kind: 'failed' as const,
-                cause: 'executor' as const,
-                diagnostic: 'forged',
-              },
-            }
-          : pointer
-    const before = f.harness.memory.commits
-    const answer = await f.receive({
-      ...f.batch,
-      source: fault === 'source' ? evidence('foreign-source') : f.batch.source,
-      events: [{ event: 'final', fact: candidate }],
-    })
-    expect(answer).toHaveProperty('failure.kind', fault === 'header' ? 'unavailable' : 'invalid')
-    expect(f.harness.memory.commits).toBe(before)
-    expect((await records(f.harness)).some(record => record.kind === 'fact-event')).toBe(false)
-  },
-)
-
-it('reports an unknown final fingerprint codec as unsupported without adopting it', async () => {
-  const f = await running()
-  const pointer = await f.seal(finalFact())
-  const store = testSettlementPorts(f.harness.memory).materials.store
-  const calls = [vi.spyOn(store, 'read'), vi.spyOn(store, 'write'), vi.spyOn(store, 'inspect')]
-  const before = f.harness.memory.commits
-  const answer = await Reflect.apply(f.harness.commands.receiveFacts, null, [
-    {
-      ...f.access,
-      start: f.batch.start,
-      batch: {
-        ...f.batch,
-        events: [
-          {
-            event: 'final',
-            fact: { ...pointer, value: { ...pointer.value, codec: 'tool-canonical-json-v2' } },
-          },
-        ],
-      },
-    },
-  ])
-  expect(answer).toHaveProperty('failure.kind', 'unsupported')
-  for (const call of calls) expect(call).not.toHaveBeenCalled()
-  expect(f.harness.memory.commits).toBe(before)
-  expect((await records(f.harness)).some(record => record.kind === 'fact-event')).toBe(false)
-})
-
-it('rechecks the original call before accepting a final read during permission revocation', async () => {
-  const f = await running()
-  const pointer = await f.seal(finalFact())
-  const input = {
-    ...f.access,
-    start: f.batch.start,
-    batch: { ...f.batch, events: [{ event: 'final', fact: pointer }] },
-  }
-  const ports = testSettlementPorts(f.harness.memory)
-  const base = guards()
-  const revoked = new Set<string>()
-  let reads = 0
-  const ledger = createToolLedger(
-    f.harness.memory,
-    {
-      ...base,
-      access: {
-        qualify: request =>
-          revoked.has(request.call)
-            ? Promise.resolve({ kind: 'denied' as const, reason: 'revoked' })
-            : base.access.qualify(request),
-      },
-    },
-    createMemoryToolClock(),
-    configurationOf({}),
-    {
-      ...ports,
-      materials: {
-        ...ports.materials,
-        store: {
-          ...ports.materials.store,
-          read: async page => {
-            reads += 1
-            const answer = await ports.materials.store.read(page)
-            revoked.add(f.access.call)
-            input.call = callId('still-authorized-call')
-            return answer
-          },
-        },
-      },
-    },
-  )
-  const before = f.harness.memory.commits
-  expect(await ledger.commands.receiveFacts(input)).toHaveProperty('failure.kind', 'denied')
-  expect(reads).toBeGreaterThan(0)
-  expect(f.harness.memory.commits).toBe(before)
-  expect((await records(f.harness)).some(record => record.kind === 'fact-event')).toBe(false)
 })

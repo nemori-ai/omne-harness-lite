@@ -213,16 +213,13 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['toolCommands', 'toolClock'],
     phase: 'business',
   },
-  'tool-material-maintenance': {
+  'tool-body-sweep': {
     provides: [],
     injects: [
       'storage',
       'tenantDomainLookup',
       'tenantDomains',
-      'systemActionAuthorization',
       'tenantDomainScannerPrincipal',
-      'toolMaterialMaintainerPrincipal',
-      'toolInstanceHost',
       'telemetry',
     ],
     phase: 'business',

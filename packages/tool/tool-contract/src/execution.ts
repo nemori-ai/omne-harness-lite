@@ -94,7 +94,6 @@ export type ToolRecovery = Readonly<{
   preparations: readonly PreparationRecord[]
   waits: readonly WaitRecord[]
   suspensions: readonly SuspensionRecord[]
-  rawOutputs: readonly RawOutput[]
   tasks: readonly ToolTask[]
   program: ProgramClosure | null
   scheduling: ProgramScheduling | null

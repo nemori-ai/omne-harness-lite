@@ -28,8 +28,6 @@ import type { ToolRuntimeConfig } from './config.ts'
 import { createReleaseEnvironment } from './environment.ts'
 import {
   lateBodyStore,
-  lateMaterials,
-  TOOL_MATERIAL_PROVIDER,
   lateStore,
   toolRuntimeHolder,
   type ToolRuntimeBundle,
@@ -114,11 +112,6 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
             diagnostic: 'tool-records body schema provider is not mounted',
           },
         }),
-    },
-    materials: {
-      provider: TOOL_MATERIAL_PROVIDER,
-      store: lateMaterials(holder),
-      clock: holder.materialClock,
     },
     bodies: {
       store: lateBodyStore(holder),

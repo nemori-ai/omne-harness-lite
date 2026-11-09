@@ -94,7 +94,6 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
     })(),
   )
   const read = scriptedMethod<In<R['content']['read']>, Out<R['content']['read']>>(failing())
-  const raw = scriptedMethod<In<R['content']['raw']>, Out<R['content']['raw']>>(failing())
   const bodyRead = scriptedMethod<In<R['body']['read']>, Out<R['body']['read']>>(failing())
   const catalogInspect = scriptedMethod<In<R['catalog']['inspect']>, Out<R['catalog']['inspect']>>(
     failing(),
@@ -118,7 +117,7 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
       commands: { control: control.call, releaseDelivery: releaseDelivery.call },
       instances: { current: current.call },
       observation: { observe: input => deferred(observe.call(input)) },
-      content: { read: read.call, raw: raw.call },
+      content: { read: read.call },
       body: { read: bodyRead.call },
       catalog: { inspect: catalogInspect.call, usage: usage.call, search: search.call },
     },
@@ -136,7 +135,7 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
     commands: { control: control.script, releaseDelivery: releaseDelivery.script },
     instances: { current: current.script },
     observation: { observe: observe.script },
-    content: { read: read.script, raw: raw.script },
+    content: { read: read.script },
     body: { read: bodyRead.script },
     catalog: { inspect: catalogInspect.script, usage: usage.script, search: search.script },
   }

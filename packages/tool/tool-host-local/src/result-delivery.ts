@@ -4,7 +4,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
-  encodeToolMaterial,
+  encodeToolCanonical,
   type ToolLedger,
   isTenantShape,
   type CallRecord,
@@ -26,7 +26,7 @@ import {
   judgeHandoff,
   type CallAccess,
   type ToolCommands,
-  type ToolMaterialFingerprint,
+  type ToolCanonicalFingerprint,
   type ToolOperationIdentities,
   type ToolReads,
   type ToolTask,
@@ -145,9 +145,9 @@ function offloadedDescription(
 }
 
 /** The fingerprint of the channels as the model sees them: the body descriptor is not part of it. */
-function fingerprintOf(value: ResultRecord['value']): ToolMaterialFingerprint {
+function fingerprintOf(value: ResultRecord['value']): ToolCanonicalFingerprint {
   const original = value.original
-  const encoded = encodeToolMaterial({
+  const encoded = encodeToolCanonical({
     ...value,
     original:
       original.kind === 'none'

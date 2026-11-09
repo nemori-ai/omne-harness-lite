@@ -31,18 +31,6 @@ export type RawOutput = Readonly<{
   content: Attachment
   custody: DurableEvidence
 }>
-export interface ToolOutputCustody<P> {
-  preserve(
-    input: Mutation<P> & Readonly<{ codec: Adoption; bytes: Uint8Array; source: DurableEvidence }>,
-  ): Reply<RawOutput>
-  inspect(
-    input: Mutation<P>,
-  ): Reply<
-    | Readonly<{ kind: 'retained'; raw: RawOutput }>
-    | Readonly<{ kind: 'unknown' }>
-    | Readonly<{ kind: 'excluded'; evidence: DurableEvidence }>
-  >
-}
 export type ProcessSnapshot = Readonly<{
   cursor: ToolCursor
   state: ToolState
@@ -74,7 +62,6 @@ export interface ToolContentReader<P> {
         maxBytes: number
       }>,
   ): Reply<ContentPage>
-  raw(input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>): Reply<RawOutput>
 }
 export interface ToolReads<P, B extends ContentBlock> {
   readonly body: ToolBodyReader<P>

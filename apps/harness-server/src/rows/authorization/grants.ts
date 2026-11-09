@@ -14,7 +14,6 @@ export const AGENT_HOST_COMPONENT = 'agent-host'
 /** The component name of the tool residency principal (AA:273, DP-1 table 3-4). */
 export const TOOL_RESIDENCY_COMPONENT = 'toolResidencyPrincipal'
 export const TENANT_DOMAIN_SCANNER_COMPONENT = 'tenant-domain-scanner'
-export const TOOL_MATERIAL_MAINTAINER_COMPONENT = 'tool-material-maintainer'
 /**
  * The component name of the session maintainer, `SessionInternalPrincipals.maintainer` (DP-1 table
  * 3-3, naming rule DP5-C5). Session S3 reads `pending` of one tenant with it (session SPEC S3).
@@ -26,7 +25,6 @@ export type GrantHolder =
   | typeof AGENT_HOST_COMPONENT
   | typeof TOOL_RESIDENCY_COMPONENT
   | typeof TENANT_DOMAIN_SCANNER_COMPONENT
-  | typeof TOOL_MATERIAL_MAINTAINER_COMPONENT
   | typeof SESSION_MAINTAINER_COMPONENT
 
 /** One record with the purposes typed against the policy; `MaintenanceGrant` widens them to text. */
@@ -44,10 +42,6 @@ function record(component: GrantHolder, purposes: readonly SystemPurpose[]): Rel
 }
 
 export const MAINTENANCE_GRANTS: Readonly<Record<GrantHolder, ReleaseGrant>> = Object.freeze({
-  [TOOL_MATERIAL_MAINTAINER_COMPONENT]: record(TOOL_MATERIAL_MAINTAINER_COMPONENT, [
-    'tool-material-scan',
-    'tool-material-maintain',
-  ]),
   [TENANT_DOMAIN_SCANNER_COMPONENT]: record(TENANT_DOMAIN_SCANNER_COMPONENT, ['enumerate-tenants']),
   [TOOL_RESIDENCY_COMPONENT]: record(TOOL_RESIDENCY_COMPONENT, ['resident-references']),
   // S3, the recovery scanner, reads the pending sessions of one tenant with this principal. The

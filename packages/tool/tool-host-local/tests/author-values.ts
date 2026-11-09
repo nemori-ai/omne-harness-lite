@@ -220,7 +220,12 @@ export async function bindingFixture(
     },
     finish,
     loseContinuity: async start => {
-      actor(start).lose(completedFinal().raw.custody)
+      actor(start).lose({
+        owner: 'author-values',
+        record: 'continuity',
+        revision: '1',
+        digest: 'sha256:continuity',
+      })
     },
     blindInspection: start => {
       actor(start).observationAvailable(false)

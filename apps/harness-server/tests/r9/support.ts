@@ -281,7 +281,6 @@ export function toolRowsOperatorConfig(options: { storageRoot: string }) {
       filesRoot,
       combinationVersion: 'session-composite/6',
       maxCommandBytes: 1048576,
-      maxChunkBytes: 16384,
       configuration: {
         authorBufferBytes: 65536,
         authorBufferItems: 256,
@@ -382,14 +381,12 @@ export function operatorLayer(options: {
       { kind: 'replace', id: 'tool-records', config: tools.records },
       {
         kind: 'replace',
-        id: 'tool-material-maintenance',
+        id: 'tool-body-sweep',
         config: {
           combinationVersion: tools.records.combinationVersion,
-          maxCommandBytes: tools.records.maxCommandBytes,
-          maxChunkBytes: tools.records.maxChunkBytes,
           ledgerCommitAttempts: tools.records.configuration.ledgerCommitAttempts,
           intervalMs: 1000,
-          pageSize: 32,
+          limit: 100,
         },
       },
       {

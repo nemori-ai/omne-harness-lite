@@ -32,11 +32,7 @@ import {
   toolStartAuthorityKey,
   toolStartFenceKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
-import {
-  createSqlToolBodyStore,
-  createSqlToolLedgerStore,
-  createSqlToolMaterialStore,
-} from '@omne-harness/tool-storage-sql'
+import { createSqlToolBodyStore, createSqlToolLedgerStore } from '@omne-harness/tool-storage-sql'
 import {
   closeEnvironmentSchemaProvider,
   createEnvironmentSchemaProvider,
@@ -48,7 +44,7 @@ import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { ensureToolRuntimeBundle } from './bundle.ts'
 import { toolRuntimeConfigSchema, type ToolRuntimeConfig } from './config.ts'
-import { awaitBundle, toolRuntimeHolder, TOOL_MATERIAL_PROVIDER } from './holder.ts'
+import { awaitBundle, toolRuntimeHolder } from './holder.ts'
 
 const INTEGRATOR = { [executionEnvironmentKey]: { caller: 'integrator' as const } }
 
@@ -78,12 +74,6 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
         createToolLifecycleTelemetry(() => ctx.get(telemetryKey, false), processInstance),
       ),
     },
-    materials: createSqlToolMaterialStore({
-      ...options,
-      provider: TOOL_MATERIAL_PROVIDER,
-      maxCommandBytes: config.maxCommandBytes,
-      maxChunkBytes: config.maxChunkBytes,
-    }),
     bodies: { store: createSqlToolBodyStore({ ...options, permitKey, clock }), permitKey, clock },
   })
   holder.sql = sql

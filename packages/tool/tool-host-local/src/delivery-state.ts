@@ -16,12 +16,12 @@ import {
   decodeToolRevision,
   judgeHandoff,
   type CallAccess,
-  type ToolMaterialFingerprint,
+  type ToolCanonicalFingerprint,
 } from '@omne-harness/tool-contract/provider'
 
 export type ResultPayload<B extends ContentBlock> = Extract<ToolDelivery<B>, { kind: 'result' }>
 export type ResultValueCommitment = Readonly<{
-  fingerprint: ToolMaterialFingerprint
+  fingerprint: ToolCanonicalFingerprint
   original: Readonly<{ kind: 'none' }> | (Readonly<{ kind: 'offloaded' }> & ToolOffloadedBody)
 }>
 type DeliveryDescriptor = Omit<ResultPayload<ContentBlock>, 'value'> &

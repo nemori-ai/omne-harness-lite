@@ -30,7 +30,7 @@ it(
   },
 )
 
-it('retains a sealed final pointer in author recovery instead of another complete result', async () => {
+it('retains the planned final in author recovery, with its first screen and no body bytes', async () => {
   const world = await fixture()
   try {
     const reference = accepted(await world.api.invoke(world.invocation('sealed-final')))
@@ -39,11 +39,11 @@ it('retains a sealed final pointer in author recovery instead of another complet
     const recovered = await world.authorLookup(reference)
     expect(recovered.kind).toBe('settled')
     if (recovered.kind !== 'settled') throw new Error('Missing author final')
-    expect(recovered.fact).not.toHaveProperty('result')
+    expect(recovered.fact).not.toHaveProperty('envelope')
     expect(recovered.fact).toMatchObject({
       kind: 'final',
-      value: { codec: 'tool-canonical-json-v1', algorithm: 'sha256' },
-      envelope: { material: { generation: '1' } },
+      terminal: { kind: 'completed' },
+      result: { original: { kind: 'none' } },
     })
     await expect
       .poll(async () => {
@@ -51,52 +51,6 @@ it('retains a sealed final pointer in author recovery instead of another complet
         return found.kind === 'found' ? found.state.delivery?.kind : found.kind
       })
       .toBe('released')
-    expect(world.launches()).toBe(1)
-  } finally {
-    await world.close()
-  }
-})
-
-it('retries final custody with the same rendered bytes and operation without rerunning the author', async () => {
-  const world = await fixture()
-  const writes: { operation: string; bytes: Uint8Array }[] = []
-  const store = world.input.materials.store
-  const write = store.write
-  store.write = async input => {
-    writes.push({ operation: input.operation, bytes: input.bytes.slice() })
-    return writes.length === 1
-      ? fail({
-          kind: 'unavailable',
-          dependency: 'test-materials',
-          diagnostic: 'temporarily offline',
-        })
-      : write(input)
-  }
-  try {
-    const reference = accepted(await world.api.invoke(world.invocation('retry-final')))
-    expect((await world.settled(reference)).terminal.kind).toBe('completed')
-    const finalWrites = writes.filter(write => write.operation === writes[0]?.operation)
-    expect(finalWrites).toHaveLength(2)
-    expect(finalWrites[1]).toEqual(finalWrites[0])
-    expect(world.launches()).toBe(1)
-    expect(world.plugins.diagnostics().pendingOutputCustody).toBe(0)
-    expect(await world.authorLookup(reference)).toMatchObject({ kind: 'settled' })
-  } finally {
-    await world.close()
-  }
-})
-
-it('keeps unresolved final custody owned after shutdown instead of publishing a final', async () => {
-  const world = await fixture()
-  world.input.materials.store.write = async input =>
-    fail({ kind: 'commit-unknown', operation: input.operation })
-  try {
-    const reference = accepted(await world.api.invoke(world.invocation('unresolved-final')))
-    await expect.poll(() => world.plugins.diagnostics().pendingOutputCustody).toBe(1)
-    expect(await world.authorLookup(reference)).toMatchObject({ kind: 'live' })
-    await world.close()
-    expect(world.plugins.diagnostics().pendingOutputCustody).toBe(1)
-    expect(world.deliveries).toHaveLength(0)
     expect(world.launches()).toBe(1)
   } finally {
     await world.close()

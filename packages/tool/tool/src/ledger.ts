@@ -4,7 +4,6 @@ import type { BodyPolicy } from './result-offloading.ts'
 import type { ToolBodyWrites } from '@omne-harness/tool-contract/provider'
 import { entryBySource } from './ledger-body-entries.ts'
 import { firstResultReference } from './result-address.ts'
-import { createLedgerMaterialMaintenance } from './ledger-material-maintenance.ts'
 import { createLedgerTransactions, type Decide } from './ledger-transactions.ts'
 import { createLedgerAccess } from './ledger-access.ts'
 import { pinResultPolicy } from './ledger-result-policy.ts'
@@ -15,18 +14,11 @@ import {
   type PendingSynthetic,
   type SyntheticDecider,
 } from './ledger-result-preparation.ts'
-import { createLedgerMaterialCustody } from './ledger-material-custody.ts'
-import {
-  prepareResult,
-  preparedBodyOf,
-  readResultValue,
-  type PreparedBody,
-} from './ledger-result-material.ts'
+import { authoredBodyOf, readResultValue } from './ledger-result-material.ts'
 import type { ResultRecord } from './ledger-store.ts'
 import { factValues } from './fact-values.ts'
-import { adoptFactMaterials, restoreSavedFact } from './ledger-fact-material.ts'
-import { createLedgerRawCustody } from './ledger-raw-custody.ts'
-import { createLedgerFinalCustody } from './ledger-final-custody.ts'
+import { adoptFinalFact, restoreSavedFact } from './ledger-final-fact.ts'
+import { createLedgerFinalPlanner } from './ledger-final-planning.ts'
 import { matchEnvironmentAdoption } from './environment-adoption.ts'
 import { controlIntent } from './control-intent.ts'
 import { controlProgress } from './control-progress.ts'
@@ -69,7 +61,6 @@ import {
 } from '@omne-harness/tool-contract'
 import {
   type CallAccess,
-  type ToolOutputCustody,
   decodeToolDeliveryId,
   decodeToolInstanceId,
   decodeToolResultVersion,
@@ -84,7 +75,7 @@ import {
   type ToolClock,
   type ToolCommands,
   type ToolReads,
-  type ToolFinalCustody,
+  type ToolFinalPlanner,
 } from '@omne-harness/tool-contract/provider'
 import {
   denied,
@@ -107,7 +98,6 @@ import type {
   ToolLedgerFacts,
   ToolLedgerPorts,
   ToolLedgerControls,
-  ToolLedgerMaintenance,
 } from './construction.ts'
 import { fixFactAcknowledgement, fixFactBasis, fixFactInput } from './facts-boundary.ts'
 import { checkFactAcknowledgement, decideFactAcknowledgement } from './ledger-fact-ack.ts'
@@ -172,15 +162,14 @@ import {
 } from './ledger-store.ts'
 
 export type ToolLedger<P, B extends ContentBlock> = Readonly<{
-  maintenance: ToolLedgerMaintenance<P>
   delivery: Readonly<{
     read(input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>): Reply<ToolResult<B>>
   }>
   bodyWrites: ToolBodyWrites<P>
   /** The sweep over the due index: delete the bytes, then record `reclaimed` (C5). */
   sweep: ToolLedgerSweep['sweep']
-  rawCustody: Pick<ToolOutputCustody<P>, 'preserve' | 'inspect'>
-  finalCustody: ToolFinalCustody<P, B>
+  /** Plans the final when the execution records it; the fact stores the plan (ruling 1). */
+  finalPlanner: ToolFinalPlanner<P, B>
   controls: ToolLedgerControls<P>
   commands: ToolCommands<P, B>
   reads: ToolReads<P, B>
@@ -523,27 +512,6 @@ export function createToolLedger<P, B extends ContentBlock>(
     load: input => read(callDomain(input)),
     transact,
   })
-
-  /** The body an author's return references: a sealed entry of this call, or the reason it is not. */
-  const authoredBody = (
-    snapshot: Snapshot,
-    source: Extract<ToolRenderedResult<B>['original'], { kind: 'offloaded' }>['source'],
-  ): Outcome<Readonly<{ prepared: PreparedBody; policy: BodyPolicy }>, ToolFailure> => {
-    const entry = entryBySource(snapshot, source)
-    if (entry === null) {
-      const opened = [...snapshot.bodies.values()].some(
-        body => body.start !== null && body.state.kind === 'opened',
-      )
-      return invalid(
-        'original.source',
-        opened ? 'body-not-sealed' : 'same-call-sealed-body-required',
-      )
-    }
-    const prepared = preparedBodyOf(entry, 'author-summary')
-    return 'failure' in prepared
-      ? prepared
-      : succeed({ prepared: prepared.ok, policy: entry.policy })
-  }
 
   const settleSynthetic = async <T>(
     context: MutationInput<P>,
@@ -1055,73 +1023,17 @@ export function createToolLedger<P, B extends ContentBlock>(
     const record = recordOf(before.ok)
     if ('failure' in record) return record
     if (checked.ok.kind === 'recalled') return releaseQueue(context.ok, record.ok, checked.ok.state)
-    const restored = await restoreSavedFact(
-      context.ok,
-      checked.ok.saved,
-      settlement.materials?.store,
-      guards.policy,
-      toolLedgerAdoption,
-    )
-    if ('failure' in restored) return restored
-    if (restored.ok.fact.kind !== 'final') return invalid('basis', 'original-final-required')
-    const final = restored.ok.fact
+    const restored = restoreSavedFact<B>(checked.ok.saved)
+    if (restored.fact.kind !== 'final') return invalid('basis', 'original-final-required')
+    const final = restored.fact
     const qualified = await access(context.ok, 'write')
     if ('failure' in qualified) return qualified
     const authored =
       final.result.original.kind === 'offloaded'
-        ? authoredBody(before.ok, final.result.original.source)
+        ? authoredBodyOf(before.ok, final.result.original.source)
         : succeed(null)
     if ('failure' in authored) return authored
-    const proposed =
-      authored.ok === null
-        ? final.terminal.kind !== 'completed'
-          ? succeed(systemBodyPolicy(configuration.offloading, configuration.readResultArguments))
-          : resultBodyPolicy(
-              record.ok.request,
-              configuration.offloading,
-              configuration.readResultArguments,
-            )
-        : succeed(authored.ok.policy)
-    if ('failure' in proposed) return proposed
-    const policyInput = {
-      operation: checked.ok.task.operation,
-      source: checked.ok.saved.evidence,
-      policy: proposed.ok,
-    }
-    const policy = await transact(
-      callDomain(context.ok),
-      command.operation,
-      async snapshot => {
-        const qualified = await access(context.ok, 'write')
-        if ('failure' in qualified) return { kind: 'reply', outcome: qualified }
-        if (excludedSince(snapshot, command.operation, before.ok.revision))
-          return { kind: 'reply', outcome: excluded(command.operation) }
-        const current = checkSettlement(snapshot, command)
-        if ('failure' in current) return { kind: 'reply', outcome: current }
-        return pinResultPolicy(snapshot, policyInput)
-      },
-      commitUnknown(command.operation),
-      before.ok.revision,
-    )
-    if ('failure' in policy)
-      return policy.failure.kind === 'commit-unknown'
-        ? unavailable('result-policy', 'result policy preparation is unresolved')
-        : policy
-    const target = firstResultReference({ ...record.ok, tenant: context.ok.tenant })
-    if ('failure' in target) return target
-    const channels = await prepareResult<P, B>(
-      { ...context.ok, operation: checked.ok.task.operation, source: checked.ok.saved.evidence },
-      final.result,
-      policy.ok,
-      authored.ok?.prepared ?? null,
-      target.ok,
-      bodyWriting.writeBody,
-    )
-    if ('failure' in channels)
-      return channels.failure.kind === 'commit-unknown' &&
-        channels.failure.operation !== command.operation
-        ? unavailable('result-value', 'result preparation is unresolved')
-        : channels
+    const channels = { value: final.result, body: authored.ok?.prepared ?? null }
     const allowed = await access(context.ok, 'write')
     if ('failure' in allowed) return allowed
     const settled = await transact(
@@ -1133,7 +1045,7 @@ export function createToolLedger<P, B extends ContentBlock>(
         if (current.ok.kind === 'recalled')
           return { kind: 'reply', outcome: succeed(current.ok.state) }
         return activateResultDecision(
-          channels.ok,
+          channels,
           settlement.bodies?.clock,
           async (committed, settledAt) => {
             const qualified = await access(context.ok, 'write')
@@ -1181,12 +1093,13 @@ export function createToolLedger<P, B extends ContentBlock>(
     }
   }
 
-  const finalCustody = createLedgerFinalCustody({
-    materials: settlement.materials,
+  const finalPlanner = createLedgerFinalPlanner<P, B>({
     policy: guards.policy,
     adoption: toolLedgerAdoption,
+    configuration,
     entry,
-    transact,
+    load: input => read(callDomain(input)),
+    writeBody: bodyWriting.writeBody,
   })
 
   const resultValue = async (_input: CallInput<P>, record: ResultRecord) =>
@@ -1282,15 +1195,7 @@ export function createToolLedger<P, B extends ContentBlock>(
       const recalled = checkFactBatch(before.ok, fixed.ok.start, fixed.ok.batch, values.ok.batch)
       if ('failure' in recalled) return recalled
       if (recalled.ok !== null) return succeed(recalled.ok)
-      const prepared = await adoptFactMaterials(
-        checked.ok,
-        before.ok,
-        fixed.ok.batch,
-        values.ok,
-        settlement.materials?.store,
-        guards.policy,
-        toolLedgerAdoption,
-      )
+      const prepared = adoptFinalFact(before.ok, fixed.ok.batch, values.ok)
       if ('failure' in prepared) return prepared
       const disclosure = await access(checked.ok, 'write')
       if ('failure' in disclosure) return disclosure
@@ -1502,7 +1407,6 @@ export function createToolLedger<P, B extends ContentBlock>(
       bodyBytes: bodyReads.bytes,
       adoption: toolLedgerAdoption,
       provider: settlement.content,
-      materials: settlement.materials?.store,
       authorize: access,
       load: input => read(callDomain(input)),
       resultValue,
@@ -1517,14 +1421,6 @@ export function createToolLedger<P, B extends ContentBlock>(
   })
 
   return Object.freeze({
-    maintenance: Object.freeze(
-      createLedgerMaterialMaintenance({
-        materials: settlement.materials,
-        entry: input => entry(input, 'maintain-materials'),
-        authorize: input => access(input, 'maintain-materials'),
-        transact,
-      }),
-    ),
     delivery: Object.freeze({
       read: async (input: Parameters<ToolLedger<P, B>['delivery']['read']>[0]) => {
         const fixed = fixResultInput<P>(input, 'recover')
@@ -1553,13 +1449,7 @@ export function createToolLedger<P, B extends ContentBlock>(
       due: (tenant, now, limit) => store.due(tenant, now, limit),
       transact,
     }).sweep,
-    rawCustody: createLedgerRawCustody({
-      materials: settlement.materials,
-      entry,
-      load: input => read(callDomain(input)),
-      transact,
-    }),
-    finalCustody,
+    finalPlanner,
     controls: Object.freeze(
       createLedgerControls<P>({ subjects: settlement.controlSubjects, entry, transact }),
     ),
@@ -1577,16 +1467,9 @@ export function createToolLedger<P, B extends ContentBlock>(
           readSavedFact(snapshot, basis.ok),
         )
         if ('failure' in saved) return saved
-        const restored = await restoreSavedFact(
-          context.ok,
-          saved.ok,
-          settlement.materials?.store,
-          guards.policy,
-          toolLedgerAdoption,
-        )
-        if ('failure' in restored) return restored
+        const restored = restoreSavedFact<B>(saved.ok)
         const allowed = await access(context.ok, 'recover')
-        return 'failure' in allowed ? allowed : restored
+        return 'failure' in allowed ? allowed : succeed(restored)
       },
     } satisfies ToolLedgerFacts<P, B>),
   })

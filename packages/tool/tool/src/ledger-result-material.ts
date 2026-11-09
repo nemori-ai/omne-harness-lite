@@ -6,6 +6,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolOperationId,
+  type Attachment,
   type ToolOffloadedBody,
   type ToolRenderedResult,
   type Adoption,
@@ -17,8 +18,10 @@ import type { ResultPolicy, ToolInstant } from '@omne-harness/tool-contract/prov
 import {
   bodyIdentity,
   bodySource,
+  entryBySource,
   sealedManifest,
   type BodyEntryRecord,
+  type BodyView,
 } from './ledger-body-entries.ts'
 import type { BodyWriting, SystemBodyInput } from './ledger-body-writer.ts'
 import { planResultBody, type BodyPolicy } from './result-offloading.ts'
@@ -60,6 +63,26 @@ export function preparedBodyOf(
     retentionMs: entry.policy.retentionMs,
     policy: entry.policy.adoption,
   })
+}
+
+/** The body a final references: a sealed entry of this call (the author's, or the one the ledger wrote), or why not. */
+export function authoredBodyOf(
+  snapshot: BodyView,
+  source: Attachment,
+): Outcome<Readonly<{ prepared: PreparedBody; policy: BodyPolicy }>, ToolFailure> {
+  const entry = entryBySource(snapshot, source)
+  if (entry === null) {
+    const opened = [...snapshot.bodies.values()].some(
+      body => body.start !== null && body.state.kind === 'opened',
+    )
+    return fail({
+      kind: 'invalid',
+      field: 'original.source',
+      reason: opened ? 'body-not-sealed' : 'same-call-sealed-body-required',
+    })
+  }
+  const prepared = preparedBodyOf(entry, entry.start === null ? 'mechanical' : 'author-summary')
+  return 'failure' in prepared ? prepared : succeed({ prepared: prepared.ok, policy: entry.policy })
 }
 
 type PlanningInput<P> = SystemBodyInput<P>

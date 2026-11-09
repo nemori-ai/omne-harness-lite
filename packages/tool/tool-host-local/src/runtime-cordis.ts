@@ -90,21 +90,11 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
         records?.ledger.bodyWrites.seal(request) ?? bodyUnavailable(request.operation),
       inspect: request => records?.ledger.bodyWrites.inspect(request) ?? bodyUnavailable('inspect'),
     },
-    custody: {
-      preserve: request =>
+    finalPlanner: {
+      planFinal: request =>
         records === null
-          ? Promise.resolve(runtimeUnavailable('toolRawCustody'))
-          : records.ledger.rawCustody.preserve(request),
-      inspect: request =>
-        records === null
-          ? Promise.resolve(runtimeUnavailable('toolRawCustody'))
-          : records.ledger.rawCustody.inspect(request),
-    },
-    finalCustody: {
-      preserveFinal: request =>
-        records === null
-          ? Promise.resolve(runtimeUnavailable('toolFinalCustody'))
-          : records.ledger.finalCustody.preserveFinal(request),
+          ? Promise.resolve(runtimeUnavailable('toolFinalPlanner'))
+          : records.ledger.finalPlanner.planFinal(request),
     },
   })
   const stages = createRuntimeStages(input, () => environment)

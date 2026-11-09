@@ -40,7 +40,6 @@ type Bindings = ToolBindings<unknown, ToolEnvironmentValue>
 export type RuntimeEnvironment = ToolEnvironment<unknown, ToolEnvironmentValue>
 export type LocalToolRuntimeInput = Readonly<{
   store: ToolLedgerStore
-  materials: NonNullable<ToolLedgerPorts<unknown>['materials']>
   bodies: NonNullable<ToolLedgerPorts<unknown>['bodies']>
   content: ToolLedgerPorts<unknown>['content']
   bodySchemas?: ToolLedgerPorts<unknown>['bodySchemas']

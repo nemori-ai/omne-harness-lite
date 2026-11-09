@@ -50,21 +50,6 @@ export function decodeToolBodyId(
   return decodeIdentity('ToolBodyId', text)
 }
 
-export function decodeToolMaterialId(
-  text: unknown,
-): Outcome<ToolIdentity<'ToolMaterialId'>, ToolIdentityRejection<'ToolMaterialId'>> {
-  return decodeIdentity('ToolMaterialId', text)
-}
-
-export function decodeToolMaterialGeneration(
-  text: unknown,
-): Outcome<
-  ToolIdentity<'ToolMaterialGeneration'>,
-  ToolIdentityRejection<'ToolMaterialGeneration'>
-> {
-  return decodeIdentity('ToolMaterialGeneration', text)
-}
-
 /**
  * Decodes the call text of a Tool producer, for example the producer reference that a consumer keeps.
  * The result is a branded identity only. It does not prove that the call exists or that the

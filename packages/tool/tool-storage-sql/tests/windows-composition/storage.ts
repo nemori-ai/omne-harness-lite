@@ -10,8 +10,6 @@ import {
 import { createSqliteStorage, type SqliteStorageConfig } from '@omne-harness/sqlite-provider'
 import {
   createSqlToolLedgerStore,
-  createSqlToolMaterialStore,
-  createSqlToolOutputCustody,
   toolStorageMaterials,
   TOOL_PARTICIPANT,
 } from '@omne-harness/tool-storage-sql'
@@ -161,30 +159,12 @@ export async function openStorage(
       },
     }
     const options = { storage: created.storage, domains, combination }
-    const materialProvider = {
-      owner: 'windows-composition',
-      name: 'materials',
-      revision: '1',
-      digest: 'sha256:materials',
-    }
     return {
       /** The raw storage, for the read-budget case that must not depend on the whole assembly. */
       storage: created.storage,
       combination,
       domains,
       store: createSqlToolLedgerStore(options),
-      custody: createSqlToolOutputCustody<unknown>({
-        ...options,
-        maxCommandBytes,
-        maxChunkBytes: 16384,
-      }),
-      materialProvider,
-      materialStore: createSqlToolMaterialStore({
-        ...options,
-        provider: materialProvider,
-        maxCommandBytes,
-        maxChunkBytes: 16384,
-      }),
       materials: catalog,
       close,
     }

@@ -137,7 +137,7 @@ export async function sourceFixture(
     digest: `sha256:${createHash('sha256').update(bytes).digest('hex')}`,
   }
   const content = createMemoryToolContent<Principal>()
-  const f = await settlementFixture({ ...sourceOptions, custody: content.custody, value })
+  const f = await settlementFixture({ ...sourceOptions, value })
   const settled = ok(await f.preserve())
   if (settled.phase !== 'settled') throw new Error('not settled')
   ok(content.controls.seed({ ...f.access, attachment, bytes }))
@@ -151,7 +151,6 @@ export async function sourceFixture(
     createMemoryToolClock(),
     config,
     {
-      materials: testSettlementPorts(f.harness.memory).materials,
       bodies: testSettlementPorts(f.harness.memory).bodies,
       releaseInspection: f.environment,
       content: content.reader,
@@ -240,21 +239,8 @@ export function registeredFixture(
         if (registered?.kind !== 'commands') throw new Error('not commands')
         const operation = registered.operations.find(([name]) => name === input.request.command)
         if (operation === undefined) throw new Error('not a command')
-        const bytes = ok(operation[1].author.codec.encode(value))
-        const raw = ok(
-          await h.custody.preserve({
-            principal: input.principal,
-            tenant: input.tenant,
-            call: input.call,
-            operation: operationId(`raw-${input.call}`),
-            codec: operation[1].author.codec.adoption,
-            bytes,
-            source: evidence('author-output'),
-          }),
-        )
         await h.binding.controls.finish(input.start, {
           kind: 'final',
-          raw,
           result: value,
           terminal: { kind: 'completed' },
           effect: { kind: 'not-occurred', evidence: evidence('read-only') },

@@ -344,7 +344,6 @@ function toolRecords(workspace: string, combinationVersion: string) {
     filesRoot: workspace,
     combinationVersion,
     maxCommandBytes: MAX_COMMAND_BYTES,
-    maxChunkBytes: 16_384,
     configuration: {
       authorBufferBytes: 65_536,
       authorBufferItems: 256,
@@ -517,15 +516,8 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
     ],
     ['tool-records', toolRecords(settings.workspace, combinationVersion)],
     [
-      'tool-material-maintenance',
-      {
-        combinationVersion,
-        maxCommandBytes: MAX_COMMAND_BYTES,
-        maxChunkBytes: 16_384,
-        ledgerCommitAttempts: 16,
-        intervalMs: 1000,
-        pageSize: 32,
-      },
+      'tool-body-sweep',
+      { combinationVersion, ledgerCommitAttempts: 16, intervalMs: 1000, limit: 100 },
     ],
     [
       'tool-bindings',

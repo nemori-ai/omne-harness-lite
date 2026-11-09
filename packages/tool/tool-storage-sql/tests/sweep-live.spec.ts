@@ -3,16 +3,14 @@
 // read answers `expired`.
 import { randomBytes } from 'node:crypto'
 import { judgeContentBlock } from '@omne-harness/content-block'
-import { succeed } from '@omne-harness/operation-result'
 import { decodeToolOperationId } from '@omne-harness/tool-contract'
 import {
   decodeToolInstanceId,
   decodeToolInstant,
-  decodeToolMaterialInstant,
   type FactBatch,
 } from '@omne-harness/tool-contract/provider'
 import { afterEach, expect, it } from 'vitest'
-import { createSqlToolBodyStore, createSqlToolMaterialStore } from '../src/index.ts'
+import { createSqlToolBodyStore } from '../src/index.ts'
 import { domainNameOf, openApp, TENANT_A, type App } from './fixtures/app.ts'
 import { ledgerWorld } from './fixtures/ledger.ts'
 
@@ -28,33 +26,19 @@ afterEach(() => {
 
 const evidence = { owner: 'sweep-live', record: 'source', revision: '1', digest: 'sha256:source' }
 
-/** A settled call whose result offloaded a 70 KiB text body, over the SQL ledger and body store. */
-async function settledOffloaded(app: App) {
+/** A settled call whose final planned a 70 KiB text body, over the SQL ledger and body store. */
+export async function settledOffloaded(app: App, text = 'x'.repeat(70 * 1024)) {
   const world = await ledgerWorld(TENANT_A)
   let now = '2026-11-10T00:00:00.000Z'
-  const provider = { owner: 'sweep-live', name: 'materials', revision: '1', digest: 'sha256:m' }
   const permitKey = { secret: randomBytes(32) }
   const clock = { now: () => ok(decodeToolInstant(now)) }
-  const ledger = world.ledgerOver(
-    app.store,
-    {
-      provider,
-      store: createSqlToolMaterialStore({
-        ...app.options,
-        provider,
-        maxCommandBytes: 1_048_576,
-        maxChunkBytes: 16_384,
-      }),
-      clock: { sample: async () => succeed(ok(decodeToolMaterialInstant(now))) },
+  const ledger = world.ledgerOver(app.store, {
+    bodies: {
+      store: createSqlToolBodyStore({ ...app.options, permitKey, clock }),
+      permitKey,
+      clock,
     },
-    {
-      bodies: {
-        store: createSqlToolBodyStore({ ...app.options, permitKey, clock }),
-        permitKey,
-        clock,
-      },
-    },
-  )
+  })
   const access = world.access
   const context = async (name: string) => ({
     ...access,
@@ -93,16 +77,6 @@ async function settledOffloaded(app: App) {
       outcome: { kind: 'started', acceptance: evidence },
     }),
   )
-  const text = 'x'.repeat(70 * 1024)
-  const raw = ok(
-    await ledger.rawCustody.preserve({
-      ...access,
-      operation: ok(decodeToolOperationId('raw')),
-      codec: { owner: 'fixture', name: 'text', revision: '1', digest: 'sha256:text' },
-      bytes: new TextEncoder().encode(text),
-      source: evidence,
-    }),
-  )
   const judged = judgeContentBlock({
     kind: 'text',
     id: 'answer',
@@ -110,15 +84,14 @@ async function settledOffloaded(app: App) {
     text,
   })
   if (!('ok' in judged)) throw new Error(JSON.stringify(judged.rejected))
-  const pointer = ok(
-    await ledger.finalCustody.preserveFinal({
+  const planned = ok(
+    await ledger.finalPlanner.planFinal({
       ...access,
       start,
       source: evidence,
-      operation: ok(decodeToolOperationId('final-envelope')),
+      operation: ok(decodeToolOperationId('final')),
       final: {
         kind: 'final',
-        raw,
         result: {
           content: [judged.ok],
           data: { kind: 'none' },
@@ -136,7 +109,7 @@ async function settledOffloaded(app: App) {
     batch: 'final',
     after: null,
     cursor: 'final/end',
-    events: [{ event: 'final', fact: pointer }],
+    events: [{ event: 'final', fact: planned }],
   }
   ok(await ledger.commands.receiveFacts({ ...access, start, batch }))
   const task = ok(await ledger.commands.loadRecovery(access)).tasks.find(
@@ -147,18 +120,12 @@ async function settledOffloaded(app: App) {
   const state = ok(await ledger.commands.loadRecovery(access)).state
   if (state.phase !== 'settled') throw new Error('result did not settle')
   const value = ok(await ledger.delivery.read({ ...access, result: state.result }))
-  if (value.original.kind !== 'offloaded') throw new Error('body was not offloaded')
   return {
     ledger,
     access,
-    body: value.original,
-    readInput: {
-      ...access,
-      result: state.result,
-      bodyId: value.original.bodyId,
-      after: null,
-      maxBytes: 64,
-    },
+    planned,
+    result: state.result,
+    value,
     setNow: (value: string) => {
       now = value
     },
@@ -174,31 +141,37 @@ it('a reclaimed body leaves no row in the body tables or the due index; its entr
   const app = await openApp()
   opened.push(app)
   const live = await settledOffloaded(app)
+  if (live.value.original.kind !== 'offloaded') throw new Error('body was not offloaded')
+  const body = live.value.original
+  const readInput = {
+    ...live.access,
+    result: live.result,
+    bodyId: body.bodyId,
+    after: null,
+    maxBytes: 64,
+  }
   expect(count(app, 'tl_body_chunk')).toBeGreaterThan(0)
   expect(count(app, 'tl_body_manifest')).toBe(1)
   expect(count(app, 'tl_due')).toBe(1)
-  const beforeExpiry = new Date(Date.parse(live.body.retention.expiresAt) - 1).toISOString()
+  const beforeExpiry = new Date(Date.parse(body.retention.expiresAt) - 1).toISOString()
   expect(ok(await live.ledger.sweep(TENANT_A, ok(decodeToolInstant(beforeExpiry)), 10))).toEqual({
     reclaimed: 0,
   })
   expect(count(app, 'tl_body_chunk')).toBeGreaterThan(0)
-  live.setNow(live.body.retention.expiresAt)
-  expect(
-    ok(await live.ledger.sweep(TENANT_A, ok(decodeToolInstant(live.body.retention.expiresAt)), 10)),
-  ).toEqual({ reclaimed: 1 })
+  live.setNow(body.retention.expiresAt)
+  const at = ok(decodeToolInstant(body.retention.expiresAt))
+  expect(ok(await live.ledger.sweep(TENANT_A, at, 10))).toEqual({ reclaimed: 1 })
   expect(count(app, 'tl_body_chunk')).toBe(0)
   expect(count(app, 'tl_body_manifest')).toBe(0)
   expect(count(app, 'tl_due')).toBe(0)
   const loaded = await app.store.read({ kind: 'call', tenant: TENANT_A, call: live.access.call })
   if (loaded.kind !== 'complete') throw new Error(JSON.stringify(loaded))
   const entry = loaded.records.find(
-    record => record.kind === 'body-entry' && record.body.bodyId === live.body.bodyId,
+    record => record.kind === 'body-entry' && record.body.bodyId === body.bodyId,
   )
   expect(entry).toMatchObject({ body: { state: { kind: 'reclaimed' } } })
-  expect(await live.ledger.reads.body.read(live.readInput)).toEqual({
+  expect(await live.ledger.reads.body.read(readInput)).toEqual({
     failure: { kind: 'not-found', target: 'body', reason: 'expired' },
   })
-  expect(
-    ok(await live.ledger.sweep(TENANT_A, ok(decodeToolInstant(live.body.retention.expiresAt)), 10)),
-  ).toEqual({ reclaimed: 0 })
+  expect(ok(await live.ledger.sweep(TENANT_A, at, 10))).toEqual({ reclaimed: 0 })
 })

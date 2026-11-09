@@ -4,19 +4,20 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Adoption, ToolFailure } from '@omne-harness/tool-contract'
 import {
   describedAdoption,
-  type ToolMaterialFingerprint,
+  type ToolCanonicalFingerprint,
 } from '@omne-harness/tool-contract/provider'
 
 export type MaterialBytes = Readonly<{
   bytes: Uint8Array
   codec: Adoption
-  fingerprint: Pick<ToolMaterialFingerprint, 'algorithm' | 'digest' | 'bytes'>
+  fingerprint: Pick<ToolCanonicalFingerprint, 'algorithm' | 'digest' | 'bytes'>
 }>
 
-export type EncodedToolMaterial = MaterialBytes & Readonly<{ fingerprint: ToolMaterialFingerprint }>
+export type EncodedToolCanonical = MaterialBytes &
+  Readonly<{ fingerprint: ToolCanonicalFingerprint }>
 
 /** M02.1 canonical data after the caller has encoded its domain identities. */
-export function encodeToolMaterial(value: unknown): Outcome<EncodedToolMaterial, ToolFailure> {
+export function encodeToolCanonical(value: unknown): Outcome<EncodedToolCanonical, ToolFailure> {
   try {
     const bytes = new TextEncoder().encode(encodeValue(value, new Set()))
     return succeed({

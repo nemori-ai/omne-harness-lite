@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import { fixture, ok } from './fixture.ts'
-import { canonicalDigest, encodeToolMaterial } from '@omne-harness/tool'
+import { canonicalDigest, encodeToolCanonical } from '@omne-harness/tool'
 import { createDeliveryState } from '../../src/delivery-state.ts'
 import { callHostDomain } from '../../src/host-domains.ts'
 
@@ -99,7 +99,7 @@ it('rejects a same-key payload change without replacing the original freeze', as
   const descriptor = {
     ...payload,
     value: {
-      fingerprint: ok(encodeToolMaterial(payload.value)).fingerprint,
+      fingerprint: ok(encodeToolCanonical(payload.value)).fingerprint,
       original: { kind: 'none' as const },
     },
   }

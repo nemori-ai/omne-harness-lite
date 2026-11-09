@@ -7,11 +7,7 @@ import { join } from 'node:path'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { TenantDomainLookup } from '@omne-harness/sql-contract'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
-import {
-  createSqlToolLedgerStore,
-  type SqlToolOutputCustodyOptions,
-  type SqlToolStorageOptions,
-} from '../../src/index.ts'
+import { createSqlToolLedgerStore, type SqlToolStorageOptions } from '../../src/index.ts'
 import { createFaultyStorage, type FaultyStorage } from './faults.ts'
 import { createSqliteStorage, domainRef, type SqliteStorage } from './sqlite-storage.ts'
 
@@ -52,7 +48,6 @@ export type App = Readonly<{
   sqlite: SqliteStorage
   faults: FaultyStorage
   options: SqlToolStorageOptions
-  custodyOptions(overrides?: Partial<SqlToolOutputCustodyOptions>): SqlToolOutputCustodyOptions
   store: ReturnType<typeof createSqlToolLedgerStore>
   /** Closes the databases and removes the directory. */
   close(): void
@@ -105,12 +100,6 @@ export async function openApp(
     sqlite,
     faults,
     options,
-    custodyOptions: overrides => ({
-      ...options,
-      maxCommandBytes: input.maxCommandBytes ?? MAX_COMMAND_BYTES,
-      maxChunkBytes: 4096,
-      ...overrides,
-    }),
     store: createSqlToolLedgerStore(options),
     close: () => {
       sqlite.close()

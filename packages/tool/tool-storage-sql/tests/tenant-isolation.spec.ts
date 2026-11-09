@@ -12,7 +12,7 @@ import {
 } from '@omne-harness/tool-contract'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import type { TenantId } from '@omne-harness/legal-identity'
-import { createSqlToolLedgerStore, createSqlToolOutputCustody } from '../src/index.ts'
+import { createSqlToolLedgerStore } from '../src/index.ts'
 import { domainRef } from './fixtures/sqlite-storage.ts'
 import {
   domainNameOf,
@@ -96,25 +96,6 @@ describe('two tenants that use the same call key', () => {
       records: [record('of A')],
     })
   })
-
-  it('the custody of one tenant is invisible to the other, and the same operation is its own', async () => {
-    const a = await app()
-    const custody = createSqlToolOutputCustody<string>(a.custodyOptions())
-    const raw = ok(
-      await custody.preserve({ ...mutation(TENANT_A), codec, bytes: bytesOf('A'), source }),
-    )
-    expect(ok(await custody.inspect(mutation(TENANT_B)))).toEqual({ kind: 'unknown' })
-    const foreign = ok(
-      await custody.preserve({
-        ...mutation(TENANT_B),
-        codec,
-        bytes: bytesOf('B, other bytes'),
-        source,
-      }),
-    )
-    expect(foreign).not.toEqual(raw)
-    expect(ok(await custody.inspect(mutation(TENANT_A)))).toEqual({ kind: 'retained', raw })
-  })
 })
 
 describe('rows of tenant B planted in the database of tenant A', () => {
@@ -131,17 +112,6 @@ describe('rows of tenant B planted in the database of tenant A', () => {
       domain,
       'INSERT INTO tl_record (tenant, kind, name, key, record) VALUES (?, ?, ?, ?, ?)',
       [b, 'call', 'shared', 'host:same', JSON.stringify(record('of B'))],
-    )
-    a.sqlite.inspect(
-      domain,
-      `INSERT INTO tl_manifest (tenant, call, operation, kind, digest, bytes, chunks, sha256, seal, answer)
-       VALUES (?, 'shared', 'preserve-1', 'raw', 'planted', 1, 1, 'planted', 'planted', '{}')`,
-      [b],
-    )
-    a.sqlite.inspect(
-      domain,
-      "INSERT INTO tl_chunk (tenant, call, operation, idx, data) VALUES (?, 'shared', 'preserve-1', 0, x'42')",
-      [b],
     )
     return a
   }
@@ -180,17 +150,6 @@ describe('rows of tenant B planted in the database of tenant A', () => {
     )
     expect(rows).toEqual([{ revision: '5' }])
   })
-
-  it('inspect of tenant A answers as for an operation never preserved, and its preserve is its own', async () => {
-    const a = await planted()
-    const custody = createSqlToolOutputCustody<string>(a.custodyOptions())
-    expect(ok(await custody.inspect(mutation(TENANT_A)))).toEqual({ kind: 'unknown' })
-    const raw = ok(
-      await custody.preserve({ ...mutation(TENANT_A), codec, bytes: bytesOf('A'), source }),
-    )
-    expect(raw.content.bytes).toBe('1')
-    expect(ok(await custody.inspect(mutation(TENANT_A)))).toEqual({ kind: 'retained', raw })
-  })
 })
 
 describe('a tenant that the directory does not hold', () => {
@@ -209,14 +168,6 @@ describe('a tenant that the directory does not hold', () => {
         })
       ).kind,
     ).toBe('unavailable')
-    const custody = createSqlToolOutputCustody<string>(a.custodyOptions())
-    const answer = await custody.preserve({
-      ...mutation(UNREGISTERED),
-      codec,
-      bytes: bytesOf('x'),
-      source,
-    })
-    expect('failure' in answer && answer.failure.kind).toBe('unavailable')
     expect(a.faults.commits()).toBe(0)
   })
 })

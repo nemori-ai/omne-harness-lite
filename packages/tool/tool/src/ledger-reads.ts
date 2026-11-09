@@ -122,9 +122,6 @@ export function readRecovery(snapshot: Snapshot): Outcome<ToolRecovery, ToolFail
     preparations: call.preparations,
     waits: [],
     suspensions: [],
-    rawOutputs: [...snapshot.results.values()].flatMap(result =>
-      result.custody.kind === 'execution' ? [result.custody.raw] : [],
-    ),
     tasks: snapshot.tasks,
     program: null,
     scheduling: null,

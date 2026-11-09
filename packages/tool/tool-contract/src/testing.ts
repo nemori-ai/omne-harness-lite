@@ -76,14 +76,6 @@ export {
   type ToolExecutorBindingFixture,
 } from './testing-executor-binding.ts'
 export {
-  createMemoryToolOutputCustody,
-  memoryToolOutputCustodyFixture,
-  outputCustodyAnswers,
-  toolOutputCustodyConformance,
-  type MemoryToolOutputCustody,
-  type ToolOutputCustodyFixture,
-} from './testing-output-custody.ts'
-export {
   createManualInstantClock,
   createMemoryToolBodyStore,
   instantAt,

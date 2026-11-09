@@ -17,7 +17,7 @@ import {
   type ToolLedgerStore,
   type ToolLedgerPorts,
 } from '@omne-harness/tool'
-import { createMemoryToolMaterials, createTestInvocationSource } from '@omne-harness/tool/testing'
+import { createTestInvocationSource } from '@omne-harness/tool/testing'
 import {
   decodeToolCallId,
   type Adoption,
@@ -211,11 +211,9 @@ export async function ledgerWorld(tenant: TenantId, body?: ToolBodyDeclaration) 
       },
     },
   }
-  const memoryMaterials = createMemoryToolMaterials<Principal>()
   const memoryBodies = createMemoryToolBodies()
   const ledgerOver = (
     store: ToolLedgerStore,
-    materials?: ToolLedgerPorts<Principal>['materials'],
     bodyOptions: Readonly<{
       schemas?: ToolLedgerPorts<Principal>['bodySchemas']
       limits?: JsonLimits
@@ -270,7 +268,6 @@ export async function ledgerWorld(tenant: TenantId, body?: ToolBodyDeclaration) 
         },
       },
       {
-        materials: materials ?? memoryMaterials,
         bodies: bodyOptions.bodies ?? memoryBodies,
         ...(bodyOptions.schemas === undefined ? {} : { bodySchemas: bodyOptions.schemas }),
         releaseInspection: createMemoryToolEnvironment<Principal>(),

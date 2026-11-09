@@ -33,25 +33,21 @@ export function observeToolMaterials(storageRoot: string) {
           .all()
           .map(row => [canonicalDigest(JSON.parse(String(row['material']))), String(row['state'])]),
       )
-      const materials = records
-        .filter(record => record.kind === 'material')
-        .map(record => ({
-          purpose: record.material.purpose,
-          state: record.material.state.kind,
-          physicalState: physical.get(canonicalDigest(record.material.material)) ?? 'missing',
-          bytes: chunks.get(canonicalDigest(record.material.material))?.bytes ?? 0,
-          chunks: chunks.get(canonicalDigest(record.material.material))?.count ?? 0,
-        }))
+      const materials: {
+        purpose: string
+        state: string
+        physicalState: string
+        bytes: number
+        chunks: number
+      }[] = []
       found.push({
         results: results.map(record => ({
           delivery: record.result.delivery.kind,
           original: record.result.value.original.kind,
         })),
         materials,
-        cleanup: records.filter(record => record.kind === 'material-cleanup').length,
-        uses: records
-          .filter(record => record.kind === 'material-use')
-          .map(record => record.use.kind),
+        cleanup: 0,
+        uses: [] as string[],
       })
     } finally {
       db.close()

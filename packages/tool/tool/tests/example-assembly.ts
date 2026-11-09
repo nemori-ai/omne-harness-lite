@@ -329,21 +329,9 @@ export function createDemo() {
                       valueOf(author.output.check({ arguments: argumentsValue, value })),
                     ),
                   )
-            const bytes = valueOf(author.codec.encode(value))
-            const raw = valueOf(
-              await test.doubles.custody.preserve({
-                ...access,
-                call: input.call,
-                operation: valueOf(await identities.operationIdentities.newOperation()),
-                codec: author.codec.adoption,
-                bytes,
-                source: evidence(`author-output-${input.call}`, { bytes: bytes.length }),
-              }),
-            )
             // Publish the actual author's result as the source's final fact. Never seed ledger state.
             await test.doubles.executor.controls.finishEnvelope(input.start, {
               kind: 'final',
-              raw,
               result,
               terminal: { kind: 'completed' },
               effect: { kind: 'not-occurred', evidence: evidence('read-only-report', input.call) },

@@ -1,21 +1,21 @@
 import type { ShutdownClock, Timer } from '../../shutdown.ts'
-import type { createMaterialMaintenanceSweep } from './material-maintenance-sweep.ts'
+import type { createBodySweep } from './body-sweep.ts'
 
-type Sweep = ReturnType<typeof createMaterialMaintenanceSweep>
-export type MaterialMaintenanceRunnerInput = Readonly<{
+type Sweep = ReturnType<typeof createBodySweep>
+export type SweepRunnerInput = Readonly<{
   sweep: Sweep
   clock: Pick<ShutdownClock, 'after'>
   intervalMs: number
   report(result: Awaited<ReturnType<Sweep['advance']>>): void
 }>
 
-export function startMaterialMaintenanceRunner(input: MaterialMaintenanceRunnerInput) {
+export function startSweepRunner(input: SweepRunnerInput) {
   if (
     !Number.isSafeInteger(input.intervalMs) ||
     input.intervalMs < 1 ||
     input.intervalMs > 2_147_483_647
   )
-    throw new RangeError('material maintenance intervalMs must be a supported positive timer delay')
+    throw new RangeError('sweep intervalMs must be a supported positive timer delay')
   let stopped = false
   let timer: Timer | null = null
   let closing: Promise<void> | null = null

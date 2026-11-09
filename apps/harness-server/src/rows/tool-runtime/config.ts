@@ -1,6 +1,6 @@
 // Tool 运行时组的配置（B 段）：bundle 只建一次，建时就要全部数值，所以整组的配置只放在 `tool-records` 行上
 // （一个插件体、一个记录仓、一个启动协调器）。字段的含义归 `@omne-harness/tool` 的 `ToolConfiguration` 与
-// tool-host-local 的 `LocalToolRuntimeInput`；`maxCommandBytes`、`maxChunkBytes` 归 tool-storage-sql 的输出保管。
+// tool-host-local 的 `LocalToolRuntimeInput`；`maxCommandBytes` 是交给 `storage` 行的同一个值。
 // 发行层不写数值（R2-D6 同一口径）：全部由运维者层给，缺任何一项本行装载时失败，不取成员初值冒充部署值。
 import { isAbsolute } from 'node:path'
 import type { ToolConfiguration } from '@omne-harness/tool'
@@ -64,8 +64,6 @@ export const toolRuntimeConfigSchema = z.strictObject({
   combinationVersion: z.string().min(1).max(1024),
   /** 交给 `storage` 行的同一个值（装配页 `tool-records` 行）。 */
   maxCommandBytes: positive,
-  /** 输出保管一块原字节的上限；编码后加信封必须放进一条命令。 */
-  maxChunkBytes: positive,
   configuration: toolConfigurationSchema,
   capacity: positive,
   observersPerCall: positive,

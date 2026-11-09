@@ -18,7 +18,7 @@ export function jsonDocumentFixture(text: string) {
       definition: { schema: schema.value, vocabulary: adoption('json-schema'), descriptions: [] },
     },
   }
-  const value: SettlementRenderer = async (_raw, ledger, access) => {
+  const value: SettlementRenderer = async (ledger, access) => {
     const start = ok(await ledger.commands.loadRecovery(access)).start
     if (start === null) throw new Error('original start required')
     const scope = createToolBodyScope({
@@ -78,7 +78,7 @@ export function jsonLinesFixture(lines: readonly string[]) {
     codec: adoption('json-lines'),
     record: declaration.document,
   }
-  const value: SettlementRenderer = async (_raw, ledger, access) => {
+  const value: SettlementRenderer = async (ledger, access) => {
     const start = ok(await ledger.commands.loadRecovery(access)).start
     if (start === null) throw new Error('original start required')
     const scope = createToolBodyScope({

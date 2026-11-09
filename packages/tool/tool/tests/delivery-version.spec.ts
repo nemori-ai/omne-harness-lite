@@ -56,7 +56,6 @@ async function existingVersions() {
   expect(f.harness.binding.executions).toEqual([call])
   expect(callRecord.call.start).toEqual(f.batch.start)
   expect(callRecord.call.execution).toEqual(f.before.execution)
-  expect(originalCustody.raw).toEqual(f.final.raw)
   expect(original.result.terminal).toEqual(f.final.terminal)
   const expectedValues = [f.final.result]
   const late = async (ordinal: number): Promise<ResultRecord> => {
@@ -66,7 +65,6 @@ async function existingVersions() {
       content: [text(`late-${ordinal}`, `late ${ordinal}`)],
     }
     expectedValues.push(value)
-    const raw = originalCustody.raw
     return {
       ...original.result,
       result: ok(decodeToolResultVersion(`fixture-late-${ordinal}`)),
@@ -85,7 +83,6 @@ async function existingVersions() {
         kind: 'execution',
         final: evidence(`fixture-late-final-${f.batch.start.operation}-${ordinal}`),
         finalValue: originalCustody.finalValue,
-        raw,
         materialized: source,
         cleanup: originalCustody.cleanup,
       },

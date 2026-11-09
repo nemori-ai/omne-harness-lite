@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { encodeToolMaterial } from '@omne-harness/tool'
+import { encodeToolCanonical } from '@omne-harness/tool'
 
 it.each([
   {
@@ -27,7 +27,7 @@ it.each([
     digest: '842b0fade85fdf871d443011e6b783fe02168b108dfc52734b3cb1d25052bd67',
   },
 ])('M02.1 encodes the fixed vector $text', ({ value, text, bytes, digest }) => {
-  const encoded = encodeToolMaterial(value)
+  const encoded = encodeToolCanonical(value)
   if ('failure' in encoded) throw new Error(JSON.stringify(encoded.failure))
   expect(new TextDecoder().decode(encoded.ok.bytes)).toBe(text)
   expect(encoded.ok.fingerprint).toEqual({
@@ -60,7 +60,7 @@ it.each([
   { [Symbol('hidden')]: 1 },
   Object.assign([], { extra: 'not an element' }),
 ])('M02.1 rejects non-data input %# without a success fingerprint', value => {
-  expect(encodeToolMaterial(value)).toEqual({
+  expect(encodeToolCanonical(value)).toEqual({
     failure: { kind: 'invalid', field: 'material', reason: 'not canonical JSON data' },
   })
 })
@@ -71,16 +71,16 @@ it('rejects accessors without evaluating them', () => {
     Object.defineProperty({}, 'value', { get }),
     Object.defineProperty([], '0', { get }),
   ])
-    expect(encodeToolMaterial(value)).toHaveProperty('failure')
+    expect(encodeToolCanonical(value)).toHaveProperty('failure')
   expect(get).not.toHaveBeenCalled()
 })
 
 it('rejects cycles but permits repeated references to the same data', () => {
   const circular: Record<string, unknown> = {}
   circular['self'] = circular
-  expect(encodeToolMaterial(circular)).toHaveProperty('failure')
+  expect(encodeToolCanonical(circular)).toHaveProperty('failure')
   const shared = { a: 1 }
-  const encoded = encodeToolMaterial([shared, shared])
+  const encoded = encodeToolCanonical([shared, shared])
   if ('failure' in encoded) throw new Error(JSON.stringify(encoded.failure))
   expect(new TextDecoder().decode(encoded.ok.bytes)).toBe('[{"a":1},{"a":1}]')
 })
@@ -88,8 +88,8 @@ it('rejects cycles but permits repeated references to the same data', () => {
 it('does not run Proxy traps or toJSON hooks', () => {
   const getPrototypeOf = vi.fn(() => Object.prototype)
   const toJSON = vi.fn(() => ({}))
-  expect(encodeToolMaterial(new Proxy({}, { getPrototypeOf }))).toHaveProperty('failure')
-  expect(encodeToolMaterial({ toJSON })).toHaveProperty('failure')
+  expect(encodeToolCanonical(new Proxy({}, { getPrototypeOf }))).toHaveProperty('failure')
+  expect(encodeToolCanonical({ toJSON })).toHaveProperty('failure')
   expect(getPrototypeOf).not.toHaveBeenCalled()
   expect(toJSON).not.toHaveBeenCalled()
 })
@@ -105,7 +105,7 @@ it.each([
   },
   { value: JSON.parse('{"__proto__":1}'), text: '{"__proto__":1}' },
 ])('preserves the v1 representation $text', ({ value, text }) => {
-  const encoded = encodeToolMaterial(value)
+  const encoded = encodeToolCanonical(value)
   if ('failure' in encoded) throw new Error(JSON.stringify(encoded.failure))
   expect(new TextDecoder().decode(encoded.ok.bytes)).toBe(text)
 })

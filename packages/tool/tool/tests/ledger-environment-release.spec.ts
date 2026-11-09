@@ -249,14 +249,11 @@ describe('canonical environment cleanup ledger', () => {
   )
 
   it('rechecks every historical process reference rather than current projection', async () => {
+    const last = refProcess('last', '2')
+    if (!('ref' in last.content)) throw new Error('fixture ref')
     const f = await settlementFixture({
-      process: raw => [
-        refProcess('lost', '1'),
-        {
-          ...refProcess('last', '2'),
-          content: { ...refProcess('last').content, ref: raw.content },
-        },
-      ],
+      attachments: [last.content.ref],
+      process: [refProcess('lost', '1'), last],
     })
     ok(await f.preserve())
     const result = (await f.records()).find(row => row.kind === 'result')

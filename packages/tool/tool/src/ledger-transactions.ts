@@ -3,7 +3,6 @@ import type { Reply, ToolFailure, ToolOperationId } from '@omne-harness/tool-con
 import { nextRevision } from './evidence.ts'
 import { snapshotOf, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
 import { excluded, excludedSince, withExclusionsRemoved } from './ledger-exclusion.ts'
-import { materialMaintenanceHint } from './ledger-material-hint.ts'
 import type { LedgerDomain, LedgerWrite, ToolLedgerStore } from './ledger-store.ts'
 
 export type Decide<T> = (snapshot: Snapshot, mint: Mint) => Decision<T> | Promise<Decision<T>>
@@ -78,18 +77,7 @@ export function createLedgerTransactions(
       for (const identity of operations) {
         if (excludedSince(snapshot.ok, identity, firstRead)) return excluded(identity)
       }
-      let writes = withExclusionsRemoved(decision.writes, operations)
-      if (domain.kind === 'call')
-        writes = [
-          ...writes,
-          {
-            kind: 'put',
-            record: {
-              kind: 'material-maintenance-hint',
-              hint: materialMaintenanceHint(snapshot.ok, writes),
-            },
-          },
-        ]
+      const writes = withExclusionsRemoved(decision.writes, operations)
       const committed = await commit(domain, snapshot.ok.revision, revision, writes)
       if (committed.kind === 'committed') return succeed(decision.value)
       if (committed.kind === 'unknown') return unknown

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { TextContentBlock } from '@omne-harness/content-block'
 import { describedAdoption } from '@omne-harness/tool-contract/provider'
-import type { MaterialBytes } from './material-codec.ts'
+import type { MaterialBytes } from './canonical-codec.ts'
 
 export const textBodyCodec = describedAdoption({
   owner: '@omne-harness/tool',

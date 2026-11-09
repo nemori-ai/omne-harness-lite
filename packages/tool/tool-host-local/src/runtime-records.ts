@@ -38,7 +38,6 @@ export function createRuntimeRecords(
     controlSubjects: input.controlSubjects,
     content: input.content,
     ...(input.bodySchemas === undefined ? {} : { bodySchemas: input.bodySchemas }),
-    materials: input.materials,
     bodies: input.bodies,
     releaseInspection: stages.environments,
   }

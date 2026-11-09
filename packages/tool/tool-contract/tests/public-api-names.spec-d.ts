@@ -256,7 +256,6 @@ export type {
   ToolTask,
   TaskResolution,
   DrainState,
-  ToolOutputCustody,
   ToolContentReader,
   ToolReads,
   AccountScope,

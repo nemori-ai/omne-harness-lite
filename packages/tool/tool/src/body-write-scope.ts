@@ -11,7 +11,7 @@ import type {
 import { digestOf } from './evidence.ts'
 import { copyData } from './facts-boundary.ts'
 import { isPositiveSafeInteger } from './limits.ts'
-import { encodeToolMaterial } from './material-codec.ts'
+import { encodeToolCanonical } from './canonical-codec.ts'
 
 type Result<T> = Outcome<T, ToolPrimitiveFailure>
 type Exit = 'returned' | 'failed'
@@ -105,7 +105,7 @@ class BodyScope<P> implements ToolBodyScope {
         fail({ kind: 'invalid', reason: 'body writer input must be plain data' }),
       )
     }
-    const encoded = encodeToolMaterial(fixed)
+    const encoded = encodeToolCanonical(fixed)
     if ('failure' in encoded)
       return Promise.resolve(
         fail({ kind: 'invalid', reason: 'body writer input cannot be encoded' }),

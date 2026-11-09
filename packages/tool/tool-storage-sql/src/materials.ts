@@ -11,19 +11,13 @@ import type {
   ReadHandlerDescriptor,
   ReadOrdering,
 } from '@omne-harness/sql-contract'
-import { MATERIAL_READ_HANDLER } from './worker/read-material.ts'
-import { MATERIAL_MIGRATION, MATERIAL_TABLES } from './worker/migration-material.ts'
-import { MAINTENANCE_MIGRATION, MAINTENANCE_TABLES } from './worker/migration-maintenance.ts'
-import { MAINTENANCE_PAGE_LIMIT, MAINTENANCE_READ_HANDLER } from './maintenance-scan-wire.ts'
 import {
   BODY_READ_CHUNKS,
   BODY_READ_HANDLER,
-  CHUNK_READ_HANDLER,
   DUE_READ_ENTRIES,
   DUE_READ_HANDLER,
   LEDGER_READ_HANDLER,
   LEDGER_READ_ROWS,
-  MANIFEST_READ_HANDLER,
   MIGRATION,
   PARTICIPANT,
   PROTOCOL,
@@ -56,43 +50,15 @@ type Handler = Readonly<{
 
 /**
  * The ledger domain read is `domain-serial`: it is ordered after every write admitted before it
- * (sql-contract §9.3, §17). The custody reads are snapshots: a manifest is immutable once committed.
+ * (sql-contract §9.3, §17). The body read is a snapshot: a sealed body is immutable.
  */
 const HANDLERS: readonly Handler[] = [
-  {
-    handler: MAINTENANCE_READ_HANDLER,
-    file: 'read-maintenance',
-    ordering: 'domain-serial',
-    tables: MAINTENANCE_TABLES,
-    rows: MAINTENANCE_PAGE_LIMIT + 2,
-  },
-  {
-    handler: MATERIAL_READ_HANDLER,
-    file: 'read-material',
-    ordering: 'domain-serial',
-    tables: MATERIAL_TABLES,
-    rows: 2,
-  },
   {
     handler: LEDGER_READ_HANDLER,
     file: 'read-ledger',
     ordering: 'domain-serial',
     tables: ['tl_domain', 'tl_record'],
     rows: LEDGER_READ_ROWS + 2,
-  },
-  {
-    handler: MANIFEST_READ_HANDLER,
-    file: 'read-manifest',
-    ordering: 'snapshot',
-    tables: ['tl_manifest'],
-    rows: 1,
-  },
-  {
-    handler: CHUNK_READ_HANDLER,
-    file: 'read-chunk',
-    ordering: 'snapshot',
-    tables: ['tl_chunk'],
-    rows: 1,
   },
   {
     handler: BODY_READ_HANDLER,
@@ -120,8 +86,6 @@ export type ToolStorageMaterials = Readonly<{
 export function toolStorageMaterials(): ToolStorageMaterials {
   const participant = module('participant')
   const migration = module('migration')
-  const materialMigration = module('migration-material')
-  const maintenanceMigration = module('migration-maintenance')
   return {
     participants: [
       {
@@ -129,7 +93,7 @@ export function toolStorageMaterials(): ToolStorageMaterials {
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: [...TOOL_TABLES, ...MATERIAL_TABLES, ...MAINTENANCE_TABLES],
+        ownedTables: [...TOOL_TABLES],
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
@@ -139,18 +103,6 @@ export function toolStorageMaterials(): ToolStorageMaterials {
     ],
     migrations: [
       { ...migrationRef, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
-      {
-        ...MAINTENANCE_MIGRATION,
-        moduleUrl: maintenanceMigration.moduleUrl,
-        checksum: maintenanceMigration.digest,
-        requires: [migrationRef],
-      },
-      {
-        ...MATERIAL_MIGRATION,
-        moduleUrl: materialMigration.moduleUrl,
-        checksum: materialMigration.digest,
-        requires: [migrationRef],
-      },
     ],
     readHandlers: HANDLERS.map(item => {
       const file = module(item.file)
@@ -161,12 +113,7 @@ export function toolStorageMaterials(): ToolStorageMaterials {
         codeDigest: file.digest,
         ordering: item.ordering,
         readTables: item.tables,
-        requiresMigrations:
-          item.handler === MATERIAL_READ_HANDLER
-            ? [MATERIAL_MIGRATION]
-            : item.handler === MAINTENANCE_READ_HANDLER
-              ? [MAINTENANCE_MIGRATION]
-              : [migrationRef],
+        requiresMigrations: [migrationRef],
         maxOutputBytes: READ_OUTPUT_BYTES,
         maxRowsRead: item.rows,
       }

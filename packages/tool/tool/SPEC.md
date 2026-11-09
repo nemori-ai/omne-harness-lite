@@ -97,11 +97,11 @@ W3 的最终结果准备、正文页与材料释放增量依据 [#1168](https://
 
 账本由 `createToolLedger(store, guards, clock, configuration, ports)` 构造。runtime 由 `createToolRuntime(dependencies, configuration)` 构造。两者可以取同一个 `ToolConfiguration`。账本读取 `resultPageBytes`、`ledgerCommitAttempts`、`queueCapacity` 与 `offloading`。数据形状与决定顺序见 [architecture](docs/architecture.md#本包的记录仓与决定器g1)。下列规则按编号对应测试。
 
-签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts, rawCustody, bodyCustody, finalCustody, delivery, controls }`。`configuration` 给出结果页大小、提交重试上限、队列容量与正文策略，唯一来源是 `ToolConfiguration`。第五参数 `ToolLedgerPorts<P>` 必填，提供 `materials`、`releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`，不提供默认授权或旧构造。`facts` 是账本的受信恢复读口，runtime 的结算驱动只使用 commands，不再注入它。
+签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts, bodyWrites, finalPlanner, sweep, delivery, controls }`。`configuration` 给出结果页大小、提交重试上限、队列容量与正文策略，唯一来源是 `ToolConfiguration`。第五参数 `ToolLedgerPorts<P>` 必填，提供 `bodies`（正文存储、许可密钥与参与者时钟）、`releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`，不提供默认授权或旧构造。`facts` 是账本的受信恢复读口，runtime 的结算驱动只使用 commands，不再注入它。
 
-`rawCustody` 提供 `ToolOutputCustody` 的 preserve 和 inspect 窄分面。它在原 call 域先记录材料准备责任，再写入原始字节，保留作者 codec。新准备要求存在原 start，且调用处于 starting 或 running；已封存操作可认回。重试异值冲突，未确认封存时 inspect 返回 unknown，不声称可靠排除。两入口均检查 write 资格，披露前再次检查。purpose 区分 raw、body、final 和 result 材料，不能跨用途认回。宿主采用同一账本 raw 保管端口。
+`finalPlanner` 提供 `ToolFinalPlanner.planFinal`：见下文“最终事实的计划与结算”。原始返回 R 不再进入任何保管端口。
 
-结果提交在同一次 call CAS 中核对各最终通道的 sealed 材料和准备用途，将准备用途替换为绑定结果与交付身份的 delivery 用途。真实执行结果同时解除已替代 envelope 的准备用途并记录 material-cleanup 待办。系统受理拒绝、rejectPending 和 recordStart(rejected) 也采用通道用途转换。releaseDelivery 在可靠消费依据通过核验后，同提交解除对应 delivery 用途并记录清理待办。material-cleanup 只表达待检查的责任，不授权物理删除；维护仍须重核其他用途、租约与对象围栏。已替代 raw 在同次结算解除准备责任。仍被原生引用或历史过程引用的 raw 分别采用 native-reference 与 process-history 用途，两者可同时存在。交付释放不解除这两种用途。历史过程引用尚无释放协议，不能据此安排删除。维护执行尚未完成。
+结果提交在同一次 call CAS 中写入结果记录（通道值内联）、把被引用的正文条目置为 `linked` 并排期、把其余 opened/sealed 条目标孤儿并按 now + G 排期。系统受理拒绝、rejectPending 和 recordStart(rejected) 的合成结果走同一条写入。releaseDelivery 在可靠消费依据通过核验后解除交付，不改写记录值；到期回收只由清扫按到期索引执行。
 
 ### 正文封存与期限激活
 
@@ -600,89 +600,11 @@ resume 只查询来源已有槽。槽未确认时回复 association-unknown，�
 
 SourceVerdict 的 denied 表示来源真实、当前请求资格被拒。ledger 将其映射为 denied admit，不写入新准入。forged 继续表示来源证明不匹配。共用此判定的 fact acknowledgement 对 denied 返回 denied write，保留原待确认责任，不把拒绝当作可信来源或暂时不可读。
 
-## 精确 final 准备与保管
+## 最终事实的计划与结算
 
-`ledger.finalCustody.preserveFinal` 实现 [M01、M02、M05](../tool-contract/docs/material-protocol.md) 的初次准备和精确 envelope 封存。它在首次 await 前固定协议数据，校验原执行和当前 write 资格。原准备 operation 同输入认回，异输入 conflict。构造时固定 provider adoption，非法 adoption 抛 TypeError。迁移期间未配置 materials 的入口回复 unavailable，不退回完整账本载荷。
+`ledger.finalPlanner.planFinal` 在执行记录最终事实时计划结果：核当前 write 资格与原 start，按返回声明（或失败终局的系统策略、作者已封存正文的策略）调用 `prepareResult`；超过阈值的结果在此刻由账本自己的 writer 写成系统正文并封存，返回计划后的最终事实（首屏、小通道与正文条目引用），不返回也不保存原字节。`receiveFacts` 只受理这样的最终事实，引用卸载正文时核该正文是本调用已封存的条目（`unowned-final-body`）。
 
-原 call 域同一次 CAS 写入材料准备记录、具名准备用途、操作回执和时间高水位。此回执不证明字节耐久。CAS 冲突重新取样，低于原水位回复 unavailable。准备提交未知时不访问字节提供者；已有准备认回不要求新时间。随后 inspect/write 原身份，验证 seal 的地址、codec、字节数、摘要和证据形状，再提交 sealed。非法观察或 seal 明确失败，写入或 sealed 提交未知保留原 operation 和准备责任。已经删除或进入删除的材料拒绝迟到封存。
-
-返回 pointer 前再次核当前 write 资格。重建 ledger 后可从 sealed 记录认回，无须查询字节或时间源。准备材料只含 exact final；它不重跑 renderer。账本记录不含该正文。
-
-实现中，`ledger-final-custody` 校验实际 final 与原 start；`ledger-material-custody` 负责准备意图、水位、字节封存及未知认回。当前权限与业务关联由调用路径提供，共用机制不额外选择权限动作。
-
-[针对性用例](tests/final-custody.spec.ts)覆盖准备顺序、未知恢复、时钟回退、冲突重取、操作排除、当前资格、输入固定和删除交错。[SQL Linux 组合](../tool-storage-sql/tests/final-custody-live.spec.ts)覆盖 5 MiB envelope、实际分块读取、账本大小及 worker 重启认回。宿主已使用该入口封存精确 final，再发布引用。执行结果的 content、data、attachments 元数据和 original.summary 已分通道保管，结果账本保存引用；内容与摘要不假定相等。系统替代结果也已采用通道引用，存储类型不再保留完整值分支。旧完整投影的新写入已退出。固定 TTL、仍被引用 raw 的用途转换和维护尚未完成，不能据此宣称 W3 生命周期交付。
-
-### W3 事实接收迁移的当前实现
-
-`receiveFacts` 只接收封存 final 引用。首次采用核对原调用的封存材料记录、start/source/value 身份和实际 envelope，材料读取后重核原调用的当前资格。call 域事实记录保存封存引用、完整原事实指纹和批次指纹，不内嵌 final 正文。已接收批次及同值 final 别名先认回，不访问字节仓。异值事件、final 元数据及指纹冲突拒绝，不生成成功 ACK。未知指纹编码版本返回 unsupported。
-
-`facts.read` 对 pending 返回完整原 final，对 settled 返回结果版本和结算凭据。pending 在恢复资格检查后按有界字节页加载 envelope，核总长度、SHA-256、规范值指纹及 raw/terminal/effect 身份，再核当前资格后返回。缺失、损坏或不连续页返回 unavailable，未知指纹编码版本返回 unsupported。结果 CAS 解除 envelope 准备用途并登记清理待办；物理删除由后续清理协调执行。
-
-宿主完成缓存已只保存封存引用。pending/settled 转换已接入结算及别名接收。最终结果通道材料、固定 TTL 和维护仍须继续实现，不能以本节声称完整 W3 生命周期可用。
-
-
-### Tool 自有 raw 材料的字节读取
-
-`content.read` 对 `@omne-harness/tool/material` 引用从当前 call 的封存 raw 材料中匹配完整 Attachment，不解析调用者的 key 来选择材料或提供者。引用必须已关联当前结果。Tool 材料仓承担字节读取，原生附件继续使用已装配的外部内容提供者。内部地址没有匹配材料时明确拒绝，不能回退到外部提供者。
-
-内部 raw 字节游标绑定 tenant、call、结果版本、完整 Attachment 和位置。读取前后核对原结果关联、封存材料及当前 `read-raw-content` 联合资格。页长度、起止位置与提供者续读位置必须一致。该入口保留二进制字节，不是面向模型的正文语义分页。有限页租约、TTL 与删除协调仍由后续生命周期实现提供，本次读回接线不授予删除权限。
-
-### 原始输出准备与启动次序
-
-`rawCustody.preserve` 在首次异步前固定字节、codec 和来源，再以原 call 域提交准备责任。新准备要求原启动记录存在，且调用处于 starting 或 running。执行器消费启动许可后可以先于 recordStart 产出结果，不能以尚未记录 running 拒绝该输出。已终结调用只允许认回既有同身份材料，不允许创建新准备。材料保管不授予执行权限，不证明启动许可已消费或业务已经结束。
-
-
-### 有限正文页租约
-
-`ToolReads.body.read` 从结果记录的独立正文描述读取，不依赖 delivery 通道或恢复完整 ToolResult。runtime 的 body 分面只解析受信调用引用，主体与租户沿 Access 传入。文本载荷使用 UTF-8；页保留完整字符及 U+FEFF。错误 UTF-8、错误提供者范围、空续页和提前 EOF 均明确失败。首字符不能装入预算时返回 invalid/maxBytes。
-
-准入同一次 call 域 CAS 保存页租约与时间水位。租约身份为成功准入的 call revision，未知提交不读取、不按候选身份释放。页预算取请求与 maxPageBytes 的较小值，租约最多 maxPageLeaseMs。两个配置均为正安全整数。初始发行值为 65536 字节、30000 毫秒，尚未做效果校准。
-
-每次材料 IO 前核当前 read-content 资格。完成 CAS 核原正文、完整租约身份、封存状态和时钟。租约仍有效时可交付期限前准入的一页；租约失效则丢弃正文。完成提交未知时不交出页面。明确完成后再次核资格，允许后同步返回，不再等待存储或其他 guard。
-
-首次观察到正文到期时，同 CAS 保存 body-expiration、时间水位、解除正文用途及清理待办。已记录到期不会因时钟回拨而复活。读取 original.source 的字节页共用此准入及完成机制，游标以 body-bytes-v1 区别于 text-utf8-v1。被替代 raw 副本没有独立原生引用或过程用途时拒绝读取。原生引用用途不随正文期限解除。
-
-作者验证入口为 [正文页](tests/body-reads.spec.ts)、[模型读回](tests/tools-body.spec.ts)及 SQL 的 final-capacity 重开场景。自动扫描、删除资格与物理回收仍待后续实现；有限租约及到期记录不等于自动回收交付。
-
-### 受信材料到期维护
-
-`ledger.maintenance.expire` 接受精确 CallAccess，独立检查 maintain-materials 资格。它不提供正文、任意删除或工具执行能力。生产会话工作主体尚未配置该资格时明确返回不可用，不从 read-content、recover 或 write 推导维护权。
-
-`createToolMaterialMaintenance` 提供相同的 expire/reclaim 行为，仅依赖账本存储、维护资格、材料时钟、删除与删除认回端口及提交重试上限。它与完整账本共用读取、提交、调用 CAS 和资格映射实现，不另建执行环境或业务调用。该工厂不拥有宿主关闭状态；宿主可对维护专用端口停止新操作，不能通过关闭共享业务存储来撤除维护。
-
-入口复用注入的材料时钟和原 call 域事务。截止点前保留正文用途；达到截止点后，同一次 CAS 写时间水位、正文到期事实、精确用途解除及清理意图。页租约按自己的截止点结束，未到期租约和独立原生、过程、交付用途不变。读时到期和此入口共用到期写集。重复推进不续期、不改原到期依据，不改调用终局或外部效果。
-
-计数只描述本次成功提交，不能跨重试累计成执行收据。提交 unknown 返回 unavailable，调用者随后从持久事实重新推进。冲突重新读取并取时；低于原水位返回 unavailable。已经锁存的到期事实不因回拨消失。入口在事务重试、取时后及返回前复核当前资格。
-
-本入口只产生持久清理意图，不读取或删除材料字节。针对性行为见 [材料维护测试](tests/material-maintenance.spec.ts)。持久候选索引与应用维护调度见下文受信维护候选源及 harness-server 装配契约。
-
-### 受信材料回收
-
-`ledger.maintenance.reclaim` 使用独立 maintain-materials 资格，每次处理原调用中的一个清理意图。它按 writeOperation 排序，从持久游标之后选择，末尾回绕。游标只决定顺序，不授予删除权限。材料不匹配或存在用途时不删除；该项不会永久阻止同调用的后续材料。
-
-无用途的材料在同一次 call CAS 中进入 deleting，并保存固定删除操作和围栏。任何用途，包括尚未由 expire 解除的租约，都阻止删除。授权提交未知时不发材料 IO。已进入 deleting 的重试使用原操作；新用途和晚到写入不得使它复活。
-
-每次提供者 IO 前重核资格。先 inspectErase，未完成时以原操作执行一次 erase。pending 不写已删除状态。仅 deleted 回执允许确认事务；确认重新核材料、操作、围栏及无用途，再保存 deleted 并解除清理意图。确认未知保留原操作供恢复。返回前再次核资格，不修改业务终局和外部效果，也不删除原生引用目标。
-
-公开故障验证见 [回收测试](tests/material-reclaim.spec.ts)。该入口及 SQL 单步推进不等于生产自动维护已装配。
-
-### 材料维护提示
-
-Tool 在每次调用域提交中，将最终写集应用于材料用途和清理待办的临时映射，再计算 `material-maintenance-hint`，与业务事实同一次 CAS 保存。提示为 `none`、`ready` 或 `due(at)`：无定时用途和可尝试清理项时为 none；存在无用途的清理候选时为 ready；其余情况保存正文用途或页租约中最早的固定截止时间。独立原生引用、过程历史、交付或准备责任均保护其精确材料。计算不采样时钟、不延长期限、不修改输入快照。
-
-未结算调用存在正文 writer scope 时，提示为 ready，覆盖未封存、seal 未知和封存未关联的库存。只有已确认的最终结算才能退出这项候选条件；之后仍按材料用途和清理待办计算提示。writer、最终事实和提示在同一次调用 CAS 保存。
-
-提示只用于发现待维护调用，不授予删除权。候选处理仍须经当前维护资格、用途和删除围栏核验。旧调用缺少提示时，受信 `maintenance.expire` 通过调用 CAS 回填，包括没有定时用途或采样时间未变化的情况；未知提交不回答完成。已存在有效提示且无需业务写入时不为提示增加提交。
-
-公开状态与故障验证见 [维护提示测试](tests/material-maintenance-hint.spec.ts)。生产维护调度由 harness-server 的独立维护行承担。
-
-### 受信维护候选源
-
-`ToolMaterialMaintenanceSource` 是独立于 ToolLedgerStore 的受信存储端口，公开形状归 [material-maintenance-source.ts](src/material-maintenance-source.ts)。调用方提供租户、固定时间截点和页限额，保存返回游标以接续同一轮。页可以没有调用但仍有后续游标；只有 next 为 null 才表示该轮完成。
-
-一轮固定已存在调用的扫描上界，游标位置单调推进。新调用或游标之前才变为候选的调用留待下一轮。候选只包含调用身份，不返回材料正文，也不授予删除权。受信调度方负责身份资格、当前租户存续、每次新 IO 的关闭准入、持久进度及周期性新轮；Tool 的 expire/reclaim 重核实际用途和删除资格。源不可用不能当空页。
-
-SQL 提供者的持久实现归 [TS-12](../tool-storage-sql/SPEC.md#ts-12-持久材料维护候选)。本端口不在 ToolRuntime 发布给普通工具或模型。
+`preserveResult` 从事实记录取回计划后的最终事实，按 `original.source` 找到已封存条目，固定期限并提交结果记录（模型 CommitResult/Settle）：被引用的条目置为 `linked` 并排期，其余 opened/sealed 条目标孤儿；它不读任何存储。`facts.read` 返回同一个计划后的事实，或结算后的 `settled-final` 回执。原始返回 R 不再保管：宿主在内存里解码并渲染，最终事实只携带渲染结果。
 
 ### 生命周期提交观察
 

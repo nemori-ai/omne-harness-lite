@@ -142,7 +142,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         'model-credential:real',
         'model-records:real',
         'tool-records:real',
-        'tool-material-maintenance:real',
+        'tool-body-sweep:real',
         'tool-bindings:real',
         'tool-runtime:real',
         'tool-executor:real',

@@ -26,8 +26,7 @@ import {
   type ToolEnvironment,
   type ToolExecutorBinding,
   type ToolFinalEnvelope,
-  type ToolFinalCustody,
-  type ToolOutputCustody,
+  type ToolFinalPlanner,
   type ToolStartAuthority,
 } from '@omne-harness/tool-contract/provider'
 import {
@@ -92,10 +91,6 @@ export type StartOptions = HarnessOptions &
     bindingsPort?: (
       base: ToolBindings<Principal, TestEnvironment>,
     ) => ToolBindings<Principal, TestEnvironment>
-    custodyPort?: (base: ToolOutputCustody<Principal>) => ToolOutputCustody<Principal>
-    resultMaterialsPort?: (
-      base: import('@omne-harness/tool-contract/provider').ToolMaterialStore<Principal>,
-    ) => import('@omne-harness/tool-contract/provider').ToolMaterialStore<Principal>
     /** Builds over this memory instead of a new one: a second runtime over the same records. */
     memory?: MemoryToolLedgerStore
     /** Wraps the memory store, to make one commit or read of the start path misbehave. */
@@ -303,7 +298,7 @@ type LiveBinding = Extract<ToolExecutorBinding<Principal, TestEnvironment>, { ki
 
 function testBinding(
   authority: ToolStartAuthority<Principal>,
-  custody: ToolFinalCustody<Principal, ContentBlock>,
+  planner: ToolFinalPlanner<Principal, ContentBlock>,
   wrap: (base: LiveBinding) => LiveBinding = base => base,
 ): TestBinding {
   const attempts: string[] = []
@@ -311,7 +306,7 @@ function testBinding(
   const environments: TestEnvironment[] = []
   const inspected: ToolStartRecord[] = []
   const capsules: DurableEvidence[] = []
-  const executor = createMemoryToolExecutorBinding<Principal, TestEnvironment>(custody)
+  const executor = createMemoryToolExecutorBinding<Principal, TestEnvironment>(planner)
   const binding = wrap({
     kind: 'live-only',
     start: async (input, environment) => {
@@ -406,7 +401,6 @@ export type StartHarness = Readonly<{
   environments: TestEnvironments
   identities: TestToolIdentities
   source: TestInvocationSource<Principal>
-  custody: ToolOutputCustody<Principal>
   internalRequests: Map<string, FixedToolRequest>
   /** The calls whose timing segment the clock was asked to begin. */
   begun: readonly string[]
@@ -443,8 +437,8 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     testBinding(
       authorityPort,
       {
-        preserveFinal: input =>
-          ledger.finalCustody.preserveFinal({
+        planFinal: input =>
+          ledger.finalPlanner.planFinal({
             ...input,
             final: {
               ...input.final,
@@ -457,34 +451,14 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const bindings = options.bindingsPort?.(binding.bindings) ?? binding.bindings
   const factAcknowledgements = createToolFactAcknowledgementGuard(bindings)
   const environments = testEnvironments(options.environment ?? new Map())
-  const originalCustody: ToolOutputCustody<Principal> = {
-    preserve: input => ledger.rawCustody.preserve(input),
-    inspect: input => ledger.rawCustody.inspect(input),
-  }
-  const custody = options.custodyPort?.(originalCustody) ?? originalCustody
   const controlSubjects =
     options.controlSubjects === undefined
       ? testControlSubjects(guards(options).access)
       : options.controlSubjects
   const settlementPorts = testSettlementPorts(memory)
-  const materialPorts = settlementPorts.materials
-  const resultMaterials = options.resultMaterialsPort?.(materialPorts.store)
   const settlement = {
     ...(options.bodySchemas === undefined ? {} : { bodySchemas: options.bodySchemas }),
     bodies: settlementPorts.bodies,
-    materials: {
-      ...materialPorts,
-      store:
-        resultMaterials === undefined
-          ? materialPorts.store
-          : {
-              ...materialPorts.store,
-              write: (input: Parameters<typeof materialPorts.store.write>[0]) =>
-                input.operation.startsWith('result-slot:')
-                  ? resultMaterials.write(input)
-                  : materialPorts.store.write(input),
-            },
-    },
     releaseInspection: environments,
     content: null,
     ...(controlSubjects === null ? {} : { controlSubjects }),
@@ -604,7 +578,6 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     environments,
     identities,
     source,
-    custody,
     begun: clock.begun,
     drive,
     runOnce,

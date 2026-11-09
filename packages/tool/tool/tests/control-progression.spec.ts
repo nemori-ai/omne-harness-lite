@@ -313,18 +313,8 @@ describe('durable control progression', () => {
       await h.runOnce('release', abort.signal)
       const recovery = ok(await h.commands.loadRecovery(access))
       if (recovery.start?.kind !== 'start') throw new Error('missing start')
-      const raw = ok(
-        await h.custody.preserve({
-          ...access,
-          operation: operationId('raw'),
-          codec: adoption('codec'),
-          bytes: new TextEncoder().encode('done'),
-          source: evidence('raw'),
-        }),
-      )
       await h.binding.controls.finish(recovery.start, {
         kind: 'final',
-        raw,
         terminal: { kind: 'completed' },
         effect: { kind: 'occurred', evidence: evidence('effect') },
         result: {

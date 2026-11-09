@@ -136,7 +136,7 @@ it('C3 settle: the referenced body is linked and due at its expiry, the other bo
   let sealedId = ''
   let orphan: Awaited<ReturnType<typeof writer>> | null = null
   const f = await settlementFixture({
-    value: async (_raw, ledger, access) => {
+    value: async (ledger, access) => {
       orphan = await writer(ledger, access, 'never-sealed')
       ok(await orphan.begin('begin-orphan'))
       ok(await orphan.append('append-orphan', '1', 'abandoned'))
@@ -175,25 +175,32 @@ it('C3 settle: the referenced body is linked and due at its expiry, the other bo
   expect(await late.begin('begin-after-settle')).toHaveProperty('failure.kind', 'closed')
 })
 
-it('C3 commitResult: a return that references an unsealed body settles invalid with body-not-sealed and does not hang', async () => {
-  const f = await settlementFixture({
-    value: async (_raw, ledger, access) => {
-      const w = await writer(ledger, access, 'unsealed')
-      ok(await w.begin('begin-unsealed'))
-      ok(await w.append('append-unsealed', '1', 'not sealed'))
-      return {
-        content: [text('content', 'Answer: 42')],
-        data: { kind: 'none' },
-        attachments: [],
-        original: {
-          kind: 'offloaded',
-          source: fabricated('10'),
-          summary: [text('summary', 'brief')],
+it('C3 commitResult: a return that references an unsealed body is refused at the final with body-not-sealed and does not hang', async () => {
+  const f = await settlementFixture()
+  const w = await writer(f.ledger, f.access, 'unsealed')
+  ok(await w.begin('begin-unsealed'))
+  ok(await w.append('append-unsealed', '1', 'not sealed'))
+  expect(
+    await f.harness.ledger.finalPlanner.planFinal({
+      ...f.access,
+      start: f.batch.start,
+      source: f.batch.source,
+      operation: operationId('unsealed-final'),
+      final: {
+        ...f.final,
+        result: {
+          content: [text('content', 'Answer: 42')],
+          data: { kind: 'none' },
+          attachments: [],
+          original: {
+            kind: 'offloaded',
+            source: fabricated('10'),
+            summary: [text('summary', 'brief')],
+          },
         },
-      }
-    },
-  })
-  expect(await f.preserve()).toEqual({
+      },
+    }),
+  ).toEqual({
     failure: { kind: 'invalid', field: 'original.source', reason: 'body-not-sealed' },
   })
 })
@@ -303,7 +310,7 @@ it('C5 a miss in the store is expired within ε of expiry and integrity only cle
 async function settledWithOrphan() {
   let orphanId: ToolBodyId | null = null
   const f = await settlementFixture({
-    value: async (_raw, ledger, access) => {
+    value: async (ledger, access) => {
       const orphan = await writer(ledger, access, 'sweep-orphan')
       ok(await orphan.begin('begin-sweep-orphan'))
       ok(await orphan.append('append-sweep-orphan', '1', 'abandoned'))

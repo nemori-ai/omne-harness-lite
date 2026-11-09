@@ -65,7 +65,7 @@ describe('AA row snapshot', () => {
       .filter(entry => entry.names.includes('systemActionAuthorization'))
       .map(entry => entry.row)
       .sort()
-    expect(seeing).toEqual(['authorization', 'session-storage', 'tool-material-maintenance'])
+    expect(seeing).toEqual(['authorization', 'session-storage'])
   })
 
   test('R-P2 write then check agrees, and a second write keeps the bytes', () => {

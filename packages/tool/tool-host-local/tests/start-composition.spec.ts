@@ -1,8 +1,5 @@
 import { adoption } from './coordinator-values.ts'
-import {
-  createMemoryToolEnvironment,
-  createMemoryToolOutputCustody,
-} from '@omne-harness/tool-contract/testing'
+import { createMemoryToolEnvironment } from '@omne-harness/tool-contract/testing'
 // The local start coordinator under the real Tool runtime, ledger and driver, over one
 // non-durable store: the call domain, the queue domain and the coordinator's host domain. The
 // binding stages a capsule and consumes its permit through the coordinator, as P04 requires of
@@ -14,7 +11,6 @@ import {
   createTestInvocationSource,
   createTestToolIdentities,
   createMemoryToolLedgerStore,
-  createMemoryToolMaterials,
 } from '@omne-harness/tool/testing'
 import { type ToolInvocationRef, type ToolState } from '@omne-harness/tool-contract'
 import {
@@ -438,8 +434,6 @@ describe('G5 under the runtime', () => {
 function testSettlementPorts() {
   return {
     content: null,
-    materials: createMemoryToolMaterials<Principal>(),
-    custody: createMemoryToolOutputCustody<Principal>(),
     releaseInspection: createMemoryToolEnvironment<Principal>(),
   }
 }

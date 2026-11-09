@@ -215,58 +215,31 @@ export async function modelHost(
         const live = await base.start(start, environment)
         if ('failure' in live) return live
         const source = start.request.command === null
-        const preserve = (bytes: Uint8Array, codec: RawOutput['codec']) =>
-          h.ledger.rawCustody.preserve({
-            principal: start.principal,
-            tenant: start.tenant,
-            call: start.call,
-            operation: operationId(`raw-${start.call}`),
-            codec,
-            bytes,
-            source: evidence('source-output'),
-          })
         const output = async () => {
-          if (source) {
-            const raw = ok(
-              await preserve(new TextEncoder().encode('original bytes'), adoption('source-codec')),
-            )
-            const value = ok(
+          if (source)
+            return ok(
               await executeTool(
                 {},
                 {
                   execute: async () => {
                     sourceExecutions += 1
-                    return sourceValue(raw, h.ledger, start)
+                    return sourceValue(h.ledger, start)
                   },
                 },
                 environment,
                 scope().scope,
               ),
             )
-            return { raw, value }
-          }
-          const value = ok(
+          return ok(
             await authorRun(tools, start.request.command ?? '', start.request.arguments, start),
           )
-          const registration = readToolRegistration(tools.implementation)
-          if (registration?.kind !== 'commands') throw new Error('Not registered')
-          const operation = registration.operations.find(([name]) => name === start.request.command)
-          if (operation === undefined) throw new Error('Not a registered command')
-          const raw = ok(
-            await preserve(
-              ok(operation[1].author.codec.encode(value)),
-              operation[1].author.codec.adoption,
-            ),
-          )
-          return { raw, value }
         }
-        const { raw, value } = await output().catch(error => {
+        const value = await output().catch(error => {
           sourceFailure = error instanceof Error ? error.message : String(error)
           throw error
         })
         await h.binding.controls.finish(start.start, {
           kind: 'final',
-          raw,
           result: value,
           terminal: source ? (input.terminal ?? { kind: 'completed' }) : { kind: 'completed' },
           effect: { kind: 'not-occurred', evidence: evidence('read-only') },
@@ -300,7 +273,6 @@ export async function modelHost(
     createMemoryToolClock(),
     configurationOf({ resultPageBytes: options.resultPageBytes }),
     {
-      materials: testSettlementPorts(h.memory).materials,
       bodies: testSettlementPorts(h.memory).bodies,
       releaseInspection: h.environments,
       content: content.reader,
