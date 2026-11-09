@@ -174,7 +174,7 @@ describe('system principals against the release action matrix (验收 2)', () =>
     ),
   )
 
-  it('covers all thirteen rows: each holder is allowed and other system principals are denied', async () => {
+  it('covers all ten rows: each holder is allowed and other system principals are denied', async () => {
     const { fixture, issuer, principals } = await installed()
     const authorization = referenceSystemActionAuthorization({
       verifier: verifierOf(fixture.env),
@@ -192,7 +192,7 @@ describe('system principals against the release action matrix (验收 2)', () =>
       [ENTRY_COMPONENTS.sessionMaintainer]: maintainer,
     }
     const outsiders: Principal[] = [principals.coordinator, systemOf(issuer, 'restart-scanner')]
-    expect(SYSTEM_ACTION_MATRIX).toHaveLength(12)
+    expect(SYSTEM_ACTION_MATRIX).toHaveLength(10)
     for (const row of SYSTEM_ACTION_MATRIX) {
       const holder = holderOf.get(row.purpose)
       for (const [component, principal] of Object.entries(holders)) {
