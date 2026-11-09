@@ -26,7 +26,6 @@ import { storageHost } from './storage-host.ts'
 import { toolContributionAuthority, toolReleaseRegistrant } from './tool-release.ts'
 import { toolResidencyPrincipal } from './tool-residency-principal.ts'
 import { tenantDomainScannerPrincipal } from './tenant-domain-scanner.ts'
-import { toolHistoryUpgraderPrincipal } from './tool-history-upgrader.ts'
 import { toolMaterialMaintainerPrincipal } from './tool-material-maintainer.ts'
 import { toolClock, toolPublicationAuthority } from './tool-runtime-objects.ts'
 
@@ -37,7 +36,6 @@ export const entryObjects: readonly EntryObjectModule[] = [
   toolResidencyPrincipal,
   tenantDomainScannerPrincipal,
   toolMaterialMaintainerPrincipal,
-  toolHistoryUpgraderPrincipal,
   toolReleaseRegistrant,
   toolContributionAuthority,
   toolClock,

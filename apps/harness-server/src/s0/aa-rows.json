@@ -192,10 +192,7 @@
       "row": "tool-records",
       "names": [
         "storage",
-        "tenantDomainLookup",
-        "systemActionAuthorization",
-        "tenantDomainScannerPrincipal",
-        "toolHistoryUpgraderPrincipal"
+        "tenantDomainLookup"
       ]
     },
     {

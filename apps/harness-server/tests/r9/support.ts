@@ -279,7 +279,6 @@ export function toolRowsOperatorConfig(options: { storageRoot: string }) {
     },
     records: {
       filesRoot,
-      history: { mode: 'verify', interpretations: [] },
       combinationVersion: 'session-composite/6',
       maxCommandBytes: 1048576,
       maxChunkBytes: 16384,

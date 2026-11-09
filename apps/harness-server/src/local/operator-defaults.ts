@@ -342,7 +342,6 @@ const TOOL_RESULT_BYTES = 32_768
 function toolRecords(workspace: string, combinationVersion: string) {
   return {
     filesRoot: workspace,
-    history: { mode: 'verify', interpretations: [] },
     combinationVersion,
     maxCommandBytes: MAX_COMMAND_BYTES,
     maxChunkBytes: 16_384,

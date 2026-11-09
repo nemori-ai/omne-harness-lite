@@ -1,4 +1,3 @@
-import { toolHistoryUpgraderPrincipal } from '../../../src/entry/tool-history-upgrader.ts'
 // Tool B 段的进程内组合：真实 Cordis 根上装 Tool 运行时五行、tool-bindings、tool-host（预装发行作者）、执行环境
 // 四行（宿主提供者真件），真实 SQLite 存储与会话存储组合（tool 参加者在同一登记里），真实入口对象（核验器、
 // 签发者、会话工作主体、发行来源权威与登记者、toolClock、toolPublicationAuthority、执行环境授权）。
@@ -269,7 +268,6 @@ const entryObjects = (work: EntryObjectModule): readonly EntryObjectModule[] => 
   principalVerifier,
   principalIssuer,
   tenantDomainScannerPrincipal,
-  toolHistoryUpgraderPrincipal,
   compositionAuthority,
   toolReleaseRegistrant,
   toolContributionAuthority,

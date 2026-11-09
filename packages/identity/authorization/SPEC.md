@@ -260,7 +260,6 @@ Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessChe
 
 | 用途 | operation | target 分支与资源 | 参数 |
 | --- | --- | --- | --- |
-| `tool-history-upgrade` | tool `upgrade-history` | 租户；tool `call` | 固定 |
 | `tool-material-scan` | tool `scan-materials` | 租户；tool `tenant` | 固定 |
 | `tool-material-maintain` | tool `maintain-materials` | 租户；tool `call` | 固定 |
 | `resident-references` | session `references` | 系统；session `resident-references` | 固定 |

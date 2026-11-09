@@ -11,7 +11,6 @@
 //   本行建执行域的 schema-provider，供环境需求校验，行撤除时关闭。
 // 四行等 `tool-records` 建好 bundle 再装；`tool-records` 一直不装时它们停在装载中，不答就绪。
 // 已知限制：bundle 每次运行只建一次，实例宿主与执行宿主不能在同一运行里重装（成员抛出，行 FAILED）。
-import { checkReleaseToolHistory, HISTORY_DEPENDENCIES } from './history-assembly.ts'
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { observeToolLedgerCommit } from '@omne-harness/tool'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
@@ -97,12 +96,10 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
 
 const recordsPlugin: Plugin.Object = {
   name: 'tool-records',
-  inject: [storageKey, tenantDomainLookupKey, telemetryKey, ...HISTORY_DEPENDENCIES],
+  inject: [storageKey, tenantDomainLookupKey, telemetryKey],
   Config: toolRuntimeConfigSchema,
   async apply(ctx: Context, value: unknown) {
     const config = toolRuntimeConfigSchema.parse(value)
-    const current = await checkReleaseToolHistory(ctx, config)
-    if (!current()) throw new Error('tool-records: stopped before publishing services')
     mountSql(ctx, config)
     const holder = toolRuntimeHolder(ctx)
     const body = createReleaseBodySchemas()
@@ -124,7 +121,7 @@ export const toolRecordsRow = defineRow({
   implementation: 'real',
   manifest: {
     provides: [toolCommandsKey, toolReadsKey, toolStartAuthorityKey, toolStartFenceKey],
-    injects: [storageKey, tenantDomainLookupKey, telemetryKey, ...HISTORY_DEPENDENCIES],
+    injects: [storageKey, tenantDomainLookupKey, telemetryKey],
     sameProviderGroup: 'tool-start',
   },
   lifecycle: { kind: 'none' },

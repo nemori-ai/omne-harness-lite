@@ -65,7 +65,6 @@ describe('the release grant table', () => {
       'agent-host',
       'sessionPrincipals.maintainer',
       'tenant-domain-scanner',
-      'tool-history-upgrader',
       'tool-material-maintainer',
       'toolResidencyPrincipal',
     ])
