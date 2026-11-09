@@ -137,6 +137,9 @@ stateDiagram-v2
     accepted --> settled: rejectPending
     preparing --> settled: rejectPending
     queued --> settled: rejectPending
+    accepted --> settled: ledger-rejected（最小失败终局）
+    preparing --> settled: ledger-rejected（最小失败终局）
+    queued --> settled: ledger-rejected（最小失败终局）
 ```
 
 队列条目的阶段独立于调用阶段：

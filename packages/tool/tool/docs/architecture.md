@@ -95,6 +95,7 @@ FIFO key 是 `[scope.owner, scope.key, 定义名]` 的 JSON 文本（P02：受�
 | `recordStart(started)` | — | — | 状态 `running`，删除 `start` 待办，同提交原 facts 待办 |
 | `preserveResult` | 原 final 的 settle 待办 | （先做第 3 步）删除 entry 并写墓碑 | 独立 retain 已确认后同提交原结果、delivery、ended 与全部后继责任，最后关闭 queue 待办 |
 | `rejectPending`、`recordStart(rejected)` | — | （先做第 3 步）删除条目 | 状态 `settled`、`unavailable` 终局、`queue.released`、`deliver` 待办、`queue` 待办；队列域删除条目后再删除 `queue` 待办 |
+| 最小失败终局（`<受理>/ledger-rejected`） | — | （先做第 3 步）删除条目 | 只对没有启动记录的调用：状态 `settled`、`failed` 终局（`cause` 为 `runtime-lost`，诊断 `ledger-store rejected: <原因>`）、`deliver` 待办、`queue` 待办；释放依据是这条终局的结果（`ledger-rejected`），与 `rejectPending` 同形 |
 
 启动拒绝的释放是调用域先收尾、队列域后释放的转换：终局先于释放成立，释放只凭调用域里的释放依据（P02：仅逻辑收场不释放名额），崩溃时 `queue` 待办让释放重做；重做时条目已不存在也要写墓碑，已有墓碑则什么也不写。`prepareStart` 的队列步与调用域提交不在同一事务，所以名额可以先于启动记录被持有：这样的 `held` 条目是待履行义务，不是启动，由同一操作身份的重做对账，履行它的前提与触发的拥有者见 [SPEC 第 22 条](../SPEC.md#22-跨域提交与修复)。
 
