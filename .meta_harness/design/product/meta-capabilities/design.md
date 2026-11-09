@@ -470,7 +470,7 @@ Run 取消触发的 Code 中断须保留原取消原因，只沿 Run 原有传�
 | CAP-META-03 | Skills 的按需读取、分类设置、合法随附脚本及禁止通用越权 | [Skills](#meta-skills)、MX-J03 | 未核实，未运行；Q-SK08 保留 |
 | CAP-META-04 | Files 的精确修改、批量预检与未知恢复、文本差异及图片附件 | [Files](#meta-files)、MX-J04 | 未核实，未运行 |
 | CAP-META-05 | Shell 的多终端会话、一次性执行、单次覆盖与合法后台入口 | [Shell](#meta-shell)、MX-J05 | 未核实，未运行 |
-| CAP-META-06 | Web 的搜索和内容获取，设施及外部数据边界 | [Web](#meta-web)、MX-J06 | 未核实，未运行 |
+| CAP-META-06 | Web 的搜索和内容获取，设施及外部数据边界 | [Web](#meta-web)、MX-J06 | 单机宿主落点已实现并验证（2026-11-10，分支 `panqiwei/web-meta-tool`）：成员测试、coding 会话端到端与泄漏扫描、真实 Exa 与真实网页冒烟；其他落点按执行环境的偏离明确不可用；尚未交付接受 |
 | CAP-META-07 | Browser 的页面结构操作及环境内状态 | [Browser](#meta-browser)、MX-J06 | 未核实，未运行 |
 | CAP-META-08 | Computer 的分层动作、批量执行、观察与截图预算 | [Computer](#meta-computer)、MX-J06 | 未核实，未运行 |
 | CAP-META-09 | Agents 的三种派发、通信、报告、控制、外部派发和成本归属 | [Agents](#meta-agents)、MX-J07 | 未核实，未运行；META-T02 保留 |
