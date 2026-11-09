@@ -15,6 +15,7 @@
 - [reopen.spec.ts](reopen.spec.ts)：关闭再打开数据库文件
 - [atomic-commit.spec.ts](atomic-commit.spec.ts)：原子提交与修订号冲突
 - [host-history-independence.spec.ts](host-history-independence.spec.ts)：2000 次历史后新调用能启动，每次调用的宿主读数与历史无关（慢层）
+- [ledger-asserts.spec.ts](ledger-asserts.spec.ts)：读集断言在 SQL 执行时评估，排队提交与两个连接的用例
 - [start-coordinator.spec.ts](start-coordinator.spec.ts)：启动协调器在本仓上的三组套件与重建
 - [materials.spec.ts](materials.spec.ts)：材料与组合有效性
 - [participant.spec.ts](participant.spec.ts)：参加者模块自身的守卫
