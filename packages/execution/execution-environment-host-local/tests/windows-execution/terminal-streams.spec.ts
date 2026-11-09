@@ -48,7 +48,7 @@ it('renders PowerShell output, error, host and diagnostic streams through actual
     await writeFile(release, '')
     expect(await running.value.result).toMatchObject({
       kind: 'completed',
-      exit: { kind: 'unknown' },
+      exit: { kind: 'code', code: 0 },
     })
     await reading
   } finally {

@@ -1,5 +1,47 @@
+/**
+ * The exit code of one terminal invocation: rules 2 to 6 of the SPEC's Windows terminal section,
+ * evaluated in the shell host. Rule 1 is the reset before the invocation. The source is pure and
+ * names its types in full, so tests compile it on its own.
+ */
+export const terminalExitRuleSource = String.raw`
+public enum OmneAddedErrors { None, NativeOnly, Other }
+
+public static class OmneTerminalExit {
+  /**
+   * exit is the code given to exit N; succeeded is $? at the end of the script; lastExitCode is
+   * $LASTEXITCODE, null when the invocation did not set it; added are the error records it added.
+   */
+  public static int Code(int? exit,bool succeeded,int? lastExitCode,OmneAddedErrors added) {
+    if(exit.HasValue)return exit.Value;
+    if(succeeded)return 0;
+    // Windows PowerShell 5.1 sets $? false when 2>&1 merges the standard error of a native program.
+    if(added==OmneAddedErrors.NativeOnly&&lastExitCode==0)return 0;
+    if(lastExitCode.HasValue&&lastExitCode.Value!=0)return lastExitCode.Value;
+    return 1;
+  }
+  /**
+   * The kinds of the records an invocation added to $Error, newest first. head is the newest record
+   * before the invocation, null when there was none; maximum is $MaximumErrorCount. Records that
+   * can have left the bounded list make the answer Other, never NativeOnly.
+   */
+  public static OmneAddedErrors Added(System.Collections.IList errors,object head,int maximum) {
+    if(errors==null)return OmneAddedErrors.Other;
+    int count=0;
+    while(count<errors.Count&&(head==null||!object.ReferenceEquals(errors[count],head)))count++;
+    if(head!=null?count==errors.Count:errors.Count>=maximum)return OmneAddedErrors.Other;
+    if(count==0)return OmneAddedErrors.None;
+    for(int i=0;i<count;i++) {
+      System.Management.Automation.ErrorRecord record=errors[i] as System.Management.Automation.ErrorRecord;
+      if(record==null||record.FullyQualifiedErrorId==null||!record.FullyQualifiedErrorId.StartsWith("NativeCommandError",System.StringComparison.Ordinal))return OmneAddedErrors.Other;
+    }
+    return OmneAddedErrors.NativeOnly;
+  }
+}
+`
+
 export const terminalNativeSource = String.raw`
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -43,6 +85,9 @@ public static partial class OmneWindowsBridge {
   static Thread terminalInputThread;
   static OutputReader terminalReader;
   static readonly object ControlLock=new object();
+  /** The provider's lines, and the two ends that finish the terminal: the provider's and the shell's. */
+  static readonly BlockingCollection<object> terminalEvents=new BlockingCollection<object>();
+  static readonly object ControllerEnded=new object(),ShellEnded=new object();
 
   static void PrepareTerminal(OmneTerminalRequest r) {
     IntPtr ir=IntPtr.Zero,orr=IntPtr.Zero,ow=IntPtr.Zero,list=IntPtr.Zero,jobs=IntPtr.Zero,env=IntPtr.Zero;
@@ -82,6 +127,8 @@ public static partial class OmneWindowsBridge {
           while((frame=OmneTerminalShell.ReadBounded(reader,r.maxControlBytes))!=null)Emit(Json.DeserializeObject(frame));
           Emit(new {t="controlLost"});
         }catch(Exception){Emit(new {t="controlLost"});}
+        // Every frame of the shell is out. Once the shell has exited, the terminal has nothing left.
+        if(WaitForSingleObject(child.process,0xFFFFFFFF)==0)terminalEvents.Add(ShellEnded);
       });control.IsBackground=true;control.Start();
     }finally {
       foreach(IntPtr h in new[]{ir,orr,ow})if(h!=IntPtr.Zero)CloseHandle(h);
@@ -101,12 +148,21 @@ public static partial class OmneWindowsBridge {
   public static void RunTerminal() {
     try {
       OmneTerminalRequest r=Json.Deserialize<OmneTerminalRequest>(Line());bound=r.stopBoundMs;
-      release=new EventWaitHandle(false,EventResetMode.ManualReset,r.name+"-release");
       PrepareTerminal(r);Emit(new {t="ready"});
       string line=Line();
       if(line!="go"){Emit(new {t="stopped",status=Stop()?"confirmed":"unconfirmed"});return;}
       Check(ResumeThread(child.thread)!=0xFFFFFFFF);
-      while((line=Line())!=null){
+      Thread controller=new Thread(delegate(){
+        try {string next;while((next=Line())!=null)terminalEvents.Add(next);terminalEvents.Add(ControllerEnded);}
+        catch(Exception e){terminalEvents.Add(e);}
+      });controller.IsBackground=true;controller.Start();
+      for(;;){
+        object next=terminalEvents.Take();
+        // The provider is gone and nobody can stop this terminal any more: it stops its own Job.
+        if(next==ControllerEnded)break;
+        if(next==ShellEnded){Emit(new {t="stopped",status=Stop()?"confirmed":"unconfirmed"});break;}
+        if(next is Exception)throw (Exception)next;
+        line=(string)next;
         if(line=="stop")Emit(new {t="stopped",status=Stop()?"confirmed":"unconfirmed"});
         else if(line=="dispose")break;
         else if(line=="graceful")SendTerminal("{\"c\":\"close\"}");
@@ -116,7 +172,6 @@ public static partial class OmneWindowsBridge {
           SendTerminal(line);TerminalInput(request.stdin);
         }
       }
-      if(line==null)release.WaitOne();
     }catch(Exception e){bool stopped=(job==IntPtr.Zero&&child.process==IntPtr.Zero)||Stop();Emit(new {t="fault",stopped=stopped,error=e.GetType().Name});}
     finally {
       Stop();
@@ -125,7 +180,6 @@ public static partial class OmneWindowsBridge {
       if(terminalReader!=null&&(!terminalReader.thread.Join(bound)||!terminalReader.complete))Emit(new {t="outputLost"});
       if(terminalControl!=null)terminalControl.Dispose();
       foreach(IntPtr h in new[]{terminalInput,child.thread,child.process,job})if(h!=IntPtr.Zero)CloseHandle(h);
-      if(release!=null)release.Dispose();
     }
   }
 }
@@ -156,7 +210,8 @@ public static class OmneTerminalShell {
       StreamWriter writer=new StreamWriter(control,new UTF8Encoding(false)){AutoFlush=true};
       JavaScriptSerializer json=new JavaScriptSerializer{MaxJsonLength=2097152,RecursionLimit=16};
       OmneTerminalRequest init=json.Deserialize<OmneTerminalRequest>(ReadBounded(reader,2097152));
-      using(Runspace runspace=RunspaceFactory.CreateRunspace(new OmneConsoleHost())) {
+      OmneConsoleHost host=new OmneConsoleHost();
+      using(Runspace runspace=RunspaceFactory.CreateRunspace(host)) {
         runspace.Open();runspace.SessionStateProxy.Path.SetLocation(init.cwd);
         writer.WriteLine(json.Serialize(new {t="opened",cwd=runspace.SessionStateProxy.Path.CurrentLocation.ProviderPath}));
         string line;
@@ -164,25 +219,28 @@ public static class OmneTerminalShell {
           OmneTerminalRequest request=json.Deserialize<OmneTerminalRequest>(line);if(request.c=="close")return;
           string savedCwd=runspace.SessionStateProxy.Path.CurrentLocation.ProviderPath;
           Dictionary<string,string> savedEnv=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
-          bool restored=true;bool completed=false;long? elapsedMs=null;
+          bool restored=true;bool completed=false;long? elapsedMs=null;int? code=null;bool ended=false;
           try {
             if(request.cwd!=null)runspace.SessionStateProxy.Path.SetLocation(request.cwd);
             if(request.env!=null){
               foreach(KeyValuePair<string,string> item in request.env)if(!savedEnv.ContainsKey(item.Key))savedEnv[item.Key]=Environment.GetEnvironmentVariable(item.Key);
               foreach(KeyValuePair<string,string> item in request.env)Environment.SetEnvironmentVariable(item.Key,item.Value);
             }
+            OmneInvocationStart start=OmneInvocationStart.Begin(runspace,host);
             using(PowerShell ps=PowerShell.Create()) {
               ps.Runspace=runspace;
               OmneInvocationClock clock=new OmneInvocationClock();ps.InvocationStateChanged+=clock.Observe;
-              ps.AddScript(request.script,false);
+              ps.AddScript(request.script+OmneInvocationStart.Trailer,false);
               ps.Commands.Commands[0].MergeMyResults(PipelineResultTypes.Error,PipelineResultTypes.Output);
               ps.AddCommand("Out-Default");
               PSDataCollection<PSObject> input=new PSDataCollection<PSObject>();input.Complete();
               IAsyncResult execution=ps.BeginInvoke<PSObject,PSObject>(input,new PSDataCollection<PSObject>());
               writer.WriteLine(json.Serialize(new {t="started",id=request.id}));
               try {ps.EndInvoke(execution);}catch(RuntimeException error){Console.Error.WriteLine(error.Message);}
-              completed=ps.InvocationStateInfo.State==PSInvocationState.Completed||ps.InvocationStateInfo.State==PSInvocationState.Failed;
-              if(completed)elapsedMs=clock.ElapsedMilliseconds;
+              int? exit=host.TakeExit();ended=exit.HasValue;
+              completed=ended||ps.InvocationStateInfo.State==PSInvocationState.Completed||ps.InvocationStateInfo.State==PSInvocationState.Failed;
+              int finished=start.Finish(exit,ps.InvocationStateInfo.State==PSInvocationState.Completed);
+              if(completed){elapsedMs=clock.ElapsedMilliseconds;code=finished;}
             }
           }catch(Exception error){Console.Error.WriteLine(error.Message);writer.WriteLine(json.Serialize(new {t="legFault",id=request.id}));}
           finally {
@@ -191,11 +249,38 @@ public static class OmneTerminalShell {
           }
           string cwd;
           try {cwd=runspace.SessionStateProxy.Path.CurrentLocation.ProviderPath;if(String.IsNullOrEmpty(cwd)){cwd=savedCwd;restored=false;}}catch(Exception){cwd=savedCwd;restored=false;}
-          writer.WriteLine(json.Serialize(new {t="finished",v=2,id=request.id,cwd=cwd,restored=restored,completed=completed,elapsedMs=elapsedMs}));
-          if(!restored)return;
+          writer.WriteLine(json.Serialize(new {t="finished",v=3,id=request.id,cwd=cwd,restored=restored,completed=completed,elapsedMs=elapsedMs,code=code,ended=ended}));
+          // exit N ends the persistent shell after its invocation is answered.
+          if(!restored||ended)return;
         }
       }
     }
+  }
+}
+
+sealed class OmneInvocationStart {
+  /** Copies $? at the end of the script; the name is private to the host. */
+  public const string Trailer="\n$global:__omne_succeeded=$?";
+  readonly Runspace runspace;readonly object head;readonly int maximum;
+  OmneInvocationStart(Runspace runspace,object head,int maximum){this.runspace=runspace;this.head=head;this.maximum=maximum;}
+  static object Value(object value){PSObject wrapped=value as PSObject;return wrapped==null?value:wrapped.BaseObject;}
+  /** Rule 1: clears $LASTEXITCODE and a pending exit, and marks where this invocation's errors start. */
+  public static OmneInvocationStart Begin(Runspace runspace,OmneConsoleHost host) {
+    host.TakeExit();
+    using(PowerShell reset=PowerShell.Create()){reset.Runspace=runspace;reset.AddScript("$global:LASTEXITCODE=$null",false).Invoke();}
+    System.Collections.IList errors=Value(runspace.SessionStateProxy.GetVariable("Error")) as System.Collections.IList;
+    object maximum=Value(runspace.SessionStateProxy.GetVariable("MaximumErrorCount"));
+    return new OmneInvocationStart(runspace,errors!=null&&errors.Count>0?errors[0]:null,maximum is int?(int)maximum:256);
+  }
+  /** The invocation's code; ran tells whether the script ran to its end without a terminating error. */
+  public int Finish(int? exit,bool ran) {
+    object flag=Value(runspace.SessionStateProxy.GetVariable("__omne_succeeded"));
+    runspace.SessionStateProxy.PSVariable.Remove("__omne_succeeded");
+    object last=Value(runspace.SessionStateProxy.GetVariable("LASTEXITCODE"));
+    int? lastExitCode=null;
+    if(last!=null){int converted;lastExitCode=LanguagePrimitives.TryConvertTo<int>(last,out converted)?converted:1;}
+    System.Collections.IList errors=Value(runspace.SessionStateProxy.GetVariable("Error")) as System.Collections.IList;
+    return OmneTerminalExit.Code(exit,ran&&flag is bool&&(bool)flag,lastExitCode,OmneTerminalExit.Added(errors,head,maximum));
   }
 }
 
@@ -226,7 +311,10 @@ sealed class OmneConsoleHost : PSHost {
   public override PSHostUserInterface UI{get{return ui;}}
   public override CultureInfo CurrentCulture{get{return CultureInfo.CurrentCulture;}}
   public override CultureInfo CurrentUICulture{get{return CultureInfo.CurrentUICulture;}}
-  public override void SetShouldExit(int code){Environment.Exit(code);}
+  readonly object exitLock=new object();int? exit;
+  /** exit N in a script: the code becomes the invocation's, and the shell ends after the answer. */
+  public override void SetShouldExit(int code){lock(exitLock)exit=code;}
+  public int? TakeExit(){lock(exitLock){int? code=exit;exit=null;return code;}}
   public override void EnterNestedPrompt(){throw new NotSupportedException("Nested prompt");}
   public override void ExitNestedPrompt(){throw new NotSupportedException("Nested prompt");}
   public override void NotifyBeginApplication(){}
@@ -279,4 +367,4 @@ sealed class OmneConsoleRawUI : PSHostRawUserInterface {
   public override void SetBufferContents(Coordinates origin,BufferCell[,] contents){throw new NotSupportedException("Console buffer write");}
   public override void SetBufferContents(Rectangle rectangle,BufferCell fill){if(rectangle.Left==-1)Console.Clear();else throw new NotSupportedException("Console buffer fill");}
 }
-`
+${terminalExitRuleSource}`
