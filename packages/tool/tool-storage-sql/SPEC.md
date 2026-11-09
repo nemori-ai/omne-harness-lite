@@ -117,7 +117,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 - 本包不持有连接、Worker、计时器或其他需要释放的资源。连接、Worker、事务与清理归 SQL 提供者。工厂返回的对象可以随时丢弃。
 - 信任假设（评审 N5）：本包不核验主体。调用方（账本、执行侧与启动协调器）在调用之前已核验主体与租户资格。本包只按受信的目录解析租户的事务域，并在每条语句里按租户过滤。
-- 每次提交使用新的 SQL 操作键（`tool.ledger`、`tool.chunk`、`tool.manifest`）。端口按自己的记录认回结果，不认回 SQL 回执。
+- 每次提交使用新的 SQL 操作键（`tool.ledger`、`tool.chunk`、`tool.manifest`），身份带 `recall: 'never'`（[sql-contract §3.1](../../storage/sql-contract/SPEC.md#不认回的提交)），提供者不为它写回执。端口按自己的记录认回结果：账本按操作记录与域修订，保管与材料按清单与围栏。提交结果未知时，端口读回这些记录，不重新执行工具。端口从不重用 SQL 身份；同一端口操作重送时，账本的修订守卫与清单认回原结果，不产生第二份结果。
 - 已提交的写入与保管不因任何对象被丢弃而撤销。
 
 ## W3 材料保管与回收设计
@@ -142,12 +142,11 @@ W3-A 按[材料协议](../tool-contract/docs/material-protocol.md)拆清实现�
 2. 两条不等式（评审 N1）。左侧上界归 `tool` 的 P08 拥有者，在它给出之前是已知限制：
    - 一次 `ToolLedgerStore.commit` 的写入集，编码后加信封不超过 `storage` 行的 `maxCommandBytes`。超过时提供者拒绝（`command_limit`），端口答 `unavailable`。
    - 一个账本域的全部记录，编码后不超过读 handler 的 `maxOutputBytes`（4194304）与提供者的 `maxReadResultBytes`，记录数不超过 100000。超过时读答 `unavailable`。
-3. 材料删除与持久候选索引已实现，应用维护行负责自动推进。删除释放分块并产生可复用页，不承诺 SQLite 文件立即缩小。回执、围栏与会话历史仍按各自责任保留，长期增长须分别测量；不能以这些记录保留正文副本。
+3. 材料删除与持久候选索引已实现，应用维护行负责自动推进。删除释放分块并产生可复用页，不承诺 SQLite 文件立即缩小。围栏与会话历史仍按各自责任保留，长期增长须分别测量；不能以这些记录保留正文副本。
 4. `inspect` 对从未保管的操作答 `unknown`（U1），P05 拥有者另定时再改。
 5. 已验证真实 SQLite Worker 重建及两个先后运行的进程恢复同一删除操作。两个进程同时共用一个库、强杀与断电耐久仍未验证。
-6. 每次提交（包括每个块）在提供者的回执表里留下一条回执。原件越大，回执越多。
-7. 清单提交在一个写事务内重读全部块并计算 SHA-256，代价与原件大小成正比。
-8. 值为 `undefined` 的记录成员按 JSON 省略。读回的记录没有这些成员。
+6. 清单提交在一个写事务内重读全部块并计算 SHA-256，代价与原件大小成正比。
+7. 值为 `undefined` 的记录成员按 JSON 省略。读回的记录没有这些成员。
 
 ## 组合与验证
 
@@ -157,6 +156,7 @@ W3-A 按[材料协议](../tool-contract/docs/material-protocol.md)拆清实现�
 | TS-03               | `tests/tenant-isolation.spec.ts`：同键两租户、他租户行混入同一库、目录外的租户                                                                                                               | 同上                                                                                             |
 | TS-04、TS-05、TS-08 | `tests/custody-conformance.spec.ts` 运行 `toolOutputCustodyConformance()`，没有不适用项；`tests/custody-chunks.spec.ts`；`tests/participant.spec.ts`                                         | 同上                                                                                             |
 | TS-06、TS-07        | `tests/custody-chunks.spec.ts`                                                                                                                                                               | 同上                                                                                             |
+| 不写回执            | `tests/receipts-live.spec.ts`：真实提供者上 66 次提交后 `_sql_receipt` 行数不变；封存答复丢失后按清单认回，不再写块 |
 | 重开                | `tests/reopen.spec.ts`：关闭再打开同一组数据库文件                                                                                                                                           | 进程内关闭与重开，不是进程终止或断电                                                             |
 | 启动围栏            | `tests/start-coordinator.spec.ts`：`tool-host-local` 的协调器在本仓上运行三组启动套件，并在重开后重建                                                                                        | 授权套件的用例全部不适用（协调器没有授权消费点）                                                 |
 | 历史无关（C7 host） | `tests/host-history-independence.spec.ts`：种入 2000 次 Tools 调用（来源绑定、控制主体、父与目标两次受理、环境获取与长寿命保留作用域里的保留终端与移交后停止的保留进程、转发槽与一条收到的副本、父调用经真实账本驱动到 `done` 的结果交付）后新调用能启动；计数记录仓显示一次 Tools 调用在宿主路径上读到的记录数与字节数在 20 与 2000 次历史下逐项相等，保留作用域记录的大小两次相等；作用域的收场记录随已停止的保留进程增长（等于停止数），只计数，读一条收场事实恰读一条记录；`start-guards` 大小单独报告 | 慢层；接收方、资格与材料是替身，账本与宿主工厂是真件 |

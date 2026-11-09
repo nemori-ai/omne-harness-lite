@@ -53,7 +53,8 @@ export async function resolveTenant(
 /**
  * One command of the `tool` participant under a fresh operation key. Every call is a new SQL
  * operation: the ports recognise their own outcomes (the ledger by its records, the custody by its
- * manifests), so no SQL identity is ever reused and no SQL receipt is recalled.
+ * manifests), so no SQL identity is ever reused, and the identity declares that it is never
+ * recalled: the provider keeps no receipt of it (sql-contract §3.1).
  */
 export function requestOf(
   options: SqlToolStorageOptions,
@@ -66,6 +67,7 @@ export function requestOf(
     operation: `tool.${facts.intent}`,
     protocolVersion: '2',
     operationKey: randomUUID(),
+    recall: 'never',
   }
   return { identity, ...options.combination, commands: [{ participant: PARTICIPANT, facts }] }
 }

@@ -2,7 +2,8 @@
 // it cannot run the `tool` participant or the read handlers; this one runs the real Worker modules
 // of this member against one database file per transaction domain. It keeps the receipts in the
 // same file and commits them in the same transaction as the participant's writes, so a closed and
-// reopened storage over the same directory recalls every committed operation. It models receipts,
+// reopened storage over the same directory recalls every committed operation. An identity that is
+// never recalled keeps no receipt and its query answers not_recallable. It models receipts,
 // rollback by a stopping reply or a throwing participant, recognition by the full identity, scope
 // partition, strict JSON facts and the command bound. It does not model Workers, queues, the group
 // commit, read ordering under concurrency or power loss, and a pass proves none of those.
@@ -216,6 +217,7 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
   }
 
   const save = (domain: Domain, receipt: ReceiptV2) => {
+    if (receipt.identity.recall === 'never') return
     rowsOf(domain.db, 'INSERT INTO _sql_receipt (identity, receipt) VALUES (?, ?)', [
       identityText(receipt.identity),
       JSON.stringify(receipt),
@@ -309,7 +311,7 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
         return rejected('command_limit')
       const domain = domainOf(identity.scope, identity.transactionDomain, false)
       if (domain === null) return rejected('combination_unregistered')
-      const existing = saved(domain, identity)
+      const existing = identity.recall === 'never' ? null : saved(domain, identity)
       if (existing !== null)
         return Promise.resolve(
           existing.inputDigest === inputDigestV2(request)
@@ -320,6 +322,7 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
     },
     query: (identity): Promise<QueryResultV2> => {
       const domain = domainOf(identity.scope, identity.transactionDomain, false)
+      if (identity.recall === 'never') return Promise.resolve({ kind: 'not_recallable', identity })
       if (domain === null)
         return Promise.resolve({ kind: 'unknown', identity, diagnostic: 'domain_unavailable' })
       return Promise.resolve(
