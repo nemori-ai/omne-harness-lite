@@ -16,7 +16,9 @@
 
 ## 受信键与发行登记
 
-`settingsSecretCustody` 是受信名：只有受信表列出的行可以提供或注入它，根上取不到。本闭包交付的是行实现、导出登记（`src/cordis.ts` 的 `secretCustodyRow`）与测试；`config/serve.distribution.json`、`config/s0.distribution.json`、`src/s0/aa-rows.json` 与应用装配页的受信表不在本闭包写范围内。发行层列出这一行并把键写进受信表之前，本行不会出现在 `serve` 的装配树里，本地操作档也不给它配置（`localOperatorLayer` 只在发行里有这一行时加 `secret-custody` 的 `replace` 操作，否则 `applyOperatorOps` 会因未知行抛出）。登记归后续闭包或派发者。
+`settingsSecretCustody` 是受信名：只有受信表列出的行可以提供或注入它，根上取不到。装配页的受信表把它交给三行：本行提供，`settings` 行 `inject`（在它之上建秘密项入口），`tool-bindings` 行按调用读取（Web 附着解析 search 的 key）。Model 凭据插件不经它。
+
+发行层（`config/serve.distribution.json`、`config/s0.distribution.json`、`src/s0/aa-rows.json`）把本行列在 `model-credential` 之后、`settings` 之前。次序有意：打开保管库要求文件已在路径上。本机单用户档由 `setup` 在 `serve` 之前建库；测试树没有 `setup`，由 `model-credential` 行的插件在空路径上建库，本行装载时打开同一个文件。本地操作档（`localOperatorLayer`）给本行 `path`，与 `model-credential` 同一路径。
 
 ## 验证入口
 
