@@ -7,13 +7,18 @@ import { describe, expect, it } from 'vitest'
 import { decodeActionId, type Preparation } from '@omne-harness/agent-contract'
 import { decodeModelCallId } from '@omne-harness/model-contract'
 import {
+  decodeCandidateRef,
   decodeFixedRequestRecord,
+  decodePositionRef,
   type AssemblyCall,
   type AssemblyOperations,
   type StepResult,
 } from '@omne-harness/request-context-contract'
 import { fixtureBudget } from '@omne-harness/request-context-contract/testing'
-import { digest } from '../src/records.ts'
+import type { TenantId } from '@omne-harness/legal-identity'
+import { decodeInputBatchId } from '@omne-harness/agent-contract'
+import { digest, tenantText } from '../src/records.ts'
+import { createStaging, type StagedGroups } from '../src/staging.ts'
 import {
   RESULT_CAPACITY,
   authority,
@@ -22,6 +27,7 @@ import {
   historyRow,
   meterBy,
   owner,
+  position,
   tenantOf,
   userMessage,
   type World,
@@ -45,21 +51,24 @@ function kindOf(result: { ok: Preparation } | { failure: unknown }) {
   return 'ok' in result ? result.ok.kind : result
 }
 
-/** Holds the next assemble until `open` is called, to keep one call in flight. */
-function gated(): Readonly<{ wrap: NonNullable<WorldOptions['operations']>; open(): void }> {
+/** Holds every assemble until `open` is called, to keep calls in flight; `held` lists their calls. */
+function gated(): Readonly<{
+  wrap: NonNullable<WorldOptions['operations']>
+  held: readonly AssemblyCall<string>[]
+  open(): void
+}> {
   const gate = Promise.withResolvers<void>()
-  let held = false
+  const held: AssemblyCall<string>[] = []
   return {
     wrap: real => ({
       ...real,
       assemble: async call => {
-        if (!held) {
-          held = true
-          await gate.promise
-        }
+        held.push(call)
+        await gate.promise
         return real.assemble(call)
       },
     }),
+    held,
     open: () => gate.resolve(),
   }
 }
@@ -385,8 +394,102 @@ describe('the groups that Request Context reads', () => {
   })
 })
 
+/** Waits until `count` assemble calls are held in the gate. */
+async function heldFor(gate: ReturnType<typeof gated>, count: number) {
+  for (let turn = 0; gate.held.length < count; turn += 1) {
+    if (turn > 200) throw new Error(`only ${gate.held.length} of ${count} calls reached the gate`)
+    await new Promise(resolve => setTimeout(resolve, 0))
+  }
+}
+const batch = (id: string) => ({
+  id: must(decodeInputBatchId(id)),
+  watermark: evidence('watermark'),
+  ordered: [],
+})
+function must<T>(decoded: { ok: T } | { failure: unknown }): T {
+  if (!('ok' in decoded)) throw new Error('fixture value')
+  return decoded.ok
+}
+const absent = { kind: 'unavailable', diagnostic: 'call-input-absent' }
+
 describe('the staging table', () => {
-  it('answers call-input-busy to a second call of the same candidate in flight, and clears after', async () => {
+  it('runs two calls of one candidate at different positions together, each on its own input', async () => {
+    const gate = gated()
+    const w = await createWorld({ operations: gate.wrap })
+    const context = await w.read()
+    const answers = [
+      w.requests.prepare(w.prepareInput(context, { inputs: batch('batch-1') })),
+      w.requests.prepare(
+        w.prepareInput(context, {
+          position: { ...position, work: 'execution-2' },
+          inputs: batch('batch-2'),
+        }),
+      ),
+    ]
+    await heldFor(gate, 2)
+    const history = w.registered[0]?.groups.history
+    const reads = await Promise.all(gate.held.map(call => history?.readSource(call)))
+    expect(
+      reads.map(read => (read?.kind === 'value' ? read.value.inputs.batch : read)).sort(),
+    ).toEqual(['batch-1', 'batch-2'])
+    gate.open()
+    expect((await Promise.all(answers)).map(kindOf)).toEqual(['assembled', 'assembled'])
+    for (const call of gate.held) expect(await history?.readSource(call)).toEqual(absent)
+  })
+
+  it.each([
+    ['purposes', { purpose: 'extension' }],
+    ['candidates', { action: must(decodeActionId('action-2')) }],
+  ] as const)('runs two calls at one position with different %s together', async (_, other) => {
+    const gate = gated()
+    const w = await createWorld({ operations: gate.wrap })
+    const context = await w.read()
+    const answers = [
+      w.requests.prepare(w.prepareInput(context)),
+      w.requests.prepare(w.prepareInput(context, other)),
+    ]
+    await heldFor(gate, 2)
+    gate.open()
+    for (const answer of await Promise.all(answers))
+      expect(answer).not.toEqual({
+        failure: { kind: 'unavailable', owner: 'agent-context', diagnostic: 'call-input-busy' },
+      })
+  })
+
+  it('answers call-input-absent to a group read of a call whose tenant has no text', async () => {
+    const w = await createWorld()
+    const call = { ...w.f.call, access: { ...w.access, tenant: {} as TenantId } }
+    expect(await createStaging<string>().sources('g').history.readSource(call)).toEqual(absent)
+  })
+
+  it('keys the values of one call identity apart by tenant', () => {
+    const staging = createStaging<string>()
+    const groupsOf = (name: string): StagedGroups<string> => {
+      const read = { kind: 'unavailable' as const, diagnostic: name }
+      return { history: read, context: read, prompt: read, model: read, tools: read, control: read }
+    }
+    const call = (tenant: TenantId): AssemblyCall<string> => ({
+      access: { principal: 'ada', tenant },
+      candidate: must(decodeCandidateRef('candidate_1')),
+      position: must(decodePositionRef('position_1')),
+      purpose: 'main',
+    })
+    const [one, two] = [tenantOf('1'), tenantOf('2')]
+    const text = (tenant: TenantId) => {
+      const value = tenantText(tenant)
+      if (value === null) throw new Error('fixture tenant')
+      return value
+    }
+    expect(staging.stage(text(one), call(one), groupsOf('one'))).not.toBeNull()
+    expect(staging.stage(text(two), call(two), groupsOf('two'))).not.toBeNull()
+    expect(staging.stage(text(one), call(one), groupsOf('again'))).toBeNull()
+    return expect(staging.sources('g').history.readSource(call(two))).resolves.toEqual({
+      kind: 'unavailable',
+      diagnostic: 'two',
+    })
+  })
+
+  it('answers call-input-busy to a second arrival of the same call in flight, and clears after', async () => {
     const gate = gated()
     const w = await createWorld({ operations: gate.wrap })
     const context = await w.read()
