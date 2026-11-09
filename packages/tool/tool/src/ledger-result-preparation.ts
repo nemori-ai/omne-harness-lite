@@ -17,6 +17,7 @@ import type { LedgerDomain } from './ledger-store.ts'
 import type { TerminalText } from './ledger-start.ts'
 import type { BodyPolicy } from './result-offloading.ts'
 import type { createLedgerMaterialCustody } from './ledger-material-custody.ts'
+import type { BodyWriting } from './ledger-body-writer.ts'
 import type { ResultReference } from './tools-protocol.ts'
 import {
   prepareResultChannels,
@@ -63,6 +64,7 @@ export function createResultPreparation<P, B extends ContentBlock>(
   ports: Readonly<{
     authorize(input: unknown): Reply<CallInput<P>>
     custody: ReturnType<typeof createLedgerMaterialCustody<P>>
+    writeBody: BodyWriting<P>['writeBody']
     transact: PreparationTransaction
     text: TerminalText<B>
     policy: BodyPolicy
@@ -156,6 +158,7 @@ export function createResultPreparation<P, B extends ContentBlock>(
       null,
       validate,
       ports.target,
+      ports.writeBody,
     )
     if ('failure' in channels) return channels
     const saved = await ports.transact(

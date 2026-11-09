@@ -77,7 +77,7 @@ it('keeps record boundaries with one-byte store pages and rejects a cursor insid
   const wrong = JSON.parse(first.next)
   wrong.offset = '1'
   expect(await f.ledger.reads.body.read({ ...input, after: JSON.stringify(wrong) })).toMatchObject({
-    failure: { kind: 'invalid-cursor', reason: 'not-a-record-boundary' },
+    failure: { kind: 'invalid-cursor', reason: 'another-body-or-invalid-position' },
   })
   const second = ok(await f.ledger.reads.body.read({ ...input, after: first.next }))
   if (second.kind !== 'json-lines') throw new Error('record page required')

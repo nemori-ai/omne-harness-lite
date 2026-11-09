@@ -1,13 +1,9 @@
 import type { LedgerRecord } from './ledger-store.ts'
 
 const unchangedKinds = {
-  'body-writer': true,
-  'body-writer-scope': true,
-  'body-writer-append': true,
+  'body-entry': true,
   'material-maintenance-hint': true,
   'material-maintenance': true,
-  'body-expiration': true,
-  'body-preparation': true,
   'result-policy': true,
   'result-preparation': true,
   material: true,

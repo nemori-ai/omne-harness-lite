@@ -1,3 +1,4 @@
+import { createMemoryToolBodies } from '@omne-harness/tool/testing'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { appendFile, mkdir, realpath, writeFile } from 'node:fs/promises'
@@ -335,6 +336,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     }
     const bundle = createLocalToolRuntimePlugins({
       store,
+      bodies: createMemoryToolBodies(),
       materials: {
         provider: sql.materialProvider,
         store: sql.materialStore,

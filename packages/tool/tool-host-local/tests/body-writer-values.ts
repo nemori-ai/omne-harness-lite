@@ -13,6 +13,4 @@ export const unavailableBodyWrites: ToolBodyWrites<unknown> = {
   append: unavailable,
   seal: unavailable,
   inspect: unavailable,
-  close: unavailable,
-  reconcile: unavailable,
 }

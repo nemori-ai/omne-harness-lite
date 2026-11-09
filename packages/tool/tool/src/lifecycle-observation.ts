@@ -2,7 +2,7 @@ import type { ToolCallId } from '@omne-harness/tool-contract'
 import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type { LedgerCommitInput, ToolLedgerStore } from './ledger-store.ts'
 
-type LifecyclePhase = 'result-commit' | 'offload' | 'delivery-release' | 'expire' | 'reclaim'
+type LifecyclePhase = 'result-commit' | 'offload' | 'delivery-release' | 'reclaim'
 export type ToolLifecycleObservation = Readonly<{
   tenant: CallAccess<unknown>['tenant']
   call: ToolCallId
@@ -30,14 +30,12 @@ function observations(input: LedgerCommitInput): readonly ToolLifecycleObservati
     if (record.kind === 'result' && record.result.delivery.kind !== 'released') {
       add('result-commit')
       if (record.result.value.original.kind === 'offloaded')
-        add('offload', Number(record.result.value.original.body.description.bodyBytes))
+        add('offload', Number(record.result.value.original.body.bodyBytes))
     } else if (
       record.kind === 'operation' &&
       record.operation.receipt.kind === 'release-delivery'
     ) {
       add('delivery-release')
-    } else if (record.kind === 'body-expiration') {
-      add('expire')
     } else if (record.kind === 'material' && record.material.state.kind === 'deleted') {
       add('reclaim')
     }

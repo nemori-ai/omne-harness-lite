@@ -109,15 +109,6 @@ export const toolMaterialMaintenanceRow = defineRow({
       clock,
       maintenance,
       pageSize: config.pageSize,
-      recoverBodies: request =>
-        toolRuntimeHolder(ctx).bundle?.value.recoverBodies(request) ??
-        Promise.resolve(
-          fail({
-            kind: 'unavailable',
-            dependency: 'tool-body-recovery',
-            diagnostic: 'Tool runtime is unavailable.',
-          }),
-        ),
     })
     const logger = ctx.logger('tool-material-maintenance')
     const runner = startMaterialMaintenanceRunner({

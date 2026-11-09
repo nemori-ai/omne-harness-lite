@@ -27,6 +27,7 @@ import { createReleaseToolIdentity, releasePrincipalCodec } from './access.ts'
 import type { ToolRuntimeConfig } from './config.ts'
 import { createReleaseEnvironment } from './environment.ts'
 import {
+  lateBodyStore,
   lateMaterials,
   TOOL_MATERIAL_PROVIDER,
   lateStore,
@@ -118,6 +119,11 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
       provider: TOOL_MATERIAL_PROVIDER,
       store: lateMaterials(holder),
       clock: holder.materialClock,
+    },
+    bodies: {
+      store: lateBodyStore(holder),
+      permitKey: holder.bodyPermitKey,
+      clock: holder.bodyClock,
     },
     content: null,
     sources: { ...sources, guard: withTargetAdmissionPolicy(sources.guard, store, requestAccess) },

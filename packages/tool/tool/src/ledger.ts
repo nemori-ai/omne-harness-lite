@@ -1,12 +1,11 @@
-import { createLedgerBodyWrites } from './ledger-body-writer.ts'
+import { createBodyWriting, instantAfter } from './ledger-body-writer.ts'
+import type { BodyPolicy } from './result-offloading.ts'
 import type { ToolBodyWrites } from '@omne-harness/tool-contract/provider'
-import { authorBody } from './ledger-author-body.ts'
+import { entryBySource } from './ledger-body-entries.ts'
 import { firstResultReference } from './result-address.ts'
-import { createLedgerBodyCustody } from './ledger-body-custody.ts'
 import { createLedgerMaterialMaintenance } from './ledger-material-maintenance.ts'
 import { createLedgerTransactions, type Decide } from './ledger-transactions.ts'
 import { createLedgerAccess } from './ledger-access.ts'
-import type { ToolBodyCustody } from '@omne-harness/tool-contract/provider'
 import { pinResultPolicy } from './ledger-result-policy.ts'
 import { activateResultDecision } from './ledger-result-activation.ts'
 import { resultBodyPolicy, systemBodyPolicy } from './result-offloading.ts'
@@ -16,7 +15,12 @@ import {
   type SyntheticDecider,
 } from './ledger-result-preparation.ts'
 import { createLedgerMaterialCustody } from './ledger-material-custody.ts'
-import { prepareResultChannels, readResultChannels } from './ledger-result-material.ts'
+import {
+  prepareResultChannels,
+  preparedBodyOf,
+  readResultChannels,
+  type PreparedBody,
+} from './ledger-result-material.ts'
 import type { ResultRecord } from './ledger-store.ts'
 import { factValues } from './fact-values.ts'
 import { adoptFactMaterials, restoreSavedFact } from './ledger-fact-material.ts'
@@ -57,6 +61,7 @@ import {
   type ToolLookup,
   type ToolOperationId,
   type ToolResultVersion,
+  type ToolRenderedResult,
   type ToolResult,
   type ToolStartRecord,
   type ToolState,
@@ -171,7 +176,6 @@ export type ToolLedger<P, B extends ContentBlock> = Readonly<{
     read(input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>): Reply<ToolResult<B>>
   }>
   bodyWrites: ToolBodyWrites<P>
-  bodyCustody: ToolBodyCustody<P>
   rawCustody: Pick<ToolOutputCustody<P>, 'preserve' | 'inspect'>
   finalCustody: ToolFinalCustody<P, B>
   controls: ToolLedgerControls<P>
@@ -508,6 +512,36 @@ export function createToolLedger<P, B extends ContentBlock>(
   const text = (terminal: Parameters<typeof terminalText<B>>[0]) =>
     terminalText(terminal, admitTools.text)
 
+  const bodyWriting = createBodyWriting<P>({
+    bodies: settlement.bodies,
+    ...(settlement.bodySchemas === undefined ? {} : { bodySchemas: settlement.bodySchemas }),
+    configuration,
+    entry,
+    load: input => read(callDomain(input)),
+    transact,
+  })
+
+  /** The body an author's return references: a sealed entry of this call, or the reason it is not. */
+  const authoredBody = (
+    snapshot: Snapshot,
+    source: Extract<ToolRenderedResult<B>['original'], { kind: 'offloaded' }>['source'],
+  ): Outcome<Readonly<{ prepared: PreparedBody; policy: BodyPolicy }>, ToolFailure> => {
+    const entry = entryBySource(snapshot, source)
+    if (entry === null) {
+      const opened = [...snapshot.bodies.values()].some(
+        body => body.start !== null && body.state.kind === 'opened',
+      )
+      return invalid(
+        'original.source',
+        opened ? 'body-not-sealed' : 'same-call-sealed-body-required',
+      )
+    }
+    const prepared = preparedBodyOf(entry, 'author-summary')
+    return 'failure' in prepared
+      ? prepared
+      : succeed({ prepared: prepared.ok, policy: entry.policy })
+  }
+
   const settleSynthetic = async <T>(
     context: MutationInput<P>,
     action: 'admit' | 'write',
@@ -535,6 +569,7 @@ export function createToolLedger<P, B extends ContentBlock>(
           entry: input => entry(input, action),
           transact,
         }),
+        writeBody: bodyWriting.writeBody,
         transact,
         text,
         policy: systemBodyPolicy(configuration.offloading, configuration.readResultArguments),
@@ -582,9 +617,8 @@ export function createToolLedger<P, B extends ContentBlock>(
           }
         const pending = prepared
         return activateResultDecision(
-          snapshot,
           pending.state.channels,
-          settlement.materials?.clock,
+          settlement.bodies?.clock,
           async channels => {
             const qualified = await access(context, action)
             if ('failure' in qualified) return { kind: 'reply', outcome: qualified }
@@ -1037,7 +1071,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     if ('failure' in qualified) return qualified
     const authored =
       final.result.original.kind === 'offloaded'
-        ? authorBody(before.ok, final.result.original.source)
+        ? authoredBody(before.ok, final.result.original.source)
         : succeed(null)
     if ('failure' in authored) return authored
     const proposed =
@@ -1094,6 +1128,7 @@ export function createToolLedger<P, B extends ContentBlock>(
         return 'failure' in current ? current : succeed(undefined)
       },
       target.ok,
+      bodyWriting.writeBody,
     )
     if ('failure' in channels)
       return channels.failure.kind === 'commit-unknown' &&
@@ -1111,14 +1146,22 @@ export function createToolLedger<P, B extends ContentBlock>(
         if (current.ok.kind === 'recalled')
           return { kind: 'reply', outcome: succeed(current.ok.state) }
         return activateResultDecision(
-          snapshot,
           channels.ok,
-          settlement.materials?.clock,
-          async committed => {
+          settlement.bodies?.clock,
+          async (committed, settledAt) => {
             const qualified = await access(context.ok, 'write')
             return 'failure' in qualified
               ? { kind: 'reply', outcome: qualified }
-              : decidePreserveResult(snapshot, command, final, committed, mint)
+              : decidePreserveResult(
+                  snapshot,
+                  command,
+                  final,
+                  committed,
+                  settledAt === null
+                    ? null
+                    : instantAfter(settledAt, configuration.offloading.orphanGraceMs),
+                  mint,
+                )
           },
         )
       },
@@ -1423,11 +1466,11 @@ export function createToolLedger<P, B extends ContentBlock>(
     },
   }
 
-  const bodyReads = createLedgerBodyReads({
-    materials: settlement.materials,
+  const bodyReads = createLedgerBodyReads<P>({
+    bodies: settlement.bodies,
     configuration: configuration.offloading,
     authorize: input => access(input, 'read-content'),
-    transact,
+    load: input => read(callDomain(input)),
   })
   const reads: ToolReads<P, B> = {
     body: { read: bodyReads.read },
@@ -1523,22 +1566,7 @@ export function createToolLedger<P, B extends ContentBlock>(
         return 'failure' in current ? current : value
       },
     }),
-    bodyWrites: createLedgerBodyWrites({
-      bodySchemas: settlement.bodySchemas,
-      materials: settlement.materials,
-      configuration,
-      entry,
-      load: input => read(callDomain(input)),
-      transact,
-    }),
-    bodyCustody: createLedgerBodyCustody({
-      readResultArguments: configuration.readResultArguments,
-      materials: settlement.materials,
-      configuration: configuration.offloading,
-      entry,
-      load: input => read(callDomain(input)),
-      transact,
-    }),
+    bodyWrites: bodyWriting.writes,
     rawCustody: createLedgerRawCustody({
       materials: settlement.materials,
       entry,

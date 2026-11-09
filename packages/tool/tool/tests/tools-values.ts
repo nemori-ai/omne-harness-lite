@@ -152,6 +152,7 @@ export async function sourceFixture(
     config,
     {
       materials: testSettlementPorts(f.harness.memory).materials,
+      bodies: testSettlementPorts(f.harness.memory).bodies,
       releaseInspection: f.environment,
       content: content.reader,
     },

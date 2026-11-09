@@ -44,8 +44,8 @@ export type ToolBodyRepresentation =
   | Readonly<{ kind: 'json-lines'; codec: Adoption; recordSchema: ToolSchemaIdentity }>
 export type ToolBodyRetention = Readonly<{
   adoption: Adoption
-  activatedAt: import('./materials.ts').ToolMaterialInstant
-  expiresAt: import('./materials.ts').ToolMaterialInstant
+  activatedAt: import('./body-store.ts').ToolInstant
+  expiresAt: import('./body-store.ts').ToolInstant
 }>
 export type ToolOffloadedBody = Readonly<{
   source: Attachment

@@ -200,18 +200,9 @@ class BodyScope<P> implements ToolBodyScope {
         : succeed(undefined)
     }
     if (exit === 'returned') await Promise.race([this.#tail, this.#aborted.promise])
-    const operation = this.operation('close')
     const interrupted = exit === 'failed' || this.#input.signal.aborted
-    const answer = await authorReply(operation, () =>
-      this.#input.writes.close({
-        ...this.#input.binding,
-        operation,
-        exit: interrupted ? 'failed' : 'returned',
-      }),
-    )
-    if ('failure' in answer) return answer
     this.#handoffConfirmed = true
-    if (interrupted || this.#input.signal.aborted) {
+    if (interrupted) {
       this.#handedOff = true
       this.#interruptActive?.()
       this.#interruptActive = null
@@ -220,14 +211,6 @@ class BodyScope<P> implements ToolBodyScope {
         ? succeed(undefined)
         : fail({ kind: 'cancelled', reason: 'body writer was cancelled' })
     }
-    if (answer.ok.pendingOperations.length > 0)
-      return fail({
-        kind: 'unknown',
-        operation,
-        reason: 'body writes have durable pending operations',
-      })
-    if (answer.ok.unsealedKeys.length > 0)
-      return fail({ kind: 'invalid', reason: 'the author returned with unsealed body writers' })
     return this.#input.signal.aborted
       ? fail({ kind: 'cancelled', reason: 'body writer was cancelled' })
       : succeed(undefined)

@@ -1,3 +1,4 @@
+import { createMemoryToolBodies } from '@omne-harness/tool/testing'
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { catalogSearch, catalogView } from '../catalog-view-fixture.ts'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
@@ -424,6 +425,7 @@ export async function fixture(
   const input: LocalToolRuntimeInput = {
     store,
     materials: createMemoryToolMaterials(),
+    bodies: createMemoryToolBodies(),
     content: null,
     ...(body === undefined ? {} : { bodySchemas: body.schemas }),
     sources,

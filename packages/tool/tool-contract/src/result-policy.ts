@@ -1,4 +1,5 @@
 // The named default result policy (G3, P14): its identity and its judgment.
+import { decodeToolInstant } from './body-store.ts'
 import {
   judgeContentBlock,
   type ContentBlock,
@@ -10,7 +11,6 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { describedAdoption } from './adoption.ts'
 import type { ResultPolicy } from './execution.ts'
 import { decodeToolBodyId, type Adoption } from './identity.ts'
-import { decodeToolMaterialInstant } from './materials.ts'
 import { jsonValue } from './json-tree.ts'
 import type { ToolMessageContentBlock, ToolResult, ToolRenderedResult } from './results.ts'
 import {
@@ -152,8 +152,8 @@ const bodyRepresentation = variant('kind', {
 const bodyRetention = refine(
   record({
     adoption,
-    activatedAt: identity(decodeToolMaterialInstant),
-    expiresAt: identity(decodeToolMaterialInstant),
+    activatedAt: identity(decodeToolInstant),
+    expiresAt: identity(decodeToolInstant),
   }),
   (value, at) =>
     Date.parse(value.expiresAt) > Date.parse(value.activatedAt)

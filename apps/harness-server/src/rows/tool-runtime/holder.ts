@@ -27,7 +27,14 @@ import {
 } from '@omne-harness/tool-host-local'
 import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-local/cordis'
 
+import { randomBytes } from 'node:crypto'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
+import {
+  decodeToolInstant,
+  type ToolBodyPermitKey,
+  type ToolBodyStore,
+  type ToolInstantClock,
+} from '@omne-harness/tool-contract/provider'
 import type { SessionWorkPrincipals } from '@omne-harness/session-contract'
 import type { SchemaProvider } from '@omne-harness/schema-provider'
 import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis'
@@ -38,6 +45,7 @@ export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins>
 export type ToolSqlPorts = Readonly<{
   store: ToolLedgerStore
   materials: ToolMaterialStore<unknown>
+  bodies: NonNullable<LocalToolRuntimeInput['bodies']>
 }>
 
 type Witnessed = { execution: string; sources: Set<string> }
@@ -47,6 +55,10 @@ export type ToolRuntimeHolder = {
   toolsForwarding: LocalToolForwarding<unknown> | null
   readonly clock: ToolClock
   readonly materialClock: ToolMaterialClock
+  /** One permit key per process: the ledger signs with it, the SQL body store verifies with it. */
+  readonly bodyPermitKey: ToolBodyPermitKey
+  /** The participant clock of issuer, settler, store and reader in this process. */
+  readonly bodyClock: ToolInstantClock
   /** 当前 SQL 端口；`tool-records` 行不在时为 null。 */
   sql: ToolSqlPorts | null
   /** 执行域的 schema-provider；`tool-environments` 行装载时交来，撤除时收回。 */
@@ -107,6 +119,19 @@ export function toolRuntimeHolder(ctx: Context): ToolRuntimeHolder {
       monotonicMs: () =>
         /* wall-clock: clock-source -- Tool 材料时钟的同进程单调输入 */ performance.now(),
     }),
+    bodyPermitKey: { secret: randomBytes(32) },
+    bodyClock: {
+      now: () => {
+        const decoded = decodeToolInstant(
+          new Date(
+            /* wall-clock: clock-source -- Tool body permits, expiry and sweep */ Date.now(),
+          ).toISOString(),
+        )
+        if ('failure' in decoded)
+          throw new Error('tool-runtime: the host clock gave a non-canonical instant')
+        return decoded.ok
+      },
+    },
     sql: null,
     schemaProvider: null,
     bodySchemas: null,
@@ -229,4 +254,22 @@ export function witnessed(
 export function awaitBundle(ctx: Context): Promise<ToolRuntimeBundle> {
   const holder = toolRuntimeHolder(ctx)
   return holder.bundle === null ? holder.ready : Promise.resolve(holder.bundle.value)
+}
+
+/** The SQL body store of the current `tool-records` row; unavailable answers while it is absent. */
+export function lateBodyStore(holder: ToolRuntimeHolder): ToolBodyStore {
+  const unavailable = {
+    kind: 'unavailable',
+    diagnostic: 'tool-records SQL ports are not mounted',
+  } as const
+  return Object.freeze({
+    durability: 'durable',
+    put: (permit, seq, bytes) =>
+      holder.sql?.bodies.store.put(permit, seq, bytes) ?? Promise.resolve(unavailable),
+    seal: (permit, manifest) =>
+      holder.sql?.bodies.store.seal(permit, manifest) ?? Promise.resolve(unavailable),
+    read: (body, range) =>
+      holder.sql?.bodies.store.read(body, range) ?? Promise.resolve(unavailable),
+    delete: body => holder.sql?.bodies.store.delete(body) ?? Promise.resolve(unavailable),
+  } satisfies ToolBodyStore)
 }

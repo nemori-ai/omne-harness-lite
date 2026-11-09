@@ -1,5 +1,6 @@
 import { sameFactValue } from './evidence.ts'
-import { authorBody } from './ledger-author-body.ts'
+import type { ToolInstant } from '@omne-harness/tool-contract/provider'
+import { settleBodyEntries } from './ledger-body-entries.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ToolRenderedResult } from '@omne-harness/tool-contract'
 import { materialContent, materialContentSeal } from './ledger-material-content.ts'
@@ -48,9 +49,15 @@ export function preparedRawMaterial(
   return preparedMaterial(snapshot, seal.ok, 'raw')
 }
 
+/**
+ * The result channels adopt their materials, and the body part of model `Settle` runs: the
+ * referenced body is linked and scheduled, the other bodies of the call are orphaned at
+ * `orphanDue` (null when the call never had a writer, as at an admission-time settlement).
+ */
 export function adoptResultMaterials(
   snapshot: Snapshot,
   result: ResultRecord,
+  orphanDue: ToolInstant | null,
 ): Outcome<readonly LedgerWrite[], ToolFailure> {
   const channels = result.value
   const seals = [
@@ -83,56 +90,20 @@ export function adoptResultMaterials(
       },
     )
   }
-  if (channels.original.kind === 'offloaded') {
-    const { seal, description } = channels.original.body
-    if (description.previewKind === 'author-summary') {
-      const authored = authorBody(snapshot, description.source)
-      if ('failure' in authored) return authored
-      const { retention, ...fixedDescription } = description
-      if (
-        !sameFactValue(authored.ok.prepared.description, fixedDescription) ||
-        !sameFactValue(authored.ok.prepared.seal, seal) ||
-        !sameFactValue(authored.ok.policy.adoption, retention.adoption)
-      )
-        return invalid('original.source', 'sealed-body-changed')
-    }
-    const adopted = adoptResultBody(snapshot, result)
-    if ('failure' in adopted) return adopted
-    writes.push(...adopted.ok)
-  }
-  return succeed(writes)
-}
-
-function adoptResultBody(
-  snapshot: Snapshot,
-  result: ResultRecord,
-): Outcome<readonly LedgerWrite[], ToolFailure> {
-  const original = result.value.original
-  if (original.kind !== 'offloaded') return succeed([])
-  const { seal, description } = original.body
-  const writes: LedgerWrite[] = []
-  const prepared = preparedMaterial(snapshot, seal, 'body')
-  if ('failure' in prepared) return prepared
-  const material = prepared.ok
-  writes.push(
-    { kind: 'delete', key: `material-use:preparation:${material.writeOperation}` },
-    {
-      kind: 'put',
-      record: {
-        kind: 'material-use',
-        use: {
-          id: `body:${description.bodyId}`,
-          kind: 'offloaded-body',
-          material: material.material,
-          writeOperation: material.writeOperation,
+  const linked =
+    channels.original.kind === 'offloaded'
+      ? {
+          bodyId: channels.original.body.bodyId,
           result: result.result,
-          bodyId: description.bodyId,
-          expiresAt: description.retention.expiresAt,
-          basis: result.source,
-        },
-      },
-    },
-  )
+          expiresAt: channels.original.body.retention.expiresAt,
+        }
+      : null
+  if (linked === null && orphanDue === null) return succeed(writes)
+  if (orphanDue === null)
+    return invalid('original.source', 'body-settlement-requires-a-settlement-instant')
+  const bodies = settleBodyEntries(snapshot, linked, orphanDue)
+  if ('failure' in bodies) return bodies
+  writes.push(...bodies.ok)
   return succeed(writes)
 }
 

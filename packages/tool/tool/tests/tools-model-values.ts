@@ -301,6 +301,7 @@ export async function modelHost(
     configurationOf({ resultPageBytes: options.resultPageBytes }),
     {
       materials: testSettlementPorts(h.memory).materials,
+      bodies: testSettlementPorts(h.memory).bodies,
       releaseInspection: h.environments,
       content: content.reader,
     },

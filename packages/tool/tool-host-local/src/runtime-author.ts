@@ -112,29 +112,6 @@ export function createRuntimeAuthorExecution(
       signal.addEventListener('abort', done, { once: true })
       if (signal.aborted) done()
     })
-  const retainBodyClose = async (
-    request: Parameters<ToolBodyWrites<unknown>['close']>[0],
-    signal: AbortSignal,
-  ): ReturnType<ToolBodyWrites<unknown>['close']> => {
-    for (;;) {
-      let answer: Awaited<ReturnType<ToolBodyWrites<unknown>['close']>>
-      try {
-        answer = await input.bodyWrites.close(request)
-      } catch {
-        answer = fail({
-          kind: 'unknown',
-          operation: request.operation,
-          reason: 'Body close was not confirmed.',
-        })
-      }
-      const pending =
-        'failure' in answer
-          ? answer.failure.kind === 'unknown' || answer.failure.kind === 'unavailable'
-          : request.exit === 'returned' && answer.ok.pendingOperations.length > 0
-      if (!pending || signal.aborted) return answer
-      await retry(signal)
-    }
-  }
   const retain = async (request: Parameters<ToolOutputCustody<unknown>['preserve']>[0]) => {
     const key = canonicalDigest([request.tenant, request.call, request.operation])
     pending.set(key, request)
@@ -258,8 +235,6 @@ export function createRuntimeAuthorExecution(
           append: request => input.bodyWrites.append(request),
           seal: request => input.bodyWrites.seal(request),
           inspect: request => input.bodyWrites.inspect(request),
-          reconcile: request => input.bodyWrites.reconcile(request),
-          close: request => retainBodyClose(request, bodySignal),
         },
         signal: bodySignal,
         limits: scope.ok.limits,

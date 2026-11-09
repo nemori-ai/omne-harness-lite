@@ -752,6 +752,7 @@ describe('fixed result and content reads through the runtime', () => {
       configuration(),
       {
         materials: testSettlementPorts(f.f.harness.memory).materials,
+        bodies: testSettlementPorts(f.f.harness.memory).bodies,
         releaseInspection: f.f.environment,
         content: null,
       },

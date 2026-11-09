@@ -1,3 +1,4 @@
+import { createMemoryToolBodies } from '@omne-harness/tool/testing'
 import type { JsonLimits } from '@omne-harness/json-text'
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 // A real Tool ledger (`createToolLedger` of `@omne-harness/tool`) over a given store, with a fixed
@@ -211,12 +212,14 @@ export async function ledgerWorld(tenant: TenantId, body?: ToolBodyDeclaration) 
     },
   }
   const memoryMaterials = createMemoryToolMaterials<Principal>()
+  const memoryBodies = createMemoryToolBodies()
   const ledgerOver = (
     store: ToolLedgerStore,
     materials?: ToolLedgerPorts<Principal>['materials'],
     bodyOptions: Readonly<{
       schemas?: ToolLedgerPorts<Principal>['bodySchemas']
       limits?: JsonLimits
+      bodies?: ToolLedgerPorts<Principal>['bodies']
     }> = {},
   ) =>
     createToolLedger<Principal, ContentBlock>(
@@ -268,6 +271,7 @@ export async function ledgerWorld(tenant: TenantId, body?: ToolBodyDeclaration) 
       },
       {
         materials: materials ?? memoryMaterials,
+        bodies: bodyOptions.bodies ?? memoryBodies,
         ...(bodyOptions.schemas === undefined ? {} : { bodySchemas: bodyOptions.schemas }),
         releaseInspection: createMemoryToolEnvironment<Principal>(),
         content: null,

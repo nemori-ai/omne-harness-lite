@@ -43,6 +43,7 @@ export type LedgerAssemblyDependencies = StoreCaseDependencies &
     source: typeof createTestInvocationSource<Principal>
     clock(): Parameters<Factory>[2]
     environment(): Parameters<Factory>[4]['releaseInspection']
+    bodies(): NonNullable<Parameters<Factory>[4]['bodies']>
   }>
 const adoption = (name: string): Adoption => ({
   owner: 'ledger-conformance',
@@ -289,7 +290,7 @@ export async function ledgerAssembly(
         },
       },
     },
-    { releaseInspection: deps.environment(), content: null },
+    { releaseInspection: deps.environment(), content: null, bodies: deps.bodies() },
   )
   return {
     ledger,

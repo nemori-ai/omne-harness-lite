@@ -2,6 +2,8 @@ export {
   createMemoryToolMaterialStore,
   createMemoryToolMaterials,
 } from './testing-material-store.ts'
+import { randomBytes } from 'node:crypto'
+import type { ToolBodyPermitKey, ToolInstant } from '@omne-harness/tool-contract/provider'
 import { createMemoryToolMaterials } from './testing-material-store.ts'
 import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -43,6 +45,10 @@ import {
   type MemoryToolOutputCustody,
   type MemoryToolResourceResponses,
   type MemoryToolStartAuthority,
+  createManualInstantClock,
+  createMemoryToolBodyStore,
+  instantAt,
+  type MemoryToolBodyStore,
 } from '@omne-harness/tool-contract/testing'
 import { tenantKey } from './boundary.ts'
 import type { ToolDependencies, ToolLedgerConfiguration } from './construction.ts'
@@ -128,6 +134,7 @@ export function createTestToolDependencies<P>(
     input.configuration,
     {
       materials: createMemoryToolMaterials<P>(),
+      bodies: createMemoryToolBodies(),
       releaseInspection: doubles.environment,
       content: content.reader,
     },
@@ -379,6 +386,7 @@ export function toolLedgerStoreCompositionConformance(): readonly ConformanceCas
   return compositionCases({
     ...ledgerStoreCaseDependencies,
     createLedger: createToolLedger,
+    bodies: () => createMemoryToolBodies(),
     source: createTestInvocationSource,
     clock: createMemoryToolClock,
     environment: createMemoryToolEnvironment,
@@ -410,3 +418,19 @@ export function toolAccessGuardConformance<P>(): readonly ConformanceCase<
 }
 
 export { createTestResultChannels } from './testing-result-channels.ts'
+
+export type MemoryToolBodies = Readonly<{
+  store: MemoryToolBodyStore
+  permitKey: ToolBodyPermitKey
+  clock: ReturnType<typeof createManualInstantClock>
+}>
+
+/**
+ * The non-durable body custody of a test assembly: the memory body store, one permit key and a
+ * manual participant clock shared by issuer, settler, store and reader. Never a production fallback.
+ */
+export function createMemoryToolBodies(start: ToolInstant = instantAt(0)): MemoryToolBodies {
+  const permitKey = { secret: randomBytes(32) }
+  const clock = createManualInstantClock(start)
+  return { store: createMemoryToolBodyStore({ key: permitKey, clock }), permitKey, clock }
+}

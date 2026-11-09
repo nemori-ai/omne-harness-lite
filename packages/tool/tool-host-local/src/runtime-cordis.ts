@@ -89,10 +89,6 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
       seal: request =>
         records?.ledger.bodyWrites.seal(request) ?? bodyUnavailable(request.operation),
       inspect: request => records?.ledger.bodyWrites.inspect(request) ?? bodyUnavailable('inspect'),
-      close: request =>
-        records?.ledger.bodyWrites.close(request) ?? bodyUnavailable(request.operation),
-      reconcile: request =>
-        records?.ledger.bodyWrites.reconcile(request) ?? bodyUnavailable('reconcile'),
     },
     custody: {
       preserve: request =>
@@ -161,23 +157,6 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
       const answer = await input.sources.forwardedResult(request)
       return retired ? runtimeUnavailable('forwarded-result') : answer
     },
-    async recoverBodies(wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0]) {
-      if (retired || records === null) return runtimeUnavailable('tool-body-recovery')
-      const access = await input.resolveAccess(wake)
-      if ('failure' in access) return access
-      const recovery = await records.ledger.commands.loadRecovery(access.ok)
-      if ('failure' in recovery) return recovery
-      if (recovery.ok.state.phase === 'settled' || recovery.ok.start === null)
-        return succeed({ queued: false })
-      if (retired || executor === null || host === null)
-        return runtimeUnavailable('tool-body-recovery')
-      const known = executor.knows(wake)
-      if (!executor.remember(wake, 'body-recovery'))
-        return runtimeUnavailable('tool-body-recovery-capacity')
-      const scheduled = await host.schedule(wake)
-      if ('failure' in scheduled && !known) executor.rejectAdmission(wake)
-      return scheduled
-    },
     records: {
       name: 'local-tool-records',
       apply(ctx: Context) {
@@ -237,10 +216,6 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
           ctx,
           settings: input,
           dependencies: dependencies(ctx),
-          bodyWrites: {
-            reconcile: request =>
-              records?.ledger.bodyWrites.reconcile(request) ?? bodyUnavailable('reconcile'),
-          },
           resultDelivery: {
             read: request =>
               records === null || retired

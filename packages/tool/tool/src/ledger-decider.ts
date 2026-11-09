@@ -1,9 +1,4 @@
-import type {
-  WriterRecord,
-  WriterScopeRecord,
-  WriterAppendRecord,
-} from './ledger-writer-records.ts'
-import type { BodyPreparationRecord } from './ledger-body-custody.ts'
+import type { BodyEntryRecord } from './ledger-body-records.ts'
 import type { ResultPolicyRecord } from './ledger-result-policy.ts'
 import { adoptResultMaterials, releaseResultMaterials } from './ledger-result-uses.ts'
 import type {
@@ -20,7 +15,6 @@ import type { ResultChannels } from './ledger-result-material.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   MaterialRecord,
-  BodyExpirationRecord,
   MaterialCleanupRecord,
   MaterialTimeRecord,
   MaterialUseRecord,
@@ -84,13 +78,10 @@ import {
 
 /** The records of one domain, indexed for the deciders and the read projections. */
 export type Snapshot = Readonly<{
-  writers: ReadonlyMap<string, WriterRecord>
-  writerScopes: ReadonlyMap<string, WriterScopeRecord>
-  writerAppends: ReadonlyMap<string, WriterAppendRecord>
+  /** The body entries of the call by body identity (BodyLifecycle `status`). */
+  bodies: ReadonlyMap<string, BodyEntryRecord>
   materialMaintenanceHint: MaterialMaintenanceHint | null
   materialMaintenanceAfter: ToolOperationId | null
-  bodyExpirations: ReadonlyMap<string, BodyExpirationRecord>
-  bodyPreparations: ReadonlyMap<string, BodyPreparationRecord>
   resultPolicies: ReadonlyMap<string, ResultPolicyRecord>
   resultPreparations: ReadonlyMap<string, ResultPreparationRecord>
   materials: ReadonlyMap<string, MaterialRecord>
@@ -118,11 +109,7 @@ export function snapshotOf(
   domain: LedgerDomain,
   read: Extract<LedgerRead, { kind: 'complete' }>,
 ): Snapshot {
-  const writers = new Map<string, WriterRecord>()
-  const writerScopes = new Map<string, WriterScopeRecord>()
-  const writerAppends = new Map<string, WriterAppendRecord>()
-  const bodyExpirations = new Map<string, BodyExpirationRecord>()
-  const bodyPreparations = new Map<string, BodyPreparationRecord>()
+  const bodies = new Map<string, BodyEntryRecord>()
   const resultPolicies = new Map<string, ResultPolicyRecord>()
   const resultPreparations = new Map<string, ResultPreparationRecord>()
   const materials = new Map<string, MaterialRecord>()
@@ -144,26 +131,11 @@ export function snapshotOf(
   const exclusions = new Map<string, ExclusionRecord>()
   for (const record of read.records) {
     switch (record.kind) {
-      case 'body-writer':
-        writers.set(record.writer.id, record.writer)
-        break
-      case 'body-writer-scope':
-        writerScopes.set(record.scope.start.operation, record.scope)
-        break
-      case 'body-writer-append':
-        writerAppends.set(record.append.id, record.append)
+      case 'body-entry':
+        bodies.set(record.body.bodyId, record.body)
         break
       case 'material-maintenance-hint':
         materialMaintenanceHint = record.hint
-        break
-      case 'body-expiration':
-        bodyExpirations.set(
-          JSON.stringify([record.expiration.result, record.expiration.bodyId]),
-          record.expiration,
-        )
-        break
-      case 'body-preparation':
-        bodyPreparations.set(record.body.operation, record.body)
         break
       case 'result-policy':
         resultPolicies.set(record.policy.operation, record.policy)
@@ -227,11 +199,7 @@ export function snapshotOf(
     }
   }
   return {
-    writers,
-    writerScopes,
-    writerAppends,
-    bodyExpirations,
-    bodyPreparations,
+    bodies,
     resultPolicies,
     resultPreparations,
     materials,
@@ -608,7 +576,7 @@ export function settlementWrites(
     { kind: 'synthetic' },
     mint,
   )
-  const uses = adoptResultMaterials(snapshot, first.version.record)
+  const uses = adoptResultMaterials(snapshot, first.version.record, null)
   if ('failure' in uses) return uses
   const account = replacementAccount(place.call)
   return succeed({

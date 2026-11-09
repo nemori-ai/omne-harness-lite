@@ -11,7 +11,7 @@ import type { FactBatch, FactProgress, FactReceipt } from '@omne-harness/tool-co
 import type { StoredFactBatch } from './fact-values.ts'
 import type { ToolMaterialFingerprint } from '@omne-harness/tool-contract/provider'
 import { invalid, tenantKey } from './boundary.ts'
-import { checkBodyReferences } from './ledger-body-references.ts'
+import { checkBodyReferences } from './ledger-body-entries.ts'
 import { sameFactValue, factTaskOperation, mintEvidence } from './evidence.ts'
 import { put, reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
 import {
@@ -85,7 +85,6 @@ function processWrites(
   for (const event of events) {
     if (event.fact.kind !== 'process') continue
     const references = checkBodyReferences(
-      snapshot,
       event.fact.blocks.flatMap(block => ('ref' in block.content ? [block.content.ref] : [])),
     )
     if ('failure' in references) return references

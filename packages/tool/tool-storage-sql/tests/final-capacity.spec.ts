@@ -1,4 +1,7 @@
 // @module-tag slow
+import { randomBytes } from 'node:crypto'
+import { createSqlToolBodyStore } from '@omne-harness/tool-storage-sql'
+import { decodeToolInstant } from '@omne-harness/tool-contract/provider'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -59,7 +62,22 @@ it.each([
           sample: async () => succeed(ok(decodeToolMaterialInstant(now))),
         },
       })
-      const ledger = world.ledgerOver(storage.store, materials(storage))
+      const permitKey = { secret: randomBytes(32) }
+      const bodyClock = { now: () => ok(decodeToolInstant(now)) }
+      const bodies = (opened: typeof storage) => ({
+        store: createSqlToolBodyStore({
+          storage: opened.storage,
+          domains: opened.domains,
+          combination: opened.combination,
+          permitKey,
+          clock: bodyClock,
+        }),
+        permitKey,
+        clock: bodyClock,
+      })
+      const ledger = world.ledgerOver(storage.store, materials(storage), {
+        bodies: bodies(storage),
+      })
       ok(await ledger.admissions.admit(world.input))
       const context = async (name: string) => ({
         ...world.access,
@@ -204,7 +222,9 @@ it.each([
       await storage.close()
       const reopened = await openStorage(root, [tenant], { maxCommandBytes: 1_048_576 })
       try {
-        const restoredLedger = world.ledgerOver(reopened.store, materials(reopened))
+        const restoredLedger = world.ledgerOver(reopened.store, materials(reopened), {
+          bodies: bodies(reopened),
+        })
         expect(ok(await restoredLedger.commands.loadRecovery(world.access)).state).toEqual(state)
         if (state.phase === 'settled') {
           const delivered = ok(
@@ -304,20 +324,10 @@ it.each([
           now = '2026-11-07T00:00:00.000Z'
           const afterExpiry = await openStorage(root, [tenant], { maxCommandBytes: 1_048_576 })
           try {
-            const again = world.ledgerOver(afterExpiry.store, materials(afterExpiry))
-            expect(await again.reads.body.read(request)).toEqual(expired)
-            const records = await afterExpiry.store.read({
-              kind: 'call',
-              tenant,
-              call: world.access.call,
+            const again = world.ledgerOver(afterExpiry.store, materials(afterExpiry), {
+              bodies: bodies(afterExpiry),
             })
-            if (records.kind !== 'complete') throw new Error('incomplete expiration recovery')
-            expect(records.records.filter(row => row.kind === 'body-expiration')).toHaveLength(1)
-            expect(
-              records.records.filter(
-                row => row.kind === 'material-use' && row.use.kind === 'page-lease',
-              ),
-            ).toHaveLength(0)
+            expect(await again.reads.body.read(request)).toEqual(expired)
           } finally {
             await afterExpiry.close()
           }

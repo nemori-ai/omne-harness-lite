@@ -65,7 +65,6 @@ export function createLocalToolMaterialMaintenance<P>(
         })
   }
   return Object.freeze({
-    expire: supplied => scope.run(() => maintenance.expire(supplied)),
     reclaim: supplied => scope.run(() => maintenance.reclaim(supplied)),
     scan: supplied => {
       const fixed = {

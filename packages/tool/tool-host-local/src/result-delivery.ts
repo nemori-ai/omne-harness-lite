@@ -129,7 +129,7 @@ function resultDeliveryBase(call: CallRecord, result: ResultRecord): DeliveryBas
       original:
         result.value.original.kind === 'none'
           ? { kind: 'none' }
-          : { kind: 'offloaded', ...result.value.original.body.description },
+          : { kind: 'offloaded', ...result.value.original.body },
     },
   }
 }
@@ -470,7 +470,10 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     if ('failure' in qualified) return qualified
     if (signal.aborted) return deliveryUnavailable('delivery-wait')
     if (record.phase.kind === 'release-unknown') {
-      const resolution = await input.reads.operation({ ...qualified.ok, operation: record.release })
+      const resolution = await input.reads.operation({
+        ...qualified.ok,
+        operation: record.release,
+      })
       if ('failure' in resolution || resolution.ok.kind === 'unknown')
         return deliveryUnavailable('delivery-release')
       if (resolution.ok.kind === 'committed') {

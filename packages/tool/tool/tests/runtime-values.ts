@@ -1,3 +1,4 @@
+import { createMemoryToolBodies } from '@omne-harness/tool/testing'
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import {
@@ -614,6 +615,7 @@ export function harness(options: HarnessOptions = {}): Harness {
   )
   const settlement = {
     materials: testSettlementPorts(store).materials,
+    bodies: testSettlementPorts(store).bodies,
     releaseInspection: environments,
     content: null,
   }
@@ -862,14 +864,21 @@ const materialStores = new WeakMap<
   object,
   ReturnType<typeof createMemoryToolMaterials<Principal>>
 >()
+const bodyStores = new WeakMap<object, ReturnType<typeof createMemoryToolBodies>>()
 export function testSettlementPorts(memory?: object) {
   const materials =
     memory === undefined
       ? createMemoryToolMaterials<Principal>()
       : (materialStores.get(memory) ?? createMemoryToolMaterials<Principal>())
   if (memory !== undefined) materialStores.set(memory, materials)
+  const bodies =
+    memory === undefined
+      ? createMemoryToolBodies()
+      : (bodyStores.get(memory) ?? createMemoryToolBodies())
+  if (memory !== undefined) bodyStores.set(memory, bodies)
   return {
     materials,
+    bodies,
     content: null,
     custody: createMemoryToolOutputCustody<Principal>(),
     releaseInspection: createMemoryToolEnvironment<Principal>(),

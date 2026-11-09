@@ -50,8 +50,6 @@ type Entry = {
    */
   complete: boolean
   progress: string
-  bodyRecovery: Promise<void> | null
-  bodyProgress: string | null
 }
 
 export function createRuntimeExecutor(
@@ -60,7 +58,6 @@ export function createRuntimeExecutor(
     settings: RuntimeCompositionInput
     dependencies: ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue>
     resultDelivery: ToolLedger<unknown, ToolMessageContentBlock>['delivery']
-    bodyWrites: Pick<ToolBodyWrites<unknown>, 'reconcile'>
     receiver: Parameters<
       typeof createLocalToolResultDelivery<unknown, ToolMessageContentBlock>
     >[0]['position']['receiver']
@@ -69,7 +66,6 @@ export function createRuntimeExecutor(
   const { settings, dependencies } = input
   const abort = new AbortController()
   const calls = new Map<string, Entry>()
-  const bodyRecoveries = new Set<Promise<void>>()
   let completed = 0
   let foreignExecutionRuns = 0
   let unownedRuns = 0
@@ -124,8 +120,6 @@ export function createRuntimeExecutor(
       running: false,
       complete: false,
       progress: 'not-run',
-      bodyRecovery: null,
-      bodyProgress: 'body-recovery/not-run',
     })
     return true
   }
@@ -264,44 +258,6 @@ export function createRuntimeExecutor(
       })
       .catch(() => undefined)
   }
-  const recoverBody = (
-    step: Parameters<ToolDriver<unknown>['run']>[0],
-    start: ToolStartRecord,
-    entry: Entry,
-  ) => {
-    if (
-      entry.bodyRecovery !== null ||
-      bodyRecoveries.size >= settings.capacity ||
-      abort.signal.aborted
-    )
-      return
-    entry.bodyRecovery = Promise.resolve()
-      .then(() =>
-        input.bodyWrites.reconcile({
-          ...step,
-          start,
-          maxOperations: settings.configuration.driverStepsPerRun ?? 16,
-        }),
-      )
-      .then(
-        bodies => {
-          entry.bodyProgress =
-            'failure' in bodies
-              ? `body-recovery/${bodies.failure.kind}`
-              : bodies.ok.pending > 0
-                ? 'body-recovery/pending'
-                : null
-        },
-        () => {
-          entry.bodyProgress = 'body-recovery/unknown'
-        },
-      )
-      .finally(() => {
-        if (entry.bodyRecovery !== null) bodyRecoveries.delete(entry.bodyRecovery)
-        entry.bodyRecovery = null
-      })
-    bodyRecoveries.add(entry.bodyRecovery)
-  }
   const advancing: ToolDriver<unknown> = {
     async run(step) {
       const entry = calls.get(keyOf(step))
@@ -319,25 +275,13 @@ export function createRuntimeExecutor(
         // A new executor cannot attach an old execution by resolving the latest providers.
         const foreign =
           before.ok.execution !== null && before.ok.execution.instance !== step.instance
-        if (entry.purpose === 'body-recovery' || foreign) {
-          if (foreign) foreignExecutionRuns += 1
-          if (
-            before.ok.start !== null &&
-            before.ok.state.phase !== 'settled' &&
-            entry.bodyProgress !== null
-          ) {
-            entry.progress = 'body-recovery-only'
-            recoverBody(step, before.ok.start, entry)
-            return
-          }
+        if (foreign) {
+          foreignExecutionRuns += 1
           if (calls.get(keyOf(step)) === entry) {
             calls.delete(keyOf(step))
             delivery.release(step)
           }
           return
-        }
-        if (before.ok.start !== null && before.ok.state.phase !== 'settled') {
-          recoverBody(step, before.ok.start, entry)
         }
         // A saved final can release an unused writer while its fragment provider is unavailable.
         const progress = await driver.advance(step)
@@ -382,20 +326,11 @@ export function createRuntimeExecutor(
     live: () => !abort.signal.aborted,
     diagnostics: () => ({
       knownCalls: calls.size,
-      pendingBodyRecoveries: bodyRecoveries.size,
       pacedDeliveries: delivery.pacedEntries(),
       completed,
       foreignExecutionRuns,
       unownedRuns,
-      progress: [
-        ...new Set(
-          [...calls.values()].map(entry =>
-            entry.bodyProgress === null
-              ? entry.progress
-              : `${entry.bodyProgress}; ${entry.progress}`,
-          ),
-        ),
-      ],
+      progress: [...new Set([...calls.values()].map(entry => entry.progress))],
       retired: abort.signal.aborted,
     }),
     close(): Promise<void> {

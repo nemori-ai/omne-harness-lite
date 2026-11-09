@@ -1,9 +1,4 @@
-import type {
-  WriterRecord,
-  WriterScopeRecord,
-  WriterAppendRecord,
-} from './ledger-writer-records.ts'
-import type { BodyPreparationRecord } from './ledger-body-custody.ts'
+import type { BodyEntryRecord } from './ledger-body-records.ts'
 import type { ResultPolicyRecord } from './ledger-result-policy.ts'
 import type { ResultPreparationRecord } from './ledger-result-preparation.ts'
 // The ledger store port (G1): one domain read and one revision-conditioned atomic commit. The
@@ -13,7 +8,6 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { ResultChannels } from './ledger-result-material.ts'
 import type {
   MaterialRecord,
-  BodyExpirationRecord,
   MaterialCleanupRecord,
   MaterialTimeRecord,
   MaterialUseRecord,
@@ -309,13 +303,9 @@ export type QueueReleaseRecord = Readonly<{ call: ToolCallId; basis: ReleaseBasi
 export type HostRecord = Readonly<{ key: string; value: unknown }>
 
 export type LedgerRecord =
-  | Readonly<{ kind: 'body-writer'; writer: WriterRecord }>
-  | Readonly<{ kind: 'body-writer-scope'; scope: WriterScopeRecord }>
-  | Readonly<{ kind: 'body-writer-append'; append: WriterAppendRecord }>
+  | Readonly<{ kind: 'body-entry'; body: BodyEntryRecord }>
   | Readonly<{ kind: 'material-maintenance-hint'; hint: MaterialMaintenanceHint }>
   | Readonly<{ kind: 'material-maintenance'; after: ToolOperationId }>
-  | Readonly<{ kind: 'body-expiration'; expiration: BodyExpirationRecord }>
-  | Readonly<{ kind: 'body-preparation'; body: BodyPreparationRecord }>
   | Readonly<{ kind: 'result-policy'; policy: ResultPolicyRecord }>
   | Readonly<{ kind: 'result-preparation'; preparation: ResultPreparationRecord }>
   | Readonly<{ kind: 'material'; material: MaterialRecord }>
@@ -342,20 +332,12 @@ export type LedgerRecord =
 export function recordKey(record: LedgerRecord): string {
   if (isQueueRecord(record)) return queueRecordKey(record)
   switch (record.kind) {
-    case 'body-writer':
-      return `body-writer:${record.writer.id}`
-    case 'body-writer-scope':
-      return `body-writer-scope:${record.scope.start.operation}`
-    case 'body-writer-append':
-      return `body-writer-append:${record.append.id}`
+    case 'body-entry':
+      return `body:${record.body.bodyId}`
     case 'material-maintenance-hint':
       return 'material-maintenance-hint'
     case 'material-maintenance':
       return 'material-maintenance'
-    case 'body-expiration':
-      return `body-expiration:${JSON.stringify([record.expiration.result, record.expiration.bodyId])}`
-    case 'body-preparation':
-      return `body-preparation:${record.body.operation}`
     case 'result-policy':
       return `result-policy:${record.policy.operation}`
     case 'result-preparation':

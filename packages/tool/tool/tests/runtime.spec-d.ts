@@ -1,5 +1,4 @@
 import type { ToolBodyWrites } from '@omne-harness/tool-contract/provider'
-import type { ToolBodyCustody } from '@omne-harness/tool-contract/provider'
 import { expectTypeOf, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
@@ -72,13 +71,6 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
         reclaim(
           input: CallAccess<P>,
         ): Reply<Readonly<{ kind: 'idle' | 'blocked' | 'pending' | 'deleted' }>>
-        expire(input: CallAccess<P>): Reply<
-          Readonly<{
-            expiredBodies: number
-            expiredLeases: number
-            cleanupPending: boolean
-          }>
-        >
       }>
       delivery: Readonly<{
         read(
@@ -86,7 +78,6 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
         ): Reply<ToolResult<ContentBlock>>
       }>
       bodyWrites: ToolBodyWrites<P>
-      bodyCustody: ToolBodyCustody<P>
       rawCustody: Pick<ToolOutputCustody<P>, 'preserve' | 'inspect'>
       finalCustody: ToolFinalCustody<P, ContentBlock>
       controls: ToolLedgerControls<P>

@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 import { observeToolLedgerCommit, type ToolLifecycleObservation } from '@omne-harness/tool'
-import { decodeToolMaterialInstant } from '@omne-harness/tool-contract/provider'
 import { settlementFixture } from './settlement-values.ts'
 import { auditQueues } from './start-values.ts'
 import { configuration, evidence, ok, operationId, text } from './runtime-values.ts'
@@ -13,7 +12,6 @@ afterEach(async () => {
 })
 
 it('observes confirmed lifecycle facts without copying payloads or keeping segments', async () => {
-  let now = 0
   const events: ToolLifecycleObservation[] = []
   const f = await settlementFixture({
     offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 2048, maxRetentionMs: 10 },
@@ -23,9 +21,6 @@ it('observes confirmed lifecycle facts without copying payloads or keeping segme
       original: { kind: 'none' },
       attachments: [],
     },
-    wrapMaterialClock: () => ({
-      sample: async () => succeed(ok(decodeToolMaterialInstant(new Date(now).toISOString()))),
-    }),
   })
   f.interceptCommit(
     observeToolLedgerCommit(
@@ -48,17 +43,12 @@ it('observes confirmed lifecycle facts without copying payloads or keeping segme
       },
     }),
   )
-  now = 10
-  ok(await f.ledger.maintenance.expire(f.access))
-  for (let i = 0; i < 24; i++)
-    if (ok(await f.ledger.maintenance.reclaim(f.access)).kind === 'idle') break
   expect(new Set(events.map(event => event.phase))).toEqual(
-    new Set(['result-commit', 'offload', 'delivery-release', 'expire', 'reclaim']),
+    new Set(['result-commit', 'offload', 'delivery-release']),
   )
   expect(events.filter(event => event.phase === 'offload')).toMatchObject([
     { items: 1, bytes: 6000 },
   ])
-  expect(events.filter(event => event.phase === 'expire')).toHaveLength(1)
   expect(JSON.stringify(events)).not.toContain('SECRET_BODY_')
   expect(
     events.every(event => event.tenant === f.access.tenant && event.call === f.access.call),

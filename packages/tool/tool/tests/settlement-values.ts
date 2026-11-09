@@ -1,3 +1,5 @@
+import { bodyRepresentation } from '../src/body-representation.ts'
+import type { ToolInstantClock } from '@omne-harness/tool-contract/provider'
 import type { JsonLimits } from '@omne-harness/json-text'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
@@ -11,7 +13,6 @@ import type {
   CallAccess,
   ToolFinalEnvelope,
   ToolMaterialStore,
-  ToolMaterialClock,
   ToolEnvironment,
 } from '@omne-harness/tool-contract/provider'
 import { readToolInvocationRef } from '@omne-harness/tool-contract/provider'
@@ -63,13 +64,37 @@ export async function sealedText(
 ) {
   const recovery = ok(await ledger.commands.loadRecovery(access))
   if (recovery.start === null) throw new Error('fixture has no original start')
+  const binding = {
+    ...access,
+    start: recovery.start,
+    source: evidence('author-body'),
+    key: 'fixture-author-body',
+  }
+  const definition = functionDefinition()
+  if (definition.kind !== 'function') throw new Error('fixture must define a function')
+  ok(
+    await ledger.bodyWrites.begin({
+      ...binding,
+      operation: operationId('fixture-author-body-begin'),
+      representation: bodyRepresentation(definition.returns.body) ?? {
+        kind: 'text',
+        codec: adoption('text'),
+      },
+    }),
+  )
+  ok(
+    await ledger.bodyWrites.append({
+      ...binding,
+      operation: operationId('fixture-author-body-append'),
+      sequence: '1',
+      frame: { kind: 'text', block: 'author-body', text: value, end: true },
+    }),
+  )
   return ok(
-    await ledger.bodyCustody.preserve({
-      ...access,
-      start: recovery.start,
-      operation: operationId('fixture-author-body'),
-      source: evidence('author-body'),
-      frames: [text('author-body', value)],
+    await ledger.bodyWrites.seal({
+      ...binding,
+      operation: operationId('fixture-author-body-seal'),
+      afterSequence: '1',
     }),
   )
 }
@@ -86,7 +111,8 @@ export async function settlementFixture(
     command?: string
     offloading?: ToolConfiguration['offloading']
     readResultArguments?: JsonLimits
-    wrapMaterialClock?: (clock: ToolMaterialClock) => ToolMaterialClock
+    /** The participant clock of issuer, settler and reader; the memory body store reads it too. */
+    bodyClock?: ToolInstantClock
     process?: readonly ProcessBlock[] | ((raw: RawOutput) => readonly ProcessBlock[])
     custody?: MemoryToolOutputCustody<Principal>
     attachments?: RawOutput['content'][]
@@ -210,7 +236,9 @@ export async function settlementFixture(
     },
   }
   const guard = guards()
-  const materialPorts = testSettlementPorts(harness.memory).materials
+  const settlementPorts = testSettlementPorts(harness.memory)
+  const materialPorts = settlementPorts.materials
+  const bodies = settlementPorts.bodies
   const materialStore = options.wrapMaterials?.(materialPorts.store) ?? materialPorts.store
   const makeLedger = (
     offloading: ToolConfiguration['offloading'] | undefined,
@@ -229,11 +257,8 @@ export async function settlementFixture(
       },
       {
         content: null,
-        materials: {
-          ...materialPorts,
-          store: materialStore,
-          clock: options.wrapMaterialClock?.(materialPorts.clock) ?? materialPorts.clock,
-        },
+        materials: { ...materialPorts, store: materialStore },
+        bodies: { ...bodies, clock: options.bodyClock ?? bodies.clock },
         releaseInspection:
           options.wrapReleaseInspection?.(ports.releaseInspection) ?? ports.releaseInspection,
       },
@@ -253,6 +278,7 @@ export async function settlementFixture(
   return {
     harness,
     materialStore,
+    bodies,
     lateClockSamples,
     access,
     final,

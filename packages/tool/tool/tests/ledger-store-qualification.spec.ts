@@ -4,6 +4,7 @@ import { createToolLedger } from '@omne-harness/tool'
 import {
   createMemoryToolLedgerStoreFixture,
   createTestInvocationSource,
+  createMemoryToolBodies,
 } from '@omne-harness/tool/testing'
 import {
   createMemoryToolClock,
@@ -24,6 +25,7 @@ it('qualification oracle rejects a real ledger assembled with an always-allow gu
     source: createTestInvocationSource,
     clock: createMemoryToolClock,
     environment: createMemoryToolEnvironment,
+    bodies: createMemoryToolBodies,
     createLedger: (store, guards, clock, configuration, ports) =>
       createToolLedger(
         store,

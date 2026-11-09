@@ -47,6 +47,7 @@ it('testing entry exports the non-durable store, the access table double and its
   const testing = await import('@omne-harness/tool/testing')
   expect(Object.keys(testing).sort()).toEqual([
     'TEST_SOURCE_OWNER',
+    'createMemoryToolBodies',
     'createMemoryToolContent',
     'createMemoryToolLedgerStore',
     'createMemoryToolLedgerStoreFixture',

@@ -4,7 +4,7 @@ import { encodeToolMaterial } from '@omne-harness/tool'
 import { type ToolOffloadedBody, type ToolResult } from '@omne-harness/tool-contract'
 import {
   decodeToolBodyId,
-  decodeToolMaterialInstant,
+  decodeToolInstant,
   decodeToolRevision,
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
@@ -27,8 +27,8 @@ async function withOffloadedDeliveryPorts() {
     previewKind: 'mechanical',
     retention: {
       adoption: adoption('retention'),
-      activatedAt: ok(decodeToolMaterialInstant('2026-11-08T00:00:00.000Z')),
-      expiresAt: ok(decodeToolMaterialInstant('2026-11-09T00:00:00.000Z')),
+      activatedAt: ok(decodeToolInstant('2026-11-08T00:00:00.000Z')),
+      expiresAt: ok(decodeToolInstant('2026-11-09T00:00:00.000Z')),
     },
   }
   const rendered = {
@@ -58,7 +58,7 @@ async function withOffloadedDeliveryPorts() {
               original: {
                 kind: 'offloaded',
                 summary: f.result.value.content,
-                body: { description, seal: f.result.value.content },
+                body: description,
               },
             },
           },
@@ -97,10 +97,10 @@ it.each([
       retention: {
         ...original.retention,
         ...(field === 'activatedAt'
-          ? { activatedAt: ok(decodeToolMaterialInstant('2026-11-08T00:00:01.000Z')) }
+          ? { activatedAt: ok(decodeToolInstant('2026-11-08T00:00:01.000Z')) }
           : {}),
         ...(field === 'expiresAt'
-          ? { expiresAt: ok(decodeToolMaterialInstant('2026-11-10T00:00:00.000Z')) }
+          ? { expiresAt: ok(decodeToolInstant('2026-11-10T00:00:00.000Z')) }
           : {}),
       },
     }

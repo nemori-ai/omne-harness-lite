@@ -33,6 +33,7 @@ import {
   toolStartFenceKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import {
+  createSqlToolBodyStore,
   createSqlToolLedgerStore,
   createSqlToolMaterialStore,
 } from '@omne-harness/tool-storage-sql'
@@ -67,6 +68,8 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
     combination: { combinationVersion: config.combinationVersion, manifestDigest: manifest.digest },
   }
   const store = createSqlToolLedgerStore(options)
+  const holder = toolRuntimeHolder(ctx)
+  const { bodyPermitKey: permitKey, bodyClock: clock } = holder
   const sql = Object.freeze({
     store: {
       ...store,
@@ -81,8 +84,8 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
       maxCommandBytes: config.maxCommandBytes,
       maxChunkBytes: config.maxChunkBytes,
     }),
+    bodies: { store: createSqlToolBodyStore({ ...options, permitKey, clock }), permitKey, clock },
   })
-  const holder = toolRuntimeHolder(ctx)
   holder.sql = sql
   ctx.effect(
     () => () => {

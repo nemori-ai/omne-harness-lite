@@ -1,10 +1,19 @@
+import type { ContentReference } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ToolPrimitiveFailure } from './author-context.ts'
-import type { SealedToolBody } from './body-custody.ts'
-import type { CallAccess, DurableEvidence, Mutation, ToolOperationId } from './identity.ts'
+import type { CallAccess, DurableEvidence, Mutation, ToolBodyId } from './identity.ts'
 import type { ToolStartRecord } from './ports.ts'
 import type { ToolBodyRepresentation, ToolFailure } from './results.ts'
+
+/** A body the store sealed and the ledger recorded `sealed`: what a result may reference. */
+export type SealedToolBody = Readonly<{
+  source: ContentReference
+  bodyId: ToolBodyId
+  representation: ToolBodyRepresentation
+  bodyBytes: string
+  custody: DurableEvidence
+}>
 
 export type ToolBodyFrame =
   | Readonly<{ kind: 'text'; block: string; text: string; end: boolean }>
@@ -47,12 +56,6 @@ export type ToolBodyWriteInput<P> = Mutation<P> &
     start: ToolStartRecord
     source: DurableEvidence
   }>
-export type ToolBodyCloseReceipt = Readonly<{
-  custody: DurableEvidence
-  pendingOperations: readonly ToolOperationId[]
-  unsealedKeys: readonly string[]
-}>
-
 export interface ToolBodyWrites<P> {
   begin(
     input: ToolBodyWriteInput<P> &
@@ -68,12 +71,4 @@ export interface ToolBodyWrites<P> {
   inspect(
     input: CallAccess<P> & Readonly<{ start: ToolStartRecord; key: string }>,
   ): ToolBodyWriteReply<ToolBodyWriterStatus>
-  close(
-    input: ToolBodyWriteInput<P> & Readonly<{ exit: 'returned' | 'failed' }>,
-  ): ToolBodyWriteReply<ToolBodyCloseReceipt>
-  reconcile(
-    input: CallAccess<P> & Readonly<{ start: ToolStartRecord; maxOperations: number }>,
-  ): ToolBodyWriteReply<
-    Readonly<{ examined: number; pending: number; custody: readonly DurableEvidence[] }>
-  >
 }

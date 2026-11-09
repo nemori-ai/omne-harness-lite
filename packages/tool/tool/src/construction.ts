@@ -35,6 +35,9 @@ import type {
   ToolStartAuthority,
   ToolMaterialClock,
   ToolMaterialStore,
+  ToolBodyPermitKey,
+  ToolBodyStore,
+  ToolInstantClock,
 } from '@omne-harness/tool-contract/provider'
 
 export type ToolOffloadingConfiguration = Readonly<{
@@ -139,14 +142,7 @@ export type ToolLedgerQueues<P> = Readonly<{
   reconcile(input: CallAccess<P>): Reply<QueueReconciliation>
 }>
 
-export type MaterialMaintenanceProgress = Readonly<{
-  expiredBodies: number
-  expiredLeases: number
-  cleanupPending: boolean
-}>
-
 export type ToolLedgerMaintenance<P> = Readonly<{
-  expire(input: CallAccess<P>): Reply<MaterialMaintenanceProgress>
   reclaim(input: CallAccess<P>): Reply<MaterialReclamationProgress>
 }>
 
@@ -188,6 +184,15 @@ export type ToolLedgerFacts<P, B extends ContentBlock> = Readonly<{
 export type ToolLedgerPorts<P> = Readonly<{
   bodySchemas?: Readonly<{
     check(schema: ToolPublishedSchema, read: Extract<JsonRead, { kind: 'ok' }>): Reply<void>
+  }>
+  /**
+   * Body custody (BodyLifecycle): the store holds immutable chunks under permits the ledger signs
+   * with `permitKey`; `clock` is the ledger's own participant clock (issuer, settler and reader).
+   */
+  bodies?: Readonly<{
+    store: ToolBodyStore
+    permitKey: ToolBodyPermitKey
+    clock: ToolInstantClock
   }>
   /** M01: byte custody only; the call ledger owns preparation and lifetime. */
   materials?: Readonly<{

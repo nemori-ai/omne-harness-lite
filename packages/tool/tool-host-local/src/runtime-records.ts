@@ -39,6 +39,7 @@ export function createRuntimeRecords(
     content: input.content,
     ...(input.bodySchemas === undefined ? {} : { bodySchemas: input.bodySchemas }),
     materials: input.materials,
+    bodies: input.bodies,
     releaseInspection: stages.environments,
   }
   const ledger = createToolLedger(input.store, guards, input.clock, input.configuration, ports)

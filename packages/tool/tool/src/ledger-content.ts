@@ -27,7 +27,7 @@ import type { Snapshot } from './ledger-decider.ts'
 import { resultRecord } from './ledger-reads.ts'
 
 import type { ResultRecord } from './ledger-store.ts'
-import type { BodyReadInput } from './ledger-body-page.ts'
+import type { BodyReadInput } from './ledger-body-reads.ts'
 
 type ResultInput<P> = CallInput<P> & Readonly<{ result: ToolResultVersion }>
 type ContentInput<P> = Parameters<ToolContentReader<P>['read']>[0]
@@ -197,11 +197,8 @@ export function createLedgerContent<P, B extends ContentBlock>(
       const before = await locate(value)
       if ('failure' in before) return before
       const original = before.ok.record.value.original
-      if (
-        original.kind === 'offloaded' &&
-        sameAttachment(original.body.description.source, value.attachment)
-      )
-        return ports.bodyBytes({ ...value, bodyId: original.body.description.bodyId })
+      if (original.kind === 'offloaded' && sameAttachment(original.body.source, value.attachment))
+        return ports.bodyBytes({ ...value, bodyId: original.body.bodyId })
       if (replacedBodyRaw(before.ok.snapshot, before.ok.record, value.attachment)) {
         const current = await ports.authorize(value, 'read-raw-content')
         return 'failure' in current ? current : invalid('attachment', 'released-material')

@@ -76,8 +76,8 @@ it.each(['content', 'attachments', 'original-source', 'original-summary', 'proce
       expect(after).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            kind: 'material-use',
-            use: expect.objectContaining({ kind: 'offloaded-body' }),
+            kind: 'body-entry',
+            body: expect.objectContaining({ state: expect.objectContaining({ kind: 'linked' }) }),
           }),
         ]),
       )

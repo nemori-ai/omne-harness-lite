@@ -41,6 +41,7 @@ export type RuntimeEnvironment = ToolEnvironment<unknown, ToolEnvironmentValue>
 export type LocalToolRuntimeInput = Readonly<{
   store: ToolLedgerStore
   materials: NonNullable<ToolLedgerPorts<unknown>['materials']>
+  bodies: NonNullable<ToolLedgerPorts<unknown>['bodies']>
   content: ToolLedgerPorts<unknown>['content']
   bodySchemas?: ToolLedgerPorts<unknown>['bodySchemas']
   sources: LocalInvocationSource<unknown, ToolMessageContentBlock>
@@ -184,14 +185,7 @@ export function createRuntimeDependencies(
           },
         }
       const original = prior.records.find(row => row.kind === 'call')
-      if (original !== undefined) {
-        if (
-          original.call.state.phase !== 'settled' &&
-          prior.records.some(row => row.kind === 'body-writer-scope')
-        )
-          admit(wake, 'body-recovery')
-        return bound
-      }
+      if (original !== undefined) return bound
     }
     if (!admit(wake))
       return {

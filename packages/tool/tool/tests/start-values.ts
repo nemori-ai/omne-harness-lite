@@ -466,10 +466,12 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     options.controlSubjects === undefined
       ? testControlSubjects(guards(options).access)
       : options.controlSubjects
-  const materialPorts = testSettlementPorts(memory).materials
+  const settlementPorts = testSettlementPorts(memory)
+  const materialPorts = settlementPorts.materials
   const resultMaterials = options.resultMaterialsPort?.(materialPorts.store)
   const settlement = {
     ...(options.bodySchemas === undefined ? {} : { bodySchemas: options.bodySchemas }),
+    bodies: settlementPorts.bodies,
     materials: {
       ...materialPorts,
       store:
