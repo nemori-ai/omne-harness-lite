@@ -533,6 +533,52 @@
 - **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
 - **别混**：不是期限的延长。窗口不刷新期限，到期前已获准的读取也不延续到期限之后。
 
+### UL-body-entry · 正文条目 · Body Entry
+
+> **中**：账本对一份卸载正文所做的权威记录，保存在开启这份正文的那次工具调用的调用域中。它记录写入意图、封存、与恰好一个结果的关联，以及回收。它的状态按顺序为已开启、已封存、已关联、已回收；调用结算时尚未关联的正文，从已开启或已封存转为孤儿，再转为已回收。每个正文条目对应一个正文身份，正文身份不复用、不在结果之间共享、不去重。正文是否存在、是否可读，以它为准。它不保存正文字节，也不保存期限：期限由结果的正文描述和[到期索引](#ul-due-index--到期索引--due-index)保存。
+>
+> **EN**: The ledger's authoritative record of one offloaded body. It is kept in the call domain of the tool call that opened the body. It records the write intent, the seal, the link to exactly one result, and the reclaim. Its states are opened, sealed, linked and reclaimed, in that order. When the call settles, a body that has no link goes from opened or sealed to orphaned, and then to reclaimed. Each entry has one body identity. The system does not reuse, share or deduplicate a body identity. The entry decides whether a body exists and whether it can be read. It holds no body bytes and no expiry. The body descriptor of the result and the due index hold the expiry.
+
+- **形态**：对象
+- **出处**：[Tool 领域的结果卸载领域模型](../../../../docs/domains/tool-execution/architecture.md#领域模型) · [工具执行组的部署无关原则](../../../../packages/tool/docs/architecture.md#部署无关原则)；卸载正文与期限的产品规则见[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **别混 ①**：不是[被卸载的原始结果](#ul-offloaded-result--被卸载的原始结果--offloaded-result)。被卸载的原始结果是已关联到结果、可以读回的完整正文；正文条目在关联之前已经存在，从未关联的正文条目成为孤儿后被回收，不成为被卸载的原始结果。
+- **别混 ②**：不是[记录条目](record-and-context.md#ul-record-entry--记录条目--record-entry)。记录条目在会话日志中，正文条目在 Tool 的账本中。
+- **注意**：账本只在确认调用的执行仍活跃、执行代次匹配且调用未结算后，才提交开启并签发[写入许可](#ul-write-permit--写入许可--write-permit)。回收先删除[正文字节](#ul-body-bytes--正文字节--body-bytes)，再在账本中记录已回收；回收之后不留行。
+
+### UL-body-bytes · 正文字节 · Body Bytes
+
+> **中**：正文存储为一份卸载正文保存的不可变字节。正文存储按分块写入它们，并以封存清单确认分块齐全。正文存储没有业务状态：它不知道这份正文属于哪个结果、何时到期、谁有权读取。字节在存储中存在，不表示正文可读；正文是否可读由账本中的[正文条目](#ul-body-entry--正文条目--body-entry)及其关联的结果判定。
+>
+> **EN**: The immutable bytes of one offloaded body that the body store keeps. The store writes them in chunks and confirms with a seal manifest that all chunks are present. The body store has no business state. It does not know the result, the expiry or the read authorization of a body. Bytes in the store do not make a body readable. The body entry in the ledger and its linked result decide that.
+
+- **形态**：对象
+- **出处**：[Tool 领域的结果卸载领域模型](../../../../docs/domains/tool-execution/architecture.md#领域模型) · [工具执行组的部署无关原则](../../../../packages/tool/docs/architecture.md#部署无关原则)
+- **别混**：不是[被卸载的原始结果](#ul-offloaded-result--被卸载的原始结果--offloaded-result)。字节只是正文的内容部分，正文的存在、关联与期限都在账本中。
+- **注意**：存储只在有效[写入许可](#ul-write-permit--写入许可--write-permit)下接受写入和封存，所有操作幂等；同一序号写入不同内容时，存储以条件写报告冲突。存储报告封存成功，表示字节已耐久。
+
+### UL-due-index · 到期索引 · Due Index
+
+> **中**：账本提供的回收排期原语。账本提交可以为一份正文排期或撤销排期，回收方按租户与到期时间查询到期项。它是回收唯一的调度来源：结果提交时，已关联的正文按结果固定的期限排期；调用结算时，孤儿按结算时间加宽限期 G 排期；回收完成时撤销排期。
+>
+> **EN**: The ledger primitive that schedules reclaim. A ledger commit can schedule or unschedule one body. The reclaimer queries due items by tenant and due time. It is the only scheduling source for reclaim. At result commit, a linked body is scheduled at the expiry that the result fixes. At call settlement, an orphaned body is scheduled at the settlement time plus the grace period G. A completed reclaim unschedules the body.
+
+- **形态**：规则
+- **出处**：[工具执行组的部署无关原则](../../../../packages/tool/docs/architecture.md#部署无关原则) · [Tool 领域的结果卸载领域模型](../../../../docs/domains/tool-execution/architecture.md#领域模型)
+- **别混**：不是[日程](#ul-schedule--日程--schedule)或定时作业。它只为正文回收排期，不发起工作。
+- **注意**：期限在结果提交的同一次账本提交中写入结果的正文描述和到期索引；[正文条目](#ul-body-entry--正文条目--body-entry)与正文存储都不保存期限。
+
+### UL-write-permit · 写入许可 · Write Permit
+
+> **中**：账本为一份正文签发的、有截止时间的写入授权。账本先确认调用的执行仍活跃、执行代次匹配且调用未结算，并耐久提交[正文条目](#ul-body-entry--正文条目--body-entry)的开启，然后才签发它。它绑定租户、调用、正文和执行代次，带截止时间，并用装配给定的密钥签名。正文存储自己校验签名和截止时间，拒绝没有有效许可的写入和封存。执行仍活跃时，账本为同一份正文续发许可。
+>
+> **EN**: A write authorization for one body, with a deadline, that the ledger issues. The ledger issues it only after it confirms that the execution of the call is still active, the execution generation matches and the call is not settled, and after it durably commits the opening of the body entry. It binds the tenant, the call, the body and the execution generation, and it has a deadline. It is signed with a key that assembly supplies. The body store checks the signature and the deadline itself. It refuses a write or a seal that has no valid permit. While the execution is active, the ledger renews the permit for the same body.
+
+- **形态**：属性
+- **出处**：[工具执行组的部署无关原则](../../../../packages/tool/docs/architecture.md#部署无关原则) · [BodyLifecycle 模型的动作](../../../../packages/tool/tool-contract/verification/models/body-lifecycle/README.md#3-动作)（`Renew`）
+- **别混 ①**：不是[资源账本](grounding-and-isolation.md#ul-resource-ledger--资源账本--resource-ledger)中的许可。那种许可准许受管资源的首个外部效果；写入许可只准许向正文存储写入一份正文。
+- **别混 ②**：不是读回授权。读回授权由访问守卫在每次读回时判定，写入许可不授予读取。
+- **注意**：许可时长 W 由装配给定。孤儿宽限期 G 和正文保留期限都必须大于 W + 2ε，否则截止时间内的迟到写入可能在回收后把字节写回。
+
 ### UL-delivery-release · 交付责任解除 · Delivery Release
 
 > **中**：**生产方（一次模型调用或一次工具执行）对一份已收场结果所负交付责任的解除。当前合法消费者已处理完成该结果，或已可靠保存后续所需的内容、原身份和处理位置之后，解除才成立。**

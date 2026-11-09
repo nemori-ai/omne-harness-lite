@@ -1,8 +1,8 @@
 # StartConsume：调用域受理与租户级 guard 域的读集断言
 
-本目录是 W3 r6 设计包 4.3 的目标模型。r6 把 permit 与 acceptance 移进每个调用自己的域，guard 与 invalidation 留在租户级 `start-guards` 域。两个域没有共同的修订顺序，受理只能靠账本在提交时断言 guard 域版本未变。本模型检查这条断言是否足以让受理与失效线性化。实现尚未开始，第 6 节的代码名称是计划名。
+本目录的模型检查启动受理与守卫失效在双域放置下的线性化。permit 与 acceptance 保存在每个调用自己的域，guard 与 invalidation 保存在租户级 `start-guards` 域。两个域没有共同的修订顺序，受理只能靠账本在提交时断言 guard 域版本未变。本模型检查这条断言是否足以让受理与失效线性化。放置规则归能力组的[部署无关原则](../../../../docs/architecture.md#部署无关原则)第 6、7 条，性质归领域文档的[性质与守护点](../../../../../../docs/domains/tool-execution/architecture.md#性质与守护点)。实现尚未开始，第 6 节的代码名称是计划名。
 
-现有 [StartFence.tla](../StartFence.tla) 检查的是单域 `start-coordinator` 的围栏。它随 4.3 的迁移退出，本模型接替它守 P2（失效先成立则不发起）在双域下的形态。模型只证明列出的有限状态，不证明实现。
+现有 [StartFence.tla](../StartFence.tla) 检查单域 `start-coordinator` 的围栏，随该域一起退出；本模型接替它守 P2（失效先成立则不发起）在双域下的形态。模型只证明列出的有限状态，不证明实现。
 
 ## 1. 变量
 
@@ -32,7 +32,7 @@
 
 - `Calls = {c1, c2}`，`MaxPrepares = 2`，`MaxInvalidations = 2`，`MaxConsumes = 2`。
 - 没有公平性，不检查进展。`CHECK_DEADLOCK FALSE`。
-- 租户隔离、permit 的身份校验、inspect 与 exclude 不在本模型里。它们由 StartFence 的 P3、P4 和宿主测试守住，迁移后另行对应。
+- 租户隔离、permit 的身份校验、inspect 与 exclude 不在本模型里。它们由宿主测试守住。
 
 ## 4. 性质
 
@@ -70,13 +70,4 @@ export TLA2TOOLS_JAR=/path/to/tla2tools-1.7.4.jar
 python3 packages/tool/tool-host-local/verification/models/start-consume/check.py --out tmp/<task>/start-consume
 ```
 
-可用 `--case positive` 选一个配置。脚本用一个 worker，每配置上限 120 秒，日志与汇总写到 `--out`。正控要求退出 0 且 TLC 明确完成检查；负控要求退出 12 且唯一违反的不变量等于指定名称。
-
-## 8. 本次运行结果
-
-2026-11-09，macOS，OpenJDK 21.0.13，TLC 2.19（tla2tools-1.7.4），1 个 worker。
-
-| 配置 | 结果 | 命中 | 生成状态 | 不同状态 | 时间 |
-| --- | --- | --- | --- | --- | --- |
-| `positive` | 通过 | — | 690,481 | 299,701 | 7 s |
-| `drop-assertion` | 命中 | `AcceptedAtCurrentGuard` | 139 | 126 | 6 s |
+可用 `--case positive` 选一个配置。脚本用一个 worker，每配置上限 120 秒，日志与汇总写到 `--out`，不写进本目录。本目录不保存执行结果。正控要求退出 0 且 TLC 明确完成检查；负控要求退出 12 且唯一违反的不变量等于指定名称。超时、解析错误和其他非零退出均失败。

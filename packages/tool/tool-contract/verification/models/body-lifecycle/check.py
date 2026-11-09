@@ -20,7 +20,8 @@ CASES = [('positive', None, 'safety'),
          ('grace-too-small', 'QuiescentStoreEmpty', 'negative'),
          ('recheck-only-reclaimed', 'NoFalseIntegrity', 'negative'),
          ('permit-on-unknown', 'IntentBeforeBytes', 'negative'),
-         ('ttl-too-small', 'ReclaimedLeavesNoBytes', 'negative')]
+         ('ttl-too-small', 'ReclaimedLeavesNoBytes', 'negative'),
+         ('no-recheck-after-read', 'ReadWithinWindow', 'negative')]
 parser = argparse.ArgumentParser()
 parser.add_argument('--case')
 parser.add_argument('--jar', default=os.environ.get('TLA2TOOLS_JAR'))

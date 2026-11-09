@@ -4,10 +4,10 @@
 > 要引用，引[领域对象条目](../domain_objects/objects.md)、[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。
 
 - derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · `domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `product.0.0.1.legacy/PF-*/{README,design,flows}.md`（sealed provenance，不是当前采用）
-- 生成时间：2026-11-07
+- 生成时间：2026-11-09
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
-对象 **66** 个，变体 **30** 个，形态未定的词条 **2** 个，待裁 **12** 项。
+对象 **68** 个，变体 **30** 个，形态未定的词条 **2** 个，待裁 **12** 项。
 
 **按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。这不是能力边界，也不是限界上下文；那是系统架构设计的事。
 
@@ -51,6 +51,8 @@
 | [模型响应体](../domain_objects/objects.md#ul-model-response--模型响应体) | [UL-model-response](../ubiquitous_language/terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response) | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——它是一条效力为留痕的[记录条目](../domain_objects/objects.md#ul-record-entry--记录条目)的载荷，随日志留着；试过又失败的那几条不进方程、不进模型的上下文 | — | PF-013（sealed provenance） | 000（sealed provenance） |
 | [附件](../domain_objects/objects.md#ul-attachment--附件) | [UL-attachment](../ubiquitous_language/terms/execution-and-outcome.md#ul-attachment--附件--attachment) | 产出它的那次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)；实际存放在工具定义声明的那个存储里 | — | PF-006（sealed provenance） | — |
 | [被卸载的原始结果](../domain_objects/objects.md#ul-offloaded-result--被卸载的原始结果) | [UL-offloaded-result](../ubiquitous_language/terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 不随 Session、Run 或执行句柄的退出消失。Tool 负责在固定期限内保管，具体物理后端不决定其寿命。 | — | PD-tool-execution | — |
+| [正文条目](../domain_objects/objects.md#ul-body-entry--正文条目) | [UL-body-entry](../ubiquitous_language/terms/execution-and-outcome.md#ul-body-entry--正文条目--body-entry) | —。它保存在开启这份正文的那次工具调用的调用域中，寿命止于回收，不随该调用结算、Session、Run 或执行句柄的退出而结束 | — | PD-tool-execution | — |
+| [正文字节](../domain_objects/objects.md#ul-body-bytes--正文字节) | [UL-body-bytes](../ubiquitous_language/terms/execution-and-outcome.md#ul-body-bytes--正文字节--body-bytes) | [正文条目](../domain_objects/objects.md#ul-body-entry--正文条目)——回收先删除字节，再记录正文条目已回收；字节实际保存在正文存储中 | — | PD-tool-execution | — |
 | [日程](../domain_objects/objects.md#ul-schedule--日程) | [UL-schedule](../ubiquitous_language/terms/execution-and-outcome.md#ul-schedule--日程--schedule) | 正文未述；系统或租户归属不等于生命周期宿主 | 系统日程 | PF-021（sealed provenance） | — |
 | [定时作业](../domain_objects/objects.md#ul-scheduled-job--定时作业) | [UL-scheduled-job](../ubiquitous_language/terms/execution-and-outcome.md#ul-scheduled-job--定时作业--scheduled-job) | 正文未述；与来源日程和执行会话的关联不等于随它们消失 | — | PF-021（sealed provenance） | — |
 
@@ -145,6 +147,7 @@
 | [执行环境](../domain_objects/objects.md#ul-execution-environment--执行环境) | [终端会话](../domain_objects/objects.md#ul-terminal-session--终端会话) |
 | [获取](../domain_objects/objects.md#ul-environment-acquisition--获取) | [租约](../domain_objects/objects.md#ul-environment-lease--租约) |
 | [记录条目](../domain_objects/objects.md#ul-record-entry--记录条目) | [模型响应体](../domain_objects/objects.md#ul-model-response--模型响应体) |
+| [正文条目](../domain_objects/objects.md#ul-body-entry--正文条目) | [正文字节](../domain_objects/objects.md#ul-body-bytes--正文字节) |
 | [运行](../domain_objects/objects.md#ul-run--运行) | [决策卡片](../domain_objects/objects.md#ul-decision-card--决策卡片) |
 | [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文) | [授权表达](../domain_objects/objects.md#ul-authorization-expression--授权表达) |
 | [消息](../domain_objects/objects.md#ul-message--消息) | [内容块](../domain_objects/objects.md#ul-content-block--内容块) |
@@ -180,4 +183,4 @@
 
 产品正文提到它却没有链到词条，「还有谁在讲」那一列就是空的——这一列的空，多半是链接稀疏，不是没人讲。
 
-会话、运行、agent runtime、Agent 执行、执行挂接、Agent 登记、装配清单、资产、资产版本、模型档案、复制通知、分享邀请、分享关系、工具执行、一次模型调用、模型响应体、附件、被卸载的原始结果、日程、定时作业、执行环境、沙箱实现、无状态沙箱、会话级沙箱、租户级沙箱、沙箱数据、终端会话、设施声明、获取、租约、受管资源、环境提供者、文件批次、会话据点、治理中心、派发报告、决策卡片、授权表达、入站到达、记录条目、会话日志、消息、内容块、待办条目、请求候选、提示词贡献、压缩计划、业务日历、业务日历版本、工作区、工作区实例、运行时 context 注册、runtime context 块、块声明、生产者句柄、绑定读者、步提交、账号、登录状态、组织、邀请、隶属请求、租户、租户—工作区关系。
+会话、运行、agent runtime、Agent 执行、执行挂接、Agent 登记、装配清单、资产、资产版本、模型档案、复制通知、分享邀请、分享关系、工具执行、一次模型调用、模型响应体、附件、被卸载的原始结果、正文条目、正文字节、日程、定时作业、执行环境、沙箱实现、无状态沙箱、会话级沙箱、租户级沙箱、沙箱数据、终端会话、设施声明、获取、租约、受管资源、环境提供者、文件批次、会话据点、治理中心、派发报告、决策卡片、授权表达、入站到达、记录条目、会话日志、消息、内容块、待办条目、请求候选、提示词贡献、压缩计划、业务日历、业务日历版本、工作区、工作区实例、运行时 context 注册、runtime context 块、块声明、生产者句柄、绑定读者、步提交、账号、登录状态、组织、邀请、隶属请求、租户、租户—工作区关系。

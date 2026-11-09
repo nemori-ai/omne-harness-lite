@@ -324,9 +324,13 @@
 | [UL-result-offloading](terms/execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading) | 结果卸载 | Result Offloading | 另存模型正文，首次消息呈现作者摘要或机械预览和有限期读回引用 |
 | [UL-offloaded-result](terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 被卸载的原始结果 | Offloaded Result | 卸载后另存的完整模型正文，不含程序值与原生资源目标 |
 | [UL-offloading-threshold](terms/execution-and-outcome.md#ul-offloading-threshold--卸载触发阈值--offloading-threshold) | 卸载触发阈值 | Offloading Threshold | 正文可直接呈现给模型的最大字节数，作者上限与系统上限取小；**只决定是否卸载**；裸写「触发阈值」不作数 |
-| [UL-offload-preview-budget](terms/execution-and-outcome.md#ul-offload-preview-budget--卸载预览预算--offload-preview-budget) | 卸载预览预算 | Offload Preview Budget | 卸载后首次给模型的全部内容的上限，作者预览上限、系统预览上限与触发阈值的 1/k 取最小；**与正文大小无关** |
+| [UL-offload-preview-budget](terms/execution-and-outcome.md#ul-offload-preview-budget--卸载预览预算--offload-preview-budget) | 卸载预览预算 | Offload Preview Budget | 卸载后首次给模型的预览部分的上限，作者预览上限、系统预览上限与触发阈值的 1/k 取最小；**描述头是元信息，不计入，另有固定上限**；**与正文大小无关** |
 | [UL-mechanical-preview](terms/execution-and-outcome.md#ul-mechanical-preview--机械预览--mechanical-preview) | 机械预览 | Mechanical Preview | 作者无摘要时系统按格式算出的预览：描述头加对齐节选，JSON 文档给大纲；**不给截断的 JSON** |
 | [UL-read-expiry-window](terms/execution-and-outcome.md#ul-read-expiry-window--读回到期窗口--read-expiry-window) | 读回到期窗口 | Read Expiry Window | 到期时间前后各 ε 的时间段，窗口内读回可能成功也可能被拒；**跨过到期答找不到，不答损坏** |
+| [UL-body-entry](terms/execution-and-outcome.md#ul-body-entry--正文条目--body-entry) | 正文条目 | Body Entry | 账本对一份卸载正文的权威记录：意图、封存、关联恰好一个结果、回收；**不存字节，也不存期限** |
+| [UL-body-bytes](terms/execution-and-outcome.md#ul-body-bytes--正文字节--body-bytes) | 正文字节 | Body Bytes | 正文存储保存的一份正文的不可变字节；**存储没有业务状态，有字节不等于可读** |
+| [UL-due-index](terms/execution-and-outcome.md#ul-due-index--到期索引--due-index) | 到期索引 | Due Index | 账本按租户与到期时间为回收排期、撤销排期的原语；**回收唯一的调度来源** |
+| [UL-write-permit](terms/execution-and-outcome.md#ul-write-permit--写入许可--write-permit) | 写入许可 | Write Permit | 正文条目耐久开启后账本签发的有时限写入授权，绑定租户、调用、正文、执行代次与截止时间；**存储自己校验签名和截止时间** |
 | [UL-delivery-release](terms/execution-and-outcome.md#ul-delivery-release--交付责任解除--delivery-release) | 交付责任解除 | Delivery Release | 生产方（一次模型调用或一次工具执行）对已收场结果所负交付责任的解除，消费方处理完成或可靠保管后成立，只有两条路径；**模型一侧叫 ACK**；**读到、展示、开始处理都不够**；**不是事件流确认** |
 | [UL-consumption-position](terms/execution-and-outcome.md#ul-consumption-position--消费位置--consumption-position) | 消费位置 | Consumption Position | 一次调用的结果要交回的那一处；发起时确定，换推进者、重建、恢复都不改；**结果不变成新输入** |
 | [UL-execution-outcome](terms/execution-and-outcome.md#ul-execution-outcome--执行收场--execution-outcome) | 执行收场 | Execution Outcome | 六种，**非完成的四种里只有一种是失败** |

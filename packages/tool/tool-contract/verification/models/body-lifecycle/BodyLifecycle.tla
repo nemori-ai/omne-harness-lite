@@ -82,10 +82,11 @@ Init ==
   /\ lastAnswer = {}
   /\ lastDelete = {}
 
-(* A page read completes within one time unit: its duration is part of Eps. *)
+(* Time advances whether or not a read is pending: a read may stall for any
+   duration between the ledger check and the store read, so its duration is
+   not part of Eps. *)
 Tick ==
   /\ t < Tmax
-  /\ pending = {}
   /\ t' = t + 1
   \* a deadline below the new true time never satisfies a checking store again;
   \* all such deadlines share one representative (t, i.e. the new time minus one)
@@ -261,13 +262,19 @@ RecheckExpired(b) ==
   \/ /\ Bug # "recheck-only-reclaimed"
      /\ expiresAt[b] <= Now("reader") + Eps
 
-(* the store read: bytes, or a miss followed by the ledger re-check. *)
+(* after the store read the reader checks expiry again on its own clock; an
+   expired body gets `expired` and no bytes, whatever the store returned. *)
+StillValid(b) == Now("reader") < expiresAt[b] \/ Bug = "no-recheck-after-read"
+
+(* the store read: bytes (re-checked), or a miss followed by the ledger re-check. *)
 ReadFinish ==
   /\ pending # {}
   /\ LET b == CHOOSE x \in pending : TRUE IN
        /\ pending' = {}
        /\ IF bytes[b] /\ storeSealed[b]
-            THEN lastAnswer' = {[kind |-> "success", body |-> b, at |-> t]}
+            THEN IF StillValid(b)
+                   THEN lastAnswer' = {[kind |-> "success", body |-> b, at |-> t]}
+                   ELSE lastAnswer' = {[kind |-> "refused", body |-> b, at |-> t]}
             ELSE IF RecheckExpired(b)
                    THEN lastAnswer' = {[kind |-> "expired", body |-> b, at |-> t]}
                    ELSE lastAnswer' = {[kind |-> "integrity", body |-> b, at |-> t,
@@ -294,8 +301,8 @@ Perm == Permutations(Bodies)
 
 Spec == Init /\ [][Next]_vars
 
-(* Time progresses even while reads interleave (strong fairness on Tick); the
-   sweeper and the reader finish what they start (weak fairness). *)
+(* Time progresses (strong fairness on Tick); the sweeper and the reader finish
+   what they start (weak fairness). *)
 Fairness ==
   /\ SF_vars(Tick /\ Observed)
   /\ WF_vars(ReadFinish /\ lastDelete' = {})
@@ -332,15 +339,17 @@ IntentBeforeBytes ==
   \A b \in Bodies : ~NoBytes(b) => status[b] # "none"
 
 (* I-5, upper side of the window: a successful read of a published, linked body
-   happens before expiresAt + Eps on the clock that fixed expiresAt. *)
+   happens before expiresAt + Eps on the clock that fixed expiresAt. The read
+   may have stalled for any duration; only the re-check keeps this bound. *)
 ReadWithinWindow ==
   \A a \in lastAnswer : a.kind = "success" =>
     /\ a.body \in published
     /\ expiresAt[a.body] > 0
     /\ a.at + off["settler"] < expiresAt[a.body] + Eps
 
-(* I-5, lower side of the window: a refusal for expiry happens no earlier than
-   expiresAt - Eps on the clock that fixed expiresAt. *)
+(* I-5, lower side of the window: a refusal for expiry, at the ledger check or
+   at the re-check after the store read, happens no earlier than expiresAt - Eps
+   on the clock that fixed expiresAt. *)
 RefusalWithinWindow ==
   \A a \in lastAnswer : a.kind = "refused" =>
     a.at + off["settler"] + Eps >= expiresAt[a.body]
