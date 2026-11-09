@@ -84,6 +84,15 @@ export {
   type ToolOutputCustodyFixture,
 } from './testing-output-custody.ts'
 export {
+  createManualInstantClock,
+  createMemoryToolBodyStore,
+  instantAt,
+  memoryToolBodyStoreFixture,
+  toolBodyStoreConformance,
+  type MemoryToolBodyStore,
+  type ToolBodyStoreFixture,
+} from './testing-body-store.ts'
+export {
   clockAnswers,
   createMemoryToolClock,
   memoryToolClockFixture,

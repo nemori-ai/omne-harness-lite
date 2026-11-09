@@ -15,6 +15,29 @@ export type { ToolBodyReader } from './body-reads.ts'
 // entry; a name is exported from one entry only. It does not import Cordis or another Tool package.
 export { toolBodyContract } from './contract.ts'
 export { decodeToolMaterialInstant } from './materials.ts'
+export {
+  decodeToolInstant,
+  manifestOf,
+  sha256Hex,
+  signBodyPermit,
+  verifyBodyPermit,
+  type ToolBodyChunk,
+  type ToolBodyDeleteAnswer,
+  type ToolBodyManifest,
+  type ToolBodyPermit,
+  type ToolBodyPermitClaims,
+  type ToolBodyPermitKey,
+  type ToolBodyPermitVerdict,
+  type ToolBodyPutAnswer,
+  type ToolBodyRange,
+  type ToolBodyReadAnswer,
+  type ToolBodyRef,
+  type ToolBodySealAnswer,
+  type ToolBodyStore,
+  type ToolBodyStoreUnavailable,
+  type ToolInstant,
+  type ToolInstantClock,
+} from './body-store.ts'
 export type {
   ToolMaterialFingerprint,
   ToolMaterialInstant,
