@@ -52,26 +52,27 @@ function stopOf(basis: JsonValue): StopBasis | null {
   return null
 }
 
-/** The stop the participant reported, or the diagnostic of a commit that did not land. */
-function outcomeOf(
-  answer: CommitAnswer,
-  what: string,
-):
+type Outcome =
   | Readonly<{ kind: 'landed' }>
   | Readonly<{ kind: 'stopped'; basis: StopBasis }>
-  | ToolBodyStoreUnavailable {
+  | ToolBodyStoreUnavailable
+
+/** The stop the participant reported in a rollback, or why the rollback is not one. */
+function rolledBackOutcome(answer: Extract<CommitAnswer, { kind: 'rolled_back' }>, what: string) {
+  const reply = answer.responses[answer.responses.length - 1]?.reply
+  const basis = reply?.kind === 'conflict' ? stopOf(reply.basis) : null
+  if (basis !== null) return { kind: 'stopped', basis } as const
+  const why = reply?.kind === 'failed' ? reply.category : (reply?.kind ?? 'no reply')
+  return unavailable(`${what} rolled back: ${why}`)
+}
+
+/** The stop the participant reported, or the diagnostic of a commit that did not land. */
+function outcomeOf(answer: CommitAnswer, what: string): Outcome {
   switch (answer.kind) {
     case 'committed':
       return { kind: 'landed' }
-    case 'rolled_back': {
-      const reply = answer.responses[answer.responses.length - 1]?.reply
-      const basis = reply?.kind === 'conflict' ? stopOf(reply.basis) : null
-      return basis === null
-        ? unavailable(
-            `${what} rolled back: ${reply?.kind === 'failed' ? reply.category : (reply?.kind ?? 'no reply')}`,
-          )
-        : { kind: 'stopped', basis }
-    }
+    case 'rolled_back':
+      return rolledBackOutcome(answer, what)
     case 'unknown':
       return unavailable(`${what}: ${answer.diagnostic ?? 'unknown'}`)
     case 'identity_conflict':
