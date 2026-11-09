@@ -2463,6 +2463,9 @@ importers:
       '@omne-harness/schema-provider':
         specifier: workspace:*
         version: link:../../schema/schema-provider
+      '@omne-harness/settings':
+        specifier: workspace:*
+        version: link:../../assets/settings
       '@omne-harness/stream-arrival':
         specifier: workspace:*
         version: link:../../common/stream-arrival

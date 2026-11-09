@@ -38,6 +38,18 @@ export {
 } from './registry.ts'
 export { SettingsRebaseSchema, decideSettingsRebase, type SettingsRebase } from './rebase.ts'
 export {
+  SETTING_SECRET_PURPOSE,
+  createSettingsSecretItems,
+  type SecretItemRef,
+  type SecretItemRefusal,
+  type SecretItemView,
+  type SettingsAssetQuery,
+  type SettingsHolding,
+  type SettingsHoldingRef,
+  type SettingsSecretItems,
+  type SettingsSecretItemsDeps,
+} from './secret-items.ts'
+export {
   SECRET_TEXT_MAX_LENGTH,
   parseSecretText,
   type SecretBindingKey,

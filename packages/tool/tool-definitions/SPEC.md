@@ -92,6 +92,6 @@ Web 采用[元能力产品](../../../.meta_harness/design/product/meta-capabilit
 - 失败是一行 `<kind> reason=<原因>`，kind 是 `WebFailure` 的闭集：`unconfigured`、`denied`、`quota-exhausted`、`rate-limited`、`upstream`（带 `status=`）、`invalid-url`、`redirect-limit`、`timeout`、`too-large`、`not-text`（带 `media_type=`）、`network`、`unavailable`。`unconfigured` 的原因写明要配置 Web 的设置项 `exa.apiKey`。失败文本不带外部数据标记。
 - 每次返回的文本由 `bounded()` 限制在 `resultMaxBytes` 以内，截断时保留首尾并写 `[tool truncated bytes …]` 标记；标记本身计入预算。
 - `attachWebAccess` 复用传入的同一 context，以 WeakMap 登记，必须在产生新 context 的 Tools 附着之后调用。finish 先撤除访问，再委托原 finish，重复调用返回同一 Promise。
-- 本切片的作者不声明设置项（`settings: null`）。秘密设置项的声明与取用是后续切片的工作。
+- Web 声明一项设置 `exa.apiKey`（路径 `['exa', 'apiKey']`，类别 `binding`，`sensitive: true`，schema 为非空字符串，没有默认值）。它的呈现写明这是 Exa 搜索的 API key、缺少时 search 不可用、清除后 search 不可用而 fetch 不受影响，采用时点 `next-read`。作者只声明，不读值：值的取用经 Tool 的凭据端口由宿主完成。
 
 [Web 作者测试](tests/web.spec.ts)通过真实 commandArguments、参数解码、executeTool、输出校验与 codec 核对结果文本与失败行；`WebAccess` 是脚本化替身。它不证明网络、Exa 或凭据行为，这些归 [tool-host-local 的 Web 提供者](../tool-host-local/SPEC.md#web-提供者web-子路径)。

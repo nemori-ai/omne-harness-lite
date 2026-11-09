@@ -108,7 +108,7 @@ Settings 可独立使用，也可由资产通过组合使用。独立目标通�
 
 <a id="secret-items"></a>
 
-本节是长期行为。端口与值在公开入口的 [secrets.ts](src/secrets.ts)；本地文件提供者是 [settings-local 的 `./secrets`](../settings-local/SPEC.md#secret-custody)。秘密项命令入口尚未交付，现状见[当前核心与本地提供者](#当前核心与本地提供者)。
+本节是长期行为。端口与值在公开入口的 [secrets.ts](src/secrets.ts)，秘密项入口 `createSettingsSecretItems` 在 [secret-items.ts](src/secret-items.ts)；本地文件提供者是 [settings-local 的 `./secrets`](../settings-local/SPEC.md#secret-custody)。入口的装配与公开操作的现状见[当前核心与本地提供者](#当前核心与本地提供者)。
 
 声明为秘密的设置项，值只保存在秘密保管里。秘密值不进入配值、求值来源、`SettingsChange`、提交记录、回执或变化记录。纯求值继续把来源中的秘密值判为不兼容。
 
@@ -143,6 +143,14 @@ Settings 可独立使用，也可由资产通过组合使用。独立目标通�
 - `SecretText` 是品牌字符串，只由 `parseSecretText` 造出：去首尾空白后非空、不含 C0 与 DEL 控制字符、不超过 `SECRET_TEXT_MAX_LENGTH`（4096）。拒绝只说明规则，不回显文本。诊断与结果类型不接受 `SecretText`。
 - `SecretCustodyManagement.bind(key, secret, configuredAt)` 的结果是 `written`、`not-written`、`unconfirmed`、`denied`；`unbind` 另有 `absent`，成功是 `removed`；`describe` 返回有无、`denied` 或 `unavailable`；`list(scope, after, limit)` 按稳定次序分页，游标不透明且可序列化。`configuredAt` 由调用方给出，没有时为 `null`；保管不读时钟。同值重复写入是 `written`。未铸造的租户范围答 `denied`，不读文件。
 - `SecretCustodyUse.use(key)` 同步返回 `{ kind: 'secret', value }`、`missing`（没有绑定）、`denied`（绑定已撤销或范围未铸造）或 `unavailable`（绑定读不出或保管读不出）。
+
+秘密项入口的形状（精确类型归 [secret-items.ts](src/secret-items.ts)）：
+
+- `createSettingsSecretItems({ declarations, custody, resolve })`：`declarations` 是登记表的快照读取，`custody` 是管理面，`resolve(asset?)` 由装配给出，把资产引用解析成具体持有 `{ providerId, definitionId }`（省略引用时列出装配知道的全部持有）。入口不猜持有，不缓存快照。
+- `set`、`clear`、`describe` 以（范围、资产引用、项 id）定位项。持有解析不到或项未在登记定义里声明答 `undeclared`；项不是秘密答 `not-secret`；资产引用对应多个持有，或一个持有有多个在用版本，答 `conflict`。这三种答复都不调用保管。其余答复是保管对 `bind`、`unbind`、`describe` 的原答复。
+- 绑定键的目标是 `{ owner: 'setting', key }`，`key` 是（`providerId`、`definitionId`、项 id）三元组的 JSON 数组文本，单射；用途恒为 `setting`；范围原样交给保管。
+- `items({ scope, asset? })` 列出已解析持有的登记定义里的全部项：秘密项带保管现读的有无，普通项不带有无；保管答 `denied` 或 `unavailable` 时整次列出答同样的值。
+- 入口不经 `SettingsCommitPort`，不写配值与求值来源；任何答复不含秘密值。调用者对范围的配值依据由装配在调用入口前核对。
 
 ## 持续验证义务与表达缺项
 
@@ -184,4 +192,4 @@ Settings 可独立使用，也可由资产通过组合使用。独立目标通�
 
 维护重新采用要求精确旧新定义、预期修订及所有旧值/锁的 retain 或 discard 决定，保留内容必须符合新定义和来源。该能力不从普通租户配值权推导，不直接暴露给 agent tool。完整条件归 [本地规格](../settings-local/SPEC.md)。
 
-秘密保管的两个端口已由本成员定义，文件提供者由 settings-local 的 `./secrets` 兑现，Model 凭据与 harness-server 的 `setup` 已在它之上工作；秘密设置项的命令入口（声明核对、配值依据、目标推导）尚未交付。当前不提供工作区文件来源扫描、最终 UI、HTTP 服务、tools 插件或执行实例采用。上文相应长期义务保持其原拥有者，不能因本地核心完成而宣称整个产品阶段完成。授权历史检查可返回原定义与原状态，但不能把不匹配记录当作当前有效设置采用。
+秘密保管的两个端口已由本成员定义，文件提供者由 settings-local 的 `./secrets` 兑现，Model 凭据与 harness-server 的 `setup` 已在它之上工作；秘密设置项的入口 `createSettingsSecretItems` 做声明核对与目标推导，配值依据由装配核对；把入口接到保管、持有解析与公开操作的装配尚未交付。当前不提供工作区文件来源扫描、最终 UI、HTTP 服务、tools 插件或执行实例采用。上文相应长期义务保持其原拥有者，不能因本地核心完成而宣称整个产品阶段完成。授权历史检查可返回原定义与原状态，但不能把不匹配记录当作当前有效设置采用。
