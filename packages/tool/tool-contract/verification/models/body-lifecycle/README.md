@@ -113,14 +113,18 @@
 
 ## 7. 代码对应
 
-实现尚未开始。下表是计划中的对应位置，全部标为待实现。
+切片 04 按里程碑填写。M1 与 M2 交付两个端口及其提供者；M3 以后的行仍是计划名。
 
-| 模型 | 计划中的代码位置 | 状态 |
+| 模型 | 代码位置 | 状态 |
 | --- | --- | --- |
-| `status`、`Begin`、`LedgerSeal`、`Settle`、`Reclaim` | `tool` 包账本调用域的 `BodyEntry` 状态机与 `commitResult`、`sweep` 提交 | 待实现 |
-| `deadline`、`Renew`、`PermitValid` | `tool-contract` 的 `BodyWriter` 许可（`tenant, call, bodyId, exec, deadline`）与账本续期 | 待实现 |
-| `Put`、`StoreSeal`、`DeleteBytes`、`StoreFault` | `tool-contract` 端口 `ToolBodyStore.put/seal/read/delete`，`tool-storage-sql` 的 `tl_body_blob` 与清单表 | 待实现 |
-| `due`、`Settle` 的排期、`Reclaim` 的 `unschedule` | `tool-contract` 端口 `ToolLedgerStore.schedule/unschedule/due`，`tool-storage-sql` 的 `tl_due` | 待实现 |
+| `status`、`Begin`、`LedgerSeal`、`Settle`、`Reclaim` | `tool` 包账本调用域的 `BodyEntry` 状态机与 `commitResult`、`sweep` 提交 | 待实现（M3、M5） |
+| `deadline`、`Renew` | 账本签发与续发 `ToolBodyPermit`（`tool-contract/src/body-store.ts` 的 `signBodyPermit`，claims 为 `tenant, call, body, instance, generation, deadline`） | 签发函数已有；账本的签发与续期待实现（M3） |
+| `PermitValid`（存储侧用自己的时钟校验截止） | `tool-contract/src/body-store.ts` 的 `verifyBodyPermit(key, permit, now)`；内存替身与 `tool-storage-sql/src/body-store.ts` 都以自己的 `clock.now()` 调用它，`permit-expired` / `permit-invalid` 不写入。判据 `body.permit-deadline-by-store-clock`、`body.permit-signature-binds-claims` | 已实现（M1、M2） |
+| `Put` | `ToolBodyStore.put`：内存替身 `tool-contract/src/testing-body-store.ts`；SQL 参加者 `tool-storage-sql/src/worker/participant-body.ts` 写 `tl_body_chunk`。判据 `body.put-idempotent-conditional`、`body.put-after-seal` | 已实现（M1、M2） |
+| `StoreSeal`（成功即耐久） | `ToolBodyStore.seal`：参加者核对分块恰为清单所声明后写 `tl_body_manifest`，适配器在提供者提交后才答 `sealed`。判据 `body.seal-not-ready`、`body.seal-idempotent-conditional`、`body.seal-then-crash-reseal` | 已实现（M1、M2） |
+| `DeleteBytes`（幂等，无墓碑） | `ToolBodyStore.delete`：删除分块与清单。判据 `body.delete-idempotent-no-tombstone`、`body.delete-then-crash-redelete` | 已实现（M1、M2） |
+| `StoreFault` | 契约之外，无代码对应；读回复查规则在 M4 | 不实现 |
+| `due`、`Settle` 的排期、`Reclaim` 的 `unschedule` | `tool/src/ledger-store.ts` 的 `LedgerWrite` `schedule`/`unschedule` 与 `ToolLedgerStore.due`；内存仓 `tool/src/testing-store.ts`；SQL 参加者把 `tl_due` 写进同一事务，`tool.due.read` 读取。判据 `due.*`。提交排期与撤销排期的调用方在 M3、M5 | 索引已实现（M1、M2）；调用方待实现 |
 | `expiresAt`、`ReadBegin`、`ReadRefuse` | `tool` 包 `readPage` 的账本检查 | 待实现 |
 | `ReadFinish`、`StillValid`、`RecheckExpired` | `tool` 包 `readPage`：读完存储后的本地时钟复核，以及读不到时的账本复查规则 | 待实现 |
 | `off`、`Now(p)`、`Eps`、`W`、`G`、`D` | 时钟端口的 ε 契约；装配启动时校验 `G > W + 2ε` 与 `D > W + 2ε` | 待实现 |

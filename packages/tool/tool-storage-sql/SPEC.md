@@ -101,7 +101,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ### TS-10 材料
 
-`toolStorageMaterials()` 返回一个参加者 `tool`、三条迁移 `tool/001-tool-ledger-custody`、`tool/002-tool-materials`、`tool/003-tool-material-maintenance` 与七个读 handler。参加者拥有全部 `tl_` 表，不读其他参加者的表，不需要也不提供事实，声明为 `singleton`。每个模块以构建固定的 `file:` URL 与文件字节的 SHA-256 描述。handler 的 `maxOutputBytes` 为 4194304，等于提供者 `maxReadResultBytes` 的初值。
+`toolStorageMaterials()` 返回一个参加者 `tool`、三条迁移 `tool/r6-001-tool-ledger-body-due`（基线：账本、原件保管、正文存储与到期索引的表）、`tool/002-tool-materials`、`tool/003-tool-material-maintenance` 与九个读 handler。基线的 id 在 r6 更换：用 r6 之前的目录（`tool/001-tool-ledger-custody`）建立的库带有本目录不含的迁移标记，提供者按 sqlite-provider 的迁移标记规则把该域置为 `quarantined`，不迁移旧数据（验收 C9，`tests/old-baseline-quarantine.spec.ts`）。参加者拥有全部 `tl_` 表，不读其他参加者的表，不需要也不提供事实，声明为 `singleton`。每个模块以构建固定的 `file:` URL 与文件字节的 SHA-256 描述。handler 的 `maxOutputBytes` 为 4194304，等于提供者 `maxReadResultBytes` 的初值。
 
 ### TS-11 带同租户读集断言的提交
 
@@ -172,6 +172,14 @@ W3-A 按[材料协议](../tool-contract/docs/material-protocol.md)拆清实现�
 
 当前已实现 worker、读 handler、公开材料仓适配器及持久候选索引。TTL、用途、资格及删除授权归 Tool；SQL worker 不判断业务期限。自动维护调度由应用装配消费候选源与 Tool 维护端口。
 
+
+### TS-13 正文存储
+
+`createSqlToolBodyStore(options)` 在 SQL 存储契约上兑现 [`ToolBodyStore`](../tool-contract/SPEC.md#正文存储端口与到期索引)。`options` 在记录仓的选项之外给出 `permitKey` 与 `clock`：适配器在发送命令之前、在本进程内用 `verifyBodyPermit` 校验许可签名，并用 `clock.now()` 判断截止时间；参加者不接收时钟，只保持对象不可变。`put`、`seal`、`delete` 各是一次 SQL 提交（意图 `body-put`、`body-seal`、`body-delete`），冲突与未就绪由参加者以 `body-conflict`、`body-not-ready` 停止并回滚；`sealed` 在提供者提交清单之后才答出。`read` 用 `tool.body.read`（`snapshot`）按序号范围读取，一次最多 `BODY_READ_CHUNKS` 块，更长的范围分多次读取；正文一旦封存就不再变化，两次读取之间被删除的正文答 `absent`。表：`tl_body_chunk(tenant, call, body, seq, data)` 与 `tl_body_manifest(tenant, call, body, chunks, bytes, digest)`，都不碰 `tl_domain`。判据：`tests/body-store-conformance.spec.ts` 在 SQLite 测试提供者上运行 `toolBodyStoreConformance()`，`crash` 手柄关闭并重开同一目录。
+
+### TS-14 到期索引
+
+`ledger` 意图的写入集接受 `schedule` 与 `unschedule`，参加者在同一个写事务内写 `tl_due(tenant, kind, name, key, due_at)`，所以它们与记录写入和修订号推进一起生效或一起回滚。`ToolLedgerStore.due` 用 `tool.due.read`（`domain-serial`）读取 `due_at <= now` 的条目，一次最多 `DUE_READ_ENTRIES` 条，适配器把更大的 `limit` 收窄到这个上限。判据：`tests/ledger-store-conformance.spec.ts` 的 `due.*` 用例。
 
 ## W3 公开材料仓
 

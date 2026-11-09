@@ -834,6 +834,8 @@ Tool 先可靠保管真实返回，再按 P13 准备并提交最终归一化结�
 
 ### 有限期正文保管
 
+状态：本节描述 W3 的材料机制。其中材料、用途、页租约、维护提示、删除围栏与材料代次的条款将随切片 04 的 M6 删除，替代条款是下一节[正文存储端口与到期索引](#正文存储端口与到期索引)以及能力组文档的[部署无关原则](../docs/architecture.md#部署无关原则)。两节冲突时以后者为准。
+
 本节只管理面向模型的工具结果正文及 Tool 自有交付材料。文件、图片、数据集等原生资源引用不属于卸载。写数据库、写文件等业务效果不属于 Tool 材料，工具失败、结果释放及正文到期都不撤销这些效果。
 
 #### 策略与计量
@@ -893,6 +895,25 @@ Tool 先可靠保管真实返回，再按 P13 准备并提交最终归一化结�
 删除先在账本提交不可撤销的删除围栏和原操作任务，再在事务外访问字节仓库。围栏成立后拒绝新增用途和新读，不能复活原代次。删除未知按原操作查询或幂等重试；旧回包不能删除新代次或取消新用途。材料键不复用。业务账本、引用事实和实际删除各自的确认保留，不把查不到存储当成业务未发生。
 
 提供者替换沿相同保管和读取契约，通过 Cordis 依赖注入装配。有效期内的旧引用必须仍能由其原采用解析，或由已验证迁移承担；不能静默切换后把未迁移材料当成不存在。
+
+### 正文存储端口与到期索引
+
+本节是 `./provider` 入口的 `ToolBodyStore` 与 `tool` 包 `ToolLedgerStore` 到期索引的契约，面向分布式与异构部署：不假定账本与正文存储在同一个事务里，也不假定时钟同步。每条行为对应形式模型 [BodyLifecycle](verification/models/body-lifecycle/README.md) 的一个动作。`./testing` 的 `toolBodyStoreConformance()` 是提供者的判据，用例名以 `body.` 开头，clause 为 `BS`；到期索引的判据在 `@omne-harness/tool/testing` 的 `toolLedgerStoreConformance()` 里，用例名以 `due.` 开头。
+
+#### 正文存储（BS）
+
+1. 身份与不可变。正文由 `(tenant, call, body)` 标识，`body` 永不复用，不跨结果共享。存储只保存分块与一份封存清单 `{ chunks, bytes, digest }`，没有业务状态：不知道结果、期限或授权。
+2. 许可。`put` 与 `seal` 带写入许可 `{ claims: { tenant, call, body, instance, generation, deadline }, signature }`。账本用装配给定的密钥以 `signBodyPermit` 签发；存储以同一密钥用 `verifyBodyPermit` 校验签名，并用自己的时钟判断 `now <= deadline`。签名不符答 `permit-invalid`，已过截止答 `permit-expired`，两者都不写入。许可的截止时间由签发者的时钟给出，存储只读自己的时钟；两者相差不超过部署声明的 ε。
+3. 条件写（模型 `Put`）。`put(permit, seq, bytes)` 对尚无该序号的正文写入分块并答 `kept`；同序号同字节答 `kept`；同序号不同字节答 `conflict`，原字节保留；已封存正文上新增序号答 `conflict`。
+4. 封存（模型 `StoreSeal`）。`seal(permit, manifest)` 在分块恰好是清单所声明的内容（序号 `0..chunks-1` 齐全、无多余序号、字节总数与 SHA-256 相符）时写入清单并答 `sealed`，否则答 `not-ready`；已有相同清单答 `sealed`，已有不同清单答 `conflict`。`sealed` 表示清单与它命名的分块都已耐久。
+5. 读取。`read(body, range)` 只对已封存的正文答 `found`，带清单与范围内按序号排列的分块；没有清单（未封存或已删除）答 `absent`。读取按键与范围进行，代价与范围成正比。只有 Tool 服务可以调用 `read` 与 `delete`，由装配的进程、网络与身份边界保证。
+6. 删除（模型 `DeleteBytes`）。`delete(body)` 删除分块与清单后答 `deleted`，幂等，不留墓碑。删除后，仍在截止时间内的许可可以再次写入：阻止它的是账本的参数约束 `G > W + 2ε` 与 `D > W + 2ε`，不是存储。
+7. 租户隔离。另一个租户的同名调用与正文是另一个对象，读不到也删不掉本租户的正文。
+8. 失败。暂时不可用答 `unavailable` 并给出诊断，不冒充 `absent` 或 `conflict`。
+
+#### 到期索引
+
+账本提交的写入集可以含 `schedule(key, dueAt)` 与 `unschedule(key)`，它们与同一提交的其他写入一起生效或一起不生效；提交因修订号或读集断言冲突时，索引不变。条目以被写域与键标识：同键再次 `schedule` 替换时刻，`unschedule` 未排期的键是空操作。`due(tenant, now, limit)` 返回该租户 `dueAt <= now` 的条目，按时刻再按键排序，最多 `limit` 条，包含读取开始前每个已答 `committed` 的提交。索引是回收唯一的调度来源（模型 `due`、`Settle` 的排期与 `Reclaim` 的 `unschedule`）。
 
 ### 消费方采用与否决边界
 

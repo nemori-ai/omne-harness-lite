@@ -277,9 +277,13 @@ runtime 的 `instances` 与 `observation` 由 [src/stream-facade.ts](src/stream-
 
 这个机制让一个决定依据两个域的快照：调用方读 A 域决定、写 B 域、断言 A 域未变，A 域与 B 域的提交就按提交先后线性化。宿主的启动受理（受理写调用域、断言租户级守卫域）与执行环境交接用它；它取代了专用的守护宿主提交。`toolLedgerStoreConformance()` 的 `store.asserts-*` 用例是提供者的判据。
 
+### 记录仓的到期索引
+
+`LedgerWrite` 增加 `schedule(key, dueAt)` 与 `unschedule(key)`，`ToolLedgerStore` 增加 `due(tenant, now, limit)`。契约归 [tool-contract 的正文存储端口与到期索引](../tool-contract/SPEC.md#正文存储端口与到期索引)：排期随提交原子生效，条目以被写域与键标识，`due` 按租户读出已到时刻的条目。本包的消费者（结果提交的排期、结算后的孤儿排期、清扫的 `unschedule`）在切片 04 的 M3 与 M5 接入；本版本只提供端口、内存实现与 `toolLedgerStoreConformance()` 的 `due.*` 用例。
+
 ### 18 非耐久记录仓（`./testing`）
 
-`createMemoryToolLedgerStore` 声明 `durability: 'none'`。每个域从修订号 `0` 开始；`commit` 只在 `expected` 等于当前修订号、且每条 `asserts` 的域修订号等于给定值时生效，否则回复 `conflict`；断言另一个租户的域回复 `unavailable`。生效的提交不论写入集内容都把域修订号改为 `revision`：只写一条 `exclusion` 记录、不改任何记录、删除不存在的键，都同样推进修订号，没有空操作捷径。读取给出副本。域键是各段身份文本的 JSON，含分隔符的身份不会落到别的域。`injectRead` 与 `injectCommit` 按顺序注入下一次读取或提交的故障：
+`createMemoryToolLedgerStore` 声明 `durability: 'none'`。每个域从修订号 `0` 开始，并各自持有自己排期的到期条目，`due` 汇总同租户全部域的条目，`injectRead` 的故障同样作用于它；`commit` 只在 `expected` 等于当前修订号、且每条 `asserts` 的域修订号等于给定值时生效，否则回复 `conflict`；断言另一个租户的域回复 `unavailable`。生效的提交不论写入集内容都把域修订号改为 `revision`：只写一条 `exclusion` 记录、不改任何记录、删除不存在的键，都同样推进修订号，没有空操作捷径。读取给出副本。域键是各段身份文本的 JSON，含分隔符的身份不会落到别的域。`injectRead` 与 `injectCommit` 按顺序注入下一次读取或提交的故障：
 
 - `unavailable`：不尝试。
 - `conflict`：不写入，回复冲突，如同别的写者先提交了。
