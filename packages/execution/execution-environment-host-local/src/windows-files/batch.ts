@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, unlink } from 'node:fs/promises'
 import { win32 } from 'node:path'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type {
@@ -17,22 +17,39 @@ import {
   writeManifest,
   type Manifest,
   type FileBatch,
+  type HostFileDiagnostic,
 } from '../host-file-batch.ts'
-import { reject, unknown } from '../host-paths.ts'
+import { failed, reject, unknown } from '../host-paths.ts'
 import { windowsObjectInfo } from './facility.ts'
 
 type Files = Pick<FileSystemFacility<unknown>, 'stat' | 'read' | 'write' | 'move' | 'remove'>
 type Commit = Parameters<FileSystemFacility<unknown>['commitBatch']>[0]
 const digest = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
 
+/** A staged file: where it is, what it is and the target it stands for. */
+type Staged = Readonly<{ path: string; identity: FileIdentity; target: string; temp: string }>
+
+/**
+ * Batches composed of single Windows file operations. Staging writes every entry into a new file
+ * beside its target; publication moves them over the targets one by one. A staged file that is not
+ * published is removed again, and one that cannot be removed is named by `temporaryFileRemains`.
+ */
 export function createWindowsBatch(options: {
   files: Files
   stateDirectory?: string
   generation: string
   running: Set<string>
   sealed(): boolean
+  diagnose?: ((diagnostic: HostFileDiagnostic) => void) | undefined
 }): FileBatch {
   const { files } = options
+  const report = (diagnostic: HostFileDiagnostic) => {
+    try {
+      options.diagnose?.(diagnostic)
+    } catch {
+      /* A diagnostic never changes the result. */
+    }
+  }
   const location = (tenant: string, id: string) =>
     win32.join(options.stateDirectory ?? '', 'batches', digest(tenant), `${id}.json`)
   const entryRequest = (
@@ -102,9 +119,50 @@ export function createWindowsBatch(options: {
           temp: `.omne-batch-${batch.id}-${index}`,
         })),
       }
-      const staged: { path: string; identity: FileIdentity }[] = []
+      const staged: Staged[] = []
       const published: string[] = []
+      /** The staged files that are not published stay: the effect of the batch is not known. */
       let retainPrepared = false
+      /** The staged files were already removed, or tried to be. */
+      let discarded = false
+      /** Removes the staged files given; false when one of them stays, which is then named. */
+      const discard = async (items: readonly Staged[]): Promise<boolean> => {
+        discarded = true
+        let all = true
+        for (const item of items) {
+          const removed = await files.remove({
+            ...request,
+            path: item.path,
+            named: item.identity.object,
+            recursive: false,
+          })
+          if (
+            removed.kind === 'done' ||
+            (removed.kind === 'rejected' && removed.reason === 'notFound')
+          )
+            continue
+          all = false
+          report({
+            kind: 'temporaryFileRemains',
+            batch: batch.id,
+            path: item.target,
+            temporary: item.temp,
+            ...(removed.kind === 'rejected' ? { code: removed.reason } : {}),
+          })
+        }
+        return all
+      }
+      /**
+       * Staging stopped before anything was published. With every staged file removed again and a
+       * refusal for the step that stopped it, the batch is refused and its manifest goes; otherwise
+       * its effect is not known.
+       */
+      const abandon = async (refusal: FacilityResult<never>): Promise<FacilityResult<never>> => {
+        if (!(await discard(staged)) || refusal.kind !== 'rejected')
+          return unknown(request.requestId)
+        await unlink(file).catch(() => undefined)
+        return refusal
+      }
       const uncertain = (reason: 'effectUnknown' | 'conflict' | 'closed' | 'unavailable') => {
         retainPrepared = reason === 'effectUnknown'
         return {
@@ -126,7 +184,8 @@ export function createWindowsBatch(options: {
           if (stored === undefined) return uncertain('effectUnknown')
           const parentPath = win32.dirname(entry.path)
           const parent = await windowsObjectInfo(parentPath)
-          if (!parent.ok) return uncertain('effectUnknown')
+          if (!parent.ok)
+            return await abandon(failed(request.requestId, parent.failure, 'notFound'))
           const path = win32.join(parentPath, stored.temp)
           const result = await files.write({
             ...request,
@@ -135,8 +194,10 @@ export function createWindowsBatch(options: {
             bytes: entry.bytes,
             mode: 'create',
           })
-          if (result.kind !== 'done') return uncertain('effectUnknown')
-          staged.push({ path, identity: result.value })
+          // A write refuses only when it left no file of its own.
+          if (result.kind !== 'done')
+            return await abandon(result.kind === 'rejected' ? result : unknown(request.requestId))
+          staged.push({ path, identity: result.value, target: entry.path, temp: stored.temp })
         }
         await writeManifest(file, { ...manifest, state: 'publishing' })
         for (const [index, entry] of request.entries.entries()) {
@@ -174,14 +235,7 @@ export function createWindowsBatch(options: {
       } catch {
         return uncertain('effectUnknown')
       } finally {
-        if (!retainPrepared)
-          for (const item of staged)
-            await files.remove({
-              ...request,
-              path: item.path,
-              named: item.identity.object,
-              recursive: false,
-            })
+        if (!retainPrepared && !discarded) await discard(staged.slice(published.length))
         options.running.delete(batch.id)
       }
     },
@@ -204,6 +258,11 @@ export function createWindowsBatch(options: {
         if (!found.ok) {
           if (found.failure !== 'unresolved') return unknown(request.requestId)
           if (entry.expectedVersion !== null) conflicting.push(entry.path)
+          continue
+        }
+        // A directory or a link at the target is neither the expected version nor the staged bytes.
+        if (found.value.type !== 'file') {
+          conflicting.push(entry.path)
           continue
         }
         const read = await files.read({

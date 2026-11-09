@@ -1,4 +1,8 @@
-/** Name changes use opened source objects and opened target directories. */
+/**
+ * Name changes use opened source objects and opened target directories. Delete and rename use POSIX
+ * semantics and ignore the read-only attribute: a name goes or is replaced at once, and the handles
+ * other processes hold stay usable.
+ */
 export const nativeTree = String.raw`
 public static partial class OmneFiles {
   [DllImport("ntdll.dll")] static extern int NtSetInformationFile(IntPtr handle,out Status status,IntPtr data,uint length,int infoClass);
@@ -10,18 +14,7 @@ public static partial class OmneFiles {
     Info info=Information(handle);
     if(Token(handle)!=named || (version!=null && Version(info)!=version)) throw new IOException("conflict");
   }
-  static IntPtr MakeDirectory(IntPtr parent,string name) {
-    Unicode text=new Unicode(); text.length=checked((ushort)(name.Length*2)); text.maximum=text.length; text.buffer=Marshal.StringToHGlobalUni(name);
-    IntPtr pointer=Marshal.AllocHGlobal(Marshal.SizeOf(text));
-    try {
-      Marshal.StructureToPtr(text,pointer,false);
-      Attributes attributes=new Attributes(); attributes.length=(uint)Marshal.SizeOf(attributes); attributes.root=parent; attributes.name=pointer; attributes.flags=0x40;
-      Status io; IntPtr handle;
-      int result=NtCreateFile(out handle,0x100081,ref attributes,out io,IntPtr.Zero,0,3,2,0x200021,IntPtr.Zero,0);
-      if(result<0) throw Error(RtlNtStatusToDosError(result));
-      return handle;
-    } finally { Marshal.FreeHGlobal(pointer); Marshal.FreeHGlobal(text.buffer); }
-  }
+  static IntPtr MakeDirectory(IntPtr parent,string name) { return Create(parent,name,0x81,2,0x200021); }
   static IntPtr MakeDirectories(IntPtr start,string root,string[] segments,string named,bool parents,bool rooted,List<IntPtr> held,ref bool changed) {
     IntPtr current=start; uint volume=Information(start).volume; int first=segments.Length-1;
     if(parents) {
@@ -36,14 +29,17 @@ public static partial class OmneFiles {
     for(int i=first;i<segments.Length;i++) { current=MakeDirectory(current,segments[i]); held.Add(current); changed=true; }
     return current;
   }
+  // FileDispositionInformationEx: DELETE, POSIX_SEMANTICS and IGNORE_READONLY_ATTRIBUTE.
   static void Delete(IntPtr handle) {
-    IntPtr memory=Marshal.AllocHGlobal(1);
-    try { Marshal.WriteByte(memory,1); Status io; int status=NtSetInformationFile(handle,out io,memory,1,13); if(status<0) throw Error(RtlNtStatusToDosError(status)); }
+    IntPtr memory=Marshal.AllocHGlobal(4);
+    try { Marshal.WriteInt32(memory,0x13); Status io; int status=NtSetInformationFile(handle,out io,memory,4,64); if(status<0) throw Error(RtlNtStatusToDosError(status)); }
     finally { Marshal.FreeHGlobal(memory); }
   }
+  // The preflight of a recursive delete: every entry can be opened for deletion, nothing is on another
+  // volume and every name is lossless. Nothing is deleted when it fails.
   static void CheckTree(IntPtr directory,uint volume) {
     foreach(string name in Names(directory,true)) {
-      IntPtr child=OpenRelative(directory,name,0x81,false);
+      IntPtr child=OpenRelative(directory,name,0x10081,false);
       try {
         Info info=Information(child);
         if((info.attributes&16)!=0 && (info.attributes&0x400)==0) {
@@ -66,15 +62,24 @@ public static partial class OmneFiles {
       } finally { if(!CloseHandle(child)) throw new IOException("unknown"); }
     }
   }
+  // FileRenameInformationEx: POSIX_SEMANTICS and IGNORE_READONLY_ATTRIBUTE, with REPLACE_IF_EXISTS to
+  // replace. The name is passed as its UTF-16 code units, unpaired surrogates included.
   static void Rename(IntPtr source,IntPtr parent,string name,bool replace) {
-    byte[] text=Encoding.Unicode.GetBytes(name); int rootOffset=IntPtr.Size==8?8:4, lengthOffset=rootOffset+IntPtr.Size, nameOffset=lengthOffset+4;
-    int size=Math.Max(nameOffset+text.Length,IntPtr.Size==8?24:16); IntPtr memory=Marshal.AllocHGlobal(size);
+    int rootOffset=IntPtr.Size==8?8:4, lengthOffset=rootOffset+IntPtr.Size, nameOffset=lengthOffset+4, length=checked(name.Length*2);
+    int size=Math.Max(nameOffset+length,IntPtr.Size==8?24:16); IntPtr memory=Marshal.AllocHGlobal(size);
     try {
       for(int i=0;i<size;i++) Marshal.WriteByte(memory,i,0);
-      Marshal.WriteByte(memory,replace?(byte)1:(byte)0); Marshal.WriteIntPtr(memory,rootOffset,parent); Marshal.WriteInt32(memory,lengthOffset,text.Length); Marshal.Copy(text,0,IntPtr.Add(memory,nameOffset),text.Length);
-      Status io; int status=NtSetInformationFile(source,out io,memory,(uint)size,10);
+      Marshal.WriteInt32(memory,0,0x42|(replace?1:0)); Marshal.WriteIntPtr(memory,rootOffset,parent); Marshal.WriteInt32(memory,lengthOffset,length);
+      Marshal.Copy(name.ToCharArray(),0,IntPtr.Add(memory,nameOffset),name.Length);
+      Status io; int status=NtSetInformationFile(source,out io,memory,(uint)size,65);
       if(status<0) throw Error(RtlNtStatusToDosError(status));
     } finally { Marshal.FreeHGlobal(memory); }
+  }
+  // NTFS refuses to rename a directory whose subtree holds an open file, with access denied. The
+  // denial means that only when the helper may add a directory to the destination.
+  static bool MayAddDirectory(IntPtr destination) {
+    try { IntPtr handle=Create(destination,"",0x4,1,0x200021); CloseHandle(handle); return true; }
+    catch(IOException) { return false; }
   }
   public static object Change(string root,string expectedRoot,string[] segments,string named,string operation,bool recursive,string version,bool hasVersion,string targetRoot,string expectedTargetRoot,string[] targetSegments,string targetNamed,bool replace,bool rooted) {
     List<IntPtr> held=new List<IntPtr>(); bool changed=false;
@@ -93,20 +98,26 @@ public static partial class OmneFiles {
         } else if(operation=="move") {
           if(targetSegments.Length==0) throw new IOException("notAuthorized");
           IntPtr destinationRoot=Root(targetRoot,expectedTargetRoot,rooted,held), destination=Parent(destinationRoot,targetRoot,targetSegments,rooted,held);
-          string targetName=targetSegments[targetSegments.Length-1]; IntPtr target=IntPtr.Zero;
+          string targetName=targetSegments[targetSegments.Length-1]; IntPtr target=IntPtr.Zero; bool replacing=false;
           try { target=OpenRelative(destination,targetName,0x80,false); }
           catch(IOException error) { if(error.Message!="unresolved") throw; }
           if(target==IntPtr.Zero) CheckNamed(destination,targetNamed,null);
           else {
-            try { if(!replace) throw new IOException("conflict"); CheckNamed(target,targetNamed,null); }
+            try { if(!replace) throw new IOException("conflict"); CheckNamed(target,targetNamed,null); replacing=true; }
             finally { if(!CloseHandle(target)) throw new IOException("unknown"); }
           }
-          Rename(current,destination,targetName,replace); changed=true;
+          try { Rename(current,destination,targetName,replace); }
+          catch(IOException error) {
+            bool directory=(info.attributes&16)!=0 && (info.attributes&0x400)==0;
+            if(error.Message=="notAuthorized" && directory && !replacing && MayAddDirectory(destination)) throw new IOException("busy");
+            throw;
+          }
+          changed=true;
         } else throw new IOException("unsupported");
       }
       return new { info=Metadata(current,""), bytes="", entries=new object[0], next=-1 };
     } catch { if(changed) throw new IOException("unknown"); throw; }
-    finally { bool closed=true; for(int i=held.Count-1;i>=0;i--) closed=CloseHandle(held[i]) && closed; if(!closed) throw new IOException("unknown"); }
+    finally { Release(held); }
   }
 }
 `
