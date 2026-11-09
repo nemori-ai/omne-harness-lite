@@ -42,7 +42,6 @@ export type {
   FactStreamRecord,
   ProcessRecord,
   CallRecord,
-  CurrentCallRecord,
   ConfirmedEnvironment,
   ExclusionRecord,
   HostRecord,
@@ -68,11 +67,6 @@ export type {
 } from './ledger-store.ts'
 export { recordKey, hostKey } from './ledger-store.ts'
 export { hasCurrentToolLedgerRecordFormat } from './ledger-record-format.ts'
-export type {
-  ToolHistoryStoredRecord,
-  ToolHistoryLedgerRead,
-  ToolHistoryLedgerStore,
-} from './history-store.ts'
 export type {
   AccessVerdict,
   GrantVerdict,
@@ -106,13 +100,5 @@ export {
 export { createToolForwardRuntime } from './runtime-forwarding.ts'
 export { outputCodec as createToolMessageResultCodec } from './tools-results.ts'
 export { checkToolResultBody } from './result-body-validation.ts'
-
-export {
-  createToolHistoryMigration,
-  type ToolHistoryMigrationOptions,
-} from './history-migration.ts'
-export type * from './history-contract.ts'
-export { decodeHistoricalTextInterpretation } from './history-interpretation.ts'
-export type { HistoricalCallRecord, HistoricalFixedToolRequest } from './history-request.ts'
 
 export { pageToolResult } from './result-page.ts'

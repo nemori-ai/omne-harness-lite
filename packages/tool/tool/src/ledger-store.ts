@@ -6,8 +6,6 @@ import type {
 import type { BodyPreparationRecord } from './ledger-body-custody.ts'
 import type { ResultPolicyRecord } from './ledger-result-policy.ts'
 import type { ResultPreparationRecord } from './ledger-result-preparation.ts'
-import type { HistoricalCallRecord } from './history-request.ts'
-import type { HistoryMigrationRecord, HistoricalBodyAlias } from './history-contract.ts'
 // The ledger store port (G1): one domain read and one revision-conditioned atomic commit. The
 // store keeps records by key inside a transaction domain and interprets none of them. A durable
 // provider (#280) and the non-durable store of `./testing` implement the same port.
@@ -90,8 +88,7 @@ export type ConfirmedEnvironment = Readonly<{
  * environment it confirmed, the start record it holds, the rejection that closed it, and the
  * execution reference of the instance that recorded its start.
  */
-export type CurrentCallRecord = Readonly<{
-  requestFormat?: 'current'
+export type CallRecord = Readonly<{
   tenant: TenantId
   call: ToolCallId
   admission: ToolOperationId
@@ -104,8 +101,6 @@ export type CurrentCallRecord = Readonly<{
   startRejection: StartRejection | null
   execution: ToolExecutionRef | null
 }>
-
-export type CallRecord = CurrentCallRecord | HistoricalCallRecord
 
 /** The complete named result of one committed operation (P01 `committed.receipt`). */
 export type OperationReceipt =
@@ -313,8 +308,6 @@ export type QueueReleaseRecord = Readonly<{ call: ToolCallId; basis: ReleaseBasi
 export type HostRecord = Readonly<{ key: string; value: unknown }>
 
 export type LedgerRecord =
-  | Readonly<{ kind: 'history-migration'; migration: HistoryMigrationRecord }>
-  | Readonly<{ kind: 'historical-body-alias'; alias: HistoricalBodyAlias }>
   | Readonly<{ kind: 'body-writer'; writer: WriterRecord }>
   | Readonly<{ kind: 'body-writer-scope'; scope: WriterScopeRecord }>
   | Readonly<{ kind: 'body-writer-append'; append: WriterAppendRecord }>
@@ -348,10 +341,6 @@ export type LedgerRecord =
 export function recordKey(record: LedgerRecord): string {
   if (isQueueRecord(record)) return queueRecordKey(record)
   switch (record.kind) {
-    case 'history-migration':
-      return `history-migration:${record.migration.operation}`
-    case 'historical-body-alias':
-      return `historical-body-alias:${JSON.stringify([record.alias.result, record.alias.bodyId])}`
     case 'body-writer':
       return `body-writer:${record.writer.id}`
     case 'body-writer-scope':

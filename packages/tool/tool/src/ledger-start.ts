@@ -1,4 +1,3 @@
-import { historicalExecutionUnavailable } from './history-request.ts'
 import { syntheticChannels } from './ledger-decider.ts'
 import type { PreparedSynthetic, SyntheticDecision } from './ledger-result-preparation.ts'
 
@@ -47,7 +46,7 @@ import {
 import {
   queueEntryKey,
   taskKey,
-  type CurrentCallRecord,
+  type CallRecord,
   type LedgerDomain,
   type LedgerRead,
   type LedgerWrite,
@@ -322,10 +321,8 @@ export type WriteCommand = Readonly<{
  * revision must be the expected one. The gate comes after the recall, so a resend of a
  * committed operation answers its receipt whatever revision it names.
  */
-function gate(snapshot: Snapshot, command: WriteCommand): Outcome<CurrentCallRecord, ToolFailure> {
+function gate(snapshot: Snapshot, command: WriteCommand): Outcome<CallRecord, ToolFailure> {
   if (snapshot.call === null) return invalid('call', 'unknown-call')
-  if (snapshot.call.requestFormat === 'historical-result')
-    return historicalExecutionUnavailable(snapshot.call)
   if (stateRevision(snapshot) !== command.expected)
     return fail({ kind: 'stale-revision', current: stateRevision(snapshot) })
   return succeed(snapshot.call)
@@ -383,7 +380,7 @@ function commonOf(state: ToolState): CommonState {
 }
 
 /** The next state: the body with the new revision and a fresh state evidence. */
-function nextState(record: CurrentCallRecord, body: StateBody, revision: ToolRevision): ToolState {
+function nextState(record: CallRecord, body: StateBody, revision: ToolRevision): ToolState {
   const place = { tenant: record.tenant, call: record.call }
   const next: StateBody = { ...body, revision }
   return { ...next, source: mintEvidence('state', place, revision, next) }
@@ -393,7 +390,7 @@ type PendingPhase = 'accepted' | 'preparing' | 'queued' | 'starting'
 
 /** A state of a phase before the start: no wait, the relation unchanged, the given changes. */
 function pendingState(
-  record: CurrentCallRecord,
+  record: CallRecord,
   phase: PendingPhase,
   changes: Partial<CommonState>,
   revision: ToolRevision,
@@ -424,7 +421,7 @@ export type PlanPreparationCommand = WriteCommand &
  * again under the transaction's snapshot.
  */
 export function refusePlan(
-  record: CurrentCallRecord,
+  record: CallRecord,
   command: Pick<PlanPreparationCommand, 'request' | 'purpose'>,
   requestDigest: (request: FixedToolRequest) => string,
 ): Outcome<void, ToolFailure> {
@@ -549,7 +546,7 @@ function stateOf(receipt: OperationReceipt): ToolState {
 }
 
 /** Why the call cannot be enqueued now, or nothing: it must be `preparing` with an environment. */
-export function refuseEnqueue(record: CurrentCallRecord): Outcome<void, ToolFailure> {
+export function refuseEnqueue(record: CallRecord): Outcome<void, ToolFailure> {
   if (record.state.phase !== 'preparing') return wrongPhase(record.state.phase)
   if (record.environment === null) return invalid('call', 'not-prepared')
   return succeed(undefined)
@@ -589,7 +586,7 @@ export function decideEnqueue(
 }
 
 /** Why the call cannot take a start intent now, or nothing (P02, P04). */
-export function refuseStart(record: CurrentCallRecord): Outcome<void, ToolFailure> {
+export function refuseStart(record: CallRecord): Outcome<void, ToolFailure> {
   if (record.startRejection !== null) return invalid('call', 'start-rejected')
   if (record.state.phase !== 'queued') return wrongPhase(record.state.phase)
   if (record.request.availability.kind !== 'available') return invalid('call', 'not-available')
@@ -678,7 +675,7 @@ export type TerminalText<B extends ContentBlock> = (
 
 /** The settled state of a first-start rejection: unavailable, nothing started, position released. */
 function rejectedState(
-  record: CurrentCallRecord,
+  record: CallRecord,
   version: Extract<ToolState, { phase: 'settled' }>['result'],
   terminal: Extract<ToolTerminal, { kind: 'unavailable' }>,
   delivery: NonNullable<ToolState['delivery']>,
@@ -724,7 +721,7 @@ function rejectedState(
  */
 function rejectionWrites(
   snapshot: Snapshot,
-  record: CurrentCallRecord,
+  record: CallRecord,
   command: WriteCommand,
   rejection: StartRejection,
   prepared: PreparedSynthetic | null,
@@ -832,10 +829,7 @@ function startingCall(
   snapshot: Snapshot,
   command: RecordStartCommand,
   recordDigest: (record: ToolStartRecord) => string,
-): Outcome<
-  CurrentCallRecord & Readonly<{ start: NonNullable<CurrentCallRecord['start']> }>,
-  ToolFailure
-> {
+): Outcome<CallRecord & Readonly<{ start: NonNullable<CallRecord['start']> }>, ToolFailure> {
   const gated = gate(snapshot, command)
   if ('failure' in gated) return gated
   const { start } = gated.ok
@@ -901,7 +895,7 @@ export function decideRecordStart(
 /** The call is running: the live execution, the instance that recorded it, the timing segment. */
 function started(
   snapshot: Snapshot,
-  record: CurrentCallRecord,
+  record: CallRecord,
   command: RecordStartCommand,
   mint: Mint,
 ): Decision<ToolState> {
@@ -951,7 +945,7 @@ function started(
 
 /** The outcome is recorded; the start record and its task stay for a later attempt or query. */
 function kept(
-  record: CurrentCallRecord,
+  record: CallRecord,
   command: RecordStartCommand,
   changes: Partial<CommonState>,
   mint: Mint,

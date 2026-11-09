@@ -1,4 +1,3 @@
-import { historicalExecutionUnavailable } from './history-request.ts'
 // Source verification happens outside the transaction. These decisions preserve the original duty.
 
 import { succeed, type Outcome } from '@omne-harness/operation-result'
@@ -42,7 +41,6 @@ export function checkFactAcknowledgement(
   }
   const call = snapshot.call
   if (call === null) return invalid('call', 'unknown-call')
-  if (call.requestFormat === 'historical-result') return historicalExecutionUnavailable(call)
   const candidates = [...snapshot.batches.values()].filter(
     batch =>
       batch.start.operation === command.receipt.start && batch.batch === command.receipt.batch,
@@ -70,7 +68,6 @@ export function decideFactAcknowledgement(
   const batch = checked.ok.batch
   const call = snapshot.call
   if (call === null) return reply(invalid('call', 'unknown-call'))
-  if (call.requestFormat === 'historical-result') return reply(historicalExecutionUnavailable(call))
   const confirmed: FactBatchRecord = {
     ...batch,
     acknowledgement: { kind: 'confirmed', sourceReceipt: command.sourceReceipt },

@@ -67,7 +67,7 @@ function parsePhase(value: unknown): Phase | null {
   return null
 }
 
-export function parseDeliveryRecord(
+function parseDeliveryRecord(
   value: unknown,
   base: DeliveryBase,
   access: CallAccess<unknown>,

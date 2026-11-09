@@ -1,5 +1,3 @@
-import { historicalExecutionUnavailable } from './history-request.ts'
-import type { CurrentCallRecord } from './ledger-store.ts'
 import { createLedgerBodyWrites } from './ledger-body-writer.ts'
 import type { ToolBodyWrites } from '@omne-harness/tool-contract/provider'
 import { authorBody } from './ledger-author-body.ts'
@@ -411,10 +409,9 @@ export function createToolLedger<P, B extends ContentBlock>(
     snapshot.operations.has(operation)
 
   /** The call of a pre-read, or the failure the transaction would give for its absence. */
-  const recordOf = (snapshot: Snapshot): Outcome<CurrentCallRecord, ToolFailure> => {
+  const recordOf = (snapshot: Snapshot): Outcome<CallRecord, ToolFailure> => {
     const call = snapshot.call
     if (call === null) return invalid('call', 'unknown-call')
-    if (call.requestFormat === 'historical-result') return historicalExecutionUnavailable(call)
     return succeed(call)
   }
 
@@ -422,7 +419,7 @@ export function createToolLedger<P, B extends ContentBlock>(
   const preGate = (
     snapshot: Snapshot,
     context: WriteEntry<P>,
-  ): Outcome<CurrentCallRecord, ToolFailure> => {
+  ): Outcome<CallRecord, ToolFailure> => {
     const record = recordOf(snapshot)
     if ('failure' in record) return record
     if (stateRevision(snapshot) !== context.expected)
@@ -679,7 +676,7 @@ export function createToolLedger<P, B extends ContentBlock>(
    */
   const releaseQueue = async (
     context: WriteEntry<P>,
-    record: CurrentCallRecord,
+    record: CallRecord,
     state: ToolState,
   ): Reply<ToolState> => {
     if (state.phase !== 'settled' || record.request.availability.kind !== 'available')

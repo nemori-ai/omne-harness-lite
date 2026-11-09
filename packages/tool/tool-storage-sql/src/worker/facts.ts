@@ -1,4 +1,3 @@
-import { parseHistoryCleanup, type HistoryCleanupFacts } from './history-cleanup.ts'
 // The facts that the adapters put into one `tool` command, the answers the participant gives, and
 // the inputs and outputs of the read handlers. The adapters build these values and the Worker
 // modules parse them, so the protocol has one definition. Every value is strict JSON.
@@ -54,13 +53,7 @@ export type ManifestFacts = CustodyAddress &
     holds: null
   }>
 
-export type ToolFacts =
-  | HistoryCleanupFacts
-  | LedgerFacts
-  | GuardedHostFacts
-  | ChunkFacts
-  | ManifestFacts
-  | MaterialFacts
+export type ToolFacts = LedgerFacts | GuardedHostFacts | ChunkFacts | ManifestFacts | MaterialFacts
 
 /** Why the participant stopped a command; the adapters map each reason to one port answer. */
 export type StopBasis =
@@ -202,8 +195,6 @@ function manifestOf(value: JsonObject): ManifestFacts | null {
 /** The facts of one `tool` command, or null when they are not a command of this protocol. */
 export function parseFacts(facts: JsonObject): ToolFacts | null {
   switch (facts['intent']) {
-    case 'history-cleanup':
-      return parseHistoryCleanup(facts)
     case 'ledger':
       return ledgerOf(facts)
     case 'guarded-host':

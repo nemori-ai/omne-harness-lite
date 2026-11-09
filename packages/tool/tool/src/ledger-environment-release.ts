@@ -1,4 +1,3 @@
-import { historicalExecutionUnavailable } from './history-request.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
@@ -27,7 +26,7 @@ import {
   type Snapshot,
 } from './ledger-decider.ts'
 
-import { taskKey, type CurrentCallRecord, type LedgerWrite } from './ledger-store.ts'
+import { taskKey, type CallRecord, type LedgerWrite } from './ledger-store.ts'
 import { releaseBasisOf } from './ledger-start.ts'
 
 /** Domain-separated digests fit even when a provider's original operation is at its size limit. */
@@ -64,7 +63,7 @@ export function releaseIntent(preparation: PreparationRecord, custody: DurableEv
 /** Both automatic and public planning use this canonical record and write set. */
 export function planEnvironmentRelease(
   snapshot: Snapshot,
-  call: CurrentCallRecord,
+  call: CallRecord,
   final: DurableEvidence,
   custody: DurableEvidence,
   mint: Mint,
@@ -129,7 +128,7 @@ export type RecordReleaseCommand = CleanupCommand &
   Readonly<{ release: unknown; outcome: ReleaseProgress }>
 export type RecordTaskCommand = CleanupCommand & Readonly<{ task: unknown; resolution: unknown }>
 
-function revisedCall(call: CurrentCallRecord, mint: Mint): LedgerWrite {
+function revisedCall(call: CallRecord, mint: Mint): LedgerWrite {
   const { source: _source, ...body } = call.state
   const state = { ...body, revision: mint.revision }
   return put({
@@ -161,7 +160,6 @@ export function decidePlanRelease<B extends ContentBlock>(
   if (known.ok?.receipt.kind === 'plan-release') return reply(succeed(known.ok.receipt.release))
   const call = snapshot.call
   if (call === null) return reply(invalid('call', 'unknown-call'))
-  if (call.requestFormat === 'historical-result') return reply(historicalExecutionUnavailable(call))
   const preparation = call.preparations.find(item => sameFactValue(item, command.preparation))
   if (preparation === undefined || call.environment?.preparation !== preparation.operation)
     return reply(invalid('preparation', 'not-original-preparation'))
@@ -238,7 +236,6 @@ export function decideRecordRelease(
   if (checked.ok.kind === 'recalled') return reply(succeed(checked.ok.evidence))
   const call = snapshot.call
   if (call === null) return reply(invalid('call', 'unknown-call'))
-  if (call.requestFormat === 'historical-result') return reply(historicalExecutionUnavailable(call))
   const { release } = checked.ok
   const progress = checked.ok.progress.kind === 'released' ? checked.ok.progress : command.outcome
   const evidence = mintEvidence(
@@ -279,7 +276,6 @@ export function decideRecordFactsTask(
   if (known.ok?.receipt.kind === 'record-task') return reply(succeed(known.ok.receipt.evidence))
   const call = snapshot.call
   if (call === null) return reply(invalid('call', 'unknown-call'))
-  if (call.requestFormat === 'historical-result') return reply(historicalExecutionUnavailable(call))
   const task = snapshot.tasks.find(item => sameFactValue(item, command.task))
   const resolution = command.resolution
   if (

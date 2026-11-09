@@ -128,7 +128,7 @@ export async function prepareResultChannels<P, B extends ContentBlock>(
   return preserveResultChannels(custody, input, value, body, validate)
 }
 
-export async function preserveResultChannels<P, B extends ContentBlock>(
+async function preserveResultChannels<P, B extends ContentBlock>(
   custody: Custody<P>,
   input: PreparationInput<P>,
   value: ToolRenderedResult<B>,

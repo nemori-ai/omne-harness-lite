@@ -19,9 +19,6 @@ function observations(input: LedgerCommitInput): readonly ToolLifecycleObservati
   const domain = input.domain
   if (domain.kind !== 'call') return []
   const records = input.writes.flatMap(write => (write.kind === 'put' ? [write.record] : []))
-  const migrating = records.some(
-    row => row.kind === 'history-migration' && row.migration.progress.kind === 'published',
-  )
   const phases = new Map<LifecyclePhase, { items: number; bytes?: number }>()
   const add = (phase: LifecyclePhase, bytes?: number) => {
     const count = phases.get(phase) ?? { items: 0 }
@@ -30,7 +27,7 @@ function observations(input: LedgerCommitInput): readonly ToolLifecycleObservati
     phases.set(phase, count)
   }
   for (const record of records) {
-    if (record.kind === 'result' && (migrating || record.result.delivery.kind !== 'released')) {
+    if (record.kind === 'result' && record.result.delivery.kind !== 'released') {
       add('result-commit')
       if (record.result.value.original.kind === 'offloaded')
         add('offload', Number(record.result.value.original.body.description.bodyBytes))

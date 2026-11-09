@@ -15,9 +15,6 @@ import {
   type LedgerRecordRead,
   type LedgerRecord,
   type ToolLedgerStore,
-  type ToolHistoryStoredRecord,
-  type ToolHistoryLedgerRead,
-  type ToolHistoryLedgerStore,
 } from '@omne-harness/tool'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { NotJsonError } from './json.ts'
@@ -29,11 +26,13 @@ import { LEDGER_READ_HANDLER, PROTOCOL } from './worker/schema.ts'
 import { isObject } from './worker/support.ts'
 
 export type SqlToolLedgerStore = ToolLedgerStore & Readonly<{ durability: 'durable' }>
-export type SqlToolHistoryLedgerStore = ToolHistoryLedgerStore & Readonly<{ durability: 'durable' }>
 
-function storedRecordsOf(rows: JsonValue | undefined): ToolHistoryStoredRecord[] | null {
+/** Storage keeps a stored value opaque until Tool checks its format. */
+type StoredRecord = Readonly<{ key: string; record: unknown }>
+
+function storedRecordsOf(rows: JsonValue | undefined): StoredRecord[] | null {
   if (!Array.isArray(rows)) return null
-  const records: ToolHistoryStoredRecord[] = []
+  const records: StoredRecord[] = []
   for (const row of rows) {
     if (!isObject(row) || typeof row['key'] !== 'string' || row['record'] === undefined) return null
     records.push({ key: row['key'], record: row['record'] })
@@ -44,7 +43,7 @@ function storedRecordsOf(rows: JsonValue | undefined): ToolHistoryStoredRecord[]
 /**
  * Tool owns the format boundary. SQL checks it and the row key before exposing records.
  */
-function recordsOf(rows: readonly ToolHistoryStoredRecord[]): LedgerRecord[] | null {
+function recordsOf(rows: readonly StoredRecord[]): LedgerRecord[] | null {
   const records: LedgerRecord[] = []
   for (const row of rows) {
     if (!hasCurrentToolLedgerRecordFormat(row['record'])) return null
@@ -81,14 +80,7 @@ async function readStored(
   return { kind: 'read', revision: revision.ok, rows: records } as const
 }
 
-function createStoredLedger(options: SqlToolStorageOptions): SqlToolHistoryLedgerStore {
-  const read = async (domain: LedgerDomain): Promise<ToolHistoryLedgerRead> => {
-    const answer = await readStored(options, domain, null)
-    return answer.kind === 'read'
-      ? { kind: 'complete', revision: answer.revision, records: answer.rows }
-      : answer
-  }
-
+export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToolLedgerStore {
   const commit = async (input: LedgerCommitInput): Promise<LedgerCommit> => {
     const resolved = await resolveTenant(options, input.domain.tenant)
     if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
@@ -109,21 +101,10 @@ function createStoredLedger(options: SqlToolStorageOptions): SqlToolHistoryLedge
     return ledgerAnswer(await options.storage.commit(requestOf(options, resolved.at, facts)))
   }
 
-  return { durability: 'durable', read, commit }
-}
-
-export function createSqlToolHistoryLedgerStore(
-  options: SqlToolStorageOptions,
-): SqlToolHistoryLedgerStore {
-  return createStoredLedger(options)
-}
-
-export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToolLedgerStore {
-  const stored = createStoredLedger(options)
   const read = async (domain: LedgerDomain): Promise<LedgerRead> => {
-    const answer = await stored.read(domain)
-    if (answer.kind !== 'complete') return answer
-    const records = recordsOf(answer.records)
+    const answer = await readStored(options, domain, null)
+    if (answer.kind !== 'read') return answer
+    const records = recordsOf(answer.rows)
     return records === null
       ? unavailable('ledger read: invalid domain or unsupported record format')
       : { kind: 'complete', revision: answer.revision, records }
@@ -136,5 +117,5 @@ export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToo
       return unavailable('ledger read: invalid record or unsupported record format')
     return { kind: 'complete', revision: answer.revision, record: records[0] ?? null }
   }
-  return { durability: 'durable', read, readRecord, commit: stored.commit }
+  return { durability: 'durable', read, readRecord, commit }
 }

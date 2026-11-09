@@ -1,4 +1,3 @@
-import { historicalExecutionUnavailable } from './history-request.ts'
 // The read projections of one domain snapshot: lookup, operation resolution, result pages and the
 // call account (P01, P08, P09). They project `not-accepted` or `not-committed` only from a
 // complete snapshot; the ledger answers such a negative only after its exclusion fence commits,
@@ -105,7 +104,6 @@ export function readResultPage<B extends ContentBlock>(
 export function readRecovery(snapshot: Snapshot): Outcome<ToolRecovery, ToolFailure> {
   const call = snapshot.call
   if (call === null) return invalid('call', 'unknown-call')
-  if (call.requestFormat === 'historical-result') return historicalExecutionUnavailable(call)
   const original =
     call.state.phase === 'settled' ? snapshot.results.get(call.state.result) : undefined
   return succeed({

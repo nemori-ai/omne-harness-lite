@@ -88,7 +88,6 @@ export function createQueueReconciler<P>(ops: QueueMaintenance<P>): ToolLedgerQu
       const own = await ops.read({ kind: 'call', tenant, call })
       if ('failure' in own) return own
       if (own.ok.call === null) return invalid('call', 'unknown-call')
-      if (own.ok.call.requestFormat === 'historical-result') return succeed(NOTHING)
       const { request } = own.ok.call
       if (request.availability.kind !== 'available') return succeed(NOTHING)
       const domain: QueueDomain = { kind: 'queue', tenant, key: queueKeyOf(request) }

@@ -197,29 +197,6 @@ export function createLedgerContent<P, B extends ContentBlock>(
       const before = await locate(value)
       if ('failure' in before) return before
       const original = before.ok.record.value.original
-      const alias = [...before.ok.snapshot.historicalAliases.values()].find(
-        item =>
-          item.call === value.call &&
-          item.result === value.result &&
-          sameFactValue(item.tenant, value.tenant) &&
-          sameAttachment(item.source, value.attachment),
-      )
-      if (alias !== undefined) {
-        const migration = before.ok.snapshot.migrations.get(alias.migration)
-        if (
-          original.kind !== 'offloaded' ||
-          original.body.description.bodyId !== alias.bodyId ||
-          migration === undefined ||
-          !('receipt' in migration.progress) ||
-          !['published', 'cleaned'].includes(migration.progress.kind) ||
-          !sameFactValue(migration.progress.receipt, alias.basis)
-        )
-          return providerFailure('historical body association is inconsistent')
-        const page = await ports.bodyBytes({ ...value, bodyId: alias.bodyId })
-        return 'failure' in page
-          ? page
-          : succeed({ ...page.ok, attachment: { ...value.attachment } })
-      }
       if (
         original.kind === 'offloaded' &&
         sameAttachment(original.body.description.source, value.attachment)

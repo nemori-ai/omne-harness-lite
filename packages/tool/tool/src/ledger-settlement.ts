@@ -1,4 +1,3 @@
-import { historicalExecutionUnavailable } from './history-request.ts'
 import {
   adoptResultMaterials,
   releaseFinalPreparation,
@@ -36,7 +35,7 @@ import { planEnvironmentRelease, processCustodyCovered } from './ledger-environm
 import type { WriteCommand } from './ledger-start.ts'
 import {
   taskKey,
-  type CurrentCallRecord,
+  type CallRecord,
   type CleanupDuty,
   type LedgerWrite,
   type ResultRecord,
@@ -53,7 +52,7 @@ export type SettlementCheck =
   | Readonly<{ kind: 'recalled'; state: ToolState }>
   | Readonly<{
       kind: 'fresh'
-      call: CurrentCallRecord
+      call: CallRecord
       saved: FactEventRecord
       task: Extract<ToolTask, { kind: 'queue' | 'settle' | 'account' | 'facts' | 'clock' }>
     }>
@@ -66,7 +65,6 @@ export function checkSettlement(
   if ('failure' in known) return known
   const call = snapshot.call
   if (call === null) return invalid('call', 'unknown-call')
-  if (call.requestFormat === 'historical-result') return historicalExecutionUnavailable(call)
   if (call.execution === null || !sameFactValue(call.execution, command.execution))
     return invalid('execution', 'not-original-execution')
   if (known.ok !== undefined && known.ok.receipt.kind === 'preserve-result')
@@ -121,7 +119,7 @@ function settledTiming(current: ToolState['timing']): ToolState['timing'] {
 }
 
 function settledState<B extends ContentBlock>(
-  call: CurrentCallRecord,
+  call: CallRecord,
   final: Final<B>,
   basis: DurableEvidence,
   delivery: ResultRecord['delivery'],

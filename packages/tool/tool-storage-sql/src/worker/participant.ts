@@ -1,4 +1,3 @@
-import { cleanupHistoricalCopy } from './history-cleanup.ts'
 // The `tool` participant module. It runs inside the provider's write transaction, so every command
 // is atomic: a ledger commit checks the domain revision and applies its writes in input order; a
 // chunk keeps one piece of an original unless a manifest already seals the operation; a manifest
@@ -170,8 +169,6 @@ const participant: ParticipantModule = {
     if (facts === null) return { kind: 'unsupported', basis: { reason: 'facts' } }
     if ('material' in facts) return commitMaterial(facts, port)
     switch (facts.intent) {
-      case 'history-cleanup':
-        return cleanupHistoricalCopy(facts, port)
       case 'ledger':
         return commitLedger(facts, port)
       case 'guarded-host':

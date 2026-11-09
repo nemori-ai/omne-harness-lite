@@ -44,11 +44,7 @@ async function existingVersions() {
   if (saved.kind !== 'complete') throw new Error('fixture store unreadable')
   const original = saved.records.find(record => record.kind === 'result')
   const callRecord = saved.records.find(record => record.kind === 'call')
-  if (
-    original?.kind !== 'result' ||
-    callRecord?.kind !== 'call' ||
-    callRecord.call.requestFormat === 'historical-result'
-  )
+  if (original?.kind !== 'result' || callRecord?.kind !== 'call')
     throw new Error('fixture records missing')
   const access = {
     principal: principalA,

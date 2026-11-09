@@ -103,7 +103,7 @@ export function adoptResultMaterials(
   return succeed(writes)
 }
 
-export function adoptResultBody(
+function adoptResultBody(
   snapshot: Snapshot,
   result: ResultRecord,
 ): Outcome<readonly LedgerWrite[], ToolFailure> {

@@ -640,8 +640,7 @@ it('does not release a logical ended state that lacks the original saved final p
   const read = await f.harness.memory.read(domain)
   if (read.kind !== 'complete') throw new Error('fixture read')
   const call = read.records.find(record => record.kind === 'call')
-  if (call?.kind !== 'call' || call.call.requestFormat === 'historical-result')
-    throw new Error('fixture call')
+  if (call?.kind !== 'call') throw new Error('fixture call')
   await f.harness.memory.commit({
     domain,
     expected: read.revision,
@@ -892,11 +891,7 @@ it('keeps the original unknown timing evidence through settlement', async () => 
   const saved = await f.harness.memory.read(domain)
   if (saved.kind !== 'complete') throw new Error('fixture read')
   const record = saved.records.find(record => record.kind === 'call')
-  if (
-    record?.kind !== 'call' ||
-    record.call.requestFormat === 'historical-result' ||
-    record.call.state.timing.kind !== 'running'
-  )
+  if (record?.kind !== 'call' || record.call.state.timing.kind !== 'running')
     throw new Error('fixture running timing')
   const timing = {
     ...record.call.state.timing,

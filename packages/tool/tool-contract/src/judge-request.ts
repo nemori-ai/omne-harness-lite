@@ -1,4 +1,3 @@
-import type { HistoricalFixedToolRequest } from './historical-request.ts'
 // The closed judgment of a fixed request (342 values, definitions and the fixed request; P02).
 import { decodeScopeRef, type ScopeRef } from '@omne-harness/runtime-context-contract'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
@@ -11,11 +10,7 @@ import type {
 } from './definitions.ts'
 import type { ToolInvokeRequest } from './operations.ts'
 import { canonicalJsonText } from './dynamics.ts'
-import {
-  environmentDeclaration,
-  toolDefinition,
-  historicalToolDefinition,
-} from './judge-definition.ts'
+import { environmentDeclaration, toolDefinition } from './judge-definition.ts'
 import { toolArguments } from './parameter-codec.ts'
 import {
   filled,
@@ -179,22 +174,4 @@ export function judgeToolInvokeRequest(
   value: unknown,
 ): Outcome<ToolInvokeRequest, Readonly<{ field: string; reason: string }>> {
   return judgeUnknown(invokeToolRequest, value, 'ToolInvokeRequest')
-}
-
-/** The pre-W3 declaration is accepted only by this maintenance decoder, never by invocation admission. */
-export function judgeHistoricalFixedToolRequest(
-  value: unknown,
-): Outcome<HistoricalFixedToolRequest, ShapeRejection> {
-  return judgeUnknown(
-    refine(
-      record({
-        ...callerFields,
-        availability: availabilityFor(historicalToolDefinition),
-        invocation,
-      }),
-      requestRule,
-    ),
-    value,
-    'HistoricalFixedToolRequest',
-  )
 }

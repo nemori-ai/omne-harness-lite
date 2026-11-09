@@ -30,11 +30,7 @@ export function selectMaterialDeletion<P>(
   mint: Mint,
   input: CallInput<P>,
 ): Decision<MaterialDeletionSelection> {
-  if (
-    snapshot.call === null &&
-    ![...snapshot.migrations.values()].some(record => record.progress.kind === 'abandoning')
-  )
-    return reply(invalid('call', 'unknown-call'))
+  if (snapshot.call === null) return reply(invalid('call', 'unknown-call'))
   const keys = [...snapshot.materialCleanup.keys()].sort()
   const key =
     keys.find(

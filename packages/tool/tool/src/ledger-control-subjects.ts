@@ -121,12 +121,7 @@ export function createLedgerControls<P>(
         async (snapshot, mint) => {
           const call = snapshot.call
           const original = call?.state.controls.find(item => item.operation === control.ok)
-          if (
-            call === null ||
-            call.requestFormat === 'historical-result' ||
-            original === undefined ||
-            !sameFactValue(original.source, source.ok)
-          )
+          if (call === null || original === undefined || !sameFactValue(original.source, source.ok))
             return reply(invalid('control', 'not-original-control'))
           if (original.progress.kind !== 'pending') return reply(succeed(original))
           const subject = pendingController(snapshot, call, original)

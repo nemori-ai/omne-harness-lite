@@ -253,6 +253,3 @@ export type {
   ToolForwardRuntime,
 } from './forwarding.ts'
 export { returnGuide } from './return-description.ts'
-
-export type { HistoricalFixedToolRequest, HistoricalReturns } from './historical-request.ts'
-export { judgeHistoricalFixedToolRequest } from './judge-request.ts'

@@ -11,8 +11,6 @@ import type {
   ReadHandlerDescriptor,
   ReadOrdering,
 } from '@omne-harness/sql-contract'
-import { HISTORY_READ_HANDLER, HISTORY_COPY_LIMIT } from './worker/read-history.ts'
-import { HISTORY_SCAN_HANDLER, HISTORY_SCAN_LIMIT } from './history-scan-wire.ts'
 import { MATERIAL_READ_HANDLER } from './worker/read-material.ts'
 import { MATERIAL_MIGRATION, MATERIAL_TABLES } from './worker/migration-material.ts'
 import { MAINTENANCE_MIGRATION, MAINTENANCE_TABLES } from './worker/migration-maintenance.ts'
@@ -57,20 +55,6 @@ type Handler = Readonly<{
  * (sql-contract §9.3, §17). The custody reads are snapshots: a manifest is immutable once committed.
  */
 const HANDLERS: readonly Handler[] = [
-  {
-    handler: HISTORY_SCAN_HANDLER,
-    file: 'read-history-calls',
-    ordering: 'domain-serial',
-    tables: [...TOOL_TABLES, ...MATERIAL_TABLES],
-    rows: HISTORY_SCAN_LIMIT + 1,
-  },
-  {
-    handler: HISTORY_READ_HANDLER,
-    file: 'read-history',
-    ordering: 'domain-serial',
-    tables: ['tl_manifest', 'tl_chunk'],
-    rows: 2 * (HISTORY_COPY_LIMIT + 1),
-  },
   {
     handler: MAINTENANCE_READ_HANDLER,
     file: 'read-maintenance',
@@ -160,7 +144,7 @@ export function toolStorageMaterials(): ToolStorageMaterials {
         ordering: item.ordering,
         readTables: item.tables,
         requiresMigrations:
-          item.handler === MATERIAL_READ_HANDLER || item.handler === HISTORY_SCAN_HANDLER
+          item.handler === MATERIAL_READ_HANDLER
             ? [MATERIAL_MIGRATION]
             : item.handler === MAINTENANCE_READ_HANDLER
               ? [MAINTENANCE_MIGRATION]

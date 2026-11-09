@@ -21,5 +21,3 @@
 - [作者装载器](author-loader.ts)核合法设置、定义与 schema。
 - [执行绑定](executor-binding.ts)固定作者与启动身份，[活体执行](live-author-execution.ts)保存逐调用事实及停止状态。
 - [作者入口](author.ts)导出[贡献实现](contribute-tool.ts)与[换代协调者](author-generations.ts)，实现文件不反向导入入口。
-
-- [historical-delivery-inspection.ts](historical-delivery-inspection.ts)：升级前独立检查完整host交付域。

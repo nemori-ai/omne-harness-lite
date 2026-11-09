@@ -29,5 +29,3 @@
 - [material-mutations.ts](material-mutations.ts)：封存准备、分块提交与删除接续
 - [material-values.ts](material-values.ts)：规范编码、seal 和观察结果解析
 - [material-io.ts](material-io.ts)：有界 SQL 提交、读取与失败映射
-
-- [history-call-source.ts](history-call-source.ts)、[history-scan-wire.ts](history-scan-wire.ts)、[worker/read-history-calls.ts](worker/read-history-calls.ts)：受信历史调用全库存、游标与有界SQL读取。

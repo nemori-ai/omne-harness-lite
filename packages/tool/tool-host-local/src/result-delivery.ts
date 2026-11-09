@@ -96,7 +96,7 @@ function storedTenantKey(value: unknown): string | null {
   return tenant === null ? null : tenantKey(tenant)
 }
 
-export function resultDeliveryBase(call: CallRecord, result: ResultRecord): DeliveryBase | null {
+function resultDeliveryBase(call: CallRecord, result: ResultRecord): DeliveryBase | null {
   const tenant = restoreTenant(call.tenant)
   if (tenant === null) return null
   const reference = encodeToolInvocationRef({ tenant, call: call.call, admission: call.admission })

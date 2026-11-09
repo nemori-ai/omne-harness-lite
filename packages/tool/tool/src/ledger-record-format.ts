@@ -1,8 +1,6 @@
 import type { LedgerRecord } from './ledger-store.ts'
 
 const unchangedKinds = {
-  'history-migration': true,
-  'historical-body-alias': true,
   'body-writer': true,
   'body-writer-scope': true,
   'body-writer-append': true,
@@ -40,21 +38,13 @@ function returns(value: unknown): boolean {
   return object(value) && object(value.value) && object(value.body) && object(value.offloading)
 }
 
-function historicalReturns(value: unknown): boolean {
-  return (
-    object(value) &&
-    (value.kind === 'ordinary' || value.kind === 'structured') &&
-    object(value.program)
-  )
-}
-
-function definition(value: unknown, checkReturns = returns): boolean {
+function definition(value: unknown): boolean {
   if (!object(value)) return false
-  if (value.kind === 'function') return checkReturns(value.returns)
+  if (value.kind === 'function') return returns(value.returns)
   return (
     value.kind === 'commands' &&
     Array.isArray(value.commands) &&
-    value.commands.every(command => object(command) && checkReturns(command.returns))
+    value.commands.every(command => object(command) && returns(command.returns))
   )
 }
 
@@ -79,12 +69,8 @@ export function hasCurrentToolLedgerRecordFormat(record: unknown): boolean {
       object(call) &&
       object(call.request) &&
       object(call.request.availability) &&
-      (call.requestFormat === 'historical-result'
-        ? object(call.state) &&
-          call.state.phase === 'settled' &&
-          definition(call.request.availability.definition, historicalReturns)
-        : (call.requestFormat === undefined || call.requestFormat === 'current') &&
-          definition(call.request.availability.definition))
+      (call.requestFormat === undefined || call.requestFormat === 'current') &&
+      definition(call.request.availability.definition)
     )
   }
   if (record.kind === 'fact-batch') return object(record.batch) && fingerprint(record.batch.value)
