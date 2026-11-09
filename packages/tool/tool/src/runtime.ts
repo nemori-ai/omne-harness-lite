@@ -24,6 +24,7 @@ import {
   type ToolOperationIdentities,
 } from '@omne-harness/tool-contract/provider'
 import { admitResolvedInvocation, scheduleAcceptedCallBestEffort } from './runtime-admission.ts'
+import { callOffloadingFits } from './result-offloading.ts'
 import { checkToolConfiguration, driverRetryDelayMs, driverStepsPerRun } from './configuration.ts'
 import type { ToolConfiguration, ToolDependencies } from './construction.ts'
 import { createToolDriver } from './driver.ts'
@@ -182,6 +183,12 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
         reason: judged.failure.reason,
       })
     const request = judged.ok
+    if (!callOffloadingFits(request, configuration.offloading))
+      return rejected({
+        kind: 'invalid',
+        field: 'request.returns.offloading',
+        reason: 'header-and-preview-exceed-threshold',
+      })
     const { principal, tenant } = input
     let bound: Awaited<ReturnType<typeof sourceIssuer.resolve>>
     try {

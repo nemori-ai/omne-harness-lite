@@ -36,19 +36,36 @@ export type BodyPolicy = Readonly<{
   readResultArguments: JsonLimits
 }>
 
+type DeclaredCall = Pick<FixedToolRequest, 'availability' | 'command'>
+
+function returnDeclaration(request: DeclaredCall): ToolReturnDeclaration | undefined {
+  const definition = request.availability.definition
+  return definition.kind === 'function'
+    ? definition.returns
+    : definition.commands.find(command => command.name === request.command)?.returns
+}
+
 export function resultBodyPolicy(
   request: FixedToolRequest,
   system: ToolOffloadingConfiguration,
   readResultArguments: JsonLimits,
 ): Outcome<BodyPolicy, ToolFailure> {
-  const definition = request.availability.definition
-  const declaration =
-    definition.kind === 'function'
-      ? definition.returns
-      : definition.commands.find(command => command.name === request.command)?.returns
+  const declaration = returnDeclaration(request)
   if (declaration === undefined)
     return fail({ kind: 'invalid', field: 'command', reason: 'missing-return-declaration' })
   return succeed(resolveBodyPolicy(declaration, system, readResultArguments))
+}
+
+/**
+ * Admission of a call under the system bounds: its fixed return declaration must leave room for
+ * the largest header and the preview within its threshold, or no result of it could be shown.
+ */
+export function callOffloadingFits(
+  request: DeclaredCall,
+  system: ToolOffloadingConfiguration,
+): boolean {
+  const declaration = returnDeclaration(request)
+  return declaration === undefined || offloadingFits(declaration, system)
 }
 
 export function resolveBodyPolicy(
@@ -266,21 +283,17 @@ function withHeader<B extends ContentBlock>(blocks: readonly B[], header: string
  * Acceptance of a return declaration under the system bounds: the largest header plus the preview
  * budget must fit the offloading threshold, so no first screen exceeds L.
  */
-export function judgeOffloadingFits(
+export function offloadingFits(
   declaration: Pick<ToolReturnDeclaration, 'body' | 'offloading'>,
   system: ToolOffloadingConfiguration,
-): Outcome<void, ToolFailure> {
+): boolean {
   const representation = bodyRepresentation(declaration.body)
-  if (representation === null) return succeed(undefined)
+  if (representation === null) return true
   const bounds = offloadingBounds(declaration.offloading, system)
-  return headerMax(representation, bounds.retentionMs, system.maxBodyBytes) + bounds.previewBytes <=
+  return (
+    headerMax(representation, bounds.retentionMs, system.maxBodyBytes) + bounds.previewBytes <=
     bounds.inlineBytes
-    ? succeed(undefined)
-    : fail({
-        kind: 'invalid',
-        field: 'returns.offloading',
-        reason: 'header-and-preview-exceed-threshold',
-      })
+  )
 }
 
 /** The return declaration of the system's own results, accepted at startup like any author's. */
