@@ -319,6 +319,25 @@ describe('tool result round', () => {
     await secondModelCall(assembly)
   })
 
+  it('denies an action whose first invoke is rejected for good, and does not wait', async () => {
+    const assembly = await toolAssembly()
+    assembly.controls.tools.invoke.always(async () => ({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'request', reason: 'the arguments do not match' },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly)
+    await eventually(async () =>
+      ((await snapshot(assembly)).checkpoint.batch?.slots ?? []).some(
+        slot => slot.kind === 'denied',
+      ),
+    )
+    expect((await snapshot(assembly)).state).not.toMatchObject({
+      waits: [{ kind: 'dependency', owner: 'toolRuntime' }],
+    })
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
+  })
+
   it('admits a denial message for each action when the whole batch is denied', async () => {
     const assembly = await toolAssembly()
     assembly.controls.admission.admit.always(() => ({

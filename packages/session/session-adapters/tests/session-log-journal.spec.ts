@@ -507,7 +507,9 @@ describe('unknown, tenancy and registration', () => {
       failure: {
         kind: 'unavailable',
         owner: 'session-log-journal',
-        diagnostic: expect.stringContaining('queue_full'),
+        diagnostic: expect.stringContaining(
+          'the common root of the session is not readable: queue_full',
+        ),
       },
     })
   })

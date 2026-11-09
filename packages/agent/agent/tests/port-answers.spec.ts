@@ -22,6 +22,21 @@ describe('notingPorts', () => {
     expect(Object.keys({ ...noted })).toEqual(['calls', 'read'])
   })
 
+  it('passes through a method that answers nothing or a value without a failure, and wraps each port once', () => {
+    const port = Object.freeze({
+      report: () => undefined,
+      read: () => succeed({ failure: 'not an outcome failure' }),
+      nested: Object.freeze({ value: 1 }),
+    })
+    const noted = notingPorts(port)
+    expect(noted.report()).toBe(undefined)
+    expect(noted.read()).toEqual(succeed({ failure: 'not an outcome failure' }))
+    expect(notingPorts(port)).toBe(noted)
+    expect('nested' in noted && !('missing' in noted)).toBe(true)
+    expect(Object.getPrototypeOf(noted)).toBe(Object.getPrototypeOf(port))
+    expect(Object.getOwnPropertyDescriptor(noted, 'missing')).toBe(undefined)
+  })
+
   it('does not note a failure that no port answered', () => {
     expect(answeredByPort({ kind: 'unavailable', owner: 'evaluator', diagnostic: 'stop' })).toBe(
       false,

@@ -764,7 +764,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     at: LoopNode,
     failure: Failure,
   ): Promise<Outcome<LoopNode, Failure>> {
-    if (failure.kind === 'unavailable') return waitOnUnavailable(at, failure)
+    // An unavailable write goes on to failedNode, which waits on the Journal like any port.
     if (failure.kind === 'changed' && ['F1', 'F2'].includes(at)) {
       finishRefused = true
       return succeed('R0')
