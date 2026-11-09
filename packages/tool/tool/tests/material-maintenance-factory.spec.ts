@@ -18,10 +18,10 @@ it('expires and reclaims the original call through the narrow maintenance entry'
     sample: async () => succeed(ok(decodeToolMaterialInstant(new Date(now).toISOString()))),
   }
   const f = await settlementFixture({
-    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 8192, maxRetentionMs: 10 },
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 2048, maxRetentionMs: 10 },
     wrapMaterialClock: () => clock,
     value: {
-      content: [text('body', 'long body '.repeat(840))],
+      content: [text('body', 'long body '.repeat(210))],
       original: { kind: 'none' },
       data: { kind: 'none' },
       attachments: [],

@@ -12,6 +12,7 @@ import {
   decodeToolBodyId,
   decodeToolResultVersion,
   describedAdoption,
+  readToolInvocationRef,
 } from '@omne-harness/tool-contract/provider'
 
 export const toolsAdoption = describedAdoption({
@@ -28,8 +29,26 @@ export type AttachmentReference = Readonly<{
   selector: number
 }>
 
+/**
+ * A body reference shows its identities raw, separated by spaces the identity lexicon excludes, so
+ * the first screen that carries it grows by at most one byte per identity character.
+ */
 export function encodeBodyReference(value: BodyReference): string {
-  return `tb1.${Buffer.from(JSON.stringify([1, value.reference, value.result, value.bodyId])).toString('base64url')}`
+  const { call, admission } = readToolInvocationRef(value.reference)
+  return `tb1.${[call, admission, value.result, value.bodyId].join(' ')}`
+}
+
+function readBodyFields(fields: string): Outcome<BodyReference, ToolFailure> {
+  const bad = fail<ToolFailure>({ kind: 'invalid', field: 'reference', reason: 'body-reference' })
+  const [call, admission, version, body, ...rest] = fields.split(' ')
+  if (call === undefined || admission === undefined || version === undefined || body === undefined)
+    return bad
+  if (rest.length > 0) return bad
+  const reference = decodeToolInvocationRef(JSON.stringify(['tool-invocation', 2, call, admission]))
+  const result = decodeToolResultVersion(version)
+  const bodyId = decodeToolBodyId(body)
+  if ('failure' in reference || 'failure' in result || 'failure' in bodyId) return bad
+  return succeed({ reference: reference.ok, result: result.ok, bodyId: bodyId.ok })
 }
 
 export function protocol(limits: JsonLimits) {
@@ -87,22 +106,9 @@ export function protocol(limits: JsonLimits) {
     result: (value: ResultReference) => encode('tr1', [1, value.reference, value.result]),
     body: encodeBodyReference,
     readBody(text: string): Outcome<BodyReference, ToolFailure> {
-      const decoded = decode(text, 'tb1', 4)
-      if ('failure' in decoded) return decoded
-      const [, invocation, version, body] = decoded.ok
-      if (invocation?.kind !== 'string' || version?.kind !== 'string' || body?.kind !== 'string')
-        return fail({ kind: 'invalid', field: 'reference', reason: 'body-reference' })
-      const reference = decodeToolInvocationRef(invocation.value)
-      const result = decodeToolResultVersion(version.value)
-      const bodyId = decodeToolBodyId(body.value)
-      if (
-        'failure' in reference ||
-        'failure' in result ||
-        'failure' in bodyId ||
-        reference.ok !== invocation.value
-      )
-        return fail({ kind: 'invalid', field: 'reference', reason: 'body-reference' })
-      return succeed({ reference: reference.ok, result: result.ok, bodyId: bodyId.ok })
+      return allowed(text) && text.startsWith('tb1.')
+        ? readBodyFields(text.slice('tb1.'.length))
+        : fail({ kind: 'invalid-cursor', reason: 'invalid-tools-encoding' })
     },
     attachment: (reference: string, selector: number) => encode('ta1', [1, reference, selector]),
     cursor: (kind: ReadArguments['kind'], reference: string, after: string) =>

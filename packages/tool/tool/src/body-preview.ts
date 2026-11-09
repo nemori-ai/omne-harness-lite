@@ -52,8 +52,8 @@ function schemaName(identity: ToolSchemaIdentity): string {
 
 /**
  * The largest header any body under this declaration can get: every count at the body hard limit
- * and the reference built from identities at the contract length limit, each character one that
- * JSON escapes.
+ * and the reference built from identities at the contract length limit. The header shows the
+ * reference raw, one byte per identity character.
  */
 export function headerMax(
   representation: ToolBodyRepresentation,
@@ -74,7 +74,7 @@ export function headerMax(
 const LONGEST_REFERENCE = longestReference()
 
 function longestReference(): string {
-  const identity = '"'.repeat(TOOL_IDENTITY_MAX_LENGTH)
+  const identity = '~'.repeat(TOOL_IDENTITY_MAX_LENGTH)
   const reference = decodeToolInvocationRef(
     JSON.stringify(['tool-invocation', 2, identity, identity]),
   )

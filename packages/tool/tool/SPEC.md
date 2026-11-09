@@ -545,7 +545,7 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 
 - `tr1` 包含 `[1, invocationReference, resultVersion]`。内部身份必须通过契约 codec，并使用其规范形式。
 - `ta1` 包含 `[1, tr1, selector]`。selector 为非负安全整数索引，对应该固定版本的 attachments。正文不使用附件 selector。
-- `tb1` 包含 `[1, invocationReference, resultVersion, bodyId]`，定位同一结果的卸载正文。
+- `tb1` 定位同一结果的卸载正文，不用 base64url。句点后是 call、admission、resultVersion、bodyId 四个原样身份，以单个空格分隔。身份词法不含空格，所以分隔无歧义。首屏头部原样呈现它，每个身份字符只占 1 字节，模型调用 `read_result` 时自行做 JSON 编码。
 - `tc1` 包含 `[1, kind, completeReference, projection, internalAfter]`。result 的 projection 为 full，原生 attachment 为 bytes，body 文本页的 projection 为 text。读取前逐项比较分支、完整引用及投影。
 
 解码核协议、字段数、类型、规范编码及参数预算。所有发出的开始和续读提示检查整份调用 JSON 的预算，并用同一预算实际解码内部引用及 cursor。单个凭据、组合参数或内部 tuple 超限都不能发出可续读提示。引用编码不授予权限或无限寿命，也不依赖适配器内存表。结果释放和正文到期由原拥有者判断。正文游标绑定 bodyId、表示、固定版本和位置；旧字节投影游标不能被当成语义正文游标使用。未知版本、不可定位版本或错误游标不能换成最新结果或首屏。

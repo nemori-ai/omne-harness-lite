@@ -52,7 +52,7 @@ it.each([
   } else {
     expect(page.value.original).toMatchObject({
       bodyBytes: '8193',
-      previewKind: 'mechanical-head-tail',
+      previewKind: 'mechanical',
     })
     const visible = page.value.content.flatMap(block =>
       block.kind === 'text' && block.visibility.toModel ? [block.text] : [],
@@ -65,14 +65,14 @@ it.each([
     expect(visible.join('')).toContain(
       'The body may already have expired when this result is delivered.',
     )
-    expect(visible.join('')).toMatch(/\nreference: tb1\.[A-Za-z0-9_-]+\n/u)
+    expect(visible.join('')).toMatch(/\nreference: tb1\.[\x21-\x7e]+( [\x21-\x7e]+){3}\n/u)
     expect(visible.join('')).toContain('Read it back with Tools(command="read_result")')
   }
 })
 
 it('refuses at startup a system threshold that the header and preview cannot fit', async () => {
   await expect(
-    settlementFixture({ offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 4096 } }),
+    settlementFixture({ offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 1024 } }),
   ).rejects.toThrow('configuration.offloading: header-and-preview-exceed-threshold')
 })
 
@@ -653,7 +653,7 @@ it.each([64, 65])('enforces the body hard limit before inline selection: %i byte
   }
 })
 
-it.each([{ maxBytes: 128 }, { maxStringLength: 128 }, { maxItems: 2 }, { maxMembers: 2 }])(
+it.each([{ maxBytes: 128 }, { maxStringLength: 64 }, { maxItems: 2 }, { maxMembers: 2 }])(
   'does not publish an offloaded preview whose read instruction exceeds %j',
   async limit => {
     const f = await settlementFixture({
