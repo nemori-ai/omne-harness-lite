@@ -8,7 +8,10 @@
 // process only after the `tool-host` row loaded its author (`releaseDefinitionOf`). The row keeps
 // no copy of its own and asks for it on every read of the registry: a definition that became known
 // since the last read is registered then, under the holding `toolSettingProjection` derives from it.
-// The registry closes with the row, so a reloaded row starts from an empty table (IC-13).
+// The table belongs to one release generation: when the release authority reloads at another
+// generation, the table is closed and a new one starts, so the definitions of the new generation
+// register again. The registry closes with the row, so a reloaded row starts from an empty table
+// (IC-13).
 //
 // Why the key is defined here: like `modelCredentialCustody`, the provider and its one consumer are
 // rows of this application, and settings has no Cordis entry. When a member outside this
@@ -28,7 +31,7 @@ import {
   type SettingsRegistrySnapshot,
 } from '@omne-harness/settings'
 import { readSystemInstant } from '../../entry/session-clock.ts'
-import { releaseDefinitionOf, releaseOf } from '../../entry/tool-release.ts'
+import { releaseDefinitionOf, releaseOf, type ToolRelease } from '../../entry/tool-release.ts'
 import { defineRow } from '../../row.ts'
 import { createSettingsGuard } from '../authorization/settings-access.ts'
 import { settingsSecretCustodyKey } from '../secret-custody/index.ts'
@@ -100,19 +103,37 @@ type Known =
   | Readonly<{ kind: 'no-settings' }>
   | Readonly<{ kind: 'refused' }>
 
+type Trusted = Extract<ToolRelease, { kind: 'trusted' }>
+
+/** The table of one release generation: its registry and what it registered or refused by tool name. */
+type Table = Readonly<{
+  generation: string | null
+  registry: ReturnType<typeof createSettingsRegistry>
+  known: Map<string, Known>
+}>
+
+function tableOf(release: ToolRelease): Table {
+  const capacity = release.kind === 'trusted' ? Math.max(1, release.manifest.entries.length) : 1
+  return {
+    generation: release.kind === 'trusted' ? release.generation : null,
+    registry: createSettingsRegistry({ capacity }),
+    known: new Map(),
+  }
+}
+
 /**
  * The registry of this row, kept in step with the release definitions this process knows. Every
  * read registers the definitions that became known since the last read; a tool that declares no
  * settings or whose declaration the registry refuses is remembered so that it is not tried again
- * and the refusal is logged once. `holdings` is the `resolve` of the secret-item entry.
+ * and the refusal is logged once. The table is the one of the current release generation: a
+ * trusted release at another generation closes it and starts a new one. `holdings` is the
+ * `resolve` of the secret-item entry.
  */
 export function createReleaseSettingsRegistry(ctx: Context) {
-  const release = releaseOf(ctx)
-  const capacity = release.kind === 'trusted' ? Math.max(1, release.manifest.entries.length) : 1
-  const registry = createSettingsRegistry({ capacity })
-  const known = new Map<string, Known>()
+  let table = tableOf(releaseOf(ctx))
 
-  const register = (name: string): void => {
+  const register = (release: Trusted, name: string): void => {
+    const { registry, known } = table
     if (known.has(name)) return
     const definition = releaseDefinitionOf(ctx, name)
     if (definition === undefined) return
@@ -139,24 +160,33 @@ export function createReleaseSettingsRegistry(ctx: Context) {
     known.set(name, { kind: 'refused' })
     ctx
       .logger(LOGGER)
-      .warn('settings of the release tool %s were not registered: %s', name, registered.kind)
+      .warn(
+        'settings of the release tool %s (generation %s) were not registered: %s',
+        name,
+        release.generation,
+        registered.kind,
+      )
   }
 
   const sync = (): void => {
     const current = releaseOf(ctx)
     if (current.kind !== 'trusted') return
-    for (const entry of current.manifest.entries) register(entry.asset.name)
+    if (current.generation !== table.generation) {
+      table.registry.close()
+      table = tableOf(current)
+    }
+    for (const entry of current.manifest.entries) register(current, entry.asset.name)
   }
 
   const snapshot = (): SettingsRegistrySnapshot => {
     sync()
-    return registry.snapshot()
+    return table.registry.snapshot()
   }
 
   const holdings = (asset?: SettingsAssetQuery): readonly SettingsHoldingRef[] => {
     sync()
     const refs: SettingsHoldingRef[] = []
-    for (const [name, entry] of known) {
+    for (const [name, entry] of table.known) {
       if (entry.kind !== 'holding') continue
       if (asset !== undefined) {
         if (asset.name !== name) continue
@@ -167,7 +197,7 @@ export function createReleaseSettingsRegistry(ctx: Context) {
     return refs
   }
 
-  return Object.freeze({ snapshot, holdings, close: () => registry.close() })
+  return Object.freeze({ snapshot, holdings, close: () => table.registry.close() })
 }
 
 const plugin: Plugin.Object = {

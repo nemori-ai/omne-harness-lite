@@ -1,6 +1,7 @@
 // The Exa `/search` client: one POST with the key in `x-api-key`, the answer parsed at the boundary
 // with zod, the HTTP status mapped to the closed `WebFailure` set. No retry: a request that was sent
-// may have consumed credits, and a cancellation does not refund them.
+// may have consumed credits, and a cancellation does not refund them. No redirect: the key goes to
+// the configured endpoint and to no second address, so a 3xx is answered as `upstream`.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SearchHit, WebFailure } from '@omne-harness/tool-definitions'
 import { Agent, fetch as undiciFetch } from 'undici'
@@ -75,6 +76,8 @@ export async function searchExa(
   try {
     const response = await undiciFetch(options.endpoint, {
       method: 'POST',
+      // Not followed: undici would otherwise resend the key and the body to the redirect target.
+      redirect: 'manual',
       dispatcher: agent,
       signal: combined,
       headers: {

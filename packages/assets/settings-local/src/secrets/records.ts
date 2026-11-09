@@ -1,7 +1,9 @@
 // The disk form of the secret vault and its reading. Version 2 is what this code writes. A file
 // without a version is the vault the Model host wrote before custody moved here; it is read into
 // the same bindings and rewritten as version 2 on the first write. The reading refuses a file
-// that does not fit either shape: the whole file is then `corrupt`, nothing is repaired.
+// that does not fit either shape: the whole file is then `corrupt`, nothing is repaired. A stored
+// secret is taken as the file holds it: the boundary that wrote it checked it then (the Model host
+// asked only for a non-empty string), and the consumer of the binding gets back the same bytes.
 import {
   accountCodec,
   organizationCodec,
@@ -9,13 +11,12 @@ import {
   tenantEquals,
   type TenantId,
 } from '@omne-harness/legal-identity'
-import {
-  parseSecretText,
-  type SecretBindingKey,
-  type SecretLife,
-  type SecretScope,
-  type SecretTarget,
-  type SecretText,
+import type {
+  SecretBindingKey,
+  SecretLife,
+  SecretScope,
+  SecretTarget,
+  SecretText,
 } from '@omne-harness/settings'
 import { encodeInstant, parseInstant, type Instant } from '@omne-harness/utc-instant'
 
@@ -76,10 +77,18 @@ function life(value: unknown): SecretLife | undefined {
   return value === 'active' || value === 'revoked' || value === 'unreadable' ? value : undefined
 }
 
+/**
+ * The secret as the file holds it. Only the reading of a stored record makes a `SecretText` this
+ * way: a non-empty string is accepted as it is, without the rules `parseSecretText` applies to new
+ * text. An older writer may have stored whitespace around the text, a control character or a
+ * longer text, and the binding's consumer needs those bytes back, not a `corrupt` vault.
+ */
+function storedSecretText(raw: string): SecretText | undefined {
+  return raw === '' ? undefined : (raw as SecretText)
+}
+
 function secret(value: unknown): SecretText | undefined {
-  if (typeof value !== 'string') return undefined
-  const parsed = parseSecretText(value)
-  return parsed.ok && parsed.value === value ? parsed.value : undefined
+  return typeof value === 'string' ? storedSecretText(value) : undefined
 }
 
 /** Absent is an old row without a time. Present but not an instant text is corrupt: `undefined`. */

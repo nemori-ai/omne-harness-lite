@@ -12,6 +12,7 @@
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import type { SecretCustodyManagement, SecretCustodyUse } from '@omne-harness/settings'
 import { openSecretVault, type SecretVault } from '@omne-harness/settings-local/secrets'
+import { z } from 'zod'
 import { defineRow } from '../../row.ts'
 
 /** @owner apps/harness-server/src/rows/secret-custody */
@@ -40,37 +41,14 @@ declare module '@deepseek-ai/cordis' {
 /** The lock wait of a service process: short, so a held lock cannot stall the event loop for long. */
 export const SERVICE_LOCK_WAIT_MS = 2000
 
-export type SecretCustodyConfig = Readonly<{
+/** The configuration of the row: the vault file and, optionally, how long a write waits for its lock. */
+export const secretCustodyConfig = z.strictObject({
   /** The vault file. The operator layer takes it from the location resolution. */
-  path: string
-  /** How long a write waits for the file lock. Default: 2000. */
-  lockWaitMs?: number
-}>
-
-type Issue = { message: string }
-type Parsed = Readonly<{ value: SecretCustodyConfig }> | Readonly<{ issues: Issue[] }>
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function parseConfig(value: unknown): Parsed {
-  if (!isRecord(value)) return { issues: [{ message: 'path must be a non-empty string' }] }
-  const { path, lockWaitMs } = value
-  if (typeof path !== 'string' || path === '')
-    return { issues: [{ message: 'path must be a non-empty string' }] }
-  if (
-    lockWaitMs !== undefined &&
-    !(typeof lockWaitMs === 'number' && Number.isSafeInteger(lockWaitMs) && lockWaitMs >= 0)
-  )
-    return { issues: [{ message: 'lockWaitMs must be an integer of at least 0' }] }
-  return { value: { path, ...(lockWaitMs === undefined ? {} : { lockWaitMs }) } }
-}
-
-/** The configuration schema of the row, in the Standard Schema shape the loader validates with. */
-export const secretCustodyConfig = {
-  '~standard': { version: 1 as const, vendor: 'harness-server', validate: parseConfig },
-}
+  path: z.string().min(1),
+  /** How long a write waits for the file lock, in milliseconds. Default: `SERVICE_LOCK_WAIT_MS`. */
+  lockWaitMs: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
+})
+export type SecretCustodyConfig = z.output<typeof secretCustodyConfig>
 
 /** The faces of a vault that could not be opened: nothing is written, nothing is read. */
 const unavailable: SecretCustodyManagement & SecretCustodyUse = {

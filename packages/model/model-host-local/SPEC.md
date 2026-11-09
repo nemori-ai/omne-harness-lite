@@ -32,7 +32,7 @@
 - `createLocalCustodian({ path, factorySecret, lock?, diagnosticsCapacity? })`：路径上没有文件时新建保管库，工厂秘密成为官方绑定（空字符串时不写绑定）；已有可读文件时在锁内直接采用它（不覆盖，不用本次的工厂秘密）；文件存在但不可读时抛出异常，信息带 `corrupt` 或 `io`。先检查再创建都在同一把锁内完成，两个进程同时在空路径上启动不会互相抹掉绑定。锁等待超时抛出带 `code: 'ELOCKED'` 的异常。
 - `openLocalCustodian({ path, lock?, diagnosticsCapacity? })` 打开已有保管库，返回 `{ kind: 'open', custodian }`。文件缺失返回 `{ kind: 'unavailable', cause: 'missing' }`；损坏、形状不对、同一键多行或租户目标键不是凭据 id 返回 `cause: 'corrupt'`；其他文件系统错误返回 `cause: 'io'`。不新建、不修改文件。
 - `lock.waitMs`（默认 30 000）与 `lock.backoffMs`（默认 50）是等待文件锁的上限与重试间隔，交给保管库；`diagnosticsCapacity`（默认 256）是句柄保留的最近诊断条数。只有未给出（`undefined`）的值取默认值。`waitMs` 与 `backoffMs` 须是有限的非负整数，`diagnosticsCapacity` 须是有限的正整数，`lock` 给出时须是对象；其他值（含 `null`、`NaN`、`Infinity`、负数、小数与非数字）让两个函数抛出 `TypeError`，不取锁也不读盘。
-- 工厂秘密与经 `put`、`rotate`、`bind` 写入的秘密都经 `parseSecretText` 校验（去首尾空白后非空、无控制字符、不超长）；不合格的值抛出 `TypeError`，不写盘。
+- 工厂秘密与经 `put`、`rotate`、`bind` 写入的秘密都经 `parseSecretText` 校验（去首尾空白后非空、无控制字符、不超长），写入的是去掉首尾空白后的值。不合格的值不写盘：`put`、`rotate` 与工厂秘密抛出 `TypeError`，`bind` 返回 `{ kind: 'denied' }`，公开操作因此答 `denied`。已在保管库里的秘密按原文读取，不因不合格而使保管库不可读。
 
 ### 读取与刷新
 

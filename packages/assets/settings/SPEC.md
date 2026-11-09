@@ -148,8 +148,8 @@ Settings 可独立使用，也可由资产通过组合使用。独立目标通�
 
 - `createSettingsSecretItems({ declarations, custody, resolve })`：`declarations` 是登记表的快照读取，`custody` 是管理面，`resolve(asset?)` 由装配给出，把资产引用解析成具体持有 `{ providerId, definitionId }`（省略引用时列出装配知道的全部持有）。入口不猜持有，不缓存快照。
 - `set`、`clear`、`describe` 以（范围、资产引用、项 id）定位项。持有解析不到或项未在登记定义里声明答 `undeclared`；项不是秘密答 `not-secret`；资产引用对应多个持有，或一个持有有多个在用版本，答 `conflict`。这三种答复都不调用保管。其余答复是保管对 `bind`、`unbind`、`describe` 的原答复。
-- 绑定键的目标是 `{ owner: 'setting', key }`，`key` 是（`providerId`、`definitionId`、项 id）三元组的 JSON 数组文本，单射；用途恒为 `setting`；范围原样交给保管。
-- `items({ scope, asset? })` 列出已解析持有的登记定义里的全部项：秘密项带保管现读的有无，普通项不带有无；保管答 `denied` 或 `unavailable` 时整次列出答同样的值。
+- 绑定键的目标是 `{ owner: 'setting', key }`，`key` 是（`providerId`、`definitionId`、项 id）三元组的 JSON 数组文本，单射；用途恒为 `setting`；范围原样交给保管。这个编码只有一处：公开函数 `secretItemTarget(holding, itemId)` 返回它，装配要从持有推出同一目标时调用它，不另存一份编码。
+- `items({ scope, asset? })` 列出已解析持有的登记定义里的全部项：秘密项带保管现读的有无，普通项不带有无；保管答 `denied` 或 `unavailable` 时整次列出答同样的值。列出的 `SecretItemView` 按 `sensitivity` 判别：`secret` 的项必带 `presence`，`ordinary` 的项没有 `presence` 成员。
 - 入口不经 `SettingsCommitPort`，不写配值与求值来源；任何答复不含秘密值。调用者对范围的配值依据由装配在调用入口前核对。
 
 ## 持续验证义务与表达缺项

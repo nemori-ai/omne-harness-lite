@@ -12,7 +12,13 @@ export type SeenRequest = Readonly<{
   body: string
 }>
 
-export type ExaAnswer = Readonly<{ status: number; contentType?: string; body: string }>
+/** What the Exa double answers; `location` adds a `Location` header, for a redirect answer. */
+export type ExaAnswer = Readonly<{
+  status: number
+  contentType?: string
+  body: string
+  location?: string
+}>
 
 export type WebFixture = Readonly<{
   origin: string
@@ -79,6 +85,8 @@ export async function startWebFixture(): Promise<WebFixture> {
     if (path === '/json') return text(response, 'application/json', '{"a":[1,2],"b":"中"}')
     if (path === '/latin1')
       return text(response, 'text/plain; charset=iso-8859-1', Buffer.from([0x63, 0x61, 0x66, 0xe9]))
+    if (path === '/unknown-charset')
+      return text(response, 'text/plain; charset=x-no-such-charset', 'bytes')
     if (path === '/no-type') {
       response.writeHead(200)
       return response.end('untyped')
@@ -127,7 +135,11 @@ export async function startWebFixture(): Promise<WebFixture> {
     }
     if (path === '/exa') {
       const answer = exa.answer
-      return text(response, answer.contentType ?? 'application/json', answer.body, answer.status)
+      response.writeHead(answer.status, {
+        'content-type': answer.contentType ?? 'application/json',
+        ...(answer.location === undefined ? {} : { location: answer.location }),
+      })
+      return response.end(answer.body)
     }
     return text(response, 'text/plain', 'no such fixture', 404)
   }

@@ -128,6 +128,21 @@ describe('Web search: the Exa request and the mapping of its answer', () => {
     expect(await withKey().search({ query: 'q', limit: 1 }, never())).toEqual({ failure })
   })
 
+  it('does not follow a redirect: a 3xx is upstream, and the key goes to no second address', async () => {
+    const elsewhere = await startWebFixture()
+    try {
+      fixture.exa.answer = { status: 307, body: '', location: elsewhere.url('/exa') }
+      const before = exaRequests().length
+      expect(await withKey().search({ query: 'q', limit: 1 }, never())).toEqual({
+        failure: { kind: 'upstream', status: 307 },
+      })
+      expect(exaRequests().length - before).toBe(1)
+      expect(elsewhere.seen).toEqual([])
+    } finally {
+      await elsewhere.close()
+    }
+  })
+
   it('an answer of the wrong shape, invalid JSON, or a non-JSON media type is unavailable with a diagnostic', async () => {
     fixture.exa.answer = answer(200, { requestId: 'r', results: [{ title: 'no url' }] })
     expect(await withKey().search({ query: 'q', limit: 1 }, never())).toMatchObject({

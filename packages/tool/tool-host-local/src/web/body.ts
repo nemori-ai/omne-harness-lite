@@ -50,14 +50,17 @@ export function parseContentType(header: string | null): ContentType {
   return { mediaType: type.trim().toLowerCase(), charset: charset?.toLowerCase() }
 }
 
-/** Decodes with the given charset; an unsupported charset is a `not-text` failure, not a guess. */
+/**
+ * Decodes with the given charset. An unsupported charset is a `not-text` failure, not a guess; the
+ * failure names the parsed media type, as every `not-text` does, never the raw header.
+ */
 export function decodeText(
   body: CappedBody,
   contentType: ContentType,
-  original: string,
 ): Readonly<{ ok: string }> | Readonly<{ failure: WebFailure }> {
   const decoder = decoderFor(contentType.charset ?? 'utf-8')
-  if (decoder === undefined) return { failure: { kind: 'not-text', mediaType: original } }
+  if (decoder === undefined)
+    return { failure: { kind: 'not-text', mediaType: contentType.mediaType } }
   // A cut body may end inside a multibyte character; streaming mode drops the partial tail.
   return { ok: decoder.decode(body.bytes, { stream: body.truncated }) }
 }

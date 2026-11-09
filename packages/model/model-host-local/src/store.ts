@@ -59,7 +59,7 @@ export type CreateOptions = CustodianOptions & Readonly<{ factorySecret: string 
  * snapshot is still the one on disk. `unconfirmed`: the new snapshot may be published, but the write
  * could not confirm it; read the binding again before a retry. `denied`: the reference names a
  * tenant that was never minted, or a credential id that another tenant holds, or the custodian is
- * closed; nothing was written.
+ * closed, or the secret is not a secret text (`parseSecretText`); nothing was written.
  */
 export type BindingWrite =
   | Readonly<{ kind: 'written' }>
@@ -173,7 +173,8 @@ export type LocalCustodian = CredentialPort & {
   revoke(reference: CredentialReference): void
   /**
    * Binds the secret to the reference, or replaces the secret and the time of the existing binding.
-   * The binding is active afterwards. A vault failure is a result, not a throw.
+   * The binding is active afterwards. A vault failure is a result, not a throw; so is a text that
+   * is not a secret text (`denied`).
    */
   bind(
     input: Readonly<{ reference: CredentialReference; secret: string; configuredAt: string }>,
@@ -407,7 +408,11 @@ function live(settings: Settings, vault: SecretVault): LocalCustodian {
     },
     bind({ reference, secret, configuredAt }) {
       if (!isMinted(reference) || holder.state.closed) return { kind: 'denied' }
-      const value = secretText(secret)
+      // The text is checked at this boundary: a text that is not a secret text is a result, not a
+      // throw, and nothing is written. The whitespace around a secret text is not part of it.
+      const parsed = parseSecretText(secret)
+      if (!parsed.ok) return { kind: 'denied' }
+      const value = parsed.value
       const time = timeOf(configuredAt)
       let refused = false
       const written = vault.revise(records => {
