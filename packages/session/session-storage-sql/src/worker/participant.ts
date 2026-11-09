@@ -33,7 +33,13 @@ import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../cod
 import { writeEntryText } from '../entry-codec.ts'
 import { runChecks } from './check.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
-import { NO_FOCUS, readHistory, type HistoryBasis, type SessionHistory } from './history-index.ts'
+import {
+  LogGap,
+  NO_FOCUS,
+  readHistory,
+  type HistoryBasis,
+  type SessionHistory,
+} from './history-index.ts'
 import { judgeLog, readCoveringHead, type CoveringSnapshot, type LogBatch } from './log.ts'
 import type { SessionWorkReply } from '../participants.ts'
 import { PROTOCOL } from './schema.ts'
@@ -41,6 +47,8 @@ import { assemble, deepFreeze, writeState, type StoredState } from './state-rows
 import {
   assignPositions,
   big,
+  definite,
+  definiteBasis,
   oneRow,
   readVersion,
   refusingMalformedEntries,
@@ -559,19 +567,19 @@ function indexExecutions(
     if (entry.kind !== 'run.started') continue
     const { run, execution } = (plainOf(entry.payload) ?? {}) as Record<string, unknown>
     if (typeof run !== 'string' || typeof execution !== 'string')
-      return { kind: 'failed', diagnostic: 'an SE13 entry without its Run and execution' }
+      return definite('missing-row', 'an SE13 entry without its Run and execution')
     const held = oneRow(
       port,
       'SELECT session FROM sl_execution_idx WHERE tenant = ? AND execution = ? LIMIT 1',
       [tenant, execution],
     )
     if (held !== undefined)
-      return {
-        kind: 'failed',
-        diagnostic: `the execution ${execution} is already indexed to ${
+      return definite(
+        'execution-indexed',
+        `the execution ${execution} is already indexed to ${
           text(held['session']) === session ? 'this session' : 'another session'
         }`,
-      }
+      )
     port.execute(
       'INSERT INTO sl_execution_idx (tenant, execution, session, run, position) VALUES (?, ?, ?, ?, ?)',
       [tenant, execution, session, run, BigInt(entry.id)],
@@ -710,10 +718,7 @@ function writeBatch(
   if (unindexed !== null) return unindexed
   const epoch = maintainModelView(port, tenant, session, batch.epoch, entries)
   if (epoch === null)
-    return {
-      kind: 'failed',
-      diagnostic: 'the model view epoch exceeds the read bound of a compaction',
-    }
+    return definite('read-bound', 'the model view epoch exceeds the read bound of a compaction')
   const covered = BigInt(revision)
   const stored = writeState(port, { tenant, session, covered }, previous, snapshot)
   parsedSnapshots.wrote(tenant, session, covered, stored)
@@ -883,14 +888,11 @@ function commandReads(
            WHERE e.tenant = ? AND e.session = ? AND e.kind = 'session.frozen' LIMIT 1`,
           [tenant, session],
         )
-  // A bound reached by a read inside the commit is a failure (unavailable), never a shorter read.
+  // A bound reached by a read inside the commit is a definite failure, never a shorter read.
   const receipts =
     command.kind === 'completeInitialization' ? initializationReceipts(port, tenant, session) : []
   if (receipts === null)
-    return {
-      kind: 'failed',
-      diagnostic: 'the operation receipts of the session exceed the read bound',
-    }
+    return definite('read-bound', 'the operation receipts of the session exceed the read bound')
   return {
     compaction: null,
     ...(frozen === undefined
@@ -963,7 +965,7 @@ function recallOriginal(
     [tenant, session, decision.receipt.operation],
   )
   if (original === undefined)
-    return { kind: 'failed', diagnostic: 'a recalled operation without a record' }
+    return definite('missing-row', 'a recalled operation without a record')
   if (held === undefined && command.kind === 'completeInitialization') {
     insertOperation(port, {
       tenant,
@@ -1007,7 +1009,7 @@ function publishCommand(
     batch.history === null ? undefined : batch.history.reads,
   )
   if (reduced.kind === 'quarantined')
-    return { kind: 'failed', diagnostic: `reduce quarantined: ${reduced.diagnostic}` }
+    return definite('quarantined', `reduce quarantined: ${reduced.diagnostic}`)
   // The index is a read projection of this transaction, never stored in the snapshot row.
   const { historyIndex: _index, ...snapshot } = reduced.snapshot
   const receipt = batchReceipt({ tenant, session, operation, seq, revision, entries })
@@ -1145,7 +1147,7 @@ function runCommand(
   if ('kind' in reads) return reads
   const history = commandHistory(port, command, start)
   if (history === 'too-many')
-    return { kind: 'failed', diagnostic: 'the history index of the session exceeds the read bound' }
+    return definite('read-bound', 'the history index of the session exceeds the read bound')
   const { previous } = start
   const prepared =
     history === null || previous === null ? previous : { ...previous, historyIndex: history.index }
@@ -1229,6 +1231,8 @@ function runEntries(facts: Readonly<Record<string, JsonValue>>, port: Participan
       return { kind: 'unsupported', basis: { reason: judged.reason } } as const
     case 'stopped':
       return stopped(judged.failure)
+    case 'definite':
+      return definite(judged.failure, judged.diagnostic)
     case 'failed':
       return { kind: 'failed', diagnostic: judged.diagnostic } as const
     case 'recovered':
@@ -1260,6 +1264,11 @@ function runLog(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPor
       return {
         kind: 'conflict',
         basis: { failure: encodeValue(judged.failure), recorded: false },
+      } as const
+    case 'definite':
+      return {
+        kind: 'conflict',
+        basis: { ...definiteBasis(judged.failure, judged.diagnostic), recorded: false },
       } as const
     case 'failed':
       return { kind: 'failed', diagnostic: judged.diagnostic } as const
@@ -1392,25 +1401,39 @@ const participant: ParticipantModule = {
   participant: 'session',
   protocol: PROTOCOL,
   execute(facts, port) {
-    switch (facts['intent']) {
-      case 'query':
-        return runQueryFacts(facts, port)
-      case 'entries':
-        return runEntries(facts, port)
-      case 'log':
-        return runLog(facts, port)
-      case 'check':
-        return runChecks(facts, port)
-      case 'command':
-        return runCommandFacts(facts, port)
-      default:
-        return {
-          kind: 'unsupported',
-          basis: {
-            reason: 'the facts are neither a command, a check, a same-log commit nor a query',
-          },
-        }
+    try {
+      return runIntent(facts, port)
+    } catch (error) {
+      // A gap after the cursor of the kept history index heals itself: the index was dropped, and
+      // the next call builds it again from the log. A temporary failure (SPEC 参加者失败的定性).
+      if (error instanceof LogGap) return { kind: 'failed', diagnostic: error.message }
+      throw error
     }
   },
+}
+
+function runIntent(
+  facts: Readonly<Record<string, JsonValue>>,
+  port: ParticipantPort,
+): ParticipantReply {
+  switch (facts['intent']) {
+    case 'query':
+      return runQueryFacts(facts, port)
+    case 'entries':
+      return runEntries(facts, port)
+    case 'log':
+      return runLog(facts, port)
+    case 'check':
+      return runChecks(facts, port)
+    case 'command':
+      return runCommandFacts(facts, port)
+    default:
+      return {
+        kind: 'unsupported',
+        basis: {
+          reason: 'the facts are neither a command, a check, a same-log commit nor a query',
+        },
+      }
+  }
 }
 export default refusingMalformedEntries(participant)

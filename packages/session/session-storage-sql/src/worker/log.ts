@@ -29,7 +29,7 @@ import {
   type HistoryFocus,
   type SessionHistory,
 } from './history-index.ts'
-import { assignPositions, big, oneRow, rowsOf, text } from './support.ts'
+import { assignPositions, big, oneRow, rowsOf, text, type DefiniteFailure } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_LOG_RECORDS = 100_000
@@ -56,6 +56,7 @@ export type LogBatch = Readonly<{
 export type LogJudgment =
   | Readonly<{ kind: 'unsupported'; reason: string }>
   | Readonly<{ kind: 'stopped'; failure: SessionFailure }>
+  | Readonly<{ kind: 'definite'; failure: DefiniteFailure; diagnostic: string }>
   | Readonly<{ kind: 'failed'; diagnostic: string }>
   | Readonly<{ kind: 'recovered'; result: unknown; digest: string; recorded: boolean }>
   | Readonly<{ kind: 'publish'; batch: LogBatch }>
@@ -133,7 +134,11 @@ function withoutRows(
     [key.tenant, key.session, BigInt(MAX_LOG_RECORDS + 1)],
   )
   if (records.length > MAX_LOG_RECORDS)
-    return { kind: 'failed', diagnostic: 'the log records of the session exceed the read bound' }
+    return {
+      kind: 'definite',
+      failure: 'read-bound',
+      diagnostic: 'the log records of the session exceed the read bound',
+    }
   const sequence = BigInt(observation.sequence)
   const covering = records
     .map(row => decodeValue(JSON.parse(text(row['result'])) as JsonValue) as SessionLogReceipt)
@@ -323,7 +328,11 @@ export function judgeLog(
     { focus },
   )
   if (history === 'too-many')
-    return { kind: 'failed', diagnostic: 'the history index of the session exceeds the read bound' }
+    return {
+      kind: 'definite',
+      failure: 'read-bound',
+      diagnostic: 'the history index of the session exceeds the read bound',
+    }
   const prepared = { ...previous, historyIndex: history.index }
   const decision = projectSessionLog(prepared, observation, history.reads)
   if (decision.kind === 'rejected') return { kind: 'stopped', failure: decision.failure }

@@ -534,6 +534,27 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
     })
   })
 
+  it('a wind-down attach of a cancelled Run whose SE26 row is missing is a definite failure (missing-row)', async () => {
+    const a = await app()
+    const { execution, grant, work } = await running(a)
+    await cancel(a, work)
+    // Committed data lacks a row its invariant needs: waiting does not bring it back.
+    a.provider.seed('dom_0', `DELETE FROM sl_entry WHERE kind = 'run.terminal'`)
+    const result = await joint(a, 'aop_wind_missing', [
+      executionRecordFacts(write({ execution, operation: 'aop_wind_missing' })),
+      sessionCheckFacts({
+        kind: 'attach',
+        tenant: TENANT_A,
+        session: SESSION,
+        execution,
+        grant: grant as never,
+      }),
+    ])
+    expect(result.kind === 'rolled_back' && decodeSessionReply(result.responses[1]!.reply)).toEqual(
+      { kind: 'stopped', failure: { kind: 'invalid', field: 'storage', reason: 'missing-row' } },
+    )
+  })
+
   it('a cancelled finish participates only under the control the SE26 of the Run refers to (PA-02)', async () => {
     const a = await app()
     const { execution, work } = await running(a)
@@ -806,9 +827,14 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
       origin: { ...second, revision: '777' },
     })
     expect(result.kind).toBe('rolled_back')
-    expect(stoppedAs(result)).toMatchObject({
-      kind: 'failed',
-      diagnostic: expect.stringContaining('read bound'),
+    // The log only grows: the bound is passed for good (SPEC 参加者失败的定性, `read-bound`).
+    expect(stoppedAs(result)).toEqual({
+      kind: 'stopped',
+      failure: { kind: 'invalid', field: 'storage', reason: 'read-bound' },
+    })
+    expect(result.kind === 'rolled_back' && result.responses[1]?.reply).toMatchObject({
+      kind: 'conflict',
+      basis: { diagnostic: expect.stringContaining('read bound') },
     })
   })
 })

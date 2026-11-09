@@ -133,6 +133,13 @@ class TooMany extends Error {}
 export class BelowKept extends Error {}
 
 /**
+ * Rows after the cursor of the kept index that do not continue it: the log was not only appended
+ * to. The kept index is dropped, so the next read builds it again from the log; a commit that meets
+ * this fails for now and may be made again (SPEC 参加者失败的定性).
+ */
+export class LogGap extends Error {}
+
+/**
  * Every statement reads at most what is left of one shared row bound, and counts against it. A
  * statement with its own `page` reads at most that many rows and is complete at fewer. Each
  * statement ends with `LIMIT ?`, and the reader binds that last parameter. `charge` counts rows
@@ -521,8 +528,8 @@ type Loaded = Readonly<{ key: string; base: SessionRowsIndex | undefined; after:
  * The kept index of the session when its fingerprint still holds (`provenBase`), charged against
  * the row bound, and the rows after its cursor, up to `upto` when given. A kept cursor past `upto`
  * cannot be rolled back: it throws `BelowKept`. Rows after the cursor that do not continue it
- * without a gap are a log that was not only appended to: it throws, and a read of the whole log
- * drops the kept index first.
+ * without a gap are a log that was not only appended to: it throws `LogGap`, and a read of the
+ * whole log drops the kept index first.
  */
 function loadBase(read: Reader, port: Executor, scope: Scope, upto?: bigint): Loaded {
   const key = JSON.stringify([scope.tenant, scope.session])
@@ -535,7 +542,7 @@ function loadBase(read: Reader, port: Executor, scope: Scope, upto?: bigint): Lo
   // No row after the cursor ends at the cursor: `last - from` is then 0 as `added` is.
   if (base !== undefined && after.last - from !== after.added) {
     if (upto === undefined) kept.delete(key)
-    throw new Error(
+    throw new LogGap(
       `the history index found a gap in the Session log after position ${String(from)}: ${String(after.added)} rows up to position ${String(after.last)}`,
     )
   }
