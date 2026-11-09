@@ -87,61 +87,58 @@ it.skipIf(process.platform !== 'linux')(
   },
 )
 
-it.skipIf(process.platform !== 'linux')(
-  'passes the configured root to the backend and rejects four escapes without changing files',
-  async () => {
-    const fixture = await hostFixture()
-    try {
-      const { provider } = await fixture.load()
-      const input = providerInput(provider, 'boundaries')
-      const acquired = await provider.acquire(input)
-      if (acquired.kind !== 'acquired') throw new Error('expected acquisition')
-      const files = acquired.lease.facility('files')
-      if (files === undefined) throw new Error('expected files')
-      const inside = join(fixture.filesRoot, 'inside')
-      const outside = join(fixture.directory, 'outside')
-      await mkdir(outside)
-      const secret = join(outside, 'secret')
-      await writeFile(inside, 'inside')
-      await writeFile(secret, 'outside')
-      await symlink(outside, join(fixture.filesRoot, 'link'))
-      await link(secret, join(fixture.filesRoot, 'hard'))
-      const access = { tenant: input.tenant, principal: null }
-      const common = { access, origin: input.origin, binding: { kind: 'host_machine' } as const }
+it('passes the configured root to the backend and rejects four escapes without changing files', async () => {
+  const fixture = await hostFixture()
+  try {
+    const { provider } = await fixture.load()
+    const input = providerInput(provider, 'boundaries')
+    const acquired = await provider.acquire(input)
+    if (acquired.kind !== 'acquired') throw new Error('expected acquisition')
+    const files = acquired.lease.facility('files')
+    if (files === undefined) throw new Error('expected files')
+    const inside = join(fixture.filesRoot, 'inside')
+    const outside = join(fixture.directory, 'outside')
+    await mkdir(outside)
+    const secret = join(outside, 'secret')
+    await writeFile(inside, 'inside')
+    await writeFile(secret, 'outside')
+    await symlink(outside, join(fixture.filesRoot, 'link'))
+    await link(secret, join(fixture.filesRoot, 'hard'))
+    const access = { tenant: input.tenant, principal: null }
+    const common = { access, origin: input.origin, binding: { kind: 'host_machine' } as const }
+    expect(
+      await files.read({
+        ...common,
+        requestId: 'inside',
+        path: inside,
+        named: await hostObjectToken(inside),
+      }),
+    ).toMatchObject({ kind: 'done', value: { bytes: new TextEncoder().encode('inside') } })
+    const before = await lstat(secret)
+    for (const path of [
+      secret,
+      `${fixture.filesRoot}/../outside/secret`,
+      join(fixture.filesRoot, 'link', 'secret'),
+      join(fixture.filesRoot, 'hard'),
+    ]) {
       expect(
         await files.read({
           ...common,
-          requestId: 'inside',
-          path: inside,
-          named: await hostObjectToken(inside),
+          requestId: 'escape',
+          path,
+          named: await hostObjectToken(secret),
         }),
-      ).toMatchObject({ kind: 'done', value: { bytes: new TextEncoder().encode('inside') } })
-      const before = await lstat(secret)
-      for (const path of [
-        secret,
-        `${fixture.filesRoot}/../outside/secret`,
-        join(fixture.filesRoot, 'link', 'secret'),
-        join(fixture.filesRoot, 'hard'),
-      ]) {
-        expect(
-          await files.read({
-            ...common,
-            requestId: 'escape',
-            path,
-            named: await hostObjectToken(secret),
-          }),
-        ).toMatchObject({ kind: 'rejected', reason: 'notAuthorized' })
-      }
-      const after = await lstat(secret)
-      expect({ size: after.size, mtimeMs: after.mtimeMs, nlink: after.nlink }).toEqual({
-        size: before.size,
-        mtimeMs: before.mtimeMs,
-        nlink: before.nlink,
-      })
-      expect(await readFile(secret, 'utf8')).toBe('outside')
-      expect(await readFile(inside, 'utf8')).toBe('inside')
-    } finally {
-      await fixture.close()
+      ).toMatchObject({ kind: 'rejected', reason: 'notAuthorized' })
     }
-  },
-)
+    const after = await lstat(secret)
+    expect({ size: after.size, mtimeMs: after.mtimeMs, nlink: after.nlink }).toEqual({
+      size: before.size,
+      mtimeMs: before.mtimeMs,
+      nlink: before.nlink,
+    })
+    expect(await readFile(secret, 'utf8')).toBe('outside')
+    expect(await readFile(inside, 'utf8')).toBe('inside')
+  } finally {
+    await fixture.close()
+  }
+})

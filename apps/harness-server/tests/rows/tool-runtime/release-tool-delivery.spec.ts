@@ -347,13 +347,11 @@ const resultText = (entry: Entry | undefined): string =>
     .join('')
 
 describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => {
-  it
-    .skipIf(process.platform !== 'linux')
-    .each(
-      (['json-document', 'json-lines'] as const).flatMap(format =>
-        (['direct-small', 'direct-large'] as const).map(delivery => ({ format, delivery })),
-      ),
-    )(
+  it.each(
+    (['json-document', 'json-lines'] as const).flatMap(format =>
+      (['direct-small', 'direct-large'] as const).map(delivery => ({ format, delivery })),
+    ),
+  )(
     'W3-B direct $delivery $format reaches the production Agent',
     { timeout: 240_000 },
     async ({ format, delivery }) => {
@@ -384,7 +382,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
     },
   )
 
-  it.skipIf(process.platform !== 'linux').each(['json-document', 'json-lines'] as const)(
+  it.each(['json-document', 'json-lines'] as const)(
     'W3-B direct small invalid %s becomes a failed Tool result',
     { timeout: 240_000 },
     async format => {
@@ -403,7 +401,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
     },
   )
 
-  it.skipIf(process.platform !== 'linux').each(['json-document', 'json-lines'] as const)(
+  it.each(['json-document', 'json-lines'] as const)(
     'W3-B rejects a schema-invalid %s body and finishes the production Agent run',
     { timeout: 240_000 },
     async format => {
@@ -428,7 +426,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
     },
   )
 
-  it.skipIf(process.platform !== 'linux').each(['json-document', 'json-lines'] as const)(
+  it.each(['json-document', 'json-lines'] as const)(
     'W3-B reads a schema-validated %s author body through the production Agent',
     { timeout: 240_000 },
     async format => {
@@ -452,7 +450,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
     },
   )
 
-  it.skipIf(process.platform !== 'linux')(
+  it(
     'W3-B writes an author body, drains unawaited writes and reads every page through the release Agent',
     { timeout: 240_000 },
     async () => {
@@ -482,7 +480,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
     },
   )
 
-  it.skipIf(process.platform !== 'linux')(
+  it(
     'W3-A carries return schemas through native declarations, Tools.inspect and command help into model requests',
     { timeout: 240_000 },
     async () => {
@@ -556,7 +554,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
     },
   )
 
-  it.skipIf(process.platform !== 'linux')(
+  it(
     'W3-A reads the complete offloaded UTF-8 body through callable Tools pages',
     { timeout: 240_000 },
     async () => {
@@ -570,7 +568,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
       expect(modelRequests).toBe(model.requests.length)
       expect(modelRequests).toBeLessThanOrEqual(40)
       expect(model.tools[0]).toContain('read_result')
-      expect(model.tools[0]).toContain('bodyReference')
+      expect(model.tools[0]).toContain('"reference":"tb1.')
       expect(model.reads.length).toBeGreaterThanOrEqual(2)
       expect(new Set(model.reads.map(read => JSON.stringify(read))).size).toBe(model.reads.length)
       expect(new Set(model.reads.map(read => read.reference)).size).toBe(1)
@@ -601,7 +599,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
     },
   )
 
-  it.skipIf(process.platform !== 'linux')(
+  it(
     'W3-A Linux control executes a small Shell command through the same release assembly',
     { timeout: 240_000 },
     async () => {
@@ -626,7 +624,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
     },
   )
 
-  it.skipIf(process.platform !== 'linux')(
+  it(
     'W3-A offloads a five MiB nonresident test author through the real release runtime',
     { timeout: 240_000 },
     async () => {
@@ -640,7 +638,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
       const preview = model.replies.at(-1) ?? ''
       expect(preview).toContain('W3-BEGIN')
       expect(preview).toContain('W3-END')
-      expect(preview).toContain('\nreference: tb1.')
+      expect(preview).toContain('"reference":"tb1.')
       expect(Buffer.byteLength(preview)).toBeLessThanOrEqual(65_536)
       for (const request of model.requests) {
         const value = JSON.parse(request) as { tools: { function: { name: string } }[] }
@@ -651,7 +649,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
     },
   )
 
-  it.skipIf(process.platform !== 'linux')(
+  it(
     'W3-A presents a bounded preview for a five MiB Shell result on the release tree',
     { timeout: 240_000 },
     async () => {
