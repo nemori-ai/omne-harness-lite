@@ -171,6 +171,7 @@ export const IdentitySqlPlugin = definePlugin({
       storage,
       clock,
       terms: constantLoginTerms(judged.terms),
+      accessRefreshGranularity: judged.accessRefreshGranularity,
       invitationTerms: constantInvitationTerms(judged.invitationTerms),
       scrypt,
       decoyMaterial: derived.material,

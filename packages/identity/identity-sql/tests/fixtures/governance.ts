@@ -11,6 +11,7 @@ import type {
 } from '@omne-harness/identity/testing'
 import * as real from '@omne-harness/identity-sql'
 import type { IdentitySql } from '@omne-harness/identity-sql'
+import { parseDuration } from '@omne-harness/utc-instant'
 import { withRecordFaults } from './faults.ts'
 import { openTestScrypt, type OpenedScrypt } from './scrypt.ts'
 import { openSqliteStorage, type OpenedStorage } from './storage.ts'
@@ -36,6 +37,10 @@ export type GovernanceFixture = Readonly<{
   close(): Promise<void>
 }>
 
+const refresh = parseDuration('PT0.1S')
+if (!refresh.ok) throw new Error('invalid fixture granularity')
+const REFRESH = refresh.value
+
 export function governanceFixture(build: IdentitySqlBuild = REAL_BUILD): GovernanceFixture {
   const live = new Map<IdentityProviders, Deployment>()
 
@@ -52,6 +57,8 @@ export function governanceFixture(build: IdentitySqlBuild = REAL_BUILD): Governa
       clock: options.clock,
       terms: options.terms,
       invitationTerms: options.invitationTerms,
+      // Shorter than half of the suite's shortest idle period, so every report of the suite commits.
+      accessRefreshGranularity: REFRESH,
       scrypt: scrypt.module,
       decoyMaterial: scrypt.decoyMaterial,
     })

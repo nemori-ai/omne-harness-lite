@@ -38,6 +38,7 @@ it('exports the factory, the materials, the names and the configuration helpers 
   expect(root.IDENTITY_SQL_DEFAULT_CONFIG).toEqual({
     maxLifetime: 'PT2592000S',
     idlePeriod: 'PT604800S',
+    accessRefreshGranularity: 'PT3600S',
     invitationDefaultDuration: 'PT604800S',
     invitationMaxDuration: 'PT2592000S',
   })
@@ -137,8 +138,15 @@ it('registers the combination with the manifest digest and a version of its own'
   })
 })
 
-/** Two legal invitation durations, so that each bad configuration below has one problem only. */
-const INVITATIONS = { invitationDefaultDuration: 'PT60S', invitationMaxDuration: 'PT120S' }
+/**
+ * Two legal invitation durations and a granularity shorter than any idle period below, so that each
+ * bad configuration below has one problem only.
+ */
+const INVITATIONS = {
+  accessRefreshGranularity: 'PT0.5S',
+  invitationDefaultDuration: 'PT60S',
+  invitationMaxDuration: 'PT120S',
+}
 
 it('judges the plugin configuration: positive durations, the default invitation not the longer', () => {
   expect(root.parseIdentitySqlConfig(root.IDENTITY_SQL_DEFAULT_CONFIG).kind).toBe('valid')
@@ -162,6 +170,7 @@ it('judges the plugin configuration: positive durations, the default invitation 
     {
       maxLifetime: 'PT1S',
       idlePeriod: 'PT1S',
+      accessRefreshGranularity: 'PT0.5S',
       invitationDefaultDuration: 'PT61S',
       invitationMaxDuration: 'PT60S',
     },
@@ -173,7 +182,11 @@ it('judges the plugin configuration: positive durations, the default invitation 
 })
 
 it('requires both invitation durations: the provider has no duration of its own (ID-18)', () => {
-  const judged = root.parseIdentitySqlConfig({ maxLifetime: 'PT2592000S', idlePeriod: 'PT604800S' })
+  const judged = root.parseIdentitySqlConfig({
+    maxLifetime: 'PT2592000S',
+    idlePeriod: 'PT604800S',
+    accessRefreshGranularity: 'PT3600S',
+  })
   expect(judged).toEqual({
     kind: 'invalid',
     problems: [
@@ -184,6 +197,7 @@ it('requires both invitation durations: the provider has no duration of its own 
   const own = root.parseIdentitySqlConfig({
     maxLifetime: 'PT2592000S',
     idlePeriod: 'PT604800S',
+    accessRefreshGranularity: 'PT3600S',
     invitationDefaultDuration: 'PT60S',
     invitationMaxDuration: 'PT60S',
   })

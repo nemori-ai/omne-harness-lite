@@ -74,6 +74,7 @@ async function main(): Promise<void> {
       maxDuration: must(parseDuration('PT86400S'), 'long'),
     }).source,
     scrypt: opened.module,
+    accessRefreshGranularity: must(parseDuration('PT60S'), 'refresh'),
     decoyMaterial: decoyDone.material,
   })
   try {

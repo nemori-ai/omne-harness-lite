@@ -117,10 +117,11 @@ export const fixtureSqliteStorage = defineRow({
   plugin: memberPlugin,
 })
 
-/** The four values of the identity row as the release writes them. */
+/** The five values of the identity row as the release writes them. */
 export type ReleaseIdentityConfig = Readonly<{
   maxLifetime: string
   idlePeriod: string
+  accessRefreshGranularity: string
   invitationDefaultDuration: string
   invitationMaxDuration: string
 }>

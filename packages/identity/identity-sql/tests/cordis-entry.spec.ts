@@ -74,6 +74,7 @@ async function hostContext(options: Readonly<{ clock?: boolean }> = {}): Promise
 const CONFIG = Object.freeze({
   maxLifetime: 'PT2592000S',
   idlePeriod: 'PT604800S',
+  accessRefreshGranularity: 'PT3600S',
   invitationDefaultDuration: 'PT604800S',
   invitationMaxDuration: 'PT2592000S',
 })

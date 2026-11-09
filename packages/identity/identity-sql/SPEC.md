@@ -247,7 +247,8 @@ handler 另有两个预读，它们不核对发起登录：
 1. 已停止时答 `basis-unavailable`。读一次时钟。`login` 不能编码时答 `not-refreshed`。
 2. 预读 `login-terms`。读不到答 `basis-unavailable`。读数早于这份登录的 `issued_at` 时答 `basis-unavailable`，诊断 `clock-earlier-than-record`。没有这份登录，或它已撤销、已失效，答 `not-refreshed`。
 3. 新的空闲截止时刻是本次读数加签发时冻结的空闲时长。超出 0000 年至 9999 年时答 `basis-unavailable`。
-4. 提交一条命令。参加者再核对登录有效（IS-10 第 1 步），读数早于 `issued_at` 时答 `basis-unavailable`，其余不成立时答 `not-refreshed`，不复活登录。成立时只在新值晚于原值时改写 `idle_deadline`，再答 `refreshed`，带改写后的值。
+4. 距上次刷新不足刷新粒度 g（配置 `accessRefreshGranularity`），并且 g 短于这份登录的空闲时长时，不提交，答 `refreshed`，带现有的 `idle_deadline`。上次刷新时刻是现有 `idle_deadline` 减空闲时长，签发也算一次刷新。g 不短于这份登录的空闲时长时（配置变化之前签发的登录），每次报告都提交。
+5. 提交一条命令。参加者再核对登录有效（IS-10 第 1 步），读数早于 `issued_at` 时答 `basis-unavailable`，其余不成立时答 `not-refreshed`，不复活登录。成立时只在新值晚于原值时改写 `idle_deadline`，再答 `refreshed`，带改写后的值。
 
 报告只改这一份登录的 `idle_deadline`。`max_deadline` 不变。治理操作与识别都不报告，也不刷新。`queryOwnValidLogins` 给出的 `idleDeadline` 是这一列的当前值（P-11）。
 
@@ -302,7 +303,7 @@ handler 另有两个预读，它们不核对发起登录：
 
 ### 已知限制
 
-1. **每次成功业务访问报告是一次提交。** IS-14 先读一次，再提交一次，每次提交写一份存储回执。高频访问的部署因此在 `system.identity` 上多出同频的写。本成员不合并报告。退出条件：报告频率成为瓶颈时，由报告方或本成员按时间窗合并，并修订 IS-14。
+1. **空闲计时的精度是刷新粒度 g。** IS-14 在 g 之内不提交，所以一份持续被访问的登录最多比逐次刷新早 g 失效。每份登录在每个 g 之内最多写一次 `system.identity`，报告提交仍写一份存储回执。
 2. **跨重启的时钟下界不完整。** 重启或插件重跑后，实例的最晚读数重新开始。识别与治理一面，下界只到所判定登录的 `issued_at`（IS-05 第 5 步、IS-10 第 1 步）：时钟倒退到某份登录的截止时刻之前、`issued_at` 之后时，已失效的登录会再次识别为有效，也能再次发起治理调用。邀请的截止时刻没有这样的下界：时钟倒退到邀请截止时刻之前时，尚未判定过期的开放邀请读出 `open`。签发一面没有跨重启的下界，新登录的 `issuedAt` 可以早于已有登录，它的截止时刻也更早，所以不延长任何登录的有效期。不用 `max(issued_at)` 补下界的理由见 DP-3 候选 DP3-C14。
 3. **scrypt 参数固定在代码里（IC-14 偏离）。** 插件体使用 `SCRYPT_PROFILE`，`inFlight` 为 1，`queue` 为 4。并发超过 5 个的签发或注册得到 `basis-unavailable` 或 `not-loginable`。改参数要改代码并发版，而且只能放宽：N、r、p、keylen 不得小于已发布的值。收紧后，超过新配置的旧材料在计算前得到 `unavailable`，全部已有账号的签发都答 `basis-unavailable`。退出条件：部署需要调整并发或计算参数时，把七个字段写成行配置，并在插件体校验「只能放宽」。
 4. **同进程的受信行能写系统域。** `storage` 不是访问控制。受信存储子树内的其他行能对 `system.identity` 提交，前提是它们知道参加者名与清单摘要。保护靠受信行只由发行代码安装。

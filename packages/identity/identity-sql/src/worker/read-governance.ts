@@ -273,7 +273,8 @@ function accountOf(input: Input<'account-of'>, port: ReadPort): GovernanceReadOu
 function loginTerms(input: Input<'login-terms'>, port: ReadPort): GovernanceReadOutput {
   const row = oneRow(
     port,
-    `SELECT l.idle_period AS idle_period, ${loginStandingSql('l')} AS standing
+    `SELECT l.idle_period AS idle_period, l.idle_deadline AS idle_deadline,
+      ${loginStandingSql('l')} AS standing
       FROM id_login l WHERE l.login = ? LIMIT 1`,
     [input.nowKey, input.nowKey, input.nowKey, input.login],
   )
@@ -281,7 +282,11 @@ function loginTerms(input: Input<'login-terms'>, port: ReadPort): GovernanceRead
   const standing = text(row['standing'])
   if (standing === STANDING.early) return { outcome: CLOCK_EARLIER_THAN_RECORD }
   return read({
-    login: { idlePeriod: text(row['idle_period']), live: standing === STANDING.live },
+    login: {
+      idlePeriod: text(row['idle_period']),
+      idleDeadline: text(row['idle_deadline']),
+      live: standing === STANDING.live,
+    },
   })
 }
 

@@ -115,6 +115,7 @@ export async function openIdentityWorld(
     clock: clock.clock,
     terms: terms.source,
     invitationTerms: invitations.source,
+    accessRefreshGranularity: duration('PT60S'),
     scrypt: opened.module,
     decoyMaterial: material.material,
     principalVerifier: authority.verifier,

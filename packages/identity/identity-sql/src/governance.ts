@@ -82,6 +82,8 @@ export type GovernanceCore = Readonly<{
 export type GovernanceInput = Readonly<{
   invitationTerms: InvitationTermsSource
   identifiers: IdentifierSource
+  /** Reports within this time of the last refresh commit nothing (SPEC IS-14). */
+  accessRefreshGranularity: Duration
 }>
 
 const DENIED = Object.freeze({ kind: 'denied' as const })
@@ -353,14 +355,25 @@ function issuedOf(
 
 /**
  * The new idle deadline of a report from the `login-terms` pre-read: the reading plus the idle
- * period frozen at issue, `not-refreshed` for an unknown or ended login, or no basis.
+ * period frozen at issue, `not-refreshed` for an unknown or ended login, or no basis. `current`
+ * when the last refresh is less than `granularity` ago and `granularity` is shorter than the idle
+ * period of this login: the stored deadline stands and nothing is written (SPEC IS-14).
  */
-function nextIdleDeadline(record: unknown, now: Instant) {
+function nextIdleDeadline(record: unknown, now: Instant, granularity: Duration) {
   if (record === null || !isRecord(record) || record['live'] !== true) return NOT_REFRESHED
   const idlePeriod = isText(record['idlePeriod']) ? parseDuration(record['idlePeriod']) : undefined
-  if (idlePeriod === undefined || !idlePeriod.ok) return unavailable('login-record-malformed')
+  const stored = instantOf(record['idleDeadline'])
+  if (idlePeriod === undefined || !idlePeriod.ok || stored === undefined)
+    return unavailable('login-record-malformed')
   const next = addDuration(now, idlePeriod.value)
   if (next === undefined) return unavailable('idle-deadline-out-of-range')
+  const settled = addDuration(stored, granularity)
+  if (
+    compareDurations(granularity, idlePeriod.value) < 0 &&
+    settled !== undefined &&
+    instantOrderKey(encodeInstant(next)) < instantOrderKey(encodeInstant(settled))
+  )
+    return Object.freeze({ kind: 'current' as const, idleDeadline: stored })
   return Object.freeze({ kind: 'next' as const, idleDeadline: encodeInstant(next) })
 }
 
@@ -877,7 +890,13 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     // The idle period frozen at issue, read before the commit; the commit checks validity again.
     const found = await query({ query: 'login-terms', login, nowKey })
     if (found.kind !== 'answered') return found
-    const next = nextIdleDeadline(found.output['login'], time.instant)
+    const next = nextIdleDeadline(
+      found.output['login'],
+      time.instant,
+      input.accessRefreshGranularity,
+    )
+    if (next.kind === 'current')
+      return Object.freeze({ kind: 'refreshed', idleDeadline: next.idleDeadline })
     if (next.kind !== 'next') return next
     const { idleDeadline } = next
     const written = await write(OPERATIONS.reportAccess, {
