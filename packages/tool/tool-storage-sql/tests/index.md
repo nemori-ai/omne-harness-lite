@@ -10,6 +10,10 @@
 - [public-entry.spec.ts](public-entry.spec.ts)：公开入口与导入边界
 - [ledger-store-conformance.spec.ts](ledger-store-conformance.spec.ts)：两组记录仓套件（G1、P01）
 - [tenant-isolation.spec.ts](tenant-isolation.spec.ts)：租户隔离
+- [tenant-isolation-live.spec.ts](tenant-isolation-live.spec.ts)：正文表与到期索引上的租户隔离：到期读、清扫、账本正文读、正文仓读删，含混入行
+- [sweep-live.spec.ts](sweep-live.spec.ts)：到期清扫回收正文后正文表与到期索引无行，条目留 `reclaimed`，读答 `expired`（C5）
+- [release-live.spec.ts](release-live.spec.ts)：交付释放把记录值换成摘要，正文到期前仍可读，到期由清扫回收（C6）
+- [receipts-live.spec.ts](receipts-live.spec.ts)：真实提供者上一次完整调用后 `_sql_receipt` 行数不变（C10，慢层）
 - [reopen.spec.ts](reopen.spec.ts)：关闭再打开数据库文件
 - [atomic-commit.spec.ts](atomic-commit.spec.ts)：原子提交与修订号冲突
 - [host-history-independence.spec.ts](host-history-independence.spec.ts)：2000 次历史后新调用能启动，每次调用的宿主读数与历史无关，保留作用域记录不随调用增长，收场事实按键读一条记录（慢层）

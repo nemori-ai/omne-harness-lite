@@ -25,18 +25,21 @@ export const evidence = {
 }
 
 /** A settled call whose final planned a 70 KiB text body, over the SQL ledger and body store. */
-export async function settledOffloaded(app: App, tenant = TENANT_A, text = 'x'.repeat(70 * 1024)) {
+export async function settledOffloaded(
+  app: Pick<App, 'store' | 'options'>,
+  tenant = TENANT_A,
+  text = 'x'.repeat(70 * 1024),
+) {
   const world = await ledgerWorld(tenant)
   let now = '2026-11-10T00:00:00.000Z'
   const permitKey = { secret: randomBytes(32) }
   const clock = { now: () => ok(decodeToolInstant(now)) }
-  const ledger = world.ledgerOver(app.store, {
-    bodies: {
-      store: createSqlToolBodyStore({ ...app.options, permitKey, clock }),
-      permitKey,
-      clock,
-    },
-  })
+  const bodies = {
+    store: createSqlToolBodyStore({ ...app.options, permitKey, clock }),
+    permitKey,
+    clock,
+  }
+  const ledger = world.ledgerOver(app.store, { bodies })
   const access = world.access
   const context = async (name: string) => ({
     ...access,
@@ -120,6 +123,8 @@ export async function settledOffloaded(app: App, tenant = TENANT_A, text = 'x'.r
   const value = ok(await ledger.delivery.read({ ...access, result: state.result }))
   return {
     ledger,
+    /** The body store, permit key and clock the ledger was built with; a second ledger can share them. */
+    bodies,
     access,
     planned,
     result: state.result,
