@@ -37,7 +37,7 @@ it.each(
       digest: 'native-digest',
     }
     const human = {
-      ...visible('human', 'human-only'.repeat(2000)),
+      ...visible('human', 'human-only'.repeat(200)),
       visibility: { toModel: false, toHuman: true },
     }
     const definition = {

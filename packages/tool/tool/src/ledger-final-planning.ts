@@ -57,6 +57,7 @@ export function createLedgerFinalPlanner<P, B extends ContentBlock>(
         policy.ok.policy,
         policy.ok.authored,
         target.ok,
+        { pageBytes: ports.configuration.resultPageBytes },
         ports.writeBody,
       )
       if ('failure' in planned) return planned

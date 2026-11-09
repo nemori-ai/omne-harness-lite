@@ -79,7 +79,7 @@
 | `sys.S`、`sys.Sp`、`K` | `ToolOffloadingConfiguration` 的 `maxInlineUtf8Bytes`、`previewUtf8Bytes` 与 `previewDivisor`（缺省 8） | 已实现 |
 | `Commit` 的卸载分支、`Screen` | [body-preview.ts](../../../../tool/src/body-preview.ts) 的 `mechanicalPreview` 与 `bodyHeader`，`headerMax` 给出声明下描述头的上限；`planResultBody` 把预览放在描述头前 | 已实现 |
 | `Commit` 的作者预览拒绝 | `planResultBody` 对作者 `content` 与 `original.summary` 的 `author-preview-too-large` 拒绝；描述头接在作者内容之后（`withHeader`） | 已实现 |
-| `Commit` 的内联分支、`BodyPreserved` | `planResultBody`：`body ≤ L` 内联，否则交给正文写入卸载，不改写正文 | 已实现 |
+| `Commit` 的内联分支、`BodyPreserved` | `planResultBody`：`body ≤ L` 且每个内容块的 JSON 编码字节 ≤ `resultPageBytes` 时内联，否则交给正文写入卸载，不改写正文。页是模型之外的传输量，模型不建模它 | 已实现 |
 | `Restart` | 重新装配时 `checkToolConfiguration` 重新检查，每次调用按当前系统值重新受理 | 已实现 |
 
 ## 8. 运行与判读

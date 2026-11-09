@@ -141,9 +141,9 @@ text 正文载荷采用 `tool-model-text-utf8-v1`。它按原顺序连接模型�
 
 装配须使准备端预算与实际读回入口兼容。升级时，此要求覆盖所有尚未到期的已发布引用，不能因收紧读回预算使它们失去约定的读取能力。恢复继续使用原准备固定的预算；它不代替应用维护读取端兼容性的责任。
 
-作者或 renderer 返回 `ToolRenderedResult`。它的 original.source 只可采用同调用登记的 sealed body。结算核验完整引用和实际材料 seal，并在最终 CAS 中重核。作者 content 与 summary 的模型可见文本各自不得超过固定的有效内联上限。超限返回 invalid，保留准备责任，不重执行业务。
+作者或 renderer 返回 `ToolRenderedResult`。它的 original.source 只可采用同调用登记的 sealed body。结算核验完整引用和实际材料 seal，并在最终 CAS 中重核。作者 content 与 summary 的模型可见文本各自不得超过固定的有效内联上限。超限返回 invalid，保留准备责任，不重执行业务。作者首屏（content 加描述头）的每个块同样须放得进 `resultPageBytes` 一页，否则计划时回复 `invalid`（`content[i]`，`block-exceeds-result-page`）。
 
-普通返回按模型可见文本的 UTF-8 字节计量。等于有效上限仍内联，超过上限保存独立正文并生成有界首尾预览。data、原生引用和仅对人可见内容不计入阈值，保持各自含义。正文超出系统最大字节数时拒绝结算，不能静默截断原文。
+普通返回按模型可见文本的 UTF-8 字节计量。等于有效上限、且每个内容块的 JSON 编码字节都不超过 `resultPageBytes` 时内联；超过上限，或某个模型可见文本块编码后放不进一页时，保存独立正文并生成有界首尾预览。页按块的完整 JSON 编码计（含 id、可见性与转义），阈值 L 按 UTF-8 计，两个量不互相推导。结果能否交付在计划最终事实时裁定：卸载缩不小的块（对模型隐藏的块、非文本块）编码后超过一页，回复 `invalid`（`content[i]`，`block-exceeds-result-page`）；首屏本身放不进页，回复 `invalid`（`content`，`first-screen-exceeds-result-page`）。两者都不提交读不出来的结果。data、原生引用和仅对人可见内容不计入阈值，保持各自含义。正文超出系统最大字节数时拒绝结算，不能静默截断原文。
 
 最终 `ToolResult` 在同次 CAS 中获得正文身份、表示、字节数、预览类别和固定期限，并作为结果记录的 `value` 内联保存（content、data、attachments、summary 与正文描述符；设计 4.1）：读结果只核对策略，不读任何存储；只有正文字节在正文存储里。同一提交把被引用的正文条目置为 `linked` 并按期限排期，其余 opened/sealed 条目标孤儿。原操作已提交时先认回原回执，不重新取时钟，也不续期。期限溢出拒绝提交。交付释放（C6，Handoff 模型 `Release`）：需要某个通道的全部交付都释放后，该通道的内联值在释放提交里换成摘要——content 换成卸载原文的 summary（内联结果没有摘要，换成空），attachments 换成空；data 归程序交付，模型交付的释放不动它；正文描述符与期限不变，正文在期限内仍经正文读口读取，到期由清扫回收。已释放的结果 readResult 回复 `not-found`（`reason=released`）。同操作或新操作的再次释放回复原释放状态，不再写入。
 
@@ -216,7 +216,7 @@ text 正文载荷采用 `tool-model-text-utf8-v1`。它按原顺序连接模型�
 
 ### 15 结果分页与账目（P08、P09）
 
-`readResult` 按完整内容块分页：从游标位置起累计块的 JSON 字节数，不超过 `ToolConfiguration.resultPageBytes` 的块进入本页，至少一块；第一块就超过预算时回复 `unsupported`，不切块。每页携带版本的同一 `data`、`original`、`attachments`、终局、效果与来源证据。`next` 是绑定租户、调用、版本、投影与下一块位置的 JSON 文本；另一结果的游标（含他租户同调用同版本的游标）回复 `invalid-cursor`（`another-result`），不是游标的文本回复 `invalid-cursor`（`not-a-cursor`）。账本只为存在的块签发游标，所以位置等于或超过块数的游标回复 `invalid-cursor`（`past-the-end`），不回复空页。当前资格核验后，权威确认不存在的调用或版本回复 `not-found`（`target=result, reason=missing`），已释放的结果材料回复 `not-found`（`target=result, reason=released`）；已知调用未收场仍回复 `not-settled`。正文到期与缺失分别回复 `not-found` 的 `body/expired` 与 `body/missing`，暂不可读仍为 `unavailable`。完整分类及 `Tools.read_result` 映射见[Tool 读取失败](../tool-contract/SPEC.md#正文与结果的读取失败)，不再沿读取路径返回旧 unknown-version/unknown-call 的 invalid。`account` 只回复账目：逻辑终局的账目是替换件处理账，`usage` 与 `cost` 为空，`trimmed` 为已知 `0` 字节，`duration` 未知，不编原工具用量。
+`readResult` 按完整内容块分页：从游标位置起累计块的 JSON 字节数，不超过 `ToolConfiguration.resultPageBytes` 的块进入本页，至少一块；第一块就超过预算时回复 `unsupported`，不切块。计划最终事实时已保证提交的结果每块都放得进页（见上文内联规则），所以这一回复只在读取时的页配置小于提交时出现。每页携带版本的同一 `data`、`original`、`attachments`、终局、效果与来源证据。`next` 是绑定租户、调用、版本、投影与下一块位置的 JSON 文本；另一结果的游标（含他租户同调用同版本的游标）回复 `invalid-cursor`（`another-result`），不是游标的文本回复 `invalid-cursor`（`not-a-cursor`）。账本只为存在的块签发游标，所以位置等于或超过块数的游标回复 `invalid-cursor`（`past-the-end`），不回复空页。当前资格核验后，权威确认不存在的调用或版本回复 `not-found`（`target=result, reason=missing`），已释放的结果材料回复 `not-found`（`target=result, reason=released`）；已知调用未收场仍回复 `not-settled`。正文到期与缺失分别回复 `not-found` 的 `body/expired` 与 `body/missing`，暂不可读仍为 `unavailable`。完整分类及 `Tools.read_result` 映射见[Tool 读取失败](../tool-contract/SPEC.md#正文与结果的读取失败)，不再沿读取路径返回旧 unknown-version/unknown-call 的 invalid。`account` 只回复账目：逻辑终局的账目是替换件处理账，`usage` 与 `cost` 为空，`trimmed` 为已知 `0` 字节，`duration` 未知，不编原工具用量。
 
 本包铸造的每种证据都定位租户与调用（P01 的身份是 `(tenant, call, operation)`）。`record` 是种类加定位值的规范 JSON，租户写成两段身份文本；`digest` 覆盖种类、定位值与内容。各种类的定位值如下：
 

@@ -105,6 +105,7 @@ export async function settlementFixture(
     bodySchemas?: ToolLedgerPorts<Principal>['bodySchemas']
     command?: string
     offloading?: ToolConfiguration['offloading']
+    resultPageBytes?: number
     readResultArguments?: JsonLimits
     /** The participant clock of issuer, settler and reader; the memory body store reads it too. */
     bodyClock?: ToolInstantClock
@@ -121,6 +122,7 @@ export async function settlementFixture(
   const harness = startHarness({
     ...(options.bodySchemas === undefined ? {} : { bodySchemas: options.bodySchemas }),
     ...(options.offloading === undefined ? {} : { offloading: options.offloading }),
+    ...(options.resultPageBytes === undefined ? {} : { resultPageBytes: options.resultPageBytes }),
     ...(options.readResultArguments === undefined
       ? {}
       : { readResultArguments: options.readResultArguments }),
@@ -225,6 +227,7 @@ export async function settlementFixture(
   const makeLedger = (
     offloading: ToolConfiguration['offloading'] | undefined,
     readResultArguments = options.readResultArguments,
+    resultPageBytes = options.resultPageBytes,
   ) =>
     createToolLedger(
       store,
@@ -234,7 +237,10 @@ export async function settlementFixture(
       },
       clock,
       {
-        ...configurationOf(offloading === undefined ? {} : { offloading }),
+        ...configurationOf({
+          ...(offloading === undefined ? {} : { offloading }),
+          ...(resultPageBytes === undefined ? {} : { resultPageBytes }),
+        }),
         ...(readResultArguments === undefined ? {} : { readResultArguments }),
       },
       {
@@ -270,8 +276,13 @@ export async function settlementFixture(
     get ledger() {
       return ledger
     },
-    rebuild: (offloading: ToolConfiguration['offloading'], readResultArguments?: JsonLimits) => {
-      ledger = makeLedger(offloading, readResultArguments)
+    /** A ledger over the same records under another configuration, as after a restart. */
+    rebuild: (
+      offloading: ToolConfiguration['offloading'],
+      readResultArguments?: JsonLimits,
+      resultPageBytes?: number,
+    ) => {
+      ledger = makeLedger(offloading, readResultArguments, resultPageBytes)
     },
     input,
     before,

@@ -50,13 +50,14 @@ function readCursor(after: string, expected: Cursor): Outcome<number, ToolFailur
   return succeed(parsed.block)
 }
 
-function blockBytes(block: ContentBlock): number {
+/** The bytes one block takes on a page: its whole JSON encoding, id, visibility and escapes included. */
+export function blockBytes(block: ContentBlock): number {
   return Buffer.byteLength(JSON.stringify(block))
 }
 
 /**
  * The blocks from `start` that fit in `pageBytes`, at least one. A first block larger than the
- * page cannot be split (P08) cannot be split by this reader.
+ * page cannot be split (P08); settlement commits only results whose every block fits the page.
  */
 function pageBlocks<B extends ContentBlock>(
   content: readonly B[],

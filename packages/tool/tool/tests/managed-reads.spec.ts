@@ -3,8 +3,10 @@ import type { ToolLedgerStore } from '@omne-harness/tool'
 import { succeed } from '@omne-harness/operation-result'
 import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import type { ResultPage, ToolResult } from '@omne-harness/tool-contract'
+import { settlementFixture } from './settlement-values.ts'
 import {
   callId,
+  configuration,
   operationId,
   textOf,
   dummyRequest,
@@ -349,16 +351,14 @@ describe('15 result pages and the account (P08, P09)', () => {
   })
 
   it('15 pages: a block larger than the page is a named refusal, never a cut block', async () => {
-    const assembly = harness({ resultPageBytes: 16 })
-    await assembly.admitInternal(dummyRequest())
+    // Settlement commits only results whose blocks fit the page, so the reader meets a larger block
+    // only when the page is configured smaller after the commit.
+    const f = await settlementFixture()
+    const settled = ok(await f.preserve())
+    if (settled.phase !== 'settled') throw new Error('fixture did not settle')
+    f.rebuild(configuration().offloading, undefined, 16)
     const refused = failure(
-      await assembly.runtime.queries.readResult({
-        principal: principalA,
-        tenant: tenantA,
-        reference: referenceFor('call-1', 'op-1'),
-        result: 'v1' as never,
-        after: null,
-      }),
+      await f.ledger.reads.result({ ...f.access, result: settled.result, after: null }),
     )
     expect(refused).toMatchObject({
       kind: 'unsupported',

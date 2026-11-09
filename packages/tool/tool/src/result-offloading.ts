@@ -12,6 +12,7 @@ import type {
 } from '@omne-harness/tool-contract'
 import { describedAdoption } from '@omne-harness/tool-contract/provider'
 import { callableRead, encodeBodyReference, type BodyReference } from './tools-protocol.ts'
+import { blockBytes } from './result-page.ts'
 import type { ToolOffloadingConfiguration } from './construction.ts'
 import { bodyRepresentation } from './body-representation.ts'
 import {
@@ -133,70 +134,112 @@ function previewBudget(
   )
 }
 
+type ScreenPlan<B extends ContentBlock, K extends 'inline' | 'author'> = Readonly<{
+  kind: K
+  value: ToolRenderedResult<B>
+}>
+type OffloadedPlan<B extends ContentBlock> = Readonly<{
+  kind: 'body'
+  representation: ToolBodyRepresentation
+  content: readonly B[]
+  summary: readonly B[]
+  frames: readonly TextContentBlock[]
+  bodyBytes: string
+}>
 type BodyPlan<B extends ContentBlock> =
-  | Readonly<{ kind: 'inline' | 'author'; value: ToolRenderedResult<B> }>
-  | Readonly<{
-      kind: 'body'
-      representation: ToolBodyRepresentation
-      content: readonly B[]
-      summary: readonly B[]
-      frames: readonly TextContentBlock[]
-      bodyBytes: string
-    }>
+  | ScreenPlan<B, 'inline'>
+  | ScreenPlan<B, 'author'>
+  | OffloadedPlan<B>
+
+/** The transport bound a committed result must meet: every content block fits one result page. */
+export type ResultDelivery = Readonly<{ pageBytes: number }>
 
 /**
- * Decides inline or offloaded and builds the first screen. An offloaded first screen is the preview
- * (author content, or the mechanical preview) within P followed by the header within headerMax;
- * acceptance has checked headerMax + P <= L. `authored` is the sealed author body, if any.
+ * Decides inline or offloaded and builds the first screen, so that the result is deliverable when it
+ * is committed (I-2 at settlement). A result stays inline only when its model-visible text is within
+ * L and every block fits the result page; a text block over the page offloads like one over L; a
+ * block offloading cannot shrink is refused here. An offloaded first screen is the preview (author
+ * content, or the mechanical preview) within P followed by the header within headerMax; acceptance
+ * has checked headerMax + P <= L. `authored` is the sealed author body, if any.
  */
 export function planResultBody<B extends ContentBlock>(
   value: ToolRenderedResult<B>,
   policy: BodyPolicy,
   address: BodyReference,
   authored: Pick<ToolOffloadedBody, 'bodyId' | 'representation' | 'bodyBytes'> | null,
+  delivery: ResultDelivery,
 ): Outcome<BodyPlan<B>, ToolFailure> {
   if (value.original.kind === 'offloaded') {
-    for (const blocks of [value.content, value.original.summary]) {
-      const texts = modelTexts(blocks)
-      if (texts.some(text => !text.isWellFormed()))
-        return fail({ kind: 'invalid', field: 'original.summary', reason: 'invalid-unicode-text' })
-      const bytes = texts.reduce((size, text) => size + BigInt(utf8Bytes(text)), 0n)
-      if (bytes > BigInt(policy.previewBytes))
-        return fail({
-          kind: 'invalid',
-          field: 'original.summary',
-          reason: 'author-preview-too-large',
-        })
-    }
-    if (authored === null)
-      return fail({
-        kind: 'invalid',
-        field: 'original.source',
-        reason: 'same-call-sealed-body-required',
-      })
-    const header = readableHeader(policy, {
-      representation: authored.representation,
-      bodyBytes: Number(authored.bodyBytes),
-      units: null,
-      address: { ...address, bodyId: authored.bodyId },
-    })
-    if ('failure' in header) return header
-    return succeed({
-      kind: 'author',
-      value: { ...value, content: withHeader(value.content, header.ok) },
-    })
+    const planned = planAuthoredScreen(value, value.original.summary, policy, address, authored)
+    if ('failure' in planned) return planned
+    const stuck = oversizeBlock(planned.ok.value.content, delivery.pageBytes)
+    return stuck === null ? planned : fail(stuck)
   }
-  const frames: TextContentBlock[] = []
-  for (const block of value.content) {
-    if (block.kind === 'text' && block.visibility.toModel)
-      frames.push({ kind: 'text', id: block.id, visibility: block.visibility, text: block.text })
-  }
+  const frames = modelFrames(value.content)
   if (frames.some(block => !block.text.isWellFormed()))
     return fail({ kind: 'invalid', field: 'content', reason: 'invalid-unicode-text' })
   const size = frames.reduce((total, block) => total + BigInt(utf8Bytes(block.text)), 0n)
   if (size > BigInt(policy.maxBodyBytes))
     return fail({ kind: 'invalid', field: 'content', reason: 'body-too-large' })
-  if (size <= BigInt(policy.inlineBytes)) return succeed({ kind: 'inline', value })
+  const overPage = value.content.some(block => blockBytes(block) > delivery.pageBytes)
+  if (size <= BigInt(policy.inlineBytes) && !overPage) return succeed({ kind: 'inline', value })
+  const stuck = oversizeBlock(
+    value.content.map(block => (isModelText(block) ? null : block)),
+    delivery.pageBytes,
+  )
+  return stuck === null
+    ? planOffloadedScreen(value, frames, size, policy, address, delivery)
+    : fail(stuck)
+}
+
+/** The author's first screen: content and summary each within P, the header after the content. */
+function planAuthoredScreen<B extends ContentBlock>(
+  value: ToolRenderedResult<B>,
+  summary: readonly ContentBlock[],
+  policy: BodyPolicy,
+  address: BodyReference,
+  authored: Pick<ToolOffloadedBody, 'bodyId' | 'representation' | 'bodyBytes'> | null,
+): Outcome<ScreenPlan<B, 'author'>, ToolFailure> {
+  for (const blocks of [value.content, summary]) {
+    const texts = modelTexts(blocks)
+    if (texts.some(text => !text.isWellFormed()))
+      return fail({ kind: 'invalid', field: 'original.summary', reason: 'invalid-unicode-text' })
+    const bytes = texts.reduce((size, text) => size + BigInt(utf8Bytes(text)), 0n)
+    if (bytes > BigInt(policy.previewBytes))
+      return fail({
+        kind: 'invalid',
+        field: 'original.summary',
+        reason: 'author-preview-too-large',
+      })
+  }
+  if (authored === null)
+    return fail({
+      kind: 'invalid',
+      field: 'original.source',
+      reason: 'same-call-sealed-body-required',
+    })
+  const header = readableHeader(policy, {
+    representation: authored.representation,
+    bodyBytes: Number(authored.bodyBytes),
+    units: null,
+    address: { ...address, bodyId: authored.bodyId },
+  })
+  if ('failure' in header) return header
+  return succeed({
+    kind: 'author',
+    value: { ...value, content: withHeader(value.content, header.ok) },
+  })
+}
+
+/** The system's first screen in place of the model text: the mechanical preview, then the header. */
+function planOffloadedScreen<B extends ContentBlock>(
+  value: ToolRenderedResult<B>,
+  frames: readonly TextContentBlock[],
+  size: bigint,
+  policy: BodyPolicy,
+  address: BodyReference,
+  delivery: ResultDelivery,
+): Outcome<OffloadedPlan<B>, ToolFailure> {
   const representation = bodyRepresentation(policy.declaration)
   if (representation === null)
     return fail({
@@ -214,22 +257,52 @@ export function planResultBody<B extends ContentBlock>(
   if ('failure' in header) return header
   const screen =
     mechanicalPreview(representation, body, policy.previewBytes, policy.jsonLimits) + header.ok
-  let emitted = false
-  const content = value.content.flatMap(block => {
-    if (block.kind !== 'text' || !block.visibility.toModel) return [block]
-    if (emitted) return []
-    emitted = true
-    return [{ ...block, text: screen }]
-  })
-  const summary = content.filter(block => block.kind === 'text' && block.visibility.toModel)
+  const content = withFirstScreen(value.content, screen)
+  if (content.some(block => isModelText(block) && blockBytes(block) > delivery.pageBytes))
+    return fail({ kind: 'invalid', field: 'content', reason: 'first-screen-exceeds-result-page' })
   return succeed({
     kind: 'body',
     representation,
     content,
-    summary,
+    summary: content.filter(isModelText),
     frames,
     bodyBytes: String(size),
   })
+}
+
+/** The first model-visible text block carries the screen; the other model texts leave the content. */
+function withFirstScreen<B extends ContentBlock>(blocks: readonly B[], screen: string): B[] {
+  let emitted = false
+  return blocks.flatMap(block => {
+    if (!isModelText(block)) return [block]
+    if (emitted) return []
+    emitted = true
+    return [{ ...block, text: screen }]
+  })
+}
+
+/** The first block over the page, named by its position; `null` entries are blocks not under judgement. */
+function oversizeBlock(
+  blocks: readonly (ContentBlock | null)[],
+  pageBytes: number,
+): Extract<ToolFailure, { kind: 'invalid' }> | null {
+  const index = blocks.findIndex(block => block !== null && blockBytes(block) > pageBytes)
+  return index === -1
+    ? null
+    : { kind: 'invalid', field: `content[${index}]`, reason: 'block-exceeds-result-page' }
+}
+
+function isModelText(block: ContentBlock): block is TextContentBlock {
+  return block.kind === 'text' && block.visibility.toModel
+}
+
+function modelFrames(blocks: readonly ContentBlock[]): TextContentBlock[] {
+  return blocks.filter(isModelText).map(block => ({
+    kind: 'text',
+    id: block.id,
+    visibility: block.visibility,
+    text: block.text,
+  }))
 }
 
 function readableHeader(
@@ -256,14 +329,12 @@ function readableHeader(
 }
 
 function modelTexts(blocks: readonly ContentBlock[]): string[] {
-  return blocks.flatMap(block =>
-    block.kind === 'text' && block.visibility.toModel ? [block.text] : [],
-  )
+  return blocks.filter(isModelText).map(block => block.text)
 }
 
 /** The header follows the last model-visible text, or stands alone when the author gave none. */
 function withHeader<B extends ContentBlock>(blocks: readonly B[], header: string): B[] {
-  const last = blocks.findLastIndex(block => block.kind === 'text' && block.visibility.toModel)
+  const last = blocks.findLastIndex(isModelText)
   if (last === -1)
     return [
       ...blocks,

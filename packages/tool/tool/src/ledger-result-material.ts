@@ -24,7 +24,7 @@ import {
   type BodyView,
 } from './ledger-body-entries.ts'
 import type { BodyWriting, SystemBodyInput } from './ledger-body-writer.ts'
-import { planResultBody, type BodyPolicy } from './result-offloading.ts'
+import { planResultBody, type BodyPolicy, type ResultDelivery } from './result-offloading.ts'
 import type { ResultReference } from './tools-protocol.ts'
 
 /** The key of the body a settlement writes itself; its identity follows from (no start, key). */
@@ -98,6 +98,7 @@ export async function prepareResult<P, B extends ContentBlock>(
   policy: BodyPolicy,
   authored: PreparedBody | null,
   target: ResultReference,
+  delivery: ResultDelivery,
   writeBody: BodyWriting<P>['writeBody'],
 ): Promise<Outcome<PreparedResult, ToolFailure>> {
   const id = bodyIdentity(null, SYSTEM_BODY_KEY)
@@ -106,6 +107,7 @@ export async function prepareResult<P, B extends ContentBlock>(
     policy,
     { ...target, bodyId: id },
     authored?.description ?? null,
+    delivery,
   )
   if ('failure' in planned) return planned
   if (planned.ok.kind !== 'body')

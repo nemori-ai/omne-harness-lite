@@ -540,6 +540,7 @@ export function createToolLedger<P, B extends ContentBlock>(
         text,
         policy: systemBodyPolicy(configuration.offloading, configuration.readResultArguments),
         target: target.ok,
+        delivery: { pageBytes: resultPageBytes },
       })
       const value = await prepare({ ...context, inputDigest }, initial.need, snapshot => {
         if (excludedSince(snapshot, context.operation, firstRead))

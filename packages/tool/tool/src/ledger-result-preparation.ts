@@ -15,7 +15,7 @@ import { digestOf, mintEvidence } from './evidence.ts'
 import { put, reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
 import type { LedgerDomain } from './ledger-store.ts'
 import type { TerminalText } from './ledger-start.ts'
-import type { BodyPolicy } from './result-offloading.ts'
+import type { BodyPolicy, ResultDelivery } from './result-offloading.ts'
 import type { BodyWriting } from './ledger-body-writer.ts'
 import type { ResultReference } from './tools-protocol.ts'
 import { prepareResult, type PreparedResult, type ResultValue } from './ledger-result-material.ts'
@@ -61,6 +61,7 @@ export function createResultPreparation<P, B extends ContentBlock>(
     text: TerminalText<B>
     policy: BodyPolicy
     target: ResultReference
+    delivery: ResultDelivery
   }>,
 ) {
   return async (
@@ -148,6 +149,7 @@ export function createResultPreparation<P, B extends ContentBlock>(
       intent.ok.policy,
       null,
       ports.target,
+      ports.delivery,
       ports.writeBody,
     )
     if ('failure' in prepared) return prepared
