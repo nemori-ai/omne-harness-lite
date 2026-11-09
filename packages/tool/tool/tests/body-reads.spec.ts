@@ -19,9 +19,9 @@ afterEach(async () => {
 async function bodyFixture(options: Parameters<typeof settlementFixture>[0] = {}) {
   const f = await settlementFixture({
     ...options,
-    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 1024, ...options.offloading },
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 8192, ...options.offloading },
     value: options.value ?? {
-      content: [text('body', '中🙂'.repeat(150))],
+      content: [text('body', '中🙂'.repeat(1200))],
       data: { kind: 'none' },
       original: { kind: 'none' },
       attachments: [],
@@ -100,7 +100,7 @@ it('returns one empty final page for an explicitly sealed empty body', async () 
 
 it('applies the system page cap even when the caller requests more bytes', async () => {
   const { f, input } = await bodyFixture({
-    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 1024, maxPageBytes: 4 },
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 8192, maxPageBytes: 4 },
   })
   const page = ok(await f.ledger.reads.body.read({ ...input, maxBytes: 1000 }))
   expect(textPage(page).text).toBe('中')
@@ -110,7 +110,7 @@ it('applies the system page cap even when the caller requests more bytes', async
 it('reads original source bytes under the body lease and rejects further bytes after expiry', async () => {
   let now = 0
   const { f, input } = await bodyFixture({
-    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 1024, maxRetentionMs: 10 },
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 8192, maxRetentionMs: 10 },
     wrapMaterialClock: () => ({ sample: async () => succeed(instant(now)) }),
   })
   const result = await f.resultPage()
@@ -123,7 +123,7 @@ it('reads original source bytes under the body lease and rejects further bytes a
     maxBytes: 2,
   }
   const page = ok(await f.ledger.reads.content.read(request))
-  expect(page.bytes).toEqual(Uint8Array.from(Buffer.from('中🙂'.repeat(150)).subarray(0, 2)))
+  expect(page.bytes).toEqual(Uint8Array.from(Buffer.from('中🙂'.repeat(1200)).subarray(0, 2)))
   expect(await f.ledger.reads.body.read({ ...input, after: page.next })).toHaveProperty(
     'failure.kind',
     'invalid-cursor',
@@ -189,10 +189,10 @@ it('does not expose a replaced raw copy as a route around the body lifetime', as
 it('preserves an independent native raw reference when the body expires', async () => {
   let now = 0
   const { f, input } = await bodyFixture({
-    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 1024, maxRetentionMs: 10 },
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 8192, maxRetentionMs: 10 },
     wrapMaterialClock: () => ({ sample: async () => succeed(instant(now)) }),
     value: raw => ({
-      content: [text('answer', '中🙂'.repeat(150))],
+      content: [text('answer', '中🙂'.repeat(1200))],
       data: { kind: 'none' },
       original: { kind: 'none' },
       attachments: [raw.content],
@@ -244,7 +244,7 @@ it('finishes an admitted page after body expiry but denies the next page and lat
   const { f, input } = await bodyFixture({
     offloading: {
       ...configuration().offloading,
-      maxInlineUtf8Bytes: 1024,
+      maxInlineUtf8Bytes: 8192,
       maxRetentionMs: 10,
       maxPageLeaseMs: 100,
     },
@@ -275,7 +275,7 @@ it('discards a page when its lease expires during material IO', async () => {
   let now = 0
   let advance = false
   const { f, input } = await bodyFixture({
-    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 1024, maxPageLeaseMs: 10 },
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 8192, maxPageLeaseMs: 10 },
     wrapMaterialClock: () => ({ sample: async () => succeed(instant(now)) }),
     wrapMaterials: store => ({
       ...store,
@@ -473,9 +473,9 @@ it('accepts a valid provider that returns partial bytes of the first character',
 })
 
 it('reads UTF-8 text pages without splitting characters or dropping a BOM', async () => {
-  const body = '\uFEFF中🙂'.repeat(103)
+  const body = '\uFEFF中🙂'.repeat(830)
   const f = await settlementFixture({
-    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 1024 },
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 8192 },
     value: {
       content: [text('one', body)],
       data: { kind: 'none' },
@@ -495,7 +495,7 @@ it('reads UTF-8 text pages without splitting characters or dropping a BOM', asyn
   }
   let after: string | null = null
   let restored = ''
-  for (let index = 0; index < 309; index += 1) {
+  for (let index = 0; index < 2490; index += 1) {
     const request: Parameters<typeof f.ledger.reads.body.read>[0] = { ...input, after }
     const page = ok(await f.ledger.reads.body.read(request))
     expect(page.kind).toBe('text')

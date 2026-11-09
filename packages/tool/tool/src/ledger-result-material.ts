@@ -79,16 +79,15 @@ export async function prepareResultChannels<P, B extends ContentBlock>(
 ): Promise<Outcome<PreparedResultChannels, ToolFailure>> {
   const id = decodeToolBodyId(`body:${createHash('sha256').update(input.operation).digest('hex')}`)
   if ('failure' in id) return fail({ kind: 'invalid', field: 'bodyId', reason: 'body-identity' })
-  const planned = planResultBody(rendered, policy, { ...target, bodyId: id.ok })
+  const planned = planResultBody(
+    rendered,
+    policy,
+    { ...target, bodyId: id.ok },
+    authored?.description ?? null,
+  )
   if ('failure' in planned) return planned
-  let value = rendered
+  let value = planned.ok.kind === 'author' ? planned.ok.value : rendered
   let body: PreparedBody | null = authored
-  if (planned.ok.kind === 'author' && authored === null)
-    return fail({
-      kind: 'invalid',
-      field: 'original.source',
-      reason: 'same-call-sealed-body-required',
-    })
   if (planned.ok.kind === 'body') {
     const bytes = encodeTextBody(planned.ok.frames)
     const identity = encodeToolMaterial({ source: input.source, policy, value: rendered })

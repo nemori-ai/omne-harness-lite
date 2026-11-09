@@ -1,19 +1,27 @@
 import type { JsonLimits } from '@omne-harness/json-text'
-import type { ContentBlock, TextContentBlock } from '@omne-harness/content-block'
+import type { BlockId, ContentBlock, TextContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   FixedToolRequest,
   ToolBodyDeclaration,
   ToolBodyRepresentation,
   ToolFailure,
+  ToolOffloadedBody,
   ToolRenderedResult,
   ToolReturnDeclaration,
 } from '@omne-harness/tool-contract'
 import { describedAdoption } from '@omne-harness/tool-contract/provider'
-import { formatUsage } from '@omne-harness/unix-format'
 import { callableRead, encodeBodyReference, type BodyReference } from './tools-protocol.ts'
 import type { ToolOffloadingConfiguration } from './construction.ts'
 import { bodyRepresentation } from './body-representation.ts'
+import {
+  bodyHeader,
+  bodyUnits,
+  headerMax,
+  mechanicalPreview,
+  utf8Bytes,
+  type BodyHeaderFields,
+} from './body-preview.ts'
 
 const DEFAULT_PREVIEW_DIVISOR = 8
 
@@ -48,11 +56,7 @@ export function resolveBodyPolicy(
   system: ToolOffloadingConfiguration,
   readResultArguments: JsonLimits,
 ): BodyPolicy {
-  const { inline, retention } = declaration.offloading
-  const inlineBytes =
-    inline.kind === 'system'
-      ? system.maxInlineUtf8Bytes
-      : Math.min(inline.maxInlineUtf8Bytes, system.maxInlineUtf8Bytes)
+  const bounds = offloadingBounds(declaration.offloading, system)
   return {
     adoption: describedAdoption({
       owner: '@omne-harness/tool',
@@ -70,13 +74,30 @@ export function resolveBodyPolicy(
           ? { ...system.jsonRecord }
           : null,
     readResultArguments: { ...readResultArguments },
+    maxBodyBytes: system.maxBodyBytes,
+    ...bounds,
+  }
+}
+
+type OffloadingBounds = Pick<BodyPolicy, 'inlineBytes' | 'retentionMs' | 'previewBytes'>
+
+/** L = min(T, S) and the effective retention, each the smaller of the author and system bounds. */
+function offloadingBounds(
+  declared: ToolReturnDeclaration['offloading'],
+  system: ToolOffloadingConfiguration,
+): OffloadingBounds {
+  const { inline, retention } = declared
+  const inlineBytes =
+    inline.kind === 'system'
+      ? system.maxInlineUtf8Bytes
+      : Math.min(inline.maxInlineUtf8Bytes, system.maxInlineUtf8Bytes)
+  return {
     inlineBytes,
     retentionMs:
       retention.kind === 'system'
         ? system.maxRetentionMs
         : Math.min(retention.maxRetentionMs, system.maxRetentionMs),
-    maxBodyBytes: system.maxBodyBytes,
-    previewBytes: previewBudget(declaration.offloading, system, inlineBytes),
+    previewBytes: previewBudget(declared, system, inlineBytes),
   }
 }
 
@@ -106,19 +127,23 @@ type BodyPlan<B extends ContentBlock> =
       bodyBytes: string
     }>
 
+/**
+ * Decides inline or offloaded and builds the first screen. An offloaded first screen is the preview
+ * (author content, or the mechanical preview) within P followed by the header within headerMax;
+ * acceptance has checked headerMax + P <= L. `authored` is the sealed author body, if any.
+ */
 export function planResultBody<B extends ContentBlock>(
   value: ToolRenderedResult<B>,
   policy: BodyPolicy,
   address: BodyReference,
+  authored: Pick<ToolOffloadedBody, 'bodyId' | 'representation' | 'bodyBytes'> | null,
 ): Outcome<BodyPlan<B>, ToolFailure> {
   if (value.original.kind === 'offloaded') {
     for (const blocks of [value.content, value.original.summary]) {
-      const texts = blocks.flatMap(block =>
-        block.kind === 'text' && block.visibility.toModel ? [block.text] : [],
-      )
+      const texts = modelTexts(blocks)
       if (texts.some(text => !text.isWellFormed()))
         return fail({ kind: 'invalid', field: 'original.summary', reason: 'invalid-unicode-text' })
-      const bytes = texts.reduce((size, text) => size + BigInt(Buffer.byteLength(text, 'utf8')), 0n)
+      const bytes = texts.reduce((size, text) => size + BigInt(utf8Bytes(text)), 0n)
       if (bytes > BigInt(policy.previewBytes))
         return fail({
           kind: 'invalid',
@@ -126,7 +151,23 @@ export function planResultBody<B extends ContentBlock>(
           reason: 'author-preview-too-large',
         })
     }
-    return succeed({ kind: 'author', value })
+    if (authored === null)
+      return fail({
+        kind: 'invalid',
+        field: 'original.source',
+        reason: 'same-call-sealed-body-required',
+      })
+    const header = readableHeader(policy, {
+      representation: authored.representation,
+      bodyBytes: Number(authored.bodyBytes),
+      units: null,
+      address: { ...address, bodyId: authored.bodyId },
+    })
+    if ('failure' in header) return header
+    return succeed({
+      kind: 'author',
+      value: { ...value, content: withHeader(value.content, header.ok) },
+    })
   }
   const frames: TextContentBlock[] = []
   for (const block of value.content) {
@@ -135,10 +176,7 @@ export function planResultBody<B extends ContentBlock>(
   }
   if (frames.some(block => !block.text.isWellFormed()))
     return fail({ kind: 'invalid', field: 'content', reason: 'invalid-unicode-text' })
-  const size = frames.reduce(
-    (total, block) => total + BigInt(Buffer.byteLength(block.text, 'utf8')),
-    0n,
-  )
+  const size = frames.reduce((total, block) => total + BigInt(utf8Bytes(block.text)), 0n)
   if (size > BigInt(policy.maxBodyBytes))
     return fail({ kind: 'invalid', field: 'content', reason: 'body-too-large' })
   if (size <= BigInt(policy.inlineBytes)) return succeed({ kind: 'inline', value })
@@ -149,45 +187,22 @@ export function planResultBody<B extends ContentBlock>(
       adoption: policy.adoption,
       reason: 'automatic offloading requires a model body declaration',
     })
-  const reference = encodeBodyReference(address)
-  const params = JSON.stringify({ kind: 'body', reference, after: null })
-  if (!callableRead({ kind: 'body', reference, after: null }, policy.readResultArguments))
-    return fail({
-      kind: 'invalid',
-      field: 'readResultArguments',
-      reason: 'read-instruction-not-callable',
-    })
-  const schema =
-    representation.kind === 'json-document'
-      ? `\nSchema: ${JSON.stringify(representation.schema)}`
-      : representation.kind === 'json-lines'
-        ? `\nRecord schema: ${JSON.stringify(representation.recordSchema)}`
-        : ''
-  const instruction = `\nBody format: ${representation.kind}${schema}\nBody bytes: ${size}\nRetention: ${policy.retentionMs} ms from result publication; reads do not renew it.\nThe body may already have expired when this result is delivered.\nbodyReference: ${reference}\n${formatUsage('Tools', 'read_result', params)}`
-  const marker = '\n[offloaded]\n'
-  const available =
-    Math.min(policy.previewBytes, policy.inlineBytes - Buffer.byteLength(instruction, 'utf8')) -
-    Buffer.byteLength(marker, 'utf8')
-  if (available < 0)
-    return fail({
-      kind: 'invalid',
-      field: 'offloading.previewUtf8Bytes',
-      reason: 'preview-instruction-does-not-fit',
-    })
-  const bytes = Buffer.from(frames.map(frame => frame.text).join(''), 'utf8')
-  const head = Math.ceil(available / 2)
-  const tail = Math.floor(available / 2)
-  const preview =
-    utf8Slice(bytes, 0, head) +
-    marker +
-    utf8Slice(bytes, bytes.length - tail, bytes.length) +
-    instruction
+  const body = frames.map(frame => frame.text).join('')
+  const header = readableHeader(policy, {
+    representation,
+    bodyBytes: Number(size),
+    units: bodyUnits(representation, body),
+    address,
+  })
+  if ('failure' in header) return header
+  const screen =
+    mechanicalPreview(representation, body, policy.previewBytes, policy.jsonLimits) + header.ok
   let emitted = false
   const content = value.content.flatMap(block => {
     if (block.kind !== 'text' || !block.visibility.toModel) return [block]
     if (emitted) return []
     emitted = true
-    return [{ ...block, text: preview }]
+    return [{ ...block, text: screen }]
   })
   const summary = content.filter(block => block.kind === 'text' && block.visibility.toModel)
   return succeed({
@@ -200,31 +215,86 @@ export function planResultBody<B extends ContentBlock>(
   })
 }
 
-function utf8Slice(bytes: Uint8Array, from: number, to: number): string {
-  let start = Math.max(0, from)
-  let end = Math.min(bytes.length, to)
-  while (start < end && ((bytes[start] ?? 0) & 0xc0) === 0x80) start += 1
-  while (end > start && end < bytes.length && ((bytes[end] ?? 0) & 0xc0) === 0x80) end -= 1
-  return new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(start, end))
+function readableHeader(
+  policy: BodyPolicy,
+  fields: Omit<BodyHeaderFields, 'reference' | 'retentionMs'> &
+    Readonly<{ address: BodyReference }>,
+): Outcome<string, ToolFailure> {
+  const reference = encodeBodyReference(fields.address)
+  if (!callableRead({ kind: 'body', reference, after: null }, policy.readResultArguments))
+    return fail({
+      kind: 'invalid',
+      field: 'readResultArguments',
+      reason: 'read-instruction-not-callable',
+    })
+  return succeed(
+    bodyHeader({
+      representation: fields.representation,
+      bodyBytes: fields.bodyBytes,
+      units: fields.units,
+      retentionMs: policy.retentionMs,
+      reference,
+    }),
+  )
+}
+
+function modelTexts(blocks: readonly ContentBlock[]): string[] {
+  return blocks.flatMap(block =>
+    block.kind === 'text' && block.visibility.toModel ? [block.text] : [],
+  )
+}
+
+/** The header follows the last model-visible text, or stands alone when the author gave none. */
+function withHeader<B extends ContentBlock>(blocks: readonly B[], header: string): B[] {
+  const last = blocks.findLastIndex(block => block.kind === 'text' && block.visibility.toModel)
+  if (last === -1)
+    return [
+      ...blocks,
+      {
+        kind: 'text',
+        id: 'offloaded-body-header' as BlockId,
+        visibility: { toHuman: false, toModel: true },
+        text: header,
+      } as B,
+    ]
+  return blocks.map((block, index) =>
+    index === last && block.kind === 'text' ? { ...block, text: block.text + header } : block,
+  )
+}
+
+/**
+ * Acceptance of a return declaration under the system bounds: the largest header plus the preview
+ * budget must fit the offloading threshold, so no first screen exceeds L.
+ */
+export function judgeOffloadingFits(
+  declaration: Pick<ToolReturnDeclaration, 'body' | 'offloading'>,
+  system: ToolOffloadingConfiguration,
+): Outcome<void, ToolFailure> {
+  const representation = bodyRepresentation(declaration.body)
+  if (representation === null) return succeed(undefined)
+  const bounds = offloadingBounds(declaration.offloading, system)
+  return headerMax(representation, bounds.retentionMs, system.maxBodyBytes) + bounds.previewBytes <=
+    bounds.inlineBytes
+    ? succeed(undefined)
+    : fail({
+        kind: 'invalid',
+        field: 'returns.offloading',
+        reason: 'header-and-preview-exceed-threshold',
+      })
+}
+
+/** The return declaration of the system's own results, accepted at startup like any author's. */
+export const SYSTEM_RETURN: Pick<ToolReturnDeclaration, 'body' | 'offloading'> = {
+  body: {
+    kind: 'text',
+    codec: describedAdoption({ owner: '@omne-harness/tool', name: 'system-text', revision: '1' }),
+  },
+  offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
 }
 
 export function systemBodyPolicy(
   system: ToolOffloadingConfiguration,
   readResultArguments: JsonLimits,
 ): BodyPolicy {
-  return resolveBodyPolicy(
-    {
-      body: {
-        kind: 'text',
-        codec: describedAdoption({
-          owner: '@omne-harness/tool',
-          name: 'system-text',
-          revision: '1',
-        }),
-      },
-      offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
-    },
-    system,
-    readResultArguments,
-  )
+  return resolveBodyPolicy(SYSTEM_RETURN, system, readResultArguments)
 }

@@ -21,8 +21,8 @@ afterEach(async () => {
 })
 
 it.each([
-  { content: `${'汉'.repeat(682)}aa`, bytes: '2048', original: 'none' },
-  { content: '汉'.repeat(683), bytes: '2049', original: 'offloaded' },
+  { content: `${'汉'.repeat(2730)}aa`, bytes: '8192', original: 'none' },
+  { content: '汉'.repeat(2731), bytes: '8193', original: 'offloaded' },
 ] as const)('uses UTF-8 bytes at the declared inline boundary: $bytes', async sample => {
   const definition = functionDefinition()
   if (definition.kind !== 'function') throw new Error('fixture must define a function')
@@ -32,7 +32,7 @@ it.each([
       returns: {
         ...definition.returns,
         offloading: {
-          inline: { kind: 'bounded', maxInlineUtf8Bytes: 2048 },
+          inline: { kind: 'bounded', maxInlineUtf8Bytes: 8192 },
           retention: { kind: 'bounded', maxRetentionMs: 1_000 },
         },
       },
@@ -51,13 +51,13 @@ it.each([
     expect(page.value.content).toEqual([text('answer', sample.content)])
   } else {
     expect(page.value.original).toMatchObject({
-      bodyBytes: '2049',
+      bodyBytes: '8193',
       previewKind: 'mechanical-head-tail',
     })
     const visible = page.value.content.flatMap(block =>
       block.kind === 'text' && block.visibility.toModel ? [block.text] : [],
     )
-    expect(Buffer.byteLength(visible.join(''), 'utf8')).toBeLessThanOrEqual(2048)
+    expect(Buffer.byteLength(visible.join(''), 'utf8')).toBeLessThanOrEqual(8192)
     expect(visible.join('')).not.toBe(sample.content)
     expect(visible.join('')).toContain(
       'Retention: 1000 ms from result publication; reads do not renew it.',
@@ -65,27 +65,15 @@ it.each([
     expect(visible.join('')).toContain(
       'The body may already have expired when this result is delivered.',
     )
-    expect(visible.join('')).toContain('bodyReference: tb1.')
-    expect(visible.join('')).toContain('Tools(command="read_result", params=')
+    expect(visible.join('')).toMatch(/\nreference: tb1\.[A-Za-z0-9_-]+\n/u)
+    expect(visible.join('')).toContain('Read it back with Tools(command="read_result")')
   }
 })
 
-it('refuses offloading when the complete read instruction cannot fit the inline bound', async () => {
-  const f = await settlementFixture({
-    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 64 },
-    value: {
-      content: [text('answer', '汉'.repeat(22))],
-      data: { kind: 'none' },
-      original: { kind: 'none' },
-      attachments: [],
-    },
-  })
-  expect(await f.preserve()).toHaveProperty('failure', {
-    kind: 'invalid',
-    field: 'offloading.previewUtf8Bytes',
-    reason: 'preview-instruction-does-not-fit',
-  })
-  expect((await f.records()).some(record => record.kind === 'result')).toBe(false)
+it('refuses at startup a system threshold that the header and preview cannot fit', async () => {
+  await expect(
+    settlementFixture({ offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 4096 } }),
+  ).rejects.toThrow('configuration.offloading: header-and-preview-exceed-threshold')
 })
 
 function boundedDefinition() {
@@ -96,7 +84,7 @@ function boundedDefinition() {
     returns: {
       ...definition.returns,
       offloading: {
-        inline: { kind: 'bounded' as const, maxInlineUtf8Bytes: 2048 },
+        inline: { kind: 'bounded' as const, maxInlineUtf8Bytes: 8192 },
         retention: { kind: 'bounded' as const, maxRetentionMs: 1_000 },
       },
     },
@@ -104,7 +92,7 @@ function boundedDefinition() {
 }
 
 const largeResult = () => ({
-  content: [text('answer', '汉'.repeat(683))],
+  content: [text('answer', '汉'.repeat(2731))],
   data: { kind: 'none' as const },
   original: { kind: 'none' as const },
   attachments: [],
@@ -115,7 +103,7 @@ it('stores only model text as a range-readable UTF-8 body while preserving the o
   const f = await settlementFixture({
     definition: boundedDefinition(),
     value: {
-      content: [text('first', '汉'.repeat(683)), hidden, text('last', '🙂\n')],
+      content: [text('first', '汉'.repeat(2731)), hidden, text('last', '🙂\n')],
       data: { kind: 'none' },
       original: { kind: 'none' },
       attachments: [],
@@ -126,8 +114,8 @@ it('stores only model text as a range-readable UTF-8 body while preserving the o
   expect(page.value.content).toContainEqual(hidden)
   expect(page.value.original).toMatchObject({
     kind: 'offloaded',
-    bodyBytes: '2054',
-    source: { bytes: '2054' },
+    bodyBytes: '8198',
+    source: { bytes: '8198' },
   })
   const body = (await f.records()).find(
     record => record.kind === 'material' && record.material.purpose === 'body',
@@ -137,7 +125,7 @@ it('stores only model text as a range-readable UTF-8 body while preserving the o
   const decoder = new TextDecoder('utf-8', { fatal: true })
   let offset: string | null = '0'
   let restored = ''
-  for (let index = 0; index < 512 && offset !== null; index += 1) {
+  for (let index = 0; index < 2048 && offset !== null; index += 1) {
     const request: Parameters<typeof f.materialStore.read>[0] = {
       ...f.access,
       material: body.material.material,
@@ -151,7 +139,7 @@ it('stores only model text as a range-readable UTF-8 body while preserving the o
     offset = part.next
   }
   expect(offset).toBeNull()
-  expect(restored).toBe(`${'汉'.repeat(683)}🙂\n`)
+  expect(restored).toBe(`${'汉'.repeat(2731)}🙂\n`)
 })
 
 it('commits the bounded deadline, body use and preparation release with the result', async () => {
@@ -264,15 +252,15 @@ it.each(['unknown-applied', 'unknown-dropped'] as const)(
 )
 
 it.each([
-  { initialLimit: 2048, laterLimit: 1024, original: 'none' },
-  { initialLimit: 1024, laterLimit: 2048, original: 'offloaded' },
+  { initialLimit: 8192, laterLimit: 6144, original: 'none' },
+  { initialLimit: 6144, laterLimit: 8192, original: 'offloaded' },
 ] as const)(
   'keeps the original policy after interrupted preparation at $initialLimit bytes',
   async sample => {
     let failWrite = true
     const f = await settlementFixture({
       definition: boundedDefinition(),
-      value: { ...largeResult(), content: [text('answer', 'x'.repeat(1536))] },
+      value: { ...largeResult(), content: [text('answer', 'x'.repeat(7168))] },
       offloading: {
         ...configuration().offloading,
         maxInlineUtf8Bytes: sample.initialLimit,
@@ -376,7 +364,7 @@ it('refuses an overflowing deadline without publishing a result or body use', as
   ).toBe(true)
 })
 
-it.each([512, 3072].flatMap(bytes => (['file', 'image'] as const).map(kind => ({ bytes, kind }))))(
+it.each([512, 9216].flatMap(bytes => (['file', 'image'] as const).map(kind => ({ bytes, kind }))))(
   'counts only model text and preserves native and program channels: $bytes $kind',
   async ({ bytes, kind }) => {
     const reference = {
@@ -425,7 +413,7 @@ it.each([512, 3072].flatMap(bytes => (['file', 'image'] as const).map(kind => ({
     expect(
       delivered.content.filter(block => block.id === native.id || block.id === human.id),
     ).toEqual([native, human])
-    expect(delivered.original.kind).toBe(bytes <= 2048 ? 'none' : 'offloaded')
+    expect(delivered.original.kind).toBe(bytes <= 8192 ? 'none' : 'offloaded')
     if (delivered.original.kind === 'offloaded')
       expect(delivered.original.bodyBytes).toBe(String(bytes))
   },
@@ -462,7 +450,12 @@ it('adopts only a same-call sealed author body and preserves its distinct summar
   })
   expect(ok(await f.preserve()).phase).toBe('settled')
   const value = (await f.resultPage()).value
-  expect(value.content).toEqual([text('content', 'Answer: 42')])
+  expect(value.content).toEqual([
+    {
+      ...text('content', 'Answer: 42'),
+      text: expect.stringMatching(/^Answer: 42\n\[offloaded body\]\n/u),
+    },
+  ])
   expect(value.original).toMatchObject({
     kind: 'offloaded',
     source,
@@ -525,7 +518,7 @@ it.each(['raw', 'native'] as const)(
 it.each(['content', 'summary'] as const)(
   'bounds author %s by the preview budget, not by the inline threshold',
   async channel => {
-    const overBudget = 'x'.repeat(2048 / 8 + 1)
+    const overBudget = 'x'.repeat(8192 / 8 + 1)
     const f = await settlementFixture({
       definition: boundedDefinition(),
       value: async (_raw, ledger, access) => ({
@@ -637,7 +630,7 @@ it('rechecks author sealing after a competing commit removes its registration', 
 
 it.each([64, 65])('enforces the body hard limit before inline selection: %i bytes', async bytes => {
   const f = await settlementFixture({
-    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 128, maxBodyBytes: 64 },
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 8192, maxBodyBytes: 64 },
     value: {
       content: [text('answer', 'x'.repeat(bytes))],
       data: { kind: 'none' },
@@ -673,9 +666,9 @@ it.each([{ maxBytes: 128 }, { maxStringLength: 128 }, { maxItems: 2 }, { maxMemb
         maxNumberLength: 64,
         ...limit,
       },
-      offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 2048 },
+      offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 8192 },
       value: {
-        content: [text('body', 'x'.repeat(3000))],
+        content: [text('body', 'x'.repeat(9000))],
         original: { kind: 'none' },
         data: { kind: 'none' },
         attachments: [],

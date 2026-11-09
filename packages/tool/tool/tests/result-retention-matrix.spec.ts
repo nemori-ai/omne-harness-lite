@@ -61,7 +61,7 @@ it.each(samples)(
     const base = functionDefinition()
     if (base.kind !== 'function') throw new Error('function fixture required')
     const content = sample.model
-      ? [text('model', sample.offloaded ? '中🙂'.repeat(400) : 'short receipt')]
+      ? [text('model', sample.offloaded ? '中🙂'.repeat(1200) : 'short receipt')]
       : []
     const f = await settlementFixture({
       effect,
@@ -85,7 +85,7 @@ it.each(samples)(
                 },
         },
       },
-      offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 2048, maxRetentionMs: 10 },
+      offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 8192, maxRetentionMs: 10 },
       wrapMaterialClock: () => ({
         sample: async () => succeed(ok(decodeToolMaterialInstant(new Date(now).toISOString()))),
       }),

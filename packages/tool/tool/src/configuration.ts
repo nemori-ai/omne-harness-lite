@@ -4,6 +4,7 @@ import { readJsonText } from '@omne-harness/json-text'
 // each check throws instead of building a runtime or a ledger that would misbehave later.
 import type { ToolConfiguration, ToolLedgerConfiguration } from './construction.ts'
 import { isPositiveSafeInteger, judgeAuthorLimits } from './limits.ts'
+import { judgeOffloadingFits, SYSTEM_RETURN } from './result-offloading.ts'
 
 const LEDGER_CAPACITIES = [
   'resultPageBytes',
@@ -110,4 +111,6 @@ function checkResultConfiguration(configuration: ToolLedgerConfiguration): void 
     'maxWriterMetadataBytes',
   ])
   if (policy.previewDivisor !== undefined) checkCapacities(policy, ['previewDivisor'])
+  if ('failure' in judgeOffloadingFits(SYSTEM_RETURN, policy))
+    throw new TypeError('configuration.offloading: header-and-preview-exceed-threshold')
 }

@@ -16,9 +16,9 @@ it('observes confirmed lifecycle facts without copying payloads or keeping segme
   let now = 0
   const events: ToolLifecycleObservation[] = []
   const f = await settlementFixture({
-    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 2048, maxRetentionMs: 10 },
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 8192, maxRetentionMs: 10 },
     value: {
-      content: [text('secret', 'SECRET_BODY_'.repeat(500))],
+      content: [text('secret', 'SECRET_BODY_'.repeat(800))],
       data: { kind: 'none' },
       original: { kind: 'none' },
       attachments: [],
@@ -56,7 +56,7 @@ it('observes confirmed lifecycle facts without copying payloads or keeping segme
     new Set(['result-commit', 'offload', 'delivery-release', 'expire', 'reclaim']),
   )
   expect(events.filter(event => event.phase === 'offload')).toMatchObject([
-    { items: 1, bytes: 6000 },
+    { items: 1, bytes: 9600 },
   ])
   expect(events.filter(event => event.phase === 'expire')).toHaveLength(1)
   expect(JSON.stringify(events)).not.toContain('SECRET_BODY_')

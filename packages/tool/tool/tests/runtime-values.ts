@@ -425,7 +425,7 @@ export function configuration(overrides: Partial<ToolConfiguration> = {}): ToolC
     processBatchBytes: 4_096,
     processBatchDelayMs: 0,
     observerBufferBytes: 65_536,
-    resultPageBytes: 4_096,
+    resultPageBytes: 16_384,
     readResultArguments: {
       maxBytes: 65_536,
       maxDepth: 32,

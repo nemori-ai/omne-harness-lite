@@ -32,10 +32,18 @@ it('keeps content and summary in independent materials and recovers without the 
     if (input.material.id === f.pointer.envelope.material.id) throw new Error('envelope removed')
     return originalRead(input)
   })
-  expect((await f.resultPage()).value).toMatchObject(f.final.result)
+  expect((await f.resultPage()).value).toMatchObject({
+    ...f.final.result,
+    content: [
+      { id: 'body', text: expect.stringMatching(/^正文独立内容🙂\n\[offloaded body\]\n/u) },
+    ],
+  })
   read.mockRejectedValue(new Error('all byte storage is unavailable'))
   read.mockClear()
-  expect((await f.load()).result).toEqual({ version: settled.result, source: record.result.source })
+  expect((await f.load()).result).toEqual({
+    version: settled.result,
+    source: record.result.source,
+  })
   expect(read).not.toHaveBeenCalled()
   expect(
     await f.ledger.reads.result({ ...f.access, result: settled.result, after: null }),
