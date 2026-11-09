@@ -5,7 +5,11 @@ import type { ToolLedgerStore } from '@omne-harness/tool'
 import { describe, expect, it } from 'vitest'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import type { StartGuard, StartPermit } from '@omne-harness/tool-contract/provider'
-import { createLocalStartCoordinator } from '@omne-harness/tool-host-local'
+import {
+  createLocalStartCoordinator,
+  START_GUARDS_DOMAIN_KEY,
+  tenantHostDomain,
+} from '@omne-harness/tool-host-local'
 import {
   access,
   callAccess,
@@ -149,6 +153,53 @@ describe('G5 the start ordering domain', () => {
     }
     // Both orders occurred, so each branch above was checked.
     expect([...seen].sort()).toEqual(['rejected', 'started'])
+  })
+
+  it('G5 order: an invalidation committed between the consume read of the guards and its commit refuses the start', async () => {
+    // The fence the StartConsume model checks: consume reads `start-guards`, decides, and commits
+    // the acceptance into the call domain. An invalidation that commits in that window must make
+    // the acceptance a conflict, so the retry sees the moved guard and rejects for good. A store
+    // wrapper pauses the acceptance commit and lets the invalidation run to completion meanwhile.
+    const memory = createMemoryToolLedgerStore()
+    let invalidateInWindow: (() => Promise<void>) | null = null
+    const store: ToolLedgerStore = {
+      durability: 'none',
+      read: domain => memory.read(domain),
+      readRecord: (domain, key) => memory.readRecord(domain, key),
+      commit: async input => {
+        const acceptance =
+          input.domain.kind === 'host' &&
+          input.domain.key.startsWith('start@') &&
+          input.writes.some(
+            write =>
+              write.kind === 'put' &&
+              write.record.kind === 'host' &&
+              write.record.host.key.startsWith('acceptance:'),
+          )
+        if (acceptance && invalidateInWindow !== null) {
+          const run = invalidateInWindow
+          invalidateInWindow = null
+          await run()
+        }
+        return memory.commit(input)
+      },
+    }
+    const authority = coordinator(store)
+    const permit = await permitFor(authority, 'c1')
+    let invalidated: Awaited<ReturnType<typeof authority.invalidate>> | null = null
+    invalidateInWindow = async () => {
+      invalidated = await authority.invalidate(invalidation('revoke-in-window'))
+    }
+    const consumed = ok(await authority.consume(consumeWith(permit)))
+    expect(invalidated).toHaveProperty('ok')
+    expect(consumed).toMatchObject({ kind: 'rejected' })
+    expect(
+      ok(await authority.inspect({ ...callAccess('c1'), start: startOf('c1') })),
+    ).toMatchObject({
+      kind: 'rejected',
+    })
+    const guards = await memory.read(tenantHostDomain(tenantA as never, START_GUARDS_DOMAIN_KEY))
+    expect(guards.kind === 'complete' && guards.revision).toBe('1')
   })
 
   it('G5 order: the invalidation evidence is given only after its commit', async () => {
@@ -405,7 +456,12 @@ describe('G5 the start ordering domain', () => {
         },
       })
       const commits = store.commits
-      expect(await restored.inspect({ ...callAccess('c1'), start: startOf('c1') })).toMatchObject({
+      // The probe reads the domain that holds the record: prepare reads the guards, inspect the call.
+      const probe =
+        kind === 'invalidation'
+          ? restored.prepare({ ...callAccess('c1'), start: startOf('c1'), request: request() })
+          : restored.inspect({ ...callAccess('c1'), start: startOf('c1') })
+      expect(await probe).toMatchObject({
         failure: { kind: 'unavailable', dependency: 'start-ledger' },
       })
       expect(corrupted).toBe(1)
@@ -453,6 +509,39 @@ describe('G5 the start ordering domain', () => {
       failure: { kind: 'conflict', operation: alias.operation },
     })
     expect(store.commits).toBe(commits)
+  })
+
+  it('G5 placement: only prepare and consume read start-guards; inspect, exclude and invalidate read their own domain', async () => {
+    const memory = createMemoryToolLedgerStore()
+    const guardsKey = tenantHostDomain(tenantA as never, START_GUARDS_DOMAIN_KEY).key
+    const guardReads = { count: 0 }
+    const store: ToolLedgerStore = {
+      durability: 'none',
+      readRecord: (domain, key) => memory.readRecord(domain, key),
+      read: domain => {
+        if (domain.kind === 'host' && domain.key === guardsKey) guardReads.count += 1
+        return memory.read(domain)
+      },
+      commit: input => memory.commit(input),
+    }
+    const authority = coordinator(store)
+    const permit = await permitFor(authority, 'c1')
+    expect(guardReads.count).toBe(1)
+    ok(await authority.consume(consumeWith(permit)))
+    expect(guardReads.count).toBe(2)
+    ok(await authority.inspect({ ...callAccess('c1'), start: startOf('c1') }))
+    ok(await authority.inspect({ ...callAccess('c2'), start: startOf('c2') }))
+    ok(
+      await authority.exclude({
+        ...callAccess('c3'),
+        operation: operationId('exclude-c3'),
+        reason: 'placement',
+      }),
+    )
+    expect(guardReads.count).toBe(2)
+    // Invalidate writes the guards: it reads them once as its own domain, not a second time as guards.
+    ok(await authority.invalidate(invalidation('revoke-placement')))
+    expect(guardReads.count).toBe(3)
   })
 
   it('G5 inspect: an undecided start is not-started only after its outstanding permit was withdrawn', async () => {

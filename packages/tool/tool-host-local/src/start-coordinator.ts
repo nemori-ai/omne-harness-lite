@@ -198,7 +198,10 @@ type DomainSnapshot = Readonly<{
   records: ReadonlyMap<string, CoordinatorRecord>
 }>
 
-/** What a call-scoped operation decides on: the call's own domain and the tenant's guards. */
+/**
+ * What prepare and consume decide on: the call's own domain and the tenant's guards. The other
+ * operations decide on their written domain alone and never read `start-guards`.
+ */
 type Snapshot = DomainSnapshot & Readonly<{ guards: DomainSnapshot }>
 
 // Keys are JSON texts of their parts, so an identity text that holds a separator cannot reach the
@@ -312,7 +315,7 @@ function guardOf(guards: DomainSnapshot, resource: GuardResource): GuardRecord {
 
 /** The acceptance or the rejection of a start, or null while the start is undecided. */
 function progressOf(
-  snapshot: Snapshot,
+  snapshot: DomainSnapshot,
   call: ToolCallId,
   start: ToolOperationId,
 ): Extract<StartProgress, { kind: 'started' | 'rejected' }> | null {
@@ -614,8 +617,8 @@ type Decision<T> =
       kind: 'commit'
       puts: readonly CoordinatorRecord[]
       deletes?: readonly string[]
-      /** Commit only while the guard domain still has the revision the snapshot read. */
-      assertGuards?: boolean
+      /** Commit only while the guard domain still has this revision, the one the decision read. */
+      assertGuards?: ToolRevision
       value: T
     }>
 
@@ -758,13 +761,14 @@ export function createLocalStartCoordinator<P>(
   }
 
   /**
-   * Reads the written domain and the guards, decides, and commits by the revision of the written
-   * domain inside its serial section. A decision that asserts the guards commits only while the
-   * guard domain still has the revision this turn read.
+   * Reads the written domain (and what `snapshotOf` adds to it), decides, and commits by the
+   * revision of the written domain inside its serial section. A decision that asserts the guards
+   * commits only while the guard domain still has the revision the decision read.
    */
-  const transact = <T>(
+  const rounds = <T, S>(
     target: LedgerDomain,
-    decide: (snapshot: Snapshot, revision: ToolRevision) => Decision<T> | Promise<Decision<T>>,
+    snapshotOf: (own: DomainSnapshot) => Promise<Outcome<S, ToolFailure>>,
+    decide: (snapshot: S, revision: ToolRevision) => Decision<T> | Promise<Decision<T>>,
     unknown: (diagnostic: string) => Outcome<T, ToolFailure>,
   ): Promise<Outcome<T, ToolFailure>> =>
     serial(
@@ -773,11 +777,10 @@ export function createLocalStartCoordinator<P>(
         for (let attempt = 0; attempt < commitAttempts; attempt += 1) {
           const own = await read(target)
           if ('failure' in own) return own
-          const guards = await read(guardsDomain(target.tenant))
-          if ('failure' in guards) return guards
-          const snapshot: Snapshot = { ...own.ok, guards: guards.ok }
+          const snapshot = await snapshotOf(own.ok)
+          if ('failure' in snapshot) return snapshot
           const revision = nextRevision(own.ok.revision)
-          const decision = await decide(snapshot, revision)
+          const decision = await decide(snapshot.ok, revision)
           if (decision.kind === 'reply') return decision.outcome
           let committed: Awaited<ReturnType<typeof store.commit>>
           try {
@@ -787,9 +790,9 @@ export function createLocalStartCoordinator<P>(
               revision,
               writes: writesOf(decision),
               asserts:
-                decision.assertGuards === true
-                  ? [{ domain: guardsDomain(target.tenant), revision: guards.ok.revision }]
-                  : [],
+                decision.assertGuards === undefined
+                  ? []
+                  : [{ domain: guardsDomain(target.tenant), revision: decision.assertGuards }],
             })
           } catch {
             return unknown('the start ledger threw on commit')
@@ -805,6 +808,30 @@ export function createLocalStartCoordinator<P>(
           `The turn did not settle within ${turnTimeoutMs} ms; earlier work of this tenant may still be running`,
         ),
     )
+
+  /** The rounds of prepare and consume: the call's domain and the tenant's guards. */
+  const transact = <T>(
+    target: LedgerDomain,
+    decide: (snapshot: Snapshot, revision: ToolRevision) => Decision<T> | Promise<Decision<T>>,
+    unknown: (diagnostic: string) => Outcome<T, ToolFailure>,
+  ): Promise<Outcome<T, ToolFailure>> =>
+    rounds<T, Snapshot>(
+      target,
+      async own => {
+        const guards = await read(guardsDomain(target.tenant))
+        return 'failure' in guards ? guards : succeed({ ...own, guards: guards.ok })
+      },
+      decide,
+      unknown,
+    )
+
+  /** The rounds of inspect, exclude and invalidate: the written domain alone. */
+  const transactOwn = <T>(
+    target: LedgerDomain,
+    decide: (snapshot: DomainSnapshot, revision: ToolRevision) => Decision<T>,
+    unknown: (diagnostic: string) => Outcome<T, ToolFailure>,
+  ): Promise<Outcome<T, ToolFailure>> =>
+    rounds<T, DomainSnapshot>(target, own => Promise.resolve(succeed(own)), decide, unknown)
 
   const unknownProgress = (diagnostic: string): Outcome<StartProgress, ToolFailure> =>
     succeed({ kind: 'unknown', diagnostic })
@@ -989,7 +1016,7 @@ export function createLocalStartCoordinator<P>(
           kind: 'commit',
           puts: [accepted],
           deletes: [keyOf(stored)],
-          assertGuards: true,
+          assertGuards: snapshot.guards.revision,
           value: { kind: 'started', acceptance },
         }
       },
@@ -1004,7 +1031,7 @@ export function createLocalStartCoordinator<P>(
     if ('failure' in start) return start
     const { tenant, call } = checked.ok
     const operation = start.ok.operation
-    return transact<StartProgress>(
+    return transactOwn<StartProgress>(
       startDomain(tenant, call),
       (snapshot, revision) => {
         const known = progressOf(snapshot, call, operation)
@@ -1043,8 +1070,7 @@ export function createLocalStartCoordinator<P>(
     const allowed = await qualify(principal, tenant, null, 'invalidate')
     if ('failure' in allowed) return allowed
     const digest = canonicalDigest(target.ok)
-    // The guards domain is both the written domain and the guards here; the snapshot reads it twice.
-    return transact<DurableEvidence>(
+    return transactOwn<DurableEvidence>(
       guardsDomain(tenant),
       (snapshot, revision) => {
         const existing = snapshot.records.get(invalidationKey(operation.ok))
@@ -1085,7 +1111,7 @@ export function createLocalStartCoordinator<P>(
     const reason: unknown = Reflect.get(raw, 'reason')
     if (!filledText(reason)) return invalid('reason', 'type')
     const { tenant, call } = checked.ok
-    return transact<DurableEvidence>(
+    return transactOwn<DurableEvidence>(
       startDomain(tenant, call),
       (snapshot, revision) => {
         const known = snapshot.records.get(exclusionOperationKey(call, operation.ok))

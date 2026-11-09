@@ -58,9 +58,9 @@
 | --- | --- | --- |
 | `guardRev`、`InvalidateCommit`、`InvalidateReturn` | 租户级 `start-guards` 域（`tenantHostDomain(tenant, START_GUARDS_DOMAIN_KEY)`）里的 `GuardRecord` 与 `InvalidationRecord`；`invalidate` 经 `transact(guardsDomain(tenant), …)` 提交后才回复证据 | 已实现 |
 | `permit`、`Prepare` | 调用域 `start@<call>`（`callHostDomain(tenant, 'start', call)`）里的 `PermitRecord`；`prepare` 读 `start-guards` 把每个守卫当前修订号写进许可，不断言守卫域 | 已实现 |
-| `ConsumeRead` | `transact` 在每一轮先读调用域再读 `start-guards`，`consume` 的决定用 `guardOf(snapshot.guards, …)` 比对许可里的守卫修订号 | 已实现 |
-| `ConsumeCommit` 的断言 | `consume` 返回 `assertGuards: true` 的决定，`transact` 以 `asserts: [{ domain: start-guards, revision: 本轮读到的修订号 }]` 提交 `AcceptanceRecord`；守卫域已变时记录仓答 `conflict`，不写 | 已实现 |
-| `DropAssertion` 负控 | 没有代码对应；去掉 `assertGuards` 即为该配置 | — |
+| `ConsumeRead` | `transact`（`prepare` 与 `consume` 的轮次）每一轮先读调用域再读 `start-guards`，`consume` 的决定用 `guardOf(snapshot.guards, …)` 比对许可里的守卫修订号；`inspect`、`exclude`、`invalidate` 走 `transactOwn`，不读守卫 | 已实现 |
+| `ConsumeCommit` 的断言 | `consume` 返回带 `assertGuards: <本轮读到的守卫域修订号>` 的决定，`rounds` 以 `asserts: [{ domain: start-guards, revision }]` 提交 `AcceptanceRecord`；守卫域已变时记录仓答 `conflict`，不写。`tests/start-coordinator.spec.ts` 在受理读守卫之后、提交之前注入失效，去掉断言即变红 | 已实现 |
+| `DropAssertion` 负控 | 没有代码对应；把决定的 `assertGuards` 去掉即为该配置 | — |
 | `step` | 无代码对应；证明用的线性化顺序 | — |
 
 模型里的断言比对的是许可记录的守卫版本；实现比对的是本轮读到的守卫域修订号，并已先核许可里每个守卫的修订号等于本轮读到的值，所以两者等价：域修订号未变则守卫记录未变。实现只在同一条写路径上多一层：不相关守卫的失效也会让受理冲突重试，不改变性质。
