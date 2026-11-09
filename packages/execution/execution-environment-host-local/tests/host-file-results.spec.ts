@@ -56,16 +56,30 @@ vi.mock('node:child_process', async importOriginal => {
   return {
     ...actual,
     spawn(...args: Parameters<typeof actual.spawn>) {
-      if (!injectBridgeReplyFailure) return actual.spawn(...args)
-      const argv = args[1]?.map((value, index) => {
-        if (args[1]?.[index - 1] !== '-EncodedCommand') return value
-        const source = Buffer.from(value, 'base64').toString('utf16le')
-        const response = '[Console]::WriteLine(($result | ConvertTo-Json -Depth 8 -Compress))'
-        if (!source.includes(response)) throw new Error('native reply injection point missing')
-        // The real write and native cleanup finish, then the process exits without its receipt.
-        return Buffer.from(source.replace(response, 'exit 23'), 'utf16le').toString('base64')
-      })
-      return actual.spawn(args[0], argv, args[2])
+      const child = actual.spawn(...args)
+      if (!String(args[0]).endsWith('files.exe')) return child
+      // The real write and native cleanup finish in the resident helper, then its receipt is lost
+      // with the helper itself: the reply frame is dropped and the helper is killed.
+      const writes = new Set<number>()
+      const write = child.stdin?.write.bind(child.stdin)
+      if (child.stdin === null || child.stdout === null || write === undefined) return child
+      child.stdin.write = ((chunk: unknown, ...rest: never[]) => {
+        for (const line of String(chunk).split('\n'))
+          if (injectBridgeReplyFailure && line.includes('"operation":"write"'))
+            writes.add(Number(JSON.parse(line).id))
+        return write(chunk as string, ...rest)
+      }) as typeof child.stdin.write
+      const emit = child.stdout.emit.bind(child.stdout)
+      child.stdout.emit = ((event: string, ...values: unknown[]) => {
+        const text = event === 'data' ? String(values[0]) : ''
+        if ([...writes].some(id => text.includes(`"id":${id},`))) {
+          writes.clear()
+          child.kill()
+          return true
+        }
+        return emit(event, ...values)
+      }) as typeof child.stdout.emit
+      return child
     },
   }
 })
