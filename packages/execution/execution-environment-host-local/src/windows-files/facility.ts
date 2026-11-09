@@ -11,40 +11,57 @@ import type {
   ProviderFacts,
 } from '@omne-harness/execution-environment-contract'
 import type { HostFilesLimits } from '../host-file-tree.ts'
-import {
-  fail,
-  failed,
-  mapped,
-  ok,
-  openCodes,
-  reject,
-  unknown,
-  type Outcome,
-} from '../host-paths.ts'
-import { windowsSegmentsBelow } from '../root-segments.ts'
-import { getWindowsFilesHelper, type OwnerTag } from './helper.ts'
-import type { ChangeInput, Metadata, NativeInput, RunInput } from './protocol.ts'
+import { fail, failed, ok, reject, unknown, type Outcome } from '../host-paths.ts'
+import { windowsPathSegments, windowsSegmentsBelow } from '../root-segments.ts'
+import { frameworkAssembly } from '../windows-native/compile.ts'
+import { getWindowsFilesHelper } from './helper.ts'
+import type { ChangeInput, Final, Metadata, NativeInput, RunInput, Start } from './protocol.ts'
 
-/** The probe runs outside any acquisition: its owner is never sealed. */
-const unsealed: OwnerTag = { sealed: () => false }
+const invoke = (input: NativeInput, boundMs?: number) =>
+  getWindowsFilesHelper().request(input, boundMs)
 
-const probe = (input: NativeInput) => getWindowsFilesHelper().request(unsealed, input, 10_000)
+/** How the last segment of `path` is opened: see `Final`. */
+function finalOf(path: string): Final {
+  const follow = path.split(/[\\/]/u).findLast(part => part !== '') === '.'
+  return { directory: follow || /[\\/]$/u.test(path), follow }
+}
 
-/** Checks handle-relative creation, reading, enumeration and removal in an owned temporary directory. */
+/**
+ * The start of a path when no files root is configured: the root of its drive. A form outside the
+ * supported range answers `unsupported`; a `..` answers `notAuthorized`, as it does below a root.
+ */
+function driveStart(path: string): Outcome<Start> {
+  const parsed = windowsPathSegments(path)
+  if (!parsed.ok) return fail(parsed.refusal === 'parent' ? 'notAuthorized' : 'unsupported')
+  const root = `${parsed.drive}\\`
+  return ok({ root, expectedRoot: '', segments: parsed.segments, rooted: false })
+}
+
+/**
+ * The token and metadata of the object that `path` names, read by the files helper from the drive
+ * root. Ancestor links are followed and the last segment is not, as `lstat` does on POSIX.
+ */
+export async function windowsObjectInfo(
+  path: string,
+  boundMs?: number,
+): Promise<Outcome<Metadata>> {
+  const start = driveStart(path)
+  if (!start.ok) return start
+  const found = await invoke({ ...start.value, ...finalOf(path), operation: 'identify' }, boundMs)
+  return typeof found === 'string' ? fail(found) : ok(found.info)
+}
+
+/**
+ * Checks the Windows files prerequisite: the .NET Framework compiler exists, and the files helper
+ * starts and creates, reads, lists and removes a file handle-relative in an owned temporary
+ * directory below `directory`.
+ */
 export async function probeWindowsFilesPrerequisite(
   directory = tmpdir(),
 ): Promise<ProviderFacts['prerequisites']> {
   if (process.platform !== 'win32') return 'unsatisfied'
   try {
-    await access(
-      win32.join(
-        process.env.SystemRoot ?? 'C:\\Windows',
-        'System32',
-        'WindowsPowerShell',
-        'v1.0',
-        'powershell.exe',
-      ),
-    )
+    await access(frameworkAssembly('csc.exe'))
   } catch (error) {
     return error instanceof Error && 'code' in error && error.code === 'ENOENT'
       ? 'unsatisfied'
@@ -59,9 +76,8 @@ export async function probeWindowsFilesPrerequisite(
   let reading: ProviderFacts['prerequisites'] = 'unknown'
   try {
     const root = await realpath(made)
-    const info = await lstat(root, { bigint: true })
-    const expectedRoot = `${info.dev}:${info.ino}`
-    reading = await probeWindowsDirectory(root, expectedRoot)
+    const identity = await windowsObjectInfo(root, 10_000)
+    reading = identity.ok ? await probeWindowsDirectory(root, identity.value.token) : 'unknown'
   } catch {
     reading = 'unknown'
   } finally {
@@ -78,8 +94,9 @@ async function probeWindowsDirectory(
   root: string,
   expectedRoot: string,
 ): Promise<ProviderFacts['prerequisites']> {
+  const probe = (input: NativeInput) => invoke(input, 10_000)
   const bytes = Buffer.from('omne-file-probe').toString('base64')
-  const endpoint = { root, expectedRoot, segments: ['probe'], named: expectedRoot }
+  const endpoint = { root, expectedRoot, segments: ['probe'], rooted: true, named: expectedRoot }
   const created = await probe({
     ...endpoint,
     operation: 'write',
@@ -102,7 +119,8 @@ async function probeWindowsDirectory(
     byteBudget: 64,
     fileBytes: 64,
     path: win32.join(root, 'probe'),
-    rooted: true,
+    directory: false,
+    follow: false,
   }
   const read = await probe(query)
   if (typeof read === 'string' || read.bytes !== bytes) return 'unknown'
@@ -151,12 +169,15 @@ function snapshot<R extends FileRequest<unknown>>(request: R): R {
   }
 }
 
-/** One engine binds one root identity. Failed binding remains retryable without replacing a known root. */
+/**
+ * The token of a files root, read by the files helper at the first use. One engine binds one root
+ * identity; a failed binding is tried again without replacing a known root.
+ */
 export function createWindowsRootIdentity(root: string): () => Promise<string | undefined> {
   let binding: Promise<string | undefined> | undefined
   return async () => {
-    binding ??= lstat(root, { bigint: true }).then(
-      info => `${info.dev}:${info.ino}`,
+    binding ??= windowsObjectInfo(root).then(
+      found => (found.ok ? found.value.token : undefined),
       () => undefined,
     )
     const pending = binding
@@ -166,25 +187,26 @@ export function createWindowsRootIdentity(root: string): () => Promise<string | 
   }
 }
 
+/**
+ * The Windows files backend. Every operation runs in the files helper, with or without a files
+ * root: below a root, the helper walks from the root's handle; without one, from the handle of the
+ * drive root.
+ */
 export function createWindowsFiles(
   options: Readonly<{
     root?: string
     rootIdentity?: () => Promise<string | undefined>
     limits: HostFilesLimits
     issue(object: ObjectToken): HandleGeneration
-    /**
-     * Whether the owner of this facility is sealed. The helper checks it when a request is queued
-     * and again before the request is written; a sealed owner's request answers `closed`.
-     */
-    sealed?: () => boolean
   }>,
 ): Pick<
   FileSystemFacility<unknown>,
   'read' | 'stat' | 'list' | 'search' | 'mkdir' | 'remove' | 'move' | 'write' | 'copy'
 > {
-  const owner: OwnerTag = { sealed: options.sealed ?? (() => false) }
-  const invoke = (input: NativeInput) => getWindowsFilesHelper().request(owner, input)
-  const rootIdentity = options.rootIdentity
+  const configured = options.root
+  const rootIdentity =
+    options.rootIdentity ??
+    (configured === undefined ? undefined : createWindowsRootIdentity(configured))
   const identity = (info: Metadata): FileIdentity => {
     const object = { token: info.token }
     return { object, version: info.version, handle: options.issue(object) }
@@ -195,45 +217,21 @@ export function createWindowsFiles(
     sizeBytes: info.size,
     modifiedMs: info.modified,
   })
-  const rootToken = async (root: string): Promise<Outcome<string>> => {
-    if (rootIdentity !== undefined) {
-      const token = await rootIdentity()
-      return token === undefined ? fail('unavailable') : ok(token)
-    }
-    try {
-      const info = await lstat(root, { bigint: true })
-      return ok(`${info.dev}:${info.ino}`)
-    } catch (error) {
-      return fail(mapped(openCodes, error) ?? 'unknown')
-    }
-  }
-  const endpoint = async (
-    path: string,
-    parents = false,
-  ): Promise<Outcome<Pick<RunInput, 'root' | 'expectedRoot' | 'segments'>>> => {
-    let root = options.root ?? win32.dirname(path)
-    if (options.root === undefined && parents) {
-      for (;;) {
-        const found = await rootToken(root)
-        if (found.ok) break
-        if (found.failure !== 'unresolved') return found
-        const next = win32.dirname(root)
-        if (next === root) return fail('unresolved')
-        root = next
-      }
-    }
-    const segments = await windowsSegmentsBelow(root, path)
+  /**
+   * Where `path` starts and the segments it walks. Below a root, a path outside it, with a `..` or
+   * in a refused form is `notAuthorized`. Nothing is opened yet.
+   */
+  const locate = async (path: string): Promise<Outcome<Start>> => {
+    if (configured === undefined) return driveStart(path)
+    const segments = await windowsSegmentsBelow(configured, path)
     if (segments === undefined) return fail('notAuthorized')
-    const expectedRoot = await rootToken(root)
-    return expectedRoot.ok ? ok({ root, expectedRoot: expectedRoot.value, segments }) : expectedRoot
+    return ok({ root: configured, expectedRoot: '', segments, rooted: true })
   }
-  /** A root is configured and one of `paths` does not lie below it. */
-  const outsideRoot = async (paths: readonly string[]): Promise<boolean> => {
-    const root = options.root
-    if (root === undefined) return false
-    for (const path of paths)
-      if ((await windowsSegmentsBelow(root, path)) === undefined) return true
-    return false
+  /** `located` with the recorded token of the files root; `unavailable` when it cannot be bound. */
+  const bound = async (located: Start): Promise<Outcome<Start>> => {
+    if (!located.rooted || rootIdentity === undefined) return ok(located)
+    const token = await rootIdentity()
+    return token === undefined ? fail('unavailable') : ok({ ...located, expectedRoot: token })
   }
   const change = async (
     request: Parameters<FileSystemFacility<unknown>['remove']>[0],
@@ -250,12 +248,12 @@ export function createWindowsFiles(
       return reject(request.requestId, 'invalidInput')
     if (!request.named?.token || (target !== undefined && !target.named?.token))
       return reject(request.requestId, 'notAuthorized')
-    if (await outsideRoot([request.path, ...(target === undefined ? [] : [target.path])]))
-      return reject(request.requestId, 'notAuthorized')
-    const source = await endpoint(request.path, operation === 'mkdir' && request.recursive)
-    if (!source.ok) return failed(request.requestId, source.failure, 'notFound')
-    const destination = target === undefined ? source : await endpoint(target.path)
+    const located = await locate(request.path)
+    if (!located.ok) return failed(request.requestId, located.failure, 'notFound')
+    const destination = target === undefined ? located : await locate(target.path)
     if (!destination.ok) return failed(request.requestId, destination.failure, 'notFound')
+    const source = await bound(located.value)
+    if (!source.ok) return failed(request.requestId, source.failure, 'notFound')
     const result = await invoke({
       ...source.value,
       named: request.named.token,
@@ -263,7 +261,7 @@ export function createWindowsFiles(
       recursive: request.recursive,
       version: request.expectedVersion ?? null,
       targetRoot: destination.value.root,
-      expectedTargetRoot: destination.value.expectedRoot,
+      expectedTargetRoot: source.value.expectedRoot,
       targetSegments: destination.value.segments,
       targetNamed: target?.named?.token ?? '',
       replace,
@@ -281,20 +279,14 @@ export function createWindowsFiles(
     if (!win32.isAbsolute(request.path) || request.path.includes('\0'))
       return reject(request.requestId, 'invalidInput')
     if (!request.named?.token) return reject(request.requestId, 'notAuthorized')
-    const root = options.root ?? win32.dirname(request.path)
-    const segments = await windowsSegmentsBelow(root, request.path)
-    if (segments === undefined) return reject(request.requestId, 'notAuthorized')
-    const expectedRoot = await rootToken(root)
-    if (!expectedRoot.ok)
-      return failed(
-        request.requestId,
-        expectedRoot.failure,
-        operation === 'search' ? 'notFound' : 'unresolved',
-      )
+    const missing = operation === 'search' ? 'notFound' : 'unresolved'
+    const located = await locate(request.path)
+    if (!located.ok) return failed(request.requestId, located.failure, missing)
+    const start = await bound(located.value)
+    if (!start.ok) return failed(request.requestId, start.failure, missing)
     const result = await invoke({
-      root,
-      expectedRoot: expectedRoot.value,
-      segments,
+      ...start.value,
+      ...finalOf(request.path),
       named: request.named.token,
       operation,
       offset,
@@ -306,11 +298,8 @@ export function createWindowsFiles(
       byteBudget: options.limits.searchByteBudget,
       fileBytes: options.limits.searchFileBytes,
       path: request.path,
-      rooted: options.root !== undefined,
     })
-    return typeof result === 'string'
-      ? failed(request.requestId, result, operation === 'search' ? 'notFound' : 'unresolved')
-      : result
+    return typeof result === 'string' ? failed(request.requestId, result, missing) : result
   }
   const facility: Pick<
     FileSystemFacility<unknown>,
@@ -356,19 +345,21 @@ export function createWindowsFiles(
         !win32.isAbsolute(request.path) ||
         request.path.includes('\0') ||
         (request.mode === 'create' &&
-          (request.expectedVersion !== undefined || /[\\/]$/u.test(request.path)))
+          (request.expectedVersion !== undefined || finalOf(request.path).directory))
       )
         return reject(request.requestId, 'invalidInput')
       if (!request.named?.token) return reject(request.requestId, 'notAuthorized')
-      const source = await endpoint(request.path)
       const missing = request.mode === 'create' ? 'notFound' : 'unresolved'
+      const located = await locate(request.path)
+      if (!located.ok) return failed(request.requestId, located.failure, missing)
+      const source = await bound(located.value)
       if (!source.ok) return failed(request.requestId, source.failure, missing)
       const result = await invoke({
         ...source.value,
         named: request.named.token,
         operation: 'write',
         version: request.expectedVersion ?? null,
-        trailingSlash: /[\\/]$/u.test(request.path),
+        trailingSlash: finalOf(request.path).directory,
         create: request.mode === 'create',
         bytes: Buffer.from(request.bytes).toString('base64'),
       })
@@ -394,7 +385,7 @@ export function createWindowsFiles(
         return reject(request.requestId, 'invalidInput')
       const result = await run(request, 'read', offset, limit)
       if ('kind' in result) return result
-      const bytes = Buffer.from(result.bytes, 'base64')
+      const bytes = Uint8Array.from(Buffer.from(result.bytes, 'base64'))
       return {
         kind: 'done',
         requestId: request.requestId,

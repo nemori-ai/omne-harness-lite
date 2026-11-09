@@ -7,8 +7,6 @@ import { join } from 'node:path'
 import { Transform } from 'node:stream'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { createHostFilesEngine, hostObjectToken } from '../../src/host-files.ts'
-import { hostFilesLimits } from '../../src/host-file-tree.ts'
-import { createWindowsFiles } from '../../src/windows-files/facility.ts'
 import { request, withFiles } from './fixture.ts'
 
 const spawned = vi.hoisted(() => ({
@@ -94,32 +92,12 @@ it('runs file operations in one resident helper and starts no PowerShell', async
   })
 }, 60_000)
 
-it('P3: a request of an owner sealed after admission never reaches the helper', async () => {
-  await withFiles(async ({ root, path, input }) => {
-    let sealed = false
-    const files = createWindowsFiles({
-      root,
-      limits: hostFilesLimits(),
-      issue: object => ({ object, generation: '1' }),
-      sealed: () => sealed,
-    })
-    const pending = files.stat(input)
-    // The facility is at its first await, between admission and the helper's queue.
-    sealed = true
-    expect(await pending).toEqual({
-      kind: 'rejected',
-      requestId: input.requestId,
-      reason: 'closed',
-    })
-    const marker = JSON.stringify(path).slice(1, -1)
-    expect(spawned.written.filter(frame => frame.includes(marker))).toEqual([])
-  })
-}, 60_000)
-
 it('P2: a request written to the helper answers unknown when the helper is killed', async () => {
   await withFiles(async ({ root, files, input }) => {
     const held = join(root, 'held-by-transport-test.txt')
     await writeFile(held, 'held')
+    // The token is read before the hold is armed: the helper reads it too.
+    const named = await hostObjectToken(held)
     const entered = Promise.withResolvers<void>()
     const released = Promise.withResolvers<void>()
     spawned.hold = {
@@ -128,7 +106,7 @@ it('P2: a request written to the helper answers unknown when the helper is kille
       released: () => released.promise,
     }
     try {
-      const pending = files.stat(request(held, await hostObjectToken(held), 'held'))
+      const pending = files.stat(request(held, named, 'held'))
       await entered.promise
       const helper = spawned.children.findLast(isHelper)
       expect(helper?.kill()).toBe(true)

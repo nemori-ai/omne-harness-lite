@@ -36,6 +36,10 @@
 
 规模上限：`FilesHelper.cfg` 与 `FilesHelper-live.cfg` 是 2 个所有者、3 个请求、在途上限 2、至多 2 次故障。`FilesHelper-faults3.cfg`（3 次故障）与 `FilesHelper-req4.cfg`（4 个请求）只检查安全性质。
 
+实现与动作的对应（最后一次确认一致的是本节所在提交）：`src/windows-files/helper.ts` 的 `request` 对应 Enqueue，`pump` 对应 Dispatch、Start 与 Restart，`received` 对应 StartOk 与 ReceiveFrame，`startFailed` 对应 StartFail，`expired` 对应 RequestTimeout，`invalidate` 对应 Terminate 的宿主一侧，`exited` 对应 HelperExit。Admit 对应门面准入（`src/host-domain.ts` 的 `trackedFacade` 与 `src/host-files.ts` 的 `unlessSealed`），Seal、DrainTimeout 与 Settle 对应责任域的排空。
+
+与模型的差别：模型在 Enqueue、Dispatch 与 Seal 里对排队中的请求再查一次封闭，答 `closed`。实现不在辅助进程里查封闭，这两步的封闭检查由门面准入对应：封住之后新操作在准入处答 `closed`，已经准入的请求照常做完。所以 `P3_NoDispatchAfterSeal` 在实现上只对封闭之后才准入的请求成立；准入之后、发送之前遇到封闭的请求仍会发给辅助进程。H-12 由门面准入与排空守住：排空等全部已准入的操作结束才结清，所以 `P6_SettledIsQuiet` 仍然成立。模型里 `Bug = "P3"` 去掉的正是这三处检查：2026-11-10 用 `FilesHelper.cfg` 的规模（`MaxFaults = 2`）、`Bug = "P3"`，检查除 P3 之外的安全性质与 `P5_FinalStable`，TLC 退出 0，9,334,976 个不同状态；这份配置只在任务目录里运行，不在本目录。依据：引擎没有「所有者已结清」以外可接的封闭事实，而接到引擎封闭会使已准入的多步写入与批次在封闭之后的暂存清理答 `closed`。
+
 前提与未覆盖：帧按任意次序读到，比真实管道的交错更多，所以安全性质的结论仍然成立。下列内容不在模型里：编号属于另一个未答复请求的错帧、帧内容是否正确、句柄的寿命、跨所有者的公平排队、队列的上界、`maintain()`、冷恢复与延迟。
 
 运行（在本目录，JDK 21 与 tla2tools 1.7.4，JAR 的 SHA-256 与 [契约的运行记录](../../../execution-environment-contract/verification/formal-runs.md)相同）：

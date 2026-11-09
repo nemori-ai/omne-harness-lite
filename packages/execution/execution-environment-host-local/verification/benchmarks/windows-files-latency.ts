@@ -1,7 +1,8 @@
 /**
  * Latency of single Windows file operations through `createWindowsFiles`: `stat`, `read` (4 KiB),
  * `list` (100 entries) and `write` (4 KiB replacement). The first request of the process, which
- * loads or compiles and starts the files helper, is reported on its own. Then every operation
+ * loads or compiles and starts the files helper, is reported on its own: it is the `hostObjectToken`
+ * of the first named object, since the helper reads object tokens on Windows. Then every operation
  * warms up and runs `--iterations` times (200 by default) in sequence, and the script prints the
  * p50, p95, min and max in milliseconds.
  *
@@ -11,7 +12,7 @@
  *
  * Results are single-run measurements; keep raw output in the task's tmp, not here.
  */
-import { lstat, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { cpus, release, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
@@ -21,6 +22,7 @@ import {
   type FileRequest,
 } from '@omne-harness/execution-environment-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
+import { hostObjectToken } from '../../src/host-files.ts'
 import { hostFilesLimits } from '../../src/host-file-tree.ts'
 import { createWindowsFiles } from '../../src/windows-files/facility.ts'
 
@@ -41,11 +43,6 @@ const tenant = tenantCodec.parse(
   }),
 )
 if (!tenant.ok) throw new Error('tenant')
-
-const token = async (path: string) => {
-  const info = await lstat(path, { bigint: true })
-  return { token: `${info.dev}:${info.ino}` }
-}
 
 const root = await realpath(await mkdtemp(join(tmpdir(), 'omne-files-latency-')))
 try {
@@ -71,20 +68,19 @@ try {
     origin: originRef('benchmark'),
     binding: { kind: 'host_machine' },
     path,
-    named: await token(named),
+    named: await hostObjectToken(named),
   })
   const expectDone = <T>(result: FacilityResult<T>): T => {
     if (result.kind !== 'done') throw new Error(`operation failed: ${JSON.stringify(result)}`)
     return result.value
   }
 
+  const coldStart = process.hrtime.bigint()
   const statRequest = await request(readPath)
+  const coldMs = Number(process.hrtime.bigint() - coldStart) / 1e6
   const listRequest = await request(listPath)
   let writeNamed = (await request(writePath)).named
-
-  const coldStart = process.hrtime.bigint()
   expectDone(await files.stat(statRequest))
-  const coldMs = Number(process.hrtime.bigint() - coldStart) / 1e6
 
   const operations: Readonly<Record<string, () => Promise<void>>> = {
     stat: async () => void expectDone(await files.stat(statRequest)),
@@ -118,7 +114,7 @@ try {
     `node ${process.version}, Windows ${release()}, ${cpus()[0]?.model ?? 'cpu'} x${cpus().length}`,
   )
   console.log(`iterations ${iterations}, warmup ${warmup}, sequential, one request in flight`)
-  console.log(`first request (stat, helper start included): ${coldMs.toFixed(2)} ms`)
+  console.log(`first request (object token, helper start included): ${coldMs.toFixed(2)} ms`)
   console.log('operation      p50      p95      min      max  (ms)')
   for (const [name, run] of Object.entries(operations)) {
     for (let index = 0; index < warmup; index++) await run()

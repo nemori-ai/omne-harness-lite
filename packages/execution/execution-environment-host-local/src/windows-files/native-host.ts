@@ -58,10 +58,10 @@ public static class OmneFilesHost {
   static object Operate(Dictionary<string,object> r) {
     string operation=Text(r,"operation"), version=Text(r,"version");
     if(operation=="write")
-      return OmneFiles.Write(Text(r,"root"),Text(r,"expectedRoot"),Texts(r,"segments"),Text(r,"named"),version,version!=null,Flag(r,"trailingSlash"),Flag(r,"create"),Text(r,"bytes"));
+      return OmneFiles.Write(Text(r,"root"),Text(r,"expectedRoot"),Texts(r,"segments"),Text(r,"named"),version,version!=null,Flag(r,"trailingSlash"),Flag(r,"create"),Text(r,"bytes"),Flag(r,"rooted"));
     if(operation=="mkdir" || operation=="remove" || operation=="move")
-      return OmneFiles.Change(Text(r,"root"),Text(r,"expectedRoot"),Texts(r,"segments"),Text(r,"named"),operation,Flag(r,"recursive"),version,version!=null,Text(r,"targetRoot"),Text(r,"expectedTargetRoot"),Texts(r,"targetSegments"),Text(r,"targetNamed"),Flag(r,"replace"));
-    return OmneFiles.Run(Text(r,"root"),Text(r,"expectedRoot"),Texts(r,"segments"),Text(r,"named"),operation,Number(r,"offset"),Number(r,"limit"),Text(r,"pattern"),Flag(r,"content"),Flag(r,"recursive"),Number(r,"entryBudget"),Number(r,"byteBudget"),Number(r,"fileBytes"),Text(r,"path"),Flag(r,"rooted"));
+      return OmneFiles.Change(Text(r,"root"),Text(r,"expectedRoot"),Texts(r,"segments"),Text(r,"named"),operation,Flag(r,"recursive"),version,version!=null,Text(r,"targetRoot"),Text(r,"expectedTargetRoot"),Texts(r,"targetSegments"),Text(r,"targetNamed"),Flag(r,"replace"),Flag(r,"rooted"));
+    return OmneFiles.Run(Text(r,"root"),Text(r,"expectedRoot"),Texts(r,"segments"),Text(r,"named"),operation,Number(r,"offset"),Number(r,"limit"),Text(r,"pattern"),Flag(r,"content"),Flag(r,"recursive"),Number(r,"entryBudget"),Number(r,"byteBudget"),Number(r,"fileBytes"),Text(r,"path"),Flag(r,"rooted"),Flag(r,"directory"),Flag(r,"follow"));
   }
 }
 `

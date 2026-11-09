@@ -7,7 +7,7 @@
 - [README.md](README.md)：源码目录的职责与现状
 - [index.ts](index.ts)：根入口，重导出五个函数与类型，以及命令一侧的两个类型
 - [host-files.ts](host-files.ts)：宿主文件设施、对象身份读取与共用文件引擎
-- [root-segments.ts](root-segments.ts)：宿主路径在宿主文件根下的位置，不跟随链接，Windows 文件后端与路径守卫共用
+- [root-segments.ts](root-segments.ts)：宿主路径在宿主文件根下的位置，不跟随链接，Windows 文件后端与路径守卫共用；Windows 路径的盘符与各段，空段与 `.` 段忽略
 - [host-paths.ts](host-paths.ts)：路径检查、逐段走、目录描述符路径、平台前提 P2 的探测与宿主文件根的绑定
 - [host-file-tree.ts](host-file-tree.ts)：列表、搜索、建目录、删除、移动、复制
 - [host-file-batch.ts](host-file-batch.ts)：提交批次与恢复批次
@@ -34,7 +34,8 @@
   - [terminals.ts](macos-execution/terminals.ts)：终端的 `TerminalPlatform`：准入、gate 与 shell 两个会话的记录、停止与 FIFO 目录的清理
   - [recovery.ts](macos-execution/recovery.ts)：冷索引的列举与按标记恢复
 - [windows-native/compile.ts](windows-native/compile.ts)：Windows 原生程序共用的编译入口：用系统自带的 .NET Framework `csc.exe` 编译 C# 源码，按内容摘要缓存于 `%TEMP%\<缓存名>\<sha256>\`，每个进程编译一次，失败不留
-- [windows-files/helper.ts](windows-files/helper.ts)：Windows 文件辅助进程：每个 harness 进程一个常驻的 `files.exe`；请求编号、排队与在途、化身、每请求超时与重启，失败的答复按 FilesHelper 模型
+- [windows-files/facility.ts](windows-files/facility.ts)：Windows 文件后端：有根与无根同一后端，起点是根或盘符根；对象 token 的读取与平台前提 P2 的探测
+- [windows-files/helper.ts](windows-files/helper.ts)：Windows 文件辅助进程：每个 harness 进程一个常驻的 `files.exe`；请求编号、排队与在途、化身、每请求超时与重启，失败的答复按 FilesHelper 模型；不查所有者的封闭
 - [windows-files/protocol.ts](windows-files/protocol.ts)：文件辅助进程的帧：请求与答复各是一行 JSON；辅助进程的输出只在这里解析成类型
 - [windows-files/native-host.ts](windows-files/native-host.ts)：文件辅助进程的 C# 帧循环：逐行读请求，在线程池上执行，持锁写答复帧
 - [cordis.ts](cordis.ts)：`./cordis` 入口：Service 子类、两个声明插件、宿主文件插件与两份配置 Schema
