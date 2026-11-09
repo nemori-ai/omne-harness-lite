@@ -523,6 +523,29 @@ it.each(['raw', 'native'] as const)(
 )
 
 it.each(['content', 'summary'] as const)(
+  'bounds author %s by the preview budget, not by the inline threshold',
+  async channel => {
+    const overBudget = 'x'.repeat(2048 / 8 + 1)
+    const f = await settlementFixture({
+      definition: boundedDefinition(),
+      value: async (_raw, ledger, access) => ({
+        content: [text('answer', channel === 'content' ? overBudget : 'short')],
+        data: { kind: 'none' },
+        attachments: [],
+        original: {
+          kind: 'offloaded',
+          source: (await sealedText(ledger, access)).source,
+          summary: [text('summary', channel === 'summary' ? overBudget : 'short')],
+        },
+      }),
+    })
+    expect(await f.preserve()).toEqual({
+      failure: { kind: 'invalid', field: 'original.summary', reason: 'author-preview-too-large' },
+    })
+  },
+)
+
+it.each(['content', 'summary'] as const)(
   'refuses oversized author %s while retaining the sealed body',
   async channel => {
     const f = await settlementFixture({

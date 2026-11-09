@@ -15,6 +15,8 @@ import { callableRead, encodeBodyReference, type BodyReference } from './tools-p
 import type { ToolOffloadingConfiguration } from './construction.ts'
 import { bodyRepresentation } from './body-representation.ts'
 
+const DEFAULT_PREVIEW_DIVISOR = 8
+
 export type BodyPolicy = Readonly<{
   adoption: ReturnType<typeof describedAdoption>
   declaration: ToolBodyDeclaration
@@ -47,6 +49,10 @@ export function resolveBodyPolicy(
   readResultArguments: JsonLimits,
 ): BodyPolicy {
   const { inline, retention } = declaration.offloading
+  const inlineBytes =
+    inline.kind === 'system'
+      ? system.maxInlineUtf8Bytes
+      : Math.min(inline.maxInlineUtf8Bytes, system.maxInlineUtf8Bytes)
   return {
     adoption: describedAdoption({
       owner: '@omne-harness/tool',
@@ -64,21 +70,29 @@ export function resolveBodyPolicy(
           ? { ...system.jsonRecord }
           : null,
     readResultArguments: { ...readResultArguments },
-    inlineBytes:
-      inline.kind === 'system'
-        ? system.maxInlineUtf8Bytes
-        : Math.min(inline.maxInlineUtf8Bytes, system.maxInlineUtf8Bytes),
+    inlineBytes,
     retentionMs:
       retention.kind === 'system'
         ? system.maxRetentionMs
         : Math.min(retention.maxRetentionMs, system.maxRetentionMs),
     maxBodyBytes: system.maxBodyBytes,
-    previewBytes: Math.min(
-      system.previewUtf8Bytes,
-      system.maxInlineUtf8Bytes,
-      inline.kind === 'system' ? system.maxInlineUtf8Bytes : inline.maxInlineUtf8Bytes,
-    ),
+    previewBytes: previewBudget(declaration.offloading, system, inlineBytes),
   }
+}
+
+/** P = min(Tp, Sp, floor(L / k)): the excerpt shown first never grows with the body. */
+function previewBudget(
+  declared: ToolReturnDeclaration['offloading'],
+  system: ToolOffloadingConfiguration,
+  threshold: number,
+): number {
+  const preview = declared.preview ?? { kind: 'system' }
+  const author = preview.kind === 'system' ? system.previewUtf8Bytes : preview.maxPreviewUtf8Bytes
+  return Math.min(
+    author,
+    system.previewUtf8Bytes,
+    Math.floor(threshold / (system.previewDivisor ?? DEFAULT_PREVIEW_DIVISOR)),
+  )
 }
 
 type BodyPlan<B extends ContentBlock> =
@@ -105,7 +119,7 @@ export function planResultBody<B extends ContentBlock>(
       if (texts.some(text => !text.isWellFormed()))
         return fail({ kind: 'invalid', field: 'original.summary', reason: 'invalid-unicode-text' })
       const bytes = texts.reduce((size, text) => size + BigInt(Buffer.byteLength(text, 'utf8')), 0n)
-      if (bytes > BigInt(policy.inlineBytes))
+      if (bytes > BigInt(policy.previewBytes))
         return fail({
           kind: 'invalid',
           field: 'original.summary',

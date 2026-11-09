@@ -109,4 +109,5 @@ function checkResultConfiguration(configuration: ToolLedgerConfiguration): void 
     'maxPageLeaseMs',
     'maxWriterMetadataBytes',
   ])
+  if (policy.previewDivisor !== undefined) checkCapacities(policy, ['previewDivisor'])
 }
