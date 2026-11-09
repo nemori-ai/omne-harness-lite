@@ -8,6 +8,7 @@ import {
   deriveDriveOperation,
   expectedRevision,
   type AgentDrivePort,
+  type HistoryEntry,
   type SessionId,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -37,6 +38,40 @@ async function service(options: Partial<HarnessOptions> = {}): Promise<Harness> 
 
 const read = async (h: Harness): Promise<WorkSnapshot> =>
   succeeded(await h.backend.transactions.readWork(h.access()), 'read')
+
+const plainOf = (tree: HistoryEntry['payload']): unknown => {
+  switch (tree.kind) {
+    case 'null':
+      return null
+    case 'boolean':
+    case 'string':
+      return tree.value
+    case 'number':
+      return Number(tree.lexeme)
+    case 'array':
+      return tree.items.map(plainOf)
+    case 'object':
+      return Object.fromEntries(tree.entries.map(item => [item.key, plainOf(item.value)]))
+  }
+}
+
+/** The session log entries of `kinds`, oldest first, as a reader sees them. */
+async function historyOf(
+  h: Harness,
+  kinds: readonly string[],
+): Promise<readonly Readonly<{ kind: string; value: unknown }>[]> {
+  const page = succeeded(
+    await h.faces('reader').history.begin({
+      ...h.access(),
+      kinds,
+      from: null,
+      direction: 'forward',
+      pageBytes: 1_000_000,
+    }),
+    'history.begin',
+  )
+  return page.entries.map(entry => ({ kind: entry.kind, value: plainOf(entry.payload) }))
+}
 
 /** Accepts an input through the public port, so no local wake-up of this instance follows. */
 async function acceptDirectly(h: Harness, input: string): Promise<void> {
@@ -495,6 +530,77 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     const snapshot = await read(h)
     if (snapshot.run.kind !== 'terminal') throw new Error('no terminal')
     expect(snapshot.run.terminal.outcome).toBe('failed')
+  })
+
+  it('a drive refusal closes the Run as failed, rejects the first input with drive-refused and does not replay it (VC-A10)', async () => {
+    const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
+    await h.create()
+    let invoked = 0
+    h.drive.invoke = () => {
+      invoked += 1
+      return Promise.resolve(
+        fail({
+          kind: 'refused' as const,
+          failure: 'invalid' as const,
+          field: 'storage',
+          reason: 'command_limit',
+        }),
+      )
+    }
+    await h.accept('input-1')
+    await vi.waitFor(async () => {
+      expect((await read(h)).run.kind).toBe('terminal')
+    })
+    const snapshot = await read(h)
+    if (snapshot.run.kind !== 'terminal') throw new Error('no terminal')
+    expect(snapshot.run.terminal.outcome).toBe('failed')
+    expect(snapshot.pending).toEqual([])
+
+    const entries = await historyOf(h, ['intake.handed-over', 'run.terminal'])
+    expect(entries).toEqual([
+      expect.objectContaining({
+        kind: 'intake.handed-over',
+        value: expect.objectContaining({
+          input: 'input-1',
+          result: expect.objectContaining({ kind: 'rejected', reason: 'drive-refused' }),
+        }),
+      }),
+      expect.objectContaining({ kind: 'run.terminal' }),
+    ])
+    const terminal = entries[1]?.value as { cause: { record: string } | null } | undefined
+    const cause = terminal?.cause?.record
+    expect(cause).toEqual(expect.stringContaining('invalid'))
+    expect(cause).toEqual(expect.stringContaining('storage'))
+    expect(cause).toEqual(expect.stringContaining('command_limit'))
+
+    // The refused input is not offered again, neither after the backoff nor by a new Run.
+    h.clock.controls.advance(1000)
+    await new Promise(resolve => setImmediate(resolve))
+    expect(invoked).toBe(1)
+  })
+
+  it.each([
+    ['unavailable', { kind: 'unavailable' as const, diagnostic: 'down' }],
+    ['busy', { kind: 'busy' as const }],
+  ])('an invoke answered %s is replayed and the Run is not closed', async (_name, failure) => {
+    const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
+    await h.create()
+    let invoked = 0
+    const original = h.drive.invoke.bind(h.drive)
+    h.drive.invoke = input => {
+      invoked += 1
+      return invoked === 1 ? Promise.resolve(fail(failure)) : original(input)
+    }
+    await h.accept('input-1')
+    await vi.waitFor(() => {
+      expect(invoked).toBe(1)
+    })
+    expect((await read(h)).run.kind).toBe('active')
+    h.clock.controls.advance(1000)
+    await vi.waitFor(async () => {
+      expect((await read(h)).handed).toEqual(['input-1'])
+    })
+    expect(invoked).toBe(2)
   })
 
   it('a bounded close whose read revision went stale reads again and still closes the Run (PM-02)', async () => {

@@ -30,8 +30,6 @@ export type SessionStorageOptions<P> = Readonly<{
   cursorSigning: SessionCursorSigning
   /** The combination version and manifest digest the application registered for the tenant scope. */
   combination: Readonly<{ combinationVersion: string; manifestDigest: string }>
-  /** Attempt generations tried for one operation. Default 8. */
-  attemptLimit?: number
   /** Cursor lifetime. Default 15 minutes. */
   cursorTtlMs?: number
   /**
@@ -54,7 +52,11 @@ export type AccessStep<P> = (
 export type Context<P> = Readonly<{
   options: SessionStorageOptions<P>
   cursor: CursorOptions
-  attemptLimit: number
+  /**
+   * The largest attempt generation of each storage operation that this process saw rolled back
+   * (SPEC W1 attempts). Shared by every port over the same context; a new process starts at `#1`.
+   */
+  generations: Map<string, number>
   access: AccessStep<P>
 }>
 
@@ -74,7 +76,7 @@ export const failure = (value: SessionFailure): Outcome<never, SessionFailure> =
 export function contextOf<P>(options: SessionStorageOptions<P>): Context<P> {
   return {
     options,
-    attemptLimit: options.attemptLimit ?? 8,
+    generations: new Map(),
     access: request => checkAccess(options.accessCheck, request),
     cursor: {
       signing: options.cursorSigning,

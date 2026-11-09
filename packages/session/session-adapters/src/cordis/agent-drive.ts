@@ -126,6 +126,17 @@ function sameAdoption(left: Adoption, right: Adoption): boolean {
   )
 }
 
+/**
+ * The admission provider's rejection record that an `invalid(value)` carries, or null. A refusal
+ * of the message admission is a refusal of the input only with that record; this member does not
+ * make one (AD-00 rules 2 and 7, NP-12).
+ */
+function admissionRecord(failure: Extract<Failure, { kind: 'invalid' }>): DurableEvidence | null {
+  if (failure.field !== 'value') return null
+  const rejection = judgeEvidence(Reflect.get(failure, 'rejection'))
+  return 'ok' in rejection ? rejection.ok : null
+}
+
 function receiptOf(receipt: CommandReceipt): DriveReceipt {
   return { revision: receipt.revision, evidence: receipt.evidence }
 }
@@ -261,7 +272,7 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       if ('failure' in slot) return slot
       const initial = await this.accepted(input, mutation.principal, input.first, input.source)
       if ('failure' in initial) return initial
-      const started = await this.onSlot(mutation, slot.ok, runtime =>
+      const started = await this.onSlot('invoke', mutation, slot.ok, runtime =>
         runtime.invoke({ ...mutation, initial: initial.ok, grant: input.grant }),
       )
       if ('failure' in started) return started
@@ -295,7 +306,7 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       const { mutation, tenant } = prepared.ok
       const slot = await this.slotOf(input, mutation.principal, tenant)
       if ('failure' in slot) return slot
-      const resumed = await this.onSlot(mutation, slot.ok, runtime =>
+      const resumed = await this.onSlot('resume', mutation, slot.ok, runtime =>
         runtime.resume({ ...mutation, recovery: input.recovery, grant: input.grant }),
       )
       if ('failure' in resumed) return resumed
@@ -544,6 +555,7 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
    * once more on the new instance (XC-AGINST 第 3.5 节第 3 条).
    */
   private async onSlot(
+    operation: 'invoke' | 'resume',
     mutation: Mutation,
     slot: Slot,
     call: (runtime: AgentRuntime<unknown>) => Reply<AgentExecutionHandle<unknown>>,
@@ -552,14 +564,32 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
     if ('failure' in first) return first
     const answer = await call(first.ok.runtime)
     if ('ok' in answer) return succeed({ ...first.ok, handle: answer.ok })
-    if (answer.failure.kind !== 'unavailable') return this.agentFailure('runtime', answer.failure)
+    if (answer.failure.kind !== 'unavailable') return this.driveFailure(operation, answer.failure)
     const again = await this.place(mutation, slot)
     if ('failure' in again || again.ok.instance === first.ok.instance)
-      return this.agentFailure('runtime', answer.failure)
+      return this.driveFailure(operation, answer.failure)
     const retried = await call(again.ok.runtime)
     return 'ok' in retried
       ? succeed({ ...again.ok, handle: retried.ok })
-      : this.agentFailure('runtime', retried.failure)
+      : this.driveFailure(operation, retried.failure)
+  }
+
+  /**
+   * The answer of the Agent's `invoke` or `resume` (SPEC AD-14 result table). A definite failure,
+   * `unsupported` or an `invalid` that is not an admission refusal with its record, is a drive
+   * refusal: the same request fails again, so Session closes the Run and does not replay it.
+   */
+  private driveFailure(operation: 'invoke' | 'resume', failure: Failure): Drive<never> {
+    if (failure.kind === 'unsupported')
+      return fail({ kind: 'refused', failure: 'unsupported', field: null, reason: null })
+    if (failure.kind === 'invalid' && admissionRecord(failure) === null)
+      return fail({
+        kind: 'refused',
+        failure: 'invalid',
+        field: failure.field,
+        reason: failure.reason,
+      })
+    return this.agentFailure(operation, failure)
   }
 
   /**
@@ -591,16 +621,17 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       case 'conflict':
         return fail({ kind: failure.kind })
       case 'invalid': {
+        const rejection = admissionRecord(failure)
+        if (rejection !== null) return fail({ kind: 'invalid', reason: failure.reason, rejection })
         if (failure.field !== 'value')
           return this.defect(
             operation,
             `Agent answered invalid ${failure.field}: ${failure.reason}`,
           )
-        // A refusal of the message admission is a refusal of the input only with the admission
-        // provider's own rejection record. This member does not make one (AD-00 rules 2 and 7).
-        const rejection = judgeEvidence(Reflect.get(failure, 'rejection'))
-        if ('failure' in rejection) return unavailable('Agent invalid 未带拒收证据（NP-12）')
-        return fail({ kind: 'invalid', reason: failure.reason, rejection: rejection.ok })
+        this.scope
+          .logger(LOGGER)
+          .error(`${operation}: Agent invalid value: ${failure.reason} 未带拒收证据（NP-12）`)
+        return unavailable(`Agent invalid value: ${failure.reason} 未带拒收证据（NP-12）`)
       }
       case 'unavailable':
         return unavailable(`${failure.owner}: ${failure.diagnostic}`)
