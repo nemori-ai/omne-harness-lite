@@ -131,7 +131,7 @@ export function createHostPlatform(input: {
       },
       supervisor: async () => undefined,
       retainedSupervision: async () => undefined,
-      windowsJobs: undefined,
+      windows: undefined,
     }
   }
   if (process.platform === 'win32') {
@@ -149,7 +149,8 @@ export function createHostPlatform(input: {
       },
       commands: (options: CommandInput) =>
         createWindowsHostCommands({ ...options, prerequisites: probe, jobs: windowsJobs }),
-      windowsJobs,
+      /** The cold index of command Jobs; absent without a state directory. */
+      windows: { jobs: windowsJobs },
       terminals(options: TerminalInput) {
         const shared = { ...options, capacity: input.windowsCapacity() }
         return {
@@ -214,7 +215,7 @@ export function createHostPlatform(input: {
         stop: coordinate => forceStopScope({ tools, coordinate, boundMs }),
       }
     },
-    windowsJobs: undefined,
+    windows: undefined,
     macos: undefined,
   }
 }

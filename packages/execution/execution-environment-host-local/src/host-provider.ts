@@ -536,9 +536,9 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     },
     async listRecoveryResources(scope) {
       const retainedShells = internals.retainedTerminals.resources(scope)
-      if (process.platform === 'win32') {
+      if (execution.windows !== undefined) {
         // The cold index lists every command Job whose marker exists; an unread marker makes no list.
-        const jobs = await listWindowsJobs(execution.windowsJobs, scope)
+        const jobs = await listWindowsJobs(execution.windows.jobs, scope)
         if (jobs === 'unavailable') return { kind: 'unavailable' }
         if (retained !== undefined && !(await retained.ready())) return { kind: 'unavailable' }
         const resources = new Map(jobs.map(resource => [resource.key, resource]))
@@ -594,11 +594,11 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
           status: await recoverMacosResource(execution.macos, resource, name),
           evidence: null,
         }
-      if (process.platform === 'win32') {
+      if (execution.windows !== undefined) {
         const job = readWindowsJobReference(resource.reference)
         if (resource.provider !== name || job === undefined)
           return { status: 'unsupported', evidence: null }
-        const jobs = execution.windowsJobs
+        const jobs = execution.windows.jobs
         if (jobs !== undefined && job === `Local\\omne-command-${resource.key}`)
           return {
             status: await recoverWindowsJob(jobs, resource, settings.stopBoundMs),
