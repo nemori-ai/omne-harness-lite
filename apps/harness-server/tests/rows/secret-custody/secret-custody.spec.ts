@@ -296,7 +296,7 @@ describe('the operator layer of the local profile', () => {
   })
 
   it('leaves the row out while the release does not list it, so the layer replaces no unknown row', () => {
-    const without = layerOver(distribution.rows)
+    const without = layerOver(distribution.rows.filter(r => r.id !== 'secret-custody'))
     expect(without.ops.find(op => op.id === 'secret-custody')).toBeUndefined()
   })
 })
