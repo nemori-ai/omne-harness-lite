@@ -33,7 +33,7 @@
 
 ## 4. 假设与有限边界
 
-- `K = 2`；`T ∈ {2, 4}`，`Tp ∈ {1, 2}`，`headerMax ∈ {1, 2}`；初始系统值 `S = 4`、`Sp = 2`；收紧后 `(4, 1)` 或 `(2, 1)`。全部系统值满足装配的合理性检查 `Sp ≤ S / k`。
+- `K = 2`；`T ∈ {2, 4}`，`Tp ∈ {1, 2}`，`headerMax ∈ {1, 2}`；初始系统值 `S = 4`、`Sp = 2`；收紧后 `(4, 1)` 或 `(2, 1)`。
 - 正文大小 `1..5`，作者预览 `0..3`，最多一次重启、两个结果。大小是抽象单位，不区分 UTF-8 字节与字符。
 - 描述头大小只在 `1..headerMax` 中选取，不依赖正文大小；这表达「描述头是元信息」。机械预览函数按格式分派的具体规则、行与记录边界对齐没有建模。
 - 没有公平性，不检查进展。`CHECK_DEADLOCK FALSE`。
@@ -71,17 +71,16 @@
 
 ## 7. 代码对应
 
-实现尚未开始。下表是计划中的对应位置，全部标为待实现。
-
-| 模型 | 计划中的代码位置 | 状态 |
+| 模型 | 代码位置 | 状态 |
 | --- | --- | --- |
-| `Threshold`、`Budget`、`Accept` | `tool` 包 `body-policy` 的纯函数 `L = min(T, S)`、`P = min(Tp, Sp, ⌊L / k⌋)`，以及返回声明受理时的 `headerMax + P ≤ L` 校验与拒绝 | 待实现 |
-| `decl.Tp` | `tool-contract` 返回声明 `returns.offloading.preview: system \| bounded(maxPreviewUtf8Bytes)` | 待实现 |
-| `sys.S`、`sys.Sp`、`K` | 装配给定的系统阈值、系统预览上限与除数 k；启动时校验 `Sp ≤ S / k` | 待实现 |
-| `Commit` 的卸载分支、`Screen` | `tool` 包结果采用：`preview(body, representation, P) → blocks` 与公共描述头构造 | 待实现 |
-| `Commit` 的作者预览拒绝 | `tool` 包结果采用对作者 `content` 与 `original.summary` 的 `author-preview-too-large` 拒绝 | 待实现 |
-| `Commit` 的内联分支、`BodyPreserved` | `tool` 包结果采用：`body ≤ L` 内联，否则交给 `ToolBodyWriter` 卸载，不改写正文 | 待实现 |
-| `Restart` | 进程重新装配后工具重新采用，声明重新受理 | 待实现 |
+| `Threshold`、`Budget` | `tool` 包 [result-offloading.ts](../../../../tool/src/result-offloading.ts) 的 `offloadingBounds`（`L = min(T, S)`）与 `previewBudget`（`P = min(Tp, Sp, ⌊L / k⌋)`） | 已实现 |
+| `Accept` | 同文件 `offloadingFits`（`headerMax + P ≤ L`）。作者声明由 `callOffloadingFits` 在 [runtime.ts](../../../../tool/src/runtime.ts) 的 `invoke` 受理调用时检查，工具执行前拒绝；系统声明 `SYSTEM_RETURN` 由 [configuration.ts](../../../../tool/src/configuration.ts) 启动时检查 | 已实现 |
+| `decl.Tp` | `tool-contract` 返回声明 `returns.offloading.preview: system \| bounded(maxPreviewUtf8Bytes)` | 已实现 |
+| `sys.S`、`sys.Sp`、`K` | `ToolOffloadingConfiguration` 的 `maxInlineUtf8Bytes`、`previewUtf8Bytes` 与 `previewDivisor`（缺省 8） | 已实现 |
+| `Commit` 的卸载分支、`Screen` | [body-preview.ts](../../../../tool/src/body-preview.ts) 的 `mechanicalPreview` 与 `bodyHeader`，`headerMax` 给出声明下描述头的上限；`planResultBody` 把预览放在描述头前 | 已实现 |
+| `Commit` 的作者预览拒绝 | `planResultBody` 对作者 `content` 与 `original.summary` 的 `author-preview-too-large` 拒绝；描述头接在作者内容之后（`withHeader`） | 已实现 |
+| `Commit` 的内联分支、`BodyPreserved` | `planResultBody`：`body ≤ L` 内联，否则交给正文写入卸载，不改写正文 | 已实现 |
+| `Restart` | 重新装配时 `checkToolConfiguration` 重新检查，每次调用按当前系统值重新受理 | 已实现 |
 
 ## 8. 运行与判读
 
