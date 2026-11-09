@@ -971,3 +971,125 @@ describe('a stop goes to whoever holds the key when it is written', () => {
     expect(await f.processes.ended(resource.key)).toBe('none')
   })
 })
+
+type Stored = Record<string, unknown> & {
+  resources: Record<string, unknown>[]
+  reservations: Record<string, unknown>[]
+}
+
+/** Rewrites the stored state of one host record of the fixture, keeping its envelope. */
+async function rewrite(
+  f: Awaited<ReturnType<typeof fixture>>,
+  domain: LedgerDomain,
+  key: string,
+  change: (state: Stored) => unknown,
+) {
+  const read = await f.store.readRecord(domain, hostKey(key))
+  if (read.kind !== 'complete' || read.record?.kind !== 'host') throw new Error('missing record')
+  const value = structuredClone(read.record.host.value) as { mutation: string; state: Stored }
+  await f.store.commit({
+    domain,
+    expected: read.revision,
+    revision: revision(String(BigInt(read.revision) + 1n)),
+    writes: [
+      {
+        kind: 'put',
+        record: { kind: 'host', host: { key, value: { ...value, state: change(value.state) } } },
+      },
+    ],
+  })
+}
+
+const invalid = (diagnostic: string) => ({
+  failure: { kind: 'unavailable', dependency: 'execution-environment-adapter', diagnostic },
+})
+
+describe('a stored environment record that does not decode is not used', () => {
+  const at = (index: number, field: string, value: unknown) => (list: Record<string, unknown>[]) =>
+    list.map((item, position) => (position === index ? { ...item, [field]: value } : item))
+
+  it.each<[string, (state: Stored) => unknown]>([
+    ['a state that is not a record', () => 'state'],
+    ['resources that are not a list', state => ({ ...state, resources: 'none' })],
+    [
+      'a resource fact with a handover stop',
+      state => ({ ...state, resources: at(0, 'stop', 'handedOver')(state.resources) }),
+    ],
+    [
+      'a resource fact with a malformed resource',
+      state => ({ ...state, resources: at(0, 'resource', { key: 1 })(state.resources) }),
+    ],
+    [
+      'a reservation with an unknown stop',
+      state => ({ ...state, reservations: at(0, 'stop', 'gone')(state.reservations) }),
+    ],
+    [
+      'a reservation with a malformed resource',
+      state => ({ ...state, reservations: at(0, 'resource', { key: 'k' })(state.reservations) }),
+    ],
+    ['a reservation that is not a record', state => ({ ...state, reservations: [42] })],
+    ['reservations that are not a list', state => ({ ...state, reservations: {} })],
+    ['a digest that is not text', state => ({ ...state, digest: 7 })],
+    ['a digest of another preparation', state => ({ ...state, digest: 'other' })],
+    ['a closed flag that is not boolean', state => ({ ...state, closed: 'no' })],
+    ['evidence without fields', state => ({ ...state, evidence: {} })],
+    ['a malformed release', state => ({ ...state, release: { confirmed: 'yes' } })],
+    ['an unknown allocation', state => ({ ...state, allocation: { kind: 'lost' } })],
+    ['a malformed original', state => ({ ...state, original: null })],
+    [
+      'a preparation of another purpose',
+      state => ({ ...state, preparation: { ...(state.preparation as object), purpose: 'other' } }),
+    ],
+  ])('an acquisition with %s answers unavailable', async (_name, change) => {
+    const f = await fixture()
+    await f.reserved()
+    await rewrite(f, acquisitionDomain(preparation), preparationKey(preparation), change)
+    const state = createEnvironmentStateStore({ store: f.store, mode: 'test' })
+    expect(await state.read(preparation)).toEqual(invalid('invalid environment ledger state'))
+  })
+
+  it.each<[string, (state: Stored) => unknown]>([
+    ['a phase that is neither open nor closed', state => ({ ...state, phase: 'reopened' })],
+    ['entries that are not a list', state => ({ ...state, resources: 'none' })],
+    ['a malformed scope', state => ({ ...state, scope: {} })],
+    ['an entry that is not a record', state => ({ ...state, resources: [7] })],
+    [
+      'an entry taken in an unknown way',
+      state => ({ ...state, resources: at(0, 'taken', 'stolen')(state.resources) }),
+    ],
+    [
+      'an entry with a confirmed stop',
+      state => ({ ...state, resources: at(0, 'stop', 'confirmed')(state.resources) }),
+    ],
+    [
+      'an entry with a malformed creator',
+      state => ({ ...state, resources: at(0, 'creator', { call: '' })(state.resources) }),
+    ],
+    [
+      'an entry with a malformed resource',
+      state => ({ ...state, resources: at(0, 'resource', {})(state.resources) }),
+    ],
+  ])('a retention scope with %s answers unavailable to both records', async (_name, change) => {
+    const f = await fixture()
+    await f.reserved()
+    expect(await f.processes.adopt(resource.key)).toBe('confirmed')
+    const scope = preparation.request.requesterScope
+    await rewrite(f, retentionDomain(tenantA, scope), RETENTION_RECORD_KEY, change)
+    const state = createEnvironmentStateStore({ store: f.store, mode: 'test' })
+    expect(await state.readRetention(preparation, scope)).toEqual(
+      invalid('invalid retention state'),
+    )
+    expect(await state.read(preparation)).toEqual(invalid('invalid retention state'))
+  })
+
+  it('an acquisition whose domain cannot be read answers unavailable', async () => {
+    const f = await fixture()
+    await f.reserved()
+    const read = f.store.readRecord.bind(f.store)
+    vi.spyOn(f.store, 'readRecord').mockImplementation(async (domain, key) =>
+      domain.kind === 'host' ? { kind: 'unavailable', diagnostic: 'fixture' } : read(domain, key),
+    )
+    const state = createEnvironmentStateStore({ store: f.store, mode: 'test' })
+    expect(await state.read(preparation)).toEqual(invalid('environment ledger read unavailable'))
+  })
+})
