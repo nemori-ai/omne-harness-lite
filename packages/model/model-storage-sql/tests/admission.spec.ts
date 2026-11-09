@@ -64,14 +64,18 @@ describe('an admission in one commit', () => {
     expect(operations).toEqual([['mop_admit-one', 'admit']])
   })
 
-  it('refuses the call at the commit when a concurrent admission took the share, and keeps none of it', async () => {
+  it('answers unavailable at the commit when a concurrent admission took the share, and keeps none of it', async () => {
     const { commands, sqlite, core, rowsOf, plant } = setup()
     expect('ok' in (await commands.admit(core.admitOf(A, callId('first'), opId('a1'))))).toBe(true)
     // The read of the second admission sees 100000 of 250000 held; the commit meets 200000.
     sqlite.hooks.beforeCommit = () => plant('mcall_first', 'mcall_concurrent')
     const admit = core.admitOf(A, callId('second'), opId('a2'))
     expect(await commands.admit(admit)).toEqual({
-      failure: { kind: 'capacity', required: admit.capacity },
+      failure: {
+        kind: 'unavailable',
+        dependency: 'model-capacity',
+        diagnostic: 'the tenant share is full at the commit',
+      },
     })
     expect(rowsOf('mcall_second')).toEqual({ call: [], operations: [] })
   })
