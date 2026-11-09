@@ -22,7 +22,7 @@ sequenceDiagram
   P->>P: 按序写入，设修订号
   P-->>Q: participated 或 conflict(current)
   Q-->>S: committed、rolled_back、unknown、rejected
-  S-->>L: committed、conflict、unknown、unavailable
+  S-->>L: committed、conflict、unknown、unavailable、rejected
 ```
 
 ### 原件保管
