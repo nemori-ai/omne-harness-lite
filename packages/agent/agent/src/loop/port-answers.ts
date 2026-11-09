@@ -20,22 +20,30 @@ function note(value: unknown): unknown {
 /**
  * The same ports, with every failure that a method answers (directly or through its promise)
  * noted as a port's answer. Methods run on the original objects; nested port objects are wrapped
- * the same way, once each.
+ * the same way, once each. The proxy stands over an empty target, because production ports are
+ * frozen and a proxy may not answer another value for a frozen property of its target; keys and
+ * descriptors are read from the original, so spreading a wrapped port keeps its members.
  */
 export function notingPorts<T extends object>(ports: T): T {
   const known = wrapped.get(ports)
   if (known !== undefined) return known as T
-  const proxy = new Proxy(ports, {
-    get(target, key) {
-      const value: unknown = Reflect.get(target, key, target)
-      if (typeof value === 'function')
-        return (...args: unknown[]) => {
-          const result: unknown = Reflect.apply(value, target, args)
-          return result instanceof Promise ? result.then(note) : note(result)
-        }
-      if (typeof value === 'object' && value !== null && !(value instanceof Promise))
-        return notingPorts(value)
-      return value
+  const wrap = (value: unknown): unknown => {
+    if (typeof value === 'function')
+      return (...args: unknown[]) => {
+        const result: unknown = Reflect.apply(value, ports, args)
+        return result instanceof Promise ? result.then(note) : note(result)
+      }
+    if (typeof value === 'object' && value !== null && !(value instanceof Promise))
+      return notingPorts(value)
+    return value
+  }
+  const proxy = new Proxy(Object.create(null) as T, {
+    get: (_, key) => wrap(Reflect.get(ports, key, ports)),
+    has: (_, key) => Reflect.has(ports, key),
+    ownKeys: () => Reflect.ownKeys(ports),
+    getOwnPropertyDescriptor: (_, key) => {
+      const own = Reflect.getOwnPropertyDescriptor(ports, key)
+      return own === undefined ? undefined : { ...own, configurable: true }
     },
   })
   wrapped.set(ports, proxy)
