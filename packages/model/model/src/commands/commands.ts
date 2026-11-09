@@ -16,6 +16,7 @@ import type {
   ModelFailure,
   ModelOperationId,
   ReadStart,
+  ResultCapacity,
   Revision,
   Settlement,
   Snapshot,
@@ -37,6 +38,7 @@ import {
   resultVersion,
   revision,
   tenantKey,
+  unavailable,
 } from './value.ts'
 import {
   authFailure,
@@ -70,9 +72,32 @@ import {
   releaseMaterial,
   type ModelCommandCore,
 } from './state.ts'
+import type { ModelCommandStorage } from './storage.ts'
 import type { Applied, CallDocument, DispatchDocument, Draft } from './types.ts'
 import { initialRunPort, type BoundCommandAccess } from './initial.ts'
 import { handoffQuestion, provenHandoff, readHandoffProof } from './handoff-evidence.ts'
+
+const SHARE_ITEMS = ['bytes', 'blocks', 'attachmentBytes'] as const
+
+/**
+ * The share check of an admission. A call above the share in any item never fits: `capacity`. A
+ * call that fits, while the held share plus the call is above the share, fits later: the share is
+ * full now, so `unavailable` on `model-capacity`, and the caller admits the same call again.
+ */
+function shareRefusal(
+  share: ResultCapacity,
+  held: Pick<ModelCommandStorage, 'reserved'>,
+  capacity: ResultCapacity,
+): ModelFailure | null {
+  if (SHARE_ITEMS.some(item => BigInt(capacity[item]) > BigInt(share[item])))
+    return { kind: 'capacity', required: capacity }
+  const full = SHARE_ITEMS.filter(
+    item => held.reserved(item) + BigInt(capacity[item]) > BigInt(share[item]),
+  )
+  return full.length === 0
+    ? null
+    : unavailable('model-capacity', `the tenant share is full: ${full.join(', ')}`)
+}
 
 /** Every execution write first needs its call, still at the revision that the writer expected. */
 function atExpected<T>(
@@ -137,11 +162,8 @@ export function callCommands<P>(
               }
             const owner = core.owner(consumer.owner)
             if (!owner) return { failure: invalid('consumer.owner', 'undeclared') }
-            for (const field of ['bytes', 'blocks', 'attachmentBytes'] as const) {
-              const used = core.storage.reserved(field)
-              if (used + BigInt(capacity[field]) > BigInt(core.options.limits.capacity[field]))
-                return { failure: { kind: 'capacity', required: capacity } }
-            }
+            const refused = shareRefusal(core.options.limits.capacity, core.storage, capacity)
+            if (refused) return { failure: refused }
             const actor = core.authorize(input, 'admit', undefined, call, consumer)
             if ('failure' in actor) return actor
             const reference = encodeModelInvocationRef({
