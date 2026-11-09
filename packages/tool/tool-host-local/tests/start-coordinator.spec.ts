@@ -513,13 +513,12 @@ describe('G5 the start ordering domain', () => {
 
   it('G5 placement: only prepare and consume read start-guards; inspect, exclude and invalidate read their own domain', async () => {
     const memory = createMemoryToolLedgerStore()
-    const guardsKey = tenantHostDomain(tenantA as never, START_GUARDS_DOMAIN_KEY).key
     const guardReads = { count: 0 }
     const store: ToolLedgerStore = {
       durability: 'none',
       readRecord: (domain, key) => memory.readRecord(domain, key),
       read: domain => {
-        if (domain.kind === 'host' && domain.key === guardsKey) guardReads.count += 1
+        if (domain.kind === 'host' && domain.key === START_GUARDS_DOMAIN_KEY) guardReads.count += 1
         return memory.read(domain)
       },
       commit: input => memory.commit(input),
