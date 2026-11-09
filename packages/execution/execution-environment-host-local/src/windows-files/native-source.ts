@@ -1,4 +1,4 @@
-/** Compiled in the system PowerShell process. No generated binary is installed or persisted. */
+/** The native file operations of the resident files helper. Every operation opens and closes its own handles. */
 export const nativeSource = String.raw`
 using System;
 using System.IO;
