@@ -1,14 +1,17 @@
 // @module-tag slow
 // 慢：本进程装发行树（真实 SQLite），每条命令起一个 `omne` 子进程，模型走本进程的本地网关，页面来自本地 HTTP 夹具。
-// 先构建 `apps/cli`。Web 元工具在发行树上端到端（web-meta-tool 切片 02）：coding 会话发给模型的工具声明含 Web；脚本化模型
-// 先调 `Web().fetch` 取本地夹具页，Markdown 正文回到会话历史；再调 `Web().search`，本切片没有凭据保管，结果是
-// `unconfigured` 失败；模型给出最终回复，Run 以 completed 结束，停服退出码 0。不访问外网。
+// 先构建 `apps/cli`。Web 元工具在发行树上端到端（web-meta-tool 切片 02、04）：coding 会话发给模型的工具声明含 Web；脚本化模型
+// 先调 `Web().fetch` 取本地夹具页，Markdown 正文回到会话历史；再调 `Web().search`，租户经 `omne setting` 配了 key，
+// 本地 Exa 替身收到这把 key 并答一条结果，结果回到历史；模型给出最终回复，Run 以 completed 结束，停服退出码 0。
+// 未配 key 的 search、两租户与扫描在 `web-settings-e2e.spec.ts`。不访问外网。
+import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import * as cordis from '../../../src/cordis.ts'
 import { runServe, type S0Record } from '../../../src/run.ts'
+import { exaResult, exaResults, startExaStub } from '../../fixtures/exa-stub.ts'
 import { startModelGateway, type GatewayScript } from '../../fixtures/model-gateway.ts'
 import { PAGE_BODY_MARKER, PAGE_TITLE_MARKER, startWebPages } from '../../fixtures/web-pages.ts'
 import { SESSION_PATH } from '../../r9/flow.ts'
@@ -28,6 +31,7 @@ const release: unknown = JSON.parse(
 )
 
 const FINAL = 'MARKER-web-delivery-final'
+const HIT_URL = 'https://results.example.test/MARKER-web-delivery-hit'
 
 const sse = (events: readonly unknown[]): string =>
   `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`
@@ -132,8 +136,11 @@ const resultText = (entry: Entry | undefined): string =>
     .map(block => String(block['text'] ?? ''))
     .join('')
 
-/** One turn on the release tree with the scripted Web calls; returns the history and the model requests. */
-async function turnOnRelease(calls: readonly Call[]) {
+/**
+ * One turn on the release tree with the scripted Web calls, after the tenant set the search key
+ * through `omne setting`; returns the history, the model requests and what the Exa stand-in saw.
+ */
+async function turnOnRelease(calls: readonly Call[], exaKey: string) {
   const seen: string[] = []
   const dir = newScratch('web-delivery-')
   const port = await freePort()
@@ -143,10 +150,16 @@ async function turnOnRelease(calls: readonly Call[]) {
   const stderr: string[] = []
   const gateway = await startModelGateway(webCallsThenText(calls, seen))
   gateway.trustInProcess()
+  const exa = await startExaStub(() => exaResults([exaResult('Hit', HIT_URL, 'Hit excerpt')]))
   const finished = runServe({
     distribution: release,
     operator: withHistoryKinds(
-      operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: gateway.url }),
+      operatorLayer({
+        storageRoot: dir.storageRoot,
+        port,
+        modelRoute: gateway.url,
+        exaEndpoint: exa.url,
+      }),
     ),
     plugins: { ...cordis },
     stateRoot: dir.stateRoot,
@@ -170,6 +183,9 @@ async function turnOnRelease(calls: readonly Call[]) {
     const credential = 'erin-pw-web02-7c3e'
     expect((await cli(['register', '--login-identifier', 'erin'], credential)).status).toBe(0)
     expect((await cli(['login', '--login-identifier', 'erin'], credential)).status).toBe(0)
+    // The search key goes in through the pipe of `omne setting set`, never the command line.
+    const set = await cli(['setting', 'set', 'Web', 'exa.apiKey'], exaKey)
+    expect(set.status, set.stderr).toBe(0)
     const created = await cli(['create-session', '--definition', 'coding'])
     expect(created.status, created.stderr).toBe(0)
     const session = String(bodyOf(created)['session'])
@@ -190,10 +206,11 @@ async function turnOnRelease(calls: readonly Call[]) {
     const result = await finished
     const unsettled = records.filter(record => record.kind === 'shutdown-result')
     expect(result.exitCode, JSON.stringify(unsettled)).toBe(0)
-    return { entries: entriesOf(history.body), seen }
+    return { entries: entriesOf(history.body), seen, exaRequests: exa.requests() }
   } finally {
     if (!stopped) controller.abort('test: stop')
     await finished.catch(() => undefined)
+    await exa.close()
     await gateway.close()
     dir.remove()
   }
@@ -201,21 +218,26 @@ async function turnOnRelease(calls: readonly Call[]) {
 
 describe('the Web meta tool on the release tree (web-meta-tool slice 02)', () => {
   it(
-    'the model sees Web, fetch returns the local page as Markdown, search is unconfigured, and the Run completes',
+    'the model sees Web, fetch returns the local page as Markdown, search sends the configured key and returns the hit, and the Run completes',
     { timeout: 240_000 },
     async () => {
       const pages = await startWebPages()
+      // A sentinel key no provider knows, random per run.
+      const exaKey = `exa-delivery-${randomBytes(12).toString('hex')}`
       try {
-        const { entries, seen } = await turnOnRelease([
-          {
-            id: 'call_web_fetch',
-            arguments: JSON.stringify({ command: 'fetch', params: { url: pages.pageUrl } }),
-          },
-          {
-            id: 'call_web_search',
-            arguments: JSON.stringify({ command: 'search', params: { query: 'omne harness' } }),
-          },
-        ])
+        const { entries, seen, exaRequests } = await turnOnRelease(
+          [
+            {
+              id: 'call_web_fetch',
+              arguments: JSON.stringify({ command: 'fetch', params: { url: pages.pageUrl } }),
+            },
+            {
+              id: 'call_web_search',
+              arguments: JSON.stringify({ command: 'search', params: { query: 'omne harness' } }),
+            },
+          ],
+          exaKey,
+        )
         // The declaration the model reads names Web among the tools of the coding session.
         expect(seen.length).toBe(3)
         expect(seen[0]).toContain('"name":"Web"')
@@ -253,8 +275,13 @@ describe('the Web meta tool on the release tree (web-meta-tool slice 02)', () =>
           callId: 'call_web_search',
         })
         const searched = resultText(entries[5])
-        expect(searched.startsWith('unconfigured reason=')).toBe(true)
-        expect(searched).toContain('exa.apiKey')
+        expect(searched.startsWith('done Web search query="omne harness" results=1\n')).toBe(true)
+        expect(searched).toContain(`url=${HIT_URL}`)
+        expect(searched).toContain('Hit excerpt')
+        // The stand-in saw the key the tenant set, once; the key is in no model request.
+        expect(exaRequests.map(request => request.apiKey)).toEqual([exaKey])
+        expect(seen.join('\n')).not.toContain(exaKey)
+        expect(JSON.stringify(entries)).not.toContain(exaKey)
         expect(blocksOf(entries[6])).toMatchObject([{ kind: 'text', text: FINAL }])
         expect(entries[7]?.payload['terminal']).toMatchObject({ outcome: 'completed' })
       } finally {
