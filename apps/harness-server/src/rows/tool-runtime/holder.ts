@@ -158,6 +158,11 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore {
       if (answer.kind === 'complete') for (const row of answer.records) observe(row)
       return answer
     },
+    async due(tenant, now, limit) {
+      const sql = holder.sql
+      if (sql === null) return unavailableRead('tool-records: no SQL ledger store is installed')
+      return sql.store.due(tenant, now, limit)
+    },
     async readRecord(domain, key) {
       const sql = holder.sql
       if (sql === null) return unavailableRead('tool-records: no SQL ledger store is installed')

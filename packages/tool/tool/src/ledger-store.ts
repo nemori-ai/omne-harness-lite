@@ -40,6 +40,7 @@ import type {
   ToolTerminal,
 } from '@omne-harness/tool-contract'
 import type {
+  ToolInstant,
   ReleaseRecord,
   ReleaseProgress,
   FactReceipt,
@@ -452,10 +453,28 @@ export function hostKey(key: string): string {
   return `host:${key}`
 }
 
-/** A write by key. A `delete` of a key that holds no record is a no-op, not a failure. */
+/**
+ * A write by key. A `delete` of a key that holds no record is a no-op, not a failure. `schedule`
+ * and `unschedule` write the due index of the tenant under the written domain and `key`: a
+ * `schedule` of a scheduled key replaces its instant, an `unschedule` of an unscheduled key is a
+ * no-op. They take effect with the rest of the commit, or not at all.
+ */
 export type LedgerWrite =
   | Readonly<{ kind: 'put'; record: LedgerRecord }>
   | Readonly<{ kind: 'delete'; key: string }>
+  | Readonly<{ kind: 'schedule'; key: string; dueAt: ToolInstant }>
+  | Readonly<{ kind: 'unschedule'; key: string }>
+
+/** One entry of the due index: the domain that scheduled it, its key and its instant. */
+export type DueEntry = Readonly<{ domain: LedgerDomain; key: string; dueAt: ToolInstant }>
+
+/**
+ * The due entries of a tenant with `dueAt <= now`, oldest first, then by key, at most `limit`.
+ * It includes every commit that returned `committed` before the read began.
+ */
+export type LedgerDueRead =
+  | Readonly<{ kind: 'complete'; entries: readonly DueEntry[] }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 /**
  * A domain read. `complete` holds every record of the domain and its current revision, and it
@@ -523,4 +542,6 @@ export interface ToolLedgerStore {
    * evaluation and the write.
    */
   commit(input: LedgerCommitInput): Promise<LedgerCommit>
+  /** The due index of one tenant: the only schedule of reclaim (model `due`). */
+  due(tenant: TenantId, now: ToolInstant, limit: number): Promise<LedgerDueRead>
 }

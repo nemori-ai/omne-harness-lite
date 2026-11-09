@@ -9,15 +9,23 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import {
   hasCurrentToolLedgerRecordFormat,
   recordKey,
+  type DueEntry,
   type LedgerCommit,
   type LedgerCommitInput,
   type LedgerDomain,
+  type LedgerDueRead,
   type LedgerRead,
   type LedgerRecordRead,
   type LedgerRecord,
+  type TenantId,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
-import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
+import { decodeToolCallId } from '@omne-harness/tool-contract'
+import {
+  decodeToolInstant,
+  decodeToolRevision,
+  type ToolInstant,
+} from '@omne-harness/tool-contract/provider'
 import { NotJsonError } from './json.ts'
 import {
   addressOf,
@@ -30,7 +38,12 @@ import {
 import type { SqlToolStorageOptions } from './options.ts'
 import { requestOf, resolveTenant } from './tenant.ts'
 import type { LedgerFacts, LedgerWriteFact } from './worker/facts.ts'
-import { LEDGER_READ_HANDLER, PROTOCOL } from './worker/schema.ts'
+import {
+  DUE_READ_ENTRIES,
+  DUE_READ_HANDLER,
+  LEDGER_READ_HANDLER,
+  PROTOCOL,
+} from './worker/schema.ts'
 import { isObject } from './worker/support.ts'
 
 export type SqlToolLedgerStore = ToolLedgerStore & Readonly<{ durability: 'durable' }>
@@ -88,6 +101,21 @@ async function readStored(
   return { kind: 'read', revision: revision.ok, rows: records } as const
 }
 
+/** A due row as the handler returns it, read back into the port's entry; null when malformed. */
+function dueEntryOf(tenant: TenantId, row: JsonValue): DueEntry | null {
+  if (!isObject(row)) return null
+  const kind = row['kind']
+  const name = row['name']
+  const key = row['key']
+  const dueAt = decodeToolInstant(row['dueAt'])
+  if (typeof name !== 'string' || typeof key !== 'string' || !('ok' in dueAt)) return null
+  if (kind === 'queue' || kind === 'host')
+    return { domain: { kind, tenant, key: name }, key, dueAt: dueAt.ok }
+  if (kind !== 'call') return null
+  const call = decodeToolCallId(name)
+  return 'ok' in call ? { domain: { kind, tenant, call: call.ok }, key, dueAt: dueAt.ok } : null
+}
+
 export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToolLedgerStore {
   const commit = async (input: LedgerCommitInput): Promise<LedgerCommit> => {
     if (!(input.asserts ?? []).every(assertion => sameTenant(input.domain, assertion.domain)))
@@ -128,5 +156,27 @@ export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToo
       return unavailable('ledger read: invalid record or unsupported record format')
     return { kind: 'complete', revision: answer.revision, record: records[0] ?? null }
   }
-  return { durability: 'durable', read, readRecord, commit }
+  const due = async (tenant: TenantId, now: ToolInstant, limit: number): Promise<LedgerDueRead> => {
+    const resolved = await resolveTenant(options, tenant)
+    if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
+    const answer = await options.storage.read({
+      domain: resolved.at.domain,
+      handler: DUE_READ_HANDLER,
+      protocol: PROTOCOL,
+      requestKey: randomUUID(),
+      input: { tenant: resolved.at.tenant, now, limit: Math.min(limit, DUE_READ_ENTRIES) },
+    })
+    if (answer.kind !== 'read')
+      return unavailable(`due read: ${answer.kind === 'cancelled' ? 'cancelled' : answer.reason}`)
+    const rows = isObject(answer.output) ? answer.output['entries'] : undefined
+    if (!Array.isArray(rows)) return unavailable('due read: invalid stored index')
+    const entries: DueEntry[] = []
+    for (const row of rows) {
+      const entry = dueEntryOf(tenant, row)
+      if (entry === null) return unavailable('due read: invalid stored entry')
+      entries.push(entry)
+    }
+    return { kind: 'complete', entries }
+  }
+  return { durability: 'durable', read, readRecord, commit, due }
 }

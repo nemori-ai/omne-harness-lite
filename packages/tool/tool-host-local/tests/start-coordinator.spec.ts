@@ -109,6 +109,7 @@ describe('G5 the start ordering domain', () => {
       const store: ToolLedgerStore = {
         durability: 'none',
         readRecord: memory.readRecord,
+        due: memory.due,
         read: async domain => {
           if (block) {
             block = false
@@ -166,6 +167,7 @@ describe('G5 the start ordering domain', () => {
       durability: 'none',
       read: domain => memory.read(domain),
       readRecord: (domain, key) => memory.readRecord(domain, key),
+      due: (tenant, now, limit) => memory.due(tenant, now, limit),
       commit: async input => {
         const acceptance =
           input.domain.kind === 'host' &&
@@ -517,6 +519,7 @@ describe('G5 the start ordering domain', () => {
     const store: ToolLedgerStore = {
       durability: 'none',
       readRecord: (domain, key) => memory.readRecord(domain, key),
+      due: (tenant, now, limit) => memory.due(tenant, now, limit),
       read: domain => {
         if (domain.kind === 'host' && domain.key === START_GUARDS_DOMAIN_KEY) guardReads.count += 1
         return memory.read(domain)
@@ -761,6 +764,7 @@ describe('G5 tenants and qualification', () => {
   const neverSettles = (): ToolLedgerStore => ({
     durability: 'none',
     readRecord: () => new Promise(() => {}),
+    due: () => new Promise(() => {}),
     read: () => new Promise(() => {}),
     commit: () => new Promise(() => {}),
   })

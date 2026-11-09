@@ -86,6 +86,7 @@ function observed() {
   }
   const store: ToolLedgerStore = {
     durability: 'none',
+    due: memory.due,
     read: async (domain: LedgerDomain): Promise<LedgerRead> => {
       counts.reads += 1
       const fault = take('read-unavailable', 'read-throws')

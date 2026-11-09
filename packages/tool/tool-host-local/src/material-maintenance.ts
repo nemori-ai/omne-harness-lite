@@ -42,6 +42,7 @@ export function createLocalToolMaterialMaintenance<P>(
       readRecord: (domain, key) => scope.gate(() => input.store.readRecord(domain, key), stopped),
       read: supplied => scope.gate(() => input.store.read(supplied), stopped),
       commit: supplied => scope.gate(() => input.store.commit(supplied), stopped),
+      due: (tenant, now, limit) => scope.gate(() => input.store.due(tenant, now, limit), stopped),
     },
     materials: {
       clock: { sample: () => scope.gate(() => input.materials.clock.sample(), unavailable) },

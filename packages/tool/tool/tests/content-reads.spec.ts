@@ -84,6 +84,7 @@ async function fixture(value?: SettlementValue, name = 'settlement') {
   const store: ToolLedgerStore = {
     durability: 'none',
     readRecord: f.harness.memory.readRecord,
+    due: f.harness.memory.due,
     read: async domain => {
       const answer = await f.harness.memory.read(domain)
       const hook = readHook

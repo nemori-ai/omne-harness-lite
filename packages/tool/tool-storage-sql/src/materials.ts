@@ -17,6 +17,8 @@ import { MAINTENANCE_MIGRATION, MAINTENANCE_TABLES } from './worker/migration-ma
 import { MAINTENANCE_PAGE_LIMIT, MAINTENANCE_READ_HANDLER } from './maintenance-scan-wire.ts'
 import {
   CHUNK_READ_HANDLER,
+  DUE_READ_ENTRIES,
+  DUE_READ_HANDLER,
   LEDGER_READ_HANDLER,
   LEDGER_READ_ROWS,
   MANIFEST_READ_HANDLER,
@@ -89,6 +91,13 @@ const HANDLERS: readonly Handler[] = [
     ordering: 'snapshot',
     tables: ['tl_chunk'],
     rows: 1,
+  },
+  {
+    handler: DUE_READ_HANDLER,
+    file: 'read-due',
+    ordering: 'domain-serial',
+    tables: ['tl_due'],
+    rows: DUE_READ_ENTRIES,
   },
 ]
 

@@ -132,6 +132,7 @@ export async function fixture(
     durability: 'durable',
     read: memory.read,
     readRecord: memory.readRecord,
+    due: memory.due,
     commit: memory.commit,
   }
   const custody = createMemoryToolOutputCustody<unknown>()

@@ -111,6 +111,7 @@ function windowStore(
   const racing: ToolLedgerStore = {
     durability: 'none',
     readRecord: memory.readRecord,
+    due: memory.due,
     read: async domain => {
       if (reads.failing > 0 && domain.kind === 'call') {
         reads.failing -= 1
@@ -188,6 +189,7 @@ describe('22 release memory: a released call never regains an entry', () => {
       store: memory => ({
         durability: 'none',
         readRecord: memory.readRecord,
+        due: memory.due,
         read: domain => memory.read(domain),
         commit: input => {
           commits.push(input)

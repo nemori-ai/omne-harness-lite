@@ -20,12 +20,13 @@ export function materialMaintenanceHint(
       else if (write.record.kind === 'body-writer-scope')
         writerScopes.add(write.record.scope.start.operation)
       else if (write.record.kind === 'call') phase = write.record.call.state.phase
-    } else if (write.key.startsWith('material-use:')) {
-      uses.delete(write.key.slice('material-use:'.length))
-    } else if (write.key.startsWith('material-cleanup:')) {
-      cleanup.delete(write.key.slice('material-cleanup:'.length))
-    } else if (write.key.startsWith('body-writer-scope:')) {
-      writerScopes.delete(write.key.slice('body-writer-scope:'.length))
+    } else if (write.kind === 'delete') {
+      if (write.key.startsWith('material-use:'))
+        uses.delete(write.key.slice('material-use:'.length))
+      else if (write.key.startsWith('material-cleanup:'))
+        cleanup.delete(write.key.slice('material-cleanup:'.length))
+      else if (write.key.startsWith('body-writer-scope:'))
+        writerScopes.delete(write.key.slice('body-writer-scope:'.length))
     }
   }
   if (phase !== 'settled' && writerScopes.size > 0) return { kind: 'ready' }

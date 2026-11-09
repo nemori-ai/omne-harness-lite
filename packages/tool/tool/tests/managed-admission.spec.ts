@@ -134,6 +134,7 @@ describe('10 boundary and qualification', () => {
     const throwing: ToolLedgerStore = {
       durability: 'none',
       readRecord: () => Promise.reject(new Error(secret)),
+      due: () => Promise.reject(new Error(secret)),
       read: () => Promise.reject(new Error(secret)),
       commit: () => Promise.reject(new Error(secret)),
     }
@@ -612,6 +613,7 @@ describe('11 operation idempotency (P01)', () => {
     const racing: ToolLedgerStore = {
       durability: 'none',
       readRecord: memory.readRecord,
+      due: memory.due,
       read: domain => memory.read(domain),
       commit: input => {
         if (putsExclusion(input)) memory.landDelayed()

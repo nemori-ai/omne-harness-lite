@@ -17,19 +17,38 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
     tenant TEXT NOT NULL, call TEXT NOT NULL, operation TEXT NOT NULL, kind TEXT NOT NULL,
     digest TEXT NOT NULL, bytes INTEGER NOT NULL, chunks INTEGER NOT NULL, sha256 TEXT NOT NULL,
     seal TEXT NOT NULL, answer TEXT NOT NULL, PRIMARY KEY (tenant, call, operation)) STRICT`,
+  // The due index of the ledger: one entry per scheduled key of a domain, read by tenant and instant.
+  `CREATE TABLE tl_due (
+    tenant TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, key TEXT NOT NULL,
+    due_at TEXT NOT NULL, PRIMARY KEY (tenant, kind, name, key)) STRICT`,
+  `CREATE INDEX tl_due_by_instant ON tl_due (tenant, due_at)`,
 ]
 
-export const TOOL_TABLES: readonly string[] = ['tl_domain', 'tl_record', 'tl_chunk', 'tl_manifest']
+export const TOOL_TABLES: readonly string[] = [
+  'tl_domain',
+  'tl_record',
+  'tl_chunk',
+  'tl_manifest',
+  'tl_due',
+]
 
 /** The participant name: the one writer of every `tl_` table. */
 export const PARTICIPANT = 'tool'
 
-export const MIGRATION = Object.freeze({ owner: 'tool', id: '001-tool-ledger-custody' })
+/**
+ * The r6 baseline. A database migrated under the pre-r6 baseline (`001-tool-ledger-custody`)
+ * holds a marker this catalog does not list, so the provider quarantines it instead of migrating.
+ */
+export const MIGRATION = Object.freeze({ owner: 'tool', id: 'r6-001-tool-ledger-body-due' })
 export const PROTOCOL = '1'
 
 export const LEDGER_READ_HANDLER = 'tool.ledger.read'
 export const MANIFEST_READ_HANDLER = 'tool.custody.manifest'
 export const CHUNK_READ_HANDLER = 'tool.custody.chunk'
+export const DUE_READ_HANDLER = 'tool.due.read'
+
+/** The most due entries one read returns. */
+export const DUE_READ_ENTRIES = 1_000
 
 /** The most rows one ledger domain read returns; a larger domain is refused, never truncated. */
 export const LEDGER_READ_ROWS = 100_000

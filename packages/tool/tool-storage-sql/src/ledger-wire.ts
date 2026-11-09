@@ -39,15 +39,26 @@ export function assertsOf(input: LedgerCommitInput): readonly LedgerAssertionFac
 }
 
 export function writesOf(input: LedgerCommitInput): readonly LedgerWriteFact[] {
-  return input.writes.map((write, index) =>
-    write.kind === 'put'
-      ? {
+  return input.writes.map((write, index): LedgerWriteFact => {
+    switch (write.kind) {
+      case 'put':
+        return {
           op: 'put',
           key: recordKey(write.record),
           record: toJson(write.record, `writes[${index}]`),
         }
-      : { op: 'delete', key: write.key },
-  )
+      case 'delete':
+        return { op: 'delete', key: write.key }
+      case 'schedule':
+        return { op: 'schedule', key: write.key, dueAt: write.dueAt }
+      case 'unschedule':
+        return { op: 'unschedule', key: write.key }
+      default: {
+        const exhaustive: never = write
+        return exhaustive
+      }
+    }
+  })
 }
 
 function stopOf(basis: JsonValue): StopBasis | null {

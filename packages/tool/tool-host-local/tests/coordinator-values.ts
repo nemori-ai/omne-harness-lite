@@ -193,6 +193,7 @@ export function failingNextCommit(
   return {
     durability: 'none',
     readRecord: (domain, key) => memory.readRecord(domain, key),
+    due: (tenant, now, limit) => memory.due(tenant, now, limit),
     arm: () => {
       armed = true
     },

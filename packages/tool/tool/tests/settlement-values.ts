@@ -193,6 +193,7 @@ export async function settlementFixture(
   const store: ToolLedgerStore = {
     durability: 'none',
     readRecord: harness.memory.readRecord,
+    due: harness.memory.due,
     read: domain => harness.memory.read(domain),
     commit: input => {
       commits.push(structuredClone(input))

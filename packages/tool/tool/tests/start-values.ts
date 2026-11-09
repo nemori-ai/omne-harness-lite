@@ -770,6 +770,7 @@ export function losingCommits(
   return {
     durability: 'none',
     readRecord: memory.readRecord,
+    due: memory.due,
     read: domain => memory.read(domain),
     commit: async input => {
       if (left === 0 || !matches(input)) return memory.commit(input)
@@ -800,6 +801,7 @@ export function landingAfterRead(
     store: {
       durability: 'none',
       readRecord: memory.readRecord,
+      due: memory.due,
       read: async domain => {
         const result = await memory.read(domain)
         if (left > 0 && domain.kind === 'call') {

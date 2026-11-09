@@ -76,6 +76,7 @@ export async function forwardingFixture(
     durability: options.durableDeclaration ? 'durable' : 'none',
     read: memory.read,
     readRecord: memory.readRecord,
+    due: memory.due,
     async commit(input) {
       const fault = nextCommit
       nextCommit = null

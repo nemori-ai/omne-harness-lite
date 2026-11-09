@@ -40,6 +40,7 @@ import readMaterial from '../../src/worker/read-material.ts'
 import readChunk from '../../src/worker/read-chunk.ts'
 import readLedger from '../../src/worker/read-ledger.ts'
 import readManifest from '../../src/worker/read-manifest.ts'
+import readDue from '../../src/worker/read-due.ts'
 import { READ_OUTPUT_BYTES } from '../../src/worker/schema.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
@@ -48,6 +49,7 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readChunk,
   readMaterial,
   readMaintenance,
+  readDue,
 ]
 
 export type SqliteStorageOptions = Readonly<{

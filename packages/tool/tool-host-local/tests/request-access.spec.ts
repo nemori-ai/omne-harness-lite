@@ -33,6 +33,7 @@ function fixture(answer: () => Promise<AccessVerdict>) {
   const store: ToolLedgerStore = {
     durability: 'none',
     readRecord: (domain, key) => memory.readRecord(domain, key),
+    due: memory.due,
     read: memory.read,
     commit: async input => {
       if (conflict) {

@@ -13,6 +13,8 @@ export type DomainAddress = Readonly<{ tenant: string; kind: DomainKind; name: s
 export type LedgerWriteFact =
   | Readonly<{ op: 'put'; key: string; record: JsonValue }>
   | Readonly<{ op: 'delete'; key: string }>
+  | Readonly<{ op: 'schedule'; key: string; dueAt: string }>
+  | Readonly<{ op: 'unschedule'; key: string }>
 
 /** A domain of the same tenant whose revision must still hold when the commit is applied. */
 export type LedgerAssertionFact = Readonly<{ kind: DomainKind; name: string; revision: string }>
@@ -88,6 +90,12 @@ export type ChunkReadInput = CustodyAddress & Readonly<{ index: number }>
 
 export type ChunkReadOutput = Readonly<{ data: string | null }>
 
+export type DueReadInput = Readonly<{ tenant: string; now: string; limit: number }>
+
+export type DueReadOutput = Readonly<{
+  entries: readonly Readonly<{ kind: DomainKind; name: string; key: string; dueAt: string }>[]
+}>
+
 // ---------------------------------------------------------------------------------------------
 // The parse of the facts and handler inputs, where they enter a Worker module
 // ---------------------------------------------------------------------------------------------
@@ -115,9 +123,22 @@ function writeOf(value: JsonValue): LedgerWriteFact | null {
   if (!isObject(value)) return null
   const key = textOf(value, 'key')
   if (key === null) return null
-  if (value['op'] === 'delete') return { op: 'delete', key }
-  const record = value['record']
-  return value['op'] === 'put' && record !== undefined ? { op: 'put', key, record } : null
+  switch (value['op']) {
+    case 'delete':
+      return { op: 'delete', key }
+    case 'unschedule':
+      return { op: 'unschedule', key }
+    case 'schedule': {
+      const dueAt = textOf(value, 'dueAt')
+      return dueAt === null ? null : { op: 'schedule', key, dueAt }
+    }
+    case 'put': {
+      const record = value['record']
+      return record === undefined ? null : { op: 'put', key, record }
+    }
+    default:
+      return null
+  }
 }
 
 function assertionOf(value: JsonValue): LedgerAssertionFact | null {
@@ -213,4 +234,12 @@ export function parseChunkInput(value: JsonValue): ChunkReadInput | null {
   if (address === null || !isObject(value)) return null
   const index = countOf(value, 'index')
   return index === null ? null : { ...address, index }
+}
+
+export function parseDueReadInput(value: JsonValue): DueReadInput | null {
+  if (!isObject(value)) return null
+  const tenant = textOf(value, 'tenant')
+  const now = textOf(value, 'now')
+  const limit = countOf(value, 'limit')
+  return tenant === null || now === null || limit === null ? null : { tenant, now, limit }
 }

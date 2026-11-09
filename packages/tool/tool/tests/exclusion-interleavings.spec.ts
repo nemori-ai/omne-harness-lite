@@ -50,6 +50,7 @@ function hooked() {
   const store: ToolLedgerStore = {
     durability: 'none',
     readRecord: memory.readRecord,
+    due: memory.due,
     read: d => memory.read(d),
     commit: async input => {
       const i = hooks.findIndex(h => h.matches(input))

@@ -174,6 +174,7 @@ describe('23 retrigger: a held slot whose start intent was excluded is redone by
       store: memory => ({
         durability: 'none',
         readRecord: memory.readRecord,
+        due: memory.due,
         read: async domain => {
           if (failing > 0 && domain.kind === 'call') {
             failing -= 1
@@ -299,6 +300,7 @@ describe('23 retrigger: when a failed run is run again', () => {
       store: memory => ({
         durability: 'none',
         readRecord: memory.readRecord,
+        due: memory.due,
         // A reader that gives a negative answer about the start of c1 between the reads of
         // prepareStart: every start intent of c1 is excluded while it polls.
         read: async domain => {
@@ -359,6 +361,7 @@ describe('23 retrigger: when a failed run is run again', () => {
       store: memory => ({
         durability: 'none',
         readRecord: memory.readRecord,
+        due: memory.due,
         read: domain => memory.read(domain),
         // The host stops the run while its plan is being committed, and the store is down.
         commit: async input => {

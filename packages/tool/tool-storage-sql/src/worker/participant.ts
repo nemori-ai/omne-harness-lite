@@ -54,17 +54,38 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
     if (revisionOf(port, [facts.tenant, assertion.kind, assertion.name]) !== assertion.revision)
       return stopped({ reason: 'assertion', current })
   for (const write of facts.writes)
-    if (write.op === 'put')
-      port.execute(
-        `INSERT INTO tl_record (tenant, kind, name, key, record) VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT (tenant, kind, name, key) DO UPDATE SET record = excluded.record`,
-        [...domain, write.key, JSON.stringify(write.record)],
-      )
-    else
-      port.execute('DELETE FROM tl_record WHERE tenant = ? AND kind = ? AND name = ? AND key = ?', [
-        ...domain,
-        write.key,
-      ])
+    switch (write.op) {
+      case 'put':
+        port.execute(
+          `INSERT INTO tl_record (tenant, kind, name, key, record) VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT (tenant, kind, name, key) DO UPDATE SET record = excluded.record`,
+          [...domain, write.key, JSON.stringify(write.record)],
+        )
+        break
+      case 'delete':
+        port.execute(
+          'DELETE FROM tl_record WHERE tenant = ? AND kind = ? AND name = ? AND key = ?',
+          [...domain, write.key],
+        )
+        break
+      case 'schedule':
+        port.execute(
+          `INSERT INTO tl_due (tenant, kind, name, key, due_at) VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT (tenant, kind, name, key) DO UPDATE SET due_at = excluded.due_at`,
+          [...domain, write.key, write.dueAt],
+        )
+        break
+      case 'unschedule':
+        port.execute('DELETE FROM tl_due WHERE tenant = ? AND kind = ? AND name = ? AND key = ?', [
+          ...domain,
+          write.key,
+        ])
+        break
+      default: {
+        const exhaustive: never = write
+        return exhaustive
+      }
+    }
   port.execute(
     `INSERT INTO tl_domain (tenant, kind, name, revision) VALUES (?, ?, ?, ?)
      ON CONFLICT (tenant, kind, name) DO UPDATE SET revision = excluded.revision`,

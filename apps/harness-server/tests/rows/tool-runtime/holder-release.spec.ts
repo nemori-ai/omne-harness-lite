@@ -37,6 +37,7 @@ function world() {
       durability: 'durable',
       read: async () => ({ kind: 'complete', revision: '1', records: state.rows }),
       readRecord: async () => ({ kind: 'complete', revision: '1', record: state.rows[0] ?? null }),
+      due: async () => ({ kind: 'complete', entries: [] }),
       commit: async (input: unknown) => {
         if (state.landed)
           for (const write of (input as { writes: { record: Row }[] }).writes)

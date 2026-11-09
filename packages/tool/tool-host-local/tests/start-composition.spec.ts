@@ -400,6 +400,7 @@ describe('G5 under the runtime', () => {
       store: memory => ({
         durability: 'none',
         readRecord: (domain, key) => memory.readRecord(domain, key),
+        due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),
         commit: input => {
           if (
