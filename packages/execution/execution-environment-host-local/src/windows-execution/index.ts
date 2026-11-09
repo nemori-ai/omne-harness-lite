@@ -12,13 +12,11 @@ import type {
   RetainedProcessLedger,
   RetainedProcessRef,
 } from '@omne-harness/execution-environment-contract'
-import { decideDisposition, resolveUnknownHandover, type Disposition } from '../command-custody.ts'
+import { createCustodySteps, ownedByAcquisition, type Custody } from '../command-custody-steps.ts'
 import {
-  custodyBindingOf,
-  loadedCustodyBinding,
   retentionBindingOf,
   retentionExtension,
-  retentionScopeClosed,
+  type RetentionBinding,
 } from '../command-retention.ts'
 import {
   createLateOutput,
@@ -52,7 +50,6 @@ type StartRequest = Parameters<CommandFacility<unknown>['start']>[0]
 type StopStatus = 'confirmed' | 'unconfirmed'
 const now = () =>
   /* wall-clock: operation-timing -- Bound native operations and measure process duration. */ performance.now()
-const monotonicDeadline = (boundMs: number) => now() + boundMs
 
 function invalid(request: StartRequest): FacilityReason | undefined {
   if (request.binding.kind !== 'host_machine') return 'unsupported'
@@ -102,21 +99,6 @@ export async function stopWindowsResource(
   return status === 'confirmed' ? 'confirmed' : 'unconfirmed'
 }
 
-/**
- * Who carries the stop duty for the Job, with the meaning the Linux facility gives it:
- * `acquisition` from the start; `reserved` while a handover is decided and committed; `unknown`
- * while the commit's result is unread; `handedOver` once the commit took effect. Only the first two
- * are this acquisition's. Every transition is synchronous, with the rechecks that justify it.
- */
-type Custody =
-  | Readonly<{ kind: 'acquisition' }>
-  | Readonly<{ kind: 'reserved' }>
-  | Readonly<{ kind: 'handedOver' }>
-  | Readonly<{ kind: 'unknown'; reservation: RetainedReservation }>
-
-const ownedByAcquisition = (custody: Custody) =>
-  custody.kind === 'acquisition' || custody.kind === 'reserved'
-
 /** One command in its own anchored Job: the bridge, its frames, its custody and its stop. */
 type Entry = {
   readonly resource: ManagedResource
@@ -153,14 +135,6 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
   const pending = new Set<Promise<unknown>>()
   let sealed = false
   const retentionBinding = retentionBindingOf({ retention, retained, scope: input.scope, tenant })
-  const scopeClosed = () => retentionScopeClosed(retentionBinding)
-  const bindingOf = (entry: Entry) =>
-    custodyBindingOf({
-      policy: settings.residuePolicy,
-      retention,
-      binding: retentionBinding,
-      resource: entry.resource,
-    })
 
   /** The native stop of the Job, once per sequence: through the bridge, else by the Job's name. */
   const issueStop = (entry: Entry): Promise<StopStatus> => {
@@ -250,9 +224,9 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
    */
   const enterIndex = async (
     entry: Entry,
+    binding: RetentionBinding,
     reservation: RetainedReservation,
   ): Promise<RetainedProcessRef> => {
-    if (retentionBinding === undefined) throw new Error('a handover without a retention binding')
     entry.bridge?.send('dispose')
     const counted = entry.buffer.summary()
     const late = entry.late.observed()
@@ -267,8 +241,8 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
             },
           })
     entry.bridge?.unref()
-    const handed = await retentionBinding.index.commit(reservation, {
-      ...handoverDetails(entry, retentionBinding.processes),
+    const handed = await binding.index.commit(reservation, {
+      ...handoverDetails(entry, binding.processes),
       output,
     })
     // The retained-process index holds the Job now. The cold marker goes only once the index's own
@@ -278,12 +252,15 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
   }
 
   /** The commit took effect, but the Job was stopped, released or its scope closed meanwhile. */
-  const enterIndexStopping = (entry: Entry, reservation: RetainedReservation): void => {
-    if (retentionBinding === undefined) throw new Error('a handover without a retention binding')
+  const enterIndexStopping = (
+    entry: Entry,
+    binding: RetentionBinding,
+    reservation: RetainedReservation,
+  ): void => {
     entry.bridge?.send('dispose')
-    void retentionBinding.index
+    void binding.index
       .commitStopping(reservation, {
-        ...handoverDetails(entry, retentionBinding.processes),
+        ...handoverDetails(entry, binding.processes),
         ...(entry.issued === undefined
           ? {}
           : { issued: entry.issued.then((status): StopReading => ({ status })) }),
@@ -293,111 +270,22 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       })
   }
 
-  /** Carries out a disposition; the custody changes in the same step as the readings behind it. */
-  const apply = async (
-    entry: Entry,
-    decision: Disposition,
-    interrupted: () => boolean,
-  ): Promise<ResidueReport> => {
-    switch (decision.kind) {
-      case 'stop':
-        entry.custody = { kind: 'acquisition' }
-        void forceStop(entry)
-        return decision.residue
-      case 'unknown':
-        entry.custody = { kind: 'unknown', reservation: decision.reservation }
-        return { kind: 'unknown' }
-      case 'retained':
-      case 'retainedInterrupted': {
-        entry.custody = { kind: 'handedOver' }
-        live.delete(entry)
-        if (decision.kind === 'retainedInterrupted' || interrupted() || scopeClosed()) {
-          enterIndexStopping(entry, decision.reservation)
-          return { kind: 'stopping', reason: 'closed' }
-        }
-        const process = await enterIndex(entry, decision.reservation)
-        return { kind: 'retained', process, processes: entry.members ?? 'unknown' }
-      }
-      default: {
-        const exhaustive: never = decision
-        return exhaustive
-      }
-    }
-  }
-
-  /** The disposition after the exit frame, bounded by the start bound, the index's loading included. */
-  const dispose = async (entry: Entry): Promise<ResidueReport> => {
-    const deadline = monotonicDeadline(settings.startBoundMs)
-    const binding = await loadedCustodyBinding(
-      bindingOf(entry),
-      retentionBinding,
-      entry.members,
-      deadline,
-    )
-    entry.custody = { kind: 'reserved' }
-    const interrupted = () => entry.stopRequested || entry.released
-    const decision = await decideDisposition({
-      members: entry.members,
-      binding,
-      deadline,
-      interrupted,
-    })
-    return apply(entry, decision, interrupted)
-  }
-
-  /** Asks the commit again for a Job whose handover result is unread; one resolution at a time. */
-  const resolveUnknown = (entry: Entry): Promise<void> => {
-    entry.resolving ??= (async () => {
-      const custody = entry.custody
-      if (custody.kind !== 'unknown') return
-      const binding = bindingOf(entry)
-      if (typeof binding === 'string') return
-      const interrupted = () => entry.stopRequested
-      const decision = await resolveUnknownHandover({
-        binding,
-        reservation: custody.reservation,
-        deadline: monotonicDeadline(settings.startBoundMs),
-        interrupted,
-      })
-      if (decision.kind === 'unknown' || entry.custody.kind !== 'unknown') return
-      const running = apply(entry, decision, interrupted)
-      entry.disposition = running
-      const stopping = entry.stopping
-      await running
-      await stopping
-    })()
-      .catch(() => undefined)
-      .finally(() => {
-        entry.resolving = undefined
-      })
-    return entry.resolving
-  }
+  const custody = createCustodySteps<Entry, undefined>({
+    policy: settings.residuePolicy,
+    retention,
+    binding: retentionBinding,
+    startBoundMs: settings.startBoundMs,
+    live,
+    forceStop,
+    enterIndex,
+    enterIndexStopping,
+  })
 
   /** A stop asked through the handle acts only on a Job this acquisition owns. */
   const stopHandle = async (entry: Entry, mode: 'graceful' | 'forced'): Promise<StopStatus> => {
     if (mode === 'graceful') return 'unconfirmed'
-    if (entry.custody.kind === 'unknown') await resolveUnknown(entry)
-    if (!ownedByAcquisition(entry.custody)) return 'unconfirmed'
+    if (!(await custody.ownsForStop(entry, undefined))) return 'unconfirmed'
     return forceStop(entry)
-  }
-
-  /** The release of one Job: the custody is read again here, so a handover meanwhile is left alone. */
-  const release = async (entry: Entry): Promise<void> => {
-    switch (entry.custody.kind) {
-      case 'acquisition':
-      case 'reserved':
-        await forceStop(entry)
-        return
-      case 'unknown':
-        await resolveUnknown(entry)
-        return
-      case 'handedOver':
-        return
-      default: {
-        const exhaustive: never = entry.custody
-        return exhaustive
-      }
-    }
   }
 
   async function launch(
@@ -457,7 +345,8 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       entry.buffer.close()
       entry.members = frame.members
       const durationMs = elapsed()
-      const running = dispose(entry)
+      const running = custody
+        .dispose(entry, undefined)
         // A disposition that itself failed has no result: the Job stays with the acquisition.
         .catch((): ResidueReport => ({ kind: 'unknown' }))
         .then(residue => {
@@ -650,7 +539,7 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     async stopAll() {
       const entries = [...live]
       for (const entry of entries) entry.released = true
-      await Promise.all(entries.map(release))
+      await Promise.all(entries.map(entry => custody.release(entry, undefined)))
       return [...live].map(entry => entry.resource)
     },
     unconfirmed: () => [...live].map(entry => entry.resource),

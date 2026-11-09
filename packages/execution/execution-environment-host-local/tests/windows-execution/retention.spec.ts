@@ -146,6 +146,9 @@ it('retains what the main process left, keeps it past the bridge, lists it and s
     if (outcome.kind !== 'completed' || outcome.residue?.kind !== 'retained')
       throw new Error('expected a retained residue')
     const ref = outcome.residue.process
+    // The retention scope owns the Job now: the acquisition's handle cannot stop it.
+    expect(await started.value.stop('forced')).toBe('unconfirmed')
+    expect(alive(child)).toBe(true)
     // The anchor holds the Job: the bridge's death leaves the retained process running.
     process.kill(bridge)
     await expect.poll(() => alive(bridge)).toBe(false)

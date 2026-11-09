@@ -534,7 +534,7 @@ macOS 上，上文的 scope 指终端的执行域。执行域是两个 POSIX 会
 - 移交之后帧流故障（非 JSON、未知帧、次序不对、超长）或帧通道关闭时，提供者不再观察这条流，尾部关闭：`output` 答 `rejected/unavailable`，与重启后加载的项相同，直到这一项离开索引（之后答 `rejected/notFound`）。门在退出帧之前故障的处理不变：结局 `failed`（`effectUnknown`），执行域被强制停止，此时还没有尾部。
 - 停止已确认或自行结清后，这一项离开索引，尾部随之释放。
 
-处置的次序（`src/command-custody.ts` 的 `decideDisposition`，Linux 与 Windows 共用）。前一项成立时，后面的不再判定：
+处置的次序（`src/command-custody.ts` 的 `decideDisposition`；保管状态怎样随处置转移在 `src/command-custody-steps.ts`。两者 Linux 与 Windows 共用）。前一项成立时，后面的不再判定：
 
 1. 退出帧报告门以外没有进程：停止单元，`residue` 是 `none`。读数未知时按有留下的进程处理。
 2. 配置 `residuePolicy` 是 `stop`：停止，原因 `policy`。
