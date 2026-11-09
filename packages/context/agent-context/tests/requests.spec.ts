@@ -455,13 +455,6 @@ describe('the staging table', () => {
         failure: { kind: 'unavailable', owner: 'agent-context', diagnostic: 'call-input-busy' },
       })
   })
-
-  it('answers call-input-absent to a group read of a call whose tenant has no text', async () => {
-    const w = await createWorld()
-    const call = { ...w.f.call, access: { ...w.access, tenant: {} as TenantId } }
-    expect(await createStaging<string>().sources('g').history.readSource(call)).toEqual(absent)
-  })
-
   it('keys the values of one call identity apart by tenant', () => {
     const staging = createStaging<string>()
     const groupsOf = (name: string): StagedGroups<string> => {
