@@ -2,12 +2,12 @@ import { expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { fixture } from './fixture.ts'
 
-it('delivers and recovers a lost release reply when unrelated delivery history exceeds the read budget', async () => {
+it('delivers and recovers a lost release reply without any complete read of a delivery domain', async () => {
   const f = await fixture()
   const read = f.store.read.bind(f.store)
   vi.spyOn(f.store, 'read').mockImplementation(async domain =>
-    domain.kind === 'host' && domain.key === 'result-delivery/v1'
-      ? { kind: 'unavailable', diagnostic: 'whole delivery domain exceeds the read budget' }
+    domain.kind === 'host' && domain.key.startsWith('delivery@')
+      ? { kind: 'unavailable', diagnostic: 'complete delivery domain reads are not used' }
       : read(domain),
   )
   vi.mocked(f.input.commands.releaseDelivery).mockImplementationOnce(async input => {
@@ -38,7 +38,7 @@ it.each([
       const read = await readRecord(domain, key)
       if (
         domain.kind !== 'host' ||
-        domain.key !== 'result-delivery/v1' ||
+        !domain.key.startsWith('delivery@') ||
         ++deliveryReads !== failedRead ||
         read.kind !== 'complete'
       )

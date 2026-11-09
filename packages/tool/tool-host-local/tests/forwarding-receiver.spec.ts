@@ -7,6 +7,7 @@ import {
   decodeToolRevision,
 } from '@omne-harness/tool-contract/provider'
 import { createLocalInvocationSource } from '@omne-harness/tool-host-local'
+import { forwardingConsumer, sourceDomain } from '../src/invocation-forwarding.ts'
 import { createLocalTextResults } from '../src/text-results.ts'
 import { evidence } from './coordinator-values.ts'
 import { forwardingFixture, ok } from './forwarding-values.ts'
@@ -99,11 +100,9 @@ describe('forwarding receiver custody protocol over an explicit store double', (
     }
     const second = ok(await f.push(late))
     expect(second.key).not.toEqual(first.key)
-    const read = await f.memory.read({
-      kind: 'host',
-      tenant: f.parent.tenant,
-      key: 'invocation-source',
-    })
+    const read = await f.memory.read(
+      sourceDomain(f.parent.tenant, forwardingConsumer(f.parent.call)),
+    )
     expect(JSON.stringify(read)).toContain('full original payload')
     expect(JSON.stringify(read)).toContain('result-2')
     const account: ToolDelivery<ContentBlock> = {
@@ -141,7 +140,7 @@ describe('forwarding receiver custody protocol over an explicit store double', (
   it('does not trust a stored digest when the actual retained payload was changed', async () => {
     const f = await receiverFixture()
     ok(await f.push())
-    const domain = { kind: 'host', tenant: f.parent.tenant, key: 'invocation-source' } as const
+    const domain = sourceDomain(f.parent.tenant, forwardingConsumer(f.parent.call))
     const read = await f.memory.read(domain)
     if (read.kind !== 'complete') throw new Error('fixture read')
     const record = read.records.find(

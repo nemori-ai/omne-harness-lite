@@ -4,15 +4,12 @@ import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import { fixture, ok } from './fixture.ts'
 import { canonicalDigest, encodeToolMaterial } from '@omne-harness/tool'
 import { createDeliveryState } from '../../src/delivery-state.ts'
+import { callHostDomain } from '../../src/host-domains.ts'
 
 it('freezes before push and releases through the real ledger without recordTask', async () => {
   const f = await fixture()
   vi.mocked(f.receiver.push).mockImplementationOnce(async input => {
-    const host = await f.store.read({
-      kind: 'host',
-      tenant: f.access.tenant,
-      key: 'result-delivery/v1',
-    })
+    const host = await f.store.read(callHostDomain(f.access.tenant, 'delivery', f.access.call))
     expect(host.kind === 'complete' && host.records.some(row => row.kind === 'host')).toBe(true)
     return f.receive(input)
   })
@@ -168,11 +165,7 @@ it('freezes delivery metadata without storing another complete result', async ()
   const f = await fixture()
   expect(await f.drive()).toEqual(succeed({ pending: 0 }))
   expect(f.pushes[0]).toMatchObject({ value: f.value })
-  const stored = await f.store.read({
-    kind: 'host',
-    tenant: f.access.tenant,
-    key: 'result-delivery/v1',
-  })
+  const stored = await f.store.read(callHostDomain(f.access.tenant, 'delivery', f.access.call))
   expect(stored.kind).toBe('complete')
   expect(JSON.stringify(stored)).not.toContain('unchanged payload')
 })

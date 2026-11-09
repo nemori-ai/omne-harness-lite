@@ -79,7 +79,6 @@ export {
 export {
   createLocalInvocationSource,
   createLocalOperationIdentities,
-  INVOCATION_SOURCE_DOMAIN_KEY,
   type LocalInvocationSource,
   type LocalInvocationSourceInput,
   type PrincipalCodec,

@@ -24,7 +24,7 @@ import {
 } from '@omne-harness/tool-contract'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import {
-  INVOCATION_SOURCE_DOMAIN_KEY,
+  callHostDomain,
   createLocalInvocationSource,
   createLocalOperationIdentities,
   type PrincipalCodec,
@@ -226,12 +226,16 @@ describe('TL-11 invocation source: issuance and recall', () => {
     const b = await bound(issuer, resolveInput({ tenant: tenantB }))
     expect(b.recovered).toBe(false)
     expect(b.call).not.toBe(a.call)
-    for (const [tenant, expected] of [
-      [tenantA, 1],
-      [tenantB, 1],
+    // Each binding lives in the source domain of the call it names, in its own tenant.
+    for (const [tenant, outcome] of [
+      [tenantA, a],
+      [tenantB, b],
     ] as const) {
-      const read = await memory.read({ kind: 'host', tenant, key: INVOCATION_SOURCE_DOMAIN_KEY })
-      expect(read.kind === 'complete' && read.records.length).toBe(expected)
+      const read = await memory.read(callHostDomain(tenant, 'source', outcome.call))
+      expect(read.kind === 'complete' && read.records.length).toBe(1)
+      const other = tenant === tenantA ? tenantB : tenantA
+      const foreign = await memory.read(callHostDomain(other, 'source', outcome.call))
+      expect(foreign.kind === 'complete' && foreign.records.length).toBe(0)
     }
   })
 
@@ -278,8 +282,8 @@ describe('TL-11 invocation source: issuance and recall', () => {
   it('TL-11 a stored principal that cannot be decoded is association-unknown, not a new identity', async () => {
     const { store, memory, counts } = observed()
     const { issuer } = source(store)
-    await bound(issuer)
-    const domain = { kind: 'host', tenant: tenantA, key: INVOCATION_SOURCE_DOMAIN_KEY } as const
+    const outcome = await bound(issuer)
+    const domain = callHostDomain(tenantA, 'source', outcome.call)
     const read = await memory.read(domain)
     if (read.kind !== 'complete') throw new Error('fixture read failed')
     const [record] = read.records
@@ -308,11 +312,9 @@ describe('TL-11 invocation source: issuance and recall', () => {
     const all = await Promise.all([1, 2, 3, 4].map(() => bound(issuer)))
     expect(new Set(all.map(outcome => outcome.call)).size).toBe(1)
     expect(all.filter(outcome => !outcome.recovered)).toHaveLength(1)
-    const read = await memory.read({
-      kind: 'host',
-      tenant: tenantA,
-      key: INVOCATION_SOURCE_DOMAIN_KEY,
-    })
+    const [one] = all
+    if (one === undefined) throw new Error('fixture: no outcome')
+    const read = await memory.read(callHostDomain(tenantA, 'source', one.call))
     expect(read.kind === 'complete' && read.records.length).toBe(1)
   })
 })
@@ -565,11 +567,7 @@ describe('TL-11 invocation source: verification of the fixed request', () => {
     const { store, memory } = observed()
     const { issuer, guard } = source(store)
     const outcome = await bound(issuer)
-    const domain: LedgerDomain = {
-      kind: 'host',
-      tenant: tenantA,
-      key: INVOCATION_SOURCE_DOMAIN_KEY,
-    }
+    const domain: LedgerDomain = callHostDomain(tenantA, 'source', outcome.call)
     const read = await memory.read(domain)
     if (read.kind !== 'complete') throw new Error('fixture read failed')
     const [stored] = read.records

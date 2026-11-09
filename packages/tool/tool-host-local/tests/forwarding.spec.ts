@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { canonicalDigest } from '@omne-harness/tool'
 import { createLocalInvocationSource } from '@omne-harness/tool-host-local'
+import { forwardingConsumer, sourceDomain } from '../src/invocation-forwarding.ts'
 import { forwardingFixture, ok } from './forwarding-values.ts'
 
 describe('trusted forwarding association', () => {
@@ -113,11 +114,8 @@ describe('trusted forwarding association', () => {
   })
   it('does not create a slot during lookup and keeps unresolved after an unconfirmed write', async () => {
     const f = await forwardingFixture()
-    const before = await f.memory.read({
-      kind: 'host',
-      tenant: f.parent.tenant,
-      key: 'invocation-source',
-    })
+    const slot = sourceDomain(f.parent.tenant, forwardingConsumer(f.parent.call))
+    const before = await f.memory.read(slot)
     expect(ok(await f.source.forwarding.lookup({ ...f.parent, reference: f.reference }))).toEqual({
       kind: 'unresolved',
     })
@@ -128,11 +126,7 @@ describe('trusted forwarding association', () => {
     expect(ok(await f.source.forwarding.lookup({ ...f.parent, reference: f.reference }))).toEqual({
       kind: 'unresolved',
     })
-    expect(
-      canonicalDigest(
-        await f.memory.read({ kind: 'host', tenant: f.parent.tenant, key: 'invocation-source' }),
-      ),
-    ).toBe(canonicalDigest(before))
+    expect(canonicalDigest(await f.memory.read(slot))).toBe(canonicalDigest(before))
   })
 })
 

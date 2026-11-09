@@ -29,6 +29,9 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import type { LocalInvocationSourceInput, PrincipalJson } from './invocation-source.ts'
 import { localArgumentLimits } from './ledger-guards.ts'
+import { sourceDomain, sourceKey } from './source-identities.ts'
+
+export { sourceDomain, sourceKey }
 
 export const TOOL_FORWARDING_OWNER = '@omne-harness/tool-host-local/tools-forwarding'
 export const forwardingConsumer = (call: string): ConsumerRef => ({
@@ -36,13 +39,6 @@ export const forwardingConsumer = (call: string): ConsumerRef => ({
   work: call,
   position: 'execute',
   purpose: 'tools-target',
-})
-export const sourceKey = (consumer: ConsumerRef) =>
-  `source:${JSON.stringify([consumer.owner, consumer.work, consumer.position, consumer.purpose])}`
-export const sourceDomain = (tenant: LedgerDomain['tenant']): LedgerDomain => ({
-  kind: 'host',
-  tenant,
-  key: 'invocation-source',
 })
 export const isObject = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === 'object' && value !== null
@@ -276,7 +272,7 @@ export function createInvocationForwarding<P>(
   }
   const storedOf = async (access: Access<P>, consumer: ConsumerRef) => {
     const read = await input.store.readRecord(
-      sourceDomain(access.tenant),
+      sourceDomain(access.tenant, consumer),
       hostKey(sourceKey(consumer)),
     )
     if (read.kind !== 'complete') return unavailable()
@@ -373,7 +369,7 @@ export function createInvocationForwarding<P>(
           let commit
           try {
             commit = await input.store.commit({
-              domain: sourceDomain(parent.tenant),
+              domain: sourceDomain(parent.tenant, consumer),
               expected: read.revision,
               revision,
               writes: [

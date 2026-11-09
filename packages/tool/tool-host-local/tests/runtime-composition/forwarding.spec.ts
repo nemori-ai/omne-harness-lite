@@ -1,5 +1,7 @@
 import { expect, it, vi } from 'vitest'
+import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
+import { forwardingConsumer, sourceDomain } from '../../src/invocation-forwarding.ts'
 import { accepted, fixture, unbox } from './fixture.ts'
 
 it('forwards through the real executor binding at resource concurrency one and retires both calls', async () => {
@@ -165,7 +167,8 @@ it('refuses a changed forwarding payload even when its stored digest was left in
     if (answer?.kind !== 'pending') throw new Error('pending target required')
     const state = await world.settledState(answer.reference)
     await expect.poll(() => world.plugins.diagnostics().executor?.knownCalls).toBe(0)
-    const domain = { kind: 'host', tenant: world.tenantA, key: 'invocation-source' } as const
+    const parentCall = unbox(resolveToolInvocationRef(parent, world.tenantA)).call
+    const domain = sourceDomain(world.tenantA, forwardingConsumer(parentCall))
     const read = await world.store.read(domain)
     if (read.kind !== 'complete') throw new Error('store required')
     const row = read.records.find(
@@ -218,7 +221,7 @@ it.each(['revoke', 'revoke-read', 'retire'] as const)(
       await expect.poll(() => world.plugins.diagnostics().executor?.knownCalls).toBe(0)
       world.store.readRecord = async (domain, key) => {
         const value = await read(domain, key)
-        if (domain.kind === 'host' && domain.key === 'invocation-source') {
+        if (domain.kind === 'host' && domain.key.startsWith('source@')) {
           entered.resolve()
           await resume.promise
         }
@@ -263,7 +266,7 @@ it('reads a forwarded result when unrelated source history prevents a full domai
       throw new Error('settled target required')
     const read = world.store.read.bind(world.store)
     const fullRead = vi.spyOn(world.store, 'read').mockImplementation(domain =>
-      domain.kind === 'host' && domain.key === 'invocation-source'
+      domain.kind === 'host' && domain.key.startsWith('source@')
         ? Promise.resolve({
             kind: 'unavailable',
             diagnostic: 'full source history exceeds budget',
@@ -284,7 +287,7 @@ it('reads a forwarded result when unrelated source history prevents a full domai
       expect(world.launches()).toBe(1)
       expect(
         fullRead.mock.calls.filter(
-          ([domain]) => domain.kind === 'host' && domain.key === 'invocation-source',
+          ([domain]) => domain.kind === 'host' && domain.key.startsWith('source@'),
         ),
       ).toHaveLength(0)
     } finally {

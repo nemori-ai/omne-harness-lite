@@ -5,12 +5,13 @@ import type { ToolInvocationQueries } from '@omne-harness/tool-contract'
 // The paired invocation source of the guard table (row 2) and the operation identity mint. The
 // issuer binds a tenant and a consumer to the identities of its original call, once, and recalls
 // them afterwards. The guard checks that a fixed request is the one that was bound. The binding is
-// kept in the `host` domain of the ledger store, one domain per tenant, so a rebuilt source over
-// the same store recalls what an earlier one issued.
+// kept in the `source@<call>` host domain of the call it names, so a rebuilt source over the same
+// store recalls what an earlier one issued, and no domain of the tenant grows with its calls.
 //
-// The identities of a binding are a function of the tenant and the consumer. A retry after an
-// issuance whose answer is unknown therefore finds the same identities, whether the first commit
-// took effect or not, and `issuance-unknown` names identities that the retry will use.
+// The identities of a binding are a function of the tenant and the consumer, so the reader computes
+// the call and the domain from the consumer before it reads. A retry after an issuance whose answer
+// is unknown therefore finds the same identities, whether the first commit took effect or not, and
+// `issuance-unknown` names identities that the retry will use.
 import {
   createInvocationForwarding,
   TOOL_FORWARDING_OWNER,
@@ -50,6 +51,7 @@ import {
   type ToolInvokeRequest,
   type ToolOperationId,
 } from '@omne-harness/tool-contract'
+import { invocationSourceIdentities, sourceDomain, sourceKey } from './source-identities.ts'
 import {
   decodeToolRevision,
   judgeToolInvokeRequest,
@@ -61,8 +63,7 @@ import {
 
 type TenantId = LedgerDomain['tenant']
 
-/** The key of the host domain the source keeps per tenant. */
-export const INVOCATION_SOURCE_DOMAIN_KEY = 'invocation-source'
+export { invocationSourceIdentities } from './source-identities.ts'
 
 /** The owner named in the evidence of every invocation source this module issues. */
 const INVOCATION_SOURCE_OWNER = '@omne-harness/tool-host-local'
@@ -87,7 +88,7 @@ export type PrincipalCodec<P> = Readonly<{
 }>
 
 export type LocalInvocationSourceInput<P> = Readonly<{
-  /** The ledger store of the runtime: its `host` domain keeps the bindings. */
+  /** The ledger store of the runtime: its `source@<call>` host domains keep the bindings. */
   store: ToolLedgerStore
   /** Current consumer qualification and the stable comparison of subjects (identity's adapter). */
   authority: ToolInvokeAuthority<P>
@@ -158,26 +159,8 @@ function identity<T>(decoded: { ok: T } | { failure: unknown }, text: string): T
   return decoded.ok
 }
 
-/** The key of a binding in its domain: the consumer, as a JSON text of its parts. */
-function consumerKey(consumer: FixedToolRequest['consumer']): string {
-  const { owner, work, position, purpose } = consumer
-  return `source:${JSON.stringify([owner, work, position, purpose])}`
-}
-
 function tenantText(tenant: TenantId): readonly [string, string] {
   return [tenant.organization.text, tenant.account.text]
-}
-
-/** The identities of the binding of one tenant and consumer. */
-export function invocationSourceIdentities(
-  tenant: TenantId,
-  consumer: FixedToolRequest['consumer'],
-) {
-  const hash = canonicalDigest({ tenant: tenantText(tenant), consumer }).slice('sha256:'.length)
-  return {
-    call: identity(decodeToolCallId(`call-${hash}`), 'call'),
-    admission: identity(decodeToolOperationId(`admit-${hash}`), 'admission'),
-  }
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -224,7 +207,7 @@ function parseBinding(value: unknown): Binding | null {
 /** What one issuance needs once the consumer is qualified. */
 type IssuePlan = Readonly<{
   tenant: TenantId
-  key: string
+  consumer: FixedToolRequest['consumer']
   request: ToolInvokeRequest
   requestDigest: string
   call: ToolCallId
@@ -232,10 +215,10 @@ type IssuePlan = Readonly<{
   encoded: PrincipalJson
 }>
 
-/** The digest of a fixed request and the key of its consumer, or null when it is not canonical. */
-function digestsOf(request: FixedToolRequest): Readonly<{ fixed: string; key: string }> | null {
+/** The digest of a fixed request, or null when it is not canonical. */
+function digestOf(request: FixedToolRequest): string | null {
   try {
-    return { fixed: canonicalDigest(request), key: consumerKey(request.consumer) }
+    return canonicalDigest(request)
   } catch {
     return null
   }
@@ -276,20 +259,14 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
   if (typeof authority?.qualify !== 'function') throw new TypeError('authority: missing')
   if (typeof principalCodec?.encode !== 'function') throw new TypeError('principalCodec: missing')
 
-  const domain = (tenant: TenantId): LedgerDomain => ({
-    kind: 'host',
-    tenant,
-    key: INVOCATION_SOURCE_DOMAIN_KEY,
-  })
-
   /** The original consumer binding and its domain revision, or a read failure. */
   const readBinding = async (
     tenant: TenantId,
-    key: string,
+    consumer: FixedToolRequest['consumer'],
   ): Promise<Extract<LedgerRecordRead, { kind: 'complete' }> | string> => {
     let result: LedgerRecordRead
     try {
-      result = await store.readRecord(domain(tenant), hostKey(key))
+      result = await store.readRecord(sourceDomain(tenant, consumer), hostKey(sourceKey(consumer)))
     } catch {
       return `the source store ${THROWN}`
     }
@@ -370,7 +347,7 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
     read: Extract<LedgerRecordRead, { kind: 'complete' }>,
     plan: IssuePlan,
   ): Promise<ToolInvocationSourceOutcome | null> => {
-    const { tenant, key, request, requestDigest, call, admission, encoded } = plan
+    const { tenant, consumer, request, requestDigest, call, admission, encoded } = plan
     const invocation: ToolInvocation = Object.freeze({
       kind: 'direct',
       source: Object.freeze({
@@ -392,10 +369,15 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
     let committed: Awaited<ReturnType<typeof store.commit>>
     try {
       committed = await store.commit({
-        domain: domain(tenant),
+        domain: sourceDomain(tenant, consumer),
         expected: read.revision,
         revision: nextRevision(read.revision),
-        writes: [{ kind: 'put', record: { kind: 'host', host: { key, value: binding } } }],
+        writes: [
+          {
+            kind: 'put',
+            record: { kind: 'host', host: { key: sourceKey(consumer), value: binding } },
+          },
+        ],
       })
     } catch {
       return { kind: 'issuance-unknown', call, admission }
@@ -419,13 +401,21 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
       if (refused !== null) return refused
       const kept = encodePrincipal(principal)
       if (!('encoded' in kept)) return kept
-      const key = consumerKey(request.consumer)
-      const { call, admission } = invocationSourceIdentities(tenant, request.consumer)
+      const consumer = request.consumer
+      const { call, admission } = invocationSourceIdentities(tenant, consumer)
       const requestDigest = canonicalDigest(request)
-      const plan = { tenant, key, request, requestDigest, call, admission, encoded: kept.encoded }
+      const plan = {
+        tenant,
+        consumer,
+        request,
+        requestDigest,
+        call,
+        admission,
+        encoded: kept.encoded,
+      }
 
       for (let attempt = 0; attempt < commitAttempts; attempt += 1) {
-        const read = await readBinding(tenant, key)
+        const read = await readBinding(tenant, consumer)
         if (typeof read === 'string') return unavailable('invocation-source', read)
         const known = bindingOf(read)
         if (known === 'unreadable') return { kind: 'association-unknown' }
@@ -439,16 +429,16 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
 
   const directGuard: ToolSourceGuard<P> = {
     verify: async ({ principal, tenant, call, operation, request }) => {
-      const digests = digestsOf(request)
-      if (digests === null) return { kind: 'forged', reason: 'request-not-canonical' }
+      const fixed = digestOf(request)
+      if (fixed === null) return { kind: 'forged', reason: 'request-not-canonical' }
       if (!isTenantShape(tenant)) return { kind: 'forged', reason: 'tenant-shape' }
-      const read = await readBinding(tenant, digests.key)
+      const read = await readBinding(tenant, request.consumer)
       if (typeof read === 'string') return { kind: 'unavailable', diagnostic: read }
       const binding = bindingOf(read)
       if (binding === null) return { kind: 'forged', reason: 'unknown-source' }
       if (binding === 'unreadable')
         return { kind: 'unavailable', diagnostic: 'the stored binding cannot be read' }
-      if (!bindsTo(binding, call, operation, digests.fixed))
+      if (!bindsTo(binding, call, operation, fixed))
         return { kind: 'forged', reason: 'binding-mismatch' }
       const same = await sameSubject(principal, binding)
       return subjectVerdict(same)
@@ -481,7 +471,7 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
       })
     try {
       if (!isTenantShape(access.tenant)) return unavailable()
-      const read = await readBinding(access.tenant, consumerKey(access.request.consumer))
+      const read = await readBinding(access.tenant, access.request.consumer)
       if (typeof read === 'string') return unavailable()
       const row = read.record
       if (

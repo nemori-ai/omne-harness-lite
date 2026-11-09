@@ -2,10 +2,11 @@ import { tenantEquals } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
+  hostKey,
   isTenantShape,
   type AccessVerdict,
   type LedgerDomain,
-  type LedgerRead,
+  type LedgerRecordRead,
   type ToolAccessGuard,
   type ToolControlSubjects,
   type ToolLedgerStore,
@@ -16,8 +17,10 @@ import {
   type Reply,
   type ToolCallId,
   type ToolFailure,
+  type ToolRevision,
 } from '@omne-harness/tool-contract'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
+import { callHostDomain } from './host-domains.ts'
 
 type TenantId = LedgerDomain['tenant']
 
@@ -203,11 +206,9 @@ export function createLocalToolControlSubjects<P>(
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
     throw new TypeError('commitAttempts: range')
 
-  const domain = (tenant: TenantId): LedgerDomain => ({
-    kind: 'host',
-    tenant,
-    key: 'control-subjects',
-  })
+  /** The controller associations of one call live in that call's `control@<call>` host domain. */
+  const domain = (context: Context): LedgerDomain =>
+    callHostDomain(context.tenant, 'control', context.call)
 
   const projectBody = async (context: Context, principal: P): Reply<SubjectBody> => {
     const projected = callbackReply(await project(principal))
@@ -242,53 +243,46 @@ export function createLocalToolControlSubjects<P>(
     return unavailable()
   }
 
-  const readDomain = async (context: Context): Reply<Extract<LedgerRead, { kind: 'complete' }>> => {
-    const read = await store.read(domain(context.tenant))
-    if (
-      read.kind !== 'complete' ||
-      !Array.isArray(read.records) ||
-      !/^(0|[1-9][0-9]*)$/u.test(read.revision)
-    )
-      return unavailable()
-    if ('failure' in decodeToolRevision(read.revision)) return unavailable()
-    return succeed(read)
-  }
+  type BindingRead = Readonly<{ revision: ToolRevision; binding: Binding | null }>
 
-  const bindingAt = (
-    read: Extract<LedgerRead, { kind: 'complete' }>,
-    context: Context,
-    key: string,
-  ): Outcome<Binding | null, ToolFailure> => {
-    const records = read.records.filter(record => record.kind === 'host' && record.host.key === key)
-    if (records.length === 0) return succeed(null)
-    const [record] = records
-    if (records.length !== 1 || record?.kind !== 'host') return unavailable()
+  /** The association stored under `key` for this call, by key, with its domain revision. */
+  const readBinding = async (context: Context, key: string): Reply<BindingRead> => {
+    let read: LedgerRecordRead
+    try {
+      read = await store.readRecord(domain(context), hostKey(key))
+    } catch {
+      return unavailable()
+    }
+    if (read.kind !== 'complete' || !/^(0|[1-9][0-9]*)$/u.test(read.revision)) return unavailable()
+    const revision = decodeToolRevision(read.revision)
+    if ('failure' in revision) return unavailable()
+    const record = read.record
+    if (record === null) return succeed({ revision: revision.ok, binding: null })
+    if (record.kind !== 'host') return unavailable()
     const binding = parseBinding(record.host.value, context, key)
     if (binding === null || BigInt(binding.evidence.revision) > BigInt(read.revision))
       return unavailable()
-    return succeed(binding)
+    return succeed({ revision: revision.ok, binding })
   }
 
   const recall = async (context: Context, body: SubjectBody): Reply<DurableEvidence> => {
-    const read = await readDomain(context)
+    const read = await readBinding(context, keyOf(body))
     if ('failure' in read) return read
-    const binding = bindingAt(read.ok, context, keyOf(body))
-    if ('failure' in binding) return binding
-    return binding.ok === null || canonicalDigest(body) !== binding.ok.evidence.digest
+    const binding = read.ok.binding
+    return binding === null || canonicalDigest(body) !== binding.evidence.digest
       ? unavailable()
-      : succeed(binding.ok.evidence)
+      : succeed(binding.evidence)
   }
 
   const persist = async (context: Context, body: SubjectBody): Reply<DurableEvidence> => {
     const key = keyOf(body)
     for (let attempt = 0; attempt < commitAttempts; attempt += 1) {
-      const read = await readDomain(context)
+      const read = await readBinding(context, key)
       if ('failure' in read) return read
-      const known = bindingAt(read.ok, context, key)
-      if ('failure' in known) return known
-      if (known.ok !== null)
-        return known.ok.evidence.digest === canonicalDigest(body)
-          ? succeed(known.ok.evidence)
+      const known = read.ok.binding
+      if (known !== null)
+        return known.evidence.digest === canonicalDigest(body)
+          ? succeed(known.evidence)
           : unavailable()
       const revision = decodeToolRevision(String(BigInt(read.ok.revision) + 1n))
       if ('failure' in revision) return unavailable()
@@ -296,7 +290,7 @@ export function createLocalToolControlSubjects<P>(
       let committed: Awaited<ReturnType<typeof store.commit>>
       try {
         committed = await store.commit({
-          domain: domain(context.tenant),
+          domain: domain(context),
           expected: read.ok.revision,
           revision: revision.ok,
           writes: [
@@ -324,13 +318,12 @@ export function createLocalToolControlSubjects<P>(
       return denied()
     }
     if (key === null) return denied()
-    const read = await readDomain(context)
+    const read = await readBinding(context, key)
     if ('failure' in read) return read
-    const binding = bindingAt(read.ok, context, key)
-    if ('failure' in binding) return binding
-    if (binding.ok === null) return unavailable()
-    return canonicalDigest(evidence) === canonicalDigest(binding.ok.evidence)
-      ? succeed(binding.ok)
+    const binding = read.ok.binding
+    if (binding === null) return unavailable()
+    return canonicalDigest(evidence) === canonicalDigest(binding.evidence)
+      ? succeed(binding)
       : denied()
   }
 

@@ -16,6 +16,7 @@ import {
   type LocalToolControlSubject,
   type LocalToolControlSubjectsInput,
 } from '../src/control-subject-adapter.ts'
+import { callHostDomain } from '../src/host-domains.ts'
 import {
   adoption,
   callId,
@@ -101,7 +102,7 @@ describe('persistent control subjects', () => {
     const subject = ok(await capture)
     expect(await f.build().qualify({ ...context, subject })).toEqual({ kind: 'allowed' })
     expect(await f.build().qualify({ ...caller, subject })).toMatchObject({ kind: 'denied' })
-    const read = await f.store.read({ kind: 'host', tenant: tenantA, key: 'control-subjects' })
+    const read = await f.store.read(callHostDomain(tenantA, 'control', call))
     expect(JSON.stringify(read)).not.toContain('credential-secret')
     expect(JSON.stringify(read)).not.toContain('"principal"')
   })
@@ -156,7 +157,7 @@ describe('persistent control subjects', () => {
       f.build().capture({ ...context, principal: f.b }),
     ])
     expect(ok(first)).toEqual(ok(second))
-    const read = await f.store.read({ kind: 'host', tenant: tenantA, key: 'control-subjects' })
+    const read = await f.store.read(callHostDomain(tenantA, 'control', call))
     expect(read.kind === 'complete' && read.records.length).toBe(1)
   })
 
@@ -186,7 +187,7 @@ describe('persistent control subjects', () => {
       const retry = ok(await f.build().capture({ ...context, principal: f.b }))
       if ('ok' in first) expect(retry).toEqual(first.ok)
       expect(new Set(keys).size).toBe(1)
-      const read = await memory.read({ kind: 'host', tenant: tenantA, key: 'control-subjects' })
+      const read = await memory.read(callHostDomain(tenantA, 'control', call))
       expect(read.kind === 'complete' && read.records.length).toBe(1)
       expect(JSON.stringify(first)).not.toContain('secret')
     },
@@ -275,7 +276,7 @@ describe('persistent control subjects', () => {
     expect(
       await f.build().capture({ ...context, tenant: { ...tenantA }, principal: f.b }),
     ).toMatchObject({ failure: { kind: 'denied' } })
-    const read = await f.store.read({ kind: 'host', tenant: tenantA, key: 'control-subjects' })
+    const read = await f.store.read(callHostDomain(tenantA, 'control', call))
     expect(read.kind === 'complete' && read.records.length).toBe(0)
   })
 
@@ -289,7 +290,7 @@ describe('persistent control subjects', () => {
         await f.build({ qualify: async () => verdict }).capture({ ...context, principal: f.b }),
       ).toMatchObject({ failure: { kind: verdict.kind } })
     }
-    const read = await f.store.read({ kind: 'host', tenant: tenantA, key: 'control-subjects' })
+    const read = await f.store.read(callHostDomain(tenantA, 'control', call))
     expect(read.kind === 'complete' && read.records.length).toBe(0)
   })
 
@@ -310,7 +311,7 @@ describe('persistent control subjects', () => {
         .build()
         .qualify({ ...context, subject }),
     ).toMatchObject({ kind: 'unavailable' })
-    const domain = { kind: 'host', tenant: tenantA, key: 'control-subjects' } as const
+    const domain = callHostDomain(tenantA, 'control', call)
     const read = await f.store.read(domain)
     if (read.kind !== 'complete') throw new Error('fixture read')
     const record = read.records[0]
@@ -334,7 +335,7 @@ describe('persistent control subjects', () => {
     const subject = ok(await f.build().capture({ ...context, principal: f.b }))
     const store: typeof f.store = {
       ...f.store,
-      read: async () => {
+      readRecord: async () => {
         if (kind === 'throws') throw new Error('secret')
         return { kind: 'unavailable', diagnostic: 'down' }
       },
@@ -362,20 +363,17 @@ describe('persistent control subjects', () => {
       const subject = ok(await f.build().capture({ ...context, principal: f.b }))
       const damaged: typeof f.store = {
         ...f.store,
-        read: async domain => {
-          const read = await f.store.read(domain)
-          if (read.kind !== 'complete') return read
+        readRecord: async (domain, key) => {
+          const read = await f.store.readRecord(domain, key)
+          if (read.kind !== 'complete' || read.record?.kind !== 'host') return read
+          const value = read.record.host.value
+          if (typeof value !== 'object' || value === null) throw new Error('fixture record')
           return {
             ...read,
-            records: read.records.map(record => {
-              if (record.kind !== 'host') return record
-              const value = record.host.value
-              if (typeof value !== 'object' || value === null) throw new Error('fixture record')
-              return {
-                ...record,
-                host: { ...record.host, value: { ...value, [field]: 'corrupt' } },
-              }
-            }),
+            record: {
+              ...read.record,
+              host: { ...read.record.host, value: { ...value, [field]: 'corrupt' } },
+            },
           }
         },
       }

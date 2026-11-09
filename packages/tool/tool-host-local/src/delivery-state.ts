@@ -2,6 +2,7 @@ import { judgeCallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest, hostKey, type ToolLedgerStore } from '@omne-harness/tool'
+import { callHostDomain } from './host-domains.ts'
 import {
   decodeToolOperationId,
   resolveToolInvocationRef,
@@ -116,8 +117,9 @@ function parseDeliveryRecord(
 }
 
 export function createDeliveryState(store: ToolLedgerStore) {
+  /** The delivery facts of one call live in that call's `delivery@<call>` host domain. */
   const domain = (access: CallAccess<unknown>) =>
-    ({ kind: 'host', tenant: access.tenant, key: 'result-delivery/v1' }) as const
+    callHostDomain(access.tenant, 'delivery', access.call)
   const key = (access: CallAccess<unknown>, base: DeliveryBase) =>
     JSON.stringify([
       access.call,

@@ -89,7 +89,7 @@ export function createForwardingReceiver<P, B extends ContentBlock>(
       let committed
       try {
         committed = await input.store.commit({
-          domain: sourceDomain(access.tenant),
+          domain: sourceDomain(access.tenant, payload.consumer),
           expected: read.revision,
           revision,
           writes: [

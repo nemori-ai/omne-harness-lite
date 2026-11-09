@@ -185,7 +185,7 @@ Tool 的原 call 域负责持久水位，时间工厂不拥有它。初次准备
 
 `createLocalInvocationSource({ store, authority, principalCodec, commitAttempts })` 返回 `{ issuer, guard }`。`issuer` 交 runtime 作 `sourceIssuer`，`guard` 交账本作 `guards.sources`。
 
-- 绑定放在记录仓的 `host` 域，域键 `invocation-source`，每个租户一个域，每个消费者位置一条记录。同一消费者在另一个租户落在另一个域，读不到原绑定。
+- 绑定放在它所命名调用的 `host` 域 `source@<call>`，调用 id 由租户与消费者的摘要确定性派生，所以读者先算出域再按键读取，一个域只有一条绑定。同一消费者在另一个租户派生出另一个调用与另一个域，读不到原绑定。
 - `resolve` 的顺序：请求形状，租户形状，`authority.qualify`（`denied` 与 `unavailable` 在读记录仓之前返回），主体编码，读域。已有绑定时先问 `authority.samePrincipal({ current, original })`，不同主体答 `denied`；请求与原请求不同答 `conflict`（`operation` 为原受理操作）；否则答 `bound` 且 `recovered` 为真。没有绑定时条件提交一条记录，答 `bound`。
 - call 与 admission 的身份由租户与消费者的摘要得出，所以同一输入永远得同一身份。提交结果未知时答 `issuance-unknown`，带的就是重试会用的身份：记录已写入则重试认回，未写入则重试写入。
 - 存下的主体解不开（记录形状不对，或 `principalCodec.decode` 拒绝）答 `association-unknown`，不签发新身份。
@@ -300,7 +300,7 @@ runtime 退出先停止新调用和 writer 新受理，再等待未登记操作�
 
 同一父调用只有 execute 槽。consumer owner 固定为 `@omne-harness/tool-host-local/tools-forwarding`，work 是父 call，position 为 execute，purpose 为 tools-target。普通 issuer 在读取关联前拒绝该 owner。来源自己生成 consumer；应用 prepareTarget 只提供业务目标。目标 scope、requesterScope、context、workspace、resources、limits 与 mode 继承父请求，batchDecision 为 null。目标 settings 和 environment 来自目标采用。
 
-原槽、父证明、完整固定目标与 principal 在既有 invocation-source host 域同一次 CAS 提交。已存槽优先认回，不以最新设置替换。received 更新保留全部原字段。recoverBinding 只读取与 tenant/call/admission/完整固定请求匹配的持久主体投影，核 direct 原 mint 或 forwarded 记录摘要；它不返回活凭据，不做当前资格授予。运行时据该投影向身份拥有者重新取得会话工作主体，再调用 guard 核原主体、direct 来源或 forwarded 父证明及当前资格。任何一步失败均不启动 driver；不把转发恢复成 direct。当前 programmatic 启动仍受 M2 拒绝限制。
+原槽、父证明、完整固定目标与 principal 在目标调用的 `source@<call>` 域同一次 CAS 提交；目标调用 id 由父调用的转发 consumer 派生，所以该域也只属于这一个父调用的 execute 槽。接收到的 `received` 副本保存在同一条槽记录里，随该槽增长，不随租户的调用数增长。已存槽优先认回，不以最新设置替换。received 更新保留全部原字段。recoverBinding 只读取与 tenant/call/admission/完整固定请求匹配的持久主体投影，核 direct 原 mint 或 forwarded 记录摘要；它不返回活凭据，不做当前资格授予。运行时据该投影向身份拥有者重新取得会话工作主体，再调用 guard 核原主体、direct 来源或 forwarded 父证明及当前资格。任何一步失败均不启动 driver；不把转发恢复成 direct。当前 programmatic 启动仍受 M2 拒绝限制。
 
 source.receiver 在同一关联内保存完整交付和 saved 证据。接收先核当前资格、原目标引用、完整 consumer 与交付关系。只有 durable store 确认提交后才 saved。提交未知回复 outcome-unknown，生产者保留 owed。读回比较实际 payload 摘要和原键，并核 receiver evidence，不能只相信 stored digest。result、late version 与 account 的键分开。
 

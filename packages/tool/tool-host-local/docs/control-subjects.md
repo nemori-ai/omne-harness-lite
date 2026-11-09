@@ -20,13 +20,13 @@
 
 ## 记录和首次证据
 
-每个租户使用 host 域 `{ kind: 'host', tenant, key: 'control-subjects' }`。记录键是 `subject:` 加规范摘要。摘要输入依次为 organization、account、call、kind、actor.component、work.owner、SessionId。摘要只用于定位，读取仍比较完整字段。
+每次调用使用它自己的 host 域 `control@<call>`（[host-domains.ts](../src/host-domains.ts) 的 `callHostDomain(tenant, 'control', call)`），按键读取，不整读域。记录键是 `subject:` 加规范摘要。摘要输入依次为 organization、account、call、kind、actor.component、work.owner、SessionId。摘要只用于定位，读取仍比较完整字段。
 
 记录值包含 `kind: 'control-subject'`、`schema: 1`、租户的两段文本、原 call、稳定 subject 投影和首次 evidence。不保存 `P`、凭据或资格缓存。
 
 evidence 的 owner 为 `@omne-harness/tool-host-local`。record 为 `control-subjects:` 加 `JSON.stringify([organization, account, call, subjectKey])`，用于在读取前拒绝跨租户或跨调用的引用。revision 为首次关联提交的域修订号。digest 覆盖除 evidence 外的完整记录主体。evidence 与主体写进同一条 host 记录，后续始终返回首次 evidence。
 
-Session 来源修订不参与身份。其他关联推进 host 域修订也不替换已有 evidence。当前实现不回收关联记录。
+Session 来源修订不参与身份。同一调用的其他关联推进该调用域的修订也不替换已有 evidence。当前实现不回收关联记录。
 
 ## 操作和故障
 
@@ -45,7 +45,7 @@ runtime 的 `resolveAccess({ tenant, call })` 归受信调用来源与 runtime �
 现有来源的定位顺序如下。
 
 1. 从 call 域读取 [CallRecord](../../tool/src/ledger-store.ts)，取得原 `admission`、完整 `request.consumer` 和 `request.invocation.source`。
-2. 来源拥有者在本租户的 host 域 `invocation-source` 内，用 `source:` 加 `JSON.stringify([owner, work, position, purpose])` 定位 consumer 关联。
+2. 来源拥有者从租户与 consumer 派生调用 id，在该调用的 host 域 `source@<call>` 内用 `source:` 加 `JSON.stringify([owner, work, position, purpose])` 定位 consumer 关联。
 3. [调用来源](../src/invocation-source.ts)的内部组合核对原 call、admission、完整固定请求摘要和原 invocation evidence。`CallRecord.initiator` 只是来源投影，不能直接当作 `P`。
 4. 从已核验的来源取得原发起者的稳定身份描述，经既有 `resolveSessionWork` 重新解析，并经 `project` 对比原身份，再核当前 recover/write 资格。
 
