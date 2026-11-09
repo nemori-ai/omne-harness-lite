@@ -167,6 +167,14 @@ export type AssemblyCall<P> = Readonly<{
   purpose: RequestPurpose
 }>
 
+/** 调用身份：组一的用途、消费位置与候选身份，不含访问。 */
+export type CallIdentity = Omit<AssemblyCall<unknown>, 'access'>
+
+/** 调用身份的唯一取法：区分两次在途调用的消费方从这里取，不自己挑字段。 */
+export function callIdentity(call: AssemblyCall<unknown>): CallIdentity {
+  return { purpose: call.purpose, position: call.position, candidate: call.candidate }
+}
+
 /**
  * 已稳定读取的七组材料的内部视图。它不是公开入口：操作组只经来源集合读出它（RQ-13）。
  */
@@ -593,7 +601,7 @@ export type PreparedInputKey = Readonly<{
   /** The source set generation of a hosted operation group; `null` for a standalone group. */
   generation: SourceGeneration | null
   principal: PrincipalKey
-  identity: Omit<AssemblyCall<unknown>, 'access'>
+  identity: CallIdentity
   tokens: Readonly<Record<Exclude<GroupName, 'identity'>, GroupToken>>
   rules: Readonly<{ compaction: Adoption; configDigest: string; representation: Adoption }>
 }>
