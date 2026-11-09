@@ -16,6 +16,7 @@ import {
   encodeToolInvocationRef,
   judgeToolDelivery,
   type ConsumerRef,
+  type DurableEvidence,
   type FixedToolRequest,
   type Reply,
   type ToolCallId,
@@ -476,46 +477,60 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     record: DeliveryRecord,
     signal: AbortSignal,
   ): Reply<DeliveryRecord> {
-    if (
-      record.phase.kind === 'frozen' ||
-      record.phase.kind === 'done' ||
-      record.phase.kind === 'released'
-    )
+    if (record.phase.kind !== 'saved' && record.phase.kind !== 'release-unknown')
       return succeed(record)
     const qualified = await current(access)
     if ('failure' in qualified) return qualified
     if (signal.aborted) return deliveryUnavailable('delivery-wait')
+    const evidence = record.phase.evidence
     if (record.phase.kind === 'release-unknown') {
-      const resolution = await input.reads.operation({
-        ...qualified.ok,
-        operation: record.release,
-      })
-      if ('failure' in resolution || resolution.ok.kind === 'unknown')
-        return deliveryUnavailable('delivery-release')
-      if (resolution.ok.kind === 'committed') {
-        if (!(await released(access, record))) return deliveryUnavailable('delivery-release')
-        return state.save(
-          access,
-          { ...record, phase: { kind: 'released', evidence: record.phase.evidence } },
-          record,
-        )
-      }
+      const recalled = await recallRelease(access, qualified.ok, record, evidence)
+      if (recalled !== null) return recalled
     }
+    return sendRelease(access, qualified.ok, record, evidence, signal)
+  }
+
+  /**
+   * The outcome of a release whose answer was lost, by its operation: released when it committed
+   * and the result record shows it; null when it definitely did not commit, so it is sent again.
+   */
+  async function recallRelease(
+    access: CallAccess<P>,
+    qualified: CallAccess<P>,
+    record: DeliveryRecord,
+    evidence: DurableEvidence,
+  ): Promise<Awaited<Reply<DeliveryRecord>> | null> {
+    const resolution = await input.reads.operation({ ...qualified, operation: record.release })
+    if ('failure' in resolution || resolution.ok.kind === 'unknown')
+      return deliveryUnavailable('delivery-release')
+    if (resolution.ok.kind !== 'committed') return null
+    if (!(await released(access, record))) return deliveryUnavailable('delivery-release')
+    return state.save(access, { ...record, phase: { kind: 'released', evidence } }, record)
+  }
+
+  /** Marks the release unknown, sends it under the record's release operation, and keeps the answer. */
+  async function sendRelease(
+    access: CallAccess<P>,
+    qualified: CallAccess<P>,
+    record: DeliveryRecord,
+    evidence: DurableEvidence,
+    signal: AbortSignal,
+  ): Reply<DeliveryRecord> {
     const marked = await state.save(
       access,
-      { ...record, phase: { kind: 'release-unknown', evidence: record.phase.evidence } },
+      { ...record, phase: { kind: 'release-unknown', evidence } },
       record,
     )
     if ('failure' in marked || marked.ok.phase.kind !== 'release-unknown') return marked
     if (signal.aborted) return deliveryUnavailable('delivery-wait')
     const attempt = marked.ok
     const answer = await input.commands.releaseDelivery({
-      ...qualified.ok,
+      ...qualified,
       operation: attempt.release,
       result: attempt.payload.key.result,
       delivery: attempt.payload.delivery,
       consumer: attempt.payload.consumer,
-      evidence: { kind: 'retained', custody: record.phase.evidence },
+      evidence: { kind: 'retained', custody: evidence },
     })
     if ('failure' in answer) return answer
     if (
@@ -523,11 +538,66 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
       canonicalDigest(answer.ok.consumer) !== canonicalDigest(attempt.payload.consumer)
     )
       return deliveryUnavailable('delivery-release')
-    return state.save(
-      access,
-      { ...attempt, phase: { kind: 'released', evidence: record.phase.evidence } },
-      attempt,
+    return state.save(access, { ...attempt, phase: { kind: 'released', evidence } }, attempt)
+  }
+
+  /** The delivery's record, frozen now when it has none and its task is owed. */
+  async function frozenRecord(
+    access: CallAccess<P>,
+    base: DeliveryBase,
+    task: ToolTask | undefined,
+    sweep: Sweep,
+  ): Promise<DeliveryRecord | null> {
+    const loaded = await state.load(access, base)
+    if ('failure' in loaded) {
+      sweep.certain = false
+      return null
+    }
+    if (loaded.ok !== null) return loaded.ok
+    if (task === undefined) return null
+    const frozen = await freeze(access, base, task)
+    if ('failure' in frozen) {
+      sweep.certain = false
+      return null
+    }
+    return frozen.ok
+  }
+
+  /** Pushes the frozen delivery of `task`, keeping the run's owed set in step with its phase. */
+  async function pushOwed(
+    access: CallAccess<P>,
+    frozen: DeliveryRecord,
+    task: ToolTask | undefined,
+    signal: AbortSignal,
+    sweep: Sweep,
+  ): Promise<DeliveryRecord | null> {
+    if (frozen.phase.kind === 'frozen') sweep.owed.add(frozen.digest)
+    if (task !== undefined && frozen.task !== task.operation) return null
+    const saved = await push(access, frozen, signal)
+    if ('failure' in saved) return null
+    if (saved.ok.phase.kind !== 'frozen') sweep.owed.delete(frozen.digest)
+    return saved.ok
+  }
+
+  /** A released delivery is done once what it kept alive is released (C6). */
+  async function finish(
+    access: CallAccess<P>,
+    request: FixedToolRequest,
+    record: DeliveryRecord,
+  ): Promise<boolean> {
+    if (record.phase.kind !== 'released') return record.phase.kind === 'done'
+    if (
+      input.forwardedCopies !== undefined &&
+      (await input.forwardedCopies({ tenant: access.tenant, call: access.call, request })) !==
+        'released'
     )
+      return false
+    const finished = await state.save(
+      access,
+      { ...record, phase: { kind: 'done', evidence: record.phase.evidence } },
+      record,
+    )
+    return 'ok' in finished && finished.ok.phase.kind === 'done'
   }
 
   async function deliver(
@@ -538,46 +608,12 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     signal: AbortSignal,
     sweep: Sweep,
   ): Promise<boolean> {
-    const loaded = await state.load(access, base)
-    if ('failure' in loaded) {
-      sweep.certain = false
-      return false
-    }
-    const frozen =
-      loaded.ok === null
-        ? task === undefined
-          ? null
-          : await freeze(access, base, task)
-        : succeed(loaded.ok)
-    if (frozen !== null && 'failure' in frozen) sweep.certain = false
-    if (frozen === null || 'failure' in frozen || signal.aborted) return false
-    if (frozen.ok.phase.kind === 'frozen') sweep.owed.add(frozen.ok.digest)
-    if (task !== undefined && frozen.ok.task !== task.operation) return false
-    const saved = await push(access, frozen.ok, signal)
-    if ('ok' in saved && saved.ok.phase.kind !== 'frozen') sweep.owed.delete(frozen.ok.digest)
-    if ('failure' in saved || signal.aborted) return false
-    const outcome = await release(access, saved.ok, signal)
-    if (
-      'failure' in outcome ||
-      outcome.ok.phase.kind === 'frozen' ||
-      outcome.ok.phase.kind === 'saved' ||
-      outcome.ok.phase.kind === 'release-unknown'
-    )
-      return false
-    if (outcome.ok.phase.kind === 'done') return true
-    // The delivery is released: what it kept alive goes before the delivery is done.
-    if (
-      input.forwardedCopies !== undefined &&
-      (await input.forwardedCopies({ tenant: access.tenant, call: access.call, request })) !==
-        'released'
-    )
-      return false
-    const finished = await state.save(
-      access,
-      { ...outcome.ok, phase: { kind: 'done', evidence: outcome.ok.phase.evidence } },
-      outcome.ok,
-    )
-    return 'ok' in finished && finished.ok.phase.kind === 'done'
+    const frozen = await frozenRecord(access, base, task, sweep)
+    if (frozen === null || signal.aborted) return false
+    const saved = await pushOwed(access, frozen, task, signal, sweep)
+    if (saved === null || signal.aborted) return false
+    const outcome = await release(access, saved, signal)
+    return 'ok' in outcome && (await finish(access, request, outcome.ok))
   }
 
   async function run(
