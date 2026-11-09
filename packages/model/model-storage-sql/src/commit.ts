@@ -24,16 +24,17 @@ import {
   type TenantDocuments,
 } from '@omne-harness/model/commands'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type {
-  CommitRejectReason,
-  CommitResultV2,
-  DomainRef,
-  JsonValue,
-  QueryResultV2,
-  ReceiptV2,
-  SqlIdentity,
-  SqlStorage,
-  TenantDomainLookup,
+import {
+  commitRejectionNature,
+  type CommitRejectReason,
+  type CommitResultV2,
+  type DomainRef,
+  type JsonValue,
+  type QueryResultV2,
+  type ReceiptV2,
+  type SqlIdentity,
+  type SqlStorage,
+  type TenantDomainLookup,
 } from '@omne-harness/sql-contract'
 import type {
   ParticipantModule,
@@ -504,30 +505,11 @@ function afterRollback(receipt: ReceiptV2): Step {
 }
 
 /**
- * Whether the storage can accept the same request later: sql-contract "提交拒绝原因的定性".
- * `cancelled` is not classified there; until it is, it is held transient.
+ * A temporary rejection waits and comes again; a definite one is the same on every retry
+ * (sql-contract "提交拒绝原因的定性").
  */
-const REJECTION: Readonly<Record<CommitRejectReason, 'transient' | 'definite'>> = {
-  closing: 'transient',
-  queue_full: 'transient',
-  writer_not_current: 'transient',
-  domain_unavailable: 'transient',
-  cancelled: 'transient',
-  field_missing: 'definite',
-  unsupported_protocol: 'definite',
-  participant_repeated: 'definite',
-  facts_not_json: 'definite',
-  command_limit: 'definite',
-  combination_unregistered: 'definite',
-  manifest_mismatch: 'definite',
-  material_unavailable: 'definite',
-  participant_not_in_combination: 'definite',
-  participant_dependency_missing: 'definite',
-}
-
-/** A transient rejection waits and comes again; a definite one is the same on every retry. */
 function rejected(reason: CommitRejectReason): ModelFailure {
-  return REJECTION[reason] === 'transient'
+  return commitRejectionNature(reason) === 'temporary'
     ? unavailable(`storage rejected the commit: ${reason}`)
     : { kind: 'invalid', field: 'storage', reason }
 }

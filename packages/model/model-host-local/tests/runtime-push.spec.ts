@@ -650,8 +650,9 @@ it('keeps the custody and the share of a saved call while the consumer evidence 
   expect(
     w.warnings.some(text => text.includes('acknowledgement did not complete (unavailable)')),
   ).toBe(true)
+  // The first call still holds its half of the share: the share is full now (#1174).
   expect(await w.tryAdmit('second', HALF_SHARE)).toMatchObject({
-    failure: { kind: 'capacity', required: HALF_SHARE },
+    failure: { kind: 'unavailable', dependency: 'model-capacity' },
   })
 })
 
@@ -1082,7 +1083,9 @@ it('pushes again after a restart that lost the ledger, acknowledges, and gives t
   await w.admit('first', HALF_SHARE)
   await until(() => w.handoffs.length > 0, 'the ACK attempt after saved')
   expect(await w.custody('first')).toEqual({ kind: 'producer' })
-  expect(await w.tryAdmit('second', HALF_SHARE)).toMatchObject({ failure: { kind: 'capacity' } })
+  expect(await w.tryAdmit('second', HALF_SHARE)).toMatchObject({
+    failure: { kind: 'unavailable', dependency: 'model-capacity' },
+  })
 
   await first.dispose()
   w.restart()
