@@ -66,6 +66,17 @@ async function checkTime(assembly: LoopAssembly): Promise<void> {
   ok(assembly.controls.clock.advanceTo(due))
 }
 
+/** Advances the test clock to each check time the run arms, until the run has ended. */
+async function endedThroughChecks(assembly: LoopAssembly) {
+  await eventually(async () => {
+    if ((await read(assembly)).state.kind === 'ended') return true
+    const due = assembly.controls.clock.pending()[0]
+    if (due !== undefined) ok(assembly.controls.clock.advanceTo(due))
+    return false
+  })
+  return (await read(assembly)).state
+}
+
 async function ended(assembly: LoopAssembly) {
   await eventually(async () => (await read(assembly)).state.kind === 'ended')
   return (await read(assembly)).state
@@ -207,6 +218,41 @@ describe('a read answered unavailable inside a node is a dependency wait too', (
     await eventually(async () => refused === 1)
     await checkTime(assembly)
     expect(await ended(assembly)).toMatchObject({ conclusion: { kind: 'complete' } })
+    expect(reports).toEqual([])
+  })
+})
+
+describe('a received-records read answered unavailable is a Journal wait', () => {
+  // The live run in #1174 stopped at I3: the received entries, which the session log Journal
+  // serves, could not be read (the common root of the session, queue_full).
+  it('the received entries answering unavailable at I3 wait and the run completes', async () => {
+    let refused = 0
+    const reports: AgentRunFailed[] = []
+    const assembly = await loopAssembly(
+      [execution()],
+      d => ({
+        ...d,
+        entries: {
+          ...d.entries,
+          async receivedOf(input) {
+            // M1 and M3 read at M6 (M1 waits by itself); the read after them is I3's.
+            const at = await d.journal.load({ ...alice, execution: execution() })
+            if (refused === 0 && 'ok' in at && at.ok.checkpoint.position !== 'M6') {
+              refused += 1
+              return fail(FULL)
+            }
+            return d.entries.receivedOf(input)
+          },
+        },
+      }),
+      undefined,
+      undefined,
+      { failed: event => reports.push(event) },
+    )
+    assembly.release.open()
+    ok(await invoke(assembly))
+    await eventually(async () => refused === 1)
+    expect(await endedThroughChecks(assembly)).toMatchObject({ conclusion: { kind: 'complete' } })
     expect(reports).toEqual([])
   })
 })

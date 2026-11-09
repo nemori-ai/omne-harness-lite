@@ -571,14 +571,16 @@ export function recoveryRoute(
 
 export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): ExecutionCoordinator {
   const { binding, evaluator, execution } = entry
-  // The answers of the Journal, Model and Tool (SPEC "依赖不可用时的等待"), and of the message
-  // admission, which reads the same storage: a port's `unavailable` among them is a wait.
+  // The answers of the Journal (with its received entries), Model and Tool (SPEC "依赖不可用时的
+  // 等待"), and of the message admission, which reads the same storage: a port's `unavailable`
+  // among them is a wait.
   const ports = {
     ...entry.ports,
     journal: notingPorts(entry.ports.journal),
     models: notingPorts(entry.ports.models),
     tools: notingPorts(entry.ports.tools),
     handoff: notingPorts(entry.ports.handoff),
+    entries: notingPorts(entry.ports.entries),
   }
   const access: Access<P> = { principal: entry.access.principal, tenant: entry.access.tenant }
 
