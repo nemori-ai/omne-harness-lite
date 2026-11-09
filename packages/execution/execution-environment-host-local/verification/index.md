@@ -5,5 +5,5 @@
 ## 内容
 
 - [README.md](README.md)：验证资源的范围与现状
-- [models/](models/index.md)：形式模型，现在为空
+- [models/](models/index.md)：形式模型
 - [proofs/](proofs/index.md)：论证与证明，现在为空

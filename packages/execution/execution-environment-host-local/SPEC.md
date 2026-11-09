@@ -11,9 +11,59 @@
 
 上层依据：系统页[执行环境](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备)的成员分工，领域页[文件使用的交接](../../../docs/domains/execution-environments/architecture.md#文件使用的交接)，契约的[设施协议](../execution-environment-contract/SPEC.md#设施协议)、[INV-EE04](../execution-environment-contract/SPEC.md#inv-ee04-原主体在实际边界继续受约束)、[INV-EE09](../execution-environment-contract/SPEC.md#inv-ee09-资源和秘密以最小必要条件提供)、[INV-EE13](../execution-environment-contract/SPEC.md#inv-ee13-控制请求与实际停止释放分别确认) 与 [INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)。
 
-两个入口的模板标记写明还没有接受的部分：Runtime Context 生产者插件、调用方类的核对。`files` 的十二项操作、宿主文件根、`command`（处置与保留只在 Linux 上兑现，Windows 有一次性命令后端）、`terminal` 与平台前提的探测已经实现，但本页除[宿主文件使用](#宿主文件使用)外都没有经过独立技术接受。`terminal` 的实现与验证前提见[持久终端](#持久终端)。实现与独立接受分别报告。本成员不导入任何上层领域的契约。租户、作用域、原调用与恢复授权都随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
+两个入口的模板标记写明还没有接受的部分：Runtime Context 生产者插件、调用方类的核对。`files` 的十二项操作、宿主文件根、`command`（处置与保留在 Linux 上兑现，Windows 的兑现见未接受的 [Windows 的兑现](#windows-的兑现未接受)，macOS 只停止不保留）、`terminal` 与平台前提的探测已经实现，但本页除[宿主文件使用](#宿主文件使用)外都没有经过独立技术接受。`terminal` 的实现与验证前提见[持久终端](#持久终端)。实现与独立接受分别报告。本成员不导入任何上层领域的契约。租户、作用域、原调用与恢复授权都随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
 
 ## 结果与不变量
+
+### 宿主层性质与平台对照（未接受）
+
+状态：未接受。本节是契约 [INV-EE01～18](../execution-environment-contract/SPEC.md#结果与不变量) 在宿主平台层的细化。下列性质在 Linux、macOS 与 Windows 上都成立。平台之间的差异只经声明的事实体现：命令设施的 `containment`、保留扩展的有无、提供者事实的前提三态、结局里 `exit.signal` 的有无，以及终端字节的归属方式。提供者不用同一个形状虚构平台做不到的能力（[INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。
+
+| 编号 | 性质 | 违反时的后果 |
+| --- | --- | --- |
+| H-1 | 能力如实声明：`containment`、保留扩展与前提三态与实际执行域一致。证明不了 `sealed` 就不声明 `sealed`，探测没有完成就不报 `satisfied` | 消费者按不存在的保证行事 |
+| H-2 | 先许可后执行：用户代码的第一条指令在账本 `permit` 确认之后才执行。许可没有确认时，提供者停止资源并记入账本 | 没有记账的进程跨进程存活，无人承接 |
+| H-3 | 停止的确认只来自域外对原资源身份与代的观察。找不到、超时与请求被受理都不算已停止 | 仍在运行的进程被报告为已停止 |
+| H-4 | 结局如实：命令的退出码或信号只在 OS 给出时为已知。终端调用的退出码按该平台 shell 的规则求得，规则见各平台的终端一节。被强制停止的结局不报告为自然完成 | 消费者把被杀的命令当作成功或普通失败 |
+| H-5 | 残留有归属：主进程退出时，执行域里的其余进程或被停止并确认，或移交保留并可被列出，或报告为未知 | 后台进程失控，无人可停 |
+| H-6 | 冷恢复如实：列举不完整时答 `unavailable`，不答空列表。`recover` 只作用于本提供者写下、带代的引用 | 漏停旧进程，或误停别人的资源 |
+| H-7 | 子进程只得到请求给出的环境变量。参数、环境与输入不出现在别的进程能读到的命令行上 | 秘密泄露，或越权继承宿主环境 |
+| H-8 | 文件操作的完成只挂在点名对象与句柄代次上。打开到的对象与点名不一致时拒绝，确认不了时答未知 | 写到别的对象上 |
+| H-9 | 有宿主文件根时，任何文件效果不越出根。拒绝之前根内与根外都没有变化 | 越权读写根外文件 |
+| H-10 | 已经产生部分外部效果之后的失败答未知，不写成拒绝，也不自动重做 | 重复执行，或掩盖已经发生的效果 |
+| H-11 | 同一种 OS 情况在各平台映射到同一个结果与原因 | 工具与模型在不同平台上看到不同含义 |
+| H-12 | 门面封住之后，新操作答 `closed`，不起进程，不触碰文件系统 | 释放之后仍产生外部效果 |
+| H-13 | 模型从结局能读出成功还是失败。失败时，模型除了码之外还能看到原因：错误输出、错误记录、拒绝原因或诊断 | 模型把失败当作成功继续推进，或只看到一个码而无法定位 |
+
+平台的目标按下面的次序确定：
+
+1. 平台能做到比 Linux 更强的保证时，做到更强的保证，并且不再降低它。
+2. 否则与 Linux 对齐。
+3. OS 层确实做不到 Linux 的保证时，按 macOS 已有的做法如实声明差异，并写出 OS 层的原因。
+
+下表的等级是：「超出」指强于 Linux，「对齐」，「声明差异」指按第 3 条声明，「不适用」。
+
+| 能力 | Linux | macOS | Windows |
+| --- | --- | --- | --- |
+| 命令收纳 | `sealed`：systemd scope | `none`：POSIX 会话，`setsid` 的进程会离开 | 对齐：`sealed`，Job 加锚进程，见 [Windows 的兑现](#windows-的兑现未接受) |
+| 残留处置与保留 | 停止或移交保留，`residue` 有四种取值 | 只停止，`residue` 只有 `none` 与 `stopping` | 对齐：停止或移交保留，`residue` 有四种取值 |
+| 提供者进程退出后的命令 | 继续运行 | 门停止会话，命令随之停止 | 对齐：桥是独立进程，继续持有 Job，命令继续运行。桥进程退出时，提供者停止运行中的命令；已移交的保留进程由锚持有，继续运行 |
+| 冷恢复列举 | `systemctl` 列举单元 | 状态目录里的标记 | 对齐：状态目录里的标记；没有状态目录时答 `unavailable` |
+| 冷恢复的停止证据 | 启动身份与单元状态 | 启动身份与会话 | 对齐：启动身份、登录会话与 Job 名；别的登录会话里打不开 Job 时答 `pending` |
+| 优雅停止 | `SIGTERM` 加 `graceMs` | 同 Linux | 声明差异：只对控制台程序发 `CTRL_BREAK_EVENT`；其他程序答 `unconfirmed`（Windows 没有通用的终止请求）。消费者从 `stop('graceful')` 的答复看见这一差异 |
+| 批处理文件作为 `executable` | 不适用 | 不适用 | 超出：拒绝 `.bat` 与 `.cmd`，避免 `cmd.exe` 的二次解析 |
+| 文件写入 | 原位写 | 有根时原位写，结果报 `writeEffect: 'replaced'`。文档与实现的这一处不一致交 macOS 后端的拥有者裁定 | 超出：新建加替换（[R2-D38](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6579990443)），读者看到旧字节或新字节，不会看到写了一半的文件。声明差异：替换后的新对象继承父目录的 ACL，不保留旧对象的属性与备用数据流，旧对象的其他硬链接保留旧字节 |
+| 对象身份 | 设备号加 inode | 设备号加 inode | 对齐：卷序号加 128 位文件 ID，在 ReFS 上也唯一 |
+| 不覆盖的 `move` | 目录有检查与改名之间的窗口 | `fstatat` 加 `renameat`。文档写的是 `renameatx_np(RENAME_EXCL)`，这一处不一致交 macOS 后端的拥有者裁定 | 超出：由内核保证不覆盖，没有窗口 |
+| 删除与替换别的进程打开着的文件 | 总能成功，名字立即消失 | 同 Linux | 对齐：用 POSIX 语义的删除与改名，名字立即消失或被替换。声明差异：对方以不共享删除的方式打开时答 `rejected(busy)`；目录的子树里有打开的文件时，目录不能改名，答 `rejected(busy)`（NTFS 的限制） |
+| 越根防护 | 逐段 `openat`，核设备号与链接数 | 原生辅助程序逐段 `openat` | 对齐：从根句柄起逐段 `NtCreateFile`，拒绝中间的重解析点与跨卷项 |
+| 文件操作延迟 | 毫秒级系统调用 | 每次请求起一个辅助进程 | 对齐：常驻文件辅助进程，热态单次操作 p50 不超过 20 ms |
+| 终端 shell | Bash | `/bin/bash` 3.2.57 | 不适用：Windows 的终端 shell 是 Windows PowerShell 5.1，嵌在 ConPTY 里的 Runspace。对齐的是性质，不是 shell 语言 |
+| 终端调用的退出码 | Bash 的 `$?` | 同 Linux | 对齐：见 [Windows 终端](#windows-终端未接受) |
+| 终端字节归属 | 哨兵按段归属，段间字节单列 | 同 Linux | 系统 ConPTY 上是声明差异：按观察窗口归属，结局不带 `between`（ConPTY 重绘输出，未知 OSC 与文本不保序）。随包的 `conpty.dll` 通过保序验证时对齐。见 [Windows 终端](#windows-终端未接受) |
+| 信号退出 | 有 | 有 | 声明差异：Windows 没有信号，结局的 `exit` 只有 `code` 一种，消费者从 `exit` 的形状看见这一差异 |
+| 磁盘已满且没有效果 | `ENOSPC` 映射为未知 | 同 Linux | 超出：临时对象已删除且目标未变时答 `rejected(capacity)`。Linux 原位写在磁盘满时可能已写了一部分，所以答未知。Linux 能否区分「没有效果」交 Linux 后端的拥有者 |
+| 失效终端的引用 | 答 `closed`，与契约写的 `unavailable` 不一致，交 Linux 后端的拥有者裁定 | 同 Linux | 对齐契约：答 `unavailable` |
 
 ### 宿主提供者的事实
 
@@ -40,7 +90,7 @@
 - `inspectAcquisition(原描述)` 读责任域的原记录：打开的答已获取（带原租约与证据），释放中的答待定（阶段 `releasing`，资源列出停止未确认的命令进程），已结清的答已结清，指纹不同的答冲突。没有记录时，原描述的提供者代是本责任域签发过的代则答未分配，否则答未知：新进程的责任域没有证据说明旧容量已经结清。配额域与本责任域不同的原描述按没有记录处理。
 - `listAcquisitions(作用域)` 列出请求方作用域是该作用域、尚未结清的全部获取的原描述，包括没有受管资源的获取。
 - `settleAcquisition(原描述)` 与查询做同样的定位，然后排空这份获取：封门面、使原租约以来源 `provider`、原因 `released` 失效、等在途操作、重试失败的关闭。什么都不剩时答已结清，否则答待处置（资源列出停止未确认的命令进程）。结清不重做文件写入，也不回滚已写入的字节。重复结清答已结清，不再返还名额。
-- 本提供者的文件操作不留下受管资源；命令与终端的执行域是受管资源：Linux 上是 scope 单元，Windows 上是 Job，macOS 上是 POSIX 会话。`listRecoveryResources` 与 `recover` 只处理这些执行域，见[宿主命令与终端](#宿主命令与终端)的资源级冷恢复。Windows 没有完整的冷资源索引，答 `unavailable`。macOS 从状态目录里的冷索引作答，并合并责任域已知的保留终端资源。macOS 上没有状态目录时答 `unavailable`。Linux、Windows 与 macOS 之外的宿主答责任域已知的保留终端资源，没有时为空列表。Linux 上没有可达的用户管理器时答 `unavailable`，不答空列表。描述符、在途操作与失败关闭由获取路径（枚举与结清）覆盖，空的资源列表不证明没有这些责任。
+- 本提供者的文件操作不留下受管资源；命令与终端的执行域是受管资源：Linux 上是 scope 单元，Windows 上是 Job，macOS 上是 POSIX 会话。`listRecoveryResources` 与 `recover` 只处理这些执行域，见[宿主命令与终端](#宿主命令与终端)的资源级冷恢复。Windows 与 macOS 从状态目录里的冷索引作答，并合并责任域已知的保留终端资源。Windows 与 macOS 上没有状态目录时答 `unavailable`。Linux、Windows 与 macOS 之外的宿主答责任域已知的保留终端资源，没有时为空列表。Linux 上没有可达的用户管理器时答 `unavailable`，不答空列表。描述符、在途操作与失败关闭由获取路径（枚举与结清）覆盖，空的资源列表不证明没有这些责任。
 - 本提供者不读账本：账本关闭后的拒绝由登记表的门在调用设施之前做（[INV-EE15](../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。直接调用 `createHostFilesProvider` 得到的租约原件不经过门。终端额外读取原账本的关闭信号，阻止关闭之后的创建与执行。请求方作用域随 `ProviderAcquireInput.scope` 到达，进入原描述与获取枚举。
 - `retire()` 先把提供者标为已退役，之后新的获取返回 `providerUnavailable`。然后它封住这一代全部尚未结清的获取的门面，使它们的租约原件以来源 `provider`、原因 `providerRetired` 失效，再逐份排空。每份都结清时返回已排空，并结束这一代对引擎诊断的订阅；否则返回待处置，资源列出停止未确认的命令进程，并给 `diagnose` 一条诊断。原记录与仍打开的描述符留在责任域，新的代经同一责任域查询与结清它们。待处置之后再调用 `retire()` 会再排空一次。
 - `drainBoundMs` 的初值是 10000，用于释放、结清与退役。它必须是有限的非负数，否则 `createHostFilesProvider` 抛出 `RangeError`。
@@ -127,7 +177,7 @@
 
 共同规则：
 
-1. 平台前提 P2。Linux 后端靠 `/proc/self/fd/<描述符>/<名>`：内核按已打开的目录对象解析这条路径，不按目录现在叫什么名字解析。`probeHostFilesPrerequisite(directory?)` 探测它：Linux 上在 `directory`（缺省是系统临时目录，引擎用状态目录）里建临时目录，打开它，经描述符路径独占新建一个文件再删除，成功为满足，没有这种路径为不满足，探测本身出错为未知。macOS 使用公开 POSIX `*at` 接口的原生辅助程序，在临时目录中实际创建并删除文件来探测 P2；缺少编译工具为不满足。Windows 的前提见 [Windows 说明](docs/windows-execution.md)。没有后端的平台为不满足。引擎保留满足与不满足的结果，未知的结果下一次请求再探。前提不是满足时，八项返回 `rejected`，原因 `unavailable`，不触碰文件系统。
+1. 平台前提 P2。Linux 后端靠 `/proc/self/fd/<描述符>/<名>`：内核按已打开的目录对象解析这条路径，不按目录现在叫什么名字解析。`probeHostFilesPrerequisite(directory?)` 探测它：Linux 上在 `directory`（缺省是系统临时目录，引擎用状态目录）里建临时目录，打开它，经描述符路径独占新建一个文件再删除，成功为满足，没有这种路径为不满足，探测本身出错为未知。macOS 使用公开 POSIX `*at` 接口的原生辅助程序，在临时目录中实际创建并删除文件来探测 P2；缺少编译工具为不满足。Windows 的前提见 [Windows 文件后端](#windows-文件后端未接受)末段。没有后端的平台为不满足。引擎保留满足与不满足的结果，未知的结果下一次请求再探。前提不是满足时，八项返回 `rejected`，原因 `unavailable`，不触碰文件系统。
 2. 前置检查与已接受的四项相同，先于平台检查，不触碰文件系统：绑定层不是 `host_machine` 为 `unsupported`；路径不是绝对路径或含空字节为 `invalidInput`；没有点名为 `notAuthorized`。`move` 与 `copy` 的目标路径和点名、`commitBatch` 每一项的路径和点名用同一组检查。
 3. 落点是目录描述符。每项操作先打开所需的目录，不跟随最后一段链接，核对它的设备号与 inode，之后的建、删、改名在 Linux 经 `/proc/self/fd/<描述符>/<名>`，在 macOS 经同一辅助进程持有的目录描述符和 `*at` 系统调用；名里没有斜杠。目录在操作中被改名或被换成链接，操作仍落在原目录里。
 4. 点名不一致为 `conflict`，与读取、写入相同。
@@ -176,6 +226,51 @@
 
 拒绝后根内与根外的目录无变化：名、类型、字节、链接数与修改时间不变。读取与打开目录可能更新访问时间（取决于挂载选项），不在其内。已知限制：根内的挂载点靠设备号核对挡住，中间段、经 `openNamed` 的最后一段与删除的最后一段都核；Linux 包测试在有挂载权限时把 tmpfs 挂在根内的目录上构造最后一段（`sudo -n mount`）；macOS 测试用 `hdiutil` 挂载独占临时 APFS 卷。两个平台都核对查看与递归删除被拒绝，且卷中内容不变。没有权限的环境里该用例报告跳过，不算通过。同一文件系统上的绑定挂载与根内目录设备号相同，核对挡不住。删除与改名的核对和实际调用之间名可以被换成另一个对象，效果仍不出该目录。
 
+### Windows 文件后端（未接受）
+
+状态：未接受。本节写 Windows 后端怎样兑现上文的十二项操作与宿主文件根。机制见 [Windows 文件说明](docs/windows-files.md)。
+
+辅助进程：
+
+- 十二项操作在 Windows 上全部经文件辅助进程执行。有根与无根用同一个后端，区别只在起点：有根时从根的句柄起逐段打开，无根时从盘符根的句柄起逐段打开。
+- 文件辅助进程是常驻进程，每个 harness 进程一个，各引擎与 `hostObjectToken` 共用。它由内嵌的 C# 源码用系统的 .NET Framework 编译器 `csc.exe` 编译，按源码摘要缓存。它不依赖 PowerShell。
+- 辅助进程不持有跨请求的状态。每个请求的句柄在这个请求里打开，返回之前关闭。根的身份随每个请求传入。
+- 延迟目标：同一台机器上，热态（辅助进程已经启动，编译缓存已经存在）的单次 `stat`、`read`、`list` 与 `write` 的 p50 不超过 20 ms。第一个请求的启动时间不计入。
+
+路径与身份：
+
+- 只接受本机盘符的绝对路径。无根时，UNC、`\\?\`、`\\.\`、备用数据流、末尾是点或空格的名字与设备名答 `rejected(unsupported)`。有根时，这些写法不在根下，答 `notAuthorized`（见 `hostSegmentsBelowRoot`）。
+- 空段与 `.` 段按 POSIX 的规则忽略。任何 `..` 段都被拒绝。
+- 对象 token 的形式是 `<卷序号十进制>:<128 位文件 ID 十六进制>`，取自 `GetFileInformationByHandleEx(FileIdInfo)`。`hostObjectToken` 在 Windows 上经同一个辅助进程取 token，所以调用方的点名与后端的核对使用同一种形式。
+- 名字是 UTF-16。含未配对代理项的名字按[八项操作](#八项操作未接受)共同规则第 8 条处理：`list` 与 `search` 略过这一项，递归删除答 `unsupported`。
+
+删除、改名与写入：
+
+- 删除使用 POSIX 语义并忽略只读属性：名字立即消失，别的进程已经打开的句柄仍然可用。
+- 改名与替换发布使用 POSIX 语义并忽略只读属性。替换时，目标被别的进程打开着也能被替换。
+- 辅助进程自己的每次打开都允许别的进程读、写与删除。
+- 别的进程以不允许删除的方式打开了对象时，删除、改名与替换答 `rejected(busy)`。目录的子树里有打开的文件时，NTFS 不允许改名这个目录，`move` 答 `rejected(busy)`。
+- 写入是新建加替换，规则见 [Windows 文件说明](docs/windows-files.md#收尾与未闭合项)。新对象继承父目录的 ACL。旧对象的属性、备用数据流与其他硬链接不转到新对象。
+- `copy` 在辅助进程里按块流式复制：从源句柄读，写进目标父目录句柄下的临时对象，刷盘之后按替换发布的规则发布。复制的内存占用与文件大小无关。
+- 磁盘已满时，如果临时对象已经删除且目标没有变化，答 `rejected(capacity)`。否则答未知。
+
+搜索与批次：
+
+- `search` 遇到别的进程以不共享读的方式打开的文件时，跳过这个文件，结果的 `truncated` 为真，结果仍为完成。
+- 批次由逐项操作组成，不使用原生握手。暂存阶段失败时，如果全部临时对象都已删除，答 `rejected`。否则答未知。
+- `recoverBatch` 遇到目标是目录或链接时，把这一项列入 `conflicting`，不把整个回答改为未知。
+- 批次与 `copy` 留下的临时对象经诊断 `temporaryFileRemains` 报告。
+
+失败：
+
+- 辅助进程退出（包括崩溃）时，已经写给这个进程、还没有答复的请求答未知。还在队列里的请求等下一个进程，这不是重做。
+- 单个请求超过 `requestBoundMs`（初值 30000）时，这个辅助进程整体失效并被停止，它的在途请求答未知。
+- 辅助进程起不来或超过启动上界时，等待中的请求答 `unavailable`。
+- 门面封住之后，这个所有者已经准入、还没有发给辅助进程的请求答 `closed`。入队与发送之前都再核对一次封闭。
+- 已知限制：一个辅助进程由全部引擎共用。它崩溃、送出损坏的帧或超时时，同一时刻其他获取与其他租户的在途请求也答未知。每个请求的结果仍然如实，数据不越界。依据：宿主机部署归一个自然人（R2-D204）。
+
+前提 P2 在 Windows 上：`csc.exe` 存在，辅助进程能启动，并且能在状态目录（没有状态目录时用系统临时目录）里经句柄相对的方式建一个文件、读、列出、删除。不满足时为 `unsatisfied`，探测本身出错时为 `unknown`。
+
 ### Service 实现
 
 - `ExecutionEnvironmentRegistry<P>` `extends ExecutionEnvironmentService<P>`，不另写键（[IC-2](../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。构造时调用 `createEnvironmentRegistry`，把环境面与恢复面八个方法原样转给登记表。
@@ -190,7 +285,7 @@
 
 ### 宿主命令与终端
 
-本节写宿主提供者承担的 `command`。平台范围（Q-9）：Linux 兑现一次性命令的处置与保留，见[一次性命令留下的进程的兑现](#一次性命令留下的进程的兑现)。Windows 有一次性命令后端：根进程退出时停止 Job 里剩下的进程，结局不带 `residue`。macOS（`darwin`）有一次性命令后端与持久终端后端。macOS 的执行域是 POSIX 会话，不满足封闭收纳，所以不保留进程：主进程退出之后整个会话被停止，结局的 `residue` 只有 `none` 与 `stopping` 两种，见 [macOS 的兑现](#macos-的兑现)。macOS 上的 `files` 提供十二项操作与宿主文件根，机制见 [macOS 文件说明](docs/macos-files.md)。macOS 的机制见 [macOS 说明](docs/macos-execution.md)。普通每获取的 `terminal` 见下文[持久终端](#持久终端)。机制见[架构的宿主命令机制](docs/architecture.md#宿主命令机制)。依据是 GATE-EE 候选第 3、4 节与 [D1 决策记录](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561322330)。本节没有经过独立技术接受。
+本节写宿主提供者承担的 `command`。平台范围（Q-9）：Linux 兑现一次性命令的处置与保留，见[一次性命令留下的进程的兑现](#一次性命令留下的进程的兑现)。Windows 按 Job 封闭收纳并兑现处置与保留，见 [Windows 的兑现](#windows-的兑现未接受)。macOS（`darwin`）有一次性命令后端与持久终端后端。macOS 的执行域是 POSIX 会话，不满足封闭收纳，所以不保留进程：主进程退出之后整个会话被停止，结局的 `residue` 只有 `none` 与 `stopping` 两种，见 [macOS 的兑现](#macos-的兑现)。macOS 上的 `files` 提供十二项操作与宿主文件根，机制见 [macOS 文件说明](docs/macos-files.md)。macOS 的机制见 [macOS 说明](docs/macos-execution.md)。普通每获取的 `terminal` 见下文[持久终端](#持久终端)。机制见[架构的宿主命令机制](docs/architecture.md#宿主命令机制)。依据是 GATE-EE 候选第 3、4 节与 [D1 决策记录](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561322330)。本节没有经过独立技术接受。
 
 提供者与终端：
 
@@ -205,7 +300,7 @@
 3. 平台前提不满足，答 `unavailable`。`diagnose` 收到一条 `commandUnavailable` 诊断，写明缺少的前提项与获取键。
 4. 这份获取的命令门面已经封住，答 `closed`。
 
-所以请求本身有错时，已封住的门面也答 `unsupported` 或 `invalidInput`；平台前提缺失时，已封住的门面答 `unavailable`。次序依 GATE-EE 候选第 3.1 节。
+所以请求本身有错时，已封住的门面也答 `unsupported` 或 `invalidInput`；平台前提缺失时，已封住的门面答 `unavailable`。次序依 GATE-EE 候选第 3.1 节。Windows 用同一个次序。
 
 平台前提：
 
@@ -244,6 +339,18 @@ macOS 的平台前提（类型 `MacosPrerequisite`）。macOS 不做 P1、P3～P
 - `describe()` 的前提在 macOS 上合并文件 P2、会话读取程序可用与终端前提齐全三项读数。任一项缺少为 `unsatisfied`。
 - 缺工具或编译不成功的结果不保留。下一次用到会话读取程序时再试，所以装好 Command Line Tools 之后不需要重启进程。
 
+Windows 的平台前提（未接受）。Windows 不做 P1、P3～P6 的探测，改核对下列项：
+
+| 前提项名 | 核对 | 约束 |
+| --- | --- | --- |
+| `windows-version` | 64 位 Windows 10 1809 或 Windows Server 2019 及以后 | 命令与终端 |
+| `dotnet-csc` | `%SystemRoot%\Microsoft.NET\Framework64\v4.0.30319\csc.exe` 存在，桥能编译成功 | 命令、终端与文件 |
+| `job-round-trip` | 在一个探测 Job 里起锚与一个探测进程，按名字打开 Job、读到成员数，强制停止并确认 | 命令 |
+| `powershell-assembly` | 系统的 Windows PowerShell `System.Management.Automation` 3.0 程序集可以加载 | 终端 |
+
+- 缺项时，命令启动答 `unavailable`，`commandUnavailable` 诊断写明缺项；终端缺项时 `create` 答 `unavailable`，`terminalUnavailable` 诊断写明缺项。
+- 满足的结果在这一代内保留。不满足或探测出错时，距上次探测达到 `probeRetryMs` 的下一次启动重新探测。`graceMs` 用于上文 Windows 的优雅停止。
+
 启动：
 
 1. 资源键是新的 UUID。执行域是 systemd 用户 scope 单元 `omne-host-<资源键>.scope`，单元描述是 `omne-host <请求方作用域的摘要> <资源键>`。受管资源的引用是 `{ unit, bootId }`，`bootId` 是本机当前的启动身份。
@@ -281,8 +388,8 @@ macOS 的平台前提（类型 `MacosPrerequisite`）。macOS 不做 P1、P3～P
 
 资源级冷恢复（不含获取的结清）：
 
-- `listRecoveryResources(作用域)`：Windows 没有完整冷资源索引，答 `unavailable`，不能把当前进程的部分记录当成完整清单。Linux 上用 `systemctl --user show -p Id -p Description 'omne-host-*.scope'` 读本用户全部 `omne-host-*.scope` 单元的 `Id` 与 `Description`，列出描述里的作用域摘要与这个作用域相同的单元。正在停止的单元也在列表里。以下情况答 `unavailable`，不答空列表：列举命令失败；找不到 `systemctl`；输出里有一块含有不是 key=value 的行，或同一个键出现两次；有一块缺 `Id` 或 `Description`；有一块的 `Id` 不是 `omne-host-*.scope`。列表只略去格式正确、但不属于这个作用域的块：描述里的作用域摘要不同，或单元名不是 `omne-host-<uuid>.scope`（例如探测单元）。上一次启动的单元已随重启消失，所以不在列表里。列表另带保留进程索引里这个作用域的单元。索引的标记文件读不全时答 `unavailable`。macOS 的列举读冷索引，见 [macOS 的兑现](#macos-的兑现)。Linux、Windows 与 macOS 之外的平台没有命令后端，返回责任域已知的保留资源。
-- Linux 的 `recover(资源)`：提供者名不是本提供者，或引用不是本提供者写下的 `{ unit, bootId }`（单元名必须是 `omne-host-<uuid>.scope`），答 `unsupported`。所以恢复不能停止别的单元。启动身份已变时答 `confirmedStopped`，证据写明单元与当前的启动身份。否则按强制停止序列停止并核对：确认时答 `confirmedStopped`，证据带单元、`LoadState` 与 `ActiveState`；未确认时答 `pending`。它不重启命令，不接回输出，也不交出原结局。资源在保留进程索引里时，由索引停止它，并在确认之后删去它的标记文件。Windows 按[原 Job 引用恢复](docs/windows-execution.md#host-provider-integration)，格式不支持时答 `unsupported`，合法引用的 key 不匹配或停止未确认时答 `pending`。macOS 按冷索引里的标记恢复，见 [macOS 的兑现](#macos-的兑现)。
+- `listRecoveryResources(作用域)`：Windows 读状态目录里的标记，见 [Windows 的兑现](#windows-的兑现未接受)。Linux 上用 `systemctl --user show -p Id -p Description 'omne-host-*.scope'` 读本用户全部 `omne-host-*.scope` 单元的 `Id` 与 `Description`，列出描述里的作用域摘要与这个作用域相同的单元。正在停止的单元也在列表里。以下情况答 `unavailable`，不答空列表：列举命令失败；找不到 `systemctl`；输出里有一块含有不是 key=value 的行，或同一个键出现两次；有一块缺 `Id` 或 `Description`；有一块的 `Id` 不是 `omne-host-*.scope`。列表只略去格式正确、但不属于这个作用域的块：描述里的作用域摘要不同，或单元名不是 `omne-host-<uuid>.scope`（例如探测单元）。上一次启动的单元已随重启消失，所以不在列表里。列表另带保留进程索引里这个作用域的单元。索引的标记文件读不全时答 `unavailable`。macOS 的列举读冷索引，见 [macOS 的兑现](#macos-的兑现)。Linux、Windows 与 macOS 之外的平台没有命令后端，返回责任域已知的保留资源。
+- Linux 的 `recover(资源)`：提供者名不是本提供者，或引用不是本提供者写下的 `{ unit, bootId }`（单元名必须是 `omne-host-<uuid>.scope`），答 `unsupported`。所以恢复不能停止别的单元。启动身份已变时答 `confirmedStopped`，证据写明单元与当前的启动身份。否则按强制停止序列停止并核对：确认时答 `confirmedStopped`，证据带单元、`LoadState` 与 `ActiveState`；未确认时答 `pending`。它不重启命令，不接回输出，也不交出原结局。资源在保留进程索引里时，由索引停止它，并在确认之后删去它的标记文件。Windows 按标记里的 Job 名、启动身份与登录会话恢复，见 [Windows 的兑现](#windows-的兑现未接受)。macOS 按冷索引里的标记恢复，见 [macOS 的兑现](#macos-的兑现)。
 - 新进程对旧获取的结清仍答未知（见[宿主文件责任域](#宿主文件责任域)）。需要域外可信的进程退出证据的结清是 M2 之后的剩余责任。
 - 已知限制：列举依赖单元描述。同一用户的其他进程可以伪造描述。M2 单机、同一操作者，接受这一点。
 
@@ -355,6 +462,38 @@ macOS 上，上文的 scope 指终端的执行域。执行域是两个 POSIX 会
 - 段的停止与冷恢复的规则见 [macOS 的兑现](#macos-的兑现)。
 
 `host-terminal.ts` 接受可注入的 `TerminalPlatform`。没有注入时，它是不变的 Linux scope 实现。macOS 注入的实现在 `src/macos-execution/terminals.ts`。
+
+#### Windows 终端（未接受）
+
+状态：未接受。Windows 的终端是嵌在 ConPTY 子进程里的 Windows PowerShell 5.1 Runspace。机制见 [Windows 命令与终端说明](docs/windows-execution.md#persistent-terminals)。
+
+调用的退出码。每次调用结束时，宿主按下面的规则给出已知的退出码：
+
+1. 调用开始之前，宿主把 `$global:LASTEXITCODE` 置空，并记下 `$Error` 的长度。
+2. 脚本执行了 `exit N` 时，退出码是 N。
+3. 否则，脚本结束时 `$?` 为真，退出码是 0。
+4. 否则，如果这次调用新增的错误记录全部来自原生程序的标准错误（`NativeCommandError`），并且 `$LASTEXITCODE` 是 0，退出码是 0。Windows PowerShell 5.1 在 `2>&1` 合并原生程序的标准错误时会把 `$?` 置为假，这一条防止把成功的原生程序判为失败。
+5. 否则，如果 `$LASTEXITCODE` 在这次调用里被设为非 0，退出码是这个值。
+6. 否则（包括终止错误），退出码是 1。
+
+- 除第 4 条之外，成功与失败的判定与 PowerShell 官方的 `-Command` 规则相同。第 4 条修正 Windows PowerShell 5.1 把成功的原生程序判为失败的情况。第 5 条在失败时带出原生程序的码，与 Bash 一致。
+- 已知限制：同一次调用里，一个原生程序以非 0 退出之后，又有一个 cmdlet 失败时，退出码是那个原生程序的码。这次调用仍然判为失败。
+- 已知限制：上一次调用留下的 `$LASTEXITCODE` 在这次调用开始时已经被置空。
+- 失败的原因在调用的输出里：错误流与警告流经 `Out-Default` 写到控制台。结局只带退出码。
+- `exit N` 结束持久 shell。这次调用以 N 完成，之后终端失效，后续调用答 `unavailable`。宿主实现 `PSHost.SetShouldExit` 记下 N，不调用 `Environment.Exit`。
+- 运行中被强制停止，或控制通道丢失时，结局为 `failed(effectUnknown)`。
+
+字节归属：
+
+- 系统自带的 ConPTY 会重新渲染子进程的输出，未知的 OSC 序列与渲染出的文本没有先后保证。所以 Linux 的哨兵规则在系统 ConPTY 上不成立。
+- Windows 终端随包使用 Windows Terminal 1.22 或以后版本的 `conpty.dll`，并且它通过保序验证时，按 Linux 的哨兵规则归属字节，段间字节进 `OutputSummary.between`。这时 `conpty.dll` 是终端的前提。
+- 否则，Windows 终端按观察窗口归属字节，这是声明的差异，规则与限制见 [Windows 命令与终端说明](docs/windows-execution.md#persistent-terminals)。
+
+上限：终端数、窗口数、保留的输出字节数与排队的块数由 `terminal` 配置给出。代码里的 64 个终端、256 个窗口、64 MiB 与 65536 块只是初值。
+
+失效：失效终端的引用答 `unavailable`。
+
+终端不加锚进程。终端的 Job 由 ConPTY 的宿主进程持有，宿主进程退出时终端失效，与 Linux 的门进程退出时相同。Session 保留终端的跨获取附着不在 WindowsCustody 模型的范围内。
 
 #### Session 保留终端
 
@@ -452,7 +591,7 @@ macOS 上，上文的 scope 指终端的执行域。执行域是两个 POSIX 会
 - 提供者重启之后，第一次用到索引时读全部标记文件。启动身份不同、单元已不在、格式不是本版本的标记文件被删去，并发出 `retainedMarker` 诊断（`discarded`）。有一个标记文件读不出时，这次加载不完整：预留答不可用，`list` 与冷恢复的列举答 `unavailable`，下一次用到时再加载。
 - 标记文件写不成时，执行域仍归保留范围，并发出 `retainedMarker` 诊断（`notWritten`）。只要这一项还在索引里，不论运行中还是停止中，`maintain()` 每次都重写它，写成之后不再重写。确认停止之后标记文件删不掉时，诊断是 `notRemoved`。
 
-Windows 的兑现（未实现，需要 Windows 宿主验证）：根进程退出时，可以保留就不终止 Job，bridge 继续持有 Job 句柄并读管道。变空检测沿用共用索引的轮询，或用 Job 完成端口的 `JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO`，由 Windows 兑现时验证后选定。bridge 意外退出时，`KILL_ON_JOB_CLOSE` 停止留下的进程，这是保守方向。冷恢复按标记文件里记下的 Job 名重开，因为保留账本不能枚举。
+Windows 按 Job 封闭收纳，处置与保留的规则见 [Windows 的兑现](#windows-的兑现未接受)。
 
 macOS 按 POSIX 会话收纳。进程可以用 `setsid` 离开会话，所以 macOS 不满足封闭收纳，不提供保留进程。主进程退出之后，提供者停止整个会话，见 [macOS 的兑现](#macos-的兑现)。
 
@@ -468,14 +607,13 @@ macOS 按 POSIX 会话收纳。进程可以用 `setsid` 离开会话，所以 ma
 - 移交之后的输出尾部只在提供者进程的内存里。提供者进程重启后，加载回来的保留进程没有尾部，`output` 答 `unavailable`；移交之后帧流故障或帧通道关闭时尾部关闭，`output` 同样答 `unavailable`，不恢复读取；门在管理者断开后继续排空管道并丢弃字节。收敛条件：需要跨重启或跨故障读输出时，尾部移进门进程或写入状态目录。
 - 尾部的内存是确定的：每条流一块容量大小的缓冲，在第一个字节到达时分配；上界是容量乘以流数再乘以存活的保留进程数。每个保留范围最多 `retainedPerScope` 个，但保留范围的个数不设上限；应用没有接 `releaseScope` 时，保留进程不随会话结束而停止，这个上界随会话数增长。收敛条件：同 `releaseScope` 接线一条。
 - 保留进程索引的配置（`retainedPerScope`、`retainedPollMs`）、监督者与诊断去向，取自第一次建立该状态目录索引的那一代提供者。配置重载不改变它们，直到该状态目录的各代都退役。收敛条件：需要重载这几项时，索引按代登记它们，取最近加入的一代。
-- Windows 的一次性命令后端在根进程退出时停止 Job 里剩下的进程。它的结局不带 `residue`，也不交出保留扩展。Windows 的命令设施不声明 `containment`，所以 Shell 在 Windows 上的 `info` 写 `process_containment=undeclared`。收敛条件：Windows 兑现（见上文「Windows 的兑现」一段）。
 - macOS 的偏离。收敛条件尚未确定，归 #1137 的负责人：
   - 调用 `setsid` 的进程离开执行域。它不被停止，也不被列出，终端的 `close` 仍答 `confirmed`。`tests/macos-execution/terminals.spec.ts` 的用例「known deviation」断言这一点。
   - Shell 工具的帮助文本说留下的进程被保留，这在 macOS 上不成立。模型看到的是 `residue=stopping reason=uncontained`、`retained_processes=unavailable` 与 `process_containment=none`。
   - 提供者死去时，门停止自己的会话。所以提供者死去之后，命令不继续运行。
   - 提供者与门在 GO 之后、终端的 shell 会话记入标记之前一起死去时，标记里没有 shell 的会话，冷恢复不停止它。
   - 读到一个成员与向它发信号之间，进程号在理论上可以被重用。这个窗口很窄，与按进程号 `kill` 的窗口同类。
-- Windows 终端：段的字节归属只在 Linux 兑现。Windows 终端仍按观察窗口归属字节，结局不带 `between`。ConPTY 会重绘输出，可能吞掉未知的 OSC 序列，这一点尚未在真实 ConPTY 上验证。收敛计划：在 Windows 宿主上验证 ConPTY 是否保留哨兵，成立就按 Linux 的做法兑现，不成立就保留按观察窗口归属，并写明这条限制。
+- Windows 终端的字节归属见 [Windows 终端](#windows-终端未接受)：系统 ConPTY 上按观察窗口归属，结局不带 `between`。收敛条件：随包的 `conpty.dll` 通过保序验证。
 
 预期行为：句柄已确认停止之后再调用 `stop`，提供者再发一次停止，并再记一条 `confirmed`。集成方按已确认保持原事实，不改变结论。
 
@@ -536,6 +674,58 @@ macOS 按 POSIX 会话收纳。进程可以用 `setsid` 离开会话，所以 ma
 - 每个执行域一个标记，路径是 `<stateDirectory>/macos-domains/<资源键>.json`。标记在门就绪、身份核对之后，GO 之前写。终端的标记在 shell 起来之后带上 shell 的会话重写一次。
 - 列举要么完整，要么答 `unavailable`。有一个标记读不出时答 `unavailable`。没有状态目录时答 `unavailable`，不答空列表。
 - `recover(资源)`：提供者名不是本提供者，或引用不是 macOS 执行域的引用时答 `unsupported`。标记的启动身份不是当前的时答 `confirmedStopped`，并删去标记。没有标记时答 `confirmedStopped`：这个执行域没有发过 GO，或者已经被停止。标记读不出时答 `pending`。其余情况停止标记里的会话，确认时删去标记并答 `confirmedStopped`，否则答 `pending`。
+
+#### Windows 的兑现（未接受）
+
+状态：未接受。Windows 的执行域是 Job Object。机制见 [Windows 命令与终端说明](docs/windows-execution.md)。形式模型见 [WindowsCustody](verification/models/README.md#windowscustody)。
+
+收纳：
+
+- 每个命令有自己的 Job。成员在创建时就进入 Job（`PROC_THREAD_ATTRIBUTE_JOB_LIST`），Job 不允许 breakaway，并设置 `KILL_ON_JOB_CLOSE`。
+- 每个 Job 里有一个锚进程。桥用同一个原生可执行文件以锚模式在 Job 里第一个启动它。锚打开本 Job 的句柄后只等待，不读写任何数据。所以 Job 与它的名字只随停止而结束，不随桥进程或 harness 进程的退出而结束。
+- 命令设施声明 `containment: 'sealed'`。
+- 「执行域里没有其他进程」的判定不计锚。停止的确认要求活动进程数（含锚）为 0。
+
+启动的次序：
+
+1. 账本 `plan`。
+2. 有状态目录时，在冷索引里写这个资源的标记并刷盘。没有状态目录时不写标记，命令照常运行，冷恢复的列举答 `unavailable`。标记记下资源键、Job 名、启动身份、登录会话号、请求方作用域的摘要，以及状态 `acquisition`。启动身份是系统的启动时刻（`NtQuerySystemInformation` 的 `SystemTimeOfDayInformation`），会话号来自 `ProcessIdToSessionId`。
+3. 桥创建 Job，启动锚，再以挂起状态创建用户进程。
+4. 桥报就绪之后，调用账本的 `permit`。只有 `confirmed` 才发 GO。其余答案使提供者先终止 Job 并确认停止，再记 `stopped`，然后答 `rejected`。
+
+主进程退出之后的处置：
+
+- 桥不自己终止 Job。它报告主进程的退出码与除锚以外的成员数，处置由提供者决定。
+- 没有其他成员时，提供者停止 Job（含锚）并确认，结局的 `residue` 是 `none`。
+- 可以保留时（规则与 Linux 相同：策略、`retainedPerScope` 与保留范围未封闭），提供者把标记的状态改为 `retained` 并刷盘，再把 Job 交给保留进程索引，`residue` 是 `retained`。移交不清除 `KILL_ON_JOB_CLOSE`。
+- 不能保留时，提供者停止 Job 并确认，`residue` 是 `stopping`，带原因。读不到成员数时，按有留下的进程处理，不按空处理。
+- 处置确认之后（停止已确认并记入账本，或移交已提交），这个资源离开获取的待停止集合，桥退出。
+
+桥与保留：
+
+- 桥进程退出（提供者读到控制管道关闭）时，提供者立即按 Job 名强制停止这个命令。已经移交的 Job 不受影响，因为锚仍持有它。
+- 提供者进程意外退出时，桥是独立进程，仍持有 Job，命令继续运行，由冷恢复处理。这与 Linux 的门留在单元里相同。
+- 移交之后，桥继续读成员的输出管道，把尾部交给保留进程索引（`retainedOutputBytes`）。桥退出时，这个保留进程的 `output` 答 `rejected`，原因 `unavailable`。它的存活与停止不受影响。
+- 保留进程索引按 `retainedPollMs` 按 Job 名读除锚以外的成员数。成员数为 0 时，索引停止 Job（含锚）并确认，删除标记，这一项结清。
+- 保留扩展的 `list`、`stop` 与 `output` 与 Linux 同形。`stop` 按 Job 名执行强制停止序列。
+
+冷恢复：
+
+- `listRecoveryResources(作用域)` 读状态目录里这个作用域的标记。没有状态目录，或有标记读不全时，答 `unavailable`。
+- `recover(资源)`：
+  1. 引用不是本提供者写下的格式时，答 `unsupported`。
+  2. 启动身份与当前不同时，答 `confirmedStopped`。
+  3. 同一次启动、登录会话不同时，答 `pending`。`Local\` 命名空间按登录会话隔离，在别的会话里打不开 Job 不说明它不存在。
+  4. 同一次启动、同一会话、能按名字打开 Job 时，执行强制停止序列。确认时答 `confirmedStopped`，否则答 `pending`。
+  5. 同一次启动、同一会话、名字不存在时，答 `confirmedStopped`。名字不存在说明最后一个句柄已经关闭，`KILL_ON_JOB_CLOSE` 已经停止了全部成员。
+  6. 确认之后删除标记。
+
+已知限制：
+
+- 锚进程自身崩溃不在形式模型里。锚崩溃并且桥已经退出时，最后一个句柄关闭，`KILL_ON_JOB_CLOSE` 停止全部成员，保留进程因此意外结束。冷恢复按上面第 5 条答 `confirmedStopped`，这个结论仍然如实。
+- Windows 没有信号，结局的 `exit` 只有退出码。强制停止的结局是 `failed(effectUnknown)`。
+- 优雅停止：命令以新进程组加隐藏的独立控制台创建。`stop('graceful')` 向它发 `CTRL_BREAK_EVENT`，在 `graceMs` 内主进程退出时，接着执行强制停止序列清理 Job，答该序列的结果。超时答 `unconfirmed`，不自动升级。主进程不是控制台程序时，直接答 `unconfirmed`。
+- `executable` 以 `.bat` 或 `.cmd` 结尾（不区分大小写）时，启动答 `rejected(unsupported)`。`CreateProcessW` 对批处理文件会隐式经 `cmd.exe` 再解析一次参数，转义规则不兼容。要运行批处理文件，调用方显式执行 `cmd.exe /d /c`。
 
 ### 撤除顺序
 

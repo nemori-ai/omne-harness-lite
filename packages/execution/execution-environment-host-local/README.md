@@ -101,7 +101,7 @@ docs/                     Internal design, public use, and integration
 src/                      index.ts, host-files.ts and its three helpers, host-command.ts and its three helpers, host-domain.ts, host-provider.ts, cordis.ts
 tests/                    Sixteen test files and one test helper, fixtures/ is empty now
 schema/                   Empty, the configuration schema is in src/cordis.ts
-verification/             models/ and proofs/, empty now
+verification/             models/ has the Windows files helper and Job custody models, proofs/ is empty
 adr/                      Empty now
 examples/                 Empty now
 resources/                Empty now

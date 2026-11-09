@@ -227,6 +227,65 @@ sequenceDiagram
 | 确认   | 单元为 `inactive` 或 `not-found` 才报 `confirmed`；`failed` 与 `deactivating` 不算停止                                                    | 其余情况为 `unconfirmed`，保留处置责任，进程留在这份获取的待停止集合                           |
 | 冷恢复 | 进程重启后，`listRecoveryResources` 按作用域摘要列举单元，`recover` 按 `{ unit, bootId }` 核对再停止；启动身份已变时答 `confirmedStopped` | 不重启命令，不接回输出，不重授旧许可，也不结清获取；没有可达的用户管理器，或 `systemctl show` 的输出里有读不懂的块、缺属性的块或别的单元名时，列举答 `unavailable`，不答空列表 |
 
+### F-EEH06W Windows 命令：启动、处置与冷恢复（未接受）
+
+依据：[SPEC 的 Windows 的兑现](../SPEC.md#windows-的兑现未接受)。形式模型是 [WindowsCustody](../verification/models/README.md#windowscustody)。本节的两张图都属于未接受的设计。
+
+启动与处置。锚进程持有 Job 的句柄，所以桥退出之后，已移交的 Job 与它的名字仍然存在：
+
+```mermaid
+sequenceDiagram
+  participant P as 宿主提供者
+  participant L as 资源账本
+  participant D as 状态目录
+  participant B as 桥
+  participant J as Job（KILL_ON_JOB_CLOSE）
+  P->>L: plan
+  P->>D: 写标记（Job 名、启动身份、会话号）并刷盘
+  P->>B: 启动桥
+  B->>J: CreateJobObjectW
+  B->>J: 锚进程入 Job，锚打开本 Job 的句柄
+  B->>J: 用户进程以挂起状态入 Job
+  B-->>P: ready
+  P->>L: permit
+  alt confirmed
+    P->>B: GO
+    B->>J: 用户进程开始执行
+  else 其他答案
+    P->>B: 终止 Job 并确认
+    P->>L: stopped
+  end
+  J-->>B: 主进程退出
+  B-->>P: 退出码、除锚以外的成员数
+  alt 没有其他成员
+    P->>B: 终止 Job（含锚）并确认
+    P->>L: stopped，residue none
+  else 可以保留
+    P->>D: 标记改为 retained 并刷盘
+    P->>L: 移交保留，residue retained
+  else 不能保留
+    P->>B: 终止 Job 并确认
+    P->>L: stopped，residue stopping
+  end
+```
+
+冷恢复的判定。次序决定结论：「按名字打不开」只在同一次启动、同一个登录会话里才说明已停止：
+
+```mermaid
+flowchart TD
+  A[recover 引用] --> F{引用是本提供者写下的格式}
+  F -->|否| U[unsupported]
+  F -->|是| T{标记的启动身份等于当前}
+  T -->|否| S1[confirmedStopped：重启已结束全部进程]
+  T -->|是| E{标记的登录会话等于当前}
+  E -->|否| PD[pending：Local 命名空间按会话隔离]
+  E -->|是| O{按名字能打开 Job}
+  O -->|否| S2[confirmedStopped：最后一个句柄已关闭，KILL_ON_JOB_CLOSE 已停止成员]
+  O -->|是| K[强制停止序列]
+  K -->|活动进程数含锚为 0| S3[confirmedStopped，删除标记]
+  K -->|未确认| PD2[pending]
+```
+
 ## 失败与生命周期
 
 ### F-EEH07 保留、附着与回收

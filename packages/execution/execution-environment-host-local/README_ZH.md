@@ -102,7 +102,7 @@ docs/                     内部设计、公开使用与集成说明
 src/                      index.ts、host-files.ts 及其三个辅助模块、host-command.ts 及其三个辅助模块、host-domain.ts、host-provider.ts、cordis.ts
 tests/                    十六个测试文件与一个测试辅助，fixtures/ 现在为空
 schema/                   现在为空，配置 Schema 写在 src/cordis.ts
-verification/             models/ 与 proofs/，现在为空
+verification/             models/ 有 Windows 文件辅助进程与 Job 收纳的模型，proofs/ 为空
 adr/                      现在为空
 examples/                 现在为空
 resources/                现在为空
