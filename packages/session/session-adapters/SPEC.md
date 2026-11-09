@@ -930,7 +930,8 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
    - 原操作行冲突：摘要与本次相同时重建并重做，核心按原答案认回。摘要不同时答 `conflict`。
    - `identity_conflict` 的原回执为 `committed`：同上按摘要分两支。原回执为 `rolled_back`：进入下一代次。
    - Session 参加停止：按 [AD-01](#ad-01) 对应表译为 Agent 的失败。Session 参加者失败：`unavailable`。不支持：`unsupported`。
-   - 存储 `unknown` 或 `writer_not_current`：`commit-unknown`。同一操作再次调用时，副本从存储重建，核心按原操作认回。提供者在进程内记住这次未定的写入（代次与核心给它的记录键），之后每次调用先向存储 `query` 它：已提交则从耐久记录认回；存储证明该代次没有执行（`not_committed`）或已回滚则该操作 `excluded`，证据是 `session-log-journal` 的记录；发送前的查询就答 `unknown` 的代次也按未定写入处理，之后存储答 `not_committed` 时同样判 `excluded`。仍未定则该操作在副本里是待决项，`query` 答 `unknown`，同一 execution 的终结清单带一个未知的操作项，`tryFinish` 答 `unavailable`。已排除的操作随下一次成功发布一起存入耐久记录。没有 Agent 操作身份的写入（材料保存）在这里答 `unavailable`，不编造身份；它按材料的 identity 幂等，重试是安全的。
+   - 存储 `unknown` 或 `writer_not_current`：`commit-unknown`。同一操作再次调用时，副本从存储重建，核心按原操作认回。提供者在进程内记住这次未定的写入（代次与核心给它的记录键），之后每次调用先向存储 `query` 它：已提交则从耐久记录认回；存储证明该代次没有执行（`not_committed`）或已回滚则该操作 `excluded`，证据是 `session-log-journal` 的记录；仍未定则该操作在副本里是待决项，`query` 答 `unknown`，同一 execution 的终结清单带一个未知的操作项，`tryFinish` 答 `unavailable`。已排除的操作随下一次成功发布一起存入耐久记录。没有 Agent 操作身份的写入（材料保存）在这里答 `unavailable`，不编造身份；它按材料的 identity 幂等，重试是安全的。
+   - 发送前的 `query` 答 `unknown`：存储此刻答不出这一代次是否执行过（例如读队列已满），本次调用还没有发送。答 `unavailable`，诊断带存储给的原因，不记未定写入。Agent 按依赖等待，到检查时刻以同一操作再写。进程重启前的一次发送若已生效，同一身份的下一次查询认回它；存储按身份去重，同一操作不会生效两次。
    - 存储受理前拒绝：按 sql-contract 对该原因的[定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)翻译，本成员不另行判断。暂时的原因（`closing`、`queue_full`、`domain_unavailable`）答 `unavailable`，诊断写明存储的原因。答 `unavailable` 的写没有生效，Agent 按依赖等待，到检查时刻以同一操作再写。确定的原因分两种答复，Agent 都按确定节点故障以失败终结 Run，不等待：
      - `combination_unregistered` 与 `participant_not_in_combination`：答 `unsupported`。这是 agent-contract 中 `AgentJournal.commit` 失败表的「unsupported（含缺历史组合或参加者）」。`unsupported` 装不下原因，存储的原因写进[发布观测](#发布观测)的 warn 日志。
      - 其余确定的原因（例如 `command_limit`、`manifest_mismatch`）：答 `invalid`，`field` 为 `storage`，`reason` 为存储的原因名。

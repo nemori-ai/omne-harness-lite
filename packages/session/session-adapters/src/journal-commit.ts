@@ -169,8 +169,14 @@ async function commitGeneration(
   const found = await input.storage.query(identity)
   if (found.kind === 'rolled_back') return 'rolled back'
   if (found.kind === 'committed') return { kind: 'committed', receipt: found, recalled: true }
+  // The storage could not answer whether this generation ran. This call has sent nothing, so there
+  // is no write of its own to hold: the same operation comes again, and a send of an earlier
+  // process, if it took effect, is recalled by the query then (SPEC 生产提供者的实现现状, step 6).
   if (found.kind === 'unknown')
-    return { kind: 'unknown', diagnostic: found.diagnostic ?? '', attempt }
+    return {
+      kind: 'unavailable',
+      diagnostic: `the storage could not tell whether the write ran: ${found.diagnostic ?? ''}`,
+    }
   const request: CommitRequestV2 = {
     identity,
     ...input.combination,
@@ -206,8 +212,6 @@ async function commitGeneration(
  * - `unknown`: still undecided, or the storage could not be asked.
  * The storage cannot tell a generation that was sent and dropped from one never sent, so only a
  * caller that knows it sent the generation may read `not-run` as "dropped".
- * A generation whose pre-send query already answered unknown is held the same way: the caller
- * keeps it as undecided, and a later `not_committed` makes it excluded like a dropped one.
  */
 export type GenerationStanding = 'committed' | 'not-run' | 'unknown'
 

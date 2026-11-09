@@ -472,6 +472,34 @@ describe('unknown, tenancy and registration', () => {
     ])
   })
 
+  // #1174: a query before the send that the storage cannot answer means nothing was sent. It is
+  // unavailable, not an unknown write: holding it would turn the later `not_committed` into an
+  // exclusion, and the same operation would never be written.
+  it('a query before the send that the storage cannot answer is unavailable, holds nothing, and the same operation then commits', async () => {
+    const { s, open } = await opened('pre-send-unknown')
+    const request = await messageRequest(s, open.authority)
+    const before = (await load(s)).revision
+    let refused = 0
+    const journal = over(s, {
+      query: identity => {
+        if (refused === 0) {
+          refused += 1
+          return Promise.resolve({ kind: 'unknown', identity, diagnostic: 'queue_full' } as never)
+        }
+        return s.storage.query(identity)
+      },
+    })
+    expect(await journal.commit(request)).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: expect.stringContaining('queue_full') },
+    })
+    expect(
+      ok(await journal.query({ ...s.access, execution: s.execution, operation: request.operation }))
+        .kind,
+    ).not.toBe('excluded')
+    const receipt = ok(await journal.commit(request))
+    expect(Number(receipt.revision)).toBe(Number(before) + 1)
+  })
+
   it('a read the storage refuses keeps the storage reason in the diagnostic', async () => {
     const { s } = await opened('read-refused')
     const journal = readRefusedBy(s, 'queue_full')
@@ -545,13 +573,22 @@ describe('unknown, tenancy and registration', () => {
     const { s, open } = await opened('undecided-write')
     const request = await messageRequest(s, open.authority, 'message-held')
     let decided = false
+    // The write is sent (its query before the send is answered), and from then on the storage
+    // cannot tell whether it ran until it decides.
+    let sent = false
     const unknownUntilDecided: SqlStorage = {
       registerCombination: input => s.storage.registerCombination(input),
       read: (read, options) => s.storage.read(read, options),
-      commit: input =>
-        Promise.resolve({ kind: 'unknown', identity: input.identity, diagnostic: 'scripted' }),
+      commit: input => {
+        sent = true
+        return Promise.resolve({
+          kind: 'unknown',
+          identity: input.identity,
+          diagnostic: 'scripted',
+        })
+      },
       query: identity =>
-        decided
+        decided || !sent
           ? s.storage.query(identity)
           : Promise.resolve({ kind: 'unknown', identity, diagnostic: 'scripted' }),
     }
