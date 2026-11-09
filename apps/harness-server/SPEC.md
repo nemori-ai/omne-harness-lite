@@ -78,7 +78,7 @@ harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文�
 
 | 路径               | 内容                                            | 谁创建                       |
 | ------------------ | ----------------------------------------------- | ---------------------------- |
-| `model-vault.json` | 模型凭据保管库。宿主上唯一含秘密的文件          | `setup`                      |
+| `model-vault.json` | 秘密保管库（settings-local `./secrets`）。宿主上唯一含秘密的文件；模型凭据是其中的 Model 绑定 | `setup`                      |
 | `workspace/`       | 默认工作区                                      | `setup`                      |
 | `host-files/`      | 执行宿主的状态目录，也是 Shell 的临时目录       | `setup`，缺失时 `serve` 重建 |
 | `storage/`         | `storage` 行的存储根                            | `serve`                      |
@@ -102,24 +102,24 @@ harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文�
 6. Shell 不是已存在的文件时，退出 2。
 7. 建配置目录、状态目录、`host-files/`，以及不存在的工作区。
 8. 存模型凭据。保管库路径上的情形如下：
-   - 什么都没有：读凭据，经 model-host-local 的 `initVault` 新建保管库，凭据成为工厂秘密。
+   - 什么都没有：读凭据，经 settings-local 的 `initSecretVault` 新建保管库，凭据成为 Model 的官方工厂绑定（键 `MODEL_FACTORY_SECRET_KEY`）。
    - 是目录或链接：退出 1，标准错误写明路径上不是保管库文件，要人先删除它。`setup` 从不删除目录或链接。
-   - 是文件：经 `inspectLocalCustodian` 在文件锁下打开它（顺带清理这份保管库的残留临时文件），不只看文件在不在。
+   - 是文件：经 `inspectSecretVault` 在文件锁下打开它（顺带清理这份保管库的残留临时文件），不只看文件在不在。
      - 没有 `--replace-credential`、文件可读：不读标准输入，保管库不变，总结标 `kept`。
      - 没有 `--replace-credential`、文件读不出：退出 1，标准错误写 `setup: the model credential vault <路径> cannot be read (<原因>)` 与修正办法（加 `--replace-credential` 重跑）。原因是 `corrupt` 或 `io`。保管库不变。
-     - 有 `--replace-credential`、文件可读：读凭据，经 `replaceVaultSecret` 替换工厂秘密，总结标 `replaced`。
+     - 有 `--replace-credential`、文件可读：读凭据，经管理面 `bind` 写官方工厂绑定，读回确认后收窄文件权限，总结标 `replaced`。
      - 有 `--replace-credential`、文件读不出：重建。先读凭据并校验，再删除这个文件，再按新建的规则建保管库，总结标 `rebuilt: the old vault could not be read`。旧文件的内容不读。凭据不合格时旧文件留在原处。重建后，旧保管库里各租户自己的模型凭据都不再存在，这些租户改用部署默认凭据，直到各自重新执行 `omne credential set`。总结里必须多写一行 `warning` 说明这一点（R2-D366）。这是运维者显式执行的例外；运行时遇到「绑定存在但读不出」时，调用仍以 credential 失败结束，不回落到默认。
    - 文件锁等不到：退出 1。
 9. 设置是新的或变了时，写 `server.json`：先写临时文件，再改名。
 
 第 8 步在第 9 步之前，所以 `server.json` 存在表示写它时保管库已经存在。
 
-凭据只从标准输入读。标准输入是终端时，标准错误写提示，关闭回显读一行。不是终端时，读到第一个换行或输入结束，去掉行尾。凭据去首尾空白后为空、含控制字符或读取失败时，退出 1，不写 `server.json`。凭据不经命令行参数或环境变量传入。凭据、它的哈希或前缀不出现在任何输出、配置文件或错误文字里。
+凭据只从标准输入读。标准输入是终端时，标准错误写提示，关闭回显读一行。不是终端时，读到第一个换行或输入结束，去掉行尾。凭据去首尾空白后为空、含控制字符、超过 4096 个字符或读取失败时，退出 1，不写 `server.json`。凭据不经命令行参数或环境变量传入。凭据、它的哈希或前缀不出现在任何输出、配置文件或错误文字里。
 
 权限：
 
-- POSIX：配置目录、状态目录、`host-files/` 与新建的工作区设为 `0700`，`server.json` 设为 `0600`。已存在的工作区不改模式。保管库按 model-host-local 的权限护栏建立与替换：创建掩码 `077`，文件 `0600` 并读回。
-- Windows：不改访问控制列表。保护来自用户目录下继承的访问控制，前提与 model-host-local 的[保管库初始化命令](../../packages/model/model-host-local/SPEC.md#权限)相同。保管库必须位于用户目录之下。`OMNE_SERVER_HOME` 指向用户目录之外时，第 8 步失败，原因是 `path-outside-home`。
+- POSIX：配置目录、状态目录、`host-files/` 与新建的工作区设为 `0700`，`server.json` 设为 `0600`。已存在的工作区不改模式。保管库按 settings-local 的权限护栏建立与替换：创建掩码 `077`，文件 `0600` 并读回。
+- Windows：不改访问控制列表。保护来自用户目录下继承的访问控制，前提与 settings-local 的[秘密保管](../../packages/assets/settings-local/SPEC.md#secret-custody)相同。保管库必须位于用户目录之下。`OMNE_SERVER_HOME` 指向用户目录之外时，第 8 步失败，原因是 `path-outside-home`。
 
 成功时标准输出写一份给人看的总结，退出 0：
 
@@ -146,7 +146,7 @@ Next:
 
 ### serve 怎样用这份配置
 
-省略 `--state-root` 时，状态目录必须存在。省略 `--operator` 时，入口读 `server.json`，用 `openLocalCustodian` 实际打开保管库（不只看文件在不在），确认工作区是目录，必要时重建 `host-files/`，再生成运维者层。运维者层里的文件根与 Shell、Files 的 `cwd` 取工作区的真实路径（R2-D376）：工作区经链接或 8.3 短名给出时，用它指的那个目录。真实路径只在内存里用，`server.json` 不变。
+省略 `--state-root` 时，状态目录必须存在。省略 `--operator` 时，入口读 `server.json`，用 `openSecretVault` 实际打开保管库（不只看文件在不在），确认工作区是目录，必要时重建 `host-files/`，再生成运维者层。运维者层里的文件根与 Shell、Files 的 `cwd` 取工作区的真实路径（R2-D376）：工作区经链接或 8.3 短名给出时，用它指的那个目录。真实路径只在内存里用，`server.json` 不变。
 
 - 状态目录、`server.json` 或保管库缺失时，标准错误写 `serve: not set up: <缺什么>` 和一行 ``Run `harness-server setup` first.``，退出 2。stdout 没有记录，不装载任何行。
 - 保管库读不出（原因 `corrupt` 或 `io`）时，标准错误写 `serve: the model credential vault <路径> cannot be read (<原因>)` 与修正办法，退出 2，不装载任何行。路径上是文件时，办法是 `harness-server setup --replace-credential`；不是文件时，办法是删除它后运行 `harness-server setup`。
@@ -161,7 +161,7 @@ Next:
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `storage`                                                                        | 存储根 `<状态目录>/storage` 与提供者数值。`closeDeadlineMs` 是 D 减 1000，但不少于 D 的一半                                                                                                                                                                              |
 | `session-storage`                                                                | 目录文件 `<存储根>/tenant-domains.json`，规则 `organization-account/1`                                                                                                                                                                                                   |
-| `model-credential`                                                               | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密                                                                                                                                                                                                                   |
+| `model-credential`、`secret-custody`                                             | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密。`secret-custody` 行只在发行层列出它时给出，见[秘密保管行](docs/rows/secret-custody.md)                                                                                                                                                                                                                   |
 | `model-profiles`、`model-request-preparation`、`model-host`、`model-records`     | 档案、准备、宿主与记录仓的数值。路由是 OpenRouter。`model-records.diagnostics` 是 `tenant-self` 读取与占位的保留采用                                                                                                                                                     |
 | `tool-host`                                                                      | Shell：可执行文件取配置，参数见下，`cwd` 是工作区，结果上限 32768 字节。Files：`cwd` 是工作区，结果上限 32768 字节                                                                                                                                                       |
 | `tool-records`、`execution-host`                                                 | 文件根是工作区，宿主状态目录是 `host-files/`                                                                                                                                                                                                                             |

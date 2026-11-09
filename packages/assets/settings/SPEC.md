@@ -108,7 +108,7 @@ Settings 可独立使用，也可由资产通过组合使用。独立目标通�
 
 <a id="secret-items"></a>
 
-本节是长期行为。本地提供者尚未交付，现状见[当前核心与本地提供者](#当前核心与本地提供者)。
+本节是长期行为。端口与值在公开入口的 [secrets.ts](src/secrets.ts)；本地文件提供者是 [settings-local 的 `./secrets`](../settings-local/SPEC.md#secret-custody)。秘密项命令入口尚未交付，现状见[当前核心与本地提供者](#当前核心与本地提供者)。
 
 声明为秘密的设置项，值只保存在秘密保管里。秘密值不进入配值、求值来源、`SettingsChange`、提交记录、回执或变化记录。纯求值继续把来源中的秘密值判为不兼容。
 
@@ -135,6 +135,14 @@ Settings 可独立使用，也可由资产通过组合使用。独立目标通�
 - 写入的结果分为已写入、未写入、确认未知和拒绝。确认未知不报告成功或失败；重试前先查询有无。
 
 查询有无只返回未配置，或已配置加生命状态与配置时刻，不返回值。使用面按键精确取用，每次取用读当前值：同一绑定被替换后，取到的是取用那一刻的值；没有绑定、绑定已撤销或读不出时返回失败，不改选其他范围、目标或用途。选择哪一层的引用、缺凭据时怎样失败，由类别的凭据契约决定。
+
+公开入口的形状（精确类型归 [secrets.ts](src/secrets.ts)）：
+
+- `SecretScope` 是官方或一个 legal-identity 铸造的租户；`SecretTarget` 是 `{ owner, key }`；`SecretBindingKey` 是（范围、目标、用途）。
+- `SecretPresence` 是 `unbound`，或 `bound` 加 `life`（`active`、`revoked`、`unreadable`）与 `configuredAt`（utc-instant 的时刻，没有时为 `null`）。它没有值成员。
+- `SecretText` 是品牌字符串，只由 `parseSecretText` 造出：去首尾空白后非空、不含 C0 与 DEL 控制字符、不超过 `SECRET_TEXT_MAX_LENGTH`（4096）。拒绝只说明规则，不回显文本。诊断与结果类型不接受 `SecretText`。
+- `SecretCustodyManagement.bind(key, secret, configuredAt)` 的结果是 `written`、`not-written`、`unconfirmed`、`denied`；`unbind` 另有 `absent`，成功是 `removed`；`describe` 返回有无、`denied` 或 `unavailable`；`list(scope, after, limit)` 按稳定次序分页，游标不透明且可序列化。`configuredAt` 由调用方给出，没有时为 `null`；保管不读时钟。同值重复写入是 `written`。未铸造的租户范围答 `denied`，不读文件。
+- `SecretCustodyUse.use(key)` 同步返回 `{ kind: 'secret', value }`、`missing`（没有绑定）、`denied`（绑定已撤销或范围未铸造）或 `unavailable`（绑定读不出或保管读不出）。
 
 ## 持续验证义务与表达缺项
 
@@ -176,4 +184,4 @@ Settings 可独立使用，也可由资产通过组合使用。独立目标通�
 
 维护重新采用要求精确旧新定义、预期修订及所有旧值/锁的 retain 或 discard 决定，保留内容必须符合新定义和来源。该能力不从普通租户配值权推导，不直接暴露给 agent tool。完整条件归 [本地规格](../settings-local/SPEC.md)。
 
-当前不提供秘密保管、工作区文件来源扫描、最终 UI、HTTP 服务、tools 插件或执行实例采用。上文相应长期义务保持其原拥有者，不能因本地核心完成而宣称整个产品阶段完成。授权历史检查可返回原定义与原状态，但不能把不匹配记录当作当前有效设置采用。
+秘密保管的两个端口已由本成员定义，文件提供者由 settings-local 的 `./secrets` 兑现，Model 凭据与 harness-server 的 `setup` 已在它之上工作；秘密设置项的命令入口（声明核对、配值依据、目标推导）尚未交付。当前不提供工作区文件来源扫描、最终 UI、HTTP 服务、tools 插件或执行实例采用。上文相应长期义务保持其原拥有者，不能因本地核心完成而宣称整个产品阶段完成。授权历史检查可返回原定义与原状态，但不能把不匹配记录当作当前有效设置采用。

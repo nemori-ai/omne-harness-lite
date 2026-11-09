@@ -289,6 +289,12 @@ importers:
       '@omne-harness/session-storage-sql':
         specifier: workspace:*
         version: link:../../packages/session/session-storage-sql
+      '@omne-harness/settings':
+        specifier: workspace:*
+        version: link:../../packages/assets/settings
+      '@omne-harness/settings-local':
+        specifier: workspace:*
+        version: link:../../packages/assets/settings-local
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../packages/storage/sql-contract
@@ -827,6 +833,12 @@ importers:
 
   packages/assets/settings:
     dependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
@@ -861,9 +873,15 @@ importers:
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../storage/sql-contract
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
       canonicalize:
         specifier: 5.1.0
         version: 5.1.0
+      proper-lockfile:
+        specifier: ^4.1.2
+        version: 4.1.2
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -877,12 +895,12 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
-      '@omne-harness/utc-instant':
-        specifier: workspace:*
-        version: link:../../common/utc-instant
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      '@types/proper-lockfile':
+        specifier: ^4.1.4
+        version: 4.1.4
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -1762,12 +1780,15 @@ importers:
       '@omne-harness/pi-ai-transport':
         specifier: workspace:*
         version: link:../pi-ai-transport
+      '@omne-harness/settings':
+        specifier: workspace:*
+        version: link:../../assets/settings
+      '@omne-harness/settings-local':
+        specifier: workspace:*
+        version: link:../../assets/settings-local
       '@omne-harness/utc-instant':
         specifier: workspace:*
         version: link:../../common/utc-instant
-      proper-lockfile:
-        specifier: ^4.1.2
-        version: 4.1.2
     devDependencies:
       '@omne-harness/call-account':
         specifier: workspace:*
@@ -1787,6 +1808,9 @@ importers:
       '@types/proper-lockfile':
         specifier: ^4.1.4
         version: 4.1.4
+      proper-lockfile:
+        specifier: ^4.1.2
+        version: 4.1.2
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

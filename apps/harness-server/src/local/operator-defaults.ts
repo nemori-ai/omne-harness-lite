@@ -488,6 +488,11 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       },
     ],
     ['model-credential', { path: locations.vaultFile }],
+    // The secret custody row opens the same vault file. The release lists the row only once the
+    // trusted table and the distribution carry it; until then the layer leaves it out.
+    ...(rows.has('secret-custody')
+      ? ([['secret-custody', { path: locations.vaultFile }]] as const)
+      : []),
     ['model-tokenizers', LOCAL_TOKENIZERS],
     ['model-profiles', PROFILES],
     ['model-request-preparation', PREPARATION],

@@ -37,3 +37,22 @@ export {
   type SettingsRegistrySnapshot,
 } from './registry.ts'
 export { SettingsRebaseSchema, decideSettingsRebase, type SettingsRebase } from './rebase.ts'
+export {
+  SECRET_TEXT_MAX_LENGTH,
+  parseSecretText,
+  type SecretBindingKey,
+  type SecretCustodyManagement,
+  type SecretCustodyUse,
+  type SecretLife,
+  type SecretListCursor,
+  type SecretListEntry,
+  type SecretListPage,
+  type SecretPresence,
+  type SecretRemoveResult,
+  type SecretScope,
+  type SecretTarget,
+  type SecretText,
+  type SecretTextParse,
+  type SecretTextRejection,
+  type SecretWriteResult,
+} from './secrets.ts'
