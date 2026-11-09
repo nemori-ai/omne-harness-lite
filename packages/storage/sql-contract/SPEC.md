@@ -50,7 +50,7 @@ SQL r2 在 S1 之上改变或闭合的条款，按 SQL r2 第 19.1 节的提案�
 
 | 成员 | 入口 | 内容 |
 | --- | --- | --- |
-| `packages/storage/sql-contract` | `.` | 词汇类型、`SqlStorage`、材料与清单类型、四个纯函数（含提交拒绝原因的定性 `commitRejectionNature`）、关闭控制口与宿主接口、目录形状。不导入 Cordis（IC-4）。 |
+| `packages/storage/sql-contract` | `.` | 词汇类型、`SqlStorage`、材料与清单类型、三个纯函数、关闭控制口与宿主接口、目录形状。不导入 Cordis（IC-4）。 |
 | 同上 | `./worker` | Worker 内的模块与端口接口、`SqlValue`、`QueryRows`。不导入 Cordis。 |
 | 同上 | `./cordis` | `StorageService`、`StorageHostService`、`TenantDomainsService`（依赖 Context r3）、`TenantDomainLookupService` 与 `Context` 增补。 |
 | 同上 | `./testing` | 内存替身与 `runSqlStorageConformance`（§16）；目录查找的替身与 `runTenantDomainLookupConformance`（§2.4）。 |
