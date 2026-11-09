@@ -253,6 +253,73 @@ const negatives = [
     fixture: () => control(() => ({ commitUnavailable: noFault })),
     message: 'unavailable fence must fail the query',
   },
+  {
+    name: 'due.schedule-lands-with-commit',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        due: (tenant, _now, limit) => store.due(tenant, '9999-12-31T00:00:00.000Z' as never, limit),
+      })),
+    message: 'nothing is due before its instant',
+  },
+  {
+    name: 'due.conflict-schedules-nothing',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        commit: async input => {
+          const result = await store.commit(input)
+          if (result.kind !== 'conflict') return result
+          await store.commit({
+            ...input,
+            expected: result.current,
+            revision: `${Number(result.current) + 1}` as never,
+            writes: input.writes.filter(write => write.kind === 'schedule'),
+          })
+          return result
+        },
+      })),
+    message: 'Expected values to be strictly',
+  },
+  {
+    name: 'due.reschedule-replaces-and-unschedule-removes',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        commit: input =>
+          store.commit({
+            ...input,
+            writes: input.writes.filter(write => write.kind !== 'unschedule'),
+          }),
+      })),
+    message: 'Expected values to be strictly',
+  },
+  {
+    name: 'due.keys-are-per-domain-and-per-tenant',
+    fixture: () =>
+      wrappedFixture(store => {
+        let first: Parameters<typeof store.due>[0] | undefined
+        return {
+          ...store,
+          due: (tenant, now, limit) => {
+            first ??= tenant
+            return store.due(first, now, limit)
+          },
+        }
+      }),
+    message: 'another tenant sees nothing',
+  },
+  {
+    name: 'due.lost-answer-leaves-index-committed',
+    fixture: () =>
+      control(f => ({
+        unknownApplied: async () => {
+          assert.ok(f.controls.unknownDropped)
+          await f.controls.unknownDropped()
+        },
+      })),
+    message: 'Expected values to be strictly',
+  },
 ] satisfies readonly Readonly<{
   name: string
   fixture(): ToolLedgerStoreFixture
