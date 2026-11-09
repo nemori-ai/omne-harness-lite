@@ -13,11 +13,11 @@
 | 前提 | 拥有者 | 在模型里 |
 | --- | --- | --- |
 | 同一 Session 至多一个未终结 Run | [session-contract SW-I05](../../../../../session/session-contract/SPEC.md#业务不变式索引) | `StartRun` 只在会话没有活跃 Run 时成立 |
-| 同一 execution 同一时刻至多一个在途准备 | [agent-contract 请求接缝](../../../../../agent/agent-contract/SPEC.md#请求接缝的逐操作要素) | `Prepare` 只在本 Run 是会话的活跃 Run、且本 execution 没有在途准备时成立 |
+| 同一执行挂接同一时刻至多一个在途准备 | [agent-contract 请求接缝](../../../../../agent/agent-contract/SPEC.md#请求接缝的逐操作要素) | `Prepare` 只在本 Run 是会话的活跃 Run、且本 execution 没有在途准备时成立 |
 
 租户只作隔离，不作排他。模型对 Model 侧不设任何限制。Agent 的候选身份只取步号。消费位置取 execution 与步号，这一点来自 Agent 的消费位置命名。
 
-每个调用有两个副本。副本 1 是守上述前提的调用方。副本 2 是同一调用仍在途时的重复到达。
+每个调用有两个副本。副本 1 是守上述前提的调用方。副本 2 是同一调用仍在途时的重复到达，例如同进程接管后新推进者重做同一步，而旧挂接的准备还没结束。
 
 ## 性质
 
@@ -26,7 +26,7 @@
 | `OneEffectivePerSession` | 环境自检：一个会话同一时刻至多一次有效准备在途 |
 | `ExclusionWithinAuthorizedDomain` | 两次调用同键，则它们属于同一 execution |
 | `NoBusyForInvariantRespectingCaller` | 守前提的调用方永不被暂存表拒绝 |
-| `DuplicateRefused` | 同一调用在途时的重复到达一律答 busy |
+| `DuplicateRefused` | 同一调用在途时的重复到达一律答 busy；这是暂时的，旧准备结束即解除 |
 | `ReadsOwnInput` | 组读口取回的是本次暂存的值 |
 | `NoCrossTenantKey` | 不同租户永不同键 |
 | `KeyIsCallIdentity` | 键恰好区分不同的调用 |
