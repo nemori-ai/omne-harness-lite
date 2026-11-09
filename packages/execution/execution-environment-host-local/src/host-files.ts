@@ -806,6 +806,7 @@ export function createHostFilesEngine(
         generation,
         running,
         sealed: () => sealed.has(owner),
+        diagnose: options.diagnose,
       })
       operations.commitBatch = windowsBatch.commitBatch
       operations.recoverBatch = windowsBatch.recoverBatch

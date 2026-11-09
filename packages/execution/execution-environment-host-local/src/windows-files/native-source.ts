@@ -161,7 +161,13 @@ public static partial class OmneFiles {
   static bool Visit(IntPtr directory,string prefix,SearchState state) {
     foreach(string name in Names(directory)) {
       if(++state.entries>state.entryBudget) { state.truncated=true; return false; }
-      IntPtr child=OpenRelative(directory,name,state.content?0x80000080u:0x81u,false);
+      IntPtr child;
+      try { child=OpenRelative(directory,name,state.content?0x80000080u:0x81u,false); }
+      catch(IOException error) {
+        // Another process holds the entry without sharing reads: the search goes on without it.
+        if(error.Message!="busy") throw;
+        state.truncated=true; continue;
+      }
       try {
         Info info=Information(child); string path=prefix.TrimEnd('\\','/')+"/"+name;
         bool reparse=(info.attributes&0x400)!=0, isDirectory=(info.attributes&16)!=0;

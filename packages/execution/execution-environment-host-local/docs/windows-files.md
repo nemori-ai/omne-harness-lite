@@ -9,7 +9,7 @@
 | write、copy                       | 文件辅助进程，新建或替换   | 文件辅助进程，新建或替换   |
 | commitBatch、recoverBatch         | 逐项操作加批次清单         | 逐项操作加批次清单         |
 
-支持范围限本机盘符绝对路径。UNC、设备命名空间、备用数据流和含歧义尾部字符的名字不在支持范围内。
+支持范围限本机盘符绝对路径。UNC、设备命名空间、备用数据流和含歧义尾部字符的名字不在支持范围内。含未配对代理项的请求路径也不在支持范围内：辅助进程用 .NET 的 JSON 解析器读帧，它把未配对代理项换成 U+FFFD，这条路径会指向另一个名字。后端在发请求之前答 `unsupported`。
 
 ## 文件辅助进程
 
@@ -33,7 +33,7 @@
 
 每个请求打开根（未配置根时打开盘符根），再通过 `NtCreateFile` 的 `RootDirectory` 逐段打开子项。辅助进程保留全部祖先句柄。有根时拒绝中间重解析点和跨卷项。无根时中间的链接按路径重新打开以跟随它，与 POSIX 跟随祖先链接相同；最后一段仍不跟随。空段与 `.` 段不进入逐段打开；路径以 `.` 段结尾时，最后一段按中间段打开。`FILE_OPEN_REPARSE_POINT` 使辅助进程检查链接本身。内容操作在实际句柄上核点名对象及硬链接数，之后才读取。对象 token 是卷序号与 128 位文件 ID，取自 `GetFileInformationByHandleEx(FileIdInfo)`。辅助进程的每次打开都带 `FILE_SHARE_READ`、`FILE_SHARE_WRITE` 与 `FILE_SHARE_DELETE`。
 
-`list` 通过 `NtQueryDirectoryFile` 枚举已打开目录，条目名来自目录项。`search` 按字节序深度优先遍历，保留配置的条目、字节及单文件预算，不进入重解析目录。遇到以不共享读的方式被别的进程打开的文件时跳过它，并把结果标为 `truncated`。
+`list` 通过 `NtQueryDirectoryFile` 枚举已打开目录，条目名来自目录项。`search` 按字节序深度优先遍历，保留配置的条目、字节及单文件预算，不进入重解析目录。遇到以不共享读的方式被别的进程打开的文件时跳过它，并把结果标为 `truncated`。共享冲突在打开这一项时接住，不结束整次遍历。分页靠每页从头重走：第 n 页要走到第 n 页之后的下一个命中为止，每页的代价随页号增加，仍受条目与字节预算限制。辅助进程不为分页保留缓存。
 
 `mkdir` 在持有的父目录句柄下创建。`remove` 在源句柄上设置 `FileDispositionInformationEx`，标志是 `FILE_DISPOSITION_DELETE`、`FILE_DISPOSITION_POSIX_SEMANTICS` 与 `FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE`，不重新按绝对路径找到目标。递归删除先预检目录树。`move` 用源句柄和持有的目标父目录句柄设置 `FileRenameInformationEx`，标志是 `FILE_RENAME_POSIX_SEMANTICS` 与 `FILE_RENAME_IGNORE_READONLY_ATTRIBUTE`，替换时另加 `FILE_RENAME_REPLACE_IF_EXISTS`。目标点名与实际改名之间仍存在目标被替换的窗口，效果限于该父目录的目标名。
 
@@ -53,7 +53,7 @@ Windows 不提供原位写。新建与替换都先在同目录以 `NtCreateFile`
 
 写入保留路径末尾分隔符的含义。新建路径以 `/` 或 `\` 结束时返回 `invalidInput`。替换普通文件时，末尾分隔符使结果为 `unresolved`，原文件保持不变。
 
-批次先检查全部目标，再记录清单、刷盘全部暂存文件，随后逐项发布并刷盘回执。回执写入失败返回带原批次引用的 unknown。恢复只读原清单及当前目标，不重新发布。当前字节匹配暂存摘要时只列入 `matchingPrepared`，不补造发布回执。后续外部写入列为冲突，目标是目录或链接的项也列为冲突。批次间没有多路径原子性，也未验证断电耐久性。效果未知时保留尚存暂存文件，供后续调查。
+批次先检查全部目标，再记录清单、刷盘全部暂存文件，随后逐项发布并刷盘回执。暂存文件是目标旁的 `.omne-batch-<批次 id>-<序号>`，由逐项的新建写入。暂存中途失败时，批次删除已写的暂存文件。全部删掉、失败的那一步又是拒绝时，批次删除清单并答这个拒绝。否则答 `unknown`，与 Linux 相同不带批次引用。发布因冲突或封闭停止时，批次删除未发布的暂存文件。删不掉的暂存文件经诊断 `temporaryFileRemains` 报告：带批次 id、目标路径、暂存文件名，删除被拒绝时 `code` 是拒绝原因。回执写入失败返回带原批次引用的 unknown。恢复只读原清单及当前目标，不重新发布。当前字节匹配暂存摘要时只列入 `matchingPrepared`，不补造发布回执。后续外部写入列为冲突，目标是目录或链接的项也列为冲突。批次间没有多路径原子性，也未验证断电耐久性。效果未知时保留尚存暂存文件，供后续调查。
 
 每项发布的异步目标复核结束后，批次再次检查所有者是否封闭。封闭时返回原批次的 `unknown/closed`，保留已确认发布范围，并清理未发布暂存文件。此检查阻止尚未启动的发布，不撤销已经开始的原生操作。
 
@@ -63,6 +63,6 @@ Windows 不提供原位写。新建与替换都先在同目录以 `NtCreateFile`
 
 ## 验证
 
-真实 Windows 测试见[有根与无根同一后端](../tests/windows-files/unified.spec.ts)、[根的不同写法](../tests/windows-files/path-alias.spec.ts)、[读取与围栏](../tests/windows-files/read.spec.ts)、[名字操作](../tests/windows-files/tree.spec.ts)、[别的进程打开着的对象](../tests/windows-files/sharing.spec.ts)、[新建与替换](../tests/windows-files/write.spec.ts)、[复制与批次恢复](../tests/windows-files/batch.spec.ts)及[流式复制的内存](../tests/windows-files/copy-stream.spec.ts)（慢层）。磁盘满没有自动测试：不用管理员权限构造不出满的卷。这些测试不证明 Linux 行为、完整提供者组合或断电恢复。
+真实 Windows 测试见[有根与无根同一后端](../tests/windows-files/unified.spec.ts)、[根的不同写法](../tests/windows-files/path-alias.spec.ts)、[读取与围栏](../tests/windows-files/read.spec.ts)、[名字操作](../tests/windows-files/tree.spec.ts)、[别的进程打开着的对象](../tests/windows-files/sharing.spec.ts)、[新建与替换](../tests/windows-files/write.spec.ts)、[复制与批次](../tests/windows-files/batch.spec.ts)、[搜索与不能读的项](../tests/windows-files/search.spec.ts)及[流式复制的内存](../tests/windows-files/copy-stream.spec.ts)（慢层）。磁盘满没有自动测试：不用管理员权限构造不出满的卷。这些测试不证明 Linux 行为、完整提供者组合或断电恢复。
 
 [边界回归](../tests/windows-files/review-regressions.spec.ts)覆盖空版本、缺失对象映射，以及发布前复核期间封闭的交错。交错测试只暂停真实 stat 的返回，或在复制的发布请求写给辅助进程之前暂停它，不替换文件系统结果。

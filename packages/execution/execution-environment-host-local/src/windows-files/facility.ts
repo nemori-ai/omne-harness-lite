@@ -28,10 +28,17 @@ function finalOf(path: string): Final {
 }
 
 /**
+ * The helper reads its frames with the .NET JSON serializer, which turns an unpaired surrogate into
+ * U+FFFD. A path with one would name another object, so it is unsupported, with or without a root.
+ */
+const carried = (path: string): boolean => path.isWellFormed()
+
+/**
  * The start of a path when no files root is configured: the root of its drive. A form outside the
  * supported range answers `unsupported`; a `..` answers `notAuthorized`, as it does below a root.
  */
 function driveStart(path: string): Outcome<Start> {
+  if (!carried(path)) return fail('unsupported')
   const parsed = windowsPathSegments(path)
   if (!parsed.ok) return fail(parsed.refusal === 'parent' ? 'notAuthorized' : 'unsupported')
   const root = `${parsed.drive}\\`
@@ -224,6 +231,7 @@ export function createWindowsFiles(
    */
   const locate = async (path: string): Promise<Outcome<Start>> => {
     if (configured === undefined) return driveStart(path)
+    if (!carried(path)) return fail('unsupported')
     const segments = await windowsSegmentsBelow(configured, path)
     if (segments === undefined) return fail('notAuthorized')
     return ok({ root: configured, expectedRoot: '', segments, rooted: true })
