@@ -1,6 +1,7 @@
 // The first screen of an offloaded body: a header of fixed fields, outside the preview budget, and a
 // format-aligned excerpt within it (Disclosure model: `Screen`, PreviewWithinBudget).
 import { readJsonText, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
+import { formatUsage } from '@omne-harness/unix-format'
 import type { ToolBodyRepresentation, ToolSchemaIdentity } from '@omne-harness/tool-contract'
 import {
   decodeToolBodyId,
@@ -38,10 +39,12 @@ export function bodyHeader(fields: BodyHeaderFields): string {
   lines.push(
     `Retention: ${fields.retentionMs} ms from result publication; reads do not renew it.`,
     'The body may already have expired when this result is delivered.',
-    'Read it back with Tools(command="read_result") and these params:',
-    'kind: body',
-    `reference: ${fields.reference}`,
-    'after: null',
+    'Read it back with:',
+    formatUsage(
+      'Tools',
+      'read_result',
+      JSON.stringify({ kind: 'body', reference: fields.reference, after: null }),
+    ),
   )
   return `${lines.join('\n')}\n`
 }

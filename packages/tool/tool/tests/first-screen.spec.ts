@@ -40,7 +40,10 @@ it.each([L + 1, 100 * L])('keeps the first screen of a %i-byte text body within 
   expect(bytes(preview)).toBeLessThanOrEqual(P)
   expect(bytes(screen)).toBeLessThanOrEqual(L)
   expect(header).toContain(`Body bytes: ${size}`)
-  expect(header).not.toContain('{')
+  expect(header).not.toContain('\\')
+  expect(header).toContain(
+    '\nUSAGE: Tools(command="read_result", params={"kind":"body","reference":"tb1.',
+  )
   expect(preview).toMatch(
     /^(line of body text\n)+\[\.\.\. omitted \.\.\.\]\n(line of body text\n)*/u,
   )

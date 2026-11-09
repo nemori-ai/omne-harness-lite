@@ -66,8 +66,10 @@ it.each([
     expect(visible.join('')).toContain(
       'The body may already have expired when this result is delivered.',
     )
-    expect(visible.join('')).toMatch(/\nreference: tb1\.[\x21-\x7e]+( [\x21-\x7e]+){3}\n/u)
-    expect(visible.join('')).toContain('Read it back with Tools(command="read_result")')
+    expect(visible.join('')).toMatch(
+      /\nUSAGE: Tools\(command="read_result", params=\{"kind":"body","reference":"tb1\.[\x21-\x7e]+( [\x21-\x7e]+){3}","after":null\}\)\n/u,
+    )
+    expect(visible.join('')).toContain('Read it back with:\nUSAGE: Tools(command="read_result"')
   }
 })
 
