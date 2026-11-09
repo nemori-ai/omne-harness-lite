@@ -143,7 +143,7 @@ it('requires runtime retention on committed bodies and keeps it out of author re
       bodyId: 'body-one',
       representation: { kind: 'text', codec: adoption('utf8') },
       bodyBytes: '1000',
-      previewKind: 'mechanical-head-tail',
+      previewKind: 'mechanical',
       retention: {
         adoption: adoption('retention'),
         activatedAt: '2026-11-08T00:00:00.000Z',

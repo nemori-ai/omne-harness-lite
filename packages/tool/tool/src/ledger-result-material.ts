@@ -113,7 +113,7 @@ export async function prepareResultChannels<P, B extends ContentBlock>(
         bodyId: id.ok,
         representation: planned.ok.representation,
         bodyBytes: planned.ok.bodyBytes,
-        previewKind: 'mechanical-head-tail',
+        previewKind: 'mechanical',
       },
       retentionMs: policy.retentionMs,
       policy: policy.adoption,

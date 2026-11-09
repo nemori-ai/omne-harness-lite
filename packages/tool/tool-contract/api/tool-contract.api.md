@@ -3777,7 +3777,7 @@ export type ToolOffloadedBody = Readonly<{
     bodyId: ToolBodyId;
     representation: ToolBodyRepresentation;
     bodyBytes: string;
-    previewKind: 'author-summary' | 'mechanical-head-tail';
+    previewKind: 'author-summary' | 'mechanical';
     retention: ToolBodyRetention;
 }>;
 export type ToolResult<B extends ContentBlock> = Omit<ToolRenderedResult<B>, 'original'> & Readonly<{

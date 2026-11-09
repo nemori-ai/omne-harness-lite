@@ -176,7 +176,7 @@ function committedResultShape<B extends ContentBlock>(
         bodyId: identity(decodeToolBodyId),
         representation: bodyRepresentation,
         bodyBytes: decimal,
-        previewKind: literal('author-summary', 'mechanical-head-tail'),
+        previewKind: literal('author-summary', 'mechanical'),
         retention: bodyRetention,
       }),
     }),
