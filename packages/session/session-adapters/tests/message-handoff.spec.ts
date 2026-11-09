@@ -26,6 +26,7 @@ import {
   agentMessageHandoffKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { decodeModelCallId } from '@omne-harness/model-contract'
+import type { CommitRejectReason } from '@omne-harness/sql-contract'
 import * as messageContract from '@omne-harness/message'
 import { succeed } from '@omne-harness/operation-result'
 import { assistantMessage, memoryOtherAccess } from '@omne-harness/session-contract/testing'
@@ -65,13 +66,27 @@ afterEach(async () => {
   for (const s of scenes.splice(0)) await s.close()
 })
 
-/** The scene, its Cordis root and the provider; `decision` scripts `agentAccessCheck`. */
-async function provided(name: string, decision: 'allowed' | 'denied' = 'allowed') {
+/**
+ * The scene, its Cordis root and the provider; `decision` scripts `agentAccessCheck`. With
+ * `refuse`, the storage refuses every commit before accepting it, for that reason.
+ */
+async function provided(
+  name: string,
+  decision: 'allowed' | 'denied' = 'allowed',
+  refuse?: CommitRejectReason,
+) {
   const s = await sqlScene(name)
   scenes.push(s)
   const commitReplies: unknown[] = []
   const commit = s.storage.commit.bind(s.storage)
   s.storage.commit = async request => {
+    if (refuse !== undefined)
+      return {
+        kind: 'rejected_before_accept',
+        identity: request.identity,
+        reason: refuse,
+        diagnostic: null,
+      } as never
     const result = await commit(request)
     if (request.commands.length === 1 && request.commands[0]?.participant === 'execution-record')
       commitReplies.push(result)
@@ -459,6 +474,26 @@ describe('the invoke and submit branches', () => {
     })
     expect(record.outcome).not.toBeNull()
     expect(f.checked).toEqual(['invoke'])
+  })
+
+  // sql-contract "提交拒绝原因的定性": the preadmission write translates a refusal like the
+  // Journal does; a definite one is not answered as unavailable.
+  it.each([
+    ['command_limit', { kind: 'invalid', field: 'storage', reason: 'command_limit' }],
+    ['combination_unregistered', { kind: 'unsupported' }],
+  ] as const)(
+    'a preadmission write the storage refuses for the definite reason %s is a definite failure',
+    async (reason, failure) => {
+      const f = await provided(`handoff-refused-${reason}`, 'allowed', reason)
+      expect(await f.handoff().prepare(invoke(f.s))).toEqual({ failure })
+    },
+  )
+
+  it('a preadmission write the storage refuses for a temporary reason is unavailable and names it', async () => {
+    const f = await provided('handoff-refused-queue-full', 'allowed', 'queue_full')
+    expect(await f.handoff().prepare(invoke(f.s))).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: expect.stringContaining('queue_full') },
+    })
   })
 
   it('the same Ki again recalls the original H and outcome, and writes nothing', async () => {

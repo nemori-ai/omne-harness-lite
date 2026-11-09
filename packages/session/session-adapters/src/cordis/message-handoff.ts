@@ -74,7 +74,12 @@ import type {
   TenantDomainLookup,
 } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
-import { commitJournal, type JournalCombination } from '../journal-commit.ts'
+import {
+  commitJournal,
+  refusalFailure,
+  type GenerationMemory,
+  type JournalCombination,
+} from '../journal-commit.ts'
 import { canonical } from '../testing/canonical.ts'
 import { type SessionCoordinatorPrincipalFailure, sessionScopeEvidence } from './agent-drive.ts'
 import { readExecutionRecords } from './agent-journal.ts'
@@ -246,6 +251,8 @@ function createMessageHandoff<P>(
   given: SessionMessageHandoffInput<P>,
   ports: Ports<P>,
 ): MessageHandoff<P> {
+  const generations: GenerationMemory = new Map()
+
   async function domainOf(tenantText: string): Promise<Outcome<DomainRef, Failure>> {
     const found = await ports.tenantDomainLookup.lookup({ tenant: tenantText })
     return found.kind === 'ready'
@@ -497,7 +504,9 @@ function createMessageHandoff<P>(
       combination: ports.combination,
       operation: `pre_${sha256(canonical([bound.tenantText, bound.handoff, command.facts]))}`,
       commands: [command],
+      generations,
     })
+    if (outcome.kind === 'refused') return fail(refusalFailure(outcome.reason))
     if (outcome.kind === 'unknown' || outcome.kind === 'unavailable')
       return fail(unavailable(`the preadmission write is ${outcome.kind}: ${outcome.diagnostic}`))
     const reply = outcome.receipt.responses.find(item => item.participant === 'execution-record')

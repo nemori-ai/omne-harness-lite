@@ -8,7 +8,7 @@ The SQL storage contract: shapes, three pure functions, Cordis service definitio
 
 This package owns the public shape of SQL storage for the harness: identity, commit and recognition results, registration, reads, static materials, the manifest digest, the close control, and the three Cordis service definitions. It implements no provider. The SQLite provider is a separate member (`packages/storage/sqlite-provider`) and is not built yet.
 
-Status: the design is adopted as the input of #687 revision 2 (comment 6554935672). It is not the delivery acceptance D-A01. Implemented here: the shapes, `inputDigestV2`, `manifestDigest`, `combinationManifest`, the three service definitions, and the memory double with its conformance suite. Not implemented here: any SQLite, Worker or file behavior (scenarios C08 to C11, C13, C15, C17 to C23).
+Status: the design is adopted as the input of #687 revision 2 (comment 6554935672). It is not the delivery acceptance D-A01. Implemented here: the shapes, `inputDigestV2`, `manifestDigest`, `combinationManifest`, `commitRejectionNature`, the three service definitions, and the memory double with its conformance suite. Not implemented here: any SQLite, Worker or file behavior (scenarios C08 to C11, C13, C15, C17 to C23).
 
 ## Usage
 
