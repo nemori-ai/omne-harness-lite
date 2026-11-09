@@ -46,13 +46,20 @@ export type DecodedIdentity = Readonly<{
 export function decodeIdentity(value: unknown): DecodedIdentity {
   if (!isRecord(value)) return { fields: null, identity: null, protocol: undefined }
   const scope = decodeScope(value['scope'])
-  const { transactionDomain, operation, operationKey } = value
+  const { transactionDomain, operation, operationKey, recall } = value
   const fields =
     scope !== null &&
     isName(transactionDomain, DOMAIN_BYTES) &&
     isName(operation) &&
-    isName(operationKey)
-      ? { scope, transactionDomain, operation, operationKey }
+    isName(operationKey) &&
+    (recall === undefined || recall === 'never')
+      ? {
+          scope,
+          transactionDomain,
+          operation,
+          operationKey,
+          ...(recall === 'never' ? { recall: 'never' as const } : {}),
+        }
       : null
   const protocol = value['protocolVersion']
   const identity =

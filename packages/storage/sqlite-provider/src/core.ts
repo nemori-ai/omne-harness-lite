@@ -64,4 +64,5 @@ export const identityKey = (identity: SqlIdentity): string =>
     identity.transactionDomain,
     identity.operation,
     identity.operationKey,
+    identity.recall ?? null,
   ])

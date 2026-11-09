@@ -1,6 +1,6 @@
 // Group commit G2-P inside the write Worker (SPEC 7.3, 7.5, 7.7). The scheduler collects adjacent,
 // reserved, groupable commits. The group runs in one BEGIN IMMEDIATE transaction, one savepoint
-// per original operation, and one COMMIT saves the receipts of all of them. A result leaves the
+// per original operation, and one COMMIT saves the receipts of all of them that keep one. A result leaves the
 // Worker only after the physical commit that holds it. The first local failure ends the group:
 // the prefix commits, the failed operation gets its rollback receipt in a second short
 // transaction, and the suffix goes back to the front of the queue for a new group.
@@ -53,6 +53,9 @@ type Stop =
 type StoppedOutcome = Extract<Outcome, { kind: 'stopped' }>
 
 const jobBytes = (job: CommitJob): number => utf8Length(canonicalJson(job.request.request))
+
+/** A commit whose identity is never recalled keeps no receipt (SQL contract SPEC 3.1). */
+const keepsReceipt = (job: CommitJob): boolean => job.request.request.identity.recall !== 'never'
 
 /**
  * ROLLBACK TO and RELEASE of one savepoint. `ended`: a statement already ended the whole
@@ -246,7 +249,7 @@ export class GroupRunner {
           outcome.entries,
         )
         try {
-          insertReceipt(db, receipt)
+          if (keepsReceipt(entry.job)) insertReceipt(db, receipt)
           db.exec(`RELEASE ${savepoint}`)
         } catch (error) {
           stop = { kind: 'environment', entry, savepoint, error }
@@ -278,6 +281,7 @@ export class GroupRunner {
       for (const item of staged) settleReceipt(item.entry, item.receipt)
     }
     // The second short transaction: only the rollback receipt of the failed operation (SPEC 7.7.1).
+    // A commit that keeps no receipt needs no second transaction: the rollback already ended it.
     const writeRollback = (failed: Extract<Stop, { kind: 'failed' }>): boolean => {
       const request = failed.entry.job.request.request
       const receipt = receiptOf(
@@ -286,6 +290,10 @@ export class GroupRunner {
         failed.entry.job.request.inputDigest,
         failed.outcome.entries,
       )
+      if (!keepsReceipt(failed.entry.job)) {
+        settleReceipt(failed.entry, receipt)
+        return db.isTransaction
+      }
       try {
         transact(db, () => insertReceipt(db, receipt))
         settleReceipt(failed.entry, receipt)
@@ -372,7 +380,7 @@ export class GroupRunner {
         send(job, { kind: 'rejected', reason: rejected })
         continue
       }
-      const existing = readReceipt(db, request.identity)
+      const existing = keepsReceipt(job) ? readReceipt(db, request.identity) : null
       if (existing !== null) {
         send(
           job,
@@ -382,7 +390,11 @@ export class GroupRunner {
         )
         continue
       }
-      const key = JSON.stringify([request.identity.operation, request.identity.operationKey])
+      const key = JSON.stringify([
+        request.identity.operation,
+        request.identity.operationKey,
+        keepsReceipt(job),
+      ])
       const owner = byIdentity.get(key)
       if (owner !== undefined) {
         owner.waiters.push(job)

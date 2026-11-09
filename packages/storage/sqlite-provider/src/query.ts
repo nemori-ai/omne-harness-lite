@@ -1,5 +1,6 @@
-// query (SPEC 8). It recognizes an identity on the write path. The order of the answer is fixed:
-// a saved receipt, then the pending index (unknown), and only then not_committed with five proofs.
+// query (SPEC 8). It recognizes an identity on the write path. An identity that is never recalled
+// has no receipt and answers not_recallable. Otherwise the order of the answer is fixed: a saved
+// receipt, then the pending index (unknown), and only then not_committed with five proofs.
 // The proofs hold when the domain is ready: this generation ran path A (or path B), so the old
 // write generation is excluded, the old transaction ended and the recovery is finished. The read
 // just made on the write connection is the authoritative read.
@@ -28,6 +29,7 @@ export function createQuery(core: Core): SqlStorage['query'] {
     const decoded = decodeIdentity(identity)
     if (decoded.identity === null) return unknown('invalid_identity')
     const valid = decoded.identity
+    if (valid.recall === 'never') return { kind: 'not_recallable', identity: valid }
     const grant = core.admission.reserveQuery(valid.transactionDomain)
     if (grant === null) return unknown('queue_full')
     // The caller observes a sent query for a bounded time. The queue place goes back with the reply.

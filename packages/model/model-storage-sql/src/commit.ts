@@ -583,6 +583,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     for (let at = 1; at <= attempts; at += 1) {
       const found = await storage.query(generation(domain, operation, at))
       if (found.kind === 'not_committed') return at
+      if (found.kind === 'not_recallable') return 'unknown'
       if (found.kind !== 'rolled_back') return found.kind
     }
     return 'exhausted'

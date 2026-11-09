@@ -1,6 +1,6 @@
 // The conformance suite of `SqlStorage` (SPEC 16.1). It runs through the public interface only, so
 // it fits the memory double and any provider. It covers the scenarios that need no database:
-// C01 to C07, C12, C14 and C16. The scenarios that need SQLite, Workers or files (C08 to C11, C13,
+// C01 to C07, C12, C14, C16 and C24. The scenarios that need SQLite, Workers or files (C08 to C11, C13,
 // C15, C17 to C23) belong to the provider package. A pass of this suite does not show them.
 import { canonicalJson } from '../canonical.ts'
 import { inputDigestV2 } from '../digest.ts'
@@ -253,6 +253,63 @@ const SCENARIOS: readonly Scenario[] = [
         )
       const absent = await storage.query(absentIdentity())
       expect(absent.kind === 'unknown', `an absent domain is unknown, got ${absent.kind}`)
+    },
+  },
+  {
+    id: 'C24',
+    title: 'a commit that is never recalled keeps no receipt',
+    async run({ storage, materials }) {
+      await registerAll(storage, materials)
+      const all = { combinationVersion: 'all-v1' }
+      const never = identity({ operationKey: 'once', recall: 'never' })
+      const first = committed(
+        await storage.commit(commitRequest(materials, { ...all, identity: never })),
+      )
+      same(first.identity, never, 'the result carries the identity of the request')
+      same(
+        await storage.query(never),
+        { kind: 'not_recallable', identity: never },
+        'query does not recognize a commit that is never recalled',
+      )
+      const again = await storage.commit(
+        commitRequest(materials, {
+          ...all,
+          identity: never,
+          commands: [command('session', { revision: 'changed' }), command('agent-journal')],
+        }),
+      )
+      expect(
+        again.kind === 'committed',
+        `the same identity with another input runs again, got ${kindOf(again)}`,
+      )
+      const recallable = await storage.query(identity({ operationKey: 'once' }))
+      expect(
+        recallable.kind === 'not_committed',
+        `the recallable identity with the same key has no receipt, got ${recallable.kind}`,
+      )
+      const stopped = await storage.commit(
+        commitRequest(materials, {
+          ...all,
+          identity: identity({ operationKey: 'stopped', recall: 'never' }),
+          commands: [command('session'), command('probe', { mode: 'conflict' })],
+        }),
+      )
+      expect(stopped.kind === 'rolled_back', `a conflict reply rolls back, got ${kindOf(stopped)}`)
+      const stoppedQuery = await storage.query(identity({ operationKey: 'stopped' }))
+      expect(
+        stoppedQuery.kind === 'not_committed',
+        `a rollback that is never recalled keeps no receipt, got ${stoppedQuery.kind}`,
+      )
+      const other = await storage.commit(
+        commitRequest(materials, {
+          ...all,
+          identity: identity({ operationKey: 'other', recall: 'sometimes' as never }),
+        }),
+      )
+      expect(
+        kindOf(other) === 'rejected_before_accept/field_missing',
+        `an unknown recall value is refused, got ${kindOf(other)}`,
+      )
     },
   },
   {

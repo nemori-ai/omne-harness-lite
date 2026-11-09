@@ -81,6 +81,37 @@ describe('execution and evidence', () => {
     ])
   })
 
+  it('writes no receipt for commits that are never recalled, alone or in one group', async () => {
+    const { storage, control } = await ready()
+    const never = (key: string) => identity({ operationKey: key, recall: 'never' })
+    const results = await Promise.all([
+      ...['n1', 'n2', 'n3'].map(key =>
+        storage.commit(commitRequest(built, { identity: never(key) })),
+      ),
+      storage.commit(commitRequest(built, { identity: identity({ operationKey: 'kept' }) })),
+      storage.commit(
+        commitRequest(built, {
+          identity: never('stopped'),
+          commands: [command('ledger', { note: 'gone' }), command('auditor', { mode: 'conflict' })],
+        }),
+      ),
+    ])
+    expect(results.map(kindOf)).toEqual([
+      'committed',
+      'committed',
+      'committed',
+      'committed',
+      'rolled_back',
+    ])
+    expect(await storage.query(never('n1'))).toEqual({
+      kind: 'not_recallable',
+      identity: never('n1'),
+    })
+    await control.close({ initiator: 'disposal' })
+    expect(rows('select count(*) as n from t_ledger')).toEqual([{ n: 4 }])
+    expect(rows('select operation_key from _sql_receipt')).toEqual([{ operation_key: 'kept' }])
+  })
+
   it('recognizes the same identity and input, also in a new provider, and refuses another input', async () => {
     const first = await ready()
     const request = commitRequest(built)

@@ -154,6 +154,7 @@ export function queryKindOf(result: QueryResultV2): QueryKind {
     case 'not_committed':
       return 'not_committed'
     case 'unknown':
+    case 'not_recallable':
       return 'unknown'
   }
 }

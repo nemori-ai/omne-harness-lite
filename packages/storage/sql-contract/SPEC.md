@@ -96,11 +96,22 @@ SQL r2 在 S1 之上改变或闭合的条款，按 SQL r2 第 19.1 节的提案�
 
 幂等认回与 `identity_conflict` 都比较完整的五项。五项中任何一项不同，就是另一个操作。`scope` 先比较 `kind`，`kind` 为 `tenant` 时再比较 `tenant`。另一作用域使用相同的操作键，也是另一个操作。那个操作不认回本作用域的回执，也不和本作用域的回执冲突。系统作用域只写作 `{ kind: 'system' }`。空租户不是系统作用域（IC-18）。系统作用域不能取得租户域，租户作用域也不能取得系统域。
 
+<a id="不认回的提交"></a>
+
+身份还可以带认回声明 `recall`。它只有一个值 `'never'`，省略时提交保存回执。`recall: 'never'` 声明没有调用方会认回这个操作。认回与冲突也比较这一项：`recall` 不同的两个身份是两个操作。对这样的身份，提供者不读回执，也不写回执：
+
+- 同身份再次 `commit` 时，命令再执行一次。输入不同也不返回 `identity_conflict`。
+- `query` 返回 `not_recallable`（§8），不返回 `not_committed`。
+- 回滚之后不写回滚回执，所以不需要第二个短事务（§7.7.1）。
+
+这类提交的参加者必须自身幂等：同一命令执行两次，与执行一次的状态相同。提交结果为 `unknown` 时，提供者不能告诉调用方结果。认回是调用方的责任：调用方用自己记录的事实认回原操作，例如 Tool 账本的操作记录与域修订。不能用自己的事实认回结果的操作不使用这个声明。
+
 【提案 P-02】字段规则：
 
 - 名字类字段（`tenant`、`operation`、`operationKey`、`combinationVersion`、`participant`、`handler`、`protocol`、`requestKey`）是非空、合法 UTF-16、UTF-8 不超过 1024 字节的字符串。
 - `transactionDomain` 另限 UTF-8 不超过 120 字节（文件名限制见 [sqlite-provider 规格](../sqlite-provider/SPEC.md) §5.1）。
 - 摘要类字段是 64 个字符的小写十六进制。
+- `recall` 省略，或者是 `'never'`。
 
 违反时，`commit` 与 `registerCombination` 返回 `field_missing`，`query` 返回 `unknown`，`read` 返回 `invalid`。
 
@@ -293,11 +304,11 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 
 #### 提交的其余规则
 
-- 同一操作身份和同一输入摘要再次调用 `commit` 时，提供者返回已保存的回执，不再执行命令。同一组中暂存的同身份调用成为等待者，在原结果持久之前不交付（§7.7.3）【提案 P-09】。
+- 同一操作身份和同一输入摘要再次调用 `commit` 时，提供者返回已保存的回执，不再执行命令。`recall: 'never'` 的身份没有回执，本条与下一条不适用（§3.1）。同一组中暂存的同身份调用成为等待者，在原结果持久之前不交付（§7.7.3）【提案 P-09】。
 - 同一操作身份配到不同输入摘要时，提供者返回 `identity_conflict`，并带上已有回执。
 - `commit` 返回 `rolled_back` 时，明确回滚回执已经持久保存。回滚之后提供者没有保存这份回执时，`commit` 返回 `unknown`。`ROLLBACK` 本身失败时，`commit` 也返回 `unknown`。本组有新暂存前缀时，整事务结束为 `unknown`（§7.7.2）。环境类错误为 `unknown`（§7.6）【提案 P-09、P-04】。
 - 能确定的受理前失败返回 `rejected_before_accept`。其余不能判定的结果返回 `unknown`。
-- 持久回执只有已提交和明确回滚。`commit` 返回 `committed`、`rolled_back`、`unknown`、`identity_conflict` 或 `rejected_before_accept`。
+- 持久回执只有已提交和明确回滚。`recall: 'never'` 的提交没有持久回执：`committed` 与 `rolled_back` 只报告本次执行，`rolled_back` 不需要第二个短事务。`commit` 返回 `committed`、`rolled_back`、`unknown`、`identity_conflict` 或 `rejected_before_accept`。
 
 #### §7.4 参加者端口与事实格
 
@@ -398,6 +409,8 @@ Worker 在操作途中退出时，已发送、尚未结算的 `commit` 调用方
 
 下列情形返回 `unknown`：提供者关闭已经开始；字段违规，或协议版本不是 `'2'`；队列已满；域为 `absent` 或绑定另一作用域；打开失败；域为 `quarantined` 或 `recovering`。这些结果不透露另一作用域是否有相同操作键的回执【提案 P-01】。域为 `unopened` 时，`query` 触发域打开。
 
+身份带 `recall: 'never'` 时，`query` 返回 `not_recallable`，不读域，也不打开域。提供者关闭与字段违规仍先返回 `unknown`。提供者不保存这样的操作的任何记录，所以 `not_committed` 对它不成立。
+
 域为 `ready` 时：
 
 1. 持久回执存在：返回该回执与原响应证据。
@@ -414,7 +427,7 @@ Worker 在操作途中退出时，已发送、尚未结算的 `commit` 调用方
 | --- | --- |
 | `registerCombination` | `registered` 和已保存的登记，或 `rejected_before_accept` 和原因，或 `unknown` |
 | `commit` | `committed`、`rolled_back`、`unknown`、`identity_conflict` 和已有回执、`rejected_before_accept` |
-| `query` | 已提交回执、明确回滚回执、未知、未提交 |
+| `query` | 已提交回执、明确回滚回执、未知、未提交、不可认回（`not_recallable`） |
 | `read` | 读结果，或带原因的 `unavailable` |
 
 ### §9 read
@@ -564,7 +577,7 @@ PostgreSQL 提供者使用独立的 `pg` 与 Kysely 事务租约，返回已提�
 
 ### §16.1 场景
 
-下列场景是验证义务，不是已运行的结果。场景 C01 至 C23 都须在相应成员内运行并保存提交、命令、环境、退出码与原始日志。验证单元按顺序为：V1 契约与同源替身；V2 Windows Node Worker 提供者；V3 消费者与索引；V4 LI-A3-5 与 E9 的真实轨迹与测量。
+下列场景是验证义务，不是已运行的结果。场景 C01 至 C24 都须在相应成员内运行并保存提交、命令、环境、退出码与原始日志。验证单元按顺序为：V1 契约与同源替身；V2 Windows Node Worker 提供者；V3 消费者与索引；V4 LI-A3-5 与 E9 的真实轨迹与测量。
 
 | ID | 性质 | 必须变红的反例 |
 | --- | --- | --- |
@@ -591,6 +604,7 @@ PostgreSQL 提供者使用独立的 `pg` 与 Kysely 事务租约，返回已提�
 | C21 | 分组资格与模块纯度 | FK-1 合组后变为成功；时间函数被允许；模块跨调用缓存状态 |
 | C22 | SQ-1 序位 | 模块缓存序位上界；失败后在同一外层事务继续后缀 |
 | C23 | Cordis 装配 | 构造失败未使 fiber `FAILED`；Worker 挂在调用方 ctx；重跑后出现两个写者 |
+| C24 | 不认回的提交（§3.1） | `recall: 'never'` 的提交留下回执；`query` 对它返回 `not_committed`；同身份异输入返回 `identity_conflict` |
 
 S1 的其他验证要求保留：查询携带的作用域与回执不同时返回 `unknown`；两个参加者的事实同时出现在同一份已提交回执中，任一命令失败时该回执为明确回滚；回执已经写入、响应尚未返回时结束 Worker，用原身份 `query` 得到已提交回执；锁等待超过 `lockWaitMs` 时 `commit` 返回 `unknown`；断电耐久只在记录了相应故障试验时声明。测试通过 `commit` 和 `query` 观察结果，不直接断言 SQL 文本。
 
@@ -598,4 +612,4 @@ S1 的其他验证要求保留：查询携带的作用域与回执不同时返�
 
 验证资源在 `tests/`：每条字段规则、每个拒绝原因各一条只违反它的用例，相邻两步的顺序用例，摘要向量与 RFC 8785 数字用例，`combinationManifest` 每类问题的用例，入口与不含 Cordis 的依赖检查，以及符合性套件对替身和故意违规提供者的用例。
 
-符合性套件只含 C01 至 C07、C12、C14、C16。场景 C08 至 C11、C13、C15、C17 至 C23 由 [sqlite-provider](../sqlite-provider/SPEC.md) 的提供者测试承担，这个套件不覆盖它们（已知限制）；替身通过套件不证明这些性质。提供者在 SQLite 上的行为只由提供者测试证明。仍未执行的项：跨进程排除、真实磁盘的 Windows 故障注入、SQL-T01 断电、E9。
+符合性套件只含 C01 至 C07、C12、C14、C16、C24。场景 C08 至 C11、C13、C15、C17 至 C23 由 [sqlite-provider](../sqlite-provider/SPEC.md) 的提供者测试承担，这个套件不覆盖它们（已知限制）；替身通过套件不证明这些性质。提供者在 SQLite 上的行为只由提供者测试证明。仍未执行的项：跨进程排除、真实磁盘的 Windows 故障注入、SQL-T01 断电、E9。

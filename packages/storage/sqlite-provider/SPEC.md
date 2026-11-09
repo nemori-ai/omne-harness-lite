@@ -153,6 +153,8 @@
 
 事实、已提交回执和响应证据在同一个事务里提交。`RELEASE` 不执行外层提交的全部检查。每个操作在结束时满足它独立提交时的约束，由 §4.5 保证。
 
+身份带 `recall: 'never'` 的操作（sql-contract 规格 §3.1）跳过第 3 步，不读回执；第 5 步不写回执，`_sql_receipt` 中没有它的行。等待者只按身份合并，`recall` 不同的两个身份不互为等待者。它在局部失败时也不写回滚回执：B 的写入撤下之后，`commit` 直接返回 `rolled_back`，不开第二个短事务。
+
 第 1 步的写代际核对：Worker 打开域时把 `_sql_generation` 加一，并记下它写入的值。组提交在 `BEGIN IMMEDIATE` 之后读回这个值。值不同或读不到时，另一个打开者已经接管该文件。本组全部操作为 `unknown`（诊断 `write_generation_changed` 或 `write_generation_unreadable`），Worker 回滚并退出，不在该连接上执行任何操作。
 
 ```mermaid
@@ -273,7 +275,7 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 
 ## §8 query 的提供者机制
 
-`query` 是写 Worker 上的排序屏障：当前组结束之后才执行。域与作用域的判断见 sql-contract 规格 §8。查询的作用域不是该事务域服务的作用域时，Worker 返回 `unknown`，不读取回执。五项证明的来源【提案 P-01、P-09】：
+身份带 `recall: 'never'` 时，`query` 在控制侧返回 `not_recallable`，不发给 Worker（sql-contract 规格 §8）。其他 `query` 是写 Worker 上的排序屏障：当前组结束之后才执行。域与作用域的判断见 sql-contract 规格 §8。查询的作用域不是该事务域服务的作用域时，Worker 返回 `unknown`，不读取回执。五项证明的来源【提案 P-01、P-09】：
 
 | 证明 | 来源 |
 | --- | --- |
@@ -455,7 +457,7 @@ SQ-1 与 DO-1 没有模型覆盖，分别由 C22、C17 验证。
 
 ### 场景与成员验证
 
-场景 C01 至 C23 在 [sql-contract 规格](../sql-contract/SPEC.md)的「§16.1 场景」。本成员承担需要真实 `node:sqlite` 文件、Node Worker、域状态表、DO-1、SQ-1、读池与关闭的场景（C06 至 C10、C15 及 C13、C14、C16 至 C23 中依赖真实文件的部分）。这些场景由 `tests/` 的提供者测试承担，已在 Windows Node Worker 上运行（运行记录在任务 tmp，不进入本成员）。sql-contract 的符合性套件只含 C01 至 C07、C12、C14、C16，其余场景只由本成员的测试承担（已知限制）。场景 × 域状态表（sql-contract 规格 §5.5）的对照在 `tests/state-cells.spec.ts` 文件头，其中 `recovering` 行没有测试（提供者不产生 `writer_not_current`）。需要 SQLite 3.51.3 及以上。
+场景 C01 至 C24 在 [sql-contract 规格](../sql-contract/SPEC.md)的「§16.1 场景」。本成员承担需要真实 `node:sqlite` 文件、Node Worker、域状态表、DO-1、SQ-1、读池与关闭的场景（C06 至 C10、C15 及 C13、C14、C16 至 C23 中依赖真实文件的部分）。这些场景由 `tests/` 的提供者测试承担，已在 Windows Node Worker 上运行（运行记录在任务 tmp，不进入本成员）。sql-contract 的符合性套件只含 C01 至 C07、C12、C14、C16、C24，其余场景只由本成员的测试承担（已知限制）。场景 × 域状态表（sql-contract 规格 §5.5）的对照在 `tests/state-cells.spec.ts` 文件头，其中 `recovering` 行没有测试（提供者不产生 `writer_not_current`）。需要 SQLite 3.51.3 及以上。
 
 ### 探针
 

@@ -173,6 +173,7 @@ export async function standingOf(
       case 'not_committed':
         return 'not-run'
       case 'unknown':
+      case 'not_recallable':
         return 'unknown'
     }
   } catch {

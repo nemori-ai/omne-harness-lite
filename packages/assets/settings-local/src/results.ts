@@ -48,6 +48,7 @@ export function receiptResult(
     return unknown
   switch (result.kind) {
     case 'unknown':
+    case 'not_recallable':
       return unknown
     case 'not_committed':
       return { kind: 'not_found' }

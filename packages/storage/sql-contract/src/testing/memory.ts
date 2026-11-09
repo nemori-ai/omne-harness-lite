@@ -179,6 +179,8 @@ type Domain = {
 const factId = (fact: FactKey): string => JSON.stringify([fact.key, fact.protocol])
 const receiptKey = (identity: SqlIdentity): string =>
   JSON.stringify([identity.operation, identity.operationKey])
+/** A commit whose identity is never recalled keeps no receipt (SPEC 3.1). */
+const keepsReceipt = (identity: SqlIdentity): boolean => identity.recall !== 'never'
 const sortNames = (names: readonly string[]): string[] => [...names].sort()
 
 type PortViolation = 'port_violation' | 'fact_violation'
@@ -481,7 +483,7 @@ class MemorySqlStorage implements SqlStorage {
     if (this.dependencyMissing(named, [...members])) return reject('participant_dependency_missing')
 
     const inputDigest = inputDigestV2(input)
-    const existing = domain.receipts.get(receiptKey(identity))
+    const existing = keepsReceipt(identity) ? domain.receipts.get(receiptKey(identity)) : undefined
     if (existing !== undefined)
       return existing.inputDigest === inputDigest
         ? existing
@@ -522,7 +524,7 @@ class MemorySqlStorage implements SqlStorage {
         manifestDigest: input.manifestDigest,
         responses: entries,
       } as unknown as ReceiptV2 // entries end with the stopping entry, by the branch above
-      domain.receipts.set(receiptKey(identity), receipt)
+      if (keepsReceipt(identity)) domain.receipts.set(receiptKey(identity), receipt)
       return receipt
     }
     const receipt = {
@@ -533,7 +535,7 @@ class MemorySqlStorage implements SqlStorage {
       manifestDigest: input.manifestDigest,
       responses: entries,
     } as unknown as ReceiptV2 // the loop reached its end, so every entry participated
-    domain.receipts.set(receiptKey(identity), receipt)
+    if (keepsReceipt(identity)) domain.receipts.set(receiptKey(identity), receipt)
     return receipt
   }
 
@@ -644,6 +646,7 @@ class MemorySqlStorage implements SqlStorage {
     if (this.closing) return Promise.resolve(unknown('closing'))
     if (decoded.identity === null) return Promise.resolve(unknown('invalid_identity'))
     const valid = decoded.identity
+    if (!keepsReceipt(valid)) return Promise.resolve({ kind: 'not_recallable', identity: valid })
     return new Promise(resolve => {
       this.queue.submit({
         start: () => {

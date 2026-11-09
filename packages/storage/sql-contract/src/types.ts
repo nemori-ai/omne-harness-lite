@@ -26,13 +26,18 @@ export type DomainRef = Readonly<{
 /** Protocol 2 replaces protocol 1 for every new commit (§3.3). */
 export type ProtocolVersionV2 = '2'
 
-/** The five identity dimensions. Two identities are equal only if all five are equal (§3.1). */
+/**
+ * The five identity dimensions and the recall declaration. Two identities are equal only if all
+ * six are equal (§3.1). `recall: 'never'` declares that nobody recalls this operation: the provider
+ * keeps no receipt of it, and `query` answers `not_recallable` (§3.1, §8).
+ */
 export type SqlIdentity = Readonly<{
   scope: StorageScope
   transactionDomain: string
   operation: string
   protocolVersion: ProtocolVersionV2
   operationKey: string
+  recall?: 'never'
 }>
 
 export type FactCommandV2 = Readonly<{
@@ -191,7 +196,15 @@ export type NotCommittedV2 = Readonly<{
   }>
 }>
 
-export type QueryResultV2 = CommittedV2 | RolledBackV2 | UnknownV2 | NotCommittedV2
+/** The identity declares `recall: 'never'`, so no receipt exists to recognize it by (§8). */
+export type NotRecallableV2 = Readonly<{ kind: 'not_recallable'; identity: SqlIdentity }>
+
+export type QueryResultV2 =
+  | CommittedV2
+  | RolledBackV2
+  | UnknownV2
+  | NotCommittedV2
+  | NotRecallableV2
 
 export type RegistrationKey = Readonly<{
   scope: StorageScope
