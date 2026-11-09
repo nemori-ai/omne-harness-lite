@@ -2,7 +2,9 @@
 // key, and from that commit on the acquisition ledger shows the key as handed over. The scope's
 // record lives in the scope's own `retention@<scope>` domain and the acquisition in the call's own domain;
 // the handover is one commit of the scope's record that asserts the acquisition and the original
-// call unchanged, and the acquisition derives `handedOver` from the scope's adoptions. Also the
+// call unchanged, and the acquisition derives `handedOver` from the scope's adoptions. A confirmed
+// stop of an adopted process keeps its end fact under its own key in the scope's domain until the
+// scope is released (execution-environment contract, stop clause 7). Also the
 // plan passthrough of `processes` to `ExecutionEnvironment.acquire`, and its live-plan conflict
 // rule.
 import { describe, expect, it, vi } from 'vitest'
@@ -469,7 +471,14 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
     expect(before.retainedFact).toMatchObject({ adopted: false, stop: 'active' })
   })
 
-  it('keeps no end fact: ended answers none before and after a confirmed stop, and the closed scope loses its record', async () => {
+  /** The host keys of the scope's domain, read whole: the scope record and its end facts. */
+  async function scopeKeys(f: Awaited<ReturnType<typeof fixture>>) {
+    const read = await f.store.read(retentionDomain(tenantA, preparation.request.requesterScope))
+    if (read.kind !== 'complete') throw new Error('fixture scope unavailable')
+    return read.records.flatMap(record => (record.kind === 'host' ? [record.host.key] : []))
+  }
+
+  it('keeps the end fact of a stopped process: ended answers confirmed while the scope lives, the scope record no longer holds it, and the release removes both', async () => {
     const f = await fixture()
     await f.reserved()
     expect(await f.processes.ended(resource.key)).toBe('none')
@@ -477,12 +486,62 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
     const view = await otherCallView(f)
     expect(await view.stopped(resource.key, 'unconfirmed')).toBe('recorded')
     expect(await view.ended(resource.key)).toBe('none')
-    expect(await view.close()).toBe('confirmed')
-    expect((await f.domain()).retention).toMatchObject({ state: { closed: true } })
     expect(await view.stopped(resource.key, 'confirmed')).toBe('recorded')
+    // Stop clause 7: the stopped process is no longer held, and its end fact answers a later stop.
+    expect((await f.domain()).retainedFact).toBeUndefined()
+    expect(await f.processes.inspect()).toEqual([])
+    expect(await f.processes.ended(resource.key)).toBe('confirmed')
+    expect(await view.ended(resource.key)).toBe('confirmed')
+    expect(await view.ended('another-key')).toBe('none')
+    // The release: a closed scope that holds nothing loses its record and its end facts together.
+    expect(await view.close()).toBe('confirmed')
     expect(await f.processes.ended(resource.key)).toBe('none')
-    // A closed scope that holds nothing has no record: the domain is as before the first plan.
     expect((await f.domain()).retention).toBeUndefined()
+    expect(await scopeKeys(f)).toEqual([])
+  })
+
+  it('removes the end facts with the last live entry when the scope was closed before it stopped', async () => {
+    const f = await fixture()
+    await f.reserved()
+    const second: ManagedResource = { ...resource, key: 'domain-2' }
+    expect(await f.acquisition.plan(second)).toBe('recorded')
+    expect(await f.acquisition.permit(second.key)).toBe('confirmed')
+    expect(await f.processes.plan(second)).toBe('recorded')
+    for (const key of [resource.key, second.key])
+      expect(await f.processes.adopt(key)).toBe('confirmed')
+    expect(await f.processes.stopped(resource.key, 'confirmed')).toBe('recorded')
+    expect(await f.processes.close()).toBe('confirmed')
+    // Closed, one process still held: the record and the first end fact stay.
+    expect(await f.processes.ended(resource.key)).toBe('confirmed')
+    expect(await f.processes.stopped(second.key, 'confirmed')).toBe('recorded')
+    expect(await f.processes.ended(resource.key)).toBe('none')
+    expect(await f.processes.ended(second.key)).toBe('none')
+    expect(await scopeKeys(f)).toEqual([])
+  })
+
+  it('reads an end fact by its key: one record, never the whole scope', async () => {
+    const f = await fixture()
+    await f.reserved()
+    expect(await f.processes.adopt(resource.key)).toBe('confirmed')
+    expect(await f.processes.stopped(resource.key, 'confirmed')).toBe('recorded')
+    const whole = vi.spyOn(f.store, 'read')
+    const keyed = vi.spyOn(f.store, 'readRecord')
+    expect(await f.processes.ended(resource.key)).toBe('confirmed')
+    expect(whole).not.toHaveBeenCalled()
+    expect(keyed).toHaveBeenCalledTimes(1)
+    expect(keyed).toHaveBeenCalledWith(
+      retentionDomain(tenantA, preparation.request.requesterScope),
+      hostKey(`ended/${resource.key}`),
+    )
+  })
+
+  it('keeps no end fact for a retained terminal: its confirmed stop only ends the hold', async () => {
+    const f = await fixture()
+    await f.reserved()
+    expect(await f.processes.permit(resource.key)).toBe('confirmed')
+    expect(await f.processes.stopped(resource.key, 'confirmed')).toBe('recorded')
+    expect(await f.processes.ended(resource.key)).toBe('none')
+    expect(await scopeKeys(f)).toEqual([RETENTION_RECORD_KEY])
   })
 
   it('answers unavailable, not none, when the retention state cannot be read', async () => {
