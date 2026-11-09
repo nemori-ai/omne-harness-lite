@@ -166,7 +166,8 @@ async function fixture() {
 
   type Envelope = {
     mutation: string
-    state: { resources: { resource: { key: string }; [field: string]: unknown }[] }
+    /** A released scope's marker holds no resources. */
+    state: { resources?: { resource: { key: string }; [field: string]: unknown }[] }
   }
   /** One stored envelope and the revision of its domain, read without the state store. */
   async function stored(domain: LedgerDomain, key: string) {
@@ -183,7 +184,7 @@ async function fixture() {
       RETENTION_RECORD_KEY,
     )
     const fact = (envelope: Envelope | undefined) =>
-      envelope?.state.resources.find(item => item.resource.key === resource.key)
+      envelope?.state.resources?.find(item => item.resource.key === resource.key)
     return {
       acquisitionRevision: acquired.revision,
       retentionRevision: retention.revision,
@@ -478,7 +479,7 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
     expect(before.retainedFact).toMatchObject({ adopted: false, stop: 'active' })
   })
 
-  it('keeps the end fact of a stopped process: ended answers confirmed while the scope lives, the scope record no longer holds it, and the release removes both', async () => {
+  it('keeps the end fact of a stopped process: ended answers confirmed while the scope lives, the scope record no longer holds it, and the release deletes the end fact and keeps the marker', async () => {
     const f = await fixture()
     await f.reserved()
     expect(await f.processes.ended(resource.key)).toBe('none')
@@ -493,11 +494,11 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
     expect(await f.processes.ended(resource.key)).toBe('confirmed')
     expect(await view.ended(resource.key)).toBe('confirmed')
     expect(await view.ended('another-key')).toBe('none')
-    // The release: a closed scope that holds nothing loses its record and its end facts together.
+    // The release: a closed scope that holds nothing shrinks to its marker and loses its end facts.
     expect(await view.close()).toBe('confirmed')
     expect(await f.processes.ended(resource.key)).toBe('none')
-    expect((await f.domain()).retention).toBeUndefined()
-    expect(await scopeKeys(f)).toEqual([])
+    expect((await f.domain()).retention?.state).toEqual({ closed: true })
+    expect(await scopeKeys(f)).toEqual([RETENTION_RECORD_KEY])
   })
 
   it('removes the end facts with the last live entry when the scope was closed before it stopped', async () => {
@@ -516,7 +517,7 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
     expect(await f.processes.stopped(second.key, 'confirmed')).toBe('recorded')
     expect(await f.processes.ended(resource.key)).toBe('none')
     expect(await f.processes.ended(second.key)).toBe('none')
-    expect(await scopeKeys(f)).toEqual([])
+    expect(await scopeKeys(f)).toEqual([RETENTION_RECORD_KEY])
   })
 
   it('the release is conditioned on the scope it decided on: an end fact written in between is deleted on the retry', async () => {
@@ -551,7 +552,7 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
       return answer
     })
     expect(await f.processes.close()).toBe('confirmed')
-    expect(await scopeKeys(f)).toEqual([])
+    expect(await scopeKeys(f)).toEqual([RETENTION_RECORD_KEY])
   })
 
   it('reads an end fact by its key: one record, never the whole scope', async () => {
@@ -589,6 +590,113 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
       domain.kind === 'host' ? { kind: 'unavailable', diagnostic: 'fixture' } : read(domain, key),
     )
     expect(await f.processes.ended(resource.key)).toBe('unavailable')
+  })
+})
+
+describe('a retention scope is open, closed or released, and never open again', () => {
+  /** The scope's record as stored: its encoded state, or undefined when there is none. */
+  const scopeState = async (f: Awaited<ReturnType<typeof fixture>>) =>
+    (await f.domain()).retention?.state as unknown
+
+  it('a released scope keeps its closed marker: a view made after it, by a restart or a later acquisition, starts closed and its plan records nothing', async () => {
+    const f = await fixture()
+    expect(await f.processes.plan(resource)).toBe('recorded')
+    expect(await f.processes.permit(resource.key)).toBe('confirmed')
+    expect(await f.processes.close()).toBe('confirmed')
+    expect(await f.processes.stopped(resource.key, 'confirmed')).toBe('recorded')
+    // Released: the record shrank to the marker; it is not deleted.
+    expect(await scopeState(f)).toEqual({ closed: true })
+    for (const view of [await f.retained(), await otherCallView(f)]) {
+      expect(view.closed.aborted).toBe(true)
+      expect(await view.plan({ ...resource, key: 'fresh' })).toBe('closed')
+      expect(await view.permit('fresh')).toBe('closed')
+      expect(await view.adopt('fresh')).toBe('closed')
+    }
+    expect(await scopeState(f)).toEqual({ closed: true })
+    expect(await scopeKeys(f)).toEqual([RETENTION_RECORD_KEY])
+  })
+
+  it('a close of a scope with no record writes the marker, so no later plan opens it', async () => {
+    const f = await fixture()
+    expect(await f.processes.close()).toBe('confirmed')
+    expect(await scopeState(f)).toEqual({ closed: true })
+    expect(await (await f.retained()).plan(resource)).toBe('closed')
+    expect(await scopeState(f)).toEqual({ closed: true })
+  })
+
+  it('the scope close removes a reservation the creator close failed to drop, and the scope releases once nothing is held', async () => {
+    const f = await fixture()
+    await f.reserved()
+    const process: ManagedResource = { ...resource, key: 'domain-2' }
+    expect(await f.acquisition.plan(process)).toBe('recorded')
+    expect(await f.acquisition.permit(process.key)).toBe('confirmed')
+    expect(await f.processes.plan(process)).toBe('recorded')
+    expect(await f.processes.adopt(process.key)).toBe('confirmed')
+    expect(await f.processes.stopped(process.key, 'confirmed')).toBe('recorded')
+    expect(await f.processes.ended(process.key)).toBe('confirmed')
+    // The creator's close drops its reservation in a second commit, the first of the scope after
+    // the close; that commit does not land.
+    let refused = 0
+    f.commit.mockImplementation(async input => {
+      if (
+        refused === 0 &&
+        input.domain.kind === 'host' &&
+        input.domain.key.startsWith('retention@')
+      ) {
+        refused += 1
+        return { kind: 'unavailable', diagnostic: 'fixture' }
+      }
+      return f.realCommit(input)
+    })
+    expect(await f.acquisition.close()).toBe('confirmed')
+    expect(refused).toBe(1)
+    expect((await f.domain()).retainedFact).toMatchObject({ permitted: false, adopted: false })
+    // The scope close does not depend on it: the reservation goes in the close's own commit, and
+    // with nothing held the same commit releases the scope and deletes its end facts.
+    expect(await f.processes.close()).toBe('confirmed')
+    expect(await scopeState(f)).toEqual({ closed: true })
+    expect(await scopeKeys(f)).toEqual([RETENTION_RECORD_KEY])
+    expect(await f.processes.ended(process.key)).toBe('none')
+  })
+
+  it('a closed scope keeps only what it took over and answers closed to plan, permit and adopt from every view', async () => {
+    const f = await fixture()
+    await f.reserved()
+    const untaken: ManagedResource = { ...resource, key: 'domain-2' }
+    expect(await f.acquisition.plan(untaken)).toBe('recorded')
+    expect(await f.acquisition.permit(untaken.key)).toBe('confirmed')
+    expect(await f.processes.plan(untaken)).toBe('recorded')
+    expect(await f.processes.adopt(resource.key)).toBe('confirmed')
+    expect(await f.processes.close()).toBe('confirmed')
+    const closed = (await f.domain()).retention?.state
+    expect(closed).toMatchObject({ closed: true })
+    expect(closed?.resources?.map(item => item.resource.key)).toEqual([resource.key])
+    const before = await f.domain()
+    for (const view of [f.processes, await f.retained(), await otherCallView(f)]) {
+      expect(view.closed.aborted).toBe(true)
+      expect(await view.plan({ ...resource, key: 'fresh' })).toBe('closed')
+      expect(await view.permit(untaken.key)).toBe('closed')
+      expect(await view.adopt(untaken.key)).toBe('closed')
+    }
+    expect(await f.domain()).toEqual(before)
+  })
+
+  it('ended answers confirmed while the closed scope still holds an entry and none once it is released', async () => {
+    const f = await fixture()
+    await f.reserved()
+    const held: ManagedResource = { ...resource, key: 'domain-2' }
+    expect(await f.acquisition.plan(held)).toBe('recorded')
+    expect(await f.acquisition.permit(held.key)).toBe('confirmed')
+    expect(await f.processes.plan(held)).toBe('recorded')
+    for (const key of [resource.key, held.key])
+      expect(await f.processes.adopt(key)).toBe('confirmed')
+    expect(await f.processes.stopped(resource.key, 'confirmed')).toBe('recorded')
+    expect(await f.processes.close()).toBe('confirmed')
+    expect(await f.processes.ended(resource.key)).toBe('confirmed')
+    expect(await f.processes.ended(held.key)).toBe('none')
+    expect(await f.processes.stopped(held.key, 'confirmed')).toBe('recorded')
+    expect(await scopeState(f)).toEqual({ closed: true })
+    for (const key of [resource.key, held.key]) expect(await f.processes.ended(key)).toBe('none')
   })
 })
 

@@ -100,17 +100,53 @@ export type RetainedResourceFact = Readonly<{
   creator: RetainedCreator
 }>
 /**
- * The record of one retention scope: the resources the scope still holds. An entry the scope
- * took over (`permitted` for a terminal, `adopted` for a process) lives until its stop is
- * confirmed; a reservation nobody took over lives until its creator closes. A closed scope with no
- * entry left has no record. The end fact of an adopted process is not an entry: it is a record of
- * its own in the scope's domain (`ended/<key>`), so this record holds live entries only.
+ * The record of one retention scope, in one of three states (SPEC, 环境准备的租户调度):
+ *
+ * - `open` holds its reservations and the entries it took over (`permitted` for a terminal,
+ *   `adopted` for a process);
+ * - `closed` holds only entries it took over whose stop is not confirmed yet, at least one;
+ * - `released` is the closed marker: nothing held, every end fact deleted.
+ *
+ * An entry the scope took over lives until its stop is confirmed. The end fact of an adopted
+ * process is not an entry: it is a record of its own in the scope's domain (`ended/<key>`), so
+ * this record holds live entries only. A scope never returns to `open`; every state a commit
+ * writes goes through {@link settledRetention}, so a closed scope with a reservation or with no
+ * entry, and a released scope with an entry, are never written.
  */
-export type RetentionState = Readonly<{
-  scope: ScopeRef
-  closed: boolean
-  resources: readonly RetainedResourceFact[]
-}>
+export type RetentionState =
+  | Readonly<{ phase: 'open'; scope: ScopeRef; resources: readonly RetainedResourceFact[] }>
+  | Readonly<{ phase: 'closed'; scope: ScopeRef; resources: readonly RetainedResourceFact[] }>
+  | Readonly<{ phase: 'released' }>
+
+/** An entry the scope took over: a permitted terminal or an adopted process. */
+export const scopeOwned = (item: RetainedResourceFact): boolean => item.permitted || item.adopted
+
+/** The entries the scope holds; none for a scope without a record and for a released one. */
+export const retentionEntries = (state: RetentionState | null): readonly RetainedResourceFact[] =>
+  state === null || state.phase === 'released' ? [] : state.resources
+
+/**
+ * The state as a commit writes it: a closed scope keeps only the entries it took over, and a closed
+ * scope that keeps none is released.
+ */
+function settledRetention(state: RetentionState): RetentionState {
+  if (state.phase !== 'closed') return state
+  const resources = state.resources.filter(scopeOwned)
+  return resources.length === 0 ? { phase: 'released' } : { ...state, resources }
+}
+
+/** The closed scope `state` closes into; a scope with no record closes into the marker. */
+export function closedRetention(scope: ScopeRef, state: RetentionState | null): RetentionState {
+  return settledRetention({ phase: 'closed', scope, resources: retentionEntries(state) })
+}
+
+/** Whether a commit may take the scope from `before` to `next`: a scope never reopens. */
+function retentionAdvances(before: RetentionState | null, next: RetentionState): boolean {
+  if (before === null || before.phase === 'open') return true
+  if (before.phase === 'released') return next.phase === 'released'
+  return next.phase !== 'open'
+}
+
 type StateChange<T> = (
   state: T | null,
   receipt: (value: unknown) => DurableEvidence,
@@ -180,9 +216,8 @@ function withHandovers(
   stored: StoredEnvironmentState,
   retention: RetentionState | null,
 ): EnvironmentState {
-  if (retention === null) return stored
   const adopted = new Set(
-    retention.resources
+    retentionEntries(retention)
       .filter(item => item.adopted && createdBy(item.creator, stored))
       .map(item => item.resource.key),
   )
@@ -429,9 +464,16 @@ function decodeCreator(value: unknown): RetainedCreator | null {
   return { call: call.ok, operation: operation.ok, original: value.original }
 }
 
+/** The stored form of a scope's record; the marker of a released scope is `{closed:true}`. */
+function encodeRetention(state: RetentionState): unknown {
+  if (state.phase === 'released') return { closed: true }
+  return { scope: state.scope, closed: state.phase === 'closed', resources: state.resources }
+}
+
 async function decodeRetention(value: unknown): Promise<RetentionState | null> {
-  if (!object(value) || typeof value.closed !== 'boolean' || !Array.isArray(value.resources))
-    return null
+  if (!object(value) || typeof value.closed !== 'boolean') return null
+  if (value.closed && Object.keys(value).length === 1) return { phase: 'released' }
+  if (!Array.isArray(value.resources)) return null
   const scope = decodeScopeRef(value.scope)
   if ('failure' in scope) return null
   const resources: RetainedResourceFact[] = []
@@ -442,11 +484,11 @@ async function decodeRetention(value: unknown): Promise<RetentionState | null> {
     if (!creator || !resource) return null
     resources.push({ ...resource, creator })
   }
-  return { scope: scope.ok, closed: value.closed, resources }
+  if (!value.closed) return { phase: 'open', scope: scope.ok, resources }
+  // A closed record that holds a reservation or nothing is not a state any commit writes.
+  if (resources.length === 0 || !resources.every(scopeOwned)) return null
+  return { phase: 'closed', scope: scope.ok, resources }
 }
-
-/** A closed scope that holds nothing has no record. */
-const emptied = (state: RetentionState): boolean => state.closed && state.resources.length === 0
 
 /**
  * The processes whose hold ends between `before` and `next`: adopted in `before`, no longer
@@ -457,9 +499,13 @@ function endedBetween(
   before: RetentionState | null,
   next: RetentionState,
 ): readonly ManagedResource[] {
-  const held = new Set(next.resources.filter(item => item.adopted).map(item => item.resource.key))
+  const held = new Set(
+    retentionEntries(next)
+      .filter(item => item.adopted)
+      .map(item => item.resource.key),
+  )
   const ended = new Map<string, ManagedResource>()
-  for (const item of before?.resources ?? [])
+  for (const item of retentionEntries(before))
     if (item.adopted && !held.has(item.resource.key)) ended.set(item.resource.key, item.resource)
   return [...ended.values()]
 }
@@ -541,7 +587,10 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     if (read.ok.mutation === null)
       return succeed({ revision: read.ok.revision, state: null, mutation: null })
     const state = await decodeRetention(read.ok.state)
-    if (!state || canonicalDigest(state.scope) !== canonicalDigest(scope))
+    if (
+      !state ||
+      (state.phase !== 'released' && canonicalDigest(state.scope) !== canonicalDigest(scope))
+    )
       return environmentFailure('invalid retention state')
     return succeed({ revision: read.ok.revision, state, mutation: read.ok.mutation })
   }
@@ -644,17 +693,18 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     return succeed([{ domain: callDomain(address), revision: current.ok }])
   }
 
-  async function commitResult<T extends Readonly<{ closed: boolean }>>(
+  async function commitResult<T>(
     address: EnvironmentAddress,
     result: LedgerCommit,
     next: T,
+    closed: boolean,
     mutation: string,
     reread: () => Promise<MutationRead<T>>,
     diagnostic: string,
     key?: string,
   ): Promise<Outcome<T, ToolFailure> | null> {
     if (result.kind === 'committed') {
-      observe(address, next, key)
+      observe(address, { closed }, key)
       return succeed(next)
     }
     if (result.kind === 'conflict') return null
@@ -719,6 +769,7 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
         address,
         committed,
         next.ok,
+        next.ok.closed,
         mutation,
         () => snapshot(address),
         'environment ledger commit unavailable',
@@ -733,9 +784,9 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
   }
 
   /**
-   * Removes the reservations of a closed acquisition from its scope: entries it created that the
-   * scope never took over. This is the commit after the close; a scope write that does not land
-   * leaves the entries until the scope closes, which drops every reservation.
+   * Removes the reservations of a closed acquisition from its open scope: entries it created that
+   * the scope never took over. This is the commit after the close and may not land; the scope's
+   * own close removes every reservation in its commit, so the release does not depend on this one.
    */
   async function dropReservations(
     address: EnvironmentAddress,
@@ -744,9 +795,9 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
   ): Promise<void> {
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       const before = await retentionSnapshot(address.tenant, scope)
-      if ('failure' in before || before.ok.state === null) return
+      if ('failure' in before || before.ok.state?.phase !== 'open') return
       const kept = before.ok.state.resources.filter(
-        item => item.permitted || item.adopted || !createdBy(item.creator, creator),
+        item => scopeOwned(item) || !createdBy(item.creator, creator),
       )
       if (kept.length === before.ok.state.resources.length) return
       const committed = await commitScope(address, scope, before.ok, {
@@ -758,11 +809,12 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
   }
 
   /**
-   * One commit of a scope's record at the revision of `before`. It writes the end fact of every
-   * process whose hold it ends next to the record. An emptied closed scope instead deletes its
-   * record and all its end facts: the release reads the scope's domain whole, once, to name them.
-   * The commit is conditioned on the revision of `before`, so an end fact written after that
-   * snapshot makes it a conflict, and the retry names it too.
+   * One commit of a scope's record at the revision of `before`, writing the settled state `next`.
+   * It writes the end fact of every process whose hold it ends next to the record. The commit that
+   * releases the scope instead shrinks the record to the closed marker and deletes all its end
+   * facts: it reads the scope's domain whole, once, to name them. The commit is conditioned on the
+   * revision of `before`, so an end fact written after that snapshot makes it a conflict, and the
+   * retry names it too.
    */
   async function commitScope(
     address: EnvironmentAddress,
@@ -777,22 +829,23 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     if ('failure' in revision)
       return { kind: 'unavailable', diagnostic: 'invalid retention revision' }
     const domain = retentionDomain(address.tenant, scope)
+    const record = put(RETENTION_RECORD_KEY, mutation, encodeRetention(next))
     let writes: LedgerWrite[]
-    if (emptied(next)) {
+    if (next.phase === 'released') {
       const whole = await options.store.read(domain)
       if (whole.kind !== 'complete')
         return { kind: 'unavailable', diagnostic: 'retention release read unavailable' }
       writes = [
-        { kind: 'delete', key: hostKey(RETENTION_RECORD_KEY) },
-        ...whole.records.flatMap((record): LedgerWrite[] =>
-          record.kind === 'host' && record.host.key.startsWith(ENDED_RECORD_PREFIX)
-            ? [{ kind: 'delete', key: hostKey(record.host.key) }]
+        record,
+        ...whole.records.flatMap((stored): LedgerWrite[] =>
+          stored.kind === 'host' && stored.host.key.startsWith(ENDED_RECORD_PREFIX)
+            ? [{ kind: 'delete', key: hostKey(stored.host.key) }]
             : [],
         ),
       ]
     } else
       writes = [
-        put(RETENTION_RECORD_KEY, mutation, next),
+        record,
         ...endedBetween(before.state, next).map(resource =>
           put(endedRecordKey(resource.key), mutation, { resource }),
         ),
@@ -852,13 +905,17 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
       if (authorize && original.ok.state.closed) return fail({ kind: 'not-settled' })
       const revision = decodeToolRevision((BigInt(before.ok.revision) + 1n).toString())
       if ('failure' in revision) return environmentFailure('invalid retention revision')
-      const next = decide(original.ok.state, before.ok.state, value => ({
+      const decided = decide(original.ok.state, before.ok.state, value => ({
         owner: '@omne-harness/tool-host-local',
         record: retentionKey(scope),
         revision: revision.ok,
         digest: canonicalDigest(value),
       }))
-      if ('failure' in next) return next
+      if ('failure' in decided) return decided
+      // The closed and released states are final: no decision reopens the scope.
+      const next = settledRetention(decided.ok)
+      if (!retentionAdvances(before.ok.state, next)) return fail({ kind: 'not-settled' })
+      if (before.ok.state?.phase === 'released') return succeed(before.ok.state)
       const call = await callAssertion(
         address,
         original.ok.state.preparation,
@@ -870,22 +927,17 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
         address,
         scope,
         before.ok,
-        next.ok,
+        next,
         [...call.ok, { domain: acquisitionDomain(address), revision: original.ok.revision }],
         mutation,
       )
       const result = await commitResult(
         address,
         committed,
-        next.ok,
+        next,
+        next.phase !== 'open',
         mutation,
-        async () => {
-          const reread = await retentionSnapshot(address.tenant, scope)
-          // A deleted record is the committed outcome of an emptied closed scope.
-          if ('ok' in reread && reread.ok.state === null && emptied(next.ok))
-            return succeed({ state: next.ok, mutation })
-          return reread
-        },
+        () => retentionSnapshot(address.tenant, scope),
         diagnostics.commit,
         retentionKey(scope),
       )

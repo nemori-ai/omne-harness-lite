@@ -7,8 +7,11 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import {
+  closedRetention,
   createdBy,
   environmentFailure,
+  retentionEntries,
+  scopeOwned,
   type EnvironmentAddress,
   type EnvironmentStateStore,
   type EnvironmentState,
@@ -169,9 +172,6 @@ export type RetainedTerminalLedgerView = Pick<
     inspect(): Promise<readonly RetainedResourceFact[] | null>
   }>
 
-/** An entry the scope took over: a permitted terminal or an adopted process. */
-const scopeOwned = (item: RetainedResourceFact): boolean => item.permitted || item.adopted
-
 /** The distinct creators of `entries`. */
 function creatorsOf(entries: readonly RetainedResourceFact[]): readonly RetainedCreator[] {
   const seen = new Map<string, RetainedCreator>()
@@ -205,7 +205,7 @@ export async function createRetainedTerminalLedger(
     return current
   }
   const initial = await input.state.readRetention(input.address, input.scope)
-  if ('ok' in initial && initial.ok?.closed) controller.abort()
+  if ('ok' in initial && initial.ok && initial.ok.phase !== 'open') controller.abort()
   const creator = (bound: EnvironmentState): RetainedCreator => ({
     call: bound.preparation.call,
     operation: bound.preparation.operation,
@@ -222,14 +222,14 @@ export async function createRetainedTerminalLedger(
       const checked = await managedResourceSchema['~standard'].validate(resource)
       if (checked.issues) return 'unavailable'
       const result = await input.state.updateRetention(input.address, input.scope, state => {
-        if (state?.closed) return fail({ kind: 'not-settled' })
-        const resources = state?.resources ?? []
+        if (state && state.phase !== 'open') return fail({ kind: 'not-settled' })
+        const resources = retentionEntries(state)
         const existing = resources.find(item => owns(item, checked.value.key))
         if (existing && canonicalDigest(existing.resource) !== canonicalDigest(checked.value))
           return fail({ kind: 'conflict', operation: input.address.operation })
         return succeed({
+          phase: 'open',
           scope: input.scope,
-          closed: false,
           resources: existing
             ? resources
             : [
@@ -260,7 +260,7 @@ export async function createRetainedTerminalLedger(
         input.scope,
         state => {
           if (!state) return environmentFailure('retained resource has no durable plan')
-          if (state.closed) return fail({ kind: 'not-settled' })
+          if (state.phase !== 'open') return fail({ kind: 'not-settled' })
           if (!state.resources.some(item => owns(item, key)))
             return environmentFailure('retained resource has no active durable plan')
           return succeed({
@@ -287,14 +287,15 @@ export async function createRetainedTerminalLedger(
       if (!bound) return 'unavailable'
       const prior = await input.state.readRetention(input.address, input.scope)
       if ('failure' in prior) return 'unavailable'
-      if (prior.ok?.resources.some(item => owns(item, key) && item.adopted)) return 'confirmed'
-      if (prior.ok?.closed) return 'closed'
+      if (retentionEntries(prior.ok).some(item => owns(item, key) && item.adopted))
+        return 'confirmed'
+      if (prior.ok && prior.ok.phase !== 'open') return 'closed'
       const result = await input.state.handOver(
         input.address,
         input.scope,
         (acquisition, retention) => {
           if (!retention) return environmentFailure('retained process has no durable reservation')
-          if (retention.closed) return fail({ kind: 'not-settled' })
+          if (retention.phase !== 'open') return fail({ kind: 'not-settled' })
           if (!retention.resources.some(item => owns(item, key)))
             return environmentFailure('retained process has no active reservation')
           const handed = acquisition.resources.find(item => item.resource.key === key)
@@ -330,7 +331,7 @@ export async function createRetainedTerminalLedger(
         // below is the one that ends the hold; this write is recorded first and asserted by it.
         const current = await input.state.readRetention(input.address, input.scope)
         if ('failure' in current) return 'unavailable'
-        for (const creator of creatorsOf(current.ok?.resources.filter(records) ?? [])) {
+        for (const creator of creatorsOf(retentionEntries(current.ok).filter(records))) {
           const marked = await input.state.update(
             { tenant: input.address.tenant, call: creator.call, operation: creator.operation },
             state =>
@@ -347,7 +348,7 @@ export async function createRetainedTerminalLedger(
         }
       }
       const result = await input.state.updateRetention(input.address, input.scope, state => {
-        if (!state || !state.resources.some(records))
+        if (!state || state.phase === 'released' || !state.resources.some(records))
           return environmentFailure('retained resource plan is missing')
         return succeed({
           ...state,
@@ -361,14 +362,15 @@ export async function createRetainedTerminalLedger(
     },
     ended: key => input.state.readEnded(input.address, input.scope, key),
     /**
-     * Closes the scope: nothing is taken over any more. What it holds stays until its stop is
-     * confirmed; a reservation nobody took over goes when its creator closes. The record and the
-     * end facts go with the last entry.
+     * Closes the scope: nothing is taken over any more. What it took over stays until its stop is
+     * confirmed; every reservation nobody took over goes in this commit. A scope that then holds
+     * nothing is released in the same commit: its record shrinks to the closed marker and its end
+     * facts are deleted. Closing a closed or released scope changes nothing.
      */
     async close() {
       if (!(await binding())) return 'unavailable'
       const result = await input.state.updateRetention(input.address, input.scope, state =>
-        succeed({ scope: input.scope, closed: true, resources: state?.resources ?? [] }),
+        succeed(closedRetention(input.scope, state)),
       )
       if ('failure' in result) return 'unavailable'
       controller.abort()
@@ -377,13 +379,11 @@ export async function createRetainedTerminalLedger(
     async inspect() {
       const result = await input.state.readRetention(input.address, input.scope)
       if ('failure' in result) return null
-      if (result.ok?.closed) controller.abort()
-      return (
-        result.ok?.resources.filter(
-          item =>
-            item.creator.call === input.address.call &&
-            item.creator.operation === input.address.operation,
-        ) ?? []
+      if (result.ok && result.ok.phase !== 'open') controller.abort()
+      return retentionEntries(result.ok).filter(
+        item =>
+          item.creator.call === input.address.call &&
+          item.creator.operation === input.address.operation,
       )
     },
   }

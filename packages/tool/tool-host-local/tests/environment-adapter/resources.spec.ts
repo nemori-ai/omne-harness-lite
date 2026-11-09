@@ -357,6 +357,18 @@ it('does not substitute the ordinary acquisition scope for an absent retained bi
   expect(await retained.permit(f.resource.key)).toBe('unavailable')
 })
 
+/** The stored state of the retention scope's record, or undefined when there is none. */
+async function scopeRecordState(f: Awaited<ReturnType<typeof fixture>>): Promise<unknown> {
+  const read = await f.store.readRecord(
+    retentionDomain(tenantA, f.preparation.request.requesterScope),
+    hostKey(RETENTION_RECORD_KEY),
+  )
+  if (read.kind !== 'complete') throw new Error('fixture scope unavailable')
+  return read.record?.kind === 'host'
+    ? (read.record.host.value as { state: unknown }).state
+    : undefined
+}
+
 it('refuses retained creation after durable scope closure while the creating call remains live', async () => {
   const f = await fixture(true)
   const retained = await f.retention()
@@ -364,18 +376,15 @@ it('refuses retained creation after durable scope closure while the creating cal
   await retained.close()
   expect(await retained.permit(f.resource.key)).toBe('closed')
   expect(f.assertedCalls()).toEqual([])
-  expect(await retained.inspect()).toMatchObject([{ permitted: false }])
-  // The reservation nobody took over goes with its creator; the emptied closed scope loses its record.
+  // The scope close removed the reservation nobody took over and, holding nothing, released the
+  // scope: its record is the closed marker, which the creator's later close leaves as it is.
+  expect(await retained.inspect()).toEqual([])
+  expect(await scopeRecordState(f)).toEqual({ closed: true })
   expect(await f.ledger.close()).toBe('confirmed')
-  expect(
-    await f.store.readRecord(
-      retentionDomain(tenantA, f.preparation.request.requesterScope),
-      hostKey(RETENTION_RECORD_KEY),
-    ),
-  ).toMatchObject({ record: null })
+  expect(await scopeRecordState(f)).toEqual({ closed: true })
 })
 
-it('a closed scope keeps what it took over until the stop is confirmed, then loses its record', async () => {
+it('a closed scope keeps what it took over until the stop is confirmed, then shrinks to its closed marker', async () => {
   const f = await fixture(true)
   const retained = await f.retention()
   await retained.plan(f.resource)
@@ -387,9 +396,7 @@ it('a closed scope keeps what it took over until the stop is confirmed, then los
   })
   expect(await retained.inspect()).toMatchObject([{ permitted: true, stop: 'active' }])
   expect(await retained.stopped(f.resource.key, 'confirmed')).toBe('recorded')
-  expect(await f.store.readRecord(scope, hostKey(RETENTION_RECORD_KEY))).toMatchObject({
-    record: null,
-  })
+  expect(await scopeRecordState(f)).toEqual({ closed: true })
 })
 
 it('recognizes retained permit receipts without losing unknown stop responsibility', async () => {
