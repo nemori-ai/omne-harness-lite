@@ -38,7 +38,7 @@ it('delivers a late in-process writer through a later observed window without tr
     expect(first.kind).toBe('done')
     if (first.kind !== 'done') return
     const firstResult = await first.value.result
-    expect(firstResult).toMatchObject({ kind: 'completed', exit: { kind: 'unknown' } })
+    expect(firstResult).toMatchObject({ kind: 'completed', exit: { kind: 'code', code: 0 } })
     const firstOutput = await outputOf(first.value)
     expect(firstOutput.bytes.toString()).not.toContain('LATE-WRITER-TAIL')
     const observedBefore = backend.observation().observedBytes
@@ -53,7 +53,7 @@ it('delivers a late in-process writer through a later observed window without tr
     const secondOutput = await outputOf(second.value)
     expect(secondOutput.bytes.toString()).toContain('LATE-WRITER-TAIL')
     const secondResult = await second.value.result
-    expect(secondResult).toMatchObject({ kind: 'completed', exit: { kind: 'unknown' } })
+    expect(secondResult).toMatchObject({ kind: 'completed', exit: { kind: 'code', code: 0 } })
     expect(secondOutput.bytes.length).toBeLessThanOrEqual(128)
     if (secondResult.output.mode !== 'terminal') throw new Error('terminal summary')
     expect(secondResult.output.terminal.discardedBytes).toBe(

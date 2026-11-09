@@ -479,8 +479,10 @@ macOS 上，上文的 scope 指终端的执行域。执行域是两个 POSIX 会
 - 除第 4 条之外，成功与失败的判定与 PowerShell 官方的 `-Command` 规则相同。第 4 条修正 Windows PowerShell 5.1 把成功的原生程序判为失败的情况。第 5 条在失败时带出原生程序的码，与 Bash 一致。
 - 已知限制：同一次调用里，一个原生程序以非 0 退出之后，又有一个 cmdlet 失败时，退出码是那个原生程序的码。这次调用仍然判为失败。
 - 已知限制：上一次调用留下的 `$LASTEXITCODE` 在这次调用开始时已经被置空。
+- 已知限制：脚本在顶层用 `return`、`break` 或 `continue` 结束时，宿主读不到结束时的 `$?`，按 `$?` 为假求值。所以没有失败的这类脚本得到退出码 1。
+- 宿主读 `$?` 用的私有变量是 `$global:__omne_succeeded`。宿主读完就删去它，脚本看不到它。
 - 失败的原因在调用的输出里：错误流与警告流经 `Out-Default` 写到控制台。结局只带退出码。
-- `exit N` 结束持久 shell。这次调用以 N 完成，之后终端失效，后续调用答 `unavailable`。宿主实现 `PSHost.SetShouldExit` 记下 N，不调用 `Environment.Exit`。
+- `exit N` 结束持久 shell。这次调用以 N 完成，之后终端失效，后续调用答 `unavailable`。宿主实现 `PSHost.SetShouldExit` 记下 N，不调用 `Environment.Exit`。shell 退出之后，宿主停止终端的 Job，然后退出。
 - 运行中被强制停止，或控制通道丢失时，结局为 `failed(effectUnknown)`。
 
 字节归属：
@@ -489,11 +491,16 @@ macOS 上，上文的 scope 指终端的执行域。执行域是两个 POSIX 会
 - Windows 终端随包使用 Windows Terminal 1.22 或以后版本的 `conpty.dll`，并且它通过保序验证时，按 Linux 的哨兵规则归属字节，段间字节进 `OutputSummary.between`。这时 `conpty.dll` 是终端的前提。
 - 否则，Windows 终端按观察窗口归属字节，这是声明的差异，规则与限制见 [Windows 命令与终端说明](docs/windows-execution.md#persistent-terminals)。
 
-上限：终端数、窗口数、保留的输出字节数与排队的块数由 `terminal` 配置给出。代码里的 64 个终端、256 个窗口、64 MiB 与 65536 块只是初值。
+上限：一个提供者责任域里的终端数、窗口数、保留的输出字节数与排队的块数是常量 64、256、64 MiB 与 65536，不能配置。这是已知限制。Linux 的 `terminal` 配置没有这四项，Windows 不另造配置名。
 
 失效：失效终端的引用答 `unavailable`。
 
-终端不加锚进程。终端的 Job 由 ConPTY 的宿主进程持有，宿主进程退出时终端失效，与 Linux 的门进程退出时相同。Session 保留终端的跨获取附着不在 WindowsCustody 模型的范围内。
+终端不加锚进程。终端的 Job 由 ConPTY 的宿主进程持有，宿主进程退出时终端失效，与 Linux 的门进程退出时相同。宿主在下面两种情况下停止 Job，然后退出，不等别的进程来释放它：
+
+- 提供者走掉时（GO 之后宿主读到控制管道结束）。这与 macOS 的 gate 相同。提供者进程意外退出之后，不留下普通终端的 Job。
+- shell 进程退出时，例如脚本执行了 `exit N`，或 `stop('graceful')` 使 shell 结束。宿主先转发 shell 的全部控制帧，再停止 Job。
+
+Session 保留终端的跨获取附着不在 WindowsCustody 模型的范围内。
 
 #### Session 保留终端
 
@@ -725,7 +732,7 @@ macOS 按 POSIX 会话收纳。进程可以用 `setsid` 离开会话，所以 ma
 
 已知限制：
 
-- 普通终端的 Job 没有冷索引标记，`listRecoveryResources` 列出的是命令 Job、保留进程与保留终端，不含普通终端。提供者进程意外退出之后，终端宿主仍持有它的 Job，列举因此不完整，与 H-6 不符。收敛条件：终端宿主在控制端消失时停止自己的 Job，或者终端 Job 也写冷索引标记（本程切片 10）。
+- 普通终端的 Job 没有冷索引标记，`listRecoveryResources` 不列出普通终端。列举仍然完整：提供者进程意外退出时，终端宿主读到控制管道结束，停止自己的 Job 并退出，见 [Windows 终端](#windows-终端未接受)。从提供者退出到终端宿主停止 Job 之间有一段短的窗口，这段时间里 Job 还在，但不再有人能使用它。
 - 锚进程自身崩溃不在形式模型里。锚崩溃并且桥已经退出时，最后一个句柄关闭，`KILL_ON_JOB_CLOSE` 停止全部成员，保留进程因此意外结束。冷恢复按上面第 5 条答 `confirmedStopped`，这个结论仍然如实。
 - Windows 没有信号，结局的 `exit` 只有退出码。强制停止的结局是 `failed(effectUnknown)`。
 - 优雅停止：命令以新进程组加隐藏的独立控制台创建。`stop('graceful')` 向它发 `CTRL_BREAK_EVENT`，在 `graceMs` 内主进程退出时，接着执行强制停止序列清理 Job，答该序列的结果。超时答 `unconfirmed`，不自动升级。主进程不是控制台程序时，直接答 `unconfirmed`。

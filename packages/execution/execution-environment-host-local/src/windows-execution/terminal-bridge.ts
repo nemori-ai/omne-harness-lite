@@ -7,14 +7,18 @@ export type TerminalFrame =
   | { readonly t: 'started' | 'legFault'; readonly id: string }
   | ({
       readonly t: 'finished'
-      readonly v: 2
+      readonly v: 3
       readonly id: string
       readonly cwd: string
       readonly restored: boolean
-    } & (
-      | { readonly completed: true; readonly elapsedMs: number }
-      | { readonly completed: false; readonly elapsedMs: null }
-    ))
+      /** The script ran `exit N`: the shell ends after this answer. */
+      readonly ended: boolean
+    } &
+      /** `code` is the exit code the shell host derived by the SPEC's rule. */
+      (
+        | { readonly completed: true; readonly elapsedMs: number; readonly code: number }
+        | { readonly completed: false; readonly elapsedMs: null; readonly code: null }
+      ))
   | { readonly t: 'data'; readonly b: string }
   | { readonly t: 'stopped'; readonly status: 'confirmed' | 'unconfirmed' }
   | { readonly t: 'fault'; readonly stopped: boolean }
@@ -43,7 +47,7 @@ export function parseTerminalFrame(text: string, maxChunkBytes: number): Termina
       if (
         !(
           'v' in value &&
-          value.v === 2 &&
+          value.v === 3 &&
           'id' in value &&
           typeof value.id === 'string' &&
           'cwd' in value &&
@@ -52,7 +56,10 @@ export function parseTerminalFrame(text: string, maxChunkBytes: number): Termina
           typeof value.restored === 'boolean' &&
           'completed' in value &&
           typeof value.completed === 'boolean' &&
-          'elapsedMs' in value
+          'elapsedMs' in value &&
+          'code' in value &&
+          'ended' in value &&
+          typeof value.ended === 'boolean'
         )
       )
         return undefined
@@ -60,26 +67,32 @@ export function parseTerminalFrame(text: string, maxChunkBytes: number): Termina
         value.completed &&
         typeof value.elapsedMs === 'number' &&
         Number.isSafeInteger(value.elapsedMs) &&
-        value.elapsedMs >= 0
+        value.elapsedMs >= 0 &&
+        typeof value.code === 'number' &&
+        Number.isSafeInteger(value.code)
       )
         return {
           t: 'finished',
-          v: 2,
+          v: 3,
           id: value.id,
           cwd: value.cwd,
           restored: value.restored,
+          ended: value.ended,
           completed: true,
           elapsedMs: value.elapsedMs,
+          code: value.code,
         }
-      if (!value.completed && value.elapsedMs === null)
+      if (!value.completed && value.elapsedMs === null && value.code === null)
         return {
           t: 'finished',
-          v: 2,
+          v: 3,
           id: value.id,
           cwd: value.cwd,
           restored: value.restored,
+          ended: value.ended,
           completed: false,
           elapsedMs: null,
+          code: null,
         }
       return undefined
     case 'data':
@@ -120,11 +133,13 @@ export function startTerminalBridge(
   const closed = deferred<void>()
   let pending = ''
   let failed = false
+  // A broken transport is a fault of the broker that will not answer a stop. The control pipe stays
+  // open: the broker stops its own Job when it closes, and the stop by Job name confirms only while
+  // the Job is still there.
   const fault = () => {
     if (failed) return
     failed = true
-    input.onFrame({ t: 'controlLost' })
-    child.stdin.end()
+    input.onFrame({ t: 'fault', stopped: false })
   }
   child.stdout.setEncoding('utf8')
   child.stdout.on('data', (text: string) => {

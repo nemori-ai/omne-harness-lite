@@ -146,7 +146,12 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
     leg = undefined
     current.outcome.resolve(
       completion?.completed === true && !outputFailed
-        ? { kind: 'completed', exit: { kind: 'unknown' }, durationMs: completion.elapsedMs, output }
+        ? {
+            kind: 'completed',
+            exit: { kind: 'code', code: completion.code },
+            durationMs: completion.elapsedMs,
+            output,
+          }
         : {
             kind: 'failed',
             reason: outputFailed ? 'unavailable' : 'effectUnknown',
@@ -161,7 +166,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
     state = 'invalid'
     ready.resolve(false)
     opened.resolve(false)
-    stopReply.resolve('unconfirmed')
     finish()
   }
   const frame = (value: TerminalFrame) => {
@@ -203,7 +207,10 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
         cwd = value.cwd
         completedSequence = leg.sequence
         finish(value)
-        state = value.restored && value.completed && !closed() && !outputFailed ? 'idle' : 'invalid'
+        state =
+          value.restored && value.completed && !value.ended && !closed() && !outputFailed
+            ? 'idle'
+            : 'invalid'
         return
       case 'stopped':
         if (value.status === 'confirmed') nativeStopped = true
@@ -220,6 +227,7 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
       case 'legFault':
         if (!completedFrame(value.id)) invalidate()
         return
+      // The broker is still there: a stop sent to it gets its answer.
       case 'controlLost':
       case 'inputFault':
         invalidate()
@@ -245,8 +253,13 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
         const sent = bridge?.send('stop') === true
         const response = sent ? await within(stopReply.promise, remaining()) : 'unconfirmed'
         if (response === 'confirmed') nativeStopped = true
-        if (!nativeStopped && remaining() > 0)
-          nativeStopped = (await stopWindowsResource(resource, remaining())) === 'confirmed'
+        // The broker's own answer can still arrive while the stop by name runs.
+        if (
+          !nativeStopped &&
+          remaining() > 0 &&
+          (await stopWindowsResource(resource, remaining())) === 'confirmed'
+        )
+          nativeStopped = true
       }
       if (nativeStopped) {
         bridge?.send('dispose')

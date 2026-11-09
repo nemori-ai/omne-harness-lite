@@ -17,7 +17,9 @@ it('recovers the original Job without stopping another terminal', async context 
     const other = value(
       await a.terminal.create({ ...a.call, cwd: f.root, env: f.identity.env }),
     ).terminal
-    // Only command Jobs have cold-index markers; ordinary terminals are not listed.
+    // Ordinary terminals have no cold-index marker and are not listed. The empty listing is still
+    // complete: a terminal broker stops its Job when the provider's control pipe ends, so no
+    // ordinary terminal outlives its provider (terminal-provider-gone.spec.ts).
     expect(await f.provider.listRecoveryResources?.(a.input.scope)).toEqual({
       kind: 'listed',
       resources: [],
