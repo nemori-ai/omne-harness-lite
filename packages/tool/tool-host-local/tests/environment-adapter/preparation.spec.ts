@@ -416,7 +416,7 @@ it('prepares an acquisition without any complete read of an environment domain',
   const read = f.store.read.bind(f.store)
   vi.spyOn(f.store, 'read').mockImplementation(domain =>
     domain.kind === 'host' &&
-    (domain.key.startsWith('environment@') || domain.key === 'environment-retention')
+    (domain.key.startsWith('environment@') || domain.key.startsWith('retention@'))
       ? Promise.resolve({ kind: 'unavailable', diagnostic: 'complete domain reads are not used' })
       : read(domain),
   )

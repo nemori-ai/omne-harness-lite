@@ -8,7 +8,12 @@ import {
 } from '@omne-harness/execution-environment-contract'
 import { succeed } from '@omne-harness/operation-result'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
-import { canonicalDigest, type CallRecord, type LedgerCommitInput } from '@omne-harness/tool'
+import {
+  canonicalDigest,
+  hostKey,
+  type CallRecord,
+  type LedgerCommitInput,
+} from '@omne-harness/tool'
 import {
   decodeToolResultVersion,
   decodeToolRevision,
@@ -18,7 +23,11 @@ import {
   createEnvironmentResourceLedger,
   createRetainedTerminalLedger,
 } from '../../src/environment-resource-ledger.ts'
-import { createEnvironmentStateStore } from '../../src/environment-state.ts'
+import {
+  createEnvironmentStateStore,
+  RETENTION_RECORD_KEY,
+  retentionDomain,
+} from '../../src/environment-state.ts'
 import { adoption, callId, evidence, operationId, request, tenantA } from '../coordinator-values.ts'
 
 function revision(text: string) {
@@ -291,6 +300,23 @@ it('retries a live call revision conflict with a fresh call condition', async ()
   expect(f.assertedCalls()).toEqual(['1', '2'])
 })
 
+it('a handover committed between the permit snapshot and its commit is a conflict, and the re-decision finds the key handed over', async () => {
+  // The acquisition's write asserts its retention scope's revision. A handover that lands in the
+  // window between the snapshot and the commit must fail the write, so the retry decides on the
+  // scope's adoption: the acquisition cannot permit a key its scope took over.
+  const f = await fixture(true)
+  const retained = await f.retention()
+  expect(await f.ledger.plan(f.resource)).toBe('recorded')
+  expect(await retained.plan(f.resource)).toBe('recorded')
+  f.commit.mockImplementationOnce(async input => {
+    expect(await retained.adopt(f.resource.key)).toBe('confirmed')
+    return f.realCommit(input)
+  })
+  expect(await f.ledger.permit(f.resource.key)).toBe('unavailable')
+  expect(await f.ledger.inspect()).toMatchObject([{ permitted: false, stop: 'handedOver' }])
+  expect(await (await f.retention()).inspect()).toMatchObject([{ adopted: true }])
+})
+
 it('keeps retained ownership after acquisition closure and permits stop facts after call terminality', async () => {
   const f = await fixture(true)
   const retained = await f.retention()
@@ -339,6 +365,31 @@ it('refuses retained creation after durable scope closure while the creating cal
   expect(await retained.permit(f.resource.key)).toBe('closed')
   expect(f.assertedCalls()).toEqual([])
   expect(await retained.inspect()).toMatchObject([{ permitted: false }])
+  // The reservation nobody took over goes with its creator; the emptied closed scope loses its record.
+  expect(await f.ledger.close()).toBe('confirmed')
+  expect(
+    await f.store.readRecord(
+      retentionDomain(tenantA, f.preparation.request.requesterScope),
+      hostKey(RETENTION_RECORD_KEY),
+    ),
+  ).toMatchObject({ record: null })
+})
+
+it('a closed scope keeps what it took over until the stop is confirmed, then loses its record', async () => {
+  const f = await fixture(true)
+  const retained = await f.retention()
+  await retained.plan(f.resource)
+  expect(await retained.permit(f.resource.key)).toBe('confirmed')
+  const scope = retentionDomain(tenantA, f.preparation.request.requesterScope)
+  await retained.close()
+  expect(await f.store.readRecord(scope, hostKey(RETENTION_RECORD_KEY))).toMatchObject({
+    record: { kind: 'host' },
+  })
+  expect(await retained.inspect()).toMatchObject([{ permitted: true, stop: 'active' }])
+  expect(await retained.stopped(f.resource.key, 'confirmed')).toBe('recorded')
+  expect(await f.store.readRecord(scope, hostKey(RETENTION_RECORD_KEY))).toMatchObject({
+    record: null,
+  })
 })
 
 it('recognizes retained permit receipts without losing unknown stop responsibility', async () => {
@@ -362,7 +413,7 @@ it('maintains retained resources without any complete read of an environment dom
   const read = f.store.read.bind(f.store)
   vi.spyOn(f.store, 'read').mockImplementation(domain =>
     domain.kind === 'host' &&
-    (domain.key.startsWith('environment@') || domain.key === 'environment-retention')
+    (domain.key.startsWith('environment@') || domain.key.startsWith('retention@'))
       ? Promise.resolve({ kind: 'unavailable', diagnostic: 'full domain reads are not used' })
       : read(domain),
   )
@@ -371,8 +422,10 @@ it('maintains retained resources without any complete read of an environment dom
   expect(await retained.permit(f.resource.key)).toBe('confirmed')
   expect(await f.ledger.close()).toBe('confirmed')
   await f.finish()
-  expect(await retained.stopped(f.resource.key, 'confirmed')).toBe('recorded')
   expect(await (await f.retention()).inspect()).toMatchObject([
-    { creator: { call: f.preparation.call }, stop: 'confirmed' },
+    { creator: { call: f.preparation.call }, stop: 'active', permitted: true },
   ])
+  // The confirmed stop ends the scope's hold on the terminal.
+  expect(await retained.stopped(f.resource.key, 'confirmed')).toBe('recorded')
+  expect(await (await f.retention()).inspect()).toEqual([])
 })

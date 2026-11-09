@@ -34,7 +34,7 @@
 
 ## 账本守卫
 
-根入口另导出账本守卫的生产件（[TL-11](SPEC.md#账本守卫tl-11)）：`createLocalToolLedgerGuards`（组装八项守卫）、`createLocalInvocationSource`（来源签发器与来源守卫，每条绑定写进它所命名调用的 `source@<call>` host 域）、`createLocalOperationIdentities`、`createLocalGrantVerifiers`（一个范围值，D1）、`createLocalStartGuard`、`createLocalTextResults`，宿主域命名 `callHostDomain`、`tenantHostDomain`、`START_GUARDS_DOMAIN_KEY` 与 `ENVIRONMENT_RETENTION_DOMAIN_KEY`，以及常量 `localArgumentLimits` 与 `PROGRAMMATIC_NOT_IN_M2`。它们都是纯工厂。资格裁定、主体比较与主体编码以参数进入。`./cordis` 另提供 `createLocalToolRuntimePlugins`，把账本守卫与运行时阶段接到同一记录仓。应用负责提供受信身份、存储、环境及接收端口，见[运行时装配](docs/cordis.md#运行时组合工厂)。
+根入口另导出账本守卫的生产件（[TL-11](SPEC.md#账本守卫tl-11)）：`createLocalToolLedgerGuards`（组装八项守卫）、`createLocalInvocationSource`（来源签发器与来源守卫，每条绑定写进它所命名调用的 `source@<call>` host 域）、`createLocalOperationIdentities`、`createLocalGrantVerifiers`（一个范围值，D1）、`createLocalStartGuard`、`createLocalTextResults`，宿主域命名 `callHostDomain`、`retentionHostDomain`、`tenantHostDomain` 与 `START_GUARDS_DOMAIN_KEY`，以及常量 `localArgumentLimits` 与 `PROGRAMMATIC_NOT_IN_M2`。它们都是纯工厂。资格裁定、主体比较与主体编码以参数进入。`./cordis` 另提供 `createLocalToolRuntimePlugins`，把账本守卫与运行时阶段接到同一记录仓。应用负责提供受信身份、存储、环境及接收端口，见[运行时装配](docs/cordis.md#运行时组合工厂)。
 
 验证范围：`tests/ledger-guards.spec.ts`、`tests/invocation-source.spec.ts`、`tests/grant-verifiers.spec.ts`、`tests/start-guard.spec.ts`。它们用 `tool` 的真账本与内存记录仓，资格用 `createTableToolAccess`，只证明单进程内的行为：跨租户拒绝且不读记录仓、来源认回与伪造、授予、启动守卫、文本结果、组装的必填项与预算。不证明耐久，也不证明资格真件。
 

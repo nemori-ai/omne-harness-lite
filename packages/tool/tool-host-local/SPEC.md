@@ -79,9 +79,13 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 公平性以前提为界：有限参与者、正权重、持续调度、有界 provider 答复与反复有容量。它不保证执行完成或强制回收长期 lease。验证必须通过实际 prepare 路径证明替换策略被消费，并观察 A 租户慢或满时 B 能推进。孤立策略对象的单测不能证明宿主隔离。真实耐久与跨进程提供者另验。
 
-环境获取记录放在该调用的 `host` 域 `environment@<call>`，按原 call/operation 键读写；保留作用域跨调用，放在租户级的 `host` 域 `environment-retention`，按 scope 键读写。两者都只用 `ToolLedgerStore.readRecord`，不加载同租户的无关环境历史。需要当前资格的变更（许可、保留许可、交接）在提交里断言原调用域的修订号等于本次核对时读到的修订号：调用结算在中间落下即 `conflict`，重读后回复 `not-settled`。这取代了原来的守护宿主提交。
+环境获取记录放在该调用的 `host` 域 `environment@<call>`，按原 call/operation 键读写。保留作用域跨调用：每个作用域有自己的 `host` 域 `retention@<作用域摘要>`，里面一条记录（键 `scope`），域名由 [host-domains.ts](src/host-domains.ts) 的 `retentionHostDomain` 生成，所以一个会话的提交不与另一个会话争同一个修订号。两者都只用 `ToolLedgerStore.readRecord`，不加载同租户的无关环境历史。需要当前资格的变更（许可、保留许可、交接）在提交里断言原调用域的修订号等于本次核对时读到的修订号：调用结算在中间落下即 `conflict`，重读后回复 `not-settled`。这取代了原来的守护宿主提交。
 
-交接（保留作用域 `adopt` 原获取的资源）只写保留作用域的记录，并断言获取记录所在域与原调用域未变；获取记录不保存 `handedOver`，读取获取记录时按其 `retentionScope` 的保留记录把作用域已采纳的本获取资源标为 `handedOver`，所以交接事实只有保留作用域一个拥有者。获取记录带保留作用域时，它的每次变更也断言保留域的修订号未变，因此获取的关闭与作用域的交接在两个域之间仍线性化：先提交者成立，后提交者重读。单键读取的保持论证见 [单键读取](../tool/verification/proofs/record-read.md)。
+作用域记录只保存作用域仍持有的资源。每个条目带资源、`permitted`、`adopted`、停止事实（`active` 或 `unconfirmed`）与创建者引用（创建它的获取的 call、operation 与原获取绑定的摘要），不复制准备记录或请求；需要创建者时按键读它的 `environment@<call>`。作用域接手的条目（保留终端经 `permit`、保留进程经 `adopt`）活到停止被确认：作用域的任一视图都能记它的停止，`stopped(key, 'confirmed')` 先把创建者获取记录里该键的停止事实写成 `confirmed`，再从作用域记录删去该条目；`unconfirmed` 只改停止事实。没有被接手的预留只有创建者能记，并在创建者获取关闭时删去：这是关闭提交之后的第二次提交，没落下时条目留到下一次机会。`close` 把作用域标为已关闭，之后 `plan`、`permit`、`adopt` 答 `closed`；已关闭且没有条目的作用域删除记录。作用域不保存收场事实：`ended(key)` 对作用域不持有的键答 `none`，读不到答 `unavailable`。
+
+具名偏离：执行环境契约[停止](../../execution/execution-environment-contract/SPEC.md#停止)第 7 项要求保留账本在确认停止之后仍保存收场事实，让之后的 `stop` 答 `confirmed`。本包不保存它，所以提供者对已停止且已离开其索引的保留进程答 `notFound`。保存收场事实会让作用域记录随会话里的移交数增长，与历史无关的要求（C7）冲突；取舍交契约拥有者裁定。
+
+交接（保留作用域 `adopt` 原获取的资源）只写作用域的记录，并断言获取记录所在域与原调用域未变。获取记录不保存 `handedOver`：读取获取记录时按其 `retentionScope` 的作用域记录把作用域已采纳的本获取资源标为 `handedOver`；写回获取记录时，这些键保留获取自己存的停止事实，所以交接事实只有作用域一个拥有者。释放确认把获取的全部资源写成 `confirmed`（获取对它们的责任到此结束）；被交接的资源在作用域持有期间仍读作 `handedOver`，作用域确认它停止之后读作 `confirmed`。获取记录带保留作用域时，它的每次变更都断言自己作用域的域修订号未变，因此获取的变更与作用域的交接在两个域之间线性化：先提交者成立，后提交者重读重判。提交窗口内注入交接的栅栏用例见 [resources.spec.ts](tests/environment-adapter/resources.spec.ts)。单键读取的保持论证见 [单键读取](../tool/verification/proofs/record-read.md)。
 
 ### 环境资源诊断边界
 

@@ -1,8 +1,9 @@
 // The placement of the host's durable facts in the `host` domains of the ledger store (architecture
 // principle 6, per-call placement). Every fact of one call lives in a domain of that call, so the
 // size of a domain and the cost of one call never depend on how many calls the tenant has settled.
-// Only state that spans calls is tenant-level: the start guards and the environment retention
-// scopes. This module is the one place that builds host domain names.
+// State that spans calls lives in a domain of the thing it spans: the start guards in one
+// tenant-level domain, an environment retention scope in a domain of that scope. This module is
+// the one place that builds host domain names.
 import type { LedgerDomain } from '@omne-harness/tool'
 import type { ToolCallId } from '@omne-harness/tool-contract'
 
@@ -23,13 +24,19 @@ export function callHostDomain(
 /** The tenant-level domain of the start guards and their invalidations. */
 export const START_GUARDS_DOMAIN_KEY = 'start-guards'
 
-/** The tenant-level domain of the environment retention scopes. */
-export const ENVIRONMENT_RETENTION_DOMAIN_KEY = 'environment-retention'
-
 /** A tenant-level host domain: state that spans calls and does not grow with them. */
 export function tenantHostDomain(
   tenant: TenantId,
-  key: typeof START_GUARDS_DOMAIN_KEY | typeof ENVIRONMENT_RETENTION_DOMAIN_KEY,
+  key: typeof START_GUARDS_DOMAIN_KEY,
 ): LedgerDomain {
   return { kind: 'host', tenant, key }
+}
+
+/**
+ * The host domain of one environment retention scope: `retention@<scope digest>`. The scope spans
+ * the calls of one session, so its record is shared by those calls and by no other scope: a
+ * commit of one scope never contends with another session's.
+ */
+export function retentionHostDomain(tenant: TenantId, scopeDigest: string): LedgerDomain {
+  return { kind: 'host', tenant, key: `retention@${scopeDigest}` }
 }

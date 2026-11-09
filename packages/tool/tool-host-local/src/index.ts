@@ -8,7 +8,7 @@ export { createLocalToolBindings, type LocalToolBindingsInput } from './executor
 export type { LocalAuthorExecution } from './live-author-execution.ts'
 export {
   callHostDomain,
-  ENVIRONMENT_RETENTION_DOMAIN_KEY,
+  retentionHostDomain,
   START_GUARDS_DOMAIN_KEY,
   tenantHostDomain,
   type HostAggregate,
@@ -97,6 +97,9 @@ export {
   type EnvironmentAddress,
   type EnvironmentStorageOptions,
   type EnvironmentStateStore,
+  type RetainedCreator,
+  type RetainedResourceFact,
+  type RetentionState,
 } from './environment-state.ts'
 export {
   createEnvironmentResourceLedger,

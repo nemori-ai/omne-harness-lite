@@ -35,24 +35,24 @@ import {
   type PreparationRecord,
   type ReleaseRecord,
 } from '@omne-harness/tool-contract/provider'
-import {
-  callHostDomain,
-  ENVIRONMENT_RETENTION_DOMAIN_KEY,
-  tenantHostDomain,
-} from './host-domains.ts'
+import { callHostDomain, retentionHostDomain } from './host-domains.ts'
 
+/** The stop fact an acquisition stores for one of its resources. */
+export type StoredResourceStop = 'active' | 'unconfirmed' | 'confirmed'
 /**
- * `handedOver`: the retention scope of this acquisition adopted the resource, so this acquisition
- * no longer owns it. The scope's record owns that fact; a read of the acquisition applies it. No
- * later stop fact replaces it.
+ * The stop fact as a reader of the acquisition sees it. `handedOver` is never stored: the
+ * retention scope of the acquisition adopted the resource, so the acquisition no longer owns it.
+ * The scope's record owns that fact; a read of the acquisition applies it, and a write of the
+ * acquisition keeps its own stored fact for the key. No later stop fact replaces it in the view.
  */
-export type ResourceStop = 'active' | 'unconfirmed' | 'confirmed' | 'handedOver'
+export type ResourceStop = StoredResourceStop | 'handedOver'
 export type ResourceFact = Readonly<{
   resource: ManagedResource
   permitted: boolean
   adopted: boolean
   stop: ResourceStop
 }>
+type StoredResourceFact = ResourceFact & Readonly<{ stop: StoredResourceStop }>
 export type AllocationFact =
   | Readonly<{ kind: 'sent' | 'unknown' | 'allocated' | 'not-allocated' | 'settled' }>
   | Readonly<{ kind: 'rejected'; reason: string }>
@@ -67,6 +67,9 @@ export type EnvironmentState = Readonly<{
   release: Readonly<{ record: ReleaseRecord; confirmed: boolean }> | null
   resources: readonly ResourceFact[]
 }>
+/** The acquisition as stored: its own stop facts, never a handover. */
+type StoredEnvironmentState = Omit<EnvironmentState, 'resources'> &
+  Readonly<{ resources: readonly StoredResourceFact[] }>
 export type EnvironmentAddress = Readonly<{
   tenant: TenantId
   call: ToolCallId
@@ -77,8 +80,31 @@ export type EnvironmentStorageOptions = Readonly<{
   mode?: 'production' | 'test'
   commitAttempts?: number
 }>
-export type RetainedResourceFact = ResourceFact &
-  Readonly<{ creator: PreparationRecord; original: EnvironmentOriginal }>
+/**
+ * The acquisition that created a retained entry: a reference by key, with the digest of its
+ * original binding. The entry copies nothing of the preparation; a reader that needs it reads the
+ * creator's `environment@<call>` record by key.
+ */
+export type RetainedCreator = Readonly<{
+  call: ToolCallId
+  operation: ToolOperationId
+  original: string
+}>
+/** The stop fact of a live retained entry; a confirmed stop removes the entry. */
+export type RetainedStop = 'active' | 'unconfirmed'
+export type RetainedResourceFact = Readonly<{
+  resource: ManagedResource
+  permitted: boolean
+  adopted: boolean
+  stop: RetainedStop
+  creator: RetainedCreator
+}>
+/**
+ * The record of one retention scope: the resources the scope still holds. An entry the scope
+ * took over (`permitted` for a terminal, `adopted` for a process) lives until its stop is
+ * confirmed; a reservation nobody took over lives until its creator closes. A closed scope with no
+ * entry left has no record.
+ */
 export type RetentionState = Readonly<{
   scope: ScopeRef
   closed: boolean
@@ -107,6 +133,9 @@ type RetentionSnapshot = Readonly<{
 }>
 type AcquisitionSnapshot = Readonly<{
   revision: ToolRevision
+  /** The record as stored, or null when there is none. */
+  stored: StoredEnvironmentState | null
+  /** The record with the handovers of its retention scope applied. */
   state: EnvironmentState | null
   mutation: string | null
   /** The retention scope's revision when the acquisition names one, for the write's assertion. */
@@ -121,39 +150,64 @@ export const preparationKey = (address: Pick<EnvironmentAddress, 'call' | 'opera
 /** The host domain of one call's environment acquisitions. */
 export const acquisitionDomain = (address: Pick<EnvironmentAddress, 'tenant' | 'call'>) =>
   callHostDomain(address.tenant, 'environment', address.call)
-/** The tenant-level host domain of the retention scopes: state that spans calls. */
-export const retentionDomain = (tenant: TenantId) =>
-  tenantHostDomain(tenant, ENVIRONMENT_RETENTION_DOMAIN_KEY)
+/** The host domain of one retention scope: state that spans the calls of that scope. */
+export const retentionDomain = (tenant: TenantId, scope: ScopeRef) =>
+  retentionHostDomain(tenant, canonicalDigest(scope))
+/** The key of the one record of a retention scope's domain. */
+export const RETENTION_RECORD_KEY = 'scope'
 const callDomain = (address: Pick<EnvironmentAddress, 'tenant' | 'call'>): LedgerDomain => ({
   kind: 'call',
   tenant: address.tenant,
   call: address.call,
 })
 
+/** Whether `entry` was created by the acquisition `stored`. */
+export function createdBy(creator: RetainedCreator, stored: EnvironmentState): boolean {
+  return (
+    creator.call === stored.preparation.call &&
+    creator.operation === stored.preparation.operation &&
+    creator.original === canonicalDigest(stored.original)
+  )
+}
+
 /** The acquisition with every resource its retention scope adopted from it marked `handedOver`. */
 function withHandovers(
-  state: EnvironmentState,
-  address: EnvironmentAddress,
+  stored: StoredEnvironmentState,
   retention: RetentionState | null,
 ): EnvironmentState {
-  if (retention === null) return state
+  if (retention === null) return stored
   const adopted = new Set(
     retention.resources
-      .filter(
-        item =>
-          item.adopted &&
-          item.creator.call === address.call &&
-          item.creator.operation === address.operation,
-      )
+      .filter(item => item.adopted && createdBy(item.creator, stored))
       .map(item => item.resource.key),
   )
-  if (adopted.size === 0) return state
+  if (adopted.size === 0) return stored
   return {
-    ...state,
-    resources: state.resources.map(item =>
+    ...stored,
+    resources: stored.resources.map(item =>
       adopted.has(item.resource.key) ? { ...item, stop: 'handedOver' } : item,
     ),
   }
+}
+
+/**
+ * The decided state as the acquisition stores it: a resource the decision left `handedOver`
+ * keeps the acquisition's own stored stop fact, because the handover is the scope's fact.
+ */
+function withoutHandovers(
+  next: EnvironmentState,
+  stored: StoredEnvironmentState | null,
+): StoredEnvironmentState {
+  const own = new Map(stored?.resources.map(item => [item.resource.key, item.stop]) ?? [])
+  function ownStop(key: string, stop: ResourceStop): StoredResourceStop {
+    if (stop === 'handedOver') return own.get(key) ?? 'active'
+    return stop
+  }
+  const resources: StoredResourceFact[] = next.resources.map(item => ({
+    ...item,
+    stop: ownStop(item.resource.key, item.stop),
+  }))
+  return { ...next, resources }
 }
 
 function object(value: unknown): value is Record<string, unknown> {
@@ -240,7 +294,7 @@ function allocation(value: unknown): AllocationFact | null {
   return null
 }
 
-async function decodeState(value: unknown): Promise<EnvironmentState | null> {
+async function decodeState(value: unknown): Promise<StoredEnvironmentState | null> {
   if (!object(value)) return null
   const prepared = preparation(value.preparation)
   const acquired = await decodeOriginal(value.original)
@@ -257,9 +311,9 @@ async function decodeState(value: unknown): Promise<EnvironmentState | null> {
     !Array.isArray(value.resources)
   )
     return null
-  const resources: ResourceFact[] = []
+  const resources: StoredResourceFact[] = []
   for (const item of value.resources) {
-    const resource = await decodeResourceFact(item)
+    const resource = await decodeResourceFact(item, isStoredStop)
     if (!resource) return null
     resources.push(resource)
   }
@@ -275,20 +329,32 @@ async function decodeState(value: unknown): Promise<EnvironmentState | null> {
   }
 }
 
-const resourceStops: readonly unknown[] = [
+const storedStops: readonly unknown[] = [
   'active',
   'unconfirmed',
   'confirmed',
-  'handedOver',
-] satisfies readonly ResourceStop[]
-const isResourceStop = (value: unknown): value is ResourceStop => resourceStops.includes(value)
+] satisfies readonly StoredResourceStop[]
+const isStoredStop = (value: unknown): value is StoredResourceStop => storedStops.includes(value)
+const retainedStops: readonly unknown[] = [
+  'active',
+  'unconfirmed',
+] satisfies readonly RetainedStop[]
+const isRetainedStop = (value: unknown): value is RetainedStop => retainedStops.includes(value)
 
-async function decodeResourceFact(item: unknown): Promise<ResourceFact | null> {
+async function decodeResourceFact<S extends string>(
+  item: unknown,
+  isStop: (value: unknown) => value is S,
+): Promise<Readonly<{
+  resource: ManagedResource
+  permitted: boolean
+  adopted: boolean
+  stop: S
+}> | null> {
   if (
     !object(item) ||
     typeof item.permitted !== 'boolean' ||
     typeof item.adopted !== 'boolean' ||
-    !isResourceStop(item.stop)
+    !isStop(item.stop)
   )
     return null
   const resource = await managedResourceSchema['~standard'].validate(item.resource)
@@ -334,7 +400,7 @@ function encode(value: unknown): unknown {
   )
 }
 
-function encodeState(state: EnvironmentState): unknown {
+function encodeState(state: StoredEnvironmentState): unknown {
   const tenant = tenantCodec.encode(state.preparation.tenant)
   if (!tenant.ok) throw new TypeError('invalid preparation tenant')
   return {
@@ -347,7 +413,16 @@ function encodeState(state: EnvironmentState): unknown {
   }
 }
 
+/** The closure listener key of a retention scope; the tenant is added by `identity`. */
 const retentionKey = (scope: ScopeRef): string => `retention:${canonicalDigest(scope)}`
+
+function decodeCreator(value: unknown): RetainedCreator | null {
+  if (!object(value) || typeof value.original !== 'string') return null
+  const call = decodeToolCallId(value.call)
+  const operation = decodeToolOperationId(value.operation)
+  if ('failure' in call || 'failure' in operation) return null
+  return { call: call.ok, operation: operation.ok, original: value.original }
+}
 
 async function decodeRetention(value: unknown): Promise<RetentionState | null> {
   if (!object(value) || typeof value.closed !== 'boolean' || !Array.isArray(value.resources))
@@ -357,29 +432,16 @@ async function decodeRetention(value: unknown): Promise<RetentionState | null> {
   const resources: RetainedResourceFact[] = []
   for (const entry of value.resources) {
     if (!object(entry)) return null
-    const creator = preparation(entry.creator)
-    const original = await decodeOriginal(entry.original)
-    const resource = await decodeResourceFact(entry)
-    if (!creator || !original || !resource) return null
-    resources.push({ creator, original, ...resource })
+    const creator = decodeCreator(entry.creator)
+    const resource = await decodeResourceFact(entry, isRetainedStop)
+    if (!creator || !resource) return null
+    resources.push({ ...resource, creator })
   }
   return { scope: scope.ok, closed: value.closed, resources }
 }
 
-function encodeRetention(state: RetentionState): unknown {
-  return {
-    ...state,
-    resources: state.resources.map(item => {
-      const tenant = tenantCodec.encode(item.creator.tenant)
-      if (!tenant.ok) throw new TypeError('invalid retained creator tenant')
-      return {
-        ...item,
-        creator: { ...item.creator, tenant: tenant.value },
-        original: encode(item.original),
-      }
-    }),
-  }
-}
+/** A closed scope that holds nothing has no record. */
+const emptied = (state: RetentionState): boolean => state.closed && state.resources.length === 0
 
 export function createEnvironmentStateStore(options: EnvironmentStorageOptions) {
   if (options.store.durability !== 'durable' && options.mode !== 'test')
@@ -449,7 +511,11 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     tenant: TenantId,
     scope: ScopeRef,
   ): Promise<Outcome<RetentionSnapshot, ToolFailure>> {
-    const read = await envelope(retentionDomain(tenant), retentionKey(scope), 'retention ledger')
+    const read = await envelope(
+      retentionDomain(tenant, scope),
+      RETENTION_RECORD_KEY,
+      'retention ledger',
+    )
     if ('failure' in read) return read
     if (read.ok.mutation === null)
       return succeed({ revision: read.ok.revision, state: null, mutation: null })
@@ -475,7 +541,13 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     )
     if ('failure' in read) return read
     if (read.ok.mutation === null)
-      return succeed({ revision: read.ok.revision, state: null, mutation: null, retention: null })
+      return succeed({
+        revision: read.ok.revision,
+        stored: null,
+        state: null,
+        mutation: null,
+        retention: null,
+      })
     const stored = await decodeState(read.ok.state)
     if (
       !stored ||
@@ -488,10 +560,11 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     const scope = stored.original.retentionScope
     const retention = scope === undefined ? null : await retentionSnapshot(address.tenant, scope)
     if (retention !== null && 'failure' in retention) return retention
-    const state = retention === null ? stored : withHandovers(stored, address, retention.ok.state)
+    const state = retention === null ? stored : withHandovers(stored, retention.ok.state)
     observe(address, state)
     return succeed({
       revision: read.ok.revision,
+      stored,
       state,
       mutation: read.ok.mutation,
       retention: retention === null ? null : { revision: retention.ok.revision },
@@ -594,24 +667,31 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
         digest: canonicalDigest(value),
       }))
       if ('failure' in next) return next
+      const stored = withoutHandovers(next.ok, before.ok.stored)
       const call = await callAssertion(
         address,
-        next.ok.preparation,
+        stored.preparation,
         authorize,
         'current resource authorization unavailable',
       )
       if ('failure' in call) return call
       // The retention scope may hand a resource over between this snapshot and the write; the
-      // assertion makes such a handover a conflict, and the retry sees it.
+      // assertion makes such a handover a conflict, and the retry decides on the current scope.
+      const scope = stored.original.retentionScope
       const retention: readonly LedgerAssertion[] =
-        before.ok.retention === null
+        before.ok.retention === null || scope === undefined
           ? []
-          : [{ domain: retentionDomain(address.tenant), revision: before.ok.retention.revision }]
+          : [
+              {
+                domain: retentionDomain(address.tenant, scope),
+                revision: before.ok.retention.revision,
+              },
+            ]
       const committed = await options.store.commit({
         domain: acquisitionDomain(address),
         expected: before.ok.revision,
         revision: revision.ok,
-        writes: [put(preparationKey(address), mutation, encodeState(next.ok))],
+        writes: [put(preparationKey(address), mutation, encodeState(stored))],
         asserts: [...call.ok, ...retention],
       })
       const result = await commitResult(
@@ -623,9 +703,62 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
         'environment ledger commit unavailable',
       )
       if (result === null) continue
+      // A closed acquisition can take nothing over any more: its reservations in the scope die.
+      if ('ok' in result && stored.closed && before.ok.stored?.closed === false && scope)
+        await dropReservations(address, scope, stored)
       return result
     }
     return environmentFailure('environment ledger revision contention')
+  }
+
+  /**
+   * Removes the reservations of a closed acquisition from its scope: entries it created that the
+   * scope never took over. This is the commit after the close; a scope write that does not land
+   * leaves the entries until the scope closes, which drops every reservation.
+   */
+  async function dropReservations(
+    address: EnvironmentAddress,
+    scope: ScopeRef,
+    creator: EnvironmentState,
+  ): Promise<void> {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const before = await retentionSnapshot(address.tenant, scope)
+      if ('failure' in before || before.ok.state === null) return
+      const kept = before.ok.state.resources.filter(
+        item => item.permitted || item.adopted || !createdBy(item.creator, creator),
+      )
+      if (kept.length === before.ok.state.resources.length) return
+      const committed = await commitScope(address, scope, before.ok.revision, {
+        ...before.ok.state,
+        resources: kept,
+      })
+      if (committed.kind !== 'conflict') return
+    }
+  }
+
+  /** One commit of a scope's record at `expected`; an emptied closed scope deletes its record. */
+  function commitScope(
+    address: EnvironmentAddress,
+    scope: ScopeRef,
+    expected: ToolRevision,
+    next: RetentionState,
+    asserts: readonly LedgerAssertion[] = [],
+    mutation = randomUUID(),
+  ): Promise<LedgerCommit> {
+    const revision = decodeToolRevision((BigInt(expected) + 1n).toString())
+    if ('failure' in revision)
+      return Promise.resolve({ kind: 'unavailable', diagnostic: 'invalid retention revision' })
+    return options.store.commit({
+      domain: retentionDomain(address.tenant, scope),
+      expected,
+      revision: revision.ok,
+      writes: [
+        emptied(next)
+          ? { kind: 'delete', key: hostKey(RETENTION_RECORD_KEY) }
+          : put(RETENTION_RECORD_KEY, mutation, next),
+      ],
+      asserts,
+    })
   }
 
   async function readRetention(
@@ -645,11 +778,7 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     address: EnvironmentAddress,
     scope: ScopeRef,
     authorize: CurrentResourceAuthorization | undefined,
-    decide: (
-      acquisition: EnvironmentState,
-      retention: RetentionState | null,
-      receipt: (value: unknown) => DurableEvidence,
-    ) => Outcome<RetentionState, ToolFailure>,
+    decide: HandOverChange,
     diagnostics: Readonly<{ missing: string; authorization: string; commit: string }>,
   ): Promise<Outcome<RetentionState, ToolFailure>> {
     const mutation = randomUUID()
@@ -676,22 +805,26 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
         diagnostics.authorization,
       )
       if ('failure' in call) return call
-      const committed = await options.store.commit({
-        domain: retentionDomain(address.tenant),
-        expected: before.ok.revision,
-        revision: revision.ok,
-        writes: [put(retentionKey(scope), mutation, encodeRetention(next.ok))],
-        asserts: [
-          ...call.ok,
-          { domain: acquisitionDomain(address), revision: original.ok.revision },
-        ],
-      })
+      const committed = await commitScope(
+        address,
+        scope,
+        before.ok.revision,
+        next.ok,
+        [...call.ok, { domain: acquisitionDomain(address), revision: original.ok.revision }],
+        mutation,
+      )
       const result = await commitResult(
         address,
         committed,
         next.ok,
         mutation,
-        () => retentionSnapshot(address.tenant, scope),
+        async () => {
+          const reread = await retentionSnapshot(address.tenant, scope)
+          // A deleted record is the committed outcome of an emptied closed scope.
+          if ('ok' in reread && reread.ok.state === null && emptied(next.ok))
+            return succeed({ state: next.ok, mutation })
+          return reread
+        },
         diagnostics.commit,
         retentionKey(scope),
       )
