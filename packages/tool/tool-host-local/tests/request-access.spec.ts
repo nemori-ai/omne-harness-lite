@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { AccessVerdict, ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import {
+  callHostDomain,
   createLocalStartCoordinator,
   createLocalStartGuard,
   PROGRAMMATIC_NOT_IN_M2,
@@ -56,7 +57,7 @@ function fixture(answer: () => Promise<AccessVerdict>) {
   const start = startOf('target-policy')
   const prepare = () => authority.prepare({ ...call, start, request: fixed })
   const acceptanceCount = async () => {
-    const found = await memory.read({ kind: 'host', tenant: call.tenant, key: 'start-coordinator' })
+    const found = await memory.read(callHostDomain(call.tenant, 'start', call.call))
     if (found.kind !== 'complete') throw new Error('fixture store unavailable')
     return found.records.filter(
       row => row.kind === 'host' && JSON.stringify(row.host.value).includes('"acceptance"'),

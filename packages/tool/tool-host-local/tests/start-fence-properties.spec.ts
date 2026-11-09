@@ -23,6 +23,7 @@ import type {
   ToolStartAuthority,
 } from '@omne-harness/tool-contract/provider'
 import { describe, expect, it } from 'vitest'
+import { START_GUARDS_DOMAIN_KEY, tenantHostDomain } from '@omne-harness/tool-host-local'
 import {
   callAccess,
   callId,
@@ -249,11 +250,7 @@ async function run(
 /** The guard revision of tenant A as stored, read without the coordinator. */
 function guardRevisionReader(store: ToolLedgerStore) {
   return async (): Promise<number | null> => {
-    const read = await store.read({
-      kind: 'host',
-      tenant: tenantA as never,
-      key: 'start-coordinator',
-    })
+    const read = await store.read(tenantHostDomain(tenantA as never, START_GUARDS_DOMAIN_KEY))
     if (read.kind !== 'complete') return null
     for (const record of read.records) {
       if (record.kind !== 'host' || !record.host.key.startsWith('guard:')) continue

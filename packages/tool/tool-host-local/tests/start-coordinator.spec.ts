@@ -85,9 +85,13 @@ describe('G5 the start ordering domain', () => {
     )
   })
 
-  it('G5 order: a concurrent invalidation and consume are decided in one order, and the answer agrees with it', async () => {
+  it('G5 order: a concurrent invalidation and consume are decided by their commits, and the answer agrees with that order', async () => {
+    // The permit and the acceptance live in the call's domain, the guard in the tenant's guard
+    // domain. The two have no shared revision order; the operation whose read is suspended
+    // commits last. Consume asserts the guard revision at its commit, so the acceptance and the
+    // invalidation linearize on their commits (StartConsume P1), not on the order they entered.
     const seen = new Set<string>()
-    for (const invalidationFirst of [true, false]) {
+    for (const invalidationBlocked of [true, false]) {
       const memory = createMemoryToolLedgerStore()
       let entered = () => {}
       let resume = () => {}
@@ -116,25 +120,31 @@ describe('G5 the start ordering domain', () => {
       block = true
       let invalidationPending: ReturnType<typeof authority.invalidate>
       let consumePending: ReturnType<typeof authority.consume>
-      if (invalidationFirst) {
+      // The suspended operation commits last: the other one runs to its commit first.
+      if (invalidationBlocked) {
         invalidationPending = authority.invalidate(invalidation('revoke-1'))
         await firstRead
         consumePending = authority.consume(consumeWith(permit))
+        await consumePending
       } else {
         consumePending = authority.consume(consumeWith(permit))
         await firstRead
         invalidationPending = authority.invalidate(invalidation('revoke-1'))
+        await invalidationPending
       }
       resume()
       const [invalidated, consumed] = await Promise.all([invalidationPending, consumePending])
-      const guard = BigInt(ok(invalidated).revision)
+      ok(invalidated)
       const answer = ok(consumed)
-      expect(answer.kind).toBe(invalidationFirst ? 'rejected' : 'started')
-      if (answer.kind === 'rejected')
-        expect(BigInt(answer.exclusion.revision)).toBeGreaterThan(guard)
-      else if (answer.kind === 'started')
-        expect(BigInt(answer.acceptance.revision)).toBeLessThan(guard)
-      else throw new Error(`unexpected answer ${answer.kind}`)
+      // An acceptance committed before the invalidation stays; a consume that reads the advanced
+      // guard is rejected.
+      expect(answer.kind).toBe(invalidationBlocked ? 'started' : 'rejected')
+      if (answer.kind === 'rejected') expect(answer.reason).toContain('invalidated')
+      // The answer is the decided order: inspect and a repeated consume agree with it.
+      expect(ok(await authority.inspect({ ...callAccess('c1'), start: startOf('c1') }))).toEqual(
+        answer,
+      )
+      expect(ok(await authority.consume(consumeWith(permit)))).toEqual(answer)
       seen.add(answer.kind)
     }
     // Both orders occurred, so each branch above was checked.

@@ -1,11 +1,13 @@
-// The local start coordinator (G5): the start ordering domain of P04 for one machine. Every
-// operation runs inside its tenant's serial section and reads and writes one `host` domain of
-// the ledger store per tenant, so a permit, an acceptance, a rejection, an exclusion and a guard
-// invalidation are ordered twice: by the section and by the domain revision. A permit is stored
-// when it is issued and carries the revision of each guard it saw; consume accepts only the
-// stored permit, once, and only while every guard keeps that revision. An invalidation returns its
-// evidence only after its commit, so an invalidation that returned before a consume is always
-// seen by it (P04: an invalidation that holds first forbids the start).
+// The local start coordinator (G5): the start ordering domain of P04 for one machine. The facts
+// of one call (its permit, acceptance, rejection, exclusion and exclusion operations) live in the
+// `start@<call>` host domain of that call; the guards and their invalidations live in the
+// tenant-level `start-guards` domain, which grows with control actions only. A permit is stored
+// when it is issued and carries the revision of each guard it saw. Consume accepts only the stored
+// permit, once, and commits the acceptance into the call domain under a read-set assertion that
+// the guard domain still has the revision consume read, so an acceptance and an invalidation
+// linearize although they live in two domains (the StartConsume model of `verification/models`).
+// An invalidation returns its evidence only after its commit, so an invalidation that returned
+// before a consume is always seen by it (P04: an invalidation that holds first forbids the start).
 
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -42,6 +44,7 @@ import {
   type StartProgress,
   type ToolStartAuthority,
 } from '@omne-harness/tool-contract/provider'
+import { callHostDomain, START_GUARDS_DOMAIN_KEY, tenantHostDomain } from './host-domains.ts'
 import {
   checkStartPermitRequirement,
   readRequirementSource,
@@ -64,9 +67,6 @@ export const startCoordinatorAdoption: Adoption = describedAdoption({
   revision: '1',
 })
 
-/** The key of the host domain the coordinator keeps per tenant. */
-export const START_COORDINATOR_DOMAIN_KEY = 'start-coordinator'
-
 /** A resource whose current revision guards a start; its owner invalidates it to refuse starts. */
 export type GuardResource = Readonly<{ owner: string; resource: string }>
 
@@ -88,8 +88,8 @@ export interface StartCoordinatorAccess<P> {
 
 export type LocalStartCoordinatorInput<P> = Readonly<{
   /**
-   * The ledger store whose `host` domain keeps the acceptance ledger: the same store the ledger
-   * of the runtime uses, so one durable provider keeps both.
+   * The ledger store whose `host` domains keep the start facts: the same store the ledger of the
+   * runtime uses, so one durable provider keeps both.
    */
   store: ToolLedgerStore
   /** Proves the principal, the tenant and the call; a forged tenant is denied. */
@@ -192,11 +192,14 @@ type CoordinatorRecord =
   | ExclusionOperationRecord
   | ExclusionRecord
 
-/** The records of the domain by key, with the domain revision. */
-type Snapshot = Readonly<{
+/** The records of one host domain by key, with the domain revision. */
+type DomainSnapshot = Readonly<{
   revision: ToolRevision
   records: ReadonlyMap<string, CoordinatorRecord>
 }>
+
+/** What a call-scoped operation decides on: the call's own domain and the tenant's guards. */
+type Snapshot = DomainSnapshot & Readonly<{ guards: DomainSnapshot }>
 
 // Keys are JSON texts of their parts, so an identity text that holds a separator cannot reach the
 // key of another record. A start operation is unique per call only (P01), so its keys name both.
@@ -294,8 +297,8 @@ function mint(
 /** The first revision of a guard that was never invalidated. */
 const INITIAL_GUARD_REVISION = '0'
 
-function guardOf(snapshot: Snapshot, resource: GuardResource): GuardRecord {
-  const found = snapshot.records.get(guardKey(resource))
+function guardOf(guards: DomainSnapshot, resource: GuardResource): GuardRecord {
+  const found = guards.records.get(guardKey(resource))
   if (found?.kind === 'guard') return found
   return {
     kind: 'guard',
@@ -611,6 +614,8 @@ type Decision<T> =
       kind: 'commit'
       puts: readonly CoordinatorRecord[]
       deletes?: readonly string[]
+      /** Commit only while the guard domain still has the revision the snapshot read. */
+      assertGuards?: boolean
       value: T
     }>
 
@@ -636,10 +641,10 @@ function writesOf(decision: Extract<Decision<unknown>, { kind: 'commit' }>): Led
   ]
 }
 
-/** The host domain as the coordinator reads it. Any other record is a defect of the store. */
+/** A host domain as the coordinator reads it. Any other record is a defect of the store. */
 function snapshotOf(
   read: Extract<LedgerRead, { kind: 'complete' }>,
-): Outcome<Snapshot, ToolFailure> {
+): Outcome<DomainSnapshot, ToolFailure> {
   const records = new Map<string, CoordinatorRecord>()
   for (const record of read.records) {
     const parsed = record.kind === 'host' ? parseRecord(record.host.value) : null
@@ -652,7 +657,8 @@ function snapshotOf(
 /**
  * Builds the coordinator. It implements `ToolStartAuthority` for one process: `prepare` stores
  * and returns a permit with the current revision of every guard of the request; `consume`
- * accepts the stored permit once, and only while every guard keeps its revision; `inspect`
+ * accepts the stored permit once, and only while every guard keeps its revision, asserting the
+ * guard domain revision at the commit; `inspect`
  * answers the acceptance or the rejection, and otherwise withdraws the outstanding permit before
  * it answers `not-started`; `invalidate` advances a guard and returns its evidence after the
  * commit; `exclude` rejects the whole pending invocation of a call that has no acceptance.
@@ -670,7 +676,7 @@ export function createLocalStartCoordinator<P>(
   const sections = new Map<string, Promise<void>>()
 
   /**
-   * Each tenant keeps one queue; an old tail cannot remove a newer queued turn.
+   * Each written domain keeps one queue; an old tail cannot remove a newer queued turn.
    *
    * The wait of one caller is bounded: it answers `expired()` once `turnTimeoutMs` passes, whether
    * it spent that time behind an earlier turn or inside its own work. A turn that expires this way
@@ -678,8 +684,16 @@ export function createLocalStartCoordinator<P>(
    * revision still orders every write; later callers queue behind it and each answer `expired()`
    * on their own bound rather than waiting forever.
    */
-  const serial = <T>(tenant: TenantId, work: () => Promise<T>, expired: () => T): Promise<T> => {
-    const key = JSON.stringify([tenant.organization.text, tenant.account.text])
+  const serial = <T>(
+    target: LedgerDomain,
+    work: () => Promise<T>,
+    expired: () => T,
+  ): Promise<T> => {
+    const key = JSON.stringify([
+      target.tenant.organization.text,
+      target.tenant.account.text,
+      target.kind === 'call' ? target.call : target.key,
+    ])
     const turn = (sections.get(key) ?? Promise.resolve()).then(work)
     const release = () => {
       if (sections.get(key) === tail) sections.delete(key)
@@ -706,11 +720,10 @@ export function createLocalStartCoordinator<P>(
     })
   }
 
-  const domain = (tenant: TenantId): LedgerDomain => ({
-    kind: 'host',
-    tenant,
-    key: START_COORDINATOR_DOMAIN_KEY,
-  })
+  const startDomain = (tenant: TenantId, call: ToolCallId): LedgerDomain =>
+    callHostDomain(tenant, 'start', call)
+  const guardsDomain = (tenant: TenantId): LedgerDomain =>
+    tenantHostDomain(tenant, START_GUARDS_DOMAIN_KEY)
 
   const qualify = async (
     principal: P,
@@ -733,10 +746,10 @@ export function createLocalStartCoordinator<P>(
     return fail({ kind: 'unavailable', dependency: 'access-guard', diagnostic: verdict.diagnostic })
   }
 
-  const read = async (tenant: TenantId): Promise<Outcome<Snapshot, ToolFailure>> => {
+  const read = async (domain: LedgerDomain): Promise<Outcome<DomainSnapshot, ToolFailure>> => {
     let result: Awaited<ReturnType<typeof store.read>>
     try {
-      result = await store.read(domain(tenant))
+      result = await store.read(domain)
     } catch {
       return unavailable('the start ledger threw on read')
     }
@@ -744,28 +757,39 @@ export function createLocalStartCoordinator<P>(
     return snapshotOf(result)
   }
 
-  /** Reads, decides and commits by revision inside the serial section. */
+  /**
+   * Reads the written domain and the guards, decides, and commits by the revision of the written
+   * domain inside its serial section. A decision that asserts the guards commits only while the
+   * guard domain still has the revision this turn read.
+   */
   const transact = <T>(
-    tenant: TenantId,
+    target: LedgerDomain,
     decide: (snapshot: Snapshot, revision: ToolRevision) => Decision<T> | Promise<Decision<T>>,
     unknown: (diagnostic: string) => Outcome<T, ToolFailure>,
   ): Promise<Outcome<T, ToolFailure>> =>
     serial(
-      tenant,
+      target,
       async () => {
         for (let attempt = 0; attempt < commitAttempts; attempt += 1) {
-          const snapshot = await read(tenant)
-          if ('failure' in snapshot) return snapshot
-          const revision = nextRevision(snapshot.ok.revision)
-          const decision = await decide(snapshot.ok, revision)
+          const own = await read(target)
+          if ('failure' in own) return own
+          const guards = await read(guardsDomain(target.tenant))
+          if ('failure' in guards) return guards
+          const snapshot: Snapshot = { ...own.ok, guards: guards.ok }
+          const revision = nextRevision(own.ok.revision)
+          const decision = await decide(snapshot, revision)
           if (decision.kind === 'reply') return decision.outcome
           let committed: Awaited<ReturnType<typeof store.commit>>
           try {
             committed = await store.commit({
-              domain: domain(tenant),
-              expected: snapshot.ok.revision,
+              domain: target,
+              expected: own.ok.revision,
               revision,
               writes: writesOf(decision),
+              asserts:
+                decision.assertGuards === true
+                  ? [{ domain: guardsDomain(target.tenant), revision: guards.ok.revision }]
+                  : [],
             })
           } catch {
             return unknown('the start ledger threw on commit')
@@ -809,7 +833,7 @@ export function createLocalStartCoordinator<P>(
     const resources = guardsOf(request.ok)
     const inputDigest = canonicalDigest(request.ok)
     return transact<StartPermit>(
-      tenant,
+      startDomain(tenant, call),
       async (snapshot, revision) => {
         const existing = snapshot.records.get(startKey('permit', call, start.ok.operation))
         if (existing?.kind === 'permit') {
@@ -854,13 +878,14 @@ export function createLocalStartCoordinator<P>(
             }),
           )
         const guards: StartGuard[] = resources.map(resource => {
-          const guard = guardOf(snapshot, resource)
+          const guard = guardOf(snapshot.guards, resource)
           return {
             owner: guard.owner,
             resource: guard.resource,
             revision: guard.revision,
             evidence:
-              guard.evidence ?? mint(tenant, guardKey(resource), revision, { initial: true }),
+              guard.evidence ??
+              mint(tenant, guardKey(resource), snapshot.guards.revision, { initial: true }),
             scope: { kind: 'resource' },
           }
         })
@@ -905,7 +930,7 @@ export function createLocalStartCoordinator<P>(
     if ('failure' in allowed) return allowed
     const start = permit.ok.start.operation
     return transact<StartProgress>(
-      tenant,
+      startDomain(tenant, call),
       async (snapshot, revision) => {
         const known = progressOf(snapshot, call, start)
         if (known !== null) return reply(succeed(known))
@@ -917,7 +942,7 @@ export function createLocalStartCoordinator<P>(
             : reply(invalid('permit', 'not-issued'))
         }
         const moved = permit.ok.guards.find(
-          guard => guardOf(snapshot, guard).revision !== guard.revision,
+          guard => guardOf(snapshot.guards, guard).revision !== guard.revision,
         )
         if (moved !== undefined) {
           const reason = `guard ${moved.owner}/${moved.resource} was invalidated before the start`
@@ -959,10 +984,12 @@ export function createLocalStartCoordinator<P>(
           acceptance,
           requirementSource: requirement.source,
         }
+        // The guards were read before this decision; the commit holds only while they are unchanged.
         return {
           kind: 'commit',
           puts: [accepted],
           deletes: [keyOf(stored)],
+          assertGuards: true,
           value: { kind: 'started', acceptance },
         }
       },
@@ -978,7 +1005,7 @@ export function createLocalStartCoordinator<P>(
     const { tenant, call } = checked.ok
     const operation = start.ok.operation
     return transact<StartProgress>(
-      tenant,
+      startDomain(tenant, call),
       (snapshot, revision) => {
         const known = progressOf(snapshot, call, operation)
         if (known !== null) return reply(succeed(known))
@@ -1016,8 +1043,9 @@ export function createLocalStartCoordinator<P>(
     const allowed = await qualify(principal, tenant, null, 'invalidate')
     if ('failure' in allowed) return allowed
     const digest = canonicalDigest(target.ok)
+    // The guards domain is both the written domain and the guards here; the snapshot reads it twice.
     return transact<DurableEvidence>(
-      tenant,
+      guardsDomain(tenant),
       (snapshot, revision) => {
         const existing = snapshot.records.get(invalidationKey(operation.ok))
         if (existing?.kind === 'invalidation') {
@@ -1058,7 +1086,7 @@ export function createLocalStartCoordinator<P>(
     if (!filledText(reason)) return invalid('reason', 'type')
     const { tenant, call } = checked.ok
     return transact<DurableEvidence>(
-      tenant,
+      startDomain(tenant, call),
       (snapshot, revision) => {
         const known = snapshot.records.get(exclusionOperationKey(call, operation.ok))
         if (known?.kind === 'exclusion-operation') {
@@ -1077,9 +1105,10 @@ export function createLocalStartCoordinator<P>(
           }
           return { kind: 'commit', puts: [record], value: existing.evidence }
         }
-        // An accepted invocation is in flight; a control stops it, an exclusion cannot (P04).
+        // An accepted invocation is in flight; a control stops it, an exclusion cannot (P04). The
+        // domain holds this call only, so the scan is over its few records.
         for (const record of snapshot.records.values())
-          if (record.kind === 'acceptance' && record.call === call)
+          if (record.kind === 'acceptance')
             return reply(fail({ kind: 'conflict', operation: record.start }))
         const key = callRejectionKey(call)
         const evidence = mint(tenant, key, revision, { reason, operation: operation.ok })

@@ -15,7 +15,6 @@ export {
 } from './host-domains.ts'
 export {
   createLocalStartCoordinator,
-  START_COORDINATOR_DOMAIN_KEY,
   START_COORDINATOR_OWNER,
   startCoordinatorAdoption,
   type GuardResource,

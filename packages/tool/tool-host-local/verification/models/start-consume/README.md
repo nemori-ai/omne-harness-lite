@@ -1,8 +1,8 @@
 # StartConsume：调用域受理与租户级 guard 域的读集断言
 
-本目录的模型检查启动受理与守卫失效在双域放置下的线性化。permit 与 acceptance 保存在每个调用自己的域，guard 与 invalidation 保存在租户级 `start-guards` 域。两个域没有共同的修订顺序，受理只能靠账本在提交时断言 guard 域版本未变。本模型检查这条断言是否足以让受理与失效线性化。放置规则归能力组的[部署无关原则](../../../../docs/architecture.md#部署无关原则)第 6、7 条，性质归领域文档的[性质与守护点](../../../../../../docs/domains/tool-execution/architecture.md#性质与守护点)。实现尚未开始，第 6 节的代码名称是计划名。
+本目录的模型检查启动受理与守卫失效在双域放置下的线性化。permit 与 acceptance 保存在每个调用自己的域，guard 与 invalidation 保存在租户级 `start-guards` 域。两个域没有共同的修订顺序，受理只能靠账本在提交时断言 guard 域版本未变。本模型检查这条断言是否足以让受理与失效线性化。放置规则归能力组的[部署无关原则](../../../../docs/architecture.md#部署无关原则)第 6、7 条，性质归领域文档的[性质与守护点](../../../../../../docs/domains/tool-execution/architecture.md#性质与守护点)。实现见第 6 节的代码对应。
 
-现有 [StartFence.tla](../StartFence.tla) 检查单域 `start-coordinator` 的围栏，随该域一起退出；本模型接替它守 P2（失效先成立则不发起）在双域下的形态。模型只证明列出的有限状态，不证明实现。
+原 [StartFence.tla](../StartFence.tla) 检查过单域 `start-coordinator` 的围栏，该域已随本次放置退出；本模型接替它守 P2（失效先成立则不发起）在双域下的形态。模型只证明列出的有限状态，不证明实现。
 
 ## 1. 变量
 
@@ -52,14 +52,18 @@
 
 ## 6. 代码对应
 
-实现尚未开始。下表是计划中的对应位置，全部标为待实现。
+实现在 `tool-host-local` 的 [start-coordinator.ts](../../../src/start-coordinator.ts)，域名由 [host-domains.ts](../../../src/host-domains.ts) 生成；提交的断言是 `@omne-harness/tool` 记录仓端口 [ledger-store.ts](../../../../tool/src/ledger-store.ts) 的 `LedgerCommitInput.asserts`（`tool` SPEC「记录仓的同租户读集断言」）。对应落地于 W3 r6 切片 03 的提交（`PanQiWei/meta-tools-w3-r5` 分支，e0082364c 之后的「per-call host placement」提交序列）。
 
-| 模型 | 计划中的代码位置 | 状态 |
+| 模型 | 代码 | 状态 |
 | --- | --- | --- |
-| `guardRev`、`InvalidateCommit`、`InvalidateReturn` | `tool-host-local` 租户级 `start-guards` 域的 guard 与 InvalidationRecord | 待实现 |
-| `permit`、`accepted`、`Prepare`、`ConsumeCommit` | `tool-host-local` 调用域的 permit 与 acceptance 记录 | 待实现 |
-| `ConsumeCommit` 的断言 | `tool-contract` 账本端口「同一租户内带读集断言的条件提交」（由 `commitGuardedHost` 推广） | 待实现 |
+| `guardRev`、`InvalidateCommit`、`InvalidateReturn` | 租户级 `start-guards` 域（`tenantHostDomain(tenant, START_GUARDS_DOMAIN_KEY)`）里的 `GuardRecord` 与 `InvalidationRecord`；`invalidate` 经 `transact(guardsDomain(tenant), …)` 提交后才回复证据 | 已实现 |
+| `permit`、`Prepare` | 调用域 `start@<call>`（`callHostDomain(tenant, 'start', call)`）里的 `PermitRecord`；`prepare` 读 `start-guards` 把每个守卫当前修订号写进许可，不断言守卫域 | 已实现 |
+| `ConsumeRead` | `transact` 在每一轮先读调用域再读 `start-guards`，`consume` 的决定用 `guardOf(snapshot.guards, …)` 比对许可里的守卫修订号 | 已实现 |
+| `ConsumeCommit` 的断言 | `consume` 返回 `assertGuards: true` 的决定，`transact` 以 `asserts: [{ domain: start-guards, revision: 本轮读到的修订号 }]` 提交 `AcceptanceRecord`；守卫域已变时记录仓答 `conflict`，不写 | 已实现 |
+| `DropAssertion` 负控 | 没有代码对应；去掉 `assertGuards` 即为该配置 | — |
 | `step` | 无代码对应；证明用的线性化顺序 | — |
+
+模型里的断言比对的是许可记录的守卫版本；实现比对的是本轮读到的守卫域修订号，并已先核许可里每个守卫的修订号等于本轮读到的值，所以两者等价：域修订号未变则守卫记录未变。实现只在同一条写路径上多一层：不相关守卫的失效也会让受理冲突重试，不改变性质。
 
 ## 7. 运行与判读
 

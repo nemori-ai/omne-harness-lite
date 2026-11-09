@@ -4,7 +4,7 @@ import type { ToolLedgerStore, AccessVerdict } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import {
   createLocalStartCoordinator,
-  START_COORDINATOR_DOMAIN_KEY,
+  callHostDomain,
   type StartPermitRequirement,
   type StartPermitRequirements,
   type StartCoordinatorAccess,
@@ -92,11 +92,7 @@ async function fixture(
   const execute = (permit: StartPermit) =>
     author.binding.start({ ...call, start, request: fixed, permit }, author.environment)
   const records = async () => {
-    const result = await memory.read({
-      kind: 'host',
-      tenant: call.tenant,
-      key: START_COORDINATOR_DOMAIN_KEY,
-    })
+    const result = await memory.read(callHostDomain(call.tenant, 'start', call.call))
     if (result.kind !== 'complete') throw new Error('memory read failed')
     return result.records.flatMap(record => (record.kind === 'host' ? [record.host.value] : []))
   }

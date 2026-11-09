@@ -14,7 +14,6 @@ it('root entry exports the local start coordinator (G5), the host clock (G4), th
     'ENVIRONMENT_RETENTION_DOMAIN_KEY',
     'INVOCATION_SOURCE_DOMAIN_KEY',
     'PROGRAMMATIC_NOT_IN_M2',
-    'START_COORDINATOR_DOMAIN_KEY',
     'START_COORDINATOR_OWNER',
     'START_GUARDS_DOMAIN_KEY',
     'TOOL_FORWARDING_OWNER',

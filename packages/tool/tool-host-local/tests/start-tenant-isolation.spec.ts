@@ -23,7 +23,7 @@ function barrier() {
   return { wait, open }
 }
 
-it('lets tenant B commit while A is blocked in its read and keeps A consume behind invalidation', async () => {
+it('lets tenant B commit while A is blocked in its read, and decides A by commit order', async () => {
   const memory = createMemoryToolLedgerStore()
   const entered = barrier()
   const resume = barrier()
@@ -73,11 +73,17 @@ it('lets tenant B commit while A is blocked in its read and keeps A consume behi
   } finally {
     resume.open()
   }
+  // The invalidation was suspended before its read, so the acceptance committed first and the
+  // invalidation landed after it; the accepted start stays in flight (P04: only an invalidation
+  // that holds first forbids the start).
   expect(await invalidated).toHaveProperty('ok')
-  expect(await consumed).toMatchObject({ ok: { kind: 'rejected' } })
+  expect(await consumed).toMatchObject({ ok: { kind: 'started' } })
+  expect(await authority.inspect({ ...callAccess('a'), start: startOf('a') })).toMatchObject({
+    ok: { kind: 'started' },
+  })
 })
 
-it('an earlier completed tail does not remove its blocked successor from the tenant queue', async () => {
+it('an earlier completed tail does not remove its blocked successor from the queue of its domain', async () => {
   const memory = createMemoryToolLedgerStore()
   const first = barrier()
   const second = barrier()
@@ -92,7 +98,7 @@ it('an earlier completed tail does not remove its blocked successor from the ten
       if (reads === 1) {
         firstEntered.open()
         await first.wait
-      } else if (reads === 2) {
+      } else if (reads === 3) {
         secondEntered.open()
         await second.wait
       }
@@ -101,20 +107,22 @@ it('an earlier completed tail does not remove its blocked successor from the ten
     commit: input => memory.commit(input),
   }
   const authority = coordinator(store)
-  const prepare = (call: string) =>
-    authority.prepare({ ...callAccess(call), start: startOf(call), request: request() })
-  const one = prepare('one')
+  // The queue is per written domain: three prepares of one call share the call's domain. Each
+  // prepare reads that domain and then the guard domain, two reads per turn.
+  const prepare = () =>
+    authority.prepare({ ...callAccess('one'), start: startOf('one'), request: request() })
+  const one = prepare()
   await firstEntered.wait
-  const two = prepare('two')
+  const two = prepare()
   first.open()
   expect(await one).toHaveProperty('ok')
   await secondEntered.wait
-  const three = prepare('three')
+  const three = prepare()
   // Flush qualification and queue microtasks without allowing the blocked store to return.
   await new Promise<void>(resolve => setImmediate(resolve))
-  expect(reads).toBe(2)
+  expect(reads).toBe(3)
   second.open()
   expect(await two).toHaveProperty('ok')
   expect(await three).toHaveProperty('ok')
-  expect(reads).toBe(3)
+  expect(reads).toBe(6)
 })
