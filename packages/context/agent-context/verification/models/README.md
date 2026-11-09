@@ -1,29 +1,23 @@
 # verification/models
 
-<!-- documentation:placeholder -->
-
-本目录承载本包的形式模型，例如 TLA+、Alloy 或 SMT 模型。
+本目录承载本包的形式模型。
 
 ## 允许的内容
 
-<!-- documentation:placeholder -->
-
-模型源文件、配置与说明。
+模型源文件、TLC 配置、预期文件与每个模型的说明。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
-说明模型对应的 `SPEC.md` 条款、抽象前提与未覆盖的部分。模型通过不等于实现符合。
+每个模型的说明写明对应的 `SPEC.md` 条款、环境前提与未覆盖的部分。模型通过不等于实现符合。单次运行的输出留任务 tmp，不进本目录。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-承诺或实现结构变化时，复核模型的抽象是否仍然成立。
+被建模的承诺或外域前提变化时，同步模型、配置与预期文件，并复核抽象是否仍然成立。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
+| 模型 | 核对什么 |
+| --- | --- |
+| [staging-key](staging-key/README.md) | 暂存表的键等于调用身份；守会话与 execution 不变式的调用方不被拒 |
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+负责人与包的负责人相同。其余条款目前没有形式模型。
