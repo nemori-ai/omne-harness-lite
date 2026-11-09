@@ -4,6 +4,9 @@ export { createToolsAuthor, toolsToolModule } from './tools.ts'
 export type { FilesAuthorEnvironment, ShellAuthorEnvironment } from './environment.ts'
 export { createTodoItemsAuthor, todoItemsToolModule } from './todo-items.ts'
 export { attachTodoItems, todoItemsOf } from './todo-items-port.ts'
+export { createWebAuthor, webToolModule } from './web.ts'
+export { attachWebAccess, webAccessOf } from './web-port.ts'
+export type { FetchedPage, SearchHit, WebAccess, WebFailure } from './web-port.ts'
 export type {
   BoundTodoItems,
   TodoAuthorCursor,

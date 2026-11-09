@@ -22,6 +22,11 @@
       "source": "./src/cordis.ts",
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
+    },
+    "./web": {
+      "source": "./src/web.ts",
+      "types": "./dist/web.d.ts",
+      "import": "./dist/web.js"
     }
   },
   "files": [
@@ -39,18 +44,23 @@
     "@omne-harness/call-account": "workspace:*",
     "@omne-harness/content-block": "workspace:*",
     "@omne-harness/execution-environment-contract": "workspace:*",
+    "@omne-harness/execution-environment-cordis-contract": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/runtime-context-contract": "workspace:*",
     "@omne-harness/schema-provider": "workspace:*",
+    "@omne-harness/stream-arrival": "workspace:*",
     "@omne-harness/tool": "workspace:*",
     "@omne-harness/tool-contract": "workspace:*",
     "@omne-harness/tool-cordis-contract": "workspace:*",
-    "@omne-harness/stream-arrival": "workspace:*",
-    "@omne-harness/execution-environment-cordis-contract": "workspace:*"
+    "@omne-harness/tool-definitions": "workspace:*",
+    "turndown": "7.2.5",
+    "undici": "8.11.2",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/turndown": "5.0.6",
     "@typescript/typescript6": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

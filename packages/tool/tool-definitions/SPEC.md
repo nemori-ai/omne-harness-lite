@@ -80,3 +80,18 @@ TodoItems 采用 [Session Todo 契约](../../session/session-contract/SPEC.md)�
 - attachTodoItems 复用传入的同一 context 对象，以 WeakMap 登记。必须在产生新 context 的 Tools 附着之后调用。finish 先清除 Todo，再委托原 finish，重复调用返回同一 Promise。清理失败仍不恢复访问，也不撤销已提交效果。
 
 [Todo 作者测试](tests/todo-items.spec.ts)通过真实 commandArguments、参数解码、executeTool、输出校验和 codec 检查业务映射。Tools 组合使用真实 attachToolsCapability。绑定业务方法使用定向替身，未覆盖完整应用、SQL、真实 Agent 或自动 Runtime Context 投影。
+
+## Web 作者
+
+Web 采用[元能力产品](../../../.meta_harness/design/product/meta-capabilities/design.md#meta-web)的 Web 规则。公开窄口 `WebAccess`、`WebFailure`、`SearchHit`、`FetchedPage` 与 `attachWebAccess` 归 [web-port.ts](src/web-port.ts)。作者不认识搜索供应商、HTTP 客户端、凭据或租户：它从每次调用附着的端口取结果，只负责参数、结果文本与失败文本。
+
+- Web 采用 wrapped 单声明，只有 help、search、fetch。参数由 [web-protocol.ts](src/web-protocol.ts) 的命令表声明与校验；未知字段、空白 `query`、非正整数 `limit` 与空 `url` 都是参数错误，不进入端口。help 无需附着。缺少附着时 search 与 fetch 明确答 `unavailable`。
+- 构造值只有必填的 `resultMaxBytes` 与 `maxSearchResults`，都是正安全整数。environment 为 null，只有文本输入输出，不支持后台。定义不随构造值变化，发行清单能固定它的摘要。
+- search 不带 `limit` 时取 5 条与 `maxSearchResults` 的较小者；`limit` 超过 `maxSearchResults` 时按上限取。零条结果是成功，文本写 `results=0` 与 `no results`。有结果时每条写标题、`url=`、可选 `published=` 与摘录，整段放在外部数据标记 `[external data begins …]` 与 `[external data ends]` 之间。
+- fetch 成功时首行写 `done Web fetch url=<最终网址> media_type=<媒体类型> truncated=<true|false>`，正文放在同一对外部数据标记之间。提供者按字节上限截断时 `truncated=true` 并多一行说明。
+- 失败是一行 `<kind> reason=<原因>`，kind 是 `WebFailure` 的闭集：`unconfigured`、`denied`、`quota-exhausted`、`rate-limited`、`upstream`（带 `status=`）、`invalid-url`、`redirect-limit`、`timeout`、`too-large`、`not-text`（带 `media_type=`）、`network`、`unavailable`。`unconfigured` 的原因写明要配置 Web 的设置项 `exa.apiKey`。失败文本不带外部数据标记。
+- 每次返回的文本由 `bounded()` 限制在 `resultMaxBytes` 以内，截断时保留首尾并写 `[tool truncated bytes …]` 标记；标记本身计入预算。
+- `attachWebAccess` 复用传入的同一 context，以 WeakMap 登记，必须在产生新 context 的 Tools 附着之后调用。finish 先撤除访问，再委托原 finish，重复调用返回同一 Promise。
+- 本切片的作者不声明设置项（`settings: null`）。秘密设置项的声明与取用是后续切片的工作。
+
+[Web 作者测试](tests/web.spec.ts)通过真实 commandArguments、参数解码、executeTool、输出校验与 codec 核对结果文本与失败行；`WebAccess` 是脚本化替身。它不证明网络、Exa 或凭据行为，这些归 [tool-host-local 的 Web 提供者](../tool-host-local/SPEC.md#web-提供者web-子路径)。

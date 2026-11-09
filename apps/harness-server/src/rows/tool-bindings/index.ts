@@ -32,12 +32,40 @@ import { isReleaseToolRequest, isReleaseToolsRequest } from '../../entry/tool-fo
 import { releaseOf } from '../../entry/tool-release.ts'
 import { createReleaseToolsCapability, toolsCapabilityConfig } from './tools-capability.ts'
 import { bindReleaseTodoItems } from './todo-items.ts'
+import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
 
 export const toolBindingsConfig = z
-  .strictObject({ tools: toolsCapabilityConfig.optional() })
+  .strictObject({ tools: toolsCapabilityConfig.optional(), web: webBindingConfig.optional() })
   .default({})
 
 type Input = LocalToolBindingsPluginInput<unknown, unknown, ToolMessageContentBlock>
+type Attachments = Readonly<{
+  tools: ReturnType<typeof createReleaseToolsCapability> | null
+  web: WebBindingConfig | null
+}>
+
+/**
+ * The per-call attachments of the release, in a fixed order: Tools first (it produces the context the
+ * others attach to), then TodoItems, then Web. Each attaches only to the call of its own release tool.
+ */
+export function releaseCapability(
+  ctx: Context,
+  attachments: Attachments,
+): NonNullable<Input['capability']> {
+  return (input, scope) => {
+    const release = releaseOf(ctx)
+    const withTools =
+      attachments.tools !== null && isReleaseToolsRequest(release, input.request)
+        ? attachments.tools.bind(input, scope)
+        : scope
+    const withTodos = isReleaseToolRequest(release, input.request, 'TodoItems')
+      ? bindReleaseTodoItems(ctx, input, withTools)
+      : withTools
+    return attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
+      ? bindReleaseWeb(input, withTodos, attachments.web)
+      : withTodos
+  }
+}
 
 const startUnavailable = (diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency: toolStartAuthorityKey, diagnostic })
@@ -122,16 +150,7 @@ const bindingsPlugin: Plugin.Object = {
       authority: startAuthorityProxy(ctx),
       scope: bundleScope(ctx),
       settle: bundleSettle(ctx),
-      capability: (input, scope) => {
-        const release = releaseOf(ctx)
-        const withTools =
-          tools !== null && isReleaseToolsRequest(release, input.request)
-            ? tools.bind(input, scope)
-            : scope
-        return isReleaseToolRequest(release, input.request, 'TodoItems')
-          ? bindReleaseTodoItems(ctx, input, withTools)
-          : withTools
-      },
+      capability: releaseCapability(ctx, { tools, web: config.web ?? null }),
     })
     // Both services register in this row's fiber: `toolBindings` here, `toolCatalog` in its constructor.
     new Bindings(ctx)
