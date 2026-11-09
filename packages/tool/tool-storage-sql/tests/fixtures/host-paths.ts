@@ -208,6 +208,15 @@ export function terminalOf(index: number): ManagedResource {
   }
 }
 
+/** The retained process a seeded call hands over to its retention scope. */
+export function processOf(index: number): ManagedResource {
+  return {
+    key: `process-${width(index)}`,
+    provider: 'fixture',
+    reference: { kind: 'string', value: `process-generation-${width(index)}` },
+  }
+}
+
 /** The call record of a parent while it runs: admitted, started, with its environment preparation. */
 export function runningCall(input: {
   tenant: TenantId

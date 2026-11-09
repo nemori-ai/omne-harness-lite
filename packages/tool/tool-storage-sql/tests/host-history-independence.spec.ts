@@ -4,14 +4,17 @@
 // source with its forwarding slot and receiver, the control subjects, the environment ledgers and
 // the result delivery worker over a real Tool ledger. Each seeded call does what a settled Tools
 // call leaves behind on these paths: a source binding, a controller association, a consumed start,
-// an environment acquisition with a retained terminal in the session's long-lived retention scope
-// (stopped and closed as a settled call leaves it), a forwarded target with its consumed start and
+// an environment acquisition with a retained terminal and a retained process handed over to the
+// session's long-lived retention scope (both stopped, the process's end fact read back, the
+// acquisition closed, as a settled call leaves them), a forwarded target with its consumed start and
 // one received result copy, and the parent's own result delivery driven to `done`, which releases
 // that copy. The counting store sees every ledger read the host makes; the two runs must read the
 // same number of records and the same number of bytes, so nothing the host reads per call may grow
 // with the history. The `start-guards` domain grows with control actions only; its size is
-// reported, not compared. The retention scope spans every call of the session, so its size must
-// not grow with the calls.
+// reported, not compared. The retention scope spans every call of the session, so its record must
+// not grow with the calls; its end facts, one per stopped retained process, grow with the scope's
+// lifetime (stop clause 7 of the execution-environment contract) and are counted, and reading one
+// of them touches one record.
 //
 // @module-tag slow: real SQLite under 2000 seeded calls, several minutes of IO and CPU.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -19,6 +22,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { succeed } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
+  hostKey,
   type CallRecord,
   type LedgerDomain,
   type LedgerRecord,
@@ -62,6 +66,7 @@ import {
   ok,
   parentRequest,
   preparationOf,
+  processOf,
   principalCodec,
   runningCall,
   startOf,
@@ -76,6 +81,7 @@ import { ledgerWorld, type Principal as LedgerPrincipal } from './fixtures/ledge
 const GUARD: GuardResource = { owner: 'permissions', resource: 'scope-1/read_file' }
 /** The retention scope of the session every seeded call belongs to. */
 const SCOPE = targetRequest().requesterScope
+const SCOPE_DOMAIN = retentionHostDomain(TENANT_A, canonicalDigest(SCOPE))
 const N = 2000
 
 /** What the host read through the store: calls, records and the bytes of those records. */
@@ -218,8 +224,10 @@ async function consumedStart(
 
 /**
  * The environment work of one call: its acquisition record bound to the session's retention
- * scope, a retained terminal planned and permitted in that scope, the terminal's confirmed stop,
- * and the closed acquisition, as a settled call leaves them.
+ * scope, a retained terminal planned and permitted in that scope and its confirmed stop, a
+ * retained process planned by the acquisition and handed over to the scope, its confirmed stop
+ * and its end fact read back as a later `stop` reads it, and the closed acquisition, as a settled
+ * call leaves them.
  */
 async function environmentOf(
   ports: Host,
@@ -246,6 +254,13 @@ async function environmentOf(
     address: preparation,
     authorize,
   })
+  const process = processOf(index)
+  if ((await acquisition.plan(process)) !== 'recorded') throw new Error('process plan')
+  if ((await retained.plan(process)) !== 'recorded') throw new Error('process reservation')
+  if ((await retained.adopt(process.key)) !== 'confirmed') throw new Error('process handover')
+  if ((await retained.stopped(process.key, 'confirmed')) !== 'recorded')
+    throw new Error('process stop')
+  if ((await retained.ended(process.key)) !== 'confirmed') throw new Error('process end fact')
   if ((await acquisition.close()) !== 'confirmed') throw new Error('acquisition close')
 }
 
@@ -421,6 +436,47 @@ async function seeded(n: number) {
   return app
 }
 
+/** The bytes of the retention scope's record, the one record every call of the scope reads. */
+async function scopeRecordBytes(store: ToolLedgerStore) {
+  const read = await store.readRecord(SCOPE_DOMAIN, hostKey('scope'))
+  if (read.kind !== 'complete') throw new Error(`scope record: ${read.diagnostic}`)
+  return Buffer.byteLength(JSON.stringify(read.record), 'utf8')
+}
+
+/** The end fact records of the retention scope: one per stopped retained process. */
+async function endFacts(store: ToolLedgerStore) {
+  const read = await store.read(SCOPE_DOMAIN)
+  if (read.kind !== 'complete') throw new Error(`scope domain: ${read.diagnostic}`)
+  return read.records.filter(
+    record => record.kind === 'host' && record.host.key.startsWith('ended/'),
+  ).length
+}
+
+/** What one `ended(key)` of the scope reads through `store`. */
+async function endedRead(store: ToolLedgerStore, index: number): Promise<ReadCount> {
+  const counting = countingStore(store)
+  const ports = await host(counting)
+  const call = callIdOf(`ended-reader-${width(index)}`)
+  const request = {
+    ...parentRequest(index),
+    invocation: { kind: 'direct' as const, source: evidence('entry') },
+  }
+  const preparation = preparationOf(TENANT_A, call, request)
+  const view = await createRetainedTerminalLedger({
+    state: ports.environments,
+    address: preparation,
+    scope: SCOPE,
+    authorize: async () => 'authorized',
+  })
+  const before = { ...counting.count }
+  if ((await view.ended(processOf(index).key)) !== 'confirmed') throw new Error('end fact')
+  return {
+    reads: counting.count.reads - before.reads,
+    records: counting.count.records - before.records,
+    bytes: counting.count.bytes - before.bytes,
+  }
+}
+
 /** The records and bytes of one host domain that spans calls, for the report. */
 async function domainSize(store: ToolLedgerStore, domain: LedgerDomain) {
   const read = await store.read(domain)
@@ -441,30 +497,36 @@ describe(`the host paths after 20 and after ${String(N)} settled Tools calls`, (
   })
 
   it(
-    `one Tools call reads the same records and bytes after 20 and after ${String(N)} settled calls, and the session's retention scope does not grow`,
+    `one Tools call reads the same records and bytes after 20 and after ${String(N)} settled calls, and the session's retention scope record does not grow`,
     { timeout: 120_000 },
     async () => {
       const counts: Record<string, ReadCount> = {}
-      const retention: Record<string, unknown> = {}
+      const scopeRecord: Record<string, number> = {}
+      const ended: Record<string, number> = {}
+      const endedReads: Record<string, ReadCount> = {}
       for (const n of [20, N]) {
         const app = apps[String(n)]
         if (app === undefined) throw new Error('seeding did not run')
         const counting = countingStore(app.store)
         await toolsCall(await host(counting), n)
         counts[String(n)] = { ...counting.count }
-        retention[String(n)] = await domainSize(
-          app.store,
-          retentionHostDomain(TENANT_A, canonicalDigest(SCOPE)),
-        )
+        scopeRecord[String(n)] = await scopeRecordBytes(app.store)
+        // Allowed to grow with the scope's stopped processes: n seeded plus the counted call.
+        ended[String(n)] = await endFacts(app.store)
+        expect(ended[String(n)]).toBe(n + 1)
+        endedReads[String(n)] = await endedRead(app.store, 0)
+        expect(endedReads[String(n)]).toMatchObject({ reads: 1, records: 1 })
         // Reported, not compared: the guard domain grows with control actions, never with calls.
         console.info(
           `start-guards after ${String(n)} calls`,
           await domainSize(app.store, { kind: 'host', tenant: TENANT_A, key: 'start-guards' }),
         )
       }
-      console.info('one Tools call reads', counts, 'retention scope', retention)
+      console.info('one Tools call reads', counts, 'retention scope record bytes', scopeRecord)
+      console.info('retention scope end facts', ended, 'one ended(key) reads', endedReads)
       expect(counts[String(N)]).toEqual(counts['20'])
-      expect(retention[String(N)]).toEqual(retention['20'])
+      expect(scopeRecord[String(N)]).toEqual(scopeRecord['20'])
+      expect(endedReads[String(N)]).toEqual(endedReads['20'])
     },
   )
 
