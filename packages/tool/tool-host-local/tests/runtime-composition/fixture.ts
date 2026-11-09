@@ -3,12 +3,7 @@ import { catalogSearch, catalogView } from '../catalog-view-fixture.ts'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { expect } from 'vitest'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import {
-  canonicalDigest,
-  type ToolConfiguration,
-  type ToolLedgerStore,
-  type LedgerWrite,
-} from '@omne-harness/tool'
+import { canonicalDigest, type ToolConfiguration, type ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore, createMemoryToolMaterials } from '@omne-harness/tool/testing'
 import type {
   ToolDelivery,
