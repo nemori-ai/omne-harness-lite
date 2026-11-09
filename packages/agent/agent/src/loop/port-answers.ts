@@ -40,6 +40,7 @@ export function notingPorts<T extends object>(ports: T): T {
   const proxy = new Proxy(Object.create(null) as T, {
     get: (_, key) => wrap(Reflect.get(ports, key, ports)),
     has: (_, key) => Reflect.has(ports, key),
+    getPrototypeOf: () => Reflect.getPrototypeOf(ports),
     ownKeys: () => Reflect.ownKeys(ports),
     getOwnPropertyDescriptor: (_, key) => {
       const own = Reflect.getOwnPropertyDescriptor(ports, key)

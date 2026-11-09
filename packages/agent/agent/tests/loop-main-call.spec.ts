@@ -516,7 +516,9 @@ describe('received Model result adoption', () => {
       )
       const c = coordinator(assembly),
         authority = ok(await c.accept())
-      expect(failure(await c.runExecution())).toMatchObject({ node: 'I3' })
+      // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
+      // 依赖不可用时的等待).
+      ok(await c.runExecution())
       const before = await load(assembly)
       expect(before.checkpoint.position).toBe('M4')
       ok(await coordinator(assembly).continueExecution(authority))
@@ -591,10 +593,9 @@ it('no-reply waits for injected time and retains one candidate after an excluded
   }))
   const c = coordinator(assembly)
   ok(await c.accept())
-  expect(failure(await c.runExecution())).toMatchObject({
-    node: 'I3',
-    failure: { owner: 'clock' },
-  })
+  // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
+  // 依赖不可用时的等待).
+  ok(await c.runExecution())
   expect((await load(assembly)).checkpoint.position).toBe('M4')
   expect(failure(await c.runExecution())).toMatchObject({
     node: 'F1',
@@ -782,7 +783,9 @@ it('a transient material read failure resumes the same received delivery without
   assembly.release.open()
   const c = coordinator(assembly)
   ok(await c.accept())
-  expect(failure(await c.runExecution())).toMatchObject({ node: 'M3' })
+  // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
+  // 依赖不可用时的等待).
+  ok(await c.runExecution())
   const before = await load(assembly)
   ok(await c.runExecution())
   expect(admissions).toBe(1)

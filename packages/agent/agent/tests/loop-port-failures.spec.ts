@@ -1,7 +1,6 @@
-// A port that fails at any node of the normal path holds the run at that node: an unavailable
-// Journal, Model, Tool or message admission is a dependency wait (Agent SPEC 依赖不可用时的等待;
-// with a dependency that never comes back, as here, the run waits and sleeps between check times),
-// and any other port's failure stops the run (the #502 1.2 limit). The Journal keeps the `position` of the last commit before it, the execution does not
+// A port that fails at any node of the normal path holds the run at that node: a port's
+// `unavailable` is a dependency wait (Agent SPEC 依赖不可用时的等待; with a dependency that never comes
+// back, as here, the run waits and sleeps between check times).
 // end before F3, and the runtime never shows idle. The stop keeps the port's owner apart from
 // `@omne-harness/agent#defect` inside the coordinator only; the waits of #502 1.9 make that
 // readable. The failure branches of these nodes are the work of #502 1.3 to 1.9; this test only

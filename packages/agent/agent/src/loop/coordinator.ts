@@ -571,16 +571,24 @@ export function recoveryRoute(
 
 export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): ExecutionCoordinator {
   const { binding, evaluator, execution } = entry
-  // The answers of the Journal (with its received entries), Model and Tool (SPEC "依赖不可用时的
-  // 等待"), and of the message admission, which reads the same storage: a port's `unavailable`
-  // among them is a wait.
+  // The answers of the dependency ports are noted: an `unavailable` that a dependency answered
+  // is a wait (SPEC "依赖不可用时的等待"; agent-host-local SPEC 运行失败: a dependency that is
+  // unavailable now does not stop the drive). A failure that the coordinator or the evaluator made
+  // is not a port's. `toolRequests` is the trusted in-process request source, not a dependency.
   const ports = {
     ...entry.ports,
     journal: notingPorts(entry.ports.journal),
+    entries: notingPorts(entry.ports.entries),
     models: notingPorts(entry.ports.models),
     tools: notingPorts(entry.ports.tools),
+    conditions: notingPorts(entry.ports.conditions),
+    requests: notingPorts(entry.ports.requests),
+    selection: notingPorts(entry.ports.selection),
+    modelContext: notingPorts(entry.ports.modelContext),
+    admission: notingPorts(entry.ports.admission),
     handoff: notingPorts(entry.ports.handoff),
-    entries: notingPorts(entry.ports.entries),
+    materials: notingPorts(entry.ports.materials),
+    clock: notingPorts(entry.ports.clock),
   }
   const access: Access<P> = { principal: entry.access.principal, tenant: entry.access.tenant }
 
