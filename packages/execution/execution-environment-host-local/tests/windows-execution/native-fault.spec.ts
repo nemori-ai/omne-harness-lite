@@ -46,7 +46,7 @@ it('keeps a failed pipe read distinct from a completely drained output', async c
     child.stdout.setEncoding('utf8')
     child.stdout.on('data', (part: string) => {
       text += part
-      if (text.includes('"t":"exit"')) child.stdin.end('dispose\n')
+      if (text.includes('"t":"exit"')) child.stdin.end('stop\ndispose\n')
     })
     child.stdin.write(
       `${JSON.stringify({
@@ -64,7 +64,7 @@ it('keeps a failed pipe read distinct from a completely drained output', async c
     try {
       await closed
       expect(text).toContain('"t":"exit"')
-      expect(text).toContain('"complete":false')
+      expect(text).toContain('"outputLost":true')
     } finally {
       clearTimeout(deadline)
       child.kill()

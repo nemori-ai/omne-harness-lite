@@ -18,7 +18,12 @@ public sealed class OmneRequest {
 }
 
 public static partial class OmneWindowsBridge {
-  public static void Main() { Console.SetIn(new StreamReader(Console.OpenStandardInput(),new UTF8Encoding(false,true),false,4096)); Console.SetOut(new StreamWriter(Console.OpenStandardOutput(),new UTF8Encoding(false),4096) {AutoFlush=true}); Run(); }
+  public static void Main(string[] argv) {
+    // Anchor: started first in the command's Job with the Job's handle inherited; it holds that
+    // handle until the Job is terminated, so the Job and its name outlive the bridge.
+    if(argv.Length==1 && argv[0]=="anchor") { Thread.Sleep(Timeout.Infinite); return; }
+    Console.SetIn(new StreamReader(Console.OpenStandardInput(),new UTF8Encoding(false,true),false,4096)); Console.SetOut(new StreamWriter(Console.OpenStandardOutput(),new UTF8Encoding(false),4096) {AutoFlush=true}); Run();
+  }
   [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] struct SI {
     public uint cb; public string reserved,desktop,title;
     public uint x,y,xsize,ysize,xchars,ychars,fill,flags;
@@ -38,6 +43,9 @@ public static partial class OmneWindowsBridge {
   [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr OpenJobObjectW(uint access,bool inherit,string name);
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool SetInformationJobObject(IntPtr h,int cls,ref EXT_LIMIT info,uint len);
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool QueryInformationJobObject(IntPtr h,int cls,out ACCOUNT info,uint len,IntPtr ret);
+  [DllImport("kernel32.dll",SetLastError=true)] static extern bool QueryInformationJobObject(IntPtr h,int cls,IntPtr info,uint len,IntPtr ret);
+  [DllImport("kernel32.dll",SetLastError=true)] static extern IntPtr OpenProcess(uint access,bool inherit,uint pid);
+  [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool QueryFullProcessImageNameW(IntPtr process,uint flags,StringBuilder name,ref uint size);
   [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool CreateProcessW(string app,StringBuilder cmd,IntPtr pa,IntPtr ta,bool inherit,uint flags,IntPtr env,string cwd,ref SX si,out PI pi);
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool TerminateJobObject(IntPtr job,uint code);
   [DllImport("kernel32.dll",SetLastError=true)] static extern uint ResumeThread(IntPtr thread);
@@ -55,8 +63,9 @@ public static partial class OmneWindowsBridge {
   static readonly object OutputLock=new object(), JobLock=new object();
   static readonly JavaScriptSerializer Json=new JavaScriptSerializer { MaxJsonLength=2097152, RecursionLimit=16 };
   static IntPtr job=IntPtr.Zero;
-  static PI child;
+  static PI child, anchor;
   static int bound;
+  static long lastOutput;
   static bool confirmed;
   static bool outputLost;
   static EventWaitHandle release;
@@ -97,6 +106,78 @@ public static partial class OmneWindowsBridge {
       return false;
     }
   }
+  /**
+   * The Job's processes other than the anchor and the console hosts (conhost.exe) that Windows
+   * starts in the Job for its console members; -1 when they cannot be read. A console host ends
+   * with the last process it serves, so it is never what a command leaves behind.
+   */
+  static int Members() {
+    lock(JobLock) {
+      if(job==IntPtr.Zero) return -1;
+      const int capacity=4096;int size=8+capacity*IntPtr.Size;IntPtr list=Marshal.AllocHGlobal(size);
+      try {
+        if(!QueryInformationJobObject(job,3,list,(uint)size,IntPtr.Zero)) return -1;
+        int count=Marshal.ReadInt32(list,4),members=0;
+        for(int i=0;i<count;i++) {
+          uint pid=(uint)Marshal.ReadIntPtr(list,8+i*IntPtr.Size).ToInt64();
+          if(pid==anchor.pid) continue;
+          IntPtr process=OpenProcess(0x00101000,false,pid);
+          if(process==IntPtr.Zero) { if(Marshal.GetLastWin32Error()!=87) members++;continue; }
+          try {
+            StringBuilder name=new StringBuilder(1024);uint length=(uint)name.Capacity;
+            bool host=QueryFullProcessImageNameW(process,0,name,ref length) && WaitForSingleObject(process,0)==258 &&
+              string.Equals(Path.GetFileName(name.ToString()),"conhost.exe",StringComparison.OrdinalIgnoreCase);
+            if(!host && WaitForSingleObject(process,0)==258) members++;
+          } finally { CloseHandle(process); }
+        }
+        return members;
+      } finally { Marshal.FreeHGlobal(list); }
+    }
+  }
+  /** Starts the anchor in the Job. Only the Job handle is inherited, and only by the anchor. */
+  static void StartAnchor() {
+    IntPtr list=IntPtr.Zero,handles=IntPtr.Zero,jobs=IntPtr.Zero;
+    try {
+      Check(SetHandleInformation(job,1,1));
+      IntPtr size=IntPtr.Zero;InitializeProcThreadAttributeList(IntPtr.Zero,2,0,ref size);
+      list=Marshal.AllocHGlobal(size);Check(InitializeProcThreadAttributeList(list,2,0,ref size));
+      handles=Marshal.AllocHGlobal(IntPtr.Size);Marshal.WriteIntPtr(handles,job);
+      Check(UpdateProcThreadAttribute(list,0,new IntPtr(0x20002),handles,new IntPtr(IntPtr.Size),IntPtr.Zero,IntPtr.Zero));
+      jobs=Marshal.AllocHGlobal(IntPtr.Size);Marshal.WriteIntPtr(jobs,job);
+      Check(UpdateProcThreadAttribute(list,0,new IntPtr(0x2000D),jobs,new IntPtr(IntPtr.Size),IntPtr.Zero,IntPtr.Zero));
+      string self=Process.GetCurrentProcess().MainModule.FileName;
+      SX sx=new SX();sx.si.cb=(uint)Marshal.SizeOf(sx);sx.list=list;
+      // DETACHED_PROCESS: the anchor has no console, so no console host joins the Job for it.
+      Check(CreateProcessW(self,new StringBuilder(Quote(self)+" anchor"),IntPtr.Zero,IntPtr.Zero,true,0x00080008,IntPtr.Zero,null,ref sx,out anchor));
+      CloseHandle(anchor.thread);anchor.thread=IntPtr.Zero;
+    } finally {
+      SetHandleInformation(job,1,0);
+      if(list!=IntPtr.Zero){DeleteProcThreadAttributeList(list);Marshal.FreeHGlobal(list);}
+      if(handles!=IntPtr.Zero)Marshal.FreeHGlobal(handles);
+      if(jobs!=IntPtr.Zero)Marshal.FreeHGlobal(jobs);
+    }
+  }
+  /** After the main process exits, output that stays quiet this long is complete, as on Linux. */
+  static void AwaitQuiet(OutputReader stdout,OutputReader stderr) {
+    while(stdout.thread.IsAlive || stderr.thread.IsAlive) {
+      long idle=(Stopwatch.GetTimestamp()-Interlocked.Read(ref lastOutput))*1000/Stopwatch.Frequency;
+      if(idle>=100) return;
+      Thread.Sleep(10);
+    }
+  }
+  /** The job-round-trip prerequisite: an anchored probe Job is opened by name, read, stopped and confirmed. */
+  static bool Probe(string name) {
+    job=CreateJobObjectW(IntPtr.Zero,name);Check(job!=IntPtr.Zero);
+    EXT_LIMIT limit=new EXT_LIMIT();limit.basic.flags=0x2000;
+    Check(SetInformationJobObject(job,9,ref limit,(uint)Marshal.SizeOf(limit)));
+    StartAnchor();
+    IntPtr named=OpenJobObjectW(0x000C,false,name);
+    if(named==IntPtr.Zero) return false;
+    try {
+      if(Members()!=0) return false;
+      return Stop();
+    } finally { CloseHandle(named); }
+  }
   sealed class OutputReader { public Thread thread; public bool complete; }
   static OutputReader Pump(IntPtr pipe,string stream,int chunk) {
     OutputReader reader=new OutputReader();
@@ -108,6 +189,7 @@ public static partial class OmneWindowsBridge {
             reader.complete=Marshal.GetLastWin32Error()==109;if(stream=="terminal"&&!reader.complete)Emit(new {t="outputLost"});break;
           }
           if(count==0) { reader.complete=true;break; }
+          Interlocked.Exchange(ref lastOutput,Stopwatch.GetTimestamp());
           Emit(new { t="data",s=stream,b=Convert.ToBase64String(data,0,(int)count) });
         }
       } catch(IOException) { } finally { CloseHandle(pipe); }
@@ -121,6 +203,7 @@ public static partial class OmneWindowsBridge {
       if(Marshal.GetLastWin32Error()==183) {CloseHandle(job);job=IntPtr.Zero;throw new InvalidOperationException("Job name collision");}
       EXT_LIMIT limit=new EXT_LIMIT();limit.basic.flags=0x2000;
       Check(SetInformationJobObject(job,9,ref limit,(uint)Marshal.SizeOf(limit)));
+      StartAnchor();
       SA sa=new SA();sa.length=(uint)Marshal.SizeOf(sa);sa.inherit=1;
       Check(CreatePipe(out ir,out iw,ref sa,65536));Check(SetHandleInformation(iw,1,0));
       Check(CreatePipe(out orr,out ow,ref sa,65536));Check(SetHandleInformation(orr,1,0));
@@ -168,30 +251,31 @@ public static partial class OmneWindowsBridge {
         Emit(new { t="stopped", status=stopped?"confirmed":"unconfirmed" });
         return;
       }
-      release=new EventWaitHandle(false,EventResetMode.ManualReset,r.name+"-release");
+      if(r.mode=="probe") { bool ok;try { ok=Probe(r.name); } catch(Exception) { Stop();ok=false; } Emit(new { t="probe",ok=ok });return; }
       OutputReader stdout,stderr;Prepare(r,out stdout,out stderr);Emit(new {t="ready"});
       string line=Line();
       if(line!="go") { Emit(new {t="stopped",status=Stop()?"confirmed":"unconfirmed"});return; }
       Check(ResumeThread(child.thread)!=0xFFFFFFFF);Emit(new {t="started"});
+      // The waiter reports the exit and the Job's other members. It never stops the Job: the
+      // provider decides the disposition.
       Thread waiter=new Thread(delegate() {
         try {
           Check(WaitForSingleObject(child.process,0xFFFFFFFF)==0);uint code;Check(GetExitCodeProcess(child.process,out code));
-          bool stopped=Stop();bool drained=stdout.thread.Join(bound) && stderr.thread.Join(bound) && stdout.complete && stderr.complete;
-          Emit(new {t="exit",code=code,complete=stopped&&drained});
+          AwaitQuiet(stdout,stderr);int members=Members();
+          bool lost=(!stdout.thread.IsAlive && !stdout.complete) || (!stderr.thread.IsAlive && !stderr.complete);
+          Emit(new {t="exit",code=code,members=members<0 ? null : (object)members,outputLost=lost});
         } catch(Exception) { Emit(new {t="fault"}); }
       });waiter.IsBackground=true;waiter.Start();
       while((line=Line())!=null) {
         if(line=="stop")Emit(new {t="stopped",status=Stop()?"confirmed":"unconfirmed"});
         else if(line=="dispose")break;
       }
-      // Keep the original Job handle reachable after the controller disappears.
-      if(line==null)release.WaitOne();
-      Stop();waiter.Join(bound);
+      // Without a controller the command keeps running in its anchored Job. The bridge drains its
+      // pipes until the last writer is gone, so the command never blocks on a full pipe.
+      stdout.thread.Join();stderr.thread.Join();
     } catch(Exception e) { bool stopped=(job==IntPtr.Zero && child.process==IntPtr.Zero) || Stop();Emit(new {t="fault",stopped=stopped,error=e.GetType().Name,code=e is Win32Exception ? ((Win32Exception)e).NativeErrorCode : 0}); }
     finally {
-      Stop();
-      foreach(IntPtr h in new[]{child.thread,child.process,job})if(h!=IntPtr.Zero)CloseHandle(h);
-      if(release!=null)release.Dispose();
+      foreach(IntPtr h in new[]{child.thread,child.process,anchor.process,job})if(h!=IntPtr.Zero)CloseHandle(h);
     }
   }
 }

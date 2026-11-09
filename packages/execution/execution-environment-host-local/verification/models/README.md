@@ -24,15 +24,15 @@
 
 性质：
 
-| 名字 | 命题 | 负控配置 |
-| --- | --- | --- |
-| `P1_NoAnswerWithoutFrame` | 没有收到完整答复帧的请求不答完成或拒绝 | `FilesHelper-unsafe-p1.cfg`：半帧被当作完整帧 |
-| `P2_ExitAnswersUnknown` | 辅助进程退出时，已经写给它、没有答复的请求答未知 | `FilesHelper-unsafe-p2.cfg`：退出时答拒绝 |
-| `P3_NoDispatchAfterSeal` | 所有者封闭之后，它的请求不发给辅助进程 | `FilesHelper-unsafe-p3.cfg`：排队中的请求在封闭后被发出 |
-| `P4_InFlightBounded` | 在途数不超过上限 | `FilesHelper-unsafe-p4.cfg` |
-| `P5_SingleAnswer` | 每个请求只有一个最终答复，迟到的帧不改写它 | `FilesHelper-unsafe-p5.cfg`（重复帧）、`FilesHelper-unsafe-p5-late.cfg`（已退出进程的迟到帧） |
-| `P6_SettledIsQuiet` | 所有者结清时，辅助进程里没有它的请求还在执行 | `FilesHelper-unsafe-p6.cfg`：超时只答一个请求而不停止进程 |
-| 活性 L1、L2 | 弱公平下，每个准入的请求最终得到答复，辅助进程退出之后会重启 | `FilesHelper-unsafe-l.cfg`：退出之后不重启 |
+| 名字                      | 命题                                                         | 负控配置                                                                                      |
+| ------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `P1_NoAnswerWithoutFrame` | 没有收到完整答复帧的请求不答完成或拒绝                       | `FilesHelper-unsafe-p1.cfg`：半帧被当作完整帧                                                 |
+| `P2_ExitAnswersUnknown`   | 辅助进程退出时，已经写给它、没有答复的请求答未知             | `FilesHelper-unsafe-p2.cfg`：退出时答拒绝                                                     |
+| `P3_NoDispatchAfterSeal`  | 所有者封闭之后，它的请求不发给辅助进程                       | `FilesHelper-unsafe-p3.cfg`：排队中的请求在封闭后被发出                                       |
+| `P4_InFlightBounded`      | 在途数不超过上限                                             | `FilesHelper-unsafe-p4.cfg`                                                                   |
+| `P5_SingleAnswer`         | 每个请求只有一个最终答复，迟到的帧不改写它                   | `FilesHelper-unsafe-p5.cfg`（重复帧）、`FilesHelper-unsafe-p5-late.cfg`（已退出进程的迟到帧） |
+| `P6_SettledIsQuiet`       | 所有者结清时，辅助进程里没有它的请求还在执行                 | `FilesHelper-unsafe-p6.cfg`：超时只答一个请求而不停止进程                                     |
+| 活性 L1、L2               | 弱公平下，每个准入的请求最终得到答复，辅助进程退出之后会重启 | `FilesHelper-unsafe-l.cfg`：退出之后不重启                                                    |
 
 规模上限：`FilesHelper.cfg` 与 `FilesHelper-live.cfg` 是 2 个所有者、3 个请求、在途上限 2、至多 2 次故障。`FilesHelper-faults3.cfg`（3 次故障）与 `FilesHelper-req4.cfg`（4 个请求）只检查安全性质。
 
@@ -58,20 +58,20 @@ java -XX:+UseParallelGC -cp <tla2tools.jar> tlc2.TLC -workers 6 -deadlock -metad
 
 Windows 专有的性质：
 
-| 名字 | 命题 |
-| --- | --- |
-| `UserCodeAfterPermit` | 用户代码只在账本许可确认之后开始执行 |
-| `Reachable` | 有成员或有锚的 Job 在命名空间里有名字，所以能被列出和停止 |
-| `MarkerCoversJob` | 有成员或有锚的 Job 都有冷索引标记 |
-| `NoRetainedKillOnClose` | 保留执行域从不因句柄关闭而失去成员 |
+| 名字                    | 命题                                                      |
+| ----------------------- | --------------------------------------------------------- |
+| `UserCodeAfterPermit`   | 用户代码只在账本许可确认之后开始执行                      |
+| `Reachable`             | 有成员或有锚的 Job 在命名空间里有名字，所以能被列出和停止 |
+| `MarkerCoversJob`       | 有成员或有锚的 Job 都有冷索引标记                         |
+| `NoRetainedKillOnClose` | 保留执行域从不因句柄关闭而失去成员                        |
 
 负控：
 
-| 配置 | 改动 | 违反 |
-| --- | --- | --- |
-| `WindowsCustody-unsafe-noanchor.cfg`（N-W1） | 没有锚，桥是唯一的句柄持有者 | 精化 `Refines`：桥死亡杀掉保留进程，契约模型里没有对应的停止 |
+| 配置                                               | 改动                                   | 违反                                                                            |
+| -------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------- |
+| `WindowsCustody-unsafe-noanchor.cfg`（N-W1）       | 没有锚，桥是唯一的句柄持有者           | 精化 `Refines`：桥死亡杀掉保留进程，契约模型里没有对应的停止                    |
 | `WindowsCustody-unsafe-noanchor-clear.cfg`（N-W3） | 没有锚，移交时清除 `KILL_ON_JOB_CLOSE` | `StopTruth`：Job 的名字随最后一个句柄消失而成员仍在运行，「打不开」被当作已停止 |
-| `WindowsCustody-unsafe-session.cfg`（N-W2） | 别的登录会话里「打不开」也当作已停止 | `StopTruth` |
+| `WindowsCustody-unsafe-session.cfg`（N-W2）        | 别的登录会话里「打不开」也当作已停止   | `StopTruth`                                                                     |
 
 `Never` 开头的算子是可达见证。运行脚本从 `WindowsCustody.cfg` 为每个见证生成一个配置，见证被违反才说明对应的状态可达，性质不是空洞成立。
 

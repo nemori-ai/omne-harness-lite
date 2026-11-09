@@ -6,27 +6,27 @@
 
 精化映射是恒等映射：ProcessCustody 的 19 个变量在 WindowsCustody 里同名、同义，账本层的步骤直接调用 `PC!` 的动作。Windows 机制另加 14 个变量，对 ProcessCustody 不可见。
 
-| ProcessCustody 变量 | 在 Windows 上的含义 |
-| --- | --- |
-| `ph`、`own`、`kind`、`acqSt`、`closed`、`closureDone`、`resv`、`known`、`indexComplete`、`crashes`、五个 history | 与 PC 相同：TS 管理器与账本的状态。`kind` 恒为 `cmd`（本模型只建模一次性命令） |
-| `prim` | 主进程对象存在：以 `CREATE_SUSPENDED` 创建后即为真，不论是否已 `ResumeThread`。挂起态与运行态的区别由 Windows 变量 `started` 表达 |
-| `rp`、`ri` | Job 内除主进程、锚之外的成员数。Windows 没有挂断，两类留下的进程行为相同，保留两类只为与 PC 同形 |
-| `out` | 恒为 0：子进程以 `PROC_THREAD_ATTRIBUTE_JOB_LIST` 创建且不允许 breakaway，没有 `Escape` 动作。`Containment = "sealed"` 的实质在前提 P4，不在模型 |
+| ProcessCustody 变量                                                                                              | 在 Windows 上的含义                                                                                                                              |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ph`、`own`、`kind`、`acqSt`、`closed`、`closureDone`、`resv`、`known`、`indexComplete`、`crashes`、五个 history | 与 PC 相同：TS 管理器与账本的状态。`kind` 恒为 `cmd`（本模型只建模一次性命令）                                                                   |
+| `prim`                                                                                                           | 主进程对象存在：以 `CREATE_SUSPENDED` 创建后即为真，不论是否已 `ResumeThread`。挂起态与运行态的区别由 Windows 变量 `started` 表达                |
+| `rp`、`ri`                                                                                                       | Job 内除主进程、锚之外的成员数。Windows 没有挂断，两类留下的进程行为相同，保留两类只为与 PC 同形                                                 |
+| `out`                                                                                                            | 恒为 0：子进程以 `PROC_THREAD_ATTRIBUTE_JOB_LIST` 创建且不允许 breakaway，没有 `Escape` 动作。`Containment = "sealed"` 的实质在前提 P4，不在模型 |
 
-| Windows 变量 | 含义 | 对应的机制事实 |
-| --- | --- | --- |
-| `started[u]` | 已发 GO（`ResumeThread`） | 用户代码开始执行 |
-| `permitted[u]` | 账本 `permit` 答 `confirmed` | H-2 的证据 |
-| `bridge[u]` | `none`／`attached`（与提供者相连）／`orphan`（提供者已死，桥仍持句柄）／`dead` | 桥是 detached 独立进程，持有 Job 句柄 |
-| `anchor[u]` | Job 内的句柄持有者活着（只在 `Anchor = TRUE` 时为真） | 选定设计：Job 内锚进程，像 Linux 的门留在单元里 |
-| `koc[u]` | Job 带 `KILL_ON_JOB_CLOSE` | 创建时设置；移交时按 `ClearOnHandover` 清除 |
-| `marker[u]` | 冷索引标记：`none`／`cmd`／`handed` | 状态目录里的标记文件，记 Job 名、启动身份、会话号；移交后更新 |
-| `sessAt[u]` | 标记记下的登录会话 | `Local\` 命名对象按会话隔离 |
-| `stale[u]` | 标记的启动身份与当前不同 | 重启后为真 |
-| `curSess` | 当前提供者实例所在的登录会话 | 只在 `Recover`（新实例）时可变 |
-| `rebooting` | 机器正在关机，进程逐个死亡，无人观察 | 重启的串行化 |
-| `bridgeDeaths` | 桥死亡计数 | 由 `MaxBridgeDeath` 限界 |
-| `retainedKilledByClose`、`confirmedByAbsence`、`confirmedByStale` | history | 分别支持 W4 与两个可达见证 |
+| Windows 变量                                                      | 含义                                                                           | 对应的机制事实                                                |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------- |
+| `started[u]`                                                      | 已发 GO（`ResumeThread`）                                                      | 用户代码开始执行                                              |
+| `permitted[u]`                                                    | 账本 `permit` 答 `confirmed`                                                   | H-2 的证据                                                    |
+| `bridge[u]`                                                       | `none`／`attached`（与提供者相连）／`orphan`（提供者已死，桥仍持句柄）／`dead` | 桥是 detached 独立进程，持有 Job 句柄                         |
+| `anchor[u]`                                                       | Job 内的句柄持有者活着（只在 `Anchor = TRUE` 时为真）                          | 选定设计：Job 内锚进程，像 Linux 的门留在单元里               |
+| `koc[u]`                                                          | Job 带 `KILL_ON_JOB_CLOSE`                                                     | 创建时设置；移交时按 `ClearOnHandover` 清除                   |
+| `marker[u]`                                                       | 冷索引标记：`none`／`cmd`／`handed`                                            | 状态目录里的标记文件，记 Job 名、启动身份、会话号；移交后更新 |
+| `sessAt[u]`                                                       | 标记记下的登录会话                                                             | `Local\` 命名对象按会话隔离                                   |
+| `stale[u]`                                                        | 标记的启动身份与当前不同                                                       | 重启后为真                                                    |
+| `curSess`                                                         | 当前提供者实例所在的登录会话                                                   | 只在 `Recover`（新实例）时可变                                |
+| `rebooting`                                                       | 机器正在关机，进程逐个死亡，无人观察                                           | 重启的串行化                                                  |
+| `bridgeDeaths`                                                    | 桥死亡计数                                                                     | 由 `MaxBridgeDeath` 限界                                      |
+| `retainedKilledByClose`、`confirmedByAbsence`、`confirmedByStale` | history                                                                        | 分别支持 W4 与两个可达见证                                    |
 
 派生定义：
 
@@ -39,34 +39,34 @@
 
 「PC 步骤」列写每个 Windows 动作对应 ProcessCustody 的哪个动作；`stutter` 表示只改 Windows 变量，PC 的变量不动。「将来代码里的步骤」是细化设计要落的名字；现状代码位置按 `src/windows-execution/` 写。
 
-| Windows 动作 | PC 步骤 | 实现的步骤（代码位置） | 说明 |
-| --- | --- | --- | --- |
-| `PlanAcq(u)` | `PlanAcq(u, "cmd")` | TS `start`：`ledger.plan`（`index.ts` `start`） | 不变 |
-| `WriteMarker(u)` | stutter | TS：写冷索引标记（新增；沿用 macOS `domain-index.ts` 的做法） | 先于任何 OS 对象。记 Job 名、启动身份、会话号 |
-| `CreateSuspendedInJob(u)` | `Launch(u)` | 桥 `Prepare`：`CreateJobObjectW` + `SetInformationJobObject(KILL_ON_JOB_CLOSE)` + `CreateProcessW(CREATE_SUSPENDED, JOB_LIST)`（`native-source.ts` `Prepare`） | 首个外部效果。PC 的 `Launch` 守卫 `Permit(u)` 对应管理器的 `sealed` 检查，不是账本 `permit`。`prim` 变真但 `started` 为假 |
-| `Permit(u)` | stutter | TS：`ledger.permit` 答 `confirmed`（`index.ts` `launch`） | 记 `permitted` |
-| `PermitGo(u)` | stutter | TS 发 `go`；桥 `ResumeThread`（`Run` 的 `go` 分支） | 用户代码开始。W1 要求 `permitted` 在前 |
-| `ForkPlain`、`ForkImmune`、`RestExit` | 同名 | 命令自己的进程 | 挂起的主进程不能派生 |
-| `MainExit(u)` | `PrimExit(u)` | 桥 waiter 线程 `WaitForSingleObject(child)` 后发 `exit` 帧；TS 记退出（`Run` 的 waiter） | waiter 不终止 Job，处置由 TS 决定。|
-| `Dispose(u)` | `Dispose(u)` | TS `decideDisposition`（Linux 同名逻辑移植） | 不变 |
-| `Commit(u)` | `Commit(u)` | TS：保留进程账本 `adopt` 答 `confirmed`，同一同步步骤里改归属 | 不变 |
-| `Abort(u)` | `Abort(u)` | TS：作废预留 | 不变 |
-| `WriteMarkerHanded(u)` | stutter | TS：改写并刷盘标记（`handed`） | 顺序受 `MarkerFirst` 控制 |
-| `ClearKillOnClose(u)` | stutter | 桥或恢复桥：`SetInformationJobObject` 去掉 `KILL_ON_JOB_CLOSE` | 需要句柄：`Addressable(u)` |
-| `Stop(u)` | `Stop(u)` | TS：句柄 `stop('forced')`、保留进程扩展的 `stop`（`index.ts` `entry.stop`） | 不变 |
-| `TerminateJob(u)` | `Live(u)` 时 `Kill(u)`，否则 stutter | 桥 `Stop()` 的 `TerminateJobObject`；或恢复桥 `OpenJobObjectW` 后 `TerminateJobObject`（`Run` 的 `recover` 分支） | 连锚一起杀 |
-| `ConfirmObserved(u)` | `Confirm(u)` | 桥或恢复桥 `QueryInformationJobObject` 读到 `active == 0`；TS 记 `stopped`，删标记 | 读数来自 Job 本身，经句柄 |
-| `ConfirmNotFound(u)` | 应为 `Confirm(u)`；模型直接写 `ph'`，让 TLC 能查出证据为假的情形 | 恢复桥 `OpenJobObjectW` 失败；TS 按全化表答 `confirmedStopped` | 守卫按 `SessionAware`、`HandedAware` 收紧 |
-| `ConfirmStale(u)` | 同上 | TS：标记的启动身份不是当前的，答 `confirmedStopped` | 重启已杀光一切 |
-| `Drain(u)` | `Drain(u)` | 索引 `maintain()` 读 Job 成员，只剩锚时停止 | 需要 `Addressable(u)` |
-| `Release`、`DrainSweep`、`Settle` | 同名 | 责任域排空：`stopAll`、冷恢复 `listRecoveryResources`／`recover`、结清 | 不变 |
-| `CloseScope`、`CloseSweep`、`ClosureDone` | 同名 | 保留范围封闭信号、索引停止全部保留进程、完成报告 | 不变 |
-| `BridgeDies(u)` | 目标取值下：`ph = "running"` 且桥相连且 `known` 时 `Stop(u)`；否则 stutter。无锚且 `koc` 时成员全死，不对应任何 PC 步骤 | 桥进程崩溃或被杀；内核关闭其 Job 句柄；TS `onClosed` | 只在 GO 之后建模 |
-| `Crash` | `Crash` | 提供者进程崩溃或换代 | 桥变孤儿，Job 仍在 |
-| `Recover` | `Recover` | 新实例读账本与全部标记 | 另选 `curSess`：新实例可能在别的登录会话 |
-| `Reboot` | `Crash` | 机器重启 | 之后只允许 `RebootKill` 与 `BootUp` |
-| `RebootKill(u)` | `PrimExit(u)` 或 `RestExitStep(u)` | 进程随关机死亡 | `known` 全假，所以 `ph` 不变 |
-| `BootUp` | stutter | 机器起来：桥全死、锚全死、全部标记变陈旧 | 重启在模型里串行化为崩溃、进程逐个死亡、再启动三步，无人观察其间的退出 |
+| Windows 动作                              | PC 步骤                                                                                                                 | 实现的步骤（代码位置）                                                                                                                                                                                          | 说明                                                                                                                      |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `PlanAcq(u)`                              | `PlanAcq(u, "cmd")`                                                                                                     | TS `start`：`ledger.plan`（`index.ts` `start`）                                                                                                                                                                 | 不变                                                                                                                      |
+| `WriteMarker(u)`                          | stutter                                                                                                                 | TS：写冷索引标记（新增；沿用 macOS `domain-index.ts` 的做法）                                                                                                                                                   | 先于任何 OS 对象。记 Job 名、启动身份、会话号                                                                             |
+| `CreateSuspendedInJob(u)`                 | `Launch(u)`                                                                                                             | 桥 `Prepare`：`CreateJobObjectW` + `SetInformationJobObject(KILL_ON_JOB_CLOSE)` + `StartAnchor`（锚继承 Job 句柄）+ `CreateProcessW(CREATE_SUSPENDED, JOB_LIST)`（`native-source.ts` `Prepare`、`StartAnchor`） | 首个外部效果。PC 的 `Launch` 守卫 `Permit(u)` 对应管理器的 `sealed` 检查，不是账本 `permit`。`prim` 变真但 `started` 为假 |
+| `Permit(u)`                               | stutter                                                                                                                 | TS：`ledger.permit` 答 `confirmed`（`index.ts` `launch`）                                                                                                                                                       | 记 `permitted`                                                                                                            |
+| `PermitGo(u)`                             | stutter                                                                                                                 | TS 发 `go`；桥 `ResumeThread`（`Run` 的 `go` 分支）                                                                                                                                                             | 用户代码开始。W1 要求 `permitted` 在前                                                                                    |
+| `ForkPlain`、`ForkImmune`、`RestExit`     | 同名                                                                                                                    | 命令自己的进程                                                                                                                                                                                                  | 挂起的主进程不能派生                                                                                                      |
+| `MainExit(u)`                             | `PrimExit(u)`                                                                                                           | 桥 waiter 线程 `WaitForSingleObject(child)`、`AwaitQuiet` 后以 `Members()` 发 `exit` 帧；TS `exited` 记退出（`Run` 的 waiter；`index.ts` `exited`）                                                             | waiter 不终止 Job，处置由 TS 决定。                                                                                       |
+| `Dispose(u)`                              | `Dispose(u)`                                                                                                            | TS `decideDisposition`（Linux 同名逻辑移植）                                                                                                                                                                    | 不变                                                                                                                      |
+| `Commit(u)`                               | `Commit(u)`                                                                                                             | TS：保留进程账本 `adopt` 答 `confirmed`，同一同步步骤里改归属                                                                                                                                                   | 不变                                                                                                                      |
+| `Abort(u)`                                | `Abort(u)`                                                                                                              | TS：作废预留                                                                                                                                                                                                    | 不变                                                                                                                      |
+| `WriteMarkerHanded(u)`                    | stutter                                                                                                                 | TS：改写并刷盘标记（`handed`）                                                                                                                                                                                  | 顺序受 `MarkerFirst` 控制                                                                                                 |
+| `ClearKillOnClose(u)`                     | stutter                                                                                                                 | 桥或恢复桥：`SetInformationJobObject` 去掉 `KILL_ON_JOB_CLOSE`                                                                                                                                                  | 需要句柄：`Addressable(u)`                                                                                                |
+| `Stop(u)`                                 | `Stop(u)`                                                                                                               | TS：句柄 `stop('forced')`、保留进程扩展的 `stop`（`index.ts` `entry.stop`）                                                                                                                                     | 不变                                                                                                                      |
+| `TerminateJob(u)`                         | `Live(u)` 时 `Kill(u)`，否则 stutter                                                                                    | 桥 `Stop()` 的 `TerminateJobObject`；或恢复桥 `OpenJobObjectW` 后 `TerminateJobObject`（`Run` 的 `recover` 分支）                                                                                               | 连锚一起杀                                                                                                                |
+| `ConfirmObserved(u)`                      | `Confirm(u)`                                                                                                            | 桥或恢复桥 `QueryInformationJobObject` 读到 `active == 0`；TS 记 `stopped`，删标记                                                                                                                              | 读数来自 Job 本身，经句柄                                                                                                 |
+| `ConfirmNotFound(u)`                      | 应为 `Confirm(u)`；模型直接写 `ph'`，让 TLC 能查出证据为假的情形                                                        | 恢复桥 `OpenJobObjectW` 失败；TS 按全化表答 `confirmedStopped`                                                                                                                                                  | 守卫按 `SessionAware`、`HandedAware` 收紧                                                                                 |
+| `ConfirmStale(u)`                         | 同上                                                                                                                    | TS：标记的启动身份不是当前的，答 `confirmedStopped`                                                                                                                                                             | 重启已杀光一切                                                                                                            |
+| `Drain(u)`                                | `Drain(u)`                                                                                                              | 索引 `maintain()` 读 Job 成员，只剩锚时停止                                                                                                                                                                     | 需要 `Addressable(u)`                                                                                                     |
+| `Release`、`DrainSweep`、`Settle`         | 同名                                                                                                                    | 责任域排空：`stopAll`、冷恢复 `listRecoveryResources`／`recover`、结清                                                                                                                                          | 不变                                                                                                                      |
+| `CloseScope`、`CloseSweep`、`ClosureDone` | 同名                                                                                                                    | 保留范围封闭信号、索引停止全部保留进程、完成报告                                                                                                                                                                | 不变                                                                                                                      |
+| `BridgeDies(u)`                           | 目标取值下：`ph = "running"` 且桥相连且 `known` 时 `Stop(u)`；否则 stutter。无锚且 `koc` 时成员全死，不对应任何 PC 步骤 | 桥进程崩溃或被杀；内核关闭其 Job 句柄；TS `onClosed` → `end` → `entry.stop`，经 `stopWindowsResource` 按名字停止（`index.ts`）                                                                                  | 只在 GO 之后建模                                                                                                          |
+| `Crash`                                   | `Crash`                                                                                                                 | 提供者进程崩溃或换代                                                                                                                                                                                            | 桥变孤儿，Job 仍在                                                                                                        |
+| `Recover`                                 | `Recover`                                                                                                               | 新实例读账本与全部标记                                                                                                                                                                                          | 另选 `curSess`：新实例可能在别的登录会话                                                                                  |
+| `Reboot`                                  | `Crash`                                                                                                                 | 机器重启                                                                                                                                                                                                        | 之后只允许 `RebootKill` 与 `BootUp`                                                                                       |
+| `RebootKill(u)`                           | `PrimExit(u)` 或 `RestExitStep(u)`                                                                                      | 进程随关机死亡                                                                                                                                                                                                  | `known` 全假，所以 `ph` 不变                                                                                              |
+| `BootUp`                                  | stutter                                                                                                                 | 机器起来：桥全死、锚全死、全部标记变陈旧                                                                                                                                                                        | 重启在模型里串行化为崩溃、进程逐个死亡、再启动三步，无人观察其间的退出                                                    |
 
 ProcessCustody 有而本模型没有的动作：`PlanAcq(u, "term")`、`PlanRet`（终端不在本模型）、`Refuse`（Windows 的许可拒绝只因获取在排空，而排空的 `Release` 已把它扫走；账本答 `unavailable` 的拒绝 PC 也没有）、`Escape`（封闭收纳）、`Expire`（SPEC 没有这项配置）。精化允许少。
 
@@ -76,11 +76,11 @@ PC 的性质在 WindowsCustody 里同名重导出，编号沿用契约的 [forma
 
 Windows 专有：
 
-| 名字 | 命题 | 守的需求 |
-| --- | --- | --- |
-| W1 `UserCodeAfterPermit` | `started ⇒ permitted` | H-2 |
-| W2 `Reachable` | 有成员或有锚的 Job 在命名空间里有名字 | H-5（能列出、能停止） |
-| W3 `MarkerCoversJob` | 有成员或有锚的 Job 都有标记 | H-6（冷索引完整） |
-| W4 `NoRetainedKillOnClose` | 保留执行域从不因句柄关闭失去成员 | T10 在 Windows 上的机制面 |
+| 名字                       | 命题                                  | 守的需求                  |
+| -------------------------- | ------------------------------------- | ------------------------- |
+| W1 `UserCodeAfterPermit`   | `started ⇒ permitted`                 | H-2                       |
+| W2 `Reachable`             | 有成员或有锚的 Job 在命名空间里有名字 | H-5（能列出、能停止）     |
+| W3 `MarkerCoversJob`       | 有成员或有锚的 Job 都有标记           | H-6（冷索引完整）         |
+| W4 `NoRetainedKillOnClose` | 保留执行域从不因句柄关闭失去成员      | T10 在 Windows 上的机制面 |
 
 可达见证（以 `Never` 开头，目标配置必须违反）：挂起进程先于许可存在、保留执行域活着、保留执行域活过桥、异会话待定、以「找不到」确认、以启动身份确认、重启后结清。

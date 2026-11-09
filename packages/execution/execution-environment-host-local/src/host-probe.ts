@@ -157,23 +157,39 @@ export async function probeCommandPrerequisites(boundMs: number): Promise<Prereq
 }
 
 /** The probe of one provider generation: started at creation, a satisfied answer kept for the generation. */
-export type PrerequisiteProbe = Readonly<{
+/** A probe's answer on any platform: what `describe()` and a start read of it. */
+type ProbeAnswer = Readonly<{ kind: 'satisfied' | 'unsatisfied' | 'unknown' }>
+
+/** The probe of one provider generation: started at creation, a satisfied answer kept for the generation. */
+export type PrerequisiteProbe<R extends ProbeAnswer = PrerequisiteReading> = Readonly<{
   /** `unknown` while the probe runs or when it failed. */
   facts(): 'satisfied' | 'unsatisfied' | 'unknown'
   /** Waits for the running probe; probes again when the last answer is not satisfied and older than the retry interval. */
-  ready(): Promise<PrerequisiteReading>
+  ready(): Promise<R>
 }>
 
 export function createPrerequisiteProbe(input: {
   retryMs: number
   boundMs: number
-}): PrerequisiteProbe {
-  let reading: PrerequisiteReading | undefined
+}): PrerequisiteProbe
+export function createPrerequisiteProbe<R extends ProbeAnswer>(input: {
+  retryMs: number
+  boundMs: number
+  /** The platform's probe; the Linux probe of P1 and P3 to P6 when absent. */
+  probe: (boundMs: number) => Promise<R>
+}): PrerequisiteProbe<R>
+export function createPrerequisiteProbe(input: {
+  retryMs: number
+  boundMs: number
+  probe?: (boundMs: number) => Promise<ProbeAnswer>
+}): PrerequisiteProbe<ProbeAnswer> {
+  const platformProbe = input.probe ?? probeCommandPrerequisites
+  let reading: ProbeAnswer | undefined
   let probedAt = 0
-  const probe = (): Promise<PrerequisiteReading> => {
+  const probe = (): Promise<ProbeAnswer> => {
     probedAt = monotonicMs()
-    return probeCommandPrerequisites(input.boundMs)
-      .catch((): PrerequisiteReading => ({ kind: 'unknown' }))
+    return platformProbe(input.boundMs)
+      .catch((): ProbeAnswer => ({ kind: 'unknown' }))
       .then(answer => {
         reading = answer
         return answer

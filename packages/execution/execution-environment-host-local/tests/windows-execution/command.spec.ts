@@ -13,6 +13,7 @@ import {
 } from '@omne-harness/execution-environment-contract'
 import { commandSettings } from '../../src/host-command.ts'
 import { createWindowsHostCommands } from '../../src/windows-execution/index.ts'
+import { windowsCommandInputs } from './fixture.ts'
 
 describe('Windows Job commands', () => {
   it('streams original bytes after permit and records a confirmed stop', async context => {
@@ -39,6 +40,7 @@ describe('Windows Job commands', () => {
     const scope = decodeScopeRef({ ref: 'windows-test' })
     if (!('ok' in scope)) throw new Error('scope fixture')
     const manager = createWindowsHostCommands({
+      ...windowsCommandInputs(),
       ledger,
       provider: 'test',
       scope: scope.ok,
@@ -77,6 +79,7 @@ describe('Windows Job commands', () => {
       expect(manager.unconfirmed()).toHaveLength(0)
       const sentinel = join(root, 'forbidden')
       const refused = createWindowsHostCommands({
+        ...windowsCommandInputs(),
         ledger: { ...ledger, permit: async () => 'closed' },
         provider: 'test',
         scope: scope.ok,

@@ -2,12 +2,12 @@
 
 本页说明 Windows 文件后端的机制。它与 SPEC 的对应节同为未接受。行为以 [SPEC 的 Windows 文件后端](../SPEC.md#windows-文件后端未接受)为准，公共形状归[设施接口](../../execution-environment-contract/src/facilities/files.ts)，对象确认归[宿主文件使用](../SPEC.md#宿主文件使用)。Windows 写入采用 [R2-D38](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6579990443) 的新建与替换语义。Linux 是原位写。
 
-| 操作                                              | 未配置根                 | 配置根                   |
-| ------------------------------------------------- | ------------------------ | ------------------------ |
-| read、stat、close                                 | 文件辅助进程与引擎句柄代次 | 文件辅助进程与引擎句柄代次 |
-| list、search、mkdir、remove、move                 | 文件辅助进程             | 文件辅助进程             |
-| write、copy                                       | 文件辅助进程，新建或替换 | 文件辅助进程，新建或替换 |
-| commitBatch、recoverBatch                         | 逐项操作加批次清单       | 逐项操作加批次清单       |
+| 操作                              | 未配置根                   | 配置根                     |
+| --------------------------------- | -------------------------- | -------------------------- |
+| read、stat、close                 | 文件辅助进程与引擎句柄代次 | 文件辅助进程与引擎句柄代次 |
+| list、search、mkdir、remove、move | 文件辅助进程               | 文件辅助进程               |
+| write、copy                       | 文件辅助进程，新建或替换   | 文件辅助进程，新建或替换   |
+| commitBatch、recoverBatch         | 逐项操作加批次清单         | 逐项操作加批次清单         |
 
 支持范围限本机盘符绝对路径。UNC、设备命名空间、备用数据流和含歧义尾部字符的名字不在支持范围内。
 

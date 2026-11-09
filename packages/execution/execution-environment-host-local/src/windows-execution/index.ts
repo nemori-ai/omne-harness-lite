@@ -7,15 +7,27 @@ import type {
   FacilityResult,
   ManagedResource,
   ProcessHandle,
+  ResidueReport,
 } from '@omne-harness/execution-environment-contract'
-import { createOutputBuffer, type HostCommands, type HostCommandsInput } from '../host-command.ts'
+import {
+  createOutputBuffer,
+  type HostCommands,
+  type HostCommandsInput,
+  type ResiduePolicy,
+} from '../host-command.ts'
+import type { PrerequisiteProbe } from '../host-probe.ts'
 import { deferred, startBridge, within, type BridgeFrame } from './bridge.ts'
 import { windowsBridgeExecutable } from './compile.ts'
+import type { WindowsCommandReading, WindowsPrerequisite } from './prerequisites.ts'
 
 export type WindowsCommandsInput = Omit<
   HostCommandsInput,
   'prerequisites' | 'unavailable' | 'tenant'
->
+> &
+  Readonly<{
+    prerequisites: PrerequisiteProbe<WindowsCommandReading>
+    unavailable(missing: readonly WindowsPrerequisite[]): void
+  }>
 type StartRequest = Parameters<CommandFacility<unknown>['start']>[0]
 type StopStatus = 'confirmed' | 'unconfirmed'
 type LiveCommand = { readonly resource: ManagedResource; stop(): Promise<StopStatus> }
@@ -27,6 +39,8 @@ function invalid(request: StartRequest): FacilityReason | undefined {
   if (request.outputMode !== 'separate' || request.geometry !== undefined) return 'unsupported'
   const path = (value: string) => win32.isAbsolute(value) && !value.includes('\0')
   if (!path(request.executable) || !path(request.cwd)) return 'invalidInput'
+  // CreateProcessW runs a batch file through cmd.exe, which parses the arguments again.
+  if (/\.(?:bat|cmd)$/iu.test(request.executable)) return 'unsupported'
   if (request.args.some(value => value.includes('\0'))) return 'invalidInput'
   if (
     Object.entries(request.env).some(
@@ -48,6 +62,18 @@ function invalid(request: StartRequest): FacilityReason | undefined {
     256
   if (controlSize > 2 * 1024 * 1024) return 'capacity'
   return undefined
+}
+
+/**
+ * The residue of a Job whose main process exited. Until the provider hands Jobs over, every
+ * leftover is stopped; an unread count is not empty.
+ */
+export function windowsResidue(
+  members: number | null,
+  policy: ResiduePolicy,
+): Extract<ResidueReport, { kind: 'none' | 'stopping' }> {
+  if (members === 0) return { kind: 'none' }
+  return { kind: 'stopping', reason: policy === 'stop' ? 'policy' : 'uncontained' }
 }
 
 export function readWindowsJobReference(
@@ -126,27 +152,40 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     let confirmed = false
     let nativeStopped = false
     let finished = false
+    let went = false
+    let stopIssued = false
     let startedAt = now()
-    const end = (frame?: Extract<BridgeFrame, { t: 'exit' }>) => {
+    const elapsed = () => Math.max(0, Math.round(now() - startedAt))
+    /** The bridge went away, its frames broke, or a stop ended the command: the effect is unknown. */
+    const end = () => {
       if (finished) return
       finished = true
       buffer.close()
-      const elapsed = Math.max(0, Math.round(now() - startedAt))
-      outcome.resolve(
-        frame?.complete === true
-          ? {
-              kind: 'completed',
-              exit: { kind: 'code', code: frame.code },
-              durationMs: elapsed,
-              output: buffer.summary(),
-            }
-          : {
-              kind: 'failed',
-              reason: 'effectUnknown',
-              observedDurationMs: elapsed,
-              output: buffer.summary(),
-            },
-      )
+      outcome.resolve({
+        kind: 'failed',
+        reason: 'effectUnknown',
+        observedDurationMs: elapsed(),
+        output: buffer.summary(),
+      })
+      // What a command left in its Job, or a bridge that went away, is cleared by a forced stop.
+      if (went && !confirmed) void entry.stop()
+    }
+    /** The main process exited; the provider, not the bridge, decides what becomes of the Job. */
+    const exited = (frame: Extract<BridgeFrame, { t: 'exit' }>) => {
+      if (finished) return
+      if (stopIssued || frame.outputLost) return end()
+      finished = true
+      buffer.close()
+      const durationMs = elapsed()
+      const residue = windowsResidue(frame.members, settings.residuePolicy)
+      void entry.stop()
+      outcome.resolve({
+        kind: 'completed',
+        exit: { kind: 'code', code: frame.code },
+        durationMs,
+        output: buffer.summary(),
+        residue,
+      })
     }
     const bridge = await startBridge({
       request: {
@@ -171,10 +210,12 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
             started.resolve(true)
             break
           case 'data':
-            buffer.push(frame.s, Buffer.from(frame.b, 'base64'))
+            if (!finished) buffer.push(frame.s, Buffer.from(frame.b, 'base64'))
             break
           case 'exit':
-            end(frame)
+            exited(frame)
+            break
+          case 'probe':
             break
           case 'stopped':
             if (frame.status === 'confirmed') nativeStopped = true
@@ -200,6 +241,7 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       resource,
       stop() {
         if (confirmed) return Promise.resolve('confirmed')
+        stopIssued = true
         stopping ??= (async (): Promise<StopStatus> => {
           const deadline = now() + settings.stopBoundMs
           const remaining = () => Math.max(0, deadline - now())
@@ -260,6 +302,7 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     }
     if (permit !== 'confirmed') return refuse(permit)
     if (sealed || ledger.closed.aborted) return refuse('closed')
+    went = true
     bridge.send('go')
     const running = await within(started.promise, settings.startBoundMs)
     if (running !== true) return { kind: 'unknown', requestId: request.requestId }
@@ -286,15 +329,14 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     const issue = invalid(request)
     if (issue !== undefined)
       return { kind: 'rejected', requestId: request.requestId, reason: issue }
-    if (sealed || ledger.closed.aborted)
-      return { kind: 'rejected', requestId: request.requestId, reason: 'closed' }
-    if (process.platform !== 'win32')
-      return { kind: 'rejected', requestId: request.requestId, reason: 'unavailable' }
-    try {
-      await windowsBridgeExecutable()
-    } catch {
+    // The checks before anything exists, in the order of the Linux facility: request, platform, facade.
+    const reading = await input.prerequisites.ready()
+    if (reading.kind !== 'satisfied') {
+      input.unavailable(reading.kind === 'unsatisfied' ? reading.missing : [])
       return { kind: 'rejected', requestId: request.requestId, reason: 'unavailable' }
     }
+    if (sealed || ledger.closed.aborted)
+      return { kind: 'rejected', requestId: request.requestId, reason: 'closed' }
     const key = randomUUID()
     const name = `Local\\omne-command-${key}`
     const resource: ManagedResource = {

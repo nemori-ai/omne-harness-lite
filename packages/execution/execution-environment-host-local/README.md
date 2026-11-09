@@ -15,7 +15,6 @@ Status: Service implementation member, `draft`. The host file use section is acc
 - Not implemented: the grant root as the contract defines it (the host files root is a different restriction), the eight additional `files` operations on hosts other than Linux, macOS, and Windows, retained processes on macOS (a process can leave a POSIX session with `setsid`, so macOS does not meet closed containment), the handover of retained processes on Windows, publication of the two Runtime Context blocks, the caller-class check, `definePlugin` for the plugins, and the settlement of old capacity after a process ends (it needs exit evidence from outside the process; it is a remaining duty after M2). See the SPEC [gap list](SPEC.md#明确缺项).
 - Not verified: no test covers a second load under one isolate label or a configuration check failure.
 
-
 ## Usage
 
 The package has two entries:

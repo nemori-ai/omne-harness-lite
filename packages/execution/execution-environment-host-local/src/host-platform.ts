@@ -24,6 +24,10 @@ import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import { windowsBridgeExecutable, windowsTerminalExecutable } from './windows-execution/compile.ts'
 import { createWindowsHostCommands } from './windows-execution/index.ts'
 import {
+  probeWindowsCommands,
+  type WindowsPrerequisite,
+} from './windows-execution/prerequisites.ts'
+import {
   createWindowsHostTerminals,
   createWindowsRetainedTerminalFactory,
   type WindowsTerminalCapacity,
@@ -31,7 +35,7 @@ import {
 
 type Prerequisite = ProviderFacts['prerequisites']
 /** A prerequisite a command start found missing, on any platform. */
-export type CommandPrerequisite = HostCommandPrerequisite | MacosPrerequisite
+export type CommandPrerequisite = HostCommandPrerequisite | MacosPrerequisite | WindowsPrerequisite
 type CommandInput = Omit<HostCommandsInput, 'prerequisites' | 'unavailable'> &
   Readonly<{ unavailable(missing: readonly CommandPrerequisite[]): void }>
 type TerminalInput = Omit<Parameters<typeof createHostTerminals>[0], 'prerequisites' | 'platform'>
@@ -125,9 +129,18 @@ export function createHostPlatform(input: {
     }
   }
   if (process.platform === 'win32') {
+    const probe = createPrerequisiteProbe({
+      retryMs: input.settings.probeRetryMs,
+      boundMs: input.settings.stopBoundMs,
+      probe: probeWindowsCommands,
+    })
     return {
-      prerequisites: async (): Promise<readonly Prerequisite[]> => [await probeWindowsExecution()],
-      commands: (options: CommandInput) => createWindowsHostCommands(options),
+      prerequisites: async (): Promise<readonly Prerequisite[]> => {
+        const [installation, commands] = await Promise.all([probeWindowsExecution(), probe.ready()])
+        return [installation, commands.kind]
+      },
+      commands: (options: CommandInput) =>
+        createWindowsHostCommands({ ...options, prerequisites: probe }),
       terminals(options: TerminalInput) {
         const shared = { ...options, capacity: input.windowsCapacity() }
         return {
