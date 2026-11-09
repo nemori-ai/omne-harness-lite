@@ -114,8 +114,23 @@ const PREPARATION = {
   },
 } as const
 
+/**
+ * How many model calls of the one tenant may be in flight at once. The tenant's share in
+ * `model-records` is this many result capacities of one call, and every bound on the way of a call
+ * (host drives, result pushes, send claims, materialized transports, connections) admits as many.
+ */
+export const LOCAL_CONCURRENT_MODEL_CALLS = 20
+
+/** The result capacity of one call; at most `maxCallBytes` of model-records (N1). */
+const CALL_RESULT_CAPACITY = { bytes: 524_288, blocks: 100, attachmentBytes: 0 } as const
+
 const MODEL_HOST = {
-  host: { concurrencyLimit: 4, wakeCapacity: 64, scanBatchSize: 10, scanIntervalMs: 1000 },
+  host: {
+    concurrencyLimit: LOCAL_CONCURRENT_MODEL_CALLS,
+    wakeCapacity: 64,
+    scanBatchSize: 10,
+    scanIntervalMs: 1000,
+  },
   runtime: {
     outputBatchBytes: 16_384,
     outputBatchDelayMs: 100,
@@ -127,13 +142,22 @@ const MODEL_HOST = {
     cleanupRetryMs: 1000,
   },
   results: {
-    maxConcurrentCalls: 4,
+    maxConcurrentCalls: LOCAL_CONCURRENT_MODEL_CALLS,
     maxRedeliveries: 2,
     maxCleanupSteps: 8,
-    maxPendingAccountsPerTenant: 4,
-    maxPendingAccounts: 16,
+    maxPendingAccountsPerTenant: LOCAL_CONCURRENT_MODEL_CALLS,
+    maxPendingAccounts: LOCAL_CONCURRENT_MODEL_CALLS,
   },
 } as const
+
+/** `count` result capacities of one call, in the decimal text of the row configurations. */
+function capacityText(call: typeof CALL_RESULT_CAPACITY, count: number) {
+  return {
+    bytes: String(call.bytes * count),
+    blocks: String(call.blocks * count),
+    attachmentBytes: String(call.attachmentBytes * count),
+  }
+}
 
 /** The OpenRouter route of the model send stage. */
 export const OPENROUTER_ROUTE = 'https://openrouter.ai/api/v1/chat/completions'
@@ -155,12 +179,12 @@ function modelRecords(combinationVersion: string) {
       resultPageParts: 16,
       resultPageTargetBytes: MODEL_HOST.runtime.resultPageTargetBytes,
       readIdleMs: MODEL_HOST.runtime.readIdleMs,
-      capacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
+      capacity: capacityText(CALL_RESULT_CAPACITY, LOCAL_CONCURRENT_MODEL_CALLS),
     },
-    maxCallBytes: 524_288,
+    maxCallBytes: CALL_RESULT_CAPACITY.bytes,
     maxCommandBytes: MAX_COMMAND_BYTES,
     combinationVersion,
-    send: { mirrorBytes: 4_194_304, maxClaims: 8 },
+    send: { mirrorBytes: 4_194_304, maxClaims: LOCAL_CONCURRENT_MODEL_CALLS },
     // The read face `modelDiagnostics`: a tenant reads its own calls; the retention is a placeholder adoption.
     diagnostics: {
       diagnosticsRead: 'tenant-self',
@@ -169,14 +193,14 @@ function modelRecords(combinationVersion: string) {
     initial: { maxRecords: 1024, maxBindings: 4, maxCallsPerBinding: 1024 },
     sendStage: {
       maxRetainedAttempts: 16,
-      materialization: { maxRecords: 16 },
+      materialization: { maxRecords: LOCAL_CONCURRENT_MODEL_CALLS },
       factoryQueryId: 'factory-openrouter',
       profiles: {
         retryPolicy: PROFILES.retryPolicy,
         compactionTriggerPercent: PROFILES.compactionTriggerPercent,
       },
       preparation: PREPARATION,
-      network: { maxConnections: 4, idleConnectionTimeoutMs: 60_000 },
+      network: { maxConnections: LOCAL_CONCURRENT_MODEL_CALLS, idleConnectionTimeoutMs: 60_000 },
       routes: { openrouter: { url: OPENROUTER_ROUTE, endMarker: '[DONE]' } },
       transportLimits: {
         connectTimeoutMs: 10_000,
@@ -504,8 +528,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       'request-context',
       { limits: { maxTargets: 64, maxFactsPerTarget: 64, maxRevisionsPerDispatch: 16 } },
     ],
-    // The result capacity of one call is at most `maxCallBytes` of model-records (N1).
-    ['agent-context', { resultCapacity: { bytes: '524288', blocks: '100', attachmentBytes: '0' } }],
+    ['agent-context', { resultCapacity: capacityText(CALL_RESULT_CAPACITY, 1) }],
     ['agent-host', AGENT_HOST],
     ['session-ad03', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
     ['session-ad04', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
