@@ -73,7 +73,6 @@ public static partial class OmneWindowsBridge {
   static long lastOutput;
   static bool confirmed;
   static bool outputLost;
-  static EventWaitHandle release;
   static void Check(bool ok) { if(!ok) throw new Win32Exception(Marshal.GetLastWin32Error()); }
   static void Emit(object frame) {
     lock(OutputLock) {
@@ -285,12 +284,7 @@ public static partial class OmneWindowsBridge {
         job=OpenJobObjectW(0x000C,false,r.name);
         // A missing name is reported as such: only the caller knows whether it proves the stop.
         if(job==IntPtr.Zero && Marshal.GetLastWin32Error()==2) { Emit(new { t="stopped",status="unconfirmed",absent=true });return; }
-        bool stopped=Stop();
-        if(stopped) {
-          try { using(EventWaitHandle oldRelease=EventWaitHandle.OpenExisting(r.name+"-release"))oldRelease.Set(); }
-          catch(WaitHandleCannotBeOpenedException) { }
-        }
-        Emit(new { t="stopped", status=stopped?"confirmed":"unconfirmed" });
+        Emit(new { t="stopped", status=Stop()?"confirmed":"unconfirmed" });
         return;
       }
       if(r.mode=="members") { Emit(ReadNamedMembers(r.name));return; }
