@@ -107,7 +107,10 @@
 
 同 tenant、call、operation、同规范输入摘要的重送回复原回执。内部账本的 admit 同时说明它是否认回了已提交的受理。普通 runtime.invoke 通过来源 resolve 认回原身份，accepted.recovered 为来源或账本认回的逻辑或。内部 admission 不先读操作记录，所以受理只需要 `admit` 资格。两个首次受理同时竞争时，先提交的那次得到 `recovered: false`；后一次的提交因修订冲突失败，重读后认回原受理，得到原回执与 `recovered: true`。同操作异摘要回复 `conflict`。
 
-已受理的调用再以另一操作号 admit 回复 `stale-revision`，`current` 是当前状态的修订号。带 `WriteContext` 的命令先比对 `expected` 与当前状态的修订号，不匹配回复 `stale-revision`，再进入命令本身。提交结果未知回复 `commit-unknown`，Tool 不在内部重试该提交。调用者以 `queryOperation` 认回：已落盘则 `committed`，重送得到原回执且不再写第二次；否定答案见第 14 条。记录仓读取失败回复 `unavailable`（`dependency` 为 `ledger-store`），不冒充调用不存在。修订冲突时重读重判，次数上限是 `ledgerCommitAttempts`；用尽后回复 `unavailable`（`ledger-store`，`<次数> revision conflicts in a row`）。
+已受理的调用再以另一操作号 admit 回复 `stale-revision`，`current` 是当前状态的修订号。带 `WriteContext` 的命令先比对 `expected` 与当前状态的修订号，不匹配回复 `stale-revision`，再进入命令本身。提交结果未知回复 `commit-unknown`，Tool 不在内部重试该提交。调用者以 `queryOperation` 认回：已落盘则 `committed`，重送得到原回执且不再写第二次；否定答案见第 14 条。记录仓读取失败回复 `unavailable`（`dependency` 为 `ledger-store`），不冒充调用不存在。记录仓的提交答 `unavailable` 时同样回复 `unavailable`（`ledger-store`），这是暂时的，调用者以同一操作号重送。记录仓的提交答 `rejected` 时，这次提交永远不会成立，回复确定失败 `invalid`，`field` 为 `storage`，`reason` 为记录仓给的原因，不重读重判，也不计入 `ledgerCommitAttempts`。去向按提交所在的位置分两种：
+
+- 受理时的提交：`runtime.invoke` 返回 `rejected`，带这个 `invalid`。Agent 在 A2 按 Loop 页 A2 行的 rejected 一支处置：没有历史受理或未决尝试时建 denied 槽位，转 T2。这个动作被拒绝，Run 照常推进到终结。
+- 受理之后推进协程的提交：协程不重复那次写不进去的提交，改为给这次调用写一条最小的失败终局，规则见第 23 条「记录仓确定拒绝」。Agent 收到的是一次普通的工具失败结果，按 Loop 页 T0、T1 行接收并经 T2 进入后续位置，Run 不因此以失败终结。修订冲突时重读重判，次数上限是 `ledgerCommitAttempts`；用尽后回复 `unavailable`（`ledger-store`，`<次数> revision conflicts in a row`）。
 
 域修订号与状态修订号是两个值。域修订号是记录仓按域比对的并发令牌，每次提交加一，排除围栏（第 14 条）也加一。状态修订号是 `ToolState.revision`，等于写入该状态的那次提交的域修订号。围栏不改变状态，所以持有当前状态的写者不会因为别人的查询而失效。
 
@@ -288,12 +291,13 @@ Store 分区与 ledger 授权分别验证。组合只核真实 ledger commands/r
 
 ### 23 推进协程
 
-推进协程只经过账本命令写记录。它读 `loadRecovery`，按阶段与待办做一步，然后重读，直到调用等待、运行、收场或某个端口不能回答。每次最多 `ToolConfiguration.driverStepsPerRun` 步，缺省为 16。`commit-unknown`、`stale-revision` 与被否定答案排除的回复（第 14 条）都不停止推进：协程重读后重做同一步，同一身份。这三种回答都不算进展：只有提交了或认回了一次提交的步骤才算；原结果收场与 queue 修复还必须复核原 queue 待办已关闭（第 26 条），不能只凭历史主回执算作释放进展。它的操作号由受理操作号派生：`<受理>/plan`、`/prepared`、`/enqueue`、`/start`、`/started`、`/start-failed`、`/exclude`、`/reject`。所以崩溃后重做用的是同一身份，第 11 条的认回直接适用。同一进程内同一调用的运行串行，跨进程的唯一写者由修订号裁定。
+推进协程只经过账本命令写记录。它读 `loadRecovery`，按阶段与待办做一步，然后重读，直到调用等待、运行、收场或某个端口不能回答。每次最多 `ToolConfiguration.driverStepsPerRun` 步，缺省为 16。`commit-unknown`、`stale-revision` 与被否定答案排除的回复（第 14 条）都不停止推进：协程重读后重做同一步，同一身份。这三种回答都不算进展：只有提交了或认回了一次提交的步骤才算；原结果收场与 queue 修复还必须复核原 queue 待办已关闭（第 26 条），不能只凭历史主回执算作释放进展。它的操作号由受理操作号派生：`<受理>/plan`、`/prepared`、`/enqueue`、`/start`、`/started`、`/start-failed`、`/exclude`、`/reject`、`/ledger-rejected`。所以崩溃后重做用的是同一身份，第 11 条的认回直接适用。同一进程内同一调用的运行串行，跨进程的唯一写者由修订号裁定。
 
 一次运行结束后，协程自己决定要不要再运行这个调用，因为没有别的东西会运行它。重新推进的触发有三个，策略是配置，不是写死的值：
 
 - 步数用尽而仍有工作：这次运行里至少有一步提交了或认回了提交的话，协程立即经 `instances.schedule` 重调度自己。整轮没有这样的一步，即回答全是被否定答案排除、修订号陈旧或提交未知的话，就没有证据说明任何东西前进了，改按重试延迟重调度，免得对一个不回答的记录仓，或一个持续排除这一步的读取者空转。
 - 因记录仓或端口失败（`unavailable`）结束，或环境提供者对准备答 `pending`、`unknown`：协程在 `ToolConfiguration.driverRetryDelayMs`（缺省 1000 毫秒，1 到 2147483647 的整数，0 与超过定时器上限的值在构造时被拒绝）之后经 `instances.schedule` 重调度。上一条里没有进展的步数用尽也用这个延迟。每个调用同时只有一个等待中的重调度；`instances.schedule` 被拒绝或抛出时，再等一个延迟再试。其它失败（`invalid`、`denied`、`unsupported`、`conflict` 等）是判定，不重复。延迟是固定值；换成更复杂的退避（递增，或可替换的策略实现）由恢复扫描 `scanPending` 的调度一并评估。
+- 记录仓确定拒绝：一步的提交得到 `invalid`，`field` 为 `storage`（第 11 条），这次提交永远写不进去。协程不重复它，改为给这次调用写一条最小的失败终局：`failed`，`cause` 为 `runtime-lost`，`diagnostic` 为 `ledger-store rejected: <记录仓给的原因>`。这条终局只带终局与诊断，不带原件、结果页或其他待写的记录，按第 12 条逻辑终局的提交方式经账本写入，操作号由受理操作号派生为 `<受理>/ledger-rejected`，崩溃后重做用同一身份。终局成立后，调用与其他失败收场的调用一样交付与释放。已知限制：这条最小终局本身也被记录仓确定拒绝时，只可能是装配错误（例如记录仓的命令上限小于一条最小终局），不在「上限只影响完成的早晚」这一性质的前提内。此时协程停在这个调用上，调用不收场，Agent 在 T0 一直等待原结果，诊断写明两次拒绝的原因。
 - 等待者对账：见下面的「排队」。
 
 被中止的运行不重调度：中止是宿主要它停下。重调度的定时器不占住进程（`unref`），它的释放同 `instances.install`，归排空协议（`quiesce` 与 `handover`）。除这三个触发和受理、同 key 释放、原事实 ready 及原 reader 重连的唤醒之外，没有别的东西运行一个调用；其余的缺口归恢复扫描 `scanPending`（第 22 条）。

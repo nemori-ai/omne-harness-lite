@@ -135,7 +135,7 @@ Each column is declared one time, in `TABLES` of `src/schema.ts`. The migration,
 | `combination`     | The combination version and manifest digest that the application registered            |
 | `maxCallBytes`    | The largest call material                                                              |
 | `maxCommandBytes` | The `maxCommandBytes` of the provider                                                  |
-| `attemptLimit`    | Attempt generations of one operation, default 8                                        |
+| `attemptLimit`    | Rounds of one run, default 8. Attempt generations have no limit                        |
 | `unresolvedLimit` | Operations with an unknown outcome that the process keeps for one tenant, default 1024 |
 
 Construction fails when `maxCallBytes` plus the 64 KiB command reserve is more than `maxCommandBytes` (N1), and when `limits.scanPageCalls` is more than 1000. A call whose `capacity.bytes` is more than `maxCallBytes` is refused when it is admitted.

@@ -97,7 +97,7 @@ const { commands } = createSqlModelCommands({
 | `combination`     | 应用登记的组合版本与清单摘要                               |
 | `maxCallBytes`    | 单个调用材料的上界                                         |
 | `maxCommandBytes` | 提供者的 `maxCommandBytes`                                 |
-| `attemptLimit`    | 一个 operation 的尝试代数，默认 8                          |
+| `attemptLimit`    | 一次 run 的轮数，默认 8。尝试代数不设上限                  |
 | `unresolvedLimit` | 本进程为一个租户保存的结论未定的 operation 个数，默认 1024 |
 
 `maxCallBytes` 加 64 KiB 命令预留超过 `maxCommandBytes` 时，或 `limits.scanPageCalls` 超过 1000 时，构造失败。`capacity.bytes` 超过 `maxCallBytes` 的调用在受理时被拒绝。

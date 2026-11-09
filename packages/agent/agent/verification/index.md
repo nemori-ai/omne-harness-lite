@@ -21,3 +21,4 @@
 - [failure-closure/](failure-closure/README.md)：节点故障收尾的有限安全性、有条件活性与具名负控
 - [failure-provenance/](failure-provenance/README.md)：共享 Failure 的来源隔离证明、有限正负控及真实 coordinator 回归
 - [finish-refusal/](finish-refusal/README.md)：相同完成意图被拒绝后保留候选、等待并重试的局部模型与实现守护
+- [capacity-liveness/](capacity-liveness/README.md)：有上限资源下 Run 活性的有限模型，三个正控与三个具名负控

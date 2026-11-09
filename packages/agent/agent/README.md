@@ -227,7 +227,7 @@ This is the phase 1 reading of the node table's Q2 `commit-unknown` edge to R0, 
 
 Stops:
 
-- An outcome off the normal path stops the run at its node. No stop becomes a success.
+- An outcome that cannot continue stops the run at its node. No stop becomes a success. When a port answers `unavailable`, the dependency is temporarily unavailable: the run waits and does not stop. The rule is in the [SPEC](SPEC.md#依赖不可用时的等待).
 - After a stop the slot stays occupied, and `observe` shows occupied. The Journal keeps the `position` of the last commit. A new `invoke` gets `busy`.
 - The coordinator returns the failure and its `owner` internally (#558 S-14). A port failure keeps its owner. `@omne-harness/agent` marks an outcome outside current support. `@omne-harness/agent#defect` marks a coordinator defect. There is no public stop reason. Waits are not delivered.
 

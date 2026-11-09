@@ -41,12 +41,13 @@
 | ----------------------------------------------- | ----------------------------------------------------------- |
 | `committed`                                     | `committed`                                                 |
 | `rolled_back`，参加者以修订号停止               | `conflict`，带当前修订号                                    |
-| `rolled_back`，其他原因（参加者抛错、语句失败） | `unavailable`。明确回滚已持久，提交没有任何效果             |
+| `rolled_back`，其他原因（参加者抛错、语句失败） | `rejected`，`reason` 为失败类别。明确回滚已持久，提交没有任何效果；失败由输入与已提交的数据决定（sql-contract §7.6），同一提交再试得到同一失败 |
 | `unknown`                                       | `unknown`。账本按它写入的操作认回结果                       |
-| `rejected_before_accept`                        | `unavailable`，诊断带拒绝原因                               |
+| `rejected_before_accept`，暂时的原因            | `unavailable`，诊断带拒绝原因                               |
+| `rejected_before_accept`，确定的原因            | `rejected`，`reason` 为拒绝原因。定性见 sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性) |
 | `identity_conflict`                             | `unavailable`。每次提交用新的操作键，提供者没有执行本次提交 |
 
-写入的记录不是严格 JSON 时（函数、BigInt、非有限数、类型化数组、环），端口在发出提交之前答 `unavailable`。值为 `undefined` 的对象成员按 JSON 省略。
+写入的记录不是严格 JSON 时（函数、BigInt、非有限数、类型化数组、环），端口在发出提交之前答 `rejected`：同一写入集再试仍不是严格 JSON。值为 `undefined` 的对象成员按 JSON 省略。
 
 SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不捕获该异常，原样交给调用方（防御指导 DP-01）。账本把它当作结果不定。
 
@@ -70,6 +71,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 - 清单落盘之前，`inspect` 不答 `retained`。
 - 中断（进程在清单之前停止）留下的块不可见。同一操作重送时按键覆盖它们，多出的块在清单提交时删除。
 - 块或清单的提交答 `unknown` 时，`preserve` 答 `commit-unknown`。调用方以同一操作重送。
+- 块或清单的提交被存储受理前拒绝时，按 sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)作答：暂时的原因答 `unavailable`，诊断带原因，调用方以同一操作重送；确定的原因答 `invalid`，`field` 为 `storage`，`reason` 为原因名。
 - 输入身份由 codec、字节数、SHA-256 与来源证据决定。同一操作、同一身份的重送认回原 `RawOutput`。
 
 `RawOutput` 的 `content.key` 是 JSON 文本 `[call, operation]`，`content.storage` 与 `custody.owner` 是 `@omne-harness/tool-storage-sql`，`custody.digest` 绑定租户、调用、操作与输入身份。
@@ -127,7 +129,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 1. 同域共用写队列（R1-D2）：Tool 的提交与会话日志的提交在同一租户事务域排队。ST-09 或 E9 测量超过阈值时重开。
 2. 两条不等式（评审 N1）。左侧上界归 `tool` 的 P08 拥有者，在它给出之前是已知限制：
-   - 一次 `ToolLedgerStore.commit` 的写入集，编码后加信封不超过 `storage` 行的 `maxCommandBytes`。超过时提供者拒绝（`command_limit`），端口答 `unavailable`。
+   - 一次 `ToolLedgerStore.commit` 的写入集，编码后加信封不超过 `storage` 行的 `maxCommandBytes`。超过时提供者拒绝（`command_limit`），端口答 `rejected`，`reason` 为 `command_limit`。
    - 一个账本域的全部记录，编码后不超过读 handler 的 `maxOutputBytes`（4194304）与提供者的 `maxReadResultBytes`，记录数不超过 100000。超过时读答 `unavailable`。
 3. 原件全文永久保留，与会话日志在同一个 SQLite 文件里增长，没有到期删除（评审 N7）。重开阈值的归属由 Reduce 在 RI 时定。
 4. `inspect` 对从未保管的操作答 `unknown`（U1），P05 拥有者另定时再改。

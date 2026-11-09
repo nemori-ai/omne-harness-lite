@@ -73,7 +73,8 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 | 关联身份 | 调用方在首次 admit 前固定 call 与原 admission operation，可预先编码并保存 reference。 |
 | 必要参数 | 显式 tenant、当前 principal、固定的 call、operation、request、consumer 与 capacity。 |
 | 成功 | 原 call 与结果容量预留在同一提交里成立，返回原 call、revision、recovered 与 reference。受理不等于已实际发出，实际发送另按 S 围栏记录。 |
-| 拒绝 | 结构、当前资格、采用或容量不成立。同身份异固定输入返回 conflict。不算已经发出。 |
+| 拒绝 | 结构、当前资格、采用或容量不成立。容量不成立返回 capacity，只表示这个调用永远放不下。同身份异固定输入返回 conflict。不算已经发出。 |
+| 暂时不可用 | 份额此刻被占满或依赖不可用，返回 unavailable，没有受理。调用方等待后以原 call 与原 admission operation 再受理，见[按租户的串行区与公平](#按租户的串行区与公平)。 |
 | 未知 | 按提交前 reference 中的原 call 与 admission operation 认回。只有原 Commands 排除旧写者后的权威 not-accepted 才允许沿原身份重送相同输入。timeout 或路由缺席不证明未受理，不换身份再发。 |
 
 同一 call、原 admission operation 和固定输入重入时，核对当前资格后返回原受理，recovered 为 true。同一 call 换 operation，即使固定输入相同，也返回 conflict。结构、资格、采用与容量的具体拒绝分类沿下文各自规则。
@@ -186,7 +187,7 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 
 份额用尽时走本契约已有的路径，不新增失败成员，也不无限排队。各类份额的去向如下：
 
-- 结果额度（未确认结果数与字节）在受理前预留。租户份额或全局上界用尽时，admit 按[调用和各次真实发出](#调用和各次真实发出)的容量不成立分支拒绝，经 admit 的 Reply 回到调用方。
+- 结果额度（未确认结果数与字节）在受理前预留。租户份额或全局上界此刻被占满时，admit 返回 unavailable，诊断写明哪一项份额已满，不受理也不排队。调用方按依赖等待，到检查时刻以原 call 与原 admission operation 再受理。只有调用自身的容量大于整个租户份额、全局上界或单调用上界，永远放不下时，admit 才按[调用和各次真实发出](#调用和各次真实发出)的容量不成立分支返回 capacity。两种结果都经 admit 的 Reply 回到调用方。
 - 同时 push 数用尽时，交付在受理时已预留的有界待办里等待。它不被拒绝，生产者保留原 key 与完整冻结载荷，直到有效交接 ACK 成立（见[交付身份与冻结载荷](#交付身份与冻结载荷)）。
 - 晚账修订份额用尽时，按[晚到账目与有界保管](#晚到账目与有界保管)在接管前拒绝新的晚报告，提交者继续保管可信来源。
 - 接收方自己的额度不足时，接收方对 push 返回[结果推送与保存](#结果推送与保存)已有的 `backpressured`。
