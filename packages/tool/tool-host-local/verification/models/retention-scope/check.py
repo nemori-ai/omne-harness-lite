@@ -2,8 +2,8 @@
 """Runs every RetentionScope configuration with the pinned TLC and judges each result.
 
 The two positive configurations must exit 0 with a completed search. A negative control
-on an invariant must exit 12 with exactly the named invariant violated; the negative control
-on the progress property must exit 13 with a temporal violation, and its configuration must
+on an invariant must exit 12 with exactly the named invariant violated; a negative control
+on a temporal property must exit 13 with a temporal violation, and its configuration must
 name exactly that property. Logs, state directories and a summary with the model/config
 digests go to --out, never into this directory.
 """
@@ -17,9 +17,9 @@ JAR_SHA256 = '936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88'
 CASES = [
     ('positive', None),
     ('progress', None),
-    ('delete-marker-on-release', ('invariant', 'NeverReopen')),
-    ('drop-only-on-acquisition-close', ('property', 'EventuallyReleased')),
-    ('acquisition-write-without-scope-assert', ('invariant', 'ClosedAcquisitionNotAdopted')),
+    ('reservation-in-scope', ('invariant', 'CreatorStopAlwaysRecorded')),
+    ('take-without-creator-assert', ('invariant', 'NoDoubleOwner')),
+    ('reopen-after-close', ('invariant', 'NeverReopen')),
     ('forget-end-fact', ('invariant', 'StopAnswer')),
 ]
 parser = argparse.ArgumentParser()
