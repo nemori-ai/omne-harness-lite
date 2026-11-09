@@ -9,6 +9,7 @@ import { createInterface } from 'node:readline'
 import { expect, it } from 'vitest'
 import { askBridge } from '../../src/windows-execution/bridge.ts'
 import { windowsTerminalExecutable } from '../../src/windows-execution/compile.ts'
+import { bundledConpty } from '../../src/windows-execution/terminal.ts'
 import { stopWindowsJob } from '../../src/windows-execution/supervision.ts'
 import { psString } from './terminal-fixture.ts'
 
@@ -31,7 +32,7 @@ for await (const line of createInterface({ input: broker.stdout })) {
   const frame = JSON.parse(line)
   if (frame.t === 'ready') broker.stdin.write('go\n')
   else if (frame.t === 'opened')
-    broker.stdin.write(JSON.stringify({ c: 'execute', id: 'gone:1', script }) + '\n')
+    broker.stdin.write(JSON.stringify({ c: 'execute', id: 'gone:1', nonce: '0'.repeat(32), script }) + '\n')
   else if (frame.t === 'finished') console.log('finished')
 }
 `
@@ -67,6 +68,7 @@ it('stops the Job of a terminal and exits when the provider holding its control 
       script,
       request: {
         name,
+        conpty: bundledConpty(),
         cwd: root,
         env: {
           SystemRoot: system,

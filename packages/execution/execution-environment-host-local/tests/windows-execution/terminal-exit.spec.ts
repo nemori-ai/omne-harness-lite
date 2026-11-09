@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import type { ProcessHandle, TerminalRef } from '@omne-harness/execution-environment-contract'
 import { askBridge } from '../../src/windows-execution/bridge.ts'
-import { outputOf, psString, terminalFixture } from './terminal-fixture.ts'
+import { outputOf, psString, terminalFixture, visible } from './terminal-fixture.ts'
 
 const system = process.env['SystemRoot'] ?? 'C:\\Windows'
 /** A path that does not exist; each row names its own, so its reason is told apart. */
@@ -99,13 +99,6 @@ const rows: ReadonlyArray<Readonly<{ name: string; script: string; code: number;
     },
   ]
 
-/** Terminal bytes without the control sequences ConPTY renders around the text. */
-const visible = (bytes: Buffer) =>
-  bytes
-    .toString('utf8')
-    // oxlint-disable-next-line no-control-regex -- ConPTY output is matched without its escapes.
-    .replace(/\u001b\[[0-?]*[ -/]*[@-~]|\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/gu, '')
-
 it('answers every row of the F3 table with its exit code and shows the reason of a failure', async context => {
   if (process.platform !== 'win32') return context.skip()
   const root = await realpath(await mkdtemp(join(tmpdir(), 'omne-terminal-exit-')))
@@ -136,19 +129,11 @@ it('answers every row of the F3 table with its exit code and shows the reason of
         row: row.name,
         result: { kind: 'completed', exit: { kind: 'code', code: row.code } },
       })
-      // ConPTY windows are observations: the rendered reason can reach the windows after this
-      // one, so empty invocations read on until it shows, before the next row starts.
-      let shown = text
-      for (
-        let drain = 0;
-        row.text !== undefined && !shown.includes(row.text) && drain < 50;
-        drain++
-      )
-        shown += (await run('')).text
+      // The reason a failed row shows is in that row's own output.
       if (row.text !== undefined)
-        expect({ row: row.name, shown }).toMatchObject({
+        expect({ row: row.name, text }).toMatchObject({
           row: row.name,
-          shown: expect.stringContaining(row.text),
+          text: expect.stringContaining(row.text),
         })
     }
     expect(await f.manager.facility.list(f.call)).toMatchObject({

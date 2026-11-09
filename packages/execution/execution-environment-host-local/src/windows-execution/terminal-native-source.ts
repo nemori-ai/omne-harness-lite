@@ -61,7 +61,7 @@ using System.Threading;
 using System.Web.Script.Serialization;
 
 public sealed class OmneTerminalRequest {
-  public string name,cwd,id,script,stdin,c;
+  public string name,cwd,id,script,stdin,c,conpty,nonce;
   public Dictionary<string,string> env;
   public int columns,rows,maxChunkBytes,stopBoundMs,maxControlBytes;
 }
@@ -77,8 +77,24 @@ public static class OmneTerminalEntry {
 
 public static partial class OmneWindowsBridge {
   [StructLayout(LayoutKind.Sequential)] struct COORD { public short x,y; }
-  [DllImport("kernel32.dll")] static extern int CreatePseudoConsole(COORD size,IntPtr input,IntPtr output,uint flags,out IntPtr pc);
-  [DllImport("kernel32.dll")] static extern void ClosePseudoConsole(IntPtr pc);
+  // The pseudoconsole comes from the conpty.dll the request names, not from kernel32: the system
+  // ConPTY does not keep private OSC sequences in order with the text it renders.
+  [UnmanagedFunctionPointer(CallingConvention.Winapi)] delegate int CreatePseudoConsoleFunction(COORD size,IntPtr input,IntPtr output,uint flags,out IntPtr pc);
+  [UnmanagedFunctionPointer(CallingConvention.Winapi)] delegate void ClosePseudoConsoleFunction(IntPtr pc);
+  [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr LoadLibraryExW(string path,IntPtr file,uint flags);
+  [DllImport("kernel32.dll",CharSet=CharSet.Ansi,SetLastError=true,BestFitMapping=false)] static extern IntPtr GetProcAddress(IntPtr module,string name);
+  static CreatePseudoConsoleFunction CreatePseudoConsole;
+  static ClosePseudoConsoleFunction ClosePseudoConsole;
+  /** Loads conpty.dll by its absolute path; its OpenConsole.exe beside it is found by conpty.dll. */
+  static void LoadConpty(string path) {
+    if(String.IsNullOrEmpty(path)||!Path.IsPathRooted(path))throw new ArgumentException("conpty.dll path");
+    // LOAD_WITH_ALTERED_SEARCH_PATH: the dependencies of conpty.dll resolve from its own directory.
+    IntPtr module=LoadLibraryExW(path,IntPtr.Zero,0x00000008);Check(module!=IntPtr.Zero);
+    IntPtr create=GetProcAddress(module,"CreatePseudoConsole");Check(create!=IntPtr.Zero);
+    IntPtr close=GetProcAddress(module,"ClosePseudoConsole");Check(close!=IntPtr.Zero);
+    CreatePseudoConsole=(CreatePseudoConsoleFunction)Marshal.GetDelegateForFunctionPointer(create,typeof(CreatePseudoConsoleFunction));
+    ClosePseudoConsole=(ClosePseudoConsoleFunction)Marshal.GetDelegateForFunctionPointer(close,typeof(ClosePseudoConsoleFunction));
+  }
   static IntPtr terminalConsole=IntPtr.Zero,terminalInput=IntPtr.Zero;
   static NamedPipeServerStream terminalControl;
   static StreamWriter terminalWriter;
@@ -92,6 +108,7 @@ public static partial class OmneWindowsBridge {
   static void PrepareTerminal(OmneTerminalRequest r) {
     IntPtr ir=IntPtr.Zero,orr=IntPtr.Zero,ow=IntPtr.Zero,list=IntPtr.Zero,jobs=IntPtr.Zero,env=IntPtr.Zero;
     try {
+      LoadConpty(r.conpty);
       job=CreateJobObjectW(IntPtr.Zero,r.name);Check(job!=IntPtr.Zero);
       if(Marshal.GetLastWin32Error()==183){CloseHandle(job);job=IntPtr.Zero;throw new InvalidOperationException("Job name collision");}
       EXT_LIMIT limit=new EXT_LIMIT();limit.basic.flags=0x2000;
@@ -168,6 +185,7 @@ public static partial class OmneWindowsBridge {
         else if(line=="graceful")SendTerminal("{\"c\":\"close\"}");
         else {
           OmneTerminalRequest request=Json.Deserialize<OmneTerminalRequest>(line);
+          if(!OmneTerminalShell.Nonce(request.nonce))throw new InvalidDataException("segment nonce");
           if(terminalInputThread!=null&&terminalInputThread.IsAlive)throw new IOException("Previous terminal input remains pending");
           SendTerminal(line);TerminalInput(request.stdin);
         }
@@ -197,6 +215,14 @@ public static class OmneTerminalShell {
     Console.SetOut(new StreamWriter(Console.OpenStandardOutput(),new UTF8Encoding(false),4096){AutoFlush=true});
     Console.SetError(new StreamWriter(Console.OpenStandardError(),new UTF8Encoding(false),4096){AutoFlush=true});
   }
+  /** A segment nonce as the provider makes it: 128 random bits in lowercase hexadecimal. */
+  public static bool Nonce(string value) {
+    if(value==null||value.Length!=32)return false;
+    foreach(char c in value)if(!((c>='0'&&c<='9')||(c>='a'&&c<='f')))return false;
+    return true;
+  }
+  /** ESC ] 7770 ; omne-b|omne-e ; nonce BEL, the segment sentinel of src/terminal-sentinels.ts. */
+  static void Sentinel(string mark,string nonce){Console.Out.Write("\u001b]7770;omne-"+mark+";"+nonce+"\u0007");Console.Out.Flush();}
   public static string ReadBounded(TextReader reader,int limit) {
     StringBuilder line=new StringBuilder();int c;
     while((c=reader.Read())!=-1&&c!=10){if(line.Length>=limit)throw new InvalidDataException("control frame limit");if(c!=13)line.Append((char)c);}
@@ -217,6 +243,8 @@ public static class OmneTerminalShell {
         string line;
         while((line=ReadBounded(reader,init.maxControlBytes))!=null) {
           OmneTerminalRequest request=json.Deserialize<OmneTerminalRequest>(line);if(request.c=="close")return;
+          // Every byte the console renders from here to the end sentinel belongs to this invocation.
+          Sentinel("b",request.nonce);
           string savedCwd=runspace.SessionStateProxy.Path.CurrentLocation.ProviderPath;
           Dictionary<string,string> savedEnv=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
           bool restored=true;bool completed=false;long? elapsedMs=null;int? code=null;bool ended=false;
@@ -249,6 +277,7 @@ public static class OmneTerminalShell {
           }
           string cwd;
           try {cwd=runspace.SessionStateProxy.Path.CurrentLocation.ProviderPath;if(String.IsNullOrEmpty(cwd)){cwd=savedCwd;restored=false;}}catch(Exception){cwd=savedCwd;restored=false;}
+          Sentinel("e",request.nonce);
           writer.WriteLine(json.Serialize(new {t="finished",v=3,id=request.id,cwd=cwd,restored=restored,completed=completed,elapsedMs=elapsedMs,code=code,ended=ended}));
           // exit N ends the persistent shell after its invocation is answered.
           if(!restored||ended)return;

@@ -32,17 +32,27 @@ import {
   type WindowsPrerequisite,
 } from './windows-execution/prerequisites.ts'
 import {
+  bundledConpty,
   createWindowsHostTerminals,
   createWindowsRetainedTerminalFactory,
+  missingConptyFiles,
   type WindowsTerminalCapacity,
+  type WindowsTerminalPrerequisite,
 } from './windows-execution/terminal.ts'
 
 type Prerequisite = ProviderFacts['prerequisites']
-/** A prerequisite a command start found missing, on any platform. */
-export type CommandPrerequisite = HostCommandPrerequisite | MacosPrerequisite | WindowsPrerequisite
+/** A prerequisite a command start found missing, on any platform; on Windows also a terminal's file. */
+export type CommandPrerequisite =
+  | HostCommandPrerequisite
+  | MacosPrerequisite
+  | WindowsPrerequisite
+  | WindowsTerminalPrerequisite
 type CommandInput = Omit<HostCommandsInput, 'prerequisites' | 'unavailable'> &
   Readonly<{ unavailable(missing: readonly CommandPrerequisite[]): void }>
 type TerminalInput = Omit<Parameters<typeof createHostTerminals>[0], 'prerequisites' | 'platform'>
+/** Windows terminals also report the ConPTY files they cannot read. */
+type WindowsTerminalInput = Omit<TerminalInput, 'unavailable'> &
+  Readonly<{ unavailable(missing: readonly CommandPrerequisite[]): void }>
 
 /** Installation facts only; a successful compile does not prove a command or terminal run. */
 export async function probeWindowsExecution(): Promise<Prerequisite> {
@@ -69,6 +79,7 @@ export async function probeWindowsExecution(): Promise<Prerequisite> {
       ? 'unsatisfied'
       : 'unknown'
   }
+  if ((await missingConptyFiles(bundledConpty())).length > 0) return 'unsatisfied'
   try {
     await Promise.all([windowsBridgeExecutable(), windowsTerminalExecutable()])
     return 'satisfied'
@@ -151,7 +162,7 @@ export function createHostPlatform(input: {
         createWindowsHostCommands({ ...options, prerequisites: probe, jobs: windowsJobs }),
       /** The cold index of command Jobs; absent without a state directory. */
       windows: { jobs: windowsJobs },
-      terminals(options: TerminalInput) {
+      terminals(options: WindowsTerminalInput) {
         const shared = { ...options, capacity: input.windowsCapacity() }
         return {
           ordinary: createWindowsHostTerminals(shared),

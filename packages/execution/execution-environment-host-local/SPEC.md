@@ -60,7 +60,7 @@
 | 文件操作延迟                   | 毫秒级系统调用                                                          | 每次请求起一个辅助进程                                                                                 | 对齐：常驻文件辅助进程，热态单次操作 p50 不超过 20 ms                                                                                                                                                                                                                   |
 | 终端 shell                     | Bash                                                                    | `/bin/bash` 3.2.57                                                                                     | 不适用：Windows 的终端 shell 是 Windows PowerShell 5.1，嵌在 ConPTY 里的 Runspace。对齐的是性质，不是 shell 语言                                                                                                                                                        |
 | 终端调用的退出码               | Bash 的 `$?`                                                            | 同 Linux                                                                                               | 对齐：见 [Windows 终端](#windows-终端未接受)                                                                                                                                                                                                                            |
-| 终端字节归属                   | 哨兵按段归属，段间字节单列                                              | 同 Linux                                                                                               | 系统 ConPTY 上是声明差异：按观察窗口归属，结局不带 `between`（ConPTY 重绘输出，未知 OSC 与文本不保序）。随包的 `conpty.dll` 通过保序验证时对齐。见 [Windows 终端](#windows-终端未接受)                                                                                  |
+| 终端字节归属                   | 哨兵按段归属，段间字节单列                                              | 同 Linux                                                                                               | 对齐：伪终端用 node-pty 随包的 `conpty.dll`，按 Linux 的哨兵规则归属，段间字节进 `between`。系统 ConPTY 重绘输出，私有 OSC 与文本不保序，所以不用它。见 [Windows 终端](#windows-终端未接受)                                                                             |
 | 信号退出                       | 有                                                                      | 有                                                                                                     | 声明差异：Windows 没有信号，结局的 `exit` 只有 `code` 一种，消费者从 `exit` 的形状看见这一差异                                                                                                                                                                          |
 | 磁盘已满且没有效果             | `ENOSPC` 映射为未知                                                     | 同 Linux                                                                                               | 超出：临时对象已删除且目标未变时答 `rejected(capacity)`。Linux 原位写在磁盘满时可能已写了一部分，所以答未知。Linux 能否区分「没有效果」交 Linux 后端的拥有者                                                                                                            |
 | 失效终端的引用                 | 答 `closed`，与契约写的 `unavailable` 不一致，交 Linux 后端的拥有者裁定 | 同 Linux                                                                                               | 对齐契约：答 `unavailable`                                                                                                                                                                                                                                              |
@@ -487,9 +487,13 @@ macOS 上，上文的 scope 指终端的执行域。执行域是两个 POSIX 会
 
 字节归属：
 
-- 系统自带的 ConPTY 会重新渲染子进程的输出，未知的 OSC 序列与渲染出的文本没有先后保证。所以 Linux 的哨兵规则在系统 ConPTY 上不成立。
-- Windows 终端随包使用 Windows Terminal 1.22 或以后版本的 `conpty.dll`，并且它通过保序验证时，按 Linux 的哨兵规则归属字节，段间字节进 `OutputSummary.between`。这时 `conpty.dll` 是终端的前提。
-- 否则，Windows 终端按观察窗口归属字节，这是声明的差异，规则与限制见 [Windows 命令与终端说明](docs/windows-execution.md#persistent-terminals)。
+- 伪终端来自 node-pty 1.1.0 随包的 `conpty.dll`（ConPTY 1.23.251008001），它与同目录的 `OpenConsole.exe` 一起工作。系统自带的 ConPTY 会重新渲染子进程的输出，私有 OSC 序列与渲染出的文本没有先后保证，所以终端不用它。随包的 ConPTY 在保序验证里三轮都是 0/30 乱序，系统 ConPTY 每轮 9～11/30。
+- 字节按上文[持久终端](#持久终端)里 Linux 的哨兵规则归属。每次调用开始时，提供者取一个 128 位随机数，经控制通道交给 shell 宿主。shell 宿主在脚本之前和之后向控制台写 `ESC ] 7770 ; omne-b ; <随机数> BEL` 与 `ESC ] 7770 ; omne-e ; <随机数> BEL`。段首与段尾之间的字节是这次调用的输出。
+- 段间字节进有界缓冲，上界是 `betweenSegmentBytes`。下一次调用的结局在 `OutputSummary.between` 里带上保留的字节与计数，超出上界的字节只计入丢弃数。第一次调用的 `between` 里有 ConPTY 启动时写的控制序列。
+- 交出调用的结果要同时有两样：shell 宿主在控制通道上发来的这次调用的 `finished`，以及读到这次调用的段尾哨兵。两样走不同的通道，先后不定。控制通道先结束时（例如 `exit N`），提供者继续读输出，直到读到段尾哨兵或宿主进程的输出结束。输出结束时还没有段尾哨兵，结局为 `failed(effectUnknown)`。
+- 哨兵顺序不可能时（重复的段首、段首之前的段尾），结局为 `failed(effectUnknown)`，终端转为 `invalid`。
+- 前提：`conpty.dll` 与它旁边的 `OpenConsole.exe` 都能读到。路径由提供者从 node-pty 包求出，经启动请求交给宿主进程。缺任一个时，`create` 答 `unavailable`，`terminalUnavailable` 诊断写明缺的文件名（`conpty.dll`、`OpenConsole.exe`），`describe()` 的安装前提答 `unsatisfied`。
+- 已知限制：随机数在 shell 宿主进程里，与脚本在同一个进程。脚本可以读进程内存得到它，从而伪造哨兵。后果与 Linux 的同一条限制相同，只限这个终端。
 
 上限：一个提供者责任域里的终端数、窗口数、保留的输出字节数与排队的块数是常量 64、256、64 MiB 与 65536，不能配置。这是已知限制。Linux 的 `terminal` 配置没有这四项，Windows 不另造配置名。
 
@@ -620,7 +624,6 @@ macOS 按 POSIX 会话收纳。进程可以用 `setsid` 离开会话，所以 ma
   - 提供者死去时，门停止自己的会话。所以提供者死去之后，命令不继续运行。
   - 提供者与门在 GO 之后、终端的 shell 会话记入标记之前一起死去时，标记里没有 shell 的会话，冷恢复不停止它。
   - 读到一个成员与向它发信号之间，进程号在理论上可以被重用。这个窗口很窄，与按进程号 `kill` 的窗口同类。
-- Windows 终端的字节归属见 [Windows 终端](#windows-终端未接受)：系统 ConPTY 上按观察窗口归属，结局不带 `between`。收敛条件：随包的 `conpty.dll` 通过保序验证。
 
 预期行为：句柄已确认停止之后再调用 `stop`，提供者再发一次停止，并再记一条 `confirmed`。集成方按已确认保持原事实，不改变结论。
 
