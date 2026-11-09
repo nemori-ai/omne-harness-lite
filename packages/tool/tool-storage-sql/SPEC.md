@@ -64,7 +64,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ### TS-06 修订号
 
-保管行与清单不是 `LedgerRecord`，不在任何账本域内。它们不推进任何账本域修订号（评审 N2），整域读也不受原件大小影响。
+正文分块与清单不是 `LedgerRecord`，不在任何账本域内。它们不推进任何账本域修订号（评审 N2），整域读也不受原件大小影响。
 
 ### TS-09 读取次序
 
@@ -109,8 +109,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | TS-01、TS-02、TS-11 | `tests/ledger-store-conformance.spec.ts` 运行 `toolLedgerStoreConformance()`（含 `store.asserts-*`）与 `toolLedgerStoreCompositionConformance()`，七个故障手柄都有来源，没有不适用项；`tests/atomic-commit.spec.ts`；`tests/ledger-asserts.spec.ts`：排队中的提交在执行时才评估断言，两个连接之间被断言域的写入使断言在执行时失败 | SQLite 测试提供者（`tests/fixtures/sqlite-storage.ts`），不是 sqlite-provider；提供者的 4 MiB 读出上限由该测试双身按 `READ_OUTPUT_BYTES` 复现 |
 | TS-03               | `tests/tenant-isolation.spec.ts`：同键两租户、他租户行混入同一库、目录外的租户；`tests/tenant-isolation-live.spec.ts`：正文表与到期索引上的同一性质——A 的正文对 B 不到期、不被 B 的清扫回收、B 的账本与正文仓读不到、B 的删除不动它；混入 A 库的 B 行不进入 A 的到期读、清扫、正文读与删除 | 同上                                                                                             |
-| TS-04、TS-05、TS-08 | `tests/custody-conformance.spec.ts` 运行 `toolOutputCustodyConformance()`，没有不适用项；`tests/custody-chunks.spec.ts`；`tests/participant.spec.ts`                                         | 同上                                                                                             |
-| TS-06、TS-07        | `tests/custody-chunks.spec.ts`                                                                                                                                                               | 同上                                                                                             |
+| TS-06 | 尚无专门用例：正文分块与清单的写入不推进账本域修订号 | 未覆盖 |
 | 不写回执（C10）     | `tests/receipts-live.spec.ts`：真实 sqlite-provider 上一次带卸载正文的完整调用（受理、准备、启动、正文块与封存、最终事实、收场，≥ 8 次提交）后 `_sql_receipt` 行数不变 |
 | 重开                | `tests/reopen.spec.ts`：关闭再打开同一组数据库文件                                                                                                                                           | 进程内关闭与重开，不是进程终止或断电                                                             |
 | 启动围栏            | `tests/start-coordinator.spec.ts`：`tool-host-local` 的协调器在本仓上运行三组启动套件，并在重开后重建                                                                                        | 授权套件的用例全部不适用（协调器没有授权消费点）                                                 |

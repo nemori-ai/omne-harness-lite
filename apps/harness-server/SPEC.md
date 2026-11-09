@@ -444,22 +444,24 @@ sequenceDiagram
 
 ### Tool 生命周期遥测
 
-`tool-records` 与 `tool-material-maintenance` 显式 inject `telemetry`，各自包装实际 SQL 记录仓的提交口。应用将 Tool 生命周期观察投影为 `omne.tool.material.lifecycle` 事件。作用域取真实租户；调用关联采用调用标识的 SHA-256 投影。事件字段只有阶段、闭合失败类别、条目数及可选正文总字节数，不包含正文、data、路径或自由异常文本。
+`tool-records` 与 `tool-body-sweep` 显式 inject `telemetry`，各自包装实际 SQL 记录仓的提交口。应用将 Tool 生命周期观察投影为 `omne.tool.material.lifecycle` 事件。作用域取真实租户；调用关联采用调用标识的 SHA-256 投影。事件字段只有阶段、闭合失败类别、条目数及可选正文总字节数，不包含正文、data、路径或自由异常文本。
 
 事件不参与结果交接、清理或升级准入。禁用、容量丢弃、出口失败、依赖缺席和关闭均不能改变 Tool 的原答复。该接线只使用独立事件，不分配 segment、长期配对表或独立定时器。持久状态仍从 Tool 查询，不能用遥测计数证明材料已清理。
 
-### Tool 材料维护授权
+### Tool 正文清扫
 
 `session-storage`在发布服务前逐个确认持久目录内租户的当前组合登记。目录中的既有租户不依赖新的会话create触发补登记。登记失败或最终未知使行失败；关闭后不开始下一次登记或发布服务。该前置屏障沿SQL原有幂等登记和迁移事务。
 
-发行授予表没有 Tool 材料维护用途：`tool-material-scan`、`tool-material-maintain` 及 tool 动作 `maintain-materials`、`read-raw`、`read-raw-content` 已随材料维护行删除；到期正文由 `tool-body-sweep` 行排期、Tool 运行时按自己的到期索引回收。会话 Tool guard 的动作集合只有 `ToolLedgerAction`。
+发行授予表没有 Tool 材料维护用途。会话 Tool guard 的动作集合只有 `ToolLedgerAction`。
 
-系统维护不读取当前成员资格来决定历史材料是否可清理。成员离组不删除租户及历史责任；持久分区仍由既有 TenantDomainLookup 和 SQL 提供者解析。伪造租户、复制主体、越权动作或撤销授予均不能获得维护权。缺当前授权来源或读口抛错明确不可用，不泄露异常文本。
+`tool-body-sweep` 行为每个租户调度 Tool 的正文清扫，回收由 Tool 运行时执行：
 
-生产入口安装 tenantDomainScannerPrincipal 和 toolMaterialMaintainerPrincipal，仅独立的 tool-material-maintenance 行可见。该行经公开 SQL 构造器连接同一材料仓，使用现有时钟、sweep 和串行 runner。目录枚举与材料维护分别出示对应主体，每次材料操作读取当前授权。普通工具执行不依赖该维护行。
+- 它按 `intervalMs` 定时运行。每一步枚举租户域，并在每个租户内取至多 `limit` 个到期项。
+- 对每个到期项，Tool 先删除正文存储中的字节，再在账本提交 `reclaimed` 并撤销排期。
+- 中途崩溃后，下一步重跑得到相同结果。
 
-维护行显式依赖 toolInstanceHost。取得有界候选页后，先向同一运行时 bundle 发送正文恢复唤醒，再独立进行 expire/reclaim。唤醒只带 tenant/call，不能把维护主体作为正文写入主体；运行时从原调用来源重新取得并核验当前主体。恢复队列满或资格不可用计为本轮失败，持久候选留待下一轮。正文恢复不自动重跑作者，也不凭失联判定弃用。
+该行使用 tenantDomainScannerPrincipal 枚举租户域。写入许可密钥与正文时钟取自同一运行时 holder，正文存储由公开 SQL 构造器创建。普通工具执行不依赖该行。
 
-运维者提供 combinationVersion、maxCommandBytes、maxChunkBytes、ledgerCommitAttempts、intervalMs 和 pageSize。正常关闭在 business 阶段停止调度并排空，先于 composition/storage。截止时间到时返回 incomplete，不声称已取消外部操作。异常依赖撤除或装载失败同步触发同一关闭入口；Cordis 并发撤除不保证存储提供者等待维护排空，已受理操作和未知责任仍按原存储契约恢复。
+运维者提供 combinationVersion、ledgerCommitAttempts、intervalMs 和 limit。正常关闭时，business 阶段停止调度并排空，先于 composition 与 storage。截止时间到时返回 incomplete，不声称已取消外部操作。
 
-runner 的异常和维护失败有固定分类诊断，不输出正文、身份或原异常文本。目录接口当前仍提供完整快照，内存成本随租户数增长。候选读取和每步回收有独立上界。
+单步失败与 runner 异常只记录失败种类与计数，不输出正文、身份或原异常文本。目录接口当前仍提供完整快照，内存成本随租户数增长。每步到期读取和回收数都有上界。

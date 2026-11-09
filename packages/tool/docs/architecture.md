@@ -12,7 +12,7 @@
 
 本节把[领域的结果卸载](../../../docs/domains/tool-execution/architecture.md#结果卸载)分解到四个成员，并规定与部署无关的原则。产品规则见[产品正文](../../../.meta_harness/design/product/tool-execution/design.md#结果保管卸载与模型采用)。端口形状、字段、错误集合和表结构归各成员的 SPEC 与源码。
 
-状态：已接受的目标设计，尚未实现。成员 SPEC 中的[卸载与全文读取](../tool-contract/SPEC.md#卸载与全文读取)和[有限期正文保管](../tool-contract/SPEC.md#有限期正文保管)等条款描述现有实现；与本节冲突的条款不约束后续设计。
+状态：已接受，已实现。端口契约见成员 SPEC 的[卸载与全文读取](../tool-contract/SPEC.md#卸载与全文读取)与[正文存储端口与到期索引](../tool-contract/SPEC.md#正文存储端口与到期索引)。
 
 ### 成员分工
 
