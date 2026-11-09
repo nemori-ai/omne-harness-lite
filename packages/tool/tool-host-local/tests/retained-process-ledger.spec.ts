@@ -418,35 +418,42 @@ describe('the acquisition ledger keeps a handed-over key handed over', () => {
   })
 })
 
-describe("a stop of a handed-over key is the retention scope's to record", () => {
-  /** Another call's view of the same retention scope, as a provider has after a restart. */
-  async function otherCallView(f: Awaited<ReturnType<typeof fixture>>) {
-    const other = { ...preparation, call: callId('call-b'), operation: operationId('prepare-b') }
-    const state = createEnvironmentStateStore({ store: f.store, mode: 'test' })
-    await state.update(other, () =>
-      succeed({
-        preparation: other,
-        original: {
-          ...original,
-          acquisition: acquisitionRef('original-b'),
-          retentionScope: preparation.request.requesterScope,
-        },
-        digest: canonicalDigest(other),
-        allocation: { kind: 'sent' },
-        closed: false,
-        evidence: evidence('original-b'),
-        release: null,
-        resources: [],
-      }),
-    )
-    return createRetainedTerminalLedger({
-      state,
-      address: other,
-      scope: preparation.request.requesterScope,
-      authorize: async () => 'authorized',
-    })
-  }
+/** Another call's view of the same retention scope, as a provider has after a restart. */
+async function otherCallView(f: Awaited<ReturnType<typeof fixture>>) {
+  const other = { ...preparation, call: callId('call-b'), operation: operationId('prepare-b') }
+  const state = createEnvironmentStateStore({ store: f.store, mode: 'test' })
+  await state.update(other, () =>
+    succeed({
+      preparation: other,
+      original: {
+        ...original,
+        acquisition: acquisitionRef('original-b'),
+        retentionScope: preparation.request.requesterScope,
+      },
+      digest: canonicalDigest(other),
+      allocation: { kind: 'sent' },
+      closed: false,
+      evidence: evidence('original-b'),
+      release: null,
+      resources: [],
+    }),
+  )
+  return createRetainedTerminalLedger({
+    state,
+    address: other,
+    scope: preparation.request.requesterScope,
+    authorize: async () => 'authorized',
+  })
+}
 
+/** The host keys of the scope's domain, read whole: the scope record and its end facts. */
+async function scopeKeys(f: Awaited<ReturnType<typeof fixture>>) {
+  const read = await f.store.read(retentionDomain(tenantA, preparation.request.requesterScope))
+  if (read.kind !== 'complete') throw new Error('fixture scope unavailable')
+  return read.records.flatMap(record => (record.kind === 'host' ? [record.host.key] : []))
+}
+
+describe("a stop of a handed-over key is the retention scope's to record", () => {
   it('another call of the scope records the stop of a key handed over by the first, which retires the entry', async () => {
     const f = await fixture()
     await f.reserved()
@@ -470,13 +477,6 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
     expect(await f.domain()).toEqual(before)
     expect(before.retainedFact).toMatchObject({ adopted: false, stop: 'active' })
   })
-
-  /** The host keys of the scope's domain, read whole: the scope record and its end facts. */
-  async function scopeKeys(f: Awaited<ReturnType<typeof fixture>>) {
-    const read = await f.store.read(retentionDomain(tenantA, preparation.request.requesterScope))
-    if (read.kind !== 'complete') throw new Error('fixture scope unavailable')
-    return read.records.flatMap(record => (record.kind === 'host' ? [record.host.key] : []))
-  }
 
   it('keeps the end fact of a stopped process: ended answers confirmed while the scope lives, the scope record no longer holds it, and the release removes both', async () => {
     const f = await fixture()
