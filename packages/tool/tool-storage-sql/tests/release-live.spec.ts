@@ -71,7 +71,10 @@ it('a released delivery leaves the summary in the record, keeps the body readabl
     after: null,
     maxBytes: 64,
   }
-  expect(ok(await live.ledger.reads.body.read(readInput)).text).toBe('x'.repeat(64))
+  expect(ok(await live.ledger.reads.body.read(readInput))).toMatchObject({
+    kind: 'text',
+    text: 'x'.repeat(64),
+  })
   // The same release again, under the same or another operation, writes nothing more.
   expect(ok(await live.ledger.commands.releaseDelivery(releaseInput))).toEqual(released)
   expect(

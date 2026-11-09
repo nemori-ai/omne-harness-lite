@@ -7,12 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { domainNameOf, openApp, TENANT_A } from './fixtures/app.ts'
-import { settledOffloaded } from './sweep-live.spec.ts'
-
-function ok<T>(value: { ok: T } | { failure: unknown }): T {
-  if ('failure' in value) throw new Error(JSON.stringify(value.failure))
-  return value.ok
-}
+import { ok, settledOffloaded } from './fixtures/settled-offloaded.ts'
 
 it.each([32, 5 * 1024 * 1024])(
   'plans a %i byte final into a bounded fact and record, with the body in the body store',
@@ -20,7 +15,7 @@ it.each([32, 5 * 1024 * 1024])(
     const root = await realpath(await mkdtemp(join(tmpdir(), 'tool-final-capacity-')))
     const app = await openApp({ directory: root, maxCommandBytes: 1_048_576, keep: true })
     try {
-      const live = await settledOffloaded(app, 'x'.repeat(bytes))
+      const live = await settledOffloaded(app, TENANT_A, 'x'.repeat(bytes))
       const offloaded = bytes > 65_536
       expect(live.value.original.kind).toBe(offloaded ? 'offloaded' : 'none')
       const retained = await app.store.read({
