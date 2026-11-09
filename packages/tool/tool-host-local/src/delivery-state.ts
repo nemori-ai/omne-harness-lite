@@ -14,6 +14,8 @@ import {
 } from '@omne-harness/tool-contract'
 import {
   decodeToolRevision,
+  defaultResultPolicy,
+  judgeCommittedToolResult,
   judgeHandoff,
   type CallAccess,
   type ToolCanonicalFingerprint,
@@ -68,17 +70,88 @@ function parsePhase(value: unknown): Phase | null {
   return null
 }
 
+const FINGERPRINT_DIGEST = /^[0-9a-f]{64}$/u
+const DECIMAL = /^(?:0|[1-9][0-9]*)$/u
+
+function decodeFingerprint(value: unknown): ToolCanonicalFingerprint | null {
+  if (!object(value)) return null
+  const { codec, algorithm, digest, bytes } = value
+  if (codec !== 'tool-canonical-json-v1' || algorithm !== 'sha256') return null
+  if (typeof digest !== 'string' || !FINGERPRINT_DIGEST.test(digest)) return null
+  if (typeof bytes !== 'string' || !DECIMAL.test(bytes)) return null
+  return { codec, algorithm, digest, bytes }
+}
+
+/**
+ * The body descriptor of a frozen offloaded original, judged by the committed result judge: the
+ * descriptor is that original without its summary.
+ */
+function decodeOriginal(value: unknown): ResultValueCommitment['original'] | null {
+  if (!object(value)) return null
+  if (value.kind === 'none') return { kind: 'none' }
+  const judged = judgeCommittedToolResult(defaultResultPolicy, {
+    content: [],
+    data: { kind: 'none' },
+    attachments: [],
+    original: { ...value, summary: [] },
+  })
+  if ('failure' in judged || judged.ok.original.kind !== 'offloaded') return null
+  const { summary: _summary, ...description } = judged.ok.original
+  return description
+}
+
 /**
  * The value commitment a record froze. A later run recognises its record by the key of `base`,
  * not by the value the ledger holds now: the release replaces the released channels of the
  * result record with the summary (C6), so a base read after the release carries another
- * fingerprint. The frozen push still compares the ledger value with this commitment.
+ * fingerprint. The frozen push still compares the ledger value with this commitment. The decoded
+ * commitment is rebuilt from its judged parts, so a stored field it does not know fails the
+ * record digest.
  */
 function frozenCommitment(payload: Record<string, unknown>): ResultValueCommitment | null {
   const value = payload.value
-  if (!object(value) || !object(value.original) || typeof value.fingerprint !== 'object')
+  if (!object(value)) return null
+  const fingerprint = decodeFingerprint(value.fingerprint)
+  const original = decodeOriginal(value.original)
+  return fingerprint === null || original === null ? null : { fingerprint, original }
+}
+
+/** The frozen payload: the key of `base`, the stored commitment and account, bound to the call. */
+function frozenPayload(
+  stored: Record<string, unknown>,
+  base: DeliveryBase,
+  access: CallAccess<unknown>,
+): DeliveryDescriptor | null {
+  const account = stored.account === null ? { ok: null } : judgeCallAccount(stored.account)
+  if (!('ok' in account)) return null
+  const committed = frozenCommitment(stored)
+  if (committed === null) return null
+  const payload: DeliveryDescriptor = { ...base, value: committed, account: account.ok }
+  const reference = resolveToolInvocationRef(payload.key.reference, access.tenant)
+  if ('failure' in reference) return null
+  const subject = payload.account?.subject
+  if (
+    subject !== undefined &&
+    (subject.kind !== 'tool_execution' || subject.id !== reference.ok.call)
+  )
     return null
-  return value as ResultValueCommitment
+  return canonicalDigest(payload) === canonicalDigest(stored) ? payload : null
+}
+
+function operationOf(value: unknown): ToolOperationId | null {
+  const decoded = decodeToolOperationId(value)
+  return 'ok' in decoded ? decoded.ok : null
+}
+
+function decodeOperations(
+  value: Record<string, unknown>,
+): Pick<DeliveryRecord, 'task' | 'freeze' | 'release' | 'done'> | null {
+  const task = operationOf(value.task)
+  const freeze = operationOf(value.freeze)
+  const release = operationOf(value.release)
+  const done = operationOf(value.done)
+  if (task === null || freeze === null || release === null || done === null) return null
+  return { task, freeze, release, done }
 }
 
 function parseDeliveryRecord(
@@ -87,48 +160,13 @@ function parseDeliveryRecord(
   access: CallAccess<unknown>,
 ): DeliveryRecord | null {
   if (!object(value) || !object(value.payload)) return null
-  const account =
-    value.payload.account === null ? { ok: null } : judgeCallAccount(value.payload.account)
-  if (!('ok' in account)) return null
-  const committed = frozenCommitment(value.payload)
-  if (committed === null) return null
-  const payload: DeliveryDescriptor = { ...base, value: committed, account: account.ok }
-  const reference = resolveToolInvocationRef(payload.key.reference, access.tenant)
-  if ('failure' in reference) return null
-  if (
-    payload.account !== null &&
-    (payload.account.subject.kind !== 'tool_execution' ||
-      payload.account.subject.id !== reference.ok.call)
-  )
-    return null
-  if (
-    canonicalDigest(payload) !== canonicalDigest(value.payload) ||
-    value.digest !== canonicalDigest(payload)
-  )
-    return null
-  const task = decodeToolOperationId(value.task)
-  const freeze = decodeToolOperationId(value.freeze)
-  const release = decodeToolOperationId(value.release)
-  const done = decodeToolOperationId(value.done)
+  const payload = frozenPayload(value.payload, base, access)
+  if (payload === null || value.digest !== canonicalDigest(payload)) return null
+  const operations = decodeOperations(value)
   const phase = parsePhase(value.phase)
-  if (
-    'failure' in task ||
-    'failure' in freeze ||
-    'failure' in release ||
-    'failure' in done ||
-    phase === null
-  )
-    return null
+  if (operations === null || phase === null) return null
   if (phase.kind !== 'frozen' && phase.evidence.owner !== payload.consumer.owner) return null
-  return {
-    payload,
-    digest: value.digest,
-    task: task.ok,
-    freeze: freeze.ok,
-    release: release.ok,
-    done: done.ok,
-    phase,
-  }
+  return { payload, digest: value.digest, ...operations, phase }
 }
 
 export function createDeliveryState(store: ToolLedgerStore) {
