@@ -142,7 +142,8 @@ export function storeFaultCases(deps: StoreCaseDependencies): readonly LedgerSto
             ...batch(domain, [], '1', '2'),
             writes: [...writes, { kind: 'put', record: hostRecord('bad', bad) }],
           })
-          rejected = answer.kind === 'unknown' || answer.kind === 'unavailable'
+          rejected =
+            answer.kind === 'rejected' || answer.kind === 'unknown' || answer.kind === 'unavailable'
         } catch {
           rejected = true
         }

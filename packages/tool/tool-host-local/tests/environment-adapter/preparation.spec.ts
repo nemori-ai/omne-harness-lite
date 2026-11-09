@@ -10,6 +10,7 @@ import {
   type ResourceLedger,
 } from '@omne-harness/execution-environment-contract'
 import { succeed } from '@omne-harness/operation-result'
+import type { ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { PreparationRecord, ReleaseRecord } from '@omne-harness/tool-contract/provider'
@@ -33,9 +34,13 @@ import {
   type Principal,
 } from '../coordinator-values.ts'
 
-function fixture() {
+/** `wrap` puts a store double between the adapter and the memory store. */
+function fixture(
+  wrap: (memory: ToolLedgerStore<ContentBlock>) => ToolLedgerStore<ContentBlock> = memory => memory,
+) {
   const store = createMemoryToolLedgerStore<ContentBlock>()
-  const state = createEnvironmentStateStore({ store, mode: 'test' })
+  const ledgerStore = wrap(store)
+  const state = createEnvironmentStateStore({ store: ledgerStore, mode: 'test' })
   const preparation: PreparationRecord = {
     tenant: tenantA,
     call: callId('call-1'),
@@ -133,7 +138,7 @@ function fixture() {
     createLocalExecutionEnvironment({
       adoption: preparation.adoption,
       execution,
-      store,
+      store: ledgerStore,
       storage: { mode: 'test' },
       plans: {
         resolve: async () => {
@@ -295,6 +300,22 @@ it.each(['unavailable', 'unknown-dropped'] as const)(
     expect(f.acquire).not.toHaveBeenCalled()
   },
 )
+
+it('answers an original commit the store rejects as a definite failure and never acquires', async () => {
+  let commits = 0
+  const f = fixture(memory => ({
+    ...memory,
+    commit: async () => {
+      commits += 1
+      return { kind: 'rejected', reason: 'command_limit' }
+    },
+  }))
+  expect(await f.build().prepare(f.prepare)).toEqual({
+    failure: { kind: 'invalid', field: 'storage', reason: 'command_limit' },
+  })
+  expect(commits).toBe(1)
+  expect(f.acquire).not.toHaveBeenCalled()
+})
 
 it('recognizes a committed original whose receipt was lost', async () => {
   const f = fixture()

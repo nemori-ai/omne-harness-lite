@@ -2,7 +2,14 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { LedgerCommit, LedgerCommitInput, LedgerDomain } from '@omne-harness/tool'
 import type { ToolRevision } from '@omne-harness/tool-contract'
 import { NotJsonError } from './json.ts'
-import { addressOf, ledgerAnswer, unavailable, writesOf, type CommitAnswer } from './ledger-wire.ts'
+import {
+  addressOf,
+  ledgerAnswer,
+  notJson,
+  unavailable,
+  writesOf,
+  type CommitAnswer,
+} from './ledger-wire.ts'
 import type { SqlToolStorageOptions } from './options.ts'
 import { requestOf, resolveTenant, tenantText } from './tenant.ts'
 import type { GuardedHostFacts, LedgerWriteFact } from './worker/facts.ts'
@@ -54,7 +61,7 @@ export function createSqlToolGuardedHostCommit<B extends ContentBlock = ContentB
       try {
         writes = writesOf(host)
       } catch (error) {
-        if (error instanceof NotJsonError) return unavailable(error.message)
+        if (error instanceof NotJsonError) return notJson(error)
         throw error
       }
       const facts: GuardedHostFacts = {
