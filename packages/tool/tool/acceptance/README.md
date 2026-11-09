@@ -13,9 +13,9 @@ pnpm --filter @omne-harness/tool run acceptance --maxWorkers=1
 
 | 场景                                                    | 触发与观察                                                                                                                                                                           |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [S1](PD-tool-execution.success.acceptance.ts)           | 函数工具真实执行一次，经真实 facts/custody/settlement 收场，公开分页得到两段完整正文。消费者处理并保存匹配完成记录后解除 delivery，内容仍可读。                                      |
-| [S2](PD-tool-execution.arguments-failure.acceptance.ts) | 结构合法且 complete=true 的重复键参数形成 accepted 的 arguments 逻辑终局。环境准备、binding start 和原 executor 均为零。消费者读取失败原因并处理后解除 delivery。                    |
-| [S3](PD-tool-execution.excluded-start.acceptance.ts)    | 已受理调用先经公开 authority.exclude 可靠排除，再推进真实 driver。结果 unavailable，effect/execution 为 not-started，名额释放，交付仍 pending。消费者读取原因并处理后解除 delivery。 |
+| [S1](PD-tool-execution.success.acceptance.ts)           | 函数工具真实执行一次，经真实 facts/custody/settlement 收场，公开分页得到两段完整正文。消费者处理并保存匹配完成记录后解除 delivery。解除后 Tool 回复 not-found（结果已 released），内容从消费者保存的副本继续，结果版本与摘要不变。                                      |
+| [S2](PD-tool-execution.arguments-failure.acceptance.ts) | 结构合法且 complete=true 的重复键参数形成 accepted 的 arguments 逻辑终局。环境准备、binding start 和原 executor 均为零。消费者读取失败原因并处理后解除 delivery。解除后 Tool 回复 not-found（released），原因从消费者保存的副本继续。                    |
+| [S3](PD-tool-execution.excluded-start.acceptance.ts)    | 已受理调用先经公开 authority.exclude 可靠排除，再推进真实 driver。结果 unavailable，effect/execution 为 not-started，名额释放，交付仍 pending。消费者读取原因并处理后解除 delivery。解除后 Tool 回复 not-found（released），原因从消费者保存的副本继续。 |
 
 每条场景输出 JSON 记录，其中 `result` 为 `PASS` 或 `FAIL`。断言失败使 Vitest 以非零退出码结束。设置 `OMNE_QA_EVIDENCE_DIR` 可额外保存各场景的结构化观察和消费完成记录。该目录必须是派发者允许写入的证据目录。消费者先完成字符计数与正文摘要，保存调用引用、固定版本、delivery、consumer 和正文，再提交 `processed` 依据。
 

@@ -59,10 +59,12 @@ it('S1 executes once, reads every original page, processes and releases its deli
       record => record.kind === 'fact-event' && record.fact.fact.kind === 'final',
     )
     assert.ok(savedFinal?.kind === 'fact-event' && savedFinal.fact.fact.kind === 'final')
-    assert.equal(
-      'result' in savedFinal.fact.fact,
-      false,
-      'the fact ledger does not embed the final result',
+    // Ruling 1 (03f3b0479): the ledger plans the result when the final is recorded, so the
+    // recorded final carries the planned result instead of a sealed-material pointer.
+    assert.deepEqual(
+      savedFinal.fact.fact.result.content.map(block => (block.kind === 'text' ? block.text : null)),
+      expectedParagraphs,
+      'the recorded final carries the planned result',
     )
     const restored = await scene.providers.ledger.facts.read({
       ...scene.access,
@@ -80,7 +82,7 @@ it('S1 executes once, reads every original page, processes and releases its deli
         : null,
     )
     assert.ok(savedResult.result.custody.kind === 'execution')
-    assert.deepEqual(savedResult.result.custody.raw, savedFinal.fact.fact.raw)
+    assert.deepEqual(savedResult.result.custody.finalValue, savedFinal.fact.value)
     assert.ok(savedResult.result.custody.materialized.digest.length > 0)
     assert.ok(
       records.records.some(record => record.kind === 'task' && record.task.kind === 'deliver'),

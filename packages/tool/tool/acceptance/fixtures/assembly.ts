@@ -449,15 +449,6 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
                 author.output.check({ arguments: argumentsValue, value: returned }),
               )
               const bytes = ok(author.codec.encode(checked))
-              const raw = ok(
-                await providers.ledger.rawCustody.preserve({
-                  ...input,
-                  operation: ok(await identities.operationIdentities.newOperation()),
-                  codec: author.codec.adoption,
-                  bytes,
-                  source: evidence('executed-return', returned),
-                }),
-              )
               const value = ok(
                 renderToolResult(
                   checked,
@@ -468,7 +459,6 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
               )
               await providers.doubles.executor.controls.finishEnvelope(input.start, {
                 kind: 'final',
-                raw,
                 result: value,
                 terminal: { kind: 'completed' },
                 effect: {
@@ -476,7 +466,7 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
                   evidence: evidence('author-completed', { start: input.start, returned }),
                 },
               })
-              observe('source-produced-final', { raw, value })
+              observe('source-produced-final', { value })
             }
             return succeed(live)
           } catch (error) {
@@ -628,11 +618,21 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
     assert.equal(released.kind, 'released')
     const current = await state(reference)
     assert.equal(current.delivery?.kind, 'released')
-    assert.deepEqual(
-      await readAll(reference, settled.result),
-      pages,
-      'release must preserve complete content and fixed result',
-    )
+    // Registered S1: inline material may be released once unused; reading continues from the
+    // content the consumer saved before `processed`, and Tool answers `released`.
+    const after = await runtime.queries.readResult({
+      ...access,
+      reference,
+      result: settled.result,
+      after: null,
+    })
+    assert.ok('failure' in after, 'a released result must not be readable from Tool')
+    assert.deepEqual(after.failure, { kind: 'not-found', target: 'result', reason: 'released' })
+    const saved = completions.get(delivery.delivery) as typeof record | undefined
+    assert.ok(saved, 'the consumer completion record must still be available')
+    assert.equal(saved.result, settled.result, 'saved content keeps the fixed result version')
+    assert.deepEqual(saved.paragraphs, paragraphs, 'saved content equals the content that was read')
+    assert.equal(digest(saved.paragraphs), record.bodyDigest, 'saved content keeps the same digest')
     return record
   }
   function saveEvidence(name: string, value: unknown) {
