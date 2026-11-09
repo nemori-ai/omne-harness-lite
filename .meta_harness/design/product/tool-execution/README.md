@@ -2,7 +2,7 @@
 id: PD-tool-execution
 title: 工具执行
 status: accepted
-revision: 7
+revision: 8
 relations:
   supersedes: []
   depends-on: []
@@ -11,7 +11,7 @@ relations:
 
 # 工具执行
 
-本 topic 维护产品规则、能力定义与未核实支持状态、阶段承诺和未决事项。本页定义的全部能力 CAP-TL01 至 CAP-TL12 纳入 `0.0.0 → 0.1.0` 交付。产品规则的接受不表示对应技术增量或实现已接受。实际实现、提供者采用和运行验证分别记录。会话常驻工具规则依据 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 与 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)。有限期正文保管的用户决定及交付边界见 [#1168](https://github.com/nemori-ai/omne-harness-lite/issues/1168)。
+本 topic 维护产品规则、能力定义与未核实支持状态、阶段承诺和未决事项。本页定义的全部能力 CAP-TL01 至 CAP-TL12 纳入 `0.0.0 → 0.1.0` 交付。产品规则的接受不表示对应技术增量或实现已接受。实际实现、提供者采用和运行验证分别记录。会话常驻工具规则依据 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 与 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)。有限期正文保管的用户决定及交付边界见 [#1168](https://github.com/nemori-ai/omne-harness-lite/issues/1168)。卸载触发阈值与卸载预览预算的分离、机械预览的结构及读回到期窗口由 PanQiWei 于 2026-11-09 确认。
 
 ## 阅读入口
 

@@ -81,7 +81,7 @@
 ### 工具贡献与登记键
 
 - **现象**：已采用的 RFC-0012 让一个工具实现在绑定登记表里登记为一份贡献。贡献由登记键区分：来源层、能力身份与资产版本。同一个键的第二次登记有认回、冲突与后继三种处置，release 只撤自己的 token。它有身份、有生灭，却没有词条；产品正文只说实现被装载与卸载，没有把贡献当作产品概念使用。本项判为技术对象：登记键是贡献的身份，不另立对象
-- **牵涉**：[RFC-0012 绑定登记表](../../../docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)；[工具执行产品页 定义、已知能力与一次执行](../product/tool-execution/design.md#resident-tools)（rev 7）
+- **牵涉**：[RFC-0012 绑定登记表](../../../docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)；[工具执行产品页 定义、已知能力与一次执行](../product/tool-execution/design.md#resident-tools)（rev 8）
 - **挂着谁**：[会话](objects.md#ul-session--会话)的常驻工具解析到哪一份贡献，取决于贡献的身份与生灭
 - **谁来裁**：系统架构设计，即 Tool 契约的拥有者（PanQiWei）。不是产品问题
 - **闭合条件**：Tool 契约写回 G7，定义贡献的身份、登记与撤除；或某个产品 topic 需要用它，并立了词条
@@ -89,7 +89,7 @@
 ### 换代协调者
 
 - **现象**：已采用的 RFC-0012 定义 Tool 宿主的一个服务 `toolGenerations`，它持有动态装载的插件句柄，按会话引用保留或卸载贡献，有装载、卸载与恢复后清扫三个动作。它是单例服务，有运行时实例，没有产品层面的身份。本项判为技术对象，不入统一语言
-- **牵涉**：[RFC-0012 加载、卸载、替换与换代协调者](../../../docs/rfcs/RFC-0012-tool-dynamics.md#加载卸载替换与换代协调者)；[工具执行产品页 TL-J01](../product/tool-execution/design.md#tl-j01)（rev 7）
+- **牵涉**：[RFC-0012 加载、卸载、替换与换代协调者](../../../docs/rfcs/RFC-0012-tool-dynamics.md#加载卸载替换与换代协调者)；[工具执行产品页 TL-J01](../product/tool-execution/design.md#tl-j01)（rev 8）
 - **谁来裁**：系统架构设计，即 Tool 契约与 Tool 宿主的拥有者（PanQiWei）。不是产品问题
 - **闭合条件**：Tool 宿主的 Cordis 正文与 LIFECYCLE-M02 写回协调者的归属与保留义务
 

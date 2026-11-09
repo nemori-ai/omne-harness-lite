@@ -192,7 +192,7 @@
 - **宿主**：—（归属于[租户](#ul-tenant--租户)：**创建那一刻捕获并持有的那个租户身份**，此后不随这个账号切换而变）
 - **身份**：会话的身份标识。**agent 的身份标识恒等于它**，换 agent runtime 也不变，agent 之间互相寻址靠它。所选 AgentDefinition 身份固定、同身份内容按运行装配边界热重载；会话设置、context 注册与已知能力记录为其属性；能力身份合法纳入后保留，当前数据、实现与可用性分别求值，不新增独立对象。常驻工具例外：每项的名字与参数形状在会话内不变，会话为每项保存首次采用的定义
 - **生灭**：创建/初始化 → 运行/活跃 ⇄ 休眠（往返无上限）→ 归档（租户手动，或按出厂时限自动）→ 撤销归档回休眠。**无删除、无过期、无回收**；「运行/活跃」只看日志上最新那次运行完结没有。另有冻结：采用点判定常驻工具的形状无法保持时，会话进入冻结。此后会话不再开始新的运行，在途运行照常收场。冻结不可逆，没有解冻。冻结后的会话仍可归档，撤销归档后回到冻结
-- **依据**：[PF-015 §4 会话的生命周期](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)（rev 21）；[PF-015 §5.1](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#51-四个状态怎么走)（rev 21）；[PF-015 §6.1](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#61-会话不会消失)（rev 21）；[PF-015 §6.12](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)（rev 21）；[PF-015 §6.16–6.19](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#616-会话组成与创建输入)（rev 21）；[会话产品页 常驻工具无法保持形状时，会话冻结](../product/sessions-and-work/design.md#frozen)（rev 8）；[工具执行产品页 定义、已知能力与一次执行](../product/tool-execution/design.md#resident-tools)（rev 7）
+- **依据**：[PF-015 §4 会话的生命周期](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)（rev 21）；[PF-015 §5.1](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#51-四个状态怎么走)（rev 21）；[PF-015 §6.1](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#61-会话不会消失)（rev 21）；[PF-015 §6.12](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)（rev 21）；[PF-015 §6.16–6.19](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#616-会话组成与创建输入)（rev 21）；[会话产品页 常驻工具无法保持形状时，会话冻结](../product/sessions-and-work/design.md#frozen)（rev 8）；[工具执行产品页 定义、已知能力与一次执行](../product/tool-execution/design.md#resident-tools)（rev 8）
 - **补充依据**：[PF-015 §6.22](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#622-会话作用域的输入与供给)（rev 21）；冻结的裁定见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)，常驻工具的规则见已采用的 [RFC-0012 会话常驻集合的规则](../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
 - **并入**：「会话内的那个 agent」——身份恒等、一对一，没有独立于会话的身份机制，是会话的一个面
 
@@ -396,7 +396,7 @@
 - **宿主**：不随 Session、Run 或执行句柄的退出消失。Tool 负责在固定期限内保管，具体物理后端不决定其寿命。
 - **身份**：原工具调用的关联与正文读回引用；具体标识编码归 Tool 契约。
 - **生灭**：模型正文被另存，最终结果固定后开始有限保留期。预览披露期限和读回方式。到期后拒绝新读取并自动回收；已有独立用途的材料不由此删除。消费、重试、分页、压缩、归档和重启不刷新期限。
-- **依据**：[工具执行：结果保管、卸载与模型采用](../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 7）
+- **依据**：[工具执行：结果保管、卸载与模型采用](../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
 - **并入**：「卸载正文」「卸载全文」在本对象语境下指同一正文，不指 program data、作者原返回或原生资源目标。
 
 ### UL-schedule · 日程

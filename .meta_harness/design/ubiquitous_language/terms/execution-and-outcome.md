@@ -28,7 +28,7 @@
 > **EN**: The optional `programmable` property of a tool definition. It permits an agent to call the tool from a script that combines or orchestrates tool calls. Only explicit `true` permits this use. An omitted value or `false` does not.
 
 - **形态**：属性
-- **出处**：[工具执行：可编程调用许可](../../product/tool-execution/design.md#可编程调用许可)（rev 7）
+- **出处**：[工具执行：可编程调用许可](../../product/tool-execution/design.md#可编程调用许可)（rev 8）
 - **别混**：不是当前动作授权、常驻标记或后台许可。独立程序消费 SDK 不自动属于 Agent 脚本编排；脚本经 SDK 或通用调用入口间接调用工具，仍属于该许可的范围。
 
 ### UL-tool-definition · 工具定义 · Tool Definition
@@ -69,7 +69,7 @@
 - **形态**：视图
 - **出处**：[PF-006 §5.2](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§5.3](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样) ·
   [工具说明与每个参数的说明，必填](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填) ·
-  [多命令工具的定义里带多少](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 24） · 多命令工具在模型面前的清单与出错时的用法见[工具执行：工具作者必须说明什么](../../product/tool-execution/design.md#工具作者必须说明什么)（rev 7） · [PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；装载时派生与各字段的来源见已采用的 [RFC-0012 对象链](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)，形态由属性改为视图的理由见 [C-66](../conflicts.md#c-71工具定义由长期数据改为装载时派生)
+  [多命令工具的定义里带多少](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 24） · 多命令工具在模型面前的清单与出错时的用法见[工具执行：工具作者必须说明什么](../../product/tool-execution/design.md#工具作者必须说明什么)（rev 8） · [PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；装载时派生与各字段的来源见已采用的 [RFC-0012 对象链](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)，形态由属性改为视图的理由见 [C-66](../conflicts.md#c-71工具定义由长期数据改为装载时派生)
 - **别混**：与[工具](capabilities-and-composition.md#ul-tool--工具--tool)不是一回事——
   工具是那一类资产，**工具定义是资产与实现合成出的那一份表示**；
   同一个身份下，官方、组织、租户、工作区各层的资产各自派生自己的一份，形状可以不同
@@ -465,15 +465,16 @@
 
 ### UL-result-offloading · 结果卸载 · Result Offloading
 
-> **中**：把工具结果中原本供模型阅读的正文另存，在首次模型消息中呈现摘要或首尾预览及读回引用的过程。程序值和原生资源引用不因存在于同一次结果中而被卸载。
+> **中**：把工具结果中原本供模型阅读的正文另存，在首次模型消息中呈现作者摘要或[机械预览](#ul-mechanical-preview--机械预览--mechanical-preview)及读回引用的过程。程序值和原生资源引用不因存在于同一次结果中而被卸载。
 >
-> **EN**: Storing a tool result's model-facing body separately and presenting a summary or head-and-tail preview with a retrieval reference. Program data and native resource references are separate result components.
+> **EN**: Storing a tool result's model-facing body separately and presenting the author's summary or a mechanical preview with a retrieval reference in the first model message. Program data and native resource references are separate result components.
 
 - **形态**：过程
-- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 7）
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
 - **别混**：裸写「卸载」不作为本词的跨领域简称，插件卸载是另一过程。原生图片、文件或数据集引用不属于结果卸载。
 - **注意**：首次追加的是预览，不是在 Session 日志中改写已存在的全文。后续读取追加新返回，不替换旧预览，也不重做原工具效果。
 - **注意**：结果卸载与执行的前后台关系、内部等待分别判断。正文按披露的期限保管，读回支持按声明格式分页。
+- **注意**：是否卸载由[卸载触发阈值](#ul-offloading-threshold--卸载触发阈值--offloading-threshold)决定；卸载后首次呈现的大小由[卸载预览预算](#ul-offload-preview-budget--卸载预览预算--offload-preview-budget)决定。
 
 ### UL-offloaded-result · 被卸载的原始结果 · Offloaded Result
 
@@ -481,12 +482,56 @@
 >
 > **EN**: The complete model-facing body stored separately by result offloading, identified through its original call association and retrieval reference. It excludes program data and native resource targets. The first message contains a preview; later pages are new results.
 
-- **留存边界**：有限期限和当前读取资格由工具执行契约约束。正文到期后不可新读且自动回收，读取、ACK、压缩、Run 结束和归档不刷新期限。
+- **留存边界**：有限期限和当前读取资格由工具执行契约约束。正文到期后不可新读且自动回收，读取、ACK、压缩、Run 结束和归档不刷新期限。每读取一页都单独核对期限，到期判定的时钟偏差见[读回到期窗口](#ul-read-expiry-window--读回到期窗口--read-expiry-window)。
 - **形态**：对象
-- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 7）
-- **别混 ①**：它不是进入消息的预览，也不是未经校验的作者原返回或完整 ToolResult 封装。
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **别混 ①**：它不是进入消息的作者摘要或[机械预览](#ul-mechanical-preview--机械预览--mechanical-preview)，也不是未经校验的作者原返回或完整 ToolResult 封装。
 - **别混 ②**：它不是原生[附件](#ul-attachment--附件--attachment)。附件本来就以资源引用交付，不能仅因结果正文到期而删除目标。
 - **弃用**：「工具原件」。该说法与模型模态转换中的原件混淆。
+
+### UL-offloading-threshold · 卸载触发阈值 · Offloading Threshold
+
+> **中**：一项工具操作的模型正文可以直接呈现给模型的最大字节数。它取作者为该操作声明的上限与系统装配上限中的较小值，作者未声明更小值时等于系统上限。正文超过它时被卸载。它只决定正文是否卸载，不决定卸载后模型首次看到的内容大小。
+>
+> **EN**: The largest model-facing body, in bytes, that a tool operation may present to the model directly. It is the smaller of the cap the author declares for that operation and the system cap set at assembly. Without a smaller author cap it equals the system cap. A body larger than it is offloaded. It decides only whether a body is offloaded, not how much the model sees first after offloading.
+
+- **形态**：属性
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **别混 ①**：不是[卸载预览预算](#ul-offload-preview-budget--卸载预览预算--offload-preview-budget)。卸载预览预算约束卸载后首次呈现的大小，卸载触发阈值只用来判断是否卸载。
+- **别混 ②**：裸写「触发阈值」不作为本词的简称。工具的自动转后台阈值是另一项声明。
+
+### UL-offload-preview-budget · 卸载预览预算 · Offload Preview Budget
+
+> **中**：正文被卸载后，模型首次看到的全部内容的字节上限。它取以下三项中的最小值：作者预览上限、系统预览上限、[卸载触发阈值](#ul-offloading-threshold--卸载触发阈值--offloading-threshold)除以 k 后向下取整；作者未声明预览上限时取后两项中的较小值。k 由系统装配给定。作者内容、作者摘要、[机械预览](#ul-mechanical-preview--机械预览--mechanical-preview)及系统追加的描述头都计入它。
+>
+> **EN**: The byte limit on everything the model sees first after a body is offloaded. It is the smallest of three values: the author's preview cap, the system preview cap, and the offloading threshold divided by k and rounded down. Without an author preview cap it is the smaller of the last two. Assembly sets k. Author content, the author summary, the mechanical preview and the header the system appends all count against it.
+
+- **形态**：属性
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **别混**：不是读回分页的页预算。后续页是新的返回，按页预算分页。
+- **注意**：它与正文大小无关。作者内容或摘要超出它时，结果明确报告不能采用，不被截断。
+
+### UL-mechanical-preview · 机械预览 · Mechanical Preview
+
+> **中**：正文被卸载而作者没有提供摘要时，系统按正文格式从正文算出、在首次模型消息中呈现的结构化预览。它由描述头和节选组成。描述头说明正文格式、总字节数、行数或记录数、正文 schema 的身份、到期时间及读回方式。节选使用剩余预算并与格式对齐：文本取首部和尾部，在行边界截断；JSON Lines 取开头和末尾的完整记录；JSON 文档给出键、值类型和数组长度的层级大纲。它整体不超过[卸载预览预算](#ul-offload-preview-budget--卸载预览预算--offload-preview-budget)，不含语义摘要，也不含截断的 JSON 文本。
+>
+> **EN**: The structured preview that the system computes from an offloaded body, by the body's format, when the author supplies no summary. It appears in the first model message. It has a header and excerpts. The header gives the body's format, total bytes, line or record count, schema identity, expiry time and how to read the body back. The excerpts use the remaining budget and follow the format: text gives the head and tail cut at line boundaries; JSON Lines gives the first and last complete records; a JSON document gives an outline of keys, value types and array lengths. The whole preview stays within the offload preview budget. It contains no semantic summary and no truncated JSON text.
+
+- **形态**：视图
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **别混 ①**：不是作者摘要。作者摘要由作者提供，系统不编造语义摘要。
+- **别混 ②**：不是[被卸载的原始结果](#ul-offloaded-result--被卸载的原始结果--offloaded-result)截到某个长度的前缀。
+- **注意**：系统在作者内容之后追加的描述头，与机械预览的描述头说明同样的内容。
+
+### UL-read-expiry-window · 读回到期窗口 · Read Expiry Window
+
+> **中**：[被卸载的原始结果](#ul-offloaded-result--被卸载的原始结果--offloaded-result)的到期时间之前 ε 到之后 ε 的时间段。ε 是系统装配声明的各参与方时钟偏差上界。窗口内的一次读回可能已被拒绝，也可能仍然成功；窗口外的读回结果只按到期时间确定。读取跨过到期时间且正文已被回收时，答复为找不到，不答复正文损坏。
+>
+> **EN**: The span from ε before to ε after the expiry time of an offloaded result, where ε is the clock-skew bound between participants declared at assembly. Inside the span a read may already be refused, or it may still succeed. Outside the span the result depends only on the expiry time. A read that crosses the expiry time after the body is reclaimed answers not found, never an integrity failure.
+
+- **形态**：规则
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **别混**：不是期限的延长。窗口不刷新期限，到期前已获准的读取也不延续到期限之后。
 
 ### UL-delivery-release · 交付责任解除 · Delivery Release
 
@@ -499,7 +544,7 @@
 > **EN**: **The release of a producer's duty to deliver a settled result, where the producer is one model call or one tool execution. It takes effect once the current legitimate consumer has finished processing the result, or has durably saved the content, original identity and processing position that later work needs.** There are two paths: finish processing and save the completion fact, or save the content first and process it later. Reading, displaying, receiving a reference and starting to process are not enough. On the model side the release is the ACK. It also requires the whole call to have truly settled, and it cannot happen while a retry or a retry decision is pending. On the tool side it releases the matching hand-over obligation. Material release follows each component's custody duties and retention period. After the release, continuation proceeds from the data the consumer saved.
 
 - **形态**：过程
-- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 3）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 7）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 4）
+- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 3）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 4）
 - **别混 ①**：**不是[执行收场](#ul-execution-outcome--执行收场--execution-outcome)**——收场是一次执行的终局，解除发生在收场之后，由消费侧的保管或处理触发
 - **别混 ②**：**不是读取方对事件流的确认**——Agent 契约的 `acknowledge` 只清理满足保留政策且责任已交清的事件，不证明任何结果已处理，也不证明业务终态，见 [Agent 契约的确认](../../../../packages/agent/agent-contract/SPEC.md#确认)
 - **注意**：产品正文与 Model 契约用 ACK 指模型一侧的解除；本词表的正式名是「交付责任解除」，英文 Delivery Release，ACK 是它在模型一侧的通称。工具一侧的两条路径归 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)
@@ -519,7 +564,7 @@
 > attempt, a rebuilt instance or a recovery does not change it.
 
 - **形态**：属性
-- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 8）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 7）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 3）
+- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 8）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 8）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 3）
 - **别混**：不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。拓展点是设计时穷举的固定位点；消费位置随每次调用产生，指那次调用的接收处
 - **注意**：[交付责任解除](#ul-delivery-release--交付责任解除--delivery-release)要求消费侧保存原身份与处理位置，那个处理位置就是消费位置
 
