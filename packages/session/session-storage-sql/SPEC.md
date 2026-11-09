@@ -494,7 +494,7 @@ Session 操作的输入摘要写在 `sl_operation.input_digest`，`decide` 用�
 | `commit`                                                                                                                            | 写路径，参加者 `session`，响应证据保存原失败依据                                                                                                                     |
 | `readWork`、`readInput`、`readModelSelection`、`history.begin`、`history.next`、`history.since`、`history.readModelView`、`pending` | `snapshot` 读，每页一个有界事务                                                                                                                                      |
 | `references`、`releasedScopes`                                                                                                      | 系统读：按租户顺序逐个租户域各做一次 `snapshot` 读。不声称跨域的单一快照。目录枚举失败、目录项不属于任何租户、任一域读失败，整次读返回 `unavailable`，不返回较短的页 |
-| `queryOperation`、`queryControlOperation`                                                                                           | 写路径先查原回执（一次意图为 `query` 的提交），未命中再按原归属对各代次调用存储 `query`（[R7](#r7)）                                                                 |
+| `queryOperation`、`queryControlOperation`                                                                                           | 写路径先查原回执（一次意图为 `query` 的提交，身份声明 `recall: 'never'`，不留回执），未命中再按原归属对各代次调用存储 `query`（[R7](#r7)）                                                                 |
 
 handler 回答 `absent`（会话不属于该租户）时端口返回 `denied`，与另一租户的会话同形。handler 回答 `behind`（`sl_state` 未覆盖 `tail`）时返回 `unavailable`。读失败、取消都返回 `unavailable`，不返回空页。
 

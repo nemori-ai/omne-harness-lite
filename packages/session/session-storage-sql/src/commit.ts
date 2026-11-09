@@ -264,7 +264,10 @@ export async function commit<P, K extends MutationName>(
   )
 }
 
-/** The write-path lookup of the original receipt, in the transaction domain that owns it. */
+/**
+ * The write-path lookup of the original receipt, in the transaction domain that owns it. The
+ * lookup writes nothing and nobody recalls it, so it keeps no receipt of its own (sql-contract §3.1).
+ */
 async function lookup<P>(
   context: Context<P>,
   domain: TenantDomainRef,
@@ -272,7 +275,10 @@ async function lookup<P>(
   operation: SessionOperationId,
   action: string,
 ): Promise<Outcome<Found | null, SessionFailure>> {
-  const identity = identityOf(domain, 'session.lookup', `lookup#${operation}#${randomUUID()}`)
+  const identity: SqlIdentity = {
+    ...identityOf(domain, 'session.lookup', `lookup#${operation}#${randomUUID()}`),
+    recall: 'never',
+  }
   const result = await context.options.storage.commit(
     requestOf(
       context,

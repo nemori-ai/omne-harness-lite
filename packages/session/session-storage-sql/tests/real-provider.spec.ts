@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -73,6 +74,34 @@ describe('commit through the real write Worker', () => {
     expect(
       queryKindOf(await app.storage.query(identityOf(TENANT_A, 'dom_0', CREATE_OPERATION))),
     ).toBe('committed')
+  })
+})
+
+describe('the original-receipt lookup', () => {
+  const receipts = (file: string): number => {
+    const db = new DatabaseSync(file, { readOnly: true })
+    try {
+      return (db.prepare('select count(*) as n from _sql_receipt').get() as { n: number }).n
+    } finally {
+      db.close()
+    }
+  }
+
+  it('recalls a committed operation and adds no SQL receipt of its own (sql-contract §3.1)', async () => {
+    const app = await open()
+    ok(await app.create(TENANT_A))
+    const file = app.domainFile(app.domainOf(TENANT_A))
+    const before = receipts(file)
+    for (let round = 0; round < 3; round += 1) {
+      const recalled = ok<{ kind: string }>(
+        await app.port.queryOperation({
+          ...app.access(TENANT_A),
+          operation: operationId('create-session-1'),
+        }),
+      )
+      expect(recalled.kind).toBe('committed')
+    }
+    expect(receipts(file)).toBe(before)
   })
 })
 
