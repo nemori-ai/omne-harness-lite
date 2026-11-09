@@ -71,7 +71,46 @@ export type WriteInput = Start &
     bytes: string
   }>
 
-export type NativeInput = RunInput | IdentifyInput | ChangeInput | WriteInput
+/**
+ * The first request of a copy: the source starts like a read and the target like a move. The helper
+ * streams the source into the new object `temporary` below the target's parent and flushes it; the
+ * target is not changed.
+ */
+export type CopyInput = Start &
+  Final &
+  Readonly<{
+    named: string
+    operation: 'copy'
+    version: string | null
+    targetRoot: string
+    expectedTargetRoot: string
+    targetSegments: readonly string[]
+    targetNamed: string
+    replace: boolean
+    temporary: string
+  }>
+
+/**
+ * The second request of a copy: publishes the staged object `temporary`, named by its token, under
+ * the target by the rules of a write. `version` is the target's version when it was staged.
+ */
+export type PublishInput = Start &
+  Readonly<{
+    operation: 'publish'
+    temporary: string
+    named: string
+    targetNamed: string
+    version: string | null
+    create: boolean
+  }>
+
+export type NativeInput =
+  | RunInput
+  | IdentifyInput
+  | ChangeInput
+  | WriteInput
+  | CopyInput
+  | PublishInput
 
 export type Metadata = Readonly<{
   token: string
@@ -84,7 +123,10 @@ export type Metadata = Readonly<{
 
 export type Hit = Readonly<{ path: string; token: string; offsetBytes: number }>
 
-/** The result of one native operation. Fields an operation does not fill hold their empty value. */
+/**
+ * The result of one native operation. Fields an operation does not fill hold their empty value.
+ * The first request of a copy also names the source and the target as it was (`null`: absent).
+ */
 export type NativeReply = Readonly<{
   info: Metadata
   bytes: string
@@ -93,6 +135,8 @@ export type NativeReply = Readonly<{
   hits: readonly Hit[]
   truncated: boolean
   eof: boolean
+  source?: Metadata
+  target?: Metadata | null
 }>
 
 /** A parsed line of the helper's standard output. */
@@ -143,6 +187,7 @@ function failure(value: unknown): Failure {
     case 'invalidInput':
     case 'conflict':
     case 'unavailable':
+    case 'capacity':
       return value
     default:
       return 'unknown'
@@ -219,7 +264,16 @@ function reply(value: unknown): NativeReply | Failure {
   const info = metadata(value.info)
   const entries = each(value.entries, metadata)
   const hits = 'hits' in value && Array.isArray(value.hits) ? each(value.hits, hit) : []
-  if (info === undefined || entries === undefined || hits === undefined) return 'unknown'
+  const source = 'source' in value ? metadata(value.source) : undefined
+  const target = 'target' in value && value.target !== null ? metadata(value.target) : undefined
+  if (
+    info === undefined ||
+    entries === undefined ||
+    hits === undefined ||
+    ('source' in value && source === undefined) ||
+    ('target' in value && value.target !== null && target === undefined)
+  )
+    return 'unknown'
   return {
     info,
     bytes: value.bytes,
@@ -228,5 +282,7 @@ function reply(value: unknown): NativeReply | Failure {
     hits,
     truncated: 'truncated' in value && value.truncated === true,
     eof: 'eof' in value && value.eof === true,
+    ...(source === undefined ? {} : { source }),
+    ...('target' in value ? { target: target ?? null } : {}),
   }
 }

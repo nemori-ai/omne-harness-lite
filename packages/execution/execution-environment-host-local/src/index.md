@@ -38,6 +38,9 @@
 - [windows-files/helper.ts](windows-files/helper.ts)：Windows 文件辅助进程：每个 harness 进程一个常驻的 `files.exe`；请求编号、排队与在途、化身、每请求超时与重启，失败的答复按 FilesHelper 模型；不查所有者的封闭
 - [windows-files/protocol.ts](windows-files/protocol.ts)：文件辅助进程的帧：请求与答复各是一行 JSON；辅助进程的输出只在这里解析成类型
 - [windows-files/native-host.ts](windows-files/native-host.ts)：文件辅助进程的 C# 帧循环：逐行读请求，在线程池上执行，持锁写答复帧
+- [windows-files/native-source.ts](windows-files/native-source.ts)：文件辅助进程的 C# 共用部分：错误码到原因的唯一映射表，从根或盘符根逐段打开，`read`、`stat`、`list`、`search` 与 `identify`
+- [windows-files/native-tree.ts](windows-files/native-tree.ts)：`mkdir`、`remove` 与 `move`：POSIX 语义的删除与改名，目录改名遇子树里有打开文件时答 `busy`
+- [windows-files/native-write.ts](windows-files/native-write.ts)：`write` 与 `copy`：在目标旁暂存、刷盘，再发布；复制分暂存与发布两个请求，按块流式读写
 - [cordis.ts](cordis.ts)：`./cordis` 入口：Service 子类、两个声明插件、宿主文件插件与两份配置 Schema
 
 ## 阅读路径

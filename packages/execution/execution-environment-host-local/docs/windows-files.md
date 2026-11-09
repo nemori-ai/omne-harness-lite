@@ -37,15 +37,19 @@
 
 `mkdir` 在持有的父目录句柄下创建。`remove` 在源句柄上设置 `FileDispositionInformationEx`，标志是 `FILE_DISPOSITION_DELETE`、`FILE_DISPOSITION_POSIX_SEMANTICS` 与 `FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE`，不重新按绝对路径找到目标。递归删除先预检目录树。`move` 用源句柄和持有的目标父目录句柄设置 `FileRenameInformationEx`，标志是 `FILE_RENAME_POSIX_SEMANTICS` 与 `FILE_RENAME_IGNORE_READONLY_ATTRIBUTE`，替换时另加 `FILE_RENAME_REPLACE_IF_EXISTS`。目标点名与实际改名之间仍存在目标被替换的窗口，效果限于该父目录的目标名。
 
+别的进程以不允许删除的方式打开了对象时，打开要删除或改名的对象得到共享冲突，答 `busy`。递归删除的预检也以删除的权限打开每一项，所以这时什么都不删。NTFS 不允许改名子树里有打开文件的目录，并以拒绝访问答复。目录改名得到拒绝访问时，辅助进程以添加子目录的权限重新打开目标父目录：能打开就答 `busy`，打不开就答 `notAuthorized`。替换已有目标时不做这一区分。
+
+错误码到原因的映射只有 `native-source.ts` 里的一张表。表外的错误为未知。可能留下效果的失败不按表映射，答未知。
+
 ## 收尾与未闭合项
 
 辅助进程在写答复帧之前关闭这个请求的原生句柄。结果中的句柄代次仍由原引擎签发和核所有者。它不表示仍有原生句柄打开。门面封闭及获取排空继续归共同生命周期：封闭由门面准入守，辅助进程不查所有者的封闭；已经准入的请求照常做完，排空等它们结束。
 
 已产生部分目录效果后的错误返回 unknown。调用方不能据此自动重做。已发生的创建、删除或移动不会因辅助进程退出而回滚。
 
-Windows 不提供原位写。新建以 `NtCreateFile` 的 `FILE_CREATE` 实现排他创建，对应 `CREATE_NEW`。替换先在同目录创建新对象，写入并 `FlushFileBuffers`，再核对目标身份和 `expectedVersion`，最后按上文 `move` 的标志发布。发布持有源与父目录句柄。版本是观察条件，不是外部 CAS。结果返回新对象以及 `writeEffect: created` 或 `replaced`。原文件的其他硬链接保留旧字节，替换后与目标名字分离。新对象继承父目录的 ACL。
+Windows 不提供原位写。新建与替换都先在同目录以 `NtCreateFile` 的 `FILE_CREATE` 建临时对象 `.omne-write-<guid>`，写入并 `FlushFileBuffers`。新建以不替换的改名发布，目标名已被占用时答 `conflict`。替换再核对目标身份和 `expectedVersion`，最后按上文 `move` 的标志发布。目标名上不会出现写了一半的文件。发布持有临时对象与父目录句柄。发布之前目标没有变化：临时对象删掉之后，失败按错误映射答拒绝，磁盘满（`ERROR_DISK_FULL`、`ERROR_HANDLE_DISK_FULL`）答 `capacity`。临时对象删不掉时答未知。版本是观察条件，不是外部 CAS。结果返回新对象以及 `writeEffect: created` 或 `replaced`。原文件的其他硬链接保留旧字节，替换后与目标名字分离。新对象继承父目录的 ACL。
 
-`copy` 在辅助进程里按块流式复制：从源句柄读，写进目标父目录句柄下的临时对象，刷盘之后按替换的规则发布。临时对象写失败时删除它；删除失败时经诊断 `temporaryFileRemains` 报告名字。
+`copy` 是两个辅助进程请求。第一个请求像读取那样打开并核对源，像 `move` 那样核对目标，再从源句柄按 1 MiB 的块读，写进目标父目录句柄下的临时对象 `.omne-copy-<uuid>`，`FlushFileBuffers` 之后答复。答复带临时对象、源和目标当时的身份，目标不变。第二个请求重新打开目标父目录，按 token 核对临时对象，再按写入的规则发布：目标原来不存在时不替换，原来存在时再核一次目标与它当时的版本。两个请求失败时都先删除临时对象，删掉之后答拒绝，删不掉或找不到它时答未知，它留在目标旁。复制不经 JSON 传字节，辅助进程的内存占用与文件大小无关。
 
 写入保留路径末尾分隔符的含义。新建路径以 `/` 或 `\` 结束时返回 `invalidInput`。替换普通文件时，末尾分隔符使结果为 `unresolved`，原文件保持不变。
 
@@ -59,6 +63,6 @@ Windows 不提供原位写。新建以 `NtCreateFile` 的 `FILE_CREATE` 实现�
 
 ## 验证
 
-真实 Windows 测试见[有根与无根同一后端](../tests/windows-files/unified.spec.ts)、[根的不同写法](../tests/windows-files/path-alias.spec.ts)、[读取与围栏](../tests/windows-files/read.spec.ts)、[名字操作](../tests/windows-files/tree.spec.ts)、[新建与替换](../tests/windows-files/write.spec.ts)及[复制与批次恢复](../tests/windows-files/batch.spec.ts)。这些测试不证明 Linux 行为、完整提供者组合或断电恢复。
+真实 Windows 测试见[有根与无根同一后端](../tests/windows-files/unified.spec.ts)、[根的不同写法](../tests/windows-files/path-alias.spec.ts)、[读取与围栏](../tests/windows-files/read.spec.ts)、[名字操作](../tests/windows-files/tree.spec.ts)、[别的进程打开着的对象](../tests/windows-files/sharing.spec.ts)、[新建与替换](../tests/windows-files/write.spec.ts)、[复制与批次恢复](../tests/windows-files/batch.spec.ts)及[流式复制的内存](../tests/windows-files/copy-stream.spec.ts)（慢层）。磁盘满没有自动测试：不用管理员权限构造不出满的卷。这些测试不证明 Linux 行为、完整提供者组合或断电恢复。
 
-[边界回归](../tests/windows-files/review-regressions.spec.ts)覆盖空版本、缺失对象映射，以及发布前复核期间封闭的交错。交错测试只暂停真实 stat 的返回，不替换文件系统结果。
+[边界回归](../tests/windows-files/review-regressions.spec.ts)覆盖空版本、缺失对象映射，以及发布前复核期间封闭的交错。交错测试只暂停真实 stat 的返回，或在复制的发布请求写给辅助进程之前暂停它，不替换文件系统结果。

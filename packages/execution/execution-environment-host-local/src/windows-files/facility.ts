@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { access, lstat, mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { win32 } from 'node:path'
@@ -305,6 +306,12 @@ export function createWindowsFiles(
     FileSystemFacility<unknown>,
     'read' | 'stat' | 'list' | 'search' | 'mkdir' | 'remove' | 'move' | 'write' | 'copy'
   > = {
+    /**
+     * Two helper requests: the first streams the source into a new object beside the target and
+     * flushes it, the second publishes that object by the rules of a write. The helper refuses only
+     * once the staged object is gone; a helper that answers nothing to the second request may leave
+     * it, so that is unknown.
+     */
     async copy(request) {
       request = {
         ...snapshot(request),
@@ -313,30 +320,62 @@ export function createWindowsFiles(
           named: request.target.named === null ? null : { ...request.target.named },
         },
       }
-      const source = await facility.read(request)
-      if (source.kind === 'unresolved') return reject(request.requestId, 'notFound')
-      if (source.kind !== 'done') return source
-      if (request.expectedVersion !== undefined && source.value.version !== request.expectedVersion)
-        return reject(request.requestId, 'conflict')
-      const { expectedVersion: _sourceVersion, ...copyRequest } = request
-      const targetRequest = { ...copyRequest, ...request.target }
-      const target = await facility.stat(targetRequest)
-      if (target.kind !== 'done' && target.kind !== 'unresolved') return target
-      if (target.kind === 'done' && !request.replace) return reject(request.requestId, 'conflict')
-      const written = await facility.write({
-        ...targetRequest,
-        bytes: source.value.bytes,
-        mode: target.kind === 'done' ? 'replace' : 'create',
-        ...(target.kind === 'done' ? { expectedVersion: target.value.version } : {}),
+      const { requestId } = request
+      if (request.binding.kind !== 'host_machine') return reject(requestId, 'unsupported')
+      if (
+        ![request.path, request.target.path].every(
+          path => win32.isAbsolute(path) && !path.includes('\0'),
+        ) ||
+        finalOf(request.target.path).directory
+      )
+        return reject(requestId, 'invalidInput')
+      if (!request.named?.token || !request.target.named?.token)
+        return reject(requestId, 'notAuthorized')
+      const located = await locate(request.path)
+      if (!located.ok) return failed(requestId, located.failure, 'notFound')
+      const destination = await locate(request.target.path)
+      if (!destination.ok) return failed(requestId, destination.failure, 'notFound')
+      const source = await bound(located.value)
+      if (!source.ok) return failed(requestId, source.failure, 'notFound')
+      const target: Start = { ...destination.value, expectedRoot: source.value.expectedRoot }
+      const temporary = `.omne-copy-${randomUUID()}`
+      const staged = await invoke({
+        ...source.value,
+        ...finalOf(request.path),
+        named: request.named.token,
+        operation: 'copy',
+        version: request.expectedVersion ?? null,
+        targetRoot: target.root,
+        expectedTargetRoot: target.expectedRoot,
+        targetSegments: target.segments,
+        targetNamed: request.target.named.token,
+        replace: request.replace,
+        temporary,
       })
-      if (written.kind === 'unresolved') return reject(request.requestId, 'notFound')
-      return written.kind === 'done'
-        ? {
-            kind: 'done',
-            requestId: request.requestId,
-            value: { source: source.value.object, target: written.value },
-          }
-        : written
+      if (typeof staged === 'string') return failed(requestId, staged, 'notFound')
+      if (staged.source === undefined || staged.target === undefined) return unknown(requestId)
+      const published = await invoke({
+        ...target,
+        operation: 'publish',
+        temporary,
+        named: staged.info.token,
+        targetNamed: request.target.named.token,
+        version: staged.target?.version ?? null,
+        create: staged.target === null,
+      })
+      if (published === 'unavailable') return unknown(requestId)
+      if (typeof published === 'string') return failed(requestId, published, 'notFound')
+      return {
+        kind: 'done',
+        requestId,
+        value: {
+          source: { token: staged.source.token },
+          target: {
+            ...identity(published.info),
+            writeEffect: staged.target === null ? 'created' : 'replaced',
+          },
+        },
+      }
     },
     async write(request) {
       request = { ...snapshot(request), bytes: Uint8Array.from(request.bytes) }
