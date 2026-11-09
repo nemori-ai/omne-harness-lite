@@ -111,7 +111,7 @@ flowchart LR
 
 Linux 的列表、搜索、建目录、删除、移动、复制与批次先打开所需的目录，之后的建、删、改名都经 `/proc/self/fd/<描述符>/<名>`。理由：Node 没有 `openat`，而这条路径由内核按已打开的目录对象解析，目录在核对之后被改名或被换成符号链接，操作仍落在原目录里。按路径字符串再解析一次的做法没有这个性质。在 WSL（Ubuntu 24.04，内核 6.18）上做过原型：目录改名、原名换成指向外部的链接之后，独占新建、`rename`、`mkdir` 都落在改名后的原目录；`link` 到已有名得 `EEXIST`；`O_NOFOLLOW` 打开文件链接得 `ELOOP`；硬链接文件的 `fstat` 链接数为 2，而 `readlink /proc/self/fd/<fd>` 给出根内的路径，所以必须核链接数，不能只看路径。包测试 [host-file-root.spec.ts](../tests/host-file-root.spec.ts) 用 `vi.mock` 在调用之前停住，把目录换成链接，再放行。
 
-macOS 后端用同一个 C 进程持有目录描述符，通过 `openat`、`unlinkat`、`renameat` 等公开接口操作。它不把 `/dev/fd` 当成 Linux 的描述符路径。批次在一个辅助进程内固定全部父目录，逐项发布前后与 TypeScript 清单写入握手。机制和前提见 [macOS 文件说明](macos-files.md)。Windows 后端见 [Windows 说明](windows-execution.md)。其他平台答 `unavailable`，不降级为重新解析字符串路径。
+macOS 后端用同一个 C 进程持有目录描述符，通过 `openat`、`unlinkat`、`renameat` 等公开接口操作。它不把 `/dev/fd` 当成 Linux 的描述符路径。批次在一个辅助进程内固定全部父目录，逐项发布前后与 TypeScript 清单写入握手。机制和前提见 [macOS 文件说明](macos-files.md)。Windows 后端见 [Windows 文件说明](windows-files.md)。其他平台答 `unavailable`，不降级为重新解析字符串路径。
 
 `move` 与 `copy` 都靠预先核对加一次系统调用，核对与调用之间名可以被换掉。`remove` 与 Linux 不覆盖的目录 `move` 的窗口关不上，但效果不出该目录。`commitBatch` 没有多路径原子性，用清单加回执留下可核对的事实：先写清单，再暂存，逐项发布，每发布一项追加回执；`recoverBatch` 只读清单与目标，把「有回执」「字节相同但没有回执」「冲突」分开，因为相同的字节不能证明是这个批次发布的。
 
@@ -197,7 +197,7 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 
 ## 宿主命令机制
 
-本节说明宿主提供者怎样承担 `command`。行为以 SPEC 的[宿主命令与终端](../SPEC.md#宿主命令与终端)为准。设施的协议规则归契约的[设施协议](../../execution-environment-contract/SPEC.md#设施协议)，逐设施的展开见契约内部架构的 [`command`](../../execution-environment-contract/docs/architecture.md#command命令)，协议级流程见契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。`command` 的处置与保留只在 Linux 上兑现。Windows 有一次性命令后端，见 [Windows 说明](windows-execution.md)。macOS 有一次性命令后端与持久终端后端，见下文 [macOS 的执行域](#macos-的执行域)。`terminal` 的 Linux 路径见[持久终端机制](#持久终端机制)。
+本节说明宿主提供者怎样承担 `command`。行为以 SPEC 的[宿主命令与终端](../SPEC.md#宿主命令与终端)为准。设施的协议规则归契约的[设施协议](../../execution-environment-contract/SPEC.md#设施协议)，逐设施的展开见契约内部架构的 [`command`](../../execution-environment-contract/docs/architecture.md#command命令)，协议级流程见契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。`command` 的处置与保留在 Linux 与 Windows 上兑现，两者共用处置决定与保管状态的转移（`src/command-custody.ts`、`src/command-custody-steps.ts`）；Windows 的执行域是带锚进程的 Job，见 [Windows 说明](windows-execution.md)。macOS 有一次性命令后端与持久终端后端，见下文 [macOS 的执行域](#macos-的执行域)。`terminal` 的 Linux 路径见[持久终端机制](#持久终端机制)。
 
 `command` 加在已有的宿主提供者上，与 `files` 由同一个提供者声明，不另立宿主提供者。理由：登记表在一层里只选一个提供者。按设施拆成几个宿主提供者时，需要 `files` 加 `command` 的工具在宿主层得不到落点（`missingFacility`）。再加一个合并的提供者，又会有两个提供者同时合格（`ambiguousEnvironment`）。
 
