@@ -1,4 +1,4 @@
-import type { ToolBodyWrites } from '@omne-harness/tool-contract/provider'
+import type { ToolBodyWrites, ToolInstant } from '@omne-harness/tool-contract/provider'
 import { expectTypeOf, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
@@ -78,6 +78,11 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
         ): Reply<ToolResult<ContentBlock>>
       }>
       bodyWrites: ToolBodyWrites<P>
+      sweep(
+        tenant: CallAccess<P>['tenant'],
+        now: ToolInstant,
+        limit: number,
+      ): Reply<Readonly<{ reclaimed: number }>>
       rawCustody: Pick<ToolOutputCustody<P>, 'preserve' | 'inspect'>
       finalCustody: ToolFinalCustody<P, ContentBlock>
       controls: ToolLedgerControls<P>

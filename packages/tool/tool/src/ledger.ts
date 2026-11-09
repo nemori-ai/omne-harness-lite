@@ -1,4 +1,5 @@
 import { createBodyWriting, instantAfter } from './ledger-body-writer.ts'
+import { createLedgerSweep, type ToolLedgerSweep } from './ledger-sweep.ts'
 import type { BodyPolicy } from './result-offloading.ts'
 import type { ToolBodyWrites } from '@omne-harness/tool-contract/provider'
 import { entryBySource } from './ledger-body-entries.ts'
@@ -176,6 +177,8 @@ export type ToolLedger<P, B extends ContentBlock> = Readonly<{
     read(input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>): Reply<ToolResult<B>>
   }>
   bodyWrites: ToolBodyWrites<P>
+  /** The sweep over the due index: delete the bytes, then record `reclaimed` (C5). */
+  sweep: ToolLedgerSweep['sweep']
   rawCustody: Pick<ToolOutputCustody<P>, 'preserve' | 'inspect'>
   finalCustody: ToolFinalCustody<P, B>
   controls: ToolLedgerControls<P>
@@ -1567,6 +1570,11 @@ export function createToolLedger<P, B extends ContentBlock>(
       },
     }),
     bodyWrites: bodyWriting.writes,
+    sweep: createLedgerSweep<P>({
+      bodies: settlement.bodies,
+      due: (tenant, now, limit) => store.due(tenant, now, limit),
+      transact,
+    }).sweep,
     rawCustody: createLedgerRawCustody({
       materials: settlement.materials,
       entry,

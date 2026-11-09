@@ -279,7 +279,11 @@ runtime 的 `instances` 与 `observation` 由 [src/stream-facade.ts](src/stream-
 
 ### 记录仓的到期索引
 
-`LedgerWrite` 增加 `schedule(key, dueAt)` 与 `unschedule(key)`，`ToolLedgerStore` 增加 `due(tenant, now, limit)`。契约归 [tool-contract 的正文存储端口与到期索引](../tool-contract/SPEC.md#正文存储端口与到期索引)：排期随提交原子生效，条目以被写域与键标识，`due` 按租户读出已到时刻的条目。本包的消费者（结果提交的排期、结算后的孤儿排期、清扫的 `unschedule`）在切片 04 的 M3 与 M5 接入；本版本只提供端口、内存实现与 `toolLedgerStoreConformance()` 的 `due.*` 用例。
+`LedgerWrite` 增加 `schedule(key, dueAt)` 与 `unschedule(key)`，`ToolLedgerStore` 增加 `due(tenant, now, limit)`。契约归 [tool-contract 的正文存储端口与到期索引](../tool-contract/SPEC.md#正文存储端口与到期索引)：排期随提交原子生效，条目以被写域与键标识，`due` 按租户读出已到时刻的条目。本包的消费者是结果提交的排期、结算后的孤儿排期（`ledger-body-entries.ts` 的 `settleBodyEntries`）与清扫的 `unschedule`；内存实现与 `toolLedgerStoreConformance()` 的 `due.*` 用例是提供者的判据。
+
+### 清扫
+
+`ToolLedger.sweep(tenant, now, limit)` 是到期回收的唯一执行者（`ledger-sweep.ts`，模型 `DeleteBytes` 与 `Reclaim`）；应用只负责按批量与间隔调度它，`now` 是清扫者自己的时钟。对 `due(tenant, now, limit)` 的每一项，先让正文存储删除字节与清单（幂等，不留墓碑），再在该调用域的一次提交里把正文条目置为 `reclaimed` 并 `unschedule`。两步之间停止的清扫者不留下任何需要修补的状态：到期条目仍在索引里，重跑再次删除并提交，终态相同。存储答 `unavailable` 或提交结果未知时清扫在该项停下并答 `unavailable`，已处理项的提交保留；它不为此改写任何条目。回收后的正文条目保留为按键冷记录，读回按它答 `expired`。判据：`tests/body-lifecycle.spec.ts` 的 C5 sweep 用例（内存仓与内存存储，含丢失提交的重跑与存储不可删）与 `tool-storage-sql/tests/sweep-live.spec.ts`（真实 SQLite，回收后正文表与到期索引不留行）。
 
 ### 18 非耐久记录仓（`./testing`）
 

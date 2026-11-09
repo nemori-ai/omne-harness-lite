@@ -10,7 +10,7 @@ import { instantAt } from '@omne-harness/tool-contract/testing'
 import type { ToolBodyPermit } from '@omne-harness/tool-contract/provider'
 import type { ToolLedger } from '@omne-harness/tool'
 import type { CallAccess } from '@omne-harness/tool-contract/provider'
-import type { ToolBodyPage } from '@omne-harness/tool-contract'
+import type { ToolBodyId, ToolBodyPage } from '@omne-harness/tool-contract'
 import { sealedText, settlementFixture } from './settlement-values.ts'
 import { auditQueues } from './start-values.ts'
 import {
@@ -297,4 +297,120 @@ it('C5 a miss in the store is expired within ε of expiry and integrity only cle
   expect(await f.ledger.reads.body.read(input)).toEqual({
     failure: { kind: 'not-found', target: 'body', reason: 'expired' },
   })
+})
+
+/** A settled call with one linked body and one orphan, and the store refs of both. */
+async function settledWithOrphan() {
+  let orphanId: ToolBodyId | null = null
+  const f = await settlementFixture({
+    value: async (_raw, ledger, access) => {
+      const orphan = await writer(ledger, access, 'sweep-orphan')
+      ok(await orphan.begin('begin-sweep-orphan'))
+      ok(await orphan.append('append-sweep-orphan', '1', 'abandoned'))
+      orphanId = ok(await orphan.seal('seal-sweep-orphan', '1')).bodyId
+      const sealed = await sealedText(ledger, access, 'the linked body')
+      return {
+        content: [text('content', 'Answer: 42')],
+        data: { kind: 'none' },
+        attachments: [],
+        original: { kind: 'offloaded', source: sealed.source, summary: [text('summary', 'brief')] },
+      }
+    },
+  })
+  const settledMs = Date.parse(f.bodies.clock.now()) - Date.parse(instantAt(0))
+  ok(await f.preserve())
+  const page = await f.resultPage()
+  if (page.value.original.kind !== 'offloaded') throw new Error('expected an offloaded result')
+  const ref = (body: ToolBodyId) => ({ tenant: f.access.tenant, call: f.access.call, body })
+  const held = async (body: ToolBodyId) =>
+    (await f.bodies.store.read(ref(body), { first: 0, count: 1 })).kind
+  const states = async () =>
+    (await f.records()).flatMap(record =>
+      record.kind === 'body-entry' ? [[record.body.bodyId, record.body.state.kind]] : [],
+    )
+  const due = async () => {
+    const read = await f.harness.memory.due(f.access.tenant, instantAt(10 ** 9), 10)
+    if (read.kind !== 'complete') throw new Error('due index unreadable')
+    return read.entries.map(entry => entry.key)
+  }
+  if (orphanId === null) throw new Error('fixture did not seal the orphan')
+  return {
+    f,
+    settledMs,
+    orphan: orphanId,
+    linked: page.value.original.bodyId,
+    expiresAt: page.value.original.retention.expiresAt,
+    readInput: {
+      ...f.access,
+      result: page.result,
+      bodyId: page.value.original.bodyId,
+      after: null,
+      maxBytes: 64,
+    },
+    held,
+    states,
+    due,
+  }
+}
+
+it('C5 sweep: nothing before due; the orphan is reclaimed at settle + G and the linked body at its expiry; the store keeps no bytes, the due index empties, a rerun reclaims nothing', async () => {
+  const s = await settledWithOrphan()
+  const tenant = s.f.access.tenant
+  expect(ok(await s.f.ledger.sweep(tenant, instantAt(s.settledMs + G - 1), 10))).toEqual({
+    reclaimed: 0,
+  })
+  expect(await s.held(s.orphan)).toBe('found')
+  expect(ok(await s.f.ledger.sweep(tenant, instantAt(s.settledMs + G), 10))).toEqual({
+    reclaimed: 1,
+  })
+  expect(await s.held(s.orphan)).toBe('absent')
+  expect(await s.held(s.linked)).toBe('found')
+  expect(await s.states()).toEqual(
+    expect.arrayContaining([
+      [s.orphan, 'reclaimed'],
+      [s.linked, 'linked'],
+    ]),
+  )
+  expect(await s.due()).toEqual([`body:${s.linked}`])
+  s.f.bodies.clock.set(s.expiresAt)
+  expect(ok(await s.f.ledger.sweep(tenant, s.expiresAt, 10))).toEqual({ reclaimed: 1 })
+  expect(await s.held(s.linked)).toBe('absent')
+  expect(await s.due()).toEqual([])
+  expect(await s.states()).toEqual(
+    expect.arrayContaining([
+      [s.orphan, 'reclaimed'],
+      [s.linked, 'reclaimed'],
+    ]),
+  )
+  expect(await s.f.ledger.reads.body.read(s.readInput)).toEqual({
+    failure: { kind: 'not-found', target: 'body', reason: 'expired' },
+  })
+  expect(ok(await s.f.ledger.sweep(tenant, s.expiresAt, 10))).toEqual({ reclaimed: 0 })
+})
+
+it('C5 sweep deletes the bytes before it records reclaimed: a sweeper that loses its reclaim commit leaves the due entry and the rerun reaches the same end state', async () => {
+  const s = await settledWithOrphan()
+  const tenant = s.f.access.tenant
+  const at = instantAt(s.settledMs + G)
+  s.f.harness.memory.injectCommit('unknown-dropped')
+  expect(await s.f.ledger.sweep(tenant, at, 10)).not.toHaveProperty('ok')
+  expect(await s.held(s.orphan)).toBe('absent')
+  expect(await s.states()).toEqual(expect.arrayContaining([[s.orphan, 'orphaned']]))
+  expect(await s.due()).toEqual(expect.arrayContaining([`body:${s.orphan}`]))
+  expect(ok(await s.f.ledger.sweep(tenant, at, 10))).toEqual({ reclaimed: 1 })
+  expect(await s.states()).toEqual(expect.arrayContaining([[s.orphan, 'reclaimed']]))
+  expect(await s.due()).toEqual([`body:${s.linked}`])
+})
+
+it('C5 sweep stops at a store that cannot delete and records nothing for that body', async () => {
+  const s = await settledWithOrphan()
+  const at = instantAt(s.settledMs + G)
+  s.f.bodies.store.failNext()
+  expect(await s.f.ledger.sweep(s.f.access.tenant, at, 10)).toHaveProperty(
+    'failure.kind',
+    'unavailable',
+  )
+  expect(await s.held(s.orphan)).toBe('found')
+  expect(await s.states()).toEqual(expect.arrayContaining([[s.orphan, 'orphaned']]))
+  expect(await s.due()).toEqual(expect.arrayContaining([`body:${s.orphan}`]))
 })

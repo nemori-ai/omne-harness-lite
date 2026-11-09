@@ -20,6 +20,7 @@ export {
 } from './body-write-scope.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
 export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.ts'
+export type { ToolLedgerSweep } from './ledger-sweep.ts'
 export {
   observeToolLedgerCommit,
   type ToolLifecycleObservation,

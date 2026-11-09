@@ -117,19 +117,20 @@
 
 | 模型 | 代码位置 | 状态 |
 | --- | --- | --- |
-| `status`、`Begin`、`LedgerSeal`、`Settle` | `tool/src/ledger-body-entries.ts`：`BodyEntryRecord.state`（opened → sealed → linked → reclaimed，或 → orphaned → reclaimed）；`beginBodyEntry`（Begin：提交 `opened`，同操作同输入认回，结算后与非当前执行拒绝）；`sealBodyEntry`（LedgerSeal：存储封存后提交 `sealed`，结算后拒绝）；`settleBodyEntries`（Settle 的正文部分：关联并按 `expiresAt` 排期，其余 opened/sealed 标孤儿并按 now + G 排期；引用未封存正文答 `body-not-sealed`），由 `ledger-result-uses.ts` 的 `adoptResultMaterials` 在结果提交里调用。判据 `tests/body-lifecycle.spec.ts` C3 | 已实现（M3）；`Reclaim` 随 M5 |
+| `status`、`Begin`、`LedgerSeal`、`Settle` | `tool/src/ledger-body-entries.ts`：`BodyEntryRecord.state`（opened → sealed → linked → reclaimed，或 → orphaned → reclaimed）；`beginBodyEntry`（Begin：提交 `opened`，同操作同输入认回，结算后与非当前执行拒绝）；`sealBodyEntry`（LedgerSeal：存储封存后提交 `sealed`，结算后拒绝）；`settleBodyEntries`（Settle 的正文部分：关联并按 `expiresAt` 排期，其余 opened/sealed 标孤儿并按 now + G 排期；引用未封存正文答 `body-not-sealed`），由 `ledger-result-uses.ts` 的 `adoptResultMaterials` 在结果提交里调用。判据 `tests/body-lifecycle.spec.ts` C3；`Reclaim` 见下方清扫行 | 已实现（M3、M5） |
 | `deadline`、`Renew` | `tool/src/ledger-body-writer.ts` 的 `permitFor`：只在 `opened` 提交答 `committed` 之后、从正文仍可写的快照签发，截止 = 签发者时钟 + W；`renew`/`freshPermit` 在剩余不足 ε 或存储答 `permit-expired` 时重读快照续签，结算后不再续签。提交结果未知时不签发（判据 C3 begin） | 已实现（M3） |
 | `PermitValid`（存储侧用自己的时钟校验截止） | `tool-contract/src/body-store.ts` 的 `verifyBodyPermit(key, permit, now)`；内存替身与 `tool-storage-sql/src/body-store.ts` 都以自己的 `clock.now()` 调用它，`permit-expired` / `permit-invalid` 不写入。判据 `body.permit-deadline-by-store-clock`、`body.permit-signature-binds-claims` | 已实现（M1、M2） |
 | `Put` | 存储侧 `ToolBodyStore.put`（内存替身、SQL 参加者，M1、M2）；写者侧 `ledger-body-writer.ts` 的 `putChunk`：作者 `append` 的每一帧与系统正文的每个分块直接进存储，不经账本 | 已实现 |
 | `StoreSeal`（成功即耐久） | 存储侧 `ToolBodyStore.seal`（M1、M2）；写者侧 `ledger-body-writer.ts` 的 `sealBody`：格式校验（`checkDocument`）在前，存储封存在中，`sealBodyEntry` 提交在后 | 已实现 |
 | `DeleteBytes`（幂等，无墓碑） | `ToolBodyStore.delete`：删除分块与清单。判据 `body.delete-idempotent-no-tombstone`、`body.delete-then-crash-redelete` | 已实现（M1、M2） |
 | `StoreFault` | 契约之外，无代码对应；读回复查规则在 M4 | 不实现 |
-| `due`、`Settle` 的排期、`Reclaim` 的 `unschedule` | `tool/src/ledger-store.ts` 的 `LedgerWrite` `schedule`/`unschedule` 与 `ToolLedgerStore.due`；内存仓 `tool/src/testing-store.ts`；SQL 参加者把 `tl_due` 写进同一事务，`tool.due.read` 读取。判据 `due.*`。提交排期与撤销排期的调用方在 M3、M5 | 索引已实现（M1、M2）；调用方待实现 |
+| `due`、`Settle` 的排期、`Reclaim` 的 `unschedule` | `tool/src/ledger-store.ts` 的 `LedgerWrite` `schedule`/`unschedule` 与 `ToolLedgerStore.due`；内存仓 `tool/src/testing-store.ts`；SQL 参加者把 `tl_due` 写进同一事务，`tool.due.read` 读取。判据 `due.*`。提交排期与撤销排期的调用方在 M3、M5 | 已实现：排期在 `settleBodyEntries`（M3），`unschedule` 在 `tool/src/ledger-sweep.ts` 的 `decideReclaim`（M5） |
 | `expiresAt`、`ReadBegin`、`ReadRefuse` | `ledger-result-material.ts` 的 `activateResultChannels` 以结算者时钟固定 `retention.expiresAt`；`ledger-body-reads.ts` 的 `readPage` 先核授权、结果版本、条目 `linked`、`now < expiresAt`（读者时钟），不满足答 `expired` | 已实现（M4） |
 | `ReadFinish`、`StillValid`、`RecheckExpired` | `ledger-body-reads.ts` 的 `readPage`：`readRange` 读存储；`absent` 时重读账本，`reclaimed`/`orphaned` 或 `expiresAt ≤ now + ε` 答 `expired`，否则答 `unavailable`（diagnostic 以 `integrity` 开头）；有字节时再以读者时钟核 `now < expiresAt`，不成立答 `expired` 不返回字节。判据 `tests/body-lifecycle.spec.ts` C4、C5 | 已实现（M4） |
 | `Eps`、`W`、`G`、`D` 的约束 | `tool/src/construction.ts` 的 `ToolOffloadingConfiguration.permitMs`（W）、`clockSkewMs`（ε）、`orphanGraceMs`（G）与 `maxRetentionMs`（D 的系统上限）；`tool/src/configuration.ts` 的 `checkResultConfiguration` 在启动时拒绝 `G ≤ W + 2ε` 与 `maxRetentionMs ≤ W + 2ε`；`tool/src/result-offloading.ts` 的 `offloadingRefusal` 在声明受理时拒绝 `D ≤ W + 2ε`（`retention-within-late-write-window`）。判据 `tests/body-parameters.spec.ts` | 已实现（M3） |
 | `off`、`Now(p)` | 每个参与者读自己的 `ToolInstantClock`：存储在 `verifyBodyPermit`；签发者在 `permitFor`，结算者在 `activateResultDecision`，读者在 `readPage`，都经 `ToolLedgerPorts.bodies.clock`。本地装配给四者同一进程时钟（`harness-server` holder 的 `bodyClock`） | 已实现 |
-| `SweeperCrash` 与重跑 | `sweep(tenant, now, limit)` 的幂等重跑 | 待实现 |
+| `DeleteBytes` → `Reclaim` 的顺序、`swDeleted` | `tool/src/ledger-sweep.ts` 的 `createLedgerSweep`：对 `due(tenant, now, limit)` 的每一项先 `ToolBodyStore.delete`，成功后才在该调用域提交 `reclaimed` 并 `unschedule`（同一写入集）。清扫者不持久化 `swDeleted`：重跑时重新删除 | 已实现（M5） |
+| `SweeperCrash` 与重跑 | 两步之间停止的清扫者让 due 条目留在索引里，重跑删除再提交，终态相同。判据 `tool/tests/body-lifecycle.spec.ts` “C5 sweep deletes the bytes before it records reclaimed”（丢失提交的重跑）、“C5 sweep stops at a store that cannot delete”；`ReclaimedLeavesNoBytes` 与 `QuiescentStoreEmpty` 的真实 SQLite 判据 `tool-storage-sql/tests/sweep-live.spec.ts` | 已实现（M5） |
 
 ## 8. 未覆盖
 
