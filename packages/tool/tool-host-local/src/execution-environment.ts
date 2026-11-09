@@ -32,6 +32,7 @@ import {
 } from './author-environment.ts'
 import { fixedPreparationInput, fixedReleaseInput } from './environment-input.ts'
 import {
+  closedAcquisition,
   createEnvironmentStateStore,
   environmentFailure,
   preparationKey,
@@ -468,6 +469,7 @@ export function createLocalExecutionEnvironment<P>(
         evidence: receipt({ original: acquired, preparation: request.preparation }),
         release: null,
         resources: [],
+        reservations: [],
       })
     })
     if ('failure' in saved) return saved
@@ -529,8 +531,7 @@ export function createLocalExecutionEnvironment<P>(
       )
         return fail({ kind: 'conflict', operation: fixed.release.operation })
       return succeed({
-        ...record,
-        closed: true,
+        ...closedAcquisition(record),
         release: record.release ?? { record: fixed.release, confirmed: false },
       })
     })

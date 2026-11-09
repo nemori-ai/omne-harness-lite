@@ -7,11 +7,9 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import {
-  closedRetention,
+  closedAcquisition,
   createdBy,
   environmentFailure,
-  retentionEntries,
-  scopeOwned,
   type EnvironmentAddress,
   type EnvironmentStateStore,
   type EnvironmentState,
@@ -135,7 +133,7 @@ export async function createEnvironmentResourceLedger(
     async close() {
       const result = await input.state.update(input.address, state =>
         state
-          ? succeed({ ...state, closed: true })
+          ? succeed(closedAcquisition(state))
           : environmentFailure('original acquisition is missing'),
       )
       if ('failure' in result) return 'unavailable'
@@ -164,20 +162,31 @@ export type RetainedTerminalLedgerView = Pick<
   Readonly<{
     /**
      * Whether the scope holds the end fact of a handed-over process (stop clause 7): `confirmed`
-     * from the commit that confirmed its stop until the scope is released, `none` before and
-     * after, `unavailable` when the end fact cannot be read.
+     * from the commit that confirmed its stop on, `none` before, `unavailable` when the end fact
+     * cannot be read.
      */
     ended(key: string): Promise<'confirmed' | 'none' | 'unavailable'>
     close(): Promise<'confirmed' | 'unavailable'>
     inspect(): Promise<readonly RetainedResourceFact[] | null>
   }>
 
-/** The distinct creators of `entries`. */
-function creatorsOf(entries: readonly RetainedResourceFact[]): readonly RetainedCreator[] {
-  const seen = new Map<string, RetainedCreator>()
-  for (const entry of entries)
-    seen.set(JSON.stringify([entry.creator.call, entry.creator.operation]), entry.creator)
-  return [...seen.values()]
+const creatorOf = (creator: EnvironmentState): RetainedCreator => ({
+  call: creator.preparation.call,
+  operation: creator.preparation.operation,
+  original: canonicalDigest(creator.original),
+})
+
+/** The acquisition with every fact it keeps for `key` written as a confirmed stop. */
+function stoppedKey(state: EnvironmentState, key: string): EnvironmentState {
+  return {
+    ...state,
+    resources: state.resources.map(item =>
+      item.resource.key === key ? { ...item, stop: 'confirmed' } : item,
+    ),
+    reservations: state.reservations.map(item =>
+      item.resource.key === key ? { ...item, stop: 'confirmed' } : item,
+    ),
+  }
 }
 
 export async function createRetainedTerminalLedger(
@@ -205,173 +214,131 @@ export async function createRetainedTerminalLedger(
     return current
   }
   const initial = await input.state.readRetention(input.address, input.scope)
-  if ('ok' in initial && initial.ok && initial.ok.phase !== 'open') controller.abort()
-  const creator = (bound: EnvironmentState): RetainedCreator => ({
-    call: bound.preparation.call,
-    operation: bound.preparation.operation,
-    original: canonicalDigest(bound.original),
-  })
-  const owns = (item: RetainedResourceFact, key: string) =>
-    item.resource.key === key && boundOriginal !== null && createdBy(item.creator, boundOriginal)
+  if ('ok' in initial && initial.ok?.phase === 'closed') controller.abort()
+
+  /**
+   * The take-over of this call's reservation `key`: one commit of the scope's record, decided on
+   * the creating acquisition and the scope. A process the scope adopted already answers
+   * `confirmed` without a write, so a repeated `adopt` is the query for a lost answer. A closed scope, a
+   * closed acquisition and a settled original call answer `closed`.
+   */
+  async function takeOver(
+    key: string,
+    taken: RetainedResourceFact['taken'],
+  ): Promise<'confirmed' | 'closed' | 'unavailable'> {
+    if (!(await binding())) return 'unavailable'
+    const result = await input.state.takeOver(
+      input.address,
+      input.scope,
+      (creator, retention) => {
+        const held = retention?.resources.find(
+          item => item.resource.key === key && createdBy(item.creator, creator),
+        )
+        if (taken === 'adopted' && held?.taken === 'adopted') return succeed('held')
+        if (retention?.phase === 'closed' || creator.closed) return fail({ kind: 'not-settled' })
+        const reservation = creator.reservations.find(item => item.resource.key === key)
+        if (reservation?.stop !== 'active')
+          return environmentFailure('retained resource has no active reservation')
+        return succeed({
+          resource: reservation.resource,
+          taken,
+          stop: 'active',
+          creator: creatorOf(creator),
+        })
+      },
+      input.authorize,
+    )
+    if ('ok' in result) return 'confirmed'
+    return result.failure.kind === 'not-settled' ? 'closed' : 'unavailable'
+  }
+
   const ledger: RetainedTerminalLedgerView = {
     closed: controller.signal,
+    /**
+     * The reservation goes into this call's own acquisition record, never into the scope. The
+     * write decides on the scope's record and asserts its revision: a closed scope answers
+     * `closed` and nothing is written.
+     */
     async plan(resource) {
       const bound = await binding()
       if (!bound) return 'unavailable'
       if (controller.signal.aborted || bound.closed) return 'closed'
       const checked = await managedResourceSchema['~standard'].validate(resource)
       if (checked.issues) return 'unavailable'
-      const result = await input.state.updateRetention(input.address, input.scope, state => {
-        if (state && state.phase !== 'open') return fail({ kind: 'not-settled' })
-        const resources = retentionEntries(state)
-        const existing = resources.find(item => owns(item, checked.value.key))
+      let scopeClosed = false
+      const result = await input.state.update(input.address, (state, _receipt, retention) => {
+        if (!state) return environmentFailure('original acquisition is missing')
+        scopeClosed = retention?.phase === 'closed'
+        if (scopeClosed || state.closed) return fail({ kind: 'not-settled' })
+        const existing = state.reservations.find(item => item.resource.key === checked.value.key)
         if (existing && canonicalDigest(existing.resource) !== canonicalDigest(checked.value))
           return fail({ kind: 'conflict', operation: input.address.operation })
-        return succeed({
-          phase: 'open',
-          scope: input.scope,
-          resources: existing
-            ? resources
-            : [
-                ...resources,
-                {
-                  creator: creator(bound),
-                  resource: checked.value,
-                  permitted: false,
-                  adopted: false,
-                  stop: 'active',
-                },
-              ],
-        })
+        return succeed(
+          existing
+            ? state
+            : {
+                ...state,
+                reservations: [...state.reservations, { resource: checked.value, stop: 'active' }],
+              },
+        )
       })
       if ('ok' in result) return 'recorded'
       if (result.failure.kind === 'conflict') return 'conflict'
       if (result.failure.kind === 'not-settled') {
-        controller.abort()
+        if (scopeClosed) controller.abort()
         return 'closed'
       }
       return 'unavailable'
     },
-    async permit(key) {
-      const bound = await binding()
-      if (!bound) return 'unavailable'
-      const result = await input.state.updateRetention(
-        input.address,
-        input.scope,
-        state => {
-          if (!state) return environmentFailure('retained resource has no durable plan')
-          if (state.phase !== 'open') return fail({ kind: 'not-settled' })
-          if (!state.resources.some(item => owns(item, key)))
-            return environmentFailure('retained resource has no active durable plan')
-          return succeed({
-            ...state,
-            resources: state.resources.map(item =>
-              owns(item, key) ? { ...item, permitted: true } : item,
-            ),
-          })
-        },
-        input.authorize,
-      )
-      if ('ok' in result) return 'confirmed'
-      return result.failure.kind === 'not-settled' ? 'closed' : 'unavailable'
-    },
+    permit: key => takeOver(key, 'permitted'),
+    adopt: key => takeOver(key, 'adopted'),
     /**
-     * The handover commit. A key this call already adopted answers `confirmed` without a write, so a
-     * repeated `adopt` is the query for a lost answer. Otherwise one commit of the scope's record
-     * adopts the reservation, asserting the acquisition and the original call unchanged; the
-     * acquisition then shows the key as `handedOver`. A closed scope, a closed acquisition and a
-     * settled original call answer `closed`.
-     */
-    async adopt(key) {
-      const bound = await binding()
-      if (!bound) return 'unavailable'
-      const prior = await input.state.readRetention(input.address, input.scope)
-      if ('failure' in prior) return 'unavailable'
-      if (retentionEntries(prior.ok).some(item => owns(item, key) && item.adopted))
-        return 'confirmed'
-      if (prior.ok && prior.ok.phase !== 'open') return 'closed'
-      const result = await input.state.handOver(
-        input.address,
-        input.scope,
-        (acquisition, retention) => {
-          if (!retention) return environmentFailure('retained process has no durable reservation')
-          if (retention.phase !== 'open') return fail({ kind: 'not-settled' })
-          if (!retention.resources.some(item => owns(item, key)))
-            return environmentFailure('retained process has no active reservation')
-          const handed = acquisition.resources.find(item => item.resource.key === key)
-          if (!handed || handed.stop === 'confirmed')
-            return environmentFailure('acquisition has no live fact for the handed-over resource')
-          return succeed({
-            ...retention,
-            resources: retention.resources.map(item =>
-              owns(item, key) ? { ...item, permitted: true, adopted: true } : item,
-            ),
-          })
-        },
-        input.authorize,
-      )
-      if ('ok' in result) return 'confirmed'
-      return result.failure.kind === 'not-settled' ? 'closed' : 'unavailable'
-    },
-    /**
-     * A key the scope took over belongs to the retention scope, so any view of the scope records
-     * its stop: after a provider restart no view of the creating call exists. A reservation the
-     * scope did not take over stays the creating call's. A confirmed stop ends the scope's hold:
-     * the entry is removed, a process's end fact is kept in the same commit, and a closed scope
-     * that holds nothing more loses its record and its end facts.
+     * A key the scope took over belongs to the scope, so any view of the scope records its stop:
+     * after a provider restart no view of the creating call exists. A confirmed stop first writes
+     * the creator's own facts for the key, then removes the entry in one commit of the scope.
+     * A reservation the scope did not take over is the creating call's: its view records the stop
+     * in its own record, whether or not the scope is closed.
      */
     async stopped(key, status) {
-      const bound = await binding()
-      if (!bound) return 'unavailable'
-      const records = (item: RetainedResourceFact) =>
-        scopeOwned(item) ? item.resource.key === key : owns(item, key)
-      if (status === 'confirmed') {
-        // The resource stopped: its creator's own fact says so too, so the creator's view does
-        // not fall back to `active` once the scope no longer holds the key. The scope's commit
-        // below is the one that ends the hold; this write is recorded first and asserted by it.
-        const current = await input.state.readRetention(input.address, input.scope)
-        if ('failure' in current) return 'unavailable'
-        for (const creator of creatorsOf(retentionEntries(current.ok).filter(records))) {
-          const marked = await input.state.update(
-            { tenant: input.address.tenant, call: creator.call, operation: creator.operation },
-            state =>
-              state
-                ? succeed({
-                    ...state,
-                    resources: state.resources.map(item =>
-                      item.resource.key === key ? { ...item, stop: 'confirmed' } : item,
-                    ),
-                  })
-                : environmentFailure('creator acquisition is missing'),
+      if (!(await binding())) return 'unavailable'
+      const current = await input.state.readRetention(input.address, input.scope)
+      if ('failure' in current) return 'unavailable'
+      const held = current.ok?.resources.find(item => item.resource.key === key)
+      if (held) {
+        if (status === 'confirmed') {
+          const creator = { tenant: input.address.tenant, ...held.creator }
+          const marked = await input.state.update(creator, state =>
+            state
+              ? succeed(stoppedKey(state, key))
+              : environmentFailure('creator acquisition is missing'),
           )
           if ('failure' in marked) return 'unavailable'
         }
+        const stopped = await input.state.stopRetained(input.address, input.scope, key, status)
+        return 'ok' in stopped ? 'recorded' : 'unavailable'
       }
-      const result = await input.state.updateRetention(input.address, input.scope, state => {
-        if (!state || state.phase === 'released' || !state.resources.some(records))
-          return environmentFailure('retained resource plan is missing')
+      let taken = false
+      const own = await input.state.update(input.address, state => {
+        const reservation = state?.reservations.find(item => item.resource.key === key)
+        if (!state || !reservation) return environmentFailure('reservation is missing')
+        taken = reservation.stop === 'handedOver'
+        if (taken) return environmentFailure('reservation was taken over')
         return succeed({
           ...state,
-          resources:
-            status === 'confirmed'
-              ? state.resources.filter(item => !records(item))
-              : state.resources.map(item => (records(item) ? { ...item, stop: status } : item)),
+          reservations: state.reservations.map(item =>
+            item === reservation ? { ...item, stop: settledStop(item.stop, status) } : item,
+          ),
         })
       })
-      return 'ok' in result ? 'recorded' : 'unavailable'
+      if ('ok' in own) return 'recorded'
+      // The scope took the key over after the read above: the stop is the scope's to record.
+      return taken ? ledger.stopped(key, status) : 'unavailable'
     },
     ended: key => input.state.readEnded(input.address, input.scope, key),
-    /**
-     * Closes the scope: nothing is taken over any more. What it took over stays until its stop is
-     * confirmed; every reservation nobody took over goes in this commit. A scope that then holds
-     * nothing is released in the same commit: its record shrinks to the closed marker and its end
-     * facts are deleted. Closing a closed or released scope changes nothing.
-     */
+    /** Marks the scope closed: nothing is taken over any more; what it took over stays. */
     async close() {
       if (!(await binding())) return 'unavailable'
-      const result = await input.state.updateRetention(input.address, input.scope, state =>
-        succeed(closedRetention(input.scope, state)),
-      )
+      const result = await input.state.closeRetention(input.address, input.scope)
       if ('failure' in result) return 'unavailable'
       controller.abort()
       return 'confirmed'
@@ -379,8 +346,8 @@ export async function createRetainedTerminalLedger(
     async inspect() {
       const result = await input.state.readRetention(input.address, input.scope)
       if ('failure' in result) return null
-      if (result.ok && result.ok.phase !== 'open') controller.abort()
-      return retentionEntries(result.ok).filter(
+      if (result.ok?.phase === 'closed') controller.abort()
+      return (result.ok?.resources ?? []).filter(
         item =>
           item.creator.call === input.address.call &&
           item.creator.operation === input.address.operation,

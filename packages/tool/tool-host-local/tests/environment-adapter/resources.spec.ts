@@ -121,6 +121,7 @@ async function fixture(retained = false) {
       evidence: evidence('original'),
       release: null,
       resources: [],
+      reservations: [],
     }),
   )
   let allowed = true
@@ -314,7 +315,7 @@ it('a handover committed between the permit snapshot and its commit is a conflic
   })
   expect(await f.ledger.permit(f.resource.key)).toBe('unavailable')
   expect(await f.ledger.inspect()).toMatchObject([{ permitted: false, stop: 'handedOver' }])
-  expect(await (await f.retention()).inspect()).toMatchObject([{ adopted: true }])
+  expect(await (await f.retention()).inspect()).toMatchObject([{ taken: 'adopted' }])
 })
 
 it('keeps retained ownership after acquisition closure and permits stop facts after call terminality', async () => {
@@ -328,7 +329,7 @@ it('keeps retained ownership after acquisition closure and permits stop facts af
   await f.finish()
   expect(await retained.stopped(f.resource.key, 'unconfirmed')).toBe('recorded')
   expect(await (await f.retention()).inspect()).toMatchObject([
-    { creator: { call: f.preparation.call }, stop: 'unconfirmed', permitted: true },
+    { creator: { call: f.preparation.call }, stop: 'unconfirmed', taken: 'permitted' },
   ])
   expect(await retained.stopped(f.resource.key, 'confirmed')).toBe('recorded')
 })
@@ -376,15 +377,16 @@ it('refuses retained creation after durable scope closure while the creating cal
   await retained.close()
   expect(await retained.permit(f.resource.key)).toBe('closed')
   expect(f.assertedCalls()).toEqual([])
-  // The scope close removed the reservation nobody took over and, holding nothing, released the
-  // scope: its record is the closed marker, which the creator's later close leaves as it is.
+  // The scope took nothing over; the reservation stays with its creator, whose close leaves the
+  // closed record as it is.
   expect(await retained.inspect()).toEqual([])
-  expect(await scopeRecordState(f)).toEqual({ closed: true })
+  const closed = await scopeRecordState(f)
+  expect(closed).toMatchObject({ phase: 'closed', resources: [] })
   expect(await f.ledger.close()).toBe('confirmed')
-  expect(await scopeRecordState(f)).toEqual({ closed: true })
+  expect(await scopeRecordState(f)).toEqual(closed)
 })
 
-it('a closed scope keeps what it took over until the stop is confirmed, then shrinks to its closed marker', async () => {
+it('a closed scope keeps what it took over until the stop is confirmed, and keeps its closed record after', async () => {
   const f = await fixture(true)
   const retained = await f.retention()
   await retained.plan(f.resource)
@@ -394,9 +396,9 @@ it('a closed scope keeps what it took over until the stop is confirmed, then shr
   expect(await f.store.readRecord(scope, hostKey(RETENTION_RECORD_KEY))).toMatchObject({
     record: { kind: 'host' },
   })
-  expect(await retained.inspect()).toMatchObject([{ permitted: true, stop: 'active' }])
+  expect(await retained.inspect()).toMatchObject([{ taken: 'permitted', stop: 'active' }])
   expect(await retained.stopped(f.resource.key, 'confirmed')).toBe('recorded')
-  expect(await scopeRecordState(f)).toEqual({ closed: true })
+  expect(await scopeRecordState(f)).toMatchObject({ phase: 'closed', resources: [] })
 })
 
 it('recognizes retained permit receipts without losing unknown stop responsibility', async () => {
@@ -411,7 +413,7 @@ it('recognizes retained permit receipts without losing unknown stop responsibili
   f.store.injectCommit('unknown-dropped')
   expect(await retained.stopped(f.resource.key, 'confirmed')).toBe('unavailable')
   expect(await (await f.retention()).inspect()).toMatchObject([
-    { stop: 'unconfirmed', permitted: true },
+    { stop: 'unconfirmed', taken: 'permitted' },
   ])
 })
 
@@ -430,7 +432,7 @@ it('maintains retained resources without any complete read of an environment dom
   expect(await f.ledger.close()).toBe('confirmed')
   await f.finish()
   expect(await (await f.retention()).inspect()).toMatchObject([
-    { creator: { call: f.preparation.call }, stop: 'active', permitted: true },
+    { creator: { call: f.preparation.call }, stop: 'active', taken: 'permitted' },
   ])
   // The confirmed stop ends the scope's hold on the terminal.
   expect(await retained.stopped(f.resource.key, 'confirmed')).toBe('recorded')

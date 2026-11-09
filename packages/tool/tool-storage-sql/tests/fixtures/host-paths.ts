@@ -196,6 +196,7 @@ export function acquisitionOf(
     evidence: evidence(`original-${preparation.call}`),
     release: null,
     resources: [],
+    reservations: [],
   }
 }
 
