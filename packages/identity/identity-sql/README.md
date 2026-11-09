@@ -58,7 +58,7 @@ Errors: every outcome is a return value. Only a write whose result cannot be det
 
 ## Configuration and operation
 
-The configuration is the two login lifetimes and the two invitation durations, owned by the `identity` row of the assembly. The scrypt parameters are fixed to `SCRYPT_PROFILE`, a registered IC-14 deviation, see SPEC known limitation 3. Requirements: Node 24 or later, and a `storage` provider whose catalog holds the materials. The caller registers the combination and closes the storage. This member stops the provider and closes scrypt.
+The configuration is the two login lifetimes, the access refresh granularity and the two invitation durations, owned by the `identity` row of the assembly. The scrypt parameters are fixed to `SCRYPT_PROFILE`, a registered IC-14 deviation, see SPEC known limitation 3. Requirements: Node 24 or later, and a `storage` provider whose catalog holds the materials. The caller registers the combination and closes the storage. This member stops the provider and closes scrypt.
 
 ## Verification
 

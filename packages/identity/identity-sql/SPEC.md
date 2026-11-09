@@ -256,7 +256,7 @@ handler 另有两个预读，它们不核对发起登录：
 
 ### IS-15 邀请时长的配置
 
-插件配置在两个登录时长之外有两个邀请时长：`invitationDefaultDuration` 与 `invitationMaxDuration`，都是 `PT<秒>S` 文本，都须大于零，默认时长不长于最长时长。四项都必填：缺任一项时校验不通过，插件 fiber 失败，不提供任何键。校验不填入任何值（R2-D240）。部署在发行配置里写全四项；P-10 的初值是 `PT604800S`（7 天）与 `PT2592000S`（30 天）（R2-D204 第 7 条）。`IDENTITY_SQL_DEFAULT_CONFIG` 列出这四个初值，供部署显式取用。
+插件配置在两个登录时长与访问刷新粒度（IS-14）之外有两个邀请时长：`invitationDefaultDuration` 与 `invitationMaxDuration`，都是 `PT<秒>S` 文本，都须大于零，默认时长不长于最长时长。五项都必填：缺任一项时校验不通过，插件 fiber 失败，不提供任何键。校验不填入任何值（R2-D240）。部署在发行配置里写全五项；P-10 的初值是 `PT604800S`（7 天）与 `PT2592000S`（30 天）（R2-D204 第 7 条）。`IDENTITY_SQL_DEFAULT_CONFIG` 列出这五项的初值，供部署显式取用。
 
 提供者经注入的 `InvitationTermsSource` 在每次发出邀请时读时长，不在代码里写死。时长不可得或非法时，发出邀请答 `basis-unavailable`。请求的时长不大于零或长于最长时长时答 `denied`。这两项判断在资格核对之后、查找被邀请标识之前生效。
 
@@ -289,7 +289,7 @@ handler 另有两个预读，它们不核对发起登录：
 
 插件体按固定次序做五件事：
 
-1. 校验配置的两个登录时长与两个邀请时长（IS-15）。解析失败、不大于零或默认邀请时长长于最长时长时插件抛错，该行 `FAILED`。
+1. 校验配置的两个登录时长、访问刷新粒度与两个邀请时长（IS-14、IS-15）。解析失败、不大于零、粒度不短于空闲时长或默认邀请时长长于最长时长时插件抛错，该行 `FAILED`。
 2. 用 `SCRYPT_PROFILE` 调 `openScrypt`，再 `derive` 假材料。派生失败时关闭模块并抛错，诊断 `decoy-derive-failed:<code>`。
 3. `registerCombination`。结果不是 `registered` 时关闭模块并抛错。
 4. 用注入的 `identityClock` 与邀请时长构造提供者，在同一插件体内各 `new` 一个 `IdentityOperationsService`、`TenantStandingSourceService` 、`IdentityGovernanceService`、`StandingReservationsService` 与 `IdentityGovernanceRecoveryService` 子类实例。这些实例共用一个提供者，所以治理端口的撤销与切换对识别生效。
