@@ -1,5 +1,9 @@
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { CommitRejectReason, JsonValue } from '@omne-harness/sql-contract'
+import {
+  commitRejectionNature,
+  type CommitRejectReason,
+  type JsonValue,
+} from '@omne-harness/sql-contract'
 import {
   recordKey,
   type LedgerCommit,
@@ -43,31 +47,11 @@ function stopOf(basis: JsonValue): StopBasis | null {
 export type CommitAnswer = Awaited<ReturnType<SqlToolStorageOptions['storage']['commit']>>
 
 /**
- * Whether the same commit can be accepted later (sql-contract「提交拒绝原因的定性」). A transient
- * reason comes from the state of the storage at this moment; a definite one comes from the commit
- * itself or from the assembly, so the same commit is refused again whenever it is sent. The
- * contract leaves `cancelled` unclassified; it is read as transient.
+ * Whether the same commit is refused again whenever it is sent (sql-contract「提交拒绝原因的定性」):
+ * a definite reason comes from the commit itself or from the assembly.
  */
-const REJECTION: Readonly<Record<CommitRejectReason, 'transient' | 'definite'>> = {
-  closing: 'transient',
-  cancelled: 'transient',
-  queue_full: 'transient',
-  writer_not_current: 'transient',
-  domain_unavailable: 'transient',
-  field_missing: 'definite',
-  unsupported_protocol: 'definite',
-  participant_repeated: 'definite',
-  facts_not_json: 'definite',
-  command_limit: 'definite',
-  combination_unregistered: 'definite',
-  manifest_mismatch: 'definite',
-  material_unavailable: 'definite',
-  participant_not_in_combination: 'definite',
-  participant_dependency_missing: 'definite',
-}
-
 export function isDefiniteRejection(reason: CommitRejectReason): boolean {
-  return REJECTION[reason] === 'definite'
+  return commitRejectionNature(reason) === 'definite'
 }
 
 /** A write set that is not strict JSON is refused before it is sent: it never becomes JSON. */
