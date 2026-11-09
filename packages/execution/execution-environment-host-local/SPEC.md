@@ -17,7 +17,7 @@
 
 ### 宿主层性质与平台对照（未接受）
 
-状态：未接受。本节是契约 [INV-EE01～18](../execution-environment-contract/SPEC.md#结果与不变量) 在宿主平台层的细化。下列性质在 Linux、macOS 与 Windows 上都成立。平台之间的差异只经声明的事实体现：命令设施的 `containment`、保留扩展的有无、提供者事实的前提三态、结局里 `exit.signal` 的有无，以及终端字节的归属方式。提供者不用同一个形状虚构平台做不到的能力（[INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。
+状态：未接受。本节是契约 [INV-EE01～18](../execution-environment-contract/SPEC.md#结果与不变量) 在宿主平台层的细化。下列性质在 Linux、macOS 与 Windows 上都成立。平台之间的差异只经声明的事实体现：命令设施的 `containment`、保留扩展的有无、提供者事实的前提三态、以及结局里 `exit.signal` 的有无。提供者不用同一个形状虚构平台做不到的能力（[INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。
 
 | 编号 | 性质                                                                                                                                                  | 违反时的后果                                         |
 | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -347,6 +347,8 @@ Windows 的平台前提（未接受）。Windows 不做 P1、P3～P6 的探测�
 | `dotnet-csc`          | `%SystemRoot%\Microsoft.NET\Framework64\v4.0.30319\csc.exe` 存在，桥能编译成功  | 命令、终端与文件 |
 | `job-round-trip`      | 在一个探测 Job 里起锚与一个探测进程，按名字打开 Job、读到成员数，强制停止并确认 | 命令             |
 | `powershell-assembly` | 系统的 Windows PowerShell `System.Management.Automation` 3.0 程序集可以加载     | 终端             |
+| `conpty.dll`          | node-pty 随包的 `prebuilds/win32-<arch>/conpty/conpty.dll` 存在                 | 终端             |
+| `OpenConsole.exe`     | 同一目录下的 `OpenConsole.exe` 存在                                             | 终端             |
 
 - 缺项时，命令启动答 `unavailable`，`commandUnavailable` 诊断写明缺项；终端缺项时 `create` 答 `unavailable`，`terminalUnavailable` 诊断写明缺项。
 - 满足的结果在这一代内保留。不满足或探测出错时，距上次探测达到 `probeRetryMs` 的下一次启动重新探测。`graceMs` 用于上文 Windows 的优雅停止。

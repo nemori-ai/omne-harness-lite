@@ -287,7 +287,7 @@ sequenceDiagram
 
 ### F-EEC08 终端段
 
-状态：宿主提供者提供 `terminal` 设施，平台范围见 host-local 的[持久终端](../../execution-environment-host-local/SPEC.md#持久终端)，机制见[持久终端机制](../../execution-environment-host-local/docs/architecture.md#持久终端机制)。按哨兵归属字节只在 Linux 上兑现。Windows 终端仍按观察窗口归属字节，见 SPEC [终端段的完成与字节归属](../SPEC.md#终端段的完成与字节归属)。
+状态：宿主提供者提供 `terminal` 设施，平台范围见 host-local 的[持久终端](../../execution-environment-host-local/SPEC.md#持久终端)，机制见[持久终端机制](../../execution-environment-host-local/docs/architecture.md#持久终端机制)。按哨兵归属字节在 Linux、macOS 与 Windows 上兑现；Windows 以随包的 ConPTY 为前提，见 SPEC [终端段的完成与字节归属](../SPEC.md#终端段的完成与字节归属)。
 
 条款：[设施协议](../SPEC.md#设施协议)、[终端段的完成与字节归属](../SPEC.md#终端段的完成与字节归属)、[INV-EE07](../SPEC.md#inv-ee07-临时状态边界与实际回收明确)、[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。展开组的 F-EX02 里的一种设施操作。逐设施的规则见内部架构的 [`terminal`](architecture.md#terminal终端)。段的完成与字节归属以 SPEC「终端段的完成与字节归属」为准，本条只投影它。
 

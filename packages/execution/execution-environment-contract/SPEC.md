@@ -195,7 +195,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 ### 终端段的完成与字节归属
 
-依据是 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 卡正文的「总体设计」，未经技术接受。形式依据是 [TerminalSegments](verification/models/README.md#terminalsegments)。宿主提供者在 Linux 上兑现本节，见 [execution-environment-host-local 的持久终端](../execution-environment-host-local/SPEC.md#持久终端)。macOS 用同一份驱动兑现本节。Windows 终端在系统 ConPTY 上按观察窗口归属字节，条件见该 SPEC 的 [Windows 终端](../execution-environment-host-local/SPEC.md#windows-终端未接受)。
+依据是 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 卡正文的「总体设计」，未经技术接受。形式依据是 [TerminalSegments](verification/models/README.md#terminalsegments)。宿主提供者在 Linux 上兑现本节，见 [execution-environment-host-local 的持久终端](../execution-environment-host-local/SPEC.md#持久终端)。macOS 用同一份驱动兑现本节。Windows 终端用随包的 ConPTY 按同一规则兑现本节，前提见该 SPEC 的 [Windows 终端](../execution-environment-host-local/SPEC.md#windows-终端未接受)。
 
 终端段的结局在 `OutputSummary` 的 terminal 分支带可选的 `between`（`BetweenSegments`）：保留的段间字节，以及观察字节数与丢弃字节数。不按哨兵归属字节的提供者不带它。
 
