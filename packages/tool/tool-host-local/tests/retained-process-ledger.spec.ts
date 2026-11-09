@@ -20,6 +20,7 @@ import {
   type ResourceLedger,
 } from '@omne-harness/execution-environment-contract'
 import { succeed } from '@omne-harness/operation-result'
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import { canonicalDigest, hostKey, type CallRecord, type LedgerDomain } from '@omne-harness/tool'
 import {
@@ -795,5 +796,178 @@ describe('the environment plan hands processes to acquire', () => {
       failure: { kind: 'unavailable', diagnostic: 'original live acquisition inputs changed' },
     })
     expect(f.acquire).toHaveBeenCalledTimes(1)
+  })
+})
+
+type StateStore = ReturnType<typeof createEnvironmentStateStore>
+
+function anotherScope() {
+  const scope = decodeScopeRef({ ref: 'another-requester-scope' })
+  if ('failure' in scope) throw new Error('invalid fixture scope')
+  return scope.ok
+}
+
+/** This call's view of the scope over a state store that `wrap` may interleave with. */
+function viewOver(
+  f: Awaited<ReturnType<typeof fixture>>,
+  wrap: (state: StateStore) => StateStore,
+  scope = preparation.request.requesterScope,
+) {
+  return createRetainedTerminalLedger({
+    state: wrap(createEnvironmentStateStore({ store: f.store, mode: 'test' })),
+    address: preparation,
+    scope,
+    authorize: async () => 'authorized',
+  })
+}
+
+describe('the scope view plans a reservation only into an open acquisition of an open scope', () => {
+  it('a plan after another view closed the scope answers closed, writes nothing and closes this view', async () => {
+    const f = await fixture()
+    const closer = await otherCallView(f)
+    const view = await viewOver(f, state => ({
+      ...state,
+      // The other view closes the scope after this view read its binding, before it writes.
+      update: async (...args) => {
+        await closer.close()
+        return state.update(...args)
+      },
+    }))
+    expect(view.closed.aborted).toBe(false)
+    const before = await f.domain()
+    expect(await view.plan(resource)).toBe('closed')
+    expect(view.closed.aborted).toBe(true)
+    expect((await f.domain()).reservation).toBeUndefined()
+    expect((await f.domain()).acquired).toEqual(before.acquired)
+  })
+
+  it('a plan whose acquisition closes before the write answers closed and keeps the view open', async () => {
+    const f = await fixture()
+    const view = await viewOver(f, state => ({
+      ...state,
+      update: async (...args) => {
+        await f.acquisition.close()
+        return state.update(...args)
+      },
+    }))
+    expect(await view.plan(resource)).toBe('closed')
+    expect(view.closed.aborted).toBe(false)
+    expect((await f.domain()).reservation).toBeUndefined()
+  })
+
+  it('a repeated plan of the same resource keeps one reservation; another resource under the key is a conflict', async () => {
+    const f = await fixture()
+    expect(await f.processes.plan(resource)).toBe('recorded')
+    const planned = (await f.domain()).acquired?.state.reservations
+    expect(planned).toEqual([{ resource, stop: 'active' }])
+    expect(await f.processes.plan(resource)).toBe('recorded')
+    expect(
+      await f.processes.plan({ ...resource, reference: { kind: 'string', value: 'other' } }),
+    ).toBe('conflict')
+    expect((await f.domain()).acquired?.state.reservations).toEqual(planned)
+  })
+
+  it('a plan of a malformed resource answers unavailable and writes nothing', async () => {
+    const f = await fixture()
+    const before = await f.domain()
+    const malformed = { ...resource, key: 42 } as unknown as ManagedResource
+    expect(await f.processes.plan(malformed)).toBe('unavailable')
+    expect(await f.domain()).toEqual(before)
+  })
+
+  it('a plan whose write fails answers unavailable', async () => {
+    const f = await fixture()
+    const view = await viewOver(f, state => ({
+      ...state,
+      update: async () => ({
+        failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'fixture' },
+      }),
+    }))
+    expect(await view.plan(resource)).toBe('unavailable')
+    expect(view.closed.aborted).toBe(false)
+  })
+
+  it('a view of a scope the acquisition is not bound to answers unavailable to every write', async () => {
+    const f = await fixture()
+    await f.reserved()
+    const before = await f.domain()
+    const view = await viewOver(f, state => state, anotherScope())
+    expect(await view.plan({ ...resource, key: 'fresh' })).toBe('unavailable')
+    expect(await view.permit(resource.key)).toBe('unavailable')
+    expect(await view.stopped(resource.key, 'confirmed')).toBe('unavailable')
+    expect(await view.close()).toBe('unavailable')
+    expect(await f.domain()).toEqual(before)
+  })
+})
+
+describe('a stop goes to whoever holds the key when it is written', () => {
+  it('a stop the creator starts after the scope took the key over is recorded by the scope', async () => {
+    const f = await fixture()
+    await f.reserved()
+    let armed = false
+    const view = await viewOver(f, state => ({
+      ...state,
+      // The scope adopts the key after the stop read the scope, before the creator's write.
+      readRetention: async (...args) => {
+        const read = await state.readRetention(...args)
+        if (armed) {
+          armed = false
+          expect(await f.processes.adopt(resource.key)).toBe('confirmed')
+        }
+        return read
+      },
+    }))
+    armed = true
+    expect(await view.stopped(resource.key, 'confirmed')).toBe('recorded')
+    expect(armed).toBe(false)
+    const after = await f.domain()
+    expect(after.retainedFact).toBeUndefined()
+    expect(after.reservation).toMatchObject({ stop: 'confirmed' })
+    expect(await view.ended(resource.key)).toBe('confirmed')
+  })
+
+  it('a stop of a key nobody reserved answers unavailable', async () => {
+    const f = await fixture()
+    const before = await f.domain()
+    expect(await f.processes.stopped('unknown-key', 'confirmed')).toBe('unavailable')
+    expect(await f.domain()).toEqual(before)
+  })
+
+  it('a stop answers unavailable when the scope cannot be read', async () => {
+    const f = await fixture()
+    await f.reserved()
+    const view = await viewOver(f, state => ({
+      ...state,
+      readRetention: async () => ({
+        failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'fixture' },
+      }),
+    }))
+    expect(await view.stopped(resource.key, 'confirmed')).toBe('unavailable')
+    expect((await f.domain()).reservation).toMatchObject({ stop: 'active' })
+  })
+
+  it('a stop of a key the scope holds answers unavailable when the scope write fails', async () => {
+    const f = await fixture()
+    await f.reserved()
+    expect(await f.processes.adopt(resource.key)).toBe('confirmed')
+    const view = await viewOver(f, state => ({
+      ...state,
+      stopRetained: async () => ({
+        failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'fixture' },
+      }),
+    }))
+    expect(await view.stopped(resource.key, 'unconfirmed')).toBe('unavailable')
+    expect((await f.domain()).retainedFact).toMatchObject({ stop: 'active' })
+  })
+
+  it('an unconfirmed stop of a key the scope holds changes only its entry', async () => {
+    const f = await fixture()
+    await f.reserved()
+    expect(await f.processes.adopt(resource.key)).toBe('confirmed')
+    expect(await f.processes.stopped(resource.key, 'unconfirmed')).toBe('recorded')
+    const after = await f.domain()
+    expect(after.retainedFact).toMatchObject({ stop: 'unconfirmed' })
+    expect(after.reservation).toMatchObject({ stop: 'active' })
+    expect(await f.processes.ended(resource.key)).toBe('none')
   })
 })
