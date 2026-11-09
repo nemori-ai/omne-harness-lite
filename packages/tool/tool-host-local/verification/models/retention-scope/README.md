@@ -76,20 +76,20 @@
 
 ## 6. 代码对应
 
-实现在 `tool-host-local` 的 [environment-state.ts](../../../src/environment-state.ts) 与 [environment-resource-ledger.ts](../../../src/environment-resource-ledger.ts)。下表的每一行状态为待核对：实现按单一归属正文修改，核对以修改落地后的源码为准。
+实现在 `tool-host-local` 的 [environment-state.ts](../../../src/environment-state.ts) 与 [environment-resource-ledger.ts](../../../src/environment-resource-ledger.ts)，释放路径的获取关闭在 [execution-environment.ts](../../../src/execution-environment.ts)。下表按修改落地后的源码逐行核对。每个动作只有一条代码路径。
 
 | 模型 | 代码 | 状态 |
 | --- | --- | --- |
-| `scopeState`、`entries` | `environment-state.ts` 的作用域记录（`open`、`closed` 两个 phase）与已接手条目（资源、`permitted` 或 `adopted`、停止事实、创建者引用） | 待核对 |
-| `resv`、`creator` | 获取记录里的预留及其停止事实；读取时按作用域记录推导 `handedOver` | 待核对 |
-| `PlanCommit` | `createRetainedTerminalLedger` 的 `plan`：按键读作用域记录，phase 为 `closed` 时答 `closed`；否则写创建者的 `environment@<call>` 记录 | 待核对 |
-| `TakeCommit` 的创建者域断言与三项核对 | `permit`、`adopt`：作用域提交断言创建者获取域与原调用域的修订号，核对预留存在、创建者开放、作用域开放；创建者已关闭时答 `closed` | 待核对 |
-| `StopCommit` 与结束事实 | `stopped(key, 'confirmed')`：先写创建者记录的停止事实，再在同一次作用域提交里删条目并写 `ended/<key>` | 待核对 |
-| `CreatorStopCommit` | 创建者对自己预留的 `stopped`，写自己的域，不读作用域是否关闭 | 待核对 |
-| `StopReply` | `ended(key)` 经 `readRecord` 读单条记录；提供者按契约停止第 7 项换算为 `stop` 答复 | 待核对 |
-| `CloseCommit` | `close`：把作用域记录标为 `closed`，不移除条目 | 待核对 |
-| `AcqCloseCommit` 的作用域断言 | `createEnvironmentResourceLedger` 的 `close`：断言作用域域修订号，未被接手的预留写成 `confirmed` | 待核对 |
-| `drained` | 获取关闭后的排空与 `adopt` 答 `closed` 后的停止，归执行环境提供者，不在这两个文件里 | 待核对 |
+| `scopeState`、`entries` | `environment-state.ts` 的 `RetentionState`：`phase` 为 `open` 或 `closed`，`resources` 是已接手条目 `RetainedResourceFact`（资源、`taken` 为 `permitted` 或 `adopted`、停止事实、创建者引用）。没有记录对应 `none`。`decodeRetention` 只接受这两个 phase | 已核对 |
+| `resv`、`creator` | 获取记录的 `reservations`（`Reservation`：资源与停止事实），在创建者的 `environment@<call>` 记录里。`withHandovers` 按作用域条目里创建者为本获取（`createdBy`）的键推导 `handedOver`；`withoutHandovers` 写回时保留获取自己存的停止事实 | 已核对 |
+| `PlanCommit` | `createRetainedTerminalLedger` 的 `plan` 经 `update`：变更函数拿到同一次快照读到的作用域记录，`phase` 为 `closed` 时答 `closed`，不写；否则把预留写进自己的获取记录。提交断言作用域域的修订号。不写作用域 | 已核对 |
+| `TakeCommit` 的创建者域断言与三项核对 | `permit`、`adopt` 经视图的 `takeOver` 到状态存储的 `takeOver`：读作用域记录与创建者快照，决策核对预留存在且为 `active`、创建者未关闭、作用域未关闭；`callAssertion` 断言原调用域；`commitScope` 断言 `acquisitionDomain` 的修订号，作用域写成 `open`。作用域已关闭、创建者已关闭或原调用已结算时答 `closed`。已接管的键再 `adopt` 答 `confirmed`，不写 | 已核对 |
+| `StopCommit` 与结束事实 | `stopped(key, status)` 在作用域持有该键时：`confirmed` 先经 `update` 把创建者记录里该键的停止事实写成 `confirmed`（`stoppedKey`），再由 `stopRetained` 做一次 `commitScope`，删去条目，`adopted` 条目同时写 `ended/<key>`；`unconfirmed` 只改条目的停止事实 | 已核对 |
+| `CreatorStopCommit` | `stopped` 在作用域不持有该键时：经 `update` 改自己记录里该预留的停止事实（`settledStop`），提交断言作用域域的修订号，不读作用域是否关闭。快照显示该键已 `handedOver`（读与写之间被接手）时不记，转入上一行的路径 | 已核对 |
+| `StopReply` | `ended(key)` 经 `readEnded` 用 `readRecord` 读 `ended/<key>` 一条记录；提供者在 `execution-environment-host-local` 的 `host-retained-processes.ts` 按契约停止第 7 项换算为 `stop` 答复 | 已核对 |
+| `CloseCommit` | 视图的 `close` 经 `closeRetention`：把作用域记录写成 `closed`，保留条目；没有记录时创建没有条目的已关闭记录；已关闭时不写 | 已核对 |
+| `AcqCloseCommit` 的作用域断言 | `closedAcquisition`：`createEnvironmentResourceLedger` 的 `close` 与 `execution-environment.ts` 的 `settleRelease` 都经 `update` 写它，提交断言作用域域的修订号。未被接手的预留写成 `confirmed`，`handedOver` 的键保留获取自己存的停止事实 | 已核对 |
+| `drained` | 获取关闭后的排空与 `adopt` 答 `closed` 后的停止，归执行环境提供者，不在这三个文件里 | 已核对 |
 | 四个负控常量 | 没有代码对应 | — |
 
 ## 7. 运行与判读
