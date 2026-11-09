@@ -40,6 +40,7 @@ import readMaterial from '../../src/worker/read-material.ts'
 import readChunk from '../../src/worker/read-chunk.ts'
 import readLedger from '../../src/worker/read-ledger.ts'
 import readManifest from '../../src/worker/read-manifest.ts'
+import { READ_OUTPUT_BYTES } from '../../src/worker/schema.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
   readLedger,
@@ -348,6 +349,10 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
         return unavailable('read_failed')
       }
       if (outcome.kind !== 'read' || !isJson(outcome.output)) return unavailable('read_failed')
+      // The provider's `maxReadResultBytes` (sqlite-provider SPEC 12.1): an output above the
+      // handler's declared bound is refused, never truncated.
+      if (Buffer.byteLength(JSON.stringify(outcome.output), 'utf8') > READ_OUTPUT_BYTES)
+        return unavailable('read_failed')
       return Promise.resolve({
         kind: 'read',
         requestKey: request.requestKey,
