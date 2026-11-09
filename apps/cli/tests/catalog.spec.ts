@@ -62,7 +62,7 @@ describe('command catalog', () => {
     expect(renderHelp(empty)).toBe(expectedEmptyHelp)
   })
 
-  it('registers exactly the commands of the spec, the governance commands and then credential last', () => {
+  it('registers exactly the commands of the spec, the governance commands, then credential and setting last', () => {
     expect(productionCatalog.commands.map(command => command.name)).toEqual([
       'register',
       'login',
@@ -91,6 +91,7 @@ describe('command catalog', () => {
       'revoke-login',
       'query-own-valid-logins',
       'credential',
+      'setting',
     ])
   })
 

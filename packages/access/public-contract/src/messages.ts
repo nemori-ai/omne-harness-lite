@@ -88,6 +88,15 @@ export type RequestBodies = {
   'bind-model-credential': { readonly secret: string }
   'unbind-model-credential': EmptyBody
   'describe-model-credential': EmptyBody
+  'list-settings': { readonly asset?: SettingAssetSelector }
+  /** The secret is only in this request. No response or diagnostic carries it. */
+  'set-setting': {
+    readonly asset: SettingAssetSelector
+    readonly item: string
+    readonly secret: string
+  }
+  'describe-setting': { readonly asset: SettingAssetSelector; readonly item: string }
+  'clear-setting': { readonly asset: SettingAssetSelector; readonly item: string }
 }
 export type GovernanceProvidedOperation = keyof RequestBodies
 export type GovernanceStageOperation =
@@ -131,6 +140,10 @@ export type ProofOperations =
   | 'bind-model-credential'
   | 'unbind-model-credential'
   | 'describe-model-credential'
+  | 'list-settings'
+  | 'set-setting'
+  | 'describe-setting'
+  | 'clear-setting'
 export type TenantOperations =
   | 'issue-member-invitation'
   | 'open-affiliation-request'
@@ -159,6 +172,10 @@ export type TenantOperations =
   | 'bind-model-credential'
   | 'unbind-model-credential'
   | 'describe-model-credential'
+  | 'list-settings'
+  | 'set-setting'
+  | 'describe-setting'
+  | 'clear-setting'
 export type RequestByOperation = {
   readonly [O in GovernanceProvidedOperation]: {
     readonly protocolVersion: 'governance-public/1'
@@ -223,6 +240,32 @@ export type ModelCredentialState =
       readonly tenantId: TenantId
       readonly configuredAt?: Instant
     }
+/**
+ * The asset a setting belongs to. Without `category` the name must name one asset that the acting
+ * tenant sees; more than one is `conflict`.
+ */
+export type SettingAssetSelector = { readonly category?: string; readonly name: string }
+/**
+ * A secret setting item of the acting tenant, as `describe-setting` shows it. `unbound`: no secret
+ * is configured. `usable`: a secret is configured and can be read. `revoked`: the configured
+ * secret was revoked. `unreadable`: a secret is configured but cannot be read. `configuredAt` is
+ * absent when the custody has no record of the time. The secret itself never appears.
+ */
+export type SettingState =
+  | { readonly state: 'unbound' }
+  | {
+      readonly state: 'usable' | 'revoked' | 'unreadable'
+      readonly tenantId: TenantId
+      readonly configuredAt?: Instant
+    }
+export type SettingItemView = {
+  readonly asset: { readonly category: string; readonly name: string }
+  readonly item: string
+  readonly title: string
+  readonly sensitivity: 'secret' | 'ordinary'
+  /** Ordinary items are listed but this deployment provides no ordinary writes. */
+  readonly state: SettingState | { readonly state: 'not-writable' }
+}
 export type LoginList = {
   readonly logins: readonly [LoginItem, ...LoginItem[]]
   readonly completeness: 'complete'
@@ -296,10 +339,15 @@ export type SuccessBodies = {
   'bind-model-credential': { readonly configuredAt: Instant }
   'unbind-model-credential': EmptyBody
   'describe-model-credential': ModelCredentialState
+  'list-settings': { readonly items: readonly SettingItemView[]; readonly completeness: 'complete' }
+  'set-setting': { readonly configuredAt: Instant }
+  'describe-setting': SettingState
+  'clear-setting': EmptyBody
 }
 export type NoChangeBodies = {
   'revoke-login': EmptyBody
   'unbind-model-credential': EmptyBody
+  'clear-setting': EmptyBody
   'switch-current-tenant': EmptyBody
   'release-affiliation': { readonly affiliationId: string; readonly state: 'released' }
   'submit-authorization-expression': { readonly expressionId: string }
@@ -401,6 +449,31 @@ export type BusinessOutcomes = {
   'bind-model-credential': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown'
   'unbind-model-credential': 'succeeded' | 'no-change' | 'denied' | 'basis-unavailable' | 'unknown'
   'describe-model-credential': 'succeeded' | 'denied' | 'basis-unavailable'
+  'list-settings': 'succeeded' | 'denied' | 'basis-unavailable'
+  'set-setting':
+    | 'succeeded'
+    | 'denied'
+    | 'not-visible'
+    | 'conflict'
+    | 'not-writable'
+    | 'basis-unavailable'
+    | 'unknown'
+  'describe-setting':
+    | 'succeeded'
+    | 'denied'
+    | 'not-visible'
+    | 'conflict'
+    | 'not-writable'
+    | 'basis-unavailable'
+  'clear-setting':
+    | 'succeeded'
+    | 'no-change'
+    | 'denied'
+    | 'not-visible'
+    | 'conflict'
+    | 'not-writable'
+    | 'basis-unavailable'
+    | 'unknown'
 }
 export type Correlated<K extends string, B> = {
   readonly protocolVersion: 'governance-public/1'

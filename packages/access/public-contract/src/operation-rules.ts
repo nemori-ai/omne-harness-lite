@@ -131,6 +131,19 @@ const loginList: Rule = {
   },
 }
 
+const settingAsset: Rule = {
+  kind: 'object',
+  fields: {
+    category: { rule: { kind: 'text' }, optional: true },
+    name: { rule: { kind: 'text' } },
+  },
+}
+
+const settingRef: Rule = {
+  kind: 'object',
+  fields: { asset: { rule: settingAsset }, item: { rule: { kind: 'text' } } },
+}
+
 const requests = {
   'public-health': empty,
   'register-and-activate': {
@@ -296,6 +309,17 @@ const requests = {
   'bind-model-credential': { kind: 'object', fields: { secret: { rule: { kind: 'text' } } } },
   'unbind-model-credential': empty,
   'describe-model-credential': empty,
+  'list-settings': { kind: 'object', fields: { asset: { rule: settingAsset, optional: true } } },
+  'set-setting': {
+    kind: 'object',
+    fields: {
+      asset: { rule: settingAsset },
+      item: { rule: { kind: 'text' } },
+      secret: { rule: { kind: 'text' } },
+    },
+  },
+  'describe-setting': settingRef,
+  'clear-setting': settingRef,
 } satisfies Readonly<Record<GovernanceProvidedOperation, Rule>>
 
 const modelCredentialState: Rule = {
@@ -311,6 +335,50 @@ const modelCredentialState: Rule = {
       },
     },
   ],
+}
+
+const unboundSetting: Rule = {
+  kind: 'object',
+  fields: { state: { rule: { kind: 'literal', values: ['unbound'] } } },
+}
+
+const boundSetting: Rule = {
+  kind: 'object',
+  fields: {
+    state: { rule: { kind: 'literal', values: ['usable', 'revoked', 'unreadable'] } },
+    tenantId: { rule: { kind: 'tenant' } },
+    configuredAt: { rule: { kind: 'instant' }, optional: true },
+  },
+}
+
+const settingState: Rule = { kind: 'one-of', rules: [unboundSetting, boundSetting] }
+
+const settingItem: Rule = {
+  kind: 'object',
+  fields: {
+    asset: {
+      rule: {
+        kind: 'object',
+        fields: { category: { rule: { kind: 'text' } }, name: { rule: { kind: 'text' } } },
+      },
+    },
+    item: { rule: { kind: 'text' } },
+    title: { rule: { kind: 'text' } },
+    sensitivity: { rule: { kind: 'literal', values: ['secret', 'ordinary'] } },
+    state: {
+      rule: {
+        kind: 'one-of',
+        rules: [
+          unboundSetting,
+          boundSetting,
+          {
+            kind: 'object',
+            fields: { state: { rule: { kind: 'literal', values: ['not-writable'] } } },
+          },
+        ],
+      },
+    },
+  },
 }
 
 const successes = {
@@ -452,11 +520,19 @@ const successes = {
   },
   'unbind-model-credential': empty,
   'describe-model-credential': modelCredentialState,
+  'list-settings': complete('items', settingItem),
+  'set-setting': {
+    kind: 'object',
+    fields: { configuredAt: { rule: { kind: 'instant' } } },
+  },
+  'describe-setting': settingState,
+  'clear-setting': empty,
 } satisfies Readonly<Record<GovernanceProvidedOperation, Rule>>
 
 const noChanges = {
   'revoke-login': empty,
   'unbind-model-credential': empty,
+  'clear-setting': empty,
   'switch-current-tenant': empty,
   'release-affiliation': {
     kind: 'object',
@@ -582,6 +658,34 @@ const outcomes = {
   'bind-model-credential': ['succeeded', 'denied', 'basis-unavailable', 'unknown'],
   'unbind-model-credential': ['succeeded', 'no-change', 'denied', 'basis-unavailable', 'unknown'],
   'describe-model-credential': ['succeeded', 'denied', 'basis-unavailable'],
+  'list-settings': ['succeeded', 'denied', 'basis-unavailable'],
+  'set-setting': [
+    'succeeded',
+    'denied',
+    'not-visible',
+    'conflict',
+    'not-writable',
+    'basis-unavailable',
+    'unknown',
+  ],
+  'describe-setting': [
+    'succeeded',
+    'denied',
+    'not-visible',
+    'conflict',
+    'not-writable',
+    'basis-unavailable',
+  ],
+  'clear-setting': [
+    'succeeded',
+    'no-change',
+    'denied',
+    'not-visible',
+    'conflict',
+    'not-writable',
+    'basis-unavailable',
+    'unknown',
+  ],
 } satisfies { readonly [O in GovernanceProvidedOperation]: readonly BusinessOutcomes[O][] }
 
 export const stages = [
@@ -630,6 +734,10 @@ const proofOperations: ReadonlySet<string> = new Set([
   'bind-model-credential',
   'unbind-model-credential',
   'describe-model-credential',
+  'list-settings',
+  'set-setting',
+  'describe-setting',
+  'clear-setting',
 ])
 
 const tenantOperations: ReadonlySet<string> = new Set([
@@ -660,6 +768,10 @@ const tenantOperations: ReadonlySet<string> = new Set([
   'bind-model-credential',
   'unbind-model-credential',
   'describe-model-credential',
+  'list-settings',
+  'set-setting',
+  'describe-setting',
+  'clear-setting',
 ])
 
 export function requestRule(operation: GovernanceProvidedOperation): RequestRule {
