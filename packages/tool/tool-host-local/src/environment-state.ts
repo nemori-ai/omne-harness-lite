@@ -327,44 +327,63 @@ function allocation(value: unknown): AllocationFact | null {
   return null
 }
 
+/** Every item of a stored list decoded, or null when the value is not a list or an item fails. */
+async function decodeEach<T>(
+  value: unknown,
+  decode: (item: unknown) => Promise<T | null>,
+): Promise<T[] | null> {
+  if (!Array.isArray(value)) return null
+  const decoded: T[] = []
+  for (const item of value) {
+    const one = await decode(item)
+    if (!one) return null
+    decoded.push(one)
+  }
+  return decoded
+}
+
+async function decodeReservation(item: unknown): Promise<StoredReservation | null> {
+  if (!object(item) || !isStoredStop(item.stop)) return null
+  const resource = await decodeResource(item.resource)
+  return resource ? { resource, stop: item.stop } : null
+}
+
+function decodeSeal(
+  value: Record<string, unknown>,
+): Pick<StoredEnvironmentState, 'digest' | 'closed' | 'evidence'> | null {
+  return typeof value.digest === 'string' &&
+    typeof value.closed === 'boolean' &&
+    evidence(value.evidence)
+    ? { digest: value.digest, closed: value.closed, evidence: value.evidence }
+    : null
+}
+
 async function decodeState(value: unknown): Promise<StoredEnvironmentState | null> {
   if (!object(value)) return null
   const prepared = preparation(value.preparation)
   const acquired = await decodeOriginal(value.original)
   const released = release(value.release)
   const allocated = allocation(value.allocation)
+  const sealed = decodeSeal(value)
+  const resources = await decodeEach(value.resources, item =>
+    decodeResourceFact(item, isStoredStop),
+  )
+  const reservations = await decodeEach(value.reservations, decodeReservation)
   if (
     !prepared ||
     !acquired ||
     released === undefined ||
     !allocated ||
-    typeof value.digest !== 'string' ||
-    typeof value.closed !== 'boolean' ||
-    !evidence(value.evidence) ||
-    !Array.isArray(value.resources) ||
-    !Array.isArray(value.reservations)
+    !sealed ||
+    !resources ||
+    !reservations
   )
     return null
-  const resources: StoredResourceFact[] = []
-  for (const item of value.resources) {
-    const resource = await decodeResourceFact(item, isStoredStop)
-    if (!resource) return null
-    resources.push(resource)
-  }
-  const reservations: StoredReservation[] = []
-  for (const item of value.reservations) {
-    if (!object(item) || !isStoredStop(item.stop)) return null
-    const resource = await decodeResource(item.resource)
-    if (!resource) return null
-    reservations.push({ resource, stop: item.stop })
-  }
   return {
     preparation: prepared,
     original: acquired,
-    digest: value.digest,
+    ...sealed,
     allocation: allocated,
-    closed: value.closed,
-    evidence: value.evidence,
     release: released,
     resources,
     reservations,
@@ -466,29 +485,35 @@ function decodeCreator(value: unknown): RetainedCreator | null {
   return { call: call.ok, operation: operation.ok, original: value.original }
 }
 
-async function decodeRetention(value: unknown): Promise<RetentionState | null> {
+async function decodeRetainedFact(entry: unknown): Promise<RetainedResourceFact | null> {
   if (
-    !object(value) ||
-    (value.phase !== 'open' && value.phase !== 'closed') ||
-    !Array.isArray(value.resources)
+    !object(entry) ||
+    (entry.taken !== 'permitted' && entry.taken !== 'adopted') ||
+    !isRetainedStop(entry.stop)
   )
     return null
+  const creator = decodeCreator(entry.creator)
+  const resource = await decodeResource(entry.resource)
+  return creator && resource ? { resource, taken: entry.taken, stop: entry.stop, creator } : null
+}
+
+async function decodeRetention(value: unknown): Promise<RetentionState | null> {
+  if (!object(value) || (value.phase !== 'open' && value.phase !== 'closed')) return null
   const scope = decodeScopeRef(value.scope)
-  if ('failure' in scope) return null
-  const resources: RetainedResourceFact[] = []
-  for (const entry of value.resources) {
-    if (
-      !object(entry) ||
-      (entry.taken !== 'permitted' && entry.taken !== 'adopted') ||
-      !isRetainedStop(entry.stop)
-    )
-      return null
-    const creator = decodeCreator(entry.creator)
-    const resource = await decodeResource(entry.resource)
-    if (!creator || !resource) return null
-    resources.push({ resource, taken: entry.taken, stop: entry.stop, creator })
-  }
-  return { phase: value.phase, scope: scope.ok, resources }
+  const resources = await decodeEach(value.resources, decodeRetainedFact)
+  return 'failure' in scope || !resources
+    ? null
+    : { phase: value.phase, scope: scope.ok, resources }
+}
+
+/** Whether a decoded acquisition is the one of `address`, under the digest of its preparation. */
+function storedAt(stored: StoredEnvironmentState, address: EnvironmentAddress): boolean {
+  return (
+    preparationKey(stored.preparation) === preparationKey(address) &&
+    tenantEquals(stored.preparation.tenant, address.tenant) &&
+    tenantEquals(stored.original.tenant, address.tenant) &&
+    canonicalDigest(stored.preparation) === stored.digest
+  )
 }
 
 export function createEnvironmentStateStore(options: EnvironmentStorageOptions) {
@@ -598,26 +623,31 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
         retention: null,
       })
     const stored = await decodeState(read.ok.state)
-    if (
-      !stored ||
-      preparationKey(stored.preparation) !== preparationKey(address) ||
-      !tenantEquals(stored.preparation.tenant, address.tenant) ||
-      !tenantEquals(stored.original.tenant, address.tenant) ||
-      canonicalDigest(stored.preparation) !== stored.digest
-    )
+    if (!stored || !storedAt(stored, address))
       return environmentFailure('invalid environment ledger state')
-    const scope = stored.original.retentionScope
-    const retention = scope === undefined ? null : await retentionSnapshot(address.tenant, scope)
-    if (retention !== null && 'failure' in retention) return retention
-    const state = retention === null ? stored : withHandovers(stored, retention.ok.state)
-    observe(address, state)
+    const scoped = await withRetention(address.tenant, stored)
+    if ('failure' in scoped) return scoped
+    observe(address, scoped.ok.state)
     return succeed({
       revision: read.ok.revision,
       stored,
-      state,
       mutation: read.ok.mutation,
-      retention: retention === null ? null : retention.ok,
+      ...scoped.ok,
     })
+  }
+
+  /** The acquisition with the handovers of its retention scope, and the scope's snapshot. */
+  async function withRetention(
+    tenant: TenantId,
+    stored: StoredEnvironmentState,
+  ): Promise<
+    Outcome<Readonly<{ state: EnvironmentState; retention: RetentionSnapshot | null }>, ToolFailure>
+  > {
+    const scope = stored.original.retentionScope
+    if (scope === undefined) return succeed({ state: stored, retention: null })
+    const retention = await retentionSnapshot(tenant, scope)
+    if ('failure' in retention) return retention
+    return succeed({ state: withHandovers(stored, retention.ok.state), retention: retention.ok })
   }
 
   async function read(
