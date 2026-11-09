@@ -44,7 +44,7 @@ import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis
 import { environmentNeedSchemaRef } from '@omne-harness/execution-environment-contract'
 import { readEnvironmentNeed } from '../tool-host/release-author.ts'
 import type { ReleaseToolIdentity } from './access.ts'
-import { callKeyOf, lateGuarded, lateStore, type ToolRuntimeHolder } from './holder.ts'
+import { callKeyOf, lateStore, type ToolRuntimeHolder } from './holder.ts'
 
 type EnvironmentInput = LocalToolRuntimeInput['environment']
 type Preparation = Parameters<EnvironmentInput['plan']['ledger']>[0]
@@ -220,7 +220,6 @@ export function createReleaseEnvironment(
   const origins = new Map<OriginRef, string>()
   const state: EnvironmentStateStore = createEnvironmentStateStore({
     store: lateStore(holder),
-    guarded: lateGuarded(holder),
     mode: 'production',
     commitAttempts: options.commitAttempts,
   })
@@ -358,7 +357,6 @@ export function createReleaseEnvironment(
 
   const input: EnvironmentInput = {
     adoption: RELEASE_ENVIRONMENT_ADOPTION,
-    guarded: lateGuarded(holder),
     naming,
     cleanup: {
       settle: async () =>

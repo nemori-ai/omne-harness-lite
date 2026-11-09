@@ -27,7 +27,6 @@ import {
 } from '@omne-harness/tool-host-local'
 import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-local/cordis'
 
-type EnvironmentGuardedHostCommit = LocalToolRuntimeInput['environment']['guarded']
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import type { SessionWorkPrincipals } from '@omne-harness/session-contract'
 import type { SchemaProvider } from '@omne-harness/schema-provider'
@@ -39,7 +38,6 @@ export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins>
 export type ToolSqlPorts = Readonly<{
   store: ToolLedgerStore
   materials: ToolMaterialStore<unknown>
-  guarded: EnvironmentGuardedHostCommit
 }>
 
 type Witnessed = { execution: string; sources: Set<string> }
@@ -207,16 +205,6 @@ export function lateMaterials(holder: ToolRuntimeHolder): ToolMaterialStore<unkn
     inspectErase: input =>
       holder.sql?.materials.inspectErase(input) ?? Promise.resolve(unavailable),
   } satisfies ToolMaterialStore<unknown>)
-}
-
-/** 交给 bundle 的守护宿主提交：逐次读当前 SQL 端口，缺席答 `unavailable`。 */
-export function lateGuarded(holder: ToolRuntimeHolder): EnvironmentGuardedHostCommit {
-  const guarded: EnvironmentGuardedHostCommit = {
-    commit: input =>
-      holder.sql?.guarded.commit(input) ??
-      Promise.resolve(unavailableRead('tool-records: no SQL guarded commit is installed')),
-  }
-  return Object.freeze(guarded)
 }
 
 /** 见证核对：这个原调用在记录仓里有这个执行与这份来源证据。 */

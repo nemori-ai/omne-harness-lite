@@ -1,7 +1,7 @@
 // Tool 运行时组的五行（B 段，R2-D66 第 3 项，L-TOOL 事实清单 §3）：一次 `createLocalToolRuntimePlugins` 返回的
 // 六个插件分装到五行，每行一个 fiber，全部共用一份记录仓、账本、启动协调器和 driver：
 // - `tool-records`：records 插件，提供 `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`（同提供者
-//   组 `tool-start`）。本行在受信存储子树内建 SQL 记录仓、输出保管与守护提交，交给共享状态；整组的运维者配置也只在
+//   组 `tool-start`）。本行在受信存储子树内建 SQL 记录仓与输出保管，交给共享状态；整组的运维者配置也只在
 //   本行（bundle 建一次就要全部数值）。会话工作主体（受信）不经本行：入口对象 `toolClock` 安装时把入口自己的
 //   受信读口交给共享状态（`entry/tool-runtime-objects.ts`），本行的可见集合不变。
 // - `tool-runtime`：门面插件，提供 `toolRuntime`。
@@ -33,7 +33,6 @@ import {
   toolStartFenceKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import {
-  createSqlToolGuardedHostCommit,
   createSqlToolLedgerStore,
   createSqlToolMaterialStore,
 } from '@omne-harness/tool-storage-sql'
@@ -82,7 +81,6 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
       maxCommandBytes: config.maxCommandBytes,
       maxChunkBytes: config.maxChunkBytes,
     }),
-    guarded: createSqlToolGuardedHostCommit(options),
   })
   const holder = toolRuntimeHolder(ctx)
   holder.sql = sql

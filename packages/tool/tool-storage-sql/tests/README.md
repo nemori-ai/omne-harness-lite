@@ -16,7 +16,7 @@
 
 ## 本包事实
 
-`guarded-host-commit.spec.ts` 在同一数据库文件上打开两个独立 SQLite 连接。测试运行真实 Tool 终局与 SQL 参加者，安排许可和终局的先后，并覆盖 host 冲突、丢答、租户过滤与重开。排队交错由提交包装器控制，不代表生产 Worker 调度的验证。
+`host-history-independence.spec.ts`（慢层）在真实 SQLite 仓上用 `tool-host-local` 的公开工厂种入 2000 次 Tools 调用，核对新调用仍能启动，并用计数记录仓核对一次 Tools 调用在宿主路径上读到的记录数与字节数在 20 与 2000 次历史下逐项相等；`start-guards` 的大小只报告。测试提供者按 `READ_OUTPUT_BYTES` 复现真实提供者的读出上限，所以整域读取超限时与生产一样被拒绝。
 
 测试在 node:sqlite 测试提供者（`fixtures/sqlite-storage.ts`）上运行本包真实的 Worker 模块。提供者每个事务域一个数据库文件，回执与参加者的写入在同一个事务里提交，所以关闭再打开同一目录可以认回已提交的操作。`fixtures/faults.ts` 在提供者之上一次布置一个故障：受理前拒绝、答复丢失、提交未执行、提交后抛错、延迟落地、提交前中断与读不可用。账本、保管与启动协调器的其他端口用 `@omne-harness/tool/testing` 与 `@omne-harness/tool-contract/testing` 的内存替身。测试提供者不建模 Worker、队列、组提交与断电，通过不证明这些性质。
 

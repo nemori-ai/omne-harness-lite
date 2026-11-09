@@ -11,11 +11,14 @@ import {
 
 it('root entry exports the local start coordinator (G5), the host clock (G4), the registry and Catalog (G7), the absent ports and the guard factories (TL-11)', () => {
   expect(Object.keys(root).sort()).toEqual([
+    'ENVIRONMENT_RETENTION_DOMAIN_KEY',
     'INVOCATION_SOURCE_DOMAIN_KEY',
     'PROGRAMMATIC_NOT_IN_M2',
     'START_COORDINATOR_DOMAIN_KEY',
     'START_COORDINATOR_OWNER',
+    'START_GUARDS_DOMAIN_KEY',
     'TOOL_FORWARDING_OWNER',
+    'callHostDomain',
     'createAbsentToolPorts',
     'createEnvironmentResourceLedger',
     'createEnvironmentStateStore',
@@ -41,6 +44,7 @@ it('root entry exports the local start coordinator (G5), the host clock (G4), th
     'createRetainedTerminalLedger',
     'localArgumentLimits',
     'startCoordinatorAdoption',
+    'tenantHostDomain',
   ])
 })
 

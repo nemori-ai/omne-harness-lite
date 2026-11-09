@@ -269,15 +269,23 @@ runtime 的 `instances` 与 `observation` 由 [src/stream-facade.ts](src/stream-
 
 记录和修订号来自同一个快照，具有完整域 `read` 的提交可见性及域内排序保证。单键读取不修改记录或修订号，不读取无关记录正文。返回值只包含单条 `record`，不能作为完整域的 `records` 消费。调用方仍以返回的域修订号执行原 CAS；其他键的并发写也会使旧修订提交冲突。
 
+### 记录仓的同租户读集断言
+
+`ToolLedgerStore.commit` 的可选 `asserts` 列出同一租户内其他域的 `{ domain, revision }`。提交只在被写域的修订号等于 `expected`、且每条断言的域修订号等于给定值时生效；任一不符回复 `conflict`（`current` 为被写域的当前修订号），不写入任何记录。断言不写被断言的域，也不推进它的修订号。断言与写入在同一次序列化里评估：被断言域的提交不能落在评估与写入之间。从未提交的域修订号为 `0`，可以被断言。
+
+断言的域属于另一个租户时回复 `unavailable`，不尝试提交：账本按租户分区，跨租户的读集不是本端口的能力。被写域自身由 `expected` 约束，不列入 `asserts`。
+
+这个机制让一个决定依据两个域的快照：调用方读 A 域决定、写 B 域、断言 A 域未变，A 域与 B 域的提交就按提交先后线性化。宿主的启动受理（受理写调用域、断言租户级守卫域）与执行环境交接用它；它取代了专用的守护宿主提交。`toolLedgerStoreConformance()` 的 `store.asserts-*` 用例是提供者的判据。
+
 ### 18 非耐久记录仓（`./testing`）
 
-`createMemoryToolLedgerStore` 声明 `durability: 'none'`。每个域从修订号 `0` 开始；`commit` 只在 `expected` 等于当前修订号时生效，否则回复 `conflict`。生效的提交不论写入集内容都把域修订号改为 `revision`：只写一条 `exclusion` 记录、不改任何记录、删除不存在的键，都同样推进修订号，没有空操作捷径。读取给出副本。域键是各段身份文本的 JSON，含分隔符的身份不会落到别的域。`injectRead` 与 `injectCommit` 按顺序注入下一次读取或提交的故障：
+`createMemoryToolLedgerStore` 声明 `durability: 'none'`。每个域从修订号 `0` 开始；`commit` 只在 `expected` 等于当前修订号、且每条 `asserts` 的域修订号等于给定值时生效，否则回复 `conflict`；断言另一个租户的域回复 `unavailable`。生效的提交不论写入集内容都把域修订号改为 `revision`：只写一条 `exclusion` 记录、不改任何记录、删除不存在的键，都同样推进修订号，没有空操作捷径。读取给出副本。域键是各段身份文本的 JSON，含分隔符的身份不会落到别的域。`injectRead` 与 `injectCommit` 按顺序注入下一次读取或提交的故障：
 
 - `unavailable`：不尝试。
 - `conflict`：不写入，回复冲突，如同别的写者先提交了。
 - `unknown-applied`：已写入，回复未知。
 - `unknown-dropped`：未写入，回复未知。
-- `unknown-delayed`：现在不写入，回复未知；提交保持在途，直到 `landDelayed` 按顺序落盘。落盘时重新比对 `expected`，修订号已变则丢弃并报告 `conflict`。
+- `unknown-delayed`：现在不写入，回复未知；提交保持在途，直到 `landDelayed` 按顺序落盘。落盘时重新比对 `expected` 与全部 `asserts`，任一已变则丢弃并报告 `conflict`。
 - `throw-applied`：已写入后抛出。
 
 内存仓先在局部 Map 完成全部新值复制、put 与 delete，再同步发布 records 与 revision。复制拒绝不留下部分写入。正常提交、已应用未知、应用后抛错与延迟落地共用此路径；应用后抛错仍保留完整提交。`HostRecord.value` 的 `unknown` 不承诺任意宿主值都能编码。

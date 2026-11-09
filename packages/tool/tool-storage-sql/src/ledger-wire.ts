@@ -8,13 +8,34 @@ import {
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { toJson } from './json.ts'
 import type { SqlToolStorageOptions } from './options.ts'
-import type { DomainAddress, LedgerWriteFact, StopBasis } from './worker/facts.ts'
+import type {
+  DomainAddress,
+  LedgerAssertionFact,
+  LedgerWriteFact,
+  StopBasis,
+} from './worker/facts.ts'
 import { isObject } from './worker/support.ts'
 
 export const unavailable = (diagnostic: string) => ({ kind: 'unavailable', diagnostic }) as const
 
 export function addressOf(tenant: string, domain: LedgerDomain): DomainAddress {
   return { tenant, kind: domain.kind, name: domain.kind === 'call' ? domain.call : domain.key }
+}
+
+/** Whether `other` names the tenant of `domain`, by the identity texts the ledger partitions on. */
+export function sameTenant(domain: LedgerDomain, other: LedgerDomain): boolean {
+  return (
+    domain.tenant.organization.text === other.tenant.organization.text &&
+    domain.tenant.account.text === other.tenant.account.text
+  )
+}
+
+/** The assertions of a commit as the participant reads them; the tenant is the commit's own. */
+export function assertsOf(input: LedgerCommitInput): readonly LedgerAssertionFact[] {
+  return (input.asserts ?? []).map(assertion => {
+    const { kind, name } = addressOf('', assertion.domain)
+    return { kind, name, revision: assertion.revision }
+  })
 }
 
 export function writesOf(input: LedgerCommitInput): readonly LedgerWriteFact[] {
@@ -32,9 +53,9 @@ export function writesOf(input: LedgerCommitInput): readonly LedgerWriteFact[] {
 function stopOf(basis: JsonValue): StopBasis | null {
   if (!isObject(basis)) return null
   const current = basis['current']
-  return basis['reason'] === 'revision' && typeof current === 'string'
-    ? { reason: 'revision', current }
-    : null
+  if (typeof current !== 'string') return null
+  if (basis['reason'] === 'revision') return { reason: 'revision', current }
+  return basis['reason'] === 'assertion' ? { reason: 'assertion', current } : null
 }
 
 export type CommitAnswer = Awaited<ReturnType<SqlToolStorageOptions['storage']['commit']>>
@@ -43,7 +64,10 @@ export type CommitAnswer = Awaited<ReturnType<SqlToolStorageOptions['storage']['
 function rolledBack(answer: Extract<CommitAnswer, { kind: 'rolled_back' }>): LedgerCommit {
   const stop = answer.responses[answer.responses.length - 1]?.reply
   const basis = stop?.kind === 'conflict' ? stopOf(stop.basis) : null
-  const current = basis?.reason === 'revision' ? decodeToolRevision(basis.current) : null
+  const current =
+    basis?.reason === 'revision' || basis?.reason === 'assertion'
+      ? decodeToolRevision(basis.current)
+      : null
   if (current !== null && 'ok' in current) return { kind: 'conflict', current: current.ok }
   // A rollback is durable: nothing of the commit took effect.
   return unavailable(

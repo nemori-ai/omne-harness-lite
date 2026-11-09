@@ -261,9 +261,10 @@ export async function createRetainedTerminalLedger(
     },
     /**
      * The handover commit. A key this call already adopted answers `confirmed` without a write, so a
-     * repeated `adopt` is the query for a lost answer. Otherwise one guarded commit adopts the
-     * reservation and marks the acquisition's fact `handedOver`. A closed scope, a closed
-     * acquisition and a settled original call answer `closed`.
+     * repeated `adopt` is the query for a lost answer. Otherwise one commit of the scope's record
+     * adopts the reservation, asserting the acquisition and the original call unchanged; the
+     * acquisition then shows the key as `handedOver`. A closed scope, a closed acquisition and a
+     * settled original call answer `closed`.
      */
     async adopt(key) {
       const bound = await binding()
@@ -285,18 +286,10 @@ export async function createRetainedTerminalLedger(
           if (!handed || handed.stop === 'confirmed')
             return environmentFailure('acquisition has no live fact for the handed-over resource')
           return succeed({
-            retention: {
-              ...retention,
-              resources: retention.resources.map(item =>
-                owns(item, key) ? { ...item, permitted: true, adopted: true } : item,
-              ),
-            },
-            acquisition: {
-              ...acquisition,
-              resources: acquisition.resources.map(item =>
-                item.resource.key === key ? { ...item, stop: 'handedOver' as const } : item,
-              ),
-            },
+            ...retention,
+            resources: retention.resources.map(item =>
+              owns(item, key) ? { ...item, permitted: true, adopted: true } : item,
+            ),
           })
         },
         input.authorize,

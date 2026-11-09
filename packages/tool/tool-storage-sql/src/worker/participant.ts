@@ -1,5 +1,6 @@
 // The `tool` participant module. It runs inside the provider's write transaction, so every command
-// is atomic: a ledger commit checks the domain revision and applies its writes in input order; a
+// is atomic: a ledger commit checks the domain revision and its read-set assertions, then applies
+// its writes in input order; a
 // chunk keeps one piece of an original unless a manifest already seals the operation; a manifest
 // checks that the chunks hold exactly the declared bytes before it seals them. A stopping reply
 // rolls the whole command back. It never begins, commits or rolls back, and keeps no state between
@@ -15,7 +16,6 @@ import {
   parseFacts,
   type ChunkFacts,
   type CustodyAddress,
-  type GuardedHostFacts,
   type LedgerFacts,
   type ManifestFacts,
   type ParticipantAnswer,
@@ -35,15 +35,24 @@ const stopped = (basis: StopBasis): ParticipantReply => ({ kind: 'conflict', bas
 /** The revision of a domain that was never committed (`INITIAL_REVISION` of the ledger). */
 const INITIAL_REVISION = '0'
 
-function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantReply {
-  const domain = [facts.tenant, facts.kind, facts.name] as const
+/** The revision of one domain of the tenant, `INITIAL_REVISION` when it was never committed. */
+function revisionOf(port: ParticipantPort, domain: readonly [string, string, string]): string {
   const row = oneRow(
     port,
     'SELECT revision FROM tl_domain WHERE tenant = ? AND kind = ? AND name = ? LIMIT 1',
     domain,
   )
-  const current = row === undefined ? INITIAL_REVISION : text(row['revision'])
+  return row === undefined ? INITIAL_REVISION : text(row['revision'])
+}
+
+function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantReply {
+  const domain = [facts.tenant, facts.kind, facts.name] as const
+  const current = revisionOf(port, domain)
   if (current !== facts.expected) return stopped({ reason: 'revision', current })
+  // The assertions read the same transaction as the writes: nothing of the tenant moves between.
+  for (const assertion of facts.asserts)
+    if (revisionOf(port, [facts.tenant, assertion.kind, assertion.name]) !== assertion.revision)
+      return stopped({ reason: 'assertion', current })
   for (const write of facts.writes)
     if (write.op === 'put')
       port.execute(
@@ -63,17 +72,6 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
   )
   projectMaterialMaintenance(facts, port)
   return participated({ kind: 'committed' })
-}
-
-function commitGuardedHost(facts: GuardedHostFacts, port: ParticipantPort): ParticipantReply {
-  const row = oneRow(
-    port,
-    "SELECT revision FROM tl_domain WHERE tenant = ? AND kind = 'call' AND name = ? LIMIT 1",
-    [facts.call.tenant, facts.call.name],
-  )
-  if (row === undefined || text(row['revision']) !== facts.callExpected)
-    return stopped({ reason: 'call-changed' })
-  return commitLedger(facts.hostCommit, port)
 }
 
 const addressOf = (facts: CustodyAddress) => [facts.tenant, facts.call, facts.operation] as const
@@ -171,8 +169,6 @@ const participant: ParticipantModule = {
     switch (facts.intent) {
       case 'ledger':
         return commitLedger(facts, port)
-      case 'guarded-host':
-        return commitGuardedHost(facts, port)
       case 'chunk':
         return keepChunk(facts, port)
       case 'manifest':

@@ -12,7 +12,6 @@ import {
   createSqlToolLedgerStore,
   createSqlToolMaterialStore,
   createSqlToolOutputCustody,
-  createSqlToolGuardedHostCommit,
   toolStorageMaterials,
   TOOL_PARTICIPANT,
 } from '@omne-harness/tool-storage-sql'
@@ -186,7 +185,6 @@ export async function openStorage(
         maxCommandBytes,
         maxChunkBytes: 16384,
       }),
-      guarded: createSqlToolGuardedHostCommit(options),
       materials: catalog,
       close,
     }

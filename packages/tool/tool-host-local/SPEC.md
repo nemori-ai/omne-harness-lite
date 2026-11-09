@@ -77,7 +77,9 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 公平性以前提为界：有限参与者、正权重、持续调度、有界 provider 答复与反复有容量。它不保证执行完成或强制回收长期 lease。验证必须通过实际 prepare 路径证明替换策略被消费，并观察 A 租户慢或满时 B 能推进。孤立策略对象的单测不能证明宿主隔离。真实耐久与跨进程提供者另验。
 
-环境获取与保留资源的状态读取分别按原 call/operation 键和 scope 键调用 `ToolLedgerStore.readRecord`，不加载同租户的无关环境历史。两份状态参与同一次变更时，仍先核域修订号相等，再以该修订号提交 CAS；当前资格、原调用状态及跨 call/host 原子围栏不变。保持论证见 [单键读取](../tool/verification/proofs/record-read.md)。
+环境获取记录放在该调用的 `host` 域 `environment@<call>`，按原 call/operation 键读写；保留作用域跨调用，放在租户级的 `host` 域 `environment-retention`，按 scope 键读写。两者都只用 `ToolLedgerStore.readRecord`，不加载同租户的无关环境历史。需要当前资格的变更（许可、保留许可、交接）在提交里断言原调用域的修订号等于本次核对时读到的修订号：调用结算在中间落下即 `conflict`，重读后回复 `not-settled`。这取代了原来的守护宿主提交。
+
+交接（保留作用域 `adopt` 原获取的资源）只写保留作用域的记录，并断言获取记录所在域与原调用域未变；获取记录不保存 `handedOver`，读取获取记录时按其 `retentionScope` 的保留记录把作用域已采纳的本获取资源标为 `handedOver`，所以交接事实只有保留作用域一个拥有者。获取记录带保留作用域时，它的每次变更也断言保留域的修订号未变，因此获取的关闭与作用域的交接在两个域之间仍线性化：先提交者成立，后提交者重读。单键读取的保持论证见 [单键读取](../tool/verification/proofs/record-read.md)。
 
 ### 环境资源诊断边界
 

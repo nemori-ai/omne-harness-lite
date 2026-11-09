@@ -1,7 +1,8 @@
 // The `./testing` entry: a non-durable ledger store for tests (G6). It declares
-// `durability: 'none'` and must not be assembled into production. Fault injection lets a test
-// make one read fail, or one commit answer unknown (applied, dropped, or held to land later),
-// unavailable or conflict.
+// `durability: 'none'` and must not be assembled into production. It evaluates the revision
+// condition and the read-set assertions of a commit together, as a durable provider does inside
+// one transaction. Fault injection lets a test make one read fail, or one commit answer unknown
+// (applied, dropped, or held to land later), unavailable or conflict.
 
 import type { ToolRevision } from '@omne-harness/tool-contract'
 import { INITIAL_REVISION } from './evidence.ts'
@@ -94,16 +95,40 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
     target.revision = input.revision
   }
 
+  /** Whether every assertion names a domain of the written domain's tenant. */
+  const sameTenant = (input: LedgerCommitInput): boolean => {
+    const tenant = JSON.stringify([
+      input.domain.tenant.organization.text,
+      input.domain.tenant.account.text,
+    ])
+    return (input.asserts ?? []).every(
+      assertion =>
+        JSON.stringify([
+          assertion.domain.tenant.organization.text,
+          assertion.domain.tenant.account.text,
+        ]) === tenant,
+    )
+  }
+
+  /** The condition of a commit: the written domain at `expected` and every assertion holding. */
+  const holds = (input: LedgerCommitInput): boolean =>
+    domainOf(input.domain).revision === input.expected &&
+    (input.asserts ?? []).every(
+      assertion => domainOf(assertion.domain).revision === assertion.revision,
+    )
+
   const commit = (input: LedgerCommitInput): LedgerCommit => {
     const fault = commitFaults.shift()
     if (fault === 'unavailable') return { kind: 'unavailable', diagnostic: 'injected' }
+    if (!sameTenant(input))
+      return { kind: 'unavailable', diagnostic: 'an assertion names a domain of another tenant' }
     const target = domainOf(input.domain)
     if (fault === 'conflict') return { kind: 'conflict', current: target.revision }
     if (fault === 'unknown-delayed') {
       held.push(copy(input))
       return { kind: 'unknown', diagnostic: 'injected: delayed' }
     }
-    if (target.revision !== input.expected) return { kind: 'conflict', current: target.revision }
+    if (!holds(input)) return { kind: 'conflict', current: target.revision }
     if (fault === 'unknown-dropped') return { kind: 'unknown', diagnostic: 'injected: dropped' }
     apply(target, input)
     if (fault === 'unknown-applied') return { kind: 'unknown', diagnostic: 'injected: applied' }
@@ -112,9 +137,8 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
   }
 
   const land = (input: LedgerCommitInput): MemoryLanding => {
-    const target = domainOf(input.domain)
-    if (target.revision !== input.expected) return { kind: 'conflict' }
-    apply(target, input)
+    if (!holds(input)) return { kind: 'conflict' }
+    apply(domainOf(input.domain), input)
     return { kind: 'committed' }
   }
 

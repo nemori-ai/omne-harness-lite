@@ -411,12 +411,13 @@ for (const test of toolEnvironmentConformance<Principal, ToolEnvironmentValue>()
   })
 }
 
-it('prepares an acquisition when unrelated environment history exceeds the full-read bound', async () => {
+it('prepares an acquisition without any complete read of an environment domain', async () => {
   const f = fixture()
   const read = f.store.read.bind(f.store)
   vi.spyOn(f.store, 'read').mockImplementation(domain =>
-    domain.kind === 'host' && domain.key === 'execution-environment/v1'
-      ? Promise.resolve({ kind: 'unavailable', diagnostic: 'full domain exceeds read bound' })
+    domain.kind === 'host' &&
+    (domain.key.startsWith('environment@') || domain.key === 'environment-retention')
+      ? Promise.resolve({ kind: 'unavailable', diagnostic: 'complete domain reads are not used' })
       : read(domain),
   )
   expect(await f.build().prepare(f.prepare)).toMatchObject({ ok: { kind: 'prepared' } })

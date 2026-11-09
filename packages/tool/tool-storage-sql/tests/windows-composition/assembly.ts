@@ -190,7 +190,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     const store = witness.store
     const state = createEnvironmentStateStore({
       store,
-      guarded: sql.guarded,
       mode: 'production',
       commitAttempts: configuration.ledgerCommitAttempts,
     })
@@ -374,7 +373,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
           name: 'real-host-environment',
           revision: '1',
         }),
-        guarded: sql.guarded,
         naming: authority.naming,
         cleanup: {
           settle: async () =>

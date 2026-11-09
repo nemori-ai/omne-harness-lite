@@ -368,7 +368,7 @@ export function recordKey(record: LedgerRecord): string {
     case 'material-cleanup':
       return `material-cleanup:${record.cleanup.writeOperation}`
     case 'call':
-      return 'call'
+      return CALL_RECORD_KEY
     case 'operation':
       return `operation:${record.operation.operation}`
     case 'result':
@@ -445,6 +445,9 @@ export function queueReleaseKey(call: ToolCallId): string {
 
 export const QUEUE_COUNTER_KEY = 'counter'
 
+/** The key of the one `call` record of a call domain, for a read of the call alone. */
+export const CALL_RECORD_KEY = 'call'
+
 export function hostKey(key: string): string {
   return `host:${key}`
 }
@@ -471,16 +474,31 @@ export type LedgerRecordRead =
   | Readonly<{ kind: 'complete'; revision: ToolRevision; record: LedgerRecord | null }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
+/**
+ * A read-set assertion of a commit: another domain of the same tenant whose current revision must
+ * still be `revision` when the commit is applied. It writes nothing to that domain and does not
+ * advance its revision. A caller that decided on a snapshot of a domain it does not write asserts
+ * the revision it read, so the decision and the write linearize with the commits of that domain.
+ */
+export type LedgerAssertion = Readonly<{ domain: LedgerDomain; revision: ToolRevision }>
+
 export type LedgerCommitInput = Readonly<{
   domain: LedgerDomain
   expected: ToolRevision
   revision: ToolRevision
   writes: readonly LedgerWrite[]
+  /**
+   * Domains of the tenant of `domain` whose revision must hold at the commit. An assertion on a
+   * domain of another tenant is a defect of the caller: the store answers `unavailable` and
+   * attempts nothing. The written domain itself is conditioned by `expected`, not listed here.
+   */
+  asserts?: readonly LedgerAssertion[]
 }>
 
 /**
- * The answer of a commit. `conflict` means the domain revision was not `expected` and nothing was
- * written. `unknown` means the store cannot tell whether the writes took effect; the caller
+ * The answer of a commit. `conflict` means the domain revision was not `expected`, or one of the
+ * `asserts` did not hold, and nothing was written; `current` is the revision of the written
+ * domain. `unknown` means the store cannot tell whether the writes took effect; the caller
  * recognises the outcome by the operation it wrote. `unavailable` means nothing was attempted.
  */
 export type LedgerCommit =
@@ -500,7 +518,9 @@ export interface ToolLedgerStore {
    * committed commit sets the domain revision to `revision` whatever its write set holds: a set
    * with one exclusion record, or a set that changes no record, advances the revision the same
    * way as any other, because the ledger's exclusion fence depends on that advance. There is no
-   * no-op shortcut.
+   * no-op shortcut. The revision check of `domain` and every assertion of `asserts` are evaluated
+   * in the same serialization as the writes: no commit of an asserted domain can land between the
+   * evaluation and the write.
    */
   commit(input: LedgerCommitInput): Promise<LedgerCommit>
 }

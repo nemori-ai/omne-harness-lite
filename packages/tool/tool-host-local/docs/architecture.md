@@ -4,7 +4,7 @@
 
 ## 模块与依赖
 
-启动协调器位于 [start-coordinator.ts](../src/start-coordinator.ts)。它依赖 `@omne-harness/tool` 的记录仓端口 `ToolLedgerStore`、`host` 域、`recordKey`、`isTenantShape` 与 `canonicalDigest`，依赖 `@omne-harness/tool-contract` 的类型与身份解码。它不依赖 Cordis。
+启动协调器位于 [start-coordinator.ts](../src/start-coordinator.ts)。它依赖 `@omne-harness/tool` 的记录仓端口 `ToolLedgerStore`、`host` 域、`recordKey`、`isTenantShape` 与 `canonicalDigest`，依赖 `@omne-harness/tool-contract` 的类型与身份解码。它不依赖 Cordis。宿主全部 `host` 域的名字由 [host-domains.ts](../src/host-domains.ts) 生成：每调用聚合 `start`、`source`、`delivery`、`environment`、`control` 各是一个 `<聚合>@<call>` 域，租户级只有 `start-guards` 与 `environment-retention`。
 
 环境调度和凭据是另外两个独立工厂，见[公开接口](public-api.md)。它们消费 legal-identity 的正式租户校验，环境调度不直接依赖 EE。
 

@@ -171,6 +171,38 @@ const negatives = [
     message: 'rejected batch must preserve every record and the revision',
   },
   {
+    // A store that refuses every commit with an assertion, as one that never read them would.
+    name: 'store.asserts-hold',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        commit: input =>
+          (input.asserts ?? []).length > 0
+            ? Promise.resolve({ kind: 'conflict', current: input.expected })
+            : store.commit(input),
+      })),
+    message: 'a commit whose assertion holds must commit',
+  },
+  {
+    // A store that drops the assertions and applies the writes.
+    name: 'store.asserts-conflict',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        commit: input => store.commit({ ...input, asserts: [] }),
+      })),
+    message: 'a commit with one failed assertion must conflict',
+  },
+  {
+    name: 'store.asserts-same-tenant',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        commit: input => store.commit({ ...input, asserts: [] }),
+      })),
+    message: 'an assertion on another tenant is refused',
+  },
+  {
     name: 'ledger.idempotency',
     fixture: withoutOperations,
     message: 'same-input retry must recall admission',

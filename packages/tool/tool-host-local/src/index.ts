@@ -7,6 +7,13 @@ export { createLocalToolLoader, type LocalToolLoaderInput } from './author-loade
 export { createLocalToolBindings, type LocalToolBindingsInput } from './executor-binding.ts'
 export type { LocalAuthorExecution } from './live-author-execution.ts'
 export {
+  callHostDomain,
+  ENVIRONMENT_RETENTION_DOMAIN_KEY,
+  START_GUARDS_DOMAIN_KEY,
+  tenantHostDomain,
+  type HostAggregate,
+} from './host-domains.ts'
+export {
   createLocalStartCoordinator,
   START_COORDINATOR_DOMAIN_KEY,
   START_COORDINATOR_OWNER,

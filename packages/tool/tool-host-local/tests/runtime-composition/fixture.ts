@@ -474,27 +474,6 @@ export async function fixture(
         settle: async () =>
           succeed({ kind: 'pending', diagnostic: 'Frozen provider has no cold cleanup.' }),
       },
-      guarded: {
-        commit: async value => {
-          const call = await store.read(value.call)
-          if (call.kind !== 'complete')
-            return { kind: 'unavailable', diagnostic: 'fixture read failure' }
-          const writes: LedgerWrite[] = []
-          for (const write of value.hostCommit.writes) {
-            if (write.kind === 'delete') writes.push(write)
-            else if (write.record.kind === 'host')
-              writes.push({ kind: 'put', record: write.record })
-            else
-              return {
-                kind: 'unavailable',
-                diagnostic: 'the frozen host commit accepts only host records',
-              }
-          }
-          return call.revision === value.callExpected
-            ? store.commit({ ...value.hostCommit, writes })
-            : { kind: 'call-changed' }
-        },
-      },
       plan: {
         requirement: async () => succeed(placement.requirement),
         binding: async value =>

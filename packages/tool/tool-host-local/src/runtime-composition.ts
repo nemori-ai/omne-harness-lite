@@ -28,7 +28,6 @@ import type {
   LocalExecutionEnvironmentInput,
   LocalEnvironmentPlanInput,
 } from './execution-environment.ts'
-import type { EnvironmentGuardedHostCommit } from './environment-state.ts'
 import type { LocalInstanceInput } from './instance-host.ts'
 import { createLocalOperationIdentities, type LocalInvocationSource } from './invocation-source.ts'
 import type { ToolHostAccess } from './ledger-guards.ts'
@@ -59,7 +58,6 @@ export type LocalToolRuntimeInput = Readonly<{
     plan: Omit<LocalEnvironmentPlanInput<unknown>, 'execution' | 'access'>
     naming: LocalExecutionEnvironmentInput<unknown>['naming']
     cleanup: LocalExecutionEnvironmentInput<unknown>['cleanup']
-    guarded: EnvironmentGuardedHostCommit
   }>
   capacity: number
   observersPerCall: number

@@ -27,7 +27,6 @@ export function publishRuntimeEnvironment(
     cleanup: input.environment.cleanup,
     storage: {
       mode: 'production',
-      guarded: input.environment.guarded,
       commitAttempts: input.configuration.ledgerCommitAttempts,
     },
   })

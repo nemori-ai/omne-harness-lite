@@ -1,7 +1,10 @@
 // The handover commit of a retained process (#1137): the retention scope's ledger view `adopt`s a
-// key, and the same durable commit ends the acquisition ledger's duty for that key. The two ledgers
-// share one domain, so the commit is one conditional write of both records. Also the plan
-// passthrough of `processes` to `ExecutionEnvironment.acquire`, and its live-plan conflict rule.
+// key, and from that commit on the acquisition ledger shows the key as handed over. The scope's
+// record lives in the tenant-level retention domain and the acquisition in the call's own domain;
+// the handover is one commit of the scope's record that asserts the acquisition and the original
+// call unchanged, and the acquisition derives `handedOver` from the scope's adoptions. Also the
+// plan passthrough of `processes` to `ExecutionEnvironment.acquire`, and its live-plan conflict
+// rule.
 import { describe, expect, it, vi } from 'vitest'
 import {
   acquisitionRef,
@@ -15,7 +18,7 @@ import {
 } from '@omne-harness/execution-environment-contract'
 import { succeed } from '@omne-harness/operation-result'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
-import { canonicalDigest, type CallRecord } from '@omne-harness/tool'
+import { canonicalDigest, hostKey, type CallRecord, type LedgerDomain } from '@omne-harness/tool'
 import {
   decodeToolResultVersion,
   decodeToolRevision,
@@ -26,10 +29,10 @@ import {
   createRetainedTerminalLedger,
 } from '../src/environment-resource-ledger.ts'
 import {
+  acquisitionDomain,
   createEnvironmentStateStore,
-  environmentDomain,
   preparationKey,
-  type EnvironmentGuardedHostCommit,
+  retentionDomain,
 } from '../src/environment-state.ts'
 import {
   createLocalExecutionEnvironment,
@@ -124,14 +127,9 @@ async function fixture() {
     revision: revision('1'),
     writes: [{ kind: 'put', record: { kind: 'call', call } }],
   })
-  const ordinary: EnvironmentGuardedHostCommit['commit'] = async input => {
-    const current = await store.read(input.call)
-    if (current.kind !== 'complete' || current.revision !== input.callExpected)
-      return { kind: 'call-changed' }
-    return store.commit(input.hostCommit)
-  }
-  const guarded = { commit: vi.fn<EnvironmentGuardedHostCommit['commit']>(ordinary) }
-  const state = createEnvironmentStateStore({ store, guarded, mode: 'test' })
+  const realCommit = store.commit.bind(store)
+  const commit = vi.spyOn(store, 'commit')
+  const state = createEnvironmentStateStore({ store, mode: 'test' })
   await state.update(preparation, () =>
     succeed({
       preparation,
@@ -152,36 +150,40 @@ async function fixture() {
   })
   const retained = () =>
     createRetainedTerminalLedger({
-      state: createEnvironmentStateStore({ store, guarded, mode: 'test' }),
+      state: createEnvironmentStateStore({ store, mode: 'test' }),
       address: preparation,
       scope: preparation.request.requesterScope,
       authorize,
     })
   const processes = await retained()
 
-  /** The environment domain in one read: its revision and the two records' envelopes. */
-  async function domain() {
-    const read = await store.read(environmentDomain(tenantA))
+  type Envelope = {
+    mutation: string
+    state: { resources: { resource: { key: string }; [field: string]: unknown }[] }
+  }
+  /** One stored envelope and the revision of its domain, read without the state store. */
+  async function stored(domain: LedgerDomain, key: string) {
+    const read = await store.readRecord(domain, hostKey(key))
     if (read.kind !== 'complete') throw new Error('fixture domain unavailable')
-    const host = (key: (text: string) => boolean) => {
-      const found = read.records.find(item => item.kind === 'host' && key(item.host.key))
-      return found?.kind === 'host'
-        ? (found.host.value as {
-            mutation: string
-            state: { resources: { resource: { key: string }; [field: string]: unknown }[] }
-          })
-        : undefined
-    }
-    const acquired = host(key => key === preparationKey(preparation))
-    const retention = host(key => key.startsWith('retention:'))
-    const fact = (envelope: typeof acquired) =>
+    const envelope = read.record?.kind === 'host' ? (read.record.host.value as Envelope) : undefined
+    return { revision: read.revision, envelope }
+  }
+  /** The two records as stored: the acquisition in the call's domain, the scope in the tenant's. */
+  async function domain() {
+    const acquired = await stored(acquisitionDomain(preparation), preparationKey(preparation))
+    const retention = await stored(
+      retentionDomain(tenantA),
+      `retention:${canonicalDigest(preparation.request.requesterScope)}`,
+    )
+    const fact = (envelope: Envelope | undefined) =>
       envelope?.state.resources.find(item => item.resource.key === resource.key)
     return {
-      revision: read.revision,
-      acquired,
-      retention,
-      acquisitionFact: fact(acquired),
-      retainedFact: fact(retention),
+      acquisitionRevision: acquired.revision,
+      retentionRevision: retention.revision,
+      acquired: acquired.envelope,
+      retention: retention.envelope,
+      acquisitionFact: fact(acquired.envelope),
+      retainedFact: fact(retention.envelope),
     }
   }
   async function finish() {
@@ -224,8 +226,8 @@ async function fixture() {
   }
   return {
     store,
-    guarded,
-    ordinary,
+    commit,
+    realCommit,
     acquisition,
     processes,
     retained,
@@ -235,38 +237,34 @@ async function fixture() {
   }
 }
 
-describe('adopt commits the handover once, in one durable commit', () => {
-  it('hands the key over: both records change at the same new revision', async () => {
+describe('adopt commits the handover once, in one durable commit of the scope', () => {
+  it('hands the key over: the scope adopts in one commit and the acquisition shows it without a write', async () => {
     const f = await fixture()
     await f.reserved()
     const before = await f.domain()
+    const commits = f.store.commits
     expect(await f.processes.adopt(resource.key)).toBe('confirmed')
     const after = await f.domain()
-    expect(BigInt(after.revision)).toBe(BigInt(before.revision) + 1n)
-    expect(after.acquisitionFact).toMatchObject({ stop: 'handedOver' })
+    expect(f.store.commits).toBe(commits + 1)
+    expect(BigInt(after.retentionRevision)).toBe(BigInt(before.retentionRevision) + 1n)
+    expect(after.acquisitionRevision).toBe(before.acquisitionRevision)
     expect(after.retainedFact).toMatchObject({ adopted: true, permitted: true, stop: 'active' })
-    expect(after.acquired?.mutation).toBe(after.retention?.mutation)
-    expect(f.guarded.commit).toHaveBeenCalledTimes(
-      // plan and permit of the acquisition do one guarded commit (permit); adopt does one more.
-      1 + 1,
-    )
+    // The scope owns the handover; the acquisition's view applies it.
+    expect(await f.acquisition.inspect()).toMatchObject([{ stop: 'handedOver' }])
+    // The handover asserted the acquisition and the original call it decided on.
+    const last = f.commit.mock.calls.at(-1)?.[0]
+    expect(last?.asserts?.map(assertion => assertion.domain.kind).sort()).toEqual(['call', 'host'])
   })
 
-  it('never leaves one record changed when a later commit would fail', async () => {
+  it('an acquisition that closes while the handover is in flight makes it a conflict, and the retry answers closed', async () => {
     const f = await fixture()
     await f.reserved()
-    let calls = 0
-    f.guarded.commit.mockImplementation(async input => {
-      calls += 1
-      return calls === 2 ? { kind: 'unavailable', diagnostic: 'injected' } : f.ordinary(input)
+    f.commit.mockImplementationOnce(async input => {
+      expect(await f.acquisition.close()).toBe('confirmed')
+      return f.realCommit(input)
     })
-    const before = await f.domain()
-    const answer = await f.processes.adopt(resource.key)
-    const after = await f.domain()
-    expect(answer).toBe('confirmed')
-    expect(after.acquisitionFact).toMatchObject({ stop: 'handedOver' })
-    expect(after.retainedFact).toMatchObject({ adopted: true })
-    expect(BigInt(after.revision)).toBe(BigInt(before.revision) + 1n)
+    expect(await f.processes.adopt(resource.key)).toBe('closed')
+    expect((await f.domain()).retainedFact).toMatchObject({ adopted: false })
   })
 
   it.each(['unavailable', 'unknown-dropped'] as const)(
@@ -287,7 +285,7 @@ describe('adopt commits the handover once, in one durable commit', () => {
     f.store.injectCommit('unknown-applied')
     expect(await f.processes.adopt(resource.key)).toBe('confirmed')
     const after = await f.domain()
-    expect(after.acquisitionFact).toMatchObject({ stop: 'handedOver' })
+    expect(await f.acquisition.inspect()).toMatchObject([{ stop: 'handedOver' }])
     expect(after.retainedFact).toMatchObject({ adopted: true })
   })
 
@@ -297,11 +295,9 @@ describe('adopt commits the handover once, in one durable commit', () => {
     expect(await f.processes.adopt(resource.key)).toBe('confirmed')
     const before = await f.domain()
     const commits = f.store.commits
-    const guardedCalls = f.guarded.commit.mock.calls.length
     expect(await f.processes.adopt(resource.key)).toBe('confirmed')
     expect(await (await f.retained()).adopt(resource.key)).toBe('confirmed')
     expect(f.store.commits).toBe(commits)
-    expect(f.guarded.commit).toHaveBeenCalledTimes(guardedCalls)
     expect(await f.domain()).toEqual(before)
   })
 
@@ -312,7 +308,7 @@ describe('adopt commits the handover once, in one durable commit', () => {
     expect(await f.processes.adopt(resource.key)).toBe('unavailable')
     expect(f.store.landDelayed()).toEqual([{ kind: 'committed' }])
     expect(await f.processes.adopt(resource.key)).toBe('confirmed')
-    expect((await f.domain()).acquisitionFact).toMatchObject({ stop: 'handedOver' })
+    expect(await f.acquisition.inspect()).toMatchObject([{ stop: 'handedOver' }])
   })
 })
 
@@ -332,19 +328,20 @@ describe('adopt checks the scope, the original call and the reservation', () => 
     await f.reserved()
     await f.finish()
     const before = await f.domain()
-    const guardedCalls = f.guarded.commit.mock.calls.length
+    const commits = f.store.commits
     expect(await f.processes.adopt(resource.key)).toBe('closed')
-    expect(f.guarded.commit).toHaveBeenCalledTimes(guardedCalls)
+    expect(f.store.commits).toBe(commits)
     expect(await f.domain()).toEqual(before)
   })
 
-  it('answers closed when the call settles between the check and the guarded commit', async () => {
+  it('answers closed when the call settles between the check and the asserted commit', async () => {
     const f = await fixture()
     await f.reserved()
     const before = await f.domain()
-    f.guarded.commit.mockImplementationOnce(async () => {
+    // The call settles while the handover's commit is in flight: its call assertion fails for real.
+    f.commit.mockImplementationOnce(async input => {
       await f.finish()
-      return { kind: 'call-changed' }
+      return f.realCommit(input)
     })
     expect(await f.processes.adopt(resource.key)).toBe('closed')
     expect(await f.domain()).toEqual(before)
@@ -392,7 +389,6 @@ describe('the acquisition ledger keeps a handed-over key handed over', () => {
     expect(await f.acquisition.inspect()).toMatchObject([{ stop: 'handedOver' }])
     expect(await f.acquisition.permit(resource.key)).toBe('unavailable')
     expect(await f.acquisition.adopt(resource.key)).toBe('unavailable')
-    expect((await f.domain()).acquisitionFact).toMatchObject({ stop: 'handedOver' })
   })
 
   it('a rebuilt view decodes handedOver next to the older stop values', async () => {
@@ -418,7 +414,7 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
   /** Another call's view of the same retention scope, as a provider has after a restart. */
   async function otherCallView(f: Awaited<ReturnType<typeof fixture>>) {
     const other = { ...preparation, call: callId('call-b'), operation: operationId('prepare-b') }
-    const state = createEnvironmentStateStore({ store: f.store, guarded: f.guarded, mode: 'test' })
+    const state = createEnvironmentStateStore({ store: f.store, mode: 'test' })
     await state.update(other, () =>
       succeed({
         preparation: other,

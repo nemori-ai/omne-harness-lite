@@ -10,11 +10,13 @@ import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-id
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { decodeScopeRef, type ScopeRef } from '@omne-harness/runtime-context-contract'
 import {
+  CALL_RECORD_KEY,
   canonicalDigest,
   hostKey,
+  type LedgerAssertion,
   type LedgerCommit,
-  type LedgerCommitInput,
   type LedgerDomain,
+  type LedgerWrite,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
 import {
@@ -33,10 +35,16 @@ import {
   type PreparationRecord,
   type ReleaseRecord,
 } from '@omne-harness/tool-contract/provider'
+import {
+  callHostDomain,
+  ENVIRONMENT_RETENTION_DOMAIN_KEY,
+  tenantHostDomain,
+} from './host-domains.ts'
 
 /**
- * `handedOver`: a retention scope adopted the resource in the commit that wrote this value, so this
- * acquisition no longer owns it. No later stop fact replaces it.
+ * `handedOver`: the retention scope of this acquisition adopted the resource, so this acquisition
+ * no longer owns it. The scope's record owns that fact; a read of the acquisition applies it. No
+ * later stop fact replaces it.
  */
 export type ResourceStop = 'active' | 'unconfirmed' | 'confirmed' | 'handedOver'
 export type ResourceFact = Readonly<{
@@ -66,19 +74,9 @@ export type EnvironmentAddress = Readonly<{
 }>
 export type EnvironmentStorageOptions = Readonly<{
   store: ToolLedgerStore
-  guarded?: EnvironmentGuardedHostCommit
   mode?: 'production' | 'test'
   commitAttempts?: number
 }>
-export interface EnvironmentGuardedHostCommit {
-  commit(
-    input: Readonly<{
-      call: Extract<LedgerDomain, { kind: 'call' }>
-      callExpected: ToolRevision
-      hostCommit: LedgerCommitInput
-    }>,
-  ): Promise<LedgerCommit | Readonly<{ kind: 'call-changed' }>>
-}
 export type RetainedResourceFact = ResourceFact &
   Readonly<{ creator: PreparationRecord; original: EnvironmentOriginal }>
 export type RetentionState = Readonly<{
@@ -90,26 +88,73 @@ type StateChange<T> = (
   state: T | null,
   receipt: (value: unknown) => DurableEvidence,
 ) => Outcome<T, ToolFailure>
-/** The two records of one handover commit: the acquisition that hands over and the adopting scope. */
-export type HandOverState = Readonly<{ acquisition: EnvironmentState; retention: RetentionState }>
+/**
+ * The decision of one handover: the retention scope after it adopted a resource of the
+ * acquisition. The acquisition is read, never written: its `handedOver` facts are the adoptions
+ * of its scope.
+ */
 type HandOverChange = (
   acquisition: EnvironmentState,
   retention: RetentionState | null,
-) => Outcome<HandOverState, ToolFailure>
+  receipt: (value: unknown) => DurableEvidence,
+) => Outcome<RetentionState, ToolFailure>
 type CurrentResourceAuthorization = () => Promise<'authorized' | 'notAuthorized' | 'unavailable'>
-type CommitResult = LedgerCommit | Readonly<{ kind: 'call-changed' }>
 type MutationRead<T> = Outcome<{ state: T | null; mutation: string | null }, ToolFailure>
+type RetentionSnapshot = Readonly<{
+  revision: ToolRevision
+  state: RetentionState | null
+  mutation: string | null
+}>
+type AcquisitionSnapshot = Readonly<{
+  revision: ToolRevision
+  state: EnvironmentState | null
+  mutation: string | null
+  /** The retention scope's revision when the acquisition names one, for the write's assertion. */
+  retention: Readonly<{ revision: ToolRevision }> | null
+}>
 const localClosures = new WeakMap<ToolLedgerStore, Map<string, Set<() => void>>>()
 
 export const environmentFailure = (diagnostic: string): Outcome<never, ToolFailure> =>
   fail({ kind: 'unavailable', dependency: 'execution-environment-adapter', diagnostic })
 export const preparationKey = (address: Pick<EnvironmentAddress, 'call' | 'operation'>): string =>
   JSON.stringify([address.call, address.operation])
-export const environmentDomain = (tenant: TenantId) => ({
-  kind: 'host' as const,
-  tenant,
-  key: 'execution-environment/v1',
+/** The host domain of one call's environment acquisitions. */
+export const acquisitionDomain = (address: Pick<EnvironmentAddress, 'tenant' | 'call'>) =>
+  callHostDomain(address.tenant, 'environment', address.call)
+/** The tenant-level host domain of the retention scopes: state that spans calls. */
+export const retentionDomain = (tenant: TenantId) =>
+  tenantHostDomain(tenant, ENVIRONMENT_RETENTION_DOMAIN_KEY)
+const callDomain = (address: Pick<EnvironmentAddress, 'tenant' | 'call'>): LedgerDomain => ({
+  kind: 'call',
+  tenant: address.tenant,
+  call: address.call,
 })
+
+/** The acquisition with every resource its retention scope adopted from it marked `handedOver`. */
+function withHandovers(
+  state: EnvironmentState,
+  address: EnvironmentAddress,
+  retention: RetentionState | null,
+): EnvironmentState {
+  if (retention === null) return state
+  const adopted = new Set(
+    retention.resources
+      .filter(
+        item =>
+          item.adopted &&
+          item.creator.call === address.call &&
+          item.creator.operation === address.operation,
+      )
+      .map(item => item.resource.key),
+  )
+  if (adopted.size === 0) return state
+  return {
+    ...state,
+    resources: state.resources.map(item =>
+      adopted.has(item.resource.key) ? { ...item, stop: 'handedOver' } : item,
+    ),
+  }
+}
 
 function object(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -375,38 +420,82 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     }
   }
 
-  async function snapshot(
-    address: EnvironmentAddress,
+  /** The envelope of one host record: its mutation marker and the encoded state. */
+  async function envelope(
+    domain: LedgerDomain,
+    key: string,
+    diagnostic: string,
   ): Promise<
-    Outcome<
-      { revision: ToolRevision; state: EnvironmentState | null; mutation: string | null },
-      ToolFailure
-    >
+    Outcome<{ revision: ToolRevision; mutation: string | null; state: unknown }, ToolFailure>
   > {
-    const read = await options.store.readRecord(
-      environmentDomain(address.tenant),
-      hostKey(preparationKey(address)),
-    )
-    if (read.kind !== 'complete') return environmentFailure('environment ledger read unavailable')
+    const read = await options.store.readRecord(domain, hostKey(key))
+    if (read.kind !== 'complete') return environmentFailure(`${diagnostic} read unavailable`)
     const found = read.record
-    if (!found) return succeed({ revision: read.revision, state: null, mutation: null })
+    if (!found) return succeed({ revision: read.revision, mutation: null, state: null })
     if (
       found.kind !== 'host' ||
       !object(found.host.value) ||
       typeof found.host.value.mutation !== 'string'
     )
-      return environmentFailure('invalid environment ledger envelope')
-    const state = await decodeState(found.host.value.state)
+      return environmentFailure(`invalid ${diagnostic} envelope`)
+    return succeed({
+      revision: read.revision,
+      mutation: found.host.value.mutation,
+      state: found.host.value.state,
+    })
+  }
+
+  async function retentionSnapshot(
+    tenant: TenantId,
+    scope: ScopeRef,
+  ): Promise<Outcome<RetentionSnapshot, ToolFailure>> {
+    const read = await envelope(retentionDomain(tenant), retentionKey(scope), 'retention ledger')
+    if ('failure' in read) return read
+    if (read.ok.mutation === null)
+      return succeed({ revision: read.ok.revision, state: null, mutation: null })
+    const state = await decodeRetention(read.ok.state)
+    if (!state || canonicalDigest(state.scope) !== canonicalDigest(scope))
+      return environmentFailure('invalid retention state')
+    return succeed({ revision: read.ok.revision, state, mutation: read.ok.mutation })
+  }
+
+  /**
+   * The acquisition record with the handovers of its retention scope applied: a resource the
+   * scope adopted from this acquisition is `handedOver` here. The scope owns the handover fact;
+   * the acquisition domain never stores it (one decision, one owner). The retention revision is
+   * returned so a write of the acquisition can assert it and stay serialized with handovers.
+   */
+  async function snapshot(
+    address: EnvironmentAddress,
+  ): Promise<Outcome<AcquisitionSnapshot, ToolFailure>> {
+    const read = await envelope(
+      acquisitionDomain(address),
+      preparationKey(address),
+      'environment ledger',
+    )
+    if ('failure' in read) return read
+    if (read.ok.mutation === null)
+      return succeed({ revision: read.ok.revision, state: null, mutation: null, retention: null })
+    const stored = await decodeState(read.ok.state)
     if (
-      !state ||
-      preparationKey(state.preparation) !== preparationKey(address) ||
-      !tenantEquals(state.preparation.tenant, address.tenant) ||
-      !tenantEquals(state.original.tenant, address.tenant) ||
-      canonicalDigest(state.preparation) !== state.digest
+      !stored ||
+      preparationKey(stored.preparation) !== preparationKey(address) ||
+      !tenantEquals(stored.preparation.tenant, address.tenant) ||
+      !tenantEquals(stored.original.tenant, address.tenant) ||
+      canonicalDigest(stored.preparation) !== stored.digest
     )
       return environmentFailure('invalid environment ledger state')
+    const scope = stored.original.retentionScope
+    const retention = scope === undefined ? null : await retentionSnapshot(address.tenant, scope)
+    if (retention !== null && 'failure' in retention) return retention
+    const state = retention === null ? stored : withHandovers(stored, address, retention.ok.state)
     observe(address, state)
-    return succeed({ revision: read.revision, state, mutation: found.host.value.mutation })
+    return succeed({
+      revision: read.ok.revision,
+      state,
+      mutation: read.ok.mutation,
+      retention: retention === null ? null : { revision: retention.ok.revision },
+    })
   }
 
   async function read(
@@ -416,17 +505,14 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     return 'failure' in result ? result : succeed(result.ok.state)
   }
 
+  /** The revision of the original call while it is live and bound to `expected`. */
   async function callRevision(
     address: EnvironmentAddress,
     expected: PreparationRecord,
   ): Promise<Outcome<ToolRevision, ToolFailure>> {
-    const read = await options.store.read({
-      kind: 'call',
-      tenant: address.tenant,
-      call: address.call,
-    })
+    const read = await options.store.readRecord(callDomain(address), CALL_RECORD_KEY)
     if (read.kind !== 'complete') return environmentFailure('original call read unavailable')
-    const record = read.records.find(item => item.kind === 'call')
+    const record = read.record
     if (!record || record.kind !== 'call') return environmentFailure('original call is missing')
     const call = record.call
     const tenant = tenantCodec.parse(
@@ -447,30 +533,26 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     return succeed(read.revision)
   }
 
-  async function commitHost(
+  /**
+   * The assertion that the original call is still the live call the snapshot was taken for, and
+   * the current resource authorization, when a change needs them.
+   */
+  async function callAssertion(
     address: EnvironmentAddress,
     preparation: PreparationRecord,
-    hostCommit: LedgerCommitInput,
     authorize: CurrentResourceAuthorization | undefined,
     diagnostic: string,
-  ): Promise<Outcome<CommitResult, ToolFailure>> {
-    if (!authorize) return succeed(await options.store.commit(hostCommit))
-    if (!options.guarded) return environmentFailure('atomic call and host commit unavailable')
+  ): Promise<Outcome<readonly LedgerAssertion[], ToolFailure>> {
+    if (!authorize) return succeed([])
     const current = await callRevision(address, preparation)
     if ('failure' in current) return current
     if ((await authorize()) !== 'authorized') return environmentFailure(diagnostic)
-    return succeed(
-      await options.guarded.commit({
-        call: { kind: 'call', tenant: address.tenant, call: address.call },
-        callExpected: current.ok,
-        hostCommit,
-      }),
-    )
+    return succeed([{ domain: callDomain(address), revision: current.ok }])
   }
 
   async function commitResult<T extends Readonly<{ closed: boolean }>>(
     address: EnvironmentAddress,
-    result: CommitResult,
+    result: LedgerCommit,
     next: T,
     mutation: string,
     reread: () => Promise<MutationRead<T>>,
@@ -481,7 +563,7 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
       observe(address, next, key)
       return succeed(next)
     }
-    if (result.kind === 'conflict' || result.kind === 'call-changed') return null
+    if (result.kind === 'conflict') return null
     if (result.kind === 'unavailable') return environmentFailure(diagnostic)
     const recognized = await reread()
     if ('ok' in recognized && recognized.ok.mutation === mutation && recognized.ok.state)
@@ -489,13 +571,16 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     return fail({ kind: 'commit-unknown', operation: address.operation })
   }
 
+  const put = (key: string, mutation: string, state: unknown): LedgerWrite => ({
+    kind: 'put',
+    record: { kind: 'host', host: { key, value: { mutation, state } } },
+  })
+
   async function update(
     address: EnvironmentAddress,
     change: StateChange<EnvironmentState>,
     authorize?: CurrentResourceAuthorization,
   ): Promise<Outcome<EnvironmentState, ToolFailure>> {
-    if (authorize && !options.guarded)
-      return environmentFailure('atomic call and host commit unavailable')
     const mutation = randomUUID()
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       const before = await snapshot(address)
@@ -509,34 +594,29 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
         digest: canonicalDigest(value),
       }))
       if ('failure' in next) return next
-      const hostCommit: LedgerCommitInput = {
-        domain: environmentDomain(address.tenant),
-        expected: before.ok.revision,
-        revision: revision.ok,
-        writes: [
-          {
-            kind: 'put',
-            record: {
-              kind: 'host',
-              host: {
-                key: preparationKey(address),
-                value: { mutation, state: encodeState(next.ok) },
-              },
-            },
-          },
-        ],
-      }
-      const committed = await commitHost(
+      const call = await callAssertion(
         address,
         next.ok.preparation,
-        hostCommit,
         authorize,
         'current resource authorization unavailable',
       )
-      if ('failure' in committed) return committed
+      if ('failure' in call) return call
+      // The retention scope may hand a resource over between this snapshot and the write; the
+      // assertion makes such a handover a conflict, and the retry sees it.
+      const retention: readonly LedgerAssertion[] =
+        before.ok.retention === null
+          ? []
+          : [{ domain: retentionDomain(address.tenant), revision: before.ok.retention.revision }]
+      const committed = await options.store.commit({
+        domain: acquisitionDomain(address),
+        expected: before.ok.revision,
+        revision: revision.ok,
+        writes: [put(preparationKey(address), mutation, encodeState(next.ok))],
+        asserts: [...call.ok, ...retention],
+      })
       const result = await commitResult(
         address,
-        committed.ok,
+        committed,
         next.ok,
         mutation,
         () => snapshot(address),
@@ -548,91 +628,71 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     return environmentFailure('environment ledger revision contention')
   }
 
-  async function retentionSnapshot(address: EnvironmentAddress, scope: ScopeRef) {
-    const key = retentionKey(scope)
-    const read = await options.store.readRecord(environmentDomain(address.tenant), hostKey(key))
-    if (read.kind !== 'complete') return environmentFailure('retention ledger read unavailable')
-    const found = read.record
-    if (!found) return succeed({ revision: read.revision, state: null, mutation: null })
-    if (
-      found.kind !== 'host' ||
-      !object(found.host.value) ||
-      typeof found.host.value.mutation !== 'string'
-    )
-      return environmentFailure('invalid retention envelope')
-    const state = await decodeRetention(found.host.value.state)
-    if (!state || canonicalDigest(state.scope) !== canonicalDigest(scope))
-      return environmentFailure('invalid retention state')
-    observe(address, state, key)
-    return succeed({ revision: read.revision, state, mutation: found.host.value.mutation })
-  }
-
   async function readRetention(
     address: EnvironmentAddress,
     scope: ScopeRef,
   ): Promise<Outcome<RetentionState | null, ToolFailure>> {
-    const result = await retentionSnapshot(address, scope)
+    const result = await retentionSnapshot(address.tenant, scope)
     return 'failure' in result ? result : succeed(result.ok.state)
   }
 
-  async function updateRetention(
+  /**
+   * One commit of the retention record, decided on the scope's record and the creating
+   * acquisition. It asserts the acquisition domain, so a change of the acquisition between the
+   * snapshot and the write is a conflict and the retry decides on the current acquisition.
+   */
+  async function commitRetention(
     address: EnvironmentAddress,
     scope: ScopeRef,
-    change: StateChange<RetentionState>,
-    authorize?: CurrentResourceAuthorization,
+    authorize: CurrentResourceAuthorization | undefined,
+    decide: (
+      acquisition: EnvironmentState,
+      retention: RetentionState | null,
+      receipt: (value: unknown) => DurableEvidence,
+    ) => Outcome<RetentionState, ToolFailure>,
+    diagnostics: Readonly<{ missing: string; authorization: string; commit: string }>,
   ): Promise<Outcome<RetentionState, ToolFailure>> {
-    if (authorize && !options.guarded)
-      return environmentFailure('atomic call and host commit unavailable')
     const mutation = randomUUID()
     for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const before = await retentionSnapshot(address, scope)
+      const before = await retentionSnapshot(address.tenant, scope)
       if ('failure' in before) return before
       const original = await snapshot(address)
       if ('failure' in original) return original
-      if (original.ok.revision !== before.ok.revision) continue
-      if (!original.ok.state) return environmentFailure('retained creator acquisition missing')
+      if (!original.ok.state) return environmentFailure(diagnostics.missing)
       if (authorize && original.ok.state.closed) return fail({ kind: 'not-settled' })
       const revision = decodeToolRevision((BigInt(before.ok.revision) + 1n).toString())
       if ('failure' in revision) return environmentFailure('invalid retention revision')
-      const next = change(before.ok.state, value => ({
+      const next = decide(original.ok.state, before.ok.state, value => ({
         owner: '@omne-harness/tool-host-local',
         record: retentionKey(scope),
         revision: revision.ok,
         digest: canonicalDigest(value),
       }))
       if ('failure' in next) return next
-      const hostCommit: LedgerCommitInput = {
-        domain: environmentDomain(address.tenant),
-        expected: before.ok.revision,
-        revision: revision.ok,
-        writes: [
-          {
-            kind: 'put',
-            record: {
-              kind: 'host',
-              host: {
-                key: retentionKey(scope),
-                value: { mutation, state: encodeRetention(next.ok) },
-              },
-            },
-          },
-        ],
-      }
-      const committed = await commitHost(
+      const call = await callAssertion(
         address,
         original.ok.state.preparation,
-        hostCommit,
         authorize,
-        'current retained resource authorization unavailable',
+        diagnostics.authorization,
       )
-      if ('failure' in committed) return committed
+      if ('failure' in call) return call
+      const committed = await options.store.commit({
+        domain: retentionDomain(address.tenant),
+        expected: before.ok.revision,
+        revision: revision.ok,
+        writes: [put(retentionKey(scope), mutation, encodeRetention(next.ok))],
+        asserts: [
+          ...call.ok,
+          { domain: acquisitionDomain(address), revision: original.ok.revision },
+        ],
+      })
       const result = await commitResult(
         address,
-        committed.ok,
+        committed,
         next.ok,
         mutation,
-        () => retentionSnapshot(address, scope),
-        'retention ledger commit unavailable',
+        () => retentionSnapshot(address.tenant, scope),
+        diagnostics.commit,
         retentionKey(scope),
       )
       if (result === null) continue
@@ -641,68 +701,45 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     return environmentFailure('retention ledger revision contention')
   }
 
+  function updateRetention(
+    address: EnvironmentAddress,
+    scope: ScopeRef,
+    change: StateChange<RetentionState>,
+    authorize?: CurrentResourceAuthorization,
+  ): Promise<Outcome<RetentionState, ToolFailure>> {
+    return commitRetention(
+      address,
+      scope,
+      authorize,
+      (_acquisition, retention, receipt) => change(retention, receipt),
+      {
+        missing: 'retained creator acquisition missing',
+        authorization: 'current retained resource authorization unavailable',
+        commit: 'retention ledger commit unavailable',
+      },
+    )
+  }
+
   /**
-   * One guarded commit that writes the retention record and the acquisition record together. Both
-   * live in the environment domain, so one revision condition covers both, and both envelopes carry
-   * the same mutation: either both changes are durable or neither is. A closed acquisition answers
-   * `not-settled`, as a guarded retention update does.
+   * The handover commit: the retention scope adopts a resource of the acquisition. The scope's
+   * record is the one record written; the acquisition shows the resource as `handedOver` through
+   * the handovers of its scope. The commit asserts the acquisition domain and the original call,
+   * so an acquisition that closed or a call that settled since the snapshot is a conflict, and
+   * the retry answers `not-settled`.
    */
-  async function handOver(
+  function handOver(
     address: EnvironmentAddress,
     scope: ScopeRef,
     change: HandOverChange,
     authorize: CurrentResourceAuthorization,
-  ): Promise<Outcome<HandOverState, ToolFailure>> {
-    if (!options.guarded) return environmentFailure('atomic call and host commit unavailable')
-    const mutation = randomUUID()
-    for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const before = await retentionSnapshot(address, scope)
-      if ('failure' in before) return before
-      const original = await snapshot(address)
-      if ('failure' in original) return original
-      if (original.ok.revision !== before.ok.revision) continue
-      if (!original.ok.state) return environmentFailure('handed-over acquisition missing')
-      if (original.ok.state.closed) return fail({ kind: 'not-settled' })
-      const revision = decodeToolRevision((BigInt(before.ok.revision) + 1n).toString())
-      if ('failure' in revision) return environmentFailure('invalid handover revision')
-      const next = change(original.ok.state, before.ok.state)
-      if ('failure' in next) return next
-      const put = (key: string, state: unknown): LedgerCommitInput['writes'][number] => ({
-        kind: 'put',
-        record: { kind: 'host', host: { key, value: { mutation, state } } },
-      })
-      const hostCommit: LedgerCommitInput = {
-        domain: environmentDomain(address.tenant),
-        expected: before.ok.revision,
-        revision: revision.ok,
-        writes: [
-          put(retentionKey(scope), encodeRetention(next.ok.retention)),
-          put(preparationKey(address), encodeState(next.ok.acquisition)),
-        ],
-      }
-      const committed = await commitHost(
-        address,
-        original.ok.state.preparation,
-        hostCommit,
-        authorize,
-        'current handover authorization unavailable',
-      )
-      if ('failure' in committed) return committed
-      // The writes are atomic: the mutation on the retention envelope proves both landed.
-      const result = await commitResult(
-        address,
-        committed.ok,
-        next.ok.retention,
-        mutation,
-        () => retentionSnapshot(address, scope),
-        'handover commit unavailable',
-        retentionKey(scope),
-      )
-      if (result === null) continue
-      return 'failure' in result ? result : succeed(next.ok)
-    }
-    return environmentFailure('handover revision contention')
+  ): Promise<Outcome<RetentionState, ToolFailure>> {
+    return commitRetention(address, scope, authorize, change, {
+      missing: 'handed-over acquisition missing',
+      authorization: 'current handover authorization unavailable',
+      commit: 'handover commit unavailable',
+    })
   }
+
   return Object.freeze({
     read,
     update,

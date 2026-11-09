@@ -1,7 +1,8 @@
 // The durable ToolLedgerStore (G1) over the SQL storage contract. A ledger domain (`call`, `queue`
 // or `host`) is a group of rows with its own revision inside the transaction domain of its tenant.
 // `read` is one `domain-serial` read; `commit` is one SQL commit whose participant checks the
-// expected revision, applies the writes in order and sets the new revision, or writes nothing.
+// expected revision and the read-set assertions, applies the writes in order and sets the new
+// revision, or writes nothing.
 import { randomUUID } from 'node:crypto'
 
 import type { JsonValue } from '@omne-harness/sql-contract'
@@ -18,7 +19,14 @@ import {
 } from '@omne-harness/tool'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { NotJsonError } from './json.ts'
-import { addressOf, ledgerAnswer, unavailable, writesOf } from './ledger-wire.ts'
+import {
+  addressOf,
+  assertsOf,
+  ledgerAnswer,
+  sameTenant,
+  unavailable,
+  writesOf,
+} from './ledger-wire.ts'
 import type { SqlToolStorageOptions } from './options.ts'
 import { requestOf, resolveTenant } from './tenant.ts'
 import type { LedgerFacts, LedgerWriteFact } from './worker/facts.ts'
@@ -82,6 +90,8 @@ async function readStored(
 
 export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToolLedgerStore {
   const commit = async (input: LedgerCommitInput): Promise<LedgerCommit> => {
+    if (!(input.asserts ?? []).every(assertion => sameTenant(input.domain, assertion.domain)))
+      return unavailable('ledger commit: an assertion names a domain of another tenant')
     const resolved = await resolveTenant(options, input.domain.tenant)
     if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
     let writes: readonly LedgerWriteFact[]
@@ -97,6 +107,7 @@ export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToo
       expected: input.expected,
       revision: input.revision,
       writes,
+      asserts: assertsOf(input),
     }
     return ledgerAnswer(await options.storage.commit(requestOf(options, resolved.at, facts)))
   }

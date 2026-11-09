@@ -14,22 +14,18 @@ export type LedgerWriteFact =
   | Readonly<{ op: 'put'; key: string; record: JsonValue }>
   | Readonly<{ op: 'delete'; key: string }>
 
-/** One revision-conditioned commit of one ledger domain. */
+/** A domain of the same tenant whose revision must still hold when the commit is applied. */
+export type LedgerAssertionFact = Readonly<{ kind: DomainKind; name: string; revision: string }>
+
+/** One revision-conditioned commit of one ledger domain, with its read-set assertions. */
 export type LedgerFacts = DomainAddress &
   Readonly<{
     intent: 'ledger'
     expected: string
     revision: string
     writes: readonly LedgerWriteFact[]
+    asserts: readonly LedgerAssertionFact[]
   }>
-
-/** A host CAS conditional on a previously checked call snapshot in the same tenant. */
-export type GuardedHostFacts = Readonly<{
-  intent: 'guarded-host'
-  call: DomainAddress
-  callExpected: string
-  hostCommit: LedgerFacts
-}>
 
 /** The key of one original or retained projection: the operation that kept it. */
 export type CustodyAddress = Readonly<{ tenant: string; call: string; operation: string }>
@@ -53,12 +49,13 @@ export type ManifestFacts = CustodyAddress &
     holds: null
   }>
 
-export type ToolFacts = LedgerFacts | GuardedHostFacts | ChunkFacts | ManifestFacts | MaterialFacts
+export type ToolFacts = LedgerFacts | ChunkFacts | ManifestFacts | MaterialFacts
 
 /** Why the participant stopped a command; the adapters map each reason to one port answer. */
 export type StopBasis =
   | Readonly<{ reason: 'revision'; current: string }>
-  | Readonly<{ reason: 'call-changed' }>
+  /** An assertion did not hold; `current` is the revision of the written domain. */
+  | Readonly<{ reason: 'assertion'; current: string }>
   | Readonly<{ reason: 'operation' }>
   | Readonly<{ reason: 'chunks' }>
 
@@ -123,32 +120,33 @@ function writeOf(value: JsonValue): LedgerWriteFact | null {
   return value['op'] === 'put' && record !== undefined ? { op: 'put', key, record } : null
 }
 
+function assertionOf(value: JsonValue): LedgerAssertionFact | null {
+  if (!isObject(value)) return null
+  const kind = value['kind']
+  const name = textOf(value, 'name')
+  const revision = textOf(value, 'revision')
+  return name === null || revision === null || !isDomainKind(kind) ? null : { kind, name, revision }
+}
+
 function ledgerOf(value: JsonObject): LedgerFacts | null {
   const domain = domainOf(value)
   const expected = textOf(value, 'expected')
   const revision = textOf(value, 'revision')
   const writes = value['writes']
-  if (domain === null || expected === null || revision === null || !Array.isArray(writes))
+  const asserts = value['asserts']
+  if (
+    domain === null ||
+    expected === null ||
+    revision === null ||
+    !Array.isArray(writes) ||
+    !Array.isArray(asserts)
+  )
     return null
   const parsed = writes.map(writeOf)
   if (!parsed.every((write): write is LedgerWriteFact => write !== null)) return null
-  return { ...domain, intent: 'ledger', expected, revision, writes: parsed }
-}
-
-function guardedHostOf(value: JsonObject): GuardedHostFacts | null {
-  const callValue = value['call']
-  const hostValue = value['hostCommit']
-  const call = isObject(callValue) ? domainOf(callValue) : null
-  const hostCommit = isObject(hostValue) ? ledgerOf(hostValue) : null
-  const callExpected = textOf(value, 'callExpected')
-  if (
-    call?.kind !== 'call' ||
-    hostCommit?.kind !== 'host' ||
-    callExpected === null ||
-    call.tenant !== hostCommit.tenant
-  )
-    return null
-  return { intent: 'guarded-host', call, callExpected, hostCommit }
+  const assertions = asserts.map(assertionOf)
+  if (!assertions.every((item): item is LedgerAssertionFact => item !== null)) return null
+  return { ...domain, intent: 'ledger', expected, revision, writes: parsed, asserts: assertions }
 }
 
 function chunkOf(value: JsonObject): ChunkFacts | null {
@@ -197,8 +195,6 @@ export function parseFacts(facts: JsonObject): ToolFacts | null {
   switch (facts['intent']) {
     case 'ledger':
       return ledgerOf(facts)
-    case 'guarded-host':
-      return guardedHostOf(facts)
     case 'chunk':
       return chunkOf(facts)
     case 'manifest':

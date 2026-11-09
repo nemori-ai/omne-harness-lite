@@ -8,7 +8,7 @@ import {
 } from '@omne-harness/execution-environment-contract'
 import { succeed } from '@omne-harness/operation-result'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
-import { canonicalDigest, type CallRecord } from '@omne-harness/tool'
+import { canonicalDigest, type CallRecord, type LedgerCommitInput } from '@omne-harness/tool'
 import {
   decodeToolResultVersion,
   decodeToolRevision,
@@ -18,10 +18,7 @@ import {
   createEnvironmentResourceLedger,
   createRetainedTerminalLedger,
 } from '../../src/environment-resource-ledger.ts'
-import {
-  createEnvironmentStateStore,
-  type EnvironmentGuardedHostCommit,
-} from '../../src/environment-state.ts'
+import { createEnvironmentStateStore } from '../../src/environment-state.ts'
 import { adoption, callId, evidence, operationId, request, tenantA } from '../coordinator-values.ts'
 
 function revision(text: string) {
@@ -94,15 +91,15 @@ async function fixture(retained = false) {
     revision: revision('1'),
     writes: [{ kind: 'put', record: { kind: 'call', call } }],
   })
-  const guarded = {
-    commit: vi.fn<EnvironmentGuardedHostCommit['commit']>(async input => {
-      const current = await store.read(input.call)
-      if (current.kind !== 'complete' || current.revision !== input.callExpected)
-        return { kind: 'call-changed' }
-      return store.commit(input.hostCommit)
-    }),
-  }
-  const state = createEnvironmentStateStore({ store, guarded, mode: 'test' })
+  // Every commit of the store is observed; a commit that asserts the original call's revision is
+  // the one a permit makes (the former guarded host commit).
+  const realCommit = store.commit.bind(store)
+  const commit = vi.spyOn(store, 'commit')
+  const callAsserted = (input: LedgerCommitInput) =>
+    input.asserts?.find(assertion => assertion.domain.kind === 'call')?.revision ?? null
+  const assertedCalls = () =>
+    commit.mock.calls.map(([input]) => callAsserted(input)).filter(value => value !== null)
+  const state = createEnvironmentStateStore({ store, mode: 'test' })
   await state.update(preparation, () =>
     succeed({
       preparation,
@@ -120,7 +117,7 @@ async function fixture(retained = false) {
   let allowed = true
   const build = () =>
     createEnvironmentResourceLedger({
-      state: createEnvironmentStateStore({ store, guarded, mode: 'test' }),
+      state: createEnvironmentStateStore({ store, mode: 'test' }),
       address: preparation,
       authorize: async () => (allowed ? 'authorized' : 'notAuthorized'),
     })
@@ -165,7 +162,9 @@ async function fixture(retained = false) {
       authorize: async () => (allowed ? 'authorized' : 'notAuthorized'),
     })
   return {
-    guarded,
+    commit,
+    realCommit,
+    assertedCalls,
     finish,
     setCall,
     retention,
@@ -248,60 +247,48 @@ it('checks current authorization before adopting an existing resource', async ()
   expect(await f.ledger.inspect()).toMatchObject([{ adopted: false }])
 })
 
-it('fails closed without the atomic call and host commit port', async () => {
-  const f = await fixture()
-  await f.ledger.plan(f.resource)
-  const ledger = await createEnvironmentResourceLedger({
-    state: createEnvironmentStateStore({ store: f.store, mode: 'test' }),
-    address: f.preparation,
-    authorize: async () => 'authorized',
-  })
-  const commits = f.store.commits
-  expect(await ledger.permit(f.resource.key)).toBe('unavailable')
-  expect(f.store.commits).toBe(commits)
-})
-
 it('rejects a permit after the original call is durably settled', async () => {
   const f = await fixture()
   await f.ledger.plan(f.resource)
   await f.finish()
   expect(await f.ledger.permit(f.resource.key)).toBe('closed')
-  expect(f.guarded.commit).not.toHaveBeenCalled()
+  expect(f.assertedCalls()).toEqual([])
   expect(await f.ledger.inspect()).toMatchObject([{ permitted: false }])
 })
 
-it('rereads terminality when the call changes between qualification and host commit', async () => {
+it('rereads terminality when the call settles between qualification and the asserted commit', async () => {
   const f = await fixture()
   await f.ledger.plan(f.resource)
-  f.guarded.commit.mockImplementationOnce(async () => {
+  // The call settles while the permit's commit is in flight: its call assertion fails for real.
+  f.commit.mockImplementationOnce(async input => {
     await f.finish()
-    return { kind: 'call-changed' }
+    return f.realCommit(input)
   })
   expect(await f.ledger.permit(f.resource.key)).toBe('closed')
-  expect(f.guarded.commit).toHaveBeenCalledTimes(1)
+  expect(f.assertedCalls()).toEqual(['1'])
   expect(await f.ledger.inspect()).toMatchObject([{ permitted: false }])
 })
 
 it('rechecks original preparation binding after a host conflict', async () => {
   const f = await fixture()
   await f.ledger.plan(f.resource)
-  f.guarded.commit.mockImplementationOnce(async input => {
+  f.commit.mockImplementationOnce(async input => {
     await f.setCall(call => ({ ...call, preparations: [] }))
-    return { kind: 'conflict', current: input.hostCommit.expected }
+    return { kind: 'conflict', current: input.expected }
   })
   expect(await f.ledger.permit(f.resource.key)).toBe('unavailable')
-  expect(f.guarded.commit).toHaveBeenCalledTimes(1)
+  expect(f.assertedCalls()).toEqual(['1'])
 })
 
 it('retries a live call revision conflict with a fresh call condition', async () => {
   const f = await fixture()
   await f.ledger.plan(f.resource)
-  f.guarded.commit.mockImplementationOnce(async () => {
+  f.commit.mockImplementationOnce(async input => {
     await f.setCall(call => call)
-    return { kind: 'call-changed' }
+    return f.realCommit(input)
   })
   expect(await f.ledger.permit(f.resource.key)).toBe('confirmed')
-  expect(f.guarded.commit.mock.calls.map(([input]) => input.callExpected)).toEqual(['1', '2'])
+  expect(f.assertedCalls()).toEqual(['1', '2'])
 })
 
 it('keeps retained ownership after acquisition closure and permits stop facts after call terminality', async () => {
@@ -325,9 +312,9 @@ it('orders retained permit against the original call and independently closes th
   const retained = await f.retention()
   const another = await f.retention()
   await retained.plan(f.resource)
-  f.guarded.commit.mockImplementationOnce(async () => {
+  f.commit.mockImplementationOnce(async input => {
     await f.finish()
-    return { kind: 'call-changed' }
+    return f.realCommit(input)
   })
   expect(await retained.permit(f.resource.key)).toBe('closed')
   expect(retained.closed.aborted).toBe(false)
@@ -350,7 +337,7 @@ it('refuses retained creation after durable scope closure while the creating cal
   await retained.plan(f.resource)
   await retained.close()
   expect(await retained.permit(f.resource.key)).toBe('closed')
-  expect(f.guarded.commit).not.toHaveBeenCalled()
+  expect(f.assertedCalls()).toEqual([])
   expect(await retained.inspect()).toMatchObject([{ permitted: false }])
 })
 
@@ -370,12 +357,13 @@ it('recognizes retained permit receipts without losing unknown stop responsibili
   ])
 })
 
-it('maintains retained resources when unrelated environment history exceeds the full-read bound', async () => {
+it('maintains retained resources without any complete read of an environment domain', async () => {
   const f = await fixture(true)
   const read = f.store.read.bind(f.store)
   vi.spyOn(f.store, 'read').mockImplementation(domain =>
-    domain.kind === 'host' && domain.key === 'execution-environment/v1'
-      ? Promise.resolve({ kind: 'unavailable', diagnostic: 'full domain exceeds read bound' })
+    domain.kind === 'host' &&
+    (domain.key.startsWith('environment@') || domain.key === 'environment-retention')
+      ? Promise.resolve({ kind: 'unavailable', diagnostic: 'full domain reads are not used' })
       : read(domain),
   )
   const retained = await f.retention()
