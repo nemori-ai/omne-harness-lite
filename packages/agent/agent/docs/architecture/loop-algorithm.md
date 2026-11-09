@@ -226,7 +226,7 @@ flowchart TB
 | A2 | 原 allowed.request（ToolInvokeRequest）、准入依据与当前资格 | 先 preserve 完整请求 facts，再 commit intent、fixed、position 与 effect intent。accepted 或 commit-unknown 提供引用后 commit associated | 首次 invoke 前保存意图；关联提交未知先查 Journal 原操作 | 并发名额不足按原顺序等待 | accepted 保存关联转 T0。commit-unknown 保存引用转 R0，lookup 的 not-accepted 仍沿原 invoke 接续。association-unknown 保留 intent 转 R0。rejected 仅在无历史受理或未决时建 denied 转 T2，否则保留原 pending、请求与 effect intent 转 R0，不改原 open 屏障 | toolConcurrency 约束在途调用 | consumer 四字段等于 pending.position。A2 尚待实现 |
 | T0 | associated Tool pending 的原引用，Tool 公开 queries、instances、content 及 commands | 不写事件，不投影 Tool 过程流；观察者按稳定调用引用经 Tool 契约的[过程帧的观察契约](../../../../tool/tool-contract/SPEC.md#过程帧的观察契约)取得 `StreamRef`。Tool control 的阶段与可选操作引用经 recordControl 保存 | 控制接受先保存原 toolInvocation。迟到附件用原记录校验 | 在途转 W0，查询不可读保留未知 | 认回原受理后沿原槽位继续，真实结果或确认后台占位转 T1，不建竞争 denied | 各槽位独立等待 | intent 只能 unresolved，Tool 内部 Ask 仅投影 waiting human。T0 尚待实现 |
 | T1 | 原结果或占位、原动作身份 | `slots` 的 result 或 background 分支。recordResult 的 custody 或 processed。事件 producer 由第二步的条件提交承载，recordResult 自身不追加事件 | 保管依据保存后才解除该结果的生产责任 | 不等待 | 真实结果或拒绝转 T2。后台占位转 T3。迟到结果转 I8 | 逐槽独立 | 后台占位只释放占位这一版本的前台交付。迟到结果不改原槽位、不重开批次 |
-| T2 | 槽位的 outcome 与候选消息 | 每个槽位的 `each` Passage，改写后的 `candidate` | 随 X 协议提交 | X4 等待 | 转 T3 | 各槽位的单结果经过不等待其他槽位 | 含结果卸载这一受信系统扩展。后台占位不经过本节点 |
+| T2 | 槽位的 outcome 与候选消息 | 每个槽位的 `each` Passage，改写后的 `candidate` | 随 X 协议提交 | X4 等待 | 转 T3 | 各槽位的单结果经过不等待其他槽位 | 结果卸载不在本节点，已由 Tool 运行时在提交结果时完成。后台占位不经过本节点 |
 | T3 | 本批全部槽位与各槽位的 `each` | 不写 | 不提交 | 有槽位缺失、历史尝试未决或单结果经过未结束时转 W0 | 齐备且至少一个槽位曾为 dispatched 转 T4。齐备且没有已发起的动作转 T5 | 等待并发名额的获准动作尚无槽位时不成立 | 条件归[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 4 条 |
 | T4 | 本批全部 outcomes | `batchPass` 的 Passage。合法 inject 经 Q | 随 X 协议提交 | X4 等待 | 转 T5 | 一批只经过一次 | 只 observed、inject、stop、ask。不修改候选 |
 | T5 | 各槽位的 `candidate` 与 `handoff` 进度 | 逐槽位：Q1 以 P 固定候选，`slots[].handoff` 记 H 的引用；Q2 以 Ja 同次提交准入结果与消息。事件 message | 每个槽位的 Ja 提交后随 checkpoint 推进 | 不等待 | 全部完成且无缺槽位或历史未决动作才转 I8。rejected 转 H0 | 按原动作顺序串行 | 恢复时按 H 认回，不重复提交已进入历史的候选 |
@@ -455,7 +455,7 @@ T0 至 T5 为逐槽结果保管加整批准入。行为归 SPEC 的[工具执行
 
 - T0 等原 Tool。Tool 内部等待与后台转换由 Tool 拥有，Agent 不接管 Tool 的协程。
 - T1 按原动作身份把真实结果或 Tool 确认的后台占位保管到该槽位。真实结果保管后解除该结果的生产责任。后台占位只释放占位这一版本的前台交付。
-- T2 对结果槽位与拒绝槽位各自运行单结果范围，含结果卸载这一受信系统扩展的改写。后台占位不经过 T2，其候选消息由占位直接形成。
+- T2 对结果槽位与拒绝槽位各自运行单结果范围。结果卸载不在 T2，已由 Tool 运行时在提交结果时完成。后台占位不经过 T2，其候选消息由占位直接形成。
 - T3 在本批每个动作都有槽位、全部槽位齐备、全部单结果经过结束时成立。等待并发名额或历史调用未决的动作尚无槽位时不成立。缺槽位不能当作 denied，较晚 rejected 不解除原责任。
 - T4 只产生 observed、inject、stop、ask，没有候选改写。只在至少一个槽位曾为 dispatched 时经过。
 - T5 按原动作顺序把候选消息交消息准入，进度随 checkpoint 保存。历史尝试未决不能被该动作的新拒绝标记完成。原受理认回后沿原 dispatched、result 或 background 槽继续，不产生 denied 候选。
