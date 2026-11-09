@@ -161,7 +161,7 @@ Next:
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `storage`                                                                        | 存储根 `<状态目录>/storage` 与提供者数值。`closeDeadlineMs` 是 D 减 1000，但不少于 D 的一半                                                                                                                                                                              |
 | `session-storage`                                                                | 目录文件 `<存储根>/tenant-domains.json`，规则 `organization-account/1`                                                                                                                                                                                                   |
-| `model-credential`、`secret-custody`                                             | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密。`secret-custody` 行只在发行层列出它时给出，见[秘密保管行](docs/rows/secret-custody.md)                                                                                                                                                                                                                   |
+| `model-credential`、`secret-custody`                                             | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密。两行打开同一个文件，见[秘密保管行](docs/rows/secret-custody.md)；`settings` 行没有运维者值，见[设置行](docs/rows/settings.md)                                                                                                                                                                              |
 | `model-profiles`、`model-request-preparation`、`model-host`、`model-records`     | 档案、准备、宿主与记录仓的数值。路由是 OpenRouter。`model-records.diagnostics` 是 `tenant-self` 读取与占位的保留采用                                                                                                                                                     |
 | `tool-host`                                                                      | Shell：可执行文件取配置，参数见下，`cwd` 是工作区，结果上限 32768 字节。Files：`cwd` 是工作区，结果上限 32768 字节                                                                                                                                                       |
 | `tool-records`、`execution-host`                                                 | 文件根是工作区，宿主状态目录是 `host-files/`                                                                                                                                                                                                                             |
@@ -207,7 +207,18 @@ TodoItems 作者只得到本次执行绑定的清单能力。应用从可信 Ses
 
 清单结果通过既有 Tool→Agent 结果链进入历史，同 Session 接续按使用指导主动 list。本次发行未采用自动 Runtime Context 待办投影，不承诺自动注入或每次模型请求必见最新待办；这些保证不能从逐项持久清单推导。
 
-Web 作者只得到本次执行附着的 `WebAccess`（`tool-bindings` 行按 `isReleaseToolRequest` 为 Web 的调用附着，顺序在 Tools 与 TodoItems 之后，执行作用域关闭后撤除）。提供者是 `@omne-harness/tool-host-local/web` 的 `createWebAccess`，提供者数值（Exa 端点、超时、跳数、字节上限）归运维者层 `tool-bindings.web`，作者构造值 `resultMaxBytes` 与 `maxSearchResults` 归 `tool-host.construction.Web`；缺 `tool-bindings.web` 时不附着，Web 的 search 与 fetch 答 unavailable。本切片没有秘密保管，附着用的 key 取用函数恒答「未配置」：真实会话里 search 返回 `unconfigured`，fetch 照常取页。接真实凭据的接入点是 `src/rows/tool-bindings/web.ts` 的 `releaseExaKey`。本机档的 Web 直连宿主网络，不经执行环境设施，沙箱与多租户部署的出口控制是已知限制。
+Web 作者只得到本次执行附着的 `WebAccess`（`tool-bindings` 行按 `isReleaseToolRequest` 为 Web 的调用附着，顺序在 Tools 与 TodoItems 之后，执行作用域关闭后撤除）。提供者是 `@omne-harness/tool-host-local/web` 的 `createWebAccess`，提供者数值（Exa 端点、超时、跳数、字节上限）归运维者层 `tool-bindings.web`，作者构造值 `resultMaxBytes` 与 `maxSearchResults` 归 `tool-host.construction.Web`；缺 `tool-bindings.web` 时不附着，Web 的 search 与 fetch 答 unavailable。search 的 key 是行事租户的 Web 设置 `exa.apiKey`：附着（`src/rows/tool-bindings/web.ts` 的 `releaseExaKey`）按调用读受信 `settingsSecretCustody`，经 tool-host-local 的 `createLocalToolCredentials` 解析，选层顺序是租户、组织、官方，组织层恒未配置，官方层对每个合法租户已持有（assets-and-rules F7）；引用在调用开始时选定，使用时只读这个引用，中途被清除则这次调用失败，不改选别的层（I-4、I-8）。没有任何层配了 key 时 search 返回 `unconfigured`，fetch 照常取页。本机档的 Web 直连宿主网络，不经执行环境设施，沙箱与多租户部署的出口控制是已知限制。
+
+### 设置与 Web 凭据的组合保证
+
+「用户配了 key，Web 就能用；秘密不外泄；租户与用途互相取不到」由本应用承担，参与方是 `secret-custody` 行（保管）、`settings` 行（登记、秘密项入口与准入）、`server-entry` 行（`omne setting` 的四个治理操作，按调用读 `settingsSecretItems`）与 `tool-bindings` 行（Web 附着，按调用读 `settingsSecretCustody`）。成立条件：
+
+- 写入与读取是同一把键。`omne setting set Web exa.apiKey` 经秘密项入口写（租户范围，目标由发行 Web 条目的采用 owner 与工具名投影出的持有身份加项标识编码，用途 `setting`）；Web 附着用 `src/rows/settings/holding.ts` 的同一份编码读。本应用内只有这一份编码，Settings 自己的编码在它的 `secret-items.ts` 里，行测试以写后读证明两者相等。
+- 有无只由保管现读。`settings` 行与附着都不缓存：直接改保管文件，`show`、`list` 与下一次 search 立即看到。
+- 范围与用途隔离由键保证：公开操作只写行事租户的租户范围，不碰官方范围与使用面；Web 用途 `setting`，Model 用途 `model-send`，保管按键精确匹配，互相取不到。
+- 秘密不进持久记录：秘密只在 `set-setting` 请求里，成功体只有 `configuredAt`；`FixedToolRequest` 不变，工具结果只有 Exa 的应答。
+
+失败归属：保管读不出，`omne setting` 答 `basis-unavailable`、search 答 `unavailable`；准入不过答 `denied`；没有 key 时 search 答 `unconfigured` 并指出要配哪一项；Exa 答 401、402、429、5xx 时分别答 `denied`、`quota-exhausted`、`rate-limited`、`upstream`。核对：`tests/rows/settings/`、`tests/rows/tool-bindings/web.spec.ts` 与慢层 `tests/rows/tool-runtime/web-settings-e2e.spec.ts`（含哨兵扫描）。
 
 ## 插件树与运维层
 
