@@ -117,7 +117,7 @@ sequenceDiagram
 
 ### F-EEH04 宿主命令：门、许可与转发
 
-依据：[SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端)、[架构的宿主命令机制](architecture.md#宿主命令机制)。本图是 Linux 路径。Windows 的一次性命令后端在根进程退出时停止 Job 里剩下的进程，见 [Windows 说明](windows-execution.md)。协议级流程是契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。
+依据：[SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端)、[架构的宿主命令机制](architecture.md#宿主命令机制)。本图是 Linux 路径。Windows 的命令后端在根进程退出后按同一处置决定停止或移交 Job 里剩下的进程，见 [Windows 说明](windows-execution.md)。协议级流程是契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。
 
 ```mermaid
 sequenceDiagram
