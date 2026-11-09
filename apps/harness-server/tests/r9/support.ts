@@ -276,6 +276,18 @@ export function toolRowsOperatorConfig(options: { storageRoot: string }) {
       Files: { resultMaxBytes: 32768 },
       Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
       TodoItems: { resultMaxBytes: 1_048_576 },
+      Web: { resultMaxBytes: 32768, maxSearchResults: 10 },
+    },
+    // The Web provider values of the test operator layer: a local Exa endpoint that nothing listens on
+    // (search is unconfigured in this slice and sends nothing), short time limits, a small body cap.
+    web: {
+      search: {
+        endpoint: 'https://127.0.0.1:9/search',
+        type: 'lite',
+        highlightChars: 200,
+        timeoutMs: 5000,
+      },
+      fetch: { maxRedirects: 5, timeoutMs: 10_000, maxBodyBytes: 1_048_576 },
     },
     records: {
       filesRoot,
@@ -351,6 +363,8 @@ export function operatorLayer(options: {
       // 文件根与宿主状态目录在存储根旁边新建；Shell 用本机的 shell（Windows 是 powershell，其余是 /bin/sh）；
       // 运行时组的数值取 L-TOOL C06 组合用例的同一组值（tool-storage-sql windows-composition/assembly.ts）。
       { kind: 'replace', id: 'tool-host', config: { construction: tools.construction } },
+      // The release row has no Tools capability and no Web provider values; the test layer adds Web.
+      { kind: 'replace', id: 'tool-bindings', config: { web: tools.web } },
       { kind: 'replace', id: 'tool-records', config: tools.records },
       { kind: 'replace', id: 'execution-host', config: tools.host },
       // B1（R2-D136）：Context 侧与 Session 适配行的数值归运维者层，发行层不写。这里是测试值：
