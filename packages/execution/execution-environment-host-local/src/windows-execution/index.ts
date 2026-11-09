@@ -33,6 +33,7 @@ import type { RetainedReservation } from '../host-retained-processes.ts'
 import type { StopReading } from '../host-scope.ts'
 import { deferred, startBridge, within, type BridgeFrame } from './bridge.ts'
 import type { WindowsCommandReading, WindowsPrerequisite } from './prerequisites.ts'
+import { readWindowsJobReference, type WindowsJobIndex } from './recovery.ts'
 import {
   retainedJobUnit,
   stopWindowsJob,
@@ -44,6 +45,8 @@ export type WindowsCommandsInput = Omit<HostCommandsInput, 'prerequisites' | 'un
   Readonly<{
     prerequisites: PrerequisiteProbe<WindowsCommandReading>
     unavailable(missing: readonly WindowsPrerequisite[]): void
+    /** The cold index of the state directory; absent when there is none. */
+    jobs?: WindowsJobIndex | undefined
   }>
 type StartRequest = Parameters<CommandFacility<unknown>['start']>[0]
 type StopStatus = 'confirmed' | 'unconfirmed'
@@ -79,17 +82,6 @@ function invalid(request: StartRequest): FacilityReason | undefined {
     256
   if (controlSize > 2 * 1024 * 1024) return 'capacity'
   return undefined
-}
-
-export function readWindowsJobReference(
-  reference: ManagedResource['reference'],
-): string | undefined {
-  if (reference.kind !== 'object') return undefined
-  const name = reference.entries.find(entry => entry.key === 'windowsJob')?.value
-  return name?.kind === 'string' &&
-    /^Local\\omne-(?:command|terminal)-[a-f0-9-]{36}$/u.test(name.value)
-    ? name.value
-    : undefined
 }
 
 /** The forced stop of the Job a resource names, by its name. */
@@ -156,7 +148,7 @@ type Entry = {
 type Bridge = Awaited<ReturnType<typeof startBridge>>
 
 export function createWindowsHostCommands(input: WindowsCommandsInput): HostCommands {
-  const { settings, ledger, retention, retained, tenant } = input
+  const { settings, ledger, retention, retained, tenant, jobs } = input
   const live = new Set<Entry>()
   const pending = new Set<Promise<unknown>>()
   let sealed = false
@@ -227,6 +219,7 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       if (status === 'confirmed' && recorded) {
         entry.confirmed = true
         live.delete(entry)
+        await jobs?.forget(entry.resource.key)
         if (entry.bridge !== undefined) await within(entry.bridge.closed, remaining())
       }
       return answered ? status : 'unconfirmed'
@@ -274,6 +267,8 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       ...handoverDetails(entry, retentionBinding.processes),
       output,
     })
+    // The retained-process index holds the Job now, with its own marker.
+    await jobs?.forget(entry.resource.key)
     return handed.process
   }
 
@@ -281,12 +276,14 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
   const enterIndexStopping = (entry: Entry, reservation: RetainedReservation): void => {
     if (retentionBinding === undefined) throw new Error('a handover without a retention binding')
     entry.bridge?.send('dispose')
-    void retentionBinding.index.commitStopping(reservation, {
-      ...handoverDetails(entry, retentionBinding.processes),
-      ...(entry.issued === undefined
-        ? {}
-        : { issued: entry.issued.then((status): StopReading => ({ status })) }),
-    })
+    void retentionBinding.index
+      .commitStopping(reservation, {
+        ...handoverDetails(entry, retentionBinding.processes),
+        ...(entry.issued === undefined
+          ? {}
+          : { issued: entry.issued.then((status): StopReading => ({ status })) }),
+      })
+      .finally(() => jobs?.forget(entry.resource.key))
   }
 
   /** Carries out a disposition; the custody changes in the same step as the readings behind it. */
@@ -605,6 +602,15 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       /* A failed durable plan prevents native allocation. */
     }
     if (planned !== 'recorded') return rejected(planned)
+    // The marker precedes the Job, so a restarted provider finds every Job that may exist.
+    if (
+      jobs !== undefined &&
+      !(await jobs.record(key, { resource, scope: input.scope.ref, identity }))
+    ) {
+      // Nothing native exists: the planned resource is settled as stopped.
+      await Promise.resolve(ledger.stopped(key, 'confirmed')).catch(() => undefined)
+      return rejected('unavailable')
+    }
     return launch(request, resource, name, identity)
   }
 

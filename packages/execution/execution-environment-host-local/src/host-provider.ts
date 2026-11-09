@@ -21,7 +21,12 @@ import type {
 import { commandSettings, type HostCommandOptions } from './host-command.ts'
 import { terminalSettings, type HostTerminalOptions } from './host-terminal.ts'
 import { createHostPlatform, type CommandPrerequisite } from './host-platform.ts'
-import { readWindowsJobReference, stopWindowsResource } from './windows-execution/index.ts'
+import { stopWindowsResource } from './windows-execution/index.ts'
+import {
+  listWindowsJobs,
+  readWindowsJobReference,
+  recoverWindowsJob,
+} from './windows-execution/recovery.ts'
 import { retainedLegShell } from './host-retained-terminals.ts'
 import {
   createRetainedProcessIndex,
@@ -529,10 +534,20 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       const result = await drain(record)
       return result.kind === 'settled' ? { kind: 'settled' } : result
     },
-    // Windows has no complete cold owner index; partial live records cannot prove recovery complete.
     async listRecoveryResources(scope) {
-      if (process.platform === 'win32') return { kind: 'unavailable' }
       const retainedShells = internals.retainedTerminals.resources(scope)
+      if (process.platform === 'win32') {
+        // The cold index lists every command Job whose marker exists; an unread marker makes no list.
+        const jobs = await listWindowsJobs(execution.windowsJobs, scope)
+        if (jobs === 'unavailable') return { kind: 'unavailable' }
+        if (retained !== undefined && !(await retained.ready())) return { kind: 'unavailable' }
+        const resources = new Map(jobs.map(resource => [resource.key, resource]))
+        for (const resource of internals.retainedTerminals.resources(scope))
+          resources.set(resource.key, resource)
+        for (const resource of retained?.resources(scope) ?? [])
+          resources.set(resource.key, resource)
+        return { kind: 'listed', resources: [...resources.values()] }
+      }
       if (execution.macos !== undefined) {
         // The cold index lists every domain whose marker exists; an unread marker makes no list.
         const resources = await listMacosResources(execution.macos, scope, () =>
@@ -580,8 +595,15 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
           evidence: null,
         }
       if (process.platform === 'win32') {
-        if (resource.provider !== name || readWindowsJobReference(resource.reference) === undefined)
+        const job = readWindowsJobReference(resource.reference)
+        if (resource.provider !== name || job === undefined)
           return { status: 'unsupported', evidence: null }
+        const jobs = execution.windowsJobs
+        if (jobs !== undefined && job === `Local\\omne-command-${resource.key}`)
+          return {
+            status: await recoverWindowsJob(jobs, resource, settings.stopBoundMs),
+            evidence: null,
+          }
         const stopped = await stopWindowsResource(resource, settings.stopBoundMs)
         return { status: stopped === 'confirmed' ? 'confirmedStopped' : 'pending', evidence: null }
       }

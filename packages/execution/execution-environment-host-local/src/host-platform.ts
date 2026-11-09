@@ -24,6 +24,7 @@ import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import { windowsBridgeExecutable, windowsTerminalExecutable } from './windows-execution/compile.ts'
 import { createWindowsHostCommands } from './windows-execution/index.ts'
 import { windowsRetainedSupervision } from './windows-execution/supervision.ts'
+import { createWindowsJobIndex } from './windows-execution/recovery.ts'
 import type { RetainedSupervision } from './host-retained-processes.ts'
 import { forceStopScope, readBootId, readScopeMembers } from './host-scope.ts'
 import {
@@ -130,9 +131,12 @@ export function createHostPlatform(input: {
       },
       supervisor: async () => undefined,
       retainedSupervision: async () => undefined,
+      windowsJobs: undefined,
     }
   }
   if (process.platform === 'win32') {
+    const windowsJobs =
+      input.stateDirectory === undefined ? undefined : createWindowsJobIndex(input.stateDirectory)
     const probe = createPrerequisiteProbe({
       retryMs: input.settings.probeRetryMs,
       boundMs: input.settings.stopBoundMs,
@@ -144,7 +148,8 @@ export function createHostPlatform(input: {
         return [installation, commands.kind]
       },
       commands: (options: CommandInput) =>
-        createWindowsHostCommands({ ...options, prerequisites: probe }),
+        createWindowsHostCommands({ ...options, prerequisites: probe, jobs: windowsJobs }),
+      windowsJobs,
       terminals(options: TerminalInput) {
         const shared = { ...options, capacity: input.windowsCapacity() }
         return {
@@ -209,6 +214,7 @@ export function createHostPlatform(input: {
         stop: coordinate => forceStopScope({ tools, coordinate, boundMs }),
       }
     },
+    windowsJobs: undefined,
     macos: undefined,
   }
 }

@@ -180,7 +180,7 @@ public static partial class OmneWindowsBridge {
       if(jobs!=IntPtr.Zero)Marshal.FreeHGlobal(jobs);
     }
   }
-  /** After the main process exits, output that stays quiet this long is complete, as on Linux. */
+  /** After the main process exits, output that stays quiet this long after the exit or the last bytes is complete, as on Linux. */
   static void AwaitQuiet(OutputReader stdout,OutputReader stderr) {
     while(stdout.thread.IsAlive || stderr.thread.IsAlive) {
       long idle=(Stopwatch.GetTimestamp()-Interlocked.Read(ref lastOutput))*1000/Stopwatch.Frequency;
@@ -288,7 +288,7 @@ public static partial class OmneWindowsBridge {
       Thread waiter=new Thread(delegate() {
         try {
           Check(WaitForSingleObject(child.process,0xFFFFFFFF)==0);uint code;Check(GetExitCodeProcess(child.process,out code));
-          AwaitQuiet(stdout,stderr);int members=Members();
+          Interlocked.Exchange(ref lastOutput,Stopwatch.GetTimestamp());AwaitQuiet(stdout,stderr);int members=Members();
           bool lost=(!stdout.thread.IsAlive && !stdout.complete) || (!stderr.thread.IsAlive && !stderr.complete);
           Emit(new {t="exit",code=code,members=members<0 ? null : (object)members,outputLost=lost});
         } catch(Exception) { Emit(new {t="fault"}); }
