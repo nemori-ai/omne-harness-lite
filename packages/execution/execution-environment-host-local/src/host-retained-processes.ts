@@ -686,8 +686,13 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
   })
 }
 
-/** Flushes the directory after a marker was renamed into it, so the new name survives a host crash. */
+/**
+ * Flushes the directory after a marker was renamed into it, so the new name survives a host crash.
+ * Windows opens no directory as a file, and NTFS journals the rename itself, so there is nothing to
+ * flush there.
+ */
 function syncDirectory(directory: string): void {
+  if (process.platform === 'win32') return
   const descriptor = openSync(directory, 'r')
   try {
     fsyncSync(descriptor)

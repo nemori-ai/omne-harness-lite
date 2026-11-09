@@ -7,7 +7,6 @@ import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type {
   CommandFacility,
   CommandOutcome,
-  CommandRetention,
   FacilityReason,
   FacilityResult,
   ManagedResource,
@@ -18,14 +17,19 @@ import type {
   ProcessHandle,
   ProviderAcquireInput,
   ResidueReport,
-  ResidueStopReason,
-  RetainedOutput,
   ResourceLedger,
-  RetainedProcessInformation,
   RetainedProcessLedger,
   RetainedProcessRef,
 } from '@omne-harness/execution-environment-contract'
 import type { HostCommandPrerequisite, PrerequisiteProbe } from './host-probe.ts'
+import { decideDisposition, resolveUnknownHandover, type Disposition } from './command-custody.ts'
+import {
+  custodyBindingOf,
+  loadedCustodyBinding,
+  retentionBindingOf,
+  retentionExtension,
+  retentionScopeClosed,
+} from './command-retention.ts'
 import type { RetainedProcessIndex, RetainedReservation } from './host-retained-processes.ts'
 import { createRetainedTail, type RetainedTail, type TailStream } from './retained-tail.ts'
 import {
@@ -442,130 +446,9 @@ export function createOutputBuffer(input: { maxBufferedBytes: number }): OutputB
 }
 
 // ---------------------------------------------------------------------------------------------
-// Custody: what becomes of a domain after its main process exited
-
-/** The retention binding of one exited command, as the disposition sees it. */
-export type CustodyBinding = Readonly<{
-  /** The retention scope is closed: its release signal or its ledger's close signal fired. */
-  closed(): boolean
-  /** Takes a place in the retention scope's index, synchronously; `capacity` when it is full. */
-  reserve(): RetainedReservation | 'capacity' | 'unavailable'
-  plan(): Promise<Awaited<ReturnType<RetainedProcessLedger['plan']>>>
-  adopt(): Promise<Awaited<ReturnType<RetainedProcessLedger['adopt']>>>
-}>
-
-export type DispositionInput = Readonly<{
-  /** The gate's reading of the unit's other members; null when it could not read them. */
-  members: number | null
-  /** The binding, or the reason there is none: the policy forbids, or the acquisition is unbound. */
-  binding: CustodyBinding | 'policy' | 'unbound'
-  /** The monotonic deadline of the whole disposition. */
-  deadline: number
-  /** True once the acquisition released the domain or a stop was requested; read synchronously. */
-  interrupted(): boolean
-}>
-
-export type Disposition =
-  /** The domain stays with the acquisition and is stopped; `residue` says why. */
-  | Readonly<{ kind: 'stop'; residue: Extract<ResidueReport, { kind: 'none' | 'stopping' }> }>
-  /** The commit took effect: the retention scope owns the domain. */
-  | Readonly<{ kind: 'retained'; reservation: RetainedReservation }>
-  /** The commit took effect, but the domain was released, stopped or its scope closed meanwhile. */
-  | Readonly<{ kind: 'retainedInterrupted'; reservation: RetainedReservation }>
-  /** The commit's result could not be read; the reservation stays until it is. */
-  | Readonly<{ kind: 'unknown'; reservation: RetainedReservation }>
-
-const stopping = (reason: ResidueStopReason): Disposition => ({
-  kind: 'stop',
-  residue: { kind: 'stopping', reason },
-})
-
-/** Waits for `work` until `deadline`; a late answer or a throw reads as `unavailable`. */
-async function bounded<T extends string>(
-  work: () => Promise<T>,
-  deadline: number,
-): Promise<T | 'unavailable'> {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const late = new Promise<'unavailable'>(resolve => {
-    timer = setTimeout(resolve, Math.max(0, deadline - monotonicMs()), 'unavailable')
-  })
-  try {
-    return await Promise.race([work(), late])
-  } catch {
-    return 'unavailable'
-  } finally {
-    clearTimeout(timer)
-  }
-}
-
-/**
- * The commit of a handover, in the command's common order: the reservation is held, `adopt` is
- * asked, and the two rechecks run again after the answer. A confirmed commit whose domain was
- * interrupted or whose scope closed meanwhile belongs to the retention scope but is stopped at once.
- * This reading is the decision's; the facility reads both again in the very step that changes the
- * custody, so an interruption between the two readings is not lost.
- */
-async function commitHandover(
-  binding: CustodyBinding,
-  reservation: RetainedReservation,
-  deadline: number,
-  interrupted: () => boolean,
-): Promise<Disposition> {
-  const adopted = await bounded(binding.adopt, deadline)
-  if (adopted === 'confirmed')
-    return interrupted() || binding.closed()
-      ? { kind: 'retainedInterrupted', reservation }
-      : { kind: 'retained', reservation }
-  if (adopted === 'closed') {
-    reservation.abort()
-    return stopping('closed')
-  }
-  return { kind: 'unknown', reservation }
-}
-
-/**
- * Decides the disposition of a domain whose main process exited (the contract's table and its five
- * conditions, then the handover). The reservation is taken before the first asynchronous wait, and
- * the scope closure and the interruption are read again right before the commit.
- */
-export async function decideDisposition(input: DispositionInput): Promise<Disposition> {
-  if (input.members === 0) return { kind: 'stop', residue: { kind: 'none' } }
-  const binding = input.binding
-  if (typeof binding === 'string') return stopping(binding)
-  if (binding.closed()) return stopping('closed')
-  if (input.interrupted()) return stopping('closed')
-  const reservation = binding.reserve()
-  if (reservation === 'capacity') return stopping('capacity')
-  if (reservation === 'unavailable') return stopping('policy')
-  const planned = await bounded(binding.plan, input.deadline)
-  if (planned !== 'recorded') {
-    reservation.abort()
-    return stopping(planned === 'closed' ? 'closed' : 'unbound')
-  }
-  if (binding.closed() || input.interrupted()) {
-    reservation.abort()
-    return stopping('closed')
-  }
-  return commitHandover(binding, reservation, input.deadline, input.interrupted)
-}
-
-/** Asks the commit again with the same reservation, to learn whether an unknown handover took effect. */
-export function resolveUnknownHandover(input: {
-  binding: CustodyBinding
-  reservation: RetainedReservation
-  deadline: number
-  interrupted(): boolean
-}): Promise<Disposition> {
-  return commitHandover(input.binding, input.reservation, input.deadline, input.interrupted)
-}
-
-// ---------------------------------------------------------------------------------------------
 // The facility
 
 type StartRequest = Parameters<CommandFacility<unknown>['start']>[0]
-type ListRequest = Parameters<CommandRetention<unknown>['list']>[0]
-type StopRetainedRequest = Parameters<NonNullable<CommandRetention<unknown>['stop']>>[0]
-type OutputRetainedRequest = Parameters<NonNullable<CommandRetention<unknown>['output']>>[0]
 
 /** The command side of one acquisition: its facility, its admission and its running processes. */
 export type HostCommands = Readonly<{
@@ -623,41 +506,6 @@ function requestIssue(request: StartRequest): FacilityReason | undefined {
   if (invalidPath(request.executable) || invalidPath(request.cwd)) return 'invalidInput'
   if (request.args.some(invalidArgument)) return 'invalidInput'
   if (Object.entries(request.env).some(invalidVariable)) return 'invalidInput'
-  return undefined
-}
-
-const nonEmptyText = (value: unknown): value is string => typeof value === 'string' && value !== ''
-
-/** A retained process reference is an object whose `id` and `generation` are non-empty text. */
-const invalidProcessRef = (value: unknown) =>
-  typeof value !== 'object' ||
-  value === null ||
-  !nonEmptyText(Reflect.get(value, 'id')) ||
-  !nonEmptyText(Reflect.get(value, 'generation'))
-
-const outputStreams: readonly string[] = ['stdout', 'stderr', 'terminal']
-
-/** An offset of `from`: a known stream, and a whole number of bytes, zero or more. A stream without an offset has no key. */
-const invalidOffset = ([stream, offset]: readonly [string, unknown]) =>
-  !outputStreams.includes(stream) || !(Number.isSafeInteger(offset) && Number(offset) >= 0)
-
-const invalidFrom = (value: unknown) =>
-  value !== undefined &&
-  (typeof value !== 'object' ||
-    value === null ||
-    Array.isArray(value) ||
-    Object.entries(value).some(invalidOffset))
-
-/** The shape of a retained-process stop, checked before the index is asked (the contract's `invalidInput`). */
-function stopRetainedIssue(request: StopRetainedRequest): FacilityReason | undefined {
-  if (invalidProcessRef(request.process)) return 'invalidInput'
-  if (request.mode !== 'graceful' && request.mode !== 'forced') return 'invalidInput'
-  return undefined
-}
-
-/** The shape of a retained-process output request, checked before the index is asked. */
-function outputRetainedIssue(request: OutputRetainedRequest): FacilityReason | undefined {
-  if (invalidProcessRef(request.process) || invalidFrom(request.from)) return 'invalidInput'
   return undefined
 }
 
@@ -817,25 +665,11 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
   const inFlight = new Set<Promise<unknown>>()
   let sealed = false
   const { retention, tenant } = input
-  const processes = retention?.processes
   /** The retention binding this acquisition can use: bound, same scope as the requester, indexed. */
-  const retentionBinding =
-    retention !== undefined &&
-    processes !== undefined &&
-    retained !== undefined &&
-    retention.scope.ref === input.scope.ref
-      ? { scope: retention.scope, released: retention.released, processes, index: retained, tenant }
-      : undefined
-  if (retentionBinding !== undefined) {
-    const { scope, released, processes: view, index } = retentionBinding
-    index.watchClosure(released, scope, view)
-    index.watchClosure(view.closed, scope, view)
-  }
+  const retentionBinding = retentionBindingOf({ retention, retained, scope: input.scope, tenant })
 
   /** The retention scope is closed: its release signal or its ledger's close signal fired. */
-  const scopeClosed = () =>
-    retentionBinding !== undefined &&
-    (retentionBinding.released.aborted || retentionBinding.processes.closed.aborted)
+  const scopeClosed = () => retentionScopeClosed(retentionBinding)
 
   /** The stop of the unit itself, once per sequence; it marks the domain interrupted before its first wait. */
   const issueStop = (entry: ProcessEntry, tools: ScopeTools): Promise<StopReading> => {
@@ -905,18 +739,13 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
   }
 
   /** The binding of one exited command, as `decideDisposition` sees it. */
-  const bindingOf = (entry: ProcessEntry): CustodyBinding | 'policy' | 'unbound' => {
-    if (settings.residuePolicy === 'stop') return 'policy'
-    if (processes === undefined) return 'unbound'
-    if (retentionBinding === undefined) return 'policy'
-    const { scope, processes: view, index } = retentionBinding
-    return {
-      closed: scopeClosed,
-      reserve: () => index.reserve(scope, retentionBinding.tenant, entry.resource.key),
-      plan: () => view.plan(entry.resource),
-      adopt: () => view.adopt(entry.resource.key),
-    }
-  }
+  const bindingOf = (entry: ProcessEntry) =>
+    custodyBindingOf({
+      policy: settings.residuePolicy,
+      retention,
+      binding: retentionBinding,
+      resource: entry.resource,
+    })
 
   /** What the handover records about the domain, for the index. */
   const handoverDetails = (entry: ProcessEntry, view: RetainedProcessLedger) => ({
@@ -1030,16 +859,12 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
   /** The disposition after the exit frame, bounded by the start bound, the index's loading included. */
   const dispose = async (entry: ProcessEntry, tools: ScopeTools): Promise<ResidueReport> => {
     const deadline = monotonicMs() + settings.startBoundMs
-    let binding = bindingOf(entry)
-    if (typeof binding !== 'string' && retentionBinding !== undefined && entry.members !== 0) {
-      const index = retentionBinding.index
-      const loaded = await bounded(
-        () => index.ready().then(complete => (complete ? 'loaded' : 'incomplete')),
-        deadline,
-      )
-      // Markers not read completely within the bound: no place can be taken, as when there is none.
-      if (loaded !== 'loaded') binding = 'policy'
-    }
+    const binding = await loadedCustodyBinding(
+      bindingOf(entry),
+      retentionBinding,
+      entry.members,
+      deadline,
+    )
     entry.custody = { kind: 'reserved' }
     const interrupted = () => entry.stopRequested || entry.released
     const decision = await decideDisposition({
@@ -1322,50 +1147,6 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     return { kind: 'unknown', requestId }
   }
 
-  /** The retained processes of the retention scope, from the index; an unreadable index is not empty. */
-  const list = async (
-    request: ListRequest,
-  ): Promise<FacilityResult<readonly RetainedProcessInformation[]>> => {
-    if (sealed || retentionBinding === undefined) return rejected(request.requestId, 'closed')
-    const listed = await retentionBinding.index.list(
-      retentionBinding.scope,
-      retentionBinding.tenant,
-    )
-    if (listed === 'unavailable') return rejected(request.requestId, 'unavailable')
-    return { kind: 'done', requestId: request.requestId, value: listed }
-  }
-
-  /**
-   * Stops a retained process of the retention scope. Both modes run the forced stop sequence: the
-   * main process a graceful stop would signal has exited already.
-   */
-  const stopRetained = async (
-    request: StopRetainedRequest,
-  ): Promise<FacilityResult<{ readonly status: 'confirmed' | 'unconfirmed' }>> => {
-    const issue = stopRetainedIssue(request)
-    if (issue !== undefined) return rejected(request.requestId, issue)
-    if (sealed || retentionBinding === undefined) return rejected(request.requestId, 'closed')
-    const { index, scope, tenant: owner, processes: view } = retentionBinding
-    const answer = await index.stopRef(request.process, scope, owner, view)
-    if (answer === 'notFound' || answer === 'unavailable')
-      return rejected(request.requestId, answer)
-    return { kind: 'done', requestId: request.requestId, value: { status: answer } }
-  }
-
-  /** What a retained process of the retention scope wrote after the handover, from its tail. */
-  const outputRetained = async (
-    request: OutputRetainedRequest,
-  ): Promise<FacilityResult<RetainedOutput>> => {
-    const issue = outputRetainedIssue(request)
-    if (issue !== undefined) return rejected(request.requestId, issue)
-    if (sealed || retentionBinding === undefined) return rejected(request.requestId, 'closed')
-    const { index, scope, tenant: owner } = retentionBinding
-    const answer = await index.output(request.process, scope, owner, request.from)
-    if (answer === 'notFound' || answer === 'unavailable')
-      return rejected(request.requestId, answer)
-    return { kind: 'done', requestId: request.requestId, value: answer }
-  }
-
   const facility: CommandFacility<unknown> = {
     // Every command runs in its own systemd scope, or does not run: no process can leave it.
     containment: 'sealed',
@@ -1376,7 +1157,7 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     },
     ...(retentionBinding === undefined
       ? {}
-      : { retention: { list, stop: stopRetained, output: outputRetained } }),
+      : { retention: retentionExtension(retentionBinding, () => sealed) }),
   }
 
   return Object.freeze({
