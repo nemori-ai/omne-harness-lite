@@ -52,7 +52,7 @@ const ACCEPTING = ['members/a', 'members/c']
  * 等不到就退出 3（夹具自己的时序问题，不当成 oxlint 失败）。所以退出 1 一定发生在那一步已经起了之后。
  * `--wait-done <步骤,…>` 与 `--fail-if-bad` 同给、文件里有 bad 时，还要等这些步骤各自成功退出（它们退出 0 时写下 `doneFile`，
  * 在 tmp/ 里，不进工作树的状态）；同样至多 30 秒、等不到退出 3。这样 H1 上它们一定跑完、通过。
- * 环境变量 `FAKE_STRAY` 给了文件名时，回路状态那一步在工作树里写这个文件（一个没被忽略的未跟踪文件）。
+ * 环境变量 `FAKE_STRAY` 给了文件名时，lint:deps 那一步在工作树里写这个文件（一个没被忽略的未跟踪文件）。
  */
 /** 假步骤的完成标记目录（相对夹具根，在 tmp/ 里，不进工作树的状态）：假步骤成功退出时写下，`--wait-done` 等它。 */
 const FAKE_DONE_DIR = 'tmp/fake-done'
@@ -68,7 +68,7 @@ const lists = plan === undefined ? {} : {
   python: [String(plan.python.run)],
 }
 appendFileSync('trace.txt', name + '\\t' + (lists[name] === undefined ? '-' : lists[name].join(',')) + '\\n')
-if (name === 'loop:status' && process.env.FAKE_STRAY) appendFileSync(process.env.FAKE_STRAY, 'stray\\n')
+if (name === 'lint:deps' && process.env.FAKE_STRAY) appendFileSync(process.env.FAKE_STRAY, 'stray\\n')
 // 环境变量 FAKE_RETRIED 给了测试文件名时，假的 test 步像真的那样在计划旁写报告：那个文件定向重跑后通过。
 if (name === 'test' && process.env.FAKE_RETRIED && plan !== undefined) {
   const head = JSON.parse(readFileSync(planPath, 'utf8')).head
@@ -219,16 +219,17 @@ function fixture(): Fixture {
         heavy: false,
       },
       // 成员测试与真表一样只在构建之后；重步骤一次一个，它在类型检查之后开始。lint 还坏着时它停在一个夹具从不创建的
-      // 标记文件上，只能被步骤图终止：oxlint 失败时它一定还在跑、被终止（记 ran: false），验收与回路状态没开始。
+      // 标记文件上，只能被步骤图终止：oxlint 失败时它一定还在跑、被终止（记 ran: false），验收与 lint:deps 没开始。
       {
         ...planned('test', ['build']),
         command: command('test', '--hold-if-bad', 'members/c/lint.txt', 'release.txt'),
       },
       planned('acceptance', ['test']),
     ]
+    // 真表里 lint:deps 只在构建与类型检查之后；这里排在全部步骤之后，「只在最后一步失败、别的都通过」才不随机器快慢变。
     table.push({
-      name: 'loop:status',
-      command: command('loop:status'),
+      name: 'lint:deps',
+      command: command('lint:deps'),
       after: table.map(step => step.name),
       heavy: false,
     })
@@ -353,7 +354,7 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     // oxlint 失败前先等 check:docs 与 python 跑完（握手）：它们在 H1 上是跑过且通过的。接续的「轻步骤，按整次运行的范围」理由靠这一条。
     expect(steps.get('check:docs'), 'check:docs').toEqual({ ran: true, exit: 0 })
     expect(steps.get('python'), 'python').toEqual({ ran: true, exit: 0 })
-    for (const name of ['test', 'acceptance', 'loop:status'])
+    for (const name of ['test', 'acceptance', 'lint:deps'])
       expect(steps.get(name), name).toEqual({ ran: false, exit: null })
     // 准入日志旁边同名的记录与它内容相同；日志以 exit=1 收尾并写明记录在哪。
     const beside = recordsIn(fx.root, ADMISSION_RECORD_DIR)
@@ -646,8 +647,8 @@ describe('H1 按影响面准入时的接续', { timeout: 240_000 }, () => {
 })
 
 describe('H1 之后这棵树上跑过中间运行', { timeout: 240_000 }, () => {
-  // H1（FULL=1）只在最后一步 loop:status 失败，别的步骤都通过，所以接续的构建只重建 H1..HEAD 影响到的成员。
-  // H2 上接续、改了 a 并重建它，又在 loop:status 失败；H3 把 a 撤回。再从 H1 接续：H1..H3 的差异里没有 a，
+  // H1（FULL=1）只在最后一步 lint:deps 失败，别的步骤都通过，所以接续的构建只重建 H1..HEAD 影响到的成员。
+  // H2 上接续、改了 a 并重建它，又在 lint:deps 失败；H3 把 a 撤回。再从 H1 接续：H1..H3 的差异里没有 a，
   // 磁盘上 a 的 dist 却是 H2 那次的，所以要补建它。
   let fb: Fixture
   let on: Fixture
@@ -663,7 +664,7 @@ describe('H1 之后这棵树上跑过中间运行', { timeout: 240_000 }, () => 
       ...fb,
       steps: () =>
         table.map(step =>
-          step.name === 'loop:status'
+          step.name === 'lint:deps'
             ? { ...step, command: [...step.command, '--fail-if-bad', gate] as typeof step.command }
             : step,
         ),
@@ -674,21 +675,21 @@ describe('H1 之后这棵树上跑过中间运行', { timeout: 240_000 }, () => 
     rmSync(fb.root, { recursive: true, force: true })
   })
 
-  it('H1 全量只在 loop:status 失败；H2 接续重建 a 又失败', async () => {
+  it('H1 全量只在 lint:deps 失败；H2 接续重建 a 又失败', async () => {
     writeFileSync(join(fb.root, gate), 'bad\n')
     h1 = fb.commit('card: gate closed')
     process.env['FULL'] = '1'
     const first = await check({}, on)
     delete process.env['FULL']
     expect(first.code).toBe(1)
-    expect(runRecord(fb.root, h1).failedStep).toBe('loop:status')
+    expect(runRecord(fb.root, h1).failedStep).toBe('lint:deps')
 
     writeFileSync(join(fb.root, 'members/a/src.ts'), 'export const v = 2\n')
     h2 = fb.commit('card: change a')
     const second = await check({ resumeFrom: h1 }, on)
     expect(second.code).toBe(1)
     expect(members(second.trace.get('build'))).toEqual(new Set(['members/a', 'members/b']))
-    expect(runRecord(fb.root, h2)).toMatchObject({ mode: 'resume', failedStep: 'loop:status' })
+    expect(runRecord(fb.root, h2)).toMatchObject({ mode: 'resume', failedStep: 'lint:deps' })
   })
 
   it('H3 撤回 a 后再从 H1 接续：构建范围含被撤回的 a，证据写明中间运行', async () => {

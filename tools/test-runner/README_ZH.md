@@ -96,7 +96,7 @@ vitest 升级后新增或改动布尔选项，表没跟上，这两条就失败�
    计划输出的「锁文件：」一行原样写出映射模块的结论，被选中成员的原因写明锁文件里它哪些依赖变了；`check:plan --json` 的 `plan.lockfile` 是同一句话。
    测试结果缓存的键不按这条收窄：锁文件仍进每个成员的键，锁文件一变全部条目失效，比计划保守（只多重跑、不少跑），见「结果缓存」。
    `tools/dev-flow/src/integration/**` 不是全局路径，按 dev-flow 的成员文件算，改它跑 dev-flow 的测试：
-   `scripts/check.sh` 用本包的 `baseline` 取基线，不执行这里的代码；`check:lines` 导入其中的 `parse.ts`、`policy.ts`，它是常驻检查，每次都跑；
+   `scripts/check.sh` 用本包的 `baseline` 取基线，不执行这里的代码；
    其他工具成员不导入 dev-flow；
 2. **读者**（`readers`：`{ paths, members, why }`）：这些路径被这些成员的测试读——改了只把这些成员带进来，**不沿反向依赖传播**；
    每条记录实际读者和依据；`packages`、`apps`、`examples` 下的 TS → product-checks；成员清单 → test-runner；
