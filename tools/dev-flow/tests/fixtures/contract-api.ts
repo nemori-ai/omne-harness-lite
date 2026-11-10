@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { contractApiCommand, contractApiEnv } from '../../src/integration/contract-api.ts'
 
 const BASE_TSCONFIG = fileURLToPath(
-  new URL('../../../repo-config/tsconfig.base.json', import.meta.url),
+  new URL('../../../../tools/repo-config/tsconfig.base.json', import.meta.url),
 )
 export const SNAPSHOT_TEMPLATE = '{member}/api/{package}.api.md'
 type Member = { name: string; dist: string }

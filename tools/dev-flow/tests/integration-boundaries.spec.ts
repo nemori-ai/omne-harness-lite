@@ -110,7 +110,7 @@ it('the check wrapper forwards to the runner inside its slot even when a subject
 })
 
 it('the check step table runs the dev-flow entry, the snapshot check after the build', () => {
-  const cli = fileURLToPath(new URL('../../test-runner/src/testing/cli.ts', import.meta.url))
+  const cli = fileURLToPath(new URL('../../../tools/test-runner/src/testing/cli.ts', import.meta.url))
   const listed = spawnSync(
     process.execPath,
     ['--experimental-strip-types', cli, 'check', '--list'],

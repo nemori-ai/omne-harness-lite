@@ -17,7 +17,7 @@ import { recordSkippedAcceptance } from '../src/testing/steps.ts'
 import {
   removeTemporaries,
   temporaryDirectory,
-} from '../../repo-toolchain/tests/fixtures/loop-canary/repository.ts'
+} from '../../../tools/repo-toolchain/tests/fixtures/loop-canary/repository.ts'
 
 afterEach(removeTemporaries)
 

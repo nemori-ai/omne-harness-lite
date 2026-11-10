@@ -10,6 +10,7 @@ import {
   usageExitCode,
   type Deps,
 } from '../src/commands.ts'
+import { upstreamBuildArgs } from '../src/mutation.ts'
 import { CONFIG, fakeRepo, member, recorder, scratch, valueOf, writeJson } from './support.ts'
 
 function deps(overrides: Partial<Deps> & Pick<Deps, 'exec'>): Deps & { printed: string[] } {
@@ -137,6 +138,42 @@ it('mutation with no member that has tests lists the range and exits 0 without a
   expect(calls).toHaveLength(0)
   expect(d.printed).toContain('没有 test 脚本、不变异：tools/c')
   expect(d.printed).toContain('范围合计 0 行，上限 600')
+})
+
+it('mutation skips a member whose range is empty: no build, no Stryker, exit 0', async () => {
+  const { calls, exec } = recorder(command => {
+    const json = valueOf(command.args, '--json')
+    const member = valueOf(command.args, '--project')
+    if (json !== undefined)
+      writeJson(json, {
+        mutate: member === 'tools/t' ? ['tools/t/src/a.ts:1-10'] : [],
+        summary: { valid: command.args.includes('--plan-only') ? null : true },
+      })
+    return {}
+  })
+  const d = deps({
+    repo: fakeRepo({
+      ...repo,
+      changedFiles: () => ['tools/t/src/a.ts', 'tools/u/README.md'],
+      members: () => [member('tools/t'), member('tools/u')],
+    }),
+    exec,
+  })
+  expect(await closeoutMutation(['--base', 'B', '--out', scratch()], d)).toBe(0)
+  expect(d.printed).toContain('tools/u：0 段、0 行')
+  expect(d.printed).toContain('范围为空、不变异：tools/u')
+  const runs = calls.filter(c => c.command !== 'pnpm' && !c.args.includes('--plan-only'))
+  expect(runs.map(c => valueOf(c.args, '--project'))).toEqual(['tools/t'])
+  const builds = calls.filter(c => c.command === 'pnpm').map(c => c.args)
+  expect(builds).toEqual([upstreamBuildArgs(['@omne-harness/t'])])
+})
+
+it('mutation with only empty ranges builds nothing and exits 0', async () => {
+  const { calls, exec } = planned([])
+  const d = deps({ repo, exec })
+  expect(await closeoutMutation(['--base', 'B', '--out', scratch()], d)).toBe(0)
+  expect(calls.every(c => c.args.includes('--plan-only'))).toBe(true)
+  expect(d.printed).toContain('范围为空、不变异：tools/t')
 })
 
 it('mutation exits 1 without running Stryker when the upstream build fails', async () => {

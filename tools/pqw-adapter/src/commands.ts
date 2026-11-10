@@ -149,14 +149,22 @@ async function listRange(deps: Deps, options: Options, base: string): Promise<Mu
   return { members, plans, plan, lineCount, context }
 }
 
-/** 第二步：构建上游，按范围行数分 CPU 跑各成员，打印汇总；返回退出码。 */
+/**
+ * 第二步：构建上游，按范围行数分 CPU 跑各成员，打印汇总；返回退出码。
+ * 范围为空的成员（只改了文档等没有代码行的文件）不构建、不跑：pqw 对它们只会报「没有位点」。
+ */
 async function runMutation(deps: Deps, range: MutationRange): Promise<number> {
   const { members, plans, lineCount, context } = range
-  if (!(await build(deps, upstreamBuildArgs(members.map(member => member.name))))) return 1
-  const planned = members.map((member, index) => ({
+  const sized = members.map((member, index) => ({
     member,
     lines: rangeLines(plans[index]?.result?.mutate ?? [], lineCount),
   }))
+  const empty = sized.filter(entry => entry.lines === 0)
+  if (empty.length > 0)
+    deps.print(`范围为空、不变异：${empty.map(entry => entry.member.path).join('、')}`)
+  const planned = sized.filter(entry => entry.lines > 0)
+  if (planned.length === 0) return 0
+  if (!(await build(deps, upstreamBuildArgs(planned.map(entry => entry.member.name))))) return 1
   const results = await mutateAll(planned, context, deps.cpus)
   for (const line of mutationLines(results)) deps.print(line)
   return mutationExitCode(results)

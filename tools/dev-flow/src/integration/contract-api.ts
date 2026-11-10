@@ -111,7 +111,7 @@ export function runContractApi(
 }
 
 /**
- * Runs `step`. A known failure (`IntegrationError`, which includes `GitError`) becomes
+ * Runs `step`. A known failure (`IntegrationError`) becomes
  * `unavailable` with the reason `describe` gives; any other error propagates.
  */
 export function unavailableOnKnown<T>(
