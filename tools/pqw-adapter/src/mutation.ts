@@ -279,22 +279,23 @@ function section(title: string, items: readonly string[]): string[] {
 const unmutatedSite = (u: NonNullable<PqwMutation['unmutated']>[number]) =>
   `- ${u.file}:${u.lines[0]}-${u.lines[1]}${u.unit ? ` ${u.unit}` : ''}：${u.reason}`
 
-/** 一个成员的输出：测量无效只一行；否则汇总行，再依次是存活、无覆盖、没有变异体的段。 */
+/** 存活、无覆盖、没有变异体的段：各段有条目才写。 */
+function detailLines(result: PqwMutation | undefined): string[] {
+  return [
+    ...section('存活：', (result?.survivors ?? []).map(site)),
+    ...section('无覆盖：', (result?.sites ?? []).filter(s => s.verdict === 'uncovered').map(site)),
+    ...section('没有变异体的段：', (result?.unmutated ?? []).map(unmutatedSite)),
+  ]
+}
+
+/** 一个成员的输出：测量无效只一行；否则汇总行，再是各段明细。 */
 function memberLines(m: MemberMutation): string[] {
   const summary = m.result?.summary
   if (m.error !== undefined || summary === undefined)
     return [`${m.member}：测量无效（${m.error ?? '没有结果'}）`]
   if (summary.valid === false)
     return [`${m.member}：测量无效（${summary.invalidReason ?? '原因未写'}），JSON ${m.json}`]
-  return [
-    scoreLine(m, summary),
-    ...section('存活：', (m.result?.survivors ?? []).map(site)),
-    ...section(
-      '无覆盖：',
-      (m.result?.sites ?? []).filter(s => s.verdict === 'uncovered').map(site),
-    ),
-    ...section('没有变异体的段：', (m.result?.unmutated ?? []).map(unmutatedSite)),
-  ]
+  return [scoreLine(m, summary), ...detailLines(m.result)]
 }
 
 export function mutationLines(results: readonly MemberMutation[]): string[] {
