@@ -72,6 +72,7 @@ export async function openRecoveryWorld(
           ...targets.participants,
         ],
         migrations: [...base.migrations, ...targets.migrations],
+        readHandlers: [...base.readHandlers, ...targets.readHandlers],
       }
     : base
   const materials: SqlMaterialCatalog = {

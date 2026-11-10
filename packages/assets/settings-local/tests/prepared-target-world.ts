@@ -51,11 +51,12 @@ export async function openPreparedTargetWorld(
     'settings.source-snapshot',
     'settings.targets',
   ]
-  const owner = createStandaloneSettingsOwner({
+  const ownerOptions = {
     storage: w.world.storage,
     domain,
     ...(await register('owner', ownerParticipants)),
-  })
+  }
+  const owner = createStandaloneSettingsOwner(ownerOptions)
   const { target } = w.command
   const record = {
     publicationRef: null,
@@ -78,6 +79,8 @@ export async function openPreparedTargetWorld(
     domain,
     target,
     owner,
+    /** What `createStandaloneSettingsOwner` took, for a test that builds another owner. */
+    ownerOptions,
     record,
     ownerParticipants,
     register,

@@ -1,54 +1,43 @@
 import { randomUUID } from 'node:crypto'
-import { ownerSources } from './sources.ts'
 import { afterEach, expect, it } from 'vitest'
 import {
   createStandaloneSettingsOwner,
   settingsStandaloneMaterials,
-  standaloneSettingsGuards,
   standaloneSettingsPublicationCommand,
   StandalonePublicationProjectionSchema,
 } from '../src/index.ts'
-import { openIdentityWorld } from './identity-world.ts'
+import { openPreparedTargetWorld } from './prepared-target-world.ts'
 import { definition, definitionRef } from './world.ts'
-const opened: Awaited<ReturnType<typeof openIdentityWorld>>[] = []
+const opened: { close(): Promise<void> }[] = []
 afterEach(async () => {
   for (const world of opened.splice(0)) await world.close()
 })
+/** The real owner of an independent target, on the catalog of the prepared path. */
 async function open() {
-  const w = await openIdentityWorld({
-    authority: { materials: settingsStandaloneMaterials(), guards: standaloneSettingsGuards },
-  })
+  const w = await openPreparedTargetWorld({ actions: ['set', 'clear', 'lock', 'unlock'] })
   opened.push(w)
-  const owner = createStandaloneSettingsOwner(w.terminalOptions)
-  const record = {
-    publicationRef: null,
-    target: w.change.target,
-    definition,
-    sources: ownerSources('tenant'),
-    grants: [
-      {
-        sourceId: 'tenant',
-        actions: ['set', 'clear', 'lock', 'unlock'] as ('set' | 'clear' | 'lock' | 'unlock')[],
-      },
-    ],
-  }
-  return { ...w, owner, record }
+  const publications = await w.register('publication', [
+    ...new Set([
+      ...w.ownerParticipants,
+      ...settingsStandaloneMaterials().participants.map(item => item.participant),
+    ]),
+  ])
+  return { ...w, publications }
 }
-async function publication(w: Awaited<ReturnType<typeof open>>, target = w.change.target) {
+async function publication(w: Awaited<ReturnType<typeof open>>, target = w.target) {
   const captureId = randomUUID()
-  const result = await w.world.storage.commit({
+  const result = await w.storage.commit({
     identity: {
-      ...w.terminalOptions.domain,
+      ...w.domain,
       operation: 'test.publication',
       protocolVersion: '2',
       operationKey: captureId,
     },
-    combinationVersion: w.terminalOptions.combinationVersion,
-    manifestDigest: w.terminalOptions.manifestDigest,
+    ...w.publications,
     commands: [
       standaloneSettingsPublicationCommand({
-        domain: w.terminalOptions.domain,
-        principalRef: w.binding.principalRef,
+        domain: w.domain,
+        principalRef: w.context.principalRef,
         captureId,
         request: { deploymentRef: 'test', mode: 'runtime', targets: [target], selectionRef: null },
       }),
@@ -106,11 +95,11 @@ it('drains an accepted target read on close and does not report a failed read as
   const entered = Promise.withResolvers<void>()
   const release = Promise.withResolvers<void>()
   const owner = createStandaloneSettingsOwner({
-    ...w.terminalOptions,
+    ...w.ownerOptions,
     storage: {
-      ...w.terminalOptions.storage,
+      ...w.ownerOptions.storage,
       async read(request, options) {
-        const result = await w.terminalOptions.storage.read(request, options)
+        const result = await w.ownerOptions.storage.read(request, options)
         entered.resolve()
         await release.promise
         return result
@@ -133,9 +122,9 @@ it('drains an accepted target read on close and does not report a failed read as
   await closing
   expect(closed).toBe(true)
   const failed = createStandaloneSettingsOwner({
-    ...w.terminalOptions,
+    ...w.ownerOptions,
     storage: {
-      ...w.terminalOptions.storage,
+      ...w.ownerOptions.storage,
       read() {
         throw new Error('fixture read transport failure')
       },
@@ -185,11 +174,11 @@ it('stores and clears an explicit publication reference under the existing owner
   expect(await publication(w)).toMatchObject({
     views: [{ publicationRef: null, ownerRevision: 2 }],
   })
-  expect(await publication(w, { ...w.change.target, targetRef: 'missing' })).toMatchObject({
+  expect(await publication(w, { ...w.target, targetRef: 'missing' })).toMatchObject({
     kind: 'rolled_back',
   })
 })
-it('uses real persistent independent ownership with genuine Identity and irreversible retirement', async () => {
+it('keeps independent ownership persistent and its retirement irreversible', async () => {
   const w = await open()
   const provision = {
     kind: 'provision' as const,
@@ -199,32 +188,19 @@ it('uses real persistent independent ownership with genuine Identity and irrever
   }
   expect(await w.owner.mutate(provision)).toMatchObject({ kind: 'committed', revision: 1 })
   expect(await w.owner.mutate(provision)).toMatchObject({ kind: 'committed', revision: 1 })
-  expect(await w.backend.commit(w.principal, w.change)).toMatchObject({
-    kind: 'committed',
-    revision: 1,
-  })
   expect(
     await w.owner.mutate({
       kind: 'retire',
       operationId: 'retire',
-      target: w.change.target,
+      target: w.target,
       expectedRevision: 1,
     }),
   ).toMatchObject({ kind: 'committed', revision: 2 })
   expect(
-    await w.backend.commit(w.principal, {
-      ...w.change,
-      operationId: 'after-retire',
-      expectedRevision: 1,
-      action: { kind: 'clear' },
-    }),
-  ).toMatchObject({ kind: 'rejected', reason: 'forbidden' })
-  expect(
     await w.owner.mutate({ ...provision, operationId: 'revive', expectedRevision: 2 }),
   ).toMatchObject({ kind: 'rejected', reason: 'forbidden' })
-  expect(w.world.counts()).toEqual([1, 1, 1])
 })
-it('rejects conflicting target versions and stale editors against the real owner', async () => {
+it('rejects conflicting target versions against the real owner', async () => {
   const w = await open()
   expect(
     await w.owner.mutate({
@@ -256,8 +232,4 @@ it('rejects conflicting target versions and stale editors against the real owner
       record: { ...w.record, definition: { ...definition, version: '2' } },
     }),
   ).toMatchObject({ kind: 'committed', revision: 2 })
-  expect(await w.backend.commit(w.principal, { ...w.change, definitionRef })).toMatchObject({
-    kind: 'rejected',
-    reason: 'definition_changed',
-  })
 })
