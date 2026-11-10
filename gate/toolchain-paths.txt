@@ -1,6 +1,7 @@
 # Repository toolchain paths (git glob pathspec, one per line; `*` stays within a
-# directory, `**` crosses directories). A PR from a personal branch into a track that
-# changes any of these needs a second confirmation in `repo-toolchain-review`.
+# directory, `**` crosses directories). A PR from a personal branch into
+# integration/mainline that changes any of these lists the hits in the run summary,
+# and its `publish` confirmation note must state why they change.
 # Source: #290 implementation plan, appendix; updated for the files that exist after #310.
 # This list is read from github-gate only. Changing it is an admin change to github-gate.
 

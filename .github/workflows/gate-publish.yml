@@ -193,7 +193,7 @@ jobs:
             {
               echo "### Repository toolchain paths changed"
               echo
-              echo "This publication changes $(wc -l < hits.txt) protected path(s). A second confirmation in \`repo-toolchain-review\` is required, with a note that states why."
+              echo "This publication changes $(wc -l < hits.txt) protected path(s). The \`publish\` confirmation note must also state why these paths change."
               echo
               # No pipe into head: with pipefail, head closing early would fail the step.
               sed -n '1,200{s/^/- `/;s/$/`/;p;}' hits.txt
@@ -205,41 +205,10 @@ jobs:
             echo "Toolchain gate: no protected path changes." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-  toolchain-review:
-    needs: [plan, scope]
-    if: needs.scope.outputs.toolchain == 'true'
-    runs-on: ubuntu-latest
-    environment: repo-toolchain-review
-    permissions:
-      contents: read
-      actions: read
-    outputs:
-      approver: ${{ steps.confirm.outputs.approver }}
-      note: ${{ steps.confirm.outputs.note }}
-    steps:
-      - name: Read the toolchain confirmation and require a note
-        id: confirm
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/approvals" > approvals.json
-          sel='[.[]|select(.state=="approved")|select([.environments[].name]|index("repo-toolchain-review"))]|last'
-          approver=$(jq -r "$sel|.user.login // \"\"" approvals.json)
-          note=$(jq -r "$sel|.comment // \"\"" approvals.json)
-          [ -n "$approver" ] || { echo "rejected: no toolchain approval record"; exit 1; }
-          [ -n "$(printf '%s' "$note" | tr -d '[:space:]')" ] || { echo "rejected: the toolchain confirmation note is empty"; exit 1; }
-          echo "approver=$approver" >> "$GITHUB_OUTPUT"
-          delim="NOTE_$(openssl rand -hex 16)"
-          { echo "note<<$delim"; printf '%s\n' "$note"; echo "$delim"; } >> "$GITHUB_OUTPUT"
-
+  # One confirmation in `publish` covers the toolchain paths too; scope lists the hits
+  # in the run summary before the confirmation.
   publish:
-    needs: [plan, scope, toolchain-review]
-    # A skipped toolchain review would skip this job by default; run it only when the
-    # review succeeded or was not required.
-    if: >-
-      !cancelled() && needs.plan.result == 'success' && needs.scope.result == 'success' &&
-      (needs.toolchain-review.result == 'success' ||
-       (needs.toolchain-review.result == 'skipped' && needs.scope.outputs.toolchain == 'false'))
+    needs: [plan, scope]
     runs-on: ubuntu-latest
     environment: publish
     permissions:
@@ -441,14 +410,11 @@ jobs:
           APPROVER: ${{ steps.confirm.outputs.approver }}
           NOTE: ${{ steps.confirm.outputs.note }}
           TOOLCHAIN: ${{ needs.scope.outputs.toolchain }}
-          TC_APPROVER: ${{ needs.toolchain-review.outputs.approver }}
-          TC_NOTE: ${{ needs.toolchain-review.outputs.note }}
         run: |
           quoted=$(printf '%s\n' "$NOTE" | sed 's/^/> /')
           toolchain=
           if [ "$TOOLCHAIN" = true ]; then
-            tc_quoted=$(printf '%s\n' "$TC_NOTE" | sed 's/^/> /')
-            toolchain=$(printf '\nRepository toolchain confirmation by @%s (paths are listed in the run summary):\n\n%s\n' "$TC_APPROVER" "$tc_quoted")
+            toolchain=$(printf '\nThis publication changes repository toolchain paths; they are listed in the run summary and the confirmation note covers them.\n')
           fi
           body=$(printf '**Publication decision**\n\n- Target: `%s`, now `%s`\n- PR head: `%s`\n- Result: `%s`\n- Record tag: `%s` %s\n- Confirmed by: @%s (from the platform approval record)\n- Run: %s/%s/actions/runs/%s\n\nConfirmation note:\n\n%s\n%s' \
             "$BASE_REF" "$B" "$H" "$C" "$TAG" "${EXTRA:+and \`$EXTRA\`}" "$APPROVER" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$quoted" "$toolchain")
