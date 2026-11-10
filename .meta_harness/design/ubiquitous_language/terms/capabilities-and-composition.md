@@ -708,12 +708,13 @@
 ### UL-official-model-profile · 官方档案 · Official Model Profile
 
 > **中**：**随系统发布、位于出厂默认层的那种[模型档案](#ul-model-profile--模型档案--model-profile)。**
-> 它自己**不含凭据**——出厂默认那一格可以有一把，由部署装配时配好，产品里没有任何操作能配、换或解绑它；
+> 它自己**不含凭据**——没有自带凭据的租户用它时，取的是所用[模型供应商](#ul-model-provider--模型供应商--model-provider)凭据项的官方层，那一层只由部署写入，产品里的设置操作改不了它；
 > 它与自建档案**在同一份列表里**展示；**自建档案与它同路由名时，自建的按层覆盖它**。
 >
 > **EN**: **A model profile that ships with the system and sits at the factory-default layer.** It
-> **carries no credential** of its own — the factory-default slot may have one, set up at deployment
-> assembly and beyond the reach of any operation in the product; it is shown **in the same single list**
+> **carries no credential** of its own — a tenant without its own credential uses the official layer of
+> the credential items of the model provider it sends to, which only the deployment writes and no
+> setting operation in the product can change; it is shown **in the same single list**
 > as custom profiles, and **a custom profile under the same routing name overrides it by layer**.
 
 - **形态**：变体（父：[模型档案](#ul-model-profile--模型档案--model-profile)）
