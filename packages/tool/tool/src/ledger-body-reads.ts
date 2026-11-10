@@ -177,6 +177,18 @@ class Taken {
     this.offset = 0
     return true
   }
+  /** Takes from the chunks of one store answer; stops at the budget or at a chunk not read to its end. */
+  takeAll(
+    chunks: readonly Readonly<{ seq: number; bytes: Uint8Array }>[],
+  ): 'missing' | 'partial' | 'done' {
+    if (chunks.length === 0) return 'missing'
+    for (const chunk of chunks) {
+      if (chunk.seq !== this.seq) return 'missing'
+      if (!this.take(chunk.bytes)) return 'partial'
+      if (this.full) break
+    }
+    return 'done'
+  }
   range(manifest: ToolBodyManifest): Range {
     return { kind: 'bytes', bytes: Buffer.concat(this.parts), segments: this.segments, manifest }
   }
@@ -197,12 +209,9 @@ async function readRange(
     if (answer.kind === 'absent') return succeed({ kind: 'absent' })
     manifest = answer.manifest
     if (taken.seq >= manifest.chunks) break
-    if (answer.chunks.length === 0) return unavailable('sealed body is missing a chunk')
-    for (const chunk of answer.chunks) {
-      if (chunk.seq !== taken.seq) return unavailable('sealed body is missing a chunk')
-      if (!taken.take(chunk.bytes)) return succeed(taken.range(manifest))
-      if (taken.full) break
-    }
+    const took = taken.takeAll(answer.chunks)
+    if (took === 'missing') return unavailable('sealed body is missing a chunk')
+    if (took === 'partial') break
   }
   return succeed(taken.range(manifest))
 }
@@ -300,6 +309,25 @@ export function createLedgerBodyReads<P>(
       : unavailable('integrity: a linked body before its expiry has no bytes in the store')
   }
 
+  /** Model `ReadStore` then `ReadFinish`: the bytes, checked against the entry, the expiry and the reader again. */
+  const storedRange = async (
+    bodies: NonNullable<ToolLedgerPorts<P>['bodies']>,
+    input: BodyReadInput<P>,
+    located: Located,
+    at: Position,
+  ): Promise<Outcome<Extract<Range, { kind: 'bytes' }>, ToolFailure>> => {
+    const ref: ToolBodyRef = { tenant: input.tenant, call: input.call, body: input.bodyId }
+    const budget = Math.min(input.maxBytes, ports.configuration.maxPageBytes)
+    const range = await readRange(bodies.store, ref, at, budget)
+    if ('failure' in range) return range
+    if (range.ok.kind === 'absent') return missed(input, located.body, bodies.clock.now())
+    if (!manifestMatches(located.entry, range.ok.manifest, Number(located.body.bodyBytes)))
+      return unavailable('integrity: the stored manifest differs from the ledger entry')
+    if (!beforeExpiry(bodies.clock.now(), located.body)) return expired()
+    const current = await ports.authorize(input)
+    return 'failure' in current ? current : succeed(range.ok)
+  }
+
   /** The ledger check, the store read, the re-check on a miss and the re-check after the bytes. */
   const readPage = async (
     input: BodyReadInput<P>,
@@ -317,16 +345,8 @@ export function createLedgerBodyReads<P>(
     const total = Number(located.ok.body.bodyBytes)
     const at = decodeCursor(input, projection, total)
     if ('failure' in at) return at
-    const ref: ToolBodyRef = { tenant: input.tenant, call: input.call, body: input.bodyId }
-    const budget = Math.min(input.maxBytes, ports.configuration.maxPageBytes)
-    const range = await readRange(bodies.store, ref, at.ok, budget)
+    const range = await storedRange(bodies, input, located.ok, at.ok)
     if ('failure' in range) return range
-    if (range.ok.kind === 'absent') return missed(input, located.ok.body, bodies.clock.now())
-    if (!manifestMatches(located.ok.entry, range.ok.manifest, total))
-      return unavailable('integrity: the stored manifest differs from the ledger entry')
-    if (!beforeExpiry(bodies.clock.now(), located.ok.body)) return expired()
-    const current = await ports.authorize(input)
-    if ('failure' in current) return current
     return succeed({
       located: located.ok,
       at: at.ok,
@@ -353,16 +373,25 @@ export function createLedgerBodyReads<P>(
     next: next(input, 'text-utf8-v1', page, consumed),
   })
 
-  const textPage = (input: BodyReadInput<P>, page: Page): Outcome<ToolBodyPage, ToolFailure> => {
-    const representation = page.located.body.representation
-    if (representation.kind !== 'text' && representation.kind !== 'json-document')
-      return invalid('body', 'text or JSON document body required')
+  /** The bytes of a text page that end on a character boundary; the last page takes everything. */
+  const textConsumed = (page: Page): Outcome<number, ToolFailure> => {
     const first = page.bytes[0]
     if (page.at.position > 0 && first !== undefined && (first & 0xc0) === 0x80)
       return fail({ kind: 'invalid-cursor', reason: 'not-a-character-boundary' })
     const atEnd = page.at.position + page.bytes.length >= page.total
     const consumed = atEnd ? page.bytes.length : characterPrefix(page.bytes)
-    if (consumed === 0 && page.total > 0) return invalid('maxBytes', 'first-character-does-not-fit')
+    return consumed === 0 && page.total > 0
+      ? invalid('maxBytes', 'first-character-does-not-fit')
+      : succeed(consumed)
+  }
+
+  const textPage = (input: BodyReadInput<P>, page: Page): Outcome<ToolBodyPage, ToolFailure> => {
+    const representation = page.located.body.representation
+    if (representation.kind !== 'text' && representation.kind !== 'json-document')
+      return invalid('body', 'text or JSON document body required')
+    const taken = textConsumed(page)
+    if ('failure' in taken) return taken
+    const consumed = taken.ok
     const text = decodeUtf8(page.bytes.subarray(0, consumed))
     if ('failure' in text) return text
     const common = { ...pageFields(input, page, consumed), text: text.ok }

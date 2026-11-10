@@ -410,7 +410,14 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
     const entry = committed.ok.ok
     const known = open.get(entry.bodyId)
     if (known !== undefined) return succeed({ entry, body: known })
-    if (entry.state.kind !== 'opened') return succeed({ entry, body: null })
+    return entry.state.kind === 'opened' ? openBody(input, entry) : succeed({ entry, body: null })
+  }
+
+  /** A permit for a freshly opened entry, and the running manifest this process keeps for it. */
+  const openBody = async (
+    input: CallInput<P>,
+    entry: BodyEntryRecord,
+  ): Promise<Outcome<Begun, ToolFailure>> => {
     const snapshot = await ports.load(input)
     if ('failure' in snapshot) return snapshot
     const permit = permitFor(input, entry, snapshot.ok)
@@ -421,7 +428,7 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
       bytes: 0,
       hash: createHash('sha256'),
       blocks: new Map(),
-      text: representation.kind === 'json-document' ? '' : null,
+      text: entry.representation.kind === 'json-document' ? '' : null,
     }
     open.set(entry.bodyId, body)
     return succeed({ entry, body })
@@ -503,11 +510,18 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
       : succeed({ policy: policy.ok, representation })
   }
 
-  /** The author's input: the mutation context, the original start, the source and the key. */
-  const bind = async (
+  type Supplied<P2> = Readonly<{
+    context: MutationInput<P2>
+    fields: Readonly<Record<string, unknown>>
+    source: DurableEvidence
+    key: string
+  }>
+
+  /** The shape of the author's input: the mutation context, the named fields, the source and the key. */
+  const suppliedFields = (
     supplied: unknown,
     fields: readonly string[],
-  ): ToolBodyWriteReply<Bound<P>> => {
+  ): Outcome<Supplied<P>, ToolBodyWriteFailure> => {
     const context = judgeMutationInput<P>(supplied, 'write')
     if ('failure' in context) return fail(primitive(context.failure, 'unadmitted'))
     const operation = context.ok.operation
@@ -515,20 +529,33 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
     if ('failure' in fixed) return fail(primitive(fixed.failure, operation))
     const source = judgeEvidenceField(fixed.ok.source, 'source')
     if ('failure' in source) return fail(primitive(source.failure, operation))
-    if (typeof fixed.ok.key !== 'string' || fixed.ok.key.length === 0)
-      return fail(invalid('nonempty writer key required'))
-    const allowed = await ports.entry(context.ok, 'write')
+    const key = fixed.ok.key
+    return typeof key === 'string' && key.length > 0
+      ? succeed({ context: context.ok, fields: fixed.ok, source: source.ok, key })
+      : fail(invalid('nonempty writer key required'))
+  }
+
+  /** The author's input bound to its call: the original start, the snapshot and the declared writer. */
+  const bind = async (
+    supplied: unknown,
+    fields: readonly string[],
+  ): ToolBodyWriteReply<Bound<P>> => {
+    const given = suppliedFields(supplied, fields)
+    if ('failure' in given) return given
+    const { context, source, key } = given.ok
+    const operation = context.operation
+    const allowed = await ports.entry(context, 'write')
     if ('failure' in allowed) return fail(primitive(allowed.failure, operation))
-    const loaded = await ports.load(context.ok)
+    const loaded = await ports.load(context)
     if ('failure' in loaded) return fail(primitive(loaded.failure, operation))
     const call = loaded.ok.call
-    if (call === null || call.start === null || !sameFactValue(call.start, fixed.ok.start))
+    if (call === null || call.start === null || !sameFactValue(call.start, given.ok.fields.start))
       return fail(invalid('original start required'))
     const declared = declaredWriter(call.request, operation)
     if ('failure' in declared) return declared
     return succeed({
-      input: { ...context.ok, source: source.ok, start: call.start, key: fixed.ok.key },
-      fields: fixed.ok,
+      input: { ...context, source, start: call.start, key },
+      fields: given.ok.fields,
       snapshot: loaded.ok,
       ...declared.ok,
     })

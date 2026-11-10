@@ -175,12 +175,9 @@ export function planResultBody<B extends ContentBlock>(
     const stuck = oversizeBlock(planned.ok.value.content, delivery.pageBytes)
     return stuck === null ? planned : fail(stuck)
   }
-  const frames = modelFrames(value.content)
-  if (frames.some(block => !block.text.isWellFormed()))
-    return fail({ kind: 'invalid', field: 'content', reason: 'invalid-unicode-text' })
-  const size = frames.reduce((total, block) => total + BigInt(utf8Bytes(block.text)), 0n)
-  if (size > BigInt(policy.maxBodyBytes))
-    return fail({ kind: 'invalid', field: 'content', reason: 'body-too-large' })
+  const model = modelText(value.content, policy.maxBodyBytes)
+  if ('failure' in model) return model
+  const { frames, size } = model.ok
   const overPage = value.content.some(block => blockBytes(block) > delivery.pageBytes)
   if (size <= BigInt(policy.inlineBytes) && !overPage) return succeed({ kind: 'inline', value })
   const stuck = oversizeBlock(
@@ -296,13 +293,23 @@ function isModelText(block: ContentBlock): block is TextContentBlock {
   return block.kind === 'text' && block.visibility.toModel
 }
 
-function modelFrames(blocks: readonly ContentBlock[]): TextContentBlock[] {
-  return blocks.filter(isModelText).map(block => ({
-    kind: 'text',
+/** The model-visible text of a result as body frames, well-formed and within the body hard limit. */
+function modelText(
+  blocks: readonly ContentBlock[],
+  maxBodyBytes: number,
+): Outcome<Readonly<{ frames: readonly TextContentBlock[]; size: bigint }>, ToolFailure> {
+  const frames = blocks.filter(isModelText).map(block => ({
+    kind: 'text' as const,
     id: block.id,
     visibility: block.visibility,
     text: block.text,
   }))
+  if (frames.some(block => !block.text.isWellFormed()))
+    return fail({ kind: 'invalid', field: 'content', reason: 'invalid-unicode-text' })
+  const size = frames.reduce((total, block) => total + BigInt(utf8Bytes(block.text)), 0n)
+  return size > BigInt(maxBodyBytes)
+    ? fail({ kind: 'invalid', field: 'content', reason: 'body-too-large' })
+    : succeed({ frames, size })
 }
 
 function readableHeader(

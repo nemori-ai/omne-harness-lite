@@ -29,15 +29,21 @@ export function createLedgerFinalPlanner<P, B extends ContentBlock>(
     writeBody: BodyWriting<P>['writeBody']
   }>,
 ): ToolFinalPlanner<P, B> {
+  /** The planner's input: the mutation context, the final as the policy fixes it, and a qualified writer. */
+  const planningInput = async (supplied: unknown) => {
+    const context = judgeMutationInput<P>(supplied, 'write')
+    if ('failure' in context) return context
+    const fields = fixFinalPlanningInput(supplied, ports.policy, ports.adoption)
+    if ('failure' in fields) return fields
+    const qualified = await ports.entry(supplied, 'write')
+    return 'failure' in qualified ? qualified : succeed({ ...context.ok, ...fields.ok })
+  }
+
   return {
     planFinal: async supplied => {
-      const context = judgeMutationInput<P>(supplied, 'write')
-      if ('failure' in context) return context
-      const fields = fixFinalPlanningInput(supplied, ports.policy, ports.adoption)
-      if ('failure' in fields) return fields
-      const input = { ...context.ok, ...fields.ok }
-      const qualified = await ports.entry(supplied, 'write')
-      if ('failure' in qualified) return qualified
+      const bound = await planningInput(supplied)
+      if ('failure' in bound) return bound
+      const input = bound.ok
       const snapshot = await ports.load(input)
       if ('failure' in snapshot) return snapshot
       const call = originalCall(snapshot.ok, input.start)

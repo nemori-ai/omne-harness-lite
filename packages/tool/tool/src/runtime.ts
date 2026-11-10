@@ -207,18 +207,24 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
   const { operationIdentities, sourceIssuer } = dependencies
   const stream = createStreamFacade<P, B>({ directory: instances.directory, reads })
 
+  /** The source issuer's binding of a call; an issuer that throws leaves the association unknown. */
+  const resolveSource = async (
+    input: Parameters<typeof sourceIssuer.resolve>[0],
+  ): Promise<Awaited<ReturnType<typeof sourceIssuer.resolve>>> => {
+    try {
+      return await sourceIssuer.resolve(input)
+    } catch {
+      return { kind: 'association-unknown' }
+    }
+  }
+
   const invoke: ToolRuntime<P, B>['invoke'] = async input => {
     if (typeof input !== 'object' || input === null || !('principal' in input))
       return rejected({ kind: 'denied', action: 'admit' })
     const request = admittedRequest(Reflect.get(input, 'request'), configuration)
     if ('failure' in request) return rejected(request.failure)
     const { principal, tenant } = input
-    let bound: Awaited<ReturnType<typeof sourceIssuer.resolve>>
-    try {
-      bound = await sourceIssuer.resolve({ principal, tenant, request: request.ok })
-    } catch {
-      return { kind: 'association-unknown' }
-    }
+    const bound = await resolveSource({ principal, tenant, request: request.ok })
     if (bound.kind === 'association-unknown' || bound.kind === 'rejected') return bound
     const identity = resolvedIdentity(tenant, bound)
     if (identity === null) return { kind: 'association-unknown' }
