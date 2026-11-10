@@ -1,6 +1,6 @@
 # 设置行
 
-`settings` 行把 Settings 的秘密设置项交给装配：发行工具设置定义的登记表、`@omne-harness/settings` 的秘密项入口（`createSettingsSecretItems`），以及受准入的设置管理。它提供受信服务 `settingsSecretItems`，形状是 server-entry 的 `SettingsGovernance` 端口，只有 `server-entry` 行按调用读取。声明与秘密项的含义归 [Settings 的秘密设置项](../../../../packages/assets/settings/SPEC.md#secret-items)，工具设置声明的投影归 [tool-contract](../../../../packages/tool/tool-contract/SPEC.md)（`toolSettingDefinitions`）。本行不持有秘密，不读使用面。
+`settings` 行把 Settings 的秘密设置项交给装配：官方持有声明的设置定义的登记表、`@omne-harness/settings` 的秘密项入口（`createSettingsSecretItems`），以及受准入的设置管理。它提供受信服务 `settingsSecretItems`，形状是 server-entry 的 `SettingsGovernance` 端口，只有 `server-entry` 行按调用读取。声明与秘密项的含义归 [Settings 的秘密设置项](../../../../packages/assets/settings/SPEC.md#secret-items)，一份资产声明哪些设置归它的类别契约（`BodyContract.settings`，例如 [tool-contract](../../../../packages/tool/tool-contract/SPEC.md#p15-配置声明与合法装载) 的 `toolBodyContract`），经资产域的 `projectAssetSettings` 推出。本行不持有秘密，不读使用面。
 
 ## 配置与装载
 
@@ -8,13 +8,13 @@
 
 ## 登记跟随发行
 
-本行不自己读工具的设置声明。一个发行工具的定义（含 `declarations.settings`）只在 `tool-host` 行装好它的作者之后为本进程所知（`releaseDefinitionOf`，由装载器在核对定义摘要后保留）。本行在每次读登记表时对照受信发行快照的条目：已知而未登记的定义经 `toolSettingDefinitions({ adoption: 发行采用, name, declaration })` 投影，`registerContribution` 登记，并记下持有身份 `{ providerId, definitionId }`。不声明设置的工具记为无设置；登记表拒绝或投影抛出的工具记一次 warn（记录器 `settings`），不再重试。登记表容量是发行清单的条目数。行撤除时关闭登记表。
+本行不自己读工具的设置声明，也不认识资产类别。一个发行工具的定义（含 `declarations.settings`）只在 `tool-host` 行装好它的作者之后为本进程所知（`releaseDefinitionOf`，由装载器在核对定义摘要后保留）。本行在每次读登记表时对照受信发行快照的条目：已知而未登记的定义经 `src/assets/official-holdings.ts` 的 `toolAsset` 写成固定的资产正文，`officialHolding` 经类别注册表（`src/assets/categories.ts`）与 `projectAssetSettings` 推出设置定义，以具体资产引用 `official/<类别>/<名字>` 作 `providerId`，`registerContribution` 登记，并记下持有引用 `{ asset, holding }`。不声明设置的工具记为无设置；登记表拒绝或投影被拒的工具记一次 warn（记录器 `settings`），不再重试。登记表容量是发行清单的条目数。行撤除时关闭登记表。
 
 所以 `omne setting list` 在 `tool-host` 预装完成之前列不出 Web 的项，预装之后的第一次读就列出。这是「登记在发行装载之后」的实际含义：本行不猜作者什么时候装好，也不复制一份声明。
 
 ## 持有身份与键
 
-秘密项入口的 `resolve` 从本行记下的持有身份回答：资产 `{ category: 'tool', name }`，持有 `{ providerId, definitionId }`，与 `toolSettingDefinitions` 的投影一致（`providerId` 是 `tool:` 前缀加采用 owner 的单射转义，`definitionId` 是工具名）。绑定键的目标由持有身份加项标识编码：`{ owner: 'setting', key: JSON.stringify([providerId, definitionId, itemId]) }`，用途 `setting`。`src/rows/settings/holding.ts` 是本应用内唯一写这个编码的地方：本行用它推出持有身份，`tool-bindings` 行的 Web 附着用它读同一个绑定。Settings 自己的编码在它的 `secret-items.ts` 里不导出；`tests/rows/settings/settings.spec.ts` 经入口写、经这把键读，证明两者相等。
+秘密项入口的 `resolve` 从本行记下的持有引用回答：资产 `{ category, name }`，持有 `{ providerId, definitionId }`，其中 `providerId` 是具体资产引用（官方持有为 `official/<类别>/<名字>`），`definitionId` 是类别钩子给出的定义号（工具是工具名）。持有用具体资产引用，所以同名而不同的两份资产推出不同的秘密目标，一份的绑定另一份读不到。绑定键的目标由持有加项标识编码（Settings 的 `secretItemTarget`），用途 `setting`。`src/assets/official-holdings.ts` 的 `holdingKey` 是本应用内唯一组合这把键的地方：本行用同一模块推出持有，`tool-bindings` 行的 Web 附着用它读同一个绑定。`tests/rows/settings/settings.spec.ts` 经入口写、经这把键读，证明两者相等；`tests/assets/official-holdings.spec.ts` 证明同名不同资产的秘密互不可达。
 
 ## 准入与范围
 

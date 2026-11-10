@@ -1,11 +1,6 @@
 import { tenantEquals } from '@omne-harness/legal-identity'
-import {
-  MODEL_SEND,
-  type CredentialPresence,
-  type CredentialReference,
-  type CredentialResolution,
-  type QualifiedCredentialQuery,
-} from '../credential.ts'
+import { MODEL_SEND, type CredentialReference, type CredentialResolution } from '../credential.ts'
+import type { CredentialLayer } from '../root.ts'
 import {
   CREDENTIAL_CONFORMANCE_OBLIGATIONS,
   type CredentialConformanceObligation,
@@ -13,6 +8,7 @@ import {
   type CredentialConformanceReport,
   type CredentialConformanceResult,
   type CredentialConformanceSubject,
+  type CredentialTarget,
 } from './credential-types.ts'
 
 function requireCondition(condition: boolean): asserts condition {
@@ -35,15 +31,13 @@ async function within<T>(operation: () => T | Promise<T>, waitMs: number): Promi
 }
 
 function scene<P>(subject: CredentialConformanceSubject<P>, waitMs: number) {
-  const { port, controls, access, id } = subject
-  requireCondition(
-    id !== subject.otherId && !tenantEquals(access.tenant, subject.otherAccess.tenant),
-  )
-  requireCondition(
-    new Set([subject.secret, subject.rotatedSecret, subject.factorySecret]).size === 3,
-  )
+  const { port, controls, access, provider, items, secrets } = subject
+  requireCondition(!tenantEquals(access.tenant, subject.otherAccess.tenant))
+  requireCondition(provider !== subject.bareProvider && items[0] !== items[1])
+  requireCondition(new Set([...secrets, subject.rotatedSecret]).size === 3)
   for (const name of [
     'bind',
+    'unbind',
     'rotate',
     'revoke',
     'markUnreadable',
@@ -52,190 +46,162 @@ function scene<P>(subject: CredentialConformanceSubject<P>, waitMs: number) {
   ] as const) {
     requireCondition(typeof controls[name] === 'function')
   }
-  const reference: CredentialReference = { id, tenant: access.tenant, purpose: MODEL_SEND }
-  const query: QualifiedCredentialQuery<P> = { id, purpose: MODEL_SEND, official: true, access }
-  const face = { authorized: true, official: true }
   const control = (operation: () => void | Promise<void>) => within(operation, waitMs)
-  function qualified() {
-    const { presentFor, resolveFor } = port
-    requireCondition(typeof presentFor === 'function' && typeof resolveFor === 'function')
-    return {
-      present: (input = query) => presentFor.call(port, input),
-      resolve: (input = query) => resolveFor.call(port, input),
-    }
-  }
-  function known(result: CredentialPresence, present: boolean) {
+  const own = { layer: 'tenant', tenant: access.tenant } as const
+  const target = (item: string, scope: CredentialTarget['scope'] = own): CredentialTarget => ({
+    provider,
+    item,
+    scope,
+  })
+  /** Binds both items of a layer: the first secret to the first item, the second to the second. */
+  const bindLayer = (scope: CredentialTarget['scope'] = own) =>
+    control(async () => {
+      await controls.bind(target(items[0], scope), secrets[0])
+      await controls.bind(target(items[1], scope), secrets[1])
+    })
+  const layerOf = (official: boolean) => port.layerOf({ provider, official, access })
+  const resolve = (layer: CredentialLayer) =>
+    port.resolve({ provider, layer, purpose: MODEL_SEND, access })
+  function values(result: CredentialResolution, first: string, second: string) {
     requireCondition(
-      result.kind === 'known' &&
-        result.present === present &&
-        result.id === id &&
-        tenantEquals(result.tenant, access.tenant) &&
-        result.purpose === MODEL_SEND,
+      'ok' in result &&
+        result.ok.size === 2 &&
+        result.ok.get(items[0]) === first &&
+        result.ok.get(items[1]) === second,
     )
   }
-  function value(result: CredentialResolution, scope: 'tenant' | 'factory', secret: string) {
-    requireCondition(result.kind === 'value' && result.scope === scope && result.value === secret)
+  function failed(result: CredentialResolution | ReturnType<typeof layerOf>, kind: string) {
+    requireCondition('failure' in result && result.failure.kind === kind)
   }
-  const bind = () => control(() => controls.bind(reference, subject.secret))
-  return { subject, port, controls, reference, query, face, control, qualified, known, value, bind }
+  function layer(result: ReturnType<typeof layerOf>, expected: CredentialLayer['layer']) {
+    requireCondition('ok' in result && result.ok.layer === expected)
+  }
+  return {
+    subject,
+    port,
+    controls,
+    items,
+    secrets,
+    target,
+    control,
+    bindLayer,
+    layerOf,
+    resolve,
+    values,
+    failed,
+    layer,
+  }
 }
 
 type Scene<P> = ReturnType<typeof scene<P>>
+
+const TENANT = { layer: 'tenant' } as const
+const OFFICIAL = { layer: 'official' } as const
 
 function checks<P>(): Record<
   CredentialConformanceObligation,
   (input: Scene<P>) => void | Promise<void>
 > {
   return {
-    'qualified-methods-required': input => {
-      input.qualified()
+    'no-items-no-layer'({ port, subject, layer }) {
+      const { bareProvider: provider, access } = subject
+      layer(port.layerOf({ provider, official: true, access }), 'none')
+      const resolved = port.resolve({
+        provider,
+        layer: { layer: 'none' },
+        purpose: MODEL_SEND,
+        access,
+      })
+      requireCondition('ok' in resolved && resolved.ok.size === 0)
     },
-    async 'legacy-presence-and-resolution'(input) {
-      const { port, reference, face, known, value, subject } = input
-      known(port.present(reference), false)
-      requireCondition(port.resolve(reference, { ...face, official: false }).kind === 'absent')
-      await input.bind()
-      known(port.present(reference), true)
-      value(port.resolve(reference, face), 'tenant', subject.secret)
-      const foreign = { ...reference, tenant: subject.otherAccess.tenant }
-      requireCondition(port.resolve(foreign, face).kind === 'denied')
-      const presence = port.present(foreign)
-      requireCondition(presence.kind === 'known' && !presence.present)
+    async 'tenant-layer-whole'(input) {
+      input.failed(input.layerOf(false), 'missing')
+      await input.bindLayer()
+      await input.bindLayer(OFFICIAL)
+      input.layer(input.layerOf(true), 'tenant')
+      input.layer(input.layerOf(false), 'tenant')
+      input.values(input.resolve(TENANT), ...input.secrets)
     },
-    async 'legacy-unauthorized-denied'(input) {
-      await input.bind()
+    async 'official-layer-official-profile-only'(input) {
+      await input.bindLayer(OFFICIAL)
+      input.layer(input.layerOf(true), 'official')
+      input.failed(input.layerOf(false), 'missing')
+      input.values(input.resolve(OFFICIAL), ...input.secrets)
+    },
+    async 'layers-never-mixed'(input) {
+      await input.bindLayer(OFFICIAL)
+      await input.control(() => input.controls.bind(input.target(input.items[0]), input.secrets[0]))
+      const selected = input.layerOf(true)
       requireCondition(
-        input.port.resolve(input.reference, { authorized: false, official: true }).kind ===
-          'denied',
+        'failure' in selected &&
+          selected.failure.kind === 'incomplete' &&
+          selected.failure.missing.length === 1 &&
+          selected.failure.missing[0] === input.items[1],
       )
+      input.failed(input.resolve(TENANT), 'incomplete')
     },
-    'legacy-purpose-denied'({ port, reference, face }) {
-      const query = { ...reference, purpose: 'other-purpose' }
-      requireCondition(port.present(query).kind === 'denied')
-      requireCondition(port.resolve(query, face).kind === 'denied')
+    async 'fixed-layer-no-fallback'(input) {
+      await input.bindLayer()
+      await input.bindLayer(OFFICIAL)
+      input.layer(input.layerOf(true), 'tenant')
+      await input.control(async () => {
+        await input.controls.unbind(input.target(input.items[0]))
+        await input.controls.unbind(input.target(input.items[1]))
+      })
+      input.failed(input.resolve(TENANT), 'missing')
     },
-    async 'legacy-factory-rules'(input) {
-      const { port, reference, face, value, subject } = input
-      value(port.resolve(reference, face), 'factory', subject.factorySecret)
-      requireCondition(port.resolve(reference, { ...face, official: false }).kind === 'absent')
-      await input.control(() =>
-        input.controls.bind(
-          {
-            ...reference,
-            id: subject.otherId,
-            tenant: subject.otherAccess.tenant,
-          },
-          subject.secret,
-        ),
-      )
-      value(port.resolve(reference, face), 'factory', subject.factorySecret)
-      await input.control(() =>
-        input.controls.bind({ ...reference, id: subject.otherId }, subject.secret),
-      )
-      requireCondition(port.resolve(reference, face).kind === 'absent')
-    },
-    async 'qualified-presence-and-resolution'(input) {
-      const qualified = input.qualified()
-      input.known(qualified.present(), false)
-      await input.bind()
-      input.known(qualified.present(), true)
-      input.value(qualified.resolve(), 'tenant', input.subject.secret)
-    },
-    async 'qualified-independent-of-legacy'(input) {
-      await input.bind()
-      const query = { ...input.query }
-      let legacyRead = false
-      for (const name of ['face', 'authorized', 'tenant']) {
-        Object.defineProperty(query, name, {
-          get() {
-            legacyRead = true
-            throw new Error('legacy input read')
-          },
-        })
-      }
-      const qualified = input.qualified()
-      input.known(qualified.present(query), true)
-      input.value(qualified.resolve(query), 'tenant', input.subject.secret)
-      requireCondition(!legacyRead)
-    },
-    async 'qualified-foreign-holder-denied'(input) {
-      await input.bind()
-      const query = { ...input.query, access: input.subject.otherAccess }
-      requireCondition(input.qualified().resolve(query).kind === 'denied')
-      requireCondition(input.port.presentFor?.(query).kind === 'denied')
-    },
-    async 'qualified-factory-official-only'(input) {
-      const qualified = input.qualified()
-      input.value(qualified.resolve(), 'factory', input.subject.factorySecret)
-      requireCondition(qualified.resolve({ ...input.query, official: false }).kind === 'absent')
-      await input.control(() =>
-        input.controls.bind(
-          {
-            ...input.reference,
-            id: input.subject.otherId,
-            tenant: input.subject.otherAccess.tenant,
-          },
-          input.subject.secret,
-        ),
-      )
-      input.value(qualified.resolve(), 'factory', input.subject.factorySecret)
-    },
-    async 'qualified-other-binding-blocks-factory'(input) {
-      await input.control(() =>
-        input.controls.bind(
-          { ...input.reference, id: input.subject.otherId },
-          input.subject.secret,
-        ),
-      )
-      requireCondition(input.qualified().resolve().kind === 'absent')
-    },
-    'qualified-purpose-denied'(input) {
-      const query = { ...input.query }
-      Reflect.set(query, 'purpose', 'other-purpose')
-      requireCondition(input.qualified().resolve(query).kind === 'denied')
-      requireCondition(input.port.presentFor?.(query).kind === 'denied')
+    async 'foreign-tenant-isolated'(input) {
+      await input.bindLayer({ layer: 'tenant', tenant: input.subject.otherAccess.tenant })
+      input.failed(input.layerOf(true), 'missing')
+      input.failed(input.resolve(TENANT), 'missing')
+      await input.bindLayer()
+      input.values(input.resolve(TENANT), ...input.secrets)
     },
     async 'rotation-visible'(input) {
-      await input.bind()
-      await input.control(() => input.controls.rotate(input.reference, input.subject.rotatedSecret))
-      input.value(input.qualified().resolve(), 'tenant', input.subject.rotatedSecret)
-      input.value(
-        input.port.resolve(input.reference, input.face),
-        'tenant',
-        input.subject.rotatedSecret,
+      await input.bindLayer()
+      await input.control(() =>
+        input.controls.rotate(input.target(input.items[0]), input.subject.rotatedSecret),
       )
+      input.values(input.resolve(TENANT), input.subject.rotatedSecret, input.secrets[1])
     },
-    async 'revoked-binding-denied'(input) {
-      await input.bind()
-      await input.control(() => input.controls.revoke(input.reference))
-      requireCondition(input.qualified().resolve().kind === 'denied')
-      requireCondition(input.port.resolve(input.reference, input.face).kind === 'denied')
-      input.known(input.qualified().present(), true)
+    async 'revoked-item-fails'(input) {
+      await input.bindLayer()
+      await input.bindLayer(OFFICIAL)
+      await input.control(() => input.controls.revoke(input.target(input.items[1])))
+      input.failed(input.layerOf(true), 'revoked')
+      input.failed(input.resolve(TENANT), 'revoked')
     },
-    async 'unreadable-binding-preserved'(input) {
-      await input.bind()
-      await input.control(() => input.controls.markUnreadable(input.reference))
-      requireCondition(input.qualified().resolve().kind === 'unreadable')
-      requireCondition(input.port.resolve(input.reference, input.face).kind === 'unreadable')
-      input.known(input.qualified().present(), true)
+    async 'unreadable-item-fails'(input) {
+      await input.bindLayer()
+      await input.bindLayer(OFFICIAL)
+      await input.control(() => input.controls.markUnreadable(input.target(input.items[0])))
+      input.failed(input.layerOf(true), 'unreadable')
+      input.failed(input.resolve(TENANT), 'unreadable')
     },
     async 'unavailable-source-preserved'(input) {
-      await input.bind()
+      await input.bindLayer()
       await input.control(() => input.controls.setUnavailable(true))
-      requireCondition(input.qualified().resolve().kind === 'unavailable')
-      requireCondition(input.qualified().present().kind === 'unavailable')
-      requireCondition(input.port.resolve(input.reference, input.face).kind === 'unavailable')
-      requireCondition(input.port.present(input.reference).kind === 'unavailable')
+      input.failed(input.layerOf(true), 'unavailable')
+      input.failed(input.resolve(TENANT), 'unavailable')
       await input.control(() => input.controls.setUnavailable(false))
-      input.value(input.qualified().resolve(), 'tenant', input.subject.secret)
+      input.values(input.resolve(TENANT), ...input.secrets)
+    },
+    async 'purpose-denied'(input) {
+      await input.bindLayer()
+      const reference: CredentialReference<P> = {
+        provider: input.subject.provider,
+        layer: TENANT,
+        purpose: MODEL_SEND,
+        access: input.subject.access,
+      }
+      Reflect.set(reference, 'purpose', 'other-purpose')
+      input.failed(input.port.resolve(reference), 'denied')
     },
     async 'closed-port-denied'(input) {
-      await input.bind()
+      await input.bindLayer()
       await input.control(() => input.controls.close())
-      requireCondition(input.qualified().resolve().kind === 'denied')
-      requireCondition(input.qualified().present().kind === 'denied')
-      requireCondition(input.port.resolve(input.reference, input.face).kind === 'denied')
-      requireCondition(input.port.present(input.reference).kind === 'denied')
+      input.failed(input.layerOf(true), 'denied')
+      input.failed(input.resolve(TENANT), 'denied')
     },
   }
 }

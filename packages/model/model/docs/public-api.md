@@ -63,15 +63,11 @@ export declare function createModelMessageConversion<P>(
 
 createModelRuntime 只构造对象，返回 runtime 管理面及受信 driver。装配者先创建宿主，再构造 runtime，await host.bind(provider.driver) 成功后才发布普通服务并执行 recover。binding 不在构造期间回调，避免半初始化依赖。普通使用者不能从 ModelRuntime 取得 driver。
 
-## 已实现的凭据入口
+## 已实现的发送入口
 
-此节导航真实源码，不重复声明。凭据的纯契约（`CredentialId`、引用、查询、`CredentialPresence`、`CredentialResolution`、`CredentialPort`、`SendFace`、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`）归 [model-contract](../../model-contract/docs/public-api.md#凭据引用与解析端口)，本包不导出它们，也不转导。服务定义归 model-cordis-contract，本地保管、插件与注入发送归 [model-host-local](../../model-host-local/docs/public-api.md)。目标归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
+此节导航真实源码，不重复声明。凭据的纯契约（凭据层、失败、`CredentialPort`、`MODEL_SEND`、选层与判读函数）归 [model-contract](../../model-contract/docs/public-api.md#凭据引用与解析端口)，本包不导出它们，也不转导。服务定义归 model-cordis-contract，读取设置域秘密的凭据端口归 [model-host-local](../../model-host-local/docs/public-api.md)。目标归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
 
-| 消费入口              | 实际源码与能力                                                                                                                                                                                                                                                           |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `@omne-harness/model` | [index.ts](../src/index.ts) 导出 `deliver`、调用记录与发送回执类型，以及存在性与解析的判定函数 `judgeGate`、`judgePresence`、`judgeResolution`、`judgeQualifiedPresence`、`judgeQualifiedResolution` 和它们读取的状态快照类型 `CustodianState`、`Binding`、`BindingLife` |
-
-包导出根入口、`./commands` 子路径和独立 `./testing`，`@omne-harness/model/cordis` 与 `@omne-harness/model/execute` 不再解析。判定只读调用者传入的状态快照，不读文件，也不依赖保管实现。查询租户未经 legal-identity 铸造时，两个判定都返回 `denied`，先于其他判定；快照里有绑定的租户未经铸造时，本应给出工厂秘密的解析同样返回 `denied`。快照类型是判定对保管状态的显式依赖形状，从 model 根入口导出，不进任何契约包；`Binding.secret` 与 `CustodianState.factorySecret` 带秘密字段，只作为类型公开，不携带值。[credential.ts](../src/credential.ts) 拥有判定与快照形状。调用记录与发送回执归 [deliver.ts](../src/deliver.ts)。行为承诺归 [SPEC](../SPEC.md#凭据引用与解析)。根入口还导出 createModelRuntime；它支持受理、原流保存、实例观察及[有限的原终局收场](../SPEC.md#已实现的调用收场)，不证明完整托管调用与消费已交付。
+包导出根入口、`./commands` 子路径和独立 `./testing`，`@omne-harness/model/cordis` 与 `@omne-harness/model/execute` 不再解析。根入口导出 createModelRuntime 与 createModelSendBoundary；createModelRuntime 支持受理、原流保存、实例观察及[有限的原终局收场](../SPEC.md#已实现的调用收场)，不证明完整托管调用与消费已交付。
 
 ## 共享归约核心子路径
 
@@ -138,11 +134,11 @@ await provider.runtime.calls.dispatches(input)
 
 根入口 `createModelSendBoundary(options)` 返回共同 `ModelSendBoundary<P>`。公开构造类型 `ModelSendBoundaryOptions`、`SendCoordinator`、`CredentialSelection`、`SendResources`、`SendResource` 与 `SendStart` 的唯一声明在 [send/types.ts](../src/send/types.ts)。操作仍只接受共同 SendDemand 和 AbortSignal；普通调用者不能传 authorized、official、秘密或启动回调。
 
-Commands、同步 coordinator、credentials 和 resources 由受信装配提供。coordinator.check 的 access 阶段先核当前访问及固定业务绑定，再进入本地原尝试；首次取得前的 prepare 阶段另核当前执行与取消资格，已发送或未知的权威记录先于该资格拒绝被识别。withinCurrent 在共享排他区核精确回执与窗口、当前资格及一次性认领，再最多一次同步调用产品闭包。resources.acquire 取得本次资源，startWithCredential 核本次物化归属、临时持有秘密并同步调用 start，finally 清除秘密。maxRetainedAttempts 必须是正安全整数，在取得资源前限制未知或活跃责任。
+Commands、同步 coordinator、credentials 和 resources 由受信装配提供。coordinator.check 的 access 阶段先核当前访问及固定业务绑定，再进入本地原尝试；首次取得前的 prepare 阶段另核当前执行与取消资格，已发送或未知的权威记录先于该资格拒绝被识别。withinCurrent 在共享排他区核精确回执与窗口、当前资格及一次性认领，再最多一次同步调用产品闭包。resources.acquire 取得本次资源，startWithCredential 核本次物化归属、临时持有该层的秘密映射并同步调用 start，finally 清除秘密。maxRetainedAttempts 必须是正安全整数，在取得资源前限制未知或活跃责任。
 
-测试 `MemorySendSource` 显式登记 profile、supplier、recipient、model 和官方查询条件，current 在 MemoryState 排他区核当前来源及绑定。controls.send.createSender(overrides) 构造共用原后端的另一产品 sender，coordinator 为该后端的受控同步适配入口；覆盖项只用于注入测试依赖与故障。脚本计划不再提供 operation 或 window；测试通过实际命令观察生成值。消费者从公共 started 结果取得原 window 与 facts，并将 result.window 连同原执行与分派传给 Commands.preserve；命令仍核全部绑定。
+测试 `MemorySendSource` 显式登记 profile、supplier、provider、model 和档案是否官方，current 在 MemoryState 排他区核当前来源的发送资格。controls.send.createSender(overrides) 构造共用原后端的另一产品 sender，coordinator 为该后端的受控同步适配入口；覆盖项只用于注入测试依赖与故障。脚本计划不再提供 operation 或 window；测试通过实际命令观察生成值。消费者从公共 started 结果取得原 window 与 facts，并将 result.window 连同原执行与分派传给 Commands.preserve；命令仍核全部绑定。
 
-原写认回、流保留、失败分类和资源寿命归 [SPEC](../SPEC.md#产品发送边界)。当前 factory 已实现直接发送边界，driver 已接入原唯一 facts 消费者及最小实例观察。原终局收场的具体支持见[实现规格](../SPEC.md#已实现的调用收场)，结果读取及 processed ACK 已实现，retained ACK 和生产宿主仍未完成。
+原写认回、流保留、失败分类和资源寿命归 [SPEC](../SPEC.md#产品发送边界)。当前已实现直接发送边界，driver 已接入原唯一 facts 消费者及最小实例观察。原终局收场的具体支持见[实现规格](../SPEC.md#已实现的调用收场)，结果读取及 processed ACK 已实现，retained ACK 和生产宿主仍未完成。
 
 ## 准备资源构造
 

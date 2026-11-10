@@ -4,7 +4,7 @@
 
 ## 集成入口
 
-`./cordis` 导出 `LocalCredentialPlugin`、`deliverInjected`、`ModelInstancesLocalPlugin`、`ModelConvertersLocalPlugin`、`createModelRuntimeLocalPlugin`、`createConfiguredModelRuntimeLocalPlugin`、`createModelStreamLocalPlugin`、`createMemoryResultPushLedger`、`createModelRequestPreparationPlugin`、`createModelSendStagePlugin` 与 `ModelProfilesLocalPlugin`。`deliverInjected` 在 [deliver-injected.ts](../src/deliver-injected.ts)，不导入保管库；插件在 [src/plugins/](..)。`ModelProfilesLocalPlugin` 在 [plugins/profiles.ts](../src/plugins/profiles.ts)，是本包唯一导入家族包的文件。
+`./cordis` 导出 `serveModelCredential`、`ModelInstancesLocalPlugin`、`ModelConvertersLocalPlugin`、`createModelRuntimeLocalPlugin`、`createConfiguredModelRuntimeLocalPlugin`、`createModelStreamLocalPlugin`、`createMemoryResultPushLedger`、`createModelRequestPreparationPlugin`、`createModelSendStagePlugin` 与 `ModelProfilesLocalPlugin`。`serveModelCredential` 在 [cordis.ts](../src/cordis.ts)；插件在 [src/plugins/](..)。`ModelProfilesLocalPlugin` 在 [plugins/profiles.ts](../src/plugins/profiles.ts)，是本包唯一导入家族包的文件。
 
 | 插件                                                            | 静态 inject                                                       | 提供与寿命                                                                                                                                                                                   |
 | --------------------------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -36,15 +36,15 @@
 
 发送阶段插件静态注入 `modelCredential` 与 `modelCommands`。两者缺一个，fiber 停在等待，不建发送路径，也不发布 `modelSendBoundary`。凭据服务或命令服务撤除时，Cordis 连同插件一起卸载。
 
-构造时，插件用 `assembleLocalModel` 建发送路径。凭据经插件自己的端口交给发送边界。端口转发 `present`、`resolve` 及服务已有的可选 `presentFor`、`resolveFor`，不缓存值。缺少的新方法保持缺席，不回退旧方法。撤除先切断端口，捕获的新方法随后返回 `unavailable`，再等待发送路径关闭。服务实例只有 `send`，发送路径在构造函数的闭包里。
+构造时，插件用 `assembleLocalModel` 建发送路径。凭据经插件自己的端口交给发送边界。端口转发服务的 `layerOf` 与 `resolve`，不缓存值。撤除先切断端口，两个方法随后返回 `unavailable`，再等待发送路径关闭。服务实例只有 `send`，发送路径在构造函数的闭包里。
 
 退出由挂在 fiber 上的一个 effect 完成，次序是：撤回凭据端口与已安装的物化 reader，再关闭发送路径。撤 reader 失败仍继续关闭。关闭等待网络上在途的交换停止，不抛出，失败时只记一条不含原因的警告。退出时在两步之间的发送因凭据不可用以 `not-started` 收场，传输没有被启动。仍持旧引用的调用方对没有开始过的 dispatch 得到 `not-started`，诊断为 `send-resources-closed`。已经发出的请求不由卸载收回。
 
 | 东西     | 在本包里是什么                                                                                                        | 不是什么                                               |
 | -------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | 服务     | 抽象 `Service`，键 `modelCredential`，由 [model-cordis-contract](../../model-cordis-contract/docs/cordis.md) 唯一拥有 | 本包不导出，也不另写键                                 |
-| 插件     | `LocalCredentialPlugin`，继承该服务，自己实现 `present` 和 `resolve`；保管库只在构造时创建的闭包里                    | 不是域外工作与编排的子插件，也不进它的作用域           |
-| fiber    | 装载该插件的那条 fiber，关闭挂在它的撤除上                                                                            | 不是域外工作的生命周期，不是模型执行器，也不是一次发送 |
+| 提供     | `serveModelCredential(ctx, port)` 建的服务实例，继承该服务，`layerOf` 与 `resolve` 转发 `port`；端口只在闭包里        | 不是域外工作与编排的子插件，也不进它的作用域           |
+| fiber    | 调用方装载的那条 fiber，服务随它的撤除而撤除                                                                          | 不是域外工作的生命周期，不是模型执行器，也不是一次发送 |
 | 档案插件 | `ModelProfilesLocalPlugin`，继承 model-cordis-contract 的 `ModelProfilesService`，键 `modelProfiles`，无静态 `inject` | 不读 settings，不读 `modelCredential`，不是档案维护者  |
 
 ```mermaid
@@ -52,14 +52,15 @@ classDiagram
   class ModelCredentialService {
     <<Service>>
     provide modelCredential
-    present()
+    layerOf()
     resolve()
-    presentFor()
-    resolveFor()
   }
-  class LocalCredentialPlugin {
-    <<Plugin>>
+  class PortCredentialService {
+    <<serveModelCredential>>
     extends ModelCredentialService
+  }
+  class CredentialPort {
+    <<model-contract>>
   }
   class PluginFiber {
     <<Fiber>>
@@ -68,28 +69,19 @@ classDiagram
   class CallExecution {
     inject modelCredential
   }
-  LocalCredentialPlugin --|> ModelCredentialService
-  PluginFiber o-- LocalCredentialPlugin
+  PortCredentialService --|> ModelCredentialService
+  PortCredentialService ..> CredentialPort : 闭包转发
+  PluginFiber o-- PortCredentialService
   CallExecution --> ModelCredentialService : inject
 ```
 
-同一个 isolate 里这道接缝只有一个提供者。`deliverInjected` 用 model-cordis-contract 导出的键 `modelCredentialKey` 写入 `inject`，再调用 model 的 `deliver`。租户、用途和是否获准发送都是 `resolve` 的参数，不从 `ctx`、插件实例或谁装了这个插件来推断。服务不转发诊断，诊断留在保管库句柄上。
+同一个 isolate 里这道接缝只有一个提供者。租户、用途、档案是否官方与所选的层都是两个操作的参数，不从 `ctx`、服务实例或谁装了它来推断。
 
 ## 生命周期与清理
 
-插件配置是保管库路径、工厂秘密，以及可选的锁等待策略与诊断容量，都是可序列化数据。`path` 必须是非空字符串。`factorySecret` 可以省略，给出时必须是字符串（空字符串合法）。省略时插件不新建保管库，路径上没有文件就答 `unavailable`。`lock.waitMs`、`lock.backoffMs` 与 `diagnosticsCapacity` 是数字；配置不合格时插件加载失败。不新增 Cordis 事件。
+`serveModelCredential` 没有配置，也不打开文件：端口与它背后的秘密保管由调用方建好交入。服务寿命随 `ctx` 的 fiber，撤除时 Cordis 撤回 `modelCredential`；关闭端口背后的保管归建它的调用方，例如在同一 fiber 上挂一个 effect。撤除不改写秘密，也不收回已经交给发送端的值。不新增 Cordis 事件。
 
-路径上没有文件时，插件用配置里的工厂秘密新建保管库（settings-local 的秘密保管库文件，工厂秘密是 Model 的官方绑定）；已有文件时打开并使用文件里的工厂秘密。文件损坏时插件仍然注册 `modelCredential`，四个凭据方法均返回 `unavailable`，不改文件，撤除时没有可关闭的保管库。
-
-`LocalCredentialPlugin` 也实现 `presentFor` 与 `resolveFor`，仍通过闭包转发，不公开保管库。资格路径只核同步租户绑定与 `official` 工厂选择。受信发送边界负责在受理点 C 核验 `access`，提供者不核主体与档案事实的来源。新方法不读取 `SendFace`，旧方法保持原行为，见 [兼容期资格凭据路径](../SPEC.md#兼容期资格凭据路径)。
-
-<a id="绑定管理"></a>`createLocalCredentialPlugin()` 建一个受管插件类，并把它的绑定管理交给装配。插件类提供的 `modelCredential` 与 `LocalCredentialPlugin` 相同，服务上没有管理成员。`custody` 跟随当前存活的那一次装载：撤除时先放开 `custody`，再关闭保管库，所以撤除之后的写操作答 `not-written`，不会落到已关闭的保管库上。后装载的插件先装上时，前一次装载的撤除不放开后者。规则见 [SPEC 绑定管理](../SPEC.md#绑定管理)。
-
-fiber 撤除把本进程标成关闭，随后的四个凭据方法返回 `denied`，服务随插件撤除而不可用。没有另做在途等待；关闭不删除绑定，不改写文件，也不改写已经交给发送端的值。保管库文件上的外部副作用不因撤除而撤回。
-
-保管库不放在实例属性上：Cordis 把实例的代理交给消费者，`#private` 字段经代理失败，实例属性也可被任何能读 `ctx.modelCredential` 的插件取得。注入到的对象不是 `ModelCredentialService` 时，`deliverInjected` 的结果是 `{ sent: false }`。
-
-`modelCredential` 是可选成员，缺席与更替的结果见 [SPEC 注入发送](../SPEC.md#注入发送)。
+端口不放在实例属性上：Cordis 把实例的代理交给消费者，`#private` 字段经代理失败，实例属性也可被任何能读 `ctx.modelCredential` 的插件取得。服务实例只有 `layerOf` 与 `resolve` 两个方法，端口在它们的闭包里。
 
 ## 档案插件的配置与寿命
 

@@ -89,62 +89,13 @@ quiesce 返回十进制字符串 `{ pending, running }`。`running` 是本 provi
 
 本地关闭期限属于宿主配置，不是业务取消期限。到期时只能报告仍有未决资源；不能借超时宣称物理停止。故障恢复、真实执行者排除及旧写核实的前提由[宿主设计](docs/cordis.md#本地调度与执行者排除)维护。受理、发送和保管已承诺的事实不因构造方式改变。
 
-## 凭据引用与解析
+## 凭据的层与发送前读取
 
-本成员提供凭据引用、存在性查询和发送前解析。秘密只留在本成员内部；调用记录、诊断、日志、错误消息和遥测只携带引用，不携带秘密值。
+本成员在发送前读取凭据，不保管凭据。秘密由设置域保管；调用记录、诊断、日志、错误消息和遥测只携带层，不携带秘密值。
 
-凭据引用由凭据身份、租户和用途组成。凭据身份 `CredentialId` 及引用、结果和持有者比较由 [model-contract](../model-contract/SPEC.md#342-凭据引用与解析端口)定义，本成员实现保管侧的取舍与持久化。凭据身份不是租户身份，也不是登录出示物。租户使用 `TenantId`。用途只取 `model-send`。引用本身不授予读取或发送授权。
+凭据由供应商、层和用途确定，租户取自调用方的 `access`。层、失败、端口以及选层与判读规则由 [model-contract](../model-contract/SPEC.md#342-凭据引用与解析端口)定义。层在准备请求时选定，写进 `Supplier.credential`；本成员不重新选层。
 
-公开操作是 `present`（存在性）和 `resolve`（获准发送时解析）。两者都接受一个用途字符串。用途不是 `model-send` 时，两者都返回 `denied`。
-
-### 存在性
-
-`present` 不判断发送资格。结果分三种：
-
-- `known`：带上 `present`（布尔值）、`id`、`tenant`、`purpose`。同一身份且同一租户的行存在时 `present` 为 true，即使该行的寿命是 `revoked` 或 `unreadable`。同一身份只在别的租户手里，或者本租户没有这一行时，`present` 为 false。
-- `denied`：保管已关闭或用途不符。
-- `unavailable`：保管或存储整体不能判断。
-
-### 解析结果
-
-`resolve` 在获准发送时按当前资格返回五种结果之一。只有 `value` 携带秘密，并且只用于这一次发送。
-
-| 结果          | 含义                                             | 发送端行为                                                   |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `value`       | 当前资格允许                                     | 发出，并记下本次采用的值。`scope` 为 `tenant` 或 `factory`。 |
-| `absent`      | 没有这份凭据                                     | 不发送。产品发送边界把本次调用终结为失败，见下文。           |
-| `unreadable`  | 引用在，值暂时读不出                             | 不发送。产品发送边界把本次调用终结为失败，见下文。           |
-| `denied`      | 跨租户、用途不符、无发送资格、已撤销或保管已关闭 | 不发送。                                                     |
-| `unavailable` | 保管或存储暂时不能判断                           | 不发送，也不得报成 `absent`。                                |
-
-### 解析取舍顺序
-
-`resolve` 按以下顺序判断，前面的结果一旦成立，后面的不再看：
-
-1. 保管已关闭、发送未获准或用途不是 `model-send`：返回 `denied`。
-2. 本租户有这一身份的行：
-   - `active`：返回 `value`，范围 `tenant`。
-   - `revoked`：返回 `denied`。
-   - `unreadable`：返回 `unreadable`。
-3. 本租户没有这一行：
-   - 别的租户持有同一身份：返回 `denied`，不使用工厂秘密，不使用其他租户的值。
-   - 本租户还有其他任意一行：返回 `absent`。
-   - 本租户没有任何一行，且本次档案是官方档案：返回 `value`，范围 `factory`。
-   - 否则：返回 `absent`。
-
-已撤销或暂时读不出的行仍然存在，因此 `present` 为 true；只有 `resolve` 才按寿命分别返回 `denied` 或 `unreadable`。租户绑定仍在但值不可读时，不使用部署默认凭据，也不使用其他租户的值。未获准的官方发送拿不到工厂秘密。
-
-### 判定与保管的分工
-
-兼容期新路径由 `judgeQualifiedPresence` 与 `judgeQualifiedResolution` 实现，分别消费不含 `official` 的资格查询与完整 `QualifiedCredentialQuery<P>`。租户只取 `access.tenant`，不读取 `SendFace`，不接受自由租户或 `authorized`。提供者复用合法租户、用途、绑定寿命与工厂选择的判定；同一凭据身份仅由其他租户持有时，两个新判定都返回 `denied`。旧 `judgePresence` 在此情形仍返回 `known` 且 `present: false`，旧 `judgeResolution` 的行为也不变。
-
-受信发送边界负责在受理点 C 核验 `access`，并从档案提供 `official`。这些纯判定不核主体铸造来源，也不核档案事实来源。调用方不能把成功解析当作主体来源已获核验。新路径保留五种解析结果，只有官方档案且租户没有绑定时可选工厂值。验证见 [qualified-credential.spec.ts](tests/qualified-credential.spec.ts)，真实文件与 Cordis 转发验证归 [model-host-local](../model-host-local/SPEC.md#兼容期资格凭据路径)。
-
-本包拥有存在性与解析的判定：`judgeGate`（不依赖绑定的拒绝：租户未铸造、保管已关闭、用途不符、发送无资格；保管实现在读存储之前先问它，所以存储不可读时仍拒绝本来就不会服务的请求）、`judgePresence` 与 `judgeResolution` 只读调用者传入的一份状态快照（`CustodianState`：关闭标志、工厂秘密、绑定列表，绑定寿命为 `active`、`revoked` 或 `unreadable`），不读文件，不持有状态，也不依赖任何保管实现。上文五种结果与存在性规则就是它们的行为。
-
-保管归 [model-host-local](../model-host-local/SPEC.md)：保管库文件、文件锁、刷新、发布确认、关闭，以及装载保管库的 Cordis 插件。保管实现自己构造状态快照并调用判定，本包不依赖它。Cordis 服务键 `modelCredential` 的定义归 model-cordis-contract。独立调用可以不启动 Cordis，直接用判定函数配合任何保管实现；各入口看到的五种结果相同。
-
-判定假设快照里的租户值由同一 legal-identity 实例铸造，保管实现须在其边界重新铸造租户值。查询里的租户同样须是铸造出来的值：未经铸造的租户（例如复制出的对象）使 `judgePresence` 与 `judgeResolution` 都返回 `denied`，先于其他判定，不会被当作没有任何绑定的租户而得到工厂秘密。反过来，快照里若有绑定的租户未经铸造，判定无法证明查询租户没有绑定，此时本应给出工厂秘密的解析返回 `denied`；其余结果不变，这样的绑定自己不匹配任何查询。
+产品发送边界在同步围栏内调用 `CredentialPort.resolve`，传入供应商、请求固定的层、用途 `model-send` 与原 `access`，得到项到秘密的映射。秘密只交给原资源的同步私有槽，见[产品发送边界](#产品发送边界)。
 
 本包导出根入口和独立 testing 子路径，包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract。
 
@@ -311,7 +262,7 @@ Q 里还带执行代次（`execution`），所以比较比五项更严。栅栏�
 
 ## 准备资源与校准租约
 
-`createModelPreparationResources(options)` 实现共同 [`ModelPreparationResources`](../model-contract/SPEC.md#档案和准备提供者的组合协议)。构造声明归 [preparation/resources.ts](src/preparation/resources.ts)。`options.commands` 只用 `dispatches`；`options.bindings` 是结构化端口，pi 家族贡献（`PiFamilyContributions`）直接满足它，本包不导入 pi-ai-transport；`options.supplierOf` 为每个档案供应商给出带凭据引用的 `Supplier`，与请求准备使用同一推导；`options.maxCitedCalls` 是一份 lineage 最多引用的调用数，来自配置，没有包默认值。`maxCitedCalls` 不是正安全整数时构造抛 `RangeError`。
+`createModelPreparationResources(options)` 实现共同 [`ModelPreparationResources`](../model-contract/SPEC.md#档案和准备提供者的组合协议)。构造声明归 [preparation/resources.ts](src/preparation/resources.ts)。`options.commands` 只用 `dispatches`；`options.bindings` 是结构化端口，pi 家族贡献（`PiFamilyContributions`）直接满足它，本包不导入 pi-ai-transport；`options.supplierOf` 为每个档案供应商给出带凭据层的 `Supplier`，与请求准备使用同一推导；`options.maxCitedCalls` 是一份 lineage 最多引用的调用数，来自配置，没有包默认值。`maxCitedCalls` 不是正安全整数时构造抛 `RangeError`。
 
 取得准备租约时，在第一次异步获取家族绑定前复制完整 ModelProfile；后续供应商枚举始终读取该快照，调用方修改原档案不能省掉供应商。访问主体保持原拥有者提供的对象身份，不复制或序列化泛型主体。
 
@@ -426,18 +377,16 @@ continuity 绑定原调用、admission、instance、operation 和证据采用，
 
 `createModelSendBoundary` 实现共同 `ModelSendBoundary`。实际构造声明归 [send/types.ts](src/send/types.ts)，共同物化与发送行为归 [model-contract](../model-contract/SPEC.md#物化回执的提交与发送)。本构造独立于 runtime 五依赖和八配置。runtime driver 作为受信消费者接入同一 sender。边界以空的 `resent` 调用传输的 prepare；`replay-rejected` 后的再发由重试决定填入这项，尚未实现。
 
-边界只固定 SendDemand 的声明字段，已铸造 tenant 与不透明 principal 保留身份引用。当前访问与固定业务绑定先于本地尝试查询。原尝试已可能发送时，后续取消或代次变化不把它降级为未发；权威已有发送记录同样先被识别。首次发送的执行/控制资格另在取得资源前核验，最终同步围栏仍重核。产品持有物化资源、原写输入和一次事实交接；Commands 持有调用事实；具体同步协调者持有全部 sender 共用的当前资格与 dispatch 认领。物化回执、开窗确认后才进入最终同步围栏。协调者在同一排他次序核原主体、发起者、工作资格、代次、控制、固定请求、接收方及来源，先占用一次尝试，再调用产品闭包解析凭据和立即 start。重入拒绝，重复闭包调用复用首次结果。来源不可用、资格撤销、scope 错配和无 value 均不发送。
+边界只固定 SendDemand 的声明字段，已铸造 tenant 与不透明 principal 保留身份引用。当前访问与固定业务绑定先于本地尝试查询。原尝试已可能发送时，后续取消或代次变化不把它降级为未发；权威已有发送记录同样先被识别。首次发送的执行/控制资格另在取得资源前核验，最终同步围栏仍重核。产品持有物化资源、原写输入和一次事实交接；Commands 持有调用事实；具体同步协调者持有全部 sender 共用的当前资格与 dispatch 认领。物化回执、开窗确认后才进入最终同步围栏。协调者在同一排他次序核原主体、发起者、工作资格、代次、控制、固定请求、接收方及来源，先占用一次尝试，再调用产品闭包解析凭据和立即 start。重入拒绝，重复闭包调用复用首次结果。来源不可用、资格撤销、层不合来源和解析失败均不发送。
 
-factory 的精确采用、官方身份、当前无 tenant 绑定及查询 ID 来自受信登记；Model 不生成凭据 ID。产品发送边界在同步围栏内只调用 `resolveFor`，传入原 `access`、凭据 ID、用途及档案事实。缺少该方法或已登记的 `ModelSendSource.credential` 事实时，返回 `unavailable`，依赖为 `model-credential`，诊断为 `qualified-path-missing`，不回退旧 `resolve`。
+供应商的精确采用、供应商名、模型与档案是否官方来自受信登记 `ModelSendSource`。请求固定的层是 `official` 而登记的档案不是官方档案时，边界返回 `unavailable`，依赖为 `model-send-source`，诊断为 `official-layer-not-official`，不调用 `resolve`。产品发送边界在同步围栏内调用 `resolve`，传入供应商、固定的层、用途与原 `access`。
 
-`official` 取自已登记的 `ModelSendSource.credential`。登记来源的 `kind` 为 `factory` 时，显式选择 tenant 凭据也保留该来源的 `official`；登记来源的 `kind` 为 `tenant` 时才取 false。tenant 选择只解析原 ID，且要求返回 tenant 范围的值，不接受 factory 范围的结果。旧 `resolve` 与 `SendFace` 路径的行为保留，不参与产品发送边界。
+`missing`、`incomplete`、`revoked`、`unreadable` 与 `unavailable` 保留不同的 model-credential 安全诊断，形如 `credential-<失败>`；`unavailable` 的诊断是 `credential-unavailable`。`denied` 保持拒绝。
 
-absent、unreadable、unavailable 保留不同的 model-credential 安全诊断；denied 保持拒绝。
-
-凭据缺失与读不出不会自己恢复，所以产品发送边界把它们当作本次调用的确定失败，不让调用方等待：
+选定的层缺失、不完整、撤销或读不出时不会自己恢复，所以产品发送边界把它们当作本次调用的确定失败，不让调用方等待：
 
 1. 边界记下 not-sent 发送记录。
-2. 边界在本尝试开的接收窗口里写一条终止事实：`{ kind: 'failed', fault: { cause: 'credential', diagnostic, upstreamStatus: null } }`。absent 的 `diagnostic` 是 `credential-missing`，unreadable 的是 `credential-unreadable`。没有字节发往上游，所以 `upstreamStatus` 为 null。
+2. 边界在本尝试开的接收窗口里写一条终止事实：`{ kind: 'failed', fault: { cause: 'credential', diagnostic, upstreamStatus: null } }`。`diagnostic` 是 `credential-` 加失败名，例如 `credential-missing`。没有字节发往上游，所以 `upstreamStatus` 为 null。
 3. 边界释放资源，返回 not-started，`failure` 仍是 `unavailable`，依赖为 `model-credential`，诊断同上。
 4. driver 读到这条 not-sent 发送记录带有失败终止，就用它结算本次调用。调用进入 settled，终止为上述失败。
 

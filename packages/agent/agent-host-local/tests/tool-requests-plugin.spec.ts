@@ -25,6 +25,7 @@ import { judgeBlockIdentity, type ContentBlock } from '@omne-harness/content-blo
 import { judgeMessage } from '@omne-harness/message'
 import {
   decodeDispatchId,
+  decodeProviderName,
   decodeResultVersion,
   resolveModelInvocationRef,
 } from '@omne-harness/model-contract'
@@ -248,9 +249,9 @@ async function suggestTool(plugin: ReturnType<typeof createAgentHostLocalPlugin>
       dispatch,
       supplier: {
         adoption: adoption('supplier'),
-        recipient: 'recipient',
+        provider: ok(decodeProviderName('recipient')),
         model: 'model',
-        credential: { kind: 'factory' },
+        credential: { layer: 'official' },
       },
       intent: admission,
       send: 'started',

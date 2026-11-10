@@ -9,7 +9,6 @@
 | 能力或入口 | 当前支持 |
 | --- | --- |
 | `executeModel` | 经显式传输执行一次，覆盖取消及资源关闭 |
-| 凭据判定及 `deliver` | 凭据判定为纯函数，`deliver` 委托传入的 resolver |
 | `createModelRuntime` | 受理、查询、取消意图、原流保存、实例观察与下述支持范围内的调用收场；结果读取与 processed ACK 已实现，retained ACK 仍 unavailable |
 | `createModelSendBoundary` | 显式依赖下提交回执与窗口、同步凭据围栏、一次 start 和唯一事实消费 |
 | `createModelPreparationResources` | 生产准备租约：每个档案供应商一个家族绑定，按调用方访问依据读一次 lineage 引用的调用事实，判决锚点与来源，并在每份预算报告校准判决。没有 lineage 时，每个计量器给出与家族计量器相同的结果。释放后租约的每个计量器都不可用。Request Context 尚未填写 `lineage`（[#638](https://github.com/nemori-ai/omne-harness-lite/issues/638)）。在它填写之前，经 Request Context 的真实计量只给出完整计量或具名不可用 |
@@ -89,7 +88,7 @@ observerBufferBytes 约束逻辑登记与未读通知。每登记64字节，每�
 
 根入口 `createModelSendBoundary` 接收 Commands、同步 `SendCoordinator`、`CredentialPort`、`SendResources` 和正的 `maxRetainedAttempts`。构造形状以 [types.ts](src/send/types.ts) 为准，行为归 [SPEC](SPEC.md#产品发送边界)。sender 先提交物化回执与接收窗口，再在共享同步围栏内核当前资格、认领 dispatch、解析凭据并立即 start。所有 sender、当前资格更新、取消及代次变化必须由同一状态拥有者协调。
 
-factory 路径需要受信装配明确登记精确档案与供应商采用、接收方、model、官方身份、当前无租户绑定和人命名查询 ID。请求中的 factory 标签不授予官方身份。tenant 凭据失败不回退 factory。秘密只进入本次资源的同步 start 槽，不进入尝试、写入或诊断。
+每个发送来源由受信装配明确登记：精确档案与供应商采用、供应商名、model，以及档案是否官方。请求固定了官方凭据层时，只能经官方档案的来源发送。发送只读取请求固定的那一层，不回退另一层。该层的秘密只进入本次资源的同步 start 槽，不进入尝试、写入或诊断。
 
 未知写保存原 operation、expected、输入和资源，重入先核实原操作。start 已返回而记录未确认时不迭代、不关闭原流；认回后唯一交出。signal 交给原传输；事实耗尽或消费者归还时，按 materialized、prepared、resource 逆序幂等释放。释放失败以安全异常可见，未知责任与失败释放继续占容量，没有 TTL 遗忘。
 
@@ -154,4 +153,4 @@ Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再
 
 ## 独立消费入口
 
-凭据判定的已实现导出见[公开入口](docs/public-api.md#已实现的凭据入口)，调用方式见[消费指南](docs/context.md#独立消费入口)；本地保管库与插件的用法见 [model-host-local](../model-host-local/docs/context.md)。凭据判定已有行为测试；其他运行设计的接受不表示已经实现。
+发送的已实现导出见[公开入口](docs/public-api.md#已实现的发送入口)，调用方式见[消费指南](docs/context.md#独立消费入口)；读取设置秘密的凭据端口见 [model-host-local](../model-host-local/docs/context.md)。发送边界已有行为测试；其他运行设计的接受不表示已经实现。

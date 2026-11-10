@@ -19,6 +19,7 @@ afterAll(() => {
 // and nothing else in the expected report.
 const closureMembers = [
   '@omne-harness/model-contract',
+  '@omne-harness/assets',
   '@omne-harness/call-account',
   '@omne-harness/content-block',
   '@omne-harness/exchange-refs',
@@ -28,6 +29,7 @@ const closureMembers = [
   '@omne-harness/modality',
   '@omne-harness/operation-result',
   '@omne-harness/stream-arrival',
+  '@omne-harness/settings',
   '@omne-harness/utc-instant',
 ]
 
@@ -74,6 +76,7 @@ it('installs only the packed closure and every entry resolves inside the consume
   expect(report.probe.map(entry => entry.specifier)).toEqual([
     '@omne-harness/model-contract',
     '@omne-harness/model-contract/provider',
+    '@omne-harness/model-contract/provider-asset',
     '@omne-harness/model-contract/conformance',
     '@omne-harness/model-contract/testing',
   ])

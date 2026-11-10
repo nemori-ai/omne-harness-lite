@@ -72,9 +72,9 @@ async function prepareThroughModel(f: AssemblyFixture, candidate: RequestCandida
         suppliers: [
           {
             adoption: supplier.adoption,
-            recipient: supplier.recipient,
+            provider: supplier.provider,
             model: supplier.model,
-            credential: { kind: 'factory' },
+            credential: { layer: 'official' },
           },
         ],
         parameterAdoptions: [],

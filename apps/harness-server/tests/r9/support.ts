@@ -2,11 +2,22 @@
 // `dist/bin.js serve` process, the `omne` CLI as a process, and the search for secrets in output.
 // No vitest import: `drive.ts` (the `run-r9.sh` driver) uses this file too.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parseSecretText } from '@omne-harness/settings'
+import { createSecretVault } from '@omne-harness/settings-local/secrets'
+import { providerCredentialKey, releaseProvider } from '../../src/assets/model-providers.ts'
 import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
 import { LOCAL_TOKENIZERS } from '../../src/local/operator-defaults.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
@@ -178,16 +189,14 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     sendStage: {
       maxRetainedAttempts: 16,
       materialization: { maxRecords: 16 },
-      factoryQueryId: 'factory-openrouter',
       profiles: {
         retryPolicy: profiles.retryPolicy,
         compactionTriggerPercent: profiles.compactionTriggerPercent,
       },
       preparation,
       network: { maxConnections: 4, idleConnectionTimeoutMs: 60_000 },
-      routes: {
-        openrouter: { url: options.modelRoute ?? UNUSED_MODEL_ROUTE, endMarker: '[DONE]' },
-      },
+      // The release provider body gives the route; the test sends to its own gateway instead.
+      endpoints: { openrouter: options.modelRoute ?? UNUSED_MODEL_ROUTE },
       transportLimits: {
         connectTimeoutMs: 5000,
         connectRetry: { backoffMs: [500, 1000] },
@@ -210,11 +219,41 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     preparation,
     host,
     records,
-    credential: {
-      path: join(options.storageRoot, 'model-vault.json'),
-      factorySecret: 'r9-test-factory-secret',
-    },
+    vault: testVaultPath(options.storageRoot),
   }
+}
+
+/** The vault of a test tree: beside the storage root, which the entry creates, so it is there first. */
+export function testVaultPath(storageRoot: string): string {
+  return join(dirname(storageRoot), 'model-vault.json')
+}
+
+/** The deployment key the test trees hold in the official layer of the OpenRouter `apiKey`. */
+export const TEST_DEPLOYMENT_KEY = 'r9-test-factory-secret'
+
+/**
+ * Builds the vault of a test tree at `path` when it is not there, as `setup` would: the official
+ * layer of the OpenRouter `apiKey` holds `TEST_DEPLOYMENT_KEY`.
+ */
+export function seedTestVault(path: string): string {
+  if (existsSync(path)) return path
+  const provider = releaseProvider('openrouter')
+  const secret = parseSecretText(TEST_DEPLOYMENT_KEY)
+  if (provider === undefined || !secret.ok) throw new Error('the test vault cannot be seeded')
+  mkdirSync(dirname(path), { recursive: true })
+  const created = createSecretVault({
+    path,
+    seed: [
+      {
+        key: providerCredentialKey(provider, { layer: 'official' }, 'apiKey'),
+        secret: secret.value,
+        configuredAt: null,
+      },
+    ],
+  })
+  if (created.kind !== 'open') throw new Error(`the test vault: ${created.kind}`)
+  created.vault.close()
+  return path
 }
 
 /**
@@ -356,9 +395,8 @@ export function operatorLayer(options: {
       },
       // 模型侧五行的配置是机器级参数与运维者的数值：保管库路径、官方档案快照、宿主与记录仓的上限、准备行的家族配置。
       // 写进运维层，不写进发行配置（R2-D6：发行层不写数值默认值）。
-      { kind: 'replace', id: 'model-credential', config: model.credential },
-      // The secret custody row opens the vault the model credential plugin builds on the same path.
-      { kind: 'replace', id: 'secret-custody', config: { path: model.credential.path } },
+      // The secret custody row opens the test vault; the model credential row reads it through the row.
+      { kind: 'replace', id: 'secret-custody', config: { path: seedTestVault(model.vault) } },
       { kind: 'replace', id: 'model-tokenizers', config: model.tokenizers },
       { kind: 'replace', id: 'model-profiles', config: model.profiles },
       { kind: 'replace', id: 'model-request-preparation', config: model.preparation },

@@ -36,22 +36,21 @@
     "@omne-harness/model": "workspace:*",
     "@omne-harness/model-contract": "workspace:*",
     "@omne-harness/model-cordis-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/pi-ai-openai": "workspace:*",
     "@omne-harness/pi-ai-transport": "workspace:*",
     "@omne-harness/settings": "workspace:*",
-    "@omne-harness/settings-local": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness/call-account": "workspace:*",
     "@omne-harness/model-storage-sql": "workspace:*",
     "@omne-harness/pi-ai-anthropic": "workspace:*",
+    "@omne-harness/settings-local": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
-    "@omne-harness/tokenizer-tiktoken": "workspace:*",
-    "proper-lockfile": "^4.1.2",
-    "@types/proper-lockfile": "^4.1.4"
+    "@omne-harness/tokenizer-tiktoken": "workspace:*"
   },
   "omneHarness": {
     "packageTemplate": {

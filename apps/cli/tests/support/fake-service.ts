@@ -155,6 +155,7 @@ function governanceAnswer(operation: string, body: Record<string, unknown>): Ans
             title: 'Exa API key',
             sensitivity: 'secret',
             state: { state: 'usable', tenantId: tenantText, configuredAt: settingAt },
+            official: { state: 'unbound' },
           },
           {
             asset: { category: 'tool', name: 'Web' },
@@ -169,7 +170,10 @@ function governanceAnswer(operation: string, body: Record<string, unknown>): Ans
     case 'set-setting':
       return succeeded({ configuredAt: settingAt })
     case 'describe-setting':
-      return succeeded({ state: 'usable', tenantId: tenantText, configuredAt: settingAt })
+      return succeeded({
+        own: { state: 'usable', tenantId: tenantText, configuredAt: settingAt },
+        official: { state: 'unbound' },
+      })
     case 'clear-setting':
       return succeeded({})
     default:

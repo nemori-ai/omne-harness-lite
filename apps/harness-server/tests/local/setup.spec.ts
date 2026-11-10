@@ -17,7 +17,6 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { MODEL_FACTORY_SECRET_KEY } from '@omne-harness/model-host-local'
 import {
   createPosixGuard,
   openSecretVault,
@@ -25,6 +24,7 @@ import {
 } from '@omne-harness/settings-local/secrets'
 import { isSecretName } from '../../src/local/settings.ts'
 import { runSetup, type SetupDeps } from '../../src/local/setup.ts'
+import { providerCredentialKey, releaseProvider } from '../../src/assets/model-providers.ts'
 
 const roots: string[] = []
 afterEach(() => {
@@ -44,6 +44,13 @@ type Modes = 'posix' | 'host'
  * `posix`: the mode setter and the vault guard are POSIX, with recorded operations, so the Linux
  * mode rule runs on any test host. `host`: no mode setter (as on Windows) and the vault's own guard.
  */
+/** The binding key `setup` writes: the official layer of the OpenRouter `apiKey`. */
+function officialApiKey() {
+  const provider = releaseProvider('openrouter')
+  if (provider === undefined) throw new Error('the release holds no openrouter provider')
+  return providerCredentialKey(provider, { layer: 'official' }, 'apiKey')
+}
+
 function host(modes: Modes = 'host') {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'setup-spec-')))
   roots.push(root)
@@ -113,11 +120,12 @@ function host(modes: Modes = 'host') {
         string,
         unknown
       >,
-    // The factory secret as the vault serves it: the official Model binding, read through the use face.
+    // The deployment key as the vault serves it: the official layer of the OpenRouter `apiKey`,
+    // read through the use face.
     factorySecret: () => {
       const opened = openSecretVault({ path: join(home, 'state', 'model-vault.json') })
       if (opened.kind !== 'open') throw new Error(`vault ${opened.cause}`)
-      const taken = opened.vault.use(MODEL_FACTORY_SECRET_KEY)
+      const taken = opened.vault.use(officialApiKey())
       return typeof taken === 'string' ? taken : taken.value
     },
   }
@@ -258,8 +266,8 @@ describe('a second run', () => {
     expect(out.code).toBe(0)
     expect(h.factorySecret()).toBe(second)
     expect(out.stdout).toContain('(replaced)')
-    // Replacing the factory secret of a readable vault keeps the tenant bindings: no warning.
-    expect(out.stdout).not.toContain('tenant model credentials of the old vault')
+    // Replacing the deployment key of a readable vault keeps the tenant secrets: no warning.
+    expect(out.stdout).not.toContain('tenant secret settings of the old vault')
     expect(out.stdout + out.stderr).not.toContain(second)
   })
 
@@ -321,7 +329,7 @@ describe('a vault that cannot be read', () => {
     const out = await h.run(['--replace-credential'], async () => key)
     expect(out.code, out.stderr).toBe(0)
     expect(out.stdout).toContain('(rebuilt: the old vault could not be read)')
-    expect(out.stdout).toContain('the tenant model credentials of the old vault are gone')
+    expect(out.stdout).toContain('the tenant secret settings of the old vault are gone')
     expect(h.factorySecret()).toBe(key)
     expect(out.stdout + out.stderr).not.toContain(key)
   })

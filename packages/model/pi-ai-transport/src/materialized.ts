@@ -135,13 +135,18 @@ function createMaterialized(
     const { config, route } = input
     // A cancel or a closed network wins over a missing credential: nothing could be sent.
     if (signal.aborted || config.network.closed) return refusedBeforeSend(held, { kind: 'stopped' })
-    const secret = config.credential.read()
-    if (secret === undefined) return refusedBeforeSend(held, { kind: 'credential-missing' })
-    const decoder = input.binding.createDecoder({ request: input.request })
+    const secrets = config.credential.read()
+    const secret = route.auth === null ? null : secrets?.get(route.auth.item)
+    if (secrets === undefined || secret === undefined)
+      return refusedBeforeSend(held, { kind: 'credential-missing' })
+    const decoder = input.binding.createDecoder({
+      request: input.request,
+      accounting: route.accounting,
+    })
     const exchangeInput = {
       url: route.url,
       headers: {
-        authorization: `Bearer ${secret}`,
+        ...(secret !== null && { authorization: `Bearer ${secret}` }),
         'content-type': 'application/json',
         accept: 'text/event-stream',
       },

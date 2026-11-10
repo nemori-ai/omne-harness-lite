@@ -1,8 +1,14 @@
-// The projection of a tool's settings declaration (P15) into the Settings definition shape: what
-// `toolSettingDefinitions` reads from the declaration, what it decides itself, and that the
-// declaration judgment refuses an item without its presentation.
+// The settings a tool asset body declares (P15), projected into the Settings definition shape by
+// the category hook: what the hook reads from the body, what it decides itself, that the body
+// judgment refuses a malformed declaration, and that the definition judgment refuses an item
+// without its presentation.
+import { readBodyText } from '@omne-harness/assets'
 import { defineSettings } from '@omne-harness/settings'
-import { toolSettingDefinitions, type ToolSettingsDeclaration } from '@omne-harness/tool-contract'
+import {
+  toolAssetBody,
+  toolBodyContract,
+  type ToolSettingsDeclaration,
+} from '@omne-harness/tool-contract'
 import { judgeToolDefinition } from '@omne-harness/tool-contract/provider'
 import { describe, expect, it } from 'vitest'
 import { adoption, functionDefinition, json } from './tool-values.ts'
@@ -32,8 +38,17 @@ function declaration(
   }
 }
 
-const owner = { owner: '@omne-harness/harness-server', name: 'Web', revision: '0.0.0' }
-const web = { ...owner, digest: 'sha256:0123abcd' }
+const VERSION = 'sha256:0123abcd'
+
+/** The definition the settings hook derives from the asset body of a tool with this declaration. */
+function project(declaration: ToolSettingsDeclaration | null, name = 'Web', version = VERSION) {
+  const body = toolAssetBody({
+    name,
+    requiredCapabilities: [],
+    declarations: { settings: declaration },
+  })
+  return toolBodyContract().settings?.(body, { capabilityName: name, definition: version })
+}
 const secretItem = {
   path: ['exa', 'apiKey'],
   category: 'binding',
@@ -41,13 +56,9 @@ const secretItem = {
   presentation,
 } as const
 
-describe('toolSettingDefinitions', () => {
+describe('the settings hook of the tool body contract', () => {
   it('projects a sensitive item as a secret item with an absent default and its presentation', () => {
-    const projected = toolSettingDefinitions({
-      adoption: web,
-      name: 'Web',
-      declaration: declaration([secretItem]),
-    })
+    const projected = project(declaration([secretItem]))
     expect(projected).not.toBeNull()
     expect(projected?.items).toEqual([
       {
@@ -62,16 +73,14 @@ describe('toolSettingDefinitions', () => {
       },
     ])
     expect(projected?.definitionId).toBe('Web')
-    // The owner is an npm-style name; the Settings id grammar has no `@`, so it is encoded.
-    expect(projected?.providerId).toBe('tool:_40_omne-harness/harness-server')
+    // The category; the assembly that holds the asset registers it under the asset reference.
+    expect(projected?.providerId).toBe('tool')
     expect(projected?.version).toBe('sha256:0123abcd')
   })
 
   it('is a legal Settings definition', () => {
-    const projected = toolSettingDefinitions({
-      adoption: web,
-      name: 'Web',
-      declaration: declaration(
+    const projected = project(
+      declaration(
         [
           secretItem,
           {
@@ -83,7 +92,7 @@ describe('toolSettingDefinitions', () => {
         ],
         '{"limits":{"lines":10}}',
       ),
-    })
+    )
     expect(defineSettings(projected)).toMatchObject({ kind: 'defined' })
     expect(projected?.items[1]).toMatchObject({
       id: 'limits.lines',
@@ -94,32 +103,24 @@ describe('toolSettingDefinitions', () => {
   })
 
   it('keeps the default of a secret item absent even when the declaration names one', () => {
-    const projected = toolSettingDefinitions({
-      adoption: web,
-      name: 'Web',
-      declaration: declaration([secretItem], '{"exa":{"apiKey":"placeholder"}}'),
-    })
+    const projected = project(declaration([secretItem], '{"exa":{"apiKey":"placeholder"}}'))
     expect(projected?.items[0]?.default).toEqual({ kind: 'absent' })
     expect(JSON.stringify(projected)).not.toContain('placeholder')
   })
 
   it('projects a tool without a settings declaration as null', () => {
-    expect(toolSettingDefinitions({ adoption: web, name: 'Web', declaration: null })).toBeNull()
+    expect(project(null)).toBeNull()
   })
 
-  it('tells two owners, two names and two digests apart, and keeps the id grammar', () => {
+  it('tells two names and two versions apart, and keeps the id grammar', () => {
     const ids = [
-      { ...web, owner: 'omne-harness/harness-server' },
-      { ...web, owner: '@omne-harness/harness-server' },
-      { ...web, owner: '@omne-harness/harness_server' },
-      { ...web, digest: 'sha256:ffff' },
-    ].map(candidate => {
-      const projected = toolSettingDefinitions({
-        adoption: candidate,
-        name: 'Web',
-        declaration: declaration([secretItem]),
-      })
-      if (projected === null) throw new Error('declared')
+      ['Web', VERSION],
+      ['Web_search', VERSION],
+      ['Web search', VERSION],
+      ['Web', 'sha256:ffff'],
+    ].map(([name, version]) => {
+      const projected = project(declaration([secretItem]), name, version)
+      if (projected === null || projected === undefined) throw new Error('declared')
       return `${projected.providerId}|${projected.definitionId}|${projected.version}`
     })
     expect(new Set(ids).size).toBe(ids.length)
@@ -128,23 +129,15 @@ describe('toolSettingDefinitions', () => {
   })
 
   it('refuses a declared path that the schema does not describe, instead of inventing a schema', () => {
-    expect(() =>
-      toolSettingDefinitions({
-        adoption: web,
-        name: 'Web',
-        declaration: declaration([{ ...secretItem, path: ['exa', 'endpoint'] }]),
-      }),
-    ).toThrow(/exa\.endpoint/)
+    expect(() => project(declaration([{ ...secretItem, path: ['exa', 'endpoint'] }]))).toThrow(
+      /exa\.endpoint/,
+    )
   })
 
   describe('a declared path the schema describes through something that is no object', () => {
     const withSchema = (schema: string, path: readonly string[]) => {
       const base = declaration([{ ...secretItem, path }])
-      return toolSettingDefinitions({
-        adoption: web,
-        name: 'Web',
-        declaration: { ...base, schema: { ...base.schema, schema: json(schema) } },
-      })
+      return project({ ...base, schema: { ...base.schema, schema: json(schema) } })
     }
 
     it('refuses a path whose first segment is missing, naming the item', () => {
@@ -183,16 +176,64 @@ describe('toolSettingDefinitions', () => {
       presentation: { ...presentation, title: 'Lines', unit: 'lines' },
     } as const
     for (const defaults of ['{}', '{"limits":{}}', '{"exa":{"apiKey":"x"}}', '{"limits":5}']) {
-      const projected = toolSettingDefinitions({
-        adoption: web,
-        name: 'Web',
-        declaration: declaration([secretItem, lines], defaults),
-      })
+      const projected = project(declaration([secretItem, lines], defaults))
       expect(
         projected?.items.map(item => item.default),
         defaults,
       ).toEqual([{ kind: 'absent' }, { kind: 'absent' }])
     }
+  })
+})
+
+describe('the body judgment of a settings declaration', () => {
+  const LIMITS = {
+    maxBytes: 8192,
+    maxDepth: 16,
+    maxItems: 64,
+    maxMembers: 32,
+    maxStringLength: 400,
+    maxNumberLength: 20,
+  }
+  const judgeSettings = (settings: unknown) => {
+    const read = readBodyText(JSON.stringify({ name: 'Web', settings }), LIMITS)
+    if (read.kind !== 'ok') throw new Error('fixture body')
+    return toolBodyContract().judge(read.value)
+  }
+  const item = { path: ['exa', 'apiKey'], category: 'binding', sensitive: true, presentation }
+  const valid = { schema: { type: 'object' }, defaults: {}, items: [item] }
+
+  it('accepts a body whose declaration has a schema object, defaults and well-formed items', () => {
+    expect(judgeSettings(valid)).toEqual({ ok: true })
+  })
+
+  it.each(['preference', 'binding', 'placement-identity', 'governance'])(
+    'accepts an item of the category %s',
+    category => {
+      expect(judgeSettings({ ...valid, items: [{ ...item, category }] })).toEqual({ ok: true })
+    },
+  )
+
+  it.each([
+    ['a declaration that is not an object', 'settings'],
+    ['a schema that is not an object', { ...valid, schema: true }],
+    ['missing defaults', { schema: valid.schema, items: valid.items }],
+    ['items that are not a list', { ...valid, items: item }],
+    ['missing items', { schema: valid.schema, defaults: valid.defaults }],
+    ['an item that is not an object', { ...valid, items: ['exa.apiKey'] }],
+    ['an item without a path', { ...valid, items: [{ ...item, path: undefined }] }],
+    ['a path that is not a list', { ...valid, items: [{ ...item, path: 'exa.apiKey' }] }],
+    ['a path segment that is not a string', { ...valid, items: [{ ...item, path: ['exa', 7] }] }],
+    ['an item without a category', { ...valid, items: [{ ...item, category: undefined }] }],
+    ['a category that is not a string', { ...valid, items: [{ ...item, category: 1 }] }],
+    ['an item without a sensitivity', { ...valid, items: [{ ...item, sensitive: undefined }] }],
+    ['an item without a presentation', { ...valid, items: [{ ...item, presentation: undefined }] }],
+    ['an empty path', { ...valid, items: [{ ...item, path: [] }] }],
+    ['an empty path segment', { ...valid, items: [{ ...item, path: ['exa', ''] }] }],
+    ['an unknown category', { ...valid, items: [{ ...item, category: 'secret' }] }],
+    ['a sensitivity that is not boolean', { ...valid, items: [{ ...item, sensitive: 'yes' }] }],
+    ['a presentation that is not an object', { ...valid, items: [{ ...item, presentation: 'x' }] }],
+  ])('refuses %s', (_case, settings) => {
+    expect(judgeSettings(settings)).toEqual({ ok: false, rejected: 'invalid-settings' })
   })
 })
 

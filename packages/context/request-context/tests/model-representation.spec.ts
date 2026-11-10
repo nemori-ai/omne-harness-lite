@@ -58,9 +58,9 @@ const profile = officialProfile()
 const [first] = profile.definition.suppliers
 const supplier: Supplier = {
   adoption: first.adoption,
-  recipient: first.recipient,
+  provider: first.provider,
   model: first.model,
-  credential: { kind: 'factory' },
+  credential: { layer: 'official' },
 }
 let executor: TiktokenExecutor
 let binding: PiFamilyBinding

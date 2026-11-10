@@ -37,13 +37,18 @@ if ('ok' in acquired) {
 
 ```ts
 import { createNetworkResources, createPiTransport } from '@omne-harness/pi-ai-transport'
+import { OPENROUTER_ACCOUNTING } from '@omne-harness/pi-ai-transport/chat-completions'
 
 const network = createNetworkResources({ maxConnections: 4, idleConnectionTimeoutMs: 30_000 })
 const { transport, close } = createPiTransport({
   network,
   families,
   routes: {
-    openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions', endMarker: '[DONE]' },
+    openrouter: {
+      url: 'https://openrouter.ai/api/v1/chat/completions',
+      endMarker: '[DONE]',
+      accounting: OPENROUTER_ACCOUNTING,
+    },
   },
   credential: { read: () => slot.value },
   limits: {

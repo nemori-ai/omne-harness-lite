@@ -51,6 +51,7 @@ import type {
   ReadHandlerModule,
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
+import { providerName } from './provider-name.ts'
 
 // --- Values --------------------------------------------------------------------------------
 
@@ -108,9 +109,9 @@ export const REQUEST: FixedModelRequest = (() => {
     suppliers: [
       {
         adoption: ADOPTION,
-        recipient: 'test.invalid',
+        provider: providerName('test.invalid'),
         model: 'test',
-        credential: { kind: 'factory' },
+        credential: { layer: 'official' },
       },
     ],
     fallback: false,

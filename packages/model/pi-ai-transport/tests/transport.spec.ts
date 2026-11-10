@@ -2,7 +2,14 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { PiFamilyContributions, PiTransportConfig } from '../src/index.ts'
 import { openNetwork, type NetworkInternals } from '../src/network.ts'
 import { createPiTransport, type PiTransport } from '../src/transport.ts'
-import { createTestFamily, END_MARKER, LIMITS, REQUEST, SUPPLIER } from './support/test-family.ts'
+import {
+  createTestFamily,
+  END_MARKER,
+  LIMITS,
+  providerName,
+  REQUEST,
+  SUPPLIER,
+} from './support/test-family.ts'
 import { collect, countSends, slotFree } from './support/transport.ts'
 
 const PREPARED_CLOSED_FAILURE = {
@@ -32,8 +39,15 @@ function configWith(overrides: Partial<PiTransportConfig> = {}): PiTransportConf
   return {
     network: freshNetwork().handle,
     families: createTestFamily().families,
-    routes: { [SUPPLIER.recipient]: { url: ROUTE_URL, endMarker: END_MARKER } },
-    credential: { read: () => 'test-secret' },
+    routes: {
+      [SUPPLIER.provider]: {
+        url: ROUTE_URL,
+        endMarker: END_MARKER,
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        auth: { kind: 'bearer', item: 'apiKey' },
+      },
+    },
+    credential: { read: () => new Map([['apiKey', 'test-secret']]) },
     limits: LIMITS,
     ...overrides,
   }
@@ -48,15 +62,154 @@ function build(overrides: Partial<PiTransportConfig> = {}) {
 
 describe('constructing the transport', () => {
   it.each([
-    ['a route URL that does not parse', { routes: { r: { url: 'not a url', endMarker: null } } }],
-    ['an http: route URL', { routes: { r: { url: 'http://127.0.0.1/', endMarker: null } } }],
+    [
+      'a route URL that does not parse',
+      {
+        routes: {
+          r: {
+            url: 'not a url',
+            endMarker: null,
+            accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            auth: { kind: 'bearer', item: 'apiKey' },
+          },
+        },
+      },
+    ],
+    [
+      'an http: route URL',
+      {
+        routes: {
+          r: {
+            url: 'http://127.0.0.1/',
+            endMarker: null,
+            accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            auth: { kind: 'bearer', item: 'apiKey' },
+          },
+        },
+      },
+    ],
     [
       'a route URL with credentials',
-      { routes: { r: { url: 'https://user:pass@127.0.0.1/', endMarker: null } } },
+      {
+        routes: {
+          r: {
+            url: 'https://user:pass@127.0.0.1/',
+            endMarker: null,
+            accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            auth: { kind: 'bearer', item: 'apiKey' },
+          },
+        },
+      },
     ],
     [
       'a route URL with a query',
-      { routes: { r: { url: 'https://127.0.0.1/?a=1', endMarker: null } } },
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/?a=1',
+            endMarker: null,
+            accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            auth: { kind: 'bearer', item: 'apiKey' },
+          },
+        },
+      },
+    ],
+    [
+      'a route without accounting',
+      {
+        routes: { r: { url: 'https://127.0.0.1/', endMarker: null } },
+      } as unknown as Partial<PiTransportConfig>,
+    ],
+    [
+      'a route with an empty cost unit',
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/',
+            endMarker: null,
+            accounting: { place: 'p', costUnit: '' },
+            auth: { kind: 'bearer', item: 'apiKey' },
+          },
+        },
+      },
+    ],
+    [
+      'a route with an empty accounting place',
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/',
+            endMarker: null,
+            accounting: { place: '', costUnit: 'c' },
+            auth: { kind: 'bearer', item: 'apiKey' },
+          },
+        },
+      },
+    ],
+    [
+      'a route auth of another kind',
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/',
+            endMarker: null,
+            accounting: { place: 'p', costUnit: 'c' },
+            auth: { kind: 'basic', item: 'apiKey' },
+          },
+        },
+      } as unknown as Partial<PiTransportConfig>,
+    ],
+    [
+      'a route accounting without a place',
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/',
+            endMarker: null,
+            accounting: { costUnit: 'c' },
+            auth: { kind: 'bearer', item: 'apiKey' },
+          },
+        },
+      } as unknown as Partial<PiTransportConfig>,
+    ],
+    [
+      'a route accounting without a cost unit',
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/',
+            endMarker: null,
+            accounting: { place: 'p' },
+            auth: { kind: 'bearer', item: 'apiKey' },
+          },
+        },
+      } as unknown as Partial<PiTransportConfig>,
+    ],
+    [
+      'a route auth without an item',
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/',
+            endMarker: null,
+            accounting: { place: 'p', costUnit: 'c' },
+            auth: { kind: 'bearer' },
+          },
+        },
+      } as unknown as Partial<PiTransportConfig>,
+    ],
+    [
+      'a route auth with an empty item',
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/',
+            endMarker: null,
+            accounting: { place: 'p', costUnit: 'c' },
+            auth: { kind: 'bearer', item: '' },
+          },
+        },
+      },
     ],
     ['a connect timeout of zero', { limits: { ...LIMITS, connectTimeoutMs: 0 } }],
     [
@@ -83,6 +236,21 @@ describe('constructing the transport', () => {
     },
   )
 
+  it('accepts a route without auth', () => {
+    expect(() =>
+      build({
+        routes: {
+          r: {
+            url: ROUTE_URL,
+            endMarker: null,
+            accounting: { place: 'p', costUnit: 'c' },
+            auth: null,
+          },
+        },
+      }),
+    ).not.toThrow()
+  })
+
   it('refuses network resources that the network resources factory did not make', () => {
     const foreign = { close: () => Promise.resolve() }
     expect(() =>
@@ -94,10 +262,32 @@ describe('constructing the transport', () => {
   it('names the field but never the URL in the message', () => {
     const secretUrl = 'https://user:hunter2@127.0.0.1/v1'
     expect(() =>
-      createPiTransport(configWith({ routes: { r: { url: secretUrl, endMarker: null } } })),
+      createPiTransport(
+        configWith({
+          routes: {
+            r: {
+              url: secretUrl,
+              endMarker: null,
+              accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+              auth: { kind: 'bearer', item: 'apiKey' },
+            },
+          },
+        }),
+      ),
     ).toThrow(/^each route url must be/)
     try {
-      createPiTransport(configWith({ routes: { r: { url: secretUrl, endMarker: null } } }))
+      createPiTransport(
+        configWith({
+          routes: {
+            r: {
+              url: secretUrl,
+              endMarker: null,
+              accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+              auth: { kind: 'bearer', item: 'apiKey' },
+            },
+          },
+        }),
+      )
     } catch (error) {
       expect(String(error)).not.toContain('hunter2')
     }
@@ -142,15 +332,15 @@ describe('constructing the transport', () => {
 })
 
 describe('prepare', () => {
-  it('answers unsupported for a recipient without a route, without acquiring a binding', async () => {
+  it('answers unsupported for a provider without a route, without acquiring a binding', async () => {
     const { transport, probe } = build()
     const outcome = await transport.prepare(
       REQUEST,
-      { ...SUPPLIER, recipient: 'elsewhere' },
+      { ...SUPPLIER, provider: providerName('elsewhere') },
       { resent: [] },
     )
     expect(outcome).toEqual({
-      failure: { kind: 'unsupported', field: 'supplier.recipient', adapter: SUPPLIER.adoption },
+      failure: { kind: 'unsupported', field: 'supplier.provider', adapter: SUPPLIER.adoption },
     })
     expect(probe.acquired).toBe(0)
   })
@@ -173,7 +363,7 @@ describe('prepare', () => {
     const { transport } = build()
     const outcome = await transport.prepare(
       REQUEST,
-      { ...SUPPLIER, recipient: 'toString' },
+      { ...SUPPLIER, provider: providerName('constructor') },
       { resent: [] },
     )
     expect(outcome).toMatchObject({ failure: { kind: 'unsupported' } })

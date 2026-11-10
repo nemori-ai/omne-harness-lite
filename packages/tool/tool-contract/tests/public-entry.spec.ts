@@ -37,7 +37,8 @@ it('exports on the root only the names members outside the Tool group import, an
     'resolveToolInvocationRef',
     'resolveToolOperationRef',
     'selectCommandText',
-    'toolSettingDefinitions',
+    'toolAssetBody',
+    'toolBodyContract',
     'toolsCapabilityOf',
   ])
 })
@@ -96,7 +97,6 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'sameShape',
     'sameSourceLayer',
     'shapeOf',
-    'toolBodyContract',
     'toolStreamCallCodec',
   ])
   for (const name of Object.keys(provider)) expect(Object.keys(tool)).not.toContain(name)

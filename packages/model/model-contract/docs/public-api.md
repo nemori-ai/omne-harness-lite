@@ -3,17 +3,18 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-公开名字分四个入口，规则见[提供者协议入口](#提供者协议入口)。根入口导出消费者所需的类型、身份与引用函数、交付判断、投影差分及 `model-output-v1` 编解码。`./provider` 导出提供者协议及凭据查询，`QualifiedCredentialQuery` 只在该入口。`./testing` 导出受控替身及其脚本控制类型。`./conformance` 导出独立的提供者、凭据及公共流符合性套件和适配类型，不导出替身。[导出清单](../tests/fixtures/exports.json)逐名列出四个入口的名字，没有 `pending` 名字。
+公开名字分五个入口，规则见[提供者协议入口](#提供者协议入口)。根入口导出消费者所需的类型、身份与引用函数、交付判断、投影差分及 `model-output-v1` 编解码。`./provider` 导出提供者协议及凭据端口。`./testing` 导出受控替身及其脚本控制类型。`./conformance` 导出独立的提供者、凭据及公共流符合性套件和适配类型，不导出替身。`./provider-asset` 导出模型供应商的资产类别契约。[导出清单](../tests/fixtures/exports.json)逐名列出五个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
 ## 提供者协议入口
 
-本包有四个入口。`.` 是消费者入口，`./provider` 是提供者协议入口，`./testing` 是受控替身入口，`./conformance` 是符合性套件入口。分组规则沿用 tool-contract 的 [SPEC「公开入口的分组」](../../../tool/tool-contract/SPEC.md#公开入口的分组)规则 1–7。依据是谁消费一个名字，不是它在哪个源码文件。
+本包有五个入口。`.` 是消费者入口，`./provider` 是提供者协议入口，`./testing` 是受控替身入口，`./conformance` 是符合性套件入口，`./provider-asset` 是资产类别入口。分组规则沿用 tool-contract 的 [SPEC「公开入口的分组」](../../../tool/tool-contract/SPEC.md#公开入口的分组)规则 1–7。依据是谁消费一个名字，不是它在哪个源码文件。
 
 - 根入口 = 有 Model 组外导入者的名字 ∪ 这些名字的声明直接或间接引用到的名字 ∪ 按规则 3 判为消费侧的名字：[结果推送与保存](#结果失败和状态)、[显示投影](#model-显示投影纯值)与[当前目标与公共观察](#model-当前目标与公共观察)的名字，身份与调用引用，`ModelRuntime` 的闭包，以及[供应商尝试诊断](#供应商尝试诊断)的读面。Model 组外是 `packages/model` 之外的包与应用，含它们的测试与示例。根入口的每个声明在根入口内自足，不需要从 `./provider` 取类型。
 - `./provider` = 只被 Model 组实现成员（`model`、`model-host-local`、`pi-ai-*`、`tokenizer-tiktoken`、`model-cordis-contract`，含本包自己的测试）使用的提供者协议：传输、提交命令、发送边界、重试策略、实例宿主与 `ModelProvider`，受信宿主驱动，档案维护、请求准备与计量校准，转换件与转换目录，分词接口，档案来源与内容权威，凭据解析端口与 `MODEL_SEND`，消费者 owner 的装配声明，以及只有提供者调用的契约函数：共享输入 judge 与限额常量、操作引用的 codec、`decodeReadId`、`compareRevisions`、回放的声明与投影函数。
-- 一个名字只从四个入口中的一个导出，入口共享同一份源码定义，不复制类型。导入 `./provider` 的成员仍然可以导入根入口。`./provider` 不导入 Cordis 或其他 Model 成员。根入口与 `./provider` 均不导出 `./testing` 与 `./conformance` 的名字或控制面。
+- `./provider-asset` = 模型供应商的资产类别契约。它依赖资产域，所以单独成一个入口：只注册类别或读供应商正文的装配者导入它，根入口与 `./provider` 不因此依赖资产域。
+- 一个名字只从五个入口中的一个导出，入口共享同一份源码定义，不复制类型。导入 `./provider` 的成员仍然可以导入根入口。`./provider` 不导入 Cordis 或其他 Model 成员。根入口与 `./provider` 均不导出 `./testing` 与 `./conformance` 的名字或控制面。
 - 根入口不能为空；组外消费者需要的名字不能只在 `./provider`。两种情形都是分组错误，交契约拥有者裁定，不以把该消费者改成导入 `./provider` 来通过。`./provider` 的名字后来有了组外消费者时移回根入口：根入口增加名字是新增，`./provider` 删除名字是破坏性变化，两者都走契约变更协议。导入扫描与闭包计算表列在改变分组的交付 PR 说明中，不进入本页。
 
 下文各章用「入口」一行注明哪些名字在 `./provider`；没有这一行的章全部在根入口。精确归属以 [`src/index.ts`](../src/index.ts) 与 [`src/provider/index.ts`](../src/provider/index.ts) 为准。[`tests/public-entry.spec.ts`](../tests/public-entry.spec.ts) 核对两个入口的运行时键与「一名一入口」，[导出清单](../tests/fixtures/exports.json)按入口逐名列出。
@@ -22,7 +23,7 @@
 
 本包拥有领域值、品牌、公开操作与可替换提供者端口，包括 ModelProvider 管理接口。executeModel、createModelRuntime 及其 ModelDependencies、ModelConfiguration 由[领域实现](../../model/docs/public-api.md)拥有，不从本包转导出。Cordis 类与键由[框架契约](../../model-cordis-contract/docs/public-api.md)拥有。
 
-凭据纯契约由本包拥有：`CredentialId` 及其解码函数、引用、查询、存在性与解析结果、`CredentialPort` 和持有者比较函数，声明见[凭据引用与解析端口](#凭据引用与解析端口)。`CredentialId` 在本包只有一个声明，model 与其他消费者不再导出同名类型。model 的内部判定状态、磁盘格式和本地保管诊断不属于本包。精确归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
+凭据纯契约由本包拥有：凭据层、失败、`CredentialPort`、选层与判读函数，声明见[凭据引用与解析端口](#凭据引用与解析端口)。秘密的保管、存储格式和保管诊断不属于本包，归设置域。精确归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
 
 `Outcome` 引用 `@omne-harness/operation-result` 的唯一类型。该共享成员没有生产依赖。本包已将它列为生产依赖，真实导出还须按[安装闭包要求](../../docs/architecture.md#安装闭包与共同依赖前置)验证实际产物。不复制 `Outcome`，不以 `import type` 代替完整安装依赖检查。
 
@@ -51,7 +52,7 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 `judgeFixedModelRequest(unknown)` 判断独立固定请求。`judgeAdmit<P>(ModelAdmitCandidate<P>)` 保留 typed Access，只将五个 payload 字段视为未知输入。二者返回现有 Outcome。成功值独立深冻结；admit 根浅冻结，P 与已铸造 tenant 保持原对象。失败为 ModelInputRejection 的 field/reason，field 是规范 JSON Pointer。字段集合、资源限制、失败顺序与 Proxy 限制归 [SPEC](../SPEC.md#封闭输入判断)。结构通过不授予资格、采用或容量。
 
 - 再导出：`Adoption` 与 `ConsumerRef` 的唯一定义在 [exchange-refs](../../../common/exchange-refs/SPEC.md)，`Access` 的唯一定义在 legal-identity。root.ts 以原名再导出它们。封闭判断与 64 位小写十六进制的摘要规则留在本包。
-- 声明：[`src/root.ts`](../src/root.ts)、[`src/identity-values.ts`](../src/identity-values.ts)、[`src/reference.ts`](../src/reference.ts)、[`src/judge-request.ts`](../src/judge-request.ts)、[`src/input-tree.ts`](../src/input-tree.ts)。
+- 声明：[`src/root.ts`](../src/root.ts)、[`src/identity-values.ts`](../src/identity-values.ts)、[`src/provider-name.ts`](../src/provider-name.ts)、[`src/reference.ts`](../src/reference.ts)、[`src/judge-request.ts`](../src/judge-request.ts)、[`src/input-tree.ts`](../src/input-tree.ts)。
 - 入口：`ActorRef`、`ModelOperationRef`、`ModelOperationParts`、`encodeModelOperationRef`、`decodeModelOperationRef`、`resolveModelOperationRef`、`ModelAdmitCandidate`、`ModelInputRejection`、`MODEL_INPUT_LIMITS`、`judgeFixedModelRequest`、`judgeAdmit`、`decodeReadId` 与 `compareRevisions` 在 `./provider`：操作引用由提供者铸造与解析，封闭输入判断由受理提供者调用，读取身份由提供者铸造，修订的先后只有提供者比较。其余在根入口。
 - 类型探针：[`tests/root.spec-d.ts`](../tests/root.spec-d.ts)、[`tests/reference.spec-d.ts`](../tests/reference.spec-d.ts)、[`tests/judge-request.spec-d.ts`](../tests/judge-request.spec-d.ts)。运行时行为测试：[`tests/identity.spec.ts`](../tests/identity.spec.ts)、[`tests/reference.spec.ts`](../tests/reference.spec.ts)、[`tests/judge-request.spec.ts`](../tests/judge-request.spec.ts)。
 
@@ -59,12 +60,12 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 
 身份和序列的文本规则如下，行为条款归[根入口的值与请求](../SPEC.md#342-根入口的值与请求)。
 
-- 每个品牌有一个解码函数，接收 `unknown`，返回 `Outcome`，不抛异常，不读环境、时钟或随机值。`ReadId` 的解码函数 `decodeReadId` 在 `./provider`，其余在根入口。`ModelDiagnosticId` 与 `ModelDiagnosticCursor` 的解码函数在[供应商尝试诊断](#供应商尝试诊断)一节，与两个品牌同处。`CredentialId` 的解码函数 `decodeCredentialId` 在[凭据引用与解析端口](#凭据引用与解析端口)一节，与该品牌同处。
+- 每个品牌有一个解码函数，接收 `unknown`，返回 `Outcome`，不抛异常，不读环境、时钟或随机值。`ReadId` 的解码函数 `decodeReadId` 在 `./provider`，其余在根入口。`ModelDiagnosticId` 与 `ModelDiagnosticCursor` 的解码函数在[供应商尝试诊断](#供应商尝试诊断)一节，与两个品牌同处。`ProviderName` 的解码函数是 `decodeProviderName`，规则见下文。
 - 解码只核格式。成功只得到品牌，不证明对象存在、属于某租户或可以使用。所属租户与已有关系由处理该操作的提供者核验。
 - 身份类（`ModelCallId`、`DispatchId`、`ModelInstanceId`、`ModelOperationId`、`ResultVersion`、`ReadId`、`ModelDiagnosticId`、`ModelDiagnosticCursor`）是固定前缀加主体。前缀见 `MODEL_IDENTITY_PREFIXES`，主体是 1 个以上 `[A-Za-z0-9_-]` 字符。只比较相等，用 `===`。
 - 序列类（`Revision`、`OutputCursor`）是十进制非负整数的规范写法：`0`，或不以 `0` 开头的数字串。相等用 `===`，先后用 `compareRevisions`（`./provider`）与 `compareOutputCursors`（根入口），按整数值比较，不转为浮点数。比较只对同一对象的修订或同一调用流内的游标有定义。
-- 无前缀类（只有 `CredentialId`）由人在凭据保管的配置路径上命名，不由 Model 铸造，所以没有前缀。它的字符规则不同，见[凭据引用与解析端口](#凭据引用与解析端口)。
-- 上述单一身份品牌的文本不超过 `MODEL_IDENTITY_MAX_LENGTH`（256）个 UTF-16 码元。函数不裁剪空白，不折叠大小写。检查按 `ModelIdentityRejection.reason` 的顺序 `type`、`empty`、`length`、`prefix`、`character`、`leading-zero` 自上而下，返回第一个失败。`prefix` 只适用身份类，`leading-zero` 只适用序列类，`CredentialId` 只会返回 `type`、`empty`、`length`、`character`。
+- 无前缀类（只有 `ProviderName`）是模型供应商资产的名字：小写字母、数字、`.` 与 `-`，以字母或数字开头，最长 64 个字符。`decodeProviderName` 不合规则时返回 `invalid-name`，不使用 `ModelIdentityRejection`。
+- 上述单一身份品牌的文本不超过 `MODEL_IDENTITY_MAX_LENGTH`（256）个 UTF-16 码元。函数不裁剪空白，不折叠大小写。检查按 `ModelIdentityRejection.reason` 的顺序 `type`、`empty`、`length`、`prefix`、`character`、`leading-zero` 自上而下，返回第一个失败。`prefix` 只适用身份类，`leading-zero` 只适用序列类。
 - 失败值的 `field` 是品牌键 `ModelIdentityKey`（例如 `'ModelDispatchId'`），不是导出类型名（`DispatchId`）。品牌键带领域前缀，跨领域日志中不会与 Tool 的同名身份混淆。
 - 上述单一身份品牌值就是线上文本，编码是恒等函数，所以不发布编码函数。ModelInvocationRef 和 ModelOperationRef 另有编码函数与 1024 上限。品牌相等即文本相等，不发布相等函数。
 - `ModelOperationId` 的主体不得以 `--` 开头。该前缀保留给守卫派生的控制 operation（见[消费者 owner 的装配声明](#消费者-owner-的装配声明)）。`decodeModelOperationId` 仍只核格式，不拒绝它。接受调用方提交的 `ModelOperationId` 的公开方法在收到保留值时按[资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送)返回 `invalid`。
@@ -270,23 +271,32 @@ ModelDriver 是提供者给执行宿主的能力，不属于普通 ModelRuntime�
 
 ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒体字节，不联网。ModelContentAuthority 同时核原来源、实际块和当前权限，origin 字段本身不授予转换或绕过资格。
 
+## 模型供应商资产
+
+[行为与约束](../SPEC.md#模型供应商资产)。
+
+本章给注册资产类别的装配者和读供应商正文的传输装配：类别名、正文类型、拒绝原因、判定与读取函数，以及类别契约。
+
+- 声明：[`src/provider-asset.ts`](../src/provider-asset.ts)；`ProviderName` 由 [`src/root.ts`](../src/root.ts) 声明，在根入口。
+- 入口：本章其余名字都在 `./provider-asset`。
+- 行为测试：[`tests/provider-asset.spec.ts`](../tests/provider-asset.spec.ts)。
+
 ## 凭据引用与解析端口
 
 [行为与约束](../SPEC.md#342-凭据引用与解析端口)。
 
-本章给凭据的判定方、保管方和替代提供者作者：凭据引用、查询、存在性与解析结果，以及两个函数。
+本章给凭据的选择方、保管方和替代提供者作者：凭据层、失败、端口，以及选层与判读两个函数。
 
-- 声明：[`src/credential.ts`](../src/credential.ts)、[`src/credential-values.ts`](../src/credential-values.ts)。
-- 入口：`CredentialId` 在根入口。其余，含 `MODEL_SEND`、`decodeCredentialId` 与 `sameCredentialHolder`，在 `./provider`。
-- 类型探针：[`tests/credential.spec-d.ts`](../tests/credential.spec-d.ts)。解码与持有者比较的行为测试：[`tests/credential.spec.ts`](../tests/credential.spec.ts)。
+- 声明：[`src/root.ts`](../src/root.ts)（`CredentialLayer`）、[`src/credential.ts`](../src/credential.ts)、[`src/credential-values.ts`](../src/credential-values.ts)。
+- 入口：`CredentialLayer` 在根入口。其余，含 `MODEL_SEND`、`selectCredentialLayer` 与 `readCredentialLayer`，在 `./provider`。
+- 类型探针：[`tests/root.spec-d.ts`](../tests/root.spec-d.ts)。选层与判读的行为测试：[`tests/credential-layer.spec.ts`](../tests/credential-layer.spec.ts)。
 
-- `CredentialId` 是由人命名的不透明身份。它在凭据保管的配置路径上命名（本地保管的管理操作，或外部密钥管理的引用名），不由 Model 运行时铸造。所以它没有前缀：误混由类型阻止，运行时的误用走 `absent`、`denied` 这类失败分支。
-- `decodeCredentialId` 按 `type`、`empty`、`length`、`character` 的顺序返回第一个失败。`length` 是超过 `MODEL_IDENTITY_MAX_LENGTH`（256）个 UTF-16 码元，与其他品牌同一上限。`character` 是含任一 Unicode 空白、控制字符、格式字符或孤立代理码元，包括制表符、零宽字符和双向控制字符，使身份文本可以安全显示与记录。成对的代理码元是一个合法字符，被接受。非 ASCII 的字母和文字被接受。函数不裁剪、不折叠大小写。解码只核格式，不证明凭据存在或属于某租户。
-- 从文本或存储复原 `Supplier` 的位置（档案来源、dispatch 记录、重试决定、恢复读取）必须经 `decodeCredentialId` 取得 `Supplier.credential.id`，不得用类型断言。
-- `CredentialPort<P = unknown>` 保留 `present` 与 `resolve`，增加可选的同步 `presentFor` 与 `resolveFor`。`QualifiedCredentialQuery<P>` 只从 `./provider` 导出，`presentFor` 的输入去掉 `official`。保管方自己的诊断不属于端口，Cordis 服务也不转发它。
-- 新路径的受信发送前提、受理点已核验主体与入口按原受理记录窄签发主体的来源、可同步核验的绑定条件及主体来源限制见 [SPEC](../SPEC.md#342-凭据引用与解析端口)。没有 `resolveFor` 时不退回旧路径。类型探针见 [`qualified-credential-types.spec-d.ts`](../tests/qualified-credential-types.spec-d.ts)。
-- `sameCredentialHolder(left, right)` 是持有者语义的比较：`id` 精确相等，且 `tenantEquals` 为真。未经 legal-identity 铸造的租户值返回 `false`。判定方、保管方与替代提供者共用这一个函数。它不是品牌相等，品牌相等仍是 `===`。
-- `MODEL_SEND` 是唯一的用途取值。`CredentialQuery.purpose` 是普通字符串，用途不符的查询由端口返回 `denied`。
+- `CredentialLayer` 是 `tenant`、`official` 或 `none`。`Supplier.credential` 只写层，不写秘密或秘密的身份。
+- `CredentialLayerQuery<P>` 是 `layerOf` 的输入：`provider`、`official` 与 `access`。`CredentialReference<P>` 是 `resolve` 的输入：`provider`、`layer`、`purpose` 与 `access`。
+- `CredentialPort<P = unknown>` 有同步的 `layerOf` 与 `resolve`。`layerOf` 返回选定的层，`resolve` 返回 `CredentialResolution`，成功值是项到秘密的映射。两者的失败是 `CredentialFailure`。
+- `CredentialItemState` 是一项在一层里的状态：`unbound`、`active`、`revoked` 或 `unreadable`。`CredentialLayerReading` 按项名给出一层的状态。
+- `readCredentialLayer(items, reading)` 判读一层，`selectCredentialLayer({ items, tenant, official, profileOfficial })` 选定一层。凭据提供者、受控替身与符合性套件共用这两个函数。
+- `MODEL_SEND` 是唯一的用途取值。用途不符的引用由端口返回 `denied`。
 
 ## 供应商尝试诊断
 
@@ -366,7 +376,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 - 声明：[`src/testing/credential.ts`](../src/testing/credential.ts)。
 - 行为测试：[`tests/conformance-credential.spec.ts`](../tests/conformance-credential.spec.ts)。精确入口测试：[`tests/testing-entry.spec.ts`](../tests/testing-entry.spec.ts)。
 
-`createScriptedCredentialPort` 接收显式的合成 factory 值，返回业务 `port` 与独立的测试 `controls`。`ScriptedCredentialPortOptions` 和 `ScriptedCredentialPort` 定义其形状。控制面可以设置绑定、轮换、撤销、不可读、来源不可用和关闭。它不进入生产端口或根入口。替身只提供内存中的同步脚本行为，不证明真实秘密保管、主体来源或跨进程资格一致性。
+`createScriptedCredentialPort` 接收按供应商登记的凭据项与是否发行官方层（`ScriptedCredentialProvider`），返回业务 `port` 与独立的测试 `controls`。`ScriptedCredentialPortOptions` 和 `ScriptedCredentialPort` 定义其形状。控制面按 `CredentialTarget`（供应商、项与层）设置绑定、解绑、轮换、撤销、不可读，以及来源不可用和关闭。它不进入生产端口或根入口。替身只提供内存中的同步脚本行为，不证明真实秘密保管、主体来源或跨进程资格一致性。
 
 ## 凭据符合性断言
 
@@ -375,13 +385,13 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 - 声明：[`src/conformance/credential.ts`](../src/conformance/credential.ts)、[`src/conformance/credential-types.ts`](../src/conformance/credential-types.ts)。
 - 行为及负控测试：[`tests/conformance-credential.spec.ts`](../tests/conformance-credential.spec.ts)。精确入口测试：[`tests/conformance-exports.spec.ts`](../tests/conformance-exports.spec.ts)。
 
-`checkCredentialPortConformance` 独立检查 `CredentialPort`，不并入 `checkModelProviderConformance`。`CREDENTIAL_CONFORMANCE_OBLIGATIONS` 列出义务。`CredentialConformanceOptions` 提供每项 fresh subject 工厂与等待上限，`CredentialConformanceSubject` 提供业务端口、合成测试值与 `CredentialConformanceControls`。`CredentialConformanceObligation`、`CredentialConformanceResult` 和 `CredentialConformanceReport` 表示结果。
+`checkCredentialPortConformance` 独立检查 `CredentialPort`，不并入 `checkModelProviderConformance`。`CREDENTIAL_CONFORMANCE_OBLIGATIONS` 列出义务。`CredentialConformanceOptions` 提供每项 fresh subject 工厂与等待上限，`CredentialConformanceSubject` 提供业务端口、合成测试值与 `CredentialConformanceControls`，控制按 `CredentialTarget` 指定一项。`CredentialConformanceObligation`、`CredentialConformanceResult` 和 `CredentialConformanceReport` 表示结果。
 
-套件检查新旧路径、外租户绑定拒绝、factory 适用条件，以及轮换、撤销、不可读、来源不可用和关闭。`qualified-independent-of-legacy` 只检查 qualified 输入没有读取调用方旧 face、authorized、自由 tenant 字段，不能证明提供者内部没有复用旧方法。缺少新方法或控制产生失败。报告只有 pass/fail，异常文本与秘密不进入报告。
+套件检查无凭据项的供应商、租户层整层成立、官方层只给官方档案、两层不混用、固定的层不回退、外租户隔离，以及轮换、撤销、不可读、来源不可用、用途不符和关闭。缺少方法或控制产生失败。报告只有 pass/fail，异常文本与秘密不进入报告。
 
 每项独立创建 subject 并尝试释放。异步工厂、控制及释放受 waitMs 限制。工厂超时后的迟到 subject 仍进入有界 dispose，已返回的失败报告不反转。调用 dispose 不证明真实资源已经停止，挂起或拒绝时释放仍未确认。
 
-套件只检查提供者可同步核验的事实。它不证明 access 的主体来源、`official` 自报、绑定与资格同修订、真实发送围栏或跨进程一致性。受信发送边界前提与已知限制归[凭据契约](../SPEC.md#342-凭据引用与解析端口)。
+套件只检查提供者可同步核验的事实。它不证明 access 的主体来源、`official` 自报、真实发送围栏或跨进程一致性。受信发送边界前提与已知限制归[凭据契约](../SPEC.md#342-凭据引用与解析端口)。
 
 ## 公共流符合性断言
 

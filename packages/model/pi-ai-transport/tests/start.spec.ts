@@ -20,12 +20,43 @@ function setup(
 ): TransportUnderTest & { network: NetworkInternals } {
   const network = openNetwork({ maxConnections: 1, idleConnectionTimeoutMs: 1_000 })
   networks.push(network)
-  const transport = transportOver(network, { url: ROUTE_URL, credential: { read: credential } })
+  // The slot holds the one credential item of the test route, or nothing.
+  const read = () => {
+    const secret = credential()
+    return secret === undefined ? undefined : new Map([['apiKey', secret]])
+  }
+  const transport = transportOver(network, { url: ROUTE_URL, credential: { read } })
   transports.push(transport)
   return { ...transport, network }
 }
 
 describe('a start that sends nothing', () => {
+  it('when the slot lacks the item of the route ends failed with credential and sends nothing', async () => {
+    const network = openNetwork({ maxConnections: 1, idleConnectionTimeoutMs: 1_000 })
+    networks.push(network)
+    const transport = transportOver(network, {
+      url: ROUTE_URL,
+      credential: { read: () => new Map([['otherItem', 'test-secret']]) },
+    })
+    transports.push(transport)
+    const facts = await collect((await transport.materialize()).start(new AbortController().signal))
+    expect(facts).toEqual([
+      {
+        kind: 'ended',
+        termination: {
+          kind: 'failed',
+          fault: {
+            cause: 'credential',
+            diagnostic: 'credential-not-provided',
+            upstreamStatus: null,
+          },
+        },
+      },
+    ])
+    expect(transport.sends()).toBe(0)
+    expect(await slotFree(network)).toBe(true)
+  })
+
   it('without a credential ends failed with credential, sends nothing and returns the slot', async () => {
     const { materialize, sends, network } = setup(() => undefined)
     const materialized = await materialize()

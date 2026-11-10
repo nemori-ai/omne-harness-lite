@@ -565,20 +565,12 @@ describe('the synchronous bridges: execution and current', () => {
         principal,
         tenant: TENANT,
         call: CALL,
-        supplier: { credential: { kind: 'factory' } },
         ...overrides,
       }) as SendDemand<unknown>
     const current: ModelSendSource<unknown>['current'] = s.qualification.sourceCurrent
-    expect(current(demand({}))).toEqual({ ok: { authorized: true, noTenantBinding: true } })
-    expect(current(demand({ call: OTHER_CALL }))).toEqual({
-      ok: { authorized: false, noTenantBinding: true },
-    })
-    expect(current(demand({ principal: s.work() }))).toEqual({
-      ok: { authorized: false, noTenantBinding: true },
-    })
-    expect(
-      current(demand({ supplier: { credential: { kind: 'tenant', id: 'x' } } } as never)),
-    ).toEqual({ ok: { authorized: true, noTenantBinding: false } })
+    expect(current(demand({}))).toEqual({ ok: { authorized: true } })
+    expect(current(demand({ call: OTHER_CALL }))).toEqual({ ok: { authorized: false } })
+    expect(current(demand({ principal: s.work() }))).toEqual({ ok: { authorized: false } })
   })
 
   it('after the host fiber retires, current is false for ever: M is denied and sends are not authorized', async () => {
@@ -626,8 +618,7 @@ describe('the synchronous bridges: execution and current', () => {
         principal,
         tenant: TENANT,
         call: CALL,
-        supplier: { credential: { kind: 'factory' } },
       } as SendDemand<unknown>),
-    ).toEqual({ ok: { authorized: false, noTenantBinding: true } })
+    ).toEqual({ ok: { authorized: false } })
   })
 })

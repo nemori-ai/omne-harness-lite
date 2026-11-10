@@ -39,7 +39,7 @@ describe('the migrated models', () => {
     for (const record of RECORDS) {
       expect(record.revision).toBe(revisionOf(record))
       expect(record.status).toBe('current')
-      expect(record.route).toEqual({ recipient: 'openrouter', model: record.name })
+      expect(record.route).toEqual({ provider: 'openrouter', model: record.name })
     }
   })
 
