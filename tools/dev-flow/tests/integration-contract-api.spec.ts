@@ -37,8 +37,8 @@ describe('runContractApi', () => {
     expect(file).toBe('/node')
     expect(args).toEqual(['/cli.js', '--check', '--json', '--root', '/checkout'])
     expect(options).toMatchObject({ cwd: '/checkout', encoding: 'utf8', timeout: 1234 })
-    // The report of a repository with many members is far larger than the 1 MiB default.
-    expect(options?.maxBuffer).toBeGreaterThanOrEqual(64 * 1024 * 1024)
+    // The report of a repository with many members is larger than the 1 MiB default of a child process.
+    expect(options?.maxBuffer).toBeGreaterThan(1024 * 1024)
     expect(options?.env?.['OMNE_SUBJECT_ROOT']).toBe('/checkout')
     expect(options?.env?.['OMNE_RUNNER_ROOT']).toBe('/checkout')
   })

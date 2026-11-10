@@ -200,5 +200,10 @@ describe('integration contract-check with the installed omne-contract-api', () =
     const result = cli(root)
     expect(result.status).toBe(2)
     expect(result.stdout).toBe('')
+    // The failure goes to standard error as one JSON line with its code and message.
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      code: expect.any(String),
+      message: expect.any(String),
+    })
   })
 })

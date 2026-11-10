@@ -419,7 +419,7 @@ describe('给了记录：只看那一份', () => {
       'depGraph 的缓存状态写错',
       () => JSON.stringify({ ...passingRecord(), caches: { test: 'on', depGraph: 'yes' } }),
     ],
-    ['缓存状态不是对象', () => JSON.stringify({ ...passingRecord(), caches: 'on' })],
+    ['缓存状态是 null', () => JSON.stringify({ ...passingRecord(), caches: null })],
   ])('记录读不出（%s）时拒绝', (_name, text) => {
     mkdirSync(join(fixture.root, 'tmp/admission'), { recursive: true })
     writeFileSync(join(fixture.root, 'tmp/admission/broken.json'), text())

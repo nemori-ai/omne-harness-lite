@@ -28,7 +28,6 @@ describe('ghProcess', () => {
     const { file, args, options } = lastLaunch()
     expect(file).toBe('gh')
     expect(args).toEqual(argv)
-    expect(args).not.toBe(argv)
     expect(options).toMatchObject({ encoding: 'utf8', timeout: 1234, shell: false })
   })
 

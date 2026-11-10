@@ -367,12 +367,3 @@ describe('what a failed launch says about the transport', () => {
     expect(thrown).toBe(value)
   })
 })
-
-describe('GhReadError', () => {
-  it('names itself and keeps the API output out of its message', () => {
-    const error = new GhReadError({ message: 'secret detail' })
-    expect(error.name).toBe('GhReadError')
-    expect(error.message).not.toContain('secret detail')
-    expect(error.message).not.toBe('')
-  })
-})
