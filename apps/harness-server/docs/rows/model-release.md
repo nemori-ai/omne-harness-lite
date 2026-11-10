@@ -96,6 +96,7 @@
 
 ## 已知限制
 
+- **一家供应商只能声明一个凭据项才能发送**：发送路由由供应商正文推出，传输把那一项作为 Bearer 放进请求。正文声明多于一项时（例如 AWS Bedrock 的访问密钥对、OpenAI 直连的密钥加组织与项目标识），正文没有说每一项怎样放进请求，装配拒绝这个供应商。发行的 OpenRouter 只有 `apiKey` 一项。第一家这样的供应商出现时，在供应商正文里加声明每一项用法的 `auth`，路由按它推出，pi-ai-transport 实现对应的方案；选层、判读与取秘密已按多项工作，不用改。
 - **`revoked` 绑定在查看里显示为 `unreadable`**：公开操作不产生 `revoked`，只有保管库自己的 `revoke` 会写它。两者对发送都不可用。
 - **实时撤权（#677）**：M 的登记项只随宿主 fiber 退役失效；W 只在每次调用时重读 standing。撤权确认与下一次调用之间没有同步来源。
 - **直接经 `modelCommands` 服务的 W 调用没有受理点**，一律 `unavailable`（`principal-not-qualified`）。M2 树里这样的消费者只有 `model-request-preparation` 的世系读取，首次调用没有世系。
