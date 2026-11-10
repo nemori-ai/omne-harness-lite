@@ -575,20 +575,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // is a wait (SPEC "依赖不可用时的等待"; agent-host-local SPEC 运行失败: a dependency that is
   // unavailable now does not stop the drive). A failure that the coordinator or the evaluator made
   // is not a port's. `toolRequests` is the trusted in-process request source, not a dependency.
-  const ports = {
-    ...entry.ports,
-    journal: notingPorts(entry.ports.journal),
-    entries: notingPorts(entry.ports.entries),
-    models: notingPorts(entry.ports.models),
-    tools: notingPorts(entry.ports.tools),
-    conditions: notingPorts(entry.ports.conditions),
-    requests: notingPorts(entry.ports.requests),
-    selection: notingPorts(entry.ports.selection),
-    modelContext: notingPorts(entry.ports.modelContext),
-    admission: notingPorts(entry.ports.admission),
-    handoff: notingPorts(entry.ports.handoff),
-    materials: notingPorts(entry.ports.materials),
-    clock: notingPorts(entry.ports.clock),
+  // Each port is wrapped when it is read, as the coordinator read the ports before.
+  const { toolRequests, ...dependencies } = entry.ports
+  const ports: LoopPorts<P> = {
+    ...notingPorts(dependencies),
+    ...(toolRequests && { toolRequests }),
   }
   const access: Access<P> = { principal: entry.access.principal, tenant: entry.access.tenant }
 
