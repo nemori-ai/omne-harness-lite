@@ -89,510 +89,362 @@
 ## 声明文件 `converters.d.ts`
 
 ```ts
-import { Service, type Context as CordisContext } from '@deepseek-ai/cordis'
-import type { ModelConverterCatalog } from '@omne-harness/model-contract/provider'
-import { type Outcome } from '@omne-harness/operation-result'
-import type {
-  ModelConverterAuthority,
-  ModelConverterRegistration,
-  ModelConverterRegistrationInput,
-  ModelRegistrationFailure,
-} from './registration.ts'
+import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
+import type { ModelConverterCatalog } from '@omne-harness/model-contract/provider';
+import { type Outcome } from '@omne-harness/operation-result';
+import type { ModelConverterAuthority, ModelConverterRegistration, ModelConverterRegistrationInput, ModelRegistrationFailure } from './registration.ts';
 export declare class ModelConvertersService<P> extends Service implements ModelConverterCatalog<P> {
-  static readonly provide = 'modelConverters'
-  readonly acquire: ModelConverterCatalog<P>['acquire']
-  readonly register: (
-    input: ModelConverterRegistrationInput<P>,
-  ) => Promise<Outcome<ModelConverterRegistration, ModelRegistrationFailure>>
-  constructor(ctx: CordisContext, authority: ModelConverterAuthority<P>)
+    static readonly provide = "modelConverters";
+    readonly acquire: ModelConverterCatalog<P>['acquire'];
+    readonly register: (input: ModelConverterRegistrationInput<P>) => Promise<Outcome<ModelConverterRegistration, ModelRegistrationFailure>>;
+    constructor(ctx: CordisContext, authority: ModelConverterAuthority<P>);
 }
-export declare const modelConvertersKey = 'modelConverters'
+export declare const modelConvertersKey = "modelConverters";
 ```
 
 ## 声明文件 `cordis.d.ts`
 
 ```ts
-import { Service, type Context as CordisContext } from '@deepseek-ai/cordis'
-import type { TenantId } from '@omne-harness/legal-identity'
-import type {
-  ConsumerRef,
-  ModelCallId,
-  ModelDiagnostics,
-  ModelPreparationResources,
-  ModelResultReceiver,
-  ModelRuntime,
-  ModelStreamReferences,
-  ModelStreamObservation,
-  Revision,
-} from '@omne-harness/model-contract'
-import type {
-  CredentialPort,
-  ModelClock,
-  ModelCommands,
-  ModelHostAuthority,
-  ModelInstanceHost,
-  ModelMessageConversion,
-  ModelProfileMaintenance,
-  ModelProfiles,
-  ModelRequestPreparation,
-  ModelRetryPolicy,
-  ModelSendBoundary,
-} from '@omne-harness/model-contract/provider'
-import type { ModelConvertersService } from './converters.ts'
-import type { ModelInstancesService } from './instances.ts'
-import { type ModelResultReceiverTable } from './receivers.ts'
-import type { ModelConverterAuthority, ModelPublicationAuthority } from './registration.ts'
-export { ModelConvertersService, modelConvertersKey } from './converters.ts'
-export { ModelInstancesService, modelInstancesKey } from './instances.ts'
-export { ModelResultReceiverConflictError, createModelResultReceiverTable } from './receivers.ts'
-export type { ModelResultReceiverTable } from './receivers.ts'
-export type {
-  ModelConverterAuthority,
-  ModelConverterRegistration,
-  ModelConverterRegistrationInput,
-  ModelPublication,
-  ModelPublicationAuthority,
-  ModelRegistration,
-  ModelRegistrationFailure,
-  ModelRegistrationInput,
-} from './registration.ts'
-export declare abstract class ModelCredentialService<P = unknown>
-  extends Service
-  implements CredentialPort<P>
-{
-  static readonly provide = 'modelCredential'
-  constructor(ctx: CordisContext)
-  abstract readonly layerOf: CredentialPort<P>['layerOf']
-  abstract readonly resolve: CredentialPort<P>['resolve']
+import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelPreparationResources, ModelResultReceiver, ModelRuntime, ModelStreamReferences, ModelStreamObservation, Revision } from '@omne-harness/model-contract';
+import type { CredentialPort, ModelClock, ModelCommands, ModelHostAuthority, ModelInstanceHost, ModelMessageConversion, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
+import type { ModelConvertersService } from './converters.ts';
+import type { ModelInstancesService } from './instances.ts';
+import { type ModelResultReceiverTable } from './receivers.ts';
+import type { ModelConverterAuthority, ModelPublicationAuthority } from './registration.ts';
+export { ModelConvertersService, modelConvertersKey } from './converters.ts';
+export { ModelInstancesService, modelInstancesKey } from './instances.ts';
+export { ModelResultReceiverConflictError, createModelResultReceiverTable } from './receivers.ts';
+export type { ModelResultReceiverTable } from './receivers.ts';
+export type { ModelConverterAuthority, ModelConverterRegistration, ModelConverterRegistrationInput, ModelPublication, ModelPublicationAuthority, ModelRegistration, ModelRegistrationFailure, ModelRegistrationInput, } from './registration.ts';
+export declare abstract class ModelCredentialService<P = unknown> extends Service implements CredentialPort<P> {
+    static readonly provide = "modelCredential";
+    constructor(ctx: CordisContext);
+    abstract readonly layerOf: CredentialPort<P>['layerOf'];
+    abstract readonly resolve: CredentialPort<P>['resolve'];
 }
-export declare const modelCredentialKey = 'modelCredential'
-export declare abstract class ModelStreamReferencesService<P>
-  extends Service
-  implements ModelStreamReferences<P>
-{
-  static readonly provide = 'modelStreamReferences'
-  constructor(ctx: CordisContext)
-  abstract readonly current: ModelStreamReferences<P>['current']
+export declare const modelCredentialKey = "modelCredential";
+export declare abstract class ModelStreamReferencesService<P> extends Service implements ModelStreamReferences<P> {
+    static readonly provide = "modelStreamReferences";
+    constructor(ctx: CordisContext);
+    abstract readonly current: ModelStreamReferences<P>['current'];
 }
-export declare const modelStreamReferencesKey = 'modelStreamReferences'
-export declare abstract class ModelStreamObservationService<P>
-  extends Service
-  implements ModelStreamObservation<P>
-{
-  static readonly provide = 'modelStreamObservation'
-  constructor(ctx: CordisContext)
-  abstract readonly observe: ModelStreamObservation<P>['observe']
+export declare const modelStreamReferencesKey = "modelStreamReferences";
+export declare abstract class ModelStreamObservationService<P> extends Service implements ModelStreamObservation<P> {
+    static readonly provide = "modelStreamObservation";
+    constructor(ctx: CordisContext);
+    abstract readonly observe: ModelStreamObservation<P>['observe'];
 }
-export declare const modelStreamObservationKey = 'modelStreamObservation'
+export declare const modelStreamObservationKey = "modelStreamObservation";
 export declare abstract class ModelRuntimeService<P> extends Service implements ModelRuntime<P> {
-  static readonly provide = 'modelRuntime'
-  readonly registerResultReceiver: (
-    owner: ConsumerRef['owner'],
-    receiver: ModelResultReceiver<P>,
-  ) => () => void
-  constructor(ctx: CordisContext, receivers?: ModelResultReceiverTable<P>)
-  abstract readonly calls: ModelRuntime<P>['calls']
-  abstract readonly consumption: ModelRuntime<P>['consumption']
-  abstract readonly instances: ModelRuntime<P>['instances']
+    static readonly provide = "modelRuntime";
+    readonly registerResultReceiver: (owner: ConsumerRef['owner'], receiver: ModelResultReceiver<P>) => () => void;
+    constructor(ctx: CordisContext, receivers?: ModelResultReceiverTable<P>);
+    abstract readonly calls: ModelRuntime<P>['calls'];
+    abstract readonly consumption: ModelRuntime<P>['consumption'];
+    abstract readonly instances: ModelRuntime<P>['instances'];
 }
-export declare const modelRuntimeKey = 'modelRuntime'
+export declare const modelRuntimeKey = "modelRuntime";
 export declare abstract class ModelCommandsService<P> extends Service implements ModelCommands<P> {
-  static readonly provide = 'modelCommands'
-  constructor(ctx: CordisContext)
-  abstract readonly admit: ModelCommands<P>['admit']
-  abstract readonly recall: ModelCommands<P>['recall']
-  abstract readonly scanPending: ModelCommands<P>['scanPending']
-  abstract readonly loadRecovery: ModelCommands<P>['loadRecovery']
-  abstract readonly loadRequest: ModelCommands<P>['loadRequest']
-  abstract readonly claim: ModelCommands<P>['claim']
-  abstract readonly prepareDispatch: ModelCommands<P>['prepareDispatch']
-  abstract readonly recordMaterialization: ModelCommands<P>['recordMaterialization']
-  abstract readonly recordSend: ModelCommands<P>['recordSend']
-  abstract readonly openReceiveWindow: ModelCommands<P>['openReceiveWindow']
-  abstract readonly preserve: ModelCommands<P>['preserve']
-  abstract readonly recordLateFact: ModelCommands<P>['recordLateFact']
-  abstract readonly prepareRetry: ModelCommands<P>['prepareRetry']
-  abstract readonly decideRetry: ModelCommands<P>['decideRetry']
-  abstract readonly settle: ModelCommands<P>['settle']
-  abstract readonly control: ModelCommands<P>['control']
-  abstract readonly acquireRead: ModelCommands<P>['acquireRead']
-  abstract readonly nextRead: ModelCommands<P>['nextRead']
-  abstract readonly endRead: ModelCommands<P>['endRead']
-  abstract readonly handoff: ModelCommands<P>['handoff']
-  abstract readonly advanceCleanup: ModelCommands<P>['advanceCleanup']
-  abstract readonly query: ModelCommands<P>['query']
-  abstract readonly dispatches: ModelCommands<P>['dispatches']
+    static readonly provide = "modelCommands";
+    constructor(ctx: CordisContext);
+    abstract readonly admit: ModelCommands<P>['admit'];
+    abstract readonly recall: ModelCommands<P>['recall'];
+    abstract readonly scanPending: ModelCommands<P>['scanPending'];
+    abstract readonly loadRecovery: ModelCommands<P>['loadRecovery'];
+    abstract readonly loadRequest: ModelCommands<P>['loadRequest'];
+    abstract readonly claim: ModelCommands<P>['claim'];
+    abstract readonly prepareDispatch: ModelCommands<P>['prepareDispatch'];
+    abstract readonly recordMaterialization: ModelCommands<P>['recordMaterialization'];
+    abstract readonly recordSend: ModelCommands<P>['recordSend'];
+    abstract readonly openReceiveWindow: ModelCommands<P>['openReceiveWindow'];
+    abstract readonly preserve: ModelCommands<P>['preserve'];
+    abstract readonly recordLateFact: ModelCommands<P>['recordLateFact'];
+    abstract readonly prepareRetry: ModelCommands<P>['prepareRetry'];
+    abstract readonly decideRetry: ModelCommands<P>['decideRetry'];
+    abstract readonly settle: ModelCommands<P>['settle'];
+    abstract readonly control: ModelCommands<P>['control'];
+    abstract readonly acquireRead: ModelCommands<P>['acquireRead'];
+    abstract readonly nextRead: ModelCommands<P>['nextRead'];
+    abstract readonly endRead: ModelCommands<P>['endRead'];
+    abstract readonly handoff: ModelCommands<P>['handoff'];
+    abstract readonly advanceCleanup: ModelCommands<P>['advanceCleanup'];
+    abstract readonly query: ModelCommands<P>['query'];
+    abstract readonly dispatches: ModelCommands<P>['dispatches'];
 }
-export declare const modelCommandsKey = 'modelCommands'
-export declare abstract class ModelSendBoundaryService<P>
-  extends Service
-  implements ModelSendBoundary<P>
-{
-  static readonly provide = 'modelSendBoundary'
-  constructor(ctx: CordisContext)
-  abstract readonly send: ModelSendBoundary<P>['send']
+export declare const modelCommandsKey = "modelCommands";
+export declare abstract class ModelSendBoundaryService<P> extends Service implements ModelSendBoundary<P> {
+    static readonly provide = "modelSendBoundary";
+    constructor(ctx: CordisContext);
+    abstract readonly send: ModelSendBoundary<P>['send'];
 }
-export declare const modelSendBoundaryKey = 'modelSendBoundary'
-export declare abstract class ModelInstanceHostService<P>
-  extends Service
-  implements ModelInstanceHost<P>
-{
-  static readonly provide = 'modelInstanceHost'
-  constructor(ctx: CordisContext)
-  abstract readonly schedule: ModelInstanceHost<P>['schedule']
-  abstract readonly publish: ModelInstanceHost<P>['publish']
-  abstract readonly withdraw: ModelInstanceHost<P>['withdraw']
-  abstract readonly directory: ModelInstanceHost<P>['directory']
+export declare const modelSendBoundaryKey = "modelSendBoundary";
+export declare abstract class ModelInstanceHostService<P> extends Service implements ModelInstanceHost<P> {
+    static readonly provide = "modelInstanceHost";
+    constructor(ctx: CordisContext);
+    abstract readonly schedule: ModelInstanceHost<P>['schedule'];
+    abstract readonly publish: ModelInstanceHost<P>['publish'];
+    abstract readonly withdraw: ModelInstanceHost<P>['withdraw'];
+    abstract readonly directory: ModelInstanceHost<P>['directory'];
 }
-export declare const modelInstanceHostKey = 'modelInstanceHost'
-export declare abstract class ModelPublicationAuthorityService<P>
-  extends Service
-  implements ModelPublicationAuthority<P>
-{
-  static readonly provide = 'modelPublicationAuthority'
-  constructor(ctx: CordisContext)
-  abstract readonly check: ModelPublicationAuthority<P>['check']
+export declare const modelInstanceHostKey = "modelInstanceHost";
+export declare abstract class ModelPublicationAuthorityService<P> extends Service implements ModelPublicationAuthority<P> {
+    static readonly provide = "modelPublicationAuthority";
+    constructor(ctx: CordisContext);
+    abstract readonly check: ModelPublicationAuthority<P>['check'];
 }
-export declare const modelPublicationAuthorityKey = 'modelPublicationAuthority'
-export declare abstract class ModelRetryPolicyService<P>
-  extends Service
-  implements ModelRetryPolicy<P>
-{
-  static readonly provide = 'modelRetryPolicy'
-  constructor(ctx: CordisContext)
-  abstract readonly decide: ModelRetryPolicy<P>['decide']
-  abstract readonly inspect: ModelRetryPolicy<P>['inspect']
+export declare const modelPublicationAuthorityKey = "modelPublicationAuthority";
+export declare abstract class ModelRetryPolicyService<P> extends Service implements ModelRetryPolicy<P> {
+    static readonly provide = "modelRetryPolicy";
+    constructor(ctx: CordisContext);
+    abstract readonly decide: ModelRetryPolicy<P>['decide'];
+    abstract readonly inspect: ModelRetryPolicy<P>['inspect'];
 }
-export declare const modelRetryPolicyKey = 'modelRetryPolicy'
+export declare const modelRetryPolicyKey = "modelRetryPolicy";
 export declare abstract class ModelClockService extends Service implements ModelClock {
-  static readonly provide = 'modelClock'
-  constructor(ctx: CordisContext)
-  abstract readonly now: ModelClock['now']
-  abstract readonly waitUntil: ModelClock['waitUntil']
+    static readonly provide = "modelClock";
+    constructor(ctx: CordisContext);
+    abstract readonly now: ModelClock['now'];
+    abstract readonly waitUntil: ModelClock['waitUntil'];
 }
-export declare const modelClockKey = 'modelClock'
+export declare const modelClockKey = "modelClock";
 export declare abstract class ModelProfilesService<P> extends Service implements ModelProfiles<P> {
-  static readonly provide = 'modelProfiles'
-  constructor(ctx: CordisContext)
-  abstract readonly list: ModelProfiles<P>['list']
-  abstract readonly resolve: ModelProfiles<P>['resolve']
+    static readonly provide = "modelProfiles";
+    constructor(ctx: CordisContext);
+    abstract readonly list: ModelProfiles<P>['list'];
+    abstract readonly resolve: ModelProfiles<P>['resolve'];
 }
-export declare const modelProfilesKey = 'modelProfiles'
-export declare abstract class ModelProfileMaintenanceService<P>
-  extends Service
-  implements ModelProfileMaintenance<P>
-{
-  static readonly provide = 'modelProfileMaintenance'
-  constructor(ctx: CordisContext)
-  abstract readonly change: ModelProfileMaintenance<P>['change']
-  abstract readonly inspect: ModelProfileMaintenance<P>['inspect']
+export declare const modelProfilesKey = "modelProfiles";
+export declare abstract class ModelProfileMaintenanceService<P> extends Service implements ModelProfileMaintenance<P> {
+    static readonly provide = "modelProfileMaintenance";
+    constructor(ctx: CordisContext);
+    abstract readonly change: ModelProfileMaintenance<P>['change'];
+    abstract readonly inspect: ModelProfileMaintenance<P>['inspect'];
 }
-export declare const modelProfileMaintenanceKey = 'modelProfileMaintenance'
-export declare abstract class ModelRequestPreparationService<P>
-  extends Service
-  implements ModelRequestPreparation<P>
-{
-  static readonly provide = 'modelRequestPreparation'
-  constructor(ctx: CordisContext)
-  abstract readonly prepare: ModelRequestPreparation<P>['prepare']
+export declare const modelProfileMaintenanceKey = "modelProfileMaintenance";
+export declare abstract class ModelRequestPreparationService<P> extends Service implements ModelRequestPreparation<P> {
+    static readonly provide = "modelRequestPreparation";
+    constructor(ctx: CordisContext);
+    abstract readonly prepare: ModelRequestPreparation<P>['prepare'];
 }
-export declare const modelRequestPreparationKey = 'modelRequestPreparation'
-export declare abstract class ModelPreparationResourcesService<P>
-  extends Service
-  implements ModelPreparationResources<P>
-{
-  static readonly provide = 'modelPreparationResources'
-  constructor(ctx: CordisContext)
-  abstract acquire(
-    ...args: Parameters<ModelPreparationResources<P>['acquire']>
-  ): ReturnType<ModelPreparationResources<P>['acquire']>
+export declare const modelRequestPreparationKey = "modelRequestPreparation";
+export declare abstract class ModelPreparationResourcesService<P> extends Service implements ModelPreparationResources<P> {
+    static readonly provide = "modelPreparationResources";
+    constructor(ctx: CordisContext);
+    abstract acquire(...args: Parameters<ModelPreparationResources<P>['acquire']>): ReturnType<ModelPreparationResources<P>['acquire']>;
 }
-export declare const modelPreparationResourcesKey = 'modelPreparationResources'
-export declare abstract class ModelMessageConversionService<P>
-  extends Service
-  implements ModelMessageConversion<P>
-{
-  static readonly provide = 'modelMessageConversion'
-  constructor(ctx: CordisContext)
-  abstract readonly prepare: ModelMessageConversion<P>['prepare']
+export declare const modelPreparationResourcesKey = "modelPreparationResources";
+export declare abstract class ModelMessageConversionService<P> extends Service implements ModelMessageConversion<P> {
+    static readonly provide = "modelMessageConversion";
+    constructor(ctx: CordisContext);
+    abstract readonly prepare: ModelMessageConversion<P>['prepare'];
 }
-export declare const modelMessageConversionKey = 'modelMessageConversion'
-export declare abstract class ModelHostAuthorityService<P>
-  extends Service
-  implements ModelHostAuthority<P>
-{
-  static readonly provide = 'modelHostAuthority'
-  constructor(ctx: CordisContext)
-  abstract readonly resolve: ModelHostAuthority<P>['resolve']
+export declare const modelMessageConversionKey = "modelMessageConversion";
+export declare abstract class ModelHostAuthorityService<P> extends Service implements ModelHostAuthority<P> {
+    static readonly provide = "modelHostAuthority";
+    constructor(ctx: CordisContext);
+    abstract readonly resolve: ModelHostAuthority<P>['resolve'];
 }
-export declare const modelHostAuthorityKey = 'modelHostAuthority'
-export declare abstract class ModelConverterAuthorityService<P>
-  extends Service
-  implements ModelConverterAuthority<P>
-{
-  static readonly provide = 'modelConverterAuthority'
-  constructor(ctx: CordisContext)
-  abstract readonly check: ModelConverterAuthority<P>['check']
+export declare const modelHostAuthorityKey = "modelHostAuthority";
+export declare abstract class ModelConverterAuthorityService<P> extends Service implements ModelConverterAuthority<P> {
+    static readonly provide = "modelConverterAuthority";
+    constructor(ctx: CordisContext);
+    abstract readonly check: ModelConverterAuthority<P>['check'];
 }
-export declare const modelConverterAuthorityKey = 'modelConverterAuthority'
-export declare abstract class ModelDiagnosticsService<P>
-  extends Service
-  implements ModelDiagnostics<P>
-{
-  static readonly provide = 'modelDiagnostics'
-  constructor(ctx: CordisContext)
-  abstract readonly list: ModelDiagnostics<P>['list']
+export declare const modelConverterAuthorityKey = "modelConverterAuthority";
+export declare abstract class ModelDiagnosticsService<P> extends Service implements ModelDiagnostics<P> {
+    static readonly provide = "modelDiagnostics";
+    constructor(ctx: CordisContext);
+    abstract readonly list: ModelDiagnostics<P>['list'];
 }
-export declare const modelDiagnosticsKey = 'modelDiagnostics'
+export declare const modelDiagnosticsKey = "modelDiagnostics";
 declare module '@deepseek-ai/cordis' {
-  interface Context {
-    modelDiagnostics: ModelDiagnosticsService<unknown>
-    modelRuntime: ModelRuntimeService<unknown>
-    modelCommands: ModelCommandsService<unknown>
-    modelSendBoundary: ModelSendBoundaryService<unknown>
-    modelInstanceHost: ModelInstanceHostService<unknown>
-    modelPublicationAuthority: ModelPublicationAuthorityService<unknown>
-    modelRetryPolicy: ModelRetryPolicyService<unknown>
-    modelClock: ModelClockService
-    modelProfiles: ModelProfilesService<unknown>
-    modelProfileMaintenance: ModelProfileMaintenanceService<unknown>
-    modelRequestPreparation: ModelRequestPreparationService<unknown>
-    modelPreparationResources: ModelPreparationResourcesService<unknown>
-    modelMessageConversion: ModelMessageConversionService<unknown>
-    modelHostAuthority: ModelHostAuthorityService<unknown>
-    modelConverterAuthority: ModelConverterAuthorityService<unknown>
-    modelConverters: ModelConvertersService<unknown>
-    modelInstances: ModelInstancesService<unknown>
-    modelStreamReferences?: ModelStreamReferencesService<unknown>
-    modelStreamObservation?: ModelStreamObservationService<unknown>
-    modelCredential?: ModelCredentialService
-  }
-  interface Events {
-    'model-cordis-contract/call-changed'(
-      tenant: TenantId,
-      call: ModelCallId,
-      revision: Revision,
-    ): void
-  }
+    interface Context {
+        modelDiagnostics: ModelDiagnosticsService<unknown>;
+        modelRuntime: ModelRuntimeService<unknown>;
+        modelCommands: ModelCommandsService<unknown>;
+        modelSendBoundary: ModelSendBoundaryService<unknown>;
+        modelInstanceHost: ModelInstanceHostService<unknown>;
+        modelPublicationAuthority: ModelPublicationAuthorityService<unknown>;
+        modelRetryPolicy: ModelRetryPolicyService<unknown>;
+        modelClock: ModelClockService;
+        modelProfiles: ModelProfilesService<unknown>;
+        modelProfileMaintenance: ModelProfileMaintenanceService<unknown>;
+        modelRequestPreparation: ModelRequestPreparationService<unknown>;
+        modelPreparationResources: ModelPreparationResourcesService<unknown>;
+        modelMessageConversion: ModelMessageConversionService<unknown>;
+        modelHostAuthority: ModelHostAuthorityService<unknown>;
+        modelConverterAuthority: ModelConverterAuthorityService<unknown>;
+        modelConverters: ModelConvertersService<unknown>;
+        modelInstances: ModelInstancesService<unknown>;
+        modelStreamReferences?: ModelStreamReferencesService<unknown>;
+        modelStreamObservation?: ModelStreamObservationService<unknown>;
+        modelCredential?: ModelCredentialService;
+    }
+    interface Events {
+        'model-cordis-contract/call-changed'(tenant: TenantId, call: ModelCallId, revision: Revision): void;
+    }
 }
 ```
 
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type {
-  ModelConverterAuthority,
-  ModelConverterRegistration,
-  ModelConverterRegistrationInput,
-  ModelPublication,
-  ModelPublicationAuthority,
-  ModelRegistration,
-  ModelRegistrationFailure,
-  ModelRegistrationInput,
-} from './registration.ts'
+export type { ModelConverterAuthority, ModelConverterRegistration, ModelConverterRegistrationInput, ModelPublication, ModelPublicationAuthority, ModelRegistration, ModelRegistrationFailure, ModelRegistrationInput, } from './registration.ts';
 ```
 
 ## 声明文件 `instances.d.ts`
 
 ```ts
-import { Service, type Context as CordisContext } from '@deepseek-ai/cordis'
-import type { ModelInstanceDirectory } from '@omne-harness/model-contract/provider'
-import { type Outcome } from '@omne-harness/operation-result'
-import type {
-  ModelPublicationAuthority,
-  ModelRegistration,
-  ModelRegistrationFailure,
-  ModelRegistrationInput,
-} from './registration.ts'
+import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
+import type { ModelInstanceDirectory } from '@omne-harness/model-contract/provider';
+import { type Outcome } from '@omne-harness/operation-result';
+import type { ModelPublicationAuthority, ModelRegistration, ModelRegistrationFailure, ModelRegistrationInput } from './registration.ts';
 export declare class ModelInstancesService<P> extends Service implements ModelInstanceDirectory<P> {
-  static readonly provide = 'modelInstances'
-  readonly connect: ModelInstanceDirectory<P>['connect']
-  readonly register: (
-    input: ModelRegistrationInput<P>,
-  ) => Promise<Outcome<ModelRegistration, ModelRegistrationFailure>>
-  constructor(ctx: CordisContext, authority: ModelPublicationAuthority<P>)
+    static readonly provide = "modelInstances";
+    readonly connect: ModelInstanceDirectory<P>['connect'];
+    readonly register: (input: ModelRegistrationInput<P>) => Promise<Outcome<ModelRegistration, ModelRegistrationFailure>>;
+    constructor(ctx: CordisContext, authority: ModelPublicationAuthority<P>);
 }
-export declare const modelInstancesKey = 'modelInstances'
+export declare const modelInstancesKey = "modelInstances";
 ```
 
 ## 声明文件 `receivers.d.ts`
 
 ```ts
-import type { Context as CordisContext } from '@deepseek-ai/cordis'
-import type { ConsumerRef, ModelResultReceiver } from '@omne-harness/model-contract'
-type Owner = ConsumerRef['owner']
+import type { Context as CordisContext } from '@deepseek-ai/cordis';
+import type { ConsumerRef, ModelResultReceiver } from '@omne-harness/model-contract';
+type Owner = ConsumerRef['owner'];
 export declare class ModelResultReceiverConflictError extends Error {
-  readonly owner: Owner
-  constructor(owner: Owner)
+    readonly owner: Owner;
+    constructor(owner: Owner);
 }
 export interface ModelResultReceiverTable<P> {
-  register(ctx: CordisContext, owner: Owner, receiver: ModelResultReceiver<P>): () => void
-  resolve(owner: Owner): ModelResultReceiver<P> | null
+    register(ctx: CordisContext, owner: Owner, receiver: ModelResultReceiver<P>): () => void;
+    resolve(owner: Owner): ModelResultReceiver<P> | null;
 }
-export declare function createModelResultReceiverTable<P>(): ModelResultReceiverTable<P>
-export {}
+export declare function createModelResultReceiverTable<P>(): ModelResultReceiverTable<P>;
+export {};
 ```
 
 ## 声明文件 `registration.d.ts`
 
 ```ts
-import type { Adoption, DurableEvidence } from '@omne-harness/model-contract'
-import type {
-  ConverterKey,
-  ModelConverter,
-  ModelInstanceHost,
-} from '@omne-harness/model-contract/provider'
-import type { Outcome } from '@omne-harness/operation-result'
-export type ModelRegistrationFailure =
-  | Readonly<{
-      kind: 'denied' | 'stale-publication' | 'conflict'
-    }>
-  | Readonly<{
-      kind: 'invalid'
-      reason: string
-    }>
-  | Readonly<{
-      kind: 'unavailable'
-      diagnostic: string
-    }>
-export type ModelPublication = Extract<
-  Awaited<ReturnType<ModelInstanceHost<never>['publish']>>,
-  {
-    ok: unknown
-  }
->['ok']
+import type { Adoption, DurableEvidence } from '@omne-harness/model-contract';
+import type { ConverterKey, ModelConverter, ModelInstanceHost } from '@omne-harness/model-contract/provider';
+import type { Outcome } from '@omne-harness/operation-result';
+export type ModelRegistrationFailure = Readonly<{
+    kind: 'denied' | 'stale-publication' | 'conflict';
+}> | Readonly<{
+    kind: 'invalid';
+    reason: string;
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export type ModelPublication = Extract<Awaited<ReturnType<ModelInstanceHost<never>['publish']>>, {
+    ok: unknown;
+}>['ok'];
 export type ModelRegistrationInput<P> = Readonly<{
-  publication: Parameters<ModelInstanceHost<P>['publish']>
-  authority: DurableEvidence
-}>
+    publication: Parameters<ModelInstanceHost<P>['publish']>;
+    authority: DurableEvidence;
+}>;
 export type ModelRegistration = Readonly<{
-  receipt: ModelPublication
-  release(): Promise<
-    Readonly<{
-      removed: boolean
-    }>
-  >
-}>
+    receipt: ModelPublication;
+    release(): Promise<Readonly<{
+        removed: boolean;
+    }>>;
+}>;
 export interface ModelPublicationAuthority<P> {
-  check(input: ModelRegistrationInput<P>): Outcome<void, ModelRegistrationFailure>
+    check(input: ModelRegistrationInput<P>): Outcome<void, ModelRegistrationFailure>;
 }
 export type ModelConverterRegistrationInput<P> = Readonly<{
-  key: ConverterKey
-  converter: ModelConverter<P>
-  adoption: Adoption
-  authority: DurableEvidence
-  release?(): Promise<void>
-}>
+    key: ConverterKey;
+    converter: ModelConverter<P>;
+    adoption: Adoption;
+    authority: DurableEvidence;
+    release?(): Promise<void>;
+}>;
 export interface ModelConverterAuthority<P> {
-  check(input: ModelConverterRegistrationInput<P>): Outcome<void, ModelRegistrationFailure>
+    check(input: ModelConverterRegistrationInput<P>): Outcome<void, ModelRegistrationFailure>;
 }
 export type ModelConverterRegistration = Readonly<{
-  token: string
-  release(): Promise<
-    Readonly<{
-      removed: boolean
-      failure?: Extract<
-        ModelRegistrationFailure,
-        {
-          kind: 'unavailable'
-        }
-      >
-    }>
-  >
-}>
+    token: string;
+    release(): Promise<Readonly<{
+        removed: boolean;
+        failure?: Extract<ModelRegistrationFailure, {
+            kind: 'unavailable';
+        }>;
+    }>>;
+}>;
 ```
 
 ## 声明文件 `testing/index.d.ts`
 
 ```ts
-import { Context } from '@deepseek-ai/cordis'
-import type { ModelResultReceiver } from '@omne-harness/model-contract'
-import { type ModelResultReceiverTable } from '../receivers.ts'
+import { Context } from '@deepseek-ai/cordis';
+import type { ModelResultReceiver } from '@omne-harness/model-contract';
+import { type ModelResultReceiverTable } from '../receivers.ts';
 export interface ModelResultReceiverHost<P> {
-  readonly context: Context
-  resolve(owner: string): ModelResultReceiver<P> | null
-  dispose(): Promise<void>
+    readonly context: Context;
+    resolve(owner: string): ModelResultReceiver<P> | null;
+    dispose(): Promise<void>;
 }
 export type ScriptedModelRuntimeHostOptions<P> = Readonly<{
-  table?: ModelResultReceiverTable<P>
-}>
-export declare function createScriptedModelRuntimeHost<P = unknown>(
-  options?: ScriptedModelRuntimeHostOptions<P>,
-): Promise<ModelResultReceiverHost<P>>
+    table?: ModelResultReceiverTable<P>;
+}>;
+export declare function createScriptedModelRuntimeHost<P = unknown>(options?: ScriptedModelRuntimeHostOptions<P>): Promise<ModelResultReceiverHost<P>>;
 export interface ModelResultReceiverFixture {
-  create(): Promise<ModelResultReceiverHost<unknown>>
+    create(): Promise<ModelResultReceiverHost<unknown>>;
 }
 export type ModelResultReceiverCase = Readonly<{
-  name: string
-  clause: string
-  run(): Promise<void>
-}>
-export declare function modelResultReceiverConformance(
-  fixture: ModelResultReceiverFixture,
-): readonly ModelResultReceiverCase[]
-export {
-  createModelPreparationResourcesPlugin,
-  createScriptedModelPreparationResources,
-  modelPreparationResourcesConformance,
-} from './preparation-resources.ts'
-export type {
-  ModelPreparationResourcesCase,
-  ModelPreparationResourcesFixture,
-  ModelPreparationResourcesSubject,
-  ScriptedModelPreparationResources,
-  ScriptedModelPreparationResourcesScript,
-} from './preparation-resources.ts'
+    name: string;
+    clause: string;
+    run(): Promise<void>;
+}>;
+export declare function modelResultReceiverConformance(fixture: ModelResultReceiverFixture): readonly ModelResultReceiverCase[];
+export { createModelPreparationResourcesPlugin, createScriptedModelPreparationResources, modelPreparationResourcesConformance, } from './preparation-resources.ts';
+export type { ModelPreparationResourcesCase, ModelPreparationResourcesFixture, ModelPreparationResourcesSubject, ScriptedModelPreparationResources, ScriptedModelPreparationResourcesScript, } from './preparation-resources.ts';
 ```
 
 ## 声明文件 `testing/preparation-resources.d.ts`
 
 ```ts
-import type { Context } from '@deepseek-ai/cordis'
-import type {
-  ModelFailure,
-  ModelInputMeter,
-  ModelPreparationLease,
-  ModelPreparationResources,
-  ModelRequestRules,
-} from '@omne-harness/model-contract'
-type Acquire<P> = ModelPreparationResources<P>['acquire']
-type Released = Awaited<ReturnType<ModelPreparationLease['release']>>
-type PlanInput = Parameters<ModelRequestRules['plan']>[0]
+import type { Context } from '@deepseek-ai/cordis';
+import type { ModelFailure, ModelInputMeter, ModelPreparationLease, ModelPreparationResources, ModelRequestRules } from '@omne-harness/model-contract';
+type Acquire<P> = ModelPreparationResources<P>['acquire'];
+type Released = Awaited<ReturnType<ModelPreparationLease['release']>>;
+type PlanInput = Parameters<ModelRequestRules['plan']>[0];
 export type ScriptedModelPreparationResourcesScript = Readonly<{
-  meter: ModelInputMeter
-  plan?: (input: PlanInput) => ReturnType<ModelRequestRules['plan']>
-  acquire?: () => ModelFailure | null
-  release?: () => Released
-}>
+    meter: ModelInputMeter;
+    plan?: (input: PlanInput) => ReturnType<ModelRequestRules['plan']>;
+    acquire?: () => ModelFailure | null;
+    release?: () => Released;
+}>;
 export interface ScriptedModelPreparationResources<P> extends ModelPreparationResources<P> {
-  readonly durability: 'none'
-  outstanding(): number
+    readonly durability: 'none';
+    outstanding(): number;
 }
-export declare function createScriptedModelPreparationResources<P = unknown>(
-  script: ScriptedModelPreparationResourcesScript,
-): ScriptedModelPreparationResources<P>
-export declare function createModelPreparationResourcesPlugin<P = unknown>(
-  source: ModelPreparationResources<P>,
-): Readonly<{
-  name: string
-  apply(ctx: Context): void
-}>
+export declare function createScriptedModelPreparationResources<P = unknown>(script: ScriptedModelPreparationResourcesScript): ScriptedModelPreparationResources<P>;
+export declare function createModelPreparationResourcesPlugin<P = unknown>(source: ModelPreparationResources<P>): Readonly<{
+    name: string;
+    apply(ctx: Context): void;
+}>;
 export interface ModelPreparationResourcesSubject {
-  readonly context: Context
-  readonly input: Parameters<Acquire<unknown>>[0]
-  dispose(): Promise<void>
+    readonly context: Context;
+    readonly input: Parameters<Acquire<unknown>>[0];
+    dispose(): Promise<void>;
 }
 export interface ModelPreparationResourcesFixture {
-  create(): Promise<ModelPreparationResourcesSubject>
-  createWithFailingRelease(): Promise<ModelPreparationResourcesSubject>
+    create(): Promise<ModelPreparationResourcesSubject>;
+    createWithFailingRelease(): Promise<ModelPreparationResourcesSubject>;
 }
 export type ModelPreparationResourcesCase = Readonly<{
-  name: string
-  clause: string
-  run(): Promise<void>
-}>
-export declare function modelPreparationResourcesConformance(
-  fixture: ModelPreparationResourcesFixture,
-): readonly ModelPreparationResourcesCase[]
-export {}
+    name: string;
+    clause: string;
+    run(): Promise<void>;
+}>;
+export declare function modelPreparationResourcesConformance(fixture: ModelPreparationResourcesFixture): readonly ModelPreparationResourcesCase[];
+export {};
 ```
