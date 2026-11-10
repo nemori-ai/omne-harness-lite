@@ -88,6 +88,17 @@ AgentMaterials 提供者拥有材料，Journal 拥有 fixed 绑定及 effect int
 
 Model 的受理前引用、not-accepted 判定、原固定输入与 ACK result/evidence 继续沿 Model 契约，不能套用 Tool 身份分配方式。
 
+#### Tool 结果保存之后不重发
+
+结果接收方为一个 Tool 结果返回 saved 之后，Agent 不再以同一消费位置发起这次 Tool 调用。这是 Tool 契约对消费者的前提 A2（与 Loop 节点 A2 是两回事），见 Tool 的[确认之后的调用状态](../../tool/tool-contract/SPEC.md#确认之后的调用状态)。Tool 在确认之后按期限删除调用状态，删除之后的重发会让同一函数再执行一次。下列四个条件共同保证这一承诺：
+
+1. 接收绑定只随 associated Tool PendingCall 产生，并与 checkpoint 在同一批提交里建立。
+2. 一个 (execution, step) 只形成一个动作批。
+3. 新的 Run 总是使用新的 Run 标识。
+4. Agent 只有一个位置向 Tool 发起受理，它只为还没有槽位的动作发起。
+
+改变其中任一条件之前，须重新核对本承诺。
+
 #### 控制接受与迟到引用
 
 公共 `ExecutionControl` 保持原 call 和原因输入，不增加 ToolOperationRef。Tool control 接受先核对当前所有权与访问资格，再按原 control operation 认回或返回 conflict，之后才为新的 control operation 扫描当前 pending。checkpoint 前进不阻止原 control operation 的接受认回。Tool 中断或后台控制受理时，Journal 在该 execution 的 associated Tool pending 中定位原调用。先按 producer kind 区分，再比较 call。Model 控制同样先区分 kind，允许 Model 与 Tool 使用相同文本 ID。Tool 匹配通过当前租户的公开 `resolveToolInvocationRef` 校验。新的 control operation 遇到匹配 producer kind 的畸形引用返回 invalid，field 为 command.call，reason 为 invalid-tool-invocation-reference。无匹配或存在多个不同当前租户调用引用时返回 invalid，field 为 command.call，reason 分别为 no-associated-tool-call 或 ambiguous-associated-tool-call。重复相同引用不算多个不同关联。
