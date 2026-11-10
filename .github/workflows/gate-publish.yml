@@ -97,36 +97,24 @@ jobs:
               name=$p
             done
           }
-          # Sets kind to work, sync, promote or stable for $BASE_REF and $head_ref, or fails.
+          # Sets kind to work, promote or stable for $BASE_REF and $head_ref, or fails.
+          # Only three kinds exist: a personal branch into integration/mainline (work),
+          # integration/mainline into main (promote) and main into stable (stable).
           classify() {
-            local t x ut ux
+            local t x ux
             case "$BASE_REF" in
               main)
-                [[ "$head_ref" == integration/* ]] || { echo "rejected: main accepts PRs only from a top-level track" >&2; return 1; }
+                [ "$head_ref" = integration/mainline ] || { echo "rejected: main accepts PRs only from integration/mainline" >&2; return 1; }
                 x=${head_ref#integration/}
                 chain "$x" || return 1
                 ux=$(upstream "$x") || return 1
                 [ "$ux" = main ] || { echo "rejected: $head_ref is not a top-level track; it enters only integration/$ux" >&2; return 1; }
                 kind=promote ;;
-              integration/*)
+              integration/mainline)
                 t=${BASE_REF#integration/}
                 chain "$t" || return 1
-                ut=$(upstream "$t") || return 1
                 case "$head_ref" in
-                  stable|release|github-gate) echo "rejected: $head_ref cannot enter a track" >&2; return 1 ;;
-                  main)
-                    [ "$ut" = main ] || { echo "rejected: main enters only a top-level track; $BASE_REF syncs from integration/$ut" >&2; return 1; }
-                    kind=sync ;;
-                  integration/*)
-                    x=${head_ref#integration/}
-                    if [ "$ut" = "$x" ]; then
-                      kind=sync
-                    else
-                      grep -qxF "refs/heads/$head_ref" "$BRANCHES" || { echo "rejected: $head_ref does not exist" >&2; return 1; }
-                      ux=$(upstream "$x") || return 1
-                      [ "$ux" = "$t" ] || { echo "rejected: $head_ref is neither the upstream nor a direct child of $BASE_REF" >&2; return 1; }
-                      kind=promote
-                    fi ;;
+                  main|stable|release|github-gate|integration/*) echo "rejected: integration/mainline accepts PRs only from personal branches, not from $head_ref" >&2; return 1 ;;
                   *) kind=work ;;
                 esac ;;
               stable)
@@ -157,9 +145,9 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           { echo "base_ref=$base_ref"; echo "base=$base"; echo "mode=$mode"; echo "kind=$kind"; } >> "$GITHUB_OUTPUT"
 
-  # Repository toolchain gate. A PR from a personal branch into a track at any level
-  # changes the repository; a sync, a promotion or main into stable carries commits
-  # that already entered a track this way. The protected path list
+  # Repository toolchain gate. A PR from a personal branch into integration/mainline
+  # changes the repository; a promotion or main into stable carries commits that
+  # already entered integration/mainline this way. The protected path list
   # lives on github-gate (gate/toolchain-paths.txt) and is read from this run's commit,
   # so a PR cannot edit it. Hits are the files the target will change after publication,
   # computed from the same merge-tree result that publish builds.
@@ -375,36 +363,24 @@ jobs:
               name=$p
             done
           }
-          # Sets kind to work, sync, promote or stable for $BASE_REF and $head_ref, or fails.
+          # Sets kind to work, promote or stable for $BASE_REF and $head_ref, or fails.
+          # Only three kinds exist: a personal branch into integration/mainline (work),
+          # integration/mainline into main (promote) and main into stable (stable).
           classify() {
-            local t x ut ux
+            local t x ux
             case "$BASE_REF" in
               main)
-                [[ "$head_ref" == integration/* ]] || { echo "rejected: main accepts PRs only from a top-level track" >&2; return 1; }
+                [ "$head_ref" = integration/mainline ] || { echo "rejected: main accepts PRs only from integration/mainline" >&2; return 1; }
                 x=${head_ref#integration/}
                 chain "$x" || return 1
                 ux=$(upstream "$x") || return 1
                 [ "$ux" = main ] || { echo "rejected: $head_ref is not a top-level track; it enters only integration/$ux" >&2; return 1; }
                 kind=promote ;;
-              integration/*)
+              integration/mainline)
                 t=${BASE_REF#integration/}
                 chain "$t" || return 1
-                ut=$(upstream "$t") || return 1
                 case "$head_ref" in
-                  stable|release|github-gate) echo "rejected: $head_ref cannot enter a track" >&2; return 1 ;;
-                  main)
-                    [ "$ut" = main ] || { echo "rejected: main enters only a top-level track; $BASE_REF syncs from integration/$ut" >&2; return 1; }
-                    kind=sync ;;
-                  integration/*)
-                    x=${head_ref#integration/}
-                    if [ "$ut" = "$x" ]; then
-                      kind=sync
-                    else
-                      grep -qxF "refs/heads/$head_ref" "$BRANCHES" || { echo "rejected: $head_ref does not exist" >&2; return 1; }
-                      ux=$(upstream "$x") || return 1
-                      [ "$ux" = "$t" ] || { echo "rejected: $head_ref is neither the upstream nor a direct child of $BASE_REF" >&2; return 1; }
-                      kind=promote
-                    fi ;;
+                  main|stable|release|github-gate|integration/*) echo "rejected: integration/mainline accepts PRs only from personal branches, not from $head_ref" >&2; return 1 ;;
                   *) kind=work ;;
                 esac ;;
               stable)
@@ -420,7 +396,7 @@ jobs:
           extra=
           if [ "$MODE" = merge ]; then
             [ "$B" != none ] || { echo "rejected: target branch does not exist"; exit 1; }
-            # A promotion carries the head track; a sync leaves the upstream records to the upstream.
+            # A promotion carries the head track.
             if [ "$KIND" = promote ]; then covered "$head_ref" "$H"; fi
             tree=$(git merge-tree --write-tree "$B" "$H") || { echo "stopped: merge conflict, resolve it on the source branch first"; exit 1; }
             msg=$(printf 'Merge pull request #%s from %s\n\n%s\n\nConfirmed-by: %s\nGate-Run: %s\n' "$PR" "$head_ref" "$title" "$APPROVER" "$run_url")
