@@ -16,7 +16,7 @@ import { definition } from './world.ts'
 export type Context = { allowed: boolean; principalRef: string }
 export async function openPreparedServiceWorld(
   configure?: (options: SettingsPreparationOptions<Context>) => SettingsPreparationOptions<Context>,
-  bound?: { scopeRef?: string; principalRef?: string; sourceCapture?: boolean },
+  bound?: { scopeRef?: string; principalRef?: string; sourceCapture?: boolean; root?: string },
 ) {
   const input = allocation()
   const ids = randomIdentifiers()
@@ -30,7 +30,7 @@ export async function openPreparedServiceWorld(
     new URL('../../../../tmp/closures/settings-prepared-service/databases/', import.meta.url),
   )
   mkdirSync(parent, { recursive: true })
-  const root = realpathSync(mkdtempSync(join(parent, 'case-')))
+  const root = bound?.root ?? realpathSync(mkdtempSync(join(parent, 'case-')))
   const world = await openRecoveryWorld(root, input.identity.domain, bound?.sourceCapture)
   let current: PreparationPlan = {
     kind: 'planned',

@@ -2,16 +2,67 @@ import { afterEach, expect, it } from 'vitest'
 import { definition, definitionRef } from './world.ts'
 import { intentAttemptIdentity } from '../src/intent-records.ts'
 import { digest, json } from '../src/encoding.ts'
+import { stored } from './business-world.ts'
 import { openPreparedServiceWorld } from './prepared-service-world.ts'
 const worlds: Awaited<ReturnType<typeof openPreparedServiceWorld>>[] = []
-async function open(configure?: Parameters<typeof openPreparedServiceWorld>[0]) {
-  const world = await openPreparedServiceWorld(configure)
+async function open(
+  configure?: Parameters<typeof openPreparedServiceWorld>[0],
+  bound?: Parameters<typeof openPreparedServiceWorld>[1],
+) {
+  const world = await openPreparedServiceWorld(configure, bound)
   worlds.push(world)
   return world
 }
 afterEach(async () => {
   for (const world of worlds.splice(0)) await world.close()
 })
+it('keeps the state, the original operation and value-free changes across reopening the SQL provider', async () => {
+  const first = await open()
+  const prepared = await first.service.prepareChange(first.context, first.command)
+  if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+  const committed = await first.service.commitChange(first.context, {
+    requestId: 'commit',
+    preparation: prepared.preparation,
+  })
+  expect(committed).toMatchObject({ kind: 'committed', revision: 1, changed: true })
+  worlds.splice(worlds.indexOf(first), 1)
+  await first.close()
+  const { target } = first.command
+  const reopened = await open(undefined, { root: first.root, scopeRef: target.scopeRef })
+  expect(stored(first.root)).toMatchObject({
+    state: {
+      state: {
+        revision: 1,
+        sources: [
+          { id: 'tenant', values: [{ itemId: 'enabled', value: { kind: 'value', value: true } }] },
+        ],
+      },
+    },
+    operations: 1,
+    changes: 1,
+    terminals: 1,
+  })
+  expect(
+    await reopened.service.getOperation(reopened.context, prepared.preparation.operation),
+  ).toEqual(committed)
+  // A change names the item and the source and carries no value.
+  expect(
+    await reopened.service.readChanges(reopened.context, { target, afterRevision: 0, limit: 10 }),
+  ).toEqual({
+    kind: 'changes',
+    changes: [
+      {
+        kind: 'value',
+        revision: 1,
+        operationId: first.command.operationId,
+        itemId: 'enabled',
+        sourceId: 'tenant',
+      },
+    ],
+    nextRevision: null,
+  })
+})
+
 it('separates protected preparation from commit and recognizes the original result', async () => {
   const w = await open()
   const prepared = await w.service.prepareChange(w.context, w.command)
