@@ -222,7 +222,6 @@ export const mutationExitCode = (results: readonly MemberMutation[]): number =>
 
 /** pqw 还没修、读的人要知道的限制；末行原样写出。 */
 export const MUTATION_LIMITS: readonly string[] = [
-  'pqw 没关 vitest 的 preParse，it.each 等生成名字的用例所在文件可能被滤掉，只由它们守的变异体会记成存活（omne #405）',
   '增量指纹不含测试经相对路径读的成员外文件，它们变了要手动删指纹重跑',
 ]
 

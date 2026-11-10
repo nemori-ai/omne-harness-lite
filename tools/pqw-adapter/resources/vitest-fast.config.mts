@@ -22,7 +22,17 @@ export async function fastConfig(root: string, env: ConfigEnv) {
   if (typeof own !== 'function')
     throw new Error(`${root}/vitest.config.ts 须写成 defineConfig(({ mode }) => …)，否则选不了快层`)
   const config = await own({ ...env, mode: 'fast' })
-  return { ...config, root, test: { ...config.test, testTimeout: MUTATION_TEST_TIMEOUT_MS } }
+  // 关 preParse：Stryker 按用例名逐个过滤，preParse 只认字面量用例名，`it.each` 等生成名字的用例所在文件
+  // 会被整份滤掉，只由它们守的变异体就被记成存活（omne #405）。
+  return {
+    ...config,
+    root,
+    test: {
+      ...config.test,
+      testTimeout: MUTATION_TEST_TIMEOUT_MS,
+      experimental: { ...config.test?.experimental, preParse: false },
+    },
+  }
 }
 
 export default (env: ConfigEnv) => fastConfig(process.cwd(), env)

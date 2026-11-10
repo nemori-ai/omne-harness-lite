@@ -17,7 +17,11 @@ it('fixes the fast mode and the root, and puts the mutation time limit over the 
   const config = await fastConfig(root, { mode: 'test', command: 'serve' })
   expect(config).toMatchObject({
     root,
-    test: { include: ['fast'], testTimeout: MUTATION_TEST_TIMEOUT_MS },
+    test: {
+      include: ['fast'],
+      testTimeout: MUTATION_TEST_TIMEOUT_MS,
+      experimental: { preParse: false },
+    },
   })
   expect(MUTATION_TEST_TIMEOUT_MS).toBe(60_000)
 })
