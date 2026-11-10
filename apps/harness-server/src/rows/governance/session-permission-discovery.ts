@@ -1,55 +1,13 @@
-import { z } from 'zod'
-import {
-  recheckSessionPermissionLogin,
-  type SessionPermissionLogin,
-} from '../authorization/session-permission-write.ts'
 import { canonicalText } from '@omne-harness/authorization'
-import {
-  GovernanceDefinitionRefSchema,
-  type GovernanceCatalogRequest,
-  type GovernanceCatalogPage,
-  type GovernanceFailure,
-  type GovernanceScope,
-  type GovernanceDefinitionBundle,
-} from '@omne-harness/governance-contract'
-import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
 import type {
-  GovernanceExternalWriteOptions,
-  GovernanceExternalWriteIntent,
-} from '@omne-harness/governance-local'
-import type { SessionPermissionWriteContext } from './session-permission-commit.ts'
-import {
-  sessionPermissionMappedSourceSchema,
-  type SessionPermissionSettingsResolver,
-} from './session-permission-settings.ts'
-import { SESSION_PERMISSION_WRITE_PROTOCOL } from './session-permission-result.ts'
-import { PermissionRuleSchema } from '@omne-harness/permissions'
-import {
-  sessionPermissionQualificationSchema,
-  type SessionPermissionQualification,
-} from './session-permission-qualification.ts'
+  GovernanceCatalogRequest,
+  GovernanceCatalogPage,
+  GovernanceFailure,
+  GovernanceScope,
+  GovernanceDefinitionBundle,
+} from '@omne-harness/governance-contract'
+import type { SessionPermissionAssignment } from './session-permission-material.ts'
 
-export const sessionPermissionResolvedQualificationSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('clear'),
-    original: sessionPermissionQualificationSchema.extend({
-      change: sessionPermissionQualificationSchema.shape.change.extend({ rule: z.null() }),
-    }),
-  }),
-  z.strictObject({
-    kind: z.literal('set'),
-    original: sessionPermissionQualificationSchema.extend({
-      change: sessionPermissionQualificationSchema.shape.change.extend({
-        rule: PermissionRuleSchema,
-      }),
-    }),
-    definition: GovernanceDefinitionRefSchema,
-    settings: z.discriminatedUnion('kind', [
-      z.strictObject({ kind: z.literal('unmapped') }),
-      sessionPermissionMappedSourceSchema,
-    ]),
-  }),
-])
 export type SessionPermissionCatalogReader = (
   request: GovernanceCatalogRequest,
 ) => Promise<GovernanceCatalogPage | GovernanceFailure>
@@ -57,9 +15,10 @@ export type SessionPermissionDiscovery =
   | Readonly<{ kind: 'found'; declaration: GovernanceDefinitionBundle }>
   | Readonly<{ kind: 'unavailable' }>
 
-function matchingPermissions(
+/** The permissions of a declaration that an assignment names. */
+export function matchingPermissions(
   declaration: GovernanceDefinitionBundle,
-  change: SessionPermissionQualification['change'],
+  change: SessionPermissionAssignment,
 ) {
   return declaration.permissions.filter(
     permission =>
@@ -102,7 +61,7 @@ async function readCatalogItems(
 
 function selectDeclaration(
   items: GovernanceCatalogPage['items'],
-  change: SessionPermissionQualification['change'],
+  change: SessionPermissionAssignment,
 ): SessionPermissionDiscovery {
   let found: GovernanceDefinitionBundle | undefined
   for (const item of items) {
@@ -117,7 +76,7 @@ function selectDeclaration(
 
 export async function discoverSessionPermissionDeclaration(input: {
   scope: GovernanceScope
-  change: SessionPermissionQualification['change']
+  change: SessionPermissionAssignment
   readCatalog: SessionPermissionCatalogReader
 }): Promise<SessionPermissionDiscovery> {
   const { scope, change } = structuredClone({ scope: input.scope, change: input.change })
@@ -126,95 +85,5 @@ export async function discoverSessionPermissionDeclaration(input: {
     return items === undefined ? { kind: 'unavailable' } : selectDeclaration(items, change)
   } catch {
     return { kind: 'unavailable' }
-  }
-}
-
-async function settingsForAssignment(
-  scope: GovernanceScope,
-  declaration: GovernanceDefinitionBundle,
-  original: SessionPermissionQualification,
-  resolve: SessionPermissionSettingsResolver | undefined,
-) {
-  const permission = matchingPermissions(declaration, original.change)[0]
-  if (permission === undefined) return undefined
-  if (permission.settings === null) return { kind: 'unmapped' as const }
-  return resolve?.({ scope, declaration, permission })
-}
-
-function matchesWriteIntent(
-  original: SessionPermissionQualification,
-  principal: ActingForTenantPrincipal,
-  scope: GovernanceScope,
-  intent: GovernanceExternalWriteIntent,
-): boolean {
-  const expected = {
-    operationId: original.operation,
-    write: {
-      owner: 'session',
-      protocol: SESSION_PERMISSION_WRITE_PROTOCOL,
-      targetRef: original.session,
-      commandDigest: original.commandDigest,
-      command: original.commandFacts.facts['command'],
-    },
-  }
-  return (
-    standingPrincipalRef(principal) === original.principalRef &&
-    scope.tenantRef === original.tenantRef &&
-    canonicalText(intent) === canonicalText(expected)
-  )
-}
-
-export function createSessionPermissionWriteResolver(options: {
-  scope: GovernanceScope
-  login?: () => SessionPermissionLogin | undefined
-  settings?: SessionPermissionSettingsResolver
-  readCatalog: SessionPermissionCatalogReader
-}): GovernanceExternalWriteOptions<SessionPermissionWriteContext>['resolve'] {
-  const scope = structuredClone(options.scope)
-  return async (principal, intent, context) => {
-    const original = sessionPermissionQualificationSchema.parse(context.qualification)
-    if (principal !== context.principal || !matchesWriteIntent(original, principal, scope, intent))
-      return { kind: 'denied' }
-    const login = await recheckSessionPermissionLogin(principal, options.login?.())
-    if (login.kind !== 'current')
-      return login.kind === 'denied'
-        ? login
-        : { kind: 'unavailable', owner: 'harness.session-permission-login' }
-    if (original.change.rule === null)
-      return {
-        kind: 'qualified',
-        required: [],
-        source: null,
-        qualification: sessionPermissionResolvedQualificationSchema.parse({
-          kind: 'clear',
-          original,
-        }),
-      }
-    const found = await discoverSessionPermissionDeclaration({
-      scope,
-      change: original.change,
-      readCatalog: options.readCatalog,
-    })
-    if (found.kind !== 'found')
-      return { kind: 'unavailable', owner: 'harness.session-permission-source' }
-    const settings = await settingsForAssignment(
-      scope,
-      found.declaration,
-      original,
-      options.settings,
-    )
-    if (settings === undefined)
-      return { kind: 'unavailable', owner: 'harness.session-permission-settings-source' }
-    return {
-      kind: 'qualified',
-      required: [],
-      source: settings.kind === 'mapped' ? settings.source : null,
-      qualification: sessionPermissionResolvedQualificationSchema.parse({
-        kind: 'set',
-        original,
-        definition: found.declaration.reference,
-        settings,
-      }),
-    }
   }
 }

@@ -8,6 +8,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   DurableEvidence,
   SessionAccessCheck,
+  SessionAccessDecision,
   SessionAccessRequest,
   SessionFailure,
 } from '@omne-harness/session-contract'
@@ -19,6 +20,7 @@ import type {
   TenantDomainAccess,
 } from '@omne-harness/sql-contract'
 import { OWNER, type CursorOptions } from './cursor.ts'
+import type { SessionProtectedBasisSource } from './protected-basis.ts'
 import type { WorkCacheBounds } from './work-cache.ts'
 import { PROTOCOL } from './worker/schema.ts'
 
@@ -32,6 +34,11 @@ export type SessionStorageOptions<P> = Readonly<{
   cursorSigning: SessionCursorSigning
   /** The combination version and manifest digest the application registered for the tenant scope. */
   combination: Readonly<{ combinationVersion: string; manifestDigest: string }>
+  /**
+   * The source of the commit basis of a permission assignment. Without it the assignment goes to
+   * the ordinary producer, which does not support it.
+   */
+  protectedBasis?: SessionProtectedBasisSource<P>
   /** Cursor lifetime. Default 15 minutes. */
   cursorTtlMs?: number
   /**
@@ -49,7 +56,10 @@ export type SessionStorageOptions<P> = Readonly<{
  */
 export type AccessStep<P> = (
   request: SessionAccessRequest<P>,
-) => Promise<Outcome<DurableEvidence, SessionFailure>>
+) => Promise<Outcome<AllowedAccess, SessionFailure>>
+
+/** The allowed decision of one call: its evidence and, for a permission write, the qualification. */
+export type AllowedAccess = Omit<Extract<SessionAccessDecision, { kind: 'allowed' }>, 'kind'>
 
 export type Context<P> = Readonly<{
   options: SessionStorageOptions<P>
@@ -90,19 +100,20 @@ export function contextOf<P>(options: SessionStorageOptions<P>): Context<P> {
   }
 }
 
-/** The access of one call, from the step of its context. Only an allowed answer continues. */
-export function qualify<P>(
+/** The access evidence of one call, from the step of its context. Only an allowed answer continues. */
+export async function qualify<P>(
   context: Context<P>,
   request: SessionAccessRequest<P>,
 ): Promise<Outcome<DurableEvidence, SessionFailure>> {
-  return context.access(request)
+  const allowed = await context.access(request)
+  return 'failure' in allowed ? allowed : succeed(allowed.ok.evidence)
 }
 
 /** One current decision for one public call. A throwing or unavailable source does not continue. */
 async function checkAccess<P>(
   accessCheck: SessionAccessCheck<P>,
   request: SessionAccessRequest<P>,
-): Promise<Outcome<DurableEvidence, SessionFailure>> {
+): Promise<Outcome<AllowedAccess, SessionFailure>> {
   let decision
   try {
     decision = await accessCheck.check(request)
@@ -114,8 +125,10 @@ async function checkAccess<P>(
     )
   }
   switch (decision.kind) {
-    case 'allowed':
-      return succeed(decision.evidence)
+    case 'allowed': {
+      const { kind: _kind, ...allowed } = decision
+      return succeed(allowed)
+    }
     case 'denied':
       return failure({ kind: 'denied', action: request.operation })
     case 'unavailable':

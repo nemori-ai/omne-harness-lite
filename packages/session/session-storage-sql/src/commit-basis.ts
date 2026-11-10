@@ -6,7 +6,6 @@ import { canonicalText, sha256 } from './codec.ts'
 
 export const SESSION_COMMIT_PROTOCOL = '2'
 export const SESSION_COMMIT_BASIS = { key: 'session.commit-basis', protocol: '1' } as const
-export const SESSION_COMMIT_RESULT = { key: 'session.commit-result', protocol: '1' } as const
 export const SESSION_ORDINARY_BASIS = 'session-ordinary-basis'
 const text = z.string().min(1)
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/)
@@ -23,18 +22,10 @@ export const SessionCommitBasisSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('permission-change'),
     commandsDigest: digest,
-    coordination: evidence,
     permissionChange,
   }),
 ])
 export type SessionCommitBasis = z.infer<typeof SessionCommitBasisSchema>
-export const SessionCommitResultSchema = z.strictObject({
-  coordination: evidence,
-  commandsDigest: digest,
-  operation: text,
-  response: z.json(),
-})
-export type SessionCommitResult = z.infer<typeof SessionCommitResultSchema>
 
 export const SessionBasisCommandsSchema = z.strictObject({
   commands: z

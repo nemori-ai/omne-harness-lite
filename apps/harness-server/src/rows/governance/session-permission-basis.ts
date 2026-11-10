@@ -2,16 +2,20 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { z } from 'zod'
 import { canonicalText } from '@omne-harness/authorization'
-import { tenantCodec, organizationCodec } from '@omne-harness/legal-identity'
 import {
-  GovernanceExternalWriteBasisSchema,
-  GovernanceExternalWriteExecutionSchema,
+  GovernanceDefinitionBindingSchema,
   GovernanceDefinitionProjectionSchema,
-  governanceExternalWriteBasisFact,
   governanceDefinitionProjectionFact,
-  type GovernanceExternalWriteBasis,
 } from '@omne-harness/governance-local'
-import { judgePermissionAssignment, type PermissionConstraint } from '@omne-harness/permissions'
+import {
+  judgePermissionAssignment,
+  PermissionDefinitionRefSchema,
+  PermissionRuleSchema,
+  PermissionScopeSchema,
+  PermissionSourceSchema,
+  type PermissionConstraint,
+  type PermissionDefinition,
+} from '@omne-harness/permissions'
 import {
   SessionCommitBasisSchema,
   SESSION_COMMIT_BASIS,
@@ -19,27 +23,25 @@ import {
   type SessionCommitBasis,
 } from '@omne-harness/session-storage-sql/participants'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
-import type { SessionPermissionQualification } from './session-permission-qualification.ts'
-import {
-  SESSION_PERMISSION_WRITE_PROTOCOL,
-  sessionPermissionCoordination,
-} from './session-permission-result.ts'
-import { SESSION_PERMISSION_OWN_LOGIN_POLICY } from '../authorization/session-permission-write.ts'
-import { sessionPermissionResolvedQualificationSchema } from './session-permission-discovery.ts'
 import { sessionPermissionMaterial } from './session-permission-material.ts'
 import { targetSnapshotFact, type TargetSnapshot } from './target-snapshot.ts'
 
+export const SESSION_PERMISSION_BASIS_MODES = ['clear', 'unmapped', 'mapped'] as const
+export type SessionPermissionBasisMode = (typeof SESSION_PERMISSION_BASIS_MODES)[number]
 export const sessionPermissionBasisConfigurationSchema = z.strictObject({
-  mode: z.enum(['clear', 'unmapped', 'mapped']),
+  mode: z.enum(SESSION_PERMISSION_BASIS_MODES),
   requiredConstraintIds: z.array(z.string().min(1)).max(64),
 })
 export type SessionPermissionBasisConfiguration = z.infer<
   typeof sessionPermissionBasisConfigurationSchema
 >
+/** The producer of the commit basis of one mode. The combination of the mode holds it. */
+export const sessionPermissionBasisProducer = (mode: SessionPermissionBasisMode) =>
+  `harness.session-permission-basis.${mode}`
 export function sessionPermissionBasisIdentity(configuration: SessionPermissionBasisConfiguration) {
   return {
-    participant: `harness.session-permission-basis.${configuration.mode}`,
-    protocol: `harness-session-permission-basis/1/${createHash('sha256').update(canonicalText(configuration)).digest('hex')}`,
+    participant: sessionPermissionBasisProducer(configuration.mode),
+    protocol: `harness-session-permission-basis/2/${createHash('sha256').update(canonicalText(configuration)).digest('hex')}`,
   }
 }
 export function sessionPermissionBasisParticipant(
@@ -59,126 +61,73 @@ export function sessionPermissionBasisParticipant(
     allowedFunctions: [],
     grouping: 'groupable',
     requiresFacts: [
-      governanceExternalWriteBasisFact,
       ...(fixed.mode === 'clear' ? [] : [governanceDefinitionProjectionFact]),
       ...(fixed.mode === 'mapped' ? [targetSnapshotFact] : []),
     ],
     providesFacts: [SESSION_COMMIT_BASIS],
   }
 }
-function originalQualification(basis: GovernanceExternalWriteBasis) {
-  const qualification = sessionPermissionResolvedQualificationSchema.safeParse(
-    basis.command.write.qualification,
-  )
-  const execution = GovernanceExternalWriteExecutionSchema.safeParse(
-    basis.request.execution.authority,
-  )
-  if (!qualification.success || !execution.success) return null
-  const own = execution.data.commands.filter(command => command.participant === 'session')
-  if (own.length !== 1 || execution.data.writer !== 'session') return null
-  const selected = qualification.data
-  const q = selected.original
-  if (canonicalText(own[0]) !== canonicalText(q.commandFacts)) return null
-  if (canonicalText(q.commandFacts.facts['command']) !== canonicalText(basis.command.write.command))
-    return null
-  const ref = basis.request.binding.ref
-  const observed = {
-    owner: basis.command.write.owner,
-    protocol: basis.command.write.protocol,
-    requestDigest: execution.data.requestDigest,
-    tenantRef: q.tenantRef,
-    session: q.session,
-    operation: q.operation,
-    commandDigest: q.commandDigest,
-    principalRef: q.principalRef,
-    policy: q.policy,
-  }
-  const expected = {
-    owner: 'session',
-    protocol: SESSION_PERMISSION_WRITE_PROTOCOL,
-    requestDigest: basis.request.binding.requestDigest,
-    tenantRef: ref.scope.tenantRef,
-    session: basis.command.write.targetRef,
-    operation: ref.operationId,
-    commandDigest: basis.command.write.commandDigest,
-    principalRef: ref.principalRef,
-    policy: SESSION_PERMISSION_OWN_LOGIN_POLICY,
-  }
-  if (canonicalText(observed) !== canonicalText(expected)) return null
-  return { qualification: q, selected, commandsDigest: sessionCommitDigest(own) }
-}
 
-function sourceSelectionMatches(
-  selected: Extract<z.infer<typeof sessionPermissionResolvedQualificationSchema>, { kind: 'set' }>,
-  basis: GovernanceExternalWriteBasis,
-  values: TargetSnapshot | null,
-  mode: SessionPermissionBasisConfiguration['mode'],
-) {
-  const selection = selected.settings
-  if (selection.kind !== mode) return false
-  if (selection.kind === 'unmapped') return basis.command.source === null
-  return (
-    values !== null &&
-    basis.source !== null &&
-    canonicalText(values.binding.target) === canonicalText(selection.target) &&
-    canonicalText(basis.command.source) === canonicalText(selection.source) &&
-    canonicalText(basis.source.source) === canonicalText(selection.source)
-  )
-}
+const text = z.string().min(1)
+/**
+ * What the trusted source states of one permission assignment. The producer joins it with the
+ * facts of its own transaction: the definition projection and, for a mapped target, the target
+ * snapshot.
+ */
+export const sessionPermissionBasisFactsSchema = z.strictObject({
+  /** The Session command of the commit. The basis binds its digest. */
+  commands: z
+    .array(
+      z.strictObject({ participant: z.literal('session'), facts: z.record(z.string(), z.json()) }),
+    )
+    .length(1),
+  /** The write qualification of the command, as the access decision gave it. */
+  change: z.strictObject({
+    operation: text,
+    commandDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    revision: z.string().regex(/^(0|[1-9][0-9]*)$/),
+    authority: z.strictObject({ owner: text, record: text, revision: text, digest: text }),
+  }),
+  assignment: z.strictObject({
+    capabilityId: text,
+    enforcementKey: text,
+    definition: PermissionDefinitionRefSchema,
+    rule: PermissionRuleSchema.nullable(),
+  }),
+  /** Null for a clear. A set names the definition that the source found and where it is valued. */
+  selection: z
+    .strictObject({
+      binding: GovernanceDefinitionBindingSchema,
+      scope: PermissionScopeSchema,
+      /** The organization layer, read in its own domain before the commit. Null without settings. */
+      organization: PermissionSourceSchema.nullable(),
+    })
+    .nullable(),
+})
+export type SessionPermissionBasisFacts = z.infer<typeof sessionPermissionBasisFactsSchema>
 
-function assignmentScope(
-  basis: GovernanceExternalWriteBasis,
-  qualification: SessionPermissionQualification,
-  values: TargetSnapshot | null,
-) {
-  const tenant = tenantCodec.parse(qualification.tenantRef)
-  if (!tenant.ok) return undefined
-  const organization = organizationCodec.encode(tenant.value.organization)
-  if (!organization.ok) return undefined
-  return {
-    tenantId: qualification.tenantRef,
-    sessionId: qualification.session,
-    organizationId: organization.value,
-    deploymentId: basis.request.binding.ref.scope.deploymentId,
-    logicalServiceId: basis.request.binding.ref.scope.logicalServiceId,
-    targetId: values === null ? qualification.session : canonicalText(values.binding.target),
-  }
-}
-
+/** The definition that the facts of this transaction give the assignment, when the rule is valid. */
 function currentDefinition(
-  basis: GovernanceExternalWriteBasis,
-  qualification: SessionPermissionQualification,
+  facts: SessionPermissionBasisFacts,
+  selection: NonNullable<SessionPermissionBasisFacts['selection']>,
   rawProjection: unknown,
   configuration: SessionPermissionBasisConfiguration,
   values: TargetSnapshot | null,
-  selected: Extract<z.infer<typeof sessionPermissionResolvedQualificationSchema>, { kind: 'set' }>,
-) {
+): PermissionDefinition | undefined {
   const projection = GovernanceDefinitionProjectionSchema.safeParse(rawProjection)
-  const scope = assignmentScope(basis, qualification, values)
-  if (!projection.success || scope === undefined) return undefined
-  if (!sourceSelectionMatches(selected, basis, values, configuration.mode)) return undefined
-  if (canonicalText(projection.data.binding.definition) !== canonicalText(selected.definition))
-    return undefined
-  const ref = basis.request.binding.ref
+  if (!projection.success) return undefined
   const constraints: PermissionConstraint[] = configuration.requiredConstraintIds.map(id => ({
     id,
     kind: 'unavailable',
     sourceRef: id,
   }))
   const material = sessionPermissionMaterial({
-    binding: {
-      scope: ref.scope,
-      epoch: basis.epoch,
-      principalRef: ref.principalRef,
-      captureId: ref.operationId,
-      transactionDomain: basis.transactionDomain,
-      definition: projection.data.binding.definition,
-    },
+    binding: selection.binding,
     projection: projection.data,
-    change: qualification.change,
-    scope,
+    change: facts.assignment,
+    scope: selection.scope,
     values,
-    organization: basis.source,
+    organization: selection.organization,
     requiredConstraintIds: configuration.requiredConstraintIds,
     constraints,
   })
@@ -187,41 +136,33 @@ function currentDefinition(
   if ((definition.settings === null) !== (configuration.mode === 'unmapped')) return undefined
   const judgment = judgePermissionAssignment({
     layer: 'session',
-    rule: qualification.change.rule,
+    rule: facts.assignment.rule,
     current: material,
   })
   return judgment.kind === 'valid' ? definition : undefined
 }
 
+/** Null when the stated facts and the facts of the transaction do not give a valid assignment. */
 export function sessionPermissionWriteBasis(
   raw: unknown,
   projection: unknown,
   configuration: SessionPermissionBasisConfiguration,
   values: TargetSnapshot | null = null,
 ): SessionCommitBasis | null {
-  const parsed = GovernanceExternalWriteBasisSchema.safeParse(raw)
+  const parsed = sessionPermissionBasisFactsSchema.safeParse(raw)
   if (!parsed.success) return null
-  const basis = parsed.data
-  const original = originalQualification(basis)
-  if (original === null) return null
-  const q = original.qualification
-  const clear = q.change.rule === null
-  if (clear !== (configuration.mode === 'clear')) return null
+  const facts = parsed.data
+  const clear = facts.assignment.rule === null
+  if (clear !== (configuration.mode === 'clear') || clear !== (facts.selection === null))
+    return null
   const definition =
-    original.selected.kind === 'clear'
+    facts.selection === null
       ? null
-      : currentDefinition(basis, q, projection, configuration, values, original.selected)
+      : currentDefinition(facts, facts.selection, projection, configuration, values)
   if (definition === undefined) return null
   return SessionCommitBasisSchema.parse({
     kind: 'permission-change',
-    commandsDigest: original.commandsDigest,
-    coordination: sessionPermissionCoordination(basis),
-    permissionChange: {
-      operation: q.operation,
-      commandDigest: q.commandDigest,
-      revision: q.permissionRevision,
-      definition,
-      authority: q.policy,
-    },
+    commandsDigest: sessionCommitDigest(facts.commands),
+    permissionChange: { ...facts.change, definition },
   })
 }

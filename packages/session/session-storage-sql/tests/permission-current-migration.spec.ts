@@ -86,7 +86,6 @@ async function beforeMigration(withAssignment = false) {
     const basis = {
       kind: 'permission-change',
       commandsDigest: sessionCommitDigest([facts]),
-      coordination: evidence('migration-fixture'),
       permissionChange: {
         operation: command.input.operation,
         commandDigest: commandDigest(command),

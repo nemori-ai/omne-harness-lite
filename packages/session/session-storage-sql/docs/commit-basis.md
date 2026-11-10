@@ -29,14 +29,45 @@ execution-record 仍在 Session 之前执行，使联合核对看到本次发布
 
 ## 受保护提交
 
-permission-change basis 包含原协调引用与权限写材料。Session 只接受 permission-assignment 分支，保留原 operation、commandDigest、权限修订及 authority；不能改写 operation 来消除错绑。领域 decide 再核对完整命令身份、修订和定义。
+权限配值没有普通依据。它的依据来自另一个组合，由受保护依据来源供应。来源的类型是 `SessionProtectedBasisSource`。本包声明这个类型，应用通过 `SessionStorageOptions.protectedBasis` 装配实现。没有装配来源时，权限配值走普通组装，普通 producer 拒绝它。
 
-受保护写者成功参加后发布 `session.commit-result/1`，包含原协调引用、commandsDigest、operation 和公开响应。停止或失败不发布成功结果，普通提交也不发布该结果。原操作 planner 的资格裁定、Identity 保管、Governance 终态与结算属于协调拥有者。公开 schema 和 Session 写者支持不表示这些生产提供者已经装配。
+提交按以下顺序执行：
 
-普通 producer 与受保护 producer 是不同组合的依据来源；一个组合不能给同一 fact 声明两个 producer。受保护提交不能调用普通组装函数来取得资格。
+1. 准入通过后，提交方组好最终的 Session fact-command。允许裁定必须带写资格。没有写资格时答 `denied`，不调用来源。
+2. 提交方查原操作各代次的回执。已有提交的回执时认回原结果，不调用来源。
+3. 没有已提交的回执时，提交方调用来源。来源按当前事实给出一个已登记的组合，以及产生 `session.commit-basis/1` 的参加者命令。
+4. 来源答失败时，提交方再查一次回执。这期间有投递已提交时，认回原结果。否则答这个失败。这次失败不占用代次，不留持久裁定。来源抛出异常时答 `unavailable`。
+5. 来源给出计划时，提交方用 Session 的原操作身份提交 Session 命令和来源的命令。计划含 Session 命令或普通 basis 参加者时答 `invalid`，不提交。
+
+```mermaid
+sequenceDiagram
+    participant Caller as Session 提交方
+    participant Source as 受保护依据来源
+    participant Store as SQL Worker
+    participant Producer as 受保护 basis producer
+    participant Writer as Session 唯一写者
+    Caller->>Store: 查原操作各代次的回执
+    Store-->>Caller: 没有已提交的回执
+    Caller->>Source: 最终 Session 命令与写资格
+    Source-->>Caller: 组合与 producer 命令
+    Caller->>Store: 以 Session 原操作身份提交
+    Store->>Producer: 用同事务事实重算裁定
+    Producer->>Store: 发布 permission-change basis
+    Store->>Writer: 执行 Session facts
+    Writer-->>Store: 原响应
+    Store-->>Caller: 原子提交或回滚回执
+```
+
+permission-change basis 包含 commandsDigest 和权限写材料：原 operation、commandDigest、权限修订、定义及 authority。Session 只接受 permission-assignment 分支，不能改写 operation 来消除错绑。领域 decide 再核对完整命令身份、修订和定义。
+
+producer 在事务里停下时，这一代次滚回。参加者报告的失败按暂时失败答 `unavailable`。调用方带同一原操作再来时，提交方使用下一代次，来源按当时的事实重新给出计划。
+
+来源怎样核对写资格、怎样读取其他域的事实、组合含哪些参加者，都属于装配它的应用。公开类型和 Session 写者支持不表示生产提供者已经装配。
+
+普通 producer 与受保护 producer 是不同组合的依据来源。一个组合不能给同一 fact 声明两个 producer。
 
 ## 验证与演进边界
 
-[实际 Worker 用例](../tests/commit-basis-real.spec.ts)覆盖缺依据、完整命令错绑及普通路径伪造权限写。[联合提交用例](../tests/real-joint.spec.ts)覆盖同提交可见性、回滚和进程重启认回。Journal 的真实消费者验证归 session-adapters。
+[实际 Worker 用例](../tests/commit-basis-real.spec.ts)覆盖缺依据、完整命令错绑及普通路径伪造权限写。[受保护提交用例](../tests/protected-basis-real.spec.ts)用一个具名的 producer 夹具覆盖提交与认回、来源失败不留痕、来源失败期间已提交的投递被认回、producer 停下后占用一个代次、缺写资格、计划夹带 Session 命令及来源抛出异常。[联合提交用例](../tests/real-joint.spec.ts)覆盖同提交可见性、回滚和进程重启认回。Journal 的真实消费者验证归 session-adapters。
 
-该协议不改写历史事件、原回执或旧摘要，也不承诺旧 manifest 可在新组合下直接重放。跨 manifest 认回与持久升级须独立验证。权限写资格、Governance 协调和权限当前关系由受保护写组合实现；普通路径测试不能替代这条组合的独立验收。
+该协议不改写历史事件、原回执或旧摘要，也不承诺旧 manifest 可在新组合下直接重放。跨 manifest 认回与持久升级须独立验证。权限写资格和权限当前关系由受保护写组合实现。夹具用例和普通路径测试不能替代这条组合的独立验收。

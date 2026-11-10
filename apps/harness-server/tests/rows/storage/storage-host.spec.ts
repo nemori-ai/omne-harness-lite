@@ -131,7 +131,7 @@ describe('materials (acceptance 4)', () => {
       expect(names).toContain('governance.activation')
       expect(names).toContain('assets.settings')
       expect(names).toContain('settings.catalog-terminal')
-      expect(names).toContain('harness.session-permission-result')
+      expect(names).toContain('harness.session-permission-basis.mapped')
     } finally {
       await root.fiber.dispose()
     }

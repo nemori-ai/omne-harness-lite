@@ -1,10 +1,6 @@
 import { writePermissionCurrent } from './permission-current.ts'
 import { readSessionBasis } from './session-basis.ts'
-import {
-  SESSION_COMMIT_RESULT,
-  SESSION_COMMIT_PROTOCOL,
-  type SessionCommitBasis,
-} from '../commit-basis.ts'
+import { SESSION_COMMIT_PROTOCOL, type SessionCommitBasis } from '../commit-basis.ts'
 import type { SessionPermissionChangeBasis } from '@omne-harness/session-contract'
 // The `session` participant module (SPEC W1 steps 3 to 7, W2 for the shared commit). It runs inside
 // the provider's write transaction and uses the pure `decide` and `reduce` of session-contract:
@@ -1475,13 +1471,6 @@ const participant: ParticipantModule = {
       if (error instanceof LogGap) return { kind: 'failed', diagnostic: error.message }
       throw error
     }
-    if (basis.kind === 'permission-change' && reply.kind === 'participated')
-      port.provideFact(SESSION_COMMIT_RESULT, {
-        coordination: basis.coordination,
-        commandsDigest: basis.commandsDigest,
-        operation: basis.permissionChange.operation,
-        response: reply.response,
-      })
     return reply
   },
 }

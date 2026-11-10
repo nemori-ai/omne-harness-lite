@@ -10,19 +10,28 @@ import {
   type PermissionScope,
   type PermissionConstraint,
   type PermissionDefinition,
+  type PermissionDefinitionRef,
+  type PermissionRule,
   type PermissionSource,
 } from '@omne-harness/permissions'
-import type { GovernanceExternalWriteBasis } from '@omne-harness/governance-local'
 import type { TargetSnapshot } from './target-snapshot.ts'
-import type { SessionPermissionQualification } from './session-permission-qualification.ts'
+
+/** The content of one permission assignment declaration. A null rule clears the assignment. */
+export type SessionPermissionAssignment = Readonly<{
+  capabilityId: string
+  enforcementKey: string
+  definition: PermissionDefinitionRef
+  rule: PermissionRule | null
+}>
 
 export type SessionPermissionMaterialInput = Readonly<{
   binding: GovernanceDefinitionBinding
   projection: GovernanceDefinitionProjection
   scope: PermissionScope
-  change: SessionPermissionQualification['change']
+  change: SessionPermissionAssignment
   values: TargetSnapshot | null
-  organization: GovernanceExternalWriteBasis['source']
+  /** The organization layer as the caller read it in its own domain; null when it read none. */
+  organization: PermissionSource | null
   requiredConstraintIds: readonly string[]
   constraints: readonly PermissionConstraint[]
 }>
@@ -118,43 +127,6 @@ function tenantSource(
   return result.kind === 'invalid-input' ? unavailable('tenant') : result
 }
 
-function organizationSource(
-  input: SessionPermissionMaterialInput,
-  definition: PermissionDefinition,
-): PermissionSource {
-  if (input.scope.organizationId === null) return { kind: 'absent', revision: 'not-applicable' }
-  const snapshot = input.organization
-  if (snapshot === null) return unavailable('organization')
-  const candidates = snapshot.projection.sources.filter(
-    source =>
-      source.scope.kind === 'organization' &&
-      source.scope.subjectRef === input.scope.organizationId,
-  )
-  if (candidates.length !== 1) return unavailable('organization')
-  const descriptor = candidates[0]!
-  const source = snapshot.state.sources.find(item => item.id === descriptor.sourceId)
-  if (source === undefined) return unavailable('organization')
-  const result = readPermissionSettingsSource({
-    definition,
-    scope: input.scope,
-    layer: 'organization',
-    sourceRef: canonicalDigest(snapshot.source),
-    revision: canonicalDigest({
-      state: snapshot.state.revision,
-      descriptor,
-      definition: snapshot.projection.definitionRef,
-      owner: snapshot.projection.ownerRevision,
-    }),
-    observation: {
-      kind: 'available',
-      definition: snapshot.projection.definition,
-      descriptor,
-      source,
-    },
-  })
-  return result.kind === 'invalid-input' ? unavailable('organization') : result
-}
-
 /** Joins same-capture owner facts under the local settings-projection-only/1 policy. */
 export function sessionPermissionMaterial(
   input: SessionPermissionMaterialInput,
@@ -178,7 +150,8 @@ export function sessionPermissionMaterial(
     enforcementKey: definition.enforcementKey,
     declaration: { kind: 'available', definition },
     sources: {
-      organization: definition.settings === null ? absent : organizationSource(input, definition),
+      organization:
+        definition.settings === null ? absent : (input.organization ?? unavailable('organization')),
       tenant: definition.settings === null ? absent : tenantSource(input, definition),
       session: { kind: 'absent', revision: 'replaced-by-this-write' },
     },

@@ -52,6 +52,7 @@ import {
   createSessionStorage,
   createSessionStoragePair,
   sessionStorageMaterials,
+  type SessionStorageOptions,
 } from '../../src/index.ts'
 import {
   executionRecordFacts,
@@ -130,11 +131,12 @@ export function realConfig(storageRoot: string): SqliteStorageConfig {
 function catalogOf(
   readOutputLimitBytes: number,
   participants: readonly string[],
+  extra: SqlMaterialCatalog['participants'],
 ): { catalog: SqlMaterialCatalog; digest: string } {
   const materials = sessionStorageMaterials({ readOutputLimitBytes })
   const catalog: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
-    participants: materials.participants,
+    participants: [...materials.participants, ...extra],
     migrations: materials.migrations,
     readHandlers: materials.readHandlers,
     declaredCombinations: {
@@ -212,6 +214,11 @@ export type RealAppOptions = Readonly<{
   intakeLimits?: import('@omne-harness/session-contract').SessionIntakeLimits
   readOutputLimitBytes?: number
   participants?: readonly string[]
+  /** Fixture participants beside the Session materials, for a combination of `register`. */
+  extraParticipants?: SqlMaterialCatalog['participants']
+  /** The access policy; without it every request is allowed and carries no write qualification. */
+  policy?: Parameters<typeof createPolicySessionAccessCheck<string>>[0]
+  protectedBasis?: SessionStorageOptions<string>['protectedBasis']
 }>
 
 export async function openRealApp(options: RealAppOptions = {}) {
@@ -222,6 +229,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
   const { catalog, digest } = catalogOf(
     options.readOutputLimitBytes ?? FIXTURE_READ_OUTPUT_LIMIT_BYTES,
     participants,
+    options.extraParticipants ?? [],
   )
   const events: string[] = []
   const closeLeases: CloseLeasePort = {
@@ -289,12 +297,28 @@ export async function openRealApp(options: RealAppOptions = {}) {
       )
   }
 
-  const accessCheck = createPolicySessionAccessCheck<string>(request => ({
-    kind: 'allowed',
-    evidence: evidence(`access/${request.operation}`),
-  }))
+  const accessCheck = createPolicySessionAccessCheck<string>(
+    options.policy ??
+      (request => ({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) })),
+  )
+  /** Registers one more combination of the catalog in the domain of every known tenant. */
+  const register = async (combinationVersion: string, members: readonly string[]) => {
+    const manifest = combinationManifest({ catalog, participants: members })
+    if (manifest.kind !== 'manifest') throw new Error(`combination is ${JSON.stringify(manifest)}`)
+    const reference = { combinationVersion, manifestDigest: manifestDigest(manifest.manifest) }
+    for (const entry of entries) {
+      const registered = await real.registerCombination({
+        ...entry.domain,
+        ...reference,
+        participants: members,
+      })
+      if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
+    }
+    return reference
+  }
   const storageOptions = {
     ...(options.intakeLimits === undefined ? {} : { intakeLimits: options.intakeLimits }),
+    ...(options.protectedBasis === undefined ? {} : { protectedBasis: options.protectedBasis }),
     storage,
     domains,
     accessCheck,
@@ -362,6 +386,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
     control,
     events,
     accessCheck,
+    register,
     access,
     create,
     accept,

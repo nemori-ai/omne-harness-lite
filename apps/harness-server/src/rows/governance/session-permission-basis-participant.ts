@@ -1,7 +1,4 @@
-import {
-  governanceExternalWriteBasisFact,
-  governanceDefinitionProjectionFact,
-} from '@omne-harness/governance-local'
+import { governanceDefinitionProjectionFact } from '@omne-harness/governance-local'
 import { SESSION_COMMIT_BASIS } from '@omne-harness/session-storage-sql/participants'
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import {
@@ -15,17 +12,19 @@ const configuration = sessionPermissionBasisConfigurationSchema.parse(
 )
 export default {
   ...sessionPermissionBasisIdentity(configuration),
-  execute(_facts, port) {
+  execute(facts, port) {
     const basis = sessionPermissionWriteBasis(
-      port.requireFact(governanceExternalWriteBasisFact),
+      facts,
       configuration.mode === 'clear' ? null : port.requireFact(governanceDefinitionProjectionFact),
       configuration,
       configuration.mode === 'mapped'
         ? targetSnapshotSchema.parse(port.requireFact(targetSnapshotFact))
         : null,
     )
+    // The Session commit answers a reported failure as temporary: the caller comes again and the
+    // source forms the basis from the facts of that time.
     if (basis === null)
-      return { kind: 'unsupported', basis: { reason: 'session-permission-basis' } }
+      return { kind: 'failed', diagnostic: 'the Session permission basis does not hold' }
     port.provideFact(SESSION_COMMIT_BASIS, basis)
     return { kind: 'participated', response: null }
   },

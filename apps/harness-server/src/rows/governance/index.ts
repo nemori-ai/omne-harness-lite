@@ -10,12 +10,14 @@ import {
   standingDestinationResolverKey,
 } from '@omne-harness/identity/cordis'
 import { tenantCodec } from '@omne-harness/legal-identity'
+import { fail } from '@omne-harness/operation-result'
 import { GovernanceIdSchema } from '@omne-harness/governance-contract'
 import { createSettingsRegistry } from '@omne-harness/settings'
 import type { SettingsSourceDestination } from '@omne-harness/settings-local/preparation'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { toolContributionAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
+import { classify } from '../authorization/principals.ts'
 import { monotonicClock } from '../../shutdown.ts'
 import { governanceInstallationPrincipalsKey } from '../../entry/governance-installation-principals.ts'
 import { governanceDirectoryPrincipalsKey } from '../../entry/governance-directory-principals.ts'
@@ -41,13 +43,24 @@ const configSchema = z.strictObject({
 })
 
 class SessionBackend extends SessionPermissionBackendService {
-  readonly read: SessionPermissionBackendService['read']
+  readonly basis: SessionPermissionBackendService['basis']
   constructor(ctx: Context, host: TenantGovernanceHost) {
     super(ctx)
-    this.read = async context => {
-      const tenant = tenantCodec.encode(context.principal.tenant)
-      if (!tenant.ok || tenant.value !== context.qualification.tenantRef) return undefined
-      return (await host.runtime(tenant.value))?.backend
+    this.basis = async commit => {
+      const who = classify(commit.access.principal)
+      if (who?.column !== 'login') return fail({ kind: 'denied', action: 'change' })
+      const tenant = tenantCodec.encode(who.principal.tenant)
+      const runtime = tenant.ok ? await host.runtime(tenant.value) : undefined
+      return runtime === undefined
+        ? fail({
+            kind: 'unavailable',
+            owner: 'harness.session-permission-write',
+            diagnostic: 'the governance runtime of the tenant is unavailable',
+          })
+        : runtime.sessionPermissionBasis({
+            ...commit,
+            access: { ...commit.access, principal: who.principal },
+          })
     }
   }
 }

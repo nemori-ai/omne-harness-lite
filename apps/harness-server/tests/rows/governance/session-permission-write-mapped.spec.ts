@@ -1,9 +1,12 @@
 // @module-tag slow
+// A Session permission assignment of a mapped permission is one Session commit. The tenant layer
+// is read inside the commit. The organization layer is in another domain: the basis source reads
+// it for every delivery and keeps nothing.
 import { rmSync } from 'node:fs'
 import { afterEach, expect, it } from 'vitest'
-import { access, loginStateCodec, organizationCodec } from '@omne-harness/legal-identity'
+import { loginStateCodec, organizationCodec } from '@omne-harness/legal-identity'
 import { referenceAdmissionCheck } from '@omne-harness/authorization'
-import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
+import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { createSettingsRegistry } from '@omne-harness/settings'
 import { assetsSettingsProjectionCommand } from '@omne-harness/assets-local'
 import {
@@ -12,15 +15,11 @@ import {
   standaloneSettingsProjectionCommand,
 } from '@omne-harness/settings-local'
 import { createSettingsCatalogDestination } from '@omne-harness/settings-local/identity'
-import { createIdentityQualifiedSettingsSources } from '@omne-harness/settings-local/preparation'
-import {
-  createGovernanceLocalSourceDestination,
-  type GovernanceLocalOptions,
-} from '@omne-harness/governance-local'
 import { createSessionStorage, sessionStorageMaterials } from '@omne-harness/session-storage-sql'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
-import type { SessionCommand } from '@omne-harness/session-contract'
+import type { SessionAccessCheck, SessionCommand } from '@omne-harness/session-contract'
+import type { SqlStorage } from '@omne-harness/sql-contract'
 import {
   creation,
   evidence,
@@ -34,20 +33,16 @@ import { openSourceServiceWorld } from '../../../../../packages/assets/settings-
 import { settingsPreparationWorld } from './settings-preparation-world.ts'
 import { createSessionAccessCheck } from '../../../src/rows/authorization/adapters.ts'
 import { SESSION_PERMISSION_OWN_LOGIN_POLICY } from '../../../src/rows/authorization/session-permission-write.ts'
-import {
-  createSessionPermissionWriteResolver,
-  sessionPermissionResolvedQualificationSchema,
-  type SessionPermissionCatalogReader,
-} from '../../../src/rows/governance/session-permission-discovery.ts'
+import { createSessionPermissionBasisSource } from '../../../src/rows/governance/session-permission-basis-source.ts'
 import {
   createSessionPermissionSettingsResolver,
   type SessionPermissionSettingsReader,
   type SessionPermissionMappedSource,
 } from '../../../src/rows/governance/session-permission-settings.ts'
-import { createSessionPermissionWritePlan } from '../../../src/rows/governance/session-permission-plan.ts'
-import { withSessionPermissionCommit } from '../../../src/rows/governance/session-permission-commit.ts'
 import { sessionPermissionBasisParticipant } from '../../../dist/rows/governance/session-permission-basis.js'
-import { sessionPermissionResultParticipant } from '../../../dist/rows/governance/session-permission-result.js'
+
+type Principal = ActingForTenantPrincipal
+type Change = Extract<SessionCommand, { kind: 'change' }>
 
 const closed: Array<() => Promise<unknown>> = []
 afterEach(async () => {
@@ -55,7 +50,7 @@ afterEach(async () => {
 })
 
 it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)(
-  'uses real Settings and retained organization values for Session writes: %s',
+  'judges a mapped Session write on real Settings and the current organization value: %s',
   async scenario => {
     const session = sessionStorageMaterials({ readOutputLimitBytes: 4 * 1024 * 1024 })
     const catalog = settingsCatalogMaterials()
@@ -64,98 +59,21 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
       unmapped: sessionPermissionBasisParticipant({ mode: 'unmapped', requiredConstraintIds: [] }),
       mapped: sessionPermissionBasisParticipant({ mode: 'mapped', requiredConstraintIds: [] }),
     }
-    let readCatalog: SessionPermissionCatalogReader = async () => ({
-      kind: 'unavailable',
-      owner: 'not-installed',
-    })
     let readSettings: SessionPermissionSettingsReader = async () => ({
       kind: 'rejected',
       reason: 'unavailable',
     })
     let route: SessionPermissionMappedSource['source'] | undefined
-    let reservations: GovernanceLocalOptions['sourceReservations']
     const w = await settingsPreparationWorld({
       extraParticipants: [
         ...session.participants,
         ...catalog.participants,
         ...Object.values(bases),
-        sessionPermissionResultParticipant(),
       ],
       extraMigrations: [...session.migrations, ...catalog.migrations],
       extraReadHandlers: session.readHandlers,
-      sourceReservations: {
-        reserve: (principal, request) =>
-          reservations?.reserve(principal, request) ??
-          Promise.resolve({ kind: 'rejected', reason: 'unavailable' }),
-        settle: request =>
-          reservations?.settle(request) ??
-          Promise.resolve({ kind: 'rejected', reason: 'unavailable' }),
-      },
-      async externalWrites({ register, snapshotParticipants, scope }) {
-        const common = [
-          'execution-record',
-          'governance.external-write-basis',
-          'session',
-          'harness.session-permission-result',
-          'governance.external-write-terminal',
-          'governance.activation',
-        ]
-        const combination = async (mode: 'clear' | 'unmapped' | 'mapped') =>
-          register(`session-${mode}`, [
-            ...new Set([
-              ...common,
-              bases[mode].participant,
-              ...(mode === 'clear' ? [] : ['governance.definition-projection']),
-              ...(mode === 'mapped'
-                ? snapshotParticipants.filter(value => value !== 'governance.metadata-plan')
-                : []),
-            ]),
-          ])
-        const registrations = {
-          clear: { combination: await combination('clear'), requiredConstraintIds: [] },
-          unmapped: { combination: await combination('unmapped'), requiredConstraintIds: [] },
-          mapped: { combination: await combination('mapped'), requiredConstraintIds: [] },
-        }
-        const resolve = createSessionPermissionWriteResolver({
-          login: () => w.identityGovernance,
-          scope,
-          readCatalog: request => readCatalog(request),
-          settings: createSessionPermissionSettingsResolver({
-            read: request => readSettings(request),
-            organizationSource: async () => route,
-          }),
-        })
-        return {
-          sourceRoute: 'governance.session-permission-write',
-          principalOf: context => context.principal,
-          async resolve(principal, intent, context) {
-            const result = await resolve(principal, intent, context)
-            if (scenario !== 'selected-source' || result.kind !== 'qualified') return result
-            const selected = sessionPermissionResolvedQualificationSchema.parse(
-              result.qualification,
-            )
-            if (selected.kind !== 'set' || selected.settings.kind !== 'mapped')
-              throw new Error('Mapped selection required')
-            return {
-              ...result,
-              qualification: {
-                ...selected,
-                settings: {
-                  ...selected.settings,
-                  source: {
-                    ...selected.settings.source,
-                    target: { ...selected.settings.source.target, targetRef: 'replaced-source' },
-                  },
-                },
-              },
-            }
-          },
-          plan: createSessionPermissionWritePlan(registrations),
-        }
-      },
     })
     closed.push(() => w.close())
-    readCatalog = request => w.service.readCatalog(w.access, request)
     const registry = createSettingsRegistry({ capacity: 16 })
     for (const definition of w.declaration.settings)
       expect(registry.registerContribution(definition).kind).toBe('registered')
@@ -200,34 +118,14 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
     }
     const definition = w.declaration.settings[0]
     if (!definition) throw new Error('Settings declaration')
+    // The organization source has its own storage in this world. Nothing reserves it.
     const source = await openSourceServiceWorld(
-      createGovernanceLocalSourceDestination({
-        ...w.coordination,
-        sourceRoute: 'governance.session-permission-write',
-      }),
+      { seal: async () => ({ kind: 'unavailable' }) },
       undefined,
       route,
       definition,
     )
-    const qualified = createIdentityQualifiedSettingsSources({
-      identity: w.identity,
-      backend: {
-        ...source.options,
-        access: {
-          async authorize(principal: ActingForTenantPrincipal, input) {
-            return {
-              kind: 'authorized',
-              scope: input.source.domain.scope,
-              target: input.source.target,
-              principalRef: standingPrincipalRef(principal),
-            }
-          },
-        },
-      },
-    })
-    reservations = qualified.service
     closed.unshift(async () => {
-      await qualified.control.close()
       await source.close()
       rmSync(source.root, { recursive: true, force: true })
     })
@@ -263,18 +161,74 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
     if (!('ok' in issued)) throw new Error('Login principal')
     const principal = issued.ok
     const ordinary = await w.register('session-ordinary', [...SESSION_LOG_PARTICIPANTS])
+    const mapped = await w.register('session-mapped', [
+      ...new Set([
+        'execution-record',
+        'session',
+        bases.mapped.participant,
+        'governance.definition-projection',
+        ...w.snapshotParticipants,
+      ]),
+    ])
+    const unused = await w.register('session-clear', [
+      'execution-record',
+      'session',
+      bases.clear.participant,
+    ])
+    const checker = createSessionAccessCheck({
+      admission: referenceAdmissionCheck({
+        verifier: w.identity.verifier,
+        standing: w.identity.standing,
+        permits: null,
+      }),
+      login: w.identityGovernance,
+      systemActions: {
+        check: async () => {
+          throw new Error('Not system')
+        },
+      },
+    })
+    // The organization source is in the system domain; the storage of its world answers it.
+    const read: SqlStorage['read'] = (input, readOptions) =>
+      (input.domain.scope.kind === 'system' ? source.options.storage : w.storage).read(
+        input,
+        readOptions,
+      )
+    const basisSource = createSessionPermissionBasisSource({
+      scope: w.scope,
+      domain: w.domain,
+      epoch: w.epoch,
+      storage: { read },
+      login: () => w.identityGovernance,
+      settings: createSessionPermissionSettingsResolver({
+        read: request => readSettings(request),
+        // `selected-source` names an organization source that does not exist.
+        organizationSource: async () =>
+          route === undefined || scenario !== 'selected-source'
+            ? route
+            : { ...route, target: { ...route.target, targetRef: 'replaced-source' } },
+      }),
+      readCatalog: request => w.service.readCatalog(w.access, request),
+      combinations: { clear: unused, unmapped: unused, mapped },
+    })
+    // A change gets the real access check. The creation and the reads are fixture decisions.
+    const accessCheck: SessionAccessCheck<Principal> = {
+      check: request =>
+        request.operation === 'change'
+          ? checker.check(request)
+          : Promise.resolve({ kind: 'allowed', evidence: evidence('fixture-not-a-change') }),
+    }
     const entry = { tenant: w.scope.tenantRef, domain: w.domain }
-    const port = createSessionStorage({
+    const port = createSessionStorage<Principal>({
       storage: w.storage,
       combination: ordinary,
       domains: {
         resolve: async () => ({ kind: 'ready', entry }),
         snapshot: async () => ({ kind: 'ready', value: { revision: '1', entries: [entry] } }),
       },
-      accessCheck: {
-        check: async () => ({ kind: 'allowed', evidence: evidence('fixture-create-only') }),
-      },
+      accessCheck,
       cursorSigning: createFixedSessionCursorSigning(),
+      protectedBasis: basisSource,
     })
     const sessionAccess = {
       principal,
@@ -320,50 +274,43 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
         },
       },
     } satisfies SessionCommand
-    const request = {
-      access: access(principal, principal.tenant),
-      operation: 'change' as const,
-      target: { kind: 'session' as const, session: sessionAccess.session, command },
-    }
-    const checker = createSessionAccessCheck({
-      admission: referenceAdmissionCheck({
-        verifier: w.identity.verifier,
-        standing: w.identity.standing,
-        permits: null,
-      }),
-      login: w.identityGovernance,
-      systemActions: {
-        check: async () => {
-          throw new Error('Not system')
-        },
-      },
-    })
-    const admitted = await checker.check(request)
-    if (admitted.kind !== 'allowed' || !admitted.writeQualification || !w.externalWrites)
-      throw new Error('Admission or writer')
-    const writes = w.externalWrites
-    const view = withSessionPermissionCommit(
-      port,
-      { request, evidence: admitted.evidence, writeQualification: admitted.writeQualification },
-      async () => ({ writes, storage: w.storage }),
-    )
+    const commit = (value: Change) =>
+      port.commit({ access: sessionAccess, command: value, guards: [] })
     const before = await port.readWork(sessionAccess)
-    const outcome = await view.commit({ access: sessionAccess, command, guards: [] })
+    const outcome = await commit(command)
     expect(outcome).toMatchObject(
       scenario === 'set' ? { ok: { recovered: false } } : { failure: { kind: 'unavailable' } },
     )
-    if (scenario === 'set') {
-      expect(await port.readWork(sessionAccess)).toMatchObject({
-        ok: {
-          permissions: {
-            revision: '1',
-            assignments: [{ rule: { pick: 'auto', allowedSet: null } }],
-          },
+    if (scenario !== 'set') {
+      expect(await port.readWork(sessionAccess)).toEqual(before)
+      return
+    }
+    expect(await port.readWork(sessionAccess)).toMatchObject({
+      ok: {
+        permissions: {
+          revision: '1',
+          assignments: [{ rule: { pick: 'auto', allowedSet: null } }],
         },
-      })
-      expect(await view.commit({ access: sessionAccess, command, guards: [] })).toMatchObject({
-        ok: { recovered: true },
-      })
-    } else expect(await port.readWork(sessionAccess)).toEqual(before)
+      },
+    })
+    expect(await commit(command)).toMatchObject({ ok: { recovered: true } })
+    // The organization value changes after the write. The next write is judged on the new value;
+    // the committed operation stays the committed one.
+    expect(
+      await source.set({ pick: 'deny', allowedSet: null }, 1, 'set-source-again'),
+    ).toMatchObject({ kind: 'committed' })
+    const next: Change = {
+      ...command,
+      input: {
+        ...command.input,
+        operation: operationId('set-permission-again'),
+        declaration: { ...command.input.declaration, expectedRevision: '1' },
+      },
+    }
+    expect(await commit(next)).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(await commit(command)).toMatchObject({ ok: { recovered: true } })
+    expect(await port.readWork(sessionAccess)).toMatchObject({
+      ok: { permissions: { revision: '1' } },
+    })
   },
 )

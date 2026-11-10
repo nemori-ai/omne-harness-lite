@@ -23,6 +23,7 @@
 | `sessionStorageMaterials`                          | 函数             | 输入 `SessionStorageMaterialsOptions`（必填 `readOutputLimitBytes`，正安全整数，没有默认值，非法时抛 `TypeError`），输出 `SessionStorageMaterials`：`participants`、`migrations`、`readHandlers` 三个只读列表。读取模块文件一次并给出摘要。`migrations` 含 `session/003-operation-evidence`，它建操作记录的访问证据表，依赖 `session/002-execution-index`                                                                                                                                                                                                   | [参加者模块与材料](../SPEC.md#参加者模块与材料)     |
 | `SESSION_PARTICIPANT`                              | 常量             | 值 `session`                                                                                                                                                                                                                                                                                                                    | 同上                                                |
 | `SessionStorageOptions`、`SessionStorageMaterials`、`SessionStorageMaterialsOptions` | 类型             | 见源码                                                                                                                                                                                                                                                                                                                          | 同上                                                |
+| `SessionProtectedBasisSource`、`SessionProtectedCommit`、`SessionProtectedBasis` | 类型 | 权限配值的受保护依据来源，以及它的输入与输出。见[提交依据](commit-basis.md#受保护提交) | 同上 |
 | `./participants` 的导出                            | 常量、函数与类型 | 两个参加者的名字、协议版本、读 handler 名，`session` 命令与只读核对的 facts 构造，`execution-record` 写入的 facts 构造，两个参加者回复与六个读输出的解码。第六个是执行索引 `session.execution` 的输出                                                                                                                           | [对外部提交方的词汇](../SPEC.md#对外部提交方的词汇) |
 
 ### 配置
@@ -36,6 +37,7 @@
 | `accessCheck`   | 每个公开读与写的当前访问裁定，没有默认权限                      | 无，必填   |
 | `cursorSigning` | 游标签名能力，由应用注入                                        | 无，必填   |
 | `combination`   | 应用为租户作用域登记的 `combinationVersion` 与 `manifestDigest` | 无，必填   |
+| `protectedBasis` | 权限配值的受保护依据来源。未装配时权限配值走普通组装并被拒绝 | 无 |
 | `intakeLimits` | 构造时校验并复制的普通输入预算，公开命令不能覆盖 | Session 统一初值：64 个、1048576 字节 |
 | `cursorTtlMs`   | 游标有效期（毫秒）                                              | 15 分钟    |
 | `now`           | 时钟，用于游标过期                                              | `Date.now` |
@@ -57,7 +59,7 @@ SPEC 设计的内联阈值、大对象去向、`pageBytes` 上限、`maxScanPerP
 
 ## 提交依据与版本
 
-`./participants` 导出 `sessionCommitCommands`、`sessionCommitDigest`、`SessionCommitBasisSchema`、`SessionCommitResultSchema` 及关联类型和事实键。最终命令组装、普通与受保护依据和失败语义归[提交依据](commit-basis.md)。`SESSION_PROTOCOL` 只用于写参加者；`SESSION_READ_PROTOCOL` 用于读取 handler，不能互换。
+`./participants` 导出 `sessionCommitCommands`、`sessionCommitDigest`、`SessionCommitBasisSchema` 及关联类型和事实键。最终命令组装、普通与受保护依据和失败语义归[提交依据](commit-basis.md)。`SESSION_PROTOCOL` 只用于写参加者；`SESSION_READ_PROTOCOL` 用于读取 handler，不能互换。
 
 
 ## 当前权限读取

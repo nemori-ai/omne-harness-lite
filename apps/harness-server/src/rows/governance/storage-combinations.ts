@@ -11,8 +11,7 @@ import { ADOPTION_CURRENT_PARTICIPANT } from './adoption-current.ts'
 import { CATALOG_CURRENT_PARTICIPANT } from './catalog-current.ts'
 import { TARGET_SNAPSHOT } from './target-snapshot.ts'
 import { PERMISSION_BASIS, PERMISSION_BASIS_GUARD } from './permission-basis.ts'
-import { SESSION_PERMISSION_RESULT } from './session-permission-result.ts'
-import { sessionPermissionWriteBasis } from './storage-materials.ts'
+import { sessionPermissionBasisProducer } from './session-permission-basis.ts'
 
 const publications = [
   'assets.settings',
@@ -66,13 +65,20 @@ const startCondition = (read: readonly string[]) => [
   PERMISSION_BASIS_GUARD.participant,
   'tool',
 ]
-const permissionWrite = [
+/**
+ * A Session permission assignment commits with the producer of its basis. The Session members are
+ * the execution record and the Session writer; the ordinary basis producer is not a member.
+ */
+const permissionWrite = (mode: 'clear' | 'unmapped' | 'mapped') => [
   'execution-record',
-  'governance.external-write-basis',
   'session',
-  SESSION_PERMISSION_RESULT.participant,
-  'governance.external-write-terminal',
+  sessionPermissionBasisProducer(mode),
+]
+/** The definition projection reads Governance tables: their writer and its planner are members. */
+const definitionProjection = [
+  'governance.definition-projection',
   'governance.activation',
+  'governance.metadata-plan',
 ]
 
 /** Each combination has one writer per table and one provider per required fact. */
@@ -96,18 +102,9 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
       'settings.catalog-terminal',
       'settings.snapshot',
     ],
-    sessionClear: [...permissionWrite, sessionPermissionWriteBasis('clear').participant],
-    sessionUnmapped: [
-      ...permissionWrite,
-      'governance.definition-projection',
-      sessionPermissionWriteBasis('unmapped').participant,
-    ],
-    sessionMapped: [
-      ...permissionWrite,
-      ...snapshot,
-      'governance.definition-projection',
-      sessionPermissionWriteBasis('mapped').participant,
-    ],
+    sessionClear: permissionWrite('clear'),
+    sessionUnmapped: [...permissionWrite('unmapped'), ...definitionProjection],
+    sessionMapped: [...permissionWrite('mapped'), ...snapshot, ...definitionProjection],
   }
   function build(name: keyof typeof definitions) {
     const participants = [...new Set(definitions[name])]

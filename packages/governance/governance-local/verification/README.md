@@ -40,8 +40,6 @@
 [原操作保管](../tests/external-write-custody.spec.ts) 还验证内部引用认回和 required 不得降级。恢复查询从原操作 schema 取得类型集合，防止新增原操作被恢复解析器遗漏。结构性论证见 [受信写入口与恢复闭合](proofs/permission-capture-custody.md#受信写入口与恢复闭合)。它不替代机器证明或完整 C3b 独立验收。
 
 
-[真实 Session 同提交组合](../../../../apps/harness-server/tests/rows/governance/external-session-commit.spec.ts) 覆盖 GL-30。它装配真实 Session 写者、Governance 写者及 SqlStorage，检查成功、写后回滚、结果错绑、提前封口、完整 facts 替换及丢回执。业务资格与定义为具名测试适配器，生产原登录及当前定义接线不在该测试的证明范围内。对应论证见 [外域原子性](proofs/permission-capture-custody.md#外域效果与治理终态的原子性)。
-
 [definition-projection.spec.ts](../tests/definition-projection.spec.ts) 使用真实注册服务与 SQLite 读取 settings=null 的声明，不构造 Settings target；覆盖撤下、旧 epoch、错误 scope、错误完整定义与关闭。原发布来源是具名测试来源，该测试不证明真实 Tool/Assets 发布或权限准入。[schema.spec.ts](../tests/schema.spec.ts) 对共享查询保留一万条旧代记录下的索引计划守护，拒绝贡献表或声明表全扫描。GL-31 的谓词与前提见[当前声明论证](proofs/permission-capture-custody.md#当前注册声明的独立读取)。
 
 ## 有限模型的运行

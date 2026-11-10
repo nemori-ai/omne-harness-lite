@@ -101,8 +101,6 @@ GL-29 将原请求扩展为 Q=(意图, qualification, required, source, route)�
 
 SqlStorage 同身份回执认回保证一次原业务事务最多产生一次效果。即使观察者失去回执，协调器也只从持久原操作认回结果。这个论证不证明业务资格的真实性、外域转换的领域含义或故障后的活性。它依赖受信适配器和存储契约，不是新增机器模型检查。
 
-[真实 Session 组合](../../../../../apps/harness-server/tests/rows/governance/external-session-commit.spec.ts) 检查成功、实际写者后的失败、三种结果错绑、seal 在先、完整 facts 替换及丢回执。用例断言停止参加者和实际 Session 公开状态，避免把初始化失败误判为业务回滚。业务资格与定义是具名夹具，生产接线需单独验证。
-
 ## 原业务回执的认回
 
 令 K 为原操作绑定，T 为原记录保存的 sqlIdentity。受理后 K 与 T 不变，终态返回直接读取该 T。按 T 查询的回执由 SqlStorage 的同身份认回协议保护；重复 execute 不分配新的业务事务身份。因此应用可读取同一失败回执，而不需要重复业务判断。

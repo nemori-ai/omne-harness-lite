@@ -60,10 +60,6 @@ import { defineRow, type RowHandle } from '../../row.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { systemActionAuthorizationKey } from '../authorization/system-action-service.ts'
 import { sessionPermissionBackendKey } from '../governance/session-permission-backend-service.ts'
-import {
-  withSessionPermissionCommit,
-  type SessionPermissionBackendReader,
-} from '../governance/session-permission-commit.ts'
 import { boundAccessCheck } from './bound.ts'
 import { SESSION_COMPOSITE_PARTICIPANTS, compositeManifestDigest } from './composite.ts'
 import { sessionStorageRowConfigSchema, type SessionStorageRowConfig } from './config.ts'
@@ -238,7 +234,6 @@ function delegatedView(
   base: SessionStorageOptions<unknown>,
   directory: TenantDirectory,
   checked: SessionCheckedAccess<unknown>,
-  select: SessionPermissionBackendReader,
 ): SessionTransactionPort<unknown> {
   const creating = boundCreateTenant(checked.request)
   const view = createSessionStorage({
@@ -256,10 +251,9 @@ function delegatedView(
     references: denied('references'),
     releasedScopes: denied('releasedScopes'),
   }
-  const protectedView = withSessionPermissionCommit(bound, checked, select, base.intakeLimits)
   return creating === null
-    ? unregisteredTenantIsAbsent(protectedView, directory, boundTenantText(checked.request))
-    : protectedView
+    ? unregisteredTenantIsAbsent(bound, directory, boundTenantText(checked.request))
+    : bound
 }
 
 class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
@@ -366,6 +360,16 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
     accessCheck,
     cursorSigning: lateBoundCursorSigning(ctx),
     combination,
+    // The governance row forms the basis of a permission assignment; it may mount later.
+    protectedBasis: commit =>
+      ctx.get(sessionPermissionBackendKey)?.basis(commit) ??
+      Promise.resolve(
+        fail<SessionFailure>({
+          kind: 'unavailable',
+          owner: 'harness.session-permission-write',
+          diagnostic: 'no backend forms the basis of a Session permission write',
+        }),
+      ),
   }
   const port = registeringOnCreate(
     createSessionStorage(base),
@@ -375,9 +379,7 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
       'allowed',
   )
   new SessionTransactionsImpl(ctx, port)
-  const select: SessionPermissionBackendReader = context =>
-    ctx.get(sessionPermissionBackendKey)?.read(context) ?? Promise.resolve(undefined)
-  new DelegatedTransactionsImpl(ctx, checked => delegatedView(base, directory, checked, select))
+  new DelegatedTransactionsImpl(ctx, checked => delegatedView(base, directory, checked))
   new TenantDomainsImpl(ctx, directory.access)
   new TenantDomainLookupImpl(ctx, directory.lookup)
   const bindings = createSessionPrincipalBindings({ storage, domains: directory.access })

@@ -1,25 +1,23 @@
 // @module-tag slow
-import { z } from 'zod'
+// A Session permission assignment is one Session commit. The basis source, the basis producer,
+// the Session writer, the registered declaration and the login are the production modules.
 import { afterEach, expect, it } from 'vitest'
-import { standingPrincipalRef } from '@omne-harness/identity'
-import {
-  createSessionPermissionWriteResolver,
-  sessionPermissionResolvedQualificationSchema,
-  type SessionPermissionCatalogReader,
-} from '../../../src/rows/governance/session-permission-discovery.ts'
+import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
+import type { SessionPermissionCatalogReader } from '../../../src/rows/governance/session-permission-discovery.ts'
 import { access, loginStateCodec } from '@omne-harness/legal-identity'
 import { referenceAdmissionCheck } from '@omne-harness/authorization'
+import { createGovernanceLocal } from '@omne-harness/governance-local'
 import {
-  createGovernanceLocal,
-  governanceDefinitionProjectionCommand,
-} from '@omne-harness/governance-local'
-import { createSessionStorage, sessionStorageMaterials } from '@omne-harness/session-storage-sql'
+  createSessionStorage,
+  sessionStorageMaterials,
+  type SessionProtectedCommit,
+} from '@omne-harness/session-storage-sql'
 import {
   SESSION_LOG_PARTICIPANTS,
   sessionCommandFacts,
 } from '@omne-harness/session-storage-sql/participants'
 import {
-  commandDigest,
+  type SessionAccessCheck,
   type SessionCommand,
   type GuardCommand,
 } from '@omne-harness/session-contract'
@@ -34,22 +32,21 @@ import {
   adoptedInitializationFixture,
 } from '@omne-harness/session-contract/testing'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
-import { combinationManifest, manifestDigest } from '@omne-harness/sql-contract'
+import {
+  combinationManifest,
+  manifestDigest,
+  type CommitRequestV2,
+  type SqlStorage,
+} from '@omne-harness/sql-contract'
 import { openRegistrarWorld } from '../../../../../packages/governance/governance-local/tests/registrar-world.ts'
 import { openProviderWorld } from '../../../../../packages/governance/governance-local/tests/provider-world.ts'
 import { createSessionAccessCheck } from '../../../src/rows/authorization/adapters.ts'
 import { SESSION_PERMISSION_OWN_LOGIN_POLICY } from '../../../src/rows/authorization/session-permission-write.ts'
-import { sessionPermissionQualification } from '../../../src/rows/governance/session-permission-qualification.ts'
 import { sessionPermissionBasisParticipant } from '../../../dist/rows/governance/session-permission-basis.js'
-import {
-  sessionPermissionResultParticipant,
-  SESSION_PERMISSION_RESULT,
-} from '../../../dist/rows/governance/session-permission-result.js'
+import { createSessionPermissionBasisSource } from '../../../src/rows/governance/session-permission-basis-source.ts'
 
-import {
-  withSessionPermissionCommit,
-  type SessionPermissionWriteContext,
-} from '../../../src/rows/governance/session-permission-commit.ts'
+type Principal = ActingForTenantPrincipal
+type Change = Extract<SessionCommand, { kind: 'change' }>
 const opened: Array<{ close(): Promise<unknown> }> = []
 afterEach(async () => {
   for (const w of opened.splice(0).reverse()) await w.close()
@@ -64,7 +61,7 @@ it.each([
   'selected-definition',
   'mapped-missing-source',
 ] as const)(
-  'uses the real login and registered declaration at the Session write boundary: %s',
+  'commits with the real login and registered declaration as one Session commit: %s',
   async scenario => {
     const basis = sessionPermissionBasisParticipant({
       mode: 'unmapped',
@@ -78,12 +75,7 @@ it.each([
     const w = await openRegistrarWorld(
       {
         ...material,
-        participants: [
-          ...material.participants,
-          basis,
-          clearBasis,
-          sessionPermissionResultParticipant(),
-        ],
+        participants: [...material.participants, basis, clearBasis],
       },
       { maxJsonDepth: 64 },
     )
@@ -148,35 +140,51 @@ it.each([
     const ordinary = await register('native-session-ordinary/1', SESSION_LOG_PARTICIPANTS)
     const protectedCombination = await register('native-session-permission/1', [
       'execution-record',
-      'governance.definition-projection',
-      'governance.external-write-basis',
-      basis.participant,
       'session',
-      SESSION_PERMISSION_RESULT.participant,
-      'governance.external-write-terminal',
+      basis.participant,
+      'governance.definition-projection',
       'governance.activation',
+      'governance.metadata-plan',
     ])
     const clearCombination = await register('native-session-clear/1', [
       'execution-record',
-      'governance.external-write-basis',
-      clearBasis.participant,
       'session',
-      SESSION_PERMISSION_RESULT.participant,
-      'governance.external-write-terminal',
-      'governance.activation',
+      clearBasis.participant,
     ])
     const entry = { tenant: w.scope.tenantRef, domain: w.activation.domain }
-    const port = createSessionStorage({
-      storage: w.activation.storage,
+    // Every storage commit of the test, so a write can be shown to be one Session commit.
+    const commits: CommitRequestV2[] = []
+    const storage: SqlStorage = {
+      ...w.activation.storage,
+      commit: request => {
+        commits.push(request)
+        return w.activation.storage.commit(request)
+      },
+    }
+    let source: ReturnType<typeof createSessionPermissionBasisSource> | undefined
+    let plans = 0
+    let tamper = (planned: Awaited<ReturnType<NonNullable<typeof source>>>) => planned
+    // A change gets the real access check. The creation and the reads are fixture decisions.
+    const accessCheck: SessionAccessCheck<Principal> = {
+      check: request =>
+        request.operation === 'change'
+          ? checker.check(request)
+          : Promise.resolve({ kind: 'allowed', evidence: evidence('fixture-not-a-change') }),
+    }
+    const port = createSessionStorage<Principal>({
+      storage,
       combination: ordinary,
       domains: {
         resolve: async () => ({ kind: 'ready', entry }),
         snapshot: async () => ({ kind: 'ready', value: { revision: '1', entries: [entry] } }),
       },
-      accessCheck: {
-        check: async () => ({ kind: 'allowed', evidence: evidence('fixture-create-only') }),
-      },
+      accessCheck,
       cursorSigning: createFixedSessionCursorSigning(),
+      protectedBasis: async commit => {
+        if (source === undefined) throw new Error('source not installed')
+        plans += 1
+        return tamper(await source(commit))
+      },
     })
     const sessionAccess = {
       principal,
@@ -226,9 +234,6 @@ it.each([
       operation: 'change' as const,
       target: { kind: 'session' as const, session: sessionAccess.session, command },
     }
-    const admitted = await checker.check(request)
-    if (admitted.kind !== 'allowed' || admitted.writeQualification === undefined)
-      throw new Error(JSON.stringify(admitted))
     const originalGuards: readonly GuardCommand[] = [
       {
         owner: 'fixture-context',
@@ -237,25 +242,11 @@ it.each([
         facts: { kind: 'string', value: 'original' },
       },
     ]
-    const checked = {
-      request,
-      evidence: admitted.evidence,
-      writeQualification: admitted.writeQualification,
-      guards: originalGuards,
-    }
-    const initialSession = sessionCommandFacts(command, originalGuards)
-    const encodedCommand = initialSession.facts['command']
-    if (encodedCommand === undefined) throw new Error('Session command was not encoded')
     let readCatalog: SessionPermissionCatalogReader = async () => ({
       kind: 'unavailable',
       owner: 'test-not-installed',
     })
     let withdrawAfterDiscovery = false
-    const resolveWrite = createSessionPermissionWriteResolver({
-      login: () => w.identity.governance,
-      scope: w.scope,
-      readCatalog: request => readCatalog(request),
-    })
     const made = await createGovernanceLocal({
       ...options,
       identity: { ...options.identity, verifier: authority.verifier },
@@ -271,58 +262,8 @@ it.each([
         },
       ],
       definitions: { resolve: async () => ({ kind: 'definition', declaration }) },
-      externalWrites: {
-        sourceRoute: 'native-session-permission',
-        principalOf: (context: SessionPermissionWriteContext) => context.principal,
-        resolve: async (checkedPrincipal, intent, context) => {
-          const resolved = await resolveWrite(checkedPrincipal, intent, context)
-          if (scenario !== 'selected-definition' || resolved.kind !== 'qualified') return resolved
-          const selected = sessionPermissionResolvedQualificationSchema.parse(
-            resolved.qualification,
-          )
-          if (selected.kind !== 'set') throw new Error('Set selection required')
-          return {
-            ...resolved,
-            qualification: {
-              ...selected,
-              definition: { ...selected.definition, version: 'other' },
-            },
-          }
-        },
-        plan: input => {
-          const selected = sessionPermissionResolvedQualificationSchema.parse(
-            input.command.write.qualification,
-          )
-          const qualification = selected.original
-          const clear = selected.kind === 'clear'
-          return {
-            combination: clear ? clearCombination : protectedCombination,
-            writer: 'session',
-            commands: [
-              qualification.commandFacts,
-              ...(selected.kind === 'clear'
-                ? []
-                : [
-                    governanceDefinitionProjectionCommand({
-                      scope: input.binding.ref.scope,
-                      epoch: input.epoch,
-                      principalRef: input.binding.ref.principalRef,
-                      captureId: input.binding.ref.operationId,
-                      transactionDomain: input.transactionDomain,
-                      definition:
-                        scenario === 'selected-definition'
-                          ? declaration.reference
-                          : selected.definition,
-                    }),
-                  ]),
-              { participant: clear ? clearBasis.participant : basis.participant, facts: {} },
-              { participant: SESSION_PERMISSION_RESULT.participant, facts: {} },
-            ],
-          }
-        },
-      },
     })
-    if (made.kind !== 'created' || !made.externalWrites) throw new Error(JSON.stringify(made))
+    if (made.kind !== 'created') throw new Error(JSON.stringify(made))
     opened.push(made)
     const registered = await made.service.contribute(access(principal, principal.tenant), {
       ...w.command('native-register'),
@@ -357,64 +298,94 @@ it.each([
       ).toMatchObject({ kind: 'released' })
     }
     withdrawAfterDiscovery = scenario === 'withdrawn'
-    const before = await port.readWork(sessionAccess)
-    const intent = {
-      operationId: command.input.operation,
-      write: {
-        owner: 'session',
-        protocol: 'session.permission-assignment/1',
-        targetRef: sessionAccess.session,
-        commandDigest: commandDigest(command),
-        command: z.json().parse(encodedCommand),
-      },
-    }
-    const qualification = sessionPermissionQualification(checked, command, originalGuards)
-    if (qualification === null) throw new Error('qualification not retained')
-    const context = { principal, qualification }
-    expect(
-      await resolveWrite(
-        principal,
-        { ...intent, write: { ...intent.write, targetRef: 'another-session' } },
-        context,
-      ),
-    ).toMatchObject({ kind: 'denied' })
-    if (scenario === 'mapped-missing-source')
-      expect(await resolveWrite(principal, intent, context)).toMatchObject({
-        kind: 'unavailable',
-        owner: 'harness.session-permission-settings-source',
-      })
-    const writes = made.externalWrites
-    const protectedView = withSessionPermissionCommit(port, checked, async () => ({
-      writes,
+    source = createSessionPermissionBasisSource({
+      scope: w.scope,
+      domain: w.activation.domain,
+      epoch: made.epoch,
       storage: w.activation.storage,
-    }))
-    const noBackend = withSessionPermissionCommit(port, checked, async () => undefined)
-    expect(
-      await noBackend.commit({ access: sessionAccess, command, guards: originalGuards }),
-    ).toMatchObject({ failure: { kind: 'unavailable' } })
-    expect(await port.readWork(sessionAccess)).toEqual(before)
-    const throughPort = await protectedView.commit({
-      access: sessionAccess,
-      command,
-      guards: originalGuards,
+      login: () => w.identity.governance,
+      readCatalog: request => readCatalog(request),
+      combinations: {
+        clear: clearCombination,
+        unmapped: protectedCombination,
+        mapped: protectedCombination,
+      },
     })
-    if (scenario === 'set' || scenario === 'clear-withdrawn')
-      expect(throughPort).toMatchObject({ ok: { recovered: false } })
+    if (scenario === 'selected-definition')
+      // The source states another definition than the one that the commit projects.
+      tamper = planned => {
+        if (!('ok' in planned)) return planned
+        return {
+          ok: {
+            ...planned.ok,
+            commands: planned.ok.commands.map(item => {
+              if (item.participant !== basis.participant) return item
+              const facts = structuredClone(item.facts) as {
+                selection: { binding: { definition: { version: string } } }
+              }
+              facts.selection.binding.definition.version = 'other'
+              return { ...item, facts: facts as unknown as typeof item.facts }
+            }),
+          },
+        }
+      }
+    const before = await port.readWork(sessionAccess)
+    const admitted = await checker.check(request)
+    if (admitted.kind !== 'allowed' || admitted.writeQualification === undefined)
+      throw new Error(JSON.stringify(admitted))
+    const delivery = (value: Change): SessionProtectedCommit<Principal> => ({
+      access: sessionAccess,
+      command: value,
+      qualification: admitted.writeQualification!,
+      session: sessionCommandFacts(value, originalGuards),
+    })
+    // The qualification of this command does not qualify a write to another session.
+    expect(
+      await source({
+        ...delivery(command),
+        access: { ...sessionAccess, session: sessionId('another-session') },
+      }),
+    ).toEqual({ failure: { kind: 'denied', action: 'change' } })
+    // Nor does it qualify another content under the same operation.
+    expect(
+      await source(
+        delivery({
+          ...command,
+          input: {
+            ...command.input,
+            declaration: { ...command.input.declaration, rule: { pick: 'deny', allowedSet: null } },
+          },
+        }),
+      ),
+    ).toEqual({ failure: { kind: 'denied', action: 'change' } })
+    const commit = (value: Change, guards: readonly GuardCommand[] = originalGuards) =>
+      port.commit({ access: sessionAccess, command: value, guards })
+    const written = commits.length
+    const answer = await commit(command)
+    const succeeds = scenario === 'set' || scenario === 'clear-withdrawn'
+    if (succeeds) expect(answer).toMatchObject({ ok: { recovered: false } })
     else
-      expect(throughPort).toMatchObject({
+      expect(answer).toMatchObject({
         failure: { kind: scenario === 'stale-revision' ? 'changed' : 'unavailable' },
       })
-    const result = await writes.execute(context, intent)
     if (scenario === 'mapped-missing-source') {
-      expect(result).toMatchObject({
-        kind: 'unavailable',
-        owner: 'governance-external-write',
-      })
+      // The source could not form a basis: no commit, and no generation is used.
+      expect(commits).toHaveLength(written)
       expect(await port.readWork(sessionAccess)).toEqual(before)
       return
     }
-    const succeeds = scenario === 'set' || scenario === 'clear-withdrawn'
-    expect(result).toMatchObject({ kind: 'terminal', outcome: succeeds ? 'committed' : 'aborted' })
+    // One Session commit. Its only writer command is the Session command; Governance gets none.
+    expect(commits).toHaveLength(written + 1)
+    expect(commits.at(-1)).toMatchObject({
+      identity: { operation: command.input.operation },
+      combinationVersion: 'native-session-permission/1',
+    })
+    expect(
+      commits
+        .at(-1)
+        ?.commands.map(item => item.participant)
+        .toSorted(),
+    ).toEqual([basis.participant, 'governance.definition-projection', 'session'].toSorted())
     const state = await port.readWork(sessionAccess)
     const readCurrentAssignment = () =>
       w.activation.storage.read({
@@ -457,20 +428,31 @@ it.each([
         },
       })
     else expect(state).toEqual(before)
-    expect(await writes.execute(context, intent)).toEqual(result)
+    if (scenario === 'withdrawn') {
+      // The refusal left no verdict. With the declaration registered again, the same operation
+      // is decided on the facts of that time.
+      const again = await service.contribute(access(principal, principal.tenant), {
+        ...w.command('native-register-again'),
+        declaration,
+      })
+      if (again.kind !== 'registered') throw new Error(JSON.stringify(again))
+      expect(await commit(command)).toMatchObject({ ok: { recovered: false } })
+      expect(await port.readWork(sessionAccess)).toMatchObject({
+        ok: { permissions: { revision: '1' } },
+      })
+    }
     if (scenario === 'set') {
-      const recalledQualification = sessionPermissionQualification(checked, command, [])
-      if (recalledQualification === null) throw new Error('recall qualification')
-      const recalled = await writes.execute(
-        { principal, qualification: recalledQualification },
-        intent,
-      )
-      expect(
-        await protectedView.commit({ access: sessionAccess, command, guards: [] }),
-      ).toMatchObject({ ok: { recovered: true } })
-      expect(recalled).toEqual(result)
+      const asked = plans
+      const sent = commits.length
+      // A redelivery with other guards is the same operation: the original result, no new basis.
+      expect(await commit(command, [])).toMatchObject({ ok: { recovered: true } })
+      expect(plans).toBe(asked)
+      expect(commits).toHaveLength(sent)
+      // The declaration is withdrawn after the write. The operation is still the committed one.
+      await withdraw()
+      expect(await commit(command, [])).toMatchObject({ ok: { recovered: true } })
       expect(await port.readWork(sessionAccess)).toEqual(state)
-      const changedCommand = {
+      const changedCommand: Change = {
         ...command,
         input: {
           ...command.input,
@@ -481,27 +463,12 @@ it.each([
           },
         },
       }
-      const changedRequest = { ...request, target: { ...request.target, command: changedCommand } }
-      const changedAccess = await checker.check(changedRequest)
-      if (changedAccess.kind !== 'allowed' || changedAccess.writeQualification === undefined)
-        throw new Error('changed intent login')
-      const changedView = withSessionPermissionCommit(
-        port,
-        {
-          request: changedRequest,
-          evidence: changedAccess.evidence,
-          writeQualification: changedAccess.writeQualification,
-        },
-        async () => ({ writes, storage: w.activation.storage }),
-      )
-      expect(
-        await changedView.commit({ access: sessionAccess, command: changedCommand, guards: [] }),
-      ).toMatchObject({ failure: { kind: 'conflict' } })
+      expect(await commit(changedCommand, [])).toMatchObject({ failure: { kind: 'conflict' } })
       expect(await port.readWork(sessionAccess)).toEqual(state)
     }
     if (scenario === 'clear-withdrawn') {
       await withdraw()
-      const clearCommand = {
+      const clearCommand: Change = {
         ...command,
         input: {
           ...command.input,
@@ -509,25 +476,15 @@ it.each([
           declaration: { ...command.input.declaration, rule: null, expectedRevision: '1' },
         },
       }
-      const clearRequest = { ...request, target: { ...request.target, command: clearCommand } }
-      const clearAccess = await checker.check(clearRequest)
-      if (clearAccess.kind !== 'allowed' || clearAccess.writeQualification === undefined)
-        throw new Error(JSON.stringify(clearAccess))
-      const clearView = withSessionPermissionCommit(
-        port,
-        {
-          request: clearRequest,
-          evidence: clearAccess.evidence,
-          writeQualification: clearAccess.writeQualification,
-        },
-        async () => ({ writes, storage: w.activation.storage }),
-      )
+      expect(await commit(clearCommand, [])).toMatchObject({ ok: { recovered: false } })
+      expect(commits.at(-1)).toMatchObject({ combinationVersion: 'native-session-clear/1' })
       expect(
-        await clearView.commit({ access: sessionAccess, command: clearCommand, guards: [] }),
-      ).toMatchObject({ ok: { recovered: false } })
-      expect(
-        await clearView.commit({ access: sessionAccess, command: clearCommand, guards: [] }),
-      ).toMatchObject({ ok: { recovered: true } })
+        commits
+          .at(-1)
+          ?.commands.map(item => item.participant)
+          .toSorted(),
+      ).toEqual([clearBasis.participant, 'session'].toSorted())
+      expect(await commit(clearCommand, [])).toMatchObject({ ok: { recovered: true } })
       expect(await port.readWork(sessionAccess)).toMatchObject({
         ok: { permissions: { revision: '2', assignments: [] } },
       })

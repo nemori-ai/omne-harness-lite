@@ -21,18 +21,17 @@ import {
   PermissionBasisRequestSchema,
   PermissionCurrentBasisSchema,
   evaluatePermission,
-  readPermissionSettingsSource,
   type PermissionBasisReading,
   type PermissionBasisRequest,
   type PermissionEvaluation,
   type PermissionSource,
 } from '@omne-harness/permissions'
-import { readSettingsSource, type SettingsSourceReading } from '@omne-harness/settings-local'
+import { readSettingsSource } from '@omne-harness/settings-local'
 import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
-import { canonicalDigest } from '@omne-harness/tool'
 import type { LocalInvocationQualifier, StartCondition } from '@omne-harness/tool-host-local'
 import type { ToolPermissionContext } from '../authorization/current-tool-permission.ts'
 import { qualifyAgentPermission } from './agent-permission-qualification.ts'
+import { organizationPermissionSource } from './organization-permission-source.ts'
 import {
   permissionBasisCommands,
   permissionBasisGuardCommand,
@@ -96,44 +95,6 @@ const missingOrganization = (): PermissionSource => ({
   sourceRef: 'settings.organization',
 })
 
-/** Reads the organization layer from the snapshot of the organization source. */
-export function organizationPermissionSource(
-  read: SettingsSourceReading,
-  evaluation: PermissionEvaluation,
-): PermissionSource {
-  if (read.kind !== 'captured' || evaluation.declaration.kind !== 'available')
-    return missingOrganization()
-  const { snapshot } = read
-  const candidates = snapshot.projection.sources.filter(
-    source =>
-      source.scope.kind === 'organization' &&
-      source.scope.subjectRef === evaluation.scope.organizationId,
-  )
-  if (candidates.length !== 1) return missingOrganization()
-  const descriptor = candidates[0]!
-  const source = snapshot.state.sources.find(item => item.id === descriptor.sourceId)
-  if (source === undefined) return missingOrganization()
-  const result = readPermissionSettingsSource({
-    definition: evaluation.declaration.definition,
-    scope: evaluation.scope,
-    layer: 'organization',
-    sourceRef: canonicalDigest(snapshot.source),
-    revision: canonicalDigest({
-      state: snapshot.state.revision,
-      descriptor,
-      definition: snapshot.projection.definitionRef,
-      owner: snapshot.projection.ownerRevision,
-    }),
-    observation: {
-      kind: 'available',
-      definition: snapshot.projection.definition,
-      descriptor,
-      source,
-    },
-  })
-  return result.kind === 'invalid-input' ? missingOrganization() : result
-}
-
 export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
   const map = createPermissionReadMapping(options)
 
@@ -173,10 +134,13 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
     evaluation: PermissionEvaluation,
   ): Promise<PermissionSource> {
     if (mapped.source !== null)
-      return organizationPermissionSource(
-        await readSettingsSource(options.storage, mapped.source),
-        evaluation,
-      )
+      return evaluation.declaration.kind === 'available'
+        ? organizationPermissionSource(
+            await readSettingsSource(options.storage, mapped.source),
+            evaluation.declaration.definition,
+            evaluation.scope,
+          )
+        : missingOrganization()
     if (
       evaluation.declaration.kind === 'available' &&
       evaluation.declaration.definition.settings === null

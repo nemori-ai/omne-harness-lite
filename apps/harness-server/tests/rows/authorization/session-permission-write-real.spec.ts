@@ -14,7 +14,6 @@ import {
   type AccessPorts,
 } from '../../../src/rows/authorization/adapters.ts'
 import { authorization } from '../../../src/rows/authorization/row.ts'
-import { sessionPermissionQualification } from '../../../src/rows/governance/session-permission-qualification.ts'
 import { fixtureSqliteStorage, releaseIdentityConfig } from '../identity/fixtures.ts'
 
 async function openIdentity() {
@@ -136,45 +135,6 @@ it('qualifies a real own-login permission change for exactly its original operat
       policy: { owner: 'authorization', record: 'session.permission-own-login', revision: '1' },
     },
   })
-})
-
-it('retains the real login qualification only for the exact admitted permission command', async () => {
-  const app = await world(),
-    who = await writer(app)
-  const answer = await createSessionAccessCheck(app.ports).check(who.request)
-  if (answer.kind !== 'allowed' || answer.writeQualification === undefined)
-    throw new Error('real login was not admitted')
-  const checked = {
-    request: who.request,
-    evidence: answer.evidence,
-    writeQualification: answer.writeQualification,
-  }
-  const saved = sessionPermissionQualification(checked, who.command)
-  expect(saved).toMatchObject({
-    protocol: 'harness-session-permission-qualification/1',
-    session: 'permission-session',
-    operation: 'sop_permission-write',
-    permissionRevision: '0',
-    change: {
-      capabilityId: 'schedule',
-      enforcementKey: 'create',
-      rule: { pick: 'deny', allowedSet: null },
-    },
-  })
-  const changed = {
-    ...who.command,
-    input: {
-      ...who.command.input,
-      declaration: { ...who.command.input.declaration, rule: { pick: 'allow', allowedSet: null } },
-    },
-  }
-  expect(sessionPermissionQualification(checked, changed)).toBeNull()
-  expect(
-    sessionPermissionQualification(
-      { request: who.request, evidence: answer.evidence },
-      who.command,
-    ),
-  ).toBeNull()
 })
 
 it('rejects a copied principal and a signed principal carrying another account login', async () => {

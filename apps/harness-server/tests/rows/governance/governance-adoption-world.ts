@@ -33,8 +33,6 @@ import {
   governanceTargetProjectionParticipant,
   GovernanceTargetProjectionSchema,
   type GovernanceTargetBinding,
-  type GovernanceLocalOptions,
-  type GovernanceExternalWriteOptions,
 } from '@omne-harness/governance-local'
 import {
   governanceCatalogCurrentParticipant,
@@ -44,7 +42,6 @@ import { readProjection } from '../../../dist/rows/governance/projection-read.js
 import { createGovernanceAdoptionProjection } from '../../../dist/rows/governance/adoption-current.js'
 import { createToolGovernanceDefinitionSource } from '../../../src/rows/governance/tool-definition-source.ts'
 import { toolAssetsWorld } from './tool-assets-world.ts'
-import type { SessionPermissionWriteContext } from '../../../src/rows/governance/session-permission-commit.ts'
 import { releaseIdentityConfig } from '../identity/fixtures.ts'
 
 export async function governanceAdoptionWorld(
@@ -52,19 +49,10 @@ export async function governanceAdoptionWorld(
     sessionWork?: string
     release?: NonNullable<Parameters<typeof toolAssetsWorld>[1]>['release']
     releaseParticipant?: NonNullable<Parameters<typeof toolAssetsWorld>[1]>['releaseParticipant']
-    sourceReservations?: GovernanceLocalOptions['sourceReservations']
     extraParticipants?: SqlMaterialCatalog['participants']
     extraMigrations?: SqlMaterialCatalog['migrations']
     extraReadHandlers?: SqlMaterialCatalog['readHandlers']
     projectionMembers?: readonly string[]
-    externalWrites?: (input: {
-      register: (
-        name: string,
-        participants: string[],
-      ) => Promise<{ combinationVersion: string; manifestDigest: string }>
-      snapshotParticipants: string[]
-      scope: import('@omne-harness/governance-contract').GovernanceScope
-    }) => Promise<GovernanceExternalWriteOptions<SessionPermissionWriteContext>>
   } = {},
 ) {
   const ctx = new Context()
@@ -225,16 +213,8 @@ export async function governanceAdoptionWorld(
   }
   destination = createGovernanceLocalDestination(coordination)
   const declaration = w.entry.governance.declaration
-  const made = await createGovernanceLocal<SessionPermissionWriteContext>({
-    ...(options.externalWrites === undefined
-      ? {}
-      : {
-          externalWrites: await options.externalWrites({ register, snapshotParticipants, scope }),
-        }),
+  const made = await createGovernanceLocal({
     ...coordination,
-    ...(options.sourceReservations === undefined
-      ? {}
-      : { sourceReservations: options.sourceReservations }),
     scope,
     identity: {
       verifier: authority.verifier,
@@ -288,7 +268,6 @@ export async function governanceAdoptionWorld(
     coordination,
     service: made.service,
     epoch: made.epoch,
-    externalWrites: made.externalWrites,
     issuer: authority.issuer,
     identityOperations: ctx.identityOperations,
     identityGovernance: ctx.identityGovernance,

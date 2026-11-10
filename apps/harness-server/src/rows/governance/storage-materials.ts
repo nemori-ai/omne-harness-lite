@@ -16,17 +16,14 @@ import {
   toolPermissionReleaseParticipant,
 } from './permission-materials.ts'
 import { SUPPORT_PARTICIPANT } from './permission-protocol.ts'
-import { sessionPermissionBasisParticipant } from './session-permission-basis.ts'
-import { sessionPermissionResultParticipant } from './session-permission-result.ts'
+import {
+  SESSION_PERMISSION_BASIS_MODES,
+  sessionPermissionBasisParticipant,
+} from './session-permission-basis.ts'
 import { targetSnapshotParticipant } from './target-snapshot.ts'
 import { permissionBasisGuardParticipant, permissionBasisParticipant } from './permission-basis.ts'
 import { projectionReadHandler } from './projection-read.ts'
 import { PROJECTION_READ_MEMBERS } from './storage-combinations.ts'
-
-export const SESSION_PERMISSION_WRITE_MODES = ['clear', 'unmapped', 'mapped'] as const
-export const sessionPermissionWriteBasis = (
-  mode: (typeof SESSION_PERMISSION_WRITE_MODES)[number],
-) => sessionPermissionBasisParticipant({ mode, requiredConstraintIds: [] })
 
 export const GOVERNANCE_PROJECTION_READ = 'harness.governance-projection-read'
 
@@ -71,8 +68,9 @@ export function governanceStorageMaterials(
     governanceCatalogCurrentParticipant(),
     targetSnapshotParticipant(),
     unmappedPermissionSnapshotParticipant(),
-    ...SESSION_PERMISSION_WRITE_MODES.map(sessionPermissionWriteBasis),
-    sessionPermissionResultParticipant(),
+    ...SESSION_PERMISSION_BASIS_MODES.map(mode =>
+      sessionPermissionBasisParticipant({ mode, requiredConstraintIds: [] }),
+    ),
     permissionBasisParticipant(),
     permissionBasisGuardParticipant(),
   ]

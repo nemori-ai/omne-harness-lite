@@ -17,8 +17,10 @@ import { storageCatalog } from '../storage/catalog.ts'
  * Session Todo commands change the participant material in wave W2, adopting combination /5.
  * The governance line adds the governance, permission and settings preparation participants and
  * their migrations to the catalog, adopting combination /6.
+ * The Session writer no longer publishes `session.commit-result`, so its material and the manifest
+ * digest changed, adopting combination /7.
  */
-export const COMBINATION_VERSION = 'session-composite/6'
+export const COMBINATION_VERSION = 'session-composite/7'
 
 export type AgentJournalCombination = Readonly<{
   combinationVersion: string

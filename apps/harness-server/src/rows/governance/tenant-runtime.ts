@@ -14,16 +14,14 @@ import {
   createGovernanceLocalSourceDestination,
   type GovernanceLocalOptions,
 } from '@omne-harness/governance-local'
-import type { SessionPermissionWriteContext } from './session-permission-commit.ts'
 import type { SessionPermissionSettingsResolver } from './session-permission-settings.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import { createGovernanceAdoptionProjection } from './adoption-current.ts'
 import { governanceCatalogProjection } from './catalog-current.ts'
-import { createSessionPermissionWriteResolver } from './session-permission-discovery.ts'
-import { createSessionPermissionWritePlan } from './session-permission-plan.ts'
+import { createSessionPermissionBasisSource } from './session-permission-basis-source.ts'
 
 export type TenantGovernanceOptions = Omit<
-  GovernanceLocalOptions<SessionPermissionWriteContext>,
+  GovernanceLocalOptions<unknown>,
   'metadata' | 'combinations' | 'current' | 'externalWrites' | 'projection'
 > &
   Readonly<{
@@ -36,10 +34,6 @@ export type TenantGovernanceOptions = Omit<
     settings?: SessionPermissionSettingsResolver
   }>
 type Combinations = ReturnType<typeof governanceStorageCombinations>
-type Runtime = Extract<
-  Awaited<ReturnType<typeof createGovernanceLocal<SessionPermissionWriteContext>>>,
-  { kind: 'created' }
->
 const unavailable = (phase: 'binding' | 'registration' | 'startup') => ({
   kind: 'unavailable' as const,
   owner: 'harness.tenant-governance',
@@ -74,33 +68,6 @@ async function register(options: TenantGovernanceOptions, combinations: Combinat
   return true
 }
 
-function writeOptions(
-  options: TenantGovernanceOptions,
-  combinations: Combinations,
-  read: () => Runtime['service'] | undefined,
-) {
-  const resolve = createSessionPermissionWriteResolver({
-    scope: options.scope,
-    ...(options.login === undefined ? {} : { login: options.login }),
-    readCatalog: request =>
-      read()?.readCatalog(
-        access(options.catalogPrincipal, options.catalogPrincipal.tenant),
-        request,
-      ) ?? Promise.resolve({ kind: 'unavailable', owner: 'harness.tenant-governance' }),
-    ...(options.settings === undefined ? {} : { settings: options.settings }),
-  })
-  return {
-    sourceRoute: options.sourceRoute,
-    principalOf: (context: SessionPermissionWriteContext) => context.principal,
-    resolve,
-    plan: createSessionPermissionWritePlan({
-      clear: { combination: reference(combinations.sessionClear), requiredConstraintIds: [] },
-      unmapped: { combination: reference(combinations.sessionUnmapped), requiredConstraintIds: [] },
-      mapped: { combination: reference(combinations.sessionMapped), requiredConstraintIds: [] },
-    }),
-  }
-}
-
 async function open(options: TenantGovernanceOptions, combinations: Combinations) {
   let phase: 'binding' | 'registration' | 'startup' = 'binding'
   try {
@@ -108,11 +75,10 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
     phase = 'registration'
     if (!(await register(options, combinations))) return unavailable(phase)
     phase = 'startup'
-    let service: Runtime['service'] | undefined
     const handler = options.materials.readHandlers.find(
       item => item.handler === GOVERNANCE_PROJECTION_READ,
     )
-    const runtime = await createGovernanceLocal<SessionPermissionWriteContext>({
+    const runtime = await createGovernanceLocal<unknown>({
       ...options,
       metadata: reference(combinations.metadata),
       combinations: {
@@ -130,14 +96,9 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
         adoption: createGovernanceAdoptionProjection(options.domain.transactionDomain),
         catalog: governanceCatalogProjection,
       },
-      externalWrites: writeOptions(options, combinations, () => service),
     })
     if (runtime.kind !== 'created') return unavailable(phase)
-    if (runtime.externalWrites === undefined) {
-      await runtime.close()
-      return unavailable(phase)
-    }
-    service = runtime.service
+    const { service } = runtime
     let closed = false
     const permissionBasis =
       options.permissionRelease === undefined ||
@@ -166,7 +127,24 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
       service,
       permissionBasis,
       permissionRequest: permissionBasis?.requestFor ?? (async () => undefined),
-      backend: { storage: options.storage, writes: runtime.externalWrites },
+      sessionPermissionBasis: createSessionPermissionBasisSource({
+        scope: options.scope,
+        domain: options.domain,
+        epoch: runtime.epoch,
+        storage: options.storage,
+        ...(options.login === undefined ? {} : { login: options.login }),
+        ...(options.settings === undefined ? {} : { settings: options.settings }),
+        readCatalog: request =>
+          service.readCatalog(
+            access(options.catalogPrincipal, options.catalogPrincipal.tenant),
+            request,
+          ),
+        combinations: {
+          clear: reference(combinations.sessionClear),
+          unmapped: reference(combinations.sessionUnmapped),
+          mapped: reference(combinations.sessionMapped),
+        },
+      }),
       close: () => {
         closed = true
         return runtime.close()

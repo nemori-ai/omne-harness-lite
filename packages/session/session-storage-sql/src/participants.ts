@@ -1080,12 +1080,9 @@ export function decodeSessionInput(output: JsonValue): SessionInputRead | null {
 
 export {
   SESSION_COMMIT_BASIS,
-  SESSION_COMMIT_RESULT,
   SESSION_ORDINARY_BASIS,
   SessionCommitBasisSchema,
-  SessionCommitResultSchema,
   sessionCommitCommands,
   sessionCommitDigest,
   type SessionCommitBasis,
-  type SessionCommitResult,
 } from './commit-basis.ts'

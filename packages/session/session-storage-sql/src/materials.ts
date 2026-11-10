@@ -6,7 +6,6 @@ import { SESSION_PERMISSION_CURRENT_FACT, SESSION_PERMISSION_GUARD } from './per
 import {
   SESSION_ORDINARY_BASIS,
   SESSION_COMMIT_BASIS,
-  SESSION_COMMIT_RESULT,
   SESSION_COMMIT_PROTOCOL,
 } from './commit-basis.ts'
 // The static materials of the Session storage: two participants (`session` and `execution-record`),
@@ -396,7 +395,7 @@ export function sessionStorageMaterials(
         ],
         readTables: EXECUTION_RECORD_INDEX_TABLES,
         requiresFacts: [SESSION_COMMIT_BASIS],
-        providesFacts: [SESSION_COMMIT_RESULT],
+        providesFacts: [],
         allowedFunctions: [],
         grouping: 'singleton',
       },

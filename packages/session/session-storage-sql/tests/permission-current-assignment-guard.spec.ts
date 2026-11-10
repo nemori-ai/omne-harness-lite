@@ -69,7 +69,6 @@ it('invalidates the previous read on both an original assignment and an explicit
     const basis = {
       kind: 'permission-change',
       commandsDigest: sessionCommitDigest([facts]),
-      coordination: evidence('guard-fixture'),
       permissionChange: {
         operation: command.input.operation,
         commandDigest: commandDigest(command),

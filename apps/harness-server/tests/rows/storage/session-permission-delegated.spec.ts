@@ -1,18 +1,24 @@
-// Real storage rows; prechecked access and backend selection are named contract fixtures.
+// Real storage rows. The prechecked access and the backend that forms the basis are named fixtures.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { inProcessPrincipalAuthority, standingPrincipalRef } from '@omne-harness/identity'
+import { fail } from '@omne-harness/operation-result'
 import {
   commandDigest,
   mutationAccessRequest,
   type SessionCheckedAccess,
   type SessionCommand,
+  type SessionFailure,
   type SessionTransactionPort,
 } from '@omne-harness/session-contract'
+import type {
+  SessionProtectedBasisSource,
+  SessionProtectedCommit,
+} from '@omne-harness/session-storage-sql'
+import { sessionCommandFacts } from '@omne-harness/session-storage-sql/participants'
 import { evidence, operationId, sessionId } from '@omne-harness/session-contract/testing'
 import {
   sessionDelegatedTransactionsKey,
@@ -27,7 +33,6 @@ import {
   createCommand,
   createGuards,
   loadStorageTree,
-  textOf,
   declared,
 } from './fixtures/tree.ts'
 import { identityRow } from '../../../src/rows/identity/index.ts'
@@ -41,20 +46,32 @@ import {
   toolReleaseRegistrant,
 } from '../../../src/entry/tool-release.ts'
 import { releaseIdentityConfig } from '../identity/fixtures.ts'
-import { sessionPermissionBackendModule } from '../../../src/entry/session-permission-backend.ts'
 import { storageHost } from '../../../src/entry/storage-host.ts'
 import { cursorSigning } from '../../../src/entry/cursor-signing.ts'
 import {
   SessionPermissionBackendService,
   sessionPermissionBackendKey,
 } from '../../../src/rows/governance/session-permission-backend-service.ts'
-import type {
-  SessionPermissionBackendReader,
-  SessionPermissionWriteBackend,
-  SessionPermissionWriteContext,
-} from '../../../src/rows/governance/session-permission-commit.ts'
 import type { EntryObjectModule } from '../../../src/types.ts'
-import { sessionPermissionQualification } from '../../../src/rows/governance/session-permission-qualification.ts'
+
+type Basis = SessionProtectedBasisSource<unknown>
+const denied = { failure: { kind: 'denied', action: 'change' } } as const
+/** A backend that refuses every basis. The test reads what the delegated entry asked it. */
+const refusing = () => vi.fn<Basis>(async () => fail<SessionFailure>(denied.failure))
+
+/** Publishes a fixture backend under the trusted name, as the governance row does. */
+function backendModule(basis: Basis): EntryObjectModule {
+  return {
+    name: sessionPermissionBackendKey,
+    implementation: 'real',
+    install(scope) {
+      class Fixture extends SessionPermissionBackendService {
+        readonly basis = basis
+      }
+      new Fixture(scope)
+    },
+  }
+}
 
 const cleanup: Array<() => Promise<unknown> | void> = []
 afterEach(async () => {
@@ -118,7 +135,13 @@ function qualified(tenant: TenantId = TENANT_A) {
       policy: SESSION_PERMISSION_OWN_LOGIN_POLICY,
     },
   }
-  return { access, command, checked }
+  const delivery: SessionProtectedCommit<unknown> = {
+    access,
+    command,
+    qualification: checked.writeQualification!,
+    session: sessionCommandFacts(command, []),
+  }
+  return { access, command, checked, delivery }
 }
 
 it('publishes a real tenant backend from the governance row without authorizing a fixture principal', async () => {
@@ -162,23 +185,22 @@ it('publishes a real tenant backend from the governance row without authorizing 
   })
   if (identity.kind !== 'succeeded') throw new Error(JSON.stringify(identity))
   const q = qualified(identity.tenant)
-  const qualification = sessionPermissionQualification(q.checked, q.command, [])
-  if (qualification === null) throw new Error('qualification fixture')
-  const context = { principal: q.access.principal, qualification }
-  const reader = tree.trusted<SessionPermissionBackendService>(sessionPermissionBackendKey)
-  expect(await reader.read(context)).toBeUndefined()
+  const backend = tree.trusted<SessionPermissionBackendService>(sessionPermissionBackendKey)
+  // The tenant has no storage domain yet, so it has no governance runtime.
+  expect(await backend.basis(q.delivery)).toMatchObject({
+    failure: { kind: 'unavailable', owner: 'harness.session-permission-write' },
+  })
   await create(tree, q)
-  const [first, second] = await Promise.all([reader.read(context), reader.read(context)])
-  expect(first).toBeDefined()
-  expect(second).toBe(first)
-  expect(
-    await view(tree, q).commit({ access: q.access, command: q.command, guards: [] }),
-  ).toMatchObject({ failure: { kind: 'denied' } })
+  // The runtime exists now. The fixture principal carries no login that Identity issued.
+  expect(await backend.basis(q.delivery)).toEqual(denied)
+  expect(await view(tree, q).commit({ access: q.access, command: q.command, guards: [] })).toEqual(
+    denied,
+  )
   const report = await tree.shutdown()
   expect(report.outcomes.find(outcome => outcome.row === 'governance')?.result).toEqual({
     kind: 'settled',
   })
-  expect(await reader.read(context)).toBeUndefined()
+  expect(await backend.basis(q.delivery)).toMatchObject({ failure: { kind: 'unavailable' } })
 })
 
 it('reports the missing protected backend from the real delegated entry', async () => {
@@ -200,21 +222,6 @@ it('reports the missing protected backend from the real delegated entry', async 
   })
 })
 
-function deniedBackend() {
-  const execute = vi.fn(async (_context: SessionPermissionWriteContext, _intent: unknown) => ({
-    kind: 'denied' as const,
-  }))
-  const backend: SessionPermissionWriteBackend = {
-    writes: { execute },
-    storage: {
-      query: async () => {
-        throw new Error('denial must not query a terminal')
-      },
-    },
-  }
-  return { backend, execute }
-}
-
 async function create(tree: Awaited<ReturnType<typeof world>>, q: ReturnType<typeof qualified>) {
   const command = createCommand(q.access.tenant, q.access.session)
   const view = tree
@@ -234,53 +241,42 @@ function view(tree: Awaited<ReturnType<typeof world>>, q: ReturnType<typeof qual
     .bind(q.checked)
 }
 
-it('selects the backend per original tenant and operation; ordinary commands do not select it', async () => {
-  const first = deniedBackend(),
-    second = deniedBackend()
-  const select = vi.fn<SessionPermissionBackendReader>(async context =>
-    context.qualification.tenantRef === textOf(TENANT_A) ? first.backend : second.backend,
-  )
-  const tree = await world([sessionPermissionBackendModule(select)])
+it('asks the backend for the basis of each tenant and operation; ordinary commands do not ask', async () => {
+  const basis = refusing()
+  const tree = await world([backendModule(basis)])
   const a = qualified(),
     b = qualified(TENANT_B)
   await Promise.all([create(tree, a), create(tree, b)])
-  expect(select).not.toHaveBeenCalled()
+  expect(basis).not.toHaveBeenCalled()
   const results = await Promise.all(
     [a, b].map(q => view(tree, q).commit({ access: q.access, command: q.command, guards: [] })),
   )
-  expect(results).toEqual([
-    { failure: { kind: 'denied', action: 'change' } },
-    { failure: { kind: 'denied', action: 'change' } },
-  ])
-  expect(select).toHaveBeenCalledTimes(2)
-  for (const [q, writer] of [
-    [a, first],
-    [b, second],
-  ] as const) {
-    expect(writer.execute).toHaveBeenCalledTimes(1)
-    expect(writer.execute.mock.calls[0]?.[0]).toMatchObject({
-      principal: q.access.principal,
-      qualification: {
-        tenantRef: textOf(q.access.tenant),
-        commandDigest: commandDigest(q.command),
-        principalRef: standingPrincipalRef(q.access.principal),
-      },
-    })
-    expect(writer.execute.mock.calls[0]?.[1]).toMatchObject({
-      operationId: q.command.input.operation,
-    })
-  }
+  expect(results).toEqual([denied, denied])
+  expect(basis).toHaveBeenCalledTimes(2)
+  for (const q of [a, b])
+    expect(basis.mock.calls.map(call => call[0])).toContainEqual(
+      expect.objectContaining({
+        access: q.access,
+        command: q.command,
+        qualification: expect.objectContaining({
+          tenant: q.access.tenant,
+          commandDigest: commandDigest(q.command),
+          principalRef: standingPrincipalRef(q.access.principal),
+        }),
+        session: expect.objectContaining({ participant: 'session' }),
+      }),
+    )
   expect(tree.service(sessionPermissionBackendKey)).toBeUndefined()
 })
 
-it('refuses an unregistered tenant and a changed command before selecting a backend', async () => {
-  const select = vi.fn<SessionPermissionBackendReader>(async () => deniedBackend().backend)
-  const tree = await world([sessionPermissionBackendModule(select)])
+it('refuses an unregistered tenant and a changed command before it asks the backend', async () => {
+  const basis = refusing()
+  const tree = await world([backendModule(basis)])
   const q = qualified()
   expect(
     await view(tree, q).commit({ access: q.access, command: q.command, guards: [] }),
   ).toMatchObject({ failure: { kind: 'denied' } })
-  expect(select).not.toHaveBeenCalled()
+  expect(basis).not.toHaveBeenCalled()
   await create(tree, q)
   const changed = {
     ...q.command,
@@ -289,14 +285,14 @@ it('refuses an unregistered tenant and a changed command before selecting a back
   expect(
     await view(tree, q).commit({ access: q.access, command: changed, guards: [] }),
   ).toMatchObject({ failure: { kind: 'denied' } })
-  expect(select).not.toHaveBeenCalled()
+  expect(basis).not.toHaveBeenCalled()
 })
 
 it('ignores a root same-name provider', async () => {
   const tree = await world()
-  const read = vi.fn<SessionPermissionBackendReader>(async () => deniedBackend().backend)
+  const basis = refusing()
   class Intruder extends SessionPermissionBackendService {
-    readonly read = read
+    readonly basis = basis
   }
   await tree.root.plugin(ctx => {
     new Intruder(ctx)
@@ -306,26 +302,25 @@ it('ignores a root same-name provider', async () => {
   expect(
     await view(tree, q).commit({ access: q.access, command: q.command, guards: [] }),
   ).toMatchObject({ failure: { kind: 'unavailable', owner: 'harness.session-permission-write' } })
-  expect(read).not.toHaveBeenCalled()
+  expect(basis).not.toHaveBeenCalled()
 })
 
 it('the same bound view uses a remounted provider on its next call', async () => {
-  const first = deniedBackend(),
-    second = deniedBackend()
-  let replace: (select: SessionPermissionBackendReader) => Promise<void> = async () => {
+  const first = refusing(),
+    second = refusing()
+  let replace: (basis: Basis) => Promise<void> = async () => {
     throw new Error('not installed')
   }
   const entry: EntryObjectModule = {
     name: sessionPermissionBackendKey,
     implementation: 'real',
     async install(scope, env) {
-      const mount = (select: SessionPermissionBackendReader) =>
-        scope.plugin(ctx => sessionPermissionBackendModule(select).install(ctx, env))
-      let fiber = mount(async () => first.backend)
+      const mount = (basis: Basis) => scope.plugin(ctx => backendModule(basis).install(ctx, env))
+      let fiber = mount(first)
       await fiber
-      replace = async select => {
+      replace = async basis => {
         await fiber.dispose()
-        fiber = mount(select)
+        fiber = mount(basis)
         await fiber
       }
     },
@@ -335,43 +330,9 @@ it('the same bound view uses a remounted provider on its next call', async () =>
   await create(tree, q)
   const bound = view(tree, q)
   const input = { access: q.access, command: q.command, guards: [] }
-  expect(await bound.commit(input)).toMatchObject({ failure: { kind: 'denied' } })
-  await replace(async () => second.backend)
-  expect(await bound.commit(input)).toMatchObject({ failure: { kind: 'denied' } })
-  expect(first.execute).toHaveBeenCalledTimes(1)
-  expect(second.execute).toHaveBeenCalledTimes(1)
-})
-
-it('a disposed reader rejects both a pending selection and later use of its old reference', async () => {
-  const root = new Context(),
-    q = qualified(),
-    result = deniedBackend()
-  cleanup.push(() => root.fiber.dispose())
-  const pending = Promise.withResolvers<SessionPermissionWriteBackend>()
-  const select = vi.fn<SessionPermissionBackendReader>(() => pending.promise)
-  const module = sessionPermissionBackendModule(select)
-  const fiber = root.plugin(ctx =>
-    module.install(ctx, {
-      stateRoot: '',
-      readTrusted: () => {
-        throw new Error('not consumed')
-      },
-      once: (_key, make) => make(),
-    }),
-  )
-  await fiber
-  const reader = root.get(sessionPermissionBackendKey)!
-  const qualification = sessionPermissionQualification(
-    { ...q.checked, request: mutationAccessRequest(q.access, q.command) },
-    q.command,
-  )
-  if (qualification === null) throw new Error('qualification fixture')
-  const context = { principal: q.access.principal, qualification }
-  const inFlight = reader.read(context)
-  expect(select).toHaveBeenCalledTimes(1)
-  await fiber.dispose()
-  pending.resolve(result.backend)
-  expect(await inFlight).toBeUndefined()
-  expect(await reader.read(context)).toBeUndefined()
-  expect(select).toHaveBeenCalledTimes(1)
+  expect(await bound.commit(input)).toEqual(denied)
+  await replace(second)
+  expect(await bound.commit(input)).toEqual(denied)
+  expect(first).toHaveBeenCalledTimes(1)
+  expect(second).toHaveBeenCalledTimes(1)
 })
