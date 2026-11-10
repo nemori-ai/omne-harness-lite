@@ -64,10 +64,10 @@ TLA2TOOLS_JAR=<TLC 1.7.4 的 jar> python3 check.py --out <输出目录>
 
 | 模型 | 函数与结果 |
 | --- | --- |
-| `FullRead` | `planRead` 与 `planRecord` 答 `whole`；`keeping` 的 `whole` 读整个域，`snapshotOf` 把它变成快照 |
+| `FullRead` | `planRead` 答 `whole`；`keeping` 的 `whole` 读整个域，`snapshotOf` 把它变成快照 |
 | `PureRead`，在 `MaxAge` 之内 | `planRead` 与 `planRecord` 答 `answer` |
 | `PureRead`，超过 `MaxAge` | `planRead` 答 `confirm`，`planRecord` 答 `ask`；`judged` 按存储的修订号确认或丢掉快照 |
-| `AbsentRead` | `planRecord` 在快照没有该键时答 `ask`；`planRead` 在快照没有记录时答 `whole` |
+| `AbsentRead` | `planRecord` 在快照没有该键时答 `ask`；`planRead` 在快照没有记录时答 `whole`。`judged` 按答复确认、补充或替换快照 |
 | `Send` | 调用方按读到的修订号发出提交；保管者不参与决定 |
 | `Committed`、`Conflict`、`Unknown` | `afterCommit` 的三个分支；被断言域的快照由 `refuted` 判断 |
 | `FullRead` 的前提“没有在途提交” | `Crossings`：读取途中有同域提交经过时，答复不成为快照 |
@@ -76,6 +76,7 @@ TLA2TOOLS_JAR=<TLC 1.7.4 的 jar> python3 check.py --out <输出目录>
 
 ## 7. 模型不覆盖的
 
+- 快照只知道域的一部分的情形（`whole` 为假）：单键读只让快照知道读到的那条记录。模型把快照当成整个域的内容；部分快照是它在记录集合上的限制，“答没有由存储作答”保证不知道的记录不会被答成没有。由用例守。
 - 快照怎样由写集合算出（放入、删除、整域删除）。它由用例守：提交之后的快照与存储的整域读逐条相同。
 - 同一进程里并发的两次提交。它们各自提交，后到的被存储拒绝，走 `Conflict`；模型的 `Conflict` 一律丢掉快照，实现在快照已被另一次提交推进时保留它，那份快照仍满足 `SnapshotIsAPastContent`。
 - 到期索引。它不进快照。

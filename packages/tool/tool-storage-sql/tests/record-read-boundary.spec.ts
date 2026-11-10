@@ -33,13 +33,15 @@ async function forging(output: JsonValue) {
   }
 }
 
-// The first read of a domain reads the whole domain (the store keeps it), so an answer that is
-// wrong only for a point read is not reachable there.
-it.each<[string, JsonValue]>([
+const FORGED: [string, JsonValue][] = [
+  ['wrong key', { revision: '1', records: [stored(other)] }],
+  ['multiple records', { revision: '1', records: [stored(wanted), stored(other)] }],
   ['unsupported record', { revision: '1', records: [{ key: 'host:wanted', record: {} }] }],
   ['invalid revision', { revision: 42, records: [stored(wanted)] }],
   ['missing rows', { revision: '1' }],
-])('the first read of a domain refuses %s from the SQL boundary', async (_name, output) => {
+]
+
+it.each(FORGED)('a point read refuses %s from the SQL boundary', async (_name, output) => {
   const { app, store, forge } = await forging(output)
   try {
     forge()
@@ -52,30 +54,27 @@ it.each<[string, JsonValue]>([
   }
 })
 
-// A record the kept domain does not hold is asked of the SQL storage by a point read.
-it.each<[string, JsonValue]>([
-  ['wrong key', { revision: '1', records: [stored(other)] }],
-  ['multiple records', { revision: '1', records: [stored(wanted), stored(other)] }],
-  ['unsupported record', { revision: '1', records: [{ key: 'host:wanted', record: {} }] }],
-  ['invalid revision', { revision: 42, records: [stored(wanted)] }],
-  ['missing rows', { revision: '1' }],
-])('a point read refuses %s from the SQL boundary', async (_name, output) => {
-  const { app, store, forge } = await forging(output)
-  try {
-    const seeded = await store.commit({
-      domain: DOMAIN,
-      expected: '0' as never,
-      revision: '1' as never,
-      writes: [{ kind: 'put', record: { kind: 'host', host: { key: 'seed', value: 1 } } }],
-    })
-    expect(seeded.kind).toBe('committed')
-    expect(await store.read(DOMAIN)).toMatchObject({ kind: 'complete' })
-    forge()
-    expect(await store.readRecord(DOMAIN, 'host:wanted')).toMatchObject({
-      kind: 'unavailable',
-      diagnostic: expect.any(String),
-    })
-  } finally {
-    app.close()
-  }
-})
+// A record that the kept domain does not hold is asked of the SQL storage in the same way.
+it.each(FORGED)(
+  'a point read of a kept domain refuses %s from the SQL boundary',
+  async (_name, output) => {
+    const { app, store, forge } = await forging(output)
+    try {
+      const seeded = await store.commit({
+        domain: DOMAIN,
+        expected: '0' as never,
+        revision: '1' as never,
+        writes: [{ kind: 'put', record: { kind: 'host', host: { key: 'seed', value: 1 } } }],
+      })
+      expect(seeded.kind).toBe('committed')
+      expect(await store.read(DOMAIN)).toMatchObject({ kind: 'complete' })
+      forge()
+      expect(await store.readRecord(DOMAIN, 'host:wanted')).toMatchObject({
+        kind: 'unavailable',
+        diagnostic: expect.any(String),
+      })
+    } finally {
+      app.close()
+    }
+  },
+)

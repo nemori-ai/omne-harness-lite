@@ -30,10 +30,15 @@ const KEPT_DOMAINS = 512
 type Complete = Extract<LedgerRead, { kind: 'complete' }>
 type Revision = Complete['revision']
 
-/** The records of one domain at one revision, in key order, and when the store confirmed them. */
+/**
+ * Records of one domain at one revision, in key order, and when the store confirmed them. `whole`
+ * says that these are all the records of the domain: a whole read made the snapshot. Otherwise
+ * they are the records that single reads and commits made known, and the domain may hold more.
+ */
 export type Snapshot = Readonly<{
   revision: Revision
   records: ReadonlyMap<string, LedgerRecord>
+  whole: boolean
   confirmedAt: number
 }>
 
@@ -60,6 +65,7 @@ export function snapshotOf(read: Complete, at: number): Snapshot {
   return {
     revision: read.revision,
     records: inKeyOrder(read.records.map(record => [recordKey(record), stored(record)])),
+    whole: true,
     confirmedAt: at,
   }
 }
@@ -72,12 +78,12 @@ export type ReadPlan =
   | Readonly<{ kind: 'answer'; read: Complete }>
   /** Model `PureRead` past the age: the store confirms the revision by a read of `probe`. */
   | Readonly<{ kind: 'confirm'; held: Snapshot; probe: string }>
-  /** Model `FullRead`: no snapshot, or the snapshot says "no records". */
+  /** Model `FullRead`: no snapshot of the whole domain, or the snapshot says "no records". */
   | Readonly<{ kind: 'whole' }>
 
 export function planRead(held: Snapshot | undefined, at: number): ReadPlan {
   const [probe] = held?.records.keys() ?? []
-  if (held === undefined || probe === undefined) return { kind: 'whole' }
+  if (held === undefined || !held.whole || probe === undefined) return { kind: 'whole' }
   if (aged(held, at)) return { kind: 'confirm', held, probe }
   return {
     kind: 'answer',
@@ -92,24 +98,41 @@ export function planRead(held: Snapshot | undefined, at: number): ReadPlan {
 /** What a read of one record does. */
 export type RecordPlan =
   | Readonly<{ kind: 'answer'; read: Extract<LedgerRecordRead, { kind: 'complete' }> }>
-  /** The snapshot says "absent" or is past its age: the store answers and judges the snapshot. */
+  /**
+   * The store answers this one record: the snapshot does not hold it (it is absent, or not known
+   * yet), or the snapshot is past its age. The answer judges the snapshot.
+   */
   | Readonly<{ kind: 'ask' }>
-  /** No snapshot: the whole domain is read, so the reads after this one make no round trip. */
-  | Readonly<{ kind: 'whole' }>
 
 export function planRecord(held: Snapshot | undefined, key: string, at: number): RecordPlan {
-  if (held === undefined) return { kind: 'whole' }
-  const record = held.records.get(key)
-  if (record === undefined || aged(held, at)) return { kind: 'ask' }
+  const record = held?.records.get(key)
+  if (held === undefined || record === undefined || aged(held, at)) return { kind: 'ask' }
   return {
     kind: 'answer',
     read: { kind: 'complete', revision: held.revision, record: handed(record) },
   }
 }
 
-/** The snapshot after the store answered a read of one record at `revision`: confirmed, or none. */
-export function judged(held: Snapshot, revision: Revision, at: number): Snapshot | null {
-  return revision === held.revision ? { ...held, confirmedAt: at } : null
+/**
+ * The snapshot after the store answered a read of the record `key`. At the revision of the
+ * snapshot the answer confirms it and makes the record known. At another revision, or without a
+ * snapshot, the answer is all that is known of the domain.
+ */
+export function judged(
+  held: Snapshot | undefined,
+  answer: Extract<LedgerRecordRead, { kind: 'complete' }>,
+  key: string,
+  at: number,
+): Snapshot {
+  const same = held?.revision === answer.revision
+  const records = new Map(same ? held.records : [])
+  if (answer.record !== null) records.set(key, stored(answer.record))
+  return {
+    revision: answer.revision,
+    records: inKeyOrder(records),
+    whole: same && held.whole,
+    confirmedAt: at,
+  }
 }
 
 /** The records after `writes`, or null when the writes drop the domain. Due entries are not records. */
@@ -145,8 +168,11 @@ export function afterCommit(
 ): Snapshot | null {
   switch (answer.kind) {
     case 'committed': {
-      const records = held?.revision === input.expected ? applied(held.records, input.writes) : null
-      return records === null ? null : { revision: input.revision, records, confirmedAt: at }
+      if (held?.revision !== input.expected) return null
+      const records = applied(held.records, input.writes)
+      return records === null
+        ? null
+        : { revision: input.revision, records, whole: held.whole, confirmedAt: at }
     }
     case 'conflict':
       return held === undefined || held.revision === input.expected ? null : held
@@ -251,7 +277,7 @@ export function keeping(keeper: LedgerKeeper, raw: Raw, now: () => number): Raw 
     return answer
   }
 
-  /** Asks the store for one record. The revision of the answer confirms or refutes `held`. */
+  /** Asks the store for one record. The answer confirms, extends or replaces the snapshot. */
   const ask = async (
     domain: LedgerDomain,
     key: string,
@@ -259,9 +285,8 @@ export function keeping(keeper: LedgerKeeper, raw: Raw, now: () => number): Raw 
   ): Promise<LedgerRecordRead> => {
     const mark = keeper.crossings.mark()
     const answer = await raw.readRecord(domain, record)
-    const held = keeper.get(key)
-    if (answer.kind === 'complete' && held !== undefined && !keeper.crossings.crossed(key, mark))
-      keeper.set(key, judged(held, answer.revision, now()))
+    if (answer.kind === 'complete' && !keeper.crossings.crossed(key, mark))
+      keeper.set(key, judged(keeper.get(key), answer, record, now()))
     return answer
   }
 
@@ -279,12 +304,7 @@ export function keeping(keeper: LedgerKeeper, raw: Raw, now: () => number): Raw 
   const readRecord = async (domain: LedgerDomain, record: string): Promise<LedgerRecordRead> => {
     const key = keyOf(domain)
     const plan = planRecord(keeper.get(key), record, now())
-    if (plan.kind === 'answer') return plan.read
-    if (plan.kind === 'ask') return ask(domain, key, record)
-    const answer = await whole(domain, key)
-    if (answer.kind !== 'complete') return answer
-    const found = answer.records.find(candidate => recordKey(candidate) === record) ?? null
-    return { kind: 'complete', revision: answer.revision, record: found }
+    return plan.kind === 'answer' ? plan.read : ask(domain, key, record)
   }
 
   const commit = async (input: LedgerCommitInput): Promise<LedgerCommit> => {

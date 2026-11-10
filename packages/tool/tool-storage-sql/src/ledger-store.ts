@@ -5,7 +5,7 @@
 // revision, or writes nothing.
 import { randomUUID } from 'node:crypto'
 
-import type { JsonValue, SqlStorage } from '@omne-harness/sql-contract'
+import { databaseOf, type JsonValue, type SqlStorage } from '@omne-harness/sql-contract'
 import {
   recordKey,
   type DueEntry,
@@ -117,16 +117,18 @@ function dueEntryOf(tenant: TenantId, row: JsonValue): DueEntry | null {
 const INITIAL_REVISION = '0'
 
 /**
- * One keeper for each storage. Every ledger store of this process over the same storage commits
- * through it, so the stores of the Tool runtime and of the sweep answer reads from one snapshot.
+ * One keeper for each database (`databaseOf`). Every ledger store of this process over the same
+ * database commits through it, so the stores of the Tool runtime and of the sweep answer reads
+ * from one snapshot, whichever storage object each of them was given.
  */
-const keepers = new WeakMap<SqlStorage, LedgerKeeper>()
+const keepers = new WeakMap<object, LedgerKeeper>()
 
 function keeperOf(storage: SqlStorage): LedgerKeeper {
-  let keeper = keepers.get(storage)
+  const database = databaseOf(storage)
+  let keeper = keepers.get(database)
   if (keeper === undefined) {
     keeper = new LedgerKeeper()
-    keepers.set(storage, keeper)
+    keepers.set(database, keeper)
   }
   return keeper
 }
