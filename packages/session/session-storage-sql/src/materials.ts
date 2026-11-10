@@ -21,7 +21,6 @@ import {
 // aggregates these with the materials of the other owners into one catalog and declares the
 // combination; this member never builds a catalog, a Cordis service or a domain registration.
 import { createHash } from 'node:crypto'
-import { SESSION_EXECUTION_CURRENT_FACT, SESSION_EXECUTION_GUARD } from './execution-current.ts'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type {
@@ -333,7 +332,6 @@ export function sessionStorageMaterials(
   const readOutputLimitBytes = requireReadOutputLimit(options)
   const permissionMigration = module('permission-current-migration')
   const permissionGuard = module('permission-current-guard')
-  const executionGuard = module('execution-current-guard')
   const participant = module('participant')
   const ordinaryBasis = module('ordinary-basis')
   const record = module('execution-record')
@@ -350,18 +348,6 @@ export function sessionStorageMaterials(
   const factBlobMigration = module('fact-blob-migration')
   return {
     participants: [
-      {
-        participant: SESSION_EXECUTION_GUARD,
-        protocol: '1',
-        moduleUrl: executionGuard.moduleUrl,
-        codeDigest: executionGuard.digest,
-        ownedTables: [],
-        readTables: ['er_execution'],
-        requiresFacts: [],
-        providesFacts: [SESSION_EXECUTION_CURRENT_FACT],
-        allowedFunctions: [],
-        grouping: 'singleton',
-      },
       {
         participant: SESSION_PERMISSION_GUARD,
         protocol: '1',

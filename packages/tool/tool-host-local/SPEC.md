@@ -164,7 +164,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 转发核验调用原启动权威的 `inspect`，沿用它的未知与排除语义。本工厂不另行写启动状态；不能把包含该外部查询的整条链称为无副作用的纯函数。
 
-此结果供受信应用组装原 owner 的同事务核回。它不保证资格读取后记录不变，不自行提交权限，也不替代 Identity、启动资格等外部拥有者的 current 检查。原源码和精确类型归 [invocation-qualification.ts](src/invocation-qualification.ts)，行为守护归 [invocation-qualification.spec.ts](tests/invocation-qualification.spec.ts)。
+此结果供受信应用核对原调用的来源与归属。它不保证资格读取后记录不变，不自行提交权限，也不替代 Identity、启动资格等外部拥有者的 current 检查。原源码和精确类型归 [invocation-qualification.ts](src/invocation-qualification.ts)，行为守护归 [invocation-qualification.spec.ts](tests/invocation-qualification.spec.ts)。
 
 ### 守卫装配
 

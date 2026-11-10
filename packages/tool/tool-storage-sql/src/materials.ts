@@ -5,7 +5,6 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { TOOL_RECORD_CURRENT, TOOL_RECORDS_CURRENT_FACT } from './record-current.ts'
 import type {
   MigrationDescriptor,
   ParticipantDescriptor,
@@ -85,7 +84,6 @@ export type ToolStorageMaterials = Readonly<{
 export function toolStorageMaterials(): ToolStorageMaterials {
   const participant = module('participant')
   const migration = module('migration')
-  const recordCurrent = module('record-current')
   return {
     participants: [
       {
@@ -97,18 +95,6 @@ export function toolStorageMaterials(): ToolStorageMaterials {
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
-        allowedFunctions: [],
-        grouping: 'singleton',
-      },
-      {
-        participant: TOOL_RECORD_CURRENT,
-        protocol: PROTOCOL,
-        moduleUrl: recordCurrent.moduleUrl,
-        codeDigest: recordCurrent.digest,
-        ownedTables: [],
-        readTables: ['tl_record'],
-        requiresFacts: [],
-        providesFacts: [TOOL_RECORDS_CURRENT_FACT],
         allowedFunctions: [],
         grouping: 'singleton',
       },

@@ -184,7 +184,5 @@ it('ends both command lists with the Session guard and the basis command', () =>
       command => command.participant,
     )
     expect(names.slice(-2)).toEqual(['session-permission-guard', PERMISSION_BASIS.participant])
-    expect(names).not.toContain('session-execution-guard')
-    expect(names).not.toContain('harness.tool-record-current')
   }
 })

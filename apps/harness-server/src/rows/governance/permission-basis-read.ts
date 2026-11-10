@@ -3,7 +3,6 @@
 // read here, at the time of the check, and never cached. The read answers the reading and the
 // condition that a later commit uses to check that the tenant-domain facts did not change.
 import { randomUUID } from 'node:crypto'
-import type { z } from 'zod'
 import type {
   AgentActionQualification,
   AgentAdoptions,
@@ -33,7 +32,6 @@ import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { LocalInvocationQualifier, StartCondition } from '@omne-harness/tool-host-local'
 import type { ToolPermissionContext } from '../authorization/current-tool-permission.ts'
-import { agentPermissionObservationSchema } from './agent-permission-observation.ts'
 import { qualifyAgentPermission } from './agent-permission-qualification.ts'
 import {
   permissionBasisCommands,
@@ -42,7 +40,7 @@ import {
   permissionBasisSchema,
   type PermissionBasis,
 } from './permission-basis.ts'
-import { capturedInquirySchema, matchesCapturedInquiry } from './permission-inquiry.ts'
+import { capturedInquirySchema } from './permission-inquiry.ts'
 import {
   createPermissionReadMapping,
   type PermissionReadMapping,
@@ -50,8 +48,7 @@ import {
 } from './permission-read-mapping.ts'
 import { readSessionPermissionForCapture } from './permission-session-current.ts'
 import { readProjection, type ProjectionRead } from './projection-read.ts'
-import { toolPermissionObservationSchema } from './tool-permission-observation.ts'
-import { qualifyToolPermission, type Qualification } from './tool-permission-qualification.ts'
+import { qualifyToolPermission } from './tool-permission-qualification.ts'
 
 type Principal = ActingForTenantPrincipal
 
@@ -93,41 +90,6 @@ const without = (reading: PermissionBasisReading): CurrentPermissionRead => ({
   reading,
   condition: null,
 })
-
-type Observed = z.infer<typeof agentPermissionObservationSchema>['observation']
-type Origin = Pick<Observed, 'configuration' | 'principalRef' | 'definition' | 'session'> &
-  Readonly<{ constraints: readonly Observed['constraint'][] }>
-
-/** The facts of the original action that the commands need, after their bindings are compared. */
-function originOf(
-  qualification: Extract<Qualification, { kind: 'qualified' }>['qualification'],
-  request: PermissionBasisRequest,
-): Origin | undefined {
-  const sameScope = (current: { tenant: string; session?: string }) =>
-    current.tenant === request.scope.tenantId &&
-    (current.session === undefined || current.session === request.scope.sessionId)
-  if (qualification.owner === 'harness.agent-action') {
-    const { observation } = agentPermissionObservationSchema.parse(qualification)
-    return matchesCapturedInquiry(observation.inquiry, observation.session) &&
-      sameScope(observation.current) &&
-      observation.constraint.id === 'agent-definition' &&
-      canonicalText(observation.permission) === canonicalText(request)
-      ? { ...observation, constraints: [observation.constraint] }
-      : undefined
-  }
-  const { observation } = toolPermissionObservationSchema.parse(qualification)
-  const { agent } = observation
-  if (
-    !matchesCapturedInquiry(observation.inquiry, observation.session) ||
-    observation.current.tenant !== request.scope.tenantId ||
-    canonicalText(observation.permission) !== canonicalText(request)
-  )
-    return undefined
-  if (agent.kind === 'none') return { ...observation, constraints: [] }
-  return sameScope(agent.current) && agent.constraint.id === 'agent-definition'
-    ? { ...observation, constraints: [agent.constraint] }
-    : undefined
-}
 
 const missingOrganization = (): PermissionSource => ({
   kind: 'unavailable',
@@ -267,8 +229,7 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
       return without({ kind: 'invalid-input', reason: 'binding' })
     const qualification = await qualified(context, request)
     if (qualification.kind !== 'qualified') return without(qualification)
-    const origin = originOf(qualification.qualification, request)
-    if (origin === undefined) return without(unavailable('harness.permission-origin'))
+    const { origin } = qualification
     const commands = permissionBasisCommands(
       permissionBasisRequestSchema.parse({
         snapshot: GovernanceTargetBindingSchema.parse({

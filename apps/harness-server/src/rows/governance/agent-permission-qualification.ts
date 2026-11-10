@@ -1,5 +1,4 @@
 import { capturedInquirySchema } from './permission-inquiry.ts'
-import { z } from 'zod'
 import type { AgentActionQualification, AgentAdoptions } from '@omne-harness/agent-contract'
 import { canonicalText } from '@omne-harness/authorization'
 import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
@@ -7,7 +6,7 @@ import {
   PermissionBasisRequestSchema,
   type PermissionBasisRequest,
 } from '@omne-harness/permissions'
-import type { PermissionOriginObservation } from './tool-permission-qualification.ts'
+import type { PermissionQualification } from './permission-qualification.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import {
   agentPermissionOperation,
@@ -20,12 +19,6 @@ import {
   type SessionPermissionCaptureReader,
 } from './permission-session-current.ts'
 import { readAgentPermissionConstraint } from './agent-permission-bound.ts'
-import { agentPermissionObservationSchema } from './agent-permission-observation.ts'
-
-type Qualification =
-  | Readonly<{ kind: 'qualified'; qualification: PermissionOriginObservation }>
-  | Readonly<{ kind: 'denied' }>
-  | Readonly<{ kind: 'unavailable'; sourceRef: string }>
 
 /** Original Agent facts select the immutable definition; caller-provided names never do. */
 export async function qualifyAgentPermission(
@@ -37,8 +30,11 @@ export async function qualifyAgentPermission(
     adoptions: Pick<AgentAdoptions<ActingForTenantPrincipal>, 'resolve'>
     readSession: SessionPermissionCaptureReader
   }>,
-): Promise<Qualification> {
-  const unavailable = (): Qualification => ({ kind: 'unavailable', sourceRef: 'agent.action' })
+): Promise<PermissionQualification> {
+  const unavailable = (): PermissionQualification => ({
+    kind: 'unavailable',
+    sourceRef: 'agent.action',
+  })
   try {
     const action = {
       ...input.action,
@@ -81,29 +77,15 @@ export async function qualifyAgentPermission(
       scope: permission.scope,
       definition: released.interpretation.definition,
     })
-    const observation = agentPermissionObservationSchema.parse({
-      owner: 'harness.agent-action',
-      protocol: 'agent-permission-observation/3',
-      observation: {
-        configuration: released.interpretation.definition.settings === null ? 'unmapped' : 'mapped',
-        principalRef: standingPrincipalRef(action.principal),
-        permission,
-        definition: released.entry.governance.declaration.reference,
-        action: z.json().parse(original.ok),
-        current: {
-          tenant: session.tenant,
-          session: session.session,
-          execution: given.execution,
-          revision: original.ok.revision,
-        },
-        inquiry: action.inquiry,
-        session,
-        constraint,
-      },
-    })
     return {
       kind: 'qualified',
-      qualification: { ...observation, observation: z.json().parse(observation.observation) },
+      origin: {
+        configuration: released.interpretation.definition.settings === null ? 'unmapped' : 'mapped',
+        principalRef: standingPrincipalRef(action.principal),
+        definition: released.entry.governance.declaration.reference,
+        session,
+        constraints: [constraint],
+      },
     }
   } catch {
     return unavailable()

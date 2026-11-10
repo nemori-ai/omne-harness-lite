@@ -1,11 +1,4 @@
 export {
-  SESSION_EXECUTION_CURRENT_FACT,
-  SESSION_EXECUTION_GUARD,
-  ExecutionCurrentSchema,
-  executionCurrentGuardFacts,
-  type ExecutionCurrent,
-} from './execution-current.ts'
-export {
   SESSION_PERMISSION_CURRENT_HANDLER,
   SESSION_PERMISSION_MODE_HANDLER,
   SESSION_PERMISSION_CURRENT_FACT,

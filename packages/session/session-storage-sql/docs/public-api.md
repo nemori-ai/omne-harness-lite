@@ -62,7 +62,6 @@ SPEC 设计的内联阈值、大对象去向、`pageBytes` 上限、`maxScanPerP
 
 ## 当前权限读取
 
-原执行的同事务核回另由 `SESSION_EXECUTION_GUARD`、`SESSION_EXECUTION_CURRENT_FACT`、`executionCurrentGuardFacts`、`ExecutionCurrentSchema` 和 `ExecutionCurrent` 提供，均从 `./participants` 导出。形状归 [execution-current.ts](../src/execution-current.ts)，行为归 [原执行修订核回](../SPEC.md#同事务原执行修订核回)。它读取原执行头，不复用 Session 权限关系或 Settings 配值。
 
 `./participants` 导出 `SESSION_PERMISSION_CURRENT_HANDLER`、`decodeSessionPermissionCurrent` 及其输入输出类型。精确形状归 [permission-current.ts](../src/permission-current.ts)，语义归 [当前权限关系](../SPEC.md#当前权限关系)。调用者是已经取得原访问资格的受信 SQL 组合方；该读口不是独立的身份授权服务。解码器区分 current、not-ready 与 malformed。
 

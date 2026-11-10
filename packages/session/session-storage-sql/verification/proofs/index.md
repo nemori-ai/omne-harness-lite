@@ -5,4 +5,3 @@
 ## 内容
 
 - [README.md](README.md)：证明清单与假设
-- [execution-current.md](execution-current.md)：原执行主键点读、同事务修订核回及原回执边界

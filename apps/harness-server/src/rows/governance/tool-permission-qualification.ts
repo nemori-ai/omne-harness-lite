@@ -1,6 +1,4 @@
 import { capturedInquirySchema } from './permission-inquiry.ts'
-import { z } from 'zod'
-import type { JsonValue } from '@omne-harness/sql-contract'
 import { canonicalText } from '@omne-harness/authorization'
 import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
@@ -24,22 +22,11 @@ import {
   qualifyOriginalToolAgent,
   type ToolAgentPermissionSource,
 } from './tool-agent-permission.ts'
-import { toolPermissionObservationSchema } from './tool-permission-observation.ts'
+import type { PermissionQualification } from './permission-qualification.ts'
 import {
   readBoundSessionPermission,
   type SessionPermissionCaptureReader,
 } from './permission-session-current.ts'
-
-/** The observation of the owner of the original action. It proves an origin and grants nothing. */
-export type PermissionOriginObservation = Readonly<{
-  owner: string
-  protocol: string
-  observation: JsonValue
-}>
-export type Qualification =
-  | Readonly<{ kind: 'qualified'; qualification: PermissionOriginObservation }>
-  | Readonly<{ kind: 'denied' }>
-  | Readonly<{ kind: 'unavailable'; sourceRef: string }>
 
 function originalCallMatches(action: ToolPermissionAction): action is ToolPermissionAction & {
   origin: Extract<ToolPermissionAction['origin'], { kind: 'tool-call' }>
@@ -53,29 +40,22 @@ function originalCallMatches(action: ToolPermissionAction): action is ToolPermis
   )
 }
 
-function currentRecords(
+/** The owner answered for the given call, with records of the tenant of the permission request. */
+function answersGivenCall(
   original: InvocationQualification,
   given: InvocationQualification['request'],
-) {
-  const encoded = tenantCodec.encode(given.tenant)
-  if (
-    !encoded.ok ||
-    canonicalText(original.request) !== canonicalText(given) ||
-    original.records.some(record => !tenantEquals(record.domain.tenant, given.tenant))
+  permission: PermissionBasisRequest,
+): boolean {
+  const tenant = tenantCodec.encode(given.tenant)
+  return (
+    tenant.ok &&
+    tenant.value === permission.scope.tenantId &&
+    canonicalText(original.request) === canonicalText(given) &&
+    original.records.every(record => tenantEquals(record.domain.tenant, given.tenant))
   )
-    return undefined
-  return {
-    tenant: encoded.value,
-    records: original.records.map(record => ({
-      kind: record.domain.kind,
-      name: record.domain.kind === 'call' ? record.domain.call : record.domain.key,
-      key: record.key,
-      digest: record.digest,
-    })),
-  }
 }
 
-/** Used inside the trusted Governance resolver, after its Identity check, before capture. */
+/** Used by the permission basis read, after its Identity check. */
 export async function qualifyToolPermission(
   input: Readonly<{
     action: ToolPermissionContext
@@ -85,8 +65,11 @@ export async function qualifyToolPermission(
     readSession: SessionPermissionCaptureReader
     agent?: ToolAgentPermissionSource | undefined
   }>,
-): Promise<Qualification> {
-  const unavailable = (): Qualification => ({ kind: 'unavailable', sourceRef: 'tool.invocation' })
+): Promise<PermissionQualification> {
+  const unavailable = (): PermissionQualification => ({
+    kind: 'unavailable',
+    sourceRef: 'tool.invocation',
+  })
   try {
     const action = {
       ...input.action,
@@ -114,40 +97,27 @@ export async function qualifyToolPermission(
     if ('failure' in result)
       return result.failure.kind === 'denied' ? { kind: 'denied' } : unavailable()
     const original = result.ok
-    const originalOrigin = structuredClone(original.origin)
-    const invocation = z.json().parse(original.request)
-    const current = currentRecords(original, given)
-    if (current === undefined) return unavailable()
+    if (!answersGivenCall(original, given, permission)) return unavailable()
     const session = await readBoundSessionPermission(input.readSession, permission, action.inquiry)
     if (session === undefined) return unavailable()
     const agent = await qualifyOriginalToolAgent({
       principal,
       tenant,
-      origin: originalOrigin,
+      origin: structuredClone(original.origin),
       source: input.agent,
       permission,
       definition: released.interpretation.definition,
-      session,
     })
     if ('failure' in agent) return agent.failure
-    const observation = toolPermissionObservationSchema.parse({
-      owner: 'harness.tool-invocation',
-      protocol: 'tool-permission-observation/5',
-      observation: {
-        configuration: released.interpretation.definition.settings === null ? 'unmapped' : 'mapped',
-        principalRef: standingPrincipalRef(principal),
-        permission,
-        definition,
-        invocation,
-        current,
-        inquiry: action.inquiry,
-        session,
-        agent: agent.ok,
-      },
-    })
     return {
       kind: 'qualified',
-      qualification: { ...observation, observation: z.json().parse(observation.observation) },
+      origin: {
+        configuration: released.interpretation.definition.settings === null ? 'unmapped' : 'mapped',
+        principalRef: standingPrincipalRef(principal),
+        definition,
+        session,
+        constraints: agent.ok === null ? [] : [agent.ok],
+      },
     }
   } catch {
     return unavailable()

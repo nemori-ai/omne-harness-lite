@@ -6,7 +6,7 @@
 
 ## 范围与依据
 
-除核心日志参加者外，静态材料还提供按组合启用的只读守卫 `session-permission-guard` 与 `session-execution-guard`。它们分别核当前权限关系与原执行修订；不进入默认的 `SESSION_LOG_PARTICIPANTS`，也不增加业务表。
+除核心日志参加者外，静态材料还提供按组合启用的只读守卫 `session-permission-guard`。它核当前权限关系；不进入默认的 `SESSION_LOG_PARTICIPANTS`，也不增加业务表。
 
 本成员拥有四类东西：
 
@@ -968,16 +968,6 @@ todos 使用现有快照分块，不新建 Todo 表或迁移。读取仍是完�
 `session/006-permission-current` 在提供者的原子迁移内，从原日志重建两表。迁移按会话和事件位置分页，用已有 `sl_operation_revision_idx` 找原批次回执，再按 `sl_entry` 主键范围取完整批次。原解释规则归 session-contract 的 `rebuildSessionPermissions`。它通过原 `writeState` 更新需要升级的分块快照，不直接改 head 而遗漏分块 token。
 
 升级保留原日志、操作记录、回执和 SQL 封套。快照未覆盖日志、批次缺口、原解释不支持、原快照或既有投影矛盾时失败并回滚，不发布空权限。重跑相同已完成迁移不增加修订或改变配值。相关行为验证见 `tests/permission-current.spec.ts`、`tests/permission-current-migration.spec.ts`；真实提供者迁移与重开由 `tests/permission-current-real.spec.ts` 覆盖，其原表输入来自具名种子迁移。它不替代并发捕获验收。
-
-### 同事务原执行修订核回
-
-`session-execution-guard` 是独立只读参加者。`executionCurrentGuardFacts` 携带原 tenant、session、execution 和 revision；精确形状归 [execution-current.ts](src/execution-current.ts)。输入来自原执行记录提供者的观察与 Session 归属，不由守卫授予来源资格。
-
-参加者在提交事务内按 `er_execution` 主键 `(tenant, execution)` 点读，核对 session 与 revision。没有匹配行或修订变化时统一返回 conflict/execution-not-current，不发布事实；非法输入返回 unsupported。完全匹配时发布 `SESSION_EXECUTION_CURRENT_FACT`，其正文是完整原定位与核回修订。该成员不解析 Agent checkpoint、权限或人的决定，不增加执行版本，不写日志或新业务表。Storage 自身记录本次组合回执的义务不变。
-
-装配者显式将守卫加入捕获组合。消费者声明 requiresFacts，并核对完整定位与原动作观察。该事实只在本事务有效。影响原动作资格的执行变更必须推进 revision；不推进的变更不能被本守卫识别。原 `execution-record` 发布者无事实依赖，名字序先于本守卫；同笔发布须在核回前执行。改变名称或依赖时必须重新建立顺序并运行同批更新反例。禁止在核回后由其他参加者写 er_execution。
-
-重复提交认回的旧回执是原操作结果，不是新的当前性检查。新动作使用新的原操作身份并重新捕获。当前权限、身份和 Tool 来源的核验仍由各拥有者负责。局部证明及真实 Worker 守护见 [原执行当前性](verification/proofs/execution-current.md)。
 
 ### 同事务当前性守卫
 
