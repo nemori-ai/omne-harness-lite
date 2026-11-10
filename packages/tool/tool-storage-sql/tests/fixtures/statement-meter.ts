@@ -4,8 +4,9 @@
 // and that count has a u64 bound; `decimal` lets a comparison deduct that width. A row of a `host` ledger domain belongs to the
 // host; every other row (call domains, body chunks and manifests, the due index) belongs to the
 // Tool. Every ledger and due statement binds `(tenant, kind, …)`, so the second parameter names
-// the domain kind; the body statements bind `(tenant, call, …)` and name no kind.
-import type { SqlValue } from '@omne-harness/sql-contract/worker'
+// the domain kind; the body statements bind `(tenant, call, …)` and name no kind. A record of
+// `tl_record` is stored packed (sql-contract §10.1); its logical bytes are those of its text.
+import { unpackText, type SqlValue } from '@omne-harness/sql-contract/worker'
 import type { ObservedStatement, StatementObserver } from './sqlite-storage.ts'
 
 export type Cost = {
@@ -72,17 +73,15 @@ export function statementMeter(): StatementMeter {
       cost.statements += 1
       cost.rowsRead += statement.result.rows.length
       cost.rowsWritten += Number(statement.result.changes)
+      const packed = /\btl_record\b/u.test(statement.sql)
+      const logical = (value: SqlValue): SqlValue =>
+        packed && value instanceof Uint8Array ? unpackText(value) : value
       let bytes = 0
       let decimal = 0
-      for (const value of statement.params) {
-        bytes += bytesOf(value)
-        decimal += decimalBytesOf(value)
+      for (const value of [...statement.params, ...statement.result.rows.flat()]) {
+        bytes += bytesOf(logical(value))
+        decimal += decimalBytesOf(logical(value))
       }
-      for (const row of statement.result.rows)
-        for (const cell of row) {
-          bytes += bytesOf(cell)
-          decimal += decimalBytesOf(cell)
-        }
       cost.bytes += bytes
       cost.decimal += decimal
     },

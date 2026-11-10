@@ -5,7 +5,7 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import { parseDomainAddress, type LedgerReadOutput } from './facts.ts'
 import { LEDGER_READ_HANDLER, LEDGER_READ_ROWS, PROTOCOL } from './schema.ts'
-import { isObject, oneRow, rowsOf, text } from './support.ts'
+import { isObject, oneRow, packed, rowsOf, text } from './support.ts'
 
 const handler: ReadHandlerModule = {
   handler: LEDGER_READ_HANDLER,
@@ -41,7 +41,7 @@ const handler: ReadHandlerModule = {
       revision: head === undefined ? null : text(head['revision']),
       records: rows.map(row => ({
         key: text(row['key']),
-        record: JSON.parse(text(row['record'])) as JsonValue,
+        record: JSON.parse(packed(row['record'])) as JsonValue,
       })),
     }
     return { kind: 'read', output }

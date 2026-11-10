@@ -10,6 +10,7 @@
 - [public-entry.spec.ts](public-entry.spec.ts)：公开入口与导入边界
 - [ledger-store-conformance.spec.ts](ledger-store-conformance.spec.ts)：两组记录仓套件（G1、P01）
 - [tenant-isolation.spec.ts](tenant-isolation.spec.ts)：租户隔离
+- [record-pack.spec.ts](record-pack.spec.ts)：账本记录按 sql-contract §10.1 的压缩文本存放：短记录标记 0，长记录标记 1，读回不变
 - [tenant-isolation-live.spec.ts](tenant-isolation-live.spec.ts)：正文表与到期索引上的租户隔离：到期读、清扫、账本正文读、正文仓读删，含混入行
 - [sweep-live.spec.ts](sweep-live.spec.ts)：到期清扫回收正文后正文表与到期索引无行，条目留 `reclaimed`，读答 `expired`（C5）
 - [release-live.spec.ts](release-live.spec.ts)：交付释放把记录值换成摘要，正文到期前仍可读，到期由清扫回收（C6）

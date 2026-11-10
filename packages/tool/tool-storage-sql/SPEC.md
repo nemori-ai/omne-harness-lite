@@ -126,7 +126,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ## 正文存储与到期索引的实现映射
 
-正文与到期索引的命令沿同一 `tool` 参加者执行（`body-put`、`body-seal`、`body-delete` 与 `ledger` 的 `schedule`/`unschedule`）。表：`tl_domain`、`tl_record`、`tl_body_chunk`、`tl_body_manifest`、`tl_due`；读 handler：`tool.ledger.read`、`tool.body.read`、`tool.due.read`；一条迁移 `tool/r6-001-tool-ledger-body-due`。打开 r6 基线之前建的库时，SQL 提供者发现当前目录不列出的迁移标记，拒绝该事务域，不迁移旧数据（C9，`tests/old-baseline-quarantine.spec.ts`）。
+正文与到期索引的命令沿同一 `tool` 参加者执行（`body-put`、`body-seal`、`body-delete` 与 `ledger` 的 `schedule`/`unschedule`）。表：`tl_domain`、`tl_record`、`tl_body_chunk`、`tl_body_manifest`、`tl_due`。`tl_record.record` 是 `BLOB`，存记录 JSON 的压缩文本（[sql-contract §10.1](../../storage/sql-contract/SPEC.md#101-大文本列的存储格式)）；读上限仍按还原后的 JSON 计。读 handler：`tool.ledger.read`、`tool.body.read`、`tool.due.read`；一条迁移 `tool/r6-001-tool-ledger-body-due`。打开 r6 基线之前建的库时，SQL 提供者发现当前目录不列出的迁移标记，拒绝该事务域，不迁移旧数据（C9，`tests/old-baseline-quarantine.spec.ts`）。
 
 ### TS-13 正文存储
 

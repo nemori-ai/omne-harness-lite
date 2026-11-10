@@ -12,6 +12,7 @@ import {
 } from '@omne-harness/tool-contract'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import type { TenantId } from '@omne-harness/legal-identity'
+import { packText } from '@omne-harness/sql-contract/worker'
 import { createSqlToolLedgerStore } from '../src/index.ts'
 import { domainRef } from './fixtures/sqlite-storage.ts'
 import {
@@ -111,7 +112,7 @@ describe('rows of tenant B planted in the database of tenant A', () => {
     a.sqlite.inspect(
       domain,
       'INSERT INTO tl_record (tenant, kind, name, key, record) VALUES (?, ?, ?, ?, ?)',
-      [b, 'call', 'shared', 'host:same', JSON.stringify(record('of B'))],
+      [b, 'call', 'shared', 'host:same', packText(JSON.stringify(record('of B')))],
     )
     return a
   }

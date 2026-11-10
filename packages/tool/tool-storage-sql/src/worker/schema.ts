@@ -9,7 +9,7 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
     PRIMARY KEY (tenant, kind, name)) STRICT`,
   `CREATE TABLE tl_record (
     tenant TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, key TEXT NOT NULL,
-    record TEXT NOT NULL, PRIMARY KEY (tenant, kind, name, key)) STRICT`,
+    record BLOB NOT NULL, PRIMARY KEY (tenant, kind, name, key)) STRICT`,
   // The body store: immutable chunks of one body and the one manifest that seals them.
   `CREATE TABLE tl_body_chunk (
     tenant TEXT NOT NULL, call TEXT NOT NULL, body TEXT NOT NULL, seq INTEGER NOT NULL,

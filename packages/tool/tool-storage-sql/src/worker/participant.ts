@@ -3,10 +3,11 @@
 // its writes in input order; a body command keeps, seals or deletes the chunks of one body. A
 // stopping reply rolls the whole command back. It never begins, commits or rolls back, and keeps no state between
 // calls.
-import type {
-  ParticipantModule,
-  ParticipantPort,
-  ParticipantReply,
+import {
+  packText,
+  type ParticipantModule,
+  type ParticipantPort,
+  type ParticipantReply,
 } from '@omne-harness/sql-contract/worker'
 import { parseFacts, type LedgerFacts, type ParticipantAnswer, type StopBasis } from './facts.ts'
 import { commitBody } from './participant-body.ts'
@@ -57,7 +58,7 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
         port.execute(
           `INSERT INTO tl_record (tenant, kind, name, key, record) VALUES (?, ?, ?, ?, ?)
            ON CONFLICT (tenant, kind, name, key) DO UPDATE SET record = excluded.record`,
-          [...domain, write.key, JSON.stringify(write.record)],
+          [...domain, write.key, packText(JSON.stringify(write.record))],
         )
         break
       case 'delete':
