@@ -5,7 +5,9 @@ import { assemblyMetadata } from './sensors/assembly.ts'
 import { sameTree } from '../core/subject.ts'
 import type { DependencyFinding, ImportSite } from '../deps/graph.ts'
 import { describeAgainstBase, type ExplainedFunction } from './against-base.ts'
+import type { Conformance } from '../arch/conformance-model.ts'
 import type { HookConfig } from './config.ts'
+import type { Reading } from './reading.ts'
 import type { Explain, HardLines } from './status.ts'
 
 /** 宿主输入里本钩子用到的两项；其余字段不看。 */
@@ -98,6 +100,30 @@ function assemblyFindings(reading: Explain['assemblyDelta']): Finding[] {
   return out
 }
 
+/** 架构一致性的三类条目：预期改动、依据字节变化、新增偏离；这次没有数据时为空。 */
+export function conformanceFindings(
+  conformance: Reading<Pick<Conformance, 'changes' | 'sourceChanges' | 'rows'>> | undefined,
+): Finding[] {
+  if (conformance?.status !== 'data') return []
+  const { changes, sourceChanges, rows } = conformance.data
+  return [
+    ...changes.map(row => ({
+      key: `intent\u0000${row.id}\u0000${row.before}\u0000${row.after}`,
+      text: `架构预期改动：${row.id}（${row.path}）；与新增偏离分别核对`,
+    })),
+    ...sourceChanges.map(row => ({
+      key: `intent-source\u0000${row.path}\u0000${row.before}\u0000${row.after}`,
+      text: `架构依据字节变化：${row.path}；须核对含义，哈希不证明语义变化或符合`,
+    })),
+    ...rows
+      .filter(row => row.age === 'new')
+      .map(row => ({
+        key: `conformance\u0000${row.id}`,
+        text: `新增架构偏离 · ${row.rule}：${row.member} ${row.key}${site(row.sites[0])}；${row.reason}`,
+      })),
+  ]
+}
+
 /** 硬线排最前：条目多了被截断时，截掉的是报告项而不是硬线。 */
 export function findingsOf(readings: HookReadings): Finding[] {
   const { explain, hardLines, alert } = readings
@@ -110,24 +136,10 @@ export function findingsOf(readings: HookReadings): Finding[] {
       key: `dependency-note\u0000${readings.dependencyNote}`,
       text: readings.dependencyNote,
     })
-  if (explain.conformance?.status === 'data') {
-    for (const row of explain.conformance.data.changes)
-      out.push({
-        key: `intent\u0000${row.id}\u0000${row.before}\u0000${row.after}`,
-        text: `架构预期改动：${row.id}（${row.path}）；与新增偏离分别核对`,
-      })
-    for (const row of explain.conformance.data.sourceChanges)
-      out.push({
-        key: `intent-source\u0000${row.path}\u0000${row.before}\u0000${row.after}`,
-        text: `架构依据字节变化：${row.path}；须核对含义，哈希不证明语义变化或符合`,
-      })
-    for (const row of explain.conformance.data.rows.filter(row => row.age === 'new'))
-      out.push({
-        key: `conformance\u0000${row.id}`,
-        text: `新增架构偏离 · ${row.rule}：${row.member} ${row.key}${site(row.sites[0])}；${row.reason}`,
-      })
-  }
-  out = out.concat(assemblyFindings(explain.assemblyDelta))
+  out = out.concat(
+    conformanceFindings(explain.conformance),
+    assemblyFindings(explain.assemblyDelta),
+  )
   for (const row of explain.functions)
     if (row.level === 'alert')
       out.push({
@@ -332,6 +344,27 @@ export function renderWarning(reason: string, home: string): string {
 }
 
 /**
+ * 量之前的三道关：跑的是被量这棵树自己的脚本，配置开着，依赖装了。
+ * 配置关着时返回 undefined；另外两道不过时抛出，由调用方记日志并警告用户。
+ */
+function measurableConfig(
+  root: string,
+  deps: HookDeps,
+): ReturnType<HookDeps['config']> | undefined {
+  const tool = deps.toolRoot()
+  if (tool !== undefined && !sameTree(tool, root))
+    throw new Error(
+      `跑的是 ${tool} 里的收工钩子，量的却是 ${root}：别的检出的工具与配置可能落后，量不了。` +
+        '在被量的工作树里跑它自己的这份脚本',
+    )
+  const config = deps.config()
+  if (!config.enabled) return undefined
+  if (!deps.installed())
+    throw new Error('本工作树没装依赖，量不了。在本工作树 pnpm install 之后再量')
+  return config
+}
+
+/**
  * 找到了仓库之后：量、去重、记状态、出文字。这里的任何错误都记进回路目录的日志，并作为警告显示给用户；
  * 不反馈给 agent——钩子自己出错从不影响 agent 收工。
  */
@@ -340,16 +373,8 @@ async function feedback(
   deps: HookDeps,
 ): Promise<string | undefined> {
   try {
-    const tool = deps.toolRoot()
-    if (tool !== undefined && !sameTree(tool, root))
-      throw new Error(
-        `跑的是 ${tool} 里的收工钩子，量的却是 ${root}：别的检出的工具与配置可能落后，量不了。` +
-          '在被量的工作树里跑它自己的这份脚本',
-      )
-    const config = deps.config()
-    if (!config.enabled) return undefined
-    if (!deps.installed())
-      throw new Error('本工作树没装依赖，量不了。在本工作树 pnpm install 之后再量')
+    const config = measurableConfig(root, deps)
+    if (config === undefined) return undefined
     const readings = await deps.measure(
       root,
       config.primaryBranch,

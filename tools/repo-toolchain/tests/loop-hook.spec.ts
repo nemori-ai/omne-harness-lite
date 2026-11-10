@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import type { HookConfig } from '../src/loop/config.ts'
 import {
+  conformanceFindings,
   findingsOf,
   newOrWorse,
   parseHookInput,
@@ -307,6 +308,38 @@ describe('收工钩子的判断', () => {
     })
     await stopHook(STOP, shared.deps)
     expect(seen).toEqual([[40_000, '/home']])
+  })
+
+  it('架构一致性：预期改动、依据字节变化与新增偏离各出一条，存量偏离不出；没有数据时一条都不出', () => {
+    const change = { id: 'C-1', path: 'docs/a.md', before: 'x', after: 'y' }
+    const row = (age: 'new' | 'stock') => ({
+      id: `R-${age}`,
+      rule: 'ROLE' as const,
+      state: 'deviation' as const,
+      age,
+      member: 'packages/a',
+      key: `k-${age}`,
+      reason: '理由',
+      expected: '',
+      sites: [{ path: 'packages/a/src/x.ts', line: 3 }],
+    })
+    const found = conformanceFindings({
+      status: 'data',
+      data: { changes: [change], sourceChanges: [change], rows: [row('new'), row('stock')] },
+    })
+    expect(found.map(finding => finding.text)).toEqual([
+      '架构预期改动：C-1（docs/a.md）；与新增偏离分别核对',
+      '架构依据字节变化：docs/a.md；须核对含义，哈希不证明语义变化或符合',
+      '新增架构偏离 · ROLE：packages/a k-new（packages/a/src/x.ts:3）；理由',
+    ])
+    // 键是「比上一次」去重的身份：同一处改动在两次收工之间要得到同一个键。
+    expect(found.map(finding => finding.key)).toEqual([
+      'intent\u0000C-1\u0000x\u0000y',
+      'intent-source\u0000docs/a.md\u0000x\u0000y',
+      'conformance\u0000R-new',
+    ])
+    expect(conformanceFindings({ status: 'no-data', reason: '关了' })).toEqual([])
+    expect(conformanceFindings(undefined)).toEqual([])
   })
 
   it('依赖项这次没量（解析配置变了）：那一句照列成一项，不丢', () => {
