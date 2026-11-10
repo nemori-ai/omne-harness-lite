@@ -4,8 +4,10 @@
 // provides the trusted key `settingsSecretItems`: a service in the shape of server-entry's
 // `SettingsGovernance`, which only the `server-entry` row reads, per call.
 //
-// Registration follows the release: a tool's definition, declarations included, is known to this
-// process only after the `tool-host` row loaded its author (`releaseDefinitionOf`). The row keeps
+// Registration follows the release. The model providers are fixed bodies of the release
+// (`releaseProviders`): each table registers them when it starts. A tool's definition,
+// declarations included, is known to this process only after the `tool-host` row loaded its
+// author (`releaseDefinitionOf`). The row keeps
 // no copy of its own and asks for it on every read of the registry: a definition that became known
 // since the last read is registered then, under the holding `officialHolding` derives from its
 // asset. The row knows no category: every holding comes from the category hooks of `src/assets/`.
@@ -29,6 +31,7 @@ import {
   type SettingsHoldingRef,
   type SettingsRegistrySnapshot,
 } from '@omne-harness/settings'
+import { releaseProviders } from '../../assets/model-providers.ts'
 import { officialHolding, toolAsset, type OfficialHolding } from '../../assets/official-holdings.ts'
 import { readSystemInstant } from '../../entry/session-clock.ts'
 import { releaseDefinitionOf, releaseOf, type ToolRelease } from '../../entry/tool-release.ts'
@@ -101,18 +104,32 @@ type Known =
 
 type Trusted = Extract<ToolRelease, { kind: 'trusted' }>
 
-/** The table of one release generation: its registry and what it registered or refused by tool name. */
+/**
+ * The table of one release generation: its registry, the holdings of the release providers, and
+ * what it registered or refused by tool name.
+ */
 type Table = Readonly<{
   generation: string | null
   registry: ReturnType<typeof createSettingsRegistry>
+  providers: readonly SettingsHoldingRef[]
   known: Map<string, Known>
 }>
 
 function tableOf(release: ToolRelease): Table {
-  const capacity = release.kind === 'trusted' ? Math.max(1, release.manifest.entries.length) : 1
+  const declared = releaseProviders().flatMap(provider =>
+    provider.holding === null ? [] : [provider.holding],
+  )
+  const tools = release.kind === 'trusted' ? release.manifest.entries.length : 0
+  const registry = createSettingsRegistry({ capacity: Math.max(1, tools + declared.length) })
+  for (const held of declared) {
+    const registered = registry.registerContribution(held.definition)
+    if (registered.kind !== 'registered')
+      throw new Error(`the settings of the release provider ${held.ref.asset.name} are refused`)
+  }
   return {
     generation: release.kind === 'trusted' ? release.generation : null,
-    registry: createSettingsRegistry({ capacity }),
+    registry,
+    providers: declared.map(held => held.ref),
     known: new Map(),
   }
 }
@@ -177,15 +194,13 @@ export function createReleaseSettingsRegistry(ctx: Context) {
 
   const holdings = (asset?: SettingsAssetQuery): readonly SettingsHoldingRef[] => {
     sync()
-    const refs: SettingsHoldingRef[] = []
-    for (const entry of table.known.values()) {
-      if (entry.kind !== 'holding') continue
-      if (asset !== undefined) {
-        if (asset.name !== entry.ref.asset.name) continue
-        if (asset.category !== undefined && asset.category !== entry.ref.asset.category) continue
-      }
-      refs.push(entry.ref)
-    }
+    const matches = (ref: SettingsHoldingRef): boolean =>
+      asset === undefined ||
+      (asset.name === ref.asset.name &&
+        (asset.category === undefined || asset.category === ref.asset.category))
+    const refs = table.providers.filter(matches)
+    for (const entry of table.known.values())
+      if (entry.kind === 'holding' && matches(entry.ref)) refs.push(entry.ref)
     return refs
   }
 

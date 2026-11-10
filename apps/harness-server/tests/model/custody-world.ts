@@ -56,13 +56,13 @@ import {
   decodeModelCallId,
   decodeModelInstanceId,
   decodeModelOperationId,
+  decodeProviderName,
   encodeModelInvocationRef,
   type ConsumerRef,
   type FixedModelRequest,
   type ModelCallId,
 } from '@omne-harness/model-contract'
 import {
-  decodeCredentialId,
   MODEL_SEND,
   type ModelCommands,
   type ModelDriveInput,
@@ -148,9 +148,9 @@ const request: FixedModelRequest = {
   suppliers: [
     {
       adoption: ADOPTION,
-      recipient: 'test.invalid',
+      provider: must(decodeProviderName('test.invalid')),
       model: 'test',
-      credential: { kind: 'factory' },
+      credential: { layer: 'official' },
     },
   ],
   fallback: false,
@@ -500,25 +500,20 @@ function modelRecords(custody: { open: boolean; view?: Context }) {
     sending: {
       maxRetainedAttempts: 8,
       credentials: {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind: 'value', scope: 'factory', value: 'synthetic-credential' }),
-        resolveFor: input =>
+        layerOf: () => ({ failure: { kind: 'unavailable' } }),
+        resolve: input =>
           input.purpose === MODEL_SEND
-            ? { kind: 'value', scope: 'factory', value: 'synthetic-credential' }
-            : { kind: 'unavailable' },
+            ? { ok: new Map([['apiKey', 'synthetic-credential']]) }
+            : { failure: { kind: 'unavailable' } },
       },
       sources: [
         {
           profile: ADOPTION,
           supplier: ADOPTION,
-          recipient: 'test.invalid',
+          provider: must(decodeProviderName('test.invalid')),
           model: 'test',
-          credential: {
-            kind: 'factory',
-            official: true,
-            queryId: must(decodeCredentialId('custody-test-query')),
-          },
-          current: () => ({ ok: { authorized: true, noTenantBinding: true } }),
+          official: true,
+          current: () => ({ ok: { authorized: true } }),
         },
       ],
     },

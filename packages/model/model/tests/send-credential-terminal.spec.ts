@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
+import { fail } from '@omne-harness/operation-result'
 import { encodeModelInvocationRef } from '@omne-harness/model-contract'
 import {
   configuration,
@@ -10,7 +11,7 @@ import {
 // A missing or unreadable tenant credential does not come back by itself. The real driver must
 // end the call as a failure with cause `credential`; a caller that waits on `unavailable` hangs.
 for (const [kind, diagnostic] of [
-  ['absent', 'credential-missing'],
+  ['missing', 'credential-missing'],
   ['unreadable', 'credential-unreadable'],
 ] as const)
   it(`settles the call as failed when the tenant credential is ${kind}`, async () => {
@@ -19,9 +20,8 @@ for (const [kind, diagnostic] of [
       termination: { kind: 'completed', reason: 'stop' },
       tenantCredential: true,
       credentials: {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind }),
-        resolveFor: () => ({ kind }),
+        layerOf: () => fail({ kind: 'unavailable' }),
+        resolve: () => fail({ kind }),
       },
     })
     const provider = createModelRuntime(f.dependencies, configuration)
@@ -72,9 +72,8 @@ for (const read of ['answers unavailable', 'throws'] as const)
       termination: { kind: 'completed', reason: 'stop' },
       tenantCredential: true,
       credentials: {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind: 'absent' }),
-        resolveFor: () => ({ kind: 'absent' }),
+        layerOf: () => fail({ kind: 'unavailable' }),
+        resolve: () => fail({ kind: 'missing' }),
       },
     })
     let failures = 1

@@ -1,11 +1,10 @@
 // Runs inside an install-closure consumer directory, so it sees only the installed packages: a
-// caller outside the repository delivers a call through injected credential ports and judges a
-// custodian snapshot. Any failed assertion exits non-zero and fails the closure report.
+// caller outside the repository sends a call through an injected credential port. Any failed
+// assertion exits non-zero and fails the closure report.
 import assert from 'node:assert/strict'
-import { deliver, executeModel, judgePresence, judgeResolution } from '@omne-harness/model'
+import { executeModel } from '@omne-harness/model'
 import {
-  MODEL_SEND,
-  decodeCredentialId,
+  decodeProviderName,
   encodeModelInvocationRef,
   decodeModelCallId,
   decodeModelOperationId,
@@ -22,52 +21,15 @@ function identity(account, organization) {
   return tenant(o.value, a.value)
 }
 
-function credentialId(text) {
-  const decoded = decodeCredentialId(text)
-  assert.ok('ok' in decoded, 'fixture credential id')
+function providerName(text) {
+  const decoded = decodeProviderName(text)
+  assert.ok('ok' in decoded, 'fixture provider name')
   return decoded.ok
 }
 
 const owner = identity('acc_abcdefghjkmnpqrstvwxyz2345', 'org_abcdefghjkmnpqrstvwxyz2345')
 const stranger = identity('acc_abcdefghjkmnpqrstvwxyz2346', 'org_abcdefghjkmnpqrstvwxyz2346')
-const held = credentialId('cred-held')
-const reference = { id: held, tenant: owner, purpose: MODEL_SEND }
-const face = { authorized: true, official: false }
-
-const state = {
-  closed: false,
-  factorySecret: 'synthetic-factory',
-  bindings: [
-    { id: held, tenant: owner, purpose: MODEL_SEND, secret: 'synthetic-tenant', life: 'active' },
-  ],
-}
-
-// A port that only judges: it stands in for any custodian that hands over a snapshot.
-const port = { resolve: (ref, sendFace) => judgeResolution(state, ref, sendFace) }
-
-const sent = deliver({ reference }, port, face)
-assert.deepEqual(sent.send, { sent: true, value: 'synthetic-tenant' })
-assert.deepEqual(sent.record, { reference })
-
-const denied = deliver({ reference: { ...reference, tenant: stranger } }, port, face)
-assert.deepEqual(denied.send, { sent: false })
-
-const absent = deliver({ reference: { ...reference, id: credentialId('cred-none') } }, port, face)
-assert.deepEqual(absent.send, { sent: false })
-
-assert.deepEqual(judgeResolution(state, reference, face), {
-  kind: 'value',
-  scope: 'tenant',
-  value: 'synthetic-tenant',
-})
-assert.deepEqual(judgeResolution(state, { ...reference, tenant: stranger }, face), {
-  kind: 'denied',
-})
-assert.deepEqual(judgeResolution(state, { ...reference, id: credentialId('cred-none') }, face), {
-  kind: 'absent',
-})
-assert.equal(judgePresence(state, reference).present, true)
-console.log('scenario ok: value, denied, absent and a minted-tenant judgment')
+const secrets = new Map([['apiKey', 'synthetic-send']])
 
 const testing = await import('@omne-harness/model/testing')
 const { createModelRuntime, createModelSendBoundary } = await import('@omne-harness/model')
@@ -140,9 +102,9 @@ const request = {
   suppliers: [
     {
       adoption: adoption('supplier'),
-      recipient: 'fixture',
+      provider: providerName('fixture'),
       model: 'fixture',
-      credential: { kind: 'factory' },
+      credential: { layer: 'official' },
     },
   ],
   fallback: false,
@@ -155,6 +117,9 @@ const request = {
   representation: adoption('representation'),
   parameterAdoptions: [],
   source: adoption('source'),
+  declarations: [
+    { produces: 'fixture/fixture', accepts: ['fixture/fixture'], foreignThinking: 'omit' },
+  ],
 }
 const ending = { kind: 'completed', reason: 'stop' }
 const scripted = createScriptedTransport({
@@ -235,28 +200,23 @@ const runtimeDependencies = testing.createTestModelDependencies({
   sending: {
     maxRetainedAttempts: 4,
     credentials: {
-      present: () => ({ kind: 'unavailable' }),
-      resolve: () => ({ kind: 'unavailable' }),
-      resolveFor: ref => {
-        assert.equal(ref.id, 'official-installed-query')
+      layerOf: () => ({ failure: { kind: 'unavailable' } }),
+      resolve: ref => {
+        assert.equal(ref.provider, 'fixture')
+        assert.deepEqual(ref.layer, { layer: 'official' })
         assert.equal(ref.access.tenant, owner)
         assert.equal(ref.access.principal, principal)
-        assert.equal(ref.official, true)
-        return { kind: 'value', scope: 'factory', value: 'synthetic-send' }
+        return { ok: secrets }
       },
     },
     sources: [
       {
         profile: request.profile,
         supplier: request.suppliers[0].adoption,
-        recipient: request.suppliers[0].recipient,
+        provider: request.suppliers[0].provider,
         model: request.suppliers[0].model,
-        credential: {
-          kind: 'factory',
-          official: true,
-          queryId: credentialId('official-installed-query'),
-        },
-        current: () => ({ ok: { authorized: true, noTenantBinding: true } }),
+        official: true,
+        current: () => ({ ok: { authorized: true } }),
       },
     ],
   },
@@ -389,14 +349,13 @@ const sender = createModelSendBoundary({
   commands: runtimeDependencies.dependencies.commands,
   coordinator: runtimeDependencies.controls.send.coordinator,
   credentials: {
-    present: () => ({ kind: 'unavailable' }),
-    resolve: () => ({ kind: 'unavailable' }),
-    resolveFor: ref => {
-      assert.equal(ref.id, 'official-installed-query')
+    layerOf: () => ({ failure: { kind: 'unavailable' } }),
+    resolve: ref => {
+      assert.equal(ref.provider, 'fixture')
+      assert.deepEqual(ref.layer, { layer: 'official' })
       assert.equal(ref.access.tenant, owner)
       assert.equal(ref.access.principal, principal)
-      assert.equal(ref.official, true)
-      return { kind: 'value', scope: 'factory', value: 'synthetic-send' }
+      return { ok: secrets }
     },
   },
   maxRetainedAttempts: 4,
@@ -405,8 +364,8 @@ const sender = createModelSendBoundary({
       return {
         ok: {
           transport: managedTransport.transport,
-          startWithCredential(materialized, secret, signal) {
-            assert.equal(secret, 'synthetic-send')
+          startWithCredential(materialized, received, signal) {
+            assert.equal(received.get('apiKey'), 'synthetic-send')
             return materialized.start(signal)
           },
           async release() {},

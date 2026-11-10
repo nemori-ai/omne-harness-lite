@@ -2,7 +2,7 @@
 // file, and holds streamed responses open until the client stops them.
 //
 // `calls.cancel` on a call whose supplier stream is running. The send path is the assembled local
-// one: the local custodian, the Model send boundary and the pi transport with the OpenAI family.
+// one: the credential port over a secret vault, the Model send boundary and the pi transport with the OpenAI family.
 // The commands are the in-memory ModelCommands of model (a store without durability); the gateway
 // is a local HTTPS server that streams an answer and then holds the response open. The physical
 // stop of an exchange is read from the transport's own `exchange-stopped` diagnostic, which the
@@ -26,10 +26,11 @@ import {
   type ModelInvocationRef,
   type ResultPart,
 } from '@omne-harness/model-contract'
-import { decodeCredentialId, type ModelCommands } from '@omne-harness/model-contract/provider'
+import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
-import { assembleLocalModel, createLocalCustodian } from '@omne-harness/model-host-local'
+import { assembleLocalModel } from '@omne-harness/model-host-local'
+import { createTestCredentials } from './support/credentials.ts'
 import { createCertificate, startHttpsServer, type HttpsFixture } from './support/https-server.ts'
 import { FAMILIES, PLACEHOLDER, ROUTE_PATH, TRANSPORT_LIMITS } from './support/local-host.ts'
 import { factorySupplier } from './support/profiles.ts'
@@ -212,22 +213,16 @@ function assembleHost(label: string) {
     sending: {
       maxRetainedAttempts: 4,
       credentials: {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind: 'unavailable' }),
-        presentFor: () => ({ kind: 'unavailable' }),
-        resolveFor: () => ({ kind: 'unavailable' }),
+        layerOf: () => ({ failure: { kind: 'unavailable' } }),
+        resolve: () => ({ failure: { kind: 'unavailable' } }),
       },
       sources: request.suppliers.map(supplier => ({
         profile: request.profile,
         supplier: supplier.adoption,
-        recipient: supplier.recipient,
+        provider: supplier.provider,
         model: supplier.model,
-        credential: {
-          kind: 'factory',
-          official: true,
-          queryId: decoded(decodeCredentialId('runtime-cancel-query')),
-        },
-        current: () => ({ ok: { authorized: true, noTenantBinding: true } }),
+        official: true,
+        current: () => ({ ok: { authorized: true } }),
       })),
     },
   })
@@ -239,12 +234,13 @@ function assembleHost(label: string) {
       return inner.settle(input)
     },
   }
-  const custodian = createLocalCustodian({
+  const credentials = createTestCredentials<typeof principal>({
     path: join(directory, `${label}.vault.json`),
-    factorySecret: PLACEHOLDER,
+    secret: PLACEHOLDER,
+    providers: ['openrouter'],
   })
   const host = assembleLocalModel({
-    credentials: custodian,
+    credentials: credentials.port,
     materialization: {
       maxRecords: 4,
       execution: reference =>
@@ -271,6 +267,7 @@ function assembleHost(label: string) {
         url: new URL(ROUTE_PATH, server.url).href,
         endMarker: GATEWAY_END_MARKER,
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        auth: { kind: 'bearer', item: 'apiKey' },
       },
     },
     transportLimits: TRANSPORT_LIMITS,
@@ -361,7 +358,7 @@ function assembleHost(label: string) {
       try {
         await host.close()
       } finally {
-        custodian.close()
+        credentials.close()
       }
     },
   }

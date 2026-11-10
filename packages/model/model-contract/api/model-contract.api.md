@@ -23,7 +23,7 @@
 - `ControlState` · `result.d.ts`
 - `ConversionResult` · `conversion.d.ts`
 - `ConvertedContent` · `conversion.d.ts`
-- `CredentialId` · `credential.d.ts`
+- `CredentialLayer` · `root.d.ts`
 - `CustodyState` · `result.d.ts`
 - `DispatchId` · `root.d.ts`
 - `DispatchRecord` · `call-surface.d.ts`
@@ -146,6 +146,7 @@
 - `decodeModelOperationId` · `identity-values.d.ts`
 - `decodeModelOutputV1` · `model-output-v1.d.ts`
 - `decodeOutputCursor` · `identity-values.d.ts`
+- `decodeProviderName` · `provider-name.d.ts`
 - `decodeResultVersion` · `identity-values.d.ts`
 - `decodeRevision` · `identity-values.d.ts`
 - `deriveGuardControlOperation` · `guard-control.d.ts`
@@ -173,6 +174,7 @@
 - `CredentialConformanceReport` · `conformance/credential-types.d.ts`
 - `CredentialConformanceResult` · `conformance/credential-types.d.ts`
 - `CredentialConformanceSubject` · `conformance/credential-types.d.ts`
+- `CredentialTarget` · `conformance/credential-types.d.ts`
 - `ModelStreamConformanceControls` · `conformance/conformance-stream-types.d.ts`
 - `ModelStreamConformanceInput` · `conformance/conformance-stream-types.d.ts`
 - `ModelStreamConformanceReport` · `conformance/conformance-stream-types.d.ts`
@@ -193,10 +195,12 @@
 - `ConversionReply` · `conversion.d.ts`
 - `ConverterKey` · `conversion.d.ts`
 - `ConverterLookup` · `conversion.d.ts`
+- `CredentialFailure` · `credential.d.ts`
+- `CredentialItemState` · `credential.d.ts`
+- `CredentialLayerQuery` · `credential.d.ts`
+- `CredentialLayerReading` · `credential-values.d.ts`
 - `CredentialPort` · `credential.d.ts`
-- `CredentialPresence` · `credential.d.ts`
 - `CredentialPurpose` · `credential.d.ts`
-- `CredentialQuery` · `credential.d.ts`
 - `CredentialReference` · `credential.d.ts`
 - `CredentialResolution` · `credential.d.ts`
 - `DispatchPlan` · `provider-protocol.d.ts`
@@ -245,14 +249,12 @@
 - `ProfileChange` · `profile.d.ts`
 - `ProviderDiagnostic` · `provider-protocol.d.ts`
 - `Publication` · `provider-protocol.d.ts`
-- `QualifiedCredentialQuery` · `credential.d.ts`
 - `RecoveryRecord` · `provider-protocol.d.ts`
 - `ReplayDiagnostic` · `profile.d.ts`
 - `ReplayProjection` · `profile.d.ts`
 - `ReplayProjectionInput` · `profile.d.ts`
 - `ReplayTreatment` · `profile.d.ts`
 - `SendDemand` · `provider-protocol.d.ts`
-- `SendFace` · `credential.d.ts`
 - `SendResult` · `provider-protocol.d.ts`
 - `TokenizationFailure` · `tokenizer.d.ts`
 - `TokenizationSegment` · `tokenizer.d.ts`
@@ -262,7 +264,6 @@
 - `WriteContext` · `provider-protocol.d.ts`
 - `compareRevisions` · `identity-values.d.ts`
 - `continuedMessages` · `replay-values.d.ts`
-- `decodeCredentialId` · `credential-values.d.ts`
 - `decodeModelOperationRef` · `reference.d.ts`
 - `decodeReadId` · `identity-values.d.ts`
 - `encodeModelOperationRef` · `reference.d.ts`
@@ -270,8 +271,9 @@
 - `judgeFixedModelRequest` · `judge-request.d.ts`
 - `judgeReplayDeclaration` · `replay-values.d.ts`
 - `projectReplay` · `replay-values.d.ts`
+- `readCredentialLayer` · `credential-values.d.ts`
 - `resolveModelOperationRef` · `reference.d.ts`
-- `sameCredentialHolder` · `credential-values.d.ts`
+- `selectCredentialLayer` · `credential-values.d.ts`
 
 ## 入口 `./provider-asset` · `provider-asset.d.ts`
 
@@ -279,7 +281,6 @@
 - `MODEL_PROVIDER_CATEGORY` · `provider-asset.d.ts`
 - `ModelProviderBody` · `provider-asset.d.ts`
 - `ModelProviderBodyRejection` · `provider-asset.d.ts`
-- `decodeProviderName` · `provider-asset.d.ts`
 - `modelProviderBodyContract` · `provider-asset.d.ts`
 - `parseModelProviderBody` · `provider-asset.d.ts`
 - `readModelProviderBody` · `provider-asset.d.ts`
@@ -295,6 +296,7 @@
 - `ScriptedCall` · `testing/controller.d.ts`
 - `ScriptedCredentialPort` · `testing/credential.d.ts`
 - `ScriptedCredentialPortOptions` · `testing/credential.d.ts`
+- `ScriptedCredentialProvider` · `testing/credential.d.ts`
 - `ScriptedEvent` · `testing/stream-references.d.ts`
 - `ScriptedModelError` · `testing/error.d.ts`
 - `ScriptedModelErrorReason` · `testing/error.d.ts`
@@ -873,13 +875,25 @@ export declare function checkModelProviderConformance<P>(options: ConformanceOpt
 ## 声明文件 `conformance/credential-types.d.ts`
 
 ```ts
-import type { Access } from '@omne-harness/legal-identity';
-import type { CredentialId, CredentialPort, CredentialReference } from '../credential.ts';
+import type { Access, TenantId } from '@omne-harness/legal-identity';
+import type { CredentialPort } from '../credential.ts';
+import type { ProviderName } from '../root.ts';
+export type CredentialTarget = Readonly<{
+    provider: ProviderName;
+    item: string;
+    scope: Readonly<{
+        layer: 'tenant';
+        tenant: TenantId;
+    }> | Readonly<{
+        layer: 'official';
+    }>;
+}>;
 export type CredentialConformanceControls = Readonly<{
-    bind(reference: CredentialReference, secret: string): void | Promise<void>;
-    rotate(reference: CredentialReference, secret: string): void | Promise<void>;
-    revoke(reference: CredentialReference): void | Promise<void>;
-    markUnreadable(reference: CredentialReference): void | Promise<void>;
+    bind(target: CredentialTarget, secret: string): void | Promise<void>;
+    unbind(target: CredentialTarget): void | Promise<void>;
+    rotate(target: CredentialTarget, secret: string): void | Promise<void>;
+    revoke(target: CredentialTarget): void | Promise<void>;
+    markUnreadable(target: CredentialTarget): void | Promise<void>;
     setUnavailable(unavailable: boolean): void | Promise<void>;
     close(): void | Promise<void>;
 }>;
@@ -887,30 +901,32 @@ export type CredentialConformanceSubject<P> = Readonly<{
     port: CredentialPort<P>;
     access: Access<P>;
     otherAccess: Access<P>;
-    id: CredentialId;
-    otherId: CredentialId;
-    factorySecret: string;
-    secret: string;
+    provider: ProviderName;
+    bareProvider: ProviderName;
+    items: readonly [
+        string,
+        string
+    ];
+    secrets: readonly [
+        string,
+        string
+    ];
     rotatedSecret: string;
     controls: CredentialConformanceControls;
     dispose?(): void | Promise<void>;
 }>;
 export declare const CREDENTIAL_CONFORMANCE_OBLIGATIONS: readonly [
-    'qualified-methods-required',
-    'legacy-presence-and-resolution',
-    'legacy-unauthorized-denied',
-    'legacy-purpose-denied',
-    'legacy-factory-rules',
-    'qualified-presence-and-resolution',
-    'qualified-independent-of-legacy',
-    'qualified-foreign-holder-denied',
-    'qualified-factory-official-only',
-    'qualified-other-binding-blocks-factory',
-    'qualified-purpose-denied',
+    'no-items-no-layer',
+    'tenant-layer-whole',
+    'official-layer-official-profile-only',
+    'layers-never-mixed',
+    'fixed-layer-no-fallback',
+    'foreign-tenant-isolated',
     'rotation-visible',
-    'revoked-binding-denied',
-    'unreadable-binding-preserved',
+    'revoked-item-fails',
+    'unreadable-item-fails',
     'unavailable-source-preserved',
+    'purpose-denied',
     'closed-port-denied'
 ];
 export type CredentialConformanceObligation = (typeof CREDENTIAL_CONFORMANCE_OBLIGATIONS)[number];
@@ -944,7 +960,7 @@ export { CONFORMANCE_OBLIGATIONS } from './conformance-types.ts';
 export type { ConformanceAction, ConformanceCall, ConformanceHooks, ConformanceObligation, ConformanceOptions, ConformanceReport, ConformanceSubject, ConformanceTransport, ObligationResult, } from './conformance-types.ts';
 export { checkCredentialPortConformance } from './credential.ts';
 export { CREDENTIAL_CONFORMANCE_OBLIGATIONS } from './credential-types.ts';
-export type { CredentialConformanceControls, CredentialConformanceSubject, CredentialConformanceObligation, CredentialConformanceResult, CredentialConformanceReport, CredentialConformanceOptions, } from './credential-types.ts';
+export type { CredentialConformanceControls, CredentialConformanceSubject, CredentialConformanceObligation, CredentialConformanceResult, CredentialConformanceReport, CredentialConformanceOptions, CredentialTarget, } from './credential-types.ts';
 export { checkModelStreamConformance } from './conformance-stream.ts';
 export type { ModelStreamConformanceInput, ModelStreamConformanceSubject, ModelStreamConformanceControls, ModelStreamConformanceResult, ModelStreamConformanceReport, } from './conformance-stream-types.ts';
 ```
@@ -1041,57 +1057,34 @@ export interface ModelMessageConversion<P> {
 
 ```ts
 import { type Outcome } from '@omne-harness/operation-result';
-import type { CredentialId, CredentialReference } from './credential.ts';
-import type { ModelIdentityRejection } from './root.ts';
-export declare function decodeCredentialId(value: unknown): Outcome<CredentialId, ModelIdentityRejection<'ModelCredentialId'>>;
-export declare function sameCredentialHolder(left: Pick<CredentialReference, 'id' | 'tenant'>, right: Pick<CredentialReference, 'id' | 'tenant'>): boolean;
+import type { CredentialFailure, CredentialItemState } from './credential.ts';
+import type { CredentialLayer } from './root.ts';
+export type CredentialLayerReading = ReadonlyMap<string, CredentialItemState>;
+export declare function readCredentialLayer(items: readonly string[], reading: CredentialLayerReading): Outcome<undefined, CredentialFailure>;
+export declare function selectCredentialLayer(input: Readonly<{
+    items: readonly string[];
+    tenant: CredentialLayerReading;
+    official: CredentialLayerReading | null;
+    profileOfficial: boolean;
+}>): Outcome<CredentialLayer, CredentialFailure>;
 ```
 
 ## 声明文件 `credential.d.ts`
 
 ```ts
-import type { Access, TenantId } from '@omne-harness/legal-identity';
-import type { Identity } from './root.ts';
+import type { Access } from '@omne-harness/legal-identity';
+import type { Outcome } from '@omne-harness/operation-result';
+import type { CredentialLayer, ProviderName } from './root.ts';
 export declare const MODEL_SEND = "model-send";
-export type CredentialId = Identity<'ModelCredentialId'>;
 export type CredentialPurpose = typeof MODEL_SEND;
-export type CredentialReference = Readonly<{
-    id: CredentialId;
-    tenant: TenantId;
-    purpose: CredentialPurpose;
-}>;
-export type CredentialQuery = Readonly<{
-    id: CredentialId;
-    tenant: TenantId;
-    purpose: string;
-}>;
-export type QualifiedCredentialQuery<P> = Readonly<{
-    id: CredentialId;
-    purpose: CredentialPurpose;
-    official: boolean;
-    access: Access<P>;
-}>;
-export type SendFace = Readonly<{
-    authorized: boolean;
-    official: boolean;
-}>;
-export type CredentialPresence = Readonly<{
-    kind: 'known';
-    present: boolean;
-    id: CredentialId;
-    tenant: TenantId;
-    purpose: CredentialPurpose;
+export type CredentialItemState = 'unbound' | 'active' | 'revoked' | 'unreadable';
+export type CredentialFailure = Readonly<{
+    kind: 'missing';
 }> | Readonly<{
-    kind: 'denied';
+    kind: 'incomplete';
+    missing: readonly string[];
 }> | Readonly<{
-    kind: 'unavailable';
-}>;
-export type CredentialResolution = Readonly<{
-    kind: 'value';
-    scope: 'tenant' | 'factory';
-    value: string;
-}> | Readonly<{
-    kind: 'absent';
+    kind: 'revoked';
 }> | Readonly<{
     kind: 'unreadable';
 }> | Readonly<{
@@ -1099,11 +1092,21 @@ export type CredentialResolution = Readonly<{
 }> | Readonly<{
     kind: 'unavailable';
 }>;
+export type CredentialLayerQuery<P> = Readonly<{
+    provider: ProviderName;
+    official: boolean;
+    access: Access<P>;
+}>;
+export type CredentialReference<P> = Readonly<{
+    provider: ProviderName;
+    layer: CredentialLayer;
+    purpose: CredentialPurpose;
+    access: Access<P>;
+}>;
+export type CredentialResolution = Outcome<ReadonlyMap<string, string>, CredentialFailure>;
 export type CredentialPort<P = unknown> = {
-    present(reference: CredentialQuery): CredentialPresence;
-    resolve(reference: CredentialQuery, face: SendFace): CredentialResolution;
-    presentFor?(input: Omit<QualifiedCredentialQuery<P>, 'official'>): CredentialPresence;
-    resolveFor?(input: QualifiedCredentialQuery<P>): CredentialResolution;
+    layerOf(input: CredentialLayerQuery<P>): Outcome<CredentialLayer, CredentialFailure>;
+    resolve(reference: CredentialReference<P>): CredentialResolution;
 };
 ```
 
@@ -1237,7 +1240,7 @@ export declare function compareOutputCursors(left: OutputCursor, right: OutputCu
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { Access, Admit, Adoption, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, ProviderName, ReadId, ResultCapacity, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
+export type { Access, Admit, Adoption, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, CredentialLayer, ProviderName, ReadId, ResultCapacity, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
 export type * from './result.ts';
 export type * from './result-delivery-values.ts';
 export type * from './result-delivery.ts';
@@ -1255,7 +1258,7 @@ export type { ConversionResult, ConvertedContent } from './conversion.ts';
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts';
 export type { ModelPreparationLease, ModelPreparationResources, ModelRequestRules, PreparationLineage, } from './profile-source.ts';
 export type * from './diagnostics.ts';
-export type { CredentialId } from './credential.ts';
+export { decodeProviderName } from './provider-name.ts';
 export { MODEL_IDENTITY_MAX_LENGTH, MODEL_IDENTITY_PREFIXES, compareOutputCursors, decodeDispatchId, decodeModelCallId, decodeModelDiagnosticCursor, decodeModelDiagnosticId, decodeModelInstanceId, decodeModelOperationId, decodeOutputCursor, decodeResultVersion, decodeRevision, } from './identity-values.ts';
 export { deriveGuardControlOperation } from './guard-control.ts';
 export type { ModelInvocationParts, ModelInvocationRef, ModelReferenceFailure, ModelReferenceRejection, } from './reference.ts';
@@ -1912,10 +1915,17 @@ export type ModelProviderBody = Readonly<{
     credentials: readonly CredentialItemDeclaration[];
 }>;
 export type ModelProviderBodyRejection = 'not-an-object' | 'invalid-name' | 'name-mismatch' | 'invalid-protocol' | 'invalid-endpoint' | 'invalid-accounting' | 'invalid-credentials' | 'duplicate-credential';
-export declare function decodeProviderName(value: unknown): Outcome<ProviderName, 'invalid-name'>;
 export declare function parseModelProviderBody(body: unknown, capabilityName?: string): Outcome<ModelProviderBody, ModelProviderBodyRejection>;
 export declare function readModelProviderBody(body: unknown): ModelProviderBody | undefined;
 export declare function modelProviderBodyContract(): BodyContract;
+```
+
+## 声明文件 `provider-name.d.ts`
+
+```ts
+import { type Outcome } from '@omne-harness/operation-result';
+import type { ProviderName } from './root.ts';
+export declare function decodeProviderName(value: unknown): Outcome<ProviderName, 'invalid-name'>;
 ```
 
 ## 声明文件 `provider-protocol.d.ts`
@@ -1925,7 +1935,7 @@ import type { Outcome } from '@omne-harness/operation-result';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { ContentReference } from '@omne-harness/content-block';
 import type { MessageId } from '@omne-harness/message';
-import type { Access, Adoption, ActorRef, Admit, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, ModelCallId, ModelInstanceId, ModelOperationId, Mutation, ReadId, ResultCapacity, ResultVersion, Revision, Supplier, ToolDeclaration } from './root.ts';
+import type { Access, Adoption, ActorRef, Admit, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, ModelCallId, ModelInstanceId, ModelOperationId, ProviderName, Mutation, ReadId, ResultCapacity, ResultVersion, Revision, Supplier, ToolDeclaration } from './root.ts';
 import type { AckInput, AckReceipt, Admission, CallState, ControlState, CustodyState, DurableEvidence, ModelFailure, ModelBlock, ModelFault, Lookup, Reply, Settlement, Termination } from './result.ts';
 import type { DispatchRecord, GrowingContentKind, LiveRoute, ModelHandle, ModelRuntime, ReadState, ReadStart, Snapshot } from './call-surface.ts';
 import type { CallAccount } from '@omne-harness/call-account';
@@ -1951,7 +1961,7 @@ export interface ModelMediaReader<P> {
         request: FixedModelRequest;
         source: DurableEvidence;
         reference: ContentReference;
-        recipient: string;
+        provider: ProviderName;
     }>, signal: AbortSignal): Promise<Outcome<ModelMediaLease, TransportFailure>>;
 }
 export type CallAccountReport = Omit<CallAccount, 'subject' | 'receipt'>;
@@ -2274,9 +2284,9 @@ export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } fro
 export type { ModelBindingFailure, ModelDriveInput, ModelDriver, ModelDriverBinding, ModelDriverHost, ModelHostAuthority, } from '../driver.ts';
 export type { ModelContentAuthority, ModelProfileSnapshot, ModelProfileSource, } from '../profile-source.ts';
 export type { ModelConsumerOwnerDeclaration } from '../consumer-owner.ts';
-export type { CredentialPort, CredentialPresence, CredentialPurpose, CredentialQuery, CredentialReference, CredentialResolution, QualifiedCredentialQuery, SendFace, } from '../credential.ts';
+export type { CredentialFailure, CredentialItemState, CredentialLayerQuery, CredentialPort, CredentialPurpose, CredentialReference, CredentialResolution, } from '../credential.ts';
 export { MODEL_SEND } from '../credential.ts';
-export { decodeCredentialId, sameCredentialHolder } from '../credential-values.ts';
+export { readCredentialLayer, selectCredentialLayer, type CredentialLayerReading, } from '../credential-values.ts';
 export { compareRevisions, decodeReadId } from '../identity-values.ts';
 export type { ModelOperationParts, ModelOperationRef } from '../reference.ts';
 export { decodeModelOperationRef, encodeModelOperationRef, resolveModelOperationRef, } from '../reference.ts';
@@ -2335,7 +2345,7 @@ import { type MessageId } from '@omne-harness/message';
 import type { ReplayDeclaration, ReplayProjection, ReplayProjectionInput } from './profile.ts';
 import type { ModelFailure } from './result.ts';
 export declare function judgeReplayDeclaration(supplier: Readonly<{
-    recipient: string;
+    provider: string;
     model: string;
     replay?: unknown;
 }>, index: number): Outcome<ReplayDeclaration, Extract<ModelFailure, {
@@ -2631,7 +2641,6 @@ import type { Adoption, ConsumerRef } from '@omne-harness/exchange-refs';
 import type { ContentBlock } from '@omne-harness/content-block';
 import type { Message } from '@omne-harness/message';
 import type { JsonValue } from '@omne-harness/json-text';
-import type { CredentialId } from './credential.ts';
 import type { ModelInvocationRef } from './reference.ts';
 import type { ParameterAdoption, ReplayDeclaration } from './profile.ts';
 declare const identity: unique symbol;
@@ -2647,7 +2656,7 @@ export type OutputCursor = Identity<'ModelOutputCursor'>;
 export type ReadId = Identity<'ModelReadId'>;
 export type Revision = Identity<'ModelRevision'>;
 export type ProviderName = Identity<'ModelProviderName'>;
-export type ModelIdentityKey = 'ModelCallId' | 'ModelDispatchId' | 'ModelInstanceId' | 'ModelOperationId' | 'ModelReadId' | 'ModelDiagnosticId' | 'ModelDiagnosticCursor' | 'ModelRevision' | 'ModelResultVersion' | 'ModelOutputCursor' | 'ModelCredentialId' | 'ModelProviderName';
+export type ModelIdentityKey = 'ModelCallId' | 'ModelDispatchId' | 'ModelInstanceId' | 'ModelOperationId' | 'ModelReadId' | 'ModelDiagnosticId' | 'ModelDiagnosticCursor' | 'ModelRevision' | 'ModelResultVersion' | 'ModelOutputCursor' | 'ModelProviderName';
 export type ModelIdentityRejection<K extends ModelIdentityKey> = Readonly<{
     field: K;
     reason: 'type' | 'empty' | 'length' | 'prefix' | 'character' | 'leading-zero';
@@ -2702,16 +2711,18 @@ export type ToolDeclaration = Readonly<{
     description: string;
     argumentsSchema: JsonValue;
 }>;
+export type CredentialLayer = Readonly<{
+    layer: 'tenant';
+}> | Readonly<{
+    layer: 'official';
+}> | Readonly<{
+    layer: 'none';
+}>;
 export type Supplier = Readonly<{
     adoption: Adoption;
-    recipient: string;
+    provider: ProviderName;
     model: string;
-    credential: Readonly<{
-        kind: 'tenant';
-        id: CredentialId;
-    }> | Readonly<{
-        kind: 'factory';
-    }>;
+    credential: CredentialLayer;
 }>;
 export type FixedModelRequest = Readonly<{
     profile: Adoption;
@@ -2998,8 +3009,13 @@ export {};
 ```ts
 import { type CredentialPort } from '../credential.ts';
 import type { CredentialConformanceControls } from '../conformance/credential-types.ts';
+import type { ProviderName } from '../root.ts';
+export type ScriptedCredentialProvider = Readonly<{
+    items: readonly string[];
+    official: boolean;
+}>;
 export type ScriptedCredentialPortOptions = Readonly<{
-    factorySecret: string;
+    providers: ReadonlyMap<ProviderName, ScriptedCredentialProvider>;
 }>;
 export type ScriptedCredentialPort<P = unknown> = Readonly<{
     port: CredentialPort<P>;
@@ -3053,7 +3069,7 @@ export { createScriptedModelRequestPreparation } from './preparation.ts';
 export type { ScriptedModelPreparationCall, ScriptedModelPreparationMatch, ScriptedModelPreparationPlan, ScriptedModelRequestPreparation, ScriptedModelRequestPreparationOptions, } from './preparation.ts';
 export type { ScriptedAccessDecision } from './access.ts';
 export { createScriptedCredentialPort } from './credential.ts';
-export type { ScriptedCredentialPort, ScriptedCredentialPortOptions } from './credential.ts';
+export type { ScriptedCredentialPort, ScriptedCredentialPortOptions, ScriptedCredentialProvider, } from './credential.ts';
 ```
 
 ## 声明文件 `testing/mint.d.ts`

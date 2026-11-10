@@ -46,9 +46,9 @@ export function factorySupplier<P>(): SupplierPort<P> {
   return ({ supplier }) => ({
     ok: {
       adoption: supplier.adoption,
-      recipient: supplier.recipient,
+      provider: supplier.provider,
       model: supplier.model,
-      credential: { kind: 'factory' },
+      credential: { layer: 'official' },
     },
   })
 }

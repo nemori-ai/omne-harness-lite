@@ -62,7 +62,7 @@ function checkInput(input: ChatCompletionsBindingInput, adoption: Adoption): voi
   const { record, supplier, meter } = input
   if (!sameAdoption(adoption, supplier.adoption))
     throw new RangeError(`record ${record.name} does not have the adoption of the supplier`)
-  if (record.route.recipient !== supplier.recipient || record.route.model !== supplier.model)
+  if (record.route.provider !== supplier.provider || record.route.model !== supplier.model)
     throw new RangeError(`record ${record.name} does not have the route of the supplier`)
   if (!sameAdoption(meter.instance.basis.supplier.adoption, adoption))
     throw new RangeError(`the meter of record ${record.name} counts for another supplier`)

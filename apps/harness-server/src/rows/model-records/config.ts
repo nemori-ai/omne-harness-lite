@@ -3,9 +3,10 @@
 // `observation`) is validated by the member's schema; the application's part is validated here:
 // - `initial`: the bounds of the first-execution run of this process.
 // - `sendStage`: what the send child needs beside its one member bound `maxRetainedAttempts`:
-//   the materialization record bound, the factory credential query id, the official profiles input
-//   (equal to the `model-profiles` row), the preparation and OpenAI family configuration (equal to
-//   the `model-request-preparation` row), the network, the routes and the transport limits.
+//   the materialization record bound, the official profiles input (equal to the `model-profiles`
+//   row), the preparation and OpenAI family configuration (equal to the `model-request-preparation`
+//   row), the network, the operator's provider endpoints and the transport limits. The routes
+//   themselves come from the release provider bodies (`src/assets/model-providers.ts`).
 // - `diagnostics`: the read face `modelDiagnostics` the row provides beside the commands (#1140 A5):
 //   the eligibility mapping `diagnosticsRead` (only `tenant-self`) and the retention adoption. The
 //   member's schema validates it; without `retention` every `list` answers `unavailable`.
@@ -22,14 +23,6 @@ import { modelRequestPreparationConfig } from '../model-request-preparation/conf
 const text = z.string().min(1)
 const count = z.number().int().positive().safe()
 const adoption = z.strictObject({ owner: text, name: text, revision: text, digest: text })
-
-const route = z.strictObject({
-  /** The complete `https:` endpoint; the member holds no URL. */
-  url: z.string().url(),
-  endMarker: z.string().nullable(),
-  /** Where the provider serves a response and the unit of its cost, from the provider body. */
-  accounting: z.strictObject({ place: text, costUnit: text }),
-})
 
 const jsonLimits = z.strictObject({
   maxBytes: count,
@@ -50,8 +43,6 @@ export const modelRecordsAppConfig = z
     sendStage: z.strictObject({
       maxRetainedAttempts: count,
       materialization: z.strictObject({ maxRecords: count }),
-      /** The credential query id of the factory source (`{kind:'factory', official:true, queryId}`). */
-      factoryQueryId: text,
       profiles: z.strictObject({
         retryPolicy: adoption,
         compactionTriggerPercent: z.string().regex(/^(100|[1-9][0-9]?)$/),
@@ -61,7 +52,8 @@ export const modelRecordsAppConfig = z
         maxConnections: count,
         idleConnectionTimeoutMs: count,
       }),
-      routes: z.record(z.string().min(1), route),
+      /** A complete `https:` endpoint that replaces a provider body's own, by provider name. */
+      endpoints: z.record(text, z.string().url()),
       transportLimits: z.strictObject({
         connectTimeoutMs: count.nullable(),
         streamStallTimeoutMs: count.optional(),

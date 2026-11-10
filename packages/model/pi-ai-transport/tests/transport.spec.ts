@@ -2,7 +2,14 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { PiFamilyContributions, PiTransportConfig } from '../src/index.ts'
 import { openNetwork, type NetworkInternals } from '../src/network.ts'
 import { createPiTransport, type PiTransport } from '../src/transport.ts'
-import { createTestFamily, END_MARKER, LIMITS, REQUEST, SUPPLIER } from './support/test-family.ts'
+import {
+  createTestFamily,
+  END_MARKER,
+  LIMITS,
+  providerName,
+  REQUEST,
+  SUPPLIER,
+} from './support/test-family.ts'
 import { collect, countSends, slotFree } from './support/transport.ts'
 
 const PREPARED_CLOSED_FAILURE = {
@@ -33,13 +40,14 @@ function configWith(overrides: Partial<PiTransportConfig> = {}): PiTransportConf
     network: freshNetwork().handle,
     families: createTestFamily().families,
     routes: {
-      [SUPPLIER.recipient]: {
+      [SUPPLIER.provider]: {
         url: ROUTE_URL,
         endMarker: END_MARKER,
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        auth: { kind: 'bearer', item: 'apiKey' },
       },
     },
-    credential: { read: () => 'test-secret' },
+    credential: { read: () => new Map([['apiKey', 'test-secret']]) },
     limits: LIMITS,
     ...overrides,
   }
@@ -62,6 +70,7 @@ describe('constructing the transport', () => {
             url: 'not a url',
             endMarker: null,
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            auth: { kind: 'bearer', item: 'apiKey' },
           },
         },
       },
@@ -74,6 +83,7 @@ describe('constructing the transport', () => {
             url: 'http://127.0.0.1/',
             endMarker: null,
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            auth: { kind: 'bearer', item: 'apiKey' },
           },
         },
       },
@@ -86,6 +96,7 @@ describe('constructing the transport', () => {
             url: 'https://user:pass@127.0.0.1/',
             endMarker: null,
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            auth: { kind: 'bearer', item: 'apiKey' },
           },
         },
       },
@@ -98,6 +109,7 @@ describe('constructing the transport', () => {
             url: 'https://127.0.0.1/?a=1',
             endMarker: null,
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            auth: { kind: 'bearer', item: 'apiKey' },
           },
         },
       },
@@ -116,6 +128,7 @@ describe('constructing the transport', () => {
             url: 'https://127.0.0.1/',
             endMarker: null,
             accounting: { place: 'p', costUnit: '' },
+            auth: { kind: 'bearer', item: 'apiKey' },
           },
         },
       },
@@ -128,6 +141,33 @@ describe('constructing the transport', () => {
             url: 'https://127.0.0.1/',
             endMarker: null,
             accounting: { place: '', costUnit: 'c' },
+            auth: { kind: 'bearer', item: 'apiKey' },
+          },
+        },
+      },
+    ],
+    [
+      'a route auth of another kind',
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/',
+            endMarker: null,
+            accounting: { place: 'p', costUnit: 'c' },
+            auth: { kind: 'basic', item: 'apiKey' },
+          },
+        },
+      } as unknown as Partial<PiTransportConfig>,
+    ],
+    [
+      'a route auth with an empty item',
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/',
+            endMarker: null,
+            accounting: { place: 'p', costUnit: 'c' },
+            auth: { kind: 'bearer', item: '' },
           },
         },
       },
@@ -175,6 +215,7 @@ describe('constructing the transport', () => {
               url: secretUrl,
               endMarker: null,
               accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+              auth: { kind: 'bearer', item: 'apiKey' },
             },
           },
         }),
@@ -188,6 +229,7 @@ describe('constructing the transport', () => {
               url: secretUrl,
               endMarker: null,
               accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+              auth: { kind: 'bearer', item: 'apiKey' },
             },
           },
         }),
@@ -236,15 +278,15 @@ describe('constructing the transport', () => {
 })
 
 describe('prepare', () => {
-  it('answers unsupported for a recipient without a route, without acquiring a binding', async () => {
+  it('answers unsupported for a provider without a route, without acquiring a binding', async () => {
     const { transport, probe } = build()
     const outcome = await transport.prepare(
       REQUEST,
-      { ...SUPPLIER, recipient: 'elsewhere' },
+      { ...SUPPLIER, provider: providerName('elsewhere') },
       { resent: [] },
     )
     expect(outcome).toEqual({
-      failure: { kind: 'unsupported', field: 'supplier.recipient', adapter: SUPPLIER.adoption },
+      failure: { kind: 'unsupported', field: 'supplier.provider', adapter: SUPPLIER.adoption },
     })
     expect(probe.acquired).toBe(0)
   })
@@ -267,7 +309,7 @@ describe('prepare', () => {
     const { transport } = build()
     const outcome = await transport.prepare(
       REQUEST,
-      { ...SUPPLIER, recipient: 'toString' },
+      { ...SUPPLIER, provider: providerName('constructor') },
       { resent: [] },
     )
     expect(outcome).toMatchObject({ failure: { kind: 'unsupported' } })

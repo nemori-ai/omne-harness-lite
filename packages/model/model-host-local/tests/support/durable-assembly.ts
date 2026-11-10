@@ -62,7 +62,6 @@ import {
   type ResultPart,
 } from '@omne-harness/model-contract'
 import {
-  decodeCredentialId,
   type CredentialPort,
   type ModelCommands,
   type ModelConsumerOwnerDeclaration,
@@ -105,6 +104,7 @@ import { sendStagePluginOver } from '../../src/plugins/send-stage.ts'
 import type { PiSendResources } from '../../src/send-resources.ts'
 import { FAMILIES, TRANSPORT_LIMITS } from './local-host.ts'
 import { factorySupplier } from './profiles.ts'
+import { providerName } from './credentials.ts'
 
 type RuntimeFactory = typeof createModelRuntime<unknown>
 type RuntimeArguments = Parameters<RuntimeFactory>
@@ -177,9 +177,9 @@ const REQUEST: FixedModelRequest = {
   suppliers: [
     {
       adoption: ADOPTION,
-      recipient: 'test.invalid',
+      provider: providerName('test.invalid'),
       model: 'test',
-      credential: { kind: 'factory' },
+      credential: { layer: 'official' },
     },
   ],
   fallback: false,
@@ -568,14 +568,10 @@ function coreOptions(
   const source: ModelSendSource<unknown> = {
     profile: REQUEST.profile,
     supplier: SUPPLIER.adoption,
-    recipient: SUPPLIER.recipient,
+    provider: SUPPLIER.provider,
     model: SUPPLIER.model,
-    credential: {
-      kind: 'factory',
-      official: true,
-      queryId: unbox(decodeCredentialId('durable-assembly-query')),
-    },
-    current: () => ({ ok: { authorized: true, noTenantBinding: true } }),
+    official: true,
+    current: () => ({ ok: { authorized: true } }),
   }
   return {
     core: {
@@ -663,10 +659,8 @@ function memoryBackend(
     sending: {
       maxRetainedAttempts: STAGE_SETTINGS.maxRetainedAttempts,
       credentials: {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind: 'unavailable' }),
-        presentFor: () => ({ kind: 'unavailable' }),
-        resolveFor: () => ({ kind: 'unavailable' }),
+        layerOf: () => ({ failure: { kind: 'unavailable' } }),
+        resolve: () => ({ failure: { kind: 'unavailable' } }),
       },
       sources: [source],
     },
@@ -725,21 +719,11 @@ class Clock extends ModelClockService {
     })
 }
 
-/** The factory credential: a synthetic value, never a real key. */
+/** The official credential layer: a synthetic value, never a real key. */
 class Credential extends ModelCredentialService {
-  readonly present: CredentialPort['present'] = () => ({ kind: 'unavailable' })
-  override readonly presentFor: NonNullable<CredentialPort['presentFor']> = () => ({
-    kind: 'unavailable',
-  })
-  override readonly resolveFor: NonNullable<CredentialPort['resolveFor']> = () => ({
-    kind: 'value',
-    scope: 'factory',
-    value: 'synthetic-credential',
-  })
+  readonly layerOf: CredentialPort['layerOf'] = () => ({ ok: { layer: 'official' } })
   readonly resolve: CredentialPort['resolve'] = () => ({
-    kind: 'value',
-    scope: 'factory',
-    value: 'synthetic-credential',
+    ok: new Map([['apiKey', 'synthetic-credential']]),
   })
 }
 
@@ -1143,6 +1127,7 @@ export async function durableSubject(
             url: 'https://test.invalid/v1/chat/completions',
             endMarker: '[DONE]',
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            auth: { kind: 'bearer', item: 'apiKey' },
           },
         },
         transportLimits: TRANSPORT_LIMITS,

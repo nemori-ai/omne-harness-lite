@@ -1,3 +1,4 @@
+import { fail, succeed } from '@omne-harness/operation-result'
 import {
   createModelRuntime,
   type ModelConfiguration,
@@ -7,12 +8,11 @@ import { createTestModelDependencies, type MemoryModelEvidence } from '@omne-har
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 import { type ModelCallId, type ModelInstanceId } from '@omne-harness/model-contract'
 import {
-  decodeCredentialId,
   type ModelCommands,
   type Publication,
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
-import { fixture, instance, op, proof, unbox } from './memory-fixture.ts'
+import { fixture, instance, op, proof } from './memory-fixture.ts'
 
 export const configuration: ModelConfiguration = {
   outputBatchBytes: 1024,
@@ -56,22 +56,17 @@ export function runtimeFixture(
     sending: {
       maxRetainedAttempts: 100,
       credentials: {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind: 'unavailable' }),
-        resolveFor: () => ({ kind: 'value', scope: 'factory', value: 'synthetic' }),
+        layerOf: () => fail({ kind: 'unavailable' }),
+        resolve: () => succeed(new Map([['apiKey', 'synthetic']])),
       },
       sources: [
         {
           profile: f.admit.request.profile,
           supplier: f.admit.request.suppliers[0].adoption,
-          recipient: f.admit.request.suppliers[0].recipient,
+          provider: f.admit.request.suppliers[0].provider,
           model: f.admit.request.suppliers[0].model,
-          credential: {
-            kind: 'factory',
-            official: true,
-            queryId: unbox(decodeCredentialId('runtime-query')),
-          },
-          current: () => ({ ok: { authorized: true, noTenantBinding: true } }),
+          official: true,
+          current: () => ({ ok: { authorized: true } }),
         },
       ],
     },

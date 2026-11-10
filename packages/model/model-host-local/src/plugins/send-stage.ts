@@ -16,6 +16,7 @@
 // successor plugin has no attempt for it and reads `unknown` from the dispatch record. The unload
 // does not take back a request that is on the wire.
 import type { Context } from '@deepseek-ai/cordis'
+import { fail } from '@omne-harness/operation-result'
 import type { ModelInitialExecution } from '@omne-harness/model/commands'
 import type { CredentialPort, ModelSendBoundary } from '@omne-harness/model-contract/provider'
 import {
@@ -77,14 +78,8 @@ function withdrawablePort<P>(service: ModelCredentialService<P>): {
   let held: ModelCredentialService<P> | undefined = service
   return {
     port: {
-      present: reference => held?.present(reference) ?? { kind: 'unavailable' },
-      resolve: (reference, face) => held?.resolve(reference, face) ?? { kind: 'unavailable' },
-      ...(service.presentFor === undefined
-        ? {}
-        : { presentFor: input => held?.presentFor?.(input) ?? { kind: 'unavailable' } }),
-      ...(service.resolveFor === undefined
-        ? {}
-        : { resolveFor: input => held?.resolveFor?.(input) ?? { kind: 'unavailable' } }),
+      layerOf: query => held?.layerOf(query) ?? fail({ kind: 'unavailable' }),
+      resolve: reference => held?.resolve(reference) ?? fail({ kind: 'unavailable' }),
     },
     withdraw() {
       held = undefined

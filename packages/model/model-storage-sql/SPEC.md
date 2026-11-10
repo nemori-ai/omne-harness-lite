@@ -63,7 +63,7 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 | `outcome`                                               | `logical_terminal`，缺席时 `record.terminal`，都缺席时 `pending`。`failed` 只带 `fault.cause` 与 `fault.upstreamStatus`  |
 | `timing.materialize`、`sendToFirstContent`、`execution` | 存储没有阶段时间，三项都是 `unknown`（DA6 未采用）                                                                       |
 
-`fault.diagnostic`、`fault.reported`、`record.supplier.recipient`、`record.supplier.model`、`record.messages`、`account`、`materialization`、`windows`、`events`、`md_dispatch.diagnostics` 与分片都不进页。
+`fault.diagnostic`、`fault.reported`、`record.supplier.provider`、`record.supplier.model`、`record.messages`、`account`、`materialization`、`windows`、`events`、`md_dispatch.diagnostics` 与分片都不进页。
 
 **页。**`snapshot` 是本成员签发的 `DurableEvidence`：`owner` 为 `model-records`，`record` 为调用，`revision` 为 `row_version`，`digest` 为 SHA-256(租户文本、调用、`row_version`)。`retention` 是部署配置的保留采用。`coverage` 恒为 `complete-through-snapshot`，因为本成员还没有清理。清理实现后改为按实际前缀。
 

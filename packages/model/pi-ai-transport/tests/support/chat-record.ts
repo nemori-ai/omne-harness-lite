@@ -29,10 +29,10 @@ import type {
   ReplaySource,
   VendorHooks,
 } from '../../src/chat-completions/index.ts'
-import { recordAdoption } from '../../src/index.ts'
+import { recordAdoption, recordProvider } from '../../src/index.ts'
 
 export const OWNER = '@omne-harness/pi-ai-engine-test'
-export const ROUTE: ChatCompletionsRecord['route'] = { recipient: 'gateway', model: 'lab/model-a' }
+export const ROUTE: ChatCompletionsRecord['route'] = { provider: 'gateway', model: 'lab/model-a' }
 export const SCOPE = 'gateway/lab/model-a'
 export const FORMAT = 'lab-v1'
 
@@ -122,9 +122,9 @@ export function testRecord(overrides: Partial<ChatCompletionsRecord> = {}): Chat
 export function supplierOf(record: ChatCompletionsRecord): Supplier {
   return {
     adoption: recordAdoption(OWNER, record),
-    recipient: record.route.recipient,
+    provider: recordProvider(record),
     model: record.route.model,
-    credential: { kind: 'factory' },
+    credential: { layer: 'official' },
   }
 }
 
@@ -200,7 +200,7 @@ export function testHooks(probe: EngineProbe, reasoning = true): VendorHooks {
 export function testMeter(record: ChatCompletionsRecord, probe: EngineProbe): FamilyMeter {
   const supplier = supplierOf(record)
   const basis: ModelCountingBasis = {
-    supplier: { adoption: supplier.adoption, recipient: supplier.recipient, model: supplier.model },
+    supplier: { adoption: supplier.adoption, provider: supplier.provider, model: supplier.model },
     meter: adoption('meter'),
     tokenization: { kind: 'not-used', method: adoption('method') },
     prompt: { kind: 'provider-private', estimation: adoption('estimation') },
@@ -300,7 +300,7 @@ export type RequestParts = Readonly<{
 export function declarationOf(record: ChatCompletionsRecord): ReplayDeclaration {
   const judged = judgeReplayDeclaration(
     {
-      recipient: record.route.recipient,
+      provider: record.route.provider,
       model: record.route.model,
       replay: record.replay.declaration,
     },
@@ -367,7 +367,7 @@ export function profileOf(
       suppliers: [
         {
           adoption: supplier.adoption,
-          recipient: supplier.recipient,
+          provider: supplier.provider,
           model: supplier.model,
           ...(options.replay === undefined ? {} : { replay: options.replay }),
         },

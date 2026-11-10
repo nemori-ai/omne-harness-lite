@@ -25,6 +25,7 @@ import {
   type ModelMeasurementEvent,
   type MonotonicReading,
 } from './support/model-measurement.ts'
+import { providerName } from './support/credentials.ts'
 
 const ADOPTION: Adoption = {
   owner: 'measurement-test',
@@ -35,9 +36,9 @@ const ADOPTION: Adoption = {
 const SECRET = 'measurement-secret-body-sentinel'
 const supplier = {
   adoption: ADOPTION,
-  recipient: 'test.invalid',
+  provider: providerName('test.invalid'),
   model: 'test',
-  credential: { kind: 'factory' as const },
+  credential: { layer: 'official' as const },
 }
 const identity = () => {
   const account = accountCodec.parse('acc_abcdefghjkmnpqrstvwxyz2345')
@@ -55,7 +56,7 @@ const PROFILE: ModelProfile = {
   updatedAt: '2026-11-02T00:00:00Z',
   availability: 'active',
   definition: {
-    suppliers: [{ adoption: ADOPTION, recipient: 'test.invalid', model: 'test' }],
+    suppliers: [{ adoption: ADOPTION, provider: providerName('test.invalid'), model: 'test' }],
     fallback: false,
     input: ['text'],
     output: ['text'],

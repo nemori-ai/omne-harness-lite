@@ -45,13 +45,14 @@ function setup(maxConnections = 1): {
     network: network.handle,
     families: family.families,
     routes: {
-      [SUPPLIER.recipient]: {
+      [SUPPLIER.provider]: {
         url: ROUTE_URL,
         endMarker: END_MARKER,
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        auth: { kind: 'bearer', item: 'apiKey' },
       },
     },
-    credential: { read: () => 'test-secret' },
+    credential: { read: () => new Map([['apiKey', 'test-secret']]) },
     limits: LIMITS,
   })
   transports.push(built)
@@ -139,8 +140,8 @@ describe('materialize', () => {
     const { prepare, probe } = setup()
     const other: Supplier = { ...SUPPLIER, model: 'other-model' }
     const otherDeclaration: ReplayDeclaration = {
-      produces: 'test-recipient/other-model',
-      accepts: ['test-recipient/other-model'],
+      produces: 'test-provider/other-model',
+      accepts: ['test-provider/other-model'],
       foreignThinking: 'text',
     }
     const [own] = REQUEST.declarations

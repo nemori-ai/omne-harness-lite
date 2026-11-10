@@ -14,7 +14,7 @@ import {
   type Judgment,
 } from '@omne-harness/assets'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { mintIdentity } from './mint.ts'
+import { decodeProviderName } from './provider-name.ts'
 import type { ProviderName } from './root.ts'
 
 /** The asset category of a model provider. */
@@ -49,8 +49,6 @@ export type ModelProviderBodyRejection =
   | 'invalid-credentials'
   | 'duplicate-credential'
 
-/** A provider name: lowercase letters, digits, `.` and `-`, starting with a letter or a digit. */
-const PROVIDER_NAME = /^[a-z0-9][a-z0-9.-]{0,63}$/u
 /** A credential item name: a letter, then letters and digits. */
 const CREDENTIAL_ITEM = /^[a-zA-Z][a-zA-Z0-9]{0,63}$/u
 /** The one group every derived credential setting sits in. */
@@ -73,13 +71,6 @@ const schemaRead = readBodyText(
 )
 if (schemaRead.kind !== 'ok') throw new TypeError('model provider schema text is not a document')
 const schema: JsonValue = schemaRead.value
-
-/** The text of a provider name, or a rejection. The one boundary that mints a `ProviderName`. */
-export function decodeProviderName(value: unknown): Outcome<ProviderName, 'invalid-name'> {
-  return typeof value === 'string' && PROVIDER_NAME.test(value)
-    ? succeed(mintIdentity<'ModelProviderName'>(value))
-    : fail('invalid-name')
-}
 
 /** Judges a body against the provider rules and returns it in its typed form. */
 export function parseModelProviderBody(

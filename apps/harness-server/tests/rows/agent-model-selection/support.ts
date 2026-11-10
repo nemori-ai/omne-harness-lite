@@ -6,6 +6,7 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { Failure, ModelSelection } from '@omne-harness/agent-contract'
 import {
+  decodeProviderName,
   decodeRevision,
   type Adoption,
   type DurableEvidence,
@@ -228,7 +229,13 @@ export function profileOf(route: string): ModelProfile {
     updatedAt: '2026-11-01T00:00:00Z',
     availability: 'active',
     definition: {
-      suppliers: [{ adoption: adoption('supplier'), recipient: 'recipient', model: 'model' }],
+      suppliers: [
+        {
+          adoption: adoption('supplier'),
+          provider: must(decodeProviderName('recipient')),
+          model: 'model',
+        },
+      ],
       fallback: false,
       input: ['text', 'image'],
       output: ['text'],

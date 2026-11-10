@@ -166,6 +166,12 @@
       ]
     },
     {
+      "row": "model-credential",
+      "names": [
+        "settingsSecretCustody"
+      ]
+    },
+    {
       "row": "secret-custody",
       "names": [
         "settingsSecretCustody"

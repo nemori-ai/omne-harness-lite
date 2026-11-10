@@ -87,13 +87,14 @@ describe('the configuration of the stall timeout', () => {
       network: resources.handle,
       families: createTestFamily().families,
       routes: {
-        [SUPPLIER.recipient]: {
+        [SUPPLIER.provider]: {
           url: 'https://127.0.0.1:9/',
           endMarker: END_MARKER,
           accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+          auth: { kind: 'bearer' as const, item: 'apiKey' },
         },
       },
-      credential: { read: () => 'test-secret' },
+      credential: { read: () => new Map([['apiKey', 'test-secret']]) },
       limits: { ...LIMITS, ...limits },
     }
     createPiTransport(config)

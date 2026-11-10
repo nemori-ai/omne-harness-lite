@@ -48,6 +48,7 @@ import {
   type SqlModelStorageOptions,
 } from '@omne-harness/model-storage-sql'
 import participant from '../src/commit.ts'
+import { providerName } from './provider-name.ts'
 
 // --- Test provider -------------------------------------------------------------------------
 
@@ -244,9 +245,9 @@ const opId = (name: string): ModelOperationId => decoded(decodeModelOperationId(
 const ADOPTION = { owner: 'test', name: 'a', revision: '1', digest: '0'.repeat(64) }
 const SUPPLIER = {
   adoption: ADOPTION,
-  recipient: 'recipient',
+  provider: providerName('provider'),
   model: 'model',
-  credential: { kind: 'factory' as const },
+  credential: { layer: 'official' as const },
 }
 const REQUEST: FixedModelRequest = {
   profile: ADOPTION,
@@ -259,7 +260,7 @@ const REQUEST: FixedModelRequest = {
   tools: [],
   toolChoice: 'none',
   declarations: [
-    { produces: 'recipient/model', accepts: ['recipient/model'], foreignThinking: 'omit' },
+    { produces: 'provider/model', accepts: ['provider/model'], foreignThinking: 'omit' },
   ],
   representation: ADOPTION,
   parameterAdoptions: [],

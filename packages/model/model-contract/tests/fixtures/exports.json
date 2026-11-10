@@ -220,6 +220,11 @@
               "name": "ProviderName",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "decodeProviderName",
+              "kind": "value",
+              "pending": false
             }
           ]
         },
@@ -763,7 +768,7 @@
           "title": "凭据引用与解析端口",
           "names": [
             {
-              "name": "CredentialId",
+              "name": "CredentialLayer",
               "kind": "type",
               "pending": false
             }
@@ -1257,22 +1262,22 @@
               "pending": false
             },
             {
+              "name": "CredentialItemState",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CredentialFailure",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CredentialLayerQuery",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "CredentialReference",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "CredentialQuery",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "SendFace",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "CredentialPresence",
               "kind": "type",
               "pending": false
             },
@@ -1282,22 +1287,22 @@
               "pending": false
             },
             {
-              "name": "QualifiedCredentialQuery",
-              "kind": "type",
-              "pending": false
-            },
-            {
               "name": "CredentialPort",
               "kind": "type",
               "pending": false
             },
             {
-              "name": "decodeCredentialId",
+              "name": "CredentialLayerReading",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "readCredentialLayer",
               "kind": "value",
               "pending": false
             },
             {
-              "name": "sameCredentialHolder",
+              "name": "selectCredentialLayer",
               "kind": "value",
               "pending": false
             }
@@ -1407,6 +1412,11 @@
             },
             {
               "name": "CredentialConformanceOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CredentialTarget",
               "kind": "type",
               "pending": false
             }
@@ -1668,6 +1678,11 @@
               "name": "ScriptedCredentialPortOptions",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "ScriptedCredentialProvider",
+              "kind": "type",
+              "pending": false
             }
           ]
         }
@@ -1696,11 +1711,6 @@
             {
               "name": "ModelProviderBodyRejection",
               "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "decodeProviderName",
-              "kind": "value",
               "pending": false
             },
             {

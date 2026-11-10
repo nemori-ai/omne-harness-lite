@@ -366,7 +366,7 @@ prepared 的 close 在 `materializing` 相位开始时，materialize 得到的 m
 
 ### start 的同步围栏
 
-start 是同步函数。凭据槽在 start 的同步调用中读取一次：Model 的发送资源只在同步调用 start 期间把秘密放进私有槽，返回前清空。秘密只写入交给 `startExchange` 的请求头对象，不保存在传输的任何字段中。
+start 是同步函数。凭据槽在 start 的同步调用中读取一次：Model 的发送资源只在同步调用 start 期间把选定层的秘密按凭据项放进私有槽，返回前清空。本包只取路由 `auth` 指名的那一项。秘密只写入交给 `startExchange` 的请求头对象，不保存在传输的任何字段中。
 
 没有凭据时，start 不发送，返回一个以 `credential` 失败结束的流，不抛出。Model 的发送方把 start 抛出记为发送不确定，而这时没有请求发出。返回失败的流让这种情况与其他失败走同一路径。
 

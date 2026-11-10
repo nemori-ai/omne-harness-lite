@@ -697,30 +697,30 @@ sequenceDiagram
 <a id="credential-resolve"></a>
 ## 凭据解析
 
-承接已接受的[凭据对象](object-model.md#已实现的凭据对象)。每次获准的真实发出都重新解析。同一次发送的后续输出不再解析。存在性查询是另一次操作。发送本身只调用 `resolve`。
+承接[凭据对象](object-model.md#已实现的凭据对象)。准备请求时选定层；每次获准的真实发出都重新读取这一层。同一次发送的后续输出不再读取。
 
 ```mermaid
 sequenceDiagram
-  participant Call as 调用记录
-  participant Keep as 本地保管库（model-host-local）
+  participant Prep as 请求准备
+  participant Port as 凭据端口
   participant Send as 发送端
-  Note over Call,Keep: 存在性查询单独发生
-  Call->>Keep: present
-  Keep-->>Call: 是否存在，无秘密
-  Note over Call,Send: 获准的真实发出
-  Call->>Keep: resolve
-  alt value
-    Keep-->>Send: 仅本次的值
-    Send->>Send: 发出并记下该值
-  else absent unreadable
-    Keep-->>Call: 该种类
+  participant Call as 调用记录
+  Prep->>Port: layerOf(供应商, 档案是否官方, access)
+  Port-->>Prep: 选定的层，或失败
+  Note over Prep,Call: 层写进请求的供应商条目
+  Send->>Port: resolve(供应商, 层, model-send, access)
+  alt 成功
+    Port-->>Send: 项到秘密的映射，仅本次
+    Send->>Send: 发出
+  else missing incomplete revoked unreadable
+    Port-->>Send: 该失败
     Note over Send: 不发送
     Send->>Call: 写失败终止，cause 为 credential
     Note over Call: driver 以该失败结算调用
   else denied unavailable
-    Keep-->>Call: 该种类
+    Port-->>Send: 该失败
     Note over Send: 不发送，不写终止
   end
 ```
 
-轮换后的下一次解析看到新值。撤销后的新解析是 `denied`。已经记入发送端的那一次保持已发送。进程重新打开同一保管库后，按打开时的绑定读取。关闭后的新解析停止，不改写已经发出的记录。
+轮换后的下一次读取看到新值。撤销后的新读取是 `revoked`。读取不回退另一层：租户层在准备后被清空，发送读到 `missing`，不改用官方层。已经记入发送端的那一次保持已发送。

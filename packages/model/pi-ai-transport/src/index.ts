@@ -14,6 +14,7 @@ export {
   composeFamilies,
   defineFamily,
   recordAdoption,
+  recordProvider,
   replayFormatsOf,
   type PiFamily,
   type PiFamilySpec,
@@ -23,6 +24,7 @@ export {
 export type {
   PiCredentialSlot,
   PiRoute,
+  PiRouteAuth,
   PiTransportConfig,
   PiTransportLimits,
   RouteAccounting,

@@ -11,7 +11,7 @@ import { type Adoption, type FixedModelRequest, type Supplier } from '@omne-harn
 import { judgeFixedModelRequest, type TransportFact } from '@omne-harness/model-contract/provider'
 import { sorted } from '../chat-completions/json.ts'
 import { decodeBody, type Progress } from '../fact-stream.ts'
-import { composeFamilies, familyRecords, type PiFamily } from '../family-table.ts'
+import { composeFamilies, familyRecords, recordProvider, type PiFamily } from '../family-table.ts'
 import type { PiFamilyBinding } from '../family.ts'
 import { terminationOf } from '../termination.ts'
 
@@ -66,9 +66,9 @@ export async function checkChatCompletionsFixtures(
     }
     const supplier: Supplier = {
       adoption,
-      recipient: record.route.recipient,
+      provider: recordProvider(record),
       model: record.route.model,
-      credential: { kind: 'factory' },
+      credential: { layer: 'official' },
     }
     const acquired = await contributions.acquire(supplier, new AbortController().signal)
     if (!('ok' in acquired)) {

@@ -12,12 +12,12 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-5.6-luna-pro",
           "revision": "1",
-          "digest": "a300e5f331e07ef4fbd801e5af3c80b86cb6b37e83811fd7890a9e0074ef364b"
+          "digest": "a0a2bc891f92a701c53119db08692308a979dd503fecc1822b4eab75b6c06b7b"
         },
-        "recipient": "openrouter",
+        "provider": "openrouter",
         "model": "openai/gpt-5.6-luna-pro",
         "credential": {
-          "kind": "factory"
+          "layer": "official"
         }
       }
     ],
@@ -92,7 +92,7 @@
       "owner": "@omne-harness/pi-ai-openai",
       "name": "openai/gpt-5.6-luna-pro#representation",
       "revision": "1",
-      "digest": "a300e5f331e07ef4fbd801e5af3c80b86cb6b37e83811fd7890a9e0074ef364b"
+      "digest": "a0a2bc891f92a701c53119db08692308a979dd503fecc1822b4eab75b6c06b7b"
     },
     "parameterAdoptions": [
       {
@@ -100,7 +100,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-5.6-luna-pro",
           "revision": "1",
-          "digest": "a300e5f331e07ef4fbd801e5af3c80b86cb6b37e83811fd7890a9e0074ef364b"
+          "digest": "a0a2bc891f92a701c53119db08692308a979dd503fecc1822b4eab75b6c06b7b"
         },
         "applied": {
           "kind": "max-output-tokens",

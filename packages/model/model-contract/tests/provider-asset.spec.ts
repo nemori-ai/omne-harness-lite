@@ -10,11 +10,11 @@ import {
 } from '@omne-harness/assets'
 import {
   MODEL_PROVIDER_CATEGORY,
-  decodeProviderName,
   modelProviderBodyContract,
   parseModelProviderBody,
   readModelProviderBody,
 } from '@omne-harness/model-contract/provider-asset'
+import { decodeProviderName } from '@omne-harness/model-contract'
 import { describe, expect, it } from 'vitest'
 
 const LIMITS = {

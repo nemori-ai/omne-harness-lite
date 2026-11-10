@@ -85,8 +85,8 @@ function config(overrides: Partial<LocalModelConfig<Principal>> = {}): LocalMode
   })
   return {
     credentials: {
-      present: () => ({ kind: 'unavailable' }),
-      resolve: () => ({ kind: 'unavailable' }),
+      layerOf: () => ({ failure: { kind: 'unavailable' } }),
+      resolve: () => ({ failure: { kind: 'unavailable' } }),
     },
     commands: memory.dependencies.commands,
     coordinator: memory.controls.send.coordinator,
@@ -97,6 +97,7 @@ function config(overrides: Partial<LocalModelConfig<Principal>> = {}): LocalMode
         url: 'https://gateway.invalid/api/v1/chat/completions',
         endMarker: '[DONE]',
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        auth: { kind: 'bearer', item: 'apiKey' },
       },
     },
     transportLimits: {
@@ -132,6 +133,7 @@ describe('assembleLocalModel', () => {
               url: 'http://gateway.invalid/',
               endMarker: null,
               accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+              auth: { kind: 'bearer', item: 'apiKey' },
             },
           },
         }),

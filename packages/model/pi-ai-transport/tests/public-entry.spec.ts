@@ -44,6 +44,7 @@ it('the root entry exports the family table, the network resources factory and t
     'createPiTransport',
     'defineFamily',
     'recordAdoption',
+    'recordProvider',
     'replayFormatsOf',
   ])
 })
