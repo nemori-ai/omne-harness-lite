@@ -512,12 +512,13 @@ it(
         { need: sessionInquiryBinding.need.name, key: sessionInquiryBinding.key },
       ])
     }
+    // The coding entry of the release adopts `bypass-permissions`, which publishes `skip-ask`.
     const published = {
       kind: 'success',
       value: [
         {
           value: {
-            inquiry: { policy: { onAsk: 'deny' } },
+            inquiry: { policy: { onAsk: 'skip-ask' } },
             basis: { session: input.session, permissionRevision: '0' },
           },
         },
@@ -538,7 +539,7 @@ it(
       )
     }
     const expectedInquiry = {
-      inquiry: { policy: { onAsk: 'deny' } },
+      inquiry: { policy: { onAsk: 'skip-ask' } },
       basis: { session: input.session, permissionRevision: '0' },
     }
     expect(await readForPermission(first)).toMatchObject(expectedInquiry)
