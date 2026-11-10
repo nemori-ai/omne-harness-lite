@@ -191,7 +191,7 @@ W3 的返回声明、有限期正文保管、作者 writer 和语义读回增量
 
 当前生产根入口导出资产正文端口、全部公开类型、品牌身份解码函数、默认结果政策和契约函数。契约函数只做同步的判定、构造与投影。下述独立执行函数与 runtime 在 `@omne-harness/tool`：独立执行已实现，runtime 只实现了一部分路径，托管结果处理的其余部分尚未实现，范围见[组的支持范围](../README.md#支持范围)。Tool 运行时的系统架构见[工具运行时](../../../docs/architecture/runtime/tool-runtime.md)。
 
-Tool 拥有一次原调用、真实执行、等待、控制、原结果、效果与交付关系。它不替被调用领域写私有状态，不拥有消费方的工作终态。前台转后台改变等待关系，仍是同一执行。正文保留与待交付关系分开。下面的业务解除操作不直接删除正文；材料维护分面沿本页的期限与用途处理。
+Tool 拥有一次原调用、真实执行、等待、控制、原结果、效果与交付关系。它不替被调用领域写私有状态，不拥有消费方的工作终态。前台转后台改变等待关系，仍是同一执行。正文保留与待交付关系分开。下面的业务解除操作不直接删除正文。正文到期后由清扫回收，见[清扫与回收](#清扫与回收)。
 
 <a id="342-值定义和固定请求"></a>
 
@@ -245,9 +245,9 @@ prepare、inspectPreparation、release 与 inspectRelease 均沿原记录的采�
 
 调用准入失败属于 ToolFailure；已经形成原逻辑结果的参数失败、dummy 不可用、执行失败、中断或等不到资源应答属于 ToolTerminal，供消费者正常处理。失败不推导效果未发生。后台占位不属于 ToolTerminal，已开始的后台执行最终不能是 unavailable，也不能再次返回后台占位。Ask 没有 deadline，不使用 no-response 表示决策方没有回答。
 
-工具作者通过显式普通返回或结构化返回入口选择语义。普通返回整个值先经固定 OutputCodec 与 ToolOutputCustody 保管，再经 TextRenderer 转文本，生成一个人和消费方均可见的 text 块。转换失败形成 result 失败，原返回事实仍由提供者以可保管表示保存，不能隐式吞掉它；作者须提供能够完整表示其返回类型的 renderer/codec。只有结构化入口允许 original 与 attachments，不能靠探测某对象是否有 content 字段推定它是 ToolResult。
+工具作者通过显式普通返回或结构化返回入口选择语义。普通返回整个值先经固定 OutputCodec 编码，再从编码字节解码，然后经 TextRenderer 转文本，生成一个人和消费方均可见的 text 块。转换失败形成 result 失败，不能隐式吞掉它。作者须提供能够完整表示其返回类型的 renderer/codec。只有结构化入口允许 original 与 attachments，不能靠探测某对象是否有 content 字段推定它是 ToolResult。
 
-卸载正文引用包含原大小、预览、具名来源、表示格式及固定期限。正文材料先耐久准备，最终结果提交激活期限后，才对外报告 offloaded。分页的 next 绑定原租户、调用、结果版本、正文和读取范围，不得换版或静默扩大字段。释放 delivery 不提前终止正文期限，也不延长它。完整规则见[有限期正文保管](#正文存储端口与到期索引)。
+卸载正文引用包含原大小、预览、具名来源、表示格式及固定期限。正文先由存储封存，最终结果提交固定期限后，才对外报告 offloaded。分页的 next 绑定原租户、调用、结果版本、正文和读取范围，不得换版或静默扩大字段。释放 delivery 不提前终止正文期限，也不延长它。完整规则见[有限期正文保管](#正文存储端口与到期索引)。
 
 ResultPage.source 由 Tool 原结果保存操作产生，定位租户、call、精确结果版本、delivery 及实际来源。相同版本各页使用同一来源。消费方将其交给原消费者的受信参加者验证，不自填摘要证明结果真实。读取此证据不自动授予解除 delivery 或读取其他版本的资格。
 
@@ -448,7 +448,7 @@ recover 使用 scanPending/loadRecovery 从原事实找待办，再分别接续�
 
 | 编号 | 决定 | 归属包 |
 | --- | --- | --- |
-| G1 | 账本工厂 `createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts, rawCustody, finalCustody, delivery, controls }`。第五参数 `ToolLedgerPorts` 显式提供材料端口 `materials`、原环境释放核验 `releaseInspection.inspectRelease` 与显式字节读口 `content` 或 `null`；`facts` 供恢复消费者按精确 evidence 读取本域已存原事实。构造类型与使用范围由 `tool` 拥有。`queues` 只承载队列域的对账（`reconcile`，回复与读法见 tool 包第 22 条（`tool/SPEC.md#22-跨域提交与修复`）），由同一个账本实现提供，不经 `ToolCommands`。记录仓端口 `ToolLedgerStore` 按事务域读取一组记录或一条记录，再按修订号原子提交一组写入，提交可断言同租户其他域的修订号 | `tool` 根入口 |
+| G1 | 账本工厂 `createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, rejections, facts, bodyWrites, finalPlanner, sweep, delivery, controls }`。第五参数 `ToolLedgerPorts` 显式提供正文端口 `bodies`（正文存储、许可密钥与参与者时钟）、原环境释放核验 `releaseInspection.inspectRelease` 与显式字节读口 `content` 或 `null`；`facts` 供恢复消费者按精确 evidence 读取本域已存原事实。构造类型与使用范围由 `tool` 拥有。`queues` 只承载队列域的对账（`reconcile`，回复与读法见 tool 包第 22 条（`tool/SPEC.md#22-跨域提交与修复`）），由同一个账本实现提供，不经 `ToolCommands`。记录仓端口 `ToolLedgerStore` 按事务域读取一组记录或一条记录，再按修订号原子提交一组写入，提交可断言同租户其他域的修订号 | `tool` 根入口 |
 | G2 | `createIndependentToolScope(input)` 构造独立执行作用域：本地接收者、显式上限、内存等待历史，按 [P11](#p11-作者输出与等待原语) 只承诺 `local` 回执。输入类型是 `IndependentToolScopeInput` | `tool` 根入口；输入类型在 `tool-contract` |
 | G3 | 具名默认结果政策只接受文本块与共享引用块，拒绝 thinking、inline 媒体与嵌套容器（[P14](#p14-附件引用与消费方交付)）。其身份是 `defaultResultPolicyAdoption` | `tool-contract` 根入口 |
 | G4 | 宿主时钟适配器：同进程单调时钟加进程 epoch，跨进程比较返回 unknown（[P07](#p07-计时控制与检查点)） | `tool-host-local` 根入口 |
@@ -808,7 +808,7 @@ sequenceDiagram
 
 ### 可靠交接与处理的两条路径
 
-Tool 先可靠保管真实返回，再按 P13 准备并提交最终归一化结果。合法消费者承接的是这一固定版本。未交付的内联材料、程序数据及预览继续由 Tool 保管；卸载正文具有独立的有限期限，可能在交付前到期。已由最终通道完整替代的 raw 不因等待消费者而继续保留。消费者先认回原调用及原用途，不从新的接续执行或当前等待实例重新生成身份，再按适用协议选择以下路径。
+执行记录 final 时，Tool 按 P13 计划最终归一化结果，再提交它。合法消费者承接的是这一固定版本。未交付的内联通道值、程序数据及预览继续由 Tool 保管；卸载正文具有独立的有限期限，可能在交付前到期。原始返回 R 不进入任何保管端口。消费者先认回原调用及原用途，不从新的接续执行或当前等待实例重新生成身份，再按适用协议选择以下路径。
 
 先保管后处理时，消费者保存后续需要的内容或在所需期限内可恢复的引用、所属租户、适用工作关联、原位置和待交付责任。取得普通进程崩溃、操作系统崩溃和断电耐久确认后，消费者可依工具协议解除对应待交付关系，再从原位置执行后续扩展和消息采用。Tool 正文卸载已在最终结果提交前完成，消费者不再给同一版本补写卸载结果。
 
@@ -1171,17 +1171,17 @@ sequenceDiagram
 
 ### P05 执行事实与原输出
 
-W3-A 的精确 final 引用、pending/settled 恢复、最终通道提交、材料用途与有效时间，按[最终事实与材料保管协议](docs/material-protocol.md)增量实施。该协议的状态与实现范围在其开头单列；稳定事实身份不要求永久保留正文载荷。
+事实流记录的 final 是账本计划后的最终事实，见[最终事实的计划](#最终事实的计划)。事实与批次的指纹编码归 tool 包的[事实指纹编码 v1](../tool/SPEC.md#事实指纹编码-v1)。稳定事实身份不要求永久保留正文载荷。
 
 事实流以原 start、来源 owner、batch/event 身份和连续游标关联。receiveFacts 对同来源同 event 同内容去重，异内容拒绝；不依据当前实例代次丢掉合法旧执行事实。每个批次保存事实、对应状态和后续任务后，才产生 FactReceipt。执行源收到这个保管回执才能解除自己的未交付责任。流结束或抛错只意味着通道结束，不能代替 final。重连先从已保存 cursor 读；源无法续接时必须用原事实查询恢复或报告缺口，不能跳过 wait/final。
 
 receiveFacts 同提交 FactProgress（原 start/source、已保存 cursor）、原 FactReceipt 和 fact-ack 任务。loadRecovery.streams 返回每条源流的这些值及 pendingAcknowledgements。恢复者从该 cursor 续流；未确认回执经原 live execution 或 bindings.recover.acknowledge 重送。源按原 batch/custody 去重 ACK，回包未知保留原 fact-ack，不回退游标；recordFactAcknowledgement 核源确认后同提交清除待确认回执与任务。源已收场也须保留这个受限确认入口，不能因无live route遗失释放责任。
 
-作者返回方式在绑定时固定，禁止按 content 字段猜结构化结果。ParameterCodec 独立解析完整无重复键 JSON；真实返回先经固定 OutputCodec 与 ToolOutputCustody.preserve 保管，再按 [P13](#p13-双返回形态与程序输出契约)执行返回验证、普通投影或直接 ToolResult 校验、程序 schema 及 ResultPolicy。普通返回生成一个人和消费方可见的 text 块，程序数据另由固定契约生成；结构化返回才承接作者附件及卸载原文。judgeResult 验证整个结果的唯一块身份、可见性、附件闭包和当前采用的块规则，它不能替代程序业务 schema。B 只是验证后类型，不能将任意 ContentBlock 当已允许结果。
+作者返回方式在绑定时固定，禁止按 content 字段猜结构化结果。ParameterCodec 独立解析完整无重复键 JSON；真实返回先经固定 OutputCodec 编码，再从编码字节解码，然后按 [P13](#p13-双返回形态与程序输出契约)执行返回验证、普通投影或直接 ToolResult 校验、程序 schema 及 ResultPolicy。普通返回生成一个人和消费方可见的 text 块，程序数据另由固定契约生成；结构化返回才承接作者附件及卸载原文。judgeResult 验证整个结果的唯一块身份、可见性、附件闭包和当前采用的块规则，它不能替代程序业务 schema。B 只是验证后类型，不能将任意 ContentBlock 当已允许结果。
 
-托管作者须声明覆盖全部合法 R 的无损 codec。编码失败或 renderer 抛错是明确的提供者故障。编码失败时保留原对象/源责任、记录诊断并阻止释放唯一保管者，不能报告原输出已耐久；若源也失去连续性，记录原输出丢失的真实故障，不伪造空原件。renderer 或 policy 失败发生在原件保管之后，形成 result 失败结果并保留 raw 引用，不重新执行。纯 executeTool 不提供这些耐久保证。
+托管作者须声明覆盖全部合法 R 的无损 codec。编码失败或 renderer 抛错是明确的提供者故障。编码失败时宿主保留原返回与源责任并记录诊断，不能报告原输出已耐久，也不伪造空结果。renderer 或 policy 失败形成 result 失败结果，不重新执行。纯 executeTool 不提供这些耐久保证。
 
-Tool 材料机制将最终各通道及附件元数据分别可靠保管，再由 preserveResult 同提交结果版本、材料引用、terminal、effect、原消费位置、delivery 和后续任务。原生附件目标仍由原拥有者管理。原件保管成功而终局提交未知时按原 operation 查询，两边均不放弃责任。诊断不携秘密正文。保管失败不能改写成成功或已交付。final 的原版本只成立一次；后来真实收场走 recordLateResult，原逻辑终局及版本不被覆盖。
+执行记录 final 时，账本按正文策略计划结果。preserveResult 再同提交结果版本、内联的通道值、正文关联、terminal、effect、原消费位置、delivery 和后续任务。原生附件目标仍由原拥有者管理。正文已封存而终局提交未知时按原 operation 查询，两边均不放弃责任。诊断不携秘密正文。保管失败不能改写成成功或已交付。final 的原版本只成立一次；后来真实收场走 recordLateResult，原逻辑终局及版本不被覆盖。
 
 ### P06 内部等待与答复
 
@@ -1260,17 +1260,17 @@ writer 固定原租户、调用及执行作用域，作者不能填入其他调�
 
 begin 返回下一个追加序号，首个序号为十进制字符串 `1`。append 返回下一个序号及原耐久回执。seal 的 afterSequence 是最后受理的序号，空正文为 `0`。inspect 只查询原 writer，不创建写入。确定不存在的 key 返回 invalid，无法确认存储状态返回 unknown，不报告为 open。新操作须在同一次受理中核当前执行资格与开放状态；同输入的原操作认回不因执行已关闭而丢失，但仍须核当前访问资格。不同输入不得借认回绕过关闭围栏。
 
-关闭交接必须覆盖未确认片段的完整输入。只有摘要、序号或待办记录，不构成原字节的可靠接管。提供者可先耐久暂存完整输入，再交给正文材料库；材料独立保管确认后，才可解除暂存输入的责任。暂存必须有有限的字节及条数预算，同操作认回不重复占用。确认未知时保留来源，不把它当成已确认失败或可以清理。
+已受理的 append 按写入许可把分块直接写入正文存储，不经账本暂存，见[正文存储（BS）](#正文存储bs)。本地缓冲有有限的字节及条数预算，同操作认回不重复占用。确认未知时保留来源，不把它当成已确认失败。执行进程停止时，未封存的正文保持 opened，调用结算时成为孤儿，见[清扫与回收](#清扫与回收)。
 
-writer 封存的 source 只用于本调用的卸载正文。若作者将同一 writer 材料作为 content 原生引用、attachment 或过程输出引用发布，绑定返回 invalid，不给该材料新增原生引用或过程历史用途。原生业务文件不属于 writer 材料，不受此限制。系统不解释 data 中的任意字符串，也不因其中出现相同地址就新增保管责任。
+writer 封存的 source 只用于本调用的卸载正文。若作者将同一 writer 正文作为 content 原生引用、attachment 或过程输出引用发布，绑定返回 invalid。正文只属于一个结果。原生业务文件不属于 writer 正文，不受此限制。系统不解释 data 中的任意字符串，也不因其中出现相同地址就新增保管责任。
 
-受信绑定可通过 provider 入口的 `ToolBodyCustody` 保存完整文本帧。端口绑定原调用及 start，先登记准备责任，再保存字节并封存。相同操作及输入认回原封存，异输入冲突。未知保存或登记保留原责任。`SealedToolBody` 回执没有已激活期限，也不授予公开读取权。此提供者端口不替代上述作者 writer 的顺序、背压和执行收尾义务。
+受信绑定一次保存完整正文时，同样经账本的 `bodyWrites` 走 begin、append、seal 三步，不另设保管端口。`SealedToolBody` 回执没有期限，也不授予公开读取权。
 
 已受理的正文写入纳入同一输出屏障，即使作者没有 await，也必须确认保存或保留可恢复责任。
 
-正常 return 时，存在已开始但从未请求 seal 的正文写入，属于未完成作者输出；即使返回值没有引用它，也必须形成明确输出失败，禁止发布 completed。绑定保留暂存材料、诊断及真实效果，安排原调用的收场和清理责任，不能自动封存冒充成功，也不能等待已经关闭的作者再发 seal。已受理但确认未知的 seal 仍按原操作认回，不误判为从未请求。
+正常 return 时，存在已开始但从未请求 seal 的正文写入，属于未完成作者输出；即使返回值没有引用它，也必须形成明确输出失败，禁止发布 completed。绑定保留诊断及真实效果，安排原调用的收场，不能自动封存冒充成功，也不能等待已经关闭的作者再发 seal。未封存的正文在调用结算时成为孤儿。已受理但确认未知的 seal 仍按原操作认回，不误判为从未请求。
 
-return 关闭新受理并排空已有写入；throw、取消及作用域关闭不得取消已经接管的保管责任。明确放弃未关联材料时保存清理任务；提交未知时先认回。writer seal 不启动正文期限，最终结果提交才激活。writer 不拥有 Session，也不进入长期 E、settings 或检查点 JSON。
+return 关闭新受理并排空已有写入。throw、取消及作用域关闭不撤销已经写入存储的分块。未被结果关联的正文在调用结算时成为孤儿，宽限期后由清扫回收。writer seal 不启动正文期限，最终结果提交才固定期限。writer 不拥有 Session，也不进入长期 E、settings 或检查点 JSON。
 
 缓冲额度覆盖输入副本、在途写入、待确认帧、校验状态和需要保留的元数据。单帧自身太大与暂时无额度分别返回 too-large 和 capacity，均不受理。unknown 不是未发送，不能换号重发。持续保存失败阻止 completed，但不阻止控制受理；关闭只在未完责任已完成或可靠移交后释放执行作用域。
 
@@ -1352,11 +1352,11 @@ ToolDefinition 的函数或每个命令声明 ToolReturnDeclaration，固定返�
 
 ToolResult.data 是同一结果版本的程序表示。kind=json 携带协议采用、schema 身份和完整 JSON 值；kind=none 明确无此表示。ordinary 的作者只返回 R，由绑定填 data，不要求作者自己制造 ToolResult。structured 的作者显式填 data，不能只写“已经验证”绕过校验。展示内容与 data 都从同一原结果形成并在一次结果提交中保管，不能事后给同一 resultVersion 替换另一份数据。数据与自然语言展示的完整语义等价不是 schema 能证明的性质，特定工具的映射约束由其返回验证器及测试拥有。
 
-固定 pipeline 为原返回保管、返回契约验证、普通归一化或结构化验证、程序编码及 schema 检查、整结果政策检查、输出屏障、最终通道耐久准备、最终结果提交及交付。正文卸载在最终提交之前准备，提交同时激活期限并解除已被完整替代的 raw 用途，见[有限期正文保管](#正文存储端口与到期索引)。renderToolResult 只承担同步投影和整结果形状判定，不做存储 I/O，也不承诺完成 schema 的异步装载、业务资格或耐久保存。托管绑定必须执行完整 pipeline。任何输出违反声明，都形成 cause=result 的失败而非 completed，保留诊断和实际 effect，并完成原件的明确保管或清理责任；禁止自动重跑可能已产生副作用的工具。临时校验设施不可用时保留原返回及 settle 任务，恢复验证，不重执行。
+固定 pipeline 为原返回编解码、返回契约验证、普通归一化或结构化验证、程序编码及 schema 检查、整结果政策检查、输出屏障、计划最终事实（含正文封存）、最终结果提交及交付。正文卸载在计划最终事实时完成，最终提交固定期限，见[最终事实的计划](#最终事实的计划)。renderToolResult 只承担同步投影和整结果形状判定，不做存储 I/O，也不承诺完成 schema 的异步装载、业务资格或耐久保存。托管绑定必须执行完整 pipeline。任何输出违反声明，都形成 cause=result 的失败而非 completed，保留诊断和实际 effect；禁止自动重跑可能已产生副作用的工具。临时校验设施不可用时保留原返回及 settle 任务，恢复验证，不重执行。
 
 失败、unavailable 或 interrupted 等系统终局可生成 data=none 的系统结果，不要求伪造正常业务输出。程序执行方先检查 terminal，只有 completed 才按对应返回声明消费成功数据。业务失败若是正常返回的一种，应在作者 schema 中显式建模为联合；结构有效不代表业务成功。
 
-程序执行方的程序输入从 data 取得，不能解析展示文本、过程 emit 或仅作保管的 raw 来推测业务值。ProgramTools.call 保持统一结果封装及原 child/result 身份。具体语言 SDK 可以按精确声明把成功 data 解码为函数返回值，但不得暴露宿主对象、SchemaRef.load 或不受限的 executor。动态名称调用不具静态业务类型，SDK 需要采用匹配的契约或显式校验；没有依据的 call<T> 不提供保证。类型生成来自同一声明，绑定版本不一致时拒绝消费，不按最新 schema 解释旧结果。
+程序执行方的程序输入从 data 取得，不能解析展示文本或过程 emit 来推测业务值。ProgramTools.call 保持统一结果封装及原 child/result 身份。具体语言 SDK 可以按精确声明把成功 data 解码为函数返回值，但不得暴露宿主对象、SchemaRef.load 或不受限的 executor。动态名称调用不具静态业务类型，SDK 需要采用匹配的契约或显式校验；没有依据的 call<T> 不提供保证。类型生成来自同一声明，绑定版本不一致时拒绝消费，不按最新 schema 解释旧结果。
 
 data 不自动进入消费方的请求消息，也不是低权限读取者必然可见的字段。结果保管保存完整 data，合法程序消费按其原调用、当前资格和精确 resultVersion 读取。消费方仍只按可见性规则投影 content/original/attachments，内部保管引用不等于可披露。展示分页不得把 data 截为不合法 JSON；各页的 data 是同一固定版本的相同元数据，消费者按版本认回一次，不重复处理；不能把后续页的 data 改成 none 冒充原数据缺席。程序数据有声明的最大编码大小，准入时须确认该上限和结果元数据可由本提供者的分页预算承载，否则不可用。超过声明上限是明确结果契约失败；大数据协议应声明具名内容引用，通过已授权内容接口取回，不支持任意对象流。result 卸载不得改写合法程序值。
 

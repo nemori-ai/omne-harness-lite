@@ -163,7 +163,7 @@ ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToo
 | `ToolCredentials` | `toolCredentialsConformance`，`ToolCredentialsFixture` | [P15](../SPEC.md#第三方凭据端口) | 调用方提供实际绑定与受保护使用夹具 |
 | `ToolStartAuthority` | `toolStartAuthorityConformance`，`ToolStartAuthorityFixture` | [P04](../SPEC.md#p04-实际发起围栏) | `createMemoryToolStartAuthority` |
 | `ToolExecutorBinding`（`live-only`） | `toolExecutorBindingConformance`，`ToolExecutorBindingFixture` | [P05](../SPEC.md#p05-执行事实与原输出)、[P07](../SPEC.md#p07-计时控制与检查点) | `createMemoryToolExecutorBinding` |
-| `ToolOutputCustody` | `toolOutputCustodyConformance`，`ToolOutputCustodyFixture` | [P05](../SPEC.md#p05-执行事实与原输出) | `createMemoryToolOutputCustody` |
+| `ToolBodyStore` | `toolBodyStoreConformance`，`ToolBodyStoreFixture` | [正文存储（BS）](../SPEC.md#正文存储bs) | `createMemoryToolBodyStore`，夹具 `memoryToolBodyStoreFixture` |
 | `ToolClock` | `toolClockConformance`，`ToolClockFixture` | [P07](../SPEC.md#p07-计时控制与检查点) | `createMemoryToolClock` |
 | `ToolDecisionBridge` | `toolDecisionBridgeConformance`，`ToolDecisionBridgeFixture` | [P06](../SPEC.md#p06-内部等待与答复)、[P12](../SPEC.md#p12-等待-schema-与响应提交) | `createMemoryToolDecisionBridge` |
 | `ToolResourceResponses` | `toolResourceResponsesConformance`，`ToolResourceResponsesFixture` | P06、P12 | `createMemoryToolResourceResponses` |
@@ -174,7 +174,7 @@ ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToo
 - 用例的形状是共用类型 `ConformanceCase<F>`：`name`、`clause`（SPEC 条款锚点，如 `P04`）和 `run(fixture)`。套件函数返回只读用例数组。用例以 `node:assert/strict` 的 `AssertionError` 表示失败。
 - 夹具由消费方的工厂在每条用例前新建一次。必需成员是被测端口和它接受的 `access`（主体与租户）。`otherAccess` 是第二个租户的 access，带它自己的主体；它与 `access` 必须是不同的租户，否则跨租户用例失败并说明原因。可选成员是提供者的控制手柄，用契约词汇命名，例如 `launches`、`emit`、`finish`、`hold`、`settle`、`readBytes`、`advance`、`decide`、`respond`。每个手柄的含义写在夹具接口的注释里。执行者绑定套件读取分片事实的等待期限是夹具成员 `readDeadlineMs`，缺省 1000 毫秒；它“等一个不该出现的事实”的静默期是夹具成员 `quietMs`，缺省 25 毫秒；时钟套件的 `waitMs` 与 `quietMs`、登记套件的 `quietMs`（拒绝后观察目录有无迟到写入，登记套件唯一的定时等待）同理。资源应答套件的 `deadline` 是带期限的等待所携带的时刻，用提供者自己的格式，缺省是一个遥远的未来时刻。这些期限是策略，由提供者按自己的速度配置，不写死在套件里。
 - 用例需要的手柄缺失时抛出 `NotApplicable`，它指明手柄名。`runConformanceCase(case, fixture)` 把它报告为 `{ kind: 'not-applicable', handle }`，通过时答 `{ kind: 'passed' }`（类型 `CaseVerdict`），其余错误原样抛出；抛出的错误不带用例名，消费方自己附上 `case.name`。不适用不是通过：消费方必须单列计数，并列出缺失的手柄。
-- 回答模型。每个端口有一张表，导出名是 `environmentAnswers`、`startAuthorityAnswers`、`executorBindingAnswers`、`outputCustodyAnswers`、`clockAnswers`、`decisionBridgeAnswers`、`resourceResponsesAnswers`，登记套件的是 `registrationAnswers`（在 `tool-cordis-contract/testing`）。表的形状是 `{ 方法 → { clause, progress, lostReply } }`：`progress` 列出表示“工作还没做完”的答复种类（`pending`、`unknown`、`accepted`），`lostReply` 列出表示“回包丢失、须再问原操作”的失败种类（`commit-unknown`），每行引用决定它的条款。其余答复都是终局：成功、拒绝和 `conflict` 答一次，之后逐字节认回。时钟与登记的表没有进度行：它们的调用即时作答，或只答一次。表由条款推出，不由替身的行为推出。
+- 回答模型。每个端口有一张表，导出名是 `environmentAnswers`、`startAuthorityAnswers`、`executorBindingAnswers`、`clockAnswers`、`decisionBridgeAnswers`、`resourceResponsesAnswers`，登记套件的是 `registrationAnswers`（在 `tool-cordis-contract/testing`）。表的形状是 `{ 方法 → { clause, progress, lostReply } }`：`progress` 列出表示“工作还没做完”的答复种类（`pending`、`unknown`、`accepted`），`lostReply` 列出表示“回包丢失、须再问原操作”的失败种类（`commit-unknown`），每行引用决定它的条款。其余答复都是终局：成功、拒绝和 `conflict` 答一次，之后逐字节认回。时钟与登记的表没有进度行：它们的调用即时作答，或只答一次。表由条款推出，不由替身的行为推出。
 - 三个原语读取答复，参数都是一个对象。`finalAnswer({ ask, row, completion, view, what })` 取操作的终局：问一次，答复是进度或丢失回复时，先在进度期间再问一次（重送或读取，答复按 `resendRecalls` 判），再调用夹具的完成手柄，最后问一次，要求这次是终局，并且与进度期间已经答出的终局相同；夹具没有该手柄就报告不适用，不再多问。这两次比较都比 `view(earlier)` 与 `view(later)`。`view` 可选，缺省是答复本身；它必须保留答复的 kind。原语返回的仍是最后一次的答复本身，不是视图。环境套件对 `prepare` 与 `inspectPreparation` 传的视图去掉 `prepared` 里的重连能力，只比证据与 preparation，因为 P03 允许每次答出新的重连能力。完成手柄是一个值 `Completion`（`{ name, call }`），由 `completionOf(fixture, name, ...args)` 按夹具成员名取得：名字就是读取成员的键，所以不适用报告的手柄名正是夹具缺的那个成员。回答表里没有进度类也没有丢失回复的方法不传手柄；对这样的读取答出进度类是断言失败。`resendRecalls(row, { earlier, later }, what)` 核对同一操作的后续读取（重送、检查、落地后的答复）：进度单调向前（`pending` 到 `accepted` 到终局），不退回，不为同一进度换一份证据；终局逐字节认回。`crossTenantAnswers({ ask, row, completion, identifying, submitted, what })` 读外租户得到什么：外租户对本租户的记录与对从未存在的记录各问一次，两个答复须同类（成功或同一种失败，kind 也相同），对真实记录的答复不得带出 `identifying` 中的识别值，`submitted` 是外租户自己提交的值（判据见下面跨租户的一条）；任一答复属于该方法回答表的进度类（含丢失回复）时，调用夹具的完成手柄，再各问一次，再查一次，没有手柄就报告不适用。原语把答复当作不可信的值读：`isProgress` 对 `null`、`{ failure: null }` 这类不是答复的值返回 `false`，不抛异常。手柄之后的答复不要求是终局：在 `inspectOperation` 与输出保管的 `inspect` 上，`unknown` 既是进度，也是对从未见过的操作的永久答复。套件不轮询：每条用例只问有限次，不重试，不睡眠。
 - 手柄完成契约。凡驱动延迟工作的手柄（`settle`、`completeStop`、`excludeDeferred`、`reachDeadline`、`endFiber`、`finish`、`loseContinuity`）只在延迟工作已经落地、且对端口的每次读取都可见之后才 resolve；套件在手柄之后再问一次。`emit` 把事实交给事实流，事实流的读取等到夹具的 `readDeadlineMs`，所以迟到的 `emit` 在期限内不会被判为违约。时钟的 `advance`、`setBack`、`changeEpoch` 是时间控制，不驱动稍后落地的工作：它们只在时间源已变、之后每次读取都看到它之后才 resolve，所以时钟没有“手柄先于落地”的用例。真正异步的通道不属于这条：事实流用 `readDeadlineMs`，时钟的 `waitUntil` 用 `waitMs`，静默期用 `quietMs`，期限都由夹具给出。在手柄落地之前就 resolve 的夹具违反这一契约，套件会让读取落地状态的用例失败。
 - 不适用不是通过。首答是进度（或丢失回复）而夹具没有对应手柄时，用例报告不适用，手柄名写明，不判失败，也不空转：总回 `unknown` 的启动围栏、总回 `commit-unknown` 的输出保管在这些用例上得到不适用。有手柄时，用例推进到终局并照常断言。事实流的批次按事实计数，不按批次计数：一个批次可以带几个事实，用例只要求事实、批次身份与游标各自成立。
@@ -237,16 +237,16 @@ provider 入口导出 [forwarding.ts](../src/forwarding.ts) 的父证明、原�
 
 ## W3 正文契约增量
 
-本节区分已导出的类型与仍待交付的行为。唯一行为正文见 [有限期正文保管](../SPEC.md#正文存储端口与到期索引)、[P11 writer](../SPEC.md#模型正文-writer) 与 [P13](../SPEC.md#p13-双返回形态与程序输出契约)。返回声明、结果阶段与正文保管类型已导出。调用期 writer、语义页和保管维护仍待实现。
+本节区分已导出的类型与仍待交付的行为。唯一行为正文见 [有限期正文保管](../SPEC.md#正文存储端口与到期索引)、[P11 writer](../SPEC.md#模型正文-writer) 与 [P13](../SPEC.md#p13-双返回形态与程序输出契约)。返回声明、结果阶段、正文写入、正文存储端口与写入许可的类型已导出。调用期 writer、语义页与清扫由 `tool` 实现。
 
 | 边界 | 必须表达的内容 | 不授予的能力 |
 | --- | --- | --- |
 | 每个操作的返回声明 | 原返回结构、程序值协议、无正文或 text/json-document/json-lines、精确 codec/schema、系统或作者收紧的内联与期限上限 | 不允许参数临时扩大系统上限 |
-| 已提交的卸载正文引用 | 原调用与结果版本、bodyId、表示及 schema、原 UTF-8 字节数、作者或机械预览、采用与 activatedAt/expiresAt | 地址与 schema 不构成当前读取资格 |
-| 调用期 writer | begin、顺序 append、带最后序号的 seal、原操作 inspect；明确拒绝、容量、未知及冲突 | 不提供全局存储、Session 或任意材料删除 |
+| 已提交的卸载正文引用 | 原调用与结果版本、bodyId、表示及 schema、原 UTF-8 字节数、作者或机械预览、采用与固定期限 | 地址与 schema 不构成当前读取资格 |
+| 调用期 writer | begin、顺序 append、带最后序号的 seal、原操作 inspect；明确拒绝、容量、未知及冲突 | 不提供全局存储、Session 或任意正文删除 |
 | 正文语义页 | 固定身份、表示、期限、位置及 next；可读文本、完整或片段 JSON、完整 JSON Lines 记录 | 不默认给模型 base64，不自动重执行，不递归卸载 |
 | 读取失败 | `not-found` 仅含 result/released、result/missing、body/expired、body/missing，定义和命令映射归[读取失败](../SPEC.md#正文与结果的读取失败)；其他失败保持区分 | 不得以缺失隐藏越权或暂时故障 |
-| 保管维护分面 | 按原交付解除回执释放材料用途；有界到期扫描；按原操作查询维护结果 | 不复制消费者 ACK 协议，不进入普通 ToolRuntime 的任意删除面 |
+| 正文存储端口 | 按写入许可的条件写与封存、按键与范围读取、幂等删除；许可由存储用自己的时钟校验 | 不知道结果、期限或授权，不进入普通 ToolRuntime 的任意删除面 |
 
 结果 data 的完整读取资格仍生效。正文页不替代 data，不以 data=none 隐藏无权读取的字段。程序消费者从明确程序协议取值，模型消费者只采用获准的正文和原生引用投影。
 

@@ -41,7 +41,7 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 
 ## 生命周期观察
 
-记录行和独立材料维护行都把确认的 Tool 提交投影到既有 telemetry 行。事件为 `omne.tool.material.lifecycle`，语义与限制见[应用规格](../../SPEC.md#tool-生命周期遥测)和[Tool 规格](../../../../packages/tool/tool/SPEC.md#生命周期提交观察)。业务恢复沿耐久事实，不依赖事件是否成功输出。
+记录行和 `tool-body-sweep` 行都把确认的 Tool 提交投影到既有 telemetry 行。事件为 `omne.tool.material.lifecycle`，语义与限制见[应用规格](../../SPEC.md#tool-生命周期遥测)和[Tool 规格](../../../../packages/tool/tool/SPEC.md#生命周期提交观察)。业务恢复沿耐久事实，不依赖事件是否成功输出。
 
 ## bundle 的输入
 
@@ -172,12 +172,10 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 
 ## W3 正文保管的生产配置
 
-本节登记待实施的 W3 装配要求，不宣布当前发行已支持。实际 custody、正文读口与维护分面来自同一受信装配，维护驱动在长期宿主只安装一次。前台请求与清理共享资源时须有明确的扫描批量、并发及退避上限，不能随会话数量无限增加后台扫描。
+本行的 holder 生成一份正文许可密钥与一个参与者时钟（`bodyPermitKey`、`bodyClock`）。Tool 账本与 `tool-body-sweep` 行共用它们。账本的正文存储是 `createSqlToolBodyStore`，与记录仓使用同一 `storage` 与租户目录。holder 的晚绑定代理（`lateBodyStore`）每次取得当前的正文存储，SQL 依赖未就绪时答 `unavailable`。
 
-运维层必须显式给出有限正值的正文内联字节数、最长保留毫秒数、页预算、正文及 JSON 校验上限、writer 缓冲和清理节奏。工具只能收紧正文和期限上限，模型参数不能覆盖这些值。缺失配置拒绝启用；示例值与验收值不冒充通用默认。
+运维层必须显式给出 `offloading` 的全部字段，形状见 [config.ts](../../src/rows/tool-runtime/config.ts)。其中许可时长 W（`permitMs`）、时钟偏差 ε（`clockSkewMs`）与孤儿宽限期 G（`orphanGraceMs`）是部署参数。Tool 在构造账本时核 G 与最长保留毫秒数都大于 W + 2ε，不满足就拒绝启动。工具只能收紧正文和期限上限，模型参数不能覆盖这些值。示例值与验收值不冒充通用默认。
 
-恢复按原材料、代次和操作认回，关闭与提供者缺席不丢清理待办。telemetry 只记录有界的阶段、数量、字节数、延迟与错误类别，不记录正文、程序 data、秘密或文件路径。admitted/dropped 不构成存储确认；观测关闭不得改变提交、交付或清理结果。
+`tool-body-sweep` 行调度 Tool 的清扫（`createToolSweep`）。它每隔 `intervalMs` 走一步，每步为一个租户清扫最多 `limit` 个到期正文，一轮访问租户目录列出的每个租户。回收由 Tool 运行时执行：先删除正文字节，再在账本记录 `reclaimed`，见[清扫与回收](../../../../packages/tool/tool-contract/SPEC.md#清扫与回收)。清扫读同一参与者时钟。停止时不再开始新的一步，并等待在途的一步结束；超过期限时答 `incomplete`。定时器与 disposer 都不是回收授权，只有到期索引给出回收对象。
 
-W3-A 的 bundle 将 Tool 材料保管实现与 SQL byte provider 组合，替代当前 content:null。holder 的晚绑定代理每次取得当前可用的提供者；撤除按本代条件执行，旧 disposer 不清除后继。已经进入的 IO 沿原 operation 结算或认回，不因依赖撤除假称已取消。保留原 adoption 的恢复路由，不能把旧引用交给另一个空仓。
-
-材料时间独立采用 [host-local 的材料时间工厂](../../../../packages/tool/tool-host-local/SPEC.md#宿主时钟g4)，不直接使用既有 ToolClock.now 的墙钟。Tool 在原 call 域持久核水位，holder 重建不清掉它。维护子插件依赖就绪后启动有界扫描，fiber effect 关闭新扫描并排空或保留在途未知；再次就绪先扫原待办。定时器与 disposer 都不是删除授权，精确协议归 [M01–M05](../../../../packages/tool/tool-contract/docs/material-protocol.md)。
+telemetry 只记录有界的阶段、数量、字节数、延迟与错误类别，不记录正文、程序 data、秘密或文件路径。admitted/dropped 不构成存储确认；观测关闭不得改变提交、交付或清理结果。

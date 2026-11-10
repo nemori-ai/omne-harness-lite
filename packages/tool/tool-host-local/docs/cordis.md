@@ -57,7 +57,7 @@ ToolBindingsService.register 在当前资格下接收 ToolLoadedRegistration 与
 | 实例发布           | toolInstances、toolPublicationAuthority                                  | 在 host 的实例 fiber 中 register；本 fiber 只持有自己的贡献 token                                                                                                              |
 | 准备/启动适配      | toolBindings、toolEnvironments、toolStartAuthority                       | 固定采用与资源租约，缺席立即返回 unavailable 并保留任务                                                                                                                        |
 | 等待适配           | toolDecisions 或 toolResourceResponses                                   | 分别由 Ask/资源阶段插件静态声明；不能伪造可选 inject 数组                                                                                                                      |
-| 输出适配           | toolOutputCustody、toolResultPolicy                                      | 原输出先保存，策略缺席不删除原件                                                                                                                                               |
+| 输出适配           | toolResultPolicy                                                         | 原返回先编码再解码；策略判定失败回复 unavailable，不形成 completed                                                                                                               |
 | 程序执行方组合适配 | toolChildren、toolRuntime                                                | 程序能力由独立环境提供者注入；仅暴露限权代理                                                                                                                                   |
 | 作者插件 fiber     | toolBindings、toolGenerations 与实现需要的服务，写在实现包的静态字面量里 | 不 provide 服务键；插件体只调用 contributeTool，登记以本 fiber 的 ctx.effect 配对；fiber 撤除时登记随 effect 撤除                                                              |
 | 换代协调者         | toolBindings、toolContributionAuthority、toolResidencyReader             | 提供 toolGenerations；唯一持有 ctx.plugin 句柄，作者插件挂在长期宿主 ctx 下，协调者重跑从 snapshot 重建句柄表；经 ToolResidencyReader 读持有者引用，按保留义务决定是否 dispose |
@@ -119,7 +119,7 @@ Scope 与最终事实适配是 `createLocalToolBindings` 的构造依赖，返�
 
 从 `@omne-harness/tool-host-local/cordis` 导入 `createLocalToolRuntimePlugins`。输入形状由 [LocalToolRuntimeInput](../src/runtime-composition.ts) 拥有。返回 records、instanceHost、instances、environments、executor、runtime 六个插件，以及 authorExecution、close 和 diagnostics。每个插件在自己的 fiber 安装，同一 bundle 共享一份记录仓、账本、启动协调器和 driver。不要为 bindings 另建启动协调器。
 
-应用提供耐久 store、custody、content、来源 issuer/guard、当前资格与主体恢复、环境采用和原子提交端口。工厂拒绝非耐久 store。标记为 durable 不替代实际持久化保证。records 提供 toolCommands、toolReads、toolStartAuthority 和 toolStartFence；bindings 的 authority 取得该 bundle 发布的当前 toolStartAuthority，scope/settle 使用同一 bundle.authorExecution。
+应用提供耐久 store、正文存储 bodies、content、来源 issuer/guard、当前资格与主体恢复、环境采用和原子提交端口。工厂拒绝非耐久 store。标记为 durable 不替代实际持久化保证。records 提供 toolCommands、toolReads、toolStartAuthority 和 toolStartFence；bindings 的 authority 取得该 bundle 发布的当前 toolStartAuthority，scope/settle 使用同一 bundle.authorExecution。
 
 实例目录静态依赖 toolPublicationAuthority；环境插件以 integrator caller 取得 executionEnvironment；executor 静态依赖 toolCommands、toolInstanceHost、toolClock；runtime 门面静态依赖 toolCommands、toolReads。Catalog、binding、环境和原结果接收方按阶段读取，缺席回复 unavailable。原结果接收方缺席（冻结 owner 没有登记，`tool-result-receiver`），或查找、推送答任何 `unavailable` 时，交付保持待推。executor 的 `tool-executor` 日志每次写一条具名 warn，内容有调用、接收方 owner 与依赖及诊断。下一次推送按退避进行：首次等 `driverRetryDelayMs`（缺省 1000 ms），之后每次加倍，封顶 60000 ms。接收方答出非 `unavailable` 的结果后清除退避。确定失败（`denied`、`invalid` 或异常）不退避，每次写一条具名 warn，交付保持待推（R2-D327）。退避表项随交付释放，表的大小只与在途交付有关。规则见 [SPEC](../SPEC.md#结果交付的推送退避)（R2-D273、R2-D282，`tests/delivery/absent-receiver.spec.ts`、`tests/delivery/unavailable-receiver.spec.ts`）。应用仍须安装自身的当前资格、发行贡献权威、常驻引用桥和 Execution 提供者。
 
@@ -140,14 +140,8 @@ executor 退役后不能在同一 bundle 重装。close 结束本代调度、观
 
 `tests/runtime-composition/` 覆盖单进程真实工厂、发布、原结果推送、调用控制和退役。冻结外域输入的组合结果不能代替真实 SQL、Windows 设施和应用授权链的验证。Windows 独立入口必须收到真实装配 runner，未提供时失败。
 
-## W3 维护生命周期
+## 正文存储与清扫
 
-本节是待评审设计，实际装配与测试仍由 W3 交付。已有运行时 bundle 持有单一维护驱动，复用 Tool 已保存的用途和删除任务。启动先恢复未决任务，再以有限批量和有限并发周期扫描。执行方使用受信维护身份，不从普通模型调用或已撤权的用户会话借权限。
+`LocalToolRuntimeInput.bodies` 必填，给出正文存储、许可密钥与参与者时钟。runtime records 把它交给 Tool 账本。宿主不决定正文期限，也不在正文存储缺席时建立内存替代仓。
 
-停止先关闭新的扫描与 writer 准入，结束本代调度，再等待已接管操作完成或把责任留给可恢复记录。扫描取消不撤销正在执行的删除，也不把 unknown 改成未发生。依赖缺席或换代期间不产生新代假回执；恢复接续原操作和代次，不重复业务效果。驱动不能在每个会话创建一份，也不能在每次调用启动完整扫描。
-
-正文读取租约、准备材料和物理删除由各自端口负责。close/dispose 只结束宿主本代资源，是否达到业务排空仍由持久 inventory 判断。记录查询、扫描延迟、重试和清理结果通过既有 telemetry 观测；观测失效不改变业务确认。
-
-### W3 材料依赖
-
-`LocalToolRuntimeInput.materials` 必填，包含 byte provider adoption、材料仓和独立材料时钟。runtime records 将它交给原 Tool 账本。宿主不决定 TTL，也不在材料提供者缺席时建立内存替代仓。完整 final 发布与生命周期的后续迁移范围见 [材料协议](../../tool-contract/docs/material-protocol.md)。
+宿主不运行清扫。回收由 Tool 账本的清扫执行（[清扫与回收](../../tool-contract/SPEC.md#清扫与回收)），调度归应用（[harness-server 的正文保管配置](../../../../apps/harness-server/docs/rows/tool-runtime.md#w3-正文保管的生产配置)）。close/dispose 只结束宿主本代资源，不撤销已经写入存储的分块。旧进程未封存的正文保持 opened，调用结算时成为孤儿。

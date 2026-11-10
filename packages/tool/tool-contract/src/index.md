@@ -3,7 +3,8 @@
 - [源码职责与现状](README.md)。
 - [根入口](index.ts)。
 - [提供者协议入口](provider.ts)。
-- [材料端口与值](materials.ts)：封存引用、精确 final、指纹与材料时间，对应 M01–M05。
+- [最终事实与指纹](materials.ts)：精确 final、计划后的 final、计划端口与规范 JSON 指纹。
+- [正文存储端口](body-store.ts)：写入许可、封存清单与 `ToolBodyStore`。
 - [绑定提供者入口](binding.ts)。
 - [资产正文端口](contract.ts)。
 - [品牌身份与解码函数](identity.ts)。
