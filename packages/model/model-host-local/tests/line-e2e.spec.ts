@@ -154,20 +154,17 @@ function assembledOf(fixed: FixedModelRequest): AssembledModelInput {
   }
 }
 
-/** `request` with the text of its first text block replaced by a text of `length` characters. */
+/** A copy of `request` with the text of its first text block replaced by a text of `length` characters. */
 function enlarged(request: FixedModelRequest, length: number) {
   const text = 'large request '.repeat(Math.ceil(length / 14)).slice(0, length)
-  let done = false
-  const messages = request.messages.map(message => ({
-    ...message,
-    blocks: message.blocks.map(block => {
-      if (done || block.kind !== 'text') return block
-      done = true
-      return { ...block, text }
-    }),
-  }))
-  if (!done) throw new Error('the recorded request has no text block')
-  return { request: { ...request, messages }, text }
+  const copy = structuredClone(request)
+  const blocks: readonly { kind: string; text?: string }[] = copy.messages.flatMap(
+    (message): readonly { kind: string; text?: string }[] => message.blocks,
+  )
+  const block = blocks.find(item => item.kind === 'text')
+  if (block === undefined) throw new Error('the recorded request has no text block')
+  block.text = text
+  return { request: copy, text }
 }
 
 async function admit(line: LineTree, name: string, request: FixedModelRequest) {
