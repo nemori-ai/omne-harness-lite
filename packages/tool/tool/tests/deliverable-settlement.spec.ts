@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { sealedText, settlementFixture } from './settlement-values.ts'
 import { auditQueues } from './start-values.ts'
-import { ok, text } from './runtime-values.ts'
+import { configuration, functionDefinition, ok, text } from './runtime-values.ts'
 
 beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }))
 afterEach(async () => {
@@ -126,5 +126,150 @@ it('refuses at planning a first screen that the configured page cannot carry', a
   })
   expect(f.planned).toEqual({
     failure: { kind: 'invalid', field: 'content', reason: 'first-screen-exceeds-result-page' },
+  })
+})
+
+it('judges the page bound on the encoded block: equal stays inline, one byte more offloads', async () => {
+  const envelope = encodedBytes(text('answer', ''))
+  const exact = 'x'.repeat(PAGE - envelope)
+  const inline = await settlementFixture({
+    resultPageBytes: PAGE,
+    value: {
+      content: [text('answer', exact)],
+      data: { kind: 'none' },
+      original: { kind: 'none' },
+      attachments: [],
+    },
+  })
+  ok(await inline.preserve())
+  expect((await inline.resultPage()).value.original.kind).toBe('none')
+  const over = await settlementFixture({
+    resultPageBytes: PAGE,
+    value: {
+      content: [text('answer', `${exact}y`)],
+      data: { kind: 'none' },
+      original: { kind: 'none' },
+      attachments: [],
+    },
+  })
+  ok(await over.preserve())
+  expect((await over.resultPage()).value.original.kind).toBe('offloaded')
+})
+
+it('collapses every model text block into one first screen whose body is their concatenation', async () => {
+  const f = await settlementFixture({
+    resultPageBytes: PAGE,
+    value: {
+      content: [text('a', INDENTED_TEXT), hidden('human', 'private'), text('b', 'tail\n')],
+      data: { kind: 'none' },
+      original: { kind: 'none' },
+      attachments: [],
+    },
+  })
+  ok(await f.preserve())
+  const page = await f.resultPage()
+  const screens = page.value.content.filter(
+    block => block.kind === 'text' && block.visibility.toModel,
+  )
+  expect(screens.map(block => block.id)).toEqual(['a'])
+  expect(page.value.content.map(block => block.id)).toEqual(['a', 'human'])
+  expect(page.value.original).toMatchObject({
+    kind: 'offloaded',
+    bodyBytes: String(Buffer.byteLength(INDENTED_TEXT) + Buffer.byteLength('tail\n')),
+    summary: screens,
+  })
+})
+
+it('refuses model text that is not well-formed Unicode, in a plain result and in an authored summary', async () => {
+  const plain = await settlementFixture({
+    value: {
+      content: [text('answer', 'lone \uD800 surrogate')],
+      data: { kind: 'none' },
+      original: { kind: 'none' },
+      attachments: [],
+    },
+  })
+  expect(plain.planned).toEqual({
+    failure: { kind: 'invalid', field: 'content', reason: 'invalid-unicode-text' },
+  })
+  const authored = await settlementFixture({
+    value: async (ledger, access) => {
+      const sealed = await sealedText(ledger, access, 'the authored body')
+      return {
+        content: [text('content', 'Answer: 42')],
+        data: { kind: 'none' },
+        attachments: [],
+        original: {
+          kind: 'offloaded',
+          source: sealed.source,
+          summary: [text('summary', 'bad \uDC00')],
+        },
+      }
+    },
+  })
+  expect(authored.planned).toEqual({
+    failure: { kind: 'invalid', field: 'original.summary', reason: 'invalid-unicode-text' },
+  })
+})
+
+it('admits an author first screen of exactly P bytes and refuses one byte more', async () => {
+  const P = 1024
+  const screen = async (bytes: number) =>
+    (
+      await settlementFixture({
+        value: async (ledger, access) => {
+          const sealed = await sealedText(ledger, access, 'the authored body')
+          return {
+            content: [text('content', 'x'.repeat(bytes))],
+            data: { kind: 'none' },
+            attachments: [],
+            original: { kind: 'offloaded', source: sealed.source, summary: [] },
+          }
+        },
+      })
+    ).planned
+  expect(await screen(P)).toHaveProperty('ok')
+  expect(await screen(P + 1)).toEqual({
+    failure: { kind: 'invalid', field: 'original.summary', reason: 'author-preview-too-large' },
+  })
+})
+
+it('refuses to offload under a declaration without a body, and an authored header the read budget cannot carry', async () => {
+  const definition = functionDefinition()
+  if (definition.kind !== 'function') throw new Error('fixture must define a function')
+  const bodiless = await settlementFixture({
+    definition: { ...definition, returns: { ...definition.returns, body: { kind: 'none' } } },
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 2048 },
+    value: {
+      content: [text('answer', 'line\n'.repeat(1000))],
+      data: { kind: 'none' },
+      original: { kind: 'none' },
+      attachments: [],
+    },
+  })
+  expect(bodiless.planned).toMatchObject({
+    failure: {
+      kind: 'unsupported',
+      reason: 'automatic offloading requires a model body declaration',
+    },
+  })
+  const narrow = await settlementFixture({
+    readResultArguments: { ...configuration().readResultArguments, maxBytes: 64 },
+    value: async (ledger, access) => {
+      const sealed = await sealedText(ledger, access, 'the authored body')
+      return {
+        content: [text('content', 'Answer: 42')],
+        data: { kind: 'none' },
+        attachments: [],
+        original: { kind: 'offloaded', source: sealed.source, summary: [] },
+      }
+    },
+  })
+  expect(narrow.planned).toEqual({
+    failure: {
+      kind: 'invalid',
+      field: 'readResultArguments',
+      reason: 'read-instruction-not-callable',
+    },
   })
 })

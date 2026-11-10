@@ -145,3 +145,118 @@ it('refuses a byte budget below the first record and names the record position',
     failure: { kind: 'invalid', field: 'maxBytes', reason: 'first-record-does-not-fit:8' },
   })
 })
+
+it('rebuilds a body stored in many small chunks byte for byte, across chunk and store-read boundaries', async () => {
+  const value = '中🙂a'.repeat(300)
+  const f = await settlementFixture({
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 2048, maxPageBytes: 7 },
+    value: {
+      content: [text('body', value)],
+      data: { kind: 'none' },
+      original: { kind: 'none' },
+      attachments: [],
+    },
+  })
+  ok(await f.preserve())
+  const page = await f.resultPage()
+  if (page.value.original.kind !== 'offloaded') throw new Error('expected an offloaded body')
+  const input = {
+    ...f.access,
+    result: page.result,
+    bodyId: page.value.original.bodyId,
+    after: null as string | null,
+    maxBytes: 1000,
+  }
+  const reads = vi.spyOn(f.bodies.store, 'read')
+  let actual = ''
+  let after: string | null = null
+  for (let pages = 0; pages < 5000; pages++) {
+    const next = ok(await f.ledger.reads.body.read({ ...input, after }))
+    if (next.kind !== 'text') throw new Error('text page expected')
+    expect(Buffer.byteLength(next.text)).toBeLessThanOrEqual(7)
+    actual += next.text
+    if (next.next === null) break
+    after = next.next
+  }
+  expect(actual).toBe(value)
+  expect(reads).toHaveBeenCalled()
+})
+
+it('reports a store that answers unavailable, or returns chunks out of sequence', async () => {
+  const { f, input } = await offloaded()
+  vi.spyOn(f.bodies.store, 'read').mockResolvedValueOnce({
+    kind: 'unavailable',
+    diagnostic: 'disk',
+  })
+  expect(await f.ledger.reads.body.read(input)).toEqual({
+    failure: { kind: 'unavailable', dependency: 'body-reader', diagnostic: 'disk' },
+  })
+  const read = f.bodies.store.read.bind(f.bodies.store)
+  vi.spyOn(f.bodies.store, 'read').mockImplementationOnce(async (ref, range) => {
+    const answer = await read(ref, range)
+    return answer.kind === 'found'
+      ? { ...answer, chunks: answer.chunks.map(chunk => ({ ...chunk, seq: chunk.seq + 1 })) }
+      : answer
+  })
+  expect(await f.ledger.reads.body.read(input)).toEqual({
+    failure: {
+      kind: 'unavailable',
+      dependency: 'body-reader',
+      diagnostic: 'sealed body is missing a chunk',
+    },
+  })
+  vi.spyOn(f.bodies.store, 'read').mockImplementationOnce(async (ref, range) => {
+    const answer = await read(ref, range)
+    return answer.kind === 'found'
+      ? { ...answer, manifest: { ...answer.manifest, bytes: answer.manifest.bytes + 1 } }
+      : answer
+  })
+  expect(await f.ledger.reads.body.read(input)).toMatchObject({
+    failure: { kind: 'unavailable', diagnostic: expect.stringContaining('integrity') },
+  })
+})
+
+it('re-checks the reader before and after the store read', async () => {
+  let reads = 0
+  let denyFrom = Number.POSITIVE_INFINITY
+  const { f, input } = await (async () => {
+    const built = await offloaded()
+    return built
+  })()
+  f.rebuild({ ...configuration().offloading, maxInlineUtf8Bytes: 2048 }, undefined, undefined)
+  const wrapped = await settlementFixture({
+    offloading: { ...configuration().offloading, maxInlineUtf8Bytes: 2048 },
+    wrapAccess: base => ({
+      qualify: async request => {
+        if (request.action === 'read-content' && ++reads >= denyFrom)
+          return { kind: 'denied', reason: 'revoked' }
+        return base.qualify(request)
+      },
+    }),
+    value: {
+      content: [text('body', '中🙂'.repeat(300))],
+      data: { kind: 'none' },
+      original: { kind: 'none' },
+      attachments: [],
+    },
+  })
+  ok(await wrapped.preserve())
+  const page = await wrapped.resultPage()
+  if (page.value.original.kind !== 'offloaded') throw new Error('expected an offloaded body')
+  const read = {
+    ...wrapped.access,
+    result: page.result,
+    bodyId: page.value.original.bodyId,
+    after: null,
+    maxBytes: 64,
+  }
+  ok(await wrapped.ledger.reads.body.read(read))
+  for (const at of [1, 2]) {
+    reads = 0
+    denyFrom = at
+    expect(await wrapped.ledger.reads.body.read(read)).toMatchObject({
+      failure: { kind: 'denied', action: 'read-content' },
+    })
+  }
+  void input
+})

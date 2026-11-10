@@ -385,3 +385,33 @@ it('a JSON Lines writer passes the schema checker refusal and its crash through'
     failure: { kind: 'unavailable', operation: 'rows-2', reason: 'body schema checker failed' },
   })
 })
+
+it('closes the writer when the store finds the permit expired twice in a row', async () => {
+  const f = await settlementFixture()
+  const w = await openWriter(f, 'twice-expired')
+  ok(await w.begin())
+  vi.spyOn(f.bodies.store, 'put')
+    .mockResolvedValueOnce({ kind: 'permit-expired' })
+    .mockResolvedValueOnce({ kind: 'permit-expired' })
+  expect(await w.append('1', 'bytes')).toEqual({
+    failure: { kind: 'closed', reason: 'start: permit-expired' },
+  })
+  ok(await w.append('1', 'bytes'))
+  vi.spyOn(f.bodies.store, 'seal')
+    .mockResolvedValueOnce({ kind: 'permit-expired' })
+    .mockResolvedValueOnce({ kind: 'permit-expired' })
+  expect(await w.seal('1')).toEqual({
+    failure: { kind: 'closed', reason: 'start: permit-expired' },
+  })
+})
+
+it('answers unknown when the ledger commit of the seal is lost, and seals on the retry', async () => {
+  const f = await settlementFixture()
+  const w = await openWriter(f, 'lost-seal')
+  ok(await w.begin())
+  ok(await w.append('1', 'bytes'))
+  f.harness.memory.injectCommit('unknown-dropped')
+  expect(await w.seal('1')).toMatchObject({ failure: { kind: 'unknown' } })
+  expect(ok(await w.inspect())).toMatchObject({ kind: 'open', confirmedThrough: '1' })
+  expect(ok(await w.seal('1')).bodyBytes).toBe('5')
+})
