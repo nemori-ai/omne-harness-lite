@@ -40,8 +40,11 @@ import { GovernanceProviderLifetime } from './provider-lifetime.ts'
 import { GovernanceContributionLifetime } from './contribution-lifetime.ts'
 import { GovernanceContributionCleanup } from './contribution-cleanup.ts'
 import { GovernanceRegistrar } from './registrar.ts'
-import { createGovernanceCatalog } from './catalog.ts'
-import type { CatalogCaptureOptions } from './catalog-capture.ts'
+import {
+  createGovernanceCatalog,
+  type GovernanceCatalogOptions,
+  type GovernanceProjectionRead,
+} from './catalog.ts'
 import {
   mutationCombinationSchema,
   type MutationCombination,
@@ -74,9 +77,13 @@ export type GovernanceLocalOptions<
     combinations: Readonly<{
       mutation: MutationCombination
       adoption: MutationCombination
-      catalog: MutationCombination
     }>
-    current: Readonly<{ adoption: AdoptionProjection; catalog: CatalogCaptureOptions['current'] }>
+    current: Readonly<{
+      adoption: AdoptionProjection
+      catalog: GovernanceCatalogOptions['current']
+    }>
+    /** Reads of the catalog run their commands through this port. */
+    projection: GovernanceProjectionRead
     recoveryPagesPerPass: number
     closeTimeoutMs: number
   }>
@@ -137,7 +144,6 @@ export async function createGovernanceRuntime<ReadContext = Principal, WriteCont
     combinations: {
       mutation: mutationCombinationSchema.parse(input.combinations.mutation),
       adoption: mutationCombinationSchema.parse(input.combinations.adoption),
-      catalog: mutationCombinationSchema.parse(input.combinations.catalog),
     },
   }
   const epoch = randomUUID()
@@ -179,13 +185,12 @@ export async function createGovernanceRuntime<ReadContext = Principal, WriteCont
     retryBatchSize: 8,
   })
   const catalog = createGovernanceCatalog({
-    ...options,
+    domain: options.domain,
+    scope: options.scope,
     epoch,
-    sql,
-    standing,
     admission,
-    combination: options.combinations.catalog,
     current: options.current.catalog,
+    projection: options.projection,
     accepting: () => lifetime.accepting,
   })
   const permissionReader =

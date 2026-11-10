@@ -11,6 +11,7 @@ export {
   type GovernanceLocalCoordination,
 } from './provider.ts'
 export type { GovernanceProviderClose } from './provider-lifetime.ts'
+export type { GovernanceProjectionRead } from './catalog.ts'
 export type { AdmissionGrant as GovernanceAdmissionGrant } from './admission-schema.ts'
 export type { AdoptionProjection as GovernanceAdoptionProjection } from './registrar-execution.ts'
 export { ADOPTION_CURRENT as governanceAdoptionCurrentFact } from './activation-schema.ts'

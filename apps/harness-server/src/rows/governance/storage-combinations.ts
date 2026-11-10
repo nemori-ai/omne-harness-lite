@@ -52,13 +52,18 @@ const unmappedPermissionRead = [
   'governance.permission-snapshot',
   'governance.activation',
 ]
-/** The members whose commands compute the permission basis, in a read or in a commit. */
-export const PERMISSION_BASIS_MEMBERS = [
+/**
+ * The members of the projection read. Their commands compute the permission basis, in a read or
+ * in a commit, and the pages of the governance catalog.
+ */
+export const PROJECTION_READ_MEMBERS = [
   ...snapshot,
   'governance.selected-definition-projection',
   UNMAPPED_PERMISSION_SNAPSHOT.participant,
   'session-permission-guard',
   PERMISSION_BASIS.participant,
+  CATALOG_CURRENT_PARTICIPANT.participant,
+  'governance.catalog-snapshot',
 ]
 /**
  * A Tool start commits its acceptance with the basis commands and the basis guard. The Governance
@@ -123,12 +128,6 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
       'governance.adoption-plan',
       'governance.activation',
     ],
-    catalog: [
-      ...publications,
-      CATALOG_CURRENT_PARTICIPANT.participant,
-      'governance.catalog-snapshot',
-      'governance.activation',
-    ],
     settingsCatalog: [
       ...snapshot,
       'governance.metadata-plan',
@@ -173,7 +172,6 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
     mutation: build('mutation'),
     assets: build('assets'),
     adoption: build('adoption'),
-    catalog: build('catalog'),
     settingsCatalog: build('settingsCatalog'),
     sessionClear: build('sessionClear'),
     sessionUnmapped: build('sessionUnmapped'),

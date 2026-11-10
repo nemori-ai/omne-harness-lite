@@ -23,24 +23,27 @@ import { sessionPermissionResultParticipant } from './session-permission-result.
 import { targetSnapshotParticipant } from './target-snapshot.ts'
 import { permissionBasisGuardParticipant, permissionBasisParticipant } from './permission-basis.ts'
 import { projectionReadHandler } from './projection-read.ts'
-import { PERMISSION_BASIS_MEMBERS } from './storage-combinations.ts'
+import { PROJECTION_READ_MEMBERS } from './storage-combinations.ts'
 
 export const SESSION_PERMISSION_WRITE_MODES = ['clear', 'unmapped', 'mapped'] as const
 export const sessionPermissionWriteBasis = (
   mode: (typeof SESSION_PERMISSION_WRITE_MODES)[number],
 ) => sessionPermissionBasisParticipant({ mode, requiredConstraintIds: [] })
 
-export const PERMISSION_BASIS_READ = 'harness.permission-basis-read'
+export const GOVERNANCE_PROJECTION_READ = 'harness.governance-projection-read'
 
 type Materials = Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
 
-/** No handler when a member is absent, for example without a trusted release: checks are then unavailable. */
-function permissionBasisRead(all: Pick<SqlMaterialCatalog, 'participants' | 'migrations'>) {
-  const members = PERMISSION_BASIS_MEMBERS.map(name =>
+/**
+ * No handler when a member is absent, for example without a trusted release: permission checks
+ * and catalog reads are then unavailable.
+ */
+function projectionRead(all: Pick<SqlMaterialCatalog, 'participants' | 'migrations'>) {
+  const members = PROJECTION_READ_MEMBERS.map(name =>
     all.participants.find(participant => participant.participant === name),
   )
   return members.every(member => member !== undefined)
-    ? [projectionReadHandler(PERMISSION_BASIS_READ, members, all)]
+    ? [projectionReadHandler(GOVERNANCE_PROJECTION_READ, members, all)]
     : []
 }
 
@@ -84,7 +87,7 @@ export function governanceStorageMaterials(
     migrations,
     readHandlers: [
       ...owners.flatMap(owner => owner.readHandlers),
-      ...permissionBasisRead({
+      ...projectionRead({
         participants: [...core.participants, ...participants],
         migrations: [...core.migrations, ...migrations],
       }),

@@ -53,5 +53,6 @@ export const catalogPageSchema = z.strictObject({
   unavailableOwners: z.array(GovernanceIdSchema).max(128),
   nextCursor: z.string().max(8192).nullable(),
 })
+export const catalogSnapshotRequestSchema = z.strictObject({ binding: catalogBindingSchema })
 export type CatalogBinding = z.infer<typeof catalogBindingSchema>
 export type CatalogCurrent = z.infer<typeof catalogCurrentSchema>

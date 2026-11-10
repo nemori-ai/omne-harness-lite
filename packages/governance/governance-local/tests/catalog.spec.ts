@@ -1,6 +1,3 @@
-import { GovernanceScopeLifecycle } from '../src/scope-lifecycle.ts'
-import { bindingSchema, type OperationBinding } from '../src/operation-schema.ts'
-import { observationSchema } from '../src/operation-read.ts'
 import { afterEach, expect, it } from 'vitest'
 import { openRegistrarWorld } from './registrar-world.ts'
 import { createGovernanceCatalog } from '../src/catalog.ts'
@@ -22,14 +19,11 @@ async function setup() {
     change: (current: CatalogCurrent) => CatalogCurrent = current => current,
     storage: SqlStorage = w.activation.storage,
   ) {
-    const { combinationVersion, manifestDigest } = w.activation.combination('catalog')
     return createGovernanceCatalog({
-      ...w.services({ storage }),
-      destination: w.destination,
       domain: w.activation.domain,
       scope: w.scope,
       epoch: 'first',
-      combination: { combinationVersion, manifestDigest },
+      projection: w.activation.projection(storage),
       admission: w.services().admission,
       accepting: () => true,
       current: binding => [
@@ -183,32 +177,22 @@ it('rejects misbound current facts, foreign scopes and revoked readers', async (
   expect(await reader()(w.context, request)).toEqual({ kind: 'denied' })
 })
 
-it('rejects a stored result whose snapshot belongs to another scope or epoch', async () => {
+it('rejects a page whose snapshot belongs to another scope or epoch', async () => {
   const { w, reader, request } = await setup()
   for (const patch of [{ epoch: 'foreign' }, { scope: { ...w.scope, deploymentId: 'foreign' } }]) {
     const storage: SqlStorage = {
       ...w.activation.storage,
-      async read(input, options) {
-        const reply = await w.activation.storage.read(input, options)
-        if (reply.kind !== 'read' || input.handler !== 'governance.operation') return reply
-        const observation = observationSchema.parse(reply.output)
-        if (
-          observation.kind !== 'found' ||
-          observation.record.request.owner !== 'internal.capture' ||
-          observation.record.state !== 'committed'
-        )
-          return reply
-        const page = catalogPageSchema.parse(observation.record.result)
-        return {
-          ...reply,
-          output: json({
-            ...observation,
-            record: {
-              ...observation.record,
-              result: { ...page, snapshot: { ...page.snapshot, ...patch } },
-            },
-          }),
-        }
+      async commit(envelope, options) {
+        const result = await w.activation.storage.commit(envelope, options)
+        const last = result.kind === 'committed' ? result.responses.at(-1) : undefined
+        if (result.kind !== 'committed' || last?.reply.kind !== 'participated') return result
+        const page = catalogPageSchema.parse(last.reply.response)
+        const response = json({ ...page, snapshot: { ...page.snapshot, ...patch } })
+        const responses = [
+          ...result.responses.slice(0, -1),
+          { ...last, reply: { ...last.reply, response } },
+        ] as unknown as typeof result.responses
+        return { ...result, responses }
       },
     }
     expect(await reader(current => current, storage)(w.context, request)).toEqual({
@@ -254,101 +238,4 @@ it('shows an unadopted management target and reports its disabled state without 
   expect(
     await reader(current(true))(w.context, { ...request, mode: 'runtime', targets: [target] }),
   ).toMatchObject({ kind: 'page', items: [] })
-})
-
-it('returns no page before qualification settlement and recovers the original capture after reopening', async () => {
-  const { w, reader, request } = await setup()
-  let binding: OperationBinding | undefined
-  const storage: SqlStorage = {
-    ...w.activation.storage,
-    async read(input, options) {
-      if (input.handler === 'governance.operation') {
-        const parsed = bindingSchema.parse(input.input)
-        if (parsed.ref.owner === 'internal.capture') binding = parsed
-      }
-      return w.activation.storage.read(input, options)
-    },
-    async commit(envelope, options) {
-      if (envelope.identity.operation === 'governance.meta.standing-settled')
-        return {
-          kind: 'unknown',
-          identity: envelope.identity,
-          diagnostic: 'settlement unavailable',
-        }
-      return w.activation.storage.commit(envelope, options)
-    },
-    async query(identity) {
-      return identity.operation === 'governance.meta.standing-settled'
-        ? { kind: 'unknown', identity, diagnostic: 'settlement unavailable' }
-        : w.activation.storage.query(identity)
-    },
-  }
-  expect(await reader(value => value, storage)(w.context, request)).toEqual({
-    kind: 'unavailable',
-    owner: 'governance-catalog',
-  })
-  if (!binding) throw new Error('Expected durable capture')
-  expect(await w.services().sql.observe(binding)).toMatchObject({
-    record: { state: 'committed', result: { kind: 'page' } },
-    standing: { kind: 'held' },
-  })
-  await w.reopen()
-  const services = w.services()
-  const { combinationVersion, manifestDigest } = w.activation.combination('metadata')
-  const lifecycle = new GovernanceScopeLifecycle({
-    ...services,
-    storage: w.activation.storage,
-    domain: w.activation.domain,
-    scope: w.scope,
-    epoch: 'first',
-    metadata: { combinationVersion, manifestDigest },
-  })
-  expect(await lifecycle.recoverPage()).toEqual({ kind: 'page', next: null, unsettled: 0 })
-  expect(await services.sql.observe(binding)).toMatchObject({
-    record: { state: 'committed', result: { kind: 'page' } },
-    standing: { kind: 'settled', outcome: 'committed' },
-  })
-})
-
-it('rejects a delayed capture after its retained qualification has been sealed', async () => {
-  const { w, reader, request } = await setup()
-  const started = Promise.withResolvers<void>(),
-    proceed = Promise.withResolvers<void>()
-  let binding: OperationBinding | undefined
-  const storage: SqlStorage = {
-    ...w.activation.storage,
-    async read(input, options) {
-      if (input.handler === 'governance.operation') {
-        const parsed = bindingSchema.parse(input.input)
-        if (parsed.ref.owner === 'internal.capture') binding = parsed
-      }
-      return w.activation.storage.read(input, options)
-    },
-    async commit(envelope, options) {
-      if (envelope.identity.operation === 'governance.apply.internal.capture') {
-        started.resolve()
-        await proceed.promise
-      }
-      return w.activation.storage.commit(envelope, options)
-    },
-  }
-  const pending = reader(value => value, storage)(w.context, request)
-  await started.promise
-  try {
-    if (!binding) throw new Error('Expected held capture')
-    const { sql, standing } = w.services()
-    expect(await sql.observe(binding)).toMatchObject({
-      record: { state: 'submitted' },
-      standing: { kind: 'held' },
-    })
-    await sql.executeControl(binding, { kind: 'seal', binding })
-    expect(await standing.settle(binding)).toMatchObject({ kind: 'settled', outcome: 'aborted' })
-  } finally {
-    proceed.resolve()
-  }
-  expect(await pending).toEqual({ kind: 'unavailable', owner: 'governance-catalog' })
-  if (!binding) throw new Error('Expected capture binding')
-  expect(await w.services().sql.observe(binding)).toMatchObject({
-    record: { state: 'aborted', result: { kind: 'sealed' } },
-  })
 })

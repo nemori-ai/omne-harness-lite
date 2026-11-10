@@ -1,6 +1,3 @@
-import { ACTIVATION_PLAN } from './activation-schema.ts'
-import { businessOriginal } from './business-plan.ts'
-import { boundOperation } from './operation.ts'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { SettingsTargetSchema } from '@omne-harness/settings'
 import type {
@@ -11,6 +8,7 @@ import {
   CATALOG_CURRENT,
   CATALOG_SNAPSHOT,
   catalogCurrentSchema,
+  catalogSnapshotRequestSchema,
   type CatalogBinding,
   type CatalogCurrent,
 } from './catalog-schema.ts'
@@ -169,35 +167,18 @@ function capture(port: ParticipantPort, binding: CatalogBinding, current: Catalo
     entriesFor(binding, current, candidates.entries, selected),
   )
 }
+/** Computes one catalog page from the tables of this owner and the current evidence. It writes nothing. */
 export default {
   ...CATALOG_SNAPSHOT,
   execute(facts, port) {
-    const original = businessOriginal(port, facts['request'], 'capture')
-    if (original.kind === 'observation') {
-      port.provideFact(ACTIVATION_PLAN, json(original))
-      return { kind: 'participated', response: null }
-    }
-    const found = boundOperation(port, original.request.binding)
-    if (found.kind !== 'found' || !isCatalogCapture(found.record.request))
-      throw new Error('Missing capture operation')
-    const binding: CatalogBinding = {
-      scope: original.request.binding.ref.scope,
-      principalRef: original.request.binding.ref.principalRef,
-      captureId: original.request.binding.ref.operationId,
-      epoch: original.epoch,
-      transactionDomain: original.transactionDomain,
-      request: found.record.request.command.request,
-    }
+    const request = catalogSnapshotRequestSchema.safeParse(facts['request'])
+    if (!request.success)
+      return { kind: 'unsupported', basis: { reason: 'governance-catalog-snapshot-input' } }
     const raw = port.requireFact(CATALOG_CURRENT)
     if (Buffer.byteLength(canonical(raw)) > 2 * 1024 * 1024)
       throw new Error('Governance current fact budget')
     const current = catalogCurrentSchema.parse(raw)
     if (!equal(raw, current)) throw new Error('Non-canonical governance current fact')
-    port.provideFact(
-      ACTIVATION_PLAN,
-      json({ ...original, kind: 'capture', result: capture(port, binding, current) }),
-    )
-    return { kind: 'participated', response: null }
+    return { kind: 'participated', response: json(capture(port, request.data.binding, current)) }
   },
 } satisfies ParticipantModule
-import { isCatalogCapture } from './operation-schema.ts'

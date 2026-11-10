@@ -10,6 +10,7 @@ import {
   type CommitRequestV2,
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage, type SqliteStorageConfig } from '@omne-harness/sqlite-provider'
+import type { GovernanceProjectionRead } from '../src/catalog.ts'
 import { CATALOG_CURRENT, CATALOG_SNAPSHOT } from '../src/catalog-schema.ts'
 import { governanceSqlMaterials } from '../src/materials.ts'
 import {
@@ -74,7 +75,13 @@ export function activationCatalog(
   }
 }
 export const plannerMembers = {
-  catalog: ['fixture.governance-catalog-current', CATALOG_SNAPSHOT.participant, GOVERNANCE_OWNER],
+  // The owner is a member because the snapshot reads its tables; the planner provides its plan fact.
+  catalog: [
+    'fixture.governance-catalog-current',
+    CATALOG_SNAPSHOT.participant,
+    GOVERNANCE_OWNER,
+    METADATA_PLANNER,
+  ],
   metadata: [METADATA_PLANNER, GOVERNANCE_OWNER],
   mutation: [MUTATION_PLANNER, GOVERNANCE_OWNER],
   adoption: ['fixture.governance-current', ADOPTION_PLANNER, GOVERNANCE_OWNER],
@@ -188,9 +195,33 @@ export async function openActivation(
       commands: businessCommands(mode, request, evidence),
     }
   }
+  /**
+   * A test double of the projection read: it commits the commands under the catalog combination
+   * and answers the last response. The application tests cover the real read host.
+   */
+  const projection = (via: Pick<typeof storage, 'commit'> = storage): GovernanceProjectionRead => ({
+    read: async commands => {
+      const result = await via.commit({
+        identity: {
+          ...domain,
+          operation: 'fixture.projection',
+          protocolVersion: '2',
+          operationKey: randomUUID(),
+        },
+        combinationVersion: combination('catalog').combinationVersion,
+        manifestDigest: combination('catalog').manifestDigest,
+        commands,
+      })
+      const last = result.kind === 'committed' ? result.responses.at(-1)?.reply : undefined
+      return last?.kind === 'participated'
+        ? { kind: 'completed', response: last.response }
+        : { kind: 'unavailable' }
+    },
+  })
   return {
     root,
     materials,
+    projection,
     readStage,
     envelope,
     domain,

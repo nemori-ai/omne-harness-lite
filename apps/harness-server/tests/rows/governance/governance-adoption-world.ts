@@ -42,6 +42,7 @@ import {
   governanceCatalogCurrentParticipant,
   governanceCatalogProjection,
 } from '../../../dist/rows/governance/catalog-current.js'
+import { readProjection } from '../../../dist/rows/governance/projection-read.js'
 import { createGovernanceAdoptionProjection } from '../../../dist/rows/governance/adoption-current.js'
 import { createToolGovernanceDefinitionSource } from '../../../src/rows/governance/tool-definition-source.ts'
 import { toolAssetsWorld } from './tool-assets-world.ts'
@@ -194,12 +195,6 @@ export async function governanceAdoptionWorld(
     'governance.adoption-plan',
     'governance.activation',
   ])
-  const catalog = await register('catalog', [
-    ...w.combination.participants.filter(value => value !== 'harness.governance-current'),
-    'harness.governance-catalog-current',
-    'governance.catalog-snapshot',
-    'governance.activation',
-  ])
   const targetProjection = await register('target-projection', [
     'governance.metadata-plan',
     'governance.activation',
@@ -287,7 +282,13 @@ export async function governanceAdoptionWorld(
         })),
       ],
       definitions: createToolGovernanceDefinitionSource(() => w.release),
-      combinations: { mutation, adoption, catalog },
+      combinations: { mutation, adoption },
+      projection: {
+        read: async commands => {
+          const read = await readProjection(observedStorage, w.domain, w.projection, commands)
+          return read.kind === 'completed' ? read : { kind: 'unavailable' }
+        },
+      },
       current: {
         adoption: createGovernanceAdoptionProjection(w.domain.transactionDomain),
         catalog: governanceCatalogProjection,

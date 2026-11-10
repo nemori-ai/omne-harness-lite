@@ -45,8 +45,8 @@ export async function openProviderWorld(existing?: Awaited<ReturnType<typeof ope
     combinations: {
       mutation: combination('mutation'),
       adoption: combination('adoption'),
-      catalog: combination('catalog'),
     },
+    projection: w.activation.projection(),
     current: {
       adoption: input => [
         {

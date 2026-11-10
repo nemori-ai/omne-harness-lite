@@ -6,18 +6,34 @@ import {
   type GovernanceQueries,
 } from '@omne-harness/governance-contract'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
+import { randomUUID } from 'node:crypto'
+import type { DomainRef, FactCommandV2, JsonValue } from '@omne-harness/sql-contract'
 import type { GovernanceAdmission } from './admission.ts'
-import { mutationCombinationSchema, type MutationCombination } from './registrar-execution.ts'
-import { canonical, equal } from './encoding.ts'
-import { captureCatalog, type CatalogCaptureOptions } from './catalog-capture.ts'
-export type GovernanceCatalogOptions = CatalogCaptureOptions &
-  Readonly<{
-    scope: GovernanceScope
-    epoch: string
-    combination: MutationCombination
-    admission: GovernanceAdmission
-    accepting: () => boolean
-  }>
+import { CATALOG_SNAPSHOT, catalogPageSchema, type CatalogBinding } from './catalog-schema.ts'
+import { canonical, equal, json } from './encoding.ts'
+import { governanceFailureSchema } from './registrar-results.ts'
+
+/**
+ * Runs read-only participant commands in one snapshot and answers the response of the last one.
+ * The assembly gives it. `unavailable` covers every case without a response.
+ */
+export type GovernanceProjectionRead = Readonly<{
+  read(
+    commands: readonly FactCommandV2[],
+  ): Promise<
+    Readonly<{ kind: 'completed'; response: JsonValue }> | Readonly<{ kind: 'unavailable' }>
+  >
+}>
+export type GovernanceCatalogOptions = Readonly<{
+  domain: DomainRef
+  scope: GovernanceScope
+  epoch: string
+  admission: GovernanceAdmission
+  /** The commands of other owners that give the current catalog evidence of this binding. */
+  current: (binding: CatalogBinding) => readonly FactCommandV2[]
+  projection: GovernanceProjectionRead
+  accepting: () => boolean
+}>
 const unavailable = () => ({ kind: 'unavailable' as const, owner: 'governance-catalog' })
 function captureRequest(raw: unknown) {
   try {
@@ -43,8 +59,6 @@ export function createGovernanceCatalog(
     domain: structuredClone(input.domain),
     scope: GovernanceScopeSchema.parse(input.scope),
     epoch: GovernanceIdSchema.parse(input.epoch),
-    destination: GovernanceIdSchema.parse(input.destination),
-    combination: mutationCombinationSchema.parse(input.combination),
   }
   if (
     options.domain.scope.kind !== 'tenant' ||
@@ -70,7 +84,28 @@ async function readCatalog(
     })
     if (admitted.kind !== 'admitted') return admitted
     if (!options.accepting()) return unavailable()
-    return await captureCatalog(options, admitted, request.request)
+    const binding: CatalogBinding = {
+      scope: request.request.scope,
+      principalRef: admitted.principalRef,
+      captureId: randomUUID(),
+      epoch: options.epoch,
+      transactionDomain: options.domain.transactionDomain,
+      request: request.request,
+    }
+    const projected = await options.projection.read([
+      ...options.current(binding),
+      { participant: CATALOG_SNAPSHOT.participant, facts: { request: json({ binding }) } },
+    ])
+    if (projected.kind !== 'completed') return unavailable()
+    const parsed = catalogPageSchema.or(governanceFailureSchema).safeParse(projected.response)
+    if (!parsed.success || !equal(parsed.data, projected.response)) return unavailable()
+    if (
+      parsed.data.kind === 'page' &&
+      (!equal(parsed.data.snapshot.scope, binding.scope) ||
+        parsed.data.snapshot.epoch !== binding.epoch)
+    )
+      return unavailable()
+    return options.accepting() ? parsed.data : unavailable()
   } catch {
     return unavailable()
   }

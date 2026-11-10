@@ -33,6 +33,7 @@ import {
   toolPermissionReleaseParticipant,
 } from '../../../dist/rows/governance/permission-materials.js'
 import { SUPPORT_PARTICIPANT } from '../../../dist/rows/governance/permission-protocol.js'
+import { projectionReadHandler } from '../../../dist/rows/governance/projection-read.js'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import {
   createToolAssetCategory,
@@ -75,11 +76,33 @@ export async function toolAssetsWorld(
     readHandlers: [...assets.readHandlers, ...standalone.readHandlers, ...settings.readHandlers],
     declaredCombinations: { tenant: null, system: null },
   }
-  const materials = {
-    ...baseMaterials,
+  const all = {
     participants: [...baseMaterials.participants, ...(options.extraMaterials?.participants ?? [])],
     migrations: [...baseMaterials.migrations, ...(options.extraMaterials?.migrations ?? [])],
-    readHandlers: [...baseMaterials.readHandlers, ...(options.extraMaterials?.readHandlers ?? [])],
+  }
+  // The read-only members of the catalog chain. The handler requires only the migrations of the
+  // owners of their tables, which the combinations of this world apply to the tenant domain.
+  const readMembers = new Set([
+    (options.releaseParticipant ?? toolPermissionReleaseParticipant(release)).participant,
+    SUPPORT_PARTICIPANT.participant,
+    'assets.settings',
+    'settings.target-projection',
+    'harness.governance-catalog-current',
+    'governance.catalog-snapshot',
+  ])
+  const projection = projectionReadHandler(
+    'fixture.projection-read',
+    all.participants.filter(participant => readMembers.has(participant.participant)),
+    all,
+  )
+  const materials = {
+    ...baseMaterials,
+    ...all,
+    readHandlers: [
+      ...baseMaterials.readHandlers,
+      ...(options.extraMaterials?.readHandlers ?? []),
+      projection,
+    ],
   }
   const domain = {
     scope: {
@@ -134,6 +157,7 @@ export async function toolAssetsWorld(
     root,
     storage: made.storage,
     materials,
+    projection,
     combination,
     domain,
     release,

@@ -1,7 +1,8 @@
 import type { ToolPermissionContext } from '../authorization/current-tool-permission.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { createPermissionBasisRead, type PermissionOrigins } from './permission-basis-read.ts'
-import { PERMISSION_BASIS_READ } from './storage-materials.ts'
+import { GOVERNANCE_PROJECTION_READ } from './storage-materials.ts'
+import { readProjection } from './projection-read.ts'
 import type { SessionPermissionLogin } from '../authorization/session-permission-write.ts'
 import type { ActingForTenantPrincipal, StandingDestinationResolver } from '@omne-harness/identity'
 import { access, tenantCodec } from '@omne-harness/legal-identity'
@@ -24,7 +25,7 @@ import { createSessionPermissionWritePlan } from './session-permission-plan.ts'
 
 export type TenantGovernanceOptions = Omit<
   GovernanceLocalOptions<ToolPermissionContext, SessionPermissionWriteContext>,
-  'metadata' | 'combinations' | 'current' | 'externalWrites' | 'permission'
+  'metadata' | 'combinations' | 'current' | 'externalWrites' | 'permission' | 'projection'
 > &
   Readonly<{
     materials: SqlMaterialCatalog
@@ -111,6 +112,9 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
     if (!(await register(options, combinations))) return unavailable(phase)
     phase = 'startup'
     let service: Runtime['service'] | undefined
+    const handler = options.materials.readHandlers.find(
+      item => item.handler === GOVERNANCE_PROJECTION_READ,
+    )
     const runtime = await createGovernanceLocal<
       ToolPermissionContext,
       SessionPermissionWriteContext
@@ -120,7 +124,13 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
       combinations: {
         mutation: reference(combinations.mutation),
         adoption: reference(combinations.adoption),
-        catalog: reference(combinations.catalog),
+      },
+      projection: {
+        read: async commands => {
+          if (handler === undefined) return { kind: 'unavailable' }
+          const read = await readProjection(options.storage, options.domain, handler, commands)
+          return read.kind === 'completed' ? read : { kind: 'unavailable' }
+        },
       },
       current: {
         adoption: createGovernanceAdoptionProjection(options.domain.transactionDomain),
@@ -135,9 +145,6 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
     }
     service = runtime.service
     let closed = false
-    const handler = options.materials.readHandlers.find(
-      item => item.handler === PERMISSION_BASIS_READ,
-    )
     const permissionBasis =
       options.permissionRelease === undefined ||
       options.settings === undefined ||

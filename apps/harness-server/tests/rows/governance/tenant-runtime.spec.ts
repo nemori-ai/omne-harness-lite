@@ -469,8 +469,8 @@ it.each(['held', 'lost-reserve-reply'] as const)(
       combinations: {
         mutation: reference(combinations.mutation),
         adoption: reference(combinations.adoption),
-        catalog: reference(combinations.catalog),
       },
+      projection: { read: async () => ({ kind: 'unavailable' }) },
       current: {
         adoption: createGovernanceAdoptionProjection(w.options.domain.transactionDomain),
         catalog: governanceCatalogProjection,
