@@ -40,7 +40,7 @@
 
 - `config.network` 是装配创建并拥有的网络资源。多个传输可以共享同一网络资源。传输不创建也不关闭它。
 - `config.families` 是家族贡献，`config.credential` 是凭据槽。两者都由装配注入。
-- `config.routes` 按 `supplier.recipient` 查找路由。本包只查对象自身的属性，不查原型链。每个路由给出完整的 endpoint（`url`）、协议的 end-marker 文本（`endMarker`，协议没有 end-marker 时为 `null`）与账目口径（`accounting`：服务落点的前缀 `place` 与费用单位 `costUnit`）。路由取自模型供应商资产的正文（model-contract「模型供应商资产」）；本包在 `./chat-completions` 提供 OpenRouter 的正文 `OPENROUTER_PROVIDER_BODY` 与它的账目口径 `OPENROUTER_ACCOUNTING`。
+- `config.routes` 按 `supplier.recipient` 查找路由。本包只查对象自身的属性，不查原型链。每个路由给出完整的 endpoint（`url`）、协议的 end-marker 文本（`endMarker`，协议没有 end-marker 时为 `null`）与账目口径（`accounting`：服务落点的前缀 `place` 与费用单位 `costUnit`）。路由取自模型供应商资产的正文（model-contract「模型供应商资产」）；本包在 `./chat-completions` 提供 OpenRouter 的正文文本 `OPENROUTER_PROVIDER_BODY_TEXT` 与它的账目口径 `OPENROUTER_ACCOUNTING`。
 - `config.limits` 给出 `connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes` 与单个事件 JSON 的 `json` 限额，另有可选的 `streamStallTimeoutMs`（见[“流停顿上界”](#流停顿上界)）与可选的 `connectRetry`（见[“请求发出之前的重试”](#请求发出之前的重试)）。本包不设默认值。
 
 下列情况下，`createPiTransport` 同步抛出 `RangeError`。消息只写字段名与规则，不含 URL：

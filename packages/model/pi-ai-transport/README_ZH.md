@@ -57,7 +57,7 @@
 - 连接重试：`limits.connectRetry.backoffMs`（至多 8 项；列表长度是最多的重试次数；缺省或空列表表示不重试）只在失败发生于请求字节可能发出之前时重发一次发送（连接超时、被拒绝、DNS、TLS 握手）。请求可能已在线上之后不重试。停止、取消与关闭立即结束退避。最后一次尝试的 `upstream-unavailable` fault 保持原来的形状，每次重试以 `connect-retry` 事件进入诊断观察者。见 [SPEC“请求发出之前的重试”](SPEC.md#请求发出之前的重试)。
 - 每次交换：`connectTimeoutMs`（从发起到取得已连接的套接字，复用的连接在下一个 tick 结束，`null` 表示不设）、`maxErrorBodyBytes` 与可选的 `streamStallTimeoutMs`。`streamStallTimeoutMs` 是两次收到响应字节的最长间隔：从发起开始计时，每收到任意响应字节（含 SSE 注释行）重新计时，缺省表示不设。到期时发送以 `failed` 收场：响应头之前是 `upstream-unavailable`，之后是 `stream-lost`，诊断名都是 `stream-stall`。见 [SPEC“流停顿上界”](SPEC.md#流停顿上界)。
 - SSE 分帧：`maxEventBytes`。协议帧：`endMarker` 与 JSON 限额。
-- 三段传输：`network`（装配创建并关闭的网络资源）、`families`、`routes`（每个供应商的 `url`、`endMarker` 与 `accounting`，取自供应商资产正文；`./chat-completions` 导出 OpenRouter 的正文 `OPENROUTER_PROVIDER_BODY` 与 `OPENROUTER_ACCOUNTING`）、`credential`（凭据槽），以及 `limits`（`connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes`、`json` 与可选的 `streamStallTimeoutMs`）。配置不合规时 `createPiTransport` 同步抛出 `RangeError`。
+- 三段传输：`network`（装配创建并关闭的网络资源）、`families`、`routes`（每个供应商的 `url`、`endMarker` 与 `accounting`，取自供应商资产正文；`./chat-completions` 导出 OpenRouter 的正文文本 `OPENROUTER_PROVIDER_BODY_TEXT` 与 `OPENROUTER_ACCOUNTING`）、`credential`（凭据槽），以及 `limits`（`connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes`、`json` 与可选的 `streamStallTimeoutMs`）。配置不合规时 `createPiTransport` 同步抛出 `RangeError`。
 - 每个计时值最多 2147483647 毫秒，即 Node 定时器接受的最大延迟。
 
 调用方的责任见 [SPEC“调用方责任”](SPEC.md#调用方责任)。

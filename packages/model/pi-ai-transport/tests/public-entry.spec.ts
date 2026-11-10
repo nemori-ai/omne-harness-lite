@@ -54,7 +54,7 @@ it('the subpath entry chat-completions exports the binding entry, the shared cal
     'ANCHORED_METHOD',
     'NO_CALIBRATION',
     'OPENROUTER_ACCOUNTING',
-    'OPENROUTER_PROVIDER_BODY',
+    'OPENROUTER_PROVIDER_BODY_TEXT',
     'bindChatCompletions',
     'calibratedAmount',
     'calibratedDigest',

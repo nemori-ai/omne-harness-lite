@@ -5,7 +5,7 @@
 // meter seam are types. Planning, projection, the body writer and the decoder stay inside the
 // package.
 export { bindChatCompletions, type ChatCompletionsBindingInput } from './bind.ts'
-export { OPENROUTER_ACCOUNTING, OPENROUTER_PROVIDER_BODY } from './openrouter.ts'
+export { OPENROUTER_ACCOUNTING, OPENROUTER_PROVIDER_BODY_TEXT } from './openrouter.ts'
 export {
   calibratedAmount,
   type CalibratedAmount,

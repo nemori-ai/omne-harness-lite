@@ -1,8 +1,8 @@
 // The official model provider body of OpenRouter (model design「凭据的范围」): the gateway this engine
-// is the implementation of. The body is an asset body of the category `model-provider`; the
-// release pins it, and the assembly derives the route and the credential settings from it. Its
-// accounting is what the decoder reports for a response of this provider.
-import { readJsonText, type JsonValue } from '@omne-harness/json-text'
+// is the implementation of. The body is the document text of an asset of the category
+// `model-provider`; the release reads it through the asset domain and pins it, and the assembly
+// derives the route and the credential settings from it. Its accounting is what the decoder
+// reports for a response of this provider.
 import type { RouteAccounting } from '../config.ts'
 
 /** The accounting of OpenRouter responses: served places under `openrouter/`, costs in credits. */
@@ -11,7 +11,8 @@ export const OPENROUTER_ACCOUNTING: RouteAccounting = Object.freeze({
   costUnit: 'openrouter-credit',
 })
 
-const OPENROUTER_BODY_TEXT = JSON.stringify({
+/** The asset body document of the official model provider `openrouter`. */
+export const OPENROUTER_PROVIDER_BODY_TEXT: string = JSON.stringify({
   name: 'openrouter',
   protocol: 'chat-completions',
   endpoint: { url: 'https://openrouter.ai/api/v1/chat/completions', endMarker: '[DONE]' },
@@ -28,15 +29,3 @@ const OPENROUTER_BODY_TEXT = JSON.stringify({
   ],
 })
 
-const read = readJsonText(OPENROUTER_BODY_TEXT, {
-  maxBytes: 4096,
-  maxDepth: 8,
-  maxItems: 16,
-  maxMembers: 16,
-  maxStringLength: 400,
-  maxNumberLength: 20,
-})
-if (read.kind !== 'ok') throw new TypeError('the OpenRouter provider body is not a document')
-
-/** The asset body of the official model provider `openrouter`. */
-export const OPENROUTER_PROVIDER_BODY: JsonValue = read.value
