@@ -17,7 +17,9 @@
 // The counted call does both again and reads its body back page by page. The SQLite test provider
 // shows every statement of the participant and the read handlers to a meter, which splits them by
 // the owner of the rows; the two runs must run the same statements over the same rows and bytes on
-// each path. The counting ledger store also sees every host read, and the two runs must read the
+// each path. The one byte difference allowed is the decimal width of revision, ordinal and
+// counter texts, which grows with a u64-bounded count and not with history: the meter counts
+// those bytes, the comparison deducts them and shows that nothing else differs. The counting ledger store also sees every host read, and the two runs must read the
 // same records and bytes. The only tenant-level host domain is `start-guards`, which grows with
 // control actions only: its size is reported, not compared. The retention scope spans every call
 // of the session, so its record must not grow with the calls; its end facts, one per stopped
@@ -88,7 +90,12 @@ import {
 } from './fixtures/host-paths.ts'
 import { ledgerWorld, type Principal as LedgerPrincipal } from './fixtures/ledger.ts'
 import { ok as answered, settledOffloaded } from './fixtures/settled-offloaded.ts'
-import { statementMeter, type OwnedCost, type StatementMeter } from './fixtures/statement-meter.ts'
+import {
+  statementMeter,
+  withoutDecimals,
+  type OwnedCost,
+  type StatementMeter,
+} from './fixtures/statement-meter.ts'
 
 const GUARD: GuardResource = { owner: 'permissions', resource: 'scope-1/read_file' }
 /** The retention scope of the session every seeded call belongs to. */
@@ -616,7 +623,14 @@ describe(`the Tool and host paths after 20 and after ${String(N)} settled Tools 
       console.info('retention scope end facts', ended, 'one ended(key) reads', endedReads)
       // Reported, not compared: the guard domain grows with control actions, never with calls.
       console.info('tenant-level host domains', JSON.stringify(tenantDomains))
-      expect(statements[String(N)]).toEqual(statements['20'])
+      const after20 = statements['20']
+      const afterN = statements[String(N)]
+      if (after20 === undefined || afterN === undefined) throw new Error('the meter did not count')
+      expect(withoutDecimals(afterN)).toEqual(withoutDecimals(after20))
+      for (const owner of ['tool', 'host'] as const)
+        expect(afterN[owner].bytes - after20[owner].bytes).toBe(
+          afterN[owner].decimal - after20[owner].decimal,
+        )
       expect(statements['20']?.tool.statements).toBeGreaterThan(0)
       expect(statements['20']?.host.statements).toBeGreaterThan(0)
       expect(counts[String(N)]).toEqual(counts['20'])
