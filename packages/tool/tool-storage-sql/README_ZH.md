@@ -98,5 +98,3 @@ acceptance/               独立验收；fixtures/ 放其输入
 ```
 
 每个目录有 README.md 说明职责，有 index.md 作导航。阅读路径见 [index.md](index.md)。
-
-W3 材料 worker 已实现不可变分块、完整内容封存校验、有界字节读取、持久写入围栏和分批删除。根入口新增 `createSqlToolMaterialStore`，公开 `ToolMaterialStore` 适配器已实现，Tool 生命周期尚未接通。Linux 公开接口测试覆盖 5 MiB 材料，以及删除提交未知后重启接续，不代表完整 offloading 或掉电恢复已经验收。

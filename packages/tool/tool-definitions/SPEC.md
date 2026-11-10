@@ -83,7 +83,7 @@ TodoItems 采用 [Session Todo 契约](../../session/session-contract/SPEC.md)�
 
 ## W3 操作返回声明
 
-本节为待评审增量，具体作者行为保持各节责任。每条操作从其现有声明表生成返回结构、程序协议与正文格式，help/inspect 和注册定义共用该源。Tools 及各多命令工具保持 wrapped 编码，常驻/非常驻边界不变。
+具体作者行为保持各节责任。每条操作从其现有声明表生成返回结构、程序协议与正文格式，help/inspect 和注册定义共用该源。Tools 及各多命令工具保持 wrapped 编码，常驻/非常驻边界不变。
 
 作者捕获或返回字符串的 resultMaxBytes 与 Tool 的模型正文内联上限分别生效。作者已经截断或设施已经丢弃的输出不能被 runtime 卸载补回。截断须继续如实说明；W3 不顺带重做 Shell 的捕获和后台机制。普通完整返回由 runtime 判断是否卸载，结构化作者可使用同调用 writer 提供完整正文和符合预算的摘要。
 
