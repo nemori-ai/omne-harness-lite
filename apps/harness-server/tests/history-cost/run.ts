@@ -13,7 +13,17 @@
 // `<out>/sql-trace/`, and the run ends by judging them with `summarize.ts`: the exit code is
 // non-zero when the run or a Tool or host count fails. With `HISTORY_COST_TRACE_DIR` unset
 // nothing is counted or judged.
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
+import { DatabaseSync } from 'node:sqlite'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -162,6 +172,35 @@ const setPhase = (value: number) => {
   if (typeof mark === 'function') mark(value)
 }
 
+/** File bytes and row counts per table of every database under the storage root, at one history. */
+function storageSnapshot(settled: number) {
+  const files: { file: string; bytes: number; tables: Record<string, number> }[] = []
+  const visit = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const path = join(dir, name)
+      if (statSync(path).isDirectory()) visit(path)
+      else if (name.endsWith('.sqlite')) {
+        const wal = `${path}-wal`
+        const bytes =
+          statSync(path).size + (readdirSync(dir).includes(`${name}-wal`) ? statSync(wal).size : 0)
+        const db = new DatabaseSync(path, { readOnly: true })
+        const tables: Record<string, number> = {}
+        try {
+          for (const row of db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all())
+            tables[String(row['name'])] = Number(
+              db.prepare(`SELECT count(*) AS n FROM "${String(row['name'])}"`).get()?.['n'] ?? 0,
+            )
+        } finally {
+          db.close()
+        }
+        files.push({ file: path.slice(storageRoot.length + 1), bytes, tables })
+      }
+    }
+  }
+  visit(storageRoot)
+  writeFileSync(join(out, `storage-${String(settled)}.json`), `${JSON.stringify(files, null, 2)}\n`)
+}
+
 type Sample = Readonly<{
   ordinal: number
   settledBefore: number
@@ -181,6 +220,7 @@ try {
   for (let ordinal = 1; ordinal <= last; ordinal += 1) {
     const settledBefore = ordinal - 1
     const measuring = HISTORIES.some(n => settledBefore >= n && settledBefore < n + measured)
+    if ((HISTORIES as readonly number[]).includes(settledBefore)) storageSnapshot(settledBefore)
     const session = String(
       bodyOf(await cli(['create-session', '--definition', 'coding']))['session'],
     )

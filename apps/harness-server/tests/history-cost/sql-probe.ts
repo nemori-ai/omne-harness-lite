@@ -12,7 +12,7 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { getEnvironmentData, isMainThread, setEnvironmentData, threadId } from 'node:worker_threads'
 
-export type Owner = 'tool' | 'host' | 'other'
+export type Owner = string
 
 export type Group = {
   phase: number
@@ -25,6 +25,8 @@ export type Group = {
   maxRowsRead: number
   rowsWritten: number
   bytes: number
+  /** Time spent inside the statement calls of the group, in milliseconds. */
+  ms: number
 }
 
 const directory = process.env['HISTORY_COST_TRACE_DIR']
@@ -39,9 +41,11 @@ function cellBytes(value: unknown): number {
   throw new Error('an unmeasured SQLite value')
 }
 
+/** `tool` or `host` for the Tool storage; otherwise the prefix of the first table the statement names. */
 function ownerOf(sql: string, params: readonly unknown[]): Owner {
-  if (!/\btl_/u.test(sql)) return 'other'
-  return !/\btl_body_/u.test(sql) && params[1] === 'host' ? 'host' : 'tool'
+  if (/\btl_/u.test(sql)) return !/\btl_body_/u.test(sql) && params[1] === 'host' ? 'host' : 'tool'
+  const table = /\b(?:FROM|INTO|UPDATE|JOIN)\s+"?(_?[a-z]+)_/iu.exec(sql)?.[1]
+  return table === undefined ? 'other' : `other:${table.toLowerCase()}`
 }
 
 if (directory !== undefined) {
@@ -64,6 +68,7 @@ if (directory !== undefined) {
     params: readonly unknown[],
     rows: readonly unknown[],
     changes: number,
+    ms: number,
   ) => {
     const sql = sqlOf.get(statement) ?? ''
     const current = phase === null ? -1 : Atomics.load(phase, 0)
@@ -78,6 +83,7 @@ if (directory !== undefined) {
       maxRowsRead: 0,
       rowsWritten: 0,
       bytes: 0,
+      ms: 0,
     }
     groups.set(name, group)
     group.statements += 1
@@ -85,6 +91,7 @@ if (directory !== undefined) {
     group.maxRowsRead = Math.max(group.maxRowsRead, rows.length)
     group.rowsWritten += changes
     group.bytes += cellBytes(params) + rows.reduce<number>((sum, row) => sum + cellBytes(row), 0)
+    group.ms += ms
   }
   // The statement methods are patched on the shared prototype, so they see every statement of the
   // thread; each forwards its arguments untouched and counts the answer.
@@ -103,27 +110,31 @@ if (directory !== undefined) {
     return statement
   })
   prototype.all = function (this: object, ...params: unknown[]) {
+    const started = performance.now()
     const rows = Reflect.apply(all, this, params) as unknown[]
-    count(this, params, rows, 0)
+    count(this, params, rows, 0, performance.now() - started)
     return rows
   }
   prototype.get = function (this: object, ...params: unknown[]) {
+    const started = performance.now()
     const row: unknown = Reflect.apply(get, this, params)
-    count(this, params, row === undefined ? [] : [row], 0)
+    count(this, params, row === undefined ? [] : [row], 0, performance.now() - started)
     return row
   }
   prototype.run = function (this: object, ...params: unknown[]) {
+    const started = performance.now()
     const result = Reflect.apply(run, this, params) as { changes: number | bigint }
-    count(this, params, [], Number(result.changes))
+    count(this, params, [], Number(result.changes), performance.now() - started)
     return result
   }
   prototype.iterate = function* (this: object, ...params: unknown[]) {
     const rows: unknown[] = []
+    const started = performance.now()
     for (const row of Reflect.apply(iterate, this, params) as Iterable<unknown>) {
       rows.push(row)
       yield row
     }
-    count(this, params, rows, 0)
+    count(this, params, rows, 0, performance.now() - started)
   }
   const close = DatabaseSync.prototype.close
   DatabaseSync.prototype.close = function (this: DatabaseSync) {

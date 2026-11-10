@@ -20,10 +20,14 @@ const groups = readdirSync(join(base, 'sql-trace'))
   .filter(name => name.endsWith('.json'))
   .flatMap(name => JSON.parse(readFileSync(join(base, 'sql-trace', name), 'utf8')) as Group[])
 
-type Cost = Omit<Group, 'phase' | 'owner' | 'sql' | 'maxRowsRead'>
+type Cost = Omit<Group, 'phase' | 'owner' | 'sql' | 'maxRowsRead' | 'ms'>
 const costOf = (phase: number, owner: Owner): Cost =>
   groups
-    .filter(group => group.phase === phase && group.owner === owner)
+    .filter(
+      group =>
+        group.phase === phase &&
+        (owner === 'other' ? group.owner.startsWith('other') : group.owner === owner),
+    )
     .reduce(
       (sum, group) => ({
         statements: sum.statements + group.statements,
@@ -61,7 +65,7 @@ const METRICS: readonly Metric[] = ['statements', 'rowsRead', 'rowsWritten', 'by
 const OWNERS = ['tool', 'host'] as const
 
 /** Min, median and max of each metric of `owner` over the measured calls after `n` settled calls. */
-function spread(owner: Owner, n: number) {
+function spread(owner: 'tool' | 'host' | 'other', n: number) {
   const window = calls.filter(call => byHistory(n).some(sample => sample.ordinal === call.ordinal))
   return Object.fromEntries(
     METRICS.map(metric => {
@@ -87,7 +91,7 @@ function maxRowsByStatement(n: number): Map<string, number> {
   const ordinals = ordinalsOf(n)
   const most = new Map<string, number>()
   for (const group of groups)
-    if (group.owner !== 'other' && ordinals.has(group.phase)) {
+    if ((group.owner === 'tool' || group.owner === 'host') && ordinals.has(group.phase)) {
       const name = `${group.owner} ${group.sql.replace(/\s+/gu, ' ')}`
       most.set(name, Math.max(most.get(name) ?? 0, group.maxRowsRead))
     }
