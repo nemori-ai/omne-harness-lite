@@ -240,7 +240,8 @@ describe('a provider that did not write the request reads it as the writer does'
     const raced: SqlStorage = {
       registerCombination: input => s.storage.registerCombination(input),
       query: identity => s.storage.query(identity),
-      read: (request, options) => s.storage.read(request, options),
+      // The provider's own `read`: the two providers are over one database (`databaseOf`).
+      read: s.storage.read,
       commit: async request => {
         if (race === null) {
           race = m0(s, winner, authority, 'w')
@@ -289,4 +290,60 @@ describe('the request.adopted fact does not grow with the rounds of a session', 
       expect((await adoptedOf(s))?.order).toBe('200')
     },
   )
+})
+
+// session-storage-sql RT-06: the provider reads the common root only when this process cannot know
+// the publication count. The two cases below are the ones a publication of this process leaves.
+describe('the publication count after a publication that did not commit plainly', () => {
+  const rootReads = (s: SqlScene): number =>
+    (s.controls?.reads ?? []).filter(handler => handler === 'session.history-root').length
+
+  it('a publication of a provider that does not share the count is found at the refused publication, and the next M0 commits', async () => {
+    const { s, authority } = await opened('adopted-foreign')
+    ok(await m0(s, s.view.journal, authority, '1'))
+    // A storage object with its own `read` that declares nothing is another database to the
+    // members that keep the count: its provider publishes as a provider of another process would.
+    const foreign: SqlStorage = {
+      ...s.storage,
+      read: (request, options) => s.storage.read(request, options),
+    }
+    const other = createSessionLogJournal<string>(sceneOptions(s, foreign))
+    ok(await m0(s, other.forSession(s.access).journal, authority, 'f'))
+    // The scene's provider still knows the count before `f`: its M0 is decided there, the storage
+    // refuses it, and the provider reads the root. The M0 names a revision that is gone.
+    expect(await m0(s, s.view.journal, authority, '2')).toHaveProperty('failure')
+    ok(await m0(s, s.view.journal, authority, '3'))
+    expect((await adoptedOf(s))?.order).toBe('3')
+  })
+
+  it('a write whose outcome stays unknown makes every call read the root until it is decided', async () => {
+    const { s, authority } = await opened('adopted-pending')
+    let lose = true
+    const lost = new Set<string>()
+    // The same database as the scene's storage (it shares the provider's `read`). Its next commit
+    // does not run and answers unknown, and the storage cannot tell what became of it.
+    const pending: SqlStorage = {
+      ...s.storage,
+      commit: request => {
+        if (!lose) return s.storage.commit(request)
+        lose = false
+        lost.add(request.identity.operation)
+        return Promise.resolve({ kind: 'unknown', identity: request.identity, diagnostic: 'lost' })
+      },
+      query: identity =>
+        lost.has(identity.operation)
+          ? Promise.resolve({ kind: 'unknown', identity, diagnostic: 'pending' })
+          : s.storage.query(identity),
+    }
+    const journals = createSessionLogJournal<string>(sceneOptions(s, pending))
+    const journal = journals.forSession(s.access).journal
+    const answer = await m0(s, journal, authority, 'p')
+    expect('failure' in answer && answer.failure.kind).toBe('commit-unknown')
+    const load = () => journal.load({ ...s.access, execution: s.execution })
+    for (const _ of [1, 2, 3]) {
+      const before = rootReads(s)
+      await load()
+      expect(rootReads(s)).toBe(before + 1)
+    }
+  })
 })

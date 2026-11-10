@@ -26,6 +26,7 @@
 - [journal-position.spec.ts](journal-position.spec.ts)：位置的唯一来源（R2-D294 不变量 1）：六个种子各 40 步的混合写入（commit、新材料与重复材料的 `preserve`、冷提供者接管、丢回复后冷提供者重试同一操作），每步之后发布数等于改了记录的写入数、每批带它种类的事实、冷提供者的 `load` 与写者相同；200 步后批的字节不超过前 50 步的最大值加 64；负控：多出一次发布与丢掉事实的发布都被判据拒绝
 - [journal-records-parity.spec.ts](journal-records-parity.spec.ts)：读者记录从折叠视图与块的投影（`src/testing/journal-records.ts`）与写者记录逐字段比对：一个打开、移游标、等 Model 调用、记录其结果、保存材料、确认、交接的场景之后，`PROJECTED` 所列字段必须相同，其余字段打印为差距报告（K-23 过渡桥仍覆盖的部分）
 - [journal-recall.spec.ts](journal-recall.spec.ts)：带 `recalls` 的认回批：第二个操作的热 `query`、由存储批与会话折叠推导的回执、第一个操作的回执三者相同；负控：不带 `recalls` 的认回批推导的是认回操作自己的回执
+- [journal-root-reads.spec.ts](journal-root-reads.spec.ts)：日志提供者何时读共同根（session-storage-sql RT-06）：本进程发布或读过之后不再读、另一个提供者的发布即时可见、结局未知的发布之后读一次、超过上界后确认一次
 - [journal-head.spec.ts](journal-head.spec.ts)：材料 `preserve` 之后的下一次 commit 仍带核心的 `cursor.moved` 与核心信封（第二位置来源缺陷的直接反例）
 - [journal-adopted-request.spec.ts](journal-adopted-request.spec.ts)：`request.adopted` 事实（FIXED-FACTS F4）：主用途 M0 的请求与其余事实同一批，块写入失败两者都不可见；不变的发布不追加；跨 execution 的 `order` 递增且不是执行修订；冷启动与竞争输方读到的一致；200 轮里事实的字节数与每轮行数不变
 - [common-journal.spec.ts](common-journal.spec.ts)：共用会话日志上从原资格创建 Session 并打开 Agent；只观察的尾部扫描后可以终结，不单写游标；已记录条件的 `entry` 事件只观察，不产生 Session 后果

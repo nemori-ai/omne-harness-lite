@@ -760,7 +760,7 @@ releasedScopes(principal, scope = system, after, limit):
 
 工作缓存（`src/work-cache.ts`）。R1 的回答可以由端口从进程内缓存给出，但每次都先核对存储，缓存永远不是权威：
 
-- 范围：每个数据库一份。身份由 `storeOf` 取：先穿过 Cordis 服务代理（`Symbol.for('cordis.original')`）到被包装的对象，再取它自有的 `read` 函数；`read` 不是自有函数（类方法，各实例共用）时取对象本身。提供者为自己的库建一个 `read` 闭包，复制方法的包装（把端口登记为服务）复制的是同一个闭包，所以同一个库的公开端口、委派视图、会话归属读口、经 `./participants` 的 `readCachedSessionWork` 读的调用方（session-adapters 的 Journal 提供者）与各插件拿到的代理共用一份缓存；不同的库没有相同的自有 `read`，绝不共用，即使事务域名、租户、会话与版本都相同。键是事务域、租户文本与会话；`SessionId` 只在租户内唯一，所以两个租户的同名会话是两个键。缓存不是核权点：端口先取访问裁定、再按调用指名的租户取事务域，之后才查缓存。
+- 范围：每个数据库一份。身份由 sql-contract 的 `databaseOf` 取（[§2.6](../../storage/sql-contract/SPEC.md#26-同一个数据库的身份)）：先穿过 Cordis 服务代理与声明了内层的包装，再取对象自有的 `read` 函数；`read` 不是自有函数（类方法，各实例共用）时取对象本身。提供者为自己的库建一个 `read` 闭包，复制方法的包装（把端口登记为服务）复制的是同一个闭包，所以同一个库的公开端口、委派视图、会话归属读口、经 `./participants` 的 `readCachedSessionWork` 读的调用方（session-adapters 的 Journal 提供者）与各插件拿到的代理共用一份缓存；不同的库没有相同的自有 `read`，绝不共用，即使事务域名、租户、会话与版本都相同。键是事务域、租户文本与会话；`SessionId` 只在租户内唯一，所以两个租户的同名会话是两个键。缓存不是核权点：端口先取访问裁定、再按调用指名的租户取事务域，之后才查缓存。
 - 单飞：读到同一版本的并发读共用一次整读（以键与版本登记进行中的整读，结束即清除）；整读失败时所有等待者拿到同一个 `unavailable`，下一次读重新回源。版本点查失败的读不合并。
 - 版本：`(sl_journal.tail, er_root.published)`。`session.work` 的回答依赖这两个计数：快照行只在推进 `tail` 的事务里替换，`historyIndex` 读的 `er_` 行只在推进 `published` 的事务里写。两者只增不减。
 - 读：先经 `session.work-version` 点查当前版本（`sl_journal` 与 `er_root` 各一次主键点查，只读 `tail` 与 `published`，不读 `sl_state`：SQLite 取 `covered` 要走完快照正文的溢出页，代价随快照增长。行数与字节与会话大小无关）。会话不存在答 `denied`；版本与缓存项相等时返回缓存的已解析快照（缓存项只从核对过 `covered == tail` 的整读登记，快照行只在推进 `tail` 的事务里替换，所以 `tail` 相等时仍覆盖它）；不相等、没有缓存项、点查失败或回答不可解析时整读 `session.work`，按它在同一读快照里给出的版本登记。整读失败或解码失败时删除该项并返回失败。`tail` 或 `published` 任一项小于缓存项时（两者分别比较）删除该项并答 `unavailable`，诊断写 backwards（日志倒退，例如库被换成备份），不当作一次普通读。
@@ -770,7 +770,7 @@ releasedScopes(principal, scope = system, after, limit):
 - 本进程的提交折叠进缓存。提交回复把本次批次交给工作缓存：`session` 参加者在推进尾部的两条写路径（命令批次、同日志批次）的回复里带 `work`，含新版本 `(tail, published)`（`published` 在同一事务里点读 `er_root`）、快照正文长度、本批首末位置，以及本批归约所依据的历史读取的输入范围与焦点（`basis`）。`basis` 的 JSON 文本超过 `WORK_BASIS_BYTES`（16 KiB）时不带；entries 通道在没有索引与读数的快照上归约，只标 `indexed: false`。认回不带 `work`。端口只在回复新鲜且已提交（不是认回、不是 `recovered`）、缓存持有的版本正是 `(tail − 1, published)` 时折叠，依次：经 `session.history` 读本批条目（O(k)，核对位置连续、修订等于 `tail`）；经 `session.work-reads` 在读 Worker 里按「位置不超过本批首位减一、`published` 相等」复现参加者的历史索引与读数（Session 行写后不变，`er_` 行只随 `published` 变；该 handler 核对 `published` 与该位置行的修订，Worker 保留的索引已越过该位置时也答 `stale`）；在持有的快照上换入这份索引，用同一个 `reduce` 与这份读数归约；经 `session.work-index` 按与 `session.work` 相同的函数和上界（`workIndexOf`）算新快照的索引，该 handler 先核对存储的 `tail` 仍等于折叠的 `tail`，不等答 `stale`；发布计数小于所问也答 `stale`，大于所问时按当前计数算索引；答复都给出当前计数，索引超过行上界答 `too-many` 时也给出。快照行只在推进 `tail` 的事务里替换（见上文「版本」），所以折叠期间插入的发布只改变索引：全部成立就以 `(tail, 答复的 published)` 登记，`too-many` 时登记不带索引的快照，与该版本的整读相同。没有持有项、版本不衔接、`basis` 缺席、`reduce` 隔离、条目读不全或 `stale` 时都不登记，只计数，下一次读照旧点查加整读。折叠进行期间，点查到同一版本的读等折叠结束再取登记项。折叠从不改变提交的回答，也从不抛错。
 - 本进程的 Agent 发布只换索引：Journal 提供者在发布提交后调用 `registerSessionWorkIndex`，缓存持有该会话时，按持有的 `tail` 经 `session.work-index` 重算索引，换掉持有项的索引并以答复的版本登记（计数可能已越过这次发布，同上）；快照行只随 `tail` 变，所以快照本身沿用。`tail` 已变（`stale`）或没有持有项时不登记。
 - 本进程的 Journal 共同提交也折叠：Journal 提供者的一次发布里带 Session 参加（命令批次）时，Session 参加者的回复同样带 `work`。同一事务里 `execution-record` 参加者先运行（名字序，见已知限制第 11 条），把发布计数加一，Session 参加者随后点读到的就是加一后的计数。所以这条提交只在缓存持有的版本正是 `(tail − 1, published − 1)` 时折叠，复现读数与读新索引都用回复里的计数；其余步骤与端口提交相同。只取这次调用发出、已提交、不是认回、Session 回答不是 `recovered` 的回复；回滚的提交没有 `work`。Journal 提供者调用 `registerSessionWorkIndex` 时带上这份 `work` 就折叠，不带就只换索引。
-- 计数：`workFoldCounts(storage)` 给出该库（按 `storeOf` 取身份）的 `folded`、`indexed`、`skipped`、`quarantined`、`stale`，以及其中按越过的计数登记的 `republished`，供测量使用。`folded`、`indexed` 只在缓存确实留下登记项时加一。
+- 计数：`workFoldCounts(storage)` 给出该库（按 `databaseOf` 取身份）的 `folded`、`indexed`、`skipped`、`quarantined`、`stale`，以及其中按越过的计数登记的 `republished`，供测量使用。`folded`、`indexed` 只在缓存确实留下登记项时加一。
 - 回复会落盘：sqlite-provider 把参加者回复连同收据写进 `_sql_receipt`，单份回复超过 `maxResponseBytes`（初值 64 KiB）时提交回滚。所以 `basis` 有 16 KiB 的界，每次提交的收据至多多出这么多；`basis` 只是输入范围与焦点，通常几百字节。
 - 已知限制：整读仍是 O(|S|)，冷启动、淘汰、外部提交、`basis` 超界与折叠不成立时付一次。`session.work-index` 与 `session.work-reads` 的输入带全部 Run 的执行引用，长度随 Run 数增长。主线程的 `reduce` 对持有快照做顶层浅拷贝，代价未单独测。
 
@@ -823,6 +823,18 @@ releasedScopes(principal, scope = system, after, limit):
 <a id="c-04"></a>
 
 **C-04 前缀摘要可比较。**同一 epoch 内同一 `seq` 的 `prefix_digest` 永不改变。两段不同的前缀以压倒性概率摘要不同。摘要函数是 SHA-256，输入是上一行摘要与本条目内容摘要的字节拼接。
+
+<a id="rt-06"></a>
+
+**RT-06 已发布计数由本进程保管。**Agent 记录的发布计数 `er_root.published` 只有一种写者：Agent 记录的发布。发布是带计数的条件提交，计数不符时被拒。所以一个进程里，经手的发布与读到的根已经说明了计数，调用不必每次读根（`src/published-count.ts`）。
+
+- 范围：每个数据库一份（`databaseOf`），按租户与会话记录“计数”与“存储上次确认它的时刻”。同一个数据库上的全部日志提供者共用。
+- 确认：读根得到计数，或一次发布在本次调用里提交成功并带回新计数。计数只增不减；低于已知值的答复是被发布越过的读，不改已知值。
+- 存疑：一次发布的结局不是“本次调用提交成功”时（被拒、认回、未知、不可用），丢掉已知值，下一次调用读根。
+- 取用（`planPublishedCount`，全函数）：没有已知值、调用方有结局未知的写、或距上次确认超过 `PUBLISHED_COUNT_MAX_AGE_MS`（1 秒）时读根；否则用已知值。1 秒是对“另一个进程向同一个数据库发布”的上界。本进程的发布不受它影响。
+- 最多记 4 096 个会话，最久未确认的先丢。丢掉只让下一次调用多读一次根。
+
+这条不放宽任何写入的条件：发布仍带计数作期望，按旧计数决定的发布被存储拒绝，调用方重读后重判。形式模型是 [PublishedCount](verification/models/published-count/README.md)。判据：`tests/published-count.spec.ts` 与 `session-adapters/tests/journal-root-reads.spec.ts`。
 
 ## 所有权、失败与生命周期
 

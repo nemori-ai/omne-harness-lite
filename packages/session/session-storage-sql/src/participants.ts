@@ -1010,6 +1010,13 @@ export { readCachedSessionWork }
  * registers nothing when the store is at another version. It never throws.
  */
 export { registerSessionWorkIndex }
+export {
+  PUBLISHED_COUNT_MAX_AGE_MS,
+  planPublishedCount,
+  publishedCountsOf,
+  type PublishedCountPlan,
+  type PublishedCounts,
+} from './published-count.ts'
 
 export function decodeSessionWork(output: JsonValue): SessionWorkRead | null {
   const value = recordOf(output)

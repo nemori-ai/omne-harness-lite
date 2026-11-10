@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-目前没有模型。候选模型是两个进程基于同一 `tail` 的并发提交裁定（[W6](../../SPEC.md#w6)）与 R9 追赶期间治理读的可用性（[R9](../../SPEC.md#r9)），尚未立项，没有负责人。对应的可观察结果先在 [obligations.md](../../docs/verification-obligations.md) 的 VS-W02 与 VS-R06 表达。
+现有一个模型：[PublishedCount](published-count/README.md)，检查 [RT-06](../../SPEC.md#rt-06) 的已发布计数保管，负责人是 session 线。其余候选模型是两个进程基于同一 `tail` 的并发提交裁定（[W6](../../SPEC.md#w6)）与 R9 追赶期间治理读的可用性（[R9](../../SPEC.md#r9)），尚未立项，没有负责人。对应的可观察结果先在 [obligations.md](../../docs/verification-obligations.md) 的 VS-W02 与 VS-R06 表达。

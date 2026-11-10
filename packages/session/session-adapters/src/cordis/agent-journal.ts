@@ -63,6 +63,8 @@ import {
   decodeSessionReply,
   executionRecordBlobFacts,
   executionRecordFacts,
+  planPublishedCount,
+  publishedCountsOf,
   readCachedSessionWork,
   registerSessionWorkIndex,
   sessionCheckFacts,
@@ -295,6 +297,8 @@ type Held = {
 }
 
 type Book<P> = {
+  /** The session among the sessions of the storage: the tenant text and the session. */
+  readonly key: string
   readonly tenant: TenantId
   readonly tenantText: string
   readonly session: SessionId
@@ -958,6 +962,15 @@ function projectionContext(
 
 export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>) {
   const books = new Map<string, Book<P>>()
+  /** The publication counts this process knows, shared by every provider over the storage. */
+  const counts = publishedCountsOf(options.storage)
+  const now = (): number =>
+    /* wall-clock: operation-timing -- The age of a known publication count is a monotonic duration since the storage confirmed it (session-storage-sql RT-06). */ performance.now()
+  /** Whether a write of the book has an unknown outcome: the count may have moved unanswered. */
+  const undecided = (book: Book<P>): boolean => {
+    for (const held of book.held.values()) if (held.standing === 'unknown') return true
+    return false
+  }
   const generations: GenerationMemory = new Map()
 
   function bookOf(tenant: TenantId, session: SessionId): Book<P> | null {
@@ -967,6 +980,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     let book = books.get(key)
     if (book === undefined) {
       book = {
+        key,
         tenant,
         tenantText: text.value,
         session,
@@ -1531,15 +1545,23 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   /**
-   * Brings the copy of `book` to the durable records of its session: a point read of the count;
-   * nothing more when the view is at it; the batches after the head when behind; the open
-   * executions and their facts when nothing was read yet.
+   * Brings the copy of `book` to the durable records of its session: the publication count, read
+   * from the storage only when this process does not know it (session-storage-sql RT-06); nothing
+   * more when the view is at it; the batches after the head when behind; the open executions and
+   * their facts when nothing was read yet.
    */
   async function sync(book: Book<P>, domain: DomainRef): Promise<Outcome<Copy<P>, Failure>> {
-    const root = await readRoot(book, domain)
-    if (typeof root === 'string') return fail(unavailable(root))
-    const excluded = await settleHeld(book, domain)
-    const published = Number(root.published)
+    const plan = planPublishedCount(counts.get(book.key), undecided(book), now())
+    let published: number
+    let excluded = false
+    if (plan.kind === 'known') published = plan.published
+    else {
+      const root = await readRoot(book, domain)
+      if (typeof root === 'string') return fail(unavailable(root))
+      excluded = await settleHeld(book, domain)
+      published = Number(root.published)
+      counts.confirm(book.key, published, now())
+    }
     const read = readerOf(options.storage, domain)
     if (book.published === null) {
       const cold = await readColdStart(read, scopeOf(book))
@@ -2124,6 +2146,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     book.view = { ...book.view, head: Math.max(book.view.head, pub) }
     for (const blob of prepared.blobs) book.blobs.set(blob.digest, blob.payload)
     book.published = pub
+    counts.confirm(book.key, pub, now())
     // The published fold is the one source of position: the core's view is set to it, and the
     // batches the core appended for this publication leave its log; the next command appends at
     // the next publication count. (The cell keeps a draft only when it is touched.)
@@ -2226,6 +2249,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const { book, after, written } = published
     const agentOperation = written.operation as AgentOperationId | null
     const job: Settling<T> = { ...published, agentOperation }
+    // Only a publication that committed in this call tells the count (`settleCommitted`). After any
+    // other outcome the next call asks the storage.
+    counts.doubt(book.key)
     switch (outcome.kind) {
       case 'committed':
         return settleCommitted(job, outcome)

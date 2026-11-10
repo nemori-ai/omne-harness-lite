@@ -913,7 +913,7 @@ AgentJournal、AgentJournalEntries 与 AgentMaterials 操作共用 Session 会�
 
 存储落点（P5）：Agent 记录由 session-storage-sql 的 `execution-record` 参加者保存，与 `session` 参加者在同一租户事务域、同一个组合。提供者只用 `@omne-harness/session-storage-sql/participants` 的词汇，不导入 `createSessionStorage`。Journal 提供者自己是首个发布点的提交方（切分 X）。
 
-Agent 规则：判定次序、认回、修订号与条件终结协议是本成员 `src/testing/journal.ts` 的 Journal 核心，与 `./testing` 替身相同。每个会话在进程内有这个核心的一份副本。副本是可丢的派生物（AD-00 第 7 条）。每次调用先读 `session.history-root`，发布计数比视图的 `head` 大时，经 `execution-record.facts` 读 `pub > head` 的批折叠进视图，再从视图重建副本（[事实族存储](#分区存储)）。
+Agent 规则：判定次序、认回、修订号与条件终结协议是本成员 `src/testing/journal.ts` 的 Journal 核心，与 `./testing` 替身相同。每个会话在进程内有这个核心的一份副本。副本是可丢的派生物（AD-00 第 7 条）。每次调用先取发布计数：本进程知道它时不读存储，否则读 `session.history-root`（session-storage-sql [RT-06](../session-storage-sql/SPEC.md#rt-06)）。发布计数比视图的 `head` 大时，经 `execution-record.facts` 读 `pub > head` 的批折叠进视图，再从视图重建副本（[事实族存储](#分区存储)）。
 
 每个会话的串行队列只保留前次操作的完成信号，不保留其返回值。一个会话已加载的 execution 非空、全部已有 `finish.ended`，且没有 held 写入时，它的内存账本是静止的。提供者只让最近工作过的那一个静止会话保留内存账本：Agent 循环在终态之后还有 F4、O0、E9 三步要读它，保留它使这三步不重新冷读。另一个会话的一次串行操作结束时，若先前那个静止会话没有在途的操作，也没有还开着的事件观察，提供者把它的内存账本恢复到冷启动状态：丢弃核心工作副本、折叠视图、块与已加载集合，发布位置置空。排队身份保留。后续读取或认回按冷启动规则从耐久事实重建，不删除历史。冷启动只读未终结的 execution，代价不随会话历史增长。
 
@@ -928,7 +928,7 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 一次 Journal 写入按下列次序工作：
 
 1. 经 `tenantDomainLookup` 取事务域。结果为 `unregistered` 或 `unavailable` 时答 `unavailable`，不读、不写，也不触发登记。
-2. 读共同根，必要时重建副本。写入另读 `session.work`，供推进资格核对使用。存储的读答 `unavailable` 时，本次调用答 `unavailable`，诊断写明没有读到的对象与存储给的原因，例如 `the common root of the session is not readable: queue_full`。读失败只有这一种答复，不按 sql-contract 的[读拒绝原因的定性](../../storage/sql-contract/SPEC.md#读拒绝原因的定性)分成两种，见[已知限制](#已知限制)的「确定的读失败」。
+2. 取发布计数（本进程不知道时读共同根），必要时重建副本。写入另读 `session.work`，供推进资格核对使用。存储的读答 `unavailable` 时，本次调用答 `unavailable`，诊断写明没有读到的对象与存储给的原因，例如 `the common root of the session is not readable: queue_full`。读失败只有这一种答复，不按 sql-contract 的[读拒绝原因的定性](../../storage/sql-contract/SPEC.md#读拒绝原因的定性)分成两种，见[已知限制](#已知限制)的「确定的读失败」。
 3. 在副本上执行 Journal 核心。核心的判定次序、认回与重放规则不变。四种 CallerCommit 与主回复的 Ja 的派生参加先经 `sessionAccessCheck` 裁定一次（P6）。核心在副本上准备下一份状态，同时得到派生的 Session 参加：一条 Session 命令，或 `open`、`attach`、`submit`、`tryFinish` 的一条只读核对。
 4. 副本没有变化时直接答复（读、被核心拒绝的写、认回）。
 5. 副本有变化时，一次存储 `commit` 带两条命令：`execution-record` 的写入（这次写入的一批事实、它们引用的内容块、执行头行与原受理目录，见[事实族存储](#分区存储)）与派生的 Session 参加。存储操作身份由 execution 与 Agent 操作确定地编码，代次为 `#<n>`。存储答复之后，提供者经 `report` 报出这次发布的字节与结果（[发布观测](#发布观测)）。
@@ -1020,7 +1020,7 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 - 事实。事实族的事实按「事实族与折叠核」的种类，由 `deriveFacts` 从核心写入前后的记录得出：每个核心事件一条事件事实（`step.begun`、`result.received`、`fence.started`、`result.handled`、`reply.judged`、`wait.entered`、`control.stage`、`finish.ended`），再加打开、挂接、接受输入、意图与关联、采用请求、交接、终结候选与责任项、确认前缀、排除与 `cursor.moved`。`cursor.moved` 只含比视图游标变了的顶层成员，带内容的成员以内容块引用入事实。事实体不含 `role`、`content`、`messages`、`system` 成员，序列化后不超过 `FACT_MAX_BYTES`，否则本次写入答 `invalid`。
 - 内容块。消息、材料、请求记录、checkpoint 的内容成员与核心记录里的内容值都进 `sl_blob`，按 `blobDigest(payload)` 寻址，同一租户同一摘要只存一行；事实只存摘要与大小。一次发布随批携带的块不超过 256 KiB，超过的块先以 `blobs` 意图单独提交（没有引用的块不是事实），再提交引用它们的批。
 - 事件投影。是事件的事实在行的 `event` 列带投影：序号、来源、Session 后果种类、归一后果、延后控制证据、输入批。提供者按折叠给事件事实的序号（已发布视图里该 execution 的事件数起）把本次写入追加的事件与事件事实按序对应，种类对不上或事件缺席时答 `unavailable`（写者缺陷，不是一次发布）。AD-02 经 `execution-record.events` 读它；提供者不再另存注记。
-- 同步。每次调用先点读 `session.history-root` 的发布计数。与视图的 `head` 相同：不读。落后：经 `execution-record.facts` 读 `pub > head` 的整批，折叠进视图（K-20 的输方同样只补读）。没有 `head`（冷启动）：读 `execution-record.open-executions`，再按 execution 读开着的 execution 的事实；已结束的 execution 不读，调用指名它时按需读一次。各页的发布计数必须相同，否则重读，最多 3 次，之后答 `unavailable`。读到缺口（`missing`）答 `unavailable`：0.0.x 不迁移旧的分区数据。
+- 同步。每次调用先取发布计数。本进程经手的发布与读到的根已经说明它时不读存储；没有已知值、有结局未知的写、或距存储上次确认超过 1 秒时，点读 `session.history-root`（session-storage-sql [RT-06](../session-storage-sql/SPEC.md#rt-06)）。与视图的 `head` 相同：不读。落后：经 `execution-record.facts` 读 `pub > head` 的整批，折叠进视图（K-20 的输方同样只补读）。没有 `head`（冷启动）：读 `execution-record.open-executions`，再按 execution 读开着的 execution 的事实；已结束的 execution 不读，调用指名它时按需读一次。各页的发布计数必须相同，否则重读，最多 3 次，之后答 `unavailable`。读到缺口（`missing`）答 `unavailable`：0.0.x 不迁移旧的分区数据。
 - 认回与答复。`er_operation` 以 execution 与 Agent 操作确定地编码的存储操作为键，指向原批；不存答案。副本认回从重建的记录得出；`query` 对副本不持有的操作走冷路径：经 `execution-record.operation` 读原批，由 `receiptOf` 从批推导回执。
 - 位置的唯一来源（R2-D294 不变量 1，P1）。一个会话的发布位置只有一个来源：存储的发布计数。视图是已发布日志的折叠，`view.head` 等于发布计数；核心在 `view.head + 1` 追加，它的 `log` 只持有本进程自上次发布以来追加的批；提供者发布 `pub > head` 的批，发布后把 `view` 设为耐久折叠、清空 `log`。提供者不自己推进位置，也不为没有批的写入编信封：一次写改了记录却没有追加批，提供者答 `unavailable`（诊断 `a <method> changed the Agent records without a batch`），这是核心的缺陷，不是一次发布。材料 `preserve` 因此也是核心的批（一条 `material.preserved` 事实记来源与块引用，不推进修订；操作身份从材料来源派生，同内容重试不落批）。根因记录：此前核心按本进程 `log.length + 1` 定位置，提供者按存储计数定 `head`，两者在没有批的写入（`preserve`）之后分开；核心随后在存储已越过的位置追加，提供者在 `head` 之后找不到批，就自己编一条只有信封的发布，这一步的事实（`cursor.moved` 等）被丢掉。`tests/journal-position.spec.ts` 用种子混合写入（commit、新旧材料、冷提供者接管、丢回复重试）核对每一步发布数等于改了记录的写入数、每批带它种类的事实、冷提供者读到的与写者相同、200 步后批的字节不超过早期最大值，并带负控。
 - 采用请求。主用途 M0 的发布追加一条 `request.adopted`，`record` 以内容块引用入事实。`readAdopted({ tenant, session })` 先同步视图，取各 execution 里 `pub` 最大的 `adopted`，读它的记录块：`order` 是会话内到这条为止的 `request.adopted` 条数（从 `1` 起），不是执行修订，也不是发布计数；`reference`、`fixed`、`schema`、`record` 取自事实与块，`coverage` 取自同一事实。没有 M0 时答 `null`，块读不到或不能解码时答 `unavailable`。另一个租户读本会话时视图为空，答 `null`。

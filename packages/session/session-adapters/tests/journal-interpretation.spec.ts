@@ -35,7 +35,7 @@ import {
   operationId,
   ordinaryInput,
 } from '@omne-harness/session-contract/testing'
-import type { JsonValue } from '@omne-harness/sql-contract'
+import { wrapsStorage, type JsonValue } from '@omne-harness/sql-contract'
 import { EXECUTION_RECORD_HANDLERS } from '@omne-harness/session-storage-sql/participants'
 import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
 import { ok, operation, scene, submitInput } from './fixtures/common-journal.ts'
@@ -67,25 +67,29 @@ async function interpreted(
   // The JSON size of every execution-record command committed and of every Agent records read.
   const bytes = { written: [] as number[], read: [] as number[] }
   const base = s.storage
-  s.storage = {
-    ...base,
-    commit: request => {
-      for (const command of request.commands)
-        if (command.participant === 'execution-record')
-          bytes.written.push(JSON.stringify(command.facts).length)
-      return base.commit(request)
+  // The same database as `base`: the scene's own provider and the plugin share what is kept for it.
+  s.storage = wrapsStorage(
+    {
+      ...base,
+      commit: request => {
+        for (const command of request.commands)
+          if (command.participant === 'execution-record')
+            bytes.written.push(JSON.stringify(command.facts).length)
+        return base.commit(request)
+      },
+      read: async (request, readOptions) => {
+        const result = await base.read(request, readOptions)
+        if (result.kind === 'read' && request.handler.startsWith('execution-record.'))
+          bytes.read.push(JSON.stringify(result.output).length)
+        if (!heads.unwritten || result.kind !== 'read') return result
+        // The head row as another execution's call leaves it: its receipt is the placeholder.
+        if (request.handler === EVENTS_HANDLER)
+          return { ...result, output: withPlaceholderHead(result.output) }
+        return result
+      },
     },
-    read: async (request, readOptions) => {
-      const result = await base.read(request, readOptions)
-      if (result.kind === 'read' && request.handler.startsWith('execution-record.'))
-        bytes.read.push(JSON.stringify(result.output).length)
-      if (!heads.unwritten || result.kind !== 'read') return result
-      // The head row as another execution's call leaves it: its receipt is the placeholder.
-      if (request.handler === EVENTS_HANDLER)
-        return { ...result, output: withPlaceholderHead(result.output) }
-      return result
-    },
-  }
+    base,
+  )
   const sent: Sent[] = []
   const script: ((inner: CommitLog, input: Sent) => ReturnType<CommitLog>)[] = []
   const c = await cordisScene(s, {

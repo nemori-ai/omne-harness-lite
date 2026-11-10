@@ -63,7 +63,8 @@ describe('reading the unread prefix after the progress mark', () => {
     const counts = [await page(small, tailOf(10)), await page(large, tailOf(100))]
     expect(counts[0]).toEqual(counts[1])
     expect(counts[0]!.events).toBeLessThanOrEqual(PAGE)
-    expect(counts[0]!.reads).toBe(1)
+    // The publication count is known in this process: the page costs no read of the root.
+    expect(counts[0]!.reads).toBe(0)
   })
 
   it('negative control: walking the whole log from the start grows with N', async () => {

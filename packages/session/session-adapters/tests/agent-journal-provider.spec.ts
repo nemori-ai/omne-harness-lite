@@ -78,7 +78,12 @@ import {
   SessionAccessCheckService,
   sessionAdoptedRequestsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
-import type { DomainRef, SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
+import {
+  wrapsStorage,
+  type DomainRef,
+  type SqlStorage,
+  type TenantDomainLookup,
+} from '@omne-harness/sql-contract'
 import { StorageService, TenantDomainLookupService } from '@omne-harness/sql-contract/cordis'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
 import { createSessionLogJournal, materialSessionOf } from '../src/cordis/agent-journal.ts'
@@ -199,7 +204,8 @@ function servicesOf(s: SqlScene, otherDomain: DomainRef) {
     readonly registerCombination = wrapped.registerCombination
     readonly commit = wrapped.commit
     readonly query = wrapped.query
-    readonly read = wrapped.read
+    // Its own `read` in front of the scene's database: the service declares what it forwards to.
+    readonly read = wrapsStorage(wrapped, storage).read
   }
   const lookup: TenantDomainLookup['lookup'] = input =>
     Promise.resolve(
