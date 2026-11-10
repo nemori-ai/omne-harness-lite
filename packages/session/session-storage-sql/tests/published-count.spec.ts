@@ -11,6 +11,7 @@ const unused = (): never => {
   throw new Error('not called')
 }
 const storage = (): SqlStorage => ({
+  database: {},
   registerCombination: unused,
   commit: unused,
   query: unused,

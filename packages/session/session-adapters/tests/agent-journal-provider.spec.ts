@@ -79,7 +79,6 @@ import {
   sessionAdoptedRequestsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import {
-  wrapsStorage,
   type DomainRef,
   type SqlStorage,
   type TenantDomainLookup,
@@ -166,6 +165,7 @@ function servicesOf(s: SqlScene, otherDomain: DomainRef) {
   // The operations whose commit never ran and whose outcome stays undecided (`pending`).
   const undecided = new Set<string>()
   const wrapped: SqlStorage = {
+    database: storage.database,
     registerCombination: input => storage.registerCombination(input),
     commit: async (input, options) => {
       const hold = wiring.hold
@@ -201,11 +201,11 @@ function servicesOf(s: SqlScene, otherDomain: DomainRef) {
     },
   }
   class Storage extends StorageService {
+    readonly database = storage.database
     readonly registerCombination = wrapped.registerCombination
     readonly commit = wrapped.commit
     readonly query = wrapped.query
-    // Its own `read` in front of the scene's database: the service declares what it forwards to.
-    readonly read = wrapsStorage(wrapped, storage).read
+    readonly read = wrapped.read
   }
   const lookup: TenantDomainLookup['lookup'] = input =>
     Promise.resolve(

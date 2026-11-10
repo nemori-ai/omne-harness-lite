@@ -91,11 +91,12 @@ async function readBoth(a: App) {
 /** `a` with a port over a storage object of its own: a work cache of its own (SPEC RT-04). */
 function apart(a: App): App {
   const storage: SqlStorage = {
+    database: {},
     registerCombination: input => a.provider.storage.registerCombination(input),
     commit: request => a.provider.storage.commit(request),
     query: identity => a.provider.storage.query(identity),
     read: request => a.provider.storage.read(request),
-  } as SqlStorage
+  }
   return { ...a, port: createSessionStorage<string>({ ...a.storageOptions, storage }) }
 }
 

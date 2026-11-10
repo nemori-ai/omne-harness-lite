@@ -208,7 +208,6 @@ import {
 import {
   combinationManifest,
   manifestDigest,
-  wrapsStorage,
   type CommitResultV2,
   type DomainRef,
   type SqlMaterialCatalog,
@@ -616,27 +615,25 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   }
   const commits: SeenCommit[] = []
   // `seeing` and the wrapper of a joint world are the database of `real`: the Journal providers
-  // over any of them share what is kept for it (sql-contract `wrapsStorage`).
-  const seeing: SqlStorage = wrapsStorage(
-    {
-      registerCombination: input => real.registerCombination(input),
-      commit: async (request, commitOptions) => {
-        const result = await real.commit(request, commitOptions)
-        commits.push({
-          participants: request.commands.map(item => item.participant),
-          result,
-          log: request.commands.map(logOf).find(item => item !== null) ?? null,
-        })
-        return result
-      },
-      query: identity => real.query(identity),
-      read: (request, readOptions) => real.read(request, readOptions),
+  // over any of them share what is kept for it (`SqlStorage.database`).
+  const seeing: SqlStorage = {
+    database: real.database,
+    registerCombination: input => real.registerCombination(input),
+    commit: async (request, commitOptions) => {
+      const result = await real.commit(request, commitOptions)
+      commits.push({
+        participants: request.commands.map(item => item.participant),
+        result,
+        log: request.commands.map(logOf).find(item => item !== null) ?? null,
+      })
+      return result
     },
-    real,
-  )
+    query: identity => real.query(identity),
+    read: (request, readOptions) => real.read(request, readOptions),
+  }
   // W2: a joint world may count what goes through the shared storage; by default there is no wrapper.
   const wrapped = options.wrapStorage?.(seeing)
-  const storage: SqlStorage = wrapped === undefined ? seeing : wrapsStorage(wrapped, seeing)
+  const storage: SqlStorage = wrapped ?? seeing
   const lookup: TenantDomainLookup = {
     lookup: input => {
       const domain = domains[input.tenant]

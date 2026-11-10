@@ -18,6 +18,7 @@ export abstract class StorageService extends Service implements SqlStorage {
     super(ctx, StorageService.provide)
   }
 
+  abstract readonly database: SqlStorage['database']
   abstract readonly registerCombination: SqlStorage['registerCombination']
   abstract readonly commit: SqlStorage['commit']
   abstract readonly query: SqlStorage['query']

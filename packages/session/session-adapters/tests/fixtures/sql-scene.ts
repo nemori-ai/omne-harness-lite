@@ -211,6 +211,7 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
     return finish('committed')
   }
   const storage: SqlStorage = {
+    database: {},
     registerCombination: input => Promise.resolve({ kind: 'registered', registration: input }),
     commit(request): Promise<CommitResultV2> {
       if (drop) {
@@ -360,6 +361,7 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
     current: ((request: ReadRequest, answer: ReadResult) => ReadResult) | null
   } = { current: null }
   storage = {
+    database: inner.database,
     registerCombination: input => inner.registerCombination(input),
     commit: request => {
       commits.push(request.commands.map(command => command.participant))
@@ -664,6 +666,7 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
   }
   const storage = s.storage
   class Storage extends StorageService {
+    readonly database = storage.database
     readonly registerCombination = storage.registerCombination
     readonly commit = storage.commit
     readonly query = storage.query

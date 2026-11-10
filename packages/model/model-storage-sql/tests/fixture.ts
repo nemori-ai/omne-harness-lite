@@ -253,6 +253,7 @@ export function sqliteStorage() {
     return domain
   }
   const storage: SqlStorage = {
+    database: {},
     registerCombination: input => Promise.resolve({ kind: 'registered', registration: input }),
     commit(request): Promise<CommitResultV2> {
       commits += 1

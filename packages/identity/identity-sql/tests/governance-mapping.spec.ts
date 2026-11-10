@@ -35,6 +35,7 @@ async function person(opened: OpenedProvider, name: string) {
 function lossy(storage: SqlStorage) {
   const control = { lose: false, silent: false }
   const wrapped: SqlStorage = {
+    database: storage.database,
     registerCombination: input => storage.registerCombination(input),
     read: (request, options) => storage.read(request, options),
     async commit(request, options) {

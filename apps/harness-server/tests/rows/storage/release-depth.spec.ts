@@ -41,6 +41,7 @@ type Commit = Readonly<{
 }>
 
 class MeasuredStorageService extends StorageService {
+  readonly database: SqlStorage['database']
   readonly registerCombination: SqlStorage['registerCombination']
   readonly commit: SqlStorage['commit']
   readonly query: SqlStorage['query']
@@ -48,6 +49,7 @@ class MeasuredStorageService extends StorageService {
 
   constructor(ctx: Context, storage: SqlStorage, commits: Commit[]) {
     super(ctx)
+    this.database = storage.database
     this.registerCombination = input => storage.registerCombination(input)
     this.commit = async (input: CommitRequestV2, options) => {
       const result = await storage.commit(input, options)

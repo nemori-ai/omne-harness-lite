@@ -245,6 +245,7 @@ type Outcome =
   | Readonly<{ kind: 'stopped'; reply: RecordedReply }>
 
 class MemorySqlStorage implements SqlStorage {
+  readonly database = Object.freeze({})
   closing = false
   readonly queue = new SerialQueue()
   private readonly domains = new Map<string, Domain>()

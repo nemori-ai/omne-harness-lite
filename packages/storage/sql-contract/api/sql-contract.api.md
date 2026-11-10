@@ -78,10 +78,8 @@
 - `UnknownV2` · `types.d.ts`
 - `combinationManifest` · `manifest.d.ts`
 - `commitRejectionNature` · `rejection.d.ts`
-- `databaseOf` · `identity.d.ts`
 - `inputDigestV2` · `digest.d.ts`
 - `manifestDigest` · `manifest.d.ts`
-- `wrapsStorage` · `identity.d.ts`
 
 ## 入口 `./cordis` · `cordis.d.ts`
 
@@ -147,6 +145,7 @@ import type { SqlStorage, StorageHost, TenantDomainLookup, TenantDomains } from 
 export declare abstract class StorageService extends Service implements SqlStorage {
     static readonly provide = "storage";
     constructor(ctx: Context);
+    abstract readonly database: SqlStorage['database'];
     abstract readonly registerCombination: SqlStorage['registerCombination'];
     abstract readonly commit: SqlStorage['commit'];
     abstract readonly query: SqlStorage['query'];
@@ -209,21 +208,12 @@ export declare function scopeKey(scope: StorageScope): string;
 export declare function clipDiagnostic(text: string, limit: number): string;
 ```
 
-## 声明文件 `identity.d.ts`
-
-```ts
-import type { SqlStorage } from './types.ts';
-export declare function wrapsStorage<S extends SqlStorage>(wrapper: S, inner: SqlStorage): S;
-export declare function databaseOf(storage: SqlStorage): object;
-```
-
 ## 声明文件 `index.d.ts`
 
 ```ts
 export type * from './types.ts';
 export { combinationManifest, manifestDigest } from './manifest.ts';
 export { inputDigestV2 } from './digest.ts';
-export { databaseOf, wrapsStorage } from './identity.ts';
 export { commitRejectionNature, type RejectionNature } from './rejection.ts';
 ```
 
@@ -589,6 +579,7 @@ export type ReadResult = Readonly<{
     diagnostic: StorageDiagnostic;
 }>;
 export interface SqlStorage {
+    readonly database: object;
     registerCombination(input: CombinationRegistrationV2): Promise<RegisterResultV2>;
     commit(input: CommitRequestV2, options?: CommitOptions): Promise<CommitResultV2>;
     query(identity: SqlIdentity): Promise<QueryResultV2>;

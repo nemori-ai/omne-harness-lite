@@ -367,6 +367,7 @@ const notInFixture = (): never => {
 function indexRows(script: IndexScript, trace: IndexTrace) {
   const rows = script.rows ?? INDEX
   class IndexStorage extends StorageService {
+    readonly database: StorageService['database'] = {}
     readonly registerCombination: StorageService['registerCombination'] = notInFixture
     readonly commit: StorageService['commit'] = notInFixture
     readonly query: StorageService['query'] = notInFixture

@@ -298,6 +298,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
     return receipt
   }
   const storage: Storage = {
+    database: {},
     registerCombination: input => Promise.resolve({ kind: 'registered', registration: input }),
     commit(request) {
       const key = keyOf(request.identity)

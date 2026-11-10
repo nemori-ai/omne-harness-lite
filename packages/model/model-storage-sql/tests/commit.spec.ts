@@ -152,6 +152,7 @@ function sqliteStorage() {
   }
   const keyOf = (identity: SqlIdentity) => `${identity.operation}|${identity.operationKey}`
   const storage: SqlStorage = {
+    database: {},
     registerCombination: input => Promise.resolve({ kind: 'registered', registration: input }),
     async commit(request): Promise<CommitResultV2> {
       const hook = hooks.beforeCommit

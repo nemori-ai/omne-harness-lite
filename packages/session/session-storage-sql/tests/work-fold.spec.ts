@@ -85,6 +85,7 @@ function portOver(a: App, workCache?: WorkCacheBounds) {
   /** Changes the next answer of a handler, once. */
   const rewrites = new Map<string, (output: Record<string, unknown>) => Record<string, unknown>>()
   const storage: SqlStorage = {
+    database: {},
     registerCombination: input => a.provider.storage.registerCombination(input),
     commit: request => a.provider.storage.commit(request),
     query: identity => a.provider.storage.query(identity),
@@ -100,7 +101,7 @@ function portOver(a: App, workCache?: WorkCacheBounds) {
       rewrites.delete(request.handler)
       return { ...answer, output: rewrite(answer.output as Record<string, unknown>) as never }
     },
-  } as SqlStorage
+  }
   return {
     port: createSessionStorage<string>({
       ...a.storageOptions,

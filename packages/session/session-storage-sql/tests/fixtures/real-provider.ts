@@ -238,6 +238,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
   let ops = 0
   /** The real storage with a count of `commit` calls (original operations that reach the provider). */
   const storage: SqlStorage = {
+    database: real.database,
     registerCombination: input => real.registerCombination(input),
     commit: request => {
       ops += 1

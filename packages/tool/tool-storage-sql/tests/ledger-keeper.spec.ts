@@ -354,7 +354,7 @@ describe('ledger stores over one database', () => {
   it('share one keeper when each was given its own storage object', async () => {
     const app = await openApp()
     try {
-      // An assembly hands each plugin its own object over the same provider (sql-contract `databaseOf`).
+      // An assembly hands each plugin its own object over the same provider (`SqlStorage.database`).
       const first = createSqlToolLedgerStore({
         ...app.options,
         storage: { ...app.options.storage },

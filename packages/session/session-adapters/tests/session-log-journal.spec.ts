@@ -99,6 +99,7 @@ async function messageRequest(
 /** A provider over the scene's records whose storage commit refuses before it accepts. */
 function refusedBy(s: SqlScene, reason: CommitRejectReason) {
   const storage: SqlStorage = {
+    database: s.storage.database,
     registerCombination: input => s.storage.registerCombination(input),
     query: identity => s.storage.query(identity),
     read: (request, options) => s.storage.read(request, options),
@@ -121,10 +122,14 @@ function refusedBy(s: SqlScene, reason: CommitRejectReason) {
   }).forSession(s.access).journal
 }
 
-/** A provider over the scene's storage with the given commit, query and read in place. */
+/**
+ * A provider over the scene's storage with the given commit, query and read in place. It names
+ * another database, so what the members keep for the scene's storage does not answer its reads.
+ */
 function over(s: SqlScene, storage: Partial<SqlStorage>) {
   return createSessionLogJournal<string>({
     storage: {
+      database: {},
       registerCombination: input => s.storage.registerCombination(input),
       query: identity => s.storage.query(identity),
       read: (request, options) => s.storage.read(request, options),
@@ -579,6 +584,7 @@ describe('unknown, tenancy and registration', () => {
     // cannot tell whether it ran until it decides.
     let sent = false
     const unknownUntilDecided: SqlStorage = {
+      database: s.storage.database,
       registerCombination: input => s.storage.registerCombination(input),
       read: (read, options) => s.storage.read(read, options),
       commit: input => {
@@ -683,6 +689,7 @@ function reporting(
   commit?: SqlStorage['commit'],
 ) {
   const storage: SqlStorage = {
+    database: s.storage.database,
     registerCombination: input => s.storage.registerCombination(input),
     query: identity => s.storage.query(identity),
     read: (request, options) => s.storage.read(request, options),

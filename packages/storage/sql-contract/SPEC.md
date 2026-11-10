@@ -50,7 +50,7 @@ SQL r2 在 S1 之上改变或闭合的条款，按 SQL r2 第 19.1 节的提案�
 
 | 成员 | 入口 | 内容 |
 | --- | --- | --- |
-| `packages/storage/sql-contract` | `.` | 词汇类型、`SqlStorage`、材料与清单类型、纯函数（四个摘要与定性函数，含提交拒绝原因的定性 `commitRejectionNature`；数据库身份 `databaseOf` 与包装声明 `wrapsStorage`，见 §2.6）、关闭控制口与宿主接口、目录形状。不导入 Cordis（IC-4）。 |
+| `packages/storage/sql-contract` | `.` | 词汇类型、`SqlStorage`、材料与清单类型、纯函数（四个摘要与定性函数，含提交拒绝原因的定性 `commitRejectionNature`；数据库身份是 `SqlStorage.database`，见 §2.6）、关闭控制口与宿主接口、目录形状。不导入 Cordis（IC-4）。 |
 | 同上 | `./worker` | Worker 内的模块与端口接口、`SqlValue`、`QueryRows`，大文本列的 `packText` 与 `unpackText`（§10.1）。不导入 Cordis。 |
 | 同上 | `./cordis` | `StorageService`、`StorageHostService`、`TenantDomainsService`（依赖 Context r3）、`TenantDomainLookupService` 与 `Context` 增补。 |
 | 同上 | `./testing` | 内存替身与 `runSqlStorageConformance`（§16）；目录查找的替身与 `runTenantDomainLookupConformance`（§2.4）。 |
@@ -90,15 +90,13 @@ SQL r2 在 S1 之上改变或闭合的条款，按 SQL r2 第 19.1 节的提案�
 
 ### §2.6 同一个数据库的身份
 
-一个进程里，有的成员为每个数据库保管一份东西：缓存、快照、计数。它们要认出两个 `SqlStorage` 对象背后是不是同一个数据库。`databaseOf(storage)` 给出这个身份，规则如下。
+一个进程里，有的成员为每个数据库保管一份东西：缓存、快照、计数。它们要认出两个 `SqlStorage` 对象背后是不是同一个数据库。身份是契约上的字段 `SqlStorage.database`，不靠对象的形状推断。
 
-1. 先穿过 Cordis 服务代理（`Symbol.for('cordis.original')`）到被包装的对象。本入口不导入 Cordis，只读这个已登记的符号。
-2. 再穿过声明了内层的包装：`wrapsStorage(wrapper, inner)` 声明 `wrapper` 转发到 `inner`。声明同时记在包装对象和它的 `read` 函数上，所以把包装的方法复制进服务对象的装配也带着它。
-3. 最后取对象自有的 `read` 函数作身份。提供者为自己的数据库建一个 `read` 闭包，复制方法的对象复制的是同一个闭包。`read` 不是自有函数（类方法，各实例共用）时，取对象本身。
+1. 提供者为自己的每个数据库给出一个对象。同一个数据库上的每个存储对象都带同一个对象；不同数据库的存储对象带不同的对象。
+2. 转发到另一个存储的包装带那个存储的 `database`。用展开复制一个存储的对象自然带着它；自己逐个写方法的包装须显式写上。
+3. 保管者以 `storage.database` 为键。Cordis 的服务代理把属性读转发到被包装的服务对象，所以各插件拿到的代理给出同一个值。
 
-两个不同数据库上的存储对象因此不会有相同的身份。同一个数据库上的两个对象，只有共用提供者的 `read`、或经声明连到它时，身份才相同。
-
-带自己的 `read` 而没有声明的包装被当成另一个数据库。后果不是出错：各成员为它另保管一份，它只在该成员声明的陈旧上界之内看到经内层做的提交。要求即时一致的包装必须声明。判据：`tests/identity.spec.ts`。
+一个转发的包装若给出另一个对象，各成员就为它另保管一份。那是装配错误：本契约不为它规定陈旧上界。
 
 ### §3 身份与摘要
 

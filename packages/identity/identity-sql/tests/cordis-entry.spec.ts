@@ -53,6 +53,7 @@ async function hostContext(options: Readonly<{ clock?: boolean }> = {}): Promise
   const storage = await openSqliteStorage()
   cleanups.push(() => storage.close({ remove: true }))
   class TestStorage extends StorageService {
+    readonly database = storage.storage.database
     readonly registerCombination: SqlStorage['registerCombination'] = input =>
       storage.storage.registerCombination(input)
     readonly commit: SqlStorage['commit'] = (input, options) =>

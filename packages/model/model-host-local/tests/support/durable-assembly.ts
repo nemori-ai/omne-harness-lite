@@ -367,6 +367,7 @@ function sqliteStorage(): SqlStorage {
     return domain
   }
   return {
+    database: {},
     registerCombination: input => Promise.resolve({ kind: 'registered', registration: input }),
     commit(request): Promise<CommitResult> {
       const domain = domainOf(request.identity.transactionDomain)
@@ -450,6 +451,7 @@ function faultyStorage(inner: SqlStorage) {
   let fault: StorageFault | undefined
   const injected: { request: string; effect: StorageFault['effect'] }[] = []
   const storage: SqlStorage = {
+    database: inner.database,
     registerCombination: input => inner.registerCombination(input),
     async commit(request) {
       const selected = fault

@@ -325,6 +325,7 @@ export function createSqliteStorage(): SqliteStorage {
   }
 
   const storage: SqlStorage = {
+    database: {},
     registerCombination(input) {
       open(input.scope, input.transactionDomain)
       return Promise.resolve({ kind: 'registered', registration: input })

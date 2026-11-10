@@ -45,10 +45,8 @@ describe('runtime exports of the entries', () => {
     expect(Object.keys(root).sort()).toEqual([
       'combinationManifest',
       'commitRejectionNature',
-      'databaseOf',
       'inputDigestV2',
       'manifestDigest',
-      'wrapsStorage',
     ])
   })
 

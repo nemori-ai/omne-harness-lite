@@ -3,7 +3,7 @@
 // the count. Every publication of this process and every root read reports here, so the count is
 // known without a read of the storage. A publication of another process is seen at most
 // `PUBLISHED_COUNT_MAX_AGE_MS` later, or when a publication of this process is refused.
-import { databaseOf, type SqlStorage } from '@omne-harness/sql-contract'
+import type { SqlStorage } from '@omne-harness/sql-contract'
 
 /** How long a known count answers before the storage confirms it again. */
 export const PUBLISHED_COUNT_MAX_AGE_MS = 1_000
@@ -65,9 +65,9 @@ export class PublishedCounts {
 
 const counts = new WeakMap<object, PublishedCounts>()
 
-/** The one keeper of a database (`databaseOf`): every provider that reaches it shares it. */
+/** The one keeper of a database (`SqlStorage.database`): every provider that reaches it shares it. */
 export function publishedCountsOf(storage: SqlStorage): PublishedCounts {
-  const store = databaseOf(storage)
+  const store = storage.database
   let found = counts.get(store)
   if (found === undefined) {
     found = new PublishedCounts()

@@ -97,7 +97,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 本条兑现 `tool` SPEC 的[记录仓读取的新鲜度](../tool/SPEC.md#记录仓读取的新鲜度)。形式模型是 [SnapshotCache](verification/models/snapshot-cache/README.md)。
 
-同一个数据库上的全部记录仓共用一个保管者（`ledger-keeper.ts`）。数据库的身份按 sql-contract 的 `databaseOf` 取（[§2.6](../../storage/sql-contract/SPEC.md#26-同一个数据库的身份)），所以 Tool 运行时与清扫各自拿到不同的存储对象时仍看到同一份快照。保管者为每个账本域保管它知道的记录：整域读之后是全部记录，单键读之后是读到的那几条。规则如下。
+同一个数据库上的全部记录仓共用一个保管者（`ledger-keeper.ts`）。数据库的身份是 sql-contract 的 `SqlStorage.database`（[§2.6](../../storage/sql-contract/SPEC.md#26-同一个数据库的身份)），所以 Tool 运行时与清扫各自拿到不同的存储对象时仍看到同一份快照。保管者为每个账本域保管它知道的记录：整域读之后是全部记录，单键读之后是读到的那几条。规则如下。
 
 1. 快照知道的内容用快照作答，不向 SQL 存储发请求。整域读要求快照知道整个域，否则读整个域并保管它。单键读只要求快照知道那条记录，否则只读那一条并把它记进快照；它不读无关记录，所以大到整域读不出的域仍然可以单键读。
 2. 提交答 `committed` 且快照的修订号等于期望时，快照按同一个写集合前进到新修订号。写集合是整域删除时，快照丢掉。

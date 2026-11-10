@@ -41,14 +41,15 @@ function readsOf(a: App, handler: string, from = 0): number {
     .filter(call => call.kind === 'read' && call.handler === handler).length
 }
 
-/** Another port instance over the same database: a storage object of its own, so a cache of its own. */
+/** Another port instance over the same data that names another database: a cache of its own. */
 function otherInstance(a: App) {
   const storage: SqlStorage = {
+    database: {},
     registerCombination: input => a.provider.storage.registerCombination(input),
     commit: request => a.provider.storage.commit(request),
     query: identity => a.provider.storage.query(identity),
     read: request => a.provider.storage.read(request),
-  } as SqlStorage
+  }
   return createSessionStorage<string>({ ...a.storageOptions, storage })
 }
 
@@ -132,40 +133,6 @@ describe('one cache per database, never across databases', () => {
         ),
       )
     expect([readsOf(a, WHOLE, from), readsOf(a, VERSION, from)]).toEqual([0, 3])
-  })
-
-  it('two Cordis proxies of one service whose read is a class method share one cache', async () => {
-    const a = await app()
-    await a.create(TENANT_A)
-    class Service {
-      constructor(private readonly inner: SqlStorage) {}
-      registerCombination(input: never) {
-        return this.inner.registerCombination(input)
-      }
-      commit(input: never) {
-        return this.inner.commit(input)
-      }
-      query(input: never) {
-        return this.inner.query(input)
-      }
-      read(input: never) {
-        return this.inner.read(input)
-      }
-    }
-    const service = new Service(a.provider.storage) as unknown as SqlStorage
-    const port = (storage: SqlStorage) =>
-      createSessionStorage<string>({ ...a.storageOptions, storage })
-    okOf(await port(cordisProxy(service)).readWork(a.access(TENANT_A)))
-    const from = a.provider.calls.length
-    okOf(await port(cordisProxy(service)).readWork(a.access(TENANT_A)))
-    expect(readsOf(a, WHOLE, from)).toBe(0)
-    // Another instance of the same class is another identity: its read is not its own.
-    okOf(
-      await port(new Service(a.provider.storage) as unknown as SqlStorage).readWork(
-        a.access(TENANT_A),
-      ),
-    )
-    expect(readsOf(a, WHOLE, from)).toBe(1)
   })
 
   it('two databases with the same domain, tenant, session and version do not share an answer', async () => {

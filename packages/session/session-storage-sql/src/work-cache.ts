@@ -20,12 +20,7 @@ import {
   type SessionHistoryReads,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
-import {
-  databaseOf,
-  type DomainRef,
-  type JsonValue,
-  type SqlStorage,
-} from '@omne-harness/sql-contract'
+import { type DomainRef, type JsonValue, type SqlStorage } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue } from './codec.ts'
 import { readEntryTexts, StoredEntryMalformed } from './entry-codec.ts'
 import type { HistoryBasis, WorkIndexInput } from './worker/history-index.ts'
@@ -166,11 +161,11 @@ const caches = new WeakMap<object, WorkCache>()
 
 /**
  * The one cache of a database: the ports, the delegated views, the binding source and the Journal
- * provider that read it through any storage object of the same identity (`databaseOf` of `sql-contract`) share it. The
+ * provider that read it through any storage object of the same identity (`SqlStorage.database` of `sql-contract`) share it. The
  * bounds of the first caller that reaches the database hold for every later one.
  */
 export function workCacheOf(storage: SqlStorage, bounds?: WorkCacheBounds): WorkCache {
-  const store = databaseOf(storage)
+  const store = storage.database
   let cache = caches.get(store)
   if (cache === undefined) {
     cache = createWorkCache(bounds)
@@ -408,11 +403,11 @@ export type WorkFoldCounts = {
 }
 
 /**
- * A copy of the fold counts of the database behind `storage` (`databaseOf` of `sql-contract`); all zero while no
+ * A copy of the fold counts of the database behind `storage` (`SqlStorage.database` of `sql-contract`); all zero while no
  * reader or writer reached its cache.
  */
 export function workFoldCounts(storage: SqlStorage): WorkFoldCounts {
-  const cache = caches.get(databaseOf(storage))
+  const cache = caches.get(storage.database)
   return cache === undefined
     ? { folded: 0, indexed: 0, skipped: 0, quarantined: 0, stale: 0, republished: 0 }
     : { ...cache.counts }

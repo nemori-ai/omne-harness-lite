@@ -302,6 +302,13 @@ export type ReadResult =
  * them (§2.5).
  */
 export interface SqlStorage {
+  /**
+   * The identity of the database. Every storage object over one database of a process carries the
+   * same object here; storages over different databases carry different objects. A wrapper that
+   * forwards to a storage carries the identity of that storage. A member that keeps something for
+   * each database (a cache, a snapshot, a count) uses it as the key.
+   */
+  readonly database: object
   registerCombination(input: CombinationRegistrationV2): Promise<RegisterResultV2>
   commit(input: CommitRequestV2, options?: CommitOptions): Promise<CommitResultV2>
   query(identity: SqlIdentity): Promise<QueryResultV2>

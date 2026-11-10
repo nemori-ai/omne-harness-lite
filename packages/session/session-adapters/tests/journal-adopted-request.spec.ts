@@ -238,9 +238,10 @@ describe('a provider that did not write the request reads it as the writer does'
     let race: ReturnType<typeof m0> | null = null
     const outcomes: string[] = []
     const raced: SqlStorage = {
+      database: s.storage.database,
       registerCombination: input => s.storage.registerCombination(input),
       query: identity => s.storage.query(identity),
-      // The provider's own `read`: the two providers are over one database (`databaseOf`).
+      // The same database as the scene's storage: the two providers share what is kept for it.
       read: s.storage.read,
       commit: async request => {
         if (race === null) {
@@ -301,12 +302,9 @@ describe('the publication count after a publication that did not commit plainly'
   it('a publication of a provider that does not share the count is found at the refused publication, and the next M0 commits', async () => {
     const { s, authority } = await opened('adopted-foreign')
     ok(await m0(s, s.view.journal, authority, '1'))
-    // A storage object with its own `read` that declares nothing is another database to the
-    // members that keep the count: its provider publishes as a provider of another process would.
-    const foreign: SqlStorage = {
-      ...s.storage,
-      read: (request, options) => s.storage.read(request, options),
-    }
+    // A storage object that names another database: the members that keep the count keep
+    // another one for it, so its provider publishes as a provider of another process would.
+    const foreign: SqlStorage = { ...s.storage, database: {} }
     const other = createSessionLogJournal<string>(sceneOptions(s, foreign))
     ok(await m0(s, other.forSession(s.access).journal, authority, 'f'))
     // The scene's provider still knows the count before `f`: its M0 is decided there, the storage
