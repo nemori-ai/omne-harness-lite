@@ -4,7 +4,7 @@ import {
   reserveTerminalWindow,
 } from '../../src/windows-execution/terminal-output.ts'
 
-it('keeps sealed windows immutable, bounds idle output and reserves the next window before execution', async () => {
+it('keeps sealed windows immutable, bounds their output and releases a window its reader gives up', async () => {
   const capacity = createWindowsTerminalCapacity({
     maxTerminals: 2,
     maxWindows: 2,
@@ -27,11 +27,8 @@ it('keeps sealed windows immutable, bounds idle output and reserves the next win
   await read.return?.()
   expect(summary.terminal.discardedBytes).toBe(2)
   next.push(Uint8Array.from([1, 2, 3, 4, 5, 6]))
-  expect(next.disposeIdle()).toEqual({
-    observedBytes: 6,
-    discardedBytes: 2,
-    releasedUndeliveredBytes: 4,
-  })
+  expect(next.seal().terminal).toEqual({ observedBytes: 6, discardedBytes: 2 })
+  await next.output[Symbol.asyncIterator]().return?.()
   expect(capacity.reading()).toEqual({ terminals: 0, windows: 0, reservedBytes: 0, chunks: 0 })
 })
 

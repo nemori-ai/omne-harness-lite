@@ -240,7 +240,8 @@ describe('received Model result adoption', () => {
     expect(assembly.controls.requests.prepare.calls).toHaveLength(preparations)
   })
 
-  it('rebuilds the same ready intent after stopping before its publication', async () => {
+  // The first coordinator's M0 commit is unavailable: it waits, and its process stops in the wait.
+  it('rebuilds the same ready intent after the process stops in a wait before its publication', async () => {
     let stop = true,
       admits = 0
     const intents: JournalCommit<Principal>[] = []
@@ -272,7 +273,11 @@ describe('received Model result adoption', () => {
     }))
     const first = coordinator(assembly),
       authority = ok(await first.accept())
-    expect(failure(await first.runExecution())).toMatchObject({ node: 'M0' })
+    ok(await first.runExecution())
+    expect((await load(assembly)).state).toMatchObject({
+      kind: 'waiting',
+      waits: [{ kind: 'dependency', owner: 'cut', position: 'M0' }],
+    })
     expect((await load(assembly)).effects).toEqual([])
     expect(admits).toBe(0)
     stop = false
@@ -511,7 +516,9 @@ describe('received Model result adoption', () => {
       )
       const c = coordinator(assembly),
         authority = ok(await c.accept())
-      expect(failure(await c.runExecution())).toMatchObject({ node: 'I3' })
+      // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
+      // 依赖不可用时的等待).
+      ok(await c.runExecution())
       const before = await load(assembly)
       expect(before.checkpoint.position).toBe('M4')
       ok(await coordinator(assembly).continueExecution(authority))
@@ -586,10 +593,9 @@ it('no-reply waits for injected time and retains one candidate after an excluded
   }))
   const c = coordinator(assembly)
   ok(await c.accept())
-  expect(failure(await c.runExecution())).toMatchObject({
-    node: 'I3',
-    failure: { owner: 'clock' },
-  })
+  // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
+  // 依赖不可用时的等待).
+  ok(await c.runExecution())
   expect((await load(assembly)).checkpoint.position).toBe('M4')
   expect(failure(await c.runExecution())).toMatchObject({
     node: 'F1',
@@ -777,7 +783,9 @@ it('a transient material read failure resumes the same received delivery without
   assembly.release.open()
   const c = coordinator(assembly)
   ok(await c.accept())
-  expect(failure(await c.runExecution())).toMatchObject({ node: 'M3' })
+  // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
+  // 依赖不可用时的等待).
+  ok(await c.runExecution())
   const before = await load(assembly)
   ok(await c.runExecution())
   expect(admissions).toBe(1)

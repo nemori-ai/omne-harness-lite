@@ -51,7 +51,7 @@ ToolCall 决定器输入当前持久状态、具名命令和已核验 guard 快�
 
 `createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts }`。第五参数 `ToolLedgerPorts` 注入 `custody.retainResult`、原环境 `releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`。同账本 facts 通过 dependencies 交给 runtime。`configuration` 给出结果页大小 `resultPageBytes`、修订冲突的重试上限 `ledgerCommitAttempts` 与队列容量 `queueCapacity`，三者都来自 `ToolConfiguration`。`admissions.admit` 回复状态与 `recovered`，`commands.admit` 是只回复状态的契约形状。源码在 [ledger.ts](../src/ledger.ts)、[ledger-decider.ts](../src/ledger-decider.ts)、[ledger-store.ts](../src/ledger-store.ts) 与 [ledger-reads.ts](../src/ledger-reads.ts)。
 
-记录仓端口 `ToolLedgerStore<B>` 只有两个操作。`read(domain)` 返回一个事务域的全部记录和当前修订号，或 `unavailable`；返回 `complete` 表示快照包含该域此前每一次已确认的提交。`commit({ domain, expected, revision, writes })` 在 `expected` 等于当前修订号时原子写入全部 `writes` 并把修订号改为 `revision`，否则回答 `conflict`；提交结果不确定时回答 `unknown`，记录仓不可用时回答 `unavailable`。记录仓不解释记录内容，也不做业务判断。`durability` 声明 `none` 或 `durable`；`none` 只能出现在 `./testing`。
+记录仓端口 `ToolLedgerStore<B>` 只有两个操作。`read(domain)` 返回一个事务域的全部记录和当前修订号，或 `unavailable`；返回 `complete` 表示快照包含该域此前每一次已确认的提交。`commit({ domain, expected, revision, writes })` 在 `expected` 等于当前修订号时原子写入全部 `writes` 并把修订号改为 `revision`，否则回答 `conflict`；提交结果不确定时回答 `unknown`，记录仓暂时不可用时回答 `unavailable`，记录仓确定拒绝这次提交时回答 `rejected`。`rejected` 带 `reason`，写明记录仓给的原因，例如写入集超出命令上限；同一提交再试得到同一拒绝，没有写入。`unavailable` 只用于以后可以成立的情形，调用方可以以同一提交再试。记录仓不解释记录内容，也不做业务判断。`durability` 声明 `none` 或 `durable`；`none` 只能出现在 `./testing`。
 
 事务域是判别联合：`call` 域是 `(tenant, call)`，拥有一次原调用的全部记录；`queue` 域是 `(tenant, FIFO key)`，拥有同一 key 下各调用的顺序与名额；`host` 域是 `(tenant, key)`，供宿主提供者保存自己的耐久记录（例如 `tool-host-local` 的启动受理台账），本包不解释其内容。记录是判别联合，每种记录有一个唯一键：
 
@@ -95,6 +95,7 @@ FIFO key 是 `[scope.owner, scope.key, 定义名]` 的 JSON 文本（P02：受�
 | `recordStart(started)` | — | — | 状态 `running`，删除 `start` 待办，同提交原 facts 待办 |
 | `preserveResult` | 原 final 的 settle 待办 | （先做第 3 步）删除 entry 并写墓碑 | 独立 retain 已确认后同提交原结果、delivery、ended 与全部后继责任，最后关闭 queue 待办 |
 | `rejectPending`、`recordStart(rejected)` | — | （先做第 3 步）删除条目 | 状态 `settled`、`unavailable` 终局、`queue.released`、`deliver` 待办、`queue` 待办；队列域删除条目后再删除 `queue` 待办 |
+| 最小失败终局（`<受理>/ledger-rejected`） | — | （先做第 3 步）删除条目 | 只对没有启动记录的调用：状态 `settled`、`failed` 终局（`cause` 为 `runtime-lost`，诊断 `ledger-store rejected: <原因>`）、`deliver` 待办、`queue` 待办；释放依据是这条终局的结果（`ledger-rejected`），与 `rejectPending` 同形 |
 
 启动拒绝的释放是调用域先收尾、队列域后释放的转换：终局先于释放成立，释放只凭调用域里的释放依据（P02：仅逻辑收场不释放名额），崩溃时 `queue` 待办让释放重做；重做时条目已不存在也要写墓碑，已有墓碑则什么也不写。`prepareStart` 的队列步与调用域提交不在同一事务，所以名额可以先于启动记录被持有：这样的 `held` 条目是待履行义务，不是启动，由同一操作身份的重做对账，履行它的前提与触发的拥有者见 [SPEC 第 22 条](../SPEC.md#22-跨域提交与修复)。
 

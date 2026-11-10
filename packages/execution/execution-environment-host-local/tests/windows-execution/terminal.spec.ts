@@ -26,7 +26,10 @@ it('preserves a real shell across two foreground invocations and closes the orig
     })
     expect(a.kind).toBe('done')
     if (a.kind !== 'done') return
-    expect(await a.value.result).toMatchObject({ kind: 'completed', exit: { kind: 'unknown' } })
+    expect(await a.value.result).toMatchObject({
+      kind: 'completed',
+      exit: { kind: 'code', code: 0 },
+    })
     await outputOf(a.value)
     const b = await f.manager.facility.execute({
       ...request,
@@ -37,7 +40,10 @@ it('preserves a real shell across two foreground invocations and closes the orig
     expect(b.kind).toBe('done')
     if (b.kind !== 'done') return
     expect(b.value.process).toEqual(a.value.process)
-    expect(await b.value.result).toMatchObject({ kind: 'completed', exit: { kind: 'unknown' } })
+    expect(await b.value.result).toMatchObject({
+      kind: 'completed',
+      exit: { kind: 'code', code: 0 },
+    })
     await outputOf(b.value)
     expect(await f.manager.facility.list(f.request)).toMatchObject({
       kind: 'done',

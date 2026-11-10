@@ -18,6 +18,7 @@ import type {
 } from '@omne-harness/tool-contract'
 import type { ToolOutputCustody } from '@omne-harness/tool-contract/provider'
 import { NotJsonError, toJson } from './json.ts'
+import { isDefiniteRejection } from './ledger-wire.ts'
 import { checkChunkBound, TOOL_STORAGE_OWNER, type SqlToolOutputCustodyOptions } from './options.ts'
 import { requestOf, resolveTenant, type TenantDomain } from './tenant.ts'
 import type { CustodyAddress, ManifestFacts, ManifestKind, ManifestRow } from './worker/facts.ts'
@@ -398,7 +399,10 @@ async function settle(
     case 'identity_conflict':
       return unavailable('custody commit: the operation key was already used')
     case 'rejected_before_accept':
-      return unavailable(`custody commit rejected: ${answer.reason}`)
+      // A definite reason refuses the same chunk or manifest whenever it is sent (TS-04).
+      return isDefiniteRejection(answer.reason)
+        ? fail({ kind: 'invalid', field: 'storage', reason: answer.reason })
+        : unavailable(`custody commit rejected: ${answer.reason}`)
     default: {
       const exhaustive: never = answer
       return exhaustive

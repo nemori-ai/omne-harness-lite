@@ -151,7 +151,7 @@ for (const boundary of ['runtime', 'commands'] as const) {
     expect(replay).toEqual({ ...accepted, recovered: true })
     expect(
       await calls.admit({ ...f.admit, call: callId('second'), operation: op('second') }),
-    ).toMatchObject({ failure: { kind: 'capacity' } })
+    ).toMatchObject({ failure: { kind: 'unavailable', dependency: 'model-capacity' } })
     expect(f.counts().sends).toBe(0)
   })
 }

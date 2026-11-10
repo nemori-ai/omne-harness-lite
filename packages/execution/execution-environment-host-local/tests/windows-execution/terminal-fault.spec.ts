@@ -110,7 +110,7 @@ it('keeps completed foreground facts but rejects reuse when a temporary cwd cann
     if (running.kind !== 'done') return
     expect(await running.value.result).toMatchObject({
       kind: 'completed',
-      exit: { kind: 'unknown' },
+      exit: { kind: 'code', code: 0 },
     })
     await outputOf(running.value)
     expect(await f.manager.facility.list(f.request)).toMatchObject({

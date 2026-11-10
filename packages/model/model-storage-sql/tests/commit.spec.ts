@@ -24,6 +24,7 @@ import { decodeReadId } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   inputDigestV2,
+  type CommitRejectReason,
   type CommitRequestV2,
   type CommitResultV2,
   type JsonValue,
@@ -702,7 +703,7 @@ describe('operation identity', () => {
 })
 
 describe('tenant share', () => {
-  it('refuses a new call above the tenant share and writes no row', async () => {
+  it('answers a share that is full at the commit as unavailable and writes no row', async () => {
     const sqlite = sqliteStorage()
     const store = createSqlModelStorage(options(sqlite.storage))
     const big = { bytes: '1500', blocks: '1', attachmentBytes: '0' }
@@ -714,10 +715,33 @@ describe('tenant share', () => {
     expect(
       await write(store, callId('c2'), opId('a2'), () => admitted(callId('c2'), opId('a2'), big)),
     ).toEqual({
-      failure: { kind: 'capacity', required: big },
+      failure: {
+        kind: 'unavailable',
+        dependency: 'model-capacity',
+        diagnostic: 'the tenant share is full at the commit',
+      },
     })
     expect(sqlite.rows('domain-a', 'SELECT call FROM md_call')).toEqual([['mcall_c1']])
     expect(sqlite.rows('domain-a', 'SELECT count(*) FROM md_operation')).toEqual([[1n]])
+  })
+
+  it('answers capacity for a call above maxCallBytes, which no commit can carry (N1)', async () => {
+    const sqlite = sqliteStorage()
+    const small = 1000
+    const store = createSqlModelStorage(
+      options(sqlite.storage, {
+        limits: {
+          tenantCapacity: { bytes: '2500', blocks: '100', attachmentBytes: '0' },
+          maxCallBytes: small,
+          maxCommandBytes: small + COMMAND_RESERVE_BYTES,
+        },
+      }),
+    )
+    const over = { bytes: String(small + 1), blocks: '1', attachmentBytes: '0' }
+    expect(
+      await write(store, callId('c1'), opId('a1'), () => admitted(callId('c1'), opId('a1'), over)),
+    ).toEqual({ failure: { kind: 'capacity', required: over } })
+    expect(sqlite.commits()).toBe(0)
   })
 
   it('reports the held share and does not count a call whose request is released', async () => {
@@ -740,6 +764,187 @@ describe('tenant share', () => {
     ).toEqual({
       ok: 'written',
     })
+  })
+})
+
+/** The storage, except that every commit is rejected before acceptance for `reason`. */
+function rejecting(storage: SqlStorage, reason: CommitRejectReason): SqlStorage {
+  return {
+    ...storage,
+    commit: request =>
+      Promise.resolve({
+        kind: 'rejected_before_accept',
+        identity: request.identity,
+        reason,
+        diagnostic: null,
+      } as CommitResultV2),
+  }
+}
+
+describe('rejection before acceptance', () => {
+  // sql-contract "提交拒绝原因的定性"; `cancelled` is not classified there and is held transient.
+  const transient: readonly CommitRejectReason[] = [
+    'closing',
+    'queue_full',
+    'domain_unavailable',
+    'cancelled',
+  ]
+  const definite: readonly CommitRejectReason[] = [
+    'field_missing',
+    'unsupported_protocol',
+    'participant_repeated',
+    'facts_not_json',
+    'command_limit',
+    'combination_unregistered',
+    'manifest_mismatch',
+    'material_unavailable',
+    'participant_not_in_combination',
+    'participant_dependency_missing',
+  ]
+  const admit = (store: SqlModelStorage) =>
+    write(store, callId('r'), opId('r'), () => admitted(callId('r'), opId('r')))
+
+  it.each(transient)(
+    'answers the transient reason %s as unavailable, with the reason',
+    async reason => {
+      const store = createSqlModelStorage(options(rejecting(sqliteStorage().storage, reason)))
+      expect(await admit(store)).toEqual({
+        failure: {
+          kind: 'unavailable',
+          dependency: 'model-records',
+          diagnostic: `storage rejected the commit: ${reason}`,
+        },
+      })
+    },
+  )
+
+  it.each(definite)('answers the definite reason %s as invalid storage', async reason => {
+    const store = createSqlModelStorage(options(rejecting(sqliteStorage().storage, reason)))
+    expect(await admit(store)).toEqual({ failure: { kind: 'invalid', field: 'storage', reason } })
+  })
+
+  it('answers writer_not_current on an operation write as commit-unknown', async () => {
+    const store = createSqlModelStorage(
+      options(rejecting(sqliteStorage().storage, 'writer_not_current')),
+    )
+    expect(await admit(store)).toEqual({
+      failure: { kind: 'commit-unknown', operation: opId('r') },
+    })
+  })
+
+  it.each(['schema_unavailable', 'read_failed'] as const)(
+    'answers a read refused for %s as unavailable, with the reason',
+    async reason => {
+      const sqlite = sqliteStorage()
+      const refusing: SqlStorage = {
+        ...sqlite.storage,
+        read: request =>
+          Promise.resolve({
+            kind: 'unavailable',
+            requestKey: request.requestKey,
+            reason,
+            diagnostic: null,
+          }),
+      }
+      const store = createSqlModelStorage(options(refusing))
+      expect(await admit(store)).toEqual({
+        failure: {
+          kind: 'unavailable',
+          dependency: 'model-records',
+          diagnostic: `read model.call: ${reason}`,
+        },
+      })
+    },
+  )
+})
+
+describe('attempt generations', () => {
+  const big = { bytes: '1500', blocks: '1', attachmentBytes: '0' }
+  const full = { failure: { kind: 'unavailable', dependency: 'model-capacity' } }
+
+  /** A storage whose share is held by c1, and the admission of c2 that the share refuses. */
+  function heldShare() {
+    const sqlite = sqliteStorage()
+    const queried: string[] = []
+    const counting: SqlStorage = {
+      ...sqlite.storage,
+      query: identity => {
+        queried.push(identity.operationKey)
+        return sqlite.storage.query(identity)
+      },
+    }
+    const open = () => createSqlModelStorage(options(counting))
+    const store = open()
+    const second = (on: SqlModelStorage = store) =>
+      write(on, callId('c2'), opId('a2'), () => admitted(callId('c2'), opId('a2'), big))
+    const release = () =>
+      write(
+        store,
+        callId('c1'),
+        opId('release'),
+        edit(doc => (doc.request = null)),
+      )
+    return { sqlite, store, open, queried, second, release }
+  }
+
+  it('writes an operation after nine rolled-back generations, searching from the last one seen', async () => {
+    const f = heldShare()
+    await write(f.store, callId('c1'), opId('a1'), () => admitted(callId('c1'), opId('a1'), big))
+    for (let refused = 0; refused < 9; refused += 1) expect(await f.second()).toMatchObject(full)
+    await f.release()
+    f.queried.length = 0
+    expect(await f.second()).toEqual({ ok: 'written' })
+    expect(f.queried).toEqual(['mop_a2#10'])
+    expect(f.sqlite.rows('domain-a', 'SELECT call FROM md_call ORDER BY call')).toEqual([
+      ['mcall_c1'],
+      ['mcall_c2'],
+    ])
+  })
+
+  it('finds the free generation from #1 in a new process', async () => {
+    const f = heldShare()
+    await write(f.store, callId('c1'), opId('a1'), () => admitted(callId('c1'), opId('a1'), big))
+    for (let refused = 0; refused < 9; refused += 1) expect(await f.second()).toMatchObject(full)
+    await f.release()
+    f.queried.length = 0
+    expect(await f.second(f.open())).toEqual({ ok: 'written' })
+    expect(f.queried).toEqual(Array.from({ length: 10 }, (_, at) => `mop_a2#${at + 1}`))
+  })
+
+  it('bounds the rounds of one run by attemptLimit, and the next run of the operation writes', async () => {
+    const sqlite = sqliteStorage()
+    const store = createSqlModelStorage(options(sqlite.storage, { attemptLimit: 2 }))
+    const call = callId('busy')
+    await write(store, call, opId('admit'), () => admitted(call, opId('admit')))
+    let races = 2
+    const race = async (): Promise<void> => {
+      races -= 1
+      await write(
+        store,
+        call,
+        opId(`race${races}`),
+        edit(doc => (doc.cleanupFailure = `race${races}`)),
+      )
+      if (races > 0) sqlite.hooks.beforeCommit = race
+    }
+    sqlite.hooks.beforeCommit = race
+    const late = () =>
+      write(
+        store,
+        call,
+        opId('late'),
+        edit(doc => (doc.requestDigest = 'late')),
+      )
+    expect(await late()).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'model-records',
+        diagnostic: 'every attempt of the run met a newer write',
+      },
+    })
+    expect(races).toBe(0)
+    expect(await late()).toEqual({ ok: 'written' })
+    expect((await stored(store, call)).record?.document.requestDigest).toBe('late')
   })
 })
 

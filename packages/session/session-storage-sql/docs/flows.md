@@ -18,7 +18,7 @@ sequenceDiagram
     participant M as 参加者模块 session
     participant D as 表与索引
     S->>T: commit(command, guards)
-    loop 代次 k = 1, 2, …
+    loop 代次 k 从进程内记住的最大代次起（重启后从 1 起），不设上限
         T->>P: query(<SessionOperationId>#k)
         Note over T,P: rolled_back 继续；not_committed 选用 k；committed 认回；unknown 返回 commit-unknown
     end
@@ -46,8 +46,9 @@ sequenceDiagram
 | --- | --- | --- |
 | 选代次时已有已提交代次 | 事务端口实现 | 不提交，返回原回执，`recovered` 为真 |
 | 选代次时某代次未知或在途 | 事务端口实现 | 不开新代次，`commit-unknown`；`session` 的 S4 认回 |
-| 代次达到上限，全部回滚 | 事务端口实现 | `unavailable`，`owner` 为本包 |
-| 受理前拒绝 | 提供者 | `unavailable`，`owner` 为存储参加者，不进事务 |
+| 前面的代次全部回滚 | 事务端口实现 | 用第一个没有用过的代次提交。代次不设上限，因为 `changed` 一类正常拒绝也用掉代次（[尝试代次](../SPEC.md#w1-attempts)） |
+| 受理前拒绝，暂时的原因 | 提供者 | `unavailable`，`owner` 为存储参加者，不进事务 |
+| 受理前拒绝，确定的原因 | 提供者 | `invalid`，字段 `storage`，原因为存储的原因名，不进事务（[W1](../SPEC.md#w1) 第 2 步） |
 | 同一代次同摘要 | 提供者 | 不写行，返回该代次的已保存回执 |
 | 同一代次异摘要（`identity_conflict`） | 提供者 | 已有回执为已提交：比较 Session 输入摘要，相同返回原回执，不同返回 `conflict`。已有回执为回滚：选下一个代次 |
 | 模块里 `decide` 返回 `recovered` | 模块 | 「参加」，不写行，返回原回执，`recovered` 为真 |
@@ -55,10 +56,11 @@ sequenceDiagram
 | 事实不是命令也不是查询，或无法解码 | 模块 | 「不支持」，明确回滚，映射为 `invalid`。材料集合是否齐全，模块不另核对，交给 `decide`（[SPEC 实现现状](../SPEC.md#实现现状)） |
 | 带 `expected` 的命令，`expected ≠ tail` | 模块里的 `decide` | 「冲突」，`changed` 带当前 `revision`，明确回滚。`session` 以同一身份重做，开新代次 |
 | `decide` 返回其他拒绝 | 模块 | 「冲突」，明确回滚，依据里保存原 `SessionFailure`。端口从回执的响应证据取出并原样返回，不重算（W1 第 9 步） |
-| `reduce` 对 `decide` 的批次返回 `quarantined` | 模块 | 「失败」，不写行。这是契约实现的缺陷 |
+| `reduce` 对 `decide` 的批次返回 `quarantined` | 模块 | 确定失败：「冲突」，依据为 `invalid`（字段 `storage`，原因 `quarantined`），不写行。这是契约实现的缺陷 |
+| 读界超出、执行索引已存在、已提交数据缺少不变量要求的行 | 模块 | 确定失败：「冲突」，依据为 `invalid`（字段 `storage`，原因为类别名），明确回滚（[参加者失败的定性](../SPEC.md#参加者失败的定性)） |
 | `sl_state` 落后 | 模块 | 「失败」，`unavailable`。R9 追赶尚未实现 |
 | `sl_journal` 条件更新影响 0 行 | 模块 | 「失败」，`unavailable`，记诊断 |
-| 语句失败 | 提供者关闭端口 | 「失败」，`rolled_back` 或 `unknown` |
+| 语句失败 | 提供者关闭端口 | 「失败」，`rolled_back` 或 `unknown`。`rolled_back` 时按失败类别映射，提供者判定的类别为 `invalid`（字段 `storage`）（[W1](../SPEC.md#w1) 第 9 步） |
 | `COMMIT` 结果不确定、锁等待超时 | 提供者 | `commit-unknown`；调用方按原身份 `queryOperation` |
 
 ### 写路径：Session 为参加者

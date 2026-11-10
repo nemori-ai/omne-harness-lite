@@ -150,6 +150,7 @@ calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断
 - 核心拥有每个方法的检查次序、调用文档的变化、回执与认回、待决写的阻挡、单调用容量、流事实归约、分页、读关系和发送绑定。核心只经端口读写，不做 I/O，也不持有进程外的状态。
 - 存储实现 [ModelCommandStorage](src/commands/storage.ts)：`run` 一次只运行一个尝试；`documents` 读一个租户的调用与 operation 绑定；`reserved` 给出容量汇总；`commit` 在所读调用仍为当前值时写入调用并绑定 operation，返回 `committed` 或 `unknown`；`publish` 只用于读关系的进度；可选的 `pending(tenant, after, limit)` 由存储自己分页选出待恢复调用（`PendingPage`）。存储给出 `pending` 时，`scanPending` 在同样的资格与 limit 检查之后直接调用它，不经 `run`。
 - 汇总范围由存储决定。内存存储汇总整个装配，`limits.capacity` 是整个装配共用的上界。
+- 受理新调用时，核心按 `limits.capacity` 与 `reserved` 的汇总判断份额。调用容量任一项大于 `limits.capacity` 时，这个调用永远放不下，核心答 `capacity`。调用本身放得下、而汇总加上它超过份额时，份额此刻被占满，核心答 `unavailable`，依赖名 `model-capacity`，诊断写明份额已满（写法同 [commands/value.ts](src/commands/value.ts) 的 `unavailable(dependency, diagnostic)`）。SQL 存储在提交时复核份额、发现此刻被占满时答同一个依赖名。规则归 model-contract 的[按租户的串行区与公平](../model-contract/SPEC.md#按租户的串行区与公平)。
 - 内存存储 [testing/state.ts](src/testing/state.ts) 只保留同步围栏、内存文档、注入未知与 reveal、测试控制和发送协调器。
 
 核心与端口经子路径 `@omne-harness/model/commands` 导出：`createModelCommandsCore`、`modelCommands`、`MODEL_WRITE_METHODS`、`hasRecoveryWork` 与端口类型。根入口不导出它们，根入口只放运行面；子路径给耐久存储这类提供者装配核心，不是消费者接口。核心用到的规范编码、摘要与身份铸造在 [commands/value.ts](src/commands/value.ts)，[testing/value.ts](src/testing/value.ts) 只重新导出它们，所以子路径的导入图不经 testing，产品代码的 `no-testing-import` 检查也不受影响。testing 入口仍转导核心，供内存实现的测试使用。

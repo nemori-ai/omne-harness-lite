@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { lstat, mkdir } from 'node:fs/promises'
+import { mkdir, unlink } from 'node:fs/promises'
 import { win32 } from 'node:path'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type {
@@ -17,21 +17,40 @@ import {
   writeManifest,
   type Manifest,
   type FileBatch,
+  type HostFileDiagnostic,
 } from '../host-file-batch.ts'
-import { reject, unknown } from '../host-paths.ts'
+import { failed, reject, unknown } from '../host-paths.ts'
+import { windowsObjectInfo } from './facility.ts'
 
 type Files = Pick<FileSystemFacility<unknown>, 'stat' | 'read' | 'write' | 'move' | 'remove'>
 type Commit = Parameters<FileSystemFacility<unknown>['commitBatch']>[0]
+type Recover = Parameters<FileSystemFacility<unknown>['recoverBatch']>[0]
 const digest = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
 
+/** A staged file: where it is, what it is and the target it stands for. */
+type Staged = Readonly<{ path: string; identity: FileIdentity; target: string; temp: string }>
+
+/**
+ * Batches composed of single Windows file operations. Staging writes every entry into a new file
+ * beside its target; publication moves them over the targets one by one. A staged file that is not
+ * published is removed again, and one that cannot be removed is named by `temporaryFileRemains`.
+ */
 export function createWindowsBatch(options: {
   files: Files
   stateDirectory?: string
   generation: string
   running: Set<string>
   sealed(): boolean
+  diagnose?: ((diagnostic: HostFileDiagnostic) => void) | undefined
 }): FileBatch {
   const { files } = options
+  const report = (diagnostic: HostFileDiagnostic) => {
+    try {
+      options.diagnose?.(diagnostic)
+    } catch {
+      /* A diagnostic never changes the result. */
+    }
+  }
   const location = (tenant: string, id: string) =>
     win32.join(options.stateDirectory ?? '', 'batches', digest(tenant), `${id}.json`)
   const entryRequest = (
@@ -59,6 +78,56 @@ export function createWindowsBatch(options: {
         ? reject(request.requestId, 'conflict')
         : undefined
   }
+  /** The refusal of a commit before anything is written, or the tenant it writes for. */
+  const admit = async (request: Commit): Promise<FacilityResult<never> | { tenant: string }> => {
+    if (request.binding.kind !== 'host_machine') return reject(request.requestId, 'unsupported')
+    const invalid = entriesRefusal(request.entries)
+    if (invalid !== undefined) return reject(request.requestId, invalid)
+    if (
+      new Set(request.entries.map(entry => win32.normalize(entry.path).toLowerCase())).size !==
+      request.entries.length
+    )
+      return reject(request.requestId, 'invalidInput')
+    if (options.stateDirectory === undefined) return reject(request.requestId, 'unavailable')
+    const tenant = tenantCodec.encode(request.access.tenant)
+    if (!tenant.ok) return reject(request.requestId, 'notAuthorized')
+    for (const entry of request.entries) {
+      const refused = await check(entryRequest(request, entry), entry.expectedVersion)
+      if (refused !== undefined) return refused
+    }
+    return { tenant: tenant.value }
+  }
+  /** What an unpublished entry's target holds now: the staged bytes, a conflict, or neither. */
+  const targetOf = async (
+    request: Recover,
+    entry: Manifest['entries'][number],
+  ): Promise<'matching' | 'conflicting' | 'neither' | 'unknown'> => {
+    const found = await windowsObjectInfo(entry.path)
+    if (!found.ok) {
+      if (found.failure !== 'unresolved') return 'unknown'
+      return entry.expectedVersion !== null ? 'conflicting' : 'neither'
+    }
+    // A directory or a link at the target is neither the expected version nor the staged bytes.
+    if (found.value.type !== 'file') return 'conflicting'
+    const read = await files.read({
+      ...request,
+      path: entry.path,
+      named: { token: found.value.token },
+    })
+    if (read.kind !== 'done') return 'unknown'
+    if (read.value.bytes.length === entry.size && digest(read.value.bytes) === entry.sha256)
+      return 'matching'
+    return entry.expectedVersion === null || entry.expectedVersion !== read.value.version
+      ? 'conflicting'
+      : 'neither'
+  }
+  /** The state of a recognised batch, from its manifest and this process's running batches. */
+  const stateOf = (manifest: Manifest): FileBatchRecognition['state'] => {
+    if (manifest.receipts.length === manifest.entries.length) return 'complete'
+    if (manifest.state === 'conflict') return 'conflict'
+    if (manifest.generation !== options.generation) return 'interrupted'
+    return options.running.has(manifest.id) ? 'pending' : 'partial'
+  }
   return {
     async commitBatch(request) {
       request = {
@@ -69,27 +138,15 @@ export function createWindowsBatch(options: {
           bytes: Uint8Array.from(entry.bytes),
         })),
       }
-      if (request.binding.kind !== 'host_machine') return reject(request.requestId, 'unsupported')
-      const invalid = entriesRefusal(request.entries)
-      if (invalid !== undefined) return reject(request.requestId, invalid)
-      if (
-        new Set(request.entries.map(entry => win32.normalize(entry.path).toLowerCase())).size !==
-        request.entries.length
-      )
-        return reject(request.requestId, 'invalidInput')
-      if (options.stateDirectory === undefined) return reject(request.requestId, 'unavailable')
-      const tenant = tenantCodec.encode(request.access.tenant)
-      if (!tenant.ok) return reject(request.requestId, 'notAuthorized')
-      for (const entry of request.entries) {
-        const refused = await check(entryRequest(request, entry), entry.expectedVersion)
-        if (refused !== undefined) return refused
-      }
+      const admitted = await admit(request)
+      if ('kind' in admitted) return admitted
+      const { tenant } = admitted
       const batch = { id: randomUUID(), generation: options.generation }
-      const file = location(tenant.value, batch.id)
+      const file = location(tenant, batch.id)
       const manifest: Manifest = {
         version: 1,
         ...batch,
-        tenant: tenant.value,
+        tenant,
         state: 'staging',
         receipts: [],
         entries: request.entries.map((entry, index) => ({
@@ -101,9 +158,50 @@ export function createWindowsBatch(options: {
           temp: `.omne-batch-${batch.id}-${index}`,
         })),
       }
-      const staged: { path: string; identity: FileIdentity }[] = []
+      const staged: Staged[] = []
       const published: string[] = []
+      /** The staged files that are not published stay: the effect of the batch is not known. */
       let retainPrepared = false
+      /** The staged files were already removed, or tried to be. */
+      let discarded = false
+      /** Removes the staged files given; false when one of them stays, which is then named. */
+      const discard = async (items: readonly Staged[]): Promise<boolean> => {
+        discarded = true
+        let all = true
+        for (const item of items) {
+          const removed = await files.remove({
+            ...request,
+            path: item.path,
+            named: item.identity.object,
+            recursive: false,
+          })
+          if (
+            removed.kind === 'done' ||
+            (removed.kind === 'rejected' && removed.reason === 'notFound')
+          )
+            continue
+          all = false
+          report({
+            kind: 'temporaryFileRemains',
+            batch: batch.id,
+            path: item.target,
+            temporary: item.temp,
+            ...(removed.kind === 'rejected' ? { code: removed.reason } : {}),
+          })
+        }
+        return all
+      }
+      /**
+       * Staging stopped before anything was published. With every staged file removed again and a
+       * refusal for the step that stopped it, the batch is refused and its manifest goes; otherwise
+       * its effect is not known.
+       */
+      const abandon = async (refusal: FacilityResult<never>): Promise<FacilityResult<never>> => {
+        if (!(await discard(staged)) || refusal.kind !== 'rejected')
+          return unknown(request.requestId)
+        await unlink(file).catch(() => undefined)
+        return refusal
+      }
       const uncertain = (reason: 'effectUnknown' | 'conflict' | 'closed' | 'unavailable') => {
         retainPrepared = reason === 'effectUnknown'
         return {
@@ -124,17 +222,21 @@ export function createWindowsBatch(options: {
           const stored = manifest.entries[index]
           if (stored === undefined) return uncertain('effectUnknown')
           const parentPath = win32.dirname(entry.path)
-          const parentInfo = await lstat(parentPath, { bigint: true })
+          const parent = await windowsObjectInfo(parentPath)
+          if (!parent.ok)
+            return await abandon(failed(request.requestId, parent.failure, 'notFound'))
           const path = win32.join(parentPath, stored.temp)
           const result = await files.write({
             ...request,
             path,
-            named: { token: `${parentInfo.dev}:${parentInfo.ino}` },
+            named: { token: parent.value.token },
             bytes: entry.bytes,
             mode: 'create',
           })
-          if (result.kind !== 'done') return uncertain('effectUnknown')
-          staged.push({ path, identity: result.value })
+          // A write refuses only when it left no file of its own.
+          if (result.kind !== 'done')
+            return await abandon(result.kind === 'rejected' ? result : unknown(request.requestId))
+          staged.push({ path, identity: result.value, target: entry.path, temp: stored.temp })
         }
         await writeManifest(file, { ...manifest, state: 'publishing' })
         for (const [index, entry] of request.entries.entries()) {
@@ -172,14 +274,7 @@ export function createWindowsBatch(options: {
       } catch {
         return uncertain('effectUnknown')
       } finally {
-        if (!retainPrepared)
-          for (const item of staged)
-            await files.remove({
-              ...request,
-              path: item.path,
-              named: item.identity.object,
-              recursive: false,
-            })
+        if (!retainPrepared && !discarded) await discard(staged.slice(published.length))
         options.running.delete(batch.id)
       }
     },
@@ -198,34 +293,12 @@ export function createWindowsBatch(options: {
         conflicting: string[] = []
       for (const entry of manifest.entries) {
         if (manifest.receipts.includes(entry.path)) continue
-        let token: string
-        try {
-          const stat = await lstat(entry.path, { bigint: true })
-          token = `${stat.dev}:${stat.ino}`
-        } catch (error) {
-          if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-            if (entry.expectedVersion !== null) conflicting.push(entry.path)
-            continue
-          }
-          return unknown(request.requestId)
-        }
-        const read = await files.read({ ...request, path: entry.path, named: { token } })
-        if (read.kind !== 'done') return unknown(request.requestId)
-        if (read.value.bytes.length === entry.size && digest(read.value.bytes) === entry.sha256)
-          matchingPrepared.push(entry.path)
-        else if (entry.expectedVersion === null || entry.expectedVersion !== read.value.version)
-          conflicting.push(entry.path)
+        const target = await targetOf(request, entry)
+        if (target === 'unknown') return unknown(request.requestId)
+        if (target === 'matching') matchingPrepared.push(entry.path)
+        if (target === 'conflicting') conflicting.push(entry.path)
       }
-      const state: FileBatchRecognition['state'] =
-        manifest.receipts.length === manifest.entries.length
-          ? 'complete'
-          : manifest.state === 'conflict'
-            ? 'conflict'
-            : manifest.generation !== options.generation
-              ? 'interrupted'
-              : options.running.has(manifest.id)
-                ? 'pending'
-                : 'partial'
+      const state = stateOf(manifest)
       return {
         kind: 'done',
         requestId: request.requestId,

@@ -1,5 +1,5 @@
 /** @module-tag slow */
-import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, vi } from 'vitest'
@@ -8,17 +8,20 @@ import { nativeSource } from '../../src/windows-execution/native-source.ts'
 import { terminalNativeSource } from '../../src/windows-execution/terminal-native-source.ts'
 import { createWindowsRetainedTerminalFactory } from '../../src/windows-execution/terminal.ts'
 import { compileTerminalSource } from './native-fixture.ts'
-import { outputOf, psString, terminalFixture } from './terminal-fixture.ts'
+import { outputOf, psString, terminalFixture, visible } from './terminal-fixture.ts'
 
-it('assigns bytes already in the OS pipe to the later window when the broker reads them after the foreground cut', async context => {
+it('answers an invocation only after the broker read its end sentinel, so bytes still in the OS pipe stay its own', async context => {
   if (process.platform !== 'win32') return context.skip()
   const directory = await realpath(await mkdtemp(join(tmpdir(), 'omne-terminal-read-order-')))
   const release = join(directory, 'release-read')
   const witness = join(directory, 'pipe-witness')
+  const moved = join(directory, 'moved')
+  await mkdir(moved)
   const literal = (value: string) => `@"${value.replaceAll('"', '""')}"`
   const marker = 'OMNE_PIPE_PENDING'
   const declaration =
     '[DllImport("kernel32.dll",SetLastError=true)] static extern bool PeekNamedPipe(IntPtr h,byte[] data,uint count,out uint read,out uint available,out uint left);\n'
+  // The broker stops reading the ConPTY output while the marker waits in the pipe, until released.
   const gate = `if(stream=="terminal"&&!File.Exists(${literal(release)})){byte[] preview=new byte[65536];uint read,available,left;if(PeekNamedPipe(pipe,preview,(uint)preview.Length,out read,out available,out left)&&Encoding.UTF8.GetString(preview,0,(int)read).Contains("${marker}"))File.WriteAllText(${literal(witness)},"queued");Thread.Sleep(5);continue;}`
   expect(nativeSource.split('for(;;) {')).toHaveLength(2)
   const injected = nativeSource
@@ -44,26 +47,27 @@ it('assigns bytes already in the OS pipe to the later window when the broker rea
       const request = { ...f.call, terminal: backend.terminal }
       const first = await backend.execute({
         ...request,
-        script: `[Console]::Write('${marker}'); while (-not [IO.File]::Exists(${psString(witness)})) { Start-Sleep -Milliseconds 10 }`,
+        script: `[Console]::Write('${marker}'); Set-Location -LiteralPath ${psString(moved)}; while (-not [IO.File]::Exists(${psString(witness)})) { Start-Sleep -Milliseconds 10 }`,
       })
       expect(first.kind).toBe('done')
       if (first.kind !== 'done') return
-      const original = await first.value.result
-      expect(await readFile(witness, 'utf8')).toBe('queued')
-      expect(original).toMatchObject({
-        kind: 'completed',
-        output: { mode: 'terminal', terminal: { observedBytes: 0, discardedBytes: 0 } },
+      let answered = false
+      void first.value.result.then(() => {
+        answered = true
       })
-      expect((await outputOf(first.value)).bytes.length).toBe(0)
+      // The finished frame came over the control pipe: it carries the cwd the script moved to.
+      await expect.poll(() => backend.information().observedCwd, { timeout: 10_000 }).toBe(moved)
+      expect(await readFile(witness, 'utf8')).toBe('queued')
+      await new Promise(resolve => setTimeout(resolve, 200))
+      expect(answered).toBe(false)
+      expect(backend.information().state).toBe('running')
       await writeFile(release, '')
-      await expect
-        .poll(() => backend.observation().observedBytes)
-        .toBeGreaterThanOrEqual(marker.length)
-      const next = await backend.execute({ ...request, script: '' })
-      expect(next.kind).toBe('done')
-      if (next.kind !== 'done') return
-      expect((await outputOf(next.value)).bytes.toString()).toContain(marker)
-      expect(await first.value.result).toEqual(original)
+      expect(await first.value.result).toMatchObject({
+        kind: 'completed',
+        exit: { kind: 'code', code: 0 },
+      })
+      expect(visible((await outputOf(first.value)).bytes)).toContain(marker)
+      expect(backend.information().state).toBe('idle')
     } finally {
       await writeFile(release, '')
       await backend.stop()
@@ -71,6 +75,6 @@ it('assigns bytes already in the OS pipe to the later window when the broker rea
     }
   } finally {
     await backend.stop()
-    await rm(directory, { recursive: true, force: true })
+    await rm(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 })
   }
 }, 60_000)

@@ -8,7 +8,28 @@ import {
   type ResourceLedger,
 } from '@omne-harness/execution-environment-contract'
 import { commandSettings, type HostCommandOptions } from '../../src/host-command.ts'
+import { createPrerequisiteProbe } from '../../src/host-probe.ts'
 import { createWindowsHostCommands } from '../../src/windows-execution/index.ts'
+import {
+  probeWindowsCommands,
+  type WindowsCommandReading,
+  type WindowsPrerequisite,
+} from '../../src/windows-execution/prerequisites.ts'
+
+let hostProbe: ReturnType<typeof createPrerequisiteProbe<WindowsCommandReading>> | undefined
+
+/** The real Windows command prerequisites, probed once per test file. */
+export function windowsCommandInputs(missing: WindowsPrerequisite[][] = []) {
+  hostProbe ??= createPrerequisiteProbe({
+    retryMs: 60_000,
+    boundMs: 5_000,
+    probe: probeWindowsCommands,
+  })
+  return {
+    prerequisites: hostProbe,
+    unavailable: (items: readonly WindowsPrerequisite[]) => missing.push([...items]),
+  }
+}
 
 export function commandFixture(cwd: string, options: HostCommandOptions = {}) {
   const tenant = tenantCodec.parse(
@@ -36,8 +57,10 @@ export function commandFixture(cwd: string, options: HostCommandOptions = {}) {
     },
   }
   const manager = createWindowsHostCommands({
+    ...windowsCommandInputs(),
     ledger,
     provider: 'test',
+    tenant: tenant.value,
     scope: scope.ok,
     settings: commandSettings(options),
   })

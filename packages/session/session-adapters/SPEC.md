@@ -688,10 +688,11 @@ Session 用调用引用指明 Model 与 Tool 调用：`producer.call` 是 `Model
 | Agent 的结果 | 端口结果 |
 | --- | --- |
 | 受理回执、挂接回执、交接依据、命令回执 | 成功，带修订与证据 |
-| `busy`、`denied`、`terminal`、`changed`、`stale-advance`、`unsupported`、`conflict` | 同名的 `DriveFailure` |
+| `busy`、`denied`、`terminal`、`changed`、`stale-advance`、`conflict` | 同名的 `DriveFailure` |
+| `unsupported` | `invoke` 与 `resume`：`refused`（驱动被拒），种类为 `unsupported`，`field` 与 `reason` 为 null。其他操作：同名的 `DriveFailure` |
 | `invalid`，且是消息准入拒收（字段为 `value`），并带准入提供者的拒收记录 | `invalid`，带拒收原因，拒收证据原样转交 |
-| `invalid`，且是消息准入拒收（字段为 `value`），但没有可用的拒收记录 | `unavailable`，诊断为「Agent invalid 未带拒收证据（NP-12）」。不成为拒收，不产生 SE35，见 [NP-12](#np-12) |
-| 其他 `invalid` | `unavailable`，诊断标为翻译缺陷，并报告。它不成为拒收，不产生 SE35 rejected |
+| `invoke` 或 `resume` 的其他 `invalid`，含没有拒收记录的 `invalid(value)` 与字段为 `storage` 的存储确定拒绝 | `refused`（驱动被拒），种类为 `invalid`，带 Agent 的 `field` 与 `reason`。同一请求再试仍失败，Session 按 [PM-02](../session-contract/SPEC.md#pm-02) 或 [PM-05](../session-contract/SPEC.md#pm-05) 以失败结束 Run，不重放 |
+| 其他操作的其他 `invalid` | `unavailable`，诊断写明 Agent 的字段与原因，并报告。它不成为拒收，不产生 SE35 rejected |
 | `query` 的 `rejected` | `unavailable`，诊断标为翻译缺陷，并报告。本端口只查询自己发起的驱动操作，`rejected` 不属于它们；不映成 `not-committed` |
 | `unavailable` | `unavailable` |
 | `commit-unknown` | `commit-unknown`，带原操作身份 |
@@ -702,8 +703,8 @@ Session 用调用引用指明 Model 与 Tool 调用：`producer.call` 是 `Model
 - 本插件不调用 `prewarm` 对应的任何 Agent 入口。
 - Agent 的 `not-ready` 不在上表。本插件把它答为 `unavailable`，Session 保留任务。
 - 端口的 `submit` 不带优先级，本插件一律以 `ordinary` 提交。上面控制映射里 `interrupt` 的 urgent 插队在本插件尚未实现，等端口能区分插队输入时补上。
-- 拒收证据是准入提供者一条耐久记录的定位符。本插件不生成它（[AD-00](#ad-00) 第 2、7 条）。Agent 的 `invalid` 带 `rejection` 成员且它是合法的 `DurableEvidence` 时，本插件原样转交。现行 agent-contract 的 `invalid` 只带字段与原因，所以消息准入拒收在本插件答 `unavailable`（[NP-12](#np-12)）。
-- 已知限制：NP-12 闭合之前，Session 的 PM-02 有界收束（首条输入被消息准入拒收）经本端口走不到。Session 按 `unavailable` 退避重试，然后等 S3。
+- 拒收证据是准入提供者一条耐久记录的定位符。本插件不生成它（[AD-00](#ad-00) 第 2、7 条）。Agent 的 `invalid` 带 `rejection` 成员且它是合法的 `DurableEvidence` 时，本插件原样转交。现行 agent-contract 的 `invalid` 只带字段与原因，所以 `invoke` 的消息准入拒收在本插件答 `refused`，由 Session 按驱动被拒收束（[NP-12](#np-12)）。
+- 已知限制：NP-12 闭合之前，Session 的 PM-02 准入拒收收束经本端口走不到。首条输入被消息准入拒收时，Run 按驱动被拒以失败结束，首条输入的 SE35 原因是 `drive-refused`，不带准入提供者的拒收证据。
 - 翻译缺陷的答复是 `unavailable`，诊断以 `translation defect` 开头，插件同时以 error 级写入日志。依赖或插件内部抛出的异常也按翻译缺陷处理。
 
 ##### 会话槽引用
@@ -848,7 +849,7 @@ Session 契约的 [P-1 至 P-8](../session-contract/SPEC.md#具名前提与明�
 | <a id="np-07"></a>NP-07 | 命令域与 hooks 的公开入口 | 命令域与 hooks 拥有者 | AD-08 不登记；受理按准入不可用返回 `unavailable`，装配声明没有命令域与 hooks 时不经槽 |
 | <a id="np-10"></a>NP-10 | 换代或重启之后，恢复要把 `tasks.initialization` 重新驱动给初始化项的负责方，把 `tasks.routed-input` 重投给卡片或业务拥有者（[PM-14](../session-contract/SPEC.md#pm-14)）。这两类拥有者不在本成员的现有邻域适配内，已有插件 没有承接它们的插件。Runtime Context 注册的重放不在此列，它由 [AD-03](#ad-03-1a) 的 1a 承接 | 初始化项负责方、卡片与业务输入的拥有者，以及 Session 的集成包拥有者 | 恢复读到这两类任务时，对应拥有者按 `unavailable` 处理。任务保留，不删除，按恢复扫描的退避重试 |
 | <a id="np-11"></a>NP-11 | AD-03 的 [1b](#ad-03-1b)（持有者保留上一份已过滤快照作为提醒前值）与 [1c](#ad-03-1c)（补拉时点与上界：下一次步边界提交之后；「下一次模型请求之前」是 1c 已知限制的恢复条件）由本成员推出。Runtime Context 契约把补拉上界交给持有者定，没有确认这两项 | Runtime Context 拥有者 | 本插件按 1b 与 1c 工作。拥有者给出不同的规则时，按该规则改 AD-03 |
-| <a id="np-12"></a>NP-12 | Agent 一侧交回消息准入拒收证据的能力。agent-contract 的 `invalid(value)` 只带字段与原因，不带准入提供者的拒收记录。触发条件：agent-contract 的 `invalid(value)` 带上准入提供者的拒收记录 | Agent 拥有者 | [AD-14](#ad-14) 对没有拒收记录的 `invalid(value)` 答 `unavailable`，不产生 SE35。PM-02 的有界收束经本端口走不到 |
+| <a id="np-12"></a>NP-12 | Agent 一侧交回消息准入拒收证据的能力。agent-contract 的 `invalid(value)` 只带字段与原因，不带准入提供者的拒收记录。触发条件：agent-contract 的 `invalid(value)` 带上准入提供者的拒收记录 | Agent 拥有者 | [AD-14](#ad-14) 对 `invoke` 没有拒收记录的 `invalid(value)` 答 `refused`，Session 按驱动被拒收束，首条输入的 SE35 原因为 `drive-refused`，不带拒收证据。PM-02 的准入拒收收束经本端口走不到 |
 
 Session 契约的明确缺项也约束本成员，其中两项直接影响插件：
 
@@ -919,17 +920,22 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 一次 Journal 写入按下列次序工作：
 
 1. 经 `tenantDomainLookup` 取事务域。结果为 `unregistered` 或 `unavailable` 时答 `unavailable`，不读、不写，也不触发登记。
-2. 读共同根，必要时重建副本。写入另读 `session.work`，供推进资格核对使用。
+2. 读共同根，必要时重建副本。写入另读 `session.work`，供推进资格核对使用。存储的读答 `unavailable` 时，本次调用答 `unavailable`，诊断写明没有读到的对象与存储给的原因，例如 `the common root of the session is not readable: queue_full`。读失败只有这一种答复，不按 sql-contract 的[读拒绝原因的定性](../../storage/sql-contract/SPEC.md#读拒绝原因的定性)分成两种，见[已知限制](#已知限制)的「确定的读失败」。
 3. 在副本上执行 Journal 核心。核心的判定次序、认回与重放规则不变。四种 CallerCommit 与主回复的 Ja 的派生参加先经 `sessionAccessCheck` 裁定一次（P6）。核心在副本上准备下一份状态，同时得到派生的 Session 参加：一条 Session 命令，或 `open`、`attach`、`submit`、`tryFinish` 的一条只读核对。
 4. 副本没有变化时直接答复（读、被核心拒绝的写、认回）。
 5. 副本有变化时，一次存储 `commit` 带两条命令：`execution-record` 的写入（这次写入的一批事实、它们引用的内容块、执行头行与原受理目录，见[事实族存储](#分区存储)）与派生的 Session 参加。存储操作身份由 execution 与 Agent 操作确定地编码，代次为 `#<n>`。存储答复之后，提供者经 `report` 报出这次发布的字节与结果（[发布观测](#发布观测)）。
 6. 只有已提交回执成为答复。其余结果都丢弃副本，下次调用从存储重建：
-   - `execution-record` 的修订号或发布计数冲突：重建副本后重做本次调用，最多 4 轮，之后答 `unavailable`。4 轮和下面的 8 个代次都是本提供者的固定策略（`agent-journal.ts` 的 `ROUNDS`、`journal-commit.ts` 的 `ATTEMPTS`），不是配置项：连输 4 次发布竞争的会话在争用，再多一轮没有帮助；8 个代次都回滚的操作，重试也没有帮助。`commitJournal` 的 `attemptLimit` 入参只供测试。
+   - `execution-record` 的修订号或发布计数冲突：重建副本后重做本次调用，最多 4 轮，之后答 `unavailable`。4 轮是本提供者的固定策略（`agent-journal.ts` 的 `ROUNDS`），不是配置项：连输 4 次发布竞争的会话在争用，再多一轮没有帮助。这个 `unavailable` 是暂时的，Agent 等待后以同一操作再写。
+   - 代次：一次写从起点往后找第一个没有用过的代次，用它提交。已回滚的代次跳过。代次数不设上限。提供者在进程内按操作记住已见到的最大代次，下一次从它往后找。进程重启后从 `#1` 往后找。
    - 原操作行冲突：摘要与本次相同时重建并重做，核心按原答案认回。摘要不同时答 `conflict`。
    - `identity_conflict` 的原回执为 `committed`：同上按摘要分两支。原回执为 `rolled_back`：进入下一代次。
    - Session 参加停止：按 [AD-01](#ad-01) 对应表译为 Agent 的失败。Session 参加者失败：`unavailable`。不支持：`unsupported`。
-   - 存储 `unknown` 或 `writer_not_current`：`commit-unknown`。同一操作再次调用时，副本从存储重建，核心按原操作认回。提供者在进程内记住这次未定的写入（代次与核心给它的记录键），之后每次调用先向存储 `query` 它：已提交则从耐久记录认回；存储证明该代次没有执行（`not_committed`）或已回滚则该操作 `excluded`，证据是 `session-log-journal` 的记录；发送前的查询就答 `unknown` 的代次也按未定写入处理，之后存储答 `not_committed` 时同样判 `excluded`。仍未定则该操作在副本里是待决项，`query` 答 `unknown`，同一 execution 的终结清单带一个未知的操作项，`tryFinish` 答 `unavailable`。已排除的操作随下一次成功发布一起存入耐久记录。没有 Agent 操作身份的写入（材料保存）在这里答 `unavailable`，不编造身份；它按材料的 identity 幂等，重试是安全的。
-   - 存储受理前拒绝（含清单摘要不符）与全部代次已回滚：`unavailable`，失败关闭。
+   - 存储 `unknown` 或 `writer_not_current`：`commit-unknown`。同一操作再次调用时，副本从存储重建，核心按原操作认回。提供者在进程内记住这次未定的写入（代次与核心给它的记录键），之后每次调用先向存储 `query` 它：已提交则从耐久记录认回；存储证明该代次没有执行（`not_committed`）或已回滚则该操作 `excluded`，证据是 `session-log-journal` 的记录；仍未定则该操作在副本里是待决项，`query` 答 `unknown`，同一 execution 的终结清单带一个未知的操作项，`tryFinish` 答 `unavailable`。已排除的操作随下一次成功发布一起存入耐久记录。没有 Agent 操作身份的写入（材料保存）在这里答 `unavailable`，不编造身份；它按材料的 identity 幂等，重试是安全的。
+   - 发送前的 `query` 答 `unknown`：存储此刻答不出这一代次是否执行过（例如读队列已满），本次调用还没有发送。答 `unavailable`，诊断带存储给的原因，不记未定写入。Agent 按依赖等待，到检查时刻以同一操作再写。进程重启前的一次发送若已生效，同一身份的下一次查询认回它；存储按身份去重，同一操作不会生效两次。
+   - 存储受理前拒绝：按 sql-contract 对该原因的[定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)翻译，本成员不另行判断。暂时的原因（`closing`、`queue_full`、`domain_unavailable`）答 `unavailable`，诊断写明存储的原因。答 `unavailable` 的写没有生效，Agent 按依赖等待，到检查时刻以同一操作再写。确定的原因分两种答复，Agent 都按确定节点故障以失败终结 Run，不等待：
+     - `combination_unregistered` 与 `participant_not_in_combination`：答 `unsupported`。这是 agent-contract 中 `AgentJournal.commit` 失败表的「unsupported（含缺历史组合或参加者）」。`unsupported` 装不下原因，存储的原因写进[发布观测](#发布观测)的 warn 日志。
+     - 其余确定的原因（例如 `command_limit`、`manifest_mismatch`）：答 `invalid`，`field` 为 `storage`，`reason` 为存储的原因名。
+   - `writer_not_current` 按上一条答 `commit-unknown`。尚未定性的 `cancelled` 不会出现，因为本提供者不给存储传 `signal`。
 
 `agentJournal` 插件（`src/cordis/agent-journal-provider.ts`，决策记录 [w1-c19-q1](https://github.com/nemori-ai/omne-harness-lite/issues/502#issuecomment-6563847140)）：
 
@@ -937,7 +943,7 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 - 路由：一次调用先经 `tenantDomainLookup` 取事务域，再读 session-storage-sql 的读 handler `session.execution`，按 `(tenant, execution)` 取会话，最后把调用原样交给 `createSessionLogJournal(...).forSession` 的这个会话。Session 写 SE13 时在同一事务里写这条索引（session-storage-sql 的[执行索引](../session-storage-sql/SPEC.md#执行索引)），所以合法的调用之前索引已经存在。
 - 缓存：execution 到会话的对应提交后不变。插件按租户与 execution 在进程内缓存它，超过 `routeCacheEntries` 时先丢最早的一条。缓存是可丢的派生物（AD-00 第 7 条）：新实例与依赖换代后的实例从存储重建。只缓存查到的对应，查不到的结果不缓存。
 - 查不到：没有 Run 开过的 execution 与另一租户的 execution 得到同一个答复 `denied`，`action` 是操作名（`output.read` 为 `read`，`output.events` 为 `events`），与核心对不持有的执行的答复相同（Agent SPEC「判定次序与失败映射」第 1 条）。两种情形都不写存储。
-- 读不到：租户没有事务域或查找失败、索引读取失败、输出损坏，都答 `unavailable`，`owner` 为 `session-log-journal`。读取失败不当作不存在。
+- 读不到：租户没有事务域或查找失败、索引读取失败、输出损坏，都答 `unavailable`，`owner` 为 `session-log-journal`。存储的读答 `unavailable` 时，诊断保留存储给的原因。读取失败不当作不存在。
 - 三个键：同一插件体在同一个会话日志 Journal 上再构造 `agentJournalEntries` 与 `agentMaterials` 两个服务实例，三者在同一权威排序域。
 - 结果接收面的两个键（R2-D237）：同一插件体还构造 `agentReceivedCommits` 与 `agentModelReceptionTargets`。`received.commit` 与 Journal 写一样按 `(tenant, execution)` 路由，成功后同样发 `session-adapters/agent-published`；`received.query` 按同一路由读。同一 operation、同一输入的重复 commit 认回原提交，不再写。同一插件体还构造 `agentReceivedRecords`（R2-D257）：它只有 `query`，就是 `received.query`，按同一路由读、不写、不发事件；它是 Agent consumer owner 的证据适配器按耐久接收记录核验 Model ACK 的读口，受信名，只对持有该适配器的行可见。`targets.forExecution` 按 execution 路由，答该 execution 已提交 PendingCall 建立的全部原 Model 绑定。绑定是会话 Agent 记录的一部分，checkpoint 清掉调用、挂接结束或插件重建之后仍可读。`targets.resolve` 自己不带会话：存储里没有从调用引用到会话的索引，所以它只按接收方给的路由 `execution` 读那个会话。没有路由、路由的 execution 没有这个绑定，或绑定属于别的 execution 时，都答 `denied`（action `resolve`）。entries 与 Journal 一样按 `(tenant, execution)` 路由；`materials.read` 按材料来源所记的会话路由；`materials.preserve` 恒答 `unavailable`（见[已知限制](#已知限制)第 6 条）。
 - Tool 结果接收的目标查询（R2-D273）：同一插件体还构造 `agentToolReceptionTargets`。绑定随已提交的 associated Tool PendingCall 建立，记在会话 Agent 记录的 `receiving.toolTargets` 里，含 execution、提交时的 instance 与该 PendingCall，checkpoint 清掉调用或插件重建后仍在。`resolve` 只按接收方给的 `execution` 路由读该会话：没有路由答 `denied`；路由的 execution 先核接收资格（与 Model 绑定相同）；该路由下没有这个调用的绑定答 null，Tool 协议据此答 `not-accepted`；绑定属于别的 execution 时答 `denied`，会话核心与插件各核一次。`forExecution` 按 execution 路由，答该 execution 的全部原 Tool 绑定。用例在 `tests/agent-journal-provider.spec.ts` 的 `agentToolReceptionTargets` 一组。
@@ -992,7 +998,7 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 
 - 时机：提供者每把一次发布送到存储，存储答复之后调用一次。读、被核心拒绝的写和认回不发布，所以不调用。
 - 内容（`JournalPublicationReport`）：租户文本、会话、execution、Agent 操作（没有时为 null）、存储操作、方法、`execution-record` 命令的 UTF-8 字节（`recordBytes`）、全部命令的字节（`bytes`）与结果。字节是命令 JSON 文本的长度，存储按同一条命令核对 `maxCommandBytes`。
-- 结果：`committed`（本次提交）、`recalled`（更早的代次已提交）、`rolled-back`（参加者停止了它）、`commit-unknown`、`unavailable`（存储受理前拒绝，或全部代次已回滚）。后两种带调用答复的诊断，所以存储拒绝的写入不再只留在返回值里。
+- 结果：`committed`（本次提交）、`recalled`（更早的代次已提交）、`rolled-back`（参加者停止了它）、`commit-unknown`、`unavailable`（存储受理前拒绝，暂时与确定的原因都在内）。后两种带诊断，所以存储拒绝的写入不再只留在返回值里。存储受理前拒绝时，诊断写存储的原因。调用答复是 `unsupported`、本身装不下原因时也一样。
 - 失败：`report` 抛错时被忽略，调用的答复不变。
 - 验证：`tests/session-log-journal.spec.ts` 的「the publication report」：一次提交报一次，`recordBytes` 等于存储收到的 `execution-record` 命令字节，读不报；受理前拒绝报 `unavailable` 并带 `command_limit`，写者不是当前写者报 `commit-unknown`；`report` 抛错时提交照常答复。agent-host-local 的 `tests/line-through/w2-publication-bytes.spec.ts`（慢层）用它比较同一 Run 第 5 轮与第 20 轮的最大一次发布，等终态 JO-4 后启用（R2-D294），见 K-8。
 
@@ -1075,3 +1081,4 @@ K-n 编号是 Session 组各成员共用的一套序列：本页用 K-6 与 K-8 
 19. K-22 两处仍直接整读 Session log 存储。Session 当前状态的唯一内存拥有者是 session-storage-sql 的工作缓存，本成员的插件经核心面 `session.work.readWork` 读它，Journal 提供者经 `readCachedSessionWork` 读它；Journal 提供者每次发布提交后调用 `registerSessionWorkIndex`，共同提交带 Session 参加时把参加者回复里的 `work` 交给它折叠，否则只换索引（[RT-04](../session-storage-sql/SPEC.md#rt-04)），所以共同提交之后的下一次读不整读；保留直接读的五类见 session-storage-sql [当前状态的拥有者与直接读者](../session-storage-sql/SPEC.md#rt-04-owner)。不在五类之内、仍随大小线性读的有一处：AD-04（`history-source.ts`）为压缩窗口经 `begin`／`next` 翻完全部历史，O(n)，处置方向是改为窗口函数。AD-07（`message-handoff.ts`）与 AD-05 的条件提供者经 `readExecutionRecords` 读 `handoffs` 与挂接的 grant：每个（租户、会话、execution）在进程内保留一份折叠与头 `pub`，第一次从头读该 execution 与根的事实，之后只读 `pub > head` 的批，一次读取随这一步而不随会话增长；每个存储至多保留 256 份，最久未用的先丢（再次读取从头折叠）。处置方向仍是改为向 Journal 提供者查询（需要 session-cordis-contract 新增服务键）。
 20. K-23 的过渡桥已删（R2-D347 至 R2-D349）：读者记录由折叠视图与块投影，见「事实族存储」的「K-23 终态」。仍在的过渡有两处。一，批的修订仍从读者视图 `MemoryExecution` 续算，操作记录仍带由批推导出的答复副本（投影时按语义键所名的方法从批重推，`projectOperations`）。二，进程内写者的读者视图事件仍取自命令输入；投影从事实种类与块重建（`bodyOf`），两者由 `tests/journal-records-parity.spec.ts` 保持相等。处置方向：`append` 的修订改回从折叠视图续算，`recognized()` 改走 `view.ops` 加 `answer`。另：属性测试用本包的种子生成器（`tests/fixtures/property.ts`），不用 fast-check，因为它不在仓库 catalog 里；没有收缩，失败报种子回放。
 21. D-92 Journal 自有字节的线性界未达标（R2-D380）。R2-D294 的目标是累计自有字节不超过 J0 + W × 步数，J0 取 64 KiB，W 取每步 12 KiB。应用的 `tests/rows/storage/journal-bytes.spec.ts` 在 line-through 世界里跑 200 个工具步：小消息累计约 48.9 MB，3k 消息约 58.7 MB，上限约 2.52 MB，超出约 19 至 23 倍。每个工具步的自有字节约 229 至 287 KiB，每步发布 32 次，字节按步线性增长，斜率远大于 W。目标常数不放宽。用例按现状断言「累计字节高于上限」，另有防回退断言：每个工具步的自有字节不超过本次实测最大值加 25%，每步发布不超过 32 次。两处事实守卫与 `core.*` 行数检查各自独立断言。200 步的用例默认跳过，设 `OMNE_JOURNAL_GROWTH_200=1` 时运行；改动触及 Journal 路径时运行它们。触发条件：修复每步 32 次发布与约 238 KiB 的放大。修好后现状用例变红，届时改成对线性界的普通断言并删掉现状用例。
+22. 确定的读失败：存储的读答确定原因（例如 `read_limit`）时，Journal 仍答 `unavailable`，Agent 按依赖等待，不会自己结束。原因是 Agent 契约的 `load` 只返回完整视图、`denied` 或 `unavailable`（agent-contract SPEC 的[逐操作及输入分类](../../agent/agent-contract/SPEC.md#逐操作及输入分类)），没有确定失败的种类可译。即使有，Agent 的收尾也要先读 Journal，读不到就只能停止，不能以失败终结。诊断写明存储的原因，所以运维者能看到这是哪一种。触发条件：Agent 契约给读取加上确定失败的种类之后，本成员按 sql-contract 的定性把确定的读失败译成它。

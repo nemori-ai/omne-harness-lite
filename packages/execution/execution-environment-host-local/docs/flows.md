@@ -117,7 +117,7 @@ sequenceDiagram
 
 ### F-EEH04 宿主命令：门、许可与转发
 
-依据：[SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端)、[架构的宿主命令机制](architecture.md#宿主命令机制)。本图是 Linux 路径。Windows 的一次性命令后端在根进程退出时停止 Job 里剩下的进程，见 [Windows 说明](windows-execution.md)。协议级流程是契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。
+依据：[SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端)、[架构的宿主命令机制](architecture.md#宿主命令机制)。本图是 Linux 路径。Windows 的命令后端在根进程退出后按同一处置决定停止或移交 Job 里剩下的进程，见 [Windows 说明](windows-execution.md)。协议级流程是契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。
 
 ```mermaid
 sequenceDiagram
@@ -186,13 +186,13 @@ sequenceDiagram
 
 主进程退出之后的处置规则、各项停止原因与 `adopt` 结果未知时的处理见 [SPEC 一次性命令留下的进程的兑现](../SPEC.md#留下的进程的兑现)。处置在 `result` 交出之前完成，停止的确认不推迟 `result`。
 
-| 环节     | 结果                                                                                  | 失败与责任交接                                                                                 |
-| -------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| 环节     | 结果                                                                                                                                                                      | 失败与责任交接                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | 平台前提 | P1 Linux、P3 `systemd-run` 与 `systemctl`、P4 用户管理器、P5 探测单元里的程序看得到 cgroup v2 统一层级、P6 程序被自己单元的目录列出且单元的强制停止得到确认，这几项都满足 | 缺任一项时启动答 `unavailable`，诊断写明缺项，不调用账本；不用猜测的进程号或假后端顶替         |
-| 门就绪   | 门进程核对自己在 scope 的 cgroup 里，才报就绪                                         | 就绪之前退出答 `unavailable`；超过 `startBoundMs` 答 `unknown`，资源留给释放、结清或退役去停止 |
-| GO       | 账本 `permit` 为 `confirmed` 才发 GO，GO 之前不启动用户命令                           | 其余答案或门面已封住时，强制停止这个单元并答 `rejected`，不发 GO                               |
-| 转发     | 退出帧之前，门一侧管道写满时暂停读命令的两条管道，`drain` 后恢复。退出帧之后，门不暂停，管道写满时丢弃读出的字节并按流计数。提供者一侧缓冲放不下时整块丢弃 | 非法帧、超长行、未知帧与次序不对的帧使资源失效，`result` 答 `failed`（`effectUnknown`）        |
-| 完成     | 只在收到退出帧时给出 `completed`                                                      | 没有收到退出帧时为 `failed`（`effectUnknown`）                                                 |
+| 门就绪   | 门进程核对自己在 scope 的 cgroup 里，才报就绪                                                                                                                             | 就绪之前退出答 `unavailable`；超过 `startBoundMs` 答 `unknown`，资源留给释放、结清或退役去停止 |
+| GO       | 账本 `permit` 为 `confirmed` 才发 GO，GO 之前不启动用户命令                                                                                                               | 其余答案或门面已封住时，强制停止这个单元并答 `rejected`，不发 GO                               |
+| 转发     | 退出帧之前，门一侧管道写满时暂停读命令的两条管道，`drain` 后恢复。退出帧之后，门不暂停，管道写满时丢弃读出的字节并按流计数。提供者一侧缓冲放不下时整块丢弃                | 非法帧、超长行、未知帧与次序不对的帧使资源失效，`result` 答 `failed`（`effectUnknown`）        |
+| 完成     | 只在收到退出帧时给出 `completed`                                                                                                                                          | 没有收到退出帧时为 `failed`（`effectUnknown`）                                                 |
 
 ### F-EEH05 终端腿与回执
 
@@ -221,11 +221,70 @@ sequenceDiagram
   Note over M: 冷恢复：listRecoveryResources 列举 omne-host-*.scope，recover 按单元坐标走同样的停止与确认
 ```
 
-| 环节   | 结果                                                                                                                                      | 失败与责任交接                                                                                 |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| 停止   | 强制结束执行域的全部进程，再停止执行域；平和停止只发 `SIGTERM` 给主进程，最多等 `graceMs`                                                 | 超时答 `unconfirmed`，不自动升级为强制停止，由调用方决定                                       |
-| 确认   | 单元为 `inactive` 或 `not-found` 才报 `confirmed`；`failed` 与 `deactivating` 不算停止                                                    | 其余情况为 `unconfirmed`，保留处置责任，进程留在这份获取的待停止集合                           |
+| 环节   | 结果                                                                                                                                      | 失败与责任交接                                                                                                                                                                 |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 停止   | 强制结束执行域的全部进程，再停止执行域；平和停止只发 `SIGTERM` 给主进程，最多等 `graceMs`                                                 | 超时答 `unconfirmed`，不自动升级为强制停止，由调用方决定                                                                                                                       |
+| 确认   | 单元为 `inactive` 或 `not-found` 才报 `confirmed`；`failed` 与 `deactivating` 不算停止                                                    | 其余情况为 `unconfirmed`，保留处置责任，进程留在这份获取的待停止集合                                                                                                           |
 | 冷恢复 | 进程重启后，`listRecoveryResources` 按作用域摘要列举单元，`recover` 按 `{ unit, bootId }` 核对再停止；启动身份已变时答 `confirmedStopped` | 不重启命令，不接回输出，不重授旧许可，也不结清获取；没有可达的用户管理器，或 `systemctl show` 的输出里有读不懂的块、缺属性的块或别的单元名时，列举答 `unavailable`，不答空列表 |
+
+### F-EEH06W Windows 命令：启动、处置与冷恢复（未接受）
+
+依据：[SPEC 的 Windows 的兑现](../SPEC.md#windows-的兑现未接受)。形式模型是 [WindowsCustody](../verification/models/README.md#windowscustody)。本节的两张图都属于未接受的设计。
+
+启动与处置。锚进程持有 Job 的句柄，所以桥退出之后，已移交的 Job 与它的名字仍然存在：
+
+```mermaid
+sequenceDiagram
+  participant P as 宿主提供者
+  participant L as 资源账本
+  participant D as 状态目录
+  participant B as 桥
+  participant J as Job（KILL_ON_JOB_CLOSE）
+  P->>L: plan
+  P->>D: 写标记（Job 名、启动身份、会话号）并刷盘
+  P->>B: 启动桥
+  B->>J: CreateJobObjectW
+  B->>J: 锚进程入 Job，锚打开本 Job 的句柄
+  B->>J: 用户进程以挂起状态入 Job
+  B-->>P: ready
+  P->>L: permit
+  alt confirmed
+    P->>B: GO
+    B->>J: 用户进程开始执行
+  else 其他答案
+    P->>B: 终止 Job 并确认
+    P->>L: stopped
+  end
+  J-->>B: 主进程退出
+  B-->>P: 退出码、除锚以外的成员数
+  alt 没有其他成员
+    P->>B: 终止 Job（含锚）并确认
+    P->>L: stopped，residue none
+  else 可以保留
+    P->>D: 标记改为 retained 并刷盘
+    P->>L: 移交保留，residue retained
+  else 不能保留
+    P->>B: 终止 Job 并确认
+    P->>L: stopped，residue stopping
+  end
+```
+
+冷恢复的判定。次序决定结论：「按名字打不开」只在同一次启动、同一个登录会话里才说明已停止：
+
+```mermaid
+flowchart TD
+  A[recover 引用] --> F{引用是本提供者写下的格式}
+  F -->|否| U[unsupported]
+  F -->|是| T{标记的启动身份等于当前}
+  T -->|否| S1[confirmedStopped：重启已结束全部进程]
+  T -->|是| E{标记的登录会话等于当前}
+  E -->|否| PD[pending：Local 命名空间按会话隔离]
+  E -->|是| O{按名字能打开 Job}
+  O -->|否| S2[confirmedStopped：最后一个句柄已关闭，KILL_ON_JOB_CLOSE 已停止成员]
+  O -->|是| K[强制停止序列]
+  K -->|活动进程数含锚为 0| S3[confirmedStopped，删除标记]
+  K -->|未确认| PD2[pending]
+```
 
 ## 失败与生命周期
 

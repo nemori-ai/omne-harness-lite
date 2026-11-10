@@ -140,15 +140,15 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 2. 对本进程登记的、属于这个调用的未定 operation 查询存储。存储已有结论的，从登记里移除。
 3. scope 不带调用时返回 `unavailable`。
 4. 读 `model.call`，在这次读取上运行 `work`。`work` 没有暂存写入时，直接返回 `work` 的结果。
-5. 调用的 `capacity.bytes` 超过 `maxCallBytes` 时返回 `capacity`，不提交（N1）。写入 operation 时，按存储身份 `<operation>#<n>` 找第一个未使用的代：已回滚的代跳过。已提交的代说明读取已过时，回到第 2 步。结论未定时返回 `commit-unknown`。读关系进度的写入使用身份 `<call>#read@<version>`。
+5. 调用的 `capacity.bytes` 超过 `maxCallBytes` 时返回 `capacity`，不提交（N1）。写入 operation 时，按存储身份 `<operation>#<n>` 找第一个未使用的代：已回滚的代跳过。找代不设上限，与 `attemptLimit` 无关：同一 operation 在多次 run 里被回滚的代会累积，有上限就会在若干次暂时失败之后永远找不到可用的代。本进程按 operation 记住已见到的最大代，下次从它往后找；进程重启后从 `#1` 往后找。已提交的代说明读取已过时，回到第 2 步。结论未定时返回 `commit-unknown`。读关系进度的写入使用身份 `<call>#read@<version>`。
 6. 把暂存的行作为一条事实命令提交给参加者 `model`，并按结果映射：
    - `committed`：返回 `work` 的结果（`work` 失败时也照样提交它暂存的写入，例如读关系的 `denied` 结束）。
    - 参加者以 `version`、`operation-bound` 或 `call-exists` 停止，或 `identity_conflict`：回到第 2 步。
-   - 参加者以 `capacity` 停止：返回 `capacity`，`required` 为该调用的容量。
+   - 参加者以 `capacity` 停止：租户份额此刻被占满，返回 `unavailable`，依赖名 `model-capacity`（与共享核心受理检查答的同名），诊断写明租户份额已满。调用方等待后以原身份再受理。容量大于整个租户份额的调用到不了这一步：共享核心在第 4 步的受理检查里已答 `capacity`（[共享归约核心](../model/SPEC.md#共享归约核心)）。
    - `unknown` 或 `writer_not_current`：登记该 operation 为结论未定，返回 `commit-unknown`。读关系进度的写入返回 `unavailable`。
-   - 其余拒绝：返回 `unavailable`。
+   - 其余受理前拒绝：按 sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)翻译。暂时的原因返回 `unavailable`，诊断写明存储的原因。确定的原因返回 `invalid`，`field` 为 `storage`，`reason` 为存储的原因名。
 
-回到第 2 步的次数不超过 `attemptLimit`，超过时返回 `unavailable`。`work` 每次运行都基于一次新读取，失败的尝试不留下写入。
+一次 run 里回到第 2 步的次数不超过 `attemptLimit`，超过时返回 `unavailable`。这是暂时的：调用方下一次以同一 operation 再来时，从新的代继续。`work` 每次运行都基于一次新读取，失败的尝试不留下写入。
 
 ### 参加者的 CAS
 
@@ -157,7 +157,7 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 1. 有绑定时插入 `md_operation`。主键已存在时停止，原因 `operation-bound`。
 2. `expected` 为 null 时插入 `md_call`，已存在时停止，原因 `call-exists`。否则执行 `UPDATE md_call ... WHERE tenant = ? AND call = ? AND row_version = ?`，没有改到一行时停止，原因 `version`。
 3. 写有变化的 dispatch 行，删除被合并、被取代或被重写的分片，插入新分片。
-4. 新调用时，汇总该租户 `request IS NOT NULL` 的调用容量（含本行）。任一项超过份额时停止，原因 `capacity`。
+4. 新调用时，汇总该租户 `request IS NOT NULL` 的调用容量（含本行）。任一项超过份额时停止，原因 `capacity`。这一步在提交时复核份额，停止只表示份额此刻被占满，「一次 run」第 6 步把它译为 `unavailable`。
 
 参加者拒绝租户或调用与事实顶层不一致的行，回复 `unsupported`，不执行任何语句。第 4 步的汇总语句与 `model.call` 报告份额用同一条 SQL（`src/reads.ts` 的 `HELD_SHARE_SQL`）。
 
@@ -183,7 +183,7 @@ JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对
 
 构造期核对 `maxCallBytes + COMMAND_RESERVE_BYTES ≤ maxCommandBytes`（预留 64 KiB），以及 `maxCallBytes + READ_RESERVE_BYTES ≤ 4 MiB`（`model.call` 的输出上界）。任一项不成立时构造抛出 `RangeError`。兑现点在提交：一份调用文档的 `capacity.bytes` 超过 `maxCallBytes` 时，存储返回 `capacity`，不提交。所以受理时即拒绝，不留到某次提交超限。装配须使批写配置 `outputBatchBytes` 加头部预留不超过 `maxCommandBytes`。这是跨装配行的组合保证，承担者由装配页具名。
 
-一次提交仍超过 `maxCommandBytes` 时，存储以 `command_limit` 拒绝，`run` 返回 `unavailable`，不截断。`preserve` 收到 `unavailable` 后，该批事实由运行时持有，直到同一 operation 重做成功。何时重做由运行时决定（M6 的义务）。
+一次提交仍超过 `maxCommandBytes` 时，存储以 `command_limit` 拒绝，不截断。这是确定的拒绝（sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)），`run` 返回 `invalid`，`field` 为 `storage`，`reason` 为 `command_limit`。`preserve` 收到暂时的 `unavailable` 后，该批事实由运行时持有，直到同一 operation 重做成功。何时重做由运行时决定（M6 的义务）。
 
 ### N2：分片行数的上界
 
@@ -248,10 +248,10 @@ JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对
 
 | 种类             | 含义                                                                                                   |
 | ---------------- | ------------------------------------------------------------------------------------------------------ |
-| `capacity`       | 租户份额不够新调用，或调用超过 `maxCallBytes`                                                          |
-| `unavailable`    | 存储、事务域或读取不可用，存储的行不能解析，scope 不覆盖的读写，或尝试次数用尽。依赖名 `model-records` |
+| `capacity`       | 调用永远放不下：调用超过 `maxCallBytes`。容量大于整个租户份额的调用由共享核心答 `capacity`            |
+| `unavailable`    | 存储、事务域或读取不可用，存储的行不能解析，scope 不覆盖的读写，或一次 run 的尝试次数用尽，依赖名 `model-records`；租户份额此刻被占满，依赖名 `model-capacity` |
 | `commit-unknown` | 写入已发出，结论未定                                                                                   |
-| `invalid`        | 新文档不能编码为行，`field` 指出位置                                                                   |
+| `invalid`        | 新文档不能编码为行，`field` 指出位置。存储以确定原因拒绝提交时，`field` 为 `storage`，`reason` 为原因名 |
 
 错误不静默变成成功。`commit-unknown` 之后，同一 operation 的重试在存储结论确定前继续返回 `commit-unknown`。
 

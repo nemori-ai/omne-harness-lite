@@ -34,7 +34,9 @@ Model 的对象分三组。长期配置与请求值描述档案、固定请求�
     成功：返回原受理。原调用与容量同提交成立。受理不表示供应商已收到
     拒绝：denied(action='admit')（原工作资格失效，不披露原工作是否存在）
           invalid(field='consumer.owner')（该 owner 既无守卫声明也无免守卫声明）
-          conflict（同 call 配不同固定采用）、capacity
+          conflict（同 call 配不同固定采用）
+          capacity（调用永远放不下：容量大于整个租户份额、全局上界或单调用上界）
+    暂时：unavailable（份额此刻被占满，或依赖不可用）。不受理；等待后以原 call 与原 operation 再受理
     未知：commit-unknown。用 inspect 按原 operation 查询，不换 call 再发
           只有权威未受理证明才得到 not-accepted，此后才可按原 operation 重新提交相同输入
 

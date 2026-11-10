@@ -87,6 +87,7 @@ export type Label =
   | 'terminal'
   | 'superseded'
   | 'saved-wait'
+  | 'unsaved-wait'
   | 'candidate'
   | 'prepared'
   | 'rejected'
@@ -204,6 +205,9 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'R0', on: 'reconciled', to: 'E4' },
   { from: 'R0', on: 'wait', to: 'W0' },
   { from: 'W0', on: 'saved-wait', to: 'E1' },
+  // The save of the wait answered unavailable: the wait stays in the process (Agent SPEC
+  // "依赖不可用时的等待"), and the check time goes through E1 as after a saved wait.
+  { from: 'W0', on: 'unsaved-wait', to: 'E1' },
   { from: 'W0', on: 'reconciled', to: 'E1' },
   { from: 'I0', on: 'taken', to: 'I1' },
   // I1's first prepare yields assembled; ready is produced only by P1's review (#558 S-11).

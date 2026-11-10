@@ -71,8 +71,9 @@ export async function fixture() {
   registry.registerFacility(commandFacility)
   registry.registerFacility(terminalFacility)
   registry.registerProvider(provider)
+  /** A session with a process ledger is the acquisition's own scope, so its residue is retained. */
   async function acquire(
-    session = retention,
+    session: NonNullable<ProviderAcquireInput['retention']> = retention,
     tenant = identity.access.tenant,
     throughRegistry = false,
   ) {
@@ -81,7 +82,7 @@ export async function fixture() {
       acquisition: acquisitionRef(id),
       origin: originRef(id),
       tenant,
-      scope: scope(id),
+      scope: session.processes === undefined ? scope(id) : session.scope,
       ledger: ledger(),
       retention: session,
       placement: {

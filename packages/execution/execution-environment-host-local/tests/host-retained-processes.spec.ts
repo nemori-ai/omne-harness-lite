@@ -19,7 +19,7 @@ import {
   decideDisposition,
   resolveUnknownHandover,
   type CustodyBinding,
-} from '../src/host-command.ts'
+} from '../src/command-custody.ts'
 import {
   createRetainedProcessIndex,
   type RetainedReservation,
