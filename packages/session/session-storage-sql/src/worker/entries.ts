@@ -21,7 +21,7 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { decodeValue } from '../codec.ts'
 import { readCoveringSnapshot, type CoveringSnapshot } from './log.ts'
-import { assignPositions, big, oneRow, text, type DefiniteFailure } from './support.ts'
+import { assignPositions, big, oneRow, packed, text, type DefiniteFailure } from './support.ts'
 
 /** The journal row of the session before the batch. */
 export type JournalRow = Readonly<{ tail: bigint; seq: bigint; epoch: string }>
@@ -108,7 +108,7 @@ export function judgeEntries(
       : {
           operation,
           digest: text(held['input_digest']),
-          receipt: JSON.parse(text(held['receipt'])) as CommitReceipt,
+          receipt: JSON.parse(packed(held['receipt'])) as CommitReceipt,
         }
   const decision = projectSessionEntries(previous, {
     observation,
@@ -127,7 +127,7 @@ export function judgeEntries(
       }
     return {
       kind: 'recovered',
-      result: decodeValue(JSON.parse(text(held['result'])) as JsonValue),
+      result: decodeValue(JSON.parse(packed(held['result'])) as JsonValue),
       digest,
     }
   }

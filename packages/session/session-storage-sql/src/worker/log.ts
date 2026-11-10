@@ -29,7 +29,15 @@ import {
   type HistoryFocus,
   type SessionHistory,
 } from './history-index.ts'
-import { assignPositions, big, oneRow, rowsOf, text, type DefiniteFailure } from './support.ts'
+import {
+  assignPositions,
+  big,
+  oneRow,
+  packed,
+  rowsOf,
+  text,
+  type DefiniteFailure,
+} from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_LOG_RECORDS = 100_000
@@ -141,7 +149,7 @@ function withoutRows(
     }
   const sequence = BigInt(observation.sequence)
   const covering = records
-    .map(row => decodeValue(JSON.parse(text(row['result'])) as JsonValue) as SessionLogReceipt)
+    .map(row => decodeValue(JSON.parse(packed(row['result'])) as JsonValue) as SessionLogReceipt)
     .filter(
       item => item.execution === observation.execution && BigInt(item.readThrough) >= sequence,
     )
@@ -233,7 +241,11 @@ function readStart(
   const held =
     row === undefined
       ? undefined
-      : { form: text(row['form']), digest: text(row['input_digest']), result: text(row['result']) }
+      : {
+          form: text(row['form']),
+          digest: text(row['input_digest']),
+          result: packed(row['result']),
+        }
   return { tenant, journal, previous, held }
 }
 

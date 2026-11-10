@@ -6,7 +6,7 @@
 import { batchEvidence } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { readEntryText } from '../entry-codec.ts'
-import { big, handler, oneRow, PAGE_ROWS, rowsOf, scopeOf, text } from './support.ts'
+import { big, handler, oneRow, packed, PAGE_ROWS, rowsOf, scopeOf, text } from './support.ts'
 
 /** The revision of the batch that creates a session: the first commit after the journal row is made. */
 const CREATING_REVISION = 1n
@@ -44,7 +44,7 @@ export default handler('session.binding', (input, port) => {
     'SELECT entry FROM sl_entry WHERE tenant = ? AND session = ? AND position <= ? ORDER BY position LIMIT ?',
     [scope.tenant, scope.session, last, last],
   )
-  const entries = rows.map(row => readEntryText(text(row['entry'])))
+  const entries = rows.map(row => readEntryText(packed(row['entry'])))
   const source = batchEvidence(
     { revision: String(CREATING_REVISION), entries } as never,
     text(journal['session']),

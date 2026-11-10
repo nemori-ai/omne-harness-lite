@@ -39,6 +39,7 @@ import readExecutionOpen from '../src/worker/read-execution-open.ts'
 import readExecutionOperation from '../src/worker/read-execution-operation.ts'
 import { app, TENANT_A, TENANT_B, TENANT_C, textOf, type App } from './fixtures/app.ts'
 import { FIXTURE_READ_OUTPUT_LIMIT_BYTES } from './fixtures/read-limit.ts'
+import { packedLiteral, unpacked } from './fixtures/packed.ts'
 import { migratedPort } from './fixtures/sqlite-storage.ts'
 
 const SESSION = 'session-1'
@@ -223,10 +224,16 @@ describe('one publication appends one batch', () => {
       kind: 'committed',
       reply: { kind: 'published', published: '1', digest: 'sha256:op-1' },
     })
-    const rows = a.provider.select(
-      'dom_0',
-      'SELECT pub, ord, execution, kind, eseq, op, kinds, event, body FROM er_fact ORDER BY pub, ord',
-    ).rows
+    const rows = a.provider
+      .select(
+        'dom_0',
+        'SELECT pub, ord, execution, kind, eseq, op, kinds, event, body FROM er_fact ORDER BY pub, ord',
+      )
+      .rows.map(row => [
+        ...row.slice(0, 7),
+        row[7] === null ? null : unpacked(row[7]),
+        unpacked(row[8]),
+      ])
     expect(rows).toEqual([
       [1n, 0n, 'exe_1', 'batch', null, 'aop_1', '[]', null, '{"n":1}'],
       [
@@ -389,15 +396,17 @@ describe('the two gates of a concurrent write', () => {
     a.provider.seed(
       'dom_0',
       `INSERT INTO er_fact (tenant, session, pub, ord, execution, kind, eseq, op, kinds, event, body)
-       VALUES (?, ?, 1, 0, 'exe_0', 'batch', NULL, 'aop_seed', '[]', NULL, '{"seed":true}')`,
+       VALUES (?, ?, 1, 0, 'exe_0', 'batch', NULL, 'aop_seed', '[]', NULL, ${packedLiteral('{"seed":true}')})`,
       [textOf(TENANT_A), SESSION],
     )
     const result = await commit(a, nth(1, { blobs: [block('{"collides":true}')] }))
     expect(result).toMatchObject({ kind: 'rolled_back', reply: { kind: 'failed' } })
     expect(agentRows(a)).toEqual({ facts: 1, blobs: 0, operations: 0, roots: 0, heads: 0 })
-    expect(a.provider.select('dom_0', 'SELECT op, body FROM er_fact').rows).toEqual([
-      ['aop_seed', '{"seed":true}'],
-    ])
+    expect(
+      a.provider
+        .select('dom_0', 'SELECT op, body FROM er_fact')
+        .rows.map(([op, body]) => [op, unpacked(body)]),
+    ).toEqual([['aop_seed', '{"seed":true}']])
   })
 
   it('an operation with a batch is a conflict that names its digest and publication', async () => {
@@ -462,6 +471,52 @@ describe('a failure inside the commit leaves neither the batch nor its blocks', 
     })
     expect((await commit(a, write, 'retry')).reply.kind).toBe('published')
     expect(agentRows(a)).toEqual({ facts: 2, blobs: 1, operations: 1, roots: 1, heads: 1 })
+  })
+})
+
+describe('the stored form of facts and blocks (sql-contract §10.1)', () => {
+  it('keeps a short value as text, compresses a long one, and reads both back unchanged', async () => {
+    const a = await session()
+    const short = block('{"content":"hi"}')
+    const long = block(JSON.stringify({ content: 'a long content block '.repeat(50) }))
+    const longBody = { text: 'a long fact body '.repeat(20) }
+    const [, event] = factsOf(1, 'exe_1')
+    if (event === undefined) throw new Error('no event fact')
+    const write = nth(1, {
+      blobs: [short, long],
+      facts: [{ kind: 'batch', body: longBody }, event],
+    })
+    expect((await commit(a, write)).kind).toBe('committed')
+
+    const markers = a.provider
+      .select('dom_0', 'SELECT event, body FROM er_fact ORDER BY pub, ord')
+      .rows.map(([stored, body]) => [
+        stored === null ? null : (stored as Uint8Array)[0],
+        (body as Uint8Array)[0],
+      ])
+    expect(markers).toEqual([
+      [null, 1],
+      [1, 0],
+    ])
+    const blobs = new Map(
+      a.provider
+        .select('dom_0', 'SELECT digest, payload FROM sl_blob')
+        .rows.map(([digest, payload]) => [String(digest), payload as Uint8Array]),
+    )
+    expect(blobs.get(short.digest)?.[0]).toBe(0)
+    expect(blobs.get(long.digest)?.[0]).toBe(1)
+
+    const facts = await factsRead(a, '0')
+    expect(facts).toMatchObject({
+      kind: 'facts',
+      batches: [{ facts: [{ body: longBody }, { body: { event: 1 } }] }],
+    })
+    for (const one of [short, long])
+      expect(
+        decodeExecutionRecordBlob(
+          await read(a, 'execution-record.blob', { tenant: textOf(TENANT_A), digest: one.digest }),
+        ),
+      ).toMatchObject({ kind: 'blob', payload: one.payload })
   })
 })
 

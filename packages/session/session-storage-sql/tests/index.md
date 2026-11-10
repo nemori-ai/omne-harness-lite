@@ -8,6 +8,7 @@
 - [public-entry.spec.ts](public-entry.spec.ts)：导出集合、无 `./cordis`、依赖规则、材料与 LIMIT 检查
 - [materials-options.spec.ts](materials-options.spec.ts)：读口输出上限参数必填且为正安全整数，传入的值成为每个读 handler 的 `maxOutputBytes`
 - [tenant-isolation.spec.ts](tenant-isolation.spec.ts)：租户隔离与事务域目录
+- [packed-columns.spec.ts](packed-columns.spec.ts)：`sl_entry`、`sl_operation`、`sl_state_item` 的大文本列按 sql-contract §10.1 的压缩文本存放
 - [delegated.spec.ts](delegated.spec.ts)：委派视图的符合性与跨租户用例
 - [operation-evidence.spec.ts](operation-evidence.spec.ts)：操作记录的访问证据与它的迁移
 - [attempt-grant.spec.ts](attempt-grant.spec.ts)：attempt 的授予表与它的迁移（R2-D349）

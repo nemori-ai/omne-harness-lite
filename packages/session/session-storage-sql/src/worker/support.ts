@@ -1,14 +1,15 @@
 // Shared by the Worker modules: row access over the statement ports, and the handler input check.
 import type { HistoryEntry } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
-import type {
-  HandlerOutcome,
-  ParticipantModule,
-  ParticipantReply,
-  ReadHandlerModule,
-  ReadPort,
-  SqlCell,
-  SqlValue,
+import {
+  unpackText,
+  type HandlerOutcome,
+  type ParticipantModule,
+  type ParticipantReply,
+  type ReadHandlerModule,
+  type ReadPort,
+  type SqlCell,
+  type SqlValue,
 } from '@omne-harness/sql-contract/worker'
 import { StoredEntryMalformed } from '../entry-codec.ts'
 import { PROTOCOL } from './schema.ts'
@@ -106,7 +107,17 @@ export function oneRow(
   return rowsOf(port, sql, params)[0]
 }
 
-export const text = (cell: SqlCell | undefined): string => String(cell)
+/** The text of a TEXT or INTEGER cell. A BLOB cell is a packed text: `packed` reads it. */
+export function text(cell: SqlCell | undefined): string {
+  if (cell instanceof Uint8Array) throw new TypeError('a BLOB cell read as text')
+  return String(cell)
+}
+
+/** The text of a BLOB cell in the packed text form (sql-contract §10.1). */
+export function packed(cell: SqlCell | undefined): string {
+  if (!(cell instanceof Uint8Array)) throw new TypeError('a packed BLOB cell was expected')
+  return unpackText(cell)
+}
 export const big = (cell: SqlCell | undefined): bigint => BigInt(cell as bigint | number | string)
 
 /** The tenant and session that every statement of a handler is bound to. */

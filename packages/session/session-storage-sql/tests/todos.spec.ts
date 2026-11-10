@@ -21,6 +21,7 @@ import {
   textOf,
   type RealApp,
 } from './fixtures/real-provider.ts'
+import { unpacked } from './fixtures/packed.ts'
 
 const apps: RealApp[] = []
 const roots: string[] = []
@@ -357,7 +358,7 @@ describe('Todo facts through real SQLite Workers', () => {
       try {
         // Instrumentation stays in this test database, using an owned but unaddressed key range.
         db.exec(
-          "CREATE TRIGGER todo_measure AFTER INSERT ON sl_state_item BEGIN INSERT OR REPLACE INTO sl_input (tenant, session, input, value) VALUES ('__todo_measure', '__todo_measure', NEW.path || ':' || NEW.seq, NEW.value); END",
+          "CREATE TRIGGER todo_measure AFTER INSERT ON sl_state_item BEGIN INSERT OR REPLACE INTO sl_input (tenant, session, input, value) VALUES ('__todo_measure', '__todo_measure', NEW.path || ':' || NEW.seq, hex(NEW.value)); END",
         )
         const samples = []
         for (let n = 0; n < 5; n += 1) {
@@ -370,11 +371,15 @@ describe('Todo facts through real SQLite Workers', () => {
             'complete',
           )
           const writeMs = performance.now() - writeStart
-          const writes = db
-            .prepare(
-              "SELECT COALESCE(SUM(LENGTH(CAST(value AS BLOB))), 0) AS bytes, COUNT(*) AS chunks FROM sl_input WHERE tenant = '__todo_measure'",
-            )
-            .get()
+          // The trigger keeps each inserted value as hex; the bytes are those of its packed text.
+          const inserted = db
+            .prepare("SELECT value FROM sl_input WHERE tenant = '__todo_measure'")
+            .all()
+            .map(row => unpacked(Buffer.from(String(row['value']), 'hex')))
+          const writes = {
+            bytes: inserted.reduce((sum, text) => sum + Buffer.byteLength(text), 0),
+            chunks: inserted.length,
+          }
           const readStart = performance.now()
           const reply = await app.storage.read({
             domain: {

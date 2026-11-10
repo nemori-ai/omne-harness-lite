@@ -23,7 +23,8 @@
 import type { WorkSnapshot } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue, sha256 } from '../codec.ts'
-import { big, oneRow, rowsOf, text, type Executor } from './support.ts'
+import { packText } from '@omne-harness/sql-contract/worker'
+import { big, oneRow, packed, rowsOf, text, type Executor } from './support.ts'
 
 /** The text one chunk row holds before the next item starts a new chunk. */
 export const CHUNK_BYTES = 16 * 1024
@@ -165,7 +166,7 @@ export function readMember(
     [tenant, session, `=${member}`],
   )
   if (row === undefined) throw new Error(`the member ${member} without its row`)
-  return JSON.parse(text(row['value'])) as JsonValue
+  return JSON.parse(packed(row['value'])) as JsonValue
 }
 
 /** The snapshot of a head text and the chunk rows of the session. */
@@ -196,7 +197,7 @@ export function assemble(
       const held = snapshot[member] as Record<string, unknown> | undefined
       if (held?.[MEMBER_ROW] !== true)
         throw new Error(`a member row of ${member} without its place`)
-      const value = text(row['value'])
+      const value = packed(row['value'])
       snapshot[member] = decodeValue(JSON.parse(value) as JsonValue)
       members.set(member, value)
       bytes += value.length
@@ -204,7 +205,7 @@ export function assemble(
     }
     const target = arrayAt(snapshot, path) as unknown[] | undefined
     if (target === undefined) throw new Error(`a snapshot chunk of ${path} without its collection`)
-    const value = text(row['value'])
+    const value = packed(row['value'])
     const items = JSON.parse(value) as JsonValue
     if (!Array.isArray(items) || items.length === 0)
       throw new Error(`a snapshot chunk of ${path} that is not a list of items`)
@@ -508,7 +509,7 @@ export function writeState(
     if (value !== null)
       port.execute(
         'INSERT INTO sl_state_item (tenant, session, path, seq, value) VALUES (?, ?, ?, ?, ?)',
-        [tenant, session, path, BigInt(seq), value],
+        [tenant, session, path, BigInt(seq), packText(value)],
       )
   const token = sha256(JSON.stringify([previous?.layout.token ?? '', encoded, changes]))
   const head = JSON.stringify({ ...encoded, [TOKEN]: token })

@@ -13,4 +13,5 @@
 - [app.ts](app.ts)：测试应用组合
 - [entries.ts](entries.ts)：每个公开入口的调用清单
 - [entry-text.ts](entry-text.ts)：`sl_entry.entry` 文本的测试入口，转到 `src/entry-codec.ts`
+- [packed.ts](packed.ts)：大文本列的压缩文本：种入行用的 SQL 字面量与读原始行的解码
 - [session-scenario.ts](session-scenario.ts)：字节度量与速度对照用的固定会话

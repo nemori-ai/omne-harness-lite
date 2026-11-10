@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest'
 import type { SessionCommand } from '@omne-harness/session-contract'
 import { operationId, sessionId } from '@omne-harness/session-contract/testing'
 import { app, TENANT_A, textOf, type App } from './fixtures/app.ts'
+import { packedLiteral } from './fixtures/packed.ts'
 
 const DOMAIN = 'dom_0'
 const READ_BOUND = { kind: 'invalid', field: 'storage', reason: 'read-bound' }
@@ -50,7 +51,10 @@ describe('a commit whose in-transaction read would pass its bound', () => {
       series(
         100_001,
         'INSERT INTO sl_entry (tenant, session, position, revision, kind, entry, bytes)',
-      ).replace('$COLUMNS', `?, 'session-1', 1000000 + i, 1, 'intake.routed', '{}', 2`),
+      ).replace(
+        '$COLUMNS',
+        `?, 'session-1', 1000000 + i, 1, 'intake.routed', ${packedLiteral('{}')}, 2`,
+      ),
       [textOf(TENANT_A)],
     )
     expect(failureOf(await a.accept(TENANT_A, 'session-1', 'two'))).toEqual(READ_BOUND)
@@ -69,7 +73,10 @@ describe('a commit whose in-transaction read would pass its bound', () => {
       series(
         1001,
         'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result)',
-      ).replace('$COLUMNS', `?, 'session-1', 'seeded-' || i, 'd', 'batch', 1000 + i, '{}', '{}'`),
+      ).replace(
+        '$COLUMNS',
+        `?, 'session-1', 'seeded-' || i, 'd', 'batch', 1000 + i, ${packedLiteral('{}')}, ${packedLiteral('{}')}`,
+      ),
       [textOf(TENANT_A)],
     )
     const command = {

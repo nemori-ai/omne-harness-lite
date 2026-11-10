@@ -19,7 +19,7 @@ import type { SessionAdmittedInput, SessionCheck } from '../participants.ts'
 import { canonicalText, decodeValue, encodeValue, isCount, plainOf, sha256 } from '../codec.ts'
 import { readEntryText } from '../entry-codec.ts'
 import { readState } from './state-rows.ts'
-import { big, definite, oneRow, rowsOf, text, type Row } from './support.ts'
+import { big, definite, oneRow, packed, rowsOf, text, type Row } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_ROWS = 10_000
@@ -63,7 +63,7 @@ function planted(
 }
 
 function plantedRow(row: Row): Planted {
-  const entry = readEntryText(text(row['entry']), `sl_entry ${text(row['position'])}`)
+  const entry = readEntryText(packed(row['entry']), `sl_entry ${text(row['position'])}`)
   return {
     position: text(row['position']),
     revision: text(row['revision']),
@@ -84,7 +84,7 @@ function batchSources(
     'SELECT receipt FROM sl_operation WHERE tenant = ? AND session = ? AND revision = ? LIMIT 8',
     [tenant, session, BigInt(revision)],
   ).flatMap(row => {
-    const receipt = decodeValue(JSON.parse(text(row['receipt'])) as JsonValue) as {
+    const receipt = decodeValue(JSON.parse(packed(row['receipt'])) as JsonValue) as {
       source?: DurableEvidence
     }
     return receipt.source === undefined ? [] : [receipt.source]

@@ -28,6 +28,7 @@ import { workFoldCounts, type WorkCacheBounds, type WorkFoldCounts } from '../sr
 import { NO_FOCUS, readHistory } from '../src/worker/history-index.ts'
 import { PROTOCOL } from '../src/worker/schema.ts'
 import { app, textOf, TENANT_A, type App } from './fixtures/app.ts'
+import { packText, unpacked } from './fixtures/packed.ts'
 import {
   activeRun,
   agentEventOf,
@@ -465,9 +466,9 @@ describe('a fold that the cache does not keep', () => {
       'dom_0',
       'SELECT value FROM sl_state_item WHERE tenant = ? AND session = ?',
       [textOf(TENANT_A), 'session-1'],
-    ).rows as unknown as [string][]
+    ).rows as unknown as [Uint8Array][]
     // The stored size is the head text and the chunk texts (R2-D292).
-    const bytes = chunks.reduce((sum, [value]) => sum + value.length, stored.length)
+    const bytes = chunks.reduce((sum, [value]) => sum + unpacked(value).length, stored.length)
     // The bound holds the snapshot read now, and not the larger one of the next commit.
     const { port, storage } = portOver(a, { bytes })
     await readWork(port, a)
@@ -684,13 +685,13 @@ describe('T-F4: a batch that reduce quarantines on the held snapshot', () => {
         'dom_0',
         'SELECT position, entry FROM sl_entry WHERE tenant = ? AND session = ? ORDER BY position DESC LIMIT 1',
         [textOf(TENANT_A), 'session-1'],
-      ).rows as unknown as [[bigint, string]]
-      const changed = JSON.parse(entry) as Record<string, unknown>
+      ).rows as unknown as [[bigint, Uint8Array]]
+      const changed = JSON.parse(unpacked(entry)) as Record<string, unknown>
       changed['kind'] = 'x.unknown'
       a.provider.seed(
         'dom_0',
         'UPDATE sl_entry SET entry = ? WHERE tenant = ? AND session = ? AND position = ?',
-        [JSON.stringify(changed), textOf(TENANT_A), 'session-1', position],
+        [packText(JSON.stringify(changed)), textOf(TENANT_A), 'session-1', position],
       )
     })
     const before = workFoldCounts(storage)

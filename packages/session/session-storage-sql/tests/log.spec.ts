@@ -14,6 +14,7 @@ import type {
 import { evidence, operationId } from '@omne-harness/session-contract/testing'
 import { app, textOf, TENANT_A, TENANT_B, type App } from './fixtures/app.ts'
 import { INTERPRETER_ENTRIES, kindOf } from './fixtures/entries.ts'
+import { packedLiteral, unpacked } from './fixtures/packed.ts'
 import {
   activeRun,
   agentEventOf,
@@ -88,7 +89,7 @@ describe('commitLog writes in one transaction', () => {
       [observation.operation],
     ).rows[0]
     expect(record?.[0]).toBe('log')
-    expect(JSON.parse(String(record?.[1]))).toEqual(JSON.parse(String(record?.[2])))
+    expect(JSON.parse(unpacked(record?.[1]))).toEqual(JSON.parse(unpacked(record?.[2])))
     const work = await workOf(a)
     expect(work.run.kind === 'active' ? work.run.execution.readThrough : null).toBe('1')
     expect(receipt).toMatchObject({ readThrough: '1', recovered: false })
@@ -227,7 +228,7 @@ describe('a commitLog whose in-transaction read would pass its bound', () => {
       series(
         100_001,
         'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result)',
-        `?, 'session-1', 'seeded-' || i, 'd', 'log', NULL, '{}', '{}'`,
+        `?, 'session-1', 'seeded-' || i, 'd', 'log', NULL, ${packedLiteral('{}')}, ${packedLiteral('{}')}`,
       ),
       [textOf(TENANT_A)],
     )
@@ -245,7 +246,7 @@ describe('a commitLog whose in-transaction read would pass its bound', () => {
       series(
         100_001,
         'INSERT INTO sl_entry (tenant, session, position, revision, kind, entry, bytes)',
-        `?, 'session-1', 1000000 + i, 1, 'intake.routed', '{}', 2`,
+        `?, 'session-1', 1000000 + i, 1, 'intake.routed', ${packedLiteral('{}')}, 2`,
       ),
       [textOf(TENANT_A)],
     )

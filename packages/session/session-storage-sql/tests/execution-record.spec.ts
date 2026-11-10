@@ -39,6 +39,7 @@ import {
 } from '../src/participants.ts'
 import { canonicalText, sha256 } from '../src/codec.ts'
 import { entryOfText } from './fixtures/entry-text.ts'
+import { packedLiteral, unpacked } from './fixtures/packed.ts'
 import { sessionStorageMaterials } from '../src/materials.ts'
 import { FIXTURE_READ_OUTPUT_LIMIT_BYTES } from './fixtures/read-limit.ts'
 import { app, TENANT_A, TENANT_B, textOf, type App } from './fixtures/app.ts'
@@ -667,7 +668,7 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
       "SELECT position, revision, entry FROM sl_entry WHERE kind = 'run.started'",
     ).rows[0]
     if (row === undefined) throw new Error('no SE13 row')
-    const entry = entryOfText(String(row[2]))
+    const entry = entryOfText(unpacked(row[2]))
     const se13: DurableEvidence = {
       owner: '@omne-harness/session-storage-sql',
       record: `${textOf(TENANT_A)}/${SESSION}/entry/${String(row[0])}`,
@@ -820,7 +821,7 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
       'dom_0',
       `INSERT INTO sl_entry (tenant, session, position, revision, kind, entry, bytes)
          WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 10001)
-         SELECT ?, 'session-1', 1000000 + i, 777, 'intake.routed', '{}', 2 FROM n`,
+         SELECT ?, 'session-1', 1000000 + i, 777, 'intake.routed', ${packedLiteral('{}')}, 2 FROM n`,
       [textOf(TENANT_A)],
     )
     const result = await submit(a, 'aop_submit_bound', execution, {

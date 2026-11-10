@@ -21,6 +21,7 @@ import { workKey } from '../src/work-cache.ts'
 import readWorkVersion from '../src/worker/read-work-version.ts'
 import { app, TENANT_A, TENANT_B, textOf, type App } from './fixtures/app.ts'
 import { activeRun, agentPublisher, startRun } from './fixtures/real-provider.ts'
+import { unpacked } from './fixtures/packed.ts'
 import { migratedPort } from './fixtures/sqlite-storage.ts'
 
 type Answer = Awaited<ReturnType<App['port']['readWork']>>
@@ -364,14 +365,18 @@ describe('T-6: the bounds of the cache', () => {
     const probe = await app()
     await probe.create(TENANT_A, 's-1')
     // The stored size of one snapshot: its head row and its chunk rows (R2-D292).
-    const one = probe.provider.select(
+    const head = probe.provider.select(
       'dom_0',
-      `SELECT length(s.snapshot) + coalesce((SELECT sum(length(i.value)) FROM sl_state_item i
-          WHERE i.tenant = s.tenant AND i.session = s.session), 0) AS n
-         FROM sl_state s WHERE s.tenant = ? AND s.session = ? LIMIT 1`,
+      'SELECT snapshot FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
       [textOf(TENANT_A), 's-1'],
     ).rows[0]?.[0]
-    if (one === undefined || one === null) throw new Error('the snapshot row is missing')
+    if (head === undefined || head === null) throw new Error('the snapshot row is missing')
+    const one = probe.provider
+      .select('dom_0', 'SELECT value FROM sl_state_item WHERE tenant = ? AND session = ?', [
+        textOf(TENANT_A),
+        's-1',
+      ])
+      .rows.reduce((sum, [value]) => sum + unpacked(value).length, String(head).length)
     // Room for one snapshot and a half: the second session pushes the first one out.
     const a = await app({ workCache: { bytes: Math.floor(Number(one) * 1.5) } })
     for (const session of ['s-1', 's-2']) await a.create(TENANT_A, session)

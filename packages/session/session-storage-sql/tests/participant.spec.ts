@@ -8,6 +8,7 @@ import {
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { storedText } from './fixtures/entry-text.ts'
+import { packText } from './fixtures/packed.ts'
 import { readHistory } from '../src/worker/history-index.ts'
 import { initializationReceipts, maintainModelView, resultOf } from '../src/worker/participant.ts'
 import { migratedPort } from './fixtures/sqlite-storage.ts'
@@ -61,7 +62,7 @@ describe('a bounded read inside the commit', () => {
       }
       port.execute(
         'INSERT INTO sl_entry (tenant, session, position, revision, kind, entry, bytes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        ['t', 's', BigInt(i), 1n, 'intake.routed', storedText(entry), 1n],
+        ['t', 's', BigInt(i), 1n, 'intake.routed', packText(storedText(entry)), 1n],
       )
     }
     return port
@@ -96,8 +97,8 @@ describe('a bounded read inside the commit', () => {
           'd',
           'batch',
           BigInt(i),
-          JSON.stringify({ operation: `op-${i}` }),
-          '{}',
+          packText(JSON.stringify({ operation: `op-${i}` })),
+          packText('{}'),
         ],
       )
     return port

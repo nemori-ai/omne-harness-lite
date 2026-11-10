@@ -180,7 +180,7 @@ export const FACT_BLOB_SCHEMA: readonly string[] = [
   `CREATE TABLE er_fact (
     tenant TEXT NOT NULL, session TEXT NOT NULL, pub INTEGER NOT NULL, ord INTEGER NOT NULL,
     execution TEXT NOT NULL, kind TEXT NOT NULL, eseq INTEGER, op TEXT, kinds TEXT NOT NULL,
-    event TEXT, body TEXT NOT NULL,
+    event BLOB, body BLOB NOT NULL,
     CHECK (pub > 0 AND ord >= 0),
     CHECK ((ord = 0) = (op IS NOT NULL)),
     CHECK ((eseq IS NULL) = (event IS NULL)),
@@ -195,7 +195,7 @@ export const FACT_BLOB_SCHEMA: readonly string[] = [
   // session, and never shared across tenants. `size` is the UTF-8 byte count of `payload`.
   `CREATE TABLE sl_blob (
     tenant TEXT NOT NULL, digest TEXT NOT NULL, media TEXT NOT NULL, size INTEGER NOT NULL,
-    payload TEXT NOT NULL,
+    payload BLOB NOT NULL,
     PRIMARY KEY (tenant, digest)) STRICT, WITHOUT ROWID`,
 ]
 

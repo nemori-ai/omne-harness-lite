@@ -23,6 +23,7 @@ import { decodeValue, encodeValue } from '../src/codec.ts'
 import { readEntryText, writeEntryText } from '../src/entry-codec.ts'
 import { entryEvidence } from '../src/worker/history-index.ts'
 import { app, TENANT_A, TENANT_B, type App } from './fixtures/app.ts'
+import { unpacked } from './fixtures/packed.ts'
 
 const ENVELOPE = {
   id: '7',
@@ -217,10 +218,13 @@ describe('the rows the conformance suites commit', () => {
           domain,
           'SELECT tenant, session, kind, entry, bytes FROM sl_entry',
         ).rows) {
-          const [tenant, session, kind, text, size] = row.map(String) as string[]
-          const entry = readEntryText(text as string)
+          const [tenant, session, kind, , size] = row.map(String) as string[]
+          const stored = row[3] as Uint8Array
+          const text = unpacked(stored)
+          expect(stored[0]).toBe(Buffer.byteLength(text) < 128 ? 0 : 1)
+          const entry = readEntryText(text)
           expect(writeEntryText(entry)).toBe(text)
-          expect(Number(size)).toBe(Buffer.byteLength(text as string))
+          expect(Number(size)).toBe(Buffer.byteLength(text))
           const retired = decodeValue(
             JSON.parse(JSON.stringify(encodeValue(entry))) as JsonValue,
           ) as HistoryEntry

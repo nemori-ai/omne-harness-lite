@@ -21,13 +21,14 @@ import {
   type SqlStorage,
   type StoppingEntry,
 } from '@omne-harness/sql-contract'
-import type {
-  MigrationModule,
-  ParticipantModule,
-  QueryRows,
-  ReadHandlerModule,
-  SqlCell,
-  SqlValue,
+import {
+  unpackText,
+  type MigrationModule,
+  type ParticipantModule,
+  type QueryRows,
+  type ReadHandlerModule,
+  type SqlCell,
+  type SqlValue,
 } from '@omne-harness/sql-contract/worker'
 import admissionAttemptMigration from '../../src/worker/admission-attempt-migration.ts'
 import indexMigration from '../../src/worker/execution-index-migration.ts'
@@ -119,7 +120,8 @@ export type SqliteStorage = Readonly<{
   participantReads: { sql: string; rows: number }[]
   /**
    * Every other statement that a participant ran inside a write transaction, with the length of its
-   * text parameters: what a commit wrote, whether the transaction then committed or not.
+   * text parameters, a packed text parameter (sql-contract §10.1) by its text: what a commit wrote,
+   * whether the transaction then committed or not.
    */
   participantWrites: { sql: string; text: number }[]
   /** Domains that exist, by transaction domain name. */
@@ -163,6 +165,14 @@ const scopeKey = (scope: DomainRef['scope']): string =>
   scope.kind === 'system' ? 'system' : `tenant:${scope.tenant}`
 const receiptKey = (identity: SqlIdentity): string =>
   JSON.stringify([identity.operation, identity.operationKey])
+
+/** The text length of one parameter: a text, or a packed text (the only BLOBs this member writes). */
+const textLength = (value: SqlValue): number =>
+  typeof value === 'string'
+    ? value.length
+    : value instanceof Uint8Array
+      ? unpackText(value).length
+      : 0
 
 function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): QueryRows {
   const statement = db.prepare(sql)
@@ -261,10 +271,7 @@ export function createSqliteStorage(): SqliteStorage {
             else
               participantWrites.push({
                 sql,
-                text: params.reduce<number>(
-                  (sum, value) => sum + (typeof value === 'string' ? value.length : 0),
-                  0,
-                ),
+                text: params.reduce<number>((sum, value) => sum + textLength(value), 0),
               })
             return result
           } catch (error) {

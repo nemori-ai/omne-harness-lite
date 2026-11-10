@@ -25,10 +25,11 @@ import {
 } from '@omne-harness/session-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
-import type {
-  ParticipantModule,
-  ParticipantPort,
-  ParticipantReply,
+import {
+  packText,
+  type ParticipantModule,
+  type ParticipantPort,
+  type ParticipantReply,
 } from '@omne-harness/sql-contract/worker'
 import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
 import { writeEntryText } from '../entry-codec.ts'
@@ -51,6 +52,7 @@ import {
   definite,
   definiteBasis,
   oneRow,
+  packed,
   readVersion,
   refusingMalformedEntries,
   rowsOf,
@@ -587,7 +589,7 @@ export function initializationReceipts(
     [tenant, session, BigInt(limit + 1)],
   )
   if (rows.length > limit) return null
-  return rows.map(row => JSON.parse(text(row['receipt'])) as CommitReceipt)
+  return rows.map(row => JSON.parse(packed(row['receipt'])) as CommitReceipt)
 }
 
 /**
@@ -642,7 +644,7 @@ function writeEntries(
         BigInt(entry.id),
         BigInt(entry.revision),
         entry.kind,
-        body,
+        packText(body),
         BigInt(Buffer.byteLength(body)),
       ],
     )
@@ -727,7 +729,7 @@ function insertOperation(
   const { tenant, session, operation, digest, form, revision, receipt, result } = record
   port.execute(
     'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [tenant, session, operation, digest, form, revision, receipt, result],
+    [tenant, session, operation, digest, form, revision, packText(receipt), packText(result)],
   )
 }
 
@@ -798,8 +800,8 @@ function runQuery(
         : {
             kind: 'operation',
             form: text(row['form']),
-            receipt: JSON.parse(text(row['receipt'])) as JsonValue,
-            result: JSON.parse(text(row['result'])) as JsonValue,
+            receipt: JSON.parse(packed(row['receipt'])) as JsonValue,
+            result: JSON.parse(packed(row['result'])) as JsonValue,
             evidence:
               stored === undefined ? null : (JSON.parse(text(stored['evidence'])) as JsonValue),
           },
@@ -861,7 +863,7 @@ function commandStart(
   )
   if (held !== undefined && text(held['form']) === 'answer')
     return isControl(command) && text(held['input_digest']) === commandDigest(command)
-      ? participated(decodeValue(JSON.parse(text(held['result'])) as JsonValue), true)
+      ? participated(decodeValue(JSON.parse(packed(held['result'])) as JsonValue), true)
       : stopped({ kind: 'conflict', operation })
 
   const journal = oneRow(
@@ -935,7 +937,7 @@ function commandReads(
     compaction: null,
     ...(frozen === undefined
       ? {}
-      : { frozenReceipt: JSON.parse(text(frozen['receipt'])) as CommitReceipt }),
+      : { frozenReceipt: JSON.parse(packed(frozen['receipt'])) as CommitReceipt }),
     ...(command.kind === 'cancelRun' && previous !== null
       ? { runs: [runLookup(previous, command.input.run)] }
       : {}),
@@ -1004,6 +1006,7 @@ function recallOriginal(
   )
   if (original === undefined)
     return definite('missing-row', 'a recalled operation without a record')
+  const receipt = packed(original['receipt'])
   if (held === undefined && command.kind === 'completeInitialization') {
     insertOperation(port, {
       tenant,
@@ -1011,16 +1014,16 @@ function recallOriginal(
       operation,
       digest: commandDigest(command),
       form: 'batch',
-      revision: BigInt((JSON.parse(text(original['receipt'])) as CommitReceipt).revision),
-      receipt: text(original['receipt']),
-      result: text(original['receipt']),
+      revision: BigInt((JSON.parse(receipt) as CommitReceipt).revision),
+      receipt,
+      result: receipt,
     })
     storeEvidence(port, { tenant, session, operation }, evidence)
   }
   const value =
     command.kind === 'completeInitialization'
-      ? { ...(JSON.parse(text(original['receipt'])) as CommitReceipt), recovered: true }
-      : decodeValue(JSON.parse(text(original['result'])) as JsonValue)
+      ? { ...(JSON.parse(receipt) as CommitReceipt), recovered: true }
+      : decodeValue(JSON.parse(packed(original['result'])) as JsonValue)
   return participated(value, true)
 }
 
@@ -1139,7 +1142,7 @@ function recordOf(command: SessionCommand, start: CommandStart): OperationRecord
     : {
         operation: command.input.operation,
         digest: text(held['input_digest']),
-        receipt: JSON.parse(text(held['receipt'])) as CommitReceipt,
+        receipt: JSON.parse(packed(held['receipt'])) as CommitReceipt,
       }
 }
 

@@ -16,6 +16,7 @@ import type { SqlStorage } from '@omne-harness/sql-contract'
 import { createSessionLogJournal } from '../src/cordis/agent-journal.ts'
 import { m0Checkpoint } from './fixtures/adopted-request.ts'
 import { ok, operation } from './fixtures/common-journal.ts'
+import { unpackText } from '@omne-harness/sql-contract/worker'
 import { nextRun, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 type Journal = AgentJournal<string>
@@ -78,7 +79,10 @@ function adoptedRows(s: SqlScene): AdoptedRow[] {
   const rows = s.controls?.select(
     `SELECT pub, body FROM er_fact WHERE session = '${s.access.session}' AND kind = 'request.adopted' ORDER BY pub`,
   ).rows
-  return (rows ?? []).map(row => ({ pub: row[0] as bigint, body: row[1] as string }))
+  return (rows ?? []).map(row => ({
+    pub: row[0] as bigint,
+    body: unpackText(row[1] as Uint8Array),
+  }))
 }
 
 /** The publication count of the scene's session. */

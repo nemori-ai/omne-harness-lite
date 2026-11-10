@@ -3,8 +3,8 @@
 // provider derives the answer of a recalled operation from this batch. An operation of another
 // tenant reads as null, the same as one that was never written.
 import { EXECUTION_BATCH_MAX_FACTS } from '../codec.ts'
-import { FACT_COLUMNS, factOutput } from './fact-rows.ts'
-import { big, handler, oneRow, rowsOf, text } from './support.ts'
+import { FACT_COLUMNS, factOutput, factRows } from './fact-rows.ts'
+import { big, handler, oneRow, text } from './support.ts'
 
 export default handler('execution-record.operation', (input, port) => {
   const value =
@@ -25,7 +25,7 @@ export default handler('execution-record.operation', (input, port) => {
   if (row === undefined) return null
   const session = text(row['session'])
   const published = big(row['published'])
-  const facts = rowsOf(
+  const facts = factRows(
     port,
     `SELECT ${FACT_COLUMNS} FROM er_fact WHERE tenant = ? AND session = ? AND pub = ?
       ORDER BY ord LIMIT ?`,

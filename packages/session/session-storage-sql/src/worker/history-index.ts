@@ -45,7 +45,7 @@ import type { SqlCell, SqlValue } from '@omne-harness/sql-contract/worker'
 import { canonicalText, decodeValue, plainOf, sha256 } from '../codec.ts'
 import { readEntryText } from '../entry-codec.ts'
 import { logRoot } from './log-root.ts'
-import { big, oneRow, rowsOf, text, type Executor, type Row } from './support.ts'
+import { big, oneRow, packed, rowsOf, text, type Executor, type Row } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_ROWS = 100_000
@@ -213,7 +213,7 @@ const rowEvidence = (scope: Scope, row: Planted): DurableEvidence =>
 
 function plant(row: Row, grants?: ReadonlyMap<string, DurableEvidence>): Planted {
   const id = text(row['position'])
-  const entry = readEntryText(text(row['entry']), `sl_entry ${id}`)
+  const entry = readEntryText(packed(row['entry']), `sl_entry ${id}`)
   const grant = grants?.get(id)
   return {
     id,
@@ -429,7 +429,7 @@ function anchorAt(port: Executor, scope: Scope, position: bigint): string | null
   )
   return row === undefined
     ? null
-    : `${text(row['revision'])}/${text(row['kind'])}/${sha256(text(row['entry']))}`
+    : `${text(row['revision'])}/${text(row['kind'])}/${sha256(packed(row['entry']))}`
 }
 
 /** Keeps `index` as the most recently used, then drops the least recently used over the bounds. */
@@ -747,7 +747,7 @@ function boundaryOf(
       BigInt(readThrough),
       focusedSequence(context, execution),
     ],
-  )
+  ).map(row => ({ ...row, event: packed(row['event']) }))
   const facts = factsOf(events)
   if (facts === null) return null
   const interpreted =
