@@ -19,7 +19,11 @@ import {
 
 type StoredSavedFact = Pick<FactEventRecord, 'start' | 'source' | 'event' | 'fact' | 'evidence'>
 
-/** The planned final may name only a body this call sealed; a first final fixes the value. */
+/**
+ * The batch as the ledger stores it: each event with its fingerprint, a planned final as a pending
+ * fact. The first final of a call may name only a body this call sealed; a final the call already
+ * knows is adopted as that known final (`planEvents` fixes the value and refuses a conflicting one).
+ */
 export function adoptFinalFact(
   snapshot: Snapshot,
   batch: FactBatch,
@@ -29,7 +33,6 @@ export function adoptFinalFact(
   const known = [...snapshot.facts.values()].find(
     record => record.start.operation === batch.start.operation && record.fact.kind === 'final',
   )
-  let finalValue = known?.value
   const events: StoredFactBatch['events'][number][] = []
   for (const event of batch.events) {
     const value = valueByEvent.get(event.event)
@@ -37,24 +40,27 @@ export function adoptFinalFact(
     const saved = snapshot.facts.get(factKey(batch.start, batch.source.owner, event.event))
     if (saved !== undefined && !sameFactValue(saved.value, value))
       return invalid('batch.events', 'event-conflict')
-    let fact: StoredExecutionFact = event.fact.kind === 'final' ? planned(event.fact) : event.fact
-    if (event.fact.kind === 'final') {
-      if (finalValue !== undefined && !sameFactValue(finalValue, value))
-        return invalid('batch.events.fact', 'final-conflict')
-      finalValue = value
-      if (known?.fact.kind === 'final') fact = known.fact
-      else {
-        const original = event.fact.result.original
-        if (original.kind === 'offloaded') {
-          const entry = entryBySource(snapshot, original.source)
-          if (entry === null || (entry.state.kind !== 'sealed' && entry.state.kind !== 'linked'))
-            return invalid('batch.events.fact', 'unowned-final-body')
-        }
-      }
-    }
-    events.push({ event: event.event, fact, value })
+    const fact =
+      event.fact.kind === 'final' ? adoptedFinal(snapshot, event.fact, known) : succeed(event.fact)
+    if ('failure' in fact) return fact
+    events.push({ event: event.event, fact: fact.ok, value })
   }
   return succeed({ ...batch, value: values.batch, events })
+}
+
+function adoptedFinal(
+  snapshot: Snapshot,
+  final: ToolPlannedFinal,
+  known: FactEventRecord | undefined,
+): Outcome<StoredExecutionFact, ToolFailure> {
+  if (known?.fact.kind === 'final') return succeed(known.fact)
+  const original = final.result.original
+  if (original.kind === 'offloaded') {
+    const entry = entryBySource(snapshot, original.source)
+    if (entry === null || (entry.state.kind !== 'sealed' && entry.state.kind !== 'linked'))
+      return invalid('batch.events.fact', 'unowned-final-body')
+  }
+  return succeed(planned(final))
 }
 
 function planned(final: ToolPlannedFinal): StoredExecutionFact {

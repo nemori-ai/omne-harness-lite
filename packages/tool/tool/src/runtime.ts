@@ -11,8 +11,11 @@ import {
   type ToolInvocationCommands,
   type ToolInvocationContentReader,
   type ToolInvocationQueries,
+  type ToolCallId,
   type ToolInvokeOutcome,
   type ToolInvocationParts,
+  type ToolInvocationRef,
+  type ToolInvokeRequest,
   type ToolOperationId,
   type ToolOperationRef,
   type ToolRuntime,
@@ -86,6 +89,38 @@ function redactedPortExceptionDiagnostic(dependency: string): string {
 
 function rejected(failure: ToolDefiniteFailure): ToolInvokeOutcome {
   return { kind: 'rejected', failure }
+}
+
+/** The request as the caller fixed it, admitted under the system offloading bounds. */
+function admittedRequest(
+  supplied: unknown,
+  configuration: ToolConfiguration,
+): Outcome<ToolInvokeRequest, ToolDefiniteFailure> {
+  const judged = judgeToolInvokeRequest(supplied)
+  if ('failure' in judged)
+    return fail({
+      kind: 'invalid',
+      field: `request.${judged.failure.field}`,
+      reason: judged.failure.reason,
+    })
+  const refusal = callOffloadingRefusal(judged.ok, configuration.offloading)
+  return refusal === null
+    ? judged
+    : fail({ kind: 'invalid', field: 'request.returns.offloading', reason: refusal })
+}
+
+/** The identities the source issuer bound, decoded, with the reference the caller keeps. */
+function resolvedIdentity(
+  tenant: ToolInvocationParts['tenant'],
+  bound: Readonly<{ call: string; admission: string }>,
+): Readonly<{ call: ToolCallId; admission: ToolOperationId; reference: ToolInvocationRef }> | null {
+  const call = decodeToolCallId(bound.call)
+  const admission = decodeToolOperationId(bound.admission)
+  if ('failure' in call || 'failure' in admission) return null
+  const reference = encodeToolInvocationRef({ tenant, call: call.ok, admission: admission.ok })
+  return 'failure' in reference
+    ? null
+    : { call: call.ok, admission: admission.ok, reference: reference.ok }
 }
 
 function identityFailure(failure: ToolFailure): ToolDefiniteFailure {
@@ -175,38 +210,26 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
   const invoke: ToolRuntime<P, B>['invoke'] = async input => {
     if (typeof input !== 'object' || input === null || !('principal' in input))
       return rejected({ kind: 'denied', action: 'admit' })
-    const judged = judgeToolInvokeRequest(Reflect.get(input, 'request'))
-    if ('failure' in judged)
-      return rejected({
-        kind: 'invalid',
-        field: `request.${judged.failure.field}`,
-        reason: judged.failure.reason,
-      })
-    const request = judged.ok
-    const refusal = callOffloadingRefusal(request, configuration.offloading)
-    if (refusal !== null)
-      return rejected({ kind: 'invalid', field: 'request.returns.offloading', reason: refusal })
+    const request = admittedRequest(Reflect.get(input, 'request'), configuration)
+    if ('failure' in request) return rejected(request.failure)
     const { principal, tenant } = input
     let bound: Awaited<ReturnType<typeof sourceIssuer.resolve>>
     try {
-      bound = await sourceIssuer.resolve({ principal, tenant, request })
+      bound = await sourceIssuer.resolve({ principal, tenant, request: request.ok })
     } catch {
       return { kind: 'association-unknown' }
     }
     if (bound.kind === 'association-unknown' || bound.kind === 'rejected') return bound
-    const call = decodeToolCallId(bound.call)
-    const admission = decodeToolOperationId(bound.admission)
-    if ('failure' in call || 'failure' in admission) return { kind: 'association-unknown' }
-    const reference = encodeToolInvocationRef({ tenant, call: call.ok, admission: admission.ok })
-    if ('failure' in reference) return { kind: 'association-unknown' }
+    const identity = resolvedIdentity(tenant, bound)
+    if (identity === null) return { kind: 'association-unknown' }
     if (bound.kind === 'issuance-unknown')
-      return { kind: 'commit-unknown', reference: reference.ok }
+      return { kind: 'commit-unknown', reference: identity.reference }
     return admitResolvedInvocation(dependencies, {
       principal,
       tenant,
-      call: call.ok,
-      admission: admission.ok,
-      request: { ...request, invocation: bound.invocation },
+      call: identity.call,
+      admission: identity.admission,
+      request: { ...request.ok, invocation: bound.invocation },
       recovered: bound.recovered,
     })
   }

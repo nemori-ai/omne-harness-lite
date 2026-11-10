@@ -3,7 +3,7 @@
 // Put, StoreSeal, LedgerSeal). The fact then stores the plan; settlement only links the body.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
-import type { Adoption, Reply, ToolFailure } from '@omne-harness/tool-contract'
+import type { Adoption, Reply, ToolFailure, ToolStartRecord } from '@omne-harness/tool-contract'
 import type {
   ResultPolicy,
   ToolFinalEnvelope,
@@ -40,15 +40,14 @@ export function createLedgerFinalPlanner<P, B extends ContentBlock>(
       if ('failure' in qualified) return qualified
       const snapshot = await ports.load(input)
       if ('failure' in snapshot) return snapshot
-      const call = snapshot.ok.call
-      if (call === null || call.start === null || !sameFactValue(call.start, input.start))
-        return invalid('start', 'not-original-invocation')
-      const policy = policyOf(snapshot.ok, input.final, call.request, ports.configuration)
+      const call = originalCall(snapshot.ok, input.start)
+      if ('failure' in call) return call
+      const policy = policyOf(snapshot.ok, input.final, call.ok.request, ports.configuration)
       if ('failure' in policy) return policy
       const target = firstResultReference({
         tenant: input.tenant,
         call: input.call,
-        admission: call.admission,
+        admission: call.ok.admission,
       })
       if ('failure' in target) return target
       const planned = await prepareResult(
@@ -66,6 +65,17 @@ export function createLedgerFinalPlanner<P, B extends ContentBlock>(
       return succeed({ ...input.final, result: planned.ok.value })
     },
   }
+}
+
+/** The call the final belongs to: it exists and `start` is the start it recorded. */
+function originalCall(
+  snapshot: Snapshot,
+  start: ToolStartRecord,
+): Outcome<NonNullable<Snapshot['call']>, ToolFailure> {
+  const call = snapshot.call
+  return call === null || call.start === null || !sameFactValue(call.start, start)
+    ? invalid('start', 'not-original-invocation')
+    : succeed(call)
 }
 
 /** An authored body keeps its own policy; otherwise the declared policy, or the system's for a failure. */
