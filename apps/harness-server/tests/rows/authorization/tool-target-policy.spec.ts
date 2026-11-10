@@ -71,6 +71,7 @@ describe('current target rules of the authorization row', () => {
       ).toMatchObject({ kind: 'unavailable' })
       expect(await policy.qualify({ ...access, request: world.request('Tools') })).toEqual({
         kind: 'allowed',
+        condition: null,
       })
       expect(await policy.qualify({ ...access, request: world.request('Shell') })).toEqual({
         kind: 'denied',

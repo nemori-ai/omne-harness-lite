@@ -29,6 +29,7 @@ import {
   toolStartFenceKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import {
+  createSqlToolConditionalCommit,
   createSqlToolGuardedHostCommit,
   createSqlToolLedgerStore,
   createSqlToolOutputCustody,
@@ -74,6 +75,7 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
       maxChunkBytes: config.maxChunkBytes,
     }),
     guarded: createSqlToolGuardedHostCommit(options),
+    conditional: createSqlToolConditionalCommit(options),
   })
   const holder = toolRuntimeHolder(ctx)
   holder.sql = sql

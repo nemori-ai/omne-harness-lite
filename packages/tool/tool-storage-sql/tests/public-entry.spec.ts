@@ -28,6 +28,7 @@ describe('public entries', () => {
       'TOOL_RECORDS_CURRENT_FACT',
       'TOOL_RECORD_CURRENT',
       'TOOL_STORAGE_OWNER',
+      'createSqlToolConditionalCommit',
       'createSqlToolGuardedHostCommit',
       'createSqlToolLedgerStore',
       'createSqlToolOutputCustody',

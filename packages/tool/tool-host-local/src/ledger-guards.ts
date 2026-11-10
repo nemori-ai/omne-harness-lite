@@ -6,11 +6,14 @@
 import {
   createToolFactAcknowledgementGuard,
   type AccessVerdict,
+  type LedgerCommit,
+  type LedgerCommitInput,
   type ToolAccessGuard,
   type ToolGrantVerifier,
   type ToolLedgerBudgets,
   type ToolLedgerGuards,
 } from '@omne-harness/tool'
+import type { ContentBlock } from '@omne-harness/content-block'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolBindings } from '@omne-harness/tool-contract/provider'
 import {
@@ -35,9 +38,32 @@ export const localArgumentLimits: ToolLedgerBudgets['arguments'] = Object.freeze
   maxNumberLength: 32,
 })
 
+/**
+ * A value that the request policy gives with an allowed verdict. The host does not read it; the
+ * conditional commit of the store decodes it. The acceptance of the start and this condition take
+ * effect in one transaction, or neither does.
+ */
+export type StartCondition = Readonly<Record<string, unknown>>
+
+export type RequestAccessVerdict =
+  | Readonly<{ kind: 'allowed'; condition: StartCondition | null }>
+  | Exclude<AccessVerdict, { kind: 'allowed' }>
+
 /** The current policy for a complete fixed target, separate from call identity qualification. */
 export interface ToolRequestAccess<P> {
-  qualify(input: CallAccess<P> & Readonly<{ request: FixedToolRequest }>): Promise<AccessVerdict>
+  qualify(
+    input: CallAccess<P> & Readonly<{ request: FixedToolRequest }>,
+  ): Promise<RequestAccessVerdict>
+}
+
+/**
+ * Commits ledger writes together with one start condition. `condition-failed` means the condition
+ * no longer holds and nothing took effect: the caller reads again and asks the policy again.
+ */
+export interface ConditionalLedgerCommit<B extends ContentBlock = ContentBlock> {
+  commit(
+    input: Readonly<{ condition: StartCondition; ledger: LedgerCommitInput<B> }>,
+  ): Promise<LedgerCommit | Readonly<{ kind: 'condition-failed' }>>
 }
 
 /**

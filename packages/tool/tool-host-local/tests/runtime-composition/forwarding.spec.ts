@@ -44,10 +44,11 @@ it('does not run a forwarded target when its current policy denies after prepara
   let targetChecks = 0
   const world = await fixture(undefined, undefined, 2, true, {
     qualify: async ({ request }) => {
-      if (request.availability.definition.name === 'Tools') return { kind: 'allowed' }
+      if (request.availability.definition.name === 'Tools')
+        return { kind: 'allowed', condition: null }
       targetChecks++
       return targetChecks < 3
-        ? { kind: 'allowed' }
+        ? { kind: 'allowed', condition: null }
         : { kind: 'denied', reason: 'target-rule-revoked' }
     },
   })

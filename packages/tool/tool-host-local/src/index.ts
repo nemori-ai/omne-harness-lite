@@ -61,6 +61,9 @@ export {
   createLocalToolLedgerGuards,
   localArgumentLimits,
   type LocalToolLedgerGuardsInput,
+  type ConditionalLedgerCommit,
+  type RequestAccessVerdict,
+  type StartCondition,
   type ToolHostAccess,
   type ToolRequestAccess,
 } from './ledger-guards.ts'

@@ -113,14 +113,14 @@ it('applies target policy to new admissions while retaining custody of an exactl
     const atStart = admittedTargetAccess(store, {
       qualify: async target => {
         qualified.push(target)
-        return { kind: 'allowed' }
+        return { kind: 'allowed', condition: null }
       },
     })
     const startInput = {
       ...input,
       operation: okOf(decodeToolOperationId('later-start'), 'operation'),
     }
-    expect(await atStart.qualify(startInput)).toEqual({ kind: 'allowed' })
+    expect(await atStart.qualify(startInput)).toEqual({ kind: 'allowed', condition: null })
     expect(qualified).toEqual([{ ...startInput, admission: operation }])
     expect(
       await atStart.qualify({ ...input, call: okOf(decodeToolCallId('another-call'), 'call') }),
@@ -164,7 +164,8 @@ it('rechecks residency at start without withdrawing custody or restricting direc
     let viewReads = 0
     const policy = currentTargetPolicy({
       authorization: () => ({
-        qualify: async () => (allow ? { kind: 'allowed' } : { kind: 'denied', reason: 'revoked' }),
+        qualify: async () =>
+          allow ? { kind: 'allowed', condition: null } : { kind: 'denied', reason: 'revoked' },
       }),
       view: () => {
         viewReads++
@@ -185,7 +186,7 @@ it('rechecks residency at start without withdrawing custody or restricting direc
         consumer: { ...direct.request.consumer, owner: TOOL_FORWARDING_OWNER },
       },
     }
-    expect(await policy.qualify(forwarded)).toEqual({ kind: 'allowed' })
+    expect(await policy.qualify(forwarded)).toEqual({ kind: 'allowed', condition: null })
     expect(await policy.qualify(direct)).toEqual({
       kind: 'denied',
       reason: 'nonresident-tools-require-forwarding',
@@ -195,7 +196,7 @@ it('rechecks residency at start without withdrawing custody or restricting direc
       kind: 'denied',
       reason: 'resident-tools-require-direct-call',
     })
-    expect(await policy.qualify(direct)).toEqual({ kind: 'allowed' })
+    expect(await policy.qualify(direct)).toEqual({ kind: 'allowed', condition: null })
     w.setToyResident(false)
     expect(await policy.qualify(direct)).toMatchObject({ kind: 'denied' })
     expect(
@@ -206,7 +207,7 @@ it('rechecks residency at start without withdrawing custody or restricting direc
           consumer: { ...direct.request.consumer, owner: 'trusted-maintainer' },
         },
       }),
-    ).toEqual({ kind: 'allowed' })
+    ).toEqual({ kind: 'allowed', condition: null })
     disclose = false
     expect(await policy.qualify(direct)).toMatchObject({ kind: 'unavailable' })
     expect(await policy.qualify(forwarded)).toMatchObject({ kind: 'unavailable' })

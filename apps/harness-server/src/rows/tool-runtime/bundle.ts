@@ -32,6 +32,7 @@ import { createReleaseToolIdentity, releasePrincipalCodec } from './access.ts'
 import type { ToolRuntimeConfig } from './config.ts'
 import { createReleaseEnvironment } from './environment.ts'
 import {
+  lateConditional,
   lateCustody,
   lateStore,
   toolRuntimeHolder,
@@ -103,6 +104,7 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
   })
   const input: LocalToolRuntimeInput = {
     store,
+    conditionalCommit: lateConditional(holder),
     custody: lateCustody(holder),
     content: null,
     sources: { ...sources, guard: withTargetAdmissionPolicy(sources.guard, store, requestAccess) },

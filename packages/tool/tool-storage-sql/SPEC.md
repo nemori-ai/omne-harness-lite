@@ -4,7 +4,7 @@
 
 ## 范围与依据
 
-本包是 Tool 记录仓与原件保管的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore` 与 `ToolOutputCustody`，并导出静态材料 `toolStorageMaterials()`。`createSqlToolGuardedHostCommit` 另提供带原调用修订条件的 host 提交，供受信集成方写资源许可。
+本包是 Tool 记录仓与原件保管的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore` 与 `ToolOutputCustody`，并导出静态材料 `toolStorageMaterials()`。`createSqlToolGuardedHostCommit` 另提供带原调用修订条件的 host 提交，供受信集成方写资源许可。`createSqlToolConditionalCommit` 提供带启动条件的账本提交，供启动协调器写 acceptance。
 
 依据：
 
@@ -128,6 +128,22 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 本保证只覆盖原调用修订与 host 提交的排序，不承诺与 Session ended 的跨域原子性。保留范围资格、关闭状态与已发生效果的控制仍归各自权威。
 
+### TS-12 带启动条件的账本提交
+
+`createSqlToolConditionalCommit(options)` 返回独立的 `commit` 端口。调用方传入一个启动条件和一份 `LedgerCommitInput`。
+
+条件的 SQL 形状是 `SqlToolCondition`：组合版本、清单摘要和一组别的参加者的命令。这个组合必须已在同一事务域登记，并含 `tool` 参加者。本包不解释这些命令。
+
+适配器发出一个 SQL 操作：条件命令在前，`tool` 的账本写入在后，使用条件给出的组合。
+
+- 全部参加者参与并提交时答 `committed`。
+- 条件里的任一参加者停下操作时答 `condition-failed`。整个操作回滚，账本没有写入。
+- `tool` 参加者因修订不符停下时答 `conflict`，`current` 为当前修订。
+- 条件不是这个形状、没有命令或点名 `tool` 参加者时答 `rejected`，不发出操作。条件不能写账本。
+- `unknown` 与 `unavailable` 沿 TS-02 映射。
+
+工厂不自动重试，不新建表或迁移，`tool` 参加者的代码不变。
+
 ## 所有权、失败与生命周期
 
 - 本包不持有连接、Worker、计时器或其他需要释放的资源。连接、Worker、事务与清理归 SQL 提供者。工厂返回的对象可以随时丢弃。
@@ -160,3 +176,4 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 | 启动围栏            | `tests/start-coordinator.spec.ts`：`tool-host-local` 的协调器在本仓上运行三组启动套件，并在重开后重建                                                                                        | 授权套件的用例全部不适用（协调器没有授权消费点）                                                 |
 | TS-10               | `tests/materials.spec.ts`、`tests/public-entry.spec.ts`                                                                                                                                      | 真实的三方材料合并由应用侧验证                                                                   |
 | TS-11               | `tests/guarded-host-commit.spec.ts`：真实 Tool 终局、两个 SQLite 连接竞争、租户隔离、丢答、操作中失败与重开                                                                                  | 使用 node:sqlite 测试提供者和真实参加者。未验证 sqlite-provider Worker、组提交、跨进程竞争或断电 |
+| TS-12 | `tests/conditional-commit.spec.ts`：发出的操作里命令的次序与组合、条件参加者停下、账本修订冲突、坏条件不发出、未登记租户 | 存储答复是脚本给的；真实条件参加者与真实提供者的同事务行为由应用侧验证 |

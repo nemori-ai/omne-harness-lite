@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { effectiveArgumentsOf } from '@omne-harness/authorization'
-import type { AccessVerdict } from '@omne-harness/tool'
+import type { RequestAccessVerdict } from '@omne-harness/tool-host-local'
 import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type { FixedToolRequest, ToolOperationId } from '@omne-harness/tool-contract'
 import type { AdmissionReader, ToolPermissionReader } from './action-admission.ts'
@@ -12,18 +12,18 @@ export type ToolTargetPolicy = Readonly<{
   qualify(
     input: CallAccess<unknown> &
       Readonly<{ request: FixedToolRequest; admission: ToolOperationId }>,
-  ): Promise<AccessVerdict>
+  ): Promise<RequestAccessVerdict>
 }>
-const unavailable = (): AccessVerdict => ({
+const unavailable = (): RequestAccessVerdict => ({
   kind: 'unavailable',
   diagnostic: 'The current target rule or its authority is unavailable.',
 })
 
 function permissionVerdict(
   decision: Awaited<ReturnType<ToolPermissionCheck['check']>>,
-): AccessVerdict {
+): RequestAccessVerdict {
   if (decision.kind === 'deny') return { kind: 'denied', reason: decision.reason }
-  return decision.kind === 'allow' ? { kind: 'allowed' } : unavailable()
+  return decision.kind === 'allow' ? { kind: 'allowed', condition: null } : unavailable()
 }
 
 /** The authorization row owns these rules. A target check creates no Agent action. */

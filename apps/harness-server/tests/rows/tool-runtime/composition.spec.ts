@@ -602,7 +602,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
         ).tool.qualify({ ...input, principal: who.principal })
         readings.push(result)
         return 'ok' in result
-          ? { kind: 'allowed' }
+          ? { kind: 'allowed', condition: null }
           : { kind: 'unavailable', diagnostic: 'original source rejected' }
       },
     }))

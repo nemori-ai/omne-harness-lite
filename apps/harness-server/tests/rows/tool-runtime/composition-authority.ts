@@ -82,5 +82,5 @@ export function compositionAuthorityWithPolicy(
 }
 
 export const compositionAuthority = compositionAuthorityWithPolicy(() => ({
-  qualify: async () => ({ kind: 'allowed' }),
+  qualify: async () => ({ kind: 'allowed', condition: null }),
 }))

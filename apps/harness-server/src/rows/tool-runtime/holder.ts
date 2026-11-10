@@ -28,6 +28,7 @@ import {
 import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-local/cordis'
 
 type EnvironmentGuardedHostCommit = LocalToolRuntimeInput['environment']['guarded']
+type StartConditionalCommit = LocalToolRuntimeInput['conditionalCommit']
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import type { SessionWorkPrincipals } from '@omne-harness/session-contract'
 import type { SchemaProvider } from '@omne-harness/schema-provider'
@@ -43,6 +44,7 @@ export type ToolSqlPorts = Readonly<{
   store: ToolLedgerStore<ToolMessageContentBlock>
   custody: ToolOutputCustody<unknown>
   guarded: EnvironmentGuardedHostCommit
+  conditional: StartConditionalCommit
 }>
 
 type Witnessed = { execution: string; sources: Set<string> }
@@ -188,6 +190,16 @@ export function lateCustody(holder: ToolRuntimeHolder): ToolOutputCustody<unknow
     retainResult: input =>
       holder.sql?.custody.retainResult(input) ?? Promise.resolve(custodyUnavailable),
   } satisfies ToolOutputCustody<unknown>)
+}
+
+/** 交给 bundle 的带条件提交：逐次读当前 SQL 端口，缺席答 `unavailable`。 */
+export function lateConditional(holder: ToolRuntimeHolder): StartConditionalCommit {
+  const conditional: StartConditionalCommit = {
+    commit: input =>
+      holder.sql?.conditional.commit(input) ??
+      Promise.resolve(unavailableRead('tool-records: no SQL conditional commit is installed')),
+  }
+  return Object.freeze(conditional)
 }
 
 /** 交给 bundle 的守护宿主提交：逐次读当前 SQL 端口，缺席答 `unavailable`。 */
