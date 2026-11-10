@@ -132,7 +132,6 @@ def test_hostile_git_cannot_redirect_adapter_project_or_canonical_commands(insta
 
 @pytest.mark.parametrize("changes,event", [({"loop_count": 1}, "stop"), ({"stop_hook_active": True}, "stop"),
     ({"status": "aborted"}, "stop"), ({"status": "error"}, "stop"),
-    ({"subagent_type": None}, "subagentStop"),
     ({"loop_count": None}, "stop"), ({"loop_count": -1}, "stop")])
 def test_nonmatching_recursive_incomplete_events_never_measure(installed, changes, event):
     assert invoke(installed, changes, event)[0] == {}
@@ -140,7 +139,7 @@ def test_nonmatching_recursive_incomplete_events_never_measure(installed, change
 
 
 def test_subagent_stop_measures_every_subagent_type(installed):
-    for subagent_type in ("developer", "qa", "explore"):
+    for subagent_type in ("developer", "qa", "explore", None):
         output, stderr = invoke(installed, {"subagent_type": subagent_type}, "subagentStop")
         assert output == {"followup_message": "new measured facts"} and stderr == ""
 

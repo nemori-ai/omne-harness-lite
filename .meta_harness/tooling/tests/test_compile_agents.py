@@ -63,15 +63,71 @@ def test_compiler_survives_workspace_relocation(source, tmp_path):
     assert not (relocated.parent / ".agents").exists()
 
 
-def test_output_conflict_preflights_all_files_and_preserves_user_content(source, tmp_path):
+def test_generated_files_outside_skill_directories_converge_and_host_files_are_kept(source, tmp_path):
     output = tmp_path / "preview"
-    conflict = output / ".claude/skills/evidence-reading/SKILL.md"
-    conflict.parent.mkdir(parents=True)
-    conflict.write_text("user content", encoding="utf-8")
+    args = ["--source", str(source), "--output", str(output)]
+    assert compiler.main(args) == 0
+    manifest = output / ".cursor/.cursor-plugin/plugin.json"
+    expected = manifest.read_bytes()
+    manifest.write_text("old projection", encoding="utf-8")
+    host_file = output / ".claude/scheduled_tasks.lock"
+    host_file.write_text("host state", encoding="utf-8")
+    assert compiler.main(args) == 0
+    assert manifest.read_bytes() == expected
+    assert host_file.read_text(encoding="utf-8") == "host state"
+    assert compiler.main(args + ["--check"]) == 0
+
+
+def test_generated_path_occupied_by_a_directory_fails_before_any_write(source, tmp_path):
+    output = tmp_path / "preview"
+    blocked = output / ".cursor/.cursor-plugin/plugin.json"
+    blocked.mkdir(parents=True)
     assert compiler.main(["--source", str(source), "--output", str(output)]) == 1
-    assert conflict.read_text(encoding="utf-8") == "user content"
+    assert blocked.is_dir()
     assert not (output / ".agents").exists()
-    assert not (output / ".codex").exists()
+    assert not (output / ".claude").exists()
+
+
+def test_skill_directories_converge_to_the_sources(source, tmp_path, capsys):
+    """技能目录归生成工具：源删掉的技能、手改过的生成文件，检查报出来，生成时收敛。"""
+    output = tmp_path / "preview"
+    args = ["--source", str(source), "--output", str(output)]
+    assert compiler.main(args) == 0
+    stale = output / ".claude/skills/retired-skill/SKILL.md"
+    stale.parent.mkdir()
+    stale.write_text("old projection", encoding="utf-8")
+    stray = output / ".agents/skills/evidence-reading/references/removed.md"
+    stray.write_text("old reference", encoding="utf-8")
+    drifted = output / ".agents/skills/evidence-reading/SKILL.md"
+    expected = drifted.read_bytes()
+    drifted.write_text("local edit", encoding="utf-8")
+    local = output / ".claude/settings.local.json"
+    local.write_text("{}\n", encoding="utf-8")
+    capsys.readouterr()
+    assert compiler.main(args + ["--check"]) == 1
+    err = capsys.readouterr().err
+    assert f"stale generated path: {Path('.agents/skills/evidence-reading/references/removed.md')}" in err
+    assert stale.exists() and stray.exists()
+    assert compiler.main(args) == 0
+    assert not stale.parent.exists() and not stray.exists()
+    assert drifted.read_bytes() == expected
+    assert local.read_text(encoding="utf-8") == "{}\n"
+    assert compiler.main(args + ["--check"]) == 0
+
+
+def test_retired_role_directories_are_removed(source, tmp_path, capsys):
+    output = tmp_path / "preview"
+    args = ["--source", str(source), "--output", str(output)]
+    assert compiler.main(args) == 0
+    for root in (".claude", ".codex", ".cursor"):
+        (output / root / "agents").mkdir(parents=True, exist_ok=True)
+        (output / root / "agents/developer.md").write_text("old role", encoding="utf-8")
+    capsys.readouterr()
+    assert compiler.main(args + ["--check"]) == 1
+    assert f"stale generated path: {Path('.codex/agents')}" in capsys.readouterr().err
+    assert compiler.main(args) == 0
+    assert not any((output / root / "agents").exists() for root in (".claude", ".codex", ".cursor"))
+    assert compiler.main(args + ["--check"]) == 0
 
 
 def test_check_missing_and_drift_are_read_only(source, tmp_path):

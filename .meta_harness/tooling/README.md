@@ -103,9 +103,9 @@ PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest -p no:cacheprovider .meta_harne
 
 输出根必须显式指定，正常产物留在 `.meta_harness/`。可用 `--host codex` 或
 `--host claude-code` 或 `--host cursor` 单独生成，默认 `all`。不同宿主原生目录分别保留在输出根下。
-相同内容与权限可重复生成；不同内容或权限的既存文件会使
-整个预检失败，不覆盖、不删除。修改源后使用新的暂存目录比较。`--check` 只读检查
-应生成文件是否存在且一致；它不把输出目录中的其他文件当成本工具所有，不检查或删除它们。
+各宿主的技能目录（`.claude/skills`、`.agents/skills`、`.cursor/skills`）归本工具所有：生成时把它们收敛到与源一致，内容或权限不同的文件被替换，源里已经没有的技能与文件被删除；旧版生成过、源已不再产出的目录（`.claude/agents`、`.codex/agents`、`.cursor/agents`）也一并删除。所以改源之后直接重跑，不需要先清目录。
+技能目录以外的生成文件（钩子文件、Cursor 包与云端文件）内容不同时整个预检失败，不覆盖、不删除；宿主自己写在这些根下的文件（例如 `.claude/settings.local.json`）不归本工具，不检查也不动。
+`--check` 只读，一次报出全部问题：缺少的、内容不同的、技能目录里多出来的和退役目录还在的。
 
 输出根可包含源目录（如 `.meta_harness/agents`），但具体生成路径不得与源重叠；
 输出根不得放在源内。工具拒绝源/目标符号链接和越界输出；所有源与目标冲突先预检。

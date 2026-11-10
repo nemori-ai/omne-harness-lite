@@ -21,6 +21,15 @@ HOSTS = {
 }
 
 
+# Directories that older generators wrote and the sources no longer produce. Delivery deletes
+# them, and `--check` reports them, so an existing checkout cannot keep loading retired roles.
+RETIRED = {
+    "claude-code": (Path(".claude/agents"),),
+    "codex": (Path(".codex/agents"),),
+    "cursor": (Path(".cursor/agents"),),
+}
+
+
 def project_targets(hosts=tuple(HOSTS)) -> dict[str, tuple[str, ...]]:
     targets: dict[str, tuple[str, ...]] = {}
     for host in hosts:

@@ -151,10 +151,6 @@ async function run() {
     throw new Error('missing or invalid status')
   if (payload.status !== 'completed') return diagnostic('incomplete-event', payload.status)
   if (payload.loop_count > 0 || payload.stop_hook_active === true) return {}
-  if (event === 'subagentStop') {
-    if (typeof payload.subagent_type !== 'string' || !payload.subagent_type.trim())
-      throw new Error('missing subagent_type')
-  }
   const target = directory(git(targetWorkspace(payload), ['rev-parse', '--show-toplevel']))
   toolingRoot(target)
   const normalized = {
