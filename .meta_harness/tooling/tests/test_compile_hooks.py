@@ -193,8 +193,9 @@ def _stop(cwd: Path) -> subprocess.CompletedProcess:
                           check=False)
 
 
-def test_the_declared_stop_command_runs_a_copy_of_the_tool_that_has_its_dependencies(tmp_path, monkeypatch):
-    """刚建的工作树没装依赖：跑主检出里的那一份；装了就跑自己的。不在仓库里：退出 0，什么都不做。"""
+def test_the_declared_stop_command_runs_only_the_copy_in_its_own_worktree(tmp_path, monkeypatch):
+    """每棵工作树只跑自己的那一份，装没装依赖都一样，不退回主检出；自己没有这份脚本：退出 0，什么都不说。
+    不在仓库里：退出 0，什么都不做。"""
     main = tmp_path / "main"
     script = Path(TOOL) / "src/loop/stop-hook.ts"
     (main / script).parent.mkdir(parents=True)
@@ -208,18 +209,19 @@ def test_the_declared_stop_command_runs_a_copy_of_the_tool_that_has_its_dependen
     fresh = tmp_path / "fresh"
     _git(main, "worktree", "add", "-q", str(fresh), "-b", "someone/work")
 
-    for cwd in (fresh, fresh / "apps/cli/src", main, main / "apps/cli/src"):
+    # 刚建的工作树没装依赖：仍跑它自己的脚本（「量不了」由脚本自己说），不跑主检出那份。
+    for cwd, tree in ((fresh, fresh), (fresh / "apps/cli/src", fresh), (main, main), (main / "apps/cli/src", main)):
         ran = _stop(cwd)
-        assert (ran.returncode, ran.stdout) == (0, f"{(main / script).resolve()}|{{}}"), (cwd, ran.stderr)
+        assert (ran.returncode, ran.stdout) == (0, f"{(tree / script).resolve()}|{{}}"), (cwd, ran.stderr)
 
     _install(fresh)
     ran = _stop(fresh / "apps/cli/src")
     assert (ran.returncode, ran.stdout) == (0, f"{(fresh / script).resolve()}|{{}}"), ran.stderr
 
-    # 一棵停在旧提交上的工作树：装了依赖，却还没有这份脚本。
+    # 一棵停在旧提交上的工作树：装了依赖，却还没有这份脚本。主检出有，也不跑。
     (fresh / script).unlink()
     ran = _stop(fresh)
-    assert (ran.returncode, ran.stdout) == (0, f"{(main / script).resolve()}|{{}}"), ran.stderr
+    assert (ran.returncode, ran.stdout, ran.stderr) == (0, "", "")
 
     outside = tmp_path / "outside"
     outside.mkdir()

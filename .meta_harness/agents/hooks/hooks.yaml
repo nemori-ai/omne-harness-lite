@@ -6,18 +6,16 @@ hooks:
   - id: loop-stop-facts
     events: [Stop, SubagentStop]
     # shell 形式、从 git 根解析：两端都以会话的当前目录运行钩子，Codex 没有项目根变量。
-    # 跑哪一份脚本：当前工作树里有这份脚本且装了依赖，就跑它自己的（它可能正在改这套工具）；
-    # 否则跑主检出里的那一份——刚建的工作树还没装依赖，脚本加载不了解析器，量的仍是会话所在的那棵工作树。
-    # 主检出取公共 git 目录的上一级；先进到工作树根再问，Git 2.25 在子目录里给的相对路径不可靠。
+    # 只跑会话所在那棵工作树自己的脚本，不借别的检出：别的检出的工具与配置可能落后。
+    # 这棵树没有这份脚本（停在旧提交上）：退出 0，什么都不做；没装依赖：脚本自己告诉用户「量不了」。
     # 不在 git 仓库里：退出 0，什么都不做。由 node 直接运行、不经包装命令：宿主把退出码 2 一律当成拦截，退出码只由脚本自己定。
     command: >-
       unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
       GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE;
       t="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0;
-      s=tools/repo-toolchain;
-      { [ -e "$t/$s/src/loop/stop-hook.ts" ] && [ -e "$t/$s/node_modules/typescript/package.json" ]; }
-      || t="$(cd "$t" && cd "$(git rev-parse --git-common-dir)/.." && pwd)";
-      exec node --experimental-strip-types "$t/$s/src/loop/stop-hook.ts"
+      s="$t/tools/repo-toolchain/src/loop/stop-hook.ts";
+      [ -e "$s" ] || exit 0;
+      exec node --experimental-strip-types "$s"
     timeout: 60
   - id: stale-skill-copies
     events: [SessionStart]
