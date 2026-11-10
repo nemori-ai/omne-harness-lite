@@ -1,7 +1,10 @@
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { expect, it } from 'vitest'
-import { fastConfig, MUTATION_TEST_TIMEOUT_MS } from '../resources/vitest-fast.config.mts'
+import { expect, it, vi } from 'vitest'
+import fastConfigForCwd, {
+  fastConfig,
+  MUTATION_TEST_TIMEOUT_MS,
+} from '../resources/vitest-fast.config.mts'
 import { scratch } from './support.ts'
 
 const member = (body: string) => {
@@ -29,4 +32,27 @@ it('fixes the fast mode and the root, and puts the mutation time limit over the 
 it('refuses a member config that cannot select the tier', async () => {
   const root = member('export default { test: {} }\n')
   await expect(fastConfig(root, { mode: 'test', command: 'serve' })).rejects.toThrow('选不了快层')
+})
+
+it('builds the fast config from a member config that has no test section', async () => {
+  const root = member('export default () => ({})\n')
+  expect(await fastConfig(root, { mode: 'test', command: 'serve' })).toMatchObject({
+    root,
+    test: { testTimeout: MUTATION_TEST_TIMEOUT_MS, experimental: { preParse: false } },
+  })
+})
+
+it('reads the member config from the current directory when used as the default export', async () => {
+  const root = member(
+    'export default ({ mode }: { mode: string }) => ({ test: { include: [mode] } })\n',
+  )
+  const cwd = vi.spyOn(process, 'cwd').mockReturnValue(root)
+  try {
+    expect(await fastConfigForCwd({ mode: 'test', command: 'serve' })).toMatchObject({
+      root,
+      test: { include: ['fast'] },
+    })
+  } finally {
+    cwd.mockRestore()
+  }
 })

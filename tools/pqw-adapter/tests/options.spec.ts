@@ -81,3 +81,15 @@ it('adds up the values of a repeated multi-value flag and leaves unset single va
   expect(options.files).toEqual(['a', 'b', 'c'])
   expect(Object.keys(options).sort()).toEqual(['files', 'full', 'planOnly', 'scopes'])
 })
+
+it('accepts 1 as the smallest positive count', () => {
+  expect(parseOptions(['--workers', '1', '--max-lines', '1'], ALL)).toMatchObject({
+    workers: 1,
+    maxLines: 1,
+  })
+})
+
+it('reads a following option as a missing value, not as the value', () => {
+  expect(() => parseOptions(['--base', '--full'], ALL)).toThrow('--base 要给值')
+  expect(() => parseOptions(['--scope', 'a/', '--out', '--full'], ALL)).toThrow('--out 要给值')
+})

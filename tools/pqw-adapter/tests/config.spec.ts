@@ -32,3 +32,24 @@ it('reads the lines and the assertion pattern from the repository config file', 
   expect(config.crap).toEqual(file.metrics.thresholds)
   expect(config.assertPattern).toBe(file.loop.sensors.assertions.assertionPattern)
 })
+
+it('refuses a metrics section that is missing or not an object', () => {
+  for (const metrics of [undefined, null, 'x', 7])
+    expect(() => readingConfigOf(metrics, /x/u)).toThrow('warn ≤ alert')
+})
+
+it('refuses a line that is a number written as text, though the text compares like a number', () => {
+  expect(() => readingConfigOf({ thresholds: { warn: '5', alert: 9 } }, /x/u)).toThrow(
+    'warn ≤ alert',
+  )
+  expect(() => readingConfigOf({ thresholds: { warn: 7, alert: '12' } }, /x/u)).toThrow(
+    'warn ≤ alert',
+  )
+})
+
+it('accepts warn equal to alert', () => {
+  expect(readingConfigOf({ thresholds: { warn: 9, alert: 9 } }, /x/u).crap).toEqual({
+    warn: 9,
+    alert: 9,
+  })
+})
