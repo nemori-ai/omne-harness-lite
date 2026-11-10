@@ -7,6 +7,7 @@ packages:
   - tools/test-runner
   - tools/artifact-builder
   - tools/repo-config
+  - tools/pqw-adapter
 
 # 普通版本号只从 registry 解析，不链接到同名的工作区成员；工作区成员之间要链接就写 workspace:。
 # 检查器的钉子依赖这一条：钉住的 repo-toolchain、repo-config 必须装 npm 上的包。

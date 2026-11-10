@@ -80,6 +80,14 @@
         "src/**/*.ts"
       ]
     },
+    "tools/pqw-adapter": {
+      "entry": [
+        "src/cli.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ]
+    },
     "tools/artifact-builder": {
       "entry": [
         "src/index.ts"
