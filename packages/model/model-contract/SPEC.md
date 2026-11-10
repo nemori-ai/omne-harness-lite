@@ -68,27 +68,27 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 
 | 答复 | 含义 | 结局 |
 | --- | --- | --- |
-| `invalid`、`unsupported`、`capacity`、`not-settled` | 这次写入永远不会被接受 | 调用以成因 `persistence` 的失败收场 |
+| `invalid`、`unsupported`、`not-settled` | 这次写入永远不会被接受 | 调用以成因 `persistence` 的失败收场 |
 | `commit-unknown`、`unavailable` | 不知道写入是否成立 | 不收场。保留原写入，宿主在间隔之后再次唤醒，执行方先查询原操作再重放 |
 | `conflict` | 另有写入推进了调用 | 不收场。宿主再次唤醒，执行方按当前修订重新决定 |
 | `stale-instance`、`handoff-invalid`、`denied` | 执行已不属于这个执行方 | 不写终局，不再唤醒 |
 
 成因 `persistence` 的终局是执行方对调用的结论，不是某次发出的事实。它在任何未收场状态下合法：不要求已有 dispatch，不经过重试判定。收场的同一次提交把仍开着的接收窗口记为未证明并关闭，所以收场之后没有窗口再接受事实。它的诊断只带被拒写入的失败种类。
 
-原消费者需要记录的跨边界事实是未发出就失败、真实收场、停止尚未回报，以及消费侧已保存结果。每次重试、首内容边界、容量预留、在途块和费用金额留在本成员。记入标准归原消费者。
+原消费者需要记录的跨边界事实是未发出就失败、真实收场、停止尚未回报，以及消费侧已保存结果。每次重试、首内容边界、份额名额、在途块和费用金额留在本成员。记入标准归原消费者。
 
 受理的最小对接是现行规则。租户身份是参数。缺租户或跨租户默认拒绝。结果确认的前提见[ACK](#ack-的前提与效果)。样例见[双路径 ACK](../model/docs/flows.md#flow-md05)。
 
 | 项 | 规则 |
 | --- | --- |
 | 关联身份 | 调用方在首次 admit 前固定 call 与原 admission operation，可预先编码并保存 reference。 |
-| 必要参数 | 显式 tenant、当前 principal、固定的 call、operation、request、consumer 与 capacity。 |
-| 成功 | 原 call 与结果容量预留在同一提交里成立，返回原 call、revision、recovered 与 reference。受理不等于已实际发出，实际发送另按 S 围栏记录。 |
-| 拒绝 | 结构、当前资格、采用或容量不成立。容量不成立返回 capacity，只表示这个调用永远放不下。同身份异固定输入返回 conflict。不算已经发出。 |
+| 必要参数 | 显式 tenant、当前 principal、固定的 call、operation、request 与 consumer。 |
+| 成功 | 原 call 与它在租户份额里占的一个名额在同一提交里成立，返回原 call、revision、recovered 与 reference。受理不等于已实际发出，实际发送另按 S 围栏记录。 |
+| 拒绝 | 结构、当前资格或采用不成立。同身份异固定输入返回 conflict。不算已经发出。 |
 | 暂时不可用 | 份额此刻被占满或依赖不可用，返回 unavailable，没有受理。调用方等待后以原 call 与原 admission operation 再受理，见[按租户的串行区与公平](#按租户的串行区与公平)。 |
 | 未知 | 按提交前 reference 中的原 call 与 admission operation 认回。只有原 Commands 排除旧写者后的权威 not-accepted 才允许沿原身份重送相同输入。timeout 或路由缺席不证明未受理，不换身份再发。 |
 
-同一 call、原 admission operation 和固定输入重入时，核对当前资格后返回原受理，recovered 为 true。同一 call 换 operation，即使固定输入相同，也返回 conflict。结构、资格、采用与容量的具体拒绝分类沿下文各自规则。
+同一 call、原 admission operation 和固定输入重入时，核对当前资格后返回原受理，recovered 为 true。同一 call 换 operation，即使固定输入相同，也返回 conflict。结构、资格与采用的具体拒绝分类沿下文各自规则。
 
 每次发出的实际供应商、原参数采用、时刻、首内容观察、原状态码、结束原因及费用依据须可追溯。失败记录不被成功覆盖，未知费用不填零。重试和多观察者不得重复登记同一笔真实用量；两次真实发出可能各有费用。
 
@@ -194,11 +194,11 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 
 串行区是一条队列：同一租户的受理、调度、推送与清理的决定与提交在这条队列里按序执行。真实发出、等待与读取不在串行区里串行。槽是按租户分配的并发份额。串行区与槽由 Model runtime 和装配它的宿主（应用层）共同承担，传输与家族适配器只看计数，不做租户裁决。每个租户各有一个串行区。一个租户的决定与提交在自己的串行区里排队，不占用另一个租户的槽。
 
-跨租户的公平由 Model runtime 与装配它的宿主按租户做并发与 deficit round robin（DRR）配额。DRR 是[执行与通信](../../../docs/architecture/deployment/execution-and-communication.md#能力自有资源池与租户调度)已采用的按租户公平策略，本契约沿用它。全局安全上界可以另设。有全局上界时先按租户份额计算，再计算全局。份额内的请求不因别的租户耗尽共享部分而被拒。这与[晚到账目与有界保管](#晚到账目与有界保管)的「租户隔离需要份额预留」是同一条规则，那里的每租户与全局未确认结果数、账目修订数、字节与同时 push 数就是这类份额。
+跨租户的公平由 Model runtime 与装配它的宿主按租户做并发与 deficit round robin（DRR）配额。DRR 是[执行与通信](../../../docs/architecture/deployment/execution-and-communication.md#能力自有资源池与租户调度)已采用的按租户公平策略，本契约沿用它。全局安全上界可以另设。有全局上界时先按租户份额计算，再计算全局。份额内的请求不因别的租户耗尽共享部分而被拒。这与[晚到账目与有界保管](#晚到账目与有界保管)的「租户隔离需要份额预留」是同一条规则，那里的每租户与全局未确认结果数、账目修订数与同时 push 数就是这类份额。
 
 份额用尽时走本契约已有的路径，不新增失败成员，也不无限排队。各类份额的去向如下：
 
-- 结果额度（未确认结果数与字节）在受理前预留。租户份额或全局上界此刻被占满时，admit 返回 unavailable，诊断写明哪一项份额已满，不受理也不排队。调用方按依赖等待，到检查时刻以原 call 与原 admission operation 再受理。只有调用自身的容量大于整个租户份额、全局上界或单调用上界，永远放不下时，admit 才按[调用和各次真实发出](#调用和各次真实发出)的容量不成立分支返回 capacity。两种结果都经 admit 的 Reply 回到调用方。
+- 结果份额按个数计：每个已受理、结果尚未被确认并释放的调用占一个名额，受理时占用，ACK 与清理完成后归还。份额不按字节计：一次调用的请求与结果有多大，只由模型的上下文与最大输出决定。租户份额或全局上界此刻被占满时，admit 返回 unavailable，诊断写明份额已满，不受理也不排队。调用方按依赖等待，到检查时刻以原 call 与原 admission operation 再受理。份额已满只是此刻的状态，所以没有“永远放不下”的拒绝。
 - 同时 push 数用尽时，交付在受理时已预留的有界待办里等待。它不被拒绝，生产者保留原 key 与完整冻结载荷，直到有效交接 ACK 成立（见[交付身份与冻结载荷](#交付身份与冻结载荷)）。
 - 晚账修订份额用尽时，按[晚到账目与有界保管](#晚到账目与有界保管)在接管前拒绝新的晚报告，提交者继续保管可信来源。
 - 接收方自己的额度不足时，接收方对 push 返回[结果推送与保存](#结果推送与保存)已有的 `backpressured`。
@@ -222,7 +222,7 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 
 ### 能力边界
 
-独立执行函数只执行一次真实供应商请求。调用者提供已经准备好的请求与传输能力，承担访问前提及结果。托管调用增加原身份、受理与容量、政策重试、当前资格、耐久输出、控制、ACK 和清理。两层复用请求与传输表示，但不把托管保证赠予独立函数。
+独立执行函数只执行一次真实供应商请求。调用者提供已经准备好的请求与传输能力，承担访问前提及结果。托管调用增加原身份、受理与份额、政策重试、当前资格、耐久输出、控制、ACK 和清理。两层复用请求与传输表示，但不把托管保证赠予独立函数。
 
 Model 不执行工具建议，不决定原工作的终态，不重新运行扩展。活体目录只返回绑定特定实例的观察句柄。原事实、控制与结果领取通过独立操作访问，因此目录失效不解除原责任。普通调用者不能发布实例或传入供应商重试序号。
 
@@ -246,7 +246,7 @@ Model 不执行工具建议，不决定原工作的终态，不重新运行扩�
 
 温度控制采用供应商声明映射的采样温度，top-p 控制累计概率截断，max-output-tokens 限制总生成 token，stop 在命中停止序列时终止生成，reasoning-effort 指定推理强度，seed 固定采样种子，frequency-penalty 按词元已出现的次数降低其概率，presence-penalty 对已出现的词元统一降低概率。供应商不能准确表达时，在发出前返回 `unsupported`，列明字段和映射采用。省略参数表示该固定供应商采用的默认值，默认值须被解析并保存在受理采用中，不能在恢复时随供应商新默认改变。max-output-tokens 的默认值与请求显式值都不得大于档案的 `context.output.provided`。档案变更时违反返回 `invalid`，`prepare` 时违反返回 `invalid`（field 为 `max-output-tokens`）。这是参数比较，不是预算计算。没有该参数时，生成上限仍受 `context.output.provided` 限制。不得将静默丢弃参数记为成功采用。
 
-所有数字字符串在解析时检查范围和实际提供者能力。容量三个字段是非负整数，bytes 与 blocks 必须为正。容量上界覆盖可保管的原输入、流中快照、终局及必要附件引用。提供者若无法在该上界内兑现已承诺结果，应在发出前拒绝，不能靠 ACK 前丢弃已交内容来回收容量。请求组装方在请求前用固定 meter 与 representation 判断输入大小，Model 的准备与发送路径不重复计量。扩展改写后的最终 request 必须重新通过参数、模态与资格校验，输入大小由请求组装方对改写后的输入重新判断。
+所有数字字符串在解析时检查范围和实际提供者能力。提供者不能靠 ACK 前丢弃已交内容来腾出名额。请求组装方在请求前用固定 meter 与 representation 判断输入大小，Model 的准备与发送路径不重复计量。扩展改写后的最终 request 必须重新通过参数、模态与资格校验，输入大小由请求组装方对改写后的输入重新判断。
 
 `argumentsSchema` 是工具声明采用的 JSON Schema 文档，draft 和词汇由其 adoption 指定。Model 检查当前 adapter 能否准确传送，Tool 负责实际参数准入。`JsonValue` 使用现有 lossless JSON 表示，数字为 lexeme，不是 `Record<string, unknown>`。`Message` 的合法形状不证明其中工具结果已获准外传；当前数据来源、内容读取、实际接收方及用途另核。
 
@@ -254,17 +254,17 @@ Model 不执行工具建议，不决定原工作的终态，不重新运行扩�
 
 本节沿 [#549 技术采用](https://github.com/nemori-ai/omne-harness-lite/issues/549#issuecomment-6293911043)及[实施前温度诊断补充](https://github.com/nemori-ai/omne-harness-lite/issues/549#issuecomment-6294780855)。公开形状与原因集合只在 [judge-request.ts](src/judge-request.ts)声明。
 
-judgeFixedModelRequest 接收 unknown；judgeAdmit 接收 typed Access 加 call、operation、request、consumer、capacity 五个 unknown 字段。泛型不把任意输入铸造成可信身份。两者同步捕获 own enumerable data descriptors，在解构、spread、structuredClone、await 或排队前完成。admit 根恰好七字段，P 不遍历、不复制、不序列化、不冻结，tenant 用身份拥有者核铸造并保持同一对象。成功根浅冻结，五个 payload 独立复制并深冻结。调用方原输入不冻结。
+judgeFixedModelRequest 接收 unknown；judgeAdmit 接收 typed Access 加 call、operation、request、consumer 四个 unknown 字段。泛型不把任意输入铸造成可信身份。两者同步捕获 own enumerable data descriptors，在解构、spread、structuredClone、await 或排队前完成。admit 根恰好六字段，P 不遍历、不复制、不序列化、不冻结，tenant 用身份拥有者核铸造并保持同一对象。成功根浅冻结，四个 payload 独立复制并深冻结。调用方原输入不冻结。
 
 副本只接收普通记录（Object.prototype/null 原型）、普通稠密数组及领域允许的原始值。访问器、非枚举、symbol key、稀疏或额外数组字段、非法原型、循环、函数、undefined、symbol、bigint 与二进制对象均拒绝。不会调用 getter 或 toJSON。只捕获输入反射异常为 unreadable，不捕获内部缺陷。Proxy 的反射 trap 可能执行或伪造结果；不能保证中止恶意 trap，也不能限制引擎生成 ownKeys 数组的成本。
 
 全图共用 MODEL_INPUT_LIMITS。上限分别为 100000 值节点、64 容器深度、8388608 单字符串 UTF-16 码元、16777216 字段名与值字符串累计码元、16384 单数组项、64 单记录字段、128 单字段名码元。等于上限可进入后续形状判断，超一单位分别为 budget-nodes/depth/string/strings/array/members/key。根容器深度为1，叶值计节点，数组 length 不计节点或字段。共享 DAG 按每次出现复制、计数，祖先重入为 cycle。admit 根计一个容器；P、tenant 及其两字段名不计 payload 预算，其余五个字段名参与累计。深度和累计预算在分配子结构前检查。它们是解析资源政策，不是供应商 token/context 限额，也不提供实测内存或时延保证。
 
-安全副本和预算先于封闭业务判断。请求有十三个必需字段和一个可选字段 `replay`。`replay` 出现时只能是 `'off'`，其他值返回 `/replay`+value。Adoption、Supplier、credential、Parameter、ParameterAdoption/origin、ToolDeclaration/toolChoice、ConsumerRef、ResultCapacity 均按分支封闭且字段必需。`declarations` 的项数与次序必须与 `suppliers` 相同，否则返回 `/declarations`+value。每项是展开后的完整[回放声明](#推理回放)：三个字段必需，按回放声明的规则核验，失败定位到该项的字段。不静默删除未知字段。Adoption 的 owner/name/revision 非空、digest 为64位小写hex；供应商完整值不得重复；工具名非空且唯一，具名选择必须已声明。ConsumerRef 四字段非空，容量使用规范十进制且 bytes/blocks 为正。ContentBlock、Message/Part、lossless JsonValue 复用各自领域 judge，不读取引用内容或凭据秘密。
+安全副本和预算先于封闭业务判断。请求有十三个必需字段和一个可选字段 `replay`。`replay` 出现时只能是 `'off'`，其他值返回 `/replay`+value。Adoption、Supplier、credential、Parameter、ParameterAdoption/origin、ToolDeclaration/toolChoice、ConsumerRef 均按分支封闭且字段必需。`declarations` 的项数与次序必须与 `suppliers` 相同，否则返回 `/declarations`+value。每项是展开后的完整[回放声明](#推理回放)：三个字段必需，按回放声明的规则核验，失败定位到该项的字段。不静默删除未知字段。Adoption 的 owner/name/revision 非空、digest 为64位小写hex；供应商完整值不得重复；工具名非空且唯一，具名选择必须已声明。ConsumerRef 四字段非空。ContentBlock、Message/Part、lossless JsonValue 复用各自领域 judge，不读取引用内容或凭据秘密。
 
 纯失败只带 field/reason。field 为只含已知字段与索引的 JSON Pointer，根为空字符串；未知键、symbol、超长键定位父对象，不回显键、值或 trap 异常。通用副本可定位最近已知拥有者入口。温度2.1固定返回 `/parameters/0/value`+range；admit 加 `/request` 前缀。未铸造 tenant 为 `/tenant`+identity；runtime、直接 Memory Commands 与 contract testing 将其映射 denied/tenant，其余映射 invalid 并保留 field/reason。
 
-这些受理入口在查询账本、容量预留、调度或发送前复用同一 judge。畸形重放先 invalid；合法同身份异固定输入仍由原账本返回 conflict，原身份同输入仍返回原 recovered/reference。结构通过不证明当前资格、采用、登记或可用容量。sendBinding 复用独立请求 judge，并保留原 request digest 核对。原 validateRequest 规则退出。
+这些受理入口在查询账本、占用份额、调度或发送前复用同一 judge。畸形重放先 invalid；合法同身份异固定输入仍由原账本返回 conflict，原身份同输入仍返回原 recovered/reference。结构通过不证明当前资格、采用、登记或份额有空位。sendBinding 复用独立请求 judge，并保留原 request digest 核对。原 validateRequest 规则退出。
 
 ### 可保存调用引用
 
@@ -294,7 +294,7 @@ Admission 保留 call、revision、recovered 并增加 reference。首次 refere
 
 `not-accepted` 只在原受理操作的排队、旧写者和数据库恢复均排除后返回。暂不可读返回 unavailable，受理提交不明返回 commit-unknown，目录没有路由不调用此分支。拒绝不披露别租户资源是否存在。身份冲突返回获准披露的修订，不回显秘密或无权读取的输入。
 
-`recovered` 只说明认回原受理。受理成功表示容量与原调用共同成立；它不表示供应商收到请求。受理事实、发出意图、真实发送及供应商回执各自保留。外部错误、内部保存失败和策略不可用不能相互冒名。`unclassified` 必须附安全诊断定位，不覆盖已有可识别原因。
+`recovered` 只说明认回原受理。受理成功表示原调用与它的份额名额共同成立；它不表示供应商收到请求。受理事实、发出意图、真实发送及供应商回执各自保留。外部错误、内部保存失败和策略不可用不能相互冒名。`unclassified` 必须附安全诊断定位，不覆盖已有可识别原因。
 
 `DurableEvidence` 是耐久记录定位，摘要只校验内容一致性。ACK 携带的证据里，`owner` 填调用的 `ConsumerRef.owner`；其余字段与摘要，按该 owner 在装配声明里登记的 `evidence` 采用定义。Model 不规定摘要算法，只核证据属于该 owner，并经该 owner 的证据适配器确认其认可。确认者不能用摘要自证已处理或已保管。Model 通过该 owner 的受信证据适配器读取并验证原租户、调用、结果版本、consumer 与位置、当前承接责任及真实耐久状态。processed 记录保存该业务要求的结果和完成事实；retained 记录还保存内容或可恢复引用、必要保留期限及待交付责任。后者不能依赖即将获准清理的 Model 唯一副本。
 
@@ -316,9 +316,9 @@ Settlement.source 由 Model 在原结果真实收场及必要保存共同成立�
 
 每位置曾接受非空填充或真实 trim 才产生 partial。曾非空后 replace 为空仍交付空字符串 partial；只 open 或始终空 fill 且无 trim 不产生结果项。trims 按接受顺序保留 removed/reason，未发生时为空数组。trim 是提醒，不再次删 value 字节，不猜 removed 单位，不由 failed/limit 合成。合法封口文字仍携带此前提醒，工具参数一经真实 trim 便不能封为可执行调用。完整 stop/tool-suggestions 的封口约束只检查该结束事实所在 dispatch，早先纯空失败不污染成功重试，早先真实 trim 仍须保留。
 
-页按完整结果项组装，不分割字符串、块或 trims。`resultPageTargetBytes` 是规范 parts 数组 JSON 的 UTF-8 组页目标，按键递归排序、数组保序，并使用 JSON.stringify 的字符串转义。先放第一项，再在项数和目标均允许时贪心加入后项；首项超目标则独占一页。目标为1或2仍能取得进展。空结果仍有空 parts 和真实 Settlement。Settlement、next 和包装不属于组页目标，但整个 ResultPage 的同口径字节数不得超过原冻结 capacity.bytes，即 C。消费者须能处理接近 C 的页，不能将目标用作更小的硬接收缓冲。
+页按完整结果项组装，不分割字符串、块或 trims。`resultPageTargetBytes` 是规范 parts 数组 JSON 的 UTF-8 组页目标，按键递归排序、数组保序，并使用 JSON.stringify 的字符串转义。先放第一项，再在项数和目标均允许时贪心加入后项；首项超目标则独占一页。目标为1或2仍能取得进展。空结果仍有空 parts 和真实 Settlement。Settlement、next 和包装不属于组页目标。超目标的单项独占一页，所以消费者不能将目标用作硬接收缓冲。
 
-提供者在保存新内容前预留原材料、最终有序 parts/trims、结算、最大游标包装和必要读/控制/承接元数据。纯派生投影仍须占保管额度；终局与证据在首次输入边界受明示有限上限约束，不能先接纳再永久卡在结算或 ACK。保存失败保留合法前缀及原责任，不发布后截断或伪造 limit。页配置在原结果/读源冻结，只接纳该读已发出的 after；同 after 保持同页，当前失权、到期或 ended 优先。ACK 不增加必须读完全部页的条件，原读继续保护全部 parts 和提醒，完全清理释放正文、trim、标记和无用读材料。
+终局与证据在首次输入边界受明示有限上限约束，不能先接纳再永久卡在结算或 ACK。保存失败保留合法前缀及原责任，不发布后截断或伪造 limit。页配置在原结果/读源冻结，只接纳该读已发出的 after；同 after 保持同页，当前失权、到期或 ended 优先。ACK 不增加必须读完全部页的条件，原读继续保护全部 parts 和提醒，完全清理释放正文、trim、标记和无用读材料。
 
 `beginRead` 是第一份内容读取与登记的同一操作，不是空租约申请。它与 ACK 在同一 call 修订上串行裁定。ACK 先提交则返回 acknowledged；读取先提交则 ACK 后可继续这个 read。ACK 之后用原读取 operation 重复 `beginRead` 时，先按 operation 认回原 read，再谈 acknowledged：返回原 `beginRead` 的回答，即未结束的 read 仍给首页（不是读者当前的位置；读者按自己已取得的 next 继续），已结束的 read 给出已结束状态，不再给内容；只有新 operation 才返回 acknowledged。每一页重新核验当前读取资格。一次读取只能取得同一版本，按 next 继续；重复 after 返回同一页，不移动到新结果。
 
@@ -332,7 +332,7 @@ Settlement.source 由 Model 在原结果真实收场及必要保存共同成立�
 
 | 操作 | 固定身份与资格 | 成功及重复 | 失败、取消及恢复 |
 | --- | --- | --- | --- |
-| admit | 原 call、operation、request、consumer、capacity；当前发起资格与消费者关系 | 原调用和容量同提交；同身份同值返回原受理 | 不同固定输入 conflict；未提交拒绝不留发出；未知只查询原 operation。调用方停止等待不撤受理 |
+| admit | 原 call、operation、request、consumer；当前发起资格与消费者关系 | 原调用和份额名额同提交；同身份同值返回原受理 | 不同固定输入 conflict；未提交拒绝不留发出；未知只查询原 operation。调用方停止等待不撤受理 |
 | inspect | invocation reference 中的 call 与原 admission；当前事实读取资格 | found 含最新业务状态、控制及交接；同身份可重查 | 仅有权威未受理证明才给 not-accepted。读失败不推断 runtime 失联 |
 | dispatches | call；当前账目及发出事实读取资格 | 按原发出顺序返回脱敏事实，费用保留 revision；每条记录带这次发出所用固定请求的消息身份序列（`messages`），只有身份，与账目同寿命，清理请求材料时不删除 | 不连带授予请求/回复/秘密读取；晚到费用仍入原 dispatch |
 | cancel | 原 operation、call；当前控制资格 | 持久意图及传播状态；重复认回。同 call 后续同义意图只关联原控制，不追加发出。operation 是保留值（主体以 `--` 开头）时：等于目标调用的派生值且派生控制已存在，认回原控制；其他情况返回 invalid(field='operation') | 不等待物理停机才确认意图。传播失败保存待续做。已经真实完成仍保留真实终局 |
@@ -366,13 +366,13 @@ TransportTermination 不携带托管控制身份。托管协调者消费真实 i
 
 `ModelProvider` 由受信宿主使用，其 runtime 才是普通消费面。admit 同提交保存待调度责任，提交后调用 schedule 唤醒本域独立协程；唤醒失败不撤销已成功的受理。recover 使用显式租户及当前合格的恢复主体调用 scanPending，以稳定分页扫描耐久待办，再逐 call 调用 loadRecovery。分页按原身份排序，在同一轮扫描结束后重扫仍有责任的项目；扫描本身不 claim 或清除待办，新受理和并发完成不丢失原任务。limit 是正整数且服从提供者公开上界，越界拒绝。查询失败保留当前游标和原身份，不返回空完成。
 
-RecoveryRecord 包含原请求、容量、原发起主体引用、原受理、策略决定、代次、未知操作及责任种类。ActorRef 是身份拥有者生成的可核验原事实引用，不是可继续使用的秘密或授权 token。恢复者自己的当前身份与原工作/原发起者适用资格分别检查，不从系统身份推导无限权限。保存所需身份事实不保留原 P 中的秘密。ModelSendBoundary 消费这个原引用，不能把恢复者变成新业务发起者。
+RecoveryRecord 包含原请求、原发起主体引用、原受理、策略决定、代次、未知操作及责任种类。ActorRef 是身份拥有者生成的可核验原事实引用，不是可继续使用的秘密或授权 token。恢复者自己的当前身份与原工作/原发起者适用资格分别检查，不从系统身份推导无限权限。保存所需身份事实不保留原 P 中的秘密。ModelSendBoundary 消费这个原引用，不能把恢复者变成新业务发起者。
 
 schedule 按原 call 去重，不能自行取得执行代次。recover 核实原操作、控制、消费与清理责任后只负责唤醒，不直接 claim。具体提供者的 driver 是执行代次唯一取得者，也负责以有效代次推进清理。quiesce 停止新的业务受理，已受理工作仍可调度和推进，并报告真实 pending/running；它不关闭绑定、不取消业务或宣称卸载完成。绑定 close 才停止新协程派发，未派发工作留在耐久待办供后继接续。进程退出必须兑现旧进程排除条件。
 
 | 提供者操作 | 必须在一次原子裁定中成立的事实 |
 | --- | --- |
-| admit | 当前身份/发起资格、适用消费者工作守卫、固定输入去重、容量与原调用。认回仍检查当前查询资格 |
+| admit | 当前身份/发起资格、适用消费者工作守卫、固定输入去重、份额名额与原调用。认回仍检查当前查询资格 |
 | claim | 原调用与后继实例绑定、旧执行者排除证据、当前资格及新代次。首内容与原控制保留 |
 | scanPending/loadRecovery | 当前恢复主体及显式租户授权、原耐久任务和固定采用。查无活体不删除任务 |
 | prepareDispatch | 当前代次、未取消、未收场、首内容界、合法政策和唯一 dispatch 意图。它不记录供应商已收到 |
@@ -405,7 +405,7 @@ Model 公开面上接受调用方提交的 `ModelOperationId` 的每个方法，
 
 | 值或能力 | 分类与取得 | 缺席、换代和释放 |
 | --- | --- | --- |
-| principal、tenant、call、operation、consumer、request、capacity | 本次操作参数。受理时冻结实际采用 | 资格不合法拒绝；request 缺项拒绝。当前值不覆盖原快照 |
+| principal、tenant、call、operation、consumer、request | 本次操作参数。受理时冻结实际采用 | 资格不合法拒绝；request 缺项拒绝。当前值不覆盖原快照 |
 | 消费者 owner 声明（`work` 与 `evidence`） | 装配声明，由承载受理提交的 ModelCommands 实现持有。受理点 C 先按（租户，operation）认回已有受理：认回时不因当前装配缺这个 owner 而拒绝，返回原受理。只有新受理才核声明，未出现的 owner 返回 invalid(field='consumer.owner') | 受理时冻结进受理事实，规则同「受理时冻结实际采用」。S 点、策略点与 ACK 读冻结值，不读当前装配：删除该 owner、改为免守卫或换参加者版本，都不影响已受理调用。冻结值是提供者自己的耐久事实，不进 `CallState` 或 `RecoveryRecord` 的公开形状，替代提供者同样冻结并在恢复后使用。参加者保留到该调用收场，证据适配器保留到该调用的 ACK 提交。冻结值要求的参加者或证据适配器缺席时，该点按依赖不可用处理，不发出、不跳过守卫、不改按免守卫处理 |
 | commands | 受信提交能力。提供者拥有本域存储、当前资格及提交组合 | 不可用时不能认成功；替换先排除旧写者并接续原操作，不靠清空缓存恢复 |
 | send | 实际发送能力。组合当前授权、[#279](https://github.com/nemori-ai/omne-harness-lite/issues/279) 凭据、真实传输和发送围栏 | 缺席不发；在途连接的资源与未知归旧传输负责，新边界不得复制旧 dispatch |
@@ -414,7 +414,7 @@ Model 公开面上接受调用方提交的 `ModelOperationId` 的每个方法，
 | clock | 时间与等待能力；时间值为 UTC instant | 时钟不可用不虚构超时或许可；取消等待不取消原调用 |
 | signal、PreparedTransport、MaterializedTransport、handle | 临时资源 | 创建者释放，不能序列化；观察 signal 不取消原执行 |
 
-共同协议要求输出队列有界，满时背压；观察者落后时结束该观察并允许快照重连，不能无限保存重复快照。最终结果按完整 sealed/partial 项和目标字节组页，超目标单项独页，整个 ResultPage 仍不得超过原容量 C。已有媒体引用只适用于其合法已封媒体；本协议不承诺任意文字、工具调用或未封值的通用附件化。具体工厂的依赖组合、配置字段、默认值与分页机制归 [model 实现规格](../model/SPEC.md#工厂与配置)。替代提供者满足上述行为，不必采用同一构造形状。
+共同协议要求输出队列有界，满时背压；观察者落后时结束该观察并允许快照重连，不能无限保存重复快照。最终结果按完整 sealed/partial 项和目标字节组页，超目标单项独页。已有媒体引用只适用于其合法已封媒体；本协议不承诺任意文字、工具调用或未封值的通用附件化。具体工厂的依赖组合、配置字段、默认值与分页机制归 [model 实现规格](../model/SPEC.md#工厂与配置)。替代提供者满足上述行为，不必采用同一构造形状。
 
 <a id="342-资格共同提交与实际发送"></a>
 
@@ -422,7 +422,7 @@ Model 公开面上接受调用方提交的 `ModelOperationId` 的每个方法，
 
 本采用资格参加者与 Model 的领域提交，再用共同发送围栏排列实际发送和撤权。它是提供者组合条件，不新建按调用颁发的模型执行许可。资格判断仍由身份与授权及消费者工作守卫拥有。
 
-受理点 C 是资格、为 `ConsumerRef.owner` 声明的消费者工作守卫、Model 原调用及容量的同一次提交。Storage Worker 内只执行已登记参加者的版本化 JSON facts，不接收主线程闭包。资格参加者必须验证事实来源并读取本事务可见的权威资格。主线程之前得到的 allowed 结果不能替代这个检查。不能参加同一事务的远端资格源，需要其拥有者提供等价串行协议后才可采用该组合。
+受理点 C 是资格、为 `ConsumerRef.owner` 声明的消费者工作守卫、Model 原调用及其份额名额的同一次提交。Storage Worker 内只执行已登记参加者的版本化 JSON facts，不接收主线程闭包。资格参加者必须验证事实来源并读取本事务可见的权威资格。主线程之前得到的 allowed 结果不能替代这个检查。不能参加同一事务的远端资格源，需要其拥有者提供等价串行协议后才可采用该组合。
 
 消费者工作守卫是 Model 定义、消费者拥有者实现的端口。守卫按原调用及其 `ConsumerRef` 回答当前是否合格。守卫对某一调用一旦回答不合格，此后对该调用恒回答不合格。消费者此后的资格变化，不使已失去资格的调用恢复资格。Model 不能检测守卫违反这一条，兑现由[组合验证](verification/README.md#持续验证义务)承担。守卫事实形状随资格参加者协议声明，该协议是前置依赖；在它闭合前，受守卫 owner 的装配被拒绝，见下文。owner 到守卫或免守卫的装配声明见 [public-api](docs/public-api.md#消费者-owner-的装配声明)。
 
@@ -696,9 +696,9 @@ invalid 不能回显秘密或完整输入。公开关系失败限上述纯关系
 
 无活体 runtime、业务 execution 终态或正文释放都不解除原保管与账目责任。晚到账目保存和交付待办必须共同成立，每个已接纳修订保留原事实及送达状态，不静默合并未交修订。正文释放后仍扫描和恢复账目待办。dispatches 只恢复最新账目，不替代全部中间事件及待交付事实。
 
-结果沿 `ResultCapacity` 的 bytes、blocks 与 attachmentBytes 受限。规范字节计量递归排序对象键、保留数组顺序，按 JSON 字符串转义编码为 UTF-8；必要附件按实际内容计。最终 envelope 元数据与账目条数同样必须有可计算的有限上限。规范字节量不代表真实堆或磁盘开销，提供者另限其实际资源。
+结果的大小由模型的最大输出决定，本契约不另设字节上限。最终 envelope 元数据与账目条数必须有可计算的有限上限。
 
-生产者限制每租户及全局的未确认结果数、账目修订数与字节、同时 push 数。受理前预留结果额度，接纳晚账前预留账目额度。重试等待即使不占连接，仍占待办。接收方在接管前一起预留材料、责任和去重额度；同 key 认回不重复占逻辑额度。租户隔离需要份额预留，不能只靠可能被单租户耗尽的共享桶。
+生产者限制每租户及全局的未确认结果数、账目修订数与同时 push 数。受理时占一个未确认结果的名额，接纳晚账前预留账目额度。重试等待即使不占连接，仍占待办。接收方在接管前一起预留材料、责任和去重额度；同 key 认回不重复占逻辑额度。租户隔离需要份额预留，不能只靠可能被单租户耗尽的共享桶。
 
 期限只能触发报告、调整或停止新增，不能删除未交接唯一副本。来源仍可能重投且责任未关闭时，不回收去重依据。容量满时拒绝新接管，不删除旧责任腾位。晚报告在接管前因容量拒绝时，提交者继续保管可信来源；无法背压或保留被拒报告的上游不满足无丢失组合前提。有限空间不承诺无限接纳。
 
@@ -849,7 +849,7 @@ M-2 增量不向现有 ModelRuntime、ModelHandle、Supplier 或 Observation 增
 
 ### 持续验证义务
 
-结果协议须覆盖保存后丢回包、材料与责任提交之间崩溃、同 key 重投及异内容、account/result 回执分离、取消与撤权、ACK 未知、清理失败、正文释放后晚账、容量及租户份额。状态探索至少区分源仍保管、材料已存、原责任与去重成立、saved 已观察、ACK 未知或成立、清理及 late-account pending。检查唯一副本不先释放、saved 合取不缺项、同 key 不增加第二责任、正文清理不消晚账待办。模型须说明有限范围、不可达与公平前提，并以故意破坏上述规则的反例核验检测能力。
+结果协议须覆盖保存后丢回包、材料与责任提交之间崩溃、同 key 重投及异内容、account/result 回执分离、取消与撤权、ACK 未知、清理失败、正文释放后晚账及租户份额。状态探索至少区分源仍保管、材料已存、原责任与去重成立、saved 已观察、ACK 未知或成立、清理及 late-account pending。检查唯一副本不先释放、saved 合取不缺项、同 key 不增加第二责任、正文清理不消晚账待办。模型须说明有限范围、不可达与公平前提，并以故意破坏上述规则的反例核验检测能力。
 
 观察验证须覆盖快照与登记间提交、state-only、错租户或调用/producer/ref、旧流 cursor、sealed 修改、同终点不同 from、排队后撤权、慢读超限及无终止 EOF。保持旧 Observation、ModelHandle 已建立的消费闭包。[#787](https://github.com/nemori-ai/omne-harness-lite/issues/787) 完成迁移后本句退出。current 验证包括同边界 state/target、两类 null、终局仍有投影、退役窗口及晚回响应。
 

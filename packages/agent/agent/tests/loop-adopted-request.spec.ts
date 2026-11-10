@@ -52,13 +52,12 @@ function stateOf(action: string): Preparation['state'] {
  */
 function preparing(purpose: (action: string) => Preparation['purpose'] = () => 'main') {
   const prepare: PrepareAnswer = input => {
-    const { request, capacity, ...common } = readyPreparation(input)
+    const { request, ...common } = readyPreparation(input)
     if (input.previous !== null)
       return succeed({
         ...common,
         kind: 'ready',
         request,
-        capacity,
         state: stateOf(input.action),
         purpose: purpose(input.action),
       })

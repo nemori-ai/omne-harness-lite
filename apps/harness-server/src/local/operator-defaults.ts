@@ -116,15 +116,13 @@ const PREPARATION = {
 
 /**
  * How many model calls of the one tenant may be in flight at once. The tenant's share in
- * `model-records` is this many result capacities of one call, and every bound on the way of a call
+ * `model-records` is this many unacknowledged results, and every bound on the way of a call
  * (host drives, result pushes, send claims, materialized transports, connections) admits as many.
  */
 export const LOCAL_CONCURRENT_MODEL_CALLS = 20
 
-/** The result capacity of one call; at most `maxCallBytes` of model-records (N1). */
 /** G of the Tool ledger: the runtime and the sweep row take the same value. */
 const TOOL_ORPHAN_GRACE_MS = 60_000
-const CALL_RESULT_CAPACITY = { bytes: 524_288, blocks: 100, attachmentBytes: 0 } as const
 
 const MODEL_HOST = {
   host: {
@@ -152,16 +150,7 @@ const MODEL_HOST = {
   },
 } as const
 
-/** `count` result capacities of one call, in the decimal text of the row configurations. */
-function capacityText(call: typeof CALL_RESULT_CAPACITY, count: number) {
-  return {
-    bytes: String(call.bytes * count),
-    blocks: String(call.blocks * count),
-    attachmentBytes: String(call.attachmentBytes * count),
-  }
-}
-
-/** The storage provider's command bound. `model-records` and `tool-records` use the same value. */
+/** The storage provider's command bound. `tool-records` uses the same value. */
 const MAX_COMMAND_BYTES = 1_048_576
 
 function modelRecords(combinationVersion: string) {
@@ -178,10 +167,8 @@ function modelRecords(combinationVersion: string) {
       resultPageParts: 16,
       resultPageTargetBytes: MODEL_HOST.runtime.resultPageTargetBytes,
       readIdleMs: MODEL_HOST.runtime.readIdleMs,
-      capacity: capacityText(CALL_RESULT_CAPACITY, LOCAL_CONCURRENT_MODEL_CALLS),
+      unacknowledgedResults: LOCAL_CONCURRENT_MODEL_CALLS,
     },
-    maxCallBytes: CALL_RESULT_CAPACITY.bytes,
-    maxCommandBytes: MAX_COMMAND_BYTES,
     combinationVersion,
     send: { mirrorBytes: 4_194_304, maxClaims: LOCAL_CONCURRENT_MODEL_CALLS },
     // The read face `modelDiagnostics`: a tenant reads its own calls; the retention is a placeholder adoption.
@@ -585,7 +572,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       'request-context',
       { limits: { maxTargets: 64, maxFactsPerTarget: 64, maxRevisionsPerDispatch: 16 } },
     ],
-    ['agent-context', { resultCapacity: capacityText(CALL_RESULT_CAPACITY, 1) }],
+    ['agent-context', {}],
     ['agent-host', AGENT_HOST],
     ['session-ad03', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
     ['session-ad04', { scopeIndexEntries: 4096, pageBytes: 65_536 }],

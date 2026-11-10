@@ -15,7 +15,7 @@ This package owns public domain values, operation interfaces, replaceable provid
 
 Start with [consumer guidance](docs/context.md). The root entry exports the consumer-side types and a small set of runtime values, the `./provider` entry exports the ports and contract functions that only provider authors and the Model implementation use, the `./testing` entry exports a scripted provider, a scripted transport, three public doubles and the profile and preparation doubles, and the `./conformance` entry exports the provider conformance suite, as the [public API](docs/public-api.md) states. The package contains no execution implementation: select one when the application needs execution.
 
-Final pages contain ordered sealed or partial parts and actual trim notices. Handle both variants before acknowledging the result. A page target groups whole parts. An oversized part has its own page, bounded by the admitted capacity. Consumers must accept pages near that capacity. See the [result guidance](docs/public-api.md#最终结果项与页预算).
+Final pages contain ordered sealed or partial parts and actual trim notices. Handle both variants before acknowledging the result. A page target groups whole parts. A part larger than the target has its own page, so the target is not a hard limit for the receiver. See the [result guidance](docs/public-api.md#最终结果项与页预算).
 
 Persist `ModelInvocationRef` before admission. Use it with current Access for inspect, connect and beginRead. Admission returns the same reference alongside call, revision and recovered. `ModelOperationRef` packages ACK identity while the consumer retains the original result and evidence. See the [reference contract](SPEC.md#可保存调用引用).
 

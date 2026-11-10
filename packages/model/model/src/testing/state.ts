@@ -7,11 +7,10 @@ import type {
   ModelCallId,
   ModelFailure,
   ModelOperationId,
-  ResultCapacity,
 } from '@omne-harness/model-contract'
 import type { ExecutionRef } from '@omne-harness/model-contract/provider'
 import { createModelCommandsCore } from '../commands/index.ts'
-import { encodedBytes, materialBytes } from '../commands/judge.ts'
+import { encodedBytes } from '../commands/judge.ts'
 import { copyCall, type CallAccessInput, type ModelCommandCore } from '../commands/state.ts'
 import type { CommandWrite, ModelCommandStorage, RunScope } from '../commands/storage.ts'
 import type { Binding, CallDocument, TenantDocuments } from '../commands/types.ts'
@@ -62,8 +61,6 @@ export class MemoryState<P> implements ModelCommandStorage {
             resultPageParts: input.resultPageParts,
             resultPageTargetBytes: input.resultPageTargetBytes,
           }
-          if (materialBytes(call) > BigInt(call.capacity.bytes))
-            throw new RangeError('result paging exceeds call capacity')
           this.publish(key, call)
         }),
       injectUnknown: input =>
@@ -135,17 +132,12 @@ export class MemoryState<P> implements ModelCommandStorage {
   documents(key: string): TenantDocuments {
     return this.root(key)
   }
-  /** The memory storage sums every tenant: its capacity is one bound for the whole assembly. */
-  reserved(field: keyof ResultCapacity): bigint {
-    return [...this.roots.values()].reduce(
-      (total, state) =>
-        total +
-        [...state.calls.values()].reduce(
-          (n, call) => n + (call.request === null ? 0n : BigInt(call.capacity[field])),
-          0n,
-        ),
-      0n,
-    )
+  /** The memory storage counts every tenant: its share is one bound for the whole assembly. */
+  held(): number {
+    let held = 0
+    for (const state of this.roots.values())
+      for (const call of state.calls.values()) if (call.request !== null) held += 1
+    return held
   }
   /** An injected unknown makes the write unresolved; `not-applied` leaves the call unchanged. */
   commit(key: string, write: CommandWrite): 'committed' | 'unknown' {

@@ -152,7 +152,7 @@ function memoryCommands() {
       resultPageParts: 1,
       resultPageTargetBytes: 1024,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
+      unacknowledgedResults: 10,
     },
   }).commands
 }
@@ -649,7 +649,6 @@ it('does not drive a call without trusted input, and the durable pending work st
       operation: unbox(decodeModelOperationId('mop_admit')),
       request,
       consumer: { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' },
-      capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
     }),
   )
   // The restarted process cannot show that the old one ended: the authority has no input to give.

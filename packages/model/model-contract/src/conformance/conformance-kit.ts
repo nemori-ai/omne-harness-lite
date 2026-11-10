@@ -186,7 +186,6 @@ export function admitInput<P>(
     operation: operationId(`admit-${label}`),
     request: scene.request,
     consumer: scene.consumer,
-    capacity: scene.capacity,
     ...over,
   }
 }
@@ -200,7 +199,6 @@ export function copyOfAdmit<P>(input: Admit<P>): Admit<P> {
     ...input,
     request: structuredClone(input.request),
     consumer: structuredClone(input.consumer),
-    capacity: structuredClone(input.capacity),
   }
 }
 

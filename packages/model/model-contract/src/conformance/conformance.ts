@@ -3,7 +3,7 @@
 import { admissionChecks } from './conformance-admission.ts'
 import { boundedSubject } from './conformance-bounded.ts'
 import { controlChecks } from './conformance-control.ts'
-import { DEFAULT_CAPACITY, DEFAULT_CONSUMER, DEFAULT_REQUEST } from './conformance-defaults.ts'
+import { DEFAULT_CONSUMER, DEFAULT_REQUEST } from './conformance-defaults.ts'
 import { within } from './conformance-kit.ts'
 import { observationChecks } from './conformance-observation.ts'
 import { routeChecks } from './conformance-routes.ts'
@@ -105,7 +105,6 @@ async function runBody<P>(
     subject: boundedSubject(subject, waitMs),
     request: subject.request ?? DEFAULT_REQUEST,
     consumer: subject.consumer ?? DEFAULT_CONSUMER,
-    capacity: subject.capacity ?? DEFAULT_CAPACITY,
     waitMs,
   }
   try {

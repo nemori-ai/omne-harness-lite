@@ -147,11 +147,6 @@
               "pending": false
             },
             {
-              "name": "ResultCapacity",
-              "kind": "type",
-              "pending": false
-            },
-            {
               "name": "Admit",
               "kind": "type",
               "pending": false

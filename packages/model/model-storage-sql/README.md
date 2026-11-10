@@ -34,12 +34,10 @@ const { commands } = createSqlModelCommands({
   storage,
   domains,
   combination,
-  maxCallBytes,
-  maxCommandBytes,
 })
 ```
 
-`commands` has the 22 methods of `ModelCommands`. The shared core runs each method with `run(work, scope)` of the storage. The scope gives the tenant, the call, and, for a write, the operation. In `work` the core reads with `documents` and `reserved`, and it writes one time with `commit` or `publish`. After a CAS conflict, the run reads again and runs the work again. `scanPending` uses the `pending` port of the storage and does not run an attempt.
+`commands` has the 22 methods of `ModelCommands`. The shared core runs each method with `run(work, scope)` of the storage. The scope gives the tenant, the call, and, for a write, the operation. In `work` the core reads with `documents` and `held`, and it writes one time with `commit` or `publish`. After a CAS conflict, the run reads again and runs the work again. `scanPending` uses the `pending` port of the storage and does not run an attempt.
 
 The factory also accepts an optional `initialRun`, `observation: { limits, timing }`, and `reportConfirmation`. It returns `initial` and `observations`, each `null` when disabled. All enabled parts share one core. Initial records remain process-local and add no SQL takeover table. See [final confirmation and private ports](SPEC.md#最终确认与私有侧口).
 
@@ -71,7 +69,7 @@ The application must supply these mappings:
 | `options.inject`                             | Supply the complete list of service key constants needed by `resolve`. Exclude `modelCommands`, which this plugin provides.                                                                                                                                                |
 | `options.resolve(ctx, config)`               | Return `storage`, `domains`, `clock`, `authority`, `evidence`, `sources`, and `manifestDigest` for this activation. The application owns policy and the registered storage combination.                                                                                    |
 | `options.sendStage(coordinator, activation)` | Return `{ plugin, config }` for the existing send stage. For the local host, call `createModelSendStagePlugin` from `@omne-harness/model-host-local/cordis` with this coordinator and the application's remaining send options. Its config supplies `maxRetainedAttempts`. |
-| `config`                                     | Supply `owners`, all `limits` fields, `maxCallBytes`, `maxCommandBytes`, `combinationVersion`, and `send: { mirrorBytes, maxClaims }`. This entry supplies no numeric defaults.                                                                                            |
+| `config`                                     | Supply `owners`, all `limits` fields, `combinationVersion`, and `send: { mirrorBytes, maxClaims }`. This entry supplies no numeric defaults.                                                                                            |
 
 All 22 methods delegate to one SQL command instance. Only the closure passes its coordinator to the send factory. No coordinator service key exists. Do not include the send child's credential dependency in the records dependency list unless `resolve` itself requires it. The send child declares its own dependencies.
 
@@ -113,7 +111,7 @@ Without Cordis, call `createSqlModelDiagnostics({ storage, domains, authority, d
 
 ## Contracts
 
-The public types and the runtime checks are in [src/](src/index.md). The behavior is in the [SPEC](SPEC.md). The SPEC also records how this package meets the storage port of the shared core, and the invariants N1, N2, N3, N5, N6, and N7. The types of the storage port belong to `@omne-harness/model/commands`. The root entry exports them again without change.
+The public types and the runtime checks are in [src/](src/index.md). The behavior is in the [SPEC](SPEC.md). The SPEC also records how this package meets the storage port of the shared core, and the invariants N2, N3, N5, N6, and N7. The types of the storage port belong to `@omne-harness/model/commands`. The root entry exports them again without change.
 
 ## Design
 
@@ -129,16 +127,14 @@ Each column is declared one time, in `TABLES` of `src/schema.ts`. The migration,
 | `authority`       | The qualification port of the shared core                                              |
 | `evidence`        | The evidence adapters of the shared core                                               |
 | `clock`           | The clock of the shared core                                                           |
-| `limits`          | The limits of the shared core. `limits.capacity` is the share of one tenant            |
+| `limits` | The limits of the shared core. `limits.unacknowledgedResults` is the share of one tenant: a count of unacknowledged results |
 | `storage`         | The `SqlStorage` of the application                                                    |
 | `domains`         | The `TenantDomainLookup` of the application                                            |
 | `combination`     | The combination version and manifest digest that the application registered            |
-| `maxCallBytes`    | The largest call material                                                              |
-| `maxCommandBytes` | The `maxCommandBytes` of the provider                                                  |
 | `attemptLimit`    | Rounds of one run, default 8. Attempt generations have no limit                        |
 | `unresolvedLimit` | Operations with an unknown outcome that the process keeps for one tenant, default 1024 |
 
-Construction fails when `maxCallBytes` plus the 64 KiB command reserve is more than `maxCommandBytes` (N1), and when `limits.scanPageCalls` is more than 1000. A call whose `capacity.bytes` is more than `maxCallBytes` is refused when it is admitted.
+Construction fails when `limits.scanPageCalls` is more than 1000.
 
 ## Verification
 

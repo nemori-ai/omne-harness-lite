@@ -8,7 +8,6 @@ import type { FixedModelRequest } from '@omne-harness/model-contract'
 import { createCertificate, startHttpsServer } from './support/https-server.ts'
 import {
   ACCESS,
-  CAPACITY,
   CONSUMER,
   REQUIRED,
   assembleLine,
@@ -70,7 +69,6 @@ it('checks a fixed request recovered from SQLite under the new send activation p
       operation: op('admit-disclosure-recovered'),
       request,
       consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'line-e2e' },
-      capacity: CAPACITY,
     }
     decoded(await first.admit(input))
     expect(decoded(await first.loadRecovery({ ...ACCESS, call })).state.phase).toBe('accepted')

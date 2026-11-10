@@ -13,7 +13,7 @@ import {
   type SendDemand,
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
-import { executionFailure, verdictOf, type WriteVerdict } from './execution-write.ts'
+import { executionFailure, verdictOf, type WriteVerdict } from './commands/execution-write.ts'
 
 type Open = Parameters<ModelCommands<unknown>['openReceiveWindow']>[0]
 type Preserve = Parameters<ModelCommands<unknown>['preserve']>[0]

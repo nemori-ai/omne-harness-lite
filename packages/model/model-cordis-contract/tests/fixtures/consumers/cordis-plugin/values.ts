@@ -20,7 +20,6 @@ import {
   type ModelCallId,
   type ModelInstanceId,
   type ModelOperationId,
-  type ResultCapacity,
   type Revision,
   type Supplier,
 } from '@omne-harness/model-contract'
@@ -99,8 +98,6 @@ const consumer: ConsumerRef = {
   purpose: 'purpose',
 }
 
-const capacity: ResultCapacity = { bytes: '1000', blocks: '10', attachmentBytes: '0' }
-
 /** The operation under which the call `name` is admitted; the plugin looks the call up by it. */
 export const admissionOf = (name: string): ModelOperationId => operation(`admit-${name}`)
 
@@ -111,7 +108,6 @@ export const admission = (name: string): Admit<Principal> => ({
   operation: admissionOf(name),
   request,
   consumer,
-  capacity,
 })
 
 /**

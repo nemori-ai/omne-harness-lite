@@ -49,7 +49,7 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 
 本章给所有调用方：身份品牌与解码函数、受理请求的值形状与共享封闭判断。
 
-`judgeFixedModelRequest(unknown)` 判断独立固定请求。`judgeAdmit<P>(ModelAdmitCandidate<P>)` 保留 typed Access，只将五个 payload 字段视为未知输入。二者返回现有 Outcome。成功值独立深冻结；admit 根浅冻结，P 与已铸造 tenant 保持原对象。失败为 ModelInputRejection 的 field/reason，field 是规范 JSON Pointer。字段集合、资源限制、失败顺序与 Proxy 限制归 [SPEC](../SPEC.md#封闭输入判断)。结构通过不授予资格、采用或容量。
+`judgeFixedModelRequest(unknown)` 判断独立固定请求。`judgeAdmit<P>(ModelAdmitCandidate<P>)` 保留 typed Access，只将四个 payload 字段视为未知输入。二者返回现有 Outcome。成功值独立深冻结；admit 根浅冻结，P 与已铸造 tenant 保持原对象。失败为 ModelInputRejection 的 field/reason，field 是规范 JSON Pointer。字段集合、资源限制、失败顺序与 Proxy 限制归 [SPEC](../SPEC.md#封闭输入判断)。结构通过不授予资格、采用或容量。
 
 - 再导出：`Adoption` 与 `ConsumerRef` 的唯一定义在 [exchange-refs](../../../common/exchange-refs/SPEC.md)，`Access` 的唯一定义在 legal-identity。root.ts 以原名再导出它们。封闭判断与 64 位小写十六进制的摘要规则留在本包。
 - 声明：[`src/root.ts`](../src/root.ts)、[`src/identity-values.ts`](../src/identity-values.ts)、[`src/provider-name.ts`](../src/provider-name.ts)、[`src/reference.ts`](../src/reference.ts)、[`src/judge-request.ts`](../src/judge-request.ts)、[`src/input-tree.ts`](../src/input-tree.ts)。
@@ -116,7 +116,7 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 
 ResultPart 与 ResultTrim 的定义见 [call-surface.ts](../src/call-surface.ts)。ResultPage.parts 按页序交付 sealed 或 partial；二者都带真实 trims。消费者先按 kind 分支，sealed 进入完整块处理，partial 进入未封值保管。partial 的工具参数即使可解析也不是 ToolCallPart。未封 voice 不带推测的媒体类型，thinking 的保管不授予展示权。
 
-页目标计规范 parts 数组的 UTF-8 JSON 字节。它不含 Settlement、next 与页包装。首项超目标仍完整独页，整个 ResultPage 不超过原容量 C。消费者须能接收接近 C 的单页，并在有效处理或保管整个结果后提供原 ACK 证据。读取结束本身不证明承接。具体顺序、纯空状态、真实 trim 与固定页规则归 [SPEC](../SPEC.md#342-普通调用面与实例观察)。
+页目标计规范 parts 数组的 UTF-8 JSON 字节。它不含 Settlement、next 与页包装。首项超目标仍完整独页，所以消费者不能把目标当作硬接收上限。消费者在有效处理或保管整个结果后提供原 ACK 证据。读取结束本身不证明承接。具体顺序、纯空状态、真实 trim 与固定页规则归 [SPEC](../SPEC.md#342-普通调用面与实例观察)。
 
 ## 逐操作行为
 
@@ -319,7 +319,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 
 `@omne-harness/model-contract/testing` 入口给领域外的协调者测试用。它提供一个按脚本行事的 `ModelProvider` 和一个按脚本行事的 `ModelTransport`，用来练习失败路径上的决策。本入口另有下文的五个公开替身。替代件与替代传输不运行模型，不保存任何耐久状态，受理先执行共同封闭输入判断，不读取媒体，只核验脚本登记过的证据，也不导入任何具体提供者、Cordis、pi 或厂商 SDK。状态都在闭包里，不读系统时钟。脚本结算的 parts 与每项 trims 必须是无空位的数组，每条 trim 都须有合法 removed/reason。非法输入抛出 ScriptedModelError，reason 为 invalid-script，并保留原生命周期。符合性断言在另一个入口 `./conformance`（见[符合性断言](#符合性断言)），任何提供者都可以用它检查自己；本入口只带一个把替代提供者接成被测方的函数。
 
-`controller.settle` 显式接收 parts、pageSize 和 pageTargetBytes，不从 play 自动结算。它校验最终项、真实 trim 的形状和原受理容量，在发布结算前按固定页源深复制。首项总能入页，超目标单项独页；后项按规范 parts 数组字节及项数贪心组页。整个 ResultPage（含 Settlement、next 和包装）不得超过原 C。超额或非法输入抛 ScriptedModelError，保留原生命周期。配置或返回对象的后续修改不改变原结果。具体领取与 partial 资格见 [普通调用面](#普通调用面与实例观察)。
+`controller.settle` 显式接收 parts、pageSize 和 pageTargetBytes，不从 play 自动结算。它校验最终项与真实 trim 的形状，在发布结算前按固定页源深复制。首项总能入页，超目标单项独页；后项按规范 parts 数组字节及项数贪心组页。非法输入抛 ScriptedModelError，保留原生命周期。配置或返回对象的后续修改不改变原结果。具体领取与 partial 资格见 [普通调用面](#普通调用面与实例观察)。
 
 脚本给出什么结果，替代件就给出什么结果，由脚本作者对结果负责。它证明协调者怎样处理契约面上的可观察结果，不证明生产提供者的真实发送、持久化与恢复。脚本给出的 `not-committed` 是脚本的回答，不是存储的完整排除证明（[SPEC](../SPEC.md#342-独立执行与提供者操作)对 `query` 的要求）。
 
@@ -413,7 +413,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 
 `checkModelProviderConformance` 对一个被测方逐条检查契约在公开面上可观察的义务，返回报告。它只经公开面驱动：`ModelProvider.runtime` 的 `calls`、`consumption`、`instances`，`quiesce`，以及可选的 `ModelTransport` 的 `prepare`、`materialize`、`start`。它不读系统时钟，不导入具体提供者，也不拿 `ModelCommands` 这条深接缝。
 
-被测方由 `subject` 工厂给出，每条检查调用一次，所以一条检查不会看到另一条留下的状态。工厂给出的 `ConformanceSubject` 带提供者、一个有权操作 `tenant` 的主体、另一个租户 `otherTenant`，以及可选的请求值、钩子和传输。请求、消费者与容量缺省时用套件自带的值，它们对真实提供者没有意义，真实提供者要给自己接受的值。
+被测方由 `subject` 工厂给出，每条检查调用一次，所以一条检查不会看到另一条留下的状态。工厂给出的 `ConformanceSubject` 带提供者、一个有权操作 `tenant` 的主体、另一个租户 `otherTenant`，以及可选的请求值、钩子和传输。请求与消费者缺省时用套件自带的值，它们对真实提供者没有意义，真实提供者要给自己接受的值。
 
 有些准备只有装配提供者的一方能做：让调用开始运行、收场并带上耐久证据，撤除或替换实例，撤销主体资格，让目录不可达，让下一次写操作回答 `commit-unknown`。这些由被测方通过可选的 `hooks` 提供。`not-applicable` 不算通过，它有三个来源：被测方没给义务需要的钩子；被测方没给义务需要的传输；结果只有一页，使三条读取义务无法检查，即 `read-page-stable-for-same-after`、`acknowledge-keeps-open-read-readable`、`revoked-reader-gets-no-page`，原因写「提供者把整个结果作为一页给出」。每个钩子的契约写在它的声明旁：`showFacts` 把上游事实当作执行会收到的那样交给运行中的调用，提供者拒绝的事实终止处理，钩子不为此抛错；`settleCall` 对已经收场的调用不做任何事，套件给出的 `pageSize` 与 `pageTargetBytes` 是项数上界与规范 parts 数组字节组页目标。它通过 startRun/settleCall 准备确定的混合 parts，再从普通消费面核值、顺序、trims 和终局；有钩子却丢值或提醒属于失败。传输义务需要 `transport`，其 `sends()` 报告已经离开传输的业务请求数，传输的事实流须以终止事实结束。
 

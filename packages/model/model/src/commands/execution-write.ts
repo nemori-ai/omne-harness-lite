@@ -23,7 +23,6 @@ export function verdictOf(failure: ModelFailure): WriteVerdict {
       return 'superseded'
     case 'invalid':
     case 'unsupported':
-    case 'capacity':
     case 'not-settled':
       return 'refused'
   }

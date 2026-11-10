@@ -29,7 +29,6 @@ import {
 } from '@omne-harness/sql-contract/worker'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
-  COMMAND_RESERVE_BYTES,
   DIAGNOSTICS_PAGE_MAX,
   createSqlModelDiagnostics,
   createSqlModelStorage,
@@ -43,7 +42,6 @@ import { createSqlModelDiagnosticsPlugin } from '@omne-harness/model-storage-sql
 import {
   ADOPTION,
   DIGEST,
-  MAX_CALL_BYTES,
   OWNER,
   REQUEST,
   callId,
@@ -130,7 +128,6 @@ function callOf(
     },
     request: REQUEST,
     requestDigest: DIGEST,
-    capacity: { bytes: '1000', blocks: '10', attachmentBytes: '0' },
     initiator: { owner: 'identity', subject: 'trusted-0', revision: '1' },
     admission,
     owner: OWNER,
@@ -186,9 +183,7 @@ function scene(registered: readonly string[] = [textOf(A), textOf(B)]) {
     domains,
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
     limits: {
-      tenantCapacity: core.options.limits.capacity,
-      maxCallBytes: MAX_CALL_BYTES,
-      maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
+      tenantResults: core.options.limits.unacknowledgedResults,
     },
   })
   const dependencies = { storage: sqlite.storage, domains, authority: core.options.authority }

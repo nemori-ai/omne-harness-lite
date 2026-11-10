@@ -135,7 +135,7 @@
 
 ### 请求准备
 
-<a id="requests"></a>`createAgentRequests(options)` 返回 `RequestPreparation` 加 `close()`。参数：材料库、K-RQ 部件、Request Context 的登记面与操作组（`register`、`assembly`）、Model 准备资源（X-3）、转换件结果读口、Model 请求准备、结果容量、第六组读口、步骤结果读口，以及可选的定义读口 `definitions`（缺省为 `absentDefinitions`）。
+<a id="requests"></a>`createAgentRequests(options)` 返回 `RequestPreparation` 加 `close()`。参数：材料库、K-RQ 部件、Request Context 的登记面与操作组（`register`、`assembly`）、Model 准备资源（X-3）、转换件结果读口、Model 请求准备、第六组读口、步骤结果读口，以及可选的定义读口 `definitions`（缺省为 `absentDefinitions`）。
 
 <a id="requests-groups"></a>字段对应以 request-context-contract 的[字段对应](../request-context-contract/docs/context.md#字段对应)为准。本包在该表之外的取法：
 
@@ -171,7 +171,7 @@
 | Request Context 的结局             | 本包的结果                                                                                                                                                                                                         |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 候选成立，还要过扩展位置           | `assembled`：`input` 是候选的组装输入，`coverage` 是覆盖证据，`budget` 是预算报告证据，`recipient` 是 `selection.recipient`                                                                                        |
-| 候选成立，可固定                   | 把候选交 Model 请求准备，得 `ready`：`request` 是 Model 的固定请求，`capacity` 是配置的结果容量，`state` 是固定那一刻的 `FixedRequestRecord`（`encodeFixedRequestRecord`，取值见下）。模态依据取候选的历史模态约束 |
+| 候选成立，可固定                   | 把候选交 Model 请求准备，得 `ready`：`request` 是 Model 的固定请求，`state` 是固定那一刻的 `FixedRequestRecord`（`encodeFixedRequestRecord`，取值见下）。模态依据取候选的历史模态约束 |
 | 需要压缩                           | 同一次调用里调用 `planCompaction`。计划成立得 `needs-compaction`：进度是计划证据、计划的步数上界与零步。计划存进材料库                                                                                             |
 | 计划不成立（保留下限超出预算）     | `cannot-fit`，原因 `after-compaction`                                                                                                                                                                              |
 | 装不下：固定部分超限、压缩后仍超限 | `cannot-fit`，原因依次为 `fixed`、`after-compaction`                                                                                                                                                               |
@@ -232,7 +232,7 @@
 
 - `inject`：`requestContext`、`contextHolderSources`（K-RQ）、`runtimeContextReaderEligibility`（K-RC）、`runtimeContext`（对象形式 `{ consumer: 'model' }`）、`modelRequestPreparation`、`modelPreparationResources`（X-3）、`agentAdoptions`（定义读口的来源）。任一缺席时插件停在 `PENDING`，两个键都不提供，不登记半套。
 - X-3 的 Cordis 定义归 model-cordis-contract，现在还没有。插件按键名 `modelPreparationResources`（导出常量 `MODEL_PREPARATION_RESOURCES`）`inject`，值按 model-contract 的 `ModelPreparationResources` 类型使用（[X3-KEY](#已知限制)）。
-- 配置：`owner`（采用身份）、`resultCapacity`（三项十进制文本）、可选的 `materials`（正安全整数，默认 256）。不合的配置使加载失败。
+- 配置：`owner`（采用身份）、可选的 `materials`（正安全整数，默认 256）。不合的配置使加载失败。
 - 构造时在本 fiber 上取一次 K-RQ 租借。交给持有者的结算函数是 `agentRequests` 的 `close()`。租借不可得时两个服务都答 `unavailable`，`owner` 为 `context-holder`，诊断是持有者的原因。
 - fiber 结束时，租借结束，持有者拉取结算，本包撤除全部登记。持有者在结算结束之后才关读口。材料库结束全部读者并清空。仍被持有的旧引用答 `unavailable(agent-context-closed)`。
 - 当前插件的组六用 `toolsSourceOf(toolLookup)`，其中 `toolLookup` 由 `createAgentContextPlugin({ toolLookup })` 交入，不交时是 `absentToolLookup`。其余用 `absentStepResults`、request-context 的 `createAbsentConversionResults`，以及 `definitionSourceOf(ctx.agentAdoptions)` 作为定义读口。
@@ -311,7 +311,6 @@ IC-19 分类（「协议给」不论部署都由契约协议兑现，「装配�
 | MATERIAL-SCOPE-END    | 作用域结束后，材料只在下一次读取答 `scope-ended` 时删除，其余靠容量淘汰                                                                                                                                                                                             | 同 REG-NO-EVICT                                                                                                                                                      |
 | BLOCK-PREVIOUS        | 块材料的前值（`previous`）总是 `null`，提醒里不带前值                                                                                                                                                                                                               | 第一个带前值的块（描述符 `carriesPrevious`）进入模型请求                                                                                                             |
 | X3-KEY                | 插件按键名 `modelPreparationResources` 注入 Model 准备资源，没有导入 model-cordis-contract 的键常量与抽象服务                                                                                                                                                       | L-MODEL 交付 X-3 的键与抽象服务时，改为导入键常量，形状不变                                                                                                          |
-| RESULT-CAPACITY       | `ready` 的结果容量取插件配置。Model 请求准备不返回容量，字段对应表没有写它的来源                                                                                                                                                                                    | 结果容量有了拥有者与端口时，改为从该端口取                                                                                                                           |
 
 ### 持续验证
 

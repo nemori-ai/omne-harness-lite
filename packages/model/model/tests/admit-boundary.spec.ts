@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import { judgeAdmit, type ModelCommands } from '@omne-harness/model-contract/provider'
 import { createModelRuntime } from '@omne-harness/model'
 import { createTestModelDependencies } from '@omne-harness/model/testing'
-import { callId, fixture, op, unbox } from './memory-fixture.ts'
+import { fixture, unbox } from './memory-fixture.ts'
 import { configuration } from './runtime-fixture.ts'
 
 function setup() {
@@ -124,34 +124,21 @@ for (const boundary of ['runtime', 'commands'] as const) {
     expect(
       await f.dependencies.commands.recall({ ...f.admit, admission: f.admit.operation }),
     ).toEqual({ ok: { kind: 'not-accepted', operation: f.admit.operation } })
-    // A capacity exactly filling the pool still fits after the rejected submissions.
-    const raw = {
-      ...f.admit,
-      request: structuredClone(f.admit.request),
-      capacity: { ...f.options.limits.capacity },
-    }
+    // The rejected submissions hold nothing: the call is admitted with the input it had then.
+    const raw = { ...f.admit, request: structuredClone(f.admit.request) }
     const pending = calls.admit(raw)
     Object.defineProperty(raw.request.profile, 'name', { value: 'after-call' })
-    raw.capacity.bytes = '1'
     const accepted = unbox(await pending)
     const stored = unbox(await f.dependencies.commands.loadRecovery(f.admit))
     expect(stored.request.profile.name).toBe(f.admit.request.profile.name)
-    expect(stored.capacity).toEqual(f.options.limits.capacity)
     expect(await calls.admit(invalid)).toMatchObject({
       failure: { kind: 'invalid', reason: 'range' },
     })
     expect(
-      await calls.admit({
-        ...f.admit,
-        capacity: f.options.limits.capacity,
-        request: { ...f.admit.request, fallback: true },
-      }),
+      await calls.admit({ ...f.admit, request: { ...f.admit.request, fallback: true } }),
     ).toMatchObject({ failure: { kind: 'conflict' } })
-    const replay = unbox(await calls.admit({ ...f.admit, capacity: f.options.limits.capacity }))
+    const replay = unbox(await calls.admit(f.admit))
     expect(replay).toEqual({ ...accepted, recovered: true })
-    expect(
-      await calls.admit({ ...f.admit, call: callId('second'), operation: op('second') }),
-    ).toMatchObject({ failure: { kind: 'unavailable', dependency: 'model-capacity' } })
     expect(f.counts().sends).toBe(0)
   })
 }

@@ -114,9 +114,8 @@ const must = <T>(outcome: Outcome<T, unknown>): T => ok(outcome as Outcome<T, ne
 
 /** The consumer owner of every Agent call (agent loop/identities.ts AGENT_OWNER). */
 const AGENT = '@omne-harness/agent'
-/** The share of the tenant, and the share of one call, as the release gives them (R2-D256). */
-export const SHARE = { bytes: '1000000', blocks: '200', attachmentBytes: '0' } as const
-export const CALL_SHARE = { bytes: '524288', blocks: '20', attachmentBytes: '0' } as const
+/** The share of the tenant: one unacknowledged result, so a second call fits after a release. */
+export const SHARE = 1
 
 const ADOPTION = {
   owner: 'o',
@@ -495,7 +494,7 @@ function modelRecords(custody: { open: boolean; view?: Context }) {
       resultPageParts: 4,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: SHARE,
+      unacknowledgedResults: SHARE,
     },
     sending: {
       maxRetainedAttempts: 8,
@@ -679,7 +678,6 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
         operation: modelOp(`admit-${name}`),
         request,
         consumer: consumerOf(execution),
-        capacity: CALL_SHARE,
       })
     },
     async stop() {

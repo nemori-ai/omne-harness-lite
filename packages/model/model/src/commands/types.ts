@@ -21,7 +21,6 @@ import type {
   OutputCursor,
   ReadId,
   ReadState,
-  ResultCapacity,
   ResultTrim,
   ResultVersion,
   RetryDecision,
@@ -128,15 +127,16 @@ export interface ModelCommandsEvidence {
   >
 }
 /**
- * `capacity` bounds the sum that the storage reports from `reserved`. The storage decides the
- * scope of that sum: the memory storage sums the whole assembly.
+ * `unacknowledgedResults` bounds the count that the storage reports from `held`: the calls that
+ * were admitted and whose result the consumer has not acknowledged and released. The storage
+ * decides the scope of that count: the memory storage counts the whole assembly.
  */
 export type ModelCommandsLimits = Readonly<{
   scanPageCalls: number
   resultPageParts: number
   resultPageTargetBytes: number
   readIdleMs: number
-  capacity: ResultCapacity
+  unacknowledgedResults: number
 }>
 export type ResultPaging = Pick<ModelCommandsLimits, 'resultPageParts' | 'resultPageTargetBytes'>
 export type ModelCommandsCoreOptions<P> = Readonly<{
@@ -253,7 +253,6 @@ export type CallDocument = {
   state: CallState
   request: FixedModelRequest | null
   requestDigest: string
-  capacity: ResultCapacity
   initiator: ActorRef
   admission: ModelOperationId
   owner: ModelConsumerOwnerDeclaration

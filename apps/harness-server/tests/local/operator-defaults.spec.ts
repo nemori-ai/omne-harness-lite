@@ -104,13 +104,9 @@ describe('localOperatorLayer over the bundled distribution', () => {
   it('admits LOCAL_CONCURRENT_MODEL_CALLS model calls of one tenant at once on every bound', () => {
     const calls = LOCAL_CONCURRENT_MODEL_CALLS
     expect(calls).toBe(20)
-    const one = z
-      .object({ resultCapacity: z.record(z.string(), z.string()) })
-      .parse(configOf(layer, 'agent-context')).resultCapacity
     const records = z
       .object({
-        limits: z.object({ capacity: z.record(z.string(), z.string()) }),
-        maxCallBytes: z.number(),
+        limits: z.object({ unacknowledgedResults: z.number() }),
         send: z.object({ maxClaims: z.number() }),
         sendStage: z.object({
           materialization: z.object({ maxRecords: z.number() }),
@@ -118,10 +114,8 @@ describe('localOperatorLayer over the bundled distribution', () => {
         }),
       })
       .parse(configOf(layer, 'model-records'))
-    // The tenant's share holds exactly `calls` result capacities of one call, and no more.
-    for (const [unit, value] of Object.entries(one))
-      expect(BigInt(records.limits.capacity[unit] ?? '0'), unit).toBe(BigInt(value) * BigInt(calls))
-    expect(String(records.maxCallBytes)).toBe(one['bytes'])
+    // The tenant's share holds exactly `calls` unacknowledged results.
+    expect(records.limits.unacknowledgedResults).toBe(calls)
     expect(records.send.maxClaims).toBe(calls)
     expect(records.sendStage.materialization.maxRecords).toBe(calls)
     expect(records.sendStage.network.maxConnections).toBe(calls)

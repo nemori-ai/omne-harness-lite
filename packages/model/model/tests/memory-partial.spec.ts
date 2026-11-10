@@ -29,11 +29,7 @@ function textBlock(id: string, text: string) {
   if ('rejected' in block || block.ok.kind !== 'text') throw new Error('text fixture')
   return block.ok
 }
-async function running(
-  limits: Partial<MemoryModelLimits> = {},
-  capacityBytes = '100000',
-  consumerOwner = 'consumer',
-) {
+async function running(limits: Partial<MemoryModelLimits> = {}, consumerOwner = 'consumer') {
   const f = fixture()
   const options = {
     ...f.options,
@@ -44,7 +40,6 @@ async function running(
   const admit = {
     ...f.admit,
     consumer: { ...f.admit.consumer, owner: consumerOwner },
-    capacity: { ...f.admit.capacity, bytes: capacityBytes },
   }
   const { commands } = memory
   unbox(await commands.admit(admit))
@@ -145,7 +140,6 @@ for (const content of [
         },
       ])
       expect(read.page.settlement.termination).toEqual(termination)
-      expect(bytes(read.page)).toBeLessThanOrEqual(Number(f.admit.capacity.bytes))
     })
   }
 }
@@ -237,7 +231,6 @@ for (const target of [1, 2, 1024]) {
         { kind: 'partial', content, value, trims: [{ removed: '1', reason: 'r'.repeat(1500) }] },
       ])
       expect(bytes(read.page.parts)).toBeGreaterThan(target)
-      expect(bytes(read.page)).toBeLessThanOrEqual(Number(f.admit.capacity.bytes))
       const next = unbox(
         await f.commands.nextRead({ ...f.admit, read: read.started.read, after: '1' }),
       )
@@ -377,114 +370,6 @@ it('refuses oversized terminal input before publication and preserves its legal 
   expect(read.page.settlement.termination).toEqual(good)
   expect(read.page.parts).toEqual([{ kind: 'partial', content: 'text', value: 'kept', trims: [] }])
   expect(read.page.next).toBeNull()
-  expect(bytes(read.page)).toBeLessThanOrEqual(Number(f.admit.capacity.bytes))
-})
-it('rejects new projection or trim material atomically within the declared finite reservation', async () => {
-  const f = await running({}, '36000')
-  unbox(
-    (
-      await f.preserve([
-        { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
-        { kind: 'block-delta', index: '0', delta: 'kept' },
-      ])
-    ).result,
-  )
-  const bad = await f.preserve([
-    { kind: 'block-delta', index: '0', delta: 'x'.repeat(5000) },
-    { kind: 'trim', index: '0', removed: '1', reason: 'r'.repeat(1000) },
-  ])
-  expect(bad.result).toMatchObject({ failure: { kind: 'capacity' } })
-  unbox(
-    await f.commands.preserve({ ...bad.input, facts: [{ kind: 'ended', termination: failure }] }),
-  )
-  expect((await f.read(failure)).page.parts).toEqual([
-    { kind: 'partial', content: 'text', value: 'kept', trims: [] },
-  ])
-})
-it('consumes reserved settlement and first-read metadata at the exact accepted capacity boundary', async () => {
-  const termination: Termination = {
-    kind: 'failed',
-    fault: {
-      cause: 'upstream-protocol',
-      diagnostic: 'diagnostic'.repeat(300),
-      upstreamStatus: null,
-    },
-  }
-  const facts: TransportFact[] = [
-    { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
-    { kind: 'block-delta', index: '0', delta: 'prefix'.repeat(100) },
-    { kind: 'ended', termination },
-  ]
-  let lower = 25000
-  let upper = 80000
-  while (lower < upper) {
-    const capacity = Math.floor((lower + upper) / 2)
-    try {
-      const f = await running({}, String(capacity))
-      const result = (await f.preserve(facts)).result
-      if ('ok' in result) upper = capacity
-      else {
-        expect(result.failure.kind).toBe('capacity')
-        lower = capacity + 1
-      }
-    } catch (error) {
-      expect(String(error)).toContain('"kind":"capacity"')
-      lower = capacity + 1
-    }
-  }
-  const refused = fixture()
-  refused.admit.capacity.bytes = String(lower - 1)
-  const { commands } = createMemoryModelCommands(refused.options)
-  unbox(await commands.admit(refused.admit))
-  const execution = unbox(
-    await commands.claim({
-      ...refused.admit,
-      operation: op('claim'),
-      instance: instance(),
-      continuity: proof(refused.admit.call),
-    }),
-  )
-  const dispatch = unbox(decodeDispatchId('mdisp_partial'))
-  const write = async (name: string) => ({
-    ...execution,
-    operation: op(name),
-    expected: unbox(await commands.loadRecovery(refused.admit)).state.revision,
-  })
-  const steps = [
-    async () =>
-      commands.prepareDispatch({
-        ...(await write('partial-1')),
-        dispatch,
-        supplier: refused.admit.request.suppliers[0],
-        policyDecision: null,
-      }),
-    async () =>
-      commands.openReceiveWindow({ ...(await write('partial-2')), dispatch, window: 'window-1' }),
-    async () =>
-      commands.preserve({ ...(await write('partial-3')), dispatch, window: 'window-1', facts }),
-  ]
-  let rejected = false
-  for (const step of steps) {
-    const before = await commands.loadRecovery(refused.admit)
-    const beforeDispatches = await commands.dispatches(refused.admit)
-    const result = await step()
-    if ('failure' in result) {
-      expect(result.failure.kind).toBe('capacity')
-      expect(await commands.loadRecovery(refused.admit)).toEqual(before)
-      expect(await commands.dispatches(refused.admit)).toEqual(beforeDispatches)
-      rejected = true
-      break
-    }
-  }
-  expect(rejected).toBe(true)
-  const f = await running({}, String(lower))
-  unbox((await f.preserve(facts)).result)
-  const read = await f.read(termination)
-  expect(read.page.parts).toEqual([
-    { kind: 'partial', content: 'text', value: 'prefix'.repeat(100), trims: [] },
-  ])
-  expect(read.page.settlement.termination).toEqual(termination)
-  expect(bytes(read.page)).toBeLessThanOrEqual(lower)
 })
 for (const trimmed of [false, true]) {
   it(`does not let a pure empty failed dispatch poison a complete retry, preserving trim=${trimmed}`, async () => {
@@ -586,69 +471,6 @@ for (const trimmed of [false, true]) {
     ])
   })
 }
-for (const terminalPath of ['preserve', 'late'] as const) {
-  it(`reserves the full control, ${terminalPath} terminal, read, ACK and cleanup lifecycle at a critical prefix`, async () => {
-    const facts: TransportFact[] = [
-      { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
-      { kind: 'block-delta', index: '0', delta: 'x'.repeat(1024) },
-    ]
-    let lower = 30000
-    let upper = 90000
-    while (lower < upper) {
-      const capacity = Math.floor((lower + upper) / 2)
-      const f = await running({}, String(capacity))
-      const result = (await f.preserve(facts)).result
-      if ('ok' in result) upper = capacity
-      else {
-        expect(result.failure.kind).toBe('capacity')
-        lower = capacity + 1
-      }
-    }
-    const f = await running({}, String(lower))
-    unbox((await f.preserve(facts)).result)
-    const control = op('controlled')
-    unbox(await f.commands.control({ ...f.admit, operation: control }))
-    const termination: Termination = { kind: 'interrupted', control }
-    if (terminalPath === 'preserve')
-      unbox(
-        (
-          await f.preserve([
-            { kind: 'ended', termination: { kind: 'interrupted', stop: 'confirmed' } },
-          ])
-        ).result,
-      )
-    else
-      unbox(
-        await f.commands.recordLateFact({
-          ...f.admit,
-          operation: op('late-terminal'),
-          dispatch: f.dispatch,
-          source: proof(`${f.admit.call}/${f.dispatch}`, 'supplier'),
-          fact: { kind: 'terminal', event: 'terminal', actual: termination },
-        }),
-      )
-    const read = await f.read(termination)
-    expect(read.page.parts).toEqual([
-      { kind: 'partial', content: 'text', value: 'x'.repeat(1024), trims: [] },
-    ])
-    unbox(await f.commands.endRead({ ...f.admit, read: read.started.read }))
-    const ack = unbox(
-      await f.commands.handoff({
-        ...f.admit,
-        operation: op('ack'),
-        result: read.settlement.version,
-        evidence: {
-          kind: 'processed',
-          completion: proof(`${f.admit.call}/${read.settlement.version}`, 'consumer'),
-        },
-      }),
-    )
-    expect(ack.custody.kind).toBe('acknowledged')
-    expect(
-      unbox(await f.commands.advanceCleanup({ ...f.execution, operation: op('cleanup') })),
-    ).toMatchObject({ cleanup: 'released' })
-  })
-}
 it('rejects an owner that cannot fit bounded handoff evidence at configuration admission', () => {
   const f = fixture()
   expect(() =>
@@ -660,7 +482,7 @@ it('rejects an owner that cannot fit bounded handoff evidence at configuration a
 })
 it('admits a maximal owner with a bounded genuine ACK and refuses oversized evidence without changing custody', async () => {
   const consumerOwner = 'x'.repeat(512)
-  const f = await running({}, '100000', consumerOwner)
+  const f = await running({}, consumerOwner)
   unbox(
     (
       await f.preserve([
@@ -821,98 +643,6 @@ it('keeps an incomplete actual completion observable without making it a logical
   )
   expect((await f.settle(failure)).termination).toEqual(failure)
 })
-
-for (const windows of [1, 2, 3, 5]) {
-  it(`reserves the remaining ${windows} receive-window obligations through terminal, ACK and release`, async () => {
-    const termination: Termination = {
-      kind: 'failed',
-      fault: { cause: 'stream-lost', diagnostic: 'x'.repeat(3900), upstreamStatus: null },
-    }
-    const facts: readonly TransportFact[] = [
-      { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
-      { kind: 'block-delta', index: '0', delta: 'x'.repeat(4096) },
-      { kind: 'ended', termination },
-    ]
-    async function prefix(capacity: number) {
-      const f = await running({}, String(capacity))
-      for (let index = 0; index < windows; index += 1)
-        unbox(
-          await f.commands.openReceiveWindow({
-            ...(await f.write()),
-            dispatch: f.dispatch,
-            window: `window-${index}`,
-          }),
-        )
-      f.completeWindows.add(`${f.admit.call}/window-0/${digest(facts)}`)
-      const before = unbox(await f.commands.loadRecovery(f.admit))
-      const preserved = await f.commands.preserve({
-        ...(await f.write()),
-        dispatch: f.dispatch,
-        window: 'window-0',
-        facts,
-      })
-      return { f, preserved, before }
-    }
-    const original = await prefix(41827 + windows * 20)
-    expect(original.preserved).toMatchObject({ failure: { kind: 'capacity' } })
-    expect(unbox(await original.f.commands.loadRecovery(original.f.admit))).toEqual(original.before)
-    let low = 20000
-    let high = 100000
-    while (low < high) {
-      const middle = Math.floor((low + high) / 2)
-      try {
-        const attempt = await prefix(middle)
-        if ('ok' in attempt.preserved) high = middle
-        else low = middle + 1
-      } catch {
-        low = middle + 1
-      }
-    }
-    const { f, preserved } = await prefix(low)
-    unbox(preserved)
-    for (let index = 1; index < windows; index += 1) {
-      f.completeWindows.add(`${f.admit.call}/window-${index}/${digest([])}`)
-      unbox(
-        await f.commands.preserve({
-          ...(await f.write()),
-          dispatch: f.dispatch,
-          window: `window-${index}`,
-          facts: [],
-        }),
-      )
-    }
-    unbox(await f.commands.control({ ...f.admit, operation: op('window-control') }))
-    const settlement = await f.settle(termination)
-    const started = unbox(
-      await f.commands.acquireRead({
-        ...f.admit,
-        operation: op('window-read'),
-        result: settlement.version,
-      }),
-    )
-    if (started.kind !== 'started' || started.value.kind !== 'reading')
-      throw new Error('read fixture')
-    expect(bytes(started.value.page)).toBeLessThanOrEqual(low)
-    expect(started.value.page.parts).toEqual([
-      { kind: 'partial', content: 'text', value: 'x'.repeat(4096), trims: [] },
-    ])
-    unbox(await f.commands.endRead({ ...f.admit, read: started.read }))
-    unbox(
-      await f.commands.handoff({
-        ...f.admit,
-        operation: op('window-ack'),
-        result: settlement.version,
-        evidence: {
-          kind: 'processed',
-          completion: proof(`${f.admit.call}/${settlement.version}`, f.admit.consumer.owner),
-        },
-      }),
-    )
-    expect(
-      unbox(await f.commands.advanceCleanup({ ...f.execution, operation: op('window-cleanup') })),
-    ).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
-  })
-}
 
 it('uses a valid late completion for the original sealed dispatch when no logical terminal was fixed', async () => {
   const f = await running()

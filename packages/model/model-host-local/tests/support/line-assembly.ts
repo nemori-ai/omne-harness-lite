@@ -54,7 +54,6 @@ import {
   modelRuntimeKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import {
-  COMMAND_RESERVE_BYTES,
   callHandler,
   createSqlModelCommands,
   modelMigration,
@@ -101,10 +100,6 @@ export const REQUIRED: ModalityRequirement = {
   modalities: ['text'],
   source: { owner: HOST_OWNER, record: 'required', revision: '1', digest: '1'.repeat(64) },
 }
-/** The capacity of one call; the tenant share holds a few such calls at once. */
-export const CAPACITY = { bytes: '200000', blocks: '20', attachmentBytes: '0' }
-const TENANT_SHARE = { bytes: '1000000', blocks: '100', attachmentBytes: '0' }
-const MAX_CALL_BYTES = 1 << 20
 // Every fact is saved before the next one is read, so the content before a cancel is confirmed.
 const CONFIGURATION: ModelConfiguration = {
   outputBatchBytes: 1,
@@ -406,7 +401,7 @@ function coreOptions(): ModelCommandsCoreOptions<Principal> {
       resultPageParts: 16,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: TENANT_SHARE,
+      unacknowledgedResults: 10,
     },
   }
 }
@@ -442,8 +437,6 @@ export function durableCommands(storage: Storage, profile?: ModelProfile) {
     storage,
     domains,
     combination: { combinationVersion: 'v1', manifestDigest: 'a'.repeat(64) },
-    maxCallBytes: MAX_CALL_BYTES,
-    maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
     ...(profile === undefined
       ? {}
       : { send: { mirrorBytes: 1 << 20, sources: sourcesOf(profile) } }),

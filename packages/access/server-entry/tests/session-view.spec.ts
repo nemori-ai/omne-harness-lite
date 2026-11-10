@@ -764,7 +764,7 @@ describe('the Run skeleton and the call branches', () => {
     const entries = [
       started('e1', 'r1'),
       bound('e2', 'model', 'm2'),
-      terminal('e3', 'r1', 'failed', 'model-refused: capacity'),
+      terminal('e3', 'r1', 'failed', 'model-refused: denied'),
     ]
     const model = modelDouble({ m2: succeed({ kind: 'not-accepted', operation: 'op' }) as never })
     const agent = agentDouble({
@@ -772,7 +772,7 @@ describe('the Run skeleton and the call branches', () => {
         intent({
           kind: 'model-refused',
           call: 'c2',
-          failure: { kind: 'capacity', required: { tokens: '1' } },
+          failure: { kind: 'denied', action: 'admit' },
           step: null,
           at: '0',
           source: evidence('f'),
@@ -784,8 +784,8 @@ describe('the Run skeleton and the call branches', () => {
     expect(run.terminal).toEqual({
       outcome: 'failed',
       cause: {
-        record: 'model-refused: capacity',
-        structured: { kind: 'model-refused', failure: 'capacity' },
+        record: 'model-refused: denied',
+        structured: { kind: 'model-refused', failure: 'denied' },
       },
     })
     expect(run.modelCalls[0]).toMatchObject({
@@ -904,11 +904,9 @@ describe('gaps', () => {
   })
 
   describe('every failure of an owner has its gap reason', () => {
-    const required = { tokens: '1' }
     it.each([
       [{ kind: 'invalid', field: 'reference', reason: 'not a reference' }, 'not-found'],
       [{ kind: 'invalid', field: 'tenant', reason: 'x' }, 'unavailable'],
-      [{ kind: 'capacity', required }, 'unavailable'],
       [{ kind: 'conflict', operation: 'op', revision: '1' }, 'unavailable'],
       [{ kind: 'commit-unknown', operation: 'op' }, 'unavailable'],
       [{ kind: 'stale-instance', instance: 'i' }, 'unavailable'],

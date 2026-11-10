@@ -401,7 +401,6 @@ function modelRefusal(failure: M.ModelFailure): ModelRefusal | null {
     case 'denied':
     case 'invalid':
     case 'unsupported':
-    case 'capacity':
       return failure
     default:
       return null
@@ -410,8 +409,7 @@ function modelRefusal(failure: M.ModelFailure): ModelRefusal | null {
 
 /**
  * A Model failure, kept as what it is (R2-D237): a refusal keeps its kind and its fields where the
- * Agent Failure has them, and a capacity refusal is an invalid capacity; the other answers are the
- * Model runtime not giving the step its answer.
+ * Agent Failure has them; the other answers are the Model runtime not giving the step its answer.
  */
 function modelFailure(node: LoopNode, failure: M.ModelFailure): Failure {
   switch (failure.kind) {
@@ -421,8 +419,6 @@ function modelFailure(node: LoopNode, failure: M.ModelFailure): Failure {
       return { kind: 'invalid', field: failure.field, reason: failure.reason }
     case 'unsupported':
       return { kind: 'unsupported' }
-    case 'capacity':
-      return { kind: 'invalid', field: 'capacity', reason: 'refused by the Model capacity' }
     default:
       return modelUnavailable(node, failure)
   }
@@ -2944,7 +2940,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           operation: admission,
           request: ready.request,
           consumer: pending.position,
-          capacity: ready.capacity,
         })
       } catch (error) {
         current.admission = 'unknown'

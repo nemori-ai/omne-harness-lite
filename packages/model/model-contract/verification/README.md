@@ -207,7 +207,7 @@ public-api 有 25 个二级章节。清单列出其中 15 章：根入口 13 章
 | --- | --- | --- |
 | 替代提供者与替代传输通过全部义务，没有 `not-applicable`；每个钩子的接线（运行、收场与分页、证据、清理）与传输的事实、计数各有直接断言 | `tests/conformance-scripted.spec.ts` | 套件新增义务而替代件不满足；替代件的改动破坏某条义务；钩子接线遗漏 |
 | 套件自带的辅助函数：裁决原语的报错文字、标识与块的构造、场景构造（受理、运行、收场、确认、读取）、观察的释放与限时、计数读取 | `tests/conformance-kit.spec.ts` | 辅助函数把失败当成功、漏释放观察、留下计时器、吞掉请求的字段 |
-| 套件缺省值（请求、消费者、容量、供应商）与被测方自带的值，怎样送到提供者与传输 | `tests/conformance-defaults.spec.ts` | 缺省值缺字段或自相矛盾；被测方自带的值被缺省值盖掉 |
+| 套件缺省值（请求、消费者、供应商）与被测方自带的值，怎样送到提供者与传输 | `tests/conformance-defaults.spec.ts` | 缺省值缺字段或自相矛盾；被测方自带的值被缺省值盖掉 |
 | 每条义务能失败：一个只违反它的提供者让它报告 `fail`，其余义务照常；失败总带原因，测试对原因文字断言。同一义务有多种违约方式时各有变体（回复指名另一个调用或 operation、状态被拒绝却改变、读取永不结束等），契约允许的另一种形态（拒绝以失败或以结束给出、第二次 `start` 给空流）各有应当通过的变体。少数变体让一个坏提供者同时违反几条义务，名单与原因见表后；每条义务另有只违反它的提供者（`tests/conformance-docs.spec.ts` 机检），所以「每条义务能失败」不依赖这些变体。测试里写明一并失败的项 | `tests/conformance-admission.spec.ts`、`tests/conformance-settlement.spec.ts`、`tests/conformance-control.spec.ts`、`tests/conformance-observation.spec.ts`、`tests/conformance-routes.spec.ts`、`tests/conformance-transport.spec.ts` | 断言过弱：被测方违约而套件不报失败 |
 | 每条义务都有这样的测试；页面的义务表与套件一致（名字与顺序，每个钩子缺失时报告不适用的义务集合） | `tests/conformance-docs.spec.ts` | 新增义务没有坏提供者；页面与套件漂移 |
 | 入口的行为：`not-applicable` 的三个来源（缺钩子、缺传输、结果只有一页使三条读取义务无法检查），被测方抛出的错误（含非 `Error` 值）报为失败，对被测方的每一次等待（工厂、提供者方法、钩子、`dispose`、观察与事实流）以 `waitMs` 为限、超时报失败，工厂或 `dispose` 失败只让当条失败且两个原因都保留，每条检查一个被测方并释放，不留开着的观察，`waitMs` 校验 | `tests/conformance-entry.spec.ts` | 入口把缺项当通过、吞掉错误、泄漏观察 |

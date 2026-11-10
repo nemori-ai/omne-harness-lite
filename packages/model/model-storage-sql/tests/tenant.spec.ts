@@ -7,7 +7,6 @@ import { decodeDispatchId, type ModelBlock, type VisibleBlock } from '@omne-harn
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import type { CallDocument, DispatchDocument } from '@omne-harness/model/commands'
 import {
-  COMMAND_RESERVE_BYTES,
   createSqlModelStorage,
   encodeCallRow,
   type SqlModelStorage,
@@ -15,7 +14,6 @@ import {
 import participant from '../src/commit.ts'
 import {
   DIGEST,
-  MAX_CALL_BYTES,
   callId,
   lookup,
   opId,
@@ -122,9 +120,7 @@ function storageOf(subject: ReturnType<typeof setup>): SqlModelStorage {
     domains: lookup([textOf(A), textOf(B)], subject.domain),
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
     limits: {
-      tenantCapacity: subject.core.options.limits.capacity,
-      maxCallBytes: MAX_CALL_BYTES,
-      maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
+      tenantResults: subject.core.options.limits.unacknowledgedResults,
     },
   })
 }

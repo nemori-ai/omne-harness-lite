@@ -335,7 +335,7 @@ it('closes every Model-owned record and each branch before projecting output', (
     delete missing[key]
     rejection(missing, 'missing')
   }
-  for (const key of ['consumer', 'capacity'] as const)
+  for (const key of ['consumer'] as const)
     expect(
       judgeAdmit({ ...admission('closed'), [key]: { ...admission('closed')[key], secret: true } }),
     ).toMatchObject({ failure: { field: `/${key}`, reason: 'unknown-field' } })
@@ -349,21 +349,6 @@ describe('complete records with one invalid leaf', () => {
       for (const value of ['', 17, null, []])
         expect(judgeAdmit({ ...input, consumer: { ...input.consumer, [key]: value } })).toEqual({
           failure: { field: `/consumer/${key}`, reason: 'value' },
-        })
-    },
-  )
-
-  it.each(['bytes', 'blocks', 'attachmentBytes'])(
-    'rejects noncanonical capacity %s without changing its other fields',
-    key => {
-      const input = admission('capacity-leaf')
-      for (const value of ['01', '-1', '1.0', '', 1, null])
-        expect(judgeAdmit({ ...input, capacity: { ...input.capacity, [key]: value } })).toEqual({
-          failure: { field: `/capacity/${key}`, reason: 'integer' },
-        })
-      if (key !== 'attachmentBytes')
-        expect(judgeAdmit({ ...input, capacity: { ...input.capacity, [key]: '0' } })).toEqual({
-          failure: { field: `/capacity/${key}`, reason: 'integer' },
         })
     },
   )
@@ -778,7 +763,6 @@ describe('one finite parser budget', () => {
       operation: root.operation,
       request: input,
       consumer: root.consumer,
-      capacity: root.capacity,
     }
     // The payload counter's container stands for the admit root. P and tenant stay opaque.
     const counted = boundary === 'fixed' ? input : payload
@@ -807,7 +791,7 @@ describe('one finite parser budget', () => {
     Object.assign(leaves[1]!, { kind: 'boolean', value: true })
     expect(nodes(counted)).toBe(100_001)
     expect(judge()).toEqual({
-      failure: { field: boundary === 'fixed' ? '' : '/capacity', reason: 'budget-nodes' },
+      failure: { field: boundary === 'fixed' ? '' : '/consumer', reason: 'budget-nodes' },
     })
   })
   it('budgets unknown width/key before business shape, without claiming the boundary is legal', () => {
@@ -838,7 +822,7 @@ it('captures one root descriptor snapshot without invoking property reads', () =
   })
   const checked = must(judgeAdmit(proxy))
   expect(observations).toBe(1)
-  expect([...reads.values()]).toEqual(Array(7).fill(1))
+  expect([...reads.values()]).toEqual(Array(6).fill(1))
   expect(checked.principal).toBe(input.principal)
   expect(checked.tenant).toBe(input.tenant)
   for (const key of Reflect.ownKeys(input)) {
@@ -948,15 +932,7 @@ it('reuses the full ContentBlock, MessagePart and lossless JSON vocabulary', () 
 
 it('requires every root field in the same ownKeys snapshot before reading descriptors', () => {
   const input = admission('omitted-own-key')
-  for (const omitted of [
-    'principal',
-    'tenant',
-    'call',
-    'operation',
-    'request',
-    'consumer',
-    'capacity',
-  ]) {
+  for (const omitted of ['principal', 'tenant', 'call', 'operation', 'request', 'consumer']) {
     const proxy = new Proxy(input, {
       ownKeys(target) {
         return Reflect.ownKeys(target).filter(key => key !== omitted)
@@ -980,7 +956,6 @@ it('shares the admit string budget across payloads and excludes opaque access en
     operation: input.operation,
     request,
     consumer: input.consumer,
-    capacity: input.capacity,
   }
   const remaining = MODEL_INPUT_LIMITS.maxTotalStringLength - strings(payload)
   const [first, second] = request.tools
@@ -1000,14 +975,14 @@ it('shares the admit string budget across payloads and excludes opaque access en
 })
 
 it.each([
-  { location: 'payload field name', capacity: {}, field: '/capacity/bytes', reason: 'missing' },
+  { location: 'payload field name', consumer: {}, field: '/consumer/owner', reason: 'missing' },
   {
     location: 'last nested field name',
-    capacity: { bytes: '1', blocks: '1', attachmentBytes: null },
-    field: '/capacity/attachmentBytes',
-    reason: 'integer',
+    consumer: { owner: 'o', work: 'w', position: 'p', purpose: null },
+    field: '/consumer/purpose',
+    reason: 'value',
   },
-])('counts the $location at the cumulative string boundary', ({ capacity, field, reason }) => {
+])('counts the $location at the cumulative string boundary', ({ consumer, field, reason }) => {
   const input = admission('last-key-budget')
   const request = {
     ...input.request,
@@ -1020,24 +995,21 @@ it.each([
     call: input.call,
     operation: input.operation,
     request,
-    consumer: input.consumer,
-    capacity,
+    consumer,
   }
   const remaining = MODEL_INPUT_LIMITS.maxTotalStringLength - strings(payload)
   const [first, second] = request.tools
   if (!first || !second) throw new Error('two tool declarations')
   first.description = 'x'.repeat(Math.floor(remaining / 2))
   second.description = 'y'.repeat(remaining - first.description.length)
-  expect(Object.keys(payload).at(-1)).toBe('capacity')
-  expect(Object.keys(capacity).at(-1)).toBe(
-    'attachmentBytes' in capacity ? 'attachmentBytes' : undefined,
-  )
+  expect(Object.keys(payload).at(-1)).toBe('consumer')
+  expect(Object.keys(consumer).at(-1)).toBe('purpose' in consumer ? 'purpose' : undefined)
   expect(strings(payload)).toBe(MODEL_INPUT_LIMITS.maxTotalStringLength)
-  expect(judgeAdmit({ ...input, request, capacity })).toEqual({ failure: { field, reason } })
+  expect(judgeAdmit({ ...input, request, consumer })).toEqual({ failure: { field, reason } })
   second.description += 'z'
   expect(strings(payload)).toBe(MODEL_INPUT_LIMITS.maxTotalStringLength + 1)
-  expect(judgeAdmit({ ...input, request, capacity })).toEqual({
-    failure: { field: '/capacity', reason: 'budget-strings' },
+  expect(judgeAdmit({ ...input, request, consumer })).toEqual({
+    failure: { field: '/consumer', reason: 'budget-strings' },
   })
 })
 

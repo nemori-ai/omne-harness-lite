@@ -251,7 +251,7 @@ function memoryCommands(): ModelCommands<unknown> {
       resultPageParts: 1,
       resultPageTargetBytes: 1024,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
+      unacknowledgedResults: 10,
     },
   }
   return createMemoryModelCommands(options).commands
@@ -292,7 +292,6 @@ async function settleCall(
       operation: opOf(`admit-${call}`),
       request,
       consumer: { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' },
-      capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
     }),
   )
   const execution = unbox(

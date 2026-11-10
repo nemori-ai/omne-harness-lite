@@ -47,7 +47,7 @@ model-cordis-contract 的抽象 Service、凭据服务、实例目录与转换�
 
 prepare 固定引用计划但不读媒体。实际发送准备时调用 materialize，读取并校验内容 ref，附件地址文本不读取。prepare 或 materialize 拒绝时，流以 not-started/rejected 交回原失败，start 不发生。成功物化后复核当前资格和取消，才调用 MaterializedTransport.start。start 前取消返回 not-started/cancelled；开始之后 signal 只请求停止。收到真实停止确认才得到 ended/interrupted，失联则得到 ended/failed，完成与取消竞争时保留实际 completed。上述独立结果没有伪造的托管控制身份。
 
-托管独立程序先登记自己的 consumer owner、work、position 和 purpose。它用当前主体、明确租户、原 call、受理 operation、固定 request 与容量调用 admit。成功之后即使暂时找不到活体，也只用原 admission 查询事实。commit-unknown 同样只按原身份认回；不得换 call 再发。
+托管独立程序先登记自己的 consumer owner、work、position 和 purpose。它用当前主体、明确租户、原 call、受理 operation、固定 request 调用 admit。成功之后即使暂时找不到活体，也只用原 admission 查询事实。commit-unknown 同样只按原身份认回；不得换 call 再发。
 
 受理 operation、读取 operation 和 ACK operation 必须分别固定，各自重试复用。实例 ID 只用于核对活体，不代替 call。主体、租户或结果版本缺失属于边界拒绝，不靠零值或默认原工作补齐。
 
@@ -84,7 +84,7 @@ prepare 固定引用计划但不读媒体。实际发送准备时调用 material
 
 | 初始条件与交错 | 合同要求的结果 | 事实拥有者与后继责任 |
 | --- | --- | --- |
-| 受理提交成功，schedule 前崩溃 | recover 按显式租户 scanPending，loadRecovery 取原请求/主体引用/容量/操作，再依法 claim | ModelCommands 保有待办；宿主不靠缓存或发起者存活 |
+| 受理提交成功，schedule 前崩溃 | recover 按显式租户 scanPending，loadRecovery 取原请求/主体引用/操作，再依法 claim | ModelCommands 保有待办；宿主不靠缓存或发起者存活 |
 | 资格检查后原工作资格失效，随后欲 start（守卫路径，以资格参加者协议闭合为前提） | 原工作资格失效 R 与发送 S 在同一围栏排序；R 先则拒发，S 先则保留在途和控制 | 消费者工作守卫与授权参加适用守卫；send 边界守住实际发起 |
 | 首片语音到达，preserve 前崩溃 | 已持久 receive-window 为 uncertain；不能以没有已保存内容重发 | 当前恢复者排除旧执行者并核实窗口，无法还原则 runtime-lost |
 | 策略决定已保存，应答丢失 | 查询原操作和 loadRecovery，沿原决定继续，不再次运行策略 | Model 决定记录与 dispatch 原身份 |
@@ -122,7 +122,7 @@ prepare 固定引用计划但不读媒体。实际发送准备时调用 material
 如果压缩后仍装不下：原消费者处理失败，或独立调用方收到输入拒绝
 准备 = ModelRequestPreparation.prepare(当前主体, 租户, 求值.档案, 模态依据, 最终输入)
 
-受理 = ModelCalls.admit(固定 call, 固定 operation, 原 consumer, 准备结果, 结果容量)
+受理 = ModelCalls.admit(固定 call, 固定 operation, 原 consumer, 准备结果)
 如果受理未知：只查询原 operation
 否则：沿原调用观察、领取结果、可靠处理或保管，再 ACK
 ```
@@ -189,6 +189,6 @@ Tool 内容 ref 沿 deferred 结果保留，准备和历史投影不读二进制
 
 ### 最终结果消费
 
-从 beginRead/readNext 按页序遍历 parts。sealed 使用原 ModelBlock，partial 保管原累计 value；两者都处理 trims 与真实 Settlement。partial 不是可执行工具调用，也不自动具有展示或播放资格。可靠保管须独立于可以清理的 Model 唯一副本。页字节目标不是硬报文上限，完整页可接近原容量 C。类型、预算和消费边界见 [公开指导](public-api.md#最终结果项与页预算)。
+从 beginRead/readNext 按页序遍历 parts。sealed 使用原 ModelBlock，partial 保管原累计 value；两者都处理 trims 与真实 Settlement。partial 不是可执行工具调用，也不自动具有展示或播放资格。可靠保管须独立于可以清理的 Model 唯一副本。页字节目标不是硬报文上限：超目标的单项独占一页。类型、预算和消费边界见 [公开指导](public-api.md#最终结果项与页预算)。
 
 实际调用教学见 model 的[五个独立脚本](../../model/examples/README.md)。它们使用真实 runtime、产品 sender 和内存测试端口，不证明生产耐久或厂商发送。

@@ -61,11 +61,9 @@ export {
   type StoredPart,
 } from './documents.ts'
 export {
-  COMMAND_RESERVE_BYTES,
   DEFAULT_ATTEMPT_LIMIT,
   DEFAULT_UNRESOLVED_LIMIT,
   PART_MERGE_THRESHOLD,
-  READ_RESERVE_BYTES,
   createSqlModelStorage,
   planParts,
   type ModelStorageLimits,

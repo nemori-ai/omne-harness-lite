@@ -18,7 +18,6 @@ import type {
   ProviderName,
   Mutation,
   ReadId,
-  ResultCapacity,
   ResultVersion,
   Revision,
   Supplier,
@@ -193,7 +192,6 @@ export type RetryResolution =
 export type RecoveryRecord = Readonly<{
   state: CallState
   request: FixedModelRequest
-  capacity: ResultCapacity
   initiator: ActorRef
   admission: ModelOperationId
   execution: ExecutionRef | null

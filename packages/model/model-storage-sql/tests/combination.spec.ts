@@ -9,7 +9,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   CALL_HANDLER,
-  COMMAND_RESERVE_BYTES,
   MODEL_PARTICIPANT,
   createSqlModelCommands,
   modelStorageMaterials,
@@ -70,8 +69,6 @@ describe('the combination with the session log', () => {
           combinationVersion: 'session-model-1',
           manifestDigest: manifestDigest(manifest.manifest),
         },
-        maxCallBytes: 1 << 20,
-        maxCommandBytes: (1 << 20) + COMMAND_RESERVE_BYTES,
       }),
     ).not.toThrow()
   })

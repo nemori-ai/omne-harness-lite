@@ -20,7 +20,7 @@ import type {
   ResultVersion,
   Revision,
 } from '../root.ts'
-import { validateParts, resultPage, encodedBytes } from './result-pages.ts'
+import { validateParts } from './result-pages.ts'
 import { ScriptedModelError } from './error.ts'
 import { applyFact, visibleBlocks } from './reduce.ts'
 import { endObservations } from './observation.ts'
@@ -186,23 +186,6 @@ export function createController<P>(core: Core<P>): ScriptController<P> {
         cursor: mintCursor(record.revision + 1),
         source,
       })
-      const size = encodedBytes({ parts, settlement, next: String(Number.MAX_SAFE_INTEGER) })
-      if (
-        !/^[1-9][0-9]*$/u.test(record.capacity.bytes) ||
-        BigInt(size) > BigInt(record.capacity.bytes) ||
-        BigInt(parts.length) > BigInt(record.capacity.blocks)
-      )
-        throw new ScriptedModelError('invalid-script', 'result exceeds the admitted capacity')
-      for (let offset = 0; offset < parts.length;) {
-        const page = resultPage(parts, offset, pageSize, pageTargetBytes, settlement)
-        if (BigInt(encodedBytes(page)) > BigInt(record.capacity.bytes))
-          throw new ScriptedModelError(
-            'invalid-script',
-            'result page exceeds the admitted capacity',
-          )
-        if (page.next === null) break
-        offset = Number(page.next)
-      }
       record.revision += 1
       record.lifecycle = {
         phase: 'settled',

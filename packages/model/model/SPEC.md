@@ -65,11 +65,11 @@ createModelRuntime 的构造形状以 [runtime.ts](src/runtime.ts) 为唯一声�
 
 retryBackoffMs 是本实现的默认退避；次数、接收方及首内容边界沿共同重试协议。
 
-配置不设未经测量的生产默认值。发行装配必须显式提供全部字段并注明来源，策略默认仍严格采用 SPEC 的供应商顺序与次数规则。缺配置是加载失败，不是隐式无界队列。输出队列满时背压，观察者落后时结束该观察并允许快照重连；不能因慢观察者无限保存重复快照。resultPageTargetBytes 是完整结果项的组页目标，超目标单项独页，不分割、截断或转换类型。整个 ResultPage 的规范 UTF-8 JSON 字节数不超过原容量 C，消费者须能接收接近 C 的单页。已有媒体引用保持原资格，不提供任意 text/tool_call/partial 附件化协议。
+配置不设未经测量的生产默认值。发行装配必须显式提供全部字段并注明来源，策略默认仍严格采用 SPEC 的供应商顺序与次数规则。缺配置是加载失败，不是隐式无界队列。输出队列满时背压，观察者落后时结束该观察并允许快照重连；不能因慢观察者无限保存重复快照。resultPageTargetBytes 是完整结果项的组页目标，超目标单项独页，不分割、截断或转换类型。所以消费者不能把目标当作硬接收上限。已有媒体引用保持原资格，不提供任意 text/tool_call/partial 附件化协议。
 
 outputBatchBytes 按事实 JSON 的 UTF-8 逻辑字节数触发持久输出批次。outputBatchDelayMs=0 时，收到一条事实后先保存，再读取下一条。正数延迟从首事实开始计时，允许跨片聚合。字节阈值或计时到期请求保存，终止或 EOF 立即闭合批次。已经挂起的 next 仍属原窗口，完成后将整批保存，不把它追溯划入后继窗口。只有前批保存与后继开窗均确认后才开始后继读取。
 
-批延迟是安全读取边界上的软触发，不保证最大可见延迟。挂起读取持续沉默时，已收前缀也可能一直未保存展示。单条事实可超过字节目标，Commands 仍按原调用容量接纳或拒绝，不截断事实。未确认批次不向观察者发布，首内容窗口与游标仍沿[共同协议](../model-contract/SPEC.md#展示诊断与实施证据)。
+批延迟是安全读取边界上的软触发，不保证最大可见延迟。挂起读取持续沉默时，已收前缀也可能一直未保存展示。单条事实可超过字节目标，Commands 完整接纳它，不截断事实。未确认批次不向观察者发布，首内容窗口与游标仍沿[共同协议](../model-contract/SPEC.md#展示诊断与实施证据)。
 
 ## 实现与验证
 
@@ -143,14 +143,14 @@ calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断
 
 未实现操作的 diagnostic 为 `managed-runtime-not-implemented operation=<操作> stage=<阶段>`，dependency 为 model-runtime。操作和阶段取固定字面量，不含请求、身份或秘密。诊断供人阅读，不是解析协议。每次未实现操作返回独立的回复与 failure 对象。
 
-独立 testing 入口的内存 Commands 实现共同协议的本地状态转换。每个公开方法同步形成候选，只有一个提交点发布调用事实与 operation 绑定。prepareDispatch 把固定请求的消息身份序列抄进发出记录的 `messages`；`dispatches` 返回它，清理释放请求材料时保留它。当前资格及执行通道在认回前重核。请求、owner 采用和 ActorRef 固定，P 不保存。待办和总预留从原责任派生，容量为整个装配共用的有限上界。
+独立 testing 入口的内存 Commands 实现共同协议的本地状态转换。每个公开方法同步形成候选，只有一个提交点发布调用事实与 operation 绑定。prepareDispatch 把固定请求的消息身份序列抄进发出记录的 `messages`；`dispatches` 返回它，清理释放请求材料时保留它。当前资格及执行通道在认回前重核。请求、owner 采用和 ActorRef 固定，P 不保存。待办和持有个数从原责任派生，份额为整个装配共用的有限上界。
 
 <a id="共享归约核心"></a>**共享归约核心。** 22 个方法的规则在 [src/commands/](src/commands/index.ts)，内存实现与耐久实现共用同一份。这是[父卡](https://github.com/nemori-ai/omne-harness-lite/issues/446) MD-03 决定 D3 第 2 条的选项 A。`createModelCommandsCore(options, storage)` 构造核心：构造时校验限额与 owner 声明，校验失败时抛出。`modelCommands(core)` 给出完整的 `ModelCommands`。两个实现的边界如下：
 
-- 核心拥有每个方法的检查次序、调用文档的变化、回执与认回、待决写的阻挡、单调用容量、流事实归约、分页、读关系和发送绑定。核心只经端口读写，不做 I/O，也不持有进程外的状态。
-- 存储实现 [ModelCommandStorage](src/commands/storage.ts)：`run` 一次只运行一个尝试；`documents` 读一个租户的调用与 operation 绑定；`reserved` 给出容量汇总；`commit` 在所读调用仍为当前值时写入调用并绑定 operation，返回 `committed` 或 `unknown`；`publish` 只用于读关系的进度；可选的 `pending(tenant, after, limit)` 由存储自己分页选出待恢复调用（`PendingPage`）。存储给出 `pending` 时，`scanPending` 在同样的资格与 limit 检查之后直接调用它，不经 `run`。
-- 汇总范围由存储决定。内存存储汇总整个装配，`limits.capacity` 是整个装配共用的上界。
-- 受理新调用时，核心按 `limits.capacity` 与 `reserved` 的汇总判断份额。调用容量任一项大于 `limits.capacity` 时，这个调用永远放不下，核心答 `capacity`。调用本身放得下、而汇总加上它超过份额时，份额此刻被占满，核心答 `unavailable`，依赖名 `model-capacity`，诊断写明份额已满（写法同 [commands/value.ts](src/commands/value.ts) 的 `unavailable(dependency, diagnostic)`）。SQL 存储在提交时复核份额、发现此刻被占满时答同一个依赖名。规则归 model-contract 的[按租户的串行区与公平](../model-contract/SPEC.md#按租户的串行区与公平)。
+- 核心拥有每个方法的检查次序、调用文档的变化、回执与认回、待决写的阻挡、流事实归约、分页、读关系和发送绑定。核心只经端口读写，不做 I/O，也不持有进程外的状态。
+- 存储实现 [ModelCommandStorage](src/commands/storage.ts)：`run` 一次只运行一个尝试；`documents` 读一个租户的调用与 operation 绑定；`held` 给出持有结果的调用个数；`commit` 在所读调用仍为当前值时写入调用并绑定 operation，返回 `committed` 或 `unknown`；`publish` 只用于读关系的进度；可选的 `pending(tenant, after, limit)` 由存储自己分页选出待恢复调用（`PendingPage`）。存储给出 `pending` 时，`scanPending` 在同样的资格与 limit 检查之后直接调用它，不经 `run`。
+- 计数范围由存储决定。内存存储计整个装配，`limits.unacknowledgedResults` 是整个装配共用的上界。
+- 受理新调用时，核心按 `limits.unacknowledgedResults` 与 `held` 的个数判断份额。每个已受理、请求材料尚未释放的调用占一个名额；ACK 与清理完成后材料释放，名额归还。份额已满时核心答 `unavailable`，依赖名 `model-capacity`，诊断写明份额已满（写法同 [commands/value.ts](src/commands/value.ts) 的 `unavailable(dependency, diagnostic)`）。SQL 存储在提交时复核份额、发现此刻被占满时答同一个依赖名。份额不按字节计，所以没有“这个调用永远放不下”的拒绝。规则归 model-contract 的[按租户的串行区与公平](../model-contract/SPEC.md#按租户的串行区与公平)。
 - 内存存储 [testing/state.ts](src/testing/state.ts) 只保留同步围栏、内存文档、注入未知与 reveal、测试控制和发送协调器。
 
 核心与端口经子路径 `@omne-harness/model/commands` 导出：`createModelCommandsCore`、`modelCommands`、`MODEL_WRITE_METHODS`、`hasRecoveryWork` 与端口类型。根入口不导出它们，根入口只放运行面；子路径给耐久存储这类提供者装配核心，不是消费者接口。核心用到的规范编码、摘要与身份铸造在 [commands/value.ts](src/commands/value.ts)，[testing/value.ts](src/testing/value.ts) 只重新导出它们，所以子路径的导入图不经 testing，产品代码的 `no-testing-import` 检查也不受影响。testing 入口仍转导核心，供内存实现的测试使用。
@@ -167,13 +167,11 @@ calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断
 
 `hasRecoveryWork(call, pending?)` 回答一份调用文档是否还有待恢复工作：`pending` 是该调用仍为 `unknown` 的 operation，缺省为空。它与 `scanPending` 选调用用的是同一条规则，所以自己选待恢复调用的存储问同一个问题，不另写一份规则。用例固定两者的一致。
 
-已知限制：内存 Commands 把每次确认的 Snapshot 计入调用容量。长回复即使分批保存，占用也随确认次数持续增长。耐久 Commands 须规定自己的快照与容量策略，这项工作归[父卡](https://github.com/nemori-ai/omne-harness-lite/issues/446)阶段 7.2。
-
 发送边界在准备前复制 execution、request、supplier、consumer 和 initiator 的值，后续异步步骤、计数和关闭使用同一份需求。合法 TenantId 与不透明 P 保留原身份，AbortSignal 保留原取消语义。调用者改写外层字段或嵌套值不改变本次发送；实际 start 仍重核当前资格、代次与控制。请求参数的统一校验覆盖 parameters、parameterAdoptions.applied 和显式 origin.requested。已知非法参数沿原结果通道拒绝，不进入摘要或消耗 unknown 注入；已有 operation 的异输入仍按原绑定冲突。retry 的决定认回也核对原请求，不重复消费决定。请求拥有的 suppliers、parameters、system、messages、tools、parameterAdoptions 及三个参数承载位置中的 stop 都要求数组无空位，并保留各自的元素规则。合法空序列仍允许，suppliers 与 stop 保持非空要求。内部规范编码独立拒绝空位，不将其编码为合法空数组。
 
-内存分页以 resultPageParts 限项数、resultPageTargetBytes 定目标。每页先放一个完整 ResultPart，再在项数及候选 parts 数组规范 UTF-8 JSON 字节数都允许时加入后项。对象键递归排序，数组保序，字符串按 JSON.stringify 转义，孤立代理码元不丢失。首项超目标独页，空结果有空 parts 与真实终局。页包装、next 和 Settlement 另受原容量 C 硬界。受理时复制装配默认页配置。受信 configureResultPaging 只能在结果尚未收场且没有 read 时调整；结果冻结后拒绝修改。读只保存固定源的必要位置与保护元数据，不缓存第二份页正文。合法 after 从真实组页起点和该读最远已返回页派生，未发出的页起点拒绝。
+内存分页以 resultPageParts 限项数、resultPageTargetBytes 定目标。每页先放一个完整 ResultPart，再在项数及候选 parts 数组规范 UTF-8 JSON 字节数都允许时加入后项。对象键递归排序，数组保序，字符串按 JSON.stringify 转义，孤立代理码元不丢失。首项超目标独页，空结果有空 parts 与真实终局。受理时复制装配默认页配置。受信 configureResultPaging 只能在结果尚未收场且没有 read 时调整；结果冻结后拒绝修改。读只保存固定源的必要位置与保护元数据，不缓存第二份页正文。合法 after 从真实组页起点和该读最远已返回页派生，未发出的页起点拒绝。
 
-保存计费还包含原请求/主体/采用、输出与真实 trim/曾有内容事实、历史确认 Snapshot、原状态/账目/重试、最终有序 parts 的交付表示。实现 [judge.ts](src/commands/judge.ts) 为每个 dispatch 保留4096字节实际终局槽，逻辑终局尚未固定时另保留4096字节。逻辑终局固定后按其实际编码计费，晚到实际回执不覆盖它。分页配置的完整规范对象计入材料，从受理起预留两个正安全整数的最大表示及键和包装。控制器在既有 exclusive 内检查身份、正安全整数和冻结条件，复制 call、按原容量检查后一次发布；失败保留原对象与配置。另保留8192字节 Settlement、12288字节 custody、1024字节 control、首个读1024字节和最大游标页包装64字节。实际材料落入相应槽后消费预留，不重复计费。每个已接纳的 open 窗口分别保留闭合状态增长和完整确认 Snapshot，Snapshot 包含当前正文及最大修订、游标和控制额度。没有 open 窗口且逻辑终局尚未到达时，另保留一个最大合法窗口及其确认 Snapshot。每次开窗和保存都在原提交边界按剩余义务重算，首个终局不撤销其他窗口的预留。容量不足在受理、准备或合法前缀保存边界拒绝，不发布半份事实。这个额度模型不等于 JavaScript 堆占用。
+终局与结算各有固定的编码上界：实际终局与逻辑终局各 4096 字节，Settlement 8192 字节。超过上界的终局在输入边界被拒绝，不发布半份事实。控制器在既有 exclusive 内检查身份、正安全整数和冻结条件，复制 call 后一次发布；失败保留原对象与配置。
 
 本地 terminal、身份事实及证据的规范编码分别最多4096字节，Settlement 最多8192字节。超长终局在 preserve/recordLateFact/策略 stop 的首次输入边界拒绝，证据在可信返回边界拒绝。consumer owner 构造/替换时最多512 UTF-8字节，避免受理无法形成有限 ACK 证据的 owner；窗口身份规范编码最多256字节，清理诊断规范编码最多4096字节。revision、cursor 和读取位置不超过 Number.MAX_SAFE_INTEGER，十进制游标最多16字节，实际铸造同时校验。UUIDv4 结果/读取身份和 SHA-256 摘要使用固定文本形状。runtime 的组页实际由注入的 Commands 拥有。内存页配置由上述受信控制准备，不证明生产后端或生产参数映射。
 
@@ -195,7 +193,7 @@ receiver 在终止 preserve 的确认回执下固定原 ended、Snapshot 和独�
 | 无需新策略的 failed、首内容后失联                                              | 已实现原失败收场，保留已确认部分输出；接收失联仍沿 drive 返回失败                         |
 | 原有效控制及真实 interrupted；无 dispatch 的已保存控制                         | 已实现关联原控制收场；无 dispatch 时不发送                                                |
 | 首内容前可重试失败等待策略                                                     | 策略循环尚未实现，保留 retry-not-decided 等真实拒绝，不制造默认 stop                      |
-| 执行写入被确定拒绝：准备、开窗、保存，以及发送边界不带终局的确定拒绝           | 已实现。以成因 `persistence` 收场并释放原流，原拒绝作为这次 drive 的失败交回。规则见 [model-contract](../model-contract/SPEC.md)，答复的分类在 [execution-write.ts](src/execution-write.ts) |
+| 执行写入被确定拒绝：准备、开窗、保存，以及发送边界不带终局的确定拒绝           | 已实现。以成因 `persistence` 收场并释放原流，原拒绝作为这次 drive 的失败交回。规则见 [model-contract](../model-contract/SPEC.md)，答复的分类在 [execution-write.ts](src/commands/execution-write.ts) |
 | 执行写入答复未知、暂时不可用或期望修订过期                                     | 已实现。这次 drive 交回失败，阶段与原写入保留；非终止批回到待保存，下次 drive 按当前修订保存同一批。再次唤醒由宿主负责 |
 | 发送边界没有开始发送，也没有记下终局，原因是暂时不可用                         | 已实现一半。下次 drive 再问发送边界。dispatch 已记过物化回执时发送边界答 unknown，这种情形要等重试策略 |
 | 无控制 interrupted、已有 dispatch 但本实例没有确认终止证据                     | 尚未支持精确收场。保留原事实和责任，不复制测试后端私有终局映射或恢复猜测                  |

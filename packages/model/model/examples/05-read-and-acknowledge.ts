@@ -48,7 +48,6 @@ const admitted = await provider.runtime.calls.admit({
   operation: admission,
   request: example.request,
   consumer: example.consumer,
-  capacity: example.capacity,
 })
 if ('failure' in admitted) throw new Error(`Admission failed: ${JSON.stringify(admitted.failure)}`)
 // A trusted host drives the stream. Ordinary consumers receive only provider.runtime.

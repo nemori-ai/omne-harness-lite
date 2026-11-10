@@ -1,10 +1,5 @@
 import type { Outcome } from '@omne-harness/operation-result'
-import type {
-  ModelCallId,
-  ModelFailure,
-  ModelOperationId,
-  ResultCapacity,
-} from '@omne-harness/model-contract'
+import type { ModelCallId, ModelFailure, ModelOperationId } from '@omne-harness/model-contract'
 import type { BindingBase, CallDocument, TenantDocuments } from './types.ts'
 
 /**
@@ -51,8 +46,8 @@ export interface ModelCommandStorage {
   run<T>(work: () => Outcome<T, ModelFailure>, scope?: RunScope): Promise<Outcome<T, ModelFailure>>
   /** The calls and operation bindings of one tenant. A tenant without documents reads empty. */
   documents(tenant: string): TenantDocuments
-  /** The capacity that admitted, unreleased calls hold. The storage decides the scope of the sum. */
-  reserved(field: keyof ResultCapacity): bigint
+  /** How many admitted calls hold a result that is not released. The storage decides the scope. */
+  held(): number
   /**
    * Writes the call and binds the operation in one step. `committed`: both hold. `unknown`: the
    * storage cannot tell whether the write holds; it keeps the binding as unresolved.

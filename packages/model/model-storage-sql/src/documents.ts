@@ -17,7 +17,6 @@ import {
   type ModelCallId,
   type ModelOperationId,
   type OutputCursor,
-  type ResultCapacity,
   type RetryDecision,
   type RetryPosition,
   type Snapshot,
@@ -83,8 +82,8 @@ export type CallRead = Readonly<{
   record: CallRecord | undefined
   /** The committed binding of the operation read, also when it names another call. */
   binding: StoredBinding | null
-  /** The capacity of every call of the tenant whose request material is held. */
-  capacity: ResultCapacity
+  /** How many calls of the tenant hold request material. */
+  held: number
 }>
 
 /** A row or an output that does not have the stored shape. */
@@ -247,12 +246,6 @@ function identity<T>(result: Outcome<T, unknown>, field: string): T {
   return result.ok
 }
 
-function decimal(value: string, field: string): number {
-  const parsed = Number(value)
-  if (!DECIMAL.test(value) || !Number.isSafeInteger(parsed)) throw new RowError(field, 'decimal')
-  return parsed
-}
-
 function exactKeys(
   value: unknown,
   keys: readonly string[],
@@ -301,11 +294,6 @@ function parseCallRow(raw: unknown, scope: CallRowScope): CallHead {
       state,
       request: optional(row, 'request', text => stored<FixedModelRequest>(text, 'md_call.request')),
       requestDigest: str(row, 'request_digest'),
-      capacity: {
-        bytes: String(int(row, 'cap_bytes')),
-        blocks: String(int(row, 'cap_blocks')),
-        attachmentBytes: String(int(row, 'cap_attachment')),
-      },
       initiator: stored(str(row, 'initiator'), 'md_call.initiator'),
       admission: identity(decodeModelOperationId(str(row, 'admission')), 'md_call.admission'),
       owner: stored(str(row, 'owner'), 'md_call.owner'),
@@ -447,15 +435,10 @@ function parseOperationRow(
   }
 }
 
-function parseCapacity(raw: unknown): ResultCapacity {
-  const value = exactKeys(raw, ['bytes', 'blocks', 'attachmentBytes'], 'capacity')
-  const cell = (key: string): string => {
-    const text = value[key]
-    if (typeof text !== 'string' || !DECIMAL.test(text))
-      throw new RowError(`capacity.${key}`, 'decimal')
-    return text
-  }
-  return { bytes: cell('bytes'), blocks: cell('blocks'), attachmentBytes: cell('attachmentBytes') }
+function parseHeld(raw: unknown): number {
+  if (typeof raw !== 'number' || !Number.isSafeInteger(raw) || raw < 0)
+    throw new RowError('held', 'count')
+  return raw
 }
 
 export const comparePartKeys = (left: PartKey, right: PartKey): number =>
@@ -578,14 +561,14 @@ function childrenOf(
 }
 
 function parseRead(output: unknown, scope: CallReadScope): CallRead {
-  const value = exactKeys(output, ['call', 'dispatches', 'parts', 'operation', 'capacity'], 'read')
+  const value = exactKeys(output, ['call', 'dispatches', 'parts', 'operation', 'held'], 'read')
   const { dispatches, parts } = value
   if (!Array.isArray(dispatches) || !Array.isArray(parts)) throw new RowError('read', 'rows')
   const binding = bindingOf(value['operation'], scope)
-  const capacity = parseCapacity(value['capacity'])
+  const held = parseHeld(value['held'])
   if (value['call'] === null) {
     if (dispatches.length > 0 || parts.length > 0) throw new RowError('read', 'orphan-rows')
-    return { record: undefined, binding, capacity }
+    return { record: undefined, binding, held }
   }
   const head = parseCallRow(value['call'], scope)
   const children = childrenOf(dispatches, parts, scope)
@@ -600,7 +583,7 @@ function parseRead(output: unknown, scope: CallReadScope): CallRead {
       parts: children.parts,
     },
     binding,
-    capacity,
+    held,
   }
 }
 
@@ -669,9 +652,6 @@ export function encodeCallRow(
     initiator: jsonText(call.initiator),
     request: textOf(call.request),
     request_digest: call.requestDigest,
-    cap_bytes: decimal(call.capacity.bytes, 'md_call.cap_bytes'),
-    cap_blocks: decimal(call.capacity.blocks, 'md_call.cap_blocks'),
-    cap_attachment: decimal(call.capacity.attachmentBytes, 'md_call.cap_attachment'),
     state: jsonText(call.state),
     execution: textOf(call.execution),
     retry: textOf(call.retry),

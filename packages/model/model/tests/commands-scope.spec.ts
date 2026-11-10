@@ -33,7 +33,7 @@ function recording(f: ReturnType<typeof fixture>) {
       return memory.run(work, scope)
     },
     documents: key => memory.documents(key),
-    reserved: field => memory.reserved(field),
+    held: () => memory.held(),
     commit: (key, write) => memory.commit(key, write),
     publish: (key, call) => memory.publish(key, call),
   }
@@ -213,7 +213,7 @@ async function pendingFixture() {
     createModelCommandsCore(f.options, {
       run: (work, scope) => memory.run(work, scope),
       documents: () => documents,
-      reserved: field => memory.reserved(field),
+      held: () => memory.held(),
       commit: (tenant, write) => memory.commit(tenant, write),
       publish: (tenant, call) => memory.publish(tenant, call),
     }),
@@ -260,7 +260,7 @@ it('scanPending pages through the pending port of a storage that has one, outsid
         return memory.run(work, scope)
       },
       documents: key => memory.documents(key),
-      reserved: field => memory.reserved(field),
+      held: () => memory.held(),
       commit: (key, write) => memory.commit(key, write),
       publish: (key, call) => memory.publish(key, call),
       pending: (tenant, after, limit) => {

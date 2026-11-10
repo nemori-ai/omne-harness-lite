@@ -54,7 +54,7 @@ TLA2TOOLS_JAR=<TLC 1.7.4 的 jar> python3 check.py --out <输出目录>
 
 ## 6. 模型到代码
 
-答复的分类是一个全函数：`src/execution-write.ts` 的 `verdictOf`，对 `ModelFailure` 的全部种类取值。
+答复的分类是一个全函数：`src/commands/execution-write.ts` 的 `verdictOf`，对 `ModelFailure` 的全部种类取值。
 
 | 模型 | 代码 | 用例 |
 | --- | --- | --- |

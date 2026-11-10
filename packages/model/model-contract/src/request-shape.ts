@@ -8,7 +8,6 @@ import type {
   ConsumerRef,
   FixedModelRequest,
   Parameter,
-  ResultCapacity,
   Supplier,
   ToolDeclaration,
 } from './root.ts'
@@ -426,16 +425,4 @@ export function consumerShape(value: unknown): Checked<ConsumerRef> {
   return 'failure' in purpose
     ? purpose
     : succeed({ owner: owner.ok, work: work.ok, position: position.ok, purpose: purpose.ok })
-}
-export function capacityShape(value: unknown): Checked<ResultCapacity> {
-  const record = closed(value, ['bytes', 'blocks', 'attachmentBytes'], '/capacity')
-  if ('failure' in record) return record
-  const bytes = integer(record.ok.bytes, '/capacity/bytes', true)
-  if ('failure' in bytes) return bytes
-  const blocks = integer(record.ok.blocks, '/capacity/blocks', true)
-  if ('failure' in blocks) return blocks
-  const attachmentBytes = integer(record.ok.attachmentBytes, '/capacity/attachmentBytes')
-  return 'failure' in attachmentBytes
-    ? attachmentBytes
-    : succeed({ bytes: bytes.ok, blocks: blocks.ok, attachmentBytes: attachmentBytes.ok })
 }

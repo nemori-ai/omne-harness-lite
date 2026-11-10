@@ -15,7 +15,7 @@
 
 从[消费指南](docs/context.md)进入。根入口导出[公开接口](docs/public-api.md)声明的消费侧类型和少量运行时值，`./provider` 入口导出只有提供者作者与 Model 实现使用的端口和契约函数，`./testing` 入口导出受控替代提供者、替代传输、三个公开替身与档案、准备两个替身，`./conformance` 入口导出提供者符合性断言。本包不含执行实现，需要执行能力时由应用选择实现。
 
-最终页按原序交付 sealed 或 partial 及真实 trims。消费者分别处理完整块和未封值，再提供原 ACK 证据。目标字节只用于完整项组页，超目标大项独页，整个页受原容量 C 约束。消费者须能接收接近 C 的页。见[最终结果指导](docs/public-api.md#最终结果项与页预算)。
+最终页按原序交付 sealed 或 partial 及真实 trims。消费者分别处理完整块和未封值，再提供原 ACK 证据。目标字节只用于完整项组页，超目标大项独页，所以目标不是接收方的硬上限。见[最终结果指导](docs/public-api.md#最终结果项与页预算)。
 
 在首次受理前保存 `ModelInvocationRef`。inspect、connect 和 beginRead 使用该引用及当前 Access。Admission 保留 call、revision、recovered 并返回同一 reference。`ModelOperationRef` 封装 ACK 身份，消费者仍保存原 result 与 evidence。见[引用契约](SPEC.md#可保存调用引用)。
 

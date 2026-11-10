@@ -55,7 +55,6 @@ import {
   block,
   budget,
   call,
-  capacity,
   consumer,
   dispatch,
   evidence,
@@ -208,7 +207,6 @@ it('RecoveryRecord holds the original request, the actor and the open work', () 
   const record: RecoveryRecord = {
     state,
     request,
-    capacity,
     initiator: { owner: 'o', subject: 's', revision: '1' },
     admission: operation,
     execution: null,

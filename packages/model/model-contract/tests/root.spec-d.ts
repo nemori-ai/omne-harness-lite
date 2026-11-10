@@ -39,7 +39,6 @@ import type {
   Parameter,
   ProviderName,
   ReadId,
-  ResultCapacity,
   ResultVersion,
   Revision,
   Supplier,
@@ -49,7 +48,6 @@ import type {
 import type { ActorRef } from '@omne-harness/model-contract/provider'
 import {
   call,
-  capacity,
   consumer,
   provider,
   cursor,
@@ -187,9 +185,8 @@ it('Parameter is a closed union of kinds', () => {
   void [values, numeric, unknownKind, numericSeed, effort, textPenalty]
 })
 
-it('a request value names its suppliers, tools and capacity', () => {
+it('a request value names its suppliers and tools', () => {
   const declaration: ToolDeclaration = { name: 'n', description: 'd', argumentsSchema: json }
-  const capacities: ResultCapacity = capacity
   const route: Supplier['credential'][] = [
     { layer: 'tenant' },
     { layer: 'official' },
@@ -210,22 +207,12 @@ it('a request value names its suppliers, tools and capacity', () => {
   const withLimits: FixedModelRequest = { ...request, limits: [] }
   // @ts-expect-error a request carries no meter adoption
   const withMeter: FixedModelRequest = { ...request, meter: undefined }
-  void [
-    declaration,
-    capacities,
-    route,
-    secret,
-    loose,
-    noSupplier,
-    withBudget,
-    withLimits,
-    withMeter,
-  ]
+  void [declaration, route, secret, loose, noSupplier, withBudget, withLimits, withMeter]
   expectTypeOf(request.suppliers[0]).toEqualTypeOf<Supplier>()
   expectTypeOf(supplier).toEqualTypeOf<Supplier>()
 })
 
-it('Admit combines the mutation, the fixed request, the consumer and the capacity', () => {
+it('Admit combines the mutation, the fixed request and the consumer', () => {
   const admit: Admit<string> = {
     principal: 'p',
     tenant,
@@ -233,10 +220,9 @@ it('Admit combines the mutation, the fixed request, the consumer and the capacit
     operation,
     request,
     consumer,
-    capacity,
   }
   // @ts-expect-error the consumer reference is required
-  const noConsumer: Admit<string> = { principal: 'p', tenant, call, operation, request, capacity }
+  const noConsumer: Admit<string> = { principal: 'p', tenant, call, operation, request }
   void [admit, noConsumer]
 })
 

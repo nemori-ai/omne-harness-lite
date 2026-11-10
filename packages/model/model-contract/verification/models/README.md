@@ -4,7 +4,7 @@
 
 | 模型 | 检查什么 |
 | --- | --- |
-| [Admission.tla](Admission.tla) | 受理至多一次、未决写期间不答 not-accepted、记录不可改、容量诚实、写入不截断、租户隔离 |
+| [Admission.tla](Admission.tla) | 受理至多一次、未决写期间不答 not-accepted、记录不可改、份额按个数不超占、租户隔离 |
 | [ResultPush.tla](ResultPush.tla) | 结果推送的保管链、每次唤醒的推送上限、晚账名额、清理后丢正文，以及在前提下的进展 |
 | [SendBoundary.tla](SendBoundary.tla) | 发送边界与 driver 的全部出口：确定拒绝最终定局、已发送的调用不判成 credential 失败、终止写重试不重复 |
 

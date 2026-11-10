@@ -19,7 +19,7 @@ import {
   type ExecutionRef,
 } from '@omne-harness/model-contract/provider'
 import { createObservation } from './observation.ts'
-import { executionFailure, verdictOf } from './execution-write.ts'
+import { executionFailure, verdictOf } from './commands/execution-write.ts'
 import { createReceiver, newOperation, type TerminalCompetition } from './receive.ts'
 
 type Prepare = Parameters<ModelCommands<unknown>['prepareDispatch']>[0]

@@ -173,11 +173,9 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       resultPageParts: 16,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
+      // One unacknowledged result at a time: a second call of the tenant waits for the first.
+      unacknowledgedResults: 1,
     },
-    // `maxCommandBytes` is the storage provider's (`providerConfig`); `maxCallBytes` leaves the reserve.
-    maxCallBytes: 524_288,
-    maxCommandBytes: 1_048_576,
     combinationVersion: 'session-composite/6',
     send: { mirrorBytes: 4_194_304, maxClaims: 8 },
     // The read face `modelDiagnostics` (A12: the operator layer gives what the release does not).
@@ -470,11 +468,7 @@ export function operatorLayer(options: {
       {
         kind: 'replace',
         id: 'agent-context',
-        config: {
-          // The result capacity of one call is at most `maxCallBytes` of model-records (N1): a larger
-          // one is refused at the admission as `capacity` (G-DIALOG layer 9).
-          resultCapacity: { bytes: '524288', blocks: '100', attachmentBytes: '0' },
-        },
+        config: {},
       },
       {
         kind: 'replace',

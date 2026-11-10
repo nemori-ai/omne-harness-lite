@@ -8,18 +8,13 @@ import { createMemoryModelCommands } from '@omne-harness/model/testing'
 import { decodeDispatchId, encodeModelInvocationRef } from '@omne-harness/model-contract'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import { packText, unpackText } from '@omne-harness/sql-contract/worker'
-import {
-  createSqlModelCommands,
-  COMMAND_RESERVE_BYTES,
-  type SqlModelCommands,
-} from '../src/index.ts'
+import { createSqlModelCommands, type SqlModelCommands } from '../src/index.ts'
 import {
   callId,
   coreOptions,
   DIGEST,
   instanceId,
   lookup,
-  MAX_CALL_BYTES,
   opId,
   sqliteStorage,
   tenantOf,
@@ -82,8 +77,6 @@ function scene(
     storage: wrap(sqlite.storage),
     domains: lookup([textOf(tenant)], 'confirmation'),
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
-    maxCallBytes: MAX_CALL_BYTES,
-    maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
   })
   const { initial, observations } = result
   if (!initial || !observations) throw new Error('assembly')

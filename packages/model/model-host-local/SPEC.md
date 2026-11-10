@@ -72,7 +72,7 @@ reader 只有 `prove`，没有任意 register 或 sign 操作。它每次先核�
 
 ### 驱动结束而调用未收场
 
-一次 drive 交回失败时，宿主按失败的含义决定是否再次唤醒这个调用。分类由 `@omne-harness/model` 的 `drivable` 给出，规则归 [model-contract](../model-contract/SPEC.md)。
+一次 drive 交回失败时，宿主按失败的含义决定是否再次唤醒这个调用。分类由 `@omne-harness/model/commands` 的 `drivable` 给出，规则归 [model-contract](../model-contract/SPEC.md)。
 
 - 答复未知、依赖暂时不可用、期望修订过期：这个进程仍能推进调用。宿主等待 `scanIntervalMs`，再置这个调用的唤醒位。同一调用同一时刻只有一次等待。
 - 其余失败：不再唤醒。确定拒绝的调用已由 driver 收场；执行被接管的调用归接手的实例。

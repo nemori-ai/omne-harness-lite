@@ -75,7 +75,6 @@ const CONSUMER = 'agent-consumer'
 const callOf = (name: string): ModelCallId => unbox(decodeModelCallId(`mcall_${name}`))
 const op = (name: string) => unbox(decodeModelOperationId(`mop_${name}`))
 const ADOPTION = { owner: 'o', name: 'n', revision: '1', digest: '0'.repeat(64) }
-const CAPACITY = { bytes: '100000', blocks: '20', attachmentBytes: '0' }
 const SETTINGS = { concurrencyLimit: 4, wakeCapacity: 16, scanBatchSize: 10, scanIntervalMs: 25 }
 const LIMITS: ResultPushLimits = {
   maxConcurrentCalls: 4,
@@ -250,7 +249,8 @@ function world(
      */
     custodyEvidence?: 'verified' | 'unavailable'
     /** The share of the whole assembly; the memory commands sum every tenant against it. */
-    capacity?: Readonly<{ bytes: string; blocks: string; attachmentBytes: string }>
+    /** How many unacknowledged results the tenant may hold. */
+    share?: number
     /** The start scan of the push; without it the push does not scan. */
     recovery?: ResultPushRecovery
   }> = {},
@@ -323,7 +323,7 @@ function world(
       resultPageParts: 4,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: input.capacity ?? { bytes: '1000000', blocks: '200', attachmentBytes: '0' },
+      unacknowledgedResults: input.share ?? 10,
     },
     sending: {
       maxRetainedAttempts: 8,
@@ -519,11 +519,11 @@ function world(
         },
       })
     },
-    async admit(name: string, capacity = CAPACITY) {
-      return unbox(await this.tryAdmit(name, capacity))
+    async admit(name: string) {
+      return unbox(await this.tryAdmit(name))
     },
     /** The admission answer as it is, a refusal included. */
-    tryAdmit(name: string, capacity = CAPACITY) {
+    tryAdmit(name: string) {
       return ctx.modelRuntime.calls.admit({
         principal: PRINCIPAL,
         tenant: TENANT,
@@ -531,7 +531,6 @@ function world(
         operation: op(`admit-${name}`),
         request,
         consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' },
-        capacity,
       })
     },
     async custody(name: string) {
@@ -606,47 +605,45 @@ it('pushes the frozen result to the registered receiver and then acknowledges it
   expect(custody).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
 })
 
-// R2-D256: the release reserves 524288 bytes of a 1000000-byte share for each call. The share of a
-// call comes back only when the Model's own ACK and the cleanup are done; a second call of the same
-// tenant fits only then.
-const HALF_SHARE = { bytes: '524288', blocks: '20', attachmentBytes: '0' }
-const SHARE = { bytes: '1000000', blocks: '200', attachmentBytes: '0' }
+// R2-D256: every call holds one place of the tenant share. The place comes back only when the
+// Model's own ACK and the cleanup are done; with a share of one, a second call of the same tenant
+// fits only then.
 
 it('gives the share of a call back after the ACK and the cleanup, so the same tenant admits its next call', async () => {
-  const w = world({ capacity: SHARE })
+  const w = world({ share: 1 })
   await w.services()
   await w.load()
   const scripted = scriptedReceiver()
   await w.register(scripted.receiver)
-  await w.admit('first', HALF_SHARE)
+  await w.admit('first')
 
   await until(() => w.record('first')?.cleanup === 'released', 'the push, ACK and cleanup')
   expect(await w.custody('first')).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
-  const second = await w.tryAdmit('second', HALF_SHARE)
+  const second = await w.tryAdmit('second')
   expect(second).toMatchObject({ ok: { call: callOf('second'), recovered: false } })
   await until(() => w.record('second')?.cleanup === 'released', 'the second call to its cleanup')
   expect(w.handoffs).toHaveLength(2)
 })
 
 it('keeps the custody and the share of a saved call while the consumer evidence is unavailable', async () => {
-  const w = world({ capacity: SHARE, custodyEvidence: 'unavailable' })
+  const w = world({ share: 1, custodyEvidence: 'unavailable' })
   await w.services()
   await w.load()
   const scripted = scriptedReceiver()
   await w.register(scripted.receiver)
-  await w.admit('first', HALF_SHARE)
+  await w.admit('first')
 
   await until(() => w.handoffs.length > 0, 'the ACK attempt after saved')
   await quiet()
-  // Saved is not an ACK: the producer keeps the result and its share (SPEC: no capacity is won back
+  // Saved is not an ACK: the producer keeps the result and its place (SPEC: no place is won back
   // by dropping a delivered result before the ACK).
   expect(w.record('first')?.result?.standing.status).toBe('saved')
   expect(await w.custody('first')).toEqual({ kind: 'producer' })
   expect(
     w.warnings.some(text => text.includes('acknowledgement did not complete (unavailable)')),
   ).toBe(true)
-  // The first call still holds its half of the share: the share is full now (#1174).
-  expect(await w.tryAdmit('second', HALF_SHARE)).toMatchObject({
+  // The first call still holds the one place: the share is full now (#1174).
+  expect(await w.tryAdmit('second')).toMatchObject({
     failure: { kind: 'unavailable', dependency: 'model-capacity' },
   })
 })
@@ -1069,16 +1066,16 @@ const SCAN_TENANT: ResultPushRecovery = {
 }
 
 it('pushes again after a restart that lost the ledger, acknowledges, and gives the share back', async () => {
-  const w = world({ capacity: SHARE, custodyEvidence: 'unavailable', recovery: SCAN_TENANT })
+  const w = world({ share: 1, custodyEvidence: 'unavailable', recovery: SCAN_TENANT })
   await w.services()
   const first = w.load()
   await first
   const scripted = scriptedReceiver()
   await w.register(scripted.receiver)
-  await w.admit('first', HALF_SHARE)
+  await w.admit('first')
   await until(() => w.handoffs.length > 0, 'the ACK attempt after saved')
   expect(await w.custody('first')).toEqual({ kind: 'producer' })
-  expect(await w.tryAdmit('second', HALF_SHARE)).toMatchObject({
+  expect(await w.tryAdmit('second')).toMatchObject({
     failure: { kind: 'unavailable', dependency: 'model-capacity' },
   })
 
@@ -1093,7 +1090,7 @@ it('pushes again after a restart that lost the ledger, acknowledges, and gives t
   expect(scripted.pushes[1]).toEqual(scripted.pushes[0])
   expect(await w.custody('first')).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
   expect(w.messages.some(text => text.includes('start scan woke 1 owed calls'))).toBe(true)
-  expect(await w.tryAdmit('second', HALF_SHARE)).toMatchObject({ ok: { call: callOf('second') } })
+  expect(await w.tryAdmit('second')).toMatchObject({ ok: { call: callOf('second') } })
 })
 
 it('wakes nothing on a later restart once the call is acknowledged and cleaned', async () => {
@@ -1184,7 +1181,6 @@ it('leaves a call that is not settled to its own settle', async () => {
       operation: op('admit-running'),
       request,
       consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' },
-      capacity: CAPACITY,
     }),
   )
   await w.load()

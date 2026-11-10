@@ -43,7 +43,6 @@ import {
 import type { QueryRows, SqlValue } from '@omne-harness/sql-contract/worker'
 import participant from '../src/commit.ts'
 import {
-  COMMAND_RESERVE_BYTES,
   callHandler,
   createSqlModelCommands,
   createSqlModelStorage,
@@ -300,7 +299,7 @@ const coreOptions: ModelCommandsCoreOptions<Principal> = {
     resultPageParts: 1,
     resultPageTargetBytes: 1024,
     readIdleMs: 1000,
-    capacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
+    unacknowledgedResults: 10,
   },
 }
 const source: ModelSendSource<Principal> = {
@@ -331,9 +330,7 @@ const storageOf = (provider: Provider) =>
     domains: lookup,
     combination: { combinationVersion: 'v1', manifestDigest: 'a'.repeat(64) },
     limits: {
-      tenantCapacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
-      maxCallBytes: 1 << 20,
-      maxCommandBytes: (1 << 20) + COMMAND_RESERVE_BYTES,
+      tenantResults: 10,
     },
   })
 
@@ -350,8 +347,6 @@ function sqlAssembly(
     storage: provider.storage,
     domains: lookup,
     combination: { combinationVersion: 'v1', manifestDigest: 'a'.repeat(64) },
-    maxCallBytes: 1 << 20,
-    maxCommandBytes: (1 << 20) + COMMAND_RESERVE_BYTES,
     send: {
       mirrorBytes: settings.mirrorBytes ?? 1 << 20,
       ...(settings.maxClaims === undefined ? {} : { maxClaims: settings.maxClaims }),
@@ -408,7 +403,6 @@ async function drive(
       operation: op(`admit-${call}`),
       request,
       consumer: { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' },
-      capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
     }),
   )
   let execution: ExecutionRef = {

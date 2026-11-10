@@ -23,9 +23,9 @@ import { PENDING_PAGE_MAX } from './reads.ts'
 
 /**
  * The options of the durable ModelCommands: the options of the shared core, and what the SQL
- * storage needs beside them. `limits.capacity` of the core is the share of one tenant here: the
- * storage reports the capacity that the calls of the tenant hold, and the participant checks a new
- * call against the same share in the commit that admits it.
+ * storage needs beside them. `limits.unacknowledgedResults` of the core is the share of one tenant
+ * here: the storage reports how many calls of the tenant hold a result, and the participant
+ * checks a new call against the same share in the commit that admits it.
  */
 export type SqlModelCommandsOptions<P> = ModelCommandsCoreOptions<P> &
   Readonly<{
@@ -33,10 +33,6 @@ export type SqlModelCommandsOptions<P> = ModelCommandsCoreOptions<P> &
     domains: TenantDomainLookup
     /** The combination the application registered for the tenant scope (session log and Model). */
     combination: Readonly<{ combinationVersion: string; manifestDigest: string }>
-    /** The largest call material that one call may hold (N1). */
-    maxCallBytes: number
-    /** The `maxCommandBytes` of the storage provider. */
-    maxCommandBytes: number
     /** Rounds of one run. Default 8. The attempt generations of an operation have no limit. */
     attemptLimit?: number
     /** Operations with an unknown commit outcome that the process keeps for one tenant. */
@@ -71,16 +67,14 @@ function assertScanPage(limits: ModelCommandsCoreOptions<unknown>['limits']): vo
     throw new RangeError(`scanPageCalls is above the model.pending page of ${PENDING_PAGE_MAX}`)
 }
 
-/** The SQL storage over the options, with the share of one tenant as the capacity of the core. */
+/** The SQL storage over the options, with the share of one tenant from the limits of the core. */
 function createStorage<P>(options: SqlModelCommandsOptions<P>): SqlModelStorage {
   return createSqlModelStorage({
     storage: options.storage,
     domains: options.domains,
     combination: options.combination,
     limits: {
-      tenantCapacity: options.limits.capacity,
-      maxCallBytes: options.maxCallBytes,
-      maxCommandBytes: options.maxCommandBytes,
+      tenantResults: options.limits.unacknowledgedResults,
     },
     ...(options.attemptLimit === undefined ? {} : { attemptLimit: options.attemptLimit }),
     ...(options.unresolvedLimit === undefined ? {} : { unresolvedLimit: options.unresolvedLimit }),
@@ -117,7 +111,7 @@ function createMirror<P>(
 
 /**
  * Builds the durable ModelCommands. It throws on invalid options: those of the core, those of the
- * storage (N1, the combination), and a scan page larger than one `model.pending` page.
+ * storage (the share, the combination), and a scan page larger than one `model.pending` page.
  */
 export function createSqlModelCommands<P>(
   options: SqlModelCommandsOptions<P>,

@@ -29,7 +29,6 @@ import type {
   ModelCommandsEvidence,
 } from '@omne-harness/model/commands'
 import {
-  COMMAND_RESERVE_BYTES,
   createSqlModelCommands,
   modelStorageMaterials,
   type SqlModelCommandsOptions,
@@ -419,7 +418,7 @@ export function coreOptions(tenants: readonly TenantId[]) {
       resultPageParts: 1,
       resultPageTargetBytes: 1024,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
+      unacknowledgedResults: 10,
     },
   }
   const admitOf = (scope: TenantId, call: ModelCallId, operation: ModelOperationId) => {
@@ -432,15 +431,12 @@ export function coreOptions(tenants: readonly TenantId[]) {
       operation,
       request: REQUEST,
       consumer: { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' },
-      capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
     }
   }
   return { options, completeWindows, admitOf }
 }
 
 // --- The SQL commands ----------------------------------------------------------------------
-
-export const MAX_CALL_BYTES = 1 << 20
 
 /**
  * The SQL ModelCommands over one test provider. Every tenant in `tenants` is registered in the one
@@ -459,8 +455,6 @@ export function sqlCommands(
     storage: sqlite.storage,
     domains: lookup(tenants.map(textOf), domain),
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
-    maxCallBytes: MAX_CALL_BYTES,
-    maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
     ...overrides,
   })
   return { commands, sqlite, core, domain }

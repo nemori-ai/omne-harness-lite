@@ -115,7 +115,6 @@
 - `ReplayDeclaration` · `profile.d.ts`
 - `Reply` · `result.d.ts`
 - `RequestBudget` · `profile.d.ts`
-- `ResultCapacity` · `root.d.ts`
 - `ResultPage` · `call-surface.d.ts`
 - `ResultPart` · `call-surface.d.ts`
 - `ResultTrim` · `call-surface.d.ts`
@@ -483,11 +482,10 @@ export declare function controlChecks<P>(): readonly Check<P>[];
 ## 声明文件 `conformance/conformance-defaults.d.ts`
 
 ```ts
-import type { ConsumerRef, FixedModelRequest, ResultCapacity, Supplier } from '../index.ts';
+import type { ConsumerRef, FixedModelRequest, Supplier } from '../index.ts';
 export declare const DEFAULT_SUPPLIER: Supplier;
 export declare const DEFAULT_REQUEST: FixedModelRequest;
 export declare const DEFAULT_CONSUMER: ConsumerRef;
-export declare const DEFAULT_CAPACITY: ResultCapacity;
 export declare function variantOf(request: FixedModelRequest): FixedModelRequest;
 ```
 
@@ -714,7 +712,7 @@ export declare function transportChecks<P>(): readonly Check<P>[];
 
 ```ts
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { ConsumerRef, DispatchId, DurableEvidence, FixedModelRequest, ResultPart, ModelCallId, ModelInstanceId, ModelOperationId, ResultCapacity, Supplier, Termination } from '../index.ts';
+import type { ConsumerRef, DispatchId, DurableEvidence, FixedModelRequest, ResultPart, ModelCallId, ModelInstanceId, ModelOperationId, Supplier, Termination } from '../index.ts';
 import type { ModelProvider, ModelTransport, TransportFact } from '../provider/index.ts';
 export type ConformanceCall = Readonly<{
     tenant: TenantId;
@@ -770,7 +768,6 @@ export type ConformanceSubject<P> = Readonly<{
     otherTenant: TenantId;
     request?: FixedModelRequest;
     consumer?: ConsumerRef;
-    capacity?: ResultCapacity;
     hooks?: ConformanceHooks<P>;
     transport?: ConformanceTransport;
     dispose?(): Promise<void>;
@@ -848,7 +845,6 @@ export type Scene<P> = Readonly<{
     subject: ConformanceSubject<P>;
     request: FixedModelRequest;
     consumer: ConsumerRef;
-    capacity: ResultCapacity;
     waitMs: number;
 }>;
 export type Requirement = HookName | 'transport';
@@ -1240,7 +1236,7 @@ export declare function compareOutputCursors(left: OutputCursor, right: OutputCu
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { Access, Admit, Adoption, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, CredentialLayer, ProviderName, ReadId, ResultCapacity, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
+export type { Access, Admit, Adoption, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, CredentialLayer, ProviderName, ReadId, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
 export type * from './result.ts';
 export type * from './result-delivery-values.ts';
 export type * from './result-delivery.ts';
@@ -1314,7 +1310,6 @@ export type ModelAdmitCandidate<P> = Access<P> & Readonly<{
     operation: unknown;
     request: unknown;
     consumer: unknown;
-    capacity: unknown;
 }>;
 export declare function judgeFixedModelRequest(value: unknown): Outcome<FixedModelRequest, ModelInputRejection>;
 export declare function judgeAdmit<P>(value: ModelAdmitCandidate<P>): Outcome<Admit<P>, ModelInputRejection>;
@@ -1935,7 +1930,7 @@ import type { Outcome } from '@omne-harness/operation-result';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { ContentReference } from '@omne-harness/content-block';
 import type { MessageId } from '@omne-harness/message';
-import type { Access, Adoption, ActorRef, Admit, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, ModelCallId, ModelInstanceId, ModelOperationId, ProviderName, Mutation, ReadId, ResultCapacity, ResultVersion, Revision, Supplier, ToolDeclaration } from './root.ts';
+import type { Access, Adoption, ActorRef, Admit, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, ModelCallId, ModelInstanceId, ModelOperationId, ProviderName, Mutation, ReadId, ResultVersion, Revision, Supplier, ToolDeclaration } from './root.ts';
 import type { AckInput, AckReceipt, Admission, CallState, ControlState, CustodyState, DurableEvidence, ModelFailure, ModelBlock, ModelFault, Lookup, Reply, Settlement, Termination } from './result.ts';
 import type { DispatchRecord, GrowingContentKind, LiveRoute, ModelHandle, ModelRuntime, ReadState, ReadStart, Snapshot } from './call-surface.ts';
 import type { CallAccount } from '@omne-harness/call-account';
@@ -2102,7 +2097,6 @@ export type RetryResolution = Readonly<{
 export type RecoveryRecord = Readonly<{
     state: CallState;
     request: FixedModelRequest;
-    capacity: ResultCapacity;
     initiator: ActorRef;
     admission: ModelOperationId;
     execution: ExecutionRef | null;
@@ -2359,13 +2353,12 @@ export declare function continuedMessages(projection: ReplayProjection): Readonl
 
 ```ts
 import { type Outcome } from '@omne-harness/operation-result';
-import type { ConsumerRef, FixedModelRequest, ResultCapacity } from './root.ts';
+import type { ConsumerRef, FixedModelRequest } from './root.ts';
 import type { ModelInputRejection } from './judge-request.ts';
 type Checked<T> = Outcome<T, ModelInputRejection>;
 export declare function closed(value: unknown, keys: readonly string[], field: string, optional?: readonly string[]): Checked<Record<string, unknown>>;
 export declare function requestShape(value: unknown, field: string): Checked<FixedModelRequest>;
 export declare function consumerShape(value: unknown): Checked<ConsumerRef>;
-export declare function capacityShape(value: unknown): Checked<ResultCapacity>;
 export {};
 ```
 
@@ -2489,7 +2482,7 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import type { ReasoningStatePart, ToolCallPart } from '@omne-harness/message';
 import type { ModelInvocationRef } from './reference.ts';
 import type { LimitMetric } from './profile.ts';
-import type { Adoption, ConsumerRef, ModelCallId, ModelInstanceId, ModelOperationId, Mutation, OutputCursor, ResultCapacity, ResultVersion, Revision, DispatchId } from './root.ts';
+import type { Adoption, ConsumerRef, ModelCallId, ModelInstanceId, ModelOperationId, Mutation, OutputCursor, ResultVersion, Revision, DispatchId } from './root.ts';
 export type ModelFailure = Readonly<{
     kind: 'denied';
     action: string;
@@ -2505,9 +2498,6 @@ export type ModelFailure = Readonly<{
     kind: 'conflict';
     operation: ModelOperationId;
     revision: Revision;
-}> | Readonly<{
-    kind: 'capacity';
-    required: ResultCapacity;
 }> | Readonly<{
     kind: 'unavailable';
     dependency: string;
@@ -2748,15 +2738,9 @@ export type FixedModelRequest = Readonly<{
     parameterAdoptions: readonly ParameterAdoption[];
     source: Adoption;
 }>;
-export type ResultCapacity = Readonly<{
-    bytes: string;
-    blocks: string;
-    attachmentBytes: string;
-}>;
 export type Admit<P> = Mutation<P> & Readonly<{
     request: FixedModelRequest;
     consumer: ConsumerRef;
-    capacity: ResultCapacity;
 }>;
 ```
 
@@ -2885,7 +2869,7 @@ export declare function createController<P>(core: Core<P>): ScriptController<P>;
 ```ts
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type Outcome } from '@omne-harness/operation-result';
-import type { CallState, ModelInvocationRef, ControlState, CustodyState, DispatchRecord, DurableEvidence, ResultPart, ResultCapacity, ModelFailure, ModelHandle, Settlement, Snapshot, VisibleBlock, ReadState } from '../index.ts';
+import type { CallState, ModelInvocationRef, ControlState, CustodyState, DispatchRecord, DurableEvidence, ResultPart, ModelFailure, ModelHandle, Settlement, Snapshot, VisibleBlock, ReadState } from '../index.ts';
 import type { FillTable } from './reduce.ts';
 import type { CallAccess, ConsumerRef, DispatchId, ModelCallId, ModelInstanceId, ModelOperationId, ReadId } from '../root.ts';
 export type ScriptedAction = 'admit' | 'inspect' | 'dispatches' | 'cancel' | 'connect' | 'observe' | 'read' | 'acknowledge' | 'query';
@@ -2934,7 +2918,6 @@ export type CallRecord<P> = {
     readonly tenant: TenantId;
     readonly scope: string;
     readonly call: ModelCallId;
-    readonly capacity: ResultCapacity;
     readonly admission: ModelOperationId;
     readonly reference: ModelInvocationRef;
     readonly consumer: ConsumerRef;

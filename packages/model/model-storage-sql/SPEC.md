@@ -18,9 +18,9 @@
 
 `createSqlModelCommands(options)` 把 SQL 存储、可选确认接缝和可选发送镜像装在唯一的命令核心上。装饰次序为 SQL storage → observation storage → send mirror storage → core；未启用的装饰层省略。22 个方法的规则全部在共享核心，本成员不另写规则。
 
-- 选项是核心的选项（`owners`、`authority`、`evidence`、`clock`、`limits`）加上存储需要的 `storage`、`domains`、`combination`、`maxCallBytes`、`maxCommandBytes`、可选的 `attemptLimit` 与 `unresolvedLimit`，以及可选的 `send`（`mirrorBytes`、可选的 `maxClaims` 与发送来源 `sources`）。
-- 核心的 `limits.capacity` 在这里是每租户份额：`reserved` 给出该租户持有的容量，参加者在受理的同一次提交里按同一份额核对。所以不另设 `tenantCapacity`。
-- 构造期核对：核心的选项与 owner 声明（核心抛出）；N1 与组合（存储抛出）；`limits.scanPageCalls` 不超过 `model.pending` 一页的上限 1000。
+- 选项是核心的选项（`owners`、`authority`、`evidence`、`clock`、`limits`）加上存储需要的 `storage`、`domains`、`combination`、可选的 `attemptLimit` 与 `unresolvedLimit`，以及可选的 `send`（`mirrorBytes`、可选的 `maxClaims` 与发送来源 `sources`）。
+- 核心的 `limits.unacknowledgedResults` 在这里是每租户份额：`held` 给出该租户持有请求材料的调用个数，参加者在受理的同一次提交里按同一份额核对。
+- 构造期核对：核心的选项与 owner 声明（核心抛出）；份额与组合（存储抛出）；`limits.scanPageCalls` 不超过 `model.pending` 一页的上限 1000。
 - 另可传入 `initialRun`、`observation: { limits, timing }` 与 `reportConfirmation`。首次记录与确认源的行为由 [model](../model/SPEC.md#首次执行记录与私有通道)拥有。只给 initialRun 时也安装确认接缝，不创建观察源；两者均缺席时保留旧配置行为。
 - 返回值增加 `initial` 与 `observations`，未启用时分别为 `null`。给出 `send` 时，命令与协调器共用同一个被装饰的存储与同一个核心，也就共用同一个资格权威；没有 `send` 时 `coordinator` 为 `null`。`initial.openHost` 的绑定门面仍使用这一核心、镜像与认领表，不另建执行缓存。
 
@@ -36,7 +36,7 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 
 `./cordis` 的公开类型与数据校验归 [cordis.ts](src/cordis.ts) 和 [cordis-config.ts](src/cordis-config.ts)。采用依据为 L-MODEL 波 2 #446 r9 的 RECORDS 闭包。
 
-- 数据配置必须给出 `owners`、完整的 `limits`、`maxCallBytes`、`maxCommandBytes`、`combinationVersion` 与 `send.mirrorBytes/maxClaims`。数值为正安全整数，没有代码默认值。容量为十进制计数字符串。既有核心和 SQL 构造期检查继续生效，包括 N1 与扫描页上限。
+- 数据配置必须给出 `owners`、完整的 `limits`、`combinationVersion` 与 `send.mirrorBytes/maxClaims`。数值为正安全整数，没有代码默认值。既有核心和 SQL 构造期检查继续生效，包括扫描页上限。
 - 对象选项 `resolve(ctx, config)` 在每次激活时取得 `storage`、`domains`、`clock`、`authority`、`evidence`、`sources` 与 `manifestDigest`，也可取得运行级 `initialRun` 和 `observation: { timing }`。观察十二项上限放在数据配置的 `observation` 中，timing 留在对象依赖中。两边只启用一边时加载失败；两边均缺席的旧配置仍可用。应用必须在 `options.inject` 列出该工厂所需的完整服务键常量列表；`modelCommands` 不能成为自身依赖。解析器不替应用推断依赖，也不赋予应用授权政策。
 - 一次激活只调用一次 `createSqlModelCommands`。公开服务的 22 个方法全部委托这一实例。`options.sendStage(coordinator, activation)` 经闭包交出协调器、initial 与可选的 observation 配对。旧单参数 callback 可以忽略第二参数。配对中的 `commands` 是本次真实 `ModelCommandsService` 原体，不是内部命令对象或 Cordis 代理；source 来自同一工厂。它们不成为 Service 属性，不新增 ctx 键。每次重新激活创建新配对，宿主须核原体身份。
 - 命令方法准备好后调用 `ctx.plugin` 创建发送子 fiber，不等待它。发送插件可静态依赖 `modelCredential` 与 `modelCommands`。缺凭据只使发送子 fiber 等待，记录服务仍可查询。凭据恢复时由 Cordis 激活子插件。
@@ -95,7 +95,7 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `run(work, scope)`              | 读取 scope 的调用、operation 绑定与租户份额，在这次读取上同步运行 `work`，再提交 `work` 暂存的一次写入。CAS 冲突时重新读取并再运行 `work`   |
 | `documents(tenant)`             | 本次读取的视图：scope 的调用（存在时），scope operation 的已提交绑定，以及本进程登记的该租户结论未定的绑定。scope 以外的租户读为空          |
-| `reserved(field)`               | 本次读取时，该租户仍持有请求材料的调用的容量之和                                                                                            |
+| `held()` | 本次读取时，该租户仍持有请求材料的调用个数 |
 | `commit(tenant, write)`         | 暂存写入并返回 `committed`。真正的结论在 `run` 返回时给出                                                                                   |
 | `publish(tenant, call)`         | 暂存不绑定 operation 的整份调用写入（读关系进度）                                                                                           |
 | `pending(tenant, after, limit)` | 一页待恢复调用：`model.pending` 读到的待决标记调用与本进程该租户结论未定的 operation 所属调用的并集，按调用升序。游标是上一页的最后一个调用 |
@@ -117,7 +117,6 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 - `scanPending` 的并集语义（文档判定与未定登记）只有本存储一侧的用例，没有与内存实现逐项对拍。
 - 扫描游标：`scanPending` 的 `next` 是上一页的最后一个调用（键集分页），扫描期间新受理的调用会出现在后面的页里。内存实现在首页取定全部调用，游标是不透明的 `scan_` 身份。
 - 快照只保存最新一份。认回一个已被后续 `preserve` 超过的 `preserve` 时，核心返回 `invalid('call', 'recovery-material-released')`。内存实现保留每一份快照。
-- 容量口径：`materialBytes` 只计最新快照。
 - `DispatchDocument.assembly` 在核心是 `StreamAssembly | null`，在本成员的行里恒为 `null`：活的组装是进程状态，不保存。编解码处显式收窄：读出的 dispatch 都是 `null`，写入一个非空的 `assembly` 返回 `invalid`，不丢掉它照写。
 - 结论未定的绑定在本成员里 `effect` 记为 `applied`。共享核心不读这个字段。
 
@@ -140,11 +139,11 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 2. 对本进程登记的、属于这个调用的未定 operation 查询存储。存储已有结论的，从登记里移除。
 3. scope 不带调用时返回 `unavailable`。
 4. 读 `model.call`，在这次读取上运行 `work`。`work` 没有暂存写入时，直接返回 `work` 的结果。
-5. 调用的 `capacity.bytes` 超过 `maxCallBytes` 时返回 `capacity`，不提交（N1）。写入 operation 时，按存储身份 `<operation>#<n>` 找第一个未使用的代：已回滚的代跳过。找代不设上限，与 `attemptLimit` 无关：同一 operation 在多次 run 里被回滚的代会累积，有上限就会在若干次暂时失败之后永远找不到可用的代。本进程按 operation 记住已见到的最大代，下次从它往后找；进程重启后从 `#1` 往后找。已提交的代说明读取已过时，回到第 2 步。结论未定时返回 `commit-unknown`。读关系进度的写入使用身份 `<call>#read@<version>`。
+5. 写入 operation 时，按存储身份 `<operation>#<n>` 找第一个未使用的代：已回滚的代跳过。找代不设上限，与 `attemptLimit` 无关：同一 operation 在多次 run 里被回滚的代会累积，有上限就会在若干次暂时失败之后永远找不到可用的代。本进程按 operation 记住已见到的最大代，下次从它往后找；进程重启后从 `#1` 往后找。已提交的代说明读取已过时，回到第 2 步。结论未定时返回 `commit-unknown`。读关系进度的写入使用身份 `<call>#read@<version>`。
 6. 把暂存的行作为一条事实命令提交给参加者 `model`，并按结果映射：
    - `committed`：返回 `work` 的结果（`work` 失败时也照样提交它暂存的写入，例如读关系的 `denied` 结束）。
    - 参加者以 `version`、`operation-bound` 或 `call-exists` 停止，或 `identity_conflict`：回到第 2 步。
-   - 参加者以 `capacity` 停止：租户份额此刻被占满，返回 `unavailable`，依赖名 `model-capacity`（与共享核心受理检查答的同名），诊断写明租户份额已满。调用方等待后以原身份再受理。容量大于整个租户份额的调用到不了这一步：共享核心在第 4 步的受理检查里已答 `capacity`（[共享归约核心](../model/SPEC.md#共享归约核心)）。
+   - 参加者以 `share-full` 停止：租户份额此刻被占满，返回 `unavailable`，依赖名 `model-capacity`（与共享核心受理检查答的同名），诊断写明租户份额已满。调用方等待后以原身份再受理。
    - `unknown` 或 `writer_not_current`：登记该 operation 为结论未定，返回 `commit-unknown`。读关系进度的写入返回 `unavailable`。
    - 其余受理前拒绝：按 sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)翻译。暂时的原因返回 `unavailable`，诊断写明存储的原因。确定的原因返回 `invalid`，`field` 为 `storage`，`reason` 为存储的原因名。
 
@@ -157,7 +156,7 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 1. 有绑定时插入 `md_operation`。主键已存在时停止，原因 `operation-bound`。
 2. `expected` 为 null 时插入 `md_call`，已存在时停止，原因 `call-exists`。否则执行 `UPDATE md_call ... WHERE tenant = ? AND call = ? AND row_version = ?`，没有改到一行时停止，原因 `version`。
 3. 写有变化的 dispatch 行，删除被合并、被取代或被重写的分片，插入新分片。
-4. 新调用时，汇总该租户 `request IS NOT NULL` 的调用容量（含本行）。任一项超过份额时停止，原因 `capacity`。这一步在提交时复核份额，停止只表示份额此刻被占满，「一次 run」第 6 步把它译为 `unavailable`。
+4. 新调用时，数该租户 `request IS NOT NULL` 的调用个数（含本行）。超过份额时停止，原因 `share-full`。这一步在提交时复核份额，停止只表示份额此刻被占满，「一次 run」第 6 步把它译为 `unavailable`。
 
 参加者拒绝租户或调用与事实顶层不一致的行，回复 `unsupported`，不执行任何语句。第 4 步的汇总语句与 `model.call` 报告份额用同一条 SQL（`src/reads.ts` 的 `HELD_SHARE_SQL`）。
 
@@ -181,15 +180,15 @@ JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对
 
 ### N1：单次提交的字节上界
 
-构造期核对 `maxCallBytes + COMMAND_RESERVE_BYTES ≤ maxCommandBytes`（预留 64 KiB），以及 `maxCallBytes + READ_RESERVE_BYTES ≤ 4 MiB`（`model.call` 的输出上界）。任一项不成立时构造抛出 `RangeError`。兑现点在提交：一份调用文档的 `capacity.bytes` 超过 `maxCallBytes` 时，存储返回 `capacity`，不提交。所以受理时即拒绝，不留到某次提交超限。装配须使批写配置 `outputBatchBytes` 加头部预留不超过 `maxCommandBytes`。这是跨装配行的组合保证，承担者由装配页具名。
+本包不再给一次调用设字节上界：请求与结果有多大，只由模型的上下文与最大输出决定。存储提供者仍有自己的单命令上界 `maxCommandBytes`。现在每次提交写整行 `md_call`，其中含整个请求，所以请求大到一定程度时提交会撞到这个上界。这是当前存储布局的缺陷，不是产品界限；它由“请求正文只写一次、状态行不含请求”的布局消除。
 
-一次提交仍超过 `maxCommandBytes` 时，存储以 `command_limit` 拒绝，不截断。这是确定的拒绝（sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)），`run` 返回 `invalid`，`field` 为 `storage`，`reason` 为 `command_limit`。`preserve` 收到暂时的 `unavailable` 后，该批事实由运行时持有，直到同一 operation 重做成功。何时重做由运行时决定（M6 的义务）。
+一次提交超过提供者的 `maxCommandBytes` 时，存储以 `command_limit` 拒绝，不截断。这是确定的拒绝（sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)），`run` 返回 `invalid`，`field` 为 `storage`，`reason` 为 `command_limit`。`preserve` 收到暂时的 `unavailable` 后，该批事实由运行时持有，直到同一 operation 重做成功。何时重做由运行时决定（M6 的义务）。
 
 ### N2：分片行数的上界
 
 同一次提交内，一块的 `append` 分片达到 `PART_MERGE_THRESHOLD`（64）个时，合并为一行，取其中最小的分片号，正文按分片号拼接。`replace` 每块至多保留一个。块被封后只剩一个 `seal`。
 
-所以每块至多有 `open` 与 64 个增长分片。`model.call` 的 `maxRowsRead` 为 20000：调用、operation 与容量占 3 行，其余由 dispatch 与分片共用。超过时 handler 失败，读取返回 `unavailable`，该调用的读写都不可用。这是失败终局，不是截断。块数由受理时的 `capacity.blocks` 约束。块数乘以 65 加 dispatch 数接近 20000 时，须由受理侧拒绝。
+所以每块至多有 `open` 与 64 个增长分片。`model.call` 的 `maxRowsRead` 为 20000：调用、operation 与持有个数占 3 行，其余由 dispatch 与分片共用。超过时 handler 失败，读取返回 `unavailable`，该调用的读写都不可用。这是失败终局，不是截断。块数不再有受理侧的约束：块数乘以 65 加 dispatch 数接近 20000 时读取失败。这同样是当前读取方式的缺陷，由分页读取消除。
 
 ### N3：主线程回调与提交
 
@@ -248,7 +247,6 @@ JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对
 
 | 种类             | 含义                                                                                                   |
 | ---------------- | ------------------------------------------------------------------------------------------------------ |
-| `capacity`       | 调用永远放不下：调用超过 `maxCallBytes`。容量大于整个租户份额的调用由共享核心答 `capacity`            |
 | `unavailable`    | 存储、事务域或读取不可用，存储的行不能解析，scope 不覆盖的读写，或一次 run 的尝试次数用尽，依赖名 `model-records`；租户份额此刻被占满，依赖名 `model-capacity` |
 | `commit-unknown` | 写入已发出，结论未定                                                                                   |
 | `invalid`        | 新文档不能编码为行，`field` 指出位置。存储以确定原因拒绝提交时，`field` 为 `storage`，`reason` 为原因名 |
@@ -292,9 +290,9 @@ JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------- |
 | 迁移建出四张 STRICT 表，主键以 tenant 开头                                                                                                                                                                         | `tests/schema.spec.ts`      |
 | 解析穷尽每一列，拒绝缺列、多列、他租户行，分片折叠回块                                                                                                                                                             | `tests/documents.spec.ts`   |
-| run 的 CAS 冲突重读、参加者拒绝超前版本、认回、未定登记、份额、租户条件、N1、N2、读关系进度                                                                                                                        | `tests/commit.spec.ts`      |
+| run 的 CAS 冲突重读、参加者拒绝超前版本、认回、未定登记、份额、租户条件、N2、读关系进度                                                                                                                        | `tests/commit.spec.ts`      |
 | M4-2：`checkCommandsAccounts` 对内存实现与本实现各跑一次，逐项相同                                                                                                                                                 | `tests/accounts.spec.ts`    |
-| M4-3：资格结果、守卫声明、调用与容量由一次提交写入；提交失败时都不存在；N1 在提交处拒绝                                                                                                                            | `tests/admission.spec.ts`   |
+| M4-3：资格结果、守卫声明、调用与它的份额名额由一次提交写入；提交失败时都不存在                                                                                                                            | `tests/admission.spec.ts`   |
 | M4-4：经 commands 的他租户调用与不存在相同；写路径不碰他租户的同名调用；参加者拒绝他租户行                                                                                                                         | `tests/tenant.spec.ts`      |
 | M4-5：保存成功但回包丢失时，同 operation 重试认回原结果、不重复写；未定 operation 进入待恢复扫描；按租户的登记上限；commit 须在 scope 的 operation 内                                                              | `tests/unknown.spec.ts`     |
 | M4-6（早期守卫）：与 `sessionStorageMaterials(options)` 组成有效组合，构造期核对两方的 `codeDigest`；handler 文件变了而摘要未更新时构造失败                                                                        | `tests/combination.spec.ts` |
@@ -306,5 +304,5 @@ JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对
 ### 明确缺项
 
 - 与会话日志同处一个事务域时的写队列争用没有实测数据。ST-09 或 E9 的测量显示 Model 写使会话日志提交的排队时延超过阈值时，按 R1-D2 重开分域。
-- 跨租户的全局容量上界不在一个事务域内，M2 不设。
+- 跨租户的全局份额上界不在一个事务域内，M2 不设。
 - 结构度量：`src/documents.ts` 与 `src/commit.ts` 中原超过 alert 阈值的六个函数已拆分（D3d 第 8 条）。

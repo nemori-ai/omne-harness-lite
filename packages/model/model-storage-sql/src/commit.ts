@@ -9,7 +9,6 @@ import {
   type ModelCallId,
   type ModelFailure,
   type ModelOperationId,
-  type ResultCapacity,
   type VisibleBlock,
 } from '@omne-harness/model-contract'
 import {
@@ -58,8 +57,7 @@ import {
   type StoredPart,
 } from './documents.ts'
 import {
-  CALL_READ_MAX_OUTPUT_BYTES,
-  HELD_SHARE_SQL,
+  HELD_CALLS_SQL,
   domainOf,
   readCall,
   readPending,
@@ -70,10 +68,6 @@ import {
 } from './reads.ts'
 import { MODEL_PARTICIPANT, PROTOCOL, TABLES, type Table } from './schema.ts'
 
-/** Bytes of one commit request beside the call material: identity, combination, row heads (N1). */
-export const COMMAND_RESERVE_BYTES = 64 * 1024
-/** Bytes of one `model.call` output beside the call material: row keys, heads, capacity (N1). */
-export const READ_RESERVE_BYTES = 64 * 1024
 /** A block with this many `append` parts is folded into one part in the same commit (N2). */
 export const PART_MERGE_THRESHOLD = 64
 /** Rounds of one run: how often it goes back to read after a newer write. */
@@ -83,12 +77,8 @@ export const DEFAULT_UNRESOLVED_LIMIT = 1024
 const MAX_ATTEMPT_LIMIT = 64
 
 export type ModelStorageLimits = Readonly<{
-  /** The share of one tenant: the sum over its calls whose request material is held. */
-  tenantCapacity: ResultCapacity
-  /** The largest call material that one call may hold. */
-  maxCallBytes: number
-  /** The `maxCommandBytes` of the storage provider. */
-  maxCommandBytes: number
+  /** The share of one tenant: how many of its calls may hold request material. */
+  tenantResults: number
 }>
 
 export type SqlModelStorageOptions = Readonly<{
@@ -118,7 +108,6 @@ export type SqlModelStorage = ModelCommandStorage &
 
 // --- Construction --------------------------------------------------------------------------
 
-const DECIMAL = /^(0|[1-9][0-9]*)$/
 const DIGEST = /^[0-9a-f]{64}$/
 
 function positive(value: number, name: string): void {
@@ -126,21 +115,13 @@ function positive(value: number, name: string): void {
     throw new RangeError(`${name} is not a positive safe integer`)
 }
 
-/** The construction checks: the limits fit each other (N1) and the combination is named. */
+/** The construction checks: the share is a positive count and the combination is named. */
 function checkOptions(options: SqlModelStorageOptions): Readonly<{
   rounds: number
   unresolved: number
 }> {
   const { limits, combination } = options
-  positive(limits.maxCallBytes, 'maxCallBytes')
-  positive(limits.maxCommandBytes, 'maxCommandBytes')
-  if (limits.maxCallBytes + COMMAND_RESERVE_BYTES > limits.maxCommandBytes)
-    throw new RangeError('maxCallBytes plus the command reserve exceeds maxCommandBytes')
-  if (limits.maxCallBytes + READ_RESERVE_BYTES > CALL_READ_MAX_OUTPUT_BYTES)
-    throw new RangeError('maxCallBytes plus the read reserve exceeds the model.call output bound')
-  for (const key of ['bytes', 'blocks', 'attachmentBytes'] as const)
-    if (!DECIMAL.test(limits.tenantCapacity[key]))
-      throw new RangeError(`tenantCapacity.${key} is not a decimal`)
+  positive(limits.tenantResults, 'tenantResults')
   if (typeof combination.combinationVersion !== 'string' || combination.combinationVersion === '')
     throw new TypeError('combinationVersion is empty')
   if (!DIGEST.test(combination.manifestDigest))
@@ -208,8 +189,8 @@ class Attempt {
     return tenant === this.scope.tenant ? this.view : noDocuments()
   }
 
-  reserved(field: keyof ResultCapacity): bigint {
-    return BigInt(this.read.capacity[field])
+  held(): number {
+    return this.read.held
   }
 
   private stage(staged: Staged, call: ModelCallId): void {
@@ -422,7 +403,7 @@ function factsOf(
   tenant: string,
   staged: Staged,
   read: CallRead,
-  share: ResultCapacity,
+  share: number,
 ): Readonly<Record<string, JsonValue>> {
   const call = stagedCall(staged)
   const callId = stagedCallId(staged)
@@ -457,7 +438,7 @@ function encodedFacts(
   tenant: string,
   staged: Staged,
   read: CallRead,
-  share: ResultCapacity,
+  share: number,
 ): Outcome<Readonly<Record<string, JsonValue>>, ModelFailure> {
   try {
     return succeed(factsOf(tenant, staged, read, share))
@@ -487,9 +468,8 @@ function afterRollback(receipt: ReceiptV2): Step {
   if (stop?.kind === 'conflict') {
     const reason = isFactRecord(stop.basis) ? stop.basis['reason'] : undefined
     if (typeof reason === 'string' && RETRIED.includes(reason)) return { kind: 'again' }
-    // The participant checks the share at the commit: a call above the share never gets here,
-    // because the core refuses it at admission, so the share is only full now.
-    if (reason === 'capacity')
+    // The participant checks the share again at the commit: another admission took the place.
+    if (reason === 'share-full')
       return {
         kind: 'done',
         failure: {
@@ -727,11 +707,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     staged: Staged,
     read: CallRead,
   ): Promise<Step> {
-    const call = stagedCall(staged)
-    // N1: a call larger than one command can carry is refused where it is admitted.
-    if (call !== undefined && BigInt(call.capacity.bytes) > BigInt(limits.maxCallBytes))
-      return { kind: 'done', failure: { kind: 'capacity', required: call.capacity } }
-    const facts = encodedFacts(tenant, staged, read, limits.tenantCapacity)
+    const facts = encodedFacts(tenant, staged, read, limits.tenantResults)
     if ('failure' in facts) return { kind: 'done', failure: facts.failure }
     const target = await identityFor(domain, tenant, staged)
     if ('kind' in target) return target
@@ -803,7 +779,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     limits,
     run,
     documents: tenant => active().documents(tenant),
-    reserved: field => active().reserved(field),
+    held: () => active().held(),
     commit: (tenant, write) => active().commit(tenant, write),
     publish: (tenant, call) => active().publish(tenant, call),
     pending,
@@ -857,15 +833,10 @@ function text(raw: JsonValue | undefined, name: string): string {
   return raw
 }
 
-function shareOf(raw: JsonValue | undefined): ResultCapacity | null {
+function shareOf(raw: JsonValue | undefined): number | null {
   if (raw === null) return null
-  if (!isFactRecord(raw)) throw new FactError('share')
-  const cell = (key: string): string => {
-    const found = raw[key]
-    if (typeof found !== 'string' || !DECIMAL.test(found)) throw new FactError('share')
-    return found
-  }
-  return { bytes: cell('bytes'), blocks: cell('blocks'), attachmentBytes: cell('attachmentBytes') }
+  if (typeof raw !== 'number' || !Number.isSafeInteger(raw) || raw < 1) throw new FactError('share')
+  return raw
 }
 
 type PartKeyCells = Readonly<{ seq: number; block: number; part: number }>
@@ -917,15 +888,12 @@ function writeFacts(facts: Readonly<Record<string, JsonValue>>) {
 
 const stop = (reason: string): ParticipantReply => ({ kind: 'conflict', basis: { reason } })
 
-function overShare(port: ParticipantPort, tenant: string, share: ResultCapacity): boolean {
-  const sums = port.execute(HELD_SHARE_SQL, [tenant]).rows[0]
-  const limits = [share.bytes, share.blocks, share.attachmentBytes]
-  return limits.some((limit, at) => {
-    const sum = sums?.[at] ?? 0
-    if (typeof sum !== 'number' && typeof sum !== 'bigint')
-      throw new Error('a capacity sum is not an integer')
-    return BigInt(sum) > BigInt(limit)
-  })
+/** The count includes the call that this commit inserted. */
+function overShare(port: ParticipantPort, tenant: string, share: number): boolean {
+  const held = port.execute(HELD_CALLS_SQL, [tenant]).rows[0]?.[0] ?? 0
+  if (typeof held !== 'number' && typeof held !== 'bigint')
+    throw new Error('the held count is not an integer')
+  return BigInt(held) > BigInt(share)
 }
 
 type WriteFacts = ReturnType<typeof writeFacts>
@@ -979,7 +947,7 @@ function write(port: ParticipantPort, facts: WriteFacts): ParticipantReply {
   const refused = writeCall(port, facts)
   if (refused !== null) return stop(refused)
   writeChildren(port, facts)
-  if (facts.share !== null && overShare(port, facts.tenant, facts.share)) return stop('capacity')
+  if (facts.share !== null && overShare(port, facts.tenant, facts.share)) return stop('share-full')
   return { kind: 'participated', response: { version: nextVersion(facts.expected) } }
 }
 

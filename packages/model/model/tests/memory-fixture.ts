@@ -161,7 +161,7 @@ export function fixture() {
       resultPageParts: 1,
       resultPageTargetBytes: 1024,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
+      unacknowledgedResults: 10,
     },
   }
   const admit = {
@@ -171,7 +171,6 @@ export function fixture() {
     operation: op('admit'),
     request,
     consumer: { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' },
-    capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
   }
   return {
     options,

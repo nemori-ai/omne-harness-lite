@@ -983,7 +983,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   })
   await mount(options.contextPlugin ?? AgentContextProvider, {
     owner: { owner: 'agent-context', name: 'cp3', revision: '1', digest: 'd' },
-    resultCapacity: { bytes: '1048576', blocks: '1024', attachmentBytes: '0' },
   })
 
   // The conditions and the selection of the execution: consistent with the fixture profile.

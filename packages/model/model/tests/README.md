@@ -88,7 +88,7 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 
 [runtime-reading.spec.ts](runtime-reading.spec.ts)通过真实收场结果检查两种冻结页配置、原读取认回、当前资格、跨租户拒绝与幂等关闭。[runtime-acknowledgement.spec.ts](runtime-acknowledgement.spec.ts)检查输入别名、等待后撤权、applied/not-applied 未知及持续未知、严格证据、操作冲突、活动读保护、清理释放与辅助异常。消费不依赖 control/recovery 权限，也不新增调度。
 
-[memory-paging.spec.ts](memory-paging.spec.ts)在最小可受理预算中调整到最大安全整数，检查分页准备已经预留容量。原 memory-partial 持续覆盖超目标单项独页、整页容量及终局/控制/ACK/释放的临界预算。结果冻结后禁止重配，准备错误不得部分修改配置。
+memory-partial 持续覆盖超目标单项独页。结果冻结后禁止重配，准备错误不得部分修改配置。
 
 这些是本地内存后端、消费者完成记录替身和脚本上游的真实产品组合。它们不证明消费者生产耐久、真实厂商、自动清理工作者或跨进程恢复。
 

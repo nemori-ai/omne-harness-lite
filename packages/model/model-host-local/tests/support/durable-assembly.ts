@@ -82,7 +82,6 @@ import {
   ModelHostAuthorityService,
 } from '@omne-harness/model-cordis-contract/cordis'
 import {
-  COMMAND_RESERVE_BYTES,
   callHandler,
   createSqlModelCommands,
   modelMigration,
@@ -171,7 +170,6 @@ const OWNER: ModelConsumerOwnerDeclaration = {
   evidence: ADOPTION,
 }
 const CONSUMER = { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' }
-const CAPACITY = { bytes: '100000', blocks: '100', attachmentBytes: '100000' }
 const REQUEST: FixedModelRequest = {
   profile: ADOPTION,
   suppliers: [
@@ -229,9 +227,8 @@ const CORE_LIMITS = {
   resultPageParts: 2,
   resultPageTargetBytes: 1024,
   readIdleMs: 1000,
-  capacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
+  unacknowledgedResults: 10,
 }
-const MAX_CALL_BYTES = 1 << 20
 const DOMAIN = 'shared'
 const DIGEST = 'a'.repeat(64)
 const WAIT_MS = 4000
@@ -610,8 +607,6 @@ function durableOptions(
     storage: faults.storage,
     domains: lookup([textOf(TENANT), textOf(OTHER_TENANT)], DOMAIN),
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
-    maxCallBytes: MAX_CALL_BYTES,
-    maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
     send: { mirrorBytes: 1 << 24, sources: [source] },
   } satisfies SqlModelCommandsOptions<unknown>
   return { faults, options }
@@ -1202,8 +1197,6 @@ export async function durableSubject(
     const recordsFiber = root.plugin(Records, {
       owners: records.owners,
       limits: records.limits,
-      maxCallBytes: records.maxCallBytes,
-      maxCommandBytes: records.maxCommandBytes,
       combinationVersion: records.combination.combinationVersion,
       send: { mirrorBytes: records.send.mirrorBytes, maxClaims: 64 },
     })
@@ -1486,7 +1479,6 @@ export async function durableSubject(
     otherTenant: OTHER_TENANT,
     request: REQUEST,
     consumer: CONSUMER,
-    capacity: CAPACITY,
     transport: {
       transport: countedTransport,
       sends: () => sends,

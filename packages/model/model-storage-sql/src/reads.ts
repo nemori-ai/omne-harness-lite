@@ -7,7 +7,6 @@ import {
   type ModelCallId,
   type ModelFailure,
   type ModelOperationId,
-  type ResultCapacity,
 } from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -37,11 +36,11 @@ export const PENDING_PAGE_MAX = 1000
 const DEPENDENCY = 'model-records'
 
 /**
- * The share that the calls of one tenant hold: the capacity of every call whose request material
- * is held. The read of `model.call` reports it; the participant checks a new call against it.
+ * How many calls of one tenant hold a result that is not released: the calls whose request
+ * material is held. The read of `model.call` reports it; the participant checks a new call
+ * against it.
  */
-export const HELD_SHARE_SQL = `SELECT COALESCE(SUM(cap_bytes), 0) AS bytes,
-    COALESCE(SUM(cap_blocks), 0) AS blocks, COALESCE(SUM(cap_attachment), 0) AS attachment
+export const HELD_CALLS_SQL = `SELECT COUNT(*) AS held
   FROM md_call WHERE tenant = ? AND request IS NOT NULL`
 
 export const unavailable = (diagnostic: string): ModelFailure => ({
@@ -111,15 +110,10 @@ function readCallRows(input: JsonValue, port: ReadPort): JsonValue {
           [tenant, operation],
         )[0]
   // The read port demands a LIMIT on every statement; the aggregate gives one row.
-  const held = rows(port, `${HELD_SHARE_SQL} LIMIT 1`, [tenant])[0]
-  const capacity = {
-    bytes: String(held?.['bytes'] ?? 0),
-    blocks: String(held?.['blocks'] ?? 0),
-    attachmentBytes: String(held?.['attachment'] ?? 0),
-  }
+  const held = rows(port, `${HELD_CALLS_SQL} LIMIT 1`, [tenant])[0]?.['held'] ?? 0
   const operationRow = bound ?? null
   if (head === undefined)
-    return { call: null, dispatches: [], parts: [], operation: operationRow, capacity }
+    return { call: null, dispatches: [], parts: [], operation: operationRow, held }
   // Three rows are read above; the rest of the budget is for dispatches and parts together.
   const budget = CALL_READ_MAX_ROWS - 3
   const dispatches = rows(
@@ -135,7 +129,7 @@ function readCallRows(input: JsonValue, port: ReadPort): JsonValue {
     [tenant, call, BigInt(budget - dispatches.length + 1)],
   )
   if (dispatches.length + parts.length > budget) throw new Error('the call exceeds the row bound')
-  return { call: head, dispatches, parts, operation: operationRow, capacity }
+  return { call: head, dispatches, parts, operation: operationRow, held }
 }
 
 function readPendingRows(input: JsonValue, port: ReadPort): JsonValue {
@@ -227,8 +221,6 @@ async function readHandler(
   )
 }
 
-const NO_CAPACITY: ResultCapacity = { bytes: '0', blocks: '0', attachmentBytes: '0' }
-
 export type CallReadInput = Readonly<{
   tenant: string
   call: ModelCallId
@@ -245,8 +237,7 @@ export async function readCall(
   domain: DomainOf,
   input: CallReadInput,
 ): Promise<Outcome<CallRead, ModelFailure>> {
-  if (domain.kind === 'unregistered')
-    return succeed({ record: undefined, binding: null, capacity: NO_CAPACITY })
+  if (domain.kind === 'unregistered') return succeed({ record: undefined, binding: null, held: 0 })
   const output = await readHandler(storage, domain.domain, CALL_HANDLER, {
     tenant: input.tenant,
     call: input.call,

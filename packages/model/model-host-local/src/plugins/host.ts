@@ -15,11 +15,12 @@
 import { randomUUID } from 'node:crypto'
 import { Service, symbols, type Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import { drivable, type ModelRuntimeProvider } from '@omne-harness/model'
-import type {
-  ModelInitialExecution,
-  ModelObservationHost,
-  ModelObservationSource,
+import type { ModelRuntimeProvider } from '@omne-harness/model'
+import {
+  drivable,
+  type ModelInitialExecution,
+  type ModelObservationHost,
+  type ModelObservationSource,
 } from '@omne-harness/model/commands'
 import type {
   CallAccess,

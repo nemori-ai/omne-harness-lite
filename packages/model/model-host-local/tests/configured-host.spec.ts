@@ -114,7 +114,7 @@ function fixture() {
       resultPageParts: 4,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '200', attachmentBytes: '0' },
+      unacknowledgedResults: 10,
     },
   })
   const commands = memory.dependencies.commands
@@ -309,7 +309,6 @@ it('drives with the injected authority principal and delegates the complete send
         operation: unbox(decodeModelOperationId('mop_admit')),
         request: REQUEST,
         consumer: { owner: 'test', work: 'work', position: 'position', purpose: 'test' },
-        capacity: { bytes: '100000', blocks: '20', attachmentBytes: '0' },
       }),
     )
     await expect.poll(() => f.sends.length).toBe(1)

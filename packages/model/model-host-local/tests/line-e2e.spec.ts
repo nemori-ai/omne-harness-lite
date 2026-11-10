@@ -36,7 +36,6 @@ import type {
 import { createCertificate, startHttpsServer, type HttpsFixture } from './support/https-server.ts'
 import {
   ACCESS,
-  CAPACITY,
   CONSUMER,
   REQUIRED,
   TENANT,
@@ -161,7 +160,6 @@ async function admit(line: LineTree, name: string, request: FixedModelRequest) {
       operation: op(`admit-${name}`),
       request,
       consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'line-e2e' },
-      capacity: CAPACITY,
     }),
   )
   return { call, reference: admitted.reference }

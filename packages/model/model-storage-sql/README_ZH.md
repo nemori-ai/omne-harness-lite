@@ -34,12 +34,10 @@ const { commands } = createSqlModelCommands({
   storage,
   domains,
   combination,
-  maxCallBytes,
-  maxCommandBytes,
 })
 ```
 
-`commands` 有 `ModelCommands` 的 22 个方法。共享核心用存储的 `run(work, scope)` 运行每个方法。scope 给出租户、调用，写方法还给出 operation。`work` 里核心用 `documents`、`reserved` 读取，用 `commit` 或 `publish` 写入一次。CAS 冲突后，run 重新读取并再次运行工作。`scanPending` 用存储的 `pending` 端口，不运行尝试。
+`commands` 有 `ModelCommands` 的 22 个方法。共享核心用存储的 `run(work, scope)` 运行每个方法。scope 给出租户、调用，写方法还给出 operation。`work` 里核心用 `documents`、`held` 读取，用 `commit` 或 `publish` 写入一次。CAS 冲突后，run 重新读取并再次运行工作。`scanPending` 用存储的 `pending` 端口，不运行尝试。
 
 工厂还接受可选的 `initialRun`、`observation: { limits, timing }` 与 `reportConfirmation`，返回 `initial` 和 `observations`，未启用时分别为 `null`。所有启用部分共用一个核心。首次记录只在进程内，不新增 SQL 接管表。行为见[最终确认与私有侧口](SPEC.md#最终确认与私有侧口)。
 
@@ -52,7 +50,7 @@ const { commands } = createSqlModelCommands({
 | `options.inject`                             | `resolve` 所需的完整服务键常量列表。不得包含本插件发布的 `modelCommands`。                                                                                                                  |
 | `options.resolve(ctx, config)`               | 本次激活使用的 `storage`、`domains`、`clock`、`authority`、`evidence`、`sources` 与 `manifestDigest`。政策和已登记的存储组合归应用。                                                        |
 | `options.sendStage(coordinator, activation)` | 发送子插件及其配置 `{ plugin, config }`。本地宿主可用 `model-host-local/cordis` 的 `createModelSendStagePlugin`，把此协调器与其余发送选项一起传入；子插件配置须给出 `maxRetainedAttempts`。 |
-| `config`                                     | `owners`、完整 `limits`、`maxCallBytes`、`maxCommandBytes`、`combinationVersion` 与 `send: { mirrorBytes, maxClaims }`。新入口不提供数值默认值。                                            |
+| `config`                                     | `owners`、完整 `limits`、`combinationVersion` 与 `send: { mirrorBytes, maxClaims }`。新入口不提供数值默认值。                                            |
 
 22 个公开方法完整委托同一个 SQL 命令实例。协调器只经闭包交给发送工厂，没有对应服务键。发送子插件声明自己的依赖；除非 `resolve` 自身需要凭据，否则不把子插件的凭据依赖放进记录插件的 `inject`。
 
@@ -75,7 +73,7 @@ const { commands } = createSqlModelCommands({
 
 ## 契约
 
-公开类型与运行时校验在 [src/](src/index.md)。行为在 [SPEC](SPEC.md)。SPEC 还记录本包怎样兑现共享核心的存储端口，以及不变量 N1、N2、N3、N5、N6、N7。存储端口的类型归 `@omne-harness/model/commands`，根入口原样转导。
+公开类型与运行时校验在 [src/](src/index.md)。行为在 [SPEC](SPEC.md)。SPEC 还记录本包怎样兑现共享核心的存储端口，以及不变量 N2、N3、N5、N6、N7。存储端口的类型归 `@omne-harness/model/commands`，根入口原样转导。
 
 ## 设计
 
@@ -91,16 +89,14 @@ const { commands } = createSqlModelCommands({
 | `authority`       | 共享核心的资格端口                                         |
 | `evidence`        | 共享核心的证据适配器                                       |
 | `clock`           | 共享核心的时钟                                             |
-| `limits`          | 共享核心的限额。`limits.capacity` 是每租户份额             |
+| `limits` | 共享核心的限额。`limits.unacknowledgedResults` 是每租户份额：未确认结果的个数 |
 | `storage`         | 应用的 `SqlStorage`                                        |
 | `domains`         | 应用的 `TenantDomainLookup`                                |
 | `combination`     | 应用登记的组合版本与清单摘要                               |
-| `maxCallBytes`    | 单个调用材料的上界                                         |
-| `maxCommandBytes` | 提供者的 `maxCommandBytes`                                 |
 | `attemptLimit`    | 一次 run 的轮数，默认 8。尝试代数不设上限                  |
 | `unresolvedLimit` | 本进程为一个租户保存的结论未定的 operation 个数，默认 1024 |
 
-`maxCallBytes` 加 64 KiB 命令预留超过 `maxCommandBytes` 时，或 `limits.scanPageCalls` 超过 1000 时，构造失败。`capacity.bytes` 超过 `maxCallBytes` 的调用在受理时被拒绝。
+`limits.scanPageCalls` 超过 1000 时构造失败。
 
 ## 验证
 

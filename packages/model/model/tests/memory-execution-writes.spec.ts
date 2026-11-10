@@ -22,10 +22,10 @@ function block(id: string) {
   return judged.ok
 }
 
-async function running(capacityBlocks = '100') {
+async function running() {
   const f = fixture()
   const commands = createMemoryModelCommands<Principal>(f.options).commands
-  const admit = { ...f.admit, capacity: { ...f.admit.capacity, blocks: capacityBlocks } }
+  const admit = f.admit
   unbox(await commands.admit(admit))
   const execution = unbox(
     await commands.claim({
@@ -106,33 +106,6 @@ it('preserves only into an open window and changes nothing otherwise', async () 
     }),
   ).toEqual({ failure: { kind: 'invalid', field: 'window', reason: 'not-open' } })
   expect(unbox(await f.commands.loadRecovery(f.admit))).toEqual(before)
-})
-
-it('refuses a preserved batch whose blocks exceed the block capacity of the call', async () => {
-  const exact = await running('2')
-  await exact.open('window')
-  expect(
-    await exact.commands.preserve({
-      ...(await exact.write()),
-      dispatch: exact.dispatch,
-      window: 'window',
-      facts: sealed(['one', 'two']),
-    }),
-  ).toHaveProperty('ok')
-  const over = await running('1')
-  await over.open('window')
-  const before = unbox(await over.commands.loadRecovery(over.admit))
-  expect(
-    await over.commands.preserve({
-      ...(await over.write()),
-      dispatch: over.dispatch,
-      window: 'window',
-      facts: sealed(['one', 'two']),
-    }),
-  ).toEqual({
-    failure: { kind: 'capacity', required: { ...over.admit.capacity, blocks: '1' } },
-  })
-  expect(unbox(await over.commands.loadRecovery(over.admit))).toEqual(before)
 })
 
 async function failedDispatch() {

@@ -295,8 +295,7 @@ describe('a continued round', () => {
 
 describe('a real reply captured from the gateway', () => {
   // openai/gpt-5.6-sol at medium effort, the request of the openai-reasoning case: 92 summary
-  // pieces, one encrypted item and the answer, about a hundred facts. Each fact used to be saved
-  // on its own, and the confirmed snapshots of all of them did not fit the call's capacity.
+  // pieces, one encrypted item and the answer, about a hundred facts.
   it('openai-reasoning: the first round is written with its reasoning state, and the continued round carries it', async () => {
     const first = RECORD_CASES['openai-reasoning']
     const record = OPENAI_RECORDS.find(entry => entry.name === first.model)

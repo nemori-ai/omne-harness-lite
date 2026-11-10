@@ -93,14 +93,8 @@ export type FixedModelRequest = Readonly<{
   parameterAdoptions: readonly ParameterAdoption[]
   source: Adoption
 }>
-export type ResultCapacity = Readonly<{
-  bytes: string
-  blocks: string
-  attachmentBytes: string
-}>
 export type Admit<P> = Mutation<P> &
   Readonly<{
     request: FixedModelRequest
     consumer: ConsumerRef
-    capacity: ResultCapacity
   }>

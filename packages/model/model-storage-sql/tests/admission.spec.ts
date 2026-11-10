@@ -1,9 +1,9 @@
 // M4-3: an admission holds in one commit. The qualification result (the initiator), the frozen
-// owner declaration, the call and its share of the tenant capacity are written by the one commit
+// owner declaration, the call and its place in the tenant share are written by the one commit
 // that binds the admission operation. When that commit fails, none of them exists.
 import { describe, expect, it } from 'vitest'
 import { OWNER, callId, opId, sqlCommands, tenantOf, textOf } from './fixture.ts'
-import { COMMAND_RESERVE_BYTES, PENDING_PAGE_MAX } from '@omne-harness/model-storage-sql'
+import { PENDING_PAGE_MAX } from '@omne-harness/model-storage-sql'
 import { unpackText } from '@omne-harness/sql-contract/worker'
 
 const A = tenantOf('a')
@@ -12,7 +12,7 @@ const LIMITS = {
   resultPageParts: 1,
   resultPageTargetBytes: 1024,
   readIdleMs: 1000,
-  capacity: { bytes: '250000', blocks: '1000', attachmentBytes: '1000000' },
+  unacknowledgedResults: 2,
 }
 
 function setup(overrides: Parameters<typeof sqlCommands>[1] = {}) {
@@ -20,8 +20,7 @@ function setup(overrides: Parameters<typeof sqlCommands>[1] = {}) {
   const rowsOf = (call: string) => ({
     call: subject.sqlite.rows(
       subject.domain,
-      `SELECT initiator, owner, cap_bytes, cap_blocks, cap_attachment, admission
-         FROM md_call WHERE tenant = ? AND call = ?`,
+      'SELECT initiator, owner, admission FROM md_call WHERE tenant = ? AND call = ?',
       [textOf(A), call],
     ),
     operations: subject.sqlite.rows(
@@ -44,7 +43,7 @@ function setup(overrides: Parameters<typeof sqlCommands>[1] = {}) {
 }
 
 describe('an admission in one commit', () => {
-  it('writes the initiator, the owner declaration, the call with its capacity and the binding in one commit', async () => {
+  it('writes the initiator, the owner declaration, the call and the binding in one commit', async () => {
     const { commands, sqlite, core, rowsOf } = setup()
     const admit = core.admitOf(A, callId('one'), opId('admit-one'))
     const commits = sqlite.commits()
@@ -53,14 +52,13 @@ describe('an admission in one commit', () => {
     expect(sqlite.commits() - commits).toBe(1)
     const { call, operations } = rowsOf('mcall_one')
     expect(call).toHaveLength(1)
-    const [initiator, owner, bytes, blocks, attachment, admission] = call[0] ?? []
+    const [initiator, owner, admission] = call[0] ?? []
     expect(JSON.parse(unpackText(initiator as Uint8Array))).toEqual({
       owner: 'identity',
       subject: admit.principal.subject,
       revision: '1',
     })
     expect(JSON.parse(unpackText(owner as Uint8Array))).toEqual(OWNER)
-    expect([bytes, blocks, attachment]).toEqual([100000n, 100n, 100000n])
     expect(admission).toBe('mop_admit-one')
     expect(operations).toEqual([['mop_admit-one', 'admit']])
   })
@@ -68,7 +66,7 @@ describe('an admission in one commit', () => {
   it('answers unavailable at the commit when a concurrent admission took the share, and keeps none of it', async () => {
     const { commands, sqlite, core, rowsOf, plant } = setup()
     expect('ok' in (await commands.admit(core.admitOf(A, callId('first'), opId('a1'))))).toBe(true)
-    // The read of the second admission sees 100000 of 250000 held; the commit meets 200000.
+    // The read of the second admission sees one of two places held; the commit meets two.
     sqlite.hooks.beforeCommit = () => plant('mcall_first', 'mcall_concurrent')
     const admit = core.admitOf(A, callId('second'), opId('a2'))
     expect(await commands.admit(admit)).toEqual({
@@ -87,22 +85,6 @@ describe('an admission in one commit', () => {
     const admitted = await commands.admit(core.admitOf(A, callId('rejected'), opId('a3')))
     expect('failure' in admitted && admitted.failure.kind).toBe('unavailable')
     expect(rowsOf('mcall_rejected')).toEqual({ call: [], operations: [] })
-  })
-
-  it('refuses a call larger than maxCallBytes where it is admitted, before any commit (N1)', async () => {
-    const small = 1000
-    const { commands, sqlite, core, rowsOf } = setup({
-      maxCallBytes: small,
-      maxCommandBytes: small + COMMAND_RESERVE_BYTES,
-    })
-    const admit = core.admitOf(A, callId('large'), opId('a4'))
-    expect(BigInt(admit.capacity.bytes)).toBeGreaterThan(BigInt(small))
-    const commits = sqlite.commits()
-    expect(await commands.admit(admit)).toEqual({
-      failure: { kind: 'capacity', required: admit.capacity },
-    })
-    expect(sqlite.commits()).toBe(commits)
-    expect(rowsOf('mcall_large')).toEqual({ call: [], operations: [] })
   })
 
   it('refuses at construction a scan page larger than one model.pending page', () => {

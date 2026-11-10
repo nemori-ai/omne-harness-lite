@@ -16,7 +16,6 @@ import type {
   ModelFailure,
   ModelOperationId,
   ReadStart,
-  ResultCapacity,
   Revision,
   Settlement,
   Snapshot,
@@ -79,26 +78,15 @@ import type { Applied, CallDocument, DispatchDocument, Draft } from './types.ts'
 import { initialRunPort, type BoundCommandAccess } from './initial.ts'
 import { handoffQuestion, provenHandoff, readHandoffProof } from './handoff-evidence.ts'
 
-const SHARE_ITEMS = ['bytes', 'blocks', 'attachmentBytes'] as const
-
 /**
- * The share check of an admission. A call above the share in any item never fits: `capacity`. A
- * call that fits, while the held share plus the call is above the share, fits later: the share is
- * full now, so `unavailable` on `model-capacity`, and the caller admits the same call again.
+ * The share check of an admission. Every admitted call holds one place until its result is
+ * acknowledged and released. A full share is full now and has room later: `unavailable` on
+ * `model-capacity`, and the caller admits the same call again.
  */
-function shareRefusal(
-  share: ResultCapacity,
-  held: Pick<ModelCommandStorage, 'reserved'>,
-  capacity: ResultCapacity,
-): ModelFailure | null {
-  if (SHARE_ITEMS.some(item => BigInt(capacity[item]) > BigInt(share[item])))
-    return { kind: 'capacity', required: capacity }
-  const full = SHARE_ITEMS.filter(
-    item => held.reserved(item) + BigInt(capacity[item]) > BigInt(share[item]),
-  )
-  return full.length === 0
+function shareRefusal(share: number, storage: Pick<ModelCommandStorage, 'held'>) {
+  return storage.held() < share
     ? null
-    : unavailable('model-capacity', `the tenant share is full: ${full.join(', ')}`)
+    : unavailable('model-capacity', 'the tenant share is full: unacknowledged results')
 }
 
 /** Every execution write first needs its call, still at the revision that the writer expected. */
@@ -146,8 +134,8 @@ export function callCommands<P>(
         })
       const input = checked.ok
       return core.runWrite(input, () => {
-        const { call, operation, request, consumer, capacity } = input
-        const fields = { call, operation, request, consumer, capacity }
+        const { call, operation, request, consumer } = input
+        const fields = { call, operation, request, consumer }
         return core.write({
           input,
           method: 'admit',
@@ -164,7 +152,7 @@ export function callCommands<P>(
               }
             const owner = core.owner(consumer.owner)
             if (!owner) return { failure: invalid('consumer.owner', 'undeclared') }
-            const refused = shareRefusal(core.options.limits.capacity, core.storage, capacity)
+            const refused = shareRefusal(core.options.limits.unacknowledgedResults, core.storage)
             if (refused) return { failure: refused }
             const actor = core.authorize(input, 'admit', undefined, call, consumer)
             if ('failure' in actor) return actor
@@ -188,7 +176,6 @@ export function callCommands<P>(
               },
               request: structuredClone(request),
               requestDigest: digest(request),
-              capacity: structuredClone(capacity),
               initiator: structuredClone(actor.ok),
               admission: operation,
               owner: structuredClone(owner),
@@ -418,7 +405,6 @@ export function recoveryCommands<P>(
             ok: {
               state: structuredClone(call.state),
               request: structuredClone(call.request),
-              capacity: structuredClone(call.capacity),
               initiator: structuredClone(call.initiator),
               admission: call.admission,
               execution: call.execution === null ? null : { ...call.execution },
@@ -805,11 +791,6 @@ export function dispatchCommands<P>(
                 state: structuredClone(call.state),
               }
               call.snapshots.set(call.cursor, snapshot)
-              if (
-                BigInt(call.dispatches.reduce((count, item) => count + item.blocks.length, 0)) >
-                BigInt(call.capacity.blocks)
-              )
-                return { failure: { kind: 'capacity', required: call.capacity } }
               return {
                 ok: {
                   value: structuredClone(snapshot),
