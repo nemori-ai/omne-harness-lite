@@ -120,6 +120,17 @@ describe('cutting a body into chunks', () => {
   })
 })
 
+describe('the chunk size of the assembly', () => {
+  it('must be positive and leave room in one read of a chunk', () => {
+    const sqlite = sqliteStorage()
+    expect(() => process(sqlite, undefined, 0)).toThrow(/requestChunkBytes/)
+    expect(() => process(sqlite, undefined, 4 * 1024 * 1024)).toThrow(
+      'requestChunkBytes exceeds what one model.request read can carry',
+    )
+    expect(() => process(sqlite, undefined, 4 * 1024 * 1024 - 64 * 1024)).not.toThrow()
+  })
+})
+
 describe('the body of an admitted call', () => {
   it('writes a body of one chunk in the commit of the admission itself', async () => {
     const sqlite = sqliteStorage()

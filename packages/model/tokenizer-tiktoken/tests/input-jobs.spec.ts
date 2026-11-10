@@ -35,6 +35,13 @@ describe('the jobs of one count input', () => {
   it('does not cut a surrogate pair', () => {
     const jobs = [...jobsOf([text('😀'.repeat(200))], 170)]
     expect(jobs.length).toBeGreaterThan(1)
+    for (const job of jobs) expect(retainedInputBytes(job)).toBeLessThanOrEqual(170)
+    expect(
+      jobs
+        .flat()
+        .map(segment => (segment.kind === 'text' ? segment.text : ''))
+        .join(''),
+    ).toBe('😀'.repeat(200))
     for (const segment of jobs.flat())
       expect(segment.kind === 'text' ? segment.text : '').toMatch(/^(?:😀)+$/u)
   })
