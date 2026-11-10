@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url'
 /** pqw slice-closeout 自带的两个脚本所在目录（子模块，只读）。 */
 export const PQW_SCRIPTS = '.meta_harness/agents/vendor/pqw-skills/skills/slice-closeout/scripts'
 
-/** Stryker 与它的 vitest runner 这一程仍借 test-runner 装的那份。 */
-export const STRYKER_MODULES = 'tools/test-runner/node_modules'
+/** Stryker 与它的 vitest runner 由本适配层的 devDependencies 声明，装在本成员的 node_modules。 */
+export const STRYKER_MODULES = 'tools/pqw-adapter/node_modules'
 
 /**
  * 只跑快层的 vitest 配置：差分变异经 pqw 的 --vitest-config 交给 Stryker 与沙箱预检。

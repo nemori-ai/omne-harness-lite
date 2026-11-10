@@ -345,7 +345,7 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
       base: null,
       failedStep: 'lint:oxlint',
       resumeFrom: null,
-      caches: { test: 'off', depGraph: 'on', mutation: 'unknown' },
+      caches: { test: 'off', depGraph: 'on' },
     })
     const steps = stepsOf(record)
     expect(steps.get('build')).toEqual({ ran: true, exit: 0 })

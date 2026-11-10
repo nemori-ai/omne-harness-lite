@@ -206,10 +206,6 @@
   "triage": {
     "repeats": 3
   },
-  "mutation": {
-    "testTimeoutSeconds": 60,
-    "recheckMaxMutants": 8
-  },
   "cache": {
     "env": ["NODE_OPTIONS", "OMNE_RUNNER_ROOT", "VITEST_*"],
     "ignoreEnv": ["VITEST_MAX_WORKERS"]

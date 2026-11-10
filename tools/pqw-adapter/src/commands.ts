@@ -11,6 +11,7 @@ import {
   mutationExitCode,
   mutationLines,
   planLines,
+  rangeLines,
   upstreamBuildArgs,
   type MemberMutation,
 } from './mutation.ts'
@@ -138,8 +139,7 @@ export async function closeoutMutation(argv: readonly string[], deps: Deps): Pro
     deps.print(`没有 test 脚本、不变异：${untestable.map(member => member.path).join('、')}`)
   const members = grouping.members.filter(member => member.testable)
   const plans: MemberMutation[] = []
-  for (const member of members)
-    plans.push(await mutateMember(member, context, { planOnly: true, otherHeavyTasks: 0 }))
+  for (const member of members) plans.push(await mutateMember(member, context, { planOnly: true }))
   const lineCount = (path: string) => (repo.read(path) ?? '').split('\n').length
   const plan = planLines(plans, lineCount, options.maxLines ?? DEFAULT_MAX_LINES)
   deps.print(`差分变异范围：基线 ${base.slice(0, 9)} 到工作树；只跑快层`)
@@ -148,7 +148,11 @@ export async function closeoutMutation(argv: readonly string[], deps: Deps): Pro
   if (plan.over) return USAGE
   if (options.planOnly || members.length === 0) return 0
   if (!(await build(deps, upstreamBuildArgs(members.map(member => member.name))))) return 1
-  const results = await mutateAll(members, context)
+  const planned = members.map((member, index) => ({
+    member,
+    lines: rangeLines(plans[index]?.result?.mutate ?? [], lineCount),
+  }))
+  const results = await mutateAll(planned, context, deps.cpus)
   for (const line of mutationLines(results)) deps.print(line)
   return mutationExitCode(results)
 }

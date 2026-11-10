@@ -211,7 +211,7 @@ describe('步骤报告与运行记录', () => {
       dirty: false,
       worktree: '/work/tree',
       admission: true,
-      caches: { test: 'off', depGraph: 'on', mutation: 'unknown' },
+      caches: { test: 'off', depGraph: 'on' },
       fullRequested: true,
       mode: 'full',
       base: null,

@@ -60,9 +60,9 @@ catalog:
   '@eslint-community/regexpp': 4.12.2
   '@jscpd/core': 4.0.1
   '@jscpd/tokenizer': 4.0.1
-  '@stryker-mutator/api': 10.0.0
-  '@stryker-mutator/core': 10.0.0
-  '@stryker-mutator/vitest-runner': 10.0.0
+  '@stryker-mutator/api': 10.1.1
+  '@stryker-mutator/core': 10.1.1
+  '@stryker-mutator/vitest-runner': 10.1.1
 
 # 安装仍使用 --ignore-scripts；只允许显式构建这个已核对的原生依赖。
 onlyBuiltDependencies:

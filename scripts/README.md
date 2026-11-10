@@ -122,8 +122,8 @@ Windows 上，非 MSYS 进程起的 bash 自己解析命令行，并展开没加
 dev-flow 的 `tests/test-slot-launch.spec.ts` 在所在平台上核对这些起法，包括带通配符的参数。
 
 经它执行的入口：根 `pnpm run check`（整套占一个名额）、`pnpm run test`、`pnpm run test:gate`、
-`pnpm run test:affected`、`pnpm run test:tier`、`pnpm run test:triage`、`pnpm run test:python`、`pnpm run acceptance`、`pnpm run mutation`、`pnpm run metrics --coverage`；
-`test:affected` 与 `mutation` 带 `--plan-only` 时不占名额。已经持有名额的进程再调用它
+`pnpm run test:affected`、`pnpm run test:tier`、`pnpm run test:triage`、`pnpm run test:python`、`pnpm run acceptance`、`pnpm run metrics --coverage`、`pnpm run closeout:mutation`；
+`test:affected` 与 `closeout:mutation` 带 `--plan-only` 时不占名额。已经持有名额的进程再调用它
 （例如 `pnpm run check` 里嵌着的测试一步）直接放行，不重复排队。名额随持有它的包装进程退出而释放，
 被杀也不会留下卡死的锁；POSIX 下杀持有者要杀整棵进程树（`kill -- -<进程组>`），只杀包装进程时被包装的命令成孤儿继续跑，
 名额却已经释放。Windows 的 `taskkill /T` 连子孙一起杀，没有这个问题。

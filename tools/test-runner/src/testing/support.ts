@@ -1,4 +1,4 @@
-// 测试运行入口与变异入口共用的几件事：读命令行参数、运行目录的时间戳、先把目标成员连同依赖构建一遍。
+// 测试运行入口共用的几件事：读命令行参数、运行目录的时间戳、先把目标成员连同依赖构建一遍。
 import { admissionRequested, turboBuildCaptured } from './turbo.ts'
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

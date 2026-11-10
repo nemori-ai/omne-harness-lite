@@ -1,14 +1,11 @@
 // closeout:mutation：每个改动成员调一次 pqw mutation.mjs --project。先只列范围，超过上限就拒绝；
-// 正式运行时成员之间按 pqw 自己的份额模型粗分 CPU（同时跑 K 个，各报 --other-heavy-tasks K-1）。
+// 正式运行时按范围行数工作守恒地分 CPU：大的先开跑、多分进程，各成员的进程数之和不超过 CPU 数（mutateAll）。
 // 位点、Stryker 配置、沙箱预检、复核与增量全在 pqw，这里只拼参数、读回 JSON、汇总。
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { FAST_VITEST_CONFIG, PQW_SCRIPTS, STRYKER_MODULES, slugOf } from './locations.ts'
 import type { ChangedMember } from './members.ts'
 import type { Executor, Outcome } from './process.ts'
-
-/** 同时跑的成员数上限。 */
-export const MAX_PARALLEL_MEMBERS = 3
 
 /** 缺省的范围上限（各成员 mutate 行数之和）；超过时要求用 --scope 收窄到关键位置，或用 --max-lines 显式放宽。 */
 export const DEFAULT_MAX_LINES = 600
@@ -21,7 +18,8 @@ export interface MutationCall {
   readonly files: readonly string[]
   readonly json: string
   readonly planOnly: boolean
-  readonly otherHeavyTasks: number
+  /** Stryker 的进程数，经 pqw 的 --workers 交过去；不给时 pqw 按整机 CPU 数取（只列范围时用不到）。 */
+  readonly workers?: number
 }
 
 export function mutationArgs(call: MutationCall): string[] {
@@ -42,8 +40,7 @@ export function mutationArgs(call: MutationCall): string[] {
     join(call.root, STRYKER_MODULES),
     '--vitest-config',
     FAST_VITEST_CONFIG,
-    '--other-heavy-tasks',
-    String(call.otherHeavyTasks),
+    ...(call.workers === undefined ? [] : ['--workers', String(call.workers)]),
     '--json',
     call.json,
     ...(call.planOnly ? ['--plan-only'] : []),
@@ -129,7 +126,7 @@ export interface MutationContext {
 export async function mutateMember(
   member: ChangedMember,
   context: MutationContext,
-  run: { readonly planOnly: boolean; readonly otherHeavyTasks: number },
+  run: { readonly planOnly: boolean; readonly workers?: number },
 ): Promise<MemberMutation> {
   const json = join(
     context.outDir,
@@ -161,27 +158,59 @@ export async function mutateMember(
   }
 }
 
-/** 按上限并发地跑；各成员报给 pqw 的「同机另有的重型任务数」是同时在跑的其余成员数。 */
-export async function mutateAll(
-  members: readonly ChangedMember[],
+/** 一个要变异的成员与它的范围行数（只列范围那一轮的 mutate 条目按 rangeLines 算）。 */
+export interface PlannedMember {
+  readonly member: ChangedMember
+  readonly lines: number
+}
+
+/**
+ * 开跑一个成员时给它的进程数：CPU 数按它的范围行数占还没跑完的成员（在跑的与没开跑的）范围行数之和的比例分，
+ * 四舍五入，至少 1，不超过此刻空着的 CPU。
+ */
+export function workersFor(lines: number, unfinished: number, cpus: number, free: number): number {
+  const share = unfinished > 0 ? Math.round((cpus * lines) / unfinished) : 1
+  return Math.max(1, Math.min(free, share))
+}
+
+/**
+ * 工作守恒地跑全部成员：范围大的先开跑，开跑时按 workersFor 分进程数，最后一个开跑的拿走空着的全部；
+ * 在跑的进程数之和不超过 CPU 数，一个成员跑完，它的进程数立刻交给下一个。
+ * Stryker 的并行度在启动时定下、运行中不调，所以大成员要在开跑时就拿到它那份。结果按传入的顺序返回。
+ */
+export function mutateAll(
+  planned: readonly PlannedMember[],
   context: MutationContext,
+  cpus: number,
 ): Promise<MemberMutation[]> {
-  const parallel = Math.max(1, Math.min(MAX_PARALLEL_MEMBERS, members.length))
-  const results = new Map<number, MemberMutation>()
+  const order = planned.map((item, index) => ({ ...item, index })).sort((a, b) => b.lines - a.lines)
+  const results: MemberMutation[] = []
+  let free = cpus
+  let unfinished = order.reduce((total, item) => total + item.lines, 0)
   let next = 0
-  const lane = async () => {
-    while (next < members.length) {
-      const index = next++
-      const member = members[index]
-      if (member === undefined) return
-      results.set(
-        index,
-        await mutateMember(member, context, { planOnly: false, otherHeavyTasks: parallel - 1 }),
-      )
+  let running = 0
+  return new Promise((resolve, reject) => {
+    const start = () => {
+      while (free > 0) {
+        const item = order[next]
+        if (item === undefined) break
+        next += 1
+        const workers =
+          next === order.length ? free : workersFor(item.lines, unfinished, cpus, free)
+        free -= workers
+        running += 1
+        mutateMember(item.member, context, { planOnly: false, workers }).then(result => {
+          results[item.index] = result
+          free += workers
+          unfinished -= item.lines
+          running -= 1
+          start()
+        }, reject)
+      }
+      if (next === order.length && running === 0) resolve(results)
     }
-  }
-  await Promise.all(Array.from({ length: parallel }, lane))
-  return [...results.entries()].sort(([a], [b]) => a - b).map(([, result]) => result)
+    start()
+  })
 }
 
 /** 测量无效：pqw 判 valid 为 false，或调用本身失败。只列时 valid 为 null，不算无效。存活不算无效。 */
@@ -193,7 +222,6 @@ export const mutationExitCode = (results: readonly MemberMutation[]): number =>
 
 /** pqw 还没修、读的人要知道的限制；末行原样写出。 */
 export const MUTATION_LIMITS: readonly string[] = [
-  'pqw 没关 vitest 的 preParse，it.each 等生成名字的用例所在文件可能被滤掉，只由它们守的变异体会记成存活（omne #405）',
   '增量指纹不含测试经相对路径读的成员外文件，它们变了要手动删指纹重跑',
 ]
 

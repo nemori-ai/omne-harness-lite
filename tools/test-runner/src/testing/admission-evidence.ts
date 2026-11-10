@@ -142,13 +142,16 @@ const unreadable = (message: string): Inspected => ({
   reason: reject('unreadable', `记录读不出：${message}`),
 })
 
-/** 缓存状态只用于展示，不进接受条件；没写时三项都是 unknown，写了就要每项都是 on、off、unknown 之一。 */
+/**
+ * 缓存状态只用于展示，不进接受条件；没写时两项都是 unknown，写了就要每项都是 on、off、unknown 之一。
+ * 旧记录里多出的字段（例如已删的 mutation）不读也不报错。
+ */
 function readCaches(value: unknown): Caches | undefined {
-  if (value === undefined) return { test: 'unknown', depGraph: 'unknown', mutation: 'unknown' }
+  if (value === undefined) return { test: 'unknown', depGraph: 'unknown' }
   if (!isObject(value)) return undefined
-  const { test, depGraph, mutation } = value
-  if (!isCacheState(test) || !isCacheState(depGraph) || !isCacheState(mutation)) return undefined
-  return { test, depGraph, mutation }
+  const { test, depGraph } = value
+  if (!isCacheState(test) || !isCacheState(depGraph)) return undefined
+  return { test, depGraph }
 }
 
 function stepProblems(steps: unknown): Rejection[] {
@@ -259,7 +262,7 @@ function inspect(path: string): Inspected {
   const caches = readCaches(parsed['caches'])
   if (caches === undefined)
     return unreadable(
-      `caches=${JSON.stringify(parsed['caches'])} 不是 test、depGraph、mutation 各取 on、off、unknown`,
+      `caches=${JSON.stringify(parsed['caches'])} 不是 test、depGraph 各取 on、off、unknown`,
     )
   const resumeFrom = parsed['resumeFrom']
   const resumedFrom =
@@ -448,7 +451,7 @@ export function formatEvidence(evidence: AdmissionEvidence): string[] {
       resumedFrom === undefined ? '' : `（H1 ${resumedFrom} 的全量准入＋ C 上的增量准入）`
     return [
       `F ${target.commit} 采用 C ${source.commit} 的全量准入${composed}，树 ${target.tree} 相同；记录 ${record}；` +
-        `缓存 test=${caches.test}, depGraph=${caches.depGraph}, mutation=${caches.mutation}`,
+        `缓存 test=${caches.test}, depGraph=${caches.depGraph}`,
       ...retriedLines(evidence.retried, ''),
     ]
   }

@@ -59,7 +59,7 @@ function record(
     dirty: false,
     worktree: WORKTREE,
     admission: true,
-    caches: { test: 'off', depGraph: 'off', mutation: 'unknown' },
+    caches: { test: 'off', depGraph: 'off' },
     fullRequested: true,
     mode: 'full',
     base: null,
@@ -710,7 +710,7 @@ describe('证据文本', () => {
     expect(text.find(line => line.startsWith('  整次：'))).toContain('test（')
     expect(text.find(line => line.startsWith('  整次：'))).toContain('python（轻步骤')
     expect(text.find(line => line.startsWith('  常驻：'))).toContain('lint:oxlint（')
-    expect(text).toContain(`${H1.slice(0, 9)} 运行时的缓存：测试 off、依赖图 off、变异 unknown`)
+    expect(text).toContain(`${H1.slice(0, 9)} 运行时的缓存：测试 off、依赖图 off`)
   })
 
   it('退化：写明不接续与原因；拒绝：写明原因', () => {
