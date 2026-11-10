@@ -316,6 +316,8 @@ type Book<P> = {
   readonly loaded: Set<string>
   scratch: Scratch | null
   queue: Promise<void>
+  /** The serial tasks not finished yet and the event observations open on the copy. */
+  users: number
   /** The unknown writes of this process, by the Journal core's operation key. */
   readonly held: Map<string, Held>
 }
@@ -976,6 +978,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         loaded: new Set(),
         scratch: null,
         queue: Promise.resolve(),
+        users: 0,
         held: new Map(),
       }
       books.set(key, book)
@@ -983,24 +986,43 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return book
   }
 
+  /** A book with no open execution and no unknown write: it holds nothing the records do not. */
+  const quiescent = (book: Book<P>): boolean =>
+    book.held.size === 0 &&
+    book.view.executions.size > 0 &&
+    [...book.view.executions.values()].every(execution => execution.finish.ended !== null)
+
+  /**
+   * The one quiescent book that keeps its working copy. The loop of an ended execution still reads
+   * it for its steps after the terminal, so the book of the session that worked last stays warm.
+   * When another session works, the resting book returns to the state of a cold start, and its
+   * next call reads what it needs. A resting book with a task or an observation of its own is
+   * left alone: its own last user puts it to rest again. So the copies held grow with the sessions in flight, not with
+   * the sessions that ended. The book itself stays: the calls already queued keep the one serial
+   * order of the session.
+   */
+  let resting: Book<P> | null = null
+  function rest(book: Book<P>): void {
+    if (resting !== null && resting !== book) {
+      if (resting.users === 0 && quiescent(resting)) {
+        resting.copy = null
+        resting.view = emptySessionView()
+        resting.published = null
+        resting.blobs.clear()
+        resting.parsed.clear()
+        resting.loaded.clear()
+      }
+      resting = null
+    }
+    if (quiescent(book)) resting = book
+  }
+
   /** Runs `task` after every earlier task of the same book: one writer per session in-process. */
   function serial<T>(book: Book<P>, task: () => Promise<T>): Promise<T> {
+    book.users += 1
     const run = book.queue.then(task, task).finally(() => {
-      // A book with no open execution and no unknown write holds nothing the durable records do
-      // not: it returns to the state of a cold start, and the next call reads what it needs. The
-      // book itself stays, so the calls already queued keep the one serial order of the session.
-      if (
-        book.held.size === 0 &&
-        book.view.executions.size > 0 &&
-        [...book.view.executions.values()].every(execution => execution.finish.ended !== null)
-      ) {
-        book.copy = null
-        book.view = emptySessionView()
-        book.published = null
-        book.blobs.clear()
-        book.parsed.clear()
-        book.loaded.clear()
-      }
+      book.users -= 1
+      rest(book)
     })
     book.queue = run.then(
       () => undefined,
@@ -2382,17 +2404,26 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             yield fail<Failure>(refused('output.events'))
             return
           }
-          // Brought to the durable records first; the stream then reads the in-process copy.
+          // Brought to the durable records first; the stream then reads the in-process copy. The
+          // observation counts as a user of the book from inside that task, so the copy it reads
+          // stays the book's copy until the observation ends.
           const copy = await serial(book, async () => {
             const domain = await domainOf(book)
             if ('failure' in domain) return domain
-            return sync(book, domain.ok)
+            const synced = await sync(book, domain.ok)
+            if ('ok' in synced) book.users += 1
+            return synced
           })
           if ('failure' in copy) {
             yield copy
             return
           }
-          yield* copy.ok.core.port.output.events(input)
+          try {
+            yield* copy.ok.core.port.output.events(input)
+          } finally {
+            book.users -= 1
+            rest(book)
+          }
         },
       },
     }

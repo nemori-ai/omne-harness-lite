@@ -14,6 +14,7 @@ import { runInNewContext } from 'node:vm'
 import { decodePassageId, type Passage } from '@omne-harness/agent-contract'
 import { succeed } from '@omne-harness/operation-result'
 import type { FinishCandidateContent, JournalCommit } from '@omne-harness/agent-contract'
+import { memoryAccess } from '@omne-harness/session-contract/testing'
 import { evidence, ok, operation } from './fixtures/common-journal.ts'
 import { admitted, applied, load, prepared } from './fixtures/main-reply.ts'
 import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
@@ -190,6 +191,92 @@ describe('tryFinish on the production session-log Journal with the PA-02 finish 
     )
   }
 
+  it('an observation of the events that started before the terminal receives the ended event', async () => {
+    // The wait of the Agent loop observes the events of its execution (loop-algorithm W0). The
+    // commit that ends the last open execution must reach that observation: the loop leaves its
+    // slot on this event, not on a later check of the clock.
+    const s = await sqlScene('finish-observed')
+    try {
+      const opened = ok(await s.view.journal.open(s.openInput))
+      ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
+      const before = await load(s)
+      const ready = await prepareEnd(s, opened.authority, {
+        origin: before.history,
+        conclusion: { kind: 'fail', cause: evidence('node-failure') },
+        failure: {
+          kind: 'node-failed',
+          node: 'E4',
+          category: 'invariant',
+          failureKind: 'unavailable',
+          step: null,
+          at: '2026-11-06T00:00:00Z',
+          source: before.history,
+        },
+      })
+      if (ready.state.kind !== 'settling') throw new Error('settling expected')
+      const stop = new AbortController()
+      const stream = s.view.journal.output
+        .events({
+          ...s.access,
+          execution: s.execution,
+          after: ready.output.emittedThrough,
+          signal: stop.signal,
+        })
+        [Symbol.asyncIterator]()
+      const observed = (async () => {
+        for (;;) {
+          const next = await stream.next()
+          if (next.done) return []
+          const page = ok(next.value)
+          if (page.kind === 'page' && page.events.length > 0)
+            return page.events.map(event => event.body.kind)
+        }
+      })()
+      // The observation is attached before the terminal is written.
+      for (let turn = 0; turn < 20; turn += 1) await nextTurn()
+      const ended = ok(
+        await s.view.journal.tryFinish({
+          ...s.access,
+          execution: s.execution,
+          operation: operation('observed-end'),
+          authorization: { kind: 'advancement', authority: opened.authority },
+          expected: ready.revision,
+          intent: ready.state.intent,
+        }),
+      )
+      expect(ended.kind).toBe('ended')
+      const late = new Promise<string[]>(resolve =>
+        setTimeout(() => resolve(['not-observed']), 500),
+      )
+      expect(await Promise.race([observed, late])).toContain('ended')
+      // The observation keeps the book's copy while it is open: work in another session does not
+      // send the book cold under it. Once it ends, that work does.
+      const readsOfOneLoad = async () => {
+        let reads = 0
+        s.rewriteReads.current = (_request, answer) => {
+          reads += 1
+          return answer
+        }
+        await load(s)
+        s.rewriteReads.current = null
+        return reads
+      }
+      const workElsewhere = async () => {
+        const other = memoryAccess('tester', 'another-session')
+        await s.journals.forSession(other).journal.load({ ...other, execution: s.execution })
+      }
+      const warm = await readsOfOneLoad()
+      await workElsewhere()
+      expect(await readsOfOneLoad()).toBe(warm)
+      stop.abort()
+      await stream.return?.()
+      await workElsewhere()
+      expect(await readsOfOneLoad()).toBeGreaterThan(warm)
+    } finally {
+      await s.close()
+    }
+  })
+
   it('a conflict of the Session check is FinishResult.changed and writes nothing; after the hand-over the same tryFinish ends the execution with the reply in the history', async () => {
     const s = await sqlScene('finish-pa02')
     try {
@@ -329,17 +416,37 @@ it('reclaims terminal working records while retaining the original observation a
       expected: ready.revision,
       intent: ready.state.intent,
     }
+    let warmReads = 0
+    s.rewriteReads.current = (_request, answer) => {
+      warmReads += 1
+      return answer
+    }
+    await load(s)
+    s.rewriteReads.current = null
     const ended = ok(await s.view.journal.tryFinish(input))
     expect(ended.kind).toBe('ended')
-    async function observeWeakly() {
-      const snapshot = await load(s)
-      const observation = snapshot.terminalObservations[0]
-      if (observation === undefined) throw new Error('terminal observation missing')
-      return new WeakRef(observation)
+    // The book of the session that worked last keeps its copy: the steps of the loop after the
+    // terminal read it. A read after the terminal costs the storage what a read before it did.
+    async function readsOfOneLoad() {
+      let reads = 0
+      s.rewriteReads.current = (_request, answer) => {
+        reads += 1
+        return answer
+      }
+      await load(s)
+      s.rewriteReads.current = null
+      return reads
     }
-    const weak = await observeWeakly()
-    // Every object of the snapshot of the ended execution, not only the observation: the folded
-    // facts and the decoded blocks that the provider read for it leave with the working copy.
+    expect(await readsOfOneLoad()).toBe(warmReads)
+    // Another session works: the resting book returns to the state of a cold start.
+    async function workElsewhere() {
+      const other = memoryAccess('tester', 'another-session')
+      await s.journals.forSession(other).journal.load({ ...other, execution: s.execution })
+    }
+    await workElsewhere()
+    // The snapshot now comes from the durable records, so none of its objects is one this test
+    // passed in. Every object of it, not only the observation: the folded facts and the decoded
+    // blocks that the provider read for it leave with the working copy.
     async function snapshotWeakly() {
       const parts: WeakRef<object>[] = []
       const visit = (value: unknown) => {
@@ -347,11 +454,15 @@ it('reclaims terminal working records while retaining the original observation a
         parts.push(new WeakRef(value))
         for (const item of Object.values(value)) visit(item)
       }
-      visit(await load(s))
-      return parts
+      const snapshot = await load(s)
+      visit(snapshot)
+      const observation = snapshot.terminalObservations[0]
+      if (observation === undefined) throw new Error('terminal observation missing')
+      return { parts, weak: new WeakRef(observation) }
     }
-    const parts = await snapshotWeakly()
+    const { parts, weak } = await snapshotWeakly()
     expect(parts.length).toBeGreaterThan(10)
+    await workElsewhere()
     for (let round = 0; round < 4; round++) {
       await nextTurn()
       gc()
