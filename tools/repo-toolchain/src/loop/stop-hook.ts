@@ -4,10 +4,11 @@
 // 宿主把退出码 2 一律当拦截，所以这里不经 make、不透传任何子进程的退出码。判断在 hook.ts。
 import { appendFileSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { git } from '../core/git.ts'
 import { readIfFile } from './catalogue.ts'
 import { readLoopConfig } from './config.ts'
-import { stopHook, type HookDeps } from './hook.ts'
+import { STATE_FILE, stopHook, type HookDeps } from './hook.ts'
 import { measureInWorker } from './hook-thread.ts'
 import { loopHome } from './home.ts'
 
@@ -26,9 +27,20 @@ function repository(cwd: string): ReturnType<HookDeps['repository']> {
   }
 }
 
+/** 这份脚本所在检出的根；给了 OMNE_RUNNER_ROOT（有意分开检查器与被检仓库）时不比，取不到时也不比。 */
+function toolRoot(): string | undefined {
+  const runner = process.env['OMNE_RUNNER_ROOT']
+  if (runner !== undefined && runner !== '') return undefined
+  try {
+    return git(dirname(fileURLToPath(import.meta.url)), ['rev-parse', '--show-toplevel'])
+  } catch {
+    return undefined
+  }
+}
+
 function writeState(home: string, text: string): void {
   mkdirSync(home, { recursive: true })
-  const path = join(home, 'hook-state.json')
+  const path = join(home, STATE_FILE)
   // 先写临时文件再改名：几棵工作树同时收工时，读到的总是完整的一份。
   const temporary = `${path}.${process.pid}.tmp`
   writeFileSync(temporary, text)
@@ -57,9 +69,10 @@ try {
     },
     repository,
     measure: measureInWorker,
-    readState: home => readIfFile(join(home, 'hook-state.json')),
+    readState: home => readIfFile(join(home, STATE_FILE)),
     writeState,
     log,
+    toolRoot,
   })
   if (output !== undefined) process.stdout.write(output)
 } catch {

@@ -255,7 +255,9 @@ export function pythonStep(root: string, file: PlanFile): number {
           'auto',
           '--dist',
           'worksteal',
-          ...['tools/spec-tools/tests', '.meta_harness/tooling/tests'].map(path => join(root, path)),
+          ...['tools/spec-tools/tests', '.meta_harness/tooling/tests'].map(path =>
+            join(root, path),
+          ),
         ],
         env,
       )

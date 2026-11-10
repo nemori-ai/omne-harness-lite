@@ -3,13 +3,10 @@ import { pnpmCommand } from './support.ts'
 
 export const PLAN_DIR = 'tmp/check-plan'
 export const PLAN_FILE = `${PLAN_DIR}/plan.json`
-export const LOOP_STATUS_DIR = 'tmp/loop-status-check'
 
-/** 步骤表的输入：基线与各入口脚本的路径（相对根）。 */
+/** 步骤表的输入：各入口脚本的路径（相对根）。基线经环境变量 `BASELINE` 交给各步。 */
 export interface StepInputs {
-  readonly baseline: string
   readonly runnerCli: string
-  readonly devFlowDeliveryCli: string
   readonly devFlowIntegrationCli: string
 }
 
@@ -36,23 +33,17 @@ export function checkSteps(inputs: StepInputs): CheckStep[] {
     after,
     heavy: false,
   })
-  const everythingElse = (steps: readonly CheckStep[]) => steps.map(entry => entry.name)
-  const steps: CheckStep[] = [
+  return [
     // 常驻：每次都跑，不依赖任何步骤。
     resident('check:agents'),
     resident('check:docs'),
     resident('check:design'),
-    // 线归属表的结构校验（重叠、漏掉的成员、轨道登记与契约位置）。
-    resident('check:lines'),
-    // Journal 事实体不含内容类型的判别键；扫测试世界留下的库，没有库或没有 er_fact 表时跳过并说明原因。
-    resident('check:journal-facts'),
-    // 本卡自己的改动须在 binding 写范围与本线内；没有 task context 时只报告「未绑定」。
-    { name: 'change-scope', command: node(inputs.devFlowDeliveryCli), after: [], heavy: false },
+    // 硬线二：基线（环境变量 BASELINE）以来碰过验收的提交，角色须是验收的拥有者。
+    resident('acceptance:lock'),
     // 按计划：Python 工具测试。pytest-xdist 分进程跑，进程数取预算的四分之一（见 .meta_harness/tooling/tests/conftest.py），
     // 与重步骤同时跑而不把机器吃满；仍是轻步骤，不占重步骤那条道。
     { ...step('python'), heavy: false },
     { name: 'format:check', command: run('format:check'), after: [], heavy: false },
-    { name: 'test:format', command: run('test:format'), after: [], heavy: false },
     // 按计划：构建被选中的成员及其依赖，加上常驻检查要的成员。
     step('build'),
     // 读 dist 的步骤都排在类型检查之后：有成员的 typecheck 脚本会重建自己的 dist（packages/execution/image），
@@ -86,32 +77,14 @@ export function checkSteps(inputs: StepInputs): CheckStep[] {
     // 可执行验收驱动构建出来的 dist。
     step('acceptance', ['build']),
   ]
-  // 回路状态只读源码、git 与验收账本；放最后让前面的失败先报。
-  steps.push({
-    name: 'loop:status',
-    command: run(
-      '--silent',
-      'loop:status',
-      '--strict',
-      '--base',
-      inputs.baseline,
-      '--out',
-      LOOP_STATUS_DIR,
-    ),
-    after: everythingElse(steps),
-    heavy: false,
-    clean: [LOOP_STATUS_DIR],
-  })
-  return steps
 }
 
 /**
  * 预检 `check --preflight` 的步骤表：准入里不依赖构建与全量测试的步骤，全部是轻步骤、彼此无依赖，同时起、失败不终止其余。
- * 与 check 的表同一条命令，判据相同；差别只在这里不跑按计划的步骤、不跑读 dist 的步骤，也不跑 loop:status。
- * `acceptance:lock` 是 loop:status 里验收锁那一项的等价核对。`lint:rules` 导入 packages/common/legal-identity 的 dist：
- * 预检不构建，读磁盘上现有的；没有就在那一步失败并在修法里写明。
+ * 与 check 的表同一条命令，判据相同；差别只在这里不跑按计划的步骤，也不跑读 dist 的步骤。
+ * `lint:rules` 导入 packages/common/legal-identity 的 dist：预检不构建，读磁盘上现有的；没有就在那一步失败并在修法里写明。
  */
-export function preflightSteps(inputs: StepInputs): CheckStep[] {
+export function preflightSteps(): CheckStep[] {
   const pnpm = pnpmCommand()
   const run = (...args: string[]): Command => [pnpm.command, ...pnpm.args, 'run', ...args]
   const light = (name: string, ...args: string[]): CheckStep => ({
@@ -124,13 +97,6 @@ export function preflightSteps(inputs: StepInputs): CheckStep[] {
     light('check:agents'),
     light('check:docs'),
     light('check:design'),
-    light('check:lines'),
-    {
-      name: 'change-scope',
-      command: [process.execPath, '--experimental-strip-types', inputs.devFlowDeliveryCli],
-      after: [],
-      heavy: false,
-    },
     light('format:check'),
     light('lint:rules'),
     light('lint:oxlint'),
@@ -145,9 +111,6 @@ export const PREFLIGHT_FIXES: Readonly<Record<string, string>> = {
   'check:docs': '按日志修链接、锚点与必要章节；规则见 docs/engineering/documentation.md',
   'check:design':
     '按日志修设计材料的结构与登记；需要 uv 锁文件一致（UV_DEFAULT_INDEX 指向镜像时先 unset）',
-  'check:lines': '改 .meta_harness/design/lines 的归属表：重叠、漏掉的成员、轨道登记与契约位置',
-  'change-scope':
-    '改动越出 binding 写范围或本线：撤回那些文件，或请调度者扩大写范围后重新派发；契约申报不符时改申报。见 tools/dev-flow/src/delivery/README.md',
   'format:check':
     'pnpm run format:write；CRLF 工作副本已由预检开头自愈，仍报的文件看是不是有内容改动',
   'lint:rules':

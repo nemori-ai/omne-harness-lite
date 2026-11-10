@@ -16,9 +16,9 @@ Codex 的 `.codex/hooks.json`。两端读同一个形状：
 说明在 `tools/repo-toolchain/README_ZH.md`「收工钩子」一节）。
 它核对产品源码、全局架构约束及其引用的 Markdown 依据，有要报告的读数时反馈。触发与基线选择以执行仓库的工具为准。
 新增偏离对 BASE 的预期判断，预期语义改动另列。机械范围归执行仓库的 `tools/repo-toolchain/src/arch/CONFORMANCE.md`。
-同一分支上同一组读数只反馈一次；钩子自己出错从不拦人，只给用户一句警告。
+它只反馈比这棵工作树、这条分支上一次量到的读数新出现或变差的项，没有就不出声；钩子自己出错从不拦人，只给用户一句警告。
 
-命令先选择有脚本与依赖的检出，否则回退到主检出脚本。实际受检根来自事件payload.cwd；不能从脚本位置或单次工具workdir推断受检候选。回退脚本的配置可能仍按脚本位置读取，去重状态按git common目录或OMNE_METRICS_HOME保存。精确分工归[工具说明](../../../tools/repo-toolchain/README_ZH.md#收工钩子)。不在Git仓库里时命令退出0，这不证明检查已发生。
+命令先选择有脚本与依赖的检出，否则回退到主检出脚本。实际受检根来自事件payload.cwd；不能从脚本位置或单次工具workdir推断受检候选。脚本只量自己所在的检出：退回到主检出时，主检出的工具可能落后，脚本不量，只给用户一句「量不了」。配置从受检根读，上一次的读数按git common目录或OMNE_METRICS_HOME保存。精确分工归[工具说明](../../../tools/repo-toolchain/README_ZH.md#收工钩子)。不在Git仓库里时命令退出0，这不证明检查已发生。
 
 ## `stale-skill-copies`
 

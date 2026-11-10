@@ -127,6 +127,8 @@ Synchronizing the primary branch can remove delivered changes from the current d
 For a task-wide report, run `pnpm run loop:status --base <task-start-commit>` with a fixed task anchor.
 That explicit base does not change the automatic hook's base. The internal 40-second limit and host error protocol remain unchanged.
 
+The hook reports only the findings that are new or worse since the last reading of the same worktree and branch. It keeps that reading in `hook-readings.json` in the loop directory. When the running script is not in the measured checkout and `OMNE_RUNNER_ROOT` is not set, the hook does not measure. It shows the user a warning that it cannot measure, because the tool in the other checkout can be out of date.
+
 ## Actual assembly observations
 
 The clean loop reads complete current and BASE sources through `sensors.architecture`.

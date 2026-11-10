@@ -133,6 +133,7 @@ description: 在本项目发卡、开工、进轨道、提升与接受时的步�
 
 - 顶层轨道的上游是 main。其余轨道的上游按集成规则「轨道树与上游」判定。跨层或兄弟轨道之间的 PR 会被拒绝。
 - RI 的 PR 说明按 `gate/README.md`「提升 PR 的说明」列出所含的卡。RI 携带轨道的完整前缀，不手选卡或 cherry-pick。
+- mainline 提升 main 的 PR 开出后，跑一次整仓健康读数：在 PR head 的干净检出上先 `pnpm run acceptance`（严格模式要同一提交的验收账本），再 `pnpm run loop:status --strict --base origin/main --out <目录>`，把 `<目录>/status.md` 的硬线、带位与超预算成员几段贴成提升 PR 的一条评论。它只报告不挡：退出 1 也照贴，写明哪条硬线或哪个传感器没数据，由负责人决定处置。
 - stable 派发另加 `-f checkpoint=<名称>`。新建轨道或子轨道用 `gate-track.yml`，传入 `parent`，参数见 `gate/README.md`。
 - main 的变化逐层同步，先进顶层轨道，再进下一层。按集成规则的共同节奏判断何时 FI/RI；不新增日历调度、全量构建或模型预算。
 - 已接受的历史卡随后运输时逐 tuple 重核，不改写历史绑定。运输不自动接受或关闭卡；平台正文与 Stage 的写回由原单写者接续。

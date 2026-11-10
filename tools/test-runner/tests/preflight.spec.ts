@@ -98,21 +98,12 @@ describe('预检', () => {
 })
 
 describe('预检的步骤表', () => {
-  const inputs = {
-    baseline: 'main',
-    runnerCli: 'runner.ts',
-    devFlowDeliveryCli: 'delivery.ts',
-    devFlowIntegrationCli: 'integration.ts',
-  }
-
   it('只有不依赖构建与全量测试的轻步骤，彼此无依赖；每一步都有修法', () => {
-    const steps = preflightSteps(inputs)
+    const steps = preflightSteps()
     expect(steps.map(step => step.name)).toEqual([
       'check:agents',
       'check:docs',
       'check:design',
-      'check:lines',
-      'change-scope',
       'format:check',
       'lint:rules',
       'lint:oxlint',
@@ -124,7 +115,6 @@ describe('预检的步骤表', () => {
       expect(step.planned, step.name).toBeUndefined()
       expect(PREFLIGHT_FIXES[step.name], step.name).toBeTruthy()
     }
-    // 写范围核对直接起 dev-flow 的入口，与 check 的表相同。
-    expect(steps.find(step => step.name === 'change-scope')?.command).toContain('delivery.ts')
+    expect(Object.keys(PREFLIGHT_FIXES).sort()).toEqual(steps.map(step => step.name).sort())
   })
 })

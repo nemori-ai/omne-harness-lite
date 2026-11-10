@@ -80,6 +80,18 @@
         "why": "repo-toolchain 的 loop-catalogue.spec.ts 读 clean-loop 与整洁之道对照表，test-runner 的 test-slot.spec.ts 执行 with-test-slot.sh"
       },
       {
+        "paths": [
+          "scripts/test-formatting.sh",
+          "scripts/format.sh",
+          "scripts/install-format-hook.sh",
+          "scripts/pre-commit-format",
+          ".oxfmtrc.json",
+          ".vscode/settings.json"
+        ],
+        "members": ["tools/repo-toolchain"],
+        "why": "repo-toolchain 的 formatting-boundaries.spec.ts 跑 scripts/test-formatting.sh（格式脚本的自测，它把这几份文件复制进沙箱再验格式范围、幂等、部分暂存与钩子安装），formatting-environment.spec.ts 直接跑 format.sh、install-format-hook.sh 与 pre-commit-format；准入不再单跑 test:format，没有这条就改了格式脚本也不跑它的自测"
+      },
+      {
         "paths": ["scripts/with-test-slot.sh", "scripts/with-test-slot.mjs"],
         "members": ["tools/dev-flow"],
         "why": "dev-flow 的 integration-boundaries.spec.ts 把 with-test-slot.mjs 复制进夹具并执行（预准入的构建一步经它起 turbo）"
@@ -161,15 +173,10 @@
       ".github/**",
       ".vscode/**",
       ".editorconfig",
-      ".oxfmtrc.json",
       ".oxlintrc.json",
       ".dependency-cruiser.cjs",
       "knip.json",
       "scripts/*.md",
-      "scripts/format.sh",
-      "scripts/install-format-hook.sh",
-      "scripts/pre-commit-format",
-      "scripts/test-formatting.sh",
       "scripts/model-probe.mjs",
       "scripts/package-cli.sh",
       "scripts/package-tenancy-host.sh",

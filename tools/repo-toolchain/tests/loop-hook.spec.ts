@@ -1,18 +1,19 @@
-// 收工钩子的判断：放行的几种情形、反馈文字、条数与字数上限、同一组读数只反馈一次、出错不拦人但给用户一句警告。
+// 收工钩子的判断：放行的几种情形、反馈文字、条数与字数上限、只报比上一次新出现或变差的、出错不拦人但给用户一句警告。
 // 外部动作全用替身（hook.ts 的 HookDeps）；入口与线程在 loop-stop-hook.spec.ts 用临时仓库测。
 import { describe, expect, it } from 'vitest'
 import type { HookConfig } from '../src/loop/config.ts'
 import {
-  fingerprintOf,
   findingsOf,
+  newOrWorse,
   parseHookInput,
   parseState,
-  remember,
+  record,
   renderReason,
   renderWarning,
   stopHook,
   type HookDeps,
   type HookReadings,
+  type LastReading,
 } from '../src/loop/hook.ts'
 import type { ExplainedFunction } from '../src/loop/against-base.ts'
 
@@ -91,6 +92,7 @@ function fakes(over: {
   readonly config?: Partial<HookConfig>
   readonly env?: NodeJS.ProcessEnv
   readonly measure?: HookDeps['measure']
+  readonly toolRoot?: string
 }) {
   const calls = { measure: 0, repository: 0 }
   const store: { state?: string; log: string[] } = { log: [] }
@@ -117,6 +119,7 @@ function fakes(over: {
     log: (_home, line) => {
       store.log.push(line)
     },
+    toolRoot: () => over.toolRoot,
   }
   return { deps, calls, store }
 }
@@ -133,13 +136,13 @@ describe('收工钩子的判断', () => {
     expect(parsed['decision']).toBe('block')
     expect(parsed['reason']).toBe(
       [
-        '收工前的结构读数（事实，不是指令）。这次变更里有下面几处读数落在线外：',
+        '收工前的结构读数（事实，不是指令）。这次编辑新增或变差了下面几处落在线外的读数：',
         '- ✗ 硬线 · 依赖违规：[capability-not-sdk] packages/core/a/src/x.ts 依赖了 packages/access/sdk/src/index.ts（packages/core/a/src/x.ts:3）',
         '- 超过 alert 的函数：apps/cli/src/x.ts:47 runCli 圈复杂度 35（alert 12），原 34',
         '- 新增的跨成员依赖：packages/a → packages/b（packages/a/src/y.ts:3）',
         '- 新增的稳定依赖不稳定的边：packages/a（I 0.25）→ packages/b（I 0.50）（packages/a/src/y.ts:3）',
         '- 没有断言的测试用例：packages/a/tests/z.spec.ts:10 「不断言」',
-        '这些要在交付说明里逐条交代：已处理，或保留及理由。同一组读数不会再提醒第二次。',
+        '这些要在交付说明里逐条交代：已处理，或保留及理由。提醒过、之后没再变差的不再列。',
         '完整输出：pnpm run loop:status --base <任务基线>',
       ].join('\n'),
     )
@@ -193,47 +196,115 @@ describe('收工钩子的判断', () => {
     })
   })
 
-  it('同一分支上同一组读数只反馈一次；换了分支、多了一项都再报', async () => {
+  it('只报比上一次新出现的：同样的读数再来不出声；多了一项只列那一项；另一棵树或另一条分支按它自己的上一次', async () => {
     const shared = fakes({})
     expect(await stopHook(STOP, shared.deps)).toBeDefined()
     expect(await stopHook(STOP, shared.deps)).toBeUndefined()
-
-    const other = {
-      ...shared.deps,
-      repository: () => ({ root: '/w', branch: 'b2', home: '/home' }),
-    }
-    expect(await stopHook(STOP, other)).toBeDefined()
 
     const more = readings()
     const grown: HookReadings = {
       ...more,
       explain: { ...more.explain, functions: [...more.explain.functions, fn({ name: 'another' })] },
     }
-    expect(await stopHook(STOP, { ...shared.deps, measure: async () => grown })).toBeDefined()
-    expect(parseState(shared.store.state).reported).toHaveLength(3)
+    const output = await stopHook(STOP, { ...shared.deps, measure: async () => grown })
+    const reason = (JSON.parse(output ?? '{}') as { reason?: string }).reason ?? ''
+    expect(reason.split('\n').filter(line => line.startsWith('- '))).toEqual([
+      '- 超过 alert 的函数：apps/cli/src/x.ts:47 another 圈复杂度 35（alert 12），原 34',
+    ])
+
+    const otherBranch = {
+      ...shared.deps,
+      repository: () => ({ root: '/work', branch: 'b2', home: '/home' }),
+    }
+    expect(await stopHook(STOP, otherBranch)).toBeDefined()
+    const otherTree = {
+      ...shared.deps,
+      repository: () => ({ root: '/w2', branch: 'someone/x', home: '/home' }),
+    }
+    expect(await stopHook(STOP, otherTree)).toBeDefined()
+    expect(
+      parseState(shared.store.state).readings.map(entry => [entry.root, entry.branch]),
+    ).toEqual([
+      ['/work', 'someone/x'],
+      ['/work', 'b2'],
+      ['/w2', 'someone/x'],
+    ])
   })
 
-  it('行号变了指纹不变；位置或类别变了指纹就变', () => {
-    const before = readings()
-    const moved: HookReadings = {
-      ...before,
-      explain: {
-        ...before.explain,
-        functions: [fn({ line: 90, endLine: 140, complexity: 40 })],
-      },
+  it('同一个函数的圈复杂度比上一次涨了：再报；没涨或降了：不报', async () => {
+    const at = (complexity: number): HookReadings => {
+      const base = readings()
+      return { ...base, explain: { ...base.explain, functions: [fn({ complexity })] } }
     }
-    const same = fingerprintOf(
-      findingsOf({ ...before, explain: { ...before.explain, functions: [fn({})] } }),
+    const shared = fakes({ readings: at(35) })
+    expect(await stopHook(STOP, shared.deps)).toBeDefined()
+    expect(await stopHook(STOP, { ...shared.deps, measure: async () => at(35) })).toBeUndefined()
+    const worse = await stopHook(STOP, { ...shared.deps, measure: async () => at(36) })
+    expect((JSON.parse(worse ?? '{}') as { reason?: string }).reason).toContain(
+      '- 超过 alert 的函数：apps/cli/src/x.ts:47 runCli 圈复杂度 36（alert 12），原 34\n这些',
     )
-    expect(fingerprintOf(findingsOf(moved))).toBe(same)
-    const renamed: HookReadings = {
-      ...before,
-      explain: { ...before.explain, functions: [fn({ name: 'other' })] },
-    }
-    expect(fingerprintOf(findingsOf(renamed))).not.toBe(same)
+    expect(await stopHook(STOP, { ...shared.deps, measure: async () => at(33) })).toBeUndefined()
   })
 
-  it('函数那一行末尾补与基线比的说明；指纹不看它（只看类别与位置）', () => {
+  it('修掉又改回来：中间那次读数里没有它，改回来算新出现，再报', async () => {
+    const shared = fakes({})
+    expect(await stopHook(STOP, shared.deps)).toBeDefined()
+    const base = readings()
+    const fixed: HookReadings = { ...base, hardLines: { direction: [], cycles: [] } }
+    expect(await stopHook(STOP, { ...shared.deps, measure: async () => fixed })).toBeUndefined()
+    const again = await stopHook(STOP, shared.deps)
+    expect((JSON.parse(again ?? '{}') as { reason?: string }).reason).toContain('✗ 硬线 · 依赖违规')
+  })
+
+  it('读数不变时不重写状态；变了才写', async () => {
+    const shared = fakes({})
+    await stopHook(STOP, shared.deps)
+    const written = shared.store.state
+    let writes = 0
+    await stopHook(STOP, {
+      ...shared.deps,
+      writeState: () => {
+        writes += 1
+      },
+    })
+    expect(writes).toBe(0)
+    expect(shared.store.state).toBe(written)
+  })
+
+  it('跑的钩子不在被量的那棵树里（退回到别的检出）：不量，只给用户一句「量不了」；同一棵树照常量', async () => {
+    const foreign = fakes({ toolRoot: '/main' })
+    const output = await stopHook(STOP, foreign.deps)
+    expect(Object.keys(JSON.parse(output ?? '{}') as object)).toEqual(['systemMessage'])
+    expect(output).toContain('跑的是 /main 里的收工钩子，量的却是 /work')
+    expect(output).toContain('量不了')
+    expect(foreign.calls.measure).toBe(0)
+    expect(foreign.store.state).toBeUndefined()
+    const own = fakes({ toolRoot: '/work' })
+    expect(await stopHook(STOP, own.deps)).toContain('"decision":"block"')
+    expect(own.calls.measure).toBe(1)
+  })
+
+  it('行号变了不算新；位置或类别变了算新', () => {
+    const before = readings()
+    const only = (row: ExplainedFunction) =>
+      findingsOf({ ...before, explain: { ...before.explain, functions: [row] } })
+    const last: LastReading = {
+      root: '/work',
+      branch: 'b',
+      at: 't',
+      findings: only(fn({})).map(({ key, amount }) => ({
+        key,
+        ...(amount === undefined ? {} : { amount }),
+      })),
+    }
+    expect(newOrWorse(only(fn({ line: 90, endLine: 140 })), last)).toEqual([])
+    expect(newOrWorse(only(fn({ name: 'other' })), last).map(row => row.key)).toContain(
+      'function\u0000apps/cli/src/x.ts\u0000other',
+    )
+    expect(newOrWorse(only(fn({})), undefined)).toEqual(only(fn({})))
+  })
+
+  it('函数那一行末尾补与基线比的说明；比上一次只看类别、位置与圈复杂度，不看说明', () => {
     const base = readings()
     const only = (row: ExplainedFunction): HookReadings => ({
       ...base,
@@ -257,9 +328,10 @@ describe('收工钩子的判断', () => {
     expect(texts(fn({ againstBase: { kind: 'unsure', reason: '基线文本取不到' } }))).toEqual([
       `${head}，拿不准，照列：基线文本取不到`,
     ])
-    const fingerprint = (row: ExplainedFunction) => fingerprintOf(findingsOf(only(row)))
-    expect(fingerprint(fn({ againstBase: { kind: 'new', reason: 'new-function' } }))).toBe(
-      fingerprint(fn({ complexity: 36, againstBase: { kind: 'worse', baseline: 20 } })),
+    const seen = (row: ExplainedFunction) =>
+      findingsOf(only(row)).map(({ key, amount }) => ({ key, amount }))
+    expect(seen(fn({ againstBase: { kind: 'new', reason: 'new-function' } }))).toEqual(
+      seen(fn({ againstBase: { kind: 'worse', baseline: 20 } })),
     )
   })
 
@@ -274,12 +346,26 @@ describe('收工钩子的判断', () => {
     expect(renderReason(many, { maxItems: 12, maxChars: 10 })).toHaveLength(10)
   })
 
-  it('状态条数有上限，超了丢最旧的；不合约定的状态文件算钩子出错', () => {
+  it('状态按工作树与分支各留一条，条数有上限，超了丢最旧的；不合约定的状态文件算钩子出错', () => {
     let state = parseState(undefined)
     for (let i = 0; i < 5; i += 1)
-      state = remember(state, { branch: 'b', fingerprint: `f${i}`, at: 't' }, 3)
-    expect(state.reported.map(entry => entry.fingerprint)).toEqual(['f2', 'f3', 'f4'])
-    expect(() => parseState('{"reported": [{"branch": 1}]}')).toThrow('不合约定')
+      state = record(state, { root: `/t${i}`, branch: 'b', at: 't', findings: [] }, 3)
+    expect(state.readings.map(entry => entry.root)).toEqual(['/t2', '/t3', '/t4'])
+    state = record(state, { root: '/t3', branch: 'b', at: 'u', findings: [{ key: 'k' }] }, 3)
+    expect(state.readings.map(entry => [entry.root, entry.at])).toEqual([
+      ['/t2', 't'],
+      ['/t4', 't'],
+      ['/t3', 'u'],
+    ])
+    expect(parseState(JSON.stringify(state))).toEqual(state)
+    expect(() =>
+      parseState('{"reported": [{"branch": "b", "fingerprint": "f", "at": "t"}]}'),
+    ).toThrow('不合约定')
+    expect(() =>
+      parseState(
+        '{"readings": [{"root": "/t", "branch": "b", "at": "t", "findings": [{"key": 1}]}]}',
+      ),
+    ).toThrow('不合约定')
   })
 
   it('量的时候出错或超时：不拦，往日志追加一行，并给用户恰好一句警告；写日志也失败照样不拦', async () => {

@@ -32,9 +32,7 @@ const MB = 'e'.repeat(40)
 const WORKTREE = '/work/tree'
 
 const STEPS = checkSteps({
-  baseline: 'main',
   runnerCli: 'runner.ts',
-  devFlowDeliveryCli: 'delivery.ts',
   devFlowIntegrationCli: 'integration.ts',
 })
 const STEP_NAMES = STEPS.map(step => step.name)
@@ -85,7 +83,6 @@ const AFTER_BUILD = [
   'lint:rules',
   'lint:deps',
   'acceptance',
-  'loop:status',
 ]
 const OXLINT_FAILED = record('lint:oxlint', AFTER_BUILD)
 /** 同样只在 oxlint 失败，但 H1 那次是按影响面准入，基线就是本次的合并点。 */
@@ -340,8 +337,8 @@ describe('增量计划', () => {
     expect(verdict.steps.map(step => step.name)).toEqual(STEP_NAMES)
   })
 
-  it('失败在最后一步、重步骤都通过了：重步骤只跑影响面；python 在 H1 上通过了也整次跑', () => {
-    const verdict = resumePlan(harness({ records: [record('loop:status', [])] }).inputs)
+  it('失败在构建之后的轻步骤 lint:deps、重步骤都通过了：重步骤只跑影响面；python 在 H1 上通过了也整次跑', () => {
+    const verdict = resumePlan(harness({ records: [record('lint:deps', [])] }).inputs)
     expect(verdict.kind).toBe('resume')
     if (verdict.kind !== 'resume') return
     expect(HEAVY_PLANNED).toEqual(['build', 'typecheck', 'test', 'acceptance'])
@@ -352,7 +349,7 @@ describe('增量计划', () => {
     expect(verdict.plan.test).toEqual(['packages/b'])
     // H1..HEAD 没碰 Python 工具（影响面那份不跑）；整次运行的范围要跑，取整次那份。
     expect(verdict.plan.python).toEqual(FULL_PLAN.python)
-    expect(verdict.steps.find(step => step.name === 'loop:status')?.scope).toBe('resident')
+    expect(verdict.steps.find(step => step.name === 'lint:deps')?.scope).toBe('resident')
   })
 
   it('失败在 python：python 整次跑，别的按计划步骤不受它牵连', () => {
@@ -365,9 +362,7 @@ describe('增量计划', () => {
   })
 
   it('失败在 test：test 整次，构建随之整次，typecheck 与验收仍按影响面', () => {
-    const verdict = resumePlan(
-      harness({ records: [record('test', ['acceptance', 'loop:status'])] }).inputs,
-    )
+    const verdict = resumePlan(harness({ records: [record('test', ['acceptance'])] }).inputs)
     expect(verdict.kind).toBe('resume')
     if (verdict.kind !== 'resume') return
     const scope = new Map(verdict.steps.map(step => [step.name, step.scope]))
@@ -389,8 +384,8 @@ describe('增量计划', () => {
 })
 
 describe('H1 失败于 test 时只跑必要的', () => {
-  // H1 的 test 步在慢层失败于 packages/b 的一个文件（快层已对全部成员通过），验收与回路状态没开始。
-  const AFTER_TEST = ['acceptance', 'loop:status']
+  // H1 的 test 步在慢层失败于 packages/b 的一个文件（快层已对全部成员通过），验收没开始。
+  const AFTER_TEST = ['acceptance']
   const FAILED_FILE = {
     member: 'packages/b',
     file: 'packages/b/tests/x.spec.ts',
@@ -519,8 +514,8 @@ describe('中间运行', () => {
       test: hit,
     }
   }
-  /** 失败在最后一步、重步骤都通过了：构建只重建被改动影响到的成员，所以磁盘上的旧产物才要紧。 */
-  const H1_LATE = record('loop:status', [])
+  /** 失败在构建之后的轻步骤、重步骤都通过了：构建只重建被改动影响到的成员，所以磁盘上的旧产物才要紧。 */
+  const H1_LATE = record('lint:deps', [])
   const withMiddle = (over: Partial<ResumeInputs>) =>
     harness({ records: [H1_LATE, middle()], plan: byPaths, ...over }).inputs
   const resumed = (inputs: ResumeInputs) => {

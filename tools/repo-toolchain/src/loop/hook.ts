@@ -2,7 +2,7 @@ import { actualFactIdentity } from '../arch/actual-model.ts'
 import { assemblyMetadata } from './sensors/assembly.ts'
 // 收工钩子的判断：宿主在 agent 收工时喂进一个 JSON，决定要不要把「这次变更里要解释的红项」作为事实反馈回去。
 // 这里只有纯函数与一个以依赖注入编排的 `stopHook`；读标准输入、跑 git、起 worker、写文件都在 stop-hook.ts。
-import { createHash } from 'node:crypto'
+import { sameTree } from '../core/subject.ts'
 import type { DependencyFinding, ImportSite } from '../deps/graph.ts'
 import { describeAgainstBase, type ExplainedFunction } from './against-base.ts'
 import type { HookConfig } from './config.ts'
@@ -31,10 +31,14 @@ export function parseHookInput(text: string): HookInput | undefined {
   }
 }
 
-/** 一条线外的读数：`key` 是归一后的类别与位置（不含行号），`text` 是给 agent 看的那一行。 */
+/**
+ * 一条线外的读数：`key` 是归一后的类别与位置（不含行号），`text` 是给 agent 看的那一行；
+ * `amount` 是能比大小的那个值（函数的圈复杂度），同一处变大算变差。
+ */
 export interface Finding {
   readonly key: string
   readonly text: string
+  readonly amount?: number
 }
 
 /** 收工时量出来的东西：要解释的红项（不含克隆）、两条硬线、函数的 alert 线。 */
@@ -119,6 +123,7 @@ export function findingsOf(readings: HookReadings): Finding[] {
     if (row.level === 'alert')
       out.push({
         key: `function\u0000${row.path}\u0000${row.name}`,
+        amount: row.complexity,
         text: `超过 alert 的函数：${row.path}:${row.line} ${row.name} 圈复杂度 ${row.complexity}（alert ${alert}），${baseNote(row)}`,
       })
   if (explain.newEdges.status === 'data')
@@ -142,15 +147,9 @@ export function findingsOf(readings: HookReadings): Finding[] {
   return out
 }
 
-/** 一组读数的指纹：各条的类别与位置排序后求哈希。行号不进指纹，改一行别处的代码不让同一处再报一次。 */
-export function fingerprintOf(findings: readonly Finding[]): string {
-  const keys = findings.map(finding => finding.key).sort()
-  return createHash('sha256').update(keys.join('\n')).digest('hex')
-}
-
-const HEAD = '收工前的结构读数（事实，不是指令）。这次变更里有下面几处读数落在线外：'
+const HEAD = '收工前的结构读数（事实，不是指令）。这次编辑新增或变差了下面几处落在线外的读数：'
 const TAIL = [
-  '这些要在交付说明里逐条交代：已处理，或保留及理由。同一组读数不会再提醒第二次。',
+  '这些要在交付说明里逐条交代：已处理，或保留及理由。提醒过、之后没再变差的不再列。',
   '完整输出：pnpm run loop:status --base <任务基线>',
 ]
 
@@ -178,46 +177,87 @@ export function renderReason(
   return render(0).slice(0, limits.maxChars)
 }
 
-/** 反馈过的一组读数。 */
-export interface Reported {
+/** 读数在状态里只留类别与位置，及能比大小的那个值。 */
+export type Seen = Pick<Finding, 'key' | 'amount'>
+
+/** 一棵工作树、一条分支上最近一次量出的读数：下一次只报比它新出现或变差的。 */
+export interface LastReading {
+  readonly root: string
   readonly branch: string
-  readonly fingerprint: string
   readonly at: string
+  readonly findings: readonly Seen[]
 }
 
-/** 反馈过的读数，按时间先后；超过上限丢最旧的。 */
+/** 各棵工作树、各条分支最近一次的读数，按记下的先后；超过上限丢最旧的。 */
 export interface HookState {
-  readonly reported: readonly Reported[]
+  readonly readings: readonly LastReading[]
 }
 
-const textField = (value: object, key: string): boolean =>
-  typeof (value as Readonly<Record<string, unknown>>)[key] === 'string'
+/** 状态文件名。与旧版的 `hook-state.json` 分开：同一个回路目录里，还停在旧代码上的工作树照旧写那一份。 */
+export const STATE_FILE = 'hook-readings.json'
 
-function isReported(entry: unknown): entry is Reported {
+const isText = (value: unknown): value is string => typeof value === 'string'
+
+function isSeen(value: unknown): value is Seen {
+  if (typeof value !== 'object' || value === null) return false
+  const { key, amount } = value as Readonly<Record<string, unknown>>
+  return isText(key) && (amount === undefined || typeof amount === 'number')
+}
+
+function isLastReading(value: unknown): value is LastReading {
+  if (typeof value !== 'object' || value === null) return false
+  const entry = value as Readonly<Record<string, unknown>>
+  const findings = entry['findings']
   return (
-    typeof entry === 'object' &&
-    entry !== null &&
-    ['branch', 'fingerprint', 'at'].every(key => textField(entry, key))
+    isText(entry['root']) &&
+    isText(entry['branch']) &&
+    isText(entry['at']) &&
+    Array.isArray(findings) &&
+    findings.every(isSeen)
   )
 }
 
-/** 文件不存在时传 undefined；内容不合约定就抛出（由调用方记日志、不反馈）。 */
+/** 文件不存在时传 undefined；内容不合约定就抛出（由调用方记日志、给用户警告）。 */
 export function parseState(text: string | undefined): HookState {
-  if (text === undefined) return { reported: [] }
+  if (text === undefined) return { readings: [] }
   const value: unknown = JSON.parse(text)
-  const reported =
-    typeof value === 'object' && value !== null && 'reported' in value ? value.reported : undefined
-  if (!Array.isArray(reported) || !reported.every(isReported))
-    throw new Error('hook-state.json 不合约定：须为 {"reported": [{branch, fingerprint, at}]}')
-  return { reported }
+  const readings =
+    typeof value === 'object' && value !== null && 'readings' in value ? value.readings : undefined
+  if (!Array.isArray(readings) || !readings.every(isLastReading))
+    throw new Error(
+      `${STATE_FILE} 不合约定：须为 {"readings": [{root, branch, at, findings: [{key, amount?}]}]}`,
+    )
+  return { readings }
 }
 
-export function alreadyReported(state: HookState, branch: string, fingerprint: string): boolean {
-  return state.reported.some(entry => entry.branch === branch && entry.fingerprint === fingerprint)
+export function lastReading(
+  state: HookState,
+  root: string,
+  branch: string,
+): LastReading | undefined {
+  return state.readings.find(entry => entry.root === root && entry.branch === branch)
 }
 
-export function remember(state: HookState, entry: Reported, limit: number): HookState {
-  return { reported: [...state.reported, entry].slice(-limit) }
+/** 比上一次新出现的（类别与位置没见过），或同一处的值变大了的；没有上一次时全部算新。 */
+export function newOrWorse(findings: readonly Finding[], last: LastReading | undefined): Finding[] {
+  if (last === undefined) return [...findings]
+  const before = new Map(last.findings.map(seen => [seen.key, seen.amount]))
+  return findings.filter(finding => {
+    if (!before.has(finding.key)) return true
+    const was = before.get(finding.key)
+    return finding.amount !== undefined && was !== undefined && finding.amount > was
+  })
+}
+
+const seenOf = (findings: readonly Finding[]): Seen[] =>
+  findings.map(({ key, amount }) => (amount === undefined ? { key } : { key, amount }))
+
+/** 记下这棵工作树、这条分支这一次的读数，替换它上一次的那条；超过上限丢最旧的。 */
+export function record(state: HookState, entry: LastReading, limit: number): HookState {
+  const others = state.readings.filter(
+    reading => reading.root !== entry.root || reading.branch !== entry.branch,
+  )
+  return { readings: [...others, entry].slice(-limit) }
 }
 
 /** 钩子用到的外部动作；入口给真实的，测试给替身。任何一个抛错都按「钩子自己出错」处理。 */
@@ -240,6 +280,11 @@ export interface HookDeps {
   readonly readState: (home: string) => string | undefined
   readonly writeState: (home: string, text: string) => void
   readonly log: (home: string, line: string) => void
+  /**
+   * 正在跑的这份钩子所在检出的根。给了且与被量的根不是同一棵树时，钩子不量、报「量不了」：别的检出的工具与配置
+   * 可能落后。有意让检查器与被检仓库分开（`OMNE_RUNNER_ROOT`）时为 undefined，不比。
+   */
+  readonly toolRoot: () => string | undefined
 }
 
 type Repository = NonNullable<ReturnType<HookDeps['repository']>>
@@ -283,22 +328,27 @@ async function feedback(
   deps: HookDeps,
 ): Promise<string | undefined> {
   try {
+    const tool = deps.toolRoot()
+    if (tool !== undefined && !sameTree(tool, root))
+      throw new Error(
+        `跑的是 ${tool} 里的收工钩子，量的却是 ${root}：本工作树没装依赖或没有这份脚本，钩子才退回到别的检出；` +
+          '别的检出的工具可能落后，量不了。在本工作树 pnpm install 之后再量',
+      )
     const config = deps.config()
     if (!config.enabled) return undefined
     const readings = await deps.measure(root, config.primaryBranch, config.timeoutSeconds * 1000)
     if (readings === undefined) return undefined
     const findings = findingsOf(readings)
-    if (findings.length === 0) return undefined
-    const fingerprint = fingerprintOf(findings)
     const state = parseState(deps.readState(home))
-    if (alreadyReported(state, branch, fingerprint)) return undefined
-    const next = remember(
-      state,
-      { branch, fingerprint, at: deps.now().toISOString() },
-      config.stateLimit,
-    )
-    deps.writeState(home, `${JSON.stringify(next, null, 1)}\n`)
-    return JSON.stringify({ decision: 'block', reason: renderReason(findings, config) })
+    const last = lastReading(state, root, branch)
+    const fresh = newOrWorse(findings, last)
+    const seen = seenOf(findings)
+    if (last === undefined || JSON.stringify(last.findings) !== JSON.stringify(seen)) {
+      const entry = { root, branch, at: deps.now().toISOString(), findings: seen }
+      deps.writeState(home, `${JSON.stringify(record(state, entry, config.stateLimit), null, 1)}\n`)
+    }
+    if (fresh.length === 0) return undefined
+    return JSON.stringify({ decision: 'block', reason: renderReason(fresh, config) })
   } catch (error) {
     const reason = (error instanceof Error ? error.message : String(error)).replaceAll('\n', ' ')
     try {

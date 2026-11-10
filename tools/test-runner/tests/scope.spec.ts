@@ -776,6 +776,24 @@ describe('按测量收窄的规则（#793）', () => {
     expect(other.test).toEqual([])
   })
 
+  it('格式脚本与它的配置：选中跑格式自测的 repo-toolchain，不再只算常驻检查', () => {
+    for (const path of [
+      'scripts/test-formatting.sh',
+      'scripts/format.sh',
+      'scripts/install-format-hook.sh',
+      'scripts/pre-commit-format',
+      '.oxfmtrc.json',
+      '.vscode/settings.json',
+    ]) {
+      const result = plan([path])
+      expect(
+        result.files.map(file => file.category),
+        path,
+      ).toEqual(['reader'])
+      expect(result.test, path).toEqual(['tools/repo-toolchain'])
+    }
+  })
+
   it('repo-toolchain 的源码与夹具被 dev-flow、test-runner 的测试经相对路径读到：按读者规则选中；无关文档不选', () => {
     // 真实依赖图里这两个成员装的是 npm 上钉住的 repo-toolchain，没有指向本地成员的边，
     // 所以这里的成员清单也不给它们依赖，只靠读者规则选中。
@@ -1013,20 +1031,14 @@ describe('计划打印的常驻清单', () => {
   /** 步骤表（`check-steps.ts`）里不按计划跑的步骤，按表的顺序；`scripts/check.sh` 只转发到这张表。 */
   function residentStepsOfCheckTable(): string[] {
     return residentStepNames(
-      checkSteps({
-        baseline: 'base',
-        runnerCli: 'cli.ts',
-        devFlowDeliveryCli: 'change-scope-cli.ts',
-        devFlowIntegrationCli: 'integration-cli.ts',
-      }),
+      checkSteps({ runnerCli: 'cli.ts', devFlowIntegrationCli: 'integration-cli.ts' }),
     )
   }
 
-  it('与步骤表的常驻步骤一致，含 check:lines、change-scope 与 contract-check；打印原样列出', () => {
+  it('与步骤表的常驻步骤一致，含硬线一、二的 lint:rules、lint:deps、acceptance:lock 与 contract-check；打印原样列出', () => {
     expect([...RESIDENT_STEPS]).toEqual(residentStepsOfCheckTable())
-    expect(RESIDENT_STEPS).toContain('check:lines')
-    expect(RESIDENT_STEPS).toContain('change-scope')
-    expect(RESIDENT_STEPS).toContain('contract-check')
+    for (const name of ['lint:rules', 'lint:deps', 'acceptance:lock', 'contract-check'])
+      expect(RESIDENT_STEPS, name).toContain(name)
     const text = describe_(plan(['docs/development.md']))
     expect(text).toContain(`常驻：${RESIDENT_STEPS.join('、')}`)
   })
