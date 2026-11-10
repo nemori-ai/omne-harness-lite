@@ -8,7 +8,7 @@
 
 - [dev-flow](../dev-flow/README_ZH.md)：开工准入、任务绑定、Issue 与看板读取、包模板。
 - [product-checks](../product-checks/README_ZH.md)：本仓库的产品规则、验收覆盖声明与场景状态。
-- [test-runner](../test-runner/README_ZH.md)：影响面计划、成员测试、耗时账本与差分变异。
+- [test-runner](../test-runner/README_ZH.md)：影响面计划、成员测试与耗时账本；差分变异经 [pqw-adapter](../pqw-adapter/README_ZH.md)。
 
 ## 仓库根与配置
 

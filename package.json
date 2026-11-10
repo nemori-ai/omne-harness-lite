@@ -39,7 +39,6 @@
     "acceptance:lock": "omne-acceptance-lock",
     "acceptance:scenarios": "node --conditions=source --experimental-strip-types tools/product-checks/src/acceptance/scenario-status-cli.ts",
     "metrics": "./scripts/metrics.sh",
-    "mutation": "./scripts/slot-unless-plan-only.sh node --experimental-strip-types tools/test-runner/src/mutation/cli.ts run",
     "closeout:metrics": "./scripts/with-test-slot.sh node --experimental-strip-types tools/pqw-adapter/src/cli.ts metrics",
     "closeout:mutation": "./scripts/slot-unless-plan-only.sh node --experimental-strip-types tools/pqw-adapter/src/cli.ts mutation",
     "risk": "node --experimental-strip-types tools/pqw-adapter/src/cli.ts risk",

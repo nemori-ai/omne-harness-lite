@@ -73,8 +73,7 @@
     "tools/test-runner": {
       "entry": [
         "src/**/cli.ts",
-        "src/testing/timing-reporter.ts",
-        "src/mutation/sandbox-build.ts"
+        "src/testing/timing-reporter.ts"
       ],
       "project": [
         "src/**/*.ts"
@@ -86,6 +85,11 @@
       ],
       "project": [
         "src/**/*.ts"
+      ],
+      "ignoreDependencies": [
+        "@stryker-mutator/api",
+        "@stryker-mutator/core",
+        "@stryker-mutator/vitest-runner"
       ]
     },
     "tools/artifact-builder": {
