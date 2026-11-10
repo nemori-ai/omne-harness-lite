@@ -110,6 +110,18 @@ describe('收工钩子的依赖图只换改过的文件的边', { timeout: 120_0
     expect(pairs(measured(root, base))).toEqual([])
   })
 
+  it('基线上就有的违规：改了别的文件时仍在；改的正是违规的那个文件并去掉导入后不再在', () => {
+    const { root } = subject()
+    write(root, `${Z}/src/index.ts`, source(['../../../../apps/a/src/index.ts']))
+    const violating = commit(root, 'z imports a')
+    const rules = (graph: DependencyGraph) =>
+      graph.findings.filter(finding => finding.kind === 'dependency-rule').map(f => f.rule)
+    write(root, `${X}/src/extra.ts`, source([]))
+    expect(rules(measured(root, violating))).toEqual(['product-not-outward'])
+    write(root, `${Z}/src/index.ts`, source([]))
+    expect(rules(measured(root, violating))).toEqual([])
+  })
+
   it('基线图这次现算才报「已备好」，第二次读缓存不报', () => {
     const { root, base } = subject()
     write(root, `${Z}/src/index.ts`, source(['../../../tool/y/src/index.ts']))

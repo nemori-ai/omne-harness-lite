@@ -4,23 +4,7 @@ import { readMetricsConfig } from '../metrics/config.ts'
 import { cachedBaselineReader } from './baseline-cache.ts'
 import { readLoopConfig } from './config.ts'
 import { measureForHook, touchedBase } from './hook-measure.ts'
-import type { ChildJob, ChildMessage } from './hook-process.ts'
-
-function jobOf(text: string | undefined): ChildJob {
-  const job: unknown = JSON.parse(text ?? 'null')
-  if (
-    typeof job !== 'object' ||
-    job === null ||
-    !('root' in job) ||
-    typeof job.root !== 'string' ||
-    !('primaryBranch' in job) ||
-    typeof job.primaryBranch !== 'string' ||
-    !('home' in job) ||
-    typeof job.home !== 'string'
-  )
-    throw new Error('量读数的子进程要 {root, primaryBranch, home}')
-  return { root: job.root, primaryBranch: job.primaryBranch, home: job.home }
-}
+import { jobOf, type ChildMessage } from './hook-process.ts'
 
 const send = (message: ChildMessage, then: (error: Error | null) => void = () => {}) => {
   if (process.send === undefined)
