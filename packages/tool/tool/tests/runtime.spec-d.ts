@@ -77,7 +77,7 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
         tenant: CallAccess<P>['tenant'],
         now: ToolInstant,
         limit: number,
-      ): Reply<Readonly<{ reclaimed: number }>>
+      ): Reply<Readonly<{ reclaimed: number; removed: number }>>
       finalPlanner: ToolFinalPlanner<P, ContentBlock>
       controls: ToolLedgerControls<P>
       commands: ToolCommands<P, ContentBlock>

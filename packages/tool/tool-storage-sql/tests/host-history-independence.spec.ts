@@ -480,7 +480,7 @@ function heldBodies(app: App) {
     Number(
       app.sqlite.inspect(domainNameOf(TENANT_A), `SELECT COUNT(*) AS n FROM ${table}`)[0]?.['n'],
     )
-  return { manifests: count('tl_body_manifest'), due: count('tl_due') }
+  return { manifests: count('tl_body_manifest'), due: count("tl_due WHERE key LIKE 'body:%'") }
 }
 
 /**
@@ -502,9 +502,17 @@ function tenantHostDomains(app: App) {
   )
 }
 
+/** The most due entries one sweep reads (`DUE_READ_ENTRIES` of the store). */
+const DUE_ENTRIES_PER_SWEEP = 1000
+
 type Seeded = Readonly<{ app: App; meter: StatementMeter; held: ReturnType<typeof heldBodies> }>
 
-/** `n` settled Tools calls, each with its offloaded body; the sweep reclaims half of the bodies. */
+/**
+ * `n` settled Tools calls, each with its offloaded body; the sweep reclaims half of the bodies.
+ * The released calls are due for removal before the bodies expire, so the sweep handles those
+ * entries first, at an instant before the expiry: it removes the domains that are quiet and
+ * schedules the others again, past the expiry.
+ */
 async function seeded(n: number): Promise<Seeded> {
   const meter = statementMeter()
   const app = await openApp({ observe: meter.observe })
@@ -517,6 +525,10 @@ async function seeded(n: number): Promise<Seeded> {
   }
   if (last === null) throw new Error('nothing was seeded')
   const expiresAt = offloadedOf(last).retention.expiresAt
+  const before = answered(decodeToolInstant(new Date(Date.parse(expiresAt) - 1).toISOString()))
+  last.setNow(before)
+  for (let round = 0; round <= Math.ceil(n / DUE_ENTRIES_PER_SWEEP); round += 1)
+    answered(await last.ledger.sweep(TENANT_A, before, DUE_ENTRIES_PER_SWEEP))
   last.setNow(expiresAt)
   const swept = answered(
     await last.ledger.sweep(TENANT_A, answered(decodeToolInstant(expiresAt)), n / 2),

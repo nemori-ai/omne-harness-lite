@@ -6,6 +6,7 @@ export type {
 export { createLocalToolLoader, type LocalToolLoaderInput } from './author-loader.ts'
 export { createLocalToolBindings, type LocalToolBindingsInput } from './executor-binding.ts'
 export type { LocalAuthorExecution } from './live-author-execution.ts'
+export { createLocalCallRecords } from './call-records.ts'
 export {
   callHostDomain,
   retentionHostDomain,

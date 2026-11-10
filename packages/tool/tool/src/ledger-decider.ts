@@ -35,6 +35,7 @@ import type {
 import type {
   ParsedToolArguments,
   ToolArgumentsRejection,
+  ToolInstant,
   ToolTask,
 } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
@@ -47,6 +48,7 @@ import {
   FIRST_RESULT_VERSION,
 } from './evidence.ts'
 import {
+  CALL_DUE_KEY,
   taskKey,
   factKey,
   type FactEventRecord,
@@ -197,6 +199,12 @@ export function put(record: LedgerRecord): LedgerWrite {
 }
 
 /**
+ * CallLifecycle `Admit`: a domain that held only an exclusion fence was due for removal; a domain
+ * that holds the call is due again only when its delivery is released.
+ */
+const ADMITTED_NOT_DUE: LedgerWrite = { kind: 'unschedule', key: CALL_DUE_KEY }
+
+/**
  * P01: a committed operation answers again with its original receipt when the input is the same,
  * and `conflict` when the input differs. An `undefined` success means the operation is new.
  */
@@ -331,6 +339,7 @@ function accept(command: AdmitCommand, mint: Mint): Decision<Admitted> {
   return {
     kind: 'commit',
     writes: [
+      ADMITTED_NOT_DUE,
       put({ kind: 'call', call: callRecord(command, state) }),
       put(operationRecord(command, { kind: 'admit', state }, mint)),
       put({ kind: 'task', task: queueTask(command.operation, state.source) }),
@@ -598,6 +607,7 @@ function settle(
   return {
     kind: 'commit',
     writes: [
+      ADMITTED_NOT_DUE,
       put({ kind: 'call', call: { ...callRecord(command, state), state } }),
       put(operationRecord(command, { kind: 'admit', state }, mint)),
       ...settled.writes,
@@ -710,10 +720,30 @@ function releaseTarget(
  * Tool-side receipt, the channel values of the record give way to their summary (C6), and the
  * deliver task of that version is done.
  */
+/**
+ * The instant after which the domain of a released call may be dropped (CallLifecycle `Ack`): the
+ * grace after the acknowledgement, or the expiry of an offloaded body when that is later, so the
+ * body stays readable for its whole retention.
+ */
+function removalInstant(snapshot: Snapshot, graceEnd: ToolInstant): ToolInstant {
+  let latest = graceEnd
+  for (const record of snapshot.results.values()) {
+    const original = record.value.original
+    if (original.kind === 'offloaded' && original.retention.expiresAt > latest)
+      latest = original.retention.expiresAt
+  }
+  return latest
+}
+
+/**
+ * `graceEnd` is the acknowledgement instant plus G on the ledger's clock; null when the ledger has
+ * no instant clock, and then the domain is not scheduled.
+ */
 export function decideRelease(
   snapshot: Snapshot,
   command: ReleaseCommand,
   mint: Mint,
+  graceEnd: ToolInstant | null,
 ): Decision<ReleasedDelivery> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'release-delivery')
   if ('failure' in known) return reply(known)
@@ -748,6 +778,15 @@ export function decideRelease(
         call: { ...call, state: withDelivery(call, record, released, mint) },
       }),
       { kind: 'delete', key: taskKey({ kind: 'deliver', operation: record.settledBy }) },
+      ...(graceEnd === null
+        ? []
+        : [
+            {
+              kind: 'schedule' as const,
+              key: CALL_DUE_KEY,
+              dueAt: removalInstant(snapshot, graceEnd),
+            },
+          ]),
     ],
     value: released,
   }

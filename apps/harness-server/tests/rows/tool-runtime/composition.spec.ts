@@ -85,6 +85,7 @@ import { releaseOf } from '../../../src/entry/tool-release.ts'
 import { createReleaseToolRequests } from '../../../src/entry/tool-requests.ts'
 import { toolClock, toolPublicationAuthority } from '../../../src/entry/tool-runtime-objects.ts'
 import { defineRow } from '../../../src/row.ts'
+import { callHostDomain } from '@omne-harness/tool-host-local'
 import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
 import { TOOL_BODY_SCHEMA_VOCABULARY } from '../../../src/entry/tool-body-schemas.ts'
 import type { EntryObjectModule } from '../../../src/types.ts'
@@ -622,7 +623,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
   })
 
   it(
-    'the sweep reclaims an unread Shell body at its expiry and the native file the command wrote stays',
+    'the sweep removes a released call with its unread Shell body at the expiry of the body, and the native file the command wrote stays',
     { timeout: 90_000 },
     async () => {
       const { storageRoot } = workspace()
@@ -641,6 +642,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
         config: {
           combinationVersion: tools.records.combinationVersion,
           ledgerCommitAttempts: tools.records.configuration.ledgerCommitAttempts,
+          orphanGraceMs: tools.records.configuration.offloading.orphanGraceMs,
           intervalMs: 20,
           limit: 100,
         },
@@ -681,30 +683,62 @@ describe('Tool segment B: the release rows in one process composition', () => {
           const call = readToolInvocationRef(invoked.reference).call
           const sql = toolRuntimeHolder(ctx).sql
           if (sql === null) throw new Error('SQL not installed')
+          // The call comes to rest first: the result is released and no duty is left. A sweep that
+          // met an open task would move the removal one grace on.
+          await until(
+            'the call to come to rest',
+            async () => {
+              const answer = await sql.store.read({ kind: 'call', tenant: TENANT_A, call })
+              if (answer.kind !== 'complete') throw new Error('ledger read unavailable')
+              return answer.records
+            },
+            records =>
+              records.some(
+                record => record.kind === 'call' && record.call.state.delivery?.kind === 'released',
+              ) &&
+              records.every(
+                record =>
+                  record.kind !== 'task' ||
+                  (record.task.kind === 'clock' && record.task.state === 'blocked'),
+              ),
+            30_000,
+          )
           // The body is published: move the application clock past its expiry and the skew. The
           // clock keeps running from there; the sweep runs on it and nothing else is faked.
           vi.useFakeTimers({
             toFake: ['Date'],
             shouldAdvanceTime: true,
-            now: Date.now() + retentionMs + offloading.clockSkewMs + 1000,
+            now:
+              Date.now() +
+              Math.max(retentionMs, offloading.orphanGraceMs) +
+              offloading.clockSkewMs +
+              1000,
           })
-          // The sweep runs on the application clock; the body entry ends `reclaimed`, not deleted.
-          const entry = await until(
-            'the sweep to reclaim the body',
+          // The sweep runs on the application clock. The result was released, so at the expiry of
+          // the body the sweep reclaims the body and then removes the call domain with the records
+          // the host kept for the call (spec C15).
+          await until(
+            'the sweep to remove the call domain',
             async () => {
               const answer = await sql.store.read({ kind: 'call', tenant: TENANT_A, call })
               if (answer.kind !== 'complete') throw new Error('ledger read unavailable')
-              return answer.records.find(
-                record => record.kind === 'body-entry' && record.body.bodyId === bodyId,
-              )
+              return answer
             },
-            record => record?.kind === 'body-entry' && record.body.state.kind === 'reclaimed',
+            answer => answer.revision === '0' && answer.records.length === 0,
             20_000,
           )
-          expect(entry).toMatchObject({
-            kind: 'body-entry',
-            body: { state: { kind: 'reclaimed' } },
-          })
+          for (const aggregate of [
+            'start',
+            'source',
+            'delivery',
+            'environment',
+            'control',
+          ] as const)
+            expect(await sql.store.read(callHostDomain(TENANT_A, aggregate, call))).toMatchObject({
+              kind: 'complete',
+              revision: '0',
+              records: [],
+            })
           expect(
             await runtime.body.read({
               principal,
@@ -715,7 +749,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
               after: null,
               maxBytes: 64,
             }),
-          ).toEqual({ failure: { kind: 'not-found', target: 'body', reason: 'expired' } })
+          ).toEqual({ failure: { kind: 'not-found', target: 'result', reason: 'missing' } })
           return { call }
         },
       )
@@ -723,7 +757,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
       expect(value.call).toBeDefined()
       // The command's own file is not the Tool's to reclaim.
       expect(existsSync(join(tools.filesRoot, 'native.txt'))).toBe(true)
-      // Physically: no body bytes and no due entry remain in the tenant's domain.
+      // Physically: no body bytes, no due entry and no ledger record remain in the tenant's domain.
       const domains = join(storageRoot, 'domains')
       const counts = readdirSync(domains)
         .filter(name => name.endsWith('.sqlite'))
@@ -735,13 +769,26 @@ describe('Tool segment B: the release rows in one process composition', () => {
             const n = (table: string) =>
               Number((db.prepare(`SELECT count(*) AS n FROM ${table}`).get() as { n: number }).n)
             return [
-              { chunks: n('tl_body_chunk'), manifests: n('tl_body_manifest'), due: n('tl_due') },
+              {
+                chunks: n('tl_body_chunk'),
+                manifests: n('tl_body_manifest'),
+                due: n('tl_due'),
+                callRecords: Number(
+                  (
+                    db
+                      .prepare(
+                        "SELECT count(*) AS n FROM tl_record WHERE kind = 'call' OR name LIKE '%@call-%'",
+                      )
+                      .get() as { n: number }
+                  ).n,
+                ),
+              },
             ]
           } finally {
             db.close()
           }
         })
-      expect(counts).toEqual([{ chunks: 0, manifests: 0, due: 0 }])
+      expect(counts).toEqual([{ chunks: 0, manifests: 0, due: 0, callRecords: 0 }])
     },
   )
 

@@ -122,6 +122,8 @@ const PREPARATION = {
 export const LOCAL_CONCURRENT_MODEL_CALLS = 20
 
 /** The result capacity of one call; at most `maxCallBytes` of model-records (N1). */
+/** G of the Tool ledger: the runtime and the sweep row take the same value. */
+const TOOL_ORPHAN_GRACE_MS = 60_000
 const CALL_RESULT_CAPACITY = { bytes: 524_288, blocks: 100, attachmentBytes: 0 } as const
 
 const MODEL_HOST = {
@@ -390,7 +392,7 @@ function toolRecords(workspace: string, combinationVersion: string) {
         maxPageBytes: 65_536,
         permitMs: 30_000,
         clockSkewMs: 1_000,
-        orphanGraceMs: 60_000,
+        orphanGraceMs: TOOL_ORPHAN_GRACE_MS,
         maxWriterMetadataBytes: 1_048_576,
         jsonDocument: {
           maxBytes: 1_048_576,
@@ -546,7 +548,13 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
     ['tool-records', toolRecords(settings.workspace, combinationVersion)],
     [
       'tool-body-sweep',
-      { combinationVersion, ledgerCommitAttempts: 16, intervalMs: 1000, limit: 100 },
+      {
+        combinationVersion,
+        ledgerCommitAttempts: 16,
+        orphanGraceMs: TOOL_ORPHAN_GRACE_MS,
+        intervalMs: 1000,
+        limit: 100,
+      },
     ],
     [
       'tool-bindings',

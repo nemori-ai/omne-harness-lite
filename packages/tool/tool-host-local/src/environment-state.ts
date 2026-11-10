@@ -983,3 +983,48 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
   })
 }
 export type EnvironmentStateStore = ReturnType<typeof createEnvironmentStateStore>
+
+/**
+ * Whether the acquisitions of one call still carry a duty, read from the durable records with the
+ * revision of the call's acquisition domain. An acquisition is `held` while one of its own stop
+ * facts is not confirmed, or while a retention scope holds an entry it created: the stop of that
+ * entry writes the creator's record first. Neither condition returns once it has ended, because a
+ * scope takes over only a reservation that is not stopped.
+ */
+export async function callAcquisitions(
+  store: ToolLedgerStore,
+  tenant: TenantId,
+  call: ToolCallId,
+): Promise<Outcome<Readonly<{ revision: ToolRevision; held: boolean }>, ToolFailure>> {
+  const read = await store.read(acquisitionDomain({ tenant, call }))
+  if (read.kind !== 'complete') return environmentFailure('environment ledger read unavailable')
+  const scopes = new Map<string, ScopeRef>()
+  let held = false
+  for (const record of read.records) {
+    const stored =
+      record.kind === 'host' && object(record.host.value)
+        ? await decodeState(record.host.value.state)
+        : null
+    if (!stored) return environmentFailure('invalid environment ledger state')
+    if ([...stored.resources, ...stored.reservations].some(item => item.stop !== 'confirmed'))
+      held = true
+    const scope = stored.original.retentionScope
+    if (scope !== undefined) scopes.set(canonicalDigest(scope), scope)
+  }
+  for (const scope of scopes.values()) {
+    if (held) break
+    const kept = await store.readRecord(
+      retentionDomain(tenant, scope),
+      hostKey(RETENTION_RECORD_KEY),
+    )
+    if (kept.kind !== 'complete') return environmentFailure('retention ledger read unavailable')
+    if (kept.record === null) continue
+    const state =
+      kept.record.kind === 'host' && object(kept.record.host.value)
+        ? await decodeRetention(kept.record.host.value.state)
+        : null
+    if (!state) return environmentFailure('invalid retention state')
+    held = state.resources.some(item => item.creator.call === call)
+  }
+  return succeed({ revision: read.revision, held })
+}

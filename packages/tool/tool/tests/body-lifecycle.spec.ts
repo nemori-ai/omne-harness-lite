@@ -365,10 +365,12 @@ it('C5 sweep: nothing before due; the orphan is reclaimed at settle + G and the 
   const tenant = s.f.access.tenant
   expect(ok(await s.f.ledger.sweep(tenant, instantAt(s.settledMs + G - 1), 10))).toEqual({
     reclaimed: 0,
+    removed: 0,
   })
   expect(await s.held(s.orphan)).toBe('found')
   expect(ok(await s.f.ledger.sweep(tenant, instantAt(s.settledMs + G), 10))).toEqual({
     reclaimed: 1,
+    removed: 0,
   })
   expect(await s.held(s.orphan)).toBe('absent')
   expect(await s.held(s.linked)).toBe('found')
@@ -380,7 +382,7 @@ it('C5 sweep: nothing before due; the orphan is reclaimed at settle + G and the 
   )
   expect(await s.due()).toEqual([`body:${s.linked}`])
   s.f.bodies.clock.set(s.expiresAt)
-  expect(ok(await s.f.ledger.sweep(tenant, s.expiresAt, 10))).toEqual({ reclaimed: 1 })
+  expect(ok(await s.f.ledger.sweep(tenant, s.expiresAt, 10))).toEqual({ reclaimed: 1, removed: 0 })
   expect(await s.held(s.linked)).toBe('absent')
   expect(await s.due()).toEqual([])
   expect(await s.states()).toEqual(
@@ -392,7 +394,7 @@ it('C5 sweep: nothing before due; the orphan is reclaimed at settle + G and the 
   expect(await s.f.ledger.reads.body.read(s.readInput)).toEqual({
     failure: { kind: 'not-found', target: 'body', reason: 'expired' },
   })
-  expect(ok(await s.f.ledger.sweep(tenant, s.expiresAt, 10))).toEqual({ reclaimed: 0 })
+  expect(ok(await s.f.ledger.sweep(tenant, s.expiresAt, 10))).toEqual({ reclaimed: 0, removed: 0 })
 })
 
 it('C5 sweep deletes the bytes before it records reclaimed: a sweeper that loses its reclaim commit leaves the due entry and the rerun reaches the same end state', async () => {
@@ -404,7 +406,7 @@ it('C5 sweep deletes the bytes before it records reclaimed: a sweeper that loses
   expect(await s.held(s.orphan)).toBe('absent')
   expect(await s.states()).toEqual(expect.arrayContaining([[s.orphan, 'orphaned']]))
   expect(await s.due()).toEqual(expect.arrayContaining([`body:${s.orphan}`]))
-  expect(ok(await s.f.ledger.sweep(tenant, at, 10))).toEqual({ reclaimed: 1 })
+  expect(ok(await s.f.ledger.sweep(tenant, at, 10))).toEqual({ reclaimed: 1, removed: 0 })
   expect(await s.states()).toEqual(expect.arrayContaining([[s.orphan, 'reclaimed']]))
   expect(await s.due()).toEqual([`body:${s.linked}`])
 })

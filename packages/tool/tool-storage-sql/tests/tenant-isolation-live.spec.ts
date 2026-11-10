@@ -48,7 +48,7 @@ describe('a body tenant A settled, asked for by tenant B through its own domain'
     expect(dueA.kind === 'complete' && dueA.entries.length).toBe(1)
 
     // B's sweep over the same ledger and body store reclaims nothing of A.
-    expect(ok(await live.ledger.sweep(TENANT_B, at, 10))).toEqual({ reclaimed: 0 })
+    expect(ok(await live.ledger.sweep(TENANT_B, at, 10))).toEqual({ reclaimed: 0, removed: 0 })
     expect(count(a, TENANT_A, 'tl_body_chunk')).toBeGreaterThan(0)
     expect(count(a, TENANT_A, 'tl_due')).toBe(1)
 
@@ -74,7 +74,7 @@ describe('a body tenant A settled, asked for by tenant B through its own domain'
     expect(count(a, TENANT_A, 'tl_body_chunk')).toBeGreaterThan(0)
     expect(count(a, TENANT_A, 'tl_body_manifest')).toBe(1)
 
-    expect(ok(await live.ledger.sweep(TENANT_A, at, 10))).toEqual({ reclaimed: 1 })
+    expect(ok(await live.ledger.sweep(TENANT_A, at, 10))).toEqual({ reclaimed: 1, removed: 0 })
     expect(count(a, TENANT_A, 'tl_body_chunk')).toBe(0)
     expect(count(a, TENANT_A, 'tl_due')).toBe(0)
   })
@@ -116,7 +116,7 @@ describe('rows of tenant B planted in the body tables and the due index of tenan
     if (due.kind !== 'complete') throw new Error(JSON.stringify(due))
     expect(due.entries).toHaveLength(1)
     expect(due.entries.every(entry => entry.domain.tenant === TENANT_A)).toBe(true)
-    expect(ok(await live.ledger.sweep(TENANT_A, at, 10))).toEqual({ reclaimed: 1 })
+    expect(ok(await live.ledger.sweep(TENANT_A, at, 10))).toEqual({ reclaimed: 1, removed: 0 })
     expect(count(a, TENANT_A, 'tl_due', textOf(TENANT_B))).toBe(1)
     expect(count(a, TENANT_A, 'tl_body_chunk', textOf(TENANT_B))).toBe(1)
     expect(count(a, TENANT_A, 'tl_body_manifest', textOf(TENANT_B))).toBe(1)

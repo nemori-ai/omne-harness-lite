@@ -19,6 +19,7 @@ it('root entry exports the local start coordinator (G5), the host clock (G4), th
     'createAbsentToolPorts',
     'createEnvironmentResourceLedger',
     'createEnvironmentStateStore',
+    'createLocalCallRecords',
     'createLocalGrantVerifiers',
     'createLocalInvocationSource',
     'createLocalOperationIdentities',

@@ -17,6 +17,7 @@ function forbidden(specifier: string): boolean {
 it('root entry exports the independent execution functions, the ledger, the runtime factory and the two host-record checks', () => {
   expect(Object.keys(tool).sort()).toEqual([
     'CALL_RECORD_KEY',
+    'INITIAL_REVISION',
     'canonicalDigest',
     'checkToolResultBody',
     'createIndependentToolScope',

@@ -62,8 +62,9 @@ it('a released delivery leaves the summary in the record, keeps the body readabl
     await live.ledger.reads.result({ ...live.access, result: live.result, after: null }),
   ).toEqual({ failure: { kind: 'not-found', target: 'result', reason: 'released' } })
   // The body entry, its bytes and its due entry are untouched by the release.
+  // The release adds the call's own removal entry.
   expect(count(app, 'tl_body_manifest')).toBe(1)
-  expect(count(app, 'tl_due')).toBe(1)
+  expect(count(app, 'tl_due')).toBe(2)
   const readInput = {
     ...live.access,
     result: live.result,
@@ -88,7 +89,7 @@ it('a released delivery leaves the summary in the record, keeps the body readabl
   expect(await resultRecord()).toEqual(after)
   live.setNow(body.retention.expiresAt)
   const at = ok(decodeToolInstant(body.retention.expiresAt))
-  expect(ok(await live.ledger.sweep(TENANT_A, at, 10))).toEqual({ reclaimed: 1 })
+  expect(ok(await live.ledger.sweep(TENANT_A, at, 10))).toEqual({ reclaimed: 1, removed: 0 })
   expect(count(app, 'tl_body_chunk')).toBe(0)
   expect(await live.ledger.reads.body.read(readInput)).toEqual({
     failure: { kind: 'not-found', target: 'body', reason: 'expired' },

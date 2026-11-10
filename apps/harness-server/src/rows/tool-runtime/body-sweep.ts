@@ -1,5 +1,5 @@
 // The application's schedule of the Tool sweep (BodyLifecycle `DeleteBytes` then `Reclaim`): one
-// step sweeps the due bodies of one tenant at the sweeper's clock; a round visits every tenant the
+// step sweeps the due bodies and the due call domains of one tenant at the sweeper's clock; a round visits every tenant the
 // directory enumerates. The Tool runtime does the reclaiming; this only decides when and for whom.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -11,6 +11,8 @@ import type { ToolLedgerSweep } from '@omne-harness/tool'
 export type BodySweepProgress = Readonly<{
   tenants: number
   reclaimed: number
+  /** Call domains removed with the host records of the call. */
+  removed: number
   failures: number
   roundComplete: boolean
 }>
@@ -58,9 +60,10 @@ export function createBodySweep<P>(input: BodySweepInput<P>) {
     const tenant = pending.shift()
     if (tenant === undefined) {
       pending = null
-      return succeed({ tenants: 0, reclaimed: 0, failures: 0, roundComplete: true })
+      return succeed({ tenants: 0, reclaimed: 0, removed: 0, failures: 0, roundComplete: true })
     }
     let reclaimed = 0
+    let removed = 0
     let failures = 0
     for (;;) {
       if (stopped) return closed()
@@ -70,11 +73,12 @@ export function createBodySweep<P>(input: BodySweepInput<P>) {
         break
       }
       reclaimed += answer.ok.reclaimed
-      if (answer.ok.reclaimed < input.limit) break
+      removed += answer.ok.removed
+      if (answer.ok.reclaimed + answer.ok.removed < input.limit) break
     }
     const roundComplete = pending.length === 0
     if (roundComplete) pending = null
-    return succeed({ tenants: 1, reclaimed, failures, roundComplete })
+    return succeed({ tenants: 1, reclaimed, removed, failures, roundComplete })
   }
   return Object.freeze({
     advance(): Reply<BodySweepProgress> {

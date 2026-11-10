@@ -32,7 +32,7 @@ it('a close during a waiting step lets the step finish and the close settle with
     sweep: async () => {
       entered()
       await waiting
-      return succeed({ reclaimed: 0 })
+      return succeed({ reclaimed: 0, removed: 0 })
     },
     limit: 10,
   })
@@ -44,4 +44,24 @@ it('a close during a waiting step lets the step finish and the close settle with
   const answer = await step
   expect('failure' in answer ? answer.failure.kind : answer.ok.tenants).not.toBeUndefined()
   expect(await schedule.advance()).toMatchObject({ failure: { kind: 'unavailable' } })
+})
+
+it('counts the bodies reclaimed and the call domains removed, and asks again while a batch is full', async () => {
+  const answers = [
+    { reclaimed: 1, removed: 1 },
+    { reclaimed: 0, removed: 1 },
+  ]
+  const schedule = createBodySweep({
+    domains: {
+      enumerate: async () => ({ kind: 'listed' as const, entries: [{ tenant }] }),
+    } as unknown as TenantDomains<string>,
+    scanner: 'scanner',
+    clock: { now: () => '2026-11-10T00:00:00.000Z' as ToolInstant },
+    sweep: async () => succeed(answers.shift() ?? { reclaimed: 0, removed: 0 }),
+    limit: 2,
+  })
+  expect(await schedule.advance()).toEqual({
+    ok: { tenants: 1, reclaimed: 1, removed: 2, failures: 0, roundComplete: true },
+  })
+  expect(answers).toEqual([])
 })

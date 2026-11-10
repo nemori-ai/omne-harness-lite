@@ -416,6 +416,7 @@ export function operatorLayer(options: {
         config: {
           combinationVersion: tools.records.combinationVersion,
           ledgerCommitAttempts: tools.records.configuration.ledgerCommitAttempts,
+          orphanGraceMs: tools.records.configuration.offloading.orphanGraceMs,
           intervalMs: 1000,
           limit: 100,
         },

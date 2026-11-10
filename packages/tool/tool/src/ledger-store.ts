@@ -384,6 +384,12 @@ export const QUEUE_COUNTER_KEY = 'counter'
 /** The key of the one `call` record of a call domain, for a read of the call alone. */
 export const CALL_RECORD_KEY = 'call'
 
+/**
+ * The key of the due entry of a call domain itself: the instant after which the sweep may drop
+ * the domain (CallLifecycle `due`). The bodies of the domain have their own entries.
+ */
+export const CALL_DUE_KEY = 'call'
+
 export function hostKey(key: string): string {
   return `host:${key}`
 }

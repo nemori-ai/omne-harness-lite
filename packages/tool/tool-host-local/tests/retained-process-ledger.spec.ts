@@ -28,6 +28,8 @@ import {
   decodeToolRevision,
   type PreparationRecord,
 } from '@omne-harness/tool-contract/provider'
+import { createLocalCallRecords } from '../src/call-records.ts'
+import { callHostDomain } from '../src/host-domains.ts'
 import {
   createEnvironmentResourceLedger,
   createRetainedTerminalLedger,
@@ -1091,5 +1093,78 @@ describe('a stored environment record that does not decode is not used', () => {
     )
     const state = createEnvironmentStateStore({ store: f.store, mode: 'test' })
     expect(await state.read(preparation)).toEqual(invalid('environment ledger read unavailable'))
+  })
+})
+
+describe('the host lets go of the records of a call only when its acquisitions carry no duty', () => {
+  const remove = (f: Awaited<ReturnType<typeof fixture>>) =>
+    createLocalCallRecords(f.store)(tenantA, preparation.call)
+  const control = callHostDomain(tenantA, 'control', preparation.call)
+  async function records(f: Awaited<ReturnType<typeof fixture>>, domain: LedgerDomain) {
+    const read = await f.store.read(domain)
+    if (read.kind !== 'complete') throw new Error('fixture domain unavailable')
+    return { revision: read.revision, count: read.records.length }
+  }
+  async function withControlRecord(f: Awaited<ReturnType<typeof fixture>>) {
+    await f.realCommit({
+      domain: control,
+      expected: revision('0'),
+      revision: revision('1'),
+      writes: [{ kind: 'put', record: { kind: 'host', host: { key: 'subject', value: {} } } }],
+    })
+  }
+
+  it('answers held and removes nothing while a stop fact of the acquisition is not confirmed', async () => {
+    const f = await fixture()
+    await f.reserved()
+    await withControlRecord(f)
+    const before = await f.domain()
+    expect(await remove(f)).toEqual({ ok: 'held' })
+    expect(await f.domain()).toEqual(before)
+    expect(await records(f, control)).toEqual({ revision: '1', count: 1 })
+  })
+
+  it('answers held while the retention scope holds an entry the call created, and removes the records once that entry stopped', async () => {
+    const f = await fixture()
+    await f.reserved()
+    await withControlRecord(f)
+    expect(await f.processes.adopt(resource.key)).toBe('confirmed')
+    expect(await f.acquisition.close()).toBe('confirmed')
+    expect(await remove(f)).toEqual({ ok: 'held' })
+    // The stop marks the creator's record first. A stop that ends there leaves every stop fact of
+    // the acquisition confirmed while the scope still holds the entry: the rerun of the stop
+    // needs the creator's record.
+    f.commit
+      .mockImplementationOnce(input => f.realCommit(input))
+      .mockImplementationOnce(async () => ({ kind: 'unavailable', diagnostic: 'fixture' }))
+    expect(await f.processes.stopped(resource.key, 'confirmed')).toBe('unavailable')
+    expect((await f.domain()).acquired?.state).toMatchObject({
+      resources: [{ stop: 'confirmed' }],
+      reservations: [{ stop: 'confirmed' }],
+    })
+    expect(await remove(f)).toEqual({ ok: 'held' })
+    expect(await f.processes.stopped(resource.key, 'confirmed')).toBe('recorded')
+    const scope = retentionDomain(tenantA, preparation.request.requesterScope)
+    const kept = await records(f, scope)
+    expect(await remove(f)).toEqual({ ok: 'removed' })
+    expect(await records(f, acquisitionDomain(preparation))).toEqual({ revision: '0', count: 0 })
+    expect(await records(f, control)).toEqual({ revision: '0', count: 0 })
+    // The scope's record and its end fact belong to the scope, not to the call.
+    expect(await records(f, scope)).toEqual(kept)
+    // A second request finds nothing and answers the same.
+    expect(await remove(f)).toEqual({ ok: 'removed' })
+  })
+
+  it('answers held when the acquisition domain changed after the judgement read it', async () => {
+    const f = await fixture()
+    const state = createEnvironmentStateStore({ store: f.store, mode: 'test' })
+    f.commit.mockImplementationOnce(async input => {
+      await state.update(preparation, found =>
+        found ? succeed({ ...found, allocation: { kind: 'settled' } }) : invalid('missing'),
+      )
+      return f.realCommit(input)
+    })
+    expect(await remove(f)).toEqual({ ok: 'held' })
+    expect((await records(f, acquisitionDomain(preparation))).count).toBe(1)
   })
 })

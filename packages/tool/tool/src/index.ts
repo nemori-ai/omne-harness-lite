@@ -19,7 +19,7 @@ export {
 } from './body-write-scope.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
 export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.ts'
-export { createToolSweep, type ToolLedgerSweep } from './ledger-sweep.ts'
+export { createToolSweep, type CallRemoval, type ToolLedgerSweep } from './ledger-sweep.ts'
 export {
   observeToolLedgerCommit,
   type ToolLifecycleObservation,
@@ -78,7 +78,7 @@ export type {
 // The two checks a host provider that keeps records in the store's `host` domain needs to answer
 // the same way as the ledger: the tenant shape and the canonical digest.
 export { isTenantShape } from './boundary.ts'
-export { digestOf as canonicalDigest } from './evidence.ts'
+export { digestOf as canonicalDigest, INITIAL_REVISION } from './evidence.ts'
 export { encodeToolCanonical, type EncodedToolCanonical } from './canonical-codec.ts'
 export { createToolRuntime, createToolRuntimeFacade, toolRuntimeAdoption } from './runtime.ts'
 export { createToolDriver, type ToolDriverHandle, type DriverPolicy } from './driver.ts'

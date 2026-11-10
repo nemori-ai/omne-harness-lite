@@ -157,6 +157,7 @@ import {
   type WriteCommand,
 } from './ledger-start.ts'
 import {
+  CALL_DUE_KEY,
   type CallRecord,
   type LedgerDomain,
   type QueueEntryRecord,
@@ -348,9 +349,24 @@ export function createToolLedger<P, B extends ContentBlock>(
         const answer = project(snapshot, operation.ok)
         if (!fence.negative(answer)) return { kind: 'reply', outcome: succeed(answer) }
         const exclusion = { operation: operation.ok, revision: mint.revision }
+        // In a domain without the call the fence is the only record, so it gets its own removal
+        // instant (CallLifecycle `LateOperation`). A domain that holds the call is scheduled by
+        // the release of its delivery.
+        const clock = settlement.bodies?.clock
         return {
           kind: 'commit',
-          writes: [{ kind: 'put', record: { kind: 'exclusion', exclusion } }],
+          writes: [
+            { kind: 'put', record: { kind: 'exclusion', exclusion } },
+            ...(snapshot.call === null && clock !== undefined
+              ? [
+                  {
+                    kind: 'schedule' as const,
+                    key: CALL_DUE_KEY,
+                    dueAt: instantAfter(clock.now(), configuration.offloading.orphanGraceMs),
+                  },
+                ]
+              : []),
+          ],
           value: answer,
         }
       },
@@ -1178,7 +1194,19 @@ export function createToolLedger<P, B extends ContentBlock>(
         const judged = judgeRelease(input)
         if ('failure' in judged) return Promise.resolve(judged)
         const command = { ...checked, ...judged.ok, inputDigest: digestOf(judged.ok) }
-        return Promise.resolve(succeed((snapshot, mint) => decideRelease(snapshot, command, mint)))
+        const clock = settlement.bodies?.clock
+        return Promise.resolve(
+          succeed((snapshot, mint) =>
+            decideRelease(
+              snapshot,
+              command,
+              mint,
+              clock === undefined
+                ? null
+                : instantAfter(clock.now(), configuration.offloading.orphanGraceMs),
+            ),
+          ),
+        )
       }),
     control: async input => {
       const intent = controlIntent(input)
@@ -1511,6 +1539,13 @@ export function createToolLedger<P, B extends ContentBlock>(
       bodies: settlement.bodies,
       due: (tenant, now, limit) => store.due(tenant, now, limit),
       transact,
+      read,
+      commit,
+      // A ledger alone has no host. An assembly with a host builds its sweep with `createToolSweep`.
+      removal: {
+        graceMs: configuration.offloading.orphanGraceMs,
+        hostRecords: () => Promise.resolve(succeed('removed' as const)),
+      },
     }).sweep,
     finalPlanner,
     controls: Object.freeze(

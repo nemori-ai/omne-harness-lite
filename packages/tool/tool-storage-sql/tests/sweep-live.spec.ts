@@ -35,11 +35,12 @@ it('a reclaimed body leaves no row in the body tables or the due index; its entr
   const beforeExpiry = new Date(Date.parse(body.retention.expiresAt) - 1).toISOString()
   expect(ok(await live.ledger.sweep(TENANT_A, ok(decodeToolInstant(beforeExpiry)), 10))).toEqual({
     reclaimed: 0,
+    removed: 0,
   })
   expect(count(app, 'tl_body_chunk')).toBeGreaterThan(0)
   live.setNow(body.retention.expiresAt)
   const at = ok(decodeToolInstant(body.retention.expiresAt))
-  expect(ok(await live.ledger.sweep(TENANT_A, at, 10))).toEqual({ reclaimed: 1 })
+  expect(ok(await live.ledger.sweep(TENANT_A, at, 10))).toEqual({ reclaimed: 1, removed: 0 })
   expect(count(app, 'tl_body_chunk')).toBe(0)
   expect(count(app, 'tl_body_manifest')).toBe(0)
   expect(count(app, 'tl_due')).toBe(0)
@@ -52,5 +53,5 @@ it('a reclaimed body leaves no row in the body tables or the due index; its entr
   expect(await live.ledger.reads.body.read(readInput)).toEqual({
     failure: { kind: 'not-found', target: 'body', reason: 'expired' },
   })
-  expect(ok(await live.ledger.sweep(TENANT_A, at, 10))).toEqual({ reclaimed: 0 })
+  expect(ok(await live.ledger.sweep(TENANT_A, at, 10))).toEqual({ reclaimed: 0, removed: 0 })
 })
