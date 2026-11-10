@@ -34,7 +34,7 @@ import {
 } from './snapshot-schema.ts'
 import { CATALOG_TERMINAL } from './catalog-terminal-schema.ts'
 import type { SettingsSqlTerminalOptions } from './terminals.ts'
-import type { SettingsSqlGuards, SettingsSqlAccess } from './types.ts'
+import type { SettingsSqlGuards, SettingsSqlAccess, SettingsSqlAccessRequest } from './types.ts'
 import {
   SettingsProjectionBindingSchema,
   SettingsTargetProjectionSchema,
@@ -96,7 +96,13 @@ const BasisSchema = z.strictObject({
 export function createSettingsCatalog(
   input: SettingsCatalogOptions,
 ): SettingsReadPort<ActingForTenantPrincipal> & {
-  access: SettingsSqlAccess<ActingForTenantPrincipal>
+  /** The authority of a principal over one target of this scope, captured now, for any action. */
+  access: {
+    authorize(
+      principal: ActingForTenantPrincipal,
+      request: Pick<SettingsSqlAccessRequest, 'scope' | 'target'>,
+    ): ReturnType<SettingsSqlAccess<ActingForTenantPrincipal>['authorize']>
+  }
   close(): Promise<void>
 } {
   if (!Number.isSafeInteger(input.cursorLifetimeMs) || input.cursorLifetimeMs < 1)

@@ -1,3 +1,5 @@
+import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import {
   combinationManifest,
   manifestDigest,
@@ -77,6 +79,11 @@ export async function openPreparedTargetWorld(
   let revision = 0
   return {
     service: w.service,
+    /** The options of the service, for a test that builds its own service over the same world. */
+    options: w.options,
+    updateCurrent: w.updateCurrent,
+    updateDefinition: w.updateDefinition,
+    updateGrants: w.updateGrants,
     context: w.context,
     command: w.command,
     storage: w.world.storage,
@@ -90,6 +97,20 @@ export async function openPreparedTargetWorld(
     ownerParticipants,
     register,
     close: () => w.close(),
+    /** The row counts of the stored states, the operations and the changes. */
+    counts() {
+      const database = new DatabaseSync(
+        join(w.root, 'domains', `${Buffer.from(domain.transactionDomain).toString('hex')}.sqlite`),
+        { readOnly: true },
+      )
+      try {
+        return ['st_states', 'st_operations', 'st_changes'].map(table =>
+          Number(database.prepare(`SELECT count(*) AS count FROM ${table}`).get()?.['count']),
+        )
+      } finally {
+        database.close()
+      }
+    },
     provision() {
       return owner.mutate({
         kind: 'provision',

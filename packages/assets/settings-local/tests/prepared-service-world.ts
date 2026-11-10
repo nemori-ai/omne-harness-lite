@@ -58,6 +58,9 @@ export async function openPreparedServiceWorld(
     secretItems: [],
   }
   let currentDefinition = definition
+  let currentGrants: { sourceId: string; actions: ('set' | 'clear' | 'lock' | 'unlock')[] }[] = [
+    { sourceId: 'tenant', actions: ['set', 'clear', 'lock', 'unlock'] },
+  ]
   const requests: StandingRequest[] = []
   const context: Context = { allowed: true, principalRef: input.identity.principalRef }
   const options: SettingsPreparationOptions<Context> = {
@@ -100,7 +103,7 @@ export async function openPreparedServiceWorld(
                     material: {
                       ...material,
                       definition: currentDefinition,
-                      grants: [{ sourceId: 'tenant', actions: ['set', 'clear', 'lock', 'unlock'] }],
+                      grants: currentGrants,
                     },
                   },
                 }),
@@ -145,6 +148,9 @@ export async function openPreparedServiceWorld(
     requests,
     updateDefinition(value: typeof definition) {
       currentDefinition = value
+    },
+    updateGrants(value: typeof currentGrants) {
+      currentGrants = value
     },
     updateCurrent(change: (current: PreparationPlan) => PreparationPlan) {
       current = change(current)

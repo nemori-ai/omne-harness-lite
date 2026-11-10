@@ -72,7 +72,7 @@ it.each(['owner', 'subject', 'scope'] as const)(
   'refuses inherited values and retain after same sourceId changes %s',
   async axis => {
     const w = await open()
-    expect(await w.service.commands.change(w.principal, w.change)).toMatchObject({
+    expect(await w.write(w.principal, w.change)).toMatchObject({
       kind: 'committed',
       revision: 1,
     })
@@ -90,7 +90,7 @@ it.each(['owner', 'subject', 'scope'] as const)(
       reason: 'basis_changed',
     })
     expect(
-      await w.service.commands.change(w.principal, {
+      await w.write(w.principal, {
         ...w.change,
         operationId: 'stale-source',
         expectedRevision: 1,
@@ -98,26 +98,24 @@ it.each(['owner', 'subject', 'scope'] as const)(
       }),
     ).toEqual({ kind: 'rejected', reason: 'basis_changed' })
     expect(
-      await w.maintenance.rebase(
-        rebase(w, [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'retain' }]),
-      ),
-    ).toEqual({ kind: 'rejected', reason: 'incompatible' })
+      await w.rebase(rebase(w, [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'retain' }])),
+    ).toMatchObject({ kind: 'aborted', reason: 'incompatible' })
     const discard = {
       ...rebase(w, [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'discard' }]),
       operationId: 'discard',
     }
-    expect(await w.maintenance.rebase(discard)).toMatchObject({
+    expect(await w.rebase(discard)).toMatchObject({
       kind: 'committed',
       revision: 2,
       changed: true,
     })
-    expect(await w.maintenance.rebase(discard)).toMatchObject({ kind: 'committed', revision: 2 })
+    expect(await w.rebase(discard)).toMatchObject({ kind: 'committed', revision: 2 })
     expect(await w.service.queries.evaluate(w.principal, w.view)).toMatchObject({
       kind: 'complete',
       entries: [{ sources, resolution: { value: { value: false } } }],
     })
     expect(
-      await w.service.commands.getOperation(w.principal, {
+      await w.prepared.getOperation(w.principal, {
         target: w.change.target,
         operationId: w.change.operationId,
       }),
@@ -127,7 +125,7 @@ it.each(['owner', 'subject', 'scope'] as const)(
 
 it('keeps values for a stable identity across owner revision changes and projects the new authority', async () => {
   const w = await open()
-  expect(await w.service.commands.change(w.principal, w.change)).toMatchObject({
+  expect(await w.write(w.principal, w.change)).toMatchObject({
     kind: 'committed',
   })
   await update(w, w.record.sources)
@@ -152,20 +150,22 @@ it('keeps values for a stable identity across owner revision changes and project
 
 it('advances the value revision when an empty state adopts a new source identity', async () => {
   const w = await open()
-  expect(
-    await w.service.commands.change(w.principal, { ...w.change, action: { kind: 'clear' } }),
-  ).toMatchObject({ kind: 'committed', revision: 0, changed: false })
+  expect(await w.write(w.principal, { ...w.change, action: { kind: 'clear' } })).toMatchObject({
+    kind: 'committed',
+    revision: 0,
+    changed: false,
+  })
   await update(
     w,
     ownerSources('tenant').map(source => ({ ...source, ownerRef: 'replacement' })),
   )
-  expect(await w.maintenance.rebase(rebase(w, [], 0))).toMatchObject({
+  expect(await w.rebase(rebase(w, [], 0))).toMatchObject({
     kind: 'committed',
     revision: 1,
     changed: true,
   })
   expect(
-    await w.service.commands.readChanges(w.principal, {
+    await w.prepared.readChanges(w.principal, {
       target: w.change.target,
       afterRevision: 0,
       limit: 10,
@@ -176,7 +176,7 @@ it('advances the value revision when an empty state adopts a new source identity
 it('requires explicit rebase after reordering identities and retains only explicitly selected assignments', async () => {
   const w = await open()
   await update(w, ownerSources('organization', 'tenant'))
-  expect(await w.service.commands.change(w.principal, w.change)).toMatchObject({
+  expect(await w.write(w.principal, w.change)).toMatchObject({
     kind: 'committed',
     revision: 1,
   })
@@ -193,9 +193,7 @@ it('requires explicit rebase after reordering identities and retains only explic
     reason: 'basis_changed',
   })
   expect(
-    await w.maintenance.rebase(
-      rebase(w, [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'retain' }]),
-    ),
+    await w.rebase(rebase(w, [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'retain' }])),
   ).toMatchObject({ kind: 'committed', revision: 2 })
   const result = await w.service.queries.evaluate(w.principal, w.view)
   expect(result).toMatchObject({
@@ -211,7 +209,7 @@ it.each([false, true])(
   async populated => {
     const w = await open()
     expect(
-      await w.service.commands.change(w.principal, {
+      await w.write(w.principal, {
         ...w.change,
         action: populated ? { kind: 'set', value: true } : { kind: 'clear' },
       }),
@@ -226,12 +224,12 @@ it.each([false, true])(
     const revision = populated ? 1 : 0
     if (populated)
       expect(
-        await w.maintenance.rebase(
+        await w.rebase(
           rebase(w, [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'retain' }], revision),
         ),
-      ).toMatchObject({ kind: 'rejected', reason: 'incompatible' })
+      ).toMatchObject({ kind: 'aborted', reason: 'incompatible' })
     expect(
-      await w.maintenance.rebase({
+      await w.rebase({
         ...rebase(
           w,
           populated ? [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'discard' }] : [],
@@ -249,26 +247,31 @@ it.each([false, true])(
 
 it('rejects a provenance-only rebase at revision exhaustion without creating a receipt', async () => {
   const w = await open()
-  expect(
-    await w.service.commands.change(w.principal, { ...w.change, action: { kind: 'clear' } }),
-  ).toMatchObject({ kind: 'committed' })
+  expect(await w.write(w.principal, { ...w.change, action: { kind: 'clear' } })).toMatchObject({
+    kind: 'committed',
+  })
   alterStored(w, record => {
-    record.sourceLayout = { kind: 'unmapped', sourceIds: ['tenant'] }
     record.state = {
       revision: Number.MAX_SAFE_INTEGER - 1,
       sources: [{ id: 'tenant', values: [] }],
     }
   })
-  expect(await w.maintenance.rebase(rebase(w, [], Number.MAX_SAFE_INTEGER - 1))).toEqual({
+  // The owner replaces the source identity: the rebase changes provenance only.
+  await update(
+    w,
+    ownerSources('tenant').map(source => ({ ...source, ownerRef: 'replacement' })),
+  )
+  // The change is refused and nothing of it is stored. The preparation path has no abort reason
+  // for the exhausted revision, so the reason it gives is not pinned here.
+  expect(await w.rebase(rebase(w, [], Number.MAX_SAFE_INTEGER - 1))).toMatchObject({
     kind: 'rejected',
-    reason: 'limit_exceeded',
   })
   expect(w.world.counts()).toEqual([1, 1, 0])
 })
 
 it('requires both owner mapping and value rebase before unmapped historical targets become readable', async () => {
   const w = await open()
-  expect(await w.service.commands.change(w.principal, w.change)).toMatchObject({
+  expect(await w.write(w.principal, w.change)).toMatchObject({
     kind: 'committed',
   })
   alterStored(w, record => {
@@ -294,9 +297,7 @@ it('requires both owner mapping and value rebase before unmapped historical targ
     reason: 'basis_changed',
   })
   expect(
-    await w.maintenance.rebase(
-      rebase(w, [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'discard' }]),
-    ),
+    await w.rebase(rebase(w, [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'discard' }])),
   ).toMatchObject({ kind: 'committed', revision: 2 })
   expect(await w.service.queries.evaluate(w.principal, w.view)).toMatchObject({
     kind: 'complete',

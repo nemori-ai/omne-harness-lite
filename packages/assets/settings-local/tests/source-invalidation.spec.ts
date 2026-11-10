@@ -19,7 +19,7 @@ afterEach(async () => {
   for (const w of worlds.splice(0)) await w.close()
 })
 async function open() {
-  const w = await openCatalogWorld({ sourceCapture: true })
+  const w = await openCatalogWorld()
   worlds.push(w)
   return w
 }
@@ -51,7 +51,7 @@ async function hold(w: World) {
 }
 it('protects values and locks while reads and original receipts remain usable', async () => {
   const w = await open()
-  const original = await w.service.commands.change(w.principal, w.change)
+  const original = await w.write(w.principal, w.change)
   expect(original).toMatchObject({ kind: 'committed', revision: 1 })
   const view = await w.service.queries.evaluate(w.principal, w.view)
   const held = await hold(w)
@@ -63,16 +63,17 @@ it('protects values and locks while reads and original receipts remain usable', 
   ]
   for (const action of actions) {
     expect(
-      await w.service.commands.change(w.principal, {
+      await w.write(w.principal, {
         ...w.change,
         operationId: `blocked-${action.kind}`,
         expectedRevision: 1,
         action,
       }),
-    ).toEqual({ kind: 'rejected', reason: 'basis_changed' })
+      // The write does not pass the source gate. The preparation path reports it as unavailable.
+    ).toEqual({ kind: 'rejected', reason: 'unavailable' })
   }
   expect(await w.service.queries.evaluate(w.principal, w.view)).toEqual(view)
-  expect(await w.service.commands.change(w.principal, w.change)).toEqual(original)
+  expect(await w.write(w.principal, w.change)).toEqual(original)
   expect(await hold(w)).toEqual(held)
   expect(w.world.counts()).toEqual([1, 1, 1])
 })
@@ -111,17 +112,28 @@ it('protects target definition, layout, grants and retirement without blocking a
       record: { ...w.record, target },
     }),
   ).toMatchObject({ kind: 'committed', revision: 1 })
+  // A write to the other target, outside the catalog: the hold binds the first target only.
+  w.fixture.updateCurrent(current => ({
+    ...current,
+    basis: { ...current.basis, target, valueRevision: 0 },
+  }))
+  const elsewhere = await w.fixture.service.prepareChange(w.fixture.context, {
+    ...w.change,
+    target,
+    operationId: 'unrelated-write',
+  })
+  if (elsewhere.kind !== 'prepared') throw new Error(JSON.stringify(elsewhere))
   expect(
-    await w.world.backend.commit(
-      { principalRef: 'alice', allowed: true },
-      { ...w.change, target, operationId: 'unrelated-write' },
-    ),
+    await w.fixture.service.commitChange(w.fixture.context, {
+      requestId: 'commit-unrelated',
+      preparation: elsewhere.preparation,
+    }),
   ).toMatchObject({ kind: 'committed', revision: 1 })
   expect(await hold(w)).toEqual(held)
 })
 it('blocks maintenance rebase while preserving an already committed rebase receipt', async () => {
   const w = await open()
-  expect(await w.service.commands.change(w.principal, w.change)).toMatchObject({
+  expect(await w.write(w.principal, w.change)).toMatchObject({
     kind: 'committed',
   })
   const rebase: SettingsRebase = {
@@ -134,14 +146,14 @@ it('blocks maintenance rebase while preserving an already committed rebase recei
     expectedRevision: 1,
     assignments: [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'retain' }],
   }
-  const original = await w.maintenance.rebase(rebase)
+  const original = await w.rebase(rebase)
   expect(original).toMatchObject({ kind: 'committed' })
   const held = await hold(w)
-  expect(await w.maintenance.rebase({ ...rebase, operationId: 'blocked-rebase' })).toEqual({
+  expect(await w.rebase({ ...rebase, operationId: 'blocked-rebase' })).toEqual({
     kind: 'rejected',
-    reason: 'basis_changed',
+    reason: 'unavailable',
   })
-  expect(await w.maintenance.rebase(rebase)).toEqual(original)
+  expect(await w.rebase(rebase)).toEqual(original)
   expect(await hold(w)).toEqual(held)
 })
 it('rejects a writer with missing source facts or an open fact for a different target', async () => {
@@ -178,13 +190,13 @@ it('rejects a writer with missing source facts or an open fact for a different t
 })
 it('serializes a competing source hold and value change without retaining a stale snapshot', async () => {
   const w = await open()
-  expect(await w.service.commands.change(w.principal, w.change)).toMatchObject({
+  expect(await w.write(w.principal, w.change)).toMatchObject({
     kind: 'committed',
     revision: 1,
   })
   const [held, changed] = await Promise.all([
     hold(w),
-    w.service.commands.change(w.principal, {
+    w.write(w.principal, {
       ...w.change,
       operationId: 'competing-write',
       expectedRevision: 1,
@@ -209,7 +221,7 @@ it('serializes a competing source hold and value change without retaining a stal
       },
     })
   } else {
-    expect(changed).toEqual({ kind: 'rejected', reason: 'basis_changed' })
+    expect(changed).toEqual({ kind: 'rejected', reason: 'unavailable' })
     expect(held).toMatchObject({
       snapshot: {
         state: {
