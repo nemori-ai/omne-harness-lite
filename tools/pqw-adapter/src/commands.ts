@@ -60,6 +60,9 @@ async function build(deps: Deps, args: string[]): Promise<boolean> {
   return false
 }
 
+/** 成员外改动那一份读数的名字。 */
+const OUTSIDE = '成员外'
+
 export async function closeoutMetrics(argv: readonly string[], deps: Deps): Promise<number> {
   const options = parseOptions(argv, ['--base', '--scope', '--full', '--out', '--workers'])
   const { repo } = deps
@@ -85,6 +88,20 @@ export async function closeoutMetrics(argv: readonly string[], deps: Deps): Prom
   }
   const readings: MemberReading[] = []
   for (const member of grouping.members) readings.push(await measureMember(member, context))
+  // 成员外的改动（脚本、技能自带的脚本等）没有测试可跑，照样交给 pqw 量复杂度，不丢掉。
+  if (grouping.outside.length > 0)
+    readings.push(
+      await measureMember(
+        {
+          path: OUTSIDE,
+          name: OUTSIDE,
+          testable: false,
+          files: grouping.outside,
+          scopes: grouping.outside,
+        },
+        context,
+      ),
+    )
   const summary = metricsSummary(readings, grouping, context)
   writeFileSync(join(outDir, 'summary.md'), `${summary.join('\n')}\n`)
   for (const line of summary) deps.print(line)

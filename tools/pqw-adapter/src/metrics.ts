@@ -204,7 +204,7 @@ export function metricsSummary(
   const untested = readings.filter(r => r.untested)
   const lines = [
     `结构读数 ${short(context.head)}${context.dirty ? '（工作树不干净）' : ''} · 基线 ${short(context.base)} · ${context.full ? '快慢两层' : '快层'} · 圈复杂度与 CRAP 线 warn ${warn}／alert ${alert}`,
-    `范围：改动成员 ${grouping.members.length} 个、改动函数 ${functions.length} 个${grouping.outside.length === 0 ? '' : `；成员外改动 ${grouping.outside.length} 个文件不度量`}`,
+    `范围：改动成员 ${grouping.members.length} 个、改动函数 ${functions.length} 个${grouping.outside.length === 0 ? '' : `；成员外改动 ${grouping.outside.length} 个文件，只量复杂度`}`,
     `变差 ${worse.length} 个（逐条交代）；过线没变差 ${results.reduce((n, r) => n + (r.summary.overLineNotWorse ?? 0), 0)} 个；拿不准的基线 ${functions.filter(f => f.trend === 'unsure').length} 个`,
     ...worse
       .slice(0, 3)

@@ -40,10 +40,16 @@ it('metrics measures against the merge base, builds testable members first, and 
   expect(calls.filter(c => c.args.includes('--coverage.enabled')).at(0)?.args).toContain(
     '--maxWorkers=4',
   )
-  expect(calls.filter(c => valueOf(c.args, '--base') === 'B-merge-base')).toHaveLength(2)
+  const readings = calls.filter(c => valueOf(c.args, '--base') === 'B-merge-base')
+  expect(readings.map(c => valueOf(c.args, '--scope'))).toEqual([
+    'tools/t/',
+    'tools/c/',
+    'docs/a.md',
+  ])
   expect(d.printed).toContain(`- tools/t：${out}/tools__t.metrics.json`)
   expect(d.printed).toContain(`- tools/c：${out}/tools__c.metrics.json`)
-  expect(readFileSync(`${out}/summary.md`, 'utf8')).toContain('成员外改动 1 个文件不度量')
+  expect(d.printed).toContain(`- 成员外：${out}/成员外.metrics.json`)
+  expect(readFileSync(`${out}/summary.md`, 'utf8')).toContain('成员外改动 1 个文件，只量复杂度')
 })
 
 it('metrics stops with exit 1 when the build fails', async () => {
