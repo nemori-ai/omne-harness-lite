@@ -83,7 +83,11 @@ async function open(reopen?: { root: string; scopeRef: string }) {
         publicationRef: null,
         target,
         definition,
-        sources: w.input.plan.sources.map(({ authorityRevision: _, ...source }) => source),
+        sources: w.input.plan.sources.map(({ sourceId, ownerRef, scope }) => ({
+          sourceId,
+          ownerRef,
+          scope,
+        })),
         grants: [{ sourceId: 'tenant', actions: ['set', 'clear'] }],
       },
     })
