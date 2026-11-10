@@ -1,4 +1,4 @@
-import type { OperationRef } from './operation-schema.ts'
+import type { GovernanceOperationRef } from '@omne-harness/governance-contract'
 import type { ReadPort } from '@omne-harness/sql-contract/worker'
 import { boundOperation } from './operation.ts'
 import { businessRequestSchema } from './activation-schema.ts'
@@ -7,9 +7,8 @@ const modes = {
   contribute: 'mutation',
   withdraw: 'mutation',
   adopt: 'adoption',
-  'internal.external-write': 'external-write',
 } as const
-export const businessMode = (owner: OperationRef['owner']) => modes[owner]
+export const businessMode = (owner: GovernanceOperationRef['owner']) => modes[owner]
 
 export function businessOriginal(port: ReadPort, raw: unknown, mode: 'mutation' | 'adoption') {
   const request = businessRequestSchema.parse(raw)

@@ -2,8 +2,6 @@ import { afterEach, expect, it } from 'vitest'
 import { GovernanceProviderLifetime } from '../src/provider-lifetime.ts'
 import { GovernanceScopeLifecycle } from '../src/scope-lifecycle.ts'
 import { openRegistrarWorld } from './registrar-world.ts'
-import { capture } from './source-request-world.ts'
-import { binding } from './operation-world.ts'
 const worlds: Awaited<ReturnType<typeof openRegistrarWorld>>[] = []
 afterEach(async () => {
   for (const w of worlds.splice(0)) await w.close()
@@ -25,20 +23,6 @@ async function setup() {
   })
   return { w, ...services, lifecycle }
 }
-it('keeps recovery pending when Identity is clear but the source obligation remains', async () => {
-  const { w, sql, lifecycle } = await setup()
-  expect(await lifecycle.open(null)).toEqual({ kind: 'opened' })
-  const input = { ...capture(w.scope), principalRef: w.principalRef }
-  expect(await sql.accept(input)).toMatchObject({ kind: 'found' })
-  expect(await lifecycle.isolate()).toEqual({ kind: 'isolated' })
-  expect(await lifecycle.recoverPage()).toEqual({ kind: 'page', next: null, unsettled: 1 })
-  expect(await sql.observe(binding(input))).toMatchObject({
-    kind: 'found',
-    record: { state: 'aborted' },
-    source: { kind: 'requested' },
-    standing: null,
-  })
-})
 it('isolates the scope before draining real Identity reservations and never reopens a closed epoch', async () => {
   const { w, lifecycle, sql, standing } = await setup()
   expect(await lifecycle.open(null)).toEqual({ kind: 'opened' })

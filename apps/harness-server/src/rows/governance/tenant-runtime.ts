@@ -6,12 +6,10 @@ import type { SessionPermissionLogin } from '../authorization/session-permission
 import type { ActingForTenantPrincipal, StandingDestinationResolver } from '@omne-harness/identity'
 import { access, tenantCodec } from '@omne-harness/legal-identity'
 import { GovernanceScopeSchema } from '@omne-harness/governance-contract'
-import type { SettingsSourceDestination } from '@omne-harness/settings-local/preparation'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import {
   createGovernanceLocal,
   createGovernanceLocalDestination,
-  createGovernanceLocalSourceDestination,
   type GovernanceLocalOptions,
 } from '@omne-harness/governance-local'
 import type { SessionPermissionSettingsResolver } from './session-permission-settings.ts'
@@ -21,13 +19,12 @@ import { governanceCatalogProjection } from './catalog-current.ts'
 import { createSessionPermissionBasisSource } from './session-permission-basis-source.ts'
 
 export type TenantGovernanceOptions = Omit<
-  GovernanceLocalOptions<unknown>,
-  'metadata' | 'combinations' | 'current' | 'externalWrites' | 'projection'
+  GovernanceLocalOptions,
+  'metadata' | 'combinations' | 'current' | 'projection'
 > &
   Readonly<{
     materials: SqlMaterialCatalog
     catalogPrincipal: ActingForTenantPrincipal
-    sourceRoute: string
     permissionRelease?: () => ToolRelease
     permissionOrigins?: () => PermissionOrigins | undefined
     login?: () => SessionPermissionLogin | undefined
@@ -78,7 +75,7 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
     const handler = options.materials.readHandlers.find(
       item => item.handler === GOVERNANCE_PROJECTION_READ,
     )
-    const runtime = await createGovernanceLocal<unknown>({
+    const runtime = await createGovernanceLocal({
       ...options,
       metadata: reference(combinations.metadata),
       combinations: {
@@ -158,7 +155,6 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
 /** Publish the durable settlement routes before open() can begin historical recovery. */
 export type TenantGovernanceAssembly = Readonly<{
   destination: StandingDestinationResolver
-  sourceDestination: SettingsSourceDestination
   open(): Promise<
     | Awaited<ReturnType<typeof open>>
     | Readonly<{
@@ -188,10 +184,6 @@ export function prepareTenantGovernance(input: TenantGovernanceOptions): TenantG
   let opening: ReturnType<typeof open> | undefined
   return {
     destination: createGovernanceLocalDestination(coordination),
-    sourceDestination: createGovernanceLocalSourceDestination({
-      ...coordination,
-      sourceRoute: options.sourceRoute,
-    }),
     // One prepared assembly owns one attempt. Retry or remount creates a new assembly over the same durable domain.
     open: () => (opening ??= Promise.resolve().then(() => open(options, combinations))),
   }

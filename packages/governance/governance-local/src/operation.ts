@@ -1,4 +1,4 @@
-import type { OperationRef } from './operation-schema.ts'
+import type { GovernanceOperationRef } from '@omne-harness/governance-contract'
 import type { ParticipantPort, ReadPort } from '@omne-harness/sql-contract/worker'
 import { canonical, digest, equal, operationIdentity, scopeKey } from './encoding.ts'
 import {
@@ -7,7 +7,6 @@ import {
   executionSchema,
   recordSchema,
   requestRef,
-  operationSourcePlan,
   type AcceptOperation,
   type OperationBinding,
   type Execution,
@@ -15,13 +14,13 @@ import {
 } from './operation-schema.ts'
 import { readScope } from './scope.ts'
 export const conflict = () => ({ kind: 'conflict' as const, reason: 'operation' as const })
-export const operationParams = (ref: OperationRef) => [
+export const operationParams = (ref: GovernanceOperationRef) => [
   scopeKey(ref.scope),
   ref.owner,
   ref.principalRef,
   ref.operationId,
 ]
-export function readOperation(port: ReadPort, ref: OperationRef) {
+export function readOperation(port: ReadPort, ref: GovernanceOperationRef) {
   const row = port.execute(
     'SELECT request_json,request_digest,accepted_epoch,sql_identity_json,state,execution_json,result_json FROM gc_operation WHERE scope_key=? AND command_owner=? AND principal_ref=? AND operation_id=? LIMIT 1',
     operationParams(ref),
@@ -81,11 +80,6 @@ export function acceptOperation(port: ParticipantPort, raw: AcceptOperation) {
       canonical(sqlIdentity),
     ],
   )
-  if (operationSourcePlan(input.request) !== null)
-    port.execute(
-      'INSERT INTO gc_permission_source (scope_key,command_owner,principal_ref,operation_id,receipt_json) VALUES (?,?,?,?,NULL)',
-      operationParams(ref),
-    )
   return readOperation(port, ref)
 }
 export function submitOperation(port: ParticipantPort, binding: OperationBinding, raw: Execution) {

@@ -3,18 +3,18 @@ import {
   GovernanceScopeSchema,
   GovernanceIdSchema,
   GovernanceDigestSchema,
+  GovernanceOperationRefSchema,
 } from '@omne-harness/governance-contract'
 import type { ReadPort, ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import { equal, scopeKey, json } from './encoding.ts'
 import { readScope } from './scope.ts'
-import { operationRefSchema } from './operation-schema.ts'
 
 export const RECOVERY_HANDLER = {
   handler: 'governance.recovery',
   protocol: 'governance-recovery-read/1',
 }
 const recoveryOwnerSchema = z.enum([
-  ...operationRefSchema.shape.owner.options,
+  ...GovernanceOperationRefSchema.shape.owner.options,
   'internal.bootstrap',
   'internal.close',
 ])
@@ -58,13 +58,6 @@ export const recoveryCandidatesSql = `SELECT command_owner,principal_ref,operati
       OR (held_json IS NOT NULL AND json_extract(held_json, '$.kind') IS NOT 'settled'))
     AND (command_owner,principal_ref,operation_id) > (?,?,?)
   ORDER BY command_owner,principal_ref,operation_id LIMIT ?`
-export const sourceRecoveryCandidatesSql = `SELECT source.command_owner,source.principal_ref,source.operation_id,original.request_digest,original.accepted_epoch
-  FROM gc_permission_source AS source INDEXED BY gc_permission_source_pending
-  JOIN gc_operation AS original USING (scope_key,command_owner,principal_ref,operation_id)
-  WHERE source.scope_key=?
-    AND (source.receipt_json IS NULL OR json_extract(source.receipt_json, '$.kind') IS NOT 'settled')
-    AND (source.command_owner,source.principal_ref,source.operation_id) > (?,?,?)
-  ORDER BY source.command_owner,source.principal_ref,source.operation_id LIMIT ?`
 
 export function readRecoveryPage(port: ReadPort, raw: RecoveryPageRequest) {
   const input = recoveryPageRequestSchema.parse(raw)
@@ -80,18 +73,7 @@ export function readRecoveryPage(port: ReadPort, raw: RecoveryPageRequest) {
     after?.operationId ?? '',
     input.limit + 1,
   ]
-  const candidates = [
-    ...port.execute(recoveryCandidatesSql, params).rows,
-    ...port.execute(sourceRecoveryCandidatesSql, params).rows,
-  ].map(row => rowSchema.parse(row))
-  const unique = new Map(candidates.map(row => [JSON.stringify(row.slice(0, 3)), row]))
-  const rows = [...unique.values()].sort((left, right) => {
-    for (const column of [0, 1, 2] as const) {
-      const order = Buffer.compare(Buffer.from(left[column]), Buffer.from(right[column]))
-      if (order !== 0) return order
-    }
-    return 0
-  })
+  const rows = port.execute(recoveryCandidatesSql, params).rows.map(row => rowSchema.parse(row))
   const items = rows.slice(0, input.limit).map(row => {
     const [owner, principalRef, operationId, requestDigest, acceptedEpoch] = row
     return {

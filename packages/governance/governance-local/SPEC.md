@@ -26,11 +26,11 @@ accepted 保存原输入、受理 epoch 和原 SQL 身份，execution 为空。s
 
 ### GL-05 有界读取
 
-当前贡献通过 scope、epoch、state 索引访问。目标支持按 scope、epoch、definition、target 定位。恢复按 GL-10 的业务、身份及来源责任部分索引做 keyset 分页。声明历史不得成为当前目录的无条件全表输入。数据库规模测试的查询计划不构成端到端延迟保证。
+当前贡献通过 scope、epoch、state 索引访问。目标支持按 scope、epoch、definition、target 定位。恢复按 GL-10 的业务及身份责任部分索引做 keyset 分页。声明历史不得成为当前目录的无条件全表输入。数据库规模测试的查询计划不构成端到端延迟保证。
 
 ## 所有权、失败与生命周期
 
-`governanceSqlMigrations()` 返回固定模块、文件摘要和先决条件，不启动数据库或 Worker。装配者负责把材料加入真实 SqlStorage 组合并声明表拥有者；迁移执行和回滚归 SqlStorage。文件读取失败直接抛出，不返回假迁移。
+`governanceSqlMaterials()` 的 `migrations` 给出一份迁移：固定模块、文件摘要和空的先决条件。它一次建立全部治理关系，不启动数据库或 Worker。装配者负责把材料加入真实 SqlStorage 组合并声明表拥有者；迁移执行和回滚归 SqlStorage。文件读取失败直接抛出，不返回假迁移。
 
 关系使用 STRICT 和 WITHOUT ROWID。修订上界与公开契约一致。数据库不开放客户端任意 SQL。应用服务核验当前主体、声明来源、预算和原结果，生命周期协调执行精确撤除及重装围栏。来源权威和当前事实由受信装配提供。`./cordis` 的贡献服务与关闭义务见 GL-23；当前权限依据由普通工厂提供。
 
@@ -88,9 +88,9 @@ collection.digest 覆盖 scope、声明修订及按规范 JSON 文本排序的�
 
 ### GL-10 恢复集合
 
-可信恢复读取包含三类原操作：业务仍为 accepted/submitted、原操作仍保管 requested/held 身份请求，或外域写仍保管 requested/held 设置来源请求。业务终态不表示外部保留已经结算，终态未结算记录不得遗漏。无保留或已 settled 的历史终态不进入恢复集合。
+可信恢复读取包含两类原操作：业务仍为 accepted/submitted，或原操作仍保管 requested/held 身份请求。业务终态不表示外部保留已经结算，终态未结算记录不得遗漏。无保留或已 settled 的历史终态不进入恢复集合。
 
-业务和身份责任使用 gc_operation_recovery，设置来源责任使用 gc_permission_source_pending。索引成员随对应事务更新。只读处理器在同一读事务内分别读取最多65个候选，按 SQLite BINARY 的 UTF-8 顺序去重归并，交回最多64项及后继游标。它只交回完整原键、摘要及受理 epoch，不读取业务正文、执行信封或完整回执。游标绑定同一 scope，按命令族、主体和原 operationId 排序。
+恢复集合使用 gc_operation_recovery 索引。索引成员随对应事务更新。只读处理器在一个读事务内读取最多 65 个候选，交回最多 64 项及后继游标。它只交回完整原键、摘要及受理 epoch，不读取业务正文、执行信封或完整回执。游标绑定同一 scope，按命令族、主体和原 operationId 排序。
 
 分页不是跨页冻结快照。并发新增或重新进入恢复集合的记录可能排在旧游标之前，恢复者须在一轮结束后从头进行后续扫描。枚举只给出待处理候选，不证明业务未提交，不授予重试权限，也不证明外部保留已经释放。
 
@@ -259,68 +259,9 @@ This material observes Governance state only. It does not establish the caller's
 The local guarantee assumes the existing single-writer adoption/retirement invariants and SqlStorage transaction ordering. No remote retention protocol or cross-database atomicity follows from this read.
 
 
-### GL-25 来源保管
-
-带来源计划的原操作只有外域写（GL-27）。它的命令保管组织来源计划和恢复路由。
-
-接受带来源的命令时，唯一治理写者在同一事务建立 gc_operation 和 gc_permission_source 关联行。关联行的完整主键及外键绑定原操作。SQL NULL 回执表示 requested；明确 source=null 的命令不产生该责任。缺失关联行是损坏，不能解释为无来源。
-
-来源请求仅由原命令、完整原操作绑定、主体和 SQL 域派生。回执必须通过 Settings 公共协议校验，并与该请求精确匹配。held 重传必须保留同一 snapshot；原操作终结后到达的 held 只能用于清理，不能复活原操作。settled 必须对应原 committed 或 aborted 终态。尚未收到 held 的 requested 也可以在原操作 aborted 后认回合法的 aborted 来源回执。
-
-source-held 和 source-settled 分别保管完整 SQL 阶段信封。只读认回声明所需 Governance 表及迁移，不通过额外写权读取。来源已 settled 后，迟到 held 返回既有终态，不降级保管状态。来源责任从恢复集合退出，只证明本项责任已结算，不替代其他身份或业务责任。
-
-来源协调器只消费 Settings 的 reserve/settle 公共端口。首次 reserve 前必须观察同一原操作的 Identity held。Settings 回执经公共 schema 校验并精确匹配原 request，才可保管；拒绝保持原含义，异常或错绑返回 unavailable。保存后重新观察当前保管状态，不能把旧 SQL 重传的 held 回包当作最新状态。
-
-createGovernanceLocalSourceDestination 可在运行时启动前用固定 SQL 域、元数据组合和 sourceRoute 构造。recognize 只承认完整匹配的已保存请求；seal 只封口该原操作并观察其持久终态。恢复不依赖原客户端在线，也不重新构造业务主体。
-
-普通工厂可借用 sourceReservations。未装配来源服务只适用于没有来源责任的使用范围；已有 requested 或 held 责任不得因此消失。启动恢复及关闭必须分别结算 Identity 和 Settings 来源，任一责任待决时均不得报告恢复完成。Governance 不关闭借用的来源服务。来源端主动恢复可先封口原操作，Governance 随后仍须保管相同终态回执。
-
-该保管机制本身不授予业务动作权限。性质与证据范围见[来源保管证明](verification/proofs/permission-capture-custody.md)。
-
 ### GL-26 当前权限读取不在本成员
 
 本成员不提供当前权限读取，也不保管任何读取。权限依据由应用装配用各拥有者的只读投影在一次投影读里算出，动作提交时在同一事务里重新核验。本成员为它提供两个只读投影参加者：治理目标投影与已选定义投影（见「Target projection」与当前声明事实两节）。Session 模式、AgentDefinition 约束和 HITL 决定不由本包解释。
-
-### GL-27 外部拥有者写意图的保管
-
-`internal.external-write` 是独立的内部原操作类型。治理保管外部拥有者的协议、目标引用、原命令摘要、完整 JSON 命令和结构化资格。外部拥有者解释命令与资格，治理不从 JSON 内容推导授权。受信装配必须先取得拥有者的资格，再受理原操作。
-
-治理请求摘要覆盖完整封套，包括 scope、operationId、write、source 和 sourceRoute。原操作按既有复合主键认回；同一定位下替换任何材料均冲突。重启不改变原请求、摘要、SQL 身份和受理代次。普通贡献、采用和目录捕获的 planner 不处理此类写意图；受保护业务效果须由外部拥有者的专属组合完成。
-
-需要 Settings 来源时，受理同时建立原来源责任。目的回调使用 `governance-external-write/1` 与完整原操作绑定。认回必须匹配原路由与完整来源请求，seal 只终结原操作；尚未结算的 held 继续保留，不能将终结解释为清理已完成。
-
-`governance-external-write-1` 原子扩展操作和来源关系的 owner 约束。迁移保留三张关系的原字段值，含原命令、资格、身份、执行材料、held、结果、完整 SQL 封套及摘要。迁移按外键依赖重建关系和既有索引，任何失败均回滚。迁移备份表不成为运行时查询来源。既有迁移及已持久摘要不变。
-
-### GL-28 外部写意图的 SQL 封套
-
-外部意图的 submitted execution 固定 `governance-external-write-execution/1` 材料。该材料绑定原 requestDigest、指定外域 writer 和全部外域 SQL commands。writer 必须位于唯一参加者集合中；该集合不得包含治理 basis、terminal、唯一写者或其他治理业务 planner。
-
-保存 apply stage 时核对原 SQL 身份、binding、execution、组合版本与 manifest 摘要。最终封套必须精确包含原外域 commands 和三项治理协调命令。basis 与 terminal 必须携带相同的原 business request，治理写者必须携带该 request 的摘要。额外、重复、缺失或替换任何 facts 都使保存失败，不能静默修正。
-
-首次保存后沿用原完整封套。即使重排 commands 后 SqlStorage 的 inputDigest 相同，也不能替换已保存的顺序。重启认回保持原封套和摘要。此规则保护受信适配器已经确定的执行计划，不验证外域命令与资格的业务含义，也不使尚未装配的组合具备执行能力。SqlStorage 仍负责验证组合材料及提交，外域拥有者仍负责解释命令，治理终态仍由唯一治理写者保存。
-
-### GL-29 受信外域写协调出口
-
-可选 externalWrites 装配发布 execute(context, intent)。读取与写入各自保留独立 context 类型。调用者只提交原业务意图；入口在首次等待前复制意图，核验原主体对象及装配租户。受信 resolver 取得业务资格和来源，返回拒绝或不可用时不受理。Governance 不解释外域命令，也不以请求回显代替拥有者的资格核验。
-
-首次受理保存 qualification、source 和 required，原请求摘要覆盖全部材料。内部重试按租户、服务范围、主体和操作标识查找原记录，核对意图后采用原资格。prepare standing 的 required 必须等于原请求保存的资格集合，不得降低要求。公开贡献应用服务不因此获得内部操作查询入口。
-
-只有 Identity standing held，且来源 held 或明确不需要来源，才能计划外域执行。submitted 以后采用原 execution 与完整封套，不因 resolver 或装配配置改变而替换。terminal 仅在观察到持久 committed 或 aborted 后返回原 binding、持久原操作的 sqlIdentity 和 JSON 结果。无法确认终态时返回 unavailable，不声称未受理或已回滚。
-
-受信外域适配器可按 sqlIdentity 查询原业务回执，恢复具体业务失败。该身份不授予查询资格，不随重试或重装配改变。治理 sealed 不能替代业务的具体回滚原因；尚未提交业务或暂无法读取回执时，调用者不得重算或猜测原失败。
-
-提供者关闭停止新受理和新 apply。已受理操作的封存及结算继续由原协调器保管。结算暂时失败不改变已经确认的业务终态；关闭及重装配必须完成原责任恢复。此协调出口不替代外域业务参加者的资格、同提交及语义校验。
-
-
-### GL-30 外域效果与治理终态同提交
-
-外域写组合必须在原 transactionDomain 内依次取得治理 basis、外域拥有者依据、业务结果和治理 terminal，最后由治理唯一写者保存终态。治理 basis 只接受仍为 submitted、原 scope/epoch 开放、execution 与原 apply stage 一致、Identity held 且来源 held 或 not-required 的操作。已封口的原操作不能向业务写者供应依据。
-
-根入口导出的 basis/result SQL 事实协议使用 JSON 值。basis 携带原请求、代次、事务域、原命令和已保留来源快照。业务拥有者或其受信适配器验证完整实际业务 facts、原资格及当前领域约束。Governance 不解释外域命令，不读取外域私有表。
-
-结果必须精确匹配原 binding、execution 摘要和指定 writer。terminal 只发布治理计划，治理唯一写者再次核对原状态及保管后写入 committed 或 aborted。持久结果使用具名 external-write-result 封套，即使业务 result 为 JSON null，也不能与未有终态混淆。业务结果语义及 aborted 对业务效果的要求归外域拥有者。
-
-该组合中任一参加者停止，业务效果和本次治理终态一起回滚。事务外先前保存的受理及保管责任仍然存在，协调器按原操作封口与结算。按原 SQL 身份重试须认回同一回执；调用方丢失回执不授权再次产生效果。以上依赖 SqlStorage 的事务原子性、事实依赖排序和回执契约，不保证任意插件提供的资格或结果真实。
 
 ### GL-31 当前注册声明与 Settings 目标分离
 

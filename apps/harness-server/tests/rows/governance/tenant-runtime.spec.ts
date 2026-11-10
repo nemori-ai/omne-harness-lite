@@ -22,16 +22,13 @@ import { IdentitySqlPlugin } from '@omne-harness/identity-sql/cordis'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
 import { access, organizationCodec } from '@omne-harness/legal-identity'
-import type { SettingsSourceRequest } from '@omne-harness/settings-local/preparation'
 import { createSettingsRegistry } from '@omne-harness/settings'
 import { createCategoryRegistry } from '@omne-harness/assets'
 import { createAssetsLocal } from '@omne-harness/assets-local'
 import { createToolAssetCategory } from '../../../src/rows/governance/tool-assets.ts'
-import { createGovernanceLocal } from '@omne-harness/governance-local'
 import {
   combinationManifest,
   manifestDigest,
-  type SqlStorage,
   type SqlMaterialCatalog,
 } from '@omne-harness/sql-contract'
 import {
@@ -47,8 +44,6 @@ import {
 } from '../../../dist/rows/governance/settings-current.js'
 import { createSettingsCurrentProjection } from '../../../dist/rows/governance/settings-preparation.js'
 import { governanceStorageCombinations } from '../../../src/rows/governance/storage-combinations.ts'
-import { createGovernanceAdoptionProjection } from '../../../src/rows/governance/adoption-current.ts'
-import { governanceCatalogProjection } from '../../../src/rows/governance/catalog-current.ts'
 import { parseInstant } from '@omne-harness/utc-instant'
 import { productionStorageCatalog } from '../../../dist/rows/storage/production-catalog.js'
 import {
@@ -188,7 +183,6 @@ async function world(extraParticipants: SqlMaterialCatalog['participants'] = [])
     scope,
     catalogPrincipal: principal,
     destination: 'harness.governance',
-    sourceRoute: 'harness.governance.session-write',
     identity: {
       verifier: authority.verifier,
       standing: root.tenantStanding,
@@ -248,127 +242,6 @@ async function world(extraParticipants: SqlMaterialCatalog['participants'] = [])
   }
 }
 
-it('retains an organization source across application remount with the original Identity principal', async () => {
-  const w = await world()
-  const definition = w.release.manifest.entries.flatMap(
-    entry => entry.governance.declaration.settings,
-  )[0]
-  if (!definition) throw new Error('Missing released settings')
-  const organization = organizationCodec.encode(w.principal.tenant.organization)
-  if (!organization.ok) throw new Error('Invalid organization')
-  const source = organizationSettingsSource({ organizationId: organization.value, definition })
-  // The destination fixture stands for an operation already recognized by its original owner.
-  const destination = {
-    async recognize(request: SettingsSourceRequest) {
-      return { kind: 'known' as const, request }
-    },
-    async seal(request: SettingsSourceRequest) {
-      return { kind: 'terminal' as const, request, outcome: 'aborted' as const }
-    },
-  }
-  const opened = await openOrganizationSettingsSources({ ...w.options, destination })
-  if (opened.kind !== 'created') throw new Error(JSON.stringify(opened))
-  cleanup.push(opened.close)
-  expect(
-    await opened.targets.mutate({
-      kind: 'provision',
-      operationId: 'install-source',
-      expectedRevision: null,
-      record: {
-        publicationRef: null,
-        target: source.target,
-        definition,
-        sources: [
-          {
-            sourceId: 'organization',
-            ownerRef: 'settings',
-            scope: { kind: 'organization', subjectRef: organization.value },
-          },
-        ],
-        grants: [],
-      },
-    }),
-  ).toMatchObject({ kind: 'committed' })
-  const request: SettingsSourceRequest = {
-    source,
-    destination: {
-      ownerRef: 'governance',
-      identity: {
-        domain: w.options.domain,
-        principalRef: standingPrincipalRef(w.principal),
-        operation: { operationId: 'original-operation' },
-      },
-      attemptId: 'original-attempt',
-      commandDigest: 'a'.repeat(64),
-      route: w.options.sourceRoute,
-    },
-  }
-  const held = await opened.reservations.reserve(w.principal, request)
-  expect(held).toMatchObject({ kind: 'held', snapshot: { presence: 'absent' } })
-  await opened.close()
-  expect(await opened.reservations.reserve(w.principal, request)).toMatchObject({
-    kind: 'rejected',
-    reason: 'closing',
-  })
-  const remounted = await openOrganizationSettingsSources({ ...w.options, destination })
-  if (remounted.kind !== 'created') throw new Error(JSON.stringify(remounted))
-  cleanup.push(remounted.close)
-  expect(await remounted.reservations.reserve(w.principal, request)).toEqual(held)
-  expect(await remounted.recover({ after: null, limit: 10 })).toMatchObject({
-    kind: 'recovered',
-    items: [{ result: { kind: 'settled', outcome: 'aborted' } }],
-  })
-  expect(await remounted.reservations.reserve(w.principal, request)).toMatchObject({
-    kind: 'settled',
-    outcome: 'aborted',
-  })
-})
-
-it('refuses cloned principals and another organization before asking a destination to recognize a source', async () => {
-  const w = await world()
-  const definition = w.release.manifest.entries.flatMap(
-    entry => entry.governance.declaration.settings,
-  )[0]
-  if (!definition) throw new Error('Missing released settings')
-  const other = organizationCodec.encode(TENANT_B.organization)
-  if (!other.ok) throw new Error('Invalid organization')
-  const recognize = vi.fn(async () => ({ kind: 'unavailable' as const }))
-  const opened = await openOrganizationSettingsSources({
-    ...w.options,
-    destination: {
-      recognize,
-      async seal() {
-        return { kind: 'unavailable' }
-      },
-    },
-  })
-  if (opened.kind !== 'created') throw new Error(JSON.stringify(opened))
-  cleanup.push(opened.close)
-  const request: SettingsSourceRequest = {
-    source: organizationSettingsSource({ organizationId: other.value, definition }),
-    destination: {
-      ownerRef: 'governance',
-      identity: {
-        domain: w.options.domain,
-        principalRef: standingPrincipalRef(w.principal),
-        operation: { operationId: 'original-operation' },
-      },
-      attemptId: 'original-attempt',
-      commandDigest: 'a'.repeat(64),
-      route: w.options.sourceRoute,
-    },
-  }
-  expect(await opened.reservations.reserve(w.principal, request)).toMatchObject({
-    kind: 'rejected',
-    reason: 'forbidden',
-  })
-  expect(await opened.reservations.reserve(structuredClone(w.principal), request)).toMatchObject({
-    kind: 'rejected',
-    reason: 'forbidden',
-  })
-  expect(recognize).not.toHaveBeenCalled()
-})
-
 it('opens the real tenant governance provider from the production material catalog', async () => {
   const w = await world()
   const assembly = prepareTenantGovernance(w.options)
@@ -377,189 +250,6 @@ it('opens the real tenant governance provider from the production material catal
   if (runtime.kind === 'created') cleanup.push(runtime.close)
   expect(runtime.kind).toBe('created')
 })
-
-it.each(['held', 'lost-reserve-reply'] as const)(
-  'recovers an original Governance source request through the application router after SQL restart: %s',
-  async fault => {
-    const w = await world()
-    const boot = prepareTenantGovernance(w.options)
-    w.setDestination(boot.destination)
-    const initial = await boot.open()
-    if (initial.kind !== 'created') throw new Error(JSON.stringify(initial))
-    expect(await initial.close()).toMatchObject({ kind: 'closed' })
-    const definition = w.release.manifest.entries.flatMap(
-      entry => entry.governance.declaration.settings,
-    )[0]
-    if (!definition) throw new Error('Missing released settings')
-    const organization = organizationCodec.encode(w.principal.tenant.organization)
-    if (!organization.ok) throw new Error('Invalid organization')
-    const source = organizationSettingsSource({ organizationId: organization.value, definition })
-    let host: TenantGovernanceHost
-    async function openSources(storage: SqlStorage) {
-      const result = await openOrganizationSettingsSources({
-        ...w.options,
-        storage,
-        destination: {
-          recognize: request => host.sourceDestination.recognize(request),
-          seal: request => host.sourceDestination.seal(request),
-        },
-      })
-      if (result.kind !== 'created') throw new Error(JSON.stringify(result))
-      cleanup.push(result.close)
-      return result
-    }
-    let sources = await openSources(w.options.storage)
-    const openBusiness = vi.fn()
-    function mount(storage: SqlStorage) {
-      const mounted = new TenantGovernanceHost({
-        domains: w.directory.lookup,
-        prepare() {
-          const prepared = prepareTenantGovernance({
-            ...w.options,
-            storage,
-            sourceReservations: sources.reservations,
-          })
-          return {
-            ...prepared,
-            open() {
-              openBusiness()
-              return prepared.open()
-            },
-          }
-        },
-      })
-      cleanup.push(() => mounted.close(monotonicClock.now() + 3000))
-      return mounted
-    }
-    host = mount(w.options.storage)
-    w.setDestination(host.destination)
-    const provision = (operationId: string, expectedRevision: number | null) =>
-      sources.targets.mutate({
-        kind: 'provision',
-        operationId,
-        expectedRevision,
-        record: {
-          publicationRef: null,
-          target: source.target,
-          definition,
-          sources: [
-            {
-              sourceId: 'organization',
-              ownerRef: 'settings',
-              scope: { kind: 'organization', subjectRef: organization.value },
-            },
-          ],
-          grants: [],
-        },
-      })
-    expect(await provision('install-source', null)).toMatchObject({ kind: 'committed' })
-    const combinations = governanceStorageCombinations(w.options.materials)
-    const reference = ({ combinationVersion, manifestDigest }: typeof combinations.metadata) => ({
-      combinationVersion,
-      manifestDigest,
-    })
-    let original: SettingsSourceRequest | undefined
-    const observedReplies: unknown[] = []
-    const plan = vi.fn(() => {
-      throw new Error('named business-plan refusal fixture')
-    })
-    const made = await createGovernanceLocal({
-      ...w.options,
-      metadata: reference(combinations.metadata),
-      combinations: {
-        mutation: reference(combinations.mutation),
-        adoption: reference(combinations.adoption),
-      },
-      projection: { read: async () => ({ kind: 'unavailable' }) },
-      current: {
-        adoption: createGovernanceAdoptionProjection(w.options.domain.transactionDomain),
-        catalog: governanceCatalogProjection,
-      },
-      sourceReservations: {
-        async reserve(principal, request) {
-          const reply = await sources.reservations.reserve(principal, request)
-          observedReplies.push(reply)
-          original = structuredClone(request)
-          if (fault === 'lost-reserve-reply') throw new Error('fixture lost source reply')
-          return reply
-        },
-        // Keep the actual held responsibility until the SQL Worker has restarted.
-        async settle() {
-          return { kind: 'rejected', reason: 'unavailable' }
-        },
-      },
-      externalWrites: {
-        sourceRoute: w.options.sourceRoute,
-        principalOf: (principal: typeof w.principal) => principal,
-        async resolve() {
-          return {
-            kind: 'qualified',
-            qualification: { fixture: 'business-admission' },
-            required: [],
-            source,
-          }
-        },
-        plan,
-      },
-    })
-    if (made.kind !== 'created' || !made.externalWrites) throw new Error(JSON.stringify(made))
-    cleanup.push(made.close)
-    const result = await made.externalWrites.execute(w.principal, {
-      operationId: 'original-source-operation',
-      write: {
-        owner: 'fixture.business',
-        protocol: 'fixture-write/1',
-        targetRef: 'target',
-        commandDigest: 'original',
-        command: { pick: 'deny' },
-      },
-    })
-    expect(result).toMatchObject({ kind: 'terminal', outcome: 'aborted' })
-    expect(observedReplies).toMatchObject([{ kind: 'held' }])
-    expect(plan).toHaveBeenCalledTimes(fault === 'held' ? 1 : 0)
-    if (!original) throw new Error('Original source request was not persisted')
-    expect(await provision('replace-while-held', 1)).toMatchObject({ kind: 'rejected' })
-    expect(await made.close()).toMatchObject({ kind: 'pending' })
-    await sources.close()
-    const storage = await w.reopenStorage()
-    host = mount(storage)
-    sources = await openSources(storage)
-    expect(await host.sourceDestination.recognize(original)).toEqual({
-      kind: 'known',
-      request: original,
-    })
-    const wrong = {
-      ...original,
-      destination: { ...original.destination, attemptId: 'different-attempt' },
-    }
-    expect(await host.sourceDestination.seal(wrong)).toMatchObject({ kind: 'unavailable' })
-    expect(await provision('replace-before-recovery', 1)).toMatchObject({ kind: 'rejected' })
-    if (fault === 'held') {
-      expect(await sources.recover({ after: null, limit: 10 })).toMatchObject({
-        kind: 'recovered',
-        items: [{ request: original, result: { kind: 'settled', outcome: 'aborted' } }],
-      })
-      expect(openBusiness).not.toHaveBeenCalled()
-    } else {
-      // The default first lookup invokes original Governance historical recovery.
-      expect(await host.runtime(w.options.scope.tenantRef)).toMatchObject({ kind: 'created' })
-      expect(await sources.recover({ after: null, limit: 10 })).toMatchObject({
-        kind: 'recovered',
-        items: [],
-      })
-    }
-    expect(await sources.reservations.settle(original)).toMatchObject({
-      kind: 'settled',
-      outcome: 'aborted',
-    })
-    expect(await provision('replace-after-recovery', 1)).toMatchObject({
-      kind: 'committed',
-      revision: 2,
-    })
-    expect(await host.runtime(w.options.scope.tenantRef)).toMatchObject({ kind: 'created' })
-    expect(openBusiness).toHaveBeenCalledTimes(1)
-  },
-)
 
 it('reads the real Settings directory through its own Identity settlement route without inventing targets', async () => {
   const w = await world()
@@ -969,22 +659,12 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
   for (const entry of w.release.manifest.entries)
     for (const definition of entry.governance.declaration.settings)
       expect(registry.registerContribution(definition).kind).toBe('registered')
-  let prepared: ReturnType<typeof prepareInstalledTenantGovernance> | undefined
-  const sources = await openOrganizationSettingsSources({
-    ...w.options,
-    destination: {
-      recognize: request =>
-        prepared?.sourceDestination.recognize(request) ?? Promise.resolve({ kind: 'unavailable' }),
-      seal: request =>
-        prepared?.sourceDestination.seal(request) ?? Promise.resolve({ kind: 'unavailable' }),
-    },
-  })
+  const sources = await openOrganizationSettingsSources(w.options)
   if (sources.kind !== 'created') throw new Error(JSON.stringify(sources))
   cleanup.push(sources.close)
   const targets = sources.targets
-  const reservations = sources.reservations
   function prepare(organizationTargets = targets) {
-    prepared = prepareInstalledTenantGovernance({
+    const prepared = prepareInstalledTenantGovernance({
       ...w.options,
       installationPrincipal: w.installationPrincipal,
       release: w.release,
@@ -992,7 +672,6 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
       registry,
       clock: { now: () => 1794096000000 },
       cursorLifetimeMs: 60000,
-      sourceReservations: reservations,
     })
     w.setDestination(prepared.destination)
     return prepared

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
-import { recordSchema, operationRefSchema } from './operation-schema.ts'
+import { GovernanceOperationRefSchema } from '@omne-harness/governance-contract'
+import { recordSchema } from './operation-schema.ts'
 import { readOperation } from './operation.ts'
 import { json } from './encoding.ts'
 export const OPERATION_REFERENCE_HANDLER = {
@@ -8,13 +9,13 @@ export const OPERATION_REFERENCE_HANDLER = {
   protocol: 'governance-operation-reference/1',
 }
 export const operationReferenceObservationSchema = z.strictObject({
-  ref: operationRefSchema,
+  ref: GovernanceOperationRefSchema,
   record: recordSchema.nullable(),
 })
 export default {
   ...OPERATION_REFERENCE_HANDLER,
   read(raw, port) {
-    const ref = operationRefSchema.parse(raw)
+    const ref = GovernanceOperationRefSchema.parse(raw)
     const found = readOperation(port, ref)
     return {
       kind: 'read',

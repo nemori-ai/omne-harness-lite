@@ -8,9 +8,8 @@ import {
   type SqlMaterialCatalog,
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
-import { governanceSqlMigrations, governanceRecoveryReadMaterials } from '../src/materials.ts'
-import { GOVERNANCE_EXTERNAL_WRITE_TABLES } from '../src/external-write-migration.ts'
-import { GOVERNANCE_SQL_TABLES } from '../src/sql-stage-migration.ts'
+import { governanceSqlMaterials, governanceRecoveryReadMaterials } from '../src/materials.ts'
+import { GOVERNANCE_TABLES } from '../src/migration.ts'
 import { json, digest } from '../src/encoding.ts'
 import { requestRef, type AcceptOperation, type Execution } from '../src/operation-schema.ts'
 import { config } from './config.ts'
@@ -63,7 +62,6 @@ export async function openOperations(
   existing?: string,
   options: {
     tenantRef?: string
-    legacySchema?: boolean
     extraMaterials?: Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
   } = {},
 ) {
@@ -77,9 +75,7 @@ export async function openOperations(
         protocol: 'fixture-governance-operations/1',
         moduleUrl: url.href,
         codeDigest: createHash('sha256').update(readFileSync(url)).digest('hex'),
-        ownedTables: options.legacySchema
-          ? GOVERNANCE_SQL_TABLES
-          : GOVERNANCE_EXTERNAL_WRITE_TABLES,
+        ownedTables: GOVERNANCE_TABLES,
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
@@ -89,15 +85,11 @@ export async function openOperations(
       ...(options.extraMaterials?.participants ?? []),
     ],
     migrations: [
-      ...governanceSqlMigrations().filter(
-        migration =>
-          !options.legacySchema ||
-          !['governance-source-custody-1', 'governance-external-write-1'].includes(migration.id),
-      ),
+      ...governanceSqlMaterials().migrations,
       ...(options.extraMaterials?.migrations ?? []),
     ],
     readHandlers: [
-      ...(options.legacySchema ? [] : governanceRecoveryReadMaterials()),
+      ...governanceRecoveryReadMaterials(),
       ...(options.extraMaterials?.readHandlers ?? []),
     ],
     declaredCombinations: { tenant: null, system: null },
@@ -111,7 +103,7 @@ export async function openOperations(
   }
   const combination = {
     ...domain,
-    combinationVersion: options.legacySchema ? 'fixture/1' : 'fixture/2',
+    combinationVersion: 'fixture/2',
     manifestDigest: manifestDigest(checked.manifest),
     participants,
   }

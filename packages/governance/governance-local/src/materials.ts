@@ -2,19 +2,10 @@ import {
   GOVERNANCE_SELECTED_DEFINITION,
   governanceSelectedDefinitionFact,
 } from './selected-definition-projection.ts'
-import { EXTERNAL_WRITE_BASIS, EXTERNAL_WRITE_TERMINAL } from './external-write-stage.ts'
-import {
-  governanceExternalWriteBasisFact,
-  governanceExternalWriteResultFact,
-} from './external-write-protocol.ts'
-import {
-  GOVERNANCE_EXTERNAL_WRITE_MIGRATION,
-  GOVERNANCE_EXTERNAL_WRITE_TABLES,
-} from './external-write-migration.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
-import { GOVERNANCE_MIGRATION, GOVERNANCE_OWNER } from './migration.ts'
+import { GOVERNANCE_MIGRATION, GOVERNANCE_OWNER, GOVERNANCE_TABLES } from './migration.ts'
 import {
   ACTIVATION_PLAN,
   ADOPTION_CURRENT,
@@ -23,9 +14,6 @@ import {
   ADOPTION_PLANNER,
   ACTIVATION_PROTOCOL,
 } from './activation-schema.ts'
-import { GOVERNANCE_RECOVERY_MIGRATION } from './recovery-migration.ts'
-import { GOVERNANCE_STAGE_MIGRATION } from './sql-stage-migration.ts'
-import { GOVERNANCE_SOURCE_MIGRATION } from './source-custody-migration.ts'
 import { OPERATION_HANDLER } from './operation-read.ts'
 import { STAGE_HANDLER } from './sql-stage-read.ts'
 import { RECOVERY_HANDLER } from './recovery-read.ts'
@@ -42,43 +30,16 @@ import {
   governanceDefinitionProjectionFact,
 } from './definition-projection.ts'
 
-export function governanceSqlMigrations(): SqlMaterialCatalog['migrations'] {
+/** One migration creates every Governance relation. */
+function migrations(): SqlMaterialCatalog['migrations'] {
   const extension = import.meta.url.endsWith('.ts') ? 'ts' : 'js'
   const url = new URL(`./migration.${extension}`, import.meta.url)
-  const recovery = new URL(`./recovery-migration.${extension}`, import.meta.url)
-  const stage = new URL(`./sql-stage-migration.${extension}`, import.meta.url)
-  const source = new URL(`./source-custody-migration.${extension}`, import.meta.url)
-  const external = new URL(`./external-write-migration.${extension}`, import.meta.url)
   return [
     {
       ...GOVERNANCE_MIGRATION,
       moduleUrl: url.href,
       checksum: createHash('sha256').update(readFileSync(url)).digest('hex'),
       requires: [],
-    },
-    {
-      ...GOVERNANCE_RECOVERY_MIGRATION,
-      moduleUrl: recovery.href,
-      checksum: createHash('sha256').update(readFileSync(recovery)).digest('hex'),
-      requires: [GOVERNANCE_MIGRATION],
-    },
-    {
-      ...GOVERNANCE_STAGE_MIGRATION,
-      moduleUrl: stage.href,
-      checksum: createHash('sha256').update(readFileSync(stage)).digest('hex'),
-      requires: [GOVERNANCE_MIGRATION],
-    },
-    {
-      ...GOVERNANCE_SOURCE_MIGRATION,
-      moduleUrl: source.href,
-      checksum: createHash('sha256').update(readFileSync(source)).digest('hex'),
-      requires: [GOVERNANCE_STAGE_MIGRATION, GOVERNANCE_RECOVERY_MIGRATION],
-    },
-    {
-      ...GOVERNANCE_EXTERNAL_WRITE_MIGRATION,
-      moduleUrl: external.href,
-      checksum: createHash('sha256').update(readFileSync(external)).digest('hex'),
-      requires: [GOVERNANCE_SOURCE_MIGRATION],
     },
   ]
 }
@@ -92,10 +53,10 @@ export function governanceRecoveryReadMaterials(): SqlMaterialCatalog['readHandl
       moduleUrl: url.href,
       codeDigest: createHash('sha256').update(readFileSync(url)).digest('hex'),
       ordering: 'domain-serial',
-      readTables: ['gc_scope', 'gc_operation', 'gc_permission_source'],
-      requiresMigrations: [GOVERNANCE_SOURCE_MIGRATION],
+      readTables: ['gc_scope', 'gc_operation'],
+      requiresMigrations: [GOVERNANCE_MIGRATION],
       maxOutputBytes: 256 * 1024,
-      maxRowsRead: 131,
+      maxRowsRead: 66,
     },
   ]
 }
@@ -128,7 +89,7 @@ export function governanceSqlMaterials(): Pick<
     },
   ]
   return {
-    migrations: governanceSqlMigrations(),
+    migrations: migrations(),
     readHandlers: [
       ...governanceRecoveryReadMaterials(),
       {
@@ -162,44 +123,22 @@ export function governanceSqlMaterials(): Pick<
         ...OPERATION_HANDLER,
         ...participantFile('operation-read'),
         ordering: 'domain-serial',
-        readTables: ['gc_operation', 'gc_permission_source'],
-        requiresMigrations: [GOVERNANCE_SOURCE_MIGRATION],
+        readTables: ['gc_operation'],
+        requiresMigrations: [GOVERNANCE_MIGRATION],
         maxOutputBytes: 3 * 1024 * 1024,
-        maxRowsRead: 5,
+        maxRowsRead: 3,
       },
       {
         ...STAGE_HANDLER,
         ...participantFile('sql-stage-read'),
         ordering: 'domain-serial',
-        readTables: ['gc_operation', 'gc_sql_stage', 'gc_permission_source'],
-        requiresMigrations: [GOVERNANCE_SOURCE_MIGRATION],
+        readTables: ['gc_operation', 'gc_sql_stage'],
+        requiresMigrations: [GOVERNANCE_MIGRATION],
         maxOutputBytes: 4 * 1024 * 1024 + 1024,
         maxRowsRead: 4,
       },
     ],
     participants: [
-      {
-        participant: EXTERNAL_WRITE_BASIS,
-        protocol: governanceExternalWriteBasisFact.protocol,
-        ...participantFile('external-write-basis'),
-        ownedTables: [],
-        readTables: ['gc_scope', 'gc_operation', 'gc_sql_stage', 'gc_permission_source'],
-        requiresFacts: [],
-        providesFacts: [governanceExternalWriteBasisFact],
-        allowedFunctions: [],
-        grouping: 'groupable',
-      },
-      {
-        participant: EXTERNAL_WRITE_TERMINAL,
-        protocol: governanceExternalWriteResultFact.protocol,
-        ...participantFile('external-write-terminal'),
-        ownedTables: [],
-        readTables: [],
-        requiresFacts: [governanceExternalWriteBasisFact, governanceExternalWriteResultFact],
-        providesFacts: [ACTIVATION_PLAN],
-        allowedFunctions: [],
-        grouping: 'groupable',
-      },
       {
         ...GOVERNANCE_TARGET_PROJECTION,
         ...participantFile('target-projection-participant'),
@@ -250,7 +189,7 @@ export function governanceSqlMaterials(): Pick<
         participant: GOVERNANCE_OWNER,
         protocol: ACTIVATION_PROTOCOL,
         ...participantFile('activation'),
-        ownedTables: GOVERNANCE_EXTERNAL_WRITE_TABLES,
+        ownedTables: GOVERNANCE_TABLES,
         readTables: [],
         requiresFacts: [ACTIVATION_PLAN],
         providesFacts: [],

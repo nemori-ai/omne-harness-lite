@@ -10,7 +10,7 @@ sequenceDiagram
   participant M as 材料工厂
   participant S as SqlStorage
   participant W as SQLite Worker
-  A->>M: governanceSqlMigrations
+  A->>M: governanceSqlMaterials
   M-->>A: 固定模块和摘要
   A->>S: 材料目录与组合
   S->>W: 安装拥有者迁移

@@ -1,10 +1,6 @@
 import { DatabaseSync } from 'node:sqlite'
 import type { MigrationPort } from '@omne-harness/sql-contract/worker'
 import migration from '../src/migration.ts'
-import stageMigration from '../src/sql-stage-migration.ts'
-import recoveryMigration from '../src/recovery-migration.ts'
-import sourceMigration from '../src/source-custody-migration.ts'
-import externalMigration from '../src/external-write-migration.ts'
 
 export function databasePort(db: DatabaseSync): MigrationPort {
   return {
@@ -34,17 +30,8 @@ export function openDatabase(path = ':memory:', initialize = true) {
   const db = new DatabaseSync(path)
   db.exec('PRAGMA foreign_keys = ON')
   const port = databasePort(db)
-  if (initialize) {
-    migration.up(port)
-    recoveryMigration.up(port)
-    stageMigration.up(port)
-    sourceMigration.up(port)
-    externalMigration.up(port)
-  }
+  if (initialize) migration.up(port)
   migration.verify(port)
-  recoveryMigration.verify(port)
-  stageMigration.verify(port)
-  sourceMigration.verify(port)
   return db
 }
 export function scope(db: DatabaseSync, key = 'scope') {

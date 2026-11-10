@@ -11,12 +11,11 @@ import {
 import {
   GovernanceIdSchema,
   GovernanceDigestSchema,
+  GovernanceOperationRefSchema,
   type GovernanceContributionRef,
   type GovernanceOperationRef,
 } from '@omne-harness/governance-contract'
 import {
-  operationRefSchema,
-  type OperationRef,
   acceptSchema,
   bindingSchema,
   acceptanceReceiptSchema,
@@ -135,15 +134,15 @@ export class SqlOperationCoordinator {
       return unavailable()
     }
   }
-  private matchingRecord(ref: OperationRef, record: OperationRecord) {
+  private matchingRecord(ref: GovernanceOperationRef, record: OperationRecord) {
     return (
       equal(requestRef(ref.principalRef, record.request), ref) &&
       record.requestDigest === digest(record.request) &&
       equal(record.sqlIdentity, operationIdentity(this.domain.transactionDomain, ref))
     )
   }
-  async lookup(raw: OperationRef) {
-    const ref = operationRefSchema.parse(raw)
+  async lookup(raw: GovernanceOperationRef) {
+    const ref = GovernanceOperationRefSchema.parse(raw)
     if (this.domain.scope.kind !== 'tenant' || ref.scope.tenantRef !== this.domain.scope.tenant)
       return unavailable()
     try {

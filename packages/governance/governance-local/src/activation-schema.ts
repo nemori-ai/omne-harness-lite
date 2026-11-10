@@ -1,7 +1,5 @@
-import { GovernanceExternalWriteResultSchema } from './external-write-protocol.ts'
 import { closeScopeSchema } from './scope.ts'
 import { z } from 'zod'
-import { SettingsSourceReceiptSchema } from '@omne-harness/settings-local/preparation'
 import { GovernanceDigestSchema, GovernanceIdSchema } from '@omne-harness/governance-contract'
 import {
   businessRequestSchema,
@@ -30,16 +28,6 @@ export const controlRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('retire-contribution'), binding: bindingSchema }),
   z.strictObject({ kind: z.literal('accept'), input: acceptSchema }),
   z.strictObject({ kind: z.literal('standing-prepare'), input: standingPlanSchema }),
-  z.strictObject({
-    kind: z.literal('source-held'),
-    binding: bindingSchema,
-    receipt: SettingsSourceReceiptSchema.refine(receipt => receipt.kind === 'held'),
-  }),
-  z.strictObject({
-    kind: z.literal('source-settled'),
-    binding: bindingSchema,
-    receipt: SettingsSourceReceiptSchema.refine(receipt => receipt.kind === 'settled'),
-  }),
   z.strictObject({
     kind: z.literal('standing-held'),
     binding: bindingSchema,
@@ -73,10 +61,6 @@ export const activationPlanSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('control'), request: controlRequestSchema }),
   z.strictObject({ kind: z.literal('observation'), request: businessRequestSchema }),
   businessPlan.extend({ kind: z.literal('mutation') }),
-  businessPlan.extend({
-    kind: z.literal('external-write'),
-    result: GovernanceExternalWriteResultSchema,
-  }),
   businessPlan.extend({ kind: z.literal('adoption'), evidence: adoptionEvidenceSchema }),
 ])
 export type ActivationPlan = z.infer<typeof activationPlanSchema>

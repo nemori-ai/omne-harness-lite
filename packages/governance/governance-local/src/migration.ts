@@ -12,6 +12,7 @@ export const GOVERNANCE_TABLES = [
   'gc_member_target',
   'gc_selected_definition',
   'gc_selected_target',
+  'gc_sql_stage',
 ]
 const statements = [
   `CREATE TABLE gc_scope (
@@ -57,7 +58,7 @@ const statements = [
     WHERE item_kind = 'permission'`,
   `CREATE TABLE gc_operation (
     scope_key TEXT NOT NULL,
-    command_owner TEXT NOT NULL CHECK (command_owner IN ('contribute','withdraw','adopt','internal.bootstrap','internal.close','internal.capture')),
+    command_owner TEXT NOT NULL CHECK (command_owner IN ('contribute','withdraw','adopt','internal.bootstrap','internal.close')),
     principal_ref TEXT NOT NULL,
     operation_id TEXT NOT NULL,
     request_digest TEXT NOT NULL,
@@ -77,6 +78,22 @@ const statements = [
   ) WITHOUT ROWID, STRICT`,
   `CREATE INDEX gc_operation_pending ON gc_operation(scope_key, command_owner, principal_ref, operation_id)
     WHERE state IN ('accepted','submitted')`,
+  // The recovery scan: operations that are not terminal, or whose standing custody is not settled.
+  `CREATE INDEX gc_operation_recovery ON gc_operation(scope_key, command_owner, principal_ref, operation_id)
+    WHERE state IN ('accepted','submitted')
+       OR (held_json IS NOT NULL AND json_extract(held_json, '$.kind') IS NOT 'settled')`,
+  `CREATE TABLE gc_sql_stage (
+    scope_key TEXT NOT NULL,
+    command_owner TEXT NOT NULL,
+    principal_ref TEXT NOT NULL,
+    operation_id TEXT NOT NULL,
+    stage TEXT NOT NULL CHECK (stage IN ('standing-prepare','standing-held','submit','apply','seal','standing-seal','standing-settled')),
+    envelope_json TEXT NOT NULL CHECK (length(CAST(envelope_json AS BLOB)) <= 4194304),
+    input_digest TEXT NOT NULL,
+    PRIMARY KEY (scope_key,command_owner,principal_ref,operation_id,stage),
+    FOREIGN KEY (scope_key,command_owner,principal_ref,operation_id)
+      REFERENCES gc_operation(scope_key,command_owner,principal_ref,operation_id)
+  ) WITHOUT ROWID, STRICT`,
   `CREATE TABLE gc_contribution (
     scope_key TEXT NOT NULL,
     registration_id TEXT NOT NULL,
@@ -147,6 +164,13 @@ export default {
   },
   verify(port) {
     for (const table of GOVERNANCE_TABLES) port.execute(`SELECT * FROM ${table} LIMIT 0`, [])
+    port.execute(
+      `SELECT operation_id FROM gc_operation INDEXED BY gc_operation_recovery
+       WHERE state IN ('accepted','submitted')
+          OR (held_json IS NOT NULL AND json_extract(held_json, '$.kind') IS NOT 'settled')
+       LIMIT 0`,
+      [],
+    )
     return { kind: 'verified' }
   },
 } satisfies MigrationModule

@@ -30,10 +30,7 @@ function requestFor(
       targetRef: canonical({ version: 'governance-recovery/1', operation, transactionDomain }),
       inputDigest: operation.requestDigest,
     },
-    required:
-      record.request.owner === 'internal.external-write'
-        ? record.request.command.required
-        : input.required,
+    required: input.required,
   })
 }
 export function readGovernanceStanding(port: ReadPort, operation: OperationBinding) {
@@ -76,11 +73,6 @@ export function prepareGovernanceStanding(port: ParticipantPort, raw: StandingPl
   const input = standingPlanSchema.parse(raw)
   const found = boundOperation(port, input.operation)
   if (found.kind !== 'found') return found
-  if (
-    found.record.request.owner === 'internal.external-write' &&
-    !equal(found.record.request.command.required, input.required)
-  )
-    return conflict()
   const request = requestFor(input.operation, found.record, input)
   const previous = readGovernanceStanding(port, input.operation)
   if ('request' in previous) return equal(previous.request, request) ? previous : conflict()

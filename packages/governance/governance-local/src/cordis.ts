@@ -15,10 +15,7 @@ import { retainGovernanceShutdown } from './cordis-shutdown.ts'
 type Principal = ActingForTenantPrincipal
 type Services = GovernanceContributions<Principal, Principal, Principal>
 type Runtime = Extract<Awaited<ReturnType<typeof createGovernanceRuntime>>, { kind: 'created' }>
-export type GovernanceLocalConfiguration<WriteContext = Principal> = Omit<
-  GovernanceLocalOptions<WriteContext>,
-  'storage' | 'identity'
-> &
+export type GovernanceLocalConfiguration = Omit<GovernanceLocalOptions, 'storage' | 'identity'> &
   Readonly<{
     observeClose: (report: GovernanceProviderClose) => void | Promise<void>
   }>
@@ -66,11 +63,11 @@ class LocalGovernanceService extends GovernanceContributionsService<
   }
 }
 
-export function createGovernanceLocalPlugin<WriteContext = Principal>() {
+export function createGovernanceLocalPlugin() {
   return {
     name: 'governance-local',
     inject: [storageKey, principalVerifierKey, tenantStandingKey, standingReservationsKey],
-    async apply(ctx: Context, config: GovernanceLocalConfiguration<WriteContext>) {
+    async apply(ctx: Context, config: GovernanceLocalConfiguration) {
       let closing = false
       let close: ReturnType<typeof retainGovernanceShutdown> | undefined
       ctx.effect(

@@ -1,8 +1,3 @@
-import {
-  GovernanceExternalWriteCoordinator,
-  type GovernanceExternalWriteOptions,
-  type GovernanceExternalWrites,
-} from './external-write.ts'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import {
@@ -26,11 +21,6 @@ import {
   GovernanceStandingCoordinator,
   GovernanceStandingDestination,
 } from './standing-coordinator.ts'
-import {
-  GovernanceSourceCoordinator,
-  type GovernanceSourceReservations,
-} from './source-coordinator.ts'
-import { GovernanceSourceDestination } from './source-destination.ts'
 import { GovernanceScopeLifecycle } from './scope-lifecycle.ts'
 import { GovernanceProviderLifetime } from './provider-lifetime.ts'
 import { GovernanceContributionLifetime } from './contribution-lifetime.ts'
@@ -54,7 +44,7 @@ export type GovernanceLocalCoordination = Readonly<{
   metadata: MutationCombination
   destination: string
 }>
-export type GovernanceLocalOptions<WriteContext = Principal> = GovernanceLocalCoordination &
+export type GovernanceLocalOptions = GovernanceLocalCoordination &
   Readonly<{
     scope: GovernanceScope
     identity: Readonly<{
@@ -62,8 +52,6 @@ export type GovernanceLocalOptions<WriteContext = Principal> = GovernanceLocalCo
       standing: TenantStandingSource
       reservations: StandingReservations
     }>
-    externalWrites?: GovernanceExternalWriteOptions<WriteContext>
-    sourceReservations?: GovernanceSourceReservations<Principal>
     grants: readonly AdmissionGrant[]
     definitions: GovernanceDefinitionSource
     combinations: Readonly<{
@@ -85,14 +73,6 @@ export function createGovernanceLocalDestination(options: GovernanceLocalCoordin
     destination: GovernanceIdSchema.parse(options.destination),
     transactionDomain: options.domain.transactionDomain,
   })
-}
-
-export function createGovernanceLocalSourceDestination(
-  options: Pick<GovernanceLocalCoordination, 'storage' | 'domain' | 'metadata'> & {
-    sourceRoute: string
-  },
-) {
-  return new GovernanceSourceDestination(new SqlOperationCoordinator(options), options.sourceRoute)
 }
 
 async function recoverHistory(lifecycle: GovernanceScopeLifecycle, budget: number) {
@@ -123,9 +103,7 @@ function services(
   })
 }
 
-export async function createGovernanceRuntime<WriteContext = Principal>(
-  input: GovernanceLocalOptions<WriteContext>,
-) {
+export async function createGovernanceRuntime(input: GovernanceLocalOptions) {
   const options = {
     ...input,
     scope: GovernanceScopeSchema.parse(input.scope),
@@ -146,8 +124,7 @@ export async function createGovernanceRuntime<WriteContext = Principal>(
     grants: options.grants,
   })
   const standing = new GovernanceStandingCoordinator(sql, options.identity.reservations)
-  const sources = new GovernanceSourceCoordinator(sql, options.sourceReservations)
-  const lifecycle = new GovernanceScopeLifecycle({ ...options, epoch, sql, standing, sources })
+  const lifecycle = new GovernanceScopeLifecycle({ ...options, epoch, sql, standing })
   const registrarOptions = {
     ...options,
     epoch,
@@ -185,28 +162,6 @@ export async function createGovernanceRuntime<WriteContext = Principal>(
     projection: options.projection,
     accepting: () => lifetime.accepting,
   })
-  const externalWriter =
-    options.externalWrites === undefined
-      ? undefined
-      : new GovernanceExternalWriteCoordinator({
-          ...options,
-          ...options.externalWrites,
-          epoch,
-          sql,
-          standing,
-          sources,
-          accepting: () => lifetime.accepting,
-          cleanup: call => {
-            void lifetime.invoke(call).catch(() => undefined)
-          },
-        })
-  const externalWrites: GovernanceExternalWrites<WriteContext> | undefined =
-    externalWriter === undefined
-      ? undefined
-      : {
-          execute: (context, intent) =>
-            lifetime.invoke(() => externalWriter.execute(context, intent)),
-        }
   try {
     const previous = await lifecycle.observeEpoch()
     if (previous.kind !== 'epoch' || (await lifecycle.open(previous.epoch)).kind !== 'opened')
@@ -223,7 +178,6 @@ export async function createGovernanceRuntime<WriteContext = Principal>(
       epoch,
       service: services(registrar, catalog, lifetime),
       contributions,
-      externalWrites,
       async close() {
         const [provider, callers] = await Promise.all([
           lifetime.close(options.closeTimeoutMs),
@@ -245,16 +199,13 @@ export async function createGovernanceRuntime<WriteContext = Principal>(
   }
 }
 
-export async function createGovernanceLocal<WriteContext = Principal>(
-  input: GovernanceLocalOptions<WriteContext>,
-) {
+export async function createGovernanceLocal(input: GovernanceLocalOptions) {
   const runtime = await createGovernanceRuntime(input)
   if (runtime.kind !== 'created') return runtime
   return {
     kind: runtime.kind,
     epoch: runtime.epoch,
     service: runtime.service,
-    externalWrites: runtime.externalWrites,
     close: runtime.close,
   }
 }

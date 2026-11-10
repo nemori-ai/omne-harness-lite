@@ -77,7 +77,6 @@ export function prepareTenantGovernanceWithSettings(
           ? settingsDestination.seal(reservation)
           : governance.destination.seal(reservation),
     },
-    sourceDestination: governance.sourceDestination,
     open: () => (opening ??= open()),
   }
 }

@@ -6,13 +6,8 @@ import {
   RECOVERY_HANDLER,
   readRecoveryPage,
   recoveryCandidatesSql,
-  sourceRecoveryCandidatesSql,
   type RecoveryPageRequest,
 } from '../src/recovery-read.ts'
-import migration from '../src/migration.ts'
-import recoveryMigration from '../src/recovery-migration.ts'
-import stageMigration from '../src/sql-stage-migration.ts'
-import sourceMigration from '../src/source-custody-migration.ts'
 import { bootstrapScope } from '../src/scope.ts'
 import { scopeKey } from '../src/encoding.ts'
 import { standingCustodySchema } from '../src/standing-schema.ts'
@@ -104,13 +99,6 @@ it('uses the recovery index for bounded keyset pages across ten thousand settled
   expect(plan).toContain('USING INDEX gc_operation_recovery')
   expect(plan).not.toMatch(/SCAN gc_operation/)
   expect(plan).not.toContain('TEMP B-TREE')
-  const sourcePlan = db
-    .prepare('EXPLAIN QUERY PLAN ' + sourceRecoveryCandidatesSql)
-    .all(scopeKey(scope), '', '', '', 3)
-    .map(row => String(row.detail))
-    .join('\n')
-  expect(sourcePlan).toContain('USING INDEX gc_permission_source_pending')
-  expect(sourcePlan).not.toMatch(/SCAN|TEMP B-TREE/)
   expect(
     readRecoveryPage(port, {
       scope,
@@ -123,58 +111,6 @@ it('uses the recovery index for bounded keyset pages across ten thousand settled
       limit: 2,
     }),
   ).toEqual({ kind: 'conflict', reason: 'basis' })
-})
-it('adds the recovery index to a prior schema without modifying saved terminal rows', () => {
-  const db = new DatabaseSync(':memory:')
-  databases.push(db)
-  const port = databasePort(db)
-  migration.up(port)
-  bootstrapScope(
-    {
-      ...port,
-      requireFact() {
-        throw new Error('No facts')
-      },
-      provideFact() {
-        throw new Error('No facts')
-      },
-    },
-    { scope, epoch: 'first', previousEpoch: null },
-  )
-  seed(db, 'orphaned-hold', 'committed', 'held')
-  const before = db.prepare('SELECT * FROM gc_operation').get()
-  recoveryMigration.up(port)
-  expect(recoveryMigration.verify(port)).toEqual({ kind: 'verified' })
-  expect(db.prepare('SELECT * FROM gc_operation').get()).toEqual(before)
-  stageMigration.up(port)
-  sourceMigration.up(port)
-  expect(
-    recoveryPageSchema
-      .parse(readRecoveryPage(port, { scope, after: null, limit: 64 }))
-      .items.map(i => i.key.operationId),
-  ).toEqual(['orphaned-hold'])
-})
-it('merges overlapping business and source obligations into stable bounded pages', () => {
-  const db = setup(),
-    port = databasePort(db)
-  for (const id of ['a', 'b', 'c', 'd', 'e']) {
-    seed(db, id, ['b', 'd'].includes(id) ? 'aborted' : 'accepted', null)
-    db.prepare(
-      "UPDATE gc_operation SET command_owner='internal.external-write' WHERE operation_id=?",
-    ).run(id)
-    if (['b', 'c', 'd'].includes(id))
-      db.prepare(
-        "INSERT INTO gc_permission_source VALUES (?,'internal.external-write','alice',?,NULL)",
-      ).run(scopeKey(scope), id)
-  }
-  let after: RecoveryPageRequest['after'] = null
-  const pages: string[][] = []
-  do {
-    const page = recoveryPageSchema.parse(readRecoveryPage(port, { scope, after, limit: 2 }))
-    pages.push(page.items.map(item => item.key.operationId))
-    after = page.next
-  } while (after)
-  expect(pages).toEqual([['a', 'b'], ['c', 'd'], ['e']])
 })
 it('reads through the real Worker after reopen and removes a terminal only when custody is settled', async () => {
   let w = await openOperations()

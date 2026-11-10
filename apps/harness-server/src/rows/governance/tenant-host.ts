@@ -1,6 +1,5 @@
 import type { DomainRef, TenantDomainLookup } from '@omne-harness/sql-contract'
 import type { StandingDestinationResolver } from '@omne-harness/identity'
-import type { SettingsSourceDestination } from '@omne-harness/settings-local/preparation'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { monotonicClock } from '../../shutdown.ts'
 import type { StopResult } from '../../types.ts'
@@ -25,7 +24,6 @@ export class TenantGovernanceHost {
   private closing = false
   private stopping: Promise<StopResult> | undefined
   readonly destination: StandingDestinationResolver
-  readonly sourceDestination: SettingsSourceDestination
 
   constructor(options: Options) {
     this.options = { ...options }
@@ -33,16 +31,6 @@ export class TenantGovernanceHost {
       seal: async reservation => {
         const entry = await this.entry(reservation.binding.scopeRef)
         return entry?.assembly.destination.seal(reservation) ?? unavailable()
-      },
-    }
-    this.sourceDestination = {
-      recognize: async request => {
-        const entry = await this.sourceEntry(request.destination.identity.domain)
-        return entry?.assembly.sourceDestination.recognize(request) ?? unavailable()
-      },
-      seal: async request => {
-        const entry = await this.sourceEntry(request.destination.identity.domain)
-        return entry?.assembly.sourceDestination.seal(request) ?? unavailable()
       },
     }
   }
@@ -68,12 +56,6 @@ export class TenantGovernanceHost {
       })
     this.entries.set(tenantRef, pending)
     return pending
-  }
-
-  private async sourceEntry(domain: DomainRef) {
-    if (domain.scope.kind !== 'tenant') return undefined
-    const entry = await this.entry(domain.scope.tenant)
-    return entry?.domain.transactionDomain === domain.transactionDomain ? entry : undefined
   }
 
   async runtime(tenantRef: string): Promise<Runtime | undefined> {

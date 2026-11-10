@@ -2,11 +2,10 @@ export {
   governanceSelectedDefinitionFact,
   governanceSelectedDefinitionCommand,
 } from './selected-definition-projection.ts'
-export { governanceSqlMigrations, governanceSqlMaterials } from './materials.ts'
+export { governanceSqlMaterials } from './materials.ts'
 export {
   createGovernanceLocal,
   createGovernanceLocalDestination,
-  createGovernanceLocalSourceDestination,
   type GovernanceLocalOptions,
   type GovernanceLocalCoordination,
 } from './provider.ts'
@@ -46,25 +45,3 @@ export {
   type GovernanceTargetBinding,
   type GovernanceTargetProjection,
 } from './target-projection.ts'
-
-export type { GovernanceSourceReservations } from './source-coordinator.ts'
-
-export type {
-  GovernanceExternalWriteIntent,
-  GovernanceExternalWriteQualification,
-  GovernanceExternalWriteInput,
-  GovernanceExternalWriteOptions,
-  GovernanceExternalWriteOutcome,
-  GovernanceExternalWrites,
-} from './external-write.ts'
-
-export {
-  governanceExternalWriteBasisFact,
-  governanceExternalWriteResultFact,
-  GovernanceExternalWriteExecutionSchema,
-  type GovernanceExternalWriteExecution,
-  GovernanceExternalWriteBasisSchema,
-  GovernanceExternalWriteResultSchema,
-  type GovernanceExternalWriteBasis,
-  type GovernanceExternalWriteResult,
-} from './external-write-protocol.ts'

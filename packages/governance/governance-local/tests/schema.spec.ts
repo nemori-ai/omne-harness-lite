@@ -35,7 +35,7 @@ it('installs strict relations on disk and preserves exact rows after reopening',
     .prepare('PRAGMA table_list')
     .all()
     .filter(row => GOVERNANCE_TABLES.includes(String(row.name)))
-  expect(tables).toHaveLength(9)
+  expect(tables).toHaveLength(10)
   expect(tables.every(row => row.strict === 1 && row.wr === 1)).toBe(true)
   db.close()
   const reopened = openDatabase(file, false)

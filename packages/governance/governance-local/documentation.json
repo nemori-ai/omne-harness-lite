@@ -696,8 +696,8 @@
       "requiredSections": []
     },
     {
-      "id": "permission-capture-custody-proof",
-      "path": "packages/governance/governance-local/verification/proofs/permission-capture-custody.md",
+      "id": "current-declaration-read-proof",
+      "path": "packages/governance/governance-local/verification/proofs/current-declaration-read.md",
       "kind": "verification",
       "required": true,
       "visibility": "internal",

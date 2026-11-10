@@ -9,8 +9,8 @@ import {
   type SqlMaterialCatalog,
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
-import { governanceSqlMigrations } from '@omne-harness/governance-local'
-import { GOVERNANCE_EXTERNAL_WRITE_TABLES } from '../src/external-write-migration.ts'
+import { governanceSqlMaterials } from '@omne-harness/governance-local'
+import { GOVERNANCE_TABLES } from '../src/migration.ts'
 import { config } from './config.ts'
 
 it('installs the production migration through the real Worker and reopens the same domain', async () => {
@@ -24,7 +24,7 @@ it('installs the production migration through the real Worker and reopens the sa
         protocol: 'fixture-governance-schema/1',
         moduleUrl: url.href,
         codeDigest: createHash('sha256').update(readFileSync(url)).digest('hex'),
-        ownedTables: GOVERNANCE_EXTERNAL_WRITE_TABLES,
+        ownedTables: GOVERNANCE_TABLES,
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
@@ -32,7 +32,7 @@ it('installs the production migration through the real Worker and reopens the sa
         grouping: 'groupable',
       },
     ],
-    migrations: governanceSqlMigrations(),
+    migrations: governanceSqlMaterials().migrations,
     readHandlers: [],
     declaredCombinations: { tenant: null, system: null },
   }

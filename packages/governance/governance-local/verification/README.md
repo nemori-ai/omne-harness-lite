@@ -29,18 +29,9 @@
 
 [GovernanceRecoveryPhase](models/GovernanceRecoveryPhase.tla)补充固定SQL阶段的失败回执模型。错资格的seal先返回unavailable，随后正确原请求仍须结算；真实红绿反例同时检查阶段行缺失及正确恢复成功，不能只观察没有写入业务行。
 
-## 组织来源保管
+## 当前注册声明
 
-[来源保管论证](proofs/permission-capture-custody.md)对应 GL-25。它说明原操作和来源责任的关系、有界恢复归并及假设，不构成新增机器证明。
-
-[来源协调测试](../tests/source-coordinator.spec.ts)与[原操作保管](../tests/external-write-custody.spec.ts)运行真实 SQLite Worker；[SQL 协调测试](../tests/sql-coordinator.spec.ts)检查生产读取声明及阶段认回。带来源计划的原操作只有外域写。
-
-[外域写协调入口](../tests/external-write-provider.spec.ts) 与 [真实来源组合](../tests/external-write-source.spec.ts) 覆盖 GL-29：原意图复制、真实主体核验、原资格保管、提交后不重算计划、关闭竞争，以及结算失败后的 Worker 重启与工厂恢复。来源组合采用真实 Identity、Settings 和 Governance，业务资格与业务计划为具名夹具。Session 成功写入及其治理终态同提交不在这些测试的证明范围内。
-
-[原操作保管](../tests/external-write-custody.spec.ts) 还验证内部引用认回和 required 不得降级。恢复查询从原操作 schema 取得类型集合，防止新增原操作被恢复解析器遗漏。结构性论证见 [受信写入口与恢复闭合](proofs/permission-capture-custody.md#受信写入口与恢复闭合)。它不替代机器证明或完整 C3b 独立验收。
-
-
-[definition-projection.spec.ts](../tests/definition-projection.spec.ts) 使用真实注册服务与 SQLite 读取 settings=null 的声明，不构造 Settings target；覆盖撤下、旧 epoch、错误 scope、错误完整定义与关闭。原发布来源是具名测试来源，该测试不证明真实 Tool/Assets 发布或权限准入。[schema.spec.ts](../tests/schema.spec.ts) 对共享查询保留一万条旧代记录下的索引计划守护，拒绝贡献表或声明表全扫描。GL-31 的谓词与前提见[当前声明论证](proofs/permission-capture-custody.md#当前注册声明的独立读取)。
+[definition-projection.spec.ts](../tests/definition-projection.spec.ts) 使用真实注册服务与 SQLite 读取 settings=null 的声明，不构造 Settings target；覆盖撤下、旧 epoch、错误 scope、错误完整定义与关闭。原发布来源是具名测试来源，该测试不证明真实 Tool/Assets 发布或权限准入。[schema.spec.ts](../tests/schema.spec.ts) 对共享查询保留一万条旧代记录下的索引计划守护，拒绝贡献表或声明表全扫描。GL-31 的谓词与前提见[当前声明论证](proofs/current-declaration-read.md)。
 
 ## 有限模型的运行
 

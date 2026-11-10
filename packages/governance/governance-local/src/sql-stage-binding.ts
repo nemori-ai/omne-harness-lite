@@ -1,5 +1,4 @@
-import { validateExternalWriteStage } from './external-write-stage.ts'
-import type { OperationRef } from './operation-schema.ts'
+import type { GovernanceOperationRef } from '@omne-harness/governance-contract'
 import type { CommitRequestV2, SqlIdentity } from '@omne-harness/sql-contract'
 import type { ReadPort } from '@omne-harness/sql-contract/worker'
 import {
@@ -16,9 +15,12 @@ import type { OperationRecord, OperationBinding } from './operation-schema.ts'
 import { readGovernanceStanding } from './standing-custody.ts'
 import { standingRecoverySchema } from './standing-schema.ts'
 import type { SqlStage } from './sql-stage-schema.ts'
-import { readGovernanceSource } from './source-custody.ts'
 
-export function stageIdentity(domain: string, ref: OperationRef, stage: SqlStage): SqlIdentity {
+export function stageIdentity(
+  domain: string,
+  ref: GovernanceOperationRef,
+  stage: SqlStage,
+): SqlIdentity {
   const identity = operationIdentity(domain, ref)
   return stage === 'apply' ? identity : { ...identity, operation: 'governance.meta.' + stage }
 }
@@ -67,24 +69,9 @@ function controlBinding(port: ReadPort, binding: OperationBinding, request: Cont
       return matchesStanding(port, binding, request)
     case 'standing-seal':
       return matchesRecovery(port, binding, request)
-    case 'source-held':
-    case 'source-settled':
-      return matchesSource(port, binding, request)
     default:
       return false
   }
-}
-function matchesSource(
-  port: ReadPort,
-  binding: OperationBinding,
-  request: Extract<ControlRequest, { kind: 'source-held' | 'source-settled' }>,
-) {
-  const custody = readGovernanceSource(port, binding)
-  return (
-    equal(request.binding, binding) &&
-    'request' in custody &&
-    equal(custody.request, request.receipt.request)
-  )
 }
 const businessPlanners = {
   contribute: MUTATION_PLANNER,
@@ -96,8 +83,6 @@ function validateBusiness(
   record: OperationRecord,
   envelope: CommitRequestV2,
 ) {
-  if (record.request.owner === 'internal.external-write')
-    throw new Error('External write apply requires its owner planner')
   const planner = businessPlanners[record.request.owner]
   const facts = envelope.commands.find(command => command.participant === planner)?.facts
   const business = businessRequestSchema.parse(facts?.request)
@@ -156,10 +141,6 @@ export function validateStageEnvelope(
   const commands = new Map(envelope.commands.map(command => [command.participant, command.facts]))
   if (commands.size !== envelope.commands.length)
     throw new Error('Duplicate governance stage participant')
-  if (stage === 'apply' && record.request.owner === 'internal.external-write') {
-    validateExternalWriteStage(binding, record, envelope)
-    return
-  }
   const plan =
     stage === 'apply'
       ? validateBusiness(binding, record, envelope)

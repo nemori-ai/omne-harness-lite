@@ -13,7 +13,6 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail } from '@omne-harness/operation-result'
 import { GovernanceIdSchema } from '@omne-harness/governance-contract'
 import { createSettingsRegistry } from '@omne-harness/settings'
-import type { SettingsSourceDestination } from '@omne-harness/settings-local/preparation'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { toolContributionAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
@@ -112,18 +111,7 @@ export const governanceRow = defineRow({
       standing: ctx.tenantStanding,
       reservations: ctx.standingReservations,
     }
-    let sourceDestination: SettingsSourceDestination | undefined
-    const sources = await openOrganizationSettingsSources({
-      storage: ctx.storage,
-      materials,
-      identity,
-      destination: {
-        recognize: request =>
-          sourceDestination?.recognize(request) ?? Promise.resolve({ kind: 'unavailable' }),
-        seal: request =>
-          sourceDestination?.seal(request) ?? Promise.resolve({ kind: 'unavailable' }),
-      },
-    })
+    const sources = await openOrganizationSettingsSources({ storage: ctx.storage, materials })
     if (sources.kind !== 'created')
       throw new Error('governance organization Settings sources unavailable')
     ctx.effect(() => () => sources.close(), 'governance.settings-sources.close')
@@ -157,7 +145,6 @@ export const governanceRow = defineRow({
           storage: ctx.storage,
           catalogPrincipal: principal,
           destination: 'harness.governance',
-          sourceRoute: 'harness.governance.session-write',
           identity,
           registry,
           clock: {
@@ -168,7 +155,6 @@ export const governanceRow = defineRow({
             },
           },
           cursorLifetimeMs: 60_000,
-          sourceReservations: sources.reservations,
           grants: [
             {
               principalRef: standingPrincipalRef(principal),
@@ -183,7 +169,6 @@ export const governanceRow = defineRow({
         })
       },
     })
-    sourceDestination = host.sourceDestination
     new StandingDestination(ctx, host)
     new SessionBackend(ctx, host)
     new CurrentPermissionService(ctx, {

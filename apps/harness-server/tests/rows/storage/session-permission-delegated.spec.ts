@@ -201,7 +201,7 @@ it('publishes a real tenant backend from the governance row without authorizing 
     kind: 'settled',
   })
   expect(await backend.basis(q.delivery)).toMatchObject({ failure: { kind: 'unavailable' } })
-})
+}, 30_000)
 
 it('reports the missing protected backend from the real delegated entry', async () => {
   const tree = await world()

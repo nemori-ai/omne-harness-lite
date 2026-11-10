@@ -1,4 +1,3 @@
-import { finishExternalWrite } from './external-write-commit.ts'
 import { businessMode } from './business-plan.ts'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
 import {
@@ -22,20 +21,13 @@ import { persistSqlStage, requireApplyStage } from './sql-stage.ts'
 import { isTerminal } from './registrar-results.ts'
 import { digest, json, equal } from './encoding.ts'
 import { retireContribution } from './contribution-retirement.ts'
-import { recordGovernanceSource } from './source-custody.ts'
 
 function control(
   port: ParticipantPort,
   request: Exclude<
     ControlRequest,
     {
-      kind:
-        | 'persist-stage'
-        | 'bootstrap'
-        | 'close-scope'
-        | 'retire-contribution'
-        | 'source-held'
-        | 'source-settled'
+      kind: 'persist-stage' | 'bootstrap' | 'close-scope' | 'retire-contribution'
     }
   >,
 ) {
@@ -78,7 +70,6 @@ function applyPlan(port: ParticipantPort, plan: Exclude<ActivationPlan, { kind: 
   if (businessMode(found.record.request.owner) !== plan.kind)
     throw new Error('Governance plan owner mismatch')
   requireApplyStage(port, plan.request.binding, found.record.execution, plan.request.execution)
-  if (plan.kind === 'external-write') return finishExternalWrite(port, plan.request, plan.result)
   return applyStandingOperation(
     port,
     plan.request.binding,
@@ -88,9 +79,6 @@ function applyPlan(port: ParticipantPort, plan: Exclude<ActivationPlan, { kind: 
 }
 function metadata(port: ParticipantPort, request: ControlRequest) {
   switch (request.kind) {
-    case 'source-held':
-    case 'source-settled':
-      return recordGovernanceSource(port, request.binding, request.receipt)
     case 'bootstrap':
       return bootstrapScope(port, request.input)
     case 'close-scope':
