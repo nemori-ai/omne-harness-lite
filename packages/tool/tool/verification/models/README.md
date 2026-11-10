@@ -116,3 +116,7 @@ done
 ```
 
 几个配置共用标准模块的临时解压目录，必须串行运行。安全配置必须完整搜索、状态队列归零且无错误。custody 负控允许以已应用但未确认的保管进入提交，必须命中 `Invariant ResultRequiresConfirmedCustody is violated`。queue 负控允许在 queue 未确认时关闭 call duty，必须命中 `Invariant CloseRequiresQueueConfirmation is violated`。`create-without-assert` 负控让创建提交不断言调用域修订号，已释放的调用重新得到条目，必须命中 `Invariant NoResurrection is violated`。`queue-before-call` 负控让释放在调用域记录依据之前删除条目，创建步骤随后读到「未释放」并落下条目，必须命中 `Invariant NoResurrection is violated`。超时、语法错误和无关异常都不算负控成功。模型/config/JAR SHA-256、工具版本、命令、退出码、状态数及完整原日志留任务 tmp。状态导出可用于核验三域未知切点及完成状态确实可达，不以最终成功退出代替这些观察。
+
+## 调用域生命周期模型
+
+[CallLifecycle](call-lifecycle/README.md) 检查[调用状态的生命周期](../../SPEC.md#调用状态的生命周期)：交付释放之后按期限删除调用域，迟到操作在空域写下的排除记录也有删除时刻。建模对象、性质、具名负控、运行命令与模型到代码的对应都在该模型自己的 README。

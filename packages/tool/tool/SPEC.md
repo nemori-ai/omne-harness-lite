@@ -21,6 +21,7 @@ W3 的结果卸载依据 [#1168](https://github.com/nemori-ai/omne-harness-lite/
 - 在途停止：已记录 live 启动的 `control(stop)` 同提交保存原意图、收据与 stop 待办，driver 经原 binding 推进。原执行已结束时记录 `already-ended`。传播进度与物理终局分开（第 29 条）。
 - 到启动为止的真实调用：受理、环境准备、FIFO 排队、启动意图、live-only 绑定启动、原围栏对账与启动记录，以及永久排除后的启动前拒绝收场（第 19–23 条）。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。
 - 过程观察的门面：`instances.current` 与 `observation.observe` 经实例目录路由到当前代次的 handle，交出每一帧之前重核资格（[运行时观察门面](#运行时观察门面)）。
+- 调用状态的生命周期：交付释放之后，清扫按期限删除宿主里属于该调用的域与调用域（[调用状态的生命周期](#调用状态的生命周期)）。
 
 尚未实现：完整计时、启动前停止与启动结果未知时的停止、withdraw/background 控制、等待、真实过程观察源与 readProcess、恢复扫描、排空与交接。未交付的操作或分支回复具名 `unsupported`。slot 释放不证明环境资源已经释放。内部机制见 [architecture](docs/architecture.md)。
 
@@ -101,7 +102,7 @@ W3 的结果卸载依据 [#1168](https://github.com/nemori-ai/omne-harness-lite/
 
 `finalPlanner` 提供 `ToolFinalPlanner.planFinal`：见下文“最终事实的计划与结算”。原始返回 R 不再进入任何保管端口。
 
-结果提交在同一次 call CAS 中写入结果记录（通道值内联）、把被引用的正文条目置为 `linked` 并排期、把其余 opened/sealed 条目标孤儿并按 now + G 排期。系统受理拒绝、rejectPending 和 recordStart(rejected) 的合成结果走同一条写入。releaseDelivery 在可靠消费依据通过核验后解除交付，同一提交把记录值换成摘要（见「最终事实的计划与结算」）；到期回收只由清扫按到期索引执行。
+结果提交在同一次 call CAS 中写入结果记录（通道值内联）、把被引用的正文条目置为 `linked` 并排期、把其余 opened/sealed 条目标孤儿并按 now + G 排期。系统受理拒绝、rejectPending 和 recordStart(rejected) 的合成结果走同一条写入。releaseDelivery 在可靠消费依据通过核验后解除交付，同一提交把记录值换成摘要（见「最终事实的计划与结算」），并给调用域排删除时刻（见[调用状态的生命周期](#调用状态的生命周期)）。到期回收与调用域删除只由清扫按到期索引执行。
 
 ### 正文写入
 
@@ -128,7 +129,7 @@ JSON 文档 writer 接收原文本片段，保持空白、数值词法和 UTF-8 
 
 text 正文载荷采用 `tool-model-text-utf8-v1`。它按原顺序连接模型可见文本，不插入分隔符，不把块元数据、程序 data 或原生引用编码进正文。自动卸载与作者封存使用同一编码。封存清单的长度与摘要覆盖实际 UTF-8 载荷，bodyBytes 等于该长度。作者原操作的输入摘要仍覆盖完整帧、start 和来源依据；不同帧列表即使形成相同文本也不是相同输入。原结果通道继续保留各自的结构，正文载荷不用于重建整个 ToolResult。
 
-`offloading` 显式配置内联字节、最长保管毫秒、正文最大字节、机械预览字节、页字节、许可时长 W（`permitMs`）与孤儿宽限期 G（`orphanGraceMs`），均为正安全整数。时钟偏差 ε（`clockSkewMs`）为非负安全整数，预览除数 k（`previewDivisor`）缺省为 8。G 与最长保管期限都必须大于 W + 2ε，否则构造时抛 TypeError。作者声明只能收紧内联及期限上限。首次准备固定有效策略，重试不改用新配置。
+`offloading` 显式配置内联字节、最长保管毫秒、正文最大字节、机械预览字节、页字节、许可时长 W（`permitMs`）与孤儿宽限期 G（`orphanGraceMs`），均为正安全整数。时钟偏差 ε（`clockSkewMs`）为非负安全整数，预览除数 k（`previewDivisor`）缺省为 8。G 与最长保管期限都必须大于 W + 2ε，否则构造时抛 TypeError。G 也决定交付释放之后调用状态至少保存多久（[调用状态的生命周期](#调用状态的生命周期)）。作者声明只能收紧内联及期限上限。首次准备固定有效策略，重试不改用新配置。
 
 `offloading.jsonDocument` 与 `offloading.jsonRecord` 是必填的独立 `JsonLimits`。前者限制整份文档，后者限制单条记录；它们不借用调用参数或程序 data 的限制。writer 固定与其格式对应的限制，恢复不采用新的配置。JSON 文档在有限正文总量内聚合后校验，当前实现不承诺常量内存。
 
@@ -192,7 +193,7 @@ text 正文载荷采用 `tool-model-text-utf8-v1`。它按原顺序连接模型�
 否定答案（`lookup` 的 `not-accepted`、`queryOperation` 的 `not-committed`）必须排除该操作所有在途提交（P01）。所以账本按下列顺序给出：
 
 1. 完整读取域快照，快照里没有该操作。读取失败回复 `unavailable`，不给否定答案。
-2. 提交排除围栏：在调用域写入一条 `exclusion` 记录（键 `exclusion:<operation>`，值是操作号与本次提交的新域修订号），`expected` 是快照的域修订号，域修订号加一。该操作已有 `exclusion` 记录时被替换为更新的修订号。此后任何按旧修订号准备的在途提交都因修订号不符而失败。
+2. 提交排除围栏：在调用域写入一条 `exclusion` 记录（键 `exclusion:<operation>`，值是操作号与本次提交的新域修订号），`expected` 是快照的域修订号，域修订号加一。该操作已有 `exclusion` 记录时被替换为更新的修订号。此后任何按旧修订号准备的在途提交都因修订号不符而失败。域里没有调用记录时，同一提交给该域排删除时刻（见[调用状态的生命周期](#调用状态的生命周期)）。
 3. 围栏提交成功后，按第 1 步的快照给出否定答案。
 4. 围栏冲突时，说明有提交在读取之后落盘。账本重读并重新判断，所以已落盘的操作得到 `committed`；另一读取者的围栏不排除本次读取，本次重读后再次围栏。重读次数受 `ledgerCommitAttempts` 限制。
 5. 围栏结果未知时，`queryOperation` 回复 `unknown`，`lookup` 回复 `unavailable`（`ledger-store`）。围栏不可用时，两者回复 `unavailable`。两者都不给否定答案。
@@ -232,7 +233,7 @@ text 正文载荷采用 `tool-model-text-utf8-v1`。它按原顺序连接模型�
 
 `releaseDelivery` 先用契约的 `judgeConsumerRef` 与 `judgeHandoff` 封闭检查消费位置与交接证据，再比较或计算摘要。多出的字段回复 `invalid`（`unknown-field`），函数等非文本值回复 `invalid`（`type`），字段前缀是 `consumer.` 或 `evidence.`。之后核版本、交付号与消费位置都是记录的值：未知调用回复 `invalid`（`call: unknown-call`），交付号不符回复 `invalid`（`delivery: mismatch`），版本未知回复 `invalid`（`result: unknown-version`），消费位置不同回复 `conflict`，`operation` 是形成该版本的操作。`retained` 的 `custody` 或 `processed` 的 `completion` 的 `owner` 必须等于消费者的 `owner`，否则回复 `invalid`（`evidence.<custody|completion>.owner: owner-mismatch`）。
 
-通过后一次提交同时写入结果记录的 `released`、操作回执、调用状态，并删除 `deliver` 任务。`released.evidence` 由本包铸造（第 15 条的 `delivery` 种类），不是请求证据的回送。已解除的交付再次解除（同操作或新操作）回复已解除状态，不再写入。需要某个通道的全部交付都释放后，同一提交把该通道的内联值换成摘要。卸载正文在固定期限内经正文读口读取，到期返回找不到。原生资源与必要过程各自保管。解除交付不授予任意内容删除权。
+通过后一次提交同时写入结果记录的 `released`、操作回执、调用状态，删除 `deliver` 任务，并给调用域排删除时刻（[调用状态的生命周期](#调用状态的生命周期)）。`released.evidence` 由本包铸造（第 15 条的 `delivery` 种类），不是请求证据的回送。已解除的交付再次解除（同操作或新操作）回复已解除状态，不再写入。需要某个通道的全部交付都释放后，同一提交把该通道的内联值换成摘要。卸载正文在固定期限内经正文读口读取，到期返回找不到。原生资源与必要过程各自保管。解除交付不授予任意内容删除权。
 
 未知答复不等于交付必然 `pending`。内存记录仓的 `unknown-dropped` 不应用写集合，首次解除后查询原操作得到 `not-committed`，目标交付、原 `deliver` 任务与内容保持。`unknown-applied` 已应用写集合，查询原操作得到 `committed`，`lookup` 可见目标已 `released`，该版本的任务已经结束。查询不可读时保留原操作与承接责任，不自动重发。可靠否定后明确再次解除时，若尚未解除才提交，若已有释放事实则返回原回执。
 
@@ -275,15 +276,52 @@ runtime 的 `instances` 与 `observation` 由 [src/stream-facade.ts](src/stream-
 
 ### 记录仓的到期索引
 
-`LedgerWrite` 增加 `schedule(key, dueAt)` 与 `unschedule(key)`，`ToolLedgerStore` 增加 `due(tenant, now, limit)`。契约归 [tool-contract 的正文存储端口与到期索引](../tool-contract/SPEC.md#正文存储端口与到期索引)：排期随提交原子生效，条目以被写域与键标识，`due` 按租户读出已到时刻的条目。本包的消费者是结果提交的排期、结算后的孤儿排期（`ledger-body-entries.ts` 的 `settleBodyEntries`）与清扫的 `unschedule`；内存实现与 `toolLedgerStoreConformance()` 的 `due.*` 用例是提供者的判据。
+`LedgerWrite` 增加 `schedule(key, dueAt)` 与 `unschedule(key)`，`ToolLedgerStore` 增加 `due(tenant, now, limit)`。契约归 [tool-contract 的正文存储端口与到期索引](../tool-contract/SPEC.md#正文存储端口与到期索引)：排期随提交原子生效，条目以被写域与键标识，`due` 按租户读出已到时刻的条目。本包的消费者是结果提交的排期、结算后的孤儿排期（`ledger-body-entries.ts` 的 `settleBodyEntries`）、交付释放与空域排除记录给调用域的排期（[调用状态的生命周期](#调用状态的生命周期)）与清扫的 `unschedule`；内存实现与 `toolLedgerStoreConformance()` 的 `due.*` 用例是提供者的判据。
+
+### 记录仓的整域删除
+
+`ToolLedgerStore` 有一个删除整个域的写操作。它是带期望修订号的条件删除：
+
+- 域修订号等于期望值时，它一次删除该域的全部记录、该域的全部到期项与修订号。修订号不符时，它回复 `conflict`，不删除任何东西。
+- 它与同一租户的其他提交同样串行化。
+- 删除之后的域与从未提交的域相同：读作修订号 `0`，没有记录，没有到期项。删除不留墓碑。
+- 删除只作用于给定租户的域。另一个租户的同名域不受影响。
+
+端口形状归 [ledger-store.ts](src/ledger-store.ts) 的类型。内存仓（第 18 条）与 SQL 提供者实现同一语义。`toolLedgerStoreConformance()` 的整域删除用例是提供者的判据。本包只有清扫使用它（[调用状态的生命周期](#调用状态的生命周期)）。
 
 ### 清扫
 
-`ToolLedger.sweep(tenant, now, limit)` 是到期回收的唯一执行者（`ledger-sweep.ts`，模型 `DeleteBytes` 与 `Reclaim`）；应用只负责按批量与间隔调度它，`now` 是清扫者自己的时钟。对 `due(tenant, now, limit)` 的每一项，先让正文存储删除字节与清单（幂等，不留墓碑），再在该调用域的一次提交里把正文条目置为 `reclaimed` 并 `unschedule`。两步之间停止的清扫者不留下任何需要修补的状态：到期条目仍在索引里，重跑再次删除并提交，终态相同。存储答 `unavailable` 或提交结果未知时清扫在该项停下并答 `unavailable`，已处理项的提交保留；它不为此改写任何条目。回收后的正文条目保留为按键冷记录，读回按它答 `expired`。判据：`tests/body-lifecycle.spec.ts` 的 C5 sweep 用例（内存仓与内存存储，含丢失提交的重跑与存储不可删）与 `tool-storage-sql/tests/sweep-live.spec.ts`（真实 SQLite，回收后正文表与到期索引不留行）。
+`ToolLedger.sweep(tenant, now, limit)` 是到期回收的唯一执行者（`ledger-sweep.ts`，模型 `DeleteBytes` 与 `Reclaim`）；应用只负责按批量与间隔调度它，`now` 是清扫者自己的时钟。对 `due(tenant, now, limit)` 的每一项，先让正文存储删除字节与清单（幂等，不留墓碑），再在该调用域的一次提交里把正文条目置为 `reclaimed` 并 `unschedule`。两步之间停止的清扫者不留下任何需要修补的状态：到期条目仍在索引里，重跑再次删除并提交，终态相同。存储答 `unavailable` 或提交结果未知时清扫在该项停下并答 `unavailable`，已处理项的提交保留；它不为此改写任何条目。回收后的正文条目留在调用域里，直到调用域被删除，读回按它答 `expired`。到期项是调用域的删除时刻时，清扫按[调用状态的生命周期](#调用状态的生命周期)删除宿主域与调用域。判据：`tests/body-lifecycle.spec.ts` 的 C5 sweep 用例（内存仓与内存存储，含丢失提交的重跑与存储不可删）与 `tool-storage-sql/tests/sweep-live.spec.ts`（真实 SQLite，回收后正文表与到期索引不留行）。
+
+### 调用状态的生命周期
+
+本节兑现契约的[确认之后的调用状态](../tool-contract/SPEC.md#确认之后的调用状态)。对消费者的前提 A1、A2 归契约。形式模型是 [CallLifecycle](verification/models/call-lifecycle/README.md)，模型动作与源码的对应登记在该 README。
+
+调用状态指 Tool 账本里该调用的调用域，以及宿主里以该调用标识为名的域。调用状态的生命周期只有账本一个拥有者。宿主不为自己的域排期。
+
+1. 确认时排期。确认就是交付释放 `releaseDelivery`（第 16 条）。释放提交在同一写入集里给调用域排一个删除时刻，键是调用域固定的到期键。时刻取确认时刻加 G（`offloading.orphanGraceMs`）与该调用各正文条目的 `expiresAt` 中的较大者。本规则不新增配置项。
+2. 清扫删除。清扫读到调用域的到期项时，先读调用域，核对调用仍是已释放且没有待办任务。核对成立后，清扫按固定的宿主域种类列表删除以该调用标识为名的宿主域，最后删除调用域。每次删除都是[整域删除](#记录仓的整域删除)。调用域最后删除，所以它的到期项一直留在索引里，直到全部删除完成。中途失败时，下一轮从同一项重做，终态相同。单机宿主的种类列表见 [tool-host-local](../tool-host-local/SPEC.md#1-排序域与放置)。
+3. 空域的排除记录。`lookup` 或 `queryOperation` 在没有调用记录的域里写排除记录时（第 14 条），同一提交给该域排 `now + G` 的删除时刻。清扫遇到只有排除记录的域时，直接删除它。
+4. 已释放调用的迟到操作。调用域存在且已释放时，迟到的停止与查询照常答复，不改排期。
+5. 没有确认的调用不删除。消费者永不确认时，调用状态一直保留。
+6. 转发的子调用。工具转发的子调用不经 Agent。子调用的记录不早于父调用的记录删除。
+
+删除之后的调用域读作修订号 `0`，没有记录。按第 11 条，`readResult`、`account` 与 `releaseDelivery` 回复 `invalid`（`call: unknown-call`），`lookup` 回复 `not-accepted`，`queryOperation` 回复 `not-committed`。同一调用标识的新 admit 形成一次新的受理。所以 L1 依赖契约对消费者的前提 A1、A2。
+
+| # | 性质 | 谁守 | 模型性质 |
+| --- | --- | --- | --- |
+| L1 | 同一调用标识的函数至多执行一次 | 账本，依赖消费者的前提 A1、A2 | `AtMostOnce` |
+| L2 | 消费者落盘保存结果之前，调用域不被删除 | 账本 | `RemovedOnlyAfterSaved` |
+| L3 | 不再被写的调用域有删除时刻：确认时刻加 G 与正文期限中的较大者 | 账本与到期索引 | `IdleIsScheduled`、`EventuallyRemoved` |
+| L4 | 删除时，域的记录、到期项与修订号一起删除，不留墓碑 | 记录仓提供者 | `NoOrphanDue` |
+| L5 | 迟到操作在空域写下的排除记录有自己的删除时刻 | 账本 | `IdleIsScheduled` |
+| L6 | 卸载的正文在保存期限内一直可读 | 账本 | `BodyKept`、`RemovalNotEarly` |
+
+与正文清扫的关系：两者共用到期索引与同一个清扫入口（[清扫](#清扫)）。正文按自己的期限回收。调用域的删除时刻不早于各正文的期限，所以 L6 成立。正文的写入许可与封存仍由 [BodyLifecycle](../tool-contract/verification/models/body-lifecycle/README.md) 守护。
 
 ### 18 非耐久记录仓（`./testing`）
 
-`createMemoryToolLedgerStore` 声明 `durability: 'none'`。每个域从修订号 `0` 开始，并各自持有自己排期的到期条目，`due` 汇总同租户全部域的条目，`injectRead` 的故障同样作用于它；`commit` 只在 `expected` 等于当前修订号、且每条 `asserts` 的域修订号等于给定值时生效，否则回复 `conflict`；断言另一个租户的域回复 `unavailable`。生效的提交不论写入集内容都把域修订号改为 `revision`：只写一条 `exclusion` 记录、不改任何记录、删除不存在的键，都同样推进修订号，没有空操作捷径。读取给出副本。域键是各段身份文本的 JSON，含分隔符的身份不会落到别的域。`injectRead` 与 `injectCommit` 按顺序注入下一次读取或提交的故障：
+`createMemoryToolLedgerStore` 声明 `durability: 'none'`。每个域从修订号 `0` 开始，并各自持有自己排期的到期条目，`due` 汇总同租户全部域的条目，`injectRead` 的故障同样作用于它；`commit` 只在 `expected` 等于当前修订号、且每条 `asserts` 的域修订号等于给定值时生效，否则回复 `conflict`；断言另一个租户的域回复 `unavailable`。生效的提交不论写入集内容都把域修订号改为 `revision`：只写一条 `exclusion` 记录、不改任何记录、删除不存在的键，都同样推进修订号，没有空操作捷径。整域删除在期望修订号相符时去掉该域的记录、到期条目与修订号，之后该域从修订号 `0` 开始。读取给出副本。域键是各段身份文本的 JSON，含分隔符的身份不会落到别的域。`injectRead` 与 `injectCommit` 按顺序注入下一次读取或提交的故障：
 
 - `unavailable`：不尝试。
 - `conflict`：不写入，回复冲突，如同别的写者先提交了。

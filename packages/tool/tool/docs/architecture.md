@@ -57,13 +57,13 @@ ToolCall 决定器输入当前持久状态、具名命令和已核验 guard 快�
 
 原始返回 R 不进入任何保管端口。执行记录 final 时，`finalPlanner` 按正文策略计划结果；超过阈值的结果由账本自己的 writer 写成系统正文并封存（[ledger-final-planning.ts](../src/ledger-final-planning.ts)）。事实流只保存计划后的 final，不保存正文字节。作者正文经 `bodyWrites` 写入（[ledger-body-writer.ts](../src/ledger-body-writer.ts)），正文条目的状态转换在 [ledger-body-entries.ts](../src/ledger-body-entries.ts)。`content.read` 对卸载原文的 source 从正文存储读字节（[ledger-content.ts](../src/ledger-content.ts)）。
 
-结果提交在同一次 call CAS 中写入结果记录，把被引用的正文条目置为 `linked` 并按期限排期，把其余 opened/sealed 条目标孤儿并按 now + G 排期。系统受理拒绝、rejectPending 和 recordStart(rejected) 走同一条写入。releaseDelivery 在可靠消费依据通过核验后，同提交把已无交付需要的通道值换成摘要。到期回收只由 `sweep` 按到期索引执行（[ledger-sweep.ts](../src/ledger-sweep.ts)）：先删存储字节，再提交 `reclaimed` 并撤销排期。
+结果提交在同一次 call CAS 中写入结果记录，把被引用的正文条目置为 `linked` 并按期限排期，把其余 opened/sealed 条目标孤儿并按 now + G 排期。系统受理拒绝、rejectPending 和 recordStart(rejected) 走同一条写入。releaseDelivery 在可靠消费依据通过核验后，同提交把已无交付需要的通道值换成摘要，并给调用域排删除时刻。到期回收只由 `sweep` 按到期索引执行（[ledger-sweep.ts](../src/ledger-sweep.ts)）：先删存储字节，再提交 `reclaimed` 并撤销排期。调用域到期时，`sweep` 先删除宿主里属于该调用的域，最后删除调用域，规则见[调用状态的生命周期](../SPEC.md#调用状态的生命周期)。
 
 事务域是判别联合：`call` 域是 `(tenant, call)`，拥有一次原调用的全部记录；`queue` 域是 `(tenant, FIFO key)`，拥有同一 key 下各调用的顺序与名额；`host` 域是 `(tenant, key)`，供宿主提供者保存自己的耐久记录（例如 `tool-host-local` 的启动受理台账），本包不解释其内容。记录是判别联合，每种记录有一个唯一键：
 
 | 记录 | 键 | 内容 |
 | --- | --- | --- |
-| `body-entry` | `body:<bodyId>` | 一个正文条目：写入者的 start（系统正文为 null）、键、操作与输入摘要、固定的正文策略与表示、保管证据，以及状态 `opened`、`sealed`（带清单）、`linked`（带结果版本与清单）、`orphaned` 或 `reclaimed`。回收后保留为按键冷记录 |
+| `body-entry` | `body:<bodyId>` | 一个正文条目：写入者的 start（系统正文为 null）、键、操作与输入摘要、固定的正文策略与表示、保管证据，以及状态 `opened`、`sealed`（带清单）、`linked`（带结果版本与清单）、`orphaned` 或 `reclaimed`。回收后留在调用域里，随调用域删除 |
 | `result-policy` | `result-policy:<operation>` | 一次结算固定的正文策略及其来源；重试认回同一策略 |
 | `call` | `call` | 原调用：受理操作、固定请求、发起来源、当前 `ToolState`、已确认的环境、准备记录、启动记录、启动拒绝与执行引用 |
 | `operation` | `operation:<operation>` | 一次已提交操作：种类、规范输入摘要、提交修订号、具名回执（例如 admit 的 `ToolState`、releaseDelivery 的 `DeliveryState`、planPreparation 的 `PreparationRecord`、prepareStart 的启动记录） |

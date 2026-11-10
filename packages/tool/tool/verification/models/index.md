@@ -14,3 +14,6 @@
 - [三域交接安全配置](SettlementRelease.cfg)。
 - [保管已应用但未确认的负控](SettlementRelease-unsafe-custody.cfg)。
 - [提前关闭 queue 责任的负控](SettlementRelease-unsafe-queue.cfg)。
+
+- [调用域生命周期模型](call-lifecycle/README.md)。
+- [调用域生命周期的 TLA+ 规格](call-lifecycle/CallLifecycle.tla)。
