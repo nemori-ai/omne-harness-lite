@@ -48,6 +48,11 @@ tools/dev-flow/**
 tools/test-runner/**
 repo-toolchain.config.json
 tools/repo-config/**
+# The closeout adapter and the pinned pqw-skills submodule: they decide the structure
+# readings and the mutation run, so a change to either changes what a check measures.
+tools/pqw-adapter/**
+.gitmodules
+.meta_harness/agents/vendor/**
 
 # Documentation, design and agent checks
 tools/spec-tools/**
