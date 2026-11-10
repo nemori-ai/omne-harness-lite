@@ -1,5 +1,6 @@
 import { capturedInquirySchema } from './permission-inquiry.ts'
 import { z } from 'zod'
+import type { JsonValue } from '@omne-harness/sql-contract'
 import { canonicalText } from '@omne-harness/authorization'
 import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
@@ -7,7 +8,6 @@ import {
   PermissionBasisRequestSchema,
   type PermissionBasisRequest,
 } from '@omne-harness/permissions'
-import type { GovernancePermissionQualification } from '@omne-harness/governance-local'
 import type {
   InvocationQualification,
   LocalInvocationQualifier,
@@ -30,8 +30,14 @@ import {
   type SessionPermissionCaptureReader,
 } from './permission-session-current.ts'
 
+/** The observation of the owner of the original action. It proves an origin and grants nothing. */
+export type PermissionOriginObservation = Readonly<{
+  owner: string
+  protocol: string
+  observation: JsonValue
+}>
 export type Qualification =
-  | Readonly<{ kind: 'qualified'; qualification: GovernancePermissionQualification }>
+  | Readonly<{ kind: 'qualified'; qualification: PermissionOriginObservation }>
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable'; sourceRef: string }>
 

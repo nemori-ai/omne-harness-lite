@@ -88,7 +88,7 @@ collection.digest 覆盖 scope、声明修订及按规范 JSON 文本排序的�
 
 ### GL-10 恢复集合
 
-可信恢复读取包含三类原操作：业务仍为 accepted/submitted、原操作仍保管 requested/held 身份请求，或权限读取仍保管 requested/held 设置来源请求。业务终态不表示外部保留已经结算，终态未结算记录不得遗漏。无保留或已 settled 的历史终态不进入恢复集合。
+可信恢复读取包含三类原操作：业务仍为 accepted/submitted、原操作仍保管 requested/held 身份请求，或外域写仍保管 requested/held 设置来源请求。业务终态不表示外部保留已经结算，终态未结算记录不得遗漏。无保留或已 settled 的历史终态不进入恢复集合。
 
 业务和身份责任使用 gc_operation_recovery，设置来源责任使用 gc_permission_source_pending。索引成员随对应事务更新。只读处理器在同一读事务内分别读取最多65个候选，按 SQLite BINARY 的 UTF-8 顺序去重归并，交回最多64项及后继游标。它只交回完整原键、摘要及受理 epoch，不读取业务正文、执行信封或完整回执。游标绑定同一 scope，按命令族、主体和原 operationId 排序。
 
@@ -190,11 +190,11 @@ queryOperation 每次核验 operation-read 资格，只访问已核主体自己�
 
 内部目录捕获在同一 SQL 事务读取当前 scope、贡献和采用关系，并消费装配方提供的完整当前事实。管理目录可以列出尚未采用的贡献及禁用目标；运行目录只列出实际采用且当前可用的贡献。相同定义的未采用兄弟租约不能借另一个租约进入运行结果。selectedTargets 只表示真实采用关系，不把管理查询匹配的目标伪装成已采用。
 
-每页核验独立的目录披露动作。游标绑定 scope、主体、模式、目标集合、epoch、声明和采用修订及实际目标与关口见证。新 capture 身份不进入跨页基准。任何绑定变化使旧游标失效。分页按定义键递增，每页最多100项、1MiB；单项超过预算返回 limited，不能跳过该项。来源不全返回 partial 和 unavailableOwners，不能返回完整空结果。返回回执核验原 SQL 身份、输入摘要、组合、manifest，以及页面 scope 和 epoch。
+每页核验独立的目录披露动作。游标绑定 scope、主体、模式、目标集合、epoch、声明和采用修订及实际目标与关口见证。每次读取的关联标识不进入跨页基准。任何绑定变化使旧游标失效。分页按定义键递增，每页最多100项、1MiB；单项超过预算返回 limited，不能跳过该项。来源不全返回 partial 和 unavailableOwners，不能返回完整空结果。返回前核对页面的 scope 和 epoch 是本次读取的绑定。
 
-目录在私有 internal.capture 原操作中保管完整请求及准入主体。该命名空间不进入公开三命令协议。受理后保存 Standing 计划并取得真实 held，再保存原 execution 和 apply 信封。只读目录参与者生成同事务计划，唯一治理写者核对原操作、held、scope/epoch 和原信封后保存 page/failure 终态；不能给目录第二份业务写权，也不能借目录改变采用集合。
+目录读取是纯读。入口在准入核验之后组出本次读取的绑定与命令，交给装配提供的投影读 `GovernanceProjectionRead`。投影读在一个快照里依次执行当前证据的命令与只读目录参加者，返回一页或失败。本成员不为目录建原操作，不向 Identity 预留，不写任何关系；也不能借目录改变采用集合。
 
-返回页面前必须确认原终态并完成资格结算。未知回包或结算失败对外 unavailable，持久恢复索引继续保管责任。恢复和关闭识别 internal.capture，晚到请求在原操作已封口时不能再次捕获。普通工厂提供目录及历史恢复；Cordis生命周期由GL-23提供。真实发行和当前关口事实仍由应用组合交付，不由调用者自报。
+投影读没有答复、答复畸形，或页面的 scope、epoch 不是本次绑定的，对外 unavailable。准入核验每次现读资格，撤权后的读者得不到页面。普通工厂提供目录；Cordis生命周期由GL-23提供。真实发行和当前关口事实仍由应用组合交付，不由调用者自报。
 
 ### GL-20 普通工厂与启动恢复
 
@@ -259,39 +259,27 @@ This material observes Governance state only. It does not establish the caller's
 The local guarantee assumes the existing single-writer adoption/retirement invariants and SqlStorage transaction ordering. No remote retention protocol or cross-database atomicity follows from this read.
 
 
-### GL-25 权限读取的来源保管
+### GL-25 来源保管
 
-内部 capture 的 catalog 与 permission 命令是两个独立变体。旧 catalog 命令不增加默认字段，不改变原摘要。permission 命令保管原动作的 PermissionBasisRequest、独立 qualification 观察信封、完整 SettingsTarget、组织来源计划和恢复路由。每次 current 读取使用新的 capture operationId；同一次读取的恢复保持原身份。
+带来源计划的原操作只有外域写（GL-27）。它的命令保管组织来源计划和恢复路由。
 
-接受带来源的 permission 命令时，唯一治理写者在同一事务建立 gc_operation 和 gc_permission_source 关联行。关联行的完整主键及外键绑定原操作。SQL NULL 回执表示 requested；明确 source=null 的命令不产生该责任。缺失关联行是损坏，不能解释为无来源。
+接受带来源的命令时，唯一治理写者在同一事务建立 gc_operation 和 gc_permission_source 关联行。关联行的完整主键及外键绑定原操作。SQL NULL 回执表示 requested；明确 source=null 的命令不产生该责任。缺失关联行是损坏，不能解释为无来源。
 
 来源请求仅由原命令、完整原操作绑定、主体和 SQL 域派生。回执必须通过 Settings 公共协议校验，并与该请求精确匹配。held 重传必须保留同一 snapshot；原操作终结后到达的 held 只能用于清理，不能复活原操作。settled 必须对应原 committed 或 aborted 终态。尚未收到 held 的 requested 也可以在原操作 aborted 后认回合法的 aborted 来源回执。
 
 source-held 和 source-settled 分别保管完整 SQL 阶段信封。只读认回声明所需 Governance 表及迁移，不通过额外写权读取。来源已 settled 后，迟到 held 返回既有终态，不降级保管状态。来源责任从恢复集合退出，只证明本项责任已结算，不替代其他身份或业务责任。
 
-来源协调器只消费 Settings 的 reserve/settle 公共端口。首次 reserve 前必须观察同一 capture 的 Identity held。Settings 回执经公共 schema 校验并精确匹配原 request，才可保管；拒绝保持原含义，异常或错绑返回 unavailable。保存后重新观察当前保管状态，不能把旧 SQL 重传的 held 回包当作最新状态。
+来源协调器只消费 Settings 的 reserve/settle 公共端口。首次 reserve 前必须观察同一原操作的 Identity held。Settings 回执经公共 schema 校验并精确匹配原 request，才可保管；拒绝保持原含义，异常或错绑返回 unavailable。保存后重新观察当前保管状态，不能把旧 SQL 重传的 held 回包当作最新状态。
 
 createGovernanceLocalSourceDestination 可在运行时启动前用固定 SQL 域、元数据组合和 sourceRoute 构造。recognize 只承认完整匹配的已保存请求；seal 只封口该原操作并观察其持久终态。恢复不依赖原客户端在线，也不重新构造业务主体。
 
 普通工厂可借用 sourceReservations。未装配来源服务只适用于没有来源责任的使用范围；已有 requested 或 held 责任不得因此消失。启动恢复及关闭必须分别结算 Identity 和 Settings 来源，任一责任待决时均不得报告恢复完成。Governance 不关闭借用的来源服务。来源端主动恢复可先封口原操作，Governance 随后仍须保管相同终态回执。
 
-该保管机制本身不产生 PermissionCurrentBasis，也不授予业务动作权限。当前结果的写入见 GL-26。生产消费者及历史装配恢复仍须完成，不能以本节协议组合验证替代完整提供者验收。性质与证据范围见[来源保管证明](verification/proofs/permission-capture-custody.md)。
+该保管机制本身不授予业务动作权限。性质与证据范围见[来源保管证明](verification/proofs/permission-capture-custody.md)。
 
-### GL-26 受保护的当前权限读取
+### GL-26 当前权限读取不在本成员
 
-普通工厂的 permissionBasis 遵循 Permissions 的读取协议。未配置受信解析器与当前事实组合时返回 unavailable。读取context由装配定义，可以携带原动作定位。入口先解析请求，经principalOf取得真实主体，再独立核验主体、租户、组织、部署与服务范围。resolve取得同次已核验主体、请求与原context，认回拥有者事实并核对披露资格和完整动作绑定。context的形状、摘要和请求回显都不能作为资格证明。Governance不解释Agent或Tool原生模型，也不将context写入SQL封套；恢复继续使用原持久命令及结果。
-
-resolve 必须给出 qualification，包含具名 owner、protocol 与严格 JSON observation。该字段独立于 Settings 来源；Governance 只保管和比较完整值，不解释外域动作，也不因信封存在而授予资格。原请求摘要覆盖它，后续请求、当前事实或恢复不得替换观察。
-
-受信 project 端口接收原绑定、epoch、事务域及已固定 command，一次返回组合标识与当前事实命令。读取器在 await 前复制输入并解析输出快照，将选定组合固定到 execution 与原 SQL envelope。不同动作来源可使用同域已登记的不同具名组合，恢复只使用原 stage，不重跑 project 或重新取得 context。非法形状与未知组合不能返回成功。未固定的原上下文不写进封套。
-
-每次合法读取创建独立 capture，复用原操作、同次 Identity 保留和来源保管。只读 permission-snapshot 消费带绑定的当前事实；唯一写者在同一事务核原 submitted execution、当前 epoch、事务域、目标、来源计划、完整 qualification 和 PermissionBasisRequest。无同次 Identity held 不保存 current。错绑定或非法求值材料使该写入失败，不能修正输入后冒充原读取。带 qualification 的当前事实与 snapshot 参加者采用协议 2。
-
-组织配值只从原 capture 已保管的 held snapshot 取得。实际组织存在但没有来源计划或尚未取得快照时，该槽必须是 unavailable，不能信任输入的 absent。source 仍为 requested 时，写者保存 aborted 与局部 current，保留原来源责任；来源已 held 或明确不需要时保存 committed 与 current。业务终态、材料完整性与实际许可分开表达。
-
-原事务已保存结果后，清理失败不改写结果。读取可返回包含已知禁止的局部 current，恢复继续结算原责任。seal 若先胜出，迟到 apply 只能认回原终态，不能添加 current。provider close 仍按 GL-25 结清双重责任。
-
-current 不授予后续启动或写入许可。实际消费关口须重新读取或采用其拥有者的精确保留协议。Session 模式、AgentDefinition 约束和 HITL 决定不由本包解释；缺少对应拥有者事实不能解释成空约束。
+本成员不提供当前权限读取，也不保管任何读取。权限依据由应用装配用各拥有者的只读投影在一次投影读里算出，动作提交时在同一事务里重新核验。本成员为它提供两个只读投影参加者：治理目标投影与已选定义投影（见「Target projection」与当前声明事实两节）。Session 模式、AgentDefinition 约束和 HITL 决定不由本包解释。
 
 ### GL-27 外部拥有者写意图的保管
 
@@ -299,7 +287,7 @@ current 不授予后续启动或写入许可。实际消费关口须重新读取
 
 治理请求摘要覆盖完整封套，包括 scope、operationId、write、source 和 sourceRoute。原操作按既有复合主键认回；同一定位下替换任何材料均冲突。重启不改变原请求、摘要、SQL 身份和受理代次。普通贡献、采用和目录捕获的 planner 不处理此类写意图；受保护业务效果须由外部拥有者的专属组合完成。
 
-需要 Settings 来源时，受理同时建立原来源责任。目的回调使用 `governance-external-write/1` 与完整原操作绑定。既有 capture 继续使用原协议，其持久请求不重写。认回必须匹配原路由与完整来源请求，seal 只终结原操作；尚未结算的 held 继续保留，不能将终结解释为清理已完成。
+需要 Settings 来源时，受理同时建立原来源责任。目的回调使用 `governance-external-write/1` 与完整原操作绑定。认回必须匹配原路由与完整来源请求，seal 只终结原操作；尚未结算的 held 继续保留，不能将终结解释为清理已完成。
 
 `governance-external-write-1` 原子扩展操作和来源关系的 owner 约束。迁移保留三张关系的原字段值，含原命令、资格、身份、执行材料、held、结果、完整 SQL 封套及摘要。迁移按外键依赖重建关系和既有索引，任何失败均回滚。迁移备份表不成为运行时查询来源。既有迁移及已持久摘要不变。
 

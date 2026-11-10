@@ -1,7 +1,5 @@
 import { finishExternalWrite } from './external-write-commit.ts'
-import { applyPermissionCapture } from './permission-operation.ts'
 import { businessMode } from './business-plan.ts'
-import { applyCapture } from './capture-operation.ts'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
 import {
   ACTIVATION_PLAN,
@@ -77,15 +75,10 @@ function applyPlan(port: ParticipantPort, plan: Exclude<ActivationPlan, { kind: 
     )
   )
     throw new Error('Governance plan binding changed')
-  if (
-    businessMode(found.record.request.owner) !==
-    (plan.kind === 'permission-capture' ? 'capture' : plan.kind)
-  )
+  if (businessMode(found.record.request.owner) !== plan.kind)
     throw new Error('Governance plan owner mismatch')
   requireApplyStage(port, plan.request.binding, found.record.execution, plan.request.execution)
   if (plan.kind === 'external-write') return finishExternalWrite(port, plan.request, plan.result)
-  if (plan.kind === 'permission-capture') return applyPermissionCapture(port, plan)
-  if (plan.kind === 'capture') return applyCapture(port, plan)
   return applyStandingOperation(
     port,
     plan.request.binding,

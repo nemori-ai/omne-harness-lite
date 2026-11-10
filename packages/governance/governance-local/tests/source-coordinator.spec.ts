@@ -1,7 +1,7 @@
 import { afterEach, expect, it } from 'vitest'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import { SqlOperationCoordinator } from '../src/sql-coordinator.ts'
-import { held as fixtureHeld } from './permission-capture-world.ts'
+import { held as fixtureHeld } from './source-request-world.ts'
 import { GovernanceSourceCoordinator } from '../src/source-coordinator.ts'
 import { openSourceCoordinatorWorld } from './source-coordinator-world.ts'
 

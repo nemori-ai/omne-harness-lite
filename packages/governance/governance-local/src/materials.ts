@@ -11,7 +11,6 @@ import {
   GOVERNANCE_EXTERNAL_WRITE_MIGRATION,
   GOVERNANCE_EXTERNAL_WRITE_TABLES,
 } from './external-write-migration.ts'
-import { PERMISSION_CURRENT, PERMISSION_SNAPSHOT } from './permission-capture-schema.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
@@ -197,16 +196,6 @@ export function governanceSqlMaterials(): Pick<
         ownedTables: [],
         readTables: [],
         requiresFacts: [governanceExternalWriteBasisFact, governanceExternalWriteResultFact],
-        providesFacts: [ACTIVATION_PLAN],
-        allowedFunctions: [],
-        grouping: 'groupable',
-      },
-      {
-        ...PERMISSION_SNAPSHOT,
-        ...participantFile('permission-snapshot'),
-        ownedTables: [],
-        readTables: ['gc_operation'],
-        requiresFacts: [PERMISSION_CURRENT],
         providesFacts: [ACTIVATION_PLAN],
         allowedFunctions: [],
         grouping: 'groupable',

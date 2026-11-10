@@ -33,8 +33,6 @@ import {
   governanceTargetProjectionParticipant,
   GovernanceTargetProjectionSchema,
   type GovernanceTargetBinding,
-  type GovernancePermissionOptions,
-  type PermissionProjection,
   type GovernanceLocalOptions,
   type GovernanceExternalWriteOptions,
 } from '@omne-harness/governance-local'
@@ -63,19 +61,10 @@ export async function governanceAdoptionWorld(
       register: (
         name: string,
         participants: string[],
-      ) => Promise<PermissionProjection['combination']>
+      ) => Promise<{ combinationVersion: string; manifestDigest: string }>
       snapshotParticipants: string[]
       scope: import('@omne-harness/governance-contract').GovernanceScope
     }) => Promise<GovernanceExternalWriteOptions<SessionPermissionWriteContext>>
-    permission?: (input: {
-      register: (
-        name: string,
-        participants: string[],
-      ) => Promise<PermissionProjection['combination']>
-      snapshotParticipants: string[]
-      declaration: import('@omne-harness/governance-contract').GovernanceDefinitionBundle
-      target: GovernanceTargetBinding['target']
-    }) => Promise<GovernancePermissionOptions>
   } = {},
 ) {
   const ctx = new Context()
@@ -236,71 +225,59 @@ export async function governanceAdoptionWorld(
   }
   destination = createGovernanceLocalDestination(coordination)
   const declaration = w.entry.governance.declaration
-  const made = await createGovernanceLocal<ActingForTenantPrincipal, SessionPermissionWriteContext>(
-    {
-      ...(options.externalWrites === undefined
-        ? {}
-        : {
-            externalWrites: await options.externalWrites({ register, snapshotParticipants, scope }),
-          }),
-      ...coordination,
-      ...(options.sourceReservations === undefined
-        ? {}
-        : { sourceReservations: options.sourceReservations }),
-      ...(options.permission === undefined
-        ? {}
-        : {
-            permission: await options.permission({
-              register,
-              snapshotParticipants,
-              declaration,
-              target: w.target,
-            }),
-          }),
-      scope,
-      identity: {
-        verifier: authority.verifier,
-        standing: ctx.tenantStanding,
-        reservations: ctx.standingReservations,
-      },
-      grants: [
-        {
-          principalRef,
-          scope,
-          action: 'contribute',
-          required: [],
-          owners: [
-            {
-              ownerId: declaration.reference.ownerId,
-              enforcementBindings: declaration.enforcementBindings,
-            },
-          ],
-        },
-        ...(
-          ['adopt', 'withdraw', 'operation-read', 'catalog-management', 'catalog-runtime'] as const
-        ).map(action => ({
-          principalRef,
-          scope,
-          action,
-          required: [],
-        })),
-      ],
-      definitions: createToolGovernanceDefinitionSource(() => w.release),
-      combinations: { mutation, adoption },
-      projection: {
-        read: async commands => {
-          const read = await readProjection(observedStorage, w.domain, w.projectionRead, commands)
-          return read.kind === 'completed' ? read : { kind: 'unavailable' }
-        },
-      },
-      current: {
-        adoption: createGovernanceAdoptionProjection(w.domain.transactionDomain),
-        catalog: governanceCatalogProjection,
-      },
-      recoveryPagesPerPass: 4,
-      closeTimeoutMs: 3000,
+  const made = await createGovernanceLocal<SessionPermissionWriteContext>({
+    ...(options.externalWrites === undefined
+      ? {}
+      : {
+          externalWrites: await options.externalWrites({ register, snapshotParticipants, scope }),
+        }),
+    ...coordination,
+    ...(options.sourceReservations === undefined
+      ? {}
+      : { sourceReservations: options.sourceReservations }),
+    scope,
+    identity: {
+      verifier: authority.verifier,
+      standing: ctx.tenantStanding,
+      reservations: ctx.standingReservations,
     },
-  )
+    grants: [
+      {
+        principalRef,
+        scope,
+        action: 'contribute',
+        required: [],
+        owners: [
+          {
+            ownerId: declaration.reference.ownerId,
+            enforcementBindings: declaration.enforcementBindings,
+          },
+        ],
+      },
+      ...(
+        ['adopt', 'withdraw', 'operation-read', 'catalog-management', 'catalog-runtime'] as const
+      ).map(action => ({
+        principalRef,
+        scope,
+        action,
+        required: [],
+      })),
+    ],
+    definitions: createToolGovernanceDefinitionSource(() => w.release),
+    combinations: { mutation, adoption },
+    projection: {
+      read: async commands => {
+        const read = await readProjection(observedStorage, w.domain, w.projectionRead, commands)
+        return read.kind === 'completed' ? read : { kind: 'unavailable' }
+      },
+    },
+    current: {
+      adoption: createGovernanceAdoptionProjection(w.domain.transactionDomain),
+      catalog: governanceCatalogProjection,
+    },
+    recoveryPagesPerPass: 4,
+    closeTimeoutMs: 3000,
+  })
   if (made.kind !== 'created') {
     await disposeIdentity?.()
     await w.close()
@@ -315,7 +292,6 @@ export async function governanceAdoptionWorld(
     issuer: authority.issuer,
     identityOperations: ctx.identityOperations,
     identityGovernance: ctx.identityGovernance,
-    permissionBasis: made.permissionBasis,
     scope,
     declaration,
     access: access(principal, principal.tenant),

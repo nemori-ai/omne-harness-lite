@@ -7,7 +7,7 @@ import {
   PermissionBasisRequestSchema,
   type PermissionBasisRequest,
 } from '@omne-harness/permissions'
-import type { GovernancePermissionQualification } from '@omne-harness/governance-local'
+import type { PermissionOriginObservation } from './tool-permission-qualification.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import {
   agentPermissionOperation,
@@ -23,7 +23,7 @@ import { readAgentPermissionConstraint } from './agent-permission-bound.ts'
 import { agentPermissionObservationSchema } from './agent-permission-observation.ts'
 
 type Qualification =
-  | Readonly<{ kind: 'qualified'; qualification: GovernancePermissionQualification }>
+  | Readonly<{ kind: 'qualified'; qualification: PermissionOriginObservation }>
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable'; sourceRef: string }>
 

@@ -368,36 +368,6 @@
       "expected": "ImplementationPresent"
     },
     {
-      "name": "governancecatalogcapture-positive",
-      "model": "models/GovernanceCatalogCapture.tla",
-      "config": "models/governancecatalogcapture-positive.cfg",
-      "expected": "complete"
-    },
-    {
-      "name": "governancecatalogcapture-held",
-      "model": "models/GovernanceCatalogCapture.tla",
-      "config": "models/governancecatalogcapture-held.cfg",
-      "expected": "QualifiedCapture"
-    },
-    {
-      "name": "governancecatalogcapture-epoch",
-      "model": "models/GovernanceCatalogCapture.tla",
-      "config": "models/governancecatalogcapture-epoch.cfg",
-      "expected": "CurrentCapture"
-    },
-    {
-      "name": "governancecatalogcapture-sealed",
-      "model": "models/GovernanceCatalogCapture.tla",
-      "config": "models/governancecatalogcapture-sealed.cfg",
-      "expected": "NoRevival"
-    },
-    {
-      "name": "governancecatalogcapture-disclosure",
-      "model": "models/GovernanceCatalogCapture.tla",
-      "config": "models/governancecatalogcapture-disclosure.cfg",
-      "expected": "SettledDisclosure"
-    },
-    {
       "name": "governanceexitcapacity-positive",
       "model": "models/GovernanceExitCapacity.tla",
       "config": "models/governanceexitcapacity-positive.cfg",

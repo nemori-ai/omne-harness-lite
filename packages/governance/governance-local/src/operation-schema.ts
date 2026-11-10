@@ -1,9 +1,5 @@
 import { externalWriteRequestSchema } from './external-write-schema.ts'
-import { permissionQualificationSchema } from './permission-qualification.ts'
 import { z } from 'zod'
-import { PermissionBasisRequestSchema } from '@omne-harness/permissions'
-import { SettingsTargetSchema } from '@omne-harness/settings'
-import { SettingsSourceReferenceSchema } from '@omne-harness/settings-local/preparation'
 import {
   GovernanceContributionCommandSchema,
   GovernanceWithdrawalCommandSchema,
@@ -12,7 +8,6 @@ import {
   GovernanceIdSchema,
   GovernanceDigestSchema,
   GovernanceScopeSchema,
-  GovernanceCatalogRequestSchema,
 } from '@omne-harness/governance-contract'
 
 export const requestSchema = z.discriminatedUnion('owner', [
@@ -21,47 +16,18 @@ export const requestSchema = z.discriminatedUnion('owner', [
   z.strictObject({ owner: z.literal('adopt'), command: GovernanceAdoptionCommandSchema }),
 ])
 export type GovernanceRequest = z.infer<typeof requestSchema>
-const catalogCaptureCommandSchema = z.strictObject({
-  scope: GovernanceScopeSchema,
-  operationId: GovernanceIdSchema,
-  request: GovernanceCatalogRequestSchema,
-})
-export const permissionCaptureCommandSchema = z.strictObject({
-  scope: GovernanceScopeSchema,
-  operationId: GovernanceIdSchema,
-  permission: PermissionBasisRequestSchema,
-  qualification: permissionQualificationSchema,
-  target: SettingsTargetSchema,
-  source: SettingsSourceReferenceSchema.nullable(),
-  sourceRoute: GovernanceIdSchema,
-})
-export const captureRequestSchema = z.strictObject({
-  owner: z.literal('internal.capture'),
-  command: z.union([catalogCaptureCommandSchema, permissionCaptureCommandSchema]),
-})
 export const durableRequestSchema = z.discriminatedUnion('owner', [
   ...requestSchema.options,
-  captureRequestSchema,
   externalWriteRequestSchema,
 ])
 export type DurableRequest = z.infer<typeof durableRequestSchema>
-export function isCatalogCapture(
-  request: DurableRequest,
-): request is { owner: 'internal.capture'; command: z.infer<typeof catalogCaptureCommandSchema> } {
-  return request.owner === 'internal.capture' && 'request' in request.command
-}
 export function operationSourcePlan(request: DurableRequest) {
-  if (
-    request.owner !== 'internal.external-write' &&
-    !(request.owner === 'internal.capture' && 'permission' in request.command)
-  )
-    return null
-  if (!('source' in request.command)) return null
+  if (request.owner !== 'internal.external-write') return null
   const { source, sourceRoute } = request.command
   return source === null ? null : { source, route: sourceRoute }
 }
 export const operationRefSchema = GovernanceOperationRefSchema.extend({
-  owner: z.enum(['contribute', 'withdraw', 'adopt', 'internal.capture', 'internal.external-write']),
+  owner: z.enum(['contribute', 'withdraw', 'adopt', 'internal.external-write']),
 })
 export type OperationRef = z.infer<typeof operationRefSchema>
 export const publicBindingSchema = z.strictObject({

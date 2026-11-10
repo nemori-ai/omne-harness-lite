@@ -1,6 +1,6 @@
 # 权限读取的来源保管不变量
 
-本论证覆盖 [GL-25](../../SPEC.md#gl-25-权限读取的来源保管) 的持久关系和状态转换。它是源码对应的归纳论证，不是新的机器证明，也不证明实际权限来源或 Agent/Tool 准入已经接通。
+本论证覆盖 [GL-25](../../SPEC.md#gl-25-来源保管) 的持久关系和状态转换。它是源码对应的归纳论证，不是新的机器证明，也不证明实际权限来源或 Agent/Tool 准入已经接通。
 
 ## 前提与状态
 
@@ -52,13 +52,13 @@ Settings 完成结算不自动更新 C。回包丢失时 C 仍为 requested 或 
 
 本地 Settings 观察失败时只发布该槽的 unavailable，不提交旧配值或空配值。组合保留其他拥有者已确认的禁止。evaluatePermission 在缺源判定前处理已知禁止，所以局部不可用不会把已知禁止变成许可或吞掉它。该论证以事实生产者的绑定、资格和真实性为前提，不证明任意插件可信。
 
-本节是源码对应的结构性论证，不是新的机器证明。原事务的错 epoch/domain/target/source/binding、同次 Identity 和 seal 次序由 permission-operation.spec.ts 验证；真实组织快照、租户提交、声明撤下及局部失败由 harness-server 的 permission-native-current.spec.ts 验证。后者原动作资格仍为具名适配夹具，不证明 Agent 端到端。
+本节是源码对应的结构性论证，不是新的机器证明。带来源计划的原操作现在只有外域写；权限读取不再经过本保管。
 
 ## 验证映射与未覆盖范围
 
-- [来源保管测试](../../tests/permission-capture-custody.spec.ts) 覆盖重开、封口后仍可恢复、错绑、提前结算、快照替换、迟到回执和无来源计划。
+- [来源协调测试](../../tests/source-coordinator.spec.ts) 覆盖真实 Settings 快照的保留与结清、丢失回包的恢复、错绑回执与竞争收敛。
 - [生产 SQL 协调测试](../../tests/sql-coordinator.spec.ts) 覆盖来源阶段保存、授权读取、发送与重传。
-- [迁移测试](../../tests/permission-capture-migration.spec.ts) 检查旧行字节、旧阶段、主外键和新增阶段。实际 Worker 安装由 [材料测试](../../tests/materials.spec.ts) 覆盖。
+- 实际 Worker 安装由 [材料测试](../../tests/materials.spec.ts) 覆盖。
 - [关闭测试](../../tests/scope-lifecycle.spec.ts) 检查身份已结算但来源未结算时仍报告 pending。
 - [恢复测试](../../tests/recovery-read.spec.ts) 检查有限页、去重责任、历史数据下的查询计划。
 

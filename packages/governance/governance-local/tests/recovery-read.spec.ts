@@ -159,12 +159,12 @@ it('merges overlapping business and source obligations into stable bounded pages
     port = databasePort(db)
   for (const id of ['a', 'b', 'c', 'd', 'e']) {
     seed(db, id, ['b', 'd'].includes(id) ? 'aborted' : 'accepted', null)
-    db.prepare("UPDATE gc_operation SET command_owner='internal.capture' WHERE operation_id=?").run(
-      id,
-    )
+    db.prepare(
+      "UPDATE gc_operation SET command_owner='internal.external-write' WHERE operation_id=?",
+    ).run(id)
     if (['b', 'c', 'd'].includes(id))
       db.prepare(
-        "INSERT INTO gc_permission_source VALUES (?,'internal.capture','alice',?,NULL)",
+        "INSERT INTO gc_permission_source VALUES (?,'internal.external-write','alice',?,NULL)",
       ).run(scopeKey(scope), id)
   }
   let after: RecoveryPageRequest['after'] = null

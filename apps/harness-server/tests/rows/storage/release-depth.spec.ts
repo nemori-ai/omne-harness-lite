@@ -474,9 +474,6 @@ describe('the storage JSON depth limit of the release, checked on the real compo
             names(commit).includes('harness.permission-basis') && !names(commit).includes('tool'),
         ),
       ).toEqual([])
-      expect(
-        commits.filter(commit => names(commit).includes('governance.permission-snapshot')),
-      ).toEqual([])
       expect(depths.create).toBeGreaterThan(0)
       expect(depths.intent).toBeGreaterThan(0)
       expect(depths.received).toBeGreaterThan(0)

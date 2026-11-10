@@ -7,16 +7,11 @@ const modes = {
   contribute: 'mutation',
   withdraw: 'mutation',
   adopt: 'adoption',
-  'internal.capture': 'capture',
   'internal.external-write': 'external-write',
 } as const
 export const businessMode = (owner: OperationRef['owner']) => modes[owner]
 
-export function businessOriginal(
-  port: ReadPort,
-  raw: unknown,
-  mode: 'mutation' | 'adoption' | 'capture',
-) {
+export function businessOriginal(port: ReadPort, raw: unknown, mode: 'mutation' | 'adoption') {
   const request = businessRequestSchema.parse(raw)
   if (businessMode(request.binding.ref.owner) !== mode)
     throw new Error('Governance request requires another planner')

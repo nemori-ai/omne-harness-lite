@@ -1,5 +1,4 @@
 import { validateExternalWriteStage } from './external-write-stage.ts'
-import { PERMISSION_SNAPSHOT } from './permission-capture-schema.ts'
 import type { OperationRef } from './operation-schema.ts'
 import type { CommitRequestV2, SqlIdentity } from '@omne-harness/sql-contract'
 import type { ReadPort } from '@omne-harness/sql-contract/worker'
@@ -7,7 +6,6 @@ import {
   METADATA_PLANNER,
   MUTATION_PLANNER,
   ADOPTION_PLANNER,
-  CAPTURE_PLANNER,
   businessRequestSchema,
   controlRequestSchema,
   type ControlRequest,
@@ -92,7 +90,6 @@ const businessPlanners = {
   contribute: MUTATION_PLANNER,
   withdraw: MUTATION_PLANNER,
   adopt: ADOPTION_PLANNER,
-  'internal.capture': CAPTURE_PLANNER,
 }
 function validateBusiness(
   binding: OperationBinding,
@@ -101,10 +98,7 @@ function validateBusiness(
 ) {
   if (record.request.owner === 'internal.external-write')
     throw new Error('External write apply requires its owner planner')
-  const planner =
-    record.request.owner === 'internal.capture' && 'permission' in record.request.command
-      ? PERMISSION_SNAPSHOT.participant
-      : businessPlanners[record.request.owner]
+  const planner = businessPlanners[record.request.owner]
   const facts = envelope.commands.find(command => command.participant === planner)?.facts
   const business = businessRequestSchema.parse(facts?.request)
   if (
@@ -116,13 +110,8 @@ function validateBusiness(
     throw new Error('Governance apply envelope mismatch')
   const foreignPlanner = envelope.commands.some(
     command =>
-      [
-        METADATA_PLANNER,
-        MUTATION_PLANNER,
-        ADOPTION_PLANNER,
-        CAPTURE_PLANNER,
-        PERMISSION_SNAPSHOT.participant,
-      ].includes(command.participant) && command.participant !== planner,
+      [METADATA_PLANNER, MUTATION_PLANNER, ADOPTION_PLANNER].includes(command.participant) &&
+      command.participant !== planner,
   )
   if (foreignPlanner) throw new Error('Governance apply has a foreign planner')
   return { planner, request: business }

@@ -29,11 +29,11 @@
 
 [GovernanceRecoveryPhase](models/GovernanceRecoveryPhase.tla)补充固定SQL阶段的失败回执模型。错资格的seal先返回unavailable，随后正确原请求仍须结算；真实红绿反例同时检查阶段行缺失及正确恢复成功，不能只观察没有写入业务行。
 
-## 权限读取的组织来源保管
+## 组织来源保管
 
 [来源保管论证](proofs/permission-capture-custody.md)对应 GL-25。它说明原操作和来源责任的关系、有界恢复归并及假设，不构成新增机器证明。
 
-[保管测试](../tests/permission-capture-custody.spec.ts)运行真实 SQLite Worker；[迁移测试](../tests/permission-capture-migration.spec.ts)覆盖原行字节和实际旧域升级；[SQL 协调测试](../tests/sql-coordinator.spec.ts)检查生产读取声明及阶段认回。权限材料生产、来源服务协调及业务消费者仍是后续验收范围。
+[来源协调测试](../tests/source-coordinator.spec.ts)与[原操作保管](../tests/external-write-custody.spec.ts)运行真实 SQLite Worker；[SQL 协调测试](../tests/sql-coordinator.spec.ts)检查生产读取声明及阶段认回。带来源计划的原操作只有外域写。
 
 [外域写协调入口](../tests/external-write-provider.spec.ts) 与 [真实来源组合](../tests/external-write-source.spec.ts) 覆盖 GL-29：原意图复制、真实主体核验、原资格保管、提交后不重算计划、关闭竞争，以及结算失败后的 Worker 重启与工厂恢复。来源组合采用真实 Identity、Settings 和 Governance，业务资格与业务计划为具名夹具。Session 成功写入及其治理终态同提交不在这些测试的证明范围内。
 
@@ -53,16 +53,6 @@ TLA2TOOLS_JAR=<tla2tools.jar> python3 packages/governance/governance-local/verif
 ```
 
 每个模型有正例与负控。负控去掉一个前提，检查必须以登记的不变式或时序性质失败；工具出错不算负控通过。结果写到 `tmp/formal/governance/`。`check-contributions.py` 是按作用域释放的有限契约预言机，直接运行。模型通过只说明模型在登记的界内成立，不代替实现的符合性测试。
-
-## 目录捕获的资格与终态
-
-[GovernanceCatalogCapture](models/GovernanceCatalogCapture.tla) 补充一个内部捕获、一次 epoch 更换、成员撤权、资格保留和原操作封口的有限交错。请求身份、来源真实性、SQL同域原子提交及真实Identity保留协议仍是外部前提。本模型不产生这些证明，也不保证任意外部故障下恢复必然结束。
-
-Observe 表示查询或拒绝响应不改变持久状态。它允许受理前撤权及已终结操作保持静止，不作为恢复进展证据；本模型只检查下述安全性质。
-
-QualifiedCapture检查捕获时真实成员与held同时成立；CurrentCapture检查捕获时仍是原epoch。两项使用保存的提交时事实，之后合法结算、撤权或重装不改写原结果。NoRevival禁止已经封口的原操作变为成功。SettledDisclosure要求返回页面前已经结算。只有Capture建立成功记录，守卫及同动作取值建立前两项；Seal使正常Capture失去前置状态；Deliver必须经过Settle。其他动作保留上述关系，可以逐动作归纳。
-
-一个正例检查四项性质。四个负控分别移除held、epoch、sealed及结算门槛，每个只检查对应具名不变量。运行 `python3 packages/governance/governance-local/verification/check.py --models GovernanceCatalogCapture`。实现映射为 governance-local 的 catalog-capture.ts、catalog-snapshot.ts、capture-operation.ts 及原有 Standing/SQL coordinator。错回执、完整绑定、重开、分页和未知结果必须另由真实组合验证。
 
 ## 事务内权限解释
 

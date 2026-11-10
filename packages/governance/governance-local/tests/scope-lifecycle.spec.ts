@@ -2,7 +2,7 @@ import { afterEach, expect, it } from 'vitest'
 import { GovernanceProviderLifetime } from '../src/provider-lifetime.ts'
 import { GovernanceScopeLifecycle } from '../src/scope-lifecycle.ts'
 import { openRegistrarWorld } from './registrar-world.ts'
-import { capture } from './permission-capture-world.ts'
+import { capture } from './source-request-world.ts'
 import { binding } from './operation-world.ts'
 const worlds: Awaited<ReturnType<typeof openRegistrarWorld>>[] = []
 afterEach(async () => {

@@ -5,7 +5,7 @@ import { GovernanceSourceDestination } from '../src/source-destination.ts'
 import { SqlOperationCoordinator } from '../src/sql-coordinator.ts'
 import { openActivation } from './activation-world.ts'
 import { binding, scope } from './operation-world.ts'
-import { capture } from './permission-capture-world.ts'
+import { capture } from './source-request-world.ts'
 
 const worlds: Awaited<ReturnType<typeof openActivation>>[] = []
 afterEach(async () => {

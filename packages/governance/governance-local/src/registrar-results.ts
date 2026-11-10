@@ -136,7 +136,6 @@ function committedOperation(
 ): GovernanceOperationOutcome {
   switch (record.request.owner) {
     case 'internal.external-write':
-    case 'internal.capture':
       return unknownOperation(binding)
     case 'contribute': {
       const result = originalRegistration(binding, record)

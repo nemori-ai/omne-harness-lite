@@ -5,9 +5,7 @@ import {
   METADATA_PLANNER,
   MUTATION_PLANNER,
   ADOPTION_PLANNER,
-  CAPTURE_PLANNER,
 } from './activation-schema.ts'
-import { PERMISSION_SNAPSHOT } from './permission-capture-schema.ts'
 import type { OperationBinding, OperationRecord } from './operation-schema.ts'
 import { GovernanceExternalWriteExecutionSchema } from './external-write-protocol.ts'
 import { GOVERNANCE_OWNER } from './migration.ts'
@@ -25,8 +23,6 @@ const governanceParticipants = new Set([
   METADATA_PLANNER,
   MUTATION_PLANNER,
   ADOPTION_PLANNER,
-  CAPTURE_PLANNER,
-  PERMISSION_SNAPSHOT.participant,
 ])
 
 function externalCommands(raw: unknown, requestDigest: string) {

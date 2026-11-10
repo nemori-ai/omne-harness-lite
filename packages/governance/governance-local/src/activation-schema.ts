@@ -1,5 +1,4 @@
 import { GovernanceExternalWriteResultSchema } from './external-write-protocol.ts'
-import { permissionCurrentSchema } from './permission-capture-schema.ts'
 import { closeScopeSchema } from './scope.ts'
 import { z } from 'zod'
 import { SettingsSourceReceiptSchema } from '@omne-harness/settings-local/preparation'
@@ -23,7 +22,6 @@ export const ADOPTION_CURRENT = {
 export const METADATA_PLANNER = 'governance.metadata-plan'
 export const MUTATION_PLANNER = 'governance.mutation-plan'
 export const ADOPTION_PLANNER = 'governance.adoption-plan'
-export const CAPTURE_PLANNER = 'governance.catalog-snapshot'
 export const ACTIVATION_PROTOCOL = 'governance-activation/1'
 export const controlRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('persist-stage'), input: persistStageSchema }),
@@ -75,12 +73,10 @@ export const activationPlanSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('control'), request: controlRequestSchema }),
   z.strictObject({ kind: z.literal('observation'), request: businessRequestSchema }),
   businessPlan.extend({ kind: z.literal('mutation') }),
-  businessPlan.extend({ kind: z.literal('capture'), result: z.json() }),
   businessPlan.extend({
     kind: z.literal('external-write'),
     result: GovernanceExternalWriteResultSchema,
   }),
-  businessPlan.extend({ kind: z.literal('permission-capture'), current: permissionCurrentSchema }),
   businessPlan.extend({ kind: z.literal('adoption'), evidence: adoptionEvidenceSchema }),
 ])
 export type ActivationPlan = z.infer<typeof activationPlanSchema>

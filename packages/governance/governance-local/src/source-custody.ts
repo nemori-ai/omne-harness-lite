@@ -31,10 +31,7 @@ function sourceRequest(binding: OperationBinding, record: OperationRecord) {
         },
         principalRef: binding.ref.principalRef,
         operation: {
-          protocol:
-            record.request.owner === 'internal.external-write'
-              ? 'governance-external-write/1'
-              : 'governance-permission-capture/1',
+          protocol: 'governance-external-write/1',
           binding,
         },
       },

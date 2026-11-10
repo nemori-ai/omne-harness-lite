@@ -2,7 +2,7 @@
 
 ## 导出入口
 
-根入口导出固定SQL材料、普通应用服务工厂、Identity目的解析器与Settings来源目的解析器，定义见[index.ts](../src/index.ts)。createGovernanceLocal只在启动恢复完成后交回贡献服务、permissionBasis、已配置的 externalWrites 与关闭接口。SQL、Identity、声明来源与当前事实是受信装配输入。
+根入口导出固定SQL材料、普通应用服务工厂、Identity目的解析器与Settings来源目的解析器，定义见[index.ts](../src/index.ts)。createGovernanceLocal只在启动恢复完成后交回贡献服务、已配置的 externalWrites 与关闭接口。SQL、Identity、声明来源与当前事实是受信装配输入。
 
 ./cordis导出createGovernanceLocalPlugin与配置，定义见[cordis.ts](../src/cordis.ts)。它继承governance-contract唯一的服务定义。调用方fiber只承担自身贡献清理，内部清理权柄不从公共根入口导出。
 
@@ -21,21 +21,15 @@ The root exports `governanceTargetProjectionCommand`, its binding/result schemas
 
 ## Settings来源协调
 
-createGovernanceLocalSourceDestination 只依赖固定storage、domain、metadata及sourceRoute，可在Settings服务之前构造。装配者把它接到对应Settings来源服务的目的路由，再把该服务的reserve/settle端口作为sourceReservations传给普通工厂。路由必须与原 capture 或 external-write 保存的路由一致。目的解析器分别识别原 capture 与外部写意图协议，不能以新的请求替换原绑定。
+createGovernanceLocalSourceDestination 只依赖固定storage、domain、metadata及sourceRoute，可在Settings服务之前构造。装配者把它接到对应Settings来源服务的目的路由，再把该服务的reserve/settle端口作为sourceReservations传给普通工厂。路由必须与原 external-write 保存的路由一致。目的解析器只识别外部写意图协议，不能以新的请求替换原绑定。
 
 sourceReservations是借用依赖。无来源责任的目录装配可以省略；存在历史来源责任时，缺少该依赖使启动恢复失败。关闭时任一来源责任未结算均返回pending，工厂不销毁借用服务。
 
 ## 当前权限依据
 
-permissionBasis 实现 Permissions 的 PermissionBasisSource。普通工厂、runtime及Cordis配置保留读取context的泛型。受信装配通过 permission 配置提供 principalOf、resolve 与 project。没有配置时返回 unavailable。读取器先从context取出主体并独立核验，再把实际已核验主体、请求和原context交给resolve。context可以携带原动作定位，但它的结构、摘要或请求回显都不能证明资格。解析器须认回拥有者事实，产出带独立 qualification 的计划。当前事实只能来自选定组合中真实拥有者的投影，调用方不能提交求值材料。
+本成员不提供当前权限读取。权限依据由应用装配在一次投影读里算出，行为见应用的[权限解释](../../../../apps/harness-server/docs/rows/permission-interpretation.md)。本成员为它提供 `governance.target-projection` 与 `governance.selected-definition-projection` 两个只读投影参加者。
 
-`GovernancePermissionQualificationSchema` 定义具名外域观察信封，见 [permission-qualification.ts](../src/permission-qualification.ts)。`PermissionProjection` 将组合标识与命令成对交回；project 的输入不含未保管 context。读取器在 await 前固定其输出，最终写者精确比较已受理与当前事实中的 qualification。定义见 [permission-reader.ts](../src/permission-reader.ts)，行为归 GL-26；不保留旧的静态 combination/current 两入口。
-
-每次 readCurrent 使用独立 capture，核验主体、租户、组织与服务范围，保留 Identity 资格，并取得原计划指定的 Settings 来源。唯一写者核对原请求、epoch、事务域、目标、qualification 与来源计划，在同事务保存当前依据。组织配值只从该 capture 已保管的快照提取。
-
-current 可以包含不可用来源。原来源尚未取得时，写者保存 aborted 与局部 current，保留原来源清理责任；它不会把不可用来源改成不存在。结果耐久确认后，暂时清理失败不吞掉已知禁止。关闭仍须结清全部责任。current 不是允许执行的凭据，实际启动或写入仍由对应关口核验。
-
-普通工厂已提供此接口；Cordis 服务发布、Session/Agent 约束来源及实际 ActionAdmission/Tool 消费仍须由应用装配完成。
+`readCatalog` 经 `GovernanceLocalOptions.projection` 读取。`GovernanceProjectionRead.read(commands)` 在一个快照里执行只读命令并返回最后一条命令的答复；它由装配提供，定义见 [catalog.ts](../src/catalog.ts)，行为归 SPEC 的目录一节。
 
 ## 受信外域写入
 

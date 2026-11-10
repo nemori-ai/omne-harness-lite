@@ -1,4 +1,3 @@
-import type { ToolPermissionContext } from '../authorization/current-tool-permission.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { createPermissionBasisRead, type PermissionOrigins } from './permission-basis-read.ts'
 import { GOVERNANCE_PROJECTION_READ } from './storage-materials.ts'
@@ -24,8 +23,8 @@ import { createSessionPermissionWriteResolver } from './session-permission-disco
 import { createSessionPermissionWritePlan } from './session-permission-plan.ts'
 
 export type TenantGovernanceOptions = Omit<
-  GovernanceLocalOptions<ToolPermissionContext, SessionPermissionWriteContext>,
-  'metadata' | 'combinations' | 'current' | 'externalWrites' | 'permission' | 'projection'
+  GovernanceLocalOptions<SessionPermissionWriteContext>,
+  'metadata' | 'combinations' | 'current' | 'externalWrites' | 'projection'
 > &
   Readonly<{
     materials: SqlMaterialCatalog
@@ -38,9 +37,7 @@ export type TenantGovernanceOptions = Omit<
   }>
 type Combinations = ReturnType<typeof governanceStorageCombinations>
 type Runtime = Extract<
-  Awaited<
-    ReturnType<typeof createGovernanceLocal<ToolPermissionContext, SessionPermissionWriteContext>>
-  >,
+  Awaited<ReturnType<typeof createGovernanceLocal<SessionPermissionWriteContext>>>,
   { kind: 'created' }
 >
 const unavailable = (phase: 'binding' | 'registration' | 'startup') => ({
@@ -115,10 +112,7 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
     const handler = options.materials.readHandlers.find(
       item => item.handler === GOVERNANCE_PROJECTION_READ,
     )
-    const runtime = await createGovernanceLocal<
-      ToolPermissionContext,
-      SessionPermissionWriteContext
-    >({
+    const runtime = await createGovernanceLocal<SessionPermissionWriteContext>({
       ...options,
       metadata: reference(combinations.metadata),
       combinations: {

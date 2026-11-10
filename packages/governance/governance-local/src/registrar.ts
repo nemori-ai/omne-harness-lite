@@ -266,7 +266,6 @@ export class GovernanceRegistrar implements GovernanceCommands<
     record: OperationRecord,
   ): Promise<Outcome> {
     if (this.stopped) return this.seal(binding)
-    if (record.request.owner === 'internal.capture') return unknownOperation(binding)
     const previous = await this.options.sql.readStage(binding, 'apply')
     if (previous.kind !== 'stored' && previous.kind !== 'unplanned') return this.recognize(binding)
     if (previous.kind === 'unplanned') {

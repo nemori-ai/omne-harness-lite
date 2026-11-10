@@ -6,6 +6,10 @@ import type { AcceptOperation } from '../src/operation-schema.ts'
 import { digest } from '../src/encoding.ts'
 import { scope as fixtureScope } from './operation-world.ts'
 
+/**
+ * A durable request that plans one organization source. The external write is the one original
+ * operation with a source plan.
+ */
 export function capture(scope = fixtureScope) {
   const target = { policyId: 'independent', scopeRef: scope.tenantRef, targetRef: 'command-rules' }
   return {
@@ -13,41 +17,24 @@ export function capture(scope = fixtureScope) {
     epoch: 'first',
     transactionDomain: 'governance-operations',
     request: {
-      owner: 'internal.capture',
+      owner: 'internal.external-write',
       command: {
         scope,
-        operationId: 'permission-read-1',
-        permission: {
-          scope: {
-            tenantId: scope.tenantRef,
-            targetId: JSON.stringify(target),
-            organizationId: 'org_00000000000000000000000001',
-            sessionId: null,
-            deploymentId: scope.deploymentId,
-            logicalServiceId: scope.logicalServiceId,
-          },
-          operation: { owner: 'agent', operationId: 'original-action' },
-          implementationRef: 'commands/1',
-          argumentsDigest: 'a'.repeat(64),
-          capabilityId: 'command',
-          enforcementKey: 'command.execute',
-          definition: {
-            origin: { kind: 'independent', providerId: 'commands', definitionRef: 'release/1' },
-            itemId: 'execute',
-            revision: '1',
-          },
+        operationId: 'source-request-1',
+        write: {
+          owner: 'fixture',
+          protocol: 'fixture-write/1',
+          targetRef: 'fixture-target',
+          commandDigest: 'sha256:' + 'a'.repeat(64),
+          command: { operation: 'fixture' },
+          qualification: { fixture: 'qualified' },
         },
-        target,
+        required: [],
         source: {
           domain: { scope: { kind: 'system' }, transactionDomain: 'system.settings' },
           target: { ...target, scopeRef: 'org_00000000000000000000000001' },
         },
         sourceRoute: 'governance.permission-capture',
-        qualification: {
-          owner: 'fixture.action',
-          protocol: 'fixture-action/1',
-          observation: { revision: '1' },
-        },
       },
     },
   } satisfies AcceptOperation

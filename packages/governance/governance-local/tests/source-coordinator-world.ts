@@ -9,7 +9,7 @@ import {
   type GovernanceSourceReservations,
 } from '../src/source-coordinator.ts'
 import { binding } from './operation-world.ts'
-import { capture } from './permission-capture-world.ts'
+import { capture } from './source-request-world.ts'
 import { openRegistrarWorld } from './registrar-world.ts'
 
 export async function openSourceCoordinatorWorld() {
@@ -25,10 +25,6 @@ export async function openSourceCoordinatorWorld() {
       ...base.request,
       command: {
         ...command,
-        permission: {
-          ...command.permission,
-          scope: { ...command.permission.scope, organizationId: organization.value },
-        },
         source: {
           ...command.source,
           target: { ...command.source.target, scopeRef: organization.value },

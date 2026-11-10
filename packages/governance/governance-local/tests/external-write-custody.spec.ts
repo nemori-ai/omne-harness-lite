@@ -1,7 +1,7 @@
 import { afterEach, expect, it } from 'vitest'
 import { openActivation } from './activation-world.ts'
 import { scope } from './operation-world.ts'
-import { capture, held } from './permission-capture-world.ts'
+import { capture, held } from './source-request-world.ts'
 import { GovernanceSourceDestination } from '../src/source-destination.ts'
 import { METADATA_PLANNER } from '../src/activation-schema.ts'
 import { GOVERNANCE_OWNER } from '../src/migration.ts'

@@ -14,7 +14,7 @@ import { standingCustodySchema } from '../src/standing-schema.ts'
 import { digest, json } from '../src/encoding.ts'
 import { openActivation } from './activation-world.ts'
 import { command, binding, scope } from './operation-world.ts'
-import { capture, held } from './permission-capture-world.ts'
+import { capture, held } from './source-request-world.ts'
 
 const worlds: Awaited<ReturnType<typeof openActivation>>[] = []
 afterEach(async () => {

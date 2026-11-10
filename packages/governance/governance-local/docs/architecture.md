@@ -8,20 +8,16 @@
 classDiagram
   class GovernanceLocal {
     +service GovernanceContributions
-    +permissionBasis PermissionBasisSource
     +close() closed或pending
   }
   GovernanceLocal --> GovernanceProviderLifetime
   GovernanceProviderLifetime --> GovernanceScopeLifecycle
   GovernanceLocal --> GovernanceRegistrar
   GovernanceLocal --> GovernanceCatalog
-  GovernanceLocal --> GovernancePermissionReader
-  GovernancePermissionReader --> GovernanceStandingCoordinator
-  GovernancePermissionReader --> GovernanceSourceCoordinator
-  GovernancePermissionReader --> SqlOperationCoordinator
   GovernanceRegistrar --> GovernanceAdmission
   GovernanceRegistrar --> GovernanceStandingCoordinator
-  GovernanceCatalog --> GovernanceStandingCoordinator
+  GovernanceCatalog --> GovernanceAdmission
+  GovernanceCatalog --> GovernanceProjectionRead : 借用
   GovernanceScopeLifecycle --> SqlOperationCoordinator
   GovernanceScopeLifecycle --> GovernanceStandingCoordinator
   GovernanceStandingCoordinator --> StandingReservations : 借用
@@ -57,7 +53,7 @@ sequenceDiagram
 
 ## 贡献与退出的应用组合
 
-`createGovernanceLocal` 组合贡献、退出、采用、受保护目录、原操作查询和当前权限依据读取。内部 `GovernanceRegistrar` 承担命令与操作查询，目录与权限捕获分别由独立组件承担。它们共用 Standing 保留、原操作及 SQL 请求保管。应用组合消费实际 Tool 发行、原生持有、采用与 Settings 配值，并通过原拥有者公开读口和同事务事实接入原动作资格及 Session/Agent 约束。Cordis caller-fiber关闭见本文装配节，权限读取规则见 GL-26。
+`createGovernanceLocal` 组合贡献、退出、采用、受保护目录和原操作查询。内部 `GovernanceRegistrar` 承担命令与操作查询，并使用 Standing 保留、原操作及 SQL 请求保管。目录由独立组件承担：它是纯读，经装配提供的投影读取数，不建原操作。应用组合消费实际 Tool 发行、原生持有、采用与 Settings 配值，并通过原拥有者公开读口和同事务事实接入原动作资格及 Session/Agent 约束。Cordis caller-fiber关闭见本文装配节。当前权限读取不在本成员，见 GL-26。
 
 ```mermaid
 flowchart TD
@@ -527,9 +523,9 @@ Cordis会等待异步启动返回再完成卸载。启动仍悬挂时，没有�
 
 此装配已有真实Cordis、SQLite和Identity测试。生产声明发行、当前事实和Settings/ActionAdmission接线仍未完成，不能据此宣称C3b整体验收通过。
 
-## 权限读取的来源责任
+## 来源责任
 
-权限读取的原动作与读取操作分开。每次读取有新的 capture，原动作仍保存在 PermissionBasisRequest。Governance 保管读取终态，Settings 保管来源快照；权限规则继续由 Permissions 解释。
+当前权限读取不在本成员：应用装配用各拥有者的只读投影算出权限依据，Governance 只提供其中的治理投影。权限规则继续由 Permissions 解释。
 
 ```mermaid
 erDiagram
@@ -550,7 +546,7 @@ erDiagram
 
 恢复读取分别扫描业务/Identity部分索引与来源部分索引，每个最多65项，然后按完整键去重归并。终态未结算的来源仍在恢复集合内。所有关系属于 Governance，不查询 Settings 私表。
 
-来源协调器通过 Settings 公共端口取得、保管和结算快照。首次保留要求同一 capture 的 Identity held；清理只使用原持久请求。目的解析器仅消费 Governance SQL，因而可在 Identity 和 Settings 服务装配前构造，不产生运行时构造循环。
+来源协调器通过 Settings 公共端口取得、保管和结算快照。首次保留要求同一原操作的 Identity held；清理只使用原持久请求。目的解析器仅消费 Governance SQL，因而可在 Identity 和 Settings 服务装配前构造，不产生运行时构造循环。
 
 ```mermaid
 classDiagram

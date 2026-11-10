@@ -3,10 +3,6 @@ import {
   type GovernanceExternalWriteOptions,
   type GovernanceExternalWrites,
 } from './external-write.ts'
-import {
-  GovernancePermissionReader,
-  type GovernancePermissionOptions,
-} from './permission-reader.ts'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import {
@@ -58,10 +54,7 @@ export type GovernanceLocalCoordination = Readonly<{
   metadata: MutationCombination
   destination: string
 }>
-export type GovernanceLocalOptions<
-  ReadContext = Principal,
-  WriteContext = Principal,
-> = GovernanceLocalCoordination &
+export type GovernanceLocalOptions<WriteContext = Principal> = GovernanceLocalCoordination &
   Readonly<{
     scope: GovernanceScope
     identity: Readonly<{
@@ -69,7 +62,6 @@ export type GovernanceLocalOptions<
       standing: TenantStandingSource
       reservations: StandingReservations
     }>
-    permission?: GovernancePermissionOptions<ReadContext>
     externalWrites?: GovernanceExternalWriteOptions<WriteContext>
     sourceReservations?: GovernanceSourceReservations<Principal>
     grants: readonly AdmissionGrant[]
@@ -131,8 +123,8 @@ function services(
   })
 }
 
-export async function createGovernanceRuntime<ReadContext = Principal, WriteContext = Principal>(
-  input: GovernanceLocalOptions<ReadContext, WriteContext>,
+export async function createGovernanceRuntime<WriteContext = Principal>(
+  input: GovernanceLocalOptions<WriteContext>,
 ) {
   const options = {
     ...input,
@@ -193,21 +185,6 @@ export async function createGovernanceRuntime<ReadContext = Principal, WriteCont
     projection: options.projection,
     accepting: () => lifetime.accepting,
   })
-  const permissionReader =
-    options.permission === undefined
-      ? undefined
-      : new GovernancePermissionReader({
-          ...options,
-          ...options.permission,
-          epoch,
-          sql,
-          standing,
-          sources,
-          accepting: () => lifetime.accepting,
-          cleanup: call => {
-            void lifetime.invoke(call).catch(() => undefined)
-          },
-        })
   const externalWriter =
     options.externalWrites === undefined
       ? undefined
@@ -230,25 +207,6 @@ export async function createGovernanceRuntime<ReadContext = Principal, WriteCont
           execute: (context, intent) =>
             lifetime.invoke(() => externalWriter.execute(context, intent)),
         }
-  const permissionBasis = {
-    readCurrent: (
-      context: ReadContext,
-      request: Parameters<GovernancePermissionReader['readCurrent']>[1],
-    ) => {
-      if (permissionReader === undefined)
-        return Promise.resolve({
-          kind: 'unavailable' as const,
-          sourceRef: 'governance.permission-current',
-        })
-      return lifetime
-        .invoke(() => permissionReader.readCurrent(context, request))
-        .then(result =>
-          result.kind === 'unavailable' && 'owner' in result
-            ? { kind: 'unavailable' as const, sourceRef: result.owner }
-            : result,
-        )
-    },
-  }
   try {
     const previous = await lifecycle.observeEpoch()
     if (previous.kind !== 'epoch' || (await lifecycle.open(previous.epoch)).kind !== 'opened')
@@ -265,7 +223,6 @@ export async function createGovernanceRuntime<ReadContext = Principal, WriteCont
       epoch,
       service: services(registrar, catalog, lifetime),
       contributions,
-      permissionBasis,
       externalWrites,
       async close() {
         const [provider, callers] = await Promise.all([
@@ -288,8 +245,8 @@ export async function createGovernanceRuntime<ReadContext = Principal, WriteCont
   }
 }
 
-export async function createGovernanceLocal<ReadContext = Principal, WriteContext = Principal>(
-  input: GovernanceLocalOptions<ReadContext, WriteContext>,
+export async function createGovernanceLocal<WriteContext = Principal>(
+  input: GovernanceLocalOptions<WriteContext>,
 ) {
   const runtime = await createGovernanceRuntime(input)
   if (runtime.kind !== 'created') return runtime
@@ -297,7 +254,6 @@ export async function createGovernanceLocal<ReadContext = Principal, WriteContex
     kind: runtime.kind,
     epoch: runtime.epoch,
     service: runtime.service,
-    permissionBasis: runtime.permissionBasis,
     externalWrites: runtime.externalWrites,
     close: runtime.close,
   }

@@ -50,22 +50,6 @@ export {
 export type { GovernanceSourceReservations } from './source-coordinator.ts'
 
 export type {
-  GovernancePermissionOptions,
-  PermissionProjectionRequest,
-  PermissionProjection,
-  PermissionReadPlan,
-} from './permission-reader.ts'
-export {
-  permissionQualificationSchema as GovernancePermissionQualificationSchema,
-  type PermissionQualification as GovernancePermissionQualification,
-} from './permission-qualification.ts'
-export {
-  permissionCurrentSchema as GovernancePermissionCurrentSchema,
-  PERMISSION_CURRENT as governancePermissionCurrentFact,
-  type PermissionCurrent as GovernancePermissionCurrent,
-} from './permission-capture-schema.ts'
-
-export type {
   GovernanceExternalWriteIntent,
   GovernanceExternalWriteQualification,
   GovernanceExternalWriteInput,
