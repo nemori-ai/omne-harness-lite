@@ -5,7 +5,7 @@ description: 在本项目发卡、开工、进轨道、提升与接受时的步�
 
 # 发卡与进轨道
 
-研发流程走 pqw `single-session-dev-flow`。本技能只补本项目在 GitHub 与轨道上的操作：做法归 pqw，命令与参数以各工具的说明为准，这里只写顺序与判据。路线、节奏、双基线与权限归集成规则 `docs/engineering/integration.md`。
+研发流程走 pqw `single-session-dev-flow`。本技能只补本项目在 GitHub 与轨道上的操作：做法归 pqw，命令与参数以各工具的说明为准，这里只写顺序与判据。轨道、gate 与准入的规则归 `docs/engineering/integration.md`，卡、交接信息包与接受归 `docs/engineering/delivery.md`。
 
 开工前先进入卡给定的工作树，核对 cwd、分支、HEAD 与已有写者。不要从技能安装路径推断目标仓库。
 
@@ -151,5 +151,5 @@ npm 发行用 `gate-release.yml`，规则见集成规则「现行准入」的 np
 
 1. 验收标准要求的证据贴到卡评论：命令、输出尾部、摘要与关键行，原件位置与哈希写在评论里。贴完再清理原件。
 2. 交回报告写每条验收的达到与否、没做的及原因、过程偏差。做过提升或发行的，另写固定输入、命令与真实退出、Git 观察、逐卡 declared/observed/unknown，以及实际未验证的部署前提；fixture、真实仓库检查、平台权限和宿主加载分别说明。
-3. 接受由有权者决定。决定评论按交付协议 `docs/engineering/delivery.md`「4. 接受、取消与重开」的字段写，读回后 `board-cli accepted`，再关卡。代笔时写明授权人原话。
+3. 接受由有权者决定。决定评论按 `docs/engineering/delivery.md`「接受、取消与重开」的字段写，读回后 `board-cli accepted`，再关卡。代笔时写明授权人原话。
 4. 只有清理条件和动作权限都闭合后，才清理工作树或唯一 tmp。
