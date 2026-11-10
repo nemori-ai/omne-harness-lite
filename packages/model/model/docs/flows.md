@@ -76,7 +76,7 @@ sequenceDiagram
 | 保存确认丢失、维护者退出或请求取消 | 查询原配置操作或切换事实，未知不宣称成功或回滚；在途调用寿命独立。 |
 | 凭据解绑或读取故障 | 后续请求缺凭据或未知；既有发出与费用不改，存在但不可读不退默认。 |
 
-对应规格为[身份及修订](../../model-contract/SPEC.md#身份修订及撤回)、[同名求值与选择](../../model-contract/SPEC.md#同名求值选择及列表)。持续验证定位[档案验证](../../model-contract/verification/README.md#验证与待闭合输入)，凭据精确键和接入数量继续依 MODEL-M04。
+对应规格为[身份及修订](../../model-contract/SPEC.md#身份修订及撤回)、[同名求值与选择](../../model-contract/SPEC.md#同名求值选择及列表)。持续验证定位[档案验证](../../model-contract/verification/README.md#验证与待闭合输入)。凭据项与选层见[架构](architecture.md#credential-items-and-layer)。
 
 <a id="flow-md02"></a>
 ## 转换、表示选择与固定输入
@@ -345,7 +345,7 @@ sequenceDiagram
 
 完整列表和物化按实际量评价。模型 TTFT 与端到端首次输出分开，排队、转换、组装、发出、重试和清理分别有定位事实。具体指标尺度与后端不在图中补定。
 
-持续验证见[费用及保护](../../model-contract/verification/README.md#持续验证义务)、[合法选择与投影缺失](../../model-contract/verification/README.md#验证与待闭合输入)与[观测规格](../../model-contract/SPEC.md#观测资源与验证)。费用去重及清理接续继续依 MODEL-M02；秘密绑定精确形状继续依 MODEL-M04。
+持续验证见[费用及保护](../../model-contract/verification/README.md#持续验证义务)、[合法选择与投影缺失](../../model-contract/verification/README.md#验证与待闭合输入)与[观测规格](../../model-contract/SPEC.md#观测资源与验证)。费用去重及清理接续继续依 MODEL-M02；凭据项、选层与秘密绑定的键见[架构](architecture.md#credential-items-and-layer)。
 
 ## 请求准备与发送复核
 
