@@ -6,7 +6,8 @@
 // failures the RFC starts from, read back through the real CLI from a real `serve` process.
 // - E1: two concurrent sessions of one tenant. The first call holds its share of the result
 //   capacity (`model-records.limits.capacity.bytes` 1000000, `agent-context.resultCapacity.bytes`
-//   524288), so the second is refused `capacity` and Agent ends its Run `model-refused`.
+//   524288). The share is full only for now, so the second Run waits instead of ending
+//   `model-refused` (#1174), and goes on once the first call settles.
 // - E2: the gateway answers HTTP 504 on the streaming request (another tenant: the capacity of E1
 //   is per tenant). The Run ends `no-reply` with the fault, and the dispatch row of the same call,
 //   from `modelDiagnostics`, ends the same way.
@@ -58,8 +59,10 @@ import {
 const CREDENTIAL_A = 'alice-pw-DIAG-9a1c'
 const CREDENTIAL_B = 'bob-pw-DIAG-2e7f'
 /** The text of the input whose Model call the gateway holds open. */
-const HELD_TEXT = 'HOLD-ME until the second session is refused'
+const HELD_TEXT = 'HOLD-ME while the second session waits'
 const RUN_END_TIMEOUT_MS = 90_000
+/** How long the second Run must stay without a terminal while the first call holds the share. */
+const WAIT_WINDOW_MS = 10_000
 
 /** The entry kinds the projection reads (server-entry `PROJECTED_KINDS`), as the local profile discloses them all. */
 const PROJECTED_KINDS = [
@@ -118,7 +121,7 @@ describe('session diagnostics over real processes: the two smoke failures', () =
   const homes = { alice: '', bob: '' }
   let alice: Cli
   let bob: Cli
-  const sessions = { held: '', refused: '', upstream: '' }
+  const sessions = { held: '', waiting: '', upstream: '' }
 
   beforeAll(async () => {
     scratch = newScratch('diagnostics-flow-')
@@ -163,28 +166,47 @@ describe('session diagnostics over real processes: the two smoke failures', () =
   })
 
   it(
-    'E1: the second concurrent Run of the tenant ends model-refused, and the CLI shows `capacity` as the reason',
+    'E1: the second concurrent Run of the tenant waits while the first call holds the share, and goes on once it settles',
     { timeout: 240_000 },
     async () => {
       sessions.held = await createSession(alice)
-      sessions.refused = await createSession(alice)
+      sessions.waiting = await createSession(alice)
       await sendInput(alice, sessions.held, HELD_TEXT)
       // The first call is in flight: its share of the capacity is reserved until it settles.
       await until(() => gateway.held() >= 1, 'the first Model call to reach the gateway', 60_000)
-      await sendInput(alice, sessions.refused, 'the second input of the same tenant')
+      await sendInput(alice, sessions.waiting, 'the second input of the same tenant')
 
-      const { run, body } = await untilRunEnded(alice, sessions.refused, RUN_END_TIMEOUT_MS)
-      expect(run['terminal']).toMatchObject({ outcome: 'failed' })
-      expect(structuredCauseOf(run)).toEqual({ kind: 'model-refused', failure: 'capacity' })
-      expect(String((run['terminal'] as { cause: { record: string } }).cause.record)).toMatch(
-        /model-refused$/,
-      )
+      const readRun = async () =>
+        diagnosticsBodyOf(
+          await alice(['read-session-diagnostics', '--session', sessions.waiting, '--json']),
+        )?.runs[0]
+      const startedBy = Date.now() + 60_000
+      while ((await readRun()) === undefined) {
+        if (Date.now() > startedBy) throw new Error('timed out waiting for the second Run')
+        await sleep(500)
+      }
+      const waitedUntil = Date.now() + WAIT_WINDOW_MS
+      while (Date.now() < waitedUntil) {
+        const run = await readRun()
+        expect(run?.['terminal'], JSON.stringify(run)).toBeNull()
+        await sleep(1000)
+      }
+
+      // The first call settles and frees the share; the second call then reaches the gateway,
+      // which answers 504 to every call but the held one.
+      gateway.release(answer504)
+      const { run, body } = await untilRunEnded(alice, sessions.waiting, RUN_END_TIMEOUT_MS)
+      expect(structuredCauseOf(run)).toEqual({
+        kind: 'no-reply',
+        cause: 'upstream-unavailable',
+        upstreamStatus: '504',
+      })
       // Every port answered: no source of the page is `unsupported`.
       expect(body.gaps.filter(gap => gap.reason === 'unsupported')).toEqual([])
 
-      const text = await alice(['read-session-diagnostics', '--session', sessions.refused])
+      const text = await alice(['read-session-diagnostics', '--session', sessions.waiting])
       expect(text.status, text.stderr).toBe(0)
-      expect(text.stdout).toContain('reason: model-refused capacity')
+      expect(text.stdout).not.toContain('model-refused')
     },
   )
 
@@ -192,7 +214,7 @@ describe('session diagnostics over real processes: the two smoke failures', () =
     'E2: an upstream 504 on the stream ends the Run no-reply with the cause and the status',
     { timeout: 240_000 },
     async () => {
-      // Another tenant: the result capacity is per tenant, and alice's first call still holds hers.
+      // Another tenant, so that the 504 of this Run does not depend on alice's calls.
       sessions.upstream = await createSession(bob)
       await sendInput(bob, sessions.upstream, 'the upstream answers 504')
 
@@ -237,7 +259,7 @@ describe('session diagnostics over real processes: the two smoke failures', () =
     const read = await bob([
       'read-session-diagnostics',
       '--session',
-      sessions.refused,
+      sessions.waiting,
       '--tenant',
       savedTenant(homes.bob),
       '--json',
@@ -251,9 +273,6 @@ describe('session diagnostics over real processes: the two smoke failures', () =
     'E4: with telemetry and the new injects the tree starts in the release order, and shutdown-result is the last line',
     { timeout: 120_000 },
     async () => {
-      // Let the held call go, so the process is not stopped with the request in flight.
-      gateway.release(answer504)
-      await sleep(1000)
       outcome = await server.stop()
       const { records, stdout } = outcome
       expect(stdout.endsWith('\n')).toBe(true)

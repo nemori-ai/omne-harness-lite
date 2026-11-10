@@ -103,11 +103,12 @@ describe('the first publication point on the real sqlite-provider', () => {
 })
 
 describe('the combination the Journal commits under', () => {
-  it('a manifest digest other than the registered one is unavailable, and nothing is written (fail closed)', async () => {
+  it('a manifest digest other than the registered one is a definite failure, and nothing is written (fail closed)', async () => {
     const s = await sqlScene('real-manifest', { storage: 'real', manifest: 'b'.repeat(64) })
     scenes.push(s)
+    // manifest_mismatch is definite (sql-contract commitRejectionNature): waiting would never help.
     expect(await s.view.journal.open(s.openInput)).toMatchObject({
-      failure: { kind: 'unavailable' },
+      failure: { kind: 'invalid', field: 'storage', reason: 'manifest_mismatch' },
     })
     const fresh = s.fresh().journal
     expect(await fresh.load({ ...s.access, execution: s.execution })).toMatchObject({
