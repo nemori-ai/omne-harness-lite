@@ -1,9 +1,43 @@
 // What the shared retained-process index reads on Windows: the boot identity, the members of a
 // retained Job by its name, and the forced stop of that Job. Every reading comes from a one-shot
 // bridge, outside the Job.
+import type { ManagedResource } from '@omne-harness/execution-environment-contract'
 import type { RetainedSupervision } from '../host-retained-processes.ts'
 import type { MembersReading, ScopeShow, StopReading, StopStatus } from '../host-scope.ts'
 import { askBridge } from './bridge.ts'
+
+/** The Job names this provider creates. Names under `Local\` exist per login session. */
+export const commandJobName = (key: string) => `Local\\omne-command-${key}`
+export const terminalJobName = (key: string) => `Local\\omne-terminal-${key}`
+
+/** The Job name in a Windows resource reference; undefined for any other reference. */
+export function readWindowsJobReference(
+  reference: ManagedResource['reference'],
+): string | undefined {
+  if (reference.kind !== 'object') return undefined
+  const name = reference.entries.find(entry => entry.key === 'windowsJob')?.value
+  return name?.kind === 'string' &&
+    /^Local\\omne-(?:command|terminal)-[a-f0-9-]{36}$/u.test(name.value)
+    ? name.value
+    : undefined
+}
+
+/** The forced stop of the Job a resource names, by its name. */
+export async function stopWindowsResource(
+  resource: ManagedResource,
+  boundMs: number,
+): Promise<StopStatus> {
+  const name = readWindowsJobReference(resource.reference)
+  if (
+    process.platform !== 'win32' ||
+    name === undefined ||
+    (name !== commandJobName(resource.key) && name !== terminalJobName(resource.key))
+  )
+    return 'unconfirmed'
+  const status = await stopWindowsJob(name, boundMs)
+  // Without the Job's boot and session a missing name proves nothing.
+  return status === 'confirmed' ? 'confirmed' : 'unconfirmed'
+}
 
 export type WindowsIdentity = Readonly<{ boot: string; session: number }>
 

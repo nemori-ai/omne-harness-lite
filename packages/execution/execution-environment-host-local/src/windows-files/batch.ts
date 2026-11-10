@@ -24,6 +24,7 @@ import { windowsObjectInfo } from './facility.ts'
 
 type Files = Pick<FileSystemFacility<unknown>, 'stat' | 'read' | 'write' | 'move' | 'remove'>
 type Commit = Parameters<FileSystemFacility<unknown>['commitBatch']>[0]
+type Recover = Parameters<FileSystemFacility<unknown>['recoverBatch']>[0]
 const digest = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
 
 /** A staged file: where it is, what it is and the target it stands for. */
@@ -77,6 +78,56 @@ export function createWindowsBatch(options: {
         ? reject(request.requestId, 'conflict')
         : undefined
   }
+  /** The refusal of a commit before anything is written, or the tenant it writes for. */
+  const admit = async (request: Commit): Promise<FacilityResult<never> | { tenant: string }> => {
+    if (request.binding.kind !== 'host_machine') return reject(request.requestId, 'unsupported')
+    const invalid = entriesRefusal(request.entries)
+    if (invalid !== undefined) return reject(request.requestId, invalid)
+    if (
+      new Set(request.entries.map(entry => win32.normalize(entry.path).toLowerCase())).size !==
+      request.entries.length
+    )
+      return reject(request.requestId, 'invalidInput')
+    if (options.stateDirectory === undefined) return reject(request.requestId, 'unavailable')
+    const tenant = tenantCodec.encode(request.access.tenant)
+    if (!tenant.ok) return reject(request.requestId, 'notAuthorized')
+    for (const entry of request.entries) {
+      const refused = await check(entryRequest(request, entry), entry.expectedVersion)
+      if (refused !== undefined) return refused
+    }
+    return { tenant: tenant.value }
+  }
+  /** What an unpublished entry's target holds now: the staged bytes, a conflict, or neither. */
+  const targetOf = async (
+    request: Recover,
+    entry: Manifest['entries'][number],
+  ): Promise<'matching' | 'conflicting' | 'neither' | 'unknown'> => {
+    const found = await windowsObjectInfo(entry.path)
+    if (!found.ok) {
+      if (found.failure !== 'unresolved') return 'unknown'
+      return entry.expectedVersion !== null ? 'conflicting' : 'neither'
+    }
+    // A directory or a link at the target is neither the expected version nor the staged bytes.
+    if (found.value.type !== 'file') return 'conflicting'
+    const read = await files.read({
+      ...request,
+      path: entry.path,
+      named: { token: found.value.token },
+    })
+    if (read.kind !== 'done') return 'unknown'
+    if (read.value.bytes.length === entry.size && digest(read.value.bytes) === entry.sha256)
+      return 'matching'
+    return entry.expectedVersion === null || entry.expectedVersion !== read.value.version
+      ? 'conflicting'
+      : 'neither'
+  }
+  /** The state of a recognised batch, from its manifest and this process's running batches. */
+  const stateOf = (manifest: Manifest): FileBatchRecognition['state'] => {
+    if (manifest.receipts.length === manifest.entries.length) return 'complete'
+    if (manifest.state === 'conflict') return 'conflict'
+    if (manifest.generation !== options.generation) return 'interrupted'
+    return options.running.has(manifest.id) ? 'pending' : 'partial'
+  }
   return {
     async commitBatch(request) {
       request = {
@@ -87,27 +138,15 @@ export function createWindowsBatch(options: {
           bytes: Uint8Array.from(entry.bytes),
         })),
       }
-      if (request.binding.kind !== 'host_machine') return reject(request.requestId, 'unsupported')
-      const invalid = entriesRefusal(request.entries)
-      if (invalid !== undefined) return reject(request.requestId, invalid)
-      if (
-        new Set(request.entries.map(entry => win32.normalize(entry.path).toLowerCase())).size !==
-        request.entries.length
-      )
-        return reject(request.requestId, 'invalidInput')
-      if (options.stateDirectory === undefined) return reject(request.requestId, 'unavailable')
-      const tenant = tenantCodec.encode(request.access.tenant)
-      if (!tenant.ok) return reject(request.requestId, 'notAuthorized')
-      for (const entry of request.entries) {
-        const refused = await check(entryRequest(request, entry), entry.expectedVersion)
-        if (refused !== undefined) return refused
-      }
+      const admitted = await admit(request)
+      if ('kind' in admitted) return admitted
+      const { tenant } = admitted
       const batch = { id: randomUUID(), generation: options.generation }
-      const file = location(tenant.value, batch.id)
+      const file = location(tenant, batch.id)
       const manifest: Manifest = {
         version: 1,
         ...batch,
-        tenant: tenant.value,
+        tenant,
         state: 'staging',
         receipts: [],
         entries: request.entries.map((entry, index) => ({
@@ -254,38 +293,12 @@ export function createWindowsBatch(options: {
         conflicting: string[] = []
       for (const entry of manifest.entries) {
         if (manifest.receipts.includes(entry.path)) continue
-        const found = await windowsObjectInfo(entry.path)
-        if (!found.ok) {
-          if (found.failure !== 'unresolved') return unknown(request.requestId)
-          if (entry.expectedVersion !== null) conflicting.push(entry.path)
-          continue
-        }
-        // A directory or a link at the target is neither the expected version nor the staged bytes.
-        if (found.value.type !== 'file') {
-          conflicting.push(entry.path)
-          continue
-        }
-        const read = await files.read({
-          ...request,
-          path: entry.path,
-          named: { token: found.value.token },
-        })
-        if (read.kind !== 'done') return unknown(request.requestId)
-        if (read.value.bytes.length === entry.size && digest(read.value.bytes) === entry.sha256)
-          matchingPrepared.push(entry.path)
-        else if (entry.expectedVersion === null || entry.expectedVersion !== read.value.version)
-          conflicting.push(entry.path)
+        const target = await targetOf(request, entry)
+        if (target === 'unknown') return unknown(request.requestId)
+        if (target === 'matching') matchingPrepared.push(entry.path)
+        if (target === 'conflicting') conflicting.push(entry.path)
       }
-      const state: FileBatchRecognition['state'] =
-        manifest.receipts.length === manifest.entries.length
-          ? 'complete'
-          : manifest.state === 'conflict'
-            ? 'conflict'
-            : manifest.generation !== options.generation
-              ? 'interrupted'
-              : options.running.has(manifest.id)
-                ? 'pending'
-                : 'partial'
+      const state = stateOf(manifest)
       return {
         kind: 'done',
         requestId: request.requestId,

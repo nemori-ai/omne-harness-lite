@@ -27,7 +27,7 @@ import {
 } from '../terminal-sentinels.ts'
 import { deferred, within } from './bridge.ts'
 import { windowsTerminalExecutable } from './compile.ts'
-import { stopWindowsResource } from './index.ts'
+import { stopWindowsResource, terminalJobName } from './supervision.ts'
 import { startTerminalBridge, type TerminalBridge, type TerminalFrame } from './terminal-bridge.ts'
 import {
   createWindowsTerminalCapacity,
@@ -123,7 +123,7 @@ const geometryValid = (value: number) => Number.isSafeInteger(value) && value > 
 function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTerminalCapacity }) {
   const { settings, ledger, capacity } = input
   const terminal = Object.freeze({ id: randomUUID(), generation: randomUUID() })
-  const name = `Local\\omne-terminal-${terminal.id}`
+  const name = terminalJobName(terminal.id)
   const resource: ManagedResource = Object.freeze({
     key: terminal.id,
     provider: input.provider,

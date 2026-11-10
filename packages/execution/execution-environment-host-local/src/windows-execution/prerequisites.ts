@@ -23,8 +23,8 @@ const unsatisfied = (missing: WindowsPrerequisite): WindowsCommandReading => ({
   missing: [missing],
 })
 
-/** 64-bit Windows 10 1809, Windows Server 2019 or later. */
-function supportedVersion(): boolean | undefined {
+/** 64-bit Windows 10 1809, Windows Server 2019 or later; undefined when the version is unread. */
+export function supportedWindowsVersion(): boolean | undefined {
   if (process.platform !== 'win32' || process.arch !== 'x64') return false
   const [major, , build] = release().split('.').map(Number)
   if (major === undefined || build === undefined || !Number.isFinite(build)) return undefined
@@ -36,7 +36,7 @@ function supportedVersion(): boolean | undefined {
  * anchored probe Job, opens it by name, reads its members, stops it and confirms the stop.
  */
 export async function probeWindowsCommands(boundMs: number): Promise<WindowsCommandReading> {
-  const version = supportedVersion()
+  const version = supportedWindowsVersion()
   if (version === undefined) return { kind: 'unknown' }
   if (!version) return unsatisfied('windows-version')
   const framework = join(

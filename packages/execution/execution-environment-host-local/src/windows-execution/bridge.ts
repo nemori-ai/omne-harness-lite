@@ -227,7 +227,8 @@ export async function askBridge<T>(
       if (picked !== undefined) answer.resolve(picked)
     },
     onClosed: () => answer.resolve(undefined),
-  })
+  }).catch(() => undefined)
+  if (bridge === undefined) return undefined
   const value = await within(answer.promise, remaining())
   bridge.disconnect()
   if (

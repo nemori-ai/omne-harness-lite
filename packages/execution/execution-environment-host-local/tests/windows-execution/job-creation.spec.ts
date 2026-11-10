@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { expect, it } from 'vitest'
-import { stopWindowsResource } from '../../src/windows-execution/index.ts'
+import { stopWindowsResource } from '../../src/windows-execution/supervision.ts'
 import { nativeSource } from '../../src/windows-execution/native-source.ts'
 
 it('keeps the child suspended and stoppable by Job name when the bridge crashes right after CreateProcessW returns', async context => {

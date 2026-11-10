@@ -21,12 +21,7 @@ import type {
 import { commandSettings, type HostCommandOptions } from './host-command.ts'
 import { terminalSettings, type HostTerminalOptions } from './host-terminal.ts'
 import { createHostPlatform, type CommandPrerequisite } from './host-platform.ts'
-import { stopWindowsResource } from './windows-execution/index.ts'
-import {
-  listWindowsJobs,
-  readWindowsJobReference,
-  recoverWindowsJob,
-} from './windows-execution/recovery.ts'
+import { listWindowsJobs, recoverWindowsResource } from './windows-execution/recovery.ts'
 import { retainedLegShell } from './host-retained-terminals.ts'
 import {
   createRetainedProcessIndex,
@@ -536,17 +531,22 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     },
     async listRecoveryResources(scope) {
       const retainedShells = internals.retainedTerminals.resources(scope)
+      // The retained-process markers are part of the index; unread markers make no complete listing.
+      const retainedReady = async () => retained === undefined || (await retained.ready())
+      /** One resource per key; a later list's resource replaces an earlier one. */
+      const listed = (...lists: (readonly ManagedResource[])[]) => ({
+        kind: 'listed' as const,
+        resources: [...new Map(lists.flat().map(resource => [resource.key, resource])).values()],
+      })
       if (execution.windows !== undefined) {
         // The cold index lists every command Job whose marker exists; an unread marker makes no list.
         const jobs = await listWindowsJobs(execution.windows.jobs, scope)
-        if (jobs === 'unavailable') return { kind: 'unavailable' }
-        if (retained !== undefined && !(await retained.ready())) return { kind: 'unavailable' }
-        const resources = new Map(jobs.map(resource => [resource.key, resource]))
-        for (const resource of internals.retainedTerminals.resources(scope))
-          resources.set(resource.key, resource)
-        for (const resource of retained?.resources(scope) ?? [])
-          resources.set(resource.key, resource)
-        return { kind: 'listed', resources: [...resources.values()] }
+        if (jobs === 'unavailable' || !(await retainedReady())) return { kind: 'unavailable' }
+        return listed(
+          jobs,
+          internals.retainedTerminals.resources(scope),
+          retained?.resources(scope) ?? [],
+        )
       }
       if (execution.macos !== undefined) {
         // The cold index lists every domain whose marker exists; an unread marker makes no list.
@@ -557,56 +557,43 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       }
       if (process.platform !== 'linux') return { kind: 'listed', resources: retainedShells }
       const systemctl = (await execution.supervisor())?.systemctl
-      if (systemctl === undefined) return { kind: 'unavailable' }
-      // The retained-process markers are part of the index; unread markers make no complete listing.
-      if (retained !== undefined && !(await retained.ready())) return { kind: 'unavailable' }
-      const listed = await listScopes({
+      if (systemctl === undefined || !(await retainedReady())) return { kind: 'unavailable' }
+      const scopes = await listScopes({
         systemctl,
         scope,
         provider: name,
         boundMs: settings.stopBoundMs,
       })
-      if (listed.kind !== 'listed') return listed
-      const resources = new Map(listed.resources.map(resource => [resource.key, resource]))
-      for (const resource of retainedShells) resources.set(resource.key, resource)
-      // A reservation may arrive while the supervisor listing is in flight.
-      for (const resource of internals.retainedTerminals.resources(scope))
-        resources.set(resource.key, resource)
-      for (const resource of retained?.resources(scope) ?? []) resources.set(resource.key, resource)
-      return { kind: 'listed', resources: [...resources.values()] }
+      if (scopes.kind !== 'listed') return scopes
+      return listed(
+        scopes.resources,
+        retainedShells,
+        // A reservation may arrive while the supervisor listing is in flight.
+        internals.retainedTerminals.resources(scope),
+        retained?.resources(scope) ?? [],
+      )
     },
     async recover(resource) {
-      const retainedShell = await internals.retainedTerminals.recover(resource)
-      if (retainedShell !== undefined)
-        return {
-          status: retainedShell === 'confirmed' ? 'confirmedStopped' : 'pending',
-          evidence: null,
-        }
-      const retainedProcess = await retained?.recover(resource)
-      if (retainedProcess !== undefined)
-        return {
-          status: retainedProcess === 'confirmed' ? 'confirmedStopped' : 'pending',
-          evidence: null,
-        }
+      const held =
+        (await internals.retainedTerminals.recover(resource)) ?? (await retained?.recover(resource))
+      if (held !== undefined)
+        return { status: held === 'confirmed' ? 'confirmedStopped' : 'pending', evidence: null }
       resource = retainedLegShell(resource) ?? resource
       if (execution.macos !== undefined)
         return {
           status: await recoverMacosResource(execution.macos, resource, name),
           evidence: null,
         }
-      if (execution.windows !== undefined) {
-        const job = readWindowsJobReference(resource.reference)
-        if (resource.provider !== name || job === undefined)
-          return { status: 'unsupported', evidence: null }
-        const jobs = execution.windows.jobs
-        if (jobs !== undefined && job === `Local\\omne-command-${resource.key}`)
-          return {
-            status: await recoverWindowsJob(jobs, resource, settings.stopBoundMs),
-            evidence: null,
-          }
-        const stopped = await stopWindowsResource(resource, settings.stopBoundMs)
-        return { status: stopped === 'confirmed' ? 'confirmedStopped' : 'pending', evidence: null }
-      }
+      if (execution.windows !== undefined)
+        return {
+          status: await recoverWindowsResource(
+            execution.windows.jobs,
+            resource,
+            name,
+            settings.stopBoundMs,
+          ),
+          evidence: null,
+        }
       const coordinate = readScopeReference(resource.reference)
       if (resource.provider !== name || coordinate === undefined)
         return { status: 'unsupported', evidence: null }

@@ -31,8 +31,9 @@ import type { RetainedReservation } from '../host-retained-processes.ts'
 import type { StopReading } from '../host-scope.ts'
 import { deferred, startBridge, within, type BridgeFrame } from './bridge.ts'
 import type { WindowsCommandReading, WindowsPrerequisite } from './prerequisites.ts'
-import { readWindowsJobReference, type WindowsJobIndex } from './recovery.ts'
+import type { WindowsJobIndex } from './recovery.ts'
 import {
+  commandJobName,
   retainedJobUnit,
   stopWindowsJob,
   windowsIdentity,
@@ -79,24 +80,6 @@ function invalid(request: StartRequest): FacilityReason | undefined {
     256
   if (controlSize > 2 * 1024 * 1024) return 'capacity'
   return undefined
-}
-
-/** The forced stop of the Job a resource names, by its name. */
-export async function stopWindowsResource(
-  resource: ManagedResource,
-  boundMs: number,
-): Promise<StopStatus> {
-  const name = readWindowsJobReference(resource.reference)
-  if (
-    process.platform !== 'win32' ||
-    name === undefined ||
-    (name !== `Local\\omne-command-${resource.key}` &&
-      name !== `Local\\omne-terminal-${resource.key}`)
-  )
-    return 'unconfirmed'
-  const status = await stopWindowsJob(name, boundMs)
-  // Without the Job's boot and session a missing name proves nothing.
-  return status === 'confirmed' ? 'confirmed' : 'unconfirmed'
 }
 
 /** One command in its own anchored Job: the bridge, its frames, its custody and its stop. */
@@ -453,6 +436,10 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
           case 'members':
           case 'identity':
             break
+          default: {
+            const exhaustive: never = frame
+            return exhaustive
+          }
         }
       },
       onClosed() {
@@ -525,7 +512,7 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     const identity = await windowsIdentity(settings.startBoundMs)
     if (identity === undefined) return rejected('unavailable')
     const key = randomUUID()
-    const name = `Local\\omne-command-${key}`
+    const name = commandJobName(key)
     const resource: ManagedResource = {
       key,
       provider: input.provider,

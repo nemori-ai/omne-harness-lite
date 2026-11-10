@@ -1,5 +1,4 @@
 import { access } from 'node:fs/promises'
-import { release } from 'node:os'
 import { join } from 'node:path'
 import type { ProviderFacts } from '@omne-harness/execution-environment-contract'
 import { createHostCommands, type CommandSettings, type HostCommandsInput } from './host-command.ts'
@@ -29,6 +28,7 @@ import type { RetainedSupervision } from './host-retained-processes.ts'
 import { forceStopScope, readBootId, readScopeMembers } from './host-scope.ts'
 import {
   probeWindowsCommands,
+  supportedWindowsVersion,
   type WindowsPrerequisite,
 } from './windows-execution/prerequisites.ts'
 import {
@@ -56,10 +56,9 @@ type WindowsTerminalInput = Omit<TerminalInput, 'unavailable'> &
 
 /** Installation facts only; a successful compile does not prove a command or terminal run. */
 export async function probeWindowsExecution(): Promise<Prerequisite> {
-  if (process.platform !== 'win32') return 'unsatisfied'
-  const [major, , build] = release().split('.').map(Number)
-  if (major === undefined || build === undefined || !Number.isFinite(build)) return 'unknown'
-  if (major < 10 || (major === 10 && build < 17763)) return 'unsatisfied'
+  const version = supportedWindowsVersion()
+  if (version === undefined) return 'unknown'
+  if (!version) return 'unsatisfied'
   const root = process.env['SystemRoot'] ?? 'C:\\Windows'
   try {
     await access(join(root, 'Microsoft.NET', 'Framework64', 'v4.0.30319', 'csc.exe'))
