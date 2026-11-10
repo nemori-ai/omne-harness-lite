@@ -3,13 +3,14 @@
 //（宿主显示给用户，不拦）；其余情形一个字节都不写。所有路径都退出 0。
 // 宿主把退出码 2 一律当拦截，所以这里不经 make、不透传任何子进程的退出码。判断在 hook.ts。
 import { appendFileSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { git } from '../core/git.ts'
 import { readIfFile } from './catalogue.ts'
 import { readLoopConfig } from './config.ts'
 import { STATE_FILE, stopHook, type HookDeps } from './hook.ts'
-import { measureInWorker } from './hook-thread.ts'
+import { measureInChild } from './hook-process.ts'
 import { loopHome } from './home.ts'
 
 function repository(cwd: string): ReturnType<HookDeps['repository']> {
@@ -35,6 +36,16 @@ function toolRoot(): string | undefined {
     return git(dirname(fileURLToPath(import.meta.url)), ['rev-parse', '--show-toplevel'])
   } catch {
     return undefined
+  }
+}
+
+/** 量读数的子进程要的 TypeScript 解析器能不能从这份脚本解析到；主进程只问路径，不加载它。 */
+function installed(): boolean {
+  try {
+    createRequire(import.meta.url).resolve('@typescript/typescript6')
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -68,11 +79,12 @@ try {
       return { ...config.hook, primaryBranch: config.primaryBranch }
     },
     repository,
-    measure: measureInWorker,
+    measure: measureInChild,
     readState: home => readIfFile(join(home, STATE_FILE)),
     writeState,
     log,
     toolRoot,
+    installed,
   })
   if (output !== undefined) process.stdout.write(output)
 } catch {

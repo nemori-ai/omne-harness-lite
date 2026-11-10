@@ -1,5 +1,5 @@
 // 收工钩子的判断：放行的几种情形、反馈文字、条数与字数上限、只报比上一次新出现或变差的、出错不拦人但给用户一句警告。
-// 外部动作全用替身（hook.ts 的 HookDeps）；入口与线程在 loop-stop-hook.spec.ts 用临时仓库测。
+// 外部动作全用替身（hook.ts 的 HookDeps）；入口与量读数的子进程在 loop-stop-hook.spec.ts 用临时仓库测。
 import { describe, expect, it } from 'vitest'
 import type { HookConfig } from '../src/loop/config.ts'
 import {
@@ -93,6 +93,7 @@ function fakes(over: {
   readonly env?: NodeJS.ProcessEnv
   readonly measure?: HookDeps['measure']
   readonly toolRoot?: string
+  readonly installed?: boolean
 }) {
   const calls = { measure: 0, repository: 0 }
   const store: { state?: string; log: string[] } = { log: [] }
@@ -120,6 +121,7 @@ function fakes(over: {
       store.log.push(line)
     },
     toolRoot: () => over.toolRoot,
+    installed: () => over.installed ?? true,
   }
   return { deps, calls, store }
 }
@@ -282,6 +284,29 @@ describe('收工钩子的判断', () => {
     const own = fakes({ toolRoot: '/work' })
     expect(await stopHook(STOP, own.deps)).toContain('"decision":"block"')
     expect(own.calls.measure).toBe(1)
+  })
+
+  it('本工作树没装依赖：不起量读数的子进程，只给用户一句「量不了」；关了钩子时什么都不说', async () => {
+    const bare = fakes({ installed: false })
+    const output = await stopHook(STOP, bare.deps)
+    expect(Object.keys(JSON.parse(output ?? '{}') as object)).toEqual(['systemMessage'])
+    expect(output).toContain('本工作树没装依赖，量不了')
+    expect(bare.calls.measure).toBe(0)
+    expect(bare.store.state).toBeUndefined()
+    const off = fakes({ installed: false, config: { enabled: false } })
+    expect(await stopHook(STOP, off.deps)).toBeUndefined()
+  })
+
+  it('量读数时把回路目录交给子进程：BASE 一侧的读数缓存在那里', async () => {
+    const seen: string[] = []
+    const shared = fakes({
+      measure: async (_root, _branch, _timeout, home) => {
+        seen.push(home)
+        return readings()
+      },
+    })
+    await stopHook(STOP, shared.deps)
+    expect(seen).toEqual(['/home'])
   })
 
   it('行号变了不算新；位置或类别变了算新', () => {
