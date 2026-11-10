@@ -41,11 +41,15 @@ export interface Finding {
   readonly amount?: number
 }
 
-/** 收工时量出来的东西：要解释的红项（不含克隆）、两条硬线、函数的 alert 线。 */
+/**
+ * 收工时量出来的东西：要解释的红项（不含克隆）、两条硬线、函数的 alert 线。`dependencyNote`：依赖项这次没量
+ * （解析配置变了），给 agent 的那一句。
+ */
 export interface HookReadings {
   readonly explain: Omit<Explain, 'clones'>
   readonly hardLines: Pick<HardLines, 'direction' | 'cycles'>
   readonly alert: number
+  readonly dependencyNote?: string
 }
 
 const site = (at: Pick<ImportSite, 'path' | 'line'> | undefined) =>
@@ -101,6 +105,11 @@ export function findingsOf(readings: HookReadings): Finding[] {
     ...hardLines.direction.map(finding => hardLineFinding('依赖违规', finding)),
     ...hardLines.cycles.map(finding => hardLineFinding('环', finding)),
   ]
+  if (readings.dependencyNote !== undefined)
+    out.push({
+      key: `dependency-note\u0000${readings.dependencyNote}`,
+      text: readings.dependencyNote,
+    })
   if (explain.conformance?.status === 'data') {
     for (const row of explain.conformance.data.changes)
       out.push({

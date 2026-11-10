@@ -4,11 +4,12 @@
 import { baselines, readTaskContext } from '../core/task-context.ts'
 import type { MetricsConfig } from '../metrics/config.ts'
 import { changedFiles } from '../core/git.ts'
-import { memberOf, workingGraph } from '../deps/graph.ts'
+import { memberOf } from '../deps/graph.ts'
 import { isMeasuredSource } from '../metrics/report.ts'
 import { collectMemberSources } from '../metrics/sources.ts'
 import type { LoopConfig } from './config.ts'
 import { nearestBase } from './hook-base.ts'
+import { hookGraph, RESOLUTION_NOTE } from './hook-graph.ts'
 import type { HookReadings } from './hook.ts'
 import { noData } from './reading.ts'
 import {
@@ -59,7 +60,9 @@ export function touchedBase(root: string, primaryBranch: string): string | undef
 
 /**
  * `readBaseline` 给出架构传感器 BASE 一侧的观测；收工钩子传按提交缓存的那一份（loop/baseline-cache.ts）。
- * 它最先跑：只取决于基线提交，这次即使超过时限被终止，已经存下的下次也只读。
+ * 它与基线依赖图最先跑：只取决于基线提交，这次即使超过时限被终止，已经存下的下次也只读。两者都取到之后调
+ * `baselineReady`，`graphPrepared` 说基线依赖图是不是这次现算存下的。
+ * 依赖图只换改过的文件的边（loop/hook-graph.ts）；解析配置变了就不量依赖项，读数里只留那一句。
  */
 export function measureForHook(
   root: string,
@@ -67,11 +70,15 @@ export function measureForHook(
   config: LoopConfig,
   metrics: MetricsConfig,
   readBaseline: BaselineReader = observeBaselineAt,
+  baselineReady: (commit: string, graphPrepared: boolean) => void = () => {},
 ): HookReadings {
   const change = changeSince(root, base)
   if (config.sensors.architecture.enabled) readBaseline(root, change.mergeBase)
+  const dependencies = hookGraph(root, change)
+  baselineReady(dependencies.commit, dependencies.prepared)
+  const measured = dependencies.kind === 'graph'
   const files = collectMemberSources(root)
-  const graph = workingGraph(root)
+  const { graph } = dependencies
   const report = measuredReport(root, files, metrics, change, graph)
   // 只要改动过的测试文件里的：全仓的测试文件逐个解析要一秒多，而要解释的红项本来就只看改动过的。
   const changedTests = files.filter(file => change.paths.has(file.path))
@@ -79,9 +86,13 @@ export function measureForHook(
     root,
     report,
     {
-      stability: readStability(report, config.sensors.stability),
+      stability: measured
+        ? readStability(report, config.sensors.stability)
+        : noData(RESOLUTION_NOTE),
       assertions: readAssertions(changedTests, config.sensors.assertions),
-      newEdges: readNewEdges(root, report, change, config.sensors.newEdges.enabled),
+      newEdges: measured
+        ? readNewEdges(root, report, change, config.sensors.newEdges.enabled)
+        : noData(RESOLUTION_NOTE),
       duplication: noData('收工钩子不跑重复代码'),
     },
     change,
@@ -99,7 +110,10 @@ export function measureForHook(
       conformance,
       assemblyDelta,
     },
-    hardLines: directionLines(report, loopGroupCycleExceptions(root)),
+    hardLines: measured
+      ? directionLines(report, loopGroupCycleExceptions(root))
+      : { direction: [], cycles: [] },
     alert: metrics.thresholds.alert,
+    ...(measured ? {} : { dependencyNote: RESOLUTION_NOTE }),
   }
 }

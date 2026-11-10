@@ -34,13 +34,26 @@ let result: ChildMessage
 if (base === undefined) result = { kind: 'result', touched: false }
 else {
   const config = readLoopConfig()
+  // 架构观测与依赖图两份基线都取到之后才说「已备好」：只备好一份就超时，下次还要算另一份。
+  let architecturePrepared = false
   const readBaseline = cachedBaselineReader(job.home, config.sensors.architecture, {
-    onPrepared: commit => send({ kind: 'prepared', commit }),
+    onPrepared: () => {
+      architecturePrepared = true
+    },
   })
   result = {
     kind: 'result',
     touched: true,
-    readings: measureForHook(job.root, base, config, readMetricsConfig(), readBaseline),
+    readings: measureForHook(
+      job.root,
+      base,
+      config,
+      readMetricsConfig(),
+      readBaseline,
+      (commit, graphPrepared) => {
+        if (architecturePrepared || graphPrepared) send({ kind: 'prepared', commit })
+      },
+    ),
   }
 }
 // 发完就退出：消息通道开着时进程不会自己结束。

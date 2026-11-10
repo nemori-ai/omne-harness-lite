@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import type { HookReadings } from './hook.ts'
 
 /**
- * 子进程发回的消息。`prepared`：BASE 一侧的架构观测这次没有缓存，已算好存进回路目录（之后还会发结果）；
+ * 子进程发回的消息。`prepared`：BASE 一侧的读数（架构观测、依赖图）这次有没缓存的，已算好存下（之后还会发结果）；
  * `result`：没碰产品源码，或碰了且量出的读数。
  */
 export type ChildMessage =
@@ -26,7 +26,7 @@ export function timeoutMessage(timeoutMs: number, prepared: string | undefined):
   const message = `量读数超过 ${timeoutMs / 1000} 秒，已放弃`
   return prepared === undefined
     ? message
-    : `${message}；基线 ${prepared.slice(0, 9)} 的架构读数这次已备好存下，下次收工不再重算`
+    : `${message}；基线 ${prepared.slice(0, 9)} 的读数这次已备好存下，下次收工不再重算`
 }
 
 /** 连同它起的进程一起杀掉：POSIX 上它自成一个进程组，Windows 上按进程树。 */
