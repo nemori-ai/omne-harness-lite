@@ -64,6 +64,32 @@ ExactImplementation 要求成功判断仍对应请求的精确实现。ActualInt
 
 应用协议归[事务内权限解释](../../../../apps/harness-server/docs/rows/permission-interpretation.md)。当前源码已实现解释映射验证、纯权限求值的应用解释及 SQL 支持/判断参与者。原发行和 current 的生产者、ActionAdmission 接线、撤除与实际消费的两种顺序仍需真实组合验收。模型及替身来源测试不能替代这些证据。
 
+## 权限检查是读，动作提交点核验
+
+[GovernancePermissionCommitPoint](models/GovernancePermissionCommitPoint.tla) 对应 [GC-05](../../governance-contract/SPEC.md) 的「在动作排序边界重新核验」。模型有两个动作。每个动作先读，再判断，再提交。读分三步，三步之间不原子。租户域的事实 f 与动作提交在同一个事务域。另一个域的事实 g 只能在判断前读取，提交的事务读不到它。exec 是 Agent 的执行修订，Agent 自己的进展会推高它。f 与 g 各自至多改一次。
+
+模型检查五项性质：
+
+- CommitUsesCurrentFact：动作已提交时，提交那一刻的 f 允许它。
+- OtherDomainIsFreshAtRead：判断用的 g 不早于读开始时的 g。
+- UnreadFactNeverPermits：读不到的事实不会让动作提交。
+- ReadLeavesNoTrace：读不留下持久记录。
+- EveryCheckEnds：每个动作都会到达终态。Agent 自己的进展不会让提交永远失败。
+
+一个正例同时检查五项性质。五个负控各去掉一个前提：提交点不核验（unverified）、跨域事实取缓存（cached）、读不到当作允许（unread）、读写下持久记录（trace）、把执行修订加进核验（execution）。前四个各违反对应的不变量。最后一个违反 EveryCheckEnds：开始、Agent 推进、读、判断、提交失败、回到开始，无限循环。运行 `python3 packages/governance/governance-local/verification/check.py --models GovernancePermissionCommitPoint`。
+
+模型与实现的对应：
+
+| 模型 | 实现 |
+| --- | --- |
+| 读的三步与判断 | 应用的 [permission-basis-read.ts](../../../../apps/harness-server/src/rows/governance/permission-basis-read.ts)：一次投影读取 f，另读 Identity 资格与组织层来源 |
+| 提交点的核验 `Verified` | Tool acceptance 的账本提交带条件：同一串只读命令在事务里重跑，[依据守卫](../../../../apps/harness-server/src/rows/governance/permission-basis-guard-participant.ts)比较摘要 |
+| 核验不成立后回到 idle | tool-host-local 的启动协调器收到 `condition-failed` 后重读重判 |
+| g 读不到 | 读数的 `unavailable` 变体 |
+| exec 不在核验里 | 命令清单里没有执行修订的守卫 |
+
+模型把租户域的几项事实合成一个 f。实现逐项核验，任一项不等就不成立，结论不变。模型不含 Tool 账本自己的修订冲突重试，不含崩溃恢复。活性只在事实停止变化后成立。模型通过不代替实现的符合性测试；实现的证据见[应用的权限说明](../../../../apps/harness-server/docs/rows/permission-interpretation.md)。模型与上表的对应最后一次核对于 2026-11-10。
+
 ## 当前发布与执行装载
 
 [GovernanceTargetPublication](models/GovernanceTargetPublication.tla) 保留两个具有相同Settings正文、不同原发布身份的版本。目标可切版，执行实现可卸载。Read是事务前普通观察，Apply必须重新读取当前发布与装载状态，并在同一动作保存提交时观察。原发行材料固定、当前SQL事务串行是模型前提，不由此模型证明。

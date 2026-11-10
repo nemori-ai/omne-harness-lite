@@ -456,6 +456,42 @@
       "model": "models/GovernanceEnforcementExecution.tla",
       "config": "models/governanceenforcementexecution-tenant.cfg",
       "expected": "TenantIsolation"
+    },
+    {
+      "name": "governancepermissioncommitpoint-positive",
+      "model": "models/GovernancePermissionCommitPoint.tla",
+      "config": "models/governancepermissioncommitpoint-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancepermissioncommitpoint-unverified",
+      "model": "models/GovernancePermissionCommitPoint.tla",
+      "config": "models/governancepermissioncommitpoint-unverified.cfg",
+      "expected": "CommitUsesCurrentFact"
+    },
+    {
+      "name": "governancepermissioncommitpoint-cached",
+      "model": "models/GovernancePermissionCommitPoint.tla",
+      "config": "models/governancepermissioncommitpoint-cached.cfg",
+      "expected": "OtherDomainIsFreshAtRead"
+    },
+    {
+      "name": "governancepermissioncommitpoint-unread",
+      "model": "models/GovernancePermissionCommitPoint.tla",
+      "config": "models/governancepermissioncommitpoint-unread.cfg",
+      "expected": "UnreadFactNeverPermits"
+    },
+    {
+      "name": "governancepermissioncommitpoint-trace",
+      "model": "models/GovernancePermissionCommitPoint.tla",
+      "config": "models/governancepermissioncommitpoint-trace.cfg",
+      "expected": "ReadLeavesNoTrace"
+    },
+    {
+      "name": "governancepermissioncommitpoint-execution",
+      "model": "models/GovernancePermissionCommitPoint.tla",
+      "config": "models/governancepermissioncommitpoint-execution.cfg",
+      "expected": "temporal:EveryCheckEnds"
     }
   ]
 }
