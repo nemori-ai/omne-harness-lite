@@ -88,8 +88,8 @@ describe('收工钩子的入口', { timeout: 60_000 }, () => {
       expect(again.stdout).toBe('')
       const active = hook(root, home, input(root, true))
       expect(active.stdout).toBe('')
-      expect(JSON.parse(readFileSync(join(home, 'hook-state.json'), 'utf8'))).toMatchObject({
-        reported: [{ branch: 'someone/work' }],
+      expect(JSON.parse(readFileSync(join(home, 'hook-readings.json'), 'utf8'))).toMatchObject({
+        readings: [{ branch: 'someone/work', findings: [{ amount: 15 }] }],
       })
     },
   )
@@ -117,6 +117,25 @@ describe('收工钩子的入口', { timeout: 60_000 }, () => {
       )
     },
   )
+
+  it('没给 OMNE_RUNNER_ROOT、跑的脚本又不在被量的仓库里：不量，退出 0，只给用户一句「量不了」', () => {
+    const { root, home } = work()
+    write(root, 'packages/core/a/src/tangled.ts', tangled)
+    const env: NodeJS.ProcessEnv = { ...process.env, OMNE_METRICS_HOME: home }
+    delete env['OMNE_RUNNER_ROOT']
+    const result = spawnSync(process.execPath, ['--experimental-strip-types', script], {
+      cwd: root,
+      input: input(root),
+      encoding: 'utf8',
+      env,
+    })
+    expect(result.status).toBe(0)
+    const parsed = JSON.parse(result.stdout) as Record<string, unknown>
+    expect(Object.keys(parsed)).toEqual(['systemMessage'])
+    expect(parsed['systemMessage']).toContain('量不了')
+    expect(parsed['systemMessage']).not.toContain('tangled')
+    expect(existsSync(join(home, 'hook-readings.json'))).toBe(false)
+  })
 
   it('改的不是产品源码（测试目录、examples、仓库根）：放行', () => {
     const { root, home } = work()
