@@ -12,6 +12,8 @@ owner: Brian Lee
 
 本提案承接 [RFC-0008](RFC-0008-repo-toolchain-trust.md)「决定范围」中留给后续提案的部分：采用命令与本机发布命令的退役及相应的恢复路径，以及 task-sync 的实现方式、`track-retire` 与检查命令清单的删除。来源是 [#290 的实施方案](https://github.com/nemori-ai/omne-harness-lite/issues/290#issuecomment-6188641420)「流程工具怎么改」与落地顺序中的退役一步。提案采用、规范写回、实现和交付接受分别判断。2026-10-16 采用本提案 revision 1，记录见 [#362 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/362#issuecomment-6217265901)。规范写回与实施由 [#364](https://github.com/nemori-ai/omne-harness-lite/issues/364) 承接，见「写回现行正文」。
 
+> **后继与更正标注（2026-11-10）**：本提案部分被 [RFC-0014](RFC-0014-single-card-session-and-gate-relief.md) 取代：「task-sync 与两条基线」，以及「保留的命令」中 `register`、`start` 的开工准入。精确范围与生效条件见 RFC-0014「后继关系与维护」；本提案的决定状态与其余范围不变。首段「RFC-0004 保持 accepted」与现状不符：RFC-0004 已被 [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) 整篇取代，status 为 superseded。本标注不改变本提案的方案与决定。
+
 ## 问题与有效输入
 
 第一阶段的准入已经交给 `github-gate`：`gate-publish` 用 `git merge-tree` 构造合并、经 environment 确认后原子推送，并创建 `omne/gate/unit` 记录；`gate-track` 建轨道；`gate-release` 发布检查器。仓库工具链的受信版本由 RFC-0008 改为仓库里受闸门保护的 npm 版本钉子。派发权与开工准入已由 [#306](https://github.com/nemori-ai/omne-harness-lite/issues/306) 改为核对 `publish` environment 的 reviewer，`start` 不再依赖采用锚点。
