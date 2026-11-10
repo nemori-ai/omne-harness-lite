@@ -48,7 +48,10 @@ const setPhase = (value: number) => {
 }
 
 /** Starts the server and returns what a run needs to drive calls and to end the assembly. */
-export async function startAssembly(kind: PayloadKind) {
+/** A change of the operator configuration of one row, for a measurement that varies one setting. */
+export type Tuning = (row: string, config: Record<string, unknown>) => Record<string, unknown>
+
+export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, config) => config) {
   // The state lives in a short temporary path (socket paths have a length limit) and is removed at
   // the end; the evidence goes to the output directory of the run.
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'history-cost-')))
@@ -110,6 +113,7 @@ export async function startAssembly(kind: PayloadKind) {
       return op
     }),
   }
+  operator.ops = operator.ops.map(op => ({ ...op, config: tune(op.id, op.config ?? {}) }))
   const stderr: string[] = []
   const finished = runServe({
     distribution: adoptLargeBody(release),
