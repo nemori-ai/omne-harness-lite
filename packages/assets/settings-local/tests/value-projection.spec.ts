@@ -1,8 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { afterEach, expect, it } from 'vitest'
-import { combinationManifest, manifestDigest } from '@omne-harness/sql-contract'
 import {
-  createStandaloneSettingsOwner,
   settingsStandaloneMaterials,
   standaloneSettingsProjectionCommand,
   settingsWithoutAssetsMaterials,
@@ -15,121 +13,52 @@ import {
   settingsValueProjectionCommand,
 } from '../src/value-projection.ts'
 import { settingsValueProjectionMaterials } from '../src/value-projection-materials.ts'
-import { openPreparedServiceWorld } from './prepared-service-world.ts'
-import { definition } from './world.ts'
+import { openPreparedTargetWorld } from './prepared-target-world.ts'
 
 const worlds: { close(): Promise<void> }[] = []
 afterEach(async () => {
   for (const world of worlds.splice(0)) await world.close()
 })
 
-/**
- * A prepared service over a real independent target, with the value projection in the catalog.
- * Values are written through preparation and commit; the capture reads them back.
- */
+/** A real independent target whose values the value projection reads back. */
 async function open(reopen?: { root: string; scopeRef: string }) {
   const withoutAssets = settingsWithoutAssetsMaterials()
   const values = settingsValueProjectionMaterials()
-  const w = await openPreparedServiceWorld(undefined, {
-    sourceCapture: true,
+  const w = await openPreparedTargetWorld({
     extraParticipants: [...withoutAssets.participants, ...values],
-    ...reopen,
+    ...(reopen ? { reopen } : {}),
   })
   worlds.push(w)
-  const { domain } = w.input.identity
-  async function register(name: string, participants: string[]) {
-    const manifest = combinationManifest({ catalog: w.world.materials, participants })
-    if (manifest.kind !== 'manifest') throw new Error(JSON.stringify(manifest))
-    const registration = {
-      combinationVersion: `value-projection-${name}/1`,
-      manifestDigest: manifestDigest(manifest.manifest),
-    }
-    const result = await w.world.storage.registerCombination({
-      ...domain,
-      ...registration,
-      participants,
-    })
-    if (result.kind !== 'registered') throw new Error(JSON.stringify(result))
-    return registration
-  }
-  // The writers of the stored state and of the source gate, as the owner of a target needs them.
-  const source = [
-    ...w.world.participants.filter(
-      name => name !== 'fixture.recovery-rollback' && name !== 'settings.source-finalization',
-    ),
-    'settings.source-snapshot',
-    'settings.targets',
-  ]
-  const owner = createStandaloneSettingsOwner({
-    storage: w.world.storage,
-    domain,
-    ...(await register('source', source)),
-  })
-  const capture = await register('capture', [
+  const capture = await w.register('capture', [
     ...new Set([
-      ...source,
+      ...w.ownerParticipants,
       ...settingsStandaloneMaterials().participants.map(item => item.participant),
       ...withoutAssets.participants.map(item => item.participant),
       ...values.map(item => item.participant),
     ]),
   ])
-  const { target } = w.command
   if (reopen === undefined) {
-    const provisioned = await owner.mutate({
-      kind: 'provision',
-      operationId: 'provision',
-      expectedRevision: null,
-      record: {
-        publicationRef: null,
-        target,
-        definition,
-        sources: w.input.plan.sources.map(({ sourceId, ownerRef, scope }) => ({
-          sourceId,
-          ownerRef,
-          scope,
-        })),
-        grants: [{ sourceId: 'tenant', actions: ['set', 'clear'] }],
-      },
-    })
+    const provisioned = await w.provision()
     if (provisioned.kind !== 'committed') throw new Error(JSON.stringify(provisioned))
   }
-  let revision = 0
   return {
-    root: w.root,
-    target,
-    close: () => w.close(),
-    /** One value written through preparation and commit, on the revision of the last write. */
-    async write(change: Partial<typeof w.command> = {}) {
-      w.updateCurrent(current => ({
-        ...current,
-        basis: { ...current.basis, valueRevision: revision },
-      }))
-      const command = { ...w.command, expectedRevision: revision, ...change }
-      const prepared = await w.service.prepareChange(w.context, command)
-      if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
-      const result = await w.service.commitChange(w.context, {
-        requestId: `commit-${command.operationId}`,
-        preparation: prepared.preparation,
-      })
-      if (result.kind === 'committed') revision = result.revision
-      return result
-    },
+    ...w,
     async capture(change?: (binding: SettingsProjectionBinding) => void, mismatch = false) {
       const binding: SettingsProjectionBinding = {
-        domain,
+        domain: w.domain,
         principalRef: w.context.principalRef,
         captureId: randomUUID(),
         request: {
           deploymentRef: 'test',
           mode: 'management',
-          targets: [target],
+          targets: [w.target],
           selectionRef: null,
         },
       }
       change?.(binding)
-      const result = await w.world.storage.commit({
+      const result = await w.storage.commit({
         identity: {
-          ...domain,
+          ...w.domain,
           operation: 'fixture.settings-value',
           protocolVersion: '2',
           operationKey: randomUUID(),

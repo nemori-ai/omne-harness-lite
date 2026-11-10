@@ -3,27 +3,16 @@ import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import {
-  combinationManifest,
-  manifestDigest,
-  type CommitResultV2,
-  type SqlMaterialCatalog,
-} from '@omne-harness/sql-contract'
-import {
-  createStandaloneSettingsOwner,
-  settingsStandaloneMaterials,
-  settingsSqlMaterials,
-  standaloneSettingsGuards,
-} from '../src/index.ts'
+import type { CommitResultV2 } from '@omne-harness/sql-contract'
 import { SOURCE_SNAPSHOT_FACT, SOURCE_SNAPSHOT_PARTICIPANT } from '../src/source-snapshot.ts'
 import { SOURCE_RETENTION_OWNER } from '../src/source-retention-schema.ts'
 import { sourceKey } from '../src/source-retention-records.ts'
-import { sourceUpdate } from './source-retention-world.ts'
+import { sourceRequest, sourceUpdate } from './source-retention-world.ts'
 import { canonical, digest, json } from '../src/encoding.ts'
-import { command, context, definition, openWorld } from './world.ts'
-import { sourceRequest } from './source-retention-world.ts'
-import { ownerSources } from './sources.ts'
-const worlds: Awaited<ReturnType<typeof openWorld>>[] = []
+import { stored } from './business-world.ts'
+import { openPreparedTargetWorld } from './prepared-target-world.ts'
+import { definition } from './world.ts'
+const worlds: { close(): Promise<void> }[] = []
 afterEach(async () => {
   for (const world of worlds.splice(0)) await world.close()
 })
@@ -34,9 +23,11 @@ function file(relative: string) {
     codeDigest: createHash('sha256').update(readFileSync(url)).digest('hex'),
   }
 }
-async function open(root?: string) {
-  const extras: Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'> = {
-    participants: [
+/** A real independent target whose owner and stored values the source snapshot captures. */
+async function open(reopen?: { root: string; scopeRef: string }) {
+  const w = await openPreparedTargetWorld({
+    actions: ['set', 'clear', 'lock', 'unlock'],
+    extraParticipants: [
       {
         participant: 'fixture.source-snapshot-sink',
         protocol: 'fixture-source-snapshot/1',
@@ -49,70 +40,18 @@ async function open(root?: string) {
         grouping: 'groupable',
       },
     ],
-    migrations: [],
-    readHandlers: [],
-  }
-  const w = await openWorld({
-    sourceCapture: true,
-    ...(root ? { root } : {}),
-    authority: { materials: settingsStandaloneMaterials(), guards: standaloneSettingsGuards },
-    extraMaterials: extras,
+    ...(reopen ? { reopen } : {}),
   })
   worlds.push(w)
-  const owner = createStandaloneSettingsOwner({
-    storage: w.storage,
-    domain: w.domain,
-    combinationVersion: w.combination.combinationVersion,
-    manifestDigest: w.combination.manifestDigest,
-  })
-  const target = command().target
-  const record = {
-    publicationRef: null,
-    target,
-    definition,
-    sources: ownerSources('tenant'),
-    grants: [
-      {
-        sourceId: 'tenant',
-        actions: ['set', 'clear', 'lock', 'unlock'] as ('set' | 'clear' | 'lock' | 'unlock')[],
-      },
-    ],
-  }
-  const persistence = settingsSqlMaterials({ sourceCapture: true })
-  const targets = settingsStandaloneMaterials()
-  const catalog: SqlMaterialCatalog = {
-    catalogProtocol: 'sql-catalog/1',
-    participants: [...persistence.participants, ...targets.participants, ...extras.participants],
-    migrations: [...persistence.migrations, ...targets.migrations, ...extras.migrations],
-    readHandlers: [...persistence.readHandlers, ...targets.readHandlers, ...extras.readHandlers],
-    declaredCombinations: { tenant: null, system: null },
-  }
-  const participants = catalog.participants.map(participant => participant.participant)
-  const manifest = combinationManifest({ catalog, participants })
-  if (manifest.kind !== 'manifest') throw new Error(JSON.stringify(manifest))
-  const combo = {
-    ...w.domain,
-    combinationVersion: 'source-capture/1',
-    manifestDigest: manifestDigest(manifest.manifest),
-    participants,
-  }
-  const registered = await w.storage.registerCombination(combo)
-  if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
+  const combo = await w.register('capture', [
+    ...w.ownerParticipants,
+    'fixture.source-snapshot-sink',
+  ])
   const request = sourceRequest()
-  request.source = { domain: w.domain, target }
+  request.source = { domain: w.domain, target: w.target }
   return {
     ...w,
-    owner,
-    record,
     request,
-    async provision() {
-      return owner.mutate({
-        kind: 'provision',
-        operationId: 'provision',
-        expectedRevision: null,
-        record,
-      })
-    },
     capture(hold = false, sinkRequest = request) {
       return w.storage.commit({
         identity: {
@@ -121,8 +60,7 @@ async function open(root?: string) {
           protocolVersion: '2',
           operationKey: randomUUID(),
         },
-        combinationVersion: combo.combinationVersion,
-        manifestDigest: combo.manifestDigest,
+        ...combo,
         commands: [
           {
             participant: hold ? SOURCE_RETENTION_OWNER : 'fixture.source-snapshot-sink',
@@ -155,16 +93,11 @@ it('reads the real owner and assignment state in transaction order, including ab
       projection: { ownerRevision: 1 },
     },
   })
-  expect(await w.backend.commit(context, command())).toMatchObject({
+  expect(await w.write()).toMatchObject({ kind: 'committed', revision: 1 })
+  expect(await w.write({ operationId: 'lock', action: { kind: 'lock' } })).toMatchObject({
     kind: 'committed',
-    revision: 1,
+    revision: 2,
   })
-  expect(
-    await w.backend.commit(
-      context,
-      command({ operationId: 'lock', expectedRevision: 1, action: { kind: 'lock' } }),
-    ),
-  ).toMatchObject({ kind: 'committed', revision: 2 })
   expect(response(await w.capture())).toMatchObject({
     kind: 'captured',
     snapshot: {
@@ -184,20 +117,21 @@ it('reads the real owner and assignment state in transaction order, including ab
 it('persists a snapshot supplied by the real producer and recognizes it after reopening', async () => {
   const w = await open()
   await w.provision()
-  await w.backend.commit(context, command())
+  await w.write()
   const held = response(await w.capture(true))
   expect(held).toMatchObject({
     kind: 'held',
     snapshot: { presence: 'present', state: { revision: 1 } },
   })
+  worlds.splice(worlds.indexOf(w), 1)
   await w.close()
-  const reopened = await open(w.root)
+  const reopened = await open({ root: w.root, scopeRef: w.target.scopeRef })
   expect(response(await reopened.capture(true))).toEqual(held)
 })
 it('refuses a retired target or mismatched definition instead of fabricating an absent source', async () => {
   const w = await open()
   await w.provision()
-  await w.backend.commit(context, command())
+  await w.write()
   expect(
     await w.owner.mutate({
       kind: 'provision',
@@ -227,9 +161,10 @@ it('binds the produced fact to the complete destination request', async () => {
   expect((await w.capture(true, other)).kind).toBe('rolled_back')
   expect(response(await w.capture(true))).toMatchObject({ kind: 'held', request: w.request })
 })
-it('blocks direct writers after reopening a pending gate even when no reservations remain', async () => {
+it('blocks writers after reopening a pending gate even when no reservations remain', async () => {
   const w = await open()
   await w.provision()
+  worlds.splice(worlds.indexOf(w), 1)
   await w.close()
   const update = sourceUpdate()
   update.source = w.request.source
@@ -258,11 +193,10 @@ it('blocks direct writers after reopening a pending gate even when no reservatio
   } finally {
     database.close()
   }
-  const reopened = await open(w.root)
-  expect(await reopened.backend.commit(context, command())).toEqual({
-    kind: 'rejected',
-    reason: 'basis_changed',
-  })
+  const reopened = await open({ root: w.root, scopeRef: w.target.scopeRef })
+  // A prepared write does not pass the pending gate: nothing of it is stored.
+  expect(await reopened.write()).toEqual({ kind: 'rejected', reason: 'unavailable' })
+  expect(stored(w.root)).toMatchObject({ state: null, operations: 0, changes: 0 })
   expect(
     await reopened.owner.mutate({
       kind: 'retire',

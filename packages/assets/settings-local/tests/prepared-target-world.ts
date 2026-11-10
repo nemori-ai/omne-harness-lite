@@ -1,0 +1,110 @@
+import {
+  combinationManifest,
+  manifestDigest,
+  type SqlMaterialCatalog,
+} from '@omne-harness/sql-contract'
+import { createStandaloneSettingsOwner } from '../src/index.ts'
+import { openPreparedServiceWorld } from './prepared-service-world.ts'
+import { definition } from './world.ts'
+
+type Action = 'set' | 'clear' | 'lock' | 'unlock'
+
+/**
+ * A prepared service over a real independent target. The target owner is the real standalone
+ * owner; a value is written through preparation and commit. A test adds its own participants and
+ * registers its own combinations over the same catalog.
+ */
+export async function openPreparedTargetWorld(
+  options: {
+    extraParticipants?: SqlMaterialCatalog['participants']
+    actions?: Action[]
+    /** An existing database and its scope, to open the same world again. */
+    reopen?: { root: string; scopeRef: string }
+  } = {},
+) {
+  const w = await openPreparedServiceWorld(undefined, {
+    sourceCapture: true,
+    ...(options.extraParticipants ? { extraParticipants: options.extraParticipants } : {}),
+    ...options.reopen,
+  })
+  const { domain } = w.input.identity
+  async function register(name: string, participants: string[]) {
+    const manifest = combinationManifest({ catalog: w.world.materials, participants })
+    if (manifest.kind !== 'manifest') throw new Error(JSON.stringify(manifest))
+    const registration = {
+      combinationVersion: `prepared-target-${name}/1`,
+      manifestDigest: manifestDigest(manifest.manifest),
+    }
+    const result = await w.world.storage.registerCombination({
+      ...domain,
+      ...registration,
+      participants,
+    })
+    if (result.kind !== 'registered') throw new Error(JSON.stringify(result))
+    return registration
+  }
+  // The writers of the stored state and of the source gate, as the owner of a target needs them.
+  const ownerParticipants = [
+    ...w.world.participants.filter(
+      name => name !== 'fixture.recovery-rollback' && name !== 'settings.source-finalization',
+    ),
+    'settings.source-snapshot',
+    'settings.targets',
+  ]
+  const owner = createStandaloneSettingsOwner({
+    storage: w.world.storage,
+    domain,
+    ...(await register('owner', ownerParticipants)),
+  })
+  const { target } = w.command
+  const record = {
+    publicationRef: null,
+    target,
+    definition,
+    sources: w.input.plan.sources.map(({ sourceId, ownerRef, scope }) => ({
+      sourceId,
+      ownerRef,
+      scope,
+    })),
+    grants: [{ sourceId: 'tenant', actions: options.actions ?? ['set', 'clear'] }],
+  }
+  let revision = 0
+  return {
+    service: w.service,
+    context: w.context,
+    command: w.command,
+    storage: w.world.storage,
+    root: w.root,
+    domain,
+    target,
+    owner,
+    record,
+    ownerParticipants,
+    register,
+    close: () => w.close(),
+    provision() {
+      return owner.mutate({
+        kind: 'provision',
+        operationId: 'provision',
+        expectedRevision: null,
+        record,
+      })
+    },
+    /** One change written through preparation and commit, on the revision of the last write. */
+    async write(change: Partial<typeof w.command> = {}) {
+      w.updateCurrent(current => ({
+        ...current,
+        basis: { ...current.basis, valueRevision: revision },
+      }))
+      const command = { ...w.command, expectedRevision: revision, ...change }
+      const prepared = await w.service.prepareChange(w.context, command)
+      if (prepared.kind !== 'prepared') return prepared
+      const result = await w.service.commitChange(w.context, {
+        requestId: `commit-${command.operationId}`,
+        preparation: prepared.preparation,
+      })
+      if (result.kind === 'committed') revision = result.revision
+      return result
+    },
+  }
+}
