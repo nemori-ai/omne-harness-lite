@@ -4,20 +4,19 @@ from typing import NamedTuple
 
 class HostLayout(NamedTuple):
     skills: Path
-    agents: Path
     hooks: Path
     package: Path | None = None
     plugin_hooks: Path | None = None
 
     @property
     def directories(self) -> tuple[Path, ...]:
-        return (self.skills, self.agents)
+        return (self.skills,)
 
 
 HOSTS = {
-    "claude-code": HostLayout(Path(".claude/skills"), Path(".claude/agents"), Path(".claude/settings.json")),
-    "codex": HostLayout(Path(".agents/skills"), Path(".codex/agents"), Path(".codex/hooks.json")),
-    "cursor": HostLayout(Path(".cursor/skills"), Path(".cursor/agents"), Path(".cursor/hooks.json"),
+    "claude-code": HostLayout(Path(".claude/skills"), Path(".claude/settings.json")),
+    "codex": HostLayout(Path(".agents/skills"), Path(".codex/hooks.json")),
+    "cursor": HostLayout(Path(".cursor/skills"), Path(".cursor/hooks.json"),
                          Path(".cursor"), Path(".cursor/plugin-hooks.json")),
 }
 

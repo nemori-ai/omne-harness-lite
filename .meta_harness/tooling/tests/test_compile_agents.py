@@ -135,10 +135,10 @@ def test_meta_root_can_contain_source_and_generated_siblings(source):
 def test_blocked_output_parent_rejected_before_any_write(source, tmp_path):
     output = tmp_path / "preview"
     output.mkdir()
-    (output / ".codex").write_text("ordinary file", encoding="utf-8")
+    (output / ".claude").write_text("ordinary file", encoding="utf-8")
     assert compiler.main(["--source", str(source), "--output", str(output)]) == 1
     assert not (output / ".agents").exists()
-    assert (output / ".codex").read_text(encoding="utf-8") == "ordinary file"
+    assert (output / ".claude").read_text(encoding="utf-8") == "ordinary file"
 
 
 def test_host_slots_keep_common_text_and_exclude_maintainer_material(source):
