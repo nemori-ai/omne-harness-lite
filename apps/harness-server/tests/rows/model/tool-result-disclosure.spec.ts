@@ -163,12 +163,20 @@ describe('a Tools reply fits the inline threshold of the runtime that carries it
   })
 
   it('refuses a Tools result page above the result page of the runtime', () => {
-    const [records, bindings] = tree(16_384, 16_384)
-    if (records === undefined || bindings === undefined) throw new Error('fixture rows')
-    const limit = records.config.configuration.resultPageBytes
+    const [records] = rows(16_384)
+    if (records === undefined) throw new Error('fixture rows')
     const over = {
-      ...bindings,
-      config: { tools: { ...bindings.config.tools, resultPageBytes: limit + 1 } },
+      id: 'tool-bindings' as RowId,
+      plugin: 'toolBindingsRow',
+      config: {
+        tools: {
+          attemptMs: 250,
+          resultPageBytes: records.config.configuration.resultPageBytes + 1,
+          replyMaxBytes: 16_384,
+          contentPageBytes: 4096,
+        },
+      },
+      source: 'operator' as const,
     }
     expect(() => checkToolsReplyBudget([records, over])).toThrowError(
       /tool-bindings\.tools\.resultPageBytes .*tool-records\.configuration\.resultPageBytes/u,
