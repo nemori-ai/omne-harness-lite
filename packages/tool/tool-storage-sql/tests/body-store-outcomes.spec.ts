@@ -91,17 +91,22 @@ it.each([
   ],
   [
     'an unsupported participant reply',
-    rolledBack({ kind: 'unsupported', basis: null }),
+    rolledBack({ kind: 'unsupported', basis: { reason: 'body-conflict' } }),
     'body put rolled back: unsupported',
   ],
   [
     'a conflict whose basis the store does not know',
-    rolledBack({ kind: 'conflict', basis: { reason: 'other' } }),
+    rolledBack({ kind: 'conflict', basis: { reason: 'other', diagnostic: 'x' } }),
     'body put rolled back: conflict',
   ],
   [
     'a not-ready basis without a diagnostic',
     rolledBack({ kind: 'conflict', basis: { reason: 'body-not-ready' } }),
+    'body put rolled back: conflict',
+  ],
+  [
+    'a conflict without a basis',
+    rolledBack({ kind: 'conflict', basis: null }),
     'body put rolled back: conflict',
   ],
   [
