@@ -5,7 +5,7 @@
 // revision, or writes nothing.
 import { randomUUID } from 'node:crypto'
 
-import type { JsonValue } from '@omne-harness/sql-contract'
+import type { JsonValue, SqlStorage } from '@omne-harness/sql-contract'
 import {
   recordKey,
   type DueEntry,
@@ -26,6 +26,7 @@ import {
   type ToolInstant,
 } from '@omne-harness/tool-contract/provider'
 import { NotJsonError } from './json.ts'
+import { keeping, LedgerKeeper } from './ledger-keeper.ts'
 import {
   addressOf,
   assertsOf,
@@ -115,6 +116,21 @@ function dueEntryOf(tenant: TenantId, row: JsonValue): DueEntry | null {
 /** The revision of a domain that was never committed (`INITIAL_REVISION` of the ledger). */
 const INITIAL_REVISION = '0'
 
+/**
+ * One keeper for each storage. Every ledger store of this process over the same storage commits
+ * through it, so the stores of the Tool runtime and of the sweep answer reads from one snapshot.
+ */
+const keepers = new WeakMap<SqlStorage, LedgerKeeper>()
+
+function keeperOf(storage: SqlStorage): LedgerKeeper {
+  let keeper = keepers.get(storage)
+  if (keeper === undefined) {
+    keeper = new LedgerKeeper()
+    keepers.set(storage, keeper)
+  }
+  return keeper
+}
+
 export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToolLedgerStore {
   const commit = async (input: LedgerCommitInput): Promise<LedgerCommit> => {
     // The assertion is part of the commit, so the same commit is refused whenever it is sent.
@@ -183,5 +199,8 @@ export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToo
     }
     return { kind: 'complete', entries }
   }
-  return { durability: 'durable', read, readRecord, commit, due }
+  const kept = keeping(keeperOf(options.storage), { read, readRecord, commit }, () =>
+    /* wall-clock: operation-timing -- The age of a snapshot is a monotonic duration since the storage confirmed it (SPEC TS-16). */ performance.now(),
+  )
+  return { durability: 'durable', ...kept, due }
 }

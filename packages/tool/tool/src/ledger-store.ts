@@ -426,9 +426,12 @@ export type LedgerDueRead =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 /**
- * A domain read. `complete` holds every record of the domain and its current revision, and it
- * includes every commit that returned `committed` before the read began. A domain that was never
- * committed has revision `0` and no records.
+ * A domain read. `complete` holds every record of the domain and its revision, and it includes
+ * every commit that returned `committed` through the same provider before the read began. A
+ * commit that another process wrote to the same storage may be missing for a bounded time that
+ * the provider states. A domain that was never committed has revision `0` and no records; the
+ * answer "no records", like `record: null` of `readRecord`, is always the content of the storage
+ * at the read (SPEC「记录仓读取的新鲜度」).
  */
 export type LedgerRead =
   | Readonly<{ kind: 'complete'; revision: ToolRevision; records: readonly LedgerRecord[] }>

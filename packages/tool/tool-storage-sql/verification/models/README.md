@@ -26,4 +26,4 @@
 
 <!-- documentation:placeholder -->
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+[SnapshotCache](snapshot-cache/README.md) 检查 [TS-16](../../SPEC.md#ts-16-读取用保管的快照作答)：记录仓用保管的快照作答读取时，快照总是存储有过的内容，读取的陈旧有上界，答“没有”总是当时的内容，收不回的事只在条件提交之后做。建模对象、性质、具名负控、运行命令与模型到代码的对应在该模型自己的 README。负责人是 tool-exec 线。模型不覆盖 SQL 语句本身，那一层由 `tests/` 的真实 SQLite 用例守。
