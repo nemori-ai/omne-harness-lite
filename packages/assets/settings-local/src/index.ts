@@ -1,3 +1,4 @@
+export { readSettingsSource, type SettingsSourceReading } from './source-observation.ts'
 export { projectSettingsSources } from './source-layout.ts'
 export { settingsSqlMaterials } from './materials.ts'
 export {

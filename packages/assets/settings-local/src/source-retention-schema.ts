@@ -84,6 +84,26 @@ export const sourcePageSchema = z.strictObject({
   after: digestSchema.nullable(),
   limit: z.number().int().min(1).max(100),
 })
+export const sourceObservationSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('captured'), snapshot: sourceSnapshotSchema }),
+  z.strictObject({
+    kind: z.literal('unavailable'),
+    reason: z.enum([
+      'unsupported',
+      'forbidden',
+      'definition_changed',
+      'basis_changed',
+      'incompatible',
+    ]),
+  }),
+])
+/** The read handler that observes one source without a reservation. */
+export const SOURCE_SNAPSHOT_READ = {
+  handler: 'settings.source-snapshot-read',
+  protocol: 'settings-source-snapshot-read/1',
+}
+export const sourceSnapshotReadSchema = z.strictObject({ source: sourceReferenceSchema })
+export type SourceObservation = z.infer<typeof sourceObservationSchema>
 export type SourceReference = z.infer<typeof sourceReferenceSchema>
 export type SourceRequest = z.infer<typeof sourceRequestSchema>
 export type SourceSnapshot = z.infer<typeof sourceSnapshotSchema>

@@ -1,20 +1,9 @@
 import { z } from 'zod'
 import { sourceSettlementFactSchema } from './source-service-schema.ts'
-import { defineSettings } from '@omne-harness/settings'
-import type { ParticipantModule, ReadPort } from '@omne-harness/sql-contract/worker'
-import {
-  sourceRequestSchema,
-  sourceSnapshotSchema,
-  type SourceRequest,
-} from './source-retention-schema.ts'
-import {
-  isIndependentTargetInDomain,
-  readStandaloneSettingsRecord,
-  projectStandaloneSettingsRecord,
-} from './standalone-records.ts'
-import { readProjectedSettingsState } from './projected-state.ts'
-import type { SettingsTargetProjection } from './projection.ts'
-import { digest, equal, json, stateKey, withinBudget } from './encoding.ts'
+import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
+import { sourceObservationSchema, sourceRequestSchema } from './source-retention-schema.ts'
+import { captureSource } from './source-capture.ts'
+import { json, withinBudget } from './encoding.ts'
 
 import {
   SOURCE_SNAPSHOT_PARTICIPANT,
@@ -29,52 +18,8 @@ export {
 } from './source-retention-schema.ts'
 export const sourceSnapshotFactSchema = z.strictObject({
   request: sourceRequestSchema,
-  observation: z.discriminatedUnion('kind', [
-    z.strictObject({ kind: z.literal('captured'), snapshot: sourceSnapshotSchema }),
-    z.strictObject({
-      kind: z.literal('unavailable'),
-      reason: z.enum([
-        'unsupported',
-        'forbidden',
-        'definition_changed',
-        'basis_changed',
-        'incompatible',
-      ]),
-    }),
-  ]),
+  observation: sourceObservationSchema,
 })
-function hasMatchingDefinition(projection: SettingsTargetProjection) {
-  const defined = defineSettings(projection.definition)
-  return (
-    defined.kind === 'defined' &&
-    equal(projection.definitionRef, {
-      providerId: defined.definition.providerId,
-      definitionId: defined.definition.definitionId,
-      version: defined.definition.version,
-      digest: digest(defined.definition),
-    })
-  )
-}
-function captureSource(port: ReadPort, request: SourceRequest) {
-  const unavailable = (
-    reason: 'unsupported' | 'forbidden' | 'definition_changed' | 'basis_changed' | 'incompatible',
-  ) => ({ kind: 'unavailable' as const, reason })
-  const { source } = request
-  if (source.target.policyId !== 'independent') return unavailable('unsupported')
-  if (!isIndependentTargetInDomain(source.domain, source.target)) return unavailable('forbidden')
-  const record = readStandaloneSettingsRecord(port, stateKey(source.domain.scope, source.target))
-  if (!record || record.retired) return unavailable('forbidden')
-  if (!equal(record.projection.target, source.target))
-    throw new Error('Invalid source target binding')
-  const projection = projectStandaloneSettingsRecord(record)
-  if (!hasMatchingDefinition(projection)) return unavailable('definition_changed')
-  const value = readProjectedSettingsState(port, source.domain.scope, projection)
-  if ('kind' in value) return { kind: 'unavailable' as const, reason: value.reason }
-  return {
-    kind: 'captured' as const,
-    snapshot: { source, projection, state: value.view.state, presence: value.presence },
-  }
-}
 export default {
   participant: SOURCE_SNAPSHOT_PARTICIPANT,
   protocol: SOURCE_SNAPSHOT_PROTOCOL,
@@ -96,7 +41,7 @@ export default {
     try {
       const fact = sourceSnapshotFactSchema.parse({
         request: parsed.data,
-        observation: captureSource(port, parsed.data),
+        observation: captureSource(port, parsed.data.source),
       })
       if (!withinBudget(fact))
         return { kind: 'failed', diagnostic: 'settings_source_snapshot_limit' }

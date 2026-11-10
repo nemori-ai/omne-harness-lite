@@ -87,6 +87,8 @@ pnpm --filter @omne-harness/assets-local run test:fast
 
 [source-snapshot.spec.ts](source-snapshot.spec.ts) 使用真实快照生产者和保留参与者。只读观察使用无表写权限的消费夹具。它覆盖真实值和锁、精确目的绑定、重开，以及从落盘 pending 门恢复后的拒绝。pending 场景在关闭数据库后置入记录，不代表生产更新准入已实现。
 
+[source-observation.spec.ts](source-observation.spec.ts) 使用真实组织来源目标和准备后提交的写入。它检查不经保留的读取在写入前后读到当前值、读取之后写入照常提交、读取与保留得到同一份快照、不存在的目标与资产目标各自的不可用原因，以及存储无答复或答复畸形时答 unreadable。
+
 [source-invalidation.spec.ts](source-invalidation.spec.ts) 使用真实 Identity、命令服务、独立目标和来源保留。它检查 set、clear、lock、unlock、rebase、定义、来源布局、grants 和退役均受保护。无关目标仍能写入，查询和原回执仍可读取。缺少来源事实或使用其他目标的许可不能绕过写者。竞争场景要求保留快照与实际提交顺序一致。
 
 这些测试不替代组织来源准入、目的终态 resolver、完整 prepare/commit/recovery 的验收。

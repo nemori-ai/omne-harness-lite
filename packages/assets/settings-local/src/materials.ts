@@ -96,6 +96,7 @@ export function settingsSqlMaterials(): Pick<
       { ...MIGRATION, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
     ],
     readHandlers: [
+      ...snapshot.readHandlers,
       ...retention.readHandlers,
       {
         handler: HANDLER,

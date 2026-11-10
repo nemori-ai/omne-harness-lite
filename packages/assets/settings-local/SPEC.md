@@ -317,6 +317,17 @@ Public-service tests use the real Worker combinations. Separate tests connect ac
 The harness-server [prepared Settings composition](../../../apps/harness-server/docs/rows/settings-preparation.md) consumes the public preparation SPI. It derives initial and transaction-current material from the actual native owner, Governance and assignment projections. Its first implemented source scope is tenant-local. Organization sources, maintenance current for cross-definition rebase and the server consumer switch remain incomplete. This application evidence does not enlarge the package's independent acceptance claim.
 
 
+## Source observation read
+
+`readSettingsSource(storage, source)` reads one source in the domain of that source. It uses the read handler `settings.source-snapshot-read`. The handler calls the same capture function as the source-snapshot participant, so a read and a reservation give the same snapshot of the same state.
+
+The read makes no reservation. It writes nothing, and it does not keep the source stable. A caller that needs the value at a later time must read again. A caller that needs the source to stay unchanged must use a source reservation.
+
+The answer is a captured snapshot, or `unavailable` with the reason of the capture function, or `unreadable`. `unreadable` means that the storage gave no answer or a malformed answer. It is not an absent source and not an empty value.
+
+The handler reads st_targets and st_states and requires the migrations that create them. It does not authenticate a principal. The caller checks access before it uses the snapshot.
+
+
 ## Source reservation provider
 
 The preparation entry exports `createSettingsSourceReservations`. Its service is a trusted coordinator port, not an ordinary client command surface. Construction fixes the source domain, SQL registration, access adapter and destination capability. Each reserve call checks current access and requires the grant to match the source target, scope and destination principal.
