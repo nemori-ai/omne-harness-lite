@@ -1,7 +1,7 @@
 # docs区的agent入口
 
 本文件为在docs范围内阅读、设计、实施、集成、评审、运维或维护的agent提供信息分层、责任地图和按任务展开的判断指引，项目心智与通用边界继承根AGENTS。
-角色描述本次工作，不授予访问、修改或接受权限。完整角色路径由[README](README.md)维护，可从[角色查询](../tools/spec-tools/README.md#按角色读取上下文)取得首轮片段；任务上下文由[地图](context-map.md)维护；已有明确任务时直接进入下面的相关源，无需先通读两份索引。
+角色描述本次工作，不授予访问、修改或接受权限。完整角色路径由[README](README.md)维护，可从[角色查询](../tools/spec-tools/README.md#按角色读取上下文)取得首轮片段；产品、架构与领域的阅读路由由[地图](context-map.md)维护；已有明确任务时直接进入下面的相关源，无需先通读两份索引。
 
 ## 当前有效源与目标
 
@@ -20,7 +20,7 @@
 | 局部实现或修复 | 按[源码归属](workspace.md)找到成员局部约定、公开承诺和受影响检查，验证范围由[验证说明](verification.md)解释。已有承诺足够时无需展开全部产品与架构；出现新公开保证再走设计路径 |
 | 系统或领域设计 | 目标变化读[项目要求](requirements.md)，全系统关系读[架构](architecture/README.md)，责任划分读[领域](domains/README.md)。新增模块或类别再读[扩展指导](domains/extending-the-system.md)，不从现有包树决定应然分解 |
 | 产品分析或规则设计 | 有内部访问资格时读[产品入口](../.meta_harness/design/product/README.md)，概念与对象按需进入其拥有者。缺访问资格由负责人提供允许的约束投影，不从技术正文推定产品决定 |
-| 建卡、调度或交付流转 | 从[agent交付操作](engineering/agent-delivery.md)核对启用范围与本次授权，再定位实际卡和长期源。找到具名写者、必要条件及结果接受责任后停止；只读观察不构成派发或接受 |
+| 研发流程、发卡或交付流转 | 每条流程事实的拥有者见[流程事实在哪](engineering/README.md#流程事实在哪) |
 | 验证评审或项目交付 | 先据[验证说明](verification.md)区分覆盖、实际执行与接受；系统保证再读[架构符合性](architecture/assurance.md)，跨成员保证再读[组合责任](domains/verification.md)。接受仍归有资格的负责人，结构通过不证明行为符合 |
 | 文档、工具或技能维护 | 位置、粒度、迁移和消费者变化读[维护指南](maintenance.md)；技能采用、版本和宿主差异读[技能入口](engineering/skills.md)。具体流程按下一节展开 |
 
