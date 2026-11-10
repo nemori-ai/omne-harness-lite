@@ -215,7 +215,7 @@ describe('a read answered unavailable inside a node is a dependency wait too', (
           },
           lookup() {
             lookups += 1
-            return Promise.resolve(fail({ kind: 'denied', reason: 'action read-message-handoff' }))
+            return Promise.resolve(fail({ kind: 'denied', action: 'read-message-handoff' }))
           },
         },
       }),
