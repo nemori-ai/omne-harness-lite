@@ -5,7 +5,8 @@
 // a `tl_` table belongs to the Tool, or to the host when it binds a `host` ledger domain (every
 // ledger and due statement of the Tool storage binds `(tenant, kind, …)`); every other statement
 // (Agent, Session, Model, identity, provider receipts) is `other`. Each thread writes its counts to
-// `HISTORY_COST_TRACE_DIR` when a database closes and when it exits.
+// `HISTORY_COST_TRACE_DIR` when a database closes and when it exits; the main thread also when
+// `globalThis.historyCostFlush` is called.
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -16,6 +17,8 @@ export type Owner = 'tool' | 'host' | 'other'
 export type Group = {
   phase: number
   owner: Owner
+  /** The statement text, so a difference between two calls can be traced to its statement. */
+  sql: string
   statements: number
   rowsRead: number
   rowsWritten: number
@@ -63,10 +66,11 @@ if (directory !== undefined) {
     const sql = sqlOf.get(statement) ?? ''
     const current = phase === null ? -1 : Atomics.load(phase, 0)
     const owner = ownerOf(sql, params)
-    const name = `${String(current)}/${owner}`
+    const name = `${String(current)}/${owner}/${sql}`
     const group = groups.get(name) ?? {
       phase: current,
       owner,
+      sql,
       statements: 0,
       rowsRead: 0,
       rowsWritten: 0,
@@ -122,5 +126,6 @@ if (directory !== undefined) {
     close.call(this)
     flush()
   }
+  if (isMainThread) Reflect.set(globalThis, 'historyCostFlush', flush)
   process.on('exit', flush)
 }

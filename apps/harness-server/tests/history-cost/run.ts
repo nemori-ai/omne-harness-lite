@@ -10,9 +10,13 @@
 //
 // node --import ./tests/history-cost/sql-probe.ts tests/history-cost/run.ts <out> <kind> [measured]
 // Build `apps/cli` and the workspace first. Writes `<out>/samples.json`; the probe writes
-// `<out>/sql-trace/`. With `HISTORY_COST_TRACE_DIR` unset nothing is counted.
+// `<out>/sql-trace/`, and the run ends by judging them with `summarize.ts`: the exit code is
+// non-zero when the run or a Tool or host count fails. With `HISTORY_COST_TRACE_DIR` unset
+// nothing is counted or judged.
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 import { join, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import * as cordis from '../../src/cordis.ts'
@@ -239,5 +243,18 @@ try {
   if (shutdown.exitCode !== 0) outcome['ok'] = false
   writeFileSync(join(out, 'result.json'), `${JSON.stringify(outcome, null, 2)}\n`)
   console.log(JSON.stringify(outcome).slice(0, 2000))
-  process.exitCode = outcome['ok'] === true ? 0 : 1
+  const flush: unknown = Reflect.get(globalThis, 'historyCostFlush')
+  // A run without the probe has nothing to judge; a measured run is judged by `summarize.ts`.
+  const judged =
+    typeof flush === 'function' && outcome['ok'] === true
+      ? (flush(),
+        spawnSync(
+          process.execPath,
+          [fileURLToPath(new URL('summarize.ts', import.meta.url)), out],
+          {
+            stdio: 'inherit',
+          },
+        ).status)
+      : 0
+  process.exitCode = outcome['ok'] === true && judged === 0 ? 0 : 1
 }

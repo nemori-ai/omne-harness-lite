@@ -1,7 +1,6 @@
-// Summarizes one history-cost run: for every measured call, the Tool, host and other SQL counts of
-// its phase, and per history size the calls' wall-clock median and p95. The Tool and host slopes
-// are zero when every measured call after 200 settled calls ran the same counts as every measured
-// call after 20.
+// Summarizes and judges one history-cost run: for every measured call, the Tool, host and other
+// SQL counts of its phase; per history size, the min, median and max of each count and the calls'
+// wall-clock median and p95. Exits non-zero when a Tool or host count fails the rulings below.
 //
 // node tests/history-cost/summarize.ts <out>   (reads samples.json and sql-trace/, writes summary.json)
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -20,7 +19,7 @@ const groups = readdirSync(join(base, 'sql-trace'))
   .filter(name => name.endsWith('.json'))
   .flatMap(name => JSON.parse(readFileSync(join(base, 'sql-trace', name), 'utf8')) as Group[])
 
-type Cost = Omit<Group, 'phase' | 'owner'>
+type Cost = Omit<Group, 'phase' | 'owner' | 'sql'>
 const costOf = (phase: number, owner: Owner): Cost =>
   groups
     .filter(group => group.phase === phase && group.owner === owner)
@@ -56,13 +55,49 @@ const calls = measured.map(sample => ({
   host: costOf(sample.ordinal, 'host'),
   other: costOf(sample.ordinal, 'other'),
 }))
-const distinct = (owner: 'tool' | 'host', n: number) => [
-  ...new Set(
-    calls
-      .filter(call => byHistory(n).some(s => s.ordinal === call.ordinal))
-      .map(call => JSON.stringify(call[owner])),
-  ),
-]
+type Metric = keyof Cost
+const METRICS: readonly Metric[] = ['statements', 'rowsRead', 'rowsWritten', 'bytes']
+const OWNERS = ['tool', 'host'] as const
+
+/** Min, median and max of each metric of `owner` over the measured calls after `n` settled calls. */
+function spread(owner: Owner, n: number) {
+  const window = calls.filter(call => byHistory(n).some(sample => sample.ordinal === call.ordinal))
+  return Object.fromEntries(
+    METRICS.map(metric => {
+      const values = window.map(call => call[owner][metric])
+      return [
+        metric,
+        { min: Math.min(...values), median: quantile(values, 0.5), max: Math.max(...values) },
+      ]
+    }),
+  ) as Record<Metric, { min: number; median: number; max: number }>
+}
+
+// The owner's rulings (plan disposition 38): the minimum is the call that met no driver retry, so
+// the minima at the two sizes must be equal metric by metric; and the median after the larger
+// history must stay within the range seen after the smaller one.
+const [small, large] = histories
+if (small === undefined || large === undefined) throw new Error('a run measures two histories')
+const verdicts = OWNERS.flatMap(owner => {
+  const before = spread(owner, small)
+  const after = spread(owner, large)
+  return METRICS.flatMap(metric => [
+    {
+      owner,
+      metric,
+      rule: 'minimum equal',
+      holds: before[metric].min === after[metric].min,
+      values: [before[metric].min, after[metric].min],
+    },
+    {
+      owner,
+      metric,
+      rule: `median at ${String(large)} <= maximum at ${String(small)}`,
+      holds: after[metric].median <= before[metric].max,
+      values: [after[metric].median, before[metric].max],
+    },
+  ])
+})
 const summary = {
   histories: Object.fromEntries(
     histories.map(n => {
@@ -73,13 +108,23 @@ const summary = {
           calls: elapsed.length,
           medianMs: Math.round(quantile(elapsed, 0.5)),
           p95Ms: Math.round(quantile(elapsed, 0.95)),
-          tool: distinct('tool', n).map(text => JSON.parse(text) as Cost),
-          host: distinct('host', n).map(text => JSON.parse(text) as Cost),
+          tool: spread('tool', n),
+          host: spread('host', n),
+          other: spread('other', n),
         },
       ]
     }),
   ),
+  verdicts,
   calls,
 }
 writeFileSync(join(base, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`)
-console.log(JSON.stringify(summary.histories, null, 2))
+for (const verdict of verdicts)
+  console.log(
+    `${verdict.holds ? 'PASS' : 'FAIL'} ${verdict.owner} ${verdict.metric} ${verdict.rule}: ${verdict.values.join(' vs ')}`,
+  )
+for (const [n, window] of Object.entries(summary.histories))
+  console.log(
+    `after ${n}: ${String(window.calls)} calls, median ${String(window.medianMs)} ms, p95 ${String(window.p95Ms)} ms`,
+  )
+process.exitCode = verdicts.every(verdict => verdict.holds) ? 0 : 1
