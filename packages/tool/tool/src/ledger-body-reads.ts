@@ -31,15 +31,25 @@ import { resultRecord } from './ledger-reads.ts'
 
 export type BodyReadInput<P> = Parameters<ToolBodyReader<P>['read']>[0]
 type Projection = 'text-utf8-v1' | 'body-bytes-v1'
+type BodyStore = NonNullable<ToolLedgerPorts<unknown>['bodies']>['store']
 
 /** Where a page starts: the chunk, the offset inside it, and the position in the whole body. */
 type Position = Readonly<{ seq: number; offset: number; position: number }>
 
 const CHUNKS_PER_READ = 16
+const START: Position = { seq: 0, offset: 0, position: 0 }
 const expired = (): Outcome<never, ToolFailure> =>
   fail({ kind: 'not-found', target: 'body', reason: 'expired' })
 const unavailable = (diagnostic: string): Outcome<never, ToolFailure> =>
   fail({ kind: 'unavailable', dependency: 'body-reader', diagnostic })
+const notCursor = (reason: 'not-a-body-cursor' | 'another-body-or-invalid-position') =>
+  fail({ kind: 'invalid-cursor' as const, reason })
+
+const isCursorText = (after: unknown): after is string | null =>
+  after === null ||
+  (typeof after === 'string' && after.length > 0 && after.length <= TOOL_REFERENCE_MAX_LENGTH)
+const isByteBudget = (maxBytes: unknown): maxBytes is number =>
+  typeof maxBytes === 'number' && Number.isSafeInteger(maxBytes) && maxBytes > 0
 
 export function fixBodyRead<P>(input: unknown): Outcome<BodyReadInput<P>, ToolFailure> {
   const fixed = fixResultInput<P>(input, 'read-content')
@@ -49,13 +59,8 @@ export function fixBodyRead<P>(input: unknown): Outcome<BodyReadInput<P>, ToolFa
   if ('failure' in body) return invalid('bodyId', body.failure.reason)
   const after: unknown = Reflect.get(input, 'after')
   const maxBytes: unknown = Reflect.get(input, 'maxBytes')
-  if (
-    after !== null &&
-    (typeof after !== 'string' || after.length === 0 || after.length > TOOL_REFERENCE_MAX_LENGTH)
-  )
-    return invalid('after', 'type-or-size')
-  if (typeof maxBytes !== 'number' || !Number.isSafeInteger(maxBytes) || maxBytes <= 0)
-    return invalid('maxBytes', 'range')
+  if (!isCursorText(after)) return invalid('after', 'type-or-size')
+  if (!isByteBudget(maxBytes)) return invalid('maxBytes', 'range')
   return succeed({ ...fixed.ok, bodyId: body.ok, after, maxBytes })
 }
 
@@ -92,39 +97,37 @@ function encodeCursor<P>(input: BodyReadInput<P>, projection: Projection, at: Po
   return JSON.stringify({ version: 2, ...at, scope: cursorScope(input, projection, at) })
 }
 
+/** The five fields of a version 2 cursor, with a position strictly inside the body. */
+function cursorPosition(cursor: object, total: number): Position | null {
+  const seq: unknown = Reflect.get(cursor, 'seq')
+  const offset: unknown = Reflect.get(cursor, 'offset')
+  const position: unknown = Reflect.get(cursor, 'position')
+  const integers = [seq, offset, position].every(
+    field => typeof field === 'number' && Number.isSafeInteger(field),
+  )
+  if (Reflect.get(cursor, 'version') !== 2 || !integers) return null
+  const at = { seq, offset, position } as Position
+  return at.position > 0 && at.position < total ? at : null
+}
+
 function decodeCursor<P>(
   input: BodyReadInput<P>,
   projection: Projection,
   total: number,
 ): Outcome<Position, ToolFailure> {
-  if (input.after === null) return succeed({ seq: 0, offset: 0, position: 0 })
+  if (input.after === null) return succeed(START)
   let cursor: unknown
   try {
     cursor = JSON.parse(input.after)
   } catch {
-    return fail({ kind: 'invalid-cursor', reason: 'not-a-body-cursor' })
+    return notCursor('not-a-body-cursor')
   }
   if (typeof cursor !== 'object' || cursor === null || Object.keys(cursor).length !== 5)
-    return fail({ kind: 'invalid-cursor', reason: 'not-a-body-cursor' })
-  const seq: unknown = Reflect.get(cursor, 'seq')
-  const offset: unknown = Reflect.get(cursor, 'offset')
-  const position: unknown = Reflect.get(cursor, 'position')
-  if (
-    Reflect.get(cursor, 'version') !== 2 ||
-    typeof seq !== 'number' ||
-    typeof offset !== 'number' ||
-    typeof position !== 'number' ||
-    !Number.isSafeInteger(seq) ||
-    !Number.isSafeInteger(offset) ||
-    !Number.isSafeInteger(position) ||
-    position <= 0 ||
-    position >= total
-  )
-    return fail({ kind: 'invalid-cursor', reason: 'another-body-or-invalid-position' })
-  const at = { seq, offset, position }
-  return Reflect.get(cursor, 'scope') === cursorScope(input, projection, at)
+    return notCursor('not-a-body-cursor')
+  const at = cursorPosition(cursor, total)
+  return at !== null && Reflect.get(cursor, 'scope') === cursorScope(input, projection, at)
     ? succeed(at)
-    : fail({ kind: 'invalid-cursor', reason: 'another-body-or-invalid-position' })
+    : notCursor('another-body-or-invalid-position')
 }
 
 /** Where a run of page bytes came from, and whether it reached the end of its chunk. */
@@ -138,50 +141,70 @@ type Range =
     }>
   | Readonly<{ kind: 'absent' }>
 
+/** The bytes taken so far from the store, chunk by chunk, with where each byte came from. */
+class Taken {
+  readonly parts: Buffer[] = []
+  readonly segments: Segment[] = []
+  readonly budget: number
+  seq: number
+  offset: number
+  length = 0
+  constructor(at: Position, budget: number) {
+    this.budget = budget
+    this.seq = at.seq
+    this.offset = at.offset
+  }
+  get full(): boolean {
+    return this.length >= this.budget
+  }
+  /** Takes what the budget allows from one chunk; answers whether the chunk was read to its end. */
+  take(chunk: Uint8Array): boolean {
+    const slice = Buffer.from(
+      chunk.subarray(this.offset, this.offset + (this.budget - this.length)),
+    )
+    if (slice.length > 0) {
+      this.parts.push(slice)
+      this.segments.push({
+        seq: this.seq,
+        offset: this.offset,
+        length: slice.length,
+        chunkEnd: this.offset + slice.length === chunk.length,
+      })
+      this.length += slice.length
+    }
+    if (this.offset + slice.length < chunk.length) return false
+    this.seq += 1
+    this.offset = 0
+    return true
+  }
+  range(manifest: ToolBodyManifest): Range {
+    return { kind: 'bytes', bytes: Buffer.concat(this.parts), segments: this.segments, manifest }
+  }
+}
+
 /** Model `ReadStore`: up to `budget` bytes from `at`, chunk by chunk, with where each byte came from. */
 async function readRange(
-  store: NonNullable<ToolLedgerPorts<unknown>['bodies']>['store'],
+  store: BodyStore,
   ref: ToolBodyRef,
   at: Position,
   budget: number,
 ): Promise<Outcome<Range, ToolFailure>> {
-  const parts: Buffer[] = []
-  const segments: Segment[] = []
+  const taken = new Taken(at, budget)
   let manifest: ToolBodyManifest | null = null
-  let seq = at.seq
-  let offset = at.offset
-  let taken = 0
-  for (;;) {
-    if (manifest !== null && (seq >= manifest.chunks || taken >= budget)) break
-    const answer = await store.read(ref, { first: seq, count: CHUNKS_PER_READ })
+  while (manifest === null || (taken.seq < manifest.chunks && !taken.full)) {
+    const answer = await store.read(ref, { first: taken.seq, count: CHUNKS_PER_READ })
     if (answer.kind === 'unavailable') return unavailable(answer.diagnostic)
     if (answer.kind === 'absent') return succeed({ kind: 'absent' })
     manifest = answer.manifest
-    if (seq >= manifest.chunks) break
+    if (taken.seq >= manifest.chunks) break
     if (answer.chunks.length === 0) return unavailable('sealed body is missing a chunk')
     for (const chunk of answer.chunks) {
-      if (chunk.seq !== seq) return unavailable('sealed body is missing a chunk')
-      const slice = Buffer.from(chunk.bytes.subarray(offset, offset + (budget - taken)))
-      if (slice.length > 0) {
-        parts.push(slice)
-        segments.push({
-          seq,
-          offset,
-          length: slice.length,
-          chunkEnd: offset + slice.length === chunk.bytes.length,
-        })
-        taken += slice.length
-      }
-      if (offset + slice.length < chunk.bytes.length) {
-        return succeed({ kind: 'bytes', bytes: Buffer.concat(parts), segments, manifest })
-      }
-      seq += 1
-      offset = 0
-      if (taken >= budget) break
+      if (chunk.seq !== taken.seq) return unavailable('sealed body is missing a chunk')
+      if (!taken.take(chunk.bytes)) return succeed(taken.range(manifest))
+      if (taken.full) break
     }
   }
-  if (manifest === null) return unavailable('sealed body has no manifest')
-  return succeed({ kind: 'bytes', bytes: Buffer.concat(parts), segments, manifest })
+  return succeed(taken.range(manifest))
 }
 
 /** The position after `consumed` bytes of the range. */
@@ -219,6 +242,25 @@ function characterPrefix(bytes: Buffer): number {
   return end
 }
 
+/** The store's manifest must be the one the ledger sealed, and the body the size the result says. */
+function manifestMatches(entry: BodyEntryRecord, stored: ToolBodyManifest, total: number): boolean {
+  const manifest = sealedManifest(entry)
+  return (
+    manifest !== null &&
+    manifest.digest === stored.digest &&
+    manifest.bytes === stored.bytes &&
+    manifest.bytes === total
+  )
+}
+
+function decodeUtf8(bytes: Uint8Array): Outcome<string, ToolFailure> {
+  try {
+    return succeed(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes))
+  } catch {
+    return unavailable('sealed body is not valid UTF-8')
+  }
+}
+
 export function createLedgerBodyReads<P>(
   ports: Readonly<{
     bodies: ToolLedgerPorts<P>['bodies'] | undefined
@@ -238,6 +280,25 @@ export function createLedgerBodyReads<P>(
     segments: readonly Segment[]
     total: number
   }>
+
+  /**
+   * Model `ReadRefuse` on a miss: the entry re-read; reclaimed, orphaned or within ε of expiry is
+   * `expired`; a linked body clearly before its expiry without bytes is an integrity failure.
+   */
+  const missed = async (
+    input: BodyReadInput<P>,
+    body: ToolOffloadedBody,
+    now: ToolInstant,
+  ): Promise<Outcome<never, ToolFailure>> => {
+    const again = await ports.load(input)
+    if ('failure' in again) return again
+    const entry = again.ok.bodies.get(input.bodyId)
+    const gone =
+      entry === undefined || entry.state.kind === 'reclaimed' || entry.state.kind === 'orphaned'
+    return gone || Date.parse(body.retention.expiresAt) <= Date.parse(now) + skew
+      ? expired()
+      : unavailable('integrity: a linked body before its expiry has no bytes in the store')
+  }
 
   /** The ledger check, the store read, the re-check on a miss and the re-check after the bytes. */
   const readPage = async (
@@ -260,27 +321,8 @@ export function createLedgerBodyReads<P>(
     const budget = Math.min(input.maxBytes, ports.configuration.maxPageBytes)
     const range = await readRange(bodies.store, ref, at.ok, budget)
     if ('failure' in range) return range
-    if (range.ok.kind === 'absent') {
-      const again = await ports.load(input)
-      if ('failure' in again) return again
-      const entry = again.ok.bodies.get(input.bodyId)
-      const now = bodies.clock.now()
-      if (
-        entry === undefined ||
-        entry.state.kind === 'reclaimed' ||
-        entry.state.kind === 'orphaned' ||
-        Date.parse(located.ok.body.retention.expiresAt) <= Date.parse(now) + skew
-      )
-        return expired()
-      return unavailable('integrity: a linked body before its expiry has no bytes in the store')
-    }
-    const manifest = sealedManifest(located.ok.entry)
-    if (
-      manifest === null ||
-      manifest.digest !== range.ok.manifest.digest ||
-      manifest.bytes !== range.ok.manifest.bytes ||
-      manifest.bytes !== total
-    )
+    if (range.ok.kind === 'absent') return missed(input, located.ok.body, bodies.clock.now())
+    if (!manifestMatches(located.ok.entry, range.ok.manifest, total))
       return unavailable('integrity: the stored manifest differs from the ledger entry')
     if (!beforeExpiry(bodies.clock.now(), located.ok.body)) return expired()
     const current = await ports.authorize(input)
@@ -301,9 +343,18 @@ export function createLedgerBodyReads<P>(
       : encodeCursor(input, projection, advance(page.at, page.segments, consumed))
   }
 
+  /** The fields every body page carries. */
+  const pageFields = (input: BodyReadInput<P>, page: Page, consumed: number) => ({
+    result: input.result,
+    bodyId: input.bodyId,
+    bodyBytes: page.located.body.bodyBytes,
+    expiresAt: page.located.body.retention.expiresAt,
+    position: String(page.at.position),
+    next: next(input, 'text-utf8-v1', page, consumed),
+  })
+
   const textPage = (input: BodyReadInput<P>, page: Page): Outcome<ToolBodyPage, ToolFailure> => {
-    const { body } = page.located
-    const representation = body.representation
+    const representation = page.located.body.representation
     if (representation.kind !== 'text' && representation.kind !== 'json-document')
       return invalid('body', 'text or JSON document body required')
     const first = page.bytes[0]
@@ -312,23 +363,9 @@ export function createLedgerBodyReads<P>(
     const atEnd = page.at.position + page.bytes.length >= page.total
     const consumed = atEnd ? page.bytes.length : characterPrefix(page.bytes)
     if (consumed === 0 && page.total > 0) return invalid('maxBytes', 'first-character-does-not-fit')
-    let text: string
-    try {
-      text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
-        page.bytes.subarray(0, consumed),
-      )
-    } catch {
-      return unavailable('sealed body is not valid UTF-8')
-    }
-    const common = {
-      result: input.result,
-      bodyId: input.bodyId,
-      bodyBytes: body.bodyBytes,
-      expiresAt: body.retention.expiresAt,
-      position: String(page.at.position),
-      next: next(input, 'text-utf8-v1', page, consumed),
-      text,
-    }
+    const text = decodeUtf8(page.bytes.subarray(0, consumed))
+    if ('failure' in text) return text
+    const common = { ...pageFields(input, page, consumed), text: text.ok }
     return succeed(
       representation.kind === 'text'
         ? { ...common, kind: 'text', representation }
@@ -342,8 +379,7 @@ export function createLedgerBodyReads<P>(
   }
 
   const recordsPage = (input: BodyReadInput<P>, page: Page): Outcome<ToolBodyPage, ToolFailure> => {
-    const { body } = page.located
-    const representation = body.representation
+    const representation = page.located.body.representation
     if (representation.kind !== 'json-lines') return invalid('body', 'JSON Lines required')
     const atEnd = page.at.position + page.bytes.length >= page.total
     const consumed = page.bytes.lastIndexOf(10) + 1
@@ -369,15 +405,10 @@ export function createLedgerBodyReads<P>(
       offset = end + 1
     }
     return succeed({
+      ...pageFields(input, page, consumed),
       kind: 'json-lines',
       representation,
       records,
-      result: input.result,
-      bodyId: input.bodyId,
-      bodyBytes: body.bodyBytes,
-      expiresAt: body.retention.expiresAt,
-      position: String(page.at.position),
-      next: next(input, 'text-utf8-v1', page, consumed),
     })
   }
 

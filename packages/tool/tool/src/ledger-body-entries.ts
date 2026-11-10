@@ -223,28 +223,32 @@ export function settleBodyEntries(
   linked: LinkedBody | null,
   orphanDue: ToolInstant,
 ): Outcome<readonly LedgerWrite[], ToolFailure> {
-  const writes: LedgerWrite[] = []
-  if (linked !== null) {
-    const entry = snapshot.bodies.get(linked.bodyId)
-    const manifest = entry === undefined ? null : sealedManifest(entry)
-    if (entry === undefined || manifest === null || entry.state.kind !== 'sealed')
-      return invalid('original.source', 'body-not-sealed')
-    writes.push(
-      put({
-        kind: 'body-entry',
-        body: { ...entry, state: { kind: 'linked', result: linked.result, manifest } },
-      }),
-      { kind: 'schedule', key: bodyEntryKey(entry.bodyId), dueAt: linked.expiresAt },
-    )
-  }
-  for (const entry of snapshot.bodies.values()) {
-    if (entry.bodyId === linked?.bodyId) continue
-    if (entry.state.kind !== 'opened' && entry.state.kind !== 'sealed') continue
-    writes.push(put({ kind: 'body-entry', body: { ...entry, state: { kind: 'orphaned' } } }), {
-      kind: 'schedule',
-      key: bodyEntryKey(entry.bodyId),
-      dueAt: orphanDue,
-    })
-  }
-  return succeed(writes)
+  const link = linked === null ? succeed([]) : linkWrites(snapshot, linked)
+  if ('failure' in link) return link
+  const orphans = [...snapshot.bodies.values()]
+    .filter(entry => entry.bodyId !== linked?.bodyId)
+    .filter(entry => entry.state.kind === 'opened' || entry.state.kind === 'sealed')
+    .flatMap(entry => [
+      put({ kind: 'body-entry', body: { ...entry, state: { kind: 'orphaned' } } }),
+      { kind: 'schedule' as const, key: bodyEntryKey(entry.bodyId), dueAt: orphanDue },
+    ])
+  return succeed([...link.ok, ...orphans])
+}
+
+/** The referenced body, `sealed`, becomes `linked` to the result and is due at its expiry. */
+function linkWrites(
+  snapshot: BodyView,
+  linked: LinkedBody,
+): Outcome<readonly LedgerWrite[], ToolFailure> {
+  const entry = snapshot.bodies.get(linked.bodyId)
+  const manifest = entry === undefined ? null : sealedManifest(entry)
+  if (entry === undefined || manifest === null || entry.state.kind !== 'sealed')
+    return invalid('original.source', 'body-not-sealed')
+  return succeed([
+    put({
+      kind: 'body-entry',
+      body: { ...entry, state: { kind: 'linked', result: linked.result, manifest } },
+    }),
+    { kind: 'schedule', key: bodyEntryKey(entry.bodyId), dueAt: linked.expiresAt },
+  ])
 }
