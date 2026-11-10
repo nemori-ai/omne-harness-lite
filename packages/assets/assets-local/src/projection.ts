@@ -32,14 +32,13 @@ function settingsView(
 ) {
   const { holding, version, ownerRevision } = current
   if (version.declaration.kind === 'none') return 'undeclared' as const
-  if (holding.sourceLayout.kind !== 'bound') return null
   const { definition, definitionRef } = version.declaration
   const view = SettingsTargetProjectionSchema.parse({
     target,
     enabled: holding.enabled,
     definition,
     definitionRef,
-    sources: projectSettingsSources(holding.sourceLayout.sources, ownerRevision),
+    sources: projectSettingsSources(holding.sourceLayout, ownerRevision),
     grants: holding.grants,
     ownerRevision,
   })
@@ -139,7 +138,6 @@ function capturePublications(
     if (current === null || (binding.request.mode === 'runtime' && !current.holding.enabled))
       return fail('forbidden')
     const view = settingsView(current, target)
-    if (view === null) return fail('forbidden')
     if (view !== 'undeclared') settings.push(view.view)
     const { version, ownerRevision } = current
     views.push({

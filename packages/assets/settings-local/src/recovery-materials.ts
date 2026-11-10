@@ -10,15 +10,15 @@ import {
 import { TERMINAL_PARTICIPANT, TERMINAL_TABLE, TERMINAL_MIGRATION } from './terminal-schema.ts'
 import { PARTICIPANT } from './schema.ts'
 import { SOURCE_SNAPSHOT_FACT } from './source-retention-schema.ts'
-import { SETTINGS_INTENT_TABLES } from './intent-migration.ts'
-import { SETTINGS_STANDING_CUSTODY_TABLE } from './standing-custody-migration.ts'
-import { SETTINGS_SOURCE_CUSTODY_TABLES } from './source-custody-migration.ts'
+import {
+  SETTINGS_INTENT_TABLES,
+  SETTINGS_PREPARATION_MIGRATION,
+  SETTINGS_SOURCE_CUSTODY_TABLES,
+  SETTINGS_STANDING_CUSTODY_TABLE,
+} from './preparation-migration.ts'
 import { sourceReadinessMaterials } from './source-readiness-materials.ts'
 import { SOURCE_READINESS_FACT, SOURCE_READINESS_PARTICIPANT } from './source-readiness.ts'
 import { PREPARATION_READ } from './preparation-read-schema.ts'
-import { SETTINGS_PREPARING_MIGRATION } from './preparing-migration.ts'
-import { SETTINGS_STANDING_CUSTODY_MIGRATION } from './standing-custody-migration.ts'
-import { SETTINGS_SOURCE_CUSTODY_MIGRATION } from './source-custody-migration.ts'
 import { CHECKPOINT_COMMAND } from './checkpoint-schema.ts'
 import { COMMIT_CURRENT } from './commit-current.ts'
 function file(name: string) {
@@ -151,12 +151,7 @@ export function preparationReadHandler(): SqlMaterialCatalog['readHandlers'][num
       SETTINGS_STANDING_CUSTODY_TABLE,
       ...SETTINGS_SOURCE_CUSTODY_TABLES,
     ],
-    requiresMigrations: [
-      TERMINAL_MIGRATION,
-      SETTINGS_PREPARING_MIGRATION,
-      SETTINGS_STANDING_CUSTODY_MIGRATION,
-      SETTINGS_SOURCE_CUSTODY_MIGRATION,
-    ],
+    requiresMigrations: [TERMINAL_MIGRATION, SETTINGS_PREPARATION_MIGRATION],
     maxRowsRead: 67,
     maxOutputBytes: 2 * 1024 * 1024,
   }

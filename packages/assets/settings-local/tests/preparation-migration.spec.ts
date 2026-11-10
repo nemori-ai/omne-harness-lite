@@ -1,8 +1,7 @@
 import { DatabaseSync } from 'node:sqlite'
 import { expect, it } from 'vitest'
 import type { MigrationPort } from '@omne-harness/sql-contract/worker'
-import migration from '../src/intent-migration.ts'
-import preparingMigration from '../src/preparing-migration.ts'
+import migration from '../src/preparation-migration.ts'
 
 function open() {
   const db = new DatabaseSync(':memory:')
@@ -45,37 +44,22 @@ function open() {
   }
   function attempt(key: string, sequence: number, id: string) {
     db.prepare(`INSERT INTO st_governance_attempt
-      (operation_key, attempt, attempt_id, basis_digest, basis_json, sql_identity_json, state)
-      VALUES (?, ?, ?, ?, ?, ?, 'prepared')`).run(key, sequence, id, 'b'.repeat(64), '{}', '{}')
+      (operation_key, attempt, attempt_id, plan_json, basis_digest, basis_json, sql_identity_json, state)
+      VALUES (?, ?, ?, '{}', ?, ?, ?, 'prepared')`).run(
+      key,
+      sequence,
+      id,
+      'b'.repeat(64),
+      '{}',
+      '{}',
+    )
   }
   return { db, port, root, attempt }
 }
 
-it('refuses nonempty unpublished intent relations without guessing a preparation plan', () => {
-  const { db, port, root, attempt } = open()
-  try {
-    root('existing')
-    attempt('existing', 1, 'existing-attempt')
-    expect(() => preparingMigration.up(port)).toThrow(/requires empty unpublished intent relations/)
-    expect(db.prepare('SELECT attempt_id, state FROM st_governance_attempt').all()).toEqual([
-      { attempt_id: 'existing-attempt', state: 'prepared' },
-    ])
-    expect(
-      db
-        .prepare('PRAGMA table_info(st_governance_attempt)')
-        .all()
-        .map(row => row.name),
-    ).not.toContain('plan_json')
-  } finally {
-    db.close()
-  }
-})
-
 it('keeps preparing active without inventing a ready basis', () => {
-  const { db, port, root } = open()
+  const { db, root } = open()
   try {
-    preparingMigration.up(port)
-    expect(preparingMigration.verify(port)).toEqual({ kind: 'verified' })
     root('root')
     const insert = db.prepare(`INSERT INTO st_governance_attempt
       (operation_key, attempt, attempt_id, plan_json, basis_digest, basis_json, sql_identity_json, state)
@@ -208,7 +192,7 @@ it('uses indexed point lookups and keyset pending enumeration', () => {
     ).toMatch(/SEARCH .*attempt_id=\?/)
     expect(
       plan(
-        "SELECT attempt_id FROM st_governance_attempt WHERE operation_key = ? AND state IN ('prepared', 'submitted')",
+        "SELECT attempt_id FROM st_governance_attempt WHERE operation_key = ? AND state IN ('preparing', 'prepared', 'submitted')",
         ['root-000'],
       ),
     ).toContain('st_governance_one_live_attempt')

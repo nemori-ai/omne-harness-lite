@@ -118,7 +118,7 @@ function hold(
     state: 'held',
     enabled: true,
     selection: command.selection,
-    sourceLayout: { kind: 'bound', sources: command.sources },
+    sourceLayout: command.sources,
     grants: command.grants,
   })
   if (!selectedVersion(port, holding)) return rejected('invalid_selection')
@@ -140,7 +140,7 @@ function changedHolding(
     case 'updateSources':
       return {
         ...holding,
-        sourceLayout: { kind: 'bound', sources: change.sources },
+        sourceLayout: change.sources,
         grants: change.grants,
       }
     case 'updateGrants':

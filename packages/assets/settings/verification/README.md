@@ -92,14 +92,13 @@ PendingProgress以数据库最终可用、重启恢复与相应步骤弱公平�
 
 ## 来源身份与历史配值
 
-`SettingsSourceIdentity.tla` 对应 [本地来源绑定](../../settings-local/SPEC.md#source-identity-and-persisted-provenance)。它枚举两个来源的重排、同ID换拥有者、换作用域种类、换主体，以及未知历史、资格刷新、准备、写入和重整。稳定身份不含资格修订。模型将完整来源布局和值都纳入准备依据。
+`SettingsSourceIdentity.tla` 对应 [本地来源绑定](../../settings-local/SPEC.md#source-identity-and-persisted-provenance)。它枚举两个来源的重排、同ID换拥有者、换作用域种类、换主体，以及资格刷新、准备、写入和重整。稳定身份不含资格修订。模型将完整来源布局和值都纳入准备依据。
 
 | 性质 | 负控 |
 | --- | --- |
 | ReadUsesSameIdentity | read-by-id允许来源身份变化后读旧值 |
 | WriteUsesSameIdentity | write-by-id允许沿用旧绑定写值 |
 | RetainUsesSameIdentity | retain-by-id允许异源保留 |
-| UnknownIdentityIsNotAuthority | legacy-reuse把未知历史视作已知 |
 | CommitUsesCurrentBasis | ignore-authority与ignore-value-revision分别跳过一个依据轴 |
 | RebindingChangesRevision | no-revision-bump让绑定变化不推进修订 |
 

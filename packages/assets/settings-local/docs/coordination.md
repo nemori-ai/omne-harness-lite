@@ -86,12 +86,10 @@ attempt 封口必须在一次物理提交中先读取 terminal observation，再
 
 组织目的域固定为 system.settings 时，StandingBinding.scopeRef 仍保持真实主体的 tenantCodec 编码。组织适配器核验当前 organization-settings-manage 资格及目标所属组织。resolver 按持久绑定核对组织关系，不要求已撤权成员重新取得资格才允许封口。它是可信恢复能力，不能交给普通客户端。
 
-切换恢复格式前，旧提供者必须停止受理，并由原 resolver 排空仍由它负责的 held。未能证明终结时不得宣称切换完成。不得猜测旧裸 targetRef 的操作种类，不得把旧终态改写为新 attempt，也不得删除仍有责任的记录。已确认业务结果和配值的迁移需单独验证。当前阶段不因此引入长期双协议兼容路径。
-
 逻辑键的不同分量保证不同种类、主体、域和 attempt 不混同。该论证依赖规范编码、摘要抗碰撞、完整绑定核对和可信路由。既有来源保留模型固定了身份；它不能替代上述绑定精化义务。实现验收应分别制造去掉 kind、换 attempt、跨域、同名 catalog 目标、旧 resolver 清新门和 unknown 分配后继的反例，并用真实数据库观察效果。
 
 
-恢复引用的内部编解码现位于 recovery-reference.ts。它严格接受 settings-recovery/1 的 capture/attempt 形状，要求规范 JSON，并按 Identity 的16384 UTF-8字节上限拒绝超限输入。恢复键区分完整域、主体、种类及精确操作身份。准备服务的 attempt resolver 已使用新编码及终态命名空间；现行应用中的 capture 与旧写入路线仍待迁移。解码成功不证明资格或持久尝试存在。
+恢复引用的内部编解码现位于 recovery-reference.ts。它严格接受 settings-recovery/1 的 capture/attempt 形状，要求规范 JSON，并按 Identity 的16384 UTF-8字节上限拒绝超限输入。恢复键区分完整域、主体、种类及精确操作身份。准备服务的 attempt resolver 使用这套编码及终态命名空间。解码成功不证明资格或持久尝试存在。
 
 目标投影现携带 enabled。Assets 的禁用目标保留管理读取及配值管理能力，运行捕获拒绝该目标。独立 Settings 目标在现行提供者中投影 enabled=true；retire、声明撤除和运行采用仍由各自状态决定，不能以该字段替代。snapshot 和 catalog 保留字段，公共条目以 targetEnabled 展示，避免与同名配置项混淆。
 
@@ -196,7 +194,7 @@ ready的终态动作仅观察，不写committed；来源动作为none，不清�
 
 实际依赖链为 terminal-observation、recovery-plan、terminal、source-finalization、source-retention、persistence。观察者只读取终态表，计划者只读取持久根和尝试。该组合不要求当前治理、来源快照或再次取得资格。SqlStorage依据事实依赖排序，调用数组顺序不构成正确性前提。
 
-attempt终态仍由st_terminals承载，但新记录带attempt标签与完整绑定，键采用包含域、主体、种类和精确attempt ID的恢复身份。查询后再次核对完整绑定。当前模块只实现attempt恢复，不猜测capture或旧记录的含义。根终态和精确attempt终态不是同一个结果；恢复调用者必须使用精确attempt终态回应其外部保留，不能把后继已提交的根结果当成旧attempt提交成功。
+attempt终态仍由st_terminals承载，但新记录带attempt标签与完整绑定，键采用包含域、主体、种类和精确attempt ID的恢复身份。查询后再次核对完整绑定。当前模块只实现attempt恢复，不猜测capture记录的含义。根终态和精确attempt终态不是同一个结果；恢复调用者必须使用精确attempt终态回应其外部保留，不能把后继已提交的根结果当成旧attempt提交成功。
 
 内部取消请求携带受保护读回的当前attempt选择。没有活跃尝试时可以传null；若选择已过期，整个事务拒绝且不清门。协调器应重新读回同一根并重试取消，不能替换原业务操作。seal则始终绑定精确attempt，重复旧seal只认回原终态。
 

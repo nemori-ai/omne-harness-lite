@@ -30,17 +30,17 @@ Target records specify allowed source slots and actions. They do not authorize c
 
 The trusted standalone owner exposes `readTarget(target)` for conditional owner maintenance. The result is `found` with the public `SettingsTargetProjection` and retirement state, `not_found`, or a `SettingsFailure`. The factory fixes the SQL domain. A non-independent target or mismatched scope is forbidden. The handler performs one indexed lookup of the owner's target key and does not read assignments.
 
-A retired target remains observable as retired, not absent. An unavailable read, invalid stored data, or unmapped source layout does not become `not_found`. The result hides the stored source-layout representation. A returned owner revision is a snapshot, not a lock; a later mutation must still provide its expected revision. Close rejects new reads and drains accepted reads. This owner capability is not the authenticated product Settings query interface.
+A retired target remains observable as retired, not absent. An unavailable read or invalid stored data does not become `not_found`. The result hides the stored source-layout representation. A returned owner revision is a snapshot, not a lock; a later mutation must still provide its expected revision. Close rejects new reads and drains accepted reads. This owner capability is not the authenticated product Settings query interface.
 
 ## Current publication references
 
 The trusted standalone owner can associate a complete publisher, definition and version reference with a target through its existing provision command. A null reference leaves the target usable as ordinary Settings without claiming an original publication. Changing or clearing the reference uses the same owner revision check and transaction as the definition update. The reference is part of the original command identity's immutable content. It does not authorize execution or prove a publisher's statement.
 
-`settings.targets` owns the optional one-to-one `st_target_publication` relation. Its primary and foreign key is the complete stored target key. A named additive migration creates this relation without inferring references for existing targets. Target records, existing source reservation snapshots, values and original receipts retain their existing shape and contents. Retirement retains the association for custody but removes the target from current capture.
+The target record stores the reference as a nullable member. The provision command writes it together with the definition. Retirement retains the reference for custody but removes the target from current capture.
 
 Publication capture produces the existing Settings projection and a separate standalone publication fact from the same owner read in one transaction. Both retain the complete capture binding, target, definition reference and owner revision. The publication fact reports a null reference explicitly. The consumer must compare the complete original declaration with its trusted publisher, and separately verify current execution availability. It must not infer a publication from a matching Settings definition or promote the stored reference into permission.
 
-Capture remains bounded by 128 requested targets and the existing byte budget. Each publication association uses a target-key point lookup. A requested missing or retired standalone target is refused rather than omitted from a successful complete capture. Other owner policies remain the responsibility of their own projection providers.
+Capture remains bounded by 128 requested targets and the existing byte budget. A requested missing or retired standalone target is refused rather than omitted from a successful complete capture. Other owner policies remain the responsibility of their own projection providers.
 
 ## Coherent catalog capture
 
@@ -48,7 +48,7 @@ Capture remains bounded by 128 requested targets and the existing byte budget. E
 
 One tenant SQL transaction consumes the catalog capture receipt, obtains both owner projections, and reads Settings assignment state through `settings.snapshot`. Only each owner reads its own authority tables. The snapshot participant reads `st_states`, not Asset or Identity tables. Capture does not change assignment revisions or grant write rights. It does create an operation terminal and SQL receipt for coordination.
 
-`settings.catalog-terminal` alone owns `st_catalog_terminals`. This immutable capture receipt is separate from the prepared mutation attempts in `st_terminals`. `settingsCatalogMaterials` installs its additive migration. The operation key supports a primary-key lookup; the record retains the complete domain, principal, target, operation and digest binding. A different binding at the same key conflicts. Capture and prepared mutation materials may coexist in one provider without registering a second writer for either relation.
+`settings.catalog-terminal` alone owns `st_catalog_terminals`. This immutable capture receipt is separate from the prepared mutation attempts in `st_terminals`. `settingsCatalogMaterials` installs its migration. The operation key supports a primary-key lookup; the record retains the complete domain, principal, target, operation and digest binding. A different binding at the same key conflicts. Capture and prepared mutation materials may coexist in one provider without registering a second writer for either relation.
 
 The trusted `createSettingsCatalogDestination` resolves catalog reservations through that same capture writer. The assembly gives it a distinct destination route. Capture changes an absent receipt to committed in the snapshot transaction. Sealing an absent receipt records aborted; sealing an existing receipt recognizes its original outcome. A sealed receipt cannot be consumed later, and failed snapshot transactions leave no committed receipt. Reassembly uses the persisted receipts. Existing mutation destinations retain their own protocol and do not interpret catalog receipts.
 
@@ -130,19 +130,15 @@ Owner commands supply ordered stable source identities. A source identity includ
 
 The owner projects each source with its current persisted owner revision as `authorityRevision`. Provisioning commands cannot supply this revision. The revision describes the local owner's facts, not a proof of external Identity, Session or organization qualification. Those providers retain their own verification duties. Catalog entries preserve the complete descriptors so consumers do not reconstruct authority from names.
 
-Assignment records store the stable layout they adopted. A bound record must have the same ordered IDs as its assignment state. Current evaluation and ordinary writes require exact ordered equality of stable identities with the owner projection. Changing only the owner's authority revision does not change value ownership. Changing an owner, scope kind, subject or order requires an explicit rebase.
+Assignment records store the stable layout they adopted. A record must have the same ordered IDs as its assignment state. Current evaluation and ordinary writes require exact ordered equality of stable identities with the owner projection. Changing only the owner's authority revision does not change value ownership. Changing an owner, scope kind, subject or order requires an explicit rebase.
 
 Rebase may retain an assignment only when its complete stable source identity exists on both sides. Reordering can retain values after explicit rebase. A different owner or subject cannot inherit them under the same source ID. A binding change increments the assignment revision even if values are empty or unchanged. Revision exhaustion rejects that change. The adopted layout, state, result and change record commit together.
 
-Named source-layout migrations preserve historical records that lack identity evidence as `unmapped`. They preserve IDs, values, grants, retirement and original receipts. They do not infer identities. Each migration reads primary-key pages of at most 64 records and validates existing bound or unmapped records. Malformed explicit provenance fails migration or verification.
-
-An unmapped independent owner cannot emit a current projection. The trusted owner must supply a complete layout. Unmapped assignment provenance remains unavailable to current evaluation and ordinary writes even after this owner mapping. Explicit rebase must discard every old assignment before it binds to the new identities. An empty unmapped state also requires explicit rebase. Authorized raw storage inspection exposes the unmapped state for maintenance and does not declare its values current.
-
 ## Durable intent relations
 
-The persistence owner's material set installs `st_governance_intent` and `st_governance_attempt` through a separate migration. These relations prepare the storage boundary for the adopted preparation protocol. The current command provider does not yet write them or implement `SettingsPreparationPort`.
+The persistence owner's material set installs `st_governance_intent`, `st_governance_attempt` and the custody relations of an attempt through one migration, `settings-preparation-1`. The prepared service is their only writer.
 
-A root key binds its principal, complete target and business operation within the fixed storage domain. A second unique constraint protects those components independently of the key encoding. Each attempt belongs to one root. Attempt IDs are globally unique within that domain. A partial unique index permits at most one prepared or submitted attempt per root. Attempt numbers range from 1 to 64. A next-attempt value of 65 means allocation is exhausted, not that the root is cancelled.
+A root key binds its principal, complete target and business operation within the fixed storage domain. A second unique constraint protects those components independently of the key encoding. Each attempt belongs to one root. Attempt IDs are globally unique within that domain. A partial unique index permits at most one preparing, prepared or submitted attempt per root. Attempt numbers range from 1 to 64. A next-attempt value of 65 means allocation is exhausted, not that the root is cancelled.
 
 Root state constrains result and abort-reason columns. Pending recovery has a partial index ordered by root key. Exact attempt lookup uses its unique ID index. Foreign keys remain within `settings.persistence`. Read-only planners use declared read permissions; other owners consume explicit facts.
 
@@ -150,9 +146,7 @@ These constraints do not by themselves preserve command immutability or prevent 
 
 ### Preparing allocation
 
-`preparing-migration.ts` adds an explicit preparing phase and a stored comparison plan. Preparing has no ready basis. The live-attempt index includes preparing, prepared, and submitted. An aborted attempt can lack a basis when preparation never completed.
-
-The migration requires the unpublished intent relations to be empty. No previous production writer populated those relations. Unexpected records stop the upgrade before either relation changes. This check does not delete or reinterpret existing Settings values, changes, or operation receipts. The original migration remains unchanged.
+An attempt has an explicit preparing phase and a stored comparison plan. Preparing has no ready basis. The live-attempt index includes preparing, prepared, and submitted. An aborted attempt can lack a basis when preparation never completed.
 
 `intent-records.ts` provides the private persistence participant operations for allocating and reading an intent. The caller must run allocation inside an existing SqlStorage transaction after trusted admission. This module does not authenticate callers, acquire external holds, or authorize a business commit. It is not exported as a public backend.
 
@@ -270,7 +264,7 @@ The planner requires matching bindings and an absent terminal. It fixes the comp
 
 Missing custody returns pending. A changed basis returns rejection. Neither result changes the attempt to prepared. A sealed attempt conflicts. A later participant failure rolls back publication. Ready and seal share the same SQL domain ordering. If ready commits first, seal can subsequently abort that attempt. A prepared reference does not guarantee a future commit.
 
-Recovery combinations do not require current facts. The material catalog permits all phase planners, but each combination must select exactly one producer of the finalization plan. No new table or migration supports this transition. The Identity-qualified preparation provider supplies caller qualification and custody orchestration. Actual application current-fact and source composition remain incomplete.
+Recovery combinations do not require current facts. The material catalog permits all phase planners, but each combination must select exactly one producer of the finalization plan. The Identity-qualified preparation provider supplies caller qualification and custody orchestration. Actual application current-fact and source composition remain incomplete.
 
 ## Transaction-local value projection
 
@@ -337,7 +331,7 @@ The source snapshot and hold are written in one source transaction. Exact retrie
 
 A missing reservation can mean its reserve request was lost or remains in flight. After the exact destination confirms aborted, settlement records that original request as settled/aborted. A late reserve returns this terminal without creating a hold. The SQL writer checks absence within its transaction. It rejects committed settlement for an absent reservation, but can settle a hold established between the service read and destination response. No fresh caller qualification is needed to finish the original obligation.
 
-An aborted reservation created without a hold stores JSON null in the existing snapshot text column. Held and committed records require a valid snapshot. The decoder enforces this distinction. Existing rows, keys, indexes and installed migrations remain unchanged. These terminal records do not enter held scans or block source updates. Unknown write outcomes are read back by the full original request.
+An aborted reservation created without a hold has no snapshot; its snapshot column is null. Held and committed records require a valid snapshot. A table constraint and the decoder enforce this distinction. These terminal records do not enter held scans or block source updates. Unknown write outcomes are read back by the full original request.
 
 `control.recover` reads at most 100 held metadata rows through the recovery index. It omits snapshot payloads and limits each response to a bounded metadata prefix. The cursor identifies the last returned row. A short page can have a continuation, so callers continue until the cursor is null. Unavailable items keep their holds and are retried on a later scan from null. `pendingUpdates` independently enumerates pending source gates, including gates with zero holds. It does not execute an administrator's original change. Close rejects new calls and drains accepted calls without closing shared storage or discarding durable holds.
 

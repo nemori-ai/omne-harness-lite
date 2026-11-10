@@ -61,11 +61,9 @@ pnpm --filter @omne-harness/assets-local run test:fast
 修改公开 binding、参与者材料、生命周期或恢复行为时，同步对应测试、[SPEC](../SPEC.md)、[协调协议](../docs/coordination.md)与[架构图解](../docs/architecture.md)。
 
 
-## 来源身份与迁移
+## 来源身份
 
-[source-provenance.spec.ts](source-provenance.spec.ts)用真实独立目标、Identity和SQLite验证同ID换拥有者、换主体、换作用域、重排、空值重整和修订耗尽。它也检查当前资格修订进入公开目录，而稳定身份未变的值可继续读取。待映射历史夹具通过测试直接写入磁盘库，仅用于模拟具名迁移的产物，不代表旧二进制升级验收。
-
-[source-layout-migration.spec.ts](source-layout-migration.spec.ts)分别对目标与配值迁移验证64行键集分页、重复执行、关闭后重开、原回执保留，以及 malformed provenance拒绝。原始配值不因缺少身份而自动附着到新来源。准备依据守护的完整提供者仍需单独验证。
+[source-provenance.spec.ts](source-provenance.spec.ts)用真实独立目标、Identity和SQLite验证同ID换拥有者、换主体、换作用域、重排、空值重整和修订耗尽。它也检查当前资格修订进入公开目录，而稳定身份未变的值可继续读取。
 
 ## 准备尝试与Identity保管
 

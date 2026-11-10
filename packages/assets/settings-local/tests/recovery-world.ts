@@ -20,7 +20,7 @@ import {
   SETTINGS_CHECKPOINT_PARTICIPANTS,
 } from '../src/recovery-materials.ts'
 import { TERMINAL_MIGRATION } from '../src/terminal-schema.ts'
-import { SETTINGS_PREPARING_MIGRATION } from '../src/preparing-migration.ts'
+import { SETTINGS_PREPARATION_MIGRATION } from '../src/preparation-migration.ts'
 import { SOURCE_RETENTION_MIGRATION } from '../src/source-retention-schema.ts'
 import { RESULT_FACT } from '../src/schema.ts'
 import { PREPARATION_CURRENT, type FinalizationRequest } from '../src/finalization-schema.ts'
@@ -129,7 +129,7 @@ export async function openRecoveryWorld(
           'st_source_reservation',
         ],
         requiresMigrations: [
-          SETTINGS_PREPARING_MIGRATION,
+          SETTINGS_PREPARATION_MIGRATION,
           TERMINAL_MIGRATION,
           SOURCE_RETENTION_MIGRATION,
         ],

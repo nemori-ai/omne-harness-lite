@@ -3,15 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { settingsAssetsProjectionFact } from '@omne-harness/settings-local'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
-import {
-  HANDLER,
-  MIGRATION,
-  ENABLEMENT_MIGRATION,
-  SOURCE_LAYOUT_MIGRATION,
-  PARTICIPANT,
-  PROTOCOL,
-  TABLES,
-} from './schema.ts'
+import { HANDLER, MIGRATION, PARTICIPANT, PROTOCOL, TABLES } from './schema.ts'
 function file(name: string) {
   const extension = import.meta.url.endsWith('.ts') ? 'ts' : 'js'
   const url = new URL(`./${name}.${extension}`, import.meta.url)
@@ -26,8 +18,6 @@ export function assetsSqlMaterials(): Pick<
 > {
   const participant = file('participant'),
     migration = file('migration'),
-    enablement = file('enablement-migration'),
-    sources = file('source-layout-migration'),
     reader = file('read')
   return {
     participants: [
@@ -45,19 +35,7 @@ export function assetsSqlMaterials(): Pick<
       },
     ],
     migrations: [
-      {
-        ...SOURCE_LAYOUT_MIGRATION,
-        moduleUrl: sources.moduleUrl,
-        checksum: sources.digest,
-        requires: [ENABLEMENT_MIGRATION],
-      },
       { ...MIGRATION, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
-      {
-        ...ENABLEMENT_MIGRATION,
-        moduleUrl: enablement.moduleUrl,
-        checksum: enablement.digest,
-        requires: [MIGRATION],
-      },
     ],
     readHandlers: [
       {
@@ -67,7 +45,7 @@ export function assetsSqlMaterials(): Pick<
         codeDigest: reader.digest,
         ordering: 'snapshot',
         readTables: TABLES,
-        requiresMigrations: [MIGRATION, ENABLEMENT_MIGRATION, SOURCE_LAYOUT_MIGRATION],
+        requiresMigrations: [MIGRATION],
         maxRowsRead: 4,
         maxOutputBytes: 2 * 1024 * 1024,
       },

@@ -1,16 +1,12 @@
-import {
-  SETTINGS_SOURCE_CUSTODY_MIGRATION,
-  SETTINGS_SOURCE_CUSTODY_TABLES,
-} from './source-custody-migration.ts'
 import { sourceSnapshotMaterials } from './source-snapshot-materials.ts'
 import { sourceRetentionMaterials } from './source-retention-materials.ts'
 import { SOURCE_WRITE_FACT } from './source-write.ts'
-import { SETTINGS_INTENT_MIGRATION, SETTINGS_INTENT_TABLES } from './intent-migration.ts'
-import { SETTINGS_PREPARING_MIGRATION } from './preparing-migration.ts'
 import {
-  SETTINGS_STANDING_CUSTODY_MIGRATION,
+  SETTINGS_INTENT_TABLES,
+  SETTINGS_PREPARATION_MIGRATION,
+  SETTINGS_SOURCE_CUSTODY_TABLES,
   SETTINGS_STANDING_CUSTODY_TABLE,
-} from './standing-custody-migration.ts'
+} from './preparation-migration.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
@@ -22,15 +18,7 @@ import {
 } from './terminal-schema.ts'
 import { FINALIZATION_PLAN, FINALIZATION_TERMINAL } from './finalization-schema.ts'
 import { preparationReadHandler, settingsPhaseParticipants } from './recovery-materials.ts'
-import {
-  HANDLER,
-  MIGRATION,
-  SOURCE_LAYOUT_MIGRATION,
-  PARTICIPANT,
-  PROTOCOL,
-  RESULT_FACT,
-  TABLES,
-} from './schema.ts'
+import { HANDLER, MIGRATION, PARTICIPANT, PROTOCOL, RESULT_FACT, TABLES } from './schema.ts'
 
 function file(name: string) {
   const extension = import.meta.url.endsWith('.ts') ? 'ts' : 'js'
@@ -52,11 +40,7 @@ export function settingsSqlMaterials(): Pick<
   const retention = sourceRetentionMaterials()
   const participant = file('prepared-persistence')
   const migration = file('migration')
-  const intentMigration = file('intent-migration')
-  const preparingMigration = file('preparing-migration')
-  const standingCustody = file('standing-custody-migration')
-  const sourceCustody = file('source-custody-migration')
-  const sources = file('source-layout-migration')
+  const preparation = file('preparation-migration')
   const reader = file('read')
   const terminal = file('prepared-terminal-participant')
   const terminalMigration = file('terminal-migration')
@@ -96,29 +80,11 @@ export function settingsSqlMaterials(): Pick<
       ...settingsPhaseParticipants(),
     ],
     migrations: [
-      {
-        ...SETTINGS_SOURCE_CUSTODY_MIGRATION,
-        moduleUrl: sourceCustody.moduleUrl,
-        checksum: sourceCustody.digest,
-        requires: [SETTINGS_PREPARING_MIGRATION],
-      },
       ...retention.migrations,
       {
-        ...SETTINGS_STANDING_CUSTODY_MIGRATION,
-        moduleUrl: standingCustody.moduleUrl,
-        checksum: standingCustody.digest,
-        requires: [SETTINGS_PREPARING_MIGRATION],
-      },
-      {
-        ...SETTINGS_PREPARING_MIGRATION,
-        moduleUrl: preparingMigration.moduleUrl,
-        checksum: preparingMigration.digest,
-        requires: [SETTINGS_INTENT_MIGRATION],
-      },
-      {
-        ...SETTINGS_INTENT_MIGRATION,
-        moduleUrl: intentMigration.moduleUrl,
-        checksum: intentMigration.digest,
+        ...SETTINGS_PREPARATION_MIGRATION,
+        moduleUrl: preparation.moduleUrl,
+        checksum: preparation.digest,
         requires: [MIGRATION],
       },
       {
@@ -128,12 +94,6 @@ export function settingsSqlMaterials(): Pick<
         requires: [],
       },
       { ...MIGRATION, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
-      {
-        ...SOURCE_LAYOUT_MIGRATION,
-        moduleUrl: sources.moduleUrl,
-        checksum: sources.digest,
-        requires: [MIGRATION],
-      },
     ],
     readHandlers: [
       ...retention.readHandlers,
@@ -144,7 +104,7 @@ export function settingsSqlMaterials(): Pick<
         codeDigest: reader.digest,
         ordering: 'snapshot',
         readTables: TABLES,
-        requiresMigrations: [MIGRATION, SOURCE_LAYOUT_MIGRATION],
+        requiresMigrations: [MIGRATION],
         maxRowsRead: 102,
         maxOutputBytes: 2 * 1024 * 1024,
       },

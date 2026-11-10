@@ -1,9 +1,9 @@
 import type { ReadySettingsIntent } from '../src/intent-ready.ts'
 import type { IntentSettlement } from '../src/intent-settlement.ts'
 import {
-  SETTINGS_SOURCE_CUSTODY_MIGRATION,
+  SETTINGS_PREPARATION_MIGRATION,
   SETTINGS_SOURCE_CUSTODY_TABLES,
-} from '../src/source-custody-migration.ts'
+} from '../src/preparation-migration.ts'
 import type {
   SourceCustodyPlan,
   SourceCustodyMember,
@@ -22,8 +22,6 @@ import {
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { settingsSqlMaterials } from '../src/materials.ts'
-import { SETTINGS_PREPARING_MIGRATION } from '../src/preparing-migration.ts'
-import { SETTINGS_STANDING_CUSTODY_MIGRATION } from '../src/standing-custody-migration.ts'
 import type {
   StandingPlanInput,
   StandingReceiptInput,
@@ -118,11 +116,7 @@ export async function openIntentWorld(
           'st_intent_standing',
           ...SETTINGS_SOURCE_CUSTODY_TABLES,
         ],
-        requiresMigrations: [
-          SETTINGS_PREPARING_MIGRATION,
-          SETTINGS_STANDING_CUSTODY_MIGRATION,
-          SETTINGS_SOURCE_CUSTODY_MIGRATION,
-        ],
+        requiresMigrations: [SETTINGS_PREPARATION_MIGRATION],
         maxRowsRead: 67,
         maxOutputBytes: 2 * 1024 * 1024,
       },

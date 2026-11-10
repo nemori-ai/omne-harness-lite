@@ -1,4 +1,3 @@
-import { writePublication } from './standalone-publication-record.ts'
 import { isIndependentTargetInDomain } from './standalone-records.ts'
 import { sourceWriteIsOpen, sourceTargetWriteBinding } from './source-write.ts'
 import { readStandaloneSettingsRecord as row } from './standalone-records.ts'
@@ -86,10 +85,10 @@ function mutate(facts: Readonly<Record<string, unknown>>, port: ParticipantPort)
       retired: false,
       projection: {
         target,
-        enabled: true,
         definition,
         definitionRef,
-        sourceLayout: { kind: 'bound', sources: record.sources },
+        sourceLayout: record.sources,
+        publicationRef: record.publicationRef,
         grants: record.grants,
         ownerRevision: revision,
       },
@@ -99,7 +98,6 @@ function mutate(facts: Readonly<Record<string, unknown>>, port: ParticipantPort)
     'INSERT INTO st_targets (target_key, scope_ref, retired, record) VALUES (?, ?, ?, ?) ON CONFLICT(target_key) DO UPDATE SET retired=excluded.retired, record=excluded.record',
     [key, target.scopeRef, next.retired ? 1 : 0, canonical(next)],
   )
-  if (command.kind === 'provision') writePublication(port, key, command.record.publicationRef)
   return { kind: 'participated' as const, response: { kind: 'changed', revision } }
 }
 export default {

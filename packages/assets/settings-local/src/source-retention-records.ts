@@ -55,7 +55,7 @@ function ensureGate(port: ParticipantPort, source: SourceReference) {
 }
 const reservationRow = z.tuple([
   z.string(),
-  z.string(),
+  z.string().nullable(),
   z.enum(['held', 'settled']),
   z.enum(['committed', 'aborted']).nullable(),
 ])
@@ -63,12 +63,10 @@ function decodeReservation(row: readonly unknown[], key: string) {
   const [requestJson, snapshotJson, state, outcome] = reservationRow.parse(row)
   const request = sourceRequestSchema.parse(JSON.parse(requestJson))
   if (sourceReservationKey(request) !== key) throw new Error('Invalid source reservation binding')
-  const rawSnapshot: unknown = JSON.parse(snapshotJson)
-  const snapshot = rawSnapshot === null ? null : sourceSnapshotSchema.parse(rawSnapshot)
-  if (snapshot === null) {
-    if (state !== 'settled' || outcome !== 'aborted')
-      throw new Error('Only an aborted source reservation can lack a snapshot')
-  } else if (!equal(request.source, snapshot.source))
+  // A reservation that was aborted before it was held has no snapshot; the table checks that.
+  const snapshot =
+    snapshotJson === null ? null : sourceSnapshotSchema.parse(JSON.parse(snapshotJson))
+  if (snapshot !== null && !equal(request.source, snapshot.source))
     throw new Error('Invalid source reservation binding')
   if (state === 'held') {
     if (outcome !== null || snapshot === null) throw new Error('Invalid held source reservation')
@@ -140,7 +138,7 @@ function abortUnreservedSource(port: ParticipantPort, input: SourceSettlement) {
   port.execute(
     `INSERT INTO st_source_reservation
     (reservation_key, source_key, request_json, snapshot_json, state, outcome)
-    VALUES (?, ?, ?, 'null', 'settled', 'aborted')`,
+    VALUES (?, ?, ?, NULL, 'settled', 'aborted')`,
     [
       sourceReservationKey(input.request),
       sourceKey(input.request.source),

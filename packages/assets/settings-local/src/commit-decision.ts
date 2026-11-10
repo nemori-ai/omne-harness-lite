@@ -87,7 +87,7 @@ export function decidePreparedSettingsMutation(
       target: root.identity.operation.target,
       definitionRef: material.basis.definitionRef,
       state: decision.state,
-      sourceLayout: { kind: 'bound', sources: settingsSourceIdentities(material.basis.sources) },
+      sourceLayout: settingsSourceIdentities(material.basis.sources),
     },
   })
 }

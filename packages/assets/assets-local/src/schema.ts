@@ -8,7 +8,6 @@ import {
   SettingsSourceIdentitiesSchema,
 } from '@omne-harness/settings'
 import {
-  StoredSettingsSourceLayoutSchema,
   SettingsProjectionBindingSchema,
   SettingsTargetProjectionSchema,
 } from '@omne-harness/settings-local'
@@ -17,8 +16,6 @@ export const PARTICIPANT = 'assets.settings'
 export const PROTOCOL = 'assets-local/1'
 export const HANDLER = 'assets.read'
 export const MIGRATION = { owner: PARTICIPANT, id: 'assets-local-1' }
-export const SOURCE_LAYOUT_MIGRATION = { owner: PARTICIPANT, id: 'assets-source-layout-1' }
-export const ENABLEMENT_MIGRATION = { owner: PARTICIPANT, id: 'assets-enablement-1' }
 export const TABLES = ['al_domain', 'al_assets', 'al_versions', 'al_holdings']
 export const domainSchema = SettingsProjectionBindingSchema.shape.domain
 export const revisionSchema = z
@@ -76,16 +73,14 @@ export const holdingSchema = z
     state: z.enum(['held', 'removed']),
     enabled: z.boolean(),
     selection: selectionSchema,
-    sourceLayout: StoredSettingsSourceLayoutSchema,
+    sourceLayout: SettingsSourceIdentitiesSchema,
     grants: grantsSchema,
   })
-  .refine(holding => {
-    const ids =
-      holding.sourceLayout.kind === 'bound'
-        ? holding.sourceLayout.sources.map(source => source.sourceId)
-        : holding.sourceLayout.sourceIds
-    return holding.grants.every(grant => ids.includes(grant.sourceId))
-  })
+  .refine(holding =>
+    holding.grants.every(grant =>
+      holding.sourceLayout.some(source => source.sourceId === grant.sourceId),
+    ),
+  )
 export const publishMetadataSchema = z.strictObject({
   operationId: SettingsIdSchema,
   assetRef: SettingsReferenceSchema,

@@ -16,7 +16,7 @@ export default {
     const record = readStandaloneSettingsRecord(port, stateKey(domain.scope, target))
     if (record === null) return { kind: 'read', output: { kind: 'not_found' } }
     const projection = projectStandaloneSettingsRecord(record)
-    if (projection === null || !equal(projection.target, target))
+    if (!equal(projection.target, target))
       return { kind: 'read', output: { kind: 'rejected', reason: 'unavailable' } }
     return { kind: 'read', output: json({ kind: 'found', projection, retired: record.retired }) }
   },

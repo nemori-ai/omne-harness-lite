@@ -54,8 +54,6 @@ Disabling retains the holding, selected release, Settings values and original re
 
 The owner capability decides which holdings callers may manage. This provider does not infer official capabilities, organization policy or user authorization from an asset name. Runtime adoption and action admission must consume the current owner fact at their own boundary; a historical catalog result is not permission to execute.
 
-The new enablement migrations retain the old meaning that existing holdings were enabled. They add the explicit field without changing identities, revisions, selection or retirement. Migrations use primary-key pages of at most 64 rows. Existing explicit booleans are preserved. A malformed explicit field fails verification rather than becoming enabled. No compatibility default is applied when reading current records.
-
 For the local lifecycle, let H mean held and E mean enabled. Management visibility requires H. Runtime eligibility requires H and E. `setEnabled` preserves H and Settings values; remove makes H false irreversibly. Each mutation requires the current revision. Induction over these transitions preserves values across enablement changes and prevents reactivation after removal. SQL transaction ordering gives concurrent changes one order; this argument does not prove a later external action rechecks eligibility. The runtime integration owns that obligation.
 
 ## Results and lifetime
@@ -74,7 +72,3 @@ The SQL provider owns commit durability and receipts. Asset mutation, owner sequ
 ## Source provenance
 
 New holdings and `updateSources` require complete stable source identities. The holding stores this layout. Projection adds the selected owner revision as the current local authority revision. An owner command cannot choose that token. Changing the stable layout advances holding and owner revisions. The Settings participant separately checks the identity binding of stored values. Changing an owner or subject under the same source ID cannot transfer those values.
-
-The source-layout migration runs after enablement migration. It preserves legacy IDs as an explicit `unmapped` layout without guessing owners or scopes. It reads at most 64 holdings per primary-key page, preserves grants and removed holdings, and rejects malformed explicit provenance. An unmapped holding emits no current Settings projection. A trusted `updateSources` can establish its complete layout. Settings still requires explicit rebase of its own unmapped assignments. Removing a holding does not delete either owner's historical records.
-
-Historical operation lookup decodes the original `sourceIds` form of stored hold and source-update receipts. This private decoder preserves the original binding and result. It does not construct source identities or admit the old command shape. Current commands still require complete sources. Reusing a historical operation ID for a different current command returns `operation_conflict`. Malformed historical bindings remain `unknown`.

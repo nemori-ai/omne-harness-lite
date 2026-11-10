@@ -1,8 +1,7 @@
 import type { CommitResultV2, DomainRef, QueryResultV2 } from '@omne-harness/sql-contract'
 import type { AssetsOperationResult } from './types.ts'
 import { equal, identity } from './encoding.ts'
-import { PARTICIPANT, PROTOCOL, type Mutation } from './schema.ts'
-import { recordedReceiptSchema } from './recorded-receipt.ts'
+import { PARTICIPANT, PROTOCOL, receiptSchema, type Mutation } from './schema.ts'
 export function receiptResult(
   result: CommitResultV2 | QueryResultV2,
   domain: DomainRef,
@@ -65,7 +64,7 @@ function decodeReceipt(
       : reply?.kind === 'conflict'
         ? reply.basis
         : undefined
-  const parsed = recordedReceiptSchema.safeParse(raw)
+  const parsed = receiptSchema.safeParse(raw)
   if (
     !parsed.success ||
     !equal(parsed.data.binding.domain, domain) ||

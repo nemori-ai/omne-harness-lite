@@ -158,12 +158,6 @@
       "expected": "RetainUsesSameIdentity"
     },
     {
-      "name": "source-identity-legacy",
-      "model": "models/SettingsSourceIdentity.tla",
-      "config": "models/source-identity-legacy.cfg",
-      "expected": "UnknownIdentityIsNotAuthority"
-    },
-    {
       "name": "source-identity-authority",
       "model": "models/SettingsSourceIdentity.tla",
       "config": "models/source-identity-authority.cfg",

@@ -35,7 +35,7 @@ export function seedState(root: string, input: IntentAllocation, revision: numbe
         ? input.intent.command.definitionRef
         : input.intent.command.from,
     state: { revision, sources },
-    sourceLayout: { kind: 'bound', sources: settingsSourceIdentities(input.plan.sources) },
+    sourceLayout: settingsSourceIdentities(input.plan.sources),
   })
   try {
     sql

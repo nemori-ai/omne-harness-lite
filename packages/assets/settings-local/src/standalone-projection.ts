@@ -1,4 +1,3 @@
-import { readPublication } from './standalone-publication-record.ts'
 import {
   settingsStandalonePublicationFact,
   StandalonePublicationProjectionSchema,
@@ -45,14 +44,7 @@ function captureViews(
   const records = captureRecords(port, binding)
   if (!records) return fail('forbidden')
   if (records.length > 128) return fail('limit_exceeded')
-  const views = []
-  for (const record of records) {
-    const view = projection(record)
-    if (!view) return fail('unavailable')
-    if (binding.request.mode === 'runtime' && !view.enabled) return fail('forbidden')
-    views.push(view)
-  }
-  return { kind: 'views' as const, views }
+  return { kind: 'views' as const, records }
 }
 function capture(facts: Readonly<Record<string, unknown>>, port: ParticipantPort) {
   const binding = SettingsProjectionBindingSchema.parse(facts['binding'])
@@ -66,18 +58,18 @@ function capture(facts: Readonly<Record<string, unknown>>, port: ParticipantPort
     return fail('invalid_input')
   const captured = captureViews(port, binding)
   if (captured.kind !== 'views') return captured
-  const { views } = captured
+  const views = captured.records.map(projection)
   if (!withinBudget({ binding, views })) return fail('limit_exceeded')
   port.provideFact(settingsStandaloneProjectionFact, json({ binding, views }))
   if (facts['kind'] !== 'capturePublication')
     return { kind: 'participated' as const, response: null }
   const publications = StandalonePublicationProjectionSchema.parse({
     binding,
-    views: views.map(view => ({
-      target: view.target,
-      ownerRevision: view.ownerRevision,
-      definitionRef: view.definitionRef,
-      publicationRef: readPublication(port, stateKey(binding.domain.scope, view.target)),
+    views: captured.records.map(({ projection: stored }) => ({
+      target: stored.target,
+      ownerRevision: stored.ownerRevision,
+      definitionRef: stored.definitionRef,
+      publicationRef: stored.publicationRef,
     })),
   })
   if (!withinBudget(publications)) return fail('limit_exceeded')

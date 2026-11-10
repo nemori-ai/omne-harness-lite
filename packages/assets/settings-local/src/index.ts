@@ -1,4 +1,4 @@
-export { StoredSettingsSourceLayoutSchema, projectSettingsSources } from './source-layout.ts'
+export { projectSettingsSources } from './source-layout.ts'
 export { settingsSqlMaterials } from './materials.ts'
 export {
   RESULT_FACT as settingsSqlResultFact,

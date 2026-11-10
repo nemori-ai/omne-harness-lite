@@ -14,10 +14,13 @@ export function readStandaloneSettingsRecord(port: ReadPort, key: string) {
 export function projectStandaloneSettingsRecord(
   record: ReturnType<typeof StandaloneRecordSchema.parse>,
 ) {
-  const { sourceLayout, ...view } = record.projection
-  return sourceLayout.kind === 'bound'
-    ? { ...view, sources: projectSettingsSources(sourceLayout.sources, view.ownerRevision) }
-    : null
+  const { sourceLayout, publicationRef: _publicationRef, ...view } = record.projection
+  // An independent target has no disable command; its projection is always enabled.
+  return {
+    ...view,
+    enabled: true,
+    sources: projectSettingsSources(sourceLayout, view.ownerRevision),
+  }
 }
 
 export function isIndependentTargetInDomain(domain: DomainRef, target: SettingsTarget) {

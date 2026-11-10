@@ -25,12 +25,13 @@ export default {
       reservation_key TEXT NOT NULL PRIMARY KEY,
       source_key TEXT NOT NULL,
       request_json TEXT NOT NULL,
-      snapshot_json TEXT NOT NULL,
+      snapshot_json TEXT,
       state TEXT NOT NULL CHECK (state IN ('held', 'settled')),
       outcome TEXT CHECK (outcome IN ('committed', 'aborted')),
       FOREIGN KEY (source_key) REFERENCES st_source_gate(source_key),
       CHECK ((state = 'held' AND outcome IS NULL)
-        OR (state = 'settled' AND outcome IS NOT NULL))
+        OR (state = 'settled' AND outcome IS NOT NULL)),
+      CHECK (snapshot_json IS NOT NULL OR (state = 'settled' AND outcome = 'aborted'))
     ) WITHOUT ROWID, STRICT`,
       [],
     )

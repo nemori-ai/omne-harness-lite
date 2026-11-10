@@ -204,47 +204,6 @@ it('requires explicit rebase after reordering identities and retains only explic
   })
 })
 
-it.each([false, true])(
-  'requires explicit adoption for an unmapped historical state, populated=%s',
-  async populated => {
-    const w = await open()
-    expect(
-      await w.write(w.principal, {
-        ...w.change,
-        action: populated ? { kind: 'set', value: true } : { kind: 'clear' },
-      }),
-    ).toMatchObject({ kind: 'committed' })
-    alterStored(w, record => {
-      record.sourceLayout = { kind: 'unmapped', sourceIds: ['tenant'] }
-    })
-    expect(await w.service.queries.evaluate(w.principal, w.view)).toEqual({
-      kind: 'rejected',
-      reason: 'basis_changed',
-    })
-    const revision = populated ? 1 : 0
-    if (populated)
-      expect(
-        await w.rebase(
-          rebase(w, [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'retain' }], revision),
-        ),
-      ).toMatchObject({ kind: 'aborted', reason: 'incompatible' })
-    expect(
-      await w.rebase({
-        ...rebase(
-          w,
-          populated ? [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'discard' }] : [],
-          revision,
-        ),
-        operationId: 'adopt',
-      }),
-    ).toMatchObject({ kind: 'committed', revision: revision + 1, changed: true })
-    expect(await w.service.queries.evaluate(w.principal, w.view)).toMatchObject({
-      kind: 'complete',
-      entries: [{ resolution: { value: { value: false } } }],
-    })
-  },
-)
-
 it('rejects a provenance-only rebase at revision exhaustion without creating a receipt', async () => {
   const w = await open()
   expect(await w.write(w.principal, { ...w.change, action: { kind: 'clear' } })).toMatchObject({
@@ -267,40 +226,4 @@ it('rejects a provenance-only rebase at revision exhaustion without creating a r
     kind: 'rejected',
   })
   expect(w.world.counts()).toEqual([1, 1, 0])
-})
-
-it('requires both owner mapping and value rebase before unmapped historical targets become readable', async () => {
-  const w = await open()
-  expect(await w.write(w.principal, w.change)).toMatchObject({
-    kind: 'committed',
-  })
-  alterStored(w, record => {
-    record.sourceLayout = { kind: 'unmapped', sourceIds: ['tenant'] }
-  })
-  alterStored(
-    w,
-    record => {
-      const projection = record.projection
-      if (typeof projection !== 'object' || projection === null)
-        throw new Error('missing fixture projection')
-      record.projection = {
-        ...projection,
-        sourceLayout: { kind: 'unmapped', sourceIds: ['tenant'] },
-      }
-    },
-    'st_targets',
-  )
-  expect(await w.service.queries.evaluate(w.principal, w.view)).toMatchObject({ kind: 'rejected' })
-  await update(w, w.record.sources)
-  expect(await w.service.queries.evaluate(w.principal, w.view)).toEqual({
-    kind: 'rejected',
-    reason: 'basis_changed',
-  })
-  expect(
-    await w.rebase(rebase(w, [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'discard' }])),
-  ).toMatchObject({ kind: 'committed', revision: 2 })
-  expect(await w.service.queries.evaluate(w.principal, w.view)).toMatchObject({
-    kind: 'complete',
-    entries: [{ resolution: { value: { value: false } } }],
-  })
 })

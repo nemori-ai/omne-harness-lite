@@ -5,9 +5,8 @@ import {
   SettingsReferenceSchema,
   SettingsStateSchema,
   SettingsTargetSchema,
+  SettingsSourceIdentitiesSchema,
 } from '@omne-harness/settings'
-
-import { StoredSettingsSourceLayoutSchema } from './source-layout.ts'
 
 export const PARTICIPANT = 'settings.persistence'
 export const PROTOCOL = 'settings-sql/1'
@@ -15,7 +14,6 @@ export const HANDLER = 'settings.read'
 export const RESULT_FACT = { key: 'settings.result', protocol: PROTOCOL }
 export const TABLES = ['st_states', 'st_operations', 'st_changes']
 export const MIGRATION = { owner: PARTICIPANT, id: 'settings-1' }
-export const SOURCE_LAYOUT_MIGRATION = { owner: PARTICIPANT, id: 'settings-source-layout-1' }
 export const scopeSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('system') }),
   z.strictObject({ kind: z.literal('tenant'), tenant: SettingsReferenceSchema }),
@@ -73,15 +71,13 @@ export const stateRecordSchema = z
     target: SettingsTargetSchema,
     definitionRef: SettingsDefinitionRefSchema,
     state: SettingsStateSchema,
-    sourceLayout: StoredSettingsSourceLayoutSchema,
+    sourceLayout: SettingsSourceIdentitiesSchema,
   })
-  .refine(record => {
-    const ids =
-      record.sourceLayout.kind === 'bound'
-        ? record.sourceLayout.sources.map(source => source.sourceId)
-        : record.sourceLayout.sourceIds
-    return JSON.stringify(ids) === JSON.stringify(record.state.sources.map(source => source.id))
-  })
+  .refine(
+    record =>
+      JSON.stringify(record.sourceLayout.map(source => source.sourceId)) ===
+      JSON.stringify(record.state.sources.map(source => source.id)),
+  )
 export const changesSchema = z.strictObject({
   kind: z.literal('changes'),
   changes: z.array(

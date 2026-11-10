@@ -67,7 +67,6 @@ function captureSource(port: ReadPort, request: SourceRequest) {
   if (!equal(record.projection.target, source.target))
     throw new Error('Invalid source target binding')
   const projection = projectStandaloneSettingsRecord(record)
-  if (!projection) return unavailable('basis_changed')
   if (!hasMatchingDefinition(projection)) return unavailable('definition_changed')
   const value = readProjectedSettingsState(port, source.domain.scope, projection)
   if ('kind' in value) return { kind: 'unavailable' as const, reason: value.reason }

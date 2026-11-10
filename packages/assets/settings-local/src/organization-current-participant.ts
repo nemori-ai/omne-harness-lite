@@ -37,7 +37,6 @@ function current(port: ReadPort, request: Request) {
   const record = readStandaloneSettingsRecord(port, stateKey(source.domain.scope, source.target))
   if (!record || record.retired) return { kind: 'rejected' as const, reason: 'forbidden' as const }
   const projection = projectStandaloneSettingsRecord(record)
-  if (!projection) return { kind: 'rejected' as const, reason: 'basis_changed' as const }
   const value =
     request.commandKind === 'change'
       ? projectedRevision(port, source.domain.scope, projection)
@@ -51,7 +50,7 @@ function current(port: ReadPort, request: Request) {
 function projectedRevision(
   port: ReadPort,
   scope: Request['identity']['domain']['scope'],
-  projection: NonNullable<ReturnType<typeof projectStandaloneSettingsRecord>>,
+  projection: ReturnType<typeof projectStandaloneSettingsRecord>,
 ) {
   const value = readProjectedSettingsState(port, scope, projection)
   return 'kind' in value ? value : { revision: value.view.state.revision, presence: value.presence }

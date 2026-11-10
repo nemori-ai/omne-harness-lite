@@ -7,9 +7,6 @@ import { SOURCE_WRITE_FACT } from './source-write.ts'
 import { settingsStandaloneProjectionFact } from './projection.ts'
 import {
   STANDALONE_MIGRATION,
-  STANDALONE_PUBLICATION_MIGRATION,
-  STANDALONE_SOURCE_LAYOUT_MIGRATION,
-  STANDALONE_ENABLEMENT_MIGRATION,
   STANDALONE_PARTICIPANT,
   STANDALONE_PROJECTION,
   STANDALONE_PROTOCOL,
@@ -30,9 +27,7 @@ export function settingsStandaloneMaterials(): Pick<
     }
   }
   const participant = file('standalone-participant'),
-    migration = file('standalone-migration'),
-    enablement = file('standalone-enablement-migration'),
-    sources = file('standalone-source-layout-migration')
+    migration = file('standalone-migration')
   return {
     participants: [
       {
@@ -51,7 +46,7 @@ export function settingsStandaloneMaterials(): Pick<
         protocol: STANDALONE_PROTOCOL,
         ...file('standalone-projection'),
         ownedTables: [],
-        readTables: ['st_targets', 'st_target_publication'],
+        readTables: ['st_targets'],
         requiresFacts: [],
         providesFacts: [settingsStandaloneProjectionFact, settingsStandalonePublicationFact],
         allowedFunctions: [],
@@ -60,28 +55,10 @@ export function settingsStandaloneMaterials(): Pick<
     ],
     migrations: [
       {
-        ...STANDALONE_PUBLICATION_MIGRATION,
-        moduleUrl: file('standalone-publication-migration').moduleUrl,
-        checksum: file('standalone-publication-migration').codeDigest,
-        requires: [STANDALONE_SOURCE_LAYOUT_MIGRATION],
-      },
-      {
-        ...STANDALONE_SOURCE_LAYOUT_MIGRATION,
-        moduleUrl: sources.moduleUrl,
-        checksum: sources.codeDigest,
-        requires: [STANDALONE_ENABLEMENT_MIGRATION],
-      },
-      {
         ...STANDALONE_MIGRATION,
         moduleUrl: migration.moduleUrl,
         checksum: migration.codeDigest,
         requires: [],
-      },
-      {
-        ...STANDALONE_ENABLEMENT_MIGRATION,
-        moduleUrl: enablement.moduleUrl,
-        checksum: enablement.codeDigest,
-        requires: [STANDALONE_MIGRATION],
       },
     ],
     readHandlers: [
@@ -90,7 +67,7 @@ export function settingsStandaloneMaterials(): Pick<
         ...file('standalone-read'),
         ordering: 'snapshot',
         readTables: ['st_targets'],
-        requiresMigrations: [STANDALONE_SOURCE_LAYOUT_MIGRATION],
+        requiresMigrations: [STANDALONE_MIGRATION],
         maxRowsRead: 1,
         maxOutputBytes: 2 * 1024 * 1024,
       },
