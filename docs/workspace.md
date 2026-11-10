@@ -75,6 +75,7 @@ tools/repo-toolchain/                  TS 开发成员；检查器包，发布�
 tools/product-checks/                  TS 开发成员；本仓库的产品规则与 lint:rules，不发布
 tools/dev-flow/                        TS 开发成员；集成与交付命令、包模板，不发布
 tools/test-runner/                     TS 开发成员；影响面计划、成员测试与变异，不发布
+tools/pqw-adapter/                     TS 开发成员；收口读数适配 pqw 的结构读数、差分变异与风险级别，不发布
 tools/repo-config/                     配置成员；共享的 tsconfig、oxlint 与 dependency-cruiser 预设
 pyproject.toml                         Python 开发环境聚合，package = false
 uv.lock                                Python workspace 统一锁文件
@@ -115,14 +116,14 @@ Node 与 pnpm 的精确版本由根 `package.json` 的
 
 不把工具加入产品运行依赖；新增成员须符合叶子布局，**新增其他类别时显式更新 workspace 范围**。
 
-仓库工具链分为四个成员：
+仓库工具链分为五个成员：
 
 - `tools/repo-toolchain` 是检查器包 `@omne-harness/repo-toolchain`，发布到 npm。它只依赖 npm 包，不依赖其他工具成员。
-- `tools/product-checks`、`tools/dev-flow` 和 `tools/test-runner` 不发布。它们只经 `@omne-harness/repo-toolchain` 的子路径导入它，不互相导入。
-- 根目录和这三个成员都用 catalog 钉住的 npm 版本，不链接到工作区的 `tools/repo-toolchain`。版本与升级流程见[开发指南](development.md#仓库工具链的版本)。
+- `tools/product-checks`、`tools/dev-flow`、`tools/test-runner` 和 `tools/pqw-adapter` 不发布。它们只经 `@omne-harness/repo-toolchain` 的子路径导入它，不互相导入。
+- 根目录和这四个成员都用 catalog 钉住的 npm 版本，不链接到工作区的 `tools/repo-toolchain`。版本与升级流程见[开发指南](development.md#仓库工具链的版本)。
 - 工具链的仓库专用配置在仓库根的 `repo-toolchain.config.json`。
 
-这些方向由 dependency-cruiser 预设的 `toolchain-*` 规则检查，包内分层见 [repo-toolchain 的说明](../tools/repo-toolchain/README_ZH.md#包内分层)。改动这四个成员或这份配置的 PR 经仓库工具链变更闸门确认，见[现行准入](engineering/integration.md#现行准入)。
+这些方向由 dependency-cruiser 预设的 `toolchain-*` 规则检查，包内分层见 [repo-toolchain 的说明](../tools/repo-toolchain/README_ZH.md#包内分层)。改动这五个成员或这份配置的 PR 经仓库工具链变更闸门确认，见[现行准入](engineering/integration.md#现行准入)。
 
 uv 的 [workspace 文档](https://docs.astral.sh/uv/concepts/projects/workspaces/)说明成员、
 统一锁定与 `--package`；[配置文档](https://docs.astral.sh/uv/concepts/projects/config/#project-packaging)

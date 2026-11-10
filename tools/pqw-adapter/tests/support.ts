@@ -1,14 +1,14 @@
 // 用例共用的假仓库、假执行器与成员。
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
 import type { ReadingConfig } from '../src/config.ts'
 import type { ChangedMember } from '../src/members.ts'
 import type { Command, Executor, Outcome } from '../src/process.ts'
 import type { Repo } from '../src/repo.ts'
 
-export const scratch = (): string => mkdtempSync(`${tmpdir()}/pqw-adapter-test-`)
+export const scratch = (): string => realpathSync(mkdtempSync(join(tmpdir(), 'pqw-adapter-test-')))
 
 export const member = (path: string, test = true): WorkspaceMember => ({
   path,

@@ -11,6 +11,7 @@
 | [product-checks](product-checks/README.md) | 本仓库的产品规则（墙钟、`bail`、受限调用点、`./testing` 零 import 等）、仓库路径规则、验收覆盖声明与场景状态，`pnpm run lint:rules`；不发布 |
 | [dev-flow](dev-flow/README.md) | 开发流程工具：开工准入与 task context、任务绑定、Issue 与看板读取、包模板；不发布 |
 | [test-runner](test-runner/README.md) | 影响面计划、逐成员测试与验收、耗时账本、差分变异；不发布，turbo 接替后删除 |
+| [pqw-adapter](pqw-adapter/README.md) | 收口读数的适配层：按 omne 的成员、阈值与测试分层调 pqw 的结构读数与差分变异，按改动路径推出风险级别，`pnpm run closeout:metrics`、`closeout:mutation`、`risk`；不发布 |
 | [repo-config](repo-config/README.md) | 共享的 tsconfig、oxlint 与 dependency-cruiser 配置预设；根配置只用 `extends` 或 `require` 引用它 |
 | [storage-probe](storage-probe/README.md) | 存储事务设计的 Node 标准库 Worker 探针，不提供生产存储实现 |
 | [model-probe](model-probe/README.md) | OpenRouter 公开目录和受预算控制的模型适配探针；Node 标准库工具，显式付费入口，不提供产品 adapter |

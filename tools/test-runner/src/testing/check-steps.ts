@@ -107,7 +107,7 @@ export function preflightSteps(): CheckStep[] {
 /** 预检每一步失败时给人的修法，一句话；详情看那一步的日志。 */
 export const PREFLIGHT_FIXES: Readonly<Record<string, string>> = {
   'check:agents':
-    '投影与源不一致：先 git clean -fdX .meta_harness/.claude .meta_harness/.agents .meta_harness/.codex .meta_harness/.cursor，再按 .meta_harness/tooling/README.md 重新生成；不手改根目录的投影',
+    '投影与源不一致：按 .meta_harness/tooling/README.md 重新生成（多出的、退役的生成物一并删掉）；不手改根目录的投影',
   'check:docs': '按日志修链接、锚点与必要章节；规则见 docs/engineering/documentation.md',
   'check:design':
     '按日志修设计材料的结构与登记；需要 uv 锁文件一致（UV_DEFAULT_INDEX 指向镜像时先 unset）',
