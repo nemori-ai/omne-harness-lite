@@ -1,6 +1,6 @@
-import { fullSha, uuid } from '../delivery/identifiers.ts'
+import { fullSha, uuid } from './identifiers.ts'
 import { array, canonical, choice, fields, integer, literal, object, string } from './parse.ts'
-import { InputError } from '../delivery/protocol.ts'
+import { InputError } from '../shared/input.ts'
 
 export const RELEASE_WORKFLOW = '.github/workflows/gate-release.yml'
 export const RELEASE_REF = 'github-gate'

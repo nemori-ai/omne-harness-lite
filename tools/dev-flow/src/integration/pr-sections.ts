@@ -1,4 +1,6 @@
-import { contractChanges, type ContractChange } from '../delivery/attributes.ts'
+/** The contract change levels a「契约变化」line may declare. */
+export const contractChanges = ['none', 'additive', 'breaking'] as const
+export type ContractChange = (typeof contractChanges)[number]
 
 /**
  * The two sections of a PR into a track, from docs/engineering/integration.md「进轨道 PR 的说明」.

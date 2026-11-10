@@ -66,7 +66,7 @@ owner: PanQiWei
 | 采用条款范围 | 规范拥有者与目标源 | 写回定位状态 | 切换或解除依据及确认者 |
 | --- | --- | --- | --- |
 | 单卡单会话、卡即交接信息包 | [卡与交接信息包](../engineering/delivery.md)；`omne-card` 技能 | 已写回 | #1179 卡分支，随 #1179 合入 mainline 生效；PanQiWei |
-| attempt、binding、双基线、task-sync、轨道树退役 | [轨道与 gate](../engineering/integration.md)；`tools/dev-flow` | 待写回 | #1179 切片 10 删除 dev-flow 的交付部分时写回 |
+| attempt、binding、双基线、task-sync、轨道树退役 | [轨道与 gate](../engineering/integration.md)；`tools/dev-flow` | 已写回 | #1179 切片 10 删除 dev-flow 的交付部分时写回，随 #1179 合入 mainline 生效；PanQiWei |
 | 准入步骤调整与 `loop:status` 移位 | [测试与准入工具说明](../../tools/test-runner/README_ZH.md)；[整洁回路](../clean-loop.md) | 待写回 | #1179 切片 09 写回 |
 
 ## 后继关系与维护

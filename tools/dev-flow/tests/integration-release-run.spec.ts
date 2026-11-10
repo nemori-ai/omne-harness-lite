@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { releaseRun, type ReleaseRunOptions } from '../src/integration/release-run.ts'
 import { releaseRunMain } from '../src/integration/release-run-cli.ts'
 import { releaseInputs } from '../src/integration/release-run-protocol.ts'
-import type { GhCommand } from '../src/delivery/github-read.ts'
+import type { GhCommand } from '../src/shared/gh.ts'
 import { HEAD, TOOL, UUID, NEXT_UUID } from './fixtures/identifiers.ts'
 
 const roots: string[] = []

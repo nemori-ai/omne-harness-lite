@@ -1,8 +1,8 @@
 import { canonical, integer, object } from './parse.ts'
 import { confirmationNote } from './gate.ts'
-import { REST_HEADERS, type GhCommand } from '../delivery/github-read.ts'
-import { operationJournal } from '../delivery/operation-journal.ts'
-import { InputError } from '../delivery/protocol.ts'
+import { REST_HEADERS, type GhCommand } from '../shared/gh.ts'
+import { operationJournal } from './operation-journal.ts'
+import { InputError } from '../shared/input.ts'
 import {
   dispatchReceipt,
   parseReleaseRunInput,

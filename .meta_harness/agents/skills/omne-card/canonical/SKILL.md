@@ -11,25 +11,23 @@ description: 在本项目发卡、开工、进轨道、提升与接受时的步�
 
 ## 卡就是交接信息包
 
-设计段过了交接点，把 pqw 的交接信息包写成卡正文：用卡模板 `.github/ISSUE_TEMPLATE/card.md`，九节齐，`check-plan --handoff` 退出 0。卡正文就是交付会话的全部输入；会话里讨论过而没写进卡的，交付会话看不到。
+新卡一律按这个范式：一张卡由一个会话从卡给定的起点交付，经 gate 进入 `integration/mainline`。没有认卡、执行记录（attempt）、绑定、`start` 与看板阶段这些步骤。
 
-现行的 `dispatch-cli` 与 `start` 还按旧卡模板（`work-item.md`、`task.md`）读卡正文。在准入的写范围检查与绑定退役之前，卡正文仍用旧模板，交接信息包贴成卡上一条标题为「交接信息包」的评论。
+设计段过了交接点，把 pqw 的交接信息包写成卡正文：用卡模板 `.github/ISSUE_TEMPLATE/card.md`，九节齐，`check-plan --handoff` 退出 0。卡正文就是交付会话的全部输入；会话里讨论过而没写进卡的，交付会话看不到。起点提交写在卡的「起点与风险」一节。
 
 发卡时：
 
-1. 卡挂到父卡与交付 Project，打 `kind:` 与 `line:` 标签，设里程碑（现行 `start` 缺任一项就拒绝）。
+1. 卡挂到父卡下（有父卡时）。
 2. 只有人能定的事写进「只有人能定的待决」，交付会话开工时一次问齐。
+3. 设计段列消费者时跑 pqw 的 `consumers.mjs`，写范围按全部命中定，把这一步留在设计段。
 
 ## 开工
 
-现行工具要求先登记执行记录再开工。调度者（负责人，或他在卡上委派的会话）：
+交付会话照卡开工：
 
-1. `dispatch-cli post` 发派发评论，`dispatch-cli bind` 把绑定写进卡正文，先 `--dry-run`。参数与 spec 文件格式见 交付工具说明 `tools/dev-flow/src/delivery/README.md`「派发命令」。
-2. `worktree-cli prepare --issue <卡号> --tree .worktrees/<卡>` 建工作树，进去先 `git submodule update --init`（pqw 技能集是子模块，`prepare` 不初始化它，没有它投影会报错），再全量构建并生成投影；`start` 开工，`status` 读回。见 集成工具说明 `tools/dev-flow/src/integration/README.md`。
-3. `start` 核对派发评论的作者是 `publish` environment 的 reviewer。没有派发就不运行 `start`，也不手造 context。没有 context 的检出照样能跑本地检查，基线退回 `origin/main`。
-4. 写范围不够时扩写范围要重新登记、换树（`worktree-cli swap`）。设计段列消费者时跑 pqw 的 `consumers.mjs`，把这一步留在设计段。
-
-卡的当前 revision 与 attempt 和正文单写者拥有这张卡；Project 只是派生视图。
+1. 从卡给的起点建工作树：`git worktree add -b <git 用户名>/<分支名> .worktrees/<卡> <起点提交>`，然后 `cd` 进去。一个会话一棵工作树，写者一次一个。
+2. 进去先 `git submodule update --init`（pqw 技能集是子模块，没有它生成投影会报错），再按开发指南「准备可用的检出」装依赖，生成 agent 投影：`uv run --locked python .meta_harness/tooling/src/initialize_agents.py --project-root .`。
+3. 核对 cwd、分支与 HEAD 等于卡上的起点，再读卡正文与它链接的正式文档开工。
 
 ## 实施与收口
 
@@ -66,12 +64,12 @@ description: 在本项目发卡、开工、进轨道、提升与接受时的步�
 
 ### 产物位置
 
-日志与临时文件写进简报给出的任务过程目录（例如 `tmp/issue-<号>/logs/`）。不要写在工作树根或其他被跟踪的目录。原因：工作树里 Git 不忽略的未跟踪文件都会被 change-scope 计入改动，超出写范围时被拒绝。
+日志与临时文件写进简报给出的任务过程目录（例如 `tmp/issue-<号>/logs/`）。不要写在工作树根或其他被跟踪的目录。原因：工作树里 Git 不忽略的未跟踪文件会被当成改动，误入提交或让检查失败。
 
 ### 不改的文件与不用的命令
 
 - 不改任何 `acceptance/` 目录下的文件。验收锁只接受 `Agent-Role` 为 `main` 或 `qa` 的提交改它们（`repo-toolchain.config.json` 的 `acceptanceLock`）。写者的提交改了验收文件，准入会拒绝，修正要改写分支历史。需要改验收时，停下交回。
-- 删除、改名或搬迁一份正文之前，在工作树根运行 `git grep -n <旧路径或旧锚点>`，列出入向链接。入向链接所在的文件不在写范围内时，停下交回，并列出这些文件。否则 `check:docs` 报断链，或 change-scope 报越界。
+- 删除、改名或搬迁一份正文之前，在工作树根运行 `git grep -n <旧路径或旧锚点>`，列出入向链接。入向链接所在的文件不在写范围内时，停下交回，并列出这些文件。否则 `check:docs` 报断链，或改动越出写范围。
 - 不用 `git stash`。同一仓库的全部工作树共用一个 stash 栈，别的会话可能取走或覆盖你的改动。要临时保存改动，提交到自己的分支，或把 `git diff` 写进任务过程目录。
 
 ### 提交
@@ -102,9 +100,9 @@ description: 在本项目发卡、开工、进轨道、提升与接受时的步�
 
 ## 进轨道
 
-1. 同步轨道头分两步。先 `git fetch`，在工作分支上用普通的 `git merge` 合并 `origin/integration/mainline` 的提交 T，解决冲突并提交；轨道头有破坏性改动时先读它的 PR。再运行 task-sync，输入 `{"kind":"task-sync","target":"<T 的 40 位提交号>"}`，让 context 的 `targetBase` 前进到 T；运行前工作树须干净，未跟踪文件也算改动。命令拒绝时 context 不变，按错误信息处理，不手改 context。
+1. 同步轨道头：先 `git fetch`，在工作分支上用普通的 `git merge` 合并 `origin/integration/mainline`，解决冲突并提交；轨道头有破坏性改动时先读它的 PR。
 2. 先跑改动成员的合入检查（接入节那一格），再 `pnpm run preflight`，最后在最终 head 上 `pnpm run admission`。准入独占机器、不读缓存，不是第一道检测器；失败后用 `--resume-from` 接续。
-3. 推送个人工作分支，开 PR 进 `integration/mainline`，用 PR 模板 `.github/pull_request_template.md`，写「所含的卡」与「契约变化」两节。标题与正文按 `CONTRIBUTING.md` 写，标题用具体的 `type(scope)`。PR 标题和正文不加 `Generated with <agent>` 一类的工具署名页脚，宿主自动附加的也删掉。每次上下文压缩之后，重新对照 `CONTRIBUTING.md` 核对这些格式。
+3. 推送个人工作分支，开 PR 进 `integration/mainline`，用 PR 模板 `.github/pull_request_template.md`，写「所含的卡」（只列本卡）与「契约变化」两节。标题与正文按 `CONTRIBUTING.md` 写，标题用具体的 `type(scope)`。PR 标题和正文不加 `Generated with <agent>` 一类的工具署名页脚，宿主自动附加的也删掉。每次上下文压缩之后，重新对照 `CONTRIBUTING.md` 核对这些格式。
 4. gate：派发 `gh workflow run gate-publish.yml --ref github-gate -f pr=<号> -f head=<完整 head>`，参数见 `github-gate` 分支的 `gate/README.md`。
 5. 确认：只有 admin 能确认 `publish`。说明写明本地运行的检查及结果、已核对的卡上条件，按 UTF-8 字节不超过 1024。没有该 admin 对本次动作的授权时，停在等待确认，把运行链接交回。负责人在卡上授权代为确认时，说明中注明代为确认的人，后台运行下面的命令，等完成通知，不手工轮询 `pending_deployments`：
 
@@ -114,7 +112,6 @@ description: 在本项目发卡、开工、进轨道、提升与接受时的步�
 
    环境列表默认只写 `publish`。改动命中 `github-gate` 上 `gate/toolchain-paths.txt` 的工具链路径时，写 `repo-toolchain-review,publish`。参数、退出码与长度上限见集成工具说明「等待 gate 并代为确认」。
 6. 读回：运行成功，目标分支等于流程报告的结果，记录标签存在，PR 上有发布决定评论。
-7. 看板：`board-cli integrating`，合入后 `board-cli delivered`。
 
 既有授权能覆盖精确动作时沿用，不重复询问。发布真实 ref 或写平台仍须任务授权及工具核验的真实决定；本技能本身不授写权。
 
@@ -122,21 +119,19 @@ description: 在本项目发卡、开工、进轨道、提升与接受时的步�
 
 四条主干（`integration/<track>`、`main`、`stable`、`release`）只经 PR 与 `github-gate` 流程进入。本机的候选、验证、发布与采用命令已删除。派发、确认与读回同[进轨道](#进轨道)第 4 到 6 步，下面只写不同之处。
 
-### 提升与同步的 PR
+### 三类 PR
 
 | 动作 | base | head |
 |---|---|---|
-| 送入轨道 | `integration/<track>` | 个人工作分支 |
-| RI（向上提升） | 轨道的上游 | 轨道 |
-| FI（向下同步） | 轨道 | 它的上游 |
+| 送入轨道 | `integration/mainline` | 个人工作分支 |
+| 提升 | `main` | `integration/mainline` |
 | stable | `stable` | `main` |
 
-- 顶层轨道的上游是 main。其余轨道的上游按集成规则「轨道树与上游」判定。跨层或兄弟轨道之间的 PR 会被拒绝。
-- RI 的 PR 说明按 `gate/README.md`「提升 PR 的说明」列出所含的卡。RI 携带轨道的完整前缀，不手选卡或 cherry-pick。
+- 其他组合会被拒绝，包括个人分支进 main。
+- 提升 PR 的「所含的卡」列出自上一次提升以来合入 mainline 的全部卡，行格式见 `gate/README.md`「提升 PR 的说明」。提升携带轨道的完整前缀，不手选卡或 cherry-pick。
 - mainline 提升 main 的 PR 开出后，跑一次整仓健康读数：在 PR head 的干净检出上先 `pnpm run acceptance`（严格模式要同一提交的验收账本），再 `pnpm run loop:status --strict --base origin/main --out <目录>`，把 `<目录>/status.md` 的硬线、带位与超预算成员几段贴成提升 PR 的一条评论。它只报告不挡：退出 1 也照贴，写明哪条硬线或哪个传感器没数据，由负责人决定处置。
-- stable 派发另加 `-f checkpoint=<名称>`。新建轨道或子轨道用 `gate-track.yml`，传入 `parent`，参数见 `gate/README.md`。
-- main 的变化逐层同步，先进顶层轨道，再进下一层。按集成规则的共同节奏判断何时 FI/RI；不新增日历调度、全量构建或模型预算。
-- 已接受的历史卡随后运输时逐 tuple 重核，不改写历史绑定。运输不自动接受或关闭卡；平台正文与 Stage 的写回由原单写者接续。
+- stable 派发另加 `-f checkpoint=<名称>`。
+- 提升不自动接受或关闭卡。
 
 ### npm 发行
 
@@ -152,5 +147,5 @@ npm 发行用 `gate-release.yml`，规则见集成规则「现行准入」的 np
 
 1. 验收标准要求的证据贴到卡评论：命令、输出尾部、摘要与关键行，原件位置与哈希写在评论里。贴完再清理原件。
 2. 交回报告写每条验收的达到与否、没做的及原因、过程偏差。做过提升或发行的，另写固定输入、命令与真实退出、Git 观察、逐卡 declared/observed/unknown，以及实际未验证的部署前提；fixture、真实仓库检查、平台权限和宿主加载分别说明。
-3. 接受由有权者决定。决定评论按 `docs/engineering/delivery.md`「接受、取消与重开」的字段写，读回后 `board-cli accepted`，再关卡。代笔时写明授权人原话。
+3. 接受由有权者决定。决定评论按 `docs/engineering/delivery.md`「接受、取消与重开」的字段写，读回后关卡。代笔时写明授权人原话。
 4. 只有清理条件和动作权限都闭合后，才清理工作树或唯一 tmp。

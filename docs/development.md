@@ -274,8 +274,6 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 
 `check`、`check:plan`、`test:affected` 与 `mutation` 按同一规则取基线：显式给的（`--base` 参数，再取环境变量 `BASELINE`），再取工作树 task context 固定的 `targetBase`，再取 `origin/main`，最后取 `main`。已绑定任务的工作树不必传基线，并且只接受等于 `targetBase` 的显式基线。同步过目标分支以后，开工时的任务基线不再等于 `targetBase`，显式传入会被拒绝，命令在标准错误写出原因后以 2 退出，不运行任何检查。
 
-已绑定任务的工作树上，`pnpm run check` 每次都核对本卡实际改动的文件。本卡的改动从 binding 的 `taskBase` 沿第一父链逐提交计算：合并提交计入与每个父提交都不同的文件（冲突的解决、合并时另加的改动、两侧都改过的文件），它带进来的提交只在不属于别的远端跟踪分支时计入，所以从远端同步目标分支与合并别的卡带进来的提交不计入。工作树中未提交的改动也计入。不在 binding 写范围内的文件，以及线内的卡改到别的线或联调轨道的文件，让检查失败，标准错误逐项写文件、代码与改法。撤回这些改动，或请调度者扩大写范围并重新派发。本卡改了契约成员的 `api` 目录时，检查还用钉住的 `omne-contract-api --diff <taskBase>` 比较这些成员的快照差异：差异超过 binding 的契约变更时检查失败，`omne-contract-api` 运行失败时检查也失败。同步目标分支时用 `git merge --no-ff` 合并远端跟踪分支，不用快进或 rebase：快进与 rebase 把目标分支的提交放到第一父链上，会算成本卡的改动。没有 task context 的工作树只报告「未绑定」。命令与算法见[交付观察说明](../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
-
 没有绑定任务的工作树才需要显式基线。在仓库根将占位符替换为完整任务基线提交。以下命令使用同一个比较依据：
 
 ```sh
@@ -399,23 +397,20 @@ pnpm run loop:status --strict --base "$TASK_BASE" --out tmp/<task>/loop-strict
 ## 准备提交与 PR
 
 标题、报告要求与 squash 规则归[CONTRIBUTING](../CONTRIBUTING.md#提交与-pr-表达)。
-按主要结果选项目模板；开 PR 与 gate 的步骤归 [`omne-card`](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)，写作加载 pqw `clear-writing`。
+PR 用项目的唯一模板；开 PR 与 gate 的步骤归 [`omne-card`](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)，写作加载 pqw `clear-writing`。
 源码和数据不足以支持的结论写未知，不从教学示例抄数字或接受状态。
 
-浏览器使用 `.github/PULL_REQUEST_TEMPLATE/` 下的
-[feature](../.github/PULL_REQUEST_TEMPLATE/feature.md)、[docs](../.github/PULL_REQUEST_TEMPLATE/docs.md)、
-[fix](../.github/PULL_REQUEST_TEMPLATE/fix.md)、[refactor](../.github/PULL_REQUEST_TEMPLATE/refactor.md)。
-比较页面的查询参数可选 `template=feature.md` 等；未选择时使用[短默认入口](../.github/pull_request_template.md)。
+浏览器创建 PR 时使用[PR 模板](../.github/pull_request_template.md)。
 模板要合入默认分支后才在正常创建入口生效，候选分支上的文件不能证明已生效。
 机制依据见 [GitHub 文档](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/creating-a-pull-request-template-for-your-repository)。
 
-从执行仓库根将所选模板复制到自己的任务 tmp，填写并移除提示后，再通过 body file 创建：
+从执行仓库根将模板复制到自己的任务 tmp，填写并移除提示后，再通过 body file 创建：
 
 ```sh
 mkdir -p tmp/pr-delivery
-cp .github/PULL_REQUEST_TEMPLATE/docs.md tmp/pr-delivery/pr-body.md
+cp .github/pull_request_template.md tmp/pr-delivery/pr-body.md
 # 编辑 pr-body.md，使其对应最终 diff 与真实报告。
-gh pr create --base main --head <自己的工作分支> \
+gh pr create --base integration/mainline --head <自己的工作分支> \
   --title 'docs(pr): 提供分类模板与交付写作 skill' \
   --body-file tmp/pr-delivery/pr-body.md
 ```
@@ -478,4 +473,4 @@ gh pr create --base main --head <自己的工作分支> \
 
 ## 多层分支操作
 
-轨道、gate 与准入的规则归[集成规则](engineering/integration.md#轨道责任与保护)；同步轨道头、开 PR、gate 确认、提升与发行的步骤归 [`omne-card`](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)；status、start、task-sync 与 `ri-notes` 的参数与退出码归[工具指南](../tools/dev-flow/src/integration/README.md)。仓库检查运行钉住的检查器版本，见[仓库工具链的版本](#仓库工具链的版本)，不需要另一个受信检出。
+轨道、gate 与准入的规则归[集成规则](engineering/integration.md#轨道责任与保护)；同步轨道头、开 PR、gate 确认、提升与发行的步骤归 [`omne-card`](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)；`gate-cli.ts wait`、`release-run` 与 `contract-check` 的参数与退出码归[工具指南](../tools/dev-flow/src/integration/README.md)。仓库检查运行钉住的检查器版本，见[仓库工具链的版本](#仓库工具链的版本)，不需要另一个受信检出。

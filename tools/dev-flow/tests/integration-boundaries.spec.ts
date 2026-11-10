@@ -1,100 +1,24 @@
 // @module-tag slow
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, realpathSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import { afterEach, expect, it, vi } from 'vitest'
-import { init, commit, integrationFixture } from './fixtures/integration.ts'
-import { stubGhEnv } from './fixtures/gh.ts'
-import { git, repository } from '../src/integration/git.ts'
-import { writeContext } from '../src/integration/context.ts'
-import { touchedBase } from '@omne-harness/repo-toolchain/loop/hook-measure'
-import { readWorktrees } from '@omne-harness/repo-toolchain/loop/sensors/worktrees'
-import { activeTrack } from '../src/integration/policy.ts'
-import { openIntegration } from '../src/integration/engine.ts'
-import { runLoopStatus } from '@omne-harness/repo-toolchain/loop/run'
+import { afterEach, expect, it } from 'vitest'
+import { init, commit, git } from './fixtures/integration.ts'
 
 const homes: string[] = []
 afterEach(() => {
-  vi.unstubAllEnvs()
   homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true }))
 })
-function fixture() {
-  const f = integrationFixture()
-  homes.push(f.home)
-  stubGhEnv(f.bin, (name, value) => vi.stubEnv(name, value))
-  vi.stubEnv('OMNE_GH_FIXTURE', f.home)
-  return f
+function temporary(prefix: string): string {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), prefix)))
+  homes.push(home)
+  return home
 }
-const common = {
-  schemaVersion: 1,
-  responsible: 'human',
-  basis: ['fixture authority'],
-} as const
-async function start(f: ReturnType<typeof fixture>) {
-  f.authority(
-    { ...common, basis: [...common.basis], action: 'dispatch', task: f.binding, confirmations: [] },
-    1,
-  )
-  await (
-    await openIntegration({ root: f.root })
-  ).execute({
-    kind: 'start',
-    authority: f.binding.dispatch,
-    issue: f.binding.issue.url,
-    revision: f.binding.revision,
-    attempt: f.binding.attempt,
-  })
-}
-
-it('engineering loop carries all task baselines and rejects stale context', async () => {
-  const f = fixture()
-  mkdirSync(join(f.root, 'packages/core/demo/src'), { recursive: true })
-  const sourceBase = commit(f.root, 'packages/core/demo/src/index.ts', 'export const value = 1')
-  git(f.root, ['rm', '-rq', 'packages'])
-  mkdirSync(join(f.root, 'apps/demo/tests'), { recursive: true })
-  const testBase = commit(f.root, 'apps/demo/tests/index.spec.ts', 'test("check", () => {})')
-  git(f.root, ['rm', '-rq', 'apps'])
-  const head = commit(f.root, 'README.md', 'empty product')
-  const info = repository(f.root)
-  writeContext(f.root, {
-    schemaVersion: 1,
-    root: info.root,
-    gitDir: info.gitDir,
-    branch: info.branch,
-    targetBase: f.main,
-    tasks: [sourceBase, testBase].map(taskBase => ({
-      binding: { ...f.binding, taskBase },
-      taskSource: head,
-    })),
-    ownerTask: null,
-    operation: 'fixture-candidate',
-  })
-  const out = join(f.home, 'loop')
-  const options = {
-    root: f.root,
-    out,
-    strict: true,
-    snapshot: false,
-    scope: 'engineering',
-  } as const
-  const result = await runLoopStatus(options, { OMNE_METRICS_HOME: join(f.home, 'metrics') })
-  expect(result.code).toBe(1)
-  const status = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
-  expect(status.scope.evidence.baselines).toEqual([
-    { commit: f.main, inputs: { sources: 0, tests: 0 } },
-    { commit: sourceBase, inputs: { sources: 1, tests: 0 } },
-    { commit: testBase, inputs: { sources: 0, tests: 1 } },
-  ])
-  expect(status.hardLines.sensors.notApplicable).toEqual([])
-  git(f.root, ['branch', '-m', 'human/stale-context'])
-  await expect(runLoopStatus(options, {})).rejects.toThrow('Context belongs to another')
-})
 
 function wrapperFixture() {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-wrapper-stages-')))
-  homes.push(home)
+  const home = temporary('omne-wrapper-stages-')
   const runner = join(home, 'runner'),
     subject = join(home, 'subject')
   init(subject)
@@ -125,7 +49,6 @@ node() {
         *) record "$3" "$@" ;;
       esac ;;
     */src/cli.ts) record rules "$@" ;;
-    */change-scope-cli.ts) record change-scope "$@" ;;
     */integration/cli.ts) record contract-check "$@" ;;
     *) command node "$@" ;;
   esac
@@ -186,7 +109,7 @@ it('the check wrapper forwards to the runner inside its slot even when a subject
   expect(trace).not.toContain('--scope engineering')
 })
 
-it('the check step table runs both dev-flow entries, the snapshot check after the build', () => {
+it('the check step table runs the dev-flow entry, the snapshot check after the build', () => {
   const cli = fileURLToPath(new URL('../../test-runner/src/testing/cli.ts', import.meta.url))
   const listed = spawnSync(
     process.execPath,
@@ -203,108 +126,26 @@ it('the check step table runs both dev-flow entries, the snapshot check after th
       .map(line => line.split('\t'))
       .map(([name, after, , command]) => [name, { after: after ?? '', command: command ?? '' }]),
   )
-  expect(rows.get('change-scope')?.after).toBe('-')
-  expect(rows.get('change-scope')?.command).toMatch(/delivery\/change-scope-cli\.ts$/u)
   // The snapshot check runs through dev-flow, after the build and the type check (which may rebuild a dist), and no longer through pnpm.
   expect(rows.get('contract-check')?.after).toBe('build,typecheck')
   expect(rows.get('contract-check')?.command).toMatch(/integration\/cli\.ts contract-check$/u)
   expect(listed.stdout).not.toContain('contract:api --check')
 })
-it('reads the hook root and each worktree own immutable task baseline', async () => {
-  const f = fixture()
-  await start(f)
-  mkdirSync(join(f.root, 'packages/core/first'), { recursive: true })
-  const newer = commit(f.root, 'packages/core/first/file.ts', 'export const first = 1')
-  const other = join(f.home, 'other')
-  git(f.root, ['worktree', 'add', '-b', 'human/other', other, newer])
-  expect(touchedBase(f.root, 'not-a-primary')).toBe(f.main)
-  // Without a task context the hook falls back to the merge base with the primary branch;
-  // this worktree changed no product source, so there is nothing to measure.
-  expect(touchedBase(other, 'main')).toBeUndefined()
-  // The sensor reports the path as `git worktree list` writes it: forward slashes and long names on
-  // Windows. resolve and the native realpath bring both sides to the platform's own form.
-  const worktrees = () =>
-      readWorktrees(f.root, 'main').map(entry => ({ ...entry, path: resolve(entry.path) })),
-    otherPath = realpathSync.native(other)
-  expect(worktrees()).toEqual([
-    { path: otherPath, branch: 'human/other', members: ['packages/core/first'] },
-  ])
-  const info = repository(other)
-  const binding = { ...f.binding, branch: 'human/other', taskBase: newer, attempt: 'other' }
-  mkdirSync(join(other, 'packages/core/second'), { recursive: true })
-  const head = commit(other, 'packages/core/second/file.ts', 'export const second = 2')
-  writeContext(other, {
-    schemaVersion: 1,
-    root: info.root,
-    gitDir: info.gitDir,
-    branch: info.branch,
-    targetBase: f.initial,
-    tasks: [{ binding, taskSource: head }],
-    ownerTask: binding,
-    operation: null,
-  })
-  expect(touchedBase(other, 'main')).toBe(newer)
-  expect(worktrees()).toEqual([
-    { path: otherPath, branch: 'human/other', members: ['packages/core/second'] },
-  ])
-})
-it('rejects unregistered or paused routes and comments from a different actor or revoked authority', async () => {
-  const f = fixture()
-  expect(() => activeTrack(f.policy, 'missing')).toThrow('not registered')
-  expect(() =>
-    activeTrack(
-      { ...f.policy, tracks: f.policy.tracks.map(track => ({ ...track, status: 'paused' })) },
-      'runtime',
-    ),
-  ).toThrow('not active and registered')
-  f.authority(
-    { ...common, basis: [...common.basis], action: 'dispatch', task: f.binding, confirmations: [] },
-    1,
-  )
-  const platform = join(f.home, 'platform.json')
-  const observed = JSON.parse(readFileSync(platform, 'utf8'))
-  observed.comments[0].user = { login: 'another-human', node_id: 'U_other' }
-  writeFileSync(platform, JSON.stringify(observed))
-  const engine = await openIntegration({ root: f.root })
-  const command = {
-    kind: 'start' as const,
-    authority: f.binding.dispatch,
-    issue: f.binding.issue.url,
-    revision: 1,
-    attempt: 'one',
-  }
-  await expect(engine.execute(command)).rejects.toThrow('not a reviewer of the publish environment')
-  observed.comments[0].user = { login: 'human', node_id: 'U_human' }
-  observed.comments.push({
-    ...observed.comments[0],
-    id: 2,
-    html_url: f.binding.issue.url + '#issuecomment-2',
-    body:
-      '```json omne-integration-revocation:v1\n' +
-      JSON.stringify({
-        schemaVersion: 1,
-        decisions: [f.binding.dispatch],
-        basis: 'dispatch withdrawn',
-      }) +
-      '\n```',
-  })
-  writeFileSync(platform, JSON.stringify(observed))
-  await expect(engine.execute(command)).rejects.toThrow('revocation')
-})
 it('runs the actual trusted formatter on subject bytes, not its own clean source', () => {
-  const f = fixture(),
+  const root = join(temporary('omne-format-subject-'), 'subject'),
     runner = fileURLToPath(new URL('../../../', import.meta.url))
-  mkdirSync(join(f.root, 'tools/demo/src'), { recursive: true })
-  commit(f.root, 'tools/demo/src/invalid.ts', 'export const x={a:1,b:2};\n')
+  init(root)
+  mkdirSync(join(root, 'tools/demo/src'), { recursive: true })
+  commit(root, 'tools/demo/src/invalid.ts', 'export const x={a:1,b:2};\n')
   const result = spawnSync('bash', [join(runner, 'scripts/format.sh'), 'check'], {
-    env: { ...process.env, OMNE_SUBJECT_ROOT: f.root },
+    env: { ...process.env, OMNE_SUBJECT_ROOT: root },
     encoding: 'utf8',
   })
   expect(result.status).toBe(1)
   // format.sh names the subject by `git rev-parse --show-toplevel`; on Windows that is the form with
   // forward slashes and long names.
   expect(result.stdout).toContain(
-    `Formatting subject ${git(f.root, ['rev-parse', '--show-toplevel'])}`,
+    `Formatting subject ${git(root, ['rev-parse', '--show-toplevel'])}`,
   )
   expect(result.stderr + result.stdout).toContain('invalid.ts')
 })
