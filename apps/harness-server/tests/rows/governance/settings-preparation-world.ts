@@ -9,10 +9,11 @@ import {
   type SettingsPreparationService,
 } from '@omne-harness/settings-local/preparation'
 import {
-  settingsCurrentMaterials,
-  settingsCurrentParticipant,
-} from '../../../dist/rows/governance/settings-current.js'
-import { createSettingsCurrentProjection } from '../../../dist/rows/governance/settings-preparation.js'
+  SETTINGS_SEED_COMMIT,
+  SETTINGS_SEED_READY,
+  settingsSeedCurrent,
+  settingsSeedParticipants,
+} from './settings-value-seed.ts'
 import { governanceAdoptionWorld } from './governance-adoption-world.ts'
 
 export async function settingsPreparationWorld(
@@ -25,10 +26,7 @@ export async function settingsPreparationWorld(
   }
   const w = await governanceAdoptionWorld({
     ...options,
-    extraParticipants: [
-      ...settingsCurrentMaterials(configuration),
-      ...(options.extraParticipants ?? []),
-    ],
+    extraParticipants: [...settingsSeedParticipants(), ...(options.extraParticipants ?? [])],
   })
   await w.setup()
   const registered = await w.service.contribute(w.access, {
@@ -53,36 +51,27 @@ export async function settingsPreparationWorld(
   const dependencies = w.snapshotParticipants.filter(
     value => !SETTINGS_RECOVERY_PARTICIPANTS.includes(value),
   )
-  const capture = await w.register('settings-capture', [
-    ...dependencies,
-    ...SETTINGS_RECOVERY_PARTICIPANTS,
-    settingsCurrentParticipant('capture'),
-  ])
   const registrations = {
     checkpoint: await w.register('settings-checkpoint', SETTINGS_CHECKPOINT_PARTICIPANTS),
     ready: await w.register('settings-ready', [
       ...dependencies,
       ...SETTINGS_READY_PARTICIPANTS,
-      settingsCurrentParticipant('ready'),
+      SETTINGS_SEED_READY,
     ]),
     commit: await w.register('settings-commit', [
       ...dependencies,
       ...SETTINGS_COMMIT_PARTICIPANTS,
-      settingsCurrentParticipant('commit'),
+      SETTINGS_SEED_COMMIT,
     ]),
     recovery: await w.register('settings-recovery', SETTINGS_RECOVERY_PARTICIPANTS),
   }
-  const projection = createSettingsCurrentProjection<ActingForTenantPrincipal>({
-    storage: w.storage,
-    domain: w.domain,
-    capture,
-    location: {
-      scope: w.scope,
-      epoch,
-      mode: 'management',
-      definition: w.declaration.reference,
-      target: w.target,
+  const projection = settingsSeedCurrent<ActingForTenantPrincipal>({
+    snapshot: async () => {
+      const taken = await w.captureSnapshot(epoch, 'management')
+      if ('kind' in taken) throw new Error(JSON.stringify(taken))
+      return taken
     },
+    configuration,
   })
   const prepared = createIdentityQualifiedSettingsPreparation({
     identity: w.identity,

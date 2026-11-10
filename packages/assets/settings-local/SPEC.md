@@ -314,7 +314,7 @@ Public-service tests use the real Worker combinations. Separate tests connect ac
 
 ### Application current consumer
 
-The harness-server [prepared Settings composition](../../../apps/harness-server/docs/rows/settings-preparation.md) consumes the public preparation SPI. It derives initial and transaction-current material from the actual native owner, Governance and assignment projections. Its first implemented source scope is tenant-local. Organization sources, maintenance current for cross-definition rebase and the server consumer switch remain incomplete. This application evidence does not enlarge the package's independent acceptance claim.
+No application consumes the public preparation SPI in this release. harness-server has no entry that writes Settings values, so it assembles no current participants. The package verifies the protocol with its own named fixture participants. An application that adds a Settings write entry must supply `plan` and `currentCommands` from its actual owner projections, and it must verify that composition on its real assembly.
 
 
 ## Source observation read

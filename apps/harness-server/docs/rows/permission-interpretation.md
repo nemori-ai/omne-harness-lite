@@ -201,7 +201,7 @@ Management mode can observe a contributed declaration before adoption and can re
 
 This snapshot supplies current target inputs. The permission basis participant adds the Session permission fact and the constraints of the origin; the permission basis read adds the organization layer and the Identity standing. The snapshot emits no allow decision or execution permit. ActionAdmission and protected Settings commands remain responsible for their complete qualified consumption.
 
-The [protected Settings current composition](settings-preparation.md) consumes this snapshot for initial capture and fresh ready/commit facts. Its native source grants authorize Settings mutations only. They do not constitute permission to execute the corresponding Tool action.
+No application row writes Settings values in this release, so no Settings preparation consumes this snapshot. The native source grants of a target authorize Settings mutations only. They do not constitute permission to execute the corresponding Tool action.
 
 ## Agent 定义上界投影
 

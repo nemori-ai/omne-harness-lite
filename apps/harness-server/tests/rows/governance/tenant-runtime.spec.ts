@@ -2,6 +2,7 @@ import { canonicalText } from '@omne-harness/authorization'
 import { CurrentPermissionService } from '../../../src/rows/governance/current-permission-service.ts'
 // @module-tag slow
 // Real Identity and SQLite providers; only the clock and caller installation are test inputs.
+import { randomUUID } from 'node:crypto'
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -39,10 +40,16 @@ import {
   SETTINGS_COMMIT_PARTICIPANTS,
 } from '@omne-harness/settings-local/preparation'
 import {
-  settingsCurrentMaterials,
-  settingsCurrentParticipant,
-} from '../../../dist/rows/governance/settings-current.js'
-import { createSettingsCurrentProjection } from '../../../dist/rows/governance/settings-preparation.js'
+  SETTINGS_SEED_COMMIT,
+  SETTINGS_SEED_READY,
+  settingsSeedCurrent,
+  settingsSeedParticipants,
+} from './settings-value-seed.ts'
+import {
+  TARGET_SNAPSHOT,
+  targetSnapshotCommands,
+  targetSnapshotSchema,
+} from '../../../dist/rows/governance/target-snapshot.js'
 import { governanceStorageCombinations } from '../../../src/rows/governance/storage-combinations.ts'
 import { parseInstant } from '@omne-harness/utc-instant'
 import { productionStorageCatalog } from '../../../dist/rows/storage/production-catalog.js'
@@ -934,7 +941,7 @@ it('preserves a nonempty Settings assignment across default tenant installation 
     sourceRoute: 'settings.installation-preservation',
     required: [],
   }
-  const { w, prepare } = await installedWorld(settingsCurrentMaterials(configuration))
+  const { w, prepare } = await installedWorld(settingsSeedParticipants())
   const assembly = prepare()
   const runtime = await assembly.open()
   if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
@@ -981,22 +988,18 @@ it('preserves a nonempty Settings assignment across default tenant installation 
       value !== 'settings.catalog-terminal' &&
       value !== 'settings.snapshot',
   )
-  const capture = await register('capture', [
-    ...dependencies,
-    ...SETTINGS_RECOVERY_PARTICIPANTS,
-    settingsCurrentParticipant('capture'),
-  ])
+  const snapshots = await register('snapshot', [...dependencies, ...SETTINGS_RECOVERY_PARTICIPANTS])
   const registrations = {
     checkpoint: await register('checkpoint', SETTINGS_CHECKPOINT_PARTICIPANTS),
     ready: await register('ready', [
       ...dependencies,
       ...SETTINGS_READY_PARTICIPANTS,
-      settingsCurrentParticipant('ready'),
+      SETTINGS_SEED_READY,
     ]),
     commit: await register('commit', [
       ...dependencies,
       ...SETTINGS_COMMIT_PARTICIPANTS,
-      settingsCurrentParticipant('commit'),
+      SETTINGS_SEED_COMMIT,
     ]),
     recovery: await register('recovery', SETTINGS_RECOVERY_PARTICIPANTS),
   }
@@ -1008,16 +1011,34 @@ it('preserves a nonempty Settings assignment across default tenant installation 
       domain: w.options.domain,
       destination: configuration.destination,
       registrations,
-      ...createSettingsCurrentProjection({
-        storage: w.options.storage,
-        domain: w.options.domain,
-        capture,
-        location: {
-          scope: w.options.scope,
-          epoch: runtime.epoch,
-          mode: 'management',
-          definition: entry.governance.declaration.reference,
-          target,
+      // The seed takes the target snapshot of the tenant domain and states it as the current facts.
+      ...settingsSeedCurrent({
+        configuration,
+        snapshot: async () => {
+          const result = await w.options.storage.commit({
+            identity: {
+              ...w.options.domain,
+              operation: 'test.settings-seed-snapshot',
+              protocolVersion: '2',
+              operationKey: randomUUID(),
+            },
+            ...snapshots,
+            commands: targetSnapshotCommands({
+              scope: w.options.scope,
+              epoch: runtime.epoch,
+              mode: 'management',
+              principalRef: standingPrincipalRef(w.principal),
+              captureId: randomUUID(),
+              transactionDomain: w.options.domain.transactionDomain,
+              definition: entry.governance.declaration.reference,
+              target,
+            }),
+          })
+          if (result.kind !== 'committed') throw new Error(JSON.stringify(result))
+          return targetSnapshotSchema.parse(
+            result.responses.find(value => value.participant === TARGET_SNAPSHOT.participant)?.reply
+              .response,
+          )
         },
       }),
       // This setup capability seeds one original tenant value; it does not test user editing policy.
