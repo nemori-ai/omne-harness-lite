@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { tenant, tenantCodec } from '@omne-harness/legal-identity'
 import { randomIdentifiers } from '@omne-harness/identity-sql'
 import { standingReservationId, type StandingRequest } from '@omne-harness/identity'
+import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import {
   createSettingsPreparationBackend,
   type PreparationPlan,
@@ -17,7 +18,14 @@ import { definition } from './world.ts'
 export type Context = { allowed: boolean; principalRef: string }
 export async function openPreparedServiceWorld(
   configure?: (options: SettingsPreparationOptions<Context>) => SettingsPreparationOptions<Context>,
-  bound?: { scopeRef?: string; principalRef?: string; sourceCapture?: boolean; root?: string },
+  bound?: {
+    scopeRef?: string
+    principalRef?: string
+    sourceCapture?: boolean
+    root?: string
+    /** Participants of the test, added to the catalog next to the preparation materials. */
+    extraParticipants?: SqlMaterialCatalog['participants']
+  },
 ) {
   const input = allocation()
   const ids = randomIdentifiers()
@@ -32,7 +40,13 @@ export async function openPreparedServiceWorld(
   )
   mkdirSync(parent, { recursive: true })
   const root = bound?.root ?? realpathSync(mkdtempSync(join(parent, 'case-')))
-  const world = await openRecoveryWorld(root, input.identity.domain, bound?.sourceCapture)
+  const world = await openRecoveryWorld(
+    root,
+    input.identity.domain,
+    bound?.sourceCapture,
+    undefined,
+    bound?.extraParticipants,
+  )
   let current: PreparationPlan = {
     kind: 'planned',
     basis: input.plan,

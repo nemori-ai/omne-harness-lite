@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { afterEach, expect, it } from 'vitest'
+import { combinationManifest, manifestDigest } from '@omne-harness/sql-contract'
 import {
   createStandaloneSettingsOwner,
   settingsStandaloneMaterials,
-  standaloneSettingsGuards,
   standaloneSettingsProjectionCommand,
   settingsWithoutAssetsMaterials,
   settingsWithoutAssetsProjectionCommand,
@@ -15,40 +15,66 @@ import {
   settingsValueProjectionCommand,
 } from '../src/value-projection.ts'
 import { settingsValueProjectionMaterials } from '../src/value-projection-materials.ts'
-import { command, context, definition, openWorld } from './world.ts'
-import { ownerSources } from './sources.ts'
+import { openPreparedServiceWorld } from './prepared-service-world.ts'
+import { definition } from './world.ts'
 
-const worlds: Awaited<ReturnType<typeof openWorld>>[] = []
+const worlds: { close(): Promise<void> }[] = []
 afterEach(async () => {
   for (const world of worlds.splice(0)) await world.close()
 })
 
-async function open(root?: string) {
-  const standalone = settingsStandaloneMaterials()
+/**
+ * A prepared service over a real independent target, with the value projection in the catalog.
+ * Values are written through preparation and commit; the capture reads them back.
+ */
+async function open(reopen?: { root: string; scopeRef: string }) {
   const withoutAssets = settingsWithoutAssetsMaterials()
-  const w = await openWorld({
-    ...(root === undefined ? {} : { root }),
-    authority: {
-      guards: standaloneSettingsGuards,
-      materials: {
-        participants: [
-          ...standalone.participants,
-          ...withoutAssets.participants,
-          ...settingsValueProjectionMaterials(),
-        ],
-        migrations: standalone.migrations,
-        readHandlers: standalone.readHandlers,
-      },
-    },
+  const values = settingsValueProjectionMaterials()
+  const w = await openPreparedServiceWorld(undefined, {
+    sourceCapture: true,
+    extraParticipants: [...withoutAssets.participants, ...values],
+    ...reopen,
   })
   worlds.push(w)
+  const { domain } = w.input.identity
+  async function register(name: string, participants: string[]) {
+    const manifest = combinationManifest({ catalog: w.world.materials, participants })
+    if (manifest.kind !== 'manifest') throw new Error(JSON.stringify(manifest))
+    const registration = {
+      combinationVersion: `value-projection-${name}/1`,
+      manifestDigest: manifestDigest(manifest.manifest),
+    }
+    const result = await w.world.storage.registerCombination({
+      ...domain,
+      ...registration,
+      participants,
+    })
+    if (result.kind !== 'registered') throw new Error(JSON.stringify(result))
+    return registration
+  }
+  // The writers of the stored state and of the source gate, as the owner of a target needs them.
+  const source = [
+    ...w.world.participants.filter(
+      name => name !== 'fixture.recovery-rollback' && name !== 'settings.source-finalization',
+    ),
+    'settings.source-snapshot',
+    'settings.targets',
+  ]
   const owner = createStandaloneSettingsOwner({
-    ...w.combination,
-    domain: w.domain,
-    storage: w.storage,
+    storage: w.world.storage,
+    domain,
+    ...(await register('source', source)),
   })
-  const target = command().target
-  if (root === undefined) {
+  const capture = await register('capture', [
+    ...new Set([
+      ...source,
+      ...settingsStandaloneMaterials().participants.map(item => item.participant),
+      ...withoutAssets.participants.map(item => item.participant),
+      ...values.map(item => item.participant),
+    ]),
+  ])
+  const { target } = w.command
+  if (reopen === undefined) {
     const provisioned = await owner.mutate({
       kind: 'provision',
       operationId: 'provision',
@@ -57,18 +83,37 @@ async function open(root?: string) {
         publicationRef: null,
         target,
         definition,
-        sources: ownerSources('tenant'),
+        sources: w.input.plan.sources.map(({ authorityRevision: _, ...source }) => source),
         grants: [{ sourceId: 'tenant', actions: ['set', 'clear'] }],
       },
     })
     if (provisioned.kind !== 'committed') throw new Error(JSON.stringify(provisioned))
   }
+  let revision = 0
   return {
-    ...w,
+    root: w.root,
+    target,
+    close: () => w.close(),
+    /** One value written through preparation and commit, on the revision of the last write. */
+    async write(change: Partial<typeof w.command> = {}) {
+      w.updateCurrent(current => ({
+        ...current,
+        basis: { ...current.basis, valueRevision: revision },
+      }))
+      const command = { ...w.command, expectedRevision: revision, ...change }
+      const prepared = await w.service.prepareChange(w.context, command)
+      if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+      const result = await w.service.commitChange(w.context, {
+        requestId: `commit-${command.operationId}`,
+        preparation: prepared.preparation,
+      })
+      if (result.kind === 'committed') revision = result.revision
+      return result
+    },
     async capture(change?: (binding: SettingsProjectionBinding) => void, mismatch = false) {
       const binding: SettingsProjectionBinding = {
-        domain: w.domain,
-        principalRef: context.principalRef,
+        domain,
+        principalRef: w.context.principalRef,
         captureId: randomUUID(),
         request: {
           deploymentRef: 'test',
@@ -78,15 +123,14 @@ async function open(root?: string) {
         },
       }
       change?.(binding)
-      const result = await w.storage.commit({
+      const result = await w.world.storage.commit({
         identity: {
-          ...w.domain,
+          ...domain,
           operation: 'fixture.settings-value',
           protocolVersion: '2',
           operationKey: randomUUID(),
         },
-        combinationVersion: w.combination.combinationVersion,
-        manifestDigest: w.combination.manifestDigest,
+        ...capture,
         commands: [
           standaloneSettingsProjectionCommand(binding),
           settingsWithoutAssetsProjectionCommand(binding),
@@ -114,10 +158,7 @@ it('reads committed assignments on the next capture without a reload or notifica
       },
     ],
   })
-  expect(await w.backend.commit(context, command())).toMatchObject({
-    kind: 'committed',
-    revision: 1,
-  })
+  expect(await w.write()).toMatchObject({ kind: 'committed', revision: 1 })
   expect(await w.capture()).toMatchObject({
     views: [
       {
@@ -137,15 +178,11 @@ it('reads committed assignments on the next capture without a reload or notifica
     ],
   })
   expect(
-    await w.backend.commit(
-      context,
-      command({
-        requestId: 'second',
-        operationId: 'second',
-        expectedRevision: 1,
-        action: { kind: 'set', value: false },
-      }),
-    ),
+    await w.write({
+      requestId: 'second',
+      operationId: 'second',
+      action: { kind: 'set', value: false },
+    }),
   ).toMatchObject({ kind: 'committed', revision: 2 })
   expect(await w.capture()).toMatchObject({
     views: [
@@ -174,7 +211,7 @@ it.each(['missing', 'foreign'] as const)(
       await w.capture(binding => {
         binding.request.targets = [
           {
-            ...command().target,
+            ...w.target,
             ...(kind === 'missing' ? { targetRef: 'missing' } : { scopeRef: 'tenant-b' }),
           },
         ]
@@ -185,10 +222,11 @@ it.each(['missing', 'foreign'] as const)(
 
 it('reads the same stored value after the owning Worker is reopened', async () => {
   const w = await open()
-  expect(await w.backend.commit(context, command())).toMatchObject({ kind: 'committed' })
+  expect(await w.write()).toMatchObject({ kind: 'committed' })
   const before = await w.capture()
+  worlds.splice(worlds.indexOf(w), 1)
   await w.close()
-  const reopened = await open(w.root)
+  const reopened = await open({ root: w.root, scopeRef: w.target.scopeRef })
   const after = await reopened.capture()
   if ('kind' in before || 'kind' in after) throw new Error('value capture unavailable')
   expect(after.views).toEqual(before.views)

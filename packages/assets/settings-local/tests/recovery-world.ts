@@ -59,6 +59,7 @@ export async function openRecoveryWorld(
   domain: DomainRef = allocation().identity.domain,
   sourceCapture = false,
   organizationCurrent?: OrganizationCurrentConfiguration,
+  extra: SqlMaterialCatalog['participants'] = [],
 ) {
   const base = settingsRecoveryMaterials()
   const targets = settingsStandaloneMaterials()
@@ -79,6 +80,7 @@ export async function openRecoveryWorld(
     declaredCombinations: { tenant: null, system: null },
     participants: [
       ...own.participants,
+      ...extra,
       ...(organizationCurrent ? settingsOrganizationCurrentMaterials(organizationCurrent) : []),
       {
         participant: 'fixture.commit-current',
