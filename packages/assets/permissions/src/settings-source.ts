@@ -17,7 +17,7 @@ import {
   type PermissionSource,
 } from './schema.ts'
 
-export const PermissionSettingsSourceSchema = z.strictObject({
+const PermissionSettingsSourceSchema = z.strictObject({
   definition: PermissionDefinitionSchema,
   scope: PermissionScopeSchema,
   layer: z.enum(['organization', 'tenant', 'session']),

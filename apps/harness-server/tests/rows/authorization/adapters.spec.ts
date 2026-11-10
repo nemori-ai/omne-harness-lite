@@ -135,6 +135,8 @@ function world(grantTable: typeof MAINTENANCE_GRANTS = MAINTENANCE_GRANTS) {
         return systemActions.check(input)
       },
     },
+    // This world has no login source: a Session permission write reads it as unavailable.
+    login: { queryCurrentTenant: () => Promise.reject(new Error('no login source')) },
   }
 
   const system = (component: string): SystemPrincipal =>
@@ -785,6 +787,7 @@ describe('agentActionAdmission', () => {
     const w = world()
     const admission = createActionAdmission({
       readAdmission: () => w.ports.admission,
+      readPermission: () => undefined,
       actionRules: rules,
     })
     expect(await admission.admit(action(w.work()) as never)).toMatchObject({
@@ -795,6 +798,7 @@ describe('agentActionAdmission', () => {
     const w = world()
     const admission = createActionAdmission({
       readAdmission: () => w.ports.admission,
+      readPermission: () => undefined,
       actionRules: rules,
     })
     for (const principal of [
@@ -818,6 +822,7 @@ describe('agentActionAdmission', () => {
     const input = action(w.work())
     const admission = createActionAdmission({
       readAdmission: () => w.ports.admission,
+      readPermission: () => undefined,
       actionRules: rules,
     })
     for (const change of [
@@ -865,7 +870,11 @@ describe('agentActionAdmission', () => {
       },
       () => ({ check: async () => ({ kind: 'odd' }) as never }),
     ]) {
-      const failed = createActionAdmission({ readAdmission, actionRules: rules })
+      const failed = createActionAdmission({
+        readAdmission,
+        readPermission: () => undefined,
+        actionRules: rules,
+      })
       const result = await failed.admit(input as never)
       expect(result).toMatchObject({ ok: { kind: 'unavailable' } })
       expect(JSON.stringify(result)).not.toContain('SECRET')
@@ -908,6 +917,7 @@ describe('agentActionAdmission', () => {
     ]) {
       const admission = createActionAdmission({
         readAdmission: () => w.ports.admission,
+        readPermission: () => undefined,
         actionRules: { revision: 'ops-2', rules },
       })
       const result = await admission.admit(input as never)
@@ -944,7 +954,10 @@ describe('agentActionAdmission', () => {
   })
 
   it('has no default allow: every action is unavailable, with or without permissions or a decision', async () => {
-    const admission = createActionAdmission()
+    const admission = createActionAdmission({
+      readAdmission: () => undefined,
+      readPermission: () => undefined,
+    })
     for (const input of [
       { permissions: [], decision: null },
       { permissions: [{ need: 'n' }], decision: null },

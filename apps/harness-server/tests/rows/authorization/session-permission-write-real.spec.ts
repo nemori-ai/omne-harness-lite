@@ -262,13 +262,9 @@ it('keeps the original command binding across the login await', async () => {
   })
 })
 
-it('reports a missing or failed login source as unavailable without exception text', async () => {
+it('reports a failed login source as unavailable without exception text', async () => {
   const app = await world(),
     who = await writer(app)
-  const { login: _login, ...withoutLogin } = app.ports
-  expect(await createSessionAccessCheck(withoutLogin).check(who.request)).toMatchObject({
-    kind: 'unavailable',
-  })
   const checker = createSessionAccessCheck({
     ...app.ports,
     login: {

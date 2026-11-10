@@ -30,7 +30,7 @@ function permissionVerdict(
 export function createToolTargetPolicy(
   rules: ActionRules | undefined,
   read: AdmissionReader,
-  readPermission: ToolPermissionReader = () => undefined,
+  readPermission: ToolPermissionReader,
 ): ToolTargetPolicy {
   return {
     async qualify(input) {

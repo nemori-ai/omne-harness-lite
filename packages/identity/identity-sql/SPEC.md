@@ -399,6 +399,6 @@ handler 另有两个预读，它们不核对发起登录：
 
 提供者以完整 `StandingRequest` 结算，履行 Identity ID-19。`id_standing_reservation.operation_ref` 的唯一约束同时承载 held 与 settled 围栏，不增加第二张锁表。点查按该唯一键，最终写事务重新核对 reservation ID、完整绑定及规范化资格集合。
 
-新结算使用固定 SQL operation key `${reservationId}/settle-request/1`。封套含 `standing-settle-request`、确定的原操作引用、完整请求、由规范租户派生的成员字段及不可逆目的终态。初读状态、时刻、新主体均不得进入封套。旧 `${id}/finish` 身份不复用、不重建为新命令。旧在途提交所需的不可变 SQL material 必须保持可用，这是升级前提；新阶段可以结算旧 held 行，已有 settled 行返回原终态。
+结算使用固定 SQL operation key `${reservationId}/settle-request/1`。封套含 `standing-settle-request`、确定的原操作引用、完整请求、由规范租户派生的成员字段及不可逆目的终态。初读状态、时刻、新主体均不得进入封套。已有 settled 行返回原终态。
 
 源端仍缺行且目的结果为 committed 时不写源记录，也不固定一次不成立的 SQL 结果，以免阻止稍后合法 held 的结算。提供者保留 unavailable；调用者用完整原请求重试。源端仍缺行且目的结果为 aborted 时插入 settled 行；已有 held 时更新为 settled。成功结算后原请求不能新增 held。结算不检查或授予当前资格，也不要求重建原签发主体。

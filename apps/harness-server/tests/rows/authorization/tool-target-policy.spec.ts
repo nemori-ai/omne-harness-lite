@@ -60,7 +60,11 @@ describe('current target rules of the authorization row', () => {
         admission: okOf(decodeToolOperationId('original-admission'), 'operation'),
       }
       expect(
-        await createToolTargetPolicy(rules, () => identity).qualify({
+        await createToolTargetPolicy(
+          rules,
+          () => identity,
+          () => undefined,
+        ).qualify({
           ...access,
           request: world.request('Tools'),
         }),
@@ -91,6 +95,7 @@ describe('current target rules of the authorization row', () => {
           ],
         }),
         () => identity,
+        () => undefined,
       )
       expect(await exact.qualify({ ...access, request: world.request('Tools') })).toMatchObject({
         kind: 'unavailable',
@@ -109,7 +114,11 @@ describe('current target rules of the authorization row', () => {
   it('isolates running roots and removes the current port on row retirement', async () => {
     const a = new Context(),
       b = new Context()
-    const policy = createToolTargetPolicy(undefined, () => undefined)
+    const policy = createToolTargetPolicy(
+      undefined,
+      () => undefined,
+      () => undefined,
+    )
     try {
       const row = a.plugin({
         name: 'target-policy-test',

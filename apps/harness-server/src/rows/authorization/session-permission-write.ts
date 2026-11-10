@@ -115,7 +115,7 @@ export function recheckSessionPermissionLogin(
 export async function qualifyPermissionWrite(
   prepared: PreparedPermissionWrite,
   evidence: DurableEvidence,
-  login: SessionPermissionLogin | undefined,
+  login: SessionPermissionLogin,
 ): Promise<SessionAccessDecision> {
   const current = await currentLogin(prepared.login, prepared.qualification.tenant.account, login)
   return current.kind === 'current'

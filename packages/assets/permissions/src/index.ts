@@ -12,9 +12,5 @@ export {
   type PermissionEvaluationResult,
   type PermissionEvidence,
 } from './evaluation.ts'
-export {
-  PermissionSettingsSourceSchema,
-  readPermissionSettingsSource,
-  type PermissionSettingsSource,
-} from './settings-source.ts'
+export { readPermissionSettingsSource, type PermissionSettingsSource } from './settings-source.ts'
 export { judgePermissionAssignment, type PermissionAssignmentJudgment } from './assignment.ts'

@@ -128,16 +128,15 @@ function actionDecision(
 
 /** One immutable rule generation; dependencies are acquired anew for each action. */
 export function createActionAdmission(
-  options?: Readonly<{
+  options: Readonly<{
     actionRules?: unknown
     readAdmission: AdmissionReader
-    readPermission?: ToolPermissionReader
+    readPermission: ToolPermissionReader
   }>,
 ): ActionAdmission<unknown> {
   const rules =
-    options?.actionRules === undefined ? undefined : actionRulesSchema.parse(options.actionRules)
-  const read = options?.readAdmission ?? (() => undefined)
-  const readPermission = options?.readPermission ?? (() => undefined)
+    options.actionRules === undefined ? undefined : actionRulesSchema.parse(options.actionRules)
+  const { readAdmission: read, readPermission } = options
   return Object.freeze({
     admit: async (input: Request) => {
       try {

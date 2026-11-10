@@ -10,7 +10,7 @@ The consumer uses the same interpretPermission function as the SQL interpreter b
 
 The current source receives a service context containing the original issued principal and an owner locator. Agent locators carry execution, passage, action and advance. Tool locators carry call and the fixed request. The consumer snapshots these locator values before awaiting dependencies and preserves the original principal object. The Governance implementation obtains the principal through its configured principalOf function, verifies it independently and passes the context to the owner resolver. The locator is input to owner qualification, not proof of qualification; the production owner projections remain required.
 
-The ordinary admission factories accept a readPermission dependency. The production authorization row connects Governance, Session assignments and the original AgentDefinition constraints. Consumer tests with named source fixtures verify their own boundary; native SQL and default-release tests verify the actual composition. Neither fixture tests nor source presence alone establish delivery acceptance.
+The ordinary admission factories require a readPermission dependency. The production authorization row connects Governance, Session assignments and the original AgentDefinition constraints. Consumer tests with named source fixtures verify their own boundary; native SQL and default-release tests verify the actual composition. Neither fixture tests nor source presence alone establish delivery acceptance.
 
 ### Admission invariant
 

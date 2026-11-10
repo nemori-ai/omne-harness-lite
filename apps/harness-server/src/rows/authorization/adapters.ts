@@ -46,7 +46,7 @@ export { createToolAccessGuard } from './tool-access.ts'
 export type AccessPorts = Readonly<{
   admission: AdmissionCheck
   systemActions: SystemActionAuthorization
-  login?: SessionPermissionLogin
+  login: SessionPermissionLogin
 }>
 
 /** The two access checks answer in the same three kinds. */
