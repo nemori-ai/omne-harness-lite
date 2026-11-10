@@ -61,10 +61,10 @@
 - 每步的输出落 `tmp/check-run/<head 短号>/<步骤>.log`，名字里的 `:` 换成 `-`，例如 `check-docs.log`；只留最近 5 个头的目录。
 - 结束时写逐步耗时表 `tmp/check-run/<head 短号>/steps.tsv`（步骤、退出码、秒数、相对开始的起止秒）与运行记录 `run.json`（准入运行另在准入日志旁边写一份），并打印实际走过的关键路径。
 
-- 不依赖任何步骤的常驻检查：`check:agents`、`check:docs`、`check:design`、`check:lines`、`check:journal-facts`、`format:check`、`test:format`，以及写范围与线归属的核对 `node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts`（根 `package.json` 没有对应的脚本）。它读本工作树的 task context，逐提交算出本卡自己改过的文件，再加上未提交的改动。不在 binding 写范围内的文件为 `change-outside-scope`，线内的卡改到别的线或联调轨道的文件为 `change-outside-line`。本卡改了契约成员的 `api` 目录时，它用钉住的 `omne-contract-api --diff <taskBase>` 比较这些成员的快照差异，超过 binding 的契约变更时为 `contract-exceeds-declared`。有任一项时退出 1，检查失败。`omne-contract-api` 运行失败时退出 2，检查也失败。标准错误逐项写文件、代码与改法。没有 task context 时只写「未绑定」，检查继续。算法与退出码见 [dev-flow 交付观察说明](../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
+- 不依赖任何步骤的常驻检查：`check:agents`、`check:docs`、`check:design`、`format:check`，以及验收锁 `acceptance:lock`：按正文开头解析的基线（经环境变量 `BASELINE` 传给它）核碰过验收的提交，破了就失败（硬线二，见 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md#验收锁)）。格式脚本自己的测试（`test-formatting.sh`）不单列一步：它随 `tools/repo-toolchain` 的成员测试跑，改了格式脚本就选中那个成员。Journal 事实体的检查（`check-journal-facts.mjs`）也不单列一步：harness-server 的测试对自己跑出的库直接调用它。
 - 不依赖任何步骤、按计划：`pnpm run test:python`（pytest）与构建（被选中的成员及其依赖，另加 `lint:rules` 需要的 identity-values）。
 - 构建之后：按计划的类型检查、成员测试与可执行验收。以下 dist 读取步骤还须等类型检查成功结束，因为部分成员的 typecheck 会重建 dist：`check:declarations`；契约成员 API 快照与 dist 的核对 `node --experimental-strip-types tools/dev-flow/src/integration/cli.ts contract-check`（根 `package.json` 没有对应的脚本；它运行钉住的 `omne-contract-api --check --json`。成员为 differs、unreadable、missing 或 invalid 时退出 1，检查失败，标准错误逐个写成员、状态与改法。没有 dist 的成员（unbuilt）只报告：影响面计划没有选中它们，所以没有构建。本卡改了成员的快照或源码时，影响面会选中它。工具缺失、运行失败或输出不合格时退出 2，检查也失败。见 [dev-flow 集成工具说明](../tools/dev-flow/src/integration/README.md#契约快照核对)）；`lint:rules`（也核[验收的覆盖声明](../tools/product-checks/README_ZH.md#验收的覆盖声明)与提交署名）；`lint:deps`（dependency-cruiser 解析验收夹具对 dist 的导入）；`lint:oxlint`（import 插件解析 dist 导入）。成员测试跑被选中成员的快层，快层全部通过才跑慢层（[分层](../tools/test-runner/README_ZH.md#测试运行)；`pnpm run test:gate` 也是这一步）；计划为空时明说「没有要跑的成员」，那不是「跑过了、全绿」。可执行验收只跑被选中、带 `acceptance` 脚本的成员，驱动构建出来的 `dist/`，任何一份不过整套检查就失败；耗时记录写进主检出的 `tmp/acceptance-ledger/`，是回路状态里验收耗时传感器的读数来源。计划里一个带验收的成员都没有时，为当前提交记一份标着「本次影响面不含带验收的成员」的账本，传感器认它。现在只有 `apps/cli` 一份，约 6～16 秒。
-- 其余全部结束之后：`pnpm run loop:status --strict --base <基线> --out tmp/loop-status-check`：方向与环、验收锁、开着的传感器都有数据（验收被计划跳过时认上一步的记录），破一个就失败（见 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md#回路状态)）。基线就是正文开头解析的那一个；HEAD 就是那个提交时照跑，新增依赖为 0。它只读源码、git 与验收的耗时记录，放最后是让前面的失败先报；产物写进被 git 忽略的 `tmp/loop-status-check/`（每次先清掉），回路目录里什么都不写。这一步约 30 秒，大头是重复代码检测。单独跑这一步时，要先在同一个提交上跑过 `pnpm run acceptance`（或 `pnpm run check` 的验收一步留下过记录），否则验收耗时传感器没数据、严格模式判失败。
+- 严格模式的回路状态（`pnpm run loop:status --strict`）不在这张表里：整仓健康读数在 mainline 提升 main 时跑，只报告不挡（见 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md#回路状态)）。
 
 ### 环境自检与自愈
 
@@ -77,7 +77,7 @@
 
 ### 预检
 
-`pnpm run preflight`（`./scripts/check.sh --preflight`，正文是运行器的 `check --preflight`）在当前树上一次跑完准入里不依赖构建与全量测试的步骤：`check:agents`、`check:docs`、`check:design`、`check:lines`、`change-scope`（含卡级语义复核与写范围）、`format:check`、`lint:rules`、`lint:oxlint`，以及 `acceptance:lock`（`loop:status` 里验收锁那一项的等价核对）。表在 [check-steps.ts](../tools/test-runner/src/testing/check-steps.ts) 的 `preflightSteps`，判据与 check 的表相同。全部同时起（受轻步骤并发限制），失败不终止其余（等价 `--keep-going`），最后一次列出全部失败：每一步的退出码、日志末尾与一句修法。退出码取第一个失败的那一步，全过退出 0。
+`pnpm run preflight`（`./scripts/check.sh --preflight`，正文是运行器的 `check --preflight`）在当前树上一次跑完准入里不依赖构建与全量测试的步骤：`check:agents`、`check:docs`、`check:design`、`format:check`、`lint:rules`、`lint:oxlint` 与 `acceptance:lock`。表在 [check-steps.ts](../tools/test-runner/src/testing/check-steps.ts) 的 `preflightSteps`，判据与 check 的表相同。全部同时起（受轻步骤并发限制），失败不终止其余（等价 `--keep-going`），最后一次列出全部失败：每一步的退出码、日志末尾与一句修法。退出码取第一个失败的那一步，全过退出 0。
 
 - 写者收尾与调度者入队前都跑它。它不写准入日志与运行记录，不是准入证据；日志落 `tmp/preflight/`。
 - 它不占运行名额：只起轻步骤，与 check 里同时跑的那些相同。
@@ -85,7 +85,7 @@
 - `lint:rules` 读磁盘上现有的 `packages/common/legal-identity` 的 dist，预检不构建；没有就在那一步失败，修法里写明先构建它。
 - 本机实测（24 核，别的会话在跑测试）墙钟 41 到 44 秒，长的一步是 `check:docs`。
 
-这样排之后，墙钟由关键路径决定。Linux 上是构建 → 类型检查 → 快层 → 慢层 → 验收 → 回路状态；pytest、文档与设计检查、格式、lint 都与它重叠。Windows 上 pytest 用 xdist 分进程，在 check 里用时约两分钟，与构建、类型检查重叠。逐步耗时表每次都写，关键路径由实际起止时间算出。
+这样排之后，墙钟由关键路径决定。Linux 上是构建 → 类型检查 → 快层 → 慢层；pytest、文档与设计检查、格式、lint 都与它重叠。Windows 上 pytest 用 xdist 分进程，在 check 里用时约两分钟，与构建、类型检查重叠。逐步耗时表每次都写，关键路径由实际起止时间算出。
 判全量时（全局文件改了、有规则不认得的路径、`FULL=1`）计划选中全部成员，全部步骤对全部成员跑。构建与类型检查仍经 turbo 执行。
 合并后没有自动补跑，也没有定时任务：全量由负责人不定时让一个会话手动跑 `FULL=1 pnpm run check`。
 

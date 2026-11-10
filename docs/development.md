@@ -298,7 +298,7 @@ turbo 不提供的规则留在 `tools/test-runner/test-runs.config.json`：全�
 - `.meta_harness/human/**` 是常驻路径。那里只有给人读的 `.md`。只有常驻检查 `check:docs` 读它，成员测试、pytest 与影响面规则都不读。只改它时只跑常驻检查。
 - 成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）不算成员改动。turbo 按包计改动，会选中那个成员与它的全部下游。计划用 turbo 的依赖图，把只改了文档的成员及其下游中不是代码改动成员下游的那些拿掉：不进测试、类型检查与验收。同一成员既改文档又改代码时，照旧选中它与下游。计划说明把拿掉的成员列在「只改了文档、不选的成员」下。拿掉之前，计划核对 turbo 选中的每个成员都在代码改动成员或只改了文档的成员的下游里（含它们自己）。有解释不了的成员时，turbo 的种子里有规则没认出的改动，计划判全量，理由点名这些成员。
 - 只改一个不被任何测试读的成员 `SPEC.md` 或 `README.md` 时，计划只跑常驻检查。被测试读的文档由 `tools/test-runner/test-runs.config.json` 的读者规则逐份点名。改这样的文档时，计划只选规则点名的成员，不带下游。测试新读一份成员根目录文档或成员目录外的文件时，同时补一条读者规则，否则改它时漏选。
-- `tools/dev-flow/src/integration/**` 是 dev-flow 的成员文件，不是全局路径。改这里跑 dev-flow 的测试。`scripts/check.sh` 用 `tools/test-runner` 的 `baseline` 取基线，不执行这里的代码。`check:lines` 导入其中的 `parse.ts` 与 `policy.ts`，它是常驻检查，每次都跑。
+- `tools/dev-flow/src/integration/**` 是 dev-flow 的成员文件，不是全局路径。改这里跑 dev-flow 的测试。`scripts/check.sh` 用 `tools/test-runner` 的 `baseline` 取基线，不执行这里的代码。
 - 常驻构建（`residentBuild`）包含 `packages/agent/agent`。`lint:deps` 解析它的验收夹具 `acceptance/fixtures/executor.mjs` 对 `dist/index.js` 的导入。没有它，在没有旧构建产物的检出上，只需常驻检查的计划会在 `lint:deps` 失败。
 
 RFC-0002 的四条约束这样落实：
@@ -366,7 +366,7 @@ pnpm run check:plan
 pnpm run admission
 ```
 
-`pnpm run preflight` 在当前树上一次跑完准入里不依赖构建与全量测试的步骤（文档、agents 投影、设计登记、线归属、写范围与卡级语义复核、格式、结构规则、oxlint、验收锁），全部同时起、失败不终止其余，最后一次列出全部发现与修法，本机约 40 到 90 秒；写者收尾与调度者入队前都跑它。它不写准入日志与运行记录，不是准入证据，见[预检](../scripts/README.md#预检)。
+`pnpm run preflight` 在当前树上一次跑完准入里不依赖构建与全量测试的步骤（文档、agents 投影、设计登记、格式、结构规则、oxlint、验收锁），全部同时起、失败不终止其余，最后一次列出全部发现与修法，本机约 40 到 90 秒；写者收尾与调度者入队前都跑它。它不写准入日志与运行记录，不是准入证据，见[预检](../scripts/README.md#预检)。
 
 没有绑定任务的工作树（例如进入 stable 的 PR）显式给同一个基线：
 
@@ -379,15 +379,14 @@ BASELINE="$TASK_BASE" pnpm run admission
 
 两条命令按同一规则取基线，因此不给基线时它们比较的范围相同。传显式基线的方式不同：`check:plan`用`--base`参数（也读环境变量`BASELINE`），`check`只读环境变量`BASELINE`。
 
-`pnpm run check`先打印影响面，再按[步骤图](../scripts/README.md#check-的步骤图)跑常驻检查与计划里的 Python、构建、类型检查、成员快慢层及可执行验收：没有依赖的步骤同时跑，构建之后才跑读 dist 的步骤，最后执行严格回路状态；一步失败其余终止。它通过时只支持已执行范围；计划中的跳过不算通过。无选中验收时记录显式跳过，不为凑数据运行无关验收。全局变更、未知路径或负责人明确要求可触发全量；`FULL=1`用于显式全量，不是每次交付的默认值。
+`pnpm run check`先打印影响面，再按[步骤图](../scripts/README.md#check-的步骤图)跑常驻检查与计划里的 Python、构建、类型检查、成员快慢层及可执行验收：没有依赖的步骤同时跑，构建之后才跑读 dist 的步骤；一步失败其余终止。它通过时只支持已执行范围；计划中的跳过不算通过。无选中验收时记录显式跳过，不为凑数据运行无关验收。全局变更、未知路径或负责人明确要求可触发全量；`FULL=1`用于显式全量，不是每次交付的默认值。
 
-硬线归[整洁回路](clean-loop.md#回路怎么转)。手动组合检查时，严格回路状态的入口如下，所需账本须属于同一候选：
+硬线归[整洁回路](clean-loop.md#回路怎么转)：方向与环、验收锁是 `pnpm run check` 的常驻步骤。严格模式的回路状态不在准入里，mainline 提升 main 时跑一次整仓健康读数，只报告不挡，做法归 `omne-card` 的「提升与发行」。要在本卡候选上看一次时，入口如下，所需账本须属于同一候选：
 
 ```sh
 pnpm run loop:status --strict --base "$TASK_BASE" --out tmp/<task>/loop-strict
 ```
-
-组合检查已经产出同一候选的有效严格报告时可直接引用，不为形式重复执行。临时dirty候选的验收耗时账本目前没有内容指纹，不能仅凭同一HEAD或`-dirty`标记证明最终字节已验收；候选改变后重新执行受影响检查，实际证据绑定沿[工具限制](../tools/repo-toolchain/README_ZH.md#验收耗时)核对。
+临时dirty候选的验收耗时账本目前没有内容指纹，不能仅凭同一HEAD或`-dirty`标记证明最终字节已验收；候选改变后重新执行受影响检查，实际证据绑定沿[工具限制](../tools/repo-toolchain/README_ZH.md#验收耗时)核对。
 
 开发自查可以面向未提交字节。合并前在最终提交和干净检出上核对影响面并执行所需检查；当前仓库工作流配置不能代替实际CI运行证据，本地通过也不表示远端已通过。合并后不自动补跑全量。提交、推送、合并及发布仍按任务授权执行。
 
