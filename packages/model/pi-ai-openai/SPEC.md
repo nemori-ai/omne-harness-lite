@@ -27,7 +27,7 @@
 
 `OPENAI_RECORDS` 是本包唯一的型号清单。档案、采用、指纹与夹具都从它派生。
 
-1. 每个型号一条 `current` 记录，`revision` 为 `1`。记录名等于 OpenRouter 路由名，例如 `openai/gpt-6-astra`。路由为 `{ recipient: 'openrouter', model: <路由名> }`。
+1. 每个型号一条 `current` 记录，`revision` 为 `1`。记录名等于 OpenRouter 路由名，例如 `openai/gpt-6-astra`。路由为 `{ provider: 'openrouter', model: <路由名> }`。
 2. 记录是纯 JSON 数据。共用的线数据以常量展开。记录的采用由 `recordAdoption('@omne-harness/pi-ai-openai', record)` 算出。
 3. 记录不得原地修改。行为或数据变化时，新增一个修订并把旧记录标为 `frozen`。`tests/fixtures/adoptions.json` 记录每条记录的摘要，原地修改使指纹测试失败。
 4. 线数据：

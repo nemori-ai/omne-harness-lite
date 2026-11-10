@@ -172,7 +172,7 @@ sequenceDiagram
 
 | 模块 | 职责 |
 | --- | --- |
-| `records.ts` | 文件格式：版本 2 的编码与读取，旧的无版本文件（Model 宿主的保管库）读成同样的绑定；键的相等与范围是否铸造 |
+| `records.ts` | 文件格式：版本 2 的编码与读取，其他形状判为损坏；键的相等与范围是否铸造 |
 | `store.ts` | 文件锁、残留临时文件清扫、原子发布（临时文件、`fsync`、重命名）、每次调用整份重读；`openSecretVault`、`createSecretVault`、`inspectSecretVault` 与保管库句柄 |
 | `init.ts` | 在宿主上建保管库：用户目录路径规则、路径上无对象、权限护栏（POSIX 模式位或 Windows 继承的访问控制）、读回确认，以及把读到的文本解析成 `SecretText` |
 | `terminal.ts`、`input.ts` | 关闭回显的终端读入与读入失败的原因码 |

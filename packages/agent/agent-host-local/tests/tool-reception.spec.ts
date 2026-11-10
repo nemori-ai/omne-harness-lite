@@ -43,6 +43,7 @@ class TableRuntime extends ToolRuntimeService<unknown, ContentBlock> {
   observation = unused as never
   content = unused as never
   catalog = unused as never
+  body = unused as never
   /** The receiver the push stage would reach for `owner`. */
   registered(owner: string): ToolResultReceiver<unknown, ContentBlock> | undefined {
     return this.resultReceiver(owner)

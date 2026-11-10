@@ -6,10 +6,10 @@
 
 本包交付七部分：
 
-1. 根入口导出的三段传输：工厂 `createPiTransport` 与配置类型 `PiTransportConfig`、`PiRoute`、`PiCredentialSlot`、`PiTransportLimits`。工厂返回的 `ModelTransport` 兑现 `prepare → materialize → start`。
+1. 根入口导出的三段传输：工厂 `createPiTransport` 与配置类型 `PiTransportConfig`、`PiRoute`、`PiRouteAuth`、`PiCredentialSlot`、`PiTransportLimits`。工厂返回的 `ModelTransport` 兑现 `prepare → materialize → start`。
 2. 根入口导出的网络资源：工厂 `createNetworkResources` 与类型 `NetworkConfig`、`NetworkResources`、`ProxyConfig`、`DiagnosticObserver`。装配创建并拥有网络资源，再把它交给 `createPiTransport`。`NetworkResources` 是不透明句柄，包外只能调用它的 `close()`。行为见[“网络资源”](#网络资源)与[“代理”](#代理)。
 3. 根入口导出的五个家族贡献接口类型：`PiProtocolFrame`、`PiResponseDecoder`、`PiMaterializedMedia`、`PiFamilyBinding` 与 `PiFamilyContributions`。形状与家族作者须遵守的行为归[组架构“pi 家族贡献的取得协议”](../docs/architecture.md#pi-家族贡献的取得协议)，本文件不重复这些条款。
-4. 根入口导出的家族表：`defineFamily`、`composeFamilies`、`recordAdoption`、`replayFormatsOf` 与类型 `PiModelRecordHead`、`PiFamilySpec`、`PiFamily`、`PiReplayFormats`。行为见[“家族表”](#家族表)。
+4. 根入口导出的家族表：`defineFamily`、`composeFamilies`、`recordAdoption`、`recordProvider`、`replayFormatsOf` 与类型 `PiModelRecordHead`、`PiFamilySpec`、`PiFamily`、`PiReplayFormats`。行为见[“家族表”](#家族表)。
 5. 子入口 `./chat-completions` 导出的网关引擎：运行时值 `bindChatCompletions`、校准算术 `calibratedAmount`、两家共用的计量器外壳 `createCalibratedMeter` 与计量规则，以及记录词表、四个家族 hook、计量接缝与解码器限额的类型。行为见[“网关引擎：请求”](#网关引擎请求)、[“校准算术”](#校准算术)、[“共用计量规则”](#共用计量规则)与[“网关引擎：流解释”](#网关引擎流解释)。
 6. 子入口 `./testing` 导出的家族测试助手：`checkChatCompletionsFixtures`、`checkAdoptionFingerprints`、`appendAdoptionFingerprints` 与夹具格式的常量和类型。它读写文件，只供家族包的测试与脚本使用。行为见[“家族测试助手”](#家族测试助手)。
 7. 包内传输机制：连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离。这些机制不经入口导出（依据 [#461 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/461#issuecomment-6311010561)）。本文件对它们的条款约束同包的调用代码，即网络资源与三段传输。
@@ -39,14 +39,16 @@
 `createPiTransport(config)` 返回 `{ transport, close }`。`transport` 是 `ModelTransport`。
 
 - `config.network` 是装配创建并拥有的网络资源。多个传输可以共享同一网络资源。传输不创建也不关闭它。
-- `config.families` 是家族贡献，`config.credential` 是凭据槽。两者都由装配注入。
-- `config.routes` 按 `supplier.recipient` 查找路由。本包只查对象自身的属性，不查原型链。每个路由给出完整的 endpoint（`url`）与协议的 end-marker 文本（`endMarker`，协议没有 end-marker 时为 `null`）。
+- `config.families` 是家族贡献，`config.credential` 是凭据槽。两者都由装配注入。凭据槽按凭据项给出本次发送的秘密。
+- `config.routes` 按 `supplier.provider` 查找路由。本包只查对象自身的属性，不查原型链。每个路由给出完整的 endpoint（`url`）、协议的 end-marker 文本（`endMarker`，协议没有 end-marker 时为 `null`）、账目口径（`accounting`：服务落点的前缀 `place` 与费用单位 `costUnit`）与凭据的携带方式（`auth`：把某个凭据项的秘密作为 bearer 发送，供应商不声明凭据项时为 `null`）。路由取自模型供应商资产的正文（model-contract「模型供应商资产」）；本包在 `./chat-completions` 提供 OpenRouter 的正文文本 `OPENROUTER_PROVIDER_BODY_TEXT` 与它的账目口径 `OPENROUTER_ACCOUNTING`。
 - `config.limits` 给出 `connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes` 与单个事件 JSON 的 `json` 限额，另有可选的 `streamStallTimeoutMs`（见[“流停顿上界”](#流停顿上界)）与可选的 `connectRetry`（见[“请求发出之前的重试”](#请求发出之前的重试)）。本包不设默认值。
 
 下列情况下，`createPiTransport` 同步抛出 `RangeError`。消息只写字段名与规则，不含 URL：
 
 - 路由的 `url` 不能解析，或不是 `https:`，或含用户名、密码、查询串或片段；
 - 路由的 `endMarker` 既不是字符串也不是 `null`；
+- 路由没有 `accounting`，或它的 `place` 或 `costUnit` 不是非空字符串；
+- 路由的 `auth` 既不是 `null`，也不是带非空 `item` 的 `bearer`；
 - `connectTimeoutMs` 既不是 `null` 也不是 1 到 2147483647 之间的整数；
 - `streamStallTimeoutMs` 存在，但不是 1 到 2147483647 之间的整数（`null`、0、负数与小数都被拒绝；消息指向 `limits.streamStallTimeoutMs`）；
 - `onConnectRetry` 存在，但不是函数；
@@ -59,8 +61,8 @@
 
 `prepare(request, supplier, dispatch)` 不发送，不读取媒体，不预约容量。
 
-- `supplier.recipient` 没有路由时，返回 `unsupported`，`field` 为 `supplier.recipient`。本包不调用家族贡献。
-- `request.suppliers` 中没有与 `supplier` 完全相等的一项（采用的四项、接收方、型号与凭据都相等）时，返回 `invalid`，`field` 为 `supplier`，`reason` 为 `not-in-request`。本包不调用家族贡献。
+- `supplier.provider` 没有路由时，返回 `unsupported`，`field` 为 `supplier.provider`。本包不调用家族贡献。
+- `request.suppliers` 中没有与 `supplier` 完全相等的一项（采用的四项、供应商、型号与凭据层都相等）时，返回 `invalid`，`field` 为 `supplier`，`reason` 为 `not-in-request`。本包不调用家族贡献。
 - 本包取 `request.declarations` 中与该供应商同序的一项作为这次发出的回放声明，并保存 `dispatch.resent` 的副本。两者在 materialize 时交给 `encode`。
 - 本包调用 `families.acquire(supplier, signal)` 取得家族绑定。家族返回的失败原样返回。`signal` 在外层 `close()` 时中止。
 - 外层 `close()` 开始之后，`prepare` 返回 `unavailable`（`dependency` 为 `pi-transport`）。`close()` 开始时仍在进行的 acquire 之后取得的绑定，本包立即释放。
@@ -88,12 +90,12 @@
 
 1. `signal` 已中止，或网络资源已开始关闭时，本包不读凭据，不发送，归还名额。流只给出 `interrupted`（`stop: 'confirmed'`）。所以网络资源关闭先于缺少凭据：两者同时成立时，流给出 `interrupted`。
 2. 本包调用 `credential.read()` 一次。返回 `undefined` 时，本包不发送，归还名额。流只给出 `failed`，`cause` 为 `credential`，`upstreamStatus` 为 `null`，`diagnostic` 为 `credential-not-provided`。`start` 不抛出。
-3. 本包组装请求头：`authorization: Bearer <凭据>`、`content-type: application/json`、`accept: text/event-stream`，然后调用 `startExchange`。`start` 返回时，请求已经交给 Node 并已调用 `end(body)`。
+3. 本包组装请求头：路由的 `auth` 是 `bearer` 时为 `authorization: Bearer <该凭据项的秘密>`，再加 `content-type: application/json`、`accept: text/event-stream`，然后调用 `startExchange`。凭据槽为空，或缺路由 `auth` 指名的凭据项时，本包不发送，事实流以 `credential` 失败结束。`start` 返回时，请求已经交给 Node 并已调用 `end(body)`。
 4. `startExchange` 拒绝时，名额已归还，本包不发送。`cancelled` 与 `resources-closed` 给出 `interrupted`（`stop: 'confirmed'`）。`invalid-header` 只能来自凭据，给出 `failed`，`cause` 为 `credential`，`diagnostic` 为 `credential-not-a-header-value`。其他拒绝原因是本包的缺陷，`start` 抛出 `Error`。
 
 - 同一 materialized 只能 start 一次。start 之后、任何关闭之前再次调用 start，本包返回立即结束的空流，不读凭据，不发送。
 - materialized 的 `close()`、派生它的 prepared 的 `close()` 或外层 `close()` 之后调用 start，本包不读凭据，不发送。流只给出 `interrupted`（`stop: 'confirmed'`），与网络资源关闭之后的 start 相同。此规则也适用于 start、关闭、再 start 的顺序：关闭之后的任何 start 都给出 `interrupted`，不给出空流。
-- 秘密只在 `start` 的同步调用中经过本包。本包不保存它，不把它写入事实、诊断或异常消息。凭据槽中的秘密与 `supplier.credential` 的对应关系由调用方保证。
+- 秘密只在 `start` 的同步调用中经过本包。本包不保存它，不把它写入事实、诊断或异常消息。凭据槽中的秘密与 `supplier.credential` 的层的对应关系由调用方保证。
 
 #### 事实流
 
@@ -369,7 +371,7 @@
 
 #### 记录与采用
 
-- 记录是纯 JSON 数据。记录头 `PiModelRecordHead` 有 `name`、`revision`、`route`（`recipient` 与 `model`）与 `status`（`current` 或 `frozen`）。家族的记录类型扩展记录头。
+- 记录是纯 JSON 数据。记录头 `PiModelRecordHead` 有 `name`、`revision`、`route`（`provider` 与 `model`）与 `status`（`current` 或 `frozen`）。`route.provider` 是供应商名的文本，`defineFamily` 拒绝不是供应商名的文本；`recordProvider(record)` 把它读成 `ProviderName`。家族的记录类型扩展记录头。
 - `recordAdoption(owner, record)` 返回 `{ owner, name, revision, digest }`。`digest` 是整条记录的规范 JSON 的 SHA-256，写成 64 位小写十六进制。摘要不写进记录。记录中的线数据与规则名都在摘要内，所以改动它们就改变采用。
 - 规范 JSON 的写法：没有空白；对象的键按 UTF-16 码元排序；字符串与有限数按 `JSON.stringify` 的写法；`true`、`false` 与 `null` 原样写出。对这些值，这个写法与 RFC 8785（JCS）相同。tokenizer-tiktoken 的规范 JSON 是同一规则的子集。
 - 记录含函数、`undefined`、symbol、bigint、非有限数、数组空位、访问器、非普通对象、symbol 键或环时，记录不是纯数据，`recordAdoption` 抛出 `RangeError`，消息写明路径与原因。
@@ -395,7 +397,7 @@
 | 情况 | 结果 |
 | --- | --- |
 | 四项采用查不到 | `unavailable`，`dependency` 为采用里的 `owner`，`diagnostic` 为 `adoption-not-installed`。不调用任何家族 |
-| 查到，`supplier.recipient` 与记录不符 | `invalid`，`field` 为 `supplier.recipient`，`reason` 为 `route-mismatch` |
+| 查到，`supplier.provider` 与记录不符 | `invalid`，`field` 为 `supplier.provider`，`reason` 为 `route-mismatch` |
 | 查到，`supplier.model` 与记录不符 | `invalid`，`field` 为 `supplier.model`，`reason` 为 `route-mismatch` |
 | 调用家族之前 `signal` 已中止 | `unavailable`，`diagnostic` 为 `cancelled`。不调用家族 |
 | 查到且一致 | 用记录的冻结副本调用该家族的 `acquire(record, supplier, signal)`。家族的失败原样返回 |
@@ -648,9 +650,9 @@ hook 成功时，`end()` 按下列次序给出事实：
 
 1. 一个 `account` 事实，`event` 为 `usage`，值是账目报告 `CallAccountReport`：
    - `usage` 是 hook 返回的 `items`；
-   - `cost`：usage 的 `cost` 成员是非负 JSON 数时，为一项 `known`，`unit` 为 `openrouter-credit`，`source` 为 `billable`。没有指数的词法照原样。有指数的词法改写成精确的普通十进制词法：只移动小数点，不经浮点数，例如 `2.25e-7` 写成 `0.000000225`。改写后超过 512 个字符时为 `unknown`。该成员是负数或不是数时，为一项同单位、同来源的 `unknown`。没有该成员或为 `null` 时，为空。网关的 `cost` 以额度计，不是货币，所以单位不是 `USD`。网关按该成员扣除额度，所以来源是 `billable`，不是 `supplier`；
+   - `cost`：usage 的 `cost` 成员是非负 JSON 数时，为一项 `known`，`unit` 为路由的 `accounting.costUnit`（OpenRouter 为 `openrouter-credit`），`source` 为 `billable`。没有指数的词法照原样。有指数的词法改写成精确的普通十进制词法：只移动小数点，不经浮点数，例如 `2.25e-7` 写成 `0.000000225`。改写后超过 512 个字符时为 `unknown`。该成员是负数或不是数时，为一项同单位、同来源的 `unknown`。没有该成员或为 `null` 时，为空。网关的 `cost` 以额度计，不是货币，所以单位不是 `USD`。网关按该成员扣除额度，所以来源是 `billable`，不是 `supplier`；
    - `trimmed` 为 `{ state: 'unknown', unit: 'token' }`；
-   - `place` 为 `openrouter/<第一帧报告的 provider>`；
+   - `place` 为 `<路由的 accounting.place>/<第一帧报告的 provider>`（OpenRouter 为 `openrouter/<provider>`）；
    - `duration` 为 `{ state: 'unknown' }`，解码器不计时；
    - `revision` 为 `'1'`。
 2. hook 返回的每条 `usage-inconsistent` 诊断，各一个 `diagnostic` 事实。
@@ -704,7 +706,7 @@ hook 成功时，`end()` 按下列次序给出事实：
 - 持有预约的调用方负责归还预约，或把它交给一次交换。
 - 认领 2xx 响应体的读者负责读完它，或停止交换。
 - 调用方在发起时把凭据放进请求头。本包不解析、保存或记录凭据。
-- 三段传输的调用方在调用 `start` 之前把本次发送的秘密写入凭据槽，在 `start` 返回之后立即清空凭据槽。凭据槽由所有发送共用，本包只在 `start` 的同步调用中读取它。秘密与 `supplier.credential` 的对应关系由调用方保证。
+- 三段传输的调用方在调用 `start` 之前把本次发送的秘密按凭据项写入凭据槽，在 `start` 返回之后立即清空凭据槽。凭据槽由所有发送共用，本包只在 `start` 的同步调用中读取它。秘密与 `supplier.credential` 的层的对应关系由调用方保证。
 
 ### 秘密与对外事实
 

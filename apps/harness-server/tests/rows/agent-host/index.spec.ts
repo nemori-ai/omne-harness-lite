@@ -34,6 +34,7 @@ import {
 import { agentHostPlugin } from '@omne-harness/agent-host-local/cordis'
 import {
   decodeDispatchId,
+  decodeProviderName,
   decodeResultVersion,
   resolveModelInvocationRef,
 } from '@omne-harness/model-contract'
@@ -431,9 +432,9 @@ async function suggestTool(row: Plugin) {
       dispatch,
       supplier: {
         adoption: adoption('supplier'),
-        recipient: 'recipient',
+        provider: ok(decodeProviderName('recipient')),
         model: 'model',
-        credential: { kind: 'factory' },
+        credential: { layer: 'official' },
       },
       intent: admission,
       send: 'started',

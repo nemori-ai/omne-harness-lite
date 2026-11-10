@@ -94,21 +94,21 @@ function checkTags(produces: string, accepts: readonly unknown[] | undefined): s
  * Reads, expands and checks the declaration of the supplier at `index` of a profile definition.
  * `replay` is typed `unknown` because it comes from a store or a configuration. The success value
  * is the declaration with every default applied and is frozen: `produces` is the exact model
- * identity (recipient, `/`, model), `accepts` holds only `produces`, `foreignThinking` is `omit`.
+ * identity (provider, `/`, model), `accepts` holds only `produces`, `foreignThinking` is `omit`.
  * The first failure in this order is returned: the shape of `replay` as stored, a `produces` that
  * is not text, an `accepts` that is not an array, `produces` (also when it is a default that is
  * too long), each item of `accepts`, duplicates, `produces` missing from `accepts`,
  * `foreignThinking`. `field` is `suppliers[index].replay`.
  */
 export function judgeReplayDeclaration(
-  supplier: Readonly<{ recipient: string; model: string; replay?: unknown }>,
+  supplier: Readonly<{ provider: string; model: string; replay?: unknown }>,
   index: number,
 ): Outcome<ReplayDeclaration, Extract<ModelFailure, { kind: 'invalid' }>> {
   const declared = readDeclared(supplier.replay)
   if (declared === undefined) return invalid(index, 'replay')
   if (!isOptionalText(declared.produces)) return invalid(index, 'produces')
   if (!isOptionalArray(declared.accepts)) return invalid(index, 'accepts')
-  const produces = declared.produces ?? `${supplier.recipient}/${supplier.model}`
+  const produces = declared.produces ?? `${supplier.provider}/${supplier.model}`
   const accepts = declared.accepts === undefined ? [produces] : readItems(declared.accepts)
   const tags = checkTags(produces, accepts)
   if (typeof tags === 'string') return invalid(index, tags)

@@ -45,6 +45,7 @@ import { tenantEquals } from '@omne-harness/legal-identity'
 import { agentToolReceptionTargetsKey } from '@omne-harness/agent-cordis-contract/cordis'
 import {
   decodeDispatchId,
+  decodeProviderName,
   decodeResultVersion,
   type DispatchId,
   type ModelDelivery,
@@ -823,9 +824,9 @@ export async function openW2World(options: W2Options) {
         dispatch,
         supplier: {
           adoption: testAdoption('cp3-supplier'),
-          recipient: 'recipient',
+          provider: ok(decodeProviderName('recipient')),
           model: 'model',
-          credential: { kind: 'factory' },
+          credential: { layer: 'official' },
         },
         intent: operation,
         send: 'started',

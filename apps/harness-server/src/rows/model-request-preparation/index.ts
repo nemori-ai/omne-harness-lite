@@ -10,7 +10,7 @@ import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { modelTokenizersKey } from '@omne-harness/tokenizer-tiktoken/cordis'
 import { defineRow } from '../../row.ts'
 import { modelRequestPreparationConfig, type ModelRequestPreparationConfig } from './config.ts'
-import { tenantCredentialSupplier } from '../../model/tenant-credential.ts'
+import { credentialLayerSupplier } from '../../model/credential-layer.ts'
 
 const plugin: Plugin.Object = {
   name: 'model-request-preparation',
@@ -32,7 +32,7 @@ const plugin: Plugin.Object = {
       bindings,
       // `modelCredential` is read per call: a missing custody stops a preparation, it does not hold
       // the row PENDING, and it never falls back to the factory reference.
-      supplierOf: tenantCredentialSupplier(() => ctx.get(modelCredentialKey)),
+      supplierOf: credentialLayerSupplier(() => ctx.get(modelCredentialKey)),
     })
     await ctx.plugin(preparation.plugin, { maxCitedCalls: config.maxCitedCalls })
   },

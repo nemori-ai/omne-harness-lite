@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { REPLAY_TAG_MAX_LENGTH, judgeMessage, type Message } from '@omne-harness/message'
 import {
+  decodeProviderName,
   type ForeignThinking,
   type ProfileSupplier,
   type ReplayDeclaration,
@@ -16,6 +17,12 @@ import {
 const SECRET = 'PAYLOAD-THAT-MUST-NOT-LEAK'
 const seen = { toHuman: true, toModel: true }
 const hidden = { toHuman: false, toModel: true }
+
+const VENDOR = (() => {
+  const decoded = decodeProviderName('vendor')
+  if (!('ok' in decoded)) throw new Error('invalid provider fixture')
+  return decoded.ok
+})()
 
 function messageId(letter: string): string {
   return `msg_${letter.repeat(22)}`
@@ -309,7 +316,7 @@ describe('continuedMessages', () => {
 function supplier(replay?: ProfileSupplier['replay']): ProfileSupplier {
   const base = {
     adoption: { owner: 'o', name: 'n', revision: '1', digest: 'd' },
-    recipient: 'vendor',
+    provider: VENDOR,
     model: 'model-1',
   }
   return replay === undefined ? base : { ...base, replay }
@@ -565,7 +572,7 @@ describe('judgeReplayDeclaration', () => {
   it('reads replay of the supplier once', () => {
     let calls = 0
     const counting = {
-      recipient: 'vendor',
+      provider: VENDOR,
       model: 'model-1',
       get replay() {
         calls += 1

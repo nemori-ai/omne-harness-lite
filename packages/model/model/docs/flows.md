@@ -76,7 +76,7 @@ sequenceDiagram
 | 保存确认丢失、维护者退出或请求取消 | 查询原配置操作或切换事实，未知不宣称成功或回滚；在途调用寿命独立。 |
 | 凭据解绑或读取故障 | 后续请求缺凭据或未知；既有发出与费用不改，存在但不可读不退默认。 |
 
-对应规格为[身份及修订](../../model-contract/SPEC.md#身份修订及撤回)、[同名求值与选择](../../model-contract/SPEC.md#同名求值选择及列表)。持续验证定位[档案验证](../../model-contract/verification/README.md#验证与待闭合输入)，凭据精确键和接入数量继续依 MODEL-M04。
+对应规格为[身份及修订](../../model-contract/SPEC.md#身份修订及撤回)、[同名求值与选择](../../model-contract/SPEC.md#同名求值选择及列表)。持续验证定位[档案验证](../../model-contract/verification/README.md#验证与待闭合输入)。凭据项与选层见[架构](architecture.md#credential-items-and-layer)。
 
 <a id="flow-md02"></a>
 ## 转换、表示选择与固定输入
@@ -345,7 +345,7 @@ sequenceDiagram
 
 完整列表和物化按实际量评价。模型 TTFT 与端到端首次输出分开，排队、转换、组装、发出、重试和清理分别有定位事实。具体指标尺度与后端不在图中补定。
 
-持续验证见[费用及保护](../../model-contract/verification/README.md#持续验证义务)、[合法选择与投影缺失](../../model-contract/verification/README.md#验证与待闭合输入)与[观测规格](../../model-contract/SPEC.md#观测资源与验证)。费用去重及清理接续继续依 MODEL-M02；秘密绑定精确形状继续依 MODEL-M04。
+持续验证见[费用及保护](../../model-contract/verification/README.md#持续验证义务)、[合法选择与投影缺失](../../model-contract/verification/README.md#验证与待闭合输入)与[观测规格](../../model-contract/SPEC.md#观测资源与验证)。费用去重及清理接续继续依 MODEL-M02；凭据项、选层与秘密绑定的键见[架构](architecture.md#credential-items-and-layer)。
 
 ## 请求准备与发送复核
 
@@ -697,30 +697,30 @@ sequenceDiagram
 <a id="credential-resolve"></a>
 ## 凭据解析
 
-承接已接受的[凭据对象](object-model.md#已实现的凭据对象)。每次获准的真实发出都重新解析。同一次发送的后续输出不再解析。存在性查询是另一次操作。发送本身只调用 `resolve`。
+承接[凭据对象](object-model.md#已实现的凭据对象)。准备请求时选定层；每次获准的真实发出都重新读取这一层。同一次发送的后续输出不再读取。
 
 ```mermaid
 sequenceDiagram
-  participant Call as 调用记录
-  participant Keep as 本地保管库（model-host-local）
+  participant Prep as 请求准备
+  participant Port as 凭据端口
   participant Send as 发送端
-  Note over Call,Keep: 存在性查询单独发生
-  Call->>Keep: present
-  Keep-->>Call: 是否存在，无秘密
-  Note over Call,Send: 获准的真实发出
-  Call->>Keep: resolve
-  alt value
-    Keep-->>Send: 仅本次的值
-    Send->>Send: 发出并记下该值
-  else absent unreadable
-    Keep-->>Call: 该种类
+  participant Call as 调用记录
+  Prep->>Port: layerOf(供应商, 档案是否官方, access)
+  Port-->>Prep: 选定的层，或失败
+  Note over Prep,Call: 层写进请求的供应商条目
+  Send->>Port: resolve(供应商, 层, model-send, access)
+  alt 成功
+    Port-->>Send: 项到秘密的映射，仅本次
+    Send->>Send: 发出
+  else missing incomplete revoked unreadable
+    Port-->>Send: 该失败
     Note over Send: 不发送
     Send->>Call: 写失败终止，cause 为 credential
     Note over Call: driver 以该失败结算调用
   else denied unavailable
-    Keep-->>Call: 该种类
+    Port-->>Send: 该失败
     Note over Send: 不发送，不写终止
   end
 ```
 
-轮换后的下一次解析看到新值。撤销后的新解析是 `denied`。已经记入发送端的那一次保持已发送。进程重新打开同一保管库后，按打开时的绑定读取。关闭后的新解析停止，不改写已经发出的记录。
+轮换后的下一次读取看到新值。撤销后的新读取是 `revoked`。读取不回退另一层：租户层在准备后被清空，发送读到 `missing`，不改用官方层。已经记入发送端的那一次保持已发送。

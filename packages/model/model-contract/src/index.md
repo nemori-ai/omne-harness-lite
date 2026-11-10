@@ -4,11 +4,11 @@
 
 ## 根入口与 `./provider` 入口
 
-[index.ts](index.ts) 是根入口，[provider/index.ts](provider/index.ts) 是 `./provider` 入口。两个入口从同一批源文件按名再导出，一个名字只从一个入口导出，规则见[提供者协议入口](../docs/public-api.md#提供者协议入口)。根入口以 `export type *` 或具名导出公开类型，并导出运行值。凭据章在根入口只导出 `CredentialId` 类型，`MODEL_SEND` 与凭据解码函数在 `./provider`。精确归属以两个入口文件为准，完整导出清单见[公开页](../docs/public-api.md)。下表列出公开声明文件、对应的章和导出它的入口：
+[index.ts](index.ts) 是根入口，[provider/index.ts](provider/index.ts) 是 `./provider` 入口。两个入口从同一批源文件按名再导出，一个名字只从一个入口导出，规则见[提供者协议入口](../docs/public-api.md#提供者协议入口)。根入口以 `export type *` 或具名导出公开类型，并导出运行值。凭据章在根入口只导出 `CredentialLayer` 类型，`MODEL_SEND` 与选层、判读函数在 `./provider`。精确归属以两个入口文件为准，完整导出清单见[公开页](../docs/public-api.md)。下表列出公开声明文件、对应的章和导出它的入口：
 
 | 文件 | 章 | 入口 |
 | --- | --- | --- |
-| [root.ts](root.ts)、[identity-values.ts](identity-values.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；身份与解码 | 根入口；`ActorRef`、`decodeReadId` 与 `compareRevisions` 在 `./provider` |
+| [root.ts](root.ts)、[identity-values.ts](identity-values.ts)、[provider-name.ts](provider-name.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；身份与解码 | 根入口；`ActorRef`、`decodeReadId` 与 `compareRevisions` 在 `./provider` |
 | [reference.ts](reference.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；可保存引用的编码、解码与解析 | 调用引用在根入口，操作引用在 `./provider` |
 | [judge-request.ts](judge-request.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；`judgeFixedModelRequest`、`judgeAdmit`、输入拒绝与限额 | `./provider` |
 | [result.ts](result.ts) | 结果、失败和状态 | 根入口 |
@@ -24,7 +24,7 @@
 | [tokenizer.ts](tokenizer.ts) | 文本分词与完整计量依据 | 两个入口各有一部分 |
 | [driver.ts](driver.ts) | 受信宿主驱动 | `./provider` |
 | [replay-values.ts](replay-values.ts) | 推理回放的声明与投影 | `./provider` |
-| [credential.ts](credential.ts)、[credential-values.ts](credential-values.ts) | 凭据引用与解析端口 | `CredentialId` 在根入口，其余在 `./provider` |
+| [credential.ts](credential.ts)、[credential-values.ts](credential-values.ts) | 凭据引用与解析端口 | 全部在 `./provider`（`CredentialLayer` 声明在 root.ts，在根入口） |
 | [diagnostics.ts](diagnostics.ts) | 供应商尝试诊断 | 根入口 |
 
 ## 两个入口的内部实现

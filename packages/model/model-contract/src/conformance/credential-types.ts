@@ -1,50 +1,54 @@
-import type { Access } from '@omne-harness/legal-identity'
-import type { CredentialId, CredentialPort, CredentialReference } from '../credential.ts'
+import type { Access, TenantId } from '@omne-harness/legal-identity'
+import type { CredentialPort } from '../credential.ts'
+import type { ProviderName } from '../root.ts'
+
+/** One credential item of one provider in one layer: what a test control writes. */
+export type CredentialTarget = Readonly<{
+  provider: ProviderName
+  item: string
+  scope: Readonly<{ layer: 'tenant'; tenant: TenantId }> | Readonly<{ layer: 'official' }>
+}>
 
 /** Test controls belong to the assembly, never to the credential port. */
 export type CredentialConformanceControls = Readonly<{
-  bind(reference: CredentialReference, secret: string): void | Promise<void>
-  rotate(reference: CredentialReference, secret: string): void | Promise<void>
-  revoke(reference: CredentialReference): void | Promise<void>
-  markUnreadable(reference: CredentialReference): void | Promise<void>
+  bind(target: CredentialTarget, secret: string): void | Promise<void>
+  unbind(target: CredentialTarget): void | Promise<void>
+  rotate(target: CredentialTarget, secret: string): void | Promise<void>
+  revoke(target: CredentialTarget): void | Promise<void>
+  markUnreadable(target: CredentialTarget): void | Promise<void>
   setUnavailable(unavailable: boolean): void | Promise<void>
   close(): void | Promise<void>
 }>
 
 /**
- * Fresh, empty tenant bindings and a configured synthetic factory value.
- * A late factory result is still disposed after timeout; cleanup errors cannot change its report.
+ * A fresh port without bindings. `provider` declares exactly the two `items` and the release holds
+ * it; `bareProvider` declares no item. The three secrets differ.
  */
 export type CredentialConformanceSubject<P> = Readonly<{
   port: CredentialPort<P>
   access: Access<P>
   otherAccess: Access<P>
-  id: CredentialId
-  otherId: CredentialId
-  factorySecret: string
-  secret: string
+  provider: ProviderName
+  bareProvider: ProviderName
+  items: readonly [string, string]
+  secrets: readonly [string, string]
   rotatedSecret: string
   controls: CredentialConformanceControls
   dispose?(): void | Promise<void>
 }>
 
 export const CREDENTIAL_CONFORMANCE_OBLIGATIONS = [
-  'qualified-methods-required',
-  'legacy-presence-and-resolution',
-  'legacy-unauthorized-denied',
-  'legacy-purpose-denied',
-  'legacy-factory-rules',
-  'qualified-presence-and-resolution',
-  // Probes reads of caller face/authorized/tenant fields, not internal method reuse.
-  'qualified-independent-of-legacy',
-  'qualified-foreign-holder-denied',
-  'qualified-factory-official-only',
-  'qualified-other-binding-blocks-factory',
-  'qualified-purpose-denied',
+  'no-items-no-layer',
+  'tenant-layer-whole',
+  'official-layer-official-profile-only',
+  'layers-never-mixed',
+  'fixed-layer-no-fallback',
+  'foreign-tenant-isolated',
   'rotation-visible',
-  'revoked-binding-denied',
-  'unreadable-binding-preserved',
+  'revoked-item-fails',
+  'unreadable-item-fails',
   'unavailable-source-preserved',
+  'purpose-denied',
   'closed-port-denied',
 ] as const
 

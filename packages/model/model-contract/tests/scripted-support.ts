@@ -11,6 +11,7 @@ import {
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   decodeDispatchId,
+  decodeProviderName,
   decodeModelCallId,
   decodeModelInstanceId,
   decodeModelOperationId,
@@ -46,6 +47,8 @@ export function must<T>(outcome: Outcome<T, unknown>): T {
   throw new Error(`expected success, got ${JSON.stringify(outcome.failure)}`)
 }
 
+const PROVIDER = must(decodeProviderName('provider'))
+
 export function failureOf(outcome: Outcome<unknown, unknown>): unknown {
   if ('failure' in outcome) return outcome.failure
   throw new Error(`expected a failure, got ${JSON.stringify(outcome.ok)}`)
@@ -78,9 +81,9 @@ const adoption = (name: string): Adoption => ({
 
 const supplier: Supplier = {
   adoption: adoption('supplier'),
-  recipient: 'recipient',
+  provider: PROVIDER,
   model: 'model',
-  credential: { kind: 'factory' },
+  credential: { layer: 'official' },
 }
 
 export const request: FixedModelRequest = {
@@ -94,7 +97,7 @@ export const request: FixedModelRequest = {
   tools: [],
   toolChoice: 'none',
   declarations: [
-    { produces: 'recipient/model', accepts: ['recipient/model'], foreignThinking: 'omit' },
+    { produces: 'provider/model', accepts: ['provider/model'], foreignThinking: 'omit' },
   ],
   representation: adoption('representation'),
   parameterAdoptions: [],

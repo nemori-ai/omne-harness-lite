@@ -24,6 +24,8 @@ export type {
   Mutation,
   OutputCursor,
   Parameter,
+  CredentialLayer,
+  ProviderName,
   ReadId,
   ResultCapacity,
   ResultVersion,
@@ -91,7 +93,7 @@ export type {
   PreparationLineage,
 } from './profile-source.ts'
 export type * from './diagnostics.ts'
-export type { CredentialId } from './credential.ts'
+export { decodeProviderName } from './provider-name.ts'
 export {
   MODEL_IDENTITY_MAX_LENGTH,
   MODEL_IDENTITY_PREFIXES,

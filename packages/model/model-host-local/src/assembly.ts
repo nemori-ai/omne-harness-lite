@@ -44,7 +44,7 @@ const ASSEMBLY_CLOSED: ModelFailure = Object.freeze({
 })
 
 export type LocalModelConfig<P> = Readonly<{
-  /** The credential custody, e.g. a local custodian. The send boundary resolves through it. */
+  /** The credential port, e.g. `createSecretCredentialPort`. The send boundary resolves through it. */
   credentials: CredentialPort<P>
   /** The authority of calls, dispatches and accounts. The caller owns it and keeps it open. */
   commands: ModelCommands<P>
@@ -53,7 +53,7 @@ export type LocalModelConfig<P> = Readonly<{
   families: PiFamilyContributions
   /** The assembly creates the network resources from this and closes them in `close`. */
   network: NetworkConfig
-  /** Every recipient and its URL, e.g. `openrouter`. The package holds no URL. */
+  /** The route of every provider, by provider name, e.g. `openrouter`. The package holds no URL. */
   routes: Readonly<Record<string, PiRoute>>
   transportLimits: PiTransportLimits
   maxRetainedAttempts: number
@@ -72,7 +72,7 @@ export type LocalModelConfig<P> = Readonly<{
   preparation: Readonly<{
     /** The most distinct calls one lineage may name. */
     maxCitedCalls: number
-    /** Completes a profile supplier with its credential reference, as request preparation does. */
+    /** Fixes the credential layer of a profile supplier, as request preparation does. */
     supplierOf: SupplierPort<P>
   }>
 }>

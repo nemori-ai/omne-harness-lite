@@ -56,15 +56,23 @@ const LIMITS = {
   },
 }
 const ROUTES = {
-  openrouter: { url: 'https://gateway.invalid/api/v1/chat/completions', endMarker: '[DONE]' },
+  openrouter: {
+    url: 'https://gateway.invalid/api/v1/chat/completions',
+    endMarker: '[DONE]',
+    accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+    auth: { kind: 'bearer' as const, item: 'apiKey' },
+  },
 }
+
+/** The secrets of one send: the one credential item of the route. */
+const secretsOf = (secret: string): ReadonlyMap<string, string> => new Map([['apiKey', secret]])
 
 /** One transport the observing factory made: its slot and what each start read from it. */
 type Observed = {
   config: PiTransportConfig
   prepares: number
   /** The slot value each start read, in order. */
-  reads: (string | undefined)[]
+  reads: (ReadonlyMap<string, string> | undefined)[]
   closes: number
   /** How often a prepared transport of this transport was closed. */
   preparedCloses: number
@@ -332,8 +340,12 @@ describe('the credential slot', () => {
     const [transport] = factory.acquired()
     const materialized = await materializedOf(resource)
     expect(transport?.config.credential.read()).toBeUndefined()
-    resource.startWithCredential(materialized, 'placeholder-a', new AbortController().signal)
-    expect(transport?.reads).toEqual(['placeholder-a'])
+    resource.startWithCredential(
+      materialized,
+      secretsOf('placeholder-a'),
+      new AbortController().signal,
+    )
+    expect(transport?.reads).toEqual([secretsOf('placeholder-a')])
     expect(transport?.config.credential.read()).toBeUndefined()
     await resources.close()
   })
@@ -347,10 +359,14 @@ describe('the credential slot', () => {
       throw failure
     })
     expect(() =>
-      resource.startWithCredential(materialized, 'placeholder-a', new AbortController().signal),
+      resource.startWithCredential(
+        materialized,
+        secretsOf('placeholder-a'),
+        new AbortController().signal,
+      ),
     ).toThrow(failure)
     const [transport] = factory.acquired()
-    expect(transport?.reads).toEqual(['placeholder-a'])
+    expect(transport?.reads).toEqual([secretsOf('placeholder-a')])
     expect(transport?.config.credential.read()).toBeUndefined()
     await resources.close()
   })
@@ -363,16 +379,24 @@ describe('the credential slot', () => {
     const second = await acquired(resources, { ...DEMAND, dispatch: dispatch.ok })
     const firstMaterialized = await materializedOf(first)
     const secondMaterialized = await materializedOf(second)
-    const seenByOthers: (string | undefined)[][] = []
+    const seenByOthers: (ReadonlyMap<string, string> | undefined)[][] = []
     factory.onStart((starting, transports) => {
       const others = transports.slice(1).filter(other => other !== starting)
       seenByOthers.push(others.map(other => other.config.credential.read()))
     })
-    first.startWithCredential(firstMaterialized, 'placeholder-a', new AbortController().signal)
-    second.startWithCredential(secondMaterialized, 'placeholder-b', new AbortController().signal)
+    first.startWithCredential(
+      firstMaterialized,
+      secretsOf('placeholder-a'),
+      new AbortController().signal,
+    )
+    second.startWithCredential(
+      secondMaterialized,
+      secretsOf('placeholder-b'),
+      new AbortController().signal,
+    )
     const [firstTransport, secondTransport] = factory.acquired()
-    expect(firstTransport?.reads).toEqual(['placeholder-a'])
-    expect(secondTransport?.reads).toEqual(['placeholder-b'])
+    expect(firstTransport?.reads).toEqual([secretsOf('placeholder-a')])
+    expect(secondTransport?.reads).toEqual([secretsOf('placeholder-b')])
     // While either start ran, the slot of the other resource was empty.
     expect(seenByOthers).toEqual([[undefined], [undefined]])
     expect(firstTransport?.config.credential).not.toBe(secondTransport?.config.credential)
@@ -387,7 +411,7 @@ describe('the ownership of a materialized transport', () => {
     const second = await acquired(resources)
     const foreign = await materializedOf(first)
     const start = () =>
-      second.startWithCredential(foreign, 'placeholder-b', new AbortController().signal)
+      second.startWithCredential(foreign, secretsOf('placeholder-b'), new AbortController().signal)
     expect(start).toThrow(ModuleDefect)
     // The defect names its reason, and only its reason: never the credential value.
     expect(start).toThrow(
@@ -405,7 +429,11 @@ describe('the ownership of a materialized transport', () => {
     const materialized = await materializedOf(resource)
     await resource.release()
     expect(() =>
-      resource.startWithCredential(materialized, 'placeholder-a', new AbortController().signal),
+      resource.startWithCredential(
+        materialized,
+        secretsOf('placeholder-a'),
+        new AbortController().signal,
+      ),
     ).toThrow(expect.objectContaining({ reason: 'resource-released' }))
     expect(factory.acquired()[0]?.reads).toEqual([])
     await resources.close()
@@ -442,10 +470,10 @@ describe('the ownership of a materialized transport', () => {
     const second = await acquired(resources)
     const foreign = await materializedOf(first)
     expect(() =>
-      second.startWithCredential(foreign, 'placeholder-b', new AbortController().signal),
+      second.startWithCredential(foreign, secretsOf('placeholder-b'), new AbortController().signal),
     ).toThrow(SendResourceDefect)
     expect(() =>
-      second.startWithCredential(foreign, 'placeholder-b', new AbortController().signal),
+      second.startWithCredential(foreign, secretsOf('placeholder-b'), new AbortController().signal),
     ).toThrow(expect.objectContaining({ reason: 'foreign-materialization' }))
     await resources.close()
   })
@@ -484,7 +512,14 @@ describe('release and close', () => {
       createPiSendResources({
         network: shared,
         families: composeFamilies([]),
-        routes: { openrouter: { url: 'http://gateway.invalid/', endMarker: null } },
+        routes: {
+          openrouter: {
+            url: 'http://gateway.invalid/',
+            endMarker: null,
+            accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            auth: { kind: 'bearer', item: 'apiKey' },
+          },
+        },
         limits: LIMITS,
         materialization: { maxRecords: 8, execution: () => ({ ok: DEMAND.initiator }) },
       }),
@@ -561,7 +596,7 @@ describe('close failures', () => {
     expect(() =>
       resource.startWithCredential(
         { ...materialized },
-        'placeholder',
+        secretsOf('placeholder'),
         new AbortController().signal,
       ),
     ).toThrow(expect.objectContaining({ reason: 'foreign-materialization' }))

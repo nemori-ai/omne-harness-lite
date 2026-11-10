@@ -1,6 +1,6 @@
 # 模型调用组的工程关系
 
-产品承诺与非 pi-ai 成员设计已接受，包括领域契约、Cordis 定义、可复用实现及本地宿主设计。pi-ai 的成员划分、家族贡献取得协议、Tokenizer 资源与计量分工及迁移接受条件已接受；厂商适配的内聚细化、官方支持证据矩阵及物化资源控制仍按各节标注保持候选。model-contract 与 model-cordis-contract 已发布全部声明并有测试，导出清单见各包 `tests/fixtures/exports.json`，清单没有 pending 名字。model 已实现凭据判定、独立单次执行，以及 createModelRuntime 的受理、查询、取消意图、原流确认保存、最小实例观察和[有限原终局收场](../model/SPEC.md#已实现的调用收场)。model-host-local 已实现本地凭据保管、生产发送资源、本地 Model 装配入口 `assembleLocalModel`，以及装配对计量准备资源的接入。结果读取及 processed ACK 已实现；retained ACK、自动清理、策略循环、生产宿主和跨进程恢复尚未实现。凭据源码已按本页边界迁移，包存在不证明完整能力可用。
+产品承诺与非 pi-ai 成员设计已接受，包括领域契约、Cordis 定义、可复用实现及本地宿主设计。pi-ai 的成员划分、家族贡献取得协议、Tokenizer 资源与计量分工及迁移接受条件已接受；厂商适配的内聚细化、官方支持证据矩阵及物化资源控制仍按各节标注保持候选。model-contract 与 model-cordis-contract 已发布全部声明并有测试，导出清单见各包 `tests/fixtures/exports.json`，清单没有 pending 名字。model 已实现发送前按固定凭据层取秘密、独立单次执行，以及 createModelRuntime 的受理、查询、取消意图、原流确认保存、最小实例观察和[有限原终局收场](../model/SPEC.md#已实现的调用收场)。model-host-local 已实现凭据端口与凭据服务、生产发送资源、本地 Model 装配入口 `assembleLocalModel`，以及装配对计量准备资源的接入。结果读取及 processed ACK 已实现；retained ACK、自动清理、策略循环、生产宿主和跨进程恢复尚未实现。凭据源码已按本页边界迁移，包存在不证明完整能力可用。
 
 ## 依赖方向
 
@@ -41,8 +41,8 @@ Cordis 定义与宿主插件分别从 model-cordis-contract/cordis 和 model-hos
 | --- | --- | --- |
 | model-contract | 领域值、操作、行为协议和可替换提供者端口，供调用方、请求组装者、消费者拥有者、独立程序及提供者消费 | 只含必要纯函数与契约；不安装 Cordis、运行宿主或厂商实现 |
 | model-cordis-contract | 托管运行的唯一 Service、键、类型增补及定义自有注册表，供 Cordis 消费者及提供者消费 | 隔离框架依赖；仅含 IC-3 允许的登记机制，不含业务运行提供者 |
-| model | 可复用领域实现，供独立程序及宿主消费 | executeModel、createModelRuntime、档案/准备/执行/保管的协调；依赖通过端口注入；生产安装闭包不含 Cordis 或固定单机存储；凭据引用与解析的归属见下文 |
-| model-host-local | 单机宿主提供者，供应用装配消费 | 时钟、实例调度、本地凭据保管、目录装载、Cordis 门面及阶段插件；复用 model，不复制执行逻辑 |
+| model | 可复用领域实现，供独立程序及宿主消费 | executeModel、createModelRuntime、档案/准备/执行/保管的协调；发送前按固定的凭据层取秘密；依赖通过端口注入；生产安装闭包不含 Cordis 或固定单机存储；凭据引用与解析的归属见下文 |
+| model-host-local | 单机宿主提供者，供应用装配消费 | 时钟、实例调度、设置域秘密保管之上的凭据端口、目录装载、Cordis 门面及阶段插件；复用 model，不复制执行逻辑 |
 | pi-ai-transport | 具名构造接缝与 ModelTransport，供装配及独立程序消费 | 公共 HTTP/SSE、取消、连接资源、请求规划骨架、固定绑定与回执；集中维护 pi fork，不复制到每个厂商包 |
 | pi-ai-openai | OpenAI 家族定义及固定适配贡献 | 家族参数、工具/消息投影、模板/估算、usage/replay 解释及逐型号验证 |
 | pi-ai-anthropic | Anthropic 家族定义及固定适配贡献 | 同上，包含家族特有缓存/历史规则及所需编码资源 |
@@ -55,7 +55,7 @@ Cordis 定义与宿主插件分别从 model-cordis-contract/cordis 和 model-hos
 | tokenizer-tiktoken | ModelTextTokenizer 的引擎 adapter，供 OpenAI、Anthropic、Moonshot 等家族计量器构造 | 封装 js-tiktoken、资源初始化和 count 语义；共享引擎实现，不收齐所有厂商词表 |
 | tokenizer-huggingface | ModelTextTokenizer 的引擎 adapter，供 DeepSeek、Google、Qwen、Z.AI 等家族计量器构造 | 封装 Hugging Face tokenizer 运行库及资源初始化；隔离引擎依赖，不拥有家族模板和上游计量口径 |
 
-model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员。model-host-local 目前承载本地凭据保管、生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`。装配把凭据保管、发送边界、pi 传输与调用方注入的 `ModelCommands` 连成一条请求路径，并在同一组家族与 `ModelCommands` 上给出 model 的计量准备资源；时钟、实例调度、目录装载与托管运行插件尚未实现。pi-ai-transport 的根入口已导出五个家族贡献接口类型、三段传输的工厂 `createPiTransport` 与网络资源的工厂 `createNetworkResources`。装配创建并拥有网络资源，再把它交给 `createPiTransport`。连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离在包内实现。pi-ai-transport 的根入口还导出家族表，子入口 `./chat-completions` 导出网关引擎（请求与流解码），子入口 `./testing` 导出家族测试助手；家族包 pi-ai-openai 与 pi-ai-anthropic 使用它们。两个家族经同一 `composeFamilies` 与 `createPiTransport` 的联调是 pi-ai-anthropic 的慢层用例。tokenizer-tiktoken 的根入口导出 `createTiktokenExecutor` 与执行器、租约及资源类型。宿主创建有界 worker 池，并在关闭时等待线程退出。家族借用 executor.acquire，每个绑定取得私有 tokenizer 租约；释放绑定等待该租约清理。计数、完整请求计量和校准计量都返回 Promise，调用方必须等待完整预算。它在初始化时核对固定词表与配置，不收录厂商词表。pi-ai-openai 以 o200k 词表消费它，pi-ai-anthropic 以随包发布的 `claude.json` 消费它。其余六个 `pi-ai-*` 成员及 tokenizer-huggingface 尚未初始化。model 不转导契约或聚合提供者。后续运行成员沿[workspace](../../../docs/workspace.md)在具有实际实现和消费验证的切片建立；目标名称不表示运行能力已存在。
+model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员。model-host-local 目前承载凭据端口 `createSecretCredentialPort`、生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`。装配把凭据端口、发送边界、pi 传输与调用方注入的 `ModelCommands` 连成一条请求路径，并在同一组家族与 `ModelCommands` 上给出 model 的计量准备资源；时钟、实例调度、目录装载与托管运行插件尚未实现。pi-ai-transport 的根入口已导出五个家族贡献接口类型、三段传输的工厂 `createPiTransport` 与网络资源的工厂 `createNetworkResources`。装配创建并拥有网络资源，再把它交给 `createPiTransport`。连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离在包内实现。pi-ai-transport 的根入口还导出家族表，子入口 `./chat-completions` 导出网关引擎（请求与流解码），子入口 `./testing` 导出家族测试助手；家族包 pi-ai-openai 与 pi-ai-anthropic 使用它们。两个家族经同一 `composeFamilies` 与 `createPiTransport` 的联调是 pi-ai-anthropic 的慢层用例。tokenizer-tiktoken 的根入口导出 `createTiktokenExecutor` 与执行器、租约及资源类型。宿主创建有界 worker 池，并在关闭时等待线程退出。家族借用 executor.acquire，每个绑定取得私有 tokenizer 租约；释放绑定等待该租约清理。计数、完整请求计量和校准计量都返回 Promise，调用方必须等待完整预算。它在初始化时核对固定词表与配置，不收录厂商词表。pi-ai-openai 以 o200k 词表消费它，pi-ai-anthropic 以随包发布的 `claude.json` 消费它。其余六个 `pi-ai-*` 成员及 tokenizer-huggingface 尚未初始化。model 不转导契约或聚合提供者。后续运行成员沿[workspace](../../../docs/workspace.md)在具有实际实现和消费验证的切片建立；目标名称不表示运行能力已存在。
 
 厂商包的 interface 应让消费者一次取得相容的精确绑定及其资源租约，不要求调用方自行拼接 tokenizer、模板、投影和 usage 算法。删除厂商包后，这些关联会散布到目录、计量与传输调用者，因而其 depth 有实际价值。将每个型号各做一个只转发家族工厂的包则没有这种收益。
 
@@ -129,14 +129,14 @@ TenantId、ContentBlock、Message、JsonValue、CallAccount 等继续沿原拥�
 
 ## 文档归属与迁移
 
-正文已按下表归属落位。非 pi-ai 公开声明已接受，两个契约成员已发布全部声明。model 已实现凭据判定、独立单次执行，以及 createModelRuntime 的受理、查询、取消意图、原流确认保存、最小实例观察和[有限原终局收场](../model/SPEC.md#已实现的调用收场)。model-host-local 已实现本地凭据保管、生产发送资源、本地 Model 装配入口 `assembleLocalModel`，以及装配对计量准备资源的接入。结果读取及 processed ACK 已实现；retained ACK、自动清理、策略循环、生产宿主和跨进程恢复尚未实现。
+正文已按下表归属落位。非 pi-ai 公开声明已接受，两个契约成员已发布全部声明。model 已实现发送前按固定凭据层取秘密、独立单次执行，以及 createModelRuntime 的受理、查询、取消意图、原流确认保存、最小实例观察和[有限原终局收场](../model/SPEC.md#已实现的调用收场)。model-host-local 已实现凭据端口与凭据服务、生产发送资源、本地 Model 装配入口 `assembleLocalModel`，以及装配对计量准备资源的接入。结果读取及 processed ACK 已实现；retained ACK、自动清理、策略循环、生产宿主和跨进程恢复尚未实现。
 
 | 内容 | 当前拥有者与后续归属 |
 | --- | --- |
 | 领域不变量、公开行为及提供者协议；领域值、操作与提供者端口；符合性场景 | [model-contract](../model-contract/README_ZH.md) 的 SPEC、设计声明、消费指南和验证资源 |
 | executeModel/createModelRuntime、ModelDependencies/ModelConfiguration；协调算法、内部流程及配置 | [model](../model/README_ZH.md) 的设计入口、SPEC 和内部设计 |
 | 服务定义、事件及定义自有登记表/协议 | [model-cordis-contract](../model-cordis-contract/README_ZH.md) 的设计定义、SPEC 和 Cordis 主题 |
-| 具体业务插件、目录装载、依赖装配和单机宿主接续 | 凭据插件已在 [model-host-local/docs/cordis](../model-host-local/docs/cordis.md)，其余暂在 [model/docs/cordis](../model/docs/cordis.md)，随实际宿主切片迁 model-host-local |
+| 具体业务插件、目录装载、依赖装配和单机宿主接续 | 凭据服务已在 [model-host-local/docs/cordis](../model-host-local/docs/cordis.md)，其余暂在 [model/docs/cordis](../model/docs/cordis.md)，随实际宿主切片迁 model-host-local |
 | 家族及引擎的具体构造、资源、依赖和验证 | 相应 pi/家族/tokenizer 成员 |
 
 外部行为始终归契约，内部流程引用它；实现差异不能降低共同保证。拆包不改变调用身份、发送围栏、首内容后不重发、保管 ACK 或观察与取消的区别。实例登记仍依原 caller-fiber 和资格机制，disposer 不使网络输出可逆。
@@ -212,6 +212,7 @@ module 分解与依赖分类见[成员架构](../model/docs/architecture.md#内�
 下列是 pi-ai-transport 拥有的已接受接口，已从该成员根入口以类型导出；该成员的 ModelTransport 实现是根入口的 `createPiTransport`，行为见[成员 SPEC“三段传输”](../pi-ai-transport/SPEC.md#三段传输)。它只约束选择该实现的家族作者，不扩充领域契约或强制其他 ModelTransport 使用 pi。构造配置固定路由协议、限额和资源目录；依赖注入提供内容读取、连接容量及凭据适配；每次 acquire 的参数只选择原供应商和采用。
 
 ```ts
+import type { RouteAccounting } from './config.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ContentReference } from '@omne-harness/content-block'
@@ -245,7 +246,9 @@ export type PiFamilyBinding = Readonly<{
     body: JsonValue; representation: Extract<MeterRepresentation, { kind: 'materialized' }>
     diagnostics: readonly ProviderDiagnostic[]
   }>, TransportFailure>
-  createDecoder(input: Readonly<{ request: FixedModelRequest }>): PiResponseDecoder
+  createDecoder(
+    input: Readonly<{ request: FixedModelRequest; accounting: RouteAccounting }>,
+  ): PiResponseDecoder
   release(): Promise<void>
 }>
 export interface PiFamilyContributions {
@@ -263,7 +266,7 @@ acquire 核型号、接收方、route 和所有采用相容后，一次交付完
 
 rules、tools 和 encode 是纯计算，不读环境、秘密、网络或文件。encode 使用已固定的表示、合法物化媒体、请求中该供应商的回放声明（`declaration`，取 `request.declarations` 中与该供应商同序的一项）和本次发出的再发略去集合（`resent`，取 `prepare` 的第三个参数），只返回请求 body 的 JsonValue、相应物化计量表示和本次编码的诊断（`diagnostics`：回放略去），不返回 URL、headers 或重定向命令。公共传输在发出之后、解码器的事实之前，把这些诊断逐条作为 `diagnostic` 事实交出。传输侧提供已核验的媒体计量事实；family 形成其固定 schema 的 tokenInput，公共传输以实际序列化字节核 representation.requestBytes。传输与发送路径都不计量预算；预算由请求组装方在请求前计量，最终是否超限以上游响应为准。bytes 由传输暂借，家族不能保留或修改；后续原生库需要复制时，该副本归本次编码操作并受同一配额及清理约束。公共传输核返回体与已固定参数、工具声明和表示相容，完成序列化及摘要后密封发送对象。不得悄悄删工具、改历史或重新压图。
 
-每个物理 dispatch 创建一个 decoder，不共享流状态。createDecoder 的 `request` 是本次 encode 的同一请求：家族按原请求把供应商调用名称映射回工具名（model-contract“ModelToolPayloadAdapter”），解码器不另查其他调用。HTTP/SSE framing 由公共传输处理，家族解释合法帧中的内容、终止和 usage；decode 不自行重试、读取网络或查其他调用。协议 end-marker 与传输 EOF 分开；end 只结束当前解析，不把缺少合法终局的 EOF 改成成功。finish 后的 usage 尾帧沿固定有界协议收取；已 ended 的 decoder 拒绝后续内容。unknown usage scope 保持未知，不能因家族或型号匹配失败就套用默认口径。decoder 交出的账目是不含调用身份的账目报告（`CallAccountReport`），在 `ended` 之前给出；用量自相矛盾、推理状态载荷超长等情况以 `diagnostic` 事实交出。
+每个物理 dispatch 创建一个 decoder，不共享流状态。createDecoder 的 `request` 是本次 encode 的同一请求：家族按原请求把供应商调用名称映射回工具名（model-contract“ModelToolPayloadAdapter”），解码器不另查其他调用。`accounting` 是本次路由的账目口径，取自该路由所属供应商的资产正文：解码器把服务落点记在 `accounting.place` 之下，把费用记成 `accounting.costUnit`，不在家族里写死任何供应商的落点或计费单位。HTTP/SSE framing 由公共传输处理，家族解释合法帧中的内容、终止和 usage；decode 不自行重试、读取网络或查其他调用。协议 end-marker 与传输 EOF 分开；end 只结束当前解析，不把缺少合法终局的 EOF 改成成功。finish 后的 usage 尾帧沿固定有界协议收取；已 ended 的 decoder 拒绝后续内容。unknown usage scope 保持未知，不能因家族或型号匹配失败就套用默认口径。decoder 交出的账目是不含调用身份的账目报告（`CallAccountReport`），在 `ended` 之前给出；用量自相矛盾、推理状态载荷超长等情况以 `diagnostic` 事实交出。
 
 | 失败位置 | 对外结果及拥有者 |
 | --- | --- |
@@ -311,20 +314,21 @@ materialize 先取得实际发送容量，再按原来源及当前资格逐个�
 
 ## 凭据的现有装配边界
 
-凭据引用与发送前解析已有实现，分属四处：保管实现在 model-host-local，契约在 model-contract，判定在 model，服务定义在 model-cordis-contract。createModelRuntime 已支持受理、查询、取消意图、原流确认保存、最小实例观察和[有限原终局收场](../model/SPEC.md#已实现的调用收场)，结果读取及 processed ACK 已实现；retained ACK、自动清理、策略循环、生产宿主和跨进程恢复尚未实现。公开类型在 model-contract，本地保管与插件在 model-host-local。model 源码与包清单都不含 Cordis、proper-lockfile 与 model-cordis-contract，包导出根与独立 testing 入口。根入口不启动 Cordis 不等于安装隔离，安装隔离须由实际安装闭包报告证明；model 的报告由 `install-closure` 产生，运行方式与验证范围见 [model 测试说明](../model/tests/README.md#安装闭包)。凭据秘密不进入身份契约、Runtime Context 或调用记录正文；调用记录可以保存凭据引用。
+模型供应商是一类资产（`model-provider`），它的凭据是该资产正文声明的秘密设置项，例如 openrouter 的 `apiKey`。秘密由设置域保管：租户经 `omne setting set <供应商> <项>` 写本租户层，部署经 `harness-server setup` 写官方层。Model 不保管秘密，也不管理凭据，只在发送前按一个固定的层读它。
 
-凭据引用与解析按以下责任归属，由现有四成员承担，不另建凭据包。
+凭据按（供应商、层、用途）加上 `access` 的租户识别。`selectCredentialLayer` 整层选择：本租户层有任何一项就选本租户层，层内缺项是 `incomplete`，不回退官方层；本租户层为空、档案官方且发行持有该供应商时选官方层；供应商没有凭据项时选 `none`。一次发送只读选定的那一层，`resolve` 返回项到秘密的映射，传输按路由的 `auth` 取所需的项。第二个、第 N 个供应商只是多一份资产正文和一条路由，不改规则、端口或发送边界。
 
-| 责任 | 目标拥有者 |
+| 责任 | 拥有者 |
 | --- | --- |
-| CredentialId、引用、查询、结果及 CredentialPort，必要的纯校验 | model-contract，保持唯一品牌和领域形状 |
-| ModelCredentialService、modelCredential 键和 Context 增补 | model-cordis-contract/cordis，服务定义引用纯操作类型，不依赖实现 |
-| 显式依赖的凭据判定和 deliver，以及模型执行工厂 | model，消费纯契约与注入能力，不持有 Cordis Context |
-| 本地保管工厂、磁盘格式、文件锁及资源关闭 | model-host-local 的根入口，限定为本地提供者 |
-| LocalCredentialPlugin、deliverInjected 及阶段适配 | model-host-local/cordis，消费唯一定义并构造业务依赖 |
+| 凭据层、失败、`CredentialPort`、`MODEL_SEND`、`selectCredentialLayer` 与 `readCredentialLayer`，供应商名的解码 | model-contract |
+| `ModelCredentialService`、`modelCredential` 键和 Context 增补 | model-cordis-contract/cordis，服务定义引用纯操作类型，不依赖实现 |
+| 档案来源固定供应商与是否官方，发送前按固定的层取秘密，失败映射为发送拒绝 | model，消费纯契约与注入的端口，不持有 Cordis Context |
+| 设置域秘密保管之上的 `createSecretCredentialPort` | model-host-local 的根入口 |
+| `serveModelCredential` 与发送阶段插件的端口转发 | model-host-local/cordis |
+| 供应商资产、绑定键、官方层的写入与租户的设置操作 | harness-server 的装配与 settings 域 |
 
-model 的生产安装闭包不得含 Cordis 或 model-cordis-contract、model-host-local，也不得因凭据引用与解析固定本地文件存储。model-host-local 可以安装 Cordis 和 proper-lockfile，其根入口的本地工厂不启动 Cordis；选择这个具体宿主不承诺安装无 Cordis。独立领域消费者使用 model 和自己选择的端口实现。model-cordis-contract 不得反向导入 model 来取得凭据类型。
+model 的生产安装闭包不得含 Cordis、model-cordis-contract 或 model-host-local。model-host-local 可以安装 Cordis，其根入口的凭据端口不启动 Cordis，也不导入 settings-local；选择这个具体宿主不承诺安装无 Cordis。独立领域消费者使用 model 和自己选择的端口实现。model-cordis-contract 不得反向导入 model 来取得凭据类型。凭据秘密不进入身份契约、Runtime Context、调用记录或发出记录。安装隔离须由实际安装闭包报告证明；model 的报告由 `install-closure` 产生，运行方式与验证范围见 [model 测试说明](../model/tests/README.md#安装闭包)。
 
-公开契约、内部判定及磁盘编码分开归属：判定与状态快照形状在 model，磁盘编码随本地提供者在 model-host-local。快照类型（`Binding`、`BindingLife`、`CustodianState`）是[判定对保管状态的显式依赖形状](../model/docs/public-api.md#已实现的凭据入口)：它们从 model 根入口与 `judgePresence`、`judgeResolution` 一并导出，不进任何契约包。其中 `Binding.secret` 与 `CustodianState.factorySecret` 带秘密字段，只作为类型公开，不携带值。已考虑把它们收窄成读端口，并否决：租户匹配会散到每个宿主，工厂秘密仍留在依赖形状里。model-host-local 构造快照并调用 model 的判定，model 不依赖 model-host-local。凭据保留五种结果、租户资格、轮换与撤销可见性及保存未知语义，发送前须有受信授权。model 不提供框架入口，不转导，使安装依赖不回流。当前可导入入口以[判定入口](../model/docs/public-api.md#已实现的凭据入口)与[本地保管入口](../model-host-local/docs/public-api.md)为准。
+当前可导入入口以[发送入口](../model/docs/public-api.md#已实现的发送入口)、[契约入口](../model-contract/docs/public-api.md#凭据引用与解析端口)与[凭据端口入口](../model-host-local/docs/public-api.md)为准。
 
 装配、动态换代与收尾由宿主按[装配设计](../model/docs/cordis.md#纯实现与-cordis-装配的分工)兑现。安装隔离须检查实际包产物、公开声明和完整生产安装闭包；集成能力须以服务装载、依赖缺席、换代、在途固定采用及收尾用例验证。文档采用不表示源码迁移或组合验证完成。

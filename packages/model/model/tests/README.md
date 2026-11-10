@@ -1,6 +1,6 @@
 # Model 成员测试
 
-本目录维护单元和契约测试。[public-entry.spec.ts](public-entry.spec.ts) 使用真实 workspace 包入口，检查根入口导出清单，并核对源码不到达保管实现、Cordis 或 model-host-local。[judgment.spec.ts](judgment.spec.ts) 用内存状态快照直接覆盖存在性与解析的判定：五种结果、租户隔离、官方默认凭据的取舍与关闭。public-entry.spec.ts 还断言 `./cordis` 与 `./execute` 子路径不可解析、清单精确导出根与独立 testing 入口且不声明 Cordis、proper-lockfile 与 model-cordis-contract。判定对未经铸造的查询租户一律返回拒绝，快照里有未经铸造的绑定租户时不给工厂秘密，由 judgment.spec.ts 覆盖。保管、持久化、文件故障与 Cordis 插件的测试在 [model-host-local](../../model-host-local/tests/index.md)。
+本目录维护单元和契约测试。[public-entry.spec.ts](public-entry.spec.ts) 使用真实 workspace 包入口，检查根入口导出清单，并核对源码不到达保管实现、Cordis 或 model-host-local。public-entry.spec.ts 还断言 `./cordis` 与 `./execute` 子路径不可解析、清单精确导出根与独立 testing 入口且不声明 Cordis 与 model-cordis-contract。发送前按固定凭据层取秘密及各种凭据失败的映射由 [send.spec.ts](send.spec.ts) 与 [send-credential-terminal.spec.ts](send-credential-terminal.spec.ts) 覆盖；选层与判读规则的测试在 [model-contract](../../model-contract/tests/README.md)，读取设置域秘密的端口与 Cordis 服务的测试在 [model-host-local](../../model-host-local/tests/index.md)。
 
 运行命令为 `pnpm --filter @omne-harness/model test`。内存行为测试经公开 testing 入口覆盖 22 个 Commands、未知写、流归约、读/ACK/清理和五端口。runtime-testing 检查真实构造的零调用、未支持操作与阶段诊断，以及重复、并发和多工厂回复的对象独立性。这些是本地模拟，不覆盖耐久或生产托管执行。运行实现完成后须加入实际提供者与存储交接的验证，并注明替身和故障范围。
 
@@ -54,7 +54,7 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 
 ## 产品发送验证
 
-[send.spec.ts](send.spec.ts) 通过真实 runtime 和 driver 建立 prepared dispatch，经公开产品 sender 验证凭据五结果、scope 与禁止回退、显式 factory 来源、回执提交、物化/开窗/send 写的 applied 与 not-applied 原参数认回、当前撤权/取消/代次排序，以及两个 sender 共用后端的一次 start。查询拒绝、异常或仍未知时保留原尝试和容量；已确认提交但回执暂不可取时仍保留资源。产品闭包在同步重入和重复调用时最多解析并 start 一次，保留原事实流。后端认领另在 recordSend 尚未提交时核实，不能用本地 map 替代。单 iterator、原流未预取、abort 中断事实、done/return/throw/读取异常、逆序幂等释放及释放失败均有行为断言。
+[send.spec.ts](send.spec.ts) 通过真实 runtime 和 driver 建立 prepared dispatch，经公开产品 sender 验证凭据层的读取与各种失败、官方层只给官方档案的来源、回执提交、物化/开窗/send 写的 applied 与 not-applied 原参数认回、当前撤权/取消/代次排序，以及两个 sender 共用后端的一次 start。查询拒绝、异常或仍未知时保留原尝试和容量；已确认提交但回执暂不可取时仍保留资源。产品闭包在同步重入和重复调用时最多解析并 start 一次，保留原事实流。后端认领另在 recordSend 尚未提交时核实，不能用本地 map 替代。单 iterator、原流未预取、abort 中断事实、done/return/throw/读取异常、逆序幂等释放及释放失败均有行为断言。
 
 凭据 absent 与 unreadable 在 not-sent 发送记录上留下 `credential` 失败终止。终止写未确认时，重试重放同一 operation。[send-credential-terminal.spec.ts](send-credential-terminal.spec.ts) 经 acceptance 夹具的真实 driver 验证调用以该失败结算，且上游 start 为 0；发送记录读取失败一次（答 unavailable 或抛出）时，下一次驱动仍结算。not-sent 记录或终止写被明确拒绝（denied、stale-instance、conflict）时，send.spec.ts 断言边界答该拒绝，不答 unavailable。之后释放失败时，答复仍是该拒绝，尝试与容量保留。出口表与模型见 Model SPEC「发送边界的出口」。
 

@@ -12,12 +12,12 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-5.6-terra-pro",
           "revision": "1",
-          "digest": "910d7851e399aafb6871faa70b753b0df4f83840c30423bc246c85fbd78c19f5"
+          "digest": "43ba40ab2f8a5c7dcaa044d9a45771623a6525215473368e40ab4bf99aa6fe80"
         },
-        "recipient": "openrouter",
+        "provider": "openrouter",
         "model": "openai/gpt-5.6-terra-pro",
         "credential": {
-          "kind": "factory"
+          "layer": "official"
         }
       }
     ],
@@ -92,7 +92,7 @@
       "owner": "@omne-harness/pi-ai-openai",
       "name": "openai/gpt-5.6-terra-pro#representation",
       "revision": "1",
-      "digest": "910d7851e399aafb6871faa70b753b0df4f83840c30423bc246c85fbd78c19f5"
+      "digest": "43ba40ab2f8a5c7dcaa044d9a45771623a6525215473368e40ab4bf99aa6fe80"
     },
     "parameterAdoptions": [
       {
@@ -100,7 +100,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-5.6-terra-pro",
           "revision": "1",
-          "digest": "910d7851e399aafb6871faa70b753b0df4f83840c30423bc246c85fbd78c19f5"
+          "digest": "43ba40ab2f8a5c7dcaa044d9a45771623a6525215473368e40ab4bf99aa6fe80"
         },
         "applied": {
           "kind": "max-output-tokens",

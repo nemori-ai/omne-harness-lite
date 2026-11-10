@@ -6,7 +6,6 @@
 // what it prepared. It does not measure, read media, fetch secrets, run parameter rules or send.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { tenantCodec, type Access } from '@omne-harness/legal-identity'
-import { decodeCredentialId } from '../credential-values.ts'
 import type { ModelFailure } from '../result.ts'
 import type { FixedModelRequest, Supplier } from '../root.ts'
 import type {
@@ -85,7 +84,7 @@ type Declarations = FixedModelRequest['declarations']
 /** Why a profile cannot serve a preparation: the business failure and the misuse of a plan. */
 type ProfileRefusal = Readonly<{ failure: ModelFailure; misuse: string }>
 
-const SUPPLIER_FIELDS: readonly string[] = ['adoption', 'credential', 'model', 'recipient']
+const SUPPLIER_FIELDS: readonly string[] = ['adoption', 'credential', 'model', 'provider']
 
 /**
  * Step 5 of the read order, and the only judgment of whether a profile can serve this preparation:
@@ -120,29 +119,27 @@ function profileFailure(
 }
 
 function checkCredential(credential: Supplier['credential'] | undefined): void {
-  if (credential === undefined) throw misuse('a planned supplier needs its credential')
-  const { kind } = credential
-  if (kind !== 'tenant' && kind !== 'factory')
-    throw misuse('a planned credential is neither a tenant nor a factory binding')
-  if (Object.keys(credential).length !== (kind === 'tenant' ? 2 : 1))
-    throw misuse('a planned credential does not have exactly the fields of its kind')
-  if (kind === 'tenant' && !('ok' in decodeCredentialId(credential.id)))
-    throw misuse('a planned tenant credential id does not decode')
+  if (credential === undefined) throw misuse('a planned supplier needs its credential layer')
+  const { layer } = credential
+  if (layer !== 'tenant' && layer !== 'official' && layer !== 'none')
+    throw misuse('a planned credential layer is neither tenant, official nor none')
+  if (Object.keys(credential).length !== 1)
+    throw misuse('a planned credential layer has a field other than layer')
 }
 
 /** A planned supplier is the profile supplier at its position with a credential added. */
 function checkSupplier(supplier: Supplier, own: ProfileSupplier): void {
   if (Object.keys(supplier).some(field => !SUPPLIER_FIELDS.includes(field)))
     throw misuse(
-      'a planned supplier has a field other than adoption, recipient, model and credential',
+      'a planned supplier has a field other than adoption, provider, model and credential',
     )
   if (!sameValue(supplier.adoption, own.adoption))
     throw misuse(
       'a planned supplier has another adoption than the profile supplier at its position',
     )
-  if (supplier.recipient !== own.recipient)
+  if (supplier.provider !== own.provider)
     throw misuse(
-      'a planned supplier has another recipient than the profile supplier at its position',
+      'a planned supplier has another provider than the profile supplier at its position',
     )
   if (supplier.model !== own.model)
     throw misuse('a planned supplier has another model than the profile supplier at its position')

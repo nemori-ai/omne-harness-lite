@@ -30,6 +30,7 @@ import {
   type StoredPart,
   type Table,
 } from '@omne-harness/model-storage-sql'
+import { providerName } from './provider-name.ts'
 
 const decoded = <T>(result: Outcome<T, unknown>): T => {
   if ('failure' in result) throw new Error('fixture value does not decode')
@@ -61,9 +62,9 @@ const READ = decoded(decodeReadId('mread_doc'))
 const ADOPTION = { owner: 'test', name: 'a', revision: '1', digest: '0'.repeat(64) }
 const SUPPLIER = {
   adoption: ADOPTION,
-  recipient: 'r',
+  provider: providerName('r'),
   model: 'm',
-  credential: { kind: 'factory' as const },
+  credential: { layer: 'official' as const },
 }
 const REVISION = decoded(decodeRevision('7'))
 const CURSOR = decoded(decodeOutputCursor('3'))

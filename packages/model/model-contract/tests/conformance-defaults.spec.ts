@@ -102,10 +102,10 @@ describe('the values that the conformance suite sends when the subject gives non
     expect(request.suppliers).toHaveLength(1)
     const supplier = request.suppliers[0]
     if (supplier === undefined) throw new Error('a supplier')
-    expect(supplier.credential).toEqual({ kind: 'factory' })
-    expect(supplier.recipient).not.toBe('')
+    expect(supplier.credential).toEqual({ layer: 'official' })
+    expect(supplier.provider).not.toBe('')
     expect(supplier.model).not.toBe('')
-    const identity = `${supplier.recipient}/${supplier.model}`
+    const identity = `${supplier.provider}/${supplier.model}`
     expect(request.declarations).toEqual([
       { produces: identity, accepts: [identity], foreignThinking: 'omit' },
     ])

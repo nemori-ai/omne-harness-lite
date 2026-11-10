@@ -26,9 +26,10 @@ export type {
   GovernanceResponseRead,
   GovernanceEncodeResult,
   GovernanceResponseEncodeInput,
-  ModelCredentialState,
   SettingAssetSelector,
   SettingItemView,
+  SettingLayers,
+  SettingLayerState,
   SettingState,
 } from './messages.ts'
 export type {

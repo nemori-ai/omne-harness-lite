@@ -18,7 +18,6 @@ import {
   type ModelOperationId,
 } from '@omne-harness/model-contract'
 import {
-  decodeCredentialId,
   type ExecutionRef,
   type ModelCommands,
   type ModelConsumerOwnerDeclaration,
@@ -52,6 +51,7 @@ import {
   pendingHandler,
 } from '../src/index.ts'
 import { createSendMirror } from '../src/coordinator.ts'
+import { providerName } from './provider-name.ts'
 
 // --- Test provider -------------------------------------------------------------------------
 
@@ -209,7 +209,6 @@ const callId = (name: string): ModelCallId => unbox(decodeModelCallId(`mcall_${n
 const op = (name: string): ModelOperationId => unbox(decodeModelOperationId(`mop_${name}`))
 const instanceId = unbox(decodeModelInstanceId('minst_one'))
 const dispatchId = unbox(decodeDispatchId('mdisp_one'))
-const factoryId = unbox(decodeCredentialId('official-query'))
 const adoption: Adoption = {
   owner: 'test-owner',
   name: 'test',
@@ -224,7 +223,12 @@ const owner: ModelConsumerOwnerDeclaration = {
 const request: FixedModelRequest = {
   profile: adoption,
   suppliers: [
-    { adoption, recipient: 'test.invalid', model: 'test', credential: { kind: 'factory' } },
+    {
+      adoption,
+      provider: providerName('test.invalid'),
+      model: 'test',
+      credential: { layer: 'official' },
+    },
   ],
   fallback: false,
   retryPolicy: adoption,
@@ -302,10 +306,10 @@ const coreOptions: ModelCommandsCoreOptions<Principal> = {
 const source: ModelSendSource<Principal> = {
   profile: adoption,
   supplier: adoption,
-  recipient: 'test.invalid',
+  provider: providerName('test.invalid'),
   model: 'test',
-  credential: { kind: 'factory', official: true, queryId: factoryId },
-  current: () => ({ ok: { authorized: true, noTenantBinding: true } }),
+  official: true,
+  current: () => ({ ok: { authorized: true } }),
 }
 const lookup: TenantDomainLookup = {
   lookup: ({ tenant }) =>
@@ -368,8 +372,8 @@ function memoryAssembly(): Subject {
     sends: [],
     sending: {
       credentials: {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind: 'unavailable' }),
+        layerOf: () => ({ failure: { kind: 'unavailable' } }),
+        resolve: () => ({ failure: { kind: 'unavailable' } }),
       },
       sources: [source],
       maxRetainedAttempts: 1,
@@ -498,11 +502,11 @@ describe('the synchronous fence', () => {
     const { demand } = await drive(subject, callId('fence'), 'window')
     const order: string[] = []
     const result = subject.coordinator.withinCurrent(demand, receipt, WINDOW, selection => {
-      order.push(`start:${selection.scope}:${selection.id}`)
+      order.push(`start:${selection.provider}:${selection.layer.layer}`)
       return started()
     })
     order.push('returned')
-    expect(order).toEqual([`start:factory:${factoryId}`, 'returned'])
+    expect(order).toEqual(['start:test.invalid:official', 'returned'])
     expect(result.kind).toBe('started')
   })
 

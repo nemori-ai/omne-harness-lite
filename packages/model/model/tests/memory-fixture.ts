@@ -10,6 +10,7 @@ import {
   decodeModelCallId,
   decodeModelInstanceId,
   decodeModelOperationId,
+  decodeProviderName,
   type Adoption,
   type DurableEvidence,
   type FixedModelRequest,
@@ -25,6 +26,8 @@ export function unbox<T>(outcome: { ok: T } | { failure: unknown }): T {
   if ('ok' in outcome) return outcome.ok
   throw new Error(`fixture failure: ${JSON.stringify(outcome.failure)}`)
 }
+/** A provider name for a test supplier. */
+export const providerName = (text: string) => unbox(decodeProviderName(text))
 export function identity(suffix = '5'): TenantId {
   const a = accountCodec.parse(`acc_abcdefghjkmnpqrstvwxyz234${suffix}`)
   const o = organizationCodec.parse(`org_abcdefghjkmnpqrstvwxyz234${suffix}`)
@@ -48,7 +51,12 @@ export const owner: ModelConsumerOwnerDeclaration = {
 export const request: FixedModelRequest = {
   profile: adoption,
   suppliers: [
-    { adoption, recipient: 'test.invalid', model: 'test', credential: { kind: 'factory' } },
+    {
+      adoption,
+      provider: providerName('test.invalid'),
+      model: 'test',
+      credential: { layer: 'official' },
+    },
   ],
   fallback: false,
   retryPolicy: adoption,

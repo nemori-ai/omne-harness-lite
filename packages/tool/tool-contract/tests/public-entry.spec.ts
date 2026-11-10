@@ -38,7 +38,8 @@ it('exports on the root only the names members outside the Tool group import, an
     'resolveToolOperationRef',
     'returnSummary',
     'selectCommandText',
-    'toolSettingDefinitions',
+    'toolAssetBody',
+    'toolBodyContract',
     'toolsCapabilityOf',
   ])
 })
@@ -104,7 +105,6 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'sha256Hex',
     'shapeOf',
     'signBodyPermit',
-    'toolBodyContract',
     'toolStreamCallCodec',
     'verifyBodyPermit',
   ])

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { expect, it } from 'vitest'
 
-it('the public entry exports standalone execution, runtime construction and credential functions', async () => {
+it('the public entry exports standalone execution and runtime construction', async () => {
   const root = await import('@omne-harness/model')
   expect(Object.keys(root).sort()).toEqual(
     [
@@ -12,18 +12,12 @@ it('the public entry exports standalone execution, runtime construction and cred
       'createModelRuntime',
       'createModelSendBoundary',
       'executeModel',
-      'deliver',
-      'judgeGate',
-      'judgePresence',
-      'judgeQualifiedPresence',
-      'judgeQualifiedResolution',
-      'judgeResolution',
     ].sort(),
   )
 })
 
 it('the source reaches neither a custodian, Cordis nor the host package', () => {
-  for (const name of ['index.ts', 'deliver.ts', 'credential.ts', 'runtime.ts', 'execute.ts']) {
+  for (const name of ['index.ts', 'runtime.ts', 'execute.ts']) {
     const source = readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
     expect(source.includes('@deepseek-ai/cordis'), name).toBe(false)
     expect(source.includes('model-host-local'), name).toBe(false)

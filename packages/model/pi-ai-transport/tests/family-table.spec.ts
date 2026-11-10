@@ -15,7 +15,7 @@ import {
   type PiFamilyBinding,
   type PiModelRecordHead,
 } from '../src/index.ts'
-import { createTestDecoder } from './support/test-family.ts'
+import { createTestDecoder, providerName } from './support/test-family.ts'
 
 const OWNER = '@omne-harness/pi-ai-test'
 
@@ -29,7 +29,7 @@ function record(overrides: Partial<TestRecord> = {}): TestRecord {
   return {
     name: 'model-a',
     revision: '1',
-    route: { recipient: 'gateway', model: 'vendor/model-a' },
+    route: { provider: 'gateway', model: 'vendor/model-a' },
     status: 'current',
     wire: { limit: 0.5, tags: ['x'], image: null, flag: true },
     replay: { formats: { produces: 'fmt-a', accepts: ['fmt-a', 'fmt-old'] } },
@@ -39,9 +39,14 @@ function record(overrides: Partial<TestRecord> = {}): TestRecord {
 
 function supplierOf(
   adoption: Adoption,
-  route = { recipient: 'gateway', model: 'vendor/model-a' },
+  route = { provider: 'gateway', model: 'vendor/model-a' },
 ): Supplier {
-  return { adoption, ...route, credential: { kind: 'factory' } }
+  return {
+    adoption,
+    ...route,
+    provider: providerName(route.provider),
+    credential: { layer: 'official' },
+  }
 }
 
 /** What a test family saw and how it answers. */
@@ -68,7 +73,7 @@ function probe(): Probe {
 function bindingFor(supplier: Supplier, adoption: Adoption, seen: Probe): PiFamilyBinding {
   const refused: TransportFailure = { kind: 'unsupported', field: 'test', adapter: adoption }
   const counting: ModelCountingBasis = {
-    supplier: { adoption, recipient: supplier.recipient, model: supplier.model },
+    supplier: { adoption, provider: supplier.provider, model: supplier.model },
     meter: adoption,
     tokenization: { kind: 'not-used', method: adoption },
     prompt: { kind: 'provider-private', estimation: adoption },
@@ -131,7 +136,7 @@ describe('recordAdoption', () => {
     const adoption = recordAdoption(OWNER, record())
     const text =
       '{"name":"model-a","replay":{"formats":{"accepts":["fmt-a","fmt-old"],"produces":"fmt-a"}},' +
-      '"revision":"1","route":{"model":"vendor/model-a","recipient":"gateway"},"status":"current",' +
+      '"revision":"1","route":{"model":"vendor/model-a","provider":"gateway"},"status":"current",' +
       '"wire":{"flag":true,"image":null,"limit":0.5,"tags":["x"]}}'
     expect(adoption).toEqual({
       owner: OWNER,
@@ -145,7 +150,7 @@ describe('recordAdoption', () => {
     const reordered: TestRecord = {
       wire: { tags: ['x'], flag: true, image: null, limit: 0.5 },
       status: 'current',
-      route: { model: 'vendor/model-a', recipient: 'gateway' },
+      route: { model: 'vendor/model-a', provider: 'gateway' },
       revision: '1',
       name: 'model-a',
       replay: { formats: { accepts: ['fmt-a', 'fmt-old'], produces: 'fmt-a' } },
@@ -214,7 +219,7 @@ describe('defineFamily', () => {
   })
 
   it('refuses two records with the same name and revision', () => {
-    const second = record({ route: { recipient: 'gateway', model: 'vendor/other' } })
+    const second = record({ route: { provider: 'gateway', model: 'vendor/other' } })
     expect(() => defineFamily({ owner: OWNER, records: [record(), second], acquire })).toThrow(
       /repeats name and revision/,
     )
@@ -258,7 +263,7 @@ describe('composeFamilies', () => {
   it('refuses two families with the same owner', () => {
     const one = family([record()], probe())
     const two = family(
-      [record({ name: 'model-b', route: { recipient: 'gateway', model: 'vendor/b' } })],
+      [record({ name: 'model-b', route: { provider: 'gateway', model: 'vendor/b' } })],
       probe(),
     )
     expect(() => composeFamilies([one, two])).toThrow(/owner .* repeats/)
@@ -287,7 +292,7 @@ describe('acquire through the family table', () => {
     const first = record()
     const second = record({
       name: 'model-b',
-      route: { recipient: 'gateway', model: 'vendor/model-b' },
+      route: { provider: 'gateway', model: 'vendor/model-b' },
     })
     const families = composeFamilies([family([first, second], seen)])
     const adoption = recordAdoption(OWNER, second)
@@ -329,8 +334,8 @@ describe('acquire through the family table', () => {
   })
 
   it.each([
-    ['supplier.recipient', { recipient: 'elsewhere', model: 'vendor/model-a' }],
-    ['supplier.model', { recipient: 'gateway', model: 'vendor/model-z' }],
+    ['supplier.provider', { provider: 'elsewhere', model: 'vendor/model-a' }],
+    ['supplier.model', { provider: 'gateway', model: 'vendor/model-z' }],
   ])('answers invalid %s for a route that differs from the record', async (field, route) => {
     const seen = probe()
     const families = composeFamilies([family([record()], seen)])
@@ -418,7 +423,7 @@ describe('replayFormatsOf', () => {
     const bare: TestRecord = {
       name: 'bare',
       revision: '1',
-      route: { recipient: 'gateway', model: 'vendor/bare' },
+      route: { provider: 'gateway', model: 'vendor/bare' },
       status: 'current',
       wire: { limit: 1, tags: [], image: null, flag: false },
     }

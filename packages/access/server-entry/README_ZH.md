@@ -15,7 +15,6 @@
 - `createServerEntry({ config, dependencies })`，返回 `start()` 与 `stop()`。
 - 治理位置的 `register-and-activate` 与 `issue-login`。`issue-login` 成功时带新登录的 `loginId`。
 - 治理位置的 18 个治理操作：组织、成员邀请、成员资格、当前租户与账号的登录。它们交给 identity 的治理端口。
-- 治理位置的 3 个模型凭据操作：绑定、解绑与查看行事租户的模型凭据。它们交给 `modelCredentials` 端口。没有这个端口时答 `stage-not-provided`。
 - 治理位置的 4 个设置操作：列出行事租户的设置项，以及写入、查看或清除一个秘密设置项。它们交给 `settings` 端口。没有这个端口时答 `stage-not-provided`。响应和诊断都不含秘密。
 - 成功业务访问的报告，以及登录失效时结束观察。
 - 会话位置的八个会话操作与两个观察操作。观察流只有确认、心跳与 `ended` 帧。
@@ -60,7 +59,7 @@ await entry.stop()
 
 `start()` 只在 `127.0.0.1` 上监听明文 HTTP/1.1。地址是其他值时以 `ServerEntryConfigError` 拒绝，不改写地址。端口 0 由宿主分配，实际端口在返回值里。`stop()` 停止接受新连接，给每个活动观察发 `ended(unavailable)`，等在途请求写完答复，再关闭全部连接。两个位置的路径固定：`/governance-public/1` 与 `/session-public/1`。
 
-依赖有三类：identity 的操作、治理端口与签发者，Session 的面，以及定义名到创建字段的解析函数。治理端口是必需的，必须与 identity 的操作用同一份记录。装配按调用现取治理服务时，服务缺席由端口答 `basis-unavailable`。可选的 `modelCredentials` 端口承接 3 个模型凭据操作，省略时这 3 个操作答 `stage-not-provided`。可选的 `settings` 端口承接 4 个设置操作，省略时这 4 个操作答 `stage-not-provided`。可选的诊断汇在省略时不影响运行。会话诊断投影另有四个可选的读端口：`agentJournal`（Agent 的 `readFinish`）、`modelCalls`（Model 的 `inspect` 与 `dispatches`）、`modelDiagnostics`（Model 的派发诊断）与 `toolQueries`（Tool 的 `lookup`、`account` 与 `readDiagnostics`）；缺席的端口让对应的值成为 `unknown`，原因 `unsupported`。完整的依赖表与配置字段表在 [README.md](README.md#dependencies)。
+依赖有三类：identity 的操作、治理端口与签发者，Session 的面，以及定义名到创建字段的解析函数。治理端口是必需的，必须与 identity 的操作用同一份记录。装配按调用现取治理服务时，服务缺席由端口答 `basis-unavailable`。可选的 `settings` 端口承接 4 个设置操作，省略时这 4 个操作答 `stage-not-provided`。可选的诊断汇在省略时不影响运行。会话诊断投影另有四个可选的读端口：`agentJournal`（Agent 的 `readFinish`）、`modelCalls`（Model 的 `inspect` 与 `dispatches`）、`modelDiagnostics`（Model 的派发诊断）与 `toolQueries`（Tool 的 `lookup`、`account` 与 `readDiagnostics`）；缺席的端口让对应的值成为 `unknown`，原因 `unsupported`。完整的依赖表与配置字段表在 [README.md](README.md#dependencies)。
 
 ## 契约
 
