@@ -33,11 +33,17 @@ import {
   type SqlStorage,
   type TenantDomainLookup,
 } from '@omne-harness/sql-contract'
-import type { QueryRows, SqlValue } from '@omne-harness/sql-contract/worker'
+import {
+  packText,
+  unpackText,
+  type QueryRows,
+  type SqlValue,
+} from '@omne-harness/sql-contract/worker'
 import {
   CALL_READ_MAX_ROWS,
   COMMAND_RESERVE_BYTES,
   PART_MERGE_THRESHOLD,
+  TABLES,
   callHandler,
   createSqlModelStorage,
   modelMigration,
@@ -60,6 +66,9 @@ const decoded = <T>(result: Outcome<T, unknown>): T => {
   if ('failure' in result) throw new Error('fixture identity does not decode')
   return result.ok
 }
+
+/** A stored open part, in the packed text form of its JSON column (sql-contract §10.1). */
+const OPEN_PART = packText('{"index":"0","mode":"append","content":"text"}')
 
 function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): QueryRows {
   const statement = db.prepare(sql)
@@ -451,7 +460,8 @@ describe('construction', () => {
 
 describe('commit and read back', () => {
   it('reads back every field of the written document at version 1', async () => {
-    const store = createSqlModelStorage(options(sqliteStorage().storage))
+    const sqlite = sqliteStorage()
+    const store = createSqlModelStorage(options(sqlite.storage))
     const call = callId('one')
     const document = admitted(call, opId('admit'))
     document.dispatches = [
@@ -472,6 +482,19 @@ describe('commit and read back', () => {
     expect(read.record?.version).toBe(1)
     expect(read.record?.document).toEqual(document)
     expect(read.capacity).toEqual(CAPACITY)
+    // Each JSON column holds the packed text form (sql-contract §10.1): marker 0 below 128 UTF-8
+    // bytes, marker 1 from there on.
+    const markers = new Set<number>()
+    for (const table of Object.values(TABLES))
+      for (const item of table.columns.filter(column => column.kind === 'json'))
+        for (const [cell] of sqlite.rows('domain-a', `SELECT ${item.name} FROM ${table.name}`)) {
+          if (cell === null) continue
+          if (!(cell instanceof Uint8Array))
+            throw new Error(`${table.name}.${item.name} is not packed`)
+          expect(cell[0]).toBe(Buffer.byteLength(unpackText(cell)) < 128 ? 0 : 1)
+          markers.add(cell[0] ?? -1)
+        }
+    expect([...markers].sort()).toEqual([0, 1])
   })
 
   it('keeps the latest snapshot, with its blocks taken from the dispatch they equal', async () => {
@@ -1129,15 +1152,15 @@ describe('parts', () => {
       'domain-a',
       `INSERT INTO md_part (tenant, call, seq, block, part, kind, payload)
        WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
-       SELECT ?, ?, 0, i, 0, 'open', '{"index":"0","mode":"append","content":"text"}' FROM n`,
-      [BigInt(CALL_READ_MAX_ROWS - 5), A, call],
+       SELECT ?, ?, 0, i, 0, 'open', ? FROM n`,
+      [BigInt(CALL_READ_MAX_ROWS - 5), A, call, OPEN_PART],
     )
     const atBound = await store.readCall({ tenant: A, call, operation: null })
     expect('ok' in atBound && atBound.ok.record?.parts).toHaveLength(CALL_READ_MAX_ROWS - 4)
     sqlite.seed(
       'domain-a',
-      `INSERT INTO md_part (tenant, call, seq, block, part, kind, payload) VALUES (?, ?, 0, ?, 0, 'open', '{"index":"0","mode":"append","content":"text"}')`,
-      [A, call, BigInt(CALL_READ_MAX_ROWS - 4)],
+      `INSERT INTO md_part (tenant, call, seq, block, part, kind, payload) VALUES (?, ?, 0, ?, 0, 'open', ?)`,
+      [A, call, BigInt(CALL_READ_MAX_ROWS - 4), OPEN_PART],
     )
     const above = await store.readCall({ tenant: A, call, operation: null })
     expect('failure' in above && above.failure.kind).toBe('unavailable')

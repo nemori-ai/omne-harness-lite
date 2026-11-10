@@ -21,7 +21,12 @@ import type { ModelCommandsAuthority } from '@omne-harness/model/commands'
 import { modelDiagnosticsKey } from '@omne-harness/model-cordis-contract/cordis'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { JsonValue, SqlStorage } from '@omne-harness/sql-contract'
-import type { ReadPort, SqlValue } from '@omne-harness/sql-contract/worker'
+import {
+  packText,
+  unpackText,
+  type ReadPort,
+  type SqlValue,
+} from '@omne-harness/sql-contract/worker'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   COMMAND_RESERVE_BYTES,
@@ -780,7 +785,13 @@ describe('the cursor in detail', () => {
 
 // --- Stored rows that do not parse ------------------------------------------------------------
 
-/** Writes one column of one stored dispatch row, as a damaged or foreign writer would leave it. */
+/** The JSON columns of a dispatch row: they hold the packed text form (sql-contract §10.1). */
+const PACKED = new Set(['record', 'logical_terminal'])
+
+/**
+ * Writes one column of one stored dispatch row, as a damaged or foreign writer would leave it. A
+ * text for a JSON column is stored in the packed text form, so only its content is damaged.
+ */
 function rewriteDispatch(
   f: Scene,
   call: ModelCallId,
@@ -788,10 +799,11 @@ function rewriteDispatch(
   column: string,
   value: SqlValue,
 ): void {
+  const cell = PACKED.has(column) && typeof value === 'string' ? packText(value) : value
   f.sqlite.seed(
     SHARED,
     `UPDATE md_dispatch SET ${column} = ? WHERE tenant = ? AND call = ? AND seq = ?`,
-    [value, textOf(A), call, BigInt(seq)],
+    [cell, textOf(A), call, BigInt(seq)],
   )
 }
 
@@ -807,9 +819,9 @@ function rewriteRecord(
     'SELECT record FROM md_dispatch WHERE tenant = ? AND call = ? AND seq = ?',
     [textOf(A), call, BigInt(seq)],
   )
-  const text = row?.[0]
-  if (typeof text !== 'string') throw new Error('no stored record')
-  const record: unknown = JSON.parse(text)
+  const stored = row?.[0]
+  if (!(stored instanceof Uint8Array)) throw new Error('no stored record')
+  const record: unknown = JSON.parse(unpackText(stored))
   if (!isRecord(record)) throw new Error('the stored record is not an object')
   rewriteDispatch(f, call, seq, 'record', JSON.stringify(edit(record)))
 }

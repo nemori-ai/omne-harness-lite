@@ -7,6 +7,7 @@ import {
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
 import { decodeDispatchId, encodeModelInvocationRef } from '@omne-harness/model-contract'
 import type { SqlStorage } from '@omne-harness/sql-contract'
+import { packText, unpackText } from '@omne-harness/sql-contract/worker'
 import {
   createSqlModelCommands,
   COMMAND_RESERVE_BYTES,
@@ -162,10 +163,16 @@ it('a real SQL CAS retry publishes only the final state, never the first staged 
     [Symbol.asyncIterator]()
   expect(await iterator.next()).toMatchObject({ value: { kind: 'snapshot' } })
   s.sqlite.hooks.beforeCommit = () => {
+    const [[stored]] = s.sqlite.rows(
+      'confirmation',
+      'SELECT state FROM md_call WHERE tenant = ? AND call = ?',
+      [textOf(s.tenant), s.admit.call],
+    ) as [[Uint8Array]]
+    const state = { ...(JSON.parse(unpackText(stored)) as object), revision: '8' }
     s.sqlite.seed(
       'confirmation',
-      "UPDATE md_call SET row_version = row_version + 1, state = json_set(state, '$.revision', '8') WHERE tenant = ? AND call = ?",
-      [textOf(s.tenant), s.admit.call],
+      'UPDATE md_call SET row_version = row_version + 1, state = ? WHERE tenant = ? AND call = ?',
+      [packText(JSON.stringify(state)), textOf(s.tenant), s.admit.call],
     )
   }
   const commits = s.sqlite.commits()

@@ -2,7 +2,12 @@
 // keyed by tenant first, with the declared columns, and its verify step notices a missing table.
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
-import type { MigrationPort, QueryRows, SqlValue } from '@omne-harness/sql-contract/worker'
+import {
+  packText,
+  type MigrationPort,
+  type QueryRows,
+  type SqlValue,
+} from '@omne-harness/sql-contract/worker'
 import { MIGRATION, TABLES, modelMigration } from '@omne-harness/model-storage-sql'
 
 function portOf(db: DatabaseSync): MigrationPort {
@@ -65,7 +70,7 @@ describe('migration 001-model-records', () => {
       expect(info.map(row => row.name)).toEqual(table.columns.map(item => item.name))
       for (const item of table.columns) {
         const row = info.find(found => found.name === item.name)
-        expect(row?.type).toBe(item.kind === 'int' ? 'INTEGER' : 'TEXT')
+        expect(row?.type).toBe({ int: 'INTEGER', text: 'TEXT', json: 'BLOB' }[item.kind])
         expect(Number(row?.notnull)).toBe(item.nullable ? 0 : 1)
       }
       const key = info.filter(row => Number(row.pk) > 0).sort((a, b) => Number(a.pk) - Number(b.pk))
@@ -81,7 +86,7 @@ describe('migration 001-model-records', () => {
         .prepare(
           'INSERT INTO md_part (tenant, call, seq, block, part, kind, payload) VALUES (?, ?, ?, ?, ?, ?, ?)',
         )
-        .run('t', 'c', 0, 'zero', 0, 'append', '{}'),
+        .run('t', 'c', 0, 'zero', 0, 'append', packText('{}')),
     ).toThrow()
   })
 

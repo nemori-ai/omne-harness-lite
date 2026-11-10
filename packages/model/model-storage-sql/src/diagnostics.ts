@@ -31,7 +31,12 @@ import type {
   SqlStorage,
   TenantDomainLookup,
 } from '@omne-harness/sql-contract'
-import type { ReadHandlerModule, ReadPort, SqlCell } from '@omne-harness/sql-contract/worker'
+import {
+  unpackText,
+  type ReadHandlerModule,
+  type ReadPort,
+  type SqlCell,
+} from '@omne-harness/sql-contract/worker'
 import { domainOf, unavailable } from './reads.ts'
 import { PROTOCOL } from './schema.ts'
 
@@ -55,9 +60,13 @@ const MAC_LENGTH = 43
 
 type Cell = string | number | null
 
-/** A cell as JSON: INTEGER as a safe integer, TEXT as text. A blob or a large integer stops. */
+/**
+ * A cell as JSON: INTEGER as a safe integer, TEXT as text, a BLOB (a `json` column) as its packed
+ * text. A large integer stops.
+ */
 function jsonCell(cell: SqlCell | undefined): Cell {
   if (cell === null || cell === undefined || typeof cell === 'string') return cell ?? null
+  if (cell instanceof Uint8Array) return unpackText(cell)
   const value = typeof cell === 'bigint' ? Number(cell) : cell
   if (typeof value !== 'number' || !Number.isSafeInteger(value))
     throw new Error('a cell is not a safe integer or text')

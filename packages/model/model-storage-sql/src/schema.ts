@@ -9,7 +9,10 @@ export const MODEL_PARTICIPANT = 'model'
 export const PROTOCOL = '1'
 export const MIGRATION = Object.freeze({ owner: 'model', id: '001-model-records' })
 
-/** `text` and `json` columns hold TEXT; `int` columns hold INTEGER and travel as safe integers. */
+/**
+ * `text` columns hold TEXT. `json` columns hold JSON text in the packed text form of sql-contract
+ * §10.1, a BLOB. `int` columns hold INTEGER and travel as safe integers.
+ */
 export type ColumnKind = 'text' | 'json' | 'int'
 export type Column = Readonly<{ name: string; kind: ColumnKind; nullable: boolean }>
 export type Table = Readonly<{
@@ -20,6 +23,12 @@ export type Table = Readonly<{
   constraints: readonly string[]
   indexes: readonly string[]
 }>
+
+const SQL_TYPE: Readonly<Record<ColumnKind, string>> = {
+  text: 'TEXT',
+  json: 'BLOB',
+  int: 'INTEGER',
+}
 
 const column = (name: string, kind: ColumnKind, nullable = false): Column => ({
   name,
@@ -125,8 +134,7 @@ export const MODEL_TABLES: readonly string[] = Object.values(TABLES).map(table =
 
 function createTable(table: Table): string {
   const columns = table.columns.map(
-    item =>
-      `${item.name} ${item.kind === 'int' ? 'INTEGER' : 'TEXT'}${item.nullable ? '' : ' NOT NULL'}`,
+    item => `${item.name} ${SQL_TYPE[item.kind]}${item.nullable ? '' : ' NOT NULL'}`,
   )
   const clauses = [...columns, `PRIMARY KEY (${table.primaryKey.join(', ')})`, ...table.constraints]
   return `CREATE TABLE ${table.name} (${clauses.join(', ')}) STRICT`

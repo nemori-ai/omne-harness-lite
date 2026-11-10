@@ -36,11 +36,12 @@ import {
   type SqlStorage,
   type TenantDomainLookup,
 } from '@omne-harness/sql-contract'
-import type {
-  ParticipantModule,
-  ParticipantPort,
-  ParticipantReply,
-  SqlValue,
+import {
+  packText,
+  type ParticipantModule,
+  type ParticipantPort,
+  type ParticipantReply,
+  type SqlValue,
 } from '@omne-harness/sql-contract/worker'
 import {
   comparePartKeys,
@@ -826,7 +827,8 @@ const columnNames = (table: Table): readonly string[] => table.columns.map(item 
 function cellValue(table: Table, row: Row, name: string): SqlValue {
   const cell = row[name] ?? null
   const kind = table.columns.find(item => item.name === name)?.kind
-  return kind === 'int' && typeof cell === 'number' ? BigInt(cell) : cell
+  if (kind === 'int' && typeof cell === 'number') return BigInt(cell)
+  return kind === 'json' && typeof cell === 'string' ? packText(cell) : cell
 }
 
 function insert(port: ParticipantPort, table: Table, row: Row, onConflict: string): bigint {

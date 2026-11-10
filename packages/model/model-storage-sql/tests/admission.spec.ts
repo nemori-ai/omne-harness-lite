@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { OWNER, callId, opId, sqlCommands, tenantOf, textOf } from './fixture.ts'
 import { COMMAND_RESERVE_BYTES, PENDING_PAGE_MAX } from '@omne-harness/model-storage-sql'
+import { unpackText } from '@omne-harness/sql-contract/worker'
 
 const A = tenantOf('a')
 const LIMITS = {
@@ -53,12 +54,12 @@ describe('an admission in one commit', () => {
     const { call, operations } = rowsOf('mcall_one')
     expect(call).toHaveLength(1)
     const [initiator, owner, bytes, blocks, attachment, admission] = call[0] ?? []
-    expect(JSON.parse(String(initiator))).toEqual({
+    expect(JSON.parse(unpackText(initiator as Uint8Array))).toEqual({
       owner: 'identity',
       subject: admit.principal.subject,
       revision: '1',
     })
-    expect(JSON.parse(String(owner))).toEqual(OWNER)
+    expect(JSON.parse(unpackText(owner as Uint8Array))).toEqual(OWNER)
     expect([bytes, blocks, attachment]).toEqual([100000n, 100n, 100000n])
     expect(admission).toBe('mop_admit-one')
     expect(operations).toEqual([['mop_admit-one', 'admit']])
