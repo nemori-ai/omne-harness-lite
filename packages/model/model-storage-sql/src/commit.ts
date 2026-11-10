@@ -4,8 +4,10 @@
 // command. The participant writes it only if `row_version` is still the version the work read
 // (CAS); otherwise the commit rolls back and the run reads again in the next attempt generation.
 // The default export is the participant module.
+import { randomUUID } from 'node:crypto'
 import {
   decodeModelCallId,
+  type FixedModelRequest,
   type ModelCallId,
   type ModelFailure,
   type ModelOperationId,
@@ -61,13 +63,18 @@ import {
   domainOf,
   readCall,
   readPending,
+  readRequestBody,
+  REQUEST_READ_MAX_OUTPUT_BYTES,
   unavailable,
   type CallReadInput,
   type DomainOf,
   type PendingPage,
 } from './reads.ts'
+import { requestChunks } from './request-body.ts'
 import { MODEL_PARTICIPANT, PROTOCOL, TABLES, type Table } from './schema.ts'
 
+/** Bytes of one `model.request` output beside the chunk: its position and the wrapping. */
+export const BODY_READ_RESERVE_BYTES = 64 * 1024
 /** A block with this many `append` parts is folded into one part in the same commit (N2). */
 export const PART_MERGE_THRESHOLD = 64
 /** Rounds of one run: how often it goes back to read after a newer write. */
@@ -79,6 +86,11 @@ const MAX_ATTEMPT_LIMIT = 64
 export type ModelStorageLimits = Readonly<{
   /** The share of one tenant: how many of its calls may hold request material. */
   tenantResults: number
+  /**
+   * The largest encoded size of one chunk of a request body. One commit writes one chunk, so the
+   * assembly gives a value that, with the head of the facts, fits one command of the provider.
+   */
+  requestChunkBytes: number
 }>
 
 export type SqlModelStorageOptions = Readonly<{
@@ -122,6 +134,9 @@ function checkOptions(options: SqlModelStorageOptions): Readonly<{
 }> {
   const { limits, combination } = options
   positive(limits.tenantResults, 'tenantResults')
+  positive(limits.requestChunkBytes, 'requestChunkBytes')
+  if (limits.requestChunkBytes + BODY_READ_RESERVE_BYTES > REQUEST_READ_MAX_OUTPUT_BYTES)
+    throw new RangeError('requestChunkBytes exceeds what one model.request read can carry')
   if (typeof combination.combinationVersion !== 'string' || combination.combinationVersion === '')
     throw new TypeError('combinationVersion is empty')
   if (!DIGEST.test(combination.manifestDigest))
@@ -152,6 +167,27 @@ const stagedCallId = (staged: Staged): ModelCallId =>
   staged.kind === 'commit' ? staged.write.binding.call : staged.call.state.call
 
 const noDocuments = (): TenantDocuments => ({ calls: new Map(), operations: new Map() })
+
+/** The body of the call that a staged write admits. */
+type AdmittedBody = Readonly<{
+  tenant: string
+  call: ModelCallId
+  digest: string
+  request: FixedModelRequest
+}>
+
+function admittedBody(tenant: string, staged: Staged): AdmittedBody | null {
+  if (staged.kind !== 'commit' || staged.write.body === undefined) return null
+  const call = staged.write.call
+  if (call === undefined) return null
+  return { tenant, call: call.state.call, digest: call.requestDigest, request: staged.write.body }
+}
+
+const refOf = (body: AdmittedBody) => ({
+  tenant: body.tenant,
+  call: body.call,
+  digest: body.digest,
+})
 
 /**
  * The synchronous face of one attempt. It answers from the read of this attempt and stages one
@@ -399,11 +435,24 @@ function changedDispatches(
  * judgment of the shared core over the document. Operations with an unknown outcome are not in
  * the document; `pending` adds their calls when it reads.
  */
+/**
+ * The body that an admission claims: the digest of its request and the chunk count. A body of one
+ * chunk travels in the commit of the admission itself (`inline`); a larger one is written before.
+ * `sweep`: the commit first deletes the chunks of the tenant that no call owns.
+ */
+type BodyManifest = Readonly<{
+  digest: string
+  chunks: number
+  inline: string | null
+  sweep: boolean
+}>
+
 function factsOf(
   tenant: string,
   staged: Staged,
   read: CallRead,
   share: number,
+  body: BodyManifest | null,
 ): Readonly<Record<string, JsonValue>> {
   const call = stagedCall(staged)
   const callId = stagedCallId(staged)
@@ -431,6 +480,7 @@ function factsOf(
         ? must(encodeOperationRow(tenant, staged.write.operation, staged.write.binding))
         : null,
     share: expected === null && call !== undefined ? share : null,
+    body,
   }
 }
 
@@ -439,9 +489,10 @@ function encodedFacts(
   staged: Staged,
   read: CallRead,
   share: number,
+  body: BodyManifest | null,
 ): Outcome<Readonly<Record<string, JsonValue>>, ModelFailure> {
   try {
-    return succeed(factsOf(tenant, staged, read, share))
+    return succeed(factsOf(tenant, staged, read, share, body))
   } catch (error) {
     if (!(error instanceof EncodeError)) throw error
     return fail({ kind: 'invalid', field: error.failure.field, reason: error.failure.reason })
@@ -469,6 +520,10 @@ function afterRollback(receipt: ReceiptV2): Step {
     const reason = isFactRecord(stop.basis) ? stop.basis['reason'] : undefined
     if (typeof reason === 'string' && RETRIED.includes(reason)) return { kind: 'again' }
     // The participant checks the share again at the commit: another admission took the place.
+    // The chunks were not all there at the commit: a discard of an earlier attempt of the same
+    // call came between. The caller admits again and writes the body again.
+    if (reason === 'body-incomplete')
+      return { kind: 'done', failure: unavailable('the request body was not whole at the commit') }
     if (reason === 'share-full')
       return {
         kind: 'done',
@@ -584,6 +639,8 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
   const { storage, domains, combination, limits } = options
   const unresolved = new Unresolved(unresolvedLimit)
   const generations = new Generations()
+  /** The tenants whose orphan request chunks this process has deleted. */
+  const swept = new Set<string>()
   let current: Attempt | null = null
 
   const active = (): Attempt => {
@@ -707,7 +764,45 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     staged: Staged,
     read: CallRead,
   ): Promise<Step> {
-    const facts = encodedFacts(tenant, staged, read, limits.tenantResults)
+    const admitted = admittedBody(tenant, staged)
+    if (admitted === null) return commitFacts(domain, tenant, staged, read, null)
+    // Before the first admission of a tenant in this process, the chunks that no call owns are
+    // deleted: one process writes the database, so no admission of the tenant is in flight then.
+    // The first commit of that admission does it, so a sweep that did not commit is done again.
+    const sweep = !swept.has(tenant)
+    const chunks = requestChunks(admitted.request, limits.requestChunkBytes)
+    const [only] = chunks
+    if (chunks.length === 1 && only !== undefined) {
+      const body = { digest: admitted.digest, chunks: 1, inline: only, sweep }
+      const step = await commitFacts(domain, tenant, staged, read, body)
+      if (step.kind === 'done' && step.failure === null) swept.add(tenant)
+      return step
+    }
+    // A body of several chunks goes first, in its own commits. The commit of the call then holds
+    // only when the body is whole. A body that the call did not come to own is deleted again.
+    const written = await putBody(domain, admitted, chunks, sweep)
+    const step: Step =
+      written !== null
+        ? { kind: 'done', failure: written }
+        : await commitFacts(domain, tenant, staged, read, {
+            digest: admitted.digest,
+            chunks: chunks.length,
+            inline: null,
+            sweep: false,
+          })
+    if (step.kind !== 'done' || step.failure !== null)
+      await bodyCommit(domain, admitted.call, { intent: 'body-discard', ...refOf(admitted) })
+    return step
+  }
+
+  async function commitFacts(
+    domain: DomainRef,
+    tenant: string,
+    staged: Staged,
+    read: CallRead,
+    body: BodyManifest | null,
+  ): Promise<Step> {
+    const facts = encodedFacts(tenant, staged, read, limits.tenantResults, body)
     if ('failure' in facts) return { kind: 'done', failure: facts.failure }
     const target = await identityFor(domain, tenant, staged)
     if ('kind' in target) return target
@@ -718,6 +813,49 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     })
     target.saw?.(result.kind)
     return afterCommit(result, tenant, staged)
+  }
+
+  // --- The request body: chunk commits before the admission, and their cleanup.
+
+  /** One commit of the body protocol. Each has its own identity: the rows make it idempotent. */
+  async function bodyCommit(
+    domain: DomainRef,
+    call: ModelCallId,
+    facts: Readonly<Record<string, JsonValue>>,
+  ): Promise<CommitResultV2> {
+    const operation = `${call}#body`
+    return storage.commit({
+      identity: identityOf(domain, operation, `${operation}@${randomUUID()}`),
+      ...combination,
+      commands: [{ participant: MODEL_PARTICIPANT, facts }],
+    })
+  }
+
+  /** Writes every chunk of the body, one commit each. Null, or why a chunk did not commit. */
+  async function putBody(
+    domain: DomainRef,
+    body: AdmittedBody,
+    chunks: readonly string[],
+    sweep: boolean,
+  ): Promise<ModelFailure | null> {
+    for (const [seq, text] of chunks.entries()) {
+      const result = await bodyCommit(domain, body.call, {
+        intent: 'body-chunk',
+        ...refOf(body),
+        seq,
+        total: chunks.length,
+        body: text,
+        sweep: sweep && seq === 0,
+      })
+      if (result.kind === 'committed') {
+        if (seq === 0) swept.add(body.tenant)
+        continue
+      }
+      if (result.kind === 'rejected_before_accept' && result.reason !== 'writer_not_current')
+        return rejected(result.reason)
+      return unavailable(`the request body write did not commit: ${result.kind}`)
+    }
+    return null
   }
 
   /** One attempt: settle, read, run the work, commit what it staged. */
@@ -780,6 +918,10 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     run,
     documents: tenant => active().documents(tenant),
     held: () => active().held(),
+    readBody: async (tenant, call) => {
+      const domain = await domainOf(domains, tenant)
+      return 'failure' in domain ? domain : readRequestBody(storage, domain.ok, { tenant, call })
+    },
     commit: (tenant, write) => active().commit(tenant, write),
     publish: (tenant, call) => active().publish(tenant, call),
     pending,
@@ -839,6 +981,24 @@ function shareOf(raw: JsonValue | undefined): number | null {
   return raw
 }
 
+function count(raw: JsonValue | undefined, name: string, least: number): number {
+  if (typeof raw !== 'number' || !Number.isSafeInteger(raw) || raw < least)
+    throw new FactError(name)
+  return raw
+}
+
+function manifestOf(raw: JsonValue | undefined): BodyManifest | null {
+  if (raw === null) return null
+  if (!isFactRecord(raw)) throw new FactError('body')
+  const inline = raw['inline']
+  if (inline !== null && typeof inline !== 'string') throw new FactError('body.inline')
+  const chunks = count(raw['chunks'], 'body.chunks', 1)
+  if (inline !== null && chunks !== 1) throw new FactError('body.inline')
+  const sweep = raw['sweep']
+  if (typeof sweep !== 'boolean') throw new FactError('body.sweep')
+  return { digest: text(raw['digest'], 'body.digest'), chunks, inline, sweep }
+}
+
 type PartKeyCells = Readonly<{ seq: number; block: number; part: number }>
 
 function partKeys(raw: JsonValue | undefined): PartKeyCells[] {
@@ -883,6 +1043,7 @@ function writeFacts(facts: Readonly<Record<string, JsonValue>>) {
     removeParts: partKeys(facts['removeParts']),
     parts: rowList(facts['parts'], TABLES.part, tenant, call),
     share: shareOf(facts['share']),
+    body: manifestOf(facts['body']),
   }
 }
 
@@ -933,10 +1094,48 @@ function writeChildren(port: ParticipantPort, facts: WriteFacts): void {
   for (const item of facts.parts) insert(port, TABLES.part, item, '')
 }
 
+/** Whether every chunk of the body that a new call claims is there. */
+function bodyWhole(port: ParticipantPort, facts: WriteFacts, body: BodyManifest): boolean {
+  const found = port.execute(
+    'SELECT COUNT(*) FROM md_request WHERE tenant = ? AND call = ? AND digest = ? AND total = ?',
+    [facts.tenant, facts.call, body.digest, BigInt(body.chunks)],
+  ).rows[0]?.[0]
+  return (
+    found !== undefined &&
+    found !== null &&
+    BigInt(found as bigint | number) === BigInt(body.chunks)
+  )
+}
+
+/**
+ * The body of the call in the same transaction as its row. A new call holds only with its whole
+ * body. A row without a request has released its material: its chunks are deleted here.
+ */
+function writeBody(port: ParticipantPort, facts: WriteFacts): string | null {
+  const { tenant, call, expected, row } = facts
+  if (row === null) return null
+  if (expected === null) {
+    if (facts.body === null) throw new FactError('body')
+    if (row['request_digest'] !== facts.body.digest) throw new FactError('body.digest')
+    if (facts.body.sweep) sweepBodies(port, tenant)
+    if (facts.body.inline !== null)
+      insert(
+        port,
+        TABLES.request,
+        { tenant, call, digest: facts.body.digest, seq: 0, total: 1, body: facts.body.inline },
+        'ON CONFLICT (tenant, call, digest, seq) DO NOTHING',
+      )
+    return bodyWhole(port, facts, facts.body) ? null : 'body-incomplete'
+  }
+  if (row['request'] === null)
+    port.execute('DELETE FROM md_request WHERE tenant = ? AND call = ?', [tenant, call])
+  return null
+}
+
 /**
  * One write in the provider's transaction: bind the operation, then insert the call or update it
- * at the expected version, then the dispatch and part rows, then the tenant share of a new call.
- * Any stop rolls the whole commit back.
+ * at the expected version, then the dispatch and part rows, then the body and the tenant share of
+ * a new call. Any stop rolls the whole commit back.
  */
 function write(port: ParticipantPort, facts: WriteFacts): ParticipantReply {
   const bound =
@@ -947,25 +1146,81 @@ function write(port: ParticipantPort, facts: WriteFacts): ParticipantReply {
   const refused = writeCall(port, facts)
   if (refused !== null) return stop(refused)
   writeChildren(port, facts)
+  const body = writeBody(port, facts)
+  if (body !== null) return stop(body)
   if (facts.share !== null && overShare(port, facts.tenant, facts.share)) return stop('share-full')
   return { kind: 'participated', response: { version: nextVersion(facts.expected) } }
+}
+
+// --- The request body in the provider's transaction.
+
+const stored: ParticipantReply = { kind: 'participated', response: {} }
+
+/** A call that holds its material under this digest owns the chunks of the digest. */
+const OWNED_SQL = `SELECT 1 FROM md_call c
+  WHERE c.tenant = md_request.tenant AND c.call = md_request.call
+    AND c.request_digest = md_request.digest AND c.request IS NOT NULL`
+
+/** Writes one chunk. A chunk that is there stays: the same key has the same text. */
+function putChunk(
+  port: ParticipantPort,
+  facts: Readonly<Record<string, JsonValue>>,
+): ParticipantReply {
+  const total = count(facts['total'], 'total', 1)
+  const seq = count(facts['seq'], 'seq', 0)
+  if (seq >= total) throw new FactError('seq')
+  const body = facts['body']
+  if (typeof body !== 'string') throw new FactError('body')
+  const row = {
+    tenant: text(facts['tenant'], 'tenant'),
+    call: text(facts['call'], 'call'),
+    digest: text(facts['digest'], 'digest'),
+    seq,
+    total,
+    body,
+  }
+  if (facts['sweep'] === true) sweepBodies(port, row.tenant)
+  insert(port, TABLES.request, row, 'ON CONFLICT (tenant, call, digest, seq) DO NOTHING')
+  return stored
+}
+
+/** Deletes the chunks of one call and digest, unless a call that holds its material owns them. */
+function discardBody(
+  port: ParticipantPort,
+  facts: Readonly<Record<string, JsonValue>>,
+): ParticipantReply {
+  port.execute(
+    `DELETE FROM md_request WHERE tenant = ? AND call = ? AND digest = ? AND NOT EXISTS (${OWNED_SQL})`,
+    [text(facts['tenant'], 'tenant'), text(facts['call'], 'call'), text(facts['digest'], 'digest')],
+  )
+  return stored
+}
+
+/** Deletes every chunk of the tenant that no call owns. */
+function sweepBodies(port: ParticipantPort, tenant: string): void {
+  port.execute(`DELETE FROM md_request WHERE tenant = ? AND NOT EXISTS (${OWNED_SQL})`, [tenant])
 }
 
 const participant: ParticipantModule = {
   participant: MODEL_PARTICIPANT,
   protocol: PROTOCOL,
   execute(facts, port) {
-    if (facts['intent'] !== 'write')
-      return { kind: 'unsupported', basis: { reason: 'the facts are not a write' } }
-    let checked: WriteFacts
     try {
-      checked = writeFacts(facts)
+      switch (facts['intent']) {
+        case 'write':
+          return write(port, writeFacts(facts))
+        case 'body-chunk':
+          return putChunk(port, facts)
+        case 'body-discard':
+          return discardBody(port, facts)
+        default:
+          return { kind: 'unsupported', basis: { reason: 'the facts name no known intent' } }
+      }
     } catch (error) {
       if (error instanceof FactError)
         return { kind: 'unsupported', basis: { reason: error.message } }
       throw error
     }
-    return write(port, checked)
   },
 }
 export default participant

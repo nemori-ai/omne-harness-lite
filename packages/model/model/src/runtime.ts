@@ -38,6 +38,7 @@ const METHODS = {
     'recall',
     'scanPending',
     'loadRecovery',
+    'loadRequest',
     'claim',
     'prepareDispatch',
     'recordMaterialization',

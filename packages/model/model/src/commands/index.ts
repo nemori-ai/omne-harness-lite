@@ -24,7 +24,7 @@ export type {
   ModelInitialExecution,
   ModelInitialHostChannel,
 } from './initial.ts'
-export { describeModelMaterialization } from './value.ts'
+export { describeModelMaterialization, modelRequestDigest } from './value.ts'
 export type { MaterializationDescriptionInput } from './value.ts'
 export { createModelObservationStorage } from './observation.ts'
 export type {

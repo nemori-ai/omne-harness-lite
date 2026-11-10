@@ -34,6 +34,7 @@ function recording(f: ReturnType<typeof fixture>) {
     },
     documents: key => memory.documents(key),
     held: () => memory.held(),
+    readBody: (tenant, call) => memory.readBody(tenant, call),
     commit: (key, write) => memory.commit(key, write),
     publish: (key, call) => memory.publish(key, call),
   }
@@ -63,6 +64,7 @@ function everyMethod(f: ReturnType<typeof fixture>) {
     recall: c => c.recall({ ...access, call, admission: op('admit') }),
     scanPending: c => c.scanPending({ ...access, after: null, limit: 1 }),
     loadRecovery: c => c.loadRecovery({ ...access, call }),
+    loadRequest: c => c.loadRequest({ ...access, call }),
     claim: c =>
       c.claim({
         ...access,
@@ -136,14 +138,14 @@ function everyMethod(f: ReturnType<typeof fixture>) {
   return calls
 }
 
-it('every one of the 22 methods runs its attempt under a scope that names the tenant and the call, and a write or a query also names its operation', async () => {
+it('every one of the 23 methods runs its attempt under a scope that names the tenant and the call, and a write or a query also names its operation', async () => {
   const f = fixture()
   const text = tenantCodec.encode(f.tenant)
   if (!text.ok) throw new Error('fixture tenant')
   const writes: readonly string[] = MODEL_WRITE_METHODS
   const calls = everyMethod(f)
   const methods = Object.keys(calls) as (keyof typeof calls)[]
-  expect(methods).toHaveLength(22)
+  expect(methods).toHaveLength(23)
   for (const method of methods) {
     const { commands, scopes } = recording(f)
     await calls[method](commands)
@@ -214,6 +216,7 @@ async function pendingFixture() {
       run: (work, scope) => memory.run(work, scope),
       documents: () => documents,
       held: () => memory.held(),
+      readBody: (tenant, call) => memory.readBody(tenant, call),
       commit: (tenant, write) => memory.commit(tenant, write),
       publish: (tenant, call) => memory.publish(tenant, call),
     }),
@@ -261,6 +264,7 @@ it('scanPending pages through the pending port of a storage that has one, outsid
       },
       documents: key => memory.documents(key),
       held: () => memory.held(),
+      readBody: (tenant, call) => memory.readBody(tenant, call),
       commit: (key, write) => memory.commit(key, write),
       publish: (key, call) => memory.publish(key, call),
       pending: (tenant, after, limit) => {

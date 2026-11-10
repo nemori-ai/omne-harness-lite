@@ -65,6 +65,7 @@ describe('the combination with the session log', () => {
         ...coreOptions([A]).options,
         storage: sqliteStorage().storage,
         domains: lookup([textOf(A)], 'shared'),
+        requestChunkBytes: 65536,
         combination: {
           combinationVersion: 'session-model-1',
           manifestDigest: manifestDigest(manifest.manifest),

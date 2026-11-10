@@ -10,7 +10,7 @@ import {
   type Revision,
 } from '@omne-harness/model-contract'
 import { decodeReadId, type ActorRef, type SendDemand } from '@omne-harness/model-contract/provider'
-import type { MaterializationReceipt } from '@omne-harness/model-contract'
+import type { FixedModelRequest, MaterializationReceipt } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 
 export function take<T, F>(result: Outcome<T, F>): T {
@@ -51,11 +51,15 @@ function canonicalObject(value: object): string {
 export function digest(value: unknown): string {
   return createHash('sha256').update(canonical(value)).digest('hex')
 }
+/** The digest that identifies a fixed request: the one the call record keeps. */
+export function modelRequestDigest(request: FixedModelRequest): string {
+  return digest(request)
+}
 export type MaterializationDescriptionInput = Pick<
   SendDemand<unknown>,
-  'tenant' | 'call' | 'execution' | 'dispatch' | 'supplier' | 'request' | 'consumer' | 'initiator'
+  'tenant' | 'call' | 'execution' | 'dispatch' | 'supplier' | 'consumer' | 'initiator'
 > &
-  Readonly<{ receipt: MaterializationReceipt }>
+  Readonly<{ requestDigest: string; receipt: MaterializationReceipt }>
 export function describeModelMaterialization(
   input: MaterializationDescriptionInput,
 ): Readonly<{ requestDigest: string; receiptDigest: string; source: DurableEvidence }> {
@@ -73,7 +77,7 @@ export function describeModelMaterialization(
       execution: { ...input.execution, tenant: executionTenant },
       dispatch: input.dispatch,
       supplier: input.supplier,
-      request: input.request,
+      request: input.requestDigest,
       consumer: input.consumer,
       initiator: input.initiator,
       receipt: input.receipt,
@@ -83,7 +87,7 @@ export function describeModelMaterialization(
   if ('failure' in checked)
     throw new RangeError('materialization evidence exceeds encoded byte limit')
   return {
-    requestDigest: digest(input.request),
+    requestDigest: input.requestDigest,
     receiptDigest: digest(input.receipt),
     source: checked.ok,
   }

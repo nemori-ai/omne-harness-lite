@@ -4,6 +4,7 @@
 // provider: one in-memory database per transaction domain, receipts by full identity, rollback on
 // a stopping reply. It does not model Workers, durability, queues or limits; the real provider is
 // joined later (sqlite-provider, integration A).
+import { requestHead } from '@omne-harness/model-contract/provider'
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -46,6 +47,7 @@ import {
   createSqlModelStorage,
   modelMigration,
   pendingHandler,
+  requestHandler,
   type BindingBase,
   type CallDocument,
   type DispatchDocument,
@@ -89,7 +91,9 @@ function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): Que
 
 type Domain = { readonly db: DatabaseSync; readonly receipts: Map<string, ReceiptV2> }
 type Held = { readonly request: CommitRequestV2; readonly domain: Domain; readonly key: string }
-const HANDLERS = new Map([callHandler, pendingHandler].map(item => [item.handler, item]))
+const HANDLERS = new Map(
+  [callHandler, pendingHandler, requestHandler].map(item => [item.handler, item]),
+)
 
 function sqliteStorage() {
   const domains = new Map<string, Domain>()
@@ -286,7 +290,7 @@ function admitted(call: ModelCallId, operation: ModelOperationId): CallDocument 
       custody: { kind: 'producer' },
       phase: 'accepted',
     },
-    request: REQUEST,
+    request: requestHead(REQUEST),
     requestDigest: 'request-digest',
     initiator: { owner: 'authority', subject: 'subject', revision: '1' },
     admission: operation,
@@ -366,6 +370,7 @@ function options(
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
     limits: {
       tenantResults: 1,
+      requestChunkBytes: 65536,
     },
     ...overrides,
   }
@@ -394,6 +399,7 @@ function write(
         expected: original,
         call: next,
         binding: bindingOf(call, original === undefined ? 'admit' : 'control'),
+        ...(original === undefined && next !== undefined && { body: REQUEST }),
       })
       return { ok: 'written' }
     },
@@ -421,7 +427,9 @@ describe('construction', () => {
   it('refuses a tenant share that is not a positive count', () => {
     for (const tenantResults of [0, -1, 1.5, Number.NaN])
       expect(() =>
-        createSqlModelStorage(options(sqliteStorage().storage, { limits: { tenantResults } })),
+        createSqlModelStorage(
+          options(sqliteStorage().storage, { limits: { tenantResults, requestChunkBytes: 65536 } }),
+        ),
       ).toThrow(RangeError)
   })
 
@@ -723,8 +731,12 @@ describe('tenant share', () => {
   })
 
   it('reports the held share and does not count a call whose request is released', async () => {
-    const store = createSqlModelStorage(options(sqliteStorage().storage))
+    const sqlite = sqliteStorage()
+    const store = createSqlModelStorage(options(sqlite.storage))
+    const bodies = () => sqlite.rows('domain-a', 'SELECT count(*) FROM md_request')
     await write(store, callId('c1'), opId('a1'), () => admitted(callId('c1'), opId('a1')))
+    expect(bodies()).toEqual([[1n]])
+    expect(await store.readBody(A, callId('c1'))).toEqual({ ok: REQUEST })
     const held = await store.run(() => ({ ok: store.held() }), {
       tenant: A,
       call: callId('c2'),
@@ -736,6 +748,9 @@ describe('tenant share', () => {
       opId('rel'),
       edit(doc => (doc.request = null)),
     )
+    // The commit that releases the material deletes the body of the call.
+    expect(bodies()).toEqual([[0n]])
+    expect(await store.readBody(A, callId('c1'))).toEqual({ ok: null })
     expect(
       await write(store, callId('c2'), opId('a2'), () => admitted(callId('c2'), opId('a2'))),
     ).toEqual({
@@ -978,7 +993,7 @@ describe('tenant isolation', () => {
 describe('pending flag', () => {
   it('lists calls that the core rule marks pending, in call order, and drops them later', async () => {
     const store = createSqlModelStorage(
-      options(sqliteStorage().storage, { limits: { tenantResults: 3 } }),
+      options(sqliteStorage().storage, { limits: { tenantResults: 3, requestChunkBytes: 65536 } }),
     )
     for (const name of ['m2', 'm1', 'm3'])
       expect(

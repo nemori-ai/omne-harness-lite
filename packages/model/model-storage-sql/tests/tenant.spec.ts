@@ -121,6 +121,7 @@ function storageOf(subject: ReturnType<typeof setup>): SqlModelStorage {
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
     limits: {
       tenantResults: subject.core.options.limits.unacknowledgedResults,
+      requestChunkBytes: 65536,
     },
   })
 }

@@ -169,6 +169,8 @@ function modelRecords(combinationVersion: string) {
       readIdleMs: MODEL_HOST.runtime.readIdleMs,
       unacknowledgedResults: LOCAL_CONCURRENT_MODEL_CALLS,
     },
+    // One chunk of a request body travels in one command: a quarter of the provider's bound.
+    requestChunkBytes: MAX_COMMAND_BYTES / 4,
     combinationVersion,
     send: { mirrorBytes: 4_194_304, maxClaims: LOCAL_CONCURRENT_MODEL_CALLS },
     // The read face `modelDiagnostics`: a tenant reads its own calls; the retention is a placeholder adoption.

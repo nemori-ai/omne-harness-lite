@@ -1,3 +1,4 @@
+import { requestHead } from '@omne-harness/model-contract/provider'
 import { randomUUID } from 'node:crypto'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
@@ -174,7 +175,7 @@ export function callCommands<P>(
                 control: { kind: 'none' },
                 custody: { kind: 'producer' },
               },
-              request: structuredClone(request),
+              request: structuredClone(requestHead(request)),
               requestDigest: digest(request),
               initiator: structuredClone(actor.ok),
               admission: operation,
@@ -194,7 +195,11 @@ export function callCommands<P>(
               },
             }
             return {
-              ok: { value: admission, receipt: { kind: 'admit', admission: { ...admission } } },
+              ok: {
+                value: admission,
+                receipt: { kind: 'admit', admission: { ...admission } },
+                body: request,
+              },
             }
           },
           replay: (_call, binding) =>
@@ -352,7 +357,7 @@ export function callCommands<P>(
 export function recoveryCommands<P>(
   core: ModelCommandCore<P>,
   bound?: BoundCommandAccess<P>,
-): Pick<ModelCommands<P>, 'scanPending' | 'loadRecovery' | 'claim'> {
+): Pick<ModelCommands<P>, 'scanPending' | 'loadRecovery' | 'loadRequest' | 'claim'> {
   const scans = new Map<string, { tenant: string; calls: readonly ModelCallId[]; offset: number }>()
   function scanPage(scope: string, after: string | null, limit: number) {
     const root = core.storage.documents(scope)
@@ -416,6 +421,23 @@ export function recoveryCommands<P>(
           }
         }),
       ),
+    loadRequest: async input => {
+      const held = await core.runRead(input, () =>
+        core.read(input, 'recovery', call =>
+          call.request === null
+            ? { failure: invalid('call', 'recovery-material-released') }
+            : { ok: null },
+        ),
+      )
+      if ('failure' in held) return held
+      const tenant = core.identity(input)
+      if (typeof tenant !== 'string') return { failure: tenant }
+      const body = await core.storage.readBody(tenant, input.call)
+      if ('failure' in body) return body
+      return body.ok === null
+        ? { failure: invalid('call', 'recovery-material-released') }
+        : { ok: body.ok }
+    },
     claim: input =>
       core.runWrite(input, () =>
         core.write({
@@ -644,7 +666,7 @@ export function dispatchCommands<P>(
               account: null,
               materialization: null,
               // Identities only. They outlive the request material, which cleanup releases.
-              messages: call.request.messages.map(message => message.id),
+              messages: [...call.request.messageIds],
             },
             logicalTerminal: null,
             windows: new Map(),
@@ -1123,7 +1145,7 @@ export function consumptionCommands<P>(
   }
 }
 
-/** All 22 methods over one core. */
+/** All 23 methods over one core. */
 export function modelCommands<P>(
   core: ModelCommandCore<P>,
   bound?: BoundCommandAccess<P>,

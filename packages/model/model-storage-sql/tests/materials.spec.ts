@@ -45,13 +45,14 @@ describe('the materials of the Model records', () => {
     ])
   })
 
-  it('describe the three read handlers, each in its own module file, reading only `md_` tables', () => {
+  it('describe the four read handlers, each in its own module file, reading only `md_` tables', () => {
     expect(materials.readHandlers.map(item => item.handler)).toEqual([
       CALL_HANDLER,
+      'model.request',
       PENDING_HANDLER,
       DIAGNOSTICS_HANDLER,
     ])
-    expect(new Set(materials.readHandlers.map(item => item.moduleUrl)).size).toBe(3)
+    expect(new Set(materials.readHandlers.map(item => item.moduleUrl)).size).toBe(4)
     for (const handler of materials.readHandlers) {
       expect(handler.protocol).toBe(PROTOCOL)
       expect(handler.requiresMigrations).toEqual([{ owner: MIGRATION.owner, id: MIGRATION.id }])
@@ -66,7 +67,7 @@ describe('the materials of the Model records', () => {
       ...materials.migrations.map(item => [item.moduleUrl, item.checksum] as const),
       ...materials.readHandlers.map(item => [item.moduleUrl, item.codeDigest] as const),
     ]
-    expect(new Set(modules.map(([url]) => url)).size).toBe(5)
+    expect(new Set(modules.map(([url]) => url)).size).toBe(6)
     for (const [url, digest] of modules) {
       expect(url.startsWith('file:')).toBe(true)
       expect(sha256(url)).toBe(digest)

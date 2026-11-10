@@ -1,4 +1,4 @@
-// The static materials of the Model records: one participant, one migration and three read handlers,
+// The static materials of the Model records: one participant, one migration and four read handlers,
 // as the SQL storage contract describes them (sql-contract §4). Each module is named by its file
 // URL and the SHA-256 of its bytes; a provider loads it by the default export of that file. The
 // application aggregates these with the materials of the other owners into one catalog and declares
@@ -22,6 +22,9 @@ import {
   CALL_READ_MAX_ROWS,
   PENDING_HANDLER,
   PENDING_READ_MAX_ROWS,
+  REQUEST_HANDLER,
+  REQUEST_READ_MAX_OUTPUT_BYTES,
+  REQUEST_READ_MAX_ROWS,
 } from './reads.ts'
 import { MIGRATION, MODEL_PARTICIPANT, MODEL_TABLES, PROTOCOL, TABLES } from './schema.ts'
 
@@ -60,6 +63,13 @@ const HANDLERS: readonly Handler[] = [
     tables: MODEL_TABLES,
     rows: CALL_READ_MAX_ROWS,
     bytes: CALL_READ_MAX_OUTPUT_BYTES,
+  },
+  {
+    handler: REQUEST_HANDLER,
+    file: 'handler-request',
+    tables: [TABLES.call.name, TABLES.request.name],
+    rows: REQUEST_READ_MAX_ROWS,
+    bytes: REQUEST_READ_MAX_OUTPUT_BYTES,
   },
   {
     handler: PENDING_HANDLER,

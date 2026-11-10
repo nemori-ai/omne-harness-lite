@@ -454,6 +454,7 @@ export function sqlCommands(
     ...core.options,
     storage: sqlite.storage,
     domains: lookup(tenants.map(textOf), domain),
+    requestChunkBytes: 65536,
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
     ...overrides,
   })

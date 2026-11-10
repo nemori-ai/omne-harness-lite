@@ -48,6 +48,7 @@ import {
   createSqlModelStorage,
   modelMigration,
   pendingHandler,
+  requestHandler,
 } from '../src/index.ts'
 import { createSendMirror } from '../src/coordinator.ts'
 import { providerName } from './provider-name.ts'
@@ -73,7 +74,9 @@ function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): Que
 }
 
 type Domain = { readonly db: DatabaseSync; readonly receipts: Map<string, ReceiptV2> }
-const HANDLERS = new Map([callHandler, pendingHandler].map(item => [item.handler, item]))
+const HANDLERS = new Map(
+  [callHandler, pendingHandler, requestHandler].map(item => [item.handler, item]),
+)
 
 /** A node:sqlite provider with two faults: a lost commit reply, and a held read reply. */
 function sqliteStorage() {
@@ -331,6 +334,7 @@ const storageOf = (provider: Provider) =>
     combination: { combinationVersion: 'v1', manifestDigest: 'a'.repeat(64) },
     limits: {
       tenantResults: 10,
+      requestChunkBytes: 65536,
     },
   })
 
@@ -346,6 +350,7 @@ function sqlAssembly(
     ...coreOptions,
     storage: provider.storage,
     domains: lookup,
+    requestChunkBytes: 65536,
     combination: { combinationVersion: 'v1', manifestDigest: 'a'.repeat(64) },
     send: {
       mirrorBytes: settings.mirrorBytes ?? 1 << 20,

@@ -52,6 +52,7 @@ function scene() {
   const config = {
     owners: core.options.owners,
     limits: core.options.limits,
+    requestChunkBytes: 65536,
     combinationVersion: 'v1',
     send: { mirrorBytes: 2 ** 22, maxClaims: 8 },
   }

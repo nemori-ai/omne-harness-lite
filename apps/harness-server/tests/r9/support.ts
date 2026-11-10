@@ -176,6 +176,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       // One unacknowledged result at a time: a second call of the tenant waits for the first.
       unacknowledgedResults: 1,
     },
+    requestChunkBytes: 65536,
     combinationVersion: 'session-composite/6',
     send: { mirrorBytes: 4_194_304, maxClaims: 8 },
     // The read face `modelDiagnostics` (A12: the operator layer gives what the release does not).

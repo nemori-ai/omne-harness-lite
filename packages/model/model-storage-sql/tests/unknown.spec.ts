@@ -174,6 +174,7 @@ describe('a commit outside the operation of its run', () => {
       combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
       limits: {
         tenantResults: subject.core.options.limits.unacknowledgedResults,
+        requestChunkBytes: 65536,
       },
     })
     const tenant = textOf(A)

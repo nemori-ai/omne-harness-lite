@@ -15,6 +15,7 @@ it('the commands subpath exports the shared core and its method set, and the roo
       'drivable',
       'hasRecoveryWork',
       'modelCommands',
+      'modelRequestDigest',
     ].sort(),
   )
   const root = await import('@omne-harness/model')

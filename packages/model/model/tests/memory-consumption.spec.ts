@@ -366,6 +366,10 @@ it('gives the place of a call back after ACK and real resource completion, and h
   expect(
     unbox(await f.commands.advanceCleanup({ ...f.execution, operation: op('release-place') })),
   ).toMatchObject({ cleanup: 'released' })
+  // The release deletes the request: the head and the body are both gone.
+  expect(await f.commands.loadRequest(f.admit)).toEqual({
+    failure: { kind: 'invalid', field: 'call', reason: 'recovery-material-released' },
+  })
   expect(unbox(await f.commands.admit(other)).recovered).toBe(false)
 })
 

@@ -49,7 +49,7 @@ describe('migration 001-model-records', () => {
     expect({ owner: modelMigration.owner, id: modelMigration.id }).toEqual(MIGRATION)
   })
 
-  it('creates exactly md_call, md_dispatch, md_part and md_operation, all STRICT', () => {
+  it('creates exactly md_call, md_dispatch, md_operation, md_part and md_request, all STRICT', () => {
     const db = migrated()
     const tables = db
       .prepare("SELECT name, sql FROM sqlite_schema WHERE type = 'table' ORDER BY name")
@@ -59,6 +59,7 @@ describe('migration 001-model-records', () => {
       'md_dispatch',
       'md_operation',
       'md_part',
+      'md_request',
     ])
     for (const table of tables) expect(table.sql).toMatch(/\) STRICT$/)
   })

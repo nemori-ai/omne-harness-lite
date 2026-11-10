@@ -5,7 +5,7 @@ import type { SqlModelCommandsOptions } from './commands.ts'
 
 /** Data for one records plugin life. Every bound is explicit. */
 export type SqlModelRecordsConfig = Readonly<
-  Pick<SqlModelCommandsOptions<unknown>, 'owners' | 'limits'> & {
+  Pick<SqlModelCommandsOptions<unknown>, 'owners' | 'limits' | 'requestChunkBytes'> & {
     observation?: ModelObservationLimits
     combinationVersion: string
     send: Readonly<{ mirrorBytes: number; maxClaims: number }>
@@ -97,6 +97,7 @@ function parse(value: unknown): SqlModelRecordsConfig {
       readIdleMs: count(limits['readIdleMs'], 'limits.readIdleMs'),
       unacknowledgedResults: count(limits['unacknowledgedResults'], 'limits.unacknowledgedResults'),
     },
+    requestChunkBytes: count(input['requestChunkBytes'], 'requestChunkBytes'),
     combinationVersion: text(input['combinationVersion'], 'combinationVersion'),
     send: {
       mirrorBytes: count(send['mirrorBytes'], 'send.mirrorBytes'),

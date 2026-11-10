@@ -38,6 +38,7 @@ import {
 } from '@omne-harness/model-host-local'
 // The observing factory reaches the module itself; its defect class is the module's own.
 import { SendResourceDefect as ModuleDefect, sendResourcesOver } from '../src/send-resources.ts'
+import { proofContext } from './support/proof-context.ts'
 import { readRecordFixture } from './support/records.ts'
 
 const executor = await testExecutor([openAiTokenizerResources()])
@@ -591,7 +592,10 @@ describe('close failures', () => {
     const { resources } = observed([[1, { close: { reason } }]])
     const resource = await acquired(resources)
     const materialized = await materializedOf(resource)
-    const proof = { ...DEMAND, receipt: structuredClone(structuredClone(materialized.receipt)) }
+    const proof = {
+      ...proofContext(DEMAND),
+      receipt: structuredClone(structuredClone(materialized.receipt)),
+    }
     expect(resources.materialization.prove(proof)).toHaveProperty('ok.owner', 'model')
     expect(() =>
       resource.startWithCredential(
@@ -635,7 +639,7 @@ describe('close failures', () => {
   it('rejects a same-shaped external receipt without its own real source', async () => {
     const { resources } = observed()
     const proof = {
-      ...DEMAND,
+      ...proofContext(DEMAND),
       receipt: {
         supplier: DEMAND.supplier.adoption,
         representation: REQUEST.representation,

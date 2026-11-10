@@ -1,4 +1,4 @@
-// The four tables of the durable Model call document and their migration. Each column is declared
+// The five tables of the durable Model call document and their migration. Each column is declared
 // once, in `TABLES`: the DDL, the migration check and the row parser all read that list. Every
 // table is keyed by tenant first, and every statement that reads or writes it filters on tenant.
 import type { MigrationModule, MigrationPort } from '@omne-harness/sql-contract/worker'
@@ -67,6 +67,26 @@ const CALL: Table = {
   ],
 }
 
+/**
+ * The body of the request of a call: the whole fixed request as JSON text, cut into chunks. The
+ * call row keeps the head. A chunk is keyed by the call and the digest of the request, so the
+ * chunks of another input of the same call are other rows. `total` is the chunk count of the body.
+ */
+const REQUEST: Table = {
+  name: 'md_request',
+  columns: [
+    column('tenant', 'text'),
+    column('call', 'text'),
+    column('digest', 'text'),
+    column('seq', 'int'),
+    column('total', 'int'),
+    column('body', 'json'),
+  ],
+  primaryKey: ['tenant', 'call', 'digest', 'seq'],
+  constraints: ['CHECK (seq >= 0)', 'CHECK (total > seq)'],
+  indexes: [],
+}
+
 const DISPATCH: Table = {
   name: 'md_dispatch',
   columns: [
@@ -122,6 +142,7 @@ const OPERATION: Table = {
 
 export const TABLES = Object.freeze({
   call: CALL,
+  request: REQUEST,
   dispatch: DISPATCH,
   part: PART,
   operation: OPERATION,

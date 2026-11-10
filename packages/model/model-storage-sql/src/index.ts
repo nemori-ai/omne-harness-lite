@@ -75,9 +75,11 @@ export {
   CALL_READ_MAX_OUTPUT_BYTES,
   CALL_READ_MAX_ROWS,
   PENDING_HANDLER,
+  REQUEST_HANDLER,
   PENDING_PAGE_MAX,
   callHandler,
   pendingHandler,
+  requestHandler,
   type CallReadInput,
   type PendingPage,
 } from './reads.ts'

@@ -1,5 +1,5 @@
 // The row configuration of `model-records` (R2-D6, facts a.3): data only. The member's own part
-// (`owners`, `limits`, `combinationVersion`, `send`, optional
+// (`owners`, `limits`, `requestChunkBytes`, `combinationVersion`, `send`, optional
 // `observation`) is validated by the member's schema; the application's part is validated here:
 // - `initial`: the bounds of the first-execution run of this process.
 // - `sendStage`: what the send child needs beside its one member bound `maxRetainedAttempts`:

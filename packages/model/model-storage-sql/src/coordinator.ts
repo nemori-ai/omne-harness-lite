@@ -270,6 +270,7 @@ export function createSendMirror(
       return view
     },
     held: () => inner.held(),
+    readBody: (tenant, call) => inner.readBody(tenant, call),
     commit(tenant: string, write: CommandWrite) {
       const status = inner.commit(tenant, write)
       if (pass !== null) pass.staged = { tenant, call: write.binding.call, document: write.call }

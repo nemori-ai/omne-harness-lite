@@ -1,3 +1,4 @@
+import type { FixedRequestHead } from '@omne-harness/model-contract/provider'
 import { randomUUID } from 'node:crypto'
 import { judgePart, parseMessageId } from '@omne-harness/message'
 import { assembleStream } from '@omne-harness/stream-arrival'
@@ -7,7 +8,6 @@ import { parseInstant } from '@omne-harness/utc-instant'
 import type { Outcome } from '@omne-harness/operation-result'
 import { decodeRevision } from '@omne-harness/model-contract'
 import type {
-  FixedModelRequest,
   MaterializationReceipt,
   ModelBlock,
   ModelCallId,
@@ -161,6 +161,7 @@ export function evidenceContext(
     call: call.state.call,
     consumer: call.state.consumer,
     request: structuredClone(call.request),
+    requestDigest: call.requestDigest,
     execution: call.execution === null ? null : { ...call.execution },
   }
 }
@@ -179,7 +180,7 @@ const NOT_RETRYABLE_CAUSES = [
 export function receiptBinds(
   receipt: MaterializationReceipt,
   supplier: Supplier,
-  request: FixedModelRequest,
+  request: FixedRequestHead,
 ): boolean {
   return (
     digest(receipt.supplier) === digest(supplier.adoption) &&
@@ -215,7 +216,7 @@ type DispatchPlan = Pick<
 >
 export function prepareSupplierFailure(
   call: CallDocument,
-  request: FixedModelRequest,
+  request: FixedRequestHead,
   input: DispatchPlan,
 ): ModelFailure | null {
   if (!request.suppliers.some(s => digest(s) === digest(input.supplier)))
@@ -245,7 +246,7 @@ function retrySupplierFailure(
 export function positionedRetryRequest(
   call: CallDocument,
   input: Pick<Parameters<ModelCommands<never>['decideRetry']>[0], 'position'>,
-): Outcome<FixedModelRequest, ModelFailure> {
+): Outcome<FixedRequestHead, ModelFailure> {
   if (!call.request || !call.retryPosition || digest(call.retryPosition) !== digest(input.position))
     return { failure: invalid('position', 'not-original') }
   const dispatch = dispatchOf(call, input.position.dispatch)
@@ -255,7 +256,7 @@ export function positionedRetryRequest(
   return { ok: call.request }
 }
 export function retryChoiceFailure(
-  request: FixedModelRequest,
+  request: FixedRequestHead,
   dispatchCount: number,
   decision: RetryDecision,
 ): ModelFailure | null {

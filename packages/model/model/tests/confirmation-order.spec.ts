@@ -70,6 +70,7 @@ it('a storage throw after synchronous work clears confirmation and rethrows the 
     },
     documents: tenant => memory.documents(tenant),
     held: () => memory.held(),
+    readBody: (tenant, call) => memory.readBody(tenant, call),
     commit: (tenant, write) => memory.commit(tenant, write),
     publish: (tenant, call) => memory.publish(tenant, call),
   }

@@ -977,6 +977,16 @@
               "pending": false
             },
             {
+              "name": "FixedRequestHead",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "requestHead",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "LateDispatchFact",
               "kind": "type",
               "pending": false

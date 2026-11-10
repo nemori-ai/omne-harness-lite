@@ -86,6 +86,7 @@ import {
   createSqlModelCommands,
   modelMigration,
   pendingHandler,
+  requestHandler,
   type SqlModelCommandsOptions,
 } from '@omne-harness/model-storage-sql'
 // The participant module of the model records. It is the default export of that member's
@@ -302,7 +303,9 @@ function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): Que
 }
 
 type Domain = { readonly db: DatabaseSync; readonly receipts: Map<string, Receipt> }
-const HANDLERS = new Map([callHandler, pendingHandler].map(item => [item.handler, item]))
+const HANDLERS = new Map(
+  [callHandler, pendingHandler, requestHandler].map(item => [item.handler, item]),
+)
 const keyOf = (identity: SqlIdentity) =>
   JSON.stringify([identity.scope, identity.operation, identity.operationKey])
 
@@ -606,6 +609,7 @@ function durableOptions(
     ...core,
     storage: faults.storage,
     domains: lookup([textOf(TENANT), textOf(OTHER_TENANT)], DOMAIN),
+    requestChunkBytes: 65536,
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
     send: { mirrorBytes: 1 << 24, sources: [source] },
   } satisfies SqlModelCommandsOptions<unknown>
@@ -728,6 +732,7 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
     declare readonly prepareDispatch: ModelCommands<unknown>['prepareDispatch']
     declare readonly recordMaterialization: ModelCommands<unknown>['recordMaterialization']
@@ -1197,6 +1202,7 @@ export async function durableSubject(
     const recordsFiber = root.plugin(Records, {
       owners: records.owners,
       limits: records.limits,
+      requestChunkBytes: records.requestChunkBytes,
       combinationVersion: records.combination.combinationVersion,
       send: { mirrorBytes: records.send.mirrorBytes, maxClaims: 64 },
     })

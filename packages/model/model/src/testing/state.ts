@@ -14,6 +14,7 @@ import { encodedBytes } from '../commands/judge.ts'
 import { copyCall, type CallAccessInput, type ModelCommandCore } from '../commands/state.ts'
 import type { CommandWrite, ModelCommandStorage, RunScope } from '../commands/storage.ts'
 import type { Binding, CallDocument, TenantDocuments } from '../commands/types.ts'
+import { createMemoryBodies } from './bodies.ts'
 import { MEMORY_WRITE_METHODS } from './types.ts'
 import type {
   MemoryAction,
@@ -37,6 +38,7 @@ export class MemoryState<P> implements ModelCommandStorage {
   private plans = new Map<string, UnknownInjection>()
   private busy = false
   private sendClaims = new Map<string, 'claimed' | SendStart['kind']>()
+  private readonly bodies = createMemoryBodies((tenant, call) => this.root(tenant).calls.get(call))
   readonly core: ModelCommandCore<P>
   readonly control: MemoryModelControl
   readonly options: MemoryModelCommandsOptions<P>
@@ -139,6 +141,9 @@ export class MemoryState<P> implements ModelCommandStorage {
       for (const call of state.calls.values()) if (call.request !== null) held += 1
     return held
   }
+  readBody(tenant: string, call: ModelCallId) {
+    return Promise.resolve({ ok: this.bodies.read(tenant, call) })
+  }
   /** An injected unknown makes the write unresolved; `not-applied` leaves the call unchanged. */
   commit(key: string, write: CommandWrite): 'committed' | 'unknown' {
     const root = this.root(key)
@@ -160,6 +165,11 @@ export class MemoryState<P> implements ModelCommandStorage {
     }
     tenant.operations.set(write.operation, binding)
     this.roots.set(key, tenant)
+    const written = tenant.calls.get(id)
+    if (written && written === write.call) {
+      if (write.body !== undefined) this.bodies.put(key, id, written.requestDigest, write.body)
+      if (written.request === null) this.bodies.release(key, id, written.requestDigest)
+    }
     if (matched === undefined) return 'committed'
     this.plans.delete(planKey)
     return 'unknown'
@@ -169,6 +179,7 @@ export class MemoryState<P> implements ModelCommandStorage {
     const next = { calls: new Map(root.calls), operations: new Map(root.operations) }
     next.calls.set(call.state.call, call)
     this.roots.set(key, next)
+    if (call.request === null) this.bodies.release(key, call.state.call, call.requestDigest)
   }
 
   // --- The memory state that the test assembly reads.

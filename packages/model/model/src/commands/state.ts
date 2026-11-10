@@ -680,6 +680,7 @@ export class ModelCommandCore<P> {
         revision: call?.state.revision ?? revision(),
         receipt: applied.ok.receipt,
       },
+      ...(applied.ok.body !== undefined && { body: applied.ok.body }),
     })
     if (status === 'unknown')
       return { failure: { kind: 'commit-unknown', operation: input.operation } }

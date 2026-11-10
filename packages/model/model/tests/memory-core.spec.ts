@@ -28,7 +28,10 @@ it('admission freezes input, isolates tenants and recognizes a legally reminted 
     failure: { kind: 'denied', action: 'facts' },
   })
   const record = unbox(await f.commands.loadRecovery(f.admit))
-  expect(record.request).toEqual(f.admit.request)
+  expect(unbox(await f.commands.loadRequest(f.admit))).toEqual(f.admit.request)
+  // The record keeps the head: every field except the content, and the message identities.
+  const { system: _system, messages, tools: _tools, ...head } = f.admit.request
+  expect(record.request).toEqual({ ...head, messageIds: messages.map(message => message.id) })
   expect(record.initiator).toEqual({ owner: 'identity', subject: 'trusted', revision: '1' })
   expect(record.tasks).toEqual(['execute'])
 })

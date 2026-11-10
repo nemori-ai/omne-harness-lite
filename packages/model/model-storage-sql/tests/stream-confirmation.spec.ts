@@ -76,6 +76,7 @@ function scene(
     observation: { limits: observationLimits, timing },
     storage: wrap(sqlite.storage),
     domains: lookup([textOf(tenant)], 'confirmation'),
+    requestChunkBytes: 65536,
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
   })
   const { initial, observations } = result

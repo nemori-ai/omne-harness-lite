@@ -1,4 +1,5 @@
 <a id="model-领域公开契约候选"></a>
+
 # Model 领域公开契约
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
@@ -128,9 +129,11 @@ ResultPart 与 ResultTrim 的定义见 [call-surface.ts](../src/call-surface.ts)
 
 本章给提供者作者和宿主装配者：传输、提交命令、发送边界、重试策略、实例宿主与 `ModelProvider`。
 
-- 声明：[`src/provider-protocol.ts`](../src/provider-protocol.ts)。
+- 声明：[`src/provider-protocol.ts`](../src/provider-protocol.ts)、[`src/root.ts`](../src/root.ts)（`FixedRequestHead`）、[`src/request-head.ts`](../src/request-head.ts)（`requestHead`）。
 - 入口：`TransportFailure`、`MaterializationReceipt`、`RetryDecision`、`RetryPosition` 与 `RetryResolution` 在根入口，因为组外消费者导入它们或根入口的声明引用它们。其余在 `./provider`。
 - 类型探针：[`tests/provider.spec-d.ts`](../tests/provider.spec-d.ts)。
+
+`FixedRequestHead` 是固定请求去掉正文之后的部分：没有 `system`、`messages` 与 `tools`，另带 `messageIds`，即各消息的身份，顺序与原请求相同。`requestHead(request)` 从固定请求算出它。调用的记录只保存请求头，所以 `RecoveryRecord.request` 是 `FixedRequestHead`。完整的固定请求由 `ModelCommands.loadRequest(access)` 读取；调用已经释放请求时答 `invalid`，字段 `call`，原因 `recovery-material-released`，与 `loadRecovery` 相同。请求正文怎样保存归 Commands 的实现，规则见 [SPEC](../SPEC.md#342-独立执行与提供者操作)。
 
 ModelSendBoundary 的 started 结果同时包含已确认的原 window 和唯一 facts 流。消费者将返回的 window 用于 preserve；Commands 仍核原调用、执行、分派与租户绑定。未知记录认回沿 [接收窗口行为](../SPEC.md#342-重试失联与恢复)，不再次 start。
 
@@ -423,61 +426,61 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 
 下表列出全部义务。「依据」指向 SPEC 里规定它的条款；「钩子」是它需要的钩子，空表示只经公开面即可检查。
 
-| 义务 | 检查什么 | 依据 | 钩子 |
-| --- | --- | --- | --- |
-| `admission-repeat-recognised` | 同调用、同固定输入的重复受理返回原调用与原修订，并标 `recovered` | [逐操作行为](../SPEC.md#342-逐操作行为) | |
-| `admission-conflict-on-different-input` | 同 operation 配不同固定输入返回 `conflict`，并指名这个 operation | [逐操作行为](../SPEC.md#342-逐操作行为) | |
-| `operation-not-reused-across-methods` | 受理用过的 operation 再用于取消不成功，调用状态不变 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | |
-| `admission-is-not-a-send` | 刚受理的调用不显示已开始的发送 | [逐操作行为](../SPEC.md#342-逐操作行为) | |
-| `reserved-operation-refused` | `admit`、`cancel`、`inspect`、`beginRead`、`acknowledge` 收到保留 operation 返回 `invalid`，字段名取承载 operation 的字段；引用内的保留 admission 由 reference 拒绝 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | |
-| `refused-admission-forms-no-call` | 被拒的受理不形成调用：同一调用用别的 operation 再受理，是首次受理 | [逐操作行为](../SPEC.md#342-逐操作行为) | |
-| `commit-unknown-keeps-operation` | 受理提交未知后，失败值指名原 operation；同 operation 重试认回原调用；另一个调用用这个 operation 不成功。`applied` 与 `dropped` 各检查一次 | [资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送) | `failNextWrite` |
-| `commit-unknown-not-reported-as-refusal` | 已生效的受理回答提交未知后，`inspect` 不报 `not-accepted` | [逐操作行为](../SPEC.md#342-逐操作行为) | `failNextWrite` |
-| `commit-unknown-cancel-recovers-original` | 取消提交未知后，同 operation 重发得到以这个 operation 请求的控制 | [逐操作行为](../SPEC.md#342-逐操作行为) | `failNextWrite` |
-| `commit-unknown-acknowledge-recovers-original` | 确认提交未知后，同 operation 重发成功，调用显示这次确认的 operation | [逐操作行为](../SPEC.md#342-逐操作行为) | `failNextWrite`、`startRun`、`settleCall`、`provideEvidence` |
-| `mixed-partial-result-readable` | 普通领取按原顺序交付完整块、未封值及真实 trims，保留终局；同 after 重放不变 | [结果保管与承接](../SPEC.md#342-普通调用面与实例观察) | `startRun`、`settleCall` |
-| `settled-call-keeps-termination` | 调用收场后，对这个已收场的调用取消（回复什么都接受），再观察，阶段仍是已收场，终局与收场时深相等 | [调用和各次真实发出](../SPEC.md#调用和各次真实发出) | `startRun`、`settleCall` |
-| `read-before-settle-refused` | 运行中的调用上 `beginRead` 返回 `not-settled` | [逐操作行为](../SPEC.md#342-逐操作行为) | `startRun` |
-| `acknowledge-refused-before-settle` | 运行中的调用上 `acknowledge` 不成功，保管状态仍是 `producer` | [ACK 的前提与效果](../SPEC.md#ack-的前提与效果) | `startRun` |
-| `forged-evidence-refused` | 以伪造证据确认不成功，保管状态仍是 `producer` | [ACK 的前提与效果](../SPEC.md#ack-的前提与效果) | `startRun`、`settleCall`、`provideEvidence` |
-| `acknowledge-records-custody` | 确认成功后，回执指名原调用、结果版本与 operation，调用显示 `acknowledged` | [ACK 的前提与效果](../SPEC.md#ack-的前提与效果) | `startRun`、`settleCall`、`provideEvidence` |
-| `duplicate-acknowledge-returns-original` | 同参数重复确认返回同一调用、结果、operation 与证据的回执；不比较清理状态，它会自行推进 | [ACK 的前提与效果](../SPEC.md#ack-的前提与效果) | `startRun`、`settleCall`、`provideEvidence` |
-| `acknowledge-conflict-on-different-input` | 同 operation 配不同证据返回 `conflict`，指名原 operation | [逐操作行为](../SPEC.md#342-逐操作行为) | `startRun`、`settleCall`、`provideEvidence` |
-| `acknowledged-result-not-read-again` | 确认之后新的 `beginRead` 返回 `acknowledged`，不开始新的读 | [逐操作行为](../SPEC.md#342-逐操作行为) | `startRun`、`settleCall`、`provideEvidence` |
-| `acknowledge-and-read-serialised` | 确认与 `beginRead` 并发，两种先后下结果一致：确认先则读见到这次确认，读先则确认后这个读仍可关闭 | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察) | `startRun`、`settleCall`、`provideEvidence` |
-| `read-page-stable-for-same-after` | 同一 `after` 的 `readNext` 返回同一页 | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察) | `startRun`、`settleCall` |
-| `close-read-idempotent` | `closeRead` 重复调用返回同一结束状态 | [逐操作行为](../SPEC.md#342-逐操作行为) | `startRun`、`settleCall` |
-| `acknowledge-keeps-open-read-readable` | 确认并推进清理之后，已开始的读仍按序读完全部结果 | [逐操作行为](../SPEC.md#342-逐操作行为) | `startRun`、`settleCall`、`provideEvidence`、`advanceCleanup` |
-| `revoked-reader-gets-no-page` | 读取资格撤销后，`readNext` 不再给页：返回 `denied`，或以 `denied` 结束读取 | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察) | `startRun`、`settleCall`、`revokeAccess` |
-| `cleanup-failure-keeps-acknowledgement` | 清理不能继续时，调用仍显示 `acknowledged`，重复确认仍成功 | [逐操作行为](../SPEC.md#342-逐操作行为) | `startRun`、`settleCall`、`provideEvidence`、`blockCleanup` |
-| `repeat-cancel-returns-original-control` | 第二次取消，不论 operation 是否相同，返回首次请求的控制 | [逐操作行为](../SPEC.md#342-逐操作行为) | |
-| `cancel-does-not-claim-stop` | 取消的回复不声称上游已停止 | [控制、取消与晚到事实](../SPEC.md#控制取消与晚到事实) | |
-| `cancelled-call-ends-interrupted-unacknowledged` | 取消后收场的调用保管状态仍是 `producer`；终局是关联该控制的 `interrupted` 由套件经 `settleCall` 给出，不是提供者的决定（见弱断言清单） | [控制、取消与晚到事实](../SPEC.md#控制取消与晚到事实) | `startRun`、`settleCall` |
-| `cancel-confined-to-target-call` | 取消一个调用，同租户另一个调用的状态不变 | [控制、取消与晚到事实](../SPEC.md#控制取消与晚到事实) | |
-| `unauthorised-cancel-denied` | 失去取消资格的主体取消返回 `denied`，调用不出现控制 | [控制、取消与晚到事实](../SPEC.md#控制取消与晚到事实) | `revokeAccess` |
-| `cancel-sends-nothing-more` | 运行中的调用已显示一个已开始的发送，取消之后它不新增（没有已开始的发送，就看不出新增，按失败报告） | [控制、取消与晚到事实](../SPEC.md#控制取消与晚到事实) | `startRun` |
-| `observation-opens-with-snapshot` | 观察的第一项是快照，之后是变化，游标不倒退 | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察) | |
-| `stopping-observation-keeps-call-running` | 中止观察以 `observer-closed` 结束，调用仍在运行且没有控制 | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察) | `startRun` |
-| `disconnect-ends-observation-as-unavailable` | 观察被断开时以 `unavailable` 结束，调用没有收场 | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察) | `disconnectObservers` |
-| `new-observer-starts-from-snapshot` | 新观察者先得到当前快照：调用仍在运行、保管状态为 `producer`，在途的块在快照里 | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察) | `startRun`、`showFacts` |
-| `growing-block-holds-accumulated-value` | 增长中的块给归约后的累计值：追加块是各片段之和，替换块是最后一个完整值 | [供应商解释与流状态归约](../SPEC.md#供应商解释与流状态归约) | `startRun`、`showFacts` |
-| `sealed-block-takes-no-more-fill` | 封口之后对该块的填充不改变快照里的封口块 | [供应商解释与流状态归约](../SPEC.md#供应商解释与流状态归约) | `startRun`、`showFacts` |
-| `unsealed-tool-arguments-not-executable` | 还在到达或被截断的工具参数不成为已封口的工具建议 | [供应商解释与流状态归约](../SPEC.md#供应商解释与流状态归约) | `startRun`、`showFacts` |
-| `cross-tenant-access-refused` | 另一租户对调用的取消、读取与确认不成功，调用状态不变 | [逐操作行为](../SPEC.md#342-逐操作行为) | |
-| `refusal-hides-existence` | 另一租户访问已存在的调用，与访问不存在的调用，对 `inspect`、`dispatches`、`cancel`、`connect`、`beginRead`、`acknowledge`、`readNext`、`closeRead` 的回复整体深相等 | [逐操作行为](../SPEC.md#342-逐操作行为) | |
-| `revoked-principal-gets-denied` | 资格撤销后，`inspect`、`beginRead`、`acknowledge` 返回 `denied` | [逐操作行为](../SPEC.md#342-逐操作行为) | `revokeAccess` |
-| `revoked-principal-observation-ends-denied` | 资格撤销后，在途观察与新开的观察都以 `denied` 结束，调用没有收场 | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察) | `revokeAccess` |
-| `withdrawn-instance-has-no-live-route` | 实例撤除后，`connect` 回答 `no-live-route`，原调用仍在 | [逐操作行为](../SPEC.md#342-逐操作行为) | `withdrawInstance` |
-| `directory-failure-is-unavailable` | 目录不可达时，`connect` 返回 `unavailable` | [逐操作行为](../SPEC.md#342-逐操作行为) | `failDirectory` |
-| `replaced-instance-ends-observation-as-stale` | 实例被替换后，旧句柄的在途观察与新开的观察都以 `stale-instance` 结束，`connect` 给出新实例的句柄，原调用仍在 | [逐操作行为](../SPEC.md#342-逐操作行为) | `replaceInstance` |
-| `quiesce-refuses-new-admissions` | `quiesce` 之后新的受理不成功且不留调用，已受理的调用仍可查询 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | |
-| `quiesce-reports-pending-and-running` | `quiesce` 报告的待处理与运行中数量是十进制数，且不少于套件已知未收场的调用数 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | `startRun`（只检查运行中数量时） |
-| `transport-sends-only-at-start` | `prepare` 与 `materialize` 不发送，`start` 一返回就已发送，不等第一次迭代 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
-| `repeated-transport-step-sends-nothing` | 同一 prepared 再 `materialize`、同一 materialized 再 `start`，不给出能产出事实的流，也不再发送 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
-| `materialization-receipt-matches-request` | 回执有非空的 payload 摘要，供应商与表示采用同请求一致，两次读取相同；回执带 `replayFormat` 时，它是合法的回放标签，两次读取相同 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
-| `fact-stream-ends-once` | 事实流恰有一个 `ended`，它是最后一个事实 | [供应商解释与流状态归约](../SPEC.md#供应商解释与流状态归约) | 传输 |
-| `interruption-is-confirmed` | 信号中止后的事实流里，每个 `interrupted` 终止都带 `stop: 'confirmed'` | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
-| `transport-close-is-idempotent` | `close` 重复调用不抛错，关闭不发送 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
+| 义务                                             | 检查什么                                                                                                                                                            | 依据                                                              | 钩子                                                          |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------- |
+| `admission-repeat-recognised`                    | 同调用、同固定输入的重复受理返回原调用与原修订，并标 `recovered`                                                                                                    | [逐操作行为](../SPEC.md#342-逐操作行为)                           |                                                               |
+| `admission-conflict-on-different-input`          | 同 operation 配不同固定输入返回 `conflict`，并指名这个 operation                                                                                                    | [逐操作行为](../SPEC.md#342-逐操作行为)                           |                                                               |
+| `operation-not-reused-across-methods`            | 受理用过的 operation 再用于取消不成功，调用状态不变                                                                                                                 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作)       |                                                               |
+| `admission-is-not-a-send`                        | 刚受理的调用不显示已开始的发送                                                                                                                                      | [逐操作行为](../SPEC.md#342-逐操作行为)                           |                                                               |
+| `reserved-operation-refused`                     | `admit`、`cancel`、`inspect`、`beginRead`、`acknowledge` 收到保留 operation 返回 `invalid`，字段名取承载 operation 的字段；引用内的保留 admission 由 reference 拒绝 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作)       |                                                               |
+| `refused-admission-forms-no-call`                | 被拒的受理不形成调用：同一调用用别的 operation 再受理，是首次受理                                                                                                   | [逐操作行为](../SPEC.md#342-逐操作行为)                           |                                                               |
+| `commit-unknown-keeps-operation`                 | 受理提交未知后，失败值指名原 operation；同 operation 重试认回原调用；另一个调用用这个 operation 不成功。`applied` 与 `dropped` 各检查一次                           | [资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送) | `failNextWrite`                                               |
+| `commit-unknown-not-reported-as-refusal`         | 已生效的受理回答提交未知后，`inspect` 不报 `not-accepted`                                                                                                           | [逐操作行为](../SPEC.md#342-逐操作行为)                           | `failNextWrite`                                               |
+| `commit-unknown-cancel-recovers-original`        | 取消提交未知后，同 operation 重发得到以这个 operation 请求的控制                                                                                                    | [逐操作行为](../SPEC.md#342-逐操作行为)                           | `failNextWrite`                                               |
+| `commit-unknown-acknowledge-recovers-original`   | 确认提交未知后，同 operation 重发成功，调用显示这次确认的 operation                                                                                                 | [逐操作行为](../SPEC.md#342-逐操作行为)                           | `failNextWrite`、`startRun`、`settleCall`、`provideEvidence`  |
+| `mixed-partial-result-readable`                  | 普通领取按原顺序交付完整块、未封值及真实 trims，保留终局；同 after 重放不变                                                                                         | [结果保管与承接](../SPEC.md#342-普通调用面与实例观察)             | `startRun`、`settleCall`                                      |
+| `settled-call-keeps-termination`                 | 调用收场后，对这个已收场的调用取消（回复什么都接受），再观察，阶段仍是已收场，终局与收场时深相等                                                                    | [调用和各次真实发出](../SPEC.md#调用和各次真实发出)               | `startRun`、`settleCall`                                      |
+| `read-before-settle-refused`                     | 运行中的调用上 `beginRead` 返回 `not-settled`                                                                                                                       | [逐操作行为](../SPEC.md#342-逐操作行为)                           | `startRun`                                                    |
+| `acknowledge-refused-before-settle`              | 运行中的调用上 `acknowledge` 不成功，保管状态仍是 `producer`                                                                                                        | [ACK 的前提与效果](../SPEC.md#ack-的前提与效果)                   | `startRun`                                                    |
+| `forged-evidence-refused`                        | 以伪造证据确认不成功，保管状态仍是 `producer`                                                                                                                       | [ACK 的前提与效果](../SPEC.md#ack-的前提与效果)                   | `startRun`、`settleCall`、`provideEvidence`                   |
+| `acknowledge-records-custody`                    | 确认成功后，回执指名原调用、结果版本与 operation，调用显示 `acknowledged`                                                                                           | [ACK 的前提与效果](../SPEC.md#ack-的前提与效果)                   | `startRun`、`settleCall`、`provideEvidence`                   |
+| `duplicate-acknowledge-returns-original`         | 同参数重复确认返回同一调用、结果、operation 与证据的回执；不比较清理状态，它会自行推进                                                                              | [ACK 的前提与效果](../SPEC.md#ack-的前提与效果)                   | `startRun`、`settleCall`、`provideEvidence`                   |
+| `acknowledge-conflict-on-different-input`        | 同 operation 配不同证据返回 `conflict`，指名原 operation                                                                                                            | [逐操作行为](../SPEC.md#342-逐操作行为)                           | `startRun`、`settleCall`、`provideEvidence`                   |
+| `acknowledged-result-not-read-again`             | 确认之后新的 `beginRead` 返回 `acknowledged`，不开始新的读                                                                                                          | [逐操作行为](../SPEC.md#342-逐操作行为)                           | `startRun`、`settleCall`、`provideEvidence`                   |
+| `acknowledge-and-read-serialised`                | 确认与 `beginRead` 并发，两种先后下结果一致：确认先则读见到这次确认，读先则确认后这个读仍可关闭                                                                     | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察)       | `startRun`、`settleCall`、`provideEvidence`                   |
+| `read-page-stable-for-same-after`                | 同一 `after` 的 `readNext` 返回同一页                                                                                                                               | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察)       | `startRun`、`settleCall`                                      |
+| `close-read-idempotent`                          | `closeRead` 重复调用返回同一结束状态                                                                                                                                | [逐操作行为](../SPEC.md#342-逐操作行为)                           | `startRun`、`settleCall`                                      |
+| `acknowledge-keeps-open-read-readable`           | 确认并推进清理之后，已开始的读仍按序读完全部结果                                                                                                                    | [逐操作行为](../SPEC.md#342-逐操作行为)                           | `startRun`、`settleCall`、`provideEvidence`、`advanceCleanup` |
+| `revoked-reader-gets-no-page`                    | 读取资格撤销后，`readNext` 不再给页：返回 `denied`，或以 `denied` 结束读取                                                                                          | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察)       | `startRun`、`settleCall`、`revokeAccess`                      |
+| `cleanup-failure-keeps-acknowledgement`          | 清理不能继续时，调用仍显示 `acknowledged`，重复确认仍成功                                                                                                           | [逐操作行为](../SPEC.md#342-逐操作行为)                           | `startRun`、`settleCall`、`provideEvidence`、`blockCleanup`   |
+| `repeat-cancel-returns-original-control`         | 第二次取消，不论 operation 是否相同，返回首次请求的控制                                                                                                             | [逐操作行为](../SPEC.md#342-逐操作行为)                           |                                                               |
+| `cancel-does-not-claim-stop`                     | 取消的回复不声称上游已停止                                                                                                                                          | [控制、取消与晚到事实](../SPEC.md#控制取消与晚到事实)             |                                                               |
+| `cancelled-call-ends-interrupted-unacknowledged` | 取消后收场的调用保管状态仍是 `producer`；终局是关联该控制的 `interrupted` 由套件经 `settleCall` 给出，不是提供者的决定（见弱断言清单）                              | [控制、取消与晚到事实](../SPEC.md#控制取消与晚到事实)             | `startRun`、`settleCall`                                      |
+| `cancel-confined-to-target-call`                 | 取消一个调用，同租户另一个调用的状态不变                                                                                                                            | [控制、取消与晚到事实](../SPEC.md#控制取消与晚到事实)             |                                                               |
+| `unauthorised-cancel-denied`                     | 失去取消资格的主体取消返回 `denied`，调用不出现控制                                                                                                                 | [控制、取消与晚到事实](../SPEC.md#控制取消与晚到事实)             | `revokeAccess`                                                |
+| `cancel-sends-nothing-more`                      | 运行中的调用已显示一个已开始的发送，取消之后它不新增（没有已开始的发送，就看不出新增，按失败报告）                                                                  | [控制、取消与晚到事实](../SPEC.md#控制取消与晚到事实)             | `startRun`                                                    |
+| `observation-opens-with-snapshot`                | 观察的第一项是快照，之后是变化，游标不倒退                                                                                                                          | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察)       |                                                               |
+| `stopping-observation-keeps-call-running`        | 中止观察以 `observer-closed` 结束，调用仍在运行且没有控制                                                                                                           | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察)       | `startRun`                                                    |
+| `disconnect-ends-observation-as-unavailable`     | 观察被断开时以 `unavailable` 结束，调用没有收场                                                                                                                     | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察)       | `disconnectObservers`                                         |
+| `new-observer-starts-from-snapshot`              | 新观察者先得到当前快照：调用仍在运行、保管状态为 `producer`，在途的块在快照里                                                                                       | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察)       | `startRun`、`showFacts`                                       |
+| `growing-block-holds-accumulated-value`          | 增长中的块给归约后的累计值：追加块是各片段之和，替换块是最后一个完整值                                                                                              | [供应商解释与流状态归约](../SPEC.md#供应商解释与流状态归约)       | `startRun`、`showFacts`                                       |
+| `sealed-block-takes-no-more-fill`                | 封口之后对该块的填充不改变快照里的封口块                                                                                                                            | [供应商解释与流状态归约](../SPEC.md#供应商解释与流状态归约)       | `startRun`、`showFacts`                                       |
+| `unsealed-tool-arguments-not-executable`         | 还在到达或被截断的工具参数不成为已封口的工具建议                                                                                                                    | [供应商解释与流状态归约](../SPEC.md#供应商解释与流状态归约)       | `startRun`、`showFacts`                                       |
+| `cross-tenant-access-refused`                    | 另一租户对调用的取消、读取与确认不成功，调用状态不变                                                                                                                | [逐操作行为](../SPEC.md#342-逐操作行为)                           |                                                               |
+| `refusal-hides-existence`                        | 另一租户访问已存在的调用，与访问不存在的调用，对 `inspect`、`dispatches`、`cancel`、`connect`、`beginRead`、`acknowledge`、`readNext`、`closeRead` 的回复整体深相等 | [逐操作行为](../SPEC.md#342-逐操作行为)                           |                                                               |
+| `revoked-principal-gets-denied`                  | 资格撤销后，`inspect`、`beginRead`、`acknowledge` 返回 `denied`                                                                                                     | [逐操作行为](../SPEC.md#342-逐操作行为)                           | `revokeAccess`                                                |
+| `revoked-principal-observation-ends-denied`      | 资格撤销后，在途观察与新开的观察都以 `denied` 结束，调用没有收场                                                                                                    | [普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察)       | `revokeAccess`                                                |
+| `withdrawn-instance-has-no-live-route`           | 实例撤除后，`connect` 回答 `no-live-route`，原调用仍在                                                                                                              | [逐操作行为](../SPEC.md#342-逐操作行为)                           | `withdrawInstance`                                            |
+| `directory-failure-is-unavailable`               | 目录不可达时，`connect` 返回 `unavailable`                                                                                                                          | [逐操作行为](../SPEC.md#342-逐操作行为)                           | `failDirectory`                                               |
+| `replaced-instance-ends-observation-as-stale`    | 实例被替换后，旧句柄的在途观察与新开的观察都以 `stale-instance` 结束，`connect` 给出新实例的句柄，原调用仍在                                                        | [逐操作行为](../SPEC.md#342-逐操作行为)                           | `replaceInstance`                                             |
+| `quiesce-refuses-new-admissions`                 | `quiesce` 之后新的受理不成功且不留调用，已受理的调用仍可查询                                                                                                        | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作)       |                                                               |
+| `quiesce-reports-pending-and-running`            | `quiesce` 报告的待处理与运行中数量是十进制数，且不少于套件已知未收场的调用数                                                                                        | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作)       | `startRun`（只检查运行中数量时）                              |
+| `transport-sends-only-at-start`                  | `prepare` 与 `materialize` 不发送，`start` 一返回就已发送，不等第一次迭代                                                                                           | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作)       | 传输                                                          |
+| `repeated-transport-step-sends-nothing`          | 同一 prepared 再 `materialize`、同一 materialized 再 `start`，不给出能产出事实的流，也不再发送                                                                      | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作)       | 传输                                                          |
+| `materialization-receipt-matches-request`        | 回执有非空的 payload 摘要，供应商与表示采用同请求一致，两次读取相同；回执带 `replayFormat` 时，它是合法的回放标签，两次读取相同                                     | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作)       | 传输                                                          |
+| `fact-stream-ends-once`                          | 事实流恰有一个 `ended`，它是最后一个事实                                                                                                                            | [供应商解释与流状态归约](../SPEC.md#供应商解释与流状态归约)       | 传输                                                          |
+| `interruption-is-confirmed`                      | 信号中止后的事实流里，每个 `interrupted` 终止都带 `stop: 'confirmed'`                                                                                               | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作)       | 传输                                                          |
+| `transport-close-is-idempotent`                  | `close` 重复调用不抛错，关闭不发送                                                                                                                                  | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作)       | 传输                                                          |
 
 契约没有给出失败 kind 或判据的地方，以及判据有但公开面上看不到的地方，套件只做较弱但确定的断言，不替契约定 kind：
 

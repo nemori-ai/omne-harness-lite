@@ -10,17 +10,18 @@
 
 现在的切片是 S1 存储骨架、C-WIRE-SQL 装配、C-COORD 发送协调器与 C-MODEL 静态材料。
 
-- 已实现：四张表与迁移 `001-model-records`；行与调用文档之间的解析；`createSqlModelStorage`，即 `ModelCommandStorage` 的 SQL 实现；参加者 `model`；读 handler `model.call` 与 `model.pending` 及各自的模块文件；静态材料 `modelStorageMaterials()` 及其 `codeDigest`；构造期核对；`createSqlModelCommands`，即共享核心的 22 个方法装在这份存储上；`createSendMirror`，即发送协调器。
+- 已实现：五张表与迁移 `001-model-records`；行与调用文档之间的解析；`createSqlModelStorage`，即 `ModelCommandStorage` 的 SQL 实现；参加者 `model`；读 handler `model.call`、`model.pending` 与 `model.request` 及各自的模块文件；静态材料 `modelStorageMaterials()` 及其 `codeDigest`；构造期核对；`createSqlModelCommands`，即共享核心的 23 个方法装在这份存储上；`createSendMirror`，即发送协调器。
 - 已实现：`./cordis` 的 `createSqlModelRecordsPlugin`，在记录插件上发布 `modelCommands`，并拥有独立的发送子插件。应用接线由应用装配承担。
 - 已实现，按 RFC-0013 revision 2 的本地范围采用：诊断读面 `createSqlModelDiagnostics`，即 `ModelDiagnostics.list` 在同一份记录上的实现；读 handler `model.diagnostics` 及其模块文件；`./cordis` 的 `createSqlModelDiagnosticsPlugin`，发布 `modelDiagnostics`。行为见[诊断读面](#诊断读面)。应用行的接线归应用装配。
 
 ### 耐久的 ModelCommands
 
-`createSqlModelCommands(options)` 把 SQL 存储、可选确认接缝和可选发送镜像装在唯一的命令核心上。装饰次序为 SQL storage → observation storage → send mirror storage → core；未启用的装饰层省略。22 个方法的规则全部在共享核心，本成员不另写规则。
+`createSqlModelCommands(options)` 把 SQL 存储、可选确认接缝和可选发送镜像装在唯一的命令核心上。装饰次序为 SQL storage → observation storage → send mirror storage → core；未启用的装饰层省略。23 个方法的规则全部在共享核心，本成员不另写规则。
 
-- 选项是核心的选项（`owners`、`authority`、`evidence`、`clock`、`limits`）加上存储需要的 `storage`、`domains`、`combination`、可选的 `attemptLimit` 与 `unresolvedLimit`，以及可选的 `send`（`mirrorBytes`、可选的 `maxClaims` 与发送来源 `sources`）。
+- 选项是核心的选项（`owners`、`authority`、`evidence`、`clock`、`limits`）加上存储需要的 `storage`、`domains`、`combination`、`requestChunkBytes`、可选的 `attemptLimit` 与 `unresolvedLimit`，以及可选的 `send`（`mirrorBytes`、可选的 `maxClaims` 与发送来源 `sources`）。
 - 核心的 `limits.unacknowledgedResults` 在这里是每租户份额：`held` 给出该租户持有请求材料的调用个数，参加者在受理的同一次提交里按同一份额核对。
-- 构造期核对：核心的选项与 owner 声明（核心抛出）；份额与组合（存储抛出）；`limits.scanPageCalls` 不超过 `model.pending` 一页的上限 1000。
+- `requestChunkBytes` 是请求正文一块的最大编码字节数，见 [N1](#n1请求正文与单次提交的大小)。
+- 构造期核对：核心的选项与 owner 声明（核心抛出）；份额、`requestChunkBytes` 与组合（存储抛出）；`limits.scanPageCalls` 不超过 `model.pending` 一页的上限 1000。
 - 另可传入 `initialRun`、`observation: { limits, timing }` 与 `reportConfirmation`。首次记录与确认源的行为由 [model](../model/SPEC.md#首次执行记录与私有通道)拥有。只给 initialRun 时也安装确认接缝，不创建观察源；两者均缺席时保留旧配置行为。
 - 返回值增加 `initial` 与 `observations`，未启用时分别为 `null`。给出 `send` 时，命令与协调器共用同一个被装饰的存储与同一个核心，也就共用同一个资格权威；没有 `send` 时 `coordinator` 为 `null`。`initial.openHost` 的绑定门面仍使用这一核心、镜像与认领表，不另建执行缓存。
 
@@ -36,9 +37,9 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 
 `./cordis` 的公开类型与数据校验归 [cordis.ts](src/cordis.ts) 和 [cordis-config.ts](src/cordis-config.ts)。采用依据为 L-MODEL 波 2 #446 r9 的 RECORDS 闭包。
 
-- 数据配置必须给出 `owners`、完整的 `limits`、`combinationVersion` 与 `send.mirrorBytes/maxClaims`。数值为正安全整数，没有代码默认值。既有核心和 SQL 构造期检查继续生效，包括扫描页上限。
+- 数据配置必须给出 `owners`、完整的 `limits`、`requestChunkBytes`、`combinationVersion` 与 `send.mirrorBytes/maxClaims`。数值为正安全整数，没有代码默认值。既有核心和 SQL 构造期检查继续生效，包括扫描页上限。
 - 对象选项 `resolve(ctx, config)` 在每次激活时取得 `storage`、`domains`、`clock`、`authority`、`evidence`、`sources` 与 `manifestDigest`，也可取得运行级 `initialRun` 和 `observation: { timing }`。观察十二项上限放在数据配置的 `observation` 中，timing 留在对象依赖中。两边只启用一边时加载失败；两边均缺席的旧配置仍可用。应用必须在 `options.inject` 列出该工厂所需的完整服务键常量列表；`modelCommands` 不能成为自身依赖。解析器不替应用推断依赖，也不赋予应用授权政策。
-- 一次激活只调用一次 `createSqlModelCommands`。公开服务的 22 个方法全部委托这一实例。`options.sendStage(coordinator, activation)` 经闭包交出协调器、initial 与可选的 observation 配对。旧单参数 callback 可以忽略第二参数。配对中的 `commands` 是本次真实 `ModelCommandsService` 原体，不是内部命令对象或 Cordis 代理；source 来自同一工厂。它们不成为 Service 属性，不新增 ctx 键。每次重新激活创建新配对，宿主须核原体身份。
+- 一次激活只调用一次 `createSqlModelCommands`。公开服务的 23 个方法全部委托这一实例。`options.sendStage(coordinator, activation)` 经闭包交出协调器、initial 与可选的 observation 配对。旧单参数 callback 可以忽略第二参数。配对中的 `commands` 是本次真实 `ModelCommandsService` 原体，不是内部命令对象或 Cordis 代理；source 来自同一工厂。它们不成为 Service 属性，不新增 ctx 键。每次重新激活创建新配对，宿主须核原体身份。
 - 命令方法准备好后调用 `ctx.plugin` 创建发送子 fiber，不等待它。发送插件可静态依赖 `modelCredential` 与 `modelCommands`。缺凭据只使发送子 fiber 等待，记录服务仍可查询。凭据恢复时由 Cordis 激活子插件。
 - 采用官方 `@deepseek-ai/cordis` 4.0.4，无自有 fork。发送子插件装载抛错时，Cordis 记录错误，子 fiber 进入 `FAILED`，等待该子 fiber 会拒绝；父记录 fiber 仍可为 `ACTIVE`。父启动成功只说明记录服务可用。应用须观察发送子 fiber 或对应日志，不能把父启动成功当作发送就绪。
 - 父 fiber 撤除会关闭本次观察源、撤除命令贡献并等待子 fiber 清理。`storage`、`domains`、运行级 initialRun 及其他注入对象仍归其提供者所有，记录插件不关闭它们。清理不撤销已提交 SQL 事实，也不声明已发出的外部请求可回滚。宿主、发送子 fiber 与 channel 的正常关闭次序由入口组合者承担，见 [model-host-local](../model-host-local/SPEC.md#首次执行与公共观察接线)。
@@ -91,14 +92,15 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 
 端口的权威形状在共享核心（`packages/model/model/src/commands/storage.ts`），本成员从 `@omne-harness/model/commands` 导入，不另存同形类型。根入口原样转导这些类型。
 
-| 方法                            | 本成员的行为                                                                                                                                |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `run(work, scope)`              | 读取 scope 的调用、operation 绑定与租户份额，在这次读取上同步运行 `work`，再提交 `work` 暂存的一次写入。CAS 冲突时重新读取并再运行 `work`   |
-| `documents(tenant)`             | 本次读取的视图：scope 的调用（存在时），scope operation 的已提交绑定，以及本进程登记的该租户结论未定的绑定。scope 以外的租户读为空          |
-| `held()` | 本次读取时，该租户仍持有请求材料的调用个数 |
-| `commit(tenant, write)`         | 暂存写入并返回 `committed`。真正的结论在 `run` 返回时给出                                                                                   |
-| `publish(tenant, call)`         | 暂存不绑定 operation 的整份调用写入（读关系进度）                                                                                           |
-| `pending(tenant, after, limit)` | 一页待恢复调用：`model.pending` 读到的待决标记调用与本进程该租户结论未定的 operation 所属调用的并集，按调用升序。游标是上一页的最后一个调用 |
+| 方法                            | 本成员的行为                                                                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `run(work, scope)`              | 读取 scope 的调用、operation 绑定与租户份额，在这次读取上同步运行 `work`，再提交 `work` 暂存的一次写入。CAS 冲突时重新读取并再运行 `work`         |
+| `documents(tenant)`             | 本次读取的视图：scope 的调用（存在时），scope operation 的已提交绑定，以及本进程登记的该租户结论未定的绑定。scope 以外的租户读为空                |
+| `held()`                        | 本次读取时，该租户仍持有请求材料的调用个数                                                                                                        |
+| `commit(tenant, write)`         | 暂存写入并返回 `committed`。真正的结论在 `run` 返回时给出。受理的写入带 `body`，即完整的固定请求；存储按 [N1](#n1请求正文与单次提交的大小) 保存它 |
+| `readBody(tenant, call)`        | 读该调用的完整固定请求，一次读一块。调用不存在或已释放请求材料时答空。不经 `run`                                                                  |
+| `publish(tenant, call)`         | 暂存不绑定 operation 的整份调用写入（读关系进度）                                                                                                 |
+| `pending(tenant, after, limit)` | 一页待恢复调用：`model.pending` 读到的待决标记调用与本进程该租户结论未定的 operation 所属调用的并集，按调用升序。游标是上一页的最后一个调用       |
 
 `run` 的 scope 是核心的 `RunScope`（租户文本，可选调用，可选 operation）。本存储每次 run 读一个调用：scope 不带调用时 `run` 返回 `unavailable`，不运行 `work`。核心只在 `scanPending` 给出不带调用的 scope，而本存储提供 `pending`，所以 `scanPending` 不经 `run`。没有 scope 的 `run` 不预读：`work` 调用端口的任何读写方法时，`run` 返回 `unavailable`。
 
@@ -124,14 +126,15 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 
 ### 表与身份
 
-四张表都是 STRICT，主键的第一列都是 `tenant`（租户的 `tenantCodec` 文本）。列只在 `src/schema.ts` 的 `TABLES` 里声明一次。迁移、行解析与参加者都从这份声明取列。`json` 列是 `BLOB`，存 [sql-contract §10.1](../../storage/sql-contract/SPEC.md#101-大文本列的存储格式) 的压缩文本。参加者在写入时压缩，读 handler 在 Worker 里还原，读出的行仍是 JSON 文本。
+五张表都是 STRICT，主键的第一列都是 `tenant`（租户的 `tenantCodec` 文本）。列只在 `src/schema.ts` 的 `TABLES` 里声明一次。迁移、行解析与参加者都从这份声明取列。`json` 列是 `BLOB`，存 [sql-contract §10.1](../../storage/sql-contract/SPEC.md#101-大文本列的存储格式) 的压缩文本。参加者在写入时压缩，读 handler 在 Worker 里还原，读出的行仍是 JSON 文本。
 
-| 表             | 主键                               | 内容                                                                                                                                                                    |
-| -------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `md_call`      | （tenant，call）                   | 调用头。`row_version` 是 CAS 令牌。`request` 为 NULL 表示请求材料已释放。`snapshot` 是最新快照的头。`reads` 是读关系。`pending` 是核心 `hasRecoveryWork` 对该文档的判定 |
-| `md_dispatch`  | （tenant，call，seq）              | 每次发出一行，`dispatch` 唯一。Map 与 Set 存为条目数组                                                                                                                  |
-| `md_part`      | （tenant，call，seq，block，part） | 块正文的分片。`block` 是块在该次发出里的位置。`open`、`seal` 带块的 index                                                                                               |
-| `md_operation` | （tenant，operation）              | operation 到调用的绑定，含方法、指纹、修订与回执                                                                                                                        |
+| 表             | 主键                               | 内容                                                                                                                                                                                        |
+| -------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `md_call`      | （tenant，call）                   | 调用头。`row_version` 是 CAS 令牌。`request` 是请求头，不含正文；为 NULL 表示请求材料已释放。`snapshot` 是最新快照的头。`reads` 是读关系。`pending` 是核心 `hasRecoveryWork` 对该文档的判定 |
+| `md_dispatch`  | （tenant，call，seq）              | 每次发出一行，`dispatch` 唯一。Map 与 Set 存为条目数组                                                                                                                                      |
+| `md_part`      | （tenant，call，seq，block，part） | 块正文的分片。`block` 是块在该次发出里的位置。`open`、`seal` 带块的 index                                                                                                                   |
+| `md_operation` | （tenant，operation）              | operation 到调用的绑定，含方法、指纹、修订与回执                                                                                                                                            |
+| `md_request`   | （tenant，call，digest，seq）      | 请求正文的块。`digest` 是请求摘要，`seq` 从 0 起，`total` 是这份正文的块数，`body` 是 JSON 文本的一段                                                                                       |
 
 ### 一次 run
 
@@ -178,11 +181,26 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 
 JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对。列内的嵌套形状信任本参加者写入时的编码，读出时不再按契约逐项校验。这是已知限制：只有参加者 `model` 写这几张表，读出与写入用同一份编码。
 
-### N1：单次提交的字节上界
+### N1：请求正文与单次提交的大小
 
-本包不再给一次调用设字节上界：请求与结果有多大，只由模型的上下文与最大输出决定。存储提供者仍有自己的单命令上界 `maxCommandBytes`。现在每次提交写整行 `md_call`，其中含整个请求，所以请求大到一定程度时提交会撞到这个上界。这是当前存储布局的缺陷，不是产品界限；它由“请求正文只写一次、状态行不含请求”的布局消除。
+本包不给一次调用设字节上界：请求有多大，只由模型的上下文决定。存储提供者有单命令上界 `maxCommandBytes`，它约束一次提交，不约束一次调用。所以请求正文分块保存，调用行只保存请求头。
 
-一次提交超过提供者的 `maxCommandBytes` 时，存储以 `command_limit` 拒绝，不截断。这是确定的拒绝（sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)），`run` 返回 `invalid`，`field` 为 `storage`，`reason` 为 `command_limit`。`preserve` 收到暂时的 `unavailable` 后，该批事实由运行时持有，直到同一 operation 重做成功。何时重做由运行时决定（M6 的义务）。
+- **请求头与正文。** `md_call.request` 保存 `FixedRequestHead`：请求去掉 `system`、`messages` 与 `tools`，另带各消息的身份。正文是固定请求的 JSON 文本，按 `requestChunkBytes` 切成块，写进 `md_request`。一块的编码大小不超过 `requestChunkBytes`，切点不落在代理对中间。
+- **只写一次。** 正文在受理时写入，此后不改。受理之后的每次提交只带请求头，它的大小与请求大小无关。
+- **一块的正文。** 正文只有一块时，这一块随受理的提交写入，受理仍是一次提交。
+- **多块的正文。** 正文多于一块时，每块先各用一次提交写入（意图 `body-chunk`），然后才是受理的提交。块按（tenant，call，digest，seq）取键，已存在的块不改，所以重写同一块没有后果。
+- **调用与正文一起成立。** 受理的提交在写入调用行的同一事务里核对：该调用、该摘要的块数等于 `total`。不满足时提交停止，原因 `body-incomplete`，`run` 返回 `unavailable`，调用不存在。调用方用同一 operation 重做。
+- **没有归属的块不留下。** 受理的提交没有写入调用时（认回、冲突、份额已满或提交未成立），存储再用一次提交删除这次尝试写下、又没有调用持有的块（意图 `body-discard`）。进程在某租户的第一次受理的第一次提交里，删除该租户所有没有调用持有的块；这覆盖进程在写块与受理之间退出的情形。一个数据库只有一个写进程，所以那时没有该租户的受理在途。
+- **释放。** 把 `md_call.request` 置为 NULL 的那次提交在同一事务里删除该调用的全部块。
+- **读取。** `readBody` 经 handler `model.request` 一次读一块，读到 `total` 块为止。块不齐或形状不对时返回 `unavailable`。
+
+`requestChunkBytes` 由装配给出。它加上一次提交里其余事实的大小须不超过提供者的 `maxCommandBytes`，它加上 `BODY_READ_RESERVE_BYTES`（64 KiB）须不超过 `model.request` 的 `maxOutputBytes`；后一条在构造期核对。
+
+本进程同一租户的两次首次受理同时进行时，后一次的清扫可能删掉前一次已写下的块。前一次受理因此返回 `unavailable`，重做后成立。这只发生在进程启动后该租户的第一次清扫成立之前。
+
+一次提交仍超过提供者的 `maxCommandBytes` 时，存储以 `command_limit` 拒绝，不截断。这是确定的拒绝（sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)），`run` 返回 `invalid`，`field` 为 `storage`，`reason` 为 `command_limit`。请求不再造成这种拒绝。一次 `preserve` 的一批输出、单个结果块的大小仍随提交写入，没有分块。`preserve` 收到暂时的 `unavailable` 后，该批事实由运行时持有，直到同一 operation 重做成功。
+
+这些规则的有限模型见 [RequestBody](verification/models/request-body/README.md)。
 
 ### N2：分片行数的上界
 
@@ -245,17 +263,17 @@ JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对
 
 `run` 返回 `ModelFailure`。本成员自己产生的种类：
 
-| 种类             | 含义                                                                                                   |
-| ---------------- | ------------------------------------------------------------------------------------------------------ |
+| 种类             | 含义                                                                                                                                                           |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `unavailable`    | 存储、事务域或读取不可用，存储的行不能解析，scope 不覆盖的读写，或一次 run 的尝试次数用尽，依赖名 `model-records`；租户份额此刻被占满，依赖名 `model-capacity` |
-| `commit-unknown` | 写入已发出，结论未定                                                                                   |
-| `invalid`        | 新文档不能编码为行，`field` 指出位置。存储以确定原因拒绝提交时，`field` 为 `storage`，`reason` 为原因名 |
+| `commit-unknown` | 写入已发出，结论未定                                                                                                                                           |
+| `invalid`        | 新文档不能编码为行，`field` 指出位置。存储以确定原因拒绝提交时，`field` 为 `storage`，`reason` 为原因名                                                        |
 
 错误不静默变成成功。`commit-unknown` 之后，同一 operation 的重试在存储结论确定前继续返回 `commit-unknown`。
 
 ### 所有权
 
-本成员拥有四张表、迁移、参加者 `model` 与三个读 handler。它不拥有存储提交协议、回执、事务域目录与组合登记。会话存储组合在 `create` 时登记包含 `session` 与 `model` 的组合。本成员不登记、不迁移。待恢复的判定 `hasRecoveryWork` 归共享核心，本成员调用它写 `pending` 列。
+本成员拥有五张表、迁移、参加者 `model` 与四个读 handler。它不拥有存储提交协议、回执、事务域目录与组合登记。会话存储组合在 `create` 时登记包含 `session` 与 `model` 的组合。本成员不登记、不迁移。待恢复的判定 `hasRecoveryWork` 归共享核心，本成员调用它写 `pending` 列。
 
 ### 静态材料
 
@@ -263,13 +281,14 @@ JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对
 
 | 材料                           | 模块文件                 | 描述                                                                                 |
 | ------------------------------ | ------------------------ | ------------------------------------------------------------------------------------ |
-| 参加者 `model`                 | `commit.ts`              | 协议 `1`，拥有四张 `md_` 表，不读别的参加者的表，`grouping` 为 `singleton`           |
+| 参加者 `model`                 | `commit.ts`              | 协议 `1`，拥有五张 `md_` 表，不读别的参加者的表，`grouping` 为 `singleton`           |
 | 迁移 `model/001-model-records` | `schema.ts`              | 无前置迁移                                                                           |
 | 读 handler `model.call`        | `handler-call.ts`        | `snapshot`；读四张表；`maxRowsRead` 20000；`maxOutputBytes` 4 MiB                    |
 | 读 handler `model.pending`     | `handler-pending.ts`     | `snapshot`；只读 `md_call`；`maxRowsRead` 1001；`maxOutputBytes` 1 MiB               |
+| 读 handler `model.request`     | `handler-request.ts`     | `snapshot`；读 `md_call` 与 `md_request`；`maxRowsRead` 2；`maxOutputBytes` 4 MiB    |
 | 读 handler `model.diagnostics` | `handler-diagnostics.ts` | `snapshot`；读 `md_call` 与 `md_dispatch`；`maxRowsRead` 102；`maxOutputBytes` 4 MiB |
 
-三个读都是 `snapshot`：`run` 读一个调用后按行版本比较写入，读不到更新的提交只会造成冲突与重读，不会丢写。诊断读把行版本钉在游标里，更新的提交使续页 `invalid`。handler 的模块文件只默认导出 `reads.ts` 或 `diagnostics.ts` 里的 handler，所以摘要只覆盖该文件本身的字节；被导入文件的变化不改变它，这与参加者、迁移模块的摘要相同。本成员不建目录、不声明组合：应用把这份材料与别的拥有者的材料合成一个目录。
+四个读都是 `snapshot`：`run` 读一个调用后按行版本比较写入，读不到更新的提交只会造成冲突与重读，不会丢写。诊断读把行版本钉在游标里，更新的提交使续页 `invalid`。handler 的模块文件只默认导出 `reads.ts` 或 `diagnostics.ts` 里的 handler，所以摘要只覆盖该文件本身的字节；被导入文件的变化不改变它，这与参加者、迁移模块的摘要相同。本成员不建目录、不声明组合：应用把这份材料与别的拥有者的材料合成一个目录。
 
 ### 生命周期
 
@@ -286,18 +305,19 @@ JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对
 
 ### 自有义务的验证
 
-| 义务                                                                                                                                                                                                               | 用例                        |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------- |
-| 迁移建出四张 STRICT 表，主键以 tenant 开头                                                                                                                                                                         | `tests/schema.spec.ts`      |
-| 解析穷尽每一列，拒绝缺列、多列、他租户行，分片折叠回块                                                                                                                                                             | `tests/documents.spec.ts`   |
-| run 的 CAS 冲突重读、参加者拒绝超前版本、认回、未定登记、份额、租户条件、N2、读关系进度                                                                                                                        | `tests/commit.spec.ts`      |
-| M4-2：`checkCommandsAccounts` 对内存实现与本实现各跑一次，逐项相同                                                                                                                                                 | `tests/accounts.spec.ts`    |
-| M4-3：资格结果、守卫声明、调用与它的份额名额由一次提交写入；提交失败时都不存在                                                                                                                            | `tests/admission.spec.ts`   |
-| M4-4：经 commands 的他租户调用与不存在相同；写路径不碰他租户的同名调用；参加者拒绝他租户行                                                                                                                         | `tests/tenant.spec.ts`      |
-| M4-5：保存成功但回包丢失时，同 operation 重试认回原结果、不重复写；未定 operation 进入待恢复扫描；按租户的登记上限；commit 须在 scope 的 operation 内                                                              | `tests/unknown.spec.ts`     |
-| M4-6（早期守卫）：与 `sessionStorageMaterials(options)` 组成有效组合，构造期核对两方的 `codeDigest`；handler 文件变了而摘要未更新时构造失败                                                                        | `tests/combination.spec.ts` |
-| 静态材料：五个模块各有文件 URL 与匹配的 SHA-256；按默认导出加载出描述所指的参加者、迁移与 handler，并经它们服务 commands 的读取                                                                                    | `tests/materials.spec.ts`   |
-| 诊断读面：白名单字段与存储一致，故障原文不进页，`timing` 为 `unknown`；他租户与无资格主体整次 `denied`；游标续页、重核资格、篡改与快照淘汰为 `invalid`；缺席为空页；保留未采用为 `unavailable`；插件装载与配置拒绝 | `tests/diagnostics.spec.ts` |
+| 义务                                                                                                                                                                                                                                                                               | 用例                         |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| 迁移建出五张 STRICT 表，主键以 tenant 开头                                                                                                                                                                                                                                         | `tests/schema.spec.ts`       |
+| 解析穷尽每一列，拒绝缺列、多列、他租户行，分片折叠回块                                                                                                                                                                                                                             | `tests/documents.spec.ts`    |
+| run 的 CAS 冲突重读、参加者拒绝超前版本、认回、未定登记、份额、租户条件、N2、读关系进度                                                                                                                                                                                            | `tests/commit.spec.ts`       |
+| N1：切块可拼回原文、不超过编码大小、不切代理对、能装满；一块的正文随受理提交；多块的正文先写块再受理，读回同一请求；受理之后的提交大小与请求大小无关；块缺失时受理不成立且不留块，重做成立；块的提交未确认时重做只留一份正文；新进程的第一次受理删除无归属的块，保留有调用持有的块 | `tests/request-body.spec.ts` |
+| M4-2：`checkCommandsAccounts` 对内存实现与本实现各跑一次，逐项相同                                                                                                                                                                                                                 | `tests/accounts.spec.ts`     |
+| M4-3：资格结果、守卫声明、调用与它的份额名额由一次提交写入；提交失败时都不存在                                                                                                                                                                                                     | `tests/admission.spec.ts`    |
+| M4-4：经 commands 的他租户调用与不存在相同；写路径不碰他租户的同名调用；参加者拒绝他租户行                                                                                                                                                                                         | `tests/tenant.spec.ts`       |
+| M4-5：保存成功但回包丢失时，同 operation 重试认回原结果、不重复写；未定 operation 进入待恢复扫描；按租户的登记上限；commit 须在 scope 的 operation 内                                                                                                                              | `tests/unknown.spec.ts`      |
+| M4-6（早期守卫）：与 `sessionStorageMaterials(options)` 组成有效组合，构造期核对两方的 `codeDigest`；handler 文件变了而摘要未更新时构造失败                                                                                                                                        | `tests/combination.spec.ts`  |
+| 静态材料：六个模块各有文件 URL 与匹配的 SHA-256；按默认导出加载出描述所指的参加者、迁移与 handler，并经它们服务 commands 的读取                                                                                                                                                    | `tests/materials.spec.ts`    |
+| 诊断读面：白名单字段与存储一致，故障原文不进页，`timing` 为 `unknown`；他租户与无资格主体整次 `denied`；游标续页、重核资格、篡改与快照淘汰为 `invalid`；缺席为空页；保留未采用为 `unavailable`；插件装载与配置拒绝                                                                 | `tests/diagnostics.spec.ts`  |
 
 用例在 `node:sqlite` 上运行真实的参加者、迁移与 handler 模块，夹具按 `modelStorageMaterials()` 的模块文件以默认导出加载它们；后五个经共享核心运行 `ModelCommands`。它们不覆盖提供者的 Worker、耐久性、队列与关闭（联调 A）。组合保证归 L-APP 的会话存储组合行，`combination.spec.ts` 只是早期守卫。
 

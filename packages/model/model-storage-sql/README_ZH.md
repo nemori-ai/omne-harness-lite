@@ -6,13 +6,13 @@ Model 的 SQL 存储成员。它实现共享命令核心的存储端口 `ModelCo
 
 ## 职责与状态
 
-本包拥有六样东西：`md_call`、`md_dispatch`、`md_part`、`md_operation` 四张表及其迁移；从行到调用文档的解析；SQL 版 `ModelCommandStorage`，它的每次 run 读取、运行核心的工作、按 CAS 提交；参加者 `model` 与三个读 handler `model.call`、`model.pending`、`model.diagnostics`；把共享核心装在这份存储上的 `createSqlModelCommands`；同一份行上的诊断读面 `createSqlModelDiagnostics`，即 `ModelDiagnostics.list`。
+本包拥有六样东西：`md_call`、`md_dispatch`、`md_part`、`md_operation`、`md_request` 五张表及其迁移；从行到调用文档的解析；SQL 版 `ModelCommandStorage`，它的每次 run 读取、运行核心的工作、按 CAS 提交；参加者 `model` 与四个读 handler `model.call`、`model.pending`、`model.request`、`model.diagnostics`；把共享核心装在这份存储上的 `createSqlModelCommands`；同一份行上的诊断读面 `createSqlModelDiagnostics`，即 `ModelDiagnostics.list`。
 
 本包不拥有 Model 命令的规则，它们归 `@omne-harness/model` 的共享核心。本包也不拥有提交协议、回执与租户事务域目录，它们归存储契约与应用。
 
 状态：`draft`。覆盖范围见 SPEC 的[实现现状](SPEC.md#实现现状)。
 
-- 已实现：`createSqlModelCommands`（给出 `send` 时同时给出共用核心的发送协调器）、`createSendMirror`、`createSqlModelStorage`、表与迁移、行解析、参加者、三个 handler 模块、静态材料 `modelStorageMaterials()` 及其 `codeDigest`、构造期核对。
+- 已实现：`createSqlModelCommands`（给出 `send` 时同时给出共用核心的发送协调器）、`createSendMirror`、`createSqlModelStorage`、表与迁移、行解析、参加者、四个 handler 模块、静态材料 `modelStorageMaterials()` 及其 `codeDigest`、构造期核对。
 - 已实现：`./cordis` 的 `createSqlModelRecordsPlugin`，发布 `modelCommands` 并拥有独立的发送子 fiber。
 - 已实现：`createSqlModelDiagnostics` 与 `./cordis` 的 `createSqlModelDiagnosticsPlugin`，发布 `modelDiagnostics`。页只带白名单字段。存储没有阶段时间，所以 `timing` 三项都是 `unknown`。字段映射、资格映射、游标与保留采用见 SPEC 的[诊断读面](SPEC.md#诊断读面)。
 - 已知差异：进程重启后，对重启前结论未定的写，`query` 可能回答 `not-committed`。与内存实现的全部差异见 SPEC 的[已知差异](SPEC.md#已知差异)。
@@ -37,7 +37,7 @@ const { commands } = createSqlModelCommands({
 })
 ```
 
-`commands` 有 `ModelCommands` 的 22 个方法。共享核心用存储的 `run(work, scope)` 运行每个方法。scope 给出租户、调用，写方法还给出 operation。`work` 里核心用 `documents`、`held` 读取，用 `commit` 或 `publish` 写入一次。CAS 冲突后，run 重新读取并再次运行工作。`scanPending` 用存储的 `pending` 端口，不运行尝试。
+`commands` 有 `ModelCommands` 的 23 个方法。共享核心用存储的 `run(work, scope)` 运行每个方法。scope 给出租户、调用，写方法还给出 operation。`work` 里核心用 `documents`、`held` 读取，用 `commit` 或 `publish` 写入一次。CAS 冲突后，run 重新读取并再次运行工作。`scanPending` 用存储的 `pending` 端口，不运行尝试。
 
 工厂还接受可选的 `initialRun`、`observation: { limits, timing }` 与 `reportConfirmation`，返回 `initial` 和 `observations`，未启用时分别为 `null`。所有启用部分共用一个核心。首次记录只在进程内，不新增 SQL 接管表。行为见[最终确认与私有侧口](SPEC.md#最终确认与私有侧口)。
 
@@ -50,9 +50,9 @@ const { commands } = createSqlModelCommands({
 | `options.inject`                             | `resolve` 所需的完整服务键常量列表。不得包含本插件发布的 `modelCommands`。                                                                                                                  |
 | `options.resolve(ctx, config)`               | 本次激活使用的 `storage`、`domains`、`clock`、`authority`、`evidence`、`sources` 与 `manifestDigest`。政策和已登记的存储组合归应用。                                                        |
 | `options.sendStage(coordinator, activation)` | 发送子插件及其配置 `{ plugin, config }`。本地宿主可用 `model-host-local/cordis` 的 `createModelSendStagePlugin`，把此协调器与其余发送选项一起传入；子插件配置须给出 `maxRetainedAttempts`。 |
-| `config`                                     | `owners`、完整 `limits`、`combinationVersion` 与 `send: { mirrorBytes, maxClaims }`。新入口不提供数值默认值。                                            |
+| `config`                                     | `owners`、完整 `limits`、`requestChunkBytes`、`combinationVersion` 与 `send: { mirrorBytes, maxClaims }`。新入口不提供数值默认值。                                                          |
 
-22 个公开方法完整委托同一个 SQL 命令实例。协调器只经闭包交给发送工厂，没有对应服务键。发送子插件声明自己的依赖；除非 `resolve` 自身需要凭据，否则不把子插件的凭据依赖放进记录插件的 `inject`。
+23 个公开方法完整委托同一个 SQL 命令实例。协调器只经闭包交给发送工厂，没有对应服务键。发送子插件声明自己的依赖；除非 `resolve` 自身需要凭据，否则不把子插件的凭据依赖放进记录插件的 `inject`。
 
 首次执行可由 `resolve` 返回运行级 `initialRun`。启用观察时，把十二项限额放入 `config.observation`，由 `resolve` 返回 `observation: { timing }`；只给其中一边会加载失败。`sendStage(coordinator, activation)` 取得 `activation.initial` 与可选的 `{ commands, source }` 观察配对，commands 是实际 records Service 原体。把原配对交给宿主，不替换其中对象。旧 callback 可以忽略第二参数。这些对象只经闭包交接，绑定与寿命规则归[记录插件规格](SPEC.md#cordis-记录插件)。
 
@@ -83,24 +83,24 @@ const { commands } = createSqlModelCommands({
 
 ## 配置与运行
 
-| 选项              | 含义                                                       |
-| ----------------- | ---------------------------------------------------------- |
-| `owners`          | 共享核心的消费者 owner 声明                                |
-| `authority`       | 共享核心的资格端口                                         |
-| `evidence`        | 共享核心的证据适配器                                       |
-| `clock`           | 共享核心的时钟                                             |
-| `limits` | 共享核心的限额。`limits.unacknowledgedResults` 是每租户份额：未确认结果的个数 |
-| `storage`         | 应用的 `SqlStorage`                                        |
-| `domains`         | 应用的 `TenantDomainLookup`                                |
-| `combination`     | 应用登记的组合版本与清单摘要                               |
-| `attemptLimit`    | 一次 run 的轮数，默认 8。尝试代数不设上限                  |
-| `unresolvedLimit` | 本进程为一个租户保存的结论未定的 operation 个数，默认 1024 |
+| 选项              | 含义                                                                          |
+| ----------------- | ----------------------------------------------------------------------------- |
+| `owners`          | 共享核心的消费者 owner 声明                                                   |
+| `authority`       | 共享核心的资格端口                                                            |
+| `evidence`        | 共享核心的证据适配器                                                          |
+| `clock`           | 共享核心的时钟                                                                |
+| `limits`          | 共享核心的限额。`limits.unacknowledgedResults` 是每租户份额：未确认结果的个数 |
+| `storage`         | 应用的 `SqlStorage`                                                           |
+| `domains`         | 应用的 `TenantDomainLookup`                                                   |
+| `combination`     | 应用登记的组合版本与清单摘要                                                  |
+| `attemptLimit`    | 一次 run 的轮数，默认 8。尝试代数不设上限                                     |
+| `unresolvedLimit` | 本进程为一个租户保存的结论未定的 operation 个数，默认 1024                    |
 
 `limits.scanPageCalls` 超过 1000 时构造失败。
 
 ## 验证
 
-[tests/](tests/index.md) 的用例在 `node:sqlite` 内存库上运行真实的参加者、迁移与读 handler，多数经共享核心运行 22 个方法，并对内存实现与本实现对拍账目套件。[diagnostics.spec.ts](tests/diagnostics.spec.ts) 经真实参加者写入调用文档，经加载的 `model.diagnostics` 读取，并在真实 Cordis 里装载诊断插件。它们不覆盖真实提供者的 Worker、耐久性、队列与关闭。
+[tests/](tests/index.md) 的用例在 `node:sqlite` 内存库上运行真实的参加者、迁移与读 handler，多数经共享核心运行 23 个方法，并对内存实现与本实现对拍账目套件。[diagnostics.spec.ts](tests/diagnostics.spec.ts) 经真实参加者写入调用文档，经加载的 `model.diagnostics` 读取，并在真实 Cordis 里装载诊断插件。它们不覆盖真实提供者的 Worker、耐久性、队列与关闭。
 
 ## 维护
 

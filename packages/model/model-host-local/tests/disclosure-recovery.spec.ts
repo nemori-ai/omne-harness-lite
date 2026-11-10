@@ -75,7 +75,7 @@ it('checks a fixed request recovered from SQLite under the new send activation p
     expect(server.requests).toHaveLength(0)
     storage.reopen()
     const fresh = durableCommands(storage.storage, profile).commands
-    expect(decoded(await fresh.loadRecovery({ ...ACCESS, call })).request).toEqual(request)
+    expect(decoded(await fresh.loadRequest({ ...ACCESS, call }))).toEqual(request)
     const checked: FixedModelRequest[] = []
     line = await assembleLine({
       directory,
@@ -108,7 +108,7 @@ it('checks a fixed request recovered from SQLite under the new send activation p
       send: 'not-sent',
       terminal: { kind: 'failed', fault: { cause: 'excluded' } },
     })
-    expect(decoded(await line.commands.loadRecovery({ ...ACCESS, call })).request).toEqual(request)
+    expect(decoded(await line.commands.loadRequest({ ...ACCESS, call }))).toEqual(request)
   } finally {
     await line.close()
     storage.close()

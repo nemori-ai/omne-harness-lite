@@ -3,7 +3,7 @@
 // and holds a streamed response open until the client stops it.
 //
 // The line-through case of the Model line: one process, one real Cordis 4.0.4 root Context, the
-// five members assembled by `support/line-assembly.ts`. Five steps, each with what a user sees:
+// five members assembled by `support/line-assembly.ts`. Six steps, each with what a user sees:
 // 1. Preparation: the profile plugin and the preparation plugin give the fixed request; no request
 //    reaches the gateway while it is prepared.
 // 2. Send (replay): call A goes through the send stage to the local HTTPS gateway, which answers
@@ -18,6 +18,8 @@
 // 5. Cancel: call B streams and the gateway holds its response; `calls.cancel` stops the supplier
 //    stream (the transport's `exchange-stopped`), the settlement comes after the physical stop, and
 //    B ends interrupted by that cancel.
+// 6. Large request: call C has a request larger than one command of the storage. It is admitted,
+//    the gateway receives the whole request, and C ends completed.
 // With `OMNE_EVIDENCE_OUT=<directory>` the case writes `line-e2e.json` there: the conclusion of each
 // step, the call identities, the termination kinds, which ModelCommands and SQL provider ran and the
 // Cordis version. No request body, no reply text, no header and no credential.
@@ -37,6 +39,7 @@ import { createCertificate, startHttpsServer, type HttpsFixture } from './suppor
 import {
   ACCESS,
   CONSUMER,
+  MAX_COMMAND_BYTES,
   REQUIRED,
   TENANT,
   assembleLine,
@@ -151,6 +154,22 @@ function assembledOf(fixed: FixedModelRequest): AssembledModelInput {
   }
 }
 
+/** `request` with the text of its first text block replaced by a text of `length` characters. */
+function enlarged(request: FixedModelRequest, length: number) {
+  const text = 'large request '.repeat(Math.ceil(length / 14)).slice(0, length)
+  let done = false
+  const messages = request.messages.map(message => ({
+    ...message,
+    blocks: message.blocks.map(block => {
+      if (done || block.kind !== 'text') return block
+      done = true
+      return { ...block, text }
+    }),
+  }))
+  if (!done) throw new Error('the recorded request has no text block')
+  return { request: { ...request, messages }, text }
+}
+
 async function admit(line: LineTree, name: string, request: FixedModelRequest) {
   const call = callOf(name)
   const admitted = decoded(
@@ -165,10 +184,10 @@ async function admit(line: LineTree, name: string, request: FixedModelRequest) {
   return { call, reference: admitted.reference }
 }
 
-type StepName = 'prepare' | 'send' | 'persist' | 'push' | 'cancel'
+type StepName = 'prepare' | 'send' | 'persist' | 'push' | 'cancel' | 'large'
 type Evidence = {
   steps: Record<StepName, string>
-  calls: Record<'a' | 'b', { call: string; termination: Termination['kind'] | null }>
+  calls: Record<'a' | 'b' | 'c', { call: string; termination: Termination['kind'] | null }>
   implementations: {
     modelCommands: string
     sqlProvider: string
@@ -192,7 +211,11 @@ describe('the Model line in one process', () => {
       gateway: { url: server.url, ca: certificate.cert },
     })
     const steps: Partial<Record<StepName, string>> = {}
-    const terminations: Record<'a' | 'b', Termination['kind'] | null> = { a: null, b: null }
+    const terminations: Record<'a' | 'b' | 'c', Termination['kind'] | null> = {
+      a: null,
+      b: null,
+      c: null,
+    }
     try {
       // --- 1. preparation: the profile and the preparation plugin, no network ----------------------
       const recorded = firstRoundRequest(RECORD_CASES[CASE])
@@ -331,6 +354,30 @@ describe('the Model line in one process', () => {
       expect(pushedB.settlement.termination).toEqual(stateB.settlement.termination)
       steps.cancel =
         'call B was streaming; calls.cancel stopped the supplier stream (exchange-stopped) before the settlement; B ended interrupted by that cancel with its content kept'
+
+      // --- 6. large request: larger than one command of the storage; admitted, sent whole, completed --
+      gateway = 'replay'
+      const large = enlarged(request, MAX_COMMAND_BYTES + (MAX_COMMAND_BYTES >> 1))
+      const sentBefore = server.requests.length
+      const c = await admit(line, 'c', large.request)
+      await eventually(
+        async () => (await line.stateOf(c.call)).phase === 'settled',
+        'the settlement of call C',
+      )
+      const stateC = await line.stateOf(c.call)
+      if (stateC.phase !== 'settled') throw new Error('call C is not settled')
+      terminations.c = stateC.settlement.termination.kind
+      expect(stateC.settlement.termination).toEqual({
+        kind: 'completed',
+        reason: 'tool-suggestions',
+      })
+      const [wireC] = server.requests.slice(sentBefore)
+      expect(wireC?.body).toContain(large.text)
+      await eventually(
+        () => scripted.pushes.some(delivery => delivery.key.reference === c.reference),
+        'the push of call C',
+      )
+      steps.large = `call C carried a request of ${large.text.length} characters, more than the ${MAX_COMMAND_BYTES} bytes of one storage command; the gateway received all of it and C completed`
     } finally {
       writeEvidence({
         steps: {
@@ -339,10 +386,12 @@ describe('the Model line in one process', () => {
           persist: steps.persist ?? 'not reached',
           push: steps.push ?? 'not reached',
           cancel: steps.cancel ?? 'not reached',
+          large: steps.large ?? 'not reached',
         },
         calls: {
           a: { call: callOf('a'), termination: terminations.a },
           b: { call: callOf('b'), termination: terminations.b },
+          c: { call: callOf('c'), termination: terminations.c },
         },
         implementations: {
           modelCommands:

@@ -33,6 +33,11 @@ export type SqlModelCommandsOptions<P> = ModelCommandsCoreOptions<P> &
     domains: TenantDomainLookup
     /** The combination the application registered for the tenant scope (session log and Model). */
     combination: Readonly<{ combinationVersion: string; manifestDigest: string }>
+    /**
+     * The largest encoded size of one chunk of a request body. It must fit, with the head of the
+     * facts, one command of the storage provider.
+     */
+    requestChunkBytes: number
     /** Rounds of one run. Default 8. The attempt generations of an operation have no limit. */
     attemptLimit?: number
     /** Operations with an unknown commit outcome that the process keeps for one tenant. */
@@ -75,6 +80,7 @@ function createStorage<P>(options: SqlModelCommandsOptions<P>): SqlModelStorage 
     combination: options.combination,
     limits: {
       tenantResults: options.limits.unacknowledgedResults,
+      requestChunkBytes: options.requestChunkBytes,
     },
     ...(options.attemptLimit === undefined ? {} : { attemptLimit: options.attemptLimit }),
     ...(options.unresolvedLimit === undefined ? {} : { unresolvedLimit: options.unresolvedLimit }),

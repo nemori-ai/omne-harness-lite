@@ -121,7 +121,9 @@ describe('one call of each family through the assembled local send path', () => 
       const recovered = decoded(
         await local.commands.loadRecovery({ ...local.access, call: local.call }),
       )
-      expect(recovered.request).toEqual(beforeRequest)
+      expect(
+        decoded(await local.commands.loadRequest({ ...local.access, call: local.call })),
+      ).toEqual(beforeRequest)
       expect(recovered.state).toMatchObject({ phase: 'settled' })
     } finally {
       await local.close()

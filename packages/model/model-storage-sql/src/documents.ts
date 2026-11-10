@@ -1,6 +1,7 @@
 // The call document of the shared commands core, its rows, and the parse between them. Rows enter
 // here only: the output of `model.call` is parsed once into documents, and the encoders give the
 // rows that the participant writes. The column sets come from `TABLES` in schema.ts.
+import type { FixedRequestHead } from '@omne-harness/model-contract/provider'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
 import {
   decodeDispatchId,
@@ -11,7 +12,6 @@ import {
   type CallState,
   type DispatchRecord,
   type DurableEvidence,
-  type FixedModelRequest,
   type GrowingContentKind,
   type ModelBlock,
   type ModelCallId,
@@ -292,7 +292,7 @@ function parseCallRow(raw: unknown, scope: CallRowScope): CallHead {
     head: optional(row, 'snapshot', text => stored<SnapshotHead>(text, 'md_call.snapshot')),
     document: {
       state,
-      request: optional(row, 'request', text => stored<FixedModelRequest>(text, 'md_call.request')),
+      request: optional(row, 'request', text => stored<FixedRequestHead>(text, 'md_call.request')),
       requestDigest: str(row, 'request_digest'),
       initiator: stored(str(row, 'initiator'), 'md_call.initiator'),
       admission: identity(decodeModelOperationId(str(row, 'admission')), 'md_call.admission'),

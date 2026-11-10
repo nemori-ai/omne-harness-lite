@@ -91,7 +91,7 @@ it('accepts the declared parameter families at their legal boundaries', async ()
     const { commands } = createMemoryModelCommands(f.options)
     const input = { ...f.admit, request: { ...f.admit.request, parameters } }
     unbox(await commands.admit(input))
-    expect(unbox(await commands.loadRecovery(input)).request.parameters).toEqual(parameters)
+    expect(unbox(await commands.loadRequest(input)).parameters).toEqual(parameters)
     expect(unbox(await commands.admit(input)).recovered).toBe(true)
   }
 })
@@ -257,7 +257,7 @@ for (const location of ['applied', 'requested'] as const) {
           control.reveal({ ...original, result: mode === 'applied' ? 'committed' : 'rolled-back' })
           unbox(await commands.admit(original))
         }
-        expect(unbox(await commands.loadRecovery(original)).request).toEqual(original.request)
+        expect(unbox(await commands.loadRequest(original))).toEqual(original.request)
       }
     })
   }
@@ -282,7 +282,7 @@ for (const location of ['applied', 'requested'] as const) {
       const { commands } = createMemoryModelCommands(f.options)
       const input = { ...f.admit, request: adoptedRequest(f.admit.request, location, parameter) }
       unbox(await commands.admit(input))
-      expect(unbox(await commands.loadRecovery(input)).request).toEqual(input.request)
+      expect(unbox(await commands.loadRequest(input))).toEqual(input.request)
     }
     const f = fixture()
     const { commands } = createMemoryModelCommands(f.options)
@@ -381,7 +381,7 @@ for (const middle of [false, true]) {
         control.reveal({ ...f.admit, result: effect === 'applied' ? 'committed' : 'rolled-back' })
         unbox(await commands.admit(f.admit))
         expect(unbox(await commands.admit(f.admit)).recovered).toBe(true)
-        expect(unbox(await commands.loadRecovery(f.admit)).request).toEqual(f.admit.request)
+        expect(unbox(await commands.loadRequest(f.admit))).toEqual(f.admit.request)
       }
     }
   })
@@ -410,7 +410,7 @@ for (const middle of [false, true]) {
           control.reveal({ ...f.admit, result: mode === 'applied' ? 'committed' : 'rolled-back' })
           unbox(await commands.admit(f.admit))
         }
-        expect(unbox(await commands.loadRecovery(f.admit)).request).toEqual(f.admit.request)
+        expect(unbox(await commands.loadRequest(f.admit))).toEqual(f.admit.request)
       }
     })
   }
@@ -426,7 +426,7 @@ it('keeps dense request values and their order isolated from caller changes', as
   unbox(await commands.admit(input))
   stop.reverse()
   expect(await commands.admit(input)).toMatchObject({ failure: { kind: 'conflict' } })
-  const saved = unbox(await commands.loadRecovery(input)).request
+  const saved = unbox(await commands.loadRequest(input))
   expect(saved.parameters).toEqual([{ kind: 'stop', value: ['END', 'STOP'] }])
   expect(unbox(await commands.admit({ ...input, request: saved })).recovered).toBe(true)
 })
@@ -437,7 +437,7 @@ it('accepts dense sequences and preserves legal empty sequences', async () => {
     const { commands } = createMemoryModelCommands(f.options)
     const input = { ...f.admit, request }
     unbox(await commands.admit(input))
-    expect(unbox(await commands.loadRecovery(input)).request).toEqual(request)
+    expect(unbox(await commands.loadRequest(input))).toEqual(request)
     expect(unbox(await commands.admit(input)).recovered).toBe(true)
   }
 })

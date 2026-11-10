@@ -162,6 +162,7 @@ export function createModelObservationStorage<P>(
       return documents
     },
     held: () => inner.held(),
+    readBody: (tenant, call) => inner.readBody(tenant, call),
     commit(tenant, write) {
       const result = inner.commit(tenant, write)
       if (active) active.staged = { kind: 'write', tenant, write }

@@ -60,6 +60,7 @@ function assemble(extra: Partial<SqlModelCommandsOptions<Principal>> = {}) {
     ...core.options,
     storage: sqliteStorage().storage,
     domains: lookup([textOf(tenant)], 'options'),
+    requestChunkBytes: 65536,
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
     ...extra,
   })
@@ -104,6 +105,7 @@ it('builds the initial execution without an observation source for the initial r
     initialRun: initialRun(),
     storage: sqliteStorage().storage,
     domains: lookup([textOf(tenant)], 'options'),
+    requestChunkBytes: 65536,
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
   })
   const { initial, observations } = result

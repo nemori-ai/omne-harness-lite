@@ -12,6 +12,7 @@ import type {
   ConsumerRef,
   DispatchId,
   FixedModelRequest,
+  FixedRequestHead,
   ModelCallId,
   ModelInstanceId,
   ModelOperationId,
@@ -191,7 +192,8 @@ export type RetryResolution =
     }>
 export type RecoveryRecord = Readonly<{
   state: CallState
-  request: FixedModelRequest
+  /** The head of the original request. `loadRequest` reads the whole request. */
+  request: FixedRequestHead
   initiator: ActorRef
   admission: ModelOperationId
   execution: ExecutionRef | null
@@ -210,6 +212,11 @@ export interface ModelCommands<P> {
     input: Access<P> & Readonly<{ after: string | null; limit: number }>,
   ): Reply<Readonly<{ calls: readonly ModelCallId[]; next: string | null }>>
   loadRecovery(input: CallAccess<P>): Reply<RecoveryRecord>
+  /**
+   * The whole original request of a call that still holds its material. It is read to send the
+   * request; every decision reads the head in `loadRecovery`.
+   */
+  loadRequest(input: CallAccess<P>): Reply<FixedModelRequest>
   claim(
     input: CallAccess<P> &
       Readonly<{

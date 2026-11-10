@@ -6,7 +6,7 @@
 // conversion and tokenizer ports, the host driver, and the contract functions that only providers
 // call. It does not import Cordis or another Model member, and it exports nothing of `./testing`
 // or `./conformance`. A name is exported from exactly one of the root and provider entries.
-export type { ActorRef } from '../root.ts'
+export type { ActorRef, FixedRequestHead } from '../root.ts'
 export type {
   CallAccountReport,
   CommitQuery,
@@ -99,4 +99,5 @@ export {
 } from '../reference.ts'
 export type { ModelAdmitCandidate, ModelInputRejection } from '../judge-request.ts'
 export { MODEL_INPUT_LIMITS, judgeAdmit, judgeFixedModelRequest } from '../judge-request.ts'
+export { requestHead } from '../request-head.ts'
 export { continuedMessages, judgeReplayDeclaration, projectReplay } from '../replay-values.ts'

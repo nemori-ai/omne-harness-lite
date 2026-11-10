@@ -3,6 +3,7 @@
 // and the Cordis plugin that publishes `modelDiagnostics`. The call documents are written through
 // the real participant on node:sqlite (fixture.ts); the read goes through the `model.diagnostics`
 // handler loaded from the static materials. Nothing here proves the Worker or durability.
+import { requestHead } from '@omne-harness/model-contract/provider'
 import { createHmac } from 'node:crypto'
 import { Context } from '@deepseek-ai/cordis'
 import {
@@ -126,7 +127,7 @@ function callOf(
       custody: { kind: 'producer' },
       phase: 'accepted',
     },
-    request: REQUEST,
+    request: requestHead(REQUEST),
     requestDigest: DIGEST,
     initiator: { owner: 'identity', subject: 'trusted-0', revision: '1' },
     admission,
@@ -159,6 +160,7 @@ async function write(
         operation,
         expected: original,
         call: change(original === undefined ? undefined : structuredClone(original)),
+        ...(original === undefined && { body: REQUEST }),
         binding: {
           call,
           method: original === undefined ? 'admit' : 'control',
@@ -184,6 +186,7 @@ function scene(registered: readonly string[] = [textOf(A), textOf(B)]) {
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
     limits: {
       tenantResults: core.options.limits.unacknowledgedResults,
+      requestChunkBytes: 65536,
     },
   })
   const dependencies = { storage: sqlite.storage, domains, authority: core.options.authority }

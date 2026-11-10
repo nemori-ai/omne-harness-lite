@@ -58,6 +58,7 @@ import {
   createSqlModelCommands,
   modelMigration,
   pendingHandler,
+  requestHandler,
   type SqlModelCommandsOptions,
 } from '@omne-harness/model-storage-sql'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
@@ -196,11 +197,15 @@ function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): Que
   return { columns: [], rows: [], changes: BigInt(result.changes), lastInsertRowid: null }
 }
 
-const HANDLERS = new Map([callHandler, pendingHandler].map(item => [item.handler, item]))
+const HANDLERS = new Map(
+  [callHandler, pendingHandler, requestHandler].map(item => [item.handler, item]),
+)
 const keyOf = (identity: SqlIdentity) =>
   JSON.stringify([identity.scope, identity.operation, identity.operationKey])
 const digestOf = (value: unknown) =>
   createHash('sha256').update(JSON.stringify(value), 'utf8').digest('hex')
+/** The bound of one command, as the release storage has it: a larger command is refused. */
+export const MAX_COMMAND_BYTES = 1 << 20
 const NOT_COMMITTED_PROOFS = {
   writerGenerationExcluded: true,
   oldTransactionTerminated: true,
@@ -230,6 +235,7 @@ export type FileStorage = Readonly<{
  * `SqlStorage` over one `node:sqlite` file for one transaction domain. Every commit runs the real
  * participant in one transaction; the receipt is stored in the same file, so a repeated identity
  * is recognised after `reopen`. `read` runs the member's read handlers on the same connection.
+ * A command above `MAX_COMMAND_BYTES` is refused before it runs, as the release storage refuses it.
  */
 export async function openFileStorage(file: string): Promise<FileStorage> {
   const participant = await loadParticipant()
@@ -302,6 +308,17 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
             ? existing
             : { kind: 'identity_conflict', identity: request.identity, existing },
         )
+      if (
+        request.commands.some(
+          command => Buffer.byteLength(JSON.stringify(command), 'utf8') > MAX_COMMAND_BYTES,
+        )
+      )
+        return Promise.resolve({
+          kind: 'rejected_before_accept',
+          identity: request.identity,
+          reason: 'command_limit',
+          diagnostic: null,
+        } as CommitResult)
       return Promise.resolve(executeCommit(request))
     },
     query(identity) {
@@ -436,6 +453,7 @@ export function durableCommands(storage: Storage, profile?: ModelProfile) {
     ...coreOptions(),
     storage,
     domains,
+    requestChunkBytes: 65536,
     combination: { combinationVersion: 'v1', manifestDigest: 'a'.repeat(64) },
     ...(profile === undefined
       ? {}
@@ -528,6 +546,7 @@ function commandsServiceOver(commands: ModelCommands<Principal>) {
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
     declare readonly prepareDispatch: ModelCommands<unknown>['prepareDispatch']
     declare readonly recordMaterialization: ModelCommands<unknown>['recordMaterialization']

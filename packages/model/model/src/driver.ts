@@ -432,6 +432,10 @@ export function createModelDriver<P>(
     const prepared = await commands.prepareDispatch(entry.input)
     if ('failure' in prepared)
       return committed ? prepared : refusePrepare(active, execution, prepared)
+    // The whole request is read once, to send it. A read that fails leaves the stage: the next
+    // drive recognises the prepared dispatch and reads again.
+    const request = await commands.loadRequest(input)
+    if ('failure' in request) return request
     active.stage = {
       kind: 'send',
       demand: {
@@ -440,7 +444,7 @@ export function createModelDriver<P>(
         call: input.call,
         execution,
         dispatch: entry.input.dispatch,
-        request: recovery.request,
+        request: request.ok,
         supplier: entry.input.supplier,
         consumer: recovery.state.consumer,
         initiator: recovery.initiator,
