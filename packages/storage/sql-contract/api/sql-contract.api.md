@@ -120,6 +120,8 @@
 - `ReadPort` · `worker.d.ts`
 - `SqlCell` · `worker.d.ts`
 - `SqlValue` · `worker.d.ts`
+- `packText` · `text-pack.d.ts`
+- `unpackText` · `text-pack.d.ts`
 
 ## 声明文件 `canonical.d.ts`
 
@@ -381,6 +383,13 @@ export type TenantDomainLookupVerdicts = Readonly<{
     notApplicable: readonly string[];
 }>;
 export declare function runTenantDomainLookupConformance(fixture: () => TenantDomainLookupFixture | Promise<TenantDomainLookupFixture>): Promise<TenantDomainLookupVerdicts>;
+```
+
+## 声明文件 `text-pack.d.ts`
+
+```ts
+export declare function packText(text: string): Uint8Array;
+export declare function unpackText(bytes: Uint8Array): string;
 ```
 
 ## 声明文件 `types.d.ts`
@@ -790,6 +799,7 @@ export {};
 
 ```ts
 import type { FactKey, JsonValue, ParticipatedReply } from './types.ts';
+export { packText, unpackText } from './text-pack.ts';
 export type SqlValue = null | boolean | number | bigint | string | Uint8Array;
 export type SqlCell = null | number | bigint | string | Uint8Array;
 export type QueryRows = Readonly<{

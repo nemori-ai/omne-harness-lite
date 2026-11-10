@@ -15,7 +15,7 @@ service-contract 变体草稿。
 四个入口：
 
 - `@omne-harness/sql-contract`：公开形状与四个纯函数，不导入 Cordis。
-- `@omne-harness/sql-contract/worker`：提供者 Worker 所载模块的接口，只有类型，不导入 Cordis。
+- `@omne-harness/sql-contract/worker`：提供者 Worker 所载模块的接口，以及大文本列的存储格式 `packText`/`unpackText`（SPEC §10.1）。不导入 Cordis。
 - `@omne-harness/sql-contract/cordis`：`StorageService`（键 `storage`）、`StorageHostService`（键 `storageHost`）、`TenantDomainsService`（键 `tenantDomains`）、`TenantDomainLookupService`（键 `tenantDomainLookup`）。消费者注入 `storageKey`，不导入提供者。
 - `@omne-harness/sql-contract/testing`：`createMemorySqlStorage` 与 `runSqlStorageConformance`，以及 `createMemoryTenantDomainLookup` 与 `runTenantDomainLookupConformance`。
 

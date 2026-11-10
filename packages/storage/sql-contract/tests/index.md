@@ -18,5 +18,6 @@
 - [memory-registry.spec.ts](memory-registry.spec.ts)：替身的登记、query、read、分区、关闭
 - [memory-construct.spec.ts](memory-construct.spec.ts)：替身的构造期检查
 - [conformance.spec.ts](conformance.spec.ts)：符合性套件
+- [text-pack.spec.ts](text-pack.spec.ts)：大文本列的格式标记、阈值、往返与未知标记
 - [helpers.ts](helpers.ts)：测试辅助
 - [fixtures/](fixtures/index.md)：测试固定输入

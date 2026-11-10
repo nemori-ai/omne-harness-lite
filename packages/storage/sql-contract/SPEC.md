@@ -51,7 +51,7 @@ SQL r2 在 S1 之上改变或闭合的条款，按 SQL r2 第 19.1 节的提案�
 | 成员 | 入口 | 内容 |
 | --- | --- | --- |
 | `packages/storage/sql-contract` | `.` | 词汇类型、`SqlStorage`、材料与清单类型、四个纯函数（含提交拒绝原因的定性 `commitRejectionNature`）、关闭控制口与宿主接口、目录形状。不导入 Cordis（IC-4）。 |
-| 同上 | `./worker` | Worker 内的模块与端口接口、`SqlValue`、`QueryRows`。不导入 Cordis。 |
+| 同上 | `./worker` | Worker 内的模块与端口接口、`SqlValue`、`QueryRows`，大文本列的 `packText` 与 `unpackText`（§10.1）。不导入 Cordis。 |
 | 同上 | `./cordis` | `StorageService`、`StorageHostService`、`TenantDomainsService`（依赖 Context r3）、`TenantDomainLookupService` 与 `Context` 增补。 |
 | 同上 | `./testing` | 内存替身与 `runSqlStorageConformance`（§16）；目录查找的替身与 `runTenantDomainLookupConformance`（§2.4）。 |
 | `packages/storage/sqlite-provider` | `.`、`./cordis` | 见 [sqlite-provider 规格](../sqlite-provider/SPEC.md)。 |
@@ -533,6 +533,16 @@ handler 同步执行 `read(input, port)`。读连接为 `query_only`，不开共
 - 行是位置数组，长度等于列数。没有 INSERT 行身份时，`lastInsertRowid` 为 `null`。
 - `facts` 中的领域位置仍是十进制文本，由领域 codec 转为 `bigint`。`facts` 不能含 `bigint`。
 - `QueryRows` 只在 Worker 内使用，不直接作为 HTTP JSON。
+
+#### §10.1 大文本列的存储格式
+
+`./worker` 入口导出 `packText(text): Uint8Array` 与 `unpackText(bytes): string`。参加者与提供者在各自的编码处和解码处调用它们。大文本列的类型是 `BLOB`。拥有该列的参加者决定哪一列是大文本列。标识、键与摘要列不用这个格式。
+
+- 首字节是格式标记。`0` 表示其后是原文的 UTF-8 字节。`1` 表示其后是原文 UTF-8 字节的 raw DEFLATE 压缩，用 Node `zlib.deflateRawSync` 的默认级别，不带字典。
+- 原文短于 128 个 UTF-8 字节时用标记 `0`，否则用标记 `1`。
+- `unpackText` 对标记 `0` 与 `1` 还原原文。读回的文本与写入的文本逐字节相等。没有首字节或首字节是其他值时，它抛出错误，不把字节当原文。
+- 读上限、写上限与按文本计的量照旧按解码后的文本计，不按落盘字节计。例如 `maxOutputBytes`、`maxCommandBytes` 与行的 `bytes` 列。
+- SQL 不读这些列的内容。约束、索引与条件只用它们是否为 `NULL`。
 
 ### §11 资格与外域前提
 
