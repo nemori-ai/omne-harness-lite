@@ -23,7 +23,7 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import {
   decodeToolInvocationRef,
@@ -116,6 +116,7 @@ function okScope(ref: string) {
 
 const bases: string[] = []
 afterEach(() => {
+  vi.useRealTimers()
   for (const base of bases.splice(0)) rmSync(base, { recursive: true, force: true })
 })
 
@@ -626,13 +627,14 @@ describe('Tool segment B: the release rows in one process composition', () => {
     async () => {
       const { storageRoot } = workspace()
       const { rows, tools } = rowsOf(storageRoot)
-      // A 5000 byte output offloads at this threshold and its body expires 100 ms after publication.
-      tools.records.configuration.offloading.maxInlineUtf8Bytes = 4096
-      tools.records.configuration.offloading.previewUtf8Bytes = 256
-      tools.records.configuration.offloading.maxRetentionMs = 100
-      tools.records.configuration.offloading.permitMs = 10
-      tools.records.configuration.offloading.clockSkewMs = 1
-      tools.records.configuration.offloading.orphanGraceMs = 50
+      // A 5000 byte output offloads at this threshold. The body writer keeps the default permit
+      // window, so a loaded machine cannot outrun it; the body expires `retentionMs` after
+      // publication, and the test moves the application clock past that instant instead of waiting.
+      const offloading = tools.records.configuration.offloading
+      offloading.maxInlineUtf8Bytes = 4096
+      offloading.previewUtf8Bytes = 256
+      const retentionMs = offloading.orphanGraceMs
+      offloading.maxRetentionMs = retentionMs
       const sweep = {
         id: 'tool-body-sweep',
         plugin: 'toolBodySweepRow',
@@ -679,6 +681,13 @@ describe('Tool segment B: the release rows in one process composition', () => {
           const call = readToolInvocationRef(invoked.reference).call
           const sql = toolRuntimeHolder(ctx).sql
           if (sql === null) throw new Error('SQL not installed')
+          // The body is published: move the application clock past its expiry and the skew. The
+          // clock keeps running from there; the sweep runs on it and nothing else is faked.
+          vi.useFakeTimers({
+            toFake: ['Date'],
+            shouldAdvanceTime: true,
+            now: Date.now() + retentionMs + offloading.clockSkewMs + 1000,
+          })
           // The sweep runs on the application clock; the body entry ends `reclaimed`, not deleted.
           const entry = await until(
             'the sweep to reclaim the body',
