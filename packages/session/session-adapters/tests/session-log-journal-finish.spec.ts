@@ -338,11 +338,26 @@ it('reclaims terminal working records while retaining the original observation a
       return new WeakRef(observation)
     }
     const weak = await observeWeakly()
+    // Every object of the snapshot of the ended execution, not only the observation: the folded
+    // facts and the decoded blocks that the provider read for it leave with the working copy.
+    async function snapshotWeakly() {
+      const parts: WeakRef<object>[] = []
+      const visit = (value: unknown) => {
+        if (typeof value !== 'object' || value === null) return
+        parts.push(new WeakRef(value))
+        for (const item of Object.values(value)) visit(item)
+      }
+      visit(await load(s))
+      return parts
+    }
+    const parts = await snapshotWeakly()
+    expect(parts.length).toBeGreaterThan(10)
     for (let round = 0; round < 4; round++) {
       await nextTurn()
       gc()
     }
     expect(weak.deref()).toBeUndefined()
+    expect(parts.filter(part => part.deref() !== undefined)).toHaveLength(0)
     expect(ok(await s.view.journal.tryFinish(input))).toEqual(ended)
     const recovered = await load(s)
     expect(recovered.state.kind).toBe('ended')

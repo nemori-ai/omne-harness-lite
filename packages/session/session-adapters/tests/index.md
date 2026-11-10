@@ -21,6 +21,7 @@
 - [session-log-journal-complexity.spec.ts](session-log-journal-complexity.spec.ts)：读进度标记之后一页的读次数不随 N 增长，从头读的负控随 N 增长
 - [journal-core-bridge.spec.ts](journal-core-bridge.spec.ts)：跨提供者副本的大 checkpoint 变化：超过一条事实上限的成员整份入块后，冷副本读到的 checkpoint 与写者相同；冷副本再动一个小成员，落后一次发布的写者读到新成员且大成员完好；连续两次都保留（原为 K-23 过渡桥用例，桥删后对事实族仍成立）
 - [journal-core-rows.spec.ts](journal-core-rows.spec.ts)：负控（K-23 终态）：一行前过渡桥的 `core.*` 事实让冷副本的 `load` 与进程外的 `readExecutionRecords` 都答 unavailable（「does not decode」），不读过它，不就地修复；同一会话没有这行时能加载
+- [records-fold-bound.spec.ts](records-fold-bound.spec.ts)：`readExecutionRecords` 保留的折叠按块文本设上界：最久未读的先淘汰，正在读取的折叠不淘汰，未超上界时不淘汰。
 - [journal-crash-scan.spec.ts](journal-crash-scan.spec.ts)：崩溃点扫描（R2-D294 不变量 5）：带两次 Tool 效果意图与一次 M0 的脚本，每个发布点各丢一次回复、换冷提供者重试同一操作并跑完剩余脚本，事实行与无故障运行逐行相同（没有二次发布效果、没有丢决定），`query` 认回；R2-D307 没有新事实的 commit 只落信封行、字节为小常数、冷提供者认回、不推进修订
 - [journal-position.spec.ts](journal-position.spec.ts)：位置的唯一来源（R2-D294 不变量 1）：六个种子各 40 步的混合写入（commit、新材料与重复材料的 `preserve`、冷提供者接管、丢回复后冷提供者重试同一操作），每步之后发布数等于改了记录的写入数、每批带它种类的事实、冷提供者的 `load` 与写者相同；200 步后批的字节不超过前 50 步的最大值加 64；负控：多出一次发布与丢掉事实的发布都被判据拒绝
 - [journal-records-parity.spec.ts](journal-records-parity.spec.ts)：读者记录从折叠视图与块的投影（`src/testing/journal-records.ts`）与写者记录逐字段比对：一个打开、移游标、等 Model 调用、记录其结果、保存材料、确认、交接的场景之后，`PROJECTED` 所列字段必须相同，其余字段打印为差距报告（K-23 过渡桥仍覆盖的部分）

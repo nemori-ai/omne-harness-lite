@@ -823,9 +823,39 @@ type RecordsFold = {
   executions: Set<string>
 }
 
-/** The folds kept per storage, by tenant, session and execution; the oldest leave at the bound. */
+/**
+ * The folds kept per storage, by tenant and session. A reader does not learn that an execution
+ * ended, so a fold leaves by age: the least recently read leave when the folds are more than
+ * `RECORDS_FOLDS`, or when the text of their blocks is more than `RECORDS_FOLD_TEXT`. The count
+ * alone bounds no memory, because one fold holds every block of its executions.
+ */
 const recordsFolds = new WeakMap<SqlStorage, Map<string, RecordsFold>>()
 const RECORDS_FOLDS = 256
+const RECORDS_FOLD_TEXT = 16 * 1024 * 1024
+
+/**
+ * Drops the least recently read of `folds` (a map in order of last use) until the text of the
+ * blocks they hold is at most `limit`. The fold `used` stays whatever its size: it is being read.
+ */
+export function dropFoldsOver<Fold extends { blobs: ReadonlyMap<string, string> }>(
+  folds: Map<string, Fold>,
+  used: Fold,
+  limit: number,
+): void {
+  const textOf = (fold: Fold) => {
+    let text = 0
+    for (const payload of fold.blobs.values()) text += payload.length
+    return text
+  }
+  let total = 0
+  for (const fold of folds.values()) total += textOf(fold)
+  for (const [key, fold] of folds) {
+    if (total <= limit) break
+    if (fold === used) continue
+    total -= textOf(fold)
+    folds.delete(key)
+  }
+}
 
 function recordsFoldOf(storage: SqlStorage, key: string): RecordsFold {
   let folds = recordsFolds.get(storage)
@@ -896,6 +926,9 @@ export async function readExecutionRecords(
     return { kind: 'read', execution }
   } catch (error) {
     return { kind: 'unavailable', diagnostic: `the Agent records do not decode: ${String(error)}` }
+  } finally {
+    const folds = recordsFolds.get(options.storage)
+    if (folds !== undefined) dropFoldsOver(folds, kept, RECORDS_FOLD_TEXT)
   }
 }
 
@@ -953,12 +986,21 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   /** Runs `task` after every earlier task of the same book: one writer per session in-process. */
   function serial<T>(book: Book<P>, task: () => Promise<T>): Promise<T> {
     const run = book.queue.then(task, task).finally(() => {
+      // A book with no open execution and no unknown write holds nothing the durable records do
+      // not: it returns to the state of a cold start, and the next call reads what it needs. The
+      // book itself stays, so the calls already queued keep the one serial order of the session.
       if (
         book.held.size === 0 &&
         book.view.executions.size > 0 &&
         [...book.view.executions.values()].every(execution => execution.finish.ended !== null)
-      )
+      ) {
         book.copy = null
+        book.view = emptySessionView()
+        book.published = null
+        book.blobs.clear()
+        book.parsed.clear()
+        book.loaded.clear()
+      }
     })
     book.queue = run.then(
       () => undefined,

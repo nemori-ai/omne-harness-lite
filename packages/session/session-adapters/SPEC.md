@@ -915,7 +915,11 @@ AgentJournal、AgentJournalEntries 与 AgentMaterials 操作共用 Session 会�
 
 Agent 规则：判定次序、认回、修订号与条件终结协议是本成员 `src/testing/journal.ts` 的 Journal 核心，与 `./testing` 替身相同。每个会话在进程内有这个核心的一份副本。副本是可丢的派生物（AD-00 第 7 条）。每次调用先读 `session.history-root`，发布计数比视图的 `head` 大时，经 `execution-record.facts` 读 `pub > head` 的批折叠进视图，再从视图重建副本（[事实族存储](#分区存储)）。
 
-每个会话的串行队列只保留前次操作的完成信号，不保留其返回值。一次串行操作结束后，若已加载的 execution 非空、全部已有 `finish.ended`，且没有 held 写入，提供者丢弃核心工作副本。折叠视图、块、发布位置与排队身份保留。后续读取或认回从相同事实重建，不删除历史。此规则不构成所有缓存的内存上界。
+每个会话的串行队列只保留前次操作的完成信号，不保留其返回值。一次串行操作结束后，若已加载的 execution 非空、全部已有 `finish.ended`，且没有 held 写入，提供者把该会话的内存账本恢复到冷启动状态：丢弃核心工作副本、折叠视图、块与已加载集合，发布位置置空。排队身份保留。后续读取或认回按冷启动规则从耐久事实重建，不删除历史。冷启动只读未终结的 execution，代价不随会话历史增长。
+
+因此进程内每个会话占用的内存只与它未终结的 execution 和未结清的写入有关。已终结的会话只留排队身份，它的大小与会话内容无关。
+
+`readExecutionRecords` 的读者不知道 execution 是否已终结，它保留的折叠按最近使用淘汰，同时受两个上界约束：折叠个数不超过 256；所持块文本合计不超过 16 MiB。正在读取的折叠不被淘汰。只限个数不构成内存上界，因为一个折叠持有其 execution 的全部块。上界按存储句柄分别计算。
 
 终结执行的观察项从原 checkpoint 的 `after_terminal` passages 按原顺序重建，终结依据取 `finish.ended.disposition`。尚无 `observation.recorded` 的项保持 observed=null；已登记项采用其原 observed 依据和认回答案。冷重建不得丢掉尚未执行的终态观察项。局部性质见[终态工作副本](verification/proofs/finished-copy.md)。
 
