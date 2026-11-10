@@ -59,3 +59,25 @@ it('rejects unknown flags, missing values, repeats and non-positive numbers as u
   expect(() => parseOptions(['--base', 'a', '--base', 'b'], ALL)).toThrow('只能给一次')
   expect(() => parseOptions(['--workers', '0'], ALL)).toThrow('正整数')
 })
+
+it('names the unknown flag before it checks numbers, and checks --workers before --max-lines', () => {
+  expect(() => parseOptions(['--workers', '0', '--bogus'], ALL)).toThrow('认不出的参数：--bogus')
+  expect(() => parseOptions(['--max-lines', '0', '--workers', '0'], ALL)).toThrow(
+    '--workers 要正整数，给的是 0',
+  )
+  expect(() => parseOptions(['--max-lines', '1.5'], ALL)).toThrow(
+    '--max-lines 要正整数，给的是 1.5',
+  )
+})
+
+it('takes a value that is only commas for no value, and a value flag that is the last argument for a missing value', () => {
+  expect(() => parseOptions(['--files', ',', ','], ALL)).toThrow('--files 要给值')
+  expect(() => parseOptions(['--out', '--'], ALL)).toThrow('--out 要给值')
+  expect(() => parseOptions(['--max-lines'], ALL)).toThrow('--max-lines 要给值')
+})
+
+it('adds up the values of a repeated multi-value flag and leaves unset single values out', () => {
+  const options = parseOptions(['--files', 'a,b', '--files', 'c'], ALL)
+  expect(options.files).toEqual(['a', 'b', 'c'])
+  expect(Object.keys(options).sort()).toEqual(['files', 'full', 'planOnly', 'scopes'])
+})

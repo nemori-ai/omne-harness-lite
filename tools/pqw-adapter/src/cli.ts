@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 命令面：根 package.json 的 closeout:metrics、closeout:mutation 与 risk。逻辑在 commands.ts，这里只装真实的 Git、执行器与配置。
 import { availableParallelism, tmpdir } from 'node:os'
-import { closeoutMetrics, closeoutMutation, risk, runCommand, type Deps } from './commands.ts'
+import { COMMANDS, isCommandName, runCommand, usageExitCode, type Deps } from './commands.ts'
 import { readReadingConfig } from './config.ts'
 import { spawnExecutor } from './process.ts'
 import { gitRepo } from './repo.ts'
@@ -12,12 +12,10 @@ const HELP = `用法：
   cli.ts risk     --base <起点>
 退出 0 正常；1 读数失败、测量无效或风险规则没判全；2 用法错误或变异范围超过上限。`
 
-const COMMANDS = { metrics: closeoutMetrics, mutation: closeoutMutation, risk }
-
 const [name, ...argv] = process.argv.slice(2)
-if (name === undefined || !(name in COMMANDS)) {
+if (!isCommandName(name)) {
   console.error(HELP)
-  process.exit(name === '--help' ? 0 : 2)
+  process.exit(usageExitCode(name))
 }
 const repo = gitRepo(process.cwd())
 const deps: Deps = {
@@ -28,4 +26,4 @@ const deps: Deps = {
   cpus: availableParallelism(),
   config: () => readReadingConfig(repo.root),
 }
-process.exitCode = await runCommand(COMMANDS[name as keyof typeof COMMANDS], argv, deps)
+process.exitCode = await runCommand(COMMANDS[name], argv, deps)

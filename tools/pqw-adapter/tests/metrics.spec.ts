@@ -175,3 +175,59 @@ it('stays within twelve lines when every optional line is present', () => {
   expect(lines[6]).toBe('另有 3 个变差，见各成员 JSON')
   expect(lines.at(-1)).toMatch(/^限制：/)
 })
+
+const clean = (functions: PqwFunction[]): MemberReading => ({
+  member: 'm/a',
+  json: '/o/a.json',
+  failedTiers: [],
+  untested: false,
+  result: { functions, uncovered: [], testsWithoutAssertions: [], summary: {} },
+})
+
+it('writes only the fixed lines when nothing is wrong, outside the members is empty and the tree is clean', () => {
+  const lines = metricsSummary(
+    [clean([fn('a1', false)])],
+    { members: [], outside: [] },
+    { base: 'basebasebase', head: 'headheadhead', dirty: false, full: false, config: CONFIG },
+  )
+  expect(lines).toEqual([
+    '结构读数 headheadh · 基线 basebaseb · 快层 · 圈复杂度与 CRAP 线 warn 10／alert 12',
+    '范围：改动成员 0 个、改动函数 1 个',
+    '变差 0 个（逐条交代）；过线没变差 0 个；拿不准的基线 1 个',
+    '无断言用例 0 个；未覆盖的改动文件 0 个；覆盖率警告 0 条',
+    '限制：依赖方向、环与新增边不在本读数，看 pnpm run lint:deps',
+  ])
+})
+
+it('lists up to three worse functions with no count of the rest, and writes 无覆盖 for a missing CRAP', () => {
+  const lines = metricsSummary(
+    [clean([{ ...fn('a1', true), crap: null }, fn('a2', true), fn('a3', true)])],
+    { members: [], outside: [] },
+    { base: 'b', head: 'h', dirty: false, full: false, config: CONFIG },
+  )
+  expect(lines.slice(2, 6)).toEqual([
+    '变差 3 个（逐条交代）；过线没变差 0 个；拿不准的基线 0 个',
+    '! a1 m/src/a1.ts:3 圈复杂度 14 CRAP 无覆盖',
+    '! a2 m/src/a2.ts:3 圈复杂度 14 CRAP 40.0',
+    '! a3 m/src/a3.ts:3 圈复杂度 14 CRAP 40.0',
+  ])
+  expect(lines).toHaveLength(8)
+})
+
+it('names each kind of problem on its own line, in the order tests, no test script, failed reading', () => {
+  const base = clean([])
+  const lines = metricsSummary(
+    [
+      { ...base, member: 'm/t', failedTiers: ['fast 退出 1', 'slow 退出 2'] },
+      { ...base, member: 'm/u', untested: true },
+      { ...base, member: 'm/e', error: 'metrics.mjs 退出 2' },
+    ],
+    { members: [], outside: [] },
+    { base: 'b', head: 'h', dirty: false, full: false, config: CONFIG },
+  )
+  expect(lines.slice(4, -1)).toEqual([
+    '覆盖率那趟测试没通过：m/t（fast 退出 1，slow 退出 2）',
+    '没有 test 脚本、CRAP 记无覆盖：m/u',
+    '读数失败：m/e（metrics.mjs 退出 2）',
+  ])
+})

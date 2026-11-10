@@ -2,7 +2,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ReadingConfig } from './config.ts'
-import { groupByMember, inScope } from './members.ts'
+import { groupByMember, inScope, type ChangedMember } from './members.ts'
 import { buildArgs, measureMember, metricsSummary, type MemberReading } from './metrics.ts'
 import {
   DEFAULT_MAX_LINES,
@@ -14,6 +14,7 @@ import {
   rangeLines,
   upstreamBuildArgs,
   type MemberMutation,
+  type MutationContext,
 } from './mutation.ts'
 import { parseOptions, UsageError, type Options } from './options.ts'
 import type { Executor } from './process.ts'
@@ -112,17 +113,18 @@ export async function closeoutMetrics(argv: readonly string[], deps: Deps): Prom
   return readings.some(reading => reading.error !== undefined) ? 1 : 0
 }
 
-export async function closeoutMutation(argv: readonly string[], deps: Deps): Promise<number> {
-  const options = parseOptions(argv, [
-    '--base',
-    '--scope',
-    '--files',
-    '--plan-only',
-    '--max-lines',
-    '--out',
-  ])
+/** 列范围的结果：参与的成员、各成员的范围计划、合计与上限的判断、读文件行数的函数、跑变异要的上下文。 */
+interface MutationRange {
+  readonly members: readonly ChangedMember[]
+  readonly plans: readonly MemberMutation[]
+  readonly plan: ReturnType<typeof planLines>
+  readonly lineCount: (path: string) => number
+  readonly context: MutationContext
+}
+
+/** 第一步：列出每个成员的变异范围，打印并按上限判断；还没有跑变异。 */
+async function listRange(deps: Deps, options: Options, base: string): Promise<MutationRange> {
   const { repo } = deps
-  const base = repo.mergeBase(requireBase(options))
   const head = repo.head()
   // 点名的文件不论改没改都打，所以它们所在的成员也算改动成员，它们本身也进范围。
   const changed = repo.changedFiles(base).filter(path => inScope(path, options.scopes))
@@ -144,9 +146,12 @@ export async function closeoutMutation(argv: readonly string[], deps: Deps): Pro
   const plan = planLines(plans, lineCount, options.maxLines ?? DEFAULT_MAX_LINES)
   deps.print(`差分变异范围：基线 ${base.slice(0, 9)} 到工作树；只跑快层`)
   for (const line of plan.lines) deps.print(line)
-  if (plans.some(p => p.result === undefined)) return 1
-  if (plan.over) return USAGE
-  if (options.planOnly || members.length === 0) return 0
+  return { members, plans, plan, lineCount, context }
+}
+
+/** 第二步：构建上游，按范围行数分 CPU 跑各成员，打印汇总；返回退出码。 */
+async function runMutation(deps: Deps, range: MutationRange): Promise<number> {
+  const { members, plans, lineCount, context } = range
   if (!(await build(deps, upstreamBuildArgs(members.map(member => member.name))))) return 1
   const planned = members.map((member, index) => ({
     member,
@@ -155,6 +160,23 @@ export async function closeoutMutation(argv: readonly string[], deps: Deps): Pro
   const results = await mutateAll(planned, context, deps.cpus)
   for (const line of mutationLines(results)) deps.print(line)
   return mutationExitCode(results)
+}
+
+export async function closeoutMutation(argv: readonly string[], deps: Deps): Promise<number> {
+  const options = parseOptions(argv, [
+    '--base',
+    '--scope',
+    '--files',
+    '--plan-only',
+    '--max-lines',
+    '--out',
+  ])
+  const base = deps.repo.mergeBase(requireBase(options))
+  const range = await listRange(deps, options, base)
+  if (range.plans.some(p => p.result === undefined)) return 1
+  if (range.plan.over) return USAGE
+  if (options.planOnly || range.members.length === 0) return 0
+  return runMutation(deps, range)
 }
 
 const TOOLCHAIN_LIST = 'gate/toolchain-paths.txt'
@@ -201,4 +223,17 @@ export async function runCommand(
     deps.print(error.message)
     return USAGE
   }
+}
+
+/** 命令面认得的三个命令，按第一个参数的名字选。 */
+export const COMMANDS = { metrics: closeoutMetrics, mutation: closeoutMutation, risk }
+
+/** 第一个参数是不是命令名：没给或认不出时命令面打印用法。 */
+export function isCommandName(name: string | undefined): name is keyof typeof COMMANDS {
+  return name !== undefined && name in COMMANDS
+}
+
+/** 打印用法后的退出码：只问 `--help` 是 0，没给命令或认不出命令是 2。 */
+export function usageExitCode(name: string | undefined): 0 | 2 {
+  return name === '--help' ? 0 : 2
 }
