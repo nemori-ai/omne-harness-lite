@@ -1,0 +1,23 @@
+{
+  "name": "@omne-harness/pqw-adapter",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "收口读数适配层：按 omne 的成员、阈值与测试分层调用 pqw 的结构读数与差分变异，并按改动路径算风险级别；不发布",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "devDependencies": {
+    "@omne-harness/repo-toolchain": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
