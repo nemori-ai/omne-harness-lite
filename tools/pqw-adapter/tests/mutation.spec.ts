@@ -1,8 +1,8 @@
 import { expect, it } from 'vitest'
 import { FAST_VITEST_CONFIG } from '../src/locations.ts'
+import type { Executor } from '../src/process.ts'
 import {
   invalid,
-  MAX_PARALLEL_MEMBERS,
   mutateAll,
   mutateMember,
   mutationArgs,
@@ -11,6 +11,7 @@ import {
   planLines,
   rangeLines,
   upstreamBuildArgs,
+  workersFor,
   type MemberMutation,
 } from '../src/mutation.ts'
 import { changedMember, recorder, scratch, valueOf, writeJson } from './support.ts'
@@ -24,7 +25,7 @@ it('calls mutation.mjs per member with the omne build, Stryker modules and fast-
     files: ['tools/t/src/judge.ts'],
     json: '/o/t.json',
     planOnly: true,
-    otherHeavyTasks: 2,
+    workers: 3,
   })
   expect(args[0]).toBe(
     '/repo/.meta_harness/agents/vendor/pqw-skills/skills/slice-closeout/scripts/mutation.mjs',
@@ -35,7 +36,8 @@ it('calls mutation.mjs per member with the omne build, Stryker modules and fast-
   expect(valueOf(args, '--build-command')).toBe('pnpm run build')
   expect(valueOf(args, '--stryker-modules')).toBe('/repo/tools/pqw-adapter/node_modules')
   expect(valueOf(args, '--vitest-config')).toBe(FAST_VITEST_CONFIG)
-  expect(valueOf(args, '--other-heavy-tasks')).toBe('2')
+  expect(valueOf(args, '--workers')).toBe('3')
+  expect(args).not.toContain('--other-heavy-tasks')
   expect(args.at(-1)).toBe('--plan-only')
   const real = mutationArgs({
     root: '/r',
@@ -45,10 +47,10 @@ it('calls mutation.mjs per member with the omne build, Stryker modules and fast-
     files: [],
     json: 'j',
     planOnly: false,
-    otherHeavyTasks: 0,
   })
   expect(real).not.toContain('--plan-only')
   expect(real).not.toContain('--files')
+  expect(real).not.toContain('--workers')
 })
 
 it('builds only the upstream of each member, since pqw builds the instrumented member in the sandbox', () => {
@@ -99,7 +101,6 @@ it('reads the JSON back after exit 1 and treats other exits as a failed call', a
   })
   const result = await mutateMember(changedMember('tools/t'), context(one.exec), {
     planOnly: false,
-    otherHeavyTasks: 0,
   })
   expect(result.result).toEqual(pqw)
   expect(valueOf(one.calls[0]?.args ?? [], '--files')).toBe('tools/t/src/j.ts')
@@ -107,45 +108,86 @@ it('reads the JSON back after exit 1 and treats other exits as a failed call', a
   const two = recorder(() => ({ code: 2, stderr: '找不到 Stryker' }))
   const failed = await mutateMember(changedMember('tools/v'), context(two.exec), {
     planOnly: true,
-    otherHeavyTasks: 0,
   })
   expect(failed.error).toBe('mutation.mjs 退出 2：找不到 Stryker')
 })
 
-it('runs at most three members at once and tells each how many others share the machine', async () => {
+/** 假执行器：每次调用挂起，直到用例按成员放行；记下开跑顺序、各自的 --workers 与同时在跑的进程数之和。 */
+function gated() {
+  const started: { member: string; workers: number }[] = []
+  const release = new Map<string, () => void>()
   let running = 0
   let peak = 0
-  const { calls, exec } = recorder(async command => {
-    running += 1
-    peak = Math.max(peak, running)
-    await new Promise(resolve => setTimeout(resolve, 5))
-    writeJson(valueOf(command.args, '--json') ?? '', { mutate: [], summary: { valid: true } })
-    running -= 1
-    return {}
-  })
-  const members = ['a', 'b', 'c', 'd', 'e'].map(m => changedMember(`tools/${m}`))
-  const results = await mutateAll(members, {
-    root: '/repo',
-    base: 'b',
-    files: [],
-    outDir: scratch(),
-    exec,
-  })
-  expect(peak).toBe(MAX_PARALLEL_MEMBERS)
-  expect(results.map(r => r.member)).toEqual(members.map(m => m.path))
-  expect(new Set(calls.map(c => valueOf(c.args, '--other-heavy-tasks')))).toEqual(new Set(['2']))
-  const single = recorder(command => {
-    writeJson(valueOf(command.args, '--json') ?? '', { mutate: [], summary: { valid: true } })
-    return {}
-  })
-  await mutateAll([changedMember('tools/a')], {
-    root: '/repo',
-    base: 'b',
-    files: [],
-    outDir: scratch(),
-    exec: single.exec,
-  })
-  expect(valueOf(single.calls[0]?.args ?? [], '--other-heavy-tasks')).toBe('0')
+  const exec: Executor = command =>
+    new Promise(resolve => {
+      const member = valueOf(command.args, '--project') ?? ''
+      const workers = Number(valueOf(command.args, '--workers'))
+      started.push({ member, workers })
+      running += workers
+      peak = Math.max(peak, running)
+      release.set(member, () => {
+        running -= workers
+        writeJson(valueOf(command.args, '--json') ?? '', { mutate: [], summary: { valid: true } })
+        resolve({ code: 0, stdout: '', stderr: '' })
+      })
+    })
+  const settle = () => new Promise(resolve => setTimeout(resolve, 0))
+  const finish = async (member: string) => {
+    release.get(member)?.()
+    await settle()
+  }
+  return { exec, started, finish, settle, peak: () => peak }
+}
+
+const context = (exec: Executor) => ({
+  root: '/repo',
+  base: 'b',
+  files: [],
+  outDir: scratch(),
+  exec,
+})
+const sized = (lines: Record<string, number>) =>
+  Object.entries(lines).map(([path, count]) => ({ member: changedMember(path), lines: count }))
+
+it('starts the largest range first with the largest share of the CPUs, never more processes than CPUs', async () => {
+  const fake = gated()
+  const all = mutateAll(sized({ a: 10, b: 300, c: 50, d: 40 }), context(fake.exec), 8)
+  await fake.settle()
+  expect(fake.started).toEqual([
+    { member: 'b', workers: 6 },
+    { member: 'c', workers: 1 },
+    { member: 'd', workers: 1 },
+  ])
+  await fake.finish('c')
+  expect(fake.started.at(-1)).toEqual({ member: 'a', workers: 1 })
+  for (const member of ['a', 'b', 'd']) await fake.finish(member)
+  expect(fake.peak()).toBe(8)
+  expect((await all).map(result => result.member)).toEqual(['a', 'b', 'c', 'd'])
+})
+
+it('hands the processes of a finished member to the next one at once, and the last one takes all that are free', async () => {
+  const fake = gated()
+  const all = mutateAll(sized({ a: 100, b: 100, c: 100, d: 100, e: 100 }), context(fake.exec), 4)
+  await fake.settle()
+  expect(fake.started.map(s => s.member)).toEqual(['a', 'b', 'c', 'd'])
+  await fake.finish('a')
+  expect(fake.started.at(-1)).toEqual({ member: 'e', workers: 1 })
+  for (const member of ['b', 'c', 'd', 'e']) await fake.finish(member)
+  expect(fake.peak()).toBe(4)
+  expect(await all).toHaveLength(5)
+  const last = gated()
+  const three = mutateAll(sized({ a: 100, b: 100, c: 100 }), context(last.exec), 4)
+  await last.settle()
+  expect(last.started.map(s => s.workers)).toEqual([1, 1, 2])
+  for (const member of ['a', 'b', 'c']) await last.finish(member)
+  await three
+})
+
+it('splits CPUs by range share, at least one and at most the free ones', () => {
+  expect(workersFor(300, 400, 8, 8)).toBe(6)
+  expect(workersFor(10, 400, 8, 8)).toBe(1)
+  expect(workersFor(100, 100, 8, 3)).toBe(3)
+  expect(workersFor(0, 0, 8, 8)).toBe(1)
 })
 
 it('exits 1 only for an invalid measurement, not for survivors or a plan', () => {
