@@ -21,7 +21,7 @@
 一次请求按以下步骤进行：
 
 1. 脚本从 `HTTPS_PROXY` 取得代理。没有该变量时，脚本以 `HTTPS_PROXY is not set` 失败，不发出请求。
-2. 脚本从 `officialOpenAiProfiles` 取得官方档案与供应商，凭据为 `{ kind: 'factory' }`。
+2. 脚本从 `officialOpenAiProfiles` 取得官方档案与供应商，凭据层为 `{ layer: 'official' }`。
 3. 脚本经 `composeFamilies` 的 `acquire` 取得绑定，调用 `rules.plan` 固定参数采用与表示，组成带 `declarations` 的 `FixedModelRequest`，然后释放绑定。Model 的请求准备归父卡 4.2，所以示例手工完成这一步。
 4. 脚本用 `createPiTransport` 建立传输。路由为 `openrouter`，结束标记为 `[DONE]`。凭据槽给占位值，代理把它换成真实凭据。
 5. 脚本用 `@omne-harness/model` 的 `executeModel` 执行一次，打印结果。

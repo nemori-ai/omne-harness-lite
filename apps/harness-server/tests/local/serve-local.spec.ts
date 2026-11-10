@@ -95,9 +95,7 @@ describe('localServeInputs', () => {
     if (result.kind !== 'ready') throw new Error(JSON.stringify(result))
     expect(result.stateRoot).toBe(join(h.home, 'state'))
     expect(result.settings?.port).toBe(8965)
-    expect(result.operator?.ops.find(op => op.id === 'model-credential')?.config).toEqual({
-      path: join(h.home, 'state', 'model-vault.json'),
-    })
+    expect(result.operator?.ops.find(op => op.id === 'model-credential')).toBeUndefined()
     expect(result.operator?.ops.find(op => op.id === 'secret-custody')?.config).toEqual({
       path: join(h.home, 'state', 'model-vault.json'),
     })

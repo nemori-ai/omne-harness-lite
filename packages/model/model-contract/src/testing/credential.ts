@@ -1,103 +1,118 @@
-import { tenantEquals } from '@omne-harness/legal-identity'
+// The scripted credential port: a credential provider in memory over the providers the test names.
+// It fixes and reads layers with the contract's own rule, so a test of a consumer sees the answers
+// every real provider must give.
+import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import { fail, succeed } from '@omne-harness/operation-result'
 import {
   MODEL_SEND,
+  type CredentialFailure,
+  type CredentialItemState,
   type CredentialPort,
-  type CredentialQuery,
-  type CredentialReference,
-  type CredentialResolution,
 } from '../credential.ts'
-import { sameCredentialHolder } from '../credential-values.ts'
-import type { CredentialConformanceControls } from '../conformance/credential-types.ts'
+import { readCredentialLayer, selectCredentialLayer } from '../credential-values.ts'
+import type {
+  CredentialConformanceControls,
+  CredentialTarget,
+} from '../conformance/credential-types.ts'
+import type { ProviderName } from '../root.ts'
 
-export type ScriptedCredentialPortOptions = Readonly<{ factorySecret: string }>
+/** A provider the scripted port knows: its credential items and whether the release holds it. */
+export type ScriptedCredentialProvider = Readonly<{ items: readonly string[]; official: boolean }>
+
+export type ScriptedCredentialPortOptions = Readonly<{
+  providers: ReadonlyMap<ProviderName, ScriptedCredentialProvider>
+}>
 export type ScriptedCredentialPort<P = unknown> = Readonly<{
   port: CredentialPort<P>
   controls: CredentialConformanceControls
 }>
 
+type Binding = CredentialTarget &
+  Readonly<{ secret: string; life: Exclude<CredentialItemState, 'unbound'> }>
+
+function sameTarget(left: CredentialTarget, right: CredentialTarget): boolean {
+  if (left.provider !== right.provider || left.item !== right.item) return false
+  if (left.scope.layer === 'official') return right.scope.layer === 'official'
+  return right.scope.layer === 'tenant' && tenantEquals(left.scope.tenant, right.scope.tenant)
+}
+
 export function createScriptedCredentialPort<P = unknown>(
   options: ScriptedCredentialPortOptions,
 ): ScriptedCredentialPort<P> {
-  type Binding = CredentialReference &
-    Readonly<{
-      secret: string
-      life: 'active' | 'revoked' | 'unreadable'
-    }>
   let bindings: Binding[] = []
   let closed = false
   let unavailable = false
 
-  function gate(query: CredentialQuery): 'denied' | 'unavailable' | undefined {
-    if (closed || query.purpose !== MODEL_SEND || !tenantEquals(query.tenant, query.tenant)) {
-      return 'denied'
-    }
-    return unavailable ? 'unavailable' : undefined
+  function gate(tenant: TenantId): CredentialFailure | undefined {
+    // legal-identity has no separate mint check; equality with itself holds only for a minted tenant.
+    if (closed || !tenantEquals(tenant, tenant)) return { kind: 'denied' }
+    return unavailable ? { kind: 'unavailable' } : undefined
   }
 
-  function presence(query: CredentialQuery, qualified: boolean) {
-    const refusal = gate(query)
-    if (refusal) return { kind: refusal }
-    const bound = bindings.some(binding => sameCredentialHolder(binding, query))
-    if (qualified && !bound && bindings.some(binding => binding.id === query.id)) {
-      return { kind: 'denied' } as const
-    }
-    return {
-      kind: 'known',
-      present: bound,
-      id: query.id,
-      tenant: query.tenant,
-      purpose: MODEL_SEND,
-    } as const
+  function reading(provider: ProviderName, scope: CredentialTarget['scope']) {
+    const states = new Map<string, CredentialItemState>()
+    for (const binding of bindings)
+      if (sameTarget(binding, { provider, item: binding.item, scope }))
+        states.set(binding.item, binding.life)
+    return states
   }
 
-  function resolution(query: CredentialQuery, official: boolean): CredentialResolution {
-    const refusal = gate(query)
-    if (refusal) return { kind: refusal }
-    const binding = bindings.find(item => sameCredentialHolder(item, query))
-    if (binding) {
-      switch (binding.life) {
-        case 'active':
-          return { kind: 'value', scope: 'tenant', value: binding.secret }
-        case 'revoked':
-          return { kind: 'denied' }
-        case 'unreadable':
-          return { kind: 'unreadable' }
-      }
-    }
-    if (bindings.some(item => item.id === query.id)) return { kind: 'denied' }
-    const tenantHasBinding = bindings.some(item => tenantEquals(item.tenant, query.tenant))
-    return official && !tenantHasBinding
-      ? { kind: 'value', scope: 'factory', value: options.factorySecret }
-      : { kind: 'absent' }
-  }
-
-  function change(reference: CredentialReference, update: (binding: Binding) => Binding) {
-    bindings = bindings.map(binding =>
-      sameCredentialHolder(binding, reference) ? update(binding) : binding,
-    )
+  function change(target: CredentialTarget, update: (binding: Binding) => Binding) {
+    bindings = bindings.map(binding => (sameTarget(binding, target) ? update(binding) : binding))
   }
 
   return {
     port: {
-      present: query => presence(query, false),
-      resolve: (query, face) =>
-        face.authorized ? resolution(query, face.official) : { kind: 'denied' },
-      presentFor: query => presence({ ...query, tenant: query.access.tenant }, true),
-      resolveFor: query => resolution({ ...query, tenant: query.access.tenant }, query.official),
+      layerOf({ provider, official, access }) {
+        const refusal = gate(access.tenant)
+        if (refusal) return fail(refusal)
+        const known = options.providers.get(provider)
+        if (known === undefined) return fail({ kind: 'denied' })
+        return selectCredentialLayer({
+          items: known.items,
+          tenant: reading(provider, { layer: 'tenant', tenant: access.tenant }),
+          official: known.official ? reading(provider, { layer: 'official' }) : null,
+          profileOfficial: official,
+        })
+      },
+      resolve({ provider, layer, purpose, access }) {
+        const refusal = gate(access.tenant)
+        if (refusal) return fail(refusal)
+        const known = options.providers.get(provider)
+        if (known === undefined || purpose !== MODEL_SEND) return fail({ kind: 'denied' })
+        if (layer.layer === 'none')
+          return known.items.length === 0 ? succeed(new Map()) : fail({ kind: 'denied' })
+        if (layer.layer === 'official' && !known.official) return fail({ kind: 'denied' })
+        const scope: CredentialTarget['scope'] =
+          layer.layer === 'official' ? layer : { layer: 'tenant', tenant: access.tenant }
+        const read = readCredentialLayer(known.items, reading(provider, scope))
+        if (!('ok' in read)) return read
+        const secrets = new Map<string, string>()
+        for (const binding of bindings)
+          if (sameTarget(binding, { provider, item: binding.item, scope }))
+            secrets.set(binding.item, binding.secret)
+        return succeed(secrets)
+      },
     },
     controls: {
-      bind(reference, secret) {
-        if (!tenantEquals(reference.tenant, reference.tenant))
+      bind(target, secret) {
+        if (
+          target.scope.layer === 'tenant' &&
+          !tenantEquals(target.scope.tenant, target.scope.tenant)
+        )
           throw new TypeError('invalid binding tenant')
         bindings = [
-          ...bindings.filter(binding => !sameCredentialHolder(binding, reference)),
-          { ...reference, secret, life: 'active' },
+          ...bindings.filter(binding => !sameTarget(binding, target)),
+          { ...target, secret, life: 'active' },
         ]
       },
-      rotate: (reference, secret) => change(reference, binding => ({ ...binding, secret })),
-      revoke: reference => change(reference, binding => ({ ...binding, life: 'revoked' })),
-      markUnreadable: reference =>
-        change(reference, binding =>
+      unbind(target) {
+        bindings = bindings.filter(binding => !sameTarget(binding, target))
+      },
+      rotate: (target, secret) => change(target, binding => ({ ...binding, secret })),
+      revoke: target => change(target, binding => ({ ...binding, life: 'revoked' })),
+      markUnreadable: target =>
+        change(target, binding =>
           binding.life === 'active' ? { ...binding, life: 'unreadable' } : binding,
         ),
       setUnavailable(value) {

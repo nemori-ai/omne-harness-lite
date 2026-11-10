@@ -241,14 +241,14 @@ describe('the whitelist page of one call', () => {
     expect(got.snapshot.revision).toBe('1')
   })
 
-  it('does not carry the vendor diagnostic text, the recipient or the model name of a dispatch', async () => {
+  it('does not carry the vendor diagnostic text, the provider or the model name of a dispatch', async () => {
     const f = scene()
     const call = callId('whitelist')
     await f.seeded(call)
     const got = page(await f.diagnostics.list({ ...f.access(A, call), after: null, limit: 10 }))
     const text = JSON.stringify(got)
     expect(text).not.toContain('SECRET-CANARY')
-    expect(text).not.toContain(REQUEST.suppliers[0].recipient)
+    expect(text).not.toContain(REQUEST.suppliers[0].provider)
     expect(text).not.toContain('"diagnostic"')
   })
 

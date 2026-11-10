@@ -12,21 +12,20 @@
 | --------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `IdentityOperations`、`PrincipalIssuer` | identity 的公开类型  | 注册激活、签发登录、识别登录；签发本成员的系统主体与代租户行事主体                                                                                                                                      |
 | `IdentityGovernance`                    | identity 的公开类型  | 18 个治理操作与成功业务访问的报告。可选，与 `IdentityOperations` 共用记录                                                                                                                               |
-| `ModelCredentialCustody`                | `src/model-credentials.ts` | 3 个模型凭据操作。可选；缺席时这 3 个操作答 `stage-not-provided`。端口拥有准入：本成员只交出登录的代租户行事主体与行事租户 |
 | `SettingsGovernance`                    | `src/settings.ts`    | 4 个设置操作。可选；缺席时这 4 个操作答 `stage-not-provided`。端口拥有准入、声明与保管：本成员只交出登录的代租户行事主体、行事租户与请求里的资产、项和秘密。端口只有管理语义，没有取用 |
 | `SessionIngressFaces`                   | `src/faces.ts`       | Session 四个面中本成员实际调用的子集：`management.create`、`work.accept`、`work.queryOperation`、`work.cancelRun`、`work.stopCall`、`history.begin`、`history.next`。真实 `SessionService` 按结构满足它 |
 | `DefinitionResolver`                    | `src/faces.ts`       | 定义名到 `SessionCreation` 采用字段的解析函数。映射数据归 `definition-mappings`，装配注入函数                                                                                                           |
 | `DiagnosticSink`                        | `src/diagnostics.ts` | 结构化诊断。事件只有 code、path 与 operation，没有正文、证明、凭据、主体或依赖的错误文本                                                                                                                |
 | `AgentFinishReader`、`ModelCallInspector`、`ModelAttemptReader`、`ToolCallReader` | `src/session-view/sources.ts` | 会话诊断投影的四个读端口：Agent 的 `readFinish`、Model 的 `inspect` 与 `dispatches` 及 `ModelDiagnostics`、Tool 的 `lookup`、`account` 与 `readDiagnostics`。都可选；缺席是 `unsupported` 缺口 |
 
-本成员不调用 authorization。会话操作的资格由 Session 面在访问裁定里判断（handoff「登录到 Access」第 3 点）。治理操作的资格由 identity 在提交时判断（identity ID-18）。模型凭据操作的资格由 `modelCredentials` 端口判断。设置操作的资格由 `settings` 端口判断。
+本成员不调用 authorization。会话操作的资格由 Session 面在访问裁定里判断（handoff「登录到 Access」第 3 点）。治理操作的资格由 identity 在提交时判断（identity ID-18）。设置操作的资格由 `settings` 端口判断。
 
 ## 模块
 
 | 文件                | 责任                                                                                                                                             |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `http.ts`           | `createServerEntry`：只绑 `127.0.0.1` 的监听、承载页第 1 到第 5 步、按路径读取请求体并计数、分派到两个位置、写出答复、`stop`                     |
-| `governance.ts`     | 治理位置：声明不提供的 14 个操作的常量；`register-and-activate` 与 `issue-login` 交 identity；18 个治理操作的第 4、6 步与到治理端口的映射；3 个模型凭据操作的第 4、6 步、代租户行事主体与到 `modelCredentials` 的映射；4 个设置操作的同样步骤与到 `settings` 的映射 |
+| `governance.ts`     | 治理位置：声明不提供的 14 个操作的常量；`register-and-activate` 与 `issue-login` 交 identity；18 个治理操作的第 4、6 步与到治理端口的映射；4 个设置操作的第 4、6 步、代租户行事主体与到 `settings` 的映射 |
 | `session.ts`        | 会话位置：读取分派、八个操作的判断次序第 2 到第 6 步、Session 结果到公开 `outcome` 的映射；`read-session-diagnostics` 的配置核对、游标开封与封印、公开正文的组装 |
 | `session-view/`     | 会话诊断投影。`project.ts` 是纯投影：条目到 Run 骨架，各来源的答复到一个 Run 的视图与缺口；`sources.ts` 是来源适配：端口类型、失败种类到缺口原因的映射、抛错到 `unavailable`；`cursor.ts` 用本实例随机密钥封印续页游标；`index.ts` 是编排：按页读 Session、收集 Run、向来源扇出、合成页。它不认识 HTTP、Cordis 或 CLI |
 | `identity-steps.ts` | 登录识别，账号关系核对，签发代租户行事主体，成功业务访问的报告。系统主体在首次需要时签发一次并保留                                               |
@@ -90,7 +89,6 @@ Session 失败种类在该操作公开结果集之外时（例如 `login-require
 | `tests/http-layer.spec.ts`           | 监听地址、路径、方法、Host、Content-Type、请求体上限、空正文 500、stop                                                         |
 | `tests/governance.spec.ts`           | 注册激活、签发登录与 `loginId`、四个阶段操作、声明不提供的 14 个操作不识别登录、协议拒绝、identity 抛错                         |
 | `tests/governance-operations.spec.ts` | 18 个治理操作的结果映射与状态码、第 4 与第 6 步先于端口、`denied` 与 `not-visible` 逐字节相同、端口的两类拒绝、诊断无秘密      |
-| `tests/model-credentials.spec.ts`    | 3 个模型凭据操作的第 4、6 步、交给端口的主体与租户、跨租户 `denied` 逐字节相同且不披露对方绑定、端口各结果的映射、端口抛错、没有端口时 `stage-not-provided`、秘密不进响应与诊断 |
 | `tests/settings.spec.ts`             | 4 个设置操作交给端口的主体、租户与资产选择，客户端给的别的租户被拒且不调用端口，端口各结果的映射与状态码，端口抛错时写入 `unknown`、读取 `basis-unavailable`，没有端口时 `stage-not-provided` 且不识别登录，秘密不进响应与诊断 |
 | `tests/business-access.spec.ts`      | 只有会话位置的 `succeeded` 与建立成功的观察报告业务访问；报告失败不改答复；只刷新报告的那份登录                                |
 | `tests/observation-login.spec.ts`    | 撤销立刻结束该登录的观察、到期在下一轮结束、不可判定时 `ended(unavailable)`、其他登录的取消得到 `not-found` 且不调用 Session    |

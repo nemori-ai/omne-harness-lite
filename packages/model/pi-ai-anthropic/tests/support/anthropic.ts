@@ -18,7 +18,7 @@ import {
   judgeReplayDeclaration,
   type TransportDispatch,
 } from '@omne-harness/model-contract/provider'
-import { composeFamilies, recordAdoption } from '@omne-harness/pi-ai-transport'
+import { composeFamilies, recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
 import type { PiFamilyBinding } from '@omne-harness/pi-ai-transport'
 import {
   createAnthropicFamily,
@@ -84,9 +84,9 @@ export function recordNamed(name: string): AnthropicRecord {
 export function supplierOf(record: AnthropicRecord): Supplier {
   return {
     adoption: recordAdoption(ANTHROPIC_OWNER, record),
-    recipient: record.route.recipient,
+    provider: recordProvider(record),
     model: record.route.model,
-    credential: { kind: 'factory' },
+    credential: { layer: 'official' },
   }
 }
 
@@ -177,7 +177,7 @@ export type RequestParts = Readonly<{
 export function declarationOf(record: AnthropicRecord): ReplayDeclaration {
   const judged = judgeReplayDeclaration(
     {
-      recipient: record.route.recipient,
+      provider: recordProvider(record),
       model: record.route.model,
       replay: record.replay.declaration,
     },

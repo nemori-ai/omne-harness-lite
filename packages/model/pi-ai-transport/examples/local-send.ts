@@ -11,11 +11,12 @@ import { createServer } from 'node:https'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { judgeContentBlock } from '@omne-harness/content-block'
-import type {
-  Adoption,
-  FixedModelRequest,
-  Supplier,
-  TransportFailure,
+import {
+  decodeProviderName,
+  type Adoption,
+  type FixedModelRequest,
+  type Supplier,
+  type TransportFailure,
 } from '@omne-harness/model-contract'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
 import {
@@ -26,15 +27,19 @@ import {
   type PiResponseDecoder,
 } from '@omne-harness/pi-ai-transport'
 
+const decodedLocal = decodeProviderName('local')
+if (!('ok' in decodedLocal)) throw new Error('invalid provider name')
+const LOCAL = decodedLocal.ok
+
 function adoption(name: string): Adoption {
   return { owner: 'pi-ai-transport-example', name, revision: '1', digest: '0'.repeat(64) }
 }
 
 const supplier: Supplier = {
   adoption: adoption('supplier'),
-  recipient: 'local',
+  provider: LOCAL,
   model: 'example-model',
-  credential: { kind: 'factory' },
+  credential: { layer: 'official' },
 }
 
 const request: FixedModelRequest = {
@@ -87,7 +92,7 @@ function exampleBinding(bound: Supplier): PiFamilyBinding {
     adapter: adoption('family'),
   }
   const counting: PiFamilyBinding['counting'] = {
-    supplier: { adoption: bound.adoption, recipient: bound.recipient, model: bound.model },
+    supplier: { adoption: bound.adoption, provider: bound.provider, model: bound.model },
     meter: adoption('meter'),
     tokenization: { kind: 'not-used', method: adoption('method') },
     prompt: { kind: 'provider-private', estimation: adoption('estimation') },
@@ -194,8 +199,15 @@ let secret: string | undefined
 const pi = createPiTransport({
   network,
   families,
-  routes: { local: { url: `https://127.0.0.1:${port}/v1/chat`, endMarker: '[DONE]' } },
-  credential: { read: () => secret },
+  routes: {
+    local: {
+      url: `https://127.0.0.1:${port}/v1/chat`,
+      endMarker: '[DONE]',
+      accounting: { place: 'local', costUnit: 'local-credit' },
+      auth: { kind: 'bearer', item: 'apiKey' },
+    },
+  },
+  credential: { read: () => (secret === undefined ? undefined : new Map([['apiKey', secret]])) },
   limits: {
     connectTimeoutMs: 2_000,
     maxErrorBodyBytes: 4_096,

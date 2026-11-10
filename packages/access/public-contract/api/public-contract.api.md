@@ -22,7 +22,6 @@
 - `GovernanceStageNotProvided` · `messages.d.ts`
 - `GovernanceStageOperation` · `messages.d.ts`
 - `LoginStateId` · 包 `@omne-harness/legal-identity`
-- `ModelCredentialState` · `messages.d.ts`
 - `OrganizationId` · 包 `@omne-harness/legal-identity`
 - `ProofInput` · `messages.d.ts`
 - `SessionAdoptionRef` · `session-messages.d.ts`
@@ -63,6 +62,8 @@
 - `SessionToolDiagnosticEntry` · `session-messages.d.ts`
 - `SettingAssetSelector` · `messages.d.ts`
 - `SettingItemView` · `messages.d.ts`
+- `SettingLayerState` · `messages.d.ts`
+- `SettingLayers` · `messages.d.ts`
 - `SettingState` · `messages.d.ts`
 - `TenantId` · 包 `@omne-harness/legal-identity`
 - `encodeAccountIdText` · `identity-text.d.ts`
@@ -175,7 +176,7 @@ export declare function encodeLoginStateIdText(value: LoginStateId): string;
 ```ts
 export { readGovernanceRequest, readGovernanceResponse, encodeGovernanceRequest, encodeGovernanceResponse, } from './codec.ts';
 export { readSessionRequest, readSessionResponse, encodeSessionRequest, encodeSessionResponse, } from './session-codec.ts';
-export type { GovernanceProvidedOperation, GovernanceStageOperation, GovernanceOperation, GovernanceRequest, GovernanceResponse, GovernanceCodecLimits, ProofInput, GovernanceProtocolRejected, GovernanceStageNotProvided, GovernanceProtocolResult, GovernanceDiagnostic, GovernanceRequestRead, GovernanceResponseRead, GovernanceEncodeResult, GovernanceResponseEncodeInput, ModelCredentialState, SettingAssetSelector, SettingItemView, SettingState, } from './messages.ts';
+export type { GovernanceProvidedOperation, GovernanceStageOperation, GovernanceOperation, GovernanceRequest, GovernanceResponse, GovernanceCodecLimits, ProofInput, GovernanceProtocolRejected, GovernanceStageNotProvided, GovernanceProtocolResult, GovernanceDiagnostic, GovernanceRequestRead, GovernanceResponseRead, GovernanceEncodeResult, GovernanceResponseEncodeInput, SettingAssetSelector, SettingItemView, SettingLayers, SettingLayerState, SettingState, } from './messages.ts';
 export type { SessionOperation, SessionRequestBodies, SessionProducerRef, SessionTerminalSource, SessionRequest, SessionOutcomes, SessionSuccessBodies, SessionResponse, SessionProtocolRejected, SessionHistoryEntry, SessionHistoryPage, SessionDiagnosticsPage, SessionDiagnosticGap, SessionDiagnosticGapSource, SessionDiagnosticGapReason, SessionDiagnosticUnknown, SessionDiagnosticInstant, SessionDiagnosticMilliseconds, SessionAdoptionRef, SessionRunDiagnostic, SessionRunAttempts, SessionRunTerminal, SessionRunCause, SessionRunControl, SessionModelCallDiagnostic, SessionModelAttemptDiagnostic, SessionToolCallDiagnostic, SessionToolDiagnosticEntry, SessionFactCount, SessionCallAccountView, SessionCodecLimits, SessionDiagnostic, SessionRequestRead, SessionResponseRead, SessionEncodeResult, SessionResponseEncodeInput, } from './session-messages.ts';
 export { readTenantText, encodeTenantText, readOrganizationIdText, encodeOrganizationIdText, readAccountIdText, encodeAccountIdText, readLoginStateIdText, encodeLoginStateIdText, } from './identity-text.ts';
 export type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts';
@@ -314,11 +315,6 @@ export type RequestBodies = {
     'withdraw-authorization-expression': {
         readonly expressionId: string;
     };
-    'bind-model-credential': {
-        readonly secret: string;
-    };
-    'unbind-model-credential': EmptyBody;
-    'describe-model-credential': EmptyBody;
     'list-settings': {
         readonly asset?: SettingAssetSelector;
     };
@@ -339,8 +335,8 @@ export type RequestBodies = {
 export type GovernanceProvidedOperation = keyof RequestBodies;
 export type GovernanceStageOperation = 'disable-subject' | 'restore-subject' | 'end-subject' | 'reopen-after-media-loss';
 export type GovernanceOperation = GovernanceProvidedOperation | GovernanceStageOperation;
-export type ProofOperations = 'revoke-login' | 'replace-credential' | 'query-own-valid-logins' | 'query-current-tenant' | 'query-own-memberships' | 'query-received-invitations' | 'query-create-organization' | 'issue-member-invitation' | 'open-affiliation-request' | 'query-organization-members' | 'accept-member-invitation' | 'reject-member-invitation' | 'withdraw-member-invitation' | 'query-invitation' | 'create-organization' | 'leave-organization' | 'remove-member' | 'change-member-role' | 'switch-current-tenant' | 'query-organization' | 'query-issued-invitations' | 'accept-affiliation-request' | 'reject-affiliation-request' | 'withdraw-affiliation-request' | 'release-affiliation' | 'query-received-affiliation-requests' | 'query-issued-affiliation-requests' | 'query-affiliation-request' | 'judge-admission' | 'submit-authorization-expression' | 'withdraw-authorization-expression' | 'bind-model-credential' | 'unbind-model-credential' | 'describe-model-credential' | 'list-settings' | 'set-setting' | 'describe-setting' | 'clear-setting';
-export type TenantOperations = 'issue-member-invitation' | 'open-affiliation-request' | 'query-organization-members' | 'accept-member-invitation' | 'reject-member-invitation' | 'withdraw-member-invitation' | 'query-invitation' | 'create-organization' | 'leave-organization' | 'remove-member' | 'change-member-role' | 'switch-current-tenant' | 'query-organization' | 'query-issued-invitations' | 'accept-affiliation-request' | 'reject-affiliation-request' | 'withdraw-affiliation-request' | 'release-affiliation' | 'query-received-affiliation-requests' | 'query-issued-affiliation-requests' | 'query-affiliation-request' | 'judge-admission' | 'submit-authorization-expression' | 'withdraw-authorization-expression' | 'bind-model-credential' | 'unbind-model-credential' | 'describe-model-credential' | 'list-settings' | 'set-setting' | 'describe-setting' | 'clear-setting';
+export type ProofOperations = 'revoke-login' | 'replace-credential' | 'query-own-valid-logins' | 'query-current-tenant' | 'query-own-memberships' | 'query-received-invitations' | 'query-create-organization' | 'issue-member-invitation' | 'open-affiliation-request' | 'query-organization-members' | 'accept-member-invitation' | 'reject-member-invitation' | 'withdraw-member-invitation' | 'query-invitation' | 'create-organization' | 'leave-organization' | 'remove-member' | 'change-member-role' | 'switch-current-tenant' | 'query-organization' | 'query-issued-invitations' | 'accept-affiliation-request' | 'reject-affiliation-request' | 'withdraw-affiliation-request' | 'release-affiliation' | 'query-received-affiliation-requests' | 'query-issued-affiliation-requests' | 'query-affiliation-request' | 'judge-admission' | 'submit-authorization-expression' | 'withdraw-authorization-expression' | 'list-settings' | 'set-setting' | 'describe-setting' | 'clear-setting';
+export type TenantOperations = 'issue-member-invitation' | 'open-affiliation-request' | 'query-organization-members' | 'accept-member-invitation' | 'reject-member-invitation' | 'withdraw-member-invitation' | 'query-invitation' | 'create-organization' | 'leave-organization' | 'remove-member' | 'change-member-role' | 'switch-current-tenant' | 'query-organization' | 'query-issued-invitations' | 'accept-affiliation-request' | 'reject-affiliation-request' | 'withdraw-affiliation-request' | 'release-affiliation' | 'query-received-affiliation-requests' | 'query-issued-affiliation-requests' | 'query-affiliation-request' | 'judge-admission' | 'submit-authorization-expression' | 'withdraw-authorization-expression' | 'list-settings' | 'set-setting' | 'describe-setting' | 'clear-setting';
 export type RequestByOperation = {
     readonly [O in GovernanceProvidedOperation]: {
         readonly protocolVersion: 'governance-public/1';
@@ -392,13 +388,6 @@ export type Complete<K extends string, T> = {
 } & {
     readonly completeness: 'complete';
 };
-export type ModelCredentialState = {
-    readonly state: 'unbound';
-} | {
-    readonly state: 'usable' | 'unreadable';
-    readonly tenantId: TenantId;
-    readonly configuredAt?: Instant;
-};
 export type SettingAssetSelector = {
     readonly category?: string;
     readonly name: string;
@@ -410,18 +399,36 @@ export type SettingState = {
     readonly tenantId: TenantId;
     readonly configuredAt?: Instant;
 };
-export type SettingItemView = {
+export type SettingLayerState = {
+    readonly state: 'unbound';
+} | {
+    readonly state: 'usable' | 'revoked' | 'unreadable';
+    readonly configuredAt?: Instant;
+};
+export type SettingLayers = {
+    readonly own: SettingState;
+    readonly official: SettingLayerState;
+};
+type SettingItemBase = {
     readonly asset: {
         readonly category: string;
         readonly name: string;
     };
     readonly item: string;
     readonly title: string;
-    readonly sensitivity: 'secret' | 'ordinary';
+};
+export type SettingItemView = (SettingItemBase & {
+    readonly sensitivity: 'secret';
     readonly state: SettingState | {
         readonly state: 'not-writable';
     };
-};
+    readonly official: SettingLayerState;
+}) | (SettingItemBase & {
+    readonly sensitivity: 'ordinary';
+    readonly state: {
+        readonly state: 'not-writable';
+    };
+});
 export type LoginList = {
     readonly logins: readonly [
         LoginItem,
@@ -522,11 +529,6 @@ export type SuccessBodies = {
         readonly persistentSettingsUpdated: false;
     };
     'withdraw-authorization-expression': EmptyBody;
-    'bind-model-credential': {
-        readonly configuredAt: Instant;
-    };
-    'unbind-model-credential': EmptyBody;
-    'describe-model-credential': ModelCredentialState;
     'list-settings': {
         readonly items: readonly SettingItemView[];
         readonly completeness: 'complete';
@@ -534,12 +536,11 @@ export type SuccessBodies = {
     'set-setting': {
         readonly configuredAt: Instant;
     };
-    'describe-setting': SettingState;
+    'describe-setting': SettingLayers;
     'clear-setting': EmptyBody;
 };
 export type NoChangeBodies = {
     'revoke-login': EmptyBody;
-    'unbind-model-credential': EmptyBody;
     'clear-setting': EmptyBody;
     'switch-current-tenant': EmptyBody;
     'release-affiliation': {
@@ -609,9 +610,6 @@ export type BusinessOutcomes = {
     'judge-admission': 'succeeded' | 'denied' | 'not-visible' | 'basis-unavailable' | 'need-decision';
     'submit-authorization-expression': 'succeeded' | 'no-change' | 'denied' | 'basis-unavailable' | 'unknown';
     'withdraw-authorization-expression': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown';
-    'bind-model-credential': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown';
-    'unbind-model-credential': 'succeeded' | 'no-change' | 'denied' | 'basis-unavailable' | 'unknown';
-    'describe-model-credential': 'succeeded' | 'denied' | 'basis-unavailable';
     'list-settings': 'succeeded' | 'denied' | 'basis-unavailable';
     'set-setting': 'succeeded' | 'denied' | 'not-visible' | 'conflict' | 'not-writable' | 'basis-unavailable' | 'unknown';
     'describe-setting': 'succeeded' | 'denied' | 'not-visible' | 'conflict' | 'not-writable' | 'basis-unavailable';
@@ -683,6 +681,7 @@ export type GovernanceResponseEncodeInput<O extends GovernanceOperation = Govern
         readonly limits: GovernanceCodecLimits;
     };
 }[O];
+export {};
 ```
 
 ## 声明文件 `operation-rules.d.ts`

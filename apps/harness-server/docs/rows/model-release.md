@@ -11,7 +11,7 @@
 
 | 行 | 成员工厂 | 行给的对象 | 配置（只放数据，全部由运维者层给，发行层不写数值） |
 | --- | --- | --- | --- |
-| `model-records` | `createSqlModelRecordsPlugin`；行体以子 fiber 装 `createModelSendStagePlugin`，`coordinator` 只经闭包交给它；同一插件体以 `ModelDiagnosticsService` 包装 `createSqlModelDiagnostics`，逐次核资格后提供 `modelDiagnostics` | `authority`、`evidence`、`send.sources`、`initialRun`、`manifestDigest`（本页下文）；诊断插件取同一个 `storage`、`domains` 与 `authority` | 成员部分 `owners`（`work` 取 `exempt`）、`limits`、`maxCallBytes`、`maxCommandBytes`、`combinationVersion`、`send`；应用部分 `initial`（首次执行记录的三项上限）与 `sendStage`（`maxRetainedAttempts`、`materialization.maxRecords`、`factoryQueryId`、`profiles`、`preparation`、`network`、`routes`、`transportLimits`）；诊断部分 `diagnostics`（`diagnosticsRead` 只取 `tenant-self`，`retention` 是保留采用，缺席时 `list` 答 `unavailable`） |
+| `model-records` | `createSqlModelRecordsPlugin`；行体以子 fiber 装 `createModelSendStagePlugin`，`coordinator` 只经闭包交给它；同一插件体以 `ModelDiagnosticsService` 包装 `createSqlModelDiagnostics`，逐次核资格后提供 `modelDiagnostics` | `authority`、`evidence`、`send.sources`、`initialRun`、`manifestDigest`（本页下文）；发送子插件的路由由发行供应商正文推出（`src/assets/model-providers.ts`），运维者只可按供应商替换端点（`sendStage.endpoints`）；诊断插件取同一个 `storage`、`domains` 与 `authority` | 成员部分 `owners`（`work` 取 `exempt`）、`limits`、`maxCallBytes`、`maxCommandBytes`、`combinationVersion`、`send`；应用部分 `initial`（首次执行记录的三项上限）与 `sendStage`（`maxRetainedAttempts`、`materialization.maxRecords`、`profiles`、`preparation`、`network`、`endpoints`、`transportLimits`）；诊断部分 `diagnostics`（`diagnosticsRead` 只取 `tenant-self`，`retention` 是保留采用，缺席时 `list` 答 `unavailable`） |
 | `model-host` | `createModelRuntimeLocalPlugin` 加 `createModelRuntime` | `executionChannel`、`releaseExecution`、`qualifyObservation`、`send`（按调用现取 `modelSendBoundary`）、`retry`（恒 `unavailable`）、推送账本 | `host` 四项、`runtime` 八项、`results` 五项，行体自校验 |
 | `model-request-preparation` | `createModelRequestPreparationPlugin` | OpenAI 家族 | `maxCitedCalls`、`openai.limits`、`openai.margin` |
 
@@ -66,7 +66,7 @@
 - L 与 W 的受理点是 `model-host` 行交给 runtime 的命令包装（`src/model/commands-qualifying.ts`）：每个方法先核验主体、读 standing、把结果登记在表里，调用真件，finally 释放。捕获只活在这一次调用里。`recall` 与 `dispatches` 另持独立读租约，读前和读后都直接使用本次异步核验结果；共享表只供同步 authority 消费。`qualifyObservation` 保持原路径。
 - M 的受理点是 `resolve`。登记项随 `model-host` 行的 fiber 退役失效（`currentForReader` 的代次闭包）。
 - `authorize` 查表：未捕获资格答 `unavailable`；核验拒绝、非成员、租户不符或装配退役答 `denied`，核验或 standing 不可用答 `unavailable`。原九动作矩阵保持：`admit`、`control` 只 W；`facts`、`content`、`handoff`、`account`、`observe` 为 W/M；`recovery`、`send` 只 M。新只读动作 `inspect`、`read-account` 为 L/W/M；M 仍限原绑定调用，租户级 recovery 不支持。
-- `current(demand)`：`demand.principal` 是登记过的 M、租户与调用相等、宿主 fiber 未退役时 `authorized: true`；`noTenantBinding` 等于 `demand.supplier.credential.kind === 'factory'`（见已知限制：这使成员的工厂围栏永不拒绝）。
+- `current(demand)`：`demand.principal` 是登记过的 M、租户与调用相等、宿主 fiber 未退役时 `authorized: true`。发送来源都是官方来源（`official: true`），所以准备选定的官方层可以发送；层本身由准备选定，见[模型凭据](#模型凭据)。
 
 ## 运行级组合与释放次序
 
@@ -78,35 +78,28 @@
 
 ## 模型凭据
 
-租户可以经公开契约的[模型凭据](../../../../packages/access/public-contract/SPEC.md#模型凭据)操作自带、更换、解绑和查看自己的模型凭据。本节写本应用怎样兑现它。
+模型供应商是一类资产（`model-provider`）。发行持有 OpenRouter：它的正文由 pi-ai-transport 给出，声明凭据项 `apiKey`。供应商的凭据就是这一项秘密设置，没有另外的凭据对象。本节写本应用怎样兑现它。
 
-**键。** 本宿主按租户一份绑定。凭据身份是 `tenant-model-send:<组织>/<账号>`，由 `src/model/tenant-credential.ts` 的 `tenantCredentialId` 派生。发行内置的官方档案都发往 `openrouter`，所以一份绑定覆盖本宿主能发出的全部调用。按接收方区分的键要等新的接入契约（模型调用产品设计 MODEL-M04）。
+**键。** 凭据由（供应商、层、用途）确定，租户取自调用的 `access`。绑定键由发行供应商的设置持有推出（`src/assets/model-providers.ts` 的 `providerCredentialKey`）：租户层是 `omne setting set openrouter apiKey` 写的那一份，官方层是 `harness-server setup` 写的部署默认凭据。第二个供应商只是多一份发行正文，键、端口与发送不变。
 
-**管理。** `model-credential` 行以子 fiber 装 model-host-local 的受管凭据插件，自己提供受信名 `modelCredentialCustody`。每次调用先经 `src/rows/authorization/model-credential-access.ts` 准入：
+**管理。** 租户经公开契约的[设置项](../../../../packages/access/public-contract/SPEC.md#设置项)操作管理自己的那一层，准入与范围归[设置行](settings.md)；`show` 与 `list` 同时给出本租户层与官方层的状态。`model-credential` 行没有管理面，也没有运维者配置：它注入 `settingsSecretCustody`，在其读面与使用面上建 model-host-local 的 `createSecretCredentialPort`，经 `serveModelCredential` 提供 `modelCredential`。
 
-- 只有 `work.owner` 为 `identity-login`、代同一租户行事的登录主体可以管理。
-- 准入经 authorization 的参考准入核验（AU-11，`requires` 为空），核验器与租户存续按调用现取。
-- 会话工作主体、系统主体、伪造或复制的主体与他租户都答 `denied`。
-- 依据不可得答 `basis-unavailable`。
+**选层。** `model-request-preparation` 行与 `model-records` 发送子插件自带的准备租约，按调用现取 `modelCredential`，为每个供应商调用 `layerOf`（`src/model/credential-layer.ts`）：
 
-通过后按派生的身份读写保管库，配置时刻取宿主系统时间。
+- 本租户层有任何一项时选本租户层，层内缺项或读不出时准备失败，不回退官方层。
+- 本租户层为空、档案是官方档案时选官方层，官方层不可用时准备失败。
+- 凭据服务不在树里、答 `denied` 或 `unavailable` 时准备失败，不自己选层。
 
-**解析。** `model-request-preparation` 行的供应商补全按调用现取 `modelCredential`，对该租户的身份调用 `presentFor`：
+选定的层写进请求的 `Supplier.credential`。发送在围栏内只读这一层（`resolve`），不重新选层。
 
-- 绑定存在时给租户引用。绑定读不出时也给租户引用，发送在围栏内得到 `unreadable`，不退回工厂。
-- 没有绑定时给工厂引用。
-- `presentFor` 答 `denied` 或 `unavailable`，或凭据服务不在树里时，准备失败，不给工厂引用。
-
-`model-records` 行发送子插件自带的准备租约用同一个补全，读子 fiber 注入的 `modelCredential`。工厂秘密是空字符串时，保管库把工厂解析答成 `absent`。
-
-**缺凭据的结局。** 发送在围栏内得到 `absent` 或 `unreadable` 时，不向上游发字节。Model 的产品发送边界把本次调用终结为失败，`cause` 为 `credential`，`diagnostic` 为 `credential-missing` 或 `credential-unreadable`，`upstreamStatus` 为 null（[Model SPEC「产品发送边界」](../../../../packages/model/model/SPEC.md#产品发送边界)）。调用随即 settled，Agent 的这一轮以失败结束，不等待。租户之后再绑定，下一轮照常发送。
+**缺凭据的结局。** 准备失败时请求不形成，答 `unavailable`（`model-credential`），诊断是 `credential-missing`、`credential-incomplete`、`credential-unreadable` 等。准备之后、发送之前层变得不可用时，发送在围栏内拒绝，不向上游发字节；Model 的产品发送边界把本次调用终结为失败，`cause` 为 `credential`，`upstreamStatus` 为 null（[Model SPEC「产品发送边界」](../../../../packages/model/model/SPEC.md#产品发送边界)）。
 
 ## 已知限制
 
+- **一家供应商只能声明一个凭据项才能发送**：发送路由由供应商正文推出，传输把那一项作为 Bearer 放进请求。正文声明多于一项时（例如 AWS Bedrock 的访问密钥对、OpenAI 直连的密钥加组织与项目标识），正文没有说每一项怎样放进请求，装配拒绝这个供应商。发行的 OpenRouter 只有 `apiKey` 一项。第一家这样的供应商出现时，在供应商正文里加声明每一项用法的 `auth`，路由按它推出，pi-ai-transport 实现对应的方案；选层、判读与取秘密已按多项工作，不用改。
 - **`revoked` 绑定在查看里显示为 `unreadable`**：公开操作不产生 `revoked`，只有保管库自己的 `revoke` 会写它。两者对发送都不可用。
 - **实时撤权（#677）**：M 的登记项只随宿主 fiber 退役失效；W 只在每次调用时重读 standing。撤权确认与下一次调用之间没有同步来源。
 - **直接经 `modelCommands` 服务的 W 调用没有受理点**，一律 `unavailable`（`principal-not-qualified`）。M2 树里这样的消费者只有 `model-request-preparation` 的世系读取，首次调用没有世系。
-- **`noTenantBinding` 等于 `demand.supplier.credential.kind === 'factory'`，所以成员的工厂围栏永不拒绝**：对工厂回退的全部防护依赖保管库的 `resolveFor`，它按 facts a.4 核对该租户是否持有任何绑定。供应商补全只在 `presentFor` 答该租户没有绑定时给工厂引用，见[模型凭据](#模型凭据)。
 - **ActorRef 是租户级的 standing 记录**：同一租户的全部 L、W 与 M 共用一个 ActorRef，`resolve` 第 3 步对原发起者的核对退化为「同一租户」。M2 是个人租户，按 R2-D33 方案 A 接受；按主体区分的 ActorRef 由入口签发者在波 3 给出。
 - **W 的受理捕获以调用为期，不以入口为期**：一个 W 在宿主包装的命令调用进行中时，拿同一个 W 直接经 `modelCommands` 服务发起的调用也被放行（`authorize` 只查表里有没有这个对象的捕获）。调用结束后捕获释放，直接调用回到 `unavailable`。记录，不修。
 - **s0 树不变**：`config/s0.distribution.json` 与 s0 允许表没有改动，s0 只装 `stubPlugin`；真件只进 `serve.distribution.json`。
@@ -124,8 +117,6 @@
 - [跨行断言](../../tests/model/consistency.spec.ts)：四条相等各一条反例，装载前退出 2。
 - [发送来源](../../tests/model/sources.spec.ts)：档案采用与真实档案插件相等。
 - [两行真件](../../tests/rows/model/records-host.spec.ts)：真实 SQLite 与 session-storage 上装两行，经 runtime 的受理点放行 W、拒绝未核验主体，直接命令口 `unavailable`，宿主 `resolve` 读到未受理调用，缺凭据配置时发送 `unavailable`，业务阶段 `settled`。
-- [凭据管理的准入与保管](../../tests/rows/model/credential-custody.spec.ts)：真实参考准入与真实文件保管库上，只有代同一租户行事的登录主体能绑定、查看、解绑；他租户、会话工作主体与伪造主体在触到保管库之前答 `denied`；非成员租户答 `denied`，成员资格未知答 `basis-unavailable`；保管库读不出时答 `basis-unavailable` 且字节不变；插件卸载后写入答 `basis-unavailable`；宿主时钟读不出时不写。
-- [凭据保管的答复映射](../../tests/rows/model/credential-mapping.spec.ts)：保管端口对存储的每种答复（写入未确认、未存时间的绑定、时间无法解析、凭据端口抛出或拒绝）各有一个映射；供应商补全在任何情况下都不退回工厂引用。
 - `tests/serve.spec.ts` 的发行树：25 个真实行装载、接受、停止，退出 0。
 - [会话诊断的两个冒烟](../../tests/rows/session-diagnostics/flow.spec.ts)：真实 `serve` 进程里，上游 504 时 Agent 的 `no-reply` 原因带 `cause` 与 `upstreamStatus` 到达 CLI 的投影。同一调用的 Model 分支要求：登录主体经只读资格读 `modelDiagnostics`；已保存的 504 派发给出失败与上游状态，未记录的账目保持 `unknown`（原因 `not-recorded`）。
 

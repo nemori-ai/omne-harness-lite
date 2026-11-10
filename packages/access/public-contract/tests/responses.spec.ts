@@ -99,12 +99,9 @@ const successes = {
   'judge-admission': { admitted: true },
   'submit-authorization-expression': { expressionId: 'e', persistentSettingsUpdated: false },
   'withdraw-authorization-expression': {},
-  'bind-model-credential': { configuredAt: at },
-  'unbind-model-credential': {},
-  'describe-model-credential': { state: 'unbound' },
   'list-settings': { items: [], completeness: 'complete' },
   'set-setting': { configuredAt: at },
-  'describe-setting': { state: 'unbound' },
+  'describe-setting': { own: { state: 'unbound' }, official: { state: 'unbound' } },
   'clear-setting': {},
 } satisfies Record<GovernanceProvidedOperation, object>
 const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
@@ -199,9 +196,6 @@ const allowed = {
   'judge-admission': ['denied', 'not-visible', 'basis-unavailable'],
   'submit-authorization-expression': ['denied', 'basis-unavailable', 'unknown'],
   'withdraw-authorization-expression': ['denied', 'basis-unavailable', 'unknown'],
-  'bind-model-credential': ['denied', 'basis-unavailable', 'unknown'],
-  'unbind-model-credential': ['denied', 'basis-unavailable', 'unknown'],
-  'describe-model-credential': ['denied', 'basis-unavailable'],
   'list-settings': ['denied', 'basis-unavailable'],
   'set-setting': [
     'denied',

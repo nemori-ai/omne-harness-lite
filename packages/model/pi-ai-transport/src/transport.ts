@@ -64,9 +64,9 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
     dispatch: TransportDispatch,
   ): Promise<Outcome<PreparedTransport, TransportFailure>> {
     if (phase.kind !== 'open') return { failure: TRANSPORT_CLOSED }
-    if (!checked.routes.has(supplier.recipient))
+    if (!checked.routes.has(supplier.provider))
       return {
-        failure: { kind: 'unsupported', field: 'supplier.recipient', adapter: supplier.adoption },
+        failure: { kind: 'unsupported', field: 'supplier.provider', adapter: supplier.adoption },
       }
     const declaration = declarationOf(request, supplier)
     if (declaration === null) return { failure: NOT_IN_REQUEST }
@@ -119,13 +119,9 @@ const NOT_IN_REQUEST: TransportFailure = Object.freeze({
 })
 
 function sameSupplier(left: Supplier, right: Supplier): boolean {
-  const credential =
-    left.credential.kind === 'factory'
-      ? right.credential.kind === 'factory'
-      : right.credential.kind === 'tenant' && left.credential.id === right.credential.id
   return (
-    credential &&
-    left.recipient === right.recipient &&
+    left.credential.layer === right.credential.layer &&
+    left.provider === right.provider &&
     left.model === right.model &&
     left.adoption.owner === right.adoption.owner &&
     left.adoption.name === right.adoption.name &&
@@ -175,7 +171,7 @@ function createPrepared(
     binding: PiFamilyBinding,
     signal: AbortSignal,
   ): Promise<Outcome<MaterializedHandle, TransportFailure>> {
-    const route = config.routes.get(supplier.recipient)
+    const route = config.routes.get(supplier.provider)
     if (route === undefined) throw new Error('the route of a prepared transport is missing')
     return materialize({
       config,

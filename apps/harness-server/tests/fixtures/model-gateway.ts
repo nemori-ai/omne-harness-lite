@@ -42,6 +42,8 @@ export type ModelGateway = Readonly<{
   certPath: string
   /** How many requests reached the gateway. */
   requests(): number
+  /** The `authorization` header of each request, in arrival order; `null` when it had none. */
+  authorizations(): readonly (string | null)[]
   /** Adds the certificate to the default trust of this process until `close()`. */
   trustInProcess(): void
   /** Stops the server, restores the trust of this process, deletes the certificate. */
@@ -84,9 +86,11 @@ export async function startModelGateway(answer: GatewayScript = refusal): Promis
   const { keyPath, certPath } = certificate(directory)
   const cert = readFileSync(certPath, 'utf8')
   let count = 0
+  const authorizations: (string | null)[] = []
   const server = createServer({ key: readFileSync(keyPath), cert }, (request, response) => {
     const index = count
     count += 1
+    authorizations.push(request.headers.authorization ?? null)
     const chunks: Buffer[] = []
     request.on('data', (chunk: Buffer) => chunks.push(chunk))
     request.on('end', () => {
@@ -105,6 +109,7 @@ export async function startModelGateway(answer: GatewayScript = refusal): Promis
     url: `https://127.0.0.1:${String(port)}${GATEWAY_PATH}`,
     certPath,
     requests: () => count,
+    authorizations: () => [...authorizations],
     trustInProcess: () => {
       if (restore !== undefined) return
       restore = getCACertificates('default')

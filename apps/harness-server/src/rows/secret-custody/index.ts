@@ -6,8 +6,8 @@
 // consumers the assembly trusts (I-6). It injects nothing and has no shutdown phase: the vault
 // handle holds no resource beyond the path, and closing it only marks this process's handle.
 //
-// Why the key is defined here: like `modelCredentialCustody`, the provider and its consumers are
-// rows of this application, and settings has no Cordis entry. When a member outside this
+// Why the key is defined here: the provider and its consumers are rows of this application, and
+// settings has no Cordis entry. When a member outside this
 // application needs the key, it moves to the `./cordis` entry of the member that then owns it.
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import type { SecretCustodyManagement, SecretCustodyUse } from '@omne-harness/settings'

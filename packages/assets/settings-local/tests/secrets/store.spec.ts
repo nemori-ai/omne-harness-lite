@@ -1,4 +1,4 @@
-// The file custody of secret bindings (SPEC「Secret custody」): the pre-version file, the four
+// The file custody of secret bindings (SPEC「Secret custody」): the one file format, the four
 // write results, the exact key match of the use face, what the read faces show, and the three
 // causes of an unavailable file. Every case runs on a real file in a temporary directory, and
 // every visible result is scanned for the secret sentinels.
@@ -64,7 +64,7 @@ const tenantB = identity('6')
 const official: SecretScope = { layer: 'official' }
 const scopeOf = (who: TenantId): SecretScope => ({ layer: 'tenant', tenant: who })
 
-/** The targets the pre-version file maps to: the Model owner, its factory key and its credential ids. */
+/** Keys of a second owner beside the setting keys: an official key and tenant keys by id. */
 const MODEL_TARGET = (key: string) => ({ owner: 'model', key })
 const FACTORY_KEY: SecretBindingKey = {
   scope: official,
@@ -106,29 +106,6 @@ function scratch(): string {
   return join(directory, 'model-vault.json')
 }
 
-/** A file in the format the Model host wrote before the version field existed. */
-function writeV1(path: string, factorySecret = FACTORY): void {
-  const tenantRow = (who: TenantId, id: string, secret: string, configuredAt?: string) => ({
-    id,
-    tenant: { organization: who.organization.text, account: who.account.text },
-    purpose: 'model-send',
-    secret,
-    life: 'active',
-    ...(configuredAt === undefined ? {} : { configuredAt }),
-  })
-  writeFileSync(
-    path,
-    JSON.stringify({
-      closed: false,
-      factorySecret,
-      bindings: [
-        tenantRow(tenantA, 'tenant-model-send:a', SECRET_A, '2026-11-04T08:00:00Z'),
-        tenantRow(tenantB, 'tenant-model-send:b', SECRET_B),
-      ],
-    }),
-  )
-}
-
 function opened(path: string) {
   const result = openSecretVault({ path })
   if (result.kind !== 'open') throw new Error(`vault ${result.kind}: ${result.cause}`)
@@ -147,144 +124,18 @@ function leaks(value: unknown): boolean {
   return SENTINELS.some(sentinel => seen.includes(sentinel))
 }
 
-describe('the pre-version file', () => {
-  it('reads the factory secret as the official Model binding and the rows as tenant Model bindings', () => {
+describe('the one file format', () => {
+  it('a file without a version is corrupt and is not rewritten', () => {
     const path = scratch()
-    writeV1(path)
-    const vault = opened(path)
-    expect(vault.describe(FACTORY_KEY)).toEqual({
-      kind: 'bound',
-      life: 'active',
-      configuredAt: null,
-    })
-    expect(vault.use(FACTORY_KEY)).toEqual({ kind: 'secret', value: FACTORY })
-    expect(vault.describe(modelKey(tenantA, 'tenant-model-send:a'))).toEqual({
-      kind: 'bound',
-      life: 'active',
-      configuredAt: AT,
-    })
-    expect(vault.use(modelKey(tenantA, 'tenant-model-send:a'))).toEqual({
-      kind: 'secret',
-      value: SECRET_A,
-    })
-    expect(vault.describe(modelKey(tenantB, 'tenant-model-send:b'))).toEqual({
-      kind: 'bound',
-      life: 'active',
-      configuredAt: null,
-    })
-    expect(vault.use(modelKey(tenantB, 'tenant-model-send:b'))).toEqual({
-      kind: 'secret',
-      value: SECRET_B,
-    })
-  })
-
-  it('does not read the factory secret as a tenant binding, nor a tenant row as the official one', () => {
-    const path = scratch()
-    writeV1(path)
-    const vault = opened(path)
-    expect(vault.use(modelKey(tenantA, 'factory default'))).toBe('missing')
-    expect(
-      vault.use({
-        scope: official,
-        target: MODEL_TARGET('tenant-model-send:a'),
-        purpose: 'model-send',
-      }),
-    ).toBe('missing')
-  })
-
-  it('an empty factory secret is no official binding', () => {
-    const path = scratch()
-    writeV1(path, '')
-    const vault = opened(path)
-    expect(vault.describe(FACTORY_KEY)).toEqual({ kind: 'unbound' })
-    expect(vault.use(FACTORY_KEY)).toBe('missing')
-    expect(vault.use(modelKey(tenantA, 'tenant-model-send:a'))).toEqual({
-      kind: 'secret',
-      value: SECRET_A,
-    })
-  })
-
-  it('the first write publishes the whole file as version 2, and a fresh open reads the same bindings', () => {
-    const path = scratch()
-    writeV1(path)
-    const vault = opened(path)
-    expect(vault.bind(settingKey(tenantA, 'Web/exa.apiKey'), text(SECRET_SETTING), AT)).toBe(
-      'written',
-    )
-    const stored = JSON.parse(readFileSync(path, 'utf8'))
-    expect(stored.version).toBe(2)
-    expect(stored).not.toHaveProperty('factorySecret')
-    expect(stored).not.toHaveProperty('closed')
-    expect(stored.bindings).toHaveLength(4)
-    const again = opened(path)
-    expect(again.use(FACTORY_KEY)).toEqual({ kind: 'secret', value: FACTORY })
-    expect(again.describe(modelKey(tenantA, 'tenant-model-send:a'))).toEqual({
-      kind: 'bound',
-      life: 'active',
-      configuredAt: AT,
-    })
-    expect(again.use(modelKey(tenantB, 'tenant-model-send:b'))).toEqual({
-      kind: 'secret',
-      value: SECRET_B,
-    })
-    expect(again.use(settingKey(tenantA, 'Web/exa.apiKey'))).toEqual({
-      kind: 'secret',
-      value: SECRET_SETTING,
-    })
-  })
-
-  it.each([
-    ['a row whose purpose is not model-send', { purpose: 'other' }],
-    ['a row without an id', { id: undefined }],
-    ['a row without a secret', { secret: undefined }],
-    ['a row with an unknown life', { life: 'paused' }],
-    ['a row whose time is not text', { configuredAt: 42 }],
-    ['a row whose time is not an instant', { configuredAt: 'yesterday' }],
-  ])('%s makes the pre-version file corrupt', (_name, overrides) => {
-    const path = scratch()
-    writeFileSync(
-      path,
-      JSON.stringify({
-        closed: false,
-        factorySecret: FACTORY,
-        bindings: [
-          {
-            id: 'cred-a',
-            tenant: { organization: tenantA.organization.text, account: tenantA.account.text },
-            purpose: 'model-send',
-            secret: SECRET_A,
-            life: 'active',
-            ...overrides,
-          },
-        ],
-      }),
-    )
+    const raw = JSON.stringify({ closed: false, factorySecret: FACTORY, bindings: [] })
+    writeFileSync(path, raw)
     expect(openSecretVault({ path })).toEqual({ kind: 'unavailable', cause: 'corrupt' })
-  })
-
-  it('two rows for the same holder make the pre-version file corrupt', () => {
-    const path = scratch()
-    const row = {
-      id: 'cred-a',
-      tenant: { organization: tenantA.organization.text, account: tenantA.account.text },
-      purpose: 'model-send',
-      secret: SECRET_A,
-      life: 'active',
-    }
-    writeFileSync(
-      path,
-      JSON.stringify({
-        closed: false,
-        factorySecret: FACTORY,
-        bindings: [row, { ...row, life: 'revoked' }],
-      }),
-    )
-    expect(openSecretVault({ path })).toEqual({ kind: 'unavailable', cause: 'corrupt' })
+    expect(readFileSync(path, 'utf8')).toBe(raw)
   })
 })
 
-// The vaults on disk were written by boundaries that checked the text then (the Model host's
-// `bind` only asked for a non-empty string). Reading accepts what those files hold, as it is.
+// The vaults on disk were written by boundaries that checked the text then. Reading accepts what
+// those files hold, as it is.
 describe('a stored secret is read as the file holds it', () => {
   const stored = [
     ['a trailing space', `${SECRET_A} `],
@@ -292,29 +143,6 @@ describe('a stored secret is read as the file holds it', () => {
     ['a tab inside', `${SECRET_A}\t1`],
     ['more characters than the length limit', 'k'.repeat(4097)],
   ] as const
-
-  it.each(stored)('the pre-version file: %s', (_name, raw) => {
-    const path = scratch()
-    writeFileSync(
-      path,
-      JSON.stringify({
-        closed: false,
-        factorySecret: raw,
-        bindings: [
-          {
-            id: 'cred-a',
-            tenant: { organization: tenantA.organization.text, account: tenantA.account.text },
-            purpose: 'model-send',
-            secret: raw,
-            life: 'active',
-          },
-        ],
-      }),
-    )
-    const vault = opened(path)
-    expect(vault.use(FACTORY_KEY)).toEqual({ kind: 'secret', value: raw })
-    expect(vault.use(modelKey(tenantA, 'cred-a'))).toEqual({ kind: 'secret', value: raw })
-  })
 
   it.each(stored)('the version 2 file: %s', (_name, raw) => {
     const path = scratch()
@@ -630,7 +458,21 @@ describe('an unavailable file', () => {
 
   it('creation adopts a readable file and refuses an unreadable one', () => {
     const path = scratch()
-    writeV1(path)
+    writeFileSync(
+      path,
+      JSON.stringify({
+        version: 2,
+        bindings: [
+          {
+            scope: { layer: 'official' },
+            target: FACTORY_KEY.target,
+            purpose: FACTORY_KEY.purpose,
+            secret: FACTORY,
+            life: 'active',
+          },
+        ],
+      }),
+    )
     const adopted = createSecretVault({ path })
     expect(adopted).toMatchObject({ kind: 'open', created: false })
     if (adopted.kind !== 'open') throw new Error('adopt')

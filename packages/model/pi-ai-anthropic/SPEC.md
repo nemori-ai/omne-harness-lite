@@ -27,7 +27,7 @@
 
 `ANTHROPIC_RECORDS` 是本包唯一的型号清单。档案、采用、指纹与夹具都从它派生。
 
-1. 每个型号一条 `current` 记录。封存件迁入的四个型号是 `anthropic/claude-opus-5.5`、`anthropic/claude-opus-5`、`anthropic/claude-sonnet-5` 与 `anthropic/claude-fable-5.1`，`revision` 为 `2`。`anthropic/claude-sonnet-5.5` 与 `anthropic/claude-haiku-5.5` 取自 2026-11-03 的 Anthropic 官方型号清单，OpenRouter 有同名路由，`revision` 为 `1`。记录名等于 OpenRouter 路由名。路由为 `{ recipient: 'openrouter', model: <路由名> }`。
+1. 每个型号一条 `current` 记录。封存件迁入的四个型号是 `anthropic/claude-opus-5.5`、`anthropic/claude-opus-5`、`anthropic/claude-sonnet-5` 与 `anthropic/claude-fable-5.1`，`revision` 为 `2`。`anthropic/claude-sonnet-5.5` 与 `anthropic/claude-haiku-5.5` 取自 2026-11-03 的 Anthropic 官方型号清单，OpenRouter 有同名路由，`revision` 为 `1`。记录名等于 OpenRouter 路由名。路由为 `{ provider: 'openrouter', model: <路由名> }`。
 2. 记录是纯 JSON 数据。共用的线数据以常量展开。记录的采用由 `recordAdoption('@omne-harness/pi-ai-anthropic', record)` 算出。
 3. 记录不得原地修改。行为或数据变化时，新增一个修订并把旧记录标为 `frozen`。`tests/fixtures/adoptions.json` 记录每条记录的摘要，原地修改使指纹测试失败。`status` 也在摘要中，所以冻结旧修订会改变它的摘要。封存四个型号的修订 `1` 按 Reduce 裁定 R2-D126 删除，没有冻结，它们的指纹行一并删除：0.0.x 不承诺历史兼容，持有修订 `1` 采用的调用方取得时得到 `adoption-not-installed`。
 4. 线数据：

@@ -20,6 +20,7 @@ import {
   decodeModelOperationId,
   decodeRevision,
   type Adoption,
+  type ProviderName,
   type AssembledModelInput,
   type FixedModelRequest,
   type ModelCallId,
@@ -42,6 +43,7 @@ import { modelPreparationResourcesConformance } from '@omne-harness/model-cordis
 import type { PreparationBinding } from '@omne-harness/model'
 import { expect, it } from 'vitest'
 import { createModelRequestPreparationPlugin } from '../src/cordis.ts'
+import { providerName } from './support/credentials.ts'
 
 const ADOPTION: Adoption = { owner: 'o', name: 'n', revision: '1', digest: '0'.repeat(64) }
 const EVIDENCE = { owner: 'host', record: 'r', revision: '1', digest: '1'.repeat(64) }
@@ -64,9 +66,9 @@ const opOf = (name: string) => unbox(decodeModelOperationId(`mop_${name}`))
 
 const SUPPLIER = {
   adoption: ADOPTION,
-  recipient: 'test.invalid',
+  provider: providerName('test.invalid'),
   model: 'test',
-  credential: { kind: 'factory' as const },
+  credential: { layer: 'official' as const },
 }
 const PROFILE: ModelProfile = {
   identity: { scope: { kind: 'factory' }, route: 'test' },
@@ -75,7 +77,7 @@ const PROFILE: ModelProfile = {
   updatedAt: '2026-10-23T00:00:00Z',
   availability: 'active',
   definition: {
-    suppliers: [{ adoption: ADOPTION, recipient: 'test.invalid', model: 'test' }],
+    suppliers: [{ adoption: ADOPTION, provider: providerName('test.invalid'), model: 'test' }],
     fallback: false,
     input: ['text'],
     output: ['text'],
@@ -203,13 +205,13 @@ function stubFamily() {
 const supplierOf = ({
   supplier,
 }: {
-  supplier: { adoption: Adoption; recipient: string; model: string }
+  supplier: { adoption: Adoption; provider: ProviderName; model: string }
 }) => ({
   ok: {
     adoption: supplier.adoption,
-    recipient: supplier.recipient,
+    provider: supplier.provider,
     model: supplier.model,
-    credential: { kind: 'factory' as const },
+    credential: { layer: 'official' as const },
   },
 })
 

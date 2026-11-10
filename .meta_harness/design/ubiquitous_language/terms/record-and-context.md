@@ -296,7 +296,7 @@
 
 - **形态**：对象
 - **出处**：[PF-009 §4 消息的内容是一串块](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9） ·
-  [模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 3）
+  [模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 4）
 - **别混**：**裸写「块」不作数**——那个词到处都是
 - **注意**：**为什么不能是一段文本**——一条消息里可能既有文字又有图；
   **模型的思考与它的回答是两回事，混在一起就再也分不开**；
@@ -318,7 +318,7 @@
 > The readable text of the same reasoning sits in a thinking block, apart from it.
 
 - **形态**：变体（父：[内容块](#ul-content-block--内容块--content-block)）
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 3）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 4）
 - **别混**：**不是思考块**——思考块装可读的推理文字，可以给人看；推理续接状态装的是读不懂的状态，只给能消费它的模型
 - **注意**：哪些模型能消费它，看它所在回复的[推理回放范围](#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)；形状与受理规则归 [message 成员](../../../../packages/common/message/SPEC.md#推理续接状态)
 
@@ -333,7 +333,7 @@
 > states are carried again.
 
 - **形态**：过程
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 3）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 4）
 - **别混**：**不是 Agent 接续时的[回放](agent-runtime-loop.md#ul-replay--回放--replay)**——那是把挂起中的拓展件按日志重跑到停处；推理回放只决定一次请求带上哪些推理状态。两者都可能简称「回放」，跨 topic 时写全名
 - **注意**：被上游拒绝时略去这次带上的全部推理状态再发一次；原消费者可以对一次请求关闭推理回放。精确规则归 [Model 契约的推理回放](../../../../packages/model/model-contract/SPEC.md#推理回放)
 
@@ -349,7 +349,7 @@
 > same model at the same recipient.
 
 - **形态**：属性
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 3）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 4）
 - **别混**：**不是[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)或账户的范围**——它只说哪些模型认得这段状态，不授予任何访问资格；凭据换了账户，状态仍可能被上游拒绝
 - **注意**：消息上的键名是 `replay.scope`；档案上的声明归 [Model 契约](../../../../packages/model/model-contract/SPEC.md#推理回放)
 

@@ -2,22 +2,22 @@
 import { expect, it } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
 import { encodeModelInvocationRef } from '@omne-harness/model-contract'
-import { type QualifiedCredentialQuery } from '@omne-harness/model-contract/provider'
+import { fail } from '@omne-harness/operation-result'
+import { type CredentialReference } from '@omne-harness/model-contract/provider'
 import { configuration, createAcceptanceAssembly, operation } from './fixtures/runtime.ts'
 
 it('keeps a real driver credential refusal local and not sent', async () => {
   const sentinel = 'synthetic-send-credential'
-  const resolved: QualifiedCredentialQuery<unknown>[] = []
+  const resolved: CredentialReference<unknown>[] = []
   const f = createAcceptanceAssembly({
     facts: [],
     termination: { kind: 'completed', reason: 'stop' },
     tenantCredential: true,
     credentials: {
-      present: () => ({ kind: 'unavailable' }),
-      resolve: () => ({ kind: 'denied' }),
-      resolveFor(query) {
-        resolved.push(query)
-        return { kind: 'denied' }
+      layerOf: () => fail({ kind: 'unavailable' }),
+      resolve(reference) {
+        resolved.push(reference)
+        return fail({ kind: 'denied' })
       },
     },
   })
@@ -41,9 +41,9 @@ it('keeps a real driver credential refusal local and not sent', async () => {
     expect(driven).toEqual({ failure: { kind: 'denied', action: 'model-credential' } })
     expect(resolved).toEqual([
       {
-        id: f.tenantKey,
+        provider: f.request.suppliers[0].provider,
+        layer: { layer: 'tenant' },
         purpose: 'model-send',
-        official: false,
         access: f.access,
       },
     ])

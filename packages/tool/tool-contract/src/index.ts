@@ -108,7 +108,8 @@ export type {
   ToolSettingsDeclaration,
   ToolUsage,
 } from './authoring.ts'
-export { toolSettingDefinitions } from './settings.ts'
+export { toolAssetBody } from './asset-body.ts'
+export { toolBodyContract } from './contract.ts'
 export type {
   ClockSegment,
   ControlProgress,

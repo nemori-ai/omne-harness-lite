@@ -11,7 +11,7 @@ import {
   deriveDefinition,
   judgeToolDefinition,
 } from '@omne-harness/tool-contract/provider'
-import { toolSettingDefinitions, toolsCapabilityOf } from '@omne-harness/tool-contract'
+import { toolAssetBody, toolBodyContract, toolsCapabilityOf } from '@omne-harness/tool-contract'
 import {
   attachWebAccess,
   createWebAuthor,
@@ -147,10 +147,9 @@ describe('Web author: declaration and help', () => {
 
   it('declares exa.apiKey as a secret Settings item', () => {
     const test = fixture()
-    const projected = toolSettingDefinitions({
-      adoption: test.definition.adoption,
-      name: test.definition.name,
-      declaration: test.definition.declarations.settings,
+    const projected = toolBodyContract().settings?.(toolAssetBody(test.definition), {
+      capabilityName: test.definition.name,
+      definition: test.definition.adoption.digest,
     })
     expect(projected?.items).toEqual([
       expect.objectContaining({

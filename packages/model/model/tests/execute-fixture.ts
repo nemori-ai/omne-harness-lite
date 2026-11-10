@@ -1,8 +1,9 @@
-import type {
-  Adoption,
-  FixedModelRequest,
-  MaterializationReceipt,
-  TransportFailure,
+import {
+  decodeProviderName,
+  type Adoption,
+  type FixedModelRequest,
+  type MaterializationReceipt,
+  type TransportFailure,
 } from '@omne-harness/model-contract'
 import type {
   MaterializedTransport,
@@ -12,6 +13,10 @@ import type {
 } from '@omne-harness/model-contract/provider'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
+
+const decodedProvider = decodeProviderName('provider')
+if (!('ok' in decodedProvider)) throw new Error('provider fixture')
+const PROVIDER = decodedProvider.ok
 
 export const adoption = (name: string): Adoption => ({
   owner: 'execute-test',
@@ -24,9 +29,9 @@ export const request: FixedModelRequest = {
   suppliers: [
     {
       adoption: adoption('supplier'),
-      recipient: 'recipient',
+      provider: PROVIDER,
       model: 'model',
-      credential: { kind: 'factory' },
+      credential: { layer: 'official' },
     },
   ],
   fallback: true,
@@ -37,7 +42,7 @@ export const request: FixedModelRequest = {
   tools: [],
   toolChoice: 'none',
   declarations: [
-    { produces: 'recipient/model', accepts: ['recipient/model'], foreignThinking: 'omit' },
+    { produces: 'provider/model', accepts: ['provider/model'], foreignThinking: 'omit' },
   ],
   representation: adoption('representation'),
   parameterAdoptions: [],

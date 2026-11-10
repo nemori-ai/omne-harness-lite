@@ -39,7 +39,6 @@ import {
 } from '@omne-harness/model-contract'
 import {
   MODEL_SEND,
-  decodeCredentialId,
   type CallAccountReport,
   type ModelCommands,
   type ModelDriveInput,
@@ -60,6 +59,7 @@ import {
   type ResultPushLimits,
   type ResultPushRecovery,
 } from '../src/cordis.ts'
+import { providerName } from './support/credentials.ts'
 
 function unbox<T>(decoded: { ok: T } | { failure: unknown }): T {
   if ('ok' in decoded) return decoded.ok
@@ -100,9 +100,9 @@ const request: FixedModelRequest = {
   suppliers: [
     {
       adoption: ADOPTION,
-      recipient: 'test.invalid',
+      provider: providerName('test.invalid'),
       model: 'test',
-      credential: { kind: 'factory' },
+      credential: { layer: 'official' },
     },
   ],
   fallback: false,
@@ -328,29 +328,24 @@ function world(
     sending: {
       maxRetainedAttempts: 8,
       credentials: {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind: 'value', scope: 'factory', value: 'synthetic-credential' }),
-        resolveFor: input => {
-          expect(input.id).toBe(unbox(decodeCredentialId('push-test-query')))
+        layerOf: () => ({ failure: { kind: 'unavailable' } }),
+        resolve: input => {
+          expect(input.provider).toBe('test.invalid')
+          expect(input.layer).toEqual({ layer: 'official' })
           expect(input.purpose).toBe(MODEL_SEND)
-          expect(input.official).toBe(true)
           expect(input.access.principal).toBe(PRINCIPAL)
           expect(tenantEquals(input.access.tenant, TENANT)).toBe(true)
-          return { kind: 'value', scope: 'factory', value: 'synthetic-credential' }
+          return { ok: new Map([['apiKey', 'synthetic-credential']]) }
         },
       },
       sources: [
         {
           profile: ADOPTION,
           supplier: ADOPTION,
-          recipient: 'test.invalid',
+          provider: providerName('test.invalid'),
           model: 'test',
-          credential: {
-            kind: 'factory',
-            official: true,
-            queryId: unbox(decodeCredentialId('push-test-query')),
-          },
-          current: () => ({ ok: { authorized: true, noTenantBinding: true } }),
+          official: true,
+          current: () => ({ ok: { authorized: true } }),
         },
       ],
     },

@@ -15,13 +15,6 @@ export type {
 } from './session-view/index.ts'
 export type { DiagnosticSink, ServerEntryDiagnostic } from './diagnostics.ts'
 export type {
-  ModelCredentialAccess,
-  ModelCredentialBindOutcome,
-  ModelCredentialCustody,
-  ModelCredentialDescribeOutcome,
-  ModelCredentialUnbindOutcome,
-} from './model-credentials.ts'
-export type {
   SettingRef,
   SettingsAccess,
   SettingsClearOutcome,

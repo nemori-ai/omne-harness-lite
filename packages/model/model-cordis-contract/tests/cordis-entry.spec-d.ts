@@ -153,18 +153,18 @@ it('keeps observation services optional and their keys literal', () => {
   expectTypeOf<typeof modelStreamObservationKey>().toEqualTypeOf<'modelStreamObservation'>()
 })
 
-it('keeps a legacy credential subclass concrete without qualified operations', () => {
-  class Legacy extends ModelCredentialService {
-    readonly present = (): { kind: 'unavailable' } => ({ kind: 'unavailable' })
-    readonly resolve = (): { kind: 'unavailable' } => ({ kind: 'unavailable' })
+it('keeps a credential subclass concrete with exactly the two port operations', () => {
+  class Unavailable extends ModelCredentialService {
+    readonly layerOf = () => ({ failure: { kind: 'unavailable' } }) as const
+    readonly resolve = () => ({ failure: { kind: 'unavailable' } }) as const
   }
-  const service: ModelCredentialService = new Legacy(ctx)
+  const service: ModelCredentialService = new Unavailable(ctx)
   expectTypeOf(service).toEqualTypeOf<ModelCredentialService<unknown>>()
-  expectTypeOf<ModelCredentialService<string>['presentFor']>().toEqualTypeOf<
-    CredentialPort<string>['presentFor']
+  expectTypeOf<ModelCredentialService<string>['layerOf']>().toEqualTypeOf<
+    CredentialPort<string>['layerOf']
   >()
-  expectTypeOf<ModelCredentialService<string>['resolveFor']>().toEqualTypeOf<
-    CredentialPort<string>['resolveFor']
+  expectTypeOf<ModelCredentialService<string>['resolve']>().toEqualTypeOf<
+    CredentialPort<string>['resolve']
   >()
   expectTypeOf(ctx.modelCredential).toEqualTypeOf<ModelCredentialService<unknown> | undefined>()
 })

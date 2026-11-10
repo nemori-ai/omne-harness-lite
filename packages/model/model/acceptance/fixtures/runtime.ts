@@ -1,3 +1,4 @@
+import { fail, succeed } from '@omne-harness/operation-result'
 import { createHash } from 'node:crypto'
 import { accountCodec, organizationCodec, tenant, tenantEquals } from '@omne-harness/legal-identity'
 import {
@@ -9,9 +10,9 @@ import {
   type DurableEvidence,
   type ResultVersion,
   type FixedModelRequest,
+  decodeProviderName,
 } from '@omne-harness/model-contract'
 import {
-  decodeCredentialId,
   type Publication,
   type TransportFact,
   type TransportTermination,
@@ -54,18 +55,16 @@ export function createAcceptanceAssembly(script: {
     digest: '0'.repeat(64),
   }
   // The request fixes all adoptions. A production request comes from qualified preparation
-  // and conversion providers. Factory means a credential source, not permission to use it.
-  const tenantKey = decoded(decodeCredentialId('tenant-key'))
+  // and conversion providers. A layer names a credential source, not permission to use it.
+  const provider = decoded(decodeProviderName('acceptance.invalid'))
   const request: FixedModelRequest = {
     profile: adoption,
     suppliers: [
       {
         adoption,
-        recipient: 'acceptance.invalid',
+        provider,
         model: 'script',
-        credential: script.tenantCredential
-          ? { kind: 'tenant', id: tenantKey }
-          : { kind: 'factory' },
+        credential: script.tenantCredential ? { layer: 'tenant' } : { layer: 'official' },
       },
     ],
     declarations: [
@@ -186,24 +185,17 @@ export function createAcceptanceAssembly(script: {
     sending: {
       maxRetainedAttempts: 8,
       credentials: script.credentials ?? {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind: 'value', scope: 'factory', value: 'synthetic-acceptance-only' }),
-        resolveFor: () => ({ kind: 'value', scope: 'factory', value: 'synthetic-acceptance-only' }),
+        layerOf: () => fail({ kind: 'unavailable' }),
+        resolve: () => succeed(new Map([['apiKey', 'synthetic-acceptance-only']])),
       },
       sources: [
         {
           profile: adoption,
           supplier: adoption,
-          recipient: 'acceptance.invalid',
+          provider,
           model: 'script',
-          credential: script.tenantCredential
-            ? { kind: 'tenant' }
-            : {
-                kind: 'factory',
-                official: true,
-                queryId: decoded(decodeCredentialId('acceptance-query')),
-              },
-          current: () => ({ ok: { authorized: true, noTenantBinding: !script.tenantCredential } }),
+          official: true,
+          current: () => ({ ok: { authorized: true } }),
         },
       ],
     },
@@ -300,7 +292,6 @@ export function createAcceptanceAssembly(script: {
   }
   return {
     access: { principal, tenant: scope },
-    tenantKey,
     counts,
     call,
     request,

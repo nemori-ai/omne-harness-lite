@@ -81,9 +81,10 @@ describe('localOperatorLayer over the bundled distribution', () => {
     }
   })
 
-  it('names only the vault path for the model credential and the secret custody, and no secret anywhere', () => {
-    expect(configOf(layer, 'model-credential')).toEqual({ path: '/h/state/model-vault.json' })
-    // The custody row opens the same file; the `settings` row takes no operator value.
+  it('names only the vault path for the secret custody, and no secret anywhere', () => {
+    // The model credential row reads the vault through the custody row; it and the `settings` row
+    // take no operator value.
+    expect(configOf(layer, 'model-credential')).toBeUndefined()
     expect(configOf(layer, 'secret-custody')).toEqual({ path: '/h/state/model-vault.json' })
     expect(configOf(layer, 'settings')).toBeUndefined()
     expect(JSON.stringify(layer)).not.toMatch(/factorySecret|must-not-leak/)

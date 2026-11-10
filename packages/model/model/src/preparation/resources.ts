@@ -41,9 +41,9 @@ export interface PreparationBindingSource {
 }
 
 /**
- * The supplier of one profile supplier with its credential reference. The profile has no
- * credential; the host that owns credential scoping completes it, with the same derivation that
- * request preparation uses. The result must keep the adoption and the route of the input.
+ * The supplier of one profile supplier with its credential layer. The profile has no credential;
+ * the host that owns credential scoping fixes the layer, with the same derivation that request
+ * preparation uses. The result must keep the adoption, the provider and the model of the input.
  */
 export type SupplierPort<P> = (
   input: Access<P> & Readonly<{ profile: ModelProfile; supplier: ProfileSupplier }>,
@@ -79,7 +79,7 @@ function checkOptions<P>(options: ModelPreparationOptions<P>): void {
 function sameRoute(supplier: Supplier, declared: ProfileSupplier): boolean {
   return (
     sameAdoption(supplier.adoption, declared.adoption) &&
-    supplier.recipient === declared.recipient &&
+    supplier.provider === declared.provider &&
     supplier.model === declared.model
   )
 }

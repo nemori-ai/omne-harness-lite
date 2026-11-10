@@ -2,7 +2,9 @@ import { expect, it } from 'vitest'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { createModelSendBoundary, type SendStart } from '@omne-harness/model'
 import type { ModelFailure } from '@omne-harness/model-contract'
+import { fail, succeed } from '@omne-harness/operation-result'
 import {
+  type CredentialFailure,
   type CredentialResolution,
   type ModelCommands,
   type TransportFact,
@@ -12,95 +14,81 @@ import {
   sendFixture,
   signal,
   synthetic,
-  tenantId,
-  factoryId,
+  secrets,
   collect,
   faultCommands,
 } from './send-fixture.ts'
 import { instance, op, proof, unbox } from './memory-fixture.ts'
 
-it('refuses a missing qualified path without consulting the legacy resolver', async () => {
-  let legacy = 0
+it('refuses the official layer of a source that is not an official profile before resolving or starting', async () => {
+  let resolved = 0
   const f = await sendFixture({
+    configureSource(source) {
+      Reflect.set(source, 'official', false)
+    },
     credentials: {
-      present: () => ({ kind: 'unavailable' }),
+      layerOf: () => fail({ kind: 'unavailable' }),
       resolve() {
-        legacy += 1
-        return { kind: 'value', scope: 'factory', value: synthetic }
+        resolved += 1
+        return succeed(secrets)
       },
     },
   })
-  expect(await f.makeSender().send(f.demand, signal())).toEqual({
+  expect(await f.makeSender().send(f.demand, signal())).toMatchObject({
     kind: 'not-started',
     failure: {
       kind: 'unavailable',
-      dependency: 'model-credential',
-      diagnostic: 'qualified-path-missing',
+      dependency: 'model-send-source',
+      diagnostic: 'official-layer-not-official',
     },
-  })
-  expect(legacy).toBe(0)
-  expect(f.counts().starts).toBe(0)
-  expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
-})
-
-it('refuses a selection without the registered official fact before resolving or starting', async () => {
-  const f = await sendFixture()
-  let resolved = 0
-  const coordinator = f.controls.send.coordinator
-  const sender = f.makeSender({
-    coordinator: {
-      ...coordinator,
-      withinCurrent(input, receipt, window, start) {
-        return coordinator.withinCurrent(input, receipt, window, selection =>
-          start({ id: selection.id, scope: selection.scope }),
-        )
-      },
-    },
-    credentials: {
-      ...f.credentials,
-      resolve: () => ({ kind: 'value', scope: 'factory', value: synthetic }),
-      resolveFor() {
-        resolved += 1
-        return { kind: 'value', scope: 'factory', value: synthetic }
-      },
-    },
-  })
-  expect(await sender.send(f.demand, signal())).toMatchObject({
-    kind: 'not-started',
-    failure: { kind: 'unavailable', dependency: 'model-credential' },
   })
   expect(resolved).toBe(0)
   expect(f.counts().starts).toBe(0)
 })
 
-it('keeps the official profile fact when its registered factory source selects a tenant credential', async () => {
-  const observed: unknown[] = []
+it('sends with the tenant layer of a source that is not an official profile', async () => {
   const f = await sendFixture({
     tenant: true,
     configureSource(source) {
-      Reflect.set(source, 'credential', { kind: 'factory', official: true, queryId: factoryId })
+      Reflect.set(source, 'official', false)
     },
     credentials: {
-      ...credentialPort({ kind: 'value', scope: 'tenant', value: synthetic }),
-      resolveFor(input) {
-        observed.push(input)
-        return { kind: 'value', scope: 'tenant', value: synthetic }
-      },
+      layerOf: () => fail({ kind: 'unavailable' }),
+      resolve: () => succeed(secrets),
     },
   })
   const result = await f.makeSender().send(f.demand, signal())
-  expect(observed).toEqual([
-    {
-      id: tenantId,
-      purpose: 'model-send',
-      official: true,
-      access: { principal: f.principal, tenant: f.tenant },
-    },
-  ])
-  expect(f.counts().starts).toBe(1)
+  expect(result.kind).toBe('started')
   if (result.kind !== 'started') throw new Error('send fixture')
   await collect(result.facts)
 })
+
+for (const tenant of [false, true])
+  it(`reads the fixed ${tenant ? 'tenant' : 'official'} layer of the supplier's provider at the send`, async () => {
+    const observed: unknown[] = []
+    const f = await sendFixture({
+      tenant,
+      credentials: {
+        layerOf: () => fail({ kind: 'unavailable' }),
+        resolve(input) {
+          observed.push(input)
+          return succeed(secrets)
+        },
+      },
+    })
+    const result = await f.makeSender().send(f.demand, signal())
+    expect(observed).toEqual([
+      {
+        provider: f.request.suppliers[0].provider,
+        layer: { layer: tenant ? 'tenant' : 'official' },
+        purpose: 'model-send',
+        access: { principal: f.principal, tenant: f.tenant },
+      },
+    ])
+    expect(f.counts()).toMatchObject({ starts: 1, valueMatches: true })
+    if (result.kind !== 'started') throw new Error('send fixture')
+    await collect(result.facts)
+  })
 
 for (const [stage, acquired, released] of [
   ['acquire', 0, []],
@@ -354,7 +342,7 @@ for (const method of ['recordMaterialization', 'openReceiveWindow', 'recordSend'
     expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
   })
 
-for (const boundary of ['resolveFor', 'start'] as const)
+for (const boundary of ['resolve', 'start'] as const)
   it(`a synchronously reentered product closure at ${boundary} resolves and starts once and preserves its original stream`, async () => {
     const f = await sendFixture()
     const coordinator = f.controls.send.coordinator
@@ -372,14 +360,11 @@ for (const boundary of ['resolveFor', 'start'] as const)
         },
       },
       credentials: {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => {
-          throw new Error('legacy-resolution-called')
-        },
-        resolveFor() {
+        layerOf: () => fail({ kind: 'unavailable' }),
+        resolve() {
           resolutions += 1
-          if (boundary === 'resolveFor' && resolutions === 1) nested = reenter?.()
-          return { kind: 'value', scope: 'factory', value: synthetic }
+          if (boundary === 'resolve' && resolutions === 1) nested = reenter?.()
+          return succeed(secrets)
         },
       },
       resources: {
@@ -429,42 +414,47 @@ for (const method of ['recordMaterialization', 'openReceiveWindow'] as const)
     if (next.kind === 'started') await collect(next.facts)
   })
 
-for (const kind of ['value', 'absent', 'unreadable', 'denied', 'unavailable'] as const) {
+const FAILURES: Readonly<Record<string, CredentialFailure>> = {
+  missing: { kind: 'missing' },
+  incomplete: { kind: 'incomplete', missing: ['apiKey'] },
+  revoked: { kind: 'revoked' },
+  unreadable: { kind: 'unreadable' },
+  denied: { kind: 'denied' },
+  unavailable: { kind: 'unavailable' },
+}
+const FINAL = ['missing', 'incomplete', 'revoked', 'unreadable']
+for (const kind of ['value', ...Object.keys(FAILURES)]) {
   it(`resolves tenant ${kind} only at the actual send boundary`, async () => {
+    const failure = FAILURES[kind]
     const resolution: CredentialResolution =
-      kind === 'value' ? { kind, scope: 'tenant', value: synthetic } : { kind }
+      failure === undefined ? succeed(secrets) : fail(failure)
     const observed: unknown[] = []
     const credentials = credentialPort(resolution)
-    const resolveFor = credentials.resolveFor
-    if (!resolveFor) throw new Error('qualified fixture')
-    credentials.resolveFor = input => {
+    const resolve = credentials.resolve
+    credentials.resolve = input => {
       observed.push(input)
-      return resolveFor(input)
+      return resolve(input)
     }
     const f = await sendFixture({ tenant: true, credentials })
     const result = await f.makeSender().send(f.demand, signal())
     expect(observed).toEqual([
       {
-        id: tenantId,
+        provider: f.request.suppliers[0].provider,
+        layer: { layer: 'tenant' },
         purpose: 'model-send',
-        official: false,
         access: { principal: f.principal, tenant: f.tenant },
       },
     ])
     expect(f.counts().starts).toBe(kind === 'value' ? 1 : 0)
     const recorded = unbox(await f.dependencies.commands.dispatches(f.admit))[0]
     expect(recorded?.send).toBe(kind === 'value' ? 'started' : 'not-sent')
-    // Only a missing or unreadable credential is final for the call: the not-sent dispatch then
-    // carries the failed terminal. A denial or an unavailable dependency leaves no terminal.
+    // Only a refused layer is final for the call: the not-sent dispatch then carries the failed
+    // terminal. A denial or an unavailable dependency leaves no terminal.
     expect(recorded?.terminal ?? null).toEqual(
-      kind === 'absent' || kind === 'unreadable'
+      FINAL.includes(kind)
         ? {
             kind: 'failed',
-            fault: {
-              cause: 'credential',
-              diagnostic: kind === 'absent' ? 'credential-missing' : 'credential-unreadable',
-              upstreamStatus: null,
-            },
+            fault: { cause: 'credential', diagnostic: `credential-${kind}`, upstreamStatus: null },
           }
         : null,
     )
@@ -474,13 +464,13 @@ for (const kind of ['value', 'absent', 'unreadable', 'denied', 'unavailable'] as
     } else {
       expect(result).toMatchObject(
         kind === 'denied'
-          ? { kind: 'not-started', failure: { kind: 'denied' } }
+          ? { kind: 'not-started', failure: { kind: 'denied', action: 'model-credential' } }
           : {
               kind: 'not-started',
               failure: {
                 kind: 'unavailable',
                 dependency: 'model-credential',
-                diagnostic: kind === 'absent' ? 'credential-missing' : `credential-${kind}`,
+                diagnostic: `credential-${kind}`,
               },
             },
       )
@@ -493,7 +483,10 @@ for (const kind of ['value', 'absent', 'unreadable', 'denied', 'unavailable'] as
 for (const method of ['recordSend', 'preserve'] as const)
   for (const kind of ['denied', 'stale-instance', 'conflict'] as const)
     it(`answers a definite ${kind} of ${method} for a missing credential`, async () => {
-      const f = await sendFixture({ tenant: true, credentials: credentialPort({ kind: 'absent' }) })
+      const f = await sendFixture({
+        tenant: true,
+        credentials: credentialPort(fail({ kind: 'missing' })),
+      })
       const rejection = (input: { instance: unknown; operation: unknown; expected: unknown }) =>
         (kind === 'denied'
           ? { kind, action: 'record-refused' }
@@ -514,7 +507,10 @@ for (const method of ['recordSend', 'preserve'] as const)
     })
 for (const method of ['recordSend', 'preserve'] as const)
   it(`keeps a definite ${method} rejection when the release then fails, and holds the attempt`, async () => {
-    const f = await sendFixture({ tenant: true, credentials: credentialPort({ kind: 'absent' }) })
+    const f = await sendFixture({
+      tenant: true,
+      credentials: credentialPort(fail({ kind: 'missing' })),
+    })
     const commands: typeof f.dependencies.commands = { ...f.dependencies.commands }
     const denied = { failure: { kind: 'denied', action: 'record-refused' } } as const
     if (method === 'recordSend') commands.recordSend = async () => denied
@@ -533,7 +529,10 @@ for (const method of ['recordSend', 'preserve'] as const)
     expect(f.counts()).toMatchObject({ acquired: 1, starts: 0 })
   })
 it('retries an unconfirmed credential terminal with the same operation', async () => {
-  const f = await sendFixture({ tenant: true, credentials: credentialPort({ kind: 'absent' }) })
+  const f = await sendFixture({
+    tenant: true,
+    credentials: credentialPort(fail({ kind: 'missing' })),
+  })
   const inputs: Parameters<typeof f.dependencies.commands.preserve>[0][] = []
   const sender = f.makeSender({
     commands: {
@@ -564,55 +563,7 @@ it('retries an unconfirmed credential terminal with the same operation', async (
   })
   expect(f.counts().starts).toBe(0)
 })
-for (const tenant of [false, true])
-  it(`rejects a credential scope mismatch for ${tenant ? 'tenant' : 'factory'} without fallback`, async () => {
-    let resolves = 0
-    const f = await sendFixture({
-      tenant,
-      credentials: {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => {
-          throw new Error('legacy-resolution-called')
-        },
-        resolveFor: () => {
-          resolves += 1
-          return { kind: 'value', scope: tenant ? 'factory' : 'tenant', value: synthetic }
-        },
-      },
-    })
-    const result = await f.makeSender().send(f.demand, signal())
-    expect(result).toMatchObject({
-      kind: 'not-started',
-      failure: { kind: 'denied', action: 'credential-scope' },
-    })
-    expect(resolves).toBe(1)
-    expect(f.counts().starts).toBe(0)
-  })
-it('requires explicit factory source, current no-binding evidence and a human-named query', async () => {
-  const references: unknown[] = []
-  const f = await sendFixture({
-    credentials: {
-      present: () => ({ kind: 'unavailable' }),
-      resolve: () => {
-        throw new Error('legacy-resolution-called')
-      },
-      resolveFor: input => {
-        references.push(input)
-        return { kind: 'value', scope: 'factory', value: synthetic }
-      },
-    },
-  })
-  const result = await f.makeSender().send(f.demand, signal())
-  expect(references).toEqual([
-    {
-      id: factoryId,
-      purpose: 'model-send',
-      official: true,
-      access: { principal: f.principal, tenant: f.tenant },
-    },
-  ])
-  if (result.kind !== 'started') throw new Error('send fixture')
-  await collect(result.facts)
+it('requires a registered send source', async () => {
   const missing = await sendFixture({ registered: false })
   expect(await missing.makeSender().send(missing.demand, signal())).toMatchObject({
     kind: 'not-started',
@@ -623,11 +574,8 @@ it('requires explicit factory source, current no-binding evidence and a human-na
 it('normalizes credential exceptions without storing their secret text', async () => {
   const f = await sendFixture({
     credentials: {
-      present: () => ({ kind: 'unavailable' }),
+      layerOf: () => fail({ kind: 'unavailable' }),
       resolve: () => {
-        throw new Error('legacy-resolution-called')
-      },
-      resolveFor: () => {
         throw new Error(synthetic)
       },
     },
@@ -806,13 +754,10 @@ for (const mismatch of ['receipt', 'window', 'supplier', 'model'] as const)
         },
       },
       credentials: {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => {
-          throw new Error('legacy-resolution-called')
-        },
-        resolveFor() {
+        layerOf: () => fail({ kind: 'unavailable' }),
+        resolve() {
           resolutions += 1
-          return { kind: 'value', scope: 'factory', value: synthetic }
+          return succeed(secrets)
         },
       },
     })
@@ -1046,28 +991,23 @@ it('rejects invalid retention bounds before acquiring anything', async () => {
   expect(f.counts().acquired).toBe(0)
 })
 
-for (const defect of ['query', 'official', 'adoption', 'recipient', 'binding'] as const)
-  it(`factory ${defect} cannot be guessed from a request tag`, async () => {
+for (const defect of ['official', 'adoption', 'provider'] as const)
+  it(`the source ${defect} cannot be guessed from a request tag`, async () => {
     let resolves = 0
     const f = await sendFixture({
       credentials: {
-        present: () => ({ kind: 'unavailable' }),
+        layerOf: () => fail({ kind: 'unavailable' }),
         resolve: () => {
-          throw new Error('legacy-resolution-called')
-        },
-        resolveFor: () => {
           resolves += 1
-          return { kind: 'value', scope: 'factory', value: synthetic }
+          return succeed(secrets)
         },
       },
       configureSource(source) {
-        if (defect === 'query') Reflect.deleteProperty(source.credential, 'queryId')
-        if (defect === 'official') Reflect.set(source.credential, 'official', false)
+        if (defect === 'official') Reflect.set(source, 'official', false)
         if (defect === 'adoption') Reflect.set(source.profile, 'revision', 'other')
-        if (defect === 'recipient') Reflect.set(source, 'recipient', 'other.invalid')
+        if (defect === 'provider') Reflect.set(source, 'provider', 'other.invalid')
       },
     })
-    if (defect === 'binding') f.setNoTenantBinding(false)
     expect((await f.makeSender().send(f.demand, signal())).kind).toBe('not-started')
     expect(resolves).toBe(0)
     expect(f.counts().starts).toBe(0)
@@ -1105,17 +1045,14 @@ it('the synchronous fence rejects reentry without allowing a credential or start
   let rejected = false
   const sender = f.makeSender({
     credentials: {
-      present: () => ({ kind: 'unavailable' }),
+      layerOf: () => fail({ kind: 'unavailable' }),
       resolve: () => {
-        throw new Error('legacy-resolution-called')
-      },
-      resolveFor: () => {
         try {
           f.controls.commands.replaceOwners([])
         } catch {
           rejected = true
         }
-        return { kind: 'value', scope: 'factory', value: synthetic }
+        return succeed(secrets)
       },
     },
   })
@@ -1254,15 +1191,10 @@ it('recognizes an unknown not-sent record without resolving credentials a second
   const sender = f.makeSender({
     commands: fault.commands,
     credentials: {
-      present: () => ({ kind: 'unavailable' }),
+      layerOf: () => fail({ kind: 'unavailable' }),
       resolve: () => {
-        throw new Error('legacy-resolution-called')
-      },
-      resolveFor: () => {
         resolutions += 1
-        return resolutions === 1
-          ? { kind: 'absent' }
-          : { kind: 'value', scope: 'factory', value: synthetic }
+        return resolutions === 1 ? fail({ kind: 'missing' }) : succeed(secrets)
       },
     },
   })
@@ -1356,7 +1288,7 @@ for (const record of ['confirmed', 'rejected'] as const)
     let writes = 0
     // A refusal that is not final. A missing credential writes a terminal instead.
     const sender = f.makeSender({
-      credentials: credentialPort({ kind: 'unavailable' }),
+      credentials: credentialPort(fail({ kind: 'unavailable' })),
       commands: {
         ...f.dependencies.commands,
         recordSend(input) {

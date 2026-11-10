@@ -214,23 +214,53 @@ describe('responses', () => {
       expect(read('set-setting', 'succeeded', body).kind, JSON.stringify(body)).toBe('unreadable')
   })
 
-  it('describe-setting shows presence, owner and time, never the secret', () => {
-    for (const body of states) expect(roundTrip('describe-setting', body)).toEqual(body)
-    for (const body of [...badStates, { state: 'not-writable' }])
+  const officialStates = [
+    { state: 'unbound' },
+    { state: 'usable' },
+    { state: 'revoked', configuredAt: at },
+    { state: 'unreadable' },
+  ]
+  const badOfficialStates = [
+    {},
+    { state: 'usable', tenantId },
+    { state: 'unbound', configuredAt: at },
+    { state: 'usable', configuredAt: 'not-an-instant' },
+    { state: 'not-writable' },
+    { state: 'usable', secret: SENTINEL },
+  ]
+
+  it('describe-setting shows both layers: own presence, owner and time, and the deployment layer, never the secret', () => {
+    for (const own of states)
+      for (const official of officialStates) {
+        const body = { own, official }
+        expect(roundTrip('describe-setting', body)).toEqual(body)
+      }
+    for (const body of [
+      ...states,
+      ...badStates.map(own => ({ own, official: { state: 'unbound' } })),
+      { own: { state: 'not-writable' }, official: { state: 'unbound' } },
+      ...badOfficialStates.map(official => ({ own: { state: 'unbound' }, official })),
+      { own: { state: 'unbound' } },
+      { official: { state: 'unbound' } },
+      { own: { state: 'unbound' }, official: { state: 'unbound' }, secret: SENTINEL },
+    ])
       expect(read('describe-setting', 'succeeded', body).kind, JSON.stringify(body)).toBe(
         'unreadable',
       )
   })
 
-  it('list-settings lists secret items with their state and ordinary items as not-writable', () => {
+  it('list-settings lists secret items with both layers and ordinary items as not-writable', () => {
     const items = [
-      ...states.map(state => ({
-        asset: web,
-        item: 'exa.apiKey',
-        title: 'Exa API key',
-        sensitivity: 'secret',
-        state,
-      })),
+      ...states.flatMap(state =>
+        officialStates.map(official => ({
+          asset: web,
+          item: 'exa.apiKey',
+          title: 'Exa API key',
+          sensitivity: 'secret',
+          state,
+          official,
+        })),
+      ),
       {
         asset: { category: 'tool', name: 'Web' },
         item: 'maxResults',
@@ -246,7 +276,15 @@ describe('responses', () => {
       completeness: 'complete',
     })
     const item = items[1] as Record<string, unknown>
+    const ordinary = items[items.length - 1] as Record<string, unknown>
     for (const bad of [
+      { items: [{ ...item, official: undefined }], completeness: 'complete' },
+      ...badOfficialStates.map(official => ({
+        items: [{ ...item, official }],
+        completeness: 'complete',
+      })),
+      { items: [{ ...ordinary, official: { state: 'unbound' } }], completeness: 'complete' },
+      { items: [{ ...ordinary, state: bound }], completeness: 'complete' },
       { items },
       { items, completeness: 'partial' },
       { items: [{ ...item, secret: SENTINEL }], completeness: 'complete' },
@@ -312,15 +350,14 @@ describe('responses', () => {
     },
   )
 
-  it('not-writable belongs to the setting operations only', () => {
-    expect(read('bind-model-credential', 'not-writable', {}).kind).toBe('unreadable')
-    expect(read('describe-model-credential', 'not-writable', {}).kind).toBe('unreadable')
+  it('not-writable belongs to the item operations only', () => {
+    expect(read('list-settings', 'not-writable', {}).kind).toBe('unreadable')
   })
 
   it('the encoder refuses a success body that carries the secret', () => {
     for (const [operation, body] of [
       ['set-setting', { configuredAt: at, secret: SENTINEL }],
-      ['describe-setting', { ...bound, secret: SENTINEL }],
+      ['describe-setting', { own: { ...bound, secret: SENTINEL }, official: { state: 'unbound' } }],
     ] as const) {
       const encoded = encodeGovernanceResponse({
         operation,

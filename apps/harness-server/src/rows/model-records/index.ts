@@ -10,7 +10,8 @@
 // - one evidence adapter per consumer owner adoption, over the `initial` of this activation, the
 //   materialization reader the send stage installs, and the custody evidence of the Agent owner read
 //   per call from the trusted `agentReceivedRecords` of the `agent-journal` row (R2-D257);
-// - the trusted send sources of the official OpenAI profiles with the factory credential;
+// - the trusted send sources of the official OpenAI profiles;
+// - the routes of the release providers, with the operator's endpoints;
 // - the combination: the configured `combinationVersion` and the digest of the same catalog the
 //   `session-storage` row registers.
 // At activation the row attaches `initial` and the registry to the composition (one channel is
@@ -26,11 +27,7 @@
 import type { Context, Fiber, Plugin } from '@deepseek-ai/cordis'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
-import {
-  decodeCredentialId,
-  type CredentialPort,
-  type ModelClock,
-} from '@omne-harness/model-contract/provider'
+import type { CredentialPort, ModelClock } from '@omne-harness/model-contract/provider'
 import {
   ModelDiagnosticsService,
   modelClockKey,
@@ -62,7 +59,8 @@ import { modelRecordsPortOf } from '../../model/ports.ts'
 import { createModelQualification } from '../../model/qualification.ts'
 import { officialSendSources } from '../../model/sources.ts'
 import { defineRow } from '../../row.ts'
-import { tenantCredentialSupplier } from '../../model/tenant-credential.ts'
+import { providerRoutes } from '../../assets/model-providers.ts'
+import { credentialLayerSupplier } from '../../model/credential-layer.ts'
 import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { modelRecordsConfig, type ModelRecordsConfig } from './config.ts'
@@ -120,9 +118,6 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
   const manifest = compositeManifestDigest(storageCatalog())
   if (manifest.kind === 'invalid')
     throw new Error(`model records combination is not registrable: ${manifest.diagnostic}`)
-  const factoryQueryId = decodeCredentialId(config.app.sendStage.factoryQueryId)
-  if ('failure' in factoryQueryId)
-    throw new Error(`model-records: sendStage.factoryQueryId is not a credential id`)
   const given = injected(ctx)
   const qualification = createModelQualification({
     verifier: given.principalVerifier,
@@ -156,7 +151,6 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
       manifestDigest: manifest.digest,
       sources: officialSendSources({
         profiles: sendStage.profiles,
-        factoryQueryId: factoryQueryId.ok,
         current: qualification.sourceCurrent,
       }),
       initialRun,
@@ -196,7 +190,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
           execution: qualification.authority.execution,
         },
         network: sendStage.network,
-        routes: sendStage.routes,
+        routes: providerRoutes(sendStage.endpoints),
         transportLimits: {
           connectTimeoutMs: sendStage.transportLimits.connectTimeoutMs,
           connectRetry: sendStage.transportLimits.connectRetry,
@@ -209,7 +203,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         },
         preparation: {
           maxCitedCalls: sendStage.preparation.maxCitedCalls,
-          supplierOf: tenantCredentialSupplier(() => sendCredential.port),
+          supplierOf: credentialLayerSupplier(() => sendCredential.port),
         },
         executionChannel: () => handle.executionChannel(),
         installMaterialization: reader => {

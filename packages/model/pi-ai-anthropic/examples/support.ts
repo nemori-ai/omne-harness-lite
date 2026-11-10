@@ -97,14 +97,14 @@ export function profileOf(
   }
 }
 
-/** The supplier of the profile, with the factory credential. */
+/** The supplier of the profile, on the official credential layer. */
 export function supplierOf(profile: ModelProfile): Supplier {
   const declared = profile.definition.suppliers[0]
   return {
     adoption: declared.adoption,
-    recipient: declared.recipient,
+    provider: declared.provider,
     model: declared.model,
-    credential: { kind: 'factory' },
+    credential: { layer: 'official' },
   }
 }
 
@@ -217,9 +217,16 @@ export function openTransport(families: readonly PiFamily[]): OpenTransport {
   const transport = createPiTransport({
     network,
     families: composeFamilies(families),
-    routes: { openrouter: { url: OPENROUTER, endMarker: END_MARKER } },
+    routes: {
+      openrouter: {
+        url: OPENROUTER,
+        endMarker: END_MARKER,
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        auth: { kind: 'bearer', item: 'apiKey' },
+      },
+    },
     // A placeholder: the proxy replaces it with the real credential.
-    credential: { read: () => 'placeholder' },
+    credential: { read: () => new Map([['apiKey', 'placeholder']]) },
     limits: {
       connectTimeoutMs: 30_000,
       maxErrorBodyBytes: 4_096,

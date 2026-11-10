@@ -1,9 +1,15 @@
 // The `SettingsGovernance` port of server-entry (SPEC「设置项」) over the Settings secret-item entry.
-// Every call is admitted first (`../authorization/settings-access.ts`); the scope it then reads or
-// writes is the tenant scope of the admitted access and nothing else: a public operation reaches
-// neither the official scope nor the use face (I-2, I-6). The entry's answers are mapped to the
-// public outcomes here; the secret goes in through `set` and comes out of nothing.
-import type { SettingItemView, SettingState } from '@omne-harness/public-contract'
+// Every call is admitted first (`../authorization/settings-access.ts`). `set` and `clear` write the
+// tenant scope of the admitted access and nothing else: a public operation never writes the
+// official scope and never reaches the use face (I-2, I-6, I-8). `describe` and `list` read a secret
+// item in both layers, the tenant's own and the official one that every legal tenant holds; a read
+// that fails in either layer answers `basis-unavailable` (I-7). The entry's answers are mapped to
+// the public outcomes here; the secret goes in through `set` and comes out of nothing.
+import type {
+  SettingItemView,
+  SettingLayerState,
+  SettingState,
+} from '@omne-harness/public-contract'
 import type {
   SettingsAccess,
   SettingsClearOutcome,
@@ -44,6 +50,8 @@ type Admitted =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'basis-unavailable' }>
 
+const OFFICIAL: SecretScope = { layer: 'official' }
+
 /** The public outcome of an answer the entry gives before it asks the custody. */
 function refusal(kind: SecretItemRefusal): 'not-visible' | 'not-writable' | 'conflict' {
   switch (kind) {
@@ -60,25 +68,44 @@ function refusal(kind: SecretItemRefusal): 'not-visible' | 'not-writable' | 'con
   }
 }
 
-/** The public state of a presence: the life as the contract names it, the owner, the time if kept. */
-function stateOf(presence: SecretPresence, tenantId: SettingsAccess['tenant']): SettingState {
+/** The public state of a presence in one layer: the life as the contract names it, the time if kept. */
+function layerOf(presence: SecretPresence): SettingLayerState {
   if (presence.kind === 'unbound') return { state: 'unbound' }
   const state =
     presence.life === 'active' ? 'usable' : presence.life === 'revoked' ? 'revoked' : 'unreadable'
-  return presence.configuredAt === null
-    ? { state, tenantId }
-    : { state, tenantId, configuredAt: presence.configuredAt }
+  return presence.configuredAt === null ? { state } : { state, configuredAt: presence.configuredAt }
 }
 
-/** The public view of a listed item: a secret item shows its presence, an ordinary one is not writable here. */
-function viewOf(view: SecretItemView, tenantId: SettingsAccess['tenant']): SettingItemView {
+/** The public state of a presence in the tenant's own layer: the layer state and the owner. */
+function stateOf(presence: SecretPresence, tenantId: SettingsAccess['tenant']): SettingState {
+  const layer = layerOf(presence)
+  return layer.state === 'unbound' ? layer : { ...layer, tenantId }
+}
+
+/** The key of a listed item, to find the same item in the other layer. */
+function itemKey(view: SecretItemView): string {
+  return JSON.stringify([view.asset.category, view.asset.name, view.itemId])
+}
+
+/**
+ * The public view of a listed item: a secret item shows its presence in both layers, an ordinary
+ * one is not writable here. `undefined` when the official layer has no view of a secret item.
+ */
+function viewOf(
+  view: SecretItemView,
+  official: ReadonlyMap<string, SecretItemView>,
+  tenantId: SettingsAccess['tenant'],
+): SettingItemView | undefined {
+  const base = { asset: view.asset, item: view.itemId, title: view.title }
+  if (view.sensitivity !== 'secret')
+    return { ...base, sensitivity: view.sensitivity, state: { state: 'not-writable' } }
+  const other = official.get(itemKey(view))
+  if (other?.sensitivity !== 'secret') return undefined
   return {
-    asset: view.asset,
-    item: view.itemId,
-    title: view.title,
-    sensitivity: view.sensitivity,
-    state:
-      view.sensitivity === 'secret' ? stateOf(view.presence, tenantId) : { state: 'not-writable' },
+    ...base,
+    sensitivity: 'secret',
+    state: stateOf(view.presence, tenantId),
+    official: layerOf(other.presence),
   }
 }
 
@@ -98,12 +125,22 @@ export function createSettingsGovernance(input: SettingsGovernanceInput): Settin
     async list({ access, asset }): Promise<SettingsListOutcome> {
       const admitted = await admit(access, 'list')
       if (admitted.kind !== 'scope') return admitted
-      const listed = input.items.items(
-        asset === undefined ? { scope: admitted.scope } : { scope: admitted.scope, asset },
-      )
+      const listOf = (scope: SecretScope) =>
+        input.items.items(asset === undefined ? { scope } : { scope, asset })
+      const listed = listOf(admitted.scope)
       if (listed === 'denied') return { kind: 'denied' }
       if (listed === 'unavailable' || listed === 'conflict') return { kind: 'basis-unavailable' }
-      return { kind: 'succeeded', items: listed.map(view => viewOf(view, access.tenant)) }
+      const officialListed = listOf(OFFICIAL)
+      if (typeof officialListed === 'string') return { kind: 'basis-unavailable' }
+      const official = new Map(officialListed.map(view => [itemKey(view), view]))
+      const items: SettingItemView[] = []
+      for (const view of listed) {
+        const shown = viewOf(view, official, access.tenant)
+        // The declarations changed between the two reads: there is no consistent answer.
+        if (shown === undefined) return { kind: 'basis-unavailable' }
+        items.push(shown)
+      }
+      return { kind: 'succeeded', items }
     },
 
     async set({ access, asset, item, secret }): Promise<SettingsSetOutcome> {
@@ -148,7 +185,12 @@ export function createSettingsGovernance(input: SettingsGovernanceInput): Settin
         if (presence === 'unavailable') return { kind: 'basis-unavailable' }
         return { kind: refusal(presence) }
       }
-      return { kind: 'succeeded', setting: stateOf(presence, access.tenant) }
+      const official = input.items.describe({ scope: OFFICIAL, item: { asset, itemId: item } })
+      if (typeof official === 'string') return { kind: 'basis-unavailable' }
+      return {
+        kind: 'succeeded',
+        setting: { own: stateOf(presence, access.tenant), official: layerOf(official) },
+      }
     },
 
     async clear({ access, asset, item }): Promise<SettingsClearOutcome> {

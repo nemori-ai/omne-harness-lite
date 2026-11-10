@@ -75,6 +75,7 @@ function settingsDouble() {
               at === undefined
                 ? { state: 'unbound' }
                 : { state: 'usable', tenantId: input.access.tenant, configuredAt: at },
+            official: { state: 'usable', configuredAt: AT },
           },
           {
             asset: WEB,
@@ -96,10 +97,13 @@ function settingsDouble() {
       const at = configured.get(key(input.access, input.item))
       return {
         kind: 'succeeded',
-        setting:
-          at === undefined
-            ? { state: 'unbound' }
-            : { state: 'usable', tenantId: input.access.tenant, configuredAt: at },
+        setting: {
+          own:
+            at === undefined
+              ? { state: 'unbound' }
+              : { state: 'usable', tenantId: input.access.tenant, configuredAt: at },
+          official: { state: 'usable', configuredAt: AT },
+        },
       }
     },
     async clear(input) {
@@ -151,7 +155,10 @@ describe('with a settings port', () => {
     expect(outcomeOf(set)).toEqual({ outcome: 'succeeded', body: { configuredAt: AT_TEXT } })
     expect(outcomeOf(await call(alice, 'describe-setting', BODIES['describe-setting']))).toEqual({
       outcome: 'succeeded',
-      body: { state: 'usable', tenantId: alice.tenantText, configuredAt: AT_TEXT },
+      body: {
+        own: { state: 'usable', tenantId: alice.tenantText, configuredAt: AT_TEXT },
+        official: { state: 'usable', configuredAt: AT_TEXT },
+      },
     })
     expect(outcomeOf(await call(alice, 'list-settings', {}))).toEqual({
       outcome: 'succeeded',
@@ -163,6 +170,7 @@ describe('with a settings port', () => {
             title: 'Exa API key',
             sensitivity: 'secret',
             state: { state: 'usable', tenantId: alice.tenantText, configuredAt: AT_TEXT },
+            official: { state: 'usable', configuredAt: AT_TEXT },
           },
           {
             asset: WEB,
@@ -375,7 +383,7 @@ describe('with a settings port', () => {
       describe: async ({ access }) =>
         ({
           kind: 'succeeded',
-          setting: { ...leaked, tenantId: access.tenant },
+          setting: { own: { ...leaked, tenantId: access.tenant }, official: { state: 'unbound' } },
         }) as unknown as Awaited<ReturnType<SettingsGovernance['describe']>>,
       list: async ({ access }) =>
         ({
@@ -387,6 +395,7 @@ describe('with a settings port', () => {
               title: 'Exa API key',
               sensitivity: 'secret',
               state: { ...leaked, tenantId: access.tenant },
+              official: { state: 'unbound' },
             },
           ],
         }) as unknown as Awaited<ReturnType<SettingsGovernance['list']>>,

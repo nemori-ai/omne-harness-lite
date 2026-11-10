@@ -8,7 +8,7 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   SettingAssetSelector,
   SettingItemView,
-  SettingState,
+  SettingLayers,
 } from '@omne-harness/public-contract'
 import type { Instant } from '@omne-harness/utc-instant'
 
@@ -30,7 +30,7 @@ export type SettingsSetOutcome =
     }>
 
 export type SettingsDescribeOutcome =
-  | Readonly<{ kind: 'succeeded'; setting: SettingState }>
+  | Readonly<{ kind: 'succeeded'; setting: SettingLayers }>
   | Readonly<{ kind: 'denied' | 'not-visible' | 'conflict' | 'not-writable' | 'basis-unavailable' }>
 
 /** `no-change`: no secret was configured for the item. */

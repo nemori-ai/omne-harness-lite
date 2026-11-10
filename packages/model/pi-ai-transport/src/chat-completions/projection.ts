@@ -102,7 +102,7 @@ export function normalizeToolCallId(id: string): string {
 export function recordDeclaration(record: ChatCompletionsRecord): ReplayDeclaration {
   const judged = judgeReplayDeclaration(
     {
-      recipient: record.route.recipient,
+      provider: record.route.provider,
       model: record.route.model,
       replay: record.replay.declaration,
     },

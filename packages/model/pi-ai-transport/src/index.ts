@@ -14,13 +14,21 @@ export {
   composeFamilies,
   defineFamily,
   recordAdoption,
+  recordProvider,
   replayFormatsOf,
   type PiFamily,
   type PiFamilySpec,
   type PiModelRecordHead,
   type PiReplayFormats,
 } from './family-table.ts'
-export type { PiCredentialSlot, PiRoute, PiTransportConfig, PiTransportLimits } from './config.ts'
+export type {
+  PiCredentialSlot,
+  PiRoute,
+  PiRouteAuth,
+  PiTransportConfig,
+  PiTransportLimits,
+  RouteAccounting,
+} from './config.ts'
 export { createPiTransport, type PiTransport } from './transport.ts'
 export type { ConnectRetryDiagnostic, DiagnosticObserver } from './diagnostics.ts'
 export {

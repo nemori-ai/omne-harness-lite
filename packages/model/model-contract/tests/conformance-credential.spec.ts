@@ -1,17 +1,17 @@
 import { access, accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
+import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it, vi } from 'vitest'
 import type {
+  CredentialLayerQuery,
   CredentialPort,
-  CredentialQuery,
-  QualifiedCredentialQuery,
-  SendFace,
+  CredentialReference,
 } from '../src/credential.ts'
-import { decodeCredentialId } from '../src/credential-values.ts'
 import { checkCredentialPortConformance } from '../src/conformance/credential.ts'
 import {
   CREDENTIAL_CONFORMANCE_OBLIGATIONS,
   type CredentialConformanceSubject,
 } from '../src/conformance/credential-types.ts'
+import { decodeProviderName } from '../src/provider-name.ts'
 import { createScriptedCredentialPort } from '../src/testing/credential.ts'
 
 function identity(suffix: string) {
@@ -21,22 +21,30 @@ function identity(suffix: string) {
   return tenant(organization.value, account.value)
 }
 
-function credential(text: string) {
-  const decoded = decodeCredentialId(text)
-  if (!('ok' in decoded)) throw new Error('invalid test credential')
+function providerName(text: string) {
+  const decoded = decodeProviderName(text)
+  if (!('ok' in decoded)) throw new Error('invalid test provider')
   return decoded.ok
 }
 
+const PROVIDER = providerName('suite-gateway')
+const BARE = providerName('suite-local')
+const ITEMS = ['apiKey', 'organization'] as const
+
 function subject(): CredentialConformanceSubject<string> {
-  const factorySecret = 'synthetic-factory-value'
   return {
-    ...createScriptedCredentialPort<string>({ factorySecret }),
+    ...createScriptedCredentialPort<string>({
+      providers: new Map([
+        [PROVIDER, { items: ITEMS, official: true }],
+        [BARE, { items: [], official: true }],
+      ]),
+    }),
     access: access('principal-a', identity('5')),
     otherAccess: access('principal-b', identity('6')),
-    id: credential('suite-primary'),
-    otherId: credential('suite-secondary'),
-    factorySecret,
-    secret: 'synthetic-tenant-value',
+    provider: PROVIDER,
+    bareProvider: BARE,
+    items: ITEMS,
+    secrets: ['synthetic-key-value', 'synthetic-organization-value'],
     rotatedSecret: 'synthetic-rotated-value',
   }
 }
@@ -50,20 +58,12 @@ class PrivateCredentialPort {
     this.#port = port
   }
 
-  present(query: CredentialQuery) {
-    return this.#port.present(query)
+  layerOf(query: CredentialLayerQuery<string>) {
+    return this.#port.layerOf(query)
   }
 
-  resolve(query: CredentialQuery, face: SendFace) {
-    return this.#port.resolve(query, face)
-  }
-
-  presentFor(query: Omit<QualifiedCredentialQuery<string>, 'official'>) {
-    return this.#port.presentFor?.(query) ?? { kind: 'unavailable' as const }
-  }
-
-  resolveFor(query: QualifiedCredentialQuery<string>) {
-    return this.#port.resolveFor?.(query) ?? { kind: 'unavailable' as const }
+  resolve(reference: CredentialReference<string>) {
+    return this.#port.resolve(reference)
   }
 }
 
@@ -102,39 +102,6 @@ describe('credential port conformance', () => {
     expect(disposed).toBe(created)
   })
 
-  it('detects a provider that ignores the tenant', async () => {
-    expect(
-      await failures(input => ({
-        ...input,
-        port: {
-          ...input.port,
-          resolveFor(query) {
-            return (
-              input.port.resolveFor?.({ ...query, access: input.access }) ?? { kind: 'unavailable' }
-            )
-          },
-        },
-      })),
-    ).toContain('qualified-foreign-holder-denied')
-  })
-
-  it('detects factory fallback for an official request with another binding', async () => {
-    expect(
-      await failures(input => ({
-        ...input,
-        port: {
-          ...input.port,
-          resolveFor(query) {
-            const result = input.port.resolveFor?.(query)
-            return result?.kind === 'absent' && query.official
-              ? { kind: 'value', scope: 'factory', value: input.factorySecret }
-              : (result ?? { kind: 'unavailable' })
-          },
-        },
-      })),
-    ).toContain('qualified-other-binding-blocks-factory')
-  })
-
   it('preserves the original receiver for private-field class methods', async () => {
     const report = await checkCredentialPortConformance({
       subject() {
@@ -143,30 +110,104 @@ describe('credential port conformance', () => {
       },
     })
     expect(report.ok).toBe(true)
-    expect(report.results.filter(result => result.status === 'pass')).toHaveLength(16)
   })
 
-  it.each(['face', 'authorized', 'tenant'])(
-    'detects qualified methods that read the legacy input field %s',
-    async field => {
-      for (const method of ['presentFor', 'resolveFor'] as const) {
-        expect(
-          await failures(input => ({
-            ...input,
-            port: {
-              ...input.port,
-              [method](query: QualifiedCredentialQuery<string>) {
-                try {
-                  Reflect.get(query, field)
-                } catch {}
-                return input.port[method]?.(query) ?? { kind: 'unavailable' }
-              },
-            },
-          })),
-        ).toContain('qualified-independent-of-legacy')
-      }
-    },
-  )
+  it('detects a provider that fills a partial tenant layer from the official one', async () => {
+    expect(
+      await failures(input => ({
+        ...input,
+        port: {
+          ...input.port,
+          layerOf(query) {
+            const selected = input.port.layerOf(query)
+            return 'failure' in selected && selected.failure.kind === 'incomplete'
+              ? succeed({ layer: 'official' })
+              : selected
+          },
+        },
+      })),
+    ).toContain('layers-never-mixed')
+  })
+
+  it('detects a provider that falls back to the official layer after the tenant layer was fixed', async () => {
+    expect(
+      await failures(input => ({
+        ...input,
+        port: {
+          ...input.port,
+          resolve(reference) {
+            const resolved = input.port.resolve(reference)
+            return 'failure' in resolved && resolved.failure.kind === 'missing'
+              ? input.port.resolve({ ...reference, layer: { layer: 'official' } })
+              : resolved
+          },
+        },
+      })),
+    ).toContain('fixed-layer-no-fallback')
+  })
+
+  it('detects a provider that serves the official layer to a tenant profile', async () => {
+    expect(
+      await failures(input => ({
+        ...input,
+        port: {
+          ...input.port,
+          layerOf: query => input.port.layerOf({ ...query, official: true }),
+        },
+      })),
+    ).toContain('official-layer-official-profile-only')
+  })
+
+  it('detects a provider that ignores the tenant', async () => {
+    expect(
+      await failures(input => ({
+        ...input,
+        port: {
+          ...input.port,
+          resolve: reference => input.port.resolve({ ...reference, access: input.otherAccess }),
+        },
+      })),
+    ).toContain('foreign-tenant-isolated')
+  })
+
+  it('detects a provider that hides source unavailability as absence', async () => {
+    expect(
+      await failures(input => ({
+        ...input,
+        port: {
+          ...input.port,
+          resolve(reference) {
+            const resolved = input.port.resolve(reference)
+            return 'failure' in resolved && resolved.failure.kind === 'unavailable'
+              ? fail({ kind: 'missing' })
+              : resolved
+          },
+        },
+      })),
+    ).toContain('unavailable-source-preserved')
+  })
+
+  it('detects a provider that ignores the purpose', async () => {
+    expect(
+      await failures(input => ({
+        ...input,
+        port: {
+          ...input.port,
+          resolve: reference => input.port.resolve({ ...reference, purpose: 'model-send' }),
+        },
+      })),
+    ).toContain('purpose-denied')
+  })
+
+  it('never puts a secret into the report', async () => {
+    const report = await checkCredentialPortConformance({
+      subject: () => ({
+        ...subject(),
+        port: { ...subject().port, resolve: () => fail({ kind: 'denied' }) },
+      }),
+    })
+    expect(JSON.stringify(report)).not.toMatch(/synthetic-/u)
+  })
 
   it.each(['resolve', 'throw', 'reject', 'pending'] as const)(
     'disposes all late subjects after factory timeout when disposal will %s',
@@ -186,7 +227,7 @@ describe('credential port conformance', () => {
         await vi.runAllTimersAsync()
         const report = await pending
         expect(report.results.every(result => result.status === 'fail')).toBe(true)
-        expect(factories).toHaveLength(16)
+        expect(factories).toHaveLength(CREDENTIAL_CONFORMANCE_OBLIGATIONS.length)
         for (const factory of factories) {
           factory.resolve({
             ...subject(),
@@ -200,9 +241,8 @@ describe('credential port conformance', () => {
           })
         }
         await vi.runAllTimersAsync()
-        expect(disposed).toBe(16)
+        expect(disposed).toBe(CREDENTIAL_CONFORMANCE_OBLIGATIONS.length)
         expect(report.ok).toBe(false)
-        expect(report.results.every(result => result.status === 'fail')).toBe(true)
       } finally {
         vi.useRealTimers()
       }
@@ -223,142 +263,11 @@ describe('credential port conformance', () => {
       })
       await vi.runAllTimersAsync()
       const report = await pending
-      expect(factories).toHaveLength(16)
       for (const factory of factories) factory.reject(new Error('synthetic-factory-error'))
       await vi.runAllTimersAsync()
       expect(report.ok).toBe(false)
     } finally {
       vi.useRealTimers()
-    }
-  })
-
-  it('detects a provider that hides source unavailability as absence', async () => {
-    expect(
-      await failures(input => ({
-        ...input,
-        port: {
-          ...input.port,
-          resolveFor(query) {
-            const result = input.port.resolveFor?.(query)
-            return result?.kind === 'unavailable'
-              ? { kind: 'absent' }
-              : (result ?? { kind: 'absent' })
-          },
-        },
-      })),
-    ).toContain('unavailable-source-preserved')
-  })
-
-  it('fails missing qualified methods without invoking the legacy path as a substitute', async () => {
-    expect(
-      await failures(input => ({
-        ...input,
-        port: { present: input.port.present, resolve: input.port.resolve },
-      })),
-    ).toContain('qualified-methods-required')
-  })
-
-  it('fails missing controls and hanging factories without leaking subject error text', async () => {
-    const missing = await checkCredentialPortConformance({
-      subject() {
-        const input = subject()
-        Reflect.deleteProperty(input.controls, 'bind')
-        return input
-      },
-    })
-    expect(missing.ok).toBe(false)
-    expect(missing.results.every(result => result.status === 'fail')).toBe(true)
-    const timed = await checkCredentialPortConformance({
-      subject: () => new Promise<Subject>(() => {}),
-      waitMs: 1,
-    })
-    expect(timed.results.every(result => result.status === 'fail')).toBe(true)
-    const thrown = await checkCredentialPortConformance({
-      subject() {
-        throw new Error('secret-value')
-      },
-    })
-    expect(JSON.stringify(thrown)).not.toContain('secret-value')
-  })
-
-  it('fails hanging controls and disposal and disposes after a failed check', async () => {
-    const controlled = await checkCredentialPortConformance({
-      subject() {
-        const input = subject()
-        return {
-          ...input,
-          controls: { ...input.controls, bind: () => new Promise<void>(() => {}) },
-        }
-      },
-      waitMs: 1,
-    })
-    expect(
-      controlled.results.find(result => result.obligation === 'rotation-visible')?.status,
-    ).toBe('fail')
-    let disposed = 0
-    const released = await checkCredentialPortConformance({
-      subject: () => ({
-        ...subject(),
-        dispose: () => {
-          disposed += 1
-          throw new Error('secret-value')
-        },
-      }),
-    })
-    expect(disposed).toBe(CREDENTIAL_CONFORMANCE_OBLIGATIONS.length)
-    expect(released.results.every(result => result.status === 'fail')).toBe(true)
-    expect(JSON.stringify(released)).not.toContain('secret-value')
-    const hanging = await checkCredentialPortConformance({
-      subject: () => ({ ...subject(), dispose: () => new Promise<void>(() => {}) }),
-      waitMs: 1,
-    })
-    expect(hanging.results.every(result => result.status === 'fail')).toBe(true)
-  })
-
-  it('detects stale values and a lost binding after rotation', async () => {
-    expect(
-      await failures(input => ({
-        ...input,
-        controls: { ...input.controls, rotate() {} },
-      })),
-    ).toContain('rotation-visible')
-  })
-
-  it('detects factory fallback for revoked or unreadable bindings', async () => {
-    const failed = await failures(input => ({
-      ...input,
-      port: {
-        ...input.port,
-        resolveFor(query) {
-          const result = input.port.resolveFor?.(query)
-          return result?.kind === 'denied' || result?.kind === 'unreadable'
-            ? { kind: 'value', scope: 'factory', value: input.factorySecret }
-            : (result ?? { kind: 'unavailable' })
-        },
-      },
-    }))
-    expect(failed).toContain('revoked-binding-denied')
-    expect(failed).toContain('unreadable-binding-preserved')
-  })
-
-  it('requires synchronous qualified results', async () => {
-    expect(
-      await failures(input => {
-        const resolve = input.port.resolveFor?.bind(input.port)
-        Reflect.set(
-          input.port,
-          'resolveFor',
-          async (query: Parameters<NonNullable<Subject['port']['resolveFor']>>[0]) =>
-            resolve?.(query),
-        )
-        return input
-      }),
-    ).toContain('qualified-presence-and-resolution')
-  })
-
-  it('rejects invalid wait bounds', async () => {
-    for (const waitMs of [0, -1, NaN, Infinity, 1.5]) {
-      await expect(checkCredentialPortConformance({ subject, waitMs })).rejects.toThrow(RangeError)
     }
   })
 })

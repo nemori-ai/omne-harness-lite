@@ -10,19 +10,19 @@
 
 ## 服务面
 
-服务类 `SettingsSecretCustodyService` 实现 `SecretCustodyManagement & SecretCustodyUse`：`bind`、`unbind`、`describe`、`list`、`use`。结果形状归 Settings 的 [secrets.ts](../../../../packages/assets/settings/src/secrets.ts)：读面不返回值；`use` 返回当前值，没有绑定答 `missing`，绑定已撤销答 `denied`，读不出答 `unavailable`。没有缓存：每次调用重读文件，所以 `setup --replace-credential`、Model 凭据插件的写入与本行的写入互相可见。
+服务类 `SettingsSecretCustodyService` 实现 `SecretCustodyManagement & SecretCustodyUse`：`bind`、`unbind`、`describe`、`list`、`use`。结果形状归 Settings 的 [secrets.ts](../../../../packages/assets/settings/src/secrets.ts)：读面不返回值；`use` 返回当前值，没有绑定答 `missing`，绑定已撤销答 `denied`，读不出答 `unavailable`。没有缓存：每次调用重读文件，所以 `setup --replace-credential` 的写入与本行的写入互相可见。
 
-`model-credential` 行不经本行取值：它的插件在同一路径上自己打开保管库，并按 Model 的绑定键（`MODEL_FACTORY_SECRET_KEY`、`modelCredentialBindingKey`）与 Model 的判定解析。本行的管理面写同一个文件，Model 的行在下一次解析时读到。
+`model-credential` 行经本行取值：它注入本行的服务，在读面与使用面上建 Model 凭据端口，按发行供应商的绑定键读 OpenRouter 的 `apiKey`。租户经设置行写的那一层与 `setup` 写的官方层，Model 的行在下一次选层与发送时读到。
 
 ## 受信键与发行登记
 
-`settingsSecretCustody` 是受信名：只有受信表列出的行可以提供或注入它，根上取不到。装配页的受信表把它交给三行：本行提供，`settings` 行 `inject`（在它之上建秘密项入口），`tool-bindings` 行按调用读取（Web 附着解析 search 的 key）。Model 凭据插件不经它。
+`settingsSecretCustody` 是受信名：只有受信表列出的行可以提供或注入它，根上取不到。装配页的受信表把它交给四行：本行提供，`settings` 行 `inject`（在它之上建秘密项入口），`model-credential` 行 `inject`（在它之上建 Model 凭据端口），`tool-bindings` 行按调用读取（Web 附着解析 search 的 key）。
 
-发行层（`config/serve.distribution.json`、`config/s0.distribution.json`、`src/s0/aa-rows.json`）把本行列在 `model-credential` 之后、`settings` 之前。次序有意：打开保管库要求文件已在路径上。本机单用户档由 `setup` 在 `serve` 之前建库；测试树没有 `setup`，由 `model-credential` 行的插件在空路径上建库，本行装载时打开同一个文件。本地操作档（`localOperatorLayer`）给本行 `path`，与 `model-credential` 同一路径。
+发行层（`config/serve.distribution.json`、`config/s0.distribution.json`、`src/s0/aa-rows.json`）把本行列在 `model-credential` 之后、`settings` 之前。`model-credential` 行注入本行，在本行提供服务之前停在等待。打开保管库要求文件已在路径上。本机单用户档由 `setup` 在 `serve` 之前建库；测试树没有 `setup`，由测试支撑在开树之前按 `setup` 的键建库（`tests/r9/support.ts` 的 `seedTestVault`）。本地操作档（`localOperatorLayer`）只给本行 `path`。
 
 ## 验证入口
 
-`tests/rows/secret-custody/secret-custody.spec.ts` 用测试自备的可见表装载本行与一个探针行：行声明；基线格式（没有 `version`）的文件经读面读出工厂秘密与租户凭据而读面不含值；经管理面写入后文件是版本 2 且保留 Model 的两条绑定；可见表不列出的行注入该键时装载失败；读不出的文件下读面 `unavailable`、写面 `not-written`、字节不变；配置 Schema；本地操作档在发行列出与不列出该行时的两种行为。
+`tests/rows/secret-custody/secret-custody.spec.ts` 用测试自备的可见表装载本行与一个探针行：行声明；存有 OpenRouter `apiKey` 官方层与租户层的文件经读面读出两层而读面不含值；经管理面写入与解绑后文件仍保留那两条绑定；可见表不列出的行注入该键时装载失败；读不出的文件下读面 `unavailable`、写面 `not-written`、字节不变；配置 Schema；本地操作档在发行列出与不列出该行时的两种行为。
 
 ```sh
 cd apps/harness-server && NO_COLOR=1 pnpm exec vitest run --mode fast tests/rows/secret-custody

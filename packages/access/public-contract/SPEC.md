@@ -53,7 +53,7 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 | `revoke-login`、`replace-credential`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-create-organization` | 必填 | 禁止 | 无 |
 | `issue-member-invitation`、`open-affiliation-request` | 必填 | 必填 | `duration` |
 | `query-organization-members` | 必填 | 必填 | `includeRemoved` |
-| `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`query-invitation`、`create-organization`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-organization`、`query-issued-invitations`、`accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`、`release-affiliation`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`query-affiliation-request`、`judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression`、`bind-model-credential`、`unbind-model-credential`、`describe-model-credential` | 必填 | 必填 | 无 |
+| `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`query-invitation`、`create-organization`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-organization`、`query-issued-invitations`、`accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`、`release-affiliation`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`query-affiliation-request`、`judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression` | 必填 | 必填 | 无 |
 | `list-settings` | 必填 | 必填 | `asset`，以及 `asset` 里的 `category` |
 | `set-setting`、`describe-setting`、`clear-setting` | 必填 | 必填 | `asset` 里的 `category` |
 
@@ -130,7 +130,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 | 操作 | 必填 body 键 | 可省略 | 禁止 |
 | --- | --- | --- | --- |
-| `public-health`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-issued-invitations`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`leave-organization`、`unbind-model-credential`、`describe-model-credential` | 无。`body` 是空对象 | 无 | 任何键。`leave-organization` 还禁止 `accountId` |
+| `public-health`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-issued-invitations`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`leave-organization` | 无。`body` 是空对象 | 无 | 任何键。`leave-organization` 还禁止 `accountId` |
 | `register-and-activate`、`issue-login` | `loginIdentifier`、`credential` | 无 | 任何其他键 |
 | `revoke-login` | `targetLoginId` | 无 | 任何其他键 |
 | `replace-credential` | `currentCredential`、`newCredential` | 无 | 任何其他键 |
@@ -151,7 +151,6 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | `judge-admission` | `resource`、`action`、`parameters`、`scopeId` | 无 | `subject`、`admitted` 及其他键 |
 | `submit-authorization-expression` | `expression`、`action`、`object`、`parameters` | 无 | 任何其他键 |
 | `withdraw-authorization-expression` | `expressionId` | 无 | 任何其他键 |
-| `bind-model-credential` | `secret` | 无 | 任何其他键 |
 | `list-settings` | 无 | `asset` | 任何其他键 |
 | `set-setting` | `asset`、`item`、`secret` | 无 | 任何其他键 |
 | `describe-setting`、`clear-setting` | `asset`、`item` | 无 | 任何其他键 |
@@ -160,7 +159,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 `loginIdentifier` 是账号在注册时固定的登录标识。`loginId` 和 `targetLoginId` 是一份登录的标识。两者不是同一个键。
 
-`credential`、`currentCredential`、`newCredential` 和 `secret` 只出现在请求里。响应和诊断不包含它们。`secret` 是模型凭据或秘密设置项的秘密值，不是账号凭据。
+`credential`、`currentCredential`、`newCredential` 和 `secret` 只出现在请求里。响应和诊断不包含它们。`secret` 是秘密设置项的秘密值，不是账号凭据。
 
 邀请的 `state` 只取 `open`、`accepted`、`rejected`、`withdrawn`、`expired` 之一。隶属请求的 `state` 只取 `pending`、`accepted`、`rejected`、`withdrawn`、`invalid`、`expired` 之一。已生效隶属的 `state` 只取 `effective` 或 `released`。
 
@@ -191,12 +190,9 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | 表达已记录、持久设置尚未发生且这次写入没有失败的 `succeeded` | `expressionId`，`persistentSettingsUpdated` 为 false |
 | 已有 `expressionId` 的同一决定再次提交的 `no-change` | `expressionId` |
 | `revoke-login`、`replace-credential`、`leave-organization`、`remove-member`、`change-member-role` 的 `succeeded` | 空对象 |
-| `bind-model-credential` 的 `succeeded` | `configuredAt`。不含秘密 |
-| `unbind-model-credential` 的 `succeeded` 与 `no-change` | 空对象 |
-| `describe-model-credential` 的 `succeeded` | `state`。`state` 为 `usable` 或 `unreadable` 时另含 `tenantId`，以及可选的 `configuredAt`。`state` 为 `unbound` 时没有别的键。不含秘密 |
 | `list-settings` 的 `succeeded` | `items`、`completeness` 为 `complete`。每一项见[设置项](#设置项) |
 | `set-setting` 的 `succeeded` | `configuredAt`。不含秘密 |
-| `describe-setting` 的 `succeeded` | `state`。`state` 为 `usable`、`revoked` 或 `unreadable` 时另含 `tenantId`，以及可选的 `configuredAt`。`state` 为 `unbound` 时没有别的键。不含秘密 |
+| `describe-setting` 的 `succeeded` | `own` 与 `official`，见[设置项](#设置项)。不含秘密 |
 | `clear-setting` 的 `succeeded` 与 `no-change` | 空对象 |
 
 
@@ -363,26 +359,6 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 表达记录已经提交、持久设置的更新尚未发生、这次写入也没有失败时，结果是 `succeeded`。服务端在这次成功里产生 `expressionId`，并放进响应 `body`。撤回使用这个 `expressionId`。请求里的 `expression` 是表达内容，不是该标识。`body` 还含 `persistentSettingsUpdated` 为 false。持久设置的这次写入已经失败、表达也没有成为持久设置时，结果是 `basis-unavailable`，不产生 `expressionId`。写入结果未知是 `unknown`。`basis-unavailable` 和 `unknown` 都不报告规则已经生效。已消费的许可不能复用。已经产生 `expressionId` 的同一决定再次提交，不增加许可。有权调用者得到 `no-change`，`body` 含已有的 `expressionId`。第一次提交仍按上面的 `succeeded` 或 `basis-unavailable`。
 
-### 模型凭据
-
-`bind-model-credential`、`unbind-model-credential` 和 `describe-model-credential` 管理行事租户自己的模型凭据。产品规则见模型调用产品设计的[凭据的范围](../../../.meta_harness/design/product/model-invocation/design.md#凭据的范围)与 [J-MD01](../../../.meta_harness/design/product/model-invocation/design.md#j-md01)。凭据的解析与发送归 [Model](../../model/model-contract/SPEC.md#342-凭据引用与解析端口)。
-
-三个操作都需要有效登录和行事租户。目标就是行事租户，`body` 不含目标租户。行事租户与当前选择不同时是 `denied`，不进入业务，响应不说明对方租户有没有凭据。行事租户必须是登录账号自己的租户。管理资格是代该租户行事的登录主体加该租户的当前成员资格。能发起模型调用不等于有这个资格。
-
-本协议按租户管理一份模型凭据。接收方、通道和每租户秘密的数量不在本协议里。一个部署需要更多通道时，另立契约，不改这三个操作的含义。
-
-- `bind-model-credential` 的 `body` 只含 `secret`。成功时，该租户的绑定成立或被更换，`body` 含本次配置时刻 `configuredAt`。之后发起的调用用这份凭据。依据不可得或写入没有发生时是 `basis-unavailable`。写入结果未知时是 `unknown`。调用者用 `describe-model-credential` 认回，不能把 `unknown` 当成没有写入。
-- `unbind-model-credential` 的 `body` 为空。成功时绑定解除，之后的调用按缺凭据处理，与从未绑定相同。已经发出的调用和它们的事实不变。没有绑定时是 `no-change`。`basis-unavailable` 与 `unknown` 的含义同上。
-- `describe-model-credential` 的 `body` 为空。成功时 `state` 取下面三个值之一，不回显秘密：
-
-| `state` | 含义 | 其他键 |
-| --- | --- | --- |
-| `unbound` | 该租户没有绑定 | 无 |
-| `usable` | 绑定存在，秘密可以读出 | `tenantId`（归属）；`configuredAt`（保管没有记录时刻时缺席） |
-| `unreadable` | 绑定存在，秘密读不出。调用不会退回部署默认凭据或其他租户的凭据 | 同上 |
-
-秘密不进入任何响应、诊断、普通错误或遥测。部署可以不提供这三个操作，此时按[部署声明不提供的操作](#部署声明不提供的操作)答 `stage-not-provided`。
-
 ### 设置项
 
 `list-settings`、`set-setting`、`describe-setting`、`clear-setting` 管理行事租户自己的设置项。设置项的声明、秘密项的有无与写入结果归 [Settings 的秘密设置项](../../assets/settings/SPEC.md#secret-items)。本协议只给这些事实一个公开形状。
@@ -392,9 +368,10 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 `asset` 选出设置项所属的资产：`name` 是资产名，`category` 是资产类别。省略 `category` 时，行事租户看得见的同名资产必须恰好一个，多于一个时是 `conflict`。`item` 是该资产声明的项标识。行事租户看不见该资产或该项时是 `not-visible`。
 
 - `list-settings` 列出行事租户看得见的设置项。给了 `asset` 时只列该资产的项。成功时 `body` 含 `items` 与 `completeness`，遵守上面的名单完整性规则。普通设置项也列出，`state` 为 `not-writable`，因为本部署不提供普通设置的写入。
-- `set-setting` 写入一个秘密项。`secret` 的字段检查与 `bind-model-credential` 的 `secret` 相同。成功时 `body` 只含本次配置时刻 `configuredAt`。目标是普通设置项时是 `not-writable`。依据不可得或写入没有发生时是 `basis-unavailable`。写入可能已经提交但没有认回时是 `unknown`，调用者先用 `describe-setting` 认回，再决定是否重试。
-- `describe-setting` 读一个秘密项的有无。成功时 `state` 取下表之一，不回显秘密。目标是普通设置项时是 `not-writable`。
-- `clear-setting` 清除一个秘密项。成功时 `body` 为空。没有配置时是 `no-change`。`not-writable`、`basis-unavailable` 与 `unknown` 的含义同 `set-setting`。
+- `set-setting` 写入行事租户这一层的一个秘密项。`secret` 是非空文本。成功时 `body` 只含本次配置时刻 `configuredAt`。目标是普通设置项时是 `not-writable`。依据不可得或写入没有发生时是 `basis-unavailable`。写入可能已经提交但没有认回时是 `unknown`，调用者先用 `describe-setting` 认回，再决定是否重试。
+- `describe-setting` 读一个秘密项在两层的有无。成功时 `body` 含 `own` 与 `official`，不回显秘密。`own` 是行事租户自己这一层，取下表之一。`official` 是部署层（官方层），每个合法租户都持有这一层，状态取同一张表，但没有 `tenantId`。任何一层读不出时是 `basis-unavailable`。目标是普通设置项时是 `not-writable`。
+- `clear-setting` 清除行事租户这一层的一个秘密项。成功时 `body` 为空。没有配置时是 `no-change`。`not-writable`、`basis-unavailable` 与 `unknown` 的含义同 `set-setting`。
+- 四个操作都不写部署层。部署层由运维者在本机写入，本协议不提供写它的路径。
 
 | `state` | 含义 | 其他键 |
 | --- | --- | --- |
@@ -403,7 +380,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | `revoked` | 已配置，绑定已撤销 | 同上 |
 | `unreadable` | 已配置，秘密读不出 | 同上 |
 
-`items` 的每一项含 `asset`（`category` 与 `name` 都在）、`item`、`title`（给人读的项名）、`sensitivity`（`secret` 或 `ordinary`）和 `state`。秘密项的 `state` 同上表，普通项的 `state` 是 `not-writable`。
+`items` 的每一项含 `asset`（`category` 与 `name` 都在）、`item`、`title`（给人读的项名）、`sensitivity`（`secret` 或 `ordinary`）和 `state`。秘密项的 `state` 是行事租户这一层，同上表，另含 `official`，是部署层的状态，同 `describe-setting` 的 `official`；任何一层读不出时整次是 `basis-unavailable`。普通项的 `state` 是 `not-writable`，没有 `official`。
 
 秘密只在 `set-setting` 的请求里。它不进入任何响应、诊断、普通错误或遥测。部署可以不提供这四个操作，此时按[部署声明不提供的操作](#部署声明不提供的操作)答 `stage-not-provided`。
 
@@ -938,7 +915,7 @@ const encoded = encodeGovernanceRequest({
 
 ### 操作集合与函数
 
-正常信封表包含41个不同操作。另有4个本阶段不提供的操作，总共45个。`GovernanceProvidedOperation` 仅包含正常41项。`GovernanceOperation` 包含全部45项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部45个操作分别关联结果和 body。每个正常操作的响应还包含 `stage-not-provided`，因为部署可以声明它不提供，见[部署声明不提供的操作](#部署声明不提供的操作)。阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
+正常信封表包含38个不同操作。另有4个本阶段不提供的操作，总共42个。`GovernanceProvidedOperation` 仅包含正常38项。`GovernanceOperation` 包含全部42项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部42个操作分别关联结果和 body。每个正常操作的响应还包含 `stage-not-provided`，因为部署可以声明它不提供，见[部署声明不提供的操作](#部署声明不提供的操作)。阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
 
 主入口导出治理与会话两组纯函数，每组四个，及其公开输入结果类型。另有[身份值的文本](#身份值的文本)的八个函数。本表是治理一组。会话一组见[会话编解码函数](#会话编解码函数)。
 
@@ -1079,9 +1056,6 @@ wire 的 `loginProof` 仍是字符串。需要证明的正常请求在本地将�
 | judge-admission | succeeded, denied, not-visible, basis-unavailable, need-decision | 准入节四结果及隐藏对象优先 |
 | submit-authorization-expression | succeeded, no-change, denied, basis-unavailable, unknown | 表达节+共同登录步骤 |
 | withdraw-authorization-expression | succeeded, denied, basis-unavailable, unknown | 撤回节及协议细化；succeeded空body |
-| bind-model-credential | succeeded, denied, basis-unavailable, unknown | 模型凭据节；succeeded只含configuredAt |
-| unbind-model-credential | succeeded, no-change, denied, basis-unavailable, unknown | 模型凭据节；succeeded与no-change空body |
-| describe-model-credential | succeeded, denied, basis-unavailable | 模型凭据节；state三选一 |
 | disable-subject | stage-not-provided | 有效版本后跳过其余字段，非法版本为protocol-rejected |
 | restore-subject | stage-not-provided | 同上 |
 | end-subject | stage-not-provided | 同上 |

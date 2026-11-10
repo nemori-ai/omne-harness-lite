@@ -84,10 +84,6 @@ export type RequestBodies = {
     readonly parameters: JsonObject
   }
   'withdraw-authorization-expression': { readonly expressionId: string }
-  /** The secret is only in this request. No response or diagnostic carries it. */
-  'bind-model-credential': { readonly secret: string }
-  'unbind-model-credential': EmptyBody
-  'describe-model-credential': EmptyBody
   'list-settings': { readonly asset?: SettingAssetSelector }
   /** The secret is only in this request. No response or diagnostic carries it. */
   'set-setting': {
@@ -137,9 +133,6 @@ export type ProofOperations =
   | 'judge-admission'
   | 'submit-authorization-expression'
   | 'withdraw-authorization-expression'
-  | 'bind-model-credential'
-  | 'unbind-model-credential'
-  | 'describe-model-credential'
   | 'list-settings'
   | 'set-setting'
   | 'describe-setting'
@@ -169,9 +162,6 @@ export type TenantOperations =
   | 'judge-admission'
   | 'submit-authorization-expression'
   | 'withdraw-authorization-expression'
-  | 'bind-model-credential'
-  | 'unbind-model-credential'
-  | 'describe-model-credential'
   | 'list-settings'
   | 'set-setting'
   | 'describe-setting'
@@ -228,19 +218,6 @@ export type Complete<K extends string, T> = { readonly [P in K]: readonly T[] } 
   readonly completeness: 'complete'
 }
 /**
- * The model credential of the acting tenant, as `describe-model-credential` shows it. `unbound`: the
- * tenant has no binding. `usable`: a binding exists and its secret can be read. `unreadable`: a
- * binding exists but its secret cannot be read; a call does not fall back to another credential.
- * `configuredAt` is absent when the custody has no record of the time.
- */
-export type ModelCredentialState =
-  | { readonly state: 'unbound' }
-  | {
-      readonly state: 'usable' | 'unreadable'
-      readonly tenantId: TenantId
-      readonly configuredAt?: Instant
-    }
-/**
  * The asset a setting belongs to. Without `category` the name must name one asset that the acting
  * tenant sees; more than one is `conflict`.
  */
@@ -258,14 +235,32 @@ export type SettingState =
       readonly tenantId: TenantId
       readonly configuredAt?: Instant
     }
-export type SettingItemView = {
+/**
+ * A secret setting item in the deployment (official) layer, with the same states as
+ * `SettingState`. Every legal tenant holds the official layer and reads it; no tenant operation
+ * writes it.
+ */
+export type SettingLayerState =
+  | { readonly state: 'unbound' }
+  | { readonly state: 'usable' | 'revoked' | 'unreadable'; readonly configuredAt?: Instant }
+/** A secret setting item in both layers: the acting tenant's own and the deployment's. */
+export type SettingLayers = { readonly own: SettingState; readonly official: SettingLayerState }
+type SettingItemBase = {
   readonly asset: { readonly category: string; readonly name: string }
   readonly item: string
   readonly title: string
-  readonly sensitivity: 'secret' | 'ordinary'
-  /** Ordinary items are listed but this deployment provides no ordinary writes. */
-  readonly state: SettingState | { readonly state: 'not-writable' }
 }
+export type SettingItemView =
+  | (SettingItemBase & {
+      readonly sensitivity: 'secret'
+      readonly state: SettingState | { readonly state: 'not-writable' }
+      readonly official: SettingLayerState
+    })
+  | (SettingItemBase & {
+      readonly sensitivity: 'ordinary'
+      /** Ordinary items are listed but this deployment provides no ordinary writes. */
+      readonly state: { readonly state: 'not-writable' }
+    })
 export type LoginList = {
   readonly logins: readonly [LoginItem, ...LoginItem[]]
   readonly completeness: 'complete'
@@ -336,17 +331,13 @@ export type SuccessBodies = {
     readonly persistentSettingsUpdated: false
   }
   'withdraw-authorization-expression': EmptyBody
-  'bind-model-credential': { readonly configuredAt: Instant }
-  'unbind-model-credential': EmptyBody
-  'describe-model-credential': ModelCredentialState
   'list-settings': { readonly items: readonly SettingItemView[]; readonly completeness: 'complete' }
   'set-setting': { readonly configuredAt: Instant }
-  'describe-setting': SettingState
+  'describe-setting': SettingLayers
   'clear-setting': EmptyBody
 }
 export type NoChangeBodies = {
   'revoke-login': EmptyBody
-  'unbind-model-credential': EmptyBody
   'clear-setting': EmptyBody
   'switch-current-tenant': EmptyBody
   'release-affiliation': { readonly affiliationId: string; readonly state: 'released' }
@@ -446,9 +437,6 @@ export type BusinessOutcomes = {
     | 'basis-unavailable'
     | 'unknown'
   'withdraw-authorization-expression': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown'
-  'bind-model-credential': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown'
-  'unbind-model-credential': 'succeeded' | 'no-change' | 'denied' | 'basis-unavailable' | 'unknown'
-  'describe-model-credential': 'succeeded' | 'denied' | 'basis-unavailable'
   'list-settings': 'succeeded' | 'denied' | 'basis-unavailable'
   'set-setting':
     | 'succeeded'

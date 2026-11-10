@@ -1,36 +1,52 @@
 import { Context } from '@deepseek-ai/cordis'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
+import { decodeProviderName } from '@omne-harness/model-contract'
 import {
   MODEL_SEND,
-  decodeCredentialId,
+  type CredentialLayerQuery,
   type CredentialPort,
-  type CredentialQuery,
+  type CredentialReference,
   type CredentialResolution,
-  type SendFace,
 } from '@omne-harness/model-contract/provider'
+import { fail, succeed } from '@omne-harness/operation-result'
 import { expect, it } from 'vitest'
 import { ModelCredentialService, modelCredentialKey } from '../src/cordis.ts'
 
-function query(): CredentialQuery {
+function access() {
   const account = accountCodec.parse('acc_abcdefghjkmnpqrstvwxyz2345')
   const organization = organizationCodec.parse('org_abcdefghjkmnpqrstvwxyz2345')
-  const id = decodeCredentialId('cred-a')
-  if (!account.ok || !organization.ok || !('ok' in id)) throw new Error('fixture identity')
-  return { id: id.ok, tenant: tenant(organization.value, account.value), purpose: MODEL_SEND }
+  if (!account.ok || !organization.ok) throw new Error('fixture identity')
+  return { principal: 'principal', tenant: tenant(organization.value, account.value) }
 }
 
-const face: SendFace = { authorized: true, official: false }
-const resolution: CredentialResolution = { kind: 'value', scope: 'tenant', value: 'synthetic' }
+function provider() {
+  const decoded = decodeProviderName('provider')
+  if (!('ok' in decoded)) throw new Error('fixture provider')
+  return decoded.ok
+}
+
+const query: CredentialLayerQuery<unknown> = {
+  provider: provider(),
+  official: false,
+  access: access(),
+}
+const reference: CredentialReference<unknown> = {
+  provider: provider(),
+  layer: { layer: 'tenant' },
+  purpose: MODEL_SEND,
+  access: access(),
+}
+const resolution: CredentialResolution = succeed(new Map([['apiKey', 'synthetic']]))
 
 function spyPort() {
   const calls: unknown[][] = []
   const port: CredentialPort = {
-    present(reference) {
-      calls.push(['present', reference])
-      return { kind: 'denied' }
+    layerOf(input) {
+      calls.push(['layerOf', input])
+      return fail({ kind: 'denied' })
     },
-    resolve(reference, sent) {
-      calls.push(['resolve', reference, sent])
+    resolve(input) {
+      calls.push(['resolve', input])
       return resolution
     },
   }
@@ -38,15 +54,15 @@ function spyPort() {
 }
 
 /** The port stays in a closure, as the definition requires of every implementation. */
-function provider(port: CredentialPort) {
+function credentialProvider(port: CredentialPort) {
   return class extends ModelCredentialService {
-    readonly present: CredentialPort['present']
+    readonly layerOf: CredentialPort['layerOf']
     readonly resolve: CredentialPort['resolve']
 
     constructor(ctx: Context) {
       super(ctx)
-      this.present = reference => port.present(reference)
-      this.resolve = (reference, sent) => port.resolve(reference, sent)
+      this.layerOf = input => port.layerOf(input)
+      this.resolve = input => port.resolve(input)
     }
   }
 }
@@ -59,32 +75,31 @@ it('is published under the key that the exported constant names', () => {
 it('serves ctx.modelCredential and forwards both operations to the port unchanged', async () => {
   const { port, calls } = spyPort()
   const ctx = new Context()
-  await ctx.plugin(provider(port))
-  const reference = query()
+  await ctx.plugin(credentialProvider(port))
 
-  expect(ctx.modelCredential?.present(reference)).toEqual({ kind: 'denied' })
-  expect(ctx.modelCredential?.resolve(reference, face)).toBe(resolution)
+  expect(ctx.modelCredential?.layerOf(query)).toEqual({ failure: { kind: 'denied' } })
+  expect(ctx.modelCredential?.resolve(reference)).toBe(resolution)
   expect(calls).toEqual([
-    ['present', reference],
-    ['resolve', reference, face],
+    ['layerOf', query],
+    ['resolve', reference],
   ])
+  expect(calls[0]?.[1]).toBe(query)
   expect(calls[1]?.[1]).toBe(reference)
-  expect(calls[1]?.[2]).toBe(face)
 })
 
 it('does not forward diagnostics and the instance holds nothing but its two operations', async () => {
   const { port } = spyPort()
   const ctx = new Context()
-  await ctx.plugin(provider({ ...port, diagnostics: () => ['leak'] } as CredentialPort))
+  await ctx.plugin(credentialProvider({ ...port, diagnostics: () => ['leak'] } as CredentialPort))
   const service = ctx.modelCredential ?? {}
   expect('diagnostics' in service).toBe(false)
-  expect(Object.keys(service).sort()).toEqual(['ctx', 'name', 'present', 'resolve'])
+  expect(Object.keys(service).sort()).toEqual(['ctx', 'layerOf', 'name', 'resolve'])
 })
 
 it('is absent from the context once its provider fiber is disposed', async () => {
   const { port } = spyPort()
   const ctx = new Context()
-  const fiber = ctx.plugin(provider(port))
+  const fiber = ctx.plugin(credentialProvider(port))
   await fiber
   expect(ctx.modelCredential).toBeInstanceOf(ModelCredentialService)
   await fiber.dispose()

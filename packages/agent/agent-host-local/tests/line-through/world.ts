@@ -955,9 +955,9 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
             suppliers: [
               {
                 adoption: supplier.adoption,
-                recipient: supplier.recipient,
+                provider: supplier.provider,
                 model: supplier.model,
-                credential: { kind: 'factory' as const },
+                credential: { layer: 'official' as const },
               },
             ],
             parameterAdoptions: [],

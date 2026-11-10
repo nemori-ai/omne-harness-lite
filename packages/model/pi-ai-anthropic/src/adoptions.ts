@@ -2,7 +2,7 @@
 // the counting basis. Each one names the record and a component and carries the record digest,
 // so it changes exactly when the record changes and resolves to one record of this package.
 import type { Adoption, ModelCountingBasis } from '@omne-harness/model-contract'
-import { recordAdoption } from '@omne-harness/pi-ai-transport'
+import { recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
 import { ANTHROPIC_OWNER } from './owner.ts'
 import type { AnthropicRecord } from './record.ts'
 
@@ -32,7 +32,7 @@ export function countingBasis(record: AnthropicRecord): ModelCountingBasis {
   return Object.freeze({
     supplier: Object.freeze({
       adoption: recordAdoption(ANTHROPIC_OWNER, record),
-      recipient: record.route.recipient,
+      provider: recordProvider(record),
       model: record.route.model,
       replay: record.replay.declaration,
     }),

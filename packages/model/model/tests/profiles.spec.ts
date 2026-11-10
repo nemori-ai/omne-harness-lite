@@ -15,7 +15,7 @@ import type {
   ModelProfileSnapshot,
   ModelProfileSource,
 } from '@omne-harness/model-contract/provider'
-import { decodeRevision } from '@omne-harness/model-contract'
+import { decodeProviderName, decodeRevision } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import { createModelProfiles } from '@omne-harness/model'
 import { expect, it } from 'vitest'
@@ -26,6 +26,7 @@ function must<T>(outcome: Outcome<T, unknown>): T {
   if ('ok' in outcome) return outcome.ok
   throw new Error(`expected success, got ${JSON.stringify(outcome.failure)}`)
 }
+const OPENROUTER = must(decodeProviderName('openrouter'))
 
 function failureOf<T>(outcome: Outcome<T, unknown>): unknown {
   if ('failure' in outcome) return outcome.failure
@@ -77,7 +78,7 @@ function profileOf(
     updatedAt: '2026-11-01T00:00:00Z',
     availability: over.availability ?? 'active',
     definition: {
-      suppliers: [{ adoption: adoption('supplier'), recipient: 'openrouter', model: route }],
+      suppliers: [{ adoption: adoption('supplier'), provider: OPENROUTER, model: route }],
       fallback: false,
       input: over.input ?? ['text', 'image'],
       output: ['text'],

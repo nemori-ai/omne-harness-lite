@@ -7,19 +7,39 @@ import { isPlainHttpsUrl } from './http.ts'
 import { isPositiveInteger, isTimerDuration, MAX_TIMER_MS } from './limits.ts'
 import { networkInternalsOf, type NetworkInternals, type NetworkResources } from './network.ts'
 
-/** One recipient: its complete endpoint and the SSE protocol it answers with. */
+/**
+ * How a provider accounts for a response: the place prefix of the serving place it reports, and
+ * the unit of the cost it reports (a provider's own credits, not a currency).
+ */
+export type RouteAccounting = Readonly<{ place: string; costUnit: string }>
+
+/**
+ * How a provider takes its credential: the secret of one credential item as a bearer token. `null`:
+ * the provider declares no credential item, and the request carries no authorization.
+ */
+export type PiRouteAuth = Readonly<{ kind: 'bearer'; item: string }> | null
+
+/**
+ * One provider: its complete endpoint, the SSE protocol it answers with, its accounting and the
+ * way it takes its credential.
+ */
 export type PiRoute = Readonly<{
   /** The complete `https:` endpoint, e.g. `https://openrouter.ai/api/v1/chat/completions`. No credentials, query or fragment. */
   url: string
   /** The data text of the SSE event that marks the protocol end, e.g. `[DONE]`. `null`: the protocol has none. */
   endMarker: string | null
+  /** The accounting of the provider's responses, e.g. `{ place: 'openrouter', costUnit: 'openrouter-credit' }`. */
+  accounting: RouteAccounting
+  /** How the request carries the credential, e.g. `{ kind: 'bearer', item: 'apiKey' }`. */
+  auth: PiRouteAuth
 }>
 
 /**
- * The slot that holds the secret of the send that is starting. The transport reads it once, inside
- * the synchronous `start` call. `undefined`: no credential was given, and nothing is sent.
+ * The slot that holds the secrets of the send that is starting, by credential item. The transport
+ * reads it once, inside the synchronous `start` call. `undefined`: no credential was given, and
+ * nothing is sent.
  */
-export type PiCredentialSlot = Readonly<{ read(): string | undefined }>
+export type PiCredentialSlot = Readonly<{ read(): ReadonlyMap<string, string> | undefined }>
 
 /** At most this many retries: the backoff is bounded, not a loop without end. */
 export const MAX_CONNECT_RETRIES = 8
@@ -56,7 +76,7 @@ export type PiTransportConfig = Readonly<{
   /** Created and closed by the assembly. Several transports may share it; the transport never closes it. */
   network: NetworkResources
   families: PiFamilyContributions
-  /** Looked up by `supplier.recipient`. Own properties only. */
+  /** Looked up by `supplier.provider`. Own properties only. */
   routes: Readonly<Record<string, PiRoute>>
   credential: PiCredentialSlot
   limits: PiTransportLimits
@@ -70,7 +90,12 @@ export type PiTransportConfig = Readonly<{
 }>
 
 /** A route after its checks: the URL is parsed once. */
-export type CheckedRoute = Readonly<{ url: URL; endMarker: string | null }>
+export type CheckedRoute = Readonly<{
+  url: URL
+  endMarker: string | null
+  accounting: RouteAccounting
+  auth: PiRouteAuth
+}>
 
 /** The configuration after its checks. */
 export type CheckedConfig = Readonly<{
@@ -116,7 +141,7 @@ export function checkConfig(config: PiTransportConfig): CheckedConfig {
 function checkRoutes(routes: Readonly<Record<string, PiRoute>>): ReadonlyMap<string, CheckedRoute> {
   if (!isObject(routes) || Array.isArray(routes)) throw new RangeError('routes must be an object')
   const checked = new Map<string, CheckedRoute>()
-  for (const [recipient, route] of Object.entries(routes)) {
+  for (const [provider, route] of Object.entries(routes)) {
     if (!isObject(route)) throw new RangeError('each route must be an object')
     const url = typeof route.url === 'string' && URL.canParse(route.url) ? new URL(route.url) : null
     if (url === null || !isPlainHttpsUrl(url))
@@ -125,9 +150,35 @@ function checkRoutes(routes: Readonly<Record<string, PiRoute>>): ReadonlyMap<str
       )
     if (route.endMarker !== null && typeof route.endMarker !== 'string')
       throw new RangeError('each route endMarker must be a string or null')
-    checked.set(recipient, { url, endMarker: route.endMarker })
+    const accounting = checkAccounting(route.accounting)
+    const auth = checkAuth(route.auth)
+    checked.set(provider, { url, endMarker: route.endMarker, accounting, auth })
   }
   return checked
+}
+
+function checkAuth(auth: PiRouteAuth): PiRouteAuth {
+  if (auth === null) return null
+  if (
+    !isObject(auth) ||
+    auth.kind !== 'bearer' ||
+    typeof auth.item !== 'string' ||
+    auth.item === ''
+  )
+    throw new RangeError('each route auth must be null or a bearer of a non-empty item')
+  return { kind: 'bearer', item: auth.item }
+}
+
+function checkAccounting(accounting: RouteAccounting): RouteAccounting {
+  if (
+    !isObject(accounting) ||
+    typeof accounting.place !== 'string' ||
+    accounting.place === '' ||
+    typeof accounting.costUnit !== 'string' ||
+    accounting.costUnit === ''
+  )
+    throw new RangeError('each route accounting must have a non-empty place and costUnit')
+  return { place: accounting.place, costUnit: accounting.costUnit }
 }
 
 function checkLimits(limits: PiTransportLimits): PiTransportLimits {

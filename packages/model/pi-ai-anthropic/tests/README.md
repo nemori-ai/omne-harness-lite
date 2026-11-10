@@ -36,6 +36,8 @@
 - `pnpm run fixtures` 运行 `support/write-fixtures.ts`，把用例表写成 `fixtures/records` 与 `fixtures/cases`。
 - `pnpm run fingerprints` 运行 `support/append-fingerprints.ts`，为新记录追加指纹行。
 
+已知限制：两个脚本在 vitest 之外运行即失败。它们经家族支撑导入 vitest 的 `afterAll`，Node 直接运行时 vitest 找不到当前套件。需要重算时，在一个临时 vitest 用例里调用同样的函数；只追加新记录的规则不变，已有行的摘要变了要按原次序就地改写。
+
 ### 迁入的封存测试
 
 封存件在 [packages.0.0.1.legacy/model/pi-ai-transport/tests/](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/model/pi-ai-transport/tests)，已从仓库删除，链接指向固定提交。下表列出 Anthropic 相关的测试文件与去向。

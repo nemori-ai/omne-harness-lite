@@ -8,13 +8,12 @@ import { join } from 'node:path'
 import { inspect } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
-import { MODEL_FACTORY_SECRET_KEY, modelCredentialBindingKey } from '@omne-harness/model-host-local'
-import { MODEL_SEND } from '@omne-harness/model-contract/provider'
 import { parseSecretText, type SecretBindingKey, type SecretText } from '@omne-harness/settings'
+import { createSecretVault } from '@omne-harness/settings-local/secrets'
 import { afterEach, describe, expect, it } from 'vitest'
 import { localOperatorLayer } from '../../../src/local/operator-defaults.ts'
 import { resolveLocations } from '../../../src/local/locations.ts'
-import { tenantCredentialId } from '../../../src/model/tenant-credential.ts'
+import { providerCredentialKey, releaseProvider } from '../../../src/assets/model-providers.ts'
 import { serveProfile } from '../../../src/profile.ts'
 import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import {
@@ -27,7 +26,7 @@ import type { RowId } from '../../../src/types.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { TENANT } from '../model/support.ts'
 
-const FACTORY = 'synth-factory-sentinel-3b1c'
+const OFFICIAL = 'synth-official-sentinel-3b1c'
 const TENANT_SECRET = 'synth-tenant-sentinel-8e2d'
 const directories: string[] = []
 afterEach(() => {
@@ -39,33 +38,26 @@ function vaultPath(): string {
   return join(directory, 'model-vault.json')
 }
 
-/** A vault file in the format the Model host wrote before custody moved to settings-local. */
-function writeBaselineVault(path: string): void {
-  const id = tenantCredentialId(TENANT)
-  if (id === undefined) throw new Error('tenant credential id')
-  writeFileSync(
-    path,
-    JSON.stringify({
-      closed: false,
-      factorySecret: FACTORY,
-      bindings: [
-        {
-          id,
-          tenant: { organization: TENANT.organization.text, account: TENANT.account.text },
-          purpose: MODEL_SEND,
-          secret: TENANT_SECRET,
-          life: 'active',
-          configuredAt: '2026-11-04T00:00:00Z',
-        },
-      ],
-    }),
-  )
+/** The binding key of the OpenRouter `apiKey` in one layer: the key the model credential row reads. */
+function apiKey(scope: SecretBindingKey['scope']): SecretBindingKey {
+  const provider = releaseProvider('openrouter')
+  if (provider === undefined) throw new Error('the release holds no openrouter provider')
+  return providerCredentialKey(provider, scope, 'apiKey')
 }
+const officialKey = (): SecretBindingKey => apiKey({ layer: 'official' })
+const tenantKey = (): SecretBindingKey => apiKey({ layer: 'tenant', tenant: TENANT })
 
-function tenantKey(): SecretBindingKey {
-  const id = tenantCredentialId(TENANT)
-  if (id === undefined) throw new Error('tenant credential id')
-  return modelCredentialBindingKey({ id, tenant: TENANT, purpose: MODEL_SEND })
+/** A vault file that holds the official and the tenant OpenRouter key. */
+function writeVault(path: string): void {
+  const created = createSecretVault({
+    path,
+    seed: [
+      { key: officialKey(), secret: text(OFFICIAL), configuredAt: null },
+      { key: tenantKey(), secret: text(TENANT_SECRET), configuredAt: null },
+    ],
+  })
+  if (created.kind !== 'open') throw new Error(`test vault: ${created.kind}`)
+  created.vault.close()
 }
 
 function text(raw: string): SecretText {
@@ -160,35 +152,35 @@ describe('the secret-custody row', () => {
     })
   })
 
-  it('serves the baseline vault file: the factory secret and the tenant credential, with no value on the read faces', async () => {
+  it('serves a vault file: the official and the tenant secret of a provider item, with no value on the read faces', async () => {
     const path = vaultPath()
-    writeBaselineVault(path)
+    writeVault(path)
     const { value, run } = await withRow(path, SEES_KEY, service => {
       expect(service).toBeInstanceOf(SettingsSecretCustodyService)
       return {
-        factory: service.describe(MODEL_FACTORY_SECRET_KEY),
-        factoryValue: service.use(MODEL_FACTORY_SECRET_KEY),
+        official: service.describe(officialKey()),
+        officialValue: service.use(officialKey()),
         tenant: service.describe(tenantKey()),
         tenantValue: service.use(tenantKey()),
         listed: service.list({ layer: 'tenant', tenant: TENANT }, null, 10),
-        other: service.use({ ...tenantKey(), purpose: 'setting' }),
+        other: service.use({ ...tenantKey(), purpose: 'model-send' }),
       }
     })
     expect(run.state('secret-custody')).toMatchObject({ state: 'ACTIVE', missing: [] })
-    expect(value.factory).toMatchObject({ kind: 'bound', life: 'active', configuredAt: null })
-    expect(value.factoryValue).toEqual({ kind: 'secret', value: FACTORY })
+    expect(value.official).toMatchObject({ kind: 'bound', life: 'active', configuredAt: null })
+    expect(value.officialValue).toEqual({ kind: 'secret', value: OFFICIAL })
     expect(value.tenant).toMatchObject({ kind: 'bound', life: 'active' })
     expect(value.tenantValue).toEqual({ kind: 'secret', value: TENANT_SECRET })
     expect(value.other).toBe('missing')
-    const shown = inspect([value.factory, value.tenant, value.listed], { depth: null })
-    expect(shown).not.toContain(FACTORY)
+    const shown = inspect([value.official, value.tenant, value.listed], { depth: null })
+    expect(shown).not.toContain(OFFICIAL)
     expect(shown).not.toContain(TENANT_SECRET)
     expect(run.result.exitCode).toBe(0)
   })
 
-  it('writes through the management face into the same file the model credential plugin reads', async () => {
+  it('writes through the management face into the same file the model credential row reads', async () => {
     const path = vaultPath()
-    writeBaselineVault(path)
+    writeVault(path)
     const key: SecretBindingKey = {
       scope: { layer: 'tenant', tenant: TENANT },
       target: { owner: 'tool', key: 'Web/exa.apiKey' },
@@ -206,7 +198,7 @@ describe('the secret-custody row', () => {
       removed: 'removed',
       after: { kind: 'unbound' },
     })
-    // The file is now version 2 and still holds the Model bindings the baseline file had.
+    // The file still holds the two OpenRouter keys it was built with.
     const stored = JSON.parse(readFileSync(path, 'utf8')) as {
       version: number
       bindings: unknown[]
@@ -217,7 +209,7 @@ describe('the secret-custody row', () => {
 
   it('keeps the key trusted: a row the table does not list cannot inject it', async () => {
     const path = vaultPath()
-    writeBaselineVault(path)
+    writeVault(path)
     const onlyProvider: ReadonlyMap<RowId, readonly string[]> = new Map([
       ...RELEASE_TABLE,
       ['secret-custody' as RowId, [settingsSecretCustodyKey]],
@@ -231,9 +223,9 @@ describe('the secret-custody row', () => {
     const path = vaultPath()
     writeFileSync(path, '{not json')
     const { value, run } = await withRow(path, SEES_KEY, service => ({
-      described: service.describe(MODEL_FACTORY_SECRET_KEY),
-      used: service.use(MODEL_FACTORY_SECRET_KEY),
-      written: service.bind(MODEL_FACTORY_SECRET_KEY, text('synth-new-sentinel-9c4b'), null),
+      described: service.describe(officialKey()),
+      used: service.use(officialKey()),
+      written: service.bind(officialKey(), text('synth-new-sentinel-9c4b'), null),
     }))
     expect(run.state('secret-custody')).toMatchObject({ state: 'ACTIVE' })
     expect(value).toEqual({ described: 'unavailable', used: 'unavailable', written: 'not-written' })
@@ -294,9 +286,8 @@ describe('the operator layer of the local profile', () => {
     expect(withRow.ops.find(op => op.id === 'secret-custody')?.config).toEqual({
       path: '/h/state/model-vault.json',
     })
-    expect(withRow.ops.find(op => op.id === 'model-credential')?.config).toEqual({
-      path: '/h/state/model-vault.json',
-    })
+    // The model credential row reads the vault through this row: the layer gives it no path.
+    expect(withRow.ops.find(op => op.id === 'model-credential')).toBeUndefined()
   })
 
   it('leaves the row out while the release does not list it, so the layer replaces no unknown row', () => {

@@ -1,9 +1,7 @@
-// The disk form of the secret vault and its reading. Version 2 is what this code writes. A file
-// without a version is the vault the Model host wrote before custody moved here; it is read into
-// the same bindings and rewritten as version 2 on the first write. The reading refuses a file
-// that does not fit either shape: the whole file is then `corrupt`, nothing is repaired. A stored
-// secret is taken as the file holds it: the boundary that wrote it checked it then (the Model host
-// asked only for a non-empty string), and the consumer of the binding gets back the same bytes.
+// The disk form of the secret vault and its reading. Version 2 is the one format: the reading
+// refuses a file that does not fit it, and the whole file is then `corrupt`; nothing is repaired.
+// A stored secret is taken as the file holds it: the boundary that wrote it checked it then, and
+// the consumer of the binding gets back the same bytes.
 import {
   accountCodec,
   organizationCodec,
@@ -32,16 +30,6 @@ export type SecretState = Readonly<{ bindings: readonly SecretRecord[] }>
 
 /** The version this code writes. */
 export const FILE_VERSION = 2
-
-/**
- * How the pre-version file maps into bindings. That file was the Model host's vault: its factory
- * secret becomes the official binding of the Model factory target, and each row becomes a tenant
- * binding of the Model target named by the row's credential id; the purpose is the one that file
- * always held. The Model host names the same target on its side.
- */
-export const V1_MODEL_OWNER = 'model'
-export const V1_MODEL_PURPOSE = 'model-send'
-export const V1_MODEL_FACTORY_KEY = 'factory default'
 
 type StoredScope =
   | Readonly<{ layer: 'official' }>
@@ -136,51 +124,6 @@ function loadV2Binding(row: unknown): SecretRecord | undefined {
   return { key: { scope, target, purpose }, secret: value, life: state, configuredAt }
 }
 
-function loadV1Binding(row: unknown): SecretRecord | undefined {
-  const id = text(fieldOf(row, 'id'))
-  const who = tenantOf(fieldOf(row, 'tenant'))
-  const value = secret(fieldOf(row, 'secret'))
-  const state = life(fieldOf(row, 'life'))
-  const configuredAt = time(fieldOf(row, 'configuredAt'))
-  if (!id || !who || !value || !state || configuredAt === undefined) return undefined
-  if (fieldOf(row, 'purpose') !== V1_MODEL_PURPOSE) return undefined
-  return {
-    key: {
-      scope: { layer: 'tenant', tenant: who },
-      target: { owner: V1_MODEL_OWNER, key: id },
-      purpose: V1_MODEL_PURPOSE,
-    },
-    secret: value,
-    life: state,
-    configuredAt,
-  }
-}
-
-function loadV1(raw: unknown): SecretState | undefined {
-  const closed = fieldOf(raw, 'closed')
-  const factorySecret = text(fieldOf(raw, 'factorySecret'))
-  const rows = fieldOf(raw, 'bindings')
-  if (typeof closed !== 'boolean' || factorySecret === undefined || !Array.isArray(rows))
-    return undefined
-  const bindings: SecretRecord[] = []
-  if (factorySecret !== '') {
-    // An empty factory secret is no deployment default, so no binding.
-    const value = secret(factorySecret)
-    if (!value) return undefined
-    bindings.push({
-      key: {
-        scope: { layer: 'official' },
-        target: { owner: V1_MODEL_OWNER, key: V1_MODEL_FACTORY_KEY },
-        purpose: V1_MODEL_PURPOSE,
-      },
-      secret: value,
-      life: 'active',
-      configuredAt: null,
-    })
-  }
-  return collect(bindings, rows, loadV1Binding)
-}
-
 function loadV2(raw: unknown): SecretState | undefined {
   const rows = fieldOf(raw, 'bindings')
   if (!Array.isArray(rows)) return undefined
@@ -205,7 +148,6 @@ function collect(
 export function loadState(raw: unknown): SecretState | undefined {
   if (!isRecord(raw)) return undefined
   const version = fieldOf(raw, 'version')
-  if (version === undefined) return loadV1(raw)
   if (version === FILE_VERSION) return loadV2(raw)
   return undefined
 }

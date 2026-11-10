@@ -69,7 +69,7 @@ function profileDeclaration(
 ): Outcome<ReplayDeclaration, TransportFailure> {
   if (
     !sameAdoption(supplier.adoption, context.adapter) ||
-    supplier.recipient !== context.supplier.recipient ||
+    supplier.provider !== context.supplier.provider ||
     supplier.model !== context.supplier.model
   )
     return { failure: { kind: 'invalid', field: 'supplier', reason: 'not-this-binding' } }

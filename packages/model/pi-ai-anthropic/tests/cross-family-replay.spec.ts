@@ -138,7 +138,7 @@ describe('an OpenAI message in an Anthropic request', () => {
     const request = fixedRequest(SONNET, { messages: history(SONNET) })
     const declared = judgeReplayDeclaration(
       {
-        recipient: SONNET.route.recipient,
+        provider: SONNET.route.provider,
         model: SONNET.route.model,
         replay: SONNET.replay.declaration,
       },

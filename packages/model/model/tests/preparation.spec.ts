@@ -45,6 +45,7 @@ import { createMemoryModelCommands } from '@omne-harness/model/testing'
 import {
   adoption,
   callId,
+  providerName,
   fixture,
   identity,
   instance,
@@ -256,9 +257,9 @@ function stubFamily(): StubFamily {
 const supplierOf: ModelPreparationOptions<Principal>['supplierOf'] = ({ supplier }) => ({
   ok: {
     adoption: supplier.adoption,
-    recipient: supplier.recipient,
+    provider: supplier.provider,
     model: supplier.model,
-    credential: { kind: 'factory' },
+    credential: { layer: 'official' },
   },
 })
 
@@ -322,7 +323,7 @@ function accountOf(counts: Counts = {}): NonNullable<DispatchRecord['account']> 
   }
 }
 
-const supplier: Supplier = { ...profileSupplier, credential: { kind: 'factory' } }
+const supplier: Supplier = { ...profileSupplier, credential: { layer: 'official' } }
 
 function recordOf(
   overrides: Omit<Partial<DispatchRecord>, 'dispatch'> & Readonly<{ dispatch?: string }> = {},
@@ -1109,7 +1110,7 @@ describe('acquire: reads, limits and all-or-nothing bindings', () => {
       commands: stubStore(new Map()),
       bindings: family.bindings,
       supplierOf: ({ supplier: declared }) => ({
-        ok: { ...declared, model: 'another', credential: { kind: 'factory' } },
+        ok: { ...declared, model: 'another', credential: { layer: 'official' } },
       }),
       maxCitedCalls: 2,
     })
@@ -1510,7 +1511,7 @@ describe('options and routes', () => {
 
   it.each([
     ...FIELDS.map(field => [`adoption ${field}`, { adoption: changed(field) }] as const),
-    ['recipient', { recipient: 'elsewhere.invalid' }] as const,
+    ['provider', { provider: providerName('elsewhere.invalid') }] as const,
     ['model', { model: 'another' }] as const,
   ])('refuses a supplier port that changes the %s of the route', async (_name, change) => {
     const family = stubFamily()
@@ -1518,7 +1519,7 @@ describe('options and routes', () => {
       commands: stubStore(new Map()),
       bindings: family.bindings,
       supplierOf: ({ supplier: declared }) => ({
-        ok: { ...declared, ...change, credential: { kind: 'factory' } },
+        ok: { ...declared, ...change, credential: { layer: 'official' } },
       }),
       maxCitedCalls: 2,
     })

@@ -588,9 +588,9 @@
 - **出处**：[现行词义](../index.md)（依据 D-063 R-1，定义由 PM 起草）
 - **⚠️ 别混**：**不是[模型凭据](capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)，
   也不是 [MCP 凭据](capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential)**——
-  那两样说的是「配的是哪一把」，是租户或持有上的一项值；这一条说的是**那一把的值放在谁手里、谁取得到**
+  那两样说的是「配的是哪一把」，是持有上的一项设置值；这一条说的是**那一把的值放在谁手里、谁取得到**
 - **注意 ①**：**本版只有[会话据点](#ul-session-base--会话据点--session-base)这一侧有它**：每个据点一份，
-  保管这个据点上各租户那一把模型凭据的副本——[离线时用的就是手上这份](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据)——
+  保管这个据点上各租户模型凭据的副本——[离线时用的就是手上这份](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据)——
   和经 OAuth 取得的 MCP 凭据；中心那一侧的保管不在本版（`capability.credential-custodian` v2）
 - **注意 ②**：**它不判这把凭据在上游还算不算数**——据点上的副本是写下时的那一把，
   中心上换过、撤过，要等这台机器再连上中心、重写副本才知道

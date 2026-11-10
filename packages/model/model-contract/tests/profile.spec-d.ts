@@ -182,7 +182,7 @@ it('a profile supplier carries no credential and a profile needs at least one su
   const withCredential: ProfileSupplier = {
     ...profileSupplier,
     // @ts-expect-error a profile supplier cannot hold a credential
-    credential: { kind: 'tenant', id: 'c' },
+    credential: { layer: 'tenant' },
   }
   // @ts-expect-error a definition needs at least one supplier
   const empty: ModelProfileDefinition = { ...definition, suppliers: [] }

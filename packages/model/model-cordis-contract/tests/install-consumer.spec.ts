@@ -33,12 +33,14 @@ const closureMembers = [
   '@omne-harness/modality',
   '@omne-harness/model-contract',
   '@omne-harness/operation-result',
+  '@omne-harness/assets',
   '@omne-harness/call-account',
   '@omne-harness/content-block',
   '@omne-harness/exchange-refs',
   '@omne-harness/json-text',
   '@omne-harness/message',
   '@omne-harness/stream-arrival',
+  '@omne-harness/settings',
   '@omne-harness/utc-instant',
 ]
 

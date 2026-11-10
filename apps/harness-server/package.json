@@ -42,6 +42,7 @@
     "@omne-harness/agent-contract": "workspace:*",
     "@omne-harness/agent-cordis-contract": "workspace:*",
     "@omne-harness/agent-host-local": "workspace:*",
+    "@omne-harness/assets": "workspace:*",
     "@omne-harness/authorization": "workspace:*",
     "@omne-harness/exchange-refs": "workspace:*",
     "@omne-harness/execution-environment": "workspace:*",

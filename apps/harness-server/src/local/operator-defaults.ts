@@ -159,9 +159,6 @@ function capacityText(call: typeof CALL_RESULT_CAPACITY, count: number) {
   }
 }
 
-/** The OpenRouter route of the model send stage. */
-export const OPENROUTER_ROUTE = 'https://openrouter.ai/api/v1/chat/completions'
-
 /** The storage provider's command bound. `model-records` and `tool-records` use the same value. */
 const MAX_COMMAND_BYTES = 1_048_576
 
@@ -194,14 +191,14 @@ function modelRecords(combinationVersion: string) {
     sendStage: {
       maxRetainedAttempts: 16,
       materialization: { maxRecords: LOCAL_CONCURRENT_MODEL_CALLS },
-      factoryQueryId: 'factory-openrouter',
       profiles: {
         retryPolicy: PROFILES.retryPolicy,
         compactionTriggerPercent: PROFILES.compactionTriggerPercent,
       },
       preparation: PREPARATION,
       network: { maxConnections: LOCAL_CONCURRENT_MODEL_CALLS, idleConnectionTimeoutMs: 60_000 },
-      routes: { openrouter: { url: OPENROUTER_ROUTE, endMarker: '[DONE]' } },
+      // The routes come from the release provider bodies; the local profile sends to their own endpoints.
+      endpoints: {},
       transportLimits: {
         connectTimeoutMs: 10_000,
         // Retries only a failure before the request bytes left: 2 retries after 500 ms and 1000 ms.
@@ -468,8 +465,8 @@ export type ReplaceOperation = Readonly<{
 export type OperatorLayer = Readonly<{ ops: readonly ReplaceOperation[] }>
 
 /**
- * Builds the operator layer of the local single-user profile. The model credential row names only
- * the vault path: the secret is in the vault that `setup` built, never in this layer.
+ * Builds the operator layer of the local single-user profile. The secret custody row names only
+ * the vault path: the secrets are in the vault that `setup` built, never in this layer.
  */
 export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
   const rows = releaseRows(input.distribution)
@@ -487,9 +484,9 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         domainRule: 'organization-account/1',
       },
     ],
-    ['model-credential', { path: locations.vaultFile }],
-    // The secret custody row opens the same vault file. The release lists the row only once the
-    // trusted table and the distribution carry it; until then the layer leaves it out.
+    // The secret custody row opens the vault; the model credential row reads it through the row.
+    // The release lists the row only once the trusted table and the distribution carry it; until
+    // then the layer leaves it out.
     ...(rows.has('secret-custody')
       ? ([['secret-custody', { path: locations.vaultFile }]] as const)
       : []),

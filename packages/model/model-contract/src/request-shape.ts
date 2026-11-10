@@ -2,7 +2,7 @@ import { judgeContentBlock } from '@omne-harness/content-block'
 import { judgeMessage } from '@omne-harness/message'
 import { judgeJsonValue } from '@omne-harness/json-text'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
-import { decodeCredentialId } from './credential-values.ts'
+import { decodeProviderName } from './provider-name.ts'
 import type {
   Adoption,
   ConsumerRef,
@@ -77,30 +77,27 @@ function adoption(value: unknown, field: string): Checked<Adoption> {
   return succeed({ owner: owner.ok, name: name.ok, revision: revision.ok, digest })
 }
 function credential(value: unknown, field: string): Checked<Supplier['credential']> {
-  if (!isRecord(value)) return rejected(field, 'type')
-  const record = closed(value, value.kind === 'factory' ? ['kind'] : ['kind', 'id'], field)
+  const record = closed(value, ['layer'], field)
   if ('failure' in record) return record
-  if (record.ok.kind === 'factory') return succeed({ kind: 'factory' })
-  if (record.ok.kind !== 'tenant') return rejected(`${field}/kind`, 'value')
-  const id = decodeCredentialId(record.ok.id)
-  return 'failure' in id
-    ? rejected(`${field}/id`, 'identity')
-    : succeed({ kind: 'tenant', id: id.ok })
+  const { layer } = record.ok
+  return layer === 'tenant' || layer === 'official' || layer === 'none'
+    ? succeed({ layer })
+    : rejected(`${field}/layer`, 'value')
 }
 function supplier(value: unknown, field: string): Checked<Supplier> {
-  const record = closed(value, ['adoption', 'recipient', 'model', 'credential'], field)
+  const record = closed(value, ['adoption', 'provider', 'model', 'credential'], field)
   if ('failure' in record) return record
   const adopted = adoption(record.ok.adoption, `${field}/adoption`)
   if ('failure' in adopted) return adopted
-  const recipient = text(record.ok.recipient, `${field}/recipient`)
-  if ('failure' in recipient) return recipient
+  const provider = decodeProviderName(record.ok.provider)
+  if ('failure' in provider) return rejected(`${field}/provider`, 'identity')
   const model = text(record.ok.model, `${field}/model`)
   if ('failure' in model) return model
   const selected = credential(record.ok.credential, `${field}/credential`)
   if ('failure' in selected) return selected
   return succeed({
     adoption: adopted.ok,
-    recipient: recipient.ok,
+    provider: provider.ok,
     model: model.ok,
     credential: selected.ok,
   })

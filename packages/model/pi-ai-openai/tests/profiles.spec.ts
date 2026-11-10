@@ -44,9 +44,7 @@ describe('officialOpenAiProfiles', () => {
         { supplier, limit: { kind: 'finite', amount, source: evidence } },
       ]
       expect(PROFILES[index]).toEqual({
-        suppliers: [
-          { adoption: supplier, recipient: 'openrouter', model: record.name, replay: {} },
-        ],
+        suppliers: [{ adoption: supplier, provider: 'openrouter', model: record.name, replay: {} }],
         fallback: false,
         input: ['text', 'image'],
         output: ['text'],
@@ -85,9 +83,9 @@ describe('officialOpenAiProfiles', () => {
       const [entry] = profile.definition.suppliers
       const supplier = {
         adoption: entry.adoption,
-        recipient: entry.recipient,
+        provider: entry.provider,
         model: entry.model,
-        credential: { kind: 'factory' },
+        credential: { layer: 'official' },
       } as const
       const acquired = await composeFamilies([FAMILY]).acquire(
         supplier,

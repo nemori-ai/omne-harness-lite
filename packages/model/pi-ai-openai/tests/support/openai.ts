@@ -18,7 +18,7 @@ import {
   judgeReplayDeclaration,
   type TransportDispatch,
 } from '@omne-harness/model-contract/provider'
-import { composeFamilies, recordAdoption } from '@omne-harness/pi-ai-transport'
+import { composeFamilies, recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
 import type { PiFamilyBinding } from '@omne-harness/pi-ai-transport'
 import {
   createOpenAiFamily,
@@ -83,9 +83,9 @@ export function recordNamed(name: string): OpenAiRecord {
 export function supplierOf(record: OpenAiRecord): Supplier {
   return {
     adoption: recordAdoption(OPENAI_OWNER, record),
-    recipient: record.route.recipient,
+    provider: recordProvider(record),
     model: record.route.model,
-    credential: { kind: 'factory' },
+    credential: { layer: 'official' },
   }
 }
 
@@ -174,7 +174,7 @@ export type RequestParts = Readonly<{
 export function declarationOf(record: OpenAiRecord): ReplayDeclaration {
   const judged = judgeReplayDeclaration(
     {
-      recipient: record.route.recipient,
+      provider: recordProvider(record),
       model: record.route.model,
       replay: record.replay.declaration,
     },

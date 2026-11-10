@@ -1,9 +1,10 @@
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
-  CredentialId,
+  CredentialLayer,
   MaterializationReceipt,
   ModelFailure,
   ModelFault,
+  ProviderName,
 } from '@omne-harness/model-contract'
 import type {
   CredentialPort,
@@ -14,10 +15,10 @@ import type {
   TransportFact,
 } from '@omne-harness/model-contract/provider'
 
+/** The credential a send reads: the layer the request fixed for its supplier's provider. */
 export type CredentialSelection = Readonly<{
-  id: CredentialId
-  scope: 'tenant' | 'factory'
-  official?: boolean
+  provider: ProviderName
+  layer: CredentialLayer
 }>
 export type SendStart =
   | Readonly<{ kind: 'started'; facts: AsyncIterable<TransportFact> }>
@@ -40,10 +41,13 @@ export interface SendCoordinator<P> {
 }
 export interface SendResource {
   readonly transport: ModelTransport
-  /** Uses a private credential slot and clears that slot before returning, including on throw. */
+  /**
+   * Uses a private credential slot, keyed by credential item, and clears that slot before
+   * returning, including on throw.
+   */
   startWithCredential(
     materialized: MaterializedTransport,
-    value: string,
+    secrets: ReadonlyMap<string, string>,
     signal: AbortSignal,
   ): AsyncIterable<TransportFact>
   release(): Promise<void>

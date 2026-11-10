@@ -144,12 +144,14 @@ async function transportObligations(
             openrouter: {
               url: new URL(ROUTE_PATH, server.url).href,
               endMarker: GATEWAY_END_MARKER,
+              accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+              auth: { kind: 'bearer', item: 'apiKey' },
             },
           },
           credential: {
             read: () => {
               reads += 1
-              return PLACEHOLDER
+              return new Map([['apiKey', PLACEHOLDER]])
             },
           },
           limits: TRANSPORT_LIMITS,

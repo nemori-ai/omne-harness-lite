@@ -4,7 +4,6 @@ import type { Adoption, ConsumerRef } from '@omne-harness/exchange-refs'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { Message } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { CredentialId } from './credential.ts'
 import type { ModelInvocationRef } from './reference.ts'
 import type { ParameterAdoption, ReplayDeclaration } from './profile.ts'
 
@@ -18,6 +17,7 @@ export type ResultVersion = Identity<'ModelResultVersion'>
 export type OutputCursor = Identity<'ModelOutputCursor'>
 export type ReadId = Identity<'ModelReadId'>
 export type Revision = Identity<'ModelRevision'>
+export type ProviderName = Identity<'ModelProviderName'>
 
 export type ModelIdentityKey =
   | 'ModelCallId'
@@ -30,7 +30,7 @@ export type ModelIdentityKey =
   | 'ModelRevision'
   | 'ModelResultVersion'
   | 'ModelOutputCursor'
-  | 'ModelCredentialId'
+  | 'ModelProviderName'
 
 export type ModelIdentityRejection<K extends ModelIdentityKey> = Readonly<{
   field: K
@@ -60,11 +60,20 @@ export type ToolDeclaration = Readonly<{
   description: string
   argumentsSchema: JsonValue
 }>
+/**
+ * The layer a supplier's credential items are read from, fixed when the request is prepared: the
+ * calling tenant's own layer, the official layer, or `none` for a provider that declares no item.
+ */
+export type CredentialLayer =
+  | Readonly<{ layer: 'tenant' }>
+  | Readonly<{ layer: 'official' }>
+  | Readonly<{ layer: 'none' }>
 export type Supplier = Readonly<{
   adoption: Adoption
-  recipient: string
+  /** The model provider asset the request reaches. */
+  provider: ProviderName
   model: string
-  credential: Readonly<{ kind: 'tenant'; id: CredentialId }> | Readonly<{ kind: 'factory' }>
+  credential: CredentialLayer
 }>
 export type FixedModelRequest = Readonly<{
   profile: Adoption

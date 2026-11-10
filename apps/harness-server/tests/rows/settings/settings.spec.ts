@@ -18,7 +18,11 @@ import {
 } from '@omne-harness/identity'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { SettingsGovernance } from '@omne-harness/server-entry'
-import { createSettingsSecretItems } from '@omne-harness/settings'
+import {
+  createSettingsSecretItems,
+  parseSecretText,
+  type SettingsHolding,
+} from '@omne-harness/settings'
 import { createSecretVault, type SecretVault } from '@omne-harness/settings-local/secrets'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
@@ -37,7 +41,8 @@ import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { createSettingsGuard } from '../../../src/rows/authorization/settings-access.ts'
 import { secretCustodyRow } from '../../../src/rows/secret-custody/index.ts'
 import { createSettingsGovernance } from '../../../src/rows/settings/governance.ts'
-import { toolSettingHolding, toolSettingSecretKey } from '../../../src/rows/settings/holding.ts'
+import { releaseProvider } from '../../../src/assets/model-providers.ts'
+import { holdingKey, officialHolding, toolAsset } from '../../../src/assets/official-holdings.ts'
 import {
   SettingsSecretItemsService,
   createReleaseSettingsRegistry,
@@ -49,11 +54,20 @@ import { fixtureTenant, okOf } from '../../entry/support.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { TEST_CONSTRUCTION, releaseFixture, tree } from '../tool-host/support.ts'
 
+/** The Settings holding of a release tool definition, or `null` when it declares no settings. */
+function toolHolding(definition: ToolDefinition): SettingsHolding | null {
+  const held = officialHolding(toolAsset(definition))
+  return held.kind === 'declared' ? held.ref.holding : null
+}
+
 const SENTINEL = 'exa-sentinel-row-7f31c2'
 const A = fixtureTenant('a')
 const B = fixtureTenant('b')
 const WEB = { category: 'tool', name: 'Web' }
 const ITEM = 'exa.apiKey'
+/** The release provider holding every table registers from the start. */
+const OPENROUTER = releaseProvider('openrouter')?.holding?.ref
+if (OPENROUTER === undefined) throw new Error('fixture: the release holds no openrouter provider')
 
 const authority = inProcessPrincipalAuthority()
 const system = okOf(authority.issuer.issueSystem({ component: 'server-entry' }), 'system')
@@ -153,20 +167,27 @@ describe('the settings row: registry, secret items and governance', () => {
     const w = await world()
     try {
       const access = { principal: acting(A), tenant: A }
-      // Before tool-host loaded the author nothing is registered: Web is not visible.
-      expect(w.registry.snapshot().definitions).toEqual([])
-      expect(await w.port.list({ access })).toEqual({ kind: 'succeeded', items: [] })
+      // Before tool-host loaded the author only the release providers are registered: Web is not
+      // visible.
+      expect(w.registry.snapshot().definitions.map(d => d.definitionId)).toEqual(['openrouter'])
+      expect(await w.port.list({ access, asset: { name: 'Web' } })).toEqual({
+        kind: 'succeeded',
+        items: [],
+      })
       expect(await w.port.set({ access, asset: WEB, item: ITEM, secret: SENTINEL })).toEqual({
         kind: 'not-visible',
       })
       const definition = rememberWeb(w.root)
-      const holding = toolSettingHolding(definition)
+      const holding = toolHolding(definition)
       expect(holding).not.toBeNull()
-      expect(w.registry.snapshot().definitions.map(d => d.definitionId)).toEqual(['Web'])
-      expect(w.registry.holdings()).toEqual([{ asset: WEB, holding }])
+      expect(w.registry.snapshot().definitions.map(d => d.definitionId)).toEqual([
+        'openrouter',
+        'Web',
+      ])
+      expect(w.registry.holdings()).toEqual([OPENROUTER, { asset: WEB, holding }])
       expect(w.registry.holdings({ name: 'Web' })).toHaveLength(1)
       expect(w.registry.holdings({ category: 'agent', name: 'Web' })).toEqual([])
-      expect(await w.port.list({ access })).toEqual({
+      expect(await w.port.list({ access, asset: { name: 'Web' } })).toEqual({
         kind: 'succeeded',
         items: [
           {
@@ -175,6 +196,7 @@ describe('the settings row: registry, secret items and governance', () => {
             title: 'Exa API key',
             sensitivity: 'secret',
             state: { state: 'unbound' },
+            official: { state: 'unbound' },
           },
         ],
       })
@@ -200,17 +222,22 @@ describe('the settings row: registry, secret items and governance', () => {
         entries: [{ purpose: 'setting', presence: { kind: 'bound', life: 'active' } }],
       })
       const shown = await w.port.describe({ access, asset: WEB, item: ITEM })
-      expect(shown).toMatchObject({ kind: 'succeeded', setting: { state: 'usable', tenantId: A } })
+      expect(shown).toMatchObject({
+        kind: 'succeeded',
+        setting: { own: { state: 'usable', tenantId: A }, official: { state: 'unbound' } },
+      })
       if (
         shown.kind === 'succeeded' &&
-        shown.setting.state !== 'unbound' &&
+        shown.setting.own.state !== 'unbound' &&
         written.kind === 'succeeded'
       )
-        expect(shown.setting.configuredAt).toEqual(written.configuredAt)
+        expect(shown.setting.own.configuredAt).toEqual(written.configuredAt)
       const listed = await w.port.list({ access, asset: { name: 'Web' } })
       expect(listed).toMatchObject({
         kind: 'succeeded',
-        items: [{ item: ITEM, state: { state: 'usable', tenantId: A } }],
+        items: [
+          { item: ITEM, state: { state: 'usable', tenantId: A }, official: { state: 'unbound' } },
+        ],
       })
       // Nothing the caller sees carries the secret.
       expect(inspect({ written, shown, listed }, { depth: null })).not.toContain(SENTINEL)
@@ -218,7 +245,7 @@ describe('the settings row: registry, secret items and governance', () => {
       expect(await w.port.clear({ access, asset: WEB, item: ITEM })).toEqual({ kind: 'no-change' })
       expect(await w.port.describe({ access, asset: WEB, item: ITEM })).toEqual({
         kind: 'succeeded',
-        setting: { state: 'unbound' },
+        setting: { own: { state: 'unbound' }, official: { state: 'unbound' } },
       })
       expect(readFileSync(w.path, 'utf8')).not.toContain(SENTINEL)
     } finally {
@@ -230,22 +257,57 @@ describe('the settings row: registry, secret items and governance', () => {
     const w = await world()
     try {
       const definition = rememberWeb(w.root)
-      const holding = toolSettingHolding(definition)
+      const holding = toolHolding(definition)
       if (holding === null) throw new Error('fixture holding')
       const access = { principal: acting(A), tenant: A }
       expect((await w.port.set({ access, asset: WEB, item: ITEM, secret: SENTINEL })).kind).toBe(
         'succeeded',
       )
-      expect(
-        w.vault.unbind(toolSettingSecretKey({ layer: 'tenant', tenant: A }, holding, ITEM)),
-      ).toBe('removed')
+      expect(w.vault.unbind(holdingKey({ layer: 'tenant', tenant: A }, holding, ITEM))).toBe(
+        'removed',
+      )
       expect(await w.port.describe({ access, asset: WEB, item: ITEM })).toEqual({
         kind: 'succeeded',
-        setting: { state: 'unbound' },
+        setting: { own: { state: 'unbound' }, official: { state: 'unbound' } },
       })
-      expect(await w.port.list({ access })).toMatchObject({
+      expect(await w.port.list({ access, asset: { name: 'Web' } })).toMatchObject({
         items: [{ item: ITEM, state: { state: 'unbound' } }],
       })
+    } finally {
+      await w.close()
+    }
+  })
+
+  it('shows the official layer beside the own one, and a tenant set or clear never touches it (I-7, I-8)', async () => {
+    const w = await world()
+    try {
+      const definition = rememberWeb(w.root)
+      const holding = toolHolding(definition)
+      if (holding === null) throw new Error('fixture holding')
+      const officialKey = holdingKey({ layer: 'official' }, holding, ITEM)
+      const secret = parseSecretText('official-test-secret')
+      if (!secret.ok) throw new Error('fixture secret')
+      expect(w.vault.bind(officialKey, secret.value, null)).toBe('written')
+      const officialBefore = w.vault.describe(officialKey)
+      const access = { principal: acting(A), tenant: A }
+      expect(await w.port.describe({ access, asset: WEB, item: ITEM })).toEqual({
+        kind: 'succeeded',
+        setting: { own: { state: 'unbound' }, official: { state: 'usable' } },
+      })
+      expect(await w.port.list({ access, asset: { name: 'Web' } })).toMatchObject({
+        items: [{ item: ITEM, state: { state: 'unbound' }, official: { state: 'usable' } }],
+      })
+      expect((await w.port.set({ access, asset: WEB, item: ITEM, secret: SENTINEL })).kind).toBe(
+        'succeeded',
+      )
+      expect(w.vault.describe(officialKey)).toEqual(officialBefore)
+      expect(await w.port.describe({ access, asset: WEB, item: ITEM })).toMatchObject({
+        setting: { own: { state: 'usable', tenantId: A }, official: { state: 'usable' } },
+      })
+      expect(await w.port.clear({ access, asset: WEB, item: ITEM })).toEqual({ kind: 'succeeded' })
+      expect(await w.port.clear({ access, asset: WEB, item: ITEM })).toEqual({ kind: 'no-change' })
+      expect(w.vault.describe(officialKey)).toEqual(officialBefore)
+      expect(w.vault.use(officialKey)).toEqual({ kind: 'secret', value: secret.value })
     } finally {
       await w.close()
     }
@@ -335,9 +397,13 @@ describe('the settings row: registry, secret items and governance', () => {
       })
       const definition = webDefinition(root)
       expect(rememberReleaseDefinition(root, snapshot.generation, definition)).toBe(true)
-      expect(items.items({ scope })).toMatchObject([{ itemId: ITEM, title: 'Exa API key' }])
+      const webItems = () => {
+        const listed = items.items({ scope })
+        return typeof listed === 'string' ? listed : listed.filter(entry => entry.itemId === ITEM)
+      }
+      expect(webItems()).toMatchObject([{ itemId: ITEM, title: 'Exa API key' }])
       const before = registry.snapshot().definitions.map(entry => entry.version)
-      expect(before).toHaveLength(1)
+      expect(before).toHaveLength(2)
 
       // The next generation: the Web author at another digest declares the item with another title.
       const next: ToolDefinition = structuredClone(definition)
@@ -360,11 +426,11 @@ describe('the settings row: registry, secret items and governance', () => {
       await first.dispose()
       await installAuthority(reloaded)
       expect(rememberReleaseDefinition(root, generation, next)).toBe(true)
-      expect(items.items({ scope })).toMatchObject([{ itemId: ITEM, title: 'Exa API key (next)' }])
+      expect(webItems()).toMatchObject([{ itemId: ITEM, title: 'Exa API key (next)' }])
       const after = registry.snapshot().definitions.map(entry => entry.version)
-      expect(after).toHaveLength(1)
+      expect(after).toHaveLength(2)
       expect(after).not.toEqual(before)
-      expect(registry.holdings()).toEqual([{ asset: WEB, holding: toolSettingHolding(next) }])
+      expect(registry.holdings()).toEqual([OPENROUTER, { asset: WEB, holding: toolHolding(next) }])
     } finally {
       await root.fiber.dispose()
     }

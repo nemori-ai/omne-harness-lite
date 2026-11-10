@@ -35,19 +35,19 @@
 > **中**：**约束 agent 由什么组装而成、从哪里被触达、以及推进时在哪些位置插手**的那一类对象。
 > 它是三样东西里**唯一独立存在的对象**；
 > [设置](#ul-setting--设置--setting)与[权限](#ul-permission--权限--permission)是它的**两种属性**。
-> **目录保留[八个列项](#八类资产)，Connector 的资产存在性搁置，其余七类继续成立。**
+> **目录保留[八个列项](#八类资产)，Connector 的资产存在性搁置，其余七类继续成立；[模型供应商](#ul-model-provider--模型供应商--model-provider)是另一类资产。**
 >
 > **EN**: The class of objects that **constrains what an agent is assembled from**,
 > **through which channels it can be reached**, and **where things may be inserted as
 > its loop advances**. It is the only one of the three that exists as an object in
 > its own right; settings and permissions are two kinds of **attribute on** it.
-> **The catalog retains eight entries; Connector is on hold pending a decision on whether it remains an asset, while the other seven remain in scope.**
+> **The catalog retains eight entries; Connector is on hold pending a decision on whether it remains an asset, while the other seven remain in scope. The model provider is one more kind of asset.**
 
-- **目录状态**：Connector 的资产存在性及相关设计搁置，其余七类继续成立；保留的 Connector 列项不是当前交付承诺。
+- **目录状态**：Connector 的资产存在性及相关设计搁置，其余七类继续成立；保留的 Connector 列项不是当前交付承诺。[模型供应商](#ul-model-provider--模型供应商--model-provider)不在八个列项里，归[资产与规则的类别清单](../../product/assets-and-rules/design.md#产品需求描述)（rev 7）。
 - **形态**：对象
 - **出处**：[PF-001 §4 设置、权限、资产](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 26） · [资产的种类](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26）
 - **别混**：知识、经验、报告、附件与文件**都不是资产**——它们是 agent **读写的对象**，**不参与组装**
-- **注意 ①**：判据是**它在 agent definition 里被声明、被持有、被授权、按层级求值**——**这四件事**，不是「它提供动作」
+- **注意 ①**：判据是**它在 agent definition 里（或经 agent 所用的模型档案引用）被声明、被持有、被授权、按层级求值**——**这四件事**，不是「它提供动作」
 - **注意 ②**：**规格里的「资产记录」指的是同一个[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)下的一份具体资产**——所有者、来源、草稿与版本线都挂在它身上；它是本条身份的下层（[对象条目](../../domain_objects/objects.md#ul-asset--资产)），**不另立词条**。**草稿是它身上还没发布的那份内容**，[不是版本](#ul-asset-version--资产版本--asset-version)，也不另立
 
 ### UL-setting · 设置 · Setting
@@ -57,7 +57,7 @@
 > **EN**: A configurable aspect of how a capability works, declared by its owner. A setting can be used independently or composed into an asset definition. Its declaration defines meaning and valid values. Assignments follow the management authority, sources and lifetime of their target; evaluation does not authorize an action.
 
 - **形态**：属性
-- **出处**：[资产与规则：设置独立使用与资产组合](../../product/assets-and-rules/design.md#settings-composition)（rev 6）
+- **出处**：[资产与规则：设置独立使用与资产组合](../../product/assets-and-rules/design.md#settings-composition)（rev 7）
 - **注意 ①**：资产设置的配值依附合法持有；独立设置不要求创建资产或持有。两者复用设置契约，不复用未经采用的资格或来源链。
 - **注意 ②**：资产声明哪些部分可配置。未声明部分仍按资产编辑与发布规则维护；配值不改写已发布定义。
 - **注意 ③**：属性锁、持有替换锁和定义的不可替换声明分别处理；不得因同名而合并。
@@ -88,9 +88,9 @@
 > holds, what happens at the moment a person should be asked) **— if so, governance**.
 
 - **形态**：属性
-- **出处**：[资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 6）；[PF-002 §5.2 设置项分四类](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
+- **出处**：[资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 7）；[PF-002 §5.2 设置项分四类](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
 - **别混**：与[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)里的「类别」不是一回事——
-  那是**资产**的八类之一，这是**设置项**的四类之一；正文里裸写「类别」指前者
+  那是**资产**的类别（工具、技能、模型供应商……），这是**设置项**的四类之一；正文里裸写「类别」指前者
 - **注意**：工作区**自己带来的**资产，其落点类声明随资产一起来——这条限定挡的是**改别人资产的落点**。独立设置按其目标策略确定来源，不自动继承资产层序。
 
 ### UL-permission · 权限 · Permission
@@ -708,12 +708,13 @@
 ### UL-official-model-profile · 官方档案 · Official Model Profile
 
 > **中**：**随系统发布、位于出厂默认层的那种[模型档案](#ul-model-profile--模型档案--model-profile)。**
-> 它自己**不含凭据**——出厂默认那一格可以有一把，由部署装配时配好，产品里没有任何操作能配、换或解绑它；
+> 它自己**不含凭据**——没有自带凭据的租户用它时，取的是所用[模型供应商](#ul-model-provider--模型供应商--model-provider)凭据项的官方层，那一层只由部署写入，产品里的设置操作改不了它；
 > 它与自建档案**在同一份列表里**展示；**自建档案与它同路由名时，自建的按层覆盖它**。
 >
 > **EN**: **A model profile that ships with the system and sits at the factory-default layer.** It
-> **carries no credential** of its own — the factory-default slot may have one, set up at deployment
-> assembly and beyond the reach of any operation in the product; it is shown **in the same single list**
+> **carries no credential** of its own — a tenant without its own credential uses the official layer of
+> the credential items of the model provider it sends to, which only the deployment writes and no
+> setting operation in the product can change; it is shown **in the same single list**
 > as custom profiles, and **a custom profile under the same routing name overrides it by layer**.
 
 - **形态**：变体（父：[模型档案](#ul-model-profile--模型档案--model-profile)）
@@ -725,8 +726,8 @@
 ### UL-custom-model-profile · 自建档案 · Custom Model Profile
 
 > **中**：**组织的超级管理员或租户在自己那一层建的[模型档案](#ul-model-profile--模型档案--model-profile)。**
-> 它自己**不存凭据**，调用时取**发起调用的那个租户自己的那一把**[模型凭据](#ul-model-credential--模型凭据--model-credential)——
-> 建在组织层的也一样，成员调它用的是成员自己那一把；
+> 它自己**不存凭据**，调用时取**发起调用的那个租户自己这一层的**[模型凭据](#ul-model-credential--模型凭据--model-credential)——
+> 建在组织层的也一样，成员调它用的是成员自己这一层的；
 > 在册期间可以修订，**路由名与来源除外**——换路由名就是另建一条。它的身份含所在范围：
 > 组织层与租户层各建一条同名的、或与官方档案同名，都成立；**同名时按层覆盖**——租户层的盖组织层的，自建的盖官方的。
 >
@@ -743,7 +744,7 @@
   [§5.6](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)（rev 17） ·
   [flows §四 角色与操作](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)（rev 17）
 - **⚠️ 别混**：**不是[自定义件](circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset)**——理由同上
-- **注意**：**组织层建的档案，成员配上自己那一把凭据之前用不上**——列表上标明缺的是什么；组织那一层给不了他一把兜底的
+- **注意**：**组织层建的档案，成员在自己这一层配上凭据之前用不上**——列表上标明缺的是什么；组织那一层给不了他兜底的凭据
 
 ### UL-profile-listing-status · 档案在册状态 · Profile Listing Status
 
@@ -772,18 +773,20 @@
 
 ### UL-allowed-providers · 允许的供应商 · Allowed Providers
 
-> **中**：**[模型档案](#ul-model-profile--模型档案--model-profile)上的一项属性：这条档案允许走哪几家供应商、按什么次序。**
+> **中**：**[模型档案](#ul-model-profile--模型档案--model-profile)上的一项属性：这条档案允许走哪几家[供应商](#ul-model-provider--模型供应商--model-provider)、按什么次序。**
 > 有序、非空；**顺序就是重试挂件逐家去试的顺序**，每一次发出只走其中一家。建档时给，可改。
 >
-> **EN**: **An attribute of a model profile: which providers the profile may go through, and in what
-> order.** Ordered and non-empty; **the order is the order in which the retry extension tries them**,
-> each send going through exactly one. Set when the profile is created; may be changed.
+> **EN**: **An attribute of a model profile: which [providers](#ul-model-provider--模型供应商--model-provider)
+> the profile may go through, and in what order.** Ordered and non-empty; **the order is the order in which
+> the retry extension tries them**, each send going through exactly one. Set when the profile is created; may be changed.
 
 - **形态**：属性
 - **出处**：[PF-013 §4 模型档案](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
-  [§5.12 系统自带一件默认的](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17）
+  [§5.12 系统自带一件默认的](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17） ·
+  [模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 4）
 - **注意**：它是[试尽](execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)这个判断的**输入**，不是试尽的定义
-- **别混**：**不是「各家一把凭据」**——所有模型请求统一经 OpenRouter 出去，一个租户一把[模型凭据](#ul-model-credential--模型凭据--model-credential)，不分供应商
+- **别混**：**列表里的每一项是对一家[模型供应商](#ul-model-provider--模型供应商--model-provider)的引用，不是模型供应商本身**——
+  模型供应商是一份资产，档案不是资产、只引用它；[模型凭据](#ul-model-credential--模型凭据--model-credential)按模型供应商与层配置，不挂在档案或这一项上
 
 ### UL-provider-fallback · 供应商回退 · Provider Fallback
 
@@ -801,40 +804,60 @@
   [§5.12 系统自带一件默认的](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17）
 - **注意**：它同样只是[试尽](execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)的输入；租户换掉默认重试件之后，怎么读它由那一件定
 
+### UL-model-provider · 模型供应商 · Model Provider
+
+> **中**：**模型请求真实到达的那一家上游服务。**它是资产类别 `model-provider` 的一份[资产](#ul-asset--资产--asset)，
+> 正文说明它用哪种协议、端点在哪里、怎样计费，以及它需要哪些凭据项。
+> 每个凭据项是它声明的一项秘密[设置](#ul-setting--设置--setting)，某一层为这一项配上的值是[模型凭据](#ul-model-credential--模型凭据--model-credential)；
+> 一家可以声明多个凭据项，也可以一个都不声明。
+> 它的身份按资产的规则确定：能力标识是「`model-provider` ＋ name」，同一个能力标识下可以有不同的具体资产，
+> 分得出这一家与那一家靠的是具体资产。官方供应商对每个合法租户视为已持有。
+>
+> **EN**: **The upstream service that a model request actually reaches.** It is one asset of the asset
+> category `model-provider`. Its body states which protocol it speaks, where its endpoint is, how it charges,
+> and which credential items it needs. Each credential item is a secret setting that the provider declares,
+> and the value set for that item at one layer is a model credential. A provider may declare several
+> credential items, or none. Its identity follows the asset rules: the capability identifier is
+> "`model-provider` + name", one capability identifier can have different concrete assets, and the concrete
+> asset tells one provider apart from another. An official provider counts as held by every legitimate tenant.
+
+- **形态**：变体（父：[资产](#ul-asset--资产--asset)）
+- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 4） ·
+  [资产与规则：让共同能力可治理，也让具体资产独立发展](../../product/assets-and-rules/design.md#让共同能力可治理也让具体资产独立发展)（rev 7）
+- **别混 ①**：**不是[允许的供应商](#ul-allowed-providers--允许的供应商--allowed-providers)里的一项**——那一项是档案对它的引用；档案不是资产，模型供应商是
+- **别混 ②**：**不是 [Cordis 服务提供者](architecture-core-and-extension.md#ul-cordis-service-provider--cordis-服务提供者--cordis-service-provider)、
+  [环境提供者](grounding-and-isolation.md#ul-environment-provider--环境提供者--environment-provider)这类「提供者」**——那些是系统里兑现一项能力的角色；
+  模型供应商在系统之外，是模型请求的目的地。英文都叫 provider，跨 topic 引用写全名
+- **注意**：代码里档案供应商条目指向它的字段是 `provider`，取值是它的 name
+
 ### UL-model-credential · 模型凭据 · Model Credential
 
-> **中**：一个[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)**身上的一项属性**：
-> **这个租户把模型请求发出去时用的那一把 OpenRouter 凭据**，**一个租户一把**——
-> 这个租户发起的调用都从它出去，不管调的是官方档案、组织层建的[自建档案](#ul-custom-model-profile--自建档案--custom-model-profile)还是他自己建的。
-> **[组织](subjects-and-ownership.md#ul-organization--组织--organization)那一层不持有它**，每个人在自己的租户层自取。
-> 由此三条：**身份即范围**（它是谁的，看它配在哪个租户上）、
-> **轮换就是改这一项的值**、**用量记在这个租户头上**。
-> **官方档案不带它**；租户**可以自带自己的那一把**，也可以换、可以**解绑**（清空后照没配处理）。
-> **出厂默认那一格也可以有一把**：由部署装配时配好，产品里没有任何操作能配、换或解绑它，它不是哪个组织或租户的。
+> **中**：**一家[模型供应商](#ul-model-provider--模型供应商--model-provider)声明的一项秘密设置（凭据项），在某一层配上的那一份值。**
+> 层是租户层或官方层。租户在自己这一层配置、更换和清除；官方层由部署提供，即正文所说的部署默认，产品操作改不了它。
+> 供应商声明几个凭据项，就要几项凭据；一项都不声明的供应商不需要凭据。
+> 一次调用的每个供应商条目在受理时选定一层，这次调用里这一条目只用这一层的凭据，不在两层之间逐项拼用；
+> 选哪一层由模型调用的选层规则决定。
+> 能看到的是每一层各自有没有配置、能不能用和配置时间，看不到秘密值。
 >
-> **EN**: An attribute on a **tenant**: **the one OpenRouter credential that tenant's model
-> requests go out with**, **one per tenant** — every call that tenant initiates goes out on it,
-> whether the profile called is official, self-built at the organization layer, or the tenant's
-> own. **The organization layer holds none**; each person brings their own at their tenant layer.
-> Three consequences follow: **its identity is the scope** — whose it is follows from which tenant
-> it sits on; **rotating it means changing this one value**; and **usage is attributed to that
-> tenant**. Official profiles carry none, and a tenant may **bring its own**, change it, or
-> **unbind** it (cleared, it is treated as not configured). **The factory-default cell may hold one
-> too**: configured when the deployment is assembled, with no product operation able to set, change
-> or unbind it; it belongs to no organization or tenant.
+> **EN**: **The value set at one layer for one secret setting, a credential item, that a model provider
+> declares.** The layer is the tenant layer or the official layer. A tenant sets, replaces and clears
+> values at its own layer. The deployment supplies the official layer, which the product text calls the
+> deployment default, and no product operation can change it. A provider needs one credential for each
+> credential item it declares, and a provider that declares none needs no credential. For each provider
+> entry of a call, one layer is chosen when the call is accepted, and for the whole call that entry uses
+> only that layer's credentials, never mixing items from the two layers. The layer-selection rule of model
+> invocation decides which layer. A user can see, for each layer, whether a value is set, whether it is
+> usable and when it was set, but never the secret value.
 
 - **形态**：属性
-- **出处**：[PF-013 §5.6](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) ·
-  [组织那一层为什么不持有](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#组织那一层为什么不持有) ·
-  [§6.2](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存)（rev 17）
-- **⚠️ 别混 ①**：**不是[设置](#ul-setting--设置--setting)**——设置是**资产**的属性，
-  而[档案不是资产](#ul-model-profile--模型档案--model-profile)、凭据也不是；**它挂在租户身上**
+- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 4） ·
+  [资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 7）
+- **⚠️ 别混 ①**：**不在档案上**——[档案](#ul-model-profile--模型档案--model-profile)不是资产，自身不存凭据；
+  凭据是模型供应商这份资产的设置值，依附对它的持有
 - **别混 ②**：**裸写「凭据」不作数**——账号的登录凭据、[连接件](#ul-connector--连接件--connector)的接入凭据、
   [MCP 凭据](#ul-mcp-credential--mcp-凭据--mcp-credential)都叫凭据，**正式名一律带「模型」**
-- **注意 ①**：一租户一把的代价是**做不到「这个模型走另一个账号」**；
-  这个租户所有调用的用量都记在同一把上，**上游账单分不到单条档案**
-- **注意 ②**：**组织那一层不持有，是与 [MCP 凭据](#ul-mcp-credential--mcp-凭据--mcp-credential)一并定的同一条路**——
-  组织持有一把、供成员共用，本版不做；组织层建的档案，成员配上自己那一把之前用不上
+- **注意 ①**：**组织那一层不持有它**——本域不提供组织持有凭据、供成员共用的操作；组织层建的档案，成员在自己这一层配上凭据之前用不上
+- **注意 ②**：清除后按缺失处理，不翻改已经发出的事实；实际用量与费用归真实调用及其租户
 - **弃用说法**：~~BYOK~~——OpenRouter 响应里的 `is_byok` 是上游字段，说的是**上游那一侧**用了谁的 key，与本词条不是一回事，正文不用这个缩写
 
 ### UL-model-request-parameters · 模型请求参数 · Model Request Parameters
@@ -852,7 +875,7 @@
 
 - **形态**：属性
 - **出处**：[PF-013 §4 模型档案](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 17）
-- **别混**：**不是[模型凭据](#ul-model-credential--模型凭据--model-credential)**——凭据挂租户、一租户一把；参数挂档案、一档案一组
+- **别混**：**不是[模型凭据](#ul-model-credential--模型凭据--model-credential)**——凭据是模型供应商声明的秘密设置在某一层的值，档案不存；参数挂档案、一档案一组
 - **注意**：词表里有哪些参数、各取什么值，归规格，不归产品正文
 
 ### UL-mcp-credential · MCP 凭据 · MCP Credential
@@ -879,8 +902,9 @@
 - **出处**：[PF-002 §4 MCP](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp) ·
   [MCP 凭据：一份持有一份](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的) ·
   [§5.2 设置项分四类](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
-- **⚠️ 别混**：**不是[模型凭据](#ul-model-credential--模型凭据--model-credential)**——模型凭据挂在**租户身上**、一租户一把、不是设置；
-  MCP 凭据挂在**接入点的持有**上、一份持有一份、是一项设置。**两者同一条路：组织那一层都不持有**
+- **⚠️ 别混**：**不是[模型凭据](#ul-model-credential--模型凭据--model-credential)**——两者都是资产持有上的设置值，但挂在不同类别的资产上：
+  模型凭据是[模型供应商](#ul-model-provider--模型供应商--model-provider)声明的凭据项在租户层或官方层的值；
+  MCP 凭据是 **MCP 接入点持有**上的一项落点与身份类设置、一份持有一份。**两者同一条路：组织那一层都不持有**
 - **别混 ②**：[连接件](#ul-connector--连接件--connector)的**鉴权绑定**方向相反（对面进来找我），不是这一项；它同样只在租户那一层配
 - **注意**：经 OAuth 取得的那一步，正文**不裸写「授权」**（撞使用权与[授权表达](interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression)），
   也不写「OAuth 登录」（撞[登录状态](subjects-and-ownership.md#ul-login-state--登录状态--login-state)）；写「经 OAuth 取得」

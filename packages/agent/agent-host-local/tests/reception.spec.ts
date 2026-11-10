@@ -32,6 +32,7 @@ import type { BlockId } from '@omne-harness/content-block'
 import { judgeMessage } from '@omne-harness/message'
 import {
   decodeDispatchId,
+  decodeProviderName,
   decodeResultVersion,
   resolveModelInvocationRef,
 } from '@omne-harness/model-contract'
@@ -197,9 +198,9 @@ async function settleReply(host: World, snapshot: ExecutionSnapshot, answer: Ans
       dispatch,
       supplier: {
         adoption: adoption('supplier'),
-        recipient: 'recipient',
+        provider: ok(decodeProviderName('recipient')),
         model: 'model',
-        credential: { kind: 'factory' },
+        credential: { layer: 'official' },
       },
       intent: admission,
       send: 'started',

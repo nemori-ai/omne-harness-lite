@@ -49,7 +49,7 @@ it('a counting basis fixes the supplier, the template and the replay rules', () 
   const credential: ModelCountingBasis = {
     ...counting,
     // @ts-expect-error a basis supplier is a profile supplier without credential
-    supplier: { ...profileSupplier, credential: { kind: 'factory' } },
+    supplier: { ...profileSupplier, credential: { layer: 'official' } },
   }
   void [local, declared, noEvidence, credential]
 })

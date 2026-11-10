@@ -8,13 +8,17 @@ import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createIndependentToolScope } from '@omne-harness/tool'
-import { decodeToolOperationId, type FixedToolRequest } from '@omne-harness/tool-contract'
+import {
+  decodeToolOperationId,
+  type FixedToolRequest,
+  type ToolDefinition,
+} from '@omne-harness/tool-contract'
 import { decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
 import { todoItemsOf, webAccessOf } from '@omne-harness/tool-definitions'
-import type { SecretText } from '@omne-harness/settings'
+import type { SecretText, SettingsHolding } from '@omne-harness/settings'
 import { createSecretVault, type SecretVault } from '@omne-harness/settings-local/secrets'
 import { afterEach, describe, expect, it } from 'vitest'
-import { toolSettingHolding, toolSettingSecretKey } from '../../../src/rows/settings/holding.ts'
+import { holdingKey, officialHolding, toolAsset } from '../../../src/assets/official-holdings.ts'
 import { releaseCapability } from '../../../src/rows/tool-bindings/index.ts'
 import {
   EXA_KEY_ITEM,
@@ -26,6 +30,12 @@ import {
 import { forwardWorld } from '../../entry/tool-forward-support.ts'
 import { fixtureTenant, okOf } from '../../entry/support.ts'
 import { exaResult, exaResults, startExaStub, type ExaStub } from '../../fixtures/exa-stub.ts'
+
+/** The Settings holding of a release tool definition, or `null` when it declares no settings. */
+function toolHolding(definition: ToolDefinition): SettingsHolding | null {
+  const held = officialHolding(toolAsset(definition))
+  return held.kind === 'declared' ? held.ref.holding : null
+}
 
 const TENANT_KEY = 'exa-sentinel-tenant-a1b2'
 const OFFICIAL_KEY = 'exa-sentinel-official-c3d4'
@@ -81,16 +91,12 @@ async function world() {
   const w = await forwardWorld()
   const request = w.request('Web')
   if (request.availability.kind !== 'available') throw new Error('fixture availability')
-  const holding = toolSettingHolding(request.availability.definition)
+  const holding = toolHolding(request.availability.definition)
   if (holding === null) throw new Error('fixture: Web declares no settings')
   const vault = openVault()
   const custody: SecretCustodyReader = () => vault
-  const tenantKey = toolSettingSecretKey(
-    { layer: 'tenant', tenant: w.tenant },
-    holding,
-    EXA_KEY_ITEM,
-  )
-  const officialKey = toolSettingSecretKey({ layer: 'official' }, holding, EXA_KEY_ITEM)
+  const tenantKey = holdingKey({ layer: 'tenant', tenant: w.tenant }, holding, EXA_KEY_ITEM)
+  const officialKey = holdingKey({ layer: 'official' }, holding, EXA_KEY_ITEM)
   const parent = { principal: w.principal, tenant: w.tenant, call: w.call, request }
   return { w, vault, custody, tenantKey, officialKey, parent, request }
 }

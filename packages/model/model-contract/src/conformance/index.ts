@@ -23,6 +23,7 @@ export type {
   CredentialConformanceResult,
   CredentialConformanceReport,
   CredentialConformanceOptions,
+  CredentialTarget,
 } from './credential-types.ts'
 export { checkModelStreamConformance } from './conformance-stream.ts'
 export type {

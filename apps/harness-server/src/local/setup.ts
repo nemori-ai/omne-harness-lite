@@ -1,7 +1,8 @@
 // `harness-server setup`: the one command that prepares a host for the local single-user server.
 // It picks the standard places (`locations.ts`), puts the model credential into the secret vault of
-// the state directory (settings-local's file custody; the credential is Model's official factory
-// binding), and writes the settings file. A second run keeps what is there: the settings
+// the state directory (settings-local's file custody; the credential is the official layer of the
+// OpenRouter provider's credential item, the deployment default every official profile sends with),
+// and writes the settings file. A second run keeps what is there: the settings
 // change only with `--reconfigure` (or `--reset` for a file that is not valid), and the credential
 // only with `--replace-credential`. A vault that cannot be read is a failure, never "kept".
 //
@@ -10,9 +11,9 @@
 // vault was there when it was written. Nothing that this command prints holds the credential.
 import { lstatSync, mkdirSync, statSync, unlinkSync } from 'node:fs'
 import { parseArgs } from 'node:util'
-import { MODEL_FACTORY_SECRET_KEY } from '@omne-harness/model-host-local'
 import {
   SECRET_TEXT_MAX_LENGTH,
+  type SecretBindingKey,
   type SecretText,
   type SecretWriteResult,
 } from '@omne-harness/settings'
@@ -28,6 +29,7 @@ import {
   type SecretVault,
   type SecretVaultInitFailure,
 } from '@omne-harness/settings-local/secrets'
+import { providerCredentialKey, releaseProvider } from '../assets/model-providers.ts'
 import { pathsOf, resolveLocations, type ServerLocations } from './locations.ts'
 import {
   DEFAULT_PORT,
@@ -37,6 +39,23 @@ import {
   writeSettings,
   type ServerSettings,
 } from './settings.ts'
+
+/** The provider whose credential `setup` stores: the one every official profile sends to. */
+const DEPLOYMENT_PROVIDER = 'openrouter'
+
+/**
+ * The binding key of the deployment default: the official layer of the provider's one credential
+ * item, the key `omne setting` shows as the official layer and the send reads.
+ */
+function deploymentKey(): SecretBindingKey {
+  const provider = releaseProvider(DEPLOYMENT_PROVIDER)
+  const [credential, ...more] = provider?.body.credentials ?? []
+  if (provider === undefined || credential === undefined || more.length > 0)
+    throw new Error(
+      `the release provider ${DEPLOYMENT_PROVIDER} does not declare one credential item`,
+    )
+  return providerCredentialKey(provider, { layer: 'official' }, credential.item)
+}
 
 export const SETUP_USAGE =
   'usage: setup [--port <n>] [--workspace <dir>] [--shell <executable>] [--reconfigure] [--reset] [--replace-credential]'
@@ -334,7 +353,7 @@ function isRegularFile(path: string): boolean {
 }
 
 /**
- * Writes the new factory secret through the management face under the guard, then confirms it by
+ * Writes the new deployment key through the management face under the guard, then confirms it by
  * reading it back and narrows the file mode. `written` and `unconfirmed` are both decided by the
  * read-back: a publish whose confirmation failed may still have landed.
  */
@@ -346,14 +365,13 @@ function replaceTyped(
 ): ReplaceResult {
   let written: SecretWriteResult
   try {
-    written = guard.confine(() => vault.bind(MODEL_FACTORY_SECRET_KEY, secret, null))
+    written = guard.confine(() => vault.bind(deploymentKey(), secret, null))
   } catch {
     written = 'unconfirmed'
   }
   if (written === 'not-written' || written === 'denied')
     return { ok: false, reason: 'write-failed' }
-  if (!holdsSecret(path, MODEL_FACTORY_SECRET_KEY, secret))
-    return { ok: false, reason: 'write-unconfirmed' }
+  if (!holdsSecret(path, deploymentKey(), secret)) return { ok: false, reason: 'write-unconfirmed' }
   try {
     narrowAndVerify(guard, path, 'file')
   } catch {
@@ -366,7 +384,7 @@ function replaceTyped(
  * Replaces an unreadable regular file by a new vault: the key is read and checked first, then the
  * file is removed, then the vault is built by the rules of `initSecretVault`. A directory, a link
  * or a missing path is never removed; the answer stays `vault-unavailable`. Its old content is not
- * read, so the tenant bindings of the old vault are gone.
+ * read, so the tenant secrets of the old vault are gone.
  */
 async function rebuild(path: string, deps: ReplaceDeps): Promise<ReplaceResult> {
   if (!isRegularFile(path)) return { ok: false, reason: 'vault-unavailable' }
@@ -379,7 +397,7 @@ async function rebuild(path: string, deps: ReplaceDeps): Promise<ReplaceResult> 
   }
   const built = await initSecretVault(path, {
     readSecret: () => typed.secret,
-    key: MODEL_FACTORY_SECRET_KEY,
+    key: deploymentKey(),
     guard: deps.guard,
     home: deps.home,
   })
@@ -387,11 +405,11 @@ async function rebuild(path: string, deps: ReplaceDeps): Promise<ReplaceResult> 
 }
 
 /**
- * Replaces the factory secret of the vault at `path`: a readable vault on the path, read the key,
+ * Replaces the deployment key of the vault at `path`: a readable vault on the path, read the key,
  * bind it under the guard, confirm, narrow the mode. Bindings stay as they are. A running custody
  * on the same file reads the new key on its next resolution. An unreadable regular file is rebuilt.
  */
-async function replaceFactorySecret(path: string, deps: ReplaceDeps): Promise<ReplaceResult> {
+async function replaceDeploymentKey(path: string, deps: ReplaceDeps): Promise<ReplaceResult> {
   const opened = openSecretVault({ path })
   if (opened.kind !== 'open') return rebuild(path, deps)
   try {
@@ -420,7 +438,7 @@ async function storeCredential(
   if (kind === 'none') {
     const built = await initSecretVault(path, {
       readSecret: deps.readSecret,
-      key: MODEL_FACTORY_SECRET_KEY,
+      key: deploymentKey(),
       guard,
       home,
     })
@@ -439,7 +457,7 @@ async function storeCredential(
       1,
     )
   }
-  const result = await replaceFactorySecret(path, { readSecret: deps.readSecret, guard, home })
+  const result = await replaceDeploymentKey(path, { readSecret: deps.readSecret, guard, home })
   if (!result.ok) throw storeFailure(path, result.reason)
   return result.rebuilt ? 'rebuilt' : 'replaced'
 }
@@ -474,8 +492,8 @@ function summary(input: {
     `  credential   ${locations.vaultFile} (${credential})`,
     ...(input.credential === 'rebuilt'
       ? [
-          '  warning      the tenant model credentials of the old vault are gone. Each tenant uses the',
-          '               deployment default until it runs `omne credential set` again.',
+          '  warning      the tenant secret settings of the old vault are gone. Each tenant sets them',
+          '               again with `omne setting set`; until then official models use the default key.',
         ]
       : []),
     `  workspace    ${settings.workspace}`,

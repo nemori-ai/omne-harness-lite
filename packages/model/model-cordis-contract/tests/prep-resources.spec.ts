@@ -2,12 +2,13 @@
 // cases a provider runs. The double runs on a real Cordis Context. Passing proves the lease rules
 // of one provider in one process; it proves nothing about the request assembly that meters with it.
 import { Context, Service } from '@deepseek-ai/cordis'
-import type {
-  Adoption,
-  ModelCountingBasis,
-  ModelInputMeter,
-  ModelPreparationResources,
-  ModelProfile,
+import {
+  decodeProviderName,
+  type Adoption,
+  type ModelCountingBasis,
+  type ModelInputMeter,
+  type ModelPreparationResources,
+  type ModelProfile,
 } from '@omne-harness/model-contract'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import { describe, expect, expectTypeOf, it } from 'vitest'
@@ -23,7 +24,9 @@ import {
 type Acquire = ModelPreparationResources<unknown>['acquire']
 
 const ADOPTION: Adoption = { owner: 'o', name: 'n', revision: '1', digest: '0'.repeat(64) }
-const SUPPLIER = { adoption: ADOPTION, recipient: 'test.invalid', model: 'test' }
+const PROVIDER = decodeProviderName('test.invalid')
+if (!('ok' in PROVIDER)) throw new Error('provider fixture')
+const SUPPLIER = { adoption: ADOPTION, provider: PROVIDER.ok, model: 'test' }
 const BASIS: ModelCountingBasis = {
   supplier: SUPPLIER,
   meter: ADOPTION,

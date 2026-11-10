@@ -10,13 +10,15 @@
 // - The end marker is `[DONE]` and gives no fact.
 // - Encode gives the diagnostics that the probe holds, none by default.
 import type { JsonValue } from '@omne-harness/json-text'
-import type {
-  Adoption,
-  FixedModelRequest,
-  ModelCountingBasis,
-  ModelFault,
-  Supplier,
-  TransportFailure,
+import {
+  decodeProviderName,
+  type Adoption,
+  type FixedModelRequest,
+  type ModelCountingBasis,
+  type ModelFault,
+  type ProviderName,
+  type Supplier,
+  type TransportFailure,
 } from '@omne-harness/model-contract'
 import type { ProviderDiagnostic, TransportFact } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -30,15 +32,21 @@ import type {
 
 export const END_MARKER = '[DONE]'
 
+export function providerName(text: string): ProviderName {
+  const decoded = decodeProviderName(text)
+  if (!('ok' in decoded)) throw new Error(`invalid provider fixture ${text}`)
+  return decoded.ok
+}
+
 export function adoption(name: string): Adoption {
   return { owner: 'pi-ai-transport-test', name, revision: '1', digest: 'a'.repeat(64) }
 }
 
 export const SUPPLIER: Supplier = {
   adoption: adoption('supplier'),
-  recipient: 'test-recipient',
+  provider: providerName('test-provider'),
   model: 'test-model',
-  credential: { kind: 'factory' },
+  credential: { layer: 'official' },
 }
 
 export const REQUEST: FixedModelRequest = {
@@ -53,8 +61,8 @@ export const REQUEST: FixedModelRequest = {
   toolChoice: 'none',
   declarations: [
     {
-      produces: 'test-recipient/test-model',
-      accepts: ['test-recipient/test-model'],
+      produces: 'test-provider/test-model',
+      accepts: ['test-provider/test-model'],
       foreignThinking: 'omit',
     },
   ],
@@ -134,7 +142,7 @@ function binding(supplier: Supplier, probe: FamilyProbe): PiFamilyBinding {
     adapter: adoption('family'),
   }
   const counting: ModelCountingBasis = {
-    supplier: { adoption: supplier.adoption, recipient: supplier.recipient, model: supplier.model },
+    supplier: { adoption: supplier.adoption, provider: supplier.provider, model: supplier.model },
     meter: adoption('meter'),
     tokenization: { kind: 'not-used', method: adoption('method') },
     prompt: { kind: 'provider-private', estimation: adoption('estimation') },

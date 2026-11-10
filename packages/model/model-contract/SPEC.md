@@ -219,9 +219,9 @@ Model 不执行工具建议，不决定原工作的终态，不重新运行扩�
 
 ### 根入口的值与请求
 
-本节的声明按顺序组成同一设计，源码位置见[公开接口页](docs/public-api.md#根入口的值与请求)。`Identity` 防止误混身份，不提供授权。边界解析器必须验证格式、所属租户和已有关系。身份分三类：多数身份是带领域前缀的非空字符串；序列与修订是十进制非负整数字符串，不能用浮点序号排序；`CredentialId` 无前缀，规则见[凭据引用与解析端口](#342-凭据引用与解析端口)。
+本节的声明按顺序组成同一设计，源码位置见[公开接口页](docs/public-api.md#根入口的值与请求)。`Identity` 防止误混身份，不提供授权。边界解析器必须验证格式、所属租户和已有关系。身份分三类：多数身份是带领域前缀的非空字符串；序列与修订是十进制非负整数字符串，不能用浮点序号排序；`ProviderName` 无前缀，规则见[模型供应商资产](#模型供应商资产)。
 
-本包为每个品牌发布一个解码函数；`ReadId` 的解码函数在 `./provider`，其余在根入口，分组见[提供者协议入口](docs/public-api.md#提供者协议入口)。函数接收 `unknown`，返回 `Outcome`，不抛异常，只核验格式。身份类为固定前缀加至少一个 `[A-Za-z0-9_-]` 主体字符；`Revision` 与 `OutputCursor` 为无前导零的十进制非负整数文本；全部不超过 256 个 UTF-16 码元，不裁剪、不折叠大小写。成功只得到品牌，不证明存在、租户或资格；所属租户和已有关系由处理该操作的提供者核验。品牌相等即文本相等。`Revision` 与 `OutputCursor` 的先后由比较函数按整数值裁定，只对同一对象的修订或同一调用流内的游标有定义。`ModelDiagnosticCursor` 的不可猜测与验证由诊断提供者承担，解码只拒绝格式错误。契约只铸造一种身份，即守卫派生的控制 operation（主体以 `--` 开头，其他铸造方不得产生）。`ModelCallId` 由调用方铸造；`ModelOperationId` 由调用方与提供者铸造；`CredentialId` 由凭据保管的配置路径上的人命名，Model 运行时不铸造；其余由提供者铸造，铸造方生成的文本须能通过对应解码函数。声明与规则见 [public-api](docs/public-api.md#根入口的值与请求)。
+本包为每个品牌发布一个解码函数；`ReadId` 的解码函数在 `./provider`，其余在根入口，分组见[提供者协议入口](docs/public-api.md#提供者协议入口)。函数接收 `unknown`，返回 `Outcome`，不抛异常，只核验格式。身份类为固定前缀加至少一个 `[A-Za-z0-9_-]` 主体字符；`Revision` 与 `OutputCursor` 为无前导零的十进制非负整数文本；全部不超过 256 个 UTF-16 码元，不裁剪、不折叠大小写。成功只得到品牌，不证明存在、租户或资格；所属租户和已有关系由处理该操作的提供者核验。品牌相等即文本相等。`Revision` 与 `OutputCursor` 的先后由比较函数按整数值裁定，只对同一对象的修订或同一调用流内的游标有定义。`ModelDiagnosticCursor` 的不可猜测与验证由诊断提供者承担，解码只拒绝格式错误。契约只铸造一种身份，即守卫派生的控制 operation（主体以 `--` 开头，其他铸造方不得产生）。`ModelCallId` 由调用方铸造；`ModelOperationId` 由调用方与提供者铸造；`ProviderName` 由 `decodeProviderName` 从供应商正文或档案文本铸造；其余由提供者铸造，铸造方生成的文本须能通过对应解码函数。声明与规则见 [public-api](docs/public-api.md#根入口的值与请求)。
 
 `Adoption` 指向可恢复的精确采用。`digest` 为所指规范化内容的 SHA-256 十六进制值；只有名称或当前版本指针不满足它。`ConsumerRef` 是消费者拥有者登记的稳定引用，不是执行许可。Model 原样保存 `ConsumerRef`，不解释其业务含义。消费者关系由为该 `ConsumerRef.owner` 声明的守卫参加者在受理点 C 核对（见[资格、共同提交与实际发送](#342-资格共同提交与实际发送)）。守卫路径以资格参加者协议闭合为前提；协议闭合前只受理免守卫 owner。把它对应到原工作的哪一部分，由消费者拥有者在自己一侧负责。Model 不导入任何消费者拥有者的实现，也不由通用字符串猜业务关联。
 
@@ -229,7 +229,7 @@ Model 不执行工具建议，不决定原工作的终态，不重新运行扩�
 
 `P` 是装配选定的身份拥有者输入。它可能表示人或受限系统主体。泛型不证明可信；注入的资格适配器必须验证其来源、身份与当前访问。`P` 不作为请求快照写入普通日志。网络入口必须通过身份拥有者解析，不能接受反序列化后自称可信的对象。
 
-请求值逐字段冻结并深复制。重复判断使用原值的规范化表示，不比较 JS 对象地址。供应商次序、凭据引用、参数、转换采用、源修订和消费关系均参与冲突判定。秘密值不在请求中。凭据字符串由 `decodeCredentialId` 验证并转换为 `CredentialId`，不得把任意字符串强制断言为已验证引用。从文本或存储复原 `Supplier` 的每个位置（档案来源、dispatch 记录、重试决定、恢复读取）都经该解码函数。
+请求值逐字段冻结并深复制。重复判断使用原值的规范化表示，不比较 JS 对象地址。供应商次序、凭据层、参数、转换采用、源修订和消费关系均参与冲突判定。秘密值不在请求中。供应商名由 `decodeProviderName` 验证并转换为 `ProviderName`，不得把任意字符串强制断言为已验证名字。从文本或存储复原 `Supplier` 的每个位置（档案来源、dispatch 记录、重试决定、恢复读取）都经该解码函数。
 
 本设计为常用参数给出小而明确的词表。`temperature` 为有限数且在 [0,2]，`top-p` 在 (0,1]。token 限额为正十进制整数。`stop` 是非空且不重复的非空字符串序列。`reasoning-effort` 取 `none`、`low`、`medium`、`high`、`max` 之一。`seed` 为非负十进制整数。`frequency-penalty` 与 `presence-penalty` 为有限数且在 [-2,2]。每个 kind 至多一次；extension 依完整 adoption 去重。扩展参数须有可读取的含义、值 Schema、适用范围和当前 adapter 映射，不接受没有定义的任意供应商键。
 
@@ -441,7 +441,7 @@ R 先于 S 则不发；S 先于 R 则是已经启动的在途请求，撤权触�
 
 首版可由唯一协调进程持有围栏并拥有全部发送入口。多进程只能通过同一协调入口修改适用资格或发出；进程内 Mutex 不覆盖绕行的另一个进程。所有写者不能遵守时，该装配不符合本设计，不以单机名义豁免。替换协调进程前须由宿主确认旧发送进程终止，或撤销其全部真实发送能力；数据库代次和租约超时只阻止旧写，不能阻止旧进程发送。未来分布式需要独立的发送排除协议，不复用本地锁作证据。
 
-[#279](https://github.com/nemori-ai/omne-harness-lite/issues/279) 的 `CredentialPort.resolve` 在 S 前最后检查内同步调用。`authorized` 和 `official` 由受信边界构造，普通调用者不能传入。只在没有租户绑定且确为官方档案时使用 factory。已绑定但缺失、不可读、拒绝或不可用不回退 factory。秘密仅在本次发送资源内存在，不能写到 request、dispatch、失败、扩展或遥测。采用精确源与映射须随装配记录；本设计不改变凭据协议。
+`CredentialPort.resolve` 在 S 前最后检查内同步调用，读取准备时选定的层。`official` 由受信边界构造，普通调用者不能传入。只在租户层一项都没有且确为官方档案时使用官方层。选定的层缺失、不完整、撤销、不可读、拒绝或不可用时不回退另一层。秘密仅在本次发送资源内存在，不能写到 request、dispatch、失败、扩展或遥测。层的选择规则见[凭据引用与解析端口](#342-凭据引用与解析端口)。
 
 查询、观察及分页在实际披露前核验当前读取资格。需要先 await 准备数据时，准备完成后再次通过受保护输出入口核验，不能把准备前的授权缓存当作长期许可。ACK 的当前承接守卫与 handoff 提交共同成立，不能先授权再在任意时间执行清理。实现不得在一个数据库内使用相互独立的提交来冒充同提交保证。
 
@@ -449,42 +449,70 @@ R 先于 S 则不发；S 先于 R 则是已经启动的在途请求，撤权触�
 
 ### 凭据引用与解析端口
 
-本节是凭据纯契约的行为条款：引用、查询、存在性、五种解析结果、持有者语义和端口。保管格式、轮换协议与磁盘布局不在本包，归保管实现。凭据秘密不进入请求、调用记录、诊断、日志、错误消息和遥测，这些只携带引用。
+本节是凭据纯契约的行为条款：凭据层、层的选择、一层的判读、解析结果和端口。秘密的保管、轮换与存储归设置域，本包只规定 Model 怎样选定一层、怎样读取这一层。秘密不进入请求、调用记录、诊断、日志、错误消息和遥测。请求只携带选定的层。
 
-本节保留现有 CredentialPort 与 SendFace 消费形状。强制 access、真实秘密绑定及最终发送围栏的[迁移义务](#推送与公共观察的交付边界)另行适用；现有类型不证明调用方已受可靠核验，[Cordis 凭据服务](../model-cordis-contract/SPEC.md#凭据服务)所述自报资格缺口尚未解决。
+一份凭据由供应商、层和用途确定，租户取自调用方的 `access`。
 
-兼容期新路径：`CredentialPort<P = unknown>` 保留旧操作，增加可选的同步 `presentFor` 与 `resolveFor`。`QualifiedCredentialQuery<P>` 只从 `./provider` 导出，资格取自 `SendDemand.access`，不带自由 `tenant` 或 `authorized`。`presentFor` 不接收 `official`，只查询存在性。发送阶段只调用 `resolveFor`；提供者没有该成员时返回 `unavailable`，诊断为 `qualified-path-missing`，不得退回旧 `resolve`。
+- 供应商是 `ProviderName`，即[模型供应商资产](#模型供应商资产)的名字。供应商正文声明零到多个凭据项，一次发送要用到全部声明的项。
+- 层是 `CredentialLayer`：`tenant` 是本租户自己设置的秘密，`official` 是部署为官方档案设置的秘密，`none` 表示供应商不声明凭据项。`Supplier.credential` 只写层，不写秘密或秘密的身份。
+- 用途只有 `MODEL_SEND`。
 
-新路径的契约前提是：只有受信发送边界注入该服务。发送 `access` 中的主体来自以下两种来源之一：
+`readCredentialLayer` 判读一层：按声明的项读取每项的状态，按 `revoked`、`unreadable`、`missing`、`incomplete` 的顺序返回第一个失败。一项都没有绑定是 `missing`，只缺一部分是 `incomplete` 并列出缺的项。全部项可用时成功。
+
+`selectCredentialLayer` 选定一层，规则如下：
+
+1. 供应商没有凭据项时，层是 `none`。
+2. 租户层持有任一项（不论该项可用、撤销还是不可读）时，层是 `tenant`。该层判读失败时返回该失败，不回退官方层。
+3. 租户层一项都没有时，只有本次档案是官方档案、且发行持有该供应商时，才判读官方层。官方层可用时层是 `official`，否则返回官方层的失败。
+4. 其余情况返回 `missing`。
+
+一次解析的全部项来自同一层，两层的项不混用。凭据提供者、受控替身与符合性套件都调用这两个函数，规则只有这一份实现。
+
+`CredentialPort<P>` 有两个同步操作：
+
+- `layerOf({ provider, official, access })` 在准备时选定层。`official` 是调用方依据档案事实构造的档案是否官方。
+- `resolve({ provider, layer, purpose, access })` 在发送围栏内读取已选定的一层，成功时返回项到秘密的映射。它不重新选层，选定的层失败时不回退另一层。
+
+两个操作的失败是 `CredentialFailure`：
+
+| 失败 | 含义 | 发送端行为 |
+| --- | --- | --- |
+| `missing` | 选定的层一项都没有，或没有可用的层 | 不发送 |
+| `incomplete` | 选定的层缺部分项，`missing` 列出缺的项名 | 不发送 |
+| `revoked` | 选定的层有项已撤销 | 不发送 |
+| `unreadable` | 选定的层有项在，值暂时读不出 | 不发送 |
+| `denied` | 用途不符、保管已关闭或无读取资格 | 不发送 |
+| `unavailable` | 保管或存储暂时不能判断 | 不发送，不得报成 `missing` |
+
+失败只带项名，不带秘密值。
+
+端口的契约前提是：只有受信发送边界注入该服务。发送 `access` 中的主体来自以下两种来源之一：
 
 - 在[受理点 C](#342-资格共同提交与实际发送)已核验的主体。
 - 入口窄签发器依据同一调用的原受理记录签发的主体。签发器只由入口运行级组合持有，签发的主体只绑定这一次调用。
 
-`official` 是调用方依据 `ModelSendSource.credential` 构造的档案事实。
-
-提供者只同步核对 `access.tenant` 与秘密绑定持有者，以及仅在没有租户绑定且 `official` 为真时允许 `factory`。已绑定但缺失、不可读、拒绝或不可用时不回退。新路径不读取 `SendFace`，解析与同步 start 之间不得 await。提供者不能同步核验主体来源或 `official` 的来源；受信边界之外伪造另一租户主体或错报档案事实的限制仍存在，不因增加类型而关闭。
-
-`CredentialId` 是由人命名的不透明身份，在凭据保管的配置路径上命名，Model 不铸造它。它无前缀，误混由类型阻止。`decodeCredentialId` 返回 `Outcome`，不抛异常，按 `type`、`empty`、`length`（超过 `MODEL_IDENTITY_MAX_LENGTH`，即 256 个 UTF-16 码元）、`character`（含任一 Unicode 空白、控制字符、格式字符或孤立代理码元）的顺序返回第一个失败，不裁剪、不折叠大小写。成功只证明格式，不证明存在或归属。
-
-引用由 `CredentialId`、租户 `TenantId` 和用途组成。用途只有 `MODEL_SEND`。持有引用不授予读取或发送资格。`CredentialQuery` 的用途是普通字符串，用途不符的查询，`present` 与 `resolve` 都返回 `denied`。
-
-`present` 不判断发送资格，结果是 `known`（带 `present` 布尔值）、`denied`（查询租户未铸造、保管已关闭或用途不符）或 `unavailable`（保管或存储整体不能判断）。`resolve` 在获准发送时返回五种结果之一：
-
-| 结果 | 含义 | 发送端行为 |
-| --- | --- | --- |
-| `value` | 当前资格允许。`scope` 为 `tenant` 或 `factory` | 发出，只用于这一次发送 |
-| `absent` | 没有这份凭据 | 不发送 |
-| `unreadable` | 引用在，值暂时读不出 | 不发送 |
-| `denied` | 跨租户、用途不符、无发送资格、已撤销或保管已关闭 | 不发送 |
-| `unavailable` | 保管或存储暂时不能判断 | 不发送，不得报成 `absent` |
-
-官方默认凭据（`factory` 范围）是唯一的例外：只在本租户没有任何绑定、本次档案确为官方档案、且发送已获准时使用。已绑定但缺失、不可读、被拒绝或不可用，都不回退 `factory`。`authorized` 与 `official` 由受信边界构造。
-
-`sameCredentialHolder` 定义持有者语义：`id` 精确相等且 `tenantEquals` 为真；未经 legal-identity 铸造的租户值返回 `false`。判定方、保管方与替代提供者共用这一个函数，不各自比较。一个保管实现判断「没有任何持有者匹配」时，不得把它当作「本租户没有任何行」。
+提供者只同步核对 `access.tenant` 所在的租户层，以及仅在档案为官方时使用官方层。提供者不能同步核验主体来源或 `official` 的来源。受信边界之外伪造另一租户主体或错报档案事实的限制仍存在。
 
 两条进程内前提：`resolve` 在发送围栏内同步调用，见[资格、共同提交与实际发送](#342-资格共同提交与实际发送)；`TenantId` 的相等依赖同一个 legal-identity 实例的铸造记录，所以跨进程的保管实现必须在其边界重新铸造租户值，不能传递另一个进程里的租户对象。
 
 声明见 [public-api](docs/public-api.md#凭据引用与解析端口)。
+
+### 模型供应商资产
+
+模型供应商是模型请求真实到达的那一家上游服务。它是资产类别 `model-provider` 的一份资产，名字是 `ProviderName`。档案上的供应商条目用这个名字引用它。本节是类别契约的行为条款。持有、求值与秘密保管归资产域与设置域，传输按正文接线归装配。
+
+- 正文有五个字段：`name`、`protocol`、`endpoint`、`accounting` 与 `credentials`。`modelProviderBodyContract().judge` 按这个顺序核对，返回第一个不成立的原因：
+  - `name` 只含小写字母、数字、`.` 与 `-`，以字母或数字开头，最多 64 个字符；否则为 `invalid-name`。有能力名时，`name` 必须等于能力名；否则为 `name-mismatch`。
+  - `protocol` 是非空文本，它选择传输引擎；否则为 `invalid-protocol`。
+  - `endpoint.url` 是 `https:` URL，不带用户信息，也不带片段。`endpoint.endMarker` 可以省略；给出时是非空文本。否则为 `invalid-endpoint`。
+  - `accounting.place` 与 `accounting.costUnit` 都是非空文本；否则为 `invalid-accounting`。传输把服务落点记在 `place` 之下，把费用记成 `costUnit`。
+  - `credentials` 是凭据项的列表，可以为空。每项有 `item`、`title`、`description`、`impact` 与 `clear`，都是非空文本；`item` 以字母开头，只含字母与数字，最多 64 个字符。否则为 `invalid-credentials`。两项同名时为 `duplicate-credential`。
+  - 正文不是对象时为 `not-an-object`。
+- 契约的 `settings` 钩子从正文推出设置定义。没有凭据项时，供应商不声明设置。有凭据项时，定义的 `definitionId` 是供应商名，每个凭据项是一个秘密设置项：类别为绑定，值为文本，没有默认值，覆盖合并，下一次读取时生效。展示文本取自凭据项的 `title`、`description`、`impact` 与 `clear`。
+- `parseModelProviderBody` 返回判定后的正文或拒绝原因；`readModelProviderBody` 只读已经通过判定的正文，其余答 `undefined`。`decodeProviderName` 铸造 `ProviderName`，名字不合字母表时答 `invalid-name`。
+- 正文不含秘密。凭据项只声明要哪些秘密；秘密由设置域按（具体资产引用，定义）保管，Model 按选定的层读取。
+
+声明见 [public-api](docs/public-api.md#模型供应商资产)。
 
 <a id="342-重试失联与恢复"></a>
 
@@ -800,13 +828,13 @@ current 使用原 Reply，保持原宽 ModelFailure 联合兼容。该只读方�
 
 结果键与载荷、公共 ref/cursor、Model diff/apply 是可独立增加的纯值内容。接收、observe 及 current 的完整公开声明必须从公共身份唯一入口消费已采用且可用的声明；不得复制候选 Access。公开声明须核对实际身份版本、采用范围和依赖闭包。来源撤销或形状改变时，暂停依赖声明及入口并重新核对租户和 codec 消费。
 
-M-2 增量不向现有 ModelRuntime、ModelHandle、CredentialPort、Supplier 或 Observation 增加必需实现成员。原分页读取、processed 与 retained 双路径 ACK、changed 完整快照及合法旧消费者保持原承诺。新增协议不能靠 optional access 加旧逻辑回退冒充权限已经收紧，也不创建平行凭据服务或无消费者类型。
+M-2 增量不向现有 ModelRuntime、ModelHandle、Supplier 或 Observation 增加必需实现成员。原分页读取、processed 与 retained 双路径 ACK、changed 完整快照及合法旧消费者保持原承诺。新增协议不能靠 optional access 加旧逻辑回退冒充权限已经收紧，也不创建平行凭据服务或无消费者类型。
 
 真实 runtime、driver、provider 的推送、retained、证据适配、持久交付待办与恢复，及相应 Commands/RecoveryRecord 与宿主安装归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。原消费者拥有者的消费闭包迁移归承接卡 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。显示消费者的接入归观察承担者 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。临时 ACK 指消费者拥有者代 Model 发出的 ACK，它代替的是 Model 在 saved 之后经 retained 交接自己取得的 ACK。合法独立消费者为自己处理完的结果发出的 processed ACK 不是临时 ACK。临时 ACK 分两侧退出。代发临时 ACK 的消费者拥有者停止代发，归 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。Model 在 saved 之后经 retained 交接自己取 ACK，归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。合法独立消费者的 processed ACK 路径不受影响。`./testing` 的推送生产者替身按 retained 交接取 ACK。正文清理不再使晚账退出恢复扫描。接收 owner 的材料、日志与稳定映射及合取证据由各拥有者落实，不由 Model 规定内部编码。原 processed 路径只有被实际替代的责任才删除，有合法独立消费者的用途不得偷换。
 
 公共观察的真实发布、目录/current 查询与显示刷新、Tool 适配及其投影一致性由相应提供者和接入拥有者实现验证。Model 不定义 Tool 的完整 reducer、foreground 规范化或其终止别名。
 
-凭据继续演化同一个 CredentialPort。强制 access、删除旧 SendFace、迁移 Supplier/失败联合和全部真实消费者，并兑现当前资格与实际秘密绑定，归 M2 里程碑（[#784](https://github.com/nemori-ai/omne-harness-lite/issues/784)）。`CredentialPort` 调用方自报资格的缺口登记在该卡。真实 provider/assembly 将资格变化、原工作失效、换代与发送 S 共同排序，在围栏内最后重核、解析相符秘密并同步 start，中间不插入 await。异步预核或纯事实裁定不能替代最后围栏。Settings 承担其实际秘密及绑定事实，Model 核本次发送匹配。组织来源新政策未在本协议采用，不新增组织共用秘密权利。
+`CredentialPort` 的调用方自报 `official` 的缺口登记在 [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784)。真实 provider/assembly 将资格变化、原工作失效、换代与发送 S 共同排序，在围栏内最后重核、解析相符秘密并同步 start，中间不插入 await。异步预核或纯事实裁定不能替代最后围栏。Settings 承担其实际秘密及绑定事实，Model 核本次发送匹配。组织来源新政策未在本协议采用，不新增组织共用秘密权利。
 
 ### 持续验证义务
 
@@ -845,7 +873,7 @@ receiver 替身仍放在成员 tests/helpers。它是消费方的替身，接收
    - 所问 `selected` 为 null 时，答案的 `selected` 为 null。不为 null 时，答案保留所问路由。可选的 selected 等于 `choices` 中同路由的项。absent 或不可选的 selected 不在 `choices` 中。
    - 凭据状态、locked 与 scope 原因、shadowed 及来源由脚本给出。替身不推导它们。
 6. 请求准备替身在查找计划前做静态检查。档案范围属于另一个租户或组织时返回 `denied`，action 为 `prepare`。范围里的身份不合法时返回 `invalid`，field 为 `profile.identity.scope`，reason 为 `invalid-identity`。档案已撤回时返回 `invalid`，field 为 `profile`，reason 为 `withdrawn`。`required` 含档案 `definition.input` 没有的模态时返回 `invalid`，field 为 `required.modalities`，reason 为 `modality`。替身不据消息重建 `required`，也不按输入大小拒绝。锁定、当前来源、凭据的 missing、unreadable 与 unavailable、供应商能力等外部事实由测试登记的失败计划表达。替身不推导它们。
-7. 请求准备替身按完整的 profile、`required` 与 `assembled.parameters` 查找计划。`required` 的来源参加匹配。消息、工具与 `assembled.source` 不参加匹配。同一匹配再次登记时，新计划替换原计划。调用不消耗计划，所以压缩后重发的调用可以多次命中同一个计划。命中失败计划时，替身原样返回该失败，不调用 transport。计划只给出绑定后的供应商和参数采用。成功计划的供应商个数、次序、adoption、recipient 与 model 必须与档案相同，只增加凭据。tenant 凭据保持原样，不改成 factory。每个显式参数对每个供应商至少有一项 explicit 采用。替身不运行参数规则，不补默认值。需要默认采用的测试显式给出 default 项。
+7. 请求准备替身按完整的 profile、`required` 与 `assembled.parameters` 查找计划。`required` 的来源参加匹配。消息、工具与 `assembled.source` 不参加匹配。同一匹配再次登记时，新计划替换原计划。调用不消耗计划，所以压缩后重发的调用可以多次命中同一个计划。命中失败计划时，替身原样返回该失败，不调用 transport。计划只给出绑定后的供应商和参数采用。成功计划的供应商个数、次序、adoption、provider 与 model 必须与档案相同，只增加凭据层。计划给出的层保持原样。每个显式参数对每个供应商至少有一项 explicit 采用。替身不运行参数规则，不补默认值。需要默认采用的测试显式给出 default 项。
 8. 每次调用都从本次 `assembled` 形成新请求。正文、工具、`toolChoice`、参数、表示与来源取自本次输入。只有本次 `assembled.replay` 为 `'off'` 时，请求才带 `replay: 'off'`。否则请求没有 `replay` 字段。请求的 `profile` 是本次档案的 adoption，`fallback` 与 `retryPolicy` 取自本次档案的定义。请求没有 budget 字段。替身按档案供应商次序调用 `judgeReplayDeclaration` 展开回放声明。声明失败时原样返回，不调用 transport。
 9. 请求准备替身以 `transport.prepare(request, request.suppliers[0], { resent: [] })` 准备传输：
    - prepare 返回失败时，原样返回该失败，不调用 close。
@@ -1032,7 +1060,7 @@ ModelProfiles 取得同一次求值的档案、当前配置及历史覆盖依据
 
 ModelRequestPreparation.prepare 接受固定档案、模态依据和已经完成扩展的完整 AssembledModelInput。提供者核档案来源、当前可选条件、参数与 schema、模态及适用供应商能力。它不计量输入，不补历史、不压缩、不执行工具，也不重跑模型前扩展。输入大小由请求组装方在请求前判断并压缩。上游事后以 `input-over-limit` 拒绝时，调用方压缩后以新调用重新发起。无法满足时由原消费路径处理失败。
 
-准备固定供应商有序列表和合法绑定引用，不保存秘密。绑定不可读与缺失分别拒绝；只在官方档案的适用部署例外且不存在租户绑定时选择 factory。恢复不得把 tenant 绑定引用替换为默认。每个实际发送仍按 [#279](https://github.com/nemori-ai/omne-harness-lite/issues/279) 契约核当前绑定和取得秘密，准备时的 credential 可用性不是许可。
+准备固定供应商有序列表和每个供应商的凭据层，不保存秘密。层按[凭据引用与解析端口](#342-凭据引用与解析端口)选定，不可读、撤销、不完整与缺失分别拒绝。恢复不得把已选定的层换成另一层。每个实际发送仍在发送围栏内读取选定的层，准备时的层可用性不是许可。
 
 所有显式请求参数和默认采用必须展开为 parameterAdoptions。
 
@@ -1080,7 +1108,7 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 
 | 项 | 含义 | 未声明时 |
 | --- | --- | --- |
-| `produces` | 本供应商产出的回放范围，写进它产出消息的 `replay.scope` | 该供应商的精确模型身份：`Supplier.recipient`、字符 `/`、`Supplier.model` 依次相连 |
+| `produces` | 本供应商产出的回放范围，写进它产出消息的 `replay.scope` | 该供应商的精确模型身份：`Supplier.provider`、字符 `/`、`Supplier.model` 依次相连 |
 | `accepts` | 本供应商能消费的回放范围集合，必须含 `produces` | 只含 `produces` |
 | `foreignThinking` | 外来可见推理的处理：`omit`、`text` 或 `adapter` | `omit` |
 

@@ -1,12 +1,13 @@
-// The trusted send sources of the `model-records` row (R2-D30, facts a.4): one per official OpenAI
-// profile, with the factory credential of the vault. A source names the profile adoption and the
+// The trusted send sources of the `model-records` row (R2-D30, facts a.4): one per supplier of an
+// official OpenAI profile. Every source is official, so a send may use the official credential
+// layer of its provider; the layer itself is fixed by request preparation. A source names the profile adoption and the
 // supplier the way the `model-profiles` row publishes them, so the coordinator can match a request
 // to its source. The profile adoption of the official source is the supplier adoption's owner and
 // revision, the route as the name, and the digest of the canonical JSON of the definition
 // (model-host-local `profile-source.ts`). That rule is not exported by the member; the copy below
 // is guarded by `tests/model/sources.spec.ts` against the real `ModelProfilesLocalPlugin`.
 import { createHash } from 'node:crypto'
-import type { Adoption, CredentialId, ModelProfileDefinition } from '@omne-harness/model-contract'
+import type { Adoption, ModelProfileDefinition } from '@omne-harness/model-contract'
 import type { ModelSendSource } from '@omne-harness/model/commands'
 import { officialOpenAiProfiles } from '@omne-harness/pi-ai-openai'
 
@@ -52,7 +53,6 @@ export function officialProfileAdoption(definition: ModelProfileDefinition): Ado
 export function officialSendSources(
   input: Readonly<{
     profiles: OfficialProfilesInput
-    factoryQueryId: CredentialId
     current: ModelSendSource<unknown>['current']
   }>,
 ): readonly ModelSendSource<unknown>[] {
@@ -62,13 +62,9 @@ export function officialSendSources(
       Object.freeze({
         profile,
         supplier: supplier.adoption,
-        recipient: supplier.recipient,
+        provider: supplier.provider,
         model: supplier.model,
-        credential: Object.freeze({
-          kind: 'factory' as const,
-          official: true as const,
-          queryId: input.factoryQueryId,
-        }),
+        official: true,
         current: input.current,
       }),
     )

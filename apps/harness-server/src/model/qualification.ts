@@ -328,9 +328,7 @@ export function createModelQualification(
       sameTenant(capture.tenant, demand.tenant) &&
       capture.call === demand.call &&
       capture.current()
-    // M2 has no tenant credential settings source: the application's own supplier completion gives
-    // every supplier the factory reference. The vault's `resolveFor` is the judge of real holdings.
-    return succeed({ authorized, noTenantBinding: demand.supplier.credential.kind === 'factory' })
+    return succeed({ authorized })
   }
 
   const qualifyObservation: ModelQualification['qualifyObservation'] = async (access, current) => {
