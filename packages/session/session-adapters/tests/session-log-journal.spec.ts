@@ -121,6 +121,67 @@ function refusedBy(s: SqlScene, reason: CommitRejectReason) {
   }).forSession(s.access).journal
 }
 
+/** A provider over the scene's storage with the given commit, query and read in place. */
+function over(s: SqlScene, storage: Partial<SqlStorage>) {
+  return createSessionLogJournal<string>({
+    storage: {
+      registerCombination: input => s.storage.registerCombination(input),
+      query: identity => s.storage.query(identity),
+      read: (request, options) => s.storage.read(request, options),
+      commit: (request, options) => s.storage.commit(request, options),
+      ...storage,
+    },
+    tenantDomainLookup: { lookup: () => Promise.resolve({ kind: 'ready', domain: s.domain }) },
+    sessionAccessCheck: {
+      check: request =>
+        Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) }),
+    },
+    combination: s.combination,
+  }).forSession(s.access).journal
+}
+
+/**
+ * Generations below `first` of every operation are rolled back receipts. With `commits` set to
+ * `rolled back`, every commit is rolled back too and later queries of it answer so. `asked`
+ * collects the operation key of each query.
+ */
+function rolledBackBelow(
+  s: SqlScene,
+  first: number,
+  asked: string[],
+  commits: 'stored' | 'rolled back' = 'stored',
+) {
+  const rolled = new Set<string>()
+  const generation = (key: string) => Number(key.slice(key.lastIndexOf('#') + 1))
+  const receipt = { kind: 'rolled_back', responses: [] } as never
+  return over(s, {
+    query: identity => {
+      asked.push(identity.operationKey)
+      return generation(identity.operationKey) < first || rolled.has(identity.operationKey)
+        ? Promise.resolve(receipt)
+        : s.storage.query(identity)
+    },
+    commit: (request, options) => {
+      if (commits === 'stored') return s.storage.commit(request, options)
+      rolled.add(request.identity.operationKey)
+      return Promise.resolve(receipt)
+    },
+  })
+}
+
+/** A provider whose every storage read is refused with `reason`. */
+function readRefusedBy(s: SqlScene, reason: 'queue_full') {
+  return over(s, {
+    read: request =>
+      Promise.resolve({
+        kind: 'unavailable',
+        requestKey: request.requestKey,
+        reason,
+        diagnostic: null,
+      } as never),
+  })
+}
+
 const count = (s: SqlScene, table: string): number =>
   Number(s.controls?.select(`SELECT COUNT(*) AS n FROM ${table}`).rows[0]?.[0] ?? -1)
 const work = async (s: SqlScene): Promise<WorkSnapshot> =>
@@ -354,6 +415,105 @@ describe('unknown, tenancy and registration', () => {
     })
   })
 
+  // sql-contract "提交拒绝原因的定性": a definite reason fails the write for good; the Agent ends
+  // the Run instead of waiting (SPEC 生产提供者的实现现状, step 6).
+  it.each([
+    ['command_limit', { kind: 'invalid', field: 'storage', reason: 'command_limit' }],
+    ['manifest_mismatch', { kind: 'invalid', field: 'storage', reason: 'manifest_mismatch' }],
+    ['combination_unregistered', { kind: 'unsupported' }],
+    ['participant_not_in_combination', { kind: 'unsupported' }],
+  ] as const)(
+    'a storage that refuses for the definite reason %s answers a definite failure and writes nothing',
+    async (reason, failure) => {
+      const { s, open } = await opened(`refused-definite-${reason}`)
+      const request = await messageRequest(s, open.authority)
+      const before = { agent: (await load(s)).revision, published: count(s, 'er_operation') }
+      expect(await refusedBy(s, reason).commit(request)).toEqual({ failure })
+      expect((await load(s)).revision).toBe(before.agent)
+      expect(count(s, 'er_operation')).toBe(before.published)
+    },
+  )
+
+  it.each(['closing', 'domain_unavailable'] as const)(
+    'a storage that refuses for the temporary reason %s is unavailable and names the reason',
+    async reason => {
+      const { s, open } = await opened(`refused-temporary-${reason}`)
+      const request = await messageRequest(s, open.authority)
+      expect(await refusedBy(s, reason).commit(request)).toMatchObject({
+        failure: { kind: 'unavailable', diagnostic: expect.stringContaining(reason) },
+      })
+    },
+  )
+
+  it('a write finds the first unused generation however many earlier ones were rolled back', async () => {
+    const { s, open } = await opened('generations-unbounded')
+    const request = await messageRequest(s, open.authority)
+    const before = (await load(s)).revision
+    const asked: string[] = []
+    const journal = rolledBackBelow(s, 12, asked)
+    const receipt = ok(await journal.commit(request))
+    expect(Number(receipt.revision)).toBe(Number(before) + 1)
+    expect(asked.at(-1)).toMatch(/#12$/)
+  })
+
+  it('the provider remembers the largest generation it has seen and starts the next write of the operation there', async () => {
+    const { s, open } = await opened('generations-remembered')
+    const request = await messageRequest(s, open.authority)
+    const asked: string[] = []
+    const journal = rolledBackBelow(s, 10, asked, 'rolled back')
+    expect(await journal.commit(request)).toMatchObject({ failure: {} })
+    const first = asked.length
+    expect(await journal.commit(request)).toMatchObject({ failure: {} })
+    // The second write asks only the remembered generation and the next one, not #1 to #10 again.
+    expect(asked.length - first).toBe(2)
+    expect(asked.slice(first)).toEqual([
+      expect.stringMatching(/#10$/),
+      expect.stringMatching(/#11$/),
+    ])
+  })
+
+  // #1174: a query before the send that the storage cannot answer means nothing was sent. It is
+  // unavailable, not an unknown write: holding it would turn the later `not_committed` into an
+  // exclusion, and the same operation would never be written.
+  it('a query before the send that the storage cannot answer is unavailable, holds nothing, and the same operation then commits', async () => {
+    const { s, open } = await opened('pre-send-unknown')
+    const request = await messageRequest(s, open.authority)
+    const before = (await load(s)).revision
+    let refused = 0
+    const journal = over(s, {
+      query: identity => {
+        if (refused === 0) {
+          refused += 1
+          return Promise.resolve({ kind: 'unknown', identity, diagnostic: 'queue_full' } as never)
+        }
+        return s.storage.query(identity)
+      },
+    })
+    expect(await journal.commit(request)).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: expect.stringContaining('queue_full') },
+    })
+    expect(
+      ok(await journal.query({ ...s.access, execution: s.execution, operation: request.operation }))
+        .kind,
+    ).not.toBe('excluded')
+    const receipt = ok(await journal.commit(request))
+    expect(Number(receipt.revision)).toBe(Number(before) + 1)
+  })
+
+  it('a read the storage refuses keeps the storage reason in the diagnostic', async () => {
+    const { s } = await opened('read-refused')
+    const journal = readRefusedBy(s, 'queue_full')
+    expect(await journal.load({ ...s.access, execution: s.execution })).toMatchObject({
+      failure: {
+        kind: 'unavailable',
+        owner: 'session-log-journal',
+        diagnostic: expect.stringContaining(
+          'the common root of the session is not readable: queue_full',
+        ),
+      },
+    })
+  })
+
   it('a write without an Agent operation whose outcome is unknown is unavailable: no operation identity is made up', async () => {
     const { s } = await opened('preserve-unknown')
     const preserve = {
@@ -415,13 +575,22 @@ describe('unknown, tenancy and registration', () => {
     const { s, open } = await opened('undecided-write')
     const request = await messageRequest(s, open.authority, 'message-held')
     let decided = false
+    // The write is sent (its query before the send is answered), and from then on the storage
+    // cannot tell whether it ran until it decides.
+    let sent = false
     const unknownUntilDecided: SqlStorage = {
       registerCombination: input => s.storage.registerCombination(input),
       read: (read, options) => s.storage.read(read, options),
-      commit: input =>
-        Promise.resolve({ kind: 'unknown', identity: input.identity, diagnostic: 'scripted' }),
+      commit: input => {
+        sent = true
+        return Promise.resolve({
+          kind: 'unknown',
+          identity: input.identity,
+          diagnostic: 'scripted',
+        })
+      },
       query: identity =>
-        decided
+        decided || !sent
           ? s.storage.query(identity)
           : Promise.resolve({ kind: 'unknown', identity, diagnostic: 'scripted' }),
     }
@@ -576,7 +745,11 @@ describe('the publication report (SPEC 发布观测)', () => {
     const reports: JournalPublicationReport[] = []
     const sent: number[] = []
     const refused = await reporting(s, reports, sent, refusing('command_limit')).commit(request)
-    expect(refused).toMatchObject({ failure: { kind: 'unavailable' } })
+    // A definite refusal answers the Agent `invalid`; the report keeps one `unavailable` outcome
+    // for every refusal before acceptance, with the storage reason in its diagnostic.
+    expect(refused).toEqual({
+      failure: { kind: 'invalid', field: 'storage', reason: 'command_limit' },
+    })
     expect(reports).toEqual([
       expect.objectContaining({
         outcome: 'unavailable',

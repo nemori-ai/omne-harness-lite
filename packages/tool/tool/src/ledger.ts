@@ -70,6 +70,7 @@ import type {
   ToolLedgerAdmissions,
   ToolLedgerConfiguration,
   ToolLedgerQueues,
+  ToolLedgerRejections,
   ToolLedgerFacts,
   ToolLedgerPorts,
   ToolLedgerControls,
@@ -123,6 +124,7 @@ import {
   decideQueueReady,
   decideQueueRelease,
   decideRecordStart,
+  decideLedgerRejected,
   decideRejectPending,
   queueKeyOf,
   queueSnapshotOf,
@@ -136,6 +138,7 @@ import {
 } from './ledger-start.ts'
 import {
   type CallRecord,
+  type LedgerCommit,
   type LedgerDomain,
   type LedgerWrite,
   type QueueEntryRecord,
@@ -150,6 +153,8 @@ export type ToolLedger<P, B extends ContentBlock> = Readonly<{
   admissions: ToolLedgerAdmissions<P>
   /** The queue maintenance a waiting call asks for (SPEC 22). */
   queues: ToolLedgerQueues<P>
+  /** The minimal failure terminal after a step the store rejected for good (SPEC 23). */
+  rejections: ToolLedgerRejections<P>
   facts: ToolLedgerFacts<P, B>
 }>
 
@@ -277,12 +282,41 @@ export function createToolLedger<P, B extends ContentBlock>(
     expected: Snapshot<B>['revision'],
     revision: Snapshot<B>['revision'],
     writes: readonly LedgerWrite<B>[],
-  ): Promise<Awaited<ReturnType<typeof store.commit>>> => {
+  ): Promise<LedgerCommit> => {
     try {
       return await store.commit({ domain, expected, revision, writes })
     } catch {
       // The store may have applied the writes before it threw, so the outcome is unknown.
       return { kind: 'unknown', diagnostic: thrown('ledger-store') }
+    }
+  }
+
+  /**
+   * The reply of one commit answer, or null after a revision conflict: the caller re-reads and
+   * decides again. Only a conflict is retried. An unavailable store is temporary and the caller
+   * resends the same operation; a rejected commit can never be accepted, so it is the definite
+   * failure `invalid` (`field: storage`) at once, and it spends no attempt (SPEC 11).
+   */
+  const answerOf = <T>(
+    committed: LedgerCommit,
+    value: T,
+    unknown: Outcome<T, ToolFailure>,
+  ): Outcome<T, ToolFailure> | null => {
+    switch (committed.kind) {
+      case 'committed':
+        return succeed(value)
+      case 'conflict':
+        return null
+      case 'unknown':
+        return unknown
+      case 'unavailable':
+        return unavailable('ledger-store', committed.diagnostic)
+      case 'rejected':
+        return invalid('storage', committed.reason)
+      default: {
+        const exhaustive: never = committed
+        return exhaustive
+      }
     }
   }
 
@@ -324,9 +358,8 @@ export function createToolLedger<P, B extends ContentBlock>(
       }
       const writes = withExclusionsRemoved(decision.writes, operations)
       const committed = await commit(domain, snapshot.ok.revision, revision, writes)
-      if (committed.kind === 'committed') return succeed(decision.value)
-      if (committed.kind === 'unknown') return unknown
-      if (committed.kind === 'unavailable') return unavailable('ledger-store', committed.diagnostic)
+      const answer = answerOf(committed, decision.value, unknown)
+      if (answer !== null) return answer
     }
     return unavailable('ledger-store', `${attempts} revision conflicts in a row`)
   }
@@ -347,9 +380,8 @@ export function createToolLedger<P, B extends ContentBlock>(
       if (decision.kind === 'reply') return decision.outcome
       const revision = nextRevision(snapshot.ok.revision)
       const committed = await commit(domain, snapshot.ok.revision, revision, decision.writes)
-      if (committed.kind === 'committed') return succeed(decision.value)
-      if (committed.kind === 'unknown') return unknown
-      if (committed.kind === 'unavailable') return unavailable('ledger-store', committed.diagnostic)
+      const answer = answerOf(committed, decision.value, unknown)
+      if (answer !== null) return answer
     }
     return unavailable('ledger-store', `${attempts} revision conflicts in a row`)
   }
@@ -917,6 +949,28 @@ export function createToolLedger<P, B extends ContentBlock>(
     return releaseQueue(context.ok, record.ok, settled.ok)
   }
 
+  /** The minimal failure terminal of a call that never started (SPEC 23), then its release. */
+  const settleRejected: ToolLedgerRejections<P>['settle'] = async input => {
+    const context = await writeEntry(input)
+    if ('failure' in context) return context
+    const reason: unknown = Reflect.get(input, 'reason')
+    if (typeof reason !== 'string' || reason.length === 0) return invalid('reason', 'type')
+    const command = { ...writeCommand(context.ok, { reason }), reason }
+    const before = await peek(context.ok)
+    if ('failure' in before) return before
+    const record = recordOf(before.ok)
+    if ('failure' in record) return record
+    const settled = await transact(
+      callDomain(context.ok),
+      command.operation,
+      (snapshot, mint) => decideLedgerRejected(snapshot, command, text, mint),
+      commitUnknown(command.operation),
+      before.ok.revision,
+    )
+    if ('failure' in settled) return settled
+    return releaseQueue(context.ok, record.ok, settled.ok)
+  }
+
   /**
    * The timing segment of a foreground start, begun by the clock before the record (P07). The
    * clock is a port with an effect, so the segment is not begun for an operation that a negative
@@ -1342,6 +1396,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     reads: Object.freeze(reads),
     admissions: Object.freeze(admissions),
     queues: Object.freeze(queues),
+    rejections: Object.freeze({ settle: settleRejected }),
     facts: Object.freeze({
       read: async input => {
         const basis = fixFactBasis(input)

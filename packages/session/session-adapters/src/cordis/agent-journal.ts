@@ -83,7 +83,9 @@ import type {
 import {
   commitJournal,
   jointSessionWork,
+  refusalFailure,
   standingOf,
+  type GenerationMemory,
   type JournalCombination,
 } from '../journal-commit.ts'
 import {
@@ -921,6 +923,7 @@ function projectionContext(
 
 export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>) {
   const books = new Map<string, Book<P>>()
+  const generations: GenerationMemory = new Map()
 
   function bookOf(tenant: TenantId, session: SessionId): Book<P> | null {
     const text = tenantCodec.encode(tenant)
@@ -1374,7 +1377,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return changed
   }
 
-  /** The common root of the session in one read, or null when it is not readable. */
+  /** The common root of the session in one read, or the diagnostic of why it is not readable. */
   async function readRoot(book: Book<P>, domain: DomainRef) {
     const output = await readOutput(options.storage, {
       domain,
@@ -1382,7 +1385,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       protocol: SESSION_PROTOCOL,
       input: { tenant: book.tenantText, session: book.session },
     })
-    return output === null ? null : decodeSessionHistoryRoot(output)
+    const unreadable = 'the common root of the session is not readable'
+    if (output.kind === 'unread') return `${unreadable}: ${output.reason}`
+    return decodeSessionHistoryRoot(output.output) ?? unreadable
   }
 
   /** Folds the batches read into the view; the copy is then stale. */
@@ -1458,7 +1463,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
    */
   async function sync(book: Book<P>, domain: DomainRef): Promise<Outcome<Copy<P>, Failure>> {
     const root = await readRoot(book, domain)
-    if (root === null) return fail(unavailable('the common root of the session is not readable'))
+    if (typeof root === 'string') return fail(unavailable(root))
     const excluded = await settleHeld(book, domain)
     const published = Number(root.published)
     const read = readerOf(options.storage, domain)
@@ -1791,10 +1796,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         combination: options.combination,
         operation,
         commands: [executionRecordBlobFacts({ tenant: book.tenant, blobs: chunk })],
+        generations,
       })
       chunk = []
       chunkBytes = 0
       if (outcome.kind === 'committed') return null
+      if (outcome.kind === 'refused') return refusalFailure(outcome.reason)
       return unavailable(
         outcome.kind === 'unavailable' || outcome.kind === 'unknown'
           ? `the content blocks were not stored: ${outcome.diagnostic}`
@@ -1900,6 +1907,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       combination: options.combination,
       operation,
       commands,
+      generations,
     })
     reportPublication(book, written, execution, operation, commands, prepared, outcome)
     const settled = settle(
@@ -2168,6 +2176,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       }
       case 'unavailable':
         return { kind: 'answer', value: fail(unavailable(outcome.diagnostic)) }
+      case 'refused':
+        return { kind: 'answer', value: fail(refusalFailure(outcome.reason)) }
     }
   }
 

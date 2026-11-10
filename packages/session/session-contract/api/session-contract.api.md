@@ -2278,6 +2278,11 @@ export type DriveFailure = Readonly<{
     reason: string;
     rejection: DurableEvidence;
 }> | Readonly<{
+    kind: 'refused';
+    failure: 'invalid' | 'unsupported';
+    field: string | null;
+    reason: string | null;
+}> | Readonly<{
     kind: 'unavailable';
     diagnostic: string;
 }> | Readonly<{
@@ -2687,8 +2692,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:8d36a422ce4134095ac3b956dccf7b7f75e63d43b95530d40fe67dd109697d0c";
-export declare const SESSION_RELEASE_DIGEST = "sha256:8d36a422ce4134095ac3b956dccf7b7f75e63d43b95530d40fe67dd109697d0c";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:4bf89c2f521b324ec9772b8ef781bd8535ab6e2f8394eedbbd77bd5d0564e861";
+export declare const SESSION_RELEASE_DIGEST = "sha256:4bf89c2f521b324ec9772b8ef781bd8535ab6e2f8394eedbbd77bd5d0564e861";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3522,6 +3527,12 @@ export type BoundedClose = Readonly<{
     kind: 'admission-rejected';
     input: InputId;
     rejection: DurableEvidence;
+}> | Readonly<{
+    kind: 'drive-refused';
+    failure: 'invalid' | 'unsupported';
+    field: string | null;
+    reason: string | null;
+    input: InputId | null;
 }>;
 export type DerivedMessage = Readonly<{
     kind: 'compaction';

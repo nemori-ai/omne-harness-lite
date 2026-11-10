@@ -15,7 +15,7 @@ E0 至 E9 是执行开启与接续，F0 至 F4、O0、H0 是控制、终态与�
 四条约定不从每个节点重复画边。
 
 1. 所有业务节点在提交和外部发起前重核 E1 的当前资格与控制。E1 的五条非常态边适用于每个节点。
-2. 任一提交回执未知先走 R0。依赖不可用或原等待未满足走 W0。已提交事实、外部效果和原责任不因此回滚。
+2. 任一提交回执未知先走 R0。依赖不可用或原等待未满足走 W0。依赖不可用包括读取或写提交答 unavailable。答 unavailable 的写没有生效，等待之后以同一操作再写。等待的位置按节点分两种：非收尾节点转 W0；收尾节点（F0 至 F4、O0、E9、R0）在进程内等待，不经 W0，不提交 waiting，执行状态不变，到检查时刻以同一操作再写。写提交的确定失败不等待，按确定节点故障转 F1。已提交事实、外部效果和原责任不因此回滚。
 3. 任一扩展节点取得 `stopped` 效果时，Agent 记录以该扩展为真实来源的控制请求。`stop` 与 `retry` 结论不结束链，X5 在链结束后逐项处置停止请求：取消请求的意图实际成立时经 E1 转 F0，合法的 `failed` 请求形成 extension-stop 失败候选转 F1，受理或核权未知时转 W0，不放行受保护的操作或重试。图以 X5 到 F0 与 F1 的两条虚线代表这条路径。
 4. 任一扩展节点取得 `asked` 效果时，等待发生在 X4，唤醒后经 E1、E2、E4、R0 回原扩展节点。
 
@@ -99,6 +99,7 @@ flowchart TB
         A2 -->|accepted：保存 associated| T0
         A2 -->|commit-unknown：保存 associated，lookup 并沿原 invoke 接续| R0
         A2 -->|association-unknown：保留 intent 与完整原请求| R0
+        A2 -->|rejected 且失败种类为 unavailable：按依赖等待，以原身份再调用| W0
         A2 -->|rejected 且无历史受理或未决：denied 槽位| T2
         A2 -->|rejected 但历史受理或未决：保留原责任与 open 屏障| R0
         A2 -->|超出并发上限：按原顺序等名额| A2
@@ -192,7 +193,7 @@ flowchart TB
     C4 -. 调用 .-> X0
     P0 -. 调用 .-> X0
     R0["R0 原操作查询或原帧恢复：不重做原效果"] -. 回原节点 .-> E4
-    W0["W0 保存等待，进程内计时，启动监听后重读"] --> E1
+    W0["W0 保存等待，进程内计时，启动监听后重读"] -->|唤醒；或等待未存下，到检查时刻| E1
 ```
 
 ## 节点表
@@ -223,7 +224,7 @@ flowchart TB
 | A0 | 每个动作的生效参数、定义采用、按需要名的一组读取（`permissions`，空列表表示没有读取） | 每条链的 Passage。链末官方准入经 `ActionAdmission.admit` 写入该动作的 ActionJudgment | 随 X 协议提交，判断随 checkpoint 的 `batch` 提交 | 链内 ask 在 X4 等待 | 转 A1 | 链间并行，链内按声明顺序串行。链间不读取对方 Conclusion | 规则见[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 1、2 条 |
 | A1 | `ActionBarrier` 的 judging 与 asked 列表、每轮卡片状态 | checkpoint 的 `batch.barrier`。open 时另写 `batchDecision` 依据 | 屏障状态变化时提交 | 有链在判断或在等人时转 W0 | all-denied 转 A3。open 转 A2 | 本轮卡片在每条链到达最终 Conclusion 或合法等待后一次呈现 | 打开与全拒的条件只由 SPEC 同节第 4、9 条拥有，本页不另写 |
 | A3 | 每个动作的拒绝依据 | checkpoint 的 `batch.slots`：按原顺序建立 denied 槽位 | 槽位建立后提交 | 不等待从未发起的工具 | 转 T2 | 串行 | 全拒不触发 T4。拒绝事实经回复消息与执行事实到达后续位置 |
-| A2 | 原 allowed.request（ToolInvokeRequest）、准入依据与当前资格 | 先 preserve 完整请求 facts，再 commit intent、fixed、position 与 effect intent。accepted 或 commit-unknown 提供引用后 commit associated | 首次 invoke 前保存意图；关联提交未知先查 Journal 原操作 | 并发名额不足按原顺序等待 | accepted 保存关联转 T0。commit-unknown 保存引用转 R0，lookup 的 not-accepted 仍沿原 invoke 接续。association-unknown 保留 intent 转 R0。rejected 仅在无历史受理或未决时建 denied 转 T2，否则保留原 pending、请求与 effect intent 转 R0，不改原 open 屏障 | toolConcurrency 约束在途调用 | consumer 四字段等于 pending.position。A2 尚待实现 |
+| A2 | 原 allowed.request（ToolInvokeRequest）、准入依据与当前资格 | 先 preserve 完整请求 facts，再 commit intent、fixed、position 与 effect intent。accepted 或 commit-unknown 提供引用后 commit associated | 首次 invoke 前保存意图；关联提交未知先查 Journal 原操作 | 并发名额不足按原顺序等待 | accepted 保存关联转 T0。commit-unknown 保存引用转 R0，lookup 的 not-accepted 仍沿原 invoke 接续。association-unknown 保留 intent 转 R0。rejected 的失败种类为 unavailable 时是依赖暂时不可用，不建 denied：转 W0 按依赖等待（owner 为 toolRuntime），检查时刻到后回 A2，以原意图与原身份再调用 invoke，依据 tool-contract「依赖恢复后重入沿原身份继续」。其余 rejected 仅在无历史受理或未决时建 denied 转 T2，否则保留原 pending、请求与 effect intent 转 R0，不改原 open 屏障 | toolConcurrency 约束在途调用 | consumer 四字段等于 pending.position。A2 尚待实现 |
 | T0 | associated Tool pending 的原引用，Tool 公开 queries、instances、content 及 commands | 不写事件，不投影 Tool 过程流；观察者按稳定调用引用经 Tool 契约的[过程帧的观察契约](../../../../tool/tool-contract/SPEC.md#过程帧的观察契约)取得 `StreamRef`。Tool control 的阶段与可选操作引用经 recordControl 保存 | 控制接受先保存原 toolInvocation。迟到附件用原记录校验 | 在途转 W0，查询不可读保留未知 | 认回原受理后沿原槽位继续，真实结果或确认后台占位转 T1，不建竞争 denied | 各槽位独立等待 | intent 只能 unresolved，Tool 内部 Ask 仅投影 waiting human。T0 尚待实现 |
 | T1 | 原结果或占位、原动作身份 | `slots` 的 result 或 background 分支。recordResult 的 custody 或 processed。事件 producer 由第二步的条件提交承载，recordResult 自身不追加事件 | 保管依据保存后才解除该结果的生产责任 | 不等待 | 真实结果或拒绝转 T2。后台占位转 T3。迟到结果转 I8 | 逐槽独立 | 后台占位只释放占位这一版本的前台交付。迟到结果不改原槽位、不重开批次 |
 | T2 | 槽位的 outcome 与候选消息 | 每个槽位的 `each` Passage，改写后的 `candidate` | 随 X 协议提交 | X4 等待 | 转 T3 | 各槽位的单结果经过不等待其他槽位 | 含结果卸载这一受信系统扩展。后台占位不经过本节点 |
@@ -256,7 +257,7 @@ flowchart TB
 | O0 | 未确认事件、未交清结果责任、控制回执、终结责任清单的剩余项、`load.handoffs` 的未清 handoff 责任 | recordResult、acknowledge 的处理、迟到的三种控制阶段事实（recordControl，不追加事件）、保管变体（commitSettlement 的卡片对账、迟到返回与 Tool 关联登记）、准入结果保管（经 `MessageHandoff.lookup` 读原结果后以 recordHandoff 保管）、内部 H 的取消围栏（`MessageHandoff.exclude`，不写 Journal） | 各责任交清时记录，每项在自身原子边界更新处置与修订 | 不等待 | 转 E9 | 不运行终态扩展，不改原终态、checkpoint 与末事件 | 原执行未终态时也可独立处理这些责任。剩余职责从 `load.finishObligations` 与 `load.handoffs` 读取，`reconcile.remaining` 只列结果消费 |
 | H0 | 原 recorded 且 rejected 的结果、原来源请求、当前执行事实 | 不写。没有新 operation、决策帧、快照字段或事件 | 不提交 | 不等待 | 仍有推进资格转 F1，由 F1 条件提交失败候选。无推进资格或已终结转 O0，由 Rh 保管原拒收。unknown、unavailable、denied 与 excluded 不是拒收，不进入本节点 | 串行 | 纯路由，规则见[消息准入](../../../agent-contract/SPEC.md#消息准入)的“H0 的路由” |
 | R0 | 原操作槽、持久帧、返回去处；handoff 的 H、P、Ja、Rh 身份 | 不写 | 不提交 | 原操作未定时等待 | 按 query 的四种结论分支后回原节点，经 E4：committed 采用原结果，rejected 保留拒绝及其责任，excluded 才重新求值，unknown 继续等待。P、Ja、Rh 以 Journal query 查。H 以 `MessageHandoff.lookup` 查，结论按恢复映射的 `currentHandoff` 一行处置：H 的 unknown 由当前合法推进者以同一 H 与同一完整 request 重调 prepare，不只等待。retire 的 ACK 丢失先查 Ja，committed 后才建后继 P；取消已成立时不运行 retire，该来源不再产生后继 | 不重做原效果 | 细节由[内部机制](mechanisms.md)与恢复切点表拥有，准入的切点见 SPEC 的“[准入的恢复切点](../../../agent-contract/SPEC.md#准入的恢复切点)” |
-| W0 | 等待依据、Journal 修订、生产者与卡片游标 | 执行状态 waiting。事件 waiting | 等待保存后提交 | 登记监听后重读，进度未变才休眠 | 唤醒后转 E1 | 每段处理有限额，之后让出调度 | 超时不是取消或未执行的证明。人的等待没有默认期限 |
+| W0 | 等待依据、Journal 修订、生产者与卡片游标 | 执行状态 waiting。事件 waiting。保存答 unavailable 时不写，等待依据只留在进程里，执行状态保持进入 W0 之前的状态 | 等待保存后提交 | 登记监听后重读，进度未变才休眠。等待未存下时，让出这一段驱动，到检查时刻醒来 | 唤醒后转 E1。等待未存下（unsaved-wait）时，到检查时刻转 E1 重新判断：依赖仍不可用就再到 W0，再保存一次 | 每段处理有限额，之后让出调度 | 超时不是取消或未执行的证明。人的等待没有默认期限。等待未存下时进程退出，恢复从上一次保存的位置开始。unsaved-wait 不是结果未知，不经 R0 |
 
 ## 九位置与节点
 
@@ -391,7 +392,7 @@ judgeActions(actions):                                // A0、A1
 executeActions(decided):                              // A2、A3、T0 至 T5
   若 屏障为 all-denied：按原顺序建 denied 槽位           // A3
   否则 按原顺序、按工具并行上限：保存完整请求材料、intent 与 effect intent，再 tools.invoke 原请求 // A2
-  accepted 保存 associated 后等待；commit-unknown 保存 associated 并对账；association-unknown 保留 intent 重入；rejected 仅在无历史受理或未决时建 denied；否则保留原 pending、请求、consumer、effect intent 与 open 屏障，沿原调用恢复
+  accepted 保存 associated 后等待；commit-unknown 保存 associated 并对账；association-unknown 保留 intent 重入；rejected 的失败种类为 unavailable 时按依赖等待，到检查时刻以原身份再调用；其余 rejected 仅在无历史受理或未决时建 denied；否则保留原 pending、请求、consumer、effect intent 与 open 屏障，沿原调用恢复
   并行每个槽位：
     等待结果或确认的后台占位                           // T0
     按原动作身份保管                                   // T1
@@ -505,7 +506,7 @@ SPEC 拥有行为，本页拥有执行位置。每条不变量列出执行它的
 | --- | --- |
 | reconciling | 新挂接之后的 E0（open 或 attach 之后）、E1、E2，直到 E2 首次认回完成 |
 | advancing | E3、E4、I0 至 I4、I8、P0、P1、C0 至 C4、A0、A1（打开或全拒的判定）、A2、A3、T1、T2、T3（齐备的判定）、T4、T5、H0 |
-| waiting | W0，以及进入 W0 的等待节点：E1 资格核验不可用、E2 投影缺页或查询不可用、A1 未齐、T0 在途、T3 未齐、M1 在途、X4 等答复、F2 等人 |
+| waiting | W0，以及进入 W0 的等待节点：E1 资格核验不可用、E2 投影缺页或查询不可用、A1 未齐、T0 在途、T3 未齐、M1 在途、X4 等答复、F2 等人。W0 的等待未存下时不进入 waiting，保持进入 W0 之前的状态 |
 | settling | F0 至 F3。F2 否决转 I8 时回到 advancing |
 | suspended | E9 完成 detach 之后。没有节点运行，下一次 E0 resume 回 reconciling |
 | ended | F4、O0，以及 O0 之后的 E9 |
@@ -570,7 +571,7 @@ SPEC 拥有行为，本页拥有执行位置。每条不变量列出执行它的
 | 入口 | 入口条件 | 回归节点 |
 | --- | --- | --- |
 | R0 | 任一提交回执未知，E4 读到已有续点，F3 返回 changed、blocked、unavailable 或 commit-unknown，Q2 返回 commit-unknown | 查原操作槽：已提交则采用原结果并回原节点的后继，未定则等待，可靠排除才重新求值。经 E4 回原节点 |
-| W0 | E1 资格未知，I8 需等待，A1 未齐，T0 在途，T3 未齐，X3 认回不可用，X4 等答复，F2 等人或依赖 | 保存等待依据，在进程内计算检查时刻，启动监听后重读，进度未变才休眠。唤醒后转 E1，经 E2、E4 回原节点 |
+| W0 | E1 资格未知，I8 需等待，A1 未齐，T0 在途，T3 未齐，X3 认回不可用，X4 等答复，F2 等人或依赖，非收尾节点的读取或写提交答 unavailable，A2 的 Tool invoke 答失败种类为 unavailable 的 rejected | 保存等待依据，在进程内计算检查时刻，启动监听后重读，进度未变才休眠。唤醒后转 E1，经 E2、E4 回原节点。写提交答 unavailable 时，回原节点以同一操作再写。保存等待的写答 unavailable 时，等待留在进程里，到检查时刻转 E1 重新判断 |
 | E4 | E2 对账完成 | 按 checkpoint 选择原节点，映射见下表 |
 
 checkpoint 字段到接续节点的映射如下。字段归公开接口页的 `AgentCheckpoint`。最后一行的执行状态来自执行快照，不是 checkpoint 字段。

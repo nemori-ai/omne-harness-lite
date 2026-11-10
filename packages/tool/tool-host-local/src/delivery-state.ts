@@ -170,6 +170,8 @@ export function createDeliveryState<B extends ContentBlock>(store: ToolLedgerSto
       })
       if (committed.kind === 'committed') return succeed(next)
       if (committed.kind === 'conflict') continue
+      if (committed.kind === 'rejected')
+        return fail({ kind: 'invalid', field: 'storage', reason: committed.reason })
       if (committed.kind === 'unknown') {
         const recalled = await load(access, next.payload)
         if (

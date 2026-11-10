@@ -1,0 +1,6 @@
+positive-scarce.cfg pass
+positive-mixed.cfg pass
+positive-ample.cfg pass
+bad-stop-on-unavailable.cfg NeverStopped
+bad-busy-as-capacity.cfg NeverRefused
+bad-definite-as-unavailable.cfg NeverWaitsOnDefinite

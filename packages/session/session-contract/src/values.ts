@@ -215,10 +215,21 @@ export type RecoveryTask =
       state: 'pending' | 'unknown'
       last: readonly ScopeReleaseDisposition[]
     }>
-/** Bounded close by Session. Always ends as failed. "No record yet" and "execution ended" are not grounds. */
+/**
+ * Bounded close by Session. Always ends as failed. "No record yet" and "execution ended" are not grounds.
+ * `drive-refused` is the Agent's definite failure of `invoke` (`input` is the first input) or of
+ * `resume` (`input` is null); its basis is what this close records, not an outside record.
+ */
 export type BoundedClose =
   | Readonly<{ kind: 'uninterpretable'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'admission-rejected'; input: InputId; rejection: DurableEvidence }>
+  | Readonly<{
+      kind: 'drive-refused'
+      failure: 'invalid' | 'unsupported'
+      field: string | null
+      reason: string | null
+      input: InputId | null
+    }>
 export type DerivedMessage =
   | Readonly<{ kind: 'compaction'; message: CompactionMessage }>
   | Readonly<{ kind: 'context-reminder'; message: Message; source: DurableEvidence }>

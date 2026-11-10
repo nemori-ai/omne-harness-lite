@@ -151,8 +151,9 @@ describe('the evidence of a commit is stored with its operation record', () => {
   it('a commit that fails after the operation row leaves no row and no evidence; the retry stores once', async () => {
     const a = await created()
     a.provider.failWrite(/UPDATE sl_journal/u)
+    // An environment error inside the transaction is unknown (sql-contract §7.6).
     expect(kindOf(await viewCommit(a, acceptCommand('one'), 'access/face/accept'))).toBe(
-      'unavailable',
+      'commit-unknown',
     )
     expect(storedText(a, 'accept-one')).toBeUndefined()
     ok(await viewCommit(a, acceptCommand('one'), 'access/face/accept'))

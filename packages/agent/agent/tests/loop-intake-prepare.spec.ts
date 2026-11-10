@@ -211,10 +211,9 @@ describe('I0 fixes one batch at a legal input boundary', () => {
       tenant: alice.tenant,
       call: ok(resolveModelInvocationRef(pending.reference, alice.tenant)).call,
     })
-    expect(failure(await c.runExecution())).toMatchObject({
-      node: 'I8',
-      failure: { kind: 'unavailable' },
-    })
+    // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
+    // 依赖不可用时的等待).
+    ok(await c.runExecution())
     expect(after).toEqual(before)
     const at = (await snapshot(assembly)).checkpoint
     // R2-D292: the ready preparation lived in memory only; the saved intent keeps the request.
@@ -670,10 +669,9 @@ describe('I1 preparation outcomes', () => {
     assembly.controls.requests.prepare.always(input => ({ ok: cannotFit(input, 'fixed') }))
     const current = coordinator(assembly)
     ok(await current.accept())
-    expect(failure(await current.runExecution())).toEqual({
-      node: 'F1',
-      failure: { kind: 'unavailable', owner: 'agentClock', diagnostic: 'source offline' },
-    })
+    // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
+    // 依赖不可用时的等待).
+    ok(await current.runExecution())
     const stopped = await snapshot(assembly)
     expect(stopped.checkpoint.position).toBe('F1')
     expect(stopped.checkpoint.requestPreparation).toMatchObject({

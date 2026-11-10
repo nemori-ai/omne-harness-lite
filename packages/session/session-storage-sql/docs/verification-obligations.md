@@ -51,8 +51,8 @@ head 的用例（[tests/](../tests/README.md)）检查导出与依赖规则、�
 | VS-W06 | 压缩提交任一步失败整体回滚，旧 epoch 仍为当前 | 注入新 epoch 写入失败 | [W4](../SPEC.md#w4) |
 | VS-W07 | 载荷超过内联阈值时先写 blob 再写条目，读回一致 | 阈值两侧各一 | [TB-04](../SPEC.md#tb-04) |
 | VS-W08 | 读事务看不到未提交尾部 | 提交途中并发读 | 事务与并发 |
-| VS-W09 | `rolled_back` 回执的停止响应是 `conflict` 时，端口返回响应证据里保存的原 `SessionFailure`，与事务内 `decide` 的结局相同，不在事务外重算；带 `expected` 的命令在尾部已变时为 `changed`；停止响应是 `unsupported` 为 `invalid`，是 `failed` 为 `unavailable` | 对比模块内 `decide` 的结局与端口返回的结局；注入三种停止响应 | [W1](../SPEC.md#w1) 第 9 步 |
-| VS-W12 | 尝试代次：前面代次全部回滚时开新代次；有已提交代次时认回；有未知代次时 `commit-unknown`；达到上限时 `unavailable`；新代次开出后旧代次不会生效 | 按代次回执组合构造用例；`changed` 后同身份重做、同一受理标识在回滚后重试、两个消费者并发 `receive` 同一事件，核对都不得到 `conflict` | [W1 的尝试代次](../SPEC.md#w1-attempts) |
+| VS-W09 | `rolled_back` 回执的停止响应是 `conflict` 时，端口返回响应证据里保存的原 `SessionFailure`，与事务内 `decide` 的结局相同，不在事务外重算；带 `expected` 的命令在尾部已变时为 `changed`；停止响应是 `unsupported` 为 `invalid`；是 `failed` 时，类别 `participant_reported` 为 `unavailable`，提供者判定的类别为 `invalid`（字段 `storage`） | 对比模块内 `decide` 的结局与端口返回的结局；注入三种停止响应 | [W1](../SPEC.md#w1) 第 9 步 |
+| VS-W12 | 尝试代次：前面代次全部回滚时开新代次；有已提交代次时认回；有未知代次时 `commit-unknown`；代次不设上限，多次 `changed` 之后同身份重做仍能开新代次；同一进程从记住的最大代次往后找；新代次开出后旧代次不会生效 | 按代次回执组合构造用例；回滚的代次多于 8 个时仍能提交；`changed` 后同身份重做、同一受理标识在回滚后重试、两个消费者并发 `receive` 同一事件，核对都不得到 `conflict` | [W1 的尝试代次](../SPEC.md#w1-attempts) |
 | VS-W13 | Session 输入摘要只覆盖语义参数：只差认证封套、`expected` 或材料内容的两次提交摘要相同 | 构造这三类差异的命令对，比较 `sl_operation.input_digest` | [W1 的尝试代次](../SPEC.md#w1-attempts) |
 | VS-W14 | 撤销归档同批删除该会话在 `sl_released_scope_idx` 的行 | 归档、释放读回、撤销归档，再查 `releasedScopes` | [W3](../SPEC.md#w3) |
 | VS-W15 | 一次提交带着的访问证据与它的操作记录在同一事务写入（`sl_operation_evidence`）；认回不改原证据；回滚后没有证据行；另一租户读不到 | 委派视图与公开端口各提交一次、认回一次、在操作行之后注入失败、以另一租户的名字查询 | [操作记录的访问证据](../SPEC.md#操作记录的访问证据) |

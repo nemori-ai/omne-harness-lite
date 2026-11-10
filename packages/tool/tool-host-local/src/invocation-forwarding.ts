@@ -397,6 +397,11 @@ export function createInvocationForwarding<P, B extends ContentBlock>(
                 diagnostic: commit.diagnostic,
               },
             }
+          if (commit.kind === 'rejected')
+            return {
+              kind: 'rejected',
+              failure: { kind: 'invalid', field: 'storage', reason: commit.reason },
+            }
         }
         return { kind: 'association-unknown' }
       } catch {

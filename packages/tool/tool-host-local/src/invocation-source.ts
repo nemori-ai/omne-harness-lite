@@ -396,6 +396,8 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
     if (committed.kind === 'unknown') return { kind: 'issuance-unknown', call, admission }
     if (committed.kind === 'unavailable')
       return unavailable('invocation-source', committed.diagnostic)
+    if (committed.kind === 'rejected')
+      return rejected({ kind: 'invalid', field: 'storage', reason: committed.reason })
     return null
   }
 

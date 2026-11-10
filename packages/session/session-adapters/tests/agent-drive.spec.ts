@@ -573,7 +573,7 @@ describe('invoke: the slot of the active Run, then acquire, resolve and invoke',
 // --- the result table ----------------------------------------------------------------------------
 
 describe('the Agent answers map by the result table', () => {
-  it.each(['busy', 'terminal', 'changed', 'stale-advance', 'unsupported'] as const)(
+  it.each(['busy', 'terminal', 'changed', 'stale-advance'] as const)(
     '%s keeps its kind',
     async kind => {
       const f = await assembled()
@@ -603,31 +603,68 @@ describe('the Agent answers map by the result table', () => {
     })
   })
 
-  it.each([
-    ['no rejection record', {}],
-    ['a rejection that is not evidence', { rejection: { owner: 'admission' } }],
-  ])(
-    'a refusal of the message admission with %s is unavailable (NP-12), and no record is made',
-    async (_name, extra) => {
+  // A definite failure of the Agent's invoke or resume is a drive refusal: the same request fails
+  // again, so Session closes the Run instead of replaying it (AD-14 result table, PM-02, PM-05).
+  const drives = {
+    invoke: (f: Awaited<ReturnType<typeof assembled>>) => f.drive().invoke(invokeInput()),
+    resume: (f: Awaited<ReturnType<typeof assembled>>) =>
+      f.drive().resume({
+        ...target(A, 'dop_resume-1'),
+        recovery: evidence('recovery'),
+        grant: evidence('grant-2'),
+      }),
+  }
+
+  describe.each(Object.entries(drives))('%s answers a definite failure as refused', (_, drive) => {
+    it('unsupported is refused of the kind unsupported, without a field or reason', async () => {
+      const f = await assembled()
+      f.script.invoke.push(() => fail({ kind: 'unsupported' }))
+      expect(await drive(f)).toEqual({
+        failure: { kind: 'refused', failure: 'unsupported', field: null, reason: null },
+      })
+    })
+
+    it('an invalid storage commit is refused with the Agent field and reason', async () => {
       const f = await assembled()
       f.script.invoke.push(() =>
-        fail({ kind: 'invalid', field: 'value', reason: 'refused by admission', ...extra }),
+        fail({ kind: 'invalid', field: 'storage', reason: 'command_limit' }),
       )
-      expect(await f.drive().invoke(invokeInput())).toEqual({
-        failure: { kind: 'unavailable', diagnostic: 'Agent invalid 未带拒收证据（NP-12）' },
+      expect(await drive(f)).toEqual({
+        failure: { kind: 'refused', failure: 'invalid', field: 'storage', reason: 'command_limit' },
       })
-    },
-  )
+    })
 
-  it('any other invalid is unavailable as a translation defect, never a refusal', async () => {
-    const f = await assembled()
-    f.script.invoke.push(() => fail({ kind: 'invalid', field: 'grant', reason: 'not evidence' }))
-    const answer = await f.drive().invoke(invokeInput())
-    expect(answer).toHaveProperty('failure.kind', 'unavailable')
-    expect(answer).toHaveProperty(
-      'failure.diagnostic',
-      expect.stringMatching(/^translation defect/),
+    it.each([
+      ['no rejection record', {}],
+      ['a rejection that is not evidence', { rejection: { owner: 'admission' } }],
+    ])(
+      'a refusal of the message admission with %s is refused, and no record is made (NP-12)',
+      async (_name, extra) => {
+        const f = await assembled()
+        f.script.invoke.push(() =>
+          fail({ kind: 'invalid', field: 'value', reason: 'refused by admission', ...extra }),
+        )
+        expect(await drive(f)).toEqual({
+          failure: {
+            kind: 'refused',
+            failure: 'invalid',
+            field: 'value',
+            reason: 'refused by admission',
+          },
+        })
+      },
     )
+  })
+
+  it('an unsupported acquire is not a drive refusal: it keeps its kind', async () => {
+    const f = await assembled()
+    const acquire = f.provision.provision.acquire
+    f.provision.provision.acquire = () => Promise.resolve(fail({ kind: 'unsupported' }))
+    try {
+      expect(await f.drive().invoke(invokeInput())).toEqual({ failure: { kind: 'unsupported' } })
+    } finally {
+      f.provision.provision.acquire = acquire
+    }
   })
 
   it('a dependency that throws is reported as a defect and answers unavailable', async () => {
@@ -774,7 +811,25 @@ describe('submit uses the handle that invoke or resume kept', () => {
       failure: { kind: 'invalid', reason: 'refused', rejection: record },
     })
     f.script.submit.push(fail({ kind: 'invalid', field: 'value', reason: 'refused' }))
-    expect(await f.drive().submit(submitInput)).toHaveProperty('failure.kind', 'unavailable')
+    const unrecorded = await f.drive().submit(submitInput)
+    expect(unrecorded).toHaveProperty('failure.kind', 'unavailable')
+    expect(unrecorded).toHaveProperty(
+      'failure.diagnostic',
+      expect.stringContaining('value: refused'),
+    )
+  })
+
+  it('any other invalid of submit is unavailable with the Agent field and reason, never a refusal', async () => {
+    const f = await assembled()
+    await f.drive().invoke(invokeInput())
+    f.script.submit.push(fail({ kind: 'invalid', field: 'storage', reason: 'command_limit' }))
+    const answer = await f.drive().submit(submitInput)
+    expect(answer).toHaveProperty('failure.kind', 'unavailable')
+    expect(answer).toHaveProperty(
+      'failure.diagnostic',
+      expect.stringContaining('storage: command_limit'),
+    )
+    expect(f.errors()).toHaveLength(1)
   })
 
   it('the handle is dropped when its instance retires', async () => {

@@ -70,6 +70,13 @@ describe('forwarding receiver custody protocol over an explicit store double', (
     expect(recovered.evidence.owner).toBe(f.payload.consumer.owner)
     expect(ok(await f.push())).toEqual(recovered)
   })
+  it('answers a receipt write the store rejects as a definite failure, without another attempt', async () => {
+    const f = await receiverFixture()
+    f.arm('rejected')
+    expect(await f.push()).toEqual({
+      failure: { kind: 'invalid', field: 'storage', reason: 'command_limit' },
+    })
+  })
   it('refuses a non-durable store, distinct payload and different subject', async () => {
     const memory = await receiverFixture(false)
     expect(await memory.push()).toMatchObject({

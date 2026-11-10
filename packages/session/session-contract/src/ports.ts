@@ -64,6 +64,12 @@ export type DriveFailure =
         | 'conflict'
     }>
   | Readonly<{ kind: 'invalid'; reason: string; rejection: DurableEvidence }>
+  | Readonly<{
+      kind: 'refused'
+      failure: 'invalid' | 'unsupported'
+      field: string | null
+      reason: string | null
+    }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
   | Readonly<{ kind: 'commit-unknown'; operation: string }>
 export type DriveReply<T> = Promise<Outcome<T, DriveFailure>>

@@ -1,6 +1,6 @@
 # Agent 通用实现的行为边界
 
-根入口导出 `createAgentRuntime`、通用评估器 `agentEvaluator`、它写入的 checkpoint 的 schema 采用 `agentCheckpointSchema` 与构造类型。根入口另导出独立 Model 接收工厂、宿主持有状态与完整交付材料读取器，形状见[公开入口](docs/public-api.md#独立-model-接收入口)。根入口还导出控制推进 `advanceControl`，供不经执行句柄受理控制的宿主推进已受理的控制，行为见[控制推进](docs/public-api.md#控制推进)。读取器只判断 schema 与原关联，不独自证明保存或当前资格。工厂的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。工厂的创建校验、四个面的访问守卫与 `invoke` 的 Loop 正常路径骨架已实现，I0 输入批与 I1 请求准备、不可用读取的 W0 等待、真实 cannot-fit 的 F1 出口已实现。F1 新建候选从注入的 AgentClock.now 取时；失败保留原准备与续点，不写候选；同一已形成候选重试不再次取时。I2/M0 的固定主调用与意图提交、M6 正常直接受理及未知时原调用认回，受理的确定拒绝经 F1 以 model-refused 候选结束执行，Model 不可用时在 M6 按依赖等待（R2-D237）、M1 等待 received、M3 完整材料采用及 M4/M5 直通已实现。首内容前最终失败且无有效回复经 I3 形成 no-reply 候选。I3 的接纳事实、message 事件与 Q4 接续同 revision 提交。I4 提交真实空动作批，I8 重读最新事实后选择新 step、一次等待保存或 F1 候选，部分内容不直接决定完成。W0 保存业务等待，启动观察后重读来源，再按注入时钟等待进程内检查时刻。观察从协调者确切知道的事件游标开始，所以每次进入等待最多一次 `load`（AG-03 R6.5）。R0 保留原 operation 与 expected，committed 认回后继，unknown 等待，excluded 才重求值。通知与检查到期都不证明原操作未执行。其他操作本体及剩余 Loop 节点的精确语义与失败分支尚未实现，实际支持范围见[成员 README](README_ZH.md#支持范围)。运行契约的接受范围以 [公共 SPEC](../agent-contract/SPEC.md) 为准。
+根入口导出 `createAgentRuntime`、通用评估器 `agentEvaluator`、它写入的 checkpoint 的 schema 采用 `agentCheckpointSchema` 与构造类型。根入口另导出独立 Model 接收工厂、宿主持有状态与完整交付材料读取器，形状见[公开入口](docs/public-api.md#独立-model-接收入口)。根入口还导出控制推进 `advanceControl`，供不经执行句柄受理控制的宿主推进已受理的控制，行为见[控制推进](docs/public-api.md#控制推进)。读取器只判断 schema 与原关联，不独自证明保存或当前资格。工厂的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。工厂的创建校验、四个面的访问守卫与 `invoke` 的 Loop 正常路径骨架已实现，I0 输入批与 I1 请求准备、读取或写提交不可用时的 W0 等待、真实 cannot-fit 的 F1 出口已实现。F1 新建候选从注入的 AgentClock.now 取时；失败保留原准备与续点，不写候选；同一已形成候选重试不再次取时。I2/M0 的固定主调用与意图提交、M6 正常直接受理及未知时原调用认回，受理的确定拒绝经 F1 以 model-refused 候选结束执行，Model 不可用时在 M6 按依赖等待（R2-D237）、M1 等待 received、M3 完整材料采用及 M4/M5 直通已实现。首内容前最终失败且无有效回复经 I3 形成 no-reply 候选。I3 的接纳事实、message 事件与 Q4 接续同 revision 提交。I4 提交真实空动作批，I8 重读最新事实后选择新 step、一次等待保存或 F1 候选，部分内容不直接决定完成。W0 保存业务等待，启动观察后重读来源，再按注入时钟等待进程内检查时刻。观察从协调者确切知道的事件游标开始，所以每次进入等待最多一次 `load`（AG-03 R6.5）。R0 保留原 operation 与 expected，committed 认回后继，unknown 等待，excluded 才重求值。通知与检查到期都不证明原操作未执行。其他操作本体及剩余 Loop 节点的精确语义与失败分支尚未实现，实际支持范围见[成员 README](README_ZH.md#支持范围)。运行契约的接受范围以 [公共 SPEC](../agent-contract/SPEC.md) 为准。
 
 F1 在候选依据的修订未变时提交终结候选的业务内容，Journal 据此建立候选与 FinishIntent 投影；提交被排除后保留原意图与时刻。新输入或其他事实先改变修订时，经 R0 重读再求值。no-reply 候选失效后，I8 依据已消费结果、原 received 材料 关闭该调用的业务续点，不把已收场调用变成 producer 等待；原 received 与账目待办保持。F2 以普通 settling 提交完成落终态之前的经过，Journal 据此设 author route 的 beforeTerminal。F3 先读快照，投影尚无清单或上次 tryFinish 答 changed 时以 prepareFinish 发行终结责任清单，再读最新完整修订，最后以读到的 FinishIntent 投影调用 tryFinish 创建终态。F3 的 tryFinish 返回 unavailable 时，协调者经 R0 在内存等待，按检查时刻重试，不提交 waiting。changed 与 blocked 回 R0；custody 未交清时仍是未清责任，真实移交之后下一次终结才能成立；回 R0 之后读事实不可用时同样在内存等待，不提交 waiting；commit-unknown 先查询原操作再读取终态，excluded 后按当前协议重新求值，不能据此重新受理原 open，unknown 或查询不可用不写会使原终结失效的等待提交。内存 Journal 以 prepareFinish 同一函数重算清单，按 SPEC 的五类责任固定次序以第一项 pending 阻塞终结，没有 pending 而有 unknown 项（未定写入，或既没有结果、关联也没有最终失败的调用）为 unavailable；核对 obligations 已发行且属本候选，核对 intent 与投影相等。author route 无 beforeTerminal，或 author route 上的候选是未迁移的 cancelled 候选时，以 passages 阻塞。cancellation route 无判断记录时以 passages 阻塞；判断记录的判据与当前闭包不同为 changed；判断为 blocked 时按记录的类别阻塞，判断为 unknown 时为 unavailable。取消候选经 commitSettlement 的 establish、migrate、judge 建立、迁移与判断；有效取消下带 complete 或 failed 候选的 F1 为 changed。协调者的取消路线仍未实现。
 
@@ -28,16 +28,33 @@ open 尚未认回时，reserved 保存原 coordinator 和 invoke 输入指纹。
 - **draining**：新的 invoke 与 resume 返回 unavailable，owner 为 `@omne-harness/agent`。受理未知的 R0 待查项的重试也返回 unavailable。同一操作、同一输入的 invoke 重试仍取回原句柄。
 - **执行槽空闲**：runtime 以停用的操作与原因调用登记句柄的 `withdraw`。答复为 withdrawn 或 null 时，quiesce 返回 drained，每个观察以 retired 结束。没有登记句柄时跳过撤登记。`withdraw` 失败、抛出或登记未到 withdrawn 时，quiesce 返回 unavailable，runtime 保持 draining，重试再次撤登记。
 - **执行槽被占用**（含 R0 待查项）：quiesce 返回 unresolved，remaining 为该 execution。本实现不 detach、不交接，也不取消该 execution 的 Model 与 Tool 调用。该 execution 照常推进。E9 释放执行槽后，重试或新的 quiesce 撤登记并返回 drained。
-- **执行槽为 failed**：见“[运行失败](#运行失败)”。依据 R2-D285。没有驱动在推进这个 execution，但它的责任没有交接。quiesce 照样把它算作剩余，返回 unresolved，remaining 为该 execution，不撤登记。重试得到同样的剩余。
+- **执行槽为 failed**：见“[运行失败](#运行失败)”。依据 R2-D285。只有确定不能继续的 execution 才有 failed 槽。依赖暂时不可用的 execution 在等待，槽仍为 running，按上一条处理。failed 时没有驱动在推进这个 execution，但它的责任没有交接。quiesce 照样把它算作剩余，返回 unresolved，remaining 为该 execution，不撤登记。重试得到同样的剩余。
 - **操作身份**：drained 之后，同一操作、同一原因的重试认回原结果。同一操作配另一原因返回 conflict。其他操作的 quiesce 认回已受理的那一次，不开始第二次。
 - **依据**：结果的 evidence 由 `agentEvidence` 派生，只在进程内存中，不是耐久记录。
 - **阶段 5 仍未兑现**：在途 execution 的 detach 与交接、每个 execution 的交接依据，以及「被接管的执行不计入剩余」。
 
+## 依赖不可用时的等待
+
+<a id="依赖不可用时的等待"></a>Journal、Model 或 Tool 答 `unavailable` 表示依赖暂时不可用，不表示节点故障。读与写都一样：协调者按依赖等待，到检查时刻以同一操作再试。资源的上限与同时在途的 Run 数只影响完成的早晚，不影响完成。
+
+- **写提交**：Journal 写提交答 `unavailable` 时，等待的位置按节点分两种。答 `unavailable` 的写没有生效，任何一方的事实都没有保存（agent-contract SPEC「[提交参加者协议](../agent-contract/SPEC.md#提交参加者协议)」的「失败」一行），所以同一操作再写是安全的。这不是结果未知，协调者不查原操作。
+  - 非收尾节点：协调者转 W0，记一项依赖等待，owner 取 Journal 答复里的 owner。检查时刻到后经 E1 回原节点，以同一操作再写。
+  - 收尾节点（F0 至 F4、O0、E9、R0）：协调者在进程内等待，不经 W0，不提交 waiting，执行状态不变。检查时刻到后以同一操作再写。这与确定节点故障收尾中 F1、F3 的内存等待是同一条规则。F3 的 tryFinish 答 unavailable 时照旧经 R0 在内存等待，到检查时刻重试终结。
+- **W0 保存等待**：W0 保存等待的写答 `unavailable` 时，等待留在进程里，不保存。协调者让出这一段驱动，到检查时刻进 E1 重新判断。依赖仍不可用时再到 W0，再保存一次。执行状态保持进入 W0 之前的状态。进程在等待中退出时，恢复从上一次保存的位置开始，什么都不丢。
+- **读取**：读取答 `unavailable` 时同样转 W0，规则见 Loop 页的 [W0](docs/architecture/loop-algorithm.md#恢复入口与回归点)。
+- **Model 受理**：Model 对受理答 `unavailable` 时，M6 按依赖等待，到检查时刻以原身份再受理，见 Loop 页节点表的 M6 行。
+- **Tool 受理**：Tool 的 `invoke` 答 `rejected` 而其中失败种类为 `unavailable` 时，这是依赖暂时不可用，不是对动作的拒绝。A2 不建 denied 槽位，按依赖等待，到检查时刻以原意图与原身份再调用 `invoke`，见 Loop 页节点表的 A2 行。其余 `rejected` 照旧在没有历史受理或未决尝试时建 denied 槽位。
+- **确定失败**：写提交答确定失败（存储以确定原因拒绝，Journal 答 `invalid` 或 `unsupported`，例如 `command_limit` 答 `invalid`）时不等待，按“[确定节点故障的收尾](#确定节点故障的收尾)”以失败终结。
+- **被取代的运行时**：同进程接管之后，被取代的旧运行时到检查时刻再写，Journal 答 `stale-advance` 或 `changed`，按现有处理。等待不会让它多写一次。
+- **检查间隔**：工厂配置的 `reconciliationDelayMs`，固定间隔。等待的次数没有上限。
+
+持续验证见[容量与活性模型](verification/capacity-liveness/README.md)。「上限只影响完成的早晚」这一性质以依赖终究可用为前提。确定读不到的 Journal 不在这个前提内，见 session-adapters 的[已知限制](../../session/session-adapters/SPEC.md#已知限制)第 22 条。
+
 ## 运行失败
 
-<a id="运行失败"></a>一次 `runExecution` 返回失败，而 `waitForWake` 不再唤醒驱动，驱动就停止。确定节点故障先按下文尝试合法终结。仍不能继续的依赖、资格或责任保留以下停止规则。
+<a id="运行失败"></a>一次 `runExecution` 返回失败，而 `waitForWake` 不再唤醒驱动，驱动就停止。依赖暂时不可用不走到这里，见“[依赖不可用时的等待](#依赖不可用时的等待)”。确定节点故障先按下文尝试合法终结。只有确定不能继续的资格或责任，以及收尾本身的确定故障，才按以下规则停止。
 
-- **何时算停止**：驱动停止，并且最后一次驱动通过带失败，或者 `waitForWake` 本身失败。只是一次通过失败不算停止。例如 commit-unknown 让驱动等待原操作，之后照常推进。驱动抛出也算停止，节点为空，失败是 owner 为 `@omne-harness/agent` 的 unavailable。
+- **何时算停止**：驱动停止，并且最后一次驱动通过带失败，或者 `waitForWake` 本身失败。只是一次通过失败不算停止。例如 commit-unknown 让驱动等待原操作，之后照常推进。驱动抛出也算停止，节点为空，失败是 owner 为 `@omne-harness/agent` 的 unavailable。这个 unavailable 由协调者为抛出合成，不是端口的答复，不转等待。
 - **执行槽**：仍由这个 execution 持有的 `running` 槽改为 `failed`，带停止的节点与失败。E9 已释放的槽、已由另一个 execution 持有的槽都不改。`failed` 只是内部状态。`observe` 仍显示 occupied，因为 execution 没有终结。新的 invoke 照常答 busy。同一操作、同一输入的 invoke 重试仍取回原句柄。
 - **报告**：执行槽改为 `failed` 之后，runtime 调用一次 `createAgentRuntime` 第三个参数里的 `failed` 接收者。事件是 `{ kind: 'run-failed', tenant, instance, execution, node, failure }`。`failure` 原样取自节点的答复，它的诊断文本只写身份与状态。接收者被同步调用，不得回调本 runtime。接收者抛出不改变任何答复，也不留痕。没有接收者时，执行槽照样改为 `failed`。
 - **停用**：quiesce 把 `failed` 的 execution 算作剩余，答 unresolved，见“[停用](#停用)”。remaining 的契约形状只有 execution 身份，不带节点与失败。调用方要说明原因，就按 execution 对上这次报告。
@@ -109,7 +126,9 @@ F3 只有取得 Journal ended 才经 F4/E9 释放槽。有效取消可在终态�
 
 以失败终结的测试在 `tests/run-ended-failed.spec.ts`：主调用以 connect-timeout 失败收场时，终态结论原因为 `<execution>/step-1/model-failed/upstream-unavailable/connect-timeout`，接收者恰好收到一次报告；诊断中的 `/` 被编码；负控为正常完成而没有内容时原因仍是 `no-reply`；正常完成不报告；接收者抛出时执行照样终结。只覆盖内存 Journal 与脚本化 Model。
 
-运行失败的测试在 `tests/provider-run-failure.spec.ts`：I0 的提交答 unavailable 时，接收者收到一次带租户、实例、execution、节点与失败的报告，observe 仍为 occupied，execution 未终结，新 invoke 答 busy；quiesce 答 unresolved，remaining 为该 execution，不撤登记，重试答同样的剩余；接收者抛出时执行槽照样保持，quiesce 照样 unresolved；M0 回执丢失后经核对继续并正常结束时不报告。只覆盖内存 Journal 与登记句柄替身。
+运行失败的测试在 `tests/provider-run-failure.spec.ts`：I0 的提交答 unavailable 时，执行转等待，到检查时刻以同一操作再写并正常结束，接收者不收到报告；驱动停在确定不能继续的节点时，接收者收到一次带租户、实例、execution、节点与失败的报告，observe 仍为 occupied，execution 未终结，新 invoke 答 busy；quiesce 答 unresolved，remaining 为该 execution，不撤登记，重试答同样的剩余；接收者抛出时执行槽照样保持，quiesce 照样 unresolved；M0 回执丢失后经核对继续并正常结束时不报告。只覆盖内存 Journal 与登记句柄替身。
+
+依赖不可用时的等待另有用例：任一写节点的提交答 unavailable 时转等待，到检查时刻以同一操作再写并继续；W0 保存等待答 unavailable 时同样不停止，到检查时刻进 E1；Journal 答确定失败（`invalid` 或 `unsupported`）时以失败终结，不等待；收尾节点的提交答 unavailable 时在进程内等待，不提交 waiting。
 
 停用的测试在 `tests/provider-quiesce.spec.ts`：空闲实例 drained 并撤登记一次、draining 之后 invoke 与 resume 返回 unavailable、第一个 `await` 之前已 draining、核验拒绝解除 draining、占槽时 unresolved 且运行照常结束、撤登记失败不报 drained、同一操作认回、另一原因 conflict、停用进行中的新 quiesce 认回原停用。只覆盖内存 Journal 与登记句柄替身。
 

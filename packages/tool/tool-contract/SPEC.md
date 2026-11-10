@@ -267,7 +267,7 @@ resolve 先核当前主体对合法 tenant/consumer 的资格，再访问关联�
 
 `accepted` 返回原调用引用、原受理状态回执与 recovered，后者为来源或 admission 认回的逻辑或。lookup 返回当前权威状态，不能覆盖原回执。`association-unknown` 无引用，表示关联可能落地但暂不能证明原身份；调用方保留原完整意图并重复 invoke。`commit-unknown` 带原引用，表示来源签发或 admission 尚未知；lookup 的 not-accepted 不足以证明原来源不再续做，仍沿原 invoke 接续。resolver 抛错或返回不合法身份时保留 association-unknown，后者是提供者违约。已证明原引用后 admission 抛错保留 commit-unknown。
 
-`rejected` 只描述当前尝试的确定失败，不证明历史上没有关联或受理。来源已建立后的准入拒绝不删除关联、不永久缓存拒绝；依赖恢复后重入沿原身份继续。原 scope 或其他固定输入不能更新，要新执行或修改意图须登记新 consumer。未知时不回收原键。不承诺外部效果 exactly-once。
+`rejected` 只描述当前尝试的确定失败，不证明历史上没有关联或受理。`rejected` 携带的 `ToolDefiniteFailure` 是除 `commit-unknown` 之外的任一失败，所以也可能是 `unavailable`：这表示依赖暂时不可用，这次尝试没有受理，不是对请求的拒绝。调用方按依赖等待，之后以原完整意图重入。其余种类是对这次尝试的确定拒绝。来源已建立后的准入拒绝不删除关联、不永久缓存拒绝；依赖恢复后重入沿原身份继续。原 scope 或其他固定输入不能更新，要新执行或修改意图须登记新 consumer。未知时不回收原键。不承诺外部效果 exactly-once。
 
 原受理回执为 accepted 时首次唤醒宿主。认回后只用当前 lookup 判断是否补 wake：仍待启动则补，已 running/settled 不补，查询未知允许保守补 wake。查询失败不撤销原 accepted。宿主按 tenant/call 归并待处理或并发 wake，driver 保持启动唯一。内部 admit 尝试次数可以多次，唯一受理事实、队列责任和真实启动分别观察。唤醒失败不回滚受理；当前 tool 实现依赖调用方重入，不承诺无人重入的自动扫描。共享内存来源只有非耐久单进程证据。
 

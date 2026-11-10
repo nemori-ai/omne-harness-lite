@@ -134,6 +134,19 @@ describe('trusted forwarding association', () => {
       ),
     ).toBe(canonicalDigest(before))
   })
+  it('answers a slot write the store rejects as a definite failure, without another attempt', async () => {
+    const f = await forwardingFixture()
+    f.arm('rejected')
+    expect(
+      await f.source.forwarding.resolve({ ...f.parent, intent: f.intent, target: f.target }),
+    ).toEqual({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'storage', reason: 'command_limit' },
+    })
+    expect(ok(await f.source.forwarding.lookup({ ...f.parent, reference: f.reference }))).toEqual({
+      kind: 'unresolved',
+    })
+  })
 })
 
 it('reads a forwarded subject projection without granting current authority', async () => {
