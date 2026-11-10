@@ -2,4 +2,5 @@
 export type * from './types.ts'
 export { combinationManifest, manifestDigest } from './manifest.ts'
 export { inputDigestV2 } from './digest.ts'
+export { databaseOf, wrapsStorage } from './identity.ts'
 export { commitRejectionNature, type RejectionNature } from './rejection.ts'

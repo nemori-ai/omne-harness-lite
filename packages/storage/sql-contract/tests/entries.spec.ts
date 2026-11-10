@@ -40,13 +40,15 @@ function closure(entry: string): { files: Set<string>; external: Set<string> } {
 }
 
 describe('runtime exports of the entries', () => {
-  it('the root exports the four pure functions and nothing else', async () => {
+  it('the root exports the pure functions and nothing else', async () => {
     const root = await import('@omne-harness/sql-contract')
     expect(Object.keys(root).sort()).toEqual([
       'combinationManifest',
       'commitRejectionNature',
+      'databaseOf',
       'inputDigestV2',
       'manifestDigest',
+      'wrapsStorage',
     ])
   })
 
