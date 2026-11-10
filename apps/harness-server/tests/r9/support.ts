@@ -394,19 +394,8 @@ export function operatorLayer(options: {
       // 文件根与宿主状态目录在存储根旁边新建；Shell 用本机的 shell（Windows 是 powershell，其余是 /bin/sh）；
       // 运行时组的数值取 L-TOOL C06 组合用例的同一组值（tool-storage-sql windows-composition/assembly.ts）。
       { kind: 'replace', id: 'tool-host', config: { construction: tools.construction } },
-      // The release row has no Tools capability and no Web provider values; the test layer adds Web.
-      { kind: 'replace', id: 'tool-bindings', config: { web: tools.web } },
-      { kind: 'replace', id: 'tool-records', config: tools.records },
-      {
-        kind: 'replace',
-        id: 'tool-body-sweep',
-        config: {
-          combinationVersion: tools.records.combinationVersion,
-          ledgerCommitAttempts: tools.records.configuration.ledgerCommitAttempts,
-          intervalMs: 1000,
-          limit: 100,
-        },
-      },
+      // The release row has no Tools capability and no Web provider values; the test layer adds both
+      // in one op, because a `replace` swaps the whole config of the row.
       {
         kind: 'replace',
         id: 'tool-bindings',
@@ -417,6 +406,18 @@ export function operatorLayer(options: {
             replyMaxBytes: 65_536,
             contentPageBytes: 4096,
           },
+          web: tools.web,
+        },
+      },
+      { kind: 'replace', id: 'tool-records', config: tools.records },
+      {
+        kind: 'replace',
+        id: 'tool-body-sweep',
+        config: {
+          combinationVersion: tools.records.combinationVersion,
+          ledgerCommitAttempts: tools.records.configuration.ledgerCommitAttempts,
+          intervalMs: 1000,
+          limit: 100,
         },
       },
       { kind: 'replace', id: 'execution-host', config: tools.host },
