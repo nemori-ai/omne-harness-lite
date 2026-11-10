@@ -22,6 +22,13 @@ export interface MutationCall {
   readonly workers?: number
 }
 
+/**
+ * 交给 pqw 的 --unit-max-lines：0 让每个单元都算「超过上限」，范围退化成改动行本身。
+ * 差分变异回答「这次的改动有没有被测试守住」；改动行所在函数里没改的行，变异出来测的是改动之前的代码，
+ * 它们的测试强度是旧的事实，存活要逐条处置就把旧欠账推给了这次改动。整个函数的测试强度归整仓健康读数。
+ */
+export const CHANGED_LINES_ONLY = 0
+
 export function mutationArgs(call: MutationCall): string[] {
   return [
     join(call.root, PQW_SCRIPTS, 'mutation.mjs'),
@@ -40,6 +47,8 @@ export function mutationArgs(call: MutationCall): string[] {
     join(call.root, STRYKER_MODULES),
     '--vitest-config',
     FAST_VITEST_CONFIG,
+    '--unit-max-lines',
+    String(CHANGED_LINES_ONLY),
     ...(call.workers === undefined ? [] : ['--workers', String(call.workers)]),
     '--json',
     call.json,
@@ -70,7 +79,6 @@ export function rangeLines(mutate: readonly string[], lineCount: (path: string) 
 /** pqw 变异 JSON 里汇总要用的字段。 */
 export interface PqwMutation {
   readonly mutate: readonly string[]
-  readonly narrowed?: readonly { readonly file: string; readonly unit: string }[]
   readonly summary: {
     readonly killed?: number
     readonly survived?: number
@@ -239,9 +247,8 @@ export function planLines(
     }
     const count = rangeLines(plan.result.mutate, lineCount)
     total += count
-    const narrowed = plan.result.narrowed?.length ?? 0
     lines.push(
-      `${plan.member}：${plan.result.mutate.length} 段、${count} 行${narrowed === 0 ? '' : `，收窄 ${narrowed} 个大单元`}`,
+      `${plan.member}：${plan.result.mutate.length} 段、${count} 行`,
       ...plan.result.mutate.map(entry => `  ${entry}`),
     )
   }
