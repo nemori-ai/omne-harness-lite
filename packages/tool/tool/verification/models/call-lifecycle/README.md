@@ -1,6 +1,6 @@
 # CallLifecycle：调用域的生命周期
 
-本目录是调用域生命周期的有限模型。它守护 [SPEC](../../../SPEC.md) 中调用状态按期限删除的规则。
+本目录是调用域生命周期的有限模型。它守护 [SPEC](../../../SPEC.md#调用状态的生命周期) 中调用状态按期限删除的规则。
 
 ## 1. 建模的对象
 
@@ -13,10 +13,12 @@
 | `due` | 该域在到期索引里的时刻 |
 | `body` | 卸载正文必须可读到的时刻 |
 | `execs` | 函数执行的次数，这是外部效果 |
+| `bytes` | 正文存储里是否还有该调用卸载正文的字节 |
+| `busy` | 该域现在还不能删除：有待办任务，或宿主为它持有的记录仍被别的拥有者引用 |
 
 ## 2. 动作
 
-`Issue`、`Admit`（含重发）、`Execute`、`Settle`、`Save`（消费者落盘保存）、`Ack`（确认，释放交付并排期）、`Sweep`（清扫删除整个域）、`LateOperation`（对空域的迟到查询或控制写下排除记录并排期）、`Tick`。
+`Issue`、`Admit`（含重发）、`Execute`、`Settle`、`Save`（消费者落盘保存）、`Ack`（确认，释放交付并排期）、`Quiesce`（待办结清、宿主放开记录）、`Postpone`（清扫遇到还不能删的域，改排到 `now + G`）、`DeleteBytes`（清扫先删正文字节）、`Sweep`（清扫删除整个域）、`LateOperation`（对空域的迟到查询或控制写下排除记录并排期）、`Tick`。
 
 ## 3. 性质
 
@@ -27,6 +29,8 @@
 | `NoOrphanDue` | 没有记录的域没有到期项 |
 | `IdleIsScheduled` | 不再被写的域有删除时刻 |
 | `BodyKept` | 卸载正文在保存期限内可读 |
+| `NoOrphanBytes` | 域删除后正文存储里不留它的字节 |
+| `NotRemovedWhileBusy` | 有待办或宿主记录仍被引用时不删除 |
 | `RemovalNotEarly` | 带正文的调用不早于正文期限删除 |
 | `EventuallyAcked`、`EventuallyRemoved` | 已保存的结果会被确认；已排期的域到点后不再停留 |
 
@@ -43,8 +47,10 @@
 | `sweep-before-due` | 违反 `BodyKept`：未到时刻就清扫 |
 | `delete-without-unschedule` | 违反 `NoOrphanDue`：删除记录不删到期项 |
 | `exclusion-without-due` | 违反 `IdleIsScheduled`：排除记录没有删除时刻 |
+| `drop-before-body-bytes` | 违反 `NoOrphanBytes`：没删正文字节就删域 |
+| `drop-while-busy` | 违反 `NotRemovedWhileBusy`：域还忙就删 |
 
-`ack-before-save` 与 `consumer-resends-after-save` 是对消费者的两条前提的负控。Tool 不能自己守住它们，它们写在结果交付的契约里。
+`ack-before-save` 与 `consumer-resends-after-save` 是对消费者的两条前提的负控：先保存后确认，保存后不重发。Tool 不能自己守住它们，它们写在结果交付的契约里。
 
 ## 5. 运行
 

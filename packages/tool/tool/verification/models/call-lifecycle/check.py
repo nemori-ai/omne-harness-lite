@@ -9,7 +9,7 @@ import argparse, hashlib, json, os, pathlib, re, subprocess, time
 ROOT = pathlib.Path(__file__).resolve().parent
 MODULE = 'CallLifecycle'
 JAR_SHA256 = '936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88'
-CASES = [('positive', None), ('progress', None), ('reclaim-before-ack', 'RemovedOnlyAfterSaved'), ('ack-before-save', 'RemovedOnlyAfterSaved'), ('consumer-resends-after-save', 'AtMostOnce'), ('release-ignores-body', 'BodyKept'), ('sweep-before-due', 'BodyKept'), ('delete-without-unschedule', 'NoOrphanDue'), ('exclusion-without-due', 'IdleIsScheduled')]
+CASES = [('positive', None), ('progress', None), ('reclaim-before-ack', 'RemovedOnlyAfterSaved'), ('ack-before-save', 'RemovedOnlyAfterSaved'), ('consumer-resends-after-save', 'AtMostOnce'), ('release-ignores-body', 'BodyKept'), ('sweep-before-due', 'BodyKept'), ('delete-without-unschedule', 'NoOrphanDue'), ('exclusion-without-due', 'IdleIsScheduled'), ('drop-before-body-bytes', 'NoOrphanBytes'), ('drop-while-busy', 'NotRemovedWhileBusy')]
 parser = argparse.ArgumentParser()
 parser.add_argument('--case')
 parser.add_argument('--jar', default=os.environ.get('TLA2TOOLS_JAR'))
