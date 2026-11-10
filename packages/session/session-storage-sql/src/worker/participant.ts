@@ -13,6 +13,7 @@ import {
   type HistoryEntry,
   type OperationRecord,
   type ProducerRef,
+  type ResidentTool,
   type RoutedInput,
   type RunId,
   type SessionCallLookup,
@@ -492,7 +493,37 @@ export function maintainModelView(
   return current
 }
 
-function maintainDerived(
+type ResidentRow = Readonly<{ key: string; capability: string; shape: ResidentTool['shape'] }>
+
+const shapeText = (row: ResidentRow): string => JSON.stringify(encodeValue(row.shape))
+
+/**
+ * The rows of the resident index that a snapshot stands for: none before the session exists and
+ * none once it is archived, else one row per registered key whose capability has a definition. The
+ * map key is the rest of the primary key of a row, after the tenant and the session.
+ */
+function residentRows(snapshot: WorkSnapshot | null): ReadonlyMap<string, ResidentRow> {
+  const rows = new Map<string, ResidentRow>()
+  if (snapshot === null || snapshot.lifecycle === 'archived') return rows
+  for (const pair of snapshot.residentKeys ?? []) {
+    const resident = snapshot.residents.find(item => item.capability === pair.capability)
+    if (resident !== undefined)
+      rows.set(JSON.stringify([pair.key, pair.capability]), {
+        key: pair.key,
+        capability: pair.capability,
+        shape: resident.shape,
+      })
+  }
+  return rows
+}
+
+/**
+ * The derived rows of a published batch (W3). The pending index and the resident index hold the
+ * rows of every session of the tenant, so each is maintained by the difference between the rows of
+ * the previous snapshot and those of the new one, and each statement names a whole primary key: a
+ * batch that leaves them alone runs no statement, and none visits the rows of another session.
+ */
+export function maintainDerived(
   port: ParticipantPort,
   tenant: string,
   session: string,
@@ -515,16 +546,23 @@ function maintainDerived(
         reason,
         session,
       ])
-  port.execute('DELETE FROM sl_resident_idx WHERE tenant = ? AND session = ?', [tenant, session])
-  if (snapshot.lifecycle !== 'archived')
-    for (const pair of snapshot.residentKeys ?? []) {
-      const resident = snapshot.residents.find(item => item.capability === pair.capability)
-      if (resident !== undefined)
-        port.execute(
-          'INSERT OR REPLACE INTO sl_resident_idx (resident_key, tenant, session, capability, shape) VALUES (?, ?, ?, ?, ?)',
-          [pair.key, tenant, session, pair.capability, JSON.stringify(encodeValue(resident.shape))],
-        )
-    }
+  const indexed = residentRows(previous)
+  const residents = residentRows(snapshot)
+  for (const [id, row] of indexed)
+    if (!residents.has(id))
+      port.execute(
+        'DELETE FROM sl_resident_idx WHERE resident_key = ? AND tenant = ? AND session = ? AND capability = ?',
+        [row.key, tenant, session, row.capability],
+      )
+  for (const [id, row] of residents) {
+    const old = indexed.get(id)
+    if (old !== undefined && (old.shape === row.shape || shapeText(old) === shapeText(row)))
+      continue
+    port.execute(
+      'INSERT OR REPLACE INTO sl_resident_idx (resident_key, tenant, session, capability, shape) VALUES (?, ?, ?, ?, ?)',
+      [row.key, tenant, session, row.capability, shapeText(row)],
+    )
+  }
   port.execute('DELETE FROM sl_released_scope_idx WHERE tenant = ? AND session = ?', [
     tenant,
     session,
