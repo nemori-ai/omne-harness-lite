@@ -77,7 +77,16 @@ export async function startAssembly(kind: PayloadKind) {
         const tools = config['tools'] as Record<string, unknown>
         return {
           ...op,
-          config: { ...config, tools: { ...tools, contentPageBytes: PAGE_BYTES, attemptMs: 5000 } },
+          config: {
+            ...config,
+            // A Tools reply fits the inline threshold, or the reply that carries a page offloads again.
+            tools: {
+              ...tools,
+              contentPageBytes: PAGE_BYTES,
+              replyMaxBytes: INLINE_THRESHOLD,
+              attemptMs: 5000,
+            },
+          },
         }
       }
       if (op.id === 'tool-records') {

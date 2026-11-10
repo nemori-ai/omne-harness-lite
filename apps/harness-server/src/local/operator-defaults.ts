@@ -562,8 +562,12 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         tools: {
           attemptMs: 250,
           resultPageBytes: 65_536,
+          // Not above the inline threshold of the runtime: `checkToolsReplyBudget`.
           replyMaxBytes: 65_536,
-          contentPageBytes: 4096,
+          // The page of a body read back. Measured on real models with a 32 KiB body: the tokens
+          // and the cost of a task follow the number of pages read (4 KiB: 8 pages, 16 KiB: 2
+          // pages, about a third of the cost), with the same answers.
+          contentPageBytes: 16_384,
         },
         // Web provider values of the local profile: initial values without a measurement, configurable.
         // The local profile reaches the host network directly; sandbox or multi-tenant egress control

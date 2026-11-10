@@ -26,7 +26,7 @@
 // retained process, grow with the scope's lifetime (stop clause 7 of the execution-environment
 // contract) and are counted, and reading one of them touches one record.
 //
-// @module-tag slow: real SQLite under 2000 seeded calls, several minutes of IO and CPU.
+// @module-tag slow: real SQLite under 200 seeded calls, about half a minute of IO and CPU.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { succeed } from '@omne-harness/operation-result'
@@ -101,7 +101,11 @@ const GUARD: GuardResource = { owner: 'permissions', resource: 'scope-1/read_fil
 /** The retention scope of the session every seeded call belongs to. */
 const SCOPE = targetRequest().requesterScope
 const SCOPE_DOMAIN = retentionHostDomain(TENANT_A, canonicalDigest(SCOPE))
-const N = 2000
+// A cost that grows with the history shows at ten times the history as it does at a hundred times.
+// The earlier 2000 was there to pass the whole-domain read limit, which a tenant met near 1700
+// calls while every call wrote to tenant-level domains. Calls now live in their own domains and
+// leave after their grace, so no domain grows with the history and that limit cannot be met.
+const N = 200
 
 /** What the host read through the store: calls, records and the bytes of those records. */
 type ReadCount = { reads: number; records: number; bytes: number }

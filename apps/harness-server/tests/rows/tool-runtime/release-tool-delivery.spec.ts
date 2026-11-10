@@ -109,23 +109,30 @@ function withHistoryKinds(
               },
             }
           })()
-        : op.id === 'tool-host' && construction !== undefined
-          ? { ...op, config: { construction } }
-          : op.id === 'server-entry'
-            ? {
-                ...op,
-                config: {
-                  ...op.config,
-                  historyKinds: [
-                    'message.user',
-                    'message.assistant',
-                    'message.tool',
-                    'run.started',
-                    'run.terminal',
-                  ],
-                },
-              }
-            : op,
+        : op.id === 'tool-bindings' && maxInlineUtf8Bytes !== undefined
+          ? (() => {
+              // A Tools reply fits the inline threshold of the runtime that carries it.
+              const config = op.config as { tools: { replyMaxBytes: number } }
+              const replyMaxBytes = Math.min(config.tools.replyMaxBytes, maxInlineUtf8Bytes)
+              return { ...op, config: { ...config, tools: { ...config.tools, replyMaxBytes } } }
+            })()
+          : op.id === 'tool-host' && construction !== undefined
+            ? { ...op, config: { construction } }
+            : op.id === 'server-entry'
+              ? {
+                  ...op,
+                  config: {
+                    ...op.config,
+                    historyKinds: [
+                      'message.user',
+                      'message.assistant',
+                      'message.tool',
+                      'run.started',
+                      'run.terminal',
+                    ],
+                  },
+                }
+              : op,
     ),
   }
 }
