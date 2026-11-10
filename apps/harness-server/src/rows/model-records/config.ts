@@ -27,6 +27,8 @@ const route = z.strictObject({
   /** The complete `https:` endpoint; the member holds no URL. */
   url: z.string().url(),
   endMarker: z.string().nullable(),
+  /** Where the provider serves a response and the unit of its cost, from the provider body. */
+  accounting: z.strictObject({ place: text, costUnit: text }),
 })
 
 const jsonLimits = z.strictObject({

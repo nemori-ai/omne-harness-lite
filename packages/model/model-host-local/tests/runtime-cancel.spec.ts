@@ -267,7 +267,11 @@ function assembleHost(label: string) {
       },
     },
     routes: {
-      openrouter: { url: new URL(ROUTE_PATH, server.url).href, endMarker: GATEWAY_END_MARKER },
+      openrouter: {
+        url: new URL(ROUTE_PATH, server.url).href,
+        endMarker: GATEWAY_END_MARKER,
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+      },
     },
     transportLimits: TRANSPORT_LIMITS,
     maxRetainedAttempts: 4,

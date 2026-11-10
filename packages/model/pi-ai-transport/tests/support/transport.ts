@@ -57,7 +57,13 @@ export function transportOver(
   const built = createPiTransport({
     network: network.handle,
     families: family.families,
-    routes: { [SUPPLIER.recipient]: { url: options.url, endMarker: END_MARKER } },
+    routes: {
+      [SUPPLIER.recipient]: {
+        url: options.url,
+        endMarker: END_MARKER,
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+      },
+    },
     credential: options.credential ?? { read: () => 'test-secret' },
     limits: options.limits ?? LIMITS,
     ...(options.onConnectRetry === undefined ? {} : { onConnectRetry: options.onConnectRetry }),

@@ -288,6 +288,7 @@ export function assembleLocalHost(input: LocalHostInput) {
       openrouter: {
         url: new URL(ROUTE_PATH, gateway.url).href,
         endMarker: GATEWAY_END_MARKER,
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
       },
     },
     transportLimits: {

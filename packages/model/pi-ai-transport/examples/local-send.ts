@@ -194,7 +194,13 @@ let secret: string | undefined
 const pi = createPiTransport({
   network,
   families,
-  routes: { local: { url: `https://127.0.0.1:${port}/v1/chat`, endMarker: '[DONE]' } },
+  routes: {
+    local: {
+      url: `https://127.0.0.1:${port}/v1/chat`,
+      endMarker: '[DONE]',
+      accounting: { place: 'local', costUnit: 'local-credit' },
+    },
+  },
   credential: { read: () => secret },
   limits: {
     connectTimeoutMs: 2_000,

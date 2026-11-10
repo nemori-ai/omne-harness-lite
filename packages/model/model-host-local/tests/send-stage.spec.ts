@@ -316,7 +316,11 @@ function observing() {
 }
 
 const ROUTES = {
-  openrouter: { url: 'https://gateway.invalid/api/v1/chat/completions', endMarker: '[DONE]' },
+  openrouter: {
+    url: 'https://gateway.invalid/api/v1/chat/completions',
+    endMarker: '[DONE]',
+    accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+  },
 }
 const REQUEST = firstRoundRequest(RECORD_CASES['openai-reasoning'])
 
@@ -951,6 +955,7 @@ describe('a connect failure that the send retries, through the plugin', () => {
               openrouter: {
                 url: new URL(ROUTE_PATH, front.url).href,
                 endMarker: GATEWAY_END_MARKER,
+                accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
               },
             },
             transportLimits: { ...TRANSPORT_LIMITS, connectRetry: { backoffMs: [20, 40] } },
@@ -1036,6 +1041,7 @@ async function replayThroughPlugin(
           openrouter: {
             url: new URL(ROUTE_PATH, server.url).href,
             endMarker: GATEWAY_END_MARKER,
+            accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
           },
         },
       }),

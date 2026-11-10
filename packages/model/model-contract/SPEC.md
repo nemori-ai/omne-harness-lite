@@ -485,6 +485,23 @@ R 先于 S 则不发；S 先于 R 则是已经启动的在途请求，撤权触�
 
 声明见 [public-api](docs/public-api.md#凭据引用与解析端口)。
 
+### 模型供应商资产
+
+模型供应商是模型请求真实到达的那一家上游服务。它是资产类别 `model-provider` 的一份资产，名字是 `ProviderName`。档案上的供应商条目用这个名字引用它。本节是类别契约的行为条款。持有、求值与秘密保管归资产域与设置域，传输按正文接线归装配。
+
+- 正文有五个字段：`name`、`protocol`、`endpoint`、`accounting` 与 `credentials`。`modelProviderBodyContract().judge` 按这个顺序核对，返回第一个不成立的原因：
+  - `name` 只含小写字母、数字、`.` 与 `-`，以字母或数字开头，最多 64 个字符；否则为 `invalid-name`。有能力名时，`name` 必须等于能力名；否则为 `name-mismatch`。
+  - `protocol` 是非空文本，它选择传输引擎；否则为 `invalid-protocol`。
+  - `endpoint.url` 是 `https:` URL，不带用户信息，也不带片段。`endpoint.endMarker` 可以省略；给出时是非空文本。否则为 `invalid-endpoint`。
+  - `accounting.place` 与 `accounting.costUnit` 都是非空文本；否则为 `invalid-accounting`。传输把服务落点记在 `place` 之下，把费用记成 `costUnit`。
+  - `credentials` 是凭据项的列表，可以为空。每项有 `item`、`title`、`description`、`impact` 与 `clear`，都是非空文本；`item` 以字母开头，只含字母与数字，最多 64 个字符。否则为 `invalid-credentials`。两项同名时为 `duplicate-credential`。
+  - 正文不是对象时为 `not-an-object`。
+- 契约的 `settings` 钩子从正文推出设置定义。没有凭据项时，供应商不声明设置。有凭据项时，定义的 `definitionId` 是供应商名，每个凭据项是一个秘密设置项：类别为绑定，值为文本，没有默认值，覆盖合并，下一次读取时生效。展示文本取自凭据项的 `title`、`description`、`impact` 与 `clear`。
+- `parseModelProviderBody` 返回判定后的正文或拒绝原因；`readModelProviderBody` 只读已经通过判定的正文，其余答 `undefined`。`decodeProviderName` 铸造 `ProviderName`，名字不合字母表时答 `invalid-name`。
+- 正文不含秘密。凭据项只声明要哪些秘密；秘密由设置域按（具体资产引用，定义）保管，Model 按选定的层读取。
+
+声明见 [public-api](docs/public-api.md#模型供应商资产)。
+
 <a id="342-重试失联与恢复"></a>
 
 ### 重试、失联与恢复

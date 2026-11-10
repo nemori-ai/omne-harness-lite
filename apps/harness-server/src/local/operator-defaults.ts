@@ -14,6 +14,7 @@
 // that the release layer gives the row, and the profile adds its own keys over it. Values the
 // release owns (`storage.maxJsonDepth`, `agent-host.jointCommits` and `coordination`, and the
 // combination version of `session-handoff`) therefore come from the distribution, not from here.
+import { OPENROUTER_ACCOUNTING } from '@omne-harness/pi-ai-transport/chat-completions'
 import { z } from 'zod'
 import { pathsOf, type ServerLocations } from './locations.ts'
 import { isSecretName, type ServerSettings } from './settings.ts'
@@ -201,7 +202,13 @@ function modelRecords(combinationVersion: string) {
       },
       preparation: PREPARATION,
       network: { maxConnections: LOCAL_CONCURRENT_MODEL_CALLS, idleConnectionTimeoutMs: 60_000 },
-      routes: { openrouter: { url: OPENROUTER_ROUTE, endMarker: '[DONE]' } },
+      routes: {
+        openrouter: {
+          url: OPENROUTER_ROUTE,
+          endMarker: '[DONE]',
+          accounting: OPENROUTER_ACCOUNTING,
+        },
+      },
       transportLimits: {
         connectTimeoutMs: 10_000,
         // Retries only a failure before the request bytes left: 2 retries after 500 ms and 1000 ms.

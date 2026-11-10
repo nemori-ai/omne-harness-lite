@@ -217,7 +217,13 @@ export function openTransport(families: readonly PiFamily[]): OpenTransport {
   const transport = createPiTransport({
     network,
     families: composeFamilies(families),
-    routes: { openrouter: { url: OPENROUTER, endMarker: END_MARKER } },
+    routes: {
+      openrouter: {
+        url: OPENROUTER,
+        endMarker: END_MARKER,
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+      },
+    },
     // A placeholder: the proxy replaces it with the real credential.
     credential: { read: () => 'placeholder' },
     limits: {

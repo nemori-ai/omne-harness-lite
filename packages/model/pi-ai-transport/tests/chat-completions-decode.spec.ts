@@ -999,6 +999,21 @@ describe('account', () => {
     }
   })
 
+  it('reports the cost unit and the place prefix of the route the response comes from', async () => {
+    const facts = await replayStream(
+      bind(),
+      sse(chunk({ delta: { content: 'x' } }), chunk({ finish: 'stop' }, { usage: { cost: 0.5 } })),
+      REQUEST,
+      { place: 'test-gateway', costUnit: 'test-credit' },
+    )
+    expect(facts.find(fact => fact.kind === 'account')).toMatchObject({
+      value: {
+        cost: [{ state: 'known', lexeme: '0.5', unit: 'test-credit', source: 'billable' }],
+        place: 'test-gateway/Lab',
+      },
+    })
+  })
+
   it('keeps a negative cost or a cost that is not a number as unknown', async () => {
     for (const cost of [-1, -2.5e-7, 'free'])
       expect(
@@ -1077,7 +1092,10 @@ describe('account of a response that fails after its finish', () => {
         yield bytes
         throw error
       })(),
-      decoder: bind({ usage: keeping }).createDecoder({ request: REQUEST }),
+      decoder: bind({ usage: keeping }).createDecoder({
+        request: REQUEST,
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+      }),
       endMarker: GATEWAY_END_MARKER,
       limits: { maxEventBytes: 65_536, json: LIMITS.toolArguments },
       received: () => false,
@@ -1156,7 +1174,10 @@ describe('account of a response that fails after its finish', () => {
   })
 
   it('the decoder gives the account and the fault from end() after it refused a frame', () => {
-    const decoder = bind({ usage: keeping }).createDecoder({ request: REQUEST })
+    const decoder = bind({ usage: keeping }).createDecoder({
+      request: REQUEST,
+      accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+    })
     const frame = (value: Record<string, unknown>) => {
       const read = readJsonText(JSON.stringify(value), LIMITS.toolArguments)
       if (read.kind !== 'ok') throw new Error('not JSON')
@@ -1251,7 +1272,10 @@ describe('end of the stream', () => {
   })
 
   it('an ended decoder refuses every later frame and a second end', () => {
-    const decoder = bind().createDecoder({ request: REQUEST })
+    const decoder = bind().createDecoder({
+      request: REQUEST,
+      accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+    })
     expect(decoder.accept({ kind: 'end-marker' })).toEqual({ ok: [] })
     expect(decoder.end()).toMatchObject({ failure: { cause: 'stream-lost' } })
     expect(decoder.accept({ kind: 'data', value: { kind: 'object', entries: [] } })).toEqual({

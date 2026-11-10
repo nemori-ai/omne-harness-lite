@@ -93,7 +93,11 @@ function config(overrides: Partial<LocalModelConfig<Principal>> = {}): LocalMode
     families: composeFamilies([]),
     network: { maxConnections: 1, idleConnectionTimeoutMs: 1_000 },
     routes: {
-      openrouter: { url: 'https://gateway.invalid/api/v1/chat/completions', endMarker: '[DONE]' },
+      openrouter: {
+        url: 'https://gateway.invalid/api/v1/chat/completions',
+        endMarker: '[DONE]',
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+      },
     },
     transportLimits: {
       connectTimeoutMs: null,
@@ -122,7 +126,15 @@ describe('assembleLocalModel', () => {
   it('refuses a route that is not a plain https URL when it is built', () => {
     expect(() =>
       assembleLocalModel(
-        config({ routes: { openrouter: { url: 'http://gateway.invalid/', endMarker: null } } }),
+        config({
+          routes: {
+            openrouter: {
+              url: 'http://gateway.invalid/',
+              endMarker: null,
+              accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            },
+          },
+        }),
       ),
     ).toThrow(RangeError)
   })

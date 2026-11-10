@@ -7,12 +7,20 @@ import { isPlainHttpsUrl } from './http.ts'
 import { isPositiveInteger, isTimerDuration, MAX_TIMER_MS } from './limits.ts'
 import { networkInternalsOf, type NetworkInternals, type NetworkResources } from './network.ts'
 
-/** One recipient: its complete endpoint and the SSE protocol it answers with. */
+/**
+ * How a provider accounts for a response: the place prefix of the serving place it reports, and
+ * the unit of the cost it reports (a provider's own credits, not a currency).
+ */
+export type RouteAccounting = Readonly<{ place: string; costUnit: string }>
+
+/** One provider: its complete endpoint, the SSE protocol it answers with and its accounting. */
 export type PiRoute = Readonly<{
   /** The complete `https:` endpoint, e.g. `https://openrouter.ai/api/v1/chat/completions`. No credentials, query or fragment. */
   url: string
   /** The data text of the SSE event that marks the protocol end, e.g. `[DONE]`. `null`: the protocol has none. */
   endMarker: string | null
+  /** The accounting of the provider's responses, e.g. `{ place: 'openrouter', costUnit: 'openrouter-credit' }`. */
+  accounting: RouteAccounting
 }>
 
 /**
@@ -70,7 +78,11 @@ export type PiTransportConfig = Readonly<{
 }>
 
 /** A route after its checks: the URL is parsed once. */
-export type CheckedRoute = Readonly<{ url: URL; endMarker: string | null }>
+export type CheckedRoute = Readonly<{
+  url: URL
+  endMarker: string | null
+  accounting: RouteAccounting
+}>
 
 /** The configuration after its checks. */
 export type CheckedConfig = Readonly<{
@@ -125,9 +137,22 @@ function checkRoutes(routes: Readonly<Record<string, PiRoute>>): ReadonlyMap<str
       )
     if (route.endMarker !== null && typeof route.endMarker !== 'string')
       throw new RangeError('each route endMarker must be a string or null')
-    checked.set(recipient, { url, endMarker: route.endMarker })
+    const accounting = checkAccounting(route.accounting)
+    checked.set(recipient, { url, endMarker: route.endMarker, accounting })
   }
   return checked
+}
+
+function checkAccounting(accounting: RouteAccounting): RouteAccounting {
+  if (
+    !isObject(accounting) ||
+    typeof accounting.place !== 'string' ||
+    accounting.place === '' ||
+    typeof accounting.costUnit !== 'string' ||
+    accounting.costUnit === ''
+  )
+    throw new RangeError('each route accounting must have a non-empty place and costUnit')
+  return { place: accounting.place, costUnit: accounting.costUnit }
 }
 
 function checkLimits(limits: PiTransportLimits): PiTransportLimits {

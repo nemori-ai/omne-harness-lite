@@ -18,6 +18,7 @@ export type ResultVersion = Identity<'ModelResultVersion'>
 export type OutputCursor = Identity<'ModelOutputCursor'>
 export type ReadId = Identity<'ModelReadId'>
 export type Revision = Identity<'ModelRevision'>
+export type ProviderName = Identity<'ModelProviderName'>
 
 export type ModelIdentityKey =
   | 'ModelCallId'
@@ -31,6 +32,7 @@ export type ModelIdentityKey =
   | 'ModelResultVersion'
   | 'ModelOutputCursor'
   | 'ModelCredentialId'
+  | 'ModelProviderName'
 
 export type ModelIdentityRejection<K extends ModelIdentityKey> = Readonly<{
   field: K

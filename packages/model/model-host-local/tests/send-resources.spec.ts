@@ -56,7 +56,11 @@ const LIMITS = {
   },
 }
 const ROUTES = {
-  openrouter: { url: 'https://gateway.invalid/api/v1/chat/completions', endMarker: '[DONE]' },
+  openrouter: {
+    url: 'https://gateway.invalid/api/v1/chat/completions',
+    endMarker: '[DONE]',
+    accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+  },
 }
 
 /** One transport the observing factory made: its slot and what each start read from it. */
@@ -435,7 +439,13 @@ describe('release and close', () => {
       createPiSendResources({
         network: shared,
         families: composeFamilies([]),
-        routes: { openrouter: { url: 'http://gateway.invalid/', endMarker: null } },
+        routes: {
+          openrouter: {
+            url: 'http://gateway.invalid/',
+            endMarker: null,
+            accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+          },
+        },
         limits: LIMITS,
         materialization: { maxRecords: 8, execution: () => ({ ok: DEMAND.initiator }) },
       }),

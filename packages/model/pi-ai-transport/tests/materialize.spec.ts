@@ -44,7 +44,13 @@ function setup(maxConnections = 1): {
   const built = createPiTransport({
     network: network.handle,
     families: family.families,
-    routes: { [SUPPLIER.recipient]: { url: ROUTE_URL, endMarker: END_MARKER } },
+    routes: {
+      [SUPPLIER.recipient]: {
+        url: ROUTE_URL,
+        endMarker: END_MARKER,
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+      },
+    },
     credential: { read: () => 'test-secret' },
     limits: LIMITS,
   })

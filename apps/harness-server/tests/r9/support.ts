@@ -186,7 +186,11 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       preparation,
       network: { maxConnections: 4, idleConnectionTimeoutMs: 60_000 },
       routes: {
-        openrouter: { url: options.modelRoute ?? UNUSED_MODEL_ROUTE, endMarker: '[DONE]' },
+        openrouter: {
+          url: options.modelRoute ?? UNUSED_MODEL_ROUTE,
+          endMarker: '[DONE]',
+          accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        },
       },
       transportLimits: {
         connectTimeoutMs: 5000,

@@ -1139,7 +1139,11 @@ export async function durableSubject(
         families: FAMILIES,
         network: { maxConnections: 2, idleConnectionTimeoutMs: 1_000 },
         routes: {
-          'test.invalid': { url: 'https://test.invalid/v1/chat/completions', endMarker: '[DONE]' },
+          'test.invalid': {
+            url: 'https://test.invalid/v1/chat/completions',
+            endMarker: '[DONE]',
+            accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+          },
         },
         transportLimits: TRANSPORT_LIMITS,
         preparation: { maxCitedCalls: 8, supplierOf: factorySupplier<unknown>() },

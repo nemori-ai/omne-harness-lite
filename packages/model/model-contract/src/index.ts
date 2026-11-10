@@ -24,6 +24,7 @@ export type {
   Mutation,
   OutputCursor,
   Parameter,
+  ProviderName,
   ReadId,
   ResultCapacity,
   ResultVersion,

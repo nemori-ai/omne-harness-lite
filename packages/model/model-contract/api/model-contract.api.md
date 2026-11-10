@@ -108,6 +108,7 @@
 - `ProfileResolution` · `profile.d.ts`
 - `ProfileScope` · `profile.d.ts`
 - `ProfileSupplier` · `profile.d.ts`
+- `ProviderName` · `root.d.ts`
 - `ReadId` · `root.d.ts`
 - `ReadStart` · `call-surface.d.ts`
 - `ReadState` · `call-surface.d.ts`
@@ -271,6 +272,17 @@
 - `projectReplay` · `replay-values.d.ts`
 - `resolveModelOperationRef` · `reference.d.ts`
 - `sameCredentialHolder` · `credential-values.d.ts`
+
+## 入口 `./provider-asset` · `provider-asset.d.ts`
+
+- `CredentialItemDeclaration` · `provider-asset.d.ts`
+- `MODEL_PROVIDER_CATEGORY` · `provider-asset.d.ts`
+- `ModelProviderBody` · `provider-asset.d.ts`
+- `ModelProviderBodyRejection` · `provider-asset.d.ts`
+- `decodeProviderName` · `provider-asset.d.ts`
+- `modelProviderBodyContract` · `provider-asset.d.ts`
+- `parseModelProviderBody` · `provider-asset.d.ts`
+- `readModelProviderBody` · `provider-asset.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
 
@@ -1225,7 +1237,7 @@ export declare function compareOutputCursors(left: OutputCursor, right: OutputCu
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { Access, Admit, Adoption, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, ReadId, ResultCapacity, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
+export type { Access, Admit, Adoption, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, ProviderName, ReadId, ResultCapacity, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
 export type * from './result.ts';
 export type * from './result-delivery-values.ts';
 export type * from './result-delivery.ts';
@@ -1870,6 +1882,40 @@ export type ReplayProjection = Readonly<{
     treatments: readonly ReplayTreatment[];
     diagnostics: readonly ReplayDiagnostic[];
 }>;
+```
+
+## 声明文件 `provider-asset.d.ts`
+
+```ts
+import { type BodyContract } from '@omne-harness/assets';
+import { type Outcome } from '@omne-harness/operation-result';
+import type { ProviderName } from './root.ts';
+export declare const MODEL_PROVIDER_CATEGORY = "model-provider";
+export type CredentialItemDeclaration = Readonly<{
+    item: string;
+    title: string;
+    description: string;
+    impact: string;
+    clear: string;
+}>;
+export type ModelProviderBody = Readonly<{
+    name: ProviderName;
+    protocol: string;
+    endpoint: Readonly<{
+        url: string;
+        endMarker?: string;
+    }>;
+    accounting: Readonly<{
+        place: string;
+        costUnit: string;
+    }>;
+    credentials: readonly CredentialItemDeclaration[];
+}>;
+export type ModelProviderBodyRejection = 'not-an-object' | 'invalid-name' | 'name-mismatch' | 'invalid-protocol' | 'invalid-endpoint' | 'invalid-accounting' | 'invalid-credentials' | 'duplicate-credential';
+export declare function decodeProviderName(value: unknown): Outcome<ProviderName, 'invalid-name'>;
+export declare function parseModelProviderBody(body: unknown, capabilityName?: string): Outcome<ModelProviderBody, ModelProviderBodyRejection>;
+export declare function readModelProviderBody(body: unknown): ModelProviderBody | undefined;
+export declare function modelProviderBodyContract(): BodyContract;
 ```
 
 ## 声明文件 `provider-protocol.d.ts`
@@ -2600,7 +2646,8 @@ export type ResultVersion = Identity<'ModelResultVersion'>;
 export type OutputCursor = Identity<'ModelOutputCursor'>;
 export type ReadId = Identity<'ModelReadId'>;
 export type Revision = Identity<'ModelRevision'>;
-export type ModelIdentityKey = 'ModelCallId' | 'ModelDispatchId' | 'ModelInstanceId' | 'ModelOperationId' | 'ModelReadId' | 'ModelDiagnosticId' | 'ModelDiagnosticCursor' | 'ModelRevision' | 'ModelResultVersion' | 'ModelOutputCursor' | 'ModelCredentialId';
+export type ProviderName = Identity<'ModelProviderName'>;
+export type ModelIdentityKey = 'ModelCallId' | 'ModelDispatchId' | 'ModelInstanceId' | 'ModelOperationId' | 'ModelReadId' | 'ModelDiagnosticId' | 'ModelDiagnosticCursor' | 'ModelRevision' | 'ModelResultVersion' | 'ModelOutputCursor' | 'ModelCredentialId' | 'ModelProviderName';
 export type ModelIdentityRejection<K extends ModelIdentityKey> = Readonly<{
     field: K;
     reason: 'type' | 'empty' | 'length' | 'prefix' | 'character' | 'leading-zero';

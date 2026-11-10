@@ -32,7 +32,13 @@ function configWith(overrides: Partial<PiTransportConfig> = {}): PiTransportConf
   return {
     network: freshNetwork().handle,
     families: createTestFamily().families,
-    routes: { [SUPPLIER.recipient]: { url: ROUTE_URL, endMarker: END_MARKER } },
+    routes: {
+      [SUPPLIER.recipient]: {
+        url: ROUTE_URL,
+        endMarker: END_MARKER,
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+      },
+    },
     credential: { read: () => 'test-secret' },
     limits: LIMITS,
     ...overrides,
@@ -48,15 +54,83 @@ function build(overrides: Partial<PiTransportConfig> = {}) {
 
 describe('constructing the transport', () => {
   it.each([
-    ['a route URL that does not parse', { routes: { r: { url: 'not a url', endMarker: null } } }],
-    ['an http: route URL', { routes: { r: { url: 'http://127.0.0.1/', endMarker: null } } }],
+    [
+      'a route URL that does not parse',
+      {
+        routes: {
+          r: {
+            url: 'not a url',
+            endMarker: null,
+            accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+          },
+        },
+      },
+    ],
+    [
+      'an http: route URL',
+      {
+        routes: {
+          r: {
+            url: 'http://127.0.0.1/',
+            endMarker: null,
+            accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+          },
+        },
+      },
+    ],
     [
       'a route URL with credentials',
-      { routes: { r: { url: 'https://user:pass@127.0.0.1/', endMarker: null } } },
+      {
+        routes: {
+          r: {
+            url: 'https://user:pass@127.0.0.1/',
+            endMarker: null,
+            accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+          },
+        },
+      },
     ],
     [
       'a route URL with a query',
-      { routes: { r: { url: 'https://127.0.0.1/?a=1', endMarker: null } } },
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/?a=1',
+            endMarker: null,
+            accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+          },
+        },
+      },
+    ],
+    [
+      'a route without accounting',
+      {
+        routes: { r: { url: 'https://127.0.0.1/', endMarker: null } },
+      } as unknown as Partial<PiTransportConfig>,
+    ],
+    [
+      'a route with an empty cost unit',
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/',
+            endMarker: null,
+            accounting: { place: 'p', costUnit: '' },
+          },
+        },
+      },
+    ],
+    [
+      'a route with an empty accounting place',
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/',
+            endMarker: null,
+            accounting: { place: '', costUnit: 'c' },
+          },
+        },
+      },
     ],
     ['a connect timeout of zero', { limits: { ...LIMITS, connectTimeoutMs: 0 } }],
     [
@@ -94,10 +168,30 @@ describe('constructing the transport', () => {
   it('names the field but never the URL in the message', () => {
     const secretUrl = 'https://user:hunter2@127.0.0.1/v1'
     expect(() =>
-      createPiTransport(configWith({ routes: { r: { url: secretUrl, endMarker: null } } })),
+      createPiTransport(
+        configWith({
+          routes: {
+            r: {
+              url: secretUrl,
+              endMarker: null,
+              accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            },
+          },
+        }),
+      ),
     ).toThrow(/^each route url must be/)
     try {
-      createPiTransport(configWith({ routes: { r: { url: secretUrl, endMarker: null } } }))
+      createPiTransport(
+        configWith({
+          routes: {
+            r: {
+              url: secretUrl,
+              endMarker: null,
+              accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            },
+          },
+        }),
+      )
     } catch (error) {
       expect(String(error)).not.toContain('hunter2')
     }

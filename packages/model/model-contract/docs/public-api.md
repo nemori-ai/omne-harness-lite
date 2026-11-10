@@ -3,17 +3,18 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-公开名字分四个入口，规则见[提供者协议入口](#提供者协议入口)。根入口导出消费者所需的类型、身份与引用函数、交付判断、投影差分及 `model-output-v1` 编解码。`./provider` 导出提供者协议及凭据查询，`QualifiedCredentialQuery` 只在该入口。`./testing` 导出受控替身及其脚本控制类型。`./conformance` 导出独立的提供者、凭据及公共流符合性套件和适配类型，不导出替身。[导出清单](../tests/fixtures/exports.json)逐名列出四个入口的名字，没有 `pending` 名字。
+公开名字分五个入口，规则见[提供者协议入口](#提供者协议入口)。根入口导出消费者所需的类型、身份与引用函数、交付判断、投影差分及 `model-output-v1` 编解码。`./provider` 导出提供者协议及凭据查询，`QualifiedCredentialQuery` 只在该入口。`./testing` 导出受控替身及其脚本控制类型。`./conformance` 导出独立的提供者、凭据及公共流符合性套件和适配类型，不导出替身。`./provider-asset` 导出模型供应商的资产类别契约。[导出清单](../tests/fixtures/exports.json)逐名列出五个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
 ## 提供者协议入口
 
-本包有四个入口。`.` 是消费者入口，`./provider` 是提供者协议入口，`./testing` 是受控替身入口，`./conformance` 是符合性套件入口。分组规则沿用 tool-contract 的 [SPEC「公开入口的分组」](../../../tool/tool-contract/SPEC.md#公开入口的分组)规则 1–7。依据是谁消费一个名字，不是它在哪个源码文件。
+本包有五个入口。`.` 是消费者入口，`./provider` 是提供者协议入口，`./testing` 是受控替身入口，`./conformance` 是符合性套件入口，`./provider-asset` 是资产类别入口。分组规则沿用 tool-contract 的 [SPEC「公开入口的分组」](../../../tool/tool-contract/SPEC.md#公开入口的分组)规则 1–7。依据是谁消费一个名字，不是它在哪个源码文件。
 
 - 根入口 = 有 Model 组外导入者的名字 ∪ 这些名字的声明直接或间接引用到的名字 ∪ 按规则 3 判为消费侧的名字：[结果推送与保存](#结果失败和状态)、[显示投影](#model-显示投影纯值)与[当前目标与公共观察](#model-当前目标与公共观察)的名字，身份与调用引用，`ModelRuntime` 的闭包，以及[供应商尝试诊断](#供应商尝试诊断)的读面。Model 组外是 `packages/model` 之外的包与应用，含它们的测试与示例。根入口的每个声明在根入口内自足，不需要从 `./provider` 取类型。
 - `./provider` = 只被 Model 组实现成员（`model`、`model-host-local`、`pi-ai-*`、`tokenizer-tiktoken`、`model-cordis-contract`，含本包自己的测试）使用的提供者协议：传输、提交命令、发送边界、重试策略、实例宿主与 `ModelProvider`，受信宿主驱动，档案维护、请求准备与计量校准，转换件与转换目录，分词接口，档案来源与内容权威，凭据解析端口与 `MODEL_SEND`，消费者 owner 的装配声明，以及只有提供者调用的契约函数：共享输入 judge 与限额常量、操作引用的 codec、`decodeReadId`、`compareRevisions`、回放的声明与投影函数。
-- 一个名字只从四个入口中的一个导出，入口共享同一份源码定义，不复制类型。导入 `./provider` 的成员仍然可以导入根入口。`./provider` 不导入 Cordis 或其他 Model 成员。根入口与 `./provider` 均不导出 `./testing` 与 `./conformance` 的名字或控制面。
+- `./provider-asset` = 模型供应商的资产类别契约。它依赖资产域，所以单独成一个入口：只注册类别或读供应商正文的装配者导入它，根入口与 `./provider` 不因此依赖资产域。
+- 一个名字只从五个入口中的一个导出，入口共享同一份源码定义，不复制类型。导入 `./provider` 的成员仍然可以导入根入口。`./provider` 不导入 Cordis 或其他 Model 成员。根入口与 `./provider` 均不导出 `./testing` 与 `./conformance` 的名字或控制面。
 - 根入口不能为空；组外消费者需要的名字不能只在 `./provider`。两种情形都是分组错误，交契约拥有者裁定，不以把该消费者改成导入 `./provider` 来通过。`./provider` 的名字后来有了组外消费者时移回根入口：根入口增加名字是新增，`./provider` 删除名字是破坏性变化，两者都走契约变更协议。导入扫描与闭包计算表列在改变分组的交付 PR 说明中，不进入本页。
 
 下文各章用「入口」一行注明哪些名字在 `./provider`；没有这一行的章全部在根入口。精确归属以 [`src/index.ts`](../src/index.ts) 与 [`src/provider/index.ts`](../src/provider/index.ts) 为准。[`tests/public-entry.spec.ts`](../tests/public-entry.spec.ts) 核对两个入口的运行时键与「一名一入口」，[导出清单](../tests/fixtures/exports.json)按入口逐名列出。
@@ -269,6 +270,16 @@ ModelDriver 是提供者给执行宿主的能力，不属于普通 ModelRuntime�
 来源提供者核当前可见范围和设置快照，只返回该租户可读取的档案。precedence 来自当前合法层序，不能由普通调用者传入。读取失败不返回空目录。资源提供者核固定档案、供应商顺序与原采用，取得规则和 meter；凭据只返回合法引用，不读取秘密。一次取得失败整体释放，release 不撤销准备结果。`acquire` 的输入可以带 `PreparationLineage`：`continues` 是被延续的调用，`sources` 以消息为键给出来源调用。请求组装方为 `continues` 作保的前置条件、超限拒绝与空 lineage 见 [lineage 的声明与前置条件](../SPEC.md#lineage-的声明与前置条件)。没有 lineage 时，租约的计量器在释放前给出与家族计量器相同的结果。有 lineage 时，租约按访问依据读取被引用调用的发出记录，`measure` 异步完成，不新增事实读取，并在 `RequestBudget.calibration` 报告判决，见 [可选校准](../SPEC.md#可选校准及不可解释的历史)。释放立即阻止新的计量，并等待已开始的计量及底层资源清理。释放期间完成的计量不能返回成功。租约释放后，它交出的每个计量器都返回 `unavailable`（`preparation-lease-released`）。租约的 `release` 返回结果；释放钩子失败时结果带 `failure`（`unavailable`），不抛出，异常只表示程序缺陷。实际发出重新取得相同采用，不能以准备成功永久持有发送资格。
 
 ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒体字节，不联网。ModelContentAuthority 同时核原来源、实际块和当前权限，origin 字段本身不授予转换或绕过资格。
+
+## 模型供应商资产
+
+[行为与约束](../SPEC.md#模型供应商资产)。
+
+本章给注册资产类别的装配者和读供应商正文的传输装配：类别名、正文类型、拒绝原因、判定与读取函数，以及类别契约。
+
+- 声明：[`src/provider-asset.ts`](../src/provider-asset.ts)；`ProviderName` 由 [`src/root.ts`](../src/root.ts) 声明，在根入口。
+- 入口：本章其余名字都在 `./provider-asset`。
+- 行为测试：[`tests/provider-asset.spec.ts`](../tests/provider-asset.spec.ts)。
 
 ## 凭据引用与解析端口
 

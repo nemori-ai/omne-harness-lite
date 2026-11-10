@@ -1,5 +1,6 @@
 // The only entry of the gateway engine: one record, its hooks and its meter become the complete
 // accepted family binding.
+import type { RouteAccounting } from '../config.ts'
 import type { Adoption, FixedModelRequest, Supplier } from '@omne-harness/model-contract'
 import { recordAdoption } from '../family-table.ts'
 import { isPositiveInteger } from '../limits.ts'
@@ -195,9 +196,13 @@ export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamil
     }),
     encode: (encodeInput: Parameters<typeof encodeRequest>[1]) =>
       encodeRequest(context, encodeInput),
-    createDecoder: ({ request }: Readonly<{ request: FixedModelRequest }>) =>
+    createDecoder: ({
+      request,
+      accounting,
+    }: Readonly<{ request: FixedModelRequest; accounting: RouteAccounting }>) =>
       createChatCompletionsDecoder({
         record,
+        accounting,
         hooks,
         limits,
         names: decoderNames(record, adoption, request),

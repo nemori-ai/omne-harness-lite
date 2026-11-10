@@ -1,6 +1,8 @@
 // The fixture check of a gateway-engine family: for every record, the request fixture encodes to
 // its expected body and the stream fixture decodes to its expected facts, through the binding
 // that the family gives for the record and the same body decoding that a send uses.
+import { OPENROUTER_ACCOUNTING } from '../chat-completions/openrouter.ts'
+import type { RouteAccounting } from '../config.ts'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
@@ -226,12 +228,13 @@ export async function replayStream(
   binding: PiFamilyBinding,
   stream: Uint8Array,
   request: FixedModelRequest,
+  accounting: RouteAccounting = OPENROUTER_ACCOUNTING,
 ): Promise<readonly TransportFact[]> {
   const facts: TransportFact[] = []
   const progress: Progress = { bodyComplete: false }
   const decoding = decodeBody({
     body: oneChunk(stream),
-    decoder: binding.createDecoder({ request }),
+    decoder: binding.createDecoder({ request, accounting }),
     endMarker: GATEWAY_END_MARKER,
     limits: { maxEventBytes: Math.max(1, stream.length), json: budgetsOf(stream.length) },
     received: () => true,

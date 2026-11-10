@@ -40,13 +40,14 @@
 
 - `config.network` 是装配创建并拥有的网络资源。多个传输可以共享同一网络资源。传输不创建也不关闭它。
 - `config.families` 是家族贡献，`config.credential` 是凭据槽。两者都由装配注入。
-- `config.routes` 按 `supplier.recipient` 查找路由。本包只查对象自身的属性，不查原型链。每个路由给出完整的 endpoint（`url`）与协议的 end-marker 文本（`endMarker`，协议没有 end-marker 时为 `null`）。
+- `config.routes` 按 `supplier.recipient` 查找路由。本包只查对象自身的属性，不查原型链。每个路由给出完整的 endpoint（`url`）、协议的 end-marker 文本（`endMarker`，协议没有 end-marker 时为 `null`）与账目口径（`accounting`：服务落点的前缀 `place` 与费用单位 `costUnit`）。路由取自模型供应商资产的正文（model-contract「模型供应商资产」）；本包在 `./chat-completions` 提供 OpenRouter 的正文 `OPENROUTER_PROVIDER_BODY` 与它的账目口径 `OPENROUTER_ACCOUNTING`。
 - `config.limits` 给出 `connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes` 与单个事件 JSON 的 `json` 限额，另有可选的 `streamStallTimeoutMs`（见[“流停顿上界”](#流停顿上界)）与可选的 `connectRetry`（见[“请求发出之前的重试”](#请求发出之前的重试)）。本包不设默认值。
 
 下列情况下，`createPiTransport` 同步抛出 `RangeError`。消息只写字段名与规则，不含 URL：
 
 - 路由的 `url` 不能解析，或不是 `https:`，或含用户名、密码、查询串或片段；
 - 路由的 `endMarker` 既不是字符串也不是 `null`；
+- 路由没有 `accounting`，或它的 `place` 或 `costUnit` 不是非空字符串；
 - `connectTimeoutMs` 既不是 `null` 也不是 1 到 2147483647 之间的整数；
 - `streamStallTimeoutMs` 存在，但不是 1 到 2147483647 之间的整数（`null`、0、负数与小数都被拒绝；消息指向 `limits.streamStallTimeoutMs`）；
 - `onConnectRetry` 存在，但不是函数；
@@ -648,9 +649,9 @@ hook 成功时，`end()` 按下列次序给出事实：
 
 1. 一个 `account` 事实，`event` 为 `usage`，值是账目报告 `CallAccountReport`：
    - `usage` 是 hook 返回的 `items`；
-   - `cost`：usage 的 `cost` 成员是非负 JSON 数时，为一项 `known`，`unit` 为 `openrouter-credit`，`source` 为 `billable`。没有指数的词法照原样。有指数的词法改写成精确的普通十进制词法：只移动小数点，不经浮点数，例如 `2.25e-7` 写成 `0.000000225`。改写后超过 512 个字符时为 `unknown`。该成员是负数或不是数时，为一项同单位、同来源的 `unknown`。没有该成员或为 `null` 时，为空。网关的 `cost` 以额度计，不是货币，所以单位不是 `USD`。网关按该成员扣除额度，所以来源是 `billable`，不是 `supplier`；
+   - `cost`：usage 的 `cost` 成员是非负 JSON 数时，为一项 `known`，`unit` 为路由的 `accounting.costUnit`（OpenRouter 为 `openrouter-credit`），`source` 为 `billable`。没有指数的词法照原样。有指数的词法改写成精确的普通十进制词法：只移动小数点，不经浮点数，例如 `2.25e-7` 写成 `0.000000225`。改写后超过 512 个字符时为 `unknown`。该成员是负数或不是数时，为一项同单位、同来源的 `unknown`。没有该成员或为 `null` 时，为空。网关的 `cost` 以额度计，不是货币，所以单位不是 `USD`。网关按该成员扣除额度，所以来源是 `billable`，不是 `supplier`；
    - `trimmed` 为 `{ state: 'unknown', unit: 'token' }`；
-   - `place` 为 `openrouter/<第一帧报告的 provider>`；
+   - `place` 为 `<路由的 accounting.place>/<第一帧报告的 provider>`（OpenRouter 为 `openrouter/<provider>`）；
    - `duration` 为 `{ state: 'unknown' }`，解码器不计时；
    - `revision` 为 `'1'`。
 2. hook 返回的每条 `usage-inconsistent` 诊断，各一个 `diagnostic` 事实。

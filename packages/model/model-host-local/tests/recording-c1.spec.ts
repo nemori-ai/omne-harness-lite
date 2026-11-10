@@ -144,6 +144,7 @@ async function transportObligations(
             openrouter: {
               url: new URL(ROUTE_PATH, server.url).href,
               endMarker: GATEWAY_END_MARKER,
+              accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
             },
           },
           credential: {

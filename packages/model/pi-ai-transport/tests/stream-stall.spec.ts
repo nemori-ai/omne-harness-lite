@@ -86,7 +86,13 @@ describe('the configuration of the stall timeout', () => {
     const config = {
       network: resources.handle,
       families: createTestFamily().families,
-      routes: { [SUPPLIER.recipient]: { url: 'https://127.0.0.1:9/', endMarker: END_MARKER } },
+      routes: {
+        [SUPPLIER.recipient]: {
+          url: 'https://127.0.0.1:9/',
+          endMarker: END_MARKER,
+          accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        },
+      },
       credential: { read: () => 'test-secret' },
       limits: { ...LIMITS, ...limits },
     }

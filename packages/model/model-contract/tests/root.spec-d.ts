@@ -37,6 +37,7 @@ import type {
   Mutation,
   OutputCursor,
   Parameter,
+  ProviderName,
   ReadId,
   ResultCapacity,
   ResultVersion,
@@ -70,6 +71,7 @@ it('every brand is the Identity of its own key and is also a string', () => {
   expectTypeOf<OutputCursor>().toEqualTypeOf<Identity<'ModelOutputCursor'>>()
   expectTypeOf<ReadId>().toEqualTypeOf<Identity<'ModelReadId'>>()
   expectTypeOf<Revision>().toEqualTypeOf<Identity<'ModelRevision'>>()
+  expectTypeOf<ProviderName>().toEqualTypeOf<Identity<'ModelProviderName'>>()
   expectTypeOf<ModelCallId>().toExtend<string>()
 })
 
@@ -88,7 +90,7 @@ it('a plain string and another brand are not accepted where a brand is required'
   expectTypeOf<Revision>().not.toExtend<OutputCursor>()
 })
 
-it('ModelIdentityKey lists the eleven brand keys and no exported type name', () => {
+it('ModelIdentityKey lists the twelve brand keys and no exported type name', () => {
   expectTypeOf<ModelIdentityKey>().toEqualTypeOf<
     | 'ModelCallId'
     | 'ModelDispatchId'
@@ -101,6 +103,7 @@ it('ModelIdentityKey lists the eleven brand keys and no exported type name', () 
     | 'ModelResultVersion'
     | 'ModelOutputCursor'
     | 'ModelCredentialId'
+    | 'ModelProviderName'
   >()
   expectTypeOf<'DispatchId'>().not.toExtend<ModelIdentityKey>()
 })

@@ -215,6 +215,11 @@
               "name": "compareOutputCursors",
               "kind": "value",
               "pending": false
+            },
+            {
+              "name": "ProviderName",
+              "kind": "type",
+              "pending": false
             }
           ]
         },
@@ -1662,6 +1667,55 @@
             {
               "name": "ScriptedCredentialPortOptions",
               "kind": "type",
+              "pending": false
+            }
+          ]
+        }
+      ]
+    },
+    "./provider-asset": {
+      "chapters": [
+        {
+          "title": "模型供应商资产",
+          "names": [
+            {
+              "name": "MODEL_PROVIDER_CATEGORY",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "CredentialItemDeclaration",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelProviderBody",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelProviderBodyRejection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "decodeProviderName",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "parseModelProviderBody",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "readModelProviderBody",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "modelProviderBodyContract",
+              "kind": "value",
               "pending": false
             }
           ]
