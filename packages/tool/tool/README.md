@@ -10,7 +10,7 @@ The Tool implementation without Cordis. The root entry exports independent execu
 
 This package implements the contract of `@omne-harness/tool-contract`. It manages concurrency, waits, cancellation and state, so two implementations may differ here and the package is not part of the contract. It does not depend on Cordis, so an independent program can execute a tool without a Cordis install. Independent execution is implemented. The runtime implements a part of the managed paths. The next section lists the five tiers of support. The exact support scope is in [SPEC.md](SPEC.md#当前范围).
 
-`encodeToolCanonical` implements the canonical JSON bytes and SHA-256 fingerprint specified by [M02.1](../tool-contract/docs/material-protocol.md#m021-指纹编码-v1). Callers encode domain identities before passing data to this function. It rejects non-data values without invoking accessors or hooks. The existing `canonicalDigest` encoding is unchanged. Final-fact custody and result material preparation use this encoder. See [the fixed-vector tests](tests/canonical-codec.spec.ts).
+`encodeToolCanonical` implements the canonical JSON bytes and SHA-256 fingerprint specified in [fact fingerprint encoding v1](SPEC.md#事实指纹编码-v1). Callers encode domain identities before passing data to this function. It rejects non-data values without invoking accessors or hooks. The existing `canonicalDigest` encoding is unchanged. The fact event, batch and final fingerprints and the input digest of body writes use this encoder. See [the fixed-vector tests](tests/canonical-codec.spec.ts).
 
 ## Support range
 
@@ -61,7 +61,7 @@ Batch and event identities include the original start operation and source owner
 
 Process sequence values are non-negative decimal integers. Append supports cumulative text and thinking text with a fixed block identity and visibility. Other content kinds require replace. Mode is fixed after opening, and closed blocks reject new updates. Historical equal updates remain recognisable. Trim keeps its count and reason and does not remove the original events. Process observation is not implemented.
 
-A batch that contains wait, continued, account or program-scheduling returns `unsupported` without saving any part. The source retains responsibility. A final creates one settle task without settling the call or releasing its slot. Trusted recovery consumers use `ledger.facts.read({ principal, tenant, call, basis })` with that task's exact evidence to recover a `SavedFact`, including raw, result, terminal and effect. Reads require current recover qualification and return a detached value.
+A batch that contains wait, continued, account or program-scheduling returns `unsupported` without saving any part. The source retains responsibility. A final creates one settle task without settling the call or releasing its slot. Trusted recovery consumers use `ledger.facts.read({ principal, tenant, call, basis })` with that task's exact evidence to recover a `SavedFact`: the planned final with its result, terminal and effect, or the `settled-final` receipt after settlement. Reads require current recover qualification and return a detached value.
 
 The assembly must restrict the `write` action to trusted Tool producers. Source text and evidence shape do not authenticate an external producer. `ToolLedgerGuards.factAcknowledgements` is required. Construct it with `createToolFactAcknowledgementGuard(bindings)` using the same bindings object as the runtime. The guard resends the original receipt through `bindings.recover.acknowledge` and compares the complete confirmation. The source and confirmation owners may differ.
 
@@ -81,7 +81,7 @@ Normal completed settlement closes the reader without waiting for ACK confirmati
 
 ## Settlement and resource release
 
-`receiveFacts` saves the final and its settle task. It does not settle the call. `preserveResult` reads that original final and confirms the owned raw output and sealed result channels before committing one original result, delivery, actual effect, ended evidence, and successor tasks. Retries retain the original identities. Applied but unanswered custody is still unconfirmed.
+`receiveFacts` saves the final and its settle task. It does not settle the call. `preserveResult` reads that planned final and checks that each referenced body entry of the call is sealed before committing one original result, delivery, actual effect, ended evidence, and successor tasks. Retries retain the original identities. An applied but unanswered commit is still unconfirmed.
 
 `planRelease` recovers one canonical plan per original preparation, including after its task closes. Normal completed output needs independent custody for every historical reference. A file address alone is insufficient. Abnormal finals retain blocked cleanup and source responsibilities. `recordRelease` checks reported released evidence through the original environment's `inspectRelease`. It does not call environment `release`. Slot release and environment release are separate.
 
@@ -107,11 +107,11 @@ Missing modules or declarations require dependency preparation and a build in th
 
 ## Usage
 
-The ledger requires `ToolLedgerPorts` as its fifth argument. Set `content` to an explicit byte reader or `null`. Pass its commands, reads, admissions, and queues into the runtime dependencies. The host restores pending result values through `delivery.read`; `facts` remains a trusted fact recovery port.
+The ledger requires `ToolLedgerPorts` as its fifth argument. `bodies` gives the body store, the permit key and the participant clock. Set `content` to an explicit byte reader or `null`. Pass its commands, reads, admissions, and queues into the runtime dependencies. The host restores pending result values through `delivery.read`; `facts` remains a trusted fact recovery port.
 
 ```ts
 const ledger = createToolLedger(store, guards, clock, configuration, {
-	custody,
+	bodies: { store: bodyStore, permitKey, clock: instantClock },
 	releaseInspection: environments,
 	content: null,
 })
@@ -154,7 +154,7 @@ export function runtimeForTest<P>(
 }
 ```
 
-The block type is fixed to `ContentBlock`, and the environment type is fixed to the contract double's `MemoryEnvironment`. `doubles` retains the original executor, environment, authority, clock, decisions, resources and custody objects, including their controls. Each call creates separate objects and records. The factory invents no tenant, principal, authorization or runtime identity. Ledger construction errors and `bindingsFor` exceptions propagate to the caller.
+The block type is fixed to `ContentBlock`, and the environment type is fixed to the contract double's `MemoryEnvironment`. `doubles` retains the original executor, environment, authority, clock, decisions, resources and content objects, including their controls. Each call creates separate objects and records. The factory invents no tenant, principal, authorization or runtime identity. Ledger construction errors and `bindingsFor` exceptions propagate to the caller.
 
 These doubles are for tests only. They provide no durability, real execution environment or production host. The factory does not add runtime operations beyond the support table, and it creates no timers or disposal protocol. The caller owns the runtime and any resources supplied through its ports.
 
@@ -229,15 +229,15 @@ The assembly supplies the trusted identity and source ports. No production sourc
 The optional synchronous `beforeIssue` hook runs after reservation and before issuance. If it throws, resolve returns issuance-unknown with the original identities and retains the reservation. The next same-intent invoke retries issuance. An issued source does not call the hook again. Snapshot failure returns rejected/unavailable before association access or allocation. These testing hooks add no production storage or restart guarantee. The public control facade allocates a new operation before delegation; the current ledger writes no control fact and returns unsupported.
 
 
-### Content and raw reads
+### Content reads
 
 `runtime.queries.readResult` fixes the requested version and rechecks `read-result` before returning a whole-block page. `runtime.content.read` requires the exact attachment from that retained result and current `read-content` permission. Byte pages can divide UTF-8 characters. Decode after collecting the required bytes.
 
-The ledger checks all five attachment fields for association, then checks the storage/key pair to classify known raw addresses. An associated description variant at the raw address still requires raw access. An unregistered variant remains invalid. A different address does not require raw access merely because its digest matches. The ledger also checks provider page identity, byte ranges and EOF. It rechecks result association and current permission after provider IO, then returns an independent byte copy. The configured byte provider must verify the complete source length and digest. It must bind byte cursors to tenant, call, result, complete attachment, byte projection and position. The ledger does not decode provider cursors. A null provider returns `unsupported` for associated byte content. It leaves result and raw metadata reads available.
+The ledger checks all five attachment fields for association. An unregistered variant remains invalid. The source of an offloaded original reads the body bytes from the body store under the same `read-content` check. The ledger also checks provider page identity, byte ranges and EOF. It rechecks result association and current permission after provider IO, then returns an independent byte copy. The configured byte provider must verify the complete source length and digest. It must bind byte cursors to tenant, call, result, complete attachment, byte projection and position. The ledger does not decode provider cursors. A null provider returns `unsupported` for associated external byte content. It leaves result reads and offloaded body bytes available.
 
 There is no raw output read and no raw permission. The raw return never enters a custody port (the ledger plans the final when the execution records it), and `ToolLedgerAction` names no `read-raw`, `read-raw-content` or `maintain-materials`. Every action is one permission; the guard composes none from others. Result, content, diagnostics and account permissions each grant only their own read.
 
-`createTestToolDependencies` supplies `doubles.content`, a non-durable memory byte provider paired with the existing custody double. Its custody registers preserved raw bytes. Explicit `controls.seed` registers other test bytes after length and SHA-256 checks. The controls can pause a read, remove bytes, fail or replace one response. Seeded bytes never grant result association or access. The direct provider and controls are trusted test resources. Use the runtime entry to test authorization. This assembly proves no durable storage or production backend behavior.
+`createTestToolDependencies` supplies `doubles.content`, a non-durable memory byte provider, and a memory body store from `createMemoryToolBodies`. Explicit `controls.seed` registers test bytes after length and SHA-256 checks. The controls can pause a read, remove bytes, fail or replace one response. Seeded bytes never grant result association or access. The direct provider and controls are trusted test resources. Use the runtime entry to test authorization. This assembly proves no durable storage or production backend behavior.
 
 ## Model result retrieval
 
@@ -251,7 +251,7 @@ The caller invokes the command through its own runtime with a new consumer posit
 
 A successful read can contain a failed source terminal. A completed meta call means the command answered, even when the source read failed. Content traversal end does not mean attachment or offloaded original bytes were read. Attachment pages use base64. Decode complete bytes according to mediaType. References grant no access, and every read checks current permissions. Tools exposes no raw selector.
 
-The factory checks full JSON response size and complete callable argument size. It returns unsupported when a complete block, credential or response cannot fit. It does not truncate source content. Adapter reconstruction preserves fixed-version identity. Offloaded bodies now carry a fixed deadline from settlement. Semantic body paging, deadline enforcement and physical cleanup are not yet implemented, so this reader does not yet provide the complete offloading lifecycle. Protocol, budget and provider requirements are in [SPEC section 28](SPEC.md#28-tools-固定结果适配器). The tests cover non-durable memory composition. Production storage, a real model and Cordis are not covered.
+The factory checks full JSON response size and complete callable argument size. It returns unsupported when a complete block, credential or response cannot fit. It does not truncate source content. Adapter reconstruction preserves fixed-version identity. Offloaded bodies carry a fixed deadline from settlement. The reader pages them semantically. A read past the deadline answers not-found, and the ledger sweep reclaims the bytes. Protocol, budget and provider requirements are in [SPEC section 28](SPEC.md#28-tools-固定结果适配器). The tests cover non-durable memory composition. Production storage, a real model and Cordis are not covered.
 
 
 The host must align its admission argument limits with `ToolsOptions.arguments`. The runtime checks input before the author codec runs. A smaller host limit can reject a continuation that the author can otherwise parse. Keep both limits bounded and test the actual assembly.

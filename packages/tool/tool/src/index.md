@@ -13,7 +13,7 @@
 - [账本受信快照](ledger-guards.ts)。
 - [边界检查](boundary.ts)。
 - [证据与身份铸造](evidence.ts)。
-- [材料规范编码与指纹](canonical-codec.ts)：M02.1 的独立编码入口，不改变既有证据编码。
+- [事实指纹的规范编码](canonical-codec.ts)：[事实指纹编码 v1](../SPEC.md#事实指纹编码-v1) 的独立编码入口，不改变既有证据编码。
 - [受理与交付解除决定器](ledger-decider.ts)。
 - [到启动为止的决定器：队列域与调用域](ledger-start.ts)。
 - [队列维护入口：等待者对账](ledger-queue.ts)。

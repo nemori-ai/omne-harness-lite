@@ -2,7 +2,7 @@
 
 - [测试范围与运行入口](README.md)。
 - [根入口与依赖方向测试](public-entry.spec.ts)。
-- [材料编码固定向量与非法数据拒绝](canonical-codec.spec.ts)。
+- [事实指纹编码的固定向量与非法数据拒绝](canonical-codec.spec.ts)。
 - [独立作用域行为测试](independent-scope.spec.ts)。
 - [等待请求树的判定与字节上限测试](json-tree-wait.spec.ts)。
 - [执行包装器行为测试](execute-tool.spec.ts)。

@@ -8,8 +8,8 @@
 
 ```text
 装配者构造账本：createToolLedger(store, guards, clock, configuration, ports)
-    ports 为 ToolLedgerPorts，显式提供 materials、releaseInspection.inspectRelease 与 content 字节读口或 null
-    content 为 null 时字节读取回复 unsupported，结果页与 raw 元数据仍可读
+    ports 为 ToolLedgerPorts，显式提供 bodies（正文存储、许可密钥与参与者时钟）、releaseInspection.inspectRelease 与 content 字节读口或 null
+    content 为 null 时外部附件的字节读取回复 unsupported，结果页与卸载正文仍可读
 装配者构造 runtime：createToolRuntime(dependencies, configuration)
     缺端口或配置越界抛 TypeError，这是装配缺陷
     构造时把推进协程装入 instances.install，装入不受理业务，也不读写记录仓
@@ -53,11 +53,11 @@
 
 | 对象 | 分类与身份 | 负责什么 | 寿命与可见面 |
 | --- | --- | --- | --- |
-| ToolLedger | 冻结的工厂产物 `{ commands, reads, admissions, queues, facts, rawCustody, finalCustody, delivery, controls }`，构造时固定 store、guards、clock、configuration、ToolLedgerPorts（custody、releaseInspection、content 字节读口或 null） | 命令入口做边界检查、资格、读取、决定和按修订号提交；读取入口核当前资格与结果关联，字节由显式 content 端口提供 | 无调用事实的私有副本；构造后不改 |
+| ToolLedger | 冻结的工厂产物 `{ commands, reads, admissions, queues, rejections, facts, bodyWrites, finalPlanner, sweep, delivery, controls }`，构造时固定 store、guards、clock、configuration、ToolLedgerPorts（bodies、releaseInspection、content 字节读口或 null） | 命令入口做边界检查、资格、读取、决定和按修订号提交；读取入口核当前资格与结果关联，字节由显式 content 端口提供 | 无调用事实的私有副本；构造后不改 |
 | 决定器 | 纯函数，输入快照、一条命令、已核验的 guard 事实和本次铸造的修订号 | 输出“只回复不写”或“写入一组记录并回复” | 不读端口，不发通知，不运行工具 |
 | ToolLedgerStore | 端口，read、readRecord 与 commit 三个操作，声明 durability | read 返回一个事务域的全部记录和域修订号，readRecord 只返回一条；commit 在 expected 相符且同租户读集断言成立时原子写入，否则答 conflict；结果不确定答 unknown，暂时不可用答 unavailable，确定拒绝答 rejected（带 reason） | 提供者拥有耐久；`none` 只出现在 `./testing` |
 | 事务域 | 判别联合：call（tenant + call）、queue（tenant + FIFO key）、host（tenant + key） | call 域拥有一次原调用的全部记录；queue 域拥有同 key 的顺序与名额；host 域供宿主保存自己的耐久记录 | 域修订号每次提交加一；本包不解释 host 域内容 |
-| call / operation / result / environment-release / account / task 记录 | 判别联合记录，各有唯一键 | 原调用、已提交操作及其回执、结果版本及交付关系、账目修订、待办 | 与状态变化同提交；字段见 [architecture](architecture.md#本包的记录仓与决定器g1) |
+| call / operation / result / body-entry / result-policy / result-preparation / environment-release / account / task 记录 | 判别联合记录，各有唯一键 | 原调用、已提交操作及其回执、结果版本及交付关系、正文条目、固定的正文策略、系统替代结果的准备、账目修订、待办 | 与状态变化同提交；字段见 [architecture](architecture.md#本包的记录仓与决定器g1) |
 | exclusion 记录 | `exclusion:<operation>`，值是操作号与围栏提交的域修订号 | 否定答案的排除围栏，使按旧修订号准备的在途提交失败 | 该操作的提交删除它；只由否定答案写入 |
 | queue-entry / queue-counter 记录 | queue 域内，`entry:<call>` 与 `counter` | 一个调用在该 key 下的序号、阶段、最后移动它的操作和固定的并发上限；下一个序号 | 条目删除即释放名额；队列域只保存活条目与计数器，已释放是调用域的事实，创建条目的提交断言调用域修订号 |
 | host 记录 | host 域内，`host:<key>` | 宿主提供者的一条记录 | 值由提供者自己校验 |
@@ -154,7 +154,7 @@ stateDiagram-v2
     held --> [*]: 启动前拒绝或可信原 final 收场后释放
 ```
 
-已启动调用从本域原 final 收场，确认独立保管后同提交原结果、delivery、ended 与全部后继责任。queue 独立提交删除 entry，call 最后关闭原 queue duty。环境资源释放另有 canonical 计划与核验，不由 slot 状态代替。`not-started` 与 `unknown` 的启动回执保存后，启动记录与 `start` 待办保留。名额只在条目删除时释放。
+已启动调用从本域计划后的 final 收场，同提交原结果、delivery、ended、正文关联与全部后继责任。queue 独立提交删除 entry，call 最后关闭原 queue duty。环境资源释放另有 canonical 计划与核验，不由 slot 状态代替。`not-started` 与 `unknown` 的启动回执保存后，启动记录与 `start` 待办保留。名额只在条目删除时释放。
 
 ## 值、参数与依赖
 
@@ -173,7 +173,7 @@ stateDiagram-v2
 
 | 对象或端口 | 构造时注入 | 操作参数 | 失效与替换 |
 | --- | --- | --- | --- |
-| createToolLedger | store、guards、clock、configuration、ToolLedgerPorts（custody、releaseInspection、content 字节读口或 null） | 命令与读取的输入 | 记录仓不可用回复 unavailable（`ledger-store`），不冒充调用不存在 |
+| createToolLedger | store、guards、clock、configuration、ToolLedgerPorts（bodies、releaseInspection、content 字节读口或 null） | 命令与读取的输入 | 记录仓不可用回复 unavailable（`ledger-store`），不冒充调用不存在 |
 | ToolLedgerStore | 无 | read(domain)、readRecord(domain, key)、commit({ domain, expected, revision, writes, asserts? }) | 结果不确定回复 unknown；替换提供者须保持条件提交、读集断言与 durability 声明 |
 | ToolAccessGuard | 宿主 | principal、tenant、call、action | 须证明租户是铸造的值；伪造回复 denied |
 | ToolSourceGuard | 宿主 | 调用来源、消费位置、范围 | 伪造回复 denied，不可读回复 unavailable |
@@ -204,8 +204,8 @@ stateDiagram-v2
 | CAP-TL03 准入与启动 | 账本、ToolDriver、启动守卫、启动围栏 | 同身份异输入被拒；`recordStart` 回复丢失后执行者不被调用第二次 |
 | CAP-TL04 队列 | queue 域、queue-entry、ToolGrantVerifier | 同 key FIFO 与名额由一个队列事务裁定；两租户同 owner 同 key 不共队列 |
 | CAP-TL06、CAP-TL08 作者入口 | IndependentToolScope、executeTool | emit 按受理顺序到达；wait 的 key、容量与取消按 P11 处理 |
-| CAP-TL07 原结果 | ledger-settlement、ledger-environment-release、driver | 独立 retain 确认后原结果及后继责任同提交，queue 释放与清理计划分别保留原身份 |
-| CAP-TL09 交付 | 读取投影、releaseDelivery 决定 | 结果按固定版本分页；内联材料承接后可释放，卸载正文只在固定期限内可读 |
+| CAP-TL07 原结果 | ledger-settlement、ledger-environment-release、driver | 计划后的 final 与原结果及后继责任同提交，queue 释放与清理计划分别保留原身份 |
+| CAP-TL09 交付 | 读取投影、releaseDelivery 决定 | 结果按固定版本分页；全部交付释放后内联值换成摘要，卸载正文只在固定期限内可读，到期由清扫回收 |
 | CAP-TL12 账目 | 账目记录 | 逻辑终局账目取 SPEC 第 11 条列出的值。这是本包的读法，待契约拥有者确认，见 [SPEC](../SPEC.md#11-操作幂等p01) |
 
 其余能力（前后台关系、未交付控制分支、等待、恢复扫描与退出）尚未实现。本页不证明它们。

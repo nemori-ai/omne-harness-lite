@@ -8,7 +8,7 @@
 
 本包实现 `@omne-harness/tool-contract` 的契约。它管理并发、等待、取消与状态，两个实现在这里可以不同，所以不属于契约。本包不依赖 Cordis，独立程序不装 Cordis 也能执行工具。独立执行已实现。runtime 实现了托管路径的一部分。下一节列出五档支持范围。准确的支持范围见 [SPEC.md](SPEC.md#当前范围)。
 
-`encodeToolCanonical` 实现 [M02.1](../tool-contract/docs/material-protocol.md#m021-指纹编码-v1) 的规范 JSON 字节和 SHA-256 指纹。调用者先使用身份拥有者的 codec 转成数据。入口拒绝非数据值，不执行访问器或转换钩子。既有 `canonicalDigest` 编码不变。final 事实保管与结果材料准备已使用此编码器。验证见[固定向量测试](tests/canonical-codec.spec.ts)。
+`encodeToolCanonical` 实现[事实指纹编码 v1](SPEC.md#事实指纹编码-v1) 的规范 JSON 字节和 SHA-256 指纹。调用者先使用身份拥有者的 codec 转成数据。入口拒绝非数据值，不执行访问器或转换钩子。既有 `canonicalDigest` 编码不变。事实的事件、批次与 final 指纹，以及正文写入的输入摘要，使用此编码器。验证见[固定向量测试](tests/canonical-codec.spec.ts)。
 
 ## 支持范围
 
@@ -59,7 +59,7 @@
 
 process 的 sequence 是非负十进制数。append 支持文本及思考文本的累计完整值，块身份、kind 与可见性固定。其他合法块使用 replace。开块后 mode 固定，封块后拒绝新更新，历史同值更新仍可认回。trim 保存数量与原因，不删除原事件。过程观察尚未实现。
 
-含 wait、continued、account 或 program-scheduling 的批次整体返回 `unsupported`，零保存，由源继续保管。final 只形成唯一 settle 待办，不写逻辑终局或释放名额。受信恢复消费者凭该待办的精确 evidence 调用 `ledger.facts.read({ principal, tenant, call, basis })`，得到包含完整 raw、result、terminal 与 effect 的 `SavedFact`。读取逐次核 recover 资格，返回值不引用可变存储。
+含 wait、continued、account 或 program-scheduling 的批次整体返回 `unsupported`，零保存，由源继续保管。final 只形成唯一 settle 待办，不写逻辑终局或释放名额。受信恢复消费者凭该待办的精确 evidence 调用 `ledger.facts.read({ principal, tenant, call, basis })`，得到 `SavedFact`：计划后的 final 及其 result、terminal 与 effect，结算后为 `settled-final` 回执。读取逐次核 recover 资格，返回值不引用可变存储。
 
 装配必须把 `write` 资格限制给受信 Tool 推进方。source 文本与 evidence 形状不能认证外部生产者。`ToolLedgerGuards.factAcknowledgements` 是必填依赖。装配用与 runtime 相同的 bindings 构造 `createToolFactAcknowledgementGuard(bindings)`。守卫经原 `bindings.recover.acknowledge` 重送完整保管回执，并比较完整确认。来源与确认的 owner 可以不同。
 
@@ -79,7 +79,7 @@ abort 阻止该连接的新读取、调度和命令。已发出的 ledger/source
 
 ## 原结果与环境清理
 
-`receiveFacts` 保存 final 与 settle 待办，不直接终局。`preserveResult` 核对本域原 final，确认 raw 归属和最终通道材料封存后，原子建立唯一原结果、delivery、真实 effect、ended 与全部后继任务。重试保持原身份。保管已生效但丢答仍不等于已确认。
+`receiveFacts` 保存 final 与 settle 待办，不直接终局。`preserveResult` 核对本域计划后的 final，确认被引用的正文条目已封存后，原子建立唯一原结果、delivery、真实 effect、ended 与全部后继任务。重试保持原身份。提交已生效但丢答仍不等于已确认。
 
 `planRelease` 按原 preparation 认回唯一 canonical 计划，任务关闭后不重建。正常 completed 的全部历史外部引用必须已有独立保管；旧 file 地址不足以证明覆盖。非正常 final 保留 blocked 清理与来源责任。`recordRelease` 经原环境 inspectRelease 核验已报告的 released，不调用环境 release。名额释放不等于环境资源释放。
 
@@ -105,7 +105,7 @@ pnpm --filter @omne-harness/tool run examples
 
 ## 使用
 
-账本第五参数 `ToolLedgerPorts` 必须显式提供 `{ custody, releaseInspection: environments, content }`。`content` 为字节读口或 `null`。`content:null` 使字节读取回复 `unsupported`，不关闭结果页或 raw 元数据读取。runtime dependencies 同时传入同账本 `commands`、`reads`、`admissions`、`queues` 与 `facts`。构造片段见[英文使用说明](README.md#usage)，公开构造形状见 [public-api](docs/public-api.md)。
+账本第五参数 `ToolLedgerPorts` 必须显式提供 `{ bodies, releaseInspection: environments, content }`。`bodies` 给出正文存储、许可密钥与参与者时钟。`content` 为字节读口或 `null`。`content:null` 使外部附件的字节读取回复 `unsupported`，不关闭结果页或卸载正文的读取。runtime dependencies 同时传入同账本 `commands`、`reads`、`admissions`、`queues` 与 `facts`。构造片段见[英文使用说明](README.md#usage)，公开构造形状见 [public-api](docs/public-api.md)。
 
 独立程序和应用装配依赖本包与 `@omne-harness/tool-contract`。其他领域的生产代码只依赖 `@omne-harness/tool-contract`。其他领域的测试可以把 `@omne-harness/tool/testing` 作为开发依赖。它导出非耐久记录仓 `createMemoryToolLedgerStore` 与下述装配工厂。
 
@@ -117,7 +117,7 @@ pnpm --filter @omne-harness/tool run examples
 
 调用方必须提供 `operationIdentities`、`sourceIssuer`、`guards`、`configuration`、`instances`、`catalog`、`children` 与 `bindingsFor(executor)`，没有默认身份或授权。守卫负责租户资格、来源与授予核验、结果构造及结果政策。runtime 的结果政策同样使用 `guards.policy`。输入 guards 不含 `factAcknowledgements`，工厂从唯一一次 `bindingsFor` 返回构造该守卫，并把同一 bindings 对象交给 runtime。宿主、目录、子调用协调与绑定解析没有同型契约内存替身，因此由调用方提供。`bindingsFor` 接收内层执行者绑定，返回不同类型的 `ToolBindings` 解析端口；调用方明确其解析和授权规则。公开入口示例见[英文说明](README.md#testing)。
 
-工厂只对主体 `P` 泛型，块类型固定为 `ContentBlock`，环境类型固定为契约替身的 `MemoryEnvironment`。`doubles` 保留 executor、environment、authority、clock、decisions、resources、custody 原对象及其控制手柄。每次构造的记录与手柄状态相互隔离。工厂不创建隐含租户、主体或实例身份。账本构造异常与 `bindingsFor` 异常原样传播。
+工厂只对主体 `P` 泛型，块类型固定为 `ContentBlock`，环境类型固定为契约替身的 `MemoryEnvironment`。`doubles` 保留 executor、environment、authority、clock、decisions、resources、content 原对象及其控制手柄。每次构造的记录与手柄状态相互隔离。工厂不创建隐含租户、主体或实例身份。账本构造异常与 `bindingsFor` 异常原样传播。
 
 替身只供测试，不提供耐久性、真实执行环境或生产宿主，也不增加支持表之外的 runtime 能力。工厂不创建定时器或新的释放协议。runtime 与调用方提供的资源仍由调用方拥有。
 
@@ -196,13 +196,13 @@ tool/
 
 ## 内容与原输出读取
 
-账本第五参数为 `ToolLedgerPorts`，必须显式给出 `content` 字节读口或 `null`，另保留 `materials` 与 `releaseInspection.inspectRelease`。`content:null` 使原生外部附件的字节读取回复 `unsupported`，Tool 自有材料仍由 `materials` 读取，不关闭结果页或 raw 元数据读取。
+账本第五参数为 `ToolLedgerPorts`，必须显式给出 `content` 字节读口或 `null`，另给出 `bodies` 与 `releaseInspection.inspectRelease`。`content:null` 使原生外部附件的字节读取回复 `unsupported`。卸载正文的字节仍经 `bodies` 的正文存储读取，结果页不受影响。
 
 `queries.readResult` 固定结果版本并在返回完整块页前复核 `read-result`。`content.read` 先核五字段附件关联，再按已知原件的 storage/key 选完整操作；未登记变体不能仅凭同地址关联，已登记同址变体不能因描述字段不同降权。不同地址不因相同摘要被一律标成原件。随后核当前资格、提供者返回的身份、范围及 EOF。IO 后再次核关联与资格，返回独立字节副本。字节页可能切在 UTF-8 字符中间，消费者按媒体类型收齐后解码。
 
 提供者必须核完整源的长度和摘要，并把 byte cursor 绑定租户、调用、结果版本、完整附件、字节投影与位置。账本不解析提供者私有游标。没有原件读口，也没有原件权限：原始返回 R 不进入任何保管端口，`ToolLedgerAction` 不含 `read-raw`、`read-raw-content` 或 `maintain-materials`。每个动作就是一项权限，guard 不从别的动作拼出许可；无法建立一致视图时须答 unavailable。账本在 IO 前与最终返回边界各核一次 `read-content`，最后允许后不再等待外部读取。诊断、账目或普通读取权限各只授予自己的读取。
 
-`createTestToolDependencies` 的 `doubles.content` 组合非耐久内存 byte provider 与既有 custody double，preserve 成功后登记原件字节。`controls.seed` 显式登记其余附件并核长度和 SHA-256，暂停、失败、丢失和错误响应控制用于测试。登记不赋予某结果读取附件的权限。直接 provider 和 controls 是受信测试资源，授权验证走真实 runtime 入口。此组合不证明耐久存储或生产后端。
+`createTestToolDependencies` 的 `doubles.content` 是非耐久内存 byte provider，正文存储来自 `createMemoryToolBodies`。`controls.seed` 显式登记附件并核长度和 SHA-256，暂停、失败、丢失和错误响应控制用于测试。登记不赋予某结果读取附件的权限。直接 provider 和 controls 是受信测试资源，授权验证走真实 runtime 入口。此组合不证明耐久存储或生产后端。
 
 ## 模型结果取回
 
@@ -214,7 +214,7 @@ tool/
 
 读取成功、原工具终态、内容遍历和原文卸载分别表达。failed 原工具也可成功读取。元调用 completed 只表示命令答复。内容结束不表示附件或卸载原文字节已读。附件页提供 base64，收齐字节后按 mediaType 解码。引用不授权，每页仍核当前资格。没有 raw selector，也没有原件读口（[固定结果与内容读取](SPEC.md#27-固定结果与内容读取)）。
 
-完整响应、块及完整可调用参数都受预算约束，不能装下时明确 unsupported。固定错误无法单页交付时构造抛 TypeError。适配器重建保留固定版本身份。卸载正文已在结算时获得固定期限；语义正文页、到期读取门禁与物理回收尚未实现，当前 reader 尚未提供完整卸载生命周期。精确协议及提供者前提见 [SPEC 第 28 条](SPEC.md#28-tools-固定结果适配器)。当前证据是非耐久内存组合，不含真实模型、生产存储或 Cordis。
+完整响应、块及完整可调用参数都受预算约束，不能装下时明确 unsupported。固定错误无法单页交付时构造抛 TypeError。适配器重建保留固定版本身份。卸载正文在结算时获得固定期限。reader 按语义页读取正文。过期读取答复找不到，账本清扫回收字节。精确协议及提供者前提见 [SPEC 第 28 条](SPEC.md#28-tools-固定结果适配器)。当前证据是非耐久内存组合，不含真实模型、生产存储或 Cordis。
 
 
 宿主的入站参数限制须与 `ToolsOptions.arguments` 对齐。runtime 先检查输入，作者 codec 再解释参数。较小的宿主上限可能拒绝作者本可解析的续读请求。两个层级均保留明确预算，并验证实际装配。

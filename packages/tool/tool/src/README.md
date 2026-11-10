@@ -47,4 +47,4 @@
 `tools.ts` 提供 createToolResultReader 与公开读取类型。`tools-protocol.ts` 拥有固定引用，`tools-present.ts` 生成模型结果，`tools-results.ts` 负责格式、codec 与预算，`tools-reply.ts` 负责受信有界收取。完整 Tools 作者归 tool-definitions；本成员测试中的 reader-author 只作为读取传输夹具。完整边界见 [SPEC 第 28 条](../SPEC.md#28-tools-固定结果适配器)。
 
 
-事实接收以 `fact-values.ts` 固定完整原事实和批次指纹。`ledger-fact-material.ts` 在入账前封存 final，事实记录只保存引用；恢复读取逐页校验长度、摘要和原 final 身份。`testing-material-store.ts` 仅从 testing 入口提供非耐久装配，不进入生产依赖。
+事实接收以 `fact-values.ts` 固定完整原事实和批次指纹。`ledger-final-planning.ts` 在执行记录 final 时计划结果，超过阈值的结果写成系统正文。`ledger-final-fact.ts` 受理计划后的 final，恢复时原样交回，不读任何存储。`testing.ts` 的 `createMemoryToolBodies` 仅从 testing 入口提供非耐久正文存储，不进入生产依赖。
