@@ -209,91 +209,84 @@ The [protected Settings current composition](settings-preparation.md) consumes t
 
 该适配器只做读取与投影。调用方仍须经 Agent 或 Tool 拥有者认回原动作、采用和 Session 关系，并保护可变事实的当前性。当前公开采用服务组合测试证明声明保真及求值，不证明生产 row 已装配，也不证明真实动作资格闭环。
 
-## Session 配值的原事务回执
+## Session 配值写入
 
-`sessionPermissionWriteResult` 消费真实 Session commit-result，核对原操作、完整 Session facts 摘要、协调引用和实际回执摘要，再向 Governance 提供同提交结果。它不决定编辑资格，也不读取 Session 私有表。
+会话层的权限配值归 Session。写入是 Session 的一次提交，回执归 Session。Governance 不保管这次写入，只在提交里供应当前定义的只读事实。提交顺序、认回和失败语义归 Session 存储的[受保护提交](../../../../packages/session/session-storage-sql/docs/commit-basis.md#受保护提交)。应用实现它的依据来源和依据参加者。
 
-`sessionPermissionReply` 消费同次 externalWrites.execute 的 terminal、按 terminal.sqlIdentity 查询的原 SQL 回执，以及该次提交的原 Session 命令。它核对租户、操作、完整事务身份和终态一致。成功仍须匹配 Session 命令摘要；回滚只将实际停止者为 Session 的回执交给 Session 的公开解码器。其他参加者失败、错绑、无法解码或缺回执均保持失败，不把治理 sealed 猜成业务拒绝。
+### 依据来源
 
-这两个转换是应用装配适配器。原失败解释不重新执行领域判断，也不提交第二笔写入。它们不提供独立身份认证或任意回执查询权。生产行通过原资格与当前来源完成提交协调；转换本身不证明这条组合路径正确，仍须核验实际组合。
+[session-permission-basis-source.ts](../../src/rows/governance/session-permission-basis-source.ts) 实现 `SessionProtectedBasisSource`。Session 的提交只在原操作没有已提交的回执时调用它。每次调用按当时的事实执行以下各步：
 
-该回执解释器只用于本 Session 组合。本组合的成功结果适配器固定发布 committed，其余失败由原操作封口。其他外域可以有自己的业务 aborted 语义，不能把这里的治理终态与 SQL 结果对应关系直接套用到其他组合。
+1. 核对写资格属于这条命令：租户、会话、操作、完整命令摘要、期望权限修订、主体引用和自主管理政策。不符时答 denied。
+2. 经 Identity 核对原登录仍有效。登录已撤回时答 denied，读不到时答 unavailable。
+3. 清除不查当前声明，直接给出 clear 组合的计划。声明卸载不会阻止清除已存项。
+4. 设值经受信目录读能力发现精确声明。目录管理资格属于该读能力的持有者，不附加到会话编辑用户。发现按完整权限引用、capabilityId 和 enforcementKey 查找唯一声明。management 目录必须完整、属于原 scope，并在同一依据下结束分页。冲突游标、部分结果、重复匹配、不可用声明和查询异常均答 unavailable。读取上界为 128 页及 128 个目录项。
+5. 声明带 Settings 映射时，来源解析原租户内唯一的目标和组织来源地址，再用 `readSettingsSource` 读组织层的当前值。这次读取不预留来源，也不保管读到的值。
+6. 给出组合与命令：定义投影命令、映射存在时的目标快照命令，以及依据参加者的命令。
 
-## Session 配值的原资格与当前写入依据
+来源不缓存，也不跨调用保存选择。登录资格与组织层的值在另一个事务域，提交的事务读不到它们。它们的当前性止于这次读取。租户域的事实由提交里的参加者重新读取。
 
-`sessionPermissionQualification` 把已核验的 `SessionCheckedAccess` 转换为可持久的应用记录。它核对原请求和实际命令的租户、会话、完整摘要，以及原写资格的操作、权限修订、主体引用和自主管理政策。转换结果不包含运行时 principal 对象。该函数不认证主体，解析记录也不授予权限；只有受信委派提交路径可以生成此记录。
+### 依据参加者
 
-`sessionPermissionWriteBasis` 消费 Governance 原操作 basis。它核对原资格记录、执行者、原操作绑定和完整 Session facts，再产生 Session commit-basis。设值需要同事务的 `governance.definition-projection`。清除使用独立的 `clear` 参加者，依赖原资格而不依赖当前声明；Session 自己认回已存项与修订，所以声明卸载不会阻止清除已存项。原修订过期时，Session 停止该事务。
+`harness.session-permission-basis.{clear,unmapped,mapped}` 在提交的事务里产生 Session commit-basis。它的输入是自己的命令 facts：Session 命令、写资格的四项、声明内容、选中的定义绑定、权限求值范围和组织层的值。它还消费同事务的 `governance.definition-projection`。映射存在时，它另外消费 management TargetSnapshot。
 
-`sessionPermissionMaterial` 采用本地应用政策 `settings-projection-only/1`。该政策以声明的 Settings 投影作为组织与租户原配值的唯一后端。只有当前声明已认回且映射为空时，适配器才生成缺席事实。缺席修订绑定政策、scope、epoch、精确定义和声明修订。增加其他原配值后端时必须修改此政策；不能继续沿用其唯一后端前提。
+参加者要求投影的绑定等于来源选中的绑定。然后它用投影的声明、同事务的租户原值和命令里的组织层的值做 Permissions 的配值判断。判断使用各层原配值，不使用 Settings 合并后的有效值。组织与租户的确定禁止不能被 Session 的配值覆盖。组织层读不到时，它按 unavailable 进入判断；已知的租户禁止仍然成立。当前 SQL 适配对已配置但尚未接入拥有者事实的必需约束发布 unavailable，不从空来源推导许可。
 
-映射存在时，租户原值来自同 capture 的 management TargetSnapshot，组织原值来自 Governance 已保管的 Settings 快照。缺来源、错绑定或错布局保持 unavailable。读取使用原配值，不使用 Settings 合并后的有效值。组织与租户配值缺席不会删除能力级的独立约束。当前 SQL 适配对已配置但尚未接入拥有者事实的必需约束发布 unavailable，不从空来源推导许可。
+`sessionPermissionMaterial` 采用本地应用政策 `settings-projection-only/1`。该政策以声明的 Settings 投影作为组织与租户原配值的唯一后端。只有当前声明已认回且映射为空时，适配器才生成缺席事实。增加其他原配值后端时必须修改此政策。
 
-写入依据成立的前提是原资格由受信转换产生，治理 basis 认回原持久操作，声明和租户原值在同事务读取，组织原值受来源保管保护。转换器要求 `Q ∧ C ∧ D ∧ J`：原资格绑定 Q、原完整命令绑定 C、当前精确定义 D、Permissions 配值判断 J。清除以 Session 的原项核验替代 D 和配值放宽判断。任一所需前提不成立，不发布 Session 写入依据。这个组合论证不证明应用 row 已正确注入，也不替代来源竞争及重启验证。
+依据不成立时，参加者报告失败，事务回滚，Session 的提交按暂时失败答 unavailable。因此下列情况都不能产生写入：发现之后声明被撤下；目标或租户层的值变化后不再允许；来源给出的定义与提交里的投影不一致。Session 自己核对期望修订，修订过期时答 changed。
 
-[真实写入组合测试](../../tests/rows/governance/session-permission-write-native.spec.ts)使用实际 Identity 登录、Governance 注册、Session 写者与 SQLite，覆盖无映射设值、撤下拒绝、必需约束缺失、过期修订、卸载后清除和原操作重传。声明发布源与组合选择由测试装配提供，普通 Session 创建使用具名夹具。生产委派出口与动态来源解析由默认行接入，完整装配另由发行树测试验证。[来源测试](../../tests/rows/governance/session-permission-material.spec.ts)使用具名快照，覆盖配值缺席、不可用、禁止和错 capture；它不是实际来源竞争验证。
+### 重传与失败
 
+同一原操作的重传由 Session 的提交认回，并标记 recovered。认回不调用来源。原操作提交之后，声明撤下或组织层改值都不改变重传的答复。同一操作换了内容时答 conflict。
 
-### 原命令重传与首次执行材料
+失败的投递不留按原操作的持久裁定。条件恢复后，同一原操作重来时按当时的事实重新裁定。这与 Session 的其他命令一致。
 
-Session 认回已提交操作时，可以省略本次 guards。治理的业务意图只绑定编码后的原命令；第一次提交的完整 Session facts 则保存在原资格的 commandFacts 中。后者包含 guards、预算和准入 evidence。plan 只采用已保存材料，basis 同时核对业务命令与完整 facts。相同命令的重传不会替换首次证据；同操作的不同命令仍冲突。
+有限模型 [SessionPermissionWrite](../../../../packages/session/session-storage-sql/verification/protected-basis/README.md) 检查上述顺序，模型与实现的对应见该说明。
 
-应用 withSessionPermissionCommit 在首次 await 前固定这些材料。它仅拦截权限配值提交，通过注入的治理后端执行，再查询 terminal.sqlIdentity 指定的原回执。缺后端返回 unavailable，Session 的 changed 等公开失败保持原义。顺序认回原提交时标记 recovered，不能据此宣称并发通知恰好一次。实际 session-storage 委派行已消费此适配器，并按调用现取受信后端。默认 governance 行提供租户后端、Settings 目录与组织来源服务；实际业务贡献与完整恢复仍须验证。
+### 证据
 
+[真实写入组合用例](../../tests/rows/governance/session-permission-write-native.spec.ts)使用实际 Identity 登录、Governance 注册、依据来源、依据参加者、Session 写者与 SQLite。它覆盖无映射设值、发现后撤下、必需约束缺失、过期修订、卸载后清除、定义不一致和缺来源。它还断言三件事：整笔写入只有一次存储提交，并且 Governance 不收命令；声明撤下后重传仍认回；失败后重新登记声明，同一原操作成功。
 
-### 动态声明发现与原来源选择
+[映射写入用例](../../tests/rows/governance/session-permission-write-mapped.spec.ts)使用真实 Settings 目录、租户层的值和组织来源。它覆盖组织禁止、租户禁止和来源不存在，并断言组织层改值后的下一次写入按新值裁定。
 
-应用 createSessionPermissionWriteResolver 通过装配注入的受信目录读能力发现精确声明。目录管理资格属于该读能力的持有者，不附加到会话编辑用户。原写入始终保留用户原主体与原登录资格。目录读者不能据查询结果授予编辑权。
+声明发布源与组合登记由测试装配提供，普通 Session 创建使用具名夹具。默认行的接线由[全行用例](../../tests/rows/storage/session-permission-live.spec.ts)和发行树的 deny-update 场景验证。[来源用例](../../tests/rows/governance/session-permission-material.spec.ts)使用具名快照，不是实际来源竞争验证。
 
-发现按完整权限引用、capabilityId 和 enforcementKey 查找唯一声明。management 目录必须完整、属于原 scope，并在同一依据下结束分页。冲突游标、部分结果、重复匹配、不可用声明和查询异常均返回 unavailable。当前读取上界为 128 页及 128 个目录项，对应 Governance 的 active contribution 上界；它不缓存声明以绕过后续查询。
-
-原操作保管两种互斥资格记录。clear 只保存原资格，不查当前目录；set 同时保存原资格和发现的精确 GovernanceDefinitionRef。提交计划只能消费已保管选择。basis 还必须核对本次声明投影的 definition 与原选择相等，所以发现后撤下、计划替换声明和重传重新选源都不能绕过提交内检查。
-
-令 R=Set(Q,D) 为已保管记录，F 为原 Session facts，P 为本次同事务声明投影。接受写入需要原记录身份成立、执行 facts=Q.commandFacts、业务命令与 Q 绑定成立，以及 P.definition=D 且 P.observation 可用。因此，同一操作重传不能改变 D 或 F；发现后的声明撤下使最后一个条件不成立。此论证依赖 Governance 的原记录保管、执行封套和同事务投影保证，不把目录读本身当成原子授权。
-
-Settings 映射的 set 还保存原目标和组织 source 引用 M。受信 Settings management 视图必须完整，声明正文与摘要一致，原租户内只能有一个目标。组织路由由装配按组织身份提供。目标或来源缺失、歧义和查询异常返回 unavailable。读取只定位来源，不把最终有效值冒充各层原值。
-
-令 R=Set(Q,D,M)。计划从 M 生成同 capture 的 management targetSnapshot；组织值来自 Governance held source。basis 要求投影目标=M.target，原 command.source 与 held source 地址均等于 M.source，再用真实层值判断写入。组织及租户的确定禁止不能被 Session 的 auto 覆盖。清除仍不依赖当前声明或来源。
-
-目录捕获与 prepared 修改的终态由 Settings 自己分开保管。应用使用公开 `createSettingsCatalogDestination` 接入身份结算，不解释 Settings 私有终态或读取其表。组合验证覆盖真实 Settings 与 Session 写者。生产委派行、默认租户实例表及可选 Cordis 发布适配已经接通；组织来源与目录路由已进入默认行；跨进程在途恢复仍须验证。
-
-### 租户实例的准备、开启与恢复
+## 租户实例的准备、开启与恢复
 
 [tenant-runtime.ts](../../src/rows/governance/tenant-runtime.ts) 用拥有者的公开端口组合一个租户治理实例。调用方提供完整 scope、已登记的原租户事务域、目录读者、Identity 端口、定义来源、grants 和所需 Settings 来源。工厂核对 scope、域和读者的租户相同，并用原 verifier 核验读者。错误绑定在登记组合前失败。目录读者与原编辑用户分别保留，工厂不增补目录授予或业务许可。
 
-prepareTenantGovernance 先固定数据配置和组合引用，返回 Identity 与 Settings 来源的结算目的地。装配应先发布这些路由，再调用 open；否则历史恢复可能找不到原目的地。SQL 登记描述包含参加者列表，提交引用只包含组合版本和摘要，应用在这里显式转换。业务服务不消费登记描述的附加字段。
+prepareTenantGovernance 先固定数据配置和组合引用，返回 Identity 的结算目的地。装配应先发布这条路由，再调用 open；否则历史恢复可能找不到原目的地。SQL 登记描述包含参加者列表，提交引用只包含组合版本和摘要，应用在这里显式转换。业务服务不消费登记描述的附加字段。
 
 同一个 prepared 对象只拥有一次开启尝试。open 先保存 Promise，再通过微任务进入核验和登记，因此普通并发与核验器同步重入都取得同一个尝试。成功或失败结果均保留。重试和重装配创建新的 prepared 对象，仍使用原 scope、事务域及组合身份；部分登记不声称回滚。
 
-实例服务、写入后端及 close 来自 createGovernanceLocal。应用不重写 epoch、原操作、围栏或历史恢复状态机，也不关闭共享 SQL 与 Identity。旧实例关闭后拒绝新业务请求，新的实例可在原域恢复。结算目的地不等同于业务服务，其路由必须在原责任结算期间继续可达。
+实例服务及 close 来自 createGovernanceLocal。会话权限的依据来源由本工厂用同一实例的目录读能力构造。应用不重写 epoch、原操作、围栏或历史恢复状态机，也不关闭共享 SQL 与 Identity。旧实例关闭后拒绝新业务请求，新的实例可在原域恢复。结算目的地不等同于业务服务，其路由必须在原责任结算期间继续可达。
 
 令 P 是一个 prepared 对象保存的开启 Promise。第一次 open 在调用任何外部端口前令 P 非空，后续调用只返回 P，因而同一对象最多启动一次实例开启。重装配使用新的 P，持久 scope 的隔离和历史恢复仍由 Governance 保证。同一 prepared 对象的结论不单独证明整个应用的唯一实例，后者由下面的实例表负责。
 
-### 默认应用行与实例表
+## 默认应用行与实例表
 
 [governance 行](../../src/rows/governance/index.ts)已进入默认发行。它用原只读 tenantDomainLookup 查已登记事务域，并为每个租户配置固定的 deploymentId、logicalServiceId 与 tenant visibility。目录读者由入口的窄签发能力提供，只取得该 scope 的 catalog-management grant。Tool 定义来自原发行权威核验的快照；该权威沿用原根服务及实现身份核验，不改变其他 Tool 消费者的可见范围。
 
 [TenantGovernanceHost](../../src/rows/governance/tenant-host.ts)持有本行的内存实例表。每个租户先保存 preparation Promise，再查询目录和调用工厂；成功 prepared 项在当前装配内不替换。因此相同租户只开启一次，其他租户不排在它后面。未知租户不触发登记或准备。这个表不替代租户目录，也不是第二份持久业务状态。
 
-行发布 sessionPermissionBackend 与 Identity standingDestinationResolver。Session 每次调用现取后端，原主体与资格继续交给 Governance 核验。Identity 结算按公开 scopeRef 找回 prepared 目的地，不等待业务 open 完成。目的地由原提供者核对封套和终态，应用不解析私有记录。Settings 来源服务通过 host.sourceDestination 找回原 Governance 目的地。
+行发布 sessionPermissionBackend 与 Identity standingDestinationResolver。Session 存储每次提交权限配值时现取后端。后端按命令的租户找到实例，交回依据来源的计划。主体不是登录主体时答 denied，实例不可用时答 unavailable。Identity 结算按公开 scopeRef 找回 prepared 目的地，不等待业务 open 完成。目的地由原提供者核对封套和终态，应用不解析私有记录。
 
 关闭先停止返回新后端，再等待已开始的开启并调用原 close。关闭期间迟到的 created 结果不交给业务调用者。截止时间只限制报告等待，返回 incomplete 不代表原责任消失；后续 close 继续等待或重试原关闭。业务停止后保留目的地，直到行撤除，存储仍按全应用关闭阶段最后处理。
 
 真实 Identity、SQLite 与租户目录测试覆盖工厂及实例表的开启、空目录读、并发合并、跨租户独立推进、错误绑定、关闭期间迟到实例回收和同域重开。实际行测试覆盖受信发布、已登记域选择、错误主体拒绝与 composition 关闭；该测试的普通 Session 创建准入是具名夹具。完整组织来源、资产持有与声明采用、实际合法权限写入及跨进程在途恢复不由这些测试证明。
 
-### Settings 目录与组织来源装配
+## Settings 目录与组织层目标装配
 
 [tenant-settings.ts](../../src/rows/governance/tenant-settings.ts)把原 Settings 目录读者与租户 Governance 组合起来。目录使用原租户事务域、窄目录主体及原 Identity 保留端口。定义可用性来自当前可信 Tool 发行的 registry，实际目标与持有仍由原 SQL 投影证明。注册定义不会自动产生目标或许可。目录游标时间使用入口已有的系统时钟读数。
 
 Settings 目录终态有独立目的地。应用按公开 owner 与 destination 分派，原 Settings 目的地解释自己的封套。Governance 关闭完成后才关闭该目录读者；结算目的地继续独立可达。
 
-[organization-settings.ts](../../src/rows/governance/organization-settings.ts)在 system.settings 登记原来源捕获、保管及必要表拥有者。应用使用 createIdentityQualifiedSettingsSources 核验原主体、成员状态、组织、目的地租户与主体绑定。来源服务只披露约束材料，不授予组织配值修改权。业务调用者拿不到独立目标 provision 能力。
+[organization-settings.ts](../../src/rows/governance/organization-settings.ts)在 system.settings 登记组织层目标的组合，并打开组织层目标的拥有者。应用不预留组织来源：权限检查和会话权限写入都用 `readSettingsSource` 现读组织层的值。业务调用者拿不到独立目标 provision 能力。
 
 组织来源地址由组织标识和 Settings 的 providerId、definitionId 确定。版本采用由原目标显式修订，地址稳定不表示定义相容。缺目标、已退役或原定义无法认回时保持不可用，不能制造空来源。只有真实存在的目标才可能捕获到 absence。
 
-默认行已连接目录 resolver 与来源 reservations。业务停止后先排空租户治理，再关闭组织来源服务；SQL 仍由存储行关闭。真实提供者测试覆盖同存储重装配后的原保管认回、缺源与错组织拒绝。整树冷启动期间的历史组合登记、在途恢复，以及实际贡献初始化和合法 Session 写入仍需独立场景验证。
-
-应用恢复场景还覆盖原 Governance externalWrites 产生的持久来源请求。来源回复丢失且旧实例关闭为 pending 后，真实 SQL Worker 重启仍保留来源约束。原来源 control.recover 可以在业务未开启时结算；默认首次租户开启也能由 Governance 历史恢复自行完成结算，来源回调不等待自身 open。错误 attempt 不能结算原责任。该场景的业务准入和业务拒绝计划是具名夹具，不能证明合法 Session 权限写入已经成功，也不代替完整服务进程重启验收。
+默认行已连接目录 resolver。业务停止后先排空租户治理，再关闭组织层目标的拥有者；SQL 仍由存储行关闭。整树冷启动期间的历史组合登记，以及实际贡献初始化，仍需独立场景验证。
 
 ```mermaid
 flowchart LR
@@ -301,12 +294,10 @@ flowchart LR
   Registry --> Catalog[原 Settings 目录]
   TenantDB[原租户 SQL 域] --> Catalog
   Catalog --> Resolver[Session 权限来源定位]
-  Resolver --> Governance[原 Governance 写协调]
-  Governance --> Sources[原 Identity-qualified 来源服务]
-  Identity[原主体与成员资格] --> Sources
-  Sources --> SystemDB[system.settings 原目标与保管]
-  Sources --> Route[应用公开目的地路由]
-  Route --> Terminal[原 Governance 来源终态]
+  Resolver --> Basis[会话权限依据来源]
+  SystemDB[system.settings 组织层目标] --> Basis
+  Identity[原登录] --> Basis
+  Basis --> Commit[Session 的提交]
 ```
 
 

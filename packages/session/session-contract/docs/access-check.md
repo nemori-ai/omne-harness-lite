@@ -73,4 +73,4 @@
 
 `change(permission-assignment)` 的 allowed 裁定必须携带 `SessionPermissionWriteQualification`。该类型归 [permission-values.ts](../src/permission-values.ts)。材料由受信访问服务形成，包含原租户、会话、operation、完整 commandDigest、期望权限修订、principalRef 和政策引用。调用方命令的 authorization 引用不能替代资格。
 
-Session 执行边界在绑定事务视图前核对这些命令字段。缺材料或错绑返回 denied，不创建委派视图。匹配时通过 SessionCheckedAccess 保留原材料，不再签发一个资格或重新问访问服务。材料只证明这次受理资格；受保护写者还须核对来源保管、当前修订、精确定义及组织约束。
+Session 执行边界在绑定事务视图前核对这些命令字段。缺材料或错绑返回 denied，不创建委派视图。匹配时通过 SessionCheckedAccess 保留原材料，不再签发一个资格或重新问访问服务。材料只证明这次受理资格；受保护提交还须核对当前修订、精确定义及组织约束。

@@ -67,4 +67,4 @@ SPEC 设计的内联阈值、大对象去向、`pageBytes` 上限、`maxScanPerP
 
 `./participants` 导出 `SESSION_PERMISSION_CURRENT_HANDLER`、`decodeSessionPermissionCurrent` 及其输入输出类型。精确形状归 [permission-current.ts](../src/permission-current.ts)，语义归 [当前权限关系](../SPEC.md#当前权限关系)。调用者是已经取得原访问资格的受信 SQL 组合方；该读口不是独立的身份授权服务。解码器区分 current、not-ready 与 malformed。
 
-`./participants` 还导出 `SESSION_PERMISSION_GUARD`、`SESSION_PERMISSION_CURRENT_FACT` 和 `sessionPermissionGuardFacts`，供受信捕获组合持久携带原定位及修订。参加者及其读表权限由 `sessionStorageMaterials` 提供，行为与消费义务见[同事务当前性守卫](../SPEC.md#同事务当前性守卫)。事实正文用现有 `decodeSessionPermissionCurrent` 解码。
+`./participants` 还导出 `SESSION_PERMISSION_GUARD`、`SESSION_PERMISSION_CURRENT_FACT` 和 `sessionPermissionGuardFacts`，供使用守卫的受信组合携带预读的定位及修订。参加者及其读表权限由 `sessionStorageMaterials` 提供，行为与消费义务见[同事务当前性守卫](../SPEC.md#同事务当前性守卫)。事实正文用现有 `decodeSessionPermissionCurrent` 解码。

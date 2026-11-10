@@ -28,7 +28,7 @@ export type SessionPermissionChangeBasis = Readonly<{
   authority: DurableEvidence
 }>
 
-/** Original-operation qualification from the trusted access service, before durable custody. */
+/** Original-operation qualification from the trusted access service. The protected commit binds it. */
 export type SessionPermissionWriteQualification = Readonly<{
   tenant: TenantId
   session: SessionId

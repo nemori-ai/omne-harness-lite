@@ -973,6 +973,6 @@ todos 使用现有快照分块，不新建 Todo 表或迁移。读取仍是完�
 
 `session-permission-guard` 是本成员的只读参加者。`sessionPermissionGuardFacts` 将预读结果的定位、权限修订和来源转换成命令。守卫在当前 SQL 事务内重新读取原两张关系，核对修订与完整来源。匹配时发布 `SESSION_PERMISSION_CURRENT_FACT`，正文是拥有者重新读取的 current。缺关系答 conflict/not-ready；修订或来源变化答 conflict/changed；非法命令答 unsupported。失败时不发布事实，组合内的写入随该事务回滚。
 
-装配方将守卫显式加入需要它的组合；普通 Session 日志组合不自动添加它。消费者声明 requiresFacts，并核对事实的 tenant/session/权限键与原捕获目标。该事实只证明本事务观察到的当前状态，不授予访问资格、不判定动作归属、不解释模式，也不能在另一事务重用。跨领域捕获组合由装配拥有者接入。
+装配方将守卫显式加入需要它的组合；普通 Session 日志组合不自动添加它。消费者声明 requiresFacts，并核对事实的 tenant/session/权限键与原读取目标。该事实只证明本事务观察到的当前状态，不授予访问资格、不判定动作归属、不解释模式，也不能在另一事务重用。使用守卫的跨领域组合由装配拥有者接入。
 
 `tests/permission-current-guard-real.spec.ts` 使用真实 SQLite Worker 验证预读与模式变更的交错、旧依据事务回滚、新依据提交、普通消息保持修订、ABA 与来源错配。`tests/permission-current-assignment-guard.spec.ts` 用原事件写者验证设值和清除使旧依据失效；写资格为具名夹具。两者不替代 Governance 生产捕获及真实 Agent 动作资格验收。

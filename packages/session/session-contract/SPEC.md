@@ -2197,7 +2197,7 @@ Todo 不进入 OpenWork、RecoveryTask、ADVANCE_KINDS，不启动或唤醒 Agen
 
 会话逐权限配值是独立于模式、Agent 作者上界和人的持续许可的当前声明。公开形状由源码拥有，命令、修订、清除、重放及失败语义见 [Session 权限配值](docs/permission-assignments.md)。普通 change 的访问允许或非空授权引用不得替代专属写资格。受保护写必须绑定原操作和完整命令，不能把已结束的权限读取当作后续写入租约。
 
-Session 原持久写者已经实现受保护设值和清除。关系查询与迁移归 session-storage-sql；Agent/Tool 原动作资格、同捕获消费及完整交付接受仍需分别验证。
+Session 原持久写者已经实现受保护设值和清除。关系查询与迁移归 session-storage-sql；Agent/Tool 原动作资格、动作提交点的核验及完整交付接受仍需分别验证。
 
 
 ### 权限状态的具名升级

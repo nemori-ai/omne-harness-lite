@@ -1,6 +1,6 @@
 # Session 权限配值
 
-Session 保存会话范围的普通权限配值。Permissions 定义共同的规则和定义引用，Authorization 裁定操作资格，Governance 协调跨事务域的依据和原操作终态。Session 不解释授权表达，也不把一次人的许可保存成普通配值。
+Session 保存会话范围的普通权限配值。Permissions 定义共同的规则和定义引用，Authorization 裁定操作资格，Governance 供应当前权限定义的只读事实。写入是 Session 的一次提交，回执归 Session。Session 不解释授权表达，也不把一次人的许可保存成普通配值。
 
 ## 命令与当前状态
 
@@ -21,10 +21,10 @@ WorkSnapshot.permissions 保存当前权限修订和当前配值集合。稳定�
 
 成功裁定产生专用 `session.permission-assigned` 事件，携带前后权限修订、原声明和资格依据引用。`reduce` 检查修订连续性并派生当前集合，不重新查询最新定义来解释过去。重复批次只认回原状态。把权限配值或模式伪装成普通声明事件时，归约隔离该批次，不发布部分状态。
 
-权限修订是当前性依据，不是可长期使用的许可。读取后发生修改时，稍后捕获必须由拥有者在同次提交核对当前修订。定义发生变化时，不得忽略旧配值而返回 absent；不能可靠匹配的来源应为 unavailable，其他来源中已知的禁止仍须保留。
+权限修订是当前性依据，不是可长期使用的许可。读取后发生修改时，使用这次读取的提交必须在同一事务里核对当前修订。定义发生变化时，不得忽略旧配值而返回 absent；不能可靠匹配的来源应为 unavailable，其他来源中已知的禁止仍须保留。
 
 ## 实现与验证范围
 
-纯 `decide/reduce` 定义上述配值行为。Session SQL 受保护组合负责提交时的原资格、当前权限关系及历史升级；应用通过 Governance 协调公开写入。纯契约测试使用具名事务材料，不能替代真实登录、持久写资格及默认装配的组合验证。
+纯 `decide/reduce` 定义上述配值行为。Session SQL 受保护组合负责提交时的原资格、当前权限关系及历史升级。它的依据由应用装配的受保护依据来源供应，提交顺序与失败语义见[提交依据](../../session-storage-sql/docs/commit-basis.md#受保护提交)。失败的提交不留按原操作的持久裁定；调用方带同一原操作再来时，按当时的事实重新裁定。纯契约测试使用具名事务材料，不能替代真实登录、持久写资格及默认装配的组合验证。
 
 有限状态模型见 [permission-current](../verification/models/permission-current/README.md)。模型检查修订捕获、清除与重启保持；写资格成立是前提。公共行为测试为 [permission-assignment.spec.ts](../tests/permission-assignment.spec.ts)。

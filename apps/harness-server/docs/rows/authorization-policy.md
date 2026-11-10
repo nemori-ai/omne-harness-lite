@@ -595,6 +595,6 @@ C3b 的动态解释协议见 [事务内权限解释](permission-interpretation.m
 
 `allowed.writeQualification` 绑定原租户、会话、操作、完整命令摘要、期望权限修订、principalRef 和政策引用。应用在第一次 await 前固定这些值。Session 执行边界核对命令绑定，再经可信 `SessionCheckedAccess` 传入委派路径。普通 allowed/evidence 不能代替这份材料。
 
-合法登录请求取得资格后，后续原操作的耐久保管和终态仍由 Governance 协调。尚未被 Governance 接受的新操作，在原 resolver 中再次调用本政策的登录核验；旧的内存 writeQualification 不能代替这次准入。已接受的原操作先按持久身份认回，不重新铸造资格，也不因登录撤销抹去终态。并发撤销不追溯取消已经通过本次准入的在途请求；成员资格和外层配值仍各自遵守原 held/seal 及同提交守卫。持续的 HITL 许可仍由独立授权范围和消费协议处理。
+合法登录请求取得资格后，写入是 Session 的一次提交。原操作没有已提交的回执时，会话权限的依据来源再次调用本政策的登录核验；旧的内存 writeQualification 不能代替这次核验。已提交的原操作由 Session 按回执认回，不重新铸造资格，也不因登录撤销抹去结果。并发撤销不追溯取消已经通过本次核验的在途请求。持续的 HITL 许可仍由独立授权范围和消费协议处理。
 
 [实际 Identity SQL 用例](../../tests/rows/authorization/session-permission-write-real.spec.ts)覆盖原主体、撤回、错账号、错目标、表达引用、缺源和异步命令绑定，并验证真实 authorization 行注入。
