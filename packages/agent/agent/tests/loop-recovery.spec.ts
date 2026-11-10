@@ -1057,7 +1057,6 @@ describe('the Access of the admission calls (#963 N-2)', () => {
     ])
     expect(assembly.controls.handoff.lookup.calls).toEqual([])
   })
-
 })
 
 describe('checkpoint positions saved by the current assembly', () => {

@@ -2059,8 +2059,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       request,
       advance: required(authority, 'authority'),
     })
-    unpreparedHandoff =
-      'failure' in fixed && fixed.failure.kind === 'unavailable' ? request : null
+    unpreparedHandoff = 'failure' in fixed && fixed.failure.kind === 'unavailable' ? request : null
     return fixed
   }
 

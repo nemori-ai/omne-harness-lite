@@ -11,7 +11,7 @@ const domain = (tenant: string): DomainRef => ({
   transactionDomain: 'shared-domain',
 })
 
-/** A storage whose generations below `committedFrom` are rolled back; it records every query. */
+/** A storage whose generations below `rolledBackBelow` are rolled back; it records every query. */
 function storage(rolledBackBelow: number, commitAnswer: 'committed' | 'unknown') {
   const queried: string[] = []
   const generation = (identity: SqlIdentity) => Number(identity.operationKey.split('#')[1])
@@ -19,7 +19,9 @@ function storage(rolledBackBelow: number, commitAnswer: 'committed' | 'unknown')
     query(identity: SqlIdentity) {
       queried.push(identity.operationKey)
       return Promise.resolve(
-        generation(identity) < rolledBackBelow ? { kind: 'rolled_back' } : { kind: 'not_committed' },
+        generation(identity) < rolledBackBelow
+          ? { kind: 'rolled_back' }
+          : { kind: 'not_committed' },
       )
     },
     commit() {
