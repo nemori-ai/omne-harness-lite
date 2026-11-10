@@ -130,6 +130,62 @@ it('refuses a secret write before it allocates anything, and keeps the plaintext
   ).toMatchObject({ kind: 'prepared' })
 })
 
+it.each(['scope', 'target'] as const)(
+  'refuses every call when the access grant binds another %s',
+  async mismatch => {
+    const w = await open(options => ({
+      ...options,
+      access: {
+        async authorize(caller, request) {
+          return {
+            kind: 'authorized',
+            principalRef: caller.principalRef,
+            scope:
+              mismatch === 'scope' ? { kind: 'tenant', tenant: 'another-tenant' } : request.scope,
+            target:
+              mismatch === 'target' ? { ...request.target, targetRef: 'other' } : request.target,
+          }
+        },
+      },
+    }))
+    const { target, operationId } = w.command
+    const forbidden = { kind: 'rejected', reason: 'forbidden' }
+    expect(await w.service.prepareChange(w.context, w.command)).toEqual(forbidden)
+    expect(await w.service.getOperation(w.context, { target, operationId })).toEqual(forbidden)
+    expect(await w.service.readChanges(w.context, { target, afterRevision: 0, limit: 10 })).toEqual(
+      forbidden,
+    )
+    expect(w.requests).toHaveLength(0)
+    expect(stored(w.root)).toMatchObject({ state: null, operations: 0 })
+  },
+)
+
+it('rechecks access for each read and shows no operation of another target or principal', async () => {
+  const w = await open()
+  const prepared = await w.service.prepareChange(w.context, w.command)
+  if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+  await w.service.commitChange(w.context, {
+    requestId: 'commit',
+    preparation: prepared.preparation,
+  })
+  const { target, operationId } = w.command
+  const denied = { ...w.context, allowed: false }
+  const forbidden = { kind: 'rejected', reason: 'forbidden' }
+  expect(await w.service.getOperation(denied, { target, operationId })).toEqual(forbidden)
+  expect(await w.service.readChanges(denied, { target, afterRevision: 0, limit: 10 })).toEqual(
+    forbidden,
+  )
+  expect(
+    await w.service.getOperation(w.context, {
+      target: { ...target, targetRef: 'other' },
+      operationId,
+    }),
+  ).toEqual({ kind: 'not_found' })
+  expect(
+    await w.service.getOperation({ ...w.context, principalRef: 'bob' }, { target, operationId }),
+  ).toEqual({ kind: 'not_found' })
+})
+
 it('admits one of two operations that compete for the same expected revision', async () => {
   const w = await open()
   const competitor = {
