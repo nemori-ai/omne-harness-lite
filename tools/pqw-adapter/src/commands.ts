@@ -230,7 +230,7 @@ export const COMMANDS = { metrics: closeoutMetrics, mutation: closeoutMutation, 
 
 /** 第一个参数是不是命令名：没给或认不出时命令面打印用法。 */
 export function isCommandName(name: string | undefined): name is keyof typeof COMMANDS {
-  return name !== undefined && name in COMMANDS
+  return name !== undefined && Object.hasOwn(COMMANDS, name)
 }
 
 /** 打印用法后的退出码：只问 `--help` 是 0，没给命令或认不出命令是 2。 */

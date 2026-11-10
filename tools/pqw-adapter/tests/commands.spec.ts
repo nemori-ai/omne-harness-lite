@@ -213,7 +213,7 @@ it('knows its three commands by name, and a missing or unknown name is no comman
   expect(Object.keys(COMMANDS)).toEqual(['metrics', 'mutation', 'risk'])
   expect(COMMANDS).toMatchObject({ metrics: closeoutMetrics, mutation: closeoutMutation, risk })
   for (const name of ['metrics', 'mutation', 'risk']) expect(isCommandName(name)).toBe(true)
-  for (const name of [undefined, '', '--help', 'metric', 'Metrics'])
+  for (const name of [undefined, '', '--help', 'metric', 'Metrics', 'toString', 'constructor'])
     expect(isCommandName(name)).toBe(false)
 })
 

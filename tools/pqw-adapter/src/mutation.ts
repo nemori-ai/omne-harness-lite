@@ -23,12 +23,9 @@ export interface MutationCall {
 }
 
 /**
- * 交给 pqw 的 --unit-max-lines：0 让每个单元都算「超过上限」，范围退化成改动行本身。
- * 差分变异回答「这次的改动有没有被测试守住」；改动行所在函数里没改的行，变异出来测的是改动之前的代码，
- * 它们的测试强度是旧的事实，存活要逐条处置就把旧欠账推给了这次改动。整个函数的测试强度归整仓健康读数。
+ * 范围用 pqw 的缺省：只变异改动的行（0.18.0 起），不传 --whole-units。差分变异回答「这次的改动有没有被测试守住」；
+ * 改动行所在函数里没改的行测的是改动之前的代码，存活要逐条处置就把旧欠账推给了这次改动，那是整仓健康读数的事。
  */
-export const CHANGED_LINES_ONLY = 0
-
 export function mutationArgs(call: MutationCall): string[] {
   return [
     join(call.root, PQW_SCRIPTS, 'mutation.mjs'),
@@ -47,8 +44,6 @@ export function mutationArgs(call: MutationCall): string[] {
     join(call.root, STRYKER_MODULES),
     '--vitest-config',
     FAST_VITEST_CONFIG,
-    '--unit-max-lines',
-    String(CHANGED_LINES_ONLY),
     ...(call.workers === undefined ? [] : ['--workers', String(call.workers)]),
     '--json',
     call.json,
