@@ -29,8 +29,6 @@
 
 运行时组合使用 `./cordis` 的 `createLocalToolRuntimePlugins`，输入、六个插件与应用提供者责任见[运行时组合工厂](cordis.md#运行时组合工厂)。根入口另公开环境状态、普通资源账本、Session 保留账本及控制主体工厂。它们的形状分别由 [environment-state.ts](../src/environment-state.ts)、[environment-resource-ledger.ts](../src/environment-resource-ledger.ts) 和 [control-subject-adapter.ts](../src/control-subject-adapter.ts) 拥有。
 
-## 材料维护
-
-
+## 转发结果读取
 
 `createLocalInvocationSource` 的 `forwardedResult` 读取该消费方已经保存的完整交付。启用条件和检查规则见 [单目标转发来源与保管](../SPEC.md#单目标转发来源与保管)。`createLocalToolRuntimePlugins` 暴露同名读口并守住 bundle 退休边界。该口供受信 Tools 适配器使用，不改变普通 Tool 查询的释放语义。

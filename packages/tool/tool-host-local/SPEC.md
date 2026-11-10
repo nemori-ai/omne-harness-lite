@@ -242,9 +242,9 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 宿主冻结交付元数据、结果承诺、当时的 account、操作身份和阶段。结果承诺包含渲染通道的指纹及最终正文描述。前者覆盖 content、data、attachments、source 和 summary，后者覆盖 bodyId、表示、字节数、预览类型及期限。推送时分别核对，两部分均不得变化。冻结记录不保存第二份完整 ToolResult。结果承诺与最终版本绑定，重试不重新计算 account。之后的运行按交付键认回自己的记录，承诺取冻结时的值：释放把结果记录的已释放通道换成摘要（Tool C6），释放后从账本重算的指纹不再等于冻结的承诺，不能用它认记录。读回的承诺要先解码：指纹核对编码、算法、摘要和字节数，正文描述用已提交结果的同一判定。解码失败的记录不认，交付答 `delivery-record` 不可用，不推送也不释放。
 
-只有 frozen 阶段的推送读取正文。宿主通过同一 ToolLedger 的 delivery.read 还原最终通道，核对指纹及完整 ToolDelivery，并在推送前重核当前资格。材料不可读时交付仍欠，不返回部分结果，也不释放责任。接收方已经可靠保存后的 saved、release-unknown、released 和 done 恢复只消费元数据与原回执，不依赖正文仍可读。
+只有 frozen 阶段的推送读取正文。宿主通过同一 ToolLedger 的 delivery.read 还原最终通道，核对指纹及完整 ToolDelivery，并在推送前重核当前资格。结果值不可读时交付仍欠，不返回部分结果，也不释放责任。接收方已经可靠保存后的 saved、release-unknown、released 和 done 恢复只消费元数据与原回执，不依赖正文仍可读。
 
-这项表示迁移不新增交付阶段。原 frozen 到 saved 到 released 到 done 的提交顺序和未知操作认回保持不变。材料用途解除、期限和物理清理由 Tool 拥有，宿主记录不延长其寿命。
+这项表示迁移不新增交付阶段。原 frozen 到 saved 到 released 到 done 的提交顺序和未知操作认回保持不变。正文期限与物理回收由 Tool 拥有，宿主记录不延长其寿命。
 
 ## 结果交付的推送退避
 
@@ -290,17 +290,15 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 每个作者执行有独立 signal、事实流和控制记录。停止先返回 accepted，作者实际结束后才变为 stopped。事实按 cursor 重读，确认按 batch 认回；作者已结束且全部事实已有保管回执时解除 pin。未知返回、失去观察或保管失败继续保留责任。Scope 与最终结果转换是显式构造依赖。该执行绑定只支持 live-only，不承诺跨进程恢复。
 
-作者返回值与 Scope 收场结论分别保存。绑定在作者返回后同步调用 `finish` 关闭新受理，把原 outcome 与完整 `closing` Promise 交给受信 `settle`。`settle` 须先保管原 R，再等待收场确认，不能因收场失败改写原 outcome。绑定的原 attempt 持有待结算输入；只有 final 确认并发布后才解除这份本地持有，回调抛错或保管拒绝不解除。该本地持有不是耐久回执，也不提供跨进程重跑作者的许可。
+作者返回值与 Scope 收场结论分别保存。绑定在作者返回后同步调用 `finish` 关闭新受理，把原 outcome 与完整 `closing` Promise 交给受信 `settle`。`settle` 须先在内存中编码原 R，再等待收场确认，不能因收场失败改写原 outcome。绑定的原 attempt 持有待结算输入；只有 final 确认并发布后才解除这份本地持有，回调抛错或保管拒绝不解除。该本地持有不是耐久回执，也不提供跨进程重跑作者的许可。
 
 生产结算在内存里用原作者 codec 编码并解码返回，渲染后交账本计划最终事实（`finalPlanner.planFinal`）；收场仍 pending 时不发布 final，unknown/unavailable 时保留原件并报告未结责任。已确认的收场失败可以产生失败终局，不能产生 completed。控制身份在收场确认时核原 tenant/call/start/operation，原 stop/withdraw 若在该确认前导致取消，保留其身份；确认后的控制不能改写这次收场事实。`finish` 同步抛错或异步拒绝全化为收场 unknown，原 R 保持不变。定制 `settle` 也须履行上述顺序与屏障义务；本地 Promise 不进入数据契约或持久证据。
 
-最终事实由账本在记录时计划：绑定把渲染结果交给 `planFinal`，得到首屏加正文条目引用的最终事实，再作为事实发布。batches 与 settled lookup 只保存引用及指纹；FactReceipt 允许移除宿主重传缓存，不解除 Tool 的归一化用途。失去 live-only 连续性仍按原限制报告，不凭封存引用声称能重启任意作者函数。
+最终事实由账本在记录时计划：绑定把渲染结果交给 `planFinal`，得到首屏加正文条目引用的最终事实，再作为事实发布。batches 与 settled lookup 只保存计划后的 final 及指纹，不保存正文字节；FactReceipt 允许移除宿主重传缓存。失去 live-only 连续性仍按原限制报告，不凭封存引用声称能重启任意作者函数。
 
 正文 writer 由受信装配绑定原调用、执行代次和固定声明，再注入本次执行 Scope。作者不能提供这些身份。Scope 关闭时先拒绝新的正文操作，再通过 Tool 的正文写入端口确认已受理责任的保管或排除未受理操作。仅有本地 Promise 完成或 disposer 返回，不构成交接凭据。关闭答复未知时保留未结责任，不发布 completed。
 
-runtime 退出先停止新调用和 writer 新受理，再等待未登记操作完成登记或得到明确拒绝，最后释放本地执行持有。材料与账本依赖须存活到交接完成；依赖提前失效时报告 unknown 和未交接责任。后继 runtime 通过原调用的正文恢复端口接续持久库存，不复用旧 Scope，也不重新执行作者业务函数。该恢复只处理正文写入责任，不扩展上述 live-only 作者执行保证。
-
-受信装配可通过 bundle.recoverBodies 发送原调用的正文恢复唤醒。该入口重新取得原 source 的主体并核当前资格，拒绝时不入队。已结算或没有 start 的调用不入队；其余以 body-recovery 用途进入有界索引。该用途不执行普通业务 driver，也不发布旧 execution。queued 只确认唤醒，不确认材料恢复完成。容量不足保留持久库存，由后续扫描重试。原调用认回仍可触发相同恢复。
+runtime 退出先停止新调用和 writer 新受理，再等待未登记操作完成登记或得到明确拒绝，最后释放本地执行持有。正文存储与账本依赖须存活到交接完成；依赖提前失效时报告 unknown 和未交接责任。后继 runtime 不复用旧 Scope，也不重新执行作者业务函数。旧进程未封存的正文保持 opened，原调用结算时成为孤儿，宽限期后由清扫回收。
 
 正文恢复与调用事实推进独立。片段提供者不可用或不返回时，不得阻止已取得的最终失败结果结算；结算可明确放弃不再采用的正文。每个调用至多有一个在途正文恢复，整个宿主至多有 capacity 个。调用退役不提前归还仍在执行的恢复名额；操作终结才归还。诊断保留恢复失败类别及在途数量，不把普通调用推进成功解释为正文恢复成功。
 
@@ -329,7 +327,7 @@ runtime 退出先停止新调用和 writer 新受理，再等待未登记操作�
 
 source.receiver 在同一关联内保存完整交付和 saved 证据。接收先核当前资格、原目标引用、完整 consumer 与交付关系。只有 durable store 确认提交后才 saved。提交未知回复 outcome-unknown，生产者保留 owed。读回比较实际 payload 摘要和原键，并核 receiver evidence，不能只相信 stored digest。result、late version 与 account 的键分开。
 
-配置 `forwarding.results` 后，`source.forwardedResult` 按原引用和固定结果版本读取消费方保管的副本。该配置提供 read-result 访问守卫、结果策略和正安全整数页预算。未配置时回复 unavailable。读口核原 call/admission、consumer、转发关联、原主体与当前资格，再核完整交付摘要和 saved 证据。它不能把账户记录或另一版本当成本次结果。损坏或无法确认的副本拒绝读取，不回退成成功。材料读取及关联核验后重新检查当前 read-result 资格。
+配置 `forwarding.results` 后，`source.forwardedResult` 按原引用和固定结果版本读取消费方保管的副本。该配置提供 read-result 访问守卫、结果策略和正安全整数页预算。未配置时回复 unavailable。读口核原 call/admission、consumer、转发关联、原主体与当前资格，再核完整交付摘要和 saved 证据。它不能把账户记录或另一版本当成本次结果。损坏或无法确认的副本拒绝读取，不回退成成功。副本读取及关联核验后重新检查当前 read-result 资格。
 
 消费方分页复用 Tool 的完整内容块与固定游标规则。原生附件和卸载正文仍沿各自读口，保管副本不延长正文期限。Tool 普通查询在生产侧交付已释放时仍拒绝读取。应用仅在该明确状态下，把 Tools 的读取转到消费方读口；授权拒绝、存储不可用等失败不得触发回退。runtime bundle 退休后拒绝新读，也不交出退休期间返回的迟到结果。此读口不新增存储副本或回收任务。
 
@@ -356,7 +354,7 @@ consume 与 inspect 先认回原 started 或 rejected 历史，不用新规则�
 
 `createLocalToolBodySchemas` 消费装配提供的 schema-provider 和一个精确的 vocabulary 采用。它实现 Tool 的窄校验端口。provider 的创建、预算和关闭归装配；适配器不拥有另一个缓存，不读取 Session 或工具注册表。`LocalToolRuntimeInput.bodySchemas` 把此端口交给账本和作者归一化，缺席时结构化封存或直接正文校验明确不可用。
 
-直接正文校验位于 raw 保管、作者 scope 关闭及结果投影之后，final 保管之前。绑定调用 Tool 的 `checkToolResultBody`；invalid 或 unsupported 走原有 result 失败投影。其他未确认校验沿 driverRetryDelayMs 重试，保留同一原结果和 settlement，不再次执行作者。校验等待计入 pending 诊断。宿主退役阻止下一次检查和 final 保管；已发出的校验不声称被撤销。此重试只覆盖当前 live-only 作者绑定，不新增跨进程原函数恢复承诺。原结果的耐久保管不等于后继宿主已经具备重新运行任意 codec/renderer 的能力。
+直接正文校验位于原返回编解码、作者 scope 关闭及结果投影之后，计划最终事实之前。绑定调用 Tool 的 `checkToolResultBody`；invalid 或 unsupported 走原有 result 失败投影。其他未确认校验沿 driverRetryDelayMs 重试，保留同一原结果和 settlement，不再次执行作者。校验等待计入 pending 诊断。宿主退役阻止下一次检查和 final 发布；已发出的校验不声称被撤销。此重试只覆盖当前 live-only 作者绑定，不新增跨进程原函数恢复承诺。账本保存的计划后 final 不等于后继宿主已经具备重新运行任意 codec/renderer 的能力。
 
 缓存身份取原公开 schema 的完整身份和定义摘要。相同标签下的不同定义不复用同一检查对象；恢复采用 writer 固定的定义。未知 vocabulary 或 provider 不支持的构造返回 unsupported。provider 关闭、容量拒绝及暂时失败返回 unavailable，schema 不匹配返回 invalid。
 
