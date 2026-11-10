@@ -225,7 +225,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     provides: ['modelRequestPreparation'],
     injects: ['modelCommands', 'modelTokenizers'],
   },
-  'model-credential': { provides: ['modelCredential', 'modelCredentialCustody'] },
+  'model-credential': { provides: ['modelCredential'], injects: ['settingsSecretCustody'] },
   'secret-custody': { provides: ['settingsSecretCustody'] },
   settings: { provides: ['settingsSecretItems'], injects: ['settingsSecretCustody'] },
   'model-records': {

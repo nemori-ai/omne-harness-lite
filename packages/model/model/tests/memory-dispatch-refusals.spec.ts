@@ -11,13 +11,22 @@ import { type TransportFact } from '@omne-harness/model-contract/provider'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { judgePart } from '@omne-harness/message'
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
-import { adoption, fixture, instance, op, proof, request, unbox } from './memory-fixture.ts'
+import {
+  adoption,
+  fixture,
+  instance,
+  op,
+  proof,
+  providerName,
+  request,
+  unbox,
+} from './memory-fixture.ts'
 
 const second = {
   adoption: { ...adoption, name: 'second' },
-  recipient: 'test.invalid',
+  provider: providerName('test.invalid'),
   model: 'second',
-  credential: { kind: 'factory' },
+  credential: { layer: 'official' },
 } as const
 
 /** A request that may fall back to a second supplier. */

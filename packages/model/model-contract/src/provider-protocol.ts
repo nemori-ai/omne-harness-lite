@@ -15,6 +15,7 @@ import type {
   ModelCallId,
   ModelInstanceId,
   ModelOperationId,
+  ProviderName,
   Mutation,
   ReadId,
   ResultCapacity,
@@ -72,7 +73,7 @@ export interface ModelMediaReader<P> {
         request: FixedModelRequest
         source: DurableEvidence
         reference: ContentReference
-        recipient: string
+        provider: ProviderName
       }>,
     signal: AbortSignal,
   ): Promise<Outcome<ModelMediaLease, TransportFailure>>

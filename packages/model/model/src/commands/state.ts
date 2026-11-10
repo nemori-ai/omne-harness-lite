@@ -21,7 +21,6 @@ import type {
   VisibleBlock,
 } from '@omne-harness/model-contract'
 import {
-  decodeCredentialId,
   judgeFixedModelRequest,
   type ActorRef,
   type CallAccountReport,
@@ -752,7 +751,7 @@ export class ModelCommandCore<P> {
       source =>
         digest(source.profile) === digest(input.request.profile) &&
         digest(source.supplier) === digest(input.supplier.adoption) &&
-        source.recipient === input.supplier.recipient &&
+        source.provider === input.supplier.provider &&
         source.model === input.supplier.model,
     )
     if (!source) return { failure: unavailable('model-send-source', 'source-not-registered') }
@@ -765,29 +764,10 @@ export class ModelCommandCore<P> {
     const current = source.current(input)
     if ('failure' in current) return current
     if (!current.ok.authorized) return { failure: { kind: 'denied', action: 'send-source' } }
-    const credential = input.supplier.credential
-    if (credential.kind === 'tenant')
-      return {
-        ok: {
-          id: credential.id,
-          scope: 'tenant' as const,
-          official: source.credential.kind === 'factory' ? source.credential.official : false,
-        },
-      }
-    if (
-      source.credential.kind !== 'factory' ||
-      source.credential.official !== true ||
-      !current.ok.noTenantBinding ||
-      'failure' in decodeCredentialId(source.credential.queryId)
-    )
-      return { failure: unavailable('model-send-source', 'factory-source-unavailable') }
-    return {
-      ok: {
-        id: source.credential.queryId,
-        scope: 'factory' as const,
-        official: source.credential.official,
-      },
-    }
+    const layer = input.supplier.credential
+    if (layer.layer === 'official' && !source.official)
+      return { failure: unavailable('model-send-source', 'official-layer-not-official') }
+    return { ok: { provider: input.supplier.provider, layer } }
   }
 
   // --- Read relations and result pages.

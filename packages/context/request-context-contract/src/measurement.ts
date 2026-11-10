@@ -33,7 +33,7 @@ export function leaseFailure(failure: M.ModelFailure): Failure {
 function sameSupplier(left: M.Supplier, right: M.ProfileSupplier): boolean {
   return (
     canonical(left.adoption) === canonical(right.adoption) &&
-    left.recipient === right.recipient &&
+    left.provider === right.provider &&
     left.model === right.model
   )
 }

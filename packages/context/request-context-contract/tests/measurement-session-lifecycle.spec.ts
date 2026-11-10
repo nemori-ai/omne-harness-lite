@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type * as M from '@omne-harness/model-contract'
+import { decodeProviderName } from '@omne-harness/model-contract'
 import {
   createAssemblyFixture,
   createScriptedInputMeter,
@@ -10,6 +11,12 @@ import {
 import { withMeasurementSession } from '../src/measurement-session.js'
 import { buildModelInput } from '../src/model-input.js'
 import { callId, adoption } from './fixtures.js'
+
+function secondProvider(): M.ProviderName {
+  const decoded = decodeProviderName('second')
+  if ('failure' in decoded) throw new Error('provider fixture')
+  return decoded.ok
+}
 
 function fixture(
   script: Parameters<typeof createScriptedInputMeter>[1] = () => ({ ok: fixtureBudget() }),
@@ -142,7 +149,7 @@ describe('bounded measurement lease lifetime', () => {
     const second = {
       ...f.selection.profile.definition.suppliers[0],
       adoption: { ...adoption, name: 'second' },
-      recipient: 'second',
+      provider: secondProvider(),
     }
     const selection = {
       ...f.selection,
@@ -164,15 +171,15 @@ describe('bounded measurement lease lifetime', () => {
             adoption: assembled.representation,
             tokenInput: { kind: 'null' },
             media: [],
-            requestBytes: supplier.recipient === 'second' ? '2' : '1',
+            requestBytes: supplier.provider === 'second' ? '2' : '1',
           },
         },
       }),
       meter: createScriptedInputMeter(countingBasis, async input => {
         await Promise.resolve()
-        const amount = input.supplier.recipient === 'second' ? '2' : '1'
+        const amount = input.supplier.provider === 'second' ? '2' : '1'
         expect(input.representation).toMatchObject({ requestBytes: amount })
-        seen.push(input.supplier.recipient)
+        seen.push(input.supplier.provider)
         const budget = fixtureBudget(amount)
         return {
           ok: {
@@ -187,7 +194,7 @@ describe('bounded measurement lease lifetime', () => {
       const result = await measure(selection, {}, f.assembled)
       if (result.kind !== 'complete') throw new Error('measurement failed')
       expect(result.checks.map(check => check.measurement.amount)).toEqual(['1', '2'])
-      expect(result.counting.map(basis => basis.supplier.recipient)).toEqual(['route', 'second'])
+      expect(result.counting.map(basis => basis.supplier.provider)).toEqual(['route', 'second'])
       expect(seen).toEqual(['route', 'second'])
       return success
     })

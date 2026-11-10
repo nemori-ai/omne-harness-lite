@@ -17,7 +17,6 @@ import {
 } from '@omne-harness/model-contract/testing'
 import {
   adoption,
-  credential,
   evidence,
   parameterAdoption,
   profileSupplier,
@@ -91,7 +90,7 @@ it('a plan binds suppliers with tenant credentials and adopted parameters, match
     parameters: [{ kind: 'temperature', value: 0.2 }],
   }
   const plan: ScriptedModelPreparationPlan = {
-    suppliers: [{ ...supplier, credential: { kind: 'tenant', id: credential } }],
+    suppliers: [{ ...supplier, credential: { layer: 'tenant' } }],
     parameterAdoptions: [parameterAdoption],
   }
   scripted.setAccess(access, 'deny')
@@ -107,8 +106,8 @@ it('a plan binds suppliers with tenant credentials and adopted parameters, match
     parameterAdoptions: [],
   }
   const badCredential: ScriptedModelPreparationPlan = {
-    // @ts-expect-error a credential is a tenant binding or the factory
-    suppliers: [{ ...supplier, credential: { kind: 'organization' } }],
+    // @ts-expect-error a credential layer is tenant, official or none
+    suppliers: [{ ...supplier, credential: { layer: 'organization' } }],
     parameterAdoptions: [],
   }
   const { required: _required, ...withoutRequired } = match

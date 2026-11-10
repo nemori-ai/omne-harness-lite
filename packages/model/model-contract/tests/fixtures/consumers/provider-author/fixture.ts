@@ -109,7 +109,7 @@ function measurement(text: string, media: 'none' | 'pending'): MeterInput {
   } as const
   return {
     profile: adoption('profile'),
-    supplier: { adoption: supplier.adoption, recipient: supplier.recipient, model: supplier.model },
+    supplier: { adoption: supplier.adoption, provider: supplier.provider, model: supplier.model },
     context: {
       window: { provided: '10', upstream: [] },
       input: null,

@@ -1793,6 +1793,9 @@ importers:
 
   packages/model/model-contract:
     dependencies:
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
       '@omne-harness/call-account':
         specifier: workspace:*
         version: link:../../common/call-account
@@ -1885,6 +1888,9 @@ importers:
       '@omne-harness/model-cordis-contract':
         specifier: workspace:*
         version: link:../model-cordis-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
       '@omne-harness/pi-ai-openai':
         specifier: workspace:*
         version: link:../pi-ai-openai
@@ -1894,9 +1900,6 @@ importers:
       '@omne-harness/settings':
         specifier: workspace:*
         version: link:../../assets/settings
-      '@omne-harness/settings-local':
-        specifier: workspace:*
-        version: link:../../assets/settings-local
       '@omne-harness/utc-instant':
         specifier: workspace:*
         version: link:../../common/utc-instant
@@ -1910,18 +1913,15 @@ importers:
       '@omne-harness/pi-ai-anthropic':
         specifier: workspace:*
         version: link:../pi-ai-anthropic
+      '@omne-harness/settings-local':
+        specifier: workspace:*
+        version: link:../../assets/settings-local
       '@omne-harness/tokenizer-tiktoken':
         specifier: workspace:*
         version: link:../tokenizer-tiktoken
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
-      '@types/proper-lockfile':
-        specifier: ^4.1.4
-        version: 4.1.4
-      proper-lockfile:
-        specifier: ^4.1.2
-        version: 4.1.2
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

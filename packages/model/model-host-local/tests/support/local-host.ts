@@ -15,16 +15,13 @@ import {
   type FixedModelRequest,
   type ModelFailure,
 } from '@omne-harness/model-contract'
-import {
-  decodeCredentialId,
-  type ModelSendBoundary,
-  type TransportFact,
-} from '@omne-harness/model-contract/provider'
+import { type ModelSendBoundary, type TransportFact } from '@omne-harness/model-contract/provider'
 import { anthropicTokenizerResources, createAnthropicFamily } from '@omne-harness/pi-ai-anthropic'
 import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
 import { composeFamilies, type ProxyConfig } from '@omne-harness/pi-ai-transport'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
-import { assembleLocalModel, createLocalCustodian } from '@omne-harness/model-host-local'
+import { assembleLocalModel } from '@omne-harness/model-host-local'
+import { createTestCredentials } from './credentials.ts'
 import { factorySupplier } from './profiles.ts'
 
 /** The value the vault holds in this environment: a placeholder, never a real key. */
@@ -243,31 +240,26 @@ export function assembleLocalHost(input: LocalHostInput) {
       maxRetainedAttempts: 1,
       // The runtime's own sender is not used: the assembled send boundary replaces it.
       credentials: {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind: 'unavailable' }),
-        presentFor: () => ({ kind: 'unavailable' }),
-        resolveFor: () => ({ kind: 'unavailable' }),
+        layerOf: () => ({ failure: { kind: 'unavailable' } }),
+        resolve: () => ({ failure: { kind: 'unavailable' } }),
       },
       sources: request.suppliers.map(supplier => ({
         profile: request.profile,
         supplier: supplier.adoption,
-        recipient: supplier.recipient,
+        provider: supplier.provider,
         model: supplier.model,
-        credential: {
-          kind: 'factory',
-          official: true,
-          queryId: decoded(decodeCredentialId('local-model-query')),
-        },
-        current: () => ({ ok: { authorized: true, noTenantBinding: true } }),
+        official: true,
+        current: () => ({ ok: { authorized: true } }),
       })),
     },
   })
-  const custodian = createLocalCustodian({
+  const credentials = createTestCredentials<typeof principal>({
     path: join(input.directory, `${label}.vault.json`),
-    factorySecret: PLACEHOLDER,
+    secret: PLACEHOLDER,
+    providers: ['openrouter'],
   })
   const host = assembleLocalModel({
-    credentials: custodian,
+    credentials: credentials.port,
     materialization: {
       maxRecords: 4,
       execution: reference =>
@@ -288,6 +280,8 @@ export function assembleLocalHost(input: LocalHostInput) {
       openrouter: {
         url: new URL(ROUTE_PATH, gateway.url).href,
         endMarker: GATEWAY_END_MARKER,
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        auth: { kind: 'bearer', item: 'apiKey' },
       },
     },
     transportLimits: {
@@ -349,7 +343,7 @@ export function assembleLocalHost(input: LocalHostInput) {
       try {
         await host.close()
       } finally {
-        custodian.close()
+        credentials.close()
       }
     },
   }

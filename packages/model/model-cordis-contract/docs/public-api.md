@@ -60,18 +60,18 @@ Context 以 unknown 表达边界输入，可信身份适配器在进入领域操
 
 ## 凭据服务定义
 
-本章给凭据保管提供者和发送边界：凭据服务的抽象定义与键。
+本章给凭据端口提供者和准备、发送边界：凭据服务的抽象定义与键。
 
 - 声明：[`src/cordis.ts`](../src/cordis.ts)。
 - 行为测试：[`tests/credential-service.spec.ts`](../tests/credential-service.spec.ts)。
 
-凭据服务已实现，由 `./cordis` 导出。定义 `ModelCredentialService<P = unknown>` 是抽象类，保留 `present` 与 `resolve`，新增非抽象可选的同步 `presentFor` 与 `resolveFor`，形状取自 `CredentialPort<P>`；诊断读取和保管管理不在服务上。定义不持有端口，实现不得把端口或保管者放在服务实例上，须放进构造时创建的闭包，因为实例的全部属性对任何能读 `ctx.modelCredential` 的插件可见。model-host-local 的 `./cordis` 中的 `LocalCredentialPlugin` 这样封住保管者。具体的本地保管与插件归 model-host-local。
+凭据服务已实现，由 `./cordis` 导出。定义 `ModelCredentialService<P = unknown>` 是抽象类，有两个抽象成员 `layerOf` 与 `resolve`，形状取自 `CredentialPort<P>`；秘密的写入与管理不在服务上。定义不持有端口，实现不得把端口放在服务实例上，须放进闭包，因为实例的全部属性对任何能读 `ctx.modelCredential` 的插件可见。model-host-local 的 `./cordis` 中的 `serveModelCredential` 这样封住端口。读取设置域秘密的具体端口归 model-host-local。
 
-服务不核验调用方资格：`SendFace` 的 `authorized`、`official` 和引用里的 `tenant` 都由调用方自报。装配须只把该服务交给受信的发送边界。目前没有拥有者强制这一点，同一 isolate 的任意插件可以请求另一租户的凭据，这一项在 [SPEC](../SPEC.md#凭据服务)登记为未决。
+服务不核验调用方资格：`access` 的租户、档案是否官方与所选的层都由调用方给出。装配须只把该服务交给受信的准备与发送边界。目前没有拥有者强制这一点，同一 isolate 的任意插件可以请求另一租户的秘密，这一项在 [SPEC](../SPEC.md#凭据服务)登记为未决。
 
 `modelCredential` 是可选成员：服务撤除后 `ctx.modelCredential` 缺席，消费者按依赖注入等待或失败，不假定存在。
 
-`presentFor` 与 `resolveFor` 不要求旧子类实现，也不改变旧构造函数。新路径的两种主体来源前提见 [Model 凭据契约](../../model-contract/SPEC.md#342-凭据引用与解析端口)，同步核验范围见 [SPEC](../SPEC.md#凭据服务)。主体伪造与 `official` 来源限制仍未关闭。
+两个操作的规则见 [Model 凭据契约](../../model-contract/SPEC.md#342-凭据引用与解析端口)。
 
 ## 公共观察服务
 

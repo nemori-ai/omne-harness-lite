@@ -1,4 +1,5 @@
 import {
+  decodeProviderName,
   decodeRevision,
   type ModelProfile,
   type RequestBudget,
@@ -94,7 +95,7 @@ export const profile: ModelProfile = {
   updatedAt: '2026-10-22',
   availability: 'active',
   definition: {
-    suppliers: [{ adoption, recipient: 'route', model: 'model' }],
+    suppliers: [{ adoption, provider: must(decodeProviderName('route')), model: 'model' }],
     fallback: false,
     input: ['text'],
     output: ['text'],

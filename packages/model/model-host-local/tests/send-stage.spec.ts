@@ -4,8 +4,7 @@
 // - ModelCommands: `createTestModelDependencies` of `@omne-harness/model/testing` (a store without
 //   durability), served through a `ModelCommandsService` test class. The durable commands join
 //   with the storage member; until then nothing here proves a restart.
-// - The credential service: `SpyCredential`, a `ModelCredentialService` that counts its calls. The
-//   real vault plugin (`LocalCredentialPlugin`) serves the slow tests.
+// - The credential service: `SpyCredential`, a `ModelCredentialService` that counts its calls.
 // - The transport of the fast tests: the observing factory of `send-resources.spec.ts`, here a
 //   copy that reads the slot at start. The slow tests use the real pi transport and families.
 // The runtime of the driven calls is the real `createModelRuntime`; the plugin replaces its sender.
@@ -26,7 +25,6 @@ import {
   type ModelFailure,
 } from '@omne-harness/model-contract'
 import {
-  decodeCredentialId,
   type CredentialPort,
   type ModelCommands,
   type ModelSendBoundary,
@@ -46,7 +44,8 @@ import {
 } from '@omne-harness/pi-ai-transport'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createModelSendStagePlugin, LocalCredentialPlugin } from '../src/cordis.ts'
+import { createModelSendStagePlugin } from '../src/cordis.ts'
+import { vaultCredentialPlugin } from './support/credentials.ts'
 import { assembleOver, type AssemblyFactories } from '../src/assembly.ts'
 import { sendStagePluginOver, type ModelSendStagePluginOptions } from '../src/plugins/send-stage.ts'
 import { sendResourcesOver, type PiSendResources } from '../src/send-resources.ts'
@@ -159,20 +158,16 @@ function sceneOf(request: FixedModelRequest, label: string) {
     sending: {
       maxRetainedAttempts: 1,
       credentials: {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind: 'unavailable' }),
+        layerOf: () => ({ failure: { kind: 'unavailable' } }),
+        resolve: () => ({ failure: { kind: 'unavailable' } }),
       },
       sources: request.suppliers.map(supplier => ({
         profile: request.profile,
         supplier: supplier.adoption,
-        recipient: supplier.recipient,
+        provider: supplier.provider,
         model: supplier.model,
-        credential: {
-          kind: 'factory',
-          official: true,
-          queryId: decoded(decodeCredentialId('local-model-query')),
-        },
-        current: () => ({ ok: { authorized: true, noTenantBinding: true } }),
+        official: true,
+        current: () => ({ ok: { authorized: true } }),
       })),
     },
   })
@@ -212,26 +207,22 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
   }
 }
 
-/** A credential service that answers the factory secret and counts what it was asked. */
+/** The secrets of the official layer: the one credential item of the route. */
+const SECRETS: ReadonlyMap<string, string> = new Map([['apiKey', PLACEHOLDER]])
+
+/** A credential service that answers the official layer and counts what it was asked. */
 class SpyCredential extends ModelCredentialService {
   static resolves = 0
-  readonly present: CredentialPort['present'] = () => ({ kind: 'unavailable' })
+  readonly layerOf: CredentialPort['layerOf'] = () => ({ ok: { layer: 'official' } })
   readonly resolve: CredentialPort['resolve'] = () => {
     SpyCredential.resolves += 1
-    return { kind: 'value', scope: 'factory', value: PLACEHOLDER }
-  }
-  override readonly presentFor: NonNullable<CredentialPort['presentFor']> = () => ({
-    kind: 'unavailable',
-  })
-  override readonly resolveFor: NonNullable<CredentialPort['resolveFor']> = () => {
-    SpyCredential.resolves += 1
-    return { kind: 'value', scope: 'factory', value: PLACEHOLDER }
+    return { ok: SECRETS }
   }
 }
 
 // --- the observing transport of the fast tests ---------------------------------------------------
 
-type Observed = { config: PiTransportConfig; reads: (string | undefined)[] }
+type Observed = { config: PiTransportConfig; reads: (ReadonlyMap<string, string> | undefined)[] }
 
 const NO_FACTS: AsyncIterable<TransportFact> = {
   [Symbol.asyncIterator]: () => ({ next: async () => ({ done: true, value: undefined }) }),
@@ -316,7 +307,12 @@ function observing() {
 }
 
 const ROUTES = {
-  openrouter: { url: 'https://gateway.invalid/api/v1/chat/completions', endMarker: '[DONE]' },
+  openrouter: {
+    url: 'https://gateway.invalid/api/v1/chat/completions',
+    endMarker: '[DONE]',
+    accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+    auth: { kind: 'bearer' as const, item: 'apiKey' },
+  },
 }
 const REQUEST = firstRoundRequest(RECORD_CASES['openai-reasoning'])
 
@@ -486,23 +482,17 @@ it('captures the private channel and installs its materialization reader until t
 })
 
 describe('the plugin and its dependencies', () => {
-  it('forwards qualified methods while held and makes them unavailable before close completes', async () => {
-    const scene = sceneOf(REQUEST, 'qualified-port')
+  it('forwards both port operations while held and makes them unavailable before close completes', async () => {
+    const scene = sceneOf(REQUEST, 'held-port')
     const watch = observing()
     const ctx = new Context()
-    const presentFor = vi.fn<NonNullable<CredentialPort['presentFor']>>(() => ({
-      kind: 'unavailable',
-    }))
-    const resolveFor = vi.fn<NonNullable<CredentialPort['resolveFor']>>(() => ({
-      kind: 'value',
-      scope: 'factory',
-      value: PLACEHOLDER,
-    }))
-    class QualifiedCredential extends SpyCredential {
-      override readonly presentFor = presentFor
-      override readonly resolveFor = resolveFor
+    const layerOf = vi.fn<CredentialPort['layerOf']>(() => ({ ok: { layer: 'official' } }))
+    const resolve = vi.fn<CredentialPort['resolve']>(() => ({ ok: SECRETS }))
+    class HeldCredential extends ModelCredentialService {
+      readonly layerOf = layerOf
+      readonly resolve = resolve
     }
-    await ctx.plugin(QualifiedCredential)
+    await ctx.plugin(HeldCredential)
     await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
     let port: CredentialPort | undefined
     const Stage = sendStagePluginOver({
@@ -513,56 +503,28 @@ describe('the plugin and its dependencies', () => {
       },
     })
     const fiber = await ctx.plugin(Stage, SETTINGS)
-    const input = {
-      id: decoded(decodeCredentialId('qualified-port')),
+    const access = { tenant: tenantOf('5'), principal: null }
+    const provider = REQUEST.suppliers[0].provider
+    const query = { provider, official: true, access }
+    const reference = {
+      provider,
+      layer: { layer: 'official' as const },
       purpose: 'model-send' as const,
-      official: true,
-      access: { tenant: tenantOf('5'), principal: null },
+      access,
     }
-    expect(port?.presentFor?.(input)).toEqual({ kind: 'unavailable' })
-    expect(port?.resolveFor?.(input)).toEqual({
-      kind: 'value',
-      scope: 'factory',
-      value: PLACEHOLDER,
-    })
-    expect(presentFor).toHaveBeenCalledWith(input)
-    expect(resolveFor).toHaveBeenCalledWith(input)
-    expect(SpyCredential.resolves).toBe(0)
+    expect(port?.layerOf(query)).toEqual({ ok: { layer: 'official' } })
+    expect(port?.resolve(reference)).toEqual({ ok: SECRETS })
+    expect(layerOf).toHaveBeenCalledWith(query)
+    expect(resolve).toHaveBeenCalledWith(reference)
     const finish = watch.hold()
     const disposing = fiber.dispose()
     await vi.waitFor(() => expect(watch.events).toContain('resources-close'))
-    expect(port?.presentFor?.(input)).toEqual({ kind: 'unavailable' })
-    expect(port?.resolveFor?.(input)).toEqual({ kind: 'unavailable' })
-    expect(presentFor).toHaveBeenCalledTimes(1)
-    expect(resolveFor).toHaveBeenCalledTimes(1)
+    expect(port?.layerOf(query)).toEqual({ failure: { kind: 'unavailable' } })
+    expect(port?.resolve(reference)).toEqual({ failure: { kind: 'unavailable' } })
+    expect(layerOf).toHaveBeenCalledTimes(1)
+    expect(resolve).toHaveBeenCalledTimes(1)
     finish()
     await disposing
-    await watch.dispose()
-  })
-
-  it('preserves the absence of qualified methods on a legacy credential service', async () => {
-    const scene = sceneOf(REQUEST, 'legacy-port')
-    const watch = observing()
-    const ctx = new Context()
-    class LegacyCredential extends ModelCredentialService {
-      readonly present: CredentialPort['present'] = () => ({ kind: 'unavailable' })
-      readonly resolve: CredentialPort['resolve'] = () => ({ kind: 'unavailable' })
-    }
-    await ctx.plugin(LegacyCredential)
-    await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
-    let port: CredentialPort | undefined
-    const Stage = sendStagePluginOver({
-      options: optionsOf(scene),
-      assemble: config => {
-        port = config.credentials
-        return assembleOver({ config, factories: watch.factories })
-      },
-    })
-    const fiber = await ctx.plugin(Stage, SETTINGS)
-    expect(port?.presentFor).toBeUndefined()
-    expect(port?.resolveFor).toBeUndefined()
-    expect(SpyCredential.resolves).toBe(0)
-    await fiber.dispose()
     await watch.dispose()
   })
 
@@ -664,7 +626,7 @@ describe('a send through the plugin', () => {
     expect(run.results).toEqual([expect.objectContaining({ kind: 'started' })])
     // One acquire: the probe is the first transport, the send's own transport the second.
     const [sent] = watch.acquired()
-    expect(sent?.reads).toEqual([PLACEHOLDER])
+    expect(sent?.reads).toEqual([SECRETS])
     expect(sent?.config.credential.read()).toBeUndefined()
     expect(SpyCredential.resolves).toBe(1)
 
@@ -935,10 +897,7 @@ describe('a connect failure that the send retries, through the plugin', () => {
             if (message.type === 'warn') warnings.push(message.args.map(String).join(' '))
           },
         })
-        await ctx.plugin(LocalCredentialPlugin, {
-          path: join(vault, `${label}.vault.json`),
-          factorySecret: PLACEHOLDER,
-        })
+        await ctx.plugin(vaultCredentialPlugin(join(vault, `${label}.vault.json`), PLACEHOLDER))
         await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
         const Stage = createModelSendStagePlugin(
           optionsOf(scene, {
@@ -951,6 +910,8 @@ describe('a connect failure that the send retries, through the plugin', () => {
               openrouter: {
                 url: new URL(ROUTE_PATH, front.url).href,
                 endMarker: GATEWAY_END_MARKER,
+                accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+                auth: { kind: 'bearer', item: 'apiKey' },
               },
             },
             transportLimits: { ...TRANSPORT_LIMITS, connectRetry: { backoffMs: [20, 40] } },
@@ -1020,10 +981,7 @@ async function replayThroughPlugin(
     closers.push(() => server.close())
     const scene = sceneOf(request, label)
     const ctx = new Context()
-    await ctx.plugin(LocalCredentialPlugin, {
-      path: join(vault, `${label}.vault.json`),
-      factorySecret: PLACEHOLDER,
-    })
+    await ctx.plugin(vaultCredentialPlugin(join(vault, `${label}.vault.json`), PLACEHOLDER))
     await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
     const Stage = createModelSendStagePlugin(
       optionsOf(scene, {
@@ -1036,6 +994,8 @@ async function replayThroughPlugin(
           openrouter: {
             url: new URL(ROUTE_PATH, server.url).href,
             endMarker: GATEWAY_END_MARKER,
+            accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            auth: { kind: 'bearer', item: 'apiKey' },
           },
         },
       }),

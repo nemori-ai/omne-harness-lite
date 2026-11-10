@@ -61,7 +61,7 @@ export function scriptedSendResources<P, Script>(
       const source = makeTransport(plan.script)
       counts.set(id, [...(counts.get(id) ?? []), source.counts])
       let owned: import('@omne-harness/model-contract/provider').MaterializedTransport | undefined
-      let secret: string | undefined
+      let secret: ReadonlyMap<string, string> | undefined
       return {
         ok: {
           transport: {
@@ -80,10 +80,10 @@ export function scriptedSendResources<P, Script>(
               }
             },
           },
-          startWithCredential(materialized, value, signal) {
+          startWithCredential(materialized, secrets, signal) {
             if (materialized !== owned || secret !== undefined)
               throw new Error('foreign materialization')
-            secret = value
+            secret = secrets
             try {
               return materialized.start(signal)
             } finally {

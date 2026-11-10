@@ -5,7 +5,12 @@ import type {
   PreparedTransport,
   TransportFact,
 } from '@omne-harness/model-contract/provider'
-import type { PiCredentialSlot, PiTransportConfig, PiTransportLimits } from '../../src/index.ts'
+import type {
+  PiCredentialSlot,
+  PiRouteAuth,
+  PiTransportConfig,
+  PiTransportLimits,
+} from '../../src/index.ts'
 import type { NetworkInternals } from '../../src/network.ts'
 import { createPiTransport, type PiTransport } from '../../src/transport.ts'
 import {
@@ -48,6 +53,8 @@ export function transportOver(
   options: Readonly<{
     url: string
     credential?: PiCredentialSlot
+    /** The way the route takes its credential. Default: the bearer of `apiKey`. */
+    auth?: PiRouteAuth
     limits?: PiTransportLimits
     onConnectRetry?: PiTransportConfig['onConnectRetry']
   }>,
@@ -57,8 +64,15 @@ export function transportOver(
   const built = createPiTransport({
     network: network.handle,
     families: family.families,
-    routes: { [SUPPLIER.recipient]: { url: options.url, endMarker: END_MARKER } },
-    credential: options.credential ?? { read: () => 'test-secret' },
+    routes: {
+      [SUPPLIER.provider]: {
+        url: options.url,
+        endMarker: END_MARKER,
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        auth: options.auth === undefined ? { kind: 'bearer', item: 'apiKey' } : options.auth,
+      },
+    },
+    credential: options.credential ?? { read: () => new Map([['apiKey', 'test-secret']]) },
     limits: options.limits ?? LIMITS,
     ...(options.onConnectRetry === undefined ? {} : { onConnectRetry: options.onConnectRetry }),
   })

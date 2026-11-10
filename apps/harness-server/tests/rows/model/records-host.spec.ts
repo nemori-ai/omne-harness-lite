@@ -50,13 +50,14 @@ import { authorization } from '../../../src/rows/authorization/row.ts'
 import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
 import { lateBoundSendBoundary, modelHostRow } from '../../../src/rows/model-host/index.ts'
 import { modelCredentialRow } from '../../../src/rows/model-credential/index.ts'
+import { secretCustodyRow } from '../../../src/rows/secret-custody/index.ts'
 import { modelProfilesRow } from '../../../src/rows/model-profiles/index.ts'
 import { modelRecordsRow } from '../../../src/rows/model-records/index.ts'
 import { modelRequestPreparationRow } from '../../../src/rows/model-request-preparation/index.ts'
 import { sessionStorageRow } from '../../../src/rows/session-storage/index.ts'
 import { storageRow } from '../../../src/rows/storage/index.ts'
 import type { EntryObjectModule } from '../../../src/types.ts'
-import { modelRowsOperatorConfig } from '../../r9/support.ts'
+import { modelRowsOperatorConfig, seedTestVault } from '../../r9/support.ts'
 import { providerConfig } from '../storage/fixtures/tree.ts'
 import { TENANT, withLiveRows } from './support.ts'
 
@@ -161,7 +162,14 @@ function rowsOf(storageRoot: string, options: { credential: boolean }) {
       config: model.preparation,
     },
     ...(options.credential
-      ? [{ id: 'model-credential', plugin: 'modelCredentialRow', config: model.credential }]
+      ? [
+          { id: 'model-credential', plugin: 'modelCredentialRow', config: {} },
+          {
+            id: 'secret-custody',
+            plugin: 'secretCustodyRow',
+            config: { path: seedTestVault(model.vault) },
+          },
+        ]
       : []),
     { id: 'model-records', plugin: 'modelRecordsRow', config: model.records },
     { id: 'model-host', plugin: 'modelHostRow', config: model.host },
@@ -178,6 +186,7 @@ const plugins = {
   modelProfilesRow,
   modelRequestPreparationRow,
   modelCredentialRow,
+  secretCustodyRow,
   modelRecordsRow,
   modelHostRow,
 }

@@ -77,7 +77,7 @@ export const refused = (failure: ModelFailure): SendResult => ({ kind: 'not-star
  * failure with cause `credential`, not as an unavailable that a caller waits on. No byte was sent,
  * so there is no upstream status.
  */
-function credentialFault(diagnostic: 'credential-missing' | 'credential-unreadable'): ModelFault {
+function credentialFault(diagnostic: string): ModelFault {
   return { cause: 'credential', diagnostic, upstreamStatus: null }
 }
 type RefusalReason = Readonly<{ failure: ModelFailure; fault?: ModelFault }>
@@ -172,33 +172,30 @@ export function createAttemptRunner<P>(
     attempts.delete(id)
     return refused(failure)
   }
-  /** The secret of the selected credential, only through the qualified path and its own scope. */
+  /**
+   * The secrets of the fixed credential layer. A refused layer is final for this dispatch: it
+   * carries a credential fault. A source that cannot answer now is not.
+   */
   function resolveCredential(
     attempt: SendAttempt<P>,
     selection: CredentialSelection,
-  ): Readonly<{ ok: string }> | RefusalReason {
-    if (!credentials.resolveFor || typeof selection.official !== 'boolean')
-      return { failure: unavailable('model-credential', 'qualified-path-missing') }
-    const resolved = credentials.resolveFor({
-      id: selection.id,
+  ): Readonly<{ ok: ReadonlyMap<string, string> }> | RefusalReason {
+    const resolved = credentials.resolve({
+      provider: selection.provider,
+      layer: selection.layer,
       purpose: MODEL_SEND,
-      official: selection.official,
       access: { principal: attempt.input.principal, tenant: attempt.input.tenant },
     })
-    if (resolved.kind === 'denied')
-      return { failure: { kind: 'denied', action: 'model-credential' } }
-    if (resolved.kind === 'absent' || resolved.kind === 'unreadable') {
-      const diagnostic = resolved.kind === 'absent' ? 'credential-missing' : 'credential-unreadable'
-      return {
-        failure: unavailable('model-credential', diagnostic),
-        fault: credentialFault(diagnostic),
-      }
+    if ('ok' in resolved) return resolved
+    const { kind } = resolved.failure
+    if (kind === 'denied') return { failure: { kind: 'denied', action: 'model-credential' } }
+    if (kind === 'unavailable')
+      return { failure: unavailable('model-credential', 'credential-unavailable') }
+    const diagnostic = `credential-${kind}`
+    return {
+      failure: unavailable('model-credential', diagnostic),
+      fault: credentialFault(diagnostic),
     }
-    if (resolved.kind !== 'value')
-      return { failure: unavailable('model-credential', `credential-${resolved.kind}`) }
-    if (resolved.scope !== selection.scope)
-      return { failure: { kind: 'denied', action: 'credential-scope' } }
-    return { ok: resolved.value }
   }
   function start(attempt: SendAttempt<P>, selection: CredentialSelection): SendStart {
     try {

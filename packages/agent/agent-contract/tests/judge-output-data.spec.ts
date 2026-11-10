@@ -102,7 +102,7 @@ describe('the accepted value of each output kind', () => {
     // fraction digits and the null case go red when a judgment rewrites or drops the text.
     for (const notBefore of ['2026-10-17T08:00:00Z', '2026-10-17T08:00:00.250Z', null]) {
       const plan = {
-        supplier: { adoption, recipient: 'recipient', model: 'model' },
+        supplier: { adoption, provider: 'recipient', model: 'model' },
         notBefore,
         basis: adoption,
       }

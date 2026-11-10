@@ -8,7 +8,7 @@ import type {
   Adoption,
   CallState,
   ConsumerRef,
-  CredentialId,
+  ProviderName,
   DispatchRecord,
   DurableEvidence,
   FixedModelRequest,
@@ -189,22 +189,18 @@ export const MODEL_WRITE_METHODS = [
 ] as const
 export type ModelWriteMethod = (typeof MODEL_WRITE_METHODS)[number]
 
-/** A trusted send source registration. `current` runs inside the storage's synchronous fence. */
+/**
+ * A trusted send source registration. `official` says whether the profile is an official one,
+ * which alone lets a supplier send on the official credential layer. `current` runs inside the
+ * storage's synchronous fence.
+ */
 export type ModelSendSource<P> = Readonly<{
   profile: Adoption
   supplier: Adoption
-  recipient: string
+  provider: ProviderName
   model: string
-  credential:
-    | Readonly<{ kind: 'tenant' }>
-    | Readonly<{ kind: 'factory'; official: true; queryId: CredentialId }>
-  current(input: SendDemand<P>): Outcome<
-    Readonly<{
-      authorized: boolean
-      noTenantBinding: boolean
-    }>,
-    ModelFailure
-  >
+  official: boolean
+  current(input: SendDemand<P>): Outcome<Readonly<{ authorized: boolean }>, ModelFailure>
 }>
 
 /** What a committed write keeps, so that a repeat of the same operation recovers its value. */

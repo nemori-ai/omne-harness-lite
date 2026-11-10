@@ -3,6 +3,7 @@
 // representation.
 import {
   decodeModelOperationId,
+  decodeProviderName,
   type Adoption,
   type FixedModelRequest,
   type ModelCountingBasis,
@@ -23,16 +24,19 @@ export const adoption = (name: string): Adoption => ({
   digest: '0'.repeat(64),
 })
 
+const provider = decodeProviderName('recipient')
+if ('failure' in provider) throw new Error('the provider fixture is not a provider name')
+
 export const supplier: Supplier = {
   adoption: adoption('supplier'),
-  recipient: 'recipient',
+  provider: provider.ok,
   model: 'model',
-  credential: { kind: 'factory' },
+  credential: { layer: 'official' },
 }
 
 /** The counting basis of the meter that this author writes. */
 export const basis: ModelCountingBasis = {
-  supplier: { adoption: supplier.adoption, recipient: supplier.recipient, model: supplier.model },
+  supplier: { adoption: supplier.adoption, provider: supplier.provider, model: supplier.model },
   meter: adoption('meter'),
   tokenization: { kind: 'not-used', method: adoption('method') },
   prompt: { kind: 'declared-template', template: adoption('template') },
@@ -70,9 +74,7 @@ const unknownUpstream = [{ supplier: adoption('supplier'), limit: { kind: 'unkno
 
 /** A profile definition that follows every rule of the contract; a path changes one thing at a time. */
 export const definition: ModelProfileDefinition = {
-  suppliers: [
-    { adoption: supplier.adoption, recipient: supplier.recipient, model: supplier.model },
-  ],
+  suppliers: [{ adoption: supplier.adoption, provider: supplier.provider, model: supplier.model }],
   fallback: false,
   input: ['text', 'image'],
   output: ['text'],

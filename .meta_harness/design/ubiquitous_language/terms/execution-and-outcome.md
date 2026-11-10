@@ -521,7 +521,7 @@
 > **EN**: **The release of a producer's duty to deliver a settled result, where the producer is one model call or one tool execution. It takes effect once the current legitimate consumer has finished processing the result, or has durably saved the content, original identity and processing position that later work needs.** There are two paths: finish processing and save the completion fact, or save the content first and process it later. Reading, displaying, receiving a reference and starting to process are not enough. On the model side the release is the ACK. It also requires the whole call to have truly settled, and it cannot happen while a retry or a retry decision is pending. On the tool side it releases the matching hand-over obligation and does not delete the full tool result. After the release, continuation proceeds from the data the consumer saved.
 
 - **形态**：过程
-- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 3）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 6）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 4）
+- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 4）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 6）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 4）
 - **别混 ①**：**不是[执行收场](#ul-execution-outcome--执行收场--execution-outcome)**——收场是一次执行的终局，解除发生在收场之后，由消费侧的保管或处理触发
 - **别混 ②**：**不是读取方对事件流的确认**——Agent 契约的 `acknowledge` 只清理满足保留政策且责任已交清的事件，不证明任何结果已处理，也不证明业务终态，见 [Agent 契约的确认](../../../../packages/agent/agent-contract/SPEC.md#确认)
 - **注意**：产品正文与 Model 契约用 ACK 指模型一侧的解除；本词表的正式名是「交付责任解除」，英文 Delivery Release，ACK 是它在模型一侧的通称。工具一侧的两条路径归 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)
@@ -541,7 +541,7 @@
 > attempt, a rebuilt instance or a recovery does not change it.
 
 - **形态**：属性
-- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 7）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 6）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 3）
+- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 7）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 6）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 4）
 - **别混**：不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。拓展点是设计时穷举的固定位点；消费位置随每次调用产生，指那次调用的接收处
 - **注意**：[交付责任解除](#ul-delivery-release--交付责任解除--delivery-release)要求消费侧保存原身份与处理位置，那个处理位置就是消费位置
 

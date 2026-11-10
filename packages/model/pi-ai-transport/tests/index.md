@@ -16,6 +16,7 @@
 - [proxy.spec.ts](proxy.spec.ts)：经本地 CONNECT 代理的交换：隧道成功、直连项、URL 规范化、连接超时的结束时刻、代理拒绝后重置、不可达、未回复即关闭、不回复、隧道内 TLS 失败与停滞、建立中的停止与关闭、取消不影响连接池已持有的套接字、代理 URL 不进入结果与诊断（慢层）
 - [live/openrouter.spec.ts](live/openrouter.spec.ts)：经真实代理向 OpenRouter 发一次流式请求，只在 `OMNE_LIVE_TESTS=1` 时运行（慢层，`test:live`）
 - [network.spec.ts](network.spec.ts)：网络资源的关闭排空、连接池、同一接收方连续发起、容量是唯一的并发上限、多接收方不排队（慢层）
+- [openrouter-body.spec.ts](openrouter-body.spec.ts)：官方 OpenRouter 供应商正文的每个字段与解码器的计费（快层）
 - [transport.spec.ts](transport.spec.ts)：三段传输的配置校验（含不是由网络资源工厂建立的 `network`）、prepare 的路由查找与家族绑定、materialize 期间开始的 prepared 关闭、prepared 与外层的关闭（含 release 失败时外层关闭等待全部关闭结束）（快层）
 - [materialize.spec.ts](materialize.spec.ts)：materialize 的回执、内容引用拒绝、encode 失败、重复调用、容量等待、取消与关闭归还名额（快层）
 - [start.spec.ts](start.spec.ts)：不发送的 start：无凭据、凭据不能写入请求头、信号已中止、网络资源已关闭（先于凭据检查）、关闭之前的重复 start、三种关闭之后的 start、start 与关闭之后再 start（快层）

@@ -12,9 +12,14 @@
 // legal tenant (assets-and-rules F7), so a tenant without its own key uses the official one.
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { SecretCustodyManagement, SecretCustodyUse, SecretScope } from '@omne-harness/settings'
+import type {
+  SecretCustodyManagement,
+  SecretCustodyUse,
+  SecretScope,
+  SettingsHolding,
+} from '@omne-harness/settings'
 import { SETTING_SECRET_PURPOSE, secretItemTarget } from '@omne-harness/settings'
-import type { FixedToolRequest, ToolDefinition } from '@omne-harness/tool-contract'
+import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 import { attachWebAccess } from '@omne-harness/tool-definitions'
 import {
@@ -26,7 +31,7 @@ import {
 import { createWebAccess, type ExaKeySource } from '@omne-harness/tool-host-local/web'
 import { z } from 'zod'
 import { classify } from '../authorization/principals.ts'
-import { toolSettingHolding, toolSettingSecretKey } from '../settings/holding.ts'
+import { holdingKey, officialHolding, toolAsset } from '../../assets/official-holdings.ts'
 
 type Parent = CallAccess<unknown> & Readonly<{ request: FixedToolRequest }>
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -66,7 +71,8 @@ function scopeOf(reference: Reference, tenant: Parent['tenant']): SecretScope {
 }
 
 /**
- * The three ports of `createLocalToolCredentials` over the custody for one Web definition.
+ * The three ports of `createLocalToolCredentials` over the custody for the holding of one Web
+ * definition.
  * - `access`: the principal is the login principal or the session work principal that acts for the
  *   tenant of the call. Anything else is denied before the custody is asked.
  * - `references`: the tenant layer and the official layer read the management face (`describe`),
@@ -75,16 +81,14 @@ function scopeOf(reference: Reference, tenant: Parent['tenant']): SecretScope {
  * - `secrets`: the use face (`use`) at the moment of use, for the reference selected before.
  */
 function custodyPorts(
-  definition: ToolDefinition,
+  holding: SettingsHolding,
   custody: SecretCustodyReader,
 ): Readonly<{
   access: ToolCredentialAccess<unknown>
   references: ToolCredentialReferences<unknown>
   secrets: ToolCredentialSecrets<unknown, string>
 }> {
-  const holding = toolSettingHolding(definition)
-  const keyOf = (scope: SecretScope) =>
-    holding === null ? undefined : toolSettingSecretKey(scope, holding, EXA_KEY_ITEM)
+  const keyOf = (scope: SecretScope) => holdingKey(scope, holding, EXA_KEY_ITEM)
   const access: ToolCredentialAccess<unknown> = {
     async qualify(input) {
       const who = classify(input.principal)
@@ -103,7 +107,6 @@ function custodyPorts(
         return succeed({ kind: 'unconfigured' })
       const reference: Reference = input.source.kind
       const key = keyOf(scopeOf(reference, input.tenant))
-      if (key === undefined) return succeed({ kind: 'unconfigured' })
       const faces = custody()
       if (faces === undefined)
         return unavailable(CUSTODY_DEPENDENCY, 'the secret custody is not provided by the tree')
@@ -121,7 +124,6 @@ function custodyPorts(
       if (input.reference !== 'tenant' && input.reference !== 'official')
         return fail({ kind: 'invalid', field: 'reference', reason: 'unknown credential layer' })
       const key = keyOf(scopeOf(input.reference, input.tenant))
-      if (key === undefined) return fail({ kind: 'missing' })
       const faces = custody()
       if (faces === undefined)
         return unavailable(CUSTODY_DEPENDENCY, 'the secret custody is not provided by the tree')
@@ -151,10 +153,11 @@ export function releaseExaKey(parent: Parent, custody: SecretCustodyReader): Exa
   if (availability.kind !== 'available')
     return async () => unavailable('tool-bindings', 'the Web definition is not available')
   const definition = availability.definition
-  const holding = toolSettingHolding(definition)
-  if (holding === null)
+  const held = officialHolding(toolAsset(definition))
+  if (held.kind !== 'declared')
     return async () => unavailable('tool-bindings', 'the Web definition declares no settings')
-  const credentials = createLocalToolCredentials<unknown, string>(custodyPorts(definition, custody))
+  const holding = held.ref.holding
+  const credentials = createLocalToolCredentials<unknown, string>(custodyPorts(holding, custody))
   const usage = {
     adoption: definition.adoption,
     purpose: SETTING_SECRET_PURPOSE,

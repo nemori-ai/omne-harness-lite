@@ -9,6 +9,7 @@ import {
 import type { Modality } from '@omne-harness/modality'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
+  decodeProviderName,
   decodeRevision,
   type Adoption,
   type DurableEvidence,
@@ -62,6 +63,7 @@ class Agent {
 }
 
 const adoption = (name: string): Adoption => ({ owner: 'test', name, revision: '1', digest: 'd' })
+const PROVIDER = must(decodeProviderName('provider'))
 const evidence = (label: string): DurableEvidence => ({
   owner: 'test',
   record: label,
@@ -89,7 +91,7 @@ function profileOf(
     updatedAt: '2026-11-01T00:00:00Z',
     availability: over.availability ?? 'active',
     definition: {
-      suppliers: [{ adoption: adoption('supplier'), recipient: 'recipient', model: 'model' }],
+      suppliers: [{ adoption: adoption('supplier'), provider: PROVIDER, model: 'model' }],
       fallback: false,
       input: over.input ?? ['text', 'image'],
       output: ['text'],

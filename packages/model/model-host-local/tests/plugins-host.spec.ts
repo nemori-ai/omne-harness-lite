@@ -36,6 +36,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createModelRuntimeLocalPlugin } from '../src/cordis.ts'
 import type { ModelHostPluginOptions } from '../src/plugins/host.ts'
 import type { ModelObservationHost } from '@omne-harness/model/commands'
+import { providerName } from './support/credentials.ts'
 
 function unbox<T>(decoded: { ok: T } | { failure: unknown }): T {
   if ('ok' in decoded) return decoded.ok
@@ -99,9 +100,9 @@ const request: FixedModelRequest = {
   suppliers: [
     {
       adoption: { owner: 'o', name: 'n', revision: '1', digest: '0'.repeat(64) },
-      recipient: 'test.invalid',
+      provider: providerName('test.invalid'),
       model: 'test',
-      credential: { kind: 'factory' },
+      credential: { layer: 'official' },
     },
   ],
   fallback: false,

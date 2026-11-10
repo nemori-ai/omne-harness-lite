@@ -86,7 +86,7 @@ export function createScriptedPreparationResources<P>(
           },
         }))
       const bindings = input.profile.definition.suppliers.map(supplier => ({
-        supplier: { ...supplier, credential: { kind: 'factory' as const } },
+        supplier: { ...supplier, credential: { layer: 'official' as const } },
         rules: {
           plan(value: Parameters<M.ModelRequestRules['plan']>[0]) {
             seen.push(value.assembled)

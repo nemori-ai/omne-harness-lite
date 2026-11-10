@@ -4,12 +4,11 @@
 // real `ModelProfilesLocalPlugin` resolves for that route. A diverging rule turns it red.
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { decodeCredentialId } from '@omne-harness/model-contract/provider'
 import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
 import { ModelProfilesLocalPlugin } from '@omne-harness/model-host-local/cordis'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
 import { officialSendSources } from '../../src/model/sources.ts'
-import { fixtureTenant, okOf } from '../entry/support.ts'
+import { fixtureTenant } from '../entry/support.ts'
 
 const ADOPTION = {
   owner: 'harness-server-test',
@@ -24,11 +23,10 @@ const REQUIRED = {
 }
 
 describe('the official send sources', () => {
-  it('name every official OpenAI profile with the adoption the real profiles plugin resolves, and the factory credential', async () => {
+  it('name every official OpenAI profile with the adoption the real profiles plugin resolves, and are official', async () => {
     const sources = officialSendSources({
       profiles: PROFILES,
-      factoryQueryId: okOf(decodeCredentialId('factory-openrouter'), 'query id'),
-      current: () => ({ ok: { authorized: false, noTenantBinding: true } }),
+      current: () => ({ ok: { authorized: false } }),
     })
     expect(sources.length).toBeGreaterThan(0)
     const ctx = new Context()
@@ -45,12 +43,8 @@ describe('the official send sources', () => {
       if (!('ok' in resolved) || resolved.ok.kind !== 'resolved') throw new Error('not resolved')
       expect(source.profile, source.model).toEqual(resolved.ok.profile.adoption)
       expect(source.supplier).toEqual(resolved.ok.profile.definition.suppliers[0].adoption)
-      expect(source.recipient).toBe(resolved.ok.profile.definition.suppliers[0].recipient)
-      expect(source.credential).toEqual({
-        kind: 'factory',
-        official: true,
-        queryId: 'factory-openrouter',
-      })
+      expect(source.provider).toBe(resolved.ok.profile.definition.suppliers[0].provider)
+      expect(source.official).toBe(true)
     }
     await ctx.fiber.dispose()
   })

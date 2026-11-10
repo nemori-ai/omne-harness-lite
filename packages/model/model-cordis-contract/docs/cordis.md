@@ -4,11 +4,11 @@
 
 ## 服务定义与入口
 
-目标 `@omne-harness/model-cordis-contract/cordis` 唯一拥有下列服务定义、键和增补；`@omne-harness/model-host-local/cordis` 的具体提供者继承它。纯领域类型从 model-contract 导入。十五个抽象 Service（含凭据）、实例目录和转换目录已全部落地。model-host-local 目前只有凭据插件。实现不得复制方法形状，索引类型随唯一契约同步。
+目标 `@omne-harness/model-cordis-contract/cordis` 唯一拥有下列服务定义、键和增补；`@omne-harness/model-host-local/cordis` 的具体提供者继承它。纯领域类型从 model-contract 导入。十五个抽象 Service（含凭据）、实例目录和转换目录已全部落地。model-host-local 目前提供凭据服务与宿主插件。实现不得复制方法形状，索引类型随唯一契约同步。
 
 精确声明见 [public-api](public-api.md#服务定义与入口)。
 
-凭据的 ModelCredentialService、modelCredential 键和 Context 增补已在本定义入口的 [`./cordis`](public-api.md#凭据服务定义)落地，是唯一定义。服务键为 `modelCredential`，是抽象定义，保留 `present` 与 `resolve`，并有非抽象可选的同步 `presentFor` 与 `resolveFor`，诊断读取不在服务上。定义不持有端口；实现不得把端口或保管者放在服务实例上，须放进闭包，model-host-local 的 `./cordis` 中的 `LocalCredentialPlugin` 这样封住它。定义引用 model-contract 的凭据操作类型，不导入 model。`LocalCredentialPlugin` 在 model-host-local 的 `./cordis` 继承这个定义。model 不依赖本包。服务不核验调用方资格：`SendFace` 的授权字段和引用里的 `tenant` 都由调用方自报，同一 isolate 的任意插件可以请求另一租户的凭据。这一项在 [SPEC](../SPEC.md#凭据服务)登记为未决。
+凭据的 ModelCredentialService、modelCredential 键和 Context 增补已在本定义入口的 [`./cordis`](public-api.md#凭据服务定义)落地，是唯一定义。服务键为 `modelCredential`，是抽象定义，有两个抽象成员 `layerOf` 与 `resolve`。定义不持有端口；实现不得把端口放在服务实例上，须放进闭包，model-host-local 的 `./cordis` 中的 `serveModelCredential` 这样封住它，它建的实例继承这个定义。定义引用 model-contract 的凭据操作类型，不导入 model。model 不依赖本包。服务不核验调用方资格：`access` 的租户、档案是否官方与所选的层都由调用方给出，同一 isolate 的任意插件可以请求另一租户的秘密。这一项在 [SPEC](../SPEC.md#凭据服务)登记为未决。
 
 model-cordis-contract 的根只导出纯类型，Cordis 值和增补仅在 ./cordis；安装该包明确带入 Cordis。./cordis 的实例目录与转换目录在运行时调用 kernel-basis `./cordis` 的 [`registerInCallerFiber`](../../../assembly/kernel-basis/SPEC.md#调用方-fiber-登记辅助)，所以安装该包也带入 `@omne-harness/kernel-basis`。业务操作使用抽象 Service；实例与转换目录保留定义自有的具体登记逻辑，限 IC-3 允许的范围。业务插件及阶段适配器归 model-host-local；可复用领域执行归不依赖 Cordis 的 model。
 

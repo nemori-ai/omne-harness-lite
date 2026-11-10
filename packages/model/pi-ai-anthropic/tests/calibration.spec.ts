@@ -167,9 +167,9 @@ async function leaseOf(
     supplierOf: ({ supplier }) => ({
       ok: {
         adoption: supplier.adoption,
-        recipient: supplier.recipient,
+        provider: supplier.provider,
         model: supplier.model,
-        credential: { kind: 'factory' },
+        credential: { layer: 'official' },
       },
     }),
     maxCitedCalls: 8,

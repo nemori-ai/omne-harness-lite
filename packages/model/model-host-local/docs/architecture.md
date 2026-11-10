@@ -6,10 +6,9 @@
 
 | 模块 | 持有什么 | 依赖 |
 | --- | --- | --- |
-| [store.ts](../src/store.ts) | 保管库句柄、内存快照、文件锁、刷新、原子发布、确认未知、关闭、诊断列表 | model（判定函数）、model-contract、proper-lockfile、records |
-| [index.ts](../src/index.ts) | 根入口：保管库工厂与诊断类型 | store |
-| [cordis.ts](../src/cordis.ts) | Cordis 绑定入口：`LocalCredentialPlugin`、配置校验，并转出 `deliverInjected` | model-cordis-contract、Cordis、store、deliver-injected |
-| [deliver-injected.ts](../src/deliver-injected.ts) | `deliverInjected`：经静态注入取得 `modelCredential` 并调用 model 的 `deliver` | model（`deliver`）、model-contract、model-cordis-contract、Cordis |
+| [credential-port.ts](../src/credential-port.ts) | `createSecretCredentialPort`：按供应商的凭据项与绑定键读秘密保管，用契约的两条规则选层、判读并取秘密 | model-contract、settings、operation-result |
+| [index.ts](../src/index.ts) | 根入口：凭据端口、本地装配与发送资源 | credential-port、assembly、send-resources |
+| [cordis.ts](../src/cordis.ts) | Cordis 绑定入口：`serveModelCredential` 与宿主插件 | model-cordis-contract、Cordis、plugins |
 | [send-resources.ts](../src/send-resources.ts) | 生产发送资源：每次 `acquire` 一个 pi 传输及其私有凭据槽、物化传输归属、配置探针、`SendResourceDefect` | model（`SendResources` 类型）、model-contract、pi-ai-transport |
 | [assembly.ts](../src/assembly.ts) | 本地 Model 装配：创建并关闭网络资源，组合发送资源与 model 的发送边界，在同一组家族与 `ModelCommands` 上建计量准备资源；`close` 开始后两者都拒绝新的资源 | model（`createModelSendBoundary`、`createModelPreparationResources`）、model-contract、pi-ai-transport、send-resources |
 | [plugins/config.ts](../src/plugins/config.ts) | 两个宿主插件的配置：四项宿主上限与 `maxCitedCalls`，缺失或越界即加载失败，不给数值默认值 | fields |
@@ -17,19 +16,17 @@
 | [plugins/host.ts](../src/plugins/host.ts) | 宿主驱动：未绑定宿主、`bind`、有界唤醒与协程、路由发布与撤除、按调用核对观察资格、一个外层 effect 拥有的有序关闭，以及只发布 `modelInstanceHost` 的贡献 | model（`ModelRuntimeProvider` 类型）、model-contract、model-cordis-contract、Cordis、config |
 | [plugins/preparation.ts](../src/plugins/preparation.ts) | 请求准备插件：静态注入 `modelCommands`，经 `createModelPreparationResources` 取租约，按家族规则形成固定请求并交还租约；同一份资源交给装配作计量租约来源 | model（`createModelPreparationResources`）、model-contract、model-cordis-contract、Cordis、config |
 
-依赖方向是 cordis.ts 到 store.ts，反向没有；磁盘记录的形状、解码与编码归 settings-local 的 `./secrets` 子路径，store.ts 经它读写保管文件。deliver-injected.ts 不导入 store.ts：注入发送只经服务取得凭据，不打开保管库。根入口不导入 Cordis 或 cordis.ts。assembly.ts 到 send-resources.ts，两者都不导入 store.ts 或任何 `testing` 模块：装配只经 `CredentialPort` 消费保管库。本包依赖 model 取得判定函数、状态类型与发送边界；model 不依赖本包。本包依赖 pi-ai-transport 取得传输与网络资源；家族包只是测试依赖，由调用方组合后注入。
+credential-port.ts 只依赖 settings 的秘密保管端口，不导入 settings-local：保管库文件与磁盘记录归保管提供者，由装配注入。cordis.ts 不导入 credential-port.ts，服务只转发注入给它的端口。根入口不导入 Cordis 或 cordis.ts。assembly.ts 到 send-resources.ts，两者都不导入 credential-port.ts 或任何 `testing` 模块：装配只经 `CredentialPort` 取得秘密。本包依赖 model 取得发送边界；model 不依赖本包。本包依赖 pi-ai-transport 取得传输与网络资源；家族包只是测试依赖，由调用方组合后注入。
 
 ## 关键机制与理由
 
-**判定与保管分离。** 存在性与解析的取舍是 model 的业务判定，只读一份状态快照。本包负责产生快照：每次判定前从磁盘刷新，再把快照交给 model 的判定函数。这样替换保管实现不改判定，判定的缺陷也只在 model 修复。代价是状态形状（绑定、寿命、工厂秘密、关闭标志）成为 model 的公开导出，本包必须按它构造。
+**规则归契约，端口只读事实。** 选哪一层、一层是否可用，是 model-contract 的 `selectCredentialLayer` 与 `readCredentialLayer`。端口只给它们每一项的状态，再在可用时取秘密。这样第二个供应商只是 `providers` 里多一行：凭据项、发行是否持有与绑定键，不改端口。
 
-**每次刷新而不是缓存。** 保留的句柄与 Cordis 服务要观察其他进程造成的轮换、撤销与损坏，因此 `present`、`resolve` 每次读盘。关闭标志是进程内的，刷新保留当前进程的决定，不从文件读取。
+**只读，不写。** 端口只拿秘密保管的读面与使用面。写入属于设置域的设置操作与部署的 `setup`，端口没有管理面，也就不能改秘密。
 
-**文件锁不按时间过期。** 把 proper-lockfile 的过期接管设为最大安全整数，任何有限的时钟跳变都不会让活着的持锁者被接管，代价是崩溃后须人工清理锁文件。API 同步，所以等待锁用不让出事件循环的退避。
+**每次读而不是缓存。** 其他进程造成的轮换、撤销与损坏要在下一次调用时可见，因此 `layerOf`、`resolve` 每次经保管读。读面与使用面之间绑定变了时，端口答 `unavailable`，不把不一致当成功。
 
-**两段式发布。** 临时文件 `fsync` 后重命名，再同步父目录。重命名之前的失败不改变已发布状态；重命名之后的失败只能报告「可能已发布」，由调用者核实。
-
-**插件以闭包持有保管库。** Cordis 把服务实例的代理交给消费者，`#private` 字段经代理失败，实例属性可被任何能读 `ctx.modelCredential` 的插件取得，所以保管库只放在构造函数的闭包里。实例提供 `present`、`resolve`、`presentFor` 与 `resolveFor`，不暴露保管管理操作。后两项在共同服务定义上可选，本地插件实现它们，见 [SPEC](../SPEC.md#兼容期资格凭据路径)。
+**服务以闭包持有端口。** Cordis 把服务实例的代理交给消费者，`#private` 字段经代理失败，实例属性可被任何能读 `ctx.modelCredential` 的插件取得，所以端口只放在两个方法的闭包里。
 
 **每次发送一个私有凭据槽。** pi 传输的凭据槽在构造时固定，一个传输的所有发送共用它。发送资源因此为每次 `acquire` 建一个传输，槽只属于这个资源。并发发送没有共享的槽，不需要锁，也不会读到别人的值。pi 传输在 `start` 的同步调用内读槽，所以填槽、`start`、清槽放在同一个同步 `try/finally` 里就完整；即使以后传输推迟读槽，私有槽也只会读到空值而拒绝发送，不会串号。代价是每次发送多一次配置检查。
 
@@ -49,4 +46,4 @@
 
 ## 验证与维护
 
-保证与测试的对应见 [SPEC](../SPEC.md#组合与验证)。状态类型随 model 的判定变化时，同步 [store.ts](../src/store.ts) 与测试。服务定义变化时同步 [cordis.ts](../src/cordis.ts) 与 [deliver-injected.ts](../src/deliver-injected.ts)。model 的 `SendResources` 端口或 pi-ai-transport 的传输配置变化时，同步 [send-resources.ts](../src/send-resources.ts)、[assembly.ts](../src/assembly.ts) 与对应测试。宿主插件扩展或运行时门面接入时，同步 [plugins/host.ts](../src/plugins/host.ts) 的扩展点与 [plugins-host.spec.ts](../tests/plugins-host.spec.ts)。
+保证与测试的对应见 [SPEC](../SPEC.md#组合与验证)。model-contract 的凭据端口或选层规则变化时，同步 [credential-port.ts](../src/credential-port.ts) 与测试。服务定义变化时同步 [cordis.ts](../src/cordis.ts)。model 的 `SendResources` 端口或 pi-ai-transport 的传输配置变化时，同步 [send-resources.ts](../src/send-resources.ts)、[assembly.ts](../src/assembly.ts) 与对应测试。宿主插件扩展或运行时门面接入时，同步 [plugins/host.ts](../src/plugins/host.ts) 的扩展点与 [plugins-host.spec.ts](../tests/plugins-host.spec.ts)。

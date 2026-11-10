@@ -36,7 +36,7 @@ export type PiSendResourcesConfig = Readonly<{
   /** Created and closed by the caller. Every transport of these resources shares it. */
   network: NetworkResources
   families: PiFamilyContributions
-  /** Looked up by `supplier.recipient`, e.g. `openrouter`. The caller gives every URL. */
+  /** Looked up by `supplier.provider`, e.g. `openrouter`. The caller gives every URL. */
   routes: Readonly<Record<string, PiRoute>>
   limits: PiTransportLimits
   materialization: PiMaterializationOptions
@@ -128,15 +128,16 @@ export function sendResourcesOver<P>(
   let closing: Promise<void> | undefined
 
   function acquireOne(demand: SendDemand<P>, owner: object): SendResource {
-    // The secret of the send that is starting. It holds a value only inside startWithCredential.
-    let secret: string | undefined
+    // The secrets of the send that is starting, by credential item. They are held only inside
+    // startWithCredential.
+    let secrets: ReadonlyMap<string, string> | undefined
     const produced = new WeakSet<MaterializedTransport>()
     let released: Promise<void> | undefined
     let inactive = false
     let preparation: ReturnType<ModelTransport['prepare']> | undefined
     const pi = createTransport({
       ...transportBase,
-      credential: { read: () => secret },
+      credential: { read: () => secrets },
       ...(onConnectRetry === undefined
         ? {}
         : {
@@ -183,12 +184,12 @@ export function sendResourcesOver<P>(
       startWithCredential(materialized, value, signal) {
         if (inactive) throw new SendResourceDefect('resource-released')
         if (!produced.has(materialized)) throw new SendResourceDefect('foreign-materialization')
-        secret = value
+        secrets = value
         try {
           // The pi transport reads the slot once, inside this synchronous call.
           return materialized.start(signal)
         } finally {
-          secret = undefined
+          secrets = undefined
         }
       },
       release() {

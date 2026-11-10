@@ -28,7 +28,7 @@ import {
 
 const RECORDS: readonly ChatCompletionsRecord[] = [
   testRecord(),
-  testRecord({ name: 'lab/model-b', route: { recipient: 'gateway', model: 'lab/model-b' } }),
+  testRecord({ name: 'lab/model-b', route: { provider: 'gateway', model: 'lab/model-b' } }),
 ]
 
 function family(records: readonly ChatCompletionsRecord[] = RECORDS): PiFamily {

@@ -8,6 +8,7 @@ import type { ModelProfileSnapshot } from '@omne-harness/model-contract/provider
 import { createModelProfiles } from '@omne-harness/model'
 import { expect, it } from 'vitest'
 import { createOfficialProfileSource } from '../src/profile-source.ts'
+import { providerName } from './support/credentials.ts'
 
 const principal = { owner: 'model-host-local-tests', subject: 'reader' }
 
@@ -59,7 +60,7 @@ function definitionOf(route: string): ModelProfileDefinition {
     suppliers: [
       {
         adoption: adoptionOf(route),
-        recipient: 'openrouter',
+        provider: providerName('openrouter'),
         model: route,
         replay: { produces: `openrouter/${route}`, accepts: [`openrouter/${route}`] },
       },
@@ -107,8 +108,8 @@ function profilesOfRoute(profile: ModelProfile): Adoption {
 // The two digests below were computed outside this package: Python's `json.dumps` with
 // `sort_keys=True, separators=(',', ':')` over the same values, then SHA-256. Python writes
 // non-ASCII as `\\u` escapes and the source writes UTF-8, so both fixtures here are ASCII.
-const DEFINITION_DIGEST = '09a909a259adf7ff133fdfe7131bb19f99759db94c694c645ab7dfa5fe1bce9e'
-const SNAPSHOT_DIGEST = '6422e15132ffbb8d423fbab084373d4f5bb515f2fc0085d48283de40abdff4f1'
+const DEFINITION_DIGEST = '936a8c89f93b6f943bf7e7b55af590a5c9e16d7f46c74e16c91c84de6c71a40b'
+const SNAPSHOT_DIGEST = '3252c6c3908c2223dfa1add8afcfd61948e63b5183d6027de4919d8547837795'
 
 it('turns each definition into a factory profile whose route is the first supplier model', async () => {
   const snapshot = await snapshotOf(['alpha/route', 'beta/route'])
@@ -189,7 +190,7 @@ it('refuses a supplier adoption whose revision is not a revision', () => {
     suppliers: [
       {
         adoption: { ...adoptionOf('alpha/route'), revision: 'one' },
-        recipient: 'openrouter',
+        provider: providerName('openrouter'),
         model: 'alpha/route',
       },
     ],

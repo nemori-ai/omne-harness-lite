@@ -240,9 +240,9 @@ const adoption = { owner: 'owner', name: 'name', revision: '1', digest: 'sha256:
 
 const supplier = {
   adoption,
-  recipient: 'recipient',
+  provider: 'recipient',
   model: 'model',
-  credential: { kind: 'factory' },
+  credential: { layer: 'official' },
 }
 
 const card = {

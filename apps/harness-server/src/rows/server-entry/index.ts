@@ -28,7 +28,6 @@ import { modesInitialization } from '../../assembly/session-modes-initialization
 import { defineRow, type RowHandle } from '../../row.ts'
 import { serverEntryConfig, type ServerEntryRowConfig } from './config.ts'
 import { governanceOfCall, identityOfCall } from './identity.ts'
-import { modelCredentialsOfCall } from './model-credentials.ts'
 import { settingsOfCall } from './settings.ts'
 import { entryDiagnostics } from './telemetry.ts'
 
@@ -130,7 +129,6 @@ async function build(ctx: Context, raw: unknown): Promise<RowHandle> {
       issuer: ctx.principalIssuer,
       session: sessionFaces(ctx),
       resolveDefinition: definitionResolverOf(ctx.definitionMappings),
-      modelCredentials: modelCredentialsOfCall(ctx),
       settings: settingsOfCall(ctx),
       diagnostics: entryDiagnostics(ctx.telemetry),
       ...diagnosticPorts(ctx),

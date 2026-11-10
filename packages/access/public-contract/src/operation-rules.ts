@@ -307,9 +307,6 @@ const requests = {
     kind: 'object',
     fields: { expressionId: { rule: { kind: 'text' } } },
   },
-  'bind-model-credential': { kind: 'object', fields: { secret: { rule: { kind: 'text' } } } },
-  'unbind-model-credential': empty,
-  'describe-model-credential': empty,
   'list-settings': { kind: 'object', fields: { asset: { rule: settingAsset, optional: true } } },
   'set-setting': {
     kind: 'object',
@@ -322,21 +319,6 @@ const requests = {
   'describe-setting': settingRef,
   'clear-setting': settingRef,
 } satisfies Readonly<Record<GovernanceProvidedOperation, Rule>>
-
-const modelCredentialState: Rule = {
-  kind: 'one-of',
-  rules: [
-    { kind: 'object', fields: { state: { rule: { kind: 'literal', values: ['unbound'] } } } },
-    {
-      kind: 'object',
-      fields: {
-        state: { rule: { kind: 'literal', values: ['usable', 'unreadable'] } },
-        tenantId: { rule: { kind: 'tenant' } },
-        configuredAt: { rule: { kind: 'instant' }, optional: true },
-      },
-    },
-  ],
-}
 
 const unboundSetting: Rule = {
   kind: 'object',
@@ -354,32 +336,60 @@ const boundSetting: Rule = {
 
 const settingState: Rule = { kind: 'one-of', rules: [unboundSetting, boundSetting] }
 
-const settingItem: Rule = {
+const officialSetting: Rule = {
+  kind: 'one-of',
+  rules: [
+    unboundSetting,
+    {
+      kind: 'object',
+      fields: {
+        state: { rule: { kind: 'literal', values: ['usable', 'revoked', 'unreadable'] } },
+        configuredAt: { rule: { kind: 'instant' }, optional: true },
+      },
+    },
+  ],
+}
+
+const settingLayers: Rule = {
   kind: 'object',
-  fields: {
-    asset: {
-      rule: {
-        kind: 'object',
-        fields: { category: { rule: { kind: 'text' } }, name: { rule: { kind: 'text' } } },
+  fields: { own: { rule: settingState }, official: { rule: officialSetting } },
+}
+
+const notWritable: Rule = {
+  kind: 'object',
+  fields: { state: { rule: { kind: 'literal', values: ['not-writable'] } } },
+}
+
+const settingAssetView: Rule = {
+  kind: 'object',
+  fields: { category: { rule: { kind: 'text' } }, name: { rule: { kind: 'text' } } },
+}
+
+const settingItem: Rule = {
+  kind: 'one-of',
+  rules: [
+    {
+      kind: 'object',
+      fields: {
+        asset: { rule: settingAssetView },
+        item: { rule: { kind: 'text' } },
+        title: { rule: { kind: 'text' } },
+        sensitivity: { rule: { kind: 'literal', values: ['secret'] } },
+        state: { rule: { kind: 'one-of', rules: [unboundSetting, boundSetting, notWritable] } },
+        official: { rule: officialSetting },
       },
     },
-    item: { rule: { kind: 'text' } },
-    title: { rule: { kind: 'text' } },
-    sensitivity: { rule: { kind: 'literal', values: ['secret', 'ordinary'] } },
-    state: {
-      rule: {
-        kind: 'one-of',
-        rules: [
-          unboundSetting,
-          boundSetting,
-          {
-            kind: 'object',
-            fields: { state: { rule: { kind: 'literal', values: ['not-writable'] } } },
-          },
-        ],
+    {
+      kind: 'object',
+      fields: {
+        asset: { rule: settingAssetView },
+        item: { rule: { kind: 'text' } },
+        title: { rule: { kind: 'text' } },
+        sensitivity: { rule: { kind: 'literal', values: ['ordinary'] } },
+        state: { rule: notWritable },
       },
     },
-  },
+  ],
 }
 
 const successes = {
@@ -515,24 +525,17 @@ const successes = {
     },
   },
   'withdraw-authorization-expression': empty,
-  'bind-model-credential': {
-    kind: 'object',
-    fields: { configuredAt: { rule: { kind: 'instant' } } },
-  },
-  'unbind-model-credential': empty,
-  'describe-model-credential': modelCredentialState,
   'list-settings': complete('items', settingItem),
   'set-setting': {
     kind: 'object',
     fields: { configuredAt: { rule: { kind: 'instant' } } },
   },
-  'describe-setting': settingState,
+  'describe-setting': settingLayers,
   'clear-setting': empty,
 } satisfies Readonly<Record<GovernanceProvidedOperation, Rule>>
 
 const noChanges = {
   'revoke-login': empty,
-  'unbind-model-credential': empty,
   'clear-setting': empty,
   'switch-current-tenant': empty,
   'release-affiliation': {
@@ -656,9 +659,6 @@ const outcomes = {
     'unknown',
   ],
   'withdraw-authorization-expression': ['succeeded', 'denied', 'basis-unavailable', 'unknown'],
-  'bind-model-credential': ['succeeded', 'denied', 'basis-unavailable', 'unknown'],
-  'unbind-model-credential': ['succeeded', 'no-change', 'denied', 'basis-unavailable', 'unknown'],
-  'describe-model-credential': ['succeeded', 'denied', 'basis-unavailable'],
   'list-settings': ['succeeded', 'denied', 'basis-unavailable'],
   'set-setting': [
     'succeeded',
@@ -732,9 +732,6 @@ const proofOperations: ReadonlySet<string> = new Set([
   'judge-admission',
   'submit-authorization-expression',
   'withdraw-authorization-expression',
-  'bind-model-credential',
-  'unbind-model-credential',
-  'describe-model-credential',
   'list-settings',
   'set-setting',
   'describe-setting',
@@ -766,9 +763,6 @@ const tenantOperations: ReadonlySet<string> = new Set([
   'judge-admission',
   'submit-authorization-expression',
   'withdraw-authorization-expression',
-  'bind-model-credential',
-  'unbind-model-credential',
-  'describe-model-credential',
   'list-settings',
   'set-setting',
   'describe-setting',
