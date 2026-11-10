@@ -1,21 +1,22 @@
 // The `settings` row (application assembly, Settings secret items): the registry of the setting
-// definitions the release tools declare, the secret-item entry of `@omne-harness/settings` over
-// the trusted custody, and the admitted setting management the public operations use. It provides
-// the trusted key `settingsSecretItems`: a service in the shape of server-entry's
+// definitions the official holdings declare, the secret-item entry of `@omne-harness/settings`
+// over the trusted custody, and the admitted setting management the public operations use. It
+// provides the trusted key `settingsSecretItems`: a service in the shape of server-entry's
 // `SettingsGovernance`, which only the `server-entry` row reads, per call.
 //
 // Registration follows the release: a tool's definition, declarations included, is known to this
 // process only after the `tool-host` row loaded its author (`releaseDefinitionOf`). The row keeps
 // no copy of its own and asks for it on every read of the registry: a definition that became known
-// since the last read is registered then, under the holding `toolSettingProjection` derives from it.
+// since the last read is registered then, under the holding `officialHolding` derives from its
+// asset. The row knows no category: every holding comes from the category hooks of `src/assets/`.
 // The table belongs to one release generation: when the release authority reloads at another
 // generation, the table is closed and a new one starts, so the definitions of the new generation
 // register again. The registry closes with the row, so a reloaded row starts from an empty table
 // (IC-13).
 //
-// Why the key is defined here: like `modelCredentialCustody`, the provider and its one consumer are
-// rows of this application, and settings has no Cordis entry. When a member outside this
-// application needs the key, it moves to the `./cordis` entry of the member that then owns it.
+// Why the key is defined here: the provider and its one consumer are rows of this application,
+// and settings has no Cordis entry. When a member outside this application needs the key, it
+// moves to the `./cordis` entry of the member that then owns it.
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import { referenceAdmissionCheck } from '@omne-harness/authorization'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
@@ -24,19 +25,17 @@ import type { SettingsGovernance } from '@omne-harness/server-entry'
 import {
   createSettingsRegistry,
   createSettingsSecretItems,
-  type SettingDefinitions,
   type SettingsAssetQuery,
-  type SettingsHolding,
   type SettingsHoldingRef,
   type SettingsRegistrySnapshot,
 } from '@omne-harness/settings'
+import { officialHolding, toolAsset, type OfficialHolding } from '../../assets/official-holdings.ts'
 import { readSystemInstant } from '../../entry/session-clock.ts'
 import { releaseDefinitionOf, releaseOf, type ToolRelease } from '../../entry/tool-release.ts'
 import { defineRow } from '../../row.ts'
 import { createSettingsGuard } from '../authorization/settings-access.ts'
 import { settingsSecretCustodyKey } from '../secret-custody/index.ts'
 import { createSettingsGovernance } from './governance.ts'
-import { toolSettingProjection } from './holding.ts'
 
 /** @owner apps/harness-server/src/rows/settings */
 export abstract class SettingsSecretItemsService extends Service implements SettingsGovernance {
@@ -56,9 +55,6 @@ declare module '@deepseek-ai/cordis' {
     settingsSecretItems: SettingsSecretItemsService
   }
 }
-
-/** The asset category of every holding this row resolves: the release tools. */
-export const TOOL_ASSET_CATEGORY = 'tool'
 
 const LOGGER = 'settings'
 
@@ -99,7 +95,7 @@ function identityPorts(ctx: Context) {
 }
 
 type Known =
-  | Readonly<{ kind: 'holding'; holding: SettingsHolding }>
+  | Readonly<{ kind: 'holding'; ref: SettingsHoldingRef }>
   | Readonly<{ kind: 'no-settings' }>
   | Readonly<{ kind: 'refused' }>
 
@@ -137,24 +133,20 @@ export function createReleaseSettingsRegistry(ctx: Context) {
     if (known.has(name)) return
     const definition = releaseDefinitionOf(ctx, name)
     if (definition === undefined) return
-    let projected: SettingDefinitions | null
+    let held: OfficialHolding
     try {
-      projected = toolSettingProjection(definition)
+      held = officialHolding(toolAsset(definition))
     } catch {
-      known.set(name, { kind: 'refused' })
-      ctx
-        .logger(LOGGER)
-        .warn('settings of the release tool %s were not registered: %s', name, 'projection threw')
-      return
+      held = { kind: 'rejected', reason: 'the asset body could not be read' }
     }
-    if (projected === null) {
+    if (held.kind === 'none') {
       known.set(name, { kind: 'no-settings' })
       return
     }
-    const registered = registry.registerContribution(projected)
-    if (registered.kind === 'registered') {
-      const holding = { providerId: projected.providerId, definitionId: projected.definitionId }
-      known.set(name, { kind: 'holding', holding })
+    const registered =
+      held.kind === 'declared' ? registry.registerContribution(held.definition) : held
+    if (held.kind === 'declared' && registered.kind === 'registered') {
+      known.set(name, { kind: 'holding', ref: held.ref })
       return
     }
     known.set(name, { kind: 'refused' })
@@ -164,7 +156,7 @@ export function createReleaseSettingsRegistry(ctx: Context) {
         'settings of the release tool %s (generation %s) were not registered: %s',
         name,
         release.generation,
-        registered.kind,
+        'reason' in registered ? registered.reason : registered.kind,
       )
   }
 
@@ -186,13 +178,13 @@ export function createReleaseSettingsRegistry(ctx: Context) {
   const holdings = (asset?: SettingsAssetQuery): readonly SettingsHoldingRef[] => {
     sync()
     const refs: SettingsHoldingRef[] = []
-    for (const [name, entry] of table.known) {
+    for (const entry of table.known.values()) {
       if (entry.kind !== 'holding') continue
       if (asset !== undefined) {
-        if (asset.name !== name) continue
-        if (asset.category !== undefined && asset.category !== TOOL_ASSET_CATEGORY) continue
+        if (asset.name !== entry.ref.asset.name) continue
+        if (asset.category !== undefined && asset.category !== entry.ref.asset.category) continue
       }
-      refs.push({ asset: { category: TOOL_ASSET_CATEGORY, name }, holding: entry.holding })
+      refs.push(entry.ref)
     }
     return refs
   }

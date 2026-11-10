@@ -11,7 +11,8 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { MODEL_SEND } from '@omne-harness/model-contract/provider'
 import { modelCredentialBindingKey } from '@omne-harness/model-host-local'
-import type { SecretText } from '@omne-harness/settings'
+import type { SecretText, SettingsHolding } from '@omne-harness/settings'
+import type { ToolDefinition } from '@omne-harness/tool-contract'
 import { openSecretVault, type SecretVault } from '@omne-harness/settings-local/secrets'
 import { deriveDefinition, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
 import { describe, expect, it } from 'vitest'
@@ -19,7 +20,7 @@ import * as cordis from '../../../src/cordis.ts'
 import { loadProductionRelease } from '../../../src/entry/tool-release.ts'
 import { governanceOf } from '../../../src/entry/tool-release-manifest.ts'
 import { tenantCredentialId } from '../../../src/model/tenant-credential.ts'
-import { toolSettingHolding, toolSettingSecretKey } from '../../../src/rows/settings/holding.ts'
+import { holdingKey, officialHolding, toolAsset } from '../../../src/assets/official-holdings.ts'
 import { EXA_KEY_ITEM } from '../../../src/rows/tool-bindings/web.ts'
 import { runServe, type S0Record } from '../../../src/run.ts'
 import {
@@ -45,6 +46,12 @@ import {
 } from '../../r9/support.ts'
 import { TEST_CONSTRUCTION, tree } from '../tool-host/support.ts'
 import { connectable, until } from '../server-entry/support.ts'
+
+/** The Settings holding of a release tool definition, or `null` when it declares no settings. */
+function toolHolding(definition: ToolDefinition): SettingsHolding | null {
+  const held = officialHolding(toolAsset(definition))
+  return held.kind === 'declared' ? held.ref.holding : null
+}
 
 const release: unknown = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
@@ -215,7 +222,7 @@ async function webHolding() {
   if ('failure' in author) throw new Error('fixture: Web author')
   const definition = judgeToolDefinition(deriveDefinition(governanceOf(entry), author.ok.facts))
   if ('failure' in definition) throw new Error('fixture: Web definition')
-  const holding = toolSettingHolding(definition.ok)
+  const holding = toolHolding(definition.ok)
   if (holding === null) throw new Error('fixture: Web declares no settings')
   return holding
 }
@@ -450,7 +457,7 @@ describe('the Web search key through `omne setting` on the release tree (web-met
         // One fact: a binding removed straight from the vault file is gone for show and list at once.
         const parsed = tenantCodec.parse(tenant)
         if (!parsed.ok) throw new Error('tenant text')
-        const tenantKey = toolSettingSecretKey(
+        const tenantKey = holdingKey(
           { layer: 'tenant', tenant: parsed.value },
           holding,
           EXA_KEY_ITEM,
@@ -598,7 +605,7 @@ describe('the Web search key through `omne setting` on the release tree (web-met
         // The custody keys apart: Model's binding and Web's binding of one tenant never answer for each other.
         const aliceTenant = tenantCodec.parse(tools.tenant('alice'))
         if (!aliceTenant.ok) throw new Error('tenant text')
-        const webKey = toolSettingSecretKey(
+        const webKey = holdingKey(
           { layer: 'tenant', tenant: aliceTenant.value },
           holding,
           EXA_KEY_ITEM,
@@ -630,7 +637,7 @@ describe('the Web search key through `omne setting` on the release tree (web-met
         // Alice without her own key searches with it, and Bob still with his own.
         expect(
           vault.bind(
-            toolSettingSecretKey({ layer: 'official' }, holding, EXA_KEY_ITEM),
+            holdingKey({ layer: 'official' }, holding, EXA_KEY_ITEM),
             text(keys.official),
             null,
           ),

@@ -18,7 +18,7 @@ import {
 } from '@omne-harness/identity'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { SettingsGovernance } from '@omne-harness/server-entry'
-import { createSettingsSecretItems } from '@omne-harness/settings'
+import { createSettingsSecretItems, type SettingsHolding } from '@omne-harness/settings'
 import { createSecretVault, type SecretVault } from '@omne-harness/settings-local/secrets'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
@@ -37,7 +37,7 @@ import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { createSettingsGuard } from '../../../src/rows/authorization/settings-access.ts'
 import { secretCustodyRow } from '../../../src/rows/secret-custody/index.ts'
 import { createSettingsGovernance } from '../../../src/rows/settings/governance.ts'
-import { toolSettingHolding, toolSettingSecretKey } from '../../../src/rows/settings/holding.ts'
+import { holdingKey, officialHolding, toolAsset } from '../../../src/assets/official-holdings.ts'
 import {
   SettingsSecretItemsService,
   createReleaseSettingsRegistry,
@@ -48,6 +48,12 @@ import type { RowId } from '../../../src/types.ts'
 import { fixtureTenant, okOf } from '../../entry/support.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { TEST_CONSTRUCTION, releaseFixture, tree } from '../tool-host/support.ts'
+
+/** The Settings holding of a release tool definition, or `null` when it declares no settings. */
+function toolHolding(definition: ToolDefinition): SettingsHolding | null {
+  const held = officialHolding(toolAsset(definition))
+  return held.kind === 'declared' ? held.ref.holding : null
+}
 
 const SENTINEL = 'exa-sentinel-row-7f31c2'
 const A = fixtureTenant('a')
@@ -160,7 +166,7 @@ describe('the settings row: registry, secret items and governance', () => {
         kind: 'not-visible',
       })
       const definition = rememberWeb(w.root)
-      const holding = toolSettingHolding(definition)
+      const holding = toolHolding(definition)
       expect(holding).not.toBeNull()
       expect(w.registry.snapshot().definitions.map(d => d.definitionId)).toEqual(['Web'])
       expect(w.registry.holdings()).toEqual([{ asset: WEB, holding }])
@@ -230,15 +236,15 @@ describe('the settings row: registry, secret items and governance', () => {
     const w = await world()
     try {
       const definition = rememberWeb(w.root)
-      const holding = toolSettingHolding(definition)
+      const holding = toolHolding(definition)
       if (holding === null) throw new Error('fixture holding')
       const access = { principal: acting(A), tenant: A }
       expect((await w.port.set({ access, asset: WEB, item: ITEM, secret: SENTINEL })).kind).toBe(
         'succeeded',
       )
-      expect(
-        w.vault.unbind(toolSettingSecretKey({ layer: 'tenant', tenant: A }, holding, ITEM)),
-      ).toBe('removed')
+      expect(w.vault.unbind(holdingKey({ layer: 'tenant', tenant: A }, holding, ITEM))).toBe(
+        'removed',
+      )
       expect(await w.port.describe({ access, asset: WEB, item: ITEM })).toEqual({
         kind: 'succeeded',
         setting: { state: 'unbound' },
@@ -364,7 +370,7 @@ describe('the settings row: registry, secret items and governance', () => {
       const after = registry.snapshot().definitions.map(entry => entry.version)
       expect(after).toHaveLength(1)
       expect(after).not.toEqual(before)
-      expect(registry.holdings()).toEqual([{ asset: WEB, holding: toolSettingHolding(next) }])
+      expect(registry.holdings()).toEqual([{ asset: WEB, holding: toolHolding(next) }])
     } finally {
       await root.fiber.dispose()
     }

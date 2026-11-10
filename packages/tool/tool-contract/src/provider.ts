@@ -4,7 +4,6 @@
 // and the binding registry, executor binding and start records, the author adapters, and the
 // value types only they reference. Every name is defined once, in the same modules as the root
 // entry; a name is exported from one entry only. It does not import Cordis or another Tool package.
-export { toolBodyContract } from './contract.ts'
 export { describedAdoption } from './adoption.ts'
 export type { AdoptionRules } from './adoption.ts'
 export {

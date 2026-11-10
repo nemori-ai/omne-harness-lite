@@ -181,6 +181,9 @@ importers:
       '@omne-harness/agent-host-local':
         specifier: workspace:*
         version: link:../../packages/agent/agent-host-local
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../packages/assets/assets
       '@omne-harness/authorization':
         specifier: workspace:*
         version: link:../../packages/identity/authorization

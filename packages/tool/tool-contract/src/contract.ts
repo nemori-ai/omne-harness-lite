@@ -8,9 +8,10 @@ import {
   type JsonValue,
   type Judgment,
 } from '@omne-harness/assets'
+import { bodySettings, toolSettingDefinitions } from './settings.ts'
 
 const schemaRead = readBodyText(
-  '{"kind":"tool-body","properties":{"name":"string","programmable":"boolean","requiredCapabilities":"string[]","composes":{"skills":"string[]"},"implementation":{"executor":"string","module":"string","construction":"json"}}}',
+  '{"kind":"tool-body","properties":{"name":"string","programmable":"boolean","requiredCapabilities":"string[]","composes":{"skills":"string[]"},"implementation":{"executor":"string","module":"string","construction":"json"},"settings":{"schema":"json","defaults":"json","items":"json"}}}',
   {
     maxBytes: 1000,
     maxDepth: 8,
@@ -33,6 +34,17 @@ export function toolBodyContract(): BodyContract {
       if (!decision.ok) throw new TypeError(`tool body failed judgment: ${decision.rejected}`)
       // Only boolean true permits programmatic calls. An omitted or false value declares nothing.
       return { entries: programmable(body) === true ? [PROGRAMMABLE_DECLARATION] : [] }
+    },
+    settings(body, context) {
+      const decision = judge(body, context)
+      if (!decision.ok) throw new TypeError(`tool body failed judgment: ${decision.rejected}`)
+      const declaration = bodySettings(body)
+      if (declaration === null || declaration === 'invalid') return null
+      return toolSettingDefinitions({
+        name: stringField(body, 'name') ?? '',
+        version: context?.definition,
+        declaration,
+      })
     },
     references(body, context) {
       const decision = judge(body, context)
@@ -59,6 +71,7 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
   if (programmable(body) === 'invalid') return refusal('invalid-programmable')
   if (requiredCapabilities(body) === undefined) return refusal('invalid-required-capabilities')
   if (implementation(body) === 'invalid') return refusal('invalid-implementation')
+  if (bodySettings(body as JsonValue) === 'invalid') return refusal('invalid-settings')
   return { ok: true }
 }
 
