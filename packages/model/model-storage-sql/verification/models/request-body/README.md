@@ -51,14 +51,14 @@ TLA2TOOLS_JAR=<TLC 1.7.4 的 jar> python3 check.py --out <输出目录>
 
 ## 6. 模型到代码
 
-| 模型                                    | 代码                                                                                                 | 用例                                                           |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| 块的键（`Key`）                         | `src/schema.ts` 的 `md_request`，主键（tenant，call，digest，seq）                                   | `tests/schema.spec.ts`                                         |
-| 写一块（`Put`）                         | `src/commit.ts` 的 `putBody` 与参加者的 `putChunk`：已存在的块不改                                   | `tests/request-body.spec.ts`：块的提交未确认时重做只留一份正文 |
-| 受理的提交（`Admit`，写入调用）         | 参加者的 `writeBody` 与 `bodyWhole`：块数等于 `total` 才成立，否则以 `body-incomplete` 停止          | 同上：块缺失时受理不成立，重做成立                             |
-| 受理没有写入调用（`Admit`，调用已存在） | `src/commit.ts` 在受理没有持有正文时提交 `body-discard`；参加者的 `discardBody` 只删没有调用持有的块 | 同上：不成立的受理不留块                                       |
-| 启动清扫（`StartSweep`）                | 进程里某租户的第一次受理的第一次提交带 `sweep`；参加者的 `sweepBodies`                               | 同上：新进程的第一次受理删除无归属的块，保留有调用持有的块     |
-| 释放（`Release`）                       | 参加者的 `writeBody`：行的 `request` 为 NULL 时删除该调用的块                                        | `tests/commit.spec.ts` 的释放用例                              |
+| 模型                                    | 代码                                                                                                                                                       | 用例                                                           |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 块的键（`Key`）                         | `src/schema.ts` 的 `md_request`，主键（tenant，call，digest，seq）                                                                                         | `tests/schema.spec.ts`                                         |
+| 写一块（`Put`）                         | `src/commit.ts` 的 `putBody` 与参加者的 `putChunk`：已存在的块不改                                                                                         | `tests/request-body.spec.ts`：块的提交未确认时重做只留一份正文 |
+| 受理的提交（`Admit`，写入调用）         | 参加者的 `writeBody` 与 `bodyWhole`：块数等于 `total` 才成立，否则以 `body-incomplete` 停止                                                                | 同上：块缺失时受理不成立，重做成立                             |
+| 受理没有写入调用（`Admit`，调用已存在） | 核心在暂存写入之前认回已有的调用，那时不写块。写了块而提交没有写入调用时，`src/commit.ts` 提交 `body-discard`；参加者的 `discardBody` 只删没有调用持有的块 | 同上：不成立的受理不留块；调用已存在或已释放时再受理不写块     |
+| 启动清扫（`StartSweep`）                | 进程里某租户的第一次受理的第一次提交带 `sweep`；参加者的 `sweepBodies`                                                                                     | 同上：新进程的第一次受理删除无归属的块，保留有调用持有的块     |
+| 释放（`Release`）                       | 参加者的 `writeBody`：行的 `request` 为 NULL 时删除该调用的块                                                                                              | `tests/commit.spec.ts` 的释放用例                              |
 
 ## 7. 模型不覆盖的
 

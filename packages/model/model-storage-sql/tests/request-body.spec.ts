@@ -46,8 +46,15 @@ function process(
   chunkBytes = CHUNK_BYTES,
 ) {
   const sizes: { intent: unknown; bytes: number }[] = []
+  const reads: { handler: string; bytes: number }[] = []
   const storage: SqlStorage = {
     ...sqlite.storage,
+    async read(request) {
+      const result = await sqlite.storage.read(request)
+      const bytes = Buffer.byteLength(JSON.stringify(result), 'utf8')
+      reads.push({ handler: request.handler, bytes })
+      return result
+    },
     commit(request) {
       const intent = request.commands[0]?.facts['intent']
       sizes.push({ intent, bytes: Buffer.byteLength(JSON.stringify(request.commands), 'utf8') })
@@ -67,7 +74,7 @@ function process(
     ...core.admitOf(A, callId(name), opId(`admit-${name}`)),
     request,
   })
-  return { commands, admit, sizes }
+  return { commands, admit, sizes, reads }
 }
 
 function chunkRows(sqlite: ReturnType<typeof sqliteStorage>, call: string) {
@@ -164,6 +171,77 @@ describe('the body of an admitted call', () => {
     const small = await later(10)
     expect(small).toHaveLength(1)
     expect(await later(200_000)).toEqual(small)
+  })
+
+  it('reads the state of the call in the same size for a small and a large request', async () => {
+    const stateRead = async (length: number) => {
+      const sqlite = sqliteStorage()
+      const p = process(sqlite)
+      const input = p.admit('sized', requestOf(length))
+      expect(await p.commands.admit(input)).toHaveProperty('ok')
+      p.reads.length = 0
+      expect(await p.commands.loadRecovery(input)).toHaveProperty('ok')
+      return p.reads
+    }
+    const small = await stateRead(10)
+    expect(small.map(read => read.handler)).toEqual(['model.call'])
+    expect(await stateRead(200_000)).toEqual(small)
+  })
+
+  it('reads the body one chunk at a time, each read within the chunk size', async () => {
+    const sqlite = sqliteStorage()
+    const p = process(sqlite)
+    const input = p.admit('paged', requestOf(20_000))
+    expect(await p.commands.admit(input)).toHaveProperty('ok')
+    p.reads.length = 0
+    expect(await p.commands.loadRequest(input)).toEqual({ ok: input.request })
+    const bodyReads = p.reads.filter(read => read.handler === 'model.request')
+    expect(bodyReads).toHaveLength(chunkRows(sqlite, 'mcall_paged').length)
+    for (const read of bodyReads) expect(read.bytes).toBeLessThan(CHUNK_BYTES + 4096)
+  })
+
+  it('does not admit on the chunks of another input', async () => {
+    const sqlite = sqliteStorage()
+    let once = true
+    const p = process(sqlite, (_request, intent) => {
+      if (intent === 'write' && once) {
+        once = false
+        sqlite.seed(DOMAIN, 'UPDATE md_request SET digest = ?', ['f'.repeat(64)])
+      }
+      return null
+    })
+    expect(await p.commands.admit(p.admit('other', requestOf(5000)))).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'the request body was not whole at the commit' },
+    })
+    expect(sqlite.rows(DOMAIN, 'SELECT call FROM md_call', [])).toEqual([])
+  })
+
+  it('keeps no chunk of an admission with another input for a call that exists', async () => {
+    const sqlite = sqliteStorage()
+    const p = process(sqlite)
+    const first = p.admit('same', requestOf(5000))
+    expect(await p.commands.admit(first)).toHaveProperty('ok')
+    const owned = sqlite.rows(DOMAIN, 'SELECT digest, seq FROM md_request ORDER BY seq', [])
+    expect(await p.commands.admit(p.admit('same', requestOf(7000)))).toHaveProperty('failure')
+    expect(sqlite.rows(DOMAIN, 'SELECT digest, seq FROM md_request ORDER BY seq', [])).toEqual(
+      owned,
+    )
+    expect(await p.commands.loadRequest(first)).toEqual({ ok: first.request })
+  })
+
+  it('writes nothing when a call that released its material is admitted again', async () => {
+    const sqlite = sqliteStorage()
+    const p = process(sqlite)
+    const input = p.admit('again', requestOf(5000))
+    expect(await p.commands.admit(input)).toHaveProperty('ok')
+    // What the release commit leaves: no request head and no chunk (commit.spec.ts).
+    sqlite.seed(DOMAIN, 'UPDATE md_call SET request = NULL', [])
+    sqlite.seed(DOMAIN, 'DELETE FROM md_request', [])
+    p.sizes.length = 0
+    expect(await p.commands.admit(input)).toHaveProperty('ok')
+    // The core recognises the admission before it stages a write, so no body is written.
+    expect(p.sizes).toEqual([])
+    expect(chunkRows(sqlite, 'mcall_again')).toEqual([])
   })
 
   it('refuses the admission when a chunk is missing at the commit, keeps nothing, and admits on the retry', async () => {
