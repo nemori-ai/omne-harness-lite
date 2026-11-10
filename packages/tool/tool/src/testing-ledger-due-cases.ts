@@ -140,5 +140,71 @@ export function dueCases(deps: StoreCaseDependencies): readonly LedgerStoreCase[
         ])
       },
     },
+    {
+      name: 'drop.leaves-the-domain-as-never-committed',
+      clause: 'G1',
+      run: async ({ store }) => {
+        const other = hostRecord('other', { kept: true })
+        await store.commit({
+          ...batch(call, [record]),
+          writes: [{ kind: 'put', record }, schedule('call', at(1)), schedule('body:x', at(2))],
+        })
+        await store.commit({
+          ...batch(domain, [other]),
+          writes: [{ kind: 'put', record: other }, schedule('body:kept', at(3))],
+        })
+        assert.deepEqual(
+          await store.commit({ ...batch(call, [], '0', '0'), writes: [{ kind: 'drop' }] }),
+          { kind: 'conflict', current: revision('1') },
+          'a drop is conditioned by the revision like any commit',
+        )
+        assert.deepEqual(
+          await store.commit({ ...batch(call, [], '1', '0'), writes: [{ kind: 'drop' }] }),
+          { kind: 'committed' },
+        )
+        assert.deepEqual(await store.read(call), {
+          kind: 'complete',
+          revision: revision('0'),
+          records: [],
+        })
+        assert.deepEqual(
+          await entries(store, domain, at(100)),
+          [{ domain, key: 'body:kept', dueAt: at(3) }],
+          'the due entries of the dropped domain are gone, those of another domain stay',
+        )
+        assert.deepEqual(await store.read(domain), {
+          kind: 'complete',
+          revision: revision('1'),
+          records: [other],
+        })
+        assert.deepEqual(
+          await store.commit(batch(call, [record])),
+          { kind: 'committed' },
+          'a dropped domain takes a first commit again',
+        )
+      },
+    },
+    {
+      name: 'drop.is-the-only-write-and-resets-the-revision',
+      clause: 'G1',
+      run: async ({ store }) => {
+        await store.commit(batch(call, [record]))
+        const mixed = await store.commit({
+          ...batch(call, [], '1', '0'),
+          writes: [{ kind: 'drop' }, { kind: 'put', record }],
+        })
+        assert.equal(mixed.kind, 'rejected', 'a drop with another write is refused')
+        const kept = await store.commit({
+          ...batch(call, [], '1', '2'),
+          writes: [{ kind: 'drop' }],
+        })
+        assert.equal(kept.kind, 'rejected', 'a drop that keeps a revision is refused')
+        assert.deepEqual(await store.read(call), {
+          kind: 'complete',
+          revision: revision('1'),
+          records: [record],
+        })
+      },
+    },
   ]
 }

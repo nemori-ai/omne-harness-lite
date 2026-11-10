@@ -112,11 +112,19 @@ function dueEntryOf(tenant: TenantId, row: JsonValue): DueEntry | null {
   return 'ok' in call ? { domain: { kind, tenant, call: call.ok }, key, dueAt: dueAt.ok } : null
 }
 
+/** The revision of a domain that was never committed (`INITIAL_REVISION` of the ledger). */
+const INITIAL_REVISION = '0'
+
 export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToolLedgerStore {
   const commit = async (input: LedgerCommitInput): Promise<LedgerCommit> => {
     // The assertion is part of the commit, so the same commit is refused whenever it is sent.
     if (!(input.asserts ?? []).every(assertion => sameTenant(input.domain, assertion.domain)))
       return { kind: 'rejected', reason: 'an assertion names a domain of another tenant' }
+    if (
+      input.writes.some(write => write.kind === 'drop') &&
+      (input.writes.length !== 1 || input.revision !== INITIAL_REVISION)
+    )
+      return { kind: 'rejected', reason: 'a drop is the only write and names the initial revision' }
     const resolved = await resolveTenant(options, input.domain.tenant)
     if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
     let writes: readonly LedgerWriteFact[]

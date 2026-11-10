@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { recordKey } from '../src/ledger-store.ts'
 import { describe, it } from 'vitest'
 import type { ConformanceCase } from '@omne-harness/tool-contract/testing'
 import { runConformanceCase } from '@omne-harness/tool-contract/testing'
@@ -319,6 +320,42 @@ const negatives = [
         },
       })),
     message: 'Expected values to be strictly',
+  },
+  {
+    // A store that deletes the records of a dropped domain and keeps its due entries.
+    name: 'drop.leaves-the-domain-as-never-committed',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        commit: async input => {
+          if (!input.writes.some(write => write.kind === 'drop')) return store.commit(input)
+          const read = await store.read(input.domain)
+          assert.ok(read.kind === 'complete')
+          return store.commit({
+            ...input,
+            revision: `${Number(input.expected) + 1}` as never,
+            writes: read.records.map(record => ({ kind: 'delete', key: recordKey(record) })),
+          })
+        },
+      })),
+    message: 'Expected values to be strictly',
+  },
+  {
+    // A store that takes a drop with another write and applies the other write only.
+    name: 'drop.is-the-only-write-and-resets-the-revision',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        commit: input =>
+          input.writes.some(write => write.kind === 'drop') && input.writes.length > 1
+            ? store.commit({
+                ...input,
+                revision: `${Number(input.expected) + 1}` as never,
+                writes: input.writes.filter(write => write.kind !== 'drop'),
+              })
+            : store.commit(input),
+      })),
+    message: 'a drop with another write is refused',
   },
 ] satisfies readonly Readonly<{
   name: string

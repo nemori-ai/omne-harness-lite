@@ -393,8 +393,14 @@ export function hostKey(key: string): string {
  * and `unschedule` write the due index of the tenant under the written domain and `key`: a
  * `schedule` of a scheduled key replaces its instant, an `unschedule` of an unscheduled key is a
  * no-op. They take effect with the rest of the commit, or not at all.
+ *
+ * `drop` removes the whole domain: every record and every due entry of it. It is the only write of
+ * its commit, and the commit names the initial revision as `revision`, so the domain reads as one
+ * that was never committed. The store answers `rejected` to a `drop` with another write or with
+ * another `revision`. The condition on `expected` is that of any commit.
  */
 export type LedgerWrite =
+  | Readonly<{ kind: 'drop' }>
   | Readonly<{ kind: 'put'; record: LedgerRecord }>
   | Readonly<{ kind: 'delete'; key: string }>
   | Readonly<{ kind: 'schedule'; key: string; dueAt: ToolInstant }>

@@ -14,6 +14,7 @@ export type LedgerWriteFact =
   | Readonly<{ op: 'delete'; key: string }>
   | Readonly<{ op: 'schedule'; key: string; dueAt: string }>
   | Readonly<{ op: 'unschedule'; key: string }>
+  | Readonly<{ op: 'drop' }>
 
 /** A domain of the same tenant whose revision must still hold when the commit is applied. */
 export type LedgerAssertionFact = Readonly<{ kind: DomainKind; name: string; revision: string }>
@@ -96,6 +97,7 @@ function domainOf(value: JsonObject): DomainAddress | null {
 
 function writeOf(value: JsonValue): LedgerWriteFact | null {
   if (!isObject(value)) return null
+  if (value['op'] === 'drop') return { op: 'drop' }
   const key = textOf(value, 'key')
   if (key === null) return null
   switch (value['op']) {

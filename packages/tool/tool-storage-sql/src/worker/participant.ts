@@ -40,8 +40,19 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
   for (const assertion of facts.asserts)
     if (revisionOf(port, [facts.tenant, assertion.kind, assertion.name]) !== assertion.revision)
       return stopped({ reason: 'assertion', current })
+  // A drop leaves no row of the domain: its records, its due entries and its revision.
+  if (facts.writes.some(write => write.op === 'drop')) {
+    // The store refuses a malformed drop before it sends it; one that arrives is not this protocol.
+    if (facts.writes.length !== 1 || facts.revision !== INITIAL_REVISION)
+      return { kind: 'unsupported', basis: { reason: 'facts' } }
+    for (const table of ['tl_record', 'tl_due', 'tl_domain'])
+      port.execute(`DELETE FROM ${table} WHERE tenant = ? AND kind = ? AND name = ?`, [...domain])
+    return participated({ kind: 'committed' })
+  }
   for (const write of facts.writes)
     switch (write.op) {
+      case 'drop':
+        throw new Error('a drop is handled before the other writes')
       case 'put':
         port.execute(
           `INSERT INTO tl_record (tenant, kind, name, key, record) VALUES (?, ?, ?, ?, ?)

@@ -102,6 +102,10 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
     const due = new Map(target.due)
     for (const write of input.writes) {
       switch (write.kind) {
+        case 'drop':
+          records.clear()
+          due.clear()
+          break
         case 'put':
           records.set(recordKey(write.record), copy(write.record))
           break
@@ -154,6 +158,11 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
     )
   }
 
+  /** A commit with `drop` holds nothing else and leaves the domain at the initial revision. */
+  const wellFormedDrop = (input: LedgerCommitInput): boolean =>
+    !input.writes.some(write => write.kind === 'drop') ||
+    (input.writes.length === 1 && input.revision === INITIAL_REVISION)
+
   /** The condition of a commit: the written domain at `expected` and every assertion holding. */
   const holds = (input: LedgerCommitInput): boolean =>
     domainOf(input.domain).revision === input.expected &&
@@ -166,6 +175,8 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
     if (fault === 'unavailable') return { kind: 'unavailable', diagnostic: 'injected' }
     if (!sameTenant(input))
       return { kind: 'rejected', reason: 'an assertion names a domain of another tenant' }
+    if (!wellFormedDrop(input))
+      return { kind: 'rejected', reason: 'a drop is the only write and names the initial revision' }
     const target = domainOf(input.domain)
     if (fault === 'conflict') return { kind: 'conflict', current: target.revision }
     if (fault === 'unknown-delayed') {

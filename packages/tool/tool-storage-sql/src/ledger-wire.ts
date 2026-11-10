@@ -45,6 +45,8 @@ export function assertsOf(input: LedgerCommitInput): readonly LedgerAssertionFac
 export function writesOf(input: LedgerCommitInput): readonly LedgerWriteFact[] {
   return input.writes.map((write, index): LedgerWriteFact => {
     switch (write.kind) {
+      case 'drop':
+        return { op: 'drop' }
       case 'put':
         return {
           op: 'put',
