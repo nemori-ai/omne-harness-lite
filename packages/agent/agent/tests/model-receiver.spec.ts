@@ -422,6 +422,7 @@ describe('received account outbox and capacity', () => {
       accounts: [...delivery.accounts, { dispatch, account: delivery.accounts[0].account }],
     }
     expect(await s.receiver.push({ ...input, delivery: complete })).toHaveProperty('ok')
+    await drainTasks(s.state)
     expect(s.sent.map(item => item.dispatch)).toEqual([original.dispatch, dispatch])
     expect(
       (await loadWithEntries(s.dependencies.provider, { ...alice, execution: execution() }))
@@ -458,6 +459,29 @@ describe('received account outbox and capacity', () => {
       ).toEqual([])
     },
   )
+  it('keeps no record of a saved result, so saved results never fill the record capacity', async () => {
+    const s = await setup()
+    const receiver = createAgentModelReceiver(
+      {
+        ...s.dependencies,
+        capacity: () => ({ records: 1, bytes: 1000000, attachments: 10, inFlight: 2 }),
+      },
+      s.state,
+    )
+    const push = () =>
+      receiver.push({ access: alice, delivery: s.delivery, signal: new AbortController().signal })
+    const saved = await push()
+    expect(saved).toHaveProperty('ok')
+    await Promise.all(s.state.tasks)
+    expect(s.state.receptions.size).toBe(0)
+    // The same delivery again: the Journal recognises the operation and answers the same receipt.
+    expect(await push()).toEqual(saved)
+    expect(s.state.receptions.size).toBe(0)
+    expect(
+      (await loadWithEntries(s.dependencies.provider, { ...alice, execution: execution() }))
+        .entries,
+    ).toHaveLength(1)
+  })
   it('counts retained attachment references before accepting custody', async () => {
     const s = await setup()
     if (s.delivery.kind !== 'result' || s.delivery.parts[0]?.kind !== 'sealed')
@@ -1673,13 +1697,16 @@ it.each(['unknown', 'saved'] as const)(
     expect(await pending).toHaveProperty('failure.diagnostic', 'maintenance-cancelled')
     release.resolve()
     await drainTasks(s.state)
+    // A saved delivery keeps no record: the recovery asks the Journal for it again, and the
+    // cancelled query leaves its outcome unknown until the next maintenance.
     expect(reads).toBe(initial === 'unknown' ? 0 : 1)
-    expect(receiver.inspect().pending).toBe(initial === 'unknown' ? 1 : 0)
-    expect([...s.state.receptions.values()][0]?.commit.kind).toBe(initial)
+    expect(receiver.inspect().pending).toBe(1)
+    expect([...s.state.receptions.values()][0]?.commit.kind).toBe('unknown')
     expect(
       ok(await receiver.retry({ access: alice, execution: execution(), signal: signal() })).pending,
     ).toBe(0)
-    expect(reads).toBe(1)
+    // The retry verifies the material once; the recovery read it once before.
+    expect(reads).toBe(initial === 'unknown' ? 1 : 2)
   },
 )
 
