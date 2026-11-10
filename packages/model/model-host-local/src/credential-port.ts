@@ -58,15 +58,33 @@ export function createSecretCredentialPort<P = unknown>(
     return succeed(states)
   }
 
+  /** The secret of every item of a layer that `readCredentialLayer` found usable. */
+  function secretsOf(
+    source: CredentialProviderSource,
+    scope: SecretScope,
+  ): Outcome<ReadonlyMap<string, string>, CredentialFailure> {
+    const secrets = new Map<string, string>()
+    for (const item of source.items) {
+      const used = custody.use(source.keyOf(scope, item))
+      if (used === 'denied' || used === 'unavailable') return fail({ kind: used })
+      // The binding changed between the read of its life and its use: no answer for now.
+      if (used === 'missing') return fail({ kind: 'unavailable' })
+      secrets.set(item, used.value)
+    }
+    return succeed(secrets)
+  }
+
   return {
     layerOf({ provider, official, access }) {
       const source = providers.get(provider)
       if (source === undefined) return fail({ kind: 'denied' })
       const tenant = reading(source, { layer: 'tenant', tenant: access.tenant })
       if ('failure' in tenant) return tenant
-      // The official layer matters only to an official profile of a provider the release holds.
+      // The official layer matters only when the tenant holds no item, and only to an official
+      // profile of a provider the release holds: a tenant layer is never judged by the other one.
+      const holdsTenantItem = [...tenant.ok.values()].some(state => state !== 'unbound')
       let deployment: CredentialLayerReading | null = null
-      if (official && source.official) {
+      if (official && source.official && !holdsTenantItem) {
         const read = reading(source, { layer: 'official' })
         if ('failure' in read) return read
         deployment = read.ok
@@ -91,16 +109,7 @@ export function createSecretCredentialPort<P = unknown>(
       const read = reading(source, scope)
       if ('failure' in read) return read
       const usable = readCredentialLayer(source.items, read.ok)
-      if ('failure' in usable) return usable
-      const secrets = new Map<string, string>()
-      for (const item of source.items) {
-        const used = custody.use(source.keyOf(scope, item))
-        if (used === 'denied' || used === 'unavailable') return fail({ kind: used })
-        // The binding changed between the read of its life and its use: no answer for now.
-        if (used === 'missing') return fail({ kind: 'unavailable' })
-        secrets.set(item, used.value)
-      }
-      return succeed(secrets)
+      return 'failure' in usable ? usable : secretsOf(source, scope)
     },
   }
 }

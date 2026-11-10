@@ -162,6 +162,26 @@ it('answers unavailable for a binding that the vault no longer serves between re
   ).toEqual({ failure: { kind: 'unavailable' } })
 })
 
+it('does not read the official layer once the tenant holds an item', () => {
+  const vault = vaultAt('tenant-only')
+  const keyOf = testKeyOf('suite-gateway')
+  const own = access('principal-a', identity('5'))
+  const scope: SecretScope = { layer: 'tenant', tenant: own.tenant }
+  for (const item of ITEMS) vault.bind(keyOf(scope, item), secretText(`synthetic-${item}`), null)
+  // A custody whose official layer cannot be read: the tenant's complete layer still serves.
+  const official = (key: Parameters<typeof vault.describe>[0]) => key.scope.layer === 'official'
+  const port = createSecretCredentialPort<string>({
+    custody: {
+      describe: key => (official(key) ? 'unavailable' : vault.describe(key)),
+      use: key => (official(key) ? 'unavailable' : vault.use(key)),
+    },
+    providers: new Map([[PROVIDER, { items: ITEMS, official: true, keyOf }]]),
+  })
+  expect(port.layerOf({ provider: PROVIDER, official: true, access: own })).toEqual({
+    ok: { layer: 'tenant' },
+  })
+})
+
 it('serves the port as modelCredential through the real Cordis proxy and withdraws it with the fiber', async () => {
   const calls: string[] = []
   const port: CredentialPort = {

@@ -109,6 +109,56 @@ function assetOf(text: string): AssetSelector | undefined {
   return category === '' || name === '' ? undefined : { category, name }
 }
 
+/** What one action names: its options, and the asset and item it acts on. */
+type Invocation =
+  | Readonly<{ action: 'list'; values: ReadonlyMap<string, string>; asset?: AssetSelector }>
+  | Readonly<{
+      action: Exclude<Action, 'list'>
+      values: ReadonlyMap<string, string>
+      asset: AssetSelector
+      item: string
+    }>
+
+/** Reads the words and options of one action, or the text of the usage error that refuses them. */
+function readInvocation(
+  action: Action,
+  rest: readonly string[],
+  name: string,
+): Invocation | string {
+  const { words, options } = split(rest)
+  const read = readOptions(options, {
+    accepted: [serverOption],
+    required: [],
+    ...(action === 'show' ? { switches: [JSON_SWITCH] } : {}),
+  })
+  if (read.kind === 'unrecognized') return unrecognized(name)
+  if (read.kind === 'missing') return missingOption(name, read.option)
+  const expected = WORDS[action]
+  if (words.length > expected.length) return unrecognized(name)
+  const missing = action === 'list' ? undefined : expected[words.length]
+  if (missing !== undefined) return missingOption(name, missing)
+  const [assetText, item = ''] = words
+  const asset = assetText === undefined ? undefined : assetOf(assetText)
+  if (assetText !== undefined && asset === undefined) return unrecognized(name)
+  if (action === 'list')
+    return asset === undefined
+      ? { action, values: read.values }
+      : { action, values: read.values, asset }
+  if (asset === undefined || item === '') return unrecognized(name)
+  return { action, values: read.values, asset, item }
+}
+
+/** The secret of `set`, from standard input or a hidden prompt; the exit code when there is none. */
+async function readSecret(
+  output: CliOutput,
+  environment: CommandEnvironment,
+): Promise<string | ExitCode> {
+  const secret = await environment.services.readCredential(output.stderr)
+  if (secret.kind === 'failure') return localFailure(output, secret.message)
+  if (secret.value === '') return usageError(output, 'omne: empty secret\n')
+  return secret.value
+}
+
 async function runSetting(
   args: readonly string[],
   output: CliOutput,
@@ -117,24 +167,10 @@ async function runSetting(
   const [action, ...rest] = args
   if (!isAction(action)) return usageError(output, unrecognized('setting'))
   const name = `setting ${action}`
-  const { words, options } = split(rest)
-  const read = readOptions(options, {
-    accepted: [serverOption],
-    required: [],
-    ...(action === 'show' ? { switches: [JSON_SWITCH] } : {}),
-  })
-  if (read.kind === 'unrecognized') return usageError(output, unrecognized(name))
-  if (read.kind === 'missing') return usageError(output, missingOption(name, read.option))
-  const expected = WORDS[action]
-  if (words.length > expected.length) return usageError(output, unrecognized(name))
-  const missing = action === 'list' ? undefined : expected[words.length]
-  if (missing !== undefined) return usageError(output, missingOption(name, missing))
-  const [assetText, item = ''] = words
-  const asset = assetText === undefined ? undefined : assetOf(assetText)
-  if (assetText !== undefined && asset === undefined) return usageError(output, unrecognized(name))
-  if (action !== 'list' && item === '') return usageError(output, unrecognized(name))
+  const invocation = readInvocation(action, rest, name)
+  if (typeof invocation === 'string') return usageError(output, invocation)
 
-  const loaded = loadLogin(read.values, output, environment, 'governance')
+  const loaded = loadLogin(invocation.values, output, environment, 'governance')
   if (loaded.kind === 'exit') return loaded.code
   const messageId = environment.services.newId()
   const head = {
@@ -144,31 +180,33 @@ async function runSetting(
     actingTenant: loaded.tenant,
   } as const
   let request: GovernanceRequest
-  if (action === 'list')
+  if (invocation.action === 'list')
     request = {
       ...head,
       operation: 'list-settings',
-      body: asset === undefined ? {} : { asset },
+      body: invocation.asset === undefined ? {} : { asset: invocation.asset },
     }
-  else if (asset === undefined) return usageError(output, unrecognized(name))
-  else if (action === 'set') {
-    const secret = await environment.services.readCredential(output.stderr)
-    if (secret.kind === 'failure') return localFailure(output, secret.message)
-    if (secret.value === '') return usageError(output, 'omne: empty secret\n')
-    request = { ...head, operation: 'set-setting', body: { asset, item, secret: secret.value } }
-  } else
-    request = {
-      ...head,
-      operation: action === 'show' ? 'describe-setting' : 'clear-setting',
-      body: { asset, item },
-    }
+  else {
+    const { asset, item } = invocation
+    if (invocation.action === 'set') {
+      const secret = await readSecret(output, environment)
+      if (typeof secret !== 'string') return secret
+      request = { ...head, operation: 'set-setting', body: { asset, item, secret } }
+    } else
+      request = {
+        ...head,
+        operation: invocation.action === 'show' ? 'describe-setting' : 'clear-setting',
+        body: { asset, item },
+      }
+  }
 
   const client = createGovernanceClient({ transport: loaded.opened.transport })
   const result = await attempt(() => client.submit(request))
   if (result === undefined) return usageError(output, unrecognized(name))
   // The echo holds the request number and the tenant only: never the body, so never the secret.
   const echo: RequestEcho = { messageId, tenant: tenantText(loaded.tenant) }
-  if (action === 'show' && !read.values.has(JSON_SWITCH)) return writeSummary(name, result, output)
+  if (action === 'show' && !invocation.values.has(JSON_SWITCH))
+    return writeSummary(name, result, output)
   return report(name, result, echo, output)
 }
 

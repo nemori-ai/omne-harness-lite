@@ -16,7 +16,7 @@
 
 `createSecretCredentialPort({ custody, providers })` 返回 `CredentialPort`。`custody` 是设置域秘密保管的读面（`describe`）与使用面（`use`），端口不写。`providers` 按供应商名给出 `CredentialProviderSource`：供应商正文声明的凭据项、发行是否持有该供应商，以及一项在一个层的绑定键 `keyOf(scope, item)`。绑定键的形状由装配决定，本包不定义。
 
-- `layerOf` 按 model-contract 的 `selectCredentialLayer` 选层。它先读本租户层每一项的状态；只有档案是官方档案、且发行持有该供应商时，才读官方层。
+- `layerOf` 按 model-contract 的 `selectCredentialLayer` 选层。它先读本租户层每一项的状态；只有本租户层一项都没有、档案是官方档案、且发行持有该供应商时，才读官方层。本租户层持有任一项时，官方层读不读得出都不影响结果。
 - `resolve` 只读请求固定的那一层。它按 `readCredentialLayer` 判读该层；全部项可用时，逐项经使用面取秘密，返回项到秘密的映射。层为 `none` 时，只有供应商没有凭据项才成功。层为 `official` 而发行不持有该供应商时，返回 `denied`。
 - 未知的供应商、用途不是 `model-send` 时，两个操作返回 `denied`。保管答 `denied` 或 `unavailable` 时原样返回。读面看到某项在、使用面却不再给出它时（两次读之间绑定变了），返回 `unavailable`。
 - 每次调用都重读保管，不缓存。轮换、撤销与清除在下一次调用时可见。

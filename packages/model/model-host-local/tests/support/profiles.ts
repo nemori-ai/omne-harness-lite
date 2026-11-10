@@ -41,7 +41,7 @@ export function officialProfile(
   }
 }
 
-/** The supplier port of the tests: a factory credential, the route of the profile kept. */
+/** The supplier port of the tests: the official layer, the provider of the profile kept. */
 export function factorySupplier<P>(): SupplierPort<P> {
   return ({ supplier }) => ({
     ok: {

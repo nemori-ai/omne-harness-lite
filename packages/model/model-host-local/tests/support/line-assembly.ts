@@ -422,7 +422,7 @@ const domains: SqlModelCommandsOptions<Principal>['domains'] = {
     ),
 }
 
-/** The send sources of the profile: one factory credential per supplier, always authorized. */
+/** The send sources of the profile: one official source per supplier, always authorized. */
 function sourcesOf(profile: ModelProfile): readonly ModelSendSource<Principal>[] {
   return profile.definition.suppliers.map(supplier => ({
     profile: profile.adoption,
