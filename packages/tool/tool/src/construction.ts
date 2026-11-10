@@ -46,7 +46,6 @@ export type ToolOffloadingConfiguration = Readonly<{
   /** k: the preview budget is at most the offloading threshold divided by k, rounded down. Absent means 8. */
   previewDivisor?: number
   maxPageBytes: number
-  maxPageLeaseMs: number
   maxWriterMetadataBytes: number
   jsonDocument: JsonLimits
   jsonRecord: JsonLimits

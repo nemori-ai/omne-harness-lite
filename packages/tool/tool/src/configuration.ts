@@ -107,7 +107,6 @@ function checkResultConfiguration(configuration: ToolLedgerConfiguration): void 
     'maxBodyBytes',
     'previewUtf8Bytes',
     'maxPageBytes',
-    'maxPageLeaseMs',
     'maxWriterMetadataBytes',
     'permitMs',
     'orphanGraceMs',

@@ -435,7 +435,6 @@ export function configuration(overrides: Partial<ToolConfiguration> = {}): ToolC
       maxBodyBytes: 16_777_216,
       previewUtf8Bytes: 1_024,
       maxPageBytes: 65_536,
-      maxPageLeaseMs: 30_000,
       permitMs: 4,
       clockSkewMs: 1,
       orphanGraceMs: 7,

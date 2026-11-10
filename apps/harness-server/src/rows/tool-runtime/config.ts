@@ -34,7 +34,6 @@ export const toolConfigurationSchema = z.strictObject({
     maxBodyBytes: positive,
     previewUtf8Bytes: positive,
     maxPageBytes: positive,
-    maxPageLeaseMs: positive,
     maxWriterMetadataBytes: positive,
     permitMs: positive,
     clockSkewMs: nonNegative,
