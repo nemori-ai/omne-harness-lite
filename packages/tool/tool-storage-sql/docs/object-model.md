@@ -16,34 +16,33 @@ classDiagram
     key
     record JSON
   }
-  class ChunkRow {
+  class DueRow {
+    key
+    due_at
+  }
+  class BodyChunkRow {
     call
-    operation
-    idx
+    body
+    seq
     data
   }
-  class ManifestRow {
+  class BodyManifestRow {
     call
-    operation
-    kind raw|retain
-    digest
-    bytes
+    body
     chunks
-    sha256
-    seal
-    answer
+    bytes
+    digest
   }
   LedgerDomainRows "1" --> "*" RecordRow
-  ManifestRow "1" --> "*" ChunkRow : 封存
-  ManifestRow "retain" --> "1" ManifestRow : 保管在原件之上
+  LedgerDomainRows "1" --> "*" DueRow : 到期索引
+  BodyManifestRow "1" --> "*" BodyChunkRow : 封存
 ```
 
-- 账本域由（租户，种类，名）识别，修订号是账本给出的文本。记录由账本域内的键识别，键由 `recordKey` 算出。
-- 保管操作由（租户，调用，操作）识别。输入摘要识别「同一输入」。封印是原件的 `custody.digest`，或投影证据的摘要。
-- 投影的清单记录它所依据的原件操作与封印。
+- 账本域由（租户，种类，名）识别，修订号是账本给出的文本。记录由账本域内的键识别，键由 `recordKey` 算出。到期条目由（租户，种类，名，键）识别，同键再次排期替换时刻。
+- 正文由（租户，调用，正文）识别。分块由正文与序号识别，清单每个正文至多一份。正文表不属于任何账本域。
 
 ## 生命周期
 
-- 账本行由账本的提交创建、替换与删除。本包不删除账本行，也不压缩回执。
-- 块在保管时创建，在同一操作的清单提交时删除多出的部分。清单写入后，块内容不再改变。W3 以独立用途、固定期限、页租约及删除任务管理材料生命周期；当前实现差距见 [已知限制](../SPEC.md#已知限制)第 3 条，提供者设计见 [材料保管与回收](../SPEC.md#正文存储与到期索引的实现映射)。
+- 账本行与到期条目由账本的提交创建、替换与删除。本包不删除账本行，也不压缩回执。
+- 分块在 `put` 时创建，同序号只写一次。清单在 `seal` 时写入，之后分块不再改变。`delete` 删除该正文的全部分块与清单，不留行。正文期限与回收时机归 Tool 账本，本包不判断，见 [正文存储与到期索引的实现映射](../SPEC.md#正文存储与到期索引的实现映射)。
 - 端口对象没有关闭方法，丢弃即可。

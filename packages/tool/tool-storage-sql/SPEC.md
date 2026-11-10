@@ -1,19 +1,17 @@
 # @omne-harness/tool-storage-sql 行为规格
 
-本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。本包兑现的端口契约归它们的拥有者：记录仓端口 `ToolLedgerStore` 归 [`@omne-harness/tool`](../tool/src/ledger-store.ts)，原件保管端口 `ToolOutputCustody` 归 [`@omne-harness/tool-contract`](../tool-contract/SPEC.md#p05-执行事实与原输出)，SQL 操作语义归 [`@omne-harness/sql-contract`](../../storage/sql-contract/SPEC.md)。本文件不复制这些契约，只写本包怎样兑现它们。
-
-W3 的材料用途、期限、页租约及删除协议为 [#1168](https://github.com/nemori-ai/omne-harness-lite/issues/1168) 的待评审增量，尚未由本提供者实现。现有已知限制保留为实现差距，不作为继续永久保管正文的兼容依据。
+本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。本包兑现的端口契约归它们的拥有者：记录仓端口 `ToolLedgerStore` 归 [`@omne-harness/tool`](../tool/src/ledger-store.ts)，正文存储端口 `ToolBodyStore` 与到期索引的契约归 [`@omne-harness/tool-contract`](../tool-contract/SPEC.md#正文存储端口与到期索引)，SQL 操作语义归 [`@omne-harness/sql-contract`](../../storage/sql-contract/SPEC.md)。本文件不复制这些契约，只写本包怎样兑现它们。
 
 ## 范围与依据
 
-本包是 Tool 记录仓与原件保管的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore`（含同租户读集断言的条件提交，TS-11）与 `ToolOutputCustody`，并导出静态材料 `toolStorageMaterials()`。
+本包是 Tool 记录仓与正文存储的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore`（含同租户读集断言的条件提交 TS-11 与到期索引 TS-14）与 `ToolBodyStore`（TS-13），并导出静态材料 `toolStorageMaterials()`。
 
 依据：
 
 - tool-exec 线 D2 决策记录（#421 评论 6561321713，线负责人 2026-11-01 决定，第二层）。决策记录修订了 D2 候选（#421 评论 6561130766）的第 1、2.2、2.3、4、5、7 节。两者不一致时以决策记录为准。
 - Reduce 裁定 R1-D2：Tool 的耐久仓与会话日志在同一个租户事务域，共用写队列。
 - [执行环境的资源许可与原调用终局同序](../../execution/execution-environment-contract/SPEC.md#结果与不变量)由 `ToolLedgerStore.commit` 的读集断言（`tool` SPEC「记录仓的同租户读集断言」）兑现，本包在 TS-11 实现它；原来的专用守护宿主提交已删除。
-- 消费的契约修订：本包合入时 `@omne-harness/tool` 的 `ToolLedgerStore`（G1）与两组记录仓套件，`@omne-harness/tool-contract` 的 P05 与 custody 套件，`@omne-harness/sql-contract` 的 SQL r2（§2.4、§3.2、§4、§7、§9.3、§17）。
+- 消费的契约修订：本包合入时 `@omne-harness/tool` 的 `ToolLedgerStore`（G1）与两组记录仓套件，`@omne-harness/tool-contract` 的正文存储端口与 `toolBodyStoreConformance()`，`@omne-harness/sql-contract` 的 SQL r2（§2.4、§3.2、§4、§7、§9.3、§17）。
 
 状态：实现与包内验证在 #421 r6 闭包 C-LEDGER 完成。交付接受归派发者。本包不提供 `./cordis` 插件，不接 `tool-records` 行，不合并材料目录。这些归应用侧（波 B 与 L-APP）。
 
@@ -38,7 +36,7 @@ W3 的材料用途、期限、页租约及删除协议为 [#1168](https://github
 2. 当前修订号不等于 `expected` 时，停止并回滚。端口答 `conflict` 与当前修订号，不写入任何东西。
 3. 按输入顺序执行写入：`put` 按键替换，`delete` 删除该键，键不存在时什么也不做。
 4. 把账本域修订号设为 `revision`。写入集为空或只删除不存在的键时，修订号同样推进。
-5. 调用域按最终维护提示更新 TS-12 候选索引，与账本写集同事务。索引失败使整个事务回滚。
+5. 写入集中的 `schedule` 与 `unschedule` 在同一写事务内更新 `tl_due`（TS-14）。索引写入失败使整个事务回滚。
 
 结果对应如下：
 
@@ -89,8 +87,8 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 - 本包不持有连接、Worker、计时器或其他需要释放的资源。连接、Worker、事务与清理归 SQL 提供者。工厂返回的对象可以随时丢弃。
 - 信任假设（评审 N5）：本包不核验主体。调用方（账本、执行侧与启动协调器）在调用之前已核验主体与租户资格。本包只按受信的目录解析租户的事务域，并在每条语句里按租户过滤。
-- 每次提交使用新的 SQL 操作键（`tool.ledger`、`tool.chunk`、`tool.manifest`），身份带 `recall: 'never'`（[sql-contract §3.1](../../storage/sql-contract/SPEC.md#不认回的提交)），提供者不为它写回执。端口按自己的记录认回结果：账本按操作记录与域修订，保管与材料按清单与围栏。提交结果未知时，端口读回这些记录，不重新执行工具。端口从不重用 SQL 身份；同一端口操作重送时，账本的修订守卫与清单认回原结果，不产生第二份结果。
-- 已提交的写入与保管不因任何对象被丢弃而撤销。
+- 每次提交使用新的 SQL 操作键（`tool.ledger`、`tool.body-put`、`tool.body-seal`、`tool.body-delete`），身份带 `recall: 'never'`（[sql-contract §3.1](../../storage/sql-contract/SPEC.md#不认回的提交)），提供者不为它写回执。端口按自己的记录认回结果：账本按操作记录与域修订，正文存储按分块与清单的现状（同序号同字节答 `kept`，同清单答 `sealed`，删除幂等）。提交结果未知时，端口读回这些记录，不重新执行工具。端口从不重用 SQL 身份；同一端口操作重送时，账本的修订守卫与正文的不可变性认回原结果，不产生第二份结果。
+- 已提交的写入与正文不因任何对象被丢弃而撤销。
 
 ## 已知限制
 
@@ -98,11 +96,10 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 2. 两条不等式（评审 N1）。左侧上界归 `tool` 的 P08 拥有者，在它给出之前是已知限制：
    - 一次 `ToolLedgerStore.commit` 的写入集，编码后加信封不超过 `storage` 行的 `maxCommandBytes`。超过时提供者拒绝（`command_limit`），端口答 `rejected`，`reason` 为 `command_limit`。
    - 一个账本域的全部记录，编码后不超过读 handler 的 `maxOutputBytes`（4194304）与提供者的 `maxReadResultBytes`，记录数不超过 100000。超过时读答 `unavailable`。
-3. 材料删除与持久候选索引已实现，应用维护行负责自动推进。删除释放分块并产生可复用页，不承诺 SQLite 文件立即缩小。围栏与会话历史仍按各自责任保留，长期增长须分别测量；不能以这些记录保留正文副本。
-4. `inspect` 对从未保管的操作答 `unknown`（U1），P05 拥有者另定时再改。
-5. 已验证真实 SQLite Worker 重建及两个先后运行的进程恢复同一删除操作。两个进程同时共用一个库、强杀与断电耐久仍未验证。
-6. 清单提交在一个写事务内重读全部块并计算 SHA-256，代价与原件大小成正比。
-7. 值为 `undefined` 的记录成员按 JSON 省略。读回的记录没有这些成员。
+3. 正文删除去掉分块与清单行，产生可复用页，不承诺 SQLite 文件立即缩小。回收后账本的正文条目保留为按键冷记录，长期增长须单独测量。
+4. 两个进程同时共用一个库、强杀与断电耐久未验证。
+5. 封存在一个写事务内重读全部分块并计算 SHA-256，代价与正文大小成正比。
+6. 值为 `undefined` 的记录成员按 JSON 省略。读回的记录没有这些成员。
 
 ## 组合与验证
 
@@ -119,7 +116,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ## 正文存储与到期索引的实现映射
 
-正文与到期索引的命令沿同一 `tool` 参加者执行（`body-put`、`body-seal`、`body-delete` 与 `ledger` 的 `schedule`/`unschedule`）。表：`tl_domain`、`tl_record`、`tl_body_chunk`、`tl_body_manifest`、`tl_due`；读 handler：`tool.ledger.read`、`tool.body.read`、`tool.due.read`；一条迁移 `tool/r6-001-tool-ledger-body-due`。材料表、原件保管表与维护投影已删除；旧库由迁移基线隔离（C9）。
+正文与到期索引的命令沿同一 `tool` 参加者执行（`body-put`、`body-seal`、`body-delete` 与 `ledger` 的 `schedule`/`unschedule`）。表：`tl_domain`、`tl_record`、`tl_body_chunk`、`tl_body_manifest`、`tl_due`；读 handler：`tool.ledger.read`、`tool.body.read`、`tool.due.read`；一条迁移 `tool/r6-001-tool-ledger-body-due`。打开 r6 基线之前建的库时，SQL 提供者发现当前目录不列出的迁移标记，拒绝该事务域，不迁移旧数据（C9，`tests/old-baseline-quarantine.spec.ts`）。
 
 ### TS-13 正文存储
 

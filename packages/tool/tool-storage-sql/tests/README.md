@@ -18,7 +18,7 @@
 
 `host-history-independence.spec.ts`（慢层）是 C7 关卡。它在真实 SQLite 仓上用 `tool-host-local` 的公开工厂种入 2000 次 Tools 调用（启动、来源、控制、环境与保留作用域、转发槽与收到的副本、经真实账本驱动到 `done` 的结果交付）。每次种入还在同一租户留下一个原文已卸载的已收场调用，之后清扫回收一半正文。关卡核对新调用仍能启动。测试提供者把每条语句交给 `fixtures/statement-meter.ts`，关卡核对一次卸载并读回正文的 Tools 调用在 Tool 与宿主路径上的语句数、读写行数与逻辑字节在 20 与 2000 次历史下逐项相等；逻辑字节先扣除十进制文本（修订号、序号、计数器，宽度有 u64 上界）的字节，并断言扣除后再无差异。计数记录仓核对宿主读到的记录数与字节数逐项相等，保留作用域记录的大小两次相等，收场记录数等于已停止的保留进程数，读一条收场事实恰读一条记录；`start-guards` 的大小只报告。每调用的值在 `fixtures/host-paths.ts`。`ledger-asserts.spec.ts` 核对读集断言在 SQL 操作执行时评估：排队中的提交在被断言域移动后落地时冲突，两个连接之间也是如此。测试提供者按 `READ_OUTPUT_BYTES` 复现真实提供者的读出上限，所以整域读取超限时与生产一样被拒绝。
 
-测试在 node:sqlite 测试提供者（`fixtures/sqlite-storage.ts`）上运行本包真实的 Worker 模块。提供者每个事务域一个数据库文件，回执与参加者的写入在同一个事务里提交，所以关闭再打开同一目录可以认回已提交的操作。`fixtures/faults.ts` 在提供者之上一次布置一个故障：受理前拒绝、答复丢失、提交未执行、提交后抛错、延迟落地、提交前中断与读不可用。账本、保管与启动协调器的其他端口用 `@omne-harness/tool/testing` 与 `@omne-harness/tool-contract/testing` 的内存替身。测试提供者不建模 Worker、队列、组提交与断电，通过不证明这些性质。
+测试在 node:sqlite 测试提供者（`fixtures/sqlite-storage.ts`）上运行本包真实的 Worker 模块。提供者每个事务域一个数据库文件，回执与参加者的写入在同一个事务里提交，所以关闭再打开同一目录可以认回已提交的操作。`fixtures/faults.ts` 在提供者之上一次布置一个故障：受理前拒绝、答复丢失、提交未执行、提交后抛错、延迟落地、提交前中断与读不可用。账本、正文存储与启动协调器的其他端口用 `@omne-harness/tool/testing` 与 `@omne-harness/tool-contract/testing` 的内存替身。测试提供者不建模 Worker、队列、组提交与断电，通过不证明这些性质。
 
-`material-store.spec.ts` 用上述 SQLite 组合验证公开材料仓接口。`material-store-live.spec.ts` 在真实 sqlite-provider Worker 上运行 5 MiB 场景；只有一次删除回包丢失由包装器注入，字节和围栏仍由真实提供者提交。该测试关闭再打开提供者，不模拟操作系统断电。
+`body-store-conformance.spec.ts` 在上述 SQLite 组合上运行 `toolBodyStoreConformance()`，`crash` 手柄关闭并重开同一目录。`sweep-live.spec.ts` 在真实 sqlite-provider 上核对回收后正文表与到期索引不留行。这些用例不模拟操作系统断电。
 

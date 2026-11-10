@@ -10,10 +10,9 @@
 
 | 导出                                                                                                                            | 定义                                                        | 行为条款                   |
 | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | -------------------------- |
-| `createSqlToolLedgerStore`、`SqlToolLedgerStore`                                                                                | [src/ledger-store.ts](../src/ledger-store.ts)               | TS-01、TS-02、TS-03、TS-09、TS-11 |
-| `SqlToolStorageOptions`、`SqlToolOutputCustodyOptions`、`CHUNK_ENVELOPE_BYTES`、`TOOL_STORAGE_OWNER`                            | [src/options.ts](../src/options.ts)                         | TS-07                      |
+| `createSqlToolLedgerStore`、`SqlToolLedgerStore`                                                                                | [src/ledger-store.ts](../src/ledger-store.ts)               | TS-01、TS-02、TS-03、TS-09、TS-11、TS-14 |
+| `createSqlToolBodyStore`、`SqlToolBodyStore`、`SqlToolBodyStoreOptions`                                                       | [src/body-store.ts](../src/body-store.ts)                   | TS-03、TS-06、TS-09、TS-13 |
+| `SqlToolStorageOptions`、`TOOL_STORAGE_OWNER`                                                                                   | [src/options.ts](../src/options.ts)                         | TS-03                      |
 | `toolStorageMaterials`、`ToolStorageMaterials`、`TOOL_PARTICIPANT`                                                              | [src/materials.ts](../src/materials.ts)                     | TS-10                      |
 
-端口形状 `ToolLedgerStore` 归 [`@omne-harness/tool`](../../tool/src/ledger-store.ts)，`ToolOutputCustody` 归 [`@omne-harness/tool-contract`](../../tool-contract/src/custody.ts)。
-
-`ToolMaterialStore` 的端口形状归 [tool-contract 材料契约](../../tool-contract/src/materials.ts)，通过该包的 provider 入口导出。
+端口形状 `ToolLedgerStore` 归 [`@omne-harness/tool`](../../tool/src/ledger-store.ts)，`ToolBodyStore` 归 [`@omne-harness/tool-contract`](../../tool-contract/src/body-store.ts)，通过该包的 provider 入口导出。
