@@ -3,7 +3,7 @@
 // agree across operations.
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, parse } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
@@ -133,20 +133,25 @@ it.skipIf(process.platform === 'win32')(
   },
 )
 
-it('answers unknown for an open error it does not map', async () => {
-  const { root } = await namedFile('x')
-  const files = createHostFiles()
-  // POSIX refuses a 300-byte name with ENAMETOOLONG. Windows answers ENOENT for it (a mapped code)
-  // and gives ENAMETOOLONG only for a path longer than its 32767-character limit.
-  const tooLong =
-    process.platform === 'win32'
-      ? join(root, ...Array.from({ length: 200 }, () => 'n'.repeat(200)))
-      : join(root, 'n'.repeat(300))
-  expect(await files.read(request(tooLong, { token: '1:1' }, 'long'))).toEqual({
-    kind: 'unknown',
-    requestId: 'long',
-  })
-})
+// Windows: the files backend opens a path one segment at a time from its drive root, so no OS
+// error says the path is too long; a missing segment answers unresolved, which is mapped.
+it.skipIf(process.platform === 'win32')(
+  'answers unknown for an open error it does not map',
+  async () => {
+    const { root } = await namedFile('x')
+    const files = createHostFiles()
+    // POSIX refuses a 300-byte name with ENAMETOOLONG. Windows answers ENOENT for it (a mapped code)
+    // and gives ENAMETOOLONG only for a path longer than its 32767-character limit.
+    const tooLong =
+      process.platform === 'win32'
+        ? join(root, ...Array.from({ length: 200 }, () => 'n'.repeat(200)))
+        : join(root, 'n'.repeat(300))
+    expect(await files.read(request(tooLong, { token: '1:1' }, 'long'))).toEqual({
+      kind: 'unknown',
+      requestId: 'long',
+    })
+  },
+)
 
 it('refuses a close on a sandbox binding and answers unknown when the handle names another object', async () => {
   const { root, path, named } = await namedFile('x')
@@ -241,8 +246,10 @@ it('gives a created file the same version a later stat reports', async () => {
 
 it('stats the root directory by its own path', async () => {
   const files = createHostFiles()
-  const named = await hostObjectToken('/')
-  expect(await files.stat(request('/', named, 'root'))).toMatchObject({
+  // The root of the file system of this platform: `/` on POSIX, the drive root such as `C:\` on Windows.
+  const root = parse(process.cwd()).root
+  const named = await hostObjectToken(root)
+  expect(await files.stat(request(root, named, 'root'))).toMatchObject({
     kind: 'done',
     value: { object: named, type: 'directory' },
   })

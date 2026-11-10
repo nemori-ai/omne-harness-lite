@@ -15,7 +15,11 @@ import type {
 import { createHostFileBatch, type HostFileDiagnostic } from './host-file-batch.ts'
 import { createWindowsBatch } from './windows-files/batch.ts'
 import { createHostFileTree, hostFilesLimits, type HostFilesLimits } from './host-file-tree.ts'
-import { createWindowsFiles, createWindowsRootIdentity } from './windows-files/facility.ts'
+import {
+  createWindowsFiles,
+  createWindowsRootIdentity,
+  windowsObjectInfo,
+} from './windows-files/facility.ts'
 import { windowsSegmentsBelow } from './root-segments.ts'
 import { createMacosFiles } from './macos-files/facility.ts'
 import { createMacosBatch } from './macos-files/batch.ts'
@@ -43,7 +47,17 @@ import {
 export type { HostFilesLimits } from './host-file-tree.ts'
 export type { HostFileDiagnostic } from './host-file-batch.ts'
 
+/**
+ * The token of the object `path` names, with the last segment not followed. On Windows the files
+ * helper reads it, so it has the form the Windows files backend checks against. Rejects when no
+ * object can be named.
+ */
 export async function hostObjectToken(path: string): Promise<ObjectToken> {
+  if (process.platform === 'win32') {
+    const found = await windowsObjectInfo(path)
+    if (!found.ok) throw new Error(`no host object token for the path: ${found.failure}`)
+    return { token: found.value.token }
+  }
   const stat = await lstat(path, { bigint: true })
   return { token: `${stat.dev}:${stat.ino}` }
 }
@@ -777,6 +791,8 @@ export function createHostFilesEngine(
         limits: bounds,
         issue,
       })
+      operations.read = windows.read
+      operations.stat = windows.stat
       operations.list = windows.list
       operations.search = windows.search
       operations.mkdir = windows.mkdir
@@ -790,13 +806,10 @@ export function createHostFilesEngine(
         generation,
         running,
         sealed: () => sealed.has(owner),
+        diagnose: options.diagnose,
       })
       operations.commitBatch = windowsBatch.commitBatch
       operations.recoverBatch = windowsBatch.recoverBatch
-      if (options.root !== undefined) {
-        operations.read = windows.read
-        operations.stat = windows.stat
-      }
     }
 
     if (process.platform === 'darwin') {

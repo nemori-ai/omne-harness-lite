@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { access, lstat, mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { win32 } from 'node:path'
@@ -12,241 +12,64 @@ import type {
   ProviderFacts,
 } from '@omne-harness/execution-environment-contract'
 import type { HostFilesLimits } from '../host-file-tree.ts'
-import {
-  fail,
-  failed,
-  mapped,
-  ok,
-  openCodes,
-  reject,
-  unknown,
-  type Failure,
-  type Outcome,
-} from '../host-paths.ts'
-import { windowsSegmentsBelow } from '../root-segments.ts'
-import { nativeSource } from './native-source.ts'
-import { nativeTree } from './native-tree.ts'
-import { nativeWrite } from './native-write.ts'
+import { fail, failed, ok, reject, unknown, type Outcome } from '../host-paths.ts'
+import { windowsPathSegments, windowsSegmentsBelow } from '../root-segments.ts'
+import { frameworkAssembly } from '../windows-native/compile.ts'
+import { getWindowsFilesHelper } from './helper.ts'
+import type { ChangeInput, Final, Metadata, NativeInput, RunInput, Start } from './protocol.ts'
 
-type Metadata = Readonly<{
-  token: string
-  version: string
-  size: number
-  modified: number
-  type: FileInformation['type']
-  name: string
-}>
-type Reply = Readonly<{ info: Metadata; bytes: string; entries: readonly Metadata[]; next: number }>
-type SearchReply = Reply &
-  Readonly<{
-    hits: readonly { path: string; token: string; offsetBytes: number }[]
-    truncated: boolean
-    eof: boolean
-  }>
+const invoke = (input: NativeInput, boundMs?: number) =>
+  getWindowsFilesHelper().request(input, boundMs)
 
-function hit(value: unknown): SearchReply['hits'][number] {
-  if (
-    value === null ||
-    typeof value !== 'object' ||
-    !('path' in value) ||
-    typeof value.path !== 'string' ||
-    !('token' in value) ||
-    typeof value.token !== 'string' ||
-    !('offsetBytes' in value) ||
-    typeof value.offsetBytes !== 'number'
-  )
-    throw new Error('invalid native hit')
-  return { path: value.path, token: value.token, offsetBytes: value.offsetBytes }
+/** How the last segment of `path` is opened: see `Final`. */
+function finalOf(path: string): Final {
+  const follow = path.split(/[\\/]/u).findLast(part => part !== '') === '.'
+  return { directory: follow || /[\\/]$/u.test(path), follow }
 }
 
-function metadata(value: unknown): Metadata {
-  if (
-    value === null ||
-    typeof value !== 'object' ||
-    !('token' in value) ||
-    typeof value.token !== 'string' ||
-    !('version' in value) ||
-    typeof value.version !== 'string' ||
-    !('size' in value) ||
-    typeof value.size !== 'number' ||
-    !('modified' in value) ||
-    typeof value.modified !== 'number' ||
-    !('type' in value) ||
-    (value.type !== 'file' && value.type !== 'directory' && value.type !== 'symlink') ||
-    !('name' in value) ||
-    typeof value.name !== 'string'
-  )
-    throw new Error('invalid native metadata')
-  return {
-    token: value.token,
-    version: value.version,
-    size: value.size,
-    modified: value.modified,
-    type: value.type,
-    name: value.name,
-  }
+/**
+ * The helper reads its frames with the .NET JSON serializer, which turns an unpaired surrogate into
+ * U+FFFD. A path with one would name another object, so it is unsupported, with or without a root.
+ */
+const carried = (path: string): boolean => path.isWellFormed()
+
+/**
+ * The start of a path when no files root is configured: the root of its drive. A form outside the
+ * supported range answers `unsupported`; a `..` answers `notAuthorized`, as it does below a root.
+ */
+function driveStart(path: string): Outcome<Start> {
+  if (!carried(path)) return fail('unsupported')
+  const parsed = windowsPathSegments(path)
+  if (!parsed.ok) return fail(parsed.refusal === 'parent' ? 'notAuthorized' : 'unsupported')
+  const root = `${parsed.drive}\\`
+  return ok({ root, expectedRoot: '', segments: parsed.segments, rooted: false })
 }
 
-function reply(value: unknown): SearchReply | Failure {
-  if (value === null || typeof value !== 'object') return 'unknown'
-  if ('failure' in value) {
-    switch (value.failure) {
-      case 'notAuthorized':
-      case 'unresolved':
-      case 'unsupported':
-      case 'busy':
-      case 'invalidInput':
-      case 'conflict':
-      case 'unavailable':
-        return value.failure
-      default:
-        return 'unknown'
-    }
-  }
-  if (
-    !('info' in value) ||
-    !('bytes' in value) ||
-    typeof value.bytes !== 'string' ||
-    !('entries' in value) ||
-    !Array.isArray(value.entries) ||
-    !('next' in value) ||
-    typeof value.next !== 'number'
-  )
-    return 'unknown'
-  const hits = 'hits' in value && Array.isArray(value.hits) ? value.hits.map(hit) : []
-  const truncated = 'truncated' in value && value.truncated === true
-  return {
-    info: metadata(value.info),
-    bytes: value.bytes,
-    entries: value.entries.map(metadata),
-    next: value.next,
-    hits,
-    truncated,
-    eof: 'eof' in value && value.eof === true,
-  }
+/**
+ * The token and metadata of the object that `path` names, read by the files helper from the drive
+ * root. Ancestor links are followed and the last segment is not, as `lstat` does on POSIX.
+ */
+export async function windowsObjectInfo(
+  path: string,
+  boundMs?: number,
+): Promise<Outcome<Metadata>> {
+  const start = driveStart(path)
+  if (!start.ok) return start
+  const found = await invoke({ ...start.value, ...finalOf(path), operation: 'identify' }, boundMs)
+  return typeof found === 'string' ? fail(found) : ok(found.info)
 }
 
-const script = String.raw`
-$ErrorActionPreference='Stop'
-[Console]::InputEncoding=New-Object Text.UTF8Encoding($false)
-[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false)
-try {
-  $request=[Console]::In.ReadToEnd() | ConvertFrom-Json
-  Add-Type -TypeDefinition $request.source
-  if($request.operation -eq 'write') {
-    $result=[OmneFiles]::Write($request.root,$request.expectedRoot,[string[]]$request.segments,$request.named,$request.version,($null -ne $request.version),[bool]$request.trailingSlash,[bool]$request.create,$request.bytes)
-  } elseif($request.operation -in @('mkdir','remove','move')) {
-    $result=[OmneFiles]::Change($request.root,$request.expectedRoot,[string[]]$request.segments,$request.named,$request.operation,[bool]$request.recursive,$request.version,($null -ne $request.version),$request.targetRoot,$request.expectedTargetRoot,[string[]]$request.targetSegments,$request.targetNamed,[bool]$request.replace)
-  } else {
-    $result=[OmneFiles]::Run($request.root,$request.expectedRoot,[string[]]$request.segments,$request.named,$request.operation,[long]$request.offset,[long]$request.limit,$request.pattern,[bool]$request.content,[bool]$request.recursive,[long]$request.entryBudget,[long]$request.byteBudget,[long]$request.fileBytes,$request.path,[bool]$request.rooted)
-  }
-  [Console]::WriteLine(($result | ConvertTo-Json -Depth 8 -Compress))
-} catch {
-  $errorObject=$_.Exception
-  while($errorObject.InnerException) { $errorObject=$errorObject.InnerException }
-  [Console]::WriteLine((@{ failure=$errorObject.Message } | ConvertTo-Json -Compress))
-}
-`
-
-type NativeInput = Readonly<{
-  root: string
-  expectedRoot: string
-  segments: readonly string[]
-  named: string
-  operation: 'read' | 'stat' | 'list' | 'search'
-  offset: number
-  limit: number
-  pattern: string
-  content: boolean
-  recursive: boolean
-  entryBudget: number
-  byteBudget: number
-  fileBytes: number
-  path: string
-  rooted: boolean
-}>
-type ChangeInput = Readonly<{
-  root: string
-  expectedRoot: string
-  segments: readonly string[]
-  named: string
-  operation: 'mkdir' | 'remove' | 'move'
-  recursive: boolean
-  version: string | null
-  targetRoot: string
-  expectedTargetRoot: string
-  targetSegments: readonly string[]
-  targetNamed: string
-  replace: boolean
-}>
-
-type WriteInput = Pick<NativeInput, 'root' | 'expectedRoot' | 'segments' | 'named'> &
-  Readonly<{
-    operation: 'write'
-    version: string | null
-    trailingSlash: boolean
-    create: boolean
-    bytes: string
-  }>
-
-function invoke(
-  input: NativeInput | ChangeInput | WriteInput,
-  timeout?: number,
-): Promise<SearchReply | Failure> {
-  return new Promise(resolve => {
-    const child = spawn(
-      win32.join(
-        process.env.SystemRoot ?? 'C:\\Windows',
-        'System32',
-        'WindowsPowerShell',
-        'v1.0',
-        'powershell.exe',
-      ),
-      [
-        '-NoLogo',
-        '-NoProfile',
-        '-NonInteractive',
-        '-EncodedCommand',
-        Buffer.from(script, 'utf16le').toString('base64'),
-      ],
-      {
-        windowsHide: true,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        ...(timeout === undefined ? {} : { timeout }),
-      },
-    )
-    const chunks: Buffer[] = []
-    child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk))
-    child.stderr.resume()
-    child.stdin.on('error', () => undefined)
-    child.on('error', () => resolve('unavailable'))
-    child.on('close', code => {
-      if (code !== 0) return resolve('unknown')
-      try {
-        resolve(reply(JSON.parse(Buffer.concat(chunks).toString('utf8'))))
-      } catch {
-        resolve('unknown')
-      }
-    })
-    child.stdin.end(JSON.stringify({ ...input, source: nativeSource + nativeTree + nativeWrite }))
-  })
-}
-
-/** Checks handle-relative creation, reading, enumeration and removal in an owned temporary directory. */
+/**
+ * Checks the Windows files prerequisite: the .NET Framework compiler exists, and the files helper
+ * starts and creates, reads, lists and removes a file handle-relative in an owned temporary
+ * directory below `directory`.
+ */
 export async function probeWindowsFilesPrerequisite(
   directory = tmpdir(),
 ): Promise<ProviderFacts['prerequisites']> {
   if (process.platform !== 'win32') return 'unsatisfied'
   try {
-    await access(
-      win32.join(
-        process.env.SystemRoot ?? 'C:\\Windows',
-        'System32',
-        'WindowsPowerShell',
-        'v1.0',
-        'powershell.exe',
-      ),
-    )
+    await access(frameworkAssembly('csc.exe'))
   } catch (error) {
     return error instanceof Error && 'code' in error && error.code === 'ENOENT'
       ? 'unsatisfied'
@@ -261,9 +84,8 @@ export async function probeWindowsFilesPrerequisite(
   let reading: ProviderFacts['prerequisites'] = 'unknown'
   try {
     const root = await realpath(made)
-    const info = await lstat(root, { bigint: true })
-    const expectedRoot = `${info.dev}:${info.ino}`
-    reading = await probeWindowsDirectory(root, expectedRoot)
+    const identity = await windowsObjectInfo(root, 10_000)
+    reading = identity.ok ? await probeWindowsDirectory(root, identity.value.token) : 'unknown'
   } catch {
     reading = 'unknown'
   } finally {
@@ -280,14 +102,19 @@ async function probeWindowsDirectory(
   root: string,
   expectedRoot: string,
 ): Promise<ProviderFacts['prerequisites']> {
+  const probe = (input: NativeInput) => invoke(input, 10_000)
   const bytes = Buffer.from('omne-file-probe').toString('base64')
-  const endpoint = { root, expectedRoot, segments: ['probe'], named: expectedRoot }
-  const created = await invoke(
-    { ...endpoint, operation: 'write', create: true, version: null, trailingSlash: false, bytes },
-    10_000,
-  )
+  const endpoint = { root, expectedRoot, segments: ['probe'], rooted: true, named: expectedRoot }
+  const created = await probe({
+    ...endpoint,
+    operation: 'write',
+    create: true,
+    version: null,
+    trailingSlash: false,
+    bytes,
+  })
   if (typeof created === 'string') return created === 'unsupported' ? 'unsatisfied' : 'unknown'
-  const query: NativeInput = {
+  const query: RunInput = {
     ...endpoint,
     named: created.info.token,
     operation: 'read',
@@ -300,14 +127,18 @@ async function probeWindowsDirectory(
     byteBudget: 64,
     fileBytes: 64,
     path: win32.join(root, 'probe'),
-    rooted: true,
+    directory: false,
+    follow: false,
   }
-  const read = await invoke(query, 10_000)
+  const read = await probe(query)
   if (typeof read === 'string' || read.bytes !== bytes) return 'unknown'
-  const listed = await invoke(
-    { ...query, operation: 'list', segments: [], named: expectedRoot, path: root },
-    10_000,
-  )
+  const listed = await probe({
+    ...query,
+    operation: 'list',
+    segments: [],
+    named: expectedRoot,
+    path: root,
+  })
   if (
     typeof listed === 'string' ||
     listed.entries.length !== 1 ||
@@ -315,21 +146,18 @@ async function probeWindowsDirectory(
     listed.entries[0].token !== created.info.token
   )
     return 'unknown'
-  const removed = await invoke(
-    {
-      ...endpoint,
-      named: created.info.token,
-      operation: 'remove',
-      recursive: false,
-      version: null,
-      targetRoot: root,
-      expectedTargetRoot: expectedRoot,
-      targetSegments: [],
-      targetNamed: '',
-      replace: false,
-    },
-    10_000,
-  )
+  const removed = await probe({
+    ...endpoint,
+    named: created.info.token,
+    operation: 'remove',
+    recursive: false,
+    version: null,
+    targetRoot: root,
+    expectedTargetRoot: expectedRoot,
+    targetSegments: [],
+    targetNamed: '',
+    replace: false,
+  })
   if (typeof removed === 'string') return 'unknown'
   try {
     await lstat(win32.join(root, 'probe'))
@@ -349,12 +177,15 @@ function snapshot<R extends FileRequest<unknown>>(request: R): R {
   }
 }
 
-/** One engine binds one root identity. Failed binding remains retryable without replacing a known root. */
+/**
+ * The token of a files root, read by the files helper at the first use. One engine binds one root
+ * identity; a failed binding is tried again without replacing a known root.
+ */
 export function createWindowsRootIdentity(root: string): () => Promise<string | undefined> {
   let binding: Promise<string | undefined> | undefined
   return async () => {
-    binding ??= lstat(root, { bigint: true }).then(
-      info => `${info.dev}:${info.ino}`,
+    binding ??= windowsObjectInfo(root).then(
+      found => (found.ok ? found.value.token : undefined),
       () => undefined,
     )
     const pending = binding
@@ -364,6 +195,11 @@ export function createWindowsRootIdentity(root: string): () => Promise<string | 
   }
 }
 
+/**
+ * The Windows files backend. Every operation runs in the files helper, with or without a files
+ * root: below a root, the helper walks from the root's handle; without one, from the handle of the
+ * drive root.
+ */
 export function createWindowsFiles(
   options: Readonly<{
     root?: string
@@ -375,7 +211,10 @@ export function createWindowsFiles(
   FileSystemFacility<unknown>,
   'read' | 'stat' | 'list' | 'search' | 'mkdir' | 'remove' | 'move' | 'write' | 'copy'
 > {
-  const rootIdentity = options.rootIdentity
+  const configured = options.root
+  const rootIdentity =
+    options.rootIdentity ??
+    (configured === undefined ? undefined : createWindowsRootIdentity(configured))
   const identity = (info: Metadata): FileIdentity => {
     const object = { token: info.token }
     return { object, version: info.version, handle: options.issue(object) }
@@ -386,45 +225,22 @@ export function createWindowsFiles(
     sizeBytes: info.size,
     modifiedMs: info.modified,
   })
-  const rootToken = async (root: string): Promise<Outcome<string>> => {
-    if (rootIdentity !== undefined) {
-      const token = await rootIdentity()
-      return token === undefined ? fail('unavailable') : ok(token)
-    }
-    try {
-      const info = await lstat(root, { bigint: true })
-      return ok(`${info.dev}:${info.ino}`)
-    } catch (error) {
-      return fail(mapped(openCodes, error) ?? 'unknown')
-    }
-  }
-  const endpoint = async (
-    path: string,
-    parents = false,
-  ): Promise<Outcome<Pick<NativeInput, 'root' | 'expectedRoot' | 'segments'>>> => {
-    let root = options.root ?? win32.dirname(path)
-    if (options.root === undefined && parents) {
-      for (;;) {
-        const found = await rootToken(root)
-        if (found.ok) break
-        if (found.failure !== 'unresolved') return found
-        const next = win32.dirname(root)
-        if (next === root) return fail('unresolved')
-        root = next
-      }
-    }
-    const segments = await windowsSegmentsBelow(root, path)
+  /**
+   * Where `path` starts and the segments it walks. Below a root, a path outside it, with a `..` or
+   * in a refused form is `notAuthorized`. Nothing is opened yet.
+   */
+  const locate = async (path: string): Promise<Outcome<Start>> => {
+    if (configured === undefined) return driveStart(path)
+    if (!carried(path)) return fail('unsupported')
+    const segments = await windowsSegmentsBelow(configured, path)
     if (segments === undefined) return fail('notAuthorized')
-    const expectedRoot = await rootToken(root)
-    return expectedRoot.ok ? ok({ root, expectedRoot: expectedRoot.value, segments }) : expectedRoot
+    return ok({ root: configured, expectedRoot: '', segments, rooted: true })
   }
-  /** A root is configured and one of `paths` does not lie below it. */
-  const outsideRoot = async (paths: readonly string[]): Promise<boolean> => {
-    const root = options.root
-    if (root === undefined) return false
-    for (const path of paths)
-      if ((await windowsSegmentsBelow(root, path)) === undefined) return true
-    return false
+  /** `located` with the recorded token of the files root; `unavailable` when it cannot be bound. */
+  const bound = async (located: Start): Promise<Outcome<Start>> => {
+    if (!located.rooted || rootIdentity === undefined) return ok(located)
+    const token = await rootIdentity()
+    return token === undefined ? fail('unavailable') : ok({ ...located, expectedRoot: token })
   }
   const change = async (
     request: Parameters<FileSystemFacility<unknown>['remove']>[0],
@@ -441,12 +257,12 @@ export function createWindowsFiles(
       return reject(request.requestId, 'invalidInput')
     if (!request.named?.token || (target !== undefined && !target.named?.token))
       return reject(request.requestId, 'notAuthorized')
-    if (await outsideRoot([request.path, ...(target === undefined ? [] : [target.path])]))
-      return reject(request.requestId, 'notAuthorized')
-    const source = await endpoint(request.path, operation === 'mkdir' && request.recursive)
-    if (!source.ok) return failed(request.requestId, source.failure, 'notFound')
-    const destination = target === undefined ? source : await endpoint(target.path)
+    const located = await locate(request.path)
+    if (!located.ok) return failed(request.requestId, located.failure, 'notFound')
+    const destination = target === undefined ? located : await locate(target.path)
     if (!destination.ok) return failed(request.requestId, destination.failure, 'notFound')
+    const source = await bound(located.value)
+    if (!source.ok) return failed(request.requestId, source.failure, 'notFound')
     const result = await invoke({
       ...source.value,
       named: request.named.token,
@@ -454,7 +270,7 @@ export function createWindowsFiles(
       recursive: request.recursive,
       version: request.expectedVersion ?? null,
       targetRoot: destination.value.root,
-      expectedTargetRoot: destination.value.expectedRoot,
+      expectedTargetRoot: source.value.expectedRoot,
       targetSegments: destination.value.segments,
       targetNamed: target?.named?.token ?? '',
       replace,
@@ -463,7 +279,7 @@ export function createWindowsFiles(
   }
   const run = async (
     request: Parameters<FileSystemFacility<unknown>['stat']>[0],
-    operation: NativeInput['operation'],
+    operation: RunInput['operation'],
     offset: number,
     limit: number,
     search?: Parameters<FileSystemFacility<unknown>['search']>[0],
@@ -472,20 +288,14 @@ export function createWindowsFiles(
     if (!win32.isAbsolute(request.path) || request.path.includes('\0'))
       return reject(request.requestId, 'invalidInput')
     if (!request.named?.token) return reject(request.requestId, 'notAuthorized')
-    const root = options.root ?? win32.dirname(request.path)
-    const segments = await windowsSegmentsBelow(root, request.path)
-    if (segments === undefined) return reject(request.requestId, 'notAuthorized')
-    const expectedRoot = await rootToken(root)
-    if (!expectedRoot.ok)
-      return failed(
-        request.requestId,
-        expectedRoot.failure,
-        operation === 'search' ? 'notFound' : 'unresolved',
-      )
+    const missing = operation === 'search' ? 'notFound' : 'unresolved'
+    const located = await locate(request.path)
+    if (!located.ok) return failed(request.requestId, located.failure, missing)
+    const start = await bound(located.value)
+    if (!start.ok) return failed(request.requestId, start.failure, missing)
     const result = await invoke({
-      root,
-      expectedRoot: expectedRoot.value,
-      segments,
+      ...start.value,
+      ...finalOf(request.path),
       named: request.named.token,
       operation,
       offset,
@@ -497,16 +307,19 @@ export function createWindowsFiles(
       byteBudget: options.limits.searchByteBudget,
       fileBytes: options.limits.searchFileBytes,
       path: request.path,
-      rooted: options.root !== undefined,
     })
-    return typeof result === 'string'
-      ? failed(request.requestId, result, operation === 'search' ? 'notFound' : 'unresolved')
-      : result
+    return typeof result === 'string' ? failed(request.requestId, result, missing) : result
   }
   const facility: Pick<
     FileSystemFacility<unknown>,
     'read' | 'stat' | 'list' | 'search' | 'mkdir' | 'remove' | 'move' | 'write' | 'copy'
   > = {
+    /**
+     * Two helper requests: the first streams the source into a new object beside the target and
+     * flushes it, the second publishes that object by the rules of a write. The helper refuses only
+     * once the staged object is gone; a helper that answers nothing to the second request may leave
+     * it, so that is unknown.
+     */
     async copy(request) {
       request = {
         ...snapshot(request),
@@ -515,30 +328,62 @@ export function createWindowsFiles(
           named: request.target.named === null ? null : { ...request.target.named },
         },
       }
-      const source = await facility.read(request)
-      if (source.kind === 'unresolved') return reject(request.requestId, 'notFound')
-      if (source.kind !== 'done') return source
-      if (request.expectedVersion !== undefined && source.value.version !== request.expectedVersion)
-        return reject(request.requestId, 'conflict')
-      const { expectedVersion: _sourceVersion, ...copyRequest } = request
-      const targetRequest = { ...copyRequest, ...request.target }
-      const target = await facility.stat(targetRequest)
-      if (target.kind !== 'done' && target.kind !== 'unresolved') return target
-      if (target.kind === 'done' && !request.replace) return reject(request.requestId, 'conflict')
-      const written = await facility.write({
-        ...targetRequest,
-        bytes: source.value.bytes,
-        mode: target.kind === 'done' ? 'replace' : 'create',
-        ...(target.kind === 'done' ? { expectedVersion: target.value.version } : {}),
+      const { requestId } = request
+      if (request.binding.kind !== 'host_machine') return reject(requestId, 'unsupported')
+      if (
+        ![request.path, request.target.path].every(
+          path => win32.isAbsolute(path) && !path.includes('\0'),
+        ) ||
+        finalOf(request.target.path).directory
+      )
+        return reject(requestId, 'invalidInput')
+      if (!request.named?.token || !request.target.named?.token)
+        return reject(requestId, 'notAuthorized')
+      const located = await locate(request.path)
+      if (!located.ok) return failed(requestId, located.failure, 'notFound')
+      const destination = await locate(request.target.path)
+      if (!destination.ok) return failed(requestId, destination.failure, 'notFound')
+      const source = await bound(located.value)
+      if (!source.ok) return failed(requestId, source.failure, 'notFound')
+      const target: Start = { ...destination.value, expectedRoot: source.value.expectedRoot }
+      const temporary = `.omne-copy-${randomUUID()}`
+      const staged = await invoke({
+        ...source.value,
+        ...finalOf(request.path),
+        named: request.named.token,
+        operation: 'copy',
+        version: request.expectedVersion ?? null,
+        targetRoot: target.root,
+        expectedTargetRoot: target.expectedRoot,
+        targetSegments: target.segments,
+        targetNamed: request.target.named.token,
+        replace: request.replace,
+        temporary,
       })
-      if (written.kind === 'unresolved') return reject(request.requestId, 'notFound')
-      return written.kind === 'done'
-        ? {
-            kind: 'done',
-            requestId: request.requestId,
-            value: { source: source.value.object, target: written.value },
-          }
-        : written
+      if (typeof staged === 'string') return failed(requestId, staged, 'notFound')
+      if (staged.source === undefined || staged.target === undefined) return unknown(requestId)
+      const published = await invoke({
+        ...target,
+        operation: 'publish',
+        temporary,
+        named: staged.info.token,
+        targetNamed: request.target.named.token,
+        version: staged.target?.version ?? null,
+        create: staged.target === null,
+      })
+      if (published === 'unavailable') return unknown(requestId)
+      if (typeof published === 'string') return failed(requestId, published, 'notFound')
+      return {
+        kind: 'done',
+        requestId,
+        value: {
+          source: { token: staged.source.token },
+          target: {
+            ...identity(published.info),
+            writeEffect: staged.target === null ? 'created' : 'replaced',
+          },
+        },
+      }
     },
     async write(request) {
       request = { ...snapshot(request), bytes: Uint8Array.from(request.bytes) }
@@ -547,19 +392,21 @@ export function createWindowsFiles(
         !win32.isAbsolute(request.path) ||
         request.path.includes('\0') ||
         (request.mode === 'create' &&
-          (request.expectedVersion !== undefined || /[\\/]$/u.test(request.path)))
+          (request.expectedVersion !== undefined || finalOf(request.path).directory))
       )
         return reject(request.requestId, 'invalidInput')
       if (!request.named?.token) return reject(request.requestId, 'notAuthorized')
-      const source = await endpoint(request.path)
       const missing = request.mode === 'create' ? 'notFound' : 'unresolved'
+      const located = await locate(request.path)
+      if (!located.ok) return failed(request.requestId, located.failure, missing)
+      const source = await bound(located.value)
       if (!source.ok) return failed(request.requestId, source.failure, missing)
       const result = await invoke({
         ...source.value,
         named: request.named.token,
         operation: 'write',
         version: request.expectedVersion ?? null,
-        trailingSlash: /[\\/]$/u.test(request.path),
+        trailingSlash: finalOf(request.path).directory,
         create: request.mode === 'create',
         bytes: Buffer.from(request.bytes).toString('base64'),
       })
@@ -585,7 +432,7 @@ export function createWindowsFiles(
         return reject(request.requestId, 'invalidInput')
       const result = await run(request, 'read', offset, limit)
       if ('kind' in result) return result
-      const bytes = Buffer.from(result.bytes, 'base64')
+      const bytes = Uint8Array.from(Buffer.from(result.bytes, 'base64'))
       return {
         kind: 'done',
         requestId: request.requestId,

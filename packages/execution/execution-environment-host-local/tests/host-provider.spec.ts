@@ -230,9 +230,13 @@ it('hands out a host lease with its own identity and evidence, and the files and
   expect(acquired.lease.facility('files')).toBeDefined()
   expect(acquired.lease.facility('command')).toBeDefined()
   expect(acquired.lease.facility('terminal')).toBeDefined()
-  // Linux runs each command in its own systemd scope, macOS in a POSIX session that setsid can
-  // leave; the Windows backend declares nothing, which is not `sealed`.
-  const declared: Readonly<Record<string, string>> = { linux: 'sealed', darwin: 'none' }
+  // Linux runs each command in its own systemd scope and Windows in its own Job without breakaway;
+  // macOS runs it in a POSIX session that setsid can leave.
+  const declared: Readonly<Record<string, string>> = {
+    linux: 'sealed',
+    win32: 'sealed',
+    darwin: 'none',
+  }
   expect(acquired.lease.facility('command')?.containment).toBe(declared[process.platform])
   expect(await acquired.lease.release()).toEqual({ kind: 'released' })
 })

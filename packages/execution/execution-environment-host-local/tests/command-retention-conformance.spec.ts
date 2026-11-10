@@ -1,10 +1,11 @@
 /** @module-tag slow */
-// Slow: every case starts real processes in real systemd user scopes and waits for them to stop.
+// Slow: every case starts real processes in real execution domains and waits for them to stop.
 // The contract's conformance cases for what a one-shot command leaves behind, run against the real
-// host provider on Linux. The suite knows no platform: this file writes the commands, closes the
-// retention scope through the acquisition's release signal and reads the unit state from systemd.
-// Only the two ledgers are recorders: they are the integrator's ports. The cases run only on Linux
-// with `OMNE_HOST_COMMAND_LINUX=1`; elsewhere they are skipped, and a skip is not a pass.
+// host provider. The suite knows no platform: this file writes the commands, closes the retention
+// scope through the acquisition's release signal and reads the domain's state from the platform
+// (systemd on Linux, the named Job on Windows). Only the two ledgers are recorders: they are the
+// integrator's ports. The cases run on Windows, and on Linux with `OMNE_HOST_COMMAND_LINUX=1`;
+// elsewhere they are skipped, and a skip is not a pass.
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
@@ -35,9 +36,10 @@ import {
   createHostFilesDomain,
   createHostFilesProvider,
 } from '@omne-harness/execution-environment-host-local'
+import { askBridge } from '../src/windows-execution/bridge.ts'
+import { stopWindowsJob } from '../src/windows-execution/supervision.ts'
 
 const run = promisify(execFile)
-const enabled = process.platform === 'linux' && process.env['OMNE_HOST_COMMAND_LINUX'] === '1'
 
 const parsedTenant = tenantCodec.parse(
   JSON.stringify({
@@ -83,12 +85,104 @@ async function unitStopped(unit: string): Promise<boolean> {
   return state.loadState === 'not-found' || state.activeState === 'inactive'
 }
 
+/** The host's commands and its readings of a domain, by the process id a start answered. */
+type PlatformHost = Readonly<{
+  enabled: boolean
+  /** The domain of a retained process, by its reference. */
+  domainOf(ref: { id: string }): string
+  stopped(domain: string): Promise<boolean>
+  stop(domain: string): Promise<void>
+  /** The cases' commands, in the platform's shell or in Node. */
+  commands(cwd: string): CommandRetentionSubject['commands']
+}>
+
+const linuxHost: PlatformHost = {
+  enabled: process.platform === 'linux' && process.env['OMNE_HOST_COMMAND_LINUX'] === '1',
+  // The unit of a retained process is named after its reference.
+  domainOf: ref => `omne-host-${ref.id}.scope`,
+  stopped: unitStopped,
+  async stop(unit) {
+    await run('systemctl', ['--user', 'stop', unit]).catch(() => undefined)
+  },
+  commands(cwd) {
+    const body = (script: string) => ({
+      executable: '/bin/sh',
+      args: ['-c', script],
+      cwd,
+      env: { PATH: '/usr/bin:/bin' },
+      outputMode: 'separate' as const,
+    })
+    return {
+      clean: () => body('echo done'),
+      leftover: () => body('sleep 300 & echo started'),
+      // The leftover writes a check mark (three UTF-8 bytes) a second after the main process exits,
+      // well after the handover, then keeps running.
+      writing: () => ({
+        body: body("(sleep 1; printf 'tail \\342\\234\\223\\r\\n'; sleep 300) & echo before"),
+        after: new TextEncoder().encode('tail ✓\r\n'),
+      }),
+    }
+  },
+}
+
+const windowsHost: PlatformHost = {
+  enabled: process.platform === 'win32',
+  // The Job of a retained process is named after its reference.
+  domainOf: ref => `Local\\omne-command-${ref.id}`,
+  async stopped(job) {
+    const reading = await askBridge(
+      { mode: 'members', name: job },
+      frame => (frame.t === 'members' ? frame.reading : undefined),
+      5_000,
+    )
+    return reading === 'gone'
+  },
+  async stop(job) {
+    await stopWindowsJob(job, 5_000)
+  },
+  commands(cwd) {
+    // A Node child outlives its parent only when detached; it stays in the Job and keeps the
+    // inherited output pipe.
+    const leftover = (child: string, main: string) => ({
+      executable: process.execPath,
+      args: [
+        '-e',
+        `require('child_process').spawn(process.execPath,['-e',${JSON.stringify(child)}],{detached:true,stdio:['ignore','inherit','inherit']}).unref();${main}`,
+      ],
+      cwd,
+      env: { SystemRoot: process.env['SystemRoot'] ?? 'C:\\Windows' },
+      outputMode: 'separate' as const,
+    })
+    return {
+      clean: () => ({
+        executable: process.execPath,
+        args: ['-e', "console.log('done')"],
+        cwd,
+        env: { SystemRoot: process.env['SystemRoot'] ?? 'C:\\Windows' },
+        outputMode: 'separate' as const,
+      }),
+      leftover: () => leftover('setInterval(()=>{},1000)', "console.log('started')"),
+      // The leftover writes a check mark (three UTF-8 bytes) a second after the main process exits,
+      // well after the handover, then keeps running.
+      writing: () => ({
+        body: leftover(
+          "setTimeout(()=>process.stdout.write(Buffer.from('tail \\u2713\\r\\n')),1000);setInterval(()=>{},1000)",
+          "console.log('before')",
+        ),
+        after: new TextEncoder().encode('tail ✓\r\n'),
+      }),
+    }
+  },
+}
+
+const platform = process.platform === 'win32' ? windowsHost : linuxHost
+const enabled = platform.enabled
+
 afterAll(async () => {
   if (!enabled) return
   const left: string[] = []
-  for (const unit of allUnits)
-    if ((await unitState(unit)).loadState !== 'not-found') left.push(unit)
-  for (const unit of left) await run('systemctl', ['--user', 'stop', unit]).catch(() => undefined)
+  for (const domain of allUnits) if (!(await platform.stopped(domain))) left.push(domain)
+  for (const domain of left) await platform.stop(domain)
   expect(left).toEqual([])
 })
 
@@ -217,13 +311,7 @@ async function hostSubject(): Promise<CommandRetentionSubject> {
     }
   }
 
-  const body = (script: string) => ({
-    executable: '/bin/sh',
-    args: ['-c', script],
-    cwd,
-    env: { PATH: '/usr/bin:/bin' },
-    outputMode: 'separate' as const,
-  })
+  const commands = platform.commands(cwd)
   const [first, second, third, fourth] = scopes
   if (first === undefined || second === undefined || third === undefined || fourth === undefined)
     throw new Error('unreachable')
@@ -233,28 +321,17 @@ async function hostSubject(): Promise<CommandRetentionSubject> {
     elsewhere: await acquire(second, true),
     unbound: await acquire(third, false),
     withoutEnded: await acquire(fourth, true),
-    commands: {
-      clean: () => body('echo done'),
-      leftover: () => body('sleep 300 & echo started'),
-      // The leftover writes a check mark (three UTF-8 bytes) a second after the main process exits,
-      // well after the handover, then keeps running.
-      writing: () => ({
-        body: body("(sleep 1; printf 'tail \\342\\234\\223\\r\\n'; sleep 300) & echo before"),
-        after: new TextEncoder().encode('tail ✓\r\n'),
-      }),
-    },
+    commands,
     async closeScope() {
       first.close()
     },
-    // The unit of a retained process is named after its reference.
-    domainStopped: ref => unitStopped(`omne-host-${ref.id}.scope`),
+    domainStopped: ref => platform.stopped(platform.domainOf(ref)),
     async dispose() {
       for (const scope of scopes) scope.close()
-      for (const unit of units)
-        await run('systemctl', ['--user', 'stop', unit]).catch(() => undefined)
+      for (const domain of units) await platform.stop(domain)
       await vi.waitFor(
         async () => {
-          for (const unit of units) expect(await unitStopped(unit)).toBe(true)
+          for (const domain of units) expect(await platform.stopped(domain)).toBe(true)
         },
         { timeout: 15_000 },
       )
@@ -265,7 +342,7 @@ async function hostSubject(): Promise<CommandRetentionSubject> {
 }
 
 describe(
-  'the contract cases for what a one-shot command leaves behind, on the Linux host',
+  `the contract cases for what a one-shot command leaves behind, on the ${process.platform} host`,
   { skip: !enabled },
   () => {
     for (const test of commandRetentionConformance({ subject: hostSubject, waitMs: 60_000 })) {
