@@ -10,7 +10,7 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, expect, inject, it } from 'vitest'
+import { afterEach, expect, inject, it, vi } from 'vitest'
 import { pythonStep, type PlanFile } from '../src/testing/steps.ts'
 import { planCheck } from '../src/testing/scope.ts'
 
@@ -133,3 +133,31 @@ it('the Python step passes xdist settings to the child only and leaves process.e
     if (runner !== undefined) process.env['OMNE_RUNNER_ROOT'] = runner
   }
 })
+
+it('the runner Python step collects the spec-tools and tooling test directories and nothing else', () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-python-paths-')))
+  roots.push(root)
+  // pytest.ini 的 testpaths 只写一处：步骤要靠自己传的路径才收得到另一处，也不会被它收进目录之外的测试。
+  put(root, 'pytest.ini', '[pytest]\ntestpaths = tools/spec-tools/tests\n')
+  put(root, 'tools/spec-tools/tests/test_live.py', 'def test_live():\n    assert True\n')
+  put(root, '.meta_harness/tooling/tests/test_tooling.py', 'def test_tooling():\n    assert True\n')
+  const file: PlanFile = { plan: { python: { run: true, reason: 'test' } } } as unknown as PlanFile
+  const pythonToolingRoot = inject('pythonToolingRoot')
+  const failing = 'def test_bad():\n    assert False, "must not be collected or must fail"\n'
+  vi.stubEnv('OMNE_RUNNER_ROOT', pythonToolingRoot)
+  vi.stubEnv('UV_PROJECT', pythonToolingRoot)
+  vi.stubEnv('UV_PROJECT_ENVIRONMENT', join(pythonToolingRoot, '.venv'))
+  vi.stubEnv('UV_NO_SYNC', '1')
+  vi.stubEnv('PYTEST_ADDOPTS', `--confcutdir='${root}'`)
+  try {
+    expect(pythonStep(root, file)).toBe(0)
+    // 目录之外的失败测试不被收集。
+    put(root, 'elsewhere/test_stray.py', failing)
+    expect(pythonStep(root, file)).toBe(0)
+    // 两个目录里的失败测试都被收集：包括 testpaths 没写的那一处。
+    put(root, '.meta_harness/tooling/tests/test_bad.py', failing)
+    expect(pythonStep(root, file)).not.toBe(0)
+  } finally {
+    vi.unstubAllEnvs()
+  }
+}, 60_000)

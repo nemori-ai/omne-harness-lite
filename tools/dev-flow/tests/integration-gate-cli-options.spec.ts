@@ -1,6 +1,14 @@
 // @module-tag slow
 import { spawnSync } from 'node:child_process'
-import { realpathSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -68,5 +76,44 @@ describe('gate public option boundary', () => {
   })
   it('has no presence flags', () => {
     expect(run([...args, '--apply'])).toContain('Usage:')
+  })
+})
+
+describe('gate configuration file', () => {
+  it('reads the repository from the file that --config names', () => {
+    const recorded = join(home, 'recorded-gh'),
+      note = join(home, 'note.txt'),
+      config = join(home, 'delivery.json'),
+      recorder = join(home, 'recorder-bin')
+    mkdirSync(recorder)
+    writeGh(recorder, `#!/bin/sh\necho "$@" >> '${recorded}'\nexit 97\n`)
+    writeFileSync(note, 'confirmed')
+    writeFileSync(
+      config,
+      JSON.stringify({
+        schemaVersion: 3,
+        kind: 'github-delivery-config',
+        repository: 'named-owner/named-repo',
+      }),
+    )
+    const result = spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL('../src/integration/gate-cli.ts', import.meta.url)),
+        'wait',
+        '--run',
+        '7',
+        '--note',
+        note,
+        '--config',
+        config,
+      ],
+      { encoding: 'utf8', env: { ...process.env, ...ghEnv(recorder) }, timeout: 10_000 },
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.status).toBe(2)
+    const asked = readFileSync(recorded, 'utf8')
+    expect(asked).toContain('repos/named-owner/named-repo/actions/runs/7')
+    expect(asked).not.toContain('nemori-ai')
   })
 })

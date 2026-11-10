@@ -223,6 +223,18 @@ describe('并行度', () => {
     )
   })
 
+  it('triage.repeats 原样进配置；缺 triage 段、缺这一项或不是正整数时按名字报错', () => {
+    expect(config.triage).toEqual({ repeats: 3 })
+    const rest = {
+      parallel: POLICY,
+      affected: AFFECTED_EMPTY,
+      ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
+      cache: CACHE_EMPTY,
+    }
+    for (const triage of [undefined, {}, { repeats: 0 }, { repeats: 1.5 }])
+      expect(() => parseTestRunsConfig({ ...rest, triage })).toThrow('triage.repeats')
+  })
+
   it('配置缺项或类型不对就报错', () => {
     expect(() => parseTestRunsConfig({})).toThrow()
     expect(() =>

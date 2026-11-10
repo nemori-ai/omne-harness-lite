@@ -31,6 +31,24 @@ describe('isEntryPoint', () => {
   })
 })
 
+describe('importing the CLI module', () => {
+  it('runs nothing when another script started the process', async () => {
+    const argv = process.argv
+    const exitCode = process.exitCode
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+    vi.resetModules()
+    process.argv = [argv[0] ?? 'node', '/somewhere/else.ts', '--help']
+    try {
+      await import('../src/integration/cli.ts')
+    } finally {
+      process.argv = argv
+      process.exitCode = exitCode
+    }
+    expect(stdout).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(exitCode)
+  })
+})
+
 describe('failureLine', () => {
   it('writes one JSON line with the code of an IntegrationError', () => {
     expect(failureLine(new IntegrationError('refused', 'no'))).toBe(
