@@ -1,4 +1,5 @@
 export { createSettingsPreparationBackend } from './preparation-provider.ts'
+export { secretItemsOf } from './secret-items.ts'
 export type {
   SettingsPreparationOptions,
   SettingsPreparationService,

@@ -1,5 +1,7 @@
+import { readdirSync } from 'node:fs'
+import { DatabaseSync } from 'node:sqlite'
 import { afterEach, expect, it } from 'vitest'
-import { definition, definitionRef } from './world.ts'
+import { definition, definitionRef, secretDefinition, secretDefinitionRef } from './world.ts'
 import { intentAttemptIdentity } from '../src/intent-records.ts'
 import { digest, json } from '../src/encoding.ts'
 import { stored } from './business-world.ts'
@@ -61,6 +63,71 @@ it('keeps the state, the original operation and value-free changes across reopen
     ],
     nextRevision: null,
   })
+})
+
+/** The tables of every database under the root that hold the text in some row. */
+function tablesHolding(root: string, text: string): string[] {
+  const directory = `${root}/domains`
+  return readdirSync(directory)
+    .filter(name => name.endsWith('.sqlite'))
+    .flatMap(file => {
+      const sql = new DatabaseSync(`${directory}/${file}`, { readOnly: true })
+      try {
+        return sql
+          .prepare("SELECT name FROM sqlite_schema WHERE type = 'table'")
+          .all()
+          .map(row => String(row['name']))
+          .filter(name =>
+            sql
+              .prepare(`SELECT * FROM "${name}"`)
+              .all()
+              .some(row => JSON.stringify(row).includes(text)),
+          )
+      } finally {
+        sql.close()
+      }
+    })
+}
+
+it('refuses a secret write before it allocates anything, and keeps the plaintext nowhere', async () => {
+  const responses: unknown[] = []
+  const w = await open(options => ({
+    ...options,
+    storage: {
+      ...options.storage,
+      async commit(input) {
+        const result = await options.storage.commit(input)
+        responses.push(result)
+        return result
+      },
+    },
+  }))
+  w.updateDefinition(secretDefinition)
+  w.updateCurrent(current => ({
+    ...current,
+    basis: { ...current.basis, definitionRef: secretDefinitionRef },
+  }))
+  const secret = 'private-value-must-not-be-in-receipts'
+  const command = {
+    ...w.command,
+    definitionRef: secretDefinitionRef,
+    action: { kind: 'set' as const, value: secret },
+  }
+  expect(await w.service.prepareChange(w.context, command)).toEqual({
+    kind: 'rejected',
+    reason: 'unsupported',
+  })
+  // No Identity reservation, no transaction and no row: the value never left the caller.
+  expect(w.requests).toHaveLength(0)
+  expect(JSON.stringify(responses)).not.toContain(secret)
+  expect(tablesHolding(w.root, secret)).toEqual([])
+  expect(stored(w.root)).toMatchObject({ state: null, operations: 0, changes: 0, terminals: 0 })
+  // An ordinary item of the same world is prepared as before.
+  w.updateDefinition(definition)
+  w.updateCurrent(current => ({ ...current, basis: { ...current.basis, definitionRef } }))
+  expect(
+    await w.service.prepareChange(w.context, { ...w.command, operationId: 'ordinary' }),
+  ).toMatchObject({ kind: 'prepared' })
 })
 
 it('admits one of two operations that compete for the same expected revision', async () => {

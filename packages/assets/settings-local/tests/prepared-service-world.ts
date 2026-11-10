@@ -10,6 +10,7 @@ import {
   type SettingsPreparationOptions,
 } from '../src/preparation.ts'
 import { json } from '../src/encoding.ts'
+import { secretItemsOf } from '../src/secret-items.ts'
 import { allocation } from './intent-world.ts'
 import { openRecoveryWorld } from './recovery-world.ts'
 import { definition } from './world.ts'
@@ -38,6 +39,7 @@ export async function openPreparedServiceWorld(
     purpose: input.purpose,
     standing: { kind: 'identity', destination: 'settings.preparation', scopeRef, required: [] },
     sources: { route: 'settings.destination', sources: [] },
+    secretItems: [],
   }
   let currentDefinition = definition
   const requests: StandingRequest[] = []
@@ -60,10 +62,10 @@ export async function openPreparedServiceWorld(
       },
     },
     async plan() {
-      return current
+      return { ...current, secretItems: secretItemsOf(currentDefinition) }
     },
     currentCommands(_context, { phase, binding }) {
-      const { kind: _, purpose: __, ...material } = current
+      const { kind: _, purpose: __, secretItems: ___, ...material } = current
       return phase === 'ready'
         ? [
             {

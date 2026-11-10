@@ -10,7 +10,7 @@ A successful change stores assignments, their revision, the value-free original 
 
 Ordinary changes require the complete current definition reference and the same ordered source layout. Definition mismatch returns `definition_changed`; source-layout mismatch returns `basis_changed`. There is no implicit migration, cross-target assignment transaction, or destructive target cleanup operation. Explicit deployment maintenance is defined below.
 
-Secret item commands return `unsupported`. The SQL provider accepts no state-changing secret value and exposes no secret plaintext read API; secret custody is the separate `./secrets` entry ([Secret custody](#secret-custody)). Persistence and owner rejection receipts must omit command bodies and assignment values.
+Secret item commands return `unsupported`. The SQL provider accepts no state-changing secret value and exposes no secret plaintext read API; secret custody is the separate `./secrets` entry ([Secret custody](#secret-custody)). Persistence and owner rejection receipts must omit command bodies and assignment values. The preparation path refuses a change of a secret item with `unsupported` before it allocates anything: it makes no Identity reservation, commits no transaction and stores no intent, so the value reaches no relation and no receipt. The commit-time check of the same rule stays for a definition that turns an item secret after the preparation.
 
 ## Target qualification
 
@@ -309,6 +309,8 @@ Tests run these production participants in the real SQLite Worker. Current mater
 The preparation subpath supplies a service facet and a separate control facet. The service implements the Settings-owned preparation protocol and explicit maintenance rebase. It accepts business commands and references only. The host fixes storage domain, phase registrations, caller access, initial comparison-plan capture, transaction current producers and external reservation routes. These construction adapters are trusted capabilities, not client-supplied configuration.
 
 Every public call validates input and checks current disclosure or command access. Access results must bind the complete target and fixed storage scope. Root lookup also binds the authenticated principal. A repeated prepare recognizes the original semantic command and active attempt. Changing requestId does not change that command. A changed semantic command conflicts. A preparation reference cannot authorize another principal, target or command.
+
+The initial comparison plan names the secret items of the current definition in `secretItems` (`secretItemsOf(definition)`). The coordinator compares the item of a change with this list after the plan is captured and before the first allocation. The list carries item ids only and is not stored with an attempt.
 
 Preparation persists allocation and each requested checkpoint before the corresponding external call. A lost reply is retried using the stored request. Ready rechecks the complete current basis and held custody. A confirmed basis change seals the exact attempt and does not automatically allocate a successor. Commit reads the original persisted command and uses the fixed business combination. Query performs no cleanup. Cancellation preserves prior committed effects and only terminates an open root.
 

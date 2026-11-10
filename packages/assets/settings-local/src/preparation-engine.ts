@@ -96,6 +96,10 @@ export class PreparationEngine<Context> {
     const plan = preparationPlanSchema.parse(captured)
     if (!equal(plan.basis.target, operation.target))
       throw new Error('Preparation plan target mismatch')
+    // A secret item takes no value here. It is refused before anything is allocated, so its value
+    // reaches neither the intent nor a receipt.
+    if (intent.kind === 'change' && plan.secretItems.includes(intent.command.itemId))
+      return { kind: 'rejected', reason: 'unsupported' }
     await this.allocate(identity, intent, previous, plan)
     const root = await this.sql.root(identity)
     if (root.kind !== 'found') return unknown(identity)

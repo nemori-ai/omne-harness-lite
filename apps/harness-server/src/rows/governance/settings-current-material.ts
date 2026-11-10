@@ -3,6 +3,7 @@ import { canonicalDigest } from '@omne-harness/tool'
 import {
   SettingsCommitCurrentSchema,
   SettingsPreparationCurrentSchema,
+  secretItemsOf,
   type PreparationPlan,
 } from '@omne-harness/settings-local/preparation'
 import type { TargetSnapshot } from './target-snapshot.ts'
@@ -91,6 +92,13 @@ export function settingsCurrentMaterial(
 }
 
 export function settingsCurrentPlan(material: SettingsCurrentMaterial): PreparationPlan {
-  const { basis, standing, sources } = material
-  return { kind: 'planned', purpose: { kind: 'target-change' }, basis, standing, sources }
+  const { basis, standing, sources, definition } = material
+  return {
+    kind: 'planned',
+    purpose: { kind: 'target-change' },
+    basis,
+    standing,
+    sources,
+    secretItems: secretItemsOf(definition),
+  }
 }

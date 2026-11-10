@@ -21,6 +21,7 @@ import {
 } from './standalone-records.ts'
 import { readProjectedSettingsState } from './projected-state.ts'
 import { readStateRecord } from './records.ts'
+import { secretItemsOf } from './secret-items.ts'
 import { sourceKey } from './source-retention-records.ts'
 import { digest, equal, json, stateKey, withinBudget } from './encoding.ts'
 const parameters = new URL(import.meta.url).searchParams
@@ -70,7 +71,7 @@ function capture(request: Request, result: ReturnType<typeof current>) {
   if (request.attempt !== null)
     throw new Error('Initial organization capture cannot carry an attempt')
   if ('kind' in result) return { kind: 'participated' as const, response: json(result) }
-  const { basis, standing, sources } = result
+  const { basis, standing, sources, definition } = result
   return {
     kind: 'participated' as const,
     response: json({
@@ -78,6 +79,7 @@ function capture(request: Request, result: ReturnType<typeof current>) {
       basis,
       standing,
       sources,
+      secretItems: secretItemsOf(definition),
       purpose: {
         kind: 'source-update',
         sourceKey: sourceKey({

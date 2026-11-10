@@ -18,6 +18,7 @@ import { settingsCurrentParticipant, type SettingsCurrentPhase } from './setting
 const planSchema = SettingsPreparationCurrentSchema.omit({ binding: true }).extend({
   kind: z.literal('planned'),
   purpose: z.strictObject({ kind: z.literal('target-change') }),
+  secretItems: z.array(z.string()).max(128),
 })
 type CurrentOptions<Context> = Pick<SettingsPreparationOptions<Context>, 'plan' | 'currentCommands'>
 export function createSettingsCurrentProjection<Context>(options: {
