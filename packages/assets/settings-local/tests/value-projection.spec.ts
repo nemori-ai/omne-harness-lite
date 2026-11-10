@@ -25,7 +25,7 @@ async function open(reopen?: { root: string; scopeRef: string }) {
   const withoutAssets = settingsWithoutAssetsMaterials()
   const values = settingsValueProjectionMaterials()
   const w = await openPreparedTargetWorld({
-    extraParticipants: [...withoutAssets.participants, ...values],
+    extraMaterials: { participants: [...withoutAssets.participants, ...values] },
     ...(reopen ? { reopen } : {}),
   })
   worlds.push(w)

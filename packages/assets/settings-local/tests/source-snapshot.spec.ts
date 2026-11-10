@@ -27,19 +27,21 @@ function file(relative: string) {
 async function open(reopen?: { root: string; scopeRef: string }) {
   const w = await openPreparedTargetWorld({
     actions: ['set', 'clear', 'lock', 'unlock'],
-    extraParticipants: [
-      {
-        participant: 'fixture.source-snapshot-sink',
-        protocol: 'fixture-source-snapshot/1',
-        ...file('./source-snapshot-sink.mjs'),
-        ownedTables: [],
-        readTables: [],
-        requiresFacts: [SOURCE_SNAPSHOT_FACT],
-        providesFacts: [],
-        allowedFunctions: [],
-        grouping: 'groupable',
-      },
-    ],
+    extraMaterials: {
+      participants: [
+        {
+          participant: 'fixture.source-snapshot-sink',
+          protocol: 'fixture-source-snapshot/1',
+          ...file('./source-snapshot-sink.mjs'),
+          ownedTables: [],
+          readTables: [],
+          requiresFacts: [SOURCE_SNAPSHOT_FACT],
+          providesFacts: [],
+          allowedFunctions: [],
+          grouping: 'groupable',
+        },
+      ],
+    },
     ...(reopen ? { reopen } : {}),
   })
   worlds.push(w)

@@ -59,7 +59,7 @@ export async function openRecoveryWorld(
   domain: DomainRef = allocation().identity.domain,
   sourceCapture = false,
   organizationCurrent?: OrganizationCurrentConfiguration,
-  extra: SqlMaterialCatalog['participants'] = [],
+  extra: Partial<Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>> = {},
 ) {
   const base = settingsRecoveryMaterials()
   const targets = settingsStandaloneMaterials()
@@ -81,7 +81,7 @@ export async function openRecoveryWorld(
     declaredCombinations: { tenant: null, system: null },
     participants: [
       ...own.participants,
-      ...extra,
+      ...(extra.participants ?? []),
       ...(organizationCurrent ? settingsOrganizationCurrentMaterials(organizationCurrent) : []),
       {
         participant: 'fixture.commit-current',
@@ -117,8 +117,10 @@ export async function openRecoveryWorld(
         grouping: 'groupable',
       },
     ],
+    migrations: [...own.migrations, ...(extra.migrations ?? [])],
     readHandlers: [
       ...own.readHandlers,
+      ...(extra.readHandlers ?? []),
       {
         handler: 'fixture.recovery-read',
         protocol: 'fixture-recovery/1',

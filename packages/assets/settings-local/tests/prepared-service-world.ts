@@ -23,8 +23,10 @@ export async function openPreparedServiceWorld(
     principalRef?: string
     sourceCapture?: boolean
     root?: string
-    /** Participants of the test, added to the catalog next to the preparation materials. */
-    extraParticipants?: SqlMaterialCatalog['participants']
+    /** Materials of the test, added to the catalog next to the preparation materials. */
+    extraMaterials?: Partial<
+      Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
+    >
   },
 ) {
   const input = allocation()
@@ -45,7 +47,7 @@ export async function openPreparedServiceWorld(
     input.identity.domain,
     bound?.sourceCapture,
     undefined,
-    bound?.extraParticipants,
+    bound?.extraMaterials,
   )
   let current: PreparationPlan = {
     kind: 'planned',

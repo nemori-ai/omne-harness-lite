@@ -16,7 +16,11 @@ type Action = 'set' | 'clear' | 'lock' | 'unlock'
  */
 export async function openPreparedTargetWorld(
   options: {
-    extraParticipants?: SqlMaterialCatalog['participants']
+    extraMaterials?: Partial<
+      Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
+    >
+    /** The scope and the principal of a real Identity, when the test has one. */
+    bound?: { scopeRef: string; principalRef: string }
     actions?: Action[]
     /** An existing database and its scope, to open the same world again. */
     reopen?: { root: string; scopeRef: string }
@@ -24,7 +28,8 @@ export async function openPreparedTargetWorld(
 ) {
   const w = await openPreparedServiceWorld(undefined, {
     sourceCapture: true,
-    ...(options.extraParticipants ? { extraParticipants: options.extraParticipants } : {}),
+    ...(options.extraMaterials ? { extraMaterials: options.extraMaterials } : {}),
+    ...options.bound,
     ...options.reopen,
   })
   const { domain } = w.input.identity
