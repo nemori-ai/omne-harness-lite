@@ -23,6 +23,6 @@
 3. 把 schema 的采用身份与声明值一起存进工具定义。
 4. 在一个终端里执行一段脚本，读取流式输出与终局。
 
-落在宿主机时，`command` 与 `terminal` 由同一个宿主提供者提供；宿主成员有 Linux 与 Windows 的命令后端和持久终端，一次性命令留下的进程只在 Linux 兑现，见 [execution-environment-host-local 的宿主命令机制](../../execution-environment-host-local/docs/architecture.md#宿主命令机制)。
+落在宿主机时，`command` 与 `terminal` 由同一个宿主提供者提供；宿主成员有 Linux 与 Windows 的命令后端和持久终端，一次性命令留下的进程在 Linux 与 Windows 兑现，见 [execution-environment-host-local 的宿主命令机制](../../execution-environment-host-local/docs/architecture.md#宿主命令机制)。
 
 运行前提：示例只依赖本成员的公开入口。它是类型层面的示例，由本包的类型测试编译核对；它没有提供者，不能单独运行出真实结果。取得真实设施需要机制成员与提供者成员，见[使用与定位](../docs/context.md#使用方式)。具名维护者由负责人指定。

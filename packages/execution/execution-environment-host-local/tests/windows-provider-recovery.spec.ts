@@ -4,7 +4,7 @@ import { domainInternals } from '../src/host-domain.ts'
 import { fixture, value } from './windows-provider-fixture.ts'
 import { outputOf } from './windows-execution/terminal-fixture.ts'
 
-it('recovers the original Job without stopping another terminal or claiming cold enumeration', async context => {
+it('recovers the original Job without stopping another terminal', async context => {
   if (process.platform !== 'win32') return context.skip()
   const f = await fixture()
   try {
@@ -17,7 +17,13 @@ it('recovers the original Job without stopping another terminal or claiming cold
     const other = value(
       await a.terminal.create({ ...a.call, cwd: f.root, env: f.identity.env }),
     ).terminal
-    expect(await f.provider.listRecoveryResources?.(a.input.scope)).toEqual({ kind: 'unavailable' })
+    // Ordinary terminals have no cold-index marker and are not listed. The empty listing is still
+    // complete: a terminal broker stops its Job when the provider's control pipe ends, so no
+    // ordinary terminal outlives its provider (terminal-provider-gone.spec.ts).
+    expect(await f.provider.listRecoveryResources?.(a.input.scope)).toEqual({
+      kind: 'listed',
+      resources: [],
+    })
     for (const reference of [
       { kind: 'null' },
       { kind: 'object', entries: [] },
@@ -98,7 +104,8 @@ it('stops a zero-attachment retained shell when its Session scope closes', async
     expect(await f.domain.maintain()).toEqual({ pending: 0 })
     expect(capacity?.reading().terminals).toBe(0)
     expect(await f.provider.listRecoveryResources?.(f.retention.scope)).toEqual({
-      kind: 'unavailable',
+      kind: 'listed',
+      resources: [],
     })
   } finally {
     await f.cleanup()

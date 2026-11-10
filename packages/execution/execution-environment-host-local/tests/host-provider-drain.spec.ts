@@ -124,8 +124,10 @@ async function heldFile() {
   roots.push(root)
   const path = join(root, `${hold.marker}.txt`)
   await writeFile(path, 'before')
+  // On Windows the token is read by the files helper, which the hold would stop: read it first.
+  const named = await hostObjectToken(path)
   holdNextOpen()
-  return { path, named: await hostObjectToken(path) }
+  return { path, named }
 }
 
 function write(files: FileSystemFacility<unknown>, path: string, named: ObjectToken, id: string) {

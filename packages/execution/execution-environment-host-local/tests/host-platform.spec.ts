@@ -3,6 +3,7 @@ import * as os from 'node:os'
 import * as fs from 'node:fs/promises'
 import * as probes from '../src/host-probe.ts'
 import * as native from '../src/windows-execution/compile.ts'
+import * as windowsProbes from '../src/windows-execution/prerequisites.ts'
 import { createHostPlatform, probeWindowsExecution } from '../src/host-platform.ts'
 import { createHostFilesDomain, domainInternals } from '../src/host-domain.ts'
 import { commandSettings } from '../src/host-command.ts'
@@ -39,10 +40,14 @@ it('keeps Windows installation facts separate from Linux probes', async () => {
   vi.spyOn(fs, 'access').mockResolvedValue(undefined)
   const bridge = vi.spyOn(native, 'windowsBridgeExecutable').mockResolvedValue('bridge.exe')
   vi.spyOn(native, 'windowsTerminalExecutable').mockResolvedValue('terminal.exe')
-  const linux = vi.spyOn(probes, 'createPrerequisiteProbe')
+  const windows = vi
+    .spyOn(windowsProbes, 'probeWindowsCommands')
+    .mockResolvedValue({ kind: 'unsatisfied', missing: ['job-round-trip'] })
+  const linux = vi.spyOn(probes, 'probeCommandPrerequisites')
   const pty = vi.spyOn(probes, 'probeTerminalPrerequisites')
-  expect(await host('win32').execution.prerequisites()).toEqual(['satisfied'])
+  expect(await host('win32').execution.prerequisites()).toEqual(['satisfied', 'unsatisfied'])
   expect(bridge).toHaveBeenCalledOnce()
+  expect(windows).toHaveBeenCalledOnce()
   expect(linux).not.toHaveBeenCalled()
   expect(pty).not.toHaveBeenCalled()
 })
