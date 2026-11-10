@@ -368,14 +368,12 @@ it('resolves every implemented contract function from the package root with its 
     (reference: unknown, tenant: TenantId) => Outcome<ToolOperationParts, ToolReferenceFailure>
   >()
   expectTypeOf(toolAssetBody).returns.toEqualTypeOf<JsonValue>()
-  expectTypeOf(toolAssetBody)
-    .parameter(0)
-    .toExtend<
-      Readonly<{
-        name: string
-        declarations: Readonly<{ settings: ToolSettingsDeclaration | null }>
-      }>
-    >()
+  expectTypeOf(toolAssetBody).parameter(0).toExtend<
+    Readonly<{
+      name: string
+      declarations: Readonly<{ settings: ToolSettingsDeclaration | null }>
+    }>
+  >()
   expectTypeOf(judgeToolArguments).returns.toEqualTypeOf<
     Outcome<ParsedToolArguments, ToolArgumentsRejection>
   >()
