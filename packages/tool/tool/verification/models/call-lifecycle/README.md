@@ -18,7 +18,7 @@
 
 ## 2. 动作
 
-`Issue`、`Admit`（含重发）、`Execute`、`Settle`、`Save`（消费者落盘保存）、`Ack`（确认，释放交付并排期）、`Quiesce`（待办结清、宿主放开记录）、`Postpone`（清扫遇到还不能删的域，改排到 `now + G`）、`DeleteBytes`（清扫先删正文字节）、`Sweep`（清扫删除整个域）、`LateOperation`（对空域的迟到查询或控制写下排除记录并排期）、`Tick`。
+`Issue`、`Admit`（含重发）、`Execute`、`Settle`、`Save`（消费者落盘保存）、`Ack`（确认，释放交付并排期）、`Quiesce`（待办结清、宿主放开记录）、`Postpone`（清扫遇到还不能删的域，改排到 `now + G`）、`DeleteBytes`（清扫先删正文字节）、`Sweep`（清扫删除整个域）、`LateOperation`（对空域的迟到 `lookup` 或 `queryOperation` 写下排除记录并排期）、`Tick`。
 
 ## 3. 性质
 
@@ -62,7 +62,19 @@ TLA2TOOLS_JAR=<TLC 1.7.4 的 jar> python3 check.py --out <输出目录>
 
 ## 6. 模型到代码
 
-实现后在此登记每个动作对应的源码位置和最后一次确认一致的提交。
+最后一次确认一致的提交：`8e301a31d`。源码在 `packages/tool/tool/src/`，宿主一侧在 `packages/tool/tool-host-local/src/`。
+
+| 模型 | 源码 |
+| --- | --- |
+| `Admit` 撤销到期项 | `ledger-decider.ts` 的 `ADMITTED_NOT_DUE`，在两个受理写入集里 |
+| `Ack` 释放并排期 | `ledger-decider.ts` 的 `decideRelease` 与 `removalInstant`；确认时刻由 `ledger.ts` 的 `releaseDelivery` 从正文时钟读取 |
+| `~busy`（调用已静止） | `ledger-sweep.ts` 的 `quiet`：已结算、交付都已释放、除已阻塞的 `clock` 任务外没有任务 |
+| `Quiesce` 里宿主放开记录 | `tool-host-local` 的 `call-records.ts`（`createLocalCallRecords`）与 `environment-state.ts` 的 `callAcquisitions` |
+| `Postpone` | `ledger-sweep.ts` 的 `postpone` |
+| `DeleteBytes` 与 `Sweep` | `ledger-sweep.ts` 的 `removeCall`；整域删除是 `ledger-store.ts` 的 `drop` 写 |
+| `LateOperation` 写排除记录并排期 | `ledger.ts` 的 `fenced`，域里没有调用记录时排 `now + G` |
+
+判据用例：`tests/call-lifecycle.spec.ts`（每个动作一条以上）、`tests/exclusion-interleavings.spec.ts`（受理撤销到期项）、`tool-host-local/tests/retained-process-ledger.spec.ts`（宿主放手记录）、`apps/harness-server/tests/rows/tool-runtime/composition.spec.ts`（真实装配下记录数归零）。
 
 ## 7. 模型不覆盖的
 

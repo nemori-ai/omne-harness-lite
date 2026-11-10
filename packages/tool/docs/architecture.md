@@ -106,7 +106,7 @@ sequenceDiagram
 
 | 成员 | 承担 |
 | --- | --- |
-| `tool-contract` | 公开承诺与对消费者的前提 A1、A2（[确认之后的调用状态](../tool-contract/SPEC.md#确认之后的调用状态)） |
+| `tool-contract` | 公开承诺与对消费者的三条前提（[确认之后的调用状态](../tool-contract/SPEC.md#确认之后的调用状态)） |
 | `tool` | 释放时排删除时刻。清扫先删除宿主里属于该调用的域，最后删除调用域。空域的排除记录也排删除时刻（[调用状态的生命周期](../tool/SPEC.md#调用状态的生命周期)） |
 | `tool-storage-sql` | 记录仓端口的整域删除。记录、到期条目与修订号行在同一事务里删除，不留墓碑（[TS-15](../tool-storage-sql/SPEC.md#ts-15-整域删除)） |
 | `tool-host-local` | 以调用标识为名的宿主域随所属调用删除，宿主自己不排期（[排序域与放置](../tool-host-local/SPEC.md#1-排序域与放置)） |

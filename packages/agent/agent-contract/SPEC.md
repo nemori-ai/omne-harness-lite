@@ -90,7 +90,7 @@ Model 的受理前引用、not-accepted 判定、原固定输入与 ACK result/e
 
 #### Tool 结果保存之后不重发
 
-结果接收方为一个 Tool 结果返回 saved 之后，Agent 不再以同一消费位置发起这次 Tool 调用。这是 Tool 契约对消费者的前提 A2（与 Loop 节点 A2 是两回事），见 Tool 的[确认之后的调用状态](../../tool/tool-contract/SPEC.md#确认之后的调用状态)。Tool 在确认之后按期限删除调用状态，删除之后的重发会让同一函数再执行一次。下列四个条件共同保证这一承诺：
+结果接收方为一个 Tool 结果返回 saved 之后，Agent 不再以同一消费位置发起这次 Tool 调用。这是 Tool 契约对消费者的前提“保存后不重发”，见 Tool 的[确认之后的调用状态](../../tool/tool-contract/SPEC.md#确认之后的调用状态)。Tool 在确认之后按期限删除调用状态，删除之后的重发会让同一函数再执行一次。下列四个条件共同保证这一承诺：
 
 1. 接收绑定只随 associated Tool PendingCall 产生，并与 checkpoint 在同一批提交里建立。
 2. 一个 (execution, step) 只形成一个动作批。
