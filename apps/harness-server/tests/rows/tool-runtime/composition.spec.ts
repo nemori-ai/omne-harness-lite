@@ -719,7 +719,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
           return { call }
         },
       )
-      expect(run.result.exitCode).toBe(0)
+      expect(run.result.exitCode, JSON.stringify(run.of('shutdown-result'))).toBe(0)
       expect(value.call).toBeDefined()
       // The command's own file is not the Tool's to reclaim.
       expect(existsSync(join(tools.filesRoot, 'native.txt'))).toBe(true)
