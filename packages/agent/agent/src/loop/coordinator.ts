@@ -624,6 +624,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // The admission in progress: the internal request P fixed and the outcome `prepare` returned.
   let pendingHandoff: PendingHandoff | null = null
   let outcome: HandoffOutcome | null = null
+  // The request whose last `prepare` in this process answered unavailable. That prepare took no
+  // effect, so the wait comes back to prepare the same request again (SPEC "依赖不可用时的等待":
+  // the same operation), not to the lookup of a receipt lost with a process.
+  let unpreparedHandoff: PendingHandoff | null = null
   // The acceptance of the external input that U0 admitted, which E0 hands to `open`.
   let acceptance: OriginalInputAcceptance | null = null
   let iteration: Iteration | null = null
@@ -662,6 +666,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // ordinary commits that carry it.
   let readPrefix: ReplyAdmissionPrefix | null = null
   const uncertainToolActions = new Set<ActionId>()
+  // The actions whose intent this process saved and that Tool has so far answered only with an
+  // unavailable rejection: no attempt was accepted and none is unknown, so a later rejection still
+  // gets its denied slot (SPEC "依赖不可用时的等待", Tool 受理). In process only: after a restart
+  // the history of the saved intent is not known here.
+  const unacceptedToolActions = new Set<ActionId>()
   // The tool message that T5 found rejected, for H0. In process only: a restart finds the
   // rejected Ja in the Journal again at T5.
   let rejectedMessage: Readonly<{ source: InternalSource; evidence: DurableEvidence }> | null = null
@@ -1307,12 +1316,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         if ('failure' in prepared) return prepared
       }
       pendingHandoff = request
-      const fixed = await ports.handoff.prepare({
-        ...access,
-        kind: 'execution',
-        request,
-        advance: required(authority, 'authority'),
-      })
+      const fixed = await prepareHandoff(request)
       if ('failure' in fixed) return fixed
       outcome = fixed.ok
       return step(fixed.ok.decision.kind, null)
@@ -1327,7 +1331,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const subject = required(candidate, 'candidate')
       if (subject.kind === 'external-input') return step('resolved', null)
       const request = required(pendingHandoff, 'pending handoff')
-      if (outcome === null) {
+      if (outcome === null && unpreparedHandoff !== request) {
         const found = await ports.handoff.lookup({
           ...access,
           kind: 'execution',
@@ -1338,16 +1342,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         if (found.ok.kind === 'excluded')
           return fail(notYet('Q2', 'an excluded handoff (retire)', '#502 stage 5'))
         if (found.ok.kind === 'recorded') outcome = found.ok.outcome
-        else {
-          const fixed = await ports.handoff.prepare({
-            ...access,
-            kind: 'execution',
-            request,
-            advance: required(authority, 'authority'),
-          })
-          if ('failure' in fixed) return fixed
-          outcome = fixed.ok
-        }
+      }
+      if (outcome === null) {
+        const fixed = await prepareHandoff(request)
+        if ('failure' in fixed) return fixed
+        outcome = fixed.ok
       }
       return step('resolved', replyApplication(request, outcome, subject.source))
     },
@@ -2052,9 +2051,25 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
    * checked, and the complete original request is sent. Only an accepted or commit-unknown answer
    * associates the call; a rejection denies only a first attempt with no earlier unknown.
    */
+  /** Q1 and Q2: P prepares the internal request; an unavailable answer is remembered. */
+  async function prepareHandoff(request: PendingHandoff) {
+    const fixed = await ports.handoff.prepare({
+      ...access,
+      kind: 'execution',
+      request,
+      advance: required(authority, 'authority'),
+    })
+    unpreparedHandoff =
+      'failure' in fixed && fixed.failure.kind === 'unavailable' ? request : null
+    return fixed
+  }
+
   async function sendAction(batch: ActionBatch, original: Action): Promise<Outcome<Sent, Failure>> {
     if (original.judgment.kind !== 'allowed') return succeed({ batch, progressed: false })
     const fresh = original.call === null
+    // No earlier attempt was accepted or left unknown: this process saved the intent, and every
+    // invoke since answered an unavailable rejection.
+    const unaccepted = fresh || unacceptedToolActions.has(original.id)
     let next = batch
     let action = original
     if (fresh) {
@@ -2081,6 +2096,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       return succeed({ batch: next, progressed: false })
     }
     if (result.kind === 'rejected' && result.failure.kind === 'unavailable') {
+      if (unaccepted) unacceptedToolActions.add(action.id)
       const unavailable = {
         kind: 'unavailable' as const,
         owner: 'toolRuntime',
@@ -2088,8 +2104,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       }
       return succeed({ batch: next, progressed: false, unavailable })
     }
+    unacceptedToolActions.delete(action.id)
     if (result.kind === 'rejected') {
-      if (!fresh || uncertainToolActions.has(action.id))
+      if (!unaccepted || uncertainToolActions.has(action.id))
         return succeed({ batch: next, progressed: false })
       const evidence = agentEvidence(`${execution}/${action.id}/rejected`, result.failure)
       next = replaceSlot(next, deniedSlot(action, evidence))

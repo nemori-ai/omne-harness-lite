@@ -188,6 +188,49 @@ describe('a read answered unavailable inside a node is a dependency wait too', (
     expect(reports).toEqual([])
   })
 
+  // #1174 qa D1: the wait comes back at Q2 with no outcome in hand. The prepare that answered
+  // unavailable took no effect, so Q2 prepares the same request again; it does not take the
+  // lookup of a receipt lost with a process, which the local authorization denies.
+  it('after an unavailable prepare at Q1 the same request is prepared again, not looked up', async () => {
+    let prepares = 0
+    let lookups = 0
+    const reports: AgentRunFailed[] = []
+    const assembly = await loopAssembly(
+      [execution()],
+      d => ({
+        ...d,
+        handoff: {
+          ...d.handoff,
+          prepare(input) {
+            prepares += 1
+            if (prepares === 2)
+              return Promise.resolve(
+                fail({
+                  kind: 'unavailable',
+                  owner: 'session-adapters/message-handoff',
+                  diagnostic: 'read session.work: queue_full',
+                }),
+              )
+            return d.handoff.prepare(input)
+          },
+          lookup() {
+            lookups += 1
+            return Promise.resolve(fail({ kind: 'denied', reason: 'action read-message-handoff' }))
+          },
+        },
+      }),
+      undefined,
+      undefined,
+      { failed: event => reports.push(event) },
+    )
+    assembly.release.open()
+    ok(await invoke(assembly))
+    expect(await endedThroughChecks(assembly)).toMatchObject({ conclusion: { kind: 'complete' } })
+    expect(prepares).toBe(3)
+    expect(lookups).toBe(0)
+    expect(reports).toEqual([])
+  })
+
   it('a Journal load answering unavailable inside a node waits and the run completes', async () => {
     let loads = 0
     let refused = 0

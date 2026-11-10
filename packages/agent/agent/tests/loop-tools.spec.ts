@@ -338,6 +338,40 @@ describe('tool result round', () => {
     expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
   })
 
+  // An unavailable answer admitted nothing, so the action still has no accepted or unknown attempt:
+  // a definite rejection after the wait denies it like a first one (Agent SPEC "依赖不可用时的
+  // 等待", Tool 受理), and the run does not wait on a producer that never comes.
+  it('denies an action rejected for good after a wait on an unavailable invoke', async () => {
+    const assembly = await toolAssembly()
+    let attempts = 0
+    assembly.controls.tools.invoke.always(async () => {
+      attempts += 1
+      return attempts === 1
+        ? {
+            kind: 'rejected',
+            failure: { kind: 'unavailable', dependency: 'ledger-store', diagnostic: 'queue_full' },
+          }
+        : {
+            kind: 'rejected',
+            failure: { kind: 'invalid', field: 'request', reason: 'the arguments do not match' },
+          }
+    })
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly)
+    await eventually(async () => {
+      const read = await snapshot(assembly)
+      return read.state.kind === 'waiting' && read.checkpoint.position === 'A2'
+    })
+    const now = ok(await assembly.dependencies.clock.now())
+    ok(assembly.controls.clock.advanceTo(new Date(Date.parse(now) + 2000).toISOString() as never))
+    await eventually(async () =>
+      ((await snapshot(assembly)).checkpoint.batch?.slots ?? []).some(
+        slot => slot.kind === 'denied',
+      ),
+    )
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
+  })
+
   it('admits a denial message for each action when the whole batch is denied', async () => {
     const assembly = await toolAssembly()
     assembly.controls.admission.admit.always(() => ({

@@ -126,8 +126,14 @@ export type JournalCommitInput = Readonly<{
  */
 export type GenerationMemory = Map<string, number>
 
+// The whole identity of the operation but its generation: two scopes may share a transaction
+// domain (sql-contract registers per scope and domain).
 const memoryKey = (domain: DomainRef, operation: string): string =>
-  `${domain.scope}\0${domain.transactionDomain}\0${operation}`
+  [
+    domain.scope.kind === 'tenant' ? `tenant:${domain.scope.tenant}` : 'system',
+    domain.transactionDomain,
+    operation,
+  ].join('\0')
 
 const identityOf = (domain: DomainRef, operation: string, attempt: number): SqlIdentity => ({
   scope: domain.scope,

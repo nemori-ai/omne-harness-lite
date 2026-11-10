@@ -1011,10 +1011,11 @@ describe('a saved admission position in a new coordinator', () => {
 })
 
 describe('the Access of the admission calls (#963 N-2)', () => {
-  // Q1 and Q2 hand the Access of the execution's entry to the message handoff. The lost prepare
-  // leaves the same coordinator at Q2 without an outcome, so its next run reads the H back with
-  // lookup and prepares it again. Red when either call carries another tenant than the caller's.
-  it('NA-Q2-2: prepare and the Q2 lookup each carry the tenant of the execution that calls them', async () => {
+  // Q1 and Q2 hand the Access of the execution's entry to the message handoff. The unavailable
+  // prepare took no effect, so the same coordinator at Q2 prepares the same request again and does
+  // not read it back with lookup (#1174 qa D1). Red when a call carries another tenant than the
+  // caller's.
+  it('NA-Q2-2: each prepare carries the tenant of the execution that calls it, and the unavailable one is not looked up', async () => {
     const prepared: (readonly [kind: string, tenant: unknown])[] = []
     let replies = 0
     const assembly = await loopAssembly([execution('exec-a'), execution('exec-b')], d => ({
@@ -1054,13 +1055,9 @@ describe('the Access of the admission calls (#963 N-2)', () => {
       ['execution', otherTenant.tenant],
       ['execution', otherTenant.tenant],
     ])
-    expect(
-      assembly.controls.handoff.lookup.calls.map(call => [call.kind, call.tenant] as const),
-    ).toEqual([
-      ['execution', alice.tenant],
-      ['execution', otherTenant.tenant],
-    ])
+    expect(assembly.controls.handoff.lookup.calls).toEqual([])
   })
+
 })
 
 describe('checkpoint positions saved by the current assembly', () => {
