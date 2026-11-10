@@ -37,7 +37,6 @@ const count = 65_536
 const config = {
   maxCitedCalls: 8,
   openai: {
-    maxSerializedBytes: 4 * 1024 * 1024,
     limits: {
       toolArguments: {
         maxBytes: count,

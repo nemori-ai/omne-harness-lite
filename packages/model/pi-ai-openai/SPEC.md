@@ -49,14 +49,14 @@
 
 每条记录为四个 hook 各指名一条规则。规则名带修订号，规则表用 `satisfies` 检查，写错名字编译失败。改变一条规则的行为时，必须新增规则名，并让新修订的记录引用它。
 
-| hook | 规则 | 行为 |
-| --- | --- | --- |
-| `reasoning` | `openai-encrypted/1` | 封存：`reasoning.encrypted` 项、格式为 `openai-responses-v1`、`data` 非空且不是 `[REDACTED]` 时，每项一个载荷；载荷是该项的排序键 JSON。其他项不成为状态。回放：可续接消息的部件按部件顺序写回 `reasoning_details`；载荷不是这样的一项时返回 `invalid`（`field` 为 `reasoning_state`）。有部件时原生思考不写出。没有部件时，思考连接后写成 `reasoning`，可续接消息的原生思考与 `adapter` 规则下的外来思考都如此（`source` 不影响结果） |
-| `reasoning` | `none/1` | 没有编解码器。当前没有记录使用 |
-| `usage` | `openai-usage/1` | `input` 为 prompt 减去缓存读与缓存写；某项缺失时为 `unknown`，不写零。余量为负时 `input` 为 `unknown`，并返回一条 `usage-inconsistent` 诊断，`field` 为 `input`。`output`、`cache-read`、`cache-write`、`reasoning` 取对应计数，缺失为 `unknown`。单位为 `token`，计数是十进制整数串 |
-| `usage` | `unknown-scope/1` | 同上，但 `input` 恒为 `unknown`：6 个 Pro 型号的 prompt 统计范围未知。余量为负时仍返回同一条诊断 |
-| `toolSchema` | `object-root/1` | 参数 schema 的根是对象时原样通过；其他时返回 `unsupported`，`field` 为 `argumentsSchema` |
-| `check` | `none/1` | 没有跨字段规则，参数表已写明全部规则 |
+| hook         | 规则                 | 行为                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------ | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `reasoning`  | `openai-encrypted/1` | 封存：`reasoning.encrypted` 项、格式为 `openai-responses-v1`、`data` 非空且不是 `[REDACTED]` 时，每项一个载荷；载荷是该项的排序键 JSON。其他项不成为状态。回放：可续接消息的部件按部件顺序写回 `reasoning_details`；载荷不是这样的一项时返回 `invalid`（`field` 为 `reasoning_state`）。有部件时原生思考不写出。没有部件时，思考连接后写成 `reasoning`，可续接消息的原生思考与 `adapter` 规则下的外来思考都如此（`source` 不影响结果） |
+| `reasoning`  | `none/1`             | 没有编解码器。当前没有记录使用                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `usage`      | `openai-usage/1`     | `input` 为 prompt 减去缓存读与缓存写；某项缺失时为 `unknown`，不写零。余量为负时 `input` 为 `unknown`，并返回一条 `usage-inconsistent` 诊断，`field` 为 `input`。`output`、`cache-read`、`cache-write`、`reasoning` 取对应计数，缺失为 `unknown`。单位为 `token`，计数是十进制整数串                                                                                                                                                   |
+| `usage`      | `unknown-scope/1`    | 同上，但 `input` 恒为 `unknown`：6 个 Pro 型号的 prompt 统计范围未知。余量为负时仍返回同一条诊断                                                                                                                                                                                                                                                                                                                                       |
+| `toolSchema` | `object-root/1`      | 参数 schema 的根是对象时原样通过；其他时返回 `unsupported`，`field` 为 `argumentsSchema`                                                                                                                                                                                                                                                                                                                                               |
+| `check`      | `none/1`             | 没有跨字段规则，参数表已写明全部规则                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 引擎的解码器在收场后调用 `usage` hook 一次，用它的结果形成账目报告与诊断事实，见 [pi-ai-transport SPEC“账目”](../pi-ai-transport/SPEC.md#账目)。
 
@@ -81,20 +81,20 @@
    6. token 输入中的图片数与 `media` 中图片事实数不同：`unavailable`，诊断为 `image-measurement-missing`；
    7. 记录的图片规则不覆盖某张图片：`unsupported`，`field` 为 `image <序号>`；
    8. tokenizer 失败：`unavailable`，`dependency` 为 `tokenizer`。
-   侧表与单元数不对齐、有锚点而没有侧表、锚点合计或 O 不是十进制整数时返回共用算术的 `invalid`。
+      侧表与单元数不对齐、有锚点而没有侧表、锚点合计或 O 不是十进制整数时返回共用算术的 `invalid`。
 3. 成功时，`input-tokens` 检查为 `estimate`，`marginSource` 为配置给出的采用，上限是 `context.input`，没有时为窗口减输出：
    - 没有锚点：数额是 token 输入（带推理状态的单元去掉）的排序键 JSON 经 o200k 计数，加上每张图片的规则数，再加每个被替换单元的来源 O；余量是数额乘以配置百分比再向上取整。`method` 为 `<记录名>#meter`；本包的输出组方法名是 `openai-complete-output-group-workload-estimated/1`，沿用封存件的方法名。后缀按[共用计量规则](../pi-ai-transport/SPEC.md#共用计量规则)拼接：有单元被 O 替换时为 `<记录名>#meter+openai-complete-output-group-workload-estimated/1`。
    - 锚点命中：数额是锚点的真实输入合计加新增部分，新增部分按共用[校准算术](../pi-ai-transport/SPEC.md#校准算术)的两个计数项计算，计数用 o200k，加新增的可见单元的图片规则数，加新增推理单元的 O。余量只按新增部分算。`method` 按共用计量规则加后缀 `+continuation-anchored/1`，两者都有时先输出组方法再锚点后缀。包络差为负时不命中，按没有锚点计量，`calibration.anchor` 为 `continuation-shrank`。
    - `calibration`：有锚点时写 `hit` 或 `continuation-shrank`；没有锚点时不写，准备租约补上它的判决。`inputDigest` 按共用计量规则计算：它纳入锚点与各 O，换锚点就是换输入；空校准的摘要与没有校准时相同。
-   档案的 `image-bytes`、`image-count` 与 `request-bytes` 限额各给出 `exact` 检查。报告为 `complete`。O 估算是与工作量相关的代理，不是精确占用，也不是上界。实测一次延续请求（`openai/gpt-5.6-sol`，锚点命中）：发送前计量 151，真实输入合计 141，差（真实输入合计减计量）为 −10，计量偏大。Anthropic 家族的实测同样偏大，见 [pi-ai-anthropic SPEC“计量”](../pi-ai-anthropic/SPEC.md#计量)。这两个值由 model-host-local 的 [recording-c9.spec.ts](../model-host-local/tests/recording-c9.spec.ts) 用[pi-ai-transport 的回放件](../pi-ai-transport/tests/fixtures/README.md)复算，差值只记录，不是门槛。
+     档案的 `image-bytes`、`image-count` 与 `request-bytes` 限额各给出 `exact` 检查。报告为 `complete`。O 估算是与工作量相关的代理，不是精确占用，也不是上界。实测一次延续请求（`openai/gpt-5.6-sol`，锚点命中）：发送前计量 151，真实输入合计 141，差（真实输入合计减计量）为 −10，计量偏大。Anthropic 家族的实测同样偏大，见 [pi-ai-anthropic SPEC“计量”](../pi-ai-anthropic/SPEC.md#计量)。这两个值由 model-host-local 的 [recording-c9.spec.ts](../model-host-local/tests/recording-c9.spec.ts) 用[pi-ai-transport 的回放件](../pi-ai-transport/tests/fixtures/README.md)复算，差值只记录，不是门槛。
 4. o200k 是代理编码：OpenAI 的 tiktoken 表只把 gpt-5* 映射到 o200k_base，没有 GPT-6。所以结果始终是估算，不声称 tokenizer 身份。
 5. 三条图片规则：
 
-| 规则 | 行为 |
-| --- | --- |
-| `gpt56-patch/1` | 长边先缩放到 `low` 512、`high` 2048、其他 65535（向下取整）。`high` 超过 2500 块时再缩小。处理后超过 30000 块时不适用。数额为 `ceil(块数 × 6 / 5)` |
-| `astra-patch/1` | 同上，`high` 的长边为 65535 |
-| `sol-luna-auto-proxy/1` | 只接受 `auto`。按原始尺寸，`ceil(ceil(w/32) × ceil(h/32) × 6 / 5)`。超出安全整数时不适用 |
+| 规则                    | 行为                                                                                                                                               |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gpt56-patch/1`         | 长边先缩放到 `low` 512、`high` 2048、其他 65535（向下取整）。`high` 超过 2500 块时再缩小。处理后超过 30000 块时不适用。数额为 `ceil(块数 × 6 / 5)` |
+| `astra-patch/1`         | 同上，`high` 的长边为 65535                                                                                                                        |
+| `sol-luna-auto-proxy/1` | 只接受 `auto`。按原始尺寸，`ceil(ceil(w/32) × ceil(h/32) × 6 / 5)`。超出安全整数时不适用                                                           |
 
 <a id="官方档案"></a>
 
@@ -111,7 +111,7 @@
 
 ### 家族与取得
 
-`createOpenAiFamily({ tokenizer, executor, maxSerializedBytes, limits, margin })` 返回 `PiFamily`。executor 由宿主创建并拥有，家族只借用其 acquire 方法。maxSerializedBytes 是完整 JSON 的 UTF-8 字节上限，必须是正安全整数。`margin.percent` 不是非负十进制整数，或某一项不是对象时，它抛出 `RangeError`。
+`createOpenAiFamily({ tokenizer, executor, limits, margin })` 返回 `PiFamily`。executor 由宿主创建并拥有，家族只借用其 acquire 方法。`margin.percent` 不是非负十进制整数，或某一项不是对象时，它抛出 `RangeError`。
 
 家族的 `acquire(record, supplier, signal)` 按下列顺序进行：
 
@@ -126,7 +126,7 @@
 
 - 记录是模块常量，家族表保存冻结副本。
 - 每个绑定拥有独立 tokenizer 租约。绑定的 `release` 等待租约释放，失败时拒绝 Promise。宿主独占 executor.close，卸载单个家族或绑定不关闭共享池。
-- 规则与 `represent` 是同步计算。`measure` 与 `measureCalibrated` 等待全部计数后才返回完整预算，不读秘密或网络。完整 JSON 超过 maxSerializedBytes 时，在序列化、计数及摘要前返回 unavailable，依赖 tokenizer，诊断 serialized-input-too-large。不截断输入。
+- 规则与 `represent` 是同步计算。`measure` 与 `measureCalibrated` 等待全部计数后才返回完整预算，不读秘密或网络。计量不按字节数拒绝输入，也不截断输入。
 - 契约规定失败值的边界（`acquire`、`plan`、`encode`、`measure`、hook）返回闭合失败；`createOpenAiFamily` 与 `officialOpenAiProfiles` 对不可用的配置抛出 `RangeError`；引擎对记录缺陷抛出的 `RangeError` 原样传出。
 
 ## 组合与验证
@@ -135,17 +135,17 @@
 
 每项义务的持续验证见 [tests/README.md](tests/README.md)：
 
-| 义务 | 验证 | 前提与未覆盖 |
-| --- | --- | --- |
-| [记录](#记录)的迁入事实与线数据 | `records.spec.ts`、`adoptions.spec.ts` | 与封存件的表逐项比较 |
-| [规则](#规则) | `rules.spec.ts` | `usage` 直接调用；经引擎形成的账目事实由回放夹具核对 |
-| [计量](#计量) | `meter.spec.ts`、`calibration.spec.ts` | 图片规则用封存件的金值；带图片事实的表示由测试构造。校准经 `@omne-harness/model` 的真实准备租约与 `composeFamilies` 组合，表示来自真实 `rules.plan`，存储端口是 `dispatches` 替身；期望数额用 o200k 在用例里算出 |
-| [官方档案](#官方档案) | `profiles.spec.ts` | 每份档案的供应商都能取得绑定并规划请求 |
-| [家族与取得](#家族与取得) | `family.spec.ts`、`plan.spec.ts` | — |
-| 回放夹具与封存件逐条一致 | `fixtures.spec.ts` 与 [tests/fixtures](tests/fixtures/README.md) | 有意不同逐条列在夹具 README |
-| 跨家族回放（OpenAI 一侧） | `cross-family-replay.spec.ts` | 历史用纯数据构造，不导入 Anthropic 家族 |
-| 经共享传输与本地 HTTPS 服务发送每条记录的夹具；符合性套件 transport 组 | `pi-ai-anthropic` 的 `two-families.spec.ts`（慢层） | 两家经同一 `composeFamilies` 与 `createPiTransport`；本地服务回放夹具，不是真实网关 |
-| 示例经代理请求一个型号 | `examples.spec.ts`（慢层）运行 [examples/openai-request.ts](examples/openai-request.ts) | 只在 `OMNE_LIVE_TESTS=1` 时运行，否则跳过 |
+| 义务                                                                   | 验证                                                                                    | 前提与未覆盖                                                                                                                                                                                                     |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [记录](#记录)的迁入事实与线数据                                        | `records.spec.ts`、`adoptions.spec.ts`                                                  | 与封存件的表逐项比较                                                                                                                                                                                             |
+| [规则](#规则)                                                          | `rules.spec.ts`                                                                         | `usage` 直接调用；经引擎形成的账目事实由回放夹具核对                                                                                                                                                             |
+| [计量](#计量)                                                          | `meter.spec.ts`、`calibration.spec.ts`                                                  | 图片规则用封存件的金值；带图片事实的表示由测试构造。校准经 `@omne-harness/model` 的真实准备租约与 `composeFamilies` 组合，表示来自真实 `rules.plan`，存储端口是 `dispatches` 替身；期望数额用 o200k 在用例里算出 |
+| [官方档案](#官方档案)                                                  | `profiles.spec.ts`                                                                      | 每份档案的供应商都能取得绑定并规划请求                                                                                                                                                                           |
+| [家族与取得](#家族与取得)                                              | `family.spec.ts`、`plan.spec.ts`                                                        | —                                                                                                                                                                                                                |
+| 回放夹具与封存件逐条一致                                               | `fixtures.spec.ts` 与 [tests/fixtures](tests/fixtures/README.md)                        | 有意不同逐条列在夹具 README                                                                                                                                                                                      |
+| 跨家族回放（OpenAI 一侧）                                              | `cross-family-replay.spec.ts`                                                           | 历史用纯数据构造，不导入 Anthropic 家族                                                                                                                                                                          |
+| 经共享传输与本地 HTTPS 服务发送每条记录的夹具；符合性套件 transport 组 | `pi-ai-anthropic` 的 `two-families.spec.ts`（慢层）                                     | 两家经同一 `composeFamilies` 与 `createPiTransport`；本地服务回放夹具，不是真实网关                                                                                                                              |
+| 示例经代理请求一个型号                                                 | `examples.spec.ts`（慢层）运行 [examples/openai-request.ts](examples/openai-request.ts) | 只在 `OMNE_LIVE_TESTS=1` 时运行，否则跳过                                                                                                                                                                        |
 
 未覆盖：
 

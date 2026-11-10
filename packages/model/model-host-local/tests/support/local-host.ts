@@ -60,14 +60,12 @@ export const FAMILIES = composeFamilies([
   createOpenAiFamily({
     tokenizer: openAiTokenizerResources(),
     executor: EXECUTOR,
-    maxSerializedBytes: 4 * 1024 * 1024,
     limits: FAMILY_LIMITS,
     margin: MARGIN,
   }),
   createAnthropicFamily({
     tokenizer: anthropicTokenizerResources(),
     executor: EXECUTOR,
-    maxSerializedBytes: 4 * 1024 * 1024,
     limits: FAMILY_LIMITS,
     margin: MARGIN,
   }),

@@ -19,8 +19,6 @@ export type AnthropicFamilyConfig = Readonly<{
   /** Usually `anthropicTokenizerResources()`. The definition must equal the one the records name. */
   tokenizer: TiktokenResources
   executor: Pick<TiktokenExecutor, 'acquire'>
-  /** Maximum UTF-8 bytes of the complete serialized token input. */
-  maxSerializedBytes: number
   /** The decoder buffer limits of every binding. */
   limits: ChatCompletionsLimits
   /** The margin of every input estimate and the adoption of that margin policy. */
@@ -56,8 +54,6 @@ function checkTokenizerConfig(config: AnthropicFamilyConfig): void {
     throw new RangeError('config.tokenizer must be the tokenizer resources')
   if (typeof config.executor?.acquire !== 'function')
     throw new RangeError('config.executor must acquire tokenizer leases')
-  if (!Number.isSafeInteger(config.maxSerializedBytes) || config.maxSerializedBytes <= 0)
-    throw new RangeError('config.maxSerializedBytes must be a positive safe integer')
 }
 
 /** Throws `RangeError` for a configuration that no binding could use. */
@@ -101,12 +97,7 @@ export function createAnthropicFamily(config: AnthropicFamilyConfig): PiFamily {
             record,
             supplier,
             hooks: hooksOf(record),
-            meter: createAnthropicMeter(
-              record,
-              tokenizer.ok.tokenizer,
-              config.margin,
-              config.maxSerializedBytes,
-            ),
+            meter: createAnthropicMeter(record, tokenizer.ok.tokenizer, config.margin),
             limits: config.limits,
             release: async () => {
               const released = await tokenizer.ok.release()

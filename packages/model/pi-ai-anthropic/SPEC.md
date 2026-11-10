@@ -58,12 +58,12 @@
 
 每条记录为四个 hook 各指名一条规则。规则名带修订号，规则表用 `satisfies` 检查，写错名字编译失败。改变一条规则的行为时，必须新增规则名，并让新修订的记录引用它。
 
-| hook | 规则 | 行为 |
-| --- | --- | --- |
-| `reasoning` | `anthropic-signed-group/1` | 封存：一次响应的全部推理项是一组。每一项都可以回放时，整组是一个载荷：各项排序键 JSON 组成的数组，按到达顺序。可以回放的项是格式为 `anthropic-claude-v1`、`id` 缺失或为字符串或 `null`、`index` 缺失或为非负整数，并且满足下列之一的项：`reasoning.text` 有字符串 `text` 与非空 `signature`；`reasoning.encrypted` 的 `data` 非空且不是 `[REDACTED]`。组中有任何一项不可以回放，或组为空时，不产生载荷。回放见下文 |
-| `usage` | `anthropic-usage/1` | `cache-read` 为 `prompt_tokens_details.cached_tokens`，`cache-write` 为 `prompt_tokens_details.cache_write_tokens`。`input` 为 prompt 减去缓存读与缓存写；某项缺失时为 `unknown`，不写零。余量为负时 `input` 为 `unknown`，并返回一条 `usage-inconsistent` 诊断，`field` 为 `input`。`output` 与 `reasoning` 取对应计数，缺失为 `unknown`。单位为 `token`，计数是十进制整数串 |
-| `toolSchema` | `object-root/1` | 参数 schema 的根是对象时原样通过；其他时返回 `unsupported`，`field` 为 `argumentsSchema` |
-| `check` | `none/1` | 没有跨字段规则，参数表与回放数据已写明全部规则 |
+| hook         | 规则                       | 行为                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------ | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `reasoning`  | `anthropic-signed-group/1` | 封存：一次响应的全部推理项是一组。每一项都可以回放时，整组是一个载荷：各项排序键 JSON 组成的数组，按到达顺序。可以回放的项是格式为 `anthropic-claude-v1`、`id` 缺失或为字符串或 `null`、`index` 缺失或为非负整数，并且满足下列之一的项：`reasoning.text` 有字符串 `text` 与非空 `signature`；`reasoning.encrypted` 的 `data` 非空且不是 `[REDACTED]`。组中有任何一项不可以回放，或组为空时，不产生载荷。回放见下文 |
+| `usage`      | `anthropic-usage/1`        | `cache-read` 为 `prompt_tokens_details.cached_tokens`，`cache-write` 为 `prompt_tokens_details.cache_write_tokens`。`input` 为 prompt 减去缓存读与缓存写；某项缺失时为 `unknown`，不写零。余量为负时 `input` 为 `unknown`，并返回一条 `usage-inconsistent` 诊断，`field` 为 `input`。`output` 与 `reasoning` 取对应计数，缺失为 `unknown`。单位为 `token`，计数是十进制整数串                                      |
+| `toolSchema` | `object-root/1`            | 参数 schema 的根是对象时原样通过；其他时返回 `unsupported`，`field` 为 `argumentsSchema`                                                                                                                                                                                                                                                                                                                           |
+| `check`      | `none/1`                   | 没有跨字段规则，参数表与回放数据已写明全部规则                                                                                                                                                                                                                                                                                                                                                                     |
 
 `anthropic-signed-group/1` 的回放 `replay(parts, thinking, source)`。`source` 由引擎给出：`continuable` 是本回放范围中可续接的消息，`foreign` 是 `foreignThinking` 为 `adapter` 的外来消息。
 
@@ -95,12 +95,12 @@
    6. token 输入中的图片数与 `media` 中图片事实数不同：`unavailable`，诊断为 `image-measurement-missing`；
    7. 某个图片事实的媒体类型不是 png、jpeg、webp 或 gif，或尺寸不是正的安全整数：`unsupported`，`field` 为 `image <序号>`；
    8. tokenizer 失败：`unavailable`，`dependency` 为 `tokenizer`。
-   侧表与单元数不对齐、有锚点而没有侧表、锚点合计或 O 不是十进制整数时返回共用算术的 `invalid`。
+      侧表与单元数不对齐、有锚点而没有侧表、锚点合计或 O 不是十进制整数时返回共用算术的 `invalid`。
 3. 成功时，`input-tokens` 检查为 `estimate`，`marginSource` 为配置给出的采用，上限是 `context.input`，没有时为窗口减输出。特殊 token 字样按普通文本计：
    - 没有锚点：数额是 token 输入（带签名组的单元去掉）的排序键 JSON 经 NFKC 规范化后用 `claude.json` 计数，加上每张图片的规则数，再加每个被替换单元的来源 O；余量是数额乘以配置百分比再向上取整。`method` 为 `<记录名>#meter`；本包的输出组方法名是 `anthropic-complete-signed-encrypted-output-zero-framing-estimated/1`，沿用封存件的方法名。后缀按[共用计量规则](../pi-ai-transport/SPEC.md#共用计量规则)拼接：有单元被 O 替换时为 `<记录名>#meter+anthropic-complete-signed-encrypted-output-zero-framing-estimated/1`。
    - 锚点命中：数额是锚点的真实输入合计加新增部分，新增部分按共用[校准算术](../pi-ai-transport/SPEC.md#校准算术)的两个计数项计算，计数同样经 NFKC，加新增的可见单元的图片规则数，加新增签名单元的 O。余量只按新增部分算。`method` 按共用计量规则加后缀 `+continuation-anchored/1`，两者都有时先输出组方法再锚点后缀。包络差为负时不命中，按没有锚点计量，`calibration.anchor` 为 `continuation-shrank`。
    - `calibration`：有锚点时写 `hit` 或 `continuation-shrank`；没有锚点时不写，准备租约补上它的判决。`inputDigest` 按共用计量规则计算：它纳入锚点与各 O，换锚点就是换输入；空校准的摘要与没有校准时相同。
-   档案的 `image-bytes`、`image-count` 与 `request-bytes` 限额各给出 `exact` 检查。报告为 `complete`。O 估算是与工作量相关的代理，不是精确占用，也不是上界。实测一次延续请求（`anthropic/claude-sonnet-5`，锚点命中）：发送前计量 194，真实输入合计 185，差（真实输入合计减计量）为 −9，计量偏大。OpenAI 家族的实测同样偏大，见 [pi-ai-openai SPEC“计量”](../pi-ai-openai/SPEC.md#计量)。这两个值由 model-host-local 的 [recording-c9.spec.ts](../model-host-local/tests/recording-c9.spec.ts) 用[pi-ai-transport 的回放件](../pi-ai-transport/tests/fixtures/README.md)复算，差值只记录，不是门槛。
+     档案的 `image-bytes`、`image-count` 与 `request-bytes` 限额各给出 `exact` 检查。报告为 `complete`。O 估算是与工作量相关的代理，不是精确占用，也不是上界。实测一次延续请求（`anthropic/claude-sonnet-5`，锚点命中）：发送前计量 194，真实输入合计 185，差（真实输入合计减计量）为 −9，计量偏大。OpenAI 家族的实测同样偏大，见 [pi-ai-openai SPEC“计量”](../pi-ai-openai/SPEC.md#计量)。这两个值由 model-host-local 的 [recording-c9.spec.ts](../model-host-local/tests/recording-c9.spec.ts) 用[pi-ai-transport 的回放件](../pi-ai-transport/tests/fixtures/README.md)复算，差值只记录，不是门槛。
 4. `claude.json` 是 Anthropic 发布的旧 Claude BPE。Anthropic 称它对 Claude 3 以后的型号只是很粗的近似，它不是这些型号的 tokenizer。所以结果始终是估算，不声称 tokenizer 身份。
 5. 图片规则 `claude-patch-28/1`：两边都不超过 2576 像素且 `ceil(w/28) × ceil(h/28)` 不超过 4784 时，数额就是这个积。否则保持宽高比，二分查找满足两项限制的最大长边，短边取四舍五入且至少为 1，数额为缩放后尺寸的块数。尺寸不是正的安全整数时规则不适用。
 
@@ -132,7 +132,7 @@
 
 ### 家族与取得
 
-`createAnthropicFamily({ tokenizer, executor, maxSerializedBytes, limits, margin })` 返回 `PiFamily`。executor 由宿主创建并拥有，家族只借用其 acquire 方法。maxSerializedBytes 是完整 JSON 的 UTF-8 字节上限，必须是正安全整数。`margin.percent` 不是非负十进制整数，或某一项不是对象时，它抛出 `RangeError`。
+`createAnthropicFamily({ tokenizer, executor, limits, margin })` 返回 `PiFamily`。executor 由宿主创建并拥有，家族只借用其 acquire 方法。`margin.percent` 不是非负十进制整数，或某一项不是对象时，它抛出 `RangeError`。
 
 家族的 `acquire(record, supplier, signal)` 按下列顺序进行：
 
@@ -148,7 +148,7 @@
 - 记录是模块常量，家族表保存冻结副本。
 - 词表资源由装配方读取一次，归家族配置。家族不读文件。
 - 每个绑定拥有独立 tokenizer 租约。绑定的 `release` 等待租约释放，失败时拒绝 Promise。宿主独占 executor.close，卸载单个家族或绑定不关闭共享池。
-- 规则与 `represent` 是同步计算。`measure` 与 `measureCalibrated` 等待全部计数后才返回完整预算，不读秘密或网络。完整 JSON 超过 maxSerializedBytes 时，在序列化、计数及摘要前返回 unavailable，依赖 tokenizer，诊断 serialized-input-too-large。不截断输入。
+- 规则与 `represent` 是同步计算。`measure` 与 `measureCalibrated` 等待全部计数后才返回完整预算，不读秘密或网络。计量不按字节数拒绝输入，也不截断输入。
 - 契约规定失败值的边界（`acquire`、`plan`、`encode`、`measure`、hook）返回闭合失败；`createAnthropicFamily` 与 `officialAnthropicProfiles` 对不可用的配置抛出 `RangeError`；`anthropicTokenizerResources` 对不符的文件抛出 `TokenizerResourceError`；引擎对记录缺陷抛出的 `RangeError` 原样传出。
 
 ## 组合与验证
@@ -157,18 +157,18 @@
 
 每项义务的持续验证见 [tests/README.md](tests/README.md)：
 
-| 义务 | 验证 | 前提与未覆盖 |
-| --- | --- | --- |
-| [记录](#记录)的迁入事实与线数据 | `records.spec.ts`、`adoptions.spec.ts` | 型号清单与封存件逐项比较；每条记录的推理强度 `none` 都是 `unsupported` |
-| [规则](#规则) | `rules.spec.ts`、`cross-family-replay.spec.ts` | `usage` 直接调用；经引擎形成的账目与诊断事实由回放夹具核对 |
-| [计量](#计量) | `meter.spec.ts`、`calibration.spec.ts` | 图片规则用封存件的金值；带图片事实的表示由测试构造。校准经 `@omne-harness/model` 的真实准备租约与 `composeFamilies` 组合，表示来自真实 `rules.plan`，存储端口是 `dispatches` 替身；期望数额用 `claude.json` 在用例里算出 |
-| [词表资源](#词表资源) | `meter.spec.ts` | 经 tokenizer-tiktoken 的计数与 @anthropic-ai/tokenizer 0.0.4 的参考值 150 相等 |
-| [官方档案](#官方档案) | `profiles.spec.ts` | 每份档案的供应商都能取得绑定并规划请求 |
-| [家族与取得](#家族与取得) | `family.spec.ts`、`plan.spec.ts` | — |
-| 回放夹具与封存件逐条一致 | `fixtures.spec.ts` 与 [tests/fixtures](tests/fixtures/README.md) | 有意不同逐条列在夹具 README |
-| 跨家族回放（Anthropic 一侧），外来工具轮次之后保持推理强度 | `cross-family-replay.spec.ts` | 历史用纯数据构造，不导入 OpenAI 家族 |
-| 两个家族经共享传输与本地 HTTPS 服务发送每条记录的夹具；符合性套件 transport 组 | `two-families.spec.ts`（慢层） | 两家经同一 `composeFamilies` 与 `createPiTransport`；本地服务回放夹具，不是真实网关 |
-| 示例经代理请求一个型号，以及跨家族的四轮历史 | `examples.spec.ts`（慢层）运行 [examples/](examples/README.md) 中的两个示例 | 只在 `OMNE_LIVE_TESTS=1` 时运行，否则跳过 |
+| 义务                                                                           | 验证                                                                        | 前提与未覆盖                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [记录](#记录)的迁入事实与线数据                                                | `records.spec.ts`、`adoptions.spec.ts`                                      | 型号清单与封存件逐项比较；每条记录的推理强度 `none` 都是 `unsupported`                                                                                                                                                   |
+| [规则](#规则)                                                                  | `rules.spec.ts`、`cross-family-replay.spec.ts`                              | `usage` 直接调用；经引擎形成的账目与诊断事实由回放夹具核对                                                                                                                                                               |
+| [计量](#计量)                                                                  | `meter.spec.ts`、`calibration.spec.ts`                                      | 图片规则用封存件的金值；带图片事实的表示由测试构造。校准经 `@omne-harness/model` 的真实准备租约与 `composeFamilies` 组合，表示来自真实 `rules.plan`，存储端口是 `dispatches` 替身；期望数额用 `claude.json` 在用例里算出 |
+| [词表资源](#词表资源)                                                          | `meter.spec.ts`                                                             | 经 tokenizer-tiktoken 的计数与 @anthropic-ai/tokenizer 0.0.4 的参考值 150 相等                                                                                                                                           |
+| [官方档案](#官方档案)                                                          | `profiles.spec.ts`                                                          | 每份档案的供应商都能取得绑定并规划请求                                                                                                                                                                                   |
+| [家族与取得](#家族与取得)                                                      | `family.spec.ts`、`plan.spec.ts`                                            | —                                                                                                                                                                                                                        |
+| 回放夹具与封存件逐条一致                                                       | `fixtures.spec.ts` 与 [tests/fixtures](tests/fixtures/README.md)            | 有意不同逐条列在夹具 README                                                                                                                                                                                              |
+| 跨家族回放（Anthropic 一侧），外来工具轮次之后保持推理强度                     | `cross-family-replay.spec.ts`                                               | 历史用纯数据构造，不导入 OpenAI 家族                                                                                                                                                                                     |
+| 两个家族经共享传输与本地 HTTPS 服务发送每条记录的夹具；符合性套件 transport 组 | `two-families.spec.ts`（慢层）                                              | 两家经同一 `composeFamilies` 与 `createPiTransport`；本地服务回放夹具，不是真实网关                                                                                                                                      |
+| 示例经代理请求一个型号，以及跨家族的四轮历史                                   | `examples.spec.ts`（慢层）运行 [examples/](examples/README.md) 中的两个示例 | 只在 `OMNE_LIVE_TESTS=1` 时运行，否则跳过                                                                                                                                                                                |
 
 未覆盖：
 

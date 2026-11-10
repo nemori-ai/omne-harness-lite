@@ -536,12 +536,7 @@ describe('the continuation anchor', () => {
         return { ok: { tokens: text.includes('and then?') ? '1' : '50' } }
       },
     }
-    const meter = createOpenAiMeter(
-      SOL,
-      shrinking,
-      CONFIG.margin,
-      CONFIG.maxSerializedBytes,
-    ).instance
+    const meter = createOpenAiMeter(SOL, shrinking, CONFIG.margin).instance
     const measured = await meter.measureCalibrated(
       {
         profile: officialProfile(SOL).adoption,

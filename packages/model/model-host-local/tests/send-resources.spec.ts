@@ -445,7 +445,6 @@ describe('the ownership of a materialized transport', () => {
     const family = createOpenAiFamily({
       tokenizer: openAiTokenizerResources(),
       executor,
-      maxSerializedBytes: 4 * 1024 * 1024,
       limits: {
         toolArguments: LIMITS.json,
         maxReasoningText: 65_536,

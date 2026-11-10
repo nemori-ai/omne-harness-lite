@@ -23,7 +23,6 @@ const plugin: Plugin.Object = {
       createOpenAiFamily({
         tokenizer: openAiTokenizerResources(),
         executor,
-        maxSerializedBytes: config.openai.maxSerializedBytes,
         limits: config.openai.limits,
         margin: config.openai.margin,
       }),

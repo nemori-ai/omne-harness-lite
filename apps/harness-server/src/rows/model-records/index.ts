@@ -182,7 +182,6 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
                   failure: { kind: 'unavailable', diagnostic: 'tokenizer-provider-unavailable' },
                 },
             },
-            maxSerializedBytes: sendStage.preparation.openai.maxSerializedBytes,
             limits: sendStage.preparation.openai.limits,
             margin: sendStage.preparation.openai.margin,
           }),

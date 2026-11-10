@@ -98,7 +98,6 @@ export const LOCAL_TOKENIZERS = {
 const PREPARATION = {
   maxCitedCalls: 8,
   openai: {
-    maxSerializedBytes: 4 * 1024 * 1024,
     limits: {
       toolArguments: {
         maxBytes: 65_536,
