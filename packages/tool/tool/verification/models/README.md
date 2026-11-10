@@ -74,15 +74,19 @@ node scripts/with-test-slot.mjs tlc -workers 1 -noGenerateSpecTE -metadir tmp/is
 
 [SettlementRelease.tla](SettlementRelease.tla) 检查本实现 [原结果收场](../../SPEC.md#26-原结果收场与释放责任) 的有限安全性质。它有一个已经启动的原调用、一个可信且完整的已存 final、两个竞争 preserve 操作 a/b，以及原身份重读和重试。final 的真实性是本模型的输入前提，不从任意 terminal 推导。模型不把结果唯一性、保管确认或 queue 释放当作初始假设。
 
-模型分开独立 custody、call 与 queue 三个域。retain 表示两个协调者各自的待发、未知或确认观察，custodyApplied 是外部保管实际状态，两者不能互相代替。两操作的 retain 都指同一原 final 的稳定保管身份，不另分配身份。callReceipts、callReply、originals、deliveries、winner、settled、ended、queueDuty 表示调用域及其本地回执。entry/tombstone 和 queueReply 表示队列实际状态与观察。closeReply 表示最后 call duty 关闭的回执。callRevision 有界为 0、1、2，分别对应初始、原结果提交和 duty 关闭；它不是原结果版本计数 originals。
+模型分开独立 custody、call 与 queue 三个域。retain 表示两个协调者各自的待发、未知或确认观察，custodyApplied 是外部保管实际状态，两者不能互相代替。两操作的 retain 都指同一原 final 的稳定保管身份，不另分配身份。callReceipts、callReply、originals、deliveries、winner、settled、ended、queueDuty 表示调用域及其本地回执。entry 和 queueReply 表示队列实际状态与观察，released 是「释放已删除条目」这一事实的影子变量，队列域本身不保存它。createStage/createExpected 表示一个创建条目的步骤（admit 的序号分配或 planPreparation）：它先读调用域，只在读到「未释放」时继续，并记住读到的调用域修订号；它的提交可以随时落盘，包括回复丢失之后迟到落盘，落盘时断言该修订号。nextHeld 表示同 key 的下一个调用在原条目消失后取得唯一名额。closeReply 表示最后 call duty 关闭的回执。callRevision 有界为 0、1、2，分别对应初始、原结果提交和 duty 关闭；它不是原结果版本计数 originals。
+
+队列域只保存活条目与计数器。释放只删除条目，不写别的记录；已释放的事实归调用域（释放依据），创建步骤靠对调用域修订号的断言排除迟到的创建提交。
 
 | 性质 | 判据 |
 | --- | --- |
 | 原结果已有确认的独立保管，已应用但丢答不足 | ResultRequiresConfirmedCustody |
 | 原版本及 delivery 单赢家，竞争或重试不新增 | OneOriginal |
 | call 成立后 duty 留存，直到确认 queue 释放 | CallDutyRetained |
-| entry 删除与墓碑共同成立 | DeleteWithTombstone |
-| 迟到入队不复活墓碑 | NoResurrection |
+| 只凭调用域已记录的依据删除条目 | ReleaseRequiresBasis |
+| 释放完成后该调用没有条目，迟到的创建提交落不下 | NoResurrection |
+| 原条目与下一个调用的名额不并存 | NoDoubleHold |
+| 队列域只有计数器与活调用的条目，大小由活调用而不是历史决定 | QueueHoldsOnlyLive |
 | 关闭 call duty 前已有确认的 queue 释放 | CloseRequiresQueueConfirmation |
 
 ### 动作与源码映射
@@ -92,9 +96,10 @@ node scripts/with-test-slot.mjs tlc -workers 1 -noGenerateSpecTE -metadir tmp/is
 | Begin、RetainApplied、RetainDropped、RetryRetain | [ledger.ts](../../src/ledger.ts) 的 preserveResult 主动保管，以及 [ledger-settlement.ts](../../src/ledger-settlement.ts) 的原 final 与稳定 retain 身份。RetainApplied(answer=unknown) 已写保管但丢答；RetainDropped 未写而答 unknown；重试不换身份。确认只能来自同身份 retain 的成功回执 |
 | PrepareCall、CallApplied、CallDropped、ReadCall | ledger 的保管后 CAS、原 operation 回执认回及 queue tail。CallApplied 是一个 call 域原子动作，写 original/delivery/settled/ended/receipt/duty；answer=unknown 区分已应用丢答，CallDropped 区分未应用丢答。ReadCall 读取真实原回执，未提交时重试原操作，不假设未知就是未提交 |
 | RejectCompetitor、RefreshCompetitor | checkSettlement 的 expected 检查和刷新后 conflict，原赢家不可替换。两个操作可在外部保管及 call 提交前交错 |
-| BeginQueue、QueueApplied、QueueDropped、ReadQueue | [ledger.ts](../../src/ledger.ts) 的 releaseQueue 和 [ledger-start.ts](../../src/ledger-start.ts) 的释放决定。queue 删除 entry 与写墓碑同提交，call 不参与这个事务。unknown 之后可读回实际墓碑并确认，未应用则同身份重试 |
+| BeginQueue、QueueApplied、QueueDropped、ReadQueue | [ledger.ts](../../src/ledger.ts) 的 releaseQueue 和 [ledger-start.ts](../../src/ledger-start.ts) 的 decideQueueRelease。queue 提交只删除 entry，call 不参与这个事务。unknown 之后重读队列：条目已不在就是没有东西可写的释放，确认；条目还在则同身份重试 |
 | CloseDuty、CloseDropped、ReadClose | [ledger.ts](../../src/ledger.ts) 的 releaseQueue 调用 [ledger-start.ts](../../src/ledger-start.ts) 的 decideCloseQueueTask，独立 call CAS 最后清 duty。关闭提交也区分 applied-unknown 与 dropped-unknown，原身份重读不重复原结果 |
-| LateEnqueue | 队列域 order/enqueue 对永久墓碑的检查。没有墓碑剪枝或过期时间假设 |
+| CreateRead、CreateLand、CreateRetry | [ledger.ts](../../src/ledger.ts) 的 order：创建条目的步骤先读调用域，调用不再是 `accepted` 就回复 `released` 而不写；否则读队列域、由 [ledger-start.ts](../../src/ledger-start.ts) 的 decideQueueOrder 决定，并在队列提交里以 `asserts` 断言读到的调用域修订号。断言失败落不下任何写入，步骤重读调用域再决定。CreateLand 的迟到对应创建提交回答未知或延迟落盘；CreateRetry 对应回复丢失后的同身份重做 |
+| HoldNext | 同 key 下一个调用的 decideQueueHold：原条目消失后才取得名额，并发上限抽象为 1 |
 
 本模型假设各域 CAS 原子、外部 retain 对原 final 幂等、可信来源及 guard 正确。它没有共同事务，没有公平假设，只检查有限安全性。它不证明精化、进展、生产耐久、跨进程、断电、环境资源释放或实际执行 exactly-once。P01 多 operation 排除、输入复制、资格、任意输入、reader/ACK、完整环境闭包与时钟未建模；这些由相应真实内存组合和 [排除交错测试](../../tests/exclusion-interleavings.spec.ts) 验证。旧 InvokeRecovery 和 FactCustody 模型的范围保持原样，不因新模型加入就覆盖完整收场。
 
@@ -103,9 +108,10 @@ node scripts/with-test-slot.mjs tlc -workers 1 -noGenerateSpecTE -metadir tmp/is
 在仓库根运行已安装 TLC，使用真实共享测试槽与单 worker。单次元数据和日志写获准任务 tmp，不下载依赖。
 
 ```sh
-node scripts/with-test-slot.mjs tlc -workers 1 -noGenerateSpecTE -metadir tmp/issue-432/developer-u4/tlc-safe -config packages/tool/tool/verification/models/SettlementRelease.cfg packages/tool/tool/verification/models/SettlementRelease.tla
-node scripts/with-test-slot.mjs tlc -workers 1 -noGenerateSpecTE -metadir tmp/issue-432/developer-u4/tlc-unsafe-custody -config packages/tool/tool/verification/models/SettlementRelease-unsafe-custody.cfg packages/tool/tool/verification/models/SettlementRelease.tla
-node scripts/with-test-slot.mjs tlc -workers 1 -noGenerateSpecTE -metadir tmp/issue-432/developer-u4/tlc-unsafe-queue -config packages/tool/tool/verification/models/SettlementRelease-unsafe-queue.cfg packages/tool/tool/verification/models/SettlementRelease.tla
+M=packages/tool/tool/verification/models
+for cfg in SettlementRelease SettlementRelease-unsafe-custody SettlementRelease-unsafe-queue SettlementRelease-create-without-assert SettlementRelease-queue-before-call; do
+  java -cp "$TLA2TOOLS_JAR" tlc2.TLC -workers 4 -metadir "tmp/<task>/tlc/meta-$cfg" -config "$M/$cfg.cfg" "$M/SettlementRelease.tla"
+done
 ```
 
-安全配置必须完整搜索、状态队列归零且无错误。custody 负控允许以已应用但未确认的保管进入提交，必须命中 `Invariant ResultRequiresConfirmedCustody is violated`。queue 负控允许在 queue 未确认时关闭 call duty，必须命中 `Invariant CloseRequiresQueueConfirmation is violated`。超时、语法错误和无关异常都不算负控成功。模型/config/JAR SHA-256、工具版本、命令、退出码、状态数及完整原日志留任务 tmp。状态导出可用于核验三域未知切点及完成状态确实可达，不以最终成功退出代替这些观察。
+几个配置共用标准模块的临时解压目录，必须串行运行。安全配置必须完整搜索、状态队列归零且无错误。custody 负控允许以已应用但未确认的保管进入提交，必须命中 `Invariant ResultRequiresConfirmedCustody is violated`。queue 负控允许在 queue 未确认时关闭 call duty，必须命中 `Invariant CloseRequiresQueueConfirmation is violated`。`create-without-assert` 负控让创建提交不断言调用域修订号，已释放的调用重新得到条目，必须命中 `Invariant NoResurrection is violated`。`queue-before-call` 负控让释放在调用域记录依据之前删除条目，创建步骤随后读到「未释放」并落下条目，必须命中 `Invariant NoResurrection is violated`。超时、语法错误和无关异常都不算负控成功。模型/config/JAR SHA-256、工具版本、命令、退出码、状态数及完整原日志留任务 tmp。状态导出可用于核验三域未知切点及完成状态确实可达，不以最终成功退出代替这些观察。
