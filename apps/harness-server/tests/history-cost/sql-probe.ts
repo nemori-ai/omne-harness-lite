@@ -4,7 +4,9 @@
 // cell, so a statement a worker runs is counted in the phase the main thread was in. A statement on
 // a `tl_` table belongs to the Tool, or to the host when it binds a `host` ledger domain (every
 // ledger and due statement of the Tool storage binds `(tenant, kind, …)`); every other statement
-// (Agent, Session, Model, identity, provider receipts) is `other`. Each thread writes its counts to
+// (Agent, Session, Model, identity, provider receipts) is `other`. Each group also names the tables
+// its statement scans, from the query plan of the database that prepared it: rows returned do not
+// show a statement that visits every row of a table to find a few. Each thread writes its counts to
 // `HISTORY_COST_TRACE_DIR` when a database closes and when it exits; the main thread also when
 // `globalThis.historyCostFlush` is called.
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
@@ -27,6 +29,8 @@ export type Group = {
   bytes: number
   /** Time spent inside the statement calls of the group, in milliseconds. */
   ms: number
+  /** The tables the plan of the statement scans in full (`SCAN <table>` of EXPLAIN QUERY PLAN). */
+  scans: readonly string[]
 }
 
 const directory = process.env['HISTORY_COST_TRACE_DIR']
@@ -57,6 +61,7 @@ if (directory !== undefined) {
     Reflect.set(globalThis, 'historyCostPhase', (value: number) => Atomics.store(phase, 0, value))
   const groups = new Map<string, Group>()
   const sqlOf = new WeakMap<object, string>()
+  const scansOf = new Map<string, readonly string[]>()
   const flush = () => {
     mkdirSync(directory, { recursive: true })
     const file = join(directory, `${String(process.pid)}-${String(threadId)}.json`)
@@ -84,6 +89,7 @@ if (directory !== undefined) {
       rowsWritten: 0,
       bytes: 0,
       ms: 0,
+      scans: scansOf.get(sql) ?? [],
     }
     groups.set(name, group)
     group.statements += 1
@@ -107,6 +113,20 @@ if (directory !== undefined) {
   Reflect.set(DatabaseSync.prototype, 'prepare', function (this: DatabaseSync, sql: string) {
     const statement = prepare.call(this, sql)
     sqlOf.set(statement, sql)
+    if (!scansOf.has(sql)) {
+      // A statement SQLite cannot explain (a pragma, a transaction statement) scans nothing.
+      let plan: unknown[] = []
+      try {
+        plan = Reflect.apply(all, prepare.call(this, `EXPLAIN QUERY PLAN ${sql}`), []) as unknown[]
+      } catch {
+        plan = []
+      }
+      const tables = plan.flatMap(row => {
+        const table = /^SCAN (\w+)/u.exec(String((row as { detail?: unknown }).detail))?.[1]
+        return table === undefined || table === 'CONSTANT' ? [] : [table]
+      })
+      scansOf.set(sql, [...new Set(tables)])
+    }
     return statement
   })
   prototype.all = function (this: object, ...params: unknown[]) {

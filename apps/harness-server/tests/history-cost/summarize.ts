@@ -1,9 +1,11 @@
 // Summarizes and judges one history-cost run: for every measured call, the Tool, host and other
 // SQL counts of its phase; per history size, the min, median and max of each count and the calls'
-// wall-clock median and p95; per Tool or host statement, the most rows one execution returned.
-// Exits non-zero when a Tool or host statement or the rows written fail the ruling below.
+// wall-clock median and p95; per Tool or host statement, the most rows one execution returned; per
+// statement of any owner, the tables its plan scans. Exits non-zero when a Tool or host statement,
+// the rows written or a scanned table fail the ruling below.
 //
-// node tests/history-cost/summarize.ts <out>   (reads samples.json and sql-trace/, writes summary.json)
+// node tests/history-cost/summarize.ts <out>
+// Reads samples.json, sql-trace/ and storage-<n>.json; writes summary.json.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { Group, Owner } from './sql-probe.ts'
@@ -20,7 +22,7 @@ const groups = readdirSync(join(base, 'sql-trace'))
   .filter(name => name.endsWith('.json'))
   .flatMap(name => JSON.parse(readFileSync(join(base, 'sql-trace', name), 'utf8')) as Group[])
 
-type Cost = Omit<Group, 'phase' | 'owner' | 'sql' | 'maxRowsRead' | 'ms'>
+type Cost = Omit<Group, 'phase' | 'owner' | 'sql' | 'maxRowsRead' | 'ms' | 'scans'>
 const costOf = (phase: number, owner: Owner): Cost =>
   groups
     .filter(
@@ -98,9 +100,47 @@ function maxRowsByStatement(n: number): Map<string, number> {
   return most
 }
 
+/** The rows of each table over every database file, before the window that starts after `n`. */
+function tableRows(n: number): Map<string, number> {
+  const files = JSON.parse(readFileSync(join(base, `storage-${String(n)}.json`), 'utf8')) as {
+    tables: Record<string, number>
+  }[]
+  const rows = new Map<string, number>()
+  for (const file of files)
+    for (const [table, count] of Object.entries(file.tables))
+      rows.set(table, (rows.get(table) ?? 0) + count)
+  return rows
+}
+
+// Rows returned do not show a statement that visits every row of a table to find a few. So no
+// statement of a measured call, of any owner, may scan a table that the history made larger: a
+// table whose rows grew between the two histories. A scan of a table of constant size passes.
+const rowsSmall = tableRows(small)
+const rowsLarge = tableRows(large)
+const grew = (table: string) => (rowsLarge.get(table) ?? 0) > (rowsSmall.get(table) ?? 0)
+const measuredPhases = new Set([...ordinalsOf(small), ...ordinalsOf(large)])
+const scanning = new Map<string, Set<string>>()
+for (const group of groups)
+  if (measuredPhases.has(group.phase))
+    for (const table of group.scans.filter(grew)) {
+      const name = `${group.owner} ${group.sql.replace(/\s+/gu, ' ')}`
+      scanning.set(name, (scanning.get(name) ?? new Set()).add(table))
+    }
+
 const before = maxRowsByStatement(small)
 const after = maxRowsByStatement(large)
 const verdicts = [
+  ...(scanning.size === 0
+    ? [{ rule: 'no scan of a table that grows', statement: 'every owner', holds: true, values: [] }]
+    : [...scanning].sort().map(([statement, tables]) => ({
+        rule: 'no scan of a table that grows',
+        statement,
+        holds: false,
+        values: [...tables].map(
+          table =>
+            `${table} ${String(rowsSmall.get(table) ?? 0)}->${String(rowsLarge.get(table) ?? 0)}`,
+        ),
+      }))),
   ...[...new Set([...before.keys(), ...after.keys()])].sort().map(statement => ({
     rule: 'most rows per execution equal',
     statement,
