@@ -1,6 +1,6 @@
 # 交付账本派生规格
 
-本页规定版本 `1` 的派生规则。字段的含义归 [synthesis.md「度量账本」](../../../../.meta_harness/human/map-reduce-delivery/research/synthesis.md#度量账本)。本页只规定怎样从输入文件得到这些字段，以及哪些字段在本版缺失。用法归 [README](README.md)。
+本页规定版本 `1` 的派生规则。字段的含义归 [synthesis.md「度量账本」](https://github.com/nemori-ai/omne-harness-lite/blob/454d1574ef9fe69bb99c95bc962c0dae4c21aaad/.meta_harness/human/map-reduce-delivery/research/synthesis.md#度量账本)。本页只规定怎样从输入文件得到这些字段，以及哪些字段在本版缺失。用法归 [README](README.md)。
 
 ## 边界
 

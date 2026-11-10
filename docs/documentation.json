@@ -332,6 +332,10 @@
           "anchor": "从任务开始"
         },
         {
+          "id": "process-owners",
+          "anchor": "流程事实在哪"
+        },
+        {
           "id": "entry-2",
           "anchor": "查询共享主题"
         },
@@ -2149,10 +2153,6 @@
         {
           "id": "artifacts",
           "anchor": "终态与过程材料"
-        },
-        {
-          "id": "delivery-operations",
-          "anchor": "通过对话维护交付卡"
         }
       ]
     },
@@ -2689,10 +2689,6 @@
         {
           "id": "risk-acceptance",
           "anchor": "按风险选择接受实现的看法"
-        },
-        {
-          "id": "review-escalation",
-          "anchor": "三轮未收敛时升级结构诊断"
         }
       ]
     },
@@ -3407,28 +3403,24 @@
           "anchor": "长期正文与一次交付"
         },
         {
-          "id": "platform",
-          "anchor": "1-平台能力与职责"
+          "id": "handoff-pack",
+          "anchor": "卡就是交接信息包"
         },
         {
-          "id": "stage",
-          "anchor": "2-卡片与阶段"
+          "id": "attributes",
+          "anchor": "卡属性与合法组合"
         },
         {
-          "id": "conditions",
-          "anchor": "3-条件关系与解锁"
+          "id": "submission",
+          "anchor": "提交成果供接受"
         },
         {
           "id": "decisions",
-          "anchor": "4-接受取消与重开"
+          "anchor": "接受取消与重开"
         },
         {
-          "id": "single-writer",
-          "anchor": "5-调度认领与cloud接续"
-        },
-        {
-          "id": "access-and-failure",
-          "anchor": "6-访问失败与最小工具"
+          "id": "receipts",
+          "anchor": "对人的操作回执"
         }
       ]
     },
@@ -3461,54 +3453,6 @@
         {
           "id": "methods",
           "anchor": "工程方法"
-        }
-      ]
-    },
-    {
-      "id": "docs#engineering#agent-delivery",
-      "path": "docs/engineering/agent-delivery.md",
-      "kind": "guide",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/engineering/documentation.md",
-        "anchor": "四类长期成果与普通任务"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": [
-        {
-          "id": "intent",
-          "anchor": "从人的话判断本次动作"
-        },
-        {
-          "id": "intake",
-          "anchor": "1-整理需求并定位已有卡"
-        },
-        {
-          "id": "create",
-          "anchor": "2-建卡或修订卡"
-        },
-        {
-          "id": "dispatch",
-          "anchor": "3-取任务和派发"
-        },
-        {
-          "id": "progress",
-          "anchor": "4-推进和更新状态"
-        },
-        {
-          "id": "acceptance",
-          "anchor": "5-提交成果供接受"
-        },
-        {
-          "id": "resume",
-          "anchor": "6-暂停取消和跨会话恢复"
-        },
-        {
-          "id": "receipt",
-          "anchor": "对人的操作回执"
         }
       ]
     },
@@ -3563,36 +3507,6 @@
       "expectationSource": {
         "path": "docs/engineering/documentation.md",
         "anchor": "首批目标与暂时留空"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "engineering-map-reduce-states",
-      "path": "docs/engineering/map-reduce-states.md",
-      "kind": "standard",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/engineering/integration.md",
-        "anchor": "集成节点的清单"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "engineering-ledger-m1.5",
-      "path": "docs/engineering/ledger/m1.5/README.md",
-      "kind": "standard",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/engineering/documentation.md",
-        "anchor": "四类长期成果与普通任务"
       },
       "inspectionProfile": "prose-v1",
       "requiredSections": []

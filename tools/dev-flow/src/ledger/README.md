@@ -1,6 +1,6 @@
 # 交付账本派生
 
-`ledger-cli.ts derive` 从文件派生一个里程碑的交付账本：卡级、波级、里程碑级与线级四张 CSV 表，以及一份说明每列来源的 `ledger-meta.json`。字段定义归 [synthesis.md「度量账本」](../../../../.meta_harness/human/map-reduce-delivery/research/synthesis.md#度量账本)。字段来源、缺失规则、运行归卡与退出码归 [SPEC](SPEC.md)。
+`ledger-cli.ts derive` 从文件派生一个里程碑的交付账本：卡级、波级、里程碑级与线级四张 CSV 表，以及一份说明每列来源的 `ledger-meta.json`。字段定义归 [synthesis.md「度量账本」](https://github.com/nemori-ai/omne-harness-lite/blob/454d1574ef9fe69bb99c95bc962c0dae4c21aaad/.meta_harness/human/map-reduce-delivery/research/synthesis.md#度量账本)。字段来源、缺失规则、运行归卡与退出码归 [SPEC](SPEC.md)。
 
 命令只读输入文件、只写输出目录。它不调用 `gh`，不访问网络，不修改 Issue 或 Project。
 
@@ -53,6 +53,6 @@ CSV 按 RFC 4180 写：UTF-8，CRLF 换行，首行是表头。字段含逗号�
 
 `derive.ts` 的 `LEDGER_VERSION` 是派生定义的版本，当前为 `1`。版本写进 `ledger-meta.json`。
 
-以下改动都要升版本：列的增删或顺序变化、任何一条派生规则或评论匹配规则的变化、缺失规则的变化。升版本后，用新版本对历史里程碑的原始输入重新派生，再比较不同里程碑（[measurement-and-comparison.md](../../../../.meta_harness/human/map-reduce-delivery/research/measurement-and-comparison.md) 的「机制设计」）。
+以下改动都要升版本：列的增删或顺序变化、任何一条派生规则或评论匹配规则的变化、缺失规则的变化。升版本后，用新版本对历史里程碑的原始输入重新派生，再比较不同里程碑（[measurement-and-comparison.md](../../../../.meta_harness/research/delivery-measurement-and-comparison.md) 的「机制设计」）。
 
 集成节点把每个里程碑的原始输入（捕获、耗时账本、名额账本、Project 字段导出）随收口点的集成报告保存，直到该里程碑不再需要重算。

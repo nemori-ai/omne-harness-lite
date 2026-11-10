@@ -101,7 +101,7 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 `observeDelivery` 的第四个参数提供线归属表与 policy registry 时，对每张开放的交付卡调用 [attributes.ts](attributes.ts) 的 `attributeFindings`，把结果记入 `attribute` 类别。没有这个参数时不产生属性发现。关闭的卡、非交付卡与创建交接入口不产生属性发现。
 
-`attributeFindings({ binding, card, conditionCards, lines, registry })` 是纯函数，判据归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)与[多层分支集成](../../../../docs/engineering/integration.md#交付线)：
+`attributeFindings({ binding, card, conditionCards, lines, registry })` 是纯函数，判据归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)与[多层分支集成](../../../../docs/engineering/delivery.md#卡属性与合法组合)：
 
 1. `readCardAttributes` 从「身份与责任」读交付线、性质与契约变更，并带上 Issue 的 milestone、标签与「交付条件」章节的文本。`workKind` 独立读取正文中唯一且属于六类采用范围的「主工作类型」，缺失、重复或未知值为 undefined；它不属于 binding 的三个属性。缺失或占位为 `attribute-missing`。重复、取值不在允许值中或组合不合法为 `attribute-invalid`。Issue 读到的 milestone 为 null 时为 `attribute-missing`，条款为 `milestone`。
 2. 正文的属性是判断依据。只有合格的属性参与下面各步。
@@ -143,7 +143,7 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 `classifyReadConflicts(conflicts, basis)` 把读写交叉分成 `stopping` 与 `frozen` 两组，各保持输入顺序。每个交叉先由 `narrowerReadPath` 取写路径与读路径中较长的那条，也就是被另一条包含的那条，两条相同时取任一条。两条路径互不包含时 `narrowerReadPath` 抛 `invariant` 错误，`readOverlap` 不会产出这种输入。`basis` 由调用方传入：`registered` 是登记的模式，`tracked` 是冻结点上全部被跟踪的文件。`tracked` 中有文件在较长路径上或下面时逐个判定这些文件，没有时判定路径本身。全部判定为说明页时交叉归 `frozen`。否则交叉归 `stopping`，项中加 `file`（第一个不是说明页的文件）与 `reason`（`<file>: <原因>`）。`basis` 是 `{ unknown }` 时全部交叉归 `stopping`，`reason` 写明原因，没有 `file`。
 
-`frozenPageStop(file, registered)` 返回 `file` 不是说明页的原因，是说明页时返回 undefined。说明页同时满足三项：在 `FROZEN_READ_PATHS.areas` 的某一项上或下面；以 `FROZEN_READ_PATHS.pageSuffix`（`.md`）结尾，或匹配 `FROZEN_READ_PATHS.skillStrategy`；不匹配 `registered` 的任何模式（按 `matchesRegistered`）。区的比较按 `/` 分段，`docs/engineering-old` 不在 `docs/engineering` 下，`toolsets` 不在 `tools` 下。`matchesRegistered(file, pattern)` 先把两者中每段开头的 `.` 换成同一个其他字符，再调用 `node:path` 的 `matchesGlob`，所以 `*` 与 `**` 也匹配以 `.` 开头的段，与 test-runner 的 `patternToRegExp` 相同。`?`、`[`、`]`、`{`、`}` 的语义两者仍不同，两边共用一个导出的匹配函数是剩余责任。技能包装的匹配直接用 `matchesGlob`，以 `.` 开头的段不算技能包装，偏向停止。`registeredReadPatterns(value, path)` 从 `REGISTERED_READ_PATTERNS.config` 的内容取 `affected.readers[].paths` 与 `affected.globalPaths`，不取 `affected.pythonPaths`，形状不合格时抛 `input-error`。规则与处置归[读写交叉的两类](../../../../docs/engineering/integration.md#读写交叉的两类)。
+`frozenPageStop(file, registered)` 返回 `file` 不是说明页的原因，是说明页时返回 undefined。说明页同时满足三项：在 `FROZEN_READ_PATHS.areas` 的某一项上或下面；以 `FROZEN_READ_PATHS.pageSuffix`（`.md`）结尾，或匹配 `FROZEN_READ_PATHS.skillStrategy`；不匹配 `registered` 的任何模式（按 `matchesRegistered`）。区的比较按 `/` 分段，`docs/engineering-old` 不在 `docs/engineering` 下，`toolsets` 不在 `tools` 下。`matchesRegistered(file, pattern)` 先把两者中每段开头的 `.` 换成同一个其他字符，再调用 `node:path` 的 `matchesGlob`，所以 `*` 与 `**` 也匹配以 `.` 开头的段，与 test-runner 的 `patternToRegExp` 相同。`?`、`[`、`]`、`{`、`}` 的语义两者仍不同，两边共用一个导出的匹配函数是剩余责任。技能包装的匹配直接用 `matchesGlob`，以 `.` 开头的段不算技能包装，偏向停止。`registeredReadPatterns(value, path)` 从 `REGISTERED_READ_PATTERNS.config` 的内容取 `affected.readers[].paths` 与 `affected.globalPaths`，不取 `affected.pythonPaths`，形状不合格时抛 `input-error`。规则与处置归[读写交叉的两类](../../../../docs/engineering/integration.md)。
 
 `parseReadSetFile` 只认含 `reads` 字段的 JSON 对象，其他内容交给 `fileScope`。字段只能是 `source` 与 `reads`：`source` 为非空字符串，`reads` 为仓库相对路径数组，可以为空，不合格时拒绝。`assignReadSets` 把读集文件挂到卡上：`source` 是 `#` 加数字时按卡号匹配，否则把两边都按调用方给的基准目录（`scope-cli.ts` 传当前目录）解析成绝对路径后，匹配 binding 文件参数。`source` 不对应任何卡参数，或同一张卡有两份读集文件时拒绝。关闭而不参与求交的卡，其读集文件不参与比较。
 
@@ -180,7 +180,7 @@ CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `cha
 - `readComments(repository, issue, call)` 只发 `gh api --method GET` 加 `REST_HEADERS` 与 `repos/<仓库>/issues/<编号>/comments?per_page=100&page=<n>`，逐页读到一页少于100条为止，最多20页，超出时以 `InputError` 失败。评论的 `id`、`html_url`、`created_at`、`updated_at`、`user.login`、`user.node_id` 与 `body` 不合格时以 `InputError` 失败。命令不写平台。
 - 登记者：`publishReviewers(repository, call)` 读 `repos/<仓库>/environments/publish`，取 `required_reviewers`。作者的 login 与 node ID 都等于一个 User 审批者，或作者是一个 Team 审批者的 active 成员时，作者是登记者。这是能派发的人，口径同 `start` 对派发评论的核对（`integration/authority.ts`）。环境读不到或没有审批者时以 `InputError` 失败；团队成员关系读不到时不授予。只有评论里有区块时才读环境。
 - `mergeRegistrations(comments, isRegistrar)` 按 `created_at` 再按 `id` 从旧到新处理。没有区块的评论跳过。作者不是登记者的评论不读区块，列在 `ignored`（评论、作者与原因），不改基线，也不加 `breakingCards`。登记者的评论中：一条评论有两个以上区块为 `baseline-duplicate`；区块没有结束的围栏、不是 JSON 或形状不合格为 `baseline-invalid`；区块的 `milestone` 与最早的区块不同为 `baseline-milestone-mismatch`。没有登记者发的区块为 `baseline-missing`。有任一问题时结果为 `refused`，逐项列出代码、评论与说明。
-- 没有问题时结果为 `merged`。同一成员取最晚的区块。较晚的区块可以写较早区块没有的成员：基线之后加入的契约成员由 baseline 卡这样补登记首份快照，见[里程碑内的规则](../../../../docs/engineering/integration.md#里程碑内的规则)第4条。漏登记由 `omne-contract-api --baseline` 判出。`breakingCards` 是各区块的并集，按首次出现的顺序。`registrations` 从旧到新列出每条登记评论、作者、`edited`（`updated_at` 不等于 `created_at`）与它写的成员。编辑过的评论照常采信：GitHub 只让作者与有写权限的人编辑评论。
+- 没有问题时结果为 `merged`。同一成员取最晚的区块。较晚的区块可以写较早区块没有的成员：基线之后加入的契约成员由 baseline 卡这样补登记首份快照，见[里程碑内的规则](../../../../docs/engineering/delivery.md#破坏性契约改动)第4条。漏登记由 `omne-contract-api --baseline` 判出。`breakingCards` 是各区块的并集，按首次出现的顺序。`registrations` 从旧到新列出每条登记评论、作者、`edited`（`updated_at` 不等于 `created_at`）与它写的成员。编辑过的评论照常采信：GitHub 只让作者与有写权限的人编辑评论。
 - `renderBaselineBlock` 按固定的键顺序写围栏区块，成员按 `path` 排序。`parseBaselineText` 与 `omne-contract-api --baseline` 读法相同：整段是 JSON 对象，或恰好含一个区块。
 
 [baseline-cli.ts](baseline-cli.ts) 的 `read <卡号> --out <文件> [--config <文件>]` 从交付配置取仓库，读这张卡并合并。每条 `ignored` 向标准错误写一行 `baseline: ignored <评论>: <原因>`。结果为 `merged` 时把区块写到 `--out`，标准输出为 JSON（`issue`、`out`、`kind`、`baseline`、`registrations`、`ignored`），退出0。结果为 `refused` 时不写文件，标准输出为 JSON（`issue`、`kind`、`problems`、`ignored`），每个问题向标准错误写一行 `baseline: <代码> [<评论>]: <说明>`，退出1。参数、交付配置与 GitHub 读取错误（含环境读不到）退出2，标准输出为空，错误以一行 JSON `{kind: "baseline-error", message}` 写到标准错误，不转述 API 输出。云端会话的代理不放行环境读取，所以有区块时命令在云端会话退出2。
@@ -202,7 +202,7 @@ CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `cha
 - 每个失败码只对应一个退出码。有任一退出 2 的发现时整体为 2，否则有发现时为 1，否则为 0。全部发现都写入报告，一个成员的通过不掩盖另一成员的未知。
 - `lines-cli.ts` 在身份文件存在时增加一致性检查：身份文件的每个 `lineId` 必须在同树 `delivery-lines.json` 中存在，owner login 必须逐字相等，否则发现 `owner-identity-drift`，退出 1。身份文件缺失时不检查，漏登记的线不是漂移。身份文件存在却不能解析时，`parseOwnerIdentityManifest` 抛出输入错误，命令退出2。`parseDeliveryLines` 与 `DeliveryLine` 的形状不变。
 - 提升级入口的 `--review-issue`、里程碑累计入口的 `--semantic-review` 与 `verify-owner-adoption` 都复用本模块的身份文件严格解析和评论读取，不另写一套。
-- 已知限制：机器只证明平台账号，不证明账号背后是人还是代笔会话。三项 fail-open 残余（node ID 复用、编辑后更新时间不变、同账号代笔）仍然存在，机器不消除它们。残余是否被采用，按[交付协议的接受规则](../../../../docs/engineering/delivery.md#4-接受取消与重开)决定，本模块不记录接受状态。不承诺跨进程原子快照、评论不可篡改或外部结果可回滚。
+- 已知限制：机器只证明平台账号，不证明账号背后是人还是代笔会话。三项 fail-open 残余（node ID 复用、编辑后更新时间不变、同账号代笔）仍然存在，机器不消除它们。残余是否被采用，按[交付协议的接受规则](../../../../docs/engineering/delivery.md#接受取消与重开)决定，本模块不记录接受状态。不承诺跨进程原子快照、评论不可篡改或外部结果可回滚。
 
 测试使用真实临时 Git 与替身网络，不写真实 GitHub。拒绝路径逐个单独覆盖：错误的仓库、node ID、作者、reviewer 与 owner，未知与重复键，编辑、撤销、重复 `operationId`、替代缺项与前向引用、委派越权，分页不全、403 与读取之间的变化。
 
