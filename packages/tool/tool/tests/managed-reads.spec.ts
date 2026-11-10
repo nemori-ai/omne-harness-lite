@@ -55,16 +55,8 @@ describe('14 queries (P01)', () => {
     expect(await runtime.queries.lookup({ ...access, reference })).toEqual({
       ok: { kind: 'not-accepted', operation: 'op-1' },
     })
-    // The negative answer rests on a snapshot the store confirmed: the fence is a conditional
-    // commit at the revision of that snapshot. A store that cannot commit gives no answer.
-    store.injectCommit('unavailable')
+    store.injectRead('unavailable')
     expect(await runtime.queries.lookup({ ...access, reference })).toMatchObject({
-      failure: { kind: 'unavailable', dependency: 'ledger-store' },
-    })
-    // Without a snapshot the domain is read whole; a store that cannot be read gives no answer.
-    const cold = harness()
-    cold.store.injectRead('unavailable')
-    expect(await cold.runtime.queries.lookup({ ...access, reference })).toMatchObject({
       failure: { kind: 'unavailable', dependency: 'ledger-store' },
     })
   })

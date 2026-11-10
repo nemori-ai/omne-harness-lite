@@ -55,7 +55,6 @@ import {
   type EnvironmentReleaseRecord,
   type FactBatchRecord,
   type FactStreamRecord,
-  recordKey,
   type ProcessRecord,
   type AccountRecord,
   type CallAccount,
@@ -113,12 +112,7 @@ export function snapshotOf(
   const accounts: AccountRecord[] = []
   const tasks: ToolTask[] = []
   const exclusions = new Map<string, ExclusionRecord>()
-  // In key order, whatever order the store answered in: a snapshot of the same records is the
-  // same snapshot, from a store read or from the records a ledger kept.
-  const ordered = read.records
-    .map(record => [recordKey(record), record] as const)
-    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-  for (const [, record] of ordered) {
+  for (const record of read.records) {
     switch (record.kind) {
       case 'body-entry':
         bodies.set(record.body.bodyId, record.body)

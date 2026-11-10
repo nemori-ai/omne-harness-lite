@@ -30,8 +30,6 @@ type LedgerAssembly = Readonly<{
   domain: Extract<LedgerDomain, { kind: 'call' }>
   counts(): Readonly<{ reads: number; commits: number }>
   revoke(): void
-  /** Replaces `ledger` by one that starts over the same store and keeps no snapshot yet. */
-  restart(): void
   query(operation?: AdmitInput['operation']): ReturnType<Ledger['reads']['operation']>
   changedInput(): AdmitInput
   plan(
@@ -245,67 +243,56 @@ export async function ledgerAssembly(
       return fixture.store.commit(command)
     },
   }
-  const clock = deps.clock()
-  const ports = { releaseInspection: deps.environment(), content: null, bodies: deps.bodies() }
-  /** One ledger over the store: a later one starts as a process that restarted would. */
-  const start = () =>
-    deps.createLedger(
-      store,
-      guards,
-      clock,
-      {
-        authorBufferBytes: 65_536,
-        authorBufferItems: 128,
-        resultPageBytes: 4096,
-        ledgerCommitAttempts: 4,
-        queueCapacity: 16,
-        readResultArguments: {
+  const ledger = deps.createLedger(
+    store,
+    guards,
+    deps.clock(),
+    {
+      authorBufferBytes: 65_536,
+      authorBufferItems: 128,
+      resultPageBytes: 4096,
+      ledgerCommitAttempts: 4,
+      queueCapacity: 16,
+      readResultArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 4096,
+        maxMembers: 256,
+        maxStringLength: 32_768,
+        maxNumberLength: 64,
+      },
+      offloading: {
+        maxInlineUtf8Bytes: 65_536,
+        maxRetentionMs: 86_400_000,
+        maxBodyBytes: 16_777_216,
+        previewUtf8Bytes: 1_024,
+        maxPageBytes: 65_536,
+        permitMs: 30_000,
+        clockSkewMs: 1_000,
+        orphanGraceMs: 60_000,
+        maxWriterMetadataBytes: 1_048_576,
+        jsonDocument: {
+          maxBytes: 1_048_576,
+          maxDepth: 64,
+          maxItems: 65_536,
+          maxMembers: 65_536,
+          maxStringLength: 1_048_576,
+          maxNumberLength: 64,
+        },
+        jsonRecord: {
           maxBytes: 65_536,
           maxDepth: 32,
           maxItems: 4096,
-          maxMembers: 256,
-          maxStringLength: 32_768,
+          maxMembers: 4096,
+          maxStringLength: 65_536,
           maxNumberLength: 64,
         },
-        offloading: {
-          maxInlineUtf8Bytes: 65_536,
-          maxRetentionMs: 86_400_000,
-          maxBodyBytes: 16_777_216,
-          previewUtf8Bytes: 1_024,
-          maxPageBytes: 65_536,
-          permitMs: 30_000,
-          clockSkewMs: 1_000,
-          orphanGraceMs: 60_000,
-          maxWriterMetadataBytes: 1_048_576,
-          jsonDocument: {
-            maxBytes: 1_048_576,
-            maxDepth: 64,
-            maxItems: 65_536,
-            maxMembers: 65_536,
-            maxStringLength: 1_048_576,
-            maxNumberLength: 64,
-          },
-          jsonRecord: {
-            maxBytes: 65_536,
-            maxDepth: 32,
-            maxItems: 4096,
-            maxMembers: 4096,
-            maxStringLength: 65_536,
-            maxNumberLength: 64,
-          },
-        },
       },
-      ports,
-    )
-  let ledger = start()
+    },
+    { releaseInspection: deps.environment(), content: null, bodies: deps.bodies() },
+  )
   return {
-    get ledger() {
-      return ledger
-    },
-    /** Replaces the ledger by one that starts over the same store and keeps no snapshot yet. */
-    restart: () => {
-      ledger = start()
-    },
+    ledger,
     input,
     access,
     other,

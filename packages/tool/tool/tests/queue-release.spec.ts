@@ -111,15 +111,8 @@ function windowStore(
   let raced = false
   const racing: ToolLedgerStore = {
     durability: 'none',
+    readRecord: memory.readRecord,
     due: memory.due,
-    // A look at the call domain is a read of it or of its revision.
-    readRecord: async (domain, key) => {
-      if (reads.failing > 0 && domain.kind === 'call') {
-        reads.failing -= 1
-        return { kind: 'unavailable', diagnostic: 'the store is down' }
-      }
-      return memory.readRecord(domain, key)
-    },
     read: async domain => {
       if (reads.failing > 0 && domain.kind === 'call') {
         reads.failing -= 1

@@ -159,8 +159,7 @@ describe('batch identities and continuity', () => {
     await harness.memory.commit({
       domain,
       expected: stored.revision,
-      // A real writer moves the revision of the domain with every commit.
-      revision: String(Number(stored.revision) + 1) as typeof stored.revision,
+      revision: stored.revision,
       writes: [
         { kind: 'put', record: { kind: 'fact-batch', batch: confirmed } },
         { kind: 'delete', key: `task:fact-ack:${ack.task.operation}` },
@@ -720,8 +719,7 @@ describe('fixed producer boundary and current access', () => {
     await harness.memory.commit({
       domain,
       expected: stored.revision,
-      // A real writer moves the revision of the domain with every commit.
-      revision: String(Number(stored.revision) + 1) as typeof stored.revision,
+      revision: stored.revision,
       writes: [
         {
           kind: 'put',

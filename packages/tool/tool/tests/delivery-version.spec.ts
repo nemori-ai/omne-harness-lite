@@ -147,10 +147,7 @@ async function existingVersions() {
     ok(
       await assembly.ledger.commands.loadRecovery({ principal: principalA, tenant: tenantA, call }),
     ).tasks.filter(task => task.kind === 'deliver')
-  // A snapshot lists the tasks in the order of their record keys.
-  const byOperation = (left: ToolTask, right: ToolTask) =>
-    left.operation < right.operation ? -1 : left.operation > right.operation ? 1 : 0
-  expect(await tasks()).toEqual(versions.map(taskFor).sort(byOperation))
+  expect(await tasks()).toEqual(versions.map(taskFor))
   const current = async () => {
     const found = ok(await assembly.runtime.queries.lookup(access))
     if (found.kind !== 'found' || found.state.phase !== 'settled')
