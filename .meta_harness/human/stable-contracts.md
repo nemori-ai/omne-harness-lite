@@ -5,7 +5,7 @@
 
 本页是学习材料，不是项目规则。
 依赖方向、成员文档和演进政策由文中链接的拥有者正文规定。两者不一致时以拥有者正文为准。
-交付线、里程碑、契约基线与可加改动的判定规则由[多层分支集成](../../docs/engineering/integration.md#里程碑与契约基线)拥有，卡属性由[交付协议](../../docs/engineering/delivery.md#卡属性与合法组合)拥有。本页只讲设计方法。
+可加改动与破坏性契约改动的判定规则由[卡与交接信息包](../../docs/engineering/delivery.md#破坏性契约改动)拥有，卡属性由[卡属性与合法组合](../../docs/engineering/delivery.md#卡属性与合法组合)拥有。本页只讲设计方法。
 
 ## 先分清两种稳定
 
@@ -92,7 +92,7 @@ Bertrand Meyer 的契约式设计和 Liskov 的替换原则给出同一条规则
 把这条规则落到 TypeScript 形状上时，关键不是「输入还是输出」，而是**谁构造这个值，谁读取这个值**。
 构造值的一方叫写方，读取值的一方叫读方。改动对写方和读方的影响相反。
 
-判断表是规则，放在[可加改动](../../docs/engineering/integration.md#可加改动)。本节说明怎样用它。
+判断表是规则，放在[可加改动](../../docs/engineering/delivery.md#可加改动)。本节说明怎样用它。
 
 用判断表时要找全写方：
 
@@ -198,7 +198,7 @@ Mary 和 Tom Poppendieck 把这种做法叫作在最后负责时刻决定：不�
 - 已有的外域公开契约和可用的投影。
 - 要求的产出：本页「开始之前」一节列出的六项内容。
 
-设计判断沿 `harness-design-handbook` skill 进行。评审按判断对象选择 reviewer，见[评审分工](../agents/roles/README.md#按判断对象选择-reviewer)。
+设计判断沿 `harness-design-handbook` skill 进行。评审派只读子代理，带手册里本次那一种判断的评审判据页。
 把一批契约当作语义整体评审时，派 design-reviewer 的 choice 类判断。核对 SPEC 是否完整、无歧义时，派 expression 类判断。
 
 ### 评审 agent 产出时问的问题

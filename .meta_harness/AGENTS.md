@@ -5,7 +5,7 @@
 工作区地图见 [README](README.md)。
 
 本项目已采用[项目要求](../docs/requirements.md)、[系统架构](../docs/architecture/README.md)与[领域责任](../docs/domains/README.md)顶层正文。
-产品规则、统一语言、领域对象、持续研究及独有 skills/roles 仍在本区。
+产品规则、统一语言、领域对象、持续研究及独有 skills 仍在本区。
 共同集成规则与采用映射归执行仓库架构区，成员精确承诺归实际拥有者；[保留技术源入口](design/architecture/README.md)定位尚未承接的专题、完整Session候选和PF详细技术。
 本项目架构以docs已接受正文为准；旧技术材料按[准入规则](../docs/engineering/documentation.md#位置与唯一源)筛选，冲突设计不取得规范效力。顶层接受不表示材料已迁移、实现或验证。
 
@@ -44,20 +44,20 @@ SPEC避免重复形状，不能删去必要条件、失败、生命周期或验�
 
 > **每一个会被继续消费的事实，只有一个手写的家；那个家由「什么事件会让这条事实失效」决定。**
 
-这一条是本工作区的组织根据。分区表、准入问题与停止条件归
-[design/README.md](design/README.md#组织原则)；**进入 `design/` 之前先读
+这一条是本工作区的组织根据。分区表、准入问题与停止条件归[design/README.md](design/README.md#组织原则)；
+**进入 `design/` 之前先读
 [design/AGENTS.md](design/AGENTS.md)**，那里拥有准入四步与两条最容易走错的归属。
 
 | 拥有者 | 保存什么 |
 |---|---|
 | [design/](design/README.md) | 统一语言、产品、领域对象、上游机制及未迁精确技术源；已采用顶层要求、架构与领域正文归执行仓库docs |
-| [research/](research/README.md) | 当前仅保留 TypeSafe Jev；目录职责与结构待负责人另行定义 |
-| [agents/](agents/README.md) | skills 与 roles 的 canonical 源、宿主适配与评估证据 |
+| [research/](research/README.md) | TypeSafe Jev 与两篇交付调研；目录职责与结构待负责人另行定义 |
+| [agents/](agents/README.md) | 技能、钩子、云端环境与外部技能集的源 |
 | [tooling/](tooling/README.md) | 确定性的生成、检查与项目链接 |
 | [human/](human/README.md) | 写给人类协作者的学习指南。它不是规则，agent 不以它为任务依据 |
 
 **一个 topic 是信息包**：入口给范围、状态与阅读地图，正文给判断或契约，证据给真实观察。
-先读该区入口；新主题从它的 `.templates/` 起步并按问题裁剪，**不能裁掉准入所需信息**。
+先读该区入口；新主题从它的 `.templates/` 起步并按问题裁剪，**不能裁掉[准入](design/AGENTS.md)所需信息**。
 
 ## 权威与不可混淆的边界
 
@@ -70,11 +70,9 @@ SPEC避免重复形状，不能删去必要条件、失败、生命周期或验�
   继续约束后续设计；复议要说明新依据和取代范围，不靠重新措辞重开争论。
 - **语义接受、提供者可实施、装配明确与实际验证分别陈述。**已触发的证据义务不能因
   optional 而消失；有限检查不写成无条件证明。
-- **修改 skills/roles 的源，再由工具生成** `.agents/`、`.claude/`、`.codex/`、`.cursor/`；不手改生成物。
+- **修改 skills 的源，再由工具生成** `.agents/`、`.claude/`、`.codex/`、`.cursor/`；不手改生成物。
   生成、宿主加载、项目根接入和对外发布是不同动作，**编译不扩张授权**。
-- **这里的文档写作与修订必须加载 `asd-ste100` skill。遵循其适用规范。**这包括产品、设计、规格、研究和 agent 正文。
-  英文按文种选模式；中文至少满足可跨语言的清晰性原则，适用边界归[写作要求](agents/skills/asd-ste100/canonical/references/documentation.md)。
-  清晰化必须保留正式术语、事实、条件、例外与要求强度；涉及语义变更时仍走材料所属的接受入口。
+- **这里的文档写作与修订加载 pqw `clear-writing`，规则归[文档写作规则](../docs/engineering/documentation.md#文档写作规则)。**这包括产品、设计、规格、研究和 agent 正文；涉及语义变更时仍走材料所属的接受入口。
 
 ## 按当前任务展开
 
@@ -87,14 +85,13 @@ SPEC避免重复形状，不能删去必要条件、失败、生命周期或验�
 | 上游到底保证什么 | [research/](research/README.md) 的 topic 或 [basis/](design/basis/README.md) 的条目；**不在本次分析里重新推导一遍** |
 | 已有契约、映射或证据发生变化 | 执行仓库的文档治理与维护入口：定位拥有者与受影响消费者，只展开变化涉及的范围 |
 | 知识该落哪里、怎样建 topic | [design/AGENTS.md](design/AGENTS.md) 的准入四步，再读目标目录 README；**不要求每项需求创建所有目录** |
-| 已有架构、规格或计划待审稿 | [评审分工](agents/roles/README.md#按判断对象选择-reviewer)：给出对象/版本、依据与范围，意见不代替接受 |
-| 派发或接手实现 | [开发者契约](agents/roles/developer-contract.md)与[任务输入](agents/roles/developer-task.md)：只实施本次已具备输入且获准写入的范围 |
-| 几种做法都成立，要选方向 | [工程技能](../docs/engineering/skills.md#三层分工)选择三层方法；[开工框架](agents/roles/project-frame.md)规定按需阅读，[研发品味](agents/roles/engineering-taste.md)拥有[维度分解与正交](agents/roles/engineering-taste.md#维度分解与正交)这一判断方法 |
-| 编写角色、宿主或模型适配 | 加载 `design-subagents` skill：明确职责、行动、输入与停止条件 |
+| 已有架构或规格待审稿 | 派只读子代理，带 `harness-design-handbook` 本次那一种判断的评审判据页；给出对象/版本、依据与范围，意见不代替接受 |
+| 派发或接手实现 | 研发流程走 pqw；每条流程事实的拥有者见[流程事实在哪](../docs/engineering/README.md#流程事实在哪) |
+| 几种做法都成立，要选方向 | [三层分工](../docs/engineering/skills.md#三层分工)；[研发品味](agents/roles/engineering-taste.md)拥有[维度分解与正交](agents/roles/engineering-taste.md#维度分解与正交)这一判断方法 |
 | 维护 skill 源、编译或链接 | [agents 源约定](agents/README.md)与 [tooling](tooling/README.md)：**检查不等于安装** |
-| 隔离任务、协作或清理工作树 | [协作流程](../docs/engineering/workflow.md)拥有检出、共享写权与清理条件；通用方法从工程技能入口加载 |
-| 重写常驻指令或继承范围 | 加载 `write-agents-md` skill：先确认权威拥有者，再调整这里的投影 |
-| 新建或修订本工作区文档 | 加载 `asd-ste100` skill：按[写作要求](agents/skills/asd-ste100/canonical/references/documentation.md)选择模式并复核语义；写作规范不替代该材料所属的方法与接受流程 |
+| 隔离任务、协作或清理工作树 | 见[流程事实在哪](../docs/engineering/README.md#流程事实在哪) |
+| 重写常驻指令或继承范围 | 加载 pqw `write-agents-md`：先确认权威拥有者，再调整这里的投影 |
+| 新建或修订本工作区文档 | 加载 pqw `clear-writing`，规则见[文档写作规则](../docs/engineering/documentation.md#文档写作规则)；写作规范不替代该材料所属的方法与接受流程 |
 
 普通局部改动沿已有契约与相关检查完成；**出现新的责任边界、保证或失效前提才展开设计**。
 按当前问题逐层读取，信息足够就停，不把渐进披露变成通读全部 references。

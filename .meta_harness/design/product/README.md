@@ -40,9 +40,9 @@ Skill、Slash Command、MCP 的工程分解已维护在对应能力组，完整�
 
 topic 按独立产品问题、读者和变化原因组织，不要求与工程能力组一一对应。新 topic 使用[模板](.templates/topic/README.md)。产品拥有者维护需求、旅程、能力、阶段和未决；实现拥有者依据绑定版本与覆盖的证据维护状态。配置范围、生效条件、领域职责和阶段版本写明确，没有实现证据时记录未核实。
 
-起草沿 `product-design`。写前加载 `asd-ste100`、`pstack:technical-writing`、`pstack:unslop`，写后按实际正文复核。概念沿[统一语言](../ubiquitous_language/README.md)，有身份的对象沿[领域对象](../domain_objects/README.md)。已答问题落实正文并退出活动问题；原问答与评审留任务 tmp。技术细节在所属组或成员维护，产品末块保留必要影响与跳转。
+起草沿 `product-design`。写前加载 pqw `clear-writing`，规则见[文档写作规则](../../../docs/engineering/documentation.md#文档写作规则)，写后按实际正文复核。概念沿[统一语言](../ubiquitous_language/README.md)，有身份的对象沿[领域对象](../domain_objects/README.md)。已答问题落实正文并退出活动问题；原问答与评审留任务 tmp。技术细节在所属组或成员维护，产品末块保留必要影响与跳转。
 
-活动交付按[agent交付操作](../../../docs/engineering/agent-delivery.md)，正式提案从[RFC入口](../../../docs/rfcs/README.md)进入。长期规格承载当前决定版行为，不以单次任务材料替代；本区不保存过程账本或第二份技术契约。
+活动交付按[卡与交接信息包](../../../docs/engineering/delivery.md)，正式提案从[RFC入口](../../../docs/rfcs/README.md)进入。长期规格承载当前决定版行为，不以单次任务材料替代；本区不保存过程账本或第二份技术契约。
 
 ## 未决问题与待定事项
 
