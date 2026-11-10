@@ -25,7 +25,7 @@
 | Cursor 官方 pstack | 0.15.20，[cursor/plugins@1b6d44ff26d4e242f4e8f68c391e6d2f7ca16def](https://github.com/cursor/plugins/tree/1b6d44ff26d4e242f4e8f68c391e6d2f7ca16def) | Cursor 上同一范围，不覆盖 port 0.9.79 |
 | Matt skills | 1.3.1，[mattpocock/skills@b0618bc436ad893b3c5e84e55fba86586d34a404](https://github.com/mattpocock/skills/tree/b0618bc436ad893b3c5e84e55fba86586d34a404/skills) | 交付方案与实施规格的写法层；其余入口按需 |
 | ub-mode | [unclebob/ub-mode@57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f](https://github.com/unclebob/ub-mode/tree/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f) | 研发品味层 |
-| 项目方法 | [.meta_harness/agents](../../.meta_harness/agents/README.md) | 项目独有的技能、角色与模板；canonical 源与宿主生成分别维护 |
+| 项目方法 | [.meta_harness/agents](../../.meta_harness/agents/README.md) | 项目独有的技能与模板；canonical 源与宿主生成分别维护 |
 
 参与本项目迭代维护前，人或 agent 须在实际使用的 coding agent 宿主中装好外部来源，版本取上表：Codex 与 Claude Code 装 pstack port、Matt skills 与 ub-mode；Cursor 装 Cursor 官方 pstack、Matt skills 与 ub-mode。步骤与核对沿[开发初始化](../development.md#初始化-coding-agent-插件)，负责人核对沿[给人的指南](../development_human.md#开始前准备-coding-agent-环境)。一台机器装好不替代新机器、云端环境或新宿主的初始化。
 
@@ -103,53 +103,39 @@ Matt `to-spec`、`to-tickets` 与按需的 `grill-with-docs` 在固定源中声�
 
 | 精确入口 | 采用范围 |
 |---|---|
-| [Matt:to-spec](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/engineering/to-spec/SKILL.md) | 按 `claim` 推进交付卡时必用：把已讨论的内容综合成实施输入，填进 `claim` 技能的 spec 模板。不重新访谈，不自动发 issue |
-| [Matt:to-tickets](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/engineering/to-tickets/SKILL.md) | 按 `claim` 推进交付卡时必用：验收与依赖明确后切可交付切片，填进 `claim` 技能的 plan 模板。不另建正式规格权威 |
+| [Matt:to-spec](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/engineering/to-spec/SKILL.md) | 经 pqw `spec-and-plan` 加载时必用：把已讨论的内容综合成实施输入，填进 pqw 的 spec 模板与本项目的[附加节](../../.meta_harness/agents/pqw/spec-addendum.md)。不重新访谈，不自动发 issue |
+| [Matt:to-tickets](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/engineering/to-tickets/SKILL.md) | 经 pqw `spec-and-plan` 加载时必用：验收与依赖明确后切可交付切片，填进 pqw 的 plan 模板与本项目的[附加节](../../.meta_harness/agents/pqw/plan-addendum.md)。不另建正式规格权威 |
 | [Matt:writing-for-agents](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/productivity/writing-for-agents/SKILL.md) | 写子代理简报、技能与 AGENTS.md 时必用。只给指针，写明完成与停止条件 |
 | [Matt:grill-with-docs](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/engineering/grill-with-docs/SKILL.md) | 按需：需求或偏好缺口的访谈，依赖 [grilling](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/productivity/grilling/SKILL.md)、[domain-modeling](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/engineering/domain-modeling/SKILL.md) |
 | [Matt:codebase-design](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/engineering/codebase-design/SKILL.md) | 按需：模块接口与类型之外的承诺（不变量、失败、配置、性能） |
-| [Matt:code-review](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/engineering/code-review/SKILL.md) | 按需：分开判 Standards 与 Spec；项目评审仍走 `review-code`、`review-docs`、`review-delivery` |
+| [Matt:code-review](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/engineering/code-review/SKILL.md) | 按需：分开判 Standards 与 Spec；切片收口归 pqw `slice-closeout` |
 | [Matt:diagnosing-bugs](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/engineering/diagnosing-bugs/SKILL.md) | 按需：可证伪探针 |
 
 概念和理由写回项目既有拥有者，不另造 GLOSSARY 或 ADR 权威。
 
-## 派发与编排
+## 子代理的模型与档位
 
-本节写主代理派发子代理时采用的上游方法与项目差异。规则归[派发子代理的契约](workflow.md#派发子代理的契约)，做法归 `delegate` 技能。
+派不派子代理、简报怎么写、怎样升级，按 pqw `delegate-brief`。它的「模型与档位」表按工作性质定档，本项目照用，只补两件 pqw 不知道的事。
 
-采用的入口按「阅读与实际加载」加载。
+每档在各宿主上用的模型：
 
-| 入口 | 采用范围 |
-|---|---|
-| [Matt:implement-spec](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/engineering/implement-spec/SKILL.md) | 编排参考：任务图、前沿、指针式沟通、每个实现者一棵工作树。该入口设了 `disable-model-invocation`，按「阅读与实际加载」直接读钉住文件 |
-| [Matt:to-tickets](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/engineering/to-tickets/SKILL.md) | 切闭包前的工单层，只写端到端行为与阻塞边 |
-| [Matt:writing-for-agents](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/productivity/writing-for-agents/SKILL.md) | 闭包规格与简报的写法：「Context pointers」「Steps and completion criteria」 |
-| [pstack:swarm](https://github.com/michael-denyer/pstack-claude/blob/60ae9e25610744bccd45bd405c211413a471aaf8/plugins/pstack/skills/swarm/SKILL.md) | 只读扇出与汇总：「Phase A: Frame」「Phase B: Fan out」「Phase C: Aggregate」 |
-| [pstack:poteto-mode](https://github.com/michael-denyer/pstack-claude/blob/60ae9e25610744bccd45bd405c211413a471aaf8/plugins/pstack/skills/poteto-mode/SKILL.md)「Subagents」 | 新开与续用、读 diff 不转述、在途子代理按事实核对 |
-| [pstack:reflect](https://github.com/michael-denyer/pstack-claude/blob/60ae9e25610744bccd45bd405c211413a471aaf8/plugins/pstack/skills/reflect/SKILL.md) | 只用于里程碑反思里的通用教训 |
-| [delegate](../../.meta_harness/agents/skills/delegate/canonical/SKILL.md) | 派发的动作顺序、产物与门槛 |
-
-下表列出采用时的项目差异，列同「项目差异与负责边界」。
-
-| 来源 | 外部原文或默认 | 本项目的依据与处置 |
+| 档 | Claude Code | Codex |
 |---|---|---|
-| Matt `implement-spec` | 由合并子代理合回 | 派发者合回。写者分支只含自己的改动，验收者读 diff 更容易。派发者对产出负责，要自己读 diff，见[合回由派发者完成](workflow.md#合回由派发者完成) |
-| Matt `implement-spec` | 实现者把集成分支尖端合进自己的分支再交回 | 写者不合并，只在自己的分支提交，见[developer-contract](../../.meta_harness/agents/roles/developer-contract.md) |
-| Matt `implement-spec` | 实现者调用 `tdd` 技能 | 按 ub-mode 的 TDD 一节，见[ub-mode 研发品味](#ub-mode-研发品味)。不要求加载 `pstack:tdd`，它的描述限定了触发场景 |
-| Matt `implement-spec` | 最后跑 `code-review`，由单个实现者修全部问题 | 评审按 `review-*` 与[质量与证据](quality.md)的风险级别，修复轮按 quality.md |
-| Matt `to-tickets` | 请用户批准切分 | 线与 reduce 内由派发者自定，不向人提问。不在 map-reduce 里、且卡要求先看计划的会话，按 `claim` 的出口门槛停下 |
-| Matt `to-tickets` | 工单不写路径 | 工单不写路径。闭包规格写路径与推出依据，见 [D1](workflow.md#d1-写范围由调用方与消费方推出) |
-| pstack `swarm` | 派 `general-purpose` | 写、评审、验收按项目角色派。只读调查可以用 `general-purpose` 或 `Explore` |
-| pstack `swarm`、`poteto-mode` | 默认后台；`code-review` 前台 | 默认后台。下一步依赖结果、且前台没有别的工作时前台。线会话等自己派的子代理，按[线会话的工作范式](../../.meta_harness/agents/skills/line/canonical/references/work-paradigm.md)「等待：前台阻塞的工具调用」前台阻塞 |
-| pstack `poteto-mode`「Subagents」 | 默认新开；例外是新工作严格依赖原子代理的状态 | 同一闭包的追加与原范围内补做可以续用原写者。只读评审同一轮的追问可以续用原评审者。新一轮修复、换人、升级一律新开，见 `delegate` 步骤 7 与 [D7](workflow.md#d7-追加要求留痕并计入验收) |
-| pstack `swarm`、`poteto-mode` | 「Models」节自带分档 | 按角色源与 `dispatch-policy.json`，见 [D6](workflow.md#d6-按策略选模型按起点档位升级)。三档边界与流水读数的判法见 [角色源 README](../../.meta_harness/agents/roles/README.md#模型配置与本次派发) |
-| pstack `reflect` | 输入是当前会话记录，应用前逐条问用户 | 波段反思不用它。里程碑反思的通用教训部分可以用：输入换成派发流水与验收报告的摘要，改动路由到项目的维护入口，应用由负责人接受 |
+| 便宜档 | Claude Haiku 5.5 | 未提供 |
+| 经济档 | Claude Sonnet 5.5 | GPT-6.1 Sol |
+| 默认档 | Claude Opus 5.5 | GPT-6.1 Sol |
+| 顶档 | Claude Fable 5.1 | GPT-6 Astra |
+
+Cursor 未提供，按上表的档在宿主可选的模型里取同档，在简报里写明取了哪个。
+
+- 顶档的推理档位最高用 high，不用 xhigh 或 max。
+- 只读的评审与核对：Claude Code 上派自带的只读子代理类型；另外两个宿主在简报里写明不改文件，交回后用 `git status` 核对。
 
 ## ub-mode 研发品味
 
-研发品味以 [ub-mode](https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md) 为基础；项目独有的补充见[研发品味](../../.meta_harness/agents/roles/engineering-taste.md)。ub-mode 是写或改代码时的判断基础，一份正文覆盖三段：先做对、再做好、日常实践。Reduce 在应然与实然之间取舍实现做法时，也可以用它思考和设计，见[负责人状态的提问前三问](map-reduce-states.md#提问前三问)。
+研发品味以 [ub-mode](https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md) 为基础；项目独有的补充见[研发品味](../../.meta_harness/agents/roles/engineering-taste.md)。ub-mode 是写或改代码时的判断基础，一份正文覆盖三段：先做对、再做好、日常实践。
 
-- **何时加载：** 写或改代码、写 spec 的「原则与约束」、做评审「设计与实践」一面时；Reduce 核对提问前三问第 3 问、上层正文要求的内容在当前里程碑内不能全部实现时。每次读完整一份，约 4 KB。
+- **何时加载：** 写或改代码、写 spec 的「原则与约束」、做收口「设计与实践」一面时。每次读完整一份，约 4 KB。
 - **取代原则清单：** poteto-mode 的 Principles 一节（二十个 `pstack:principle-*` 子技能）由 ub-mode 取代。不要求逐个加载这些子技能，也不要求在回复里逐条点名所读原则；某条 ub-mode 写得太短、确实需要展开时，再读对应的 `pstack:principle-*`。poteto-mode 的 playbook、子代理与回复写法照常使用。
 - **TDD：** 默认来源是 ub-mode 的 TDD 一节，需要展开时读 `pstack:tdd`。先设计必要的测试与验证；全部实现者写新测试时先确认它变红，再实现。
 
@@ -160,9 +146,9 @@ ub-mode 与本项目的差异列在下一节的差异表中，来源列为 ub-mo
 | 来源 | 外部原文或默认 | 本项目的依据与处置 |
 |---|---|---|
 | ub-mode | TDD：先写会失败的测试 | 先设计必要的测试与验证（判据、反例、变红验证）；写新测试时先确认它变红，再实现（全部实现者），与[整洁回路](../clean-loop.md)互补 |
-| ub-mode | Crapper：每个函数 CRAP 小于 10 | 用 `pnpm run metrics --coverage` 量圈复杂度、覆盖率与 CRAP，基线按 [`review-code`](../../.meta_harness/agents/skills/review-code/canonical/SKILL.md)「度量与差分变异的基线」判定；阈值与带归[整洁回路](../clean-loop.md)，不另定 10。度量的节奏见 [card-loop](../../.meta_harness/agents/skills/claim/canonical/references/card-loop.md#切片的七步) |
+| ub-mode | Crapper：每个函数 CRAP 小于 10 | 用 pqw `slice-closeout` 的结构读数量圈复杂度、覆盖率与 CRAP，命令与带位线见根 [AGENTS.md](../../AGENTS.md#pqw-skills-接入)；阈值与带归[整洁回路](../clean-loop.md)，不另定 10。读数的节奏归 `slice-closeout`：切片只打关键位置，一程全量一次 |
 | ub-mode | Dryer：消除相似度 0.8 以上的重复 | 用 `pnpm run loop:status` 的重复行读数；阈值归整洁回路 |
-| ub-mode | Mutator：覆盖未覆盖、杀死存活、删除死代码 | 用 `pnpm run mutation`（差分变异，只量 `packages/`、`apps/`），基线与 `--since` 收窄按 [`review-code`](../../.meta_harness/agents/skills/review-code/canonical/SKILL.md)「度量与差分变异的基线」判定；等价变异写理由。变异的节奏见 card-loop |
+| ub-mode | Mutator：覆盖未覆盖、杀死存活、删除死代码 | 用 pqw `slice-closeout` 的差分变异，命令见根 [AGENTS.md](../../AGENTS.md#pqw-skills-接入)；等价变异写理由。节奏同上 |
 | ub-mode | 术语表一条 | 术语归统一语言（`.meta_harness/design/ubiquitous_language/`），不另建词表 |
 | ub-mode | Keep a Log 并在完成时报告 | 过程记录留任务 tmp，交付时写交接报告；长任务可用 `pstack:show-me-your-work` |
 | ub-mode | Commit and Push：最后推到主线 | 提交格式与来源 trailer 归 [CONTRIBUTING](../../CONTRIBUTING.md)；主干只经 PR 与 github-gate 进入，见[多层分支集成](integration.md) |
@@ -172,12 +158,12 @@ ub-mode 与本项目的差异列在下一节的差异表中，来源列为 ub-mo
 | pstack | playbook 的提交、PR、外部消息或 Shipping | 按[交付权限](publication.md#提交表达与权限)，技能不授予外部操作权限 |
 | pstack | 决策日志、调度状态与过程记录 | 按[成果保存](publication.md#成果保存与跨会话接续)和[终态规则](../development.md#终态与过程材料)：真实成果用 Git 远端保存，临时记录不整体入库 |
 | pstack、Matt | 直接写宿主 skills | canonical 源维护后生成，见 [agent 能力源](../../.meta_harness/agents/README.md) |
-| pstack | 写作方法删除 hedging 与未知 | 按 [asd-ste100](../../.meta_harness/agents/skills/asd-ste100/canonical/SKILL.md) 保留事实、条件与置信度 |
+| pstack | 写作方法删除 hedging 与未知 | 按 pqw `clear-writing` 与[文档写作规则](documentation.md#文档写作规则)保留事实、条件与置信度 |
 | Matt | to-spec 的测试 seam 确认、自动发 issue | 已明确的输入不重复审批；发布须有任务授权 |
 | Matt | code-review 默认只看已提交 diff | 先明确实际源与覆盖，不为适配方法擅自提交 |
 | pstack | 专用流程固定 swarm、多条 lane 或新增阻断 | 按[质量风险选择](quality.md#按成果和风险验证)，依风险选择，不新增全任务固定门禁 |
 | Matt | to-tickets 默认 expand–contract | 首版前沿[演进政策](publication.md#当前演进与消费者)，同波迁移消费者并删除替代实现 |
-| Matt | spec、票据与正式契约 | Matt 方法组织单次实施输入；正式形状、行为契约、Schema 身份与验收归实际拥有者，切卡按[工作类型](work-types.md)与[交付操作](agent-delivery.md) |
+| Matt | spec、票据与正式契约 | Matt 方法组织单次实施输入；正式形状、行为契约、Schema 身份与验收归实际拥有者，切卡按[工作类型](work-types.md)与[卡与交接信息包](delivery.md#卡就是交接信息包) |
 | pstack | TypeScript 与 Node | 方法用 `pstack:typescript-best-practices` 及其 type-system-discipline 依赖；配置归根 `tsconfig.base.json`、成员 `tsconfig.json` 与 workspace catalog，异步义务归[防御指导](../defensive-patterns.md) |
 
 冲突先定位要求的范围、拥有者与接受依据，不用「外部方法优先」处理。
@@ -208,32 +194,18 @@ ub-mode 与本项目的差异列在下一节的差异表中，来源列为 ub-mo
 
 ## 项目技能
 
-项目自有技能的 canonical 源在 [.meta_harness/agents/skills](../../.meta_harness/agents/README.md)。技能只给动作顺序，规则归下表的拥有者，技能不授予外部动作。
+项目自有技能只装本项目独有、别处拿不到的知识：产品与领域知识、本项目的操作、产品界面上的专门判据。通用的研发方法归 pqw，通用的写作与工程常识取外部的单一来源。canonical 源在 [.meta_harness/agents/skills](../../.meta_harness/agents/README.md)；技能只给动作顺序与判据，规则归下表的拥有者，技能不授予外部动作。
 
 | 技能 | 何时加载 | 规则拥有者 |
 |---|---|---|
-| [line](../../.meta_harness/agents/skills/line/canonical/SKILL.md) | 常驻线会话开工、交回、等待、终态与恢复 | [集成节点的清单](integration.md#集成节点的清单)、[Line 状态空间](map-reduce-states.md#4-line-状态空间) |
-| [claim](../../.meta_harness/agents/skills/claim/canonical/SKILL.md) | 认领并推进一张交付卡，从卡级准备到交回 | [agent交付操作](agent-delivery.md)、[交付协议](delivery.md)、[多层分支集成](integration.md)、[质量与证据](quality.md) |
-| [dispatch](../../.meta_harness/agents/skills/dispatch/canonical/SKILL.md) | reduce 会话建卡、派发、首次消息与收口放行 | [Reduce 状态空间](map-reduce-states.md#3-reduce-状态空间)、[集成节点的清单](integration.md#集成节点的清单)、[agent交付操作](agent-delivery.md) |
-| [integrate](../../.meta_harness/agents/skills/integrate/canonical/SKILL.md) | reduce 会话监督等待、集成批次与整波验证 | [Reduce 状态空间](map-reduce-states.md#3-reduce-状态空间)、[集成节点的清单](integration.md#集成节点的清单) |
-| [review-code](../../.meta_harness/agents/skills/review-code/canonical/SKILL.md) | PR 候选含代码变更时 | [质量与证据](quality.md)、[整洁回路](../clean-loop.md)、ub-mode |
-| [review-docs](../../.meta_harness/agents/skills/review-docs/canonical/SKILL.md) | PR 候选含正式文档变更时 | [文档治理](documentation.md) |
-| [review-delivery](../../.meta_harness/agents/skills/review-delivery/canonical/SKILL.md) | 开出 PR 后核对交付边界与验收 | 任务卡现行正文、[agent交付操作](agent-delivery.md#5-提交成果供接受) |
-| [asd-ste100](../../.meta_harness/agents/skills/asd-ste100/canonical/SKILL.md) | 新建或修订文档时 | [asd-ste100 写作要求](../../.meta_harness/agents/skills/asd-ste100/canonical/references/documentation.md) |
-| [branch-integration](../../.meta_harness/agents/skills/branch-integration/canonical/SKILL.md) | 工作分支同步、FI/RI、checkpoint、主干准入或流程失效恢复 | [多层分支集成](integration.md)与实际 CLI |
-| [delegate](../../.meta_harness/agents/skills/delegate/canonical/SKILL.md) | 任何会话派发写者、评审者或验收者子代理时 | [派发子代理的契约](workflow.md#派发子代理的契约)、[质量与证据](quality.md)、本页[派发与编排](#派发与编排) |
+| [product-design](../../.meta_harness/agents/skills/product-design/canonical/SKILL.md) | 起草或修订产品设计正文 | [产品入口](../../.meta_harness/design/product/README.md) |
+| [ubiquitous-language](../../.meta_harness/agents/skills/ubiquitous-language/canonical/SKILL.md) | 在统一语言里落字 | `.meta_harness/design/ubiquitous_language/` |
+| [domain-objects](../../.meta_harness/agents/skills/domain-objects/canonical/SKILL.md) | 在领域对象清单里落字或处置对账器报错 | `.meta_harness/design/domain_objects/` |
+| [multi-command-tool-design](../../.meta_harness/agents/skills/multi-command-tool-design/canonical/SKILL.md) | 设计、实现或评审多命令工具 | 各工具成员的规格 |
 | [harness-design-handbook](../../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md) | 出现新的能力或责任边界时，核对能力覆盖、性质保护责任和 Cordis 承载 | 风险与升级归[质量与证据](quality.md)，组合证明门槛归[验证说明](../verification.md) |
+| [terminal-interface](../../.meta_harness/agents/skills/terminal-interface/canonical/SKILL.md) | 做终端界面的实施、验收或异常取证 | 各终端成员的规格 |
+| [omne-card](../../.meta_harness/agents/skills/omne-card/canonical/SKILL.md) | 发卡、开工、进轨道、提升与发行、接受 | [卡与交接信息包](delivery.md)、[多层分支集成](integration.md)、[质量与证据](quality.md) |
+
+研发流程的环节技能来自 pqw，经子模块投影进三个宿主，见[来源与项目采用](#来源与项目采用)；入口是 `single-session-dev-flow`，各环节加载哪个技能由它指出。写文档加载 pqw `clear-writing`，写 AGENTS.md 加载 pqw `write-agents-md`，写技能加载官方 `skill-creator`。
 
 普通工程、文档归属与交付由三层方法和现有工程拥有者承担，不加载 harness-design-handbook。
-
-两个页面模板随技能提供，数据格式与命令归各自的参考页，生成的 HTML 不进仓库：
-
-- Reduce 总控页：`integrate` 技能的 [总控页](../../.meta_harness/agents/skills/integrate/canonical/references/cockpit.md)，读 `reduce.json`，回答「谁在等 Reduce、下一步做什么」。
-- 线进度呈现页：`line` 技能的[两页分工](../../.meta_harness/agents/skills/line/canonical/references/wave-progress.md#两页分工在跑用-buildpy交回用-viewpy)，`view.py` 读同一份 `progress.json` 给交回与复盘留一份静态页；在跑时仍用 `build.py`。
-
-加载顺序按会话类型区分：
-
-- 线会话：见 `line` 技能 `references/work-paradigm.md` 的「会话级」第 2 步。
-- reduce 会话：PREPARE、DISPATCH 与 RELEASE_WAVE 用 `dispatch`，SERVE 与 VERIFY_WAVE 用 `integrate`。
-- 单独派发的卡：加载 `claim`。进轨道时由调度者加载 `branch-integration`。
-- 任何会话派发子代理时：加载 `delegate`。

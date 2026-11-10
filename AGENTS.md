@@ -34,21 +34,21 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 差分变异的范围与点名文件 | 先构建成员的上游：`pnpm exec turbo run build --filter '<包名>^...'`；再按改动成员各调一次 `node <pqw>/skills/slice-closeout/scripts/mutation.mjs --base <起点> --project <成员目录> --stryker-modules tools/test-runner/node_modules --build-command "pnpm run build"` |
 | 项目合入检查已按整程改动跑结构读数与差分变异时的命令 | 无 |
 | 文档检查命令 | `pnpm run check:docs`；`pnpm run check:design`；`pnpm run check:agents` |
-| 文档写作规则 | [文档治理](docs/engineering/documentation.md)；写作加载 `asd-ste100` |
+| 文档写作规则 | [文档写作规则](docs/engineering/documentation.md#文档写作规则)；写作加载 pqw `clear-writing` |
 | 三层正式文档的位置 | 产品 `.meta_harness/design/product`；项目顶层 `docs/`；包组与成员各包 `docs/`、`SPEC.md` |
 | 统一语言与领域对象的位置 | `.meta_harness/design/ubiquitous_language`；`.meta_harness/design/domain_objects` |
 | 形式化工具链与声明边界 | TLC，见[开发指南](docs/development.md)「形式工具链」；声明边界见[验证说明](docs/verification.md) |
 | spec 与 plan 的项目模板 | pqw 自带模板，加 [spec 附加节](.meta_harness/agents/pqw/spec-addendum.md)与 [plan 附加节](.meta_harness/agents/pqw/plan-addendum.md) |
 | 项目专有的清理项 | 本卡的工作树 `.worktrees/<卡>`；`tmp/<卡>/`；成员外写出的 lcov 目录；Stryker 容器 `.stryker-tmp*` |
 | 验收处 | 卡评论：判据要求的证据贴摘要与关键行，原件位置与哈希写在评论里 |
-| 子代理的模型与档位政策 | [角色说明](.meta_harness/agents/roles/README.md)「模型配置与本次派发」与同目录 `dispatch-policy.json` |
+| 子代理的模型与档位政策 | [子代理的模型与档位](docs/engineering/skills.md#子代理的模型与档位) |
 | 交接信息包放哪 | 卡正文；写范围检查与绑定退役之前，卡正文仍用旧模板，包贴成卡上一条「交接信息包」评论（见 `omne-card`） |
 
 ## 研发品味
 
 从本域职责与不变量出发，只建模履约必需的外域概念，保留原拥有者的治理权。架构、领域建模、契约或开发涉及跨域概念和依赖变更时，读取[领域语义依赖与模型边界](docs/architecture/layers-and-dependencies.md#领域语义依赖与模型边界)，按需明确消费契约、投影、引用和外部集成的归属；局部实现沿已有边界执行。
 
-几种做法都成立时，先保护不变量，复用成熟机制，把复杂度花在真实契约差异。领域、公开能力和装配责任分别可见；状态、所有权、失败、生命周期及外部副作用有明确拥有者。专责角色开工时按[项目框架](.meta_harness/agents/roles/project-frame.md)理解任务，再按需阅读本文件和 docs 拥有者，不把目标与架构正文复制进角色提示。项目独有判断继续归[研发品味](.meta_harness/agents/roles/engineering-taste.md)，工程方法按[技能入口](docs/engineering/skills.md)选择。做架构、技术设计、规格或评审时，先按[维度分解与正交](.meta_harness/agents/roles/engineering-taste.md#维度分解与正交)命名问题所在的轴与拥有者，再找现有正文。
+几种做法都成立时，先保护不变量，复用成熟机制，把复杂度花在真实契约差异。领域、公开能力和装配责任分别可见；状态、所有权、失败、生命周期及外部副作用有明确拥有者。项目独有判断继续归[研发品味](.meta_harness/agents/roles/engineering-taste.md)，工程方法按[技能入口](docs/engineering/skills.md)选择。做架构、技术设计、规格或评审时，先按[维度分解与正交](.meta_harness/agents/roles/engineering-taste.md#维度分解与正交)命名问题所在的轴与拥有者，再找现有正文。
 
 错误不能静默变成成功，外部输出不能因 disposer 而声称可逆。实现风险按需读[防御指导](docs/defensive-patterns.md)，验证按[质量与风险](docs/engineering/quality.md#按成果和风险验证)选择，适用独立接受及[现有硬线](docs/clean-loop.md#回路怎么转)保持。传感器反馈事实，负责人判断处置；结构通过不替代语义或行为接受。
 
@@ -69,8 +69,8 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 开工前建立系统图景、理解知识体系或普通阅读 | 架构、领域、契约、装配与实现切片先读一次[开工定向](docs/orientation.md)；整体理解读[体系上下文](docs/knowledge-map-agent.md)；其余从[读者入口](docs/README.md)找实际应用或包。找到本次责任就停 |
 | 新要求、系统边界或跨成员保证 | 加载 `harness-design-handbook`，从[项目要求](docs/requirements.md)、[架构](docs/architecture/README.md)、[领域](docs/domains/README.md)定位拥有者，只展开本次必要输入 |
 | 产品、概念或对象治理 | 起草产品加载 `product-design`，改词条加载 `ubiquitous-language`，改对象条目加载 `domain-objects`；只消费已有正文不加载 |
-| 文档、AGENTS、技能或角色维护 | 文档加载 `asd-ste100`，AGENTS 加载 `write-agents-md`，技能加载官方 `skill-creator`，角色加载 `design-subagents`；按[维护指南](docs/maintenance.md)同步真实消费者 |
-| 研发流程、发卡、合入与发行 | 环节做法读 pqw 技能；发卡与合入加载 `omne-card`；每条流程事实的拥有者见[工程入口](docs/engineering/README.md)；局部修复与环境从[开发指南](docs/development.md)起 |
+| 文档、AGENTS 或技能维护 | 文档加载 pqw `clear-writing`，AGENTS 加载 pqw `write-agents-md`，技能加载官方 `skill-creator`；按[维护指南](docs/maintenance.md)同步真实消费者 |
+| 研发流程、发卡、合入与发行 | 环节做法读 pqw 技能；发卡与合入加载 `omne-card`；每条流程事实的拥有者见[流程事实在哪](docs/engineering/README.md#流程事实在哪)；局部修复与环境从[开发指南](docs/development.md)起 |
 | Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本；未覆盖行为保留假设并以源码或验证补足 |
 
 ## Cursor Cloud specific instructions
