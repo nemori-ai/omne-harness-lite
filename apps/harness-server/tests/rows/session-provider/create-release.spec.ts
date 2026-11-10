@@ -78,7 +78,7 @@ import { TENANT_A } from '../storage/fixtures/tree.ts'
 
 type CreateCommand = Extract<SessionCommand, { kind: 'create' }>
 type Distribution = Readonly<{ rows: readonly Readonly<{ id: string; config: unknown }>[] }>
-const residentNames = ['Files', 'Shell', 'Tools', 'TodoItems']
+const residentNames = ['Files', 'Shell', 'Tools', 'TodoItems', 'Web']
 const releaseDistribution = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
 ) as Distribution

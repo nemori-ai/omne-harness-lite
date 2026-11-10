@@ -80,6 +80,10 @@ const bodies = {
   'bind-model-credential': { secret: 'model-secret' },
   'unbind-model-credential': {},
   'describe-model-credential': {},
+  'list-settings': { asset: { category: 'tool', name: 'Web' } },
+  'set-setting': { asset: { category: 'tool', name: 'Web' }, item: 'exa.apiKey', secret: 'k' },
+  'describe-setting': { asset: { name: 'Web' }, item: 'exa.apiKey' },
+  'clear-setting': { asset: { name: 'Web' }, item: 'exa.apiKey' },
 } satisfies Record<GovernanceProvidedOperation, object>
 const anonymous = ['public-health', 'register-and-activate', 'issue-login']
 const loginOnly = [
@@ -127,6 +131,7 @@ it.each(Object.entries(bodies))(
         'protocol-rejected',
       )
       if (key === 'duration' || key === 'includeRemoved') continue
+      if (operation === 'list-settings' && key === 'asset') continue
       const missing: Record<string, unknown> = { ...body }
       delete missing[key]
       expect(readGovernanceRequest({ bytes: encode(wire(operation, missing)), limits }).kind).toBe(

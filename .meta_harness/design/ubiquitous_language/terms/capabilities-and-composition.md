@@ -57,7 +57,7 @@
 > **EN**: A configurable aspect of how a capability works, declared by its owner. A setting can be used independently or composed into an asset definition. Its declaration defines meaning and valid values. Assignments follow the management authority, sources and lifetime of their target; evaluation does not authorize an action.
 
 - **形态**：属性
-- **出处**：[资产与规则：设置独立使用与资产组合](../../product/assets-and-rules/design.md#settings-composition)（rev 5）
+- **出处**：[资产与规则：设置独立使用与资产组合](../../product/assets-and-rules/design.md#settings-composition)（rev 6）
 - **注意 ①**：资产设置的配值依附合法持有；独立设置不要求创建资产或持有。两者复用设置契约，不复用未经采用的资格或来源链。
 - **注意 ②**：资产声明哪些部分可配置。未声明部分仍按资产编辑与发布规则维护；配值不改写已发布定义。
 - **注意 ③**：属性锁、持有替换锁和定义的不可替换声明分别处理；不得因同名而合并。
@@ -88,7 +88,7 @@
 > holds, what happens at the moment a person should be asked) **— if so, governance**.
 
 - **形态**：属性
-- **出处**：[资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 5）；[PF-002 §5.2 设置项分四类](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
+- **出处**：[资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 6）；[PF-002 §5.2 设置项分四类](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
 - **别混**：与[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)里的「类别」不是一回事——
   那是**资产**的八类之一，这是**设置项**的四类之一；正文里裸写「类别」指前者
 - **注意**：工作区**自己带来的**资产，其落点类声明随资产一起来——这条限定挡的是**改别人资产的落点**。独立设置按其目标策略确定来源，不自动继承资产层序。
@@ -603,7 +603,7 @@
 > necessarily resident, and can be neither disabled nor replaced.**
 
 - **形态**：对象
-- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 4） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 4）
+- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 5） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 5）
 - **⚠️ 注意 ①**：**「不可禁用」说的是那扇门，不是门后的每一条命令。**
   [权限照常作用在命令这一级](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)——
   **一条命令可以被关掉，而那扇门关不掉**。
@@ -640,7 +640,7 @@
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 4）
+- **出处**：[PF-006 §4 槽位](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 5）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 

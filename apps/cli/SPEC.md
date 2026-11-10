@@ -17,7 +17,7 @@ PanQiWei 于 2026-10-14 接受本页对 #246 revision 1 的行为。依据是他
 - 「[安装闭包](#安装闭包)」中命令面实现后的一段。
 - 「[适用平台](#适用平台)」中登录状态文件的一句。
 
-「[治理命令](#治理命令)」、登录状态文件的 `loginId` 键、`switch-current-tenant` 与 `revoke-login` 对登录状态文件的改写和删除，以及帮助文本里的 18 个治理命令，属于 M2 身份租户收口（波 2）的候选，依据是 R2-D203 至 R2-D206 与规格 4.7 节 G 组。`read-history` 命令是波 3 的候选，依据是 R2-D279：端到端用例发现 CLI 没有读历史的入口。`read-session-diagnostics` 命令按 RFC-0013 revision 2 的本地范围采用，依据是 [RFC-0013 的 A 线](../../docs/rfcs/RFC-0013-engineering-telemetry.md#a-线会话日志诊断投影)。命令名按该提案的 DA5 采用。
+「[治理命令](#治理命令)」、登录状态文件的 `loginId` 键、`switch-current-tenant` 与 `revoke-login` 对登录状态文件的改写和删除，以及帮助文本里的 18 个治理命令，属于 M2 身份租户收口（波 2）的候选，依据是 R2-D203 至 R2-D206 与规格 4.7 节 G 组。`read-history` 命令是波 3 的候选，依据是 R2-D279：端到端用例发现 CLI 没有读历史的入口。`read-session-diagnostics` 命令按 RFC-0013 revision 2 的本地范围采用，依据是 [RFC-0013 的 A 线](../../docs/rfcs/RFC-0013-engineering-telemetry.md#a-线会话日志诊断投影)。命令名按该提案的 DA5 采用。「[设置命令](#设置命令)」与帮助文本里的 `setting` 是 Web 元工具一程切片 03 的候选，承接公开契约新增的四个设置操作。
 
 本页其余条款保持上面的接受状态。批复后，需要的话本页再改采用状态。候选依据是包组织页「最小 CLI 的接入边界」：CLI 通过 SDK 使用系统能力，不导入 server-entry。本卡验证环境接受本机 Node v26.0.0。`package.json` 的 engines 是 `>=24`。Node 24 没有另跑。
 
@@ -34,7 +34,7 @@ PanQiWei 于 2026-10-14 接受本页对 #246 revision 1 的行为。依据是他
 
 候选的命令面由下面的责任组成。
 
-- 八个会话与账号命令、18 个治理命令和模型凭据命令 `credential`，见[命令](#命令)。
+- 八个会话与账号命令、18 个治理命令、模型凭据命令 `credential` 和设置命令 `setting`，见[命令](#命令)。
 - 凭据读取与登录状态文件，见[凭据与登录状态](#凭据与登录状态)。
 - 命令结果的输出与退出码，见[命令结果与退出码](#命令结果与退出码)。
 
@@ -90,7 +90,7 @@ The default state directory is $HOME/.omne.
 --help and --version do not open or create a state directory.
 ```
 
-登记[命令](#命令)的 26 个命令与[读诊断投影](#读诊断投影)的 `read-session-diagnostics` 之后（八个会话与账号命令，后接 18 个治理命令，最后是 `credential`，共 27 个），生成结果是下面的原文。第三行改为 `Show help or version, or run a command.`，`This build has no other commands.` 不再出现。目录另登记 `--server` 与 `OMNE_SERVER` 两个选项。帮助文本只列每个命令的必需选项，可选选项见[命令](#命令)的命令表。每个选项在帮助里的取值名按取值的内容定：标识写 `<id>`，租户文本写 `<tenant>`，角色写 `<role>`，其余写 `<name>`。最后一行之后有一个换行：
+登记[命令](#命令)的 26 个命令与[读诊断投影](#读诊断投影)的 `read-session-diagnostics` 之后（八个会话与账号命令，后接 18 个治理命令，最后是 `credential` 与 `setting`，共 28 个），生成结果是下面的原文。第三行改为 `Show help or version, or run a command.`，`This build has no other commands.` 不再出现。目录另登记 `--server` 与 `OMNE_SERVER` 两个选项。帮助文本只列每个命令的必需选项，可选选项见[命令](#命令)的命令表。每个选项在帮助里的取值名按取值的内容定：标识写 `<id>`，租户文本写 `<tenant>`，角色写 `<role>`，其余写 `<name>`。最后一行之后有一个换行：
 
 ```text
 omne
@@ -129,6 +129,7 @@ Commands
   omne revoke-login                                                                                               Revoke a login. Without --target-login, log out of this one.
   omne query-own-valid-logins                                                                                     List the valid logins of this account.
   omne credential set|show|unset                                                                                  Set, show or unset the model credential of the acting tenant.
+  omne setting list|set|show|unset                                                                                List the settings of the acting tenant, or set, show or unset a secret one.
 
   --home <directory>    State directory. Overrides OMNE_HOME.
   OMNE_HOME             State directory when --home is absent.
@@ -305,6 +306,25 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
   - 其他 `outcome` 只写 `Result: <outcome>`。没有可信答复时写 `Result: uncertain`，标准错误另写 `omne credential show: result uncertain`。
 - 退出码按[命令结果与退出码](#命令结果与退出码)的映射，摘要输出也一样。`unset` 在没有绑定时答 `no-change`，退出 `0`。
 
+### 设置命令
+
+`setting` 管理行事租户自己的设置项。它有四个子命令，各对应公开契约的一个治理操作，见公开契约的[设置项](../../packages/access/public-contract/SPEC.md#设置项)。
+
+| 子命令                            | 操作               | 选项       | 输出                                              |
+| --------------------------------- | ------------------ | ---------- | ------------------------------------------------- |
+| `setting list [<asset>]`          | `list-settings`    | `--server` | 结果对象，见[命令结果与退出码](#命令结果与退出码) |
+| `setting set <asset> <item>`      | `set-setting`      | `--server` | 结果对象                                          |
+| `setting show <asset> <item>`     | `describe-setting` | `--server` | 结果对象                                          |
+| `setting unset <asset> <item>`    | `clear-setting`    | `--server` | 结果对象                                          |
+
+- `<asset>` 写成 `[<category>:]<name>`。第一个冒号之前是 `category`，之后是 `name`。没有冒号时，请求的 `asset` 只有 `name`，不带 `category`。冒号前或冒号后为空，是用法错误。`<item>` 是该资产声明的项标识。
+- 四个子命令都需要一份登录。证明取登录状态文件里的 `loginProof`，`actingTenant` 取同一文件里的 `tenantId`。命令不接受别的租户。
+- 子命令缺失或不是这四个之一，是用法错误，消息用 `setting` 作命令名。缺少 `<asset>` 或 `<item>` 时，消息是 `omne setting <子命令>: missing <asset>` 或 `missing <item>`。多余的位置参数、未知选项和不合法的 `<asset>` 是无法识别的参数，消息用 `setting set` 这样的两词命令名。退出码都是 `2`，不发送请求。选项可以出现在子命令之后的任意位置。
+- `set` 不接受命令行上的秘密。命令先读登录状态，再按[凭据读取](#凭据读取)的规则读秘密：TTY 上不回显，管道上读到第一个换行。没有登录时命令退出 `1`，不读秘密。秘密为空串时命令退出 `2`，消息为 `omne: empty secret\n`，不发送请求。
+- 秘密只进入 `set-setting` 的请求。命令不把它写进标准输出、标准错误、状态目录或错误文本。`set` 的结果对象只带请求编号、租户与 `configuredAt`。
+- `show` 的结果对象带有无与配置时刻。`list` 的结果对象带全部条目，普通设置项的 `state` 是 `not-writable`。
+- 退出码按[命令结果与退出码](#命令结果与退出码)的映射。`unset` 在没有配置时答 `no-change`，退出 `0`。`not-writable` 退出 `3`。
+
 ### 服务地址
 
 服务地址按下面的次序取值。
@@ -400,6 +420,7 @@ CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令�
 | `cancel-run`、`stop-call`                  | `messageId`、`controlId`、`tenant`                                                    |
 | 有行事租户的治理命令                       | `messageId`、`tenant`（取 `actingTenant`）。`create-organization` 另有 `createCallId` |
 | 无行事租户的治理命令                       | `messageId`。`revoke-login` 另有 `targetLoginId`                                      |
+| `credential`、`setting` 的子命令           | `messageId`、`tenant`（取 `actingTenant`）                                            |
 
 `result` 的含义如下。`response` 表示收到可信答复。`uncertain` 表示调用者没有可信答复，结果不确定。请求字节可能已经发出，也可能两次都没有发出，例如服务没有启动。SDK 只给出 `uncertain`，所以 CLI 不区分这两种情况。`uncertain` 不是成功，也不是没有发生。`request` 让用户可以用原标识重试同一意图。`messageId` 不必沿用。
 
@@ -414,7 +435,7 @@ CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令�
 | `0`    | `result` 为 `response`，`outcome` 是 `succeeded` 或 `no-change`                                                                                                                                                                                                              |
 | `1`    | 本地失败：身份文件无效、状态目录、登录状态文件或会话归属记录的错误、凭据读取失败、标准输出写入失败。`login` 签发成功后写不下登录状态文件、`create-session` 成功后写不下会话归属记录也是 `1`，它优先于 `0`                                                                    |
 | `2`    | 用法错误，包括服务地址不合法                                                                                                                                                                                                                                                 |
-| `3`    | `result` 为 `response`，`outcome` 是其余的非成功结果：`denied`、`not-visible`、`uniform-auth-failure`、`not-loginable`、`protocol-rejected`、`stage-not-provided`、`invalid`、`archived`、`frozen`、`conflict`、`not-found`、`not-committed`、`unsupported`、`need-decision` |
+| `3`    | `result` 为 `response`，`outcome` 是其余的非成功结果：`denied`、`not-visible`、`uniform-auth-failure`、`not-loginable`、`protocol-rejected`、`stage-not-provided`、`invalid`、`archived`、`frozen`、`conflict`、`not-found`、`not-committed`、`unsupported`、`not-writable`、`need-decision` |
 | `4`    | `result` 为 `response`，`outcome` 是 `basis-unavailable`。稍后可再试                                                                                                                                                                                                         |
 | `5`    | `result` 为 `uncertain`，或 `outcome` 是 `unknown`。结果不确定                                                                                                                                                                                                               |
 

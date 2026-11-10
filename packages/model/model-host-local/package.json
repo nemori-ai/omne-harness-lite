@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Single-machine host provider of Model: file-backed credential custody with its Cordis plugin, and the local send path over the pi transport",
+  "description": "Single-machine host provider of Model: the credential custody over the settings-local secret vault with its Cordis plugin, and the local send path over the pi transport",
   "engines": {
     "node": ">=24"
   },
@@ -17,11 +17,6 @@
       "source": "./src/cordis.ts",
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
-    },
-    "./vault": {
-      "source": "./src/vault.ts",
-      "types": "./dist/vault.d.ts",
-      "import": "./dist/vault.js"
     }
   },
   "files": [
@@ -43,18 +38,20 @@
     "@omne-harness/model-cordis-contract": "workspace:*",
     "@omne-harness/pi-ai-openai": "workspace:*",
     "@omne-harness/pi-ai-transport": "workspace:*",
-    "@omne-harness/utc-instant": "workspace:*",
-    "proper-lockfile": "^4.1.2"
+    "@omne-harness/settings": "workspace:*",
+    "@omne-harness/settings-local": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness/call-account": "workspace:*",
     "@omne-harness/model-storage-sql": "workspace:*",
     "@omne-harness/pi-ai-anthropic": "workspace:*",
     "@types/node": "catalog:",
-    "@types/proper-lockfile": "^4.1.4",
     "typescript": "catalog:",
     "vitest": "catalog:",
-    "@omne-harness/tokenizer-tiktoken": "workspace:*"
+    "@omne-harness/tokenizer-tiktoken": "workspace:*",
+    "proper-lockfile": "^4.1.2",
+    "@types/proper-lockfile": "^4.1.4"
   },
   "omneHarness": {
     "packageTemplate": {

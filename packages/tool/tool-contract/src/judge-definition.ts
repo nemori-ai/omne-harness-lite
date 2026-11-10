@@ -3,7 +3,11 @@ import { capabilityId } from '@omne-harness/assets'
 import type { JsonValue } from '@omne-harness/json-text'
 import { judgeModalities, type Modality } from '@omne-harness/modality'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
-import type { ToolDeclarations, ToolSettingsDeclaration } from './authoring.ts'
+import type {
+  ToolDeclarations,
+  ToolSettingPresentation,
+  ToolSettingsDeclaration,
+} from './authoring.ts'
 import type { ToolImplementationDeclaration } from './authoring.ts'
 import type {
   ParameterContract,
@@ -111,6 +115,22 @@ function undeclaredDefault(
   return undefined
 }
 
+/**
+ * P15: how a declared setting is shown. The required texts and the adoption moment are those of a
+ * Settings item presentation; `localizationKey` and `unit` may be given. Enum labels are not part
+ * of a tool declaration, so an item whose schema is an enum is refused later by `defineSettings`.
+ */
+const settingPresentation: Check<ToolSettingPresentation> = record(
+  {
+    title: nonBlank,
+    description: nonBlank,
+    impact: nonBlank,
+    clear: nonBlank,
+    adoption: literal('next-read', 'next-boundary', 'reload', 'creation'),
+  },
+  { localizationKey: filled, unit: nonBlank },
+)
+
 const settingsDeclaration: Check<ToolSettingsDeclaration> = refine(
   record({
     schema: parameterContract,
@@ -120,6 +140,7 @@ const settingsDeclaration: Check<ToolSettingsDeclaration> = refine(
         path: nonEmpty(list(filled)),
         category: literal('preference', 'binding', 'placement-identity', 'governance'),
         sensitive: bool,
+        presentation: settingPresentation,
       }),
     ),
   }),

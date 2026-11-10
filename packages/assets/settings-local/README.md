@@ -4,7 +4,7 @@
 
 Independent targets use this package's persistent owner. Asset targets consume [assets-local](../assets-local/README.md) owner facts. Neither declaration registration nor runtime selection creates a target or grants access. Ordinary tenant services verify an issued Identity principal and bind every target to that principal's tenant. Trusted deployment maintenance has a separate capability described below.
 
-Public types and Schemas are exported from [src/index.ts](src/index.ts). Non-type behavior belongs to [SPEC.md](SPEC.md). Read the Chinese [architecture explanation](docs/architecture.md) for module, object, and sequence diagrams, and [Identity coordination](docs/coordination.md) for reservations and recovery.
+Public types and Schemas are exported from [src/index.ts](src/index.ts); the file provider of the secret custody ports is the `./secrets` entry ([src/secrets/index.ts](src/secrets/index.ts)). Non-type behavior belongs to [SPEC.md](SPEC.md). Read the Chinese [architecture explanation](docs/architecture.md) for module, object, and sequence diagrams, and [Identity coordination](docs/coordination.md) for reservations and recovery.
 
 ## Choose and register an assembly
 
@@ -44,6 +44,12 @@ Management views discover qualified targets even when they have no runtime selec
 Each catalog page reauthorizes and captures owner facts plus Settings state in a fresh tenant transaction. A transient Identity reservation protects qualification during that capture. Registry generations are checked before and after capture. An unavailable declaration produces a partial management catalog; evaluation and runtime reads require completeness. Old cursors fail when the captured basis changes or its expiry epoch advances. The catalog retains the maximum observed wall-clock value, so an observed expiry cannot revive after clock rollback. Restart changes the catalog incarnation and invalidates its old cursors.
 
 Releasing a registry contribution preserves assignments and changes read availability. It does not atomically remove write authorization. Retire the independent target or remove/change the Asset holding through its owner to invalidate target authority. See [SPEC.md](SPEC.md#declaration-availability-and-target-invalidation).
+
+## Secret custody
+
+<a id="secret-custody"></a>
+
+`@omne-harness/settings-local/secrets` keeps secret bindings in one JSON file: `openSecretVault({ path })` gives the management face and the use face of [Settings](../settings/README.md) over that file, plus the whole snapshot and a locked revision for trusted adapters. Every read parses the file again; every write takes the file lock and publishes atomically, and reports `written`, `not-written`, `unconfirmed` or `denied`. A host builds the file with `initSecretVault` (below the user directory, under the permission guard, the secret read through an injected reader such as `readSecretFromTerminal`) and checks it with `inspectSecretVault`. The Model credential custody of model-host-local and `harness-server setup` work on this vault; a file written by the Model host before this entry existed is read as is and rewritten in the current format on the first write. Behavior, the file format and the reason codes are in [SPEC.md](SPEC.md#secret-custody).
 
 ## Maintain stored assignments
 

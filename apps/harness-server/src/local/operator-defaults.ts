@@ -488,6 +488,11 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       },
     ],
     ['model-credential', { path: locations.vaultFile }],
+    // The secret custody row opens the same vault file. The release lists the row only once the
+    // trusted table and the distribution carry it; until then the layer leaves it out.
+    ...(rows.has('secret-custody')
+      ? ([['secret-custody', { path: locations.vaultFile }]] as const)
+      : []),
     ['model-tokenizers', LOCAL_TOKENIZERS],
     ['model-profiles', PROFILES],
     ['model-request-preparation', PREPARATION],
@@ -508,6 +513,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           Files: { resultMaxBytes: TOOL_RESULT_BYTES, cwd: settings.workspace },
           Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
           TodoItems: { resultMaxBytes: 1_048_576 },
+          Web: { resultMaxBytes: TOOL_RESULT_BYTES, maxSearchResults: 10 },
         },
       },
     ],
@@ -520,6 +526,18 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           resultPageBytes: 65_536,
           replyMaxBytes: 65_536,
           contentPageBytes: 4096,
+        },
+        // Web provider values of the local profile: initial values without a measurement, configurable.
+        // The local profile reaches the host network directly; sandbox or multi-tenant egress control
+        // is a known limitation of this profile.
+        web: {
+          search: {
+            endpoint: 'https://api.exa.ai/search',
+            type: 'lite',
+            highlightChars: 1000,
+            timeoutMs: 15_000,
+          },
+          fetch: { maxRedirects: 5, timeoutMs: 30_000, maxBodyBytes: 5 * 1024 * 1024 },
         },
       },
     ],

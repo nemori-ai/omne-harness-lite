@@ -80,6 +80,7 @@ export const TEST_CONSTRUCTION = Object.freeze({
   Files: { resultMaxBytes: 4096 },
   Tools: { resultMaxBytes: 4096, outputModalities: ['text'] },
   TodoItems: { resultMaxBytes: 1_048_576 },
+  Web: { resultMaxBytes: 4096, maxSearchResults: 10 },
 })
 
 export function tree(value: unknown): JsonValue {
