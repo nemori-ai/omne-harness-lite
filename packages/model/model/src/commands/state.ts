@@ -351,6 +351,12 @@ export function mergeReceiveWindow(
   if (call.state.phase === 'running')
     call.state = { ...call.state, firstContent: dispatch.record.firstContent }
 }
+/** The execution owner gives up its open windows. What they received stays unproven. */
+export function abandonReceiveWindows(call: CallDocument): void {
+  for (const dispatch of call.dispatches)
+    for (const [window, state] of dispatch.windows)
+      if (state === 'open') mergeReceiveWindow(call, dispatch, window, false)
+}
 
 // --- Consumption: read relations and cleanup.
 

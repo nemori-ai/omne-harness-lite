@@ -16,7 +16,10 @@ export type ModelHostSettings = Readonly<{
   wakeCapacity: number
   /** The calls one recovery scan page reads. Consumed by the recovery scan, not by the host. */
   scanBatchSize: number
-  /** The pause between recovery scans, in milliseconds. Consumed by the recovery scan. */
+  /**
+   * The pause, in milliseconds, before the host wakes a call again whose drive ended without
+   * ending the call. Positive: a pause of zero would drive a call that cannot progress in a loop.
+   */
   scanIntervalMs: number
 }>
 
@@ -31,8 +34,8 @@ function parseHostSettings(value: unknown): Parsed<ModelHostSettings> {
   if (!isIntegerAtLeast(scanBatchSize, 1))
     return rejected('scanBatchSize must be a positive safe integer')
   const scanIntervalMs = fieldOf(value, 'scanIntervalMs')
-  if (!isIntegerAtLeast(scanIntervalMs, 0))
-    return rejected('scanIntervalMs must be a non-negative safe integer')
+  if (!isIntegerAtLeast(scanIntervalMs, 1))
+    return rejected('scanIntervalMs must be a positive safe integer')
   return { value: { concurrencyLimit, wakeCapacity, scanBatchSize, scanIntervalMs } }
 }
 

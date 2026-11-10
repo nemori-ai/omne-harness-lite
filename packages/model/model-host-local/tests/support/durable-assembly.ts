@@ -203,7 +203,7 @@ const HOST_SETTINGS = {
   concurrencyLimit: 8,
   wakeCapacity: 64,
   scanBatchSize: 10,
-  scanIntervalMs: 0,
+  scanIntervalMs: 25,
 }
 const STAGE_SETTINGS = { maxRetainedAttempts: 64 }
 const PUSH_LIMITS: ResultPushLimits = {

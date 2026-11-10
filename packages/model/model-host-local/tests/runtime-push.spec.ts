@@ -76,7 +76,7 @@ const callOf = (name: string): ModelCallId => unbox(decodeModelCallId(`mcall_${n
 const op = (name: string) => unbox(decodeModelOperationId(`mop_${name}`))
 const ADOPTION = { owner: 'o', name: 'n', revision: '1', digest: '0'.repeat(64) }
 const CAPACITY = { bytes: '100000', blocks: '20', attachmentBytes: '0' }
-const SETTINGS = { concurrencyLimit: 4, wakeCapacity: 16, scanBatchSize: 10, scanIntervalMs: 0 }
+const SETTINGS = { concurrencyLimit: 4, wakeCapacity: 16, scanBatchSize: 10, scanIntervalMs: 25 }
 const LIMITS: ResultPushLimits = {
   maxConcurrentCalls: 4,
   maxRedeliveries: 2,

@@ -19,6 +19,7 @@ import {
   type ExecutionRef,
 } from '@omne-harness/model-contract/provider'
 import { createObservation } from './observation.ts'
+import { executionFailure, verdictOf } from './execution-write.ts'
 import { createReceiver, newOperation, type TerminalCompetition } from './receive.ts'
 
 type Prepare = Parameters<ModelCommands<unknown>['prepareDispatch']>[0]
@@ -34,7 +35,7 @@ type Finishing<P> = {
   execution: ExecutionRef
   receiver: Receiver<P> | null
   termination: Termination | null
-  receiveFailure: ModelFailure | null
+  driveFailure: ModelFailure | null
   settlement:
     | { kind: 'ready' }
     | { kind: 'write'; input: Settle; pending: boolean }
@@ -46,6 +47,8 @@ type Stage<P> =
   | { kind: 'send'; demand: SendDemand<P> }
   /** The send was not started. The dispatch record decides between settling and the refusal. */
   | { kind: 'not-sent'; demand: SendDemand<P>; refusal: ModelFailure }
+  /** The boundary did not start the send and recorded nothing final. Any drive asks it again. */
+  | { kind: 'unsent'; demand: SendDemand<P> }
   | { kind: 'receive'; receiver: Receiver<P>; execution: ExecutionRef }
   | Finishing<P>
   | { kind: 'done' }
@@ -263,10 +266,10 @@ export function createModelDriver<P>(
     const released = await releasing
     if ('failure' in result) return result
     if ('failure' in released) return released
-    active.stage = entry.receiveFailure
-      ? { kind: 'failed', failure: entry.receiveFailure }
+    active.stage = entry.driveFailure
+      ? { kind: 'failed', failure: entry.driveFailure }
       : { kind: 'done' }
-    return entry.receiveFailure ? { failure: entry.receiveFailure } : { ok: undefined }
+    return entry.driveFailure ? { failure: entry.driveFailure } : { ok: undefined }
   }
   function requiresOriginalClaim(
     previous: Activity<P> | undefined,
@@ -275,6 +278,7 @@ export function createModelDriver<P>(
     return (
       previous !== undefined &&
       previous.stage.kind !== 'idle' &&
+      previous.stage.kind !== 'unsent' &&
       previous.stage.kind !== 'done' &&
       previous.stage.kind !== 'failed' &&
       (previous.claim.operation !== input.operation ||
@@ -327,7 +331,7 @@ export function createModelDriver<P>(
         execution,
         receiver: null,
         termination: { kind: 'interrupted', control: recovery.state.control.operation },
-        receiveFailure: null,
+        driveFailure: null,
         settlement: { kind: 'ready' },
       }
     else
@@ -426,10 +430,8 @@ export function createModelDriver<P>(
     }
     entry.pending = true
     const prepared = await commands.prepareDispatch(entry.input)
-    if ('failure' in prepared) {
-      if (!committed && definitelyRefused(prepared.failure)) active.stage = { kind: 'idle' }
-      return prepared
-    }
+    if ('failure' in prepared)
+      return committed ? prepared : refusePrepare(active, execution, prepared)
     active.stage = {
       kind: 'send',
       demand: {
@@ -446,6 +448,32 @@ export function createModelDriver<P>(
     }
     refreshProjection(input)
     return { ok: undefined }
+  }
+  /** The next step after a prepare that is known not to be durable. */
+  function refusePrepare(
+    active: Activity<P>,
+    execution: ExecutionRef,
+    prepared: { failure: ModelFailure },
+  ): Awaited<Reply<void>> {
+    switch (verdictOf(prepared.failure)) {
+      case 'unconfirmed':
+        return prepared
+      case 'outdated':
+      case 'superseded':
+        // The next drive reads the call again and begins from what it finds.
+        active.stage = { kind: 'idle' }
+        return prepared
+      case 'refused':
+        active.stage = {
+          kind: 'finish',
+          execution,
+          receiver: null,
+          termination: executionFailure(prepared.failure),
+          driveFailure: prepared.failure,
+          settlement: { kind: 'ready' },
+        }
+        return { ok: undefined }
+    }
   }
   /**
    * The failed terminal recorded on this not-sent dispatch, or null when the record has none. A
@@ -469,7 +497,8 @@ export function createModelDriver<P>(
   /**
    * A refusal that the boundary made final carries a terminal on the not-sent dispatch (for
    * example a missing credential). The call then settles with it instead of waiting. When the
-   * record cannot be read, the stage stays, so the next drive reads it again.
+   * record cannot be read, the stage stays, so the next drive reads it again. A refusal without
+   * a terminal follows the verdict of its failure.
    */
   async function settleNotSent(
     active: Activity<P>,
@@ -478,19 +507,31 @@ export function createModelDriver<P>(
   ): Reply<void> {
     const terminal = await notSentTerminal(entry.demand)
     if ('failure' in terminal) return terminal
-    active.stage =
-      terminal.ok === null
-        ? { kind: 'failed', failure: entry.refusal }
-        : {
-            kind: 'finish',
-            execution: entry.demand.execution,
-            receiver: null,
-            termination: terminal.ok,
-            receiveFailure: null,
-            settlement: { kind: 'ready' },
-          }
+    const ending = (termination: Termination, driveFailure: ModelFailure | null): Stage<P> => ({
+      kind: 'finish',
+      execution: entry.demand.execution,
+      receiver: null,
+      termination,
+      driveFailure,
+      settlement: { kind: 'ready' },
+    })
     refreshProjection(input)
-    return terminal.ok === null ? { failure: entry.refusal } : { ok: undefined }
+    if (terminal.ok !== null) {
+      active.stage = ending(terminal.ok, null)
+      return { ok: undefined }
+    }
+    switch (verdictOf(entry.refusal)) {
+      case 'refused':
+        active.stage = ending(executionFailure(entry.refusal), entry.refusal)
+        return { ok: undefined }
+      case 'unconfirmed':
+      case 'outdated':
+        active.stage = { kind: 'unsent', demand: entry.demand }
+        return { failure: entry.refusal }
+      case 'superseded':
+        active.stage = { kind: 'failed', failure: entry.refusal }
+        return { failure: entry.refusal }
+    }
   }
   async function sendDispatch(
     active: Activity<P>,
@@ -542,7 +583,7 @@ export function createModelDriver<P>(
       execution: entry.execution,
       receiver: entry.receiver,
       termination: received.ok.termination,
-      receiveFailure: received.ok.failure,
+      driveFailure: received.ok.failure,
       settlement: { kind: 'ready' },
     }
     return { ok: true }
@@ -553,7 +594,7 @@ export function createModelDriver<P>(
     input: ModelDriveInput<P>,
     signal: AbortSignal,
   ): Reply<void> {
-    if (active.stage.kind === 'send')
+    if (active.stage.kind === 'send' || active.stage.kind === 'unsent')
       return sendDispatch(active, active.stage.demand, input, signal)
     if (active.stage.kind === 'not-sent') return settleNotSent(active, active.stage, input)
     return { ok: undefined }
@@ -639,7 +680,4 @@ export function createModelDriver<P>(
     },
   }
   return { driver, requestRefresh, admitted, counts }
-}
-function definitelyRefused(failure: ModelFailure): boolean {
-  return failure.kind !== 'commit-unknown' && failure.kind !== 'unavailable'
 }

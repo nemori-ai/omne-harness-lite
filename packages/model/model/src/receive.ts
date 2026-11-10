@@ -13,15 +13,17 @@ import {
   type SendDemand,
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
+import { executionFailure, verdictOf, type WriteVerdict } from './execution-write.ts'
 
 type Open = Parameters<ModelCommands<unknown>['openReceiveWindow']>[0]
 type Preserve = Parameters<ModelCommands<unknown>['preserve']>[0]
 type Completion = 'continue' | 'terminal' | 'stream-lost'
-export type ReceivedTerminal = {
-  snapshot: Snapshot
+/** How the receive ended: the terminal to settle with, and the failure to report for the drive. */
+export type ReceiveEnd = {
   termination: Termination | null
   failure: ModelFailure | null
 }
+type ReceivedTerminal = ReceiveEnd & { snapshot: Snapshot }
 export type TerminalCompetition = { replaced: boolean }
 type Stage =
   | {
@@ -37,7 +39,10 @@ type Stage =
   | { kind: 'open'; input: Open; pending: boolean }
   | { kind: 'preserve'; input: Preserve; pending: boolean; completion: Completion }
   | { kind: 'terminal'; evidence: ReceivedTerminal; published: boolean }
-  | { kind: 'failed'; failure: ModelFailure }
+  /** An execution write was refused. The call ends as an execution failure. */
+  | { kind: 'refused'; refusal: ModelFailure }
+  /** The execution is no longer this receiver's. */
+  | { kind: 'superseded'; failure: ModelFailure }
 export function newOperation(): ModelOperationId {
   const value = decodeModelOperationId(`mop_${randomUUID()}`)
   if ('ok' in value) return value.ok
@@ -88,14 +93,18 @@ export function createReceiver<P>(input: {
   function reading(window: string): Stage {
     return { kind: 'reading', window, facts: [], bytes: 0, flush: false, timer: null }
   }
-  async function reject(failure: ModelFailure): Promise<{ failure: ModelFailure }> {
-    stage = { kind: 'failed', failure }
+  async function supersede(failure: ModelFailure): Promise<{ failure: ModelFailure }> {
+    stage = { kind: 'superseded', failure }
     const closed = await release()
     if ('failure' in closed) {
-      stage = { kind: 'failed', failure: closed.failure }
+      stage = { kind: 'superseded', failure: closed.failure }
       return closed
     }
     return { failure }
+  }
+  function refuse(refusal: ModelFailure): { ok: ReceiveEnd } {
+    stage = { kind: 'refused', refusal }
+    return { ok: { termination: executionFailure(refusal), failure: refusal } }
   }
   async function write<T>(
     entry: { input: { operation: ModelOperationId }; pending: boolean },
@@ -117,16 +126,10 @@ export function createReceiver<P>(input: {
       return { failure: unavailable('write-unconfirmed'), unconfirmed: true }
     }
   }
-  function unconfirmed(result: { failure: ModelFailure; unconfirmed?: true }): boolean {
-    return (
-      'unconfirmed' in result ||
-      result.failure.kind === 'commit-unknown' ||
-      result.failure.kind === 'unavailable'
-    )
+  function verdict(result: { failure: ModelFailure; unconfirmed?: true }): WriteVerdict {
+    return 'unconfirmed' in result ? 'unconfirmed' : verdictOf(result.failure)
   }
-  function publishTerminal(
-    entry: Extract<Stage, { kind: 'terminal' }>,
-  ): Awaited<Reply<ReceivedTerminal>> {
+  function publishTerminal(entry: Extract<Stage, { kind: 'terminal' }>): { ok: ReceiveEnd } {
     if (!entry.published) {
       input.confirm(entry.evidence.snapshot)
       entry.published = true
@@ -169,15 +172,25 @@ export function createReceiver<P>(input: {
     }
     return { ok: null }
   }
-  async function openWindow(entry: Extract<Stage, { kind: 'open' }>): Reply<null> {
+  async function openWindow(entry: Extract<Stage, { kind: 'open' }>): Reply<ReceiveEnd | null> {
     const result = await write(entry, () => commands.openReceiveWindow(entry.input))
-    if ('failure' in result) {
-      if (unconfirmed(result)) return { failure: result.failure }
-      return reject(result.failure)
+    if ('ok' in result) {
+      stage = reading(entry.input.window)
+      input.refresh()
+      return { ok: null }
     }
-    stage = reading(entry.input.window)
-    input.refresh()
-    return { ok: null }
+    switch (verdict(result)) {
+      case 'unconfirmed':
+        return { failure: result.failure }
+      case 'outdated':
+        stage = { kind: 'next' }
+        input.refresh()
+        return { failure: result.failure }
+      case 'superseded':
+        return supersede(result.failure)
+      case 'refused':
+        return refuse(result.failure)
+    }
   }
   async function replaceTerminalPreserve(
     entry: Extract<Stage, { kind: 'preserve' }>,
@@ -214,21 +227,35 @@ export function createReceiver<P>(input: {
     entry: Extract<Stage, { kind: 'preserve' }>,
     result: { failure: ModelFailure; unconfirmed?: true },
     competition: TerminalCompetition,
-  ): Reply<null> {
-    if (unconfirmed(result)) return { failure: result.failure }
-    // Only a definite expected conflict can create a new terminal intent.
-    if (
-      entry.completion !== 'continue' &&
-      result.failure.kind === 'conflict' &&
-      result.failure.operation === entry.input.operation &&
-      result.failure.revision !== entry.input.expected
-    ) {
-      return replaceTerminalPreserve(entry, result.failure, competition)
+  ): Reply<ReceiveEnd | null> {
+    switch (verdict(result)) {
+      case 'unconfirmed':
+        return { failure: result.failure }
+      case 'outdated':
+        // A terminal batch gets a new intent at most once in a drive.
+        if (entry.completion !== 'continue')
+          return replaceTerminalPreserve(entry, result.failure, competition)
+        // The next drive saves the same batch at the revision it then reads.
+        input.rejectContent()
+        stage = {
+          kind: 'ready',
+          window: entry.input.window,
+          facts: [...entry.input.facts],
+          completion: entry.completion,
+        }
+        input.refresh()
+        return { failure: result.failure }
+      case 'superseded': {
+        input.rejectContent()
+        const superseded = await supersede(result.failure)
+        input.refresh()
+        return superseded
+      }
+      case 'refused':
+        input.rejectContent()
+        input.refresh()
+        return refuse(result.failure)
     }
-    input.rejectContent()
-    const rejected = await reject(result.failure)
-    input.refresh()
-    return rejected
   }
   function terminalEvidence(
     entry: Extract<Stage, { kind: 'preserve' }>,
@@ -255,7 +282,7 @@ export function createReceiver<P>(input: {
   async function preserveBatch(
     entry: Extract<Stage, { kind: 'preserve' }>,
     competition: TerminalCompetition,
-  ): Reply<null> {
+  ): Reply<ReceiveEnd | null> {
     const result = await write(entry, () => commands.preserve(entry.input))
     if ('failure' in result) return preserveFailure(entry, result, competition)
     if (entry.completion === 'continue') stage = { kind: 'next' }
@@ -341,11 +368,13 @@ export function createReceiver<P>(input: {
     }
     return { ok: null }
   }
-  function advance(entry: Stage, competition: TerminalCompetition): Reply<ReceivedTerminal | null> {
+  function advance(entry: Stage, competition: TerminalCompetition): Reply<ReceiveEnd | null> {
     switch (entry.kind) {
       case 'terminal':
         return Promise.resolve(publishTerminal(entry))
-      case 'failed':
+      case 'refused':
+        return Promise.resolve(refuse(entry.refusal))
+      case 'superseded':
         return Promise.resolve({ failure: entry.failure })
       case 'ready':
         return preparePreserve(entry)
@@ -363,11 +392,8 @@ export function createReceiver<P>(input: {
     release,
     pendingOperation: () =>
       stage.kind === 'open' || stage.kind === 'preserve' ? stage.input.operation : null,
-    async run(
-      signal: AbortSignal,
-      competition: TerminalCompetition,
-    ): Reply<ReceivedTerminal | null> {
-      while (!signal.aborted || stage.kind === 'terminal') {
+    async run(signal: AbortSignal, competition: TerminalCompetition): Reply<ReceiveEnd | null> {
+      while (!signal.aborted || stage.kind === 'terminal' || stage.kind === 'refused') {
         const result = await advance(stage, competition)
         if ('failure' in result || result.ok) return result
       }

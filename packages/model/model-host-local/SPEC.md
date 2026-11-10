@@ -62,13 +62,24 @@ reader 只有 `prove`，没有任意 register 或 sign 操作。它每次先核�
 宿主与目录插件从 `./cordis` 导出。名称、注入键与责任以 [model 的装配设计](../model/docs/cordis.md#单机提供者的插件划分)为准，本包实现它。
 
 - `ModelInstancesLocalPlugin` 与 `ModelConvertersLocalPlugin` 分别继承契约包的目录服务，静态注入 `modelPublicationAuthority` 与 `modelConverterAuthority`。权威缺席时 fiber 停在等待，不发布服务。权威换代或撤除时 Cordis 连同目录一起卸载再装载，后继目录从空开始，旧目录登记的 handle 不由它服务。非解析器租户的 `connect` 返回 `invalid`，字段为 `tenant`。
-- 宿主部分由 `createModelRuntimeLocalPlugin(options)` 造出的类装载，静态注入 `modelCommands`、`modelClock`、`modelHostAuthority`，发布 `modelInstanceHost`；提供者带 `runtime` 时同时发布 `modelRuntime`，见[运行门面与结果推送](#运行门面与结果推送)。配置是 `concurrencyLimit`、`wakeCapacity`、`scanBatchSize` 与 `scanIntervalMs`，四项必需，正整数（`scanIntervalMs` 为非负整数），其余取值让加载失败，不取默认值。宿主本身不用 `scanBatchSize` 与 `scanIntervalMs`。结果推送的启动扫描用 `scanBatchSize` 作页长，见[运行门面与结果推送](#运行门面与结果推送)。`scanIntervalMs` 留给周期恢复扫描，目前没有消费者。
+- 宿主部分由 `createModelRuntimeLocalPlugin(options)` 造出的类装载，静态注入 `modelCommands`、`modelClock`、`modelHostAuthority`，发布 `modelInstanceHost`；提供者带 `runtime` 时同时发布 `modelRuntime`，见[运行门面与结果推送](#运行门面与结果推送)。配置是 `concurrencyLimit`、`wakeCapacity`、`scanBatchSize` 与 `scanIntervalMs`，四项必需，都是正整数，其余取值让加载失败，不取默认值。宿主本身不用 `scanBatchSize`。结果推送的启动扫描用 `scanBatchSize` 作页长，见[运行门面与结果推送](#运行门面与结果推送)。`scanIntervalMs` 是宿主再次唤醒一个调用之前的间隔，见[驱动结束而调用未收场](#驱动结束而调用未收场)。
 - `bind` 是插件与本域执行宿主之间的装配操作，不在服务面上。同一宿主只认一个 driver：同一对象重复绑定认回原 binding，其他对象返回 `conflict`，已关闭的宿主拒绝新绑定。未绑定或已关闭时 `schedule` 返回 `unavailable`。
 - `schedule` 只置唤醒位：同一 tenant/call 已有位时不再入队；等待中的不同调用最多 `wakeCapacity` 个，满了返回 `unavailable`、诊断 `queue-full`，不为它建 Promise。最多 `concurrencyLimit` 个 drive 同时运行，由宿主自己的闭包启动，不挂在调用方 fiber 上。一个正在运行的调用被再次唤醒时保留其位，drive 交还后重跑一次。成功只表示本地唤醒被接受，不是耐久入队。
 - drive 输入由 `modelHostAuthority.resolve` 取得。它答失败时（例如取不到旧进程终止证据）宿主不驱动该调用，报告一条诊断；原待办仍在 `ModelCommands` 里，查询与保管由别的服务继续，宿主不把它们算作完成。
 - `publish` 只接受当前绑定的代次：同一发布认回原回执，旧代次返回 `stale-instance` 且不夺回路由，较晚代次取代旧路由。`withdraw` 只撤除登记匹配的发布。`directory.connect` 先经装配给的 `qualifyObservation` 核当前观察资格，失败（含 `denied`）原样返回，命中路由不当作授权。
 - 有序关闭是一个流程：先 quiesce（`provider.quiesce`，拒绝或抛出只报告），再停派发、发停止信号并等待每个 drive 交还，最后撤发布服务的贡献（Cordis 撤除子插件）。未派发的唤醒明确留给后继，计数写进诊断，不报告为完成。shutdown 不抛出：它之后的撤除若被跳过，服务就撤不掉。
 - 发布服务的子插件在 bind 之后、同一个 `try` 里创建。启动窗口里 fiber 被卸载、子插件创建失败时，已绑定的宿主关闭，此后 `schedule` 返回 `unavailable`、诊断 `host-closed`，服务不发布。
+
+### 驱动结束而调用未收场
+
+一次 drive 交回失败时，宿主按失败的含义决定是否再次唤醒这个调用。分类由 `@omne-harness/model` 的 `drivable` 给出，规则归 [model-contract](../model-contract/SPEC.md)。
+
+- 答复未知、依赖暂时不可用、期望修订过期：这个进程仍能推进调用。宿主等待 `scanIntervalMs`，再置这个调用的唤醒位。同一调用同一时刻只有一次等待。
+- 其余失败：不再唤醒。确定拒绝的调用已由 driver 收场；执行被接管的调用归接手的实例。
+- 等待结束时唤醒队列已满，宿主再等一个间隔，不丢弃这次唤醒。
+- 宿主关闭后等待结束的唤醒不再派发。时钟失败时不唤醒，原待办仍在 `ModelCommands` 里。
+
+这条保证只在本进程存活期间成立。进程重启之后找回未收场的调用属于周期恢复扫描，尚未实现。
 
 ### 首次执行与公共观察接线
 

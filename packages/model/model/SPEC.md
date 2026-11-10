@@ -195,7 +195,10 @@ receiver 在终止 preserve 的确认回执下固定原 ended、Snapshot 和独�
 | 无需新策略的 failed、首内容后失联                                              | 已实现原失败收场，保留已确认部分输出；接收失联仍沿 drive 返回失败                         |
 | 原有效控制及真实 interrupted；无 dispatch 的已保存控制                         | 已实现关联原控制收场；无 dispatch 时不发送                                                |
 | 首内容前可重试失败等待策略                                                     | 策略循环尚未实现，保留 retry-not-decided 等真实拒绝，不制造默认 stop                      |
-| 无控制 interrupted、sender.not-started、已有 dispatch 但本实例没有确认终止证据 | 尚未支持精确收场。保留原事实和责任，不复制测试后端私有终局映射或恢复猜测                  |
+| 执行写入被确定拒绝：准备、开窗、保存，以及发送边界不带终局的确定拒绝           | 已实现。以成因 `persistence` 收场并释放原流，原拒绝作为这次 drive 的失败交回。规则见 [model-contract](../model-contract/SPEC.md)，答复的分类在 [execution-write.ts](src/execution-write.ts) |
+| 执行写入答复未知、暂时不可用或期望修订过期                                     | 已实现。这次 drive 交回失败，阶段与原写入保留；非终止批回到待保存，下次 drive 按当前修订保存同一批。再次唤醒由宿主负责 |
+| 发送边界没有开始发送，也没有记下终局，原因是暂时不可用                         | 已实现一半。下次 drive 再问发送边界。dispatch 已记过物化回执时发送边界答 unknown，这种情形要等重试策略 |
+| 无控制 interrupted、已有 dispatch 但本实例没有确认终止证据                     | 尚未支持精确收场。保留原事实和责任，不复制测试后端私有终局映射或恢复猜测                  |
 | runtime 读取与 processed ACK                                                   | 已实现，见[结果消费支持](#结果消费支持)                                                   |
 | retained ACK、生产调度、跨进程恢复                                             | 尚未实现，继续各自后续阶段。quiesce 已实现，见[受理闸门与计数](#quiesce-的受理闸门与计数) |
 

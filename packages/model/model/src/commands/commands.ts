@@ -56,6 +56,7 @@ import {
   receiptBinds,
   retryable,
   retryChoiceFailure,
+  executionFailed,
   settlementFailure,
   tasks,
   unresolved,
@@ -67,6 +68,7 @@ import {
   expireReads,
   hasDispatchContent,
   lateTerminal,
+  abandonReceiveWindows,
   mergeReceiveWindow,
   reduceFacts,
   releaseMaterial,
@@ -330,6 +332,7 @@ export function callCommands<P>(
                 }
               const legality = settlementFailure(call, input.termination)
               if (legality) return { failure: legality }
+              if (executionFailed(input.termination)) abandonReceiveWindows(call)
               const version = resultVersion()
               const settlement: Settlement = {
                 version,

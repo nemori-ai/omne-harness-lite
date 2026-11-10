@@ -120,7 +120,7 @@ const HOST_SETTINGS = {
   concurrencyLimit: 4,
   wakeCapacity: 16,
   scanBatchSize: 10,
-  scanIntervalMs: 0,
+  scanIntervalMs: 25,
 }
 const PUSH_LIMITS: ResultPushLimits = {
   maxConcurrentCalls: 4,

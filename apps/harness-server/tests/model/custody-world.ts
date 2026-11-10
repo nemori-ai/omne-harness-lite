@@ -125,7 +125,7 @@ const ADOPTION = {
   digest: '0'.repeat(64),
 }
 const PRINCIPAL = Object.freeze({ subject: 'model-host' })
-const SETTINGS = { concurrencyLimit: 4, wakeCapacity: 16, scanBatchSize: 10, scanIntervalMs: 0 }
+const SETTINGS = { concurrencyLimit: 4, wakeCapacity: 16, scanBatchSize: 10, scanIntervalMs: 25 }
 const LIMITS = {
   maxConcurrentCalls: 4,
   maxRedeliveries: 2,

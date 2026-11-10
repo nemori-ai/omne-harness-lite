@@ -38,7 +38,7 @@ const CALL = unbox(decodeModelCallId('mcall_configured'))
 const ADOPTION = { owner: 'test', name: 'test', revision: '1', digest: '0'.repeat(64) }
 // Values from runtime-push.spec.ts, for a bounded in-process fixture. No production defaults.
 const CONFIG = {
-  host: { concurrencyLimit: 4, wakeCapacity: 16, scanBatchSize: 10, scanIntervalMs: 0 },
+  host: { concurrencyLimit: 4, wakeCapacity: 16, scanBatchSize: 10, scanIntervalMs: 25 },
   runtime: {
     outputBatchBytes: 1,
     outputBatchDelayMs: 0,

@@ -374,13 +374,17 @@ export function settlementFailure(
   call: CallDocument,
   termination: Termination,
 ): ModelFailure | null {
-  const pending = settlementPendingFailure(call)
-  if (pending) return pending
-  const actual = settlementActualFailure(call, termination)
-  if (actual) return actual
   if (encodedBytes(termination) > MAX_TERMINATION_BYTES)
     return invalid('termination', 'encoded-byte-limit')
-  return null
+  if (executionFailed(termination)) return null
+  return settlementPendingFailure(call) ?? settlementActualFailure(call, termination)
+}
+/**
+ * The execution owner could not record its own work. This terminal is the owner's verdict on the
+ * call, not a fact of a dispatch, so it is legal in every state that is not settled.
+ */
+export function executionFailed(termination: Termination): boolean {
+  return termination.kind === 'failed' && termination.fault.cause === 'persistence'
 }
 function settlementPendingFailure(call: CallDocument): ModelFailure | null {
   const latest = call.dispatches.at(-1)

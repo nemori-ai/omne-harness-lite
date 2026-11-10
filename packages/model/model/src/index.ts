@@ -1,6 +1,7 @@
 export { createModelProfiles } from './profiles/profiles.ts'
 
 export { createModelRuntime } from './runtime.ts'
+export { drivable } from './execution-write.ts'
 export { executeModel } from './execute.ts'
 export { createModelPreparationResources } from './preparation/resources.ts'
 export type {
