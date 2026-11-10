@@ -154,7 +154,6 @@ async function run() {
   if (event === 'subagentStop') {
     if (typeof payload.subagent_type !== 'string' || !payload.subagent_type.trim())
       throw new Error('missing subagent_type')
-    if (config.subagent_types && !config.subagent_types.includes(payload.subagent_type)) return {}
   }
   const target = directory(git(targetWorkspace(payload), ['rev-parse', '--show-toplevel']))
   toolingRoot(target)

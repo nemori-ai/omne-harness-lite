@@ -254,12 +254,12 @@ describe('影响面计划（真实规则）', () => {
   })
 
   it('.meta_harness/agents 下的改动：只跑 pytest，不测成员，构建只做常驻需要的', () => {
-    const result = plan(['.meta_harness/agents/roles/developer/assembly.toml'])
+    const result = plan(['.meta_harness/agents/roles/engineering-taste.md'])
     expect(result.files[0]?.category).toBe('python')
     expect(result.python).toEqual({
       run: true,
       reason:
-        '.meta_harness/agents/roles/developer/assembly.toml 命中 Python 工具的路径（.meta_harness/agents/**）',
+        '.meta_harness/agents/roles/engineering-taste.md 命中 Python 工具的路径（.meta_harness/agents/**）',
     })
     expect(result.test).toEqual([])
     expect(result.typecheck).toEqual([])

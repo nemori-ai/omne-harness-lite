@@ -9,7 +9,7 @@ from pathlib import Path
 import yaml
 
 from host_layout import HOSTS
-from projection import Artifact, DEFAULT_RENDERER, compile_sources, file_mode, no_symlinks
+from projection import Artifact, compile_sources, file_mode, no_symlinks
 
 
 def deliver(outputs: dict[Path, Artifact], output: Path, check=False, directories=()):
@@ -59,8 +59,6 @@ def main(argv=None):
     parser.add_argument("--source", required=True, type=Path, help="Shared agents source root")
     parser.add_argument("--output", required=True, type=Path, help="Explicit staging root")
     parser.add_argument("--host", choices=(*HOSTS, "all"), default="all")
-    parser.add_argument("--role-renderer", type=Path, default=DEFAULT_RENDERER,
-                        help="Trusted Python module providing render(source)")
     parser.add_argument("--check", action="store_true", help="Read-only expected-file comparison")
     args = parser.parse_args(argv)
     try:
@@ -68,7 +66,7 @@ def main(argv=None):
         if output.is_relative_to(source):
             raise ValueError("output root must not be inside the source")
         hosts = tuple(HOSTS) if args.host == "all" else (args.host,)
-        outputs = compile_sources(args.source, args.role_renderer, hosts)
+        outputs = compile_sources(args.source, hosts)
         directories = [directory for host in hosts for directory in HOSTS[host].directories]
         if any(relative.parts[:1] == (".cursor",) for relative in outputs):
             directories.append(Path(".cursor"))

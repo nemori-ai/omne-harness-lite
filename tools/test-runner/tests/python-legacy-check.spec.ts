@@ -44,11 +44,7 @@ it.each(['local', 'runner'])(
     )
     chmodSync(join(root, 'scripts/with-test-slot.sh'), 0o755)
     put(root, 'pytest.ini', '[pytest]\ntestpaths = tools/spec-tools/tests\n')
-    for (const path of [
-      'tools/spec-tools/tests',
-      '.meta_harness/tooling/tests',
-      '.meta_harness/agents/skills/design-subagents/canonical/scripts',
-    ])
+    for (const path of ['tools/spec-tools/tests', '.meta_harness/tooling/tests'])
       mkdirSync(join(root, path), { recursive: true })
     put(root, 'tools/spec-tools/tests/test_live.py', 'def test_live():\n    assert True\n')
     put(
