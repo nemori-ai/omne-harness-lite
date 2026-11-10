@@ -8,6 +8,7 @@ import type {
   PendingCall,
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
+import { fail } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
   decodeToolOperationId,
@@ -28,6 +29,7 @@ import {
   associatedTools,
   deliverModelReply,
   deliverToolSuggestion,
+  fixedToolRequest,
   pushToolResult,
   textBlock,
   toolAccount,
@@ -36,6 +38,7 @@ import {
   toolDelivery,
   toolReceiver,
 } from './fixtures/tool-call.ts'
+import { controlAssembly } from './fixtures/control-assembly.ts'
 
 type Assembly = Awaited<ReturnType<typeof toolAssembly>>
 
@@ -371,6 +374,67 @@ describe('tool result round', () => {
     )
     expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
   })
+
+  // The same holds when the attempt is not made at all: after the intent is saved, a dependency
+  // that A2 reads before invoke answers unavailable once (#1174 review round 2).
+  for (const port of ['materials', 'journal'] as const)
+    it(`denies an action rejected for good after ${port} was unavailable before its first invoke`, async () => {
+      let intentSaved = false
+      let refused = 0
+      const refuse = () => {
+        if (!intentSaved || refused > 0) return null
+        refused += 1
+        return fail({ kind: 'unavailable' as const, owner: port, diagnostic: 'queue_full' })
+      }
+      const assembly = await controlAssembly({}, d => ({
+        ...d,
+        toolRequests: {
+          async describe() {
+            return { ok: { kind: 'tool', definition: adoption('read_file') } }
+          },
+          async prepare(input) {
+            return { ok: fixedToolRequest(input.consumer) }
+          },
+        },
+        journal: {
+          ...d.journal,
+          async commit(input) {
+            const committed = await d.journal.commit(input)
+            if ('ok' in committed && input.effects.some(effect => effect.pending.kind === 'tool'))
+              intentSaved = true
+            return committed
+          },
+          async load(input) {
+            return (port === 'journal' ? refuse() : null) ?? d.journal.load(input)
+          },
+        },
+        materials: {
+          ...d.materials,
+          async read(input) {
+            return (port === 'materials' ? refuse() : null) ?? d.materials.read(input)
+          },
+        },
+      }))
+      assembly.controls.tools.invoke.always(async () => ({
+        kind: 'rejected',
+        failure: { kind: 'invalid', field: 'request', reason: 'the arguments do not match' },
+      }))
+      ok(await invoke(assembly))
+      await deliverToolSuggestion(assembly)
+      await eventually(async () => {
+        if (refused === 0) return false
+        const now = ok(await assembly.dependencies.clock.now())
+        ok(
+          assembly.controls.clock.advanceTo(
+            new Date(Date.parse(now) + 2000).toISOString() as never,
+          ),
+        )
+        return ((await snapshot(assembly)).checkpoint.batch?.slots ?? []).some(
+          slot => slot.kind === 'denied',
+        )
+      })
+      expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
+    })
 
   it('admits a denial message for each action when the whole batch is denied', async () => {
     const assembly = await toolAssembly()

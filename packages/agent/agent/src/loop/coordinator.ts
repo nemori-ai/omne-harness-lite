@@ -665,11 +665,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // to this execution and this coordinator, is lost with the process and is saved only by the
   // ordinary commits that carry it.
   let readPrefix: ReplyAdmissionPrefix | null = null
-  const uncertainToolActions = new Set<ActionId>()
-  // The actions whose intent this process saved and that Tool has so far answered only with an
-  // unavailable rejection: no attempt was accepted and none is unknown, so a later rejection still
-  // gets its denied slot (SPEC "依赖不可用时的等待", Tool 受理). In process only: after a restart
-  // the history of the saved intent is not known here.
+  // The actions whose intent this process saved and that have no accepted or unknown attempt yet:
+  // every attempt so far was not made (a dependency was unavailable before invoke) or was rejected
+  // as unavailable. A rejection of such an action still gets its denied slot (SPEC "依赖不可用时的
+  // 等待", Tool 受理). In process only: after a restart the history of a saved intent is not known
+  // here, and the original call is resumed.
   const unacceptedToolActions = new Set<ActionId>()
   // The tool message that T5 found rejected, for H0. In process only: a restart finds the
   // rejected Ja in the Journal again at T5.
@@ -2047,10 +2047,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   }
 
   /**
-   * A2 for one allowed action: the intent of a first attempt is saved, the current advance is
-   * checked, and the complete original request is sent. Only an accepted or commit-unknown answer
-   * associates the call; a rejection denies only a first attempt with no earlier unknown.
-   */
   /** Q1 and Q2: P prepares the internal request; an unavailable answer is remembered. */
   async function prepareHandoff(request: PendingHandoff) {
     const fixed = await ports.handoff.prepare({
@@ -2063,18 +2059,21 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return fixed
   }
 
+  /**
+   * A2 for one allowed action: the intent of a first attempt is saved, the current advance is
+   * checked, and the complete original request is sent. Only an accepted or commit-unknown answer
+   * associates the call. A rejection denies the action only while it has no accepted or unknown
+   * attempt (`unacceptedToolActions`); otherwise the original call is resumed.
+   */
   async function sendAction(batch: ActionBatch, original: Action): Promise<Outcome<Sent, Failure>> {
     if (original.judgment.kind !== 'allowed') return succeed({ batch, progressed: false })
-    const fresh = original.call === null
-    // No earlier attempt was accepted or left unknown: this process saved the intent, and every
-    // invoke since answered an unavailable rejection.
-    const unaccepted = fresh || unacceptedToolActions.has(original.id)
     let next = batch
     let action = original
-    if (fresh) {
+    if (original.call === null) {
       const saved = await saveToolIntent(batch, original)
       if ('failure' in saved) return saved
       ;({ batch: next, action } = saved.ok)
+      unacceptedToolActions.add(action.id)
     }
     const pending = required(action.call, 'tool intent')
     if (batch.barrier.kind !== 'open') return fail(defect('A2 with a barrier that is not open'))
@@ -2087,15 +2086,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     try {
       result = await ports.tools.invoke({ ...access, request: request.ok })
     } catch (error) {
-      uncertainToolActions.add(action.id)
+      unacceptedToolActions.delete(action.id)
       return fail({ kind: 'unavailable', owner: 'toolRuntime', diagnostic: diagnosticOf(error) })
     }
-    if (result.kind === 'association-unknown') {
-      uncertainToolActions.add(action.id)
-      return succeed({ batch: next, progressed: false })
-    }
     if (result.kind === 'rejected' && result.failure.kind === 'unavailable') {
-      if (unaccepted) unacceptedToolActions.add(action.id)
       const unavailable = {
         kind: 'unavailable' as const,
         owner: 'toolRuntime',
@@ -2103,16 +2097,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       }
       return succeed({ batch: next, progressed: false, unavailable })
     }
-    unacceptedToolActions.delete(action.id)
+    const unaccepted = unacceptedToolActions.delete(action.id)
+    if (result.kind === 'association-unknown') return succeed({ batch: next, progressed: false })
     if (result.kind === 'rejected') {
-      if (!unaccepted || uncertainToolActions.has(action.id))
-        return succeed({ batch: next, progressed: false })
+      if (!unaccepted) return succeed({ batch: next, progressed: false })
       const evidence = agentEvidence(`${execution}/${action.id}/rejected`, result.failure)
       next = replaceSlot(next, deniedSlot(action, evidence))
       const saved = await commit('A2', 'A2', { checkpoint: { batch: next } })
       return 'failure' in saved ? saved : succeed({ batch: next, progressed: true })
     }
-    if (result.kind === 'commit-unknown') uncertainToolActions.add(action.id)
     return associate(next, action, pending, result.reference)
   }
 
