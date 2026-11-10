@@ -298,3 +298,44 @@ def test_file_created_after_preflight_is_a_conflict_not_success(source, tmp_path
     captured = capsys.readouterr()
     assert "PASS" not in captured.out
     assert "File exists" in captured.err
+
+
+def _vendor_skill(root: Path, collection: str, name: str, body: str = "外部技能正文\n") -> Path:
+    skill = root / "vendor" / collection / "skills" / name
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text(f"---\nname: {name}\ndescription: External {name}\n---\n\n{body}", encoding="utf-8")
+    return skill
+
+
+def test_vendor_skills_are_copied_verbatim_to_every_host(source):
+    skill = _vendor_skill(source, "pqw-skills", "flow-entry")
+    (skill / "scripts").mkdir()
+    (skill / "scripts/tool.mjs").write_text("#!/usr/bin/env node\n", encoding="utf-8")
+    (skill / "scripts/tool.mjs").chmod(0o755)
+    (skill / "AGENTS.md").write_text("维护者说明\n", encoding="utf-8")
+    (source / "vendor/pqw-skills/README.md").write_text("仓库说明\n", encoding="utf-8")
+    outputs = compiler.compile_sources(source, hosts=("claude-code", "codex", "cursor"))
+    for root in (".claude/skills", ".agents/skills", ".cursor/skills"):
+        assert outputs[Path(root) / "flow-entry/SKILL.md"].content == (skill / "SKILL.md").read_bytes()
+        assert outputs[Path(root) / "flow-entry/scripts/tool.mjs"].mode == 0o755
+        assert Path(root) / "flow-entry/AGENTS.md" not in outputs, "maintainer material stays out"
+    assert not any("README.md" in str(path) and "flow-entry" not in str(path) and "vendor" in str(path) for path in outputs)
+
+
+def test_project_skill_wins_over_vendor_skill_with_the_same_name(source):
+    _vendor_skill(source, "pqw-skills", "evidence-reading", "外部的同名正文\n")
+    outputs = compiler.compile_sources(source, hosts=("claude-code",))
+    assert b"Read [reference]" in outputs[Path(".claude/skills/evidence-reading/SKILL.md")].content
+
+
+def test_invalid_vendor_skill_fails_before_writing(source, tmp_path):
+    skill = _vendor_skill(source, "pqw-skills", "flow-entry")
+    (skill / "SKILL.md").write_text("no frontmatter\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="missing skill frontmatter: flow-entry"):
+        compiler.compile_sources(source, hosts=("claude-code",))
+
+
+def test_uninitialised_vendor_submodule_fails_instead_of_projecting_nothing(source):
+    (source / "vendor/pqw-skills").mkdir(parents=True)
+    with pytest.raises(ValueError, match="run git submodule update --init"):
+        compiler.compile_sources(source, hosts=("claude-code",))

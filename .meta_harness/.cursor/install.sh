@@ -9,6 +9,9 @@ set -eu
 root=$(git rev-parse --show-toplevel)
 cd "$root"
 
+# External skill sets are pinned submodules; the agent compiler refuses an uninitialised one.
+git submodule update --init
+
 uv sync --locked
 pnpm install --frozen-lockfile --ignore-scripts
 pnpm -r rebuild node-pty

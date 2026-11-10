@@ -22,7 +22,7 @@
 本项目已有[项目要求](docs/requirements.md)、[技术架构](docs/architecture/README.md)、[领域设计](docs/domains/README.md)与一批
 [产品设计正文](.meta_harness/design/product/README.md)作为明确输入，保留确认范围与精确修订；
 有 Issue、提案或任务记录时直接引用，**避免另写一份同义需求**。
-`.meta_harness/` 与仓库其余部分的职责边界见[根 AGENTS.md](AGENTS.md#meta_harness-拥有什么外面做什么)。
+`.meta_harness/` 与仓库其余部分的职责边界见[根 AGENTS.md](AGENTS.md#知识放哪)。
 
 | 变更类型 | 从哪里推进 |
 |---|---|

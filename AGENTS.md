@@ -10,15 +10,39 @@
 
 当前处于0.0.0至0.1.0研发阶段。演进沿[当前政策](docs/engineering/publication.md#当前演进与消费者)同步真实消费者并删除替代实现，进入0.1.0重新评估。历史字节不构成兼容承诺。
 
-## `.meta_harness/` 拥有什么，外面做什么
+## 知识放哪
 
-项目级要求、工程约定、技术架构与领域关系在[docs](docs/README.md)；实际包、应用和工具拥有公开形状、完整必要行为、使用指南、设计理由与持续验证资源。行为契约不重复类型定义，文档厚度由责任和必要内容决定。源码归属从[workspace](docs/workspace.md)展开，包边界与新增规则从[产品包组织](docs/package-organization.md)展开；目录不自动等于插件、服务、进程或数据表。
+项目要求、工程约定、技术架构与领域关系在[docs](docs/README.md)；实际包、应用和工具拥有公开形状、完整必要行为、使用指南、设计理由与持续验证资源。[`.meta_harness/`](.meta_harness/AGENTS.md)保持产品规则、独立目标、统一语言、领域对象、持续研究和项目独有的技能；根 `.agents`、`.claude`、`.codex`、`.cursor` 只暴露[生成物](.meta_harness/tooling/README.md)，不直接修改。唯一源与退出条件归[文档治理](docs/engineering/documentation.md#位置与唯一源)，过程材料留[任务tmp](docs/development.md#终态与过程材料)。
 
-[`.meta_harness/`](.meta_harness/AGENTS.md)保持产品规则、独立目标、统一语言、领域对象、持续研究和项目独有 agent 能力。尚未整合的技术专题和PF详细技术从[旧材料入口](.meta_harness/design/architecture/README.md)查找。本项目系统架构只以docs已接受正文为准；旧接受记录不能授予冲突设计继续采用，实际限制记录为偏离。准入、唯一源及退出条件归[文档治理](docs/engineering/documentation.md#位置与唯一源)。共同集成保证和机读采用从架构区[IC约定](docs/architecture/cordis-integration-conventions.md)及constraints读取。
+实施须依据明确且已接受的承诺。未定新方案不能凭目录或产品设计直接开包；先定位拥有者及采用范围。旧接受记录不能授予冲突设计继续采用，实际限制记录为偏离。
 
-实施须依据明确且已接受的承诺。未定新方案不能凭目录或产品设计直接开包；先定位拥有者及采用范围。探路件放任务 tmp，只带事实回设计。正式终态随拥有者维护，正式RFC与Issue最小决定按[保存例外](docs/engineering/documentation.md#四类长期成果与普通任务)维护；其余候选、逐轮评审、执行证据与过程记录留[任务tmp](docs/development.md#终态与过程材料)。
+## 研发流程
 
-自有 skills、roles 与 Cloud Agent 镜像源在 `.meta_harness/agents/` 维护；根 `.agents`、`.claude`、`.codex`、`.cursor` 只暴露生成物。按[生成入口](.meta_harness/tooling/README.md)生成，不直接修改宿主产物。
+大改动（新增领域、跨领域纵线、子系统重构、较大改造）走 pqw `single-session-dev-flow`：定义期由人主导，过了交接点由代理自主交付；小修、原型、诊断按它的「不够格」一节转 Matt `tdd`、`prototype`、`diagnosing-bugs`。流程的环节与做法只归 pqw 各技能，本仓库只在下面的接入节给出 omne 的命令与位置。
+
+卡就是交接信息包：设计段落盘进 `integration/mainline` 后发卡，交付会话只读卡与它链接的正式文档就开工。发卡、开工、开 PR、请求 gate 确认与接受的命令归 [`omne-card`](.meta_harness/agents/skills/omne-card/canonical/SKILL.md)。合入的门与准入的时机归[集成规则](docs/engineering/integration.md)。
+
+## pqw-skills 接入
+
+pqw 技能里写「从项目接入点取」的地方都读这一节；没填的格按「未提供」处理，技能跳过该步并在交付声明里写明。
+
+| 槽位 | omne 的值 |
+| --- | --- |
+| 类型检查与 lint 命令 | `pnpm run typecheck`；`pnpm run lint:rules`；`pnpm run lint:oxlint`；`pnpm run lint:deps` |
+| 改动成员的合入检查 | `pnpm run preflight`，再在每个改动成员目录 `pnpm exec vitest run --mode fast` 与 `--mode slow`，有 `acceptance/` 的再 `pnpm run acceptance` |
+| 结构读数的覆盖率文件、范围与带位线 | 按改动成员各出一份 lcov，写到工作树外：成员目录里 `pnpm exec vitest run --mode fast --coverage.enabled --coverage.reporter=lcovonly --coverage.reportsDirectory=<目录>`；再 `node <pqw>/skills/slice-closeout/scripts/metrics.mjs --base <起点> --lcov <目录>/lcov.info --scope <成员目录>/ --cc 10,12 --crap 10,12` |
+| 差分变异的范围与点名文件 | 先构建成员的上游：`pnpm exec turbo run build --filter '<包名>^...'`；再按改动成员各调一次 `node <pqw>/skills/slice-closeout/scripts/mutation.mjs --base <起点> --project <成员目录> --stryker-modules tools/test-runner/node_modules --build-command "pnpm run build"` |
+| 项目合入检查已按整程改动跑结构读数与差分变异时的命令 | 无 |
+| 文档检查命令 | `pnpm run check:docs`；`pnpm run check:design`；`pnpm run check:agents` |
+| 文档写作规则 | [文档治理](docs/engineering/documentation.md)；写作加载 `asd-ste100` |
+| 三层正式文档的位置 | 产品 `.meta_harness/design/product`；项目顶层 `docs/`；包组与成员各包 `docs/`、`SPEC.md` |
+| 统一语言与领域对象的位置 | `.meta_harness/design/ubiquitous_language`；`.meta_harness/design/domain_objects` |
+| 形式化工具链与声明边界 | TLC，见[开发指南](docs/development.md)「形式工具链」；声明边界见[验证说明](docs/verification.md) |
+| spec 与 plan 的项目模板 | pqw 自带模板，加 [spec 附加节](.meta_harness/agents/pqw/spec-addendum.md)与 [plan 附加节](.meta_harness/agents/pqw/plan-addendum.md) |
+| 项目专有的清理项 | 本卡的工作树 `.worktrees/<卡>`；`tmp/<卡>/`；成员外写出的 lcov 目录；Stryker 容器 `.stryker-tmp*` |
+| 验收处 | 卡评论：判据要求的证据贴摘要与关键行，原件位置与哈希写在评论里 |
+| 子代理的模型与档位政策 | [角色说明](.meta_harness/agents/roles/README.md)「模型配置与本次派发」与同目录 `dispatch-policy.json` |
+| 交接信息包放哪 | 卡正文；写范围检查与绑定退役之前，卡正文仍用旧模板，包贴成卡上一条「交接信息包」评论（见 `omne-card`） |
 
 ## 研发品味
 
@@ -42,20 +66,12 @@
 
 | 当前判断 | 加载入口与停止点 |
 | --- | --- |
-| 开工前先建立共同的系统图景 | 做架构、领域、契约、装配、实现切片或设计评审的任务先读一次[开工定向](docs/orientation.md)，取得领域地图、核心四项方向与顶层架构三类图及各自状态与出处，再按本表展开；其余任务直接走各自入口。图的事实归所列出处 |
-| 整体理解知识体系或判断文档归属 | 一次读取[体系上下文](docs/knowledge-map-agent.md)，取得分层、拥有者、状态与展开边界；找到本次责任后转任务路径，不递归通读全仓。人类图文说明归[知识地图](docs/knowledge-map.md) |
-| 普通阅读、操作或独立消费 | 从[读者入口](docs/README.md)选角色或从[角色查询](tools/spec-tools/README.md#按角色读取上下文)取起点，再找实际应用或包。公开责任与支持范围足够时停止；目标架构不授予操作能力 |
-| 局部修复、工具或环境工作 | 从[开发指南](docs/development.md)及实际目录 AGENTS 找承诺和受影响检查。已有承诺足够就不通读全部设计 |
-| 新要求、系统边界或跨成员保证 | 加载 `harness-design-handbook`，从[项目要求](docs/requirements.md)、[架构](docs/architecture/README.md)、[领域](docs/domains/README.md)定位拥有者。只展开本次必要输入与交接 |
-| 产品、概念或对象治理 | 在 meta 的相应区接续；起草产品加载 `product-design`，改词条加载 `ubiquitous-language`，改对象条目加载 `domain-objects`。仅消费已有正文不加载治理技能 |
-| 文档、AGENTS、skills 或角色维护 | 新建或修订文档必须加载 `asd-ste100`；AGENTS 加载 `write-agents-md`，skill 加载官方 `skill-creator`，角色加载 `design-subagents`。按[维护指南](docs/maintenance.md)同步真实消费者 |
-| 对话建卡、取任务或更新交付 | 从[agent交付操作](docs/engineering/agent-delivery.md)核对实际启用范围、唯一卡、条件和具名决定；Project、关闭与绿测不授予接受。未启用时形成获准任务草稿 |
-| 分支同步、轨道提升或稳定点 | [多层分支规则](docs/engineering/integration.md)拥有轨道、准入、运输与双基线；加载 `branch-integration` 找实际工具。没有 task context 不伪造绑定，Git 运输不代替交付接受 |
-| 派发子代理（写者、评审者、验收者） | [派发契约](docs/engineering/workflow.md#派发子代理的契约)拥有本项目补充的派发义务；加载 `delegate` 取步骤与完成判据 |
-| 隔离并行、接续或交付 | [工作约定](docs/engineering/workflow.md#责任与协作交接)拥有每写者隔离、共享单写与清理条件；[交付边界](docs/engineering/publication.md)拥有保存与权限；[贡献指南](CONTRIBUTING.md)拥有报告和接受 |
-| Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本。未覆盖行为保留假设并以源码或验证补足，不自动采用上游保证 |
-
-任务方法分三层：流程用 pstack `poteto-mode`，交付方案与规格的写法用 Matt 加项目模板，研发品味用 ub-mode；分工、精确版本、宿主加载和项目差异归[技能入口](docs/engineering/skills.md#三层分工)。派发子代理按[派发契约](docs/engineering/workflow.md#派发子代理的契约)；独立任务隔离并行，共享对象单写，耦合依赖串行。只在找到本次拥有者、适用范围和验证责任后停止扩大阅读。
+| 开工前建立系统图景、理解知识体系或普通阅读 | 架构、领域、契约、装配与实现切片先读一次[开工定向](docs/orientation.md)；整体理解读[体系上下文](docs/knowledge-map-agent.md)；其余从[读者入口](docs/README.md)找实际应用或包。找到本次责任就停 |
+| 新要求、系统边界或跨成员保证 | 加载 `harness-design-handbook`，从[项目要求](docs/requirements.md)、[架构](docs/architecture/README.md)、[领域](docs/domains/README.md)定位拥有者，只展开本次必要输入 |
+| 产品、概念或对象治理 | 起草产品加载 `product-design`，改词条加载 `ubiquitous-language`，改对象条目加载 `domain-objects`；只消费已有正文不加载 |
+| 文档、AGENTS、技能或角色维护 | 文档加载 `asd-ste100`，AGENTS 加载 `write-agents-md`，技能加载官方 `skill-creator`，角色加载 `design-subagents`；按[维护指南](docs/maintenance.md)同步真实消费者 |
+| 研发流程、发卡、合入与发行 | 环节做法读 pqw 技能；发卡与合入加载 `omne-card`；每条流程事实的拥有者见[工程入口](docs/engineering/README.md)；局部修复与环境从[开发指南](docs/development.md)起 |
+| Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本；未覆盖行为保留假设并以源码或验证补足 |
 
 ## Cursor Cloud specific instructions
 

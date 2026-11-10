@@ -210,6 +210,33 @@ def project_skill(skill: Path, host: str) -> dict[Path, Artifact]:
     return outputs
 
 
+def vendor_skills(source: Path):
+    """External skill sets pinned under vendor/<set>/ (git submodules) contribute skills/<name>/SKILL.md."""
+    vendor = source / "vendor"
+    if not vendor.is_dir():
+        return
+    for collection in members(vendor):
+        skills = collection / "skills"
+        if not skills.is_dir():
+            # An uninitialised submodule is an empty directory; projecting nothing would silently drop the set.
+            raise ValueError(f"vendor skill set has no skills/: {collection} (run git submodule update --init)")
+        yield from (skill for skill in members(skills) if (skill / "SKILL.md").is_file())
+
+
+def project_vendor_skill(skill: Path, host: str) -> dict[Path, Artifact]:
+    """A vendor skill is host-neutral and copied verbatim; it has no adapters or slots."""
+    outputs = {}
+    for file in source_files(skill):
+        relative = file.relative_to(skill)
+        if any(part in RUNTIME_EXCLUDES for part in relative.parts):
+            continue
+        content = file.read_bytes()
+        if relative == Path("SKILL.md"):
+            validate_skill(content.decode("utf-8"), skill.name)
+        outputs[SKILL_TARGETS[host] / skill.name / relative] = Artifact(content, 0o755 if file_mode(file) & 0o111 else 0o644)
+    return outputs
+
+
 def load_module(path: Path):
     module_spec = importlib.util.spec_from_file_location("meta_harness_role_renderer", path)
     if module_spec is None or module_spec.loader is None:
@@ -425,9 +452,16 @@ def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
             raise ValueError(f"duplicate output: {relative}")
         outputs[relative] = artifact
 
+    own = set()
     for skill in members(source / "skills"):
+        own.add(skill.name)
         for host in hosts:
             for relative, artifact in project_skill(skill, host).items():
+                add(relative, artifact)
+    # The project's own skill keeps its name until the project retires it.
+    for skill in (s for s in vendor_skills(source) if s.name not in own):
+        for host in hosts:
+            for relative, artifact in project_vendor_skill(skill, host).items():
                 add(relative, artifact)
 
     role_sources = list(members(source / "roles"))

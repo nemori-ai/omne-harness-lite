@@ -164,6 +164,15 @@ slots:
 不是自动丢弃或发一个看似可用的空 skill。当前仅支持这两种模式；未知字段、版本、模式和
 身份不匹配均拒绝。生成器不支持 stub、partial overlay 或完整发布事务。
 
+## 外部技能集
+
+`agents/vendor/<技能集>/` 放钉了提交的外部技能集（git 子模块），每个 `skills/<name>/SKILL.md` 是一个技能。
+它们宿主无关，没有 adapter 与 slots：生成器原样复制到每个所选宿主的技能目录，排除维护者材料，
+保留可执行位，`SKILL.md` 照样核 frontmatter。与 `agents/skills/` 里的项目技能同名时项目技能优先，
+外部的那份不生成；项目删掉自己的那份后，外部的接手。两个技能集有同名技能时整体预检失败。
+新检出先 `git submodule update --init`；没有初始化的子模块是空目录，生成器预检失败并提示这条命令，不会悄悄少生成一整套技能。
+钉的版本与采用范围归[技能入口](../../docs/engineering/skills.md#来源与项目采用)。
+
 ## 宿主钩子
 
 `agents/hooks/hooks.yaml` 存在且列表非空时，编译另产出项目级钩子文件：Claude Code 的

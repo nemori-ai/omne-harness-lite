@@ -66,6 +66,9 @@ else
     warn "git fetch origin failed"
 fi
 
+# External skill sets are pinned submodules; the agent compiler refuses an uninitialised one.
+git submodule update --init --quiet || warn "git submodule update --init failed"
+
 # Dependencies and agent projections follow the checked-out tree.
 dependency_state=$(git rev-parse --git-path omne-cloud-dependencies.sha256)
 fingerprint=$(sha256sum pnpm-lock.yaml uv.lock package.json pnpm-workspace.yaml pyproject.toml) || fingerprint=

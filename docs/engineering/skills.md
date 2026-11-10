@@ -8,8 +8,8 @@
 
 | 层 | 来源 | 回答什么 | 落在哪里 |
 |---|---|---|---|
-| 工作流程 | pstack `poteto-mode` | 这类任务按什么顺序推进：选哪个 playbook、何时派子代理、何时验证与收尾 | 任务的待办与推进循环 |
-| 交付方案与实施规格的写法 | Matt `to-spec`、`to-tickets`、`writing-for-agents` | 怎样把已讨论的内容写成实施输入、切成可验证的切片、写给子代理的简报 | 项目自己的 spec、plan 模板（`claim` 技能的 `references/`），模板格式归项目 |
+| 工作流程 | pqw-skills `single-session-dev-flow` 与它的环节技能 | 大改动按什么阶段与顺序推进：定义期、交接点、交付期的切片循环、收口、回看与清理；不够格的小修、原型与诊断由它转给 Matt 与 pstack 的对应技能 | 任务的 spec、plan、收口记录与交付声明 |
+| 交付方案与实施规格的写法 | Matt `to-spec`、`to-tickets`、`writing-for-agents`，经 pqw `spec-and-plan` 加载 | 怎样把已讨论的内容写成实施输入、切成可验证的切片、写给子代理的简报 | pqw 的 spec 与 plan 模板，加本项目的[附加节](../../.meta_harness/agents/pqw/spec-addendum.md) |
 | 研发品味：研发哲学与第一性原理 | Uncle Bob `ub-mode` | 写或改代码时怎样判断：先做对，再做好，并遵循日常实践 | spec 模板的「原则与约束」一节；评审「设计与实践」一面的判据 |
 
 三层之外有三类项目独有的判断：维度分解与正交归[研发品味](../../.meta_harness/agents/roles/engineering-taste.md#维度分解与正交)的项目补充，领域语义依赖归[领域语义依赖与模型边界](../architecture/layers-and-dependencies.md#领域语义依赖与模型边界)，Cordis 承载归 `harness-design-handbook`。交付质量的量度归[整洁回路](../clean-loop.md)。先设计的测试与验证负责「做对」，整洁回路的传感器负责「做好」并量出测试的判别力，两者互补。
@@ -20,8 +20,9 @@
 
 | 体系 | 固定来源 | 采用范围 |
 |---|---|---|
-| pstack port | 0.9.79，[michael-denyer/pstack-claude@60ae9e25610744bccd45bd405c211413a471aaf8](https://github.com/michael-denyer/pstack-claude/tree/60ae9e25610744bccd45bd405c211413a471aaf8/plugins/pstack) | Codex 与 Claude Code 的工作流程层 |
-| Cursor 官方 pstack | 0.15.20，[cursor/plugins@1b6d44ff26d4e242f4e8f68c391e6d2f7ca16def](https://github.com/cursor/plugins/tree/1b6d44ff26d4e242f4e8f68c391e6d2f7ca16def) | Cursor 的工作流程层，不覆盖 port 0.9.79 |
+| pqw-skills | 0.16.0，[PanQiWei/pqw-skills@6d4c4a0f00ce5d36824bc7dac416bee794288840](https://github.com/PanQiWei/pqw-skills/tree/6d4c4a0f00ce5d36824bc7dac416bee794288840)，git 子模块 `.meta_harness/agents/vendor/pqw-skills` | 工作流程层；由[生成工具](../../.meta_harness/tooling/README.md)原样投影进三个宿主的技能目录，与项目技能同名时项目技能优先 |
+| pstack port | 0.9.79，[michael-denyer/pstack-claude@60ae9e25610744bccd45bd405c211413a471aaf8](https://github.com/michael-denyer/pstack-claude/tree/60ae9e25610744bccd45bd405c211413a471aaf8/plugins/pstack) | Codex 与 Claude Code 上 pqw 引用的环节方法，以及不够格走 pqw 流程的小改动 |
+| Cursor 官方 pstack | 0.15.20，[cursor/plugins@1b6d44ff26d4e242f4e8f68c391e6d2f7ca16def](https://github.com/cursor/plugins/tree/1b6d44ff26d4e242f4e8f68c391e6d2f7ca16def) | Cursor 上同一范围，不覆盖 port 0.9.79 |
 | Matt skills | 1.3.1，[mattpocock/skills@b0618bc436ad893b3c5e84e55fba86586d34a404](https://github.com/mattpocock/skills/tree/b0618bc436ad893b3c5e84e55fba86586d34a404/skills) | 交付方案与实施规格的写法层；其余入口按需 |
 | ub-mode | [unclebob/ub-mode@57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f](https://github.com/unclebob/ub-mode/tree/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f) | 研发品味层 |
 | 项目方法 | [.meta_harness/agents](../../.meta_harness/agents/README.md) | 项目独有的技能、角色与模板；canonical 源与宿主生成分别维护 |
