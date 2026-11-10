@@ -32,6 +32,11 @@ const TEAM_NAME = 'k10-team'
 const DEFAULT_TEAM_MODEL = 'default-team'
 /** The idle period of the second run (step 13), in seconds. */
 const SHORT_IDLE_SECONDS = 12
+/**
+ * The access refresh granularity of the second run, in seconds. The identity row requires it to be
+ * shorter than the idle period; below the 2.5 s between business requests, each request refreshes.
+ */
+const SHORT_REFRESH_GRANULARITY_SECONDS = 1
 /** Exit codes of the CLI by outcome (CLI tutorial 6.6: 0 for succeeded, 3 for denied). */
 const EXIT = { succeeded: 0, denied: 3 } as const
 
@@ -162,7 +167,11 @@ export async function runIdentityFlow(): Promise<FlowRecord> {
       const replaceIdentity = {
         kind: 'replace',
         id: 'identity',
-        config: { ...releaseIdentityConfig(), idlePeriod: `PT${String(idleSeconds)}S` },
+        config: {
+          ...releaseIdentityConfig(),
+          idlePeriod: `PT${String(idleSeconds)}S`,
+          accessRefreshGranularity: `PT${String(SHORT_REFRESH_GRANULARITY_SECONDS)}S`,
+        },
       }
       writeOperator(path, { ops: idleSeconds === undefined ? ops : [...ops, replaceIdentity] })
       return path
