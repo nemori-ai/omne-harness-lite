@@ -30,7 +30,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | --- | --- |
 | 类型检查与 lint 命令 | `pnpm run typecheck`；`pnpm run lint:rules`；`pnpm run lint:oxlint`；`pnpm run lint:deps` |
 | 改动成员的合入检查 | `pnpm run preflight`，再在每个改动成员目录 `pnpm exec vitest run --mode fast` 与 `--mode slow`，有 `acceptance/` 的再 `pnpm run acceptance` |
-| 结构读数的覆盖率文件、范围与带位线 | `pnpm run closeout:metrics -- --base <起点> [--scope <路径>...]`：按改动成员各出一份 lcov（写到工作树外）、各调一次 pqw `metrics.mjs`，线与断言写法取自 `repo-toolchain.config.json`；切片收口用缺省的快层，一程全量加 `--full`。用法见 [pqw-adapter](tools/pqw-adapter/README_ZH.md) |
+| 结构读数的覆盖率文件、范围与带位线 | `pnpm run closeout:metrics -- --base <起点> [--scope <路径>...]`：按改动成员各出一份 lcov（写到工作树外）、各调一次 pqw `metrics.mjs`，线与断言写法取自 `repo-toolchain.config.json`；切片收口用缺省的快层，一程全量加 `--full`，并另跑 [`loop:status --base <起点>`](docs/clean-loop.md#入口)。用法见 [pqw-adapter](tools/pqw-adapter/README_ZH.md) |
 | 差分变异的范围与点名文件 | `pnpm run closeout:mutation -- --base <起点> --scope <关键位置>...`：先 `--plan-only` 看范围，超过上限要给 `--scope` 或 `--files`；按改动成员各调一次 pqw `mutation.mjs`。[风险级别](docs/engineering/quality.md#按风险选择接受实现的看法)的路径下限：`pnpm run risk -- --base <起点>` |
 | 项目合入检查已按整程改动跑结构读数与差分变异时的命令 | 无 |
 | 文档检查命令 | `pnpm run check:docs`；`pnpm run check:design`；`pnpm run check:agents` |

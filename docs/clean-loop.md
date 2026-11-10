@@ -84,6 +84,7 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 | 场景的验收覆盖声明及工具状态标签 | `pnpm run acceptance:scenarios` |
 | 只跑可执行验收 | `pnpm run acceptance`（缺省先构建；`pnpm run check` 里它排在构建之后） |
 | 合并前第一、二条硬线（方向与环、验收锁）破没破 | `pnpm run check` 的常驻步骤 `lint:rules`、`lint:deps` 与 `acceptance:lock` |
+| 一程改动里的克隆、成员预算、传感器有没有数据 | 一程全量读数时（全部切片收口之后、交付声明之前）跑 `pnpm run loop:status --base <一程起点> --out <目录>`，红项与结构读数一样逐条交代；这几项收工钩子不报，准入也不跑 |
 | 整仓健康读数：开着的传感器都有数据、成员预算、重复代码、趋势 | mainline 提升 main 时跑 `pnpm run loop:status --strict --out <目录>`，摘要贴在提升 PR 上，只报告不挡；之前要有对应候选的验收运行或影响面显式跳过账本；跳过不表示验收通过，候选绑定的限制见[工具说明](../tools/repo-toolchain/README_ZH.md#验收耗时) |
 | 在主线上留一条趋势 | 干净的主线提交上跑 `pnpm run loop:status`，它自己追加一条快照；别的提交上要留就加 `--snapshot` |
 | 提交大小、测试耗时与结构指标的走向 | `pnpm run loop:health`，出一张离线可开的页面 |
