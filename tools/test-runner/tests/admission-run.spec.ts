@@ -38,7 +38,7 @@ const BASE = {
   dirty: false,
   worktree: '/work/tree',
   admission: true,
-  caches: { test: 'off', depGraph: 'off', mutation: 'unknown' },
+  caches: { test: 'off', depGraph: 'off' },
   fullRequested: true,
   mode: 'full',
   base: null,
@@ -117,8 +117,8 @@ describe('写入与读取', () => {
     ['failedStep 是空串', { failedStep: '' }],
     ['没有 admission', { admission: undefined }],
     ['没有 finishedAt', { finishedAt: undefined }],
-    ['caches 缺一项', { caches: { test: 'on', depGraph: 'off' } }],
-    ['caches 的值不认得', { caches: { test: 'yes', depGraph: 'off', mutation: 'off' } }],
+    ['caches 缺一项', { caches: { test: 'on' } }],
+    ['caches 的值不认得', { caches: { test: 'yes', depGraph: 'off' } }],
     ['步骤跑了却没有退出码', { steps: [{ name: 'a', ran: true, exit: null, seconds: 1 }] }],
     ['步骤没跑却有退出码', { steps: [{ name: 'a', ran: false, exit: 0, seconds: 1 }] }],
     ['步骤没有名字', { steps: [{ name: '', ran: true, exit: 0, seconds: 1 }] }],
@@ -139,6 +139,14 @@ describe('写入与读取', () => {
       head: H2,
     })
     expect(parseAdmissionRun(JSON.parse(JSON.stringify(resumed)))).toEqual(resumed)
+  })
+
+  it('旧记录的 caches 里多出已删的 mutation 字段时照常读，读出来不带这个字段', () => {
+    const old = parseAdmissionRun({
+      ...BASE,
+      caches: { test: 'on', depGraph: 'off', mutation: 'unknown' },
+    })
+    expect(old?.caches).toEqual({ test: 'on', depGraph: 'off' })
   })
 
   it('工作树根记成真实路径：经软链（Windows 上是目录联接）到达同一棵树也相同', () => {
@@ -198,7 +206,7 @@ describe('由步骤图运行写成记录', () => {
       dirty: false,
       worktree: '/work/tree',
       admission: true,
-      caches: { test: 'off', depGraph: 'off', mutation: 'off' },
+      caches: { test: 'off', depGraph: 'off' },
       fullRequested: true,
       base: null,
       startedAt: new Date('2026-10-30T01:00:00Z'),
@@ -232,7 +240,7 @@ describe('由步骤图运行写成记录', () => {
       dirty: false,
       worktree: '/work/tree',
       admission: true,
-      caches: { test: 'on', depGraph: 'unknown', mutation: 'off' },
+      caches: { test: 'on', depGraph: 'unknown' },
       fullRequested: false,
       base: H1,
       startedAt: new Date(0),
@@ -249,7 +257,7 @@ describe('由步骤图运行写成记录', () => {
       },
     })
     expect(record.failedStep).toBeNull()
-    expect(record.caches).toEqual({ test: 'on', depGraph: 'unknown', mutation: 'off' })
+    expect(record.caches).toEqual({ test: 'on', depGraph: 'unknown' })
     expect(record.mode).toBe('resume')
     expect(record.resumeFrom).toEqual({
       head: H1,

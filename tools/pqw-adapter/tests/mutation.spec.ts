@@ -33,7 +33,7 @@ it('calls mutation.mjs per member with the omne build, Stryker modules and fast-
   expect(valueOf(args, '--scope')).toBe('tools/t/src/a.ts')
   expect(valueOf(args, '--files')).toBe('tools/t/src/judge.ts')
   expect(valueOf(args, '--build-command')).toBe('pnpm run build')
-  expect(valueOf(args, '--stryker-modules')).toBe('/repo/tools/test-runner/node_modules')
+  expect(valueOf(args, '--stryker-modules')).toBe('/repo/tools/pqw-adapter/node_modules')
   expect(valueOf(args, '--vitest-config')).toBe(FAST_VITEST_CONFIG)
   expect(valueOf(args, '--other-heavy-tasks')).toBe('2')
   expect(args.at(-1)).toBe('--plan-only')

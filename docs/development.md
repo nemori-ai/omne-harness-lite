@@ -272,7 +272,7 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 
 ### 迭代中的受影响测试
 
-`check`、`check:plan`、`test:affected` 与 `mutation` 按同一规则取基线：显式给的（`--base` 参数，再取环境变量 `BASELINE`），再取工作树 task context 固定的 `targetBase`，再取 `origin/main`，最后取 `main`。已绑定任务的工作树不必传基线，并且只接受等于 `targetBase` 的显式基线。同步过目标分支以后，开工时的任务基线不再等于 `targetBase`，显式传入会被拒绝，命令在标准错误写出原因后以 2 退出，不运行任何检查。
+`check`、`check:plan` 与 `test:affected` 按同一规则取基线：显式给的（`--base` 参数，再取环境变量 `BASELINE`），再取工作树 task context 固定的 `targetBase`，再取 `origin/main`，最后取 `main`。已绑定任务的工作树不必传基线，并且只接受等于 `targetBase` 的显式基线。同步过目标分支以后，开工时的任务基线不再等于 `targetBase`，显式传入会被拒绝，命令在标准错误写出原因后以 2 退出，不运行任何检查。
 
 已绑定任务的工作树上，`pnpm run check` 每次都核对本卡实际改动的文件。本卡的改动从 binding 的 `taskBase` 沿第一父链逐提交计算：合并提交计入与每个父提交都不同的文件（冲突的解决、合并时另加的改动、两侧都改过的文件），它带进来的提交只在不属于别的远端跟踪分支时计入，所以从远端同步目标分支与合并别的卡带进来的提交不计入。工作树中未提交的改动也计入。不在 binding 写范围内的文件，以及线内的卡改到别的线或联调轨道的文件，让检查失败，标准错误逐项写文件、代码与改法。撤回这些改动，或请调度者扩大写范围并重新派发。本卡改了契约成员的 `api` 目录时，检查还用钉住的 `omne-contract-api --diff <taskBase>` 比较这些成员的快照差异：差异超过 binding 的契约变更时检查失败，`omne-contract-api` 运行失败时检查也失败。同步目标分支时用 `git merge --no-ff` 合并远端跟踪分支，不用快进或 rebase：快进与 rebase 把目标分支的提交放到第一父链上，会算成本卡的改动。没有 task context 的工作树只报告「未绑定」。命令与算法见[交付观察说明](../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
 
@@ -350,11 +350,11 @@ pnpm run test:triage --run <实际运行目录>
 ```sh
 pnpm run metrics --base "$TASK_BASE" --out tmp/<task>/metrics-final
 pnpm run metrics --base "$TASK_BASE" --coverage --out tmp/<task>/coverage-final
-pnpm run mutation --base "$TASK_BASE"
+pnpm run closeout:mutation -- --base "$TASK_BASE"
 pnpm run loop:status --base "$TASK_BASE" --out tmp/<task>/loop-final
 ```
 
-metrics只报告结构与配置范围内的覆盖；mutation只观察其选择的改动源码行和快层。它们不能替代所有消费者和慢层行为验证。完整覆盖与退出限制沿[验证入口](verification.md#检查入口)核对。
+metrics只报告结构与配置范围内的覆盖；closeout:mutation只观察其选择的改动源码行和快层。它们不能替代所有消费者和慢层行为验证。完整覆盖与退出限制沿[验证入口](verification.md#检查入口)核对。
 
 ### 交付与合并前的检查
 

@@ -74,7 +74,7 @@ tools/artifact-builder/                TS 开发成员；应用归档文件校�
 tools/repo-toolchain/                  TS 开发成员；检查器包，发布到 npm
 tools/product-checks/                  TS 开发成员；本仓库的产品规则与 lint:rules，不发布
 tools/dev-flow/                        TS 开发成员；集成与交付命令、包模板，不发布
-tools/test-runner/                     TS 开发成员；影响面计划、成员测试与变异，不发布
+tools/test-runner/                     TS 开发成员；影响面计划与成员测试，不发布
 tools/pqw-adapter/                     TS 开发成员；收口读数适配 pqw 的结构读数、差分变异与风险级别，不发布
 tools/repo-config/                     配置成员；共享的 tsconfig、oxlint 与 dependency-cruiser 预设
 pyproject.toml                         Python 开发环境聚合，package = false

@@ -147,7 +147,7 @@ describe('记录与说明', () => {
       dirty: false,
       worktree: '/work/tree',
       admission: true,
-      caches: { test: 'off', depGraph: 'on', mutation: 'unknown' },
+      caches: { test: 'off', depGraph: 'on' },
       fullRequested: true,
       mode: 'full',
       base: null,

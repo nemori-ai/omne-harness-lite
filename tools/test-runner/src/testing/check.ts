@@ -195,8 +195,6 @@ function cacheStates(env: NodeJS.ProcessEnv, full: boolean): CacheStates {
   return {
     test: cachePolicy(env, { noCache: false, full, build: true }).read ? 'on' : 'off',
     depGraph: env[DEP_GRAPH_CACHE_ENV] === '0' ? 'off' : 'on',
-    // check 不跑变异，变异增量的状态这里不知道。
-    mutation: 'unknown',
   }
 }
 
