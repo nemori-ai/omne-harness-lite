@@ -1,6 +1,6 @@
 # WindowsCustody 的精化映射
 
-本页说明 [WindowsCustody.tla](WindowsCustody.tla) 怎样精化契约的 [ProcessCustody.tla](../../../execution-environment-contract/verification/models/ProcessCustody.tla)。选定的设计是 `WindowsCustody.cfg`：`Anchor = TRUE`、`ClearOnHandover = FALSE`。模型保留 `ClearOnHandover` 与 `HandedAware` 两个常量，供负控与替代设计比较。下表「实现的步骤」一列是实现必须沿用的步骤边界，括号里是承担它的代码位置。实现改动这些位置时，同步本表并记下最后一次确认一致的提交。最后一次确认一致：`16f163e86`（保管状态的转移已抽到 `command-custody-steps.ts`；优雅停止不在模型里，见 SPEC「Windows 的兑现」的已知限制）。
+本页说明 [WindowsCustody.tla](WindowsCustody.tla) 怎样精化契约的 [ProcessCustody.tla](../../../execution-environment-contract/verification/models/ProcessCustody.tla)。选定的设计是 `WindowsCustody.cfg`：`Anchor = TRUE`、`ClearOnHandover = FALSE`。模型保留 `ClearOnHandover` 与 `HandedAware` 两个常量，供负控与替代设计比较。下表「实现的步骤」一列是实现必须沿用的步骤边界，括号里是承担它的代码位置。实现改动这些位置时，同步本表并记下最后一次确认一致的提交。最后一次确认一致：`1e080e1fe`（无冷标记时先问保留进程索引，启动身份取 `BootTime − BootTimeBias`；保管状态的转移已抽到 `command-custody-steps.ts`；优雅停止不在模型里，见 SPEC「Windows 的兑现」的已知限制）。
 
 ## 变量映射
 
