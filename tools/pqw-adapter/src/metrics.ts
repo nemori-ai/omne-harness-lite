@@ -188,23 +188,25 @@ export const METRICS_LIMITS: readonly string[] = [
 const short = (sha: string) => sha.slice(0, 9)
 const crapText = (crap: number | null) => (crap === null ? '无覆盖' : crap.toFixed(1))
 
-export function metricsSummary(
-  readings: readonly MemberReading[],
+type SummaryContext = Pick<MetricsContext, 'base' | 'head' | 'dirty' | 'full' | 'config'>
+
+/** 摘要前两行：读数的出处与线，改动的范围。 */
+function scopeLines(
   grouping: Grouping,
-  context: Pick<MetricsContext, 'base' | 'head' | 'dirty' | 'full' | 'config'>,
+  context: SummaryContext,
+  functions: readonly PqwFunction[],
 ): string[] {
-  const results = readings.flatMap(reading =>
-    reading.result === undefined ? [] : [reading.result],
-  )
-  const functions = results.flatMap(result => result.functions)
-  const worse = functions.filter(f => f.worse)
   const { warn, alert } = context.config.cyclomatic
-  const failedTests = readings.filter(r => r.failedTiers.length > 0)
-  const failedReadings = readings.filter(r => r.error !== undefined)
-  const untested = readings.filter(r => r.untested)
-  const lines = [
+  return [
     `结构读数 ${short(context.head)}${context.dirty ? '（工作树不干净）' : ''} · 基线 ${short(context.base)} · ${context.full ? '快慢两层' : '快层'} · 圈复杂度与 CRAP 线 warn ${warn}／alert ${alert}`,
     `范围：改动成员 ${grouping.members.length} 个、改动函数 ${functions.length} 个${grouping.outside.length === 0 ? '' : `；成员外改动 ${grouping.outside.length} 个文件，只量复杂度`}`,
+  ]
+}
+
+/** 变差一行，之后最多三个变差的函数；多出来的只数个数。 */
+function worseLines(results: readonly PqwMetrics[], functions: readonly PqwFunction[]): string[] {
+  const worse = functions.filter(f => f.worse)
+  return [
     `变差 ${worse.length} 个（逐条交代）；过线没变差 ${results.reduce((n, r) => n + (r.summary.overLineNotWorse ?? 0), 0)} 个；拿不准的基线 ${functions.filter(f => f.trend === 'unsure').length} 个`,
     ...worse
       .slice(0, 3)
@@ -213,7 +215,20 @@ export function metricsSummary(
           `! ${f.name} ${f.path}:${f.startLine} 圈复杂度 ${f.cyclomatic} CRAP ${crapText(f.crap)}`,
       ),
     ...(worse.length > 3 ? [`另有 ${worse.length - 3} 个变差，见各成员 JSON`] : []),
-    `无断言用例 ${results.reduce((n, r) => n + r.testsWithoutAssertions.length, 0)} 个；未覆盖的改动文件 ${results.reduce((n, r) => n + r.uncovered.length, 0)} 个；覆盖率警告 ${results.reduce((n, r) => n + (r.warnings?.length ?? 0), 0)} 条`,
+  ]
+}
+
+/** 无断言用例、未覆盖的改动文件与覆盖率警告的个数。 */
+function countsLine(results: readonly PqwMetrics[]): string {
+  return `无断言用例 ${results.reduce((n, r) => n + r.testsWithoutAssertions.length, 0)} 个；未覆盖的改动文件 ${results.reduce((n, r) => n + r.uncovered.length, 0)} 个；覆盖率警告 ${results.reduce((n, r) => n + (r.warnings?.length ?? 0), 0)} 条`
+}
+
+/** 有问题才写的几行：覆盖率那趟测试没通过、没有 test 脚本、读数失败。 */
+function problemLines(readings: readonly MemberReading[]): string[] {
+  const failedTests = readings.filter(r => r.failedTiers.length > 0)
+  const failedReadings = readings.filter(r => r.error !== undefined)
+  const untested = readings.filter(r => r.untested)
+  return [
     ...(failedTests.length === 0
       ? []
       : [
@@ -225,7 +240,23 @@ export function metricsSummary(
     ...(failedReadings.length === 0
       ? []
       : [`读数失败：${failedReadings.map(r => `${r.member}（${r.error}）`).join('；')}`]),
+  ]
+}
+
+export function metricsSummary(
+  readings: readonly MemberReading[],
+  grouping: Grouping,
+  context: SummaryContext,
+): string[] {
+  const results = readings.flatMap(reading =>
+    reading.result === undefined ? [] : [reading.result],
+  )
+  const functions = results.flatMap(result => result.functions)
+  return [
+    ...scopeLines(grouping, context, functions),
+    ...worseLines(results, functions),
+    countsLine(results),
+    ...problemLines(readings),
     `限制：${METRICS_LIMITS.join('；')}`,
   ]
-  return lines
 }

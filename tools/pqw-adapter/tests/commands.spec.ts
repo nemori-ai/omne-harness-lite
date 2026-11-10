@@ -1,6 +1,15 @@
 import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
-import { closeoutMetrics, closeoutMutation, risk, runCommand, type Deps } from '../src/commands.ts'
+import {
+  closeoutMetrics,
+  closeoutMutation,
+  COMMANDS,
+  isCommandName,
+  risk,
+  runCommand,
+  usageExitCode,
+  type Deps,
+} from '../src/commands.ts'
 import { CONFIG, fakeRepo, member, recorder, scratch, valueOf, writeJson } from './support.ts'
 
 function deps(overrides: Partial<Deps> & Pick<Deps, 'exec'>): Deps & { printed: string[] } {
@@ -110,6 +119,59 @@ it('mutation includes a pinned file and its member even when that file did not c
   expect(valueOf(calls.at(-1)?.args ?? [], '--files')).toBe('tools/t/src/j.ts')
 })
 
+it('mutation exits 1 after the range when a member could not be listed, and prints the failure line', async () => {
+  const { calls, exec } = recorder(() => ({ code: 2, stderr: 'pqw 起不来' }))
+  const d = deps({ repo, exec })
+  expect(await closeoutMutation(['--base', 'B', '--out', scratch()], d)).toBe(1)
+  expect(calls).toHaveLength(1)
+  expect(d.printed).toContain('tools/t：列范围失败（mutation.mjs 退出 2：pqw 起不来）')
+})
+
+it('mutation with no member that has tests lists the range and exits 0 without a build or a run', async () => {
+  const { calls, exec } = planned([])
+  const d = deps({
+    repo: fakeRepo({ ...repo, members: () => [member('tools/c', false)] }),
+    exec,
+  })
+  expect(await closeoutMutation(['--base', 'B', '--out', scratch()], d)).toBe(0)
+  expect(calls).toHaveLength(0)
+  expect(d.printed).toContain('没有 test 脚本、不变异：tools/c')
+  expect(d.printed).toContain('范围合计 0 行，上限 600')
+})
+
+it('mutation exits 1 without running Stryker when the upstream build fails', async () => {
+  const { calls, exec } = recorder(command => {
+    const json = valueOf(command.args, '--json')
+    if (json !== undefined)
+      writeJson(json, { mutate: ['tools/t/src/a.ts:1-10'], summary: { valid: null } })
+    return command.command === 'pnpm' ? { code: 1, stderr: 'turbo 报错' } : {}
+  })
+  const d = deps({ repo, exec })
+  expect(await closeoutMutation(['--base', 'B', '--out', scratch()], d)).toBe(1)
+  expect(calls.filter(c => c.command !== 'pnpm').every(c => c.args.includes('--plan-only'))).toBe(
+    true,
+  )
+  expect(d.printed.join('\n')).toContain('turbo 报错')
+})
+
+it('mutation prints each member line after the run and exits 1 when a measurement is invalid', async () => {
+  const { exec } = recorder(command => {
+    const json = valueOf(command.args, '--json')
+    if (json !== undefined)
+      writeJson(json, {
+        mutate: ['tools/t/src/a.ts:1-10'],
+        summary: command.args.includes('--plan-only')
+          ? { valid: null }
+          : { valid: false, invalidReason: '初跑没过' },
+      })
+    return {}
+  })
+  const d = deps({ repo, exec })
+  expect(await closeoutMutation(['--base', 'B', '--out', scratch()], d)).toBe(1)
+  expect(d.printed.some(line => line.startsWith('tools/t：测量无效（初跑没过）'))).toBe(true)
+  expect(d.printed.at(-1)).toMatch(/^限制：/)
+})
+
 it('risk reads the toolchain list from github-gate, matches it through git and exits 1 when the list is missing', async () => {
   const seen: string[][] = []
   const withList = fakeRepo({
@@ -145,4 +207,19 @@ it('turns usage errors into exit 2 and lets other errors through', async () => {
       d,
     ),
   ).rejects.toThrow('boom')
+})
+
+it('knows its three commands by name, and a missing or unknown name is no command', () => {
+  expect(Object.keys(COMMANDS)).toEqual(['metrics', 'mutation', 'risk'])
+  expect(COMMANDS).toMatchObject({ metrics: closeoutMetrics, mutation: closeoutMutation, risk })
+  for (const name of ['metrics', 'mutation', 'risk']) expect(isCommandName(name)).toBe(true)
+  for (const name of [undefined, '', '--help', 'metric', 'Metrics'])
+    expect(isCommandName(name)).toBe(false)
+})
+
+it('prints the usage with exit 0 only for --help, and with exit 2 for a missing or unknown command', () => {
+  expect(usageExitCode('--help')).toBe(0)
+  expect(usageExitCode(undefined)).toBe(2)
+  expect(usageExitCode('bogus')).toBe(2)
+  expect(usageExitCode('-h')).toBe(2)
 })

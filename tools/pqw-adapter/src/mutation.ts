@@ -262,38 +262,42 @@ export function planLines(
 const site = (s: { file: string; unit: string; line: number; original: string; mutant: string }) =>
   `- ${s.file}:${s.line} ${s.unit}：\`${s.original}\` → \`${s.mutant === '' ? '（删去）' : s.mutant}\``
 
+/** 一个成员的汇总行：杀死、存活、无覆盖、未跑与分数，JSON 位置在末尾。 */
+function scoreLine(m: MemberMutation, summary: PqwMutation['summary']): string {
+  const score =
+    summary.score === null || summary.score === undefined
+      ? '无'
+      : `${Math.round(summary.score * 100)}%`
+  return `${m.member}：杀死 ${summary.killed ?? 0}、存活 ${summary.survived ?? 0}、无覆盖 ${summary.uncovered ?? 0}、未跑 ${summary.notRun ?? 0}；分数 ${score}；JSON ${m.json}`
+}
+
+/** 有条目时写「标题：」与各条目，没有就一行都不写。 */
+function section(title: string, items: readonly string[]): string[] {
+  return items.length === 0 ? [] : [title, ...items]
+}
+
+const unmutatedSite = (u: NonNullable<PqwMutation['unmutated']>[number]) =>
+  `- ${u.file}:${u.lines[0]}-${u.lines[1]}${u.unit ? ` ${u.unit}` : ''}：${u.reason}`
+
+/** 存活、无覆盖、没有变异体的段：各段有条目才写。 */
+function detailLines(result: PqwMutation | undefined): string[] {
+  return [
+    ...section('存活：', (result?.survivors ?? []).map(site)),
+    ...section('无覆盖：', (result?.sites ?? []).filter(s => s.verdict === 'uncovered').map(site)),
+    ...section('没有变异体的段：', (result?.unmutated ?? []).map(unmutatedSite)),
+  ]
+}
+
+/** 一个成员的输出：测量无效只一行；否则汇总行，再是各段明细。 */
+function memberLines(m: MemberMutation): string[] {
+  const summary = m.result?.summary
+  if (m.error !== undefined || summary === undefined)
+    return [`${m.member}：测量无效（${m.error ?? '没有结果'}）`]
+  if (summary.valid === false)
+    return [`${m.member}：测量无效（${summary.invalidReason ?? '原因未写'}），JSON ${m.json}`]
+  return [scoreLine(m, summary), ...detailLines(m.result)]
+}
+
 export function mutationLines(results: readonly MemberMutation[]): string[] {
-  const lines: string[] = []
-  for (const m of results) {
-    const summary = m.result?.summary
-    if (m.error !== undefined || summary === undefined) {
-      lines.push(`${m.member}：测量无效（${m.error ?? '没有结果'}）`)
-      continue
-    }
-    if (summary.valid === false) {
-      lines.push(`${m.member}：测量无效（${summary.invalidReason ?? '原因未写'}），JSON ${m.json}`)
-      continue
-    }
-    const score =
-      summary.score === null || summary.score === undefined
-        ? '无'
-        : `${Math.round(summary.score * 100)}%`
-    lines.push(
-      `${m.member}：杀死 ${summary.killed ?? 0}、存活 ${summary.survived ?? 0}、无覆盖 ${summary.uncovered ?? 0}、未跑 ${summary.notRun ?? 0}；分数 ${score}；JSON ${m.json}`,
-    )
-    const survivors = m.result?.survivors ?? []
-    if (survivors.length > 0) lines.push('存活：', ...survivors.map(site))
-    const uncovered = (m.result?.sites ?? []).filter(s => s.verdict === 'uncovered')
-    if (uncovered.length > 0) lines.push('无覆盖：', ...uncovered.map(site))
-    const unmutated = m.result?.unmutated ?? []
-    if (unmutated.length > 0)
-      lines.push(
-        '没有变异体的段：',
-        ...unmutated.map(
-          u => `- ${u.file}:${u.lines[0]}-${u.lines[1]}${u.unit ? ` ${u.unit}` : ''}：${u.reason}`,
-        ),
-      )
-  }
-  lines.push(`限制：${MUTATION_LIMITS.join('；')}`)
-  return lines
+  return [...results.flatMap(memberLines), `限制：${MUTATION_LIMITS.join('；')}`]
 }

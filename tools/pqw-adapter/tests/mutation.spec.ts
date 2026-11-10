@@ -246,3 +246,60 @@ it('lists survivors, uncovered sites and unmutated segments, and ends with the l
     expect.stringMatching(/^限制：/),
   ])
 })
+
+it('gives each member that cannot be measured one line, with the reason or a stand-in for it', () => {
+  expect(
+    mutationLines([
+      { member: 'a', json: '/o/a.json', error: 'mutation.mjs 退出 1' },
+      { member: 'b', json: '/o/b.json' },
+      { member: 'c', json: '/o/c.json', result: { mutate: [], summary: { valid: false } } },
+    ]),
+  ).toEqual([
+    'a：测量无效（mutation.mjs 退出 1）',
+    'b：测量无效（没有结果）',
+    'c：测量无效（原因未写），JSON /o/c.json',
+    expect.stringMatching(/^限制：/),
+  ])
+})
+
+it('writes no score, zero counts, no sections and no unit name when the result leaves them out', () => {
+  expect(
+    mutationLines([
+      {
+        member: 'm',
+        json: '/o/m.json',
+        result: {
+          mutate: [],
+          summary: { valid: true, score: null },
+          unmutated: [{ file: 'm/src/a.ts', lines: [1, 2], reason: '空' }],
+        },
+      },
+      { member: 'n', json: '/o/n.json', result: { mutate: [], summary: { valid: true } } },
+    ]),
+  ).toEqual([
+    'm：杀死 0、存活 0、无覆盖 0、未跑 0；分数 无；JSON /o/m.json',
+    '没有变异体的段：',
+    '- m/src/a.ts:1-2：空',
+    'n：杀死 0、存活 0、无覆盖 0、未跑 0；分数 无；JSON /o/n.json',
+    expect.stringMatching(/^限制：/),
+  ])
+})
+
+it('does not list sites whose verdict is not uncovered', () => {
+  const site = { file: 'm/src/a.ts', unit: 'f', line: 7, original: '<', mutant: '<=' }
+  const lines = mutationLines([
+    {
+      member: 'm',
+      json: '/o/m.json',
+      result: {
+        mutate: [],
+        summary: { valid: true, score: 1 },
+        sites: [{ ...site, verdict: 'killed' }],
+      },
+    },
+  ])
+  expect(lines).toEqual([
+    'm：杀死 0、存活 0、无覆盖 0、未跑 0；分数 100%；JSON /o/m.json',
+    expect.stringMatching(/^限制：/),
+  ])
+})

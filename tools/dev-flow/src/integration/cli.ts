@@ -43,25 +43,32 @@ function runCheck(args: readonly string[]): 0 | 1 {
   process.stderr.write(`contract-check: ${checkSummary(report)}\n`)
   return contractCheckExitCode(report)
 }
-function main(argv: string[]): void {
+/** Runs one command and returns its exit code; a failure the command does not handle throws. */
+function main(argv: string[]): number {
   const [kind, ...args] = argv
   if (kind === '--help' || kind === undefined) {
     process.stdout.write(CONTRACT_CHECK_USAGE)
-    return
+    return 0
   }
-  if (kind === 'contract-check') {
-    process.exitCode = runCheck(args)
-    return
-  }
+  if (kind === 'contract-check') return runCheck(args)
   throw new IntegrationError('input-error', 'Unknown command')
 }
-if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+/** The line on standard error for a failure: a JSON object with the error code and message. */
+export function failureLine(error: unknown): string {
+  return `${JSON.stringify({ code: error instanceof IntegrationError ? error.code : 'unknown', message: error instanceof Error ? error.message : String(error) })}\n`
+}
+/** Runs the CLI with `argv` and returns the exit code. A failure goes to `fail` and exits 2. */
+export function runMain(argv: string[], fail: (line: string) => void): number {
   try {
-    main(process.argv.slice(2))
+    return main(argv)
   } catch (error) {
-    process.stderr.write(
-      `${JSON.stringify({ code: error instanceof IntegrationError ? error.code : 'unknown', message: error instanceof Error ? error.message : String(error) })}\n`,
-    )
-    process.exitCode = 2
+    fail(failureLine(error))
+    return 2
   }
 }
+/** `argv1` (the script Node started) is the module at `moduleUrl`, so it is the entry point. */
+export function isEntryPoint(argv1: string | undefined, moduleUrl: string): boolean {
+  return argv1 !== undefined && resolve(argv1) === fileURLToPath(moduleUrl)
+}
+if (isEntryPoint(process.argv[1], import.meta.url))
+  process.exitCode = runMain(process.argv.slice(2), line => process.stderr.write(line))

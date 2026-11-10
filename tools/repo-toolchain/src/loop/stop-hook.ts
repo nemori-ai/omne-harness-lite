@@ -12,6 +12,7 @@ import { readLoopConfig } from './config.ts'
 import { STATE_FILE, stopHook, type HookDeps } from './hook.ts'
 import { measureInChild } from './hook-process.ts'
 import { loopHome } from './home.ts'
+import { toolRoot } from './tool-root.ts'
 
 function repository(cwd: string): ReturnType<HookDeps['repository']> {
   let root: string
@@ -25,17 +26,6 @@ function repository(cwd: string): ReturnType<HookDeps['repository']> {
     root,
     branch: git(root, ['rev-parse', '--abbrev-ref', 'HEAD']),
     home: loopHome(dirname(common), process.env),
-  }
-}
-
-/** 这份脚本所在检出的根；给了 OMNE_RUNNER_ROOT（有意分开检查器与被检仓库）时不比，取不到时也不比。 */
-function toolRoot(): string | undefined {
-  const runner = process.env['OMNE_RUNNER_ROOT']
-  if (runner !== undefined && runner !== '') return undefined
-  try {
-    return git(dirname(fileURLToPath(import.meta.url)), ['rev-parse', '--show-toplevel'])
-  } catch {
-    return undefined
   }
 }
 
@@ -83,7 +73,8 @@ try {
     readState: home => readIfFile(join(home, STATE_FILE)),
     writeState,
     log,
-    toolRoot,
+    // 这份脚本所在检出的根；判断在 tool-root.ts。
+    toolRoot: () => toolRoot(process.env, dirname(fileURLToPath(import.meta.url))),
     installed,
   })
   if (output !== undefined) process.stdout.write(output)

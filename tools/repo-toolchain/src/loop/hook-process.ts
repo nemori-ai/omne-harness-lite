@@ -21,6 +21,23 @@ export interface ChildJob {
   readonly home: string
 }
 
+/** 子进程从命令行收到的那个 JSON 参数，解出要做的事；缺参数、不是 JSON 或形状不对就抛。 */
+export function jobOf(text: string | undefined): ChildJob {
+  const job: unknown = JSON.parse(text ?? 'null')
+  if (
+    typeof job !== 'object' ||
+    job === null ||
+    !('root' in job) ||
+    typeof job.root !== 'string' ||
+    !('primaryBranch' in job) ||
+    typeof job.primaryBranch !== 'string' ||
+    !('home' in job) ||
+    typeof job.home !== 'string'
+  )
+    throw new Error('量读数的子进程要 {root, primaryBranch, home}')
+  return { root: job.root, primaryBranch: job.primaryBranch, home: job.home }
+}
+
 /** 超时的说明；这次已把基线读数备好存下的，说明下次不再重算。 */
 export function timeoutMessage(timeoutMs: number, prepared: string | undefined): string {
   const message = `量读数超过 ${timeoutMs / 1000} 秒，已放弃`

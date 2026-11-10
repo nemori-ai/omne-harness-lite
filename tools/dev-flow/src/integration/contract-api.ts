@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process'
+import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { findPackageJSON } from 'node:module'
 import { dirname, join } from 'node:path'
@@ -14,10 +14,29 @@ export type Unavailable = { kind: 'unavailable'; reason: string }
 /** How to start the CLI: the executable and the arguments before the CLI's own. */
 export type ContractApiCommand = { file: string; args: readonly string[] }
 
+/** The result of one CLI process, reduced to the fields `runContractApi` judges. */
+export type ProcessResult = {
+  error?: Error | undefined
+  status: number | null
+  signal: NodeJS.Signals | null
+  stdout: string
+  stderr: string | null
+}
+
+/** Starts a process and waits for it. The default is `spawnSync`; cases pass a stand-in. */
+export type ProcessRunner = (
+  file: string,
+  args: readonly string[],
+  options: SpawnSyncOptionsWithStringEncoding,
+) => ProcessResult
+
+/** Finds the `package.json` of `specifier` as `base` would import it. The default is `findPackageJSON`. */
+export type ManifestFinder = (specifier: string, base: string) => string | undefined
+
 /** The manifest of the installed repo-toolchain, or undefined when dev-flow cannot resolve it. */
-function toolchainManifest(): string | undefined {
+export function toolchainManifest(find: ManifestFinder = findPackageJSON): string | undefined {
   try {
-    return findPackageJSON(TOOLCHAIN_PACKAGE, import.meta.url)
+    return find(TOOLCHAIN_PACKAGE, import.meta.url)
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ERR_MODULE_NOT_FOUND')
       return undefined
@@ -54,14 +73,16 @@ export function contractApiEnv(root: string): NodeJS.ProcessEnv {
 
 /**
  * Runs `omne-contract-api` with `args` on the checkout `root`. Each failure has its own reason:
- * timeout, process error with its error code, exit code with standard error.
+ * timeout, process error with its error code, exit code with standard error. `run` starts the
+ * process; the default is `spawnSync`.
  */
 export function runContractApi(
   command: ContractApiCommand,
   args: readonly string[],
   { root, timeoutMs }: { root: string; timeoutMs: number },
+  run: ProcessRunner = spawnSync,
 ): { kind: 'ran'; stdout: string } | Unavailable {
-  const result = spawnSync(command.file, [...command.args, ...args, '--root', root], {
+  const result = run(command.file, [...command.args, ...args, '--root', root], {
     cwd: root,
     encoding: 'utf8',
     timeout: timeoutMs,
@@ -93,7 +114,7 @@ export function runContractApi(
  * Runs `step`. A known failure (`IntegrationError`, which includes `GitError`) becomes
  * `unavailable` with the reason `describe` gives; any other error propagates.
  */
-function unavailableOnKnown<T>(
+export function unavailableOnKnown<T>(
   step: () => T,
   describe: (error: IntegrationError) => string,
 ): T | Unavailable {
