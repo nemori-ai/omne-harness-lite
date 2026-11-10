@@ -20,7 +20,7 @@ function specBlock(marker: string): string {
 export const expectedEmptyHelp = specBlock('命令目录为空时，生成结果是下面的原文')
 
 /** The help text of the production catalog with its 25 commands. */
-export const expectedHelp = specBlock('登记[命令](#命令)的 26 个命令')
+export const expectedHelp = specBlock('登记[命令](#命令)的 25 个命令')
 
 export const expectedVersion = '0.0.0\n'
 

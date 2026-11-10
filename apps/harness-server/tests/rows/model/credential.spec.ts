@@ -43,7 +43,7 @@ describe('the model-credential row', () => {
       row: 'model-credential',
       implementation: 'real',
       manifest: {
-        provides: ['modelCredential', 'modelCredentialCustody'],
+        provides: ['modelCredential'],
         injects: [],
         phase: null,
         sameProviderGroup: null,
@@ -162,7 +162,7 @@ describe('the model-credential row', () => {
     expect(readFileSync(path, 'utf8')).toBe(baseline)
   })
 
-  it('keeps the custody key trusted: a row that the table does not list cannot inject it', async () => {
+  it('provides the send-side service only, without a management member', async () => {
     const path = vaultPath()
     const rows = [
       {
@@ -171,15 +171,6 @@ describe('the model-credential row', () => {
         config: { path, factorySecret: FACTORY },
       },
     ]
-    await expect(
-      withLiveRows(
-        { rows, plugins, probe: ['modelCredential', 'modelCredentialCustody'] },
-        () => 0,
-      ),
-    ).rejects.toThrow(
-      /injects trusted name .{1,2}modelCredentialCustody.{1,2}, which it cannot see/,
-    )
-    // The send-side service the same row provides carries no management member.
     const { value } = await withLiveRows({ rows, plugins, probe: ['modelCredential'] }, ctx =>
       Object.keys(ctx.get('modelCredential') as object),
     )

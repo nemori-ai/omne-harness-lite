@@ -78,18 +78,11 @@
 
 ## 模型凭据
 
-租户可以经公开契约的[模型凭据](../../../../packages/access/public-contract/SPEC.md#模型凭据)操作自带、更换、解绑和查看自己的模型凭据。本节写本应用怎样兑现它。
+租户可以自带、更换、清除和查看自己的模型凭据。本节写本应用怎样兑现它。
 
 **键。** 本宿主按租户一份绑定。凭据身份是 `tenant-model-send:<组织>/<账号>`，由 `src/model/tenant-credential.ts` 的 `tenantCredentialId` 派生。发行内置的官方档案都发往 `openrouter`，所以一份绑定覆盖本宿主能发出的全部调用。按接收方区分的键要等新的接入契约（模型调用产品设计 MODEL-M04）。
 
-**管理。** `model-credential` 行以子 fiber 装 model-host-local 的受管凭据插件，自己提供受信名 `modelCredentialCustody`。每次调用先经 `src/rows/authorization/model-credential-access.ts` 准入：
-
-- 只有 `work.owner` 为 `identity-login`、代同一租户行事的登录主体可以管理。
-- 准入经 authorization 的参考准入核验（AU-11，`requires` 为空），核验器与租户存续按调用现取。
-- 会话工作主体、系统主体、伪造或复制的主体与他租户都答 `denied`。
-- 依据不可得答 `basis-unavailable`。
-
-通过后按派生的身份读写保管库，配置时刻取宿主系统时间。
+**管理。** 凭据是模型供应商声明的秘密设置项，租户经公开契约的[设置项](../../../../packages/access/public-contract/SPEC.md#设置项)操作管理（`omne setting set openrouter apiKey`），准入与范围归[设置行](settings.md)。`model-credential` 行没有管理面：它以子 fiber 装 model-host-local 的受管凭据插件，只提供 `modelCredential`。
 
 **解析。** `model-request-preparation` 行的供应商补全按调用现取 `modelCredential`，对该租户的身份调用 `presentFor`：
 
@@ -124,8 +117,6 @@
 - [跨行断言](../../tests/model/consistency.spec.ts)：四条相等各一条反例，装载前退出 2。
 - [发送来源](../../tests/model/sources.spec.ts)：档案采用与真实档案插件相等。
 - [两行真件](../../tests/rows/model/records-host.spec.ts)：真实 SQLite 与 session-storage 上装两行，经 runtime 的受理点放行 W、拒绝未核验主体，直接命令口 `unavailable`，宿主 `resolve` 读到未受理调用，缺凭据配置时发送 `unavailable`，业务阶段 `settled`。
-- [凭据管理的准入与保管](../../tests/rows/model/credential-custody.spec.ts)：真实参考准入与真实文件保管库上，只有代同一租户行事的登录主体能绑定、查看、解绑；他租户、会话工作主体与伪造主体在触到保管库之前答 `denied`；非成员租户答 `denied`，成员资格未知答 `basis-unavailable`；保管库读不出时答 `basis-unavailable` 且字节不变；插件卸载后写入答 `basis-unavailable`；宿主时钟读不出时不写。
-- [凭据保管的答复映射](../../tests/rows/model/credential-mapping.spec.ts)：保管端口对存储的每种答复（写入未确认、未存时间的绑定、时间无法解析、凭据端口抛出或拒绝）各有一个映射；供应商补全在任何情况下都不退回工厂引用。
 - `tests/serve.spec.ts` 的发行树：25 个真实行装载、接受、停止，退出 0。
 - [会话诊断的两个冒烟](../../tests/rows/session-diagnostics/flow.spec.ts)：真实 `serve` 进程里，上游 504 时 Agent 的 `no-reply` 原因带 `cause` 与 `upstreamStatus` 到达 CLI 的投影。同一调用的 Model 分支要求：登录主体经只读资格读 `modelDiagnostics`；已保存的 504 派发给出失败与上游状态，未记录的账目保持 `unknown`（原因 `not-recorded`）。
 

@@ -246,7 +246,7 @@ describe('the asset selector', () => {
 })
 
 describe('setting show', () => {
-  it('prints presence and the configuration time in one JSON object', async () => {
+  it('prints the two layers of the item as two lines', async () => {
     const service = await serve()
     await login(service)
     const result = await cli(['setting', 'show', 'Web', ITEM])
@@ -256,25 +256,49 @@ describe('setting show', () => {
       actingTenant: tenantText,
       body: { asset: { name: 'Web' }, item: ITEM },
     })
+    expect(result.stdout).toBe(`Your key: set (configured at ${AT})\nDeployment default: not set\n`)
+  })
+
+  it.each([
+    [{ state: 'unbound' }, { state: 'usable' }, 'Your key: not set\nDeployment default: set\n'],
+    [
+      { state: 'revoked', tenantId: tenantText },
+      { state: 'unreadable', configuredAt: '2026-01-01T00:00:00.000Z' },
+      'Your key: set, but revoked\nDeployment default: set, but it cannot be read (configured at 2026-01-01T00:00:00.000Z)\n',
+    ],
+  ] as const)('words each layer by its state', async (own, official, lines) => {
+    const service = await serve(
+      answerFor('describe-setting', { outcome: 'succeeded', body: { own, official } }),
+    )
+    await login(service)
+    const result = await cli(['setting', 'show', 'Web', ITEM])
+    expect(result.stdout).toBe(lines)
+  })
+
+  it('prints the result object with --json', async () => {
+    const service = await serve()
+    await login(service)
+    const result = await cli(['setting', 'show', 'Web', ITEM, '--json'])
+    expect(result.code).toBe(0)
     expect(JSON.parse(result.stdout)).toEqual({
       result: 'response',
       outcome: 'succeeded',
-      body: { state: 'usable', tenantId: tenantText, configuredAt: AT },
+      body: {
+        own: { state: 'usable', tenantId: tenantText, configuredAt: AT },
+        official: { state: 'unbound' },
+      },
       request: { messageId: expect.any(String), tenant: tenantText },
     })
   })
 
-  it('prints an unconfigured item and a not-writable answer', async () => {
-    for (const [answer, code] of [
-      [{ outcome: 'succeeded', body: { state: 'unbound' } }, 0],
-      [{ outcome: 'not-writable', body: {} }, 3],
-    ] as const) {
-      const service = await serve(answerFor('describe-setting', answer))
-      await login(service)
-      const result = await cli(['setting', 'show', 'Web', ITEM])
-      expect(result.code).toBe(code)
-      expect(JSON.parse(result.stdout)).toMatchObject(answer)
-    }
+  it('names a non-success outcome and exits by it', async () => {
+    const service = await serve(
+      answerFor('describe-setting', { outcome: 'not-writable', body: {} }),
+    )
+    await login(service)
+    const result = await cli(['setting', 'show', 'Web', ITEM])
+    expect(result.code).toBe(3)
+    expect(result.stdout).toBe('Result: not-writable\n')
   })
 })
 

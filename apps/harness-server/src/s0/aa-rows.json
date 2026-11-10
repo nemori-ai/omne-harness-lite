@@ -166,14 +166,6 @@
       ]
     },
     {
-      "row": "model-credential",
-      "names": [
-        "principalVerifier",
-        "tenantStanding",
-        "modelCredentialCustody"
-      ]
-    },
-    {
       "row": "secret-custody",
       "names": [
         "settingsSecretCustody"
@@ -250,7 +242,6 @@
         "principalIssuer",
         "definitionMappings",
         "identityGovernance",
-        "modelCredentialCustody",
         "settingsSecretItems"
       ]
     }

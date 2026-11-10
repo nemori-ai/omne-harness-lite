@@ -26,7 +26,6 @@ import {
   withoutProof,
   type Option,
 } from './command-support.ts'
-import { credentialCommand } from './credential-command.ts'
 import { runReadSessionDiagnostics } from './diagnostics-command.ts'
 import { governanceCommands } from './governance-commands.ts'
 import { runReadHistory } from './history-command.ts'
@@ -406,6 +405,5 @@ export const productionCommands: readonly CommandSpec[] = [
     run: (args, output, environment) => runSession(stopCall, args, output, environment),
   },
   ...governanceCommands,
-  credentialCommand,
   settingCommand,
 ]

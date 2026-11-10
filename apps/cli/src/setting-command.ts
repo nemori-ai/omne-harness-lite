@@ -2,8 +2,14 @@
 // the four governance operations `list-settings`, `set-setting`, `describe-setting` and
 // `clear-setting`. The asset and the item are words on the command line; the secret of `set` comes
 // from standard input or a hidden prompt, never from the command line. It goes into the request and
-// nowhere else.
-import { createGovernanceClient, tenantText, type GovernanceRequest } from '@omne-harness/sdk'
+// nowhere else. `show` prints the two layers of the item, the tenant's own and the deployment's, as
+// two lines; `--json` prints the result object instead.
+import {
+  createGovernanceClient,
+  tenantText,
+  type CallerResult,
+  type GovernanceRequest,
+} from '@omne-harness/sdk'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
   attempt,
@@ -11,13 +17,15 @@ import {
   localFailure,
   missingOption,
   serverOption,
+  text,
   unrecognized,
   usageError,
 } from './command-support.ts'
 import { readOptions } from './options.ts'
-import { report, type RequestEcho } from './report.ts'
+import { exitCodeOf, report, type RequestEcho } from './report.ts'
 
 const protocolVersion = 'governance-public/1'
+const JSON_SWITCH = '--json'
 
 type Action = 'list' | 'set' | 'show' | 'unset'
 
@@ -56,6 +64,42 @@ function split(args: readonly string[]): { words: string[]; options: string[] } 
   return { words, options }
 }
 
+/** One layer of a secret item in words: its state and, when the custody recorded it, the time. */
+function layerText(layer: unknown): string {
+  const state = text(layer, 'state')
+  const words =
+    state === 'unbound'
+      ? 'not set'
+      : state === 'usable'
+        ? 'set'
+        : state === 'revoked'
+          ? 'set, but revoked'
+          : 'set, but it cannot be read'
+  const at = text(layer, 'configuredAt')
+  return at === '' ? words : `${words} (configured at ${at})`
+}
+
+/** The human summary of `show`: one line per layer. A non-success result names its outcome only. */
+function summary(result: CallerResult): string {
+  if (result.kind === 'uncertain') return 'Result: uncertain\n'
+  const { outcome, body } = result.message
+  if (outcome !== 'succeeded') return `Result: ${outcome}\n`
+  const layers = body as { own?: unknown; official?: unknown }
+  return `Your key: ${layerText(layers.own)}\nDeployment default: ${layerText(layers.official)}\n`
+}
+
+function writeSummary(name: string, result: CallerResult, output: CliOutput): ExitCode {
+  const code = exitCodeOf(result)
+  try {
+    output.stdout(summary(result))
+  } catch {
+    output.stderr(`omne ${name}: cannot write standard output\n`)
+    return 1
+  }
+  if (code === 5) output.stderr(`omne ${name}: result uncertain\n`)
+  return code
+}
+
 /** `[<category>:]<name>`: the text before the first colon is the category. Both parts are non-empty. */
 function assetOf(text: string): AssetSelector | undefined {
   const colon = text.indexOf(':')
@@ -74,7 +118,11 @@ async function runSetting(
   if (!isAction(action)) return usageError(output, unrecognized('setting'))
   const name = `setting ${action}`
   const { words, options } = split(rest)
-  const read = readOptions(options, { accepted: [serverOption], required: [] })
+  const read = readOptions(options, {
+    accepted: [serverOption],
+    required: [],
+    ...(action === 'show' ? { switches: [JSON_SWITCH] } : {}),
+  })
   if (read.kind === 'unrecognized') return usageError(output, unrecognized(name))
   if (read.kind === 'missing') return usageError(output, missingOption(name, read.option))
   const expected = WORDS[action]
@@ -120,6 +168,7 @@ async function runSetting(
   if (result === undefined) return usageError(output, unrecognized(name))
   // The echo holds the request number and the tenant only: never the body, so never the secret.
   const echo: RequestEcho = { messageId, tenant: tenantText(loaded.tenant) }
+  if (action === 'show' && !read.values.has(JSON_SWITCH)) return writeSummary(name, result, output)
   return report(name, result, echo, output)
 }
 

@@ -18,7 +18,11 @@ import {
 } from '@omne-harness/identity'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { SettingsGovernance } from '@omne-harness/server-entry'
-import { createSettingsSecretItems, type SettingsHolding } from '@omne-harness/settings'
+import {
+  createSettingsSecretItems,
+  parseSecretText,
+  type SettingsHolding,
+} from '@omne-harness/settings'
 import { createSecretVault, type SecretVault } from '@omne-harness/settings-local/secrets'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
@@ -181,6 +185,7 @@ describe('the settings row: registry, secret items and governance', () => {
             title: 'Exa API key',
             sensitivity: 'secret',
             state: { state: 'unbound' },
+            official: { state: 'unbound' },
           },
         ],
       })
@@ -206,17 +211,22 @@ describe('the settings row: registry, secret items and governance', () => {
         entries: [{ purpose: 'setting', presence: { kind: 'bound', life: 'active' } }],
       })
       const shown = await w.port.describe({ access, asset: WEB, item: ITEM })
-      expect(shown).toMatchObject({ kind: 'succeeded', setting: { state: 'usable', tenantId: A } })
+      expect(shown).toMatchObject({
+        kind: 'succeeded',
+        setting: { own: { state: 'usable', tenantId: A }, official: { state: 'unbound' } },
+      })
       if (
         shown.kind === 'succeeded' &&
-        shown.setting.state !== 'unbound' &&
+        shown.setting.own.state !== 'unbound' &&
         written.kind === 'succeeded'
       )
-        expect(shown.setting.configuredAt).toEqual(written.configuredAt)
+        expect(shown.setting.own.configuredAt).toEqual(written.configuredAt)
       const listed = await w.port.list({ access, asset: { name: 'Web' } })
       expect(listed).toMatchObject({
         kind: 'succeeded',
-        items: [{ item: ITEM, state: { state: 'usable', tenantId: A } }],
+        items: [
+          { item: ITEM, state: { state: 'usable', tenantId: A }, official: { state: 'unbound' } },
+        ],
       })
       // Nothing the caller sees carries the secret.
       expect(inspect({ written, shown, listed }, { depth: null })).not.toContain(SENTINEL)
@@ -224,7 +234,7 @@ describe('the settings row: registry, secret items and governance', () => {
       expect(await w.port.clear({ access, asset: WEB, item: ITEM })).toEqual({ kind: 'no-change' })
       expect(await w.port.describe({ access, asset: WEB, item: ITEM })).toEqual({
         kind: 'succeeded',
-        setting: { state: 'unbound' },
+        setting: { own: { state: 'unbound' }, official: { state: 'unbound' } },
       })
       expect(readFileSync(w.path, 'utf8')).not.toContain(SENTINEL)
     } finally {
@@ -247,11 +257,46 @@ describe('the settings row: registry, secret items and governance', () => {
       )
       expect(await w.port.describe({ access, asset: WEB, item: ITEM })).toEqual({
         kind: 'succeeded',
-        setting: { state: 'unbound' },
+        setting: { own: { state: 'unbound' }, official: { state: 'unbound' } },
       })
       expect(await w.port.list({ access })).toMatchObject({
         items: [{ item: ITEM, state: { state: 'unbound' } }],
       })
+    } finally {
+      await w.close()
+    }
+  })
+
+  it('shows the official layer beside the own one, and a tenant set or clear never touches it (I-7, I-8)', async () => {
+    const w = await world()
+    try {
+      const definition = rememberWeb(w.root)
+      const holding = toolHolding(definition)
+      if (holding === null) throw new Error('fixture holding')
+      const officialKey = holdingKey({ layer: 'official' }, holding, ITEM)
+      const secret = parseSecretText('official-test-secret')
+      if (!secret.ok) throw new Error('fixture secret')
+      expect(w.vault.bind(officialKey, secret.value, null)).toBe('written')
+      const officialBefore = w.vault.describe(officialKey)
+      const access = { principal: acting(A), tenant: A }
+      expect(await w.port.describe({ access, asset: WEB, item: ITEM })).toEqual({
+        kind: 'succeeded',
+        setting: { own: { state: 'unbound' }, official: { state: 'usable' } },
+      })
+      expect(await w.port.list({ access })).toMatchObject({
+        items: [{ item: ITEM, state: { state: 'unbound' }, official: { state: 'usable' } }],
+      })
+      expect((await w.port.set({ access, asset: WEB, item: ITEM, secret: SENTINEL })).kind).toBe(
+        'succeeded',
+      )
+      expect(w.vault.describe(officialKey)).toEqual(officialBefore)
+      expect(await w.port.describe({ access, asset: WEB, item: ITEM })).toMatchObject({
+        setting: { own: { state: 'usable', tenantId: A }, official: { state: 'usable' } },
+      })
+      expect(await w.port.clear({ access, asset: WEB, item: ITEM })).toEqual({ kind: 'succeeded' })
+      expect(await w.port.clear({ access, asset: WEB, item: ITEM })).toEqual({ kind: 'no-change' })
+      expect(w.vault.describe(officialKey)).toEqual(officialBefore)
+      expect(w.vault.use(officialKey)).toEqual({ kind: 'secret', value: secret.value })
     } finally {
       await w.close()
     }

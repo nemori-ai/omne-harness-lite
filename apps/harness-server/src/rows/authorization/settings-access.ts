@@ -1,7 +1,6 @@
 // The admission of the setting management (public contract「设置项」): who may list, set, describe
-// or clear a tenant's own secret setting items. The same rule as the model credential management
-// (`model-credential-access.ts`): only the login principal that acts for that tenant, with the
-// tenant admission of authorization AU-11 and an empty `requires`. A session work principal and a
+// or clear a tenant's own secret setting items: only the login principal that acts for that tenant,
+// with the tenant admission of authorization AU-11 and an empty `requires`. A session work principal and a
 // system principal are denied: being able to call a tool is not the right to configure its key.
 // The scope the port writes is always the acting tenant's; the official scope has no path here.
 import { noArguments, type AdmissionInput } from '@omne-harness/authorization'
