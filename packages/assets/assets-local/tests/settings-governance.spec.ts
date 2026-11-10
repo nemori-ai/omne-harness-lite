@@ -74,11 +74,11 @@ it('uses one public application for standalone and real asset targets with real 
     target: w.target,
     definitionRef: definitionRef(),
   }
-  expect(await w.service.commands.change(w.principal, command)).toMatchObject({
+  expect(await w.write(w.principal, command)).toMatchObject({
     kind: 'committed',
     revision: 1,
   })
-  expect(await w.service.commands.change(w.principal, w.change)).toMatchObject({
+  expect(await w.write(w.principal, w.change)).toMatchObject({
     kind: 'committed',
     revision: 1,
   })
@@ -92,14 +92,14 @@ it('uses one public application for standalone and real asset targets with real 
     }),
   ).toMatchObject({ kind: 'committed' })
   expect(
-    await w.service.commands.change(w.principal, {
+    await w.write(w.principal, {
       ...command,
       operationId: 'late',
       expectedRevision: 1,
     }),
   ).toEqual({ kind: 'rejected', reason: 'forbidden' })
   expect(
-    await w.service.commands.getOperation(w.principal, {
+    await w.prepared.getOperation(w.principal, {
       target: w.target,
       operationId: command.operationId,
     }),
@@ -124,7 +124,7 @@ it('changes the actual selected asset definition and requires explicit re-adopti
     target: w.target,
     definitionRef: definitionRef(),
   }
-  expect(await w.service.commands.change(w.principal, command)).toMatchObject({ kind: 'committed' })
+  expect(await w.write(w.principal, command)).toMatchObject({ kind: 'committed' })
   expect(
     await w.assets.publish({
       operationId: 'v2',
@@ -138,7 +138,7 @@ it('changes the actual selected asset definition and requires explicit re-adopti
     { kind: 'rejected', reason: 'definition_changed' },
   )
   expect(
-    await w.maintenance.rebase({
+    await w.rebase({
       protocol: 'settings-rebase/1',
       requestId: 'rebase',
       operationId: 'rebase',
@@ -231,7 +231,7 @@ it('shows disabled asset settings through the public catalog but refuses runtime
     target: w.target,
     definitionRef: definitionRef(),
   }
-  expect(await w.service.commands.change(w.principal, command)).toMatchObject({ kind: 'committed' })
+  expect(await w.write(w.principal, command)).toMatchObject({ kind: 'committed' })
   const page = await w.service.queries.readCatalog(w.principal, {
     view: { ...w.view, targets: [w.target] },
     filter: '',
@@ -266,7 +266,7 @@ it('blocks old assignments when the same asset source id belongs to a different 
   const w = await open()
   opened.push(w)
   const change = { ...w.change, target: w.target, definitionRef: definitionRef() }
-  expect(await w.service.commands.change(w.principal, change)).toMatchObject({
+  expect(await w.write(w.principal, change)).toMatchObject({
     kind: 'committed',
     revision: 1,
   })
@@ -293,7 +293,7 @@ it('blocks old assignments when the same asset source id belongs to a different 
     reason: 'basis_changed',
   })
   expect(
-    await w.service.commands.change(w.principal, {
+    await w.write(w.principal, {
       ...change,
       operationId: 'late-write',
       expectedRevision: 1,
@@ -309,9 +309,9 @@ it('blocks old assignments when the same asset source id belongs to a different 
     expectedRevision: 1,
     assignments: [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'retain' as const }],
   }
-  expect(await w.maintenance.rebase(rebase)).toEqual({ kind: 'rejected', reason: 'incompatible' })
+  expect(await w.rebase(rebase)).toMatchObject({ kind: 'aborted', reason: 'incompatible' })
   expect(
-    await w.maintenance.rebase({
+    await w.rebase({
       ...rebase,
       operationId: 'discard',
       assignments: [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'discard' }],
