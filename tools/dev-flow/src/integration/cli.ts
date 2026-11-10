@@ -1,52 +1,13 @@
-import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { runGhRead } from '../delivery/github-read.ts'
-import { reviewRi, type ReviewReport } from './api-review-draft.ts'
 import {
   checkSummary,
   contractCheckExitCode,
   FAILING_STATUSES,
   runContractCheck,
 } from './contract-check.ts'
-import { snapshotContractDiff } from './contract-diff.ts'
-import { openIntegration, type Command } from './engine.ts'
-import { fields, integer, json, sha, string, IntegrationError } from './parse.ts'
-import { riNotes, riNotesExitCode, RI_REFUSING_CODES, type RiNotes } from './ri-notes.ts'
-import { riInput } from './ri-source.ts'
-import { TaskContextError } from '@omne-harness/repo-toolchain/core/task-context'
+import { IntegrationError } from './parse.ts'
 
-export function parseCommand(value: unknown): Command {
-  const v = fields(
-    value,
-    ['kind', 'authority', 'issue', 'revision', 'attempt', 'target'],
-    'command',
-  )
-  switch (v.kind) {
-    case 'register':
-    case 'start':
-      fields(v, ['kind', 'authority', 'issue', 'revision', 'attempt'], v.kind)
-      return {
-        kind: v.kind,
-        authority: string(v.authority, 'authority'),
-        issue: string(v.issue, 'issue'),
-        revision: integer(v.revision, 'revision'),
-        attempt: string(v.attempt, 'attempt'),
-      }
-    case 'task-sync':
-      fields(v, ['kind', 'target'], v.kind)
-      return { kind: v.kind, target: sha(v.target, 'target') }
-    default:
-      throw new IntegrationError('input-error', 'Unsupported integration command')
-  }
-}
-const RI_NOTES_USAGE = `integration ri-notes --track ID [--root PATH] [--format json|markdown] [--review-issue N]
-  Builds the「所含的卡」and「契约变化」sections of a promotion PR. Read-only.
-  Exit 1 when a finding is ${RI_REFUSING_CODES.join(', ')}; exit 0 otherwise; exit 2 on bad input or a failed read.
-  With --review-issue N (a card of the range that carries the review records) a review member
-  with a valid conclusion counts at that level; the semantic review report is added. Exit 2 when
-  any fact of that path is unknown, including an unavailable snapshot difference.
-`
 /** Options as `--key value` pairs; an unknown, repeated or valueless option is an input error. */
 function parseOptions(args: readonly string[], allowed: readonly string[]): Map<string, string> {
   const options = new Map<string, string>()
@@ -58,74 +19,6 @@ function parseOptions(args: readonly string[], allowed: readonly string[]): Map<
     options.set(key, value)
   }
   return options
-}
-/**
- * Markdown carries only the two sections on standard output. The findings go to standard error,
- * one JSON line each, then one summary line.
- */
-function writeMarkdown(notes: RiNotes, review?: ReviewReport): void {
-  process.stdout.write(notes.markdown)
-  const codes: Record<string, number> = {}
-  for (const finding of notes.findings) {
-    codes[finding.code] = (codes[finding.code] ?? 0) + 1
-    process.stderr.write(`${JSON.stringify(finding)}\n`)
-  }
-  const summary = {
-    findings: notes.findings.length,
-    codes,
-    contractCheck: notes.contractCheck,
-    ...(review === undefined ? {} : { semanticReview: review }),
-  }
-  process.stderr.write(`${JSON.stringify({ severity: 'report', summary })}\n`)
-}
-/**
- * `ri-notes`: returns 1 when a finding has a refusing code (`RI_REFUSING_CODES`), otherwise 0.
- * An unavailable snapshot difference only reports. The output is the same for both exit codes.
- */
-function runRiNotes(args: readonly string[]): 0 | 1 | 2 {
-  if (args.length === 1 && args[0] === '--help') {
-    process.stdout.write(RI_NOTES_USAGE)
-    return 0
-  }
-  const options = parseOptions(args, ['--root', '--track', '--format', '--review-issue']),
-    track = options.get('--track'),
-    format = options.get('--format') ?? 'json'
-  if (track === undefined || (format !== 'json' && format !== 'markdown'))
-    throw new IntegrationError(
-      'input-error',
-      'ri-notes requires --track ID and --format json|markdown',
-    )
-  const reviewIssue = options.get('--review-issue')
-  if (reviewIssue !== undefined) {
-    if (!/^[1-9]\d*$/.test(reviewIssue))
-      throw new IntegrationError('input-error', '--review-issue requires an Issue number')
-    const result = reviewRi({
-      root: resolve(options.get('--root') ?? process.cwd()),
-      entry: fileURLToPath(import.meta.url),
-      call: runGhRead,
-      track,
-      reviewIssue: Number(reviewIssue),
-    })
-    if (result.notes === null) {
-      process.stdout.write(`${JSON.stringify({ semanticReview: result.report }, null, 2)}\n`)
-      for (const item of result.report.findings) process.stderr.write(`${JSON.stringify(item)}\n`)
-    } else if (format === 'markdown') writeMarkdown(result.notes, result.report)
-    else
-      process.stdout.write(
-        `${JSON.stringify({ ...result.notes, semanticReview: result.report }, null, 2)}\n`,
-      )
-    return result.exit
-  }
-  const notes = riNotes(
-    riInput({
-      root: resolve(options.get('--root') ?? process.cwd()),
-      track,
-      contractDiffProvider: snapshotContractDiff,
-    }),
-  )
-  if (format === 'markdown') writeMarkdown(notes)
-  else process.stdout.write(`${JSON.stringify(notes, null, 2)}\n`)
-  return riNotesExitCode(notes)
 }
 const CONTRACT_CHECK_USAGE = `integration contract-check [--root PATH]
   Runs the pinned omne-contract-api --check --json. Exit 1 when a member is ${FAILING_STATUSES.join(', ')}; unbuilt only reports.
@@ -150,52 +43,25 @@ function runCheck(args: readonly string[]): 0 | 1 {
   process.stderr.write(`contract-check: ${checkSummary(report)}\n`)
   return contractCheckExitCode(report)
 }
-async function runEngine(kind: string, options: ReadonlyMap<string, string>): Promise<unknown> {
-  const engine = await openIntegration({ root: resolve(options.get('--root') ?? process.cwd()) })
-  switch (kind) {
-    case 'status':
-      return engine.inspect({ kind: 'status' })
-    case 'baselines': {
-      const base = options.get('--base')
-      return engine.inspect({
-        kind: 'baselines',
-        purpose: 'task-check',
-        ...(base === undefined ? {} : { explicitBase: base }),
-      })
-    }
-    case 'execute': {
-      const path = options.get('--input')
-      if (path === undefined) throw new IntegrationError('input-error', 'execute requires --input')
-      return engine.execute(parseCommand(json(readFileSync(path, 'utf8'), path)))
-    }
-    default:
-      throw new IntegrationError('input-error', 'Unknown command')
-  }
-}
-async function main(argv: string[]): Promise<void> {
+function main(argv: string[]): void {
   const [kind, ...args] = argv
   if (kind === '--help' || kind === undefined) {
-    process.stdout.write(
-      `integration status|baselines|execute [--root PATH] [--base REF] [--input JSON_FILE]\n${RI_NOTES_USAGE}${CONTRACT_CHECK_USAGE}execute reads a strict command union; see integration/README.md\n`,
-    )
-    return
-  }
-  if (kind === 'ri-notes') {
-    process.exitCode = runRiNotes(args)
+    process.stdout.write(CONTRACT_CHECK_USAGE)
     return
   }
   if (kind === 'contract-check') {
     process.exitCode = runCheck(args)
     return
   }
-  const result = await runEngine(kind, parseOptions(args, ['--root', '--base', '--input']))
-  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+  throw new IntegrationError('input-error', 'Unknown command')
 }
 if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main(process.argv.slice(2)).catch(error => {
+  try {
+    main(process.argv.slice(2))
+  } catch (error) {
     process.stderr.write(
-      `${JSON.stringify({ code: error instanceof IntegrationError || error instanceof TaskContextError ? error.code : 'unknown', message: error instanceof Error ? error.message : String(error) })}\n`,
+      `${JSON.stringify({ code: error instanceof IntegrationError ? error.code : 'unknown', message: error instanceof Error ? error.message : String(error) })}\n`,
     )
     process.exitCode = 2
-  })
+  }
 }

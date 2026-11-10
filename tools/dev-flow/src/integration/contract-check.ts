@@ -1,4 +1,4 @@
-import { contractApiCommand, runContractApi, type ContractApiCommand } from './contract-diff.ts'
+import { contractApiCommand, runContractApi, type ContractApiCommand } from './contract-api.ts'
 import { array, choice, IntegrationError, json, object, string } from './parse.ts'
 
 /** The member statuses of `omne-contract-api --check --json` in the pinned version. */

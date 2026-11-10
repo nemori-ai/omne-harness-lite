@@ -13,7 +13,6 @@ import {
   parseCheckRun,
   runContractCheck,
 } from '../src/integration/contract-check.ts'
-import { git } from '../src/integration/git.ts'
 import { IntegrationError } from '../src/integration/parse.ts'
 import {
   contracts,
@@ -23,7 +22,7 @@ import {
   write,
   writeSnapshots,
 } from './fixtures/contract-api.ts'
-import { init } from './fixtures/integration.ts'
+import { git, init } from './fixtures/integration.ts'
 
 const homes: string[] = []
 afterEach(() => {
