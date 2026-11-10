@@ -42,9 +42,19 @@ it('qualifies the actual organization member and recovers the original hold afte
     destination: {
       ...sourceRequest().destination,
       identity: {
-        domain: identity.world.domain,
-        principalRef: standingPrincipalRef(identity.principal),
-        operation: { target: identity.change.target, operationId: 'consumer-operation' },
+        domain: {
+          scope: { kind: 'tenant' as const, tenant: identity.scopeRef },
+          transactionDomain: 'settings.test',
+        },
+        principalRef: identity.principalRef,
+        operation: {
+          target: {
+            policyId: 'independent',
+            targetRef: 'preferences',
+            scopeRef: identity.scopeRef,
+          },
+          operationId: 'consumer-operation',
+        },
       },
     },
   }

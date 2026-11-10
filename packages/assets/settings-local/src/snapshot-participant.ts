@@ -2,7 +2,7 @@ import { readProjectedSettingsState } from './projected-state.ts'
 import { defineSettings } from '@omne-harness/settings'
 import type { SettingsBasis, SettingsTargetView, SettingsFailure } from '@omne-harness/settings'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
-import { targetViews } from './target-guard.ts'
+import { targetViews } from './target-views.ts'
 import { canonical, digest, equal, json, withinBudget } from './encoding.ts'
 import { CATALOG_TERMINAL_FACT } from './catalog-terminal-schema.ts'
 import {

@@ -1,50 +1,52 @@
 # 身份资格与设置提交的协调
 
-本页拥有 `settings-local/identity` 的本地写入协调与目录捕获共用的资格协调前提。Identity 的成员规则、资格预留和治理恢复归 Identity；设置项与求值归 Settings；目标持有和声明有效性归目标拥有者。精确接口归 [identity.ts](../src/identity.ts)。
+本页拥有本地配值写入与目录捕获共用的资格协调前提。Identity 的成员规则、资格预留和治理恢复归 Identity；设置项与求值归 Settings；目标持有和声明有效性归目标拥有者。精确接口归 [identity-preparation.ts](../src/identity-preparation.ts) 与 [identity.ts](../src/identity.ts)。
 
 ## 适用范围与装配
 
-底层 `createSettingsSqlBackend` 消费注入的资格端口，不自行验证 Identity。普通租户装配使用 `createIdentityQualifiedSettings`，要求当前 acting-for-tenant principal 的成员关系及装配指定的既有具名资格。适配器不解释角色，不增加资格名称，也不把成员资格当作登录有效期或 permit 租约。
+普通租户装配使用 `createIdentityQualifiedSettingsPreparation`，要求当前 acting-for-tenant principal 的成员关系及装配指定的既有具名资格；系统域另要求 organization-settings-manage。适配器不解释角色，不增加资格名称，也不把成员资格当作登录有效期或 permit 租约。底层 `createSettingsPreparationBackend` 消费注入的资格端口，不自行验证 Identity。
 
-装配提供可信 PrincipalVerifier、TenantStandingSource、StandingReservations、目标访问策略、目标 SQL 组合与固定 destination。目标域必须是该租户的域；目标的 scopeRef 必须等于 tenantCodec 编码。`principalRef` 使用 Identity 的 `standingPrincipalRef`，不是客户端自由文本。
+装配提供可信 PrincipalVerifier、TenantStandingSource、StandingReservations、目标访问策略、当前事实的生产者、四个阶段组合与固定 destination。租户域的目标 scopeRef 必须等于 tenantCodec 编码。`principalRef` 使用 Identity 的 `standingPrincipalRef`，不是客户端自由文本。
 
-`createSettingsStandingDestination` 只交给 Identity 的可信恢复装配。它只接受 owner=settings、固定 destination、完整租户、目标、原操作和摘要绑定。它调用目标的终态封口，不接受调用方声称“已经结束”。普通用户和工具不得获得 SQL 存储、目标 resolver 或装配写权限。多个目的地由装配静态路由，不接受客户端模块路径。
+准备服务的 `control.destination` 只交给 Identity 的可信恢复装配。它只接受 owner=settings、固定 destination、作用域相符，并且绑定到精确 attempt 与根命令摘要的保留。它核对已保存的原请求，对该 attempt 封口并回答终态，不接受调用方声称“已经结束”。普通用户和工具不得获得 SQL 存储、目标 resolver 或装配写权限。多个目的地由装配静态路由，不接受客户端模块路径。
 
-必须先将 `settingsSqlMaterials()` 与真实目标 guard 材料登记到同一目标域，再发布服务。声明了材料不等于已经登记。真实目标 guard 必须与其全部失效写者共享该域的事务；不能拿调用前的访问检查代替这一点。Identity 保持独立的系统事务域，不参加租户 SQL 事务。目录组合还须安装两拥有者投影和中央守卫，具体材料与唯一事实生产者见 [装配入口](../README.md#choose-and-register-an-assembly)。
+必须先把 `settingsSqlMaterials()` 与当前事实生产者的材料登记到同一目标域，并登记四个阶段组合，再发布服务。声明了材料不等于已经登记。当前事实的生产者必须与目标的全部失效写者共享该域的事务；不能拿调用前的访问检查代替这一点。Identity 保持独立的系统事务域，不参加租户 SQL 事务。目录组合还须安装两拥有者投影，具体材料与唯一事实生产者见 [装配入口](../README.md#choose-and-register-an-assembly)。
 
 当前实现是注入式本地后端。串行化的数据绑定可被后续远程适配采用，但现有进程内 PrincipalVerifier 和对象能力不是远程认证。没有交付远程提供者。
 
 ## 提交与终态
 
-1. 适配器冻结合法命令，核对 principal、租户、当前读取资格和目标访问策略。原操作绑定包含目标、主体、operationId 与命令摘要；摘要不包含传输 requestId。
-2. Identity 原子核对当前成员与资格，保存 held 预留。它若已有成员变更待决门，拒绝新的预留。获得 held 后才发送设置事务。
-3. 设置事务包含 `settings.terminal`、真实目标 guard 和 `settings.persistence`。终态参与者提供绑定原操作的 `settings.operation-open`；持久化参与者同时要求它和 `settings.current`。状态、原结果、变更和 committed 终态共同提交或回滚。
-4. 协调器请求 Identity settle。Identity 经可信 resolver 调用 seal。seal 仅将 absent 变成 aborted，或返回已存在的 committed/aborted；它不会删除设置或覆盖终态。
+1. 准备：适配器核对 principal、租户、当前资格和目标访问策略，保存不可变的根命令与一个 attempt。原操作绑定包含目标、主体、operationId 与命令摘要；摘要不包含传输 requestId。
+2. 保留请求先持久保存，再发给 Identity。Identity 原子核对当前成员与资格，保存 held 预留。它若已有成员变更待决门，拒绝新的预留。取得 held 并完成就绪事务后，服务才回答 prepared。
+3. 提交事务包含当前事实的生产者、`settings.commit-plan`、`settings.terminal`、来源终结和 `settings.persistence`。计划核对持久保存的原命令、精确 attempt 与当前事实。状态、原结果、变更和 committed 终态共同提交或回滚。
+4. 协调器请求 Identity settle。Identity 经可信 resolver 调用 seal。seal 对尚未终结的 attempt 封口，或返回已存在的 committed/aborted；它不会删除设置或覆盖终态。
 5. 只有匹配终态允许 Identity 释放 held。客户端超时、取消观察、查询暂未提交、提供者停止均不是释放依据。目标不可用时保留预留，撤权仍未完成。
 
-原操作先提交时，后来的 seal 返回 committed。seal 先提交时，所有迟到的原操作写入在目标事务内失败。相同操作身份换内容是 operation_conflict，不会得到新的有效预留或终态。
+提交先完成时，后来的 seal 返回 committed。seal 先完成时，该 attempt 迟到的提交在目标事务内失败。相同操作身份换内容是 operation_conflict，不会得到新的有效预留或终态。
 
-`getOperation` 每次重新授权。已有业务回执保留原业务结果；只有 aborted 封口且没有此前业务回执时，返回 rejected/basis_changed。当前无权读取时可以拒绝披露，不能因此删除历史成功。
+`getOperation` 每次重新授权，只读取根与 attempt 的持久状态，不封口也不分配后继（见 [准备协议](../../settings/docs/protocol.md#准备提交与根操作结果)）。当前无权读取时可以拒绝披露，不能因此删除历史成功。
 
-`close` 停止协调器准入，等待已接受调用，再关闭内部设置后端。共享 SQL 和 Identity 生命周期归装配拥有者。未完成的预留由 Identity 的持久恢复继续负责；disposer 不能把它视作已释放。
+`control.close()` 停止协调器准入，并等待已接受调用。共享 SQL 和 Identity 生命周期归装配拥有者。未完成的预留由 Identity 的持久恢复继续负责；disposer 不能把它视作已释放。
 
 ## 目录捕获与历史读取
 
 `createSettingsCatalog` 对每次捕获验证 principal、固定 deployment 与同租户目标。它为本次读取生成独立原操作，并向 Identity 申请短暂 held。捕获事务消费终态、要求两个目标拥有者的绑定投影，再读取 Settings 状态。它不增加配值 revision，也不授予写权限。
 
-Identity 通过 `createSettingsCatalogDestination` 封口捕获原操作。装配为目录分配独立 destination；设置修改保留原目的地。目录回执由 `settings.catalog-terminal` 单独写入 `st_catalog_terminals`，不依赖 prepared 修改终态。只有匹配的 committed 终态完成 settlement 后，目录才可交回捕获依据；捕获被先行封口或 settlement 未完成时不能交回成功依据。这里的“短暂”描述预期用途，不承诺故障下的释放期限。目标不可用时，预留仍由 Identity 恢复负责。
+Identity 通过 `createSettingsCatalogDestination` 封口捕获原操作。装配为目录分配独立 destination；设置修改保留原目的地。目录回执由 `settings.catalog-terminal` 单独写入 `st_catalog_terminals`，不依赖配值修改的终态。只有匹配的 committed 终态完成 settlement 后，目录才可交回捕获依据；捕获被先行封口或 settlement 未完成时不能交回成功依据。这里的“短暂”描述预期用途，不承诺故障下的释放期限。目标不可用时，预留仍由 Identity 恢复负责。
 
 每一页都重新执行捕获，不用旧游标的权限。目录捕获前后核对 registry generation，分页依据包含实例、过期 epoch 与当前目标和配值。完整边界见 [SPEC 的目录条款](../SPEC.md#coherent-catalog-capture)。运行显式选择只证明消费意图，不替代 Identity 或目标资格，也不证明执行采用。
 
-`readState`、`getOperation` 和 `readChanges` 是重新授权的存储检查及历史恢复入口。它们不是当前目录求值或采用凭据。`readState` 可向仍获目标权限的可信调用者返回旧 definitionRef 和原状态；目录不会把不匹配的旧值当作当前有效结果。后来的撤权可以拒绝历史披露，不能推翻已经成功的效果。
+`getOperation` 和 `readChanges` 是重新授权的历史恢复入口。它们不是当前目录求值或采用凭据。目录不会把不匹配的旧值当作当前有效结果。后来的撤权可以拒绝历史披露，不能推翻已经成功的效果。
 
-Registry 卸载影响声明可读性并保留配值。它不与设置写入共用事务，不能替代目标拥有者的失效操作。独立目标 retire 与资产持有变更各自通过拥有者事务守卫生效。
+Registry 卸载影响声明可读性并保留配值。它不与设置写入共用事务，不能替代目标拥有者的失效操作。独立目标 retire 与资产持有变更各自在拥有者事务里生效；之后的配值提交在同一域的事务里读到变化后的当前事实。
 
-## 可信维护能力不属于租户资格路径
+## 重新采用
 
-`createSettingsMaintenance` 仅交给可信部署拥有者。它使用固定 `maintenance/<ownerRef>` 身份，刻意不经过本页的 principal、standing 和 reservation 路径。这项能力不能暴露为普通租户或工具命令，不能把它当成对租户授权政策的扩展。部署拥有者负责对象能力的持有、路由与 retain/discard 权限。
+重新采用（rebase）经准备服务的 `prepareRebase` 准备后提交。访问端口收到的动作是 maintenance。这个入口不能暴露为普通租户或工具命令。持有该访问权的装配负责 retain/discard 的权限。
 
-重新采用仍在同一租户事务中取得原目标拥有者的当前事实，并消费不可逆终态。它要求精确旧新 reference、预期配值 revision 和完整赋值处置，事务行为归 [SPEC 的维护条款](../SPEC.md#trusted-deployment-rebase)。本页下述资格保持论证适用于获得 Identity 预留的租户写入和目录捕获，不适用于这项部署维护能力。
+计划的 standing 由装配决定。经 Identity 资格装配时照常向 Identity 预留。standing 为 maintenance 的装配不向 Identity 预留，本页下述资格保持论证不覆盖它。
+
+重新采用在同一租户事务中取得原目标拥有者的当前事实，并消费不可逆终态。它要求精确旧新 reference、预期配值 revision 和完整赋值处置，事务行为归 [SPEC 的重新采用条款](../SPEC.md#rebase)。
 
 ## 原子关系的证明义务
 
@@ -58,11 +60,11 @@ Registry 卸载影响声明可读性并保留配值。它不与设置写入共�
 
 待决门另保护进展：撤权开始排空后不再接受重叠的新预留。在目标最终恢复、恢复调度公平且工作集有限的前提下，已有预留可到终态，治理操作可进行最终授权判断。这里不承诺永久存储故障下的有限撤权延迟。
 
-这些论证依赖所有真实写者参与、不可伪造的装配能力、完整绑定核对和存储原子性。有限模型只检查抽象交错；实际源码、旧组合退役与恢复尝试代际需要真实 SQL 测试和独立评审。模型与具名负控归 [验证资源](../../settings/verification/README.md#资格协调模型)。
+这些论证依赖所有真实写者参与、不可伪造的装配能力、完整绑定核对和存储原子性。有限模型只检查抽象交错；实际源码与恢复尝试代际需要真实 SQL 测试和独立评审。模型与具名负控归 [验证资源](../../settings/verification/README.md#资格协调模型)。
 
 ## 验证与采用边界
 
-本包已有真实 Identity SQL 与 Settings 两域组合场景，也有持久独立目标、目录和终态的真实 SQLite/Worker 场景。默认 guard 夹具与真实目标拥有者须分开判断；真实资产、设置、Identity 三者组合的场景由 assets-local 拥有。命令、资源和限制见 [测试说明](../tests/README.md)。
+本包已有真实 Identity SQL 与 Settings 两域组合场景，也有持久独立目标、目录和终态的真实 SQLite/Worker 场景。当前事实的夹具与真实目标拥有者须分开判断；真实资产、设置、Identity 三者组合的场景由 assets-local 拥有。命令、资源和限制见 [测试说明](../tests/README.md)。
 
 上述资源不授予独立接受、系统采用或轨道集成。最终 UI、tools 与 Cordis 插件、Calendar 消费、远程认证和物理断电恢复不在本包交付声明内。
 
@@ -125,9 +127,9 @@ checkpoint、ready、commit 和恢复事务组合已接通正式参与者。chec
 来源保留的目的身份还显式包含ownerRef。相同域、根和attempt属于不同目的拥有者时，应产生不同的保留身份。路由属于完整绑定，但不能替代拥有者身份。模型中的不同destination在源码中精化为这些身份分量的元组，索引摘要之外仍核对完整请求。摘要碰撞应冲突，不能认作另一拥有者的held。目的拥有者隔离由真实SQL测试检查，有限来源模型没有单独枚举摘要碰撞。
 
 
-source-snapshot现已从本成员的目标和配值表生成绑定请求的只读事实。它复用独立拥有者与目录的读取函数，读取不到合法目标时不把失败改成无配值。材料依赖没有指向目标变更参与者的fact，因此不会与其后续源门守卫构成相互等待。SQL组合仍必须登记这些表的真实拥有者。
+source-snapshot现已从本成员的目标和配值表生成绑定请求的只读事实。它复用独立拥有者与目录的读取函数，读取不到合法目标时不把失败改成无配值。材料依赖没有指向目标变更参与者的fact，因此不会与其后续源门检查构成相互等待。SQL组合仍必须登记这些表的真实拥有者。
 
-当前真实快照保管与直接Settings写者已组合验证。生产资格、组织源适配和完整准备提交仍未接线。snapshot只证明这次源事务读到什么，持久held加全部失效写者才负责后续稳定性。恢复结算不得以重新取得当前snapshot为条件。
+真实快照保管与准备提交的写者已组合验证。生产装配没有接入组织源适配与设置值的写入方。snapshot只证明这次源事务读到什么，持久held加全部失效写者才负责后续稳定性。恢复结算不得以重新取得当前snapshot为条件。
 
 
 ### 目的侧的来源请求清单
@@ -190,7 +192,7 @@ ready的终态动作仅观察，不写committed；来源动作为none，不清�
 
 ### 精确恢复封口组合
 
-私有 `settingsRecoveryMaterials` 为准备提供者选择唯一的 terminal 和 persistence 写者，取代同目录旧材料中的对应描述符。它不把两个写者同时登记到同一个表上。当前默认公开工厂仍走原路径；只有完整提供者切换并排空旧 held 后才能退出旧实现。
+`settingsSqlMaterials` 为每个参与者身份登记一个写者：terminal 与 persistence 各只有准备提交的那一个实现。
 
 实际依赖链为 terminal-observation、recovery-plan、terminal、source-finalization、source-retention、persistence。观察者只读取终态表，计划者只读取持久根和尝试。该组合不要求当前治理、来源快照或再次取得资格。SqlStorage依据事实依赖排序，调用数组顺序不构成正确性前提。
 
@@ -198,9 +200,9 @@ attempt终态仍由st_terminals承载，但新记录带attempt标签与完整绑
 
 内部取消请求携带受保护读回的当前attempt选择。没有活跃尝试时可以传null；若选择已过期，整个事务拒绝且不清门。协调器应重新读回同一根并重试取消，不能替换原业务操作。seal则始终绑定精确attempt，重复旧seal只认回原终态。
 
-来源终结投影验证计划与terminal结果，随后向唯一来源写者发出精确动作。其finalized结果不满足直接写入所需的open事实。持久写者核验来源finished结果后再修改根和attempt。源根取消允许仍有held，但不释放这些保留；它们须由各自目的终态另行结算。
+来源终结投影验证计划与terminal结果，随后向唯一来源写者发出精确动作。其finalized结果不是独立目标写入所需的open事实。持久写者核验来源finished结果后再修改根和attempt。源根取消允许仍有held，但不释放这些保留；它们须由各自目的终态另行结算。
 
-真实组合测试覆盖封口认回、当前选择冲突、旧attempt隔离、根和精确门共同终结以及下游故障后的整组回滚。根分配和起始来源门由夹具设置，六个恢复参与者采用生产模块。公开 prepare/commit 和 attempt resolver 已消费这些组合；应用中的 resolver 路由装配、capture 迁移与旧 held 排空尚未完成。
+真实组合测试覆盖封口认回、当前选择冲突、旧attempt隔离、根和精确门共同终结以及下游故障后的整组回滚。根分配和起始来源门由夹具设置，六个恢复参与者采用生产模块。公开 prepare/commit 和 attempt resolver 已消费这些组合；应用中的 resolver 路由装配尚未完成。
 
 
 ### preparing发布为prepared
@@ -221,7 +223,7 @@ preparation 子入口将 service 与 control 分开。service 接收 Settings �
 
 SqlStorage 会保存明确 rolled_back 回执。因此该 SQL attempt 不能在原身份下改成成功提交。协调者在取得这份证据后封住精确 attempt，再按既有规则结算保留。普通根仍可接受下一次显式 prepare；源更新根遵守原有 seal 规则，同时终结并清理自己的门。结果 unknown 时不走该清理路径，也不自动换 attempt。
 
-真实 Identity 测试覆盖先撤权后提交、先提交后撤权，以及 SQL 受理前暂停提交时完成撤权。恢复直接核对持久 Standing 请求和终态，不重新申请已撤回资格。应用的 current 组装、组织来源、capture 迁移及旧调用者切换仍是未完成的集成义务。
+真实 Identity 测试覆盖先撤权后提交、先提交后撤权，以及 SQL 受理前暂停提交时完成撤权。恢复直接核对持久 Standing 请求和终态，不重新申请已撤回资格。应用的 current 组装与组织来源仍是未完成的集成义务。
 
 
 ## 目录回执的状态守护

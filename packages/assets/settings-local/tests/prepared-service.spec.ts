@@ -222,6 +222,37 @@ it('pages the changes of a target by revision', async () => {
   })
 })
 
+it('refuses a malformed command and a malformed history read before authorization', async () => {
+  let authorized = 0
+  const w = await open(options => ({
+    ...options,
+    access: {
+      authorize(context, request) {
+        authorized++
+        return options.access.authorize(context, request)
+      },
+    },
+  }))
+  // A member that the contract does not have, such as a principal that the caller names.
+  const forged: typeof w.command = Object.assign({}, w.command, { principal: 'admin' })
+  expect(await w.service.prepareChange(w.context, forged)).toEqual({
+    kind: 'rejected',
+    reason: 'invalid_input',
+  })
+  const input = { target: w.command.target, afterRevision: 0, limit: 100 }
+  for (const invalid of [
+    { ...input, afterRevision: -1 },
+    { ...input, limit: 101 },
+    { ...input, principal: 'forged' },
+  ])
+    expect(await w.service.readChanges(w.context, invalid)).toEqual({
+      kind: 'rejected',
+      reason: 'invalid_input',
+    })
+  expect(authorized).toBe(0)
+  expect(await w.service.readChanges(w.context, input)).toMatchObject({ kind: 'changes' })
+  expect(authorized).toBe(1)
+})
 it('seals the attempt when the source layout of the plan is not the stored one', async () => {
   const w = await open()
   const first = await w.service.prepareChange(w.context, w.command)

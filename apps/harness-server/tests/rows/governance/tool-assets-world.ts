@@ -17,15 +17,12 @@ import {
   type SqlStorage,
 } from '@omne-harness/sql-contract'
 import {
-  settingsStandaloneMaterials,
   settingsSqlMaterials,
+  settingsStandaloneMaterials,
   type SettingsTargetProjection,
 } from '@omne-harness/settings-local'
 import { GovernanceAdoptionCurrentSchema } from '@omne-harness/governance-local'
-import {
-  settingsPreparationMaterials,
-  SETTINGS_RECOVERY_PARTICIPANTS,
-} from '@omne-harness/settings-local/preparation'
+import { SETTINGS_RECOVERY_PARTICIPANTS } from '@omne-harness/settings-local/preparation'
 import {
   createGovernanceAdoptionProjection,
   governanceCurrentParticipant,
@@ -49,7 +46,6 @@ export async function toolAssetsWorld(
   options: {
     extraMaterials?: Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
     initialize?: (storage: SqlStorage) => Promise<string>
-    preparedSettings?: boolean
     release?: Extract<ToolRelease, { kind: 'trusted' }>
     releaseParticipant?: SqlMaterialCatalog['participants'][number]
   } = {},
@@ -61,10 +57,8 @@ export async function toolAssetsWorld(
   const publication = toolAssetPublication(entry)
   const root = existingRoot ?? realpathSync(mkdtempSync(join(tmpdir(), 'tool-assets-')))
   const assets = assetsSqlMaterials()
-  const settings = options.preparedSettings
-    ? settingsPreparationMaterials()
-    : settingsSqlMaterials()
-  const standalone = settingsStandaloneMaterials({ settingsGuard: false })
+  const settings = settingsSqlMaterials()
+  const standalone = settingsStandaloneMaterials()
   const baseMaterials = {
     catalogProtocol: 'sql-catalog/1' as const,
     participants: [
@@ -97,14 +91,12 @@ export async function toolAssetsWorld(
     },
     transactionDomain: 'governance',
   }
-  const participants = options.preparedSettings
-    ? [
-        ...baseMaterials.participants
-          .filter(value => !settings.participants.includes(value))
-          .map(value => value.participant),
-        ...SETTINGS_RECOVERY_PARTICIPANTS,
-      ]
-    : baseMaterials.participants.map(value => value.participant)
+  const participants = [
+    ...baseMaterials.participants
+      .filter(value => !settings.participants.includes(value))
+      .map(value => value.participant),
+    ...SETTINGS_RECOVERY_PARTICIPANTS,
+  ]
   const checked = combinationManifest({ catalog: materials, participants })
   if (checked.kind !== 'manifest') throw new Error(JSON.stringify(checked))
   const combination = {

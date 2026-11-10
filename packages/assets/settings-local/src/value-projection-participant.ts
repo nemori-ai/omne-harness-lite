@@ -1,7 +1,7 @@
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import { SettingsProjectionBindingSchema } from './projection.ts'
 import { readProjectedSettingsState } from './projected-state.ts'
-import { targetViews } from './target-guard.ts'
+import { targetViews } from './target-views.ts'
 import { equal, json, withinBudget } from './encoding.ts'
 import {
   SETTINGS_VALUE_PROJECTION,

@@ -57,10 +57,7 @@ function plannedRequest(result: CommitResultV2) {
 it('persists an exact request before real Identity reserve and recognizes a lost held reply after reopen', async () => {
   const identity = await openIdentityWorld()
   identities.push(identity)
-  const { world, input, ref, plan } = await setup(
-    identity.change.target.scopeRef,
-    identity.binding.principalRef,
-  )
+  const { world, input, ref, plan } = await setup(identity.scopeRef, identity.principalRef)
   const request = plannedRequest(await world.standing({ kind: 'plan', input: plan }))
   expect(request.binding.operationId).toBe(input.attemptId)
   expect(JSON.parse(request.binding.targetRef)).toMatchObject({

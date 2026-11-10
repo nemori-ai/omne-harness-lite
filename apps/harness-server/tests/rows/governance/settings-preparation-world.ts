@@ -25,7 +25,6 @@ export async function settingsPreparationWorld(
   }
   const w = await governanceAdoptionWorld({
     ...options,
-    preparedSettings: true,
     extraParticipants: [
       ...settingsCurrentMaterials(configuration),
       ...(options.extraParticipants ?? []),

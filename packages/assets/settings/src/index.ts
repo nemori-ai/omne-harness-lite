@@ -28,7 +28,6 @@ export * from './current-basis.ts'
 export * from './sources.ts'
 export {
   createSettingsQueries,
-  createSettingsCommands,
   type SettingsCatalogPage,
   type SettingsCatalogEntry,
   type SettingsCatalogRequest,

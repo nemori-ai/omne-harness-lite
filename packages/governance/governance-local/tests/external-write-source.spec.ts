@@ -24,7 +24,7 @@ it.each(['held', 'lost-reply', 'wrong-receipt'])(
         async reserve(context, request) {
           const reply = await w.service.reserve(context, request)
           heldReplies.push(reply)
-          blockedWrites.push(await w.source.set(true, 0, 'during-external-write'))
+          blockedWrites.push(await w.source.set())
           if (fault === 'lost-reply') throw new Error('fixture lost reserve acknowledgement')
           if (fault === 'wrong-receipt' && reply.kind === 'held')
             return {
@@ -64,7 +64,7 @@ it.each(['held', 'lost-reply', 'wrong-receipt'])(
     })
     expect(result).toMatchObject({ kind: 'terminal', outcome: 'aborted' })
     expect(heldReplies).toMatchObject([{ kind: 'held' }])
-    expect(blockedWrites).toMatchObject([{ kind: 'rejected' }])
+    expect(blockedWrites).toEqual([{ kind: 'rejected', reason: 'unavailable' }])
     expect(plan).toHaveBeenCalledTimes(fault === 'held' ? 1 : 0)
     if (result.kind !== 'terminal') throw new Error('terminal expected')
     expect(await made.close()).toEqual({ kind: 'closed' })
@@ -73,9 +73,7 @@ it.each(['held', 'lost-reply', 'wrong-receipt'])(
       standing: { kind: 'settled', outcome: 'aborted' },
       source: { kind: 'settled', outcome: 'aborted' },
     })
-    expect(await w.source.set(true, 0, 'after-external-write')).toMatchObject({
-      kind: 'committed',
-      revision: 1,
-    })
+    // The update that waited for the hold commits after the settlement.
+    expect(await w.source.set()).toMatchObject({ kind: 'committed', revision: 1 })
   },
 )

@@ -1,12 +1,6 @@
 export { StoredSettingsSourceLayoutSchema, projectSettingsSources } from './source-layout.ts'
-export { createSettingsSqlBackend } from './provider.ts'
 export { settingsSqlMaterials } from './materials.ts'
-export { settingsSqlOperationBinding } from './encoding.ts'
 export {
-  bindingSchema as SettingsSqlGuardBindingSchema,
-  guardFactSchema as SettingsSqlGuardFactSchema,
-  rejectionSchema as SettingsSqlGuardRejectionSchema,
-  GUARD_FACT as settingsSqlGuardFact,
   RESULT_FACT as settingsSqlResultFact,
   PARTICIPANT as settingsSqlParticipant,
   PROTOCOL as settingsSqlProtocol,
@@ -14,9 +8,11 @@ export {
 } from './schema.ts'
 export type * from './types.ts'
 
-export { createSettingsSqlTerminals } from './terminals.ts'
-export type { SettingsSqlTerminalOptions, SettingsSqlTerminalResult } from './terminals.ts'
-export type { SettingsSqlTerminal } from './terminal-schema.ts'
+export type {
+  SettingsSqlTerminal,
+  SettingsSqlTerminalOptions,
+  SettingsSqlTerminalResult,
+} from './terminal-schema.ts'
 export {
   settingsStandaloneProjectionFact,
   settingsAssetsProjectionFact,
@@ -30,7 +26,6 @@ export {
 export { settingsStandaloneMaterials } from './standalone-materials.ts'
 export {
   createStandaloneSettingsOwner,
-  standaloneSettingsGuards,
   standaloneSettingsProjectionCommand,
   standaloneSettingsPublicationCommand,
   type StandaloneMutation,
@@ -38,12 +33,10 @@ export {
 export { settingsCatalogMaterials } from './catalog-materials.ts'
 export {
   createSettingsCatalog,
-  createSettingsTargetGuards,
   type SettingsProjectionCommands,
   type SettingsCatalogOptions,
   type SettingsSelectionSource,
 } from './catalog.ts'
-export { createSettingsMaintenance } from './maintenance.ts'
 export {
   settingsWithoutAssetsMaterials,
   settingsWithoutAssetsProjectionCommand,

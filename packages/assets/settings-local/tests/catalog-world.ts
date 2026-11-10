@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import type { SqlMaterialCatalog, SqlStorage } from '@omne-harness/sql-contract'
-import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
+import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import {
   createSettingsQueries,
   createSettingsRegistry,
@@ -55,8 +55,8 @@ export async function openCatalogWorld(
   const s = await openPreparedTargetWorld({
     actions: ['set', 'clear', 'lock', 'unlock'],
     bound: {
-      scopeRef: identity.change.target.scopeRef,
-      principalRef: standingPrincipalRef(identity.principal),
+      scopeRef: identity.scopeRef,
+      principalRef: identity.principalRef,
     },
     extraMaterials: {
       participants: [...projections.participants, ...catalogMaterials.participants, ...values],

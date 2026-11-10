@@ -3,15 +3,13 @@ import {
   settingsStandalonePublicationFact,
   StandalonePublicationProjectionSchema,
 } from './standalone-publication.ts'
-import { isIndependentTargetInDomain } from './standalone-records.ts'
 import { z } from 'zod'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
 import {
   readStandaloneSettingsRecord as row,
   projectStandaloneSettingsRecord as projection,
 } from './standalone-records.ts'
-import { canonical, json, stateKey, settingsSqlOperationBinding, withinBudget } from './encoding.ts'
-import { bindingSchema, GUARD_FACT } from './schema.ts'
+import { canonical, json, stateKey, withinBudget } from './encoding.ts'
 import { SettingsProjectionBindingSchema, settingsStandaloneProjectionFact } from './projection.ts'
 import {
   StandaloneRecordSchema,
@@ -86,25 +84,6 @@ function capture(facts: Readonly<Record<string, unknown>>, port: ParticipantPort
   port.provideFact(settingsStandalonePublicationFact, json(publications))
   return { kind: 'participated' as const, response: json(publications) }
 }
-function guard(facts: Readonly<Record<string, unknown>>, port: ParticipantPort) {
-  const binding = bindingSchema.parse(facts['binding'])
-  const target = binding.command.target
-  const reject = (reason: string) => ({
-    kind: 'conflict' as const,
-    basis: json({
-      binding: settingsSqlOperationBinding(binding),
-      failure: { kind: 'rejected', reason },
-    }),
-  })
-  if (!isIndependentTargetInDomain(binding.domain, target)) return reject('forbidden')
-  const current = row(port, stateKey(binding.domain.scope, target))
-  if (!current || current.retired) return reject('forbidden')
-  const view = projection(current)
-  if (!view) return reject('unavailable')
-  const { definition, definitionRef, grants, sources } = view
-  port.provideFact(GUARD_FACT, json({ binding, definition, definitionRef, grants, sources }))
-  return { kind: 'participated' as const, response: null }
-}
 export default {
   participant: STANDALONE_PROJECTION,
   protocol: STANDALONE_PROTOCOL,
@@ -113,7 +92,6 @@ export default {
     try {
       if (facts['kind'] === 'capture' || facts['kind'] === 'capturePublication')
         return capture(facts, port)
-      if (facts['kind'] === 'guard') return guard(facts, port)
       return fail('invalid_input')
     } catch {
       return { kind: 'failed', diagnostic: 'settings_target_projection_invalid_data' }

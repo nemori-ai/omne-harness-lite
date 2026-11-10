@@ -4,7 +4,6 @@ import { evaluateSettings, type SettingResolution } from './evaluation.ts'
 import { SettingsIdSchema, type SettingItem, type SettingDefinitions } from './schema.ts'
 import type {
   SettingsReadPort,
-  SettingsCommitPort,
   SettingsFailure,
   SettingsBasis,
   SettingsTargetView,
@@ -215,48 +214,6 @@ export function createSettingsQueries<Context>(port: SettingsReadPort<Context>) 
         state: view.state,
         grants: view.grants,
       })
-    },
-  })
-}
-
-export function createSettingsCommands<Context>(port: SettingsCommitPort<Context>) {
-  return Object.freeze({
-    async change(context: Context, input: unknown) {
-      if (!withinSettingsBudget(input))
-        return { kind: 'rejected' as const, reason: 'limit_exceeded' as const }
-      const parsed = SettingsChangeSchema.safeParse(input)
-      if (!parsed.success) return invalid
-      try {
-        return await port.commit(context, parsed.data)
-      } catch {
-        return { kind: 'unknown' as const, operationId: parsed.data.operationId }
-      }
-    },
-    async getOperation(context: Context, input: unknown) {
-      const parsed = z
-        .strictObject({ target: SettingsTargetSchema, operationId: SettingsIdSchema })
-        .safeParse(input)
-      if (!parsed.success) return invalid
-      try {
-        return await port.getOperation(context, parsed.data)
-      } catch {
-        return unavailable
-      }
-    },
-    async readChanges(context: Context, input: unknown) {
-      const parsed = z
-        .strictObject({
-          target: SettingsTargetSchema,
-          afterRevision: z.number().int().nonnegative(),
-          limit: z.number().int().min(1).max(100),
-        })
-        .safeParse(input)
-      if (!parsed.success) return invalid
-      try {
-        return await port.readChanges(context, parsed.data)
-      } catch {
-        return unavailable
-      }
     },
   })
 }

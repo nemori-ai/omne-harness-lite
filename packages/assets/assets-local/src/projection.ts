@@ -3,10 +3,7 @@ import {
   SettingsOwnerProjectionSchema,
   SettingsTargetProjectionSchema,
   settingsAssetsProjectionFact,
-  settingsSqlGuardFact,
-  settingsSqlOperationBinding,
   type SettingsProjectionBinding,
-  type SettingsSqlGuardBinding,
   type SettingsTargetProjection,
 } from '@omne-harness/settings-local'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
@@ -16,11 +13,11 @@ import {
   AssetsPublicationProjectionSchema,
   type AssetsPublicationProjection,
 } from './publication.ts'
-import { belongs, readDomain, readHolding, selectedVersion } from './records.ts'
+import { readDomain, readHolding, selectedVersion } from './records.ts'
 
 function selectedTarget(
   port: ParticipantPort,
-  binding: SettingsProjectionBinding | SettingsSqlGuardBinding,
+  binding: SettingsProjectionBinding,
   target: SettingsTargetProjection['target'],
 ) {
   if (target.policyId !== 'asset' || target.scopeRef !== scopeRef(binding.domain)) return null
@@ -50,37 +47,11 @@ function settingsView(
 }
 function targetView(
   port: ParticipantPort,
-  binding: SettingsProjectionBinding | SettingsSqlGuardBinding,
+  binding: SettingsProjectionBinding,
   target: SettingsTargetProjection['target'],
 ) {
   const current = selectedTarget(port, binding, target)
   return current === null ? null : settingsView(current, target)
-}
-export function guard(port: ParticipantPort, binding: SettingsSqlGuardBinding) {
-  const fail = (reason: 'forbidden' | 'definition_changed' | 'limit_exceeded') => ({
-    kind: 'conflict' as const,
-    basis: json({
-      binding: settingsSqlOperationBinding(binding),
-      failure: { kind: 'rejected', reason },
-    }),
-  })
-  if (!belongs(port, binding.domain)) return fail('forbidden')
-  const current = targetView(port, binding, binding.command.target)
-  if (!current || current === 'undeclared') return fail('forbidden')
-  const { view } = current
-  if (!equal(view.definitionRef, binding.command.definitionRef)) return fail('definition_changed')
-  if (!withinBudget(view)) return fail('limit_exceeded')
-  port.provideFact(
-    settingsSqlGuardFact,
-    json({
-      binding,
-      definition: view.definition,
-      definitionRef: view.definitionRef,
-      sources: view.sources,
-      grants: view.grants,
-    }),
-  )
-  return { kind: 'participated' as const, response: null }
 }
 function captureTargets(port: ParticipantPort, binding: SettingsProjectionBinding, scope: string) {
   const targets = binding.request.targets

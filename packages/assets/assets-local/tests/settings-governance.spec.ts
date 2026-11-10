@@ -14,7 +14,7 @@ const opened: Awaited<ReturnType<typeof open>>[] = []
 async function open() {
   const w = await openCatalogWorld({
     assets: {
-      materials: assetsSqlMaterials({ settingsGuard: false }),
+      materials: assetsSqlMaterials(),
       command: assetsSettingsProjectionCommand,
     },
   })
@@ -114,6 +114,53 @@ it('uses one public application for standalone and real asset targets with real 
       cursor: null,
     }),
   ).toEqual({ kind: 'rejected', reason: 'forbidden' })
+})
+it('keeps the value of a disabled holding for management and still writes it', async () => {
+  const w = await open()
+  opened.push(w)
+  const command = {
+    ...w.change,
+    operationId: 'asset-change',
+    target: w.target,
+    definitionRef: definitionRef(),
+  }
+  expect(await w.write(w.principal, command)).toMatchObject({ kind: 'committed', revision: 1 })
+  expect(
+    await w.assets.changeHolding({
+      operationId: 'disable',
+      holdingRef: w.target.targetRef,
+      scopeRef: w.target.scopeRef,
+      expectedRevision: 1,
+      change: { kind: 'setEnabled', enabled: false },
+    }),
+  ).toMatchObject({ kind: 'committed', revision: 2 })
+  expect(
+    await w.service.queries.evaluate(w.principal, { ...w.view, targets: [w.target] }),
+  ).toMatchObject({ kind: 'complete', entries: [{ revision: 1 }] })
+  expect(
+    await w.write(w.principal, {
+      ...command,
+      operationId: 'while-disabled',
+      expectedRevision: 1,
+      action: { kind: 'clear' },
+    }),
+  ).toMatchObject({ kind: 'committed', revision: 2 })
+})
+it('refuses a holding that does not exist and the same reference under another policy', async () => {
+  const w = await open()
+  opened.push(w)
+  for (const wrong of [
+    { ...w.target, targetRef: 'missing' },
+    { ...w.target, policyId: 'independent' },
+  ])
+    expect(
+      await w.write(w.principal, {
+        ...w.change,
+        operationId: `wrong-${wrong.policyId}`,
+        target: wrong,
+        definitionRef: definitionRef(),
+      }),
+    ).toEqual({ kind: 'rejected', reason: 'forbidden' })
 })
 it('changes the actual selected asset definition and requires explicit re-adoption', async () => {
   const w = await open()

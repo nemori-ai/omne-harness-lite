@@ -4,7 +4,6 @@ import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import { settingsStandalonePublicationFact } from './standalone-publication.ts'
 import { STANDALONE_READ } from './standalone-read-schema.ts'
 import { SOURCE_WRITE_FACT } from './source-write.ts'
-import { GUARD_FACT } from './schema.ts'
 import { settingsStandaloneProjectionFact } from './projection.ts'
 import {
   STANDALONE_MIGRATION,
@@ -16,9 +15,10 @@ import {
   STANDALONE_PROTOCOL,
   STANDALONE_TABLES,
 } from './standalone-schema.ts'
-export function settingsStandaloneMaterials(
-  options: { settingsGuard?: boolean } = {},
-): Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'> {
+export function settingsStandaloneMaterials(): Pick<
+  SqlMaterialCatalog,
+  'participants' | 'migrations' | 'readHandlers'
+> {
   const file = (name: string) => {
     const moduleUrl = new URL(
       `./${name}.${import.meta.url.endsWith('.ts') ? 'ts' : 'js'}`,
@@ -53,11 +53,7 @@ export function settingsStandaloneMaterials(
         ownedTables: [],
         readTables: ['st_targets', 'st_target_publication'],
         requiresFacts: [],
-        providesFacts: [
-          settingsStandaloneProjectionFact,
-          settingsStandalonePublicationFact,
-          ...(options.settingsGuard === false ? [] : [GUARD_FACT]),
-        ],
+        providesFacts: [settingsStandaloneProjectionFact, settingsStandalonePublicationFact],
         allowedFunctions: [],
         grouping: 'groupable',
       },

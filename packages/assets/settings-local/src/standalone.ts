@@ -10,8 +10,7 @@ import {
   STANDALONE_PROJECTION,
   type StandaloneMutation,
 } from './standalone-schema.ts'
-import type { SettingsSqlGuards } from './types.ts'
-import type { SettingsSqlTerminalOptions } from './terminals.ts'
+import type { SettingsSqlTerminalOptions } from './terminal-schema.ts'
 import type { SettingsProjectionBinding } from './projection.ts'
 import type {
   SettingsCommitResult,
@@ -26,13 +25,6 @@ import {
   StandaloneTargetReadResultSchema,
   type StandaloneTargetReadResult,
 } from './standalone-read-schema.ts'
-export const standaloneSettingsGuards: SettingsSqlGuards = {
-  participant: STANDALONE_PROJECTION,
-  command: binding => ({
-    participant: STANDALONE_PROJECTION,
-    facts: { kind: 'guard', binding: json(binding) },
-  }),
-}
 export function standaloneSettingsProjectionCommand(
   binding: SettingsProjectionBinding,
 ): FactCommandV2 {

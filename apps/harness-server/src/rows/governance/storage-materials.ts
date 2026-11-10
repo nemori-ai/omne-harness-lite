@@ -5,10 +5,10 @@ import { assetsSqlMaterials } from '@omne-harness/assets-local'
 import { governanceSqlMaterials } from '@omne-harness/governance-local'
 import {
   settingsCatalogMaterials,
+  settingsSqlMaterials,
   settingsStandaloneMaterials,
   settingsValueProjectionMaterials,
 } from '@omne-harness/settings-local'
-import { settingsPreparationMaterials } from '@omne-harness/settings-local/preparation'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { governanceCurrentParticipant } from './adoption-current.ts'
@@ -34,8 +34,8 @@ export function governanceStorageMaterials(
   const owners = [
     assetsSqlMaterials(),
     governanceSqlMaterials(),
-    settingsPreparationMaterials({ sourceCapture: true }),
-    settingsStandaloneMaterials({ settingsGuard: false }),
+    settingsSqlMaterials(),
+    settingsStandaloneMaterials(),
     settingsCatalogMaterials(),
   ]
   return {

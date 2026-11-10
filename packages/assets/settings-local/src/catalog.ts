@@ -25,7 +25,6 @@ import {
 } from '@omne-harness/settings'
 import { canonical, digest, equal, json, withinBudget } from './encoding.ts'
 import { failureSchema } from './schema.ts'
-import { TARGET_GUARD, projectionForChange } from './target-guard.ts'
 import {
   SnapshotInputSchema,
   snapshotOperation,
@@ -33,8 +32,8 @@ import {
   type SnapshotInput,
 } from './snapshot-schema.ts'
 import { CATALOG_TERMINAL } from './catalog-terminal-schema.ts'
-import type { SettingsSqlTerminalOptions } from './terminals.ts'
-import type { SettingsSqlGuards, SettingsSqlAccess, SettingsSqlAccessRequest } from './types.ts'
+import type { SettingsSqlTerminalOptions } from './terminal-schema.ts'
+import type { SettingsSqlAccessGrant, SettingsSqlAccessRequest } from './types.ts'
 import {
   SettingsProjectionBindingSchema,
   SettingsTargetProjectionSchema,
@@ -43,15 +42,6 @@ import {
 export type SettingsProjectionCommands = (
   binding: SettingsProjectionBinding,
 ) => readonly FactCommandV2[]
-export function createSettingsTargetGuards(project: SettingsProjectionCommands): SettingsSqlGuards {
-  return {
-    participant: TARGET_GUARD,
-    command: binding => [
-      ...project(projectionForChange(binding)),
-      { participant: TARGET_GUARD, facts: { binding: json(binding) } },
-    ],
-  }
-}
 export interface SettingsSelectionSource {
   resolve(
     principal: ActingForTenantPrincipal,
@@ -101,7 +91,7 @@ export function createSettingsCatalog(
     authorize(
       principal: ActingForTenantPrincipal,
       request: Pick<SettingsSqlAccessRequest, 'scope' | 'target'>,
-    ): ReturnType<SettingsSqlAccess<ActingForTenantPrincipal>['authorize']>
+    ): Promise<SettingsSqlAccessGrant | SettingsFailure>
   }
   close(): Promise<void>
 } {

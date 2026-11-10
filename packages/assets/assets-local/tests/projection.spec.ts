@@ -138,15 +138,9 @@ it('refuses management overflow instead of truncating 129 real holdings into suc
   const explicit = await world.capture({ targets: [{ ...target, targetRef: 'holding-128' }] })
   expect(explicit.kind).toBe('committed')
 }, 30000)
-it('can publish only projection facts in the two-owner consumer combination', () => {
+it('provides only the projection fact and the publication fact', () => {
   expect(assetsSqlMaterials().participants[0]?.providesFacts.map(fact => fact.key)).toEqual([
-    'settings.current',
     'settings.assets-projection',
     'assets.current-publication',
   ])
-  expect(
-    assetsSqlMaterials({ settingsGuard: false }).participants[0]?.providesFacts.map(
-      fact => fact.key,
-    ),
-  ).toEqual(['settings.assets-projection', 'assets.current-publication'])
 })

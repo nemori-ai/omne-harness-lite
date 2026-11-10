@@ -21,7 +21,7 @@ export async function openPreparedServiceWorld(
   bound?: {
     scopeRef?: string
     principalRef?: string
-    sourceCapture?: boolean
+    withTargets?: boolean
     root?: string
     /** Materials of the test, added to the catalog next to the preparation materials. */
     extraMaterials?: Partial<
@@ -45,7 +45,7 @@ export async function openPreparedServiceWorld(
   const world = await openRecoveryWorld(
     root,
     input.identity.domain,
-    bound?.sourceCapture,
+    bound?.withTargets,
     undefined,
     bound?.extraMaterials,
   )

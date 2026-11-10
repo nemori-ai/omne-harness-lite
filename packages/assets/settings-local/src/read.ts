@@ -1,21 +1,9 @@
 import { z } from 'zod'
 import type { ReadHandlerModule, ReadPort } from '@omne-harness/sql-contract/worker'
 import { json, stateKey } from './encoding.ts'
-import { readStateRecord } from './records.ts'
 import { changesSchema, HANDLER, PROTOCOL, readRequestSchema, type ReadRequest } from './schema.ts'
 
 function read(input: ReadRequest, port: ReadPort) {
-  if (input.kind === 'state') {
-    const record = readStateRecord(port, input.domain.scope, input.target)
-    return record
-      ? {
-          kind: 'state',
-          definitionRef: record.definitionRef,
-          state: record.state,
-          sourceLayout: record.sourceLayout,
-        }
-      : { kind: 'absent' }
-  }
   const rows = port.execute(
     'SELECT revision, operation_id, item_id, source_id, kind FROM st_changes WHERE target_key = ? AND revision > ? ORDER BY revision ASC LIMIT ?',
     [stateKey(input.domain.scope, input.target), input.afterRevision, input.limit + 1],

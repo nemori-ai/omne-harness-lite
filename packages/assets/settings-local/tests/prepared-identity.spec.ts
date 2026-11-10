@@ -15,8 +15,8 @@ async function open(blockCommit = false, fixedGrant = false) {
   const identity = await openIdentityWorld()
   close.push(() => identity.close())
   const w = await openPreparedServiceWorld(undefined, {
-    scopeRef: identity.change.target.scopeRef,
-    principalRef: standingPrincipalRef(identity.principal),
+    scopeRef: identity.scopeRef,
+    principalRef: identity.principalRef,
   })
   close.push(() => w.close())
   const { standing: _, ...base } = w.options
@@ -180,7 +180,7 @@ it('an unavailable destination keeps revocation pending and blocks new reservati
     s.identity.setAvailable(true)
     expect(
       await s.identity.identity.governanceRecovery.resume({
-        login: s.identity.loginA.login,
+        login: s.identity.administratorLogin,
         operation: failure.operation,
       }),
     ).toMatchObject({ kind: 'finished', outcome: { kind: 'succeeded' } })

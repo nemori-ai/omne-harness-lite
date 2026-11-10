@@ -1,7 +1,7 @@
 import { assetsPublicationFact } from './publication.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { settingsAssetsProjectionFact, settingsSqlGuardFact } from '@omne-harness/settings-local'
+import { settingsAssetsProjectionFact } from '@omne-harness/settings-local'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import {
   HANDLER,
@@ -20,9 +20,10 @@ function file(name: string) {
     digest: createHash('sha256').update(readFileSync(url)).digest('hex'),
   }
 }
-export function assetsSqlMaterials(
-  options: { settingsGuard?: boolean } = {},
-): Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'> {
+export function assetsSqlMaterials(): Pick<
+  SqlMaterialCatalog,
+  'participants' | 'migrations' | 'readHandlers'
+> {
   const participant = file('participant'),
     migration = file('migration'),
     enablement = file('enablement-migration'),
@@ -38,11 +39,7 @@ export function assetsSqlMaterials(
         ownedTables: TABLES,
         readTables: [],
         requiresFacts: [],
-        providesFacts: [
-          ...(options.settingsGuard === false ? [] : [settingsSqlGuardFact]),
-          settingsAssetsProjectionFact,
-          assetsPublicationFact,
-        ],
+        providesFacts: [settingsAssetsProjectionFact, assetsPublicationFact],
         allowedFunctions: [],
         grouping: 'groupable',
       },

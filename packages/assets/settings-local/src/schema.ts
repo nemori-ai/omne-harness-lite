@@ -1,13 +1,10 @@
 import { z } from 'zod'
 import {
-  SettingDefinitionsSchema,
-  SettingsChangeSchema,
   SettingsDefinitionRefSchema,
   SettingsIdSchema,
   SettingsReferenceSchema,
   SettingsStateSchema,
   SettingsTargetSchema,
-  SettingsSourceLayoutSchema,
 } from '@omne-harness/settings'
 
 import { StoredSettingsSourceLayoutSchema } from './source-layout.ts'
@@ -15,7 +12,6 @@ import { StoredSettingsSourceLayoutSchema } from './source-layout.ts'
 export const PARTICIPANT = 'settings.persistence'
 export const PROTOCOL = 'settings-sql/1'
 export const HANDLER = 'settings.read'
-export const GUARD_FACT = { key: 'settings.current', protocol: PROTOCOL }
 export const RESULT_FACT = { key: 'settings.result', protocol: PROTOCOL }
 export const TABLES = ['st_states', 'st_operations', 'st_changes']
 export const MIGRATION = { owner: PARTICIPANT, id: 'settings-1' }
@@ -28,12 +24,6 @@ export const domainSchema = z.strictObject({
   scope: scopeSchema,
   transactionDomain: SettingsIdSchema,
 })
-export const bindingSchema = z.strictObject({
-  domain: domainSchema,
-  principalRef: SettingsReferenceSchema,
-  command: SettingsChangeSchema,
-  commandDigest: z.string().regex(/^[a-f0-9]{64}$/),
-})
 export const operationBindingSchema = z.strictObject({
   domain: domainSchema,
   principalRef: SettingsReferenceSchema,
@@ -41,20 +31,15 @@ export const operationBindingSchema = z.strictObject({
   operationId: SettingsIdSchema,
   commandDigest: z.string().regex(/^[a-f0-9]{64}$/),
 })
-export const guardFactSchema = z.strictObject({
-  binding: bindingSchema,
-  definition: SettingDefinitionsSchema,
-  definitionRef: SettingsDefinitionRefSchema,
-  grants: z
-    .array(
-      z.strictObject({
-        sourceId: SettingsIdSchema,
-        actions: z.array(z.enum(['set', 'clear', 'lock', 'unlock'])).max(4),
-      }),
-    )
-    .max(32),
-  sources: SettingsSourceLayoutSchema,
-})
+/** The actions that each source of a target may take, as the owner of the target grants them. */
+export const grantsSchema = z
+  .array(
+    z.strictObject({
+      sourceId: SettingsIdSchema,
+      actions: z.array(z.enum(['set', 'clear', 'lock', 'unlock'])).max(4),
+    }),
+  )
+  .max(32)
 export const failureSchema = z.strictObject({
   kind: z.literal('rejected'),
   reason: z.enum([
@@ -82,10 +67,6 @@ export const operationRecordSchema = z.strictObject({
   binding: operationBindingSchema,
   result: operationSchema,
 })
-export const rejectionSchema = z.strictObject({
-  binding: operationBindingSchema,
-  failure: failureSchema,
-})
 export const stateRecordSchema = z
   .strictObject({
     scope: scopeSchema,
@@ -101,16 +82,6 @@ export const stateRecordSchema = z
         : record.sourceLayout.sourceIds
     return JSON.stringify(ids) === JSON.stringify(record.state.sources.map(source => source.id))
   })
-export const stateResultSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('state'),
-    sourceLayout: StoredSettingsSourceLayoutSchema,
-    definitionRef: SettingsDefinitionRefSchema,
-    state: SettingsStateSchema,
-  }),
-  z.strictObject({ kind: z.literal('absent') }),
-  failureSchema,
-])
 export const changesSchema = z.strictObject({
   kind: z.literal('changes'),
   changes: z.array(
@@ -142,19 +113,14 @@ export const readBaseSchema = z.strictObject({
   principalRef: SettingsReferenceSchema,
   target: SettingsTargetSchema,
 })
-export const readRequestSchema = z.discriminatedUnion('kind', [
-  readBaseSchema.extend({ kind: z.literal('state') }),
-  readBaseSchema.extend({
-    kind: z.literal('changes'),
-    afterRevision: z
-      .number()
-      .int()
-      .nonnegative()
-      .max(Number.MAX_SAFE_INTEGER - 1),
-    limit: z.number().int().min(1).max(100),
-  }),
-])
-export type Binding = z.infer<typeof bindingSchema>
+export const readRequestSchema = readBaseSchema.extend({
+  kind: z.literal('changes'),
+  afterRevision: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(Number.MAX_SAFE_INTEGER - 1),
+  limit: z.number().int().min(1).max(100),
+})
 export type OperationBinding = z.infer<typeof operationBindingSchema>
-export type GuardFact = z.infer<typeof guardFactSchema>
 export type ReadRequest = z.infer<typeof readRequestSchema>

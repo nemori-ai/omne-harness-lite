@@ -21,7 +21,7 @@ import {
   SOURCE_SNAPSHOT_PROTOCOL,
   SOURCE_SNAPSHOT_FACT,
 } from './source-retention-schema.ts'
-import { projectSourceWrite } from './source-write-projection.ts'
+import { sourceWriteObservationSchema } from './source-write.ts'
 export {
   SOURCE_SNAPSHOT_PARTICIPANT,
   SOURCE_SNAPSHOT_PROTOCOL,
@@ -86,7 +86,12 @@ export default {
       port.provideFact(SOURCE_SNAPSHOT_FACT, json(sourceSettlementFactSchema.parse(facts)))
       return { kind: 'participated', response: null }
     }
-    if (facts['kind'] === 'write') return projectSourceWrite(facts, port)
+    if (facts['kind'] === 'write') {
+      const write = sourceWriteObservationSchema.safeParse(facts)
+      if (!write.success) return { kind: 'failed', diagnostic: 'settings_source_write_input' }
+      port.provideFact(SOURCE_SNAPSHOT_FACT, json(write.data))
+      return { kind: 'participated', response: null }
+    }
     const parsed = sourceRequestSchema.safeParse(facts['request'])
     if (!parsed.success) return { kind: 'failed', diagnostic: 'settings_source_snapshot_input' }
     try {

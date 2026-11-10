@@ -1,10 +1,20 @@
 import type { z } from 'zod'
-import { decideSettingsRebase, type SettingsRebase } from '@omne-harness/settings'
-import type { guardFactSchema, stateRecordSchema } from './schema.ts'
+import {
+  decideSettingsRebase,
+  type SettingDefinitions,
+  type SettingsDefinitionRef,
+  type SettingsRebase,
+  type SettingsSourceLayout,
+} from '@omne-harness/settings'
+import type { stateRecordSchema } from './schema.ts'
 import { canRetainSettingsSource, matchesSettingsSources } from './source-layout.ts'
 
 type StoredState = z.infer<typeof stateRecordSchema>
-type NextSources = Pick<z.infer<typeof guardFactSchema>, 'definition' | 'definitionRef' | 'sources'>
+type NextSources = Readonly<{
+  definition: SettingDefinitions
+  definitionRef: SettingsDefinitionRef
+  sources: SettingsSourceLayout
+}>
 
 export function decideStoredSettingsRebase(
   command: SettingsRebase,

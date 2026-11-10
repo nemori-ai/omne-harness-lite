@@ -10,16 +10,15 @@ Import the package by its public name:
 
 ```ts
 import {
-  assetsSettingsGuards,
   assetsSettingsProjectionCommand,
   assetsSqlMaterials,
   createAssetsLocal,
 } from '@omne-harness/assets-local'
 ```
 
-Combine `assetsSqlMaterials()` with the consumer's SQL materials. Register the resulting combination before creating the owner with `{ storage, domain, combinationVersion, manifestDigest, categories }`. The domain must be a tenant domain. For a single-owner Settings backend, pass `assetsSettingsGuards` as its `guards` option.
+Combine `assetsSqlMaterials()` with the consumer's SQL materials. Register the resulting combination before creating the owner with `{ storage, domain, combinationVersion, manifestDigest, categories }`. The domain must be a tenant domain.
 
-For a combination with a separate guard router, use `assetsSqlMaterials({ settingsGuard: false })`. This removes `settings.current` from the participant descriptor. The consumer calls `assetsSettingsProjectionCommand(binding)` and consumes `settings.assets-projection` through the public Settings projection schema. That combination must not call `assetsSettingsGuards` directly.
+A consumer calls `assetsSettingsProjectionCommand(binding)` and consumes `settings.assets-projection` through the public Settings projection schema.
 
 The owner supports these operations:
 

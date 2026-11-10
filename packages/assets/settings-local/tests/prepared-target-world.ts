@@ -29,7 +29,7 @@ export async function openPreparedTargetWorld(
   } = {},
 ) {
   const w = await openPreparedServiceWorld(undefined, {
-    sourceCapture: true,
+    withTargets: true,
     ...(options.extraMaterials ? { extraMaterials: options.extraMaterials } : {}),
     ...options.bound,
     ...options.reopen,

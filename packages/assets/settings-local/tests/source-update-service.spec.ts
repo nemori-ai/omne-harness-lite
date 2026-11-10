@@ -12,7 +12,7 @@ afterEach(async () => {
   for (const fn of close.splice(0).reverse()) await fn()
 })
 async function open() {
-  const admin = await openPreparedServiceWorld(undefined, { sourceCapture: true })
+  const admin = await openPreparedServiceWorld(undefined, { withTargets: true })
   close.push(() => admin.close())
   const source = { domain: admin.options.domain, target: admin.command.target }
   admin.updateCurrent(current => ({

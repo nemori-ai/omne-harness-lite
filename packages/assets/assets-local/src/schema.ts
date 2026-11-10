@@ -10,7 +10,6 @@ import {
 import {
   StoredSettingsSourceLayoutSchema,
   SettingsProjectionBindingSchema,
-  SettingsSqlGuardBindingSchema,
   SettingsTargetProjectionSchema,
 } from '@omne-harness/settings-local'
 
@@ -144,7 +143,6 @@ export const mutationBindingSchema = z.strictObject({
 })
 export const workerCommandSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('mutate'), binding: mutationBindingSchema }),
-  z.strictObject({ kind: z.literal('guard'), binding: SettingsSqlGuardBindingSchema }),
   z.strictObject({ kind: z.literal('capture'), binding: SettingsProjectionBindingSchema }),
   z.strictObject({
     kind: z.literal('capturePublication'),

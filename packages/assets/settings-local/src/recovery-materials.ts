@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog, ParticipantDescriptor } from '@omne-harness/sql-contract'
-import { settingsSqlMaterials } from './materials.ts'
 import {
   FINALIZATION_PLAN,
   FINALIZATION_TERMINAL,
@@ -10,7 +9,6 @@ import {
 } from './finalization-schema.ts'
 import { TERMINAL_PARTICIPANT, TERMINAL_TABLE, TERMINAL_MIGRATION } from './terminal-schema.ts'
 import { PARTICIPANT } from './schema.ts'
-import { SOURCE_WRITE_FACT } from './source-write.ts'
 import { SOURCE_SNAPSHOT_FACT } from './source-retention-schema.ts'
 import { SETTINGS_INTENT_TABLES } from './intent-migration.ts'
 import { SETTINGS_STANDING_CUSTODY_TABLE } from './standing-custody-migration.ts'
@@ -53,12 +51,9 @@ export const SETTINGS_COMMIT_PARTICIPANTS = [
   ),
   SOURCE_READINESS_PARTICIPANT,
 ]
-/** Private replacement catalog for the prepared provider; never mixed with the old writers. */
-export function settingsRecoveryMaterials(
-  options: { sourceCapture?: boolean } = {},
-): Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'> {
-  const base = settingsSqlMaterials(options)
-  const readers: ParticipantDescriptor[] = [
+/** The participants that plan, observe and finish the phases of a prepared operation. */
+export function settingsPhaseParticipants(): ParticipantDescriptor[] {
+  return [
     {
       participant: 'settings.checkpoint-input',
       protocol: CHECKPOINT_COMMAND.protocol,
@@ -143,48 +138,26 @@ export function settingsRecoveryMaterials(
       grouping: 'groupable',
     },
   ]
+}
+/** The reader of a prepared operation and its attempts. */
+export function preparationReadHandler(): SqlMaterialCatalog['readHandlers'][number] {
   return {
-    ...base,
-    readHandlers: [
-      ...base.readHandlers,
-      {
-        ...PREPARATION_READ,
-        ...file('preparation-read'),
-        ordering: 'snapshot',
-        readTables: [
-          TERMINAL_TABLE,
-          ...SETTINGS_INTENT_TABLES,
-          SETTINGS_STANDING_CUSTODY_TABLE,
-          ...SETTINGS_SOURCE_CUSTODY_TABLES,
-        ],
-        requiresMigrations: [
-          TERMINAL_MIGRATION,
-          SETTINGS_PREPARING_MIGRATION,
-          SETTINGS_STANDING_CUSTODY_MIGRATION,
-          SETTINGS_SOURCE_CUSTODY_MIGRATION,
-        ],
-        maxRowsRead: 67,
-        maxOutputBytes: 2 * 1024 * 1024,
-      },
+    ...PREPARATION_READ,
+    ...file('preparation-read'),
+    ordering: 'snapshot',
+    readTables: [
+      TERMINAL_TABLE,
+      ...SETTINGS_INTENT_TABLES,
+      SETTINGS_STANDING_CUSTODY_TABLE,
+      ...SETTINGS_SOURCE_CUSTODY_TABLES,
     ],
-    participants: [
-      ...base.participants.map(p => {
-        if (p.participant === TERMINAL_PARTICIPANT)
-          return {
-            ...p,
-            ...file('prepared-terminal-participant'),
-            requiresFacts: [FINALIZATION_PLAN],
-            providesFacts: [FINALIZATION_TERMINAL],
-          }
-        if (p.participant === PARTICIPANT)
-          return {
-            ...p,
-            ...file('prepared-persistence'),
-            requiresFacts: [FINALIZATION_PLAN, FINALIZATION_TERMINAL, SOURCE_WRITE_FACT],
-          }
-        return p
-      }),
-      ...readers,
+    requiresMigrations: [
+      TERMINAL_MIGRATION,
+      SETTINGS_PREPARING_MIGRATION,
+      SETTINGS_STANDING_CUSTODY_MIGRATION,
+      SETTINGS_SOURCE_CUSTODY_MIGRATION,
     ],
+    maxRowsRead: 67,
+    maxOutputBytes: 2 * 1024 * 1024,
   }
 }

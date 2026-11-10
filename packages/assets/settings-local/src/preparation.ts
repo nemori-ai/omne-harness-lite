@@ -7,7 +7,6 @@ export type {
   PreparationRegistration,
 } from './preparation-types.ts'
 export {
-  settingsRecoveryMaterials as settingsPreparationMaterials,
   SETTINGS_CHECKPOINT_PARTICIPANTS,
   SETTINGS_READY_PARTICIPANTS,
   SETTINGS_COMMIT_PARTICIPANTS,

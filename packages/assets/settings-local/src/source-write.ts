@@ -11,7 +11,7 @@ export const SOURCE_WRITE_FACT = {
   protocol: 'settings-source-write/1',
 }
 export const sourceWriteBindingSchema = z.strictObject({
-  kind: z.enum(['change', 'rebase', 'target']),
+  kind: z.literal('target'),
   operation: operationBindingSchema,
 })
 export const sourceWriteObservationSchema = z.strictObject({

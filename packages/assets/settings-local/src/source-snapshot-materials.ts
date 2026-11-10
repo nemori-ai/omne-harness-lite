@@ -7,11 +7,12 @@ import {
   SOURCE_SNAPSHOT_PROTOCOL,
 } from './source-snapshot.ts'
 
-export function sourceSnapshotMaterials(options: {
-  capture: boolean
-}): Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'> {
+export function sourceSnapshotMaterials(): Pick<
+  SqlMaterialCatalog,
+  'participants' | 'migrations' | 'readHandlers'
+> {
   const url = new URL(
-    `./${options.capture ? 'source-snapshot' : 'source-write-projection'}.${import.meta.url.endsWith('.ts') ? 'ts' : 'js'}`,
+    `./source-snapshot.${import.meta.url.endsWith('.ts') ? 'ts' : 'js'}`,
     import.meta.url,
   )
   return {
@@ -22,7 +23,7 @@ export function sourceSnapshotMaterials(options: {
         moduleUrl: url.href,
         codeDigest: createHash('sha256').update(readFileSync(url)).digest('hex'),
         ownedTables: [],
-        readTables: options.capture ? ['st_targets', 'st_states'] : [],
+        readTables: ['st_targets', 'st_states'],
         requiresFacts: [],
         providesFacts: [SOURCE_SNAPSHOT_FACT],
         allowedFunctions: [],

@@ -28,8 +28,8 @@ Conflict replies roll back owner changes and remain queryable through the SQL re
 
 The provider keeps a set of accepted calls. Closing stops admission and drains this set. It does not close the shared SQL provider.
 
-## Composition variants
+## Composition
 
-The default material descriptor declares both `settings.current` and `settings.assets-projection`. A single-owner Settings backend calls the guard command directly. A two-owner composition disables declaration of `settings.current` in this descriptor. A separate router then consumes asset projection facts and is the only producer of the Settings guard fact.
+The material descriptor declares `settings.assets-projection` and `assets.current-publication`. The package supplies no write guard. A consumer reads the asset projection fact in its own combination.
 
 The schema and fact keys come from the public `@omne-harness/settings-local` entry. The package imports no private Settings module. A capture command publishes only projection data and does not write settings or establish new rights.

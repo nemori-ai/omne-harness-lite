@@ -2,7 +2,7 @@ import {
   settingsOrganizationCurrentMaterials,
   type OrganizationCurrentConfiguration,
 } from '../src/preparation.ts'
-import { sourceSnapshotMaterials } from '../src/source-snapshot-materials.ts'
+import { settingsSqlMaterials } from '../src/materials.ts'
 import { settingsStandaloneMaterials } from '../src/standalone-materials.ts'
 import { randomUUID, createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -14,7 +14,6 @@ import {
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import {
-  settingsRecoveryMaterials,
   SETTINGS_RECOVERY_PARTICIPANTS,
   SETTINGS_READY_PARTICIPANTS,
   SETTINGS_COMMIT_PARTICIPANTS,
@@ -57,20 +56,16 @@ function moduleFile(name: string) {
 export async function openRecoveryWorld(
   root: string,
   domain: DomainRef = allocation().identity.domain,
-  sourceCapture = false,
+  /** Adds the independent targets, for a world that provisions and reads real targets. */
+  withTargets = false,
   organizationCurrent?: OrganizationCurrentConfiguration,
   extra: Partial<Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>> = {},
 ) {
-  const base = settingsRecoveryMaterials()
+  const base = settingsSqlMaterials()
   const targets = settingsStandaloneMaterials()
-  const own = sourceCapture
+  const own = withTargets
     ? {
-        ...base,
-        participants: [
-          ...base.participants.filter(p => p.participant !== 'settings.source-snapshot'),
-          ...sourceSnapshotMaterials({ capture: true }).participants,
-          ...targets.participants,
-        ],
+        participants: [...base.participants, ...targets.participants],
         migrations: [...base.migrations, ...targets.migrations],
         readHandlers: [...base.readHandlers, ...targets.readHandlers],
       }

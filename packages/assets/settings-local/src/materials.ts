@@ -15,15 +15,14 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import {
-  TERMINAL_FACT,
-  TERMINAL_HANDLER,
   TERMINAL_MIGRATION,
   TERMINAL_PARTICIPANT,
   TERMINAL_PROTOCOL,
   TERMINAL_TABLE,
 } from './terminal-schema.ts'
+import { FINALIZATION_PLAN, FINALIZATION_TERMINAL } from './finalization-schema.ts'
+import { preparationReadHandler, settingsPhaseParticipants } from './recovery-materials.ts'
 import {
-  GUARD_FACT,
   HANDLER,
   MIGRATION,
   SOURCE_LAYOUT_MIGRATION,
@@ -41,12 +40,17 @@ function file(name: string) {
     digest: createHash('sha256').update(readFileSync(url)).digest('hex'),
   }
 }
-export function settingsSqlMaterials(
-  options: { sourceCapture?: boolean } = {},
-): Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'> {
-  const snapshot = sourceSnapshotMaterials({ capture: options.sourceCapture ?? false })
+/**
+ * The SQL catalog of Settings. A value is written only through preparation and commit; the
+ * assembly registers the phase combinations from the exported participant sets.
+ */
+export function settingsSqlMaterials(): Pick<
+  SqlMaterialCatalog,
+  'participants' | 'migrations' | 'readHandlers'
+> {
+  const snapshot = sourceSnapshotMaterials()
   const retention = sourceRetentionMaterials()
-  const participant = file('participant')
+  const participant = file('prepared-persistence')
   const migration = file('migration')
   const intentMigration = file('intent-migration')
   const preparingMigration = file('preparing-migration')
@@ -54,9 +58,8 @@ export function settingsSqlMaterials(
   const sourceCustody = file('source-custody-migration')
   const sources = file('source-layout-migration')
   const reader = file('read')
-  const terminal = file('terminal-participant')
+  const terminal = file('prepared-terminal-participant')
   const terminalMigration = file('terminal-migration')
-  const terminalReader = file('terminal-read')
   return {
     participants: [
       ...snapshot.participants,
@@ -68,8 +71,8 @@ export function settingsSqlMaterials(
         codeDigest: terminal.digest,
         ownedTables: [TERMINAL_TABLE],
         readTables: [],
-        requiresFacts: [],
-        providesFacts: [TERMINAL_FACT],
+        requiresFacts: [FINALIZATION_PLAN],
+        providesFacts: [FINALIZATION_TERMINAL],
         allowedFunctions: [],
         grouping: 'groupable',
       },
@@ -85,11 +88,12 @@ export function settingsSqlMaterials(
           ...SETTINGS_SOURCE_CUSTODY_TABLES,
         ],
         readTables: [],
-        requiresFacts: [GUARD_FACT, TERMINAL_FACT, SOURCE_WRITE_FACT],
+        requiresFacts: [FINALIZATION_PLAN, FINALIZATION_TERMINAL, SOURCE_WRITE_FACT],
         providesFacts: [RESULT_FACT],
         allowedFunctions: [],
         grouping: 'groupable',
       },
+      ...settingsPhaseParticipants(),
     ],
     migrations: [
       {
@@ -134,17 +138,6 @@ export function settingsSqlMaterials(
     readHandlers: [
       ...retention.readHandlers,
       {
-        handler: TERMINAL_HANDLER,
-        protocol: TERMINAL_PROTOCOL,
-        moduleUrl: terminalReader.moduleUrl,
-        codeDigest: terminalReader.digest,
-        ordering: 'snapshot',
-        readTables: [TERMINAL_TABLE],
-        requiresMigrations: [TERMINAL_MIGRATION],
-        maxOutputBytes: 32768,
-        maxRowsRead: 1,
-      },
-      {
         handler: HANDLER,
         protocol: PROTOCOL,
         moduleUrl: reader.moduleUrl,
@@ -155,6 +148,7 @@ export function settingsSqlMaterials(
         maxRowsRead: 102,
         maxOutputBytes: 2 * 1024 * 1024,
       },
+      preparationReadHandler(),
     ],
   }
 }

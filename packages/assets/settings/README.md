@@ -8,9 +8,9 @@
 
 ## 使用与集成
 
-独立消费从 [SPEC](SPEC.md)读取行为，从 [公开入口](src/index.ts)读取精确类型。`defineSettings` 校验声明，`evaluateSettings` 处理已合法化的有序来源，`decideSettingsChange` 产生纯变更决定。`createSettingsQueries` 与 `createSettingsCommands` 消费注入端口；提供者必须兑现一致读取、当前资格及原子提交，空实现不构成真实集成。Cordis 装配沿[IC 约定](../../../docs/architecture/cordis-integration-conventions.md)，运行对象不进入业务 DTO。公开入口还定义秘密保管的两个窄端口 `SecretCustodyManagement`、`SecretCustodyUse`，以及把外部文本解析成 `SecretText` 的唯一边界 `parseSecretText`（[SPEC 秘密设置项](SPEC.md#secret-items)）；文件提供者在 [settings-local 的 `./secrets`](../settings-local/README.md#secret-custody)。
+独立消费从 [SPEC](SPEC.md)读取行为，从 [公开入口](src/index.ts)读取精确类型。`defineSettings` 校验声明，`evaluateSettings` 处理已合法化的有序来源，`decideSettingsChange` 产生纯变更决定。`createSettingsQueries` 消费注入的读取端口；提供者必须兑现一致读取与当前资格，空实现不构成真实集成。配值写入只经 `SettingsPreparationPort`。Cordis 装配沿[IC 约定](../../../docs/architecture/cordis-integration-conventions.md)，运行对象不进入业务 DTO。公开入口还定义秘密保管的两个窄端口 `SecretCustodyManagement`、`SecretCustodyUse`，以及把外部文本解析成 `SecretText` 的唯一边界 `parseSecretText`（[SPEC 秘密设置项](SPEC.md#secret-items)）；文件提供者在 [settings-local 的 `./secrets`](../settings-local/README.md#secret-custody)。
 
-准备式提交的类型与Schema归 `SettingsPreparationPort`，行为见[准备协议](docs/protocol.md#准备提交与根操作结果)。现行本地提供者和命令工厂仍待切换，不能把这个接口当作已运行的持久服务。
+配值写入的类型与 Schema 归 `SettingsPreparationPort`，行为见[准备协议](docs/protocol.md#准备提交与根操作结果)。本地提供者见 [settings-local](../settings-local/README.md)。
 
 ## 契约与设计
 

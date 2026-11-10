@@ -1,9 +1,4 @@
-import type {
-  SettingsChange,
-  SettingsDefinitionRef,
-  SettingsState,
-  SettingsTarget,
-} from './commands.ts'
+import type { SettingsDefinitionRef, SettingsState, SettingsTarget } from './commands.ts'
 import type { SettingsSourceDescriptor } from './sources.ts'
 import type { SettingDefinitions } from './schema.ts'
 
@@ -78,15 +73,3 @@ export type SettingsChangePage = Readonly<{
   )[]
   nextRevision: number | null
 }>
-export interface SettingsCommitPort<Context> {
-  /** Recheck target, authorization, definition and revision in the same commit as all durable facts. */
-  commit(context: Context, command: SettingsChange): Promise<SettingsCommitResult>
-  getOperation(
-    context: Context,
-    input: Readonly<{ target: SettingsTarget; operationId: string }>,
-  ): Promise<SettingsOperationResult>
-  readChanges(
-    context: Context,
-    input: Readonly<{ target: SettingsTarget; afterRevision: number; limit: number }>,
-  ): Promise<SettingsChangePage | SettingsFailure>
-}

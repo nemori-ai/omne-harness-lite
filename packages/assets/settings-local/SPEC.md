@@ -4,23 +4,19 @@ This package implements local persistence and catalog capture for [Settings](../
 
 ## One-target persistence
 
-`settings.persistence` owns `st_states`, `st_operations`, and `st_changes`. It reads current state inside the tenant transaction and invokes `decideSettingsChange`. A stale expected revision returns `revision_conflict`. Only one competing command against the same revision can change that state.
+`settings.persistence` owns `st_states`, `st_operations`, and `st_changes`. A value is written only by the commit of a prepared operation ([Prepared business transaction](#prepared-business-transaction)). The commit reads current state inside the transaction and invokes `decideSettingsChange`. A stale expected revision aborts the operation with `revision_conflict`. Only one competing operation against the same revision can change that state.
 
 A successful change stores assignments, their revision, the value-free original result, and a value-free change record in one transaction. A later participant rejection rolls them back together. A genuine no-op records its original result without incrementing the revision or appending a change. A raw assignment or lock change increments the revision even when another source masks its effective value.
 
-Ordinary changes require the complete current definition reference and the same ordered source layout. Definition mismatch returns `definition_changed`; source-layout mismatch returns `basis_changed`. There is no implicit migration, cross-target assignment transaction, or destructive target cleanup operation. Explicit deployment maintenance is defined below.
+Ordinary changes require the complete current definition reference and the same ordered source layout. Definition mismatch aborts the operation with `definition_changed`. A source layout that differs from the stored one rejects the commit with `basis_changed` and seals the attempt. There is no implicit migration, cross-target assignment transaction, or destructive target cleanup operation. Explicit rebase is defined below.
 
-Secret item commands return `unsupported`. The SQL provider accepts no state-changing secret value and exposes no secret plaintext read API; secret custody is the separate `./secrets` entry ([Secret custody](#secret-custody)). Persistence and owner rejection receipts must omit command bodies and assignment values. The preparation path refuses a change of a secret item with `unsupported` before it allocates anything: it makes no Identity reservation, commits no transaction and stores no intent, so the value reaches no relation and no receipt. The commit-time check of the same rule stays for a definition that turns an item secret after the preparation.
+Secret item commands return `unsupported`. The SQL provider accepts no state-changing secret value and exposes no secret plaintext read API; secret custody is the separate `./secrets` entry ([Secret custody](#secret-custody)). Persistence and owner rejection receipts must omit command bodies and assignment values. The preparation refuses a change of a secret item with `unsupported` before it allocates anything: it makes no Identity reservation, commits no transaction and stores no intent, so the value reaches no relation and no receipt. The commit-time check of the same rule stays for a definition that turns an item secret after the preparation.
 
 ## Target qualification
 
-A preceding participant in the same SQL transaction must supply `settings.current`. Its binding covers the domain, trusted principal, complete command, and server-computed digest. Its payload supplies the current definition, exact definition reference, grants, and ordered sources. Settings verifies the digest, declaration identity, target binding, allowed action, and source membership. A boolean, prior access result, missing fact, or caller assertion cannot authorize a write.
+A value commit needs current target facts from a participant of the same SQL transaction. The assembly supplies that participant through `currentCommands`: it provides `settings.preparation-current` in the ready phase and `settings.commit-current` in the commit phase ([Prepared business transaction](#prepared-business-transaction)). The fact binds the exact attempt. Its material supplies the current definition, exact definition reference, grants, and ordered sources. Settings verifies the declaration identity, target binding, allowed action, and source membership. A boolean, prior access result, missing fact, or caller assertion cannot authorize a write.
 
-`settingsSqlOperationBinding` produces the value-free operation binding used in receipts. A qualified owner rejection uses `SettingsSqlGuardRejectionSchema` and returns `conflict` or `unsupported`. The guard must coordinate every real writer that changes target existence, qualification, definition, or source layout in its transaction domain.
-
-In the catalog composition, the independent and Asset owners each produce their named fact, `settings.standalone-projection` and `settings.assets-projection`. Both use `settings-projection/1` and the exact `SettingsProjectionBinding`. `settings.target-guard` requires both facts and translates one qualified target into `settings.current`. Mismatched bindings, duplicate complete targets, and more than 128 projected targets fail the transaction. No target yields `forbidden`. An assembly without Assets explicitly produces an empty Asset projection through `settings.without-assets`; it does not fabricate Asset ownership.
-
-The central composition installs `settingsStandaloneMaterials({ settingsGuard: false })`. The direct independent persistence composition may instead use default materials and `standaloneSettingsGuards`. A combination must not register competing producers of `settings.current`.
+In the catalog composition, the independent and Asset owners each produce their named fact, `settings.standalone-projection` and `settings.assets-projection`. Both use `settings-projection/1` and the exact `SettingsProjectionBinding`. A participant that reads both facts fails the transaction on mismatched bindings, duplicate complete targets, or more than 128 projected targets. An assembly without Assets explicitly produces an empty Asset projection through `settings.without-assets`; it does not fabricate Asset ownership.
 
 ## Independent target ownership
 
@@ -78,37 +74,35 @@ A valid selection establishes consumer intent only. Every target still requires 
 
 Registry registration and release control declaration availability in the process. Release preserves persistent assignments and operation history. A reload of the same exact declaration can make those values readable again.
 
-Registry unload is not atomic write-authorization removal. A pending write that already passed a read check can still commit if the authoritative target guard remains valid. To invalidate a target, the trusted owner retires the independent target or removes or changes the Asset holding through its transaction protocol. Those owner changes serialize with Settings target qualification. An Asset holding recreated under a different identity does not inherit another target's values.
+Registry unload is not atomic write-authorization removal. A pending write that already passed a read check can still commit if the current target facts of its commit remain valid. To invalidate a target, the trusted owner retires the independent target or removes or changes the Asset holding through its transaction protocol. Those owner changes serialize with Settings target qualification. An Asset holding recreated under a different identity does not inherit another target's values.
 
-## Trusted deployment rebase
+## Rebase
 
-`createSettingsMaintenance` is a deployment-owner capability. The assembly fixes `ownerRef`, tenant domain, storage combination, and projection commands. It uses principal identity `maintenance/<ownerRef>`. It deliberately bypasses the ordinary Identity principal, standing, and reservation route. It must not be exposed as an ordinary tenant or tool command. Its holder is responsible for authority to retain or discard the target's assignments.
+`prepareRebase` of the prepared service prepares a rebase, and `commitChange` commits it. The access adapter receives the action `maintenance`. The entry must not be exposed as an ordinary tenant or tool command. The holder of that access is responsible for authority to retain or discard the target's assignments.
 
-`rebase` requires exact `from` and `to` definition references, the expected assignment revision, and one explicit `retain` or `discard` choice for every existing assignment. Missing, duplicate, or extra choices return `invalid_input`. Retained assignments must have a source and item in the new basis and pass evaluation. Incompatible retained data returns `incompatible`. No display-name matching or automatic conversion occurs.
+A rebase requires exact `from` and `to` definition references, the expected assignment revision, and one explicit `retain` or `discard` choice for every existing assignment. Missing, duplicate, or extra choices return `invalid_input`. Retained assignments must have a source and item in the new basis and pass evaluation. Incompatible retained data aborts the operation with `incompatible`. No display-name matching or automatic conversion occurs.
 
-The rebase still consumes the operation terminal and current projections from the same target owner through the central guard. An invalidated target cannot be rebased. State, exact new definition reference, original result, value-free rebase change, and terminal commit together. A changed basis increments the assignment revision; an identical basis can record a no-op. Expected revision and exact reference conflicts remain explicit failures.
+The commit of a rebase consumes the operation terminal and the current facts of the same target owner. An invalidated target cannot be rebased. State, exact new definition reference, original result, value-free rebase change, and terminal commit together. A changed basis increments the assignment revision; an identical basis can record a no-op. Expected revision and exact reference conflicts remain explicit failures.
 
-Catalog capture rejects mismatched old state until successful rebase. Raw authorized `readState` remains a persistence inspection API and returns the stored reference, state and source provenance; it is not an evaluated current catalog. Rebase retry and lookup use the fixed maintenance identity and original operation binding. Tenant qualification revocation does not revoke this separate deployment capability.
+Catalog capture rejects mismatched old state until a successful rebase. Rebase retry and lookup use the original operation identity.
 
 ## Terminals, retry, and unknown results
 
-`settings.terminal` owns `st_terminals`. A normal operation consumes an absent terminal inside the same transaction as its effects. Trusted sealing turns an absent terminal into `aborted`, or returns its existing `committed` or `aborted` terminal. A terminal cannot be replaced or reopened. A late operation cannot commit after an aborted seal.
+`settings.terminal` owns `st_terminals`. It writes the terminal that the finalization plan of the phase names, in the same transaction as the effects of the operation ([Prepared business transaction](#prepared-business-transaction)). A terminal cannot be replaced or reopened. A late operation cannot commit after an aborted seal.
 
 The operation identity comprises domain, principal, complete target, and `operationId`. The server hashes the semantic command with SHA-256 over canonical JSON. Only transport `requestId` is excluded. Matching retries return the original result. Different content under that identity returns `operation_conflict`, even after later revisions.
 
-This replay guarantee covers successful participation and owner rejections conforming to the published binding schema. A damaged guard can cause Storage `fact_violation` without a usable business binding. That path returns `unsupported`, changes no assignments, and is not automatically retried. It cannot precisely distinguish business payload conflicts.
-
-Storage `unknown` remains undetermined. Recover the same operation identity. `getOperation` maps `not_committed` to `not_found` only when no terminal exists. An aborted terminal without a prior business receipt gives `basis_changed`. A prior qualified rejection preserves that rejection. Absence, cancellation, timeout, or service close cannot release an Identity reservation. [Identity coordination](docs/coordination.md) defines settlement.
+Storage `unknown` remains undetermined. Recover the same operation identity. `getOperation` only reads the root and its attempt ([Protected preparation coordinator](#protected-preparation-coordinator)). Absence, cancellation, timeout, or service close cannot release an Identity reservation. [Identity coordination](docs/coordination.md) defines settlement.
 
 ## Authorized reads and lifecycle
 
-`readState`, `getOperation`, and `readChanges` call the configured access adapter again. The backend requires exact scope and target equality. Denied access must not disclose historical operation existence. Revocation can prevent readback without changing prior successful effects. A custom adapter's access check is not atomic write authorization; the transaction guard supplies that evidence.
+`getOperation` and `readChanges` call the configured access adapter again. The service requires exact scope and target equality. Denied access must not disclose historical operation existence. Revocation can prevent readback without changing prior successful effects. An access check is not atomic write authorization; the current facts of the commit transaction supply that evidence.
 
 Changes contain no assignment values. Ordinary changes identify revision, operation, item, and source. Rebase changes identify revision and operation. A page contains at most 100 changes and returns the last delivered revision as continuation only when another page exists. A change stream is not a catalog snapshot or an adoption receipt.
 
-Backend, owner, maintenance, and catalog close operations stop their own admission and drain their accepted mutations or captures. They do not close shared SQL or Identity dependencies. The registry and selection holder have separate synchronous close operations. Unresolved reservations remain Identity recovery work.
+The prepared service, owner, and catalog close operations stop their own admission and drain their accepted mutations or captures. They do not close shared SQL or Identity dependencies. The registry and selection holder have separate synchronous close operations. Unresolved reservations remain Identity recovery work.
 
-The public commit port has no cancellation operation. Cancelling a Storage observer cannot withdraw accepted SQL. Worker failures, SQL limits, unsupported registration, and incomplete shared-provider close retain explicit failure or unknown semantics under the [SQL contract](../../storage/sql-contract/SPEC.md).
+`cancelChange` cancels a root that has not committed. Cancelling a Storage observer cannot withdraw accepted SQL. Worker failures, SQL limits, unsupported registration, and incomplete shared-provider close retain explicit failure or unknown semantics under the [SQL contract](../../storage/sql-contract/SPEC.md).
 
 ## Secret custody
 
@@ -128,7 +122,7 @@ What stays out. The vault does not know what a target means, does not choose bet
 
 ## Verification boundary
 
-[tests/README.md](tests/README.md) owns current test entry points and distinguishes guard fixtures, real Identity composition, persistent independent targets, catalog capture, and Asset-owned combination tests. Source and tests do not establish independent acceptance or deployment adoption. Remote authentication, final UI, tools or Cordis plugin delivery, Calendar adoption, OS crashes, and physical power-loss recovery are outside this package's evidence.
+[tests/README.md](tests/README.md) owns current test entry points and distinguishes named fixtures, real Identity composition, persistent independent targets, catalog capture, and Asset-owned combination tests. Source and tests do not establish independent acceptance or deployment adoption. Remote authentication, final UI, tools or Cordis plugin delivery, Calendar adoption, OS crashes, and physical power-loss recovery are outside this package's evidence.
 
 ## Source identity and persisted provenance
 
@@ -152,7 +146,7 @@ A root key binds its principal, complete target and business operation within th
 
 Root state constrains result and abort-reason columns. Pending recovery has a partial index ordered by root key. Exact attempt lookup uses its unique ID index. Foreign keys remain within `settings.persistence`. Read-only planners use declared read permissions; other owners consume explicit facts.
 
-These constraints do not by themselves preserve command immutability or prevent terminal revival. The sole persistent writer must enforce the [root and attempt model](../settings/verification/README.md#原操作与准备尝试). Existing values, receipts and old terminals remain unchanged by this migration. Switching providers still requires draining old held reservations and explicitly preserving historical results. The presence of these tables does not complete that upgrade or authorize a direct-commit fallback in the final assembly.
+These constraints do not by themselves preserve command immutability or prevent terminal revival. The sole persistent writer must enforce the [root and attempt model](../settings/verification/README.md#原操作与准备尝试).
 
 ### Preparing allocation
 
@@ -194,7 +188,7 @@ Custody readback uses indexed root, exact-attempt and custody lookups, each with
 
 ## Source retention relations
 
-`source-retention-schema.ts`, `source-retention-migration.ts` and `source-retention-records.ts` define the private source retention mechanism. Its owner is settings.source-retention. It owns only st_source_gate and st_source_reservation. settingsSqlMaterials installs the source relations and retention participant. Direct assignment, rebase and independent-target writers consume its same-transaction write permission. Prepared business transactions can complete the exact source gate with the root result. Authenticated source admission, public coordination and destination resolution remain incomplete.
+`source-retention-schema.ts`, `source-retention-migration.ts` and `source-retention-records.ts` define the private source retention mechanism. Its owner is settings.source-retention. It owns only st_source_gate and st_source_reservation. settingsSqlMaterials installs the source relations and retention participant. Independent-target writers and the prepared value writer consume its same-transaction write permission. Prepared business transactions can complete the exact source gate with the root result. Authenticated source admission, public coordination and destination resolution remain incomplete.
 
 A retained source identifies a complete Settings target in a fixed storage domain. A gate protects its definition, layout, values and locks together. An inheritance sourceId or an item name is not this gate's identity. Each gate stores one pending root update, with the full immutable identity and command digest. Another root is blocked. The same root with changed content conflicts.
 
@@ -223,15 +217,13 @@ Source-snapshot tests combine the real target owner, assignment writer and snaps
 
 ## Source protection on actual writes
 
-Direct assignment commands, maintenance rebase and independent-target mutations require a source-write-open fact in their transaction. The fact binds the operation kind, domain, principal or owner capability, complete target, operation ID and command digest. The writer compares that binding against its own parsed command. A fact for another target or another command cannot permit the write.
+Independent-target mutations require a source-write-open fact in their transaction. The fact binds the domain, owner capability, complete target, operation ID and command digest. The writer compares that binding against its own parsed command. A fact for another target or another command cannot permit the write. The prepared value writer requires the same fact; the source finalization of its phase supplies the observation ([Prepared business transaction](#prepared-business-transaction)).
 
-The source-retention participant reads the exact target gate and its held count. Any pending update or held reservation rejects a direct write with basis_changed. It does not clear the gate, settle reservations or write another owner's records. The SQL transaction orders this check before the writer and prevents an intervening source reservation. A rolled-back check or writer leaves business state unchanged. Already committed operation receipts remain recognizable without fresh write permission.
+The source-retention participant reads the exact target gate and its held count. Any pending update or held reservation blocks the write. A blocked value commit answers `rejected` with `unavailable` and leaves the operation pending. It does not clear the gate, settle reservations or write another owner's records. The SQL transaction orders this check before the writer and prevents an intervening source reservation. A rolled-back check or writer leaves business state unchanged. Already committed operation receipts remain recognizable without fresh write permission.
 
-settings.targets remains the sole owner of st_targets and st_definitions. settings.target-projection supplies read-only target projections and optional direct guards. It reads st_targets and requires no source-write fact. This split keeps catalog capture available while a write is blocked. Use the public command factories to obtain the correct participant identity.
+settings.targets remains the sole owner of st_targets and st_definitions. settings.target-projection supplies read-only target projections. It reads st_targets and requires no source-write fact. This split keeps catalog capture available while a write is blocked. Use the public command factories to obtain the correct participant identity.
 
-Ordinary settingsSqlMaterials installs a write-only source observation participant with no source table read permissions. settingsSqlMaterials({ sourceCapture: true }) selects the full snapshot producer under the same participant identity. That assembly must include the real independent-target owner. Register one variant only. This option supplies transaction materials, not a public authenticated source reservation service.
-
-settingsPreparationMaterials accepts the same sourceCapture option and defaults it to false. Enabling it selects that same snapshot producer without replacing prepared persistence or finalization. Source capture and prepared finalization publish the same fact in distinct combinations; a combination must not select both producers. The application registers the independent-target owner and the source reservation combination in system.settings. Enabling capture does not create a target, grant access, or turn a missing target into an empty source.
+settingsSqlMaterials installs one source snapshot participant. It observes a write, and it captures a snapshot of a source from the independent targets and the value relation. A combination that selects it must include the real independent-target owner. Source capture and prepared finalization publish the same fact in distinct combinations; a combination must not select both producers. The application registers the independent-target owner and the source reservation combination in system.settings. The participant does not create a target, grant access, or turn a missing target into an empty source.
 
 A write observation describes the requested operation. It does not attest to source state or authorization. Reserve requires a captured snapshot fact bound to its complete destination request. The retention participant recognizes an existing reservation before attempting a new hold. Source settlement, root-owned update completion and recovery must later consume their own trusted evidence without requiring a fresh source snapshot.
 

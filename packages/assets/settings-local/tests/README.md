@@ -1,6 +1,6 @@
 # Settings local 测试
 
-本目录验证持久化协议、终态恢复、Identity 协调、独立目标权威与目录捕获。SQLite 事务和 Worker 使用真实公开提供者。测试内的 target guard 夹具与真实目标拥有者必须分别解读，不能把任一局部通过称为全部系统集成。
+本目录验证持久化协议、终态恢复、Identity 协调、独立目标权威与目录捕获。SQLite 事务和 Worker 使用真实公开提供者。测试内的当前事实夹具与真实目标拥有者必须分别解读，不能把任一局部通过称为全部系统集成。
 
 ## 执行入口
 
@@ -21,7 +21,7 @@ pnpm --filter @omne-harness/settings-local... run build
 只运行真实 Identity、独立拥有者和目录场景：
 
 ```sh
-pnpm --filter @omne-harness/settings-local exec vitest run --mode fast tests/identity.spec.ts tests/standalone.spec.ts tests/catalog.spec.ts
+pnpm --filter @omne-harness/settings-local exec vitest run --mode fast tests/prepared-identity.spec.ts tests/standalone.spec.ts tests/catalog.spec.ts
 ```
 
 `vitest.config.ts` 复用仓库测试分层；本目录当前场景都由 fast 入口选择。测试使用临时存储目录与明确的关闭清理，不需要外部数据库或联网服务。Node.js 版本要求与包运行要求相同，为 24 或更高版本。不要在未构建新 Worker 代码时把旧构建的绿测作为当前实现证据。
@@ -30,20 +30,20 @@ pnpm --filter @omne-harness/settings-local exec vitest run --mode fast tests/ide
 
 | 资源 | 使用的权威与验证范围 |
 | --- | --- |
-| [world.ts](world.ts)、[guard.mjs](guard.mjs)、[guard-migration.mjs](guard-migration.mjs)、[after.mjs](after.mjs) | 真实 SQL 加自有 guard 权威表夹具。用于故意制造缺失、布尔、错绑、拒绝事实与后续事务回滚，不是生产权限实现。 |
-| [persistence.spec.ts](persistence.spec.ts) | 真实重开后读取状态、原结果与无值变化记录。 |
-| [boundaries.spec.ts](boundaries.spec.ts) | 原操作重放、换内容冲突、预期 revision 竞争、遮蔽值计数、no-op、来源变更、锁、逐次读授权、事务回滚、响应丢失、close/drain 与秘密拒绝。目标权威仍是夹具。 |
-| [terminals.spec.ts](terminals.spec.ts) | 真实 SQL 中 seal 与迟到写入竞争、终态重开、回滚及业务回执优先级。目标 guard 是夹具。 |
+| [world.ts](world.ts) | 共用的声明、定义引用与命令夹具。 |
+| [recovery-world.ts](recovery-world.ts)、[prepared-service-world.ts](prepared-service-world.ts)、[prepared-target-world.ts](prepared-target-world.ts) | 真实 SQL 上的四个阶段组合与准备服务。当前事实由具名夹具参与者（[commit-current.mjs](commit-current.mjs)、[preparation-current.mjs](preparation-current.mjs)）给出，不是生产权限实现。prepared-target-world 另带真实独立目标拥有者。 |
+| [prepared-service.spec.ts](prepared-service.spec.ts) | 真实重开后读取状态、原结果与无值变化记录；原操作认回、换内容冲突、预期 revision 竞争、入参校验、逐次读授权、秘密拒绝、取消与 close/drain。目标权威是夹具。 |
+| [business-combination.spec.ts](business-combination.spec.ts) | 提交事务的业务判定、来源门、终态与整组回滚。当前事实与起始保管状态是夹具。 |
 | [crash.spec.ts](crash.spec.ts)、[crash-child.ts](crash-child.ts) | 子进程 SIGKILL 后重开与原操作恢复。只覆盖该进程终止场景，不代表 OS 崩溃或物理断电。 |
-| [identity-world.ts](identity-world.ts)、[identity.spec.ts](identity.spec.ts) | 真实 Identity SQL、公开 principal、standing、reservations 和 Settings 终态。覆盖撤权先到、提交先到、封口阻止迟到提交及目标不可用后的恢复。默认目标 guard 是夹具，不能据此宣称真实资产资格已覆盖。 |
+| [identity-world.ts](identity-world.ts)、[prepared-identity.spec.ts](prepared-identity.spec.ts) | 真实 Identity SQL（自己的存储）、公开 principal、standing、reservations 与准备服务。覆盖撤权先到、提交先到、封口阻止迟到提交及目的地不可用后的恢复。当前事实是夹具，不能据此宣称真实资产资格已覆盖。 |
 | [standalone.spec.ts](standalone.spec.ts) | 真实 Identity 与持久独立目标拥有者。覆盖供给、重开、不可逆退休、版本内容冲突与陈旧编辑。 |
 | [catalog-world.ts](catalog-world.ts)、[catalog.spec.ts](catalog.spec.ts) | 真实 Identity、独立目标、registry、显式选择与目录。覆盖卸载保值、逐页重核、伪造选择拒绝、目标退休、独立拥有者原操作回查及关闭拒绝、精确重新采用、分页依据、捕获中卸载和观察过期后的时钟回拨。默认装配显式使用空 Asset 投影。 |
 
-秘密测试要求命令返回 `unsupported`，并检查事务响应不保留测试明文。普通秘密配值不支持；安全声明元数据可出现在目录中。这些场景不构成秘密保管能力的验收。
+秘密测试要求命令返回 `unsupported`，并检查任何表都不保留测试明文。普通秘密配值不支持；安全声明元数据可出现在目录中。这些场景不构成秘密保管能力的验收。
 
 ## Asset 组合另有承担者
 
-真实 Assets、Settings 与 Identity 的组合测试由 [assets-local tests](../../assets-local/tests/README.md)中的 [settings-governance.spec.ts](../../assets-local/tests/settings-governance.spec.ts)拥有。它使用该包的真实定义、版本和持有写者，而不是本目录 guard 夹具。运行前构建其依赖：
+真实 Assets、Settings 与 Identity 的组合测试由 [assets-local tests](../../assets-local/tests/README.md)中的 [settings-governance.spec.ts](../../assets-local/tests/settings-governance.spec.ts)拥有。它使用该包的真实定义、版本和持有写者，而不是本目录的当前事实夹具。运行前构建其依赖：
 
 ```sh
 pnpm --filter @omne-harness/assets-local... run build

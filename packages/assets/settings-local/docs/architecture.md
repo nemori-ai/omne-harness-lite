@@ -10,19 +10,21 @@
 
 ```mermaid
 flowchart TB
-  service["调用者：Settings queries / commands"]
+  service["调用者：Settings queries 与准备服务的客户端"]
   identity["Identity 公开服务<br/>principal、standing、reservations"]
   catalog["catalog.ts<br/>每次读取重新捕获"]
-  qualified["identity.ts<br/>普通租户写入协调"]
+  qualified["identity-preparation.ts<br/>普通租户写入：准备后提交"]
   registry["Settings registry<br/>进程内声明可用性"]
   pure["纯 Settings<br/>校验、求值与变更决定"]
   subgraph tenant["同一租户 SQL 事务域"]
     standalone["settings.targets<br/>独立目标权威"]
     assets["assets.settings<br/>资产持有与固定声明权威"]
-    guard["settings.target-guard<br/>唯一目标与完整绑定"]
+    current["当前事实的生产者（装配提供）"]
+    plan["settings.commit-plan<br/>核对原命令、attempt 与当前事实"]
     snapshot["settings.snapshot<br/>一致目录依据"]
     persistence["settings.persistence<br/>配值、原结果、变化"]
     terminal["settings.terminal<br/>原操作不可逆终态"]
+    receipt["settings.catalog-terminal<br/>目录捕获回执"]
   end
   sql["公开 SqlStorage / SQL provider<br/>注册组合、Worker、事务与恢复"]
   service --> catalog
@@ -30,23 +32,23 @@ flowchart TB
   catalog --> identity
   qualified --> identity
   catalog --> registry
-  standalone -->|settings.standalone-projection| guard
-  assets -->|settings.assets-projection| guard
-  standalone -->|独立目标投影| snapshot
-  assets -->|资产目标投影| snapshot
-  guard -->|settings.current| persistence
-  terminal -->|settings.operation-open| persistence
-  terminal -->|同一捕获绑定| snapshot
-  persistence --> pure
+  standalone -->|settings.standalone-projection| snapshot
+  assets -->|settings.assets-projection| snapshot
+  receipt -->|同一捕获绑定| snapshot
+  current -->|settings.commit-current| plan
+  plan -->|settings.finalization-plan| terminal
+  plan -->|settings.finalization-plan| persistence
+  terminal -->|settings.finalization-terminal| persistence
+  plan --> pure
   snapshot --> pure
   catalog -->|提交 capture| sql
-  qualified -->|提交 change| sql
+  qualified -->|就绪与提交事务| sql
   sql --> tenant
 ```
 
-图中两条投影的协议都是 `settings-projection/1`。每条事实有一个生产者，中央守卫要求两条事实的完整 binding 都与请求相同，并拒绝重复的完整 target。没有 Assets 的装配安装 `settings.without-assets`，只产生空的 Asset 投影。它不是资产权威的替身。
+图中两条投影的协议都是 `settings-projection/1`。每条事实有一个生产者。读取两条事实的参与者要求它们的完整 binding 都与请求相同，并拒绝重复的完整 target。没有 Assets 的装配安装 `settings.without-assets`，只产生空的 Asset 投影。它不是资产权威的替身。
 
-直接独立持久化还支持 `standaloneSettingsGuards`。这种装配使用默认 `settingsStandaloneMaterials()`，由独立目标参与者直接产生 `settings.current`。采用图中的中央守卫时必须传入 `{ settingsGuard: false }`，避免两个生产者争用同一事实。材料登记方法见 [README](../README.md#choose-and-register-an-assembly)。
+配值提交所需的当前事实由装配提供的参与者在同一事务里给出，事实链见 [SPEC](../SPEC.md#prepared-business-transaction)。材料登记方法见 [README](../README.md#choose-and-register-an-assembly)。
 
 Identity 保留自己的系统事务域，不加入租户 SQL 事务。两域通过持久预留和目标终态协调，精确条件归 [coordination.md](coordination.md)。这不是跨库共同事务，也不要求 Settings 读取 Identity 私表。
 
@@ -158,13 +160,13 @@ sequenceDiagram
 
 ## 可用性、失效与维护各有入口
 
-声明 registry 是进程内可用性清单。卸载声明会让管理目录报告部分结果，让需要完整依据的求值失败。重新加载同一精确声明后，仍可读取原配值。卸载不删除持久值，也不是和写入共用事务的撤权操作。一个已经通过读取检查的写入，仍可能在目标 guard 有效时提交。
+声明 registry 是进程内可用性清单。卸载声明会让管理目录报告部分结果，让需要完整依据的求值失败。重新加载同一精确声明后，仍可读取原配值。卸载不删除持久值，也不是和写入共用事务的撤权操作。一个已经通过读取检查的写入，仍可能在提交事务读到的当前目标事实有效时提交。
 
-真正的目标失效由拥有者完成。独立目标使用不可逆 retire；资产目标使用真实持有变更。拥有者失效写者与 Settings guard 在同一租户事务域竞争，所以目标变化与配值提交有可判定的先后顺序。Identity 撤权则使用另一域的预留排空和终态封口。
+真正的目标失效由拥有者完成。独立目标使用不可逆 retire；资产目标使用真实持有变更。拥有者失效写者与配值提交在同一租户事务域竞争，所以目标变化与配值提交有可判定的先后顺序。Identity 撤权则使用另一域的预留排空和终态封口。
 
-声明版本或来源布局变化后，旧状态不能继续成为当前目录的求值依据。重新采用由 `createSettingsMaintenance` 执行。调用方必须指定旧新精确 reference、预期 revision，并为每个已有赋值明确选择 retain 或 discard。保留值仍要通过新声明的求值校验。没有按名称猜测、静默删值或隐式转换。
+声明版本或来源布局变化后，旧状态不能继续成为当前目录的求值依据。重新采用经准备服务的 `prepareRebase` 准备后提交。调用方必须指定旧新精确 reference、预期 revision，并为每个已有赋值明确选择 retain 或 discard。保留值仍要通过新声明的求值校验。没有按名称猜测、静默删值或隐式转换。
 
-维护入口是可信部署拥有者能力，使用固定的 `maintenance/<ownerRef>` 身份，刻意绕过普通租户 Identity 资格路径。装配必须保护这个对象，不把它转发为用户或工具命令。它仍消费当前目标拥有者投影及不可逆终态，不能绕过已 retire 或已移除的目标。持久化 `readState` 是另一个受权原始检查入口，返回存储 reference 与状态，不等于当前目录求值成功。
+重新采用的入口不是用户或工具命令。访问端口收到的动作是 maintenance，装配必须保护持有该访问权的对象。重新采用仍消费当前目标拥有者投影及不可逆终态，不能绕过已 retire 或已移除的目标。
 
 ## 秘密保管子路径：一个文件、两个端口
 
@@ -181,7 +183,7 @@ sequenceDiagram
 
 ## 维护与证据范围
 
-模块修改按拥有者推进。配值与求值规则先改纯 Settings，目标生命周期改真实目标拥有者，捕获绑定同时核对两个投影生产者与中央消费者。源码入口为 [catalog.ts](../src/catalog.ts)、[target-guard.ts](../src/target-guard.ts)、[snapshot-participant.ts](../src/snapshot-participant.ts)、[standalone-participant.ts](../src/standalone-participant.ts)和 [maintenance.ts](../src/maintenance.ts)。
+模块修改按拥有者推进。配值与求值规则先改纯 Settings，目标生命周期改真实目标拥有者，捕获绑定同时核对两个投影生产者与读取它们的参与者。源码入口为 [catalog.ts](../src/catalog.ts)、[target-views.ts](../src/target-views.ts)、[snapshot-participant.ts](../src/snapshot-participant.ts)、[standalone-participant.ts](../src/standalone-participant.ts)和 [preparation-provider.ts](../src/preparation-provider.ts)。
 
 [测试说明](../tests/README.md)给出真实 SQLite、真实 Identity、独立目标和资产组合的归属。图解释当前实现，不证明独立接受或最终系统采用。本包没有最终 UI、tools 或 Cordis 插件，也没有 Calendar 消费证明。秘密项在 SQL 目录里只提供安全元数据，值保持 absent，普通秘密配值不支持，目录与回执不返回秘密明文；秘密值只在 `./secrets` 的文件保管里。
 
@@ -303,7 +305,7 @@ source-snapshot不拥有表，也不依赖写者产生的fact。登记组合必�
 
 ## 来源保护与只读投影
 
-来源门以完整目标为单位保护定义、来源布局、值和锁。赋值、维护重映射和独立目标修改在同一 SQL 事务中消费绑定命令的许可。存在 pending 更新或 held 保留时，直接写入返回 basis_changed。已提交的原回执仍可认回。
+来源门以完整目标为单位保护定义、来源布局、值和锁。赋值、重新采用和独立目标修改在同一 SQL 事务中消费绑定命令的许可。存在 pending 更新或 held 保留时写入被挡住；被挡住的配值提交答 rejected/unavailable，操作保持挂起。已提交的原回执仍可认回。
 
 ```mermaid
 flowchart LR
@@ -320,7 +322,7 @@ flowchart LR
 
 settings.targets 独占目标表写入。settings.target-projection 只读目标表，不依赖来源写入许可，因此来源被保留时查询仍可继续。Settings 不读取其他领域的私有表。
 
-普通装配只安装写入观察。显式启用 sourceCapture 后，同一观察参与者还可从真实目标和配值表产生来源快照，装配必须登记这些表的拥有者。这仍是事务材料，尚不是公开的组织来源服务。生产更新排空、根终态同提交以及恢复协调继续由完整准备提交路径承担。
+来源观察参与者只有一种形态：它观察写入，也从真实目标和配值表产生来源快照。选用它的组合必须登记这些表的拥有者。这是事务材料，不是公开的组织来源服务。更新排空、根终态同提交以及恢复协调由准备提交路径承担。
 
 ## 公开准备服务的职责分离
 

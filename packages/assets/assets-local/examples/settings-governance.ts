@@ -16,7 +16,7 @@ const input = z
   .parse(JSON.parse(readFileSync(inputPath, 'utf8')))
 const w = await openCatalogWorld({
   assets: {
-    materials: assetsSqlMaterials({ settingsGuard: false }),
+    materials: assetsSqlMaterials(),
     command: assetsSettingsProjectionCommand,
   },
 })

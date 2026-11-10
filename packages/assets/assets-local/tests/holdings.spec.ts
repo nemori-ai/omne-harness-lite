@@ -221,3 +221,20 @@ it('keeps same-name publications separate and refuses a second active holding', 
   ).toEqual({ kind: 'rejected', reason: 'holding_exists' })
   expect((await view(world))?.definition.items[0]?.default).toEqual({ kind: 'value', value: false })
 })
+it('refuses a holding and a read of a holding in another scope', async () => {
+  const world = await open()
+  expect(
+    await world.owner.hold({
+      operationId: 'foreign',
+      holdingRef: 'foreign',
+      scopeRef: 'tenant-b',
+      assetRef: 'asset-a',
+      selection: { kind: 'follow' },
+      sources: ownerSources('tenant'),
+      grants,
+    }),
+  ).toEqual({ kind: 'rejected', reason: 'forbidden' })
+  expect(
+    await world.owner.readHolding({ holdingRef: target.targetRef, scopeRef: 'tenant-b' }),
+  ).toEqual({ kind: 'rejected', reason: 'forbidden' })
+})

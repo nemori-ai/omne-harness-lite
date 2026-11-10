@@ -26,13 +26,13 @@ it('captures the real absent source and retains it until an exact destination te
     request,
     snapshot: { presence: 'absent', state: { revision: 0 } },
   })
-  expect(await w.set()).toMatchObject({ kind: 'rejected' })
+  expect(await w.set()).toEqual({ kind: 'rejected', reason: 'unavailable' })
   expect(await w.sources.service.settle(request)).toMatchObject({
     kind: 'settled',
     request,
     outcome: 'aborted',
   })
-  expect(await w.set(true, 0, 'after-settlement')).toMatchObject({ kind: 'committed', revision: 1 })
+  expect(await w.set()).toMatchObject({ kind: 'committed', revision: 1 })
   expect(
     await w.sources.service.reserve(request.destination.identity.principalRef, request),
   ).toMatchObject({ kind: 'settled', outcome: 'aborted' })
@@ -106,11 +106,10 @@ it('keeps a hold on unavailable or mismatched terminals and recovers other page 
   })
   const retry = await w.sources.control.recover({ after: null, limit: 1 })
   expect(retry).toMatchObject({ kind: 'recovered', items: [{ result: { kind: 'rejected' } }] })
-  expect(await w.set()).toMatchObject({ kind: 'rejected' })
-  expect(await w.sources.control.pendingUpdates({ after: null, limit: 100 })).toEqual({
+  expect(await w.set()).toEqual({ kind: 'rejected', reason: 'unavailable' })
+  expect(await w.sources.control.pendingUpdates({ after: null, limit: 100 })).toMatchObject({
     kind: 'page',
-    items: [],
-    after: null,
+    items: [{ source, pending: { identity: { operation: { operationId: 'set-source' } } } }],
   })
 })
 
@@ -148,7 +147,7 @@ for (const commitFirst of [true, false])
     const prepared = await target.service.prepareChange(target.context, target.command)
     if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
     const request = requests[0]!
-    expect(await sourceWorld.set()).toMatchObject({ kind: 'rejected' })
+    expect(await sourceWorld.set()).toEqual({ kind: 'rejected', reason: 'unavailable' })
     if (!commitFirst)
       expect(await sourceWorld.sources.service.settle(request)).toMatchObject({
         kind: 'settled',
@@ -163,7 +162,7 @@ for (const commitFirst of [true, false])
       kind: 'settled',
       outcome: commitFirst ? 'committed' : 'aborted',
     })
-    expect(await sourceWorld.set(true, 0, 'after-destination')).toMatchObject({ kind: 'committed' })
+    expect(await sourceWorld.set()).toMatchObject({ kind: 'committed' })
     expect(
       await target.control.sourceDestination.seal({
         ...request,

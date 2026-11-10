@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { SettingDefinitionsSchema } from '@omne-harness/settings'
 import { readySettingsIntentSchema } from './ready-schema.ts'
 import { settingsAttemptBindingSchema } from './attempt-binding.ts'
-import { guardFactSchema } from './schema.ts'
+import { grantsSchema } from './schema.ts'
 
 export const COMMIT_CURRENT = {
   key: 'settings.commit-current',
@@ -19,7 +19,7 @@ export const commitMaterialSchema = readySettingsIntentSchema
   .omit({ binding: true, terminal: true })
   .extend({
     definition: SettingDefinitionsSchema,
-    grants: guardFactSchema.shape.grants,
+    grants: grantsSchema,
   })
 export const commitCurrentSchema = z.strictObject({
   binding: settingsAttemptBindingSchema,

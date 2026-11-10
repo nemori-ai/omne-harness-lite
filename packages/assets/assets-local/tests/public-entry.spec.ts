@@ -6,7 +6,6 @@ it('exports the trusted owner and both public Settings integration commands', ()
     'AssetsPublicationProjectionSchema',
     'assetsPublicationCommand',
     'assetsPublicationFact',
-    'assetsSettingsGuards',
     'assetsSettingsProjectionCommand',
     'assetsSqlMaterials',
     'createAssetsLocal',

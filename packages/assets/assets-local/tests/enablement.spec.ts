@@ -1,18 +1,16 @@
 import { afterEach, expect, it } from 'vitest'
 import { SettingsOwnerProjectionSchema } from '@omne-harness/settings-local'
-import { openWorld, target, command, type World } from './world.ts'
+import { openWorld, target, type World } from './world.ts'
 
 const worlds: World[] = []
 afterEach(async () => {
   await Promise.all(worlds.splice(0).map(world => world.close()))
 })
 
-it('keeps values and management visibility while disabled, including after restart', async () => {
+it('keeps the disabled state and management visibility, including after restart', async () => {
   const first = await openWorld()
   worlds.push(first)
   await first.setup()
-  expect(await first.backend.commit(null, command())).toMatchObject({ kind: 'committed' })
-  const before = await first.backend.readState(null, target)
   const disable = {
     operationId: 'disable',
     holdingRef: target.targetRef,
@@ -41,7 +39,6 @@ it('keeps values and management visibility while disabled, including after resta
   expect(
     await reopened.owner.readHolding({ holdingRef: target.targetRef, scopeRef: target.scopeRef }),
   ).toMatchObject({ kind: 'holding', holding: { state: 'held', enabled: false, revision: 2 } })
-  expect(await reopened.backend.readState(null, target)).toEqual(before)
   const management = await reopened.capture({ targets: [target] })
   expect(management.kind).toBe('committed')
   if (management.kind !== 'committed') throw new Error('management capture failed')
@@ -64,7 +61,6 @@ it('keeps values and management visibility while disabled, including after resta
   const view = SettingsOwnerProjectionSchema.parse(enabled.responses[0]?.reply.response).views[0]
   expect(view).toMatchObject({ target, enabled: true })
   expect(view?.ownerRevision).toBeGreaterThan(disabled?.ownerRevision ?? Infinity)
-  expect(await reopened.backend.readState(null, target)).toEqual(before)
 })
 
 it('does not revive a removed holding through setEnabled', async () => {

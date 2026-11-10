@@ -4,9 +4,7 @@ import { projectAssetSettings } from '@omne-harness/assets'
 import { SettingsIdSchema } from '@omne-harness/settings'
 import {
   SettingsProjectionBindingSchema,
-  SettingsSqlGuardBindingSchema,
   type SettingsProjectionBinding,
-  type SettingsSqlGuards,
 } from '@omne-harness/settings-local'
 import type { FactCommandV2 } from '@omne-harness/sql-contract'
 import { digest, equal, identity, json, withinBudget } from './encoding.ts'
@@ -37,15 +35,6 @@ import type {
 } from './types.ts'
 const fail = (reason: Failure['reason']): Failure => ({ kind: 'rejected', reason })
 
-export const assetsSettingsGuards = {
-  participant: PARTICIPANT,
-  command(binding: Parameters<SettingsSqlGuards['command']>[0]) {
-    return {
-      participant: PARTICIPANT,
-      facts: { kind: 'guard', binding: json(SettingsSqlGuardBindingSchema.parse(binding)) },
-    }
-  },
-} satisfies SettingsSqlGuards
 export function assetsSettingsProjectionCommand(binding: SettingsProjectionBinding): FactCommandV2 {
   return {
     participant: PARTICIPANT,

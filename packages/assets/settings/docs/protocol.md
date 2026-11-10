@@ -58,11 +58,11 @@ createSettingsCatalog 每次读取都重验 Identity 资格，在一个租户事
 
 运行视图必须带与主体、部署和明确目标绑定的选择引用。createSettingsSelections 提供有容量与寿命上限的本地选择来源，它不授予目标权限，也不是执行实例采用回执。卸载贡献使目录报告不可用并保留配值。配置权由真实目标拥有者控制，撤除声明不能冒充原子撤权。
 
-重新采用通过受信部署端 createSettingsMaintenance.rebase 进行。该端口不是租户命令或 agent tool。每个旧配值和锁必须明确保留或丢弃，保留值在新定义下重新验证。定义/来源变化不会自动迁移同名值。具体条件和事务归 [本地行为](../../settings-local/SPEC.md)。
+重新采用通过本地准备服务的 prepareRebase 准备后提交，授权动作是 maintenance。该入口不是租户命令或 agent tool。每个旧配值和锁必须明确保留或丢弃，保留值在新定义下重新验证。定义/来源变化不会自动迁移同名值。具体条件和事务归 [本地行为](../../settings-local/SPEC.md)。
 
 ## 准备、提交与根操作结果
 
-`SettingsPreparationPort` 是动态治理提交的消费协议。精确输入与结果归 [preparation.ts](../src/preparation.ts)。当前提供者及 `createSettingsCommands` 尚未采用它；下面是提供者必须兑现的义务，不是已完成的持久实现声明。
+`SettingsPreparationPort` 是配值写入的唯一消费协议。精确输入与结果归 [preparation.ts](../src/preparation.ts)。下面是提供者必须兑现的义务。
 
 prepareChange 先验证实际主体及合法目标，再持久保存不可变根命令和至多一个活跃 attempt。准备不写配值。引用绑定完整目标、根 operationId、精确 attemptId 与根命令摘要；摘要继续排除传输 requestId。它不含主体凭据、替换命令、SQL 目的地或当前允许结果，不构成授权。
 
@@ -74,7 +74,7 @@ rejected 仅拒绝本次请求，不能被解释为某个 pending 根已经终�
 
 getOperation 每次重新检查披露资格，只读取原根及精确attempt的持久状态。它不发起seal、不改变根或attempt、不释放源门，也不分配后继。尚无根结果时返回pending或unknown，重复轮询不会取消业务。主动封口仅由cancelChange、可信Identity目的resolver或提供者负责的故障恢复执行。恢复器根据精确目的身份取得已有结果，或通过不可逆seal阻止该attempt继续提交；它不得把无记录、超时或调用方不再等待当作终结证据。not_found 不证明永久不会提交，unknown 不能触发换业务身份重试。持久根被取消或最终封口后不得重开。
 
-普通 change 的最终应用入口只准备一次并提交一次。受信应用可拆开准备和提交，但没有绕过当前检查的入口。提供者切换时同步现有 SettingsCommitPort、应用工厂、维护 rebase 与所有真实消费者，删除被替代的直接提交路径，不保留缺治理来源的成功回退。准备协议的类型发布不完成这项切换。精确恢复分派与同提交义务归 [本地协调](../../settings-local/docs/coordination.md#已采用的准备操作恢复边界)。
+普通 change 的最终应用入口只准备一次并提交一次。受信应用可拆开准备和提交，但没有绕过当前检查的入口，也没有不经准备的直接提交端口。精确恢复分派与同提交义务归 [本地协调](../../settings-local/docs/coordination.md#已采用的准备操作恢复边界)。
 
 ## 具名来源布局
 
@@ -122,4 +122,4 @@ SettingsCurrentBasisSchema定义Settings自己的消费投影。它分别记录�
 
 VersionWitness的ownerRef拥有subjectRef的规范解释及revision。subjectRef必须完整绑定该事实的作用域和对象。适配器将Governance或其他拥有者的事实映射到这个消费形状，不让Settings反向导入它们的私有模型。保持原字段的Schema校验只证明可传输形状，不证明权威、当前性或许可。提供者必须在目的事务从登记的事实生产者取得当前事实，并核对精确根和attempt绑定。Identity与跨库来源保留仍是独立的持久责任，不能折成basis里的authorized布尔值。
 
-当前源码已定义上述消费形状与公开准备观察。真实事实生产者、持久preparing及准备提交提供者仍在实现中。现有SettingsCommitPort尚未完成迁移，不能据类型存在宣称写入已经受完整动态治理保护。
+当前源码已定义上述消费形状与公开准备观察，本地提供者实现了持久 preparing 与准备提交。生产装配没有登记当前事实的生产者，也没有普通设置值的写入方；不能据类型或提供者存在宣称生产写入已经受完整动态治理保护。

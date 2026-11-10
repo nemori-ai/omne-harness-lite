@@ -1,6 +1,5 @@
 export {
   createAssetsLocal,
-  assetsSettingsGuards,
   assetsSettingsProjectionCommand,
   assetsPublicationCommand,
 } from './provider.ts'

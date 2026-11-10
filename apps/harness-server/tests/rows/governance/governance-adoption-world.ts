@@ -54,7 +54,6 @@ export async function governanceAdoptionWorld(
     release?: NonNullable<Parameters<typeof toolAssetsWorld>[1]>['release']
     releaseParticipant?: NonNullable<Parameters<typeof toolAssetsWorld>[1]>['releaseParticipant']
     sourceReservations?: GovernanceLocalOptions['sourceReservations']
-    preparedSettings?: boolean
     extraParticipants?: SqlMaterialCatalog['participants']
     extraMigrations?: SqlMaterialCatalog['migrations']
     extraReadHandlers?: SqlMaterialCatalog['readHandlers']
@@ -89,7 +88,6 @@ export async function governanceAdoptionWorld(
   let catalogDestination: StandingDestinationResolver | undefined
   let disposeIdentity: (() => Promise<void>) | undefined
   const w = await toolAssetsWorld(undefined, {
-    preparedSettings: options.preparedSettings ?? false,
     ...(options.release === undefined ? {} : { release: options.release }),
     ...(options.releaseParticipant === undefined
       ? {}

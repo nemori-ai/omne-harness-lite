@@ -1,7 +1,7 @@
 import { equal, json } from './encoding.ts'
 import { operationBindingSchema, type OperationBinding } from './schema.ts'
 import { terminalKey } from './terminal-record.ts'
-import type { SettingsSqlTerminalOptions, SettingsSqlTerminalResult } from './terminals.ts'
+import type { SettingsSqlTerminalOptions, SettingsSqlTerminalResult } from './terminal-schema.ts'
 import { CATALOG_TERMINAL, catalogTerminalSchema } from './catalog-terminal-schema.ts'
 
 export function createCatalogTerminals(options: SettingsSqlTerminalOptions) {

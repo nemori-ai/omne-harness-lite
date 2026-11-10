@@ -23,16 +23,13 @@ it('retains a real Settings snapshot under actual Identity and releases it after
     kind: 'held',
     snapshot: { presence: 'absent', state: { revision: 0 } },
   })
-  expect(await w.source.set()).toMatchObject({ kind: 'rejected' })
+  // The update of the source waits for the hold; the same update commits after the settlement.
+  expect(await w.source.set()).toEqual({ kind: 'rejected', reason: 'unavailable' })
   expect(await coordinator.settle(w.operation)).toMatchObject({
     kind: 'settled',
     outcome: 'aborted',
   })
-  expect(await w.source.set()).toMatchObject({ kind: 'rejected' })
-  expect(await w.source.set(true, 0, 'set-after-settlement')).toMatchObject({
-    kind: 'committed',
-    revision: 1,
-  })
+  expect(await w.source.set()).toMatchObject({ kind: 'committed', revision: 1 })
   expect(await coordinator.reserve(w.operation, w.governance.principal)).toMatchObject({
     kind: 'settled',
     outcome: 'aborted',

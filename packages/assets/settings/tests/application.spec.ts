@@ -1,12 +1,10 @@
 import { beforeEach, expect, it } from 'vitest'
 import {
   createSettingsQueries,
-  createSettingsCommands,
   defineSettings,
   type SettingsBasis,
   type SettingDefinitions,
   type SettingsReadPort,
-  type SettingsCommitPort,
 } from '../src/index.ts'
 
 let definition: SettingDefinitions
@@ -189,85 +187,11 @@ it('previews without committing or changing the captured basis', async () => {
   })
   expect(Object.isFrozen(projected)).toBe(true)
 })
-it('maps read dependency failures and unknown writes separately', async () => {
+it('maps a read dependency failure to unavailable without its details', async () => {
   const queries = createSettingsQueries({
     read: async () => {
       throw new Error('private-provider-detail')
     },
   })
   expect(await queries.evaluate({}, view)).toEqual({ kind: 'rejected', reason: 'unavailable' })
-  const port: SettingsCommitPort<object> = {
-    commit: async () => {
-      throw new Error('lost response')
-    },
-    getOperation: async () => ({
-      kind: 'committed',
-      operationId: 'o1',
-      revision: 1,
-      changed: true,
-    }),
-    readChanges: async () => ({ kind: 'changes', changes: [], nextRevision: null }),
-  }
-  const commands = createSettingsCommands(port)
-  expect(await commands.change({}, command)).toEqual({ kind: 'unknown', operationId: 'o1' })
-  expect(await commands.getOperation({}, { target, operationId: 'o1' })).toMatchObject({
-    kind: 'committed',
-    operationId: 'o1',
-  })
-})
-it('rejects invalid commands before persistence and keeps trusted context separate', async () => {
-  const observed: unknown[] = []
-  const port: SettingsCommitPort<object> = {
-    commit: async context => {
-      observed.push(context)
-      return { kind: 'committed', operationId: 'o1', revision: 1, changed: true }
-    },
-    getOperation: async () => ({ kind: 'not_found' }),
-    readChanges: async () => ({ kind: 'changes', changes: [], nextRevision: null }),
-  }
-  const commands = createSettingsCommands(port)
-  expect(await commands.change({}, { ...command, principal: 'admin' })).toEqual({
-    kind: 'rejected',
-    reason: 'invalid_input',
-  })
-  expect(observed).toEqual([])
-  const trusted = Object.freeze({ token: 'opaque-context' })
-  await commands.change(trusted, command)
-  expect(observed[0]).toBe(trusted)
-})
-it('validates history reads before the port and returns dependency failure without details', async () => {
-  const calls: unknown[] = []
-  const principal = Object.freeze({ principal: 'trusted' })
-  let fail = false
-  const commands = createSettingsCommands({
-    commit: async () => ({ kind: 'unknown' as const, operationId: 'unused' }),
-    getOperation: async () => ({ kind: 'not_found' as const }),
-    readChanges: async (context, input) => {
-      calls.push({ context, input })
-      if (fail) throw new Error('private database details')
-      return { kind: 'changes' as const, changes: [], nextRevision: null }
-    },
-  })
-  const input = { target, afterRevision: 0, limit: 100 }
-  for (const invalid of [
-    { ...input, afterRevision: -1 },
-    { ...input, limit: 101 },
-    { ...input, principal: 'forged' },
-  ])
-    expect(await commands.readChanges(principal, invalid)).toEqual({
-      kind: 'rejected',
-      reason: 'invalid_input',
-    })
-  expect(calls).toEqual([])
-  expect(await commands.readChanges(principal, input)).toEqual({
-    kind: 'changes',
-    changes: [],
-    nextRevision: null,
-  })
-  expect(calls).toEqual([{ context: principal, input }])
-  fail = true
-  expect(await commands.readChanges(principal, input)).toEqual({
-    kind: 'rejected',
-    reason: 'unavailable',
-  })
 })

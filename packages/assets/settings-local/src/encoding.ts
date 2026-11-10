@@ -1,8 +1,7 @@
 import { createHash } from 'node:crypto'
 import canonicalize from 'canonicalize'
-import type { SettingsChange, SettingsTarget } from '@omne-harness/settings'
-import type { DomainRef, JsonValue, SqlIdentity, StorageScope } from '@omne-harness/sql-contract'
-import type { Binding, OperationBinding } from './schema.ts'
+import type { SettingsTarget } from '@omne-harness/settings'
+import type { JsonValue, StorageScope } from '@omne-harness/sql-contract'
 
 export function canonical(value: unknown): string {
   const result = canonicalize(value)
@@ -18,10 +17,6 @@ export function equal(left: unknown, right: unknown): boolean {
 export function digest(value: unknown): string {
   return createHash('sha256').update(canonical(value)).digest('hex')
 }
-export function commandDigest(command: SettingsChange): string {
-  const { requestId: _requestId, ...semantic } = command
-  return digest(semantic)
-}
 export function stateKey(scope: StorageScope, target: SettingsTarget): string {
   return canonical([scope, target])
 }
@@ -31,28 +26,6 @@ export function operationKey(
   operationId: string,
 ): string {
   return digest([principalRef, target, operationId])
-}
-export function identity(
-  domain: DomainRef,
-  principalRef: string,
-  target: SettingsTarget,
-  operationId: string,
-): SqlIdentity {
-  return {
-    ...domain,
-    operation: 'settings.change',
-    protocolVersion: '2',
-    operationKey: operationKey(principalRef, target, operationId),
-  }
-}
-export function settingsSqlOperationBinding(binding: Binding): OperationBinding {
-  return {
-    domain: binding.domain,
-    principalRef: binding.principalRef,
-    target: binding.command.target,
-    operationId: binding.command.operationId,
-    commandDigest: binding.commandDigest,
-  }
 }
 export function withinBudget(value: unknown): boolean {
   const active = new Set<object>()
