@@ -569,18 +569,37 @@ export function recoveryRoute(
   return recoveryTarget(at.position)
 }
 
+/** The ports whose answers are a dependency's (all of `LoopPorts` but `toolRequests`). */
+const DEPENDENCY_PORTS = [
+  'journal',
+  'entries',
+  'models',
+  'tools',
+  'conditions',
+  'requests',
+  'selection',
+  'modelContext',
+  'admission',
+  'handoff',
+  'materials',
+  'clock',
+] as const satisfies readonly Exclude<keyof LoopPorts<unknown>, 'toolRequests'>[]
+
 export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): ExecutionCoordinator {
   const { binding, evaluator, execution } = entry
   // The answers of the dependency ports are noted: an `unavailable` that a dependency answered
   // is a wait (SPEC "依赖不可用时的等待"; agent-host-local SPEC 运行失败: a dependency that is
   // unavailable now does not stop the drive). A failure that the coordinator or the evaluator made
   // is not a port's. `toolRequests` is the trusted in-process request source, not a dependency.
-  // Each port is wrapped when it is read, as the coordinator read the ports before.
-  const { toolRequests, ...dependencies } = entry.ports
-  const ports: LoopPorts<P> = {
-    ...notingPorts(dependencies),
-    ...(toolRequests && { toolRequests }),
-  }
+  // A port is wrapped when it is read, as the coordinator read the ports before: a caller may give
+  // only the ports its executions use.
+  const ports: LoopPorts<P> = { ...entry.ports }
+  for (const key of DEPENDENCY_PORTS)
+    if (key in ports)
+      Object.defineProperty(ports, key, {
+        enumerable: true,
+        get: () => notingPorts(entry.ports[key]),
+      })
   const access: Access<P> = { principal: entry.access.principal, tenant: entry.access.tenant }
 
   // The frame of this coordinator. The authority over it is the Journal: E1 reloads it, and every
