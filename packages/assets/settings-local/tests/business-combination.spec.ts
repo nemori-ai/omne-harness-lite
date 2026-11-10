@@ -224,6 +224,10 @@ it('does not turn unavailable input, missing custody or an unprepared attempt in
   expect((await s.world.commit(s.commitCurrent, { omitCurrent: true })).kind).toBe(
     'rejected_before_accept',
   )
+  // A current fact of another shape is no material either.
+  expect((await s.world.commit({ ...s.commitCurrent, observation: true as never })).kind).toBe(
+    'rolled_back',
+  )
   expect(
     (
       await s.world.commit(s.commitCurrent, {

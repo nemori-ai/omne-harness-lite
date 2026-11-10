@@ -186,6 +186,93 @@ it('rechecks access for each read and shows no operation of another target or pr
   ).toEqual({ kind: 'not_found' })
 })
 
+it('pages the changes of a target by revision', async () => {
+  const w = await open()
+  const write = async (command: typeof w.command) => {
+    const prepared = await w.service.prepareChange(w.context, command)
+    if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+    return w.service.commitChange(w.context, {
+      requestId: `commit-${command.operationId}`,
+      preparation: prepared.preparation,
+    })
+  }
+  expect(await write(w.command)).toMatchObject({ kind: 'committed', revision: 1 })
+  w.updateCurrent(current => ({ ...current, basis: { ...current.basis, valueRevision: 1 } }))
+  const second = {
+    ...w.command,
+    requestId: 'request-2',
+    operationId: 'second',
+    expectedRevision: 1,
+    action: { kind: 'set' as const, value: false },
+  }
+  expect(await write(second)).toMatchObject({ kind: 'committed', revision: 2, changed: true })
+  const { target } = w.command
+  expect(
+    await w.service.readChanges(w.context, { target, afterRevision: 0, limit: 1 }),
+  ).toMatchObject({
+    nextRevision: 1,
+    changes: [{ revision: 1, operationId: w.command.operationId }],
+  })
+  expect(await w.service.readChanges(w.context, { target, afterRevision: 1, limit: 1 })).toEqual({
+    kind: 'changes',
+    changes: [
+      { kind: 'value', revision: 2, operationId: 'second', itemId: 'enabled', sourceId: 'tenant' },
+    ],
+    nextRevision: null,
+  })
+})
+
+it('seals the attempt when the source layout of the plan is not the stored one', async () => {
+  const w = await open()
+  const first = await w.service.prepareChange(w.context, w.command)
+  if (first.kind !== 'prepared') throw new Error(JSON.stringify(first))
+  await w.service.commitChange(w.context, { requestId: 'commit', preparation: first.preparation })
+  // The owner now names an organization source before the tenant source.
+  w.updateCurrent(current => ({
+    ...current,
+    basis: {
+      ...current.basis,
+      valueRevision: 1,
+      sources: [
+        {
+          sourceId: 'organization',
+          ownerRef: 'owner',
+          scope: { kind: 'organization', subjectRef: 'organization-a' },
+          authorityRevision: '1',
+        },
+        ...current.basis.sources,
+      ],
+    },
+  }))
+  const command = {
+    ...w.command,
+    requestId: 'request-2',
+    operationId: 'new-layout',
+    expectedRevision: 1,
+    action: { kind: 'set' as const, value: false },
+  }
+  const prepared = await w.service.prepareChange(w.context, command)
+  if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+  expect(
+    await w.service.commitChange(w.context, {
+      requestId: 'commit-2',
+      preparation: prepared.preparation,
+    }),
+  ).toEqual({ kind: 'rejected', reason: 'basis_changed' })
+  // The stored value and its revision are those of the first write.
+  expect(stored(w.root)).toMatchObject({
+    state: {
+      state: {
+        revision: 1,
+        sources: [
+          { id: 'tenant', values: [{ itemId: 'enabled', value: { kind: 'value', value: true } }] },
+        ],
+      },
+    },
+    changes: 1,
+  })
+})
+
 it('admits one of two operations that compete for the same expected revision', async () => {
   const w = await open()
   const competitor = {
