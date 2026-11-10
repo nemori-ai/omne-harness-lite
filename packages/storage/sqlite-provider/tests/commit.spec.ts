@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { CommitResultV2, RolledBackV2 } from '@omne-harness/sql-contract'
+import { unpackText } from '@omne-harness/sql-contract/worker'
 import {
   DOMAIN,
   buildMaterials,
@@ -131,6 +132,17 @@ describe('execution and evidence', () => {
     expect(await second.storage.commit(request)).toEqual(committed)
     expect(await second.storage.query(request.identity)).toEqual(committed)
     expect(rows('select count(*) n from t_ledger')).toEqual([{ n: 1 }])
+  })
+
+  it('stores the receipt in the packed text form and recalls it as it was committed', async () => {
+    const { storage, control } = await ready()
+    const committed = await storage.commit(commitRequest(built))
+    await control.close({ initiator: 'disposal' })
+    const [row] = rows('select receipt from _sql_receipt') as { receipt: Uint8Array }[]
+    if (row === undefined) throw new Error('no receipt row')
+    expect(row.receipt).toBeInstanceOf(Uint8Array)
+    expect(row.receipt[0]).toBe(1)
+    expect(JSON.parse(unpackText(row.receipt))).toEqual(committed)
   })
 
   it('a different operation key is a new identity and runs again', async () => {

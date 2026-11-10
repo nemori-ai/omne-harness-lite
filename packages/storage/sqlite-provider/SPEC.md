@@ -153,6 +153,8 @@
 
 事实、已提交回执和响应证据在同一个事务里提交。`RELEASE` 不执行外层提交的全部检查。每个操作在结束时满足它独立提交时的约束，由 §4.5 保证。
 
+回执的 JSON 存在 `_sql_receipt.receipt`。该列是 `BLOB`，存 [sql-contract 规格](../sql-contract/SPEC.md#101-大文本列的存储格式) §10.1 的压缩文本。认回与 `query` 读出时还原。
+
 身份带 `recall: 'never'` 的操作（sql-contract 规格 §3.1）跳过第 3 步，不读回执；第 5 步不写回执，`_sql_receipt` 中没有它的行。等待者只按身份合并，`recall` 不同的两个身份不互为等待者。它在局部失败时也不写回滚回执：B 的写入撤下之后，`commit` 直接返回 `rolled_back`，不开第二个短事务。
 
 第 1 步的写代际核对：Worker 打开域时把 `_sql_generation` 加一，并记下它写入的值。组提交在 `BEGIN IMMEDIATE` 之后读回这个值。值不同或读不到时，另一个打开者已经接管该文件。本组全部操作为 `unknown`（诊断 `write_generation_changed` 或 `write_generation_unreadable`），Worker 回滚并退出，不在该连接上执行任何操作。
