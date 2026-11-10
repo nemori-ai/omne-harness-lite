@@ -23,9 +23,8 @@ export function inScope(path: string, scopes: readonly string[]): boolean {
   return scopes.length === 0 || scopes.some(scope => path.startsWith(scope))
 }
 
-/** 一个成员下的范围：给了范围时取落在成员目录里的，或盖住整个成员的（写成成员目录）；没给时取成员目录。 */
+/** 一个成员下的范围：落在成员目录里的那些；没有（没给范围，或范围盖住整个成员）时取成员目录。 */
 function scopesIn(member: string, scopes: readonly string[]): string[] {
-  if (scopes.length === 0) return [`${member}/`]
   const inside = scopes.filter(scope => scope.startsWith(`${member}/`))
   return inside.length > 0 ? inside : [`${member}/`]
 }
@@ -44,15 +43,19 @@ export function groupByMember(
     else files.set(owner.path, [...(files.get(owner.path) ?? []), path])
   }
   return {
-    members: members
-      .filter(member => files.has(member.path))
-      .map(member => ({
-        path: member.path,
-        name: member.name,
-        testable: typeof member.scripts['test'] === 'string',
-        files: files.get(member.path) ?? [],
-        scopes: scopesIn(member.path, scopes),
-      })),
+    members: members.flatMap(member => {
+      const own = files.get(member.path)
+      if (own === undefined) return []
+      return [
+        {
+          path: member.path,
+          name: member.name,
+          testable: typeof member.scripts['test'] === 'string',
+          files: own,
+          scopes: scopesIn(member.path, scopes),
+        },
+      ]
+    }),
     outside,
   }
 }

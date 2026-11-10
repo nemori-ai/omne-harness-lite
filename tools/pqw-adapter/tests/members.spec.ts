@@ -29,14 +29,20 @@ it('drops files outside the given scopes and narrows each member to the scopes i
       'tools/test-runner/src/testing/steps.ts',
       'tools/test-runner/src/other.ts',
       'packages/a/b/src/x.ts',
+      'docs/a.md',
     ],
     members,
     ['tools/test-runner/src/testing/steps.ts', 'packages/'],
   )
-  expect(grouping.members.map(m => [m.path, m.scopes])).toEqual([
-    ['tools/test-runner', ['tools/test-runner/src/testing/steps.ts']],
-    ['packages/a/b', ['packages/a/b/']],
+  expect(grouping.members.map(m => [m.path, m.files, m.scopes])).toEqual([
+    [
+      'tools/test-runner',
+      ['tools/test-runner/src/testing/steps.ts'],
+      ['tools/test-runner/src/testing/steps.ts'],
+    ],
+    ['packages/a/b', ['packages/a/b/src/x.ts'], ['packages/a/b/']],
   ])
+  expect(grouping.outside).toEqual([])
 })
 
 it('marks a member without a test script as not testable', () => {
