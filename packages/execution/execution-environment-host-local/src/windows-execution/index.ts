@@ -278,11 +278,14 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
    */
   const gracefulStop = async (entry: Entry): Promise<StopStatus> => {
     if (!entry.finished) {
+      // Marked before the event, so an exit it causes counts as stopped; unmarked when none went.
+      const requested = entry.stopRequested
       entry.stopRequested = true
       entry.breakReply = deferred<boolean>()
       const sent =
         entry.bridge?.send('break') === true &&
         (await within(entry.breakReply.promise, settings.stopBoundMs)) === true
+      if (!sent) entry.stopRequested = requested
       const ended =
         sent &&
         (await within(

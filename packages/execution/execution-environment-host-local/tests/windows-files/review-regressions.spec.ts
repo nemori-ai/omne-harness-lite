@@ -244,3 +244,18 @@ it('preserves unresolved for read, stat, list and replacement of an absent objec
     })
   })
 }, 30_000)
+
+it.each(['a?b.txt', 'a*b.txt', 'a|b.txt'])(
+  'refuses %s, a name Windows cannot hold, as invalid input without creating a file',
+  async name => {
+    await withFiles(async ({ files, root, bytes }) => {
+      const created = request(join(root, name), await hostObjectToken(root))
+      expect(await files.write({ ...created, bytes, mode: 'create' })).toMatchObject({
+        kind: 'rejected',
+        reason: 'invalidInput',
+      })
+      expect(await readdir(root)).toEqual(['中文.txt'])
+    })
+  },
+  30_000,
+)

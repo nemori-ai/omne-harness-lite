@@ -140,6 +140,115 @@ it('answers pending for a Job of another login session and confirms one of anoth
   }
 }, 60_000)
 
+it('leaves a retained Job to the index and recovers its listed reference once the index let it go', async context => {
+  if (process.platform !== 'win32') return context.skip()
+  const f = await fixture()
+  try {
+    const self = await windowsIdentity(5_000)
+    if (self === undefined) throw new Error('no identity')
+    const a = await f.acquire({
+      ...f.retention,
+      processes: {
+        closed: new AbortController().signal,
+        plan: async () => 'recorded',
+        adopt: async () => 'confirmed',
+        stopped: async () => 'recorded',
+      },
+    })
+    const pidFile = join(f.root, 'child.pid')
+    // The main process leaves a detached child behind and exits; the Job goes to the index.
+    const handle = value(
+      await a.command.start({
+        ...a.call,
+        executable: process.execPath,
+        args: [
+          '-e',
+          `const c=require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:['ignore','inherit','inherit']});c.unref();require('fs').writeFileSync(process.argv[1],String(c.pid))`,
+          pidFile,
+        ],
+        cwd: f.root,
+        env: f.identity.env,
+        outputMode: 'separate',
+      }),
+    )
+    const outcome = await handle.result
+    expect(outcome, JSON.stringify(outcome)).toMatchObject({
+      residue: { kind: 'retained', processes: 1 },
+    })
+    const child = Number(await readFile(pidFile, 'utf8'))
+    const original = f.plans.find(item => item.key === handle.process.generation)
+    if (original === undefined) throw new Error('the Job was not planned')
+    // A cold marker that outlived the handover does not let the original reference stop the Job.
+    await writeFile(
+      join(f.root, 'windows-jobs', `${original.key}.json`),
+      JSON.stringify({ resource: original, scope: a.input.scope.ref, identity: self }),
+    )
+    expect(await f.provider.recover?.(original)).toEqual({ status: 'pending', evidence: null })
+    expect(alive(child)).toBe(true)
+    const listed = await f.provider.listRecoveryResources?.(f.retention.scope)
+    if (listed?.kind !== 'listed') throw new Error('expected a listing')
+    const retained = listed.resources.find(item => item.key === original.key)
+    if (retained === undefined) throw new Error('the retained Job is not listed')
+    // The child ends by itself; the index lets the Job go at one of its readings.
+    process.kill(child)
+    await expect
+      .poll(
+        async () => {
+          const now = await f.provider.listRecoveryResources?.(f.retention.scope)
+          return (
+            now?.kind === 'listed' &&
+            now.resources.some(
+              item => item === retained || JSON.stringify(item) === JSON.stringify(retained),
+            )
+          )
+        },
+        { timeout: 20_000 },
+      )
+      .toBe(false)
+    expect(await f.provider.recover?.(retained)).toEqual({
+      status: 'confirmedStopped',
+      evidence: null,
+    })
+    expect(await f.provider.recover?.(original)).toEqual({
+      status: 'confirmedStopped',
+      evidence: null,
+    })
+    expect(await a.lease.release()).toEqual({ kind: 'released' })
+  } finally {
+    await f.cleanup()
+  }
+}, 60_000)
+
+it('confirms a closed terminal Job by the boot and login session its reference carries', async context => {
+  if (process.platform !== 'win32') return context.skip()
+  const f = await fixture()
+  try {
+    const self = await windowsIdentity(5_000)
+    if (self === undefined) throw new Error('no identity')
+    const a = await f.acquire()
+    const terminal = value(
+      await a.terminal.create({ ...a.call, cwd: f.root, env: f.identity.env }),
+    ).terminal
+    const resource = f.plans.find(item => item.key === terminal.id)
+    if (resource?.reference.kind !== 'object') throw new Error('the terminal was not planned')
+    expect(resource.reference.entries).toEqual(
+      expect.arrayContaining([
+        { key: 'boot', value: { kind: 'string', value: self.boot } },
+        { key: 'session', value: { kind: 'string', value: String(self.session) } },
+      ]),
+    )
+    expect(await a.terminal.close({ ...a.call, terminal })).toMatchObject({ kind: 'done' })
+    // The Job's name is gone in the boot and session it was created in: its stop is confirmed.
+    expect(await f.provider.recover?.(resource)).toEqual({
+      status: 'confirmedStopped',
+      evidence: null,
+    })
+    expect(await a.lease.release()).toEqual({ kind: 'released' })
+  } finally {
+    await f.cleanup()
+  }
+}, 60_000)
+
 it('answers unavailable for a listing without a state directory', async context => {
   if (process.platform !== 'win32') return context.skip()
   const provider = createHostFilesProvider({ domain: createHostFilesDomain() })

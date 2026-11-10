@@ -584,6 +584,9 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
           status: await recoverMacosResource(execution.macos, resource, name),
           evidence: null,
         }
+      // The index stops the Job it holds; the original reference does not stop it (SPEC).
+      if (execution.windows !== undefined && (await retained?.mayHold(resource.key)))
+        return { status: 'pending', evidence: null }
       if (execution.windows !== undefined)
         return {
           status: await recoverWindowsResource(

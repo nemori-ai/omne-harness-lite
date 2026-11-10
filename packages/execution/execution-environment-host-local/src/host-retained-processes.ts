@@ -147,6 +147,8 @@ export type RetainedProcessIndex = Readonly<{
   watchClosure(signal: AbortSignal, scope: ScopeRef, ledger: RetainedProcessLedger): void
   /** Stops the retained process a resource names; undefined when the index does not hold it. */
   recover(resource: ManagedResource): Promise<StopStatus | undefined>
+  /** Whether the index holds, or may hold, a process with this key; true while markers are unread. */
+  mayHold(key: string): Promise<boolean>
   /** One reading of every retained unit: settles the empty ones, retries the stopping ones. */
   maintain(): Promise<number>
   /** A provider generation that reads members by this index; the polling runs while one is joined. */
@@ -673,6 +675,9 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       if (entry === undefined || entry.state === 'reserved') return undefined
       if (JSON.stringify(resourceOf(entry)) !== JSON.stringify(resource)) return undefined
       return stop(entry)
+    },
+    async mayHold(key) {
+      return !(await ready()) || entries.has(key)
     },
     maintain,
     join(generation) {

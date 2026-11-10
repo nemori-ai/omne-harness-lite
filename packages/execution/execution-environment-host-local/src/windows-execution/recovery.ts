@@ -11,6 +11,7 @@ import { createColdIndex, type ColdIndex } from '../cold-index.ts'
 import { askBridge } from './bridge.ts'
 import {
   commandJobName,
+  readRetainedJobReference,
   readWindowsJobReference,
   stopWindowsJob,
   stopWindowsResource,
@@ -112,11 +113,32 @@ export async function recoverWindowsResource(
   provider: string,
   boundMs: number,
 ): Promise<WindowsRecoverStatus | 'unsupported'> {
+  if (resource.provider !== provider) return 'unsupported'
+  const retained = readRetainedJobReference(resource.reference)
+  if (retained !== undefined && retained.name === commandJobName(resource.key))
+    return recoverReleasedJob(retained, boundMs)
   const job = readWindowsJobReference(resource.reference)
-  if (resource.provider !== provider || job === undefined) return 'unsupported'
+  if (job === undefined) return 'unsupported'
   if (index !== undefined && job === commandJobName(resource.key))
     return recoverWindowsJob(index, resource, boundMs)
   return (await stopWindowsResource(resource, boundMs)) === 'confirmed'
     ? 'confirmedStopped'
     : 'pending'
+}
+
+/**
+ * A retained Job the index no longer holds. Another boot ended it. Another login session cannot
+ * address it. In its own boot and session a missing name means `KILL_ON_JOB_CLOSE` stopped it.
+ */
+async function recoverReleasedJob(
+  job: Readonly<{ session: number; name: string; boot: string }>,
+  boundMs: number,
+): Promise<WindowsRecoverStatus> {
+  const self = await windowsIdentity(boundMs)
+  if (self === undefined) return 'pending'
+  if (job.boot !== self.boot) return 'confirmedStopped'
+  if (job.session !== self.session) return 'pending'
+  return (await stopWindowsJob(job.name, boundMs)) === 'unconfirmed'
+    ? 'pending'
+    : 'confirmedStopped'
 }

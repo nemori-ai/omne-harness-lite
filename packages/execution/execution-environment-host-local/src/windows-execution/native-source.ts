@@ -115,8 +115,10 @@ public static partial class OmneWindowsBridge {
    * runs. The bridge attaches to that console only to send it and is not in the group, so the event
    * does not reach it. False when the main process exited or has no console (a GUI program).
    */
+  /** CTRL_BREAK_EVENT to the main process's group; true also when the main process already exited. */
   static bool Break() {
-    if(child.process==IntPtr.Zero || WaitForSingleObject(child.process,0)==0) return false;
+    if(child.process==IntPtr.Zero) return false;
+    if(WaitForSingleObject(child.process,0)==0) return true;
     FreeConsole();
     if(!AttachConsole(child.pid)) return false;
     try { return GenerateConsoleCtrlEvent(1,child.pid); }
@@ -164,12 +166,17 @@ public static partial class OmneWindowsBridge {
       return pids==null ? (object)new { t="fault" } : new { t="members",pids=pids.ToArray() };
     } finally { CloseHandle(named); }
   }
-  /** The boot time (SystemTimeOfDayInformation, offset 0) and this process's login session. */
+  /**
+   * The boot time and this process's login session. SystemTimeOfDayInformation gives the boot time
+   * at offset 0 and, at offset 32, the sum of every change of the system time since the boot, which
+   * the kernel also adds to the boot time. Their difference changes only with a new boot.
+   */
   static object Identity() {
     byte[] info=new byte[48];int returned;
-    if(NtQuerySystemInformation(3,info,info.Length,out returned)!=0) return new { t="fault" };
+    if(NtQuerySystemInformation(3,info,info.Length,out returned)!=0 || returned<40) return new { t="fault" };
     uint session;Check(ProcessIdToSessionId((uint)Process.GetCurrentProcess().Id,out session));
-    return new { t="identity",boot=BitConverter.ToInt64(info,0).ToString(),session=session };
+    long boot=BitConverter.ToInt64(info,0)-BitConverter.ToInt64(info,32);
+    return new { t="identity",boot=boot.ToString(),session=session };
   }
   /** Starts the anchor in the Job. Only the Job handle is inherited, and only by the anchor. */
   static void StartAnchor() {
@@ -209,9 +216,9 @@ public static partial class OmneWindowsBridge {
     Check(SetInformationJobObject(job,9,ref limit,(uint)Marshal.SizeOf(limit)));
     StartAnchor();
     IntPtr named=OpenJobObjectW(0x000C,false,name);
-    if(named==IntPtr.Zero) return false;
+    if(named==IntPtr.Zero) { Stop(); return false; }
     try {
-      if(Members()!=0) return false;
+      if(Members()!=0) { Stop(); return false; }
       return Stop();
     } finally { CloseHandle(named); }
   }

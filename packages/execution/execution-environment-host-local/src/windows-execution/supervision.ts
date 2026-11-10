@@ -22,7 +22,42 @@ export function readWindowsJobReference(
     : undefined
 }
 
-/** The forced stop of the Job a resource names, by its name. */
+/** The resource with the boot and login session of the process that creates its Job. */
+export function withWindowsIdentity(
+  resource: ManagedResource,
+  identity: WindowsIdentity,
+): ManagedResource {
+  if (resource.reference.kind !== 'object') return resource
+  const reference: ManagedResource['reference'] = {
+    kind: 'object',
+    entries: [
+      ...resource.reference.entries,
+      { key: 'boot', value: { kind: 'string', value: identity.boot } },
+      { key: 'session', value: { kind: 'string', value: String(identity.session) } },
+    ],
+  }
+  return Object.freeze({ ...resource, reference })
+}
+
+/** The boot and login session a Job reference carries; undefined when it carries none. */
+function readReferenceIdentity(
+  reference: ManagedResource['reference'],
+): WindowsIdentity | undefined {
+  if (reference.kind !== 'object') return undefined
+  const text = (key: string) => {
+    const found = reference.entries.find(entry => entry.key === key)?.value
+    return found?.kind === 'string' ? found.value : undefined
+  }
+  const boot = text('boot')
+  const session = Number(text('session'))
+  return boot === undefined || !Number.isSafeInteger(session) ? undefined : { boot, session }
+}
+
+/**
+ * The forced stop of the Job a resource names, by its name. Another boot ended the Job. Another
+ * login session cannot address it. A missing name confirms the stop only in the boot and session
+ * the reference carries; without them it proves nothing.
+ */
 export async function stopWindowsResource(
   resource: ManagedResource,
   boundMs: number,
@@ -34,9 +69,16 @@ export async function stopWindowsResource(
     (name !== commandJobName(resource.key) && name !== terminalJobName(resource.key))
   )
     return 'unconfirmed'
+  const created = readReferenceIdentity(resource.reference)
+  if (created !== undefined) {
+    const self = await windowsIdentity(boundMs)
+    if (self === undefined || created.session !== self.session) return 'unconfirmed'
+    if (created.boot !== self.boot) return 'confirmed'
+  }
   const status = await stopWindowsJob(name, boundMs)
-  // Without the Job's boot and session a missing name proves nothing.
-  return status === 'confirmed' ? 'confirmed' : 'unconfirmed'
+  return status === 'confirmed' || (status === 'absent' && created !== undefined)
+    ? 'confirmed'
+    : 'unconfirmed'
 }
 
 export type WindowsIdentity = Readonly<{ boot: string; session: number }>
@@ -82,6 +124,18 @@ function parseUnit(unit: string): Readonly<{ session: number; name: string }> | 
   return parts?.[2] === undefined || !Number.isSafeInteger(session)
     ? undefined
     : { session, name: parts[2] }
+}
+
+/** The unit and boot of a retained Job's reference, as the index lists it. */
+export function readRetainedJobReference(
+  reference: ManagedResource['reference'],
+): Readonly<{ session: number; name: string; boot: string }> | undefined {
+  if (reference.kind !== 'object' || reference.entries.length !== 2) return undefined
+  const [unit, boot] = reference.entries
+  if (unit?.key !== 'unit' || unit.value.kind !== 'string') return undefined
+  if (boot?.key !== 'bootId' || boot.value.kind !== 'string') return undefined
+  const job = parseUnit(unit.value.value)
+  return job === undefined ? undefined : { ...job, boot: boot.value.value }
 }
 
 /** The answer for a Job this process cannot address: its members are unknown, not none. */

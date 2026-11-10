@@ -21,7 +21,8 @@ export type TerminalFrame =
       ))
   | { readonly t: 'data'; readonly b: string }
   | { readonly t: 'stopped'; readonly status: 'confirmed' | 'unconfirmed' }
-  | { readonly t: 'fault'; readonly stopped: boolean }
+  /** `transport`: the provider read a broken frame and reads no more; the broker never sends it. */
+  | { readonly t: 'fault'; readonly stopped: boolean; readonly transport?: true }
 
 type Fields = Readonly<Record<string, unknown>>
 
@@ -110,7 +111,7 @@ export function startTerminalBridge(
   const fault = () => {
     if (failed) return
     failed = true
-    input.onFrame({ t: 'fault', stopped: false })
+    input.onFrame({ t: 'fault', stopped: false, transport: true })
   }
   child.stdout.setEncoding('utf8')
   child.stdout.on('data', (text: string) => {

@@ -27,7 +27,12 @@ import {
 } from '../terminal-sentinels.ts'
 import { deferred, within } from './bridge.ts'
 import { windowsTerminalExecutable } from './compile.ts'
-import { stopWindowsResource, terminalJobName } from './supervision.ts'
+import {
+  stopWindowsResource,
+  terminalJobName,
+  windowsIdentity,
+  withWindowsIdentity,
+} from './supervision.ts'
 import { startTerminalBridge, type TerminalBridge, type TerminalFrame } from './terminal-bridge.ts'
 import {
   createWindowsTerminalCapacity,
@@ -124,7 +129,8 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
   const { settings, ledger, capacity } = input
   const terminal = Object.freeze({ id: randomUUID(), generation: randomUUID() })
   const name = terminalJobName(terminal.id)
-  const resource: ManagedResource = Object.freeze({
+  // The start adds the boot and login session before the ledger records the resource.
+  let resource: ManagedResource = Object.freeze({
     key: terminal.id,
     provider: input.provider,
     reference: {
@@ -233,7 +239,7 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
   /**
    * `control`: the shell or the broker failed. An invocation whose finished frame arrived still
    * waits for its end sentinel: the broker forwards output until it exits. `ended`: the broker's
-   * output ended. `order`: the sentinels came in an impossible order. `output`: bytes were lost.
+   * output ended, or a broken frame stopped the reading of it. `order`: the sentinels came in an impossible order. `output`: bytes were lost.
    */
   const invalidate = (reason: 'control' | 'ended' | 'order' | 'output' = 'control') => {
     if (state === 'closed') return
@@ -338,7 +344,7 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
       case 'fault':
         if (value.stopped) nativeStopped = true
         stopReply.resolve(value.stopped ? 'confirmed' : 'unconfirmed')
-        invalidate()
+        invalidate(value.transport === true ? 'ended' : 'control')
         return
       case 'outputLost':
         invalidate('output')
@@ -466,6 +472,10 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
     try {
       const executable = await windowsTerminalExecutable()
       if (closed()) return refused('closed')
+      const identity = await windowsIdentity(settings.startBoundMs)
+      if (identity === undefined) return refused('unavailable')
+      if (closed()) return refused('closed')
+      resource = withWindowsIdentity(resource, identity)
       planned = true
       const plan = await ledger.plan(resource)
       planned = plan === 'recorded' || plan === 'unavailable'
@@ -611,7 +621,9 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
   }
   return Object.freeze({
     terminal,
-    resource,
+    get resource() {
+      return resource
+    },
     start() {
       startResult ??= start()
       return startResult

@@ -676,6 +676,7 @@ function countingIndex(pending: number, maintained: string[], name: string): Ret
     closeScope: async () => [],
     watchClosure: () => undefined,
     recover: async () => undefined,
+    mayHold: async () => false,
     maintain: async () => {
       maintained.push(name)
       return pending

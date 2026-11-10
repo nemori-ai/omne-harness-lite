@@ -17,6 +17,11 @@ vi.mock('../../src/windows-execution/compile.ts', () => ({
   windowsTerminalExecutable: async () => 'stand-in.exe',
   windowsBridgeExecutable: async () => 'stand-in.exe',
 }))
+// The start reads the boot and login session through a one-shot bridge; the stand-in has none.
+vi.mock('../../src/windows-execution/supervision.ts', async original => ({
+  ...(await original<typeof import('../../src/windows-execution/supervision.ts')>()),
+  windowsIdentity: async () => ({ boot: '1', session: 1 }),
+}))
 vi.mock('../../src/windows-execution/terminal-bridge.ts', async original => ({
   ...(await original<typeof import('../../src/windows-execution/terminal-bridge.ts')>()),
   startTerminalBridge(input: { onFrame(frame: TerminalFrame): void; onClosed(): void }) {
@@ -230,6 +235,21 @@ it('fails an invocation whose end sentinel never came before the broker output e
   t.broker.close()
   expect(await leg.handle.result).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
   expect(await text(leg.handle)).toBe('partial')
+})
+
+it('fails an invocation whose finished frame came before a broken frame stopped the reading', async context => {
+  if (process.platform !== 'win32') return context.skip()
+  const t = await terminal()
+  const leg = await t.execute()
+  leg.data(sentinel('begin', leg.nonce), 'partial')
+  leg.finished(0)
+  await tick()
+  expect(leg.settled()).toBeUndefined()
+  // The provider reads no frame after a broken one, so the end sentinel cannot arrive.
+  t.broker.emit({ t: 'fault', stopped: false, transport: true })
+  expect(await leg.handle.result).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
+  expect(await text(leg.handle)).toBe('partial')
+  expect((await t.information())?.state).toBe('invalid')
 })
 
 it('fails the invocation and invalidates the terminal when the sentinels come in an impossible order', async context => {

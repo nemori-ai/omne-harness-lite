@@ -1,6 +1,6 @@
 /** @module-tag slow */
 import { randomUUID } from 'node:crypto'
-import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
@@ -209,3 +209,52 @@ it('reads a retained Job of another login session as unknown, never as gone or s
     status: 'confirmed',
   })
 }, 30_000)
+
+it('retains what a main process without a console left when a graceful stop could send nothing', async context => {
+  if (process.platform !== 'win32') return context.skip()
+  const f = await retainingManager()
+  try {
+    const script = join(f.root, 'leave.js')
+    const pidFile = join(f.root, 'up')
+    // wscript.exe has no console: the graceful stop sends nothing, and the main process exits by
+    // itself later, leaving a child behind.
+    await writeFile(
+      script,
+      [
+        'var shell=new ActiveXObject("WScript.Shell");',
+        `shell.Run(${JSON.stringify(`"${process.execPath}" -e "setInterval(()=>{},1000)"`)},0,false);`,
+        'var fso=new ActiveXObject("Scripting.FileSystemObject");',
+        `var file=fso.CreateTextFile(${JSON.stringify(pidFile)},true);`,
+        'file.Write("up");file.Close();',
+        'WScript.Sleep(1500);',
+      ].join('\n'),
+    )
+    const started = await f.manager.facility.start({
+      ...f.request(['//nologo', script]),
+      executable: join(process.env['SystemRoot'] ?? 'C:\\Windows', 'System32', 'wscript.exe'),
+    })
+    if (started.kind !== 'done') throw new Error(`start answered ${started.kind}`)
+    await expect
+      .poll(() => readFile(pidFile, 'utf8').catch(() => ''), { timeout: 10_000 })
+      .toBe('up')
+    expect(await started.value.stop('graceful')).toBe('unconfirmed')
+    const outcome = await started.value.result
+    expect(outcome, JSON.stringify(outcome)).toMatchObject({
+      kind: 'completed',
+      residue: { kind: 'retained', processes: 1 },
+    })
+    if (outcome.kind !== 'completed' || outcome.residue?.kind !== 'retained')
+      throw new Error('expected a retained residue')
+    const base = { ...f.request([]), requestId: 'stop' }
+    expect(
+      await f.manager.facility.retention?.stop?.({
+        ...base,
+        process: outcome.residue.process,
+        mode: 'forced',
+      }),
+    ).toMatchObject({ kind: 'done', value: { status: 'confirmed' } })
+  } finally {
+    await f.manager.stopAll()
+    f.index.retire('generation-1')
+  }
+}, 60_000)

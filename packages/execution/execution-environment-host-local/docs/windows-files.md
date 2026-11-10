@@ -65,4 +65,4 @@ Windows 不提供原位写。新建与替换都先在同目录以 `NtCreateFile`
 
 真实 Windows 测试见[有根与无根同一后端](../tests/windows-files/unified.spec.ts)、[根的不同写法](../tests/windows-files/path-alias.spec.ts)、[读取与围栏](../tests/windows-files/read.spec.ts)、[名字操作](../tests/windows-files/tree.spec.ts)、[别的进程打开着的对象](../tests/windows-files/sharing.spec.ts)、[新建与替换](../tests/windows-files/write.spec.ts)、[复制与批次](../tests/windows-files/batch.spec.ts)、[搜索与不能读的项](../tests/windows-files/search.spec.ts)及[流式复制的内存](../tests/windows-files/copy-stream.spec.ts)（慢层）。磁盘满没有自动测试：不用管理员权限构造不出满的卷。这些测试不证明 Linux 行为、完整提供者组合或断电恢复。
 
-[边界回归](../tests/windows-files/review-regressions.spec.ts)覆盖空版本、缺失对象映射，以及发布前复核期间封闭的交错。交错测试只暂停真实 stat 的返回，或在复制的发布请求写给辅助进程之前暂停它，不替换文件系统结果。
+[边界回归](../tests/windows-files/review-regressions.spec.ts)覆盖空版本、缺失对象映射、Windows 不能容纳的名字（答 `invalidInput`），以及发布前复核期间封闭的交错。交错测试只暂停真实 stat 的返回，或在复制的发布请求写给辅助进程之前暂停它，不替换文件系统结果。

@@ -27,7 +27,7 @@ public static partial class OmneFiles {
     {2,"unresolved"},{3,"unresolved"},{267,"unresolved"},
     {5,"notAuthorized"},
     {32,"busy"},
-    {87,"invalidInput"},
+    {87,"invalidInput"},{123,"invalidInput"},{161,"invalidInput"},
     {80,"conflict"},{183,"conflict"},{145,"conflict"},
     {17,"unsupported"},
     {112,"capacity"},{39,"capacity"},
