@@ -16,7 +16,7 @@
 - [receipts-live.spec.ts](receipts-live.spec.ts)：真实提供者上一次完整调用后 `_sql_receipt` 行数不变（C10，慢层）
 - [reopen.spec.ts](reopen.spec.ts)：关闭再打开数据库文件
 - [atomic-commit.spec.ts](atomic-commit.spec.ts)：原子提交与修订号冲突
-- [host-history-independence.spec.ts](host-history-independence.spec.ts)：2000 次历史后新调用能启动，每次调用的宿主读数与历史无关，保留作用域记录不随调用增长，收场事实按键读一条记录（慢层）
+- [host-history-independence.spec.ts](host-history-independence.spec.ts)：C7 关卡。2000 次历史（每次带一个卸载正文，一半已清扫）后新调用能启动。一次卸载并读回正文的 Tools 调用，在 Tool 与宿主路径上的 SQL 语句数、读写行数与逻辑字节与历史无关。保留作用域记录不随调用增长，收场事实按键读一条记录（慢层）
 - [retention-scope-lifecycle.spec.ts](retention-scope-lifecycle.spec.ts)：保留作用域的开放与已关闭两态在实际 SQLite 上成立：已关闭的记录跨重启保留，之后的 `plan`、`permit`、`adopt` 答 `closed`；作用域关闭后创建者仍能记下自己预留的停止，结束事实保留
 - [ledger-asserts.spec.ts](ledger-asserts.spec.ts)：读集断言在 SQL 执行时评估，排队提交与两个连接的用例
 - [start-coordinator.spec.ts](start-coordinator.spec.ts)：启动协调器在本仓上的三组套件与重建
