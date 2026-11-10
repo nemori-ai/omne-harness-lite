@@ -247,6 +247,10 @@ it('lists survivors, uncovered sites and unmutated segments, and ends with the l
   ])
 })
 
+it('ends with a limits line that names at least one limit', () => {
+  expect(mutationLines([]).at(-1)).toMatch(/^限制：.+/u)
+})
+
 it('gives each member that cannot be measured one line, with the reason or a stand-in for it', () => {
   expect(
     mutationLines([

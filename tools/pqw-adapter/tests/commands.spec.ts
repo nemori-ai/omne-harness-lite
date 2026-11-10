@@ -300,6 +300,7 @@ it('metrics shows the last ten lines of a failed build, from stdout when stderr 
   const loud = deps({ repo, exec: recorder(() => ({ code: 1, stderr: `${many}\n` })).exec })
   expect(await closeoutMetrics(['--base', 'B', '--out', scratch()], loud)).toBe(1)
   expect(loud.printed[0]).toContain('退出 1')
+  expect(loud.printed[0]).toContain('pnpm exec turbo run build --output-logs=errors-only')
   expect(loud.printed[1]).toBe(many.split('\n').slice(2).join('\n'))
   const quiet = deps({
     repo,

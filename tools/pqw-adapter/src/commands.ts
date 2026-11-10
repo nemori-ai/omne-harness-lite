@@ -2,7 +2,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ReadingConfig } from './config.ts'
-import { groupByMember, inScope, type ChangedMember } from './members.ts'
+import { groupByMember, type ChangedMember } from './members.ts'
 import { buildArgs, measureMember, metricsSummary, type MemberReading } from './metrics.ts'
 import {
   DEFAULT_MAX_LINES,
@@ -127,7 +127,7 @@ async function listRange(deps: Deps, options: Options, base: string): Promise<Mu
   const { repo } = deps
   const head = repo.head()
   // 点名的文件不论改没改都打，所以它们所在的成员也算改动成员，它们本身也进范围。
-  const changed = repo.changedFiles(base).filter(path => inScope(path, options.scopes))
+  const changed = repo.changedFiles(base)
   const scopes = options.scopes.length === 0 ? [] : [...options.scopes, ...options.files]
   const grouping = groupByMember(
     [...new Set([...changed, ...options.files])],
