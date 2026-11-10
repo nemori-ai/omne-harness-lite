@@ -23,6 +23,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
+import type { LocalInvocationQualifier } from '@omne-harness/tool-host-local'
 import { TenantStandingSourceService, tenantStandingKey } from '@omne-harness/identity/cordis'
 import type { TenantStandingReading } from '@omne-harness/identity'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -57,6 +58,7 @@ import {
 import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import { canonicalDigest } from '@omne-harness/tool'
 import * as cordis from '../../../src/cordis.ts'
+import releaseDistribution from '../../../config/serve.distribution.json' with { type: 'json' }
 import { cursorSigning } from '../../../src/entry/cursor-signing.ts'
 import { createExecutionAuthorityModules } from '../../../src/entry/execution-authorities.ts'
 import {
@@ -77,10 +79,13 @@ import { releaseOf } from '../../../src/entry/tool-release.ts'
 import { createReleaseToolRequests } from '../../../src/entry/tool-requests.ts'
 import { toolClock, toolPublicationAuthority } from '../../../src/entry/tool-runtime-objects.ts'
 import { defineRow } from '../../../src/row.ts'
+import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
 import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
+import { permissionOriginsOf } from '../../../src/rows/governance/permission-origins.ts'
+import { sessionWorkOf } from '../../../src/rows/tool-runtime/session-work.ts'
 import type { EntryObjectModule } from '../../../src/types.ts'
 import { toolRowsOperatorConfig } from '../../r9/support.ts'
-import { compositionAuthority } from './composition-authority.ts'
+import { compositionAuthority, compositionAuthorityWithPolicy } from './composition-authority.ts'
 import { withLiveRows } from '../model/support.ts'
 import {
   TENANT_A,
@@ -221,14 +226,23 @@ function rowsOf(storageRoot: string) {
   return {
     tools,
     rows: [
-      { id: 'storage', plugin: 'storageRow', config: providerConfig(storageRoot) },
+      {
+        id: 'storage',
+        plugin: 'storageRow',
+        config: providerConfig(
+          storageRoot,
+          releaseDistribution.rows.find(row => row.id === 'storage')?.config as {
+            maxJsonDepth: number
+          },
+        ),
+      },
       { id: 'identity', plugin: 'identityStandIn' },
       { id: 'authorization', plugin: 'policyAccess' },
       {
         id: 'session-storage',
         plugin: 'sessionStorageRow',
         config: {
-          combinationVersion: 'session-composite/5',
+          combinationVersion: COMBINATION_VERSION,
           directoryFile: join(storageRoot, 'tenant-domains.json'),
           domainRule: 'organization-account/1',
         },
@@ -563,6 +577,65 @@ function expectRan(ran: Ran): void {
 }
 
 describe('Tool segment B: the release rows in one process composition', () => {
+  it('qualifies the original source inside target admission without recursion and retires its read port', async () => {
+    const { storageRoot } = workspace()
+    const { rows } = rowsOf(storageRoot)
+    const policy = accessPolicyRow(allowAll)
+    const readings: Awaited<ReturnType<LocalInvocationQualifier<unknown>['qualify']>>[] = []
+    let held: LocalInvocationQualifier<unknown> | undefined
+    let original: Parameters<LocalInvocationQualifier<unknown>['qualify']>[0] | undefined
+    let calls = 0
+    const authority = compositionAuthorityWithPolicy((_ctx, env) => ({
+      async qualify(input) {
+        calls++
+        if (calls > 8) return { kind: 'unavailable', diagnostic: 'recursive target admission' }
+        held = env.readTrusted('toolInvocationQualification').get('toolInvocationQualification') as
+          | LocalInvocationQualifier<unknown>
+          | undefined
+        if (held === undefined)
+          return { kind: 'unavailable', diagnostic: 'original source read absent' }
+        original = input
+        const who = sessionWorkOf(input.principal, input.tenant)
+        if (who === undefined) return { kind: 'denied', reason: 'not-session-work' }
+        const result = await permissionOriginsOf(
+          env.readTrusted('toolInvocationQualification'),
+        ).tool.qualify({ ...input, principal: who.principal })
+        readings.push(result)
+        return 'ok' in result
+          ? { kind: 'allowed' }
+          : { kind: 'unavailable', diagnostic: 'original source rejected' }
+      },
+    }))
+    const { run } = await withLiveRows(
+      {
+        rows,
+        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+        entryObjects: entryObjects(workPrincipalsOverStandIn).map(entry =>
+          entry.name === authority.name ? authority : entry,
+        ),
+        probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
+      },
+      async ctx => {
+        const { runtime, principal } = await ready(ctx, [])
+        const request = await requestFor(
+          ctx,
+          principal,
+          'Shell.execute',
+          '{"script":"echo source-qualified"}',
+        )
+        const result = await runtime.invoke({ principal, tenant: TENANT_A, request })
+        expect(result.kind).toBe('accepted')
+        expect(readings.length).toBeGreaterThan(0)
+        expect(readings.every(reading => 'ok' in reading)).toBe(true)
+        expect(calls).toBeLessThan(8)
+      },
+    )
+    expect(run.result.exitCode).toBe(0)
+    expect(held).toBeDefined()
+    expect(original).toBeDefined()
+    expect(await held!.qualify(original!)).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+
   it('rejects a direct Agent call to an adopted but nonresident tool before any file write', async () => {
     const { storageRoot } = workspace()
     const { rows, tools } = rowsOf(storageRoot)

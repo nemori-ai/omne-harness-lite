@@ -59,6 +59,11 @@ import {
 import { defineRow, type RowHandle } from '../../row.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { systemActionAuthorizationKey } from '../authorization/system-action-service.ts'
+import { sessionPermissionBackendKey } from '../governance/session-permission-backend-service.ts'
+import {
+  withSessionPermissionCommit,
+  type SessionPermissionBackendReader,
+} from '../governance/session-permission-commit.ts'
 import { boundAccessCheck } from './bound.ts'
 import { SESSION_COMPOSITE_PARTICIPANTS, compositeManifestDigest } from './composite.ts'
 import { sessionStorageRowConfigSchema, type SessionStorageRowConfig } from './config.ts'
@@ -229,11 +234,12 @@ function unregisteredTenantIsAbsent<P>(
   }
 }
 
-function delegatedView<P>(
-  base: SessionStorageOptions<P>,
+function delegatedView(
+  base: SessionStorageOptions<unknown>,
   directory: TenantDirectory,
-  checked: SessionCheckedAccess<P>,
-): SessionTransactionPort<P> {
+  checked: SessionCheckedAccess<unknown>,
+  select: SessionPermissionBackendReader,
+): SessionTransactionPort<unknown> {
   const creating = boundCreateTenant(checked.request)
   const view = createSessionStorage({
     ...base,
@@ -242,7 +248,7 @@ function delegatedView<P>(
   })
   const denied = (action: (typeof DENIED_IN_VIEW)[number]) => () =>
     Promise.resolve(fail<SessionFailure>({ kind: 'denied', action }))
-  const bound: SessionTransactionPort<P> = {
+  const bound: SessionTransactionPort<unknown> = {
     ...view,
     commitEntries: denied('commitEntries'),
     commitLog: denied('commitLog'),
@@ -250,9 +256,10 @@ function delegatedView<P>(
     references: denied('references'),
     releasedScopes: denied('releasedScopes'),
   }
+  const protectedView = withSessionPermissionCommit(bound, checked, select, base.intakeLimits)
   return creating === null
-    ? unregisteredTenantIsAbsent(bound, directory, boundTenantText(checked.request))
-    : bound
+    ? unregisteredTenantIsAbsent(protectedView, directory, boundTenantText(checked.request))
+    : protectedView
 }
 
 class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
@@ -353,6 +360,7 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
     register: registerWith(storage, combination),
   })
   const base: SessionStorageOptions<unknown> = {
+    intakeLimits: config.intakeLimits,
     storage,
     domains: directory.access,
     accessCheck,
@@ -367,7 +375,9 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
       'allowed',
   )
   new SessionTransactionsImpl(ctx, port)
-  new DelegatedTransactionsImpl(ctx, checked => delegatedView(base, directory, checked))
+  const select: SessionPermissionBackendReader = context =>
+    ctx.get(sessionPermissionBackendKey)?.read(context) ?? Promise.resolve(undefined)
+  new DelegatedTransactionsImpl(ctx, checked => delegatedView(base, directory, checked, select))
   new TenantDomainsImpl(ctx, directory.access)
   new TenantDomainLookupImpl(ctx, directory.lookup)
   const bindings = createSessionPrincipalBindings({ storage, domains: directory.access })

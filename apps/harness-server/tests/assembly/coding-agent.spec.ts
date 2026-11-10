@@ -181,3 +181,13 @@ describe('the coding entry of the release mapping (R2-D124)', () => {
     expect(read).toEqual({ kind: 'value', value: null })
   })
 })
+
+describe('the permission mode of the coding entry', () => {
+  // `never` refuses every action that still needs a decision: with Shell asking by default, the
+  // coding Agent could run no shell command at all. `bypass-permissions` skips that inquiry and lets
+  // the action continue through the remaining admission checks; an explicit prohibition still denies.
+  it('skips the inquiry for an action that still needs a decision', () => {
+    expect(entry.modes.permission).toBe('bypass-permissions')
+    expect(entry.modes.collaboration).toBe('co-work')
+  })
+})

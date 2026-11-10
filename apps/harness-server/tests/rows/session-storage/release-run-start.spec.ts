@@ -195,6 +195,8 @@ describe('the release tree with the release session ownership read', () => {
         const created = await cli(['create-session', '--definition', 'coding'])
         steps.push(created)
         const session = String(bodyOf(created)['session'])
+        // The answers given while the creation was prepared and committed.
+        const atCreate = issued.filter(entry => entry.session === session)
         steps.push(await cli(['send-input', '--session', session, '--text', INPUT_TEXT]))
         for (const step of steps) expect(step.status, step.stderr).toBe(0)
 
@@ -223,7 +225,16 @@ describe('the release tree with the release session ownership read', () => {
         const answers = mine()
         expect(answers.some(entry => entry.actor === 'maintainer')).toBe(true)
         expect(answers.some(entry => entry.actor === 'coordinator')).toBe(true)
-        expect(answers.filter(entry => entry.outcome !== 'issued')).toEqual([])
+        // A create first tries to recall its original mode initialization through the coordinator
+        // of the session (adoption-sources docs「create 的模式注册」). The session is not bound yet,
+        // so that one answer is `denied`, which tells the creation that there is nothing to recall.
+        // Every answer after the creation is issued.
+        expect(atCreate.filter(entry => entry.outcome !== 'issued')).toEqual([
+          { actor: 'coordinator', session, outcome: 'denied' },
+        ])
+        expect(answers.slice(atCreate.length).filter(entry => entry.outcome !== 'issued')).toEqual(
+          [],
+        )
       } finally {
         controller.abort('test: stop')
         await finished.catch(() => undefined)

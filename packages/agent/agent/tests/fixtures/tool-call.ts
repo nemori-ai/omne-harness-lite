@@ -242,7 +242,7 @@ export function toolReceiver(assembly: Assembly): AgentToolReceiver<string> {
     const instance = snapshot.executionAttachment?.instance
     return pending === undefined || instance === undefined
       ? null
-      : { execution: execution(), instance, pending }
+      : { execution: execution(), instance, definition: snapshot.checkpoint.definition, pending }
   }
   const made = createAgentToolReceiver<string>(
     {

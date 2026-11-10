@@ -1,3 +1,4 @@
+import { SOURCE_RETENTION_OWNER } from './source-retention-schema.ts'
 import type {
   SettingsCommitResult,
   SettingsFailure,
@@ -91,14 +92,23 @@ function rolledBackReceipt(
   lookup: OperationLookup,
   guardParticipant: string,
 ): SettingsOperationResult {
-  const unknown = { kind: 'unknown' as const, operationId: lookup.operationId }
   const last = result.responses.at(-1)
-  if (!last || ![PARTICIPANT, guardParticipant, TERMINAL_PARTICIPANT].includes(last.participant))
+  if (
+    !last ||
+    ![PARTICIPANT, guardParticipant, TERMINAL_PARTICIPANT, SOURCE_RETENTION_OWNER].includes(
+      last.participant,
+    )
+  )
     return rejected('unavailable')
   const reply = last.reply
   if (reply.kind === 'failed' && reply.category === 'fact_violation') return rejected('unsupported')
   if (reply.kind !== 'conflict' && reply.kind !== 'unsupported') return rejected('unavailable')
-  const parsed = rejectionSchema.safeParse(reply.basis)
+  return rejectedReceipt(reply.basis, lookup)
+}
+
+function rejectedReceipt(raw: unknown, lookup: OperationLookup): SettingsOperationResult {
+  const unknown = { kind: 'unknown' as const, operationId: lookup.operationId }
+  const parsed = rejectionSchema.safeParse(raw)
   if (!parsed.success || !matches(parsed.data.binding, lookup)) return unknown
   if (
     lookup.commandDigest !== undefined &&

@@ -275,6 +275,12 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
     /** A history read of the scope kinds (SE27, SE28) answers `unavailable`. */
     scopes: false,
   }
+  const applied: {
+    session: SessionId
+    scope: ScopeRef
+    keys: readonly string[]
+    ended: boolean
+  }[] = []
   const rcCalls: Call[] = []
   const sessionCalls: SessionCall[] = []
   const callsOf = (plugin: string) => sessionCalls.filter(call => call.plugin === plugin)
@@ -325,6 +331,9 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
       return succeed(coordinatorOf(input.tenant, input.session))
     },
     translation,
+    registrationApplied: async event => {
+      applied.push(event)
+    },
   })
   const ports = createTestAuthorityPorts<unknown>()
   ports.bind(scopeA, A.tenant)
@@ -527,6 +536,7 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
     replayFiber,
     holderFiber,
     rcCalls,
+    applied,
     sessionCalls,
     get replayCalls() {
       return callsOf(REPLAY)
@@ -600,12 +610,40 @@ function lastInput<T>(f: Awaited<ReturnType<typeof assembled>>, method: string):
 // --- recovery ------------------------------------------------------------------------------------
 
 describe('a scope seen for the first time is recovered with the complete material (1a)', () => {
+  it('recovers a known Session on cold start without a committed notice, rejects a foreign scope and stops on disposal', async () => {
+    const f = await assembled()
+    seedA(f)
+    expect(await f.holder.recoverSession({ ...A, scope: scopeB })).toEqual({ kind: 'unavailable' })
+    expect(f.methods()).toEqual([])
+    expect(await f.holder.recoverSession({ ...A, scope: scopeA })).toEqual({ kind: 'ready' })
+    expect(f.methods()).toEqual(['beginReplay', 'finishReplay'])
+    expect(f.applied).toHaveLength(1)
+    await f.replayFiber.dispose()
+    expect(await f.holder.recoverSession({ ...A, scope: scopeA })).toEqual({ kind: 'unavailable' })
+    await f.ctx.fiber.dispose()
+  })
+
+  it('cold recovery cannot turn unavailable history or a failed replay into ready', async () => {
+    const f = await assembled()
+    seedA(f)
+    f.faults.history = true
+    expect(await f.holder.recoverSession({ ...A, scope: scopeA })).toEqual({ kind: 'unavailable' })
+    f.faults.history = false
+    f.faults.finish = 1
+    expect(await f.holder.recoverSession({ ...A, scope: scopeA })).toEqual({ kind: 'unavailable' })
+    expect(f.applied).toHaveLength(0)
+    expect(await f.holder.recoverSession({ ...A, scope: scopeA })).toEqual({ kind: 'ready' })
+    await f.ctx.fiber.dispose()
+  })
+
   it('reads the records as reader, begins at the last commit and finishes with registrations, step-committed checkpointed blocks and no end', async () => {
     const f = await assembled()
     seedA(f)
     await f.committed(A, [REGISTRATION, STEP])
 
     expect(f.methods()).toEqual(['beginReplay', 'finishReplay'])
+    expect(f.applied).toHaveLength(1)
+    expect(f.applied[0]).toMatchObject({ session: A.session, scope: scopeA, ended: false })
     expect(lastInput(f, 'beginReplay')).toEqual({
       scope: scopeA,
       tenant: A.tenant,

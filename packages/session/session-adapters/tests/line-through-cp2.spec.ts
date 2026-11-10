@@ -66,11 +66,16 @@ describe('CP2: the Journal and the Session log commit together on the real sqlit
     // One storage commit, with a command of each participant, committed as one.
     expect(world.commits).toHaveLength(1)
     const [seen] = world.commits
-    expect([...seen!.participants].sort()).toEqual(['execution-record', 'session'])
+    expect([...seen!.participants].sort()).toEqual([
+      'execution-record',
+      'session',
+      'session-ordinary-basis',
+    ])
     expect(seen!.result.kind).toBe('committed')
     if (seen!.result.kind !== 'committed') return
     expect(seen!.result.responses.map(item => [item.participant, item.reply.kind])).toEqual([
       ['execution-record', 'participated'],
+      ['session-ordinary-basis', 'participated'],
       ['session', 'participated'],
     ])
     // The publication moved the common root once: the Agent count and the Session root read the

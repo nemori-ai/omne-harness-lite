@@ -264,3 +264,45 @@ it('recovers the original standalone owner operation and rejects reads after clo
     reason: 'closing',
   })
 })
+
+it.each(['before', 'after'] as const)(
+  'settles catalog capture when membership is revoked %s its SQL commit',
+  async order => {
+    const reached = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>()
+    const w = await openCatalogWorld({
+      wrapCatalog: storage => ({
+        ...storage,
+        async commit(input) {
+          if (input.identity.operation !== 'settings.capture') return storage.commit(input)
+          if (order === 'before') {
+            reached.resolve()
+            await release.promise
+            return storage.commit(input)
+          }
+          const result = await storage.commit(input)
+          reached.resolve()
+          await release.promise
+          return result
+        },
+      }),
+    })
+    opened.push(w)
+    const pending = w.catalog.read(w.principal, w.view)
+    try {
+      await reached.promise
+      expect(await w.remove()).toEqual({ kind: 'succeeded' })
+    } finally {
+      release.resolve()
+    }
+    expect(await pending).toMatchObject(
+      order === 'before'
+        ? { kind: 'rejected', reason: 'basis_changed' }
+        : { completeness: 'complete' },
+    )
+    expect(await w.catalog.read(w.principal, w.view)).toEqual({
+      kind: 'rejected',
+      reason: 'forbidden',
+    })
+  },
+)

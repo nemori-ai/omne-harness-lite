@@ -1,3 +1,4 @@
+import { ownerSources } from './sources.ts'
 import type { SqlMaterialCatalog, SqlStorage } from '@omne-harness/sql-contract'
 import type { SettingsProjectionBinding } from '../src/index.ts'
 import {
@@ -17,11 +18,16 @@ import {
   createSettingsMaintenance,
   createStandaloneSettingsOwner,
 } from '../src/index.ts'
-import { createIdentityQualifiedSettings } from '../src/identity.ts'
+import {
+  createSettingsCatalogDestination,
+  createSettingsStandingDestination,
+  createIdentityQualifiedSettings,
+} from '../src/identity.ts'
 import { openIdentityWorld } from './identity-world.ts'
 import { definition } from './world.ts'
 export async function openCatalogWorld(
   options: {
+    sourceCapture?: boolean
     assets?: {
       materials: Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
       command: (
@@ -42,6 +48,7 @@ export async function openCatalogWorld(
   ]
   const guards = createSettingsTargetGuards(project)
   const w = await openIdentityWorld({
+    sourceCapture: options.sourceCapture ?? false,
     authority: {
       guards,
       materials: {
@@ -50,6 +57,21 @@ export async function openCatalogWorld(
         readHandlers: catalogMaterials.flatMap(m => m.readHandlers),
       },
     },
+  })
+  const catalogDestination = `${w.destination}.catalog`
+  const readDestination = createSettingsCatalogDestination({
+    ...w.terminalOptions,
+    destination: catalogDestination,
+  })
+  const writeDestination = createSettingsStandingDestination({
+    ...w.terminalOptions,
+    destination: w.destination,
+  })
+  w.setResolver({
+    seal: reservation =>
+      reservation.binding.destination === catalogDestination
+        ? readDestination.seal(reservation)
+        : writeDestination.seal(reservation),
   })
   const registry = createSettingsRegistry({ capacity: 16 })
   const registration = registry.registerContribution(definition)
@@ -68,7 +90,7 @@ export async function openCatalogWorld(
     ...w.terminalOptions,
     storage: options.wrapCatalog?.(w.world.storage) ?? w.world.storage,
     deploymentRef: 'test',
-    destination: w.destination,
+    destination: catalogDestination,
     verifier: w.authority.verifier,
     reservations: w.identity.reservations,
     required: [],
@@ -95,9 +117,10 @@ export async function openCatalogWorld(
       ownerRef: 'deployment',
     })
   const record = {
+    publicationRef: null,
     target: w.change.target,
     definition,
-    sourceIds: ['tenant'],
+    sources: ownerSources('tenant'),
     grants: [
       {
         sourceId: 'tenant',

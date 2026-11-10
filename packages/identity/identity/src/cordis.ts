@@ -101,6 +101,7 @@ export abstract class StandingReservationsService extends Service implements Sta
   constructor(ctx: Context) {
     super(ctx, StandingReservationsService.provide)
   }
+  abstract readonly observe: StandingReservations['observe']
   abstract readonly reserve: StandingReservations['reserve']
   abstract readonly settle: StandingReservations['settle']
   abstract readonly recover: StandingReservations['recover']

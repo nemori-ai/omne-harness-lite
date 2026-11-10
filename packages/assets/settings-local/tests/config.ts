@@ -5,7 +5,7 @@ export function config(storageRoot: string): SqliteStorageConfig {
     admissionQueueLimit: 100,
     globalAdmissionLimit: 100,
     lockWaitMs: 1000,
-    maxCommandsPerCommit: 5,
+    maxCommandsPerCommit: 8,
     maxCommandBytes: 16 << 20,
     maxRequestBytes: 20 << 20,
     globalInFlightWriteBytes: 64 << 20,

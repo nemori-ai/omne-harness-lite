@@ -23,6 +23,9 @@ export {
   type SettingsChangeDecision,
 } from './commands.ts'
 export * from './ports.ts'
+export * from './preparation.ts'
+export * from './current-basis.ts'
+export * from './sources.ts'
 export {
   createSettingsQueries,
   createSettingsCommands,

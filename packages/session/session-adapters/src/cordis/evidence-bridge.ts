@@ -221,6 +221,9 @@ export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceB
 
   /** The sources the material table names for the kind of `command`, in table order. */
   private sourcesFor(command: SessionCommand): Source<P>[] {
+    // Permission assignments require the transaction's dedicated write qualification, not adoption.
+    if (command.kind === 'change' && command.input.declaration.kind === 'permission-assignment')
+      return []
     const sources: Source<P>[] = []
     if (ADOPTION.has(command.kind)) sources.push(this.adoption)
     if (PRODUCTION.has(command.kind)) sources.push(this.production)

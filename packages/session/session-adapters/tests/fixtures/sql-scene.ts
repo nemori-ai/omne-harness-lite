@@ -51,6 +51,7 @@ import {
   inputDigestV2,
   manifestDigest,
   type CommitResultV2,
+  type JsonValue,
   type ReceiptV2,
   type ReadRequest,
   type ReadResult,
@@ -175,8 +176,11 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
         responses,
       }) as unknown as ReceiptV2
     db.exec('BEGIN IMMEDIATE')
-    const ordered = [...request.commands].sort((a, b) =>
-      a.participant < b.participant ? -1 : a.participant > b.participant ? 1 : 0,
+    // This double models the known Session combination; real Workers verify catalog ordering.
+    const facts = new Map<string, JsonValue>()
+    const order: readonly string[] = SESSION_LOG_PARTICIPANTS
+    const ordered = [...request.commands].sort(
+      (a, b) => order.indexOf(a.participant) - order.indexOf(b.participant),
     )
     for (const command of ordered) {
       const module = participants.get(command.participant)
@@ -191,8 +195,16 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
             }
             return rowsOf(db, sql, params)
           },
-          requireFact: () => null,
-          provideFact: () => undefined,
+          requireFact: key => {
+            const value = facts.get(JSON.stringify(key))
+            if (value === undefined) throw new Error('missing fixture transaction fact')
+            return value
+          },
+          provideFact: (key, value) => {
+            const identity = JSON.stringify(key)
+            if (facts.has(identity)) throw new Error('duplicate fixture transaction fact')
+            facts.set(identity, structuredClone(value))
+          },
         })
         reply =
           raw.kind === 'failed'

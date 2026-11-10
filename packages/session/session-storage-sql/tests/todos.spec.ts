@@ -12,7 +12,11 @@ import type { SessionCommand, TodoItemId } from '@omne-harness/session-contract'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import { createSessionStorage } from '../src/index.ts'
-import { decodeSessionReply, sessionCommandFacts } from '../src/participants.ts'
+import {
+  decodeSessionReply,
+  sessionCommandFacts,
+  sessionCommitCommands,
+} from '../src/participants.ts'
 import {
   openRealApp,
   identityOf,
@@ -187,12 +191,15 @@ describe('Todo facts through real SQLite Workers', () => {
     const direct = await app.storage.commit({
       identity: identityOf(TENANT_A, app.domainOf(TENANT_A), 'direct-receipt-recall'),
       ...app.combination,
-      commands: [sessionCommandFacts(complete.command, [])],
+      commands: sessionCommitCommands([sessionCommandFacts(complete.command, [])]),
     })
     expect(direct.kind).toBe('committed')
-    if (direct.kind !== 'committed' || direct.responses[0] === undefined)
-      throw new Error('missing recall response')
-    expect(decodeSessionReply(direct.responses[0].reply)).toMatchObject({
+    const recalled =
+      direct.kind === 'committed'
+        ? direct.responses.find(item => item.participant === 'session')
+        : undefined
+    if (recalled === undefined) throw new Error('missing recall response')
+    expect(decodeSessionReply(recalled.reply)).toMatchObject({
       kind: 'participated',
       recovered: true,
       result: original,

@@ -1,3 +1,4 @@
+import { sessionCommitCommands } from './commit-basis.ts'
 // The write path (SQL r2 section 17): `commit`, `commitEntries` and the original-receipt lookup go
 // through the storage commit, the `session` participant. The response evidence of a rollback keeps
 // the original failure basis, so no failure is recomputed outside the transaction.
@@ -77,7 +78,7 @@ const requestOf = <P>(
 ): CommitRequestV2 => ({
   identity,
   ...context.options.combination,
-  commands: [command],
+  commands: sessionCommitCommands([command]),
 })
 
 const sessionFacts = (facts: Readonly<Record<string, JsonValue>>): FactCommandV2 => ({
@@ -174,9 +175,12 @@ function fromResult(
   }
 }
 
-/** The process memory of one storage operation's generations: tenant, domain and operation. */
-const generationKey = (domain: TenantDomainRef, operation: string): string =>
-  JSON.stringify([domain.text, domain.domain.transactionDomain, operation])
+/**
+ * The process memory of one storage operation's generations: tenant, domain, session and
+ * operation, as the identity of a generation names them.
+ */
+const generationKey = (domain: TenantDomainRef, session: string, operation: string): string =>
+  JSON.stringify([domain.text, domain.domain.transactionDomain, session, operation])
 
 /**
  * Notes what generation `attempt` of `key` turned out to be (SPEC W1 attempts, step 3). A rolled
@@ -210,18 +214,14 @@ export async function commitFacts<P>(
   command: FactCommandV2,
   mark: Recall = markRecovered,
 ): Promise<Outcome<unknown, SessionFailure>> {
-  // Known limitation: the storage identity is `<SessionOperationId>#<generation>` in the tenant
-  // domain, so one identity is one operation per tenant, not per session. An identity reused in
-  // another session answers `conflict` and writes nothing (the safe side); the SL07 domain
-  // (tenant, session, identity) relies on OP-00 never reusing an identity across sessions.
   const { operation } = expected
   const { storage } = context.options
   const { generations } = context
-  const key = generationKey(domain, operation)
+  const key = generationKey(domain, session, operation)
   // No bound: every refusal of the participant, `changed` included, rolls back and uses up a
   // generation, and the caller comes again with the same operation (SPEC W1 attempts).
   for (let attempt = (generations.get(key) ?? 0) + 1; ; attempt += 1) {
-    const identity = identityOf(domain, operation, `${operation}#${attempt}`)
+    const identity = identityOf(domain, operation, JSON.stringify([session, operation, attempt]))
     const found = await storage.query(identity)
     saw(generations, key, attempt, found.kind)
     if (found.kind === 'rolled_back') continue
@@ -279,7 +279,7 @@ export async function commit<P, K extends MutationName>(
   try {
     // The allowed decision goes into the facts, so the participant writes it with the operation
     // record in the same transaction (session-contract SPEC「当前操作的访问裁定」).
-    const base = sessionCommandFacts(command, input.guards)
+    const base = sessionCommandFacts(command, input.guards, context.intakeLimits)
     facts = { ...base, facts: { ...base.facts, evidence: encodeValue(decided.ok) } }
   } catch (error) {
     return failure({
@@ -315,7 +315,10 @@ async function lookup<P>(
   )
   if (result.kind !== 'committed')
     return failure(unavailable(`the receipt lookup did not commit: ${result.kind}`))
-  const answer = result.responses[0].reply.response as { kind: string }
+  const entry = result.responses.find(item => item.participant === SESSION_PARTICIPANT)
+  const answer = entry?.reply.kind === 'participated' ? entry.reply.response : null
+  if (typeof answer !== 'object' || answer === null || !('kind' in answer))
+    return failure(unavailable('the receipt lookup has no Session answer'))
   if (answer.kind === 'no-session') return failure({ kind: 'denied', action })
   return succeed(answer.kind === 'operation' ? (answer as Found) : null)
 }
@@ -346,6 +349,7 @@ async function exclusion<P>(
   context: Context<P>,
   domain: TenantDomainRef,
   operation: SessionOperationId,
+  session: string,
 ): Promise<
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'attempt-rejected' }>
@@ -357,7 +361,7 @@ async function exclusion<P>(
   // rolled back generations are finite, so the search always stops (SPEC R7).
   for (let attempt = 1; ; attempt += 1) {
     const found = await context.options.storage.query(
-      identityOf(domain, operation, `${operation}#${attempt}`),
+      identityOf(domain, operation, JSON.stringify([session, operation, attempt])),
     )
     if (found.kind === 'rolled_back') rolledBack ||= !leftNoRecord(found)
     else if (found.kind === 'unknown') return { kind: 'unknown' }
@@ -392,7 +396,10 @@ async function resolve<P>(
   const found = await lookup(context, domain.ok, access.session, operation, name)
   if ('failure' in found) return found
   if (found.ok !== null) return succeed({ found: found.ok, rest: null })
-  return succeed({ found: null, rest: await exclusion(context, domain.ok, operation) })
+  return succeed({
+    found: null,
+    rest: await exclusion(context, domain.ok, operation, access.session),
+  })
 }
 
 type Unfound = ControlOperationResolution & OperationResolution

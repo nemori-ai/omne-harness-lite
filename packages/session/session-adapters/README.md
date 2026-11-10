@@ -69,7 +69,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/session-adapters
 ```
 
-The package has 27 runtime tests and 2 type tests. See [tests/](tests/README.md). Two runtime tests check that the root entry and `./cordis` have no exports. The other 25 runtime tests check the memory provider of `./testing`. No test is mapped to the continuous obligations VA-01 to VA-19 in the [SPEC](SPEC.md#组合与验证) yet. A passing structure check does not prove behavior.
+The public-entry tests check the implemented exports. `tests/permission-mode.spec.ts` checks exact default adoption, source preservation and the Authorization boundary. Its [finite-input proof](verification/proofs/permission-mode.md) does not establish production publication or capture. The [SPEC](SPEC.md#组合与验证) owns the wider verification obligations; a passing structure check does not prove behavior.
 
 ## Maintenance
 

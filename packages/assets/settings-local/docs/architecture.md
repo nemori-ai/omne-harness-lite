@@ -68,7 +68,7 @@ classDiagram
     digest
   }
   class SettingsTargetProjection {
-    sourceIds
+    sourceLayout
     grants
     ownerRevision
   }
@@ -184,3 +184,208 @@ sequenceDiagram
 模块修改按拥有者推进。配值与求值规则先改纯 Settings，目标生命周期改真实目标拥有者，捕获绑定同时核对两个投影生产者与中央消费者。源码入口为 [catalog.ts](../src/catalog.ts)、[target-guard.ts](../src/target-guard.ts)、[snapshot-participant.ts](../src/snapshot-participant.ts)、[standalone-participant.ts](../src/standalone-participant.ts)和 [maintenance.ts](../src/maintenance.ts)。
 
 [测试说明](../tests/README.md)给出真实 SQLite、真实 Identity、独立目标和资产组合的归属。图解释当前实现，不证明独立接受或最终系统采用。本包没有最终 UI、tools 或 Cordis 插件，也没有 Calendar 消费证明。秘密项在 SQL 目录里只提供安全元数据，值保持 absent，普通秘密配值不支持，目录与回执不返回秘密明文；秘密值只在 `./secrets` 的文件保管里。
+
+
+## 目标启禁的实际投影
+
+```mermaid
+flowchart LR
+  A["Assets 持有<br/>held/removed 与 enabled"] --> P["SettingsTargetProjection<br/>enabled + ownerRevision"]
+  S["独立目标<br/>现行 enabled=true + retired"] --> P
+  P --> M["管理目录<br/>保留禁用目标及配值"]
+  P --> R["运行捕获<br/>拒绝禁用资产"]
+  M --> C["公开条目 targetEnabled<br/>与配置项的值分开"]
+```
+
+启禁由 Assets 持有拥有者写入，Settings 不创建另一份启禁配置。snapshot 和 catalog 保留投影字段。禁用不改变 st_states 或原业务回执；真实 SQL 测试覆盖禁用、关闭重开、重新启用后的值保留。此图只描述已接入的目录路径。运行采用和实际动作仍须在 C3b/C4/C5 的当前性关口消费拥有者事实。
+
+## 准备保管的私有实现
+
+准备流程先保存根命令和一次attempt，再保存完整Identity请求。Settings负责请求与回执的本地记录，Identity负责资格和保留的实际有效性。当前私有模块通过真实SQL测试使用，公共准备服务尚未接线。来源保留和ready提交仍待实现。
+
+```mermaid
+classDiagram
+  class IntentRecord {
+    originalCommand
+    principalRef
+    status
+  }
+  class AttemptRecord {
+    attemptId
+    comparisonPlan
+    status
+    readyBasis
+  }
+  class StandingCustody {
+    immutableRequest
+    reservationId
+    state
+    receipt
+    outcome
+  }
+  class IdentityReservations {
+    reserve()
+    settle()
+  }
+  IntentRecord "1" *-- "0..64" AttemptRecord
+  AttemptRecord "1" *-- "0..1" StandingCustody
+  StandingCustody ..> IdentityReservations : records public results
+```
+
+图中的对象是持久记录，不要求运行时class。三张关系表同属settings.persistence。外键只连接同一拥有者的表；Settings不读取Identity私表。保管查询按根、精确attempt和保管主键查找，最多读取三行。
+
+```mermaid
+stateDiagram-v2
+  [*] --> planned : persist original request
+  planned --> requested : persist before reserve call
+  requested --> held : matching Identity reply
+  requested --> settled : recognized terminal reply
+  held --> settled : confirmed settlement
+  settled --> settled : ignore late held reply
+```
+
+requested表达不确定的调用进度，不能推断外部没有held。settled是已确认结果的保管事实，不能据此绕过Identity的释放前提。迟到回执按原attempt归档，不改变后继attempt。测试中的终态夹具不授予生产恢复已完成的结论。
+
+## 来源保留的关系边界
+
+一个来源门保护完整Settings目标。配值、锁、声明和布局都影响消费者如何解释规则，因此它们共享这把门。保留记录存储读取时的不可变快照，业务写入仍只有st_states一份事实源。
+
+```mermaid
+erDiagram
+  st_source_gate ||--o{ st_source_reservation : retains
+  st_source_gate {
+    TEXT source_key PK
+    TEXT source_json
+    TEXT pending_key
+    TEXT pending_json
+  }
+  st_source_reservation {
+    TEXT reservation_key PK
+    TEXT source_key FK
+    TEXT request_json
+    TEXT snapshot_json
+    TEXT state
+    TEXT outcome
+  }
+```
+
+两张表归settings.source-retention。根意图和attempt属于settings.persistence，二者通过受信事实协调，不能跨拥有者写表。来源门的完成与根终结必须同提交。取消更新可开放新保留，但仍保管旧held；后继更新继续排空它们。
+
+```mermaid
+flowchart LR
+  Snapshot[已有：只读Settings源快照] -.-> Holds[已有私有保留记录写者]
+  Gate[已有私有待决门写者] --> Holds
+  Gate --> Writers[已有：配值、rebase、独立目标写者]
+  Resolver[待接线：可信目的终态resolver] -.-> Holds
+  Holds --> Recovery[已有有界held枚举]
+  Gate --> Pending[已有独立pending枚举]
+```
+
+实线仅表示已实现的私有关系操作。测试装配提供快照和终态夹具。图中的生产适配及当前来源保证尚未交付。恢复索引只枚举元数据，实际保留快照在按需精确认回时读取。
+
+
+只读source-snapshot现在直接读取本成员的st_targets和st_states。standalone-records与projected-state分别复用目标解码/投影和配值相容性检查，普通目录也使用同一条配值读取逻辑。事实携带完整目的请求，消费者必须核对绑定。
+
+```mermaid
+flowchart TB
+  Snapshot[只读source-snapshot] --> OwnerRead[standalone-records]
+  Snapshot --> Values[projected-state]
+  TargetOwner[独立目标参与者] --> OwnerRead
+  Catalog[目录快照参与者] --> Values
+  OwnerRead --> Targets[st_targets]
+  Values --> States[st_states]
+  Snapshot --> Fact[绑定完整请求的snapshot fact]
+  Fact -.-> Reserve[尚待生产接线的保留协调]
+```
+
+source-snapshot不拥有表，也不依赖写者产生的fact。登记组合必须包含实际表拥有者。该结构允许先读取，再由来源门和写者推进事务，避免读者等待写者、写者又等待来源门。当前保留参与者消费真实快照；只读观察仍使用具名夹具。真实组织来源准入、资产持有失效接线与准备提交恢复尚未交付。
+
+
+## 来源保护与只读投影
+
+来源门以完整目标为单位保护定义、来源布局、值和锁。赋值、维护重映射和独立目标修改在同一 SQL 事务中消费绑定命令的许可。存在 pending 更新或 held 保留时，直接写入返回 basis_changed。已提交的原回执仍可认回。
+
+```mermaid
+flowchart LR
+  Command[命令服务] --> Observation[写入请求观察]
+  Observation --> Retention[来源保留参与者]
+  Retention --> Gate[(来源门与保留记录)]
+  Retention --> Fact[精确命令的 write-open fact]
+  Fact --> Assignment[赋值或 rebase 写者]
+  Fact --> Target[独立目标写者]
+  Query[目录查询] --> Projection[只读目标投影]
+  Projection --> Targets[(st_targets)]
+  Target --> Targets
+```
+
+settings.targets 独占目标表写入。settings.target-projection 只读目标表，不依赖来源写入许可，因此来源被保留时查询仍可继续。Settings 不读取其他领域的私有表。
+
+普通装配只安装写入观察。显式启用 sourceCapture 后，同一观察参与者还可从真实目标和配值表产生来源快照，装配必须登记这些表的拥有者。这仍是事务材料，尚不是公开的组织来源服务。生产更新排空、根终态同提交以及恢复协调继续由完整准备提交路径承担。
+
+## 公开准备服务的职责分离
+
+preparation-provider 提供客户端 service 和拥有者 control 两个入口。PreparationEngine 管原操作流程；PreparationSql 只执行固定事务组合及持久读取；PreparationCustody 管外部请求与回执顺序。Identity 适配器验证真实资格，来源服务继续拥有自己的保留状态。Settings 不读取外域私表。
+
+```mermaid
+classDiagram
+  class SettingsPreparationService {
+    prepareChange()
+    prepareRebase()
+    commitChange()
+    cancelChange()
+    getOperation()
+    readChanges()
+  }
+  class PreparationEngine {
+    originalIntent
+    explicitAttempt
+  }
+  class PreparationSql {
+    fixedPhaseRegistrations
+    read()
+    write()
+  }
+  class PreparationCustody {
+    reserve()
+    settle()
+  }
+  class IdentityAdapter {
+    verifyPrincipal()
+    readStanding()
+    reserve()
+  }
+  class AttemptDestination {
+    sealExactPersistedRequest()
+  }
+  SettingsPreparationService --> PreparationEngine
+  PreparationEngine --> PreparationSql
+  PreparationEngine --> PreparationCustody
+  PreparationCustody --> PreparationSql : 保存请求与回执
+  PreparationCustody --> IdentityAdapter : 公共保留契约
+  AttemptDestination --> PreparationSql : 不重新申请资格
+```
+
+```mermaid
+sequenceDiagram
+  participant Client as 调用者
+  participant Service as Settings 准备服务
+  participant SQL as 固定 Settings SQL 组合
+  participant Identity as Identity
+  Client->>Service: prepareChange
+  Service->>Identity: 验证主体和当前资格
+  Service->>SQL: 保存根、attempt 与 requested
+  Service->>Identity: 原请求 reserve
+  Identity-->>Service: held 回执
+  Service->>SQL: 保存回执，ready 重核当前依据
+  Service-->>Client: prepared 引用
+  Client->>Service: commitChange
+  Service->>Identity: 重新验证主体和资格
+  Service->>SQL: 读取当前依据并原子提交
+  SQL-->>Service: 已提交原结果
+  Service->>Identity: settle 原请求
+  Identity->>Service: 可信 destination 核验终态
+  Service-->>Identity: 精确 committed 终态
+  Service-->>Client: committed 原结果
+```
+
+此图是库级实际实现。来源保留按同一 requested/receipt 顺序运行，具体来源的认证与持久服务由装配方提供。真实应用 current、组织来源和旧写入路线的切换尚未完成。关闭只排空已受理调用，不删除持久准备记录，也不接管共享 SqlStorage 的生存期。

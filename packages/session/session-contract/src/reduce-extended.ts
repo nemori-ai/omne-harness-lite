@@ -1,3 +1,4 @@
+import { applyPermissionEvent } from './permission-state.ts'
 import type { SessionEntry } from './entries.ts'
 import type { WorkSnapshot } from './values.ts'
 import type { DurableEvidence } from './identity.ts'
@@ -19,7 +20,10 @@ export function applyExtended(
   entry: SessionEntry,
   source: DurableEvidence,
 ): string | null {
+  draft.permissions = applyPermissionEvent(draft.permissions, entry, source)
   switch (entry.kind) {
+    case 'session.permission-assigned':
+      return null
     case 'session.tool-resident-admitted':
       if (draft.residents.some(item => item.capability === entry.resident.capability))
         return 'resident admitted twice'

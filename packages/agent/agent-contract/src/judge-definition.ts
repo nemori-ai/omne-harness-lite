@@ -1,3 +1,4 @@
+import { PermissionUpperBoundsSchema, definePermissionUpperBounds } from '@omne-harness/permissions'
 import { z } from 'zod'
 import { checkJson, copyPlain } from './check.ts'
 import {
@@ -40,6 +41,7 @@ const definition = z.strictObject({
   references: z.array(reference),
   attributes: z.array(attribute),
   instructions: z.array(instruction).min(1).max(INSTRUCTION_LIMITS.maxSections).optional(),
+  permissionBounds: PermissionUpperBoundsSchema.optional(),
 })
 
 type Parsed = z.output<typeof definition>
@@ -139,6 +141,12 @@ function acceptDefinition(parsed: Parsed): Judgment<AgentDefinition> {
     const problem = instructionsProblem(parsed.instructions)
     if (problem !== undefined) return refused('malformed', problem)
   }
+  const bounds =
+    parsed.permissionBounds === undefined
+      ? undefined
+      : definePermissionUpperBounds(parsed.permissionBounds)
+  if (bounds?.kind === 'invalid-input')
+    return refused('malformed', 'Invalid permission upper bounds')
   // The accepted value is frozen at every level and shares no object with the input. An absent
   // `instructions` stays absent.
   return {
@@ -151,6 +159,7 @@ function acceptDefinition(parsed: Parsed): Judgment<AgentDefinition> {
         parsed.attributes.map(declaration => Object.freeze({ item: declaration.item })),
       ),
       ...copyInstructions(parsed.instructions),
+      ...(bounds === undefined ? {} : { permissionBounds: bounds.bounds }),
     }),
   }
 }

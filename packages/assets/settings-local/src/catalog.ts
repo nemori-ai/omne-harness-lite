@@ -32,7 +32,7 @@ import {
   SNAPSHOT_PARTICIPANT,
   type SnapshotInput,
 } from './snapshot-schema.ts'
-import { TERMINAL_PARTICIPANT } from './terminal-schema.ts'
+import { CATALOG_TERMINAL } from './catalog-terminal-schema.ts'
 import type { SettingsSqlTerminalOptions } from './terminals.ts'
 import type { SettingsSqlGuards, SettingsSqlAccess } from './types.ts'
 import {
@@ -81,9 +81,11 @@ const BasisSchema = z.strictObject({
     .array(
       z.strictObject({
         target: SettingsTargetSchema,
+        enabled: z.boolean(),
         definition: SettingDefinitionsSchema,
         definitionRef: SettingsDefinitionRefSchema,
         state: SettingsStateSchema,
+        sources: SettingsTargetProjectionSchema.shape.sources,
         grants: SettingsTargetProjectionSchema.shape.grants,
       }),
     )
@@ -252,7 +254,7 @@ export function createSettingsCatalog(
         manifestDigest: options.manifestDigest,
         commands: [
           {
-            participant: TERMINAL_PARTICIPANT,
+            participant: CATALOG_TERMINAL.participant,
             facts: { kind: 'consume', binding: json(operation) },
           },
           ...options.project(capture.binding),
@@ -263,7 +265,7 @@ export function createSettingsCatalog(
     } catch {
       result = fail('unavailable')
     }
-    const settled = await options.reservations.settle(held.reservation.id)
+    const settled = await options.reservations.settle(held.reservation)
     if (settled.kind !== 'terminal' || settled.outcome !== 'committed')
       return result.kind === 'rejected' ? result : fail('basis_changed')
     if (before.revision !== options.registry.snapshot().revision) return fail('basis_changed')

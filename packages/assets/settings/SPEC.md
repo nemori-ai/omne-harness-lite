@@ -1,5 +1,7 @@
 # settings长期行为规格
 
+HJ0 的[动态治理贡献候选](../docs/governance-contributions.md)细化贡献租约、scope、持久配值归属与卸载/重装配。当前实现并未因此获得跨域采用围栏保证，C3/C6 须补真实提交与故障验证。
+
 本页维护共同设置行为及长期阶段义务。当前核心与本地组合的已实现范围见下文，不把完整阶段目标视作已交付。产品含义沿[设置规则](../../../.meta_harness/design/product/assets-and-rules/design.md#settings-and-permissions)，成员关系沿[领域架构](../docs/architecture.md)。
 
 ## 阶段与长期范围

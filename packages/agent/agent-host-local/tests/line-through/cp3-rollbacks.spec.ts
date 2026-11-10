@@ -4,7 +4,11 @@
 // explained reasons.
 import { describe, expect, it } from 'vitest'
 import type { CommitResultV2 } from '@omne-harness/sql-contract'
-import { INPUT_NOT_PENDING, sessionOnlyRollbackExplained } from './cp3-rollbacks.ts'
+import {
+  INPUT_NOT_PENDING,
+  SESSION_ORDINARY_BASIS,
+  sessionOnlyRollbackExplained,
+} from './cp3-rollbacks.ts'
 import type { SeenCommit } from './world.ts'
 
 const EXECUTION = 'run_1/execution'
@@ -23,6 +27,22 @@ const rolledBack = (
   participants,
   result: { kind: 'rolled_back', responses: [reply(failure)] } as unknown as CommitResultV2,
   log,
+})
+
+/** A rolled-back Session command with the ordinary basis beside it, as session-storage-sql commits it. */
+const rolledBackWithBasis = (
+  failure: Record<string, unknown>,
+  basisReply: Record<string, unknown> = { kind: 'participated', response: null },
+): SeenCommit => ({
+  participants: ['session', SESSION_ORDINARY_BASIS],
+  result: {
+    kind: 'rolled_back',
+    responses: [
+      { participant: SESSION_ORDINARY_BASIS, protocol: '1', reply: basisReply },
+      reply(failure),
+    ],
+  } as unknown as CommitResultV2,
+  log: { execution: EXECUTION, sequence: '1' },
 })
 
 const committed = (log: SeenCommit['log']): SeenCommit => ({
@@ -81,6 +101,33 @@ describe('CP3: a rolled-back Session-only commit is explained only in the two R2
       committed({ execution: EXECUTION, sequence: '1' }),
     ]
     expect(sessionOnlyRollbackExplained(commits, 0, () => '1')).toBe(false)
+  })
+
+  it('judges the Session reply when the ordinary basis took part beside it', () => {
+    const later = committed({ execution: EXECUTION, sequence: '1' })
+    expect(
+      sessionOnlyRollbackExplained([rolledBackWithBasis(changed), later], 0, nothingRead),
+    ).toBe(true)
+    expect(
+      sessionOnlyRollbackExplained(
+        [rolledBackWithBasis({ kind: 'invalid', field: 'fact.input', reason: INPUT_NOT_PENDING })],
+        0,
+        nothingRead,
+      ),
+    ).toBe(true)
+    // KL-146 stays red with the basis beside it.
+    const unavailable = rolledBackWithBasis({
+      kind: 'unavailable',
+      owner: 'session-history',
+      diagnostic: `history.prefix.${EXECUTION}.committedConsequences: required original material is missing`,
+    })
+    expect(sessionOnlyRollbackExplained([unavailable, later], 0, () => '1')).toBe(false)
+    // A basis that did not participate is not an explained rollback.
+    const refused = rolledBackWithBasis(changed, {
+      kind: 'unsupported',
+      basis: { reason: 'not an ordinary Session command' },
+    })
+    expect(sessionOnlyRollbackExplained([refused, later], 0, () => '1')).toBe(false)
   })
 
   it('a rollback with another participant, a commit that did not roll back, or no log is red', () => {

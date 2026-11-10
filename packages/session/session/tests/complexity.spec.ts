@@ -8,7 +8,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SessionFaces } from '@omne-harness/session-contract'
 import { operationId, ordinaryInput, succeeded } from '@omne-harness/session-contract/testing'
-import { memoryBackend } from './fixtures/backends.ts'
+import { memoryBackendWithLimits } from './fixtures/backends.ts'
 import { harness, type Harness } from './fixtures/harness.ts'
 
 const open: Harness[] = []
@@ -24,7 +24,9 @@ type Counts = Readonly<Record<string, number>>
 
 /** A session with `size` accepted inputs, committed through the public port. */
 async function history(size: number): Promise<Harness> {
-  const h = await harness({ backend: memoryBackend })
+  const h = await harness({
+    backend: memoryBackendWithLimits({ maxPendingInputs: LARGE + 1, maxInputBytes: 1024 * 1024 }),
+  })
   open.push(h)
   await h.create()
   for (let index = 0; index < size; index += 1)

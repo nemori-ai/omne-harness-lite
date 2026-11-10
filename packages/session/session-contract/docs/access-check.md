@@ -68,3 +68,9 @@
 ## 尚未接入的部分
 
 [Cordis 定义](../../session-cordis-contract/docs/cordis.md) 已导出检查 Service 与键。独立子类的装卸测试不证明生产 Session 已完成必需注入。会话归属读口已由应用的 `session-storage` 行经受信 `sessionPrincipalBindings` 提供（G-OWNERSHIP，R2-D192），读口构造归 [session-storage-sql](../../session-storage-sql/docs/cordis.md)。会话存储提供者的委派入口、装配入口的 `forSession` 以及 Session 服务实例经视图的接线尚未在本成员的测试里验证，内存替身不证明这些运行保证。生产 Session 服务、生产系统授权、Session 存储组合、持久重启及跨进程资格均未由这些测试验证。
+
+## 权限配值的原操作资格
+
+`change(permission-assignment)` 的 allowed 裁定必须携带 `SessionPermissionWriteQualification`。该类型归 [permission-values.ts](../src/permission-values.ts)。材料由受信访问服务形成，包含原租户、会话、operation、完整 commandDigest、期望权限修订、principalRef 和政策引用。调用方命令的 authorization 引用不能替代资格。
+
+Session 执行边界在绑定事务视图前核对这些命令字段。缺材料或错绑返回 denied，不创建委派视图。匹配时通过 SessionCheckedAccess 保留原材料，不再签发一个资格或重新问访问服务。材料只证明这次受理资格；受保护写者还须核对来源保管、当前修订、精确定义及组织约束。

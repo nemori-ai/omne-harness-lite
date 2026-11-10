@@ -15,7 +15,11 @@ import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Principal, TenantStandingReading } from '@omne-harness/identity'
-import { TenantStandingSourceService, tenantStandingKey } from '@omne-harness/identity/cordis'
+import {
+  TenantStandingSourceService,
+  identityGovernanceKey,
+  tenantStandingKey,
+} from '@omne-harness/identity/cordis'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { decodeModelCallId, decodeModelOperationId } from '@omne-harness/model-contract'
 import type { ModelRuntime } from '@omne-harness/model-contract'
@@ -43,6 +47,7 @@ import {
 import { storageHost } from '../../../src/entry/storage-host.ts'
 import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { authorization } from '../../../src/rows/authorization/row.ts'
+import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
 import { lateBoundSendBoundary, modelHostRow } from '../../../src/rows/model-host/index.ts'
 import { modelCredentialRow } from '../../../src/rows/model-credential/index.ts'
 import { modelProfilesRow } from '../../../src/rows/model-profiles/index.ts'
@@ -72,11 +77,19 @@ const MEMBER: TenantStandingReading = Object.freeze({
   evidence: { record: 'standing:fixture', revision: '1' },
 })
 
-/** Stands for the `identity` row: the standing of the fixture tenant is `member`, every other tenant is not. */
+/**
+ * Stands for the `identity` row: the standing of the fixture tenant is `member`, every other tenant is
+ * not. It also provides `identityGovernance`, which the `authorization` row injects for the login check
+ * of a user principal; no case here asks it, every caller is a system or work principal.
+ */
 const identityStandIn = defineRow({
   row: 'identity',
   implementation: 'contract-double',
-  manifest: { provides: [tenantStandingKey], injects: [], sameProviderGroup: null },
+  manifest: {
+    provides: [tenantStandingKey, identityGovernanceKey],
+    injects: [],
+    sameProviderGroup: null,
+  },
   lifecycle: { kind: 'none' },
   plugin: {
     name: 'identity-stand-in',
@@ -93,6 +106,9 @@ const identityStandIn = defineRow({
           )
       }
       new Standing(ctx)
+      ctx.provide(identityGovernanceKey, {
+        queryCurrentTenant: () => Promise.reject(new Error('identityGovernance is not asked')),
+      })
     },
   },
 })
@@ -132,7 +148,7 @@ function rowsOf(storageRoot: string, options: { credential: boolean }) {
       id: 'session-storage',
       plugin: 'sessionStorageRow',
       config: {
-        combinationVersion: 'session-composite/5',
+        combinationVersion: COMBINATION_VERSION,
         directoryFile: join(storageRoot, 'tenant-domains.json'),
         domainRule: 'organization-account/1',
       },

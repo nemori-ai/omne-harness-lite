@@ -683,7 +683,12 @@ export async function openW2World(options: W2Options) {
       ok:
         instance === undefined
           ? []
-          : associatedOf(loaded.ok).map(pending => ({ execution: who, instance, pending })),
+          : associatedOf(loaded.ok).map(pending => ({
+              execution: who,
+              instance,
+              definition: loaded.ok.checkpoint.definition,
+              pending,
+            })),
     }
   }
   const made = createLocalToolReceiver<unknown>(

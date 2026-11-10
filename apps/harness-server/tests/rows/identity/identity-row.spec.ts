@@ -30,7 +30,12 @@ describe('the identity row', () => {
       row: 'identity',
       implementation: 'real',
       manifest: {
-        provides: ['identityOperations', 'tenantStanding', 'identityGovernance'],
+        provides: [
+          'identityOperations',
+          'tenantStanding',
+          'identityGovernance',
+          'standingReservations',
+        ],
         injects: ['storage', 'identityClock'],
         phase: null,
         sameProviderGroup: null,

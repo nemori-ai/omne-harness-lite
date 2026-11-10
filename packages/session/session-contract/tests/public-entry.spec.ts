@@ -7,6 +7,7 @@ import * as testing from '@omne-harness/session-contract/testing'
 it('exports exactly the declared root runtime surface', () => {
   expect(Object.keys(session).sort()).toEqual([
     'CONTEXT_SCOPE_KINDS',
+    'DEFAULT_SESSION_INTAKE_LIMITS',
     'INGRESS_FAMILIES',
     'INITIALIZATION_PROTOCOL',
     'batchEvidence',
@@ -30,16 +31,20 @@ it('exports exactly the declared root runtime surface', () => {
     'judgeCompletion',
     'judgeIdle',
     'judgeRunStart',
+    'judgeSessionIntake',
     'mutationAccessRequest',
     'openWork',
     'projectSessionEntries',
     'projectSessionLog',
     'readAccessRequest',
+    'rebuildSessionPermissions',
     'reduce',
     'resolveCascade',
     'resolveControlScope',
     'resolveOperation',
     'routeInput',
+    'sessionInputBytes',
+    'sessionIntakeLimits',
     'sessionModesBlock',
   ])
 })

@@ -1,7 +1,14 @@
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
-import { belongs, readHolding, readVersion, selectedVersion } from './records.ts'
+import {
+  belongs,
+  readAsset,
+  readDomain,
+  readHolding,
+  readVersion,
+  selectedVersion,
+} from './records.ts'
 import { HANDLER, PROTOCOL, readRequestSchema } from './schema.ts'
-import { json, scopeRef, withinBudget } from './encoding.ts'
+import { equal, json, scopeRef, withinBudget } from './encoding.ts'
 function holdingResult(
   request: Extract<ReturnType<typeof readRequestSchema.parse>, { kind: 'holding' }>,
   port: Parameters<ReadHandlerModule['read']>[1],
@@ -35,6 +42,17 @@ function holdingResult(
     }),
   }
 }
+function assetResult(
+  request: Extract<ReturnType<typeof readRequestSchema.parse>, { kind: 'asset' }>,
+  port: Parameters<ReadHandlerModule['read']>[1],
+): ReturnType<ReadHandlerModule['read']> {
+  const { domain } = request
+  const current = readDomain(port)
+  if (scopeRef(domain) === null || (current !== null && !equal(current.domain, domain)))
+    return { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } }
+  const asset = readAsset(port, domain, request.lookup.assetRef)
+  return { kind: 'read', output: json(asset ? { kind: 'asset', asset } : { kind: 'absent' }) }
+}
 export default {
   handler: HANDLER,
   protocol: PROTOCOL,
@@ -43,6 +61,7 @@ export default {
     const request = readRequestSchema.safeParse(input)
     if (!request.success) return { kind: 'failed', diagnostic: 'assets_invalid_input' }
     const { domain } = request.data
+    if (request.data.kind === 'asset') return assetResult(request.data, port)
     if (!belongs(port, domain))
       return { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } }
     if (request.data.kind === 'version') {

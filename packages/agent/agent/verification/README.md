@@ -24,6 +24,8 @@
 
 ## 本包事实
 
+[原动作资格的局部安全性](proofs/action-qualification.md) 给出原位置、材料及精确 Tool 采用的判定条件，并区分只读观察与提交时核回。运行守护覆盖真实 Loop 与 Session SQL 组合，不授予完整权限链接受。
+
 <!-- documentation:placeholder -->
 
 [Model 结果接收模型](model-reception/README.md) 检查共同提交、原操作认回、账目发送时序和实例分离后的责任保留。它是有限安全性模型，不证明产品实现精化、生产耐久或 Model ACK。

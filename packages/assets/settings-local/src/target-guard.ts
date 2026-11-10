@@ -57,8 +57,8 @@ export default {
             failure: { kind: 'rejected', reason: 'forbidden' },
           }),
         }
-      const { definition, definitionRef, sourceIds, grants } = view
-      port.provideFact(GUARD_FACT, json({ binding, definition, definitionRef, sourceIds, grants }))
+      const { definition, definitionRef, sources, grants } = view
+      port.provideFact(GUARD_FACT, json({ binding, definition, definitionRef, sources, grants }))
       return { kind: 'participated', response: null }
     } catch {
       return { kind: 'failed', diagnostic: 'settings_target_projection_invalid' }

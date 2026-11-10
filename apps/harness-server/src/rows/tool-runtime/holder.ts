@@ -20,7 +20,11 @@ import type {
   ToolMessageContentBlock,
   ToolOutputCustody,
 } from '@omne-harness/tool-contract/provider'
-import { createLocalToolClock, type LocalToolForwarding } from '@omne-harness/tool-host-local'
+import {
+  createLocalToolClock,
+  type LocalToolForwarding,
+  type LocalInvocationQualifier,
+} from '@omne-harness/tool-host-local'
 import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-local/cordis'
 
 type EnvironmentGuardedHostCommit = LocalToolRuntimeInput['environment']['guarded']
@@ -29,7 +33,10 @@ import type { SessionWorkPrincipals } from '@omne-harness/session-contract'
 import type { SchemaProvider } from '@omne-harness/schema-provider'
 import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis'
 
-export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins>
+export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins> &
+  Readonly<{
+    qualification: LocalInvocationQualifier<unknown>
+  }>
 
 /** `tool-records` 行在自己的受信上下文里建出的 SQL 端口。 */
 export type ToolSqlPorts = Readonly<{

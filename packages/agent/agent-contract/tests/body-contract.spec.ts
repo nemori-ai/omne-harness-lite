@@ -50,6 +50,25 @@ type Row = {
 // One table drives both entries. `judgeAgentDefinition` takes the same content plus `category`.
 const rows: readonly Row[] = [
   { label: 'legal full body', content: legal },
+  {
+    label: 'permission upper bound',
+    content: {
+      ...legal,
+      permissionBounds: [
+        { capabilityId: 'Shell', enforcementKey: 'tool.invoke', allowedSet: ['ask'] },
+      ],
+    },
+  },
+  {
+    label: 'duplicate permission values',
+    content: {
+      ...legal,
+      permissionBounds: [
+        { capabilityId: 'Shell', enforcementKey: 'tool.invoke', allowedSet: ['ask', 'ask'] },
+      ],
+    },
+    rejected: 'invalid-permission-bounds',
+  },
   { label: 'legal minimal body', content: { name: 'a', references: [], attributes: [] } },
   {
     label: 'resident false',
@@ -313,6 +332,7 @@ describe('judge agrees with judgeAgentDefinition', () => {
         'duplicate-capability',
         'incomplete-reference',
         'invalid-instructions',
+        'invalid-permission-bounds',
         'invalid-resident',
         'unknown-attribute',
         'unknown-field',

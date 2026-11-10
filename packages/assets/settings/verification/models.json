@@ -1,6 +1,6 @@
 {
   "model": "models/SettingsComposition.tla",
-  "scope": "finite protocol model: 2 target/authority changes plus 1 assignment change, 2 readers, 1 write; no implementation, liveness, isolation, catalog paging or physical durability proof; StandingCommit: two operations, one membership and one invalidation; abstract atomic stores; safety only, no remote authentication or physical durability proof",
+  "scope": "finite protocol model: 2 target/authority changes plus 1 assignment change, 2 readers, 1 write; no implementation, liveness, isolation, catalog paging or physical durability proof; StandingCommit: two operations, one membership and one invalidation; abstract atomic stores; safety only, no remote authentication or physical durability proof; SettingsSourceRetention: two destinations, two source updates, one crash; safety and conditional progress under eventual storage availability and weakly fair recovery; fixed identity bindings, abstract atomic source transactions, no production refinement proof; source write conditions abstract confirmed final business validity as a monotone boolean, not a schema or original binding proof; SettingsSourceIdentity: two ordered sources, four identity/layout replacements, one authority refresh, one prepare/write/rebase; finite safety only, authenticated ownership and SQL isolation are assumptions SettingsIntentAttempts checks finite root/attempt safety with two allowed attempts, immutable commands, exact current attempt, read-only queries and distinct ordinary/source sealing. No liveness or real provider guarantee. SettingsPreparationBootstrap models one durable attempt, two external reservations and one restart; safety only. External owners serialize reserve/settle and validate exact reservation bindings; SQL transactions and authentic providers are assumptions, not proved implementations. SettingsReservationCustody models one destination and two candidate request identities with lost/delayed replies; finite safety only. Authentic external replies, external idempotent reserve, and atomic journal writes are assumptions. StandingRequestSettlement: one original request, two candidate bindings, one delayed reserve and one restart; safety and conditional progress under weakly fair trusted settlement; source/destination atomic transactions and immutable SQL envelopes are assumptions, not implementation proofs.",
   "cases": [
     {
       "name": "positive",
@@ -72,6 +72,288 @@
       "model": "models/StandingCommit.tla",
       "config": "models/standing-negative-authorization.cfg",
       "expected": "FreshGovernanceAuthorization"
+    },
+    {
+      "name": "source-positive",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "source-admit-during-drain",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-admit-during-drain.cfg",
+      "expected": "NoNewReservationsDuringDrain"
+    },
+    {
+      "name": "source-ignore-destination-seal",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-ignore-destination-seal.cfg",
+      "expected": "SealedDestinationCannotCommit"
+    },
+    {
+      "name": "source-release-without-terminal",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-release-without-terminal.cfg",
+      "expected": "TerminalBeforeRelease"
+    },
+    {
+      "name": "source-ignore-source-holds",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-ignore-source-holds.cfg",
+      "expected": "SourceHoldsProtectRevision"
+    },
+    {
+      "name": "source-ignore-admin",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-ignore-admin.cfg",
+      "expected": "CurrentManagementAuthority"
+    },
+    {
+      "name": "source-leave-pending-gate",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-leave-pending-gate.cfg",
+      "expected": "GateHasPendingOwner"
+    },
+    {
+      "name": "source-inexact-clear",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-inexact-clear.cfg",
+      "expected": "ExactGateRelease"
+    },
+    {
+      "name": "source-scan-held-only",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-scan-held-only.cfg",
+      "expected": "temporal:PendingProgress"
+    },
+    {
+      "name": "source-ignore-write-conditions",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-ignore-write-conditions.cfg",
+      "expected": "CurrentWriteConditions"
+    },
+    {
+      "name": "source-identity-positive",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "source-identity-read",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-read.cfg",
+      "expected": "ReadUsesSameIdentity"
+    },
+    {
+      "name": "source-identity-write",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-write.cfg",
+      "expected": "WriteUsesSameIdentity"
+    },
+    {
+      "name": "source-identity-retain",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-retain.cfg",
+      "expected": "RetainUsesSameIdentity"
+    },
+    {
+      "name": "source-identity-legacy",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-legacy.cfg",
+      "expected": "UnknownIdentityIsNotAuthority"
+    },
+    {
+      "name": "source-identity-authority",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-authority.cfg",
+      "expected": "CommitUsesCurrentBasis"
+    },
+    {
+      "name": "source-identity-value",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-value.cfg",
+      "expected": "CommitUsesCurrentBasis"
+    },
+    {
+      "name": "source-identity-revision",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-revision.cfg",
+      "expected": "RebindingChangesRevision"
+    },
+    {
+      "name": "intent-attempt-positive",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "intent-attempt-command",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-command.cfg",
+      "expected": "ImmutableCommand"
+    },
+    {
+      "name": "intent-attempt-revive",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-revive.cfg",
+      "expected": "TerminalRootCannotRevive"
+    },
+    {
+      "name": "intent-attempt-overlap",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-overlap.cfg",
+      "expected": "AtMostOneActiveAttempt"
+    },
+    {
+      "name": "intent-attempt-late",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-late.cfg",
+      "expected": "OnlyCurrentAttemptCommits"
+    },
+    {
+      "name": "intent-attempt-basis",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-basis.cfg",
+      "expected": "OnlyCurrentAttemptCommits"
+    },
+    {
+      "name": "intent-attempt-query",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-query.cfg",
+      "expected": "QueryIsReadOnly"
+    },
+    {
+      "name": "intent-attempt-ordinary",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-ordinary.cfg",
+      "expected": "OrdinarySealKeepsPendingRoot"
+    },
+    {
+      "name": "intent-attempt-source",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-source.cfg",
+      "expected": "SourceSealTerminatesRoot"
+    },
+    {
+      "name": "intent-attempt-budget",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-budget.cfg",
+      "expected": "AttemptBudgetIsBounded"
+    },
+    {
+      "name": "preparation-bootstrap-positive",
+      "model": "models/SettingsPreparationBootstrap.tla",
+      "config": "models/preparation-bootstrap-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "preparation-bootstrap-reservation",
+      "model": "models/SettingsPreparationBootstrap.tla",
+      "config": "models/preparation-bootstrap-reservation.cfg",
+      "expected": "DurableRouteBeforeReservation"
+    },
+    {
+      "name": "preparation-bootstrap-durable",
+      "model": "models/SettingsPreparationBootstrap.tla",
+      "config": "models/preparation-bootstrap-durable.cfg",
+      "expected": "AttemptSurvivesRestart"
+    },
+    {
+      "name": "preparation-bootstrap-holds",
+      "model": "models/SettingsPreparationBootstrap.tla",
+      "config": "models/preparation-bootstrap-holds.cfg",
+      "expected": "PreparedHasAllHolds"
+    },
+    {
+      "name": "preparation-bootstrap-reply",
+      "model": "models/SettingsPreparationBootstrap.tla",
+      "config": "models/preparation-bootstrap-reply.cfg",
+      "expected": "ReplyRequiresReadyAttempt"
+    },
+    {
+      "name": "preparation-bootstrap-release",
+      "model": "models/SettingsPreparationBootstrap.tla",
+      "config": "models/preparation-bootstrap-release.cfg",
+      "expected": "TerminalBeforeRelease"
+    },
+    {
+      "name": "preparation-bootstrap-revival",
+      "model": "models/SettingsPreparationBootstrap.tla",
+      "config": "models/preparation-bootstrap-revival.cfg",
+      "expected": "TerminalCannotPublishAgain"
+    },
+    {
+      "name": "preparation-bootstrap-commit",
+      "model": "models/SettingsPreparationBootstrap.tla",
+      "config": "models/preparation-bootstrap-commit.cfg",
+      "expected": "OnlyReadyAttemptCommits"
+    },
+    {
+      "name": "reservation-custody-positive",
+      "model": "models/SettingsReservationCustody.tla",
+      "config": "models/reservation-custody-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "reservation-custody-durable",
+      "model": "models/SettingsReservationCustody.tla",
+      "config": "models/reservation-custody-durable.cfg",
+      "expected": "RequestDurableBeforeCall"
+    },
+    {
+      "name": "reservation-custody-immutable",
+      "model": "models/SettingsReservationCustody.tla",
+      "config": "models/reservation-custody-immutable.cfg",
+      "expected": "ImmutableReservationRequest"
+    },
+    {
+      "name": "reservation-custody-binding",
+      "model": "models/SettingsReservationCustody.tla",
+      "config": "models/reservation-custody-binding.cfg",
+      "expected": "ReceiptBindsOriginalRequest"
+    },
+    {
+      "name": "reservation-custody-revival",
+      "model": "models/SettingsReservationCustody.tla",
+      "config": "models/reservation-custody-revival.cfg",
+      "expected": "SettledCannotBecomeHeld"
+    },
+    {
+      "name": "reservation-custody-release",
+      "model": "models/SettingsReservationCustody.tla",
+      "config": "models/reservation-custody-release.cfg",
+      "expected": "TerminalBeforeRelease"
+    },
+    {
+      "name": "standing-request-none",
+      "model": "models/StandingRequestSettlement.tla",
+      "config": "models/standing-request-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "standing-request-late",
+      "model": "models/StandingRequestSettlement.tla",
+      "config": "models/standing-request-late.cfg",
+      "expected": "NoLateHold"
+    },
+    {
+      "name": "standing-request-false-close",
+      "model": "models/StandingRequestSettlement.tla",
+      "config": "models/standing-request-false-close.cfg",
+      "expected": "TerminalBeforeCompletion"
+    },
+    {
+      "name": "standing-request-binding",
+      "model": "models/StandingRequestSettlement.tla",
+      "config": "models/standing-request-binding.cfg",
+      "expected": "BoundCompletion"
+    },
+    {
+      "name": "standing-request-no-close",
+      "model": "models/StandingRequestSettlement.tla",
+      "config": "models/standing-request-no-close.cfg",
+      "expected": "temporal:Completion"
     }
   ]
 }

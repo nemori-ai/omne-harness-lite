@@ -1,16 +1,7 @@
-// The adoption source of Session over the deployment mapping. It reads the table that the
-// `agent-adoptions` row provides and no other data. It prepares guard material only: it holds no
-// transaction port and writes nothing. A definition that the table does not hold gets a failure and
-// no material, so the caller has nothing to commit.
-//
-// For `create` the material is Session's initialization guard (session-contract「初始化守卫编码」):
-// the initial adoption is the mapping entry of the named definition, the plan and the requirements
-// are the required identities of that entry, and the sources and results are empty, because the
-// mapping holds none. The resident tools are the ones the entry names (`residentCapabilities`),
-// planned from Tool's registry with the release's first definitions (`residents.ts`); an entry that
-// names none gets none. A creation that declares what the mapping does not hold (sources, results,
-// a resident tool the entry does not name) gets `invalid`, not a guard that vouches for it. A named
-// resident that cannot be planned fails the creation with `unavailable`.
+// Session adoption material comes from the deployment mapping and the application's exact
+// Context adoption. A first creation prepares that Context registration without writing it;
+// Session commits the preparation and its initial registration together. A recalled creation
+// reads the original initialization before consulting current mappings or mounting producers.
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -36,6 +27,13 @@ import {
   type SessionAdoptionSource,
   type SessionCreation,
 } from '@omne-harness/session-contract'
+import {
+  modesInitialization,
+  type ModesPreparationRecord,
+} from '../../assembly/session-modes-initialization.ts'
+import { prepareInitialModes } from './modes.ts'
+import { jsonOf } from './json.ts'
+import { recallInitialModes } from './recall-modes.ts'
 import { plannedResidents } from './residents.ts'
 
 const OWNER = '@omne-harness/harness-server'
@@ -60,8 +58,8 @@ export const MAPPING_LOOKUP_SCHEMA = Object.freeze({
 export const MAPPING_ENTRY_SCHEMA = Object.freeze({
   owner: OWNER,
   name: 'definition-mapping-entry',
-  revision: '1',
-  digest: 'harness-server:definition-mapping-entry/1',
+  revision: '2',
+  digest: 'harness-server:definition-mapping-entry/2',
 })
 
 type Facts = GuardCommand['facts']
@@ -69,18 +67,6 @@ type Prepared = Awaited<ReturnType<SessionAdoptionSource['prepare']>>
 type CreateCommand = Extract<AdoptionEvidenceCommand, { kind: 'create' }>
 
 const same = (a: unknown, b: unknown): boolean => canonicalText(a) === canonicalText(b)
-
-function jsonOf(plain: unknown): Facts {
-  if (plain === null || plain === undefined) return { kind: 'null' }
-  if (typeof plain === 'string') return { kind: 'string', value: plain }
-  if (typeof plain === 'boolean') return { kind: 'boolean', value: plain }
-  if (typeof plain === 'number') return { kind: 'number', lexeme: String(plain) }
-  if (Array.isArray(plain)) return { kind: 'array', items: plain.map(jsonOf) }
-  const entries = Object.entries(plain as Record<string, unknown>)
-    .filter(([, value]) => value !== undefined)
-    .map(([key, value]) => ({ key, value: jsonOf(value) }))
-  return { kind: 'object', entries }
-}
 
 function invalid(field: string, reason: string): Prepared {
   return fail({ kind: 'invalid', field, reason })
@@ -106,16 +92,21 @@ function creationMismatch(
 /** What the creation declares and the mapping does not hold, or `undefined`. */
 function undeclaredByMapping(
   entry: DefinitionMappingEntry,
-  creation: SessionCreation,
+  command: CreateCommand,
 ): Prepared | undefined {
+  const creation = command.input.creation
   const initialization = creation.initialization
   if (
     initialization !== undefined &&
-    (initialization.sources.length > 0 || initialization.results.length > 0)
+    (initialization.sources.length > 0 || initialization.results.length > 0) &&
+    !same(
+      initialization,
+      modesInitialization({ ...command.input, principal: undefined }).initialization,
+    )
   )
     return invalid(
       'initialization',
-      'the deployment mapping holds no initialization sources or results; this source plans none',
+      'the initialization does not match the application modes adoption',
     )
   const declared = creation.residentAdoption
   if (declared === undefined) return undefined
@@ -174,6 +165,7 @@ function initialAdoptionOf(
   mappings: DefinitionMappings,
   entry: DefinitionMappingEntry,
   residents: ResidentAdoption,
+  preparation: ModesPreparationRecord | undefined,
 ): InitialAdoption {
   return {
     definitionName: entry.name,
@@ -182,7 +174,13 @@ function initialAdoptionOf(
     source: entryEvidence(entry),
     boundary: tableEvidence(mappings),
     inputSnapshot: { schema: MAPPING_LOOKUP_SCHEMA, value: jsonOf({ definition: entry.name }) },
-    capabilities: { schema: MAPPING_ENTRY_SCHEMA, value: jsonOf(entry) },
+    capabilities: {
+      schema: MAPPING_ENTRY_SCHEMA,
+      value: jsonOf({
+        ...entry,
+        contextPreparations: preparation === undefined ? [] : [canonicalText(preparation)],
+      }),
+    },
     residentBindings: residents.keys,
     newResidents: residents.residents,
   }
@@ -193,14 +191,31 @@ function initialAdoptionOf(
  * identity, owner = capability, item = name, protocol = the entry contract. The mapping has no
  * other sources, and a creation that declares some was refused before this.
  */
-function planOf(entry: DefinitionMappingEntry): readonly InitializationPlanItem[] {
-  return entry.requiredIdentities.map(({ capability, name }) => ({
-    kind: 'identity',
-    owner: capability,
-    item: name,
-    protocol: entry.entryContract,
-    originalInput: jsonOf({ capability, name }),
-  }))
+function planOf(
+  entry: DefinitionMappingEntry,
+  preparation: ModesPreparationRecord | undefined,
+): readonly InitializationPlanItem[] {
+  const identity: InitializationPlanItem[] = entry.requiredIdentities.map(
+    ({ capability, name }) => ({
+      kind: 'identity',
+      owner: capability,
+      item: name,
+      protocol: entry.entryContract,
+      originalInput: jsonOf({ capability, name }),
+    }),
+  )
+  return preparation === undefined
+    ? identity
+    : [
+        ...identity,
+        {
+          kind: 'context-registration',
+          owner: preparation.source.owner,
+          item: preparation.source.item,
+          protocol: preparation.source.protocol,
+          originalInput: jsonOf(preparation.source.input),
+        },
+      ]
 }
 
 /**
@@ -213,9 +228,17 @@ function requirementsOf(
   plan: readonly InitializationPlanItem[],
 ): readonly InitializationRequirement[] {
   return plan.map(item => ({
-    kind: 'identity',
+    kind: item.kind === 'context-registration' ? 'context-registration' : 'identity',
     key: canonicalText([item.owner, item.item]),
-    requirement: entryEvidence(entry),
+    requirement:
+      item.kind === 'context-registration'
+        ? {
+            owner: item.protocol.owner,
+            record: item.protocol.name,
+            revision: item.protocol.revision,
+            digest: item.protocol.digest,
+          }
+        : entryEvidence(entry),
     resolution: { kind: 'planned', owner: item.owner, item: item.item },
   }))
 }
@@ -237,6 +260,7 @@ function initializationGuardOf(
   command: CreateCommand,
   entry: DefinitionMappingEntry,
   residents: ResidentAdoption,
+  preparation: ModesPreparationRecord | undefined,
 ): Prepared {
   const { creation } = command.input
   const tenant = tenantCodec.encode(command.input.tenant)
@@ -244,7 +268,7 @@ function initializationGuardOf(
   const workspace = creation.workspace === null ? null : workspaceCodec.encode(creation.workspace)
   if (workspace !== null && !workspace.ok)
     return invalid('workspace', 'the workspace is not minted by its codec')
-  const plan = planOf(entry)
+  const plan = planOf(entry, preparation)
   const facts: InitializationGuardFacts = {
     version: 1,
     command: 'create',
@@ -255,11 +279,18 @@ function initializationGuardOf(
       createOperation: command.input.operation,
     },
     input: commandInputOf(command, tenant.value, workspace === null ? null : workspace.value),
-    initialAdoption: initialAdoptionOf(mappings, entry, residents),
+    initialAdoption: initialAdoptionOf(mappings, entry, residents, preparation),
     requirements: requirementsOf(entry, plan),
     plan,
-    results: [],
+    results:
+      preparation === undefined
+        ? []
+        : [modesInitialization({ ...command.input, principal: undefined }).outcome],
   }
+  return initializationMaterial(facts)
+}
+
+function initializationMaterial(facts: InitializationGuardFacts): Prepared {
   return succeed([
     {
       owner: 'session-initialization',
@@ -278,6 +309,9 @@ async function prepareFrom<P>(
 ): Promise<Prepared> {
   switch (command.kind) {
     case 'create': {
+      const recalled = await recallInitialModes(ctx, command, access, MAPPING_ENTRY_SCHEMA)
+      if ('failure' in recalled) return recalled
+      if (recalled.ok !== undefined) return initializationMaterial(recalled.ok)
       const { creation } = command.input
       const entry = mappings.byName(creation.definition.name)
       if (entry === undefined)
@@ -285,11 +319,13 @@ async function prepareFrom<P>(
       const mismatch = creationMismatch(entry, creation)
       if (mismatch !== undefined)
         return invalid(mismatch, 'the creation does not match the mapping entry of its definition')
-      const undeclared = undeclaredByMapping(entry, creation)
+      const undeclared = undeclaredByMapping(entry, command)
       if (undeclared !== undefined) return undeclared
       const residents = await plannedResidents(ctx, entry.residentCapabilities ?? [], access)
       if ('failure' in residents) return residents
-      return initializationGuardOf(mappings, command, entry, residents.ok)
+      const preparation = await prepareInitialModes(ctx, command, access)
+      if ('failure' in preparation) return preparation
+      return initializationGuardOf(mappings, command, entry, residents.ok, preparation.ok)
     }
     case 'startRun':
     case 'reload': {

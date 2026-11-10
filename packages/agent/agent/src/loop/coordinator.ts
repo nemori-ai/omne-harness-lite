@@ -105,6 +105,7 @@ import {
 import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
 import { attemptWrite, originalJournal, type OriginalWrite } from './original-write.ts'
 import { localFailure, nodeFailureCategory, type NodeFailureCategory } from './node-failure.ts'
+import { readBatchToolCalls } from './action-source.ts'
 import { answeredByPort, notingPorts } from './port-answers.ts'
 import { consumeModelResult, noReplyReason, type ModelOutcome } from './model-result.ts'
 import { readModelDeliveryMaterial } from '../receiving-material.ts'
@@ -1883,48 +1884,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   async function batchToolCalls(
     batch: ActionBatch,
   ): Promise<Outcome<ReadonlyMap<string, ActionToolCall>, Failure>> {
-    const source = batch.source
-    if (source.producer.kind !== 'model')
+    if (batch.source.producer.kind !== 'model')
       return fail(defect('A0: a batch whose source is not a Model reply'))
-    const call = source.producer.call
-    const step = required(checkpoint, 'checkpoint').step
-    const received = await receivedOfConsumption(mainConsumption(execution, step))
-    if ('failure' in received) return received
-    const found = received.ok.find(
-      entry =>
-        entry.delivery.producer === 'model' &&
-        entry.delivery.key.kind === 'result' &&
-        entry.delivery.key.result === source.version &&
-        invocationParts(entry.delivery.key.reference, access.tenant).call === call,
+    return readBatchToolCalls(
+      ports,
+      access,
+      execution,
+      required(checkpoint, 'checkpoint').step,
+      batch,
     )
-    if (found === undefined)
-      return fail({
-        kind: 'unavailable',
-        owner: 'agentJournal',
-        diagnostic: 'the received reply of the batch is not available',
-      })
-    const { material: from, ...expected } = found
-    const material = await ports.materials.read({ ...access, source: from })
-    if ('failure' in material) return material
-    const delivery = readModelDeliveryMaterial(access, material.ok, expected)
-    if (!delivery || delivery.kind !== 'result')
-      return fail({
-        kind: 'invalid',
-        field: 'received.material',
-        reason: 'invalid schema or original binding',
-      })
-    const result = consumeModelResult([execution, step], {
-      produced: source,
-      settlement: delivery.settlement,
-      parts: delivery.parts,
-    })
-    if ('failure' in result) return result
-    if (result.ok.kind !== 'reply')
-      return fail({ kind: 'invalid', field: 'batch.source', reason: 'not a complete reply' })
-    const parts = new Map<string, ActionToolCall>()
-    for (const block of result.ok.reply.blocks)
-      if (block.kind === 'tool_call') parts.set(block.callId, block)
-    return succeed(parts)
   }
 
   function currentBatch(): ActionBatch {

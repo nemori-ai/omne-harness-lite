@@ -274,7 +274,7 @@ describe('a session of 200 steps: the bytes of one commit do not grow with the s
   }
 
   it('200 steps: the largest commit of steps 181 to 200 is within a constant of steps 11 to 30', async () => {
-    const a = await app()
+    const a = await app({ intakeLimits: { maxPendingInputs: 256, maxInputBytes: 1048576 } })
     const { written, stored, work } = await steps(a, 200)
     // The snapshot grows: 201 pending inputs and 200 registered calls.
     expect(work.pending).toHaveLength(201)

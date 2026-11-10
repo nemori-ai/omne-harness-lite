@@ -1,3 +1,16 @@
+import {
+  SETTINGS_SOURCE_CUSTODY_MIGRATION,
+  SETTINGS_SOURCE_CUSTODY_TABLES,
+} from './source-custody-migration.ts'
+import { sourceSnapshotMaterials } from './source-snapshot-materials.ts'
+import { sourceRetentionMaterials } from './source-retention-materials.ts'
+import { SOURCE_WRITE_FACT } from './source-write.ts'
+import { SETTINGS_INTENT_MIGRATION, SETTINGS_INTENT_TABLES } from './intent-migration.ts'
+import { SETTINGS_PREPARING_MIGRATION } from './preparing-migration.ts'
+import {
+  SETTINGS_STANDING_CUSTODY_MIGRATION,
+  SETTINGS_STANDING_CUSTODY_TABLE,
+} from './standing-custody-migration.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
@@ -13,6 +26,7 @@ import {
   GUARD_FACT,
   HANDLER,
   MIGRATION,
+  SOURCE_LAYOUT_MIGRATION,
   PARTICIPANT,
   PROTOCOL,
   RESULT_FACT,
@@ -27,18 +41,26 @@ function file(name: string) {
     digest: createHash('sha256').update(readFileSync(url)).digest('hex'),
   }
 }
-export function settingsSqlMaterials(): Pick<
-  SqlMaterialCatalog,
-  'participants' | 'migrations' | 'readHandlers'
-> {
+export function settingsSqlMaterials(
+  options: { sourceCapture?: boolean } = {},
+): Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'> {
+  const snapshot = sourceSnapshotMaterials({ capture: options.sourceCapture ?? false })
+  const retention = sourceRetentionMaterials()
   const participant = file('participant')
   const migration = file('migration')
+  const intentMigration = file('intent-migration')
+  const preparingMigration = file('preparing-migration')
+  const standingCustody = file('standing-custody-migration')
+  const sourceCustody = file('source-custody-migration')
+  const sources = file('source-layout-migration')
   const reader = file('read')
   const terminal = file('terminal-participant')
   const terminalMigration = file('terminal-migration')
   const terminalReader = file('terminal-read')
   return {
     participants: [
+      ...snapshot.participants,
+      ...retention.participants,
       {
         participant: TERMINAL_PARTICIPANT,
         protocol: TERMINAL_PROTOCOL,
@@ -56,9 +78,14 @@ export function settingsSqlMaterials(): Pick<
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: TABLES,
+        ownedTables: [
+          ...TABLES,
+          ...SETTINGS_INTENT_TABLES,
+          SETTINGS_STANDING_CUSTODY_TABLE,
+          ...SETTINGS_SOURCE_CUSTODY_TABLES,
+        ],
         readTables: [],
-        requiresFacts: [GUARD_FACT, TERMINAL_FACT],
+        requiresFacts: [GUARD_FACT, TERMINAL_FACT, SOURCE_WRITE_FACT],
         providesFacts: [RESULT_FACT],
         allowedFunctions: [],
         grouping: 'groupable',
@@ -66,14 +93,46 @@ export function settingsSqlMaterials(): Pick<
     ],
     migrations: [
       {
+        ...SETTINGS_SOURCE_CUSTODY_MIGRATION,
+        moduleUrl: sourceCustody.moduleUrl,
+        checksum: sourceCustody.digest,
+        requires: [SETTINGS_PREPARING_MIGRATION],
+      },
+      ...retention.migrations,
+      {
+        ...SETTINGS_STANDING_CUSTODY_MIGRATION,
+        moduleUrl: standingCustody.moduleUrl,
+        checksum: standingCustody.digest,
+        requires: [SETTINGS_PREPARING_MIGRATION],
+      },
+      {
+        ...SETTINGS_PREPARING_MIGRATION,
+        moduleUrl: preparingMigration.moduleUrl,
+        checksum: preparingMigration.digest,
+        requires: [SETTINGS_INTENT_MIGRATION],
+      },
+      {
+        ...SETTINGS_INTENT_MIGRATION,
+        moduleUrl: intentMigration.moduleUrl,
+        checksum: intentMigration.digest,
+        requires: [MIGRATION],
+      },
+      {
         ...TERMINAL_MIGRATION,
         moduleUrl: terminalMigration.moduleUrl,
         checksum: terminalMigration.digest,
         requires: [],
       },
       { ...MIGRATION, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
+      {
+        ...SOURCE_LAYOUT_MIGRATION,
+        moduleUrl: sources.moduleUrl,
+        checksum: sources.digest,
+        requires: [MIGRATION],
+      },
     ],
     readHandlers: [
+      ...retention.readHandlers,
       {
         handler: TERMINAL_HANDLER,
         protocol: TERMINAL_PROTOCOL,
@@ -92,7 +151,7 @@ export function settingsSqlMaterials(): Pick<
         codeDigest: reader.digest,
         ordering: 'snapshot',
         readTables: TABLES,
-        requiresMigrations: [MIGRATION],
+        requiresMigrations: [MIGRATION, SOURCE_LAYOUT_MIGRATION],
         maxRowsRead: 102,
         maxOutputBytes: 2 * 1024 * 1024,
       },

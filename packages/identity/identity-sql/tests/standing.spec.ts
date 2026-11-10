@@ -36,7 +36,10 @@ it('answers member for the personal tenant, with the default team super administ
     model: { model: 'default-team', revision: '1' },
     role: 'super-admin',
   })
-  expect(reading.qualifications).toEqual(['organization-cost-ledger-read'])
+  expect(reading.qualifications).toEqual([
+    'organization-cost-ledger-read',
+    'organization-settings-manage',
+  ])
   expect(reading.evidence.revision).toBe('1')
   expect(reading.evidence.record).toMatch(/^identity-sql\/membership\/[0-9a-f]{64}$/u)
 })

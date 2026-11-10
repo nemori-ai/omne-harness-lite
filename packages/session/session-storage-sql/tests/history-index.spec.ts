@@ -1,3 +1,4 @@
+import { sessionCommitCommands } from '../src/participants.ts'
 // K-5 and the observed-only prefixes (R2-D28 candidate C) over the node:sqlite test provider. The
 // history index of a decision is read in its own write transaction from the same-root index of
 // `execution-record`: the execution boundary, the fact boundaries, the batches and the original
@@ -52,7 +53,9 @@ const commitLog = (a: App, observation: Parameters<NonNullable<App['port']['comm
 type Scene = Readonly<{ a: App; agent: AgentPublisher }>
 
 async function created(): Promise<Scene> {
-  const a = await app()
+  // These cases count rows over hundreds of Runs whose inputs stay pending; the intake limit of
+  // pending inputs is another property, so it is set out of their way.
+  const a = await app({ intakeLimits: { maxPendingInputs: 100_000, maxInputBytes: 1_048_576 } })
   const agent = agentPublisher({
     storage: a.provider.storage,
     combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
@@ -328,7 +331,7 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
       identity: identityOf(TENANT_A, 'dom_0', 'aop_joint_log'),
       combinationVersion: 'c1',
       manifestDigest: 'a'.repeat(64),
-      commands: [
+      commands: sessionCommitCommands([
         executionRecordFacts({
           tenant: TENANT_A,
           session: sessionId(SESSION),
@@ -358,7 +361,7 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
           admissions: [],
         }),
         { participant: 'session', facts: { intent: 'log', observation: encodeValue(event) } },
-      ],
+      ]),
     })
     expect(result.kind).toBe('committed')
     const work = await workOf(s.a)

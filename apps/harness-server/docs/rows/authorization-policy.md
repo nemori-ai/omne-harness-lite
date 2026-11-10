@@ -6,11 +6,13 @@
 
 ## 行提供什么
 
-| 项    | 内容                                                                                                                                                                                      |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 行 id | `authorization`，`implementation` 为 `real`，没有关闭阶段                                                                                                                                 |
-| 提供  | `sessionAccessCheck`、`agentAccessCheck`、`agentActionAdmission`；受信的 `systemActionAuthorization`（见[系统动作授权](#系统动作授权)）                                                   |
-| 注入  | `principalVerifier`（入口对象）、`tenantStanding`（`identity` 行）、`identityClock`（入口对象，判定授予的到期）。三项都是必需依赖，缺任一项时本行停在 `PENDING`                           |
+动作准入转交当前权限读口时，保留完整原 `tool_call`、执行挂接、action 和 passage。原调用由 Agent 资格读口对照原 received/material 读取，不以请求自报内容证明来源。该行保留定位不等于已经装配原动作资格或同事务核回；相关部署前提仍须由实际权限来源满足。
+
+| 项    | 内容                                                                                                               |
+| ----- | ------------------------------------------------------------------------------------------------------------------ |
+| 行 id | `authorization`，`implementation` 为 `real`，没有关闭阶段                                                          |
+| 提供  | `sessionAccessCheck`、`agentAccessCheck`、`agentActionAdmission`；受信的 `systemActionAuthorization`（见[系统动作授权](#系统动作授权)） |
+| 注入  | `principalVerifier`（入口对象）、`tenantStanding`（`identity` 行）、`identityClock`（入口对象，判定授予的到期）、`identityGovernance`（核对原登录当前有效性）。四项都是必需依赖，缺任一项时本行停在 `PENDING` |
 | 配置  | 可选的 `actionRules` 动作规则快照，可选的 `maintenanceGrants` 收紧项（见[运维者对授予表的收紧](#运维者对授予表的收紧)）。政策表和系统授予表随版本内置，运维者不能经配置给系统主体授予用途 |
 
 四个服务共用同一组依赖，所以放在同一个插件上，一起装载，一起撤除。服务对象只持有闭包。依赖在每次调用时重新读取。每次检查都读当前事实，不缓存任何 `allowed`。
@@ -248,7 +250,7 @@
   - W：拒绝依据：无放行出处。负责方以什么主体提交未写明，见候选待定项 P-3 与输入需求 Q-2
   - S：拒绝依据：矩阵外（AU-12 第 2 步）
 - `change`
-  - L：出处：SS:609「本会话租户」，SS:89，SW:129、253 三个模式，SW:61 模型。覆盖全部声明种类
+  - L：出处：SS:609「本会话租户」，SS:89，SW:129、253 三个模式，SW:61 模型。逐权限配值还需具名登录写资格，见会话逐权限配值的直接登录政策
   - W：拒绝依据：SW:129：Agent 不能直接写模式。SS:609 只列 intake。Agent 经 HITL 改模式的证据没有解释形状（AU-11「首批不覆盖的部分」）
   - S：拒绝依据：矩阵外（AU-12 第 2 步）
 - `setRelation`
@@ -528,7 +530,9 @@
 
 ## 动作准入
 
-动作规则采用 R2-D34（[#978 批复](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6577830437)）。`actionRules` 缺席或没有匹配规则时答 `unavailable`。`permissions` 非空或 `decision` 非 null 时也答 `unavailable`，本行不实现权限与人工决定解释器。
+C3b 的动态解释协议见 [事务内权限解释](permission-interpretation.md)。ActionAdmission 与 Tool target policy 已要求当前权限读口。静态 allow 只允许继续判断，不能直接放行。普通工厂通过 readPermission 取得依赖；生产授权行按调用取得当前 Governance 权限服务。依赖缺席或无法证明当前依据时答 unavailable。
+
+动作规则采用 R2-D34（[#978 批复](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6577830437)）。`actionRules` 缺席或没有匹配规则时答 `unavailable`。`permissions` 非空或 `decision` 非 null 时也答 `unavailable`，本行尚未消费这些 Agent 命名读取与人工决定。结构化权限从受信当前来源单独读取。
 
 行构造时严格解析配置，拒绝未知字段、空 revision、重复规则 id 和非法 effect。每条规则按 `tool` 精确匹配 `definition.name`，即可信 Tool 请求来源 describe 给出的工具定义名。规则不匹配 `original.name`：`original.name` 由模型给出。多命令工具在模型侧只有一个名字，即工具名，命令写在调用参数的 `command` 里（D-94）。所以一条 `Shell` 规则覆盖 Shell 的全部命令，对 `Shell` 的 deny 也不能用某个命令绕过（R2-D266）。`definition` 可省略或为 null；指定时逐项匹配 Adoption 的 owner、name、revision、digest。匹配的 deny 优先于所有 allow，与数组顺序无关。规则不可变，运维者用既有行配置 replace 后重载更新它。
 
@@ -547,6 +551,10 @@
 发行配置 `config/serve.distribution.json` 的 `authorization` 行带 `release-1` 规则快照：`Files`、`Shell`、`Tools`、`TodoItems` 与 `Web` 都是 allow，其余工具没有匹配，答 `unavailable`。运维者不改代码就能加一条 deny：在运维者层写一条 `replace` 操作替换 `authorization` 行的配置。`replace` 换整份配置，所以要把发行的五条 allow 一并写回，再加 deny，例如 `{ "id": "no-shell", "effect": "deny", "tool": "Shell" }`。deny 优先，与顺序无关，该工具的动作得到 `deny` 与 `rule/no-shell`，调用点名哪个已知命令都一样。没点名已知命令的调用不进入动作准入：可信 Tool 请求来源直接以原因和工具的 guide 作答，不运行任何命令，这个动作以作答被拒绝（D-104，R2-D399）。正文只含已声明给模型的定义投影，所以 deny 规则不需要挡它；deny 挡的是会运行的调用。用例 [release-action-rules.spec.ts](../../tests/rows/authorization/release-action-rules.spec.ts) 用真实的分层加载与真实动作准入核对这两种配置，以及点名命令的调用（如 Shell 的 `info`、Files 的 `read`）命中工具规则、`Shell` 的 deny 拦下点名 `run` 的调用。它不证明 S4-6 的端到端观察，Tool 两个消费方的 qualify 接线仍待 L-TOOL。
 
 只有 Session 工作主体进入 AU-11 的成员资格核验。主体必须由原身份权威核验，并代请求租户行事。登录主体、未知角色和系统主体不放行。身份来源失败答 `unavailable`。请求的动作位置、生效参数摘要和规则选择在首次 await 前固定；每次动作重新核验身份。允许和规则禁止的 `decisionEvidence` 绑定规则 id、revision、execution/passage/action、生效参数摘要与身份依据。禁止结果携带 `rule/<id>`，不生成决定卡。输出不携带主体或参数正文。
+
+当前权限判断取得与本次输入绑定的完整依据后才可放行。允许结果的证据来自当前权限判断；静态规则禁止仍携带原规则证据。缺少当前权限依赖或读取失败时答 unavailable。Tool 在准入及启动关口重新判断，不能复用 Agent 先前的允许。
+
+`ToolTargetPolicy.qualify` 必须携带原 Tool admission。首次准入由原 source guard 核验后交入原 operation；后续启动经 ToolLedgerStore 读取精确租户/call/request 的原 call 记录，取其中的 admission，不用启动操作替代。来源缺失或读取异常返回 unavailable，记录与请求不符拒绝。权限动作 origin 保留 admission；这只是原定位，不能替代原 owner 的资格和事务内当前性核验。
 
 行撤除后，旧动作准入引用答 `unavailable`。已开始的检查固定本次输入，不承诺跨代同步撤权。
 
@@ -578,3 +586,15 @@
 - 新增一个操作：上游枚举多一项时，成员的类型检查变红。补一行，补出处，补黄金表。
 - 新增一个系统动作：先在 `@omne-harness/authorization` 的矩阵里加行，再加矩阵格和授予记录。
 - 改授予表：改 `grants.ts` 的常量，修订常量随之加一，重新生成本页。运维者收紧的规则在 `grant-tightening.ts`。
+
+## 会话逐权限配值的直接登录政策
+
+`change(permission-assignment)` 在原政策表的登录分支上增加专用资格裁定。只有实际签发、核验通过且当前仍有目标租户成员资格的登录主体可以进入。应用再经 `identityGovernance.queryCurrentTenant` 核对原登录仍有效，且登录账号等于目标租户账号。当前选择的组织不要求相同，目标组织的资格由原 AdmissionCheck 核验。工作主体与系统主体不进入该政策。
+
+本政策只认回 `authorization/session.permission-own-login/1` 的精确表达引用，公开值归 [session-permission-write.ts](../../src/rows/authorization/session-permission-write.ts)。引用本身不授予权限。未知引用、撤回或账号错绑返回 denied；来源缺席、异常或无法判断返回 unavailable。错误内容不回显异常文本。
+
+`allowed.writeQualification` 绑定原租户、会话、操作、完整命令摘要、期望权限修订、principalRef 和政策引用。应用在第一次 await 前固定这些值。Session 执行边界核对命令绑定，再经可信 `SessionCheckedAccess` 传入委派路径。普通 allowed/evidence 不能代替这份材料。
+
+合法登录请求取得资格后，后续原操作的耐久保管和终态仍由 Governance 协调。尚未被 Governance 接受的新操作，在原 resolver 中再次调用本政策的登录核验；旧的内存 writeQualification 不能代替这次准入。已接受的原操作先按持久身份认回，不重新铸造资格，也不因登录撤销抹去终态。并发撤销不追溯取消已经通过本次准入的在途请求；成员资格和外层配值仍各自遵守原 held/seal 及同提交守卫。持续的 HITL 许可仍由独立授权范围和消费协议处理。
+
+[实际 Identity SQL 用例](../../tests/rows/authorization/session-permission-write-real.spec.ts)覆盖原主体、撤回、错账号、错目标、表达引用、缺源和异步命令绑定，并验证真实 authorization 行注入。

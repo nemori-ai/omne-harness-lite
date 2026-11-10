@@ -1,5 +1,7 @@
 # tests 索引
 
+- [原记录同事务核回](record-current-real.spec.ts)：真实 Worker、首次来源、转发父链、并发回滚与重开。
+
 本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
 
 ## 内容

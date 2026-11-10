@@ -64,6 +64,23 @@ async function setup(command: string, business: object) {
 }
 
 describe('TodoItems production Session binding', () => {
+  it('reports an intake-only failure as unavailable rather than a successful Todo reply', async () => {
+    const w = await setup('add', { text: 'one' })
+    try {
+      w.work.addTodo = async () => ({
+        failure: { kind: 'limited', resource: 'pending-inputs', limit: 1 },
+      })
+      expect(await w.binding.add({ text: 'one' })).toEqual({
+        failure: {
+          kind: 'unavailable',
+          owner: 'todo-items',
+          diagnostic: 'Session returned an unexpected Todo failure: limited',
+        },
+      })
+    } finally {
+      await w.close()
+    }
+  })
   it('derives the operation from the fixed tenant, Session and Tool call, including an unknown retry', async () => {
     const w = await setup('add', { text: 'Keep  exact  text' })
     try {

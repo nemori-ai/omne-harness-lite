@@ -462,6 +462,24 @@ describe('preparing a registration change', () => {
     expect(calls).toEqual([])
   })
 
+  it.each(['{"version":1,"version":1}', ' {"version":1}', '{bad', '{"value":1e999}', 'null'])(
+    'refuses malformed or noncanonical material text %s',
+    async encoded => {
+      const { prepare, calls } = await assembled()
+      const good = registrationCommand(A, 'bad-material-text', addNotes(scopeA, A.tenant))
+      const declaration = good.input.declaration as Extract<
+        typeof good.input.declaration,
+        { kind: 'context-registration' }
+      >
+      const broken = changeCommand(A, 'bad-material-text', {
+        ...declaration,
+        binding: { ...declaration.binding, value: { kind: 'string', value: encoded } },
+      })
+      expect(await prepare(A, broken)).toMatchObject({ failure: { kind: 'invalid' } })
+      expect(calls).toEqual([])
+    },
+  )
+
   it('answers unavailable, not invalid, when the adopted definitions cannot answer', async () => {
     const { prepare, calls, principals } = await assembled({
       definitions: {
@@ -548,6 +566,31 @@ describe('preparing a registration change', () => {
       await other.prepare(A, registrationCommand(A, 'judged', addNotes(scopeA, A.tenant))),
     ).toMatchObject({ failure: { kind: 'unavailable', owner: 'runtime-context' } })
   })
+
+  it.each(['required', 'bindings', 'parameters'] as const)(
+    'refuses a prepared change with another %s',
+    async field => {
+      const other = await assembled({
+        prepare: async (_principal, change) => {
+          if (change.kind !== 'add') throw new Error('expected add')
+          const altered =
+            field === 'required'
+              ? { ...change, required: !change.required }
+              : field === 'bindings'
+                ? { ...change, bindings: [] }
+                : { ...change, parameters: { altered: true } }
+          return {
+            kind: 'prepared',
+            judged: { change: altered, coverage: 'full' },
+            currentRevision: 0,
+          }
+        },
+      })
+      expect(
+        await other.prepare(A, registrationCommand(A, 'altered', addNotes(scopeA, A.tenant))),
+      ).toMatchObject({ failure: { kind: 'unavailable', owner: 'runtime-context' } })
+    },
+  )
 
   it('follows the coordinator principal: denied is denied, unavailable is unavailable', async () => {
     const refused = await assembled({

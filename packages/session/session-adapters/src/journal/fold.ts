@@ -252,6 +252,7 @@ export type EventView = Readonly<{
 
 /** One binding of a pending call: the reference, the call, the holding instance and its pub. */
 export type BindingView = Readonly<{
+  definition: Adoption
   reference: string
   pending: Ref<PendingCall>
   instance: AgentInstanceId
@@ -847,12 +848,22 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
     case 'wait.entered':
       draft.waits = { step: fact.step, waits: fact.waits, pub }
       break
-    case 'target.bound':
+    case 'target.bound': {
+      const definition = draft.cursor.definition ?? draft.opened?.definition
+      if (definition === undefined)
+        throw new TypeError('a call binding requires its original Agent definition')
       draft.bindings = [
         ...draft.bindings,
-        { reference: fact.reference, pending: fact.pending, instance: fact.instance, pub },
+        {
+          definition,
+          reference: fact.reference,
+          pending: fact.pending,
+          instance: fact.instance,
+          pub,
+        },
       ]
       break
+    }
     case 'finish.candidate':
       if (!draft.finish.candidates.some(item => item.candidate === fact.candidate))
         draft.finish = {

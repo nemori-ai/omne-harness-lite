@@ -332,6 +332,7 @@ export type SessionSuccessBodies = {
 }
 export type SessionOutcomes = {
   'create-session':
+    | 'limited'
     | 'succeeded'
     | 'denied'
     | 'invalid'
@@ -340,6 +341,7 @@ export type SessionOutcomes = {
     | 'unknown'
   'query-create-session': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown'
   'send-input':
+    | 'limited'
     | 'succeeded'
     | 'denied'
     | 'invalid'
@@ -381,7 +383,11 @@ export type SessionBusinessResponse<O extends SessionOperation> = {
     readonly protocolVersion: 'session-public/1'
     readonly messageId: string
     readonly outcome: K
-    readonly body: K extends 'succeeded' ? SessionSuccessBodies[O] : EmptyBody
+    readonly body: K extends 'succeeded'
+      ? SessionSuccessBodies[O]
+      : K extends 'limited'
+        ? { readonly resource: 'pending-inputs' | 'input-bytes'; readonly limit: number }
+        : EmptyBody
   }
 }[SessionOutcomes[O]]
 export type SessionResponseByOperation = {

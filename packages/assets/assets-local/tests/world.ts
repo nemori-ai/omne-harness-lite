@@ -1,3 +1,4 @@
+import { ownerSources } from './sources.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdtempSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -121,6 +122,7 @@ export const grants = [
 ]
 export async function openWorld(
   options: {
+    categories?: typeof categories
     config?: Partial<import('@omne-harness/sqlite-provider').SqliteStorageConfig>
     root?: string
     wrap?: (storage: SqlStorage) => SqlStorage
@@ -167,7 +169,7 @@ export async function openWorld(
     ...combination,
     domain,
     storage: options.ownerWrap?.(storage) ?? storage,
-    categories,
+    categories: options.categories ?? categories,
   })
   const backend = createSettingsSqlBackend({
     storage: options.wrap?.(storage) ?? storage,
@@ -198,7 +200,7 @@ export async function openWorld(
       scopeRef: target.scopeRef,
       assetRef: 'asset-a',
       selection: { kind: 'follow' },
-      sourceIds: ['tenant'],
+      sources: ownerSources('tenant'),
       grants,
     })
     if (published.kind !== 'committed' || held.kind !== 'committed')

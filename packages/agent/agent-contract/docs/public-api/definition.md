@@ -111,3 +111,9 @@ handover 本身不返回 changed。调用方在 attach 返回 changed 之后，�
 本页承接 [J-AG01](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag01)、[J-AG07](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag07) 与 CAP-AG01、CAP-AG02。能力与旅程到设计的追踪见[覆盖矩阵](../../verification/coverage.md)的 CAP-AG01、CAP-AG02 行和 J-AG01、J-AG07 行。验收场景是[持续验证场景](../../verification/scenarios.md)中的 SC-AG-58、SC-AG-76、SC-AG-77、SC-AG-78 与 SC-AG-79。交接到合法胜出者时在途的调用、判断和卡片由 SC-AG-14、SC-AG-48 与 SC-AG-51 覆盖，取消先成立后候选就绪由 SC-AG-52 覆盖。协作顺序见 [F-AG01](../flows/scenarios.md#f-ag01)、[F-AG07](../flows/scenarios.md#f-ag07)。
 
 公开校验、版本读取和采用提交协议仍由定义、assets、assembly 与外部协调者的拥有者对齐。本文不把合法版本选择解释为任意在线升级，也不据文档场景宣称实现通过。
+
+## 权限上界声明
+
+定义可以携带 permissionBounds，复用 Permissions 的公共上界值。它按能力身份和执行关口限制允许集合，不包含选值，也不发出许可。省略表示该已解析定义没有额外作者限制；空允许集合表示禁止。定义来源不可用与未声明上界是不同结果，不能相互替换。完整校验、冻结和失败规则见 [SPEC 声明判断](../../SPEC.md#声明判断)。
+
+实际准入以原动作的精确采用解析定义。作者上界与当前其他约束取交集，因此不能扩大权限。Agent 只拥有声明与精确解析，不读取 Settings，也不替 Session 翻译模式。应用适配器把该声明投影给权限求值；该投影不证明动作资格，不替代当前来源协调。

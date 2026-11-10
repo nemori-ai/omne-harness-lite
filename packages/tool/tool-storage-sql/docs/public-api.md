@@ -8,6 +8,8 @@
 
 ## 定义索引
 
+原记录同事务核回导出 `toolRecordCurrentFacts`、`parseToolRecordsCurrent`、`ToolRecordsCurrent`、`ToolRecordObservation`、`TOOL_RECORD_CURRENT` 与 `TOOL_RECORDS_CURRENT_FACT`，定义归 [record-current.ts](../src/record-current.ts)，行为归 [TS-12](../SPEC.md#ts-12-原记录的同事务核回)。解析器接收 `{request}` JSON，合法时返回记录依据，否则返回 null；它不查询存储或证明来源资格。
+
 | 导出                                                                                                                            | 定义                                                        | 行为条款                   |
 | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | -------------------------- |
 | `createSqlToolLedgerStore`、`SqlToolLedgerStore`                                                                                | [src/ledger-store.ts](../src/ledger-store.ts)               | TS-01、TS-02、TS-03、TS-09 |

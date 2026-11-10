@@ -17,6 +17,7 @@ const BINDING_TABLE: Readonly<Record<string, number>> = {
   conflict: 409,
   archived: 409,
   frozen: 409,
+  limited: 429,
   unsupported: 501,
   'not-writable': 501,
   'stage-not-provided': 501,
@@ -26,7 +27,7 @@ const BINDING_TABLE: Readonly<Record<string, number>> = {
 
 describe('status map', () => {
   it('matches the binding page table exactly', () => {
-    expect(Object.keys(BINDING_TABLE).length).toBe(19)
+    expect(Object.keys(BINDING_TABLE).length).toBe(20)
     expect({ ...STATUS_BY_OUTCOME }).toEqual(BINDING_TABLE)
   })
 })

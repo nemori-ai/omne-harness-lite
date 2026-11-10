@@ -81,7 +81,7 @@ describe('a Ja writes the real history of its source into the Session log', () =
       const receipt = ok(
         await s.view.journal.commit(await applied(s, authority, request, admitted(request))),
       )
-      expect(s.commits).toEqual([['execution-record', 'session']])
+      expect(s.commits).toEqual([['execution-record', 'session', 'session-ordinary-basis']])
       expect(written(s)).toEqual([role])
       expect(Number(receipt.revision)).toBe(Number(before) + 1)
     })

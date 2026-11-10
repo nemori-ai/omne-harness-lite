@@ -44,6 +44,10 @@ import { storageCatalog } from '../storage/catalog.ts'
 import { ensureToolRuntimeBundle } from './bundle.ts'
 import { toolRuntimeConfigSchema, type ToolRuntimeConfig } from './config.ts'
 import { awaitBundle, toolRuntimeHolder } from './holder.ts'
+import {
+  ToolInvocationQualificationService,
+  toolInvocationQualificationKey,
+} from './source-qualification.ts'
 
 const INTEGRATOR = { [executionEnvironmentKey]: { caller: 'integrator' as const } }
 
@@ -90,6 +94,7 @@ const recordsPlugin: Plugin.Object = {
     mountSql(ctx, config)
     const bundle = ensureToolRuntimeBundle(ctx, config)
     bundle.records.apply(ctx)
+    new ToolInvocationQualificationService(ctx, bundle.qualification)
   },
 }
 
@@ -97,7 +102,13 @@ export const toolRecordsRow = defineRow({
   row: 'tool-records',
   implementation: 'real',
   manifest: {
-    provides: [toolCommandsKey, toolReadsKey, toolStartAuthorityKey, toolStartFenceKey],
+    provides: [
+      toolCommandsKey,
+      toolReadsKey,
+      toolStartAuthorityKey,
+      toolStartFenceKey,
+      toolInvocationQualificationKey,
+    ],
     injects: [storageKey, tenantDomainLookupKey],
     sameProviderGroup: 'tool-start',
   },

@@ -5,19 +5,18 @@
 // identity (`definitions.binding(ref) !== binding`), so one table is built once from the declared
 // blocks and every query returns the object it was built from, never a copy.
 //
-// The definitions the M2 release adopts declare no Context block: the mapping table of the
-// `agent-adoptions` row (`rows/agent-adoptions/config.ts`) has no field that could carry one, and an
-// `AgentDefinition` holds asset references and attribute items only (agent-contract
-// `definition.ts`). So `adoptedContextDefinitions` is the table over no declaration and answers
-// every query `undefined`: the material is then not restorable because there is nothing to restore.
-// That is the truthful answer of the release, not a stand-in. A release that adopts a definition
-// with Context blocks lists it in `ADOPTED` with the functions of the member that owns them.
+// The application adopts the adapter's supplied modes carrier independently of Agent definitions.
+// Its binding is recoverable by exact adoption; its supplied declaration belongs to the producer.
 import type {
   ContextBlockKey,
   NeedBinding,
   StatefulBlockDescriptor,
 } from '@omne-harness/runtime-context-contract'
-import type { SessionContextDefinitions } from '@omne-harness/session-adapters/cordis'
+import {
+  sessionInquiryBinding,
+  type SessionContextDefinitions,
+} from '@omne-harness/session-adapters/cordis'
+import { SESSION_MODES_PUBLICATION } from '@omne-harness/session-adapters'
 import type { Adoption } from '@omne-harness/session-contract'
 
 /** The Context blocks that one exact adopted definition declares. */
@@ -86,8 +85,13 @@ export function createContextDefinitions(
   return Object.freeze(definitions)
 }
 
-/** The declared Context blocks of the definitions the release adopts: none (see the module comment). */
-const ADOPTED: readonly DeclaredContextBlocks[] = []
+const ADOPTED: readonly DeclaredContextBlocks[] = [
+  {
+    definition: SESSION_MODES_PUBLICATION,
+    bindings: [sessionInquiryBinding],
+    declarations: [],
+  },
+]
 
 /** The definitions of the release, for the `session-ad12` row. */
 export const adoptedContextDefinitions: SessionContextDefinitions =

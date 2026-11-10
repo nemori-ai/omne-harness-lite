@@ -6,6 +6,12 @@
 发行内置作者的来源与登记见[发行内置 Tool](tool-release.md)。本页依据 Reduce 裁定 R2-D14、R2-D36、R2-D66、
 R2-D79、R2-D84 与 Tool B 段简报。
 
+## 原调用资格查询
+
+`tool-records` 在自己的 fiber 发布 `toolInvocationQualification`。Governance 按调用读取它，核对调用的原来源。这个查询复用实际 bundle 的来源、身份、记录仓及转发输入，不调用目标准入，也不执行工具。
+
+目标准入可以调用此查询，不会再次进入目标准入。来源查询只返回原拥有者观察，不授予许可。行关闭后，保留的旧引用返回 unavailable；跨越关闭才完成的读取也不能交回成功。Tool 原来源的持久事实仍由 Tool 拥有，应用没有新增来源表。
+
 ## 一个 bundle，五行
 
 `createLocalToolRuntimePlugins` 每次运行只调用一次。它返回 records、instanceHost、instances、environments、
@@ -13,7 +19,7 @@ executor、runtime 六个插件和 `authorExecution`。五行装同一个 bundle
 
 | 行                  | 装什么                                                             | 提供                                                                                           | 静态 inject                                                          |
 | ------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `tool-records`      | records 插件；在受信存储子树内建 SQL 记录仓、输出保管与守护提交    | `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`（同提供者组 `tool-start`） | `storage`、`tenantDomainLookup`                                      |
+| `tool-records`      | records 插件；在受信存储子树内建 SQL 记录仓、输出保管与守护提交    | `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`（同提供者组 `tool-start`）；受信原来源查询 `toolInvocationQualification` | `storage`、`tenantDomainLookup`                                      |
 | `tool-runtime`      | 门面插件                                                           | `toolRuntime`                                                                                  | `toolCommands`、`toolReads`                                          |
 | `tool-executor`     | 实例宿主装在行 fiber，长期执行宿主装在子 fiber。行体承载，业务阶段 | `toolInstanceHost`                                                                             | `toolCommands`、`toolClock`（子 fiber 另 inject `toolInstanceHost`） |
 | `tool-instances`    | 实例目录                                                           | `toolInstances`                                                                                | `toolPublicationAuthority`                                           |
@@ -150,3 +156,5 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 - [发行树](../../tests/serve.spec.ts)：发行树里这九行是真件，42 个真实行、6 个替身行。
 
 这些用例不证明 Agent 推进、模型调用或 Session 日志里的 Tool 结果，那些由 SC4 与联调 C1 验收。
+
+启动时的目标政策由 `admittedTargetAccess` 适配。它通过原 ToolLedgerStore 读取原 call，核对 tenant/call/request 后将原 admission 交给共享 target policy；首次来源准入则由 `withTargetAdmissionPolicy` 交入原 operation。两者共享政策，定位原 admission 的责任分开。没有原记录或来源不可用时，不拿启动操作补造准入。

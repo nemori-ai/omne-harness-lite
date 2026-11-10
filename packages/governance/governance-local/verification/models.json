@@ -1,0 +1,491 @@
+{
+  "scope": "governance",
+  "cases": [
+    {
+      "name": "governancelifecycle-none",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancelifecycle-ghost",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-ghost.cfg",
+      "expected": "CatalogCurrent"
+    },
+    {
+      "name": "governancelifecycle-siblings",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-siblings.cfg",
+      "expected": "OtherContributionsPreserved"
+    },
+    {
+      "name": "governancelifecycle-old-token",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-old-token.cfg",
+      "expected": "OldTokenFenced"
+    },
+    {
+      "name": "governancelifecycle-erase",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-erase.cfg",
+      "expected": "DurableCustody"
+    },
+    {
+      "name": "governancelifecycle-revive",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-revive.cfg",
+      "expected": "NoRevival"
+    },
+    {
+      "name": "governancelifecycle-reset-use",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-reset-use.cfg",
+      "expected": "ConsumptionPreserved"
+    },
+    {
+      "name": "governancelifecycle-revive-session",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-revive-session.cfg",
+      "expected": "SessionTerminal"
+    },
+    {
+      "name": "governancelifecycle-scope",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-scope.cfg",
+      "expected": "ScopeBound"
+    },
+    {
+      "name": "governancelifecycle-stale-commit",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-stale-commit.cfg",
+      "expected": "CurrentCommit"
+    },
+    {
+      "name": "governancelifecycle-transfer",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-transfer.cfg",
+      "expected": "NoTransfer"
+    },
+    {
+      "name": "governancelifecycle-incompatible",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-incompatible.cfg",
+      "expected": "DefinitionCompatible"
+    },
+    {
+      "name": "governancelifecycle-collision",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-collision.cfg",
+      "expected": "ImmutableDefinition"
+    },
+    {
+      "name": "governancelifecycle-once",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-once.cfg",
+      "expected": "OnceOnly"
+    },
+    {
+      "name": "governancelifecycle-stall",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-stall.cfg",
+      "expected": "temporal:RecoveryProgress"
+    },
+    {
+      "name": "governancelifecycle-stall-setting",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-stall-setting.cfg",
+      "expected": "temporal:SettingRecoveryProgress"
+    },
+    {
+      "name": "governancepublication-none",
+      "model": "models/GovernancePublication.tla",
+      "config": "models/governancepublication-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancepublication-partial",
+      "model": "models/GovernancePublication.tla",
+      "config": "models/governancepublication-partial.cfg",
+      "expected": "AtomicPublication"
+    },
+    {
+      "name": "governancepublication-conflict",
+      "model": "models/GovernancePublication.tla",
+      "config": "models/governancepublication-conflict.cfg",
+      "expected": "ConflictRejected"
+    },
+    {
+      "name": "governancepublication-forget",
+      "model": "models/GovernancePublication.tla",
+      "config": "models/governancepublication-forget.cfg",
+      "expected": "ProhibitionPreserved"
+    },
+    {
+      "name": "governancepublication-bypass",
+      "model": "models/GovernancePublication.tla",
+      "config": "models/governancepublication-bypass.cfg",
+      "expected": "AbsentItemCannotBypass"
+    },
+    {
+      "name": "governancelifecycle-erase-receipt",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-erase-receipt.cfg",
+      "expected": "ReceiptPreserved"
+    },
+    {
+      "name": "governancetargetsupport-positive",
+      "model": "models/GovernanceTargetSupport.tla",
+      "config": "models/governancetargetsupport-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancetargetsupport-retain",
+      "model": "models/GovernanceTargetSupport.tla",
+      "config": "models/governancetargetsupport-retain.cfg",
+      "expected": "NoUnsupportedTarget"
+    },
+    {
+      "name": "governancetargetsupport-drop",
+      "model": "models/GovernanceTargetSupport.tla",
+      "config": "models/governancetargetsupport-drop.cfg",
+      "expected": "AllSupportedTargetsVisible"
+    },
+    {
+      "name": "governancetargetsupport-stale",
+      "model": "models/GovernanceTargetSupport.tla",
+      "config": "models/governancetargetsupport-stale.cfg",
+      "expected": "PublicationCurrent"
+    },
+    {
+      "name": "governanceoperation-positive",
+      "model": "models/GovernanceOperation.tla",
+      "config": "models/governanceoperation-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governanceoperation-rebind",
+      "model": "models/GovernanceOperation.tla",
+      "config": "models/governanceoperation-rebind.cfg",
+      "expected": "RequestImmutable"
+    },
+    {
+      "name": "governanceoperation-replace",
+      "model": "models/GovernanceOperation.tla",
+      "config": "models/governanceoperation-replace.cfg",
+      "expected": "EnvelopeImmutable"
+    },
+    {
+      "name": "governanceoperation-revive",
+      "model": "models/GovernanceOperation.tla",
+      "config": "models/governanceoperation-revive.cfg",
+      "expected": "NoRevival"
+    },
+    {
+      "name": "governanceoperation-partial",
+      "model": "models/GovernanceOperation.tla",
+      "config": "models/governanceoperation-partial.cfg",
+      "expected": "EffectHasReceipt"
+    },
+    {
+      "name": "governanceadoption-positive",
+      "model": "models/GovernanceAdoption.tla",
+      "config": "models/governanceadoption-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governanceadoption-incomplete",
+      "model": "models/GovernanceAdoption.tla",
+      "config": "models/governanceadoption-incomplete.cfg",
+      "expected": "CompletePublication"
+    },
+    {
+      "name": "governanceadoption-stale",
+      "model": "models/GovernanceAdoption.tla",
+      "config": "models/governanceadoption-stale.cfg",
+      "expected": "CurrentPublication"
+    },
+    {
+      "name": "governanceadoption-evidence",
+      "model": "models/GovernanceAdoption.tla",
+      "config": "models/governanceadoption-evidence.cfg",
+      "expected": "BoundEvidence"
+    },
+    {
+      "name": "governanceadoption-partial",
+      "model": "models/GovernanceAdoption.tla",
+      "config": "models/governanceadoption-partial.cfg",
+      "expected": "AtomicBundle"
+    },
+    {
+      "name": "governancesqlcustody-positive",
+      "model": "models/GovernanceSqlCustody.tla",
+      "config": "models/governancesqlcustody-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancesqlcustody-replace",
+      "model": "models/GovernanceSqlCustody.tla",
+      "config": "models/governancesqlcustody-replace.cfg",
+      "expected": "Immutable"
+    },
+    {
+      "name": "governancesqlcustody-unprepared",
+      "model": "models/GovernanceSqlCustody.tla",
+      "config": "models/governancesqlcustody-unprepared.cfg",
+      "expected": "ExactSend"
+    },
+    {
+      "name": "governancesqlcustody-rebuild",
+      "model": "models/GovernanceSqlCustody.tla",
+      "config": "models/governancesqlcustody-rebuild.cfg",
+      "expected": "ExactSend"
+    },
+    {
+      "name": "governancesqlcustody-crosskey",
+      "model": "models/GovernanceSqlCustody.tla",
+      "config": "models/governancesqlcustody-crosskey.cfg",
+      "expected": "ExactSend"
+    },
+    {
+      "name": "governancesqlcustody-revive",
+      "model": "models/GovernanceSqlCustody.tla",
+      "config": "models/governancesqlcustody-revive.cfg",
+      "expected": "NoRevival"
+    },
+    {
+      "name": "governancerecoveryphase-positive",
+      "model": "models/GovernanceRecoveryPhase.tla",
+      "config": "models/governancerecoveryphase-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancerecoveryphase-poison",
+      "model": "models/GovernanceRecoveryPhase.tla",
+      "config": "models/governancerecoveryphase-poison.cfg",
+      "expected": "NoPoison"
+    },
+    {
+      "name": "governancerecoveryphase-progress",
+      "model": "models/GovernanceRecoveryPhase.tla",
+      "config": "models/governancerecoveryphase-progress.cfg",
+      "expected": "temporal:Completion"
+    },
+    {
+      "name": "governanceadmission-positive",
+      "model": "models/GovernanceAdmission.tla",
+      "config": "models/governanceadmission-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governanceadmission-owner",
+      "model": "models/GovernanceAdmission.tla",
+      "config": "models/governanceadmission-owner.cfg",
+      "expected": "AuthorizedOriginal"
+    },
+    {
+      "name": "governanceadmission-request",
+      "model": "models/GovernanceAdmission.tla",
+      "config": "models/governanceadmission-request.cfg",
+      "expected": "AuthorizedOriginal"
+    },
+    {
+      "name": "governanceadmission-policy",
+      "model": "models/GovernanceAdmission.tla",
+      "config": "models/governanceadmission-policy.cfg",
+      "expected": "AuthorizedOriginal"
+    },
+    {
+      "name": "governanceadmission-issued",
+      "model": "models/GovernanceAdmission.tla",
+      "config": "models/governanceadmission-issued.cfg",
+      "expected": "AuthorizedOriginal"
+    },
+    {
+      "name": "governanceadmission-member",
+      "model": "models/GovernanceAdmission.tla",
+      "config": "models/governanceadmission-member.cfg",
+      "expected": "AuthorizedOriginal"
+    },
+    {
+      "name": "governanceadmission-qualified",
+      "model": "models/GovernanceAdmission.tla",
+      "config": "models/governanceadmission-qualified.cfg",
+      "expected": "AuthorizedOriginal"
+    },
+    {
+      "name": "governanceregistrar-positive",
+      "model": "models/GovernanceRegistrar.tla",
+      "config": "models/governanceregistrar-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governanceregistrar-source",
+      "model": "models/GovernanceRegistrar.tla",
+      "config": "models/governanceregistrar-source.cfg",
+      "expected": "PreparedProof"
+    },
+    {
+      "name": "governanceregistrar-original",
+      "model": "models/GovernanceRegistrar.tla",
+      "config": "models/governanceregistrar-original.cfg",
+      "expected": "OriginalStable"
+    },
+    {
+      "name": "governanceregistrar-offline",
+      "model": "models/GovernanceRegistrar.tla",
+      "config": "models/governanceregistrar-offline.cfg",
+      "expected": "RecognizeOffline"
+    },
+    {
+      "name": "governanceregistrar-state",
+      "model": "models/GovernanceRegistrar.tla",
+      "config": "models/governanceregistrar-state.cfg",
+      "expected": "NoStaleReply"
+    },
+    {
+      "name": "governancetargetpublication-positive",
+      "model": "models/GovernanceTargetPublication.tla",
+      "config": "models/governancetargetpublication-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancetargetpublication-release",
+      "model": "models/GovernanceTargetPublication.tla",
+      "config": "models/governancetargetpublication-release.cfg",
+      "expected": "ExactPublication"
+    },
+    {
+      "name": "governancetargetpublication-current",
+      "model": "models/GovernanceTargetPublication.tla",
+      "config": "models/governancetargetpublication-current.cfg",
+      "expected": "CurrentAtCommit"
+    },
+    {
+      "name": "governancetargetpublication-implementation",
+      "model": "models/GovernanceTargetPublication.tla",
+      "config": "models/governancetargetpublication-implementation.cfg",
+      "expected": "ImplementationPresent"
+    },
+    {
+      "name": "governancecatalogcapture-positive",
+      "model": "models/GovernanceCatalogCapture.tla",
+      "config": "models/governancecatalogcapture-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancecatalogcapture-held",
+      "model": "models/GovernanceCatalogCapture.tla",
+      "config": "models/governancecatalogcapture-held.cfg",
+      "expected": "QualifiedCapture"
+    },
+    {
+      "name": "governancecatalogcapture-epoch",
+      "model": "models/GovernanceCatalogCapture.tla",
+      "config": "models/governancecatalogcapture-epoch.cfg",
+      "expected": "CurrentCapture"
+    },
+    {
+      "name": "governancecatalogcapture-sealed",
+      "model": "models/GovernanceCatalogCapture.tla",
+      "config": "models/governancecatalogcapture-sealed.cfg",
+      "expected": "NoRevival"
+    },
+    {
+      "name": "governancecatalogcapture-disclosure",
+      "model": "models/GovernanceCatalogCapture.tla",
+      "config": "models/governancecatalogcapture-disclosure.cfg",
+      "expected": "SettledDisclosure"
+    },
+    {
+      "name": "governanceexitcapacity-positive",
+      "model": "models/GovernanceExitCapacity.tla",
+      "config": "models/governanceexitcapacity-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governanceexitcapacity-reserve",
+      "model": "models/GovernanceExitCapacity.tla",
+      "config": "models/governanceexitcapacity-reserve.cfg",
+      "expected": "ExitCapacity"
+    },
+    {
+      "name": "governanceexitcapacity-threshold",
+      "model": "models/GovernanceExitCapacity.tla",
+      "config": "models/governanceexitcapacity-threshold.cfg",
+      "expected": "ExitCapacity"
+    },
+    {
+      "name": "governanceexitcapacity-release",
+      "model": "models/GovernanceExitCapacity.tla",
+      "config": "models/governanceexitcapacity-release.cfg",
+      "expected": "ExitCapacity"
+    },
+    {
+      "name": "governancecontributionlifetime-positive",
+      "model": "models/GovernanceContributionLifetime.tla",
+      "config": "models/governancecontributionlifetime-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancecontributionlifetime-drain",
+      "model": "models/GovernanceContributionLifetime.tla",
+      "config": "models/governancecontributionlifetime-drain.cfg",
+      "expected": "ClosedIsQuiescent"
+    },
+    {
+      "name": "governancecontributionlifetime-late",
+      "model": "models/GovernanceContributionLifetime.tla",
+      "config": "models/governancecontributionlifetime-late.cfg",
+      "expected": "ClosedIsQuiescent"
+    },
+    {
+      "name": "governancecontributionlifetime-receipt",
+      "model": "models/GovernanceContributionLifetime.tla",
+      "config": "models/governancecontributionlifetime-receipt.cfg",
+      "expected": "PreservedReceipt"
+    },
+    {
+      "name": "governancecontributionlifetime-sibling",
+      "model": "models/GovernanceContributionLifetime.tla",
+      "config": "models/governancecontributionlifetime-sibling.cfg",
+      "expected": "SiblingPreserved"
+    },
+    {
+      "name": "governanceenforcementexecution-positive",
+      "model": "models/GovernanceEnforcementExecution.tla",
+      "config": "models/governanceenforcementexecution-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governanceenforcementexecution-implementation",
+      "model": "models/GovernanceEnforcementExecution.tla",
+      "config": "models/governanceenforcementexecution-implementation.cfg",
+      "expected": "ExactImplementation"
+    },
+    {
+      "name": "governanceenforcementexecution-manifest",
+      "model": "models/GovernanceEnforcementExecution.tla",
+      "config": "models/governanceenforcementexecution-manifest.cfg",
+      "expected": "ActualInterpreter"
+    },
+    {
+      "name": "governanceenforcementexecution-current",
+      "model": "models/GovernanceEnforcementExecution.tla",
+      "config": "models/governanceenforcementexecution-current.cfg",
+      "expected": "CurrentContribution"
+    },
+    {
+      "name": "governanceenforcementexecution-receipt",
+      "model": "models/GovernanceEnforcementExecution.tla",
+      "config": "models/governanceenforcementexecution-receipt.cfg",
+      "expected": "ReceiptIsNotCurrent"
+    },
+    {
+      "name": "governanceenforcementexecution-tenant",
+      "model": "models/GovernanceEnforcementExecution.tla",
+      "config": "models/governanceenforcementexecution-tenant.cfg",
+      "expected": "TenantIsolation"
+    }
+  ]
+}

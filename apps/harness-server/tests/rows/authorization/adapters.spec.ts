@@ -10,6 +10,7 @@ import { Service, Context } from '@deepseek-ai/cordis'
 import { toolAccessGuardConformance, type ToolAccessGuardFixture } from '@omne-harness/tool/testing'
 import { decodeToolCallId } from '@omne-harness/tool-contract'
 import {
+  decisionEvidence,
   effectiveArgumentsOf,
   noArguments,
   referenceAdmissionCheck,
@@ -32,6 +33,7 @@ import {
 } from '@omne-harness/identity'
 import {
   identityClockKey,
+  identityGovernanceKey,
   principalVerifierKey,
   tenantStandingKey,
 } from '@omne-harness/identity/cordis'
@@ -779,6 +781,16 @@ describe('agentActionAdmission', () => {
       decision: null,
     }
   }
+  it('does not treat a static allow as current permission', async () => {
+    const w = world()
+    const admission = createActionAdmission({
+      readAdmission: () => w.ports.admission,
+      actionRules: rules,
+    })
+    expect(await admission.admit(action(w.work()) as never)).toMatchObject({
+      ok: { kind: 'unavailable' },
+    })
+  })
   it('requires the issued Session work principal, the correct tenant and current membership', async () => {
     const w = world()
     const admission = createActionAdmission({
@@ -819,6 +831,15 @@ describe('agentActionAdmission', () => {
     }
     const exact = createActionAdmission({
       readAdmission: () => w.ports.admission,
+      readPermission: () => ({
+        check: async request => {
+          expect(request.origin).toMatchObject({ original: input.original })
+          return {
+            kind: 'allow',
+            evidence: decisionEvidence('permission-fixture', '1', request.operation),
+          }
+        },
+      }),
       actionRules: { ...rules, rules: [{ ...rules.rules[0], definition: input.definition }] },
     })
     expect(await exact.admit(input as never)).toMatchObject({ ok: { kind: 'allow' } })
@@ -902,6 +923,15 @@ describe('agentActionAdmission', () => {
     const admission = createActionAdmission({
       readAdmission: () => w.ports.admission,
       actionRules: { revision: 'ops-1', rules: [allow] },
+      readPermission: () => ({
+        check: async input => ({
+          kind: 'allow',
+          evidence: decisionEvidence('permission-fixture', '1', {
+            operation: input.operation,
+            arguments: input.effectiveArguments,
+          }),
+        }),
+      }),
     })
     const pending = admission.admit(input as never)
     Object.assign(input, { action: 'changed', effectiveArguments: 'changed' })
@@ -1052,6 +1082,9 @@ describe('the row', () => {
       apply(scope: Context) {
         scope.provide(principalVerifierKey, authority.verifier)
         scope.provide(tenantStandingKey, { read: async () => readingOf('member') })
+        scope.provide(identityGovernanceKey, {
+          queryCurrentTenant: async () => ({ kind: 'denied' }),
+        })
         scope.provide(identityClockKey, {
           now: () => Promise.reject(new Error('no grant of this case has an end time')),
         })
@@ -1074,7 +1107,7 @@ describe('the row', () => {
     }
     try {
       const admission = ctx.agentActionAdmission
-      expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'allow' } })
+      expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'unavailable' } })
       await row.dispose()
       expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'unavailable' } })
     } finally {
@@ -1144,9 +1177,21 @@ describe('the row', () => {
     const identityRow = defineRow({
       row: 'identity',
       implementation: 'real',
-      manifest: { provides: [tenantStandingKey], injects: [], sameProviderGroup: null },
+      manifest: {
+        provides: [tenantStandingKey, identityGovernanceKey],
+        injects: [],
+        sameProviderGroup: null,
+      },
       lifecycle: { kind: 'none' },
-      plugin: { name: 'standing', apply: (ctx: Context) => void new StandingImpl(ctx) },
+      plugin: {
+        name: 'standing',
+        apply: (ctx: Context) => {
+          new StandingImpl(ctx)
+          ctx.provide(identityGovernanceKey, {
+            queryCurrentTenant: async () => ({ kind: 'denied' }),
+          })
+        },
+      },
     })
     const probeRow = defineRow({
       row: 'probe',
@@ -1218,7 +1263,7 @@ describe('the row', () => {
     })
     await answers['run']
 
-    expect(run.result.exitCode).toBe(0)
+    expect(run.result.exitCode, run.stderr.join('\n')).toBe(0)
     expect(run.of('row-state').map(r => [r['id'], r['state']])).toEqual([
       ['identity', 'ACTIVE'],
       ['authorization', 'ACTIVE'],
@@ -1229,7 +1274,7 @@ describe('the row', () => {
     // Unlisted components have no maintenance purpose.
     expect(answers['intruder']).toEqual({ kind: 'denied' })
     expect(answers['agent']).toMatchObject({ kind: 'allowed' })
-    expect(answers['admission']).toMatchObject({ ok: { kind: 'allow' } })
+    expect(answers['admission']).toMatchObject({ ok: { kind: 'unavailable' } })
     expect(answers['broken']).toMatchObject({ kind: 'unavailable' })
     expect(JSON.stringify([answers, run.records, run.stderr])).not.toContain('SECRET-TEXT')
   })

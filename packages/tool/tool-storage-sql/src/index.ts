@@ -16,3 +16,11 @@ export {
 } from './guarded-host-commit.ts'
 export { createSqlToolOutputCustody } from './custody.ts'
 export { TOOL_PARTICIPANT, toolStorageMaterials, type ToolStorageMaterials } from './materials.ts'
+export {
+  TOOL_RECORD_CURRENT,
+  TOOL_RECORDS_CURRENT_FACT,
+  toolRecordCurrentFacts,
+  parseToolRecordsCurrent,
+  type ToolRecordObservation,
+  type ToolRecordsCurrent,
+} from './record-current.ts'

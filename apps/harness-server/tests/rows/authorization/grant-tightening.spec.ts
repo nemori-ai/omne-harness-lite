@@ -15,6 +15,7 @@ import {
 } from '@omne-harness/identity'
 import {
   identityClockKey,
+  identityGovernanceKey,
   principalVerifierKey,
   tenantStandingKey,
 } from '@omne-harness/identity/cordis'
@@ -75,6 +76,11 @@ async function mount(config: unknown, clock: IdentityClock = STILL) {
       scope.provide(principalVerifierKey, authority.verifier)
       scope.provide(tenantStandingKey, { read: () => Promise.reject(new Error('not asked')) })
       scope.provide(identityClockKey, clock)
+      scope.provide(identityGovernanceKey, {
+        queryCurrentTenant: async () => {
+          throw new Error('system grants must not query a login')
+        },
+      })
     },
   })
   const row = await ctx.plugin(authorization, config)
@@ -334,6 +340,7 @@ describe('the row with the tightening', () => {
       tenantStandingKey,
       principalVerifierKey,
       identityClockKey,
+      identityGovernanceKey,
     ])
   })
 })

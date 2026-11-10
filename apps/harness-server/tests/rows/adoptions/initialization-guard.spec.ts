@@ -21,6 +21,7 @@ import {
   createCommand,
   entryConfig,
   factsOf,
+  firstCreationEntryObjects,
   mappingConfig,
   plainOf,
   withLiveTree,
@@ -231,8 +232,39 @@ describe('the create material is the initialization guard of Session', () => {
   ])(
     'a creation that declares %s gets no guard: the mapping holds none',
     async (_, command, field) => {
-      const { value } = await withLiveTree(mappingConfig(), ({ source }) => source.prepare(command))
+      // A first creation: Session has no original initialization to recall, so the mapping decides.
+      const { value } = await withLiveTree(
+        mappingConfig(),
+        ({ source }) => source.prepare(command, access),
+        { entryObjects: firstCreationEntryObjects },
+      )
       expect(value).toMatchObject({ failure: { kind: 'invalid', field } })
     },
   )
+
+  test('a creation that declares initialization sources and whose original cannot be read gets no guard: unavailable', async () => {
+    // A retried create is recalled from Session before the mapping is consulted (adoption-sources
+    // docs「create 的模式注册」). Without the Session read, whether it is a retry stays unknown.
+    const command = createCommand('alpha', {
+      initialization: {
+        sources: [
+          {
+            kind: 'execution-adoption',
+            item: 'prepare',
+            owner: 'test-agent',
+            protocol: adoptionOf('test-agent', 'preparation'),
+          },
+        ],
+        results: [],
+      },
+    })
+    const { value } = await withLiveTree(mappingConfig(), async ({ source }) => [
+      await source.prepare(command),
+      await source.prepare(command, access),
+    ])
+    expect(value).toMatchObject([
+      { failure: { kind: 'unavailable', owner: 'session.modes' } },
+      { failure: { kind: 'unavailable', owner: 'sessionPrincipalBindings' } },
+    ])
+  })
 })

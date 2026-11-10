@@ -61,6 +61,7 @@ function failure(value: SessionFailure): TodoAuthorFailure {
     case 'no-input':
     case 'run-active':
     case 'login-required':
+    case 'limited':
       return {
         kind: 'unavailable',
         owner: 'todo-items',

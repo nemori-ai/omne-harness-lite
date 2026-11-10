@@ -2,7 +2,13 @@
 // probe row that captures the live services of the tree, and a harness that holds the tree open
 // while a test calls them.
 import type { Context } from '@deepseek-ai/cordis'
+import type { Principal } from '@omne-harness/identity'
+import { succeed } from '@omne-harness/operation-result'
 import type { DefinitionMappings } from '@omne-harness/server-entry/cordis'
+import {
+  SessionWorkPrincipalsService,
+  sessionWorkPrincipalsKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import type {
   AdoptionEvidenceCommand,
   Adoption,
@@ -10,13 +16,16 @@ import type {
 } from '@omne-harness/session-contract'
 import { creation, memoryAccess, operationId } from '@omne-harness/session-contract/testing'
 import { stubPlugin } from '../../../src/cordis.ts'
+import { entryObjects as releaseEntryObjects } from '../../../src/entry/index.ts'
+import { sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
+import { createSessionWorkPrincipals } from '../../../src/entry/session-work-principals.ts'
 import { serveProfile } from '../../../src/profile.ts'
 import { defineRow } from '../../../src/row.ts'
 import { adoptionSourcesRow } from '../../../src/rows/adoption-sources/index.ts'
 import type { AdoptionSourcesImpl } from '../../../src/rows/adoption-sources/sources.ts'
 import { agentAdoptionsRow } from '../../../src/rows/agent-adoptions/index.ts'
 import type { AgentAdoptionsImpl } from '../../../src/rows/agent-adoptions/services.ts'
-import type { RowId } from '../../../src/types.ts'
+import type { EntryObjectModule, RowId } from '../../../src/types.ts'
 import { serveOnce, type ServeRun } from '../../fixtures/serve/harness.ts'
 
 type Plain = Record<string, unknown>
@@ -90,10 +99,37 @@ const rows = (config: unknown) => [
 
 const visibility = new Map([...serveProfile().visibility, [PROBE, ['definitionMappings']]])
 
+/**
+ * The release entry objects, with the entry's real `sessionWorkPrincipals` reading a Session
+ * ownership stand-in that has bound no session: a first creation, before Session committed anything.
+ * The work principal is then denied, which tells `create` that there is no original initialization to
+ * recall (adoption-sources docs「create 的模式注册」), so the mapping decides.
+ */
+export const firstCreationEntryObjects: readonly EntryObjectModule[] = releaseEntryObjects.map(
+  module =>
+    module.name !== sessionWorkPrincipalsKey
+      ? module
+      : {
+          name: sessionWorkPrincipalsKey,
+          implementation: 'contract-double',
+          install(scope, env) {
+            const work = createSessionWorkPrincipals({
+              issue: sessionWorkIssuerOf(env),
+              readBindings: () => ({ read: async () => succeed({ kind: 'not-bound' as const }) }),
+            })
+            class Work extends SessionWorkPrincipalsService<Principal> {
+              readonly forSession = work.forSession
+            }
+            new Work(scope)
+          },
+        },
+)
+
 /** Starts the two rows and a probe, runs `use` against the live services, then stops the tree. */
 export async function withLiveTree<T>(
   config: unknown,
   use: (captured: Captured) => Promise<T> | T,
+  options: Readonly<{ entryObjects?: readonly EntryObjectModule[] }> = {},
 ): Promise<{ value: T; run: ServeRun }> {
   const stop = new AbortController()
   let ready: (captured: Captured) => void = () => {}
@@ -104,6 +140,7 @@ export async function withLiveTree<T>(
     distribution: { rows: [...rows(config), { id: PROBE, plugin: 'probe', config: {} }] },
     plugins: { stubPlugin, agentAdoptionsRow, adoptionSourcesRow, probe: probeRow(ready) },
     visibility,
+    ...(options.entryObjects === undefined ? {} : { entryObjects: options.entryObjects }),
     stopAfterStartup: false,
     stop: stop.signal,
   })

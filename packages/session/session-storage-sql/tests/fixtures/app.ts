@@ -1,3 +1,4 @@
+import { SESSION_LOG_PARTICIPANTS } from '../../src/participants.ts'
 // The composition of one test application: two tenants with their own transaction domains, a tenant
 // domain directory, an explicit access policy, a fixed cursor signing double, and over the SQLite
 // test provider the Session storage port, the pair of a public port and a delegated entry, and the
@@ -57,6 +58,7 @@ export async function app(
     now?: () => number
     /** The bounds of the work cache of the storage (SPEC RT-04); the member's defaults when absent. */
     workCache?: SessionStorageOptions<string>['workCache']
+    intakeLimits?: SessionStorageOptions<string>['intakeLimits']
   } = {},
 ) {
   const provider: SqliteStorage = createSqliteStorage()
@@ -94,7 +96,7 @@ export async function app(
       transactionDomain: entry.domain.transactionDomain,
       combinationVersion: 'c1',
       manifestDigest: 'a'.repeat(64),
-      participants: ['execution-record', 'session'],
+      participants: SESSION_LOG_PARTICIPANTS,
     })
   const signing: FixedSessionCursorSigning = createFixedSessionCursorSigning()
   const denied = new Set<string>()
@@ -110,6 +112,7 @@ export async function app(
     storage: provider.storage,
     domains,
     accessCheck,
+    ...(options.intakeLimits === undefined ? {} : { intakeLimits: options.intakeLimits }),
     cursorSigning: signing,
     combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
     now: options.now ?? (() => clock),
@@ -175,7 +178,7 @@ export async function app(
       transactionDomain: entry.domain.transactionDomain,
       combinationVersion: 'c1',
       manifestDigest: 'a'.repeat(64),
-      participants: ['execution-record', 'session'],
+      participants: SESSION_LOG_PARTICIPANTS,
     })
     directory.entries.push(entry)
     directory.revision = String(Number(directory.revision) + 1)

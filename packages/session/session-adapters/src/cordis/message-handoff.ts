@@ -60,7 +60,7 @@ import {
   EXECUTION_RECORD_HANDLERS,
   EXECUTION_RECORD_PROTOCOL,
   SESSION_EXECUTION_HANDLER,
-  SESSION_PROTOCOL,
+  SESSION_READ_PROTOCOL,
   decodePreadmissionRecord,
   decodePreadmissionReply,
   decodeSessionExecution,
@@ -284,7 +284,7 @@ function createMessageHandoff<P>(
     execution: string,
     action: string,
   ): Promise<Outcome<SessionId, Failure>> {
-    const found = await read(domain, SESSION_EXECUTION_HANDLER, SESSION_PROTOCOL, {
+    const found = await read(domain, SESSION_EXECUTION_HANDLER, SESSION_READ_PROTOCOL, {
       tenant: tenantText,
       execution,
     })

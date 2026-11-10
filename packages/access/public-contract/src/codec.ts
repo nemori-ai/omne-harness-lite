@@ -390,6 +390,14 @@ function nullLeaf(input: unknown, direction: Direction): Converted | undefined {
 }
 
 const leaves: { readonly [K in LeafKind]: Leaf } = {
+  'positive-integer': (input, direction) => {
+    const node = direction === 'decode' ? nodeOf(input) : undefined
+    const value =
+      direction === 'decode' ? (node?.kind === 'number' ? Number(node.lexeme) : undefined) : input
+    return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+      ? { local: value, wire: { kind: 'number', lexeme: String(value) } }
+      : undefined
+  },
   text: textLeaf(value => value !== ''),
   string: textLeaf(() => true),
   session: textLeaf(value => /^[0-9a-f]{64}$/.test(value)),

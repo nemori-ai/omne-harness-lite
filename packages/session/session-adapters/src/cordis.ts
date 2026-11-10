@@ -1,4 +1,10 @@
 export { createSessionAgentDrivePlugin, sessionScopeEvidence } from './cordis/agent-drive.ts'
+export {
+  sessionModesDescriptor,
+  sessionModesProducer,
+  sessionInquiryBinding,
+} from './cordis/mode-block.ts'
+export { createSessionModesPlugin, type SessionModesPluginInput } from './cordis/mode-plugin.ts'
 export type {
   SessionAgentDriveInput,
   SessionCoordinatorPrincipalFailure,

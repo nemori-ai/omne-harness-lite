@@ -82,3 +82,32 @@ Worker 模块由存储提供者在 Worker 线程里按 `file:` URL 加载，不�
 ## 成员协调
 
 `coordination.ts` 执行持久预留、可信目标封口及治理恢复。`worker/standing.ts` 的共同门与成员写入同事务执行，`read-coordination.ts` 提供有界枚举。原登录和治理核对保留在 `participant.ts`；恢复没有系统授权分支。完整状态规则归 [IS-16](../SPEC.md#is-16)。
+
+
+### 完整请求与源端围栏
+
+`StandingRequest` 保存原绑定与资格要求，`StandingReservation` 在其上增加确定的身份。`standing-request.ts` 固定请求字段顺序、资格集合与租户含义。`coordination.ts` 通过受信 resolver 取得目的终态；Worker 在源端事务中完成最后核对。Settings、HITL 和 Governance 只消费公开协议，不读 Identity 私有表。
+
+```mermaid
+sequenceDiagram
+  participant C as 原请求持有者
+  participant I as Identity 结算服务
+  participant D as 受信目的地
+  participant S as Identity SQL 事务
+  C->>I: settle 完整原请求
+  I->>S: 按 operation_ref 唯一键读取
+  I->>D: seal 精确绑定
+  D-->>I: 不可逆 aborted 或 committed
+  Note over I,S: committed 且初读缺行时再确认 held
+  I->>S: 固定 settle-request/1 封套
+  alt 原请求尚未到达且目的 aborted
+    S->>S: 插入 settled 围栏
+  else 原请求已经 held
+    S->>S: 核对完整绑定并结算
+  end
+  S-->>C: 原请求终态
+  C->>S: 迟到 reserve
+  S-->>C: 返回原终态，不能新增 held
+```
+
+`operation_ref UNIQUE` 串行化同一原操作的 reserve 与 settle。缺行分支没有扫描成员表，也不计算当前资格。最终源端事务不能和目的地事务合称一个数据库事务；正确性来自目的终态不可逆、源端围栏不删除以及相同完整请求的认回。

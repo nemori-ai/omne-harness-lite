@@ -1,3 +1,5 @@
+import type { SessionPermissions } from './permission-values.ts'
+import type { PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions'
 import type { TodoItem } from './todos.ts'
 import type { SessionWorkEntryIndex } from './work-entry-values.ts'
 // The values of the work snapshot and the fixed inputs of the commands (SPEC「值与结果项的约束」).
@@ -293,6 +295,15 @@ export type InitializationResult = Readonly<{
 export type ContextMaterial = Readonly<{ schema: Adoption; value: JsonValue }>
 export type DeclarationChange =
   | Readonly<{
+      kind: 'permission-assignment'
+      capabilityId: string
+      enforcementKey: string
+      definition: PermissionDefinitionRef
+      rule: PermissionRule | null
+      expectedRevision: string
+      authorization: DurableEvidence
+    }>
+  | Readonly<{
       kind: 'permission-mode'
       value: Modes['permission']
       authorization: DurableEvidence
@@ -381,6 +392,7 @@ export type WorkSnapshot = Readonly<{
   definition: Readonly<{ name: string; adopted: Adoption }>
   execution: Adoption
   declarations: DurableEvidence
+  permissions: SessionPermissions
   revisions: Readonly<{ workspace: string; declarations: string }>
   run: RunState
   pending: readonly InputId[]

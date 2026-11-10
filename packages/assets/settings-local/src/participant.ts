@@ -1,3 +1,6 @@
+import { sourceWriteIsOpen } from './source-write.ts'
+import { matchesSettingsSources } from './source-layout.ts'
+import { settingsSourceIdentities } from '@omne-harness/settings'
 import { rebaseAssignments } from './rebase-participant.ts'
 import { decideSettingsChange, defineSettings } from '@omne-harness/settings'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
@@ -48,9 +51,25 @@ function currentFacts(binding: Binding, port: ParticipantPort) {
     fact.definition.items.find(item => item.id === binding.command.itemId)?.sensitivity === 'secret'
   )
     return reject('unsupported')
-  if (fact.grants.some(grant => !fact.sourceIds.includes(grant.sourceId)))
+  if (fact.grants.some(grant => !fact.sources.some(source => source.sourceId === grant.sourceId)))
     return reject('forbidden')
   return fact
+}
+function compatibleState(
+  binding: Binding,
+  fact: ReturnType<typeof guardFactSchema.parse>,
+  port: ParticipantPort,
+) {
+  const current = readStateRecord(port, binding.domain.scope, binding.command.target)
+  if (current && !equal(current.definitionRef, fact.definitionRef))
+    return { kind: 'rejected' as const, reason: 'definition_changed' as const }
+  if (current && !matchesSettingsSources(current.sourceLayout, fact.sources))
+    return { kind: 'rejected' as const, reason: 'basis_changed' as const }
+  const state = current?.state ?? {
+    revision: 0,
+    sources: fact.sources.map(({ sourceId: id }) => ({ id, values: [] })),
+  }
+  return { kind: 'state' as const, state }
 }
 function execute(binding: Binding, port: ParticipantPort) {
   const operationBinding = settingsSqlOperationBinding(binding)
@@ -58,26 +77,16 @@ function execute(binding: Binding, port: ParticipantPort) {
     kind: 'conflict' as const,
     basis: json({ binding: operationBinding, failure: { kind: 'rejected', reason } }),
   })
+  if (!sourceWriteIsOpen(port, { kind: 'change', operation: operationBinding }))
+    return fail('forbidden')
   if (!equal(port.requireFact(TERMINAL_FACT), { binding: operationBinding, kind: 'consume' }))
     return fail('forbidden')
   if (binding.commandDigest !== commandDigest(binding.command)) return fail('operation_conflict')
   const fact = currentFacts(binding, port)
   if ('kind' in fact) return fail(fact.reason)
-  const current = readStateRecord(port, binding.domain.scope, binding.command.target)
-  if (current && !equal(current.definitionRef, fact.definitionRef))
-    return fail('definition_changed')
-  if (
-    current &&
-    !equal(
-      current.state.sources.map(source => source.id),
-      fact.sourceIds,
-    )
-  )
-    return fail('basis_changed')
-  const state = current?.state ?? {
-    revision: 0,
-    sources: fact.sourceIds.map(id => ({ id, values: [] })),
-  }
+  const current = compatibleState(binding, fact, port)
+  if (current.kind === 'rejected') return fail(current.reason)
+  const state = current.state
   const decision = decideSettingsChange({
     command: binding.command,
     state,
@@ -103,6 +112,7 @@ function execute(binding: Binding, port: ParticipantPort) {
         target: command.target,
         definitionRef: fact.definitionRef,
         state: decision.state,
+        sourceLayout: { kind: 'bound', sources: settingsSourceIdentities(fact.sources) },
       }),
     ],
   )

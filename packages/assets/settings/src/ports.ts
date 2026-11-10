@@ -4,6 +4,7 @@ import type {
   SettingsState,
   SettingsTarget,
 } from './commands.ts'
+import type { SettingsSourceDescriptor } from './sources.ts'
 import type { SettingDefinitions } from './schema.ts'
 
 export type SettingsFailure = Readonly<{
@@ -28,6 +29,8 @@ export type SettingsGrant = Readonly<{
 }>
 export type SettingsTargetView = Readonly<{
   target: SettingsTarget
+  enabled: boolean
+  sources: readonly SettingsSourceDescriptor[]
   definitionRef: SettingsDefinitionRef
   definition: SettingDefinitions
   state: SettingsState

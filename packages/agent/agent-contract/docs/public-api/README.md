@@ -100,6 +100,10 @@ PreparedContextTransition 是 Agent 消费 Request Context 的窄视图。commit
 
 [行为与约束](../../SPEC.md#扩展卡片与材料)。
 
+`AgentActionQualification`、`ActionQualificationRequest` 与 `ActionQualification` 的公开形状归 [action-qualification.ts](../../src/action-qualification.ts)，行为归 [原动作资格读取](../../SPEC.md#原动作资格读取)。这是原事实读口；其观察需要在实际消费事务由原持久拥有者核回，不是 ActionAdmission 的允许结果。
+
+结果的 agentDefinition 是同一次原 Journal 读取中的 Agent 采用；request.definition 是该动作的 Tool 采用。权限上界消费者使用前者，不从调用者输入或另一次 Journal 读取拼接它。
+
 扩展作者接口的类型由[扩展作者协议](extensions.md)规定，源码在 [extensions.ts](../../src/extensions.ts)，本页不重复。各类型的规则位置如下：
 
 | 类型 | 声明位置 |

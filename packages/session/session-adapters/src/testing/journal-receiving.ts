@@ -2,6 +2,7 @@ import { pendingCalls } from './pending.ts'
 import { createHash } from 'node:crypto'
 import type {
   PendingCall,
+  Adoption,
   Access,
   AgentExecutionId,
   AgentOperationId,
@@ -922,12 +923,18 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           instance,
         })
       }
-      return { instance, facts, blobs, pendings }
+      return {
+        instance,
+        definition: structuredClone(execution.checkpoint.definition),
+        facts,
+        blobs,
+        pendings,
+      }
     },
     /** Projects the bindings of a batch of `execution` into the receiving state. */
     applyBindings(execution: Pick<MemoryExecution, 'id' | 'tenant'>, bound: NewBindings) {
       for (const pending of bound.pendings)
-        bindTarget(hooks.state(), execution, bound.instance, pending)
+        bindTarget(hooks.state(), execution, bound.instance, bound.definition, pending)
     },
   }
 }
@@ -935,6 +942,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
 /** The bindings an open or a commit establishes: the facts of its batch, their blocks, the values. */
 export type NewBindings = Readonly<{
   instance: AgentInstanceId
+  definition: Adoption
   facts: readonly FactBody[]
   blobs: readonly Blob[]
   pendings: readonly PendingCall[]
@@ -950,6 +958,7 @@ export function bindTarget(
   state: ReceivingState,
   execution: Pick<MemoryExecution, 'id' | 'tenant'>,
   instance: AgentInstanceId,
+  definition: Adoption,
   pending: import('@omne-harness/agent-contract').PendingCall,
 ): void {
   // A Tool intent not yet associated has no reference to bind.
@@ -974,6 +983,7 @@ export function bindTarget(
       state.toolTargets.set(key, {
         execution: execution.id,
         instance,
+        definition: structuredClone(definition),
         pending: structuredClone(pending),
       })
     return

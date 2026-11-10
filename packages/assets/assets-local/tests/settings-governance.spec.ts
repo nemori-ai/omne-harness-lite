@@ -1,3 +1,4 @@
+import { ownerSources } from './sources.ts'
 import { createCategoryRegistry } from '@omne-harness/assets'
 import { afterEach, expect, it } from 'vitest'
 const { openCatalogWorld } = (await import(
@@ -34,7 +35,7 @@ async function open() {
       scopeRef: target.scopeRef,
       assetRef: 'asset-1',
       selection: { kind: 'follow' },
-      sourceIds: ['tenant'],
+      sources: ownerSources('tenant'),
       grants: [{ sourceId: 'tenant', actions: ['set', 'clear', 'lock', 'unlock'] }],
     }),
   ).toMatchObject({ kind: 'committed' })
@@ -180,7 +181,7 @@ it('omits legitimately undeclared assets from management without denying unrelat
         holdingRef: 'plain',
         scopeRef: w.target.scopeRef,
         selection: { kind: 'follow' },
-        sourceIds: ['tenant'],
+        sources: ownerSources('tenant'),
         grants: [],
       }),
     ).toMatchObject({ kind: 'committed' })
@@ -202,4 +203,122 @@ it('omits legitimately undeclared assets from management without denying unrelat
   } finally {
     await owner.close()
   }
+})
+
+it('shows disabled asset settings through the public catalog but refuses runtime selection', async () => {
+  const w = await open()
+  opened.push(w)
+  const selected = await w.selections.select(w.principal, [w.target])
+  if (selected.kind !== 'selected') throw new Error('selection failed')
+  const runtime = {
+    ...w.view,
+    mode: 'runtime' as const,
+    targets: [w.target],
+    selectionRef: selected.selectionRef,
+  }
+  expect(
+    await w.assets.changeHolding({
+      operationId: 'disable',
+      holdingRef: w.target.targetRef,
+      scopeRef: w.target.scopeRef,
+      expectedRevision: 1,
+      change: { kind: 'setEnabled', enabled: false },
+    }),
+  ).toMatchObject({ kind: 'committed', revision: 2 })
+  const command = {
+    ...w.change,
+    operationId: 'configure-disabled',
+    target: w.target,
+    definitionRef: definitionRef(),
+  }
+  expect(await w.service.commands.change(w.principal, command)).toMatchObject({ kind: 'committed' })
+  const page = await w.service.queries.readCatalog(w.principal, {
+    view: { ...w.view, targets: [w.target] },
+    filter: '',
+    locale: 'en',
+    pageSize: 10,
+    cursor: null,
+  })
+  expect(page).toMatchObject({
+    kind: 'catalog',
+    entries: [{ target: w.target, targetEnabled: false, revision: 1 }],
+  })
+  expect(await w.service.queries.evaluate(w.principal, runtime)).toEqual({
+    kind: 'rejected',
+    reason: 'forbidden',
+  })
+  expect(
+    await w.assets.changeHolding({
+      operationId: 'enable',
+      holdingRef: w.target.targetRef,
+      scopeRef: w.target.scopeRef,
+      expectedRevision: 2,
+      change: { kind: 'setEnabled', enabled: true },
+    }),
+  ).toMatchObject({ kind: 'committed', revision: 3 })
+  expect(await w.service.queries.evaluate(w.principal, runtime)).toMatchObject({
+    kind: 'complete',
+    entries: [{ target: w.target, targetEnabled: true, revision: 1 }],
+  })
+})
+
+it('blocks old assignments when the same asset source id belongs to a different owner', async () => {
+  const w = await open()
+  opened.push(w)
+  const change = { ...w.change, target: w.target, definitionRef: definitionRef() }
+  expect(await w.service.commands.change(w.principal, change)).toMatchObject({
+    kind: 'committed',
+    revision: 1,
+  })
+  const sources = ownerSources('tenant').map(source => ({
+    ...source,
+    ownerRef: 'replacement-owner',
+  }))
+  expect(
+    await w.assets.changeHolding({
+      operationId: 'replace-source-owner',
+      holdingRef: w.target.targetRef,
+      scopeRef: w.target.scopeRef,
+      expectedRevision: 1,
+      change: {
+        kind: 'updateSources',
+        sources,
+        grants: [{ sourceId: 'tenant', actions: ['set', 'clear'] }],
+      },
+    }),
+  ).toMatchObject({ kind: 'committed', revision: 2 })
+  const view = { ...w.view, targets: [w.target] }
+  expect(await w.service.queries.evaluate(w.principal, view)).toEqual({
+    kind: 'rejected',
+    reason: 'basis_changed',
+  })
+  expect(
+    await w.service.commands.change(w.principal, {
+      ...change,
+      operationId: 'late-write',
+      expectedRevision: 1,
+    }),
+  ).toEqual({ kind: 'rejected', reason: 'basis_changed' })
+  const rebase = {
+    protocol: 'settings-rebase/1' as const,
+    requestId: 'rebase',
+    operationId: 'rebase',
+    target: w.target,
+    from: change.definitionRef,
+    to: change.definitionRef,
+    expectedRevision: 1,
+    assignments: [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'retain' as const }],
+  }
+  expect(await w.maintenance.rebase(rebase)).toEqual({ kind: 'rejected', reason: 'incompatible' })
+  expect(
+    await w.maintenance.rebase({
+      ...rebase,
+      operationId: 'discard',
+      assignments: [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'discard' }],
+    }),
+  ).toMatchObject({ kind: 'committed', revision: 2 })
+  expect(await w.service.queries.evaluate(w.principal, view)).toMatchObject({
+    kind: 'complete',
+    entries: [{ sources, resolution: { value: { value: false } } }],
+  })
 })

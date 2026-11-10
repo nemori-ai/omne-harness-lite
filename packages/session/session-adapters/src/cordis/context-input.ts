@@ -18,8 +18,9 @@
 // The plugin keeps no business fact, and the translation keeps no state: the end of a scope (SE27)
 // does not name its tenant, and the holder hands in the tenant of the session it reads.
 import { createHash } from 'node:crypto'
+import { isDeepStrictEqual } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
-import type { JsonEntry, JsonValue } from '@omne-harness/json-text'
+import { writeJsonText, type JsonEntry, type JsonValue } from '@omne-harness/json-text'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -64,17 +65,17 @@ const PARTICIPANT = 'context-input'
 /** The owner named in `unavailable` when the adopted definitions cannot answer. */
 const DEFINITIONS_OWNER = 'context-definitions'
 
-function protocol(name: string): Adoption {
+function protocol(name: string, revision = '1'): Adoption {
   return Object.freeze({
     owner: OWNER,
     name,
-    revision: '1',
-    digest: `sha256:${createHash('sha256').update(`${OWNER}/${name}/1`).digest('hex')}`,
+    revision,
+    digest: `sha256:${createHash('sha256').update(`${OWNER}/${name}/${revision}`).digest('hex')}`,
   })
 }
 
 /** The schema of every `ContextMaterial` this protocol writes. */
-export const SESSION_CONTEXT_MATERIAL: Adoption = protocol('session-context-material')
+export const SESSION_CONTEXT_MATERIAL: Adoption = protocol('session-context-material', '2')
 /** The protocol of the guard material that the plugin hands to Session. */
 export const SESSION_CONTEXT_INPUT: Adoption = protocol('session-context-input')
 
@@ -310,15 +311,28 @@ function sameAdoption(left: Adoption, right: Adoption): boolean {
 }
 
 function material(value: unknown): ContextMaterial {
-  return { schema: SESSION_CONTEXT_MATERIAL, value: toTree(value, 'material') }
+  return {
+    schema: SESSION_CONTEXT_MATERIAL,
+    value: { kind: 'string', value: writeJsonText(toTree(value, 'material')) },
+  }
 }
 
 /** The plain value of one material of this protocol. */
 function materialValue(value: unknown, path: string): unknown {
   const fields = closed(value, ['schema', 'value'], path)
   if (!sameAdoption(adoptionOf(fields['schema'], `${path}.schema`), SESSION_CONTEXT_MATERIAL))
-    throw new Malformed(`${path}: the schema is not ${SESSION_CONTEXT_MATERIAL.name}/1`)
-  return fromTree(fields['value'], `${path}.value`)
+    throw new Malformed(`${path}: the schema is not ${SESSION_CONTEXT_MATERIAL.name}/2`)
+  const encoded = fromTree(fields['value'], `${path}.value`)
+  if (typeof encoded !== 'string') throw new Malformed(`${path}: the material is not JSON text`)
+  let decoded: unknown
+  try {
+    decoded = JSON.parse(encoded)
+  } catch {
+    throw new Malformed(`${path}: invalid JSON text`)
+  }
+  if (writeJsonText(toTree(decoded, path)) !== encoded)
+    throw new Malformed(`${path}: noncanonical JSON text`)
+  return decoded
 }
 
 /**
@@ -954,7 +968,20 @@ function sameChange(left: RegistrationChange, right: RegistrationChange): boolea
     left.basedOn === right.basedOn &&
     left.creating === right.creating &&
     left.scope.ref === right.scope.ref &&
-    tenantEquals(left.tenant, right.tenant)
+    tenantEquals(left.tenant, right.tenant) &&
+    sameChangeBody(left, right)
+  )
+}
+
+function sameChangeBody(left: RegistrationChange, right: RegistrationChange): boolean {
+  if (left.kind === 'remove' || right.kind === 'remove') return left.kind === right.kind
+  if (!isDeepStrictEqual(left.parameters, right.parameters)) return false
+  if (!isDeepStrictEqual(left.bindings, right.bindings)) return false
+  return (
+    left.kind !== 'add' ||
+    (right.kind === 'add' &&
+      left.required === right.required &&
+      left.declaration === right.declaration)
   )
 }
 

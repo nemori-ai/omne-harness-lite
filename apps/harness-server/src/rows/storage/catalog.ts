@@ -15,7 +15,7 @@ import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
  */
 export const DISTRIBUTION_SESSION_READ_OUTPUT_LIMIT_BYTES = 20971520
 
-/** 读一次材料文件，返回带摘要的目录。 */
+/** 核心材料目录；默认 storageHost 在 productionStorageCatalog 中合入治理材料。 */
 export function storageCatalog(): SqlMaterialCatalog {
   const owners = [
     sessionStorageMaterials({

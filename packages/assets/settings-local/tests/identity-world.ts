@@ -33,6 +33,7 @@ function duration(text: string) {
 }
 export async function openIdentityWorld(
   options: {
+    sourceCapture?: boolean
     wrapSettings?: (storage: SqlStorage) => SqlStorage
     authority?: NonNullable<Parameters<typeof openWorld>[0]>['authority']
   } = {},
@@ -60,6 +61,7 @@ export async function openIdentityWorld(
     principalRef = standingPrincipalRef(principal)
   const target = { policyId: 'independent', targetRef: 'preferences', scopeRef }
   const world = await openWorld({
+    sourceCapture: options.sourceCapture ?? false,
     ...(options.authority ? { authority: options.authority } : {}),
     scopeRef,
     target,
@@ -100,7 +102,7 @@ export async function openIdentityWorld(
     combinationVersion: world.combination.combinationVersion,
     manifestDigest: world.combination.manifestDigest,
   }
-  const actualResolver = createSettingsStandingDestination({ ...terminalOptions, destination })
+  let actualResolver = createSettingsStandingDestination({ ...terminalOptions, destination })
   let available = true
   const resolver: StandingDestinationResolver = {
     seal: r =>
@@ -110,7 +112,7 @@ export async function openIdentityWorld(
   }
   const accounts = [ada, bob],
     organizations = [personalA, personalB, team]
-  const identity = createIdentitySql({
+  const identityOptions: Parameters<typeof createIdentitySql>[0] = {
     storage: world.storage,
     clock: clock.clock,
     terms: terms.source,
@@ -132,7 +134,8 @@ export async function openIdentityWorld(
       },
       login: ids.login,
     },
-  })
+  }
+  const identity = createIdentitySql(identityOptions)
   const regA = await identity.operations.registerAndActivate({
     loginIdentifier: 'ada',
     credential: 'ada-secret',
@@ -164,6 +167,12 @@ export async function openIdentityWorld(
     governanceModelId: 'default-team',
   })
   if (organization.kind !== 'succeeded') throw new Error('identity fixture team')
+  const admin = authority.issuer.issueActingForTenant({
+    actor: actor.ok,
+    tenant: organization.tenant,
+    work: { owner: 'settings', work: 'organization-config' },
+  })
+  if (!('ok' in admin)) throw new Error('fixture administrator')
   await identity.governance.switchCurrentTenant({
     login: loginA.login,
     actingTenant: regA.tenant,
@@ -232,13 +241,36 @@ export async function openIdentityWorld(
     identity,
     backend,
     principal,
+    administrator: admin.ok,
     change,
     binding,
     loginA,
     clock,
     terminal: createSettingsSqlTerminals(terminalOptions),
+    setResolver(value: StandingDestinationResolver) {
+      actualResolver = value
+    },
     setAvailable(value: boolean) {
       available = value
+    },
+    async demoteAdministrator() {
+      const promoted = await identity.governance.changeMemberRole({
+        login: loginA.login,
+        actingTenant: organization.tenant,
+        organization: team,
+        account: bob,
+        expectedRole: 'member',
+        targetRole: 'super-admin',
+      })
+      if (promoted.kind !== 'succeeded') return promoted
+      return identity.governance.changeMemberRole({
+        login: loginA.login,
+        actingTenant: organization.tenant,
+        organization: team,
+        account: ada,
+        expectedRole: 'super-admin',
+        targetRole: 'member',
+      })
     },
     remove: () =>
       identity.governance.removeMember({
@@ -248,6 +280,34 @@ export async function openIdentityWorld(
         account: bob,
         expectedRole: 'member',
       }),
+    async remount() {
+      await backend.close()
+      identity.stop()
+      await world.close()
+      const reopened = await openWorld({
+        root: world.root,
+        scopeRef,
+        target,
+        principalRef,
+        sourceCapture: options.sourceCapture ?? false,
+        extraMaterials: identitySqlMaterials(),
+        ...(options.authority ? { authority: options.authority } : {}),
+      })
+      const registered = await reopened.storage.registerCombination(identitySqlRegistration())
+      if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
+      const mounted = createIdentitySql({
+        ...identityOptions,
+        storage: reopened.storage,
+        principalVerifier: inProcessPrincipalAuthority().verifier,
+      })
+      return {
+        identity: mounted,
+        async close() {
+          mounted.stop()
+          await reopened.close()
+        },
+      }
+    },
     async close() {
       await backend.close()
       identity.stop()

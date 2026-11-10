@@ -8,7 +8,10 @@ import {
   SessionService,
   sessionTransactionsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
-import { installToolTargetPolicy } from '../../../src/rows/authorization/tool-target-policy.ts'
+import {
+  installToolTargetPolicy,
+  type ToolTargetPolicy,
+} from '../../../src/rows/authorization/tool-target-policy.ts'
 import type { EntryObjectModule } from '../../../src/types.ts'
 
 class SessionReading extends SessionService<unknown> {
@@ -64,12 +67,20 @@ class Adoptions extends AgentAdoptionsService<unknown> {
   }
 }
 
-export const compositionAuthority: EntryObjectModule = {
-  name: 'composition-authority-fixture',
-  implementation: 'contract-double',
-  install(ctx: Context) {
-    new SessionReading(ctx)
-    new Adoptions(ctx)
-    installToolTargetPolicy(ctx, { qualify: async () => ({ kind: 'allowed' }) })
-  },
+export function compositionAuthorityWithPolicy(
+  policy: (ctx: Context, env: Parameters<EntryObjectModule['install']>[1]) => ToolTargetPolicy,
+): EntryObjectModule {
+  return {
+    name: 'composition-authority-fixture',
+    implementation: 'contract-double',
+    install(ctx: Context, env) {
+      new SessionReading(ctx)
+      new Adoptions(ctx)
+      installToolTargetPolicy(ctx, policy(ctx, env))
+    },
+  }
 }
+
+export const compositionAuthority = compositionAuthorityWithPolicy(() => ({
+  qualify: async () => ({ kind: 'allowed' }),
+}))

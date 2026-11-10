@@ -6,6 +6,7 @@
     "identity",
     "authorization",
     "session-storage",
+    "governance",
     "session-provider",
     "session-ad02",
     "session-ad03",
@@ -67,7 +68,27 @@
       "names": [
         "storage",
         "tenantStanding",
-        "identityGovernance"
+        "identityGovernance",
+        "standingReservations",
+        "standingDestinationResolver",
+        "principalVerifier"
+      ]
+    },
+    {
+      "row": "governance",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "principalVerifier",
+        "identityGovernance",
+        "tenantStanding",
+        "standingReservations",
+        "governanceDirectoryPrincipals",
+        "governanceInstallationPrincipals",
+        "sessionPermissionBackend",
+        "standingDestinationResolver",
+        "toolInvocationQualification",
+        "currentToolPermission"
       ]
     },
     {
@@ -75,7 +96,10 @@
       "names": [
         "principalVerifier",
         "tenantStanding",
-        "systemActionAuthorization"
+        "identityGovernance",
+        "systemActionAuthorization",
+        "currentToolPermission",
+        "sessionModesInstallation"
       ]
     },
     {
@@ -85,7 +109,8 @@
         "tenantDomainLookup",
         "sessionPrincipalBindings",
         "sessionDelegatedTransactions",
-        "systemActionAuthorization"
+        "systemActionAuthorization",
+        "sessionPermissionBackend"
       ]
     },
     {
@@ -107,8 +132,14 @@
       "row": "session-ad03",
       "names": [
         "sessionWorkPrincipals",
+        "sessionModesPrincipals",
+        "principalVerifier",
         "sessionReplayFacts",
-        "sessionScopeLookup"
+        "sessionScopeLookup",
+        "storage",
+        "tenantDomainLookup",
+        "sessionModesInstallation",
+        "definitionMappings"
       ]
     },
     {
@@ -202,7 +233,8 @@
       "row": "tool-records",
       "names": [
         "storage",
-        "tenantDomainLookup"
+        "tenantDomainLookup",
+        "toolInvocationQualification"
       ]
     },
     {
@@ -221,7 +253,9 @@
     {
       "row": "adoption-sources",
       "names": [
-        "definitionMappings"
+        "definitionMappings",
+        "sessionModesInstallation",
+        "sessionWorkPrincipals"
       ]
     },
     {

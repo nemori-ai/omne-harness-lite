@@ -1,44 +1,16 @@
-import { defineSettings, evaluateSettings } from '@omne-harness/settings'
+import { readProjectedSettingsState } from './projected-state.ts'
+import { defineSettings } from '@omne-harness/settings'
 import type { SettingsBasis, SettingsTargetView, SettingsFailure } from '@omne-harness/settings'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { targetViews } from './target-guard.ts'
 import { canonical, digest, equal, json, withinBudget } from './encoding.ts'
-import { readStateRecord } from './records.ts'
-import { TERMINAL_FACT } from './terminal-schema.ts'
+import { CATALOG_TERMINAL_FACT } from './catalog-terminal-schema.ts'
 import {
   SNAPSHOT_PARTICIPANT,
   SNAPSHOT_PROTOCOL,
   SnapshotInputSchema,
   snapshotOperation,
 } from './snapshot-schema.ts'
-function projectedState(
-  port: ParticipantPort,
-  input: ReturnType<typeof SnapshotInputSchema.parse>,
-  projection: ReturnType<typeof targetViews>[number],
-): SettingsTargetView | SettingsFailure {
-  const { target, definition, definitionRef, grants, sourceIds } = projection
-  const fail = (reason: SettingsFailure['reason']): SettingsFailure => ({
-    kind: 'rejected',
-    reason,
-  })
-  const current = readStateRecord(port, input.binding.domain.scope, target)
-  if (
-    current &&
-    (!equal(current.definitionRef, definitionRef) ||
-      !equal(
-        current.state.sources.map(source => source.id),
-        sourceIds,
-      ))
-  )
-    return fail('definition_changed')
-  const state = current?.state ?? {
-    revision: 0,
-    sources: sourceIds.map(id => ({ id, values: [] })),
-  }
-  if (evaluateSettings({ definition, sources: state.sources }).kind !== 'complete')
-    return fail('incompatible')
-  return { target, definition, definitionRef, grants, state }
-}
 function captureValues(
   port: ParticipantPort,
   input: ReturnType<typeof SnapshotInputSchema.parse>,
@@ -60,9 +32,9 @@ function captureValues(
       unavailableProviders.push(definitionRef.providerId)
       continue
     }
-    const value = projectedState(port, input, projection)
+    const value = readProjectedSettingsState(port, input.binding.domain.scope, projection)
     if ('kind' in value) return value
-    views.push(value)
+    views.push(value.view)
   }
   if (input.binding.request.mode === 'runtime' && unavailableProviders.length)
     return rejected('unavailable')
@@ -99,7 +71,7 @@ export default {
     try {
       const input = SnapshotInputSchema.parse(facts['input'])
       const operation = snapshotOperation(input)
-      if (!equal(port.requireFact(TERMINAL_FACT), { binding: operation, kind: 'consume' }))
+      if (!equal(port.requireFact(CATALOG_TERMINAL_FACT), { binding: operation, kind: 'consume' }))
         return fail('forbidden')
       const projected = targetViews(port, input.binding)
       if (

@@ -29,7 +29,12 @@ import type {
   SqlIdentity,
 } from '@omne-harness/sql-contract'
 import { encodeInstant } from '@omne-harness/utc-instant'
-import { operationKey, sha256Hex } from './identifiers.ts'
+import { operationKey } from './identifiers.ts'
+import {
+  requestReservation,
+  reservationOperationRef,
+  reservationTenant,
+} from './standing-request.ts'
 import { IDENTITY_DOMAIN, IDENTITY_SCOPE } from './materials.ts'
 import {
   IdentitySqlResultUnknown,
@@ -186,7 +191,7 @@ async function reservationPrincipal(
 const terminal = (
   reservation: StandingReservation,
   outcome: unknown,
-): Exclude<StandingSettleOutcome, { kind: 'not-found' }> =>
+): Exclude<StandingSettleOutcome, { kind: 'operation-conflict' }> =>
   outcome === 'committed' || outcome === 'aborted'
     ? { kind: 'terminal', reservation, outcome }
     : { kind: 'unavailable', diagnostic: 'terminal-malformed' }
@@ -278,24 +283,83 @@ export function coordinationOver(core: Core) {
     return { kind: 'terminal', outcome: proof['outcome'] }
   }
 
-  const settle: StandingReservations['settle'] = async id => {
-    if (core.stopped()) return { kind: 'unavailable', diagnostic: 'provider-stopped' }
-    if (typeof id !== 'string' || id.length > 128) return { kind: 'not-found' }
-    const found = await read({ query: 'reservation', id })
-    if (found === undefined) return { kind: 'unavailable', diagnostic: 'reservation-unavailable' }
-    if (found['row'] === null) return { kind: 'not-found' }
-    if (!record(found['row'])) return { kind: 'unavailable', diagnostic: 'reservation-malformed' }
+  const settlementRecord = async (reservation: StandingReservation) => {
+    const found = await read({
+      query: 'reservation-operation',
+      operationRef: reservationOperationRef(reservation),
+    })
+    if (found === undefined)
+      return { kind: 'unavailable', diagnostic: 'reservation-unavailable' } as const
+    if (found['row'] === null) return { kind: 'absent' } as const
+    if (!record(found['row']))
+      return { kind: 'unavailable', diagnostic: 'reservation-malformed' } as const
     const saved = found['row']
-    const reservation = reservationOf(saved)
-    if (reservation === undefined)
-      return { kind: 'unavailable', diagnostic: 'reservation-malformed' }
-    if (saved['state'] === 'settled') return terminal(reservation, saved['terminal'])
+    const original = reservationOf(saved)
+    if (original === undefined)
+      return { kind: 'unavailable', diagnostic: 'reservation-malformed' } as const
+    if (
+      original.id !== reservation.id ||
+      !isDeepStrictEqual(original.binding, reservation.binding) ||
+      !isDeepStrictEqual([...new Set(original.required)].sort(), reservation.required)
+    )
+      return { kind: 'operation-conflict' } as const
+    if (saved['state'] === 'settled') return terminal(original, saved['terminal'])
+    return saved['state'] === 'held'
+      ? ({ kind: 'held' } as const)
+      : ({ kind: 'unavailable', diagnostic: 'reservation-malformed' } as const)
+  }
+
+  async function settlementProof(
+    reservation: StandingReservation,
+  ): Promise<
+    StandingSettleOutcome | Readonly<{ kind: 'ready'; outcome: 'aborted' | 'committed' }>
+  > {
+    const found = await settlementRecord(reservation)
+    if (found.kind !== 'absent' && found.kind !== 'held') return found
     const proof = await sealReservation(reservation)
     if (proof.kind !== 'terminal') return proof
+    if (found.kind === 'absent' && proof.outcome === 'committed') {
+      const current = await settlementRecord(reservation)
+      if (current.kind === 'absent')
+        return { kind: 'unavailable', diagnostic: 'committed-reservation-missing' }
+      if (current.kind !== 'held') return current
+    }
+    return { kind: 'ready', outcome: proof.outcome } as const
+  }
+
+  const observe: StandingReservations['observe'] = async request => {
+    if (core.stopped()) return { kind: 'unavailable', diagnostic: 'provider-stopped' }
+    const reservation = requestReservation(request)
+    if (reservation === undefined) return { kind: 'unavailable', diagnostic: 'request-invalid' }
+    if (reservationTenant(reservation) === undefined)
+      return { kind: 'unavailable', diagnostic: 'request-tenant-invalid' }
+    const found = await settlementRecord(reservation)
+    if (found.kind === 'absent') return { kind: 'not_found' }
+    if (found.kind === 'held') return { kind: 'held', reservation }
+    return found
+  }
+
+  const settle: StandingReservations['settle'] = async request => {
+    if (core.stopped()) return { kind: 'unavailable', diagnostic: 'provider-stopped' }
+    const reservation = requestReservation(request)
+    if (reservation === undefined) return { kind: 'unavailable', diagnostic: 'request-invalid' }
+    const tenant = reservationTenant(reservation)
+    if (tenant === undefined) return { kind: 'unavailable', diagnostic: 'request-tenant-invalid' }
+    const proof = await settlementProof(reservation)
+    if (proof.kind !== 'ready') return proof
     const result = await run(
-      { kind: 'standing-finish', id, ...serialized(reservation), terminal: proof['outcome'] },
-      `${id}/finish`,
+      {
+        kind: 'standing-settle-request',
+        id: reservation.id,
+        operationRef: reservationOperationRef(reservation),
+        ...serialized(reservation),
+        organization: tenant.organization.text,
+        account: tenant.account.text,
+        terminal: proof.outcome,
+      },
+      `${reservation.id}/settle-request/1`,
     )
+    if (result?.outcome === 'operation-conflict') return { kind: 'operation-conflict' }
     return result?.outcome === 'settled'
       ? terminal(reservation, result['terminal'])
       : { kind: 'unavailable', diagnostic: 'settlement-unknown' }
@@ -334,15 +398,7 @@ export function coordinationOver(core: Core) {
     const result = await run({
       kind: 'standing-reserve',
       id: reservation.id,
-      operationRef: sha256Hex(
-        JSON.stringify([
-          binding.owner,
-          binding.scopeRef,
-          binding.targetRef,
-          binding.principalRef,
-          binding.operationId,
-        ]),
-      ),
+      operationRef: reservationOperationRef(reservation),
       ...serialized(reservation),
       roleModel: DEFAULT_TEAM_ROLE_MAPPING.model.model,
       roleModelRevision: DEFAULT_TEAM_ROLE_MAPPING.model.revision,
@@ -372,10 +428,11 @@ export function coordinationOver(core: Core) {
     let settled = 0
     let next: string | null = null
     for (const candidate of found['rows']) {
-      if (!record(candidate) || !isText(candidate['reservation_id']))
+      const reservation = record(candidate) ? reservationOf(candidate) : undefined
+      if (reservation === undefined)
         return { kind: 'unavailable', diagnostic: 'reservation-malformed' }
-      next = candidate['reservation_id']
-      if ((await settle(next)).kind === 'terminal') settled += 1
+      next = reservation.id
+      if ((await settle(reservation)).kind === 'terminal') settled += 1
     }
     return {
       kind: 'recovered',
@@ -395,12 +452,8 @@ export function coordinationOver(core: Core) {
     })
     if (pending === undefined || !Array.isArray(pending['rows'])) return false
     for (const candidate of pending['rows']) {
-      if (
-        !record(candidate) ||
-        !isText(candidate['reservation_id']) ||
-        (await settle(candidate['reservation_id'])).kind !== 'terminal'
-      )
-        return false
+      const reservation = record(candidate) ? reservationOf(candidate) : undefined
+      if (reservation === undefined || (await settle(reservation)).kind !== 'terminal') return false
     }
     return true
   }
@@ -533,6 +586,7 @@ export function coordinationOver(core: Core) {
 
   return {
     reservations: Object.freeze({
+      observe,
       reserve,
       settle,
       recover: recoverReservations,

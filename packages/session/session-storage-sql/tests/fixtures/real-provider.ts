@@ -1,3 +1,4 @@
+import { SESSION_LOG_PARTICIPANTS } from '../../src/participants.ts'
 // A composition of the Session storage over the real sqlite-provider: real files in a temporary
 // directory, a real write Worker per transaction domain and the real read Worker pool. It builds
 // the storage only through the public entry of `@omne-harness/sqlite-provider`; there is no
@@ -126,7 +127,10 @@ export function realConfig(storageRoot: string): SqliteStorageConfig {
   }
 }
 
-function catalogOf(readOutputLimitBytes: number): { catalog: SqlMaterialCatalog; digest: string } {
+function catalogOf(
+  readOutputLimitBytes: number,
+  participants: readonly string[],
+): { catalog: SqlMaterialCatalog; digest: string } {
   const materials = sessionStorageMaterials({ readOutputLimitBytes })
   const catalog: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
@@ -134,11 +138,11 @@ function catalogOf(readOutputLimitBytes: number): { catalog: SqlMaterialCatalog;
     migrations: materials.migrations,
     readHandlers: materials.readHandlers,
     declaredCombinations: {
-      tenant: { combinationVersion: COMBINATION, participants: ['execution-record', 'session'] },
+      tenant: { combinationVersion: COMBINATION, participants },
       system: null,
     },
   }
-  const manifest = combinationManifest({ catalog, participants: ['execution-record', 'session'] })
+  const manifest = combinationManifest({ catalog, participants })
   if (manifest.kind !== 'manifest') throw new Error(`combination is ${manifest.kind}`)
   return { catalog, digest: manifestDigest(manifest.manifest) }
 }
@@ -164,12 +168,13 @@ export const identityOf = (
   domain: string,
   operation: string,
   attempt = 1,
+  session = 'session-1',
 ): SqlIdentity => ({
   scope: { kind: 'tenant', tenant: textOf(tenant) },
   transactionDomain: domain,
   operation,
   protocolVersion: '2',
-  operationKey: `${operation}#${String(attempt)}`,
+  operationKey: JSON.stringify([session, operation, attempt]),
 })
 
 export type WalSample = Readonly<{ commits: number; generation: string }>
@@ -204,15 +209,19 @@ export type RealAppOptions = Readonly<{
   config?: Partial<SqliteStorageConfig>
   tenants?: readonly TenantId[]
   /** The read output limit given to the materials; 20 MiB without it. */
+  intakeLimits?: import('@omne-harness/session-contract').SessionIntakeLimits
   readOutputLimitBytes?: number
+  participants?: readonly string[]
 }>
 
 export async function openRealApp(options: RealAppOptions = {}) {
   const owned = options.root === undefined
   const root = options.root ?? (await realpath(await mkdtemp(join(tmpdir(), 'session-real-'))))
   const storageRoot = join(root, 'storage')
+  const participants = options.participants ?? SESSION_LOG_PARTICIPANTS
   const { catalog, digest } = catalogOf(
     options.readOutputLimitBytes ?? FIXTURE_READ_OUTPUT_LIMIT_BYTES,
+    participants,
   )
   const events: string[] = []
   const closeLeases: CloseLeasePort = {
@@ -272,7 +281,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
       transactionDomain: entry.domain.transactionDomain,
       combinationVersion: COMBINATION,
       manifestDigest: digest,
-      participants: ['execution-record', 'session'],
+      participants,
     })
     if (registered.kind !== 'registered')
       throw new Error(
@@ -285,6 +294,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
     evidence: evidence(`access/${request.operation}`),
   }))
   const storageOptions = {
+    ...(options.intakeLimits === undefined ? {} : { intakeLimits: options.intakeLimits }),
     storage,
     domains,
     accessCheck,

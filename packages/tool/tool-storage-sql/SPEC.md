@@ -98,7 +98,17 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ### TS-10 材料
 
-`toolStorageMaterials()` 返回一个参加者 `tool`、一条迁移 `tool/001-tool-ledger-custody` 与三个读 handler。参加者拥有全部 `tl_` 表，不读其他参加者的表，不需要也不提供事实，声明为 `singleton`。每个模块以构建固定的 `file:` URL 与文件字节的 SHA-256 描述。handler 的 `maxOutputBytes` 为 4194304，等于提供者 `maxReadResultBytes` 的初值。
+`toolStorageMaterials()` 返回写参加者 `tool`、可选只读参加者 `tool-record-current`、一条迁移 `tool/001-tool-ledger-custody` 与三个读 handler。`tool` 拥有全部 `tl_` 表，不读其他参加者的表，不需要也不提供事实，声明为 `singleton`。`tool-record-current` 的采用条件归 TS-12；仅列入材料目录不代表应用已采用。每个模块以构建固定的 `file:` URL 与文件字节的 SHA-256 描述。handler 的 `maxOutputBytes` 为 4194304，等于提供者 `maxReadResultBytes` 的初值。
+
+### TS-12 原记录的同事务核回
+
+`toolRecordCurrentFacts` 把 Tool 原拥有者资格读取所得观察转换成只读 guard 命令。输入是一租户的一至三条原记录地址及完整记录的 `canonicalDigest`。来源资格、主体核验及所需记录集合由 Tool host 拥有，调用者不能用自报摘要代替原资格读取。精确形状见 [record-current.ts](src/record-current.ts)。
+
+参加者 `tool-record-current` 只读 `tl_record`，不拥有表、不改变原记录。它按完整主键 `(tenant, kind, name, key)` 点读。记录缺失或摘要不同答 `conflict`，整次 SQL 操作回滚；空集合、重复地址、非 host/call 地址、非法摘要和未知字段答 `unsupported`。全部相等才提供 `tool.records-current/1`，payload 是完整输入依据。调用方必须在同一操作中消费此 fact，并逐项核对依据，不得只检查 fact 存在。
+
+来源绑定在首次 call 创建前即可核回。无关记录的增加不使观察失效。相等是当前内容相等，不承诺识别删除后恢复相同内容的历史过程。SQL 操作回执只能认回原提交结果，不能充当新的 current 检查。新检查使用新的 operationKey。
+
+装配必须保证本批 `tool` 写先于 guard，guard 先于声明依赖此 fact 的消费者；现有 SQL 组合的参加者顺序与事实依赖承载该顺序。没有该顺序时不能声明提交时核回保证。原主体、Identity 撤权、外部运行资格由各自拥有者核回。本材料不授予这些资格，也不单独证明完整权限捕获已接通。条件证明见 [record-current.md](verification/proofs/record-current.md)。
 
 ### TS-11 带原调用条件的 host 提交
 

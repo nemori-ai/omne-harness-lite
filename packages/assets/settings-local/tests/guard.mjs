@@ -40,10 +40,10 @@ export default {
       definition: authority.definition,
       definitionRef: authority.definitionRef,
       grants: authority.grants,
-      sourceIds: authority.sourceIds,
+      sources: authority.sources,
     }
     if (authority.mode === 'misbound') fact.binding = { ...binding, commandDigest: '0'.repeat(64) }
-    if (authority.mode === 'layout') fact.sourceIds = [...fact.sourceIds].reverse()
+    if (authority.mode === 'layout') fact.sources = [...fact.sources].reverse()
     if (authority.mode === 'definition')
       fact.definitionRef = { ...fact.definitionRef, digest: '0'.repeat(64) }
     if (authority.mode === 'no-grants') fact.grants = []

@@ -46,7 +46,10 @@ const sha256 = (url: string) =>
 
 describe('the materials of the Tool storage', () => {
   it('describe one participant `tool` that owns only `tl_` tables', () => {
-    expect(materials.participants.map(item => item.participant)).toEqual([TOOL_PARTICIPANT])
+    expect(materials.participants.map(item => item.participant)).toEqual([
+      TOOL_PARTICIPANT,
+      'tool-record-current',
+    ])
     expect(TOOL_PARTICIPANT).toBe('tool')
     const [participant] = materials.participants
     expect(participant?.ownedTables.length).toBeGreaterThan(0)
@@ -59,7 +62,7 @@ describe('the materials of the Tool storage', () => {
       ...materials.migrations.map(item => [item.moduleUrl, item.checksum] as const),
       ...materials.readHandlers.map(item => [item.moduleUrl, item.codeDigest] as const),
     ]
-    expect(modules.length).toBe(5)
+    expect(modules.length).toBe(6)
     for (const [url, digest] of modules) {
       expect(url.startsWith('file:')).toBe(true)
       expect(sha256(url)).toBe(digest)

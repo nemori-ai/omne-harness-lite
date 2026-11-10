@@ -1,3 +1,13 @@
+import { readPublishedInquiry } from '../../../src/rows/authorization/published-inquiry.ts'
+import '../../../src/rows/session-ad03/modes.ts'
+import { modesInitialization } from '../../../src/assembly/session-modes-initialization.ts'
+import { sessionAd03Row } from '../../../src/rows/session-ad03/index.ts'
+import { sessionModesPrincipals } from '../../../src/entry/session-modes-principals.ts'
+import { sessionModesIssuerOf, sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
+import { scopedRuntimeContextTrust } from '../../../src/entry/execution-wiring.ts'
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
+import { contextScopeOf } from '@omne-harness/session-contract'
+import { sessionInquiryBinding } from '@omne-harness/session-adapters/cordis'
 // @module-tag slow
 // R2-D7: the first `create` of a tenant over the release rows of the Session path. Real rows:
 // `storage`, `session-storage`, `agent-adoptions` (the mapping of `config/serve.distribution.json`),
@@ -15,7 +25,7 @@
 // Without the Tool rows the creation fails closed and creates nothing.
 // Slow: a real SQLite tree per case.
 import { readFileSync } from 'node:fs'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { definitionResolverOf } from '@omne-harness/server-entry/cordis'
 import type {
@@ -119,7 +129,22 @@ afterEach(async () => {
 })
 
 /** `tools: 'release'` adds the real Tool rows and the release entry objects of the tool path. */
-async function start(base: Base, tools: 'none' | 'release' = 'none'): Promise<LoadedTree> {
+async function start(
+  base: Base,
+  tools: 'none' | 'release' = 'none',
+  modes = false,
+): Promise<
+  LoadedTree & {
+    modePrincipal: unknown
+    modeReader: unknown
+    storageProbe: () => Context['storage'] | undefined
+    modesProbe: () => Context['sessionModesInstallation'] | undefined
+  }
+> {
+  let modesProbe: () => Context['sessionModesInstallation'] | undefined = () => undefined
+  let modePrincipal: unknown
+  let modeReader: unknown
+  let storageProbe: () => Context['storage'] | undefined = () => undefined
   const release = tools === 'release'
   const local = localOperatorLayer({
     distribution: releaseDistribution,
@@ -153,6 +178,7 @@ async function start(base: Base, tools: 'none' | 'release' = 'none'): Promise<Lo
       declared(sessionAd10Row),
       declared(runtimeContextRow),
       declared(sessionAd12Row),
+      ...(modes ? [declared(sessionAd03Row, { scopeIndexEntries: 100, pageBytes: 1048576 })] : []),
       declared(sessionProviderRealRow, { admission: 'none' }),
       ...(release
         ? [
@@ -165,7 +191,28 @@ async function start(base: Base, tools: 'none' | 'release' = 'none'): Promise<Lo
     entryObjects: [
       ...BASE_ENTRY_OBJECTS,
       sessionClock,
-      runtimeContextTrust,
+      modes ? scopedRuntimeContextTrust : runtimeContextTrust,
+      ...(modes
+        ? [
+            sessionModesPrincipals,
+            {
+              name: 'mode-test-access',
+              implementation: 'contract-double' as const,
+              install(_scope: Context, env: import('../../../src/types.ts').EntryEnv) {
+                storageProbe = () => env.readTrusted('storage').get('storage')
+                modesProbe = () =>
+                  env.readTrusted('sessionModesInstallation').get('sessionModesInstallation')
+                modePrincipal = sessionModesIssuerOf(env)(TENANT_A)
+                const issued = sessionWorkIssuerOf(env)({
+                  tenant: TENANT_A,
+                  session: 'session-modes-live',
+                })
+                if ('failure' in issued) throw new Error('mode reader fixture failed')
+                modeReader = issued.ok
+              },
+            },
+          ]
+        : []),
       sessionProductionSource,
       sessionCustodySource,
       ...(release
@@ -174,7 +221,7 @@ async function start(base: Base, tools: 'none' | 'release' = 'none'): Promise<Lo
     ],
   })
   live.push(() => tree.dispose())
-  return tree
+  return { ...tree, modePrincipal, modeReader, storageProbe, modesProbe }
 }
 
 function faces(tree: LoadedTree, caller: 'intake' | 'coordinator'): SessionService<unknown> {
@@ -396,3 +443,116 @@ describe('the first create of a tenant over the release rows of the Session path
     },
   )
 })
+
+it(
+  'persists initial modes, publishes through the real scope owner, and recalls after reopening SQLite',
+  { timeout: 90000 },
+  async () => {
+    const base = makeBase()
+    live.push(() => base.release())
+    const first = await start(base, 'none', true)
+    const makeInput = async (principal: unknown) => {
+      const input = {
+        principal,
+        tenant: TENANT_A,
+        session: sessionId('session-modes-live'),
+        operation: operationId('create-session-modes-live'),
+        creation: await releaseCreation('assistant'),
+      }
+      return {
+        ...input,
+        creation: { ...input.creation, initialization: modesInitialization(input).initialization },
+      }
+    }
+    const input = await makeInput(first.modePrincipal)
+    const storage = first.storageProbe()
+    if (storage === undefined) throw new Error('no storage')
+    const commits = vi.spyOn(storage, 'commit')
+    const created = await faces(first, 'intake').management.create(input)
+    // Measure the actual evidence-bridge composition, not only Session's inner command.
+    const depthOf = (value: unknown): number =>
+      value !== null && typeof value === 'object'
+        ? 1 + Math.max(0, ...Object.values(value).map(depthOf))
+        : 0
+    const storageRow = releaseDistribution.rows.find(row => row.id === 'storage')
+    if (storageRow === undefined) throw new Error('Release storage row absent')
+    const releaseLimit = (storageRow.config as { maxJsonDepth: number }).maxJsonDepth
+    for (const [request] of commits.mock.calls)
+      for (const command of request.commands)
+        expect(depthOf(command.facts)).toBeLessThan(releaseLimit)
+    if ('failure' in created) throw new Error(JSON.stringify(created.failure))
+    expect(created).toHaveProperty('ok')
+    const scope = decodeScopeRef({ ref: contextScopeOf({ ...input, generation: '1' }) })
+    if ('failure' in scope) throw new Error('bad scope')
+    const liveScope = scope.ok
+    async function read(tree: Awaited<ReturnType<typeof start>>) {
+      const modes = tree.modesProbe()
+      if (modes === undefined) throw new Error('mode installation unavailable')
+      expect(
+        await modes.recoverSession({
+          tenant: input.tenant,
+          session: input.session,
+          scope: liveScope,
+        }),
+      ).toEqual({ kind: 'ready' })
+      const issued = await tree.root.runtimeContextReaderEligibility.current({
+        tenant: TENANT_A,
+        scope: liveScope,
+        principal: tree.modeReader,
+        consumer: 'coordinator',
+      })
+      if (issued.kind !== 'current') throw new Error(JSON.stringify(issued))
+      expect(issued).toHaveProperty('kind', 'current')
+      const binding = await tree.root
+        .intercept('runtimeContext', { consumer: 'coordinator' })
+        .runtimeContext.bind(issued.eligibility)
+      if (binding.kind !== 'bound') throw new Error(JSON.stringify(binding))
+      expect(binding).toHaveProperty('kind', 'bound')
+      return binding.reader.read([
+        { need: sessionInquiryBinding.need.name, key: sessionInquiryBinding.key },
+      ])
+    }
+    const published = {
+      kind: 'success',
+      value: [
+        {
+          value: {
+            inquiry: { policy: { onAsk: 'deny' } },
+            basis: { session: input.session, permissionRevision: '0' },
+          },
+        },
+      ],
+    }
+    async function readForPermission(tree: Awaited<ReturnType<typeof start>>) {
+      const modes = tree.modesProbe()
+      if (modes === undefined) throw new Error('mode installation unavailable')
+      return readPublishedInquiry(
+        {
+          work: faces(tree, 'coordinator').work,
+          eligibility: tree.root.runtimeContextReaderEligibility,
+          runtime: tree.root.intercept('runtimeContext', { consumer: 'coordinator' })
+            .runtimeContext,
+          recoverSession: input => modes.recoverSession(input),
+        },
+        { principal: tree.modeReader, tenant: input.tenant, session: input.session },
+      )
+    }
+    const expectedInquiry = {
+      inquiry: { policy: { onAsk: 'deny' } },
+      basis: { session: input.session, permissionRevision: '0' },
+    }
+    expect(await readForPermission(first)).toMatchObject(expectedInquiry)
+    expect(await read(first)).toMatchObject(published)
+    const repeated = await faces(first, 'intake').management.create(input)
+    const recovered = { ok: { ...created.ok, receipt: { ...created.ok.receipt, recovered: true } } }
+    expect(repeated).toEqual(recovered)
+    await first.dispose()
+    const second = await start(base, 'none', true)
+    const restored = await faces(second, 'intake').management.create(
+      await makeInput(second.modePrincipal),
+    )
+    expect(restored).toEqual(recovered)
+    expect(await readForPermission(second)).toMatchObject(expectedInquiry)
+    expect(await read(second)).toMatchObject(published)
+  },
+)

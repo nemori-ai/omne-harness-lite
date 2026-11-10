@@ -24,6 +24,7 @@ import { definitionMappingsKey, definitionResolverOf } from '@omne-harness/serve
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
 import { toolRuntimeKey, type ToolRuntimeService } from '@omne-harness/tool-cordis-contract/cordis'
+import { modesInitialization } from '../../assembly/session-modes-initialization.ts'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { serverEntryConfig, type ServerEntryRowConfig } from './config.ts'
 import { governanceOfCall, identityOfCall } from './identity.ts'
@@ -41,7 +42,21 @@ const LOOPBACK = '127.0.0.1'
 function sessionFaces(ctx: Context): ServerEntryDependencies['session'] {
   const intake = ctx.intercept(sessionKey, { caller: 'intake' }).session
   const reader = ctx.intercept(sessionKey, { caller: 'reader' }).session
-  return { management: intake.management, work: intake.work, history: reader.history }
+  return {
+    management: {
+      ...intake.management,
+      create: input =>
+        intake.management.create({
+          ...input,
+          creation: {
+            ...input.creation,
+            initialization: modesInitialization(input).initialization,
+          },
+        }),
+    },
+    work: intake.work,
+    history: reader.history,
+  }
 }
 
 type ToolQueries = NonNullable<ServerEntryDependencies['toolQueries']>

@@ -11,6 +11,7 @@ import {
   type StandingReservations,
   type TenantStandingSource,
 } from '@omne-harness/identity'
+import { createCatalogTerminals } from './catalog-terminals.ts'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   SettingsChangeSchema,
@@ -42,9 +43,22 @@ export type IdentityQualifiedSettingsOptions = Readonly<{
 export function createSettingsStandingDestination(
   input: SettingsSqlTerminalOptions & Readonly<{ destination: string }>,
 ): StandingDestinationResolver {
+  return settingsStandingDestination(input, createSettingsSqlTerminals(input))
+}
+
+/** Catalog capture has its own receipt writer, independent of value preparation. */
+export function createSettingsCatalogDestination(
+  input: SettingsSqlTerminalOptions & Readonly<{ destination: string }>,
+): StandingDestinationResolver {
+  return settingsStandingDestination(input, createCatalogTerminals(input))
+}
+
+function settingsStandingDestination(
+  input: SettingsSqlTerminalOptions & Readonly<{ destination: string }>,
+  terminals: Pick<ReturnType<typeof createSettingsSqlTerminals>, 'seal'>,
+): StandingDestinationResolver {
   const domain = domainSchema.parse(input.domain)
   const destination = SettingsReferenceSchema.parse(input.destination)
-  const terminals = createSettingsSqlTerminals({ ...input, domain })
   return {
     async seal(reservation: StandingReservation) {
       const unavailable = {
@@ -202,7 +216,7 @@ export function createIdentityQualifiedSettings(
         return recover()
       case 'held': {
         const result = await backend.commit(principal, command)
-        const settled = await options.identity.reservations.settle(reservation.reservation.id)
+        const settled = await options.identity.reservations.settle(reservation.reservation)
         if (result.kind === 'committed') return result
         return settled.kind === 'terminal' ? recover() : unknown
       }

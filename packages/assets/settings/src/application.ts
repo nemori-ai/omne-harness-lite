@@ -34,6 +34,8 @@ const CatalogRequestSchema = z.strictObject({
 export type SettingsCatalogRequest = z.infer<typeof CatalogRequestSchema>
 export type SettingsCatalogEntry = Readonly<{
   target: SettingsTargetView['target']
+  targetEnabled: boolean
+  sources: SettingsTargetView['sources']
   definitionRef: SettingsTargetView['definitionRef']
   revision: number
   item: SettingItem
@@ -84,6 +86,8 @@ function entriesOf(basis: SettingsBasis): readonly SettingsCatalogEntry[] | Sett
       const resolution = result.entries.find(entry => entry.itemId === item.id)!
       entries.push({
         target: view.target,
+        targetEnabled: view.enabled,
+        sources: view.sources,
         definitionRef: view.definitionRef,
         revision: view.state.revision,
         item,

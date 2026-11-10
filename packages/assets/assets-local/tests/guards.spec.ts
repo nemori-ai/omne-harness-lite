@@ -1,3 +1,4 @@
+import { ownerSources } from './sources.ts'
 import { afterEach, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
 import canonicalize from 'canonicalize'
@@ -77,7 +78,7 @@ it('keeps the committed value when setting wins and prevents a fresh holding fro
       scopeRef: 'tenant-a',
       assetRef: 'asset-a',
       selection: { kind: 'follow' },
-      sourceIds: ['tenant'],
+      sources: ownerSources('tenant'),
       grants,
     }),
   ).toMatchObject({ kind: 'committed' })
@@ -115,7 +116,7 @@ it('rejects source replacement and grant revocation at the actual commit boundar
     holdingRef: 'holding-a',
     scopeRef: 'tenant-a',
     expectedRevision: 1,
-    change: { kind: 'updateSources', sourceIds: ['organization', 'tenant'], grants },
+    change: { kind: 'updateSources', sources: ownerSources('organization', 'tenant'), grants },
   })
   expect(await world.backend.commit(null, command({ expectedRevision: 1 }))).toEqual({
     kind: 'rejected',
@@ -126,7 +127,7 @@ it('rejects source replacement and grant revocation at the actual commit boundar
     holdingRef: 'holding-a',
     scopeRef: 'tenant-a',
     expectedRevision: 2,
-    change: { kind: 'updateSources', sourceIds: ['tenant'], grants: [] },
+    change: { kind: 'updateSources', sources: ownerSources('tenant'), grants: [] },
   })
   expect(await world.backend.commit(null, command({ expectedRevision: 1 }))).toEqual({
     kind: 'rejected',
@@ -151,7 +152,7 @@ it('rejects targets from another scope, another policy or a nonexistent holding'
       scopeRef: 'tenant-b',
       assetRef: 'asset-a',
       selection: { kind: 'follow' },
-      sourceIds: ['tenant'],
+      sources: ownerSources('tenant'),
       grants,
     }),
   ).toEqual({ kind: 'rejected', reason: 'forbidden' })

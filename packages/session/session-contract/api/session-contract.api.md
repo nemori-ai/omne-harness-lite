@@ -37,6 +37,7 @@
 - `ControlScope` · `judgments.d.ts`
 - `ControlTarget` · `values.d.ts`
 - `CustodyEvidenceCommand` · `ports.d.ts`
+- `DEFAULT_SESSION_INTAKE_LIMITS` · `intake.d.ts`
 - `DecideReads` · `judgments.d.ts`
 - `Decision` · `judgments.d.ts`
 - `DeclarationChange` · `values.d.ts`
@@ -180,6 +181,7 @@
 - `SessionIdleInput` · `ports.d.ts`
 - `SessionInputAdmission` · `history-values.d.ts`
 - `SessionInputScope` · `history-values.d.ts`
+- `SessionIntakeLimits` · `intake.d.ts`
 - `SessionInternalPrincipals` · `ports.d.ts`
 - `SessionLogCommitObservation` · `interpretation-values.d.ts`
 - `SessionLogConsequence` · `projection.d.ts`
@@ -191,6 +193,11 @@
 - `SessionNotifier` · `ports.d.ts`
 - `SessionOperationElements` · `operations.d.ts`
 - `SessionOperationId` · `identity.d.ts`
+- `SessionPermissionAssignment` · `permission-values.d.ts`
+- `SessionPermissionChangeBasis` · `permission-values.d.ts`
+- `SessionPermissionHistory` · `permission-history.d.ts`
+- `SessionPermissionWriteQualification` · `permission-values.d.ts`
+- `SessionPermissions` · `permission-values.d.ts`
 - `SessionPrefixFact` · `history-values.d.ts`
 - `SessionPrincipalBindingSource` · `ports.d.ts`
 - `SessionProductionSource` · `ports.d.ts`
@@ -236,16 +243,20 @@
 - `judgeCompletion` · `judgments.d.ts`
 - `judgeIdle` · `judgments.d.ts`
 - `judgeRunStart` · `judgments.d.ts`
+- `judgeSessionIntake` · `intake.d.ts`
 - `mutationAccessRequest` · `access.d.ts`
 - `openWork` · `judgments.d.ts`
 - `projectSessionEntries` · `entries-interpretation.d.ts`
 - `projectSessionLog` · `projection.d.ts`
 - `readAccessRequest` · `access.d.ts`
+- `rebuildSessionPermissions` · `permission-history.d.ts`
 - `reduce` · `reduce.d.ts`
 - `resolveCascade` · `judgments.d.ts`
 - `resolveControlScope` · `judgments.d.ts`
 - `resolveOperation` · `judgments.d.ts`
 - `routeInput` · `judgments.d.ts`
+- `sessionInputBytes` · `intake.d.ts`
+- `sessionIntakeLimits` · `intake.d.ts`
 - `sessionModesBlock` · `block.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
@@ -337,6 +348,7 @@
 ## 声明文件 `access.d.ts`
 
 ```ts
+import type { SessionPermissionWriteQualification } from './permission-values.ts';
 import type { Access, TenantId } from '@omne-harness/legal-identity';
 import type { DurableEvidence, ResidentKey, SessionAccess, SessionId } from './identity.ts';
 import type { MutationName, SessionCommand, SessionTransactionPort } from './ports.ts';
@@ -393,6 +405,7 @@ export type SessionAccessTarget = SessionAccessRequest<unknown>['target'];
 export type SessionAccessDecision = Readonly<{
     kind: 'allowed';
     evidence: DurableEvidence;
+    writeQualification?: SessionPermissionWriteQualification;
 }> | Readonly<{
     kind: 'denied';
 }> | Readonly<{
@@ -405,6 +418,7 @@ export interface SessionAccessCheck<P> {
 export type SessionCheckedAccess<P> = Readonly<{
     request: SessionAccessRequest<P>;
     evidence: DurableEvidence;
+    writeQualification?: SessionPermissionWriteQualification;
 }>;
 export interface SessionDelegatedTransactions<P> {
     bind(checked: SessionCheckedAccess<P>): SessionTransactionPort<P>;
@@ -810,6 +824,14 @@ export type InitializationItem = Omit<Extract<RecoveryTask, {
     kind: 'initialization';
 }>, 'kind' | 'originalOperation' | 'state' | 'diagnostic'>;
 export type SessionEntry = Readonly<{
+    kind: 'session.permission-assigned';
+    declaration: Extract<DeclarationChange, {
+        kind: 'permission-assignment';
+    }>;
+    previousRevision: string;
+    revision: string;
+    authority: DurableEvidence;
+}> | Readonly<{
     kind: 'session.todo-added';
     item: TodoItemId;
     text: string;
@@ -1073,6 +1095,10 @@ import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvid
 import type { ControlOperationResolution, SessionCallTerminal, SessionControlReceipt, SessionModelSelection } from './control-values.ts';
 import type { AutoArchivePolicy, BoundedClose, CallBinding, Control, ControlProgress, DeclarationChange, DerivedMessage, FreezeVerdict, IdleObservation, InitializationResult, Participation, ProducedResult, ProducerRef, Relation, ResidentAdoption, RoutedInput, RunTerminal, ScopeReleaseDisposition, SessionCreation, WorkSnapshot } from './values.ts';
 export type SessionFailure = Readonly<{
+    kind: 'limited';
+    resource: 'pending-inputs' | 'input-bytes';
+    limit: number;
+}> | Readonly<{
     kind: 'denied';
     action: string;
 }> | Readonly<{
@@ -1717,7 +1743,11 @@ export type { SessionLogRoot, SessionHistoryIndex, InputAdmissionBoundary, Input
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts';
 export type { SessionWorkEntryIndex, SessionCallEntryReferences, SessionControlEntryReferences, } from './work-entry-values.ts';
 export { mutationAccessRequest, readAccessRequest, type SessionAccessCheck, type SessionAccessDecision, type SessionAccessOperation, type SessionAccessRequest, type SessionAccessTarget, type SessionCheckedAccess, type SessionDelegatedTransactions, type SessionReadAccessOperation, } from './access.ts';
+export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, judgeSessionIntake, } from './intake.ts';
+export type { SessionIntakeLimits } from './intake.ts';
 export type { TodoItem, VisibleTodoItem, TodoMutationReceipt, TodoPageCursor, TodoPage, SessionTodos, } from './todos.ts';
+export type { SessionPermissionAssignment, SessionPermissions, SessionPermissionChangeBasis, SessionPermissionWriteQualification, } from './permission-values.ts';
+export { rebuildSessionPermissions, type SessionPermissionHistory } from './permission-history.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -1828,6 +1858,28 @@ export declare function initializationGuard(previous: WorkSnapshot | null, comma
 export declare function validateResult(value: InitializationGuardResult, plan: InitializationPlanItem): void;
 ```
 
+## 声明文件 `intake.d.ts`
+
+```ts
+import type { SessionFailure } from './faces.ts';
+import type { RoutedInput, WorkSnapshot } from './values.ts';
+export type SessionIntakeLimits = Readonly<{
+    maxPendingInputs: number;
+    maxInputBytes: number;
+}>;
+export declare const DEFAULT_SESSION_INTAKE_LIMITS: SessionIntakeLimits;
+export declare function sessionIntakeLimits(value?: SessionIntakeLimits): SessionIntakeLimits;
+export declare function sessionInputBytes(value: Extract<RoutedInput, {
+    kind: 'ordinary';
+}>): number;
+export declare function judgeSessionIntake(pending: number, value: Extract<RoutedInput, {
+    kind: 'ordinary';
+}>, limits: SessionIntakeLimits): Extract<SessionFailure, {
+    kind: 'limited';
+}> | null;
+export declare function pendingIntakeCount(snapshot: Pick<WorkSnapshot, 'pending' | 'handed'>): number;
+```
+
 ## 声明文件 `interpretation-values.d.ts`
 
 ```ts
@@ -1897,6 +1949,8 @@ export type SessionLogReceipt = Readonly<{
 ## 声明文件 `judgments.d.ts`
 
 ```ts
+import type { SessionPermissionChangeBasis } from './permission-values.ts';
+import type { SessionIntakeLimits } from './intake.ts';
 import type { CompactionContext } from '@omne-harness/message';
 import type { AdvanceRef, InputId, RunId, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 import type { AutoArchivePolicy, BoundedClose, ControlIntent, IdleCoverage, IdleObservation, Participation, ProducerRef, RecoveryTask, RoutedInput, RunTerminal, Waiting, WorkSnapshot } from './values.ts';
@@ -2054,6 +2108,8 @@ export type Decision = Readonly<{
     failure: SessionFailure;
 }>;
 export type DecideReads = Readonly<{
+    permissionChange?: SessionPermissionChangeBasis;
+    intakeLimits?: SessionIntakeLimits;
     history?: SessionHistoryReads;
     compaction: CompactionContext | null;
     children?: readonly SessionId[];
@@ -2258,6 +2314,92 @@ export declare const INGRESS_FAMILIES: Readonly<{
 }>;
 export type IngressFamily = (typeof INGRESS_FAMILIES)[keyof typeof INGRESS_FAMILIES];
 export declare function deriveIngressOperation(family: IngressFamily, fields: readonly string[]): SessionOperationId;
+```
+
+## 声明文件 `permission-history.d.ts`
+
+```ts
+import type { DurableEvidence } from './identity.ts';
+import type { CommittedBatch } from './judgments.ts';
+import type { Modes, WorkSnapshot, SessionCreation } from './values.ts';
+import type { SessionPermissions } from './permission-values.ts';
+export type SessionPermissionHistory = Readonly<{
+    permissions: SessionPermissions;
+    mode: Readonly<{
+        adopted: SessionCreation['modes'];
+        override: Readonly<{
+            value: Modes['permission'];
+            source: DurableEvidence;
+        }> | null;
+    }>;
+    source: DurableEvidence;
+}>;
+export declare function rebuildSessionPermissions(snapshot: WorkSnapshot, batches: Iterable<CommittedBatch>): Readonly<{
+    kind: 'rebuilt';
+    value: SessionPermissionHistory;
+    snapshot: WorkSnapshot;
+}> | Readonly<{
+    kind: 'invalid';
+    diagnostic: string;
+}>;
+```
+
+## 声明文件 `permission-state.d.ts`
+
+```ts
+import type { DeclarationChange, WorkSnapshot } from './values.ts';
+import type { SessionPermissionChangeBasis, SessionPermissions } from './permission-values.ts';
+import type { SessionOperationId, DurableEvidence } from './identity.ts';
+import type { Decision } from './judgments.ts';
+import type { SessionEntry } from './entries.ts';
+type AssignmentChange = Extract<DeclarationChange, {
+    kind: 'permission-assignment';
+}>;
+export declare function decidePermissionAssignment(input: Readonly<{
+    snapshot: WorkSnapshot;
+    change: AssignmentChange;
+    operation: SessionOperationId;
+    commandDigest: string;
+    basis: SessionPermissionChangeBasis | undefined;
+    source: DurableEvidence;
+}>): Decision;
+export declare function applyPermissionEvent(state: SessionPermissions, entry: SessionEntry, source: DurableEvidence): SessionPermissions;
+export {};
+```
+
+## 声明文件 `permission-values.d.ts`
+
+```ts
+import type { PermissionDefinition, PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions';
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { DurableEvidence, SessionId, SessionOperationId } from './identity.ts';
+export type SessionPermissionAssignment = Readonly<{
+    capabilityId: string;
+    enforcementKey: string;
+    definition: PermissionDefinitionRef;
+    rule: PermissionRule;
+    source: DurableEvidence;
+}>;
+export type SessionPermissions = Readonly<{
+    revision: string;
+    assignments: readonly SessionPermissionAssignment[];
+}>;
+export type SessionPermissionChangeBasis = Readonly<{
+    operation: SessionOperationId;
+    commandDigest: string;
+    revision: string;
+    definition: PermissionDefinition | null;
+    authority: DurableEvidence;
+}>;
+export type SessionPermissionWriteQualification = Readonly<{
+    tenant: TenantId;
+    session: SessionId;
+    operation: SessionOperationId;
+    commandDigest: string;
+    permissionRevision: string;
+    principalRef: string;
+    policy: DurableEvidence;
+}>;
 ```
 
 ## 声明文件 `ports.d.ts`
@@ -2692,8 +2834,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:4bf89c2f521b324ec9772b8ef781bd8535ab6e2f8394eedbbd77bd5d0564e861";
-export declare const SESSION_RELEASE_DIGEST = "sha256:4bf89c2f521b324ec9772b8ef781bd8535ab6e2f8394eedbbd77bd5d0564e861";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:15477392b13fe0b0768876cab688aeecd57abf57d20557f7870d1ec82eecb782";
+export declare const SESSION_RELEASE_DIGEST = "sha256:15477392b13fe0b0768876cab688aeecd57abf57d20557f7870d1ec82eecb782";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -2999,6 +3141,7 @@ export declare function createMemoryAgentDrive(): MemoryAgentDrive;
 ## 声明文件 `testing-transactions.d.ts`
 
 ```ts
+import { type SessionIntakeLimits } from './intake.ts';
 import { type MemorySessionHistorySource } from './testing-history-source.ts';
 import { type Outcome } from '@omne-harness/operation-result';
 import { type TenantId } from '@omne-harness/legal-identity';
@@ -3034,6 +3177,7 @@ export interface MemoryInitializationTransactions<P> extends MemorySessionLogTra
 }
 export declare function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason[];
 export type MemorySessionTransactionOptions<P> = Readonly<{
+    intakeLimits?: SessionIntakeLimits;
     initialization?: MemoryInitializationSource;
     history?: MemorySessionHistorySource;
     accessCheck: SessionAccessCheck<P>;
@@ -3162,6 +3306,7 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         }>;
         execution: import("@omne-harness/exchange-refs").Adoption;
         declarations: DurableEvidence;
+        permissions: import("./permission-values.ts").SessionPermissions;
         revisions: Readonly<{
             workspace: string;
             declarations: string;
@@ -3307,6 +3452,8 @@ export declare function validTodoText(text: unknown): text is string;
 ## 声明文件 `values.d.ts`
 
 ```ts
+import type { SessionPermissions } from './permission-values.ts';
+import type { PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions';
 import type { TodoItem } from './todos.ts';
 import type { SessionWorkEntryIndex } from './work-entry-values.ts';
 import type { JsonValue } from '@omne-harness/json-text';
@@ -3614,6 +3761,14 @@ export type ContextMaterial = Readonly<{
     value: JsonValue;
 }>;
 export type DeclarationChange = Readonly<{
+    kind: 'permission-assignment';
+    capabilityId: string;
+    enforcementKey: string;
+    definition: PermissionDefinitionRef;
+    rule: PermissionRule | null;
+    expectedRevision: string;
+    authorization: DurableEvidence;
+}> | Readonly<{
     kind: 'permission-mode';
     value: Modes['permission'];
     authorization: DurableEvidence;
@@ -3733,6 +3888,7 @@ export type WorkSnapshot = Readonly<{
     }>;
     execution: Adoption;
     declarations: DurableEvidence;
+    permissions: SessionPermissions;
     revisions: Readonly<{
         workspace: string;
         declarations: string;

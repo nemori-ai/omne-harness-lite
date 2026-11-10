@@ -1,3 +1,4 @@
+import { ownerSources } from './sources.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdtempSync, mkdirSync, readFileSync, realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -102,6 +103,7 @@ function material(name: string) {
 }
 export async function openWorld(
   options: {
+    sourceCapture?: boolean
     root?: string
     scopeRef?: string
     target?: SettingsTarget
@@ -121,7 +123,7 @@ export async function openWorld(
   )
   mkdirSync(parent, { recursive: true })
   const root = options.root ?? realpathSync(mkdtempSync(join(parent, 'case-')))
-  const own = settingsSqlMaterials()
+  const own = settingsSqlMaterials({ sourceCapture: options.sourceCapture ?? false })
   const migration = material('guard-migration')
   const fixture: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
@@ -263,7 +265,10 @@ export async function openWorld(
               JSON.stringify(mode === 'secret' ? secretDefinition : definition),
             ),
             definitionRef: mode === 'secret' ? secretDefinitionRef : definitionRef,
-            sourceIds: ['organization', 'tenant'],
+            sources: ownerSources('organization', 'tenant').map(source => ({
+              ...source,
+              authorityRevision: '1',
+            })),
             grants: ['organization', 'tenant'].map(sourceId => ({
               sourceId,
               actions: ['set', 'clear', 'lock', 'unlock'],

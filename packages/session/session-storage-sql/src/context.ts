@@ -1,6 +1,7 @@
 // What the port needs from the application: the SQL storage, the tenant domain directory, the
 // current access decision and the cursor signing. Shared by the commit path and the read path.
 // `qualify` is the one place where a call gets its access; the context says which step answers it.
+import { sessionIntakeLimits, type SessionIntakeLimits } from '@omne-harness/session-contract'
 import { randomUUID } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -22,6 +23,7 @@ import type { WorkCacheBounds } from './work-cache.ts'
 import { PROTOCOL } from './worker/schema.ts'
 
 export type SessionStorageOptions<P> = Readonly<{
+  intakeLimits?: SessionIntakeLimits
   storage: SqlStorage
   /** Construction capability of the trusted session storage composite (sql-contract 2.4). */
   domains: TenantDomainAccess
@@ -57,6 +59,7 @@ export type Context<P> = Readonly<{
    * (SPEC W1 attempts). Shared by every port over the same context; a new process starts at `#1`.
    */
   generations: Map<string, number>
+  intakeLimits: SessionIntakeLimits
   access: AccessStep<P>
 }>
 
@@ -77,6 +80,7 @@ export function contextOf<P>(options: SessionStorageOptions<P>): Context<P> {
   return {
     options,
     generations: new Map(),
+    intakeLimits: sessionIntakeLimits(options.intakeLimits),
     access: request => checkAccess(options.accessCheck, request),
     cursor: {
       signing: options.cursorSigning,

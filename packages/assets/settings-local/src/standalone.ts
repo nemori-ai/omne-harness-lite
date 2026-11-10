@@ -1,10 +1,13 @@
+import { sourceWriteCommands, sourceTargetWriteBinding } from './source-write.ts'
 import { z } from 'zod'
+import { randomUUID } from 'node:crypto'
 import type { CommitResultV2, QueryResultV2, FactCommandV2 } from '@omne-harness/sql-contract'
 import { digest, json, equal, withinBudget } from './encoding.ts'
 import { domainSchema, failureSchema } from './schema.ts'
 import {
   StandaloneMutationSchema,
   STANDALONE_PARTICIPANT,
+  STANDALONE_PROJECTION,
   type StandaloneMutation,
 } from './standalone-schema.ts'
 import type { SettingsSqlGuards } from './types.ts'
@@ -14,18 +17,34 @@ import type {
   SettingsCommitResult,
   SettingsOperationResult,
   SettingsFailure,
+  SettingsTarget,
 } from '@omne-harness/settings'
+import { SettingsTargetSchema } from '@omne-harness/settings'
+import { isIndependentTargetInDomain } from './standalone-records.ts'
+import {
+  STANDALONE_READ,
+  StandaloneTargetReadResultSchema,
+  type StandaloneTargetReadResult,
+} from './standalone-read-schema.ts'
 export const standaloneSettingsGuards: SettingsSqlGuards = {
-  participant: STANDALONE_PARTICIPANT,
+  participant: STANDALONE_PROJECTION,
   command: binding => ({
-    participant: STANDALONE_PARTICIPANT,
+    participant: STANDALONE_PROJECTION,
     facts: { kind: 'guard', binding: json(binding) },
   }),
 }
 export function standaloneSettingsProjectionCommand(
   binding: SettingsProjectionBinding,
 ): FactCommandV2 {
-  return { participant: STANDALONE_PARTICIPANT, facts: { kind: 'capture', binding: json(binding) } }
+  return { participant: STANDALONE_PROJECTION, facts: { kind: 'capture', binding: json(binding) } }
+}
+export function standaloneSettingsPublicationCommand(
+  binding: SettingsProjectionBinding,
+): FactCommandV2 {
+  return {
+    participant: STANDALONE_PROJECTION,
+    facts: { kind: 'capturePublication', binding: json(binding) },
+  }
 }
 export function createStandaloneSettingsOwner(input: SettingsSqlTerminalOptions) {
   const options = { ...input, domain: domainSchema.parse(input.domain) }
@@ -63,9 +82,40 @@ export function createStandaloneSettingsOwner(input: SettingsSqlTerminalOptions)
       return { kind: 'rejected', reason: value.reason === 'closing' ? 'closing' : 'unavailable' }
     return { kind: 'unknown', operationId }
   }
-  const active = new Set<Promise<SettingsCommitResult>>()
+  const active = new Set<Promise<unknown>>()
   let closing: Promise<void> | undefined
   return {
+    readTarget(raw: SettingsTarget): Promise<StandaloneTargetReadResult> {
+      const fail = (reason: SettingsFailure['reason']): StandaloneTargetReadResult => ({
+        kind: 'rejected',
+        reason,
+      })
+      if (closing) return Promise.resolve(fail('closing'))
+      const target = SettingsTargetSchema.safeParse(raw)
+      if (!target.success) return Promise.resolve(fail('invalid_input'))
+      if (!isIndependentTargetInDomain(options.domain, target.data))
+        return Promise.resolve(fail('forbidden'))
+      const pending = Promise.resolve()
+        .then(() =>
+          options.storage.read({
+            domain: options.domain,
+            ...STANDALONE_READ,
+            requestKey: randomUUID(),
+            input: json({ domain: options.domain, target: target.data }),
+          }),
+        )
+        .then((result): StandaloneTargetReadResult => {
+          if (result.kind !== 'read') return fail('unavailable')
+          const parsed = StandaloneTargetReadResultSchema.parse(result.output)
+          return parsed.kind === 'found' && !equal(parsed.projection.target, target.data)
+            ? fail('unavailable')
+            : parsed
+        })
+        .catch(() => fail('unavailable'))
+      active.add(pending)
+      void pending.then(() => active.delete(pending))
+      return pending
+    },
     mutate(raw: StandaloneMutation): Promise<SettingsCommitResult> {
       const reject = (reason: SettingsFailure['reason']) =>
         Promise.resolve({ kind: 'rejected' as const, reason })
@@ -80,6 +130,7 @@ export function createStandaloneSettingsOwner(input: SettingsSqlTerminalOptions)
           combinationVersion: options.combinationVersion,
           manifestDigest: options.manifestDigest,
           commands: [
+            ...sourceWriteCommands(sourceTargetWriteBinding(options.domain, command)),
             {
               participant: STANDALONE_PARTICIPANT,
               facts: { kind: 'mutate', domain: json(options.domain), command: json(command) },

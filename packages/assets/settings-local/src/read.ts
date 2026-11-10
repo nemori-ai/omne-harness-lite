@@ -8,7 +8,12 @@ function read(input: ReadRequest, port: ReadPort) {
   if (input.kind === 'state') {
     const record = readStateRecord(port, input.domain.scope, input.target)
     return record
-      ? { kind: 'state', definitionRef: record.definitionRef, state: record.state }
+      ? {
+          kind: 'state',
+          definitionRef: record.definitionRef,
+          state: record.state,
+          sourceLayout: record.sourceLayout,
+        }
       : { kind: 'absent' }
   }
   const rows = port.execute(

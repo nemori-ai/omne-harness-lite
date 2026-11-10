@@ -1,9 +1,19 @@
+import { writePermissionCurrent } from './permission-current.ts'
+import { readSessionBasis } from './session-basis.ts'
+import {
+  SESSION_COMMIT_RESULT,
+  SESSION_COMMIT_PROTOCOL,
+  type SessionCommitBasis,
+} from '../commit-basis.ts'
+import type { SessionPermissionChangeBasis } from '@omne-harness/session-contract'
 // The `session` participant module (SPEC W1 steps 3 to 7, W2 for the shared commit). It runs inside
 // the provider's write transaction and uses the pure `decide` and `reduce` of session-contract:
 // this file reads their inputs, assigns positions, writes rows and maintains the derived rows. It
 // never begins, commits or rolls back, and it writes no rule of its own.
 import {
   commandDigest,
+  sessionIntakeLimits,
+  type SessionIntakeLimits,
   decide,
   judgeIdle,
   reduce,
@@ -42,7 +52,6 @@ import {
 } from './history-index.ts'
 import { judgeLog, readCoveringHead, type CoveringSnapshot, type LogBatch } from './log.ts'
 import type { SessionWorkReply } from '../participants.ts'
-import { PROTOCOL } from './schema.ts'
 import { assemble, deepFreeze, writeState, type StoredState } from './state-rows.ts'
 import {
   assignPositions,
@@ -722,6 +731,7 @@ function writeBatch(
   const covered = BigInt(revision)
   const stored = writeState(port, { tenant, session, covered }, previous, snapshot)
   parsedSnapshots.wrote(tenant, session, covered, stored)
+  writePermissionCurrent(port, { tenant, session }, previous, snapshot, entries)
   maintainDerived(port, tenant, session, previous, snapshot)
   return { kind: 'written', epoch, bytes: stored.layout.bytes }
 }
@@ -1140,6 +1150,8 @@ function runCommand(
   guards: readonly GuardCommand[],
   evidence: string | null,
   port: ParticipantPort,
+  intakeLimits: SessionIntakeLimits,
+  permissionChange: SessionPermissionChangeBasis | undefined,
 ): ParticipantReply {
   const start = commandStart(command, port)
   if (!isStart(start)) return start
@@ -1153,6 +1165,8 @@ function runCommand(
     history === null || previous === null ? previous : { ...previous, historyIndex: history.index }
   const decision: Decision = decide(prepared, command, guards, recordOf(command, start), {
     ...reads,
+    ...(permissionChange === undefined ? {} : { permissionChange }),
+    intakeLimits,
     ...(history === null ? {} : { history: history.reads }),
   })
   return settleDecision(port, { command, guards, evidence }, start, decision, { prepared, history })
@@ -1347,9 +1361,23 @@ function storeEvidence(
 }
 
 /** The command intent: the command with its guards and evidence, answered with its digest. */
+function intakeLimitsOf(value: JsonValue | undefined): SessionIntakeLimits | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  if (!('maxPendingInputs' in value) || !('maxInputBytes' in value)) return null
+  const { maxPendingInputs, maxInputBytes } = value
+  if (typeof maxPendingInputs !== 'number' || typeof maxInputBytes !== 'number') return null
+  try {
+    return sessionIntakeLimits({ maxPendingInputs, maxInputBytes })
+  } catch (error) {
+    if (error instanceof TypeError) return null
+    throw error
+  }
+}
+
 function runCommandFacts(
   facts: Readonly<Record<string, JsonValue>>,
   port: ParticipantPort,
+  basis: SessionCommitBasis,
 ): ParticipantReply {
   if (typeof facts['command'] !== 'object' || !Array.isArray(facts['guards']))
     return {
@@ -1375,7 +1403,15 @@ function runCommandFacts(
       kind: 'unsupported',
       basis: { reason: 'the access evidence of the command is not a durable evidence' },
     }
-  const reply = runCommand(command, guards, evidence, port)
+  const intakeLimits = intakeLimitsOf(facts['intakeLimits'])
+  if (intakeLimits === null)
+    return { kind: 'unsupported', basis: { reason: 'invalid intake limits' } }
+  const permissionChange =
+    basis.kind === 'permission-change' &&
+    basis.permissionChange.operation === command.input.operation
+      ? { ...basis.permissionChange, operation: command.input.operation }
+      : undefined
+  const reply = runCommand(command, guards, evidence, port, intakeLimits, permissionChange)
   // The digest of the command travels with the answer, so a later caller can tell a recall of the
   // same command from the same identity used for another command (SL07).
   return reply.kind === 'participated'
@@ -1397,24 +1433,10 @@ function runQueryFacts(
     : { kind: 'unsupported', basis: { reason: 'query facts are incomplete' } }
 }
 
-const participant: ParticipantModule = {
-  participant: 'session',
-  protocol: PROTOCOL,
-  execute(facts, port) {
-    try {
-      return runIntent(facts, port)
-    } catch (error) {
-      // A gap after the cursor of the kept history index heals itself: the index was dropped, and
-      // the next call builds it again from the log. A temporary failure (SPEC 参加者失败的定性).
-      if (error instanceof LogGap) return { kind: 'failed', diagnostic: error.message }
-      throw error
-    }
-  },
-}
-
-function runIntent(
+function executeSession(
   facts: Readonly<Record<string, JsonValue>>,
   port: ParticipantPort,
+  basis: SessionCommitBasis,
 ): ParticipantReply {
   switch (facts['intent']) {
     case 'query':
@@ -1426,7 +1448,7 @@ function runIntent(
     case 'check':
       return runChecks(facts, port)
     case 'command':
-      return runCommandFacts(facts, port)
+      return runCommandFacts(facts, port, basis)
     default:
       return {
         kind: 'unsupported',
@@ -1436,4 +1458,32 @@ function runIntent(
       }
   }
 }
+
+const participant: ParticipantModule = {
+  participant: 'session',
+  protocol: SESSION_COMMIT_PROTOCOL,
+  execute(facts, port) {
+    const basis = readSessionBasis(facts, port)
+    if (basis === null)
+      return { kind: 'unsupported', basis: { reason: 'Session commit basis mismatch' } }
+    let reply: ParticipantReply
+    try {
+      reply = executeSession(facts, port, basis)
+    } catch (error) {
+      // A gap after the cursor of the kept history index heals itself: the index was dropped, and
+      // the next call builds it again from the log. A temporary failure (SPEC 参加者失败的定性).
+      if (error instanceof LogGap) return { kind: 'failed', diagnostic: error.message }
+      throw error
+    }
+    if (basis.kind === 'permission-change' && reply.kind === 'participated')
+      port.provideFact(SESSION_COMMIT_RESULT, {
+        coordination: basis.coordination,
+        commandsDigest: basis.commandsDigest,
+        operation: basis.permissionChange.operation,
+        response: reply.response,
+      })
+    return reply
+  },
+}
+
 export default refusingMalformedEntries(participant)

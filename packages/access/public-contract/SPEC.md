@@ -567,6 +567,7 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 | --- | --- | --- |
 | `invalid` | 消息合乎协议，但这份内容不被接受 | 会话或调用者的资格状态 |
 | `archived` | 会话已归档，不再受理输入 | 归档何时发生，或能否撤销归档 |
+| `limited` | 普通输入超过部署的字节或待交数量预算，尚未受理 | 释放容量的时间或未来请求会成功 |
 | `frozen` | 会话已冻结且没有进行中的工作，普通输入不受理 | 冻结的原因或何时解除 |
 | `not-committed` | 原操作已确定没有提交，调用者可以用原标识重新发起 | 重新发起一定成功 |
 | `not-found` | 在已授权的会话里，这个 Run 或这次调用不属于该会话 | 目标是否属于别的会话，或会话是否存在（会话不存在与跨租户是 `denied`） |
@@ -576,16 +577,16 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 | operation | 线上业务 outcome | Session 结果的映射 |
 | --- | --- | --- |
-| `create-session` | `succeeded`、`denied`、`invalid`、`conflict`、`basis-unavailable`、`unknown` | `create`：`conflict` 为同 `createCallId` 异创建输入 |
+| `create-session` | `succeeded`、`denied`、`invalid`、`limited`、`conflict`、`basis-unavailable`、`unknown` | `create`：`conflict` 为同 `createCallId` 异创建输入 |
 | `query-create-session` | `succeeded`、`denied`、`basis-unavailable`、`unknown` | `queryOperation`：`committed` 为 `succeeded`；`not-committed` 为 `denied`；`attempt-rejected` 与 `unknown` 为 `unknown`。创建从未提交时会话不存在，结果是 `denied` |
-| `send-input` | `succeeded`、`denied`、`invalid`、`archived`、`frozen`、`conflict`、`basis-unavailable`、`unknown` | `accept`：`conflict` 为同 `acceptId` 异内容 |
+| `send-input` | `succeeded`、`denied`、`invalid`、`limited`、`archived`、`frozen`、`conflict`、`basis-unavailable`、`unknown` | `accept`：`conflict` 为同 `acceptId` 异内容 |
 | `query-send-input` | `succeeded`、`not-committed`、`denied`、`basis-unavailable`、`unknown` | `queryOperation`：`committed` 为 `succeeded`；`not-committed` 为 `not-committed`；`attempt-rejected` 与 `unknown` 为 `unknown` |
 | `read-history` | `succeeded`、`denied`、`invalid`、`basis-unavailable` | `cursor` 为 null 时以 `from` 为 null 调 `begin`，否则调 `next`：`invalid` 含游标错域、失效或被篡改；不返回空页代替 `basis-unavailable` |
 | `cancel-run` | `succeeded`、`denied`、`invalid`、`conflict`、`not-found`、`basis-unavailable`、`unknown` | `cancelRun`，映射见[会话中断操作](#会话中断操作) |
 | `stop-call` | 同 `cancel-run`，另有 `unsupported` | `stopCall`，映射见[会话中断操作](#会话中断操作) |
 | `read-session-diagnostics` | `succeeded`、`denied`、`invalid`、`basis-unavailable` | `history.begin`，反向，种类取部署披露清单；`cursor` 非 null 时从游标固定的位置之前继续。`invalid` 含游标错域、失效或被篡改。Session 之后的来源读取不改变 `outcome`，见[会话诊断页](#会话诊断页) |
 
-表中没有另写的 Session 结果按同一规则映射：`denied` 为 `denied`，`invalid` 为 `invalid`，`archived` 为 `archived`，`frozen` 为 `frozen`，`unavailable` 为 `basis-unavailable`，`commit-unknown` 为 `unknown`。每个操作另有第 1 步的 `protocol-rejected`。
+表中没有另写的 Session 结果按同一规则映射：`denied` 为 `denied`，`invalid` 为 `invalid`，`archived` 为 `archived`，`frozen` 为 `frozen`，`limited` 为 `limited`，`unavailable` 为 `basis-unavailable`，`commit-unknown` 为 `unknown`。每个操作另有第 1 步的 `protocol-rejected`。
 
 两种情况下，调用者原样再送仍得到 `conflict`。同一 `createCallId` 的两次请求之间部署的定义映射变了，`create-session` 是 `conflict`。`send-input` 的内容含服务端写入的登录来源，换了登录之后原样再送是 `conflict`；原受理可能已提交，用 `query-send-input` 认回。
 
@@ -596,6 +597,8 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 | `query-send-input` 的 `succeeded` | 空对象。它表示原受理已提交；前提见[尚未提供](../../../docs/architecture/runtime/runtime-contract-handoff.md#尚未提供) |
 | `read-history` 的 `succeeded` | `entries`、`next`、`exhausted`、`scannedThrough`，见[历史页](#历史页) |
 | `cancel-run` 与 `stop-call` 的 `succeeded` | `kind` 为 `requested` 或 `ended` 的联合，见[会话中断操作](#会话中断操作) |
+| `create-session` 与 `send-input` 的 `limited` | `resource` 为 `pending-inputs` 或 `input-bytes`，`limit` 为正安全整数。没有其他字段 |
+
 | `read-session-diagnostics` 的 `succeeded` | `runs`、`next`、`exhausted`、`scannedThrough`、`basis`、`gaps`，见[会话诊断页](#会话诊断页) |
 | 其他结果 | 空对象 |
 

@@ -689,7 +689,7 @@ export type GovernanceResponseEncodeInput<O extends GovernanceOperation = Govern
 
 ```ts
 import type { GovernanceProvidedOperation, GovernanceStageOperation } from './messages.ts';
-export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'session' | 'page-bytes' | 'parameters' | 'json' | 'user-message';
+export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'session' | 'page-bytes' | 'positive-integer' | 'parameters' | 'json' | 'user-message';
 export type Rule = {
     readonly kind: LeafKind;
 } | {
@@ -1095,9 +1095,9 @@ export type SessionSuccessBodies = {
     'read-session-diagnostics': SessionDiagnosticsPage;
 };
 export type SessionOutcomes = {
-    'create-session': 'succeeded' | 'denied' | 'invalid' | 'conflict' | 'basis-unavailable' | 'unknown';
+    'create-session': 'limited' | 'succeeded' | 'denied' | 'invalid' | 'conflict' | 'basis-unavailable' | 'unknown';
     'query-create-session': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown';
-    'send-input': 'succeeded' | 'denied' | 'invalid' | 'archived' | 'frozen' | 'conflict' | 'basis-unavailable' | 'unknown';
+    'send-input': 'limited' | 'succeeded' | 'denied' | 'invalid' | 'archived' | 'frozen' | 'conflict' | 'basis-unavailable' | 'unknown';
     'query-send-input': 'succeeded' | 'not-committed' | 'denied' | 'basis-unavailable' | 'unknown';
     'read-history': 'succeeded' | 'denied' | 'invalid' | 'basis-unavailable';
     'cancel-run': 'succeeded' | 'denied' | 'invalid' | 'conflict' | 'not-found' | 'basis-unavailable' | 'unknown';
@@ -1115,7 +1115,10 @@ export type SessionBusinessResponse<O extends SessionOperation> = {
         readonly protocolVersion: 'session-public/1';
         readonly messageId: string;
         readonly outcome: K;
-        readonly body: K extends 'succeeded' ? SessionSuccessBodies[O] : EmptyBody;
+        readonly body: K extends 'succeeded' ? SessionSuccessBodies[O] : K extends 'limited' ? {
+            readonly resource: 'pending-inputs' | 'input-bytes';
+            readonly limit: number;
+        } : EmptyBody;
     };
 }[SessionOutcomes[O]];
 export type SessionResponseByOperation = {
@@ -1155,6 +1158,7 @@ import { type Family } from './operation-rules.ts';
 import type { SessionOperation, SessionOutcomes } from './session-messages.ts';
 declare const outcomes: {
     readonly 'create-session': readonly [
+        "limited",
         "succeeded",
         "denied",
         "invalid",
@@ -1169,6 +1173,7 @@ declare const outcomes: {
         "unknown"
     ];
     readonly 'send-input': readonly [
+        "limited",
         "succeeded",
         "denied",
         "invalid",

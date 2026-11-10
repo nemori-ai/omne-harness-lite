@@ -77,7 +77,7 @@
 
 ### 预检
 
-`pnpm run preflight`（`./scripts/check.sh --preflight`，正文是运行器的 `check --preflight`）在当前树上一次跑完准入里不依赖构建与全量测试的步骤：`check:agents`、`check:docs`、`check:design`、`check:lines`、`change-scope`（含卡级语义复核与写范围）、`format:check`、`lint:rules`、`lint:oxlint`，以及 `acceptance:lock`（`loop:status` 里验收锁那一项的等价核对）。表在 [check-steps.ts](../tools/test-runner/src/testing/check-steps.ts) 的 `preflightSteps`，判据与 check 的表相同。全部同时起（受轻步骤并发限制），失败不终止其余（等价 `--keep-going`），最后一次列出全部失败：每一步的退出码、日志末尾与一句修法。退出码取第一个失败的那一步，全过退出 0。
+`pnpm run preflight`（`./scripts/check.sh --preflight`，正文是运行器的 `check --preflight`）在当前已有构建产物上一次跑完准入中的轻量检查；预检不启动构建，调用方也不能并行清理或重建产物。步骤包括：`check:agents`、`check:docs`、`check:design`、`check:lines`、`change-scope`（含卡级语义复核与写范围）、`format:check`、`lint:rules`、`lint:oxlint`，以及 `acceptance:lock`（`loop:status` 里验收锁那一项的等价核对）。表在 [check-steps.ts](../tools/test-runner/src/testing/check-steps.ts) 的 `preflightSteps`，判据与 check 的表相同。全部同时起（受轻步骤并发限制），失败不终止其余（等价 `--keep-going`），最后一次列出全部失败：每一步的退出码、日志末尾与一句修法。退出码取第一个失败的那一步，全过退出 0。
 
 - 写者收尾与调度者入队前都跑它。它不写准入日志与运行记录，不是准入证据；日志落 `tmp/preflight/`。
 - 它不占运行名额：只起轻步骤，与 check 里同时跑的那些相同。

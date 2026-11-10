@@ -11,6 +11,8 @@ import { agentHostPrincipal } from './agent-host-principal.ts'
 import { cursorSigning } from './cursor-signing.ts'
 import { executionAuthorities, scopedRuntimeContextTrust } from './execution-wiring.ts'
 import { identityClock } from './identity-clock.ts'
+import { governanceInstallationPrincipals } from './governance-installation-principals.ts'
+import { governanceDirectoryPrincipals } from './governance-directory-principals.ts'
 import {
   modelConverterAuthority,
   modelHostAuthority,
@@ -21,6 +23,7 @@ import { principalIssuer, principalVerifier, sessionPrincipals } from './princip
 import { requestContextTrust } from './request-context-trust.ts'
 import { sessionClock } from './session-clock.ts'
 import { sessionCustodySource, sessionProductionSource } from './session-evidence-sources.ts'
+import { sessionModesPrincipals } from './session-modes-principals.ts'
 import { sessionWorkPrincipals } from './session-work-principals.ts'
 import { storageHost } from './storage-host.ts'
 import { toolContributionAuthority, toolReleaseRegistrant } from './tool-release.ts'
@@ -30,6 +33,8 @@ import { toolClock, toolPublicationAuthority } from './tool-runtime-objects.ts'
 export const entryObjects: readonly EntryObjectModule[] = [
   principalVerifier,
   principalIssuer,
+  governanceDirectoryPrincipals,
+  governanceInstallationPrincipals,
   agentHostPrincipal,
   toolResidencyPrincipal,
   toolReleaseRegistrant,
@@ -38,6 +43,7 @@ export const entryObjects: readonly EntryObjectModule[] = [
   toolPublicationAuthority,
   sessionPrincipals,
   sessionWorkPrincipals,
+  sessionModesPrincipals,
   requestContextTrust,
   scopedRuntimeContextTrust,
   ...executionAuthorities,
