@@ -9,7 +9,12 @@ import type { TenantDomainLookup } from '@omne-harness/sql-contract'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import { createSqlToolLedgerStore, type SqlToolStorageOptions } from '../../src/index.ts'
 import { createFaultyStorage, type FaultyStorage } from './faults.ts'
-import { createSqliteStorage, domainRef, type SqliteStorage } from './sqlite-storage.ts'
+import {
+  createSqliteStorage,
+  domainRef,
+  type SqliteStorage,
+  type StatementObserver,
+} from './sqlite-storage.ts'
 
 /** The tenants of the tool conformance suites and of the coordinator tests. */
 export const SUITE_TENANTS: readonly TenantId[] = [
@@ -72,13 +77,19 @@ function lookupOf(tenants: readonly TenantId[]): TenantDomainLookup {
  * registered with the `tool` combination, as the session storage composite would do.
  */
 export async function openApp(
-  input: Readonly<{ directory?: string; maxCommandBytes?: number; keep?: boolean }> = {},
+  input: Readonly<{
+    directory?: string
+    maxCommandBytes?: number
+    keep?: boolean
+    observe?: StatementObserver
+  }> = {},
 ): Promise<App> {
   const directory =
     input.directory ?? realpathSync(mkdtempSync(join(tmpdir(), 'tool-storage-sql-')))
   const sqlite = createSqliteStorage({
     directory,
     maxCommandBytes: input.maxCommandBytes ?? MAX_COMMAND_BYTES,
+    ...(input.observe === undefined ? {} : { observe: input.observe }),
   })
   for (const tenant of SUITE_TENANTS) {
     const domain = domainRef(textOf(tenant), domainNameOf(tenant))

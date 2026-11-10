@@ -5,7 +5,8 @@
 ## 内容
 
 - [README.md](README.md)：固定输入的来源与约束
-- [sqlite-storage.ts](sqlite-storage.ts)：node:sqlite 上的 `SqlStorage` 测试提供者
+- [sqlite-storage.ts](sqlite-storage.ts)：node:sqlite 上的 `SqlStorage` 测试提供者。可选的观察者看到参加者与读处理器执行的每条语句
+- [statement-meter.ts](statement-meter.ts)：按行的拥有者（Tool 或宿主）统计一段工作的语句数、读写行数与逻辑字节
 - [faults.ts](faults.ts)：故障包装
 - [app.ts](app.ts)：测试应用的组装
 - [ledger.ts](ledger.ts)：在给定记录仓上的真实账本

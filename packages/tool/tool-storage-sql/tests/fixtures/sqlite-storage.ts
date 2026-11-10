@@ -46,7 +46,18 @@ export type SqliteStorageOptions = Readonly<{
   directory: string
   /** The command bound of sql-contract §7.2 step 7. Default 1048576, the provider's initial value. */
   maxCommandBytes?: number
+  /** Sees every statement the participant and the read handlers of this member run, after it ran. */
+  observe?: StatementObserver
 }>
+
+/** One statement of the participant or of a read handler, with its parameters and its result. */
+export type ObservedStatement = Readonly<{
+  sql: string
+  params: readonly SqlValue[]
+  result: QueryRows
+}>
+
+export type StatementObserver = (statement: ObservedStatement) => void
 
 export type Row = Readonly<Record<string, SqlCell>>
 
@@ -210,6 +221,13 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
     ])
   }
 
+  /** Runs one statement of the member and shows it to the observer. */
+  const observed = (db: DatabaseSync, sql: string, params: readonly SqlValue[]): QueryRows => {
+    const result = execute(db, sql, params)
+    options.observe?.({ sql, params, result })
+    return result
+  }
+
   const portOf = (db: DatabaseSync): ParticipantPort => {
     let ordinal = 0
     const fail = failing
@@ -218,7 +236,7 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
       execute: (sql, params) => {
         ordinal += 1
         if (fail === ordinal) throw new Error(`injected: statement ${ordinal} failed`)
-        return execute(db, sql, params)
+        return observed(db, sql, params)
       },
       requireFact: () => null,
       provideFact: () => undefined,
@@ -335,7 +353,7 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
         outcome = module.read(structuredClone(request.input), {
           execute: (sql, params) => {
             if (!/^\s*SELECT/iu.test(sql)) throw new Error('a read handler ran a write')
-            return execute(domain.db, sql, params)
+            return observed(domain.db, sql, params)
           },
         })
       } catch {
