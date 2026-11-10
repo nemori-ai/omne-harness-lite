@@ -4,7 +4,7 @@
 
 ## 范围与依据
 
-本包是 Tool 记录仓与正文存储的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore`（含同租户读集断言的条件提交 TS-11 与到期索引 TS-14）与 `ToolBodyStore`（TS-13），并导出静态材料 `toolStorageMaterials()`。
+本包是 Tool 记录仓与正文存储的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore`（含同租户读集断言的条件提交 TS-11、到期索引 TS-14 与整域删除 TS-15）与 `ToolBodyStore`（TS-13），并导出静态材料 `toolStorageMaterials()`。
 
 依据：
 
@@ -83,6 +83,16 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 `unknown` 与 `unavailable` 沿 TS-02 映射。调用方在 `conflict` 后重读所有参与的域再决定是否重新提交；`unknown` 后按自己写入的记录认回。本保证只覆盖同一租户事务域内各账本域的排序，不承诺与 Session 的跨域原子性。`toolLedgerStoreConformance()` 的 `store.asserts-*` 用例在本仓上运行。
 
+### TS-15 整域删除
+
+记录仓端口的整域删除是一次 SQL 提交，参加者为 `tool`。语义归 `tool` SPEC 的[记录仓的整域删除](../tool/SPEC.md#记录仓的整域删除)。参加者在一个写事务内做下列事：
+
+1. 按 TS-02 读该账本域的修订号。修订号不等于期望值时，以 `revision` 原因停止并回滚。端口答 `conflict` 与当前修订号，不删除任何行。
+2. 按 `(tenant, kind, name)` 删除三张表里属于该域的行：`tl_record` 的全部记录、`tl_due` 的全部到期条目与 `tl_domain` 的修订号行。
+3. 三项删除在同一个写事务里一起生效或一起回滚。任一删除失败使整个事务回滚。
+
+每条语句以租户为第一过滤条件，所以另一个租户的同名域不受影响（TS-03）。删除之后读该域，按 TS-01 答 `complete`，修订号 `0`，没有记录。删除不留墓碑。SQL 结果到端口答复的映射同 TS-02。正文表不属于任何账本域，整域删除不碰 `tl_body_chunk` 与 `tl_body_manifest`（TS-06）。
+
 ## 所有权、失败与生命周期
 
 - 本包不持有连接、Worker、计时器或其他需要释放的资源。连接、Worker、事务与清理归 SQL 提供者。工厂返回的对象可以随时丢弃。
@@ -96,7 +106,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 2. 两条不等式（评审 N1）。左侧上界归 `tool` 的 P08 拥有者，在它给出之前是已知限制：
    - 一次 `ToolLedgerStore.commit` 的写入集，编码后加信封不超过 `storage` 行的 `maxCommandBytes`。超过时提供者拒绝（`command_limit`），端口答 `rejected`，`reason` 为 `command_limit`。
    - 一个账本域的全部记录，编码后不超过读 handler 的 `maxOutputBytes`（4194304）与提供者的 `maxReadResultBytes`，记录数不超过 100000。超过时读答 `unavailable`。
-3. 正文删除去掉分块与清单行，产生可复用页，不承诺 SQLite 文件立即缩小。回收后账本的正文条目保留为按键冷记录，长期增长须单独测量。
+3. 正文删除与整域删除去掉对应的行，产生可复用页，不承诺 SQLite 文件立即缩小。回收后的正文条目随调用域的整域删除去掉（TS-15）。
 4. 两个进程同时共用一个库、强杀与断电耐久未验证。
 5. 封存在一个写事务内重读全部分块并计算 SHA-256，代价与正文大小成正比。
 6. 值为 `undefined` 的记录成员按 JSON 省略。读回的记录没有这些成员。
@@ -105,7 +115,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 | 义务                | 持续验证                                                                                                                                                                                     | 前提与未覆盖                                                                                     |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| TS-01、TS-02、TS-11 | `tests/ledger-store-conformance.spec.ts` 运行 `toolLedgerStoreConformance()`（含 `store.asserts-*`）与 `toolLedgerStoreCompositionConformance()`，七个故障手柄都有来源，没有不适用项；`tests/atomic-commit.spec.ts`；`tests/ledger-asserts.spec.ts`：排队中的提交在执行时才评估断言，两个连接之间被断言域的写入使断言在执行时失败 | SQLite 测试提供者（`tests/fixtures/sqlite-storage.ts`），不是 sqlite-provider；提供者的 4 MiB 读出上限由该测试双身按 `READ_OUTPUT_BYTES` 复现 |
+| TS-01、TS-02、TS-11、TS-15 | `tests/ledger-store-conformance.spec.ts` 运行 `toolLedgerStoreConformance()`（含 `store.asserts-*` 与整域删除用例）与 `toolLedgerStoreCompositionConformance()`，七个故障手柄都有来源，没有不适用项；`tests/atomic-commit.spec.ts`；`tests/ledger-asserts.spec.ts`：排队中的提交在执行时才评估断言，两个连接之间被断言域的写入使断言在执行时失败 | SQLite 测试提供者（`tests/fixtures/sqlite-storage.ts`），不是 sqlite-provider；提供者的 4 MiB 读出上限由该测试双身按 `READ_OUTPUT_BYTES` 复现 |
 | TS-03               | `tests/tenant-isolation.spec.ts`：同键两租户、他租户行混入同一库、目录外的租户；`tests/tenant-isolation-live.spec.ts`：正文表与到期索引上的同一性质——A 的正文对 B 不到期、不被 B 的清扫回收、B 的账本与正文仓读不到、B 的删除不动它；混入 A 库的 B 行不进入 A 的到期读、清扫、正文读与删除 | 同上                                                                                             |
 | TS-06 | `tests/body-revision-live.spec.ts`：真实 sqlite-provider 上写入三块正文并封存清单，前后 `tl_domain` 的全部行不变，调用域与宿主域经 `read` 读到的修订号不变，按写入前修订号的账本提交仍然落盘 | 慢层；只覆盖写入与封存，删除正文不在本用例 |
 | 不写回执（C10）     | `tests/receipts-live.spec.ts`：真实 sqlite-provider 上一次带卸载正文的完整调用（受理、准备、启动、正文块与封存、最终事实、收场，≥ 8 次提交）后 `_sql_receipt` 行数不变 |
