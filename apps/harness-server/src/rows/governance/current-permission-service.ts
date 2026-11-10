@@ -4,12 +4,12 @@ import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/iden
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   PermissionBasisRequestSchema,
-  type PermissionBasisSource,
   type PermissionBasisRequest,
 } from '@omne-harness/permissions'
 import type {
+  CurrentPermissionRead,
+  CurrentPermissionSource,
   ToolPermissionAction,
-  ToolPermissionContext,
 } from '../authorization/current-tool-permission.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import type { TenantGovernanceHost } from './tenant-host.ts'
@@ -20,26 +20,27 @@ type Options = Readonly<{
   identity: Readonly<{ verifier: PrincipalVerifier; standing: TenantStandingSource }>
   runtime(
     tenant: string,
-  ): Promise<Pick<Runtime, 'permissionRequest' | 'permissionBasis'> | undefined>
+  ): Promise<
+    | (Pick<Runtime, 'permissionRequest'> &
+        Readonly<{ permissionBasis: CurrentPermissionSource | undefined }>)
+    | undefined
+  >
 }>
 
 function snapshot(input: ToolPermissionAction): ToolPermissionAction {
   const { principal, tenant, ...data } = input
   return { ...structuredClone(data), principal, tenant }
 }
-const unavailable = () => ({
-  kind: 'unavailable' as const,
-  sourceRef: 'harness.current-permission',
+const unavailable = (): CurrentPermissionRead => ({
+  reading: { kind: 'unavailable', sourceRef: 'harness.current-permission' },
+  condition: null,
 })
 
 /** Trusted application query. Identity is checked before lazy tenant installation. */
-export class CurrentPermissionService
-  extends Service
-  implements PermissionBasisSource<ToolPermissionContext>
-{
+export class CurrentPermissionService extends Service implements CurrentPermissionSource {
   static readonly provide = 'currentToolPermission'
   readonly request: (input: ToolPermissionAction) => Promise<PermissionBasisRequest | undefined>
-  readonly readCurrent: PermissionBasisSource<ToolPermissionContext>['readCurrent']
+  readonly readCurrent: CurrentPermissionSource['readCurrent']
 
   constructor(ctx: Context, options: Options) {
     super(ctx, CurrentPermissionService.provide)
@@ -82,7 +83,8 @@ export class CurrentPermissionService
       try {
         const input = { ...snapshot(raw), inquiry: capturedInquirySchema.parse(raw.inquiry) }
         const request = PermissionBasisRequestSchema.safeParse(given)
-        if (!request.success) return { kind: 'invalid-input', reason: 'structure' }
+        if (!request.success)
+          return { reading: { kind: 'invalid-input', reason: 'structure' }, condition: null }
         const runtime = await runtimeFor(input)
         if (runtime?.permissionBasis === undefined) return unavailable()
         const result = await runtime.permissionBasis.readCurrent(input, request.data)

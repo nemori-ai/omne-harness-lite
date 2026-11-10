@@ -12,8 +12,8 @@ import {
   PermissionBasisReadingSchema,
   PermissionBasisRequestSchema,
   type PermissionBasisRequest,
-  type PermissionBasisSource,
 } from '@omne-harness/permissions'
+import type { StartCondition } from '@omne-harness/tool-host-local'
 import type {
   Adoption,
   FixedToolRequest,
@@ -62,14 +62,30 @@ export function agentPermissionOperation(
   }
 }
 
+type Decision = Exclude<AdmissionDecision, { kind: 'need-decision' }>
+/**
+ * An allow carries the condition of the reading. A consumer that commits the action commits this
+ * condition in the same transaction; a consumer that only answers early ignores it.
+ */
+export type ToolPermissionDecision =
+  | (Extract<Decision, { kind: 'allow' }> & Readonly<{ condition: StartCondition | null }>)
+  | Exclude<Decision, { kind: 'allow' }>
 export type ToolPermissionCheck = Readonly<{
-  check(input: ToolPermissionAction): Promise<Exclude<AdmissionDecision, { kind: 'need-decision' }>>
+  check(input: ToolPermissionAction): Promise<ToolPermissionDecision>
+}>
+/** The reading of the current permission and the condition that keeps it current at a commit. */
+export type CurrentPermissionRead = Readonly<{ reading: unknown; condition: StartCondition | null }>
+export type CurrentPermissionSource = Readonly<{
+  readCurrent(
+    context: ToolPermissionContext,
+    request: PermissionBasisRequest,
+  ): Promise<CurrentPermissionRead>
 }>
 export type ToolPermissionContext = ToolPermissionAction &
   Readonly<{ inquiry: SessionInquiryView | null }>
 export type ToolPermissionPorts = Readonly<{
   release(): ToolRelease
-  source(): PermissionBasisSource<ToolPermissionContext> | undefined
+  source(): CurrentPermissionSource | undefined
   inquiry(input: ToolPermissionAction): Promise<SessionInquiryView | null>
   request(input: ToolPermissionAction): Promise<PermissionBasisRequest | undefined>
 }>
@@ -138,9 +154,9 @@ export function toolPermissionRequestMatches(
 function interpretReading(
   request: PermissionBasisRequest,
   interpretation: PermissionInterpretation,
-  raw: unknown,
+  { reading: raw, condition }: CurrentPermissionRead,
   inquiry: SessionInquiryView | null,
-): Awaited<ReturnType<ToolPermissionCheck['check']>> {
+): ToolPermissionDecision {
   const parsed = PermissionBasisReadingSchema.safeParse(raw)
   if (!parsed.success) return unavailable()
   const reading = parsed.data
@@ -160,11 +176,11 @@ function interpretReading(
     current: reading,
   })
   if (decision.kind === 'deny') return { kind: 'deny', reason: 'permission-policy', evidence }
-  if (decision.kind === 'allow') return { kind: 'allow', evidence }
+  if (decision.kind === 'allow') return { kind: 'allow', evidence, condition }
   if (decision.kind !== 'need-decision') return unavailable()
   const disposition = decideInquiry('required', inquiry?.inquiry.policy ?? null)
   if (disposition === 'deny') return { kind: 'deny', reason: 'inquiry-policy', evidence }
-  return disposition === 'continue' ? { kind: 'allow', evidence } : unavailable()
+  return disposition === 'continue' ? { kind: 'allow', evidence, condition } : unavailable()
 }
 
 export function createCurrentToolPermission(ports: ToolPermissionPorts): ToolPermissionCheck {

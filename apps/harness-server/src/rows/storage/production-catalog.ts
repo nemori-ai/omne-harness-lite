@@ -8,7 +8,7 @@ export async function productionStorageCatalog(
   readRelease: () => Promise<ToolRelease> = loadProductionRelease,
 ): Promise<SqlMaterialCatalog> {
   const core = storageCatalog()
-  const governance = governanceStorageMaterials(await readRelease())
+  const governance = governanceStorageMaterials(await readRelease(), core)
   return {
     ...core,
     participants: [...core.participants, ...governance.participants],

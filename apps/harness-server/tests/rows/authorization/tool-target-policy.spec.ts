@@ -49,7 +49,11 @@ describe('current target rules of the authorization row', () => {
               admission: access.admission,
               call: access.call,
             })
-            return { kind: 'allow', evidence: decisionEvidence('permission-fixture', '1', {}) }
+            return {
+              kind: 'allow',
+              evidence: decisionEvidence('permission-fixture', '1', {}),
+              condition: { basis: 'fixture' },
+            }
           },
         }),
       )
@@ -71,7 +75,7 @@ describe('current target rules of the authorization row', () => {
       ).toMatchObject({ kind: 'unavailable' })
       expect(await policy.qualify({ ...access, request: world.request('Tools') })).toEqual({
         kind: 'allowed',
-        condition: null,
+        condition: { basis: 'fixture' },
       })
       expect(await policy.qualify({ ...access, request: world.request('Shell') })).toEqual({
         kind: 'denied',

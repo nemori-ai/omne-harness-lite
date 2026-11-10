@@ -34,11 +34,12 @@ export function permissionObservation(trace: PermissionObservation[]): EntryObje
           .spyOn(service, 'readCurrent')
           .mockImplementation(async (input, request) => {
             const result = await read(input, request)
+            const reading = result.reading as { kind: string; sourceRef?: string }
             trace.push({
               stage: 'current',
               result: {
-                reading: result.kind,
-                source: 'sourceRef' in result ? result.sourceRef : null,
+                reading: reading.kind,
+                source: reading.sourceRef ?? null,
                 inquiry: input.inquiry ?? null,
               },
             })

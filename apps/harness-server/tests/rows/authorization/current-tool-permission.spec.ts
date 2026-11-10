@@ -130,6 +130,7 @@ function world() {
     },
   } satisfies PermissionBasisReading
   let reading: PermissionBasisReading = current
+  const condition = { combinationVersion: 'fixture/1', commands: [] }
   let reads = 0
   const inquiry: SessionInquiryView = {
     inquiry: {
@@ -157,7 +158,7 @@ function world() {
     source: () => ({
       readCurrent: async () => {
         reads++
-        return reading
+        return { reading, condition }
       },
     }),
   }
@@ -167,6 +168,7 @@ function world() {
     request,
     current,
     inquiry,
+    condition,
     ports,
     reads: () => reads,
     set: (next: PermissionBasisReading) => {
@@ -174,6 +176,16 @@ function world() {
     },
   }
 }
+
+it('gives the condition of the reading with an allow, and with nothing else', async () => {
+  const w = world(),
+    check = createCurrentToolPermission(w.ports)
+  expect(await check.check(w.input)).toMatchObject({ kind: 'allow', condition: w.condition })
+  w.current.evaluation.sources.tenant.rule.pick = 'deny'
+  expect(await check.check(w.input)).not.toHaveProperty('condition')
+  w.set({ kind: 'unavailable', sourceRef: 'fixture' })
+  expect(await check.check(w.input)).not.toHaveProperty('condition')
+})
 
 it('reads again and refuses a newly configured prohibition', async () => {
   const w = world(),
@@ -299,7 +311,7 @@ it('carries the original owner context and the unchanged issued principal to the
         expect(context.origin).toEqual(w.input.origin)
         expect(context.origin).not.toBe(w.input.origin)
         expect(request).toEqual(w.request)
-        return w.current
+        return { reading: w.current, condition: null }
       },
     }),
   })
@@ -356,7 +368,7 @@ it('uses the same immutable published inquiry for capture and interpretation', a
       readCurrent: async context => {
         captured = context.inquiry
         policy.onAsk = 'skip-ask'
-        return w.current
+        return { reading: w.current, condition: null }
       },
     }),
   })

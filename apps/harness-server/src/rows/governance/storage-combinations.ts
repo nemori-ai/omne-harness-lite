@@ -15,6 +15,7 @@ import { SUPPORT_PARTICIPANT } from './permission-protocol.ts'
 import { ADOPTION_CURRENT_PARTICIPANT } from './adoption-current.ts'
 import { CATALOG_CURRENT_PARTICIPANT } from './catalog-current.ts'
 import { TARGET_SNAPSHOT } from './target-snapshot.ts'
+import { PERMISSION_BASIS, PERMISSION_BASIS_GUARD } from './permission-basis.ts'
 import { SESSION_PERMISSION_RESULT } from './session-permission-result.ts'
 import { sessionPermissionWriteBasis } from './storage-materials.ts'
 
@@ -50,6 +51,26 @@ const unmappedPermissionRead = [
   'session-permission-guard',
   'governance.permission-snapshot',
   'governance.activation',
+]
+/** The members whose commands compute the permission basis, in a read or in a commit. */
+export const PERMISSION_BASIS_MEMBERS = [
+  ...snapshot,
+  'governance.selected-definition-projection',
+  UNMAPPED_PERMISSION_SNAPSHOT.participant,
+  'session-permission-guard',
+  PERMISSION_BASIS.participant,
+]
+/**
+ * A Tool start commits its acceptance with the basis commands and the basis guard. The Governance
+ * writer is a member because it owns the tables that the projections read; it gets no command.
+ * The metadata planner is a member because the manifest needs a provider of the plan fact.
+ */
+const startCondition = (read: readonly string[]) => [
+  ...read.filter(participant => participant !== 'governance.permission-snapshot'),
+  'governance.metadata-plan',
+  PERMISSION_BASIS.participant,
+  PERMISSION_BASIS_GUARD.participant,
+  'tool',
 ]
 const permissionWrite = [
   'execution-record',
@@ -91,6 +112,8 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
       'session-execution-guard',
       AGENT_TOOL_PERMISSION_CURRENT,
     ],
+    toolStart: startCondition(permissionRead),
+    toolStartUnmapped: startCondition(unmappedPermissionRead),
     metadata: ['governance.metadata-plan', 'governance.activation'],
     mutation: ['governance.mutation-plan', 'governance.activation'],
     assets: [...publications, ADOPTION_CURRENT_PARTICIPANT.participant],
@@ -144,6 +167,8 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
     permissionAgent: build('permissionAgent'),
     permissionTool: build('permissionTool'),
     permissionAgentTool: build('permissionAgentTool'),
+    toolStart: build('toolStart'),
+    toolStartUnmapped: build('toolStartUnmapped'),
     metadata: build('metadata'),
     mutation: build('mutation'),
     assets: build('assets'),

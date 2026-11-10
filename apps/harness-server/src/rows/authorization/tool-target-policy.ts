@@ -23,7 +23,9 @@ function permissionVerdict(
   decision: Awaited<ReturnType<ToolPermissionCheck['check']>>,
 ): RequestAccessVerdict {
   if (decision.kind === 'deny') return { kind: 'denied', reason: decision.reason }
-  return decision.kind === 'allow' ? { kind: 'allowed', condition: null } : unavailable()
+  return decision.kind === 'allow'
+    ? { kind: 'allowed', condition: decision.condition }
+    : unavailable()
 }
 
 /** The authorization row owns these rules. A target check creates no Agent action. */

@@ -323,24 +323,13 @@ async function toolRound(
         'a new real Tool result after cold restart',
         60_000,
       )
-      for (const participant of [
-        'harness.agent-permission-current',
-        'harness.agent-tool-permission-current',
-      ]) {
-        const captures = (items: readonly Commit[]) =>
-          items.flatMap(commit =>
-            commit.result.kind === 'committed' &&
-            commit.commands.some(c => c.participant === participant)
-              ? [commit.result.identity.operationKey]
-              : [],
-          )
-        const first = captures(commits.slice(0, commitOffset))
-        const second = captures(commits.slice(commitOffset))
-        expect(first.length).toBeGreaterThan(0)
-        expect(second.length).toBeGreaterThan(0)
-        const original = new Set(first)
-        expect(second.every(key => !original.has(key))).toBe(true)
-      }
+      // Each Tool start commits its acceptance with the permission basis condition. The starts
+      // before and after the restart are different operations.
+      const before = conditionalStarts(commits.slice(0, commitOffset))
+      const after = conditionalStarts(commits.slice(commitOffset))
+      expect(before.length).toBeGreaterThan(0)
+      expect(after.length).toBeGreaterThan(0)
+      expect(after.every(key => !before.includes(key))).toBe(true)
     }
     if (scenario === 'deny-update') {
       const changed = await management.denyShell(session, { loginIdentifier: 'dana', credential })
@@ -406,6 +395,18 @@ async function toolRound(
   }
 }
 
+const names = (commit: Commit) => commit.commands.map(command => command.participant)
+
+/** The committed Tool acceptances that carried the permission basis guard. */
+const conditionalStarts = (items: readonly Commit[]): string[] =>
+  items.flatMap(commit =>
+    commit.result.kind === 'committed' &&
+    names(commit).includes('harness.permission-basis-guard') &&
+    names(commit).includes('tool')
+      ? [commit.result.identity.operationKey]
+      : [],
+  )
+
 const isIntent = (text: string): boolean =>
   text.includes('"kind":"material.preserved"') && text.includes('fixed-tool-request')
 
@@ -443,7 +444,7 @@ const MARGIN = 32
 
 describe('the storage JSON depth limit of the release, checked on the real composition (K-14, R2-D270)', () => {
   it(
-    'reopens the original Session and makes fresh Agent and Tool permission captures after cold restart',
+    'reopens the original Session, checks permission again and commits each Tool start with its basis condition after cold restart',
     { timeout: 180_000 },
     async () => {
       await toolRound(releaseMaxJsonDepth(), 'restart')
@@ -465,20 +466,17 @@ describe('the storage JSON depth limit of the release, checked on the real compo
       const depths = measured(commits)
       console.log(`R2-D270 depths: ${JSON.stringify(depths)} limit ${String(limit)}`)
       expect(commits.filter(commit => commit.answer.includes('command_limit'))).toEqual([])
+      expect(conditionalStarts(commits).length).toBeGreaterThan(0)
+      // A permission check is a read. The basis commands appear only in a Tool acceptance.
       expect(
-        commits.some(
+        commits.filter(
           commit =>
-            commit.result.kind === 'committed' &&
-            commit.commands.some(c => c.participant === 'harness.agent-permission-current'),
+            names(commit).includes('harness.permission-basis') && !names(commit).includes('tool'),
         ),
-      ).toBe(true)
+      ).toEqual([])
       expect(
-        commits.some(
-          commit =>
-            commit.result.kind === 'committed' &&
-            commit.commands.some(c => c.participant === 'harness.agent-tool-permission-current'),
-        ),
-      ).toBe(true)
+        commits.filter(commit => names(commit).includes('governance.permission-snapshot')),
+      ).toEqual([])
       expect(depths.create).toBeGreaterThan(0)
       expect(depths.intent).toBeGreaterThan(0)
       expect(depths.received).toBeGreaterThan(0)

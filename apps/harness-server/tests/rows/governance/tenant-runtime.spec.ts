@@ -1073,7 +1073,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
     throw new Error('permission reader not installed')
   expect(
     await runtime.permissionBasis.readCurrent({ ...action, inquiry: null }, request),
-  ).toMatchObject({ kind: 'unavailable' })
+  ).toMatchObject({ reading: { kind: 'unavailable' }, condition: null })
   const boundary = new Context()
   cleanup.push(() => boundary.fiber.dispose())
   const routes: string[] = []
@@ -1094,13 +1094,15 @@ it('installs the actual Tool release and adopts its original holdings before exp
   expect(await reader.request({ ...action, principal: w.principal })).toBeUndefined()
   expect(routes).toHaveLength(1)
   expect(await reader.readCurrent({ ...action, inquiry: null }, request)).toMatchObject({
-    kind: 'unavailable',
+    reading: { kind: 'unavailable' },
+    condition: null,
   })
   await provider.dispose()
   const opened = routes.length
   expect(await reader.request(action)).toBeUndefined()
   expect(await reader.readCurrent({ ...action, inquiry: null }, request)).toMatchObject({
-    kind: 'unavailable',
+    reading: { kind: 'unavailable' },
+    condition: null,
   })
   expect(routes).toHaveLength(opened)
   expect(await prepared.open()).toBe(runtime)

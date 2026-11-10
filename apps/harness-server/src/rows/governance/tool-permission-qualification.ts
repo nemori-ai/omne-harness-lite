@@ -30,7 +30,7 @@ import {
   type SessionPermissionCaptureReader,
 } from './permission-session-current.ts'
 
-type Qualification =
+export type Qualification =
   | Readonly<{ kind: 'qualified'; qualification: GovernancePermissionQualification }>
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable'; sourceRef: string }>

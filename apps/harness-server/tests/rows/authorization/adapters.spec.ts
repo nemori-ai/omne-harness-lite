@@ -842,6 +842,7 @@ describe('agentActionAdmission', () => {
           return {
             kind: 'allow',
             evidence: decisionEvidence('permission-fixture', '1', request.operation),
+            condition: null,
           }
         },
       }),
@@ -936,6 +937,7 @@ describe('agentActionAdmission', () => {
       readPermission: () => ({
         check: async input => ({
           kind: 'allow',
+          condition: null,
           evidence: decisionEvidence('permission-fixture', '1', {
             operation: input.operation,
             arguments: input.effectiveArguments,

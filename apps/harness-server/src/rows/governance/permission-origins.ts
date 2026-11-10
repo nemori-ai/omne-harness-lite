@@ -10,7 +10,7 @@ import {
 import { fail } from '@omne-harness/operation-result'
 import { releaseToolRequestsOf } from '../../entry/tool-requests.ts'
 import { toolInvocationQualificationKey } from '../tool-runtime/source-qualification.ts'
-import type { PermissionOrigins } from './permission-read-options.ts'
+import type { PermissionOrigins } from './permission-basis-read.ts'
 
 const unavailable = () =>
   fail({

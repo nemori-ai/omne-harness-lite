@@ -1,6 +1,7 @@
 import type { ToolPermissionContext } from '../authorization/current-tool-permission.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
-import { createTenantPermissionRead, type PermissionOrigins } from './permission-read-options.ts'
+import { createPermissionBasisRead, type PermissionOrigins } from './permission-basis-read.ts'
+import { PERMISSION_BASIS_READ } from './storage-materials.ts'
 import type { SessionPermissionLogin } from '../authorization/session-permission-write.ts'
 import type { ActingForTenantPrincipal, StandingDestinationResolver } from '@omne-harness/identity'
 import { access, tenantCodec } from '@omne-harness/legal-identity'
@@ -110,25 +111,11 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
     if (!(await register(options, combinations))) return unavailable(phase)
     phase = 'startup'
     let service: Runtime['service'] | undefined
-    const reading =
-      options.permissionRelease === undefined || options.settings === undefined
-        ? undefined
-        : createTenantPermissionRead({
-            scope: options.scope,
-            release: options.permissionRelease,
-            settings: options.settings,
-            sourceRoute: options.sourceRoute,
-            storage: options.storage,
-            domain: options.domain,
-            combinations,
-            origins: options.permissionOrigins ?? (() => undefined),
-          })
     const runtime = await createGovernanceLocal<
       ToolPermissionContext,
       SessionPermissionWriteContext
     >({
       ...options,
-      ...(reading === undefined ? {} : { permission: reading.permission }),
       metadata: reference(combinations.metadata),
       combinations: {
         mutation: reference(combinations.mutation),
@@ -147,14 +134,42 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
       return unavailable(phase)
     }
     service = runtime.service
+    let closed = false
+    const handler = options.materials.readHandlers.find(
+      item => item.handler === PERMISSION_BASIS_READ,
+    )
+    const permissionBasis =
+      options.permissionRelease === undefined ||
+      options.settings === undefined ||
+      handler === undefined
+        ? undefined
+        : createPermissionBasisRead({
+            scope: options.scope,
+            release: options.permissionRelease,
+            settings: options.settings,
+            storage: options.storage,
+            domain: options.domain,
+            epoch: runtime.epoch,
+            identity: options.identity,
+            read: handler,
+            conditions: {
+              mapped: reference(combinations.toolStart),
+              unmapped: reference(combinations.toolStartUnmapped),
+            },
+            origins: options.permissionOrigins ?? (() => undefined),
+            accepting: () => !closed,
+          })
     return {
       kind: runtime.kind,
       epoch: runtime.epoch,
       service,
-      permissionBasis: runtime.permissionBasis,
-      permissionRequest: reading?.requestFor ?? (async () => undefined),
+      permissionBasis,
+      permissionRequest: permissionBasis?.requestFor ?? (async () => undefined),
       backend: { storage: options.storage, writes: runtime.externalWrites },
-      close: runtime.close,
+      close: () => {
+        closed = true
+        return runtime.close()
+      },
     }
   } catch {
     return unavailable(phase)
