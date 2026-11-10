@@ -119,6 +119,7 @@ it('keeps the child suspended and stoppable by Job name when the bridge crashes 
     clearTimeout(watchdog)
     bridge.kill()
     await bridgeClosed
-    await rm(directory, { recursive: true, force: true })
+    // The anchor runs this bridge image and exits just after the Job stops.
+    await rm(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 })
   }
 }, 30_000)

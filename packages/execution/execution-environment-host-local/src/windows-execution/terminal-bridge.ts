@@ -23,91 +23,62 @@ export type TerminalFrame =
   | { readonly t: 'stopped'; readonly status: 'confirmed' | 'unconfirmed' }
   | { readonly t: 'fault'; readonly stopped: boolean }
 
-export function parseTerminalFrame(text: string, maxChunkBytes: number): TerminalFrame | undefined {
-  const value: unknown = JSON.parse(text)
-  if (typeof value !== 'object' || value === null || !('t' in value)) return undefined
-  switch (value.t) {
+type Fields = Readonly<Record<string, unknown>>
+
+const base64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u
+
+const text = (value: unknown): value is string => typeof value === 'string'
+const flag = (value: unknown): value is boolean => typeof value === 'boolean'
+const whole = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value)
+
+/** A version 3 `finished` frame: a completed one carries its elapsed time and code, else both are null. */
+function finishedFrame(fields: Fields): TerminalFrame | undefined {
+  const { v, id, cwd, restored, completed, elapsedMs, code, ended } = fields
+  if (v !== 3 || !text(id) || !text(cwd) || !flag(restored) || !flag(ended)) return undefined
+  const frame = { t: 'finished', v: 3, id, cwd, restored, ended } as const
+  if (completed === true && whole(elapsedMs) && elapsedMs >= 0 && whole(code))
+    return { ...frame, completed: true, elapsedMs, code }
+  if (completed === false && elapsedMs === null && code === null)
+    return { ...frame, completed: false, elapsedMs: null, code: null }
+  return undefined
+}
+
+function dataFrame({ s, b }: Fields, maxChunkBytes: number): TerminalFrame | undefined {
+  return s === 'terminal' &&
+    text(b) &&
+    base64.test(b) &&
+    Buffer.byteLength(b, 'base64') <= maxChunkBytes
+    ? { t: 'data', b }
+    : undefined
+}
+
+export function parseTerminalFrame(json: string, maxChunkBytes: number): TerminalFrame | undefined {
+  const value: unknown = JSON.parse(json)
+  if (typeof value !== 'object' || value === null) return undefined
+  const fields: Fields = { ...value }
+  const t = fields['t']
+  switch (t) {
     case 'ready':
     case 'controlLost':
     case 'outputLost':
     case 'inputFault':
-      return { t: value.t }
+      return { t }
     case 'fault':
-      return { t: value.t, stopped: 'stopped' in value && value.stopped === true }
+      return { t, stopped: fields['stopped'] === true }
     case 'opened':
-      return 'cwd' in value && typeof value.cwd === 'string'
-        ? { t: value.t, cwd: value.cwd }
-        : undefined
+      return text(fields['cwd']) ? { t, cwd: fields['cwd'] } : undefined
     case 'started':
     case 'legFault':
-      return 'id' in value && typeof value.id === 'string'
-        ? { t: value.t, id: value.id }
-        : undefined
+      return text(fields['id']) ? { t, id: fields['id'] } : undefined
     case 'finished':
-      if (
-        !(
-          'v' in value &&
-          value.v === 3 &&
-          'id' in value &&
-          typeof value.id === 'string' &&
-          'cwd' in value &&
-          typeof value.cwd === 'string' &&
-          'restored' in value &&
-          typeof value.restored === 'boolean' &&
-          'completed' in value &&
-          typeof value.completed === 'boolean' &&
-          'elapsedMs' in value &&
-          'code' in value &&
-          'ended' in value &&
-          typeof value.ended === 'boolean'
-        )
-      )
-        return undefined
-      if (
-        value.completed &&
-        typeof value.elapsedMs === 'number' &&
-        Number.isSafeInteger(value.elapsedMs) &&
-        value.elapsedMs >= 0 &&
-        typeof value.code === 'number' &&
-        Number.isSafeInteger(value.code)
-      )
-        return {
-          t: 'finished',
-          v: 3,
-          id: value.id,
-          cwd: value.cwd,
-          restored: value.restored,
-          ended: value.ended,
-          completed: true,
-          elapsedMs: value.elapsedMs,
-          code: value.code,
-        }
-      if (!value.completed && value.elapsedMs === null && value.code === null)
-        return {
-          t: 'finished',
-          v: 3,
-          id: value.id,
-          cwd: value.cwd,
-          restored: value.restored,
-          ended: value.ended,
-          completed: false,
-          elapsedMs: null,
-          code: null,
-        }
-      return undefined
+      return finishedFrame(fields)
     case 'data':
-      return 's' in value &&
-        value.s === 'terminal' &&
-        'b' in value &&
-        typeof value.b === 'string' &&
-        /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(value.b) &&
-        Buffer.byteLength(value.b, 'base64') <= maxChunkBytes
-        ? { t: value.t, b: value.b }
-        : undefined
-    case 'stopped':
-      return 'status' in value && (value.status === 'confirmed' || value.status === 'unconfirmed')
-        ? { t: value.t, status: value.status }
-        : undefined
+      return dataFrame(fields, maxChunkBytes)
+    case 'stopped': {
+      const status = fields['status']
+      return status === 'confirmed' || status === 'unconfirmed' ? { t, status } : undefined
+    }
     default:
       return undefined
   }

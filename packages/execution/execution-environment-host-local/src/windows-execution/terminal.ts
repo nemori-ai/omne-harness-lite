@@ -293,6 +293,29 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
         return true
     }
   }
+  /** The shell started an invocation; a frame for another invocation invalidates the terminal. */
+  const started = (id: string) => {
+    if (completedFrame(id)) return
+    if (leg?.id !== id) return invalidate()
+    if (leg.acknowledged) return
+    leg.acknowledged = true
+    leg.startedAt = now()
+    leg.started.resolve(true)
+  }
+  /** PTY bytes, attributed by the sentinels of the invocation being watched. */
+  const data = (base64: string) => {
+    const scanned = scanSentinels(sentinels, Buffer.from(base64, 'base64'))
+    sentinels = scanned.scan
+    if (!scanned.pieces.every(attribute)) invalidate('order')
+  }
+  const finished = (value: Finished) => {
+    if (completedFrame(value.id)) return
+    if (leg?.id !== value.id) return invalidate()
+    cwd = value.cwd
+    completedSequence = leg.sequence
+    leg.completion = value
+    settle()
+  }
   const frame = (value: TerminalFrame) => {
     switch (value.t) {
       case 'ready':
@@ -303,36 +326,11 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
         opened.resolve(true)
         return
       case 'started':
-        if (completedFrame(value.id)) return
-        if (leg?.id === value.id) {
-          if (!leg.acknowledged) {
-            leg.acknowledged = true
-            leg.startedAt = now()
-            leg.started.resolve(true)
-          }
-        } else invalidate()
-        return
-      case 'data': {
-        const scanned = scanSentinels(sentinels, Buffer.from(value.b, 'base64'))
-        sentinels = scanned.scan
-        for (const piece of scanned.pieces)
-          if (!attribute(piece)) {
-            invalidate('order')
-            return
-          }
-        return
-      }
+        return started(value.id)
+      case 'data':
+        return data(value.b)
       case 'finished':
-        if (completedFrame(value.id)) return
-        if (leg?.id !== value.id) {
-          invalidate()
-          return
-        }
-        cwd = value.cwd
-        completedSequence = leg.sequence
-        leg.completion = value
-        settle()
-        return
+        return finished(value)
       case 'stopped':
         if (value.status === 'confirmed') nativeStopped = true
         stopReply.resolve(value.status)
@@ -359,6 +357,49 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
       }
     }
   }
+  /**
+   * Stops the Job through the broker, else by its name; the broker's own answer can still arrive
+   * while the stop by name runs. True once the Job is stopped and the broker is gone.
+   */
+  async function stopNative(remaining: () => number): Promise<boolean> {
+    if (bridge === undefined) nativeStopped = true
+    if (!nativeStopped) {
+      stopReply = deferred<StopStatus>()
+      const sent = bridge?.send('stop') === true
+      if (sent && (await within(stopReply.promise, remaining())) === 'confirmed')
+        nativeStopped = true
+      if (
+        !nativeStopped &&
+        remaining() > 0 &&
+        (await stopWindowsResource(resource, remaining())) === 'confirmed'
+      )
+        nativeStopped = true
+    }
+    if (!nativeStopped) return false
+    bridge?.send('dispose')
+    bridge?.disconnect()
+    if (bridge !== undefined && !bridgeEnded)
+      bridgeEnded =
+        (await within(
+          bridge.closed.then(() => true),
+          remaining(),
+        )) === true
+    return bridge === undefined || bridgeEnded
+  }
+  /** Records the stop on the ledger once; confirmed only when released and recorded as such. */
+  async function recordStop(released: boolean, remaining: () => number): Promise<boolean> {
+    const status = released ? 'confirmed' : 'unconfirmed'
+    recording ??= {
+      status,
+      result: Promise.resolve()
+        .then(() => ledger.stopped(resource.key, status))
+        .catch(() => 'unavailable'),
+    }
+    const recorded = await within(recording.result, remaining())
+    const agrees = recording.status === status
+    if (recorded !== undefined) recording = undefined
+    return released && agrees && recorded === 'recorded'
+  }
   async function stop(): Promise<StopStatus> {
     if (confirmed) return 'confirmed'
     cancelled = true
@@ -368,52 +409,14 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
       const deadline = now() + settings.stopBoundMs
       const remaining = () => Math.max(0, deadline - now())
       finish()
-      if (bridge === undefined) nativeStopped = true
-      if (!nativeStopped) {
-        stopReply = deferred<StopStatus>()
-        const sent = bridge?.send('stop') === true
-        const response = sent ? await within(stopReply.promise, remaining()) : 'unconfirmed'
-        if (response === 'confirmed') nativeStopped = true
-        // The broker's own answer can still arrive while the stop by name runs.
-        if (
-          !nativeStopped &&
-          remaining() > 0 &&
-          (await stopWindowsResource(resource, remaining())) === 'confirmed'
-        )
-          nativeStopped = true
-      }
-      if (nativeStopped) {
-        bridge?.send('dispose')
-        bridge?.disconnect()
-        if (bridge !== undefined && !bridgeEnded)
-          bridgeEnded =
-            (await within(
-              bridge.closed.then(() => true),
-              remaining(),
-            )) === true
-      }
-      const released = nativeStopped && (bridge === undefined || bridgeEnded)
+      const released = await stopNative(remaining)
       if (released) {
         // Sealing the unused window releases its reservation; the bytes kept between segments go with it.
         spare?.seal()
         spare = undefined
         between = []
       }
-      if (!planned && released) {
-        confirmed = true
-      } else {
-        const status = released ? 'confirmed' : 'unconfirmed'
-        recording ??= {
-          status,
-          result: Promise.resolve()
-            .then(() => ledger.stopped(resource.key, status))
-            .catch(() => 'unavailable'),
-        }
-        const recorded = await within(recording.result, remaining())
-        const agrees = recording.status === status
-        if (recorded !== undefined) recording = undefined
-        confirmed = released && agrees && recorded === 'recorded'
-      }
+      confirmed = !planned && released ? true : await recordStop(released, remaining)
       if (confirmed) {
         state = 'closed'
         releaseTerminal()
@@ -424,6 +427,25 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
     })
     return stopping
   }
+  /** The checks of a create request that need no process, in order. */
+  const startIssue = (request: typeof input.request): FacilityReason | undefined => {
+    if (request.binding.kind !== 'host_machine') return 'unsupported'
+    if (
+      !pathValid(request.cwd) ||
+      !envValid(request.env) ||
+      !geometryValid(request.geometry?.columns ?? settings.columns) ||
+      !geometryValid(request.geometry?.rows ?? settings.rows)
+    )
+      return 'invalidInput'
+    if (
+      Buffer.byteLength(JSON.stringify({ cwd: request.cwd, env: request.env })) + 512 >
+      settings.maxControlBytes
+    )
+      return 'capacity'
+    if (closed()) return 'closed'
+    if (process.platform !== 'win32') return 'unavailable'
+    return undefined
+  }
   const start = async (): Promise<FacilityResult<{ terminal: TerminalRef }>> => {
     const request = input.request
     const refused = async (reason: FacilityReason) => {
@@ -431,21 +453,8 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
       await stop()
       return reject(request.requestId, reason)
     }
-    if (request.binding.kind !== 'host_machine') return refused('unsupported')
-    if (
-      !pathValid(request.cwd) ||
-      !envValid(request.env) ||
-      !geometryValid(request.geometry?.columns ?? settings.columns) ||
-      !geometryValid(request.geometry?.rows ?? settings.rows)
-    )
-      return refused('invalidInput')
-    if (
-      Buffer.byteLength(JSON.stringify({ cwd: request.cwd, env: request.env })) + 512 >
-      settings.maxControlBytes
-    )
-      return refused('capacity')
-    if (closed()) return refused('closed')
-    if (process.platform !== 'win32') return refused('unavailable')
+    const issue = startIssue(request)
+    if (issue !== undefined) return refused(issue)
     const conpty = input.conpty ?? bundledConpty()
     const missing = await missingConptyFiles(conpty)
     if (missing.length > 0) {
@@ -509,20 +518,38 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
       starting = false
     }
   }
-  const execute = async (request: ExecuteRequest): Promise<FacilityResult<ProcessHandle>> => {
-    if (closed() || state === 'closed') return reject(request.requestId, 'closed')
-    if (starting || state === 'running') return reject(request.requestId, 'busy')
-    if (state === 'invalid' || bridge === undefined || spare === undefined)
-      return reject(request.requestId, 'unavailable')
-    if (request.binding.kind !== 'host_machine') return reject(request.requestId, 'unsupported')
+  /** The checks of an execute request against the terminal's state and its own shape, in order. */
+  const executeIssue = (request: ExecuteRequest): FacilityReason | undefined => {
+    if (closed() || state === 'closed') return 'closed'
+    if (starting || state === 'running') return 'busy'
+    if (state === 'invalid' || bridge === undefined || spare === undefined) return 'unavailable'
+    if (request.binding.kind !== 'host_machine') return 'unsupported'
     if (request.terminal.id !== terminal.id || request.terminal.generation !== terminal.generation)
-      return reject(request.requestId, 'notFound')
+      return 'notFound'
     if (
       request.script.includes('\0') ||
       (request.cwd !== undefined && !pathValid(request.cwd)) ||
       (request.env !== undefined && !envValid(request.env))
     )
-      return reject(request.requestId, 'invalidInput')
+      return 'invalidInput'
+    return undefined
+  }
+  /** A stop through one invocation's handle: only the running invocation stops the terminal. */
+  const stopLeg = async (current: Leg, mode: 'graceful' | 'forced'): Promise<StopStatus> => {
+    if (confirmed) return 'confirmed'
+    if (current.done && !current.foregroundCompleted && state === 'invalid')
+      return mode === 'forced' ? stop() : 'unconfirmed'
+    if (current.done || leg !== current) return 'unconfirmed'
+    if (mode === 'graceful') {
+      bridge?.send('graceful')
+      return 'unconfirmed'
+    }
+    return stop()
+  }
+  const execute = async (request: ExecuteRequest): Promise<FacilityResult<ProcessHandle>> => {
+    const issue = executeIssue(request)
+    if (issue !== undefined) return reject(request.requestId, issue)
+    if (bridge === undefined || spare === undefined) return reject(request.requestId, 'unavailable')
     if (sequence >= Number.MAX_SAFE_INTEGER) {
       state = 'invalid'
       return reject(request.requestId, 'capacity')
@@ -578,17 +605,7 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
         output: current.window.output,
         outputPolicy: policy,
         result: current.outcome.promise,
-        async stop(mode: 'graceful' | 'forced'): Promise<StopStatus> {
-          if (confirmed) return 'confirmed'
-          if (current.done && !current.foregroundCompleted && state === 'invalid')
-            return mode === 'forced' ? stop() : 'unconfirmed'
-          if (current.done || leg !== current) return 'unconfirmed'
-          if (mode === 'graceful') {
-            bridge?.send('graceful')
-            return 'unconfirmed'
-          }
-          return stop()
-        },
+        stop: (mode: 'graceful' | 'forced') => stopLeg(current, mode),
       }),
     }
   }

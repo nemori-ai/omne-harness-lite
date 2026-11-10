@@ -521,7 +521,8 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       return rejected('unavailable')
     }
     if (sealed || ledger.closed.aborted) return rejected('closed')
-    const identity = await windowsIdentity(settings.stopBoundMs)
+    // Part of the start: the boot and session reading is bounded like the rest of it.
+    const identity = await windowsIdentity(settings.startBoundMs)
     if (identity === undefined) return rejected('unavailable')
     const key = randomUUID()
     const name = `Local\\omne-command-${key}`
