@@ -1229,7 +1229,7 @@ describe('the host lets go of the records of a call only when its acquisitions c
     const state = createEnvironmentStateStore({ store: f.store, mode: 'test' })
     f.commit.mockImplementationOnce(async input => {
       await state.update(preparation, found =>
-        found ? succeed({ ...found, allocation: { kind: 'settled' } }) : invalid('missing'),
+        succeed({ ...found!, allocation: { kind: 'settled' } }),
       )
       return f.realCommit(input)
     })

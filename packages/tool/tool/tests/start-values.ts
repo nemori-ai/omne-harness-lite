@@ -34,6 +34,7 @@ import {
   createToolFactAcknowledgementGuard,
   createToolRuntime,
   type LedgerCommitInput,
+  type LedgerDomain,
   type ToolDependencies,
   type ToolLedgerStore,
   type ToolLedgerPorts,
