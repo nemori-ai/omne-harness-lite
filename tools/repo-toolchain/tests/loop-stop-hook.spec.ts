@@ -4,10 +4,12 @@
 // 钉住的是宿主看得到的东西：退出码永远是 0，标准输出要么空、要么恰好一个 JSON 对象——
 // 反馈时只有 decision 与 reason，钩子自己出错时只有 systemMessage。
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import { BASELINE_DIRECTORY } from '../src/loop/baseline-cache.ts'
+import { resultOf } from '../src/loop/hook-job.ts'
 import { measureInChild, measureInProcess } from '../src/loop/hook-process.ts'
 import {
   commit,
@@ -200,6 +202,50 @@ describe('量读数的子进程', { tags: ['slow'] }, () => {
     await expect(measureInChild(root, 'main', 1, home)).rejects.toThrow(
       '量读数超过 0.001 秒，已放弃',
     )
+  })
+
+  // 子进程里做的事本身在进程内跑一遍：没碰、碰了且基线读数这次现算、碰了且基线读数已缓存。
+  it('resultOf：没碰产品源码不报；碰了给读数，基线读数这次现算才报「已备好」，第二次读缓存不报', () => {
+    const { root, home } = work()
+    const job = { root, primaryBranch: 'main', home }
+    const prepared: string[] = []
+    expect(resultOf(job, commit => prepared.push(commit))).toEqual({
+      kind: 'result',
+      touched: false,
+    })
+    expect(prepared).toEqual([])
+    write(root, 'packages/core/a/src/tangled.ts', tangled)
+    const first = resultOf(job, commit => prepared.push(commit))
+    if (!first.touched) throw new Error('应当量了读数')
+    expect(first.readings.explain.functions.map(row => [row.name, row.level])).toEqual([
+      ['tangled', 'alert'],
+    ])
+    expect(prepared).toEqual([git(root, 'rev-parse', 'main')])
+    prepared.length = 0
+    const second = resultOf(job, commit => prepared.push(commit))
+    expect(second.touched).toBe(true)
+    expect(prepared).toEqual([])
+  })
+
+  it('resultOf：只有架构观测的基线这次现算（依赖图的基线仍在缓存里）也报「已备好」', () => {
+    // 基线里有 workspace 才有架构观测可存。
+    const root = repository()
+    write(root, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*/*'\n")
+    write(root, 'packages/core/a/src/index.ts', 'export const a = 1\n')
+    commit(root, 'member')
+    spawnSync('git', ['checkout', '-q', '-b', 'someone/work'], { cwd: root })
+    const home = temporaryDirectory('loop-hook-home-')
+    const job = { root, primaryBranch: 'main', home }
+    write(root, 'packages/core/a/src/tangled.ts', tangled)
+    const prepared: string[] = []
+    resultOf(job, commit => prepared.push(commit))
+    expect(prepared).toEqual([git(root, 'rev-parse', 'main')])
+    prepared.length = 0
+    resultOf(job, commit => prepared.push(commit))
+    expect(prepared).toEqual([])
+    rmSync(join(home, BASELINE_DIRECTORY), { recursive: true, force: true })
+    resultOf(job, commit => prepared.push(commit))
+    expect(prepared).toEqual([git(root, 'rev-parse', 'main')])
   })
 
   // 量读数时有一次同步的子进程调用（dependency-cruiser）卡着：到时限要连它一起杀掉，主进程才能按时退出。
