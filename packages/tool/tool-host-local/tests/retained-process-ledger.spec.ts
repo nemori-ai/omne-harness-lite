@@ -1105,13 +1105,26 @@ describe('the host lets go of the records of a call only when its acquisitions c
     if (read.kind !== 'complete') throw new Error('fixture domain unavailable')
     return { revision: read.revision, count: read.records.length }
   }
+  const plain = (['start', 'source', 'delivery', 'control'] as const).map(aggregate =>
+    callHostDomain(tenantA, aggregate, preparation.call),
+  )
+  /** One record in each of the four plain host domains of the call; the source is not forwarded. */
   async function withControlRecord(f: Awaited<ReturnType<typeof fixture>>) {
-    await f.realCommit({
-      domain: control,
-      expected: revision('0'),
-      revision: revision('1'),
-      writes: [{ kind: 'put', record: { kind: 'host', host: { key: 'subject', value: {} } } }],
-    })
+    for (const domain of plain)
+      await f.realCommit({
+        domain,
+        expected: revision('0'),
+        revision: revision('1'),
+        writes: [
+          {
+            kind: 'put',
+            record: {
+              kind: 'host',
+              host: { key: 'subject', value: { origin: { kind: 'direct' } } },
+            },
+          },
+        ],
+      })
   }
 
   it('answers held and removes nothing while a stop fact of the acquisition is not confirmed', async () => {
@@ -1148,11 +1161,32 @@ describe('the host lets go of the records of a call only when its acquisitions c
     const kept = await records(f, scope)
     expect(await remove(f)).toEqual({ ok: 'removed' })
     expect(await records(f, acquisitionDomain(preparation))).toEqual({ revision: '0', count: 0 })
-    expect(await records(f, control)).toEqual({ revision: '0', count: 0 })
+    for (const domain of plain)
+      expect(await records(f, domain)).toEqual({ revision: '0', count: 0 })
     // The scope's record and its end fact belong to the scope, not to the call.
     expect(await records(f, scope)).toEqual(kept)
     // A second request finds nothing and answers the same.
     expect(await remove(f)).toEqual({ ok: 'removed' })
+  })
+
+  it('answers held when one stop fact is confirmed and another is not', async () => {
+    const f = await fixture()
+    await f.reserved()
+    // The close confirms the reservation nobody took over; the permitted resource is still active.
+    expect(await f.acquisition.close()).toBe('confirmed')
+    expect((await f.domain()).acquired?.state).toMatchObject({
+      resources: [{ stop: 'active' }],
+      reservations: [{ stop: 'confirmed' }],
+    })
+    expect(await remove(f)).toEqual({ ok: 'held' })
+  })
+
+  it('answers the failure of a store that cannot be read, and removes nothing', async () => {
+    const f = await fixture()
+    await withControlRecord(f)
+    f.store.injectRead('unavailable')
+    expect(await remove(f)).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(await records(f, control)).toEqual({ revision: '1', count: 1 })
   })
 
   it('keeps the records of a forwarded call while the call that forwarded it has its record', async () => {

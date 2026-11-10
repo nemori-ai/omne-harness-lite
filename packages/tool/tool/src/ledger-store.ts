@@ -386,7 +386,9 @@ export const CALL_RECORD_KEY = 'call'
 
 /**
  * The key of the due entry of a call domain itself: the instant after which the sweep may drop
- * the domain (CallLifecycle `due`). The bodies of the domain have their own entries.
+ * the domain (CallLifecycle `due`). The bodies of the domain have their own entries, under keys
+ * that sort before this one: `due` answers by instant and then by key, so at one instant the
+ * sweep reclaims the bodies before it reaches the domain.
  */
 export const CALL_DUE_KEY = 'call'
 

@@ -3,8 +3,8 @@
 // and unschedule the entry in one write. A sweeper that stops between the two steps leaves the
 // due entry in place, so the rerun deletes again and reaches the same end state.
 //
-// A due call domain (CallLifecycle `Postpone`, `DeleteBytes`, `Sweep`) is dropped whole, after the
-// bytes of its bodies left the store and the host let go of the records it keeps for the call. A
+// A due call domain (CallLifecycle `Postpone`, `Sweep`) is dropped whole, after the bytes of its
+// bodies left the store (their entries come first) and the host let go of the records it keeps. A
 // domain that may not be dropped yet is scheduled again one grace later, and the sweep goes on:
 // only a store that cannot answer stops the sweep.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -100,7 +100,6 @@ function quiet(snapshot: Snapshot): boolean {
 }
 
 export function createLedgerSweep<P>(ports: SweepPorts<P>): ToolLedgerSweep {
-  const bodyStore = ports.bodies?.store
   type Removal = Outcome<'removed' | 'kept', ToolFailure>
 
   /** Model `Postpone`: the entry moves one grace on; the domain stays. */
@@ -125,7 +124,13 @@ export function createLedgerSweep<P>(ports: SweepPorts<P>): ToolLedgerSweep {
     return 'failure' in moved ? moved : succeed('kept')
   }
 
-  /** Models `DeleteBytes` and `Sweep` for one due call domain. */
+  /**
+   * Model `Sweep` for one due call domain. The bytes of its bodies are gone when the sweep gets
+   * here (model `DeleteBytes`): the instant of the call is not before the instant of any of its
+   * bodies, `due` answers by instant and then by key, and a body key sorts before `CALL_DUE_KEY`.
+   * So the entries of the bodies come first, and a body the store could not delete stops the
+   * sweep before it reaches the call.
+   */
   const removeCall = async (
     entry: DueEntry & { domain: Extract<LedgerDomain, { kind: 'call' }> },
     now: ToolInstant,
@@ -133,16 +138,6 @@ export function createLedgerSweep<P>(ports: SweepPorts<P>): ToolLedgerSweep {
     const snapshot = await ports.read(entry.domain)
     if ('failure' in snapshot) return snapshot
     if (!quiet(snapshot.ok)) return postpone(entry, now)
-    for (const body of snapshot.ok.bodies.values()) {
-      if (body.state.kind === 'reclaimed') continue
-      if (bodyStore === undefined) return unavailable('body-store', 'body custody is not connected')
-      const deleted = await bodyStore.delete({
-        tenant: entry.domain.tenant,
-        call: entry.domain.call,
-        body: body.bodyId,
-      })
-      if (deleted.kind !== 'deleted') return unavailable('body-store', deleted.diagnostic)
-    }
     if (snapshot.ok.call !== null) {
       const host = await ports.removal.hostRecords(entry.domain.tenant, entry.domain.call)
       if ('failure' in host) return host
