@@ -46,12 +46,13 @@ W3 的材料用途、期限、页租约及删除协议为 [#1168](https://github
 | ----------------------------------------------- | ----------------------------------------------------------- |
 | `committed`                                     | `committed`                                                 |
 | `rolled_back`，参加者以修订号停止               | `conflict`，带当前修订号                                    |
-| `rolled_back`，其他原因（参加者抛错、语句失败） | `unavailable`。明确回滚已持久，提交没有任何效果             |
+| `rolled_back`，其他原因（参加者抛错、语句失败） | `rejected`，`reason` 为失败类别。明确回滚已持久，提交没有任何效果；失败由输入与已提交的数据决定（sql-contract §7.6），同一提交再试得到同一失败 |
 | `unknown`                                       | `unknown`。账本按它写入的操作认回结果                       |
-| `rejected_before_accept`                        | `unavailable`，诊断带拒绝原因                               |
+| `rejected_before_accept`，暂时的原因            | `unavailable`，诊断带拒绝原因                               |
+| `rejected_before_accept`，确定的原因            | `rejected`，`reason` 为拒绝原因。定性见 sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性) |
 | `identity_conflict`                             | `unavailable`。每次提交用新的操作键，提供者没有执行本次提交 |
 
-写入的记录不是严格 JSON 时（函数、BigInt、非有限数、类型化数组、环），端口在发出提交之前答 `unavailable`。值为 `undefined` 的对象成员按 JSON 省略。
+写入的记录不是严格 JSON 时（函数、BigInt、非有限数、类型化数组、环），端口在发出提交之前答 `rejected`：同一写入集再试仍不是严格 JSON。值为 `undefined` 的对象成员按 JSON 省略。
 
 SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不捕获该异常，原样交给调用方（防御指导 DP-01）。账本把它当作结果不定。
 
@@ -95,7 +96,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 1. 同域共用写队列（R1-D2）：Tool 的提交与会话日志的提交在同一租户事务域排队。ST-09 或 E9 测量超过阈值时重开。
 2. 两条不等式（评审 N1）。左侧上界归 `tool` 的 P08 拥有者，在它给出之前是已知限制：
-   - 一次 `ToolLedgerStore.commit` 的写入集，编码后加信封不超过 `storage` 行的 `maxCommandBytes`。超过时提供者拒绝（`command_limit`），端口答 `unavailable`。
+   - 一次 `ToolLedgerStore.commit` 的写入集，编码后加信封不超过 `storage` 行的 `maxCommandBytes`。超过时提供者拒绝（`command_limit`），端口答 `rejected`，`reason` 为 `command_limit`。
    - 一个账本域的全部记录，编码后不超过读 handler 的 `maxOutputBytes`（4194304）与提供者的 `maxReadResultBytes`，记录数不超过 100000。超过时读答 `unavailable`。
 3. 材料删除与持久候选索引已实现，应用维护行负责自动推进。删除释放分块并产生可复用页，不承诺 SQLite 文件立即缩小。围栏与会话历史仍按各自责任保留，长期增长须分别测量；不能以这些记录保留正文副本。
 4. `inspect` 对从未保管的操作答 `unknown`（U1），P05 拥有者另定时再改。

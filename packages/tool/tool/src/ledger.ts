@@ -4,7 +4,7 @@ import type { BodyPolicy } from './result-offloading.ts'
 import type { ToolBodyWrites } from '@omne-harness/tool-contract/provider'
 import { entryBySource } from './ledger-body-entries.ts'
 import { firstResultReference } from './result-address.ts'
-import { createLedgerTransactions, type Decide } from './ledger-transactions.ts'
+import { answerOf, createLedgerTransactions, type Decide } from './ledger-transactions.ts'
 import { createLedgerAccess } from './ledger-access.ts'
 import { pinResultPolicy } from './ledger-result-policy.ts'
 import { activateResultDecision } from './ledger-result-activation.ts'
@@ -95,6 +95,7 @@ import type {
   ToolLedgerAdmissions,
   ToolLedgerConfiguration,
   ToolLedgerQueues,
+  ToolLedgerRejections,
   ToolLedgerFacts,
   ToolLedgerPorts,
   ToolLedgerControls,
@@ -143,6 +144,7 @@ import {
   decideQueueReady,
   decideQueueRelease,
   decideRecordStart,
+  decideLedgerRejected,
   decideRejectPending,
   queueKeyOf,
   queueSnapshotOf,
@@ -177,6 +179,8 @@ export type ToolLedger<P, B extends ContentBlock> = Readonly<{
   admissions: ToolLedgerAdmissions<P>
   /** The queue maintenance a waiting call asks for (SPEC 22). */
   queues: ToolLedgerQueues<P>
+  /** The minimal failure terminal after a step the store rejected for good (SPEC 23). */
+  rejections: ToolLedgerRejections<P>
   facts: ToolLedgerFacts<P, B>
 }>
 
@@ -278,9 +282,8 @@ export function createToolLedger<P, B extends ContentBlock>(
       if (decision.kind === 'reply') return decision.outcome
       const revision = nextRevision(snapshot.ok.revision)
       const committed = await commit(domain, snapshot.ok.revision, revision, decision.writes)
-      if (committed.kind === 'committed') return succeed(decision.value)
-      if (committed.kind === 'unknown') return unknown
-      if (committed.kind === 'unavailable') return unavailable('ledger-store', committed.diagnostic)
+      const answer = answerOf(committed, decision.value, unknown)
+      if (answer !== null) return answer
     }
     return unavailable('ledger-store', `${attempts} revision conflicts in a row`)
   }
@@ -659,9 +662,8 @@ export function createToolLedger<P, B extends ContentBlock>(
         decision.writes,
         [{ domain: callDomain(context), revision: judged.revision }],
       )
-      if (committed.kind === 'committed') return succeed(decision.value)
-      if (committed.kind === 'unknown') return commitUnknown(context.operation)
-      if (committed.kind === 'unavailable') return unavailable('ledger-store', committed.diagnostic)
+      const answer = answerOf(committed, decision.value, commitUnknown(context.operation))
+      if (answer !== null) return answer
       const current = await read(callDomain(context))
       if ('failure' in current) return current
       judged = current.ok
@@ -967,6 +969,28 @@ export function createToolLedger<P, B extends ContentBlock>(
       'write',
       command.inputDigest,
       (snapshot, mint, prepared) => decideRejectPending(snapshot, command, prepared, mint),
+      before.ok.revision,
+    )
+    if ('failure' in settled) return settled
+    return releaseQueue(context.ok, record.ok, settled.ok)
+  }
+
+  /** The minimal failure terminal of a call that never started (SPEC 23), then its release. */
+  const settleRejected: ToolLedgerRejections<P>['settle'] = async input => {
+    const context = await writeEntry(input)
+    if ('failure' in context) return context
+    const reason: unknown = Reflect.get(input, 'reason')
+    if (typeof reason !== 'string' || reason.length === 0) return invalid('reason', 'type')
+    const command = { ...writeCommand(context.ok, { reason }), reason }
+    const before = await peek(context.ok)
+    if ('failure' in before) return before
+    const record = recordOf(before.ok)
+    if ('failure' in record) return record
+    const settled = await settleSynthetic(
+      context.ok,
+      'write',
+      command.inputDigest,
+      (snapshot, mint, prepared) => decideLedgerRejected(snapshot, command, prepared, mint),
       before.ok.revision,
     )
     if ('failure' in settled) return settled
@@ -1496,6 +1520,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     reads: Object.freeze(reads),
     admissions: Object.freeze(admissions),
     queues: Object.freeze(queues),
+    rejections: Object.freeze({ settle: settleRejected }),
     facts: Object.freeze({
       read: async input => {
         const context = judgeCallInput<P>(input, 'recover')

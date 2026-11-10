@@ -4,6 +4,7 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import type {
   HandlerOutcome,
   ParticipantModule,
+  ParticipantReply,
   ReadHandlerModule,
   ReadPort,
   SqlCell,
@@ -56,6 +57,27 @@ export function refusingMalformedEntries(module: ParticipantModule): Participant
     },
   }
 }
+
+/** The class names of the definite failures of the `session` participant (SPEC 参加者失败的定性). */
+export type DefiniteFailure = 'read-bound' | 'execution-indexed' | 'missing-row' | 'quarantined'
+
+/**
+ * The basis of a definite failure: the Session failure `invalid` on the field `storage`, named by
+ * its class, which the port returns as it is, and the diagnostic beside it for the rolled back
+ * receipt. Waiting does not change such a failure, so it is a conflict and never `failed`.
+ */
+export function definiteBasis(
+  failure: DefiniteFailure,
+  diagnostic: string,
+): Readonly<{ failure: JsonValue; diagnostic: string }> {
+  return { failure: { kind: 'invalid', field: 'storage', reason: failure }, diagnostic }
+}
+
+/** The participant reply of a definite failure: a conflict on `definiteBasis`. */
+export const definite = (failure: DefiniteFailure, diagnostic: string): ParticipantReply => ({
+  kind: 'conflict',
+  basis: definiteBasis(failure, diagnostic),
+})
 
 export type Row = Readonly<Record<string, SqlCell>>
 export type Executor = Readonly<{

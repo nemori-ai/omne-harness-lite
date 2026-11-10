@@ -395,6 +395,11 @@ export function createInvocationForwarding<P>(
                 diagnostic: commit.diagnostic,
               },
             }
+          if (commit.kind === 'rejected')
+            return {
+              kind: 'rejected',
+              failure: { kind: 'invalid', field: 'storage', reason: commit.reason },
+            }
         }
         return { kind: 'association-unknown' }
       } catch {

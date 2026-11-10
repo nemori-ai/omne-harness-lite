@@ -165,7 +165,7 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
     const fault = commitFaults.shift()
     if (fault === 'unavailable') return { kind: 'unavailable', diagnostic: 'injected' }
     if (!sameTenant(input))
-      return { kind: 'unavailable', diagnostic: 'an assertion names a domain of another tenant' }
+      return { kind: 'rejected', reason: 'an assertion names a domain of another tenant' }
     const target = domainOf(input.domain)
     if (fault === 'conflict') return { kind: 'conflict', current: target.revision }
     if (fault === 'unknown-delayed') {

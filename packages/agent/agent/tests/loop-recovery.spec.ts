@@ -301,7 +301,7 @@ describe('E1 and E2 read-only recognition', () => {
   })
 
   it.each(['load', 'inputs', 'readReplyAdmissions', 'query'] as const)(
-    'NA-E2-2: unavailable %s saves dependency waiting instead of empty facts',
+    'NA-E2-2: unavailable %s waits on the dependency instead of reading empty facts',
     async method => {
       const assembly = await loopAssembly([execution()], d => ({
         ...d,
@@ -332,7 +332,9 @@ describe('E1 and E2 read-only recognition', () => {
       } else assembly.controls.journal.failNextRead(method)
       const ran = await c.runExecution()
       if (method === 'query') {
-        expect(failure(ran).failure.kind).toBe('unavailable')
+        // An unresolved original is waiting for its outcome: the wait stays in memory and saves
+        // nothing over it (Agent SPEC 依赖不可用时的等待).
+        ok(ran)
         expect((await load(assembly)).state.kind).toBe('advancing')
         return
       }
@@ -817,17 +819,16 @@ describe('R0 and W0 coordination', () => {
     )
   })
 
-  it('NA-W0-1: a failed waiting commit stays a failure and saves no event', async () => {
+  // Agent SPEC 依赖不可用时的等待: the wait stays in the process, the drive yields and nothing
+  // is saved; the check time goes through E1.
+  it('NA-W0-1: a waiting commit answered unavailable keeps the wait in the process and saves no event', async () => {
     const assembly = await loopAssembly([execution()])
     const c = coordinator(assembly)
     ok(await c.accept())
     const before = await load(assembly)
     assembly.controls.journal.failNextRead('load')
     assembly.controls.journal.failNext('commit', { kind: 'unavailable' })
-    expect(failure(await c.runExecution())).toMatchObject({
-      node: 'W0',
-      failure: { kind: 'unavailable' },
-    })
+    ok(await c.runExecution())
     expect(await load(assembly)).toEqual(before)
   })
 
@@ -989,7 +990,8 @@ describe('a saved admission position in a new coordinator', () => {
     assembly.release.open()
     const first = coordinator(assembly)
     ok(await first.accept())
-    expect(failure(await first.runExecution())).toMatchObject({ node: 'Q1' })
+    // The admission is unavailable: the run waits at Q1 (Agent SPEC 依赖不可用时的等待).
+    ok(await first.runExecution())
     const saved = await load(assembly)
     expect(saved.checkpoint.position).toBe('Q2')
     expect(saved.checkpoint.currentHandoff).not.toBeNull()
@@ -1009,10 +1011,11 @@ describe('a saved admission position in a new coordinator', () => {
 })
 
 describe('the Access of the admission calls (#963 N-2)', () => {
-  // Q1 and Q2 hand the Access of the execution's entry to the message handoff. The lost prepare
-  // leaves the same coordinator at Q2 without an outcome, so its next run reads the H back with
-  // lookup and prepares it again. Red when either call carries another tenant than the caller's.
-  it('NA-Q2-2: prepare and the Q2 lookup each carry the tenant of the execution that calls them', async () => {
+  // Q1 and Q2 hand the Access of the execution's entry to the message handoff. The unavailable
+  // prepare took no effect, so the same coordinator at Q2 prepares the same request again and does
+  // not read it back with lookup (#1174 qa D1). Red when a call carries another tenant than the
+  // caller's.
+  it('NA-Q2-2: each prepare carries the tenant of the execution that calls it, and the unavailable one is not looked up', async () => {
     const prepared: (readonly [kind: string, tenant: unknown])[] = []
     let replies = 0
     const assembly = await loopAssembly([execution('exec-a'), execution('exec-b')], d => ({
@@ -1040,7 +1043,8 @@ describe('the Access of the admission calls (#963 N-2)', () => {
         initial: acceptedInput(`input-${id}`, `hello ${id}`),
       })
       ok(await entry.accept())
-      expect(failure(await entry.runExecution())).toMatchObject({ node: 'Q1' })
+      // The admission is unavailable: the run waits at Q1, and the next pass prepares again.
+      ok(await entry.runExecution())
       ok(await entry.runExecution())
     }
     expect(prepared).toEqual([
@@ -1051,12 +1055,7 @@ describe('the Access of the admission calls (#963 N-2)', () => {
       ['execution', otherTenant.tenant],
       ['execution', otherTenant.tenant],
     ])
-    expect(
-      assembly.controls.handoff.lookup.calls.map(call => [call.kind, call.tenant] as const),
-    ).toEqual([
-      ['execution', alice.tenant],
-      ['execution', otherTenant.tenant],
-    ])
+    expect(assembly.controls.handoff.lookup.calls).toEqual([])
   })
 })
 

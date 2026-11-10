@@ -800,6 +800,7 @@ export function createLocalStartCoordinator<P>(
           if (committed.kind === 'committed') return succeed(decision.value)
           if (committed.kind === 'unknown') return unknown(committed.diagnostic)
           if (committed.kind === 'unavailable') return unavailable(committed.diagnostic)
+          if (committed.kind === 'rejected') return invalid('storage', committed.reason)
         }
         return unavailable(`${commitAttempts} revision conflicts in a row`)
       },

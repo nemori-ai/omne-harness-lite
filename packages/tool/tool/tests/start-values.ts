@@ -485,6 +485,7 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     commands: options.commands?.(ledger.commands) ?? ledger.commands,
     admissions: publicLedger.admissions,
     queues: ledger.queues,
+    rejections: ledger.rejections,
     reads: options.readsPort?.(ledger.reads) ?? ledger.reads,
     bindings,
     environments: options.environmentsPort?.(environments) ?? environments,
@@ -737,12 +738,13 @@ export async function toStarting(harness: StartHarness, call: string) {
 /**
  * A store over `memory` whose commits matching `matches` answer `fault` the first `times` times
  * instead of committing, as a store whose answer was lost would: `dropped` writes nothing,
- * `applied` writes and still answers unknown.
+ * `applied` writes and still answers unknown. `rejected` writes nothing and answers that the
+ * commit can never be accepted (`command_limit`).
  */
 export function losingCommits(
   memory: ToolLedgerStore,
   matches: (input: LedgerCommitInput) => boolean,
-  fault: 'dropped' | 'applied' | 'unavailable',
+  fault: 'dropped' | 'applied' | 'unavailable' | 'rejected',
   times = 1,
 ): ToolLedgerStore {
   let left = times
@@ -755,6 +757,7 @@ export function losingCommits(
       if (left === 0 || !matches(input)) return memory.commit(input)
       left -= 1
       if (fault === 'unavailable') return { kind: 'unavailable', diagnostic: 'the store is down' }
+      if (fault === 'rejected') return { kind: 'rejected', reason: 'command_limit' }
       if (fault === 'applied') await memory.commit(input)
       return { kind: 'unknown', diagnostic: 'the answer was lost' }
     },

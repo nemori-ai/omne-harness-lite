@@ -132,6 +132,7 @@ export function createTestToolDependencies<P>(
       commands: ledger.commands,
       admissions: ledger.admissions,
       queues: ledger.queues,
+      rejections: ledger.rejections,
       reads: ledger.reads,
       bindings,
       environments: doubles.environment,

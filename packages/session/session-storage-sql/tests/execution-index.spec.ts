@@ -144,7 +144,8 @@ describe('the startRun commit writes the index in its own transaction', () => {
       const a = await app()
       await ready(a, 'session-1')
       a.provider.failWrite(pattern)
-      expect(kindOf(await startRun(a, 'session-1'))).toBe('unavailable')
+      // An environment error inside the transaction is unknown (sql-contract §7.6).
+      expect(kindOf(await startRun(a, 'session-1'))).toBe('commit-unknown')
       expect(rows(a, 'SELECT COUNT(*) FROM sl_execution_idx')[0]?.[0]).toBe(0n)
       expect(rows(a, "SELECT COUNT(*) FROM sl_entry WHERE kind = 'run.started'")[0]?.[0]).toBe(0n)
       ok(await startRun(a, 'session-1'))
@@ -189,11 +190,17 @@ describe('the startRun commit writes the index in its own transaction', () => {
       'INSERT INTO sl_execution_idx (tenant, execution, session, run, position) VALUES (?, ?, ?, ?, ?)',
       [textOf(TENANT_A), execution, 'session-1', 'run_other', 7n],
     )
-    expect(await startRun(a, 'session-2')).toMatchObject({
-      failure: {
-        kind: 'unavailable',
-        diagnostic: expect.stringContaining('already indexed to another session'),
-      },
+    // The index row is committed data: the same startRun meets it again, so the failure is definite
+    // (SPEC 参加者失败的定性, `execution-indexed`); the diagnostic stays in the rolled back receipt.
+    expect(await startRun(a, 'session-2')).toEqual({
+      failure: { kind: 'invalid', field: 'storage', reason: 'execution-indexed' },
+    })
+    const stop = a.provider.calls.filter(call => call.kind === 'commit').at(-1)
+    const receipt = stop === undefined ? undefined : await a.provider.storage.query(stop.identity)
+    const reply = receipt?.kind === 'rolled_back' ? receipt.responses.at(-1)?.reply : undefined
+    expect(reply).toMatchObject({
+      kind: 'conflict',
+      basis: { diagnostic: expect.stringContaining('already indexed to another session') },
     })
     expect(await lookup(a, execution)).toEqual({
       session: 'session-1',

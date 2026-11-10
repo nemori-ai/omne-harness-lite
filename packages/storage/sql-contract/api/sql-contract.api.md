@@ -52,6 +52,7 @@
 - `RegisterRejectReason` · `types.d.ts`
 - `RegisterResultV2` · `types.d.ts`
 - `RegistrationKey` · `types.d.ts`
+- `RejectionNature` · `rejection.d.ts`
 - `RolledBackV2` · `types.d.ts`
 - `SqlIdentity` · `types.d.ts`
 - `SqlMaterialCatalog` · `types.d.ts`
@@ -76,6 +77,7 @@
 - `TenantDomains` · `types.d.ts`
 - `UnknownV2` · `types.d.ts`
 - `combinationManifest` · `manifest.d.ts`
+- `commitRejectionNature` · `rejection.d.ts`
 - `inputDigestV2` · `digest.d.ts`
 - `manifestDigest` · `manifest.d.ts`
 
@@ -209,6 +211,7 @@ export declare function clipDiagnostic(text: string, limit: number): string;
 export type * from './types.ts';
 export { combinationManifest, manifestDigest } from './manifest.ts';
 export { inputDigestV2 } from './digest.ts';
+export { commitRejectionNature, type RejectionNature } from './rejection.ts';
 ```
 
 ## 声明文件 `manifest.d.ts`
@@ -220,6 +223,14 @@ export declare function combinationManifest(input: Readonly<{
     participants: readonly string[];
 }>): CombinationManifestResult;
 export declare function manifestDigest(manifest: CombinationManifest): string;
+```
+
+## 声明文件 `rejection.d.ts`
+
+```ts
+import type { CommitRejectReason } from './types.ts';
+export type RejectionNature = 'temporary' | 'definite';
+export declare const commitRejectionNature: (reason: CommitRejectReason) => RejectionNature;
 ```
 
 ## 声明文件 `testing/builders.d.ts`

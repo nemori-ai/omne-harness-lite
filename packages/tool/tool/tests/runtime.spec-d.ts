@@ -26,6 +26,7 @@ import {
   type ToolLedgerConfiguration,
   type ToolLedgerGuards,
   type ToolLedgerQueues,
+  type ToolLedgerRejections,
   type ToolLedgerFacts,
   type ToolLedgerStore,
   type ResultRecord,
@@ -87,6 +88,7 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
         ): Reply<Readonly<{ state: ToolState; recovered: boolean }>>
       }>
       queues: ToolLedgerQueues<P>
+      rejections: ToolLedgerRejections<P>
       facts: ToolLedgerFacts<P, ContentBlock>
     }>
   >()

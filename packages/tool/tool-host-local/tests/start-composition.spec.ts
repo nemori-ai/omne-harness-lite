@@ -221,6 +221,7 @@ function assembly(
       commands: ledger.commands,
       admissions: ledger.admissions,
       queues: ledger.queues,
+      rejections: ledger.rejections,
       reads: ledger.reads,
       bindings: {
         inspect: () => Promise.reject(new Error('catalog')),

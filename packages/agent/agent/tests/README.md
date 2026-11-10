@@ -53,10 +53,11 @@
 - `loop-model-wait.spec.ts` 经公开 `invoke` 走一次模型请求，脚本化 Model 在协调者进入 W0 之后才收场。它核对各节点的提交次数与 W0 的 producer 等待、每次提交携带的 #1011 读取位置、等待提交到休眠之间最多一次 `load`、自身 waiting 事件不唤醒、结果在重读前后到达都在检查时刻之前唤醒、重读 unavailable 不算进度、重读 denied 停在原位，以及等待期间同操作认回、异输入 conflict 与跨租户 denied。录制器只包住 Journal 与时钟，不读私有帧。
 - `loop-recovery.spec.ts` 的用例名以节点验收表行号开头。表驱动用例核对阶段 1 的已存 position、输入批、assembled/ready 准备、主调用、settling 与未建成节点。E1/E2 不推进修订号。不可用读取与准入投影 gap 保存等待。R0 对 unknown、committed、excluded 均保留原操作身份。9 个真实提交切点分别在再入前或 R0 查询时 settle 为 committed/excluded，核对原受理、received 材料读取、零 Agent Model 消费调用与 producer 事件的次数，以及回复准入事实。E1/E2 之间真实 detach 后不再次连接 Model，本地协调回 idle。E2 读取终态时不再读取业务输入，终态路由优先于未定业务操作。W0 的状态与事件一次提交，失败保持为失败。
 - `canonical.spec.ts` 核对对象键顺序与缺席成员不改变输入。它保留 null、数组顺序与元素边界。字节视图只使用其偏移与长度范围内的字节。
-- `loop-port-failures.spec.ts` 记录 #502 1.2 只走正常路径这一限制：对路径上每个调用端口的节点注入一次端口的 `unavailable`。E1/E2/I1/M1 保存等待，F3 的 `tryFinish` unavailable 经 R0 在内存等待，不提交 waiting（`position` 仍是 F3），其余受测节点停止，Journal 的 `position` 停在最后一次提交写下的节点并保持 20 轮，F3 之前 execution 不终结，`observe` 显示 occupied。停止的 `owner` 只保留在协调者内部（#558 S-14）。公开测试不核对停止原因。`open` 之前的端口失败（`adoptions.resolve`、Q1 `handoff.prepare`、E0 `open`）是 `invoke` 的回答，并释放槽。
+- `loop-port-failures.spec.ts` 记录 #502 1.2 只走正常路径这一限制：对路径上每个调用端口的节点注入一次端口的 `unavailable`。端口答的 `unavailable` 都是依赖等待（[SPEC](../SPEC.md#依赖不可用时的等待)）：非收尾节点保存等待，收尾节点与有未决原操作时在内存等待，不提交 waiting（F3 的 `position` 仍是 F3），依赖一直不可用时在检查时刻之间休眠、不空转；评估器或协调者自己造的失败照旧使节点停止，Journal 的 `position` 停在最后一次提交写下的节点并保持 20 轮，F3 之前 execution 不终结，`observe` 显示 occupied。停止的 `owner` 只保留在协调者内部（#558 S-14）。公开测试不核对停止原因。`open` 之前的端口失败（`adoptions.resolve`、Q1 `handoff.prepare`、E0 `open`）是 `invoke` 的回答，并释放槽。
 - `loop-slot.spec.ts` 核对单执行槽：扩展拒绝在 `open` 之前释放槽；登记句柄的 `report` 抛出不影响 `invoke` 与回 idle；在 `invoke` 之前打开的观察先见 idle、再被唤醒见 occupied；E4 的 stop 与缺少转移行的结果都使运行停在 E4、未终结且仍占槽，后者走协调者的 `#defect` 路径；P1 再选择与第一次不一致时运行停在 P1（#502 1.2 的替代做法；P0/P1 与一致性重试尚未交付）。
 - `provider-quiesce.spec.ts` 核对停用（[SPEC](../SPEC.md#停用)）：空闲实例 drained、撤登记一次、观察以 retired 结束；draining 之后新的 invoke 与 resume 返回 unavailable，已受理的 invoke 重试仍取回原句柄；第一个 `await` 之前已 draining，核验拒绝解除 draining；占槽时 unresolved 并列出该 execution，运行照常结束、无控制记录，结束后重试 drained；撤登记失败、未到 withdrawn 或抛出都不报 drained；同一操作认回原结果，另一原因 conflict；停用进行中或之后的新 quiesce 认回原停用，只撤登记一次。登记句柄是替身。
-- `provider-run-failure.spec.ts` 核对运行失败（[SPEC](../SPEC.md#运行失败)）：Journal 替身对 I0 的每次提交答 unavailable，驱动停止后接收者恰好收到一次报告，内容是租户、实例、execution、节点 I0 与原失败；observe 仍为 occupied，execution 未终结，新 invoke 答 busy；quiesce 答 unresolved，remaining 为该 execution，不撤登记，重试答同样的剩余；接收者抛出不改变结果。另一用例让 M0 回执丢失一次，驱动经核对继续到 ended，接收者没有收到报告。
+- `provider-run-failure.spec.ts` 核对运行失败（[SPEC](../SPEC.md#运行失败)）：Journal 替身对 I0 的提交与 F3 的 tryFinish 都确定拒绝（`invalid`，字段 `storage`），驱动停在确定不能继续的 F3，接收者恰好收到一次报告，内容是租户、实例、execution、节点 F3 与原失败；observe 仍为 occupied，execution 未终结，新 invoke 答 busy；quiesce 答 unresolved，remaining 为该 execution，不撤登记，重试答同样的剩余；接收者抛出不改变结果。另一用例让 M0 回执丢失一次，驱动经核对继续到 ended，接收者没有收到报告。另一用例让 I0 的提交答 unavailable 一次，执行转等待，到检查时刻以同一操作再写并正常结束，接收者没有收到报告。
+- `loop-journal-wait.spec.ts` 核对依赖不可用时的等待（[SPEC](../SPEC.md#依赖不可用时的等待)）：非收尾节点的提交答 unavailable 时在 W0 保存依赖等待，到检查时刻再写并完成，不向 Journal 查询这次写；连续多次不可用照样等待；W0 自己的保存也答 unavailable 时等待留在进程里，不保存 waiting；收尾节点（F1）答 unavailable 时在进程内等待，不保存 waiting；Journal 答 `invalid` 或 `unsupported` 时以该节点的失败终结 Run，不等待。`loop-tools.spec.ts` 另核对 A2 收到失败种类为 unavailable 的 rejected 时按依赖等待、以原请求再调用；`loop-model-refusal.spec.ts` 核对 M6 对 `model-capacity` 的 unavailable 同样等待后完成。
 - `run-ended-failed.spec.ts` 核对以失败终结（[SPEC](../SPEC.md#以失败终结)）：主调用以 connect-timeout 失败收场，终态结论原因的 record 带 `model-failed/upstream-unavailable/connect-timeout`，`endedFailed` 接收者恰好收到一次报告；诊断里的 `/` 被编码；正常完成而没有内容时原因仍是 `no-reply`；正常完成不报告；接收者抛出时执行照样终结。
 - `provider-access.spec.ts` 对四个面的每个公开操作核对：跨租户 `denied`，缺租户或租户非法 `invalid`（`observe` 以 `denied` 结束），都不调用 `access.check`。`access.check` 的 denied、unavailable、reject 与契约之外的回答都不放行。每次操作恰好调用一次，不缓存 allowed。
 
@@ -108,12 +109,12 @@ O0 窄接续用例保留原 received 与材料，核对零 Agent Model 消费调
 
 E1/E2/I1 的等待、E4/R0 路由与 I0/I1 的用例已写入节点验收表（agent-contract 的 `verification/node-acceptance.md`）的「实现用例」列。公开唤醒与完整失败恢复尚未交付。下表仅列仍待后续卡补齐的骨架用例：
 
-| 节点                   | 骨架用例                              | 补齐的卡                   |
-| ---------------------- | ------------------------------------- | -------------------------- |
-| P0、P1                 | 转移表的 P 行；不含扩展与一致性重试   | 后续请求接缝实现           |
-| M1 的 Model 等待       | 只从 Journal 匹配 received，不发布 Agent stream | 已采用的接收路径；不是 stream 透传待办 |
-| F2、F4 的扩展求值       | 本阶段只固定依据并保留观察台账        | 阶段 3                     |
-| W0、R0                 | 无                                    | 1.9                        |
+| 节点              | 骨架用例                                        | 补齐的卡                               |
+| ----------------- | ----------------------------------------------- | -------------------------------------- |
+| P0、P1            | 转移表的 P 行；不含扩展与一致性重试             | 后续请求接缝实现                       |
+| M1 的 Model 等待  | 只从 Journal 匹配 received，不发布 Agent stream | 已采用的接收路径；不是 stream 透传待办 |
+| F2、F4 的扩展求值 | 本阶段只固定依据并保留观察台账                  | 阶段 3                                 |
+| W0、R0            | 无                                              | 1.9                                    |
 
 下列创建校验没有用例，因为工厂收到的输入判定不了它们，见[成员 README](../README_ZH.md#支持范围)：
 

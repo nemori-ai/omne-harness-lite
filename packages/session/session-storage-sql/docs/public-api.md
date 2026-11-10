@@ -36,7 +36,6 @@
 | `accessCheck`   | 每个公开读与写的当前访问裁定，没有默认权限                      | 无，必填   |
 | `cursorSigning` | 游标签名能力，由应用注入                                        | 无，必填   |
 | `combination`   | 应用为租户作用域登记的 `combinationVersion` 与 `manifestDigest` | 无，必填   |
-| `attemptLimit`  | 一个 Session 操作最多开的尝试代次数                             | 8          |
 | `cursorTtlMs`   | 游标有效期（毫秒）                                              | 15 分钟    |
 | `now`           | 时钟，用于游标过期                                              | `Date.now` |
 

@@ -70,7 +70,7 @@ export async function forwardingFixture(
   options: { durableDeclaration?: boolean; consumed?: boolean } = {},
 ) {
   const memory = createMemoryToolLedgerStore()
-  let nextCommit: 'lost' | 'unwritten' | 'unavailable' | null = null
+  let nextCommit: 'lost' | 'unwritten' | 'unavailable' | 'rejected' | null = null
   let allowed = true
   const store: ToolLedgerStore = {
     durability: options.durableDeclaration ? 'durable' : 'none',
@@ -86,6 +86,7 @@ export async function forwardingFixture(
       }
       if (fault === 'unwritten') return { kind: 'unknown', diagnostic: 'unconfirmed' }
       if (fault === 'unavailable') return { kind: 'unavailable', diagnostic: 'offline' }
+      if (fault === 'rejected') return { kind: 'rejected', reason: 'command_limit' }
       return memory.commit(input)
     },
   }

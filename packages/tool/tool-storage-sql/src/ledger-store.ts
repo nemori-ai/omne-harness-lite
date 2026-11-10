@@ -30,6 +30,7 @@ import {
   addressOf,
   assertsOf,
   ledgerAnswer,
+  notJson,
   sameTenant,
   unavailable,
   writesOf,
@@ -113,15 +114,16 @@ function dueEntryOf(tenant: TenantId, row: JsonValue): DueEntry | null {
 
 export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToolLedgerStore {
   const commit = async (input: LedgerCommitInput): Promise<LedgerCommit> => {
+    // The assertion is part of the commit, so the same commit is refused whenever it is sent.
     if (!(input.asserts ?? []).every(assertion => sameTenant(input.domain, assertion.domain)))
-      return unavailable('ledger commit: an assertion names a domain of another tenant')
+      return { kind: 'rejected', reason: 'an assertion names a domain of another tenant' }
     const resolved = await resolveTenant(options, input.domain.tenant)
     if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
     let writes: readonly LedgerWriteFact[]
     try {
       writes = writesOf(input)
     } catch (error) {
-      if (error instanceof NotJsonError) return unavailable(error.message)
+      if (error instanceof NotJsonError) return notJson(error)
       throw error
     }
     const facts: LedgerFacts = {

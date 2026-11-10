@@ -11,7 +11,7 @@ export type ToolLifecycleObservation = Readonly<{
 }> &
   (
     | Readonly<{ phase: LifecyclePhase; failure: 'none' }>
-    | Readonly<{ phase: 'failure'; failure: 'unknown' | 'conflict' | 'unavailable' }>
+    | Readonly<{ phase: 'failure'; failure: 'unknown' | 'conflict' | 'unavailable' | 'rejected' }>
   )
 export type ToolLifecycleObserver = (event: ToolLifecycleObservation) => void
 
@@ -69,7 +69,7 @@ export function observeToolLedgerCommit(
     } catch {
       /* Observation cannot prevent a business commit. */
     }
-    const failure = (kind: 'unknown' | 'conflict' | 'unavailable') => {
+    const failure = (kind: 'unknown' | 'conflict' | 'unavailable' | 'rejected') => {
       if (domain.kind === 'call' && events.length > 0)
         report({
           tenant: domain.tenant,

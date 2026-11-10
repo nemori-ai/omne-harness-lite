@@ -19,13 +19,15 @@ import {
   type SessionFailure,
   type SessionOperationId,
 } from '@omne-harness/session-contract'
-import type {
-  CommitRequestV2,
-  CommitResultV2,
-  FactCommandV2,
-  JsonValue,
-  ReceiptV2,
-  SqlIdentity,
+import {
+  commitRejectionNature,
+  type CommitRequestV2,
+  type CommitResultV2,
+  type FactCommandV2,
+  type JsonValue,
+  type QueryResultV2,
+  type ReceiptV2,
+  type SqlIdentity,
 } from '@omne-harness/sql-contract'
 import { canonicalText, decodeValue, encodeValue } from './codec.ts'
 import { OWNER } from './cursor.ts'
@@ -135,7 +137,12 @@ function fromRolledBack(receipt: ReceiptV2): Outcome<never, SessionFailure> {
         reason: 'the participant does not support the facts',
       })
     case 'failed':
-      return failure(unavailable(`participant failed (${decoded.diagnostic})`))
+      // The participant reports only temporary failures; a definite one is a conflict. Every other
+      // category is decided by the provider from the input and the committed data, so the same
+      // operation fails the same way (W1 step 9, sql-contract §7.6).
+      return stop.kind === 'failed' && stop.category !== 'participant_reported'
+        ? failure({ kind: 'invalid', field: 'storage', reason: stop.category })
+        : failure(unavailable(`participant failed (${decoded.diagnostic})`))
     case 'participated':
       return failure(unavailable('a rolled back receipt without a stopping response'))
   }
@@ -159,10 +166,32 @@ function fromResult(
         ? 'next-attempt'
         : fromCommitted(result.existing, expected, true, mark)
     case 'rejected_before_accept':
-      return result.reason === 'writer_not_current'
-        ? failure({ kind: 'commit-unknown', operation: expected.operation })
-        : failure(unavailable(`storage rejected the commit: ${result.reason}`))
+      if (result.reason === 'writer_not_current')
+        return failure({ kind: 'commit-unknown', operation: expected.operation })
+      return commitRejectionNature(result.reason) === 'temporary'
+        ? failure(unavailable(`storage rejected the commit: ${result.reason}`))
+        : failure({ kind: 'invalid', field: 'storage', reason: result.reason })
   }
+}
+
+/** The process memory of one storage operation's generations: tenant, domain and operation. */
+const generationKey = (domain: TenantDomainRef, operation: string): string =>
+  JSON.stringify([domain.text, domain.domain.transactionDomain, operation])
+
+/**
+ * Notes what generation `attempt` of `key` turned out to be (SPEC W1 attempts, step 3). A rolled
+ * back generation stays rolled back, so the next search starts after it; a committed operation is
+ * forgotten. An unknown generation is asked again.
+ */
+function saw(
+  generations: Map<string, number>,
+  key: string,
+  attempt: number,
+  kind: QueryResultV2['kind'],
+): void {
+  if (kind === 'committed') generations.delete(key)
+  else if (kind === 'rolled_back' && attempt > (generations.get(key) ?? 0))
+    generations.set(key, attempt)
 }
 
 /**
@@ -187,21 +216,26 @@ export async function commitFacts<P>(
   // (tenant, session, identity) relies on OP-00 never reusing an identity across sessions.
   const { operation } = expected
   const { storage } = context.options
-  for (let attempt = 1; attempt <= context.attemptLimit; attempt += 1) {
+  const { generations } = context
+  const key = generationKey(domain, operation)
+  // No bound: every refusal of the participant, `changed` included, rolls back and uses up a
+  // generation, and the caller comes again with the same operation (SPEC W1 attempts).
+  for (let attempt = (generations.get(key) ?? 0) + 1; ; attempt += 1) {
     const identity = identityOf(domain, operation, `${operation}#${attempt}`)
     const found = await storage.query(identity)
+    saw(generations, key, attempt, found.kind)
     if (found.kind === 'rolled_back') continue
     if (found.kind === 'committed') return fromCommitted(found, expected, true, mark)
     if (found.kind === 'unknown') return failure({ kind: 'commit-unknown', operation })
     let work: SessionWorkReply | undefined
-    const settled = fromResult(
-      await storage.commit(requestOf(context, identity, command)),
-      expected,
-      mark,
-      fresh => {
-        work = fresh
-      },
-    )
+    const result = await storage.commit(requestOf(context, identity, command))
+    if (result.kind === 'committed' || result.kind === 'rolled_back')
+      saw(generations, key, attempt, result.kind)
+    else if (result.kind === 'identity_conflict')
+      saw(generations, key, attempt, result.existing.kind)
+    const settled = fromResult(result, expected, mark, fresh => {
+      work = fresh
+    })
     if (work !== undefined)
       await foldCommitted(
         {
@@ -215,7 +249,6 @@ export async function commitFacts<P>(
       )
     if (settled !== 'next-attempt') return settled
   }
-  return failure(unavailable('every attempt generation of the operation was rolled back'))
 }
 
 /** Commits one command under the explicit access of this call. */
@@ -326,7 +359,9 @@ async function exclusion<P>(
   | Readonly<{ kind: 'committed-unseen' }>
 > {
   let rolledBack = false
-  for (let attempt = 1; attempt <= context.attemptLimit; attempt += 1) {
+  // From `#1` and without a bound: generation 1 tells not-committed from attempt-rejected, and the
+  // rolled back generations are finite, so the search always stops (SPEC R7).
+  for (let attempt = 1; ; attempt += 1) {
     const found = await context.options.storage.query(
       identityOf(domain, operation, `${operation}#${attempt}`),
     )
@@ -346,7 +381,6 @@ async function exclusion<P>(
         },
       }
   }
-  return { kind: 'attempt-rejected' }
 }
 
 type Looked = Readonly<{ found: Found | null; rest: Rest | null }>

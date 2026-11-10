@@ -1,9 +1,16 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Reply, ToolFailure, ToolOperationId } from '@omne-harness/tool-contract'
+import { invalid } from './boundary.ts'
 import { nextRevision } from './evidence.ts'
 import { snapshotOf, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
 import { excluded, excludedSince, withExclusionsRemoved } from './ledger-exclusion.ts'
-import type { LedgerAssertion, LedgerDomain, LedgerWrite, ToolLedgerStore } from './ledger-store.ts'
+import type {
+  LedgerAssertion,
+  LedgerCommit,
+  LedgerDomain,
+  LedgerWrite,
+  ToolLedgerStore,
+} from './ledger-store.ts'
 
 export type Decide<T> = (snapshot: Snapshot, mint: Mint) => Decision<T> | Promise<Decision<T>>
 
@@ -13,6 +20,35 @@ function unavailable(dependency: string, diagnostic: string): Outcome<never, Too
 
 function thrown(dependency: string): string {
   return `${dependency} threw an exception; its message is not reported`
+}
+
+/**
+ * The reply of one commit answer, or null after a revision conflict: the caller re-reads and
+ * decides again. Only a conflict is retried. An unavailable store is temporary and the caller
+ * resends the same operation; a rejected commit can never be accepted, so it is the definite
+ * failure `invalid` (`field: storage`) at once, and it spends no attempt (SPEC 11).
+ */
+export function answerOf<T>(
+  committed: LedgerCommit,
+  value: T,
+  unknown: Outcome<T, ToolFailure>,
+): Outcome<T, ToolFailure> | null {
+  switch (committed.kind) {
+    case 'committed':
+      return succeed(value)
+    case 'conflict':
+      return null
+    case 'unknown':
+      return unknown
+    case 'unavailable':
+      return unavailable('ledger-store', committed.diagnostic)
+    case 'rejected':
+      return invalid('storage', committed.reason)
+    default: {
+      const exhaustive: never = committed
+      return exhaustive
+    }
+  }
 }
 
 export function createLedgerTransactions(
@@ -80,9 +116,8 @@ export function createLedgerTransactions(
       }
       const writes = withExclusionsRemoved(decision.writes, operations)
       const committed = await commit(domain, snapshot.ok.revision, revision, writes)
-      if (committed.kind === 'committed') return succeed(decision.value)
-      if (committed.kind === 'unknown') return unknown
-      if (committed.kind === 'unavailable') return unavailable('ledger-store', committed.diagnostic)
+      const answer = answerOf(committed, decision.value, unknown)
+      if (answer !== null) return answer
     }
     return unavailable('ledger-store', `${attempts} revision conflicts in a row`)
   }

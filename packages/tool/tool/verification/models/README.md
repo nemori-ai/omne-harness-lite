@@ -100,6 +100,7 @@ node scripts/with-test-slot.mjs tlc -workers 1 -noGenerateSpecTE -metadir tmp/is
 | CloseDuty、CloseDropped、ReadClose | [ledger.ts](../../src/ledger.ts) 的 releaseQueue 调用 [ledger-start.ts](../../src/ledger-start.ts) 的 decideCloseQueueTask，独立 call CAS 最后清 duty。关闭提交也区分 applied-unknown 与 dropped-unknown，原身份重读不重复原结果 |
 | CreateRead、CreateLand、CreateRetry | [ledger.ts](../../src/ledger.ts) 的 order：创建条目的步骤先读调用域，调用不再是 `accepted` 就回复 `released` 而不写；否则读队列域、由 [ledger-start.ts](../../src/ledger-start.ts) 的 decideQueueOrder 决定，并在队列提交里以 `asserts` 断言读到的调用域修订号。断言失败落不下任何写入，步骤重读调用域再决定。CreateLand 的迟到对应创建提交回答未知或延迟落盘；CreateRetry 对应回复丢失后的同身份重做 |
 | HoldNext | 同 key 下一个调用的 decideQueueHold：原条目消失后才取得名额，并发上限抽象为 1 |
+| CallApplied（`ledger-rejected` 依据）、BeginQueue、CloseDuty | [ledger.ts](../../src/ledger.ts) 的 settleRejected 调用 [ledger-start.ts](../../src/ledger-start.ts) 的 decideLedgerRejected：没有启动记录的调用，在一次 call 域 CAS 里写最小失败终局的结果、`queue` 为 `released`（依据是该结果的证据）与 `queue` 待办，`releaseBasisOf` 从中读出 `ledger-rejected` 依据；之后同一个 releaseQueue 走 BeginQueue／QueueApplied 与 CloseDuty。它与启动前拒绝一样，只是调用域在队列释放之前记录的另一种依据，不需要新的动作；没有执行过，所以不经过 retain 与 custody 确认 |
 
 本模型假设各域 CAS 原子、外部 retain 对原 final 幂等、可信来源及 guard 正确。它没有共同事务，没有公平假设，只检查有限安全性。它不证明精化、进展、生产耐久、跨进程、断电、环境资源释放或实际执行 exactly-once。P01 多 operation 排除、输入复制、资格、任意输入、reader/ACK、完整环境闭包与时钟未建模；这些由相应真实内存组合和 [排除交错测试](../../tests/exclusion-interleavings.spec.ts) 验证。旧 InvokeRecovery 和 FactCustody 模型的范围保持原样，不因新模型加入就覆盖完整收场。
 

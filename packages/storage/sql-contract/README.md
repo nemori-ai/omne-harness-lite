@@ -2,19 +2,19 @@
 
 [中文](README_ZH.md)
 
-The SQL storage contract: shapes, three pure functions, Cordis service definitions, and a conformance suite with a memory double.
+The SQL storage contract: shapes, four pure functions, Cordis service definitions, and a conformance suite with a memory double.
 
 ## Responsibility and status
 
 This package owns the public shape of SQL storage for the harness: identity, commit and recognition results, registration, reads, static materials, the manifest digest, the close control, and the three Cordis service definitions. It implements no provider. The SQLite provider is a separate member (`packages/storage/sqlite-provider`) and is not built yet.
 
-Status: the design is adopted as the input of #687 revision 2 (comment 6554935672). It is not the delivery acceptance D-A01. Implemented here: the shapes, `inputDigestV2`, `manifestDigest`, `combinationManifest`, the three service definitions, and the memory double with its conformance suite. Not implemented here: any SQLite, Worker or file behavior (scenarios C08 to C11, C13, C15, C17 to C23).
+Status: the design is adopted as the input of #687 revision 2 (comment 6554935672). It is not the delivery acceptance D-A01. Implemented here: the shapes, `inputDigestV2`, `manifestDigest`, `combinationManifest`, `commitRejectionNature`, the three service definitions, and the memory double with its conformance suite. Not implemented here: any SQLite, Worker or file behavior (scenarios C08 to C11, C13, C15, C17 to C23).
 
 ## Usage
 
 Four entries:
 
-- `@omne-harness/sql-contract`: shapes and the three pure functions. It imports no Cordis.
+- `@omne-harness/sql-contract`: shapes and the four pure functions. It imports no Cordis.
 - `@omne-harness/sql-contract/worker`: interfaces of modules that provider Workers load. Types only. It imports no Cordis.
 - `@omne-harness/sql-contract/cordis`: `StorageService` (key `storage`), `StorageHostService` (key `storageHost`) and `TenantDomainsService` (key `tenantDomains`) and `TenantDomainLookupService` (key `tenantDomainLookup`). A consumer injects `storageKey` and does not import a provider.
 - `@omne-harness/sql-contract/testing`: `createMemorySqlStorage` and `runSqlStorageConformance`, and `createMemoryTenantDomainLookup` and `runTenantDomainLookupConformance`.

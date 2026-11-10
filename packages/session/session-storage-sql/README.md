@@ -24,7 +24,7 @@ No package depends on this package now. The application assembly selects it late
 
 The root entry is the only entry:
 
-- `createSessionStorage(options)` returns a `SessionTransactionPort<P>`. `options` holds `storage` (`SqlStorage`), `domains` (`TenantDomainAccess`), `accessCheck`, `cursorSigning`, `combination` (`combinationVersion` and `manifestDigest`), and the optional `attemptLimit` (initial value 8), `cursorTtlMs` (initial value 15 minutes), and `now`.
+- `createSessionStorage(options)` returns a `SessionTransactionPort<P>`. `options` holds `storage` (`SqlStorage`), `domains` (`TenantDomainAccess`), `accessCheck`, `cursorSigning`, `combination` (`combinationVersion` and `manifestDigest`), and the optional `cursorTtlMs` (initial value 15 minutes) and `now`.
 - `sessionStorageMaterials({ readOutputLimitBytes })` returns three static descriptions: the participant, the migration, and the read handlers. The application merges them into its own material catalog. `readOutputLimitBytes` is required, has no default, and must be a positive safe integer; it becomes the `maxOutputBytes` of every read handler. The assembly keeps the provider's `maxReadResultBytes` at or above it (SPEC K-1); 20 MiB is the recommended value.
 - `SESSION_PARTICIPANT` is the participant name that a combination lists for the Session log. Its value is `session`.
 
@@ -56,7 +56,7 @@ The [architecture page](docs/architecture.md) explains the modules and the reaso
 
 ## Configuration and operation
 
-The configuration is the fields of `SessionStorageOptions`, listed under [Usage](#usage). The initial values of `attemptLimit` and `cursorTtlMs` are only initial configuration values, and the application can change them. The application injects the cursor signing. It is not a configuration value. The inline threshold, the large-object destination, the `pageBytes` limit, `maxScanPerPage`, and the rebuild mode that the SPEC designs are not configuration items now. See the [implementation status](SPEC.md#实现现状).
+The configuration is the fields of `SessionStorageOptions`, listed under [Usage](#usage). The initial value of `cursorTtlMs` is only an initial configuration value, and the application can change it. Attempt generations have no limit, so no configuration field sets one. The application injects the cursor signing. It is not a configuration value. The inline threshold, the large-object destination, the `pageBytes` limit, `maxScanPerPage`, and the rebuild mode that the SPEC designs are not configuration items now. See the [implementation status](SPEC.md#实现现状).
 
 The environment precondition is a storage provider of sql-contract. The provider owns the connection, the Worker, the PRAGMA settings, and the writer generation. This package does not open a connection. The migration runs with the atomic migration of the provider. Until it completes, reads and writes return `unavailable`. No in-memory implementation exists. The test fixture is a test provider on `node:sqlite`. It is not a published artifact.
 

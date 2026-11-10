@@ -2,9 +2,11 @@
 //   P2 the step limit: for every limit m and every script of t tool steps followed by a final
 //      reply, the execution completes after t + 1 steps when t < m, and otherwise opens exactly m
 //      steps and ends with a guard failure; it never opens more than m steps (R2-D221);
-//   P3 a failure is visible: whichever node's commit the Journal refuses, the drive stops with
-//      the slot failed and exactly one report naming that node, and a quiesce answers the
-//      execution as remaining (R2-D282, R2-D285).
+//   P3 a failure is visible: the Journal refuses a node's commit for good (the model's `Refuse`, a
+//      definite refusal; README). At a closing node the drive stops with the slot failed and
+//      exactly one report naming that node, and a quiesce answers the execution as remaining
+//      (R2-D282, R2-D285). At any other node the failure ends the run with that node's failure
+//      and nothing is reported (L3_FailedRunEnds, Agent SPEC 确定节点故障的收尾).
 // The cases are enumerated. These guards live here until the loop tests are open again; they
 // then move to tests/ (see README.md).
 import { describe, expect, it } from 'vitest'
@@ -107,48 +109,81 @@ describe('RunLifecycle guard P2: the step limit holds for every limit and script
 // P3
 // ---------------------------------------------------------------------------------------------
 
-const JOURNAL_DOWN: Failure = {
-  kind: 'unavailable',
-  owner: 'agentJournal',
-  diagnostic: 'storage rejected the commit: command_limit',
-}
+// `Refuse` of the model is a definite refusal of the storage (README: an unavailable commit is a
+// dependency wait, checked by the capacity-liveness model, and does not stop the drive).
+const JOURNAL_REFUSED: Failure = { kind: 'invalid', field: 'storage', reason: 'command_limit' }
 
 /** The nodes whose commit the guard refuses; each is on the path of the default script. */
 const NODES = ['I0', 'M0', 'I4', 'F1'] as const
 
-describe('RunLifecycle guard P3: a refused commit stops the drive visibly, once', () => {
-  it.each(NODES)('the Journal refuses the commit of %s', async node => {
-    const reports: AgentRunFailed[] = []
-    const assembly = await loopAssembly(
-      [execution()],
-      d => ({
-        ...d,
-        journal: {
-          ...d.journal,
-          commit: commit =>
-            commit.operation.startsWith(`${node}/`)
-              ? Promise.resolve(fail(JOURNAL_DOWN))
-              : d.journal.commit(commit),
-        },
-      }),
-      undefined,
-      undefined,
-      { failed: event => reports.push(event) },
-    )
-    assembly.release.open()
-    const handle = ok(await invoke(assembly))
-    await eventually(async () => reports.length > 0)
-    for (let turn = 0; turn < 20; turn += 1) await new Promise(resolve => setTimeout(resolve, 0))
-    expect(reports).toHaveLength(1)
-    expect(reports[0]).toMatchObject({ kind: 'run-failed', node, failure: JOURNAL_DOWN })
-    expect(await shown(assembly)).toMatchObject({ kind: 'occupied', execution: handle.execution })
-    const answer = ok(
-      await assembly.provider.control.quiesce({
-        ...alice,
-        operation: operation('quiesce-1'),
-        reason: evidence('stop'),
-      }),
-    )
-    expect(answer).toMatchObject({ kind: 'unresolved', remaining: [handle.execution] })
-  })
+/** F1 is a closing node: a definite refusal there cannot be settled, so the drive stops. */
+const CLOSING: readonly (typeof NODES)[number][] = ['F1']
+
+/** An assembly whose Journal refuses for good every commit of `node`, with a report receiver. */
+async function refusing(node: (typeof NODES)[number], reports: AgentRunFailed[]) {
+  const assembly = await loopAssembly(
+    [execution()],
+    d => ({
+      ...d,
+      journal: {
+        ...d.journal,
+        commit: commit =>
+          commit.operation.startsWith(`${node}/`)
+            ? Promise.resolve(fail(JOURNAL_REFUSED))
+            : d.journal.commit(commit),
+      },
+    }),
+    undefined,
+    undefined,
+    { failed: event => reports.push(event) },
+  )
+  assembly.release.open()
+  return assembly
+}
+
+describe('RunLifecycle guard P3: a refused commit is never silent', () => {
+  it.each(CLOSING)(
+    'the Journal refuses the commit of %s: the drive stops visibly, once',
+    async node => {
+      const reports: AgentRunFailed[] = []
+      const assembly = await refusing(node, reports)
+      const handle = ok(await invoke(assembly))
+      await eventually(async () => reports.length > 0)
+      for (let turn = 0; turn < 20; turn += 1) await new Promise(resolve => setTimeout(resolve, 0))
+      expect(reports).toHaveLength(1)
+      expect(reports[0]).toMatchObject({ kind: 'run-failed', node, failure: JOURNAL_REFUSED })
+      expect(await shown(assembly)).toMatchObject({ kind: 'occupied', execution: handle.execution })
+      const answer = ok(
+        await assembly.provider.control.quiesce({
+          ...alice,
+          operation: operation('quiesce-1'),
+          reason: evidence('stop'),
+        }),
+      )
+      expect(answer).toMatchObject({ kind: 'unresolved', remaining: [handle.execution] })
+    },
+  )
+
+  it.each(NODES.filter(node => !CLOSING.includes(node)))(
+    'the Journal refuses the commit of %s: the run ends with the failure of that node',
+    async node => {
+      const reports: AgentRunFailed[] = []
+      const assembly = await refusing(node, reports)
+      const handle = ok(await invoke(assembly))
+      const load = () =>
+        assembly.dependencies.journal.load({ ...alice, execution: handle.execution })
+      await eventually(async () => {
+        const read = await load()
+        return 'ok' in read && read.ok.state.kind === 'ended'
+      })
+      const read = ok(await load())
+      expect(read.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'fail' } })
+      expect(read.settlement.candidate?.failure).toMatchObject({
+        kind: 'node-failed',
+        node,
+        failureKind: 'invalid',
+      })
+      expect(reports).toEqual([])
+    },
+  )
 })

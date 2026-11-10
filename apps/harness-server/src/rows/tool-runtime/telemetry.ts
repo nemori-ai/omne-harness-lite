@@ -13,7 +13,7 @@ export const toolMaterialLifecycle = defineEvent({
       kind: 'enum',
       values: ['result-commit', 'offload', 'delivery-release', 'expire', 'reclaim', 'failure'],
     },
-    failure: { kind: 'enum', values: ['none', 'unknown', 'conflict', 'unavailable'] },
+    failure: { kind: 'enum', values: ['none', 'unknown', 'conflict', 'unavailable', 'rejected'] },
     items: { kind: 'number', min: 1, max: Number.MAX_SAFE_INTEGER },
     bytes: { kind: 'number', min: 0, max: Number.MAX_SAFE_INTEGER, optional: true },
   },

@@ -106,7 +106,8 @@ describe('commitLog writes in one transaction', () => {
       const { a, observation } = await opened()
       const before = tables(a)
       a.provider.failWrite(pattern, nth)
-      expect(failureOf(await commitLog(a, observation)).kind).toBe('unavailable')
+      // An environment error inside the transaction is unknown (sql-contract §7.6).
+      expect(failureOf(await commitLog(a, observation)).kind).toBe('commit-unknown')
       expect(tables(a)).toEqual(before)
       a.provider.failWrite(null)
       const receipt = ok<SessionLogReceipt>(await commitLog(a, observation))
@@ -207,4 +208,51 @@ describe('the tenant of commitLog', () => {
       expect(other).toEqual(ghost)
       expect(tables(a)).toEqual(before)
     })
+})
+
+// The log only grows, so a read inside the commit that passes its bound passes it for good: the
+// participant answers the definite failure `read-bound` and the port gives `invalid` on the field
+// `storage` (SPEC 参加者失败的定性). Nothing is written.
+describe('a commitLog whose in-transaction read would pass its bound', () => {
+  const series = (count: number, insert: string, columns: string): string =>
+    `${insert} WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ${count}) SELECT ${columns} FROM n`
+
+  it('a recall over more than 100000 log records of the session is invalid (read-bound)', async () => {
+    const { a, observation } = await opened()
+    ok(await commitLog(a, observation))
+    // The same event under another operation writes no row and looks for the commit that covers it.
+    const again = { ...observation, operation: operationId('log-again') }
+    a.provider.seed(
+      'dom_0',
+      series(
+        100_001,
+        'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result)',
+        `?, 'session-1', 'seeded-' || i, 'd', 'log', NULL, '{}', '{}'`,
+      ),
+      [textOf(TENANT_A)],
+    )
+    expect(failureOf(await commitLog(a, again))).toEqual({
+      kind: 'invalid',
+      field: 'storage',
+      reason: 'read-bound',
+    })
+  })
+
+  it('a history index over 100000 routed entries is invalid (read-bound)', async () => {
+    const { a, observation } = await opened()
+    a.provider.seed(
+      'dom_0',
+      series(
+        100_001,
+        'INSERT INTO sl_entry (tenant, session, position, revision, kind, entry, bytes)',
+        `?, 'session-1', 1000000 + i, 1, 'intake.routed', '{}', 2`,
+      ),
+      [textOf(TENANT_A)],
+    )
+    expect(failureOf(await commitLog(a, observation))).toEqual({
+      kind: 'invalid',
+      field: 'storage',
+      reason: 'read-bound',
+    })
+  })
 })

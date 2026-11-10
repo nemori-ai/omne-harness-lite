@@ -19,6 +19,7 @@
 - [host-history-independence.spec.ts](host-history-independence.spec.ts)：C7 关卡。2000 次历史（每次带一个卸载正文，一半已清扫）后新调用能启动。一次卸载并读回正文的 Tools 调用，在 Tool 与宿主路径上的 SQL 语句数、读写行数与逻辑字节与历史无关（字节扣除修订号等十进制文本的宽度后相等）。保留作用域记录不随调用增长，收场事实按键读一条记录（慢层）
 - [retention-scope-lifecycle.spec.ts](retention-scope-lifecycle.spec.ts)：保留作用域的开放与已关闭两态在实际 SQLite 上成立：已关闭的记录跨重启保留，之后的 `plan`、`permit`、`adopt` 答 `closed`；作用域关闭后创建者仍能记下自己预留的停止，结束事实保留
 - [ledger-asserts.spec.ts](ledger-asserts.spec.ts)：读集断言在 SQL 执行时评估，排队提交与两个连接的用例
+- [commit-answers.spec.ts](commit-answers.spec.ts)：SQL 提交结果到端口答复的对应：暂时原因答 `unavailable`，确定原因、参加者失败、跨租户断言与非严格 JSON 写入答 `rejected`
 - [start-coordinator.spec.ts](start-coordinator.spec.ts)：启动协调器在本仓上的三组套件与重建
 - [materials.spec.ts](materials.spec.ts)：材料与组合有效性
 - [participant.spec.ts](participant.spec.ts)：参加者模块自身的守卫

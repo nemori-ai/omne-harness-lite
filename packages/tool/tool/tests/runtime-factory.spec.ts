@@ -54,6 +54,9 @@ describe('17 the runtime factory and later increments', () => {
     expect(() =>
       createToolRuntime({ ...dependencies, queues: undefined as never }, configuration()),
     ).toThrow('dependencies.queues: missing')
+    expect(() =>
+      createToolRuntime({ ...dependencies, rejections: undefined as never }, configuration()),
+    ).toThrow('dependencies.rejections: missing')
   })
 
   it('17 factory: the retry delay of a failed driver run is an integer from 1 to what a timer holds, and absent takes the default', () => {

@@ -137,7 +137,7 @@
       "plugin": "sessionHandoffRow",
       "config": {
         "combinationVersion": "session-composite/6",
-        "manifestDigest": "9b0849b1a76f8b0fba12c2f4b456685633f5039f6b33d16350e61c7588109cf7"
+        "manifestDigest": "aa6d7b4e6ae4220a05163442d6bf0e0f98ac2b913d7f3447c92d635ba3b66285"
       }
     },
     {
@@ -150,7 +150,7 @@
       "plugin": "agentJournalRow",
       "config": {
         "combinationVersion": "session-composite/6",
-        "manifestDigest": "9b0849b1a76f8b0fba12c2f4b456685633f5039f6b33d16350e61c7588109cf7"
+        "manifestDigest": "aa6d7b4e6ae4220a05163442d6bf0e0f98ac2b913d7f3447c92d635ba3b66285"
       }
     },
     {

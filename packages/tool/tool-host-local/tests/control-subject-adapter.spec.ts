@@ -385,6 +385,22 @@ describe('persistent control subjects', () => {
     },
   )
 
+  it('answers a commit the store rejects as a definite failure without another attempt', async () => {
+    const memory = createMemoryToolLedgerStore()
+    let commits = 0
+    const f = fixture({
+      ...memory,
+      commit: async () => {
+        commits += 1
+        return { kind: 'rejected', reason: 'command_limit' }
+      },
+    })
+    expect(await f.build().capture({ ...context, principal: f.b })).toEqual({
+      failure: { kind: 'invalid', field: 'storage', reason: 'command_limit' },
+    })
+    expect(commits).toBe(1)
+  })
+
   it('does not retry a commit that the store reports as unavailable', async () => {
     const memory = createMemoryToolLedgerStore()
     let commits = 0

@@ -14,7 +14,7 @@ import type {
 } from './identity.ts'
 import type { Adoption } from './identity.ts'
 import { tenantEquals, workspaceCodec, type WorkspaceId } from '@omne-harness/legal-identity'
-import type { RunTerminal, WorkSnapshot, WorkspaceAttachment } from './values.ts'
+import type { BoundedClose, RunTerminal, WorkSnapshot, WorkspaceAttachment } from './values.ts'
 import type { HistoryEntry, ProducerFact, SessionFailure, StartAdoption } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import { encodeEntry } from './entries.ts'
@@ -401,27 +401,28 @@ function decideFinishRun(
     return invalid('run', 'not the unfinished Run of this session')
   const active = snapshot.run
   const source = commandEvidence(command.input.operation, 'bounded-close')
+  const basis = boundedBasis(command.input.operation, bounded)
+  const { rejects } = basis
   const out: EncodedEntry[] = []
-  if (bounded.kind === 'admission-rejected') {
-    if (bounded.input !== active.first)
+  if (rejects !== null) {
+    if (rejects.input !== active.first)
       return invalid('bounded.input', 'not the first input of the Run')
-    if (!snapshot.pending.includes(bounded.input))
+    if (!snapshot.pending.includes(rejects.input))
       return invalid('bounded.input', 'the first input is no longer pending')
-    if (emptyEvidence(bounded.rejection)) return invalid('bounded.rejection', 'incomplete evidence')
+  }
+  if (emptyEvidence(basis.evidence)) return invalid(basis.field, 'incomplete evidence')
+  if (rejects !== null)
     out.push(
       encodeEntry(
         {
           kind: 'intake.handed-over',
-          input: bounded.input,
+          input: rejects.input,
           execution: active.execution.execution,
-          result: { kind: 'rejected', reason: 'admission-rejected', rejection: bounded.rejection },
+          result: { kind: 'rejected', reason: rejects.reason, rejection: basis.evidence },
         },
-        { owner: 'agent', via: 'session-adapter', source: bounded.rejection },
+        rejects.origin,
       ),
     )
-  } else if (emptyEvidence(bounded.evidence)) {
-    return invalid('bounded.evidence', 'incomplete evidence')
-  }
   if (active.advance !== null)
     out.push(
       encodeEntry(
@@ -429,11 +430,17 @@ function decideFinishRun(
         sessionOrigin(source),
       ),
     )
-  const evidence = bounded.kind === 'admission-rejected' ? bounded.rejection : bounded.evidence
-  const terminal: RunTerminal = { run, outcome: 'failed', evidence }
+  const terminal: RunTerminal = { run, outcome: 'failed', evidence: basis.evidence }
   out.push(
     encodeEntry(
-      { kind: 'run.terminal', terminal, sequence: null, cause: null, disposition: null, bounded },
+      {
+        kind: 'run.terminal',
+        terminal,
+        sequence: null,
+        cause: bounded.kind === 'drive-refused' ? basis.evidence : null,
+        disposition: null,
+        bounded,
+      },
       sessionOrigin(source),
     ),
   )
@@ -442,14 +449,54 @@ function decideFinishRun(
       encodeEntry(
         {
           kind: 'intake.released',
-          inputs: snapshot.pending.filter(
-            input => bounded.kind !== 'admission-rejected' || input !== bounded.input,
-          ),
+          inputs: snapshot.pending.filter(input => input !== rejects?.input),
         },
         sessionOrigin(source),
       ),
     )
   return entries(out)
+}
+
+/**
+ * What a bounded close rests on (SPEC「Run 两层状态机与不变量」, three grounds): the evidence, the
+ * command field that carries it, and the first input the close rejects with its SE35 reason and
+ * origin, or null when it rejects none. A drive refusal has no outside record: the close records it
+ * itself, and the record names the failure kind, field and reason, so the history shows why the
+ * Run failed (PM-02, PM-05).
+ */
+type BoundedBasis = Readonly<{
+  evidence: DurableEvidence
+  field: string
+  rejects: Readonly<{ input: InputId; reason: BoundedClose['kind']; origin: Origin }> | null
+}>
+
+function boundedBasis(operation: SessionOperationId, bounded: BoundedClose): BoundedBasis {
+  switch (bounded.kind) {
+    case 'uninterpretable':
+      return { evidence: bounded.evidence, field: 'bounded.evidence', rejects: null }
+    case 'admission-rejected': {
+      const { input, rejection } = bounded
+      const origin: Origin = { owner: 'agent', via: 'session-adapter', source: rejection }
+      return {
+        evidence: rejection,
+        field: 'bounded.rejection',
+        rejects: { input, reason: bounded.kind, origin },
+      }
+    }
+    case 'drive-refused': {
+      const { failure, field, reason, input } = bounded
+      const named = [failure, field, reason].filter(part => part !== null).join(' ')
+      const evidence: DurableEvidence = {
+        owner: '@omne-harness/session-contract',
+        record: `drive refused: ${named}`,
+        revision: '1',
+        digest: `sha256:${digestOf({ operation, what: 'drive-refused', failure, field, reason })}`,
+      }
+      const rejects =
+        input === null ? null : { input, reason: bounded.kind, origin: sessionOrigin(evidence) }
+      return { evidence, field: 'bounded', rejects }
+    }
+  }
 }
 
 function decideReceive(

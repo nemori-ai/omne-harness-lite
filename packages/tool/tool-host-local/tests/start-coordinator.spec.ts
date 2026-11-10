@@ -216,6 +216,20 @@ describe('G5 the start ordering domain', () => {
     }
   })
 
+  it('G5 order: a commit the store rejects is a definite failure, not re-read and not unknown', async () => {
+    const memory = createMemoryToolLedgerStore()
+    const store = failingNextCommit(memory, 'rejected')
+    const authority = coordinator(store)
+    const permit = await permitFor(authority, 'c1')
+    const commits = memory.commits
+    store.arm()
+    expect(await authority.invalidate(invalidation('revoke-1'))).toEqual({
+      failure: { kind: 'invalid', field: 'storage', reason: 'command_limit' },
+    })
+    expect(memory.commits).toBe(commits)
+    expect(ok(await authority.consume(consumeWith(permit))).kind).toBe('started')
+  })
+
   it('G5 order: a resent invalidation returns its first evidence and moves the guard once', async () => {
     const authority = coordinator(createMemoryToolLedgerStore())
     const first = ok(await authority.invalidate(invalidation('revoke-1')))
@@ -564,7 +578,10 @@ describe('G5 the start ordering domain', () => {
     expect(await authority.consume(consumeWith(forged))).toEqual({
       failure: { kind: 'invalid', field: 'permit', reason: 'not-issued' },
     })
-    const stale = { ...permit, guards: permit.guards.map(guard => ({ ...guard, revision: '7' })) }
+    const stale = {
+      ...permit,
+      guards: permit.guards.map(guard => ({ ...guard, revision: '7' })),
+    }
     expect(await authority.consume(consumeWith(stale))).toMatchObject({
       failure: { reason: 'not-issued' },
     })

@@ -24,14 +24,17 @@ import {
   type TenantDocuments,
 } from '@omne-harness/model/commands'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type {
-  CommitResultV2,
-  DomainRef,
-  JsonValue,
-  ReceiptV2,
-  SqlIdentity,
-  SqlStorage,
-  TenantDomainLookup,
+import {
+  commitRejectionNature,
+  type CommitRejectReason,
+  type CommitResultV2,
+  type DomainRef,
+  type JsonValue,
+  type QueryResultV2,
+  type ReceiptV2,
+  type SqlIdentity,
+  type SqlStorage,
+  type TenantDomainLookup,
 } from '@omne-harness/sql-contract'
 import type {
   ParticipantModule,
@@ -72,6 +75,7 @@ export const COMMAND_RESERVE_BYTES = 64 * 1024
 export const READ_RESERVE_BYTES = 64 * 1024
 /** A block with this many `append` parts is folded into one part in the same commit (N2). */
 export const PART_MERGE_THRESHOLD = 64
+/** Rounds of one run: how often it goes back to read after a newer write. */
 export const DEFAULT_ATTEMPT_LIMIT = 8
 /** Operations whose commit outcome is not known, kept in the process (N5). */
 export const DEFAULT_UNRESOLVED_LIMIT = 1024
@@ -92,7 +96,7 @@ export type SqlModelStorageOptions = Readonly<{
   /** The combination the application registered for the tenant scope (session log and Model). */
   combination: Readonly<{ combinationVersion: string; manifestDigest: string }>
   limits: ModelStorageLimits
-  /** Attempt generations of one operation. Default 8. */
+  /** Rounds of one run. Default 8. The attempt generations of an operation have no limit. */
   attemptLimit?: number
   /** Operations with an unknown commit outcome that the process keeps for one tenant. Default 1024. */
   unresolvedLimit?: number
@@ -123,7 +127,7 @@ function positive(value: number, name: string): void {
 
 /** The construction checks: the limits fit each other (N1) and the combination is named. */
 function checkOptions(options: SqlModelStorageOptions): Readonly<{
-  attempts: number
+  rounds: number
   unresolved: number
 }> {
   const { limits, combination } = options
@@ -140,12 +144,12 @@ function checkOptions(options: SqlModelStorageOptions): Readonly<{
     throw new TypeError('combinationVersion is empty')
   if (!DIGEST.test(combination.manifestDigest))
     throw new TypeError('manifestDigest is not a lowercase SHA-256')
-  const attempts = options.attemptLimit ?? DEFAULT_ATTEMPT_LIMIT
-  positive(attempts, 'attemptLimit')
-  if (attempts > MAX_ATTEMPT_LIMIT) throw new RangeError('attemptLimit is above 64')
+  const rounds = options.attemptLimit ?? DEFAULT_ATTEMPT_LIMIT
+  positive(rounds, 'attemptLimit')
+  if (rounds > MAX_ATTEMPT_LIMIT) throw new RangeError('attemptLimit is above 64')
   const unresolved = options.unresolvedLimit ?? DEFAULT_UNRESOLVED_LIMIT
   positive(unresolved, 'unresolvedLimit')
-  return { attempts, unresolved }
+  return { rounds, unresolved }
 }
 
 // --- One attempt ---------------------------------------------------------------------------
@@ -468,24 +472,64 @@ const RETRIED: readonly string[] = ['version', 'operation-bound', 'call-exists']
 
 type Step = Readonly<{ kind: 'done'; failure: ModelFailure | null }> | Readonly<{ kind: 'again' }>
 
+/** The storage identity of one commit; an operation write also notes the outcome of its generation. */
+type Target = Readonly<{ identity: SqlIdentity; saw?: (outcome: CommitResultV2['kind']) => void }>
+
 function isFactRecord(
   value: JsonValue | undefined,
 ): value is { readonly [key: string]: JsonValue } {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function afterRollback(receipt: ReceiptV2, staged: Staged): Step {
+function afterRollback(receipt: ReceiptV2): Step {
   const stop = receipt.responses[receipt.responses.length - 1]?.reply
   if (stop?.kind === 'conflict') {
     const reason = isFactRecord(stop.basis) ? stop.basis['reason'] : undefined
     if (typeof reason === 'string' && RETRIED.includes(reason)) return { kind: 'again' }
-    const call = stagedCall(staged)
-    if (reason === 'capacity' && call !== undefined)
-      return { kind: 'done', failure: { kind: 'capacity', required: call.capacity } }
+    // The participant checks the share at the commit: a call above the share never gets here,
+    // because the core refuses it at admission, so the share is only full now.
+    if (reason === 'capacity')
+      return {
+        kind: 'done',
+        failure: {
+          kind: 'unavailable',
+          dependency: 'model-capacity',
+          diagnostic: 'the tenant share is full at the commit',
+        },
+      }
   }
   return {
     kind: 'done',
     failure: unavailable(`the model participant stopped the commit: ${stop?.kind ?? 'none'}`),
+  }
+}
+
+/**
+ * A temporary rejection waits and comes again; a definite one is the same on every retry
+ * (sql-contract "提交拒绝原因的定性").
+ */
+function rejected(reason: CommitRejectReason): ModelFailure {
+  return commitRejectionNature(reason) === 'temporary'
+    ? unavailable(`storage rejected the commit: ${reason}`)
+    : { kind: 'invalid', field: 'storage', reason }
+}
+
+/**
+ * The highest attempt generation of each operation that this process saw rolled back ("一次 run"
+ * step 5). A rolled-back generation stays rolled back, so the search for a free generation starts
+ * after it. Only a rolled-back generation moves the start: a generation whose outcome is unknown
+ * or committed is found again. A committed operation is forgotten. A new process starts from #1.
+ */
+class Generations {
+  private readonly rolledBack = new Map<string, number>()
+
+  first(key: string): number {
+    return (this.rolledBack.get(key) ?? 0) + 1
+  }
+
+  saw(key: string, at: number, outcome: CommitResultV2['kind'] | QueryResultV2['kind']): void {
+    if (outcome === 'committed') this.rolledBack.delete(key)
+    else if (outcome === 'rolled_back' && at >= this.first(key)) this.rolledBack.set(key, at)
   }
 }
 
@@ -555,9 +599,10 @@ type Settled<T> =
 const done = <T>(outcome: Outcome<T, ModelFailure>): Settled<T> => ({ kind: 'done', outcome })
 
 export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModelStorage {
-  const { attempts, unresolved: unresolvedLimit } = checkOptions(options)
+  const { rounds, unresolved: unresolvedLimit } = checkOptions(options)
   const { storage, domains, combination, limits } = options
   const unresolved = new Unresolved(unresolvedLimit)
+  const generations = new Generations()
   let current: Attempt | null = null
 
   const active = (): Attempt => {
@@ -574,19 +619,34 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
   })
   const generation = (domain: DomainRef, operation: ModelOperationId, at: number) =>
     identityOf(domain, operation, `${operation}#${at}`)
+  /** The generations of one storage identity: tenant scope, domain and operation. */
+  const generationsKey = (domain: DomainRef, operation: ModelOperationId): string =>
+    JSON.stringify([
+      domain.scope.kind === 'tenant' ? domain.scope.tenant : null,
+      domain.transactionDomain,
+      operation,
+    ])
 
-  /** The first generation not yet used, or what an earlier generation already decided. */
+  /**
+   * The first generation not yet used, or what an earlier generation already decided. The search
+   * has no bound: the rolled-back generations of an operation add up over its runs.
+   */
   async function freeGeneration(
     domain: DomainRef,
     operation: ModelOperationId,
-  ): Promise<number | 'unknown' | 'committed' | 'exhausted'> {
-    for (let at = 1; at <= attempts; at += 1) {
-      const found = await storage.query(generation(domain, operation, at))
-      if (found.kind === 'not_committed') return at
-      if (found.kind === 'not_recallable') return 'unknown'
-      if (found.kind !== 'rolled_back') return found.kind
+  ): Promise<number | 'unknown' | 'committed'> {
+    const key = generationsKey(domain, operation)
+    let at = generations.first(key)
+    let found = await storage.query(generation(domain, operation, at))
+    while (found.kind === 'rolled_back') {
+      generations.saw(key, at, found.kind)
+      at += 1
+      found = await storage.query(generation(domain, operation, at))
     }
-    return 'exhausted'
+    generations.saw(key, at, found.kind)
+    if (found.kind === 'not_committed') return at
+    // Every generation identity recalls its receipt; `not_recallable` is treated as not known.
+    return found.kind === 'not_recallable' ? 'unknown' : found.kind
   }
 
   /** Drops the unknown operations of the call that the storage has since decided. */
@@ -625,19 +685,22 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     domain: DomainRef,
     tenant: string,
     staged: Staged,
-  ): Promise<SqlIdentity | Step> {
+  ): Promise<Target | Step> {
     if (staged.kind === 'publish') {
       const operation = `${staged.call.state.call}#read`
-      return identityOf(domain, operation, `${operation}@${staged.expected}`)
+      return { identity: identityOf(domain, operation, `${operation}@${staged.expected}`) }
     }
-    if (unresolved.full(tenant, staged.write.operation))
+    const { operation } = staged.write
+    if (unresolved.full(tenant, operation))
       return { kind: 'done', failure: unavailable('too many operations with an unknown outcome') }
-    const at = await freeGeneration(domain, staged.write.operation)
+    const at = await freeGeneration(domain, operation)
     if (at === 'committed') return { kind: 'again' }
     if (at === 'unknown') return unknownStep(tenant, staged)
-    if (at === 'exhausted')
-      return { kind: 'done', failure: unavailable('every attempt generation was rolled back') }
-    return generation(domain, staged.write.operation, at)
+    const key = generationsKey(domain, operation)
+    return {
+      identity: generation(domain, operation, at),
+      saw: outcome => generations.saw(key, at, outcome),
+    }
   }
 
   function afterCommit(result: CommitResultV2, tenant: string, staged: Staged): Step {
@@ -645,7 +708,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
       case 'committed':
         return { kind: 'done', failure: null }
       case 'rolled_back':
-        return afterRollback(result, staged)
+        return afterRollback(result)
       case 'identity_conflict':
         return { kind: 'again' }
       case 'unknown':
@@ -653,7 +716,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
       case 'rejected_before_accept':
         return result.reason === 'writer_not_current'
           ? unknownStep(tenant, staged)
-          : { kind: 'done', failure: unavailable(`storage rejected the commit: ${result.reason}`) }
+          : { kind: 'done', failure: rejected(result.reason) }
     }
   }
 
@@ -669,13 +732,14 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
       return { kind: 'done', failure: { kind: 'capacity', required: call.capacity } }
     const facts = encodedFacts(tenant, staged, read, limits.tenantCapacity)
     if ('failure' in facts) return { kind: 'done', failure: facts.failure }
-    const identity = await identityFor(domain, tenant, staged)
-    if ('kind' in identity) return identity
+    const target = await identityFor(domain, tenant, staged)
+    if ('kind' in target) return target
     const result = await storage.commit({
-      identity,
+      identity: target.identity,
       ...combination,
       commands: [{ participant: MODEL_PARTICIPANT, facts: facts.ok }],
     })
+    target.saw?.(result.kind)
     return afterCommit(result, tenant, staged)
   }
 
@@ -711,7 +775,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
       return fail(unavailable('a run of this storage reads one call; the scope names none'))
     const domain = await domainOf(domains, scope.tenant)
     if ('failure' in domain) return domain
-    for (let pass = 1; pass <= attempts; pass += 1) {
+    for (let round = 1; round <= rounds; round += 1) {
       const settled = await attempt(work, { ...scope, call }, domain.ok)
       if (settled.kind === 'done') return settled.outcome
     }

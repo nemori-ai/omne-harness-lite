@@ -55,7 +55,7 @@ it('observes confirmed lifecycle facts without copying payloads or keeping segme
   ).toBe(true)
 })
 
-it.each(['unknown', 'conflict', 'unavailable'] as const)(
+it.each(['unknown', 'conflict', 'unavailable', 'rejected'] as const)(
   'reports %s without claiming a committed lifecycle transition',
   async kind => {
     const f = await settlementFixture()
@@ -66,7 +66,9 @@ it.each(['unknown', 'conflict', 'unavailable'] as const)(
     const answer =
       kind === 'conflict'
         ? { kind, current: input.revision }
-        : { kind, diagnostic: 'SECRET_DATABASE_PATH' }
+        : kind === 'rejected'
+          ? { kind, reason: 'SECRET_DATABASE_PATH' }
+          : { kind, diagnostic: 'SECRET_DATABASE_PATH' }
     const events: ToolLifecycleObservation[] = []
     const result = await observeToolLedgerCommit(
       async () => answer,

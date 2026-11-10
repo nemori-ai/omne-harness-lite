@@ -225,8 +225,8 @@ describe('limits', () => {
     const app = await open({ config: { maxCommandBytes: 65536, maxRequestBytes: 131072 } })
     ok(await app.create(TENANT_A))
     const refused = failureOf(await app.accept(TENANT_A, 'session-1', 'big', 'x'.repeat(200_000)))
-    expect(refused).toMatchObject({ kind: 'unavailable' })
-    expect(String(refused['diagnostic'])).toContain('command_limit')
+    // command_limit is definite (sql-contract commitRejectionNature): the same command never fits.
+    expect(refused).toMatchObject({ kind: 'invalid', field: 'storage', reason: 'command_limit' })
     expect(
       queryKindOf(await app.storage.query(identityOf(TENANT_A, 'dom_0', 'sop_accept-big'))),
     ).toBe('not_committed')

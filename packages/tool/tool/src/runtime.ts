@@ -46,6 +46,7 @@ const PORTS = [
   'commands',
   'admissions',
   'queues',
+  'rejections',
   'bindings',
   'environments',
   'decisions',

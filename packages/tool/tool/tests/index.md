@@ -9,6 +9,7 @@
 - [执行函数签名类型测试](execution.spec-d.ts)。
 - [构造形状类型测试](construction.spec-d.ts)。
 - [托管受理行为测试](managed-admission.spec.ts)。
+- [记录仓确定拒绝的翻译测试](ledger-store-rejected.spec.ts)。
 - [托管查询与分页测试](managed-reads.spec.ts)。
 - [交付解除测试](managed-delivery.spec.ts)。
 - [runtime 工厂与后续增量测试](runtime-factory.spec.ts)。

@@ -392,8 +392,8 @@ export function storeCases(deps: StoreCaseDependencies): readonly LedgerStoreCas
         })
         assert.equal(
           answer.kind,
-          'unavailable',
-          'an assertion on another tenant is refused before anything is attempted',
+          'rejected',
+          'an assertion on another tenant is refused for good before anything is attempted',
         )
         snapshot(await store.read(domain), '0', [], 'a refused commit must write nothing')
       },

@@ -4,7 +4,7 @@
 
 ## 导出入口
 
-- `.`：`src/index.ts`。只有类型（`src/types.ts`）与三个纯函数 `combinationManifest`、`manifestDigest`、`inputDigestV2`。不导入 Cordis。
+- `.`：`src/index.ts`。只有类型（`src/types.ts`）、三个纯函数 `combinationManifest`、`manifestDigest`、`inputDigestV2`，以及提交拒绝原因的定性 `commitRejectionNature`（`src/rejection.ts`，按 SPEC「提交拒绝原因的定性」答 `temporary` 或 `definite`）。不导入 Cordis。
 - `./worker`：`src/worker.ts`。参加者、迁移与读 handler 模块的接口，以及 `SqlValue`、`QueryRows`。只有类型。
 - `./cordis`：`src/cordis.ts`。`StorageService`、`StorageHostService`、`TenantDomainsService` 与各自的键常量，并增补 `Context`。
 - `./testing`：`src/testing/index.ts`。`createMemorySqlStorage` 与 `runSqlStorageConformance`。

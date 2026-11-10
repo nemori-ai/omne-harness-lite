@@ -450,7 +450,8 @@ describe('a failure inside the commit leaves neither the batch nor its blocks', 
   ] as const)('a failure at %s', async (_, pattern, nthStatement) => {
     const a = await session()
     const write = nth(1, { blobs: [block('{"content":"kept once"}')] })
-    a.provider.failWrite(pattern, nthStatement)
+    // A constraint failure: a data error, so the commit rolls back explicitly (sql-contract §7.6).
+    a.provider.failWrite(pattern, nthStatement, 19)
     expect(await commit(a, write)).toMatchObject({ kind: 'rolled_back', reply: { kind: 'failed' } })
     expect(agentRows(a)).toEqual({ facts: 0, blobs: 0, operations: 0, roots: 0, heads: 0 })
     expect(await factsRead(a, '0')).toEqual({

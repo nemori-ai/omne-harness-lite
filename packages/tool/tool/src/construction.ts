@@ -14,7 +14,7 @@ import type {
   ToolOperationId,
   ToolPublishedSchema,
 } from '@omne-harness/tool-contract'
-import type { CallAccess } from '@omne-harness/tool-contract/provider'
+import type { CallAccess, WriteContext } from '@omne-harness/tool-contract/provider'
 import type { AccessVerdict } from './ledger-guards.ts'
 import type {
   Mutation,
@@ -140,12 +140,25 @@ export type ToolLedgerQueues<P> = Readonly<{
   reconcile(input: CallAccess<P>): Reply<QueueReconciliation>
 }>
 
+/**
+ * The settlement entry of this ledger for a step the store rejected for good (SPEC 23). `settle`
+ * gives a call that never started (no start record) the minimal failure terminal: `failed`,
+ * cause `runtime-lost`, diagnostic `ledger-store rejected: <reason>`, then releases its queue
+ * place. The driver passes the operation `<admission>/ledger-rejected`; a resend recalls the
+ * original receipt and finishes the release. A call with a start record answers `invalid`
+ * (`call: has-start-record`), and a call in another phase answers `invalid` (`call: phase:<phase>`).
+ */
+export type ToolLedgerRejections<P> = Readonly<{
+  settle(input: WriteContext & Readonly<{ principal: P; reason: string }>): Reply<ToolState>
+}>
+
 export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   /** The ledger's original-controller check before a pending stop is sent. */
   controls?: ToolLedgerControls<P>
   commands: ToolCommands<P, B>
   admissions: ToolLedgerAdmissions<P>
   queues: ToolLedgerQueues<P>
+  rejections: ToolLedgerRejections<P>
   bindings: ToolBindings<P, E>
   environments: ToolEnvironment<P, E>
   decisions: ToolDecisionBridge<P>

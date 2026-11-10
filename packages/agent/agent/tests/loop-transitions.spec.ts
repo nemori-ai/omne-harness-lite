@@ -190,6 +190,7 @@ describe('C1 the transition table follows the node table on the normal path', ()
       ['F3', 'reconcile', 'R0'],
       ['R0', 'wait', 'W0'],
       ['W0', 'saved-wait', 'E1'],
+      ['W0', 'unsaved-wait', 'E1'],
       ['W0', 'reconciled', 'E1'],
     ]
     expect(TRANSITIONS.map(row => [row.from, row.on, row.to]).sort()).toEqual(expected.sort())

@@ -2,7 +2,8 @@ import { expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import { fixture, ok } from './fixture.ts'
-import { canonicalDigest, encodeToolCanonical } from '@omne-harness/tool'
+import { canonicalDigest, encodeToolCanonical, type ToolLedgerStore } from '@omne-harness/tool'
+import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import { createDeliveryState } from '../../src/delivery-state.ts'
 import { callHostDomain } from '../../src/host-domains.ts'
 
@@ -126,6 +127,39 @@ it('rejects a same-key payload change without replacing the original freeze', as
     ),
   ).toHaveProperty('failure.kind', 'conflict')
   expect(await state.load(f.access, descriptor)).toEqual(succeed(original))
+})
+
+it('answers a freeze the store rejects as a definite failure, without another attempt', async () => {
+  const f = await fixture()
+  vi.mocked(f.receiver.push).mockImplementationOnce(async ({ delivery }) => {
+    f.pushes.push(structuredClone(delivery))
+    return fail({ kind: 'outcome-unknown' })
+  })
+  await f.drive()
+  const payload = f.pushes[0]
+  if (payload?.kind !== 'result') throw new Error('expected result payload')
+  const descriptor = {
+    ...payload,
+    value: {
+      fingerprint: ok(encodeToolCanonical(payload.value)).fingerprint,
+      original: { kind: 'none' as const },
+    },
+  }
+  const original = ok(await createDeliveryState(f.store).load(f.access, descriptor))
+  if (original === null) throw new Error('expected frozen record')
+  const empty = createMemoryToolLedgerStore()
+  let commits = 0
+  const rejecting: ToolLedgerStore = {
+    ...empty,
+    commit: async () => {
+      commits += 1
+      return { kind: 'rejected', reason: 'command_limit' }
+    },
+  }
+  expect(await createDeliveryState(rejecting).save(f.access, original, null)).toEqual({
+    failure: { kind: 'invalid', field: 'storage', reason: 'command_limit' },
+  })
+  expect(commits).toBe(1)
 })
 
 it.each(['version', 'owner', 'account', 'evidence'] as const)(
