@@ -10,7 +10,7 @@ import {
 import { forwardWorld } from '../../entry/tool-forward-support.ts'
 import { okOf } from '../../entry/support.ts'
 
-it.each(['Tools', 'TodoItems'] as const)(
+it.each(['Tools', 'TodoItems', 'Web'] as const)(
   'prepares %s with no file or command facilities when it declares no environment',
   async name => {
     const w = await forwardWorld()

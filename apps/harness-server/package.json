@@ -91,7 +91,9 @@
     "@omne-harness/tool-storage-sql": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*",
     "zod": "catalog:",
-    "@omne-harness/tokenizer-tiktoken": "workspace:*"
+    "@omne-harness/tokenizer-tiktoken": "workspace:*",
+    "@omne-harness/settings": "workspace:*",
+    "@omne-harness/settings-local": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness/cli": "workspace:*",

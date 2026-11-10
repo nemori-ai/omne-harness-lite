@@ -17,7 +17,12 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createPosixGuard, type PermissionGuard } from '@omne-harness/model-host-local/vault'
+import { MODEL_FACTORY_SECRET_KEY } from '@omne-harness/model-host-local'
+import {
+  createPosixGuard,
+  openSecretVault,
+  type PermissionGuard,
+} from '@omne-harness/settings-local/secrets'
 import { isSecretName } from '../../src/local/settings.ts'
 import { runSetup, type SetupDeps } from '../../src/local/setup.ts'
 
@@ -108,12 +113,13 @@ function host(modes: Modes = 'host') {
         string,
         unknown
       >,
-    factorySecret: () =>
-      (
-        JSON.parse(readFileSync(join(home, 'state', 'model-vault.json'), 'utf8')) as {
-          factorySecret: string
-        }
-      ).factorySecret,
+    // The factory secret as the vault serves it: the official Model binding, read through the use face.
+    factorySecret: () => {
+      const opened = openSecretVault({ path: join(home, 'state', 'model-vault.json') })
+      if (opened.kind !== 'open') throw new Error(`vault ${opened.cause}`)
+      const taken = opened.vault.use(MODEL_FACTORY_SECRET_KEY)
+      return typeof taken === 'string' ? taken : taken.value
+    },
   }
 }
 

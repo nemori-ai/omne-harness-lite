@@ -34,6 +34,7 @@ import { writeLoginState, type LoginState } from './login-state.ts'
 import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
+import { settingCommand } from './setting-command.ts'
 
 async function runAccount(
   name: 'register' | 'login',
@@ -406,4 +407,5 @@ export const productionCommands: readonly CommandSpec[] = [
   },
   ...governanceCommands,
   credentialCommand,
+  settingCommand,
 ]

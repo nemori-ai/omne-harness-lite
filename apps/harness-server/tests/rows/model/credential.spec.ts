@@ -1,9 +1,10 @@
 // `model-credential` row: the managed model-host-local credential plugin as a row. It injects nothing, so
 // it is ACTIVE with nothing else in the tree. The vault is a real file in a temporary directory.
-import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import { createLocalCustodian } from '@omne-harness/model-host-local'
 import {
   MODEL_SEND,
@@ -102,6 +103,63 @@ describe('the model-credential row', () => {
     )
     expect(value.present).toMatchObject({ kind: 'known', present: true })
     expect(value.resolved).toEqual({ kind: 'value', scope: 'tenant', value: TENANT_SECRET })
+  })
+
+  it('serves a vault file of the baseline format (no version field) as before: tenant binding and factory secret', async () => {
+    const path = vaultPath()
+    const reference = referenceOf()
+    const otherAccount = accountCodec.parse('acc_abcdefghjkmnpqrstvwxyz2346')
+    const otherOrganization = organizationCodec.parse('org_abcdefghjkmnpqrstvwxyz2346')
+    if (!otherAccount.ok || !otherOrganization.ok) throw new Error('fixture tenant')
+    const other = tenant(otherOrganization.value, otherAccount.value)
+    // Another tenant asks with its own id: an id this tenant holds would be denied, not served.
+    const otherId = decodeCredentialId('cred-other')
+    if (!('ok' in otherId)) throw new Error('fixture credential id')
+    const otherReference = { id: otherId.ok, tenant: other, purpose: MODEL_SEND }
+    const baseline = JSON.stringify({
+      closed: false,
+      factorySecret: FACTORY,
+      bindings: [
+        {
+          id: 'cred-a',
+          tenant: { organization: TENANT.organization.text, account: TENANT.account.text },
+          purpose: MODEL_SEND,
+          secret: TENANT_SECRET,
+          life: 'active',
+          configuredAt: '2026-11-04T00:00:00Z',
+        },
+      ],
+    })
+    writeFileSync(path, baseline)
+    const { value } = await withLiveRows(
+      {
+        // The operator layer names only the path: no factory secret in the configuration.
+        rows: [{ id: 'model-credential', plugin: 'modelCredentialRow', config: { path } }],
+        plugins,
+        probe: ['modelCredential'],
+      },
+      ctx => {
+        const service = ctx.get('modelCredential') as ModelCredentialService
+        const official = { authorized: true, official: true }
+        return {
+          present: service.present(reference),
+          tenant: service.resolve(reference, official),
+          otherTenantPresent: service.present(otherReference),
+          factory: service.resolve(otherReference, official),
+          notOfficial: service.resolve(otherReference, { authorized: true, official: false }),
+          heldElsewhere: service.resolve({ ...reference, tenant: other }, official),
+        }
+      },
+    )
+    expect(value.present).toMatchObject({ kind: 'known', present: true })
+    expect(value.tenant).toEqual({ kind: 'value', scope: 'tenant', value: TENANT_SECRET })
+    // The plain `present` of another tenant says "no binding"; the qualified path denies the held id.
+    expect(value.otherTenantPresent).toMatchObject({ kind: 'known', present: false })
+    expect(value.factory).toEqual({ kind: 'value', scope: 'factory', value: FACTORY })
+    expect(value.notOfficial).toEqual({ kind: 'absent' })
+    expect(value.heldElsewhere).toEqual({ kind: 'denied' })
+    // Reading alone rewrites nothing: the baseline bytes stay until the first write.
+    expect(readFileSync(path, 'utf8')).toBe(baseline)
   })
 
   it('keeps the custody key trusted: a row that the table does not list cannot inject it', async () => {

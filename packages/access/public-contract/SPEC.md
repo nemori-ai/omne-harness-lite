@@ -54,6 +54,8 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 | `issue-member-invitation`、`open-affiliation-request` | 必填 | 必填 | `duration` |
 | `query-organization-members` | 必填 | 必填 | `includeRemoved` |
 | `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`query-invitation`、`create-organization`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-organization`、`query-issued-invitations`、`accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`、`release-affiliation`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`query-affiliation-request`、`judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression`、`bind-model-credential`、`unbind-model-credential`、`describe-model-credential` | 必填 | 必填 | 无 |
+| `list-settings` | 必填 | 必填 | `asset`，以及 `asset` 里的 `category` |
+| `set-setting`、`describe-setting`、`clear-setting` | 必填 | 必填 | `asset` 里的 `category` |
 
 `disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 不进入这张表。
 
@@ -88,6 +90,7 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 | `need-decision` | 要等待原决定请求的一次答复 | 等待已经批准、拒绝，或将会超时批准 |
 | `unknown` | 提交结果尚未认回 | 效果没有发生，或可以安全地自动再做一次 |
 | `conflict` | 调用者有权看见的预期状态已经变了 | 调用者看不见的对象因此被确认存在 |
+| `not-writable` | 目标是本部署不提供写入的设置项 | 该项不存在，或别的部署也不能写入 |
 | `protocol-rejected` | 消息不被接受 | 任何业务事实 |
 | `stage-not-provided` | 本阶段，或本部署不提供该操作 | 主体是否存在，或删除、创建已经代替该操作，以及登录是否有效 |
 
@@ -114,6 +117,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | 组织成员 | `members` | `accountId`、`role`。`includeRemoved` 为 false 时只有当前有效成员。为 true 时只有已解除成员 |
 | 成员邀请 | `invitations` | `invitationId`、`state`、`expiresAt`、`organizationId`、`invitedAccountId` |
 | 隶属请求 | `affiliationRequests` | `requestId`、`state`、`expiresAt`、`superiorOrganizationId`、`subordinateOrganizationId` |
+| 设置项 | `items` | `asset`、`item`、`title`、`sensitivity`、`state`，见[设置项](#设置项) |
 
 治理操作的并发控制核对调用者有权看见的预期状态。本协议不另造整数版本号。预期状态在提交时核对。调用者无权看见目标时返回 `not-visible`，不返回 `conflict`。
 
@@ -148,14 +152,19 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | `submit-authorization-expression` | `expression`、`action`、`object`、`parameters` | 无 | 任何其他键 |
 | `withdraw-authorization-expression` | `expressionId` | 无 | 任何其他键 |
 | `bind-model-credential` | `secret` | 无 | 任何其他键 |
+| `list-settings` | 无 | `asset` | 任何其他键 |
+| `set-setting` | `asset`、`item`、`secret` | 无 | 任何其他键 |
+| `describe-setting`、`clear-setting` | `asset`、`item` | 无 | 任何其他键 |
+
+`asset` 是一个对象，必填 `name`，可省略 `category`，禁止其他键。两者都是非空字符串。
 
 `loginIdentifier` 是账号在注册时固定的登录标识。`loginId` 和 `targetLoginId` 是一份登录的标识。两者不是同一个键。
 
-`credential`、`currentCredential`、`newCredential` 和 `secret` 只出现在请求里。响应和诊断不包含它们。`secret` 是模型凭据的秘密值，不是账号凭据。
+`credential`、`currentCredential`、`newCredential` 和 `secret` 只出现在请求里。响应和诊断不包含它们。`secret` 是模型凭据或秘密设置项的秘密值，不是账号凭据。
 
 邀请的 `state` 只取 `open`、`accepted`、`rejected`、`withdrawn`、`expired` 之一。隶属请求的 `state` 只取 `pending`、`accepted`、`rejected`、`withdrawn`、`invalid`、`expired` 之一。已生效隶属的 `state` 只取 `effective` 或 `released`。
 
-没有另行列出的 `denied`、`not-visible`、`basis-unavailable`、`conflict`、`protocol-rejected` 和 `stage-not-provided`，`body` 都是空对象。
+没有另行列出的 `denied`、`not-visible`、`basis-unavailable`、`conflict`、`not-writable`、`protocol-rejected` 和 `stage-not-provided`，`body` 都是空对象。
 
 | 结果 | body |
 | --- | --- |
@@ -185,6 +194,10 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | `bind-model-credential` 的 `succeeded` | `configuredAt`。不含秘密 |
 | `unbind-model-credential` 的 `succeeded` 与 `no-change` | 空对象 |
 | `describe-model-credential` 的 `succeeded` | `state`。`state` 为 `usable` 或 `unreadable` 时另含 `tenantId`，以及可选的 `configuredAt`。`state` 为 `unbound` 时没有别的键。不含秘密 |
+| `list-settings` 的 `succeeded` | `items`、`completeness` 为 `complete`。每一项见[设置项](#设置项) |
+| `set-setting` 的 `succeeded` | `configuredAt`。不含秘密 |
+| `describe-setting` 的 `succeeded` | `state`。`state` 为 `usable`、`revoked` 或 `unreadable` 时另含 `tenantId`，以及可选的 `configuredAt`。`state` 为 `unbound` 时没有别的键。不含秘密 |
+| `clear-setting` 的 `succeeded` 与 `no-change` | 空对象 |
 
 
 ## 操作
@@ -369,6 +382,30 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | `unreadable` | 绑定存在，秘密读不出。调用不会退回部署默认凭据或其他租户的凭据 | 同上 |
 
 秘密不进入任何响应、诊断、普通错误或遥测。部署可以不提供这三个操作，此时按[部署声明不提供的操作](#部署声明不提供的操作)答 `stage-not-provided`。
+
+### 设置项
+
+`list-settings`、`set-setting`、`describe-setting`、`clear-setting` 管理行事租户自己的设置项。设置项的声明、秘密项的有无与写入结果归 [Settings 的秘密设置项](../../assets/settings/SPEC.md#secret-items)。本协议只给这些事实一个公开形状。
+
+四个操作都需要有效登录和行事租户。目标范围就是行事租户，`body` 不含目标租户。行事租户与当前选择不同时是 `denied`，不进入业务。
+
+`asset` 选出设置项所属的资产：`name` 是资产名，`category` 是资产类别。省略 `category` 时，行事租户看得见的同名资产必须恰好一个，多于一个时是 `conflict`。`item` 是该资产声明的项标识。行事租户看不见该资产或该项时是 `not-visible`。
+
+- `list-settings` 列出行事租户看得见的设置项。给了 `asset` 时只列该资产的项。成功时 `body` 含 `items` 与 `completeness`，遵守上面的名单完整性规则。普通设置项也列出，`state` 为 `not-writable`，因为本部署不提供普通设置的写入。
+- `set-setting` 写入一个秘密项。`secret` 的字段检查与 `bind-model-credential` 的 `secret` 相同。成功时 `body` 只含本次配置时刻 `configuredAt`。目标是普通设置项时是 `not-writable`。依据不可得或写入没有发生时是 `basis-unavailable`。写入可能已经提交但没有认回时是 `unknown`，调用者先用 `describe-setting` 认回，再决定是否重试。
+- `describe-setting` 读一个秘密项的有无。成功时 `state` 取下表之一，不回显秘密。目标是普通设置项时是 `not-writable`。
+- `clear-setting` 清除一个秘密项。成功时 `body` 为空。没有配置时是 `no-change`。`not-writable`、`basis-unavailable` 与 `unknown` 的含义同 `set-setting`。
+
+| `state` | 含义 | 其他键 |
+| --- | --- | --- |
+| `unbound` | 该租户没有配置这个秘密 | 无 |
+| `usable` | 已配置，秘密可以读出 | `tenantId`（归属）；`configuredAt`（保管没有记录时刻时缺席） |
+| `revoked` | 已配置，绑定已撤销 | 同上 |
+| `unreadable` | 已配置，秘密读不出 | 同上 |
+
+`items` 的每一项含 `asset`（`category` 与 `name` 都在）、`item`、`title`（给人读的项名）、`sensitivity`（`secret` 或 `ordinary`）和 `state`。秘密项的 `state` 同上表，普通项的 `state` 是 `not-writable`。
+
+秘密只在 `set-setting` 的请求里。它不进入任何响应、诊断、普通错误或遥测。部署可以不提供这四个操作，此时按[部署声明不提供的操作](#部署声明不提供的操作)答 `stage-not-provided`。
 
 ## 当前读面
 
@@ -901,7 +938,7 @@ const encoded = encodeGovernanceRequest({
 
 ### 操作集合与函数
 
-正常信封表包含37个不同操作。另有4个本阶段不提供的操作，总共41个。`GovernanceProvidedOperation` 仅包含正常37项。`GovernanceOperation` 包含全部41项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部41个操作分别关联结果和 body。每个正常操作的响应还包含 `stage-not-provided`，因为部署可以声明它不提供，见[部署声明不提供的操作](#部署声明不提供的操作)。阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
+正常信封表包含41个不同操作。另有4个本阶段不提供的操作，总共45个。`GovernanceProvidedOperation` 仅包含正常41项。`GovernanceOperation` 包含全部45项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部45个操作分别关联结果和 body。每个正常操作的响应还包含 `stage-not-provided`，因为部署可以声明它不提供，见[部署声明不提供的操作](#部署声明不提供的操作)。阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
 
 主入口导出治理与会话两组纯函数，每组四个，及其公开输入结果类型。另有[身份值的文本](#身份值的文本)的八个函数。本表是治理一组。会话一组见[会话编解码函数](#会话编解码函数)。
 

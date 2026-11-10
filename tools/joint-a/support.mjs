@@ -223,6 +223,12 @@ export function operatorLayer(options) {
           factorySecret: 'joint-a-test-factory-secret',
         },
       },
+      // 秘密保管行打开模型凭据插件建立的同一个保管库文件（web-meta-tool 切片 04）。
+      {
+        kind: 'replace',
+        id: 'secret-custody',
+        config: { path: join(options.storageRoot, 'model-vault.json') },
+      },
       {
         kind: 'replace',
         id: 'model-profiles',

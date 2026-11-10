@@ -2,7 +2,7 @@
 id: PD-assets-and-rules
 title: 资产与规则
 status: draft
-revision: 5
+revision: 6
 relations:
   supersedes: []
   depends-on: []

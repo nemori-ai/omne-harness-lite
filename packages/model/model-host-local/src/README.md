@@ -8,7 +8,7 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 边界
 
-源码只用可擦除的 TypeScript 语法。根入口及它到达的 [store.ts](store.ts)、[records.ts](records.ts) 不导入 `@deepseek-ai/cordis`、model-cordis-contract 或 cordis.ts。deliver-injected.ts 同样不导入 store.ts 与 records.ts。send-resources.ts 与 assembly.ts 不导入 Cordis、store.ts、records.ts 或任何 `testing` 模块，也不写路由地址、代理或限额的默认值。存在性与解析的判定不在本目录，来自 model。非类型行为写在包根 [SPEC.md](../SPEC.md)。
+源码只用可擦除的 TypeScript 语法。根入口及它到达的 [store.ts](store.ts) 不导入 `@deepseek-ai/cordis`、model-cordis-contract 或 cordis.ts。deliver-injected.ts 同样不导入 store.ts。send-resources.ts 与 assembly.ts 不导入 Cordis、store.ts 或任何 `testing` 模块，也不写路由地址、代理或限额的默认值。存在性与解析的判定不在本目录，来自 model。非类型行为写在包根 [SPEC.md](../SPEC.md)。
 
 ## 维护
 
@@ -16,4 +16,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 本包事实
 
-本目录已实现本地凭据保管库、Cordis 插件、生产发送资源与本地 Model 装配。其他宿主能力没有实现。
+本目录已实现 settings-local 秘密保管库之上的 Model 凭据保管、Cordis 插件、生产发送资源与本地 Model 装配。保管库文件本身在 settings-local 的 `src/secrets/`。其他宿主能力没有实现。

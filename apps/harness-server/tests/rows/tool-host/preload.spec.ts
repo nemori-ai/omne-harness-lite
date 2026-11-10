@@ -42,12 +42,12 @@ async function until(ready: () => boolean) {
 
 describe('tool-host: the release authors are loaded by the registrant at start', () => {
   it(
-    'loads Shell, Files and Tools live into toolBindings after the row starts',
+    'loads Shell, Files, Tools, TodoItems and Web live into toolBindings after the row starts',
     { timeout: 20_000 },
     async () => {
       const { names } = await loaded(true, TEST_CONSTRUCTION)
-      await until(() => names().length === 4)
-      expect(names()).toEqual(['Files', 'Shell', 'TodoItems', 'Tools'])
+      await until(() => names().length === 5)
+      expect(names()).toEqual(['Files', 'Shell', 'TodoItems', 'Tools', 'Web'])
     },
   )
 
@@ -93,9 +93,10 @@ describe('tool-host: the release authors are loaded by the registrant at start',
         return { failure: { kind: 'unavailable', diagnostic: 'test' } }
       },
     })
-    expect(seen).toHaveLength(4)
+    expect(seen).toHaveLength(5)
     for (const access of seen) expect(access).toBe(registrant)
     expect(results.map(result => result.outcome)).toEqual([
+      'unavailable',
       'unavailable',
       'unavailable',
       'unavailable',

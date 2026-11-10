@@ -161,6 +161,16 @@
       "config": {}
     },
     {
+      "id": "secret-custody",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "settings",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "model-records",
       "plugin": "stubPlugin",
       "config": {}

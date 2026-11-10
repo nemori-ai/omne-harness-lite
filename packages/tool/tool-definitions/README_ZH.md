@@ -65,3 +65,11 @@ acceptance/               独立验收；fixtures/ 存放验收输入
 结果 JSON 完整保留 Session 回执、页面、游标和失败。提交未知时保留原操作。输出超预算明确答 unavailable，并提示减小页长。1 MiB 是部署初始预算，控制字符的 JSON 转义可能扩大字节数，因此不保证容纳所有合法页面。过小预算会明确触发输出校验失败。
 
 [作者测试](tests/todo-items.spec.ts)使用绑定替身，通过真实 Tool 解码、执行与输出验证。它不证明 SQL 持久化、完整应用交付或自动 Context 投影。行为见 [SPEC](SPEC.md#todoitems-作者)。
+
+## Web
+
+`createWebAuthor` 与 `webToolModule` 提供 help、search、fetch，采用 wrapped 单声明。构造值只有正安全整数 `resultMaxBytes` 与 `maxSearchResults`，environment 为 null，本切片不声明设置项。
+
+宿主在 `attachToolsCapability` 之后用一个 `WebAccess` 实现（[窄口](src/web-port.ts)）调用 `attachWebAccess`；作者看不到 key、供应商或租户。search 写标题、网址、日期与摘录，fetch 写最终网址、媒体类型与 Markdown 正文，网络内容放在外部数据标记之间。失败是 `WebFailure` 闭集里的一行 `<kind> reason=`；`unconfigured` 写明要配置 Web 的设置项 `exa.apiKey`。
+
+[作者测试](tests/web.spec.ts)使用脚本化端口；网络提供者是 `@omne-harness/tool-host-local/web`。行为见 [SPEC](SPEC.md#web-作者)。
