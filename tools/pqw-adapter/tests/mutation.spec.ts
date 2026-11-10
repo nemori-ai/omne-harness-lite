@@ -247,6 +247,10 @@ it('lists survivors, uncovered sites and unmutated segments, and ends with the l
   ])
 })
 
+it('ends with a limits line that names at least one limit', () => {
+  expect(mutationLines([]).at(-1)).toMatch(/^限制：.+/u)
+})
+
 it('gives each member that cannot be measured one line, with the reason or a stand-in for it', () => {
   expect(
     mutationLines([
@@ -301,5 +305,123 @@ it('does not list sites whose verdict is not uncovered', () => {
   expect(lines).toEqual([
     'm：杀死 0、存活 0、无覆盖 0、未跑 0；分数 100%；JSON /o/m.json',
     expect.stringMatching(/^限制：/),
+  ])
+})
+
+it('hands mutation.mjs exactly the repo, member, base, joined scopes, build, Stryker modules and config, and only the options it was given', () => {
+  const call = {
+    root: '/repo',
+    member: 'tools/t',
+    base: 'b',
+    scopes: ['tools/t/src/a.ts', 'tools/t/src/b.ts'],
+    files: [],
+    json: '/o/t.json',
+    planOnly: false,
+  }
+  const script =
+    '/repo/.meta_harness/agents/vendor/pqw-skills/skills/slice-closeout/scripts/mutation.mjs'
+  expect(mutationArgs(call)).toEqual([
+    script,
+    '--repo',
+    '/repo',
+    '--project',
+    'tools/t',
+    '--base',
+    'b',
+    '--scope',
+    'tools/t/src/a.ts,tools/t/src/b.ts',
+    '--build-command',
+    'pnpm run build',
+    '--stryker-modules',
+    '/repo/tools/pqw-adapter/node_modules',
+    '--vitest-config',
+    FAST_VITEST_CONFIG,
+    '--json',
+    '/o/t.json',
+  ])
+  expect(
+    mutationArgs({ ...call, files: ['x.ts', 'y.ts'], workers: 2, planOnly: true }).slice(9, 11),
+  ).toEqual(['--files', 'x.ts,y.ts'])
+})
+
+it('points at the fast-tier vitest config module that Stryker loads', async () => {
+  const module = (await import(FAST_VITEST_CONFIG)) as { default: unknown; fastConfig: unknown }
+  expect(typeof module.default).toBe('function')
+  expect(typeof module.fastConfig).toBe('function')
+})
+
+it('counts a pinned file whose name looks like a range by its own lines, not by the look of the name', () => {
+  expect(rangeLines(['a:1-2.ts', 'b.ts:5-7x'], () => 40)).toBe(80)
+})
+
+it('writes the plan and the run to differently named JSON files in the output directory', async () => {
+  const out = scratch()
+  const { exec } = recorder(command => {
+    writeJson(valueOf(command.args, '--json') ?? '', { mutate: [], summary: { valid: null } })
+    return {}
+  })
+  const base = { root: '/repo', base: 'b', files: [], outDir: out, exec }
+  const plan = await mutateMember(changedMember('tools/t'), base, { planOnly: true })
+  const run = await mutateMember(changedMember('tools/t'), base, { planOnly: false })
+  expect(plan.json).toBe(`${out}/tools__t.plan.json`)
+  expect(run.json).toBe(`${out}/tools__t.mutation.json`)
+})
+
+it('counts a call as failed when it exits 2 with an earlier JSON in place, or exits 0 without writing one', async () => {
+  const out = scratch()
+  writeJson(`${out}/tools__t.mutation.json`, { mutate: [], summary: { valid: true } })
+  const base = (exec: Executor) => ({ root: '/repo', base: 'b', files: [], outDir: out, exec })
+  const stale = await mutateMember(
+    changedMember('tools/t'),
+    base(recorder(() => ({ code: 2, stderr: '崩了' })).exec),
+    { planOnly: false },
+  )
+  expect(stale.error).toBe('mutation.mjs 退出 2：崩了')
+  expect(stale.result).toBeUndefined()
+  const silent = await mutateMember(
+    changedMember('tools/u'),
+    base(recorder(() => ({ code: 0, stdout: 'l1\nl2\nl3\nl4\n', stderr: '\n' })).exec),
+    { planOnly: false },
+  )
+  expect(silent.error).toBe('mutation.mjs 退出 0：l2 ⏎ l3 ⏎ l4')
+  const signalled = await mutateMember(
+    changedMember('tools/v'),
+    base(recorder(() => ({ code: null, stderr: 'killed' })).exec),
+    { planOnly: false },
+  )
+  expect(signalled.error).toBe('mutation.mjs 退出 信号：killed')
+})
+
+it('gives no results for no members', async () => {
+  expect(await mutateAll([], context(gated().exec), 4)).toEqual([])
+})
+
+it('weighs the processes of a later member against the ranges still unfinished, not against the finished ones', async () => {
+  const fake = gated()
+  const all = mutateAll(sized({ a: 1000, b: 100, c: 100, d: 100, e: 100 }), context(fake.exec), 8)
+  await fake.settle()
+  expect(fake.started).toEqual([
+    { member: 'a', workers: 6 },
+    { member: 'b', workers: 1 },
+    { member: 'c', workers: 1 },
+  ])
+  await fake.finish('a')
+  expect(fake.started.slice(3)).toEqual([
+    { member: 'd', workers: 2 },
+    { member: 'e', workers: 4 },
+  ])
+  for (const member of ['b', 'c', 'd', 'e']) await fake.finish(member)
+  await all
+})
+
+it('lists a range with the member line first, then its entries, then the total', () => {
+  expect(planLines([plan('a', ['a/x.ts:1-3', 'a/y.ts:5-5'])], () => 0, 10)).toEqual({
+    lines: ['a：2 段、4 行', '  a/x.ts:1-3', '  a/y.ts:5-5', '范围合计 4 行，上限 10'],
+    total: 4,
+    over: false,
+  })
+  expect(planLines([{ member: 'b', json: 'j', error: '起不来' }], () => 0, 10).lines).toEqual([
+    'b：列范围失败（起不来）',
+    '范围合计 0 行，上限 10',
   ])
 })

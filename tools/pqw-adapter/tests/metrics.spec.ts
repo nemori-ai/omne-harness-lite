@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import {
@@ -229,5 +229,141 @@ it('names each kind of problem on its own line, in the order tests, no test scri
     '覆盖率那趟测试没通过：m/t（fast 退出 1，slow 退出 2）',
     '没有 test 脚本、CRAP 记无覆盖：m/u',
     '读数失败：m/e（metrics.mjs 退出 2）',
+  ])
+})
+
+it('hands metrics.mjs exactly the repo, base, scopes, lines, pattern and JSON, and a lcov list only when there are lcov files', () => {
+  expect(
+    metricsArgs({ root: '/r', base: 'b', lcovs: [], scopes: ['m/'], config: CONFIG, json: 'j' }),
+  ).toEqual([
+    '/r/.meta_harness/agents/vendor/pqw-skills/skills/slice-closeout/scripts/metrics.mjs',
+    '--repo',
+    '/r',
+    '--base',
+    'b',
+    '--scope',
+    'm/',
+    '--cc',
+    '10,12',
+    '--crap',
+    '10,12',
+    '--assert-pattern',
+    '^(expect|assert)',
+    '--json',
+    'j',
+  ])
+})
+
+it('keeps the output of each run in the member log files, with stderr after a marker only when there is some', async () => {
+  const out = scratch()
+  const { exec } = recorder(command => {
+    if (command.command === 'pnpm') return { stdout: 'vitest out', stderr: 'vitest err' }
+    writeJson(valueOf(command.args, '--json') ?? '', pqwResult)
+    return { stdout: 'pqw out' }
+  })
+  await measureMember(changedMember('tools/t'), context(out, exec))
+  expect(readFileSync(`${out}/tools__t/fast.vitest.log`, 'utf8')).toBe(
+    'vitest out\n--- stderr ---\nvitest err',
+  )
+  expect(readFileSync(`${out}/tools__t/metrics.log`, 'utf8')).toBe('pqw out')
+})
+
+it('measures into an output directory that already exists, as when --out is reused', async () => {
+  const out = scratch()
+  const { exec } = recorder(command => {
+    if (command.command !== 'pnpm') writeJson(valueOf(command.args, '--json') ?? '', pqwResult)
+    return {}
+  })
+  await measureMember(changedMember('tools/t'), context(out, exec))
+  await expect(measureMember(changedMember('tools/t'), context(out, exec))).resolves.toMatchObject({
+    member: 'tools/t',
+  })
+})
+
+it('passes no lcov to metrics.mjs when the coverage run wrote none, and names a signal that ended it', async () => {
+  const { calls, exec } = recorder(command => {
+    if (command.command === 'pnpm') {
+      // 覆盖率目录建了、lcov.info 没写：只有文件本身才算产物。
+      const reports = command.args.find(a => a.startsWith('--coverage.reportsDirectory='))
+      mkdirSync(reports?.split('=')[1] ?? '', { recursive: true })
+      return { code: null }
+    }
+    writeJson(valueOf(command.args, '--json') ?? '', pqwResult)
+    return {}
+  })
+  const reading = await measureMember(changedMember('tools/t'), context(scratch(), exec))
+  expect(calls[1]?.args).not.toContain('--lcov')
+  expect(reading.failedTiers).toEqual(['fast 退出 信号'])
+})
+
+it('reports a failed metrics.mjs call even when an earlier JSON is still in the output directory', async () => {
+  const out = scratch()
+  writeJson(`${out}/tools__t.metrics.json`, pqwResult)
+  const { exec } = recorder(command =>
+    command.command === 'pnpm' ? {} : { code: 2, stderr: 'pqw 起不来' },
+  )
+  const reading = await measureMember(changedMember('tools/t'), context(out, exec))
+  expect(reading.error).toBe('metrics.mjs 退出 2：pqw 起不来')
+  expect(reading.result).toBeUndefined()
+})
+
+it('reports a metrics.mjs call that exits 0 without writing its JSON, and shows the last three lines of its output', async () => {
+  const { exec } = recorder(command =>
+    command.command === 'pnpm' ? {} : { stdout: 'l1\nl2\nl3\nl4\n', stderr: '  ' },
+  )
+  const reading = await measureMember(changedMember('tools/t'), context(scratch(), exec))
+  expect(reading.error).toBe('metrics.mjs 退出 0：l2 ⏎ l3 ⏎ l4')
+  const signalled = recorder(command =>
+    command.command === 'pnpm' ? {} : { code: null, stderr: 'killed' },
+  )
+  const stopped = await measureMember(changedMember('tools/t'), context(scratch(), signalled.exec))
+  expect(stopped.error).toBe('metrics.mjs 退出 信号：killed')
+})
+
+it('sums the counts over every member result', () => {
+  const readings: MemberReading[] = ['a', 'b'].map((m, i) => ({
+    member: `m/${m}`,
+    json: `/o/${m}.json`,
+    failedTiers: [],
+    untested: false,
+    result: {
+      functions: [],
+      uncovered: Array.from({ length: i + 1 }, () => ({ path: 'x', reason: 'r' })),
+      testsWithoutAssertions: Array.from({ length: i + 2 }, () => ({})),
+      warnings: Array.from({ length: i + 3 }, () => 'w'),
+      summary: {},
+    },
+  }))
+  const lines = metricsSummary(
+    readings,
+    { members: [], outside: [] },
+    { base: 'b', head: 'h', dirty: false, full: false, config: CONFIG },
+  )
+  expect(lines[3]).toBe('无断言用例 5 个；未覆盖的改动文件 3 个；覆盖率警告 7 条')
+})
+
+it('counts a reading that has only an error as no functions and no counts, and lists each failing member', () => {
+  const failed = (member: string, extra: Partial<MemberReading>): MemberReading => ({
+    member,
+    json: `/o/${member}.json`,
+    failedTiers: [],
+    untested: false,
+    ...extra,
+  })
+  const lines = metricsSummary(
+    [
+      failed('m/a', { failedTiers: ['fast 退出 1'], error: 'x 退出 2', untested: true }),
+      failed('m/b', { failedTiers: ['slow 退出 3'], error: 'y 退出 4', untested: true }),
+    ],
+    { members: [], outside: [] },
+    { base: 'b', head: 'h', dirty: false, full: false, config: CONFIG },
+  )
+  expect(lines[1]).toBe('范围：改动成员 0 个、改动函数 0 个')
+  expect(lines.slice(3)).toEqual([
+    '无断言用例 0 个；未覆盖的改动文件 0 个；覆盖率警告 0 条',
+    '覆盖率那趟测试没通过：m/a（fast 退出 1）、m/b（slow 退出 3）',
+    '没有 test 脚本、CRAP 记无覆盖：m/a、m/b',
+    '读数失败：m/a（x 退出 2）；m/b（y 退出 4）',
+    expect.stringMatching(/^限制：/),
   ])
 })
