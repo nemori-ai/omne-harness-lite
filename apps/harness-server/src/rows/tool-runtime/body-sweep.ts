@@ -88,7 +88,6 @@ export function createBodySweep<P>(input: BodySweepInput<P>) {
     },
     async close(): Promise<void> {
       stopped = true
-      pending = null
       await active
     },
   })
