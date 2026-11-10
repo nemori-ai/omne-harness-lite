@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto'
 import { afterEach, expect, it } from 'vitest'
 import { effectiveArgumentsOf } from '@omne-harness/authorization'
 import { createGovernanceCollection } from '@omne-harness/governance-local'
+import type { TenantStandingReading } from '@omne-harness/identity'
 import { evaluatePermission, type PermissionBasisReading } from '@omne-harness/permissions'
 import { sessionStorageMaterials } from '@omne-harness/session-storage-sql'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
@@ -122,6 +123,8 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
   let advanceAfterQualification = false
   let advanced: { before: string; after: string } | undefined
   let commits = 0
+  let standingReads = 0
+  let standing: TenantStandingReading | undefined
   await withLiveTree(config, async ({ agent }) => {
     const read = createPermissionBasisRead({
       scope: w.scope,
@@ -138,7 +141,16 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
       },
       domain: w.domain,
       epoch: w.epoch,
-      identity: w.identity,
+      // Counts the standing reads and lets the test change the answer of Identity.
+      identity: {
+        verifier: w.identity.verifier,
+        standing: {
+          read: async input => {
+            standingReads += 1
+            return standing ?? w.identity.standing.read(input)
+          },
+        },
+      },
       read: w.extendedRead,
       conditions: { mapped: condition, unmapped: condition },
       origins: () => ({
@@ -240,6 +252,21 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
       expect(answer.reading.kind).not.toBe('current')
       expect(answer.condition).toBeNull()
     }
+
+    // P2: Identity is in another domain. Each check reads the standing of that moment.
+    const reads = standingReads
+    standing = { kind: 'not-member', evidence: { record: 'fixture', revision: '2' } }
+    expect(await read.readCurrent(action(CHANGED), next)).toEqual({
+      reading: { kind: 'denied' },
+      condition: null,
+    })
+    standing = { kind: 'unavailable', diagnostic: 'fixture' }
+    expect(await read.readCurrent(action(CHANGED), next)).toMatchObject({
+      reading: { kind: 'unavailable' },
+      condition: null,
+    })
+    standing = undefined
+    expect(standingReads).toBe(reads + 2)
 
     // P4: every check above was a read.
     expect(commits).toBe(0)
