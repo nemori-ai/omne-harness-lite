@@ -297,16 +297,24 @@ describe('收工钩子的判断', () => {
     expect(await stopHook(STOP, off.deps)).toBeUndefined()
   })
 
-  it('量读数时把回路目录交给子进程：BASE 一侧的读数缓存在那里', async () => {
-    const seen: string[] = []
+  it('量读数时把回路目录交给子进程：BASE 一侧的读数缓存在那里；时限按配置的秒数换成毫秒', async () => {
+    const seen: [number, string][] = []
     const shared = fakes({
-      measure: async (_root, _branch, _timeout, home) => {
-        seen.push(home)
+      measure: async (_root, _branch, timeout, home) => {
+        seen.push([timeout, home])
         return readings()
       },
     })
     await stopHook(STOP, shared.deps)
-    expect(seen).toEqual(['/home'])
+    expect(seen).toEqual([[40_000, '/home']])
+  })
+
+  it('依赖项这次没量（解析配置变了）：那一句照列成一项，不丢', () => {
+    const note = '解析配置变了，依赖项这次没量：看 pnpm run lint:deps'
+    expect(findingsOf(readings()).map(finding => finding.text)).not.toContain(note)
+    expect(
+      findingsOf({ ...readings(), dependencyNote: note }).map(finding => finding.text),
+    ).toContain(note)
   })
 
   it('行号变了不算新；位置或类别变了算新', () => {
@@ -391,6 +399,33 @@ describe('收工钩子的判断', () => {
         '{"readings": [{"root": "/t", "branch": "b", "at": "t", "findings": [{"key": 1}]}]}',
       ),
     ).toThrow('不合约定')
+  })
+
+  it('状态文件每一层不合约定都算出错，合约定的一条不能替别的一条担保', () => {
+    const good = {
+      root: '/t',
+      branch: 'b',
+      at: 't',
+      findings: [{ key: 'k', amount: 3 }, { key: 'j' }],
+    }
+    expect(parseState(JSON.stringify({ readings: [good] })).readings).toEqual([good])
+    const broken: unknown[] = [
+      null,
+      [],
+      { readings: 'x' },
+      { readings: [null] },
+      { readings: ['x'] },
+      { readings: [{ ...good, root: 1 }] },
+      { readings: [{ ...good, branch: undefined }] },
+      { readings: [{ ...good, at: null }] },
+      { readings: [{ ...good, findings: {} }] },
+      { readings: [{ ...good, findings: [null] }] },
+      { readings: [{ ...good, findings: ['k'] }] },
+      { readings: [{ ...good, findings: [{ key: 'k', amount: '3' }] }] },
+      { readings: [good, { ...good, root: 2 }] },
+    ]
+    for (const value of broken)
+      expect(() => parseState(JSON.stringify(value)), JSON.stringify(value)).toThrow('不合约定')
   })
 
   it('量的时候出错或超时：不拦，往日志追加一行，并给用户恰好一句警告；写日志也失败照样不拦', async () => {
