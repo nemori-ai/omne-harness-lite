@@ -1,8 +1,6 @@
 # 工作类型、证据与接受责任
 
-启用状态与草稿规则见[交付协议](delivery.md)开头。
-
-本页的工作分类不是平台原生类型。卡的共用身份、分解、状态、条件和决定归[交付协议](delivery.md)。本页拥有各工作类型的附加输入、证据及持续正文更新要求。
+本页的工作分类不是平台原生类型。卡、卡属性与决定归[卡与交接信息包](delivery.md)。本页拥有各工作类型的附加输入、证据及持续正文更新要求。
 
 ## 工作类型与分解
 
@@ -35,6 +33,6 @@
 
 ## 工程方法
 
-pstack方法及精确采用版本继续由[技能入口](skills.md)拥有。feature、bug-fix、refactoring、perf-issue分别是poteto-mode的playbook，不伪称独立skill；性能数字按pstack:benchmark-checklist复核。maintenance按实际工作选文档、依赖或运维方法，investigation用how／why及调查流程，必要时做获准探路实验。
+方法来源及精确采用版本由[技能入口](skills.md)拥有。大改动按 pqw `single-session-dev-flow` 推进；小修、原型与诊断按它的「先判断够不够格」转 Matt `tdd`、`prototype`、`diagnosing-bugs`。性能数字按pstack:benchmark-checklist复核。maintenance按实际工作选文档、依赖或运维方法，investigation用how／why及调查流程，必要时做获准探路实验。
 
-Matt 的 `to-spec` 组织已经明确的单次实施输入，`to-tickets` 按独立可验证结果切卡；它们不把所有工作变为产品故事、不另设长期规格源，也不授予tracker写入或接受权。产品规则起草才加载product-design，普通技术卡不用为了模板而重做产品设计。
+spec 与 plan 按 pqw `spec-and-plan` 写，项目附加节见[技能入口](skills.md#三层分工)；它们不把所有工作变为产品故事、不另设长期规格源，也不授予tracker写入或接受权。产品规则起草才加载product-design，普通技术卡不用为了模板而重做产品设计。

@@ -4,19 +4,43 @@
 
 ## 从任务开始
 
-从[场景选择](scenarios/README.md)进入调查与设计、新功能、缺陷、重构、性能、依赖与环境、评审交付或文档技能维护。已有明确依据的局部任务直接工作；新含义或必要依据缺失时，只暂停依赖部分。常驻线会话与 reduce 会话不走场景选择，从下表前两行进入。
+从[场景选择](scenarios/README.md)进入调查与设计、新功能、缺陷、重构、性能、依赖与环境、评审交付或文档技能维护。已有明确依据的局部任务直接工作；新含义或必要依据缺失时，只暂停依赖部分。
 
 实现维护者先确定任务；评审者先确定精确成果与验收；架构和交付负责人先检查目标、证据与未决。十类角色的首轮路径由[读者入口](../README.md)维护，使用者不必为一次公开操作通读工程文档。
+
+## 流程事实在哪
+
+研发流程的环节与做法归 pqw 各技能，本仓库只写自己的命令、位置与判据。下表每个事实只有一个家，其他文件只放指向它的一行指针。
+
+| 事实 | 唯一拥有者 |
+| --- | --- |
+| AI 主导研发交付的心智 | pqw `teach-pqw-skills` 的 `mental-models.md` |
+| 研发流程的环节与做法 | pqw 各技能，入口 `single-session-dev-flow` |
+| pqw 的接入值（命令、位置、阈值） | [根 AGENTS.md 的 pqw-skills 接入](../../AGENTS.md#pqw-skills-接入) |
+| 研发方法分层与外部技能钉版 | [三层分工](skills.md#三层分工)、[来源与项目采用](skills.md#来源与项目采用) |
+| 子代理的模型与档位 | [子代理的模型与档位](skills.md#子代理的模型与档位) |
+| 研发品味的项目补充 | [研发品味](../../.meta_harness/agents/roles/engineering-taste.md) |
+| 卡、交接信息包、卡属性 | [卡就是交接信息包](delivery.md#卡就是交接信息包)、[卡属性与合法组合](delivery.md#卡属性与合法组合) |
+| 交付与接受 | [提交成果供接受](delivery.md#提交成果供接受)、[接受、取消与重开](delivery.md#接受取消与重开) |
+| 发卡、开工、开 PR、gate 确认与接受的命令 | [`omne-card`](../../.meta_harness/agents/skills/omne-card/canonical/SKILL.md) |
+| 写者约定（门禁、不跑的检查、禁用 stash、trailer） | [`omne-card` 的写者约定](../../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#写者约定) |
+| L3 热点清单 | [`omne-card` 的 L3 热点清单](../../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#l3-热点清单) |
+| main 与 stable 的提升、npm 发行与恢复 | [`omne-card` 的提升与发行](../../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#提升与发行) |
+| 轨道、gate、准入的时机与规则 | [轨道责任与保护](integration.md#轨道责任与保护)、[现行准入](integration.md#现行准入) |
+| 准入的机制（记录、增量、复用） | [测试与准入工具说明](../../tools/test-runner/README_ZH.md) |
+| 风险级别与人审数 | [按风险选择接受实现的看法](quality.md#按风险选择接受实现的看法) |
+| 硬线与传感器 | [整洁回路](../clean-loop.md#回路怎么转) |
+| 署名、分支、PR 表达 | [贡献交付](../../CONTRIBUTING.md#形成可审阅的交付) |
+| 环境、命令、子模块初始化 | [开发指南](../development.md) |
+| 过程材料放哪、唯一源 | [位置与唯一源](documentation.md#位置与唯一源) |
+| 文档写作规则 | [文档写作规则](documentation.md#文档写作规则) |
+| 缺省基线与验收锁 | [仓库工具链说明](../../tools/repo-toolchain/README_ZH.md) |
+| 冲突与验收的入口 | [冲突与验收](../context-map.md#冲突与验收) |
 
 ## 查询共享主题
 
 | 要回答的问题 | 唯一展开入口 |
 |---|---|
-| 常驻线会话开工、交回、等待与恢复 | [`line`](../../.meta_harness/agents/skills/line/canonical/SKILL.md) 技能，阶段归[Line 状态空间](map-reduce-states.md#4-line-状态空间)，记录格式归[线会话记录](integration.md#线会话记录) |
-| reduce 会话建卡、派发、集成与收口 | [`dispatch`](../../.meta_harness/agents/skills/dispatch/canonical/SKILL.md) 与 [`integrate`](../../.meta_harness/agents/skills/integrate/canonical/SKILL.md) 技能，阶段归[Reduce 状态空间](map-reduce-states.md#3-reduce-状态空间)，协作规则归[集成节点的清单](integration.md#集成节点的清单) |
-| 对话建卡、取任务、更新与恢复 | [agent交付操作](agent-delivery.md)，先核实际启用范围 |
-| 卡、Stage、条件、决定及调度单写 | [交付协议](delivery.md) |
-| 交付线、里程碑、契约基线与卡属性 | [多层分支集成](integration.md#交付线)及[卡属性与合法组合](delivery.md#卡属性与合法组合) |
 | 六种工作类型及其证据 | [工作类型](work-types.md) |
 | 正式技术提案与规范写回 | [RFC入口](../rfcs/README.md) |
 | 输入、范围、责任、交接、停止与完成 | [共享工作约定](workflow.md) |
@@ -34,14 +58,10 @@
 
 本区组织现行项目约定及已授权的共享／场景结构。它引用[研发品味的项目补充](../../.meta_harness/agents/roles/engineering-taste.md)、[源码布局](../workspace.md)、[验证说明](../verification.md)、[防御指导](../defensive-patterns.md)、[整洁回路](../clean-loop.md)和[贡献指南](../../CONTRIBUTING.md)，不替代这些拥有者。
 
-本区的研发方法分三层：流程 pstack `poteto-mode`，写法 Matt，品味 ub-mode。分工、精确来源及读取方式归[技能引用](skills.md#三层分工)；宿主发现、步骤遵循及行为结果分别判断。
-
 仍有具名缺项：[TypeScript 政策](skills.md#尚待明确的-typescript-政策)、[运行政策](scenarios/dependencies-and-runtime.md#尚待明确的运行政策)与[宿主加载与行为验证](skills.md#宿主加载与行为验证待补)。
-
-GitHub内置Status字段承载协议Stage，配置按字段ID定位；不另建可独立编辑的Stage副本。
 
 ## 检查与维护
 
 文档维护者更新拥有者正文，再同步场景、技能入口和角色／任务导航。目标由[唯一登记](../documentation.json)维护。运行 `pnpm run check:docs` 核对链接，运行 `pnpm run docs:inventory` 观察缺项、未知和增减。结果范围见[治理说明](documentation.md#检查与结论边界)；不将结构通过当作内容、技能行为或发布授权。
 
-工作任务的同步、FI/RI、主干准入、稳定点与流程失效时的恢复，从[多层分支集成](integration.md)进入。主干准入、Git 运输和交付接受分别核对。
+工作任务的同步、FI/RI、主干准入、稳定点与流程失效时的恢复，从[轨道与 gate](integration.md)进入。主干准入、Git 运输和交付接受分别核对。
