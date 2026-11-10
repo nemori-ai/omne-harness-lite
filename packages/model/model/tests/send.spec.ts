@@ -46,6 +46,23 @@ it('refuses the official layer of a source that is not an official profile befor
   expect(f.counts().starts).toBe(0)
 })
 
+it('sends with the tenant layer of a source that is not an official profile', async () => {
+  const f = await sendFixture({
+    tenant: true,
+    configureSource(source) {
+      Reflect.set(source, 'official', false)
+    },
+    credentials: {
+      layerOf: () => fail({ kind: 'unavailable' }),
+      resolve: () => succeed(secrets),
+    },
+  })
+  const result = await f.makeSender().send(f.demand, signal())
+  expect(result.kind).toBe('started')
+  if (result.kind !== 'started') throw new Error('send fixture')
+  await collect(result.facts)
+})
+
 for (const tenant of [false, true])
   it(`reads the fixed ${tenant ? 'tenant' : 'official'} layer of the supplier's provider at the send`, async () => {
     const observed: unknown[] = []
@@ -447,7 +464,7 @@ for (const kind of ['value', ...Object.keys(FAILURES)]) {
     } else {
       expect(result).toMatchObject(
         kind === 'denied'
-          ? { kind: 'not-started', failure: { kind: 'denied' } }
+          ? { kind: 'not-started', failure: { kind: 'denied', action: 'model-credential' } }
           : {
               kind: 'not-started',
               failure: {
