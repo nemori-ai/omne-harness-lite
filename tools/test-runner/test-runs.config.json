@@ -99,7 +99,7 @@
       {
         "paths": ["tools/repo-toolchain/src/**", "tools/repo-toolchain/tests/fixtures/**"],
         "members": ["tools/dev-flow", "tools/test-runner"],
-        "why": "dev-flow 的 dependency-report.spec.ts、repository-environment.spec.ts 与 test-runner 的 loop-acceptance.spec.ts 经相对路径 ../../repo-toolchain/tests/fixtures/loop-canary/repository.ts 导入 repo-toolchain 的夹具，夹具再导入 ../../../src/deps/graph.ts；两个成员装的是钉住的 npm 包，turbo 图里没有指向本地 repo-toolchain 的边，没有这条就漏选"
+        "why": "dev-flow 的 dependency-report.spec.ts 与 test-runner 的 loop-acceptance.spec.ts 经相对路径 ../../repo-toolchain/tests/fixtures/loop-canary/repository.ts 导入 repo-toolchain 的夹具，夹具再导入 ../../../src/deps/graph.ts；两个成员装的是钉住的 npm 包，turbo 图里没有指向本地 repo-toolchain 的边，没有这条就漏选"
       },
       {
         "paths": [
@@ -109,7 +109,7 @@
           ".meta_harness/design/product/*/acceptance.md"
         ],
         "members": ["tools/dev-flow", "tools/product-checks"],
-        "why": "dev-flow 的 delivery 读取普通任务协议；product-checks 的 scenario-status 从当前产品 README、正文及编号场景读取长期覆盖，变化须运行真实消费者测试"
+        "why": "dev-flow 的 gate 读交付配置的仓库名；product-checks 的 scenario-status 从当前产品 README、正文及编号场景读取长期覆盖，变化须运行真实消费者测试"
       },
       {
         "paths": ["packages/agent/agent-cordis-contract/SPEC.md"],

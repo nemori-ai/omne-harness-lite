@@ -45,10 +45,6 @@ node --experimental-strip-types tools/dev-flow/src/integration/cli.ts contract-c
 
 标准输出是 JSON 报告，标准错误最后一行是汇总。精确条款见 [SPEC](SPEC.md#契约快照核对) 的 I22。
 
-## 进轨道 PR 说明的两节
-
-`pr-sections.ts` 解析 PR 正文的「所含的卡」与「契约变化」，格式见 [PR 模板](../../../../.github/pull_request_template.md)与 [SPEC](SPEC.md#进轨道-pr-说明的两节)。它是库，没有命令行入口。
-
 ## 持续验证
 
 在 `tools/dev-flow` 下运行：
@@ -58,4 +54,4 @@ pnpm exec vitest run tests/integration-*.spec.ts tests/shared-*.spec.ts
 pnpm run typecheck
 ```
 
-`integration-gate` 用按轮次应答的 GitHub 替身覆盖 `gate-cli wait` 的环境过滤、每轮批准、说明长度与超时，`integration-gate-cli-options` 用子进程覆盖它的选项边界。`integration-release-run` 覆盖发行运行的派发、观察、审批与恢复。`integration-contract-check` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。`integration-policy`、`integration-delivery-config` 与 `integration-pr-sections` 覆盖三种解析，`shared-gh` 覆盖 `gh` 命令的结果分类与重试。`integration-boundaries` 核对 `scripts/check.sh`、测试运行器的步骤表与格式化入口对本成员的调用。GitHub 替身通过不代替真实平台证据。
+`integration-gate` 用按轮次应答的 GitHub 替身覆盖 `gate-cli wait` 的环境过滤、每轮批准、说明长度与超时，`integration-gate-cli-options` 用子进程覆盖它的选项边界。`integration-release-run` 覆盖发行运行的派发、观察、审批与恢复。`integration-contract-check` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。`integration-delivery-config` 覆盖交付配置的解析，`shared-gh` 覆盖 `gh` 命令的结果分类与重试。`integration-boundaries` 核对 `scripts/check.sh`、测试运行器的步骤表与格式化入口对本成员的调用。GitHub 替身通过不代替真实平台证据。

@@ -26,12 +26,8 @@
     "check:agents": "PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness --check && PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/link_agents.py --project-root . --check",
     "check:docs": "uv run --locked omne-docs-check",
     "check:design": "./scripts/check-design.sh",
-    "check:delivery": "node --experimental-strip-types tools/dev-flow/src/delivery/cli.ts",
-    "pre-admission": "node --experimental-strip-types tools/dev-flow/src/delivery/pre-admission-cli.ts",
     "release-run": "node --experimental-strip-types tools/dev-flow/src/integration/release-run-cli.ts",
     "check:journal-facts": "node scripts/check-journal-facts.mjs",
-    "check:lines": "node --experimental-strip-types tools/dev-flow/src/delivery/lines-cli.ts",
-    "ri-notes": "node --experimental-strip-types tools/dev-flow/src/integration/cli.ts ri-notes",
     "check:formal-tools": "uv run --locked omne-spec-tools-check",
     "check:declarations": "omne-declarations",
     "contract:api": "omne-contract-api",
@@ -50,8 +46,7 @@
     "loop:status": "omne-loop-status",
     "loop:health": "omne-loop-health",
     "docs:inventory": "uv run --locked omne-documentation inventory --summary --out tmp/documentation-inventory",
-    "package:template": "node --experimental-strip-types tools/dev-flow/src/package-template/cli.ts",
-    "initial-dispatch": "node --experimental-strip-types tools/dev-flow/src/delivery/line-initial-dispatch-cli.ts"
+    "package:template": "node --experimental-strip-types tools/dev-flow/src/package-template/cli.ts"
   },
   "devDependencies": {
     "@omne-harness/repo-config": "catalog:",

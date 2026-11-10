@@ -61,7 +61,7 @@ pnpm --filter @omne-harness/repo-toolchain test
 
 ## Git 环境隔离
 
-显式仓库的 Git 子进程由 [git-environment.ts](src/core/git-environment.ts) 隔离八项仓库定位变量。认证、Git 配置、OMNE runner/subject 与测试控制参数继续继承。Vitest 在加载测试文件前另清两个 OMNE root，防止普通 fixture 读写外部仓库；污染回归在被测入口显式注入环境。持续验证见 [repository-environment.spec.ts](tests/repository-environment.spec.ts) 与 [integration-transport.spec.ts](../dev-flow/tests/integration-transport.spec.ts)。
+显式仓库的 Git 子进程由 [git-environment.ts](src/core/git-environment.ts) 隔离八项仓库定位变量。认证、Git 配置、OMNE runner/subject 与测试控制参数继续继承。Vitest 在加载测试文件前另清两个 OMNE root，防止普通 fixture 读写外部仓库；污染回归在被测入口显式注入环境。持续验证见 [repository-environment.spec.ts](tests/repository-environment.spec.ts)。
 
 ## 依赖图与依赖规则
 

@@ -119,7 +119,7 @@ stable 的完整检查即 `OMNE_ADMISSION=1 FULL=1 pnpm run check`，由目标�
 
 清理前先核 Git 已发布、各卡剩余接受与投影责任已交接、唯一 tmp 有去向，再按现有权限清理。ref 状态未知或分裂时保留证据，不盲目重建或重试。
 
-[policy registry](integration-policy.json) 只含 `schemaVersion`、`revision`、`repository`、`deliveryConfig`、`tracks`、`transport` 与 `timeouts`。`timeouts` 只含网络读取时限 `networkMs`。其他字段与 `parent` 不是 main 的轨道由[集成工具](../../tools/dev-flow/src/integration/SPEC.md#policy-与交付配置)拒绝。registry 属于仓库工具链路径，改动经仓库工具链变更闸门确认，见 [RFC-0008](../rfcs/RFC-0008-repo-toolchain-trust.md)。工具读取当前 HEAD 提交中的 registry，改动进入某个工作树的 HEAD 后即对该树生效。
+[policy registry](integration-policy.json) 只含 `schemaVersion`、`revision`、`repository`、`deliveryConfig`、`tracks`、`transport` 与 `timeouts`。`timeouts` 只含网络读取时限 `networkMs`。它现在的读者是收工钩子：按它的轨道找本树的基线分支（[hook-base.ts](../../tools/repo-toolchain/src/loop/hook-base.ts)）。registry 属于仓库工具链路径，改动经仓库工具链变更闸门确认，见 [RFC-0008](../rfcs/RFC-0008-repo-toolchain-trust.md)。
 
 ## 检查责任
 

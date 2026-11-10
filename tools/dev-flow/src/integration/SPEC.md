@@ -1,12 +1,10 @@
 # 分支集成工具行为契约
 
-本工具在 gate 运行时等待并代为确认（I21），派发并跟踪工具包的发行运行，为 `pnpm run check` 核对契约快照与 dist（I22），并解析进轨道 PR 说明的两节。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，不验证候选，也不发布。认卡、执行记录、绑定、开工、双基线、目标基线同步、轨道树与提升 PR 的说明生成已按 [RFC-0014](../../../../docs/rfcs/RFC-0014-single-card-session-and-gate-relief.md) 删除，相应条款随之删除。保留条款沿用原编号。
+本工具在 gate 运行时等待并代为确认（I21），派发并跟踪工具包的发行运行，为 `pnpm run check` 核对契约快照与 dist（I22）。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，不验证候选，也不发布。认卡、执行记录、绑定、开工、双基线、目标基线同步、轨道树与提升 PR 的说明生成已按 [RFC-0014](../../../../docs/rfcs/RFC-0014-single-card-session-and-gate-relief.md) 删除，相应条款随之删除。保留条款沿用原编号。
 
 本模块兑现[轨道与 gate](../../../../docs/engineering/integration.md)。公开类型及输入解析归本目录源码，命令用法归 [README](README.md)。以下承诺约束实现。
 
-## policy 与交付配置
-
-`parsePolicy` 解析 `docs/engineering/integration-policy.json`。它只接受 `schemaVersion`、`revision`、`repository`、`deliveryConfig`、`tracks`、`transport` 与 `timeouts`，`timeouts` 只接受 `networkMs`，已删除或未知的字段拒绝。轨道条目只接受 `id`、`branch`、`owner`、`source`、`status`、`parent` 与 `initialBase`，全部必填；`status` 取 active、paused、retiring 或 retired。`parent` 只能是 `main`：没有子轨道。轨道 ID 只有一段，不能是 `main`、`stable`、`release` 或 `github-gate`，不能重复。`branch` 必须等于 `integration/<id>`。`initialBase` 是轨道在 main 上的起点提交。
+## 交付配置
 
 `parseConfig` 解析 `docs/engineering/github-delivery.json`，只读 gate 用到的字段：`schemaVersion` 为 3，`kind` 为 `github-delivery-config`，`repository` 为不含 `.` 或 `..` 段的 GitHub `owner/name`。其他字段不读。
 
@@ -28,10 +26,6 @@ I21。`gate-cli.ts wait` 等待一次 workflow 运行。说明去掉首尾空白
 
 成功退出要求精确 run 完成且 conclusion 为 success。其他观察结果退出 1，输入或命令错误退出 2。输出包含操作身份、run/attempt 链接、诊断及恢复状态。
 
-## 进轨道 PR 说明的两节
-
-`pr-sections.ts` 的 `parsePullSections` 从 PR 正文读出「所含的卡」与「契约变化」两节，`formatCardLine` 写出一行卡。「所含的卡」的行格式归 `github-gate` 分支 `gate/README.md` 的「提升 PR 的说明」，「契约变化」每行是成员路径与 `none`、`additive` 或 `breaking`。只有顶层列表行计入；围栏代码、嵌套列表、引用与正文不计入，同名的节每次出现都读。「契约变化」只有一行「无」时为 `none`，同时有列表样式的行时为 `empty`。格式不合但能读出事实的行计入并列为 `invalid`。
-
 ## 契约快照核对
 
 I22。`contract-check` 让契约快照与 dist 的不一致使 `pnpm run check` 失败。测试运行器的步骤表在构建与类型检查之后调用它。
@@ -44,6 +38,6 @@ I22。`contract-check` 让契约快照与 dist 的不一致使 `pnpm run check` 
 
 ## 验证义务与限制
 
-持续测试覆盖：policy 解析真实 registry，拒绝子轨道、保留名、重复轨道与未知字段；交付配置解析真实配置，拒绝别的版本、别的 `kind` 与不合格的仓库名；`gh` 命令的成功、带响应体的失败、不带响应体的失败与超时，以及重试的范围、次数与间隔（进程内替身与子进程替身各一层）。I21 的测试用按轮次应答的 GitHub 替身覆盖只批准指定环境、不可批准的部署不批准、每轮重新批准仍待确认的部署、按 UTF-8 字节超长、按字符却不超长的说明在任何请求之前拒绝而恰为 1024 字节的说明接受、空环境列表拒绝与超时；CLI 子进程覆盖选项边界。包发布运行由 [integration-release-run.spec.ts](../../tests/integration-release-run.spec.ts) 覆盖；替身通过不替代真实受保护环境审批证明。两节的测试覆盖 gate 格式的逐行比对、节的切分（围栏代码、子列表、重复的节、没有分隔线的页脚）、宽松计入的行与有列表样式的行时不判「无」。I22 的测试用注入的 `--check --json` 输出覆盖六种状态各自的退出码、同一次运行的全部失败成员与输出形状不符；进程起不来时抛出并带错误码；经 CLI 在临时真实 Git 检出里运行安装的 `omne-contract-api`：快照与 dist 一致时退出 0，改动一个快照后退出 1，改回后退出 0，没有 dist 的成员只报告，配置被拒绝时退出 2。
+持续测试覆盖：交付配置解析真实配置，拒绝别的版本、别的 `kind` 与不合格的仓库名；`gh` 命令的成功、带响应体的失败、不带响应体的失败与超时，以及重试的范围、次数与间隔（进程内替身与子进程替身各一层）。I21 的测试用按轮次应答的 GitHub 替身覆盖只批准指定环境、不可批准的部署不批准、每轮重新批准仍待确认的部署、按 UTF-8 字节超长、按字符却不超长的说明在任何请求之前拒绝而恰为 1024 字节的说明接受、空环境列表拒绝与超时；CLI 子进程覆盖选项边界。包发布运行由 [integration-release-run.spec.ts](../../tests/integration-release-run.spec.ts) 覆盖；替身通过不替代真实受保护环境审批证明。I22 的测试用注入的 `--check --json` 输出覆盖六种状态各自的退出码、同一次运行的全部失败成员与输出形状不符；进程起不来时抛出并带错误码；经 CLI 在临时真实 Git 检出里运行安装的 `omne-contract-api`：快照与 dist 一致时退出 0，改动一个快照后退出 1，改回后退出 0，没有 dist 的成员只报告，配置被拒绝时退出 2。
 
 GitHub 响应模拟只能证明解析及请求协议。真实 Rulesets、Actions、权限与宿主加载不由本模块的测试证明。

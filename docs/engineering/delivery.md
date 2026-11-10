@@ -76,7 +76,7 @@
 
 ### 契约变更的语义复核
 
-`omne-contract-api` 把无法证明可加的改动分为 `review`。`review` 不是契约级别。它需要人判断这个改动是否可加：`delivery-lines.json` 中拥有该成员的线的 owner 在卡评论中写结论，PR 的「契约变化」按结论申报 `additive` 或 `breaking`，并链接那条评论。
+`omne-contract-api` 把无法证明可加的改动分为 `review`。`review` 不是契约级别。它需要人判断这个改动是否可加：卡的接受者在卡评论中写结论，PR 的「契约变化」按结论申报 `additive` 或 `breaking`，并链接那条评论。
 
 ## 提交成果供接受
 

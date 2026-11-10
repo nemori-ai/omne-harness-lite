@@ -56,35 +56,6 @@ export function choice<const T extends readonly string[]>(
   if (found === undefined) throw new IntegrationError('input-error', `${path} unsupported value`)
   return found
 }
-export function sha(value: unknown, path = 'commit'): string {
-  const result = string(value, path)
-  if (!/^[0-9a-f]{40}$/.test(result))
-    throw new IntegrationError('input-error', `${path} must be a full SHA-1`)
-  return result
-}
-export function safePath(value: unknown, path: string): string {
-  const result = string(value, path)
-  if (
-    result.startsWith('/') ||
-    result.includes('\\') ||
-    result.split('/').some(part => part === '..' || part === '.' || part === '')
-  )
-    throw new IntegrationError('input-error', `${path} must be a repository-relative path`)
-  return result
-}
-export function branch(value: unknown, path = 'branch'): string {
-  const result = string(value, path)
-  if (
-    !/^[A-Za-z0-9][A-Za-z0-9_./-]*$/.test(result) ||
-    result.includes('..') ||
-    result.includes('//') ||
-    result.endsWith('/') ||
-    result.endsWith('.') ||
-    result.split('/').some(part => part.endsWith('.lock') || part.startsWith('.'))
-  )
-    throw new IntegrationError('input-error', `${path} is not a valid branch`)
-  return result
-}
 export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
   if (typeof value === 'object' && value !== null)
