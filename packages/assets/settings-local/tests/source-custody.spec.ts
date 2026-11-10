@@ -4,11 +4,6 @@ import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { z } from 'zod'
 import type { CommitResultV2 } from '@omne-harness/sql-contract'
-import {
-  createStandaloneSettingsOwner,
-  settingsStandaloneMaterials,
-  standaloneSettingsGuards,
-} from '../src/index.ts'
 import { sourceKey, sourceReservationKey } from '../src/source-retention-records.ts'
 import {
   sourceCustodyReceiptSchema,
@@ -22,10 +17,9 @@ import {
 import { json } from '../src/encoding.ts'
 import { allocation, openIntentWorld } from './intent-world.ts'
 import { source, sourceSnapshot } from './source-retention-world.ts'
-import { command, definition, openWorld } from './world.ts'
-import { ownerSources } from './sources.ts'
+import { openPreparedTargetWorld } from './prepared-target-world.ts'
 const worlds: Awaited<ReturnType<typeof openIntentWorld>>[] = []
-const providers: Awaited<ReturnType<typeof openWorld>>[] = []
+const providers: Awaited<ReturnType<typeof openPreparedTargetWorld>>[] = []
 afterEach(async () => {
   for (const w of worlds.splice(0)) await w.close()
   for (const w of providers.splice(0)) await w.close()
@@ -158,31 +152,18 @@ it('rejects unrequested, misbound and changed held receipts and never revives a 
   ).toEqual({ kind: 'rejected', reason: 'operation_conflict' })
 })
 it('recognizes a lost reply from the actual source participant after destination reopen', async () => {
-  const provider = await openWorld({
-    sourceCapture: true,
-    authority: { materials: settingsStandaloneMaterials(), guards: standaloneSettingsGuards },
-  })
+  const provider = await openPreparedTargetWorld()
   providers.push(provider)
-  const owner = createStandaloneSettingsOwner({
-    storage: provider.storage,
-    domain: provider.domain,
-    ...provider.combination,
-  })
+  const combination = await provider.register('reserve', provider.ownerParticipants)
   expect(
-    await owner.mutate({
+    await provider.owner.mutate({
       kind: 'provision',
       operationId: 'source',
       expectedRevision: null,
-      record: {
-        publicationRef: null,
-        target: command().target,
-        definition,
-        sources: ownerSources('tenant'),
-        grants: [],
-      },
+      record: { ...provider.record, grants: [] },
     }),
   ).toMatchObject({ kind: 'committed' })
-  const sourceRef = { domain: provider.domain, target: command().target }
+  const sourceRef = { domain: provider.domain, target: provider.target }
   const { w, ref, plan, input } = await setup([sourceRef])
   await w.source({ kind: 'plan', input: plan })
   const planned = await request(w, ref, sourceRef)
@@ -194,8 +175,7 @@ it('recognizes a lost reply from the actual source participant after destination
         protocolVersion: '2',
         operationKey: randomUUID(),
       },
-      combinationVersion: provider.combination.combinationVersion,
-      manifestDigest: provider.combination.manifestDigest,
+      ...combination,
       commands: [
         { participant: SOURCE_RETENTION_OWNER, facts: { kind: 'reserve', request: json(planned) } },
         { participant: SOURCE_SNAPSHOT_PARTICIPANT, facts: { request: json(planned) } },
@@ -219,7 +199,6 @@ it('recognizes a lost reply from the actual source participant after destination
   expect(
     response(await reopened.source({ kind: 'record', input: { ...ref, receipt: first } })),
   ).toEqual(first)
-  await owner.close()
 })
 it('records old-attempt replies without authorizing another request or changing its successor', async () => {
   const { w, input, ref, plan } = await setup()
