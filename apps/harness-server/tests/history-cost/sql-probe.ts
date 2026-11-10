@@ -21,6 +21,8 @@ export type Group = {
   sql: string
   statements: number
   rowsRead: number
+  /** The most rows one execution of the statement returned in the phase. */
+  maxRowsRead: number
   rowsWritten: number
   bytes: number
 }
@@ -73,12 +75,14 @@ if (directory !== undefined) {
       sql,
       statements: 0,
       rowsRead: 0,
+      maxRowsRead: 0,
       rowsWritten: 0,
       bytes: 0,
     }
     groups.set(name, group)
     group.statements += 1
     group.rowsRead += rows.length
+    group.maxRowsRead = Math.max(group.maxRowsRead, rows.length)
     group.rowsWritten += changes
     group.bytes += cellBytes(params) + rows.reduce<number>((sum, row) => sum + cellBytes(row), 0)
   }

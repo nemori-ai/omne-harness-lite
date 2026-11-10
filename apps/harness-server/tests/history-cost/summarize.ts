@@ -1,6 +1,7 @@
 // Summarizes and judges one history-cost run: for every measured call, the Tool, host and other
 // SQL counts of its phase; per history size, the min, median and max of each count and the calls'
-// wall-clock median and p95. Exits non-zero when a Tool or host count fails the rulings below.
+// wall-clock median and p95; per Tool or host statement, the most rows one execution returned.
+// Exits non-zero when a Tool or host statement or the rows written fail the ruling below.
 //
 // node tests/history-cost/summarize.ts <out>   (reads samples.json and sql-trace/, writes summary.json)
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -19,7 +20,7 @@ const groups = readdirSync(join(base, 'sql-trace'))
   .filter(name => name.endsWith('.json'))
   .flatMap(name => JSON.parse(readFileSync(join(base, 'sql-trace', name), 'utf8')) as Group[])
 
-type Cost = Omit<Group, 'phase' | 'owner' | 'sql'>
+type Cost = Omit<Group, 'phase' | 'owner' | 'sql' | 'maxRowsRead'>
 const costOf = (phase: number, owner: Owner): Cost =>
   groups
     .filter(group => group.phase === phase && group.owner === owner)
@@ -73,31 +74,47 @@ function spread(owner: Owner, n: number) {
   ) as Record<Metric, { min: number; median: number; max: number }>
 }
 
-// The owner's rulings (plan disposition 38): the minimum is the call that met no driver retry, so
-// the minima at the two sizes must be equal metric by metric; and the median after the larger
-// history must stay within the range seen after the smaller one.
+// The owner's ruling on V7b: history growth shows as more rows from one execution of a
+// statement, so for every Tool or host statement the most rows one execution returned must be the
+// same after both history sizes, and every measured call must write the same rows. How often a
+// statement runs follows wall time and the wait loops, so the counts and totals are reported only.
 const [small, large] = histories
 if (small === undefined || large === undefined) throw new Error('a run measures two histories')
-const verdicts = OWNERS.flatMap(owner => {
-  const before = spread(owner, small)
-  const after = spread(owner, large)
-  return METRICS.flatMap(metric => [
-    {
-      owner,
-      metric,
-      rule: 'minimum equal',
-      holds: before[metric].min === after[metric].min,
-      values: [before[metric].min, after[metric].min],
-    },
-    {
-      owner,
-      metric,
-      rule: `median at ${String(large)} <= maximum at ${String(small)}`,
-      holds: after[metric].median <= before[metric].max,
-      values: [after[metric].median, before[metric].max],
-    },
-  ])
-})
+const ordinalsOf = (n: number) => new Set(byHistory(n).map(sample => sample.ordinal))
+
+/** The most rows one execution of each Tool or host statement returned in the window after `n`. */
+function maxRowsByStatement(n: number): Map<string, number> {
+  const ordinals = ordinalsOf(n)
+  const most = new Map<string, number>()
+  for (const group of groups)
+    if (group.owner !== 'other' && ordinals.has(group.phase)) {
+      const name = `${group.owner} ${group.sql.replace(/\s+/gu, ' ')}`
+      most.set(name, Math.max(most.get(name) ?? 0, group.maxRowsRead))
+    }
+  return most
+}
+
+const before = maxRowsByStatement(small)
+const after = maxRowsByStatement(large)
+const verdicts = [
+  ...[...new Set([...before.keys(), ...after.keys()])].sort().map(statement => ({
+    rule: 'most rows per execution equal',
+    statement,
+    holds: before.get(statement) === after.get(statement),
+    values: [before.get(statement) ?? null, after.get(statement) ?? null],
+  })),
+  ...OWNERS.map(owner => {
+    const written = calls
+      .filter(call => ordinalsOf(small).has(call.ordinal) || ordinalsOf(large).has(call.ordinal))
+      .map(call => call[owner].rowsWritten)
+    return {
+      rule: 'rows written per call equal',
+      statement: owner,
+      holds: new Set(written).size === 1,
+      values: [...new Set(written)],
+    }
+  }),
+]
 const summary = {
   histories: Object.fromEntries(
     histories.map(n => {
@@ -121,7 +138,7 @@ const summary = {
 writeFileSync(join(base, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`)
 for (const verdict of verdicts)
   console.log(
-    `${verdict.holds ? 'PASS' : 'FAIL'} ${verdict.owner} ${verdict.metric} ${verdict.rule}: ${verdict.values.join(' vs ')}`,
+    `${verdict.holds ? 'PASS' : 'FAIL'} ${verdict.rule}: ${verdict.statement.slice(0, 120)}: ${verdict.values.join(' vs ')}`,
   )
 for (const [n, window] of Object.entries(summary.histories))
   console.log(
