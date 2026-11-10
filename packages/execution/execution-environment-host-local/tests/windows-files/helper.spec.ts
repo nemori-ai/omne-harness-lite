@@ -3,7 +3,7 @@
 // (`verification/models/README.md#fileshelper`). The stand-in logs every request that reaches it,
 // so "never written" is counted, not inferred from timing.
 import type { ChildProcess } from 'node:child_process'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -41,7 +41,7 @@ let directory: string
 let log: string
 
 beforeEach(async () => {
-  directory = await mkdtemp(join(tmpdir(), 'omne-files-helper-'))
+  directory = await realpath(await mkdtemp(join(tmpdir(), 'omne-files-helper-')))
   log = join(directory, 'log')
 })
 
