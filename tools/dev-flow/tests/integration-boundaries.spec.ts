@@ -144,6 +144,8 @@ it('runs the actual trusted formatter on subject bytes, not its own clean source
   expect(result.status).toBe(1)
   // format.sh names the subject by `git rev-parse --show-toplevel`; on Windows that is the form with
   // forward slashes and long names.
-  expect(result.stdout).toContain(`Formatting subject ${git(root, ['rev-parse', '--show-toplevel'])}`)
+  expect(result.stdout).toContain(
+    `Formatting subject ${git(root, ['rev-parse', '--show-toplevel'])}`,
+  )
   expect(result.stderr + result.stdout).toContain('invalid.ts')
 })

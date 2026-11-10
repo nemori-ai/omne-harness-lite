@@ -6,9 +6,7 @@ describe('input judgements', () => {
     const value = { a: 1 }
     expect(record(value, 'v')).toBe(value)
     for (const bad of [null, [], 'x', 1])
-      expect(() => record(bad, 'config.v')).toThrow(
-        new InputError('config.v must be an object'),
-      )
+      expect(() => record(bad, 'config.v')).toThrow(new InputError('config.v must be an object'))
   })
   it('returns a string, the empty string included, and refuses other values', () => {
     expect(text('', 'v')).toBe('')

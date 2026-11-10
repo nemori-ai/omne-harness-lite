@@ -2,7 +2,11 @@ import { InputError, record, text } from '../shared/input.ts'
 
 export const DELIVERY_CONFIG_PATH = 'docs/engineering/github-delivery.json'
 
-export type DeliveryConfig = { schemaVersion: 3; kind: 'github-delivery-config'; repository: string }
+export type DeliveryConfig = {
+  schemaVersion: 3
+  kind: 'github-delivery-config'
+  repository: string
+}
 
 /** Parses the delivery configuration: the GitHub repository that `gate-cli` reads runs from. */
 export function parseConfig(value: unknown): DeliveryConfig {
