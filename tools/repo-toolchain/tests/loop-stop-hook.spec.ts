@@ -222,7 +222,7 @@ describe('量读数的子进程', { tags: ['slow'] }, () => {
       )
       const started = Date.now()
       await expect(measureInProcess(stand, {}, 1500)).rejects.toThrow(
-        '量读数超过 1.5 秒，已放弃；基线 012345678 的架构读数这次已备好存下，下次收工不再重算',
+        '量读数超过 1.5 秒，已放弃；基线 012345678 的读数这次已备好存下，下次收工不再重算',
       )
       expect(Date.now() - started).toBeLessThan(10_000)
       const sleeper = Number(readFileSync(pidFile, 'utf8'))
