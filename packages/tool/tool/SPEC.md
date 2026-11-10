@@ -623,6 +623,8 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 
 构造时固定 JsonLimits 和三个正安全整数预算。resultPageBytes 必须来自所装配 runtime 的相同配置。replyMaxBytes 限制完整新 ToolResult 的 JSON UTF-8 字节。contentPageBytes 限制附件字节，也作为正文页首次请求的字节预算。每个完整块必须装入一个 resultPageBytes，完整回应必须装入 replyMaxBytes。预算不足返回固定 unsupported，不截块、凭据或 schema。固定错误无法在预算内单页交付时，构造同步抛 TypeError。
 
+read_result 的回应本身是一个工具结果，所装配的 runtime 会按自己的内联阈值判断它要不要卸载。所以装配方必须保证 replyMaxBytes 不超过该 runtime 的内联阈值 `offloading.maxInlineUtf8Bytes`。回应的模型文本字节不超过其 JSON 字节，因此满足这一条时带页的回应不会被再次卸载。预算大于阈值时，带页的回应被卸载成新的正文，模型读不到任何一页。本包的构造不知道 runtime 的阈值，这条由装配方在配置边界校验；harness-server 在启动时校验，不满足即拒绝启动（`checkToolsReplyBudget`）。
+
 正文页先读取最多 contentPageBytes，再按实际 JSON 回应检查整块与完整回应预算。超限时沿同一游标减半请求预算。文本及 JSON 文档的下限为首个完整字符的 UTF-8 字节数；JSON Lines 的下限为首条完整记录加 LF 的字节数。不能裁短正文却沿用较远的 next。达到下限仍超限时，文本返回 unsupported，JSON Lines 返回 record-too-large 及记录字节位置。每次重读重新准入，最多 ceil(log2(contentPageBytes)) + 2 次。正文页不递归卸载。原生附件与内容块遍历保持原独立预算。
 
 源页加状态后可使新元回应再次分页。受信消费侧在调用收场后使用 readReply，沿同一 resultVersion 收齐新元回应，再投影给模型。它不生成第三个模型命令，不递归包装回应。每页 value 和累计完整 ToolResult 都受 replyMaxBytes 限制。累计大小只计一次共同元数据，再逐块增加 JSON 字节及数组分隔符。读取次数最多 `2 * ceil(replyMaxBytes / resultPageBytes) + 1`，推导值必须为安全整数。每页仍经真实读口检查当前资格。

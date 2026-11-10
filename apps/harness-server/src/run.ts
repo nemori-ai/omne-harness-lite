@@ -15,6 +15,7 @@ import {
 } from './rows/telemetry/index.ts'
 import { checkModelRowConsistency } from './model/consistency.ts'
 import {
+  checkToolsReplyBudget,
   compileToolResultDisclosure,
   installToolResultDisclosure,
 } from './model/tool-result-disclosure.ts'
@@ -761,6 +762,7 @@ async function runServeWithHostFiles(
     tree = loadTree(options.distribution, options.operator, profile.allowlist)
     checkModelRowConsistency(tree.rows)
     disclosure = compileToolResultDisclosure(tree.rows)
+    checkToolsReplyBudget(tree.rows)
     parseFactoryConfigs(tree.rows, { executionHost, telemetry })
     rows = tree.rows.map(row => rowSpecOf(row, profile, manifests, probes))
   } catch (error) {

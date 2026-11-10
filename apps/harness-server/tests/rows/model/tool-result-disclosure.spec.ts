@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { FixedModelRequest } from '@omne-harness/model-contract'
 import {
+  checkToolsReplyBudget,
   compileToolResultDisclosure,
   installToolResultDisclosure,
   toolResultDisclosureOf,
@@ -130,5 +131,56 @@ describe('the current application tool result disclosure limit', () => {
     ).toEqual({ kind: 'denied', action: 'tool-result-disclosure-policy-missing' })
     expect(compileToolResultDisclosure([])({ messages: [message(['hello'], 'user')] })).toBeNull()
     expect(() => compileToolResultDisclosure(rows(0))).toThrow()
+  })
+})
+
+describe('a Tools reply fits the inline threshold of the runtime that carries it', () => {
+  // A page read back with `read_result` is itself a tool result. A reply budget above the inline
+  // threshold lets that reply offload again, and then no page of the body reaches the model.
+  function tree(replyMaxBytes: number, inline: number) {
+    return [
+      ...rows(inline),
+      {
+        id: 'tool-bindings' as RowId,
+        plugin: 'toolBindingsRow',
+        config: {
+          tools: { attemptMs: 250, resultPageBytes: 65_536, replyMaxBytes, contentPageBytes: 4096 },
+        },
+        source: 'operator' as const,
+      },
+    ]
+  }
+
+  it('accepts a reply budget up to the inline threshold', () => {
+    expect(() => checkToolsReplyBudget(tree(16_384, 16_384))).not.toThrow()
+    expect(() => checkToolsReplyBudget(tree(8_192, 16_384))).not.toThrow()
+  })
+
+  it('refuses a reply budget above the inline threshold and names both fields', () => {
+    expect(() => checkToolsReplyBudget(tree(65_536, 16_384))).toThrowError(
+      /tool-bindings\.tools\.replyMaxBytes \(65536\).*tool-records\.configuration\.offloading\.maxInlineUtf8Bytes \(16384\)/u,
+    )
+  })
+
+  it('refuses a Tools result page above the result page of the runtime', () => {
+    const [records, bindings] = tree(16_384, 16_384)
+    if (records === undefined || bindings === undefined) throw new Error('fixture rows')
+    const limit = records.config.configuration.resultPageBytes
+    const over = {
+      ...bindings,
+      config: { tools: { ...bindings.config.tools, resultPageBytes: limit + 1 } },
+    }
+    expect(() => checkToolsReplyBudget([records, over])).toThrowError(
+      /tool-bindings\.tools\.resultPageBytes .*tool-records\.configuration\.resultPageBytes/u,
+    )
+  })
+
+  it('checks nothing when a row is absent or is not the release export, or has no Tools capability', () => {
+    expect(() => checkToolsReplyBudget(rows(16_384))).not.toThrow()
+    expect(() => checkToolsReplyBudget(tree(65_536, 16_384).slice(1))).not.toThrow()
+    const [records, bindings] = tree(65_536, 16_384)
+    if (records === undefined || bindings === undefined) throw new Error('fixture rows')
+    expect(() => checkToolsReplyBudget([records, { ...bindings, plugin: 'stubRow' }])).not.toThrow()
+    expect(() => checkToolsReplyBudget([records, { ...bindings, config: {} }])).not.toThrow()
   })
 })
