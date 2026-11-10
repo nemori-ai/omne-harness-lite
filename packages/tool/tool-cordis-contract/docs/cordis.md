@@ -148,7 +148,6 @@ Reader 的实现用 tool-contract 根入口的 `encodeResidentKey` 生成 Sessio
 | toolStartAuthority | ToolStartAuthority | Tool | 启动阶段必需；工作资格与推进资格的失效共排序，身份与权限的撤权在 consume 再核（[授权消费点与撤权再核](../../tool-contract/SPEC.md#授权消费点与撤权再核)） |
 | toolStartFence | ToolStartFence（ToolStartAuthority 的 invalidate 视图） | Tool | 外层调用方使启动失效时必需；与 toolStartAuthority 由同一提供者兑现同一排序域，两个键分属两个排序域的装配不具备启动围栏保证；失效证据由外层调用方写成独立的 `start-fence` 条目（[外层调用方的启动围栏](../../tool-contract/SPEC.md#外层调用方的启动围栏)） |
 | toolResourceResponses | ToolResourceResponses | Tool | 资源应答阶段局部必需 |
-| toolOutputCustody | ToolOutputCustody | Tool | 原输出与附件保管阶段必需 |
 | toolChildren | ToolChildren | Tool | 程序执行方组合阶段必需；父程序退出后由scanPending/loadRecovery驱动child和program-fence待办 |
 | toolAccounts | ToolAccounts | Tool | 按组织或租户读取执行账，独立授权 |
 | toolOffloader | ToolOffloader | Tool | 单结果卸载适配，不覆盖原结果 |
@@ -230,8 +229,8 @@ authorBufferBytes、authorBufferItems、authorWaitHistoryBytes、authorWaitHisto
 
 ## W3 正文保管的装配边界
 
-本节为 [#1168](https://github.com/nemori-ai/omne-harness-lite/issues/1168) 的待评审增量。Tool 的正文保管和读取继续经现有 provider 契约注入；本波不建立新的通用对象存储服务。作者 writer 由每次执行作用域绑定，不能作为全局 service 暴露，也不能把原始 Cordis Context 传给作者。
+Tool 的正文存储、许可密钥与参与者时钟经账本的构造端口 `ToolLedgerPorts.bodies` 注入，不经 Cordis 服务键。本成员不定义正文存储或清扫的服务，也不建立通用对象存储服务。作者 writer 由每次执行作用域绑定，不能作为全局 service 暴露，也不能把原始 Cordis Context 传给作者。
 
-结果准备取得本次固定的 custody/offloader 采用，完成 final 提交前不换提供者。维护分面仅提供给受信长期宿主，使用明确的维护资格、范围和有限批量。业务运行时门面不因此获得任意材料删除。能力缺席时保留原任务并报告不可用；重装配从原提交、用途和删除任务继续，不重新执行工具或刷新 TTL。
+清扫由 Tool 账本执行，应用只调度它（[清扫与回收](../../tool-contract/SPEC.md#清扫与回收)）。业务运行时门面不因此获得任意正文删除。正文存储缺席时，写入与读回答 unavailable，原任务保留；重装配不重新执行工具，也不刷新期限。
 
-提供者可替换为本地文件或对象存储实现，但旧引用和待办必须仍由原采用处理，或经已验证迁移交接。纯工厂只消费窄端口，生命周期及注入由插件负责，不能把提供者销毁解释为材料删除完成。
+提供者可替换为本地文件或对象存储实现，但旧正文引用必须仍由原存储处理，或经已验证迁移交接。纯工厂只消费窄端口，生命周期及注入由插件负责，不能把提供者销毁解释为正文删除完成。
