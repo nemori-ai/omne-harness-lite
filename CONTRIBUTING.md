@@ -18,7 +18,7 @@
 先说清要解决的问题、预期结果和受影响范围。问题报告提供可复现步骤、实际与预期
 行为、相关版本和必要证据；设计任务说明目标、约束、已知事实与尚待确定的部分。
 产品需求的接收、澄清与设计工作进入私有工作区 [.meta_harness](.meta_harness/AGENTS.md)，
-先加载 `harness-design-handbook` skill。
+加载什么技能见[根 AGENTS.md](AGENTS.md#按任务展开)。
 本项目已有[项目要求](docs/requirements.md)、[技术架构](docs/architecture/README.md)、[领域设计](docs/domains/README.md)与一批
 [产品设计正文](.meta_harness/design/product/README.md)作为明确输入，保留确认范围与精确修订；
 有 Issue、提案或任务记录时直接引用，**避免另写一份同义需求**。
@@ -27,11 +27,11 @@
 | 变更类型 | 从哪里推进 |
 |---|---|
 | 已有规则内的文字、链接、工具修复或实现修正 | 定位内容所有者或精确契约，在任务范围内修改并做相称验证；不要求另造提案或决定 |
-| 新需求、新能力，或职责、身份、授权、生命周期、失败等语义变化 | 沿[任务地图](docs/context-map.md)定位要求、架构、领域或产品拥有者，加载手册分析能力覆盖、剩余责任与候选；必要政策未明确时，只暂停依赖它的实施 |
+| 新需求、新能力，或职责、身份、授权、生命周期、失败等语义变化 | 沿[任务地图](docs/context-map.md)定位要求、架构、领域或产品拥有者；必要政策未明确时，只暂停依赖它的实施 |
 | 新观察挑战已有决定 | 定位现行承诺与范围，在任务 tmp 提供反例和比较；当前正文经明确接受后修订，观察不自动改变承诺 |
 | 发布或修订正式规格 | 按[架构维护规则](.meta_harness/design/architecture/README.md)维护唯一承诺源、接受依据和消费者；同步公开类型、必要行为契约、模型及真实消费者，不保留被取代源 |
 | 衔接能力规格、提供者设计与实施交接 | 按[文档治理](docs/engineering/documentation.md)定位当前承诺，按[质量与风险](docs/engineering/quality.md#区分四层就绪状态)明确就绪范围，并同步受影响消费者与未完成义务 |
-| 创建或维护 skills、角色及宿主适配 | 在 [.meta_harness/agents](.meta_harness/agents/README.md) 修改源；skill 加载官方 `skill-creator`，角色加载 `design-subagents` skill，AGENTS.md 加载 `write-agents-md` skill |
+| 创建或维护 skills 及宿主适配 | 在 [.meta_harness/agents](.meta_harness/agents/README.md) 修改源；加载什么写作技能见[根 AGENTS.md](AGENTS.md#按任务展开) |
 
 用户已明确的要求和任务授权是开展工作的依据。关键歧义或缺少必需输入时，提出
 最小澄清，继续不依赖该缺口的工作；不要把假设写成已确认需求。知识该落在哪一区、
@@ -40,16 +40,15 @@
 ## 开始工作
 
 按[读者入口](docs/README.md)或[任务地图](docs/context-map.md)定位上下文。
-做架构、领域、契约、装配、实现切片或设计评审前，先读一次[开工定向](docs/orientation.md)。
 新技术正文落点和原有效源的交接沿[文档治理](docs/engineering/documentation.md)；正文骨架不表示采用。
 
 读取根 AGENTS.md 和实际修改目录的局部约定，再沿相关入口展开。Codex、Claude Code 与 Cursor
-共用这套项目指导，CLAUDE.md 引用同级 AGENTS.md；技能和角色的使用见
-[开发指南](docs/development.md#使用-coding-agents)。
+共用这套项目指导，CLAUDE.md 引用同级 AGENTS.md；技能的来源与采用见
+[技能入口](docs/engineering/skills.md)。
 进入 `.meta_harness/` 后按其局部地图展开，任务给出产品事实和采用范围；
 它保存可迁出的设计方法与 agent 能力，根宿主目录只通过软链接暴露生成物。
 
-先核对当前检出、分支和已有改动。独立任务按[协作交接](docs/engineering/workflow.md#责任与协作交接)在隔离树并行，共享对象单写，耦合依赖串行；工作树容器统一在主检出根的 `.worktrees/`。保护已有改动，检出、工具输入与清理都核对实际执行者的工作树，环境准备按开发指南在该树完成。
+先核对当前检出、分支和已有改动。隔离、共享单写与清理按[协作交接](docs/engineering/workflow.md#责任与协作交接)；工作树容器统一在主检出根的 `.worktrees/`。
 
 新增依赖应说明它解决什么问题以及为何适合，依赖归属和锁文件维护按
 [workspace 规范](docs/workspace.md)。研发品味按 AGENTS.md 及其引用判断，
@@ -65,14 +64,14 @@
 - 具体问题、预期行为和实际改变，以及采用的需求、设计或规格版本。
 - 影响的边界、取舍、未决项及需要重点审阅的地方；只有实际相关时才展开。
 - 实际执行的验证及结果，必要的复现方式；未执行、失败和未覆盖项分别说明。
-- 改了产品源码的交付，附[结构度量](docs/verification.md#检查入口)的摘要原文与产物位置：
+- 改了产品源码的交付，附收口的结构读数与差分变异摘要，命令见[根 AGENTS.md](AGENTS.md#pqw-skills-接入)：
   它对应哪个提交、工作树是否干净；基线以来改动的函数里超阈值的，逐条写已处理或保留理由。
-  向接受者请求接受时给出审讯页的绝对路径。度量是抽查线索，不代替上面的验证。
+  度量是抽查线索，不代替上面的验证。
 
 按[验证规范](docs/verification.md)选择检查。新增测试应保护改变的可观察
 行为；局部文字修复无需为凑数量编写测试。修改行为时同步其所属说明、示例或契约，
 修改目录和入口时同步导航。不能靠重写预期或放宽检查隐藏尚未解决的冲突。
-skills/roles 变更一并交付 canonical/角色源、宿主适配与生成产物，运行 `pnpm run check:agents`
+skills 变更一并交付 canonical 源、宿主适配与生成产物，运行 `pnpm run check:agents`
 和相关检查；生成、宿主加载及模型行为的证据分别陈述。
 
 本地 diff、设计稿和远程 PR 使用同样的交付信息要求；已有 Issue/PR 时关联其记录。
@@ -91,7 +90,7 @@ commit 的 author 与 committer 只有实际负责的人。commit、PR 标题和
 
 ## 提交与 PR 表达
 
-本节拥有 commit/PR 的书面约定；模板是填写提示，准备方法按[工程技能入口](docs/engineering/skills.md#playbook-入口)选择 Opening a PR，Matt code-review 按需补充固定点审阅。
+本节拥有 commit/PR 的书面约定；模板是填写提示，开 PR 与 gate 的步骤归 [`omne-card`](.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)。
 这不增加 CI 类型门、合并硬线或自动发版；机器执行范围仍归现有检查器。
 
 ### 标题与提交正文
@@ -148,8 +147,8 @@ squash 标题按最终 diff 整理，正文只保留必要理由和结果，并�
 | 审阅重点 | 所有类型，短改动可一句 | 具体路径/符号/条款、为什么重要及要核对的问题，不只写“请看核心代码” |
 
 报告先写结论、范围、结果与限制，再给可访问入口和必要方法；长报告可折叠，但链接不替代摘要。
-状态区分已执行、未执行、不适用、执行失败；缺数据不写成零。工具口径与命令归
-[验证规范](docs/verification.md#检查入口)和[度量/变异工具](tools/repo-toolchain/README_ZH.md#结构度量)。
+状态区分已执行、未执行、不适用、执行失败；缺数据不写成零。命令归
+[根 AGENTS.md](AGENTS.md#pqw-skills-接入)，读数的节奏归 pqw `slice-closeout`。
 现有覆盖率以成员自己的语句行覆盖和 CRAP 为主，不虚构分支或改动行覆盖；变异只跑快层和本成员，
 跨成员、子进程、慢层等未量到部分写清。超时/工具错误不冒充断言杀死，高覆盖率不代表断言充分。
 工具可提供分母时同时给覆盖/总数，新增代码改变分母也须说明。不为报告增加数值硬线。
@@ -168,8 +167,8 @@ Profiling 发现可复现、已有原因证据的明显性能问题时，不能�
 
 ### 在开工时准备可比较数据
 
-先固定任务 BASE、影响范围、需要的报告和采集时点。修改产品源码时，在首个可运行候选及正常复查点
-保存适用结构快照，最终候选再核对；不要求每个 commit 跑全量扫描。
+先固定任务 BASE、影响范围、需要的报告和采集时点。修改产品源码时，采集点按 pqw `slice-closeout`：
+切片只打开工包写的关键位置，整程改动的全量读数一次；不要求每个 commit 跑全量扫描。
 过程数据归本工作树 `tmp/<task>/`，本地路径只供有权限的接受者使用；GitHub 读者需要独立可读的摘要，
 不能假定他们能打开本地路径。可复跑资源和终态规则仍归其拥有者，不新建永久 evidence 台账。
 
@@ -186,7 +185,7 @@ Profiling 发现可复现、已有原因证据的明显性能问题时，不能�
 
 ## 评审与接受
 
-架构设计形成可识别的待审稿后，按[架构评审角色](.meta_harness/agents/roles/README.md)进行独立评审，
+架构设计形成可识别的待审稿后，派只读子代理按 `harness-design-handbook` 的评审判据进行独立评审，
 提供目标、版本或快照、范围及相关需求依据与覆盖缺口；接受设计时固定所消费的
 需求修订与确认范围，使后来者能恢复同一基线。普通局部修改按相关检查和任务要求审阅。
 发现问题后回到拥有该含义的材料修正；涉及实现的检查应覆盖实际交付状态。
@@ -205,4 +204,4 @@ Profiling 发现可复现、已有原因证据的明显性能问题时，不能�
 调整其中一项时先修改其所有者，再同步必要入口；
 不要在多份贡献指南、PR 模板和 AGENTS.md 中复制一套会独立演化的规则。
 
-共享分支交付按[现行准入](docs/engineering/integration.md#现行准入)经 PR 进入，确认说明写明本地运行的检查及结果。Issue 的结果接受、Stage 与关闭按原交付协议处理；技术运输不自动生成 Closes。
+共享分支交付经 PR 进入，步骤归 [`omne-card`](.meta_harness/agents/skills/omne-card/canonical/SKILL.md)，准入的时机归[现行准入](docs/engineering/integration.md#现行准入)；结果接受与关闭归[交付与接受](docs/engineering/delivery.md#接受取消与重开)。技术运输不自动生成 Closes。

@@ -28,7 +28,7 @@
   <text class="note" x="248" y="202">身份不授予访问或接受权</text>
   <rect x="611" y="118" width="608" height="99" rx="8" fill="#fff" stroke="#8ca7b5"/>
   <text class="label" x="630" y="151">按任务</text>
-  <text class="body" x="630" y="179">docs/context-map.md：必要上下文与停止点</text>
+  <text class="body" x="630" y="179">docs/context-map.md：产品、架构与领域去哪读</text>
   <text class="note" x="630" y="202">设计类任务先读 docs/orientation.md 开工定向；局部修复先看局部承诺</text>
 
   <rect x="32" y="254" width="1216" height="259" rx="10" fill="#f6f8f5" stroke="#ccd8cb"/>
@@ -77,7 +77,7 @@
   <rect x="637" y="582" width="276" height="119" rx="8" fill="#fff" stroke="#b5a887"/>
   <text class="label" x="654" y="613">.meta_harness/</text>
   <text class="body" x="654" y="642">产品、术语、对象、上游读数</text>
-  <text class="note" x="654" y="672">研究入口 · skills/roles 源与生成</text>
+  <text class="note" x="654" y="672">研究入口 · skills 源与生成</text>
 
   <rect x="930" y="582" width="298" height="119" rx="8" fill="#fff" stroke="#b5a887"/>
   <text class="label" x="947" y="613">packages/&lt;domain&gt;/</text>

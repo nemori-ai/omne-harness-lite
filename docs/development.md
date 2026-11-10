@@ -1,21 +1,21 @@
 # 开发指南
 
-本页提供本仓库的开发操作路径，供人和coding agent准备环境、实施变更、验证并形成可审阅交付。贡献范围与报告要求归[CONTRIBUTING](../CONTRIBUTING.md)，工作约束归[工程规范](engineering/README.md)，系统保证与组合验证责任归[架构符合性](architecture/assurance.md)。本页说明操作顺序和检查选择，不维护另一套规则、技能方法或完成状态。
+本页拥有本仓库的开发环境与命令，供人和coding agent准备检出、运行检查与工具。研发流程的环节与做法归 pqw，每条流程事实的拥有者见[流程事实在哪](engineering/README.md#流程事实在哪)；贡献与报告要求归[CONTRIBUTING](../CONTRIBUTING.md)，系统保证与组合验证责任归[架构符合性](architecture/assurance.md)。本页不维护另一套规则、技能方法或完成状态。
 
 已有明确任务时，从下表选择入口；准备环境后无需通读所有专题。
 
 | 当前要做什么 | 本页入口 | 需要进一步判断时 |
 | --- | --- | --- |
 | 第一次参与或更换执行环境 | [准备可用的检出](#准备可用的检出) | [源码与workspace](workspace.md)、[技能来源](engineering/skills.md#来源与项目采用) |
-| 开始修复、功能或重构任务 | [开始一次交付](#开始一次交付) | [工程场景](engineering/scenarios/README.md)、[任务地图](context-map.md) |
+| 开始修复、功能或重构任务 | [开始一次交付](#开始一次交付) | [流程事实在哪](engineering/README.md#流程事实在哪)、[任务地图](context-map.md) |
 | 修改后选择验证、准备交付 | [修改与验证](#修改与验证)、[一次交付的验证与整洁回路](#一次交付的验证与整洁回路) | [验证边界](verification.md)、[整洁回路](clean-loop.md) |
 | 新建能力组或整改产品包 | [创建和整改产品包](#创建和整改产品包) | [包组织](package-organization.md)、[成员文档](member-documentation.md) |
 | 启动产品、排查开发环境 | [运行入口](#运行入口)、[常见问题](#常见问题) | 所属应用或工具的实际说明 |
-| 委派agent或准备提交与PR | [使用coding agents](#使用-coding-agents)、[准备提交与PR](#准备提交与-pr) | [协作交接](engineering/workflow.md#责任与协作交接)、[贡献接受](../CONTRIBUTING.md#评审与接受) |
+| 准备提交与PR | [准备提交与PR](#准备提交与-pr) | [贡献接受](../CONTRIBUTING.md#评审与接受) |
 
 ## 准备可用的检出
 
-先确认实际检出、任务分支和已有改动。隔离及清理条件归[协作交接](engineering/workflow.md#责任与协作交接)：每个写者在明确写范围的隔离树工作，先进入该树再执行；共享对象单写，耦合任务串行。检查和依赖环境在实际使用的树准备，不能用别树的结果或 editable 安装冒称本树验证。创建与接续的方法按[playbook 入口](engineering/skills.md#playbook-入口)选择。
+先确认实际检出、任务分支和已有改动。隔离及清理条件归[协作交接](engineering/workflow.md#责任与协作交接)。检查和依赖环境在实际使用的树准备，不能用别树的结果或 editable 安装冒称本树验证。
 
 ```sh
 git rev-parse --show-toplevel
@@ -29,7 +29,7 @@ git submodule update --init
 完整检查需要 Git、Bash、[uv](https://docs.astral.sh/uv/getting-started/installation/)，
 以及根 `package.json` 的 `engines`/`packageManager` 指定的 Node 与 pnpm。
 
-支持在 macOS、Linux 与 Windows 上开发。`pnpm run check`、格式化脚本与 pre-commit 钩子是 Bash 脚本：Windows 上在 Git Bash 里运行，不支持在 PowerShell 或 cmd 中直接运行；也可以在 WSL2 的 Linux 发行版里检出仓库运行，但经 `/mnt/` 访问 NTFS 很慢。Windows 宿主要先做一次机器级设置：`pnpm config set script-shell "C:\Program Files\Git\bin\bash.exe"`，让 pnpm（以及经 pnpm 起成员脚本的 turbo）用 Git Bash 跑 POSIX 写法的脚本；仓库里不存这项设置。TypeScript 工具只用 Node 标准库与跨平台依赖；运行名额由 [with-test-slot.mjs](../scripts/with-test-slot.mjs) 实现，不依赖 `flock`。Windows 上 NTFS 没有执行位，agents 投影的执行位核对改读 Git 索引里的模式；Git 检出时建成文件型的根链接（`.claude` 等）由 `link_agents.py` 重建为目录链接。已知限制：Windows 宿主上 `pnpm run check` 的退出 0 可以作为准入结论，但有几处行为按平台不同，相应成员 README 写明：事件接收器不检查配置文件的模式位、也不设 ACL，目录私有由操作者保证；凭据存储与操作日志目录在 Windows 上不 fsync 目录句柄；名额账本的 `cpuSeconds` 在 Windows 上为 null；模型契约的协议模型需要 POSIX 进程组，监督进程在 Windows 上拒绝启动；roleeval 的真实套件在 Windows 上还不能建模板（配置命令经 `pnpm.cmd` 启动与 node_modules junction 的限制）。按平台跳过的用例只在 Windows 上跳过并写明原因：拒绝本进程访问文件或目录的用例（chmod 只切只读属性，提权会话里 ACL deny 拦不住备份语义）、目录 fsync 确认、SIGHUP、符号链接目标里 `..` 的 POSIX 目录语义、无扩展名的 sh 替身截 `git`、NTFS 执行位（`staged_modes`）与需要 Ubuntu 镜像路径的用例（`linux_image`）。慢层开着 vitest 的 `experimental.preParse`：一个文件里全部用例都是静态 `skipIf`／`runIf` 时整个文件会被丢掉，按平台跳过要用运行时的 `context.skip`。Windows 上新增可执行源文件后要 `git update-index --chmod=+x`；改了 `.meta_harness/agents` 的源后，先清掉被忽略的暂存目录（`git clean -fdX .meta_harness/.claude .meta_harness/.agents .meta_harness/.codex .meta_harness/.cursor`）再生成，否则 `compile_agents.py` 报 `output differs`。
+支持在 macOS、Linux 与 Windows 上开发。`pnpm run check`、格式化脚本与 pre-commit 钩子是 Bash 脚本：Windows 上在 Git Bash 里运行，不支持在 PowerShell 或 cmd 中直接运行；也可以在 WSL2 的 Linux 发行版里检出仓库运行，但经 `/mnt/` 访问 NTFS 很慢。Windows 宿主要先做一次机器级设置：`pnpm config set script-shell "C:\Program Files\Git\bin\bash.exe"`，让 pnpm（以及经 pnpm 起成员脚本的 turbo）用 Git Bash 跑 POSIX 写法的脚本；仓库里不存这项设置。TypeScript 工具只用 Node 标准库与跨平台依赖；运行名额由 [with-test-slot.mjs](../scripts/with-test-slot.mjs) 实现，不依赖 `flock`。Windows 上 NTFS 没有执行位，agents 投影的执行位核对改读 Git 索引里的模式；Git 检出时建成文件型的根链接（`.claude` 等）由 `link_agents.py` 重建为目录链接。已知限制：Windows 宿主上 `pnpm run check` 的退出 0 可以作为准入结论，但有几处行为按平台不同，相应成员 README 写明：事件接收器不检查配置文件的模式位、也不设 ACL，目录私有由操作者保证；凭据存储与操作日志目录在 Windows 上不 fsync 目录句柄；名额账本的 `cpuSeconds` 在 Windows 上为 null；模型契约的协议模型需要 POSIX 进程组，监督进程在 Windows 上拒绝启动。按平台跳过的用例只在 Windows 上跳过并写明原因：拒绝本进程访问文件或目录的用例（chmod 只切只读属性，提权会话里 ACL deny 拦不住备份语义）、目录 fsync 确认、SIGHUP、符号链接目标里 `..` 的 POSIX 目录语义、无扩展名的 sh 替身截 `git`、NTFS 执行位（`staged_modes`）与需要 Ubuntu 镜像路径的用例（`linux_image`）。慢层开着 vitest 的 `experimental.preParse`：一个文件里全部用例都是静态 `skipIf`／`runIf` 时整个文件会被丢掉，按平台跳过要用运行时的 `context.skip`。Windows 上新增可执行源文件后要 `git update-index --chmod=+x`；改了 `.meta_harness/agents` 的源后，先清掉被忽略的暂存目录（`git clean -fdX .meta_harness/.claude .meta_harness/.agents .meta_harness/.codex .meta_harness/.cursor`）再生成，否则 `compile_agents.py` 报 `output differs`。
 Python 范围由 [pyproject.toml](../pyproject.toml) 声明，uv 管理解释器与虚拟环境——
 **不要依赖系统 `python` 恰好存在**。使用coding agent参与本项目迭代维护时，先完成下一节的插件初始化。仓库依赖在实际使用的检出中准备：
 
@@ -47,7 +47,7 @@ pnpm -r rebuild node-pty
 
 这份 `.cursor` 投影需要提交。Cursor 在安装脚本之前就要读到它。改源后删除旧的 `.meta_harness/.cursor`，再按[根软链接](../.meta_harness/tooling/README.md#根软链接)重新编译并链接。`pnpm run check:agents` 核对投影与根链接。手改投影或根目录会失败。
 
-镜像提供 Git、Bash、Make、rsync、支持 C++20 的编译器、GitHub CLI、uv 0.13.0，以及根 `package.json` 的 `engines` 与 `packageManager` 所要求的 Node 和 pnpm。角色评估用 rsync 复制检出副本，因此 `pnpm run test:python` 需要本机有 rsync。精确版本写在源 Dockerfile 的 `NODE_VERSION` 与 `PNPM_VERSION`。当前分别是 26.12.0 和 10.28.1。
+镜像提供 Git、Bash、Make、rsync、支持 C++20 的编译器、GitHub CLI、uv 0.13.0，以及根 `package.json` 的 `engines` 与 `packageManager` 所要求的 Node 和 pnpm。精确版本写在源 Dockerfile 的 `NODE_VERSION` 与 `PNPM_VERSION`。当前分别是 26.12.0 和 10.28.1。
 
 镜像为 ubuntu 用户安装 Matt skills 1.3.1。revision 与[技能来源表](engineering/skills.md#来源与项目采用)相同。`npx skills` 不能把该 revision 当成分支克隆。镜像先取出这个 commit，再以 `-a cursor -g` 安装。正文在 `~/.agents/skills`，并链接到 `~/.cursor/skills`。安装完整插件不扩大方法采用范围。镜像不运行 `setup-matt-pocock-skills`。镜像还按来源表的固定提交把 ub-mode 的 `SKILL.md` 装到 ubuntu 用户的 `~/.cursor/skills/ub-mode/`。
 
@@ -69,7 +69,7 @@ setup 安装 rsync、Node 26.12.0、pnpm 10.28.1、uv 0.13.0，pstack 与 Matt �
 
 ### 初始化 coding agent 插件
 
-本项目的迭代维护依托[三层方法](engineering/skills.md#三层分工)：流程 pstack `poteto-mode`，写法 Matt，品味 ub-mode。人和agent参与项目迭代维护前，须在自己实际使用的coding agent harness安装并启用pstack与Matt两份插件和ub-mode技能。这项前提适用于研发维护，普通应用操作或独立消费成员公开API不因此要求安装。精确版本、固定revision、采用子集及必要依赖只由[技能来源表](engineering/skills.md#来源与项目采用)维护；这里提供初始化步骤。
+本项目的迭代维护依托[三层方法](engineering/skills.md#三层分工)。流程层 pqw-skills 是子模块，随[检出初始化](#准备可用的检出)投影进宿主，不另装。人和agent参与项目迭代维护前，须在自己实际使用的coding agent harness安装并启用pstack与Matt两份插件和ub-mode技能。这项前提适用于研发维护，普通应用操作或独立消费成员公开API不因此要求安装。精确版本、固定revision、采用子集及必要依赖只由[技能来源表](engineering/skills.md#来源与项目采用)维护；这里提供初始化步骤。
 
 1. 确认实际harness及其版本，打开它的插件管理入口。根据技能来源表选择固定revision，不以原版pstack、同名技能或上游最新版代替项目指定来源。
 2. 注册固定来源并安装两份插件。支持Git revision的宿主直接指定来源表中的revision；支持本地marketplace但不能固定远程revision的宿主，可先在仓库外准备对应revision的检出，再注册其marketplace。按固定源的安装说明操作，避免把插件正文复制到本仓的技能源或同时安装另一份同名技能。
@@ -94,7 +94,7 @@ curl -fsSL https://raw.githubusercontent.com/unclebob/ub-mode/<ub-mode-revision>
 
 ### Cursor 项目与 Cloud 初始化
 
-Cursor 官方 pstack/Matt 按[来源表](engineering/skills.md#来源与项目采用)安装；本项目资产从 canonical 生成。CLI、IDE 和 Cloud 的项目视图、外部物理插件及首会话前 setup 命令归 [tooling](../.meta_harness/tooling/README.md#cursor-原生包与项目视图)。只启用同一资产的一种接入方式；本地安装不证明 Cloud 初始化或角色模型资格。
+Cursor 官方 pstack/Matt 按[来源表](engineering/skills.md#来源与项目采用)安装；本项目资产从 canonical 生成。CLI、IDE 和 Cloud 的项目视图、外部物理插件及首会话前 setup 命令归 [tooling](../.meta_harness/tooling/README.md#cursor-原生包与项目视图)。只启用同一资产的一种接入方式；本地安装不证明 Cloud 初始化。
 
 ### 形式工具链
 
@@ -168,20 +168,7 @@ Cordis 服务关系与领域规则仍由 `pnpm run lint:rules` 检查。
 
 ## 开始一次交付
 
-1. 明确本次目标、写范围、长期承诺拥有者和完成判断。按[任务地图](context-map.md)选择主场景；已有契约足够的局部修改直接推进，新保证或含义冲突先回拥有者。
-2. 固定任务基线、实际分支与候选状态。用不可变提交作为比较依据；当前未提交及未跟踪文件属于候选，不能把HEAD当作这些字节的版本。
-3. 识别实际消费者与验证责任。公开接口、装配、配置、生成和间接读取变化都可能扩大影响面，不能只按修改的文件夹选测试。
-4. 确定本次需要的检查和证据、复用条件及未覆盖。纯文字修订、行为改变、跨边界保证和性能任务分别选择方法，不默认执行完整矩阵。
-5. 独立写者按[协作交接](engineering/workflow.md#责任与协作交接)隔离，共享接口、登记和集成拓扑由单一负责人维护。原有改动不属于本任务时保留，不为得到干净状态移除它们。
-
-单次交付规格整理本次实施与验收，长期规格维护持续有效的承诺。两者的落位和承接沿[规格分类](engineering/documentation.md#单次交付规格与长期规格)；已有契约足够时无需另造任务规格。成果与过程材料的具体归属见[终态与过程材料](#终态与过程材料)。
-
-### 开工时确定交付报告
-
-固定任务 BASE 与影响范围后，按[提交与 PR 表达](../CONTRIBUTING.md#提交与-pr-表达)判断报告触发条件。
-需要表达或审阅方法时从[工程技能入口](engineering/skills.md#playbook-入口)选择 Opening a PR，项目报告内容仍归贡献指南。修改产品源码时，从首个可运行候选及正常复查点保存适用结构快照到本任务 tmp；
-等到开 PR 才采集，无法恢复中途引入后解决的数量。报告实际工具的 BASE/merge-base、范围与规则版本，
-没有快照的数据保留未知。最终候选再核对，不要求每个 commit 全量测量。
+大改动走 pqw `single-session-dev-flow`，小修按它的「不够格」一节转对应技能；卡、开工与工作树的命令归 [`omne-card`](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#开工)。本页只给开工后要用的环境与命令。报告的采集点归[贡献指南](../CONTRIBUTING.md#在开工时准备可比较数据)。
 
 ## 定位修改位置
 
@@ -191,7 +178,7 @@ Cordis 服务关系与领域规则仍由 `pnpm run lint:rules` 检查。
 | 设计链检查、agent 编译与根链接工具 | [.meta_harness/tooling/](../.meta_harness/tooling/README.md) |
 | 本地与 CI 共用的自动化调用 | [scripts/](../scripts/README.md)；复杂检查行为回到工具包 |
 | 仓库命令入口 | 命令入口只在根 [package.json](../package.json) 的 `scripts` 中新增 |
-| Skill、subagent 或宿主适配 | [.meta_harness/agents/](../.meta_harness/agents/README.md) 的**源**，不改生成物 |
+| Skill、钩子或宿主适配 | [.meta_harness/agents/](../.meta_harness/agents/README.md) 的**源**，不改生成物 |
 | 环境、布局、检查含义、编码防御 | 本目录各份正文，见[阅读地图](README.md) |
 | 项目要求、系统技术架构与领域责任 | [项目要求](requirements.md)、[架构](architecture/README.md)、[领域](domains/README.md)，按已接受范围维护 |
 | 精确公开类型、行为规格及验证资源 | 对应实际packages、apps或tools成员；从[领域责任](domains/README.md)定位拥有者 |
@@ -255,7 +242,7 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 
 ## 运行入口
 
-**先构建，再按所属应用的 README 启动。**封存治理中心已从仓库删除，固定提交中的命令与配置见
+**先构建，再按所属应用的 README 启动。**现有应用及其构建与运行命令见[应用入口](../apps/README.md#现有成员)。封存治理中心已从仓库删除，固定提交中的命令与配置见
 [tenancy-host](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/README.md)，从零部署并完成账号/组织旅程的演练见
 [黑盒端到端入口](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/tests/e2e/README.md)。后者使用实际构建产物，包含网络、证书和临时数据目录的环境要求。
 
@@ -272,14 +259,14 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 | 本次改动 | 首选操作与进一步判断 |
 | --- | --- |
 | 文档文字、链接与锚点 | `pnpm run check:docs`；变动涉及应有文件、必要章节或占位时，加`pnpm run docs:inventory`并阅读缺项和unknown |
-| skills、roles、生成输入或宿主适配 | `pnpm run check:agents`；改变工具行为时运行受影响工具测试。源与生成一致不证明宿主发现、加载或模型遵循 |
+| skills、钩子、生成输入或宿主适配 | `pnpm run check:agents`；改变工具行为时运行受影响工具测试。源与生成一致不证明宿主发现、加载或模型遵循 |
 | 产品topic、统一语言、领域对象或设计登记 | `pnpm run check:design`；本地待复核队列可用`pnpm run check:design --stale report`。需要模型证据时另行执行实际模型 |
 | 检查器、生成器或自动化行为 | 对受影响工具运行测试；`pnpm run test:python`是Python工具与生成链的组合入口，TS工具沿所属成员测试。`test:python`经运行名额运行（名额被占时排队，等待超时退出75），用pytest-xdist分进程运行，进程数由`.meta_harness/tooling/tests/conftest.py`决定；设`OMNE_PYTEST_WORKERS=0`时退回单进程，设正整数时用该进程数 |
 | TS或JS源码、测试、配置 | `pnpm format:check`及受影响构建、类型检查和测试；读取或修改TS时加载[pstack TypeScript方法](engineering/skills.md#pstack-方法入口) |
 | 产品行为或公开入口 | 运行受影响快慢层及适用公开消费、组合或验收；构建和类型检查按计划选择，公开入口变化不自动等于全仓检查 |
 | 租户、权限、并发、恢复或资源生命周期 | 从[架构质量场景](architecture/assurance.md#系统级代表场景)和实际契约选行为、故障或交错验证。单组件通过不能代替跨边界责任闭合 |
 | 性能或资源变化、较大或复杂功能、交互主路径变化 | 按[贡献报告触发](../CONTRIBUTING.md#pr-正文与报告)选择有界profiling，按[性能场景](engineering/scenarios/performance.md)及pstack benchmark-checklist核对测量；不自动运行完整基准或付费调用 |
-| 产品源码结构与断言效力 | 取得适用的metrics、覆盖、差分变异及loop-status结果，按[整洁回路操作](#一次交付的验证与整洁回路)处置，不用数值下降替代行为保持 |
+| 产品源码结构与断言效力 | 结构读数与差分变异按 pqw `slice-closeout`，命令见[根 AGENTS.md](../AGENTS.md#pqw-skills-接入)；不用数值下降替代行为保持 |
 
 `docs:inventory`的`--base`是独立基线目录；测试与度量的`--base`是Git比较依据，不能混用。缺项计量只观察已登记结构，不判断正文充分或实现符合。
 
@@ -307,7 +294,7 @@ pnpm run test:affected --base "$TASK_BASE" --tier slow
 
 turbo 不提供的规则留在 `tools/test-runner/test-runs.config.json`：全局文件改动判全量；测试读取成员目录以外的文件时带上对应成员；Python 工具、常驻检查和 legacy 排除；没有规则认得的文件判全量，不按猜的范围少跑。`turbo` 2.11.7 的 `--affected` 默认不参考任务 `inputs` 里指向成员目录外的文件，所以读者规则不能改写成 `inputs`。
 
-下面几条规则让计划更小，不改变两条硬线：改代码跑那个成员及其下游的测试，没有规则认得的文件判全量。
+下面几条规则让计划更小，不改变两条底线：改代码跑那个成员及其下游的测试，没有规则认得的文件判全量。
 - `.meta_harness/human/**` 是常驻路径。那里只有给人读的 `.md`。只有常驻检查 `check:docs` 读它，成员测试、pytest 与影响面规则都不读。只改它时只跑常驻检查。
 - 成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）不算成员改动。turbo 按包计改动，会选中那个成员与它的全部下游。计划用 turbo 的依赖图，把只改了文档的成员及其下游中不是代码改动成员下游的那些拿掉：不进测试、类型检查与验收。同一成员既改文档又改代码时，照旧选中它与下游。计划说明把拿掉的成员列在「只改了文档、不选的成员」下。拿掉之前，计划核对 turbo 选中的每个成员都在代码改动成员或只改了文档的成员的下游里（含它们自己）。有解释不了的成员时，turbo 的种子里有规则没认出的改动，计划判全量，理由点名这些成员。
 - 只改一个不被任何测试读的成员 `SPEC.md` 或 `README.md` 时，计划只跑常驻检查。被测试读的文档由 `tools/test-runner/test-runs.config.json` 的读者规则逐份点名。改这样的文档时，计划只选规则点名的成员，不带下游。测试新读一份成员根目录文档或成员目录外的文件时，同时补一条读者规则，否则改它时漏选。
@@ -318,7 +305,7 @@ RFC-0002 的四条约束这样落实：
 - 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；`packages/*`、`tools/*` 等成员目录下出现 `turbo.json` 直接报错，`apps/*` 下的由检查器按下面的成员配置规则核对合成后的任务定义；`**/turbo.json` 和本配置文件都是全局文件。根配置的预设和检查器来自钉住的 npm 包，改版本就是改锁文件与 `pnpm-workspace.yaml`。`pnpm-workspace.yaml` 是全局文件。锁文件是唯一命中的全局文件时按 importer 映射到成员：根 importer（`.`，全仓的工具）的依赖变了、`tools/test-runner` 在映射到的成员或其下游里、或顶层设置变了，都判全量，见[测试运行器的影响面规则](../tools/test-runner/README_ZH.md#测试运行)「影响面怎么算」第 1 条。
 - 基线显式传入：合并点经 `TURBO_SCM_BASE` 传给 turbo，不让它自己推断。
 - 未识别文件按全量处理：由上面的规则判。
-- 准入检查不读缓存：`OMNE_ADMISSION=1` 时构建与类型检查只写本地缓存，不读缓存（`--cache=local:w`）；成员测试也不读测试结果缓存，照常写；依赖图缓存同样不读，照常计算并写入。进入任何一条主干之前的检查都带这个变量，规则见[集成规则](engineering/integration.md#检查责任)。
+- 准入检查不读缓存：`OMNE_ADMISSION=1` 时构建与类型检查只写本地缓存，不读缓存（`--cache=local:w`）；成员测试也不读测试结果缓存，照常写；依赖图缓存同样不读，照常计算并写入。进入任何一条主干之前的检查都带这个变量，规则见[现行准入](engineering/integration.md#现行准入)。
 
 `apps/*` 下的成员 `turbo.json` 要满足下面七条。`tools/test-runner` 的校验器按规则核对：规则 1、2 读成员原文；规则 3 至 6 读 `turbo run --dry=json` 给出的 `resolvedTaskDefinition`，合成时用的根配置与准入时相同；规则 7 两处都核对。规则 6 后半句不由校验器判断，由评审核对：
 1. `extends` 只能是 `["//"]`。
@@ -358,30 +345,16 @@ pnpm run test:triage --run <实际运行目录>
 
 ## 一次交付的验证与整洁回路
 
-交付时沿“有效承诺 → 实际消费者与装配 → 验证资源 → 本次证据”核对结果，并反向检查新增入口或依赖是否遗漏契约。架构的论证责任归[符合性](architecture/assurance.md#文档与实现的符合性)，整洁指标、带位与硬线归[clean-loop](clean-loop.md#回路怎么转)，完整报告条件归[CONTRIBUTING](../CONTRIBUTING.md#pr-正文与报告)。
+收口的做法归 pqw `slice-closeout`，命令见[根 AGENTS.md](../AGENTS.md#pqw-skills-接入)。整洁指标、带位与传感器归[clean-loop](clean-loop.md#回路怎么转)，报告条件归[CONTRIBUTING](../CONTRIBUTING.md#pr-正文与报告)，架构的论证责任归[符合性](architecture/assurance.md#文档与实现的符合性)。仓库自带的度量入口如下，基线按[迭代检查的设置](#迭代中的受影响测试)取：
 
-### 从候选到可审阅交付
+```sh
+pnpm run metrics --base "$TASK_BASE" --out tmp/<task>/metrics-final
+pnpm run metrics --base "$TASK_BASE" --coverage --out tmp/<task>/coverage-final
+pnpm run mutation --base "$TASK_BASE"
+pnpm run loop:status --base "$TASK_BASE" --out tmp/<task>/loop-final
+```
 
-先按[迭代检查的设置](#迭代中的受影响测试)固定`TASK_BASE`，将命令中的`<task>`替换为本次任务目录。同一变量不意味着各工具的比较算法相同，报告保留实际BASE或merge-base。已绑定任务的工作树省略下面命令里的`--base "$TASK_BASE"`，基线取固定的`targetBase`。
-
-1. 在首个可运行候选及正常复查点保存适用快照，最终候选再核对。报告实际BASE或merge-base、dirty状态、输入、规则与范围；没有中间快照就不宣称统计了全过程整改。
-2. 对最终候选运行受影响行为、构建、类型及组合验证。复用旧结果须说明契约、代码、配置、依赖和假设仍适用；变化使其失效时补跑对应检查。
-3. 修改产品源码时，按贡献要求取得结构摘要、覆盖、差分变异和回路读数。下列命令是相应入口，依本次触发条件执行；覆盖测量前先保证实际构建产物对应当前源码。
-
-   ```sh
-   pnpm run metrics --base "$TASK_BASE" --out tmp/<task>/metrics-final
-   pnpm run metrics --base "$TASK_BASE" --coverage --out tmp/<task>/coverage-final
-   pnpm run mutation --base "$TASK_BASE"
-   pnpm run loop:status --base "$TASK_BASE" --out tmp/<task>/loop-final
-   ```
-
-4. 原样保留要求提供的摘要和入口，对本次红项逐条说明已处理或保留理由。存量问题、本次引入、已解决与仍保留分别表达；存活及无覆盖变异保留结果，复跑确认和后续处置分开。缺数据保持未知，不填写零或虚构改善比例。
-5. 对清理草稿先交负责人决定，不自动扩大成全仓整改。一般度量越线只报告；硬线失败须修复才能合并，不能用解释代替通过。钩子没有提醒不代表没有红项。
-6. 提供脱离本次对话也能审阅的交付说明，并按风险选择独立判断。普通局部修改不默认派完整评审阵容，L2、L3或未交代红项按[接受级别](engineering/quality.md#按成果和风险验证)展开；独立评审不替代有权负责人的接受。
-
-纯文档修订不为凑报告执行产品变异、性能基准或完整模型矩阵。结构、语义、宿主行为、公开消费和真实组合的结论分别表达；设计接受、实现完成、验证通过与发布状态也分别判断。
-
-metrics只报告结构与配置范围内的覆盖；mutation只观察其选择的改动源码行和快层。它们不能替代所有消费者和慢层行为验证。“只报告”指坏指标不新增质量硬线，工具执行错误仍须处理。完整覆盖与退出限制沿[验证入口](verification.md#检查入口)核对。
+metrics只报告结构与配置范围内的覆盖；mutation只观察其选择的改动源码行和快层。它们不能替代所有消费者和慢层行为验证。完整覆盖与退出限制沿[验证入口](verification.md#检查入口)核对。
 
 ### 交付与合并前的检查
 
@@ -402,13 +375,13 @@ pnpm run check:plan --base "$TASK_BASE"
 BASELINE="$TASK_BASE" pnpm run admission
 ```
 
-进入任何一条主干之前的检查都带 `OMNE_ADMISSION=1`，规则见[集成规则](engineering/integration.md#检查责任)。`pnpm run admission` 就是带这个变量的 `pnpm run check`，另把命令、head、基线、逐步结果与退出码写进 `tmp/admission/` 下的准入日志（见[自动化入口](../scripts/README.md)）；手写 `OMNE_ADMISSION=1 pnpm run check` 等价。不带这个变量的运行会读缓存，不作为准入检查结论。准入开始时先[自检并自愈环境](../scripts/README.md#环境自检与自愈)：依赖目录与锁文件不一致就离线重装，索引 LF、工作副本 CRLF 的已跟踪文件从索引重新检出，做了什么写进日志与记录。成员测试一层失败不超过 10 处且都在测试文件里时，同一次运行内只把那些文件低并发各重跑一次，全过则这一步通过，重跑的文件与结果写进记录的 `retried`，确认者在 `admission-evidence` 的输出里看得到；其余失败语义不变，见[失败语义](../scripts/README.md#check-的步骤图)。准入失败于成员测试、修复只碰失败用例所在的成员时，`pnpm run admission --resume-from <H1>` 只重跑失败的文件加 H1..HEAD 影响到的成员，规则见 [test-runner 的准入一节](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)。
+进入任何一条主干之前的检查都带 `OMNE_ADMISSION=1`，规则见[现行准入](engineering/integration.md#现行准入)。`pnpm run admission` 就是带这个变量的 `pnpm run check`，另把命令、head、基线、逐步结果与退出码写进 `tmp/admission/` 下的准入日志（见[自动化入口](../scripts/README.md)）；手写 `OMNE_ADMISSION=1 pnpm run check` 等价。不带这个变量的运行会读缓存，不作为准入检查结论。准入开始时先[自检并自愈环境](../scripts/README.md#环境自检与自愈)：依赖目录与锁文件不一致就离线重装，索引 LF、工作副本 CRLF 的已跟踪文件从索引重新检出，做了什么写进日志与记录。成员测试一层失败不超过 10 处且都在测试文件里时，同一次运行内只把那些文件低并发各重跑一次，全过则这一步通过，重跑的文件与结果写进记录的 `retried`，确认者在 `admission-evidence` 的输出里看得到；其余失败语义不变，见[失败语义](../scripts/README.md#check-的步骤图)。准入失败于成员测试、修复只碰失败用例所在的成员时，`pnpm run admission --resume-from <H1>` 只重跑失败的文件加 H1..HEAD 影响到的成员，规则见 [test-runner 的准入一节](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)。
 
 两条命令按同一规则取基线，因此不给基线时它们比较的范围相同。传显式基线的方式不同：`check:plan`用`--base`参数（也读环境变量`BASELINE`），`check`只读环境变量`BASELINE`。
 
 `pnpm run check`先打印影响面，再按[步骤图](../scripts/README.md#check-的步骤图)跑常驻检查与计划里的 Python、构建、类型检查、成员快慢层及可执行验收：没有依赖的步骤同时跑，构建之后才跑读 dist 的步骤，最后执行严格回路状态；一步失败其余终止。它通过时只支持已执行范围；计划中的跳过不算通过。无选中验收时记录显式跳过，不为凑数据运行无关验收。全局变更、未知路径或负责人明确要求可触发全量；`FULL=1`用于显式全量，不是每次交付的默认值。
 
-四条硬线是依赖方向与环、验收锁、主线所需检查绿、启用传感器有数据。严格回路状态核对第一、第二和第四项，第三项由实际所需检查支撑。若手动组合检查，也须完成这些共同硬线，并确保严格传感器所需账本属于同一候选：
+硬线归[整洁回路](clean-loop.md#回路怎么转)。手动组合检查时，严格回路状态的入口如下，所需账本须属于同一候选：
 
 ```sh
 pnpm run loop:status --strict --base "$TASK_BASE" --out tmp/<task>/loop-strict
@@ -418,28 +391,16 @@ pnpm run loop:status --strict --base "$TASK_BASE" --out tmp/<task>/loop-strict
 
 开发自查可以面向未提交字节。合并前在最终提交和干净检出上核对影响面并执行所需检查；当前仓库工作流配置不能代替实际CI运行证据，本地通过也不表示远端已通过。合并后不自动补跑全量。提交、推送、合并及发布仍按任务授权执行。
 
-### 交付说明与完成声明
-
-交付说明至少让审阅者确定：本次目标与实际改变、有效承诺与采用范围、被验候选、执行的检查及结果、红项处置、未覆盖与下一责任。适用时附公开消费、组合、模型、profiling或demo入口；准确字段和触发条件沿[贡献报告](../CONTRIBUTING.md#pr-正文与报告)，不另填重复表单。
-
-源码或说明新增保证但还没有行为证据时，明确尚未验证。缺必要环境且影响接受时报告无法验证；可以独立交付的部分说明边界。未完成、部分完成、受阻与完成分开，不把文件存在、结构通过或单个组件成功写成全系统符合。
-
-普通任务按[agent交付操作](engineering/agent-delivery.md)核对启用范围和授权；配置未启用时只形成获准草稿。持续验收的锁与覆盖声明沿[clean-loop入口](clean-loop.md#入口)和[源码布局](workspace.md#目录与内容归属)维护。`pnpm run acceptance:scenarios`只观察长期产品场景，不从任务关闭、Stage或覆盖声明授予接受。
+持续验收的锁与覆盖声明沿[clean-loop入口](clean-loop.md#入口)和[源码布局](workspace.md#目录与内容归属)维护。`pnpm run acceptance:scenarios`只观察长期产品场景，不从任务关闭或覆盖声明授予接受。
 
 ## 使用 coding agents
 
-从根[AGENTS](../AGENTS.md)、目标目录局部约定和[任务地图](context-map.md)展开；需要选择首轮角色路径时，沿[角色查询](../tools/spec-tools/README.md#按角色读取上下文)取得入口，仍按任务核对必要承诺；插件初始化沿[准备步骤](#初始化-coding-agent-插件)。按[技能采用入口](engineering/skills.md)读取实际方法，安装、发现、正文读取、hook执行与结果遵循分别取证。
-
-技术设计出现新边界或保证时加载`harness-design-handbook`；产品正文起草加载`product-design`；维护skill、role或AGENTS时分别加载其编写技能。完整触发和写入归属由[工程场景](engineering/scenarios/README.md)及目标局部入口维护，不在本页复制所有技能步骤。
-
-派发按[协作交接](engineering/workflow.md#责任与协作交接)明确目标、检出与分支、写范围、必要输入、完成判断及停止条件。接收后核对实际落点、diff、验证输入与红项处置；执行者自报或其hook提醒不能替代主会话复核。自动清理草稿仍交负责人决定。
-
-skills和subagents维护canonical源与适配，按[编译工具](../.meta_harness/tooling/README.md)生成，根软链接向宿主暴露产物。修改后核对生成、链接和导航；生成一致不代表新实例已加载，更不能消除旧会话携带的提示。
+加载哪个技能见根[AGENTS](../AGENTS.md#按任务展开)；插件初始化沿[准备步骤](#初始化-coding-agent-插件)。skills维护canonical源与适配，按[编译工具](../.meta_harness/tooling/README.md)生成，根软链接向宿主暴露产物。修改后核对生成、链接和导航；生成一致不代表新实例已加载，更不能消除旧会话携带的提示。
 
 ## 准备提交与 PR
 
 标题、报告要求与 squash 规则归[CONTRIBUTING](../CONTRIBUTING.md#提交与-pr-表达)。
-按主要结果选项目模板；准备方法从[技能入口](engineering/skills.md#playbook-入口)选择 Opening a PR，Matt code-review 按需核对固定点审阅，语言加载 `asd-ste100`。
+按主要结果选项目模板；开 PR 与 gate 的步骤归 [`omne-card`](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)，写作加载 pqw `clear-writing`。
 源码和数据不足以支持的结论写未知，不从教学示例抄数字或接受状态。
 
 浏览器使用 `.github/PULL_REQUEST_TEMPLATE/` 下的
@@ -482,25 +443,33 @@ gh pr create --base main --head <自己的工作分支> \
 | 链接、技能镜像或 agent 产物检查失败 | 修正源及其引用，按编译工具更新产物；**不要手改镜像或移出检查范围掩盖错误** |
 | `UNCOVERED` | 尚无相应模型任务——那是覆盖缺口，不是失败 |
 | 形式工具检查失败 | `pnpm run check:formal-tools` 看 Java/JAR 是否就位；输出`MISMATCH`表示`TLA2TOOLS_JAR`不是钉住的v1.7.4发布文件；缺环境、覆盖缺口与执行失败是三件事 |
-| `No projects matched the filters` | 核对 `pnpm-workspace.yaml` 和成员 `package.json` 的实际包名；应用包括 `@omne-harness/cli`、`@omne-harness/tenancy-host` |
+| `No projects matched the filters` | 核对 `pnpm-workspace.yaml` 和成员 `package.json` 的实际包名；应用包括 `@omne-harness/cli`、`@omne-harness/harness-server`、`@omne-harness/m2-contract-skeleton` |
 | `storage conformance · postgres` 显示 skipped | 未设 `OMNE_TEST_PG_URL`；跳过不是通过（[验证与证据](verification.md)） |
-| 不知道如何启动产品 | 先构建，再按固定提交中封存版 [CLI](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/cli/README.md) 或 [治理中心](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/README.md) 的命令启动；制品打包不自动安装或发布服务 |
+| 不知道如何启动产品 | 先构建，再按[应用入口](../apps/README.md#现有成员)的命令启动；制品打包不自动安装或发布服务 |
 
-## 通过对话维护交付卡
+### 投影、工作树与宿主的常见坑
 
-研发环境初始化后，先读[agent交付操作](engineering/agent-delivery.md)及[配置](engineering/github-delivery.json)的启用范围，再按[工作类型](engineering/work-types.md)选择必要输入和验证。配置未启用时，只做获准的草稿、只读观察或接入准备；不从封存PF或Git历史重新继承任务。平台配置完成不能代替默认分支模板、凭证、具名写者和真实任务验证。
-
-协议启用后的建卡、取任务、更新与决定记录由操作页提供顺序；卡或模板不替代当前SPEC和设计。只读工具的完整输入、输出与限制由实际[dev-flow](../tools/dev-flow/README.md)维护，不能靠一次工具通过自动派发或接受。
+- 新工作树没有 agent 投影时，`pnpm run check` 报缺少生成目录。umask 让投影文件带组写权限时，`check:agents` 报权限不符。`projections` 会去掉三份 Cursor 运行时文件的组写权限；手工生成后，或报错的是别的文件时，对报错的文件 `chmod g-w`。
+- 有成员的验收夹具从 `dist` 导入时，准入的依赖检查报模块无法解析。准入前先构建该成员及其依赖。
+- 只用离线缓存的测试可能报 `ERR_PNPM_NO_OFFLINE_META`。在临时目录对缺少的包运行 `pnpm install --lockfile-only` 补齐离线元数据，证据里写明这是环境问题。
+- 手动构建后又改了源码时，成员下的旧 `dist` 会被 `check:declarations` 读到，结果反映的是旧产物。准入前删掉手动构建残留的 `dist`，需要时按上一条重新构建。
+- git 版本太旧时（实测 2.25），turbo 的 `ls --affected` 报 `Unable to query SCM`。把新版 git 放到 PATH 前面。
+- Claude Code 会话的钩子命令来自会话启动时所在检出的生成物，并在会话期间缓存。主检出落后时，所有工作树的钩子都可能报错。修法是快进主检出、重装依赖、用 `projections` 重新生成投影，再重启会话。
+- 压缩后只剩摘要，技能正文会淡出。宿主重新注入的是第一次加载时的技能文本，它可能来自已删除的工作树，也可能是旧版本。执行技能里的命令之前、报技能缺陷之前，核对加载的副本所在目录是当前检出的投影；压缩之后，或轨道上的技能源变了之后，在当前检出重新加载本次所用的技能。报技能缺陷前，先在轨道上运行 `git log -1 -- <技能的 canonical 路径>`，核对缺陷是否已经修过。
+- Bash 工具的命令行里含有搜索模式，所以 `pgrep -f` 会把调用它的 shell 报成存活进程，`pkill -f` 曾杀掉调用它的 shell（退出码 144）。POSIX 上列进程用 `ps -eo pid,etime,pcpu,args | grep '[p]attern'`，方括号让模式不匹配 grep 与调用它的 shell 自己的命令行。停宿主跟踪的后台任务用 TaskStop。
+- Windows 宿主例外（2026-10-29 实测）：对经 `with-test-slot` 的后台长链（`bash → node → turbo → pnpm.cmd`）或它的兄弟任务运行 TaskStop，会关掉这一批进程共用的控制台。之后同一棵进程树里新起的 `cmd.exe`、`pnpm.cmd` 立即以 `-1073741502`（`0xC0000142`）失败，看起来像全部成员 0 秒失败。这时不改 turbo 或测试。要停这类长链，用 `taskkill //PID <pid> //T //F` 结束整棵进程树，然后读名额目录，确认被结束的进程留下的 `ticket-*` 与 `slot-*.lock` 已经失效或已被删除。目录与失效规则见[运行名额](../scripts/README.md#运行名额)。
+- Claude Code 会话会把 shell 的工作目录重置回会话的主工作目录。在某棵工作树里启动的会话，`cd` 到别的工作树不会保持。要在几棵树之间切换，从主检出根启动会话，或者每条命令都写绝对路径或 `git -C <树>`。
+- 合并目标分支或换到新树之后，锁文件可能带来新依赖。不重装就跑准入，build 报模块无法解析。合并之后、准入之前，在该树运行 `pnpm install --offline --frozen-lockfile`，再运行 `git update-index --refresh`，然后确认 `git status --short` 为空。先装依赖再合并时，合并后还要再装一次。
+- Windows 宿主上，已跟踪文件的工作副本可能是 CRLF，而索引是 LF。`format:check` 因此失败。用 `git ls-files --eol | grep 'i/lf.*w/crlf'` 找出这些文件。只是工作副本换行不同时，删掉工作副本再 `git checkout -- <文件>`。改动本身带 CRLF 时，改成 LF 再提交。
+- 合并基线后先跑 `pnpm run preflight`：一次列出轻步骤的全部失败与修法。准入开始时会自检环境并自愈，用法见[环境自检与自愈](../scripts/README.md#环境自检与自愈)与[预检](../scripts/README.md#预检)。
+- Windows 宿主上，Git Bash 的 `/tmp` 与 Windows 版 Python、Node 看到的不是同一个目录。给这些程序传临时文件路径时先用 `cygpath -w` 转换，否则报找不到文件。
+- WSL 的 `/tmp` 在 WSL 重启后清空。要留作证据的复现材料放在主检出的 `tmp/` 下，不放 WSL 的 `/tmp`。
+- 借用别的工作树里的工具运行时，那棵树若正被写者改动，工具读到的是半改状态。借用前确认那棵树没有写者在改。
+- gate 确认说明的上限按 UTF-8 编码算是 1024 字节，不是 1024 个字符。依据是两次实测：750 个字符、1220 字节的中文说明被拒，604 字节的说明被接受。GitHub 没有写明这个口径。中文一个字占 3 字节，中文说明大约只能写 340 个字。`gate-cli.ts wait` 在发请求之前按字节核对。超限后同一运行仍在等待确认，缩短说明后可以对同一运行再确认。
 
 ## 终态与过程材料
 
-Git维护当前终态；正式RFC保留进入审议的方案与最小决定关系，真实Issue保留本次交付记录，范围见[四类长期成果与普通任务](engineering/documentation.md#四类长期成果与普通任务)。其他开发流水与决策形成史不作为永久正文。领域与成员各自维护完整必要文档；公开类型表达形状，`SPEC.md` 承担必要行为契约，不重复类型。新成员的使用定位、机制设计与对象模型有固定专题位置，其余指南与选择理由按需另文维护；薄 SPEC 不是整个体系的厚度上限。测试、模型及可复跑验证资源随实际拥有者维护；ADR 只说明当前选择、必要理由和复核条件。项目要求与系统技术预期分别归[项目要求](requirements.md)和[架构](architecture/README.md)，产品与独立设计输入保持meta原源。尚未交接的具体旧技术承诺继续原责任，不复制成包内第二份权威。
-
-未进入正式RFC的候选、逐轮讨论和评审、临时计划、进度及某次执行的输入与输出，写在本工作树`tmp/<task>/`。RFC与Issue的规定记录由其拥有者维护，不将全部过程材料提交。不要求永久追溯，不提交这些材料，不通过改名、搬进 research/ADR/fixtures 或建立 Git 历史链接台账继续入库。`.meta_harness/design/record/` 整体被忽略，不是新材料的落点。
-
-单次交付规格组织本次实施与验收，长期规格维护持续有效的承诺。按[两类规格的归属与承接](engineering/documentation.md#单次交付规格与长期规格)选择位置；任务产生的持续保证经接受后须写回长期拥有者，不能只留在临时任务输入中。
-
-长期验证文档写验证义务、操作方法、前提和局限；单次结果留 `tmp/`。确有运行消费者需要的小型夹具随消费者维护，不复制整份开发证据。获准改变承诺后只更新其现行拥有者；接受、实现和验证仍分别判断，删除形成史不会撤销不变式或降低验证要求。
+过程材料放哪、唯一源与退出条件归[位置与唯一源](engineering/documentation.md#位置与唯一源)，正式RFC与Issue的保存例外归[四类长期成果与普通任务](engineering/documentation.md#四类长期成果与普通任务)，两类规格的归属归[单次交付规格与长期规格](engineering/documentation.md#单次交付规格与长期规格)。本仓库的落点：单次计划、评审与执行的输入输出写在本工作树`tmp/<task>/`，不提交；`.meta_harness/design/record/` 整体被忽略，不是新材料的落点。
 
 ## 保持本页可用
 
@@ -510,4 +479,4 @@ Git维护当前终态；正式RFC保留进入审议的方案与最小决定关�
 
 ## 多层分支操作
 
-先从[集成规则](engineering/integration.md)核任务路线，再按[工具指南](../tools/dev-flow/src/integration/README.md)运行 status、start 和 task-sync。同步目标分支时，先在工作分支上用 `git merge --no-ff` 合并远端目标提交并提交，再运行 task-sync 让 `targetBase` 前进；taskBase 不变。四条主干的进入按[现行准入](engineering/integration.md#现行准入)开 PR 并派发 `gate-publish`。轨道组成以 main 为根的树，同步与提升只在一条轨道和它的上游之间进行，见[轨道树与上游](engineering/integration.md#轨道树与上游)。新建子轨道时派发 `gate-track` 并传入 `parent`。提升 PR 由轨道 owner 提出，说明中列出所含的卡及其在上一层的条件，见[现行准入](engineering/integration.md#现行准入)。说明的「所含的卡」与「契约变化」两节用 `pnpm run ri-notes --track <轨道 ID> --format markdown` 生成：两节写到标准输出，发现写到标准错误。贴进 PR 之前先处理这些发现。命令只读 Git 与 GitHub。有 `contract-level-exceeds-card`、`contract-breaking-off-integration` 或 `contract-diff-mismatch` 时退出 1，其他发现只报告，退出 0；读取失败退出 2。确认者在 gate 说明里贴退出码与标准错误最后一行的汇总。条款见[集成工具契约](../tools/dev-flow/src/integration/SPEC.md)的 I17，两节的规则见[进轨道 PR 的说明](engineering/integration.md#进轨道-pr-的说明)。仓库检查运行钉住的检查器版本，见[仓库工具链的版本](#仓库工具链的版本)，不需要另一个受信检出。
+轨道、gate 与准入的规则归[集成规则](engineering/integration.md#轨道责任与保护)；同步轨道头、开 PR、gate 确认、提升与发行的步骤归 [`omne-card`](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)；status、start、task-sync 与 `ri-notes` 的参数与退出码归[工具指南](../tools/dev-flow/src/integration/README.md)。仓库检查运行钉住的检查器版本，见[仓库工具链的版本](#仓库工具链的版本)，不需要另一个受信检出。

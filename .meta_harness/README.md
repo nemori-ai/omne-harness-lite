@@ -30,15 +30,15 @@
 │   ├── foundation/           项目要求的薄导航，正文归执行仓库 docs/requirements.md
 │   ├── basis/                内核与上游的机制语义条目及其 probe——失效于上游换版本
 │   └── views/                全部派生的聚合视图，由生成器产出，任何人不手写
-├── research/                 当前仅保留 TypeSafe Jev；职责与结构待负责人另行定义
-├── agents/                   skills 与 roles 的唯一编译源、宿主适配与评估
+├── research/                 TypeSafe Jev 与两篇交付调研；职责与结构待负责人另行定义
+├── agents/                   技能、钩子、云端环境与外部技能集的源
 ├── tooling/                  确定性生成、设计检查与项目根链接
 ├── human/                    人类协作者的学习指南与流程草稿，不是规则，agent 不自动加载
 └── .claude/ .agents/ .codex/ 编译产物，不手改
 ```
 
-**`research/` 与 `design/` 是兄弟目录。**当前只保留 TypeSafe Jev，职责与结构待负责人另行定义。
-具体任务的调查、比较和执行材料放工作树 tmp；当前终态归实际拥有者。
+**`research/` 与 `design/` 是兄弟目录。**当前保留 TypeSafe Jev 与两篇交付调研，职责与结构待负责人另行定义。
+具体任务的调查、比较和执行材料是过程材料，放哪归[位置与唯一源](../docs/engineering/documentation.md#位置与唯一源)；当前终态归实际拥有者。
 
 ## 承载项目的包与依赖规则
 
@@ -54,7 +54,7 @@
 | 想知道系统里有哪些有身份的对象、各自依据在哪 | [领域对象](design/domain_objects/README.md)；总表是派生的[领域对象地图](design/views/domain-object-map.md) |
 | 查证上游机制到底保证什么 | [research/](research/README.md) 的对应 topic，或 [basis/](design/basis/README.md) 的条目 |
 | 新建长期设计材料 | 先过 [准入与停止条件](design/README.md#准入与停止条件)，再用目标目录的本地 `.templates/` |
-| 维护 skills 或 roles | 从 [agents/](agents/README.md) 改 canonical 源，**不手改生成产物** |
+| 维护 skills | 从 [agents/](agents/README.md) 改 canonical 源，**不手改生成产物** |
 | 生成、检查或接入宿主入口 | [tooling/](tooling/README.md)。编译、项目根链接、发布是三个动作 |
 | 学习怎样给 agent 布置或评审一类设计 | [human/](human/README.md)。这是写给人的学习材料，规则以它引用的拥有者为准 |
 | 判断公开承诺及其采用范围 | [系统架构入口](../docs/architecture/README.md)定位实际成员；[原架构入口](design/architecture/README.md)定位未迁精确源。目录或绿测不表示接受 |

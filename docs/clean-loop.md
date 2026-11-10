@@ -38,7 +38,7 @@
 
 1. 依赖方向与环——`pnpm run lint:rules` 的方向规则，`pnpm run loop:status` 也会标出。
 2. 验收没有被实施者改动——`pnpm run acceptance:lock`。
-3. 主线保持绿——合并前，在待合并的提交上计算好影响面，再运行受影响、因此需要执行的检查。检查范围包括所需的构建、类型检查、测试和可执行验收，以及共同硬线检查。交付说明记录基线、提交、范围、依据与结果。准入只有一步失败时按[增量准入](engineering/integration.md#增量准入)提供证据；波末收口的全量准入，在树与一个已通过全量准入的头相同时，按[树相同时复用准入](engineering/integration.md#树相同时复用准入)。`pnpm run check` 按影响面打印计划并执行这些检查；未选中的检查没有运行，交付说明应如实列出。
+3. 主线保持绿——合并前，在待合并的提交上计算好影响面，再运行受影响、因此需要执行的检查。检查范围包括所需的构建、类型检查、测试和可执行验收，以及共同硬线检查。交付说明记录基线、提交、范围、依据与结果。准入只有一步失败时的增量接续，以及树与已通过准入的头相同时的复用，机制见[准入的运行记录与接续](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)。`pnpm run check` 按影响面打印计划并执行这些检查；未选中的检查没有运行，交付说明应如实列出。
 4. 传感器有数据——一项指标量不出来不等于它是好的。严格模式（`pnpm run loop:status --strict --out …`）下，
    配置里开着的传感器有哪个没数据就判失败并指名；传感器自己会不会悄悄失灵，由一份种了已知违规的小夹具每次跟着测试跑来守。
 
@@ -55,7 +55,7 @@
 原始 no-data 保留，报告给出精确提交与计数。任何一处仍有输入、基线未知、读取失败或其他启用传感器无数据，均不能用此范围放行。
 关闭的传感器单列 off。普通本地检查与默认 strict 继续要求所有启用传感器有数据；方向、环与验收锁在两种范围中都生效。
 
-**第一、二、四条都接在严格模式的回路状态中**，`pnpm run check` 把它放在最后一步。手动执行受影响范围时，也要完成这三条共同硬线检查。
+**第一、二、四条都接在严格模式的回路状态中**，`pnpm run check` 把它放在最后一步；第三条由所需检查本身支撑。手动执行受影响范围时，也要完成第一、二、四条的检查。
 远程 CI 关着的时候，本地检查证据就是合并前的门。通过受影响范围的检查，不表示未执行的检查也通过。
 
 **要解释的不替历史交代**：「这次变更里要解释的红项」里的函数，只列碰过、超线、且比基线涨了或新出现的；
@@ -82,11 +82,11 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 | 验收有没有被动过 | `pnpm run acceptance:lock` |
 | 场景的验收覆盖声明及工具状态标签 | `pnpm run acceptance:scenarios` |
 | 只跑可执行验收 | `pnpm run acceptance`（缺省先构建；`pnpm run check` 里它排在构建之后） |
-| 合并前三条硬线（方向与环、验收锁、传感器有数据）破没破 | `pnpm run check` 的最后一步；单独跑是 `pnpm run loop:status --strict --out <目录>`，之前要有对应候选的验收运行或影响面显式跳过账本；跳过不表示验收通过，候选绑定的限制见[工具说明](../tools/repo-toolchain/README_ZH.md#验收耗时) |
+| 合并前第一、二、四条硬线（方向与环、验收锁、传感器有数据）破没破 | `pnpm run check` 的最后一步；单独跑是 `pnpm run loop:status --strict --out <目录>`，之前要有对应候选的验收运行或影响面显式跳过账本；跳过不表示验收通过，候选绑定的限制见[工具说明](../tools/repo-toolchain/README_ZH.md#验收耗时) |
 | 在主线上留一条趋势 | 干净的主线提交上跑 `pnpm run loop:status`，它自己追加一条快照；别的提交上要留就加 `--snapshot` |
 | 提交大小、测试耗时与结构指标的走向 | `pnpm run loop:health`，出一张离线可开的页面 |
 
-表中的命令按同一条规则取基线：绑定了任务的树不给 `--base`，取任务上下文的 `targetBase`，给了不相等的 `--base` 会被拒绝；没有绑定任务时给 `--base <任务基线>`。规则见 [tools/test-runner](../tools/test-runner/README_ZH.md#测试运行)。
+表中的命令按同一条规则取基线，见[迭代中的受影响测试](development.md#迭代中的受影响测试)。
 
 每个入口覆盖什么、**不能声称什么**，在[验证与证据](verification.md#检查入口)；传感器各自的算法、出处与查不出的东西，在
 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md)。这里不抄第二份。
@@ -96,7 +96,7 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 超预算的成员由 `pnpm run loop:status` 生成清理草稿，落在主检出的 `tmp/clean-loop/proposals/`。草稿只列事实与边界：
 要清理的条目（带位置）、行为锁（现有测试只读）、解除条件（回落到解除线及以下）、不许动的东西。
 
-**草稿不是派发。**主会话把草稿报给负责人，负责人批准之后才按[清理任务的派发模板](../.meta_harness/agents/roles/cleanup-task.md)派出去；
+**草稿不是派发。**主会话把草稿报给负责人，负责人批准之后才按[清理任务的派发模板](clean-loop-cleanup-task.md)派出去；
 实施的 agent 平时只在它正在改的文件里顺手清理，范围之外的列为清理候选，不自己动手。
 
 ## 条目对照表
@@ -116,7 +116,7 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 各类条数由 `pnpm run loop:status` 数出来，不在这里手写。
 
 评审问法指到的三份判据：设计评审的[「选择」判据](../.meta_harness/agents/skills/harness-design-handbook/canonical/references/review/choice.md)
-（下面简称「选择」）、[实现评审检查表](../.meta_harness/agents/roles/implementation-review-checklist.md)（简称「检查表」，后面的数字是第几问）、
+（下面简称「选择」）、[实现评审检查表](https://github.com/nemori-ai/omne-harness-lite/blob/454d1574ef9fe69bb99c95bc962c0dae4c21aaad/.meta_harness/agents/roles/implementation-review-checklist.md)（已退役，链接指向固定提交；简称「检查表」，后面的数字是第几问）、
 手册的[判断](defensive-patterns.md#dp-10-规格实现与证据对齐)。
 「研发品味」指[这一份](../.meta_harness/agents/roles/engineering-taste.md)。
 
@@ -358,4 +358,4 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 
 ## 集成上下文的读数
 
-[分支集成](engineering/integration.md)已采用时，回路检查读取实际 subject 的 targetBase 及各卡不可变审计范围。hook 与 worktree sensor 分别读取每棵树，不把调用者的基线套给其他树。缺采用输入会报告错误或 unknown；全局 main 趋势保持原含义。四条硬线及数值反馈政策不变。
+绑定了任务的工作树上，回路检查读取该树的 targetBase 及不可变审计范围，规则见[迭代中的受影响测试](development.md#迭代中的受影响测试)。hook 与 worktree sensor 分别读取每棵树，不把调用者的基线套给其他树。缺输入会报告错误或 unknown；全局 main 趋势保持原含义。

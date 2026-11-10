@@ -673,7 +673,7 @@ pnpm run loop:health # --out 可改产物目录
 
 ## 契约 API 快照
 
-契约成员是[线归属表](../../docs/engineering/delivery-lines.json)各线 `contracts` 列出的成员。线内的卡对它们只做可加改动，规则见[可加改动](../../docs/engineering/integration.md#可加改动)。本命令给每个契约成员一份入库的 API 快照，并把两份快照之间的差异粗分为三类：`none` 表示没有变化；`additive` 表示改动对已有的读方与写方都不破坏；`review` 表示其余一切改动，需要人判断。它只报告，不拦截。行为契约（输入、快照内容、确定性、分类规则、已知限制、退出码与配置校验）见 [SPEC](src/declarations/SPEC.md)。
+契约成员是[线归属表](../../docs/engineering/delivery-lines.json)各线 `contracts` 列出的成员。线内的卡对它们只做可加改动，规则见[可加改动](../../docs/engineering/delivery.md#可加改动)。本命令给每个契约成员一份入库的 API 快照，并把两份快照之间的差异粗分为三类：`none` 表示没有变化；`additive` 表示改动对已有的读方与写方都不破坏；`review` 表示其余一切改动，需要人判断。它只报告，不拦截。行为契约（输入、快照内容、确定性、分类规则、已知限制、退出码与配置校验）见 [SPEC](src/declarations/SPEC.md)。
 
 ```sh
 omne-contract-api --write                 # 从 dist 重写快照（先构建）
@@ -704,7 +704,7 @@ omne-contract-api --baseline <区块文件>    # 逐成员从登记的提交比�
 
 - 改了契约成员公开面的卡，在同一个 PR 里构建并运行 `--write`，把快照的变化一起提交。`--check` 报不一致时，先判断改动是否有意。
 - 本工具改了快照格式（格式版本变了）时，全部快照要重新生成。
-- 谁写首份快照、格式变化时谁重新生成，规则见[里程碑内的规则](../../docs/engineering/integration.md#里程碑内的规则)。
+- 谁写首份快照、格式变化时谁重新生成，规则见[里程碑内的规则](../../docs/engineering/delivery.md#破坏性契约改动)。
 
 `--diff` 的前提：
 

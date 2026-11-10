@@ -73,7 +73,7 @@ tsconfig.base.json                     全体 TS 成员共用的编译选项（N
 tools/artifact-builder/                TS 开发成员；应用归档文件校验与独占发布
 tools/repo-toolchain/                  TS 开发成员；检查器包，发布到 npm
 tools/product-checks/                  TS 开发成员；本仓库的产品规则与 lint:rules，不发布
-tools/dev-flow/                        TS 开发成员；开工准入、任务绑定与包模板，不发布
+tools/dev-flow/                        TS 开发成员；集成与交付命令、包模板，不发布
 tools/test-runner/                     TS 开发成员；影响面计划、成员测试与变异，不发布
 tools/repo-config/                     配置成员；共享的 tsconfig、oxlint 与 dependency-cruiser 预设
 pyproject.toml                         Python 开发环境聚合，package = false

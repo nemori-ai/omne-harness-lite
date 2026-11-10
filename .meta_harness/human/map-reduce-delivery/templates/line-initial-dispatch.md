@@ -1,4 +1,4 @@
-这是供 reduce 具体化的模板，不是已获准的派发。Reduce 填完全部字段后，只把下方「消息正文」写入每线临时文件，再按本次授权直接发送或打开供人转发。协作规则归[集成清单](../../../../docs/engineering/integration.md#集成节点的清单)。派发状态与生成规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。
+这是供 reduce 具体化的模板，不是已获准的派发。Reduce 填完全部字段后，只把下方「消息正文」写入每线临时文件，再按本次授权直接发送或打开供人转发。这套交付做法已退役，原规则留在 Git 历史；本模板只为 dev-flow 的派发命令保留。
 
 填写规则：
 
@@ -153,7 +153,7 @@ Codex 宿主上，本线主代理模型用 `gpt-6-astra` @ high。档位心智�
 
 ### 派发流水与台账
 
-本线的派发流水由你维护，路径是 `tmp/line-<线>/delegate/flow.jsonl`，不入库。每个经过独立验收的闭包在验收后追加一行，字段与判法归 `delegate` 的[台账口径](../../../../.meta_harness/agents/skills/delegate/canonical/references/ledger.md)。只读调研、起草、建卡、派发与装环境没有独立验收，不写行，改在反思里列出它们的模型、档位、用时与追加数。
+本线的派发流水由你维护，路径是 `tmp/line-<线>/delegate/flow.jsonl`，不入库。每个经过独立验收的闭包在验收后追加一行，字段与判法归 `delegate` 的台账口径。只读调研、起草、建卡、派发与装环境没有独立验收，不写行，改在反思里列出它们的模型、档位、用时与追加数。
 
 流水在波末随交接报告交给 Reduce。Reduce 在跨线集成完成后汇总五条线的流水，写回 `.meta_harness/agents/evaluation/dispatch-ledger/ledger.json` 的批次。那个目录的单写者是 Reduce，你不写它，也不改写已合的批次。
 

@@ -1,6 +1,6 @@
 # 契约 API 快照
 
-本规格是 `omne-contract-api` 的行为契约。公开形状归类型：快照模型与文件格式在 [api-format.ts](api-format.ts)，三个动作的结果在 [contract-api.ts](contract-api.ts)，基线区块与两个基线动作的结果在 [api-baseline.ts](api-baseline.ts)，差异、附注与分类在 [api-classify.ts](api-classify.ts)，白名单的语法判断在 [api-whitelist.ts](api-whitelist.ts)，检查器比较在 [api-compare.ts](api-compare.ts)。用法归 [README_ZH](../../README_ZH.md#契约-api-快照)。可加改动的规则归 [integration.md「可加改动」](../../../../docs/engineering/integration.md#可加改动)，本工具只给粗分类，不改变那里的规则。
+本规格是 `omne-contract-api` 的行为契约。公开形状归类型：快照模型与文件格式在 [api-format.ts](api-format.ts)，三个动作的结果在 [contract-api.ts](contract-api.ts)，基线区块与两个基线动作的结果在 [api-baseline.ts](api-baseline.ts)，差异、附注与分类在 [api-classify.ts](api-classify.ts)，白名单的语法判断在 [api-whitelist.ts](api-whitelist.ts)，检查器比较在 [api-compare.ts](api-compare.ts)。用法归 [README_ZH](../../README_ZH.md#契约-api-快照)。可加改动的规则归 [integration.md「可加改动」](../../../../docs/engineering/delivery.md#可加改动)，本工具只给粗分类，不改变那里的规则。
 
 ## 输入
 
@@ -85,7 +85,7 @@
 
 `additive` 同时要求两条正证据，都只看模块作用域。
 
-1. 每一处差异都在白名单里。白名单只有两类。(b) 对应[可加改动](../../../../docs/engineering/integration.md#可加改动)表的「加可选字段」一行。(a) 在该表中没有对应的行：新增一个此前不存在的名字不改变已有声明，本工具据此把它列入白名单。
+1. 每一处差异都在白名单里。白名单只有两类。(b) 对应[可加改动](../../../../docs/engineering/delivery.md#可加改动)表的「加可选字段」一行。(a) 在该表中没有对应的行：新增一个此前不存在的名字不改变已有声明，本工具据此把它列入白名单。
    - (a) 新增顶层语句，引入旧侧不知道的名字：新导出、新入口、新内部声明。名字要同时满足三条，任一不满足就在白名单外，附注写明与谁重名。
      - 不是本文件已有的声明。与已有同名声明合并的不算：新增重载、第二个同名接口或命名空间、命名空间合并到类或函数上，都改 `typeof` 与已有导出的形状。
      - 不是任何入口在旧侧已有的导出名（`export *` 与 `export { x as y }` 展开后的名字）。例如入口 `export * from './a.js'` 已经导出 `Foo`，入口文件里再声明一个 `Foo` 就遮住它。

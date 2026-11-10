@@ -330,7 +330,7 @@ pnpm run ri-notes --track <轨道 ID>
 - 其他发现只报告，退出 0。`contractCheck` 为 `unavailable` 时也只报告。
 - 远端 Git 读不到、`gh` 不能运行或 `gh` 的错误响应没有 JSON 正文（例如未认证）时，命令失败并退出 2。
 
-退出 1 时输出不变：两节照常写到标准输出。确认者在 gate 说明里贴这次运行的退出码与标准错误最后一行的汇总，见[进轨道 PR 的说明](../../../../docs/engineering/integration.md#进轨道-pr-的说明)。
+退出 1 时输出不变：两节照常写到标准输出。确认者在 gate 说明里贴这次运行的退出码与标准错误最后一行的汇总，见[进轨道 PR 的说明](../../../../docs/engineering/integration.md#现行准入)。
 
 贴进 PR 之前，先处理发现：
 

@@ -38,7 +38,7 @@
 5. 同步责任导航、必要专题和唯一登记，消费者切换后退出被替代正文。未完成仍报告缺项，未迁源保持责任。
 6. 按[验证入口](verification.md)报告观察、偏离及未覆盖，区分采用、实现、验证，不得通过删除应有目标的登记来掩盖缺项。
 
-方法及技能加载路径由[调查与设计](../engineering/scenarios/research-and-design.md)、[Feature](../engineering/scenarios/feature.md)和[技能入口](../engineering/skills.md)维护。新边界按需用pstack:how/why/architect，整体比较用arena，接口深度沿已采用Matt方法；不另写厚技能指导。
+工作方法与技能加载见[流程事实在哪](../engineering/README.md#流程事实在哪)；本页不另写技能指导。
 
 ## 扩展仍须保护的边界
 

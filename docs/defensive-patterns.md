@@ -11,8 +11,8 @@
 下面的条目是帮助设计、实现和审阅发现风险的**指导**；其中固定步骤、重复提醒和检查清单等
 针对模型弱点的**辅助**，可以在明确模型、任务、工具和 prompt 范围内保留、简化或退出。
 
-**切换开发主力模型前要评估有关辅助。**[开发模型评估](../.meta_harness/agents/evaluation/developer-model/README.md)
-给出离线协议与固定任务集；它不评估产品 runtime agent，也不自动授权模型采用。
+**切换开发主力模型前要评估有关辅助。**[开发模型评估](https://github.com/nemori-ai/omne-harness-lite/blob/454d1574ef9fe69bb99c95bc962c0dae4c21aaad/.meta_harness/agents/evaluation/developer-model/README.md)
+（已从仓库删除，链接指向固定提交）给出离线协议与固定任务集；它不评估产品 runtime agent，也不自动授权模型采用。
 本页同时拥有这些条目的来源、适用范围与复核/退出规则——**不在别处再维护一份**。
 
 模型升级、工具或 prompt 变化、失败复发、边界变更和明显成本负担都会触发复核。
@@ -33,7 +33,7 @@ DP 编号供开发模型评估精确说明在比较哪一条提醒。
 
 | 条目 | 确定性检查 | 评审时问的 |
 |---|---|---|
-| DP-01 | 没有通用的；个别契约的闭合结果集有规则（`terminal-outcome-closed`） | [实现评审检查表](../.meta_harness/agents/roles/implementation-review-checklist.md)第 14 问：吞掉的错误、假成功 |
+| DP-01 | 没有通用的；个别契约的闭合结果集有规则（`terminal-outcome-closed`） | [实现评审检查表](https://github.com/nemori-ai/omne-harness-lite/blob/454d1574ef9fe69bb99c95bc962c0dae4c21aaad/.meta_harness/agents/roles/implementation-review-checklist.md)（已退役，链接指向固定提交）第 14 问：吞掉的错误、假成功 |
 | DP-02 | 部分：契约纯模块对规格 `examples.md` 的机检（在 `pnpm run check` 的测试一步里） | 检查表第 9、10 问：实现替契约补了东西、改写了契约语义 |
 | DP-03 | 没有通用检查；实际拥有者维护的模型在明确配置与前提下覆盖其建模范围 | 检查表第 15 问：给出具体交错 |
 | DP-04 | 没有 | 检查表第 15 问；设计评审「选择」的反向核对：撤除时在途工作归谁 |
@@ -148,6 +148,5 @@ abort、kill 或 unregister 只是停止请求。释放契约必须说明返回�
 
 需要稳定引用某条指导、解释其适用性或保存复核依据时，在本页维护——
 证据应针对具体条目和适用范围，**一次没有出错不足以认定提醒可以移除**。
-新事实研究按 [research](../.meta_harness/research/README.md) 准入；开发模型的对照实验归
-[evaluation](../.meta_harness/agents/evaluation/developer-model/README.md)；
+新事实研究按 [research](../.meta_harness/research/README.md) 准入；开发模型的对照实验见上文的开发模型评估；
 产品不变量的变化回到规格及其决定，**不由提醒的保留或退出代选**。

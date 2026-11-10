@@ -61,7 +61,7 @@ I16。准入成功之后、写 context 之前，`start` 与 `register` 判断本
 拒绝的发现由同一文件的 `attributeRefusals` 选出。派发命令用同一个函数。规则如下：
 
 1. `REFUSING_ATTRIBUTE_CODES` 列出拒绝的代码：全部属性代码。
-2. `REPORT_ONLY_FINDINGS` 列出只报告的发现，只有一项：条款为 `binding.milestone` 的 `attribute-binding-drift`。carry 之后，binding 保留派发时的里程碑，[交付协议](../../../../docs/engineering/delivery.md#契约变更与里程碑类型)把这条漂移写为预期状态。
+2. `REPORT_ONLY_FINDINGS` 列出只报告的发现，只有一项：条款为 `binding.milestone` 的 `attribute-binding-drift`。carry 之后，binding 保留派发时的里程碑，[交付协议](../../../../docs/engineering/delivery.md#破坏性契约改动)把这条漂移写为预期状态。
 3. 版本 1 的 binding 报告 `binding-v1`。正文「身份与责任」的交付线合格且为 `integration` 时，`binding-v1` 只报告。其余情况拒绝。版本 1 的 binding 没有 `line` 字段，所以交付线取正文。
 
 线归属表在 policy 所在的提交（工作树 HEAD）上缺失或不合格，或读卡与计算属性时出现已知的输入错误（`IntegrationError`、`InputError`）时，属性规则不可得。其他异常照常抛出，不当作规则不可得。
@@ -190,7 +190,7 @@ I13。task-sync 只在下列条件全部满足时把 `targetBase` 更新为 T：
 
 ## 提升 PR 的说明
 
-I17。`ri-notes` 为一条轨道生成提升 PR 的「所含的卡」与「契约变化」两节，规则归[进轨道 PR 的说明](../../../../docs/engineering/integration.md#进轨道-pr-的说明)。「所含的卡」的行格式归 `github-gate` 分支 `gate/README.md` 的「提升 PR 的说明」。命令只读 Git 与 GitHub，不写 ref、标签、context 或平台。
+I17。`ri-notes` 为一条轨道生成提升 PR 的「所含的卡」与「契约变化」两节，规则归[进轨道 PR 的说明](../../../../docs/engineering/integration.md#现行准入)。「所含的卡」的行格式归 `github-gate` 分支 `gate/README.md` 的「提升 PR 的说明」。命令只读 Git 与 GitHub，不写 ref、标签、context 或平台。
 
 ### 范围与 unit
 

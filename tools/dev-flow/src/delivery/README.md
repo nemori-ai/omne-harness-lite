@@ -61,7 +61,7 @@ pnpm run pre-admission --worktree /absolute/worktree --journal /absolute/task/pr
 
 ## 属性发现
 
-报告的 `attribute` 类别列出开放交付卡的属性发现。属性规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)，线与轨道归[多层分支集成](../../../../docs/engineering/integration.md#交付线)。观察报告中的属性发现只报告，不计入 `deviation`。`stock.attribute` 是这一类的数量。
+报告的 `attribute` 类别列出开放交付卡的属性发现。属性规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)，线与轨道归[多层分支集成](../../../../docs/engineering/delivery.md#卡属性与合法组合)。观察报告中的属性发现只报告，不计入 `deviation`。`stock.attribute` 是这一类的数量。
 
 `start` 新建 context 与派发命令按 [attributes.ts](attributes.ts) 的 `attributeRefusals` 拒绝。它拒绝全部代码，有两个例外只报告：条款为 `binding.milestone` 的 `attribute-binding-drift`（carry 之后的预期状态），以及正文交付线为 `integration` 时的 `binding-v1`。每个代码的改法在 `ATTRIBUTE_REMEDIES` 中，拒绝消息逐项写出。已有同绑定的 context 时重跑 `start` 只报告。精确条款见[集成工具规格](../integration/SPEC.md#授权与开工)的 I16。
 
@@ -130,7 +130,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号
 
   较长的路径在 `HEAD` 上有被跟踪的文件在它下面时，它是目录，命令逐个判定这些文件。全部是第一类时交叉才是第一类，否则按第一个不是的文件归第二类。`HEAD` 上没有这个路径时，按路径本身判定。`affected.pythonPaths` 不算登记。
 
-  登记的模式用 `node:path` 的 `matchesGlob` 匹配。匹配前，路径与模式中每段开头的 `.` 都换成同一个其他字符，所以 `*` 与 `**` 也匹配以 `.` 开头的段，与 test-runner 的匹配相同。其余语义仍可能不同：test-runner 把 `?`、`[`、`]`、`{`、`}` 当作普通字符，`matchesGlob` 把它们当作通配语法。现在的配置不含这些字符。这种不同会让登记过的 `.md` 被判为第一类，所以 dev-flow 与 test-runner 应当共用一个导出的匹配函数。这是尚未完成的剩余责任。规则与处置见[读写交叉的两类](../../../../docs/engineering/integration.md#读写交叉的两类)。
+  登记的模式用 `node:path` 的 `matchesGlob` 匹配。匹配前，路径与模式中每段开头的 `.` 都换成同一个其他字符，所以 `*` 与 `**` 也匹配以 `.` 开头的段，与 test-runner 的匹配相同。其余语义仍可能不同：test-runner 把 `?`、`[`、`]`、`{`、`}` 当作普通字符，`matchesGlob` 把它们当作通配语法。现在的配置不含这些字符。这种不同会让登记过的 `.md` 被判为第一类，所以 dev-flow 与 test-runner 应当共用一个导出的匹配函数。这是尚未完成的剩余责任。规则与处置见[读写交叉的两类](../../../../docs/engineering/integration.md)。
 - 标准输出的 JSON 另有 `readSets`（每张卡的 `members` 与 `pages`）、`readBasis`、`readConflicts` 与 `frozenReadConflicts`。`readBasis` 写明分类所用的基础：`{ "commit": <HEAD 的提交号> }`，读不到时为 `{ "unknown": <原因> }`，没有读写交叉、不需要分类时为 `null`。`readConflicts` 的项另有 `reason`，写明停止的原因，知道是哪个文件时还有 `file`。每个读写交叉另向标准错误写一行 `<行首> <写方> <写路径> -> <读方> <读路径>`，`read-overlap` 行在末尾加 ` (<reason>)`。先写全部 `read-overlap` 行，再写全部 `read-overlap-frozen` 行。
 - 写交集或产品语义读写交叉任一存在时退出1。只有工程方法与验证正文的读写交叉时退出0。命令读不到 `HEAD` 上的配置或文件清单时，每个读写交叉都归产品语义，`reason` 写明读不到的原因。读集文件的 `source` 不对应任何卡参数、同一张卡给了两份读集文件时退出2。
 
@@ -164,7 +164,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts 
    - binding 为版本2、交付线不是 `integration` 时，文件归属于别的线或联调轨道为 `change-outside-line`。归属按 [lines.ts](lines.ts) 的 `scopeOwners` 判断。交付线为 `integration` 的卡与版本1的 binding 不做这一项：版本1的 binding 没有交付线字段。
 4. 线归属表取 `taskBase` 提交中的 `docs/engineering/delivery-lines.json`，即派发时的表，本卡对表的修改不改变结果。`--lines` 指定另一个表文件。
 5. 契约核对只看本卡改了 `api` 目录的契约成员，契约成员取上一项的表与工作树中的表。没有这样的成员时不运行 `omne-contract-api`。有时运行钉住的 `omne-contract-api --diff <taskBase> --json`，比较 `taskBase` 上的快照与工作树的快照：
-   - 差异为 additive 而 binding 的契约变更为 `none`，或差异为 review 而契约变更不是 `breaking`，为 `contract-exceeds-declared`。改法：撤回改动；或请调度者升卡的修订、改契约变更并重新派发；线内的卡需要破坏性改动时按[交付协议](../../../../docs/engineering/delivery.md#契约变更与里程碑类型)停下交裁定。
+   - 差异为 additive 而 binding 的契约变更为 `none`，或差异为 review 而契约变更不是 `breaking`，为 `contract-exceeds-declared`。改法：撤回改动；或请调度者升卡的修订、改契约变更并重新派发；线内的卡需要破坏性改动时按[交付协议](../../../../docs/engineering/delivery.md#破坏性契约改动)停下交裁定。
    - 成员的快照差异读不出时为 `contract-change-unknown`。
    - 合并进来的别的卡对其他成员的快照变化不计入。
    - 版本1的 binding 没有契约变更字段，只在 `contract` 中列出成员，不核对。
@@ -207,7 +207,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts 
 node --experimental-strip-types tools/dev-flow/src/delivery/baseline-cli.ts read <baseline 卡号> --out <文件> [--config <文件>]
 ```
 
-命令读 baseline 卡的全部评论，找出登记者发的 `json omne-contract-baseline:v1` 区块，按评论时间合并，把合并后的区块写到 `--out`。`omne-contract-api --baseline <文件>` 读这个文件，核对里程碑内的累计变化。登记规则见[里程碑内的规则](../../../../docs/engineering/integration.md#里程碑内的规则)。命令只发 GET 请求，不写评论。
+命令读 baseline 卡的全部评论，找出登记者发的 `json omne-contract-baseline:v1` 区块，按评论时间合并，把合并后的区块写到 `--out`。`omne-contract-api --baseline <文件>` 读这个文件，核对里程碑内的累计变化。登记规则见[里程碑内的规则](../../../../docs/engineering/delivery.md#破坏性契约改动)。命令只发 GET 请求，不写评论。
 
 1. 登记者是 publish 环境的审批者：User 审批者的 login 与 node ID 都要相同，Team 审批者看 active 成员关系。别人发的区块不读，不改基线，也不加 `breakingCards`。标准错误为每条这样的评论写一行 `baseline: ignored`，JSON 的 `ignored` 列出它们。
 2. 评论按创建时间从旧到新处理，同一时间按评论 ID。同一成员取最晚的区块。较晚的区块可以只写受影响的成员，也可以写基线之后加入的成员。
@@ -282,7 +282,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts <dispat
 - 卡不在配置的 Project 中时退出2。命令不把卡加入 Project。
 - 云端会话的代理拦截 GraphQL，命令在云端直接退出2。云端的判断与 `start` 相同：`OMNE_DELIVERY_FACTS=workflow`，或没有设置它而 `CCR_AGENT_PROXY_ENABLED=1`。云端改 Stage 用 `delivery-stage`，日期字段留待本地会话补写。
 
-`gh` 需要 Projects 的读写权限（`gh auth refresh -s project`）。Status 是 Stage 字段，只由本卡的调度者写入，规则见[交付操作](../../../../docs/engineering/agent-delivery.md#4-推进和更新状态)。命令不判断接受是否有效。
+`gh` 需要 Projects 的读写权限（`gh auth refresh -s project`）。Status 是 Stage 字段，只由本卡的调度者写入，规则见[交付操作](../../../../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#开工)。命令不判断接受是否有效。
 
 ## 派发命令
 
@@ -332,7 +332,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 
 spec 的 `revision` 大于卡上「- 交付修订：<N>」的 N 时，`post` 把这次派发看作同一张卡的新修订。命令只比较这两个修订号，不从正文的其他内容推断。
 
-新修订的范围改动不由 `post` 写入。按[交付操作](../../../../docs/engineering/agent-delivery.md#2-建卡或修订卡)，修订先经卡 owner 授权，再由正文单写者写到卡上。派发前核对不合时，同样先修订卡，再派发，见[取任务和派发](../../../../docs/engineering/agent-delivery.md#3-取任务和派发)。`post` 只改卡的正文两处：
+新修订的范围改动不由 `post` 写入。按[交付操作](../../../../docs/engineering/delivery.md#卡就是交接信息包)，修订先经卡 owner 授权，再由正文单写者写到卡上。派发前核对不合时，同样先修订卡，再派发，见[取任务和派发](../../../../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#开工)。`post` 只改卡的正文两处：
 
 1. 「- 交付修订：<N>」一行改为 spec 的修订号。
 2. 「分支、基线与task context」小节中旧的 binding 区块（`omne-integration-binding:v2`，也包括 v1），连同 `bind` 写在它上面的「正式派发：」一行，换成一行派发前的说明：`未登记 binding。修订 <新> 待派发，修订 <旧> 的 binding 已撤下；计划集成路线：<route>，最终终点：<completionTarget>。`。卡上没有 binding 区块时只改第1处。
@@ -480,4 +480,4 @@ validate 按下列规则检查，任一项不满足就退出 2，不输出 STRUC
 
 证据里多出的条目（例如线包里的命令）不报错。结果的 `matchedCommands` 是消息里不同命令的条数，`extraEntries` 按原文列出与消息命令都不匹配的证据项。非 0 退出码不使 validate 失败，结果的 `nonZeroExits` 逐条列出。例如带 `--timeout` 的等待命令演练时退出 3。Reduce 逐条说明这些退出码。
 
-GENERATED 只证明文件已生成。STRUCTURE_CHECKED 只证明字段、修订、常见敏感模式、字节和演练证据的覆盖通过。它不证明命令输出正确。Reduce 按返回的 remainingGuards 逐项核对后，才能记录 VALIDATED。常见格式扫描不能证明没有其他秘密。之后按本次授权直接发送或通过宿主侧边栏、IDE 打开 path 供人转发。直接发送由 Reduce 使用通信工具完成，分别读回发送成功、收到与认领；生成器不负责通信。人工路径分别记录打开结果和转发声明，queued 不算已打开。完整阶段规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。
+GENERATED 只证明文件已生成。STRUCTURE_CHECKED 只证明字段、修订、常见敏感模式、字节和演练证据的覆盖通过。它不证明命令输出正确。Reduce 按返回的 remainingGuards 逐项核对后，才能记录 VALIDATED。常见格式扫描不能证明没有其他秘密。之后按本次授权直接发送或通过宿主侧边栏、IDE 打开 path 供人转发。直接发送由 Reduce 使用通信工具完成，分别读回发送成功、收到与认领；生成器不负责通信。人工路径分别记录打开结果和转发声明，queued 不算已打开。完整阶段规则归[负责人状态](https://github.com/nemori-ai/omne-harness-lite/blob/454d1574ef9fe69bb99c95bc962c0dae4c21aaad/docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)（已退役，链接指向固定提交）。

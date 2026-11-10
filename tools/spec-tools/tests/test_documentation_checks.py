@@ -211,3 +211,20 @@ def test_skill_mirrors_exclude_archived_directories(tmp_path):
     assert result.returncode == 1
     assert f"skill mirror differs: {Path('active/SKILL.md')}" in result.stdout
     assert "old.legacy/SKILL.md" not in result.stdout
+
+
+def test_process_keyword_in_agents_needs_owner_link(tmp_path):
+    base(tmp_path)
+    write(tmp_path / "docs/AGENTS.md", "# Docs\n\n合入前先跑准入。\n")
+    result = run(tmp_path)
+    assert result.returncode == 1
+    assert ("docs/AGENTS.md:3: process keyword '准入' without owner link; "
+            "链到拥有者，见 docs/engineering/README.md#流程事实在哪") in result.stdout
+
+
+def test_process_keyword_with_link_or_outside_agents_passes(tmp_path):
+    base(tmp_path)
+    write(tmp_path / "docs/flow.md", "# Flow\n\n合入前先跑准入，守住硬线。\n")
+    write(tmp_path / "docs/AGENTS.md", "# Docs\n\n合入前先跑[准入](flow.md#flow)。\n\n"
+                                       "```text\nHarness: trailer\n```\n")
+    assert run(tmp_path).returncode == 0

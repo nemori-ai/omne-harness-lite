@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -18,6 +19,11 @@ ROOTS = ("README.md", "CONTRIBUTING.md", "AGENTS.md", "CLAUDE.md", "docs", "pack
          "tools", "scripts", ".agents", ".claude", ".codex", ".meta_harness")
 IGNORED_DIRECTORIES = {".git", ".venv", "node_modules", ".dist", "dist", "build",
                        "__pycache__", ".pytest_cache", "tmp", ".worktrees"}
+# A process fact has one owner. An AGENTS.md line that names one of these facts links to the
+# owner instead of restating it.
+PROCESS_KEYWORDS = ("硬线", "准入", "风险级别", "trailer")
+INLINE_LINK = re.compile(r"\[[^\]]*\]\([^)\s]+[^)]*\)")
+FENCE = re.compile(r"^\s*(```|~~~)")
 
 
 def _git(root: Path, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -94,6 +100,22 @@ def check_skill_mirrors(root: Path, errors: list[str]) -> None:
 
 
 
+def check_process_keywords(root: Path, path: Path, errors: list[str]) -> None:
+    fenced = False
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if FENCE.match(line):
+            fenced = not fenced
+            continue
+        if fenced or INLINE_LINK.search(line):
+            continue
+        for word in PROCESS_KEYWORDS:
+            if word in line:
+                errors.append(f"{path.relative_to(root).as_posix()}:{number}: process keyword "
+                              f"'{word}' without owner link; "
+                              "链到拥有者，见 docs/engineering/README.md#流程事实在哪")
+                break
+
+
 def check(root: Path):
     errors: list[str] = []
     record = root / ".meta_harness/design/record"
@@ -116,6 +138,8 @@ def check(root: Path):
                 validate_link(path, raw, root)
             except ValueError as error:
                 errors.append(f"{path.relative_to(root)}: {error}")
+        if path.name == "AGENTS.md":
+            check_process_keywords(root, path, errors)
     check_skill_mirrors(root, errors)
     return errors, len(files)
 
