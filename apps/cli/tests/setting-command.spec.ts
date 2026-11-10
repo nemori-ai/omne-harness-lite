@@ -17,6 +17,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { commandUnrecognized } from './support/expected.ts'
 import { builtBin, createSandbox, runCliAsync, type Sandbox } from './support/cli-process.ts'
 import {
+  closedPort,
   defaultAnswer,
   issuedProof,
   startFakeService,
@@ -299,6 +300,24 @@ describe('setting show', () => {
     const result = await cli(['setting', 'show', 'Web', ITEM])
     expect(result.code).toBe(3)
     expect(result.stdout).toBe('Result: not-writable\n')
+    expect(result.stderr).toBe('')
+  })
+
+  it('prints an uncertain result and exits 5 when the service is not running', async () => {
+    const service = await serve()
+    await login(service)
+    const port = await closedPort()
+    const result = await cli([
+      'setting',
+      'show',
+      'Web',
+      ITEM,
+      '--server',
+      `http://127.0.0.1:${port}`,
+    ])
+    expect(result.code).toBe(5)
+    expect(result.stdout).toBe('Result: uncertain\n')
+    expect(result.stderr).toBe('omne setting show: result uncertain\n')
   })
 })
 

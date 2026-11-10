@@ -66,6 +66,12 @@ describe('modelProviderBodyContract: judge', () => {
     expect(judge(plainBody({ credentials: [] }))).toEqual({ ok: true })
   })
 
+  it('accepts an endpoint without an end marker and reads it without one', () => {
+    const plain = plainBody({ endpoint: { url: 'https://gateway.test/v1' } })
+    expect(judge(plain)).toEqual({ ok: true })
+    expect(readModelProviderBody(body(plain))?.endpoint).toEqual({ url: 'https://gateway.test/v1' })
+  })
+
   it.each([
     ['a name outside the provider alphabet', { name: 'Test Gateway' }, 'invalid-name'],
     ['an empty protocol', { protocol: '' }, 'invalid-protocol'],
@@ -77,12 +83,61 @@ describe('modelProviderBodyContract: judge', () => {
       'invalid-endpoint',
     ],
     [
+      'an endpoint with a user name',
+      { endpoint: { url: 'https://u@gateway.test/v1' } },
+      'invalid-endpoint',
+    ],
+    [
+      'an endpoint with a password',
+      { endpoint: { url: 'https://:p@gateway.test/v1' } },
+      'invalid-endpoint',
+    ],
+    [
+      'an endpoint with a fragment',
+      { endpoint: { url: 'https://gateway.test/v1#x' } },
+      'invalid-endpoint',
+    ],
+    ['an endpoint that is not a URL', { endpoint: { url: 'gateway test' } }, 'invalid-endpoint'],
+    [
+      'an endpoint that is not an object',
+      { endpoint: 'https://gateway.test/v1' },
+      'invalid-endpoint',
+    ],
+    [
       'an empty end marker',
       { endpoint: { url: 'https://gateway.test/v1', endMarker: '' } },
       'invalid-endpoint',
     ],
+    [
+      'an end marker that is not a string',
+      { endpoint: { url: 'https://gateway.test/v1', endMarker: 7 } },
+      'invalid-endpoint',
+    ],
     ['accounting without a cost unit', { accounting: { place: 'x' } }, 'invalid-accounting'],
+    [
+      'accounting with an empty cost unit',
+      { accounting: { place: 'x', costUnit: '' } },
+      'invalid-accounting',
+    ],
+    ['accounting without a place', { accounting: { costUnit: 'x' } }, 'invalid-accounting'],
+    [
+      'accounting with an empty place',
+      { accounting: { place: '', costUnit: 'x' } },
+      'invalid-accounting',
+    ],
+    ['accounting that is not an object', { accounting: 'x' }, 'invalid-accounting'],
+    ['missing credentials', { credentials: undefined }, 'invalid-credentials'],
     ['credentials that are not a list', { credentials: CREDENTIAL }, 'invalid-credentials'],
+    [
+      'a credential entry that is not an object',
+      { credentials: ['apiKey'] },
+      'invalid-credentials',
+    ],
+    [
+      'a credential entry without an item',
+      { credentials: [{ ...CREDENTIAL, item: undefined }] },
+      'invalid-credentials',
+    ],
     [
       'a credential item with an invalid name',
       { credentials: [{ ...CREDENTIAL, item: 'api key' }] },
@@ -111,6 +166,56 @@ describe('modelProviderBodyContract: judge', () => {
       ok: false,
       rejected: 'not-an-object',
     })
+    expect(judge([plainBody()])).toEqual({ ok: false, rejected: 'not-an-object' })
+  })
+})
+
+describe('modelProviderBodyContract: hooks', () => {
+  const contract = modelProviderBodyContract()
+
+  it('derives the settings definition without a context, at the unpinned version', () => {
+    const definitions = contract.settings?.(body(plainBody()))
+    expect(definitions).toMatchObject({
+      providerId: MODEL_PROVIDER_CATEGORY,
+      definitionId: 'test-gateway',
+      version: '0',
+    })
+    expect(definitions?.items).toEqual([
+      {
+        id: 'apiKey',
+        groupId: 'credentials',
+        category: 'binding',
+        presentation: {
+          title: CREDENTIAL.title,
+          description: CREDENTIAL.description,
+          impact: CREDENTIAL.impact,
+          clear: CREDENTIAL.clear,
+          adoption: 'next-read',
+        },
+        valueSchema: { type: 'string' },
+        default: { kind: 'absent' },
+        merge: 'override',
+        sensitivity: 'secret',
+      },
+    ])
+  })
+
+  it('derives the settings definition at the pinned definition version', () => {
+    expect(contract.settings?.(body(plainBody()), { definition: '3' })?.version).toBe('3')
+  })
+
+  it('derives no declarations and no references', () => {
+    expect(contract.deriveDeclarations(body(plainBody()))).toEqual({ entries: [] })
+    expect(contract.references(body(plainBody()))).toEqual([])
+  })
+
+  it('throws when a hook receives a body the registry would have refused', () => {
+    const refused = body(plainBody({ protocol: '' }))
+    expect(() => contract.settings?.(refused)).toThrow(
+      'model provider body failed judgment: invalid-protocol',
+    )
+    expect(() => contract.deriveDeclarations(refused)).toThrow(TypeError)
+    expect(() => contract.references(refused)).toThrow(TypeError)
   })
 })
 

@@ -206,11 +206,27 @@ describe('the body judgment of a settings declaration', () => {
     expect(judgeSettings(valid)).toEqual({ ok: true })
   })
 
+  it.each(['preference', 'binding', 'placement-identity', 'governance'])(
+    'accepts an item of the category %s',
+    category => {
+      expect(judgeSettings({ ...valid, items: [{ ...item, category }] })).toEqual({ ok: true })
+    },
+  )
+
   it.each([
     ['a declaration that is not an object', 'settings'],
     ['a schema that is not an object', { ...valid, schema: true }],
     ['missing defaults', { schema: valid.schema, items: valid.items }],
     ['items that are not a list', { ...valid, items: item }],
+    ['missing items', { schema: valid.schema, defaults: valid.defaults }],
+    ['an item that is not an object', { ...valid, items: ['exa.apiKey'] }],
+    ['an item without a path', { ...valid, items: [{ ...item, path: undefined }] }],
+    ['a path that is not a list', { ...valid, items: [{ ...item, path: 'exa.apiKey' }] }],
+    ['a path segment that is not a string', { ...valid, items: [{ ...item, path: ['exa', 7] }] }],
+    ['an item without a category', { ...valid, items: [{ ...item, category: undefined }] }],
+    ['a category that is not a string', { ...valid, items: [{ ...item, category: 1 }] }],
+    ['an item without a sensitivity', { ...valid, items: [{ ...item, sensitive: undefined }] }],
+    ['an item without a presentation', { ...valid, items: [{ ...item, presentation: undefined }] }],
     ['an empty path', { ...valid, items: [{ ...item, path: [] }] }],
     ['an empty path segment', { ...valid, items: [{ ...item, path: ['exa', ''] }] }],
     ['an unknown category', { ...valid, items: [{ ...item, category: 'secret' }] }],

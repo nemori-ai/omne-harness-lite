@@ -160,6 +160,45 @@ describe('constructing the transport', () => {
       } as unknown as Partial<PiTransportConfig>,
     ],
     [
+      'a route accounting without a place',
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/',
+            endMarker: null,
+            accounting: { costUnit: 'c' },
+            auth: { kind: 'bearer', item: 'apiKey' },
+          },
+        },
+      } as unknown as Partial<PiTransportConfig>,
+    ],
+    [
+      'a route accounting without a cost unit',
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/',
+            endMarker: null,
+            accounting: { place: 'p' },
+            auth: { kind: 'bearer', item: 'apiKey' },
+          },
+        },
+      } as unknown as Partial<PiTransportConfig>,
+    ],
+    [
+      'a route auth without an item',
+      {
+        routes: {
+          r: {
+            url: 'https://127.0.0.1/',
+            endMarker: null,
+            accounting: { place: 'p', costUnit: 'c' },
+            auth: { kind: 'bearer' },
+          },
+        },
+      } as unknown as Partial<PiTransportConfig>,
+    ],
+    [
       'a route auth with an empty item',
       {
         routes: {
@@ -196,6 +235,21 @@ describe('constructing the transport', () => {
       expect(() => createPiTransport(configWith(overrides))).toThrow(RangeError)
     },
   )
+
+  it('accepts a route without auth', () => {
+    expect(() =>
+      build({
+        routes: {
+          r: {
+            url: ROUTE_URL,
+            endMarker: null,
+            accounting: { place: 'p', costUnit: 'c' },
+            auth: null,
+          },
+        },
+      }),
+    ).not.toThrow()
+  })
 
   it('refuses network resources that the network resources factory did not make', () => {
     const foreign = { close: () => Promise.resolve() }
