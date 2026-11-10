@@ -2,7 +2,7 @@
 id: RFC-0014
 title: 单卡单会话与 gate 减负
 revision: 1
-status: review
+status: accepted
 owner: PanQiWei
 ---
 
@@ -56,18 +56,18 @@ owner: PanQiWei
 ## 决定范围
 
 - 有权决定者：PanQiWei（项目负责人，交付流程与集成规则的拥有者）
-- 决定日期及对应revision：未决定
-- 采用范围：尚未采用
-- 不采用范围及必要理由：未决定
+- 决定日期及对应revision：2026-11-10，revision 1。PanQiWei 在第十四程会话里对「建议接受」的回复原话：「认可你的建议，继续推进吧」。
+- 采用范围：「建议与改变范围」全部条款。
+- 不采用范围及必要理由：无
 - 未决与依赖停止点：`github-gate` 分支的改动只有管理员能做，由 PanQiWei 做或授权
 
 ## 写回现行正文
 
 | 采用条款范围 | 规范拥有者与目标源 | 写回定位状态 | 切换或解除依据及确认者 |
 | --- | --- | --- | --- |
-| 单卡单会话、卡即交接信息包 | [交付协议](../engineering/delivery.md)；`omne-card` 技能 | 待写回 | 尚未采用 |
-| attempt、binding、双基线、task-sync、轨道树退役 | [多层分支规则](../engineering/integration.md)；`tools/dev-flow` | 待写回 | 尚未采用 |
-| 准入步骤调整与 `loop:status` 移位 | [测试与准入工具说明](../../tools/test-runner/README_ZH.md)；[整洁回路](../clean-loop.md) | 待写回 | 尚未采用 |
+| 单卡单会话、卡即交接信息包 | [卡与交接信息包](../engineering/delivery.md)；`omne-card` 技能 | 已写回 | #1179 卡分支，随 #1179 合入 mainline 生效；PanQiWei |
+| attempt、binding、双基线、task-sync、轨道树退役 | [轨道与 gate](../engineering/integration.md)；`tools/dev-flow` | 待写回 | #1179 切片 10 删除 dev-flow 的交付部分时写回 |
+| 准入步骤调整与 `loop:status` 移位 | [测试与准入工具说明](../../tools/test-runner/README_ZH.md)；[整洁回路](../clean-loop.md) | 待写回 | #1179 切片 09 写回 |
 
 ## 后继关系与维护
 
