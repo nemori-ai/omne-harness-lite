@@ -4,10 +4,12 @@
 
 ## 使用方式
 
-根入口导出两个保管库函数，用途不同：
+根入口导出两个保管库函数，用途不同。两者都在 settings-local 的秘密保管库文件之上工作，本包只负责 Model 的绑定键与判定：
 
-- `createLocalCustodian({ path, factorySecret })`：`path` 上没有文件时新建保管库；已有可读文件时直接采用它，不覆盖。
+- `createLocalCustodian({ path, factorySecret })`：`path` 上没有文件时新建保管库，工厂秘密成为官方绑定；已有可读文件时直接采用它，不覆盖。
 - `openLocalCustodian({ path })`：打开已有保管库，返回 `{ kind: 'open', custodian }`；文件缺失、损坏或含冲突行时返回 `{ kind: 'unavailable', cause }`，不创建文件。
+
+根入口还导出 Model 的绑定键：`MODEL_FACTORY_SECRET_KEY`（工厂秘密的官方绑定）与 `modelCredentialBindingKey(reference)`（租户凭据的绑定），给直接经 settings-local 管理面读写保管库的装配使用，例如 `harness-server setup`。
 
 ```ts
 import { createLocalCustodian, openLocalCustodian } from '@omne-harness/model-host-local'
@@ -34,11 +36,11 @@ if (reopened.kind === 'open') {
 }
 ```
 
-Cordis 宿主用 `LocalCredentialPlugin` 装载同一保管库，配置 `{ path, factorySecret? }`。保管库已由配置命令建好时只给 `path`。装载与撤除的行为见 [Cordis 集成](cordis.md)。
+Cordis 宿主用 `LocalCredentialPlugin` 装载同一保管库，配置 `{ path, factorySecret? }`。保管库已由 `harness-server setup` 建好时只给 `path`。装载与撤除的行为见 [Cordis 集成](cordis.md)。
 
-### 保管库初始化命令
+### 在宿主上建保管库
 
-要在一台宿主上让 `LocalCredentialPlugin` 读到工厂秘密，先由人在该宿主上运行一次保管库初始化命令：`pnpm --filter @omne-harness/model-host-local exec node --experimental-strip-types src/vault-init-cli.ts --path <路径>`。命令从关闭回显的终端读一个密钥，在用户目录之下的空路径新建保管库，把密钥写成工厂秘密，输出 `已建立：<路径>` 或 `失败：<原因代码>`。它经 `createLocalCustodian` 建库，不属于插件，不从根入口导出，只建工厂秘密。运行责任在持有密钥的人，agent 不取密钥值。路径规则、失败原因表与权限做法见 [SPEC](../SPEC.md#保管库初始化命令)。
+要在一台宿主上让 `LocalCredentialPlugin` 读到工厂秘密，先由人在该宿主上运行一次 `harness-server setup`。命令从关闭回显的终端读一个密钥，用 settings-local 的 `initSecretVault` 在用户目录之下的空路径新建保管库，把密钥写成 `MODEL_FACTORY_SECRET_KEY` 下的官方绑定。路径规则、失败原因表与权限做法见 [settings-local 的秘密保管](../../../assets/settings-local/SPEC.md#secret-custody)。运行责任在持有密钥的人，agent 不取密钥值。
 
 ### 本地发送路径
 

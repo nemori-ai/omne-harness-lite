@@ -734,7 +734,7 @@ CurrentConditions.read 的 previous 是上一次已用于请求准备的条件�
 | select | 租户核对。主体能否使用该档案范围由选择端口按 Model 契约核验。选择不授予发送资格 | 没有操作身份。同样的输入与同样的来源修订得到同样的结果。设置可以变化，所以每次准备都重新求值 | 只读，不加锁。设置变化与读取并发时，结果带来源证据，由 Agent 比较 | 无 | 值。只作为最终请求的一部分保存，记录之前可丢弃 |
 | ModelContextReader.read | 每次核验模型这个消费者的当前资格。消费者在装配时绑定 | 只读。同一来源修订、同一已采用覆盖与同一压缩转换依据得到同一读取结果 | 不阻塞生产者的更新。读取期间的更新由来源证据区分 | 无 | 值。未采用的读取被后来的读取取代时丢弃。覆盖在最终请求记录时采用，保存在 checkpoint |
 | CurrentConditions.read | 租户核对。读取资格不等于推进资格 | 只读。同一 previous 与同一来源得到同一值 | 只读，不加锁 | 无 | 值。条件变化只使未记录的候选重算 |
-| prepare | 租户核对。advance 必须是当前有效的执行挂接 | 纯计算。输入相同（含 previous 与调模型之前位置的经过）返回已有结果，输入有合法变化就重新计算 | 同一 execution 同一时刻至多一个未记录的准备，由 Loop 的串行推进和单执行槽保证 | 无 | checkpoint 只保存 needs-compaction 与 cannot-fit，直到新的准备取代或新 step 开始。assembled 与 ready 只在内存。最终请求记录之前崩溃时，Loop 回到 I1，用 checkpoint 的输入批重新准备（R2-D292） |
+| prepare | 租户核对。advance 必须是当前有效的执行挂接 | 纯计算。输入相同（含 previous 与调模型之前位置的经过）返回已有结果，输入有合法变化就重新计算 | 同一执行挂接同一时刻至多一个未记录的准备，由 Loop 的串行推进和单执行槽保证。同进程接管时，被取代挂接已开始的准备可能尚未结束，它的结果不能再提交；提供者因此答的 unavailable 是依赖不可用，Loop 按依赖等待 | 无 | checkpoint 只保存 needs-compaction 与 cannot-fit，直到新的准备取代或新 step 开始。assembled 与 ready 只在内存。最终请求记录之前崩溃时，Loop 回到 I1，用 checkpoint 的输入批重新准备（R2-D292） |
 | derive | 同 prepare | 同一 action、同一进度与同一结果得到同一返回，认回同一步不重复计数 | 步骤串行。同一计划同一时刻至多一个步骤在途 | 没有新的事件种类。步骤结果以 producer 事件投影，转换消息以 message 事件投影，均由 Agent 提交时产生 | 进度保存在 checkpoint 的压缩状态。ended 之后不接受新步骤 |
 | resume | 同 prepare | 同一原准备与同一提交依据得到同一重算结果。原准备的 original 固定了调模型之前位置的经过，resume 不另接收它 | 与 derive 共用单执行槽 | 无 | 返回值取代原准备，计划结束。checkpoint 的 compaction 保留到本 step 结束，新 step 开始时清空 |
 

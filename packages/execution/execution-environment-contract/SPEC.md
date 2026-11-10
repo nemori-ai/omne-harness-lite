@@ -6,7 +6,7 @@
 
 保留终端和写入效果增量依据 [R2-D37 与 R2-D38](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6579990443)采用。保留终端是逐获取归属规则的明确例外，范围见[保留终端](#保留终端)。其余身份、授权和普通终端行为保持原承诺。
 
-[终端段的完成与字节归属](#终端段的完成与字节归属)与[一次性命令留下的进程](#一次性命令留下的进程)两节依据 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 卡正文的「总体设计」写入，未经技术接受。两节都由宿主提供者在 Linux 上兑现，Windows 与 macOS 上没有兑现。两节的形式依据在 [verification/](verification/README.md)。
+[终端段的完成与字节归属](#终端段的完成与字节归属)与[一次性命令留下的进程](#一次性命令留下的进程)两节依据 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 卡正文的「总体设计」写入，未经技术接受。两节由宿主提供者兑现，各平台的兑现程度见 host-local 的[宿主层性质与平台对照](../execution-environment-host-local/SPEC.md#宿主层性质与平台对照未接受)。两节的形式依据在 [verification/](verification/README.md)。
 
 ## 范围与依据
 
@@ -195,7 +195,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 ### 终端段的完成与字节归属
 
-依据是 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 卡正文的「总体设计」，未经技术接受。形式依据是 [TerminalSegments](verification/models/README.md#terminalsegments)。宿主提供者在 Linux 上兑现本节，见 [execution-environment-host-local 的持久终端](../execution-environment-host-local/SPEC.md#持久终端)。Windows 终端还没有兑现，仍按观察窗口归属字节，见该 SPEC 的已知偏离。
+依据是 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 卡正文的「总体设计」，未经技术接受。形式依据是 [TerminalSegments](verification/models/README.md#terminalsegments)。宿主提供者在 Linux 上兑现本节，见 [execution-environment-host-local 的持久终端](../execution-environment-host-local/SPEC.md#持久终端)。macOS 用同一份驱动兑现本节。Windows 终端用随包的 ConPTY 按同一规则兑现本节，前提见该 SPEC 的 [Windows 终端](../execution-environment-host-local/SPEC.md#windows-终端未接受)。
 
 终端段的结局在 `OutputSummary` 的 terminal 分支带可选的 `between`（`BetweenSegments`）：保留的段间字节，以及观察字节数与丢弃字节数。不按哨兵归属字节的提供者不带它。
 
@@ -208,7 +208,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 ### 一次性命令留下的进程
 
-本节由宿主提供者在 Linux 上兑现，见 host-local 的[一次性命令留下的进程的兑现](../execution-environment-host-local/SPEC.md#留下的进程的兑现)。Windows 与 macOS 上没有兑现。依据是 #1137 卡正文的「总体设计」，未经技术接受。形式依据是 [ProcessCustody](verification/models/README.md#processcustody)，性质与条款的对应见 [verification/formal-mapping.md](verification/formal-mapping.md)。
+本节由宿主提供者在 Linux 上兑现，见 host-local 的[一次性命令留下的进程的兑现](../execution-environment-host-local/SPEC.md#留下的进程的兑现)。macOS 只兑现停止一侧，不保留进程。Windows 的兑现是未接受的设计，见 host-local 的 [Windows 的兑现](../execution-environment-host-local/SPEC.md#windows-的兑现未接受)。依据是 #1137 卡正文的「总体设计」，未经技术接受。形式依据是 [ProcessCustody](verification/models/README.md#processcustody)，性质与条款的对应见 [verification/formal-mapping.md](verification/formal-mapping.md)。
 
 一次性命令的执行域里可以有主进程之外的进程，例如命令用 `&` 起的服务。主进程退出之后，这些进程叫留下的进程。任何时刻，每个活着的进程都恰好有一个归属方：本次获取，或一个保留范围。
 

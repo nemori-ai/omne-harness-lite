@@ -361,3 +361,17 @@ consume 与 inspect 先认回原 started 或 rejected 历史，不用新规则�
 缓存身份取原公开 schema 的完整身份和定义摘要。相同标签下的不同定义不复用同一检查对象；恢复采用 writer 固定的定义。未知 vocabulary 或 provider 不支持的构造返回 unsupported。provider 关闭、容量拒绝及暂时失败返回 unavailable，schema 不匹配返回 invalid。
 
 本适配器只构造校验副本。正文和 schema 定义中的每个数字都按符号、去零系数及十进制指数比较原词法与 Number 回写词法。两者数学值相等且 Number 有限时，才把副本交给 provider 的 exact-or-reject 路径。正负零统一按数学零校验。不能无损投影的数字返回 unsupported，不转成字符串，不舍入原值。原正文、JsonValue、data 及 schema 身份保持不变。本版限制不是通用任意精度 JSON Schema 的支持承诺。
+
+## Web 提供者（`./web` 子路径）
+
+`@omne-harness/tool-host-local/web` 导出 `createWebAccess({ search, fetch, exaKey })`，返回 `@omne-harness/tool-definitions` 拥有的 `WebAccess`。它是 Web 作者窄口的单机实现：本机 fetch 加 Exa `/search` 客户端。入口不导入 Cordis；应用在每次调用上附着返回值。
+
+- `exaKey` 返回本次调用对搜索 key 的受限能力（`ToolCredentialCapability<string>`）。提供者不读环境变量，不保存 key；key 只在 `use` 回调里交给一次 Exa 请求。凭据失败的映射：`missing` 为 `unconfigured`，`denied` 为 `denied`，`invalid` 与 `unavailable` 为 `unavailable`（诊断只含字段名或依赖名，不含秘密）。`missing` 时不发出任何请求。
+- Exa：POST `search.endpoint`，头 `x-api-key`，体 `{ query, type, numResults, contents.highlights.maxCharacters }`。200 的答复在边界用 zod 解析成条目：标题缺省为网址，摘录是高亮拼接后按 `highlightChars` 个字符截断，发布时间缺省不出现。零条是成功的空数组。HTTP 401 为 `denied`，402 为 `quota-exhausted`，429 为 `rate-limited`，其余非 2xx 为 `upstream`（带 status）。请求不跟随重定向：任何 3xx 同样答 `upstream`（带 status），不发第二次请求，key 不发往第二个地址。答复不是 JSON、形状不对或媒体类型不是 JSON 时为 `unavailable`（带诊断）；答复超过 4 MiB 无法截断，为 `too-large`。不自动重试。
+- fetch：只接受绝对 http 或 https 网址，带用户名或密码的网址和其他协议为 `invalid-url`，片段被去掉。只发 GET，带固定 `accept` 与 `user-agent`，不带 cookie 或凭据头，不执行脚本。自写跳转循环：3xx 带 `Location` 时跟随，最多 `maxRedirects` 跳，再多一跳为 `redirect-limit`；跳转目标同样要通过网址检查；3xx 不带 `Location` 与其他非 2xx 为 `upstream`。媒体类型为 `text/*`、HTML、JSON、XML 及 `+json`、`+xml` 时读取，其余（含缺少 `Content-Type`）为 `not-text`。
+- 字节与时间：响应体流式读取，按解压后的字节计数，到 `maxBodyBytes` 截断并标 `truncated: true`，不以失败结束；截断处的半个多字节字符被丢弃。字符集按 `Content-Type` 的 charset 解码，缺省 UTF-8，`TextDecoder` 不认识的标签为 `not-text`。每个 `not-text` 的 `mediaType` 都是解析后的媒体类型（小写、不带参数），不是原始 `Content-Type`。总时长用 `AbortSignal.any` 合并调用方信号与 `timeoutMs`，覆盖全部跳转与正文读取；超时为 `timeout`。undici 的头与体计时器不低于 1 秒。
+- HTML 用 turndown 7.2.5 转 Markdown：先删 `head`、`title`、`script`、`style`、`noscript`、`template`、`iframe`、`object`、`embed`、`svg`、`canvas`，`javascript:` 与 `data:` 链接只留文字，`data:` 图片只留 alt。转换抛出（极深嵌套的栈溢出）时回退为纯文本，不抛出。纯文本、Markdown、JSON、XML 原样返回。不做正文抽取、PDF 与浏览器渲染。
+- 取消：调用方信号中止后返回 `network`（诊断 `cancelled by the caller`），不重发。Exa 请求发出后被取消，额度不退还；fetch 只发 GET，但不能保证目标站点没有副作用。连接拒绝等网络错误为 `network`，诊断是错误码。
+- 资源：每次调用新建一个 undici `Agent`，调用结束销毁，不跨调用保留连接。
+
+已知限制：本机档直连宿主网络，不经执行环境的设施；没有私网拦截与出口政策，沙箱与多租户部署的出口控制不在本提供者内。未验证：GBK 等多字节页面的端到端解码、`fetch` 路径下的 br 解压、Exa 402 与 429 的真实响应体（替身按文档构造）。验证见 [fetch 用例](tests/web/fetch.spec.ts)与 [search 用例](tests/web/search.spec.ts)，都只对 127.0.0.1 的夹具运行。

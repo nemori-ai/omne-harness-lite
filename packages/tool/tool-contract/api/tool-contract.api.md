@@ -127,6 +127,7 @@
 - `ToolRuntime` · `operations.d.ts`
 - `ToolSavedReceipt` · `result-delivery.d.ts`
 - `ToolSchemaIdentity` · `definitions.d.ts`
+- `ToolSettingPresentation` · `authoring.d.ts`
 - `ToolSettingsDeclaration` · `authoring.d.ts`
 - `ToolStartRecord` · `ports.d.ts`
 - `ToolState` · `results.d.ts`
@@ -167,6 +168,7 @@
 - `resolveToolOperationRef` · `reference.d.ts`
 - `returnSummary` · `return-description.d.ts`
 - `selectCommandText` · `command-call.d.ts`
+- `toolSettingDefinitions` · `settings.d.ts`
 - `toolsCapabilityOf` · `tools-capability.d.ts`
 
 ## 入口 `./binding` · `binding.d.ts`
@@ -662,6 +664,7 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { Modality } from '@omne-harness/modality';
 import type { Outcome } from '@omne-harness/operation-result';
+import type { SettingItem } from '@omne-harness/settings';
 import type { ToolWaitContract } from './author-context.ts';
 import type { ParameterContract, SourceLayer, ToolArguments, ToolAssetVersion, ToolAvailability, ToolDefinition, ToolEnvironmentDeclaration, ToolGovernance, ToolImplementationFacts, ToolInvocation, ToolReturnDeclaration, ToolValueSchema } from './definitions.ts';
 import type { TextRenderer, ToolExecutor } from './execution.ts';
@@ -678,6 +681,7 @@ export type ToolDeclarations = Readonly<{
     outputModalities: readonly Modality[];
     settings: ToolSettingsDeclaration | null;
 }>;
+export type ToolSettingPresentation = Omit<SettingItem['presentation'], 'enumLabels'>;
 export type ToolSettingsDeclaration = Readonly<{
     schema: ParameterContract;
     defaults: JsonValue;
@@ -685,6 +689,7 @@ export type ToolSettingsDeclaration = Readonly<{
         path: readonly string[];
         category: 'preference' | 'binding' | 'placement-identity' | 'governance';
         sensitive: boolean;
+        presentation: ToolSettingPresentation;
     }>[];
 }>;
 export type ToolConsumerProfile = Readonly<{
@@ -2138,7 +2143,8 @@ export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, Invoc
 export type { ToolDecision, ToolWaitSchemaSnapshot } from './author-context.ts';
 export type { ToolExecutionRef } from './execution.ts';
 export type { DecisionValue, ToolStartRecord } from './ports.ts';
-export type { ToolCatalog, ToolCatalogSearchEntry, ToolConsumerProfile, ToolDeclarations, ToolInspection, ToolSettingsDeclaration, ToolUsage, } from './authoring.ts';
+export type { ToolCatalog, ToolCatalogSearchEntry, ToolConsumerProfile, ToolDeclarations, ToolInspection, ToolSettingPresentation, ToolSettingsDeclaration, ToolUsage, } from './authoring.ts';
+export { toolSettingDefinitions } from './settings.ts';
 export type { ClockSegment, ControlProgress, ControlRecord, ExternalResponse, PhysicalExecution, ProtocolIdentity, QueuePosition, ResponseProgress, ResponseRecord, ToolTiming, WaitIntent, WaitRecord, } from './records.ts';
 export type { ContentPage, DiagnosticPage, ProcessSnapshot, RawOutput } from './custody.ts';
 export { judgeToolDelivery } from './result-delivery.ts';
@@ -3953,6 +3959,19 @@ export type ToolLookup = Readonly<{
 import type { ToolReturnDeclaration } from './definitions.ts';
 export declare function returnSummary(returns: ToolReturnDeclaration): string;
 export declare function returnGuide(returns: ToolReturnDeclaration): string;
+```
+
+## 声明文件 `settings.d.ts`
+
+```ts
+import type { SettingDefinitions } from '@omne-harness/settings';
+import type { ToolSettingsDeclaration } from './authoring.ts';
+import type { Adoption } from './identity.ts';
+export declare function toolSettingDefinitions(input: Readonly<{
+    adoption: Adoption;
+    name: string;
+    declaration: ToolSettingsDeclaration | null;
+}>): SettingDefinitions | null;
 ```
 
 ## 声明文件 `shape.d.ts`

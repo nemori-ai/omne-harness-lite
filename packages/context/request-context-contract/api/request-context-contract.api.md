@@ -34,6 +34,7 @@
 - `BudgetBreach` · `values.d.ts`
 - `BudgetInput` · `budget.d.ts`
 - `CachedAssemblyMaterial` · `reuse.d.ts`
+- `CallIdentity` · `values.d.ts`
 - `CandidateRef` · `refs.d.ts`
 - `CommitOrder` · `refs.d.ts`
 - `CompactionBasis` · `values.d.ts`
@@ -165,6 +166,7 @@
 - `UnavailableOwner` · `values.d.ts`
 - `WindowUsageValue` · `blocks.d.ts`
 - `assembleSystemPrompt` · `prompt.d.ts`
+- `callIdentity` · `values.d.ts`
 - `chooseRepresentations` · `representation.d.ts`
 - `compactionPlanSchema` · `schema.d.ts`
 - `compactionPolicySchema` · `schema.d.ts`
@@ -693,8 +695,8 @@ export type { HistoryRow, HistoryPage, HistoryReadResult, CompactionContextResul
 export type { BudgetInput } from './budget.js';
 export { judgeBudget } from './budget.js';
 export type { ContributionRejection, ContributionResult, ContributionsResult, PromptContributionRegistry, } from './registry.js';
-export type { RequestPurpose, AssemblyCall, InputGroups, GroupName, HistoryUpper, HistoryCursor, TenantModelCall, SourcedMessage, ContinuationBasis, AdoptedRequestFact, CompactionBasis, HistoryEvidence, NewInputBatch, BlockMaterial, SnapshotMaterial, ContextReadGroup, AssemblyContext, PromptContributionBase, PromptSection, PromptVariable, PromptContribution, PromptContributionSet, SelectedModel, ToolAdoption, ConditionsEvidence, AlterationEvidence, PreviousPreparation, TransitionEvidence, Layer, PrefixBreakReason, LayerAnchor, SnapshotAnchor, Coverage, BudgetBreach, FitVerdict, RepresentationChoice, SnapshotReminder, TailFacts, RequestLayers, RequestCandidate, CompactionPlan, PlanProgress, SummaryMaterial, StepRequest, StepInput, ContextTransition, AssemblyFailure, InvalidReason, UnavailableOwner, AssemblyUnknown, AssemblyOutcome, AssemblyResult, PlanResult, StepResult, } from './values.js';
-export { LAYER_ORDER, PREFIX_BREAK_REASONS } from './values.js';
+export type { RequestPurpose, AssemblyCall, CallIdentity, InputGroups, GroupName, HistoryUpper, HistoryCursor, TenantModelCall, SourcedMessage, ContinuationBasis, AdoptedRequestFact, CompactionBasis, HistoryEvidence, NewInputBatch, BlockMaterial, SnapshotMaterial, ContextReadGroup, AssemblyContext, PromptContributionBase, PromptSection, PromptVariable, PromptContribution, PromptContributionSet, SelectedModel, ToolAdoption, ConditionsEvidence, AlterationEvidence, PreviousPreparation, TransitionEvidence, Layer, PrefixBreakReason, LayerAnchor, SnapshotAnchor, Coverage, BudgetBreach, FitVerdict, RepresentationChoice, SnapshotReminder, TailFacts, RequestLayers, RequestCandidate, CompactionPlan, PlanProgress, SummaryMaterial, StepRequest, StepInput, ContextTransition, AssemblyFailure, InvalidReason, UnavailableOwner, AssemblyUnknown, AssemblyOutcome, AssemblyResult, PlanResult, StepResult, } from './values.js';
+export { LAYER_ORDER, PREFIX_BREAK_REASONS, callIdentity } from './values.js';
 export type { DeriveInput } from './values.js';
 export type { FixedRequestRecord, FixedRequestRecordRejection } from './fixed-request.js';
 export { encodeFixedRequestRecord, decodeFixedRequestRecord, forecastOf } from './fixed-request.js';
@@ -2119,6 +2121,8 @@ export type AssemblyCall<P> = Readonly<{
     position: PositionRef;
     purpose: RequestPurpose;
 }>;
+export type CallIdentity = Omit<AssemblyCall<unknown>, 'access'>;
+export declare function callIdentity(call: AssemblyCall<unknown>): CallIdentity;
 export type AssemblyInput<P> = Readonly<{
     target: ContextTarget;
     identity: Readonly<{

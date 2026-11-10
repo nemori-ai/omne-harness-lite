@@ -21,3 +21,12 @@ export type {
   ModelCredentialDescribeOutcome,
   ModelCredentialUnbindOutcome,
 } from './model-credentials.ts'
+export type {
+  SettingRef,
+  SettingsAccess,
+  SettingsClearOutcome,
+  SettingsDescribeOutcome,
+  SettingsGovernance,
+  SettingsListOutcome,
+  SettingsSetOutcome,
+} from './settings.ts'

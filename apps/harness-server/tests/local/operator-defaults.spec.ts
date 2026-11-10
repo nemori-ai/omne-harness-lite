@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { resolveLocations } from '../../src/local/locations.ts'
 import { captureShellEnvironment, isSecretName } from '../../src/local/settings.ts'
 import {
+  LOCAL_CONCURRENT_MODEL_CALLS,
   LOCAL_DIAGNOSTICS_KINDS,
   LOCAL_DIAGNOSTICS_LIMITS,
   LOCAL_HISTORY_KINDS,
@@ -80,8 +81,11 @@ describe('localOperatorLayer over the bundled distribution', () => {
     }
   })
 
-  it('names only the vault path for the model credential, and no secret anywhere', () => {
+  it('names only the vault path for the model credential and the secret custody, and no secret anywhere', () => {
     expect(configOf(layer, 'model-credential')).toEqual({ path: '/h/state/model-vault.json' })
+    // The custody row opens the same file; the `settings` row takes no operator value.
+    expect(configOf(layer, 'secret-custody')).toEqual({ path: '/h/state/model-vault.json' })
+    expect(configOf(layer, 'settings')).toBeUndefined()
     expect(JSON.stringify(layer)).not.toMatch(/factorySecret|must-not-leak/)
   })
 
@@ -93,6 +97,40 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(configOf(layer, 'agent-host')).toMatchObject({
       jointCommits: releaseRow('agent-host')?.config?.['jointCommits'],
       coordination: releaseRow('agent-host')?.config?.['coordination'],
+    })
+  })
+
+  it('admits LOCAL_CONCURRENT_MODEL_CALLS model calls of one tenant at once on every bound', () => {
+    const calls = LOCAL_CONCURRENT_MODEL_CALLS
+    expect(calls).toBe(20)
+    const one = z
+      .object({ resultCapacity: z.record(z.string(), z.string()) })
+      .parse(configOf(layer, 'agent-context')).resultCapacity
+    const records = z
+      .object({
+        limits: z.object({ capacity: z.record(z.string(), z.string()) }),
+        maxCallBytes: z.number(),
+        send: z.object({ maxClaims: z.number() }),
+        sendStage: z.object({
+          materialization: z.object({ maxRecords: z.number() }),
+          network: z.object({ maxConnections: z.number() }),
+        }),
+      })
+      .parse(configOf(layer, 'model-records'))
+    // The tenant's share holds exactly `calls` result capacities of one call, and no more.
+    for (const [unit, value] of Object.entries(one))
+      expect(BigInt(records.limits.capacity[unit] ?? '0'), unit).toBe(BigInt(value) * BigInt(calls))
+    expect(String(records.maxCallBytes)).toBe(one['bytes'])
+    expect(records.send.maxClaims).toBe(calls)
+    expect(records.sendStage.materialization.maxRecords).toBe(calls)
+    expect(records.sendStage.network.maxConnections).toBe(calls)
+    expect(configOf(layer, 'model-host')).toMatchObject({
+      host: { concurrencyLimit: calls },
+      results: {
+        maxConcurrentCalls: calls,
+        maxPendingAccountsPerTenant: calls,
+        maxPendingAccounts: calls,
+      },
     })
   })
 

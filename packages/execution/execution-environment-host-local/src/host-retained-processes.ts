@@ -147,6 +147,8 @@ export type RetainedProcessIndex = Readonly<{
   watchClosure(signal: AbortSignal, scope: ScopeRef, ledger: RetainedProcessLedger): void
   /** Stops the retained process a resource names; undefined when the index does not hold it. */
   recover(resource: ManagedResource): Promise<StopStatus | undefined>
+  /** Whether the index holds, or may hold, a process with this key; true while markers are unread. */
+  mayHold(key: string): Promise<boolean>
   /** One reading of every retained unit: settles the empty ones, retries the stopping ones. */
   maintain(): Promise<number>
   /** A provider generation that reads members by this index; the polling runs while one is joined. */
@@ -674,6 +676,9 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       if (JSON.stringify(resourceOf(entry)) !== JSON.stringify(resource)) return undefined
       return stop(entry)
     },
+    async mayHold(key) {
+      return !(await ready()) || entries.has(key)
+    },
     maintain,
     join(generation) {
       generations.add(generation)
@@ -686,8 +691,13 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
   })
 }
 
-/** Flushes the directory after a marker was renamed into it, so the new name survives a host crash. */
+/**
+ * Flushes the directory after a marker was renamed into it, so the new name survives a host crash.
+ * Windows opens no directory as a file, and NTFS journals the rename itself, so there is nothing to
+ * flush there.
+ */
 function syncDirectory(directory: string): void {
+  if (process.platform === 'win32') return
   const descriptor = openSync(directory, 'r')
   try {
     fsyncSync(descriptor)

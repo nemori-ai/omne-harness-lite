@@ -33,6 +33,8 @@
     "model-profiles",
     "model-request-preparation",
     "model-credential",
+    "secret-custody",
+    "settings",
     "model-records",
     "tool-records",
     "tool-body-sweep",
@@ -179,6 +181,21 @@
       ]
     },
     {
+      "row": "secret-custody",
+      "names": [
+        "settingsSecretCustody"
+      ]
+    },
+    {
+      "row": "settings",
+      "names": [
+        "settingsSecretCustody",
+        "settingsSecretItems",
+        "principalVerifier",
+        "tenantStanding"
+      ]
+    },
+    {
       "row": "model-records",
       "names": [
         "storage",
@@ -206,7 +223,8 @@
     {
       "row": "tool-bindings",
       "names": [
-        "principalVerifier"
+        "principalVerifier",
+        "settingsSecretCustody"
       ]
     },
     {
@@ -247,7 +265,8 @@
         "principalIssuer",
         "definitionMappings",
         "identityGovernance",
-        "modelCredentialCustody"
+        "modelCredentialCustody",
+        "settingsSecretItems"
       ]
     }
   ]

@@ -6,11 +6,11 @@
 
 ## 行提供什么
 
-| 项    | 内容                                                                                                               |
-| ----- | ------------------------------------------------------------------------------------------------------------------ |
-| 行 id | `authorization`，`implementation` 为 `real`，没有关闭阶段                                                          |
-| 提供  | `sessionAccessCheck`、`agentAccessCheck`、`agentActionAdmission`；受信的 `systemActionAuthorization`（见[系统动作授权](#系统动作授权)） |
-| 注入  | `principalVerifier`（入口对象）、`tenantStanding`（`identity` 行）、`identityClock`（入口对象，判定授予的到期）。三项都是必需依赖，缺任一项时本行停在 `PENDING` |
+| 项    | 内容                                                                                                                                                                                      |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 行 id | `authorization`，`implementation` 为 `real`，没有关闭阶段                                                                                                                                 |
+| 提供  | `sessionAccessCheck`、`agentAccessCheck`、`agentActionAdmission`；受信的 `systemActionAuthorization`（见[系统动作授权](#系统动作授权)）                                                   |
+| 注入  | `principalVerifier`（入口对象）、`tenantStanding`（`identity` 行）、`identityClock`（入口对象，判定授予的到期）。三项都是必需依赖，缺任一项时本行停在 `PENDING`                           |
 | 配置  | 可选的 `actionRules` 动作规则快照，可选的 `maintenanceGrants` 收紧项（见[运维者对授予表的收紧](#运维者对授予表的收紧)）。政策表和系统授予表随版本内置，运维者不能经配置给系统主体授予用途 |
 
 四个服务共用同一组依赖，所以放在同一个插件上，一起装载，一起撤除。服务对象只持有闭包。依赖在每次调用时重新读取。每次检查都读当前事实，不缓存任何 `allowed`。
@@ -90,9 +90,9 @@
 
 行配置 `maintenanceGrants` 是一个对象。键是记录标识，即上表“记录”一列的文字，例如 `maintenance-grant/agent-host`。值只有两个成员，且至少写一个。
 
-| 成员        | 取值                                | 效果                                                                  |
-| ----------- | ----------------------------------- | --------------------------------------------------------------------- |
-| `revoked`   | 只能是 `true`                       | 记录已收回。授权判定答 `denied grant-revoked`，不再问时钟             |
+| 成员        | 取值                                  | 效果                                                            |
+| ----------- | ------------------------------------- | --------------------------------------------------------------- |
+| `revoked`   | 只能是 `true`                         | 记录已收回。授权判定答 `denied grant-revoked`，不再问时钟       |
 | `expiresAt` | UTC 时刻，例如 `2027-01-01T00:00:00Z` | 时钟读数不早于它时，答 `denied grant-expired`；早于它时照常放行 |
 
 ```json
@@ -544,7 +544,7 @@
 }
 ```
 
-发行配置 `config/serve.distribution.json` 的 `authorization` 行带 `release-1` 规则快照：`Files` 与 `Shell` 都是 allow，其余工具没有匹配，答 `unavailable`。运维者不改代码就能加一条 deny：在运维者层写一条 `replace` 操作替换 `authorization` 行的配置。`replace` 换整份配置，所以要把发行的两条 allow 一并写回，再加 deny，例如 `{ "id": "no-shell", "effect": "deny", "tool": "Shell" }`。deny 优先，与顺序无关，该工具的动作得到 `deny` 与 `rule/no-shell`，调用点名哪个已知命令都一样。没点名已知命令的调用不进入动作准入：可信 Tool 请求来源直接以原因和工具的 guide 作答，不运行任何命令，这个动作以作答被拒绝（D-104，R2-D399）。正文只含已声明给模型的定义投影，所以 deny 规则不需要挡它；deny 挡的是会运行的调用。用例 [release-action-rules.spec.ts](../../tests/rows/authorization/release-action-rules.spec.ts) 用真实的分层加载与真实动作准入核对这两种配置，以及点名命令的调用（如 Shell 的 `info`、Files 的 `read`）命中工具规则、`Shell` 的 deny 拦下点名 `run` 的调用。它不证明 S4-6 的端到端观察，Tool 两个消费方的 qualify 接线仍待 L-TOOL。
+发行配置 `config/serve.distribution.json` 的 `authorization` 行带 `release-1` 规则快照：`Files`、`Shell`、`Tools`、`TodoItems` 与 `Web` 都是 allow，其余工具没有匹配，答 `unavailable`。运维者不改代码就能加一条 deny：在运维者层写一条 `replace` 操作替换 `authorization` 行的配置。`replace` 换整份配置，所以要把发行的五条 allow 一并写回，再加 deny，例如 `{ "id": "no-shell", "effect": "deny", "tool": "Shell" }`。deny 优先，与顺序无关，该工具的动作得到 `deny` 与 `rule/no-shell`，调用点名哪个已知命令都一样。没点名已知命令的调用不进入动作准入：可信 Tool 请求来源直接以原因和工具的 guide 作答，不运行任何命令，这个动作以作答被拒绝（D-104，R2-D399）。正文只含已声明给模型的定义投影，所以 deny 规则不需要挡它；deny 挡的是会运行的调用。用例 [release-action-rules.spec.ts](../../tests/rows/authorization/release-action-rules.spec.ts) 用真实的分层加载与真实动作准入核对这两种配置，以及点名命令的调用（如 Shell 的 `info`、Files 的 `read`）命中工具规则、`Shell` 的 deny 拦下点名 `run` 的调用。它不证明 S4-6 的端到端观察，Tool 两个消费方的 qualify 接线仍待 L-TOOL。
 
 只有 Session 工作主体进入 AU-11 的成员资格核验。主体必须由原身份权威核验，并代请求租户行事。登录主体、未知角色和系统主体不放行。身份来源失败答 `unavailable`。请求的动作位置、生效参数摘要和规则选择在首次 await 前固定；每次动作重新核验身份。允许和规则禁止的 `decisionEvidence` 绑定规则 id、revision、execution/passage/action、生效参数摘要与身份依据。禁止结果携带 `rule/<id>`，不生成决定卡。输出不携带主体或参数正文。
 

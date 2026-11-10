@@ -5,8 +5,39 @@ import { createHostFilesEngine, hostObjectToken } from '../../src/host-files.ts'
 import * as windows from '../../src/windows-files/facility.ts'
 import { request, withFiles } from './fixture.ts'
 
+/** A marker no request frame carries: JSON escapes the NUL character. */
+const noFrame = '\u0000'
+/** Holds the request frame that carries `marker` before the files helper reads it. */
+const hold = vi.hoisted(() => ({
+  marker: '\u0000',
+  entered: () => {},
+  released: () => Promise.resolve(),
+}))
+
+vi.mock('node:child_process', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:child_process')>()
+  const { holdNativeInput } = await import('./native-control.ts')
+  return {
+    ...actual,
+    spawn(...args: Parameters<typeof actual.spawn>) {
+      const child = actual.spawn(...args)
+      holdNativeInput(child, {
+        get marker() {
+          return hold.marker
+        },
+        entered: () => hold.entered(),
+        released: () => hold.released(),
+      })
+      return child
+    },
+  }
+})
+
 beforeEach(context => context.skip(process.platform !== 'win32'))
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.restoreAllMocks()
+  hold.marker = noFrame
+})
 
 it.each(['/', '\\'])(
   'refuses trailing separator %s without creating or replacing a file',
@@ -148,18 +179,20 @@ it('rejects copy when its existing target disappears before replacement', async 
     const targetPath = join(root, 'copy.txt')
     await writeFile(targetPath, 'original target')
     const target = { path: targetPath, named: await hostObjectToken(targetPath) }
-    const create = windows.createWindowsFiles
-    vi.spyOn(windows, 'createWindowsFiles').mockImplementation(options => {
-      const files = create(options)
-      const write = files.write
-      files.write = async current => {
-        if (current.path === targetPath && current.mode === 'replace') await unlink(targetPath)
-        return write(current)
-      }
-      return files
-    })
     const files = createHostFilesEngine({ root }).facilityFor('copier')
-    expect(await files.copy({ ...input, target, replace: true })).toMatchObject({
+    // The copy is staged; its publication waits until the target is gone.
+    const entered = Promise.withResolvers<void>()
+    const released = Promise.withResolvers<void>()
+    Object.assign(hold, {
+      marker: '"operation":"publish"',
+      entered: () => entered.resolve(),
+      released: () => released.promise,
+    })
+    const copied = files.copy({ ...input, target, replace: true })
+    await entered.promise
+    await unlink(targetPath)
+    released.resolve()
+    expect(await copied).toMatchObject({
       kind: 'rejected',
       reason: 'notFound',
     })
@@ -211,3 +244,18 @@ it('preserves unresolved for read, stat, list and replacement of an absent objec
     })
   })
 }, 30_000)
+
+it.each(['a?b.txt', 'a*b.txt', 'a|b.txt'])(
+  'refuses %s, a name Windows cannot hold, as invalid input without creating a file',
+  async name => {
+    await withFiles(async ({ files, root, bytes }) => {
+      const created = request(join(root, name), await hostObjectToken(root))
+      expect(await files.write({ ...created, bytes, mode: 'create' })).toMatchObject({
+        kind: 'rejected',
+        reason: 'invalidInput',
+      })
+      expect(await readdir(root)).toEqual(['中文.txt'])
+    })
+  },
+  30_000,
+)

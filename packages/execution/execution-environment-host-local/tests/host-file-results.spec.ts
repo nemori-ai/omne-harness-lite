@@ -56,16 +56,30 @@ vi.mock('node:child_process', async importOriginal => {
   return {
     ...actual,
     spawn(...args: Parameters<typeof actual.spawn>) {
-      if (!injectBridgeReplyFailure) return actual.spawn(...args)
-      const argv = args[1]?.map((value, index) => {
-        if (args[1]?.[index - 1] !== '-EncodedCommand') return value
-        const source = Buffer.from(value, 'base64').toString('utf16le')
-        const response = '[Console]::WriteLine(($result | ConvertTo-Json -Depth 8 -Compress))'
-        if (!source.includes(response)) throw new Error('native reply injection point missing')
-        // The real write and native cleanup finish, then the process exits without its receipt.
-        return Buffer.from(source.replace(response, 'exit 23'), 'utf16le').toString('base64')
-      })
-      return actual.spawn(args[0], argv, args[2])
+      const child = actual.spawn(...args)
+      if (!String(args[0]).endsWith('files.exe')) return child
+      // The real write and native cleanup finish in the resident helper, then its receipt is lost
+      // with the helper itself: the reply frame is dropped and the helper is killed.
+      const writes = new Set<number>()
+      const write = child.stdin?.write.bind(child.stdin)
+      if (child.stdin === null || child.stdout === null || write === undefined) return child
+      child.stdin.write = ((chunk: unknown, ...rest: never[]) => {
+        for (const line of String(chunk).split('\n'))
+          if (injectBridgeReplyFailure && line.includes('"operation":"write"'))
+            writes.add(Number(JSON.parse(line).id))
+        return write(chunk as string, ...rest)
+      }) as typeof child.stdin.write
+      const emit = child.stdout.emit.bind(child.stdout)
+      child.stdout.emit = ((event: string, ...values: unknown[]) => {
+        const text = event === 'data' ? String(values[0]) : ''
+        if ([...writes].some(id => text.includes(`"id":${id},`))) {
+          writes.clear()
+          child.kill()
+          return true
+        }
+        return emit(event, ...values)
+      }) as typeof child.stdout.emit
+      return child
     },
   }
 })
@@ -224,7 +238,9 @@ it('reads through an ancestor symlink when the final object is the named one', a
   await symlink(real, join(root, 'via'))
   const named = await hostObjectToken(file)
   const stat = await lstat(file, { bigint: true })
-  expect(named.token).toBe(`${stat.dev}:${stat.ino}`)
+  // Windows: the volume serial number and the 128-bit file ID of FileIdInfo, read by the files helper.
+  if (process.platform === 'win32') expect(named.token).toMatch(/^\d+:[0-9a-f]{32}$/u)
+  else expect(named.token).toBe(`${stat.dev}:${stat.ino}`)
   const result = await createHostFiles().read(
     request(join(root, 'via', 'notes.txt'), named, 'ancestor'),
   )
@@ -466,55 +482,63 @@ it('issues a new handle generation for the second read', async () => {
   expect(second).toMatchObject({ kind: 'done', value: { handle: { generation: '2' } } })
 })
 
-it('returns unknown on close when the read-time close failed', async () => {
-  const root = await tree()
-  const path = join(root, 'notes.txt')
-  await writeFile(path, 'close-fail-bytes')
-  const named = await hostObjectToken(path)
-  const files = createHostFiles()
+// Windows: the files backend keeps no descriptor across requests, so no close of one can fail here.
+it.skipIf(process.platform === 'win32')(
+  'returns unknown on close when the read-time close failed',
+  async () => {
+    const root = await tree()
+    const path = join(root, 'notes.txt')
+    await writeFile(path, 'close-fail-bytes')
+    const named = await hostObjectToken(path)
+    const files = createHostFiles()
 
-  await withCloseFailure(async () => {
-    const read = await files.read(request(path, named, 'read-close-fail'))
-    expect(read.kind).toBe('done')
-    if (read.kind !== 'done') return
+    await withCloseFailure(async () => {
+      const read = await files.read(request(path, named, 'read-close-fail'))
+      expect(read.kind).toBe('done')
+      if (read.kind !== 'done') return
 
-    const firstClose = await files.close({
-      ...request(path, named, 'first-close'),
-      handle: read.value.handle,
+      const firstClose = await files.close({
+        ...request(path, named, 'first-close'),
+        handle: read.value.handle,
+      })
+      expect(firstClose).toEqual({ kind: 'unknown', requestId: 'first-close' })
     })
-    expect(firstClose).toEqual({ kind: 'unknown', requestId: 'first-close' })
-  })
 
-  const secondClose = await files.close({
-    ...request(path, named, 'second-close'),
-    handle: { object: named, generation: '1' },
-  })
-  expect(secondClose).toEqual({
-    kind: 'done',
-    requestId: 'second-close',
-    value: { handle: { object: named, generation: '1' } },
-  })
-})
-
-it('returns unknown on close when the stat-time close failed', async () => {
-  const root = await tree()
-  const path = join(root, 'notes.txt')
-  await writeFile(path, 'stat-close-fail')
-  const named = await hostObjectToken(path)
-  const files = createHostFiles()
-
-  await withCloseFailure(async () => {
-    const stat = await files.stat(request(path, named, 'stat-close-fail'))
-    expect(stat.kind).toBe('done')
-    if (stat.kind !== 'done') return
-
-    const closed = await files.close({
-      ...request(path, named, 'close-stat-fail'),
-      handle: stat.value.handle,
+    const secondClose = await files.close({
+      ...request(path, named, 'second-close'),
+      handle: { object: named, generation: '1' },
     })
-    expect(closed).toEqual({ kind: 'unknown', requestId: 'close-stat-fail' })
-  })
-})
+    expect(secondClose).toEqual({
+      kind: 'done',
+      requestId: 'second-close',
+      value: { handle: { object: named, generation: '1' } },
+    })
+  },
+)
+
+// Windows: the files backend keeps no descriptor across requests, so no close of one can fail here.
+it.skipIf(process.platform === 'win32')(
+  'returns unknown on close when the stat-time close failed',
+  async () => {
+    const root = await tree()
+    const path = join(root, 'notes.txt')
+    await writeFile(path, 'stat-close-fail')
+    const named = await hostObjectToken(path)
+    const files = createHostFiles()
+
+    await withCloseFailure(async () => {
+      const stat = await files.stat(request(path, named, 'stat-close-fail'))
+      expect(stat.kind).toBe('done')
+      if (stat.kind !== 'done') return
+
+      const closed = await files.close({
+        ...request(path, named, 'close-stat-fail'),
+        handle: stat.value.handle,
+      })
+      expect(closed).toEqual({ kind: 'unknown', requestId: 'close-stat-fail' })
+    })
+  },
+)
 
 it('keeps a write or close unconfirmed when completion cannot be confirmed, but preserves written bytes', async () => {
   const root = await tree()
@@ -678,25 +702,29 @@ it('leaves a regular file with a trailing slash unresolved on stat', async () =>
   expect(result).toEqual({ kind: 'unresolved', requestId: 'file-slash-stat' })
 })
 
-it('keeps descriptors whose close failed on error paths for continued cleanup', async () => {
-  const root = await tree()
-  const conflictPath = join(root, 'conflict.txt')
-  const otherPath = join(root, 'other.txt')
-  await writeFile(conflictPath, 'conflict-bytes')
-  await writeFile(otherPath, 'other-bytes')
-  const wrongNamed = { token: 'wrong-token' }
-  const files = createHostFilesSource()
+// Windows: the files backend keeps no descriptor across requests, so no close of one can fail here.
+it.skipIf(process.platform === 'win32')(
+  'keeps descriptors whose close failed on error paths for continued cleanup',
+  async () => {
+    const root = await tree()
+    const conflictPath = join(root, 'conflict.txt')
+    const otherPath = join(root, 'other.txt')
+    await writeFile(conflictPath, 'conflict-bytes')
+    await writeFile(otherPath, 'other-bytes')
+    const wrongNamed = { token: 'wrong-token' }
+    const files = createHostFilesSource()
 
-  await withCloseFailure(async () => {
-    const result = await files.read(request(conflictPath, wrongNamed, 'conflict-close-fail'))
-    expect(result).toEqual({
-      kind: 'rejected',
-      requestId: 'conflict-close-fail',
-      reason: 'conflict',
+    await withCloseFailure(async () => {
+      const result = await files.read(request(conflictPath, wrongNamed, 'conflict-close-fail'))
+      expect(result).toEqual({
+        kind: 'rejected',
+        requestId: 'conflict-close-fail',
+        reason: 'conflict',
+      })
+      expect(__unsafeHostFilesState(files).pendingCloseCount).toBeGreaterThan(0)
     })
-    expect(__unsafeHostFilesState(files).pendingCloseCount).toBeGreaterThan(0)
-  })
 
-  await files.read(request(otherPath, await hostObjectToken(otherPath), 'drain'))
-  expect(__unsafeHostFilesState(files).pendingCloseCount).toBe(0)
-})
+    await files.read(request(otherPath, await hostObjectToken(otherPath), 'drain'))
+    expect(__unsafeHostFilesState(files).pendingCloseCount).toBe(0)
+  },
+)

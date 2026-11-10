@@ -60,7 +60,17 @@ it('a second creation on the same path adopts the store instead of erasing its b
     scope: 'tenant',
     value: SECRET,
   })
-  expect(JSON.parse(readFileSync(path, 'utf8')).factorySecret).toBe(FACTORY)
+  // The adopted file keeps its factory secret: the second creation's one is not written. A tenant
+  // without a binding on an official send sees it.
+  const factory = decodeCredentialId('cred-factory')
+  if (!('ok' in factory)) throw new Error('fixture credential id')
+  const other = identity('acc_abcdefghjkmnpqrstvwxyz2346', 'org_abcdefghjkmnpqrstvwxyz2346')
+  expect(
+    second.resolve(
+      { id: factory.ok, tenant: other, purpose: MODEL_SEND },
+      { authorized: true, official: true },
+    ),
+  ).toEqual({ kind: 'value', scope: 'factory', value: FACTORY })
 })
 
 it('keeps only the most recent diagnostics, up to the configured capacity', () => {
@@ -87,26 +97,21 @@ it('gives up waiting for the file lock after the configured time', () => {
     const started = performance.now()
     const opened = openLocalCustodian({ path, lock: { waitMs: 100, backoffMs: 10 } })
     if (opened.kind !== 'open') throw new Error('store missing')
-    expect(() => opened.custodian.put(reference(), SECRET)).toThrow(
-      expect.objectContaining({
-        message: expect.stringMatching(/timed out waiting/),
-        code: 'ELOCKED',
-        cause: expect.objectContaining({ code: 'ELOCKED' }),
-      }),
-    )
+    // The vault answers `not-written` once the lock wait ran out; the adapter throws that result.
+    expect(() => opened.custodian.put(reference(), SECRET)).toThrow(/was not-written/)
     expect(performance.now() - started).toBeLessThan(2_000)
   } finally {
     release()
   }
 })
 
-it('a lock failure that is not a held lock is thrown as it is, not as a timeout', () => {
+it('a lock that cannot be taken because the directory is gone is not-written, not a timeout wait', () => {
   const path = storePath()
   const custodian = createLocalCustodian({ path, factorySecret: FACTORY })
   rmSync(dirname(path), { recursive: true })
-  expect(() => custodian.put(reference(), SECRET)).toThrow(
-    expect.objectContaining({ code: 'ENOENT' }),
-  )
+  const started = performance.now()
+  expect(() => custodian.put(reference(), SECRET)).toThrow(/was not-written/)
+  expect(performance.now() - started).toBeLessThan(1_000)
 })
 
 it('names why a store is unavailable, on open and in the diagnostics of a live handle', () => {
@@ -146,8 +151,9 @@ it('creation does not replace a corrupt store and names the parse error as the c
   } catch (error: unknown) {
     thrown = error
   }
+  // The parse error is not carried: its message can quote the file, and the file holds secrets.
   expect(thrown).toMatchObject({ message: expect.stringMatching(/is corrupt; not replaced/) })
-  expect(thrown).toHaveProperty('cause', expect.any(SyntaxError))
+  expect(thrown).not.toHaveProperty('cause')
   expect(readFileSync(path, 'utf8')).toBe('not-json')
 })
 
@@ -160,10 +166,9 @@ it('creation on a path that cannot be read as a file names the file-system error
     thrown = error
   }
   expect(thrown).toMatchObject({ message: expect.stringMatching(/is io; not replaced/) })
-  expect(thrown).toHaveProperty('cause', expect.objectContaining({ code: 'EISDIR' }))
 })
 
-it('a management operation on a store that lost its shape throws with the shape error as the cause', () => {
+it('a management operation on a store that lost its shape throws not-written and leaves the file', () => {
   const path = storePath()
   const custodian = createLocalCustodian({ path, factorySecret: FACTORY })
   writeFileSync(path, JSON.stringify({ closed: false, factorySecret: FACTORY, bindings: 'none' }))
@@ -173,11 +178,7 @@ it('a management operation on a store that lost its shape throws with the shape 
   } catch (error: unknown) {
     thrown = error
   }
-  expect(thrown).toMatchObject({ message: expect.stringMatching(/is unavailable: corrupt/) })
-  expect(thrown).toHaveProperty(
-    'cause',
-    expect.objectContaining({ message: expect.stringMatching(/not a credential store snapshot/) }),
-  )
+  expect(thrown).toMatchObject({ message: expect.stringMatching(/was not-written/) })
   expect(JSON.parse(readFileSync(path, 'utf8')).bindings).toBe('none')
 })
 
@@ -310,7 +311,7 @@ it('taking the file lock stays within the Node timer limit, so the lock update r
   expect(warnings).not.toContain('TimeoutOverflowWarning')
 })
 
-it('a management operation on a store that cannot be read names the file-system error as the cause', () => {
+it('a management operation on a store that cannot be read throws not-written', () => {
   const path = storePath()
   const custodian = createLocalCustodian({ path, factorySecret: FACTORY })
   rmSync(path)
@@ -321,8 +322,7 @@ it('a management operation on a store that cannot be read names the file-system 
   } catch (error: unknown) {
     thrown = error
   }
-  expect(thrown).toMatchObject({ message: expect.stringMatching(/is unavailable: io/) })
-  expect(thrown).toHaveProperty('cause', expect.objectContaining({ code: 'EISDIR' }))
+  expect(thrown).toMatchObject({ message: expect.stringMatching(/was not-written/) })
 })
 
 function withOptions(overrides: Partial<CreateOptions>): CreateOptions {
@@ -434,13 +434,7 @@ it('a lock wait of zero is used as given: a held lock fails at once, not after t
     const opened = openLocalCustodian({ path, lock: { waitMs: 0 } })
     if (opened.kind !== 'open') throw new Error('store missing')
     const started = performance.now()
-    expect(() => opened.custodian.put(reference(), SECRET)).toThrow(
-      expect.objectContaining({
-        message: expect.stringMatching(/timed out waiting/),
-        code: 'ELOCKED',
-        cause: expect.objectContaining({ code: 'ELOCKED' }),
-      }),
-    )
+    expect(() => opened.custodian.put(reference(), SECRET)).toThrow(/was not-written/)
     expect(performance.now() - started).toBeLessThan(1_000)
   } finally {
     release()
@@ -491,7 +485,7 @@ it('the lock wait stays the upper bound when the backoff is longer than it', () 
     const opened = openLocalCustodian({ path, lock: { waitMs: 100, backoffMs: 3_000 } })
     if (opened.kind !== 'open') throw new Error('store missing')
     const started = performance.now()
-    expect(() => opened.custodian.revoke(reference())).toThrow(/timed out waiting/)
+    expect(() => opened.custodian.revoke(reference())).toThrow(/was not-written/)
     expect(performance.now() - started).toBeLessThan(1_000)
   } finally {
     release()

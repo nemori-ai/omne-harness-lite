@@ -1398,7 +1398,7 @@ projectToolResult 是不读字节的纯投影，检查完整结果的块形状�
 
 ToolDefinition.declarations.settings 明确装载/装配时允许从配置赋值的项。items 是封闭路径清单，schema 是对应值约束，defaults 也必须满足同一规则。路径采用属性段数组，不接受任意表达式；空路径、重复、祖先与后代重叠、schema 外字段及未声明项拒绝。可选且无默认项可以缺省，缺必填项拒绝，不猜值。null 是普通值，不自动表示清除。
 
-items.category 对接设置拥有者已有的偏好、绑定、落点/身份和治理分类，sensitive 标记受保护值；它们不创设来源权限。消费原设置求值及证据，核当前合法来源、锁定与上界，不在 Tool 重写覆盖算法。目标环境可由获准层配置，工作区不能配落点/身份或提高治理权限。programmable、backgroundAllowed、主体、租户和授权上界不属于可被配置覆盖的作者构造参数。秘密内容不进入 defaults、Catalog、消费方的工具声明或日志；配置只保存获准引用，解析能力由 DI 提供。工具凭据按调用的租户绑定。第三方凭据的选择与实际绑定按下节执行。
+items.category 对接设置拥有者已有的偏好、绑定、落点/身份和治理分类，sensitive 标记受保护值；它们不创设来源权限。每项带 `presentation`：标题、用途、修改后果、清除后果与采用时点，可带本地化键与单位；字段含义归 settings 的项呈现，枚举标签不在工具声明内，缺 `presentation` 的声明被 `judgeToolDefinition` 拒绝。根入口的 `toolSettingDefinitions({ adoption, name, declaration })` 把声明投影为 settings 的 `SettingDefinitions`，没有声明时为 `null`：项 id 是路径以 `.` 连接，`valueSchema` 取声明 schema 在该路径的子模式（没有子模式是声明缺陷，投影抛错），`sensitive: true` 对应 `sensitivity: 'secret'` 且默认为 `absent`，普通项取声明里的默认值，`merge` 为 `override`；`providerId` 是采用 owner 的编码（前缀 `tool:`，settings 标识字母表外的字符写成 `_<十六进制>_`），`definitionId` 是工具名，`version` 是采用摘要。投影是否合法仍由 `defineSettings` 判定，登记与秘密项入口的持有解析归装配。消费原设置求值及证据，核当前合法来源、锁定与上界，不在 Tool 重写覆盖算法。目标环境可由获准层配置，工作区不能配落点/身份或提高治理权限。programmable、backgroundAllowed、主体、租户和授权上界不属于可被配置覆盖的作者构造参数。秘密内容不进入 defaults、Catalog、消费方的工具声明或日志；配置只保存获准引用，解析能力由 DI 提供。工具凭据按调用的租户绑定。第三方凭据的选择与实际绑定按下节执行。
 
 共享贡献的装载期设置只读取该贡献所在来源层的值：官方贡献取官方值，组织贡献取对应组织值。登记者的 Access 只核登记资格，不把该租户的设置带入共享作者闭包。租户相关设置在每次调用时求值并由 `FixedToolRequest.settings` 固定。作者构造参数 C 只含装载期合法值，不能捕获某次调用的租户设置。设置读取不可用时装载返回 unavailable，不发布部分配置。
 

@@ -102,7 +102,55 @@ Settings 可独立使用，也可由资产通过组合使用。独立目标通�
 
 有效配置或原请求已经固定到需要秘密的目标后，秘密缺失、不可读、被拒绝或依赖失败时，停止依赖该秘密的动作，不改选其他层、目标或凭据。Model 的唯一 `factory` 例外沿[凭据引用与解析端口](../../model/model-contract/SPEC.md#342-凭据引用与解析端口)及[产品凭据范围](../../../.meta_harness/design/product/model-invocation/design.md#凭据的范围)：本租户没有任何绑定、本次档案确为官方、发送已获准且相应部署确实提供默认凭据，四项须同时成立。已有绑定失败不回退 `factory`；当前引用未匹配、存在性查询为否或配置未求出，都不能单独证明本租户没有任何绑定。[Tool](../../tool/tool-contract/SPEC.md#p15-配置声明与合法装载) 与 [MCP](../../../docs/domains/mcp/README.md) 沿各自本租户缺凭据失败规则，不继承 Model 例外，不退组织、官方或其他租户的凭据。
 
-秘密保管方须向合法消费方提供可核实所取实际秘密属于其身份、用途和租户绑定的依据，不能以请求字段的回显证明实际绑定。类别按各自契约核对实际绑定与本次目标、用途、供应商或端点及原请求是否匹配，不通过更换目标来适应错误绑定。Model 对固定 request、dispatch、接收方与 Supplier 的匹配责任沿[本域采用](https://github.com/nemori-ai/omne-harness-lite/issues/682#issuecomment-6369701412)和[发送核验边界](../../model/model-contract/SPEC.md#342-资格共同提交与实际发送)细化；这不替 settings 定义绑定字段、秘密读取 API 或轮换协议。
+秘密保管方须向合法消费方提供可核实所取实际秘密属于其身份、用途和租户绑定的依据，不能以请求字段的回显证明实际绑定。类别按各自契约核对实际绑定与本次目标、用途、供应商或端点及原请求是否匹配，不通过更换目标来适应错误绑定。Model 对固定 request、dispatch、接收方与 Supplier 的匹配责任沿[本域采用](https://github.com/nemori-ai/omne-harness-lite/issues/682#issuecomment-6369701412)和[发送核验边界](../../model/model-contract/SPEC.md#342-资格共同提交与实际发送)细化；这不替 settings 定义 Model 专属的匹配字段或轮换协议。秘密绑定的键与取用端口归[秘密设置项](#secret-items)。
+
+## 秘密设置项
+
+<a id="secret-items"></a>
+
+本节是长期行为。端口与值在公开入口的 [secrets.ts](src/secrets.ts)，秘密项入口 `createSettingsSecretItems` 在 [secret-items.ts](src/secret-items.ts)；本地文件提供者是 [settings-local 的 `./secrets`](../settings-local/SPEC.md#secret-custody)。入口的装配与公开操作的现状见[当前核心与本地提供者](#当前核心与本地提供者)。
+
+声明为秘密的设置项，值只保存在秘密保管里。秘密值不进入配值、求值来源、`SettingsChange`、提交记录、回执或变化记录。纯求值继续把来源中的秘密值判为不兼容。
+
+秘密保管按秘密绑定保存秘密。绑定的键是范围、目标和用途：
+
+- 范围是官方或某个已铸造的租户。组织范围在有合法写入入口之前不存在。
+- 目标标明秘密属于什么。资产秘密设置项的目标由具体持有与项标识推出，不另行存储引用。官方资产的持有下界以该官方资产本身作为持有身份。
+- 用途不同的绑定互相取不到。资产秘密设置项使用同一个用途，各类别凭据使用自己的用途。
+
+目标随具体持有推出，所以同标识替换后的新实现属于另一个持有，取不到原实现的秘密。持有移除后，原目标不再有合法持有，秘密项入口和使用面都拒绝它。定义删去某项后，该项不再声明，它的旧绑定也不再能被写入、查询或取用。这些不可达的旧绑定留在保管里，等清理协议确定后处置。
+
+秘密保管提供两个窄端口，分别给不同的使用方：
+
+| 端口 | 操作 | 使用方 |
+| --- | --- | --- |
+| 管理面 | 写入、清除、查询有无、按范围列出有无 | 秘密项入口与受信部署操作 |
+| 使用面 | 按键取用一次秘密 | 装配时注入的受信类别消费方 |
+
+秘密项入口与普通配值分开：
+
+- 写入和清除先核对该项已声明为秘密、调用者对该范围有配值依据，再交管理面执行。
+- 有无由管理面现读，Settings 不另存有无或引用。
+- 秘密项的锁定与解锁返回 `unsupported`。这是已知限制：秘密项没有上层锁定，组织范围也不存在，所以没有需要下层服从的秘密锁。
+- 写入的结果分为已写入、未写入、确认未知和拒绝。确认未知不报告成功或失败；重试前先查询有无。
+
+查询有无只返回未配置，或已配置加生命状态与配置时刻，不返回值。使用面按键精确取用，每次取用读当前值：同一绑定被替换后，取到的是取用那一刻的值；没有绑定、绑定已撤销或读不出时返回失败，不改选其他范围、目标或用途。选择哪一层的引用、缺凭据时怎样失败，由类别的凭据契约决定。
+
+公开入口的形状（精确类型归 [secrets.ts](src/secrets.ts)）：
+
+- `SecretScope` 是官方或一个 legal-identity 铸造的租户；`SecretTarget` 是 `{ owner, key }`；`SecretBindingKey` 是（范围、目标、用途）。
+- `SecretPresence` 是 `unbound`，或 `bound` 加 `life`（`active`、`revoked`、`unreadable`）与 `configuredAt`（utc-instant 的时刻，没有时为 `null`）。它没有值成员。
+- `SecretText` 是品牌字符串，只由 `parseSecretText` 造出：去首尾空白后非空、不含 C0 与 DEL 控制字符、不超过 `SECRET_TEXT_MAX_LENGTH`（4096）。拒绝只说明规则，不回显文本。诊断与结果类型不接受 `SecretText`。
+- `SecretCustodyManagement.bind(key, secret, configuredAt)` 的结果是 `written`、`not-written`、`unconfirmed`、`denied`；`unbind` 另有 `absent`，成功是 `removed`；`describe` 返回有无、`denied` 或 `unavailable`；`list(scope, after, limit)` 按稳定次序分页，游标不透明且可序列化。`configuredAt` 由调用方给出，没有时为 `null`；保管不读时钟。同值重复写入是 `written`。未铸造的租户范围答 `denied`，不读文件。
+- `SecretCustodyUse.use(key)` 同步返回 `{ kind: 'secret', value }`、`missing`（没有绑定）、`denied`（绑定已撤销或范围未铸造）或 `unavailable`（绑定读不出或保管读不出）。
+
+秘密项入口的形状（精确类型归 [secret-items.ts](src/secret-items.ts)）：
+
+- `createSettingsSecretItems({ declarations, custody, resolve })`：`declarations` 是登记表的快照读取，`custody` 是管理面，`resolve(asset?)` 由装配给出，把资产引用解析成具体持有 `{ providerId, definitionId }`（省略引用时列出装配知道的全部持有）。入口不猜持有，不缓存快照。
+- `set`、`clear`、`describe` 以（范围、资产引用、项 id）定位项。持有解析不到或项未在登记定义里声明答 `undeclared`；项不是秘密答 `not-secret`；资产引用对应多个持有，或一个持有有多个在用版本，答 `conflict`。这三种答复都不调用保管。其余答复是保管对 `bind`、`unbind`、`describe` 的原答复。
+- 绑定键的目标是 `{ owner: 'setting', key }`，`key` 是（`providerId`、`definitionId`、项 id）三元组的 JSON 数组文本，单射；用途恒为 `setting`；范围原样交给保管。这个编码只有一处：公开函数 `secretItemTarget(holding, itemId)` 返回它，装配要从持有推出同一目标时调用它，不另存一份编码。
+- `items({ scope, asset? })` 列出已解析持有的登记定义里的全部项：秘密项带保管现读的有无，普通项不带有无；保管答 `denied` 或 `unavailable` 时整次列出答同样的值。列出的 `SecretItemView` 按 `sensitivity` 判别：`secret` 的项必带 `presence`，`ordinary` 的项没有 `presence` 成员。
+- 入口不经 `SettingsCommitPort`，不写配值与求值来源；任何答复不含秘密值。调用者对范围的配值依据由装配在调用入口前核对。
 
 ## 持续验证义务与表达缺项
 
@@ -114,7 +162,7 @@ Settings 可独立使用，也可由资产通过组合使用。独立目标通�
 
 自动归档设置须验证无会话能力持有时不能配值，移除该持有后配值退出。第三方秘密须验证身份、用途和租户绑定不串用，绑定值不可读时不回退，读取配值资格不等于取得秘密。
 
-声明组合、目录、应用端口及当前性义务见[组模型](../docs/settings-composition.md)；精确公开类型/Schema、项兼容、秘密读取接口、提供者事务映射与实现符合性仍须完成。实际绑定依据的精确表示、凭据身份映射、绑定版本及轮换与使用点的协调，由秘密保管方与各类别消费契约共同细化；本页不新增配置项、引用能力或统一解析协议。权限分档不归本成员。这些表达缺项须在实施前补齐，不能缩减已选设置能力的完整支持。公共草稿发布由 assets 承接，类别上架制度、组织创作委托和长期工作区提升缺项不扩大成所有设置不可用，不补未经决定的角色及配置政策。
+声明组合、目录、应用端口及当前性义务见[组模型](../docs/settings-composition.md)；精确公开类型/Schema、项兼容、提供者事务映射与实现符合性仍须完成。秘密的入口、绑定键与两个端口归[秘密设置项](#secret-items)；绑定版本、轮换与使用点的协调，以及组织范围，仍由秘密保管方与各类别消费契约共同细化；除秘密设置项一节外，本页不新增配置项、引用能力或统一解析协议。权限分档不归本成员。这些表达缺项须在实施前补齐，不能缩减已选设置能力的完整支持。公共草稿发布由 assets 承接，类别上架制度、组织创作委托和长期工作区提升缺项不扩大成所有设置不可用，不补未经决定的角色及配置政策。
 
 独立使用必须验证无资产包依赖也能按合法目标读取、配置和求值；资产组合必须另验证持有失效与声明换代。统一目录须验证分组、必要语义元数据、未启动资产管理、分页换代/撤权、秘密不泄漏和明确局部失败。有限交错模型及证据范围见 [verification](verification/README.md)。
 
@@ -144,4 +192,4 @@ Settings 可独立使用，也可由资产通过组合使用。独立目标通�
 
 维护重新采用要求精确旧新定义、预期修订及所有旧值/锁的 retain 或 discard 决定，保留内容必须符合新定义和来源。该能力不从普通租户配值权推导，不直接暴露给 agent tool。完整条件归 [本地规格](../settings-local/SPEC.md)。
 
-当前不提供秘密保管、工作区文件来源扫描、最终 UI、HTTP 服务、tools 插件或执行实例采用。上文相应长期义务保持其原拥有者，不能因本地核心完成而宣称整个产品阶段完成。授权历史检查可返回原定义与原状态，但不能把不匹配记录当作当前有效设置采用。
+秘密保管的两个端口已由本成员定义，文件提供者由 settings-local 的 `./secrets` 兑现，Model 凭据与 harness-server 的 `setup` 已在它之上工作；秘密设置项的入口 `createSettingsSecretItems` 做声明核对与目标推导，配值依据由装配核对；把入口接到保管、持有解析与公开操作的装配尚未交付。当前不提供工作区文件来源扫描、最终 UI、HTTP 服务、tools 插件或执行实例采用。上文相应长期义务保持其原拥有者，不能因本地核心完成而宣称整个产品阶段完成。授权历史检查可返回原定义与原状态，但不能把不匹配记录当作当前有效设置采用。

@@ -50,6 +50,7 @@
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/runtime-context-contract": "workspace:*",
     "@omne-harness/schema-provider": "workspace:*",
+    "@omne-harness/settings": "workspace:*",
     "@omne-harness/stream-arrival": "workspace:*"
   },
   "devDependencies": {

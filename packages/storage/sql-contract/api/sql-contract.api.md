@@ -32,6 +32,7 @@
 - `MigrationDescriptor` · `types.d.ts`
 - `MigrationRef` · `types.d.ts`
 - `NotCommittedV2` · `types.d.ts`
+- `NotRecallableV2` · `types.d.ts`
 - `OperationIdentityV1` · `types.d.ts`
 - `ParticipantDescriptor` · `types.d.ts`
 - `ParticipatedEntry` · `types.d.ts`
@@ -394,6 +395,7 @@ export type SqlIdentity = Readonly<{
     operation: string;
     protocolVersion: ProtocolVersionV2;
     operationKey: string;
+    recall?: 'never';
 }>;
 export type FactCommandV2 = Readonly<{
     participant: string;
@@ -494,7 +496,11 @@ export type NotCommittedV2 = Readonly<{
         operationNotQueued: true;
     }>;
 }>;
-export type QueryResultV2 = CommittedV2 | RolledBackV2 | UnknownV2 | NotCommittedV2;
+export type NotRecallableV2 = Readonly<{
+    kind: 'not_recallable';
+    identity: SqlIdentity;
+}>;
+export type QueryResultV2 = CommittedV2 | RolledBackV2 | UnknownV2 | NotCommittedV2 | NotRecallableV2;
 export type RegistrationKey = Readonly<{
     scope: StorageScope;
     transactionDomain: string;

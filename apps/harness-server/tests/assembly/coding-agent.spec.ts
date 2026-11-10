@@ -46,7 +46,7 @@ async function adoptionsFace() {
 }
 
 describe('the coding entry of the release mapping (R2-D124)', () => {
-  it('is a legal definition: four release tools resident, the model attribute, ten ordered sections, no extension', async () => {
+  it('is a legal definition: five release tools resident, the model attribute, ten ordered sections, no extension', async () => {
     const table = await buildTable(config)
     expect(table.mappings.byName('coding')?.candidate).toEqual(entry.candidate)
     const judged = await judgeAgentDefinition(entry.definition)
@@ -56,6 +56,7 @@ describe('the coding entry of the release mapping (R2-D124)', () => {
       { capability: { category: 'Tool', name: 'Shell' }, resident: true },
       { capability: { category: 'Tool', name: 'Tools' }, resident: true },
       { capability: { category: 'Tool', name: 'TodoItems' }, resident: true },
+      { capability: { category: 'Tool', name: 'Web' }, resident: true },
     ])
     expect(configured.attributes).toEqual([{ item: 'model' }])
     expect(instructions.map(section => section.id)).toEqual([
@@ -109,13 +110,19 @@ describe('the coding entry of the release mapping (R2-D124)', () => {
       expect(mapping.initialModelSelection?.name, mapping.name).toBeTruthy()
   })
 
-  it('the prompt names no model vendor, the four resident tools, and carries the guardrails and the state words', () => {
+  it('the prompt names no model vendor, the five resident tools, and carries the guardrails and the state words', () => {
     for (const forbidden of ['Claude', 'Anthropic', 'OpenAI', 'GPT', 'Gemini', 'Codex'])
       expect(fullText, forbidden).not.toContain(forbidden)
     for (const word of ['Verified', 'Partly verified', 'Not verified', 'Failed'])
       expect(fullText).toContain(word)
     for (const word of ['已验证', '部分验证', '未验证', '失败']) expect(fullText).toContain(word)
-    expect(fullText).toContain('You have four resident tools: Files, Shell, Tools and TodoItems.')
+    expect(fullText).toContain(
+      'You have five resident tools: Files, Shell, Tools, TodoItems and Web.',
+    )
+    // The Web section tells the model what search needs and that web content is data.
+    expect(fullText).toContain('## Web')
+    expect(fullText).toContain('exa.apiKey')
+    expect(fullText).toContain('external data')
     // Four guardrail classes (R2-D124): denied is final; secrets; consent for destructive and
     // visible actions; honest reporting. Six sentences start with the marker.
     expect(fullText.match(/Guardrail:/gu)).toHaveLength(6)

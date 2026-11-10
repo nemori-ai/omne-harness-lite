@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-单机 Tool 宿主。根入口提供启动协调器、时钟、绑定登记与 Catalog、作者装载及执行绑定工厂。`./author` 提供贡献与换代工厂，`./cordis` 提供作者宿主、绑定插件和运行时组合工厂。完整 runtime、真实存储和执行设施的生产组合由应用装配负责；本入口不宣称这些组合已经验证。
+单机 Tool 宿主。根入口提供启动协调器、时钟、绑定登记与 Catalog、作者装载及执行绑定工厂。`./author` 提供贡献与换代工厂，`./cordis` 提供作者宿主、绑定插件和运行时组合工厂，`./web` 提供 `createWebAccess`，即 Web 作者窄口 `WebAccess` 的单机实现（本机 fetch 与 Exa 搜索）。完整 runtime、真实存储和执行设施的生产组合由应用装配负责；本入口不宣称这些组合已经验证。
 
 ## 职责与状态
 
@@ -25,6 +25,10 @@
 ## 环境调度与凭据
 
 根入口另导出 `createLocalScheduledEnvironment` 和 `createLocalToolCredentials`。调度器通过环境四动词消费显式宿主策略，只在本进程记队列和名额。凭据适配器在受保护使用前重核实际存储绑定。提供者责任与限制见[公开接口](docs/public-api.md)。已分配获取的首次采用映射与真实 vault 尚未交付。
+
+## Web 提供者
+
+`@omne-harness/tool-host-local/web` 导出 `createWebAccess({ search, fetch, exaKey })`。fetch 只发 GET，跟随有限次跳转，按解压后字节计数并在上限处截断，用 turndown 把 HTML 转成 Markdown。search 向 Exa 发 POST，key 只经 `exaKey` 给出的受限能力到达；没有 key 时答 `unconfigured`，不发请求。本机档直连宿主网络，沙箱与多租户部署的出口控制是已知限制。见 [SPEC](SPEC.md#web-提供者web-子路径)。
 
 ## 宿主时钟、绑定登记表、Catalog 与缺席端口
 

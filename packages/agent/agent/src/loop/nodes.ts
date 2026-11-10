@@ -212,6 +212,7 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'I1', on: 'try-finish', to: 'F1' },
   { from: 'P0', on: 'proceed', to: 'P1' },
   { from: 'P1', on: 'ready', to: 'I2' },
+  { from: 'P1', on: 'wait', to: 'W0' },
   { from: 'I2', on: 'call', to: 'M0' },
   { from: 'M0', on: 'recorded', to: 'M6' },
   { from: 'M6', on: 'admitted', to: 'M1' },

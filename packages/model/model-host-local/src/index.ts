@@ -1,5 +1,8 @@
 export {
+  MODEL_FACTORY_SECRET_KEY,
+  MODEL_SECRET_OWNER,
   createLocalCustodian,
+  modelCredentialBindingKey,
   openLocalCustodian,
   type BindingRemoval,
   type BindingView,

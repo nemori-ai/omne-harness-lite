@@ -6,7 +6,6 @@
 
 | 模块 | 持有什么 | 依赖 |
 | --- | --- | --- |
-| [records.ts](../src/records.ts) | 磁盘记录的形状、解码与编码；解码时经 legal-identity 重新铸造租户值，经 model-contract 解码凭据身份 | model（状态类型）、model-contract、legal-identity |
 | [store.ts](../src/store.ts) | 保管库句柄、内存快照、文件锁、刷新、原子发布、确认未知、关闭、诊断列表 | model（判定函数）、model-contract、proper-lockfile、records |
 | [index.ts](../src/index.ts) | 根入口：保管库工厂与诊断类型 | store |
 | [cordis.ts](../src/cordis.ts) | Cordis 绑定入口：`LocalCredentialPlugin`、配置校验，并转出 `deliverInjected` | model-cordis-contract、Cordis、store、deliver-injected |
@@ -18,7 +17,7 @@
 | [plugins/host.ts](../src/plugins/host.ts) | 宿主驱动：未绑定宿主、`bind`、有界唤醒与协程、路由发布与撤除、按调用核对观察资格、一个外层 effect 拥有的有序关闭，以及只发布 `modelInstanceHost` 的贡献 | model（`ModelRuntimeProvider` 类型）、model-contract、model-cordis-contract、Cordis、config |
 | [plugins/preparation.ts](../src/plugins/preparation.ts) | 请求准备插件：静态注入 `modelCommands`，经 `createModelPreparationResources` 取租约，按家族规则形成固定请求并交还租约；同一份资源交给装配作计量租约来源 | model（`createModelPreparationResources`）、model-contract、model-cordis-contract、Cordis、config |
 
-依赖方向是 cordis.ts 到 store.ts 到 records.ts，反向没有。deliver-injected.ts 不导入 store.ts 与 records.ts：注入发送只经服务取得凭据，不打开保管库。根入口不导入 Cordis 或 cordis.ts。assembly.ts 到 send-resources.ts，两者都不导入 store.ts、records.ts 或任何 `testing` 模块：装配只经 `CredentialPort` 消费保管库。本包依赖 model 取得判定函数、状态类型与发送边界；model 不依赖本包。本包依赖 pi-ai-transport 取得传输与网络资源；家族包只是测试依赖，由调用方组合后注入。
+依赖方向是 cordis.ts 到 store.ts，反向没有；磁盘记录的形状、解码与编码归 settings-local 的 `./secrets` 子路径，store.ts 经它读写保管文件。deliver-injected.ts 不导入 store.ts：注入发送只经服务取得凭据，不打开保管库。根入口不导入 Cordis 或 cordis.ts。assembly.ts 到 send-resources.ts，两者都不导入 store.ts 或任何 `testing` 模块：装配只经 `CredentialPort` 消费保管库。本包依赖 model 取得判定函数、状态类型与发送边界；model 不依赖本包。本包依赖 pi-ai-transport 取得传输与网络资源；家族包只是测试依赖，由调用方组合后注入。
 
 ## 关键机制与理由
 
@@ -50,4 +49,4 @@
 
 ## 验证与维护
 
-保证与测试的对应见 [SPEC](../SPEC.md#组合与验证)。状态类型随 model 的判定变化时，同步 [records.ts](../src/records.ts)、[store.ts](../src/store.ts) 与测试。服务定义变化时同步 [cordis.ts](../src/cordis.ts) 与 [deliver-injected.ts](../src/deliver-injected.ts)。model 的 `SendResources` 端口或 pi-ai-transport 的传输配置变化时，同步 [send-resources.ts](../src/send-resources.ts)、[assembly.ts](../src/assembly.ts) 与对应测试。宿主插件扩展或运行时门面接入时，同步 [plugins/host.ts](../src/plugins/host.ts) 的扩展点与 [plugins-host.spec.ts](../tests/plugins-host.spec.ts)。
+保证与测试的对应见 [SPEC](../SPEC.md#组合与验证)。状态类型随 model 的判定变化时，同步 [store.ts](../src/store.ts) 与测试。服务定义变化时同步 [cordis.ts](../src/cordis.ts) 与 [deliver-injected.ts](../src/deliver-injected.ts)。model 的 `SendResources` 端口或 pi-ai-transport 的传输配置变化时，同步 [send-resources.ts](../src/send-resources.ts)、[assembly.ts](../src/assembly.ts) 与对应测试。宿主插件扩展或运行时门面接入时，同步 [plugins/host.ts](../src/plugins/host.ts) 的扩展点与 [plugins-host.spec.ts](../tests/plugins-host.spec.ts)。

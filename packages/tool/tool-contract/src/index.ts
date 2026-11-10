@@ -120,9 +120,11 @@ export type {
   ToolConsumerProfile,
   ToolDeclarations,
   ToolInspection,
+  ToolSettingPresentation,
   ToolSettingsDeclaration,
   ToolUsage,
 } from './authoring.ts'
+export { toolSettingDefinitions } from './settings.ts'
 export type {
   ClockSegment,
   ControlProgress,

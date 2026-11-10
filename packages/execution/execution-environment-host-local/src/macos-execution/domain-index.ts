@@ -1,10 +1,9 @@
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ManagedResource } from '@omne-harness/execution-environment-contract'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
+import { createColdIndex, indexedKey } from '../cold-index.ts'
 import { positive, type RecordedSession, type SessionCoordinate } from './session.ts'
 
-const keyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u
 const text = (value: string) => ({ kind: 'string', value }) as const
 
 /**
@@ -37,7 +36,7 @@ export function readDomainReference(
   }
   const key = entry('macosDomain')
   const bootId = entry('bootId')
-  if (key === undefined || bootId === undefined || !keyPattern.test(key)) return undefined
+  if (key === undefined || bootId === undefined || !indexedKey(key)) return undefined
   return { key, bootId }
 }
 
@@ -110,67 +109,22 @@ export type DomainIndex = Readonly<{
 }>
 
 export function createDomainIndex(stateDirectory: string): DomainIndex {
-  const directory = join(stateDirectory, 'macos-domains')
-  const path = (key: string) => join(directory, `${key}.json`)
-
-  const read = async (key: string): Promise<Marker | 'absent' | 'unreadable'> => {
-    let content: string
-    try {
-      content = await readFile(path(key), 'utf8')
-    } catch (error) {
-      return Reflect.get(Object(error), 'code') === 'ENOENT' ? 'absent' : 'unreadable'
-    }
-    return parseMarker(content, key) ?? 'unreadable'
-  }
-
+  const markers = createColdIndex({
+    directory: join(stateDirectory, 'macos-domains'),
+    parse: parseMarker,
+  })
   return Object.freeze({
-    async record(resource, scope, coordinate) {
-      if (!keyPattern.test(resource.key)) return false
-      const marker: Marker = { resource, scope: scope.ref, coordinate }
-      const staged = join(directory, `.${resource.key}.${process.pid}.tmp`)
-      try {
-        await mkdir(directory, { recursive: true, mode: 0o700 })
-        await writeFile(staged, JSON.stringify(marker), { mode: 0o600 })
-        await rename(staged, path(resource.key))
-        return true
-      } catch {
-        await rm(staged, { force: true }).catch(() => undefined)
-        return false
-      }
-    },
+    record: (resource, scope, coordinate) =>
+      markers.record(resource.key, { resource, scope: scope.ref, coordinate }),
     async coordinate(key) {
-      if (!keyPattern.test(key)) return 'absent'
-      const marker = await read(key)
+      const marker = await markers.read(key)
       return typeof marker === 'string' ? marker : marker.coordinate
     },
-    async forget(key) {
-      if (!keyPattern.test(key)) return true
-      try {
-        await rm(path(key), { force: true })
-        return true
-      } catch {
-        return false
-      }
-    },
+    forget: key => markers.forget(key),
     async list(scope) {
-      let names: string[]
-      try {
-        names = await readdir(directory)
-      } catch (error) {
-        return Reflect.get(Object(error), 'code') === 'ENOENT' ? [] : 'unavailable'
-      }
-      const resources: ManagedResource[] = []
-      for (const name of names) {
-        if (name.startsWith('.')) continue
-        const key = name.endsWith('.json') ? name.slice(0, -'.json'.length) : ''
-        if (!keyPattern.test(key)) return 'unavailable'
-        const marker = await read(key)
-        // A marker removed meanwhile was stopped; any other unread marker makes no complete list.
-        if (marker === 'absent') continue
-        if (marker === 'unreadable') return 'unavailable'
-        if (marker.scope === scope.ref) resources.push(marker.resource)
-      }
-      return resources
+      const all = await markers.all()
+      if (all === 'unavailable') return 'unavailable'
+      return all.filter(marker => marker.scope === scope.ref).map(marker => marker.resource)
     },
   })
 }

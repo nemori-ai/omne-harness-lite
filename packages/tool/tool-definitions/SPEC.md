@@ -47,7 +47,7 @@ list 使用 FileEntry.name，不解析对象令牌。任一条目缺少有效名
 
 没有 terminal 参数时，execute 调用 command.start，使用显式配置的可执行文件、参数前缀、初始 cwd 与 env。结局 `completed` 带处置报告时，结局行之后写一行：`residue=none`、`residue=retained process=<引用> processes=<数|unknown>`、`residue=stopping reason=<原因>` 或 `residue=unknown`。`stopping` 不写成已停，`unknown` 不写成 `none`。结局没有处置报告（终端段、不做处置的提供者、`failed`）时没有这一行。处置的含义归[执行环境契约的「一次性命令留下的进程」](../../execution/execution-environment-contract/SPEC.md#一次性命令留下的进程)。create_session 声明 Session 保留；带 terminal 的 execute 与 close_session 先由本次获取 attach，再调用对应设施。缺保留或附着能力时明确 unsupported，不创建替代终端，也不回退为一次性执行。terminal 的持续状态归提供者，作者不保存会话表。单次 cwd 与 env 覆盖只转发到本次调用。
 
-Windows terminal 的 completed 表示前台段结束，不证明持久 shell 退出或业务成功。输出按观察窗口归属，前台已写未读字节也可能出现在后窗；空脚本不保证排空；close 可释放尚未交付的空闲缓冲。help 说明这些限制，未知退出码不显示为成功，未交付字节不显示为已交付。
+terminal 的 completed 表示前台段结束，不证明持久 shell 退出或业务成功。各平台按同一哨兵规则归属字节，退出码按该平台 shell 的规则求得（Windows 的规则见 [host-local 的 Windows 终端](../../execution/execution-environment-host-local/SPEC.md#windows-终端未接受)）。help 说明 completed 的这一含义，未知退出码不显示为成功。
 
 执行前已取消时不启动。启动后中断只请求当前 ProcessHandle.stop('forced')。未确认停止保留 unconfirmed。作者继续排空唯一输出读者并等待原终局。流或终局异常返回 unknown。停止未确认且提供者仍不终结时，作者可能继续等待，不能声称进程已结束。
 
@@ -88,3 +88,18 @@ TodoItems 采用 [Session Todo 契约](../../session/session-contract/SPEC.md)�
 作者捕获或返回字符串的 resultMaxBytes 与 Tool 的模型正文内联上限分别生效。作者已经截断或设施已经丢弃的输出不能被 runtime 卸载补回。截断须继续如实说明；W3 不顺带重做 Shell 的捕获和后台机制。普通完整返回由 runtime 判断是否卸载，结构化作者可使用同调用 writer 提供完整正文和符合预算的摘要。
 
 TodoItems 的业务分页仍由 Session 拥有。正文卸载不改 list 游标，也不让工具读取 Session 实例或要求模型提供身份。返回 schema 与失败分支必须包含实际可达结果，不能只描述成功值。
+
+## Web 作者
+
+Web 采用[元能力产品](../../../.meta_harness/design/product/meta-capabilities/design.md#meta-web)的 Web 规则。公开窄口 `WebAccess`、`WebFailure`、`SearchHit`、`FetchedPage` 与 `attachWebAccess` 归 [web-port.ts](src/web-port.ts)。作者不认识搜索供应商、HTTP 客户端、凭据或租户：它从每次调用附着的端口取结果，只负责参数、结果文本与失败文本。
+
+- Web 采用 wrapped 单声明，只有 help、search、fetch。参数由 [web-protocol.ts](src/web-protocol.ts) 的命令表声明与校验；未知字段、空白 `query`、非正整数 `limit` 与空 `url` 都是参数错误，不进入端口。help 无需附着。缺少附着时 search 与 fetch 明确答 `unavailable`。
+- 构造值只有必填的 `resultMaxBytes` 与 `maxSearchResults`，都是正安全整数。environment 为 null，只有文本输入输出，不支持后台。定义不随构造值变化，发行清单能固定它的摘要。
+- search 不带 `limit` 时取 5 条与 `maxSearchResults` 的较小者；`limit` 超过 `maxSearchResults` 时按上限取。零条结果是成功，文本写 `results=0` 与 `no results`。有结果时每条写标题、`url=`、可选 `published=` 与摘录，整段放在外部数据标记 `[external data begins …]` 与 `[external data ends]` 之间。
+- fetch 成功时首行写 `done Web fetch url=<最终网址> media_type=<媒体类型> truncated=<true|false>`，正文放在同一对外部数据标记之间。提供者按字节上限截断时 `truncated=true` 并多一行说明。
+- 失败是一行 `<kind> reason=<原因>`，kind 是 `WebFailure` 的闭集：`unconfigured`、`denied`、`quota-exhausted`、`rate-limited`、`upstream`（带 `status=`）、`invalid-url`、`redirect-limit`、`timeout`、`too-large`、`not-text`（带 `media_type=`）、`network`、`unavailable`。`unconfigured` 的原因写明要配置 Web 的设置项 `exa.apiKey`。失败文本不带外部数据标记。
+- 每次返回的文本由 `bounded()` 限制在 `resultMaxBytes` 以内，截断时保留首尾并写 `[tool truncated bytes …]` 标记；标记本身计入预算。
+- `attachWebAccess` 复用传入的同一 context，以 WeakMap 登记，必须在产生新 context 的 Tools 附着之后调用。finish 先撤除访问，再委托原 finish，重复调用返回同一 Promise。
+- Web 声明一项设置 `exa.apiKey`（路径 `['exa', 'apiKey']`，类别 `binding`，`sensitive: true`，schema 为非空字符串，没有默认值）。它的呈现写明这是 Exa 搜索的 API key、缺少时 search 不可用、清除后 search 不可用而 fetch 不受影响，采用时点 `next-read`。作者只声明，不读值：值的取用经 Tool 的凭据端口由宿主完成。
+
+[Web 作者测试](tests/web.spec.ts)通过真实 commandArguments、参数解码、executeTool、输出校验与 codec 核对结果文本与失败行；`WebAccess` 是脚本化替身。它不证明网络、Exa 或凭据行为，这些归 [tool-host-local 的 Web 提供者](../tool-host-local/SPEC.md#web-提供者web-子路径)。

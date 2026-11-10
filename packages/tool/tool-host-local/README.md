@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-The single-machine Tool host. The root entry provides the start coordinator, clock, binding registry, Catalog, author loader, and executor binding factories. `./author` exports contribution and generation factories; `./cordis` exports author-host, binding, and runtime assembly factories. The application owns the complete runtime, storage, and execution-facility assembly. These entries do not establish that the complete assembly has been verified.
+The single-machine Tool host. The root entry provides the start coordinator, clock, binding registry, Catalog, author loader, and executor binding factories. `./author` exports contribution and generation factories; `./cordis` exports author-host, binding, and runtime assembly factories; `./web` exports `createWebAccess`, the single-machine provider of the Web author's `WebAccess` port (local fetch and Exa search). The application owns the complete runtime, storage, and execution-facility assembly. These entries do not establish that the complete assembly has been verified.
 
 ## Responsibility and status
 
@@ -25,6 +25,10 @@ The checkout scope and the cross-package table are in [the group support range](
 ## Environment scheduling and credentials
 
 The root entry also exports `createLocalScheduledEnvironment` and `createLocalToolCredentials`. The scheduler consumes explicit host policy through the environment verbs. Its slot accounting is local to one process. The credential adapter checks stored bindings again at protected use. See the [public API](docs/public-api.md) for provider responsibilities and current limits. The allocation-to-first-adoption mapping and the real vault are not delivered.
+
+## Web provider
+
+`@omne-harness/tool-host-local/web` exports `createWebAccess({ search, fetch, exaKey })`. fetch sends GET only, follows a bounded number of redirects, counts decompressed bytes and cuts at the cap, and converts HTML to Markdown with turndown. search posts to Exa with a key that arrives only as a restricted capability from `exaKey`; a missing key is `unconfigured` and sends nothing. The local profile reaches the host network directly; egress control for sandboxes and multi-tenant deployments is a known limitation. See [SPEC](SPEC.md#web-提供者web-子路径).
 
 ## Host clock, binding registry, Catalog and absent ports
 

@@ -257,7 +257,7 @@ export function hostShell(): Readonly<{ executable: string; argsPrefix: string[]
  * `tool-records` 的 `maxCommandBytes` 与 `storage` 行相同（`providerConfig` 的 1048576），`combinationVersion`
  * 与 `session-storage` 行相同。
  */
-export function toolRowsOperatorConfig(options: { storageRoot: string }) {
+export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoint?: string }) {
   const base = dirname(options.storageRoot)
   const filesRoot = join(base, 'workspace')
   const stateDirectory = join(base, 'host-files-state')
@@ -276,6 +276,19 @@ export function toolRowsOperatorConfig(options: { storageRoot: string }) {
       Files: { resultMaxBytes: 32768 },
       Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
       TodoItems: { resultMaxBytes: 1_048_576 },
+      Web: { resultMaxBytes: 32768, maxSearchResults: 10 },
+    },
+    // The Web provider values of the test operator layer: the local Exa stand-in when a test gives
+    // one (`tests/fixtures/exa-stub.ts`), else a loopback port that nothing listens on; short time
+    // limits, a small body cap. No test reaches the real Exa.
+    web: {
+      search: {
+        endpoint: options.exaEndpoint ?? 'https://127.0.0.1:9/search',
+        type: 'lite',
+        highlightChars: 200,
+        timeoutMs: 5000,
+      },
+      fetch: { maxRedirects: 5, timeoutMs: 10_000, maxBodyBytes: 1_048_576 },
     },
     records: {
       filesRoot,
@@ -341,6 +354,8 @@ export function operatorLayer(options: {
   modelRoute?: string
   /** Replaces the release `maxJsonDepth` of the storage row (the negative control of R2-D270). */
   maxJsonDepth?: number
+  /** The `http:` URL of the local Exa stand-in; tests that run a Web search give it. */
+  exaEndpoint?: string
 }): unknown {
   const deadline = options.shutdownDeadlineMs ?? SHUTDOWN_DEADLINE_MS
   const model = modelRowsOperatorConfig(options)
@@ -369,6 +384,8 @@ export function operatorLayer(options: {
       // 模型侧五行的配置是机器级参数与运维者的数值：保管库路径、官方档案快照、宿主与记录仓的上限、准备行的家族配置。
       // 写进运维层，不写进发行配置（R2-D6：发行层不写数值默认值）。
       { kind: 'replace', id: 'model-credential', config: model.credential },
+      // The secret custody row opens the vault the model credential plugin builds on the same path.
+      { kind: 'replace', id: 'secret-custody', config: { path: model.credential.path } },
       { kind: 'replace', id: 'model-tokenizers', config: model.tokenizers },
       { kind: 'replace', id: 'model-profiles', config: model.profiles },
       { kind: 'replace', id: 'model-request-preparation', config: model.preparation },
@@ -378,6 +395,8 @@ export function operatorLayer(options: {
       // 文件根与宿主状态目录在存储根旁边新建；Shell 用本机的 shell（Windows 是 powershell，其余是 /bin/sh）；
       // 运行时组的数值取 L-TOOL C06 组合用例的同一组值（tool-storage-sql windows-composition/assembly.ts）。
       { kind: 'replace', id: 'tool-host', config: { construction: tools.construction } },
+      // The release row has no Tools capability and no Web provider values; the test layer adds Web.
+      { kind: 'replace', id: 'tool-bindings', config: { web: tools.web } },
       { kind: 'replace', id: 'tool-records', config: tools.records },
       {
         kind: 'replace',

@@ -2635,22 +2635,27 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     async P0() {
       return step('proceed')
     },
-    /** P1: select again and prepare with the previous preparation; the result must be ready. */
+    /**
+     * P1: select again and prepare with the previous preparation; the result must be ready. An
+     * unavailable dependency is a wait as at I1, and the wake prepares again from I1.
+     */
     async P1() {
       const current = required(iteration, 'iteration')
       const conditions = required(current.conditions, 'conditions')
       const selected = await select(conditions)
-      if ('failure' in selected) return selected
+      if ('failure' in selected)
+        return selected.failure.kind === 'unavailable'
+          ? waitFor('P1', selected.failure, () => select(conditions))
+          : selected
       if (!sameRecipient(selected.ok, required(current.selected, 'selection')))
         return fail(notYet('P1', 'a changed selection', '#502 1.5'))
-      const prepared = await prepare(
-        conditions,
-        selected.ok,
-        required(current.context, 'context'),
-        current.preparation,
-        [],
-      )
-      if ('failure' in prepared) return prepared
+      const context = required(current.context, 'context')
+      const prepareAgain = () => prepare(conditions, selected.ok, context, current.preparation, [])
+      const prepared = await prepareAgain()
+      if ('failure' in prepared)
+        return prepared.failure.kind === 'unavailable'
+          ? waitFor('P1', prepared.failure, prepareAgain)
+          : prepared
       if (prepared.ok.kind !== 'ready')
         return fail(notYet('P1', `a ${prepared.ok.kind} preparation`, '#502 1.5 and stage 4'))
       // R2-D292: the ready preparation is not saved; M0 records the final request it holds.
