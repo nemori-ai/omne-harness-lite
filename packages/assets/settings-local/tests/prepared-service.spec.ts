@@ -63,6 +63,28 @@ it('keeps the state, the original operation and value-free changes across reopen
   })
 })
 
+it('admits one of two operations that compete for the same expected revision', async () => {
+  const w = await open()
+  const competitor = {
+    ...w.command,
+    requestId: 'request-2',
+    operationId: 'competitor',
+    action: { kind: 'set' as const, value: false },
+  }
+  const first = await w.service.prepareChange(w.context, w.command)
+  const second = await w.service.prepareChange(w.context, competitor)
+  if (first.kind !== 'prepared' || second.kind !== 'prepared')
+    throw new Error(JSON.stringify([first, second]))
+  const results = await Promise.all([
+    w.service.commitChange(w.context, { requestId: 'commit-1', preparation: first.preparation }),
+    w.service.commitChange(w.context, { requestId: 'commit-2', preparation: second.preparation }),
+  ])
+  // The reason the loser gets comes from the current producer; the revision rule itself is
+  // pinned at the SQL combination (business-combination.spec.ts, revision_conflict).
+  expect(results.filter(result => result.kind === 'committed')).toHaveLength(1)
+  expect(stored(w.root)).toMatchObject({ state: { state: { revision: 1 } }, operations: 1 })
+})
+
 it('separates protected preparation from commit and recognizes the original result', async () => {
   const w = await open()
   const prepared = await w.service.prepareChange(w.context, w.command)
