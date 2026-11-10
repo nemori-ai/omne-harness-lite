@@ -57,27 +57,6 @@ function git(cwd, args) {
   return result.stdout.trim()
 }
 
-function compatible(root) {
-  try {
-    return (
-      statSync(resolve(root, 'tools/repo-toolchain/src/loop/stop-hook.ts')).isFile() &&
-      statSync(resolve(root, 'tools/repo-toolchain/node_modules/typescript/package.json')).isFile()
-    )
-  } catch (error) {
-    if (error.code === 'ENOENT') return false
-    throw error
-  }
-}
-
-function toolingRoot(target) {
-  const root = directory(git(target, ['rev-parse', '--show-toplevel']))
-  if (compatible(root)) return root
-  const common = resolve(root, git(root, ['rev-parse', '--git-common-dir']))
-  const fallback = dirname(common)
-  if (compatible(fallback)) return fallback
-  throw new Error('target and Git common checkout lack compatible loop tooling and dependencies')
-}
-
 function output(result) {
   if (result.error || result.status !== 0 || result.signal) {
     return diagnostic(
@@ -151,8 +130,8 @@ async function run() {
     throw new Error('missing or invalid status')
   if (payload.status !== 'completed') return diagnostic('incomplete-event', payload.status)
   if (payload.loop_count > 0 || payload.stop_hook_active === true) return {}
+  // 声明的命令只跑目标工作树自己的脚本：没有脚本时不出声，没装依赖时由脚本自己报「量不了」。
   const target = directory(git(targetWorkspace(payload), ['rev-parse', '--show-toplevel']))
-  toolingRoot(target)
   const normalized = {
     ...payload,
     cwd: target,

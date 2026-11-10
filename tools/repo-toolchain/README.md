@@ -121,13 +121,19 @@ A card that changes the public surface of a contract member runs `--write` in th
 The Stop hook recalculates its baseline on each invocation. With a task context it uses `taskBase`. Without one it uses the nearest merge base among `primaryBranch` and the active tracks in `integration-policy.json`. See the Chinese README section "收工钩子" for the exact rules.
 The global architecture reader resolves that base to a fixed commit and batches its selected source and intent blobs.
 They use byte lengths for UTF-8 content and preserve literal paths, empty files and read failures.
-No measurements persist across commits. Source ownership uses the longest member prefix and one inventory traversal.
+Source ownership uses the longest member prefix and one inventory traversal.
+The base side of the architecture readings (the base constraints, the actual extraction and its deviation rows) is calculated once per commit and stored in `hook-baseline/` in the loop directory. Later stops only read it.
+The cache key is the base commit, the `sensors.architecture` section of the configuration, a digest of the tool code (every file in the package code directory, and the TypeScript version) and the storage format version. When the key does not match or the file is damaged, the hook calculates the base side again and replaces the file. It never uses an old reading for a different key.
+The hook prepares the base side first. Thus, when the first measurement on a new base goes over the time limit, the base side is stored, and the warning says that the next stop will not calculate it again.
+The working-tree side is calculated on each stop.
+The measurement runs in a child process. At the time limit the hook stops that process together with the processes it started (dependency-cruiser), and then it shows the user a warning. When the working-tree dependency graph is not in its cache, dependency-cruiser takes more time than the limit on this repository. See the Chinese README for the measured times and the effect.
 
 Synchronizing the primary branch can remove delivered changes from the current difference.
 For a task-wide report, run `pnpm run loop:status --base <task-start-commit>` with a fixed task anchor.
 That explicit base does not change the automatic hook's base. The internal 40-second limit and host error protocol remain unchanged.
 
 The hook reports only the findings that are new or worse since the last reading of the same worktree and branch. It keeps that reading in `hook-readings.json` in the loop directory. When the running script is not in the measured checkout and `OMNE_RUNNER_ROOT` is not set, the hook does not measure. It shows the user a warning that it cannot measure, because the tool in the other checkout can be out of date.
+The host command runs only the script of the worktree where the session is. It does not use the script of another checkout. When the worktree does not have the script, the command exits 0 and writes nothing. When the worktree does not have its dependencies installed, the script shows the user a warning that it cannot measure.
 
 ## Actual assembly observations
 

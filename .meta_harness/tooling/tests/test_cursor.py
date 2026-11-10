@@ -183,9 +183,10 @@ def test_measurement_faults_are_observable_without_followup(installed, script, c
         assert "ETIMEDOUT" in stderr
 
 
-def test_missing_tooling_and_invalid_input_are_diagnostic(installed):
+def test_missing_dependencies_still_run_the_target_script_and_invalid_input_is_diagnostic(installed):
+    # 没装依赖不由适配器判：照跑目标树自己的脚本，「量不了」由脚本自己说。
     (installed[1] / "tools/repo-toolchain/node_modules/typescript/package.json").unlink()
-    assert "lack compatible" in invoke(installed)[1]
+    assert invoke(installed) == ({"followup_message": "new measured facts"}, "")
     assert invoke(installed, text="invalid")[0] == {}
     assert "adapter-failed" in invoke(installed, text="invalid")[1]
 
@@ -231,15 +232,21 @@ def test_native_plugin_command_uses_host_substitution_despite_inherited_root(ins
     assert json.loads((workspace / "receipt.json").read_text(encoding="utf-8"))["payload"]["cwd"] == str(workspace)
 
 
-def test_git_common_fallback_runs_main_tool_but_measures_target(installed, tmp_path):
+def test_worktree_runs_only_its_own_tool_never_the_main_checkouts(installed, tmp_path):
     package, main = installed
     for args in (["add", "tools/repo-toolchain/src", "tools/repo-toolchain/package.json"],
                  ["-c", "user.name=fixture", "-c", "user.email=fixture@invalid", "commit", "-qm", "tool"]):
         subprocess.run(["git", *args], cwd=main, check=True)
     worktree = tmp_path / "fresh target"
     subprocess.run(["git", "worktree", "add", "-qb", "fixture", str(worktree)], cwd=main, check=True)
+    # 刚建、没装依赖的工作树：跑的是它自己的脚本。
     output, stderr = invoke((package, worktree))
     assert output == {"followup_message": "new measured facts"}, stderr
     receipt = json.loads((worktree / "receipt.json").read_text(encoding="utf-8"))
     assert receipt["cwd"] == receipt["payload"]["cwd"] == str(worktree)
     assert not (main / "receipt.json").exists()
+    # 没有这份脚本的工作树（停在旧提交上）：不出声，也不借主检出那份。
+    (worktree / "tools/repo-toolchain/src/loop/stop-hook.ts").unlink()
+    (worktree / "receipt.json").unlink()
+    assert invoke((package, worktree)) == ({}, "")
+    assert not (worktree / "receipt.json").exists() and not (main / "receipt.json").exists()

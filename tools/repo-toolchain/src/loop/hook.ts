@@ -270,13 +270,16 @@ export interface HookDeps {
   readonly repository: (cwd: string) => { root: string; branch: string; home: string } | undefined
   /**
    * 这次变更（相对与主线的合并点，求不出就只看未提交的）碰了产品源码时量出读数；没碰 → undefined。
-   * 超过时限以拒绝结束。
+   * 超过时限以拒绝结束。`home` 是回路目录，BASE 一侧的读数按提交缓存在那里。
    */
   readonly measure: (
     root: string,
     primaryBranch: string,
     timeoutMs: number,
+    home: string,
   ) => Promise<HookReadings | undefined>
+  /** 本检出装没装量读数要的依赖（TypeScript 解析器）。没装就不起量读数的子进程，报「量不了」。 */
+  readonly installed: () => boolean
   readonly readState: (home: string) => string | undefined
   readonly writeState: (home: string, text: string) => void
   readonly log: (home: string, line: string) => void
@@ -331,12 +334,19 @@ async function feedback(
     const tool = deps.toolRoot()
     if (tool !== undefined && !sameTree(tool, root))
       throw new Error(
-        `跑的是 ${tool} 里的收工钩子，量的却是 ${root}：本工作树没装依赖或没有这份脚本，钩子才退回到别的检出；` +
-          '别的检出的工具可能落后，量不了。在本工作树 pnpm install 之后再量',
+        `跑的是 ${tool} 里的收工钩子，量的却是 ${root}：别的检出的工具与配置可能落后，量不了。` +
+          '在被量的工作树里跑它自己的这份脚本',
       )
     const config = deps.config()
     if (!config.enabled) return undefined
-    const readings = await deps.measure(root, config.primaryBranch, config.timeoutSeconds * 1000)
+    if (!deps.installed())
+      throw new Error('本工作树没装依赖，量不了。在本工作树 pnpm install 之后再量')
+    const readings = await deps.measure(
+      root,
+      config.primaryBranch,
+      config.timeoutSeconds * 1000,
+      home,
+    )
     if (readings === undefined) return undefined
     const findings = findingsOf(readings)
     const state = parseState(deps.readState(home))
