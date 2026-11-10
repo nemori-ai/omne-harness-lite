@@ -150,7 +150,7 @@ import {
   refusePlan,
   refuseStart,
   releaseBasisOf,
-  type OrderOutcome,
+  wrongPhase,
   type QueueSnapshot,
   type WriteCommand,
 } from './ledger-start.ts'
@@ -288,7 +288,9 @@ export function createToolLedger<P, B extends ContentBlock>(
   const commitUnknown = (operation: ToolOperationId): Outcome<never, ToolFailure> =>
     fail({ kind: 'commit-unknown', operation })
 
-  const callDomain = (input: CallInput<P> | WriteInput): LedgerDomain => ({
+  const callDomain = (
+    input: Readonly<{ tenant: CallInput<P>['tenant']; call: ToolCallId }>,
+  ): LedgerDomain => ({
     kind: 'call',
     tenant: input.tenant,
     call: input.call,
@@ -620,22 +622,71 @@ export function createToolLedger<P, B extends ContentBlock>(
 
   /**
    * Gives a pending call its place in the FIFO: the one queue step that creates an entry, shared
-   * by the admission and planPreparation. The call domain was read before this step, so the call
-   * may have settled since and its release may have run before the entry existed. The queue
-   * domain answers that itself: a released call has a tombstone there, and the creation step
-   * answers `released` instead of making an entry (SPEC 22). No second read of the call domain
-   * and no ordering of the two domains' commits is needed for that.
+   * by the admission and planPreparation. Whether the call may still take a place is a fact of
+   * the call domain, which `gate` judges on the call-domain read the step holds; the commit that
+   * creates the entry asserts the revision of that read (SPEC 22). A release advances that
+   * revision before it touches the queue, so a creation that judged the call before its release
+   * lands nothing, however late the store applies it. A conflict reads and judges the call again.
    */
   const order = async (
-    tenant: CallInput<P>['tenant'],
-    command: Readonly<{ call: ToolCallId; operation: ToolOperationId }>,
+    context: Readonly<{
+      tenant: CallInput<P>['tenant']
+      call: ToolCallId
+      operation: ToolOperationId
+    }>,
     request: FixedToolRequest,
-  ): Promise<Outcome<OrderOutcome, ToolFailure>> =>
-    transactQueue(
-      queueDomain(tenant, request),
-      snapshot => decideQueueOrder(snapshot, { ...command, limit: request.limits.concurrency }),
-      commitUnknown(command.operation),
-    )
+    first: Snapshot,
+    gate: (snapshot: Snapshot) => Outcome<unknown, ToolFailure>,
+  ): Promise<Outcome<QueueEntryRecord, ToolFailure>> => {
+    const domain = queueDomain(context.tenant, request)
+    const command = {
+      call: context.call,
+      operation: context.operation,
+      limit: request.limits.concurrency,
+    }
+    let judged = first
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const allowed = gate(judged)
+      if ('failure' in allowed) return allowed
+      const queue = await readQueue(domain)
+      if ('failure' in queue) return queue
+      const decision = decideQueueOrder(queue.ok, command)
+      if (decision.kind === 'reply') return decision.outcome
+      const committed = await commit(
+        domain,
+        queue.ok.revision,
+        nextRevision(queue.ok.revision),
+        decision.writes,
+        [{ domain: callDomain(context), revision: judged.revision }],
+      )
+      if (committed.kind === 'committed') return succeed(decision.value)
+      if (committed.kind === 'unknown') return commitUnknown(context.operation)
+      if (committed.kind === 'unavailable') return unavailable('ledger-store', committed.diagnostic)
+      const current = await read(callDomain(context))
+      if ('failure' in current) return current
+      judged = current.ok
+    }
+    return unavailable('ledger-store', `${attempts} revision conflicts in a row`)
+  }
+
+  /** The gate of the admission's ordinal assignment: the call is still `accepted`. */
+  const stillAccepted = (snapshot: Snapshot): Outcome<void, ToolFailure> => {
+    const record = recordOf(snapshot)
+    if ('failure' in record) return record
+    return record.ok.state.phase === 'accepted'
+      ? succeed(undefined)
+      : wrongPhase(record.ok.state.phase)
+  }
+
+  /**
+   * The ordinal of a fresh admission, assigned before the admit reply (P02). A failure here
+   * leaves the admission standing: planPreparation's queue step assigns the ordinal then.
+   */
+  const assignOrdinal = async (checked: MutationInput<P>, request: FixedToolRequest) => {
+    const current = await read(callDomain(checked))
+    if ('failure' in current) return
+    await order(checked, request, current.ok, stillAccepted)
+  }
 
   const admissions: ToolLedgerAdmissions<P> = {
     admit: async input => {
@@ -661,7 +712,7 @@ export function createToolLedger<P, B extends ContentBlock>(
         (snapshot, mint, prepared) => decideAdmit(snapshot, command, admitTools, mint, prepared),
       )
       if ('ok' in admitted && !admitted.ok.recovered && admitted.ok.state.phase === 'accepted')
-        await order(checked.ok.tenant, checked.ok, request)
+        await assignOrdinal(checked.ok, request)
       return admitted
     },
   }
@@ -671,9 +722,8 @@ export function createToolLedger<P, B extends ContentBlock>(
    * task of `operation`. The place is released only on a basis the call domain holds, read after
    * the settlement committed: a call that merely settled keeps its place and its task (P02). The
    * release is attempted whatever position the state holds, because an entry may exist that the
-   * state never recorded (a crash after planPreparation's queue step), and it writes the
-   * tombstone even when no entry exists yet. A failure leaves the task, so the release is redone
-   * by a resend of the same command.
+   * state never recorded (a crash after planPreparation's queue step). A failure leaves the
+   * task, so the release is redone by a resend of the same command.
    */
   const releaseQueue = async (
     context: WriteEntry<P>,
@@ -688,7 +738,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     if (basis === null) return succeed(state)
     const released = await transactQueue(
       queueDomain(context.tenant, record.request),
-      snapshot => decideQueueRelease(snapshot, [{ call: context.call, basis }]),
+      snapshot => decideQueueRelease(snapshot, [context.call]),
       commitUnknown(context.operation),
     )
     if ('failure' in released) return released
@@ -702,21 +752,10 @@ export function createToolLedger<P, B extends ContentBlock>(
   }
 
   /**
-   * The answer of a plan whose call the queue released after the plan read it: the call settled in
-   * between, so the plan is stale. The call domain says so as the transaction would, and no entry
-   * was made for it.
-   */
-  const releasedPlan = async (context: WriteEntry<P>): Reply<never> => {
-    const current = await peek(context)
-    if ('failure' in current) return current
-    const gated = preGate(current.ok, context)
-    return 'failure' in gated ? gated : invalid('call', 'queue-released')
-  }
-
-  /**
-   * The place a plan takes before its transaction: the gates on the pre-read first, so that a
-   * refused plan leaves no entry behind, then the queue step. A released call has no place to
-   * take, so the plan is stale.
+   * The place a plan takes before its transaction: the plan's gates on the call-domain read, so
+   * that a refused plan leaves no entry behind, then the queue step under the same gates. A call
+   * that settled since the plan read it answers as the transaction would, `stale-revision` or the
+   * phase it is in, and no entry is made for it.
    */
   const placeForPlan = async (
     context: WriteEntry<P>,
@@ -726,11 +765,10 @@ export function createToolLedger<P, B extends ContentBlock>(
   ): Promise<Outcome<QueueEntryRecord, ToolFailure>> => {
     const gated = preGate(before, context)
     if ('failure' in gated) return gated
-    const refused = refusePlan(gated.ok, planned, digestOf)
-    if ('failure' in refused) return refused
-    const ordered = await order(context.tenant, command, gated.ok.request)
-    if ('failure' in ordered) return ordered
-    return ordered.ok.kind === 'released' ? releasedPlan(context) : succeed(ordered.ok.entry)
+    return order(command, gated.ok.request, before, snapshot => {
+      const current = preGate(snapshot, context)
+      return 'failure' in current ? current : refusePlan(current.ok, planned, digestOf)
+    })
   }
 
   const planPreparation: ToolCommands<P, B>['planPreparation'] = async input => {

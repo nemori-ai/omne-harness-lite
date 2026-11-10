@@ -270,7 +270,7 @@ describe('original final settlement in one shared driver', () => {
       ).toEqual(final.result)
       expect(saved.tasks.some(task => task.kind === 'settle' || task.kind === 'queue')).toBe(false)
       expect(saved.tasks.some(task => task.kind === 'deliver')).toBe(true)
-      expect(await f.h.released()).toContain(first.call)
+      expect(await f.h.released(first.call)).toBe(true)
       expect(f.h.binding.executions).toEqual([first.call, second.call])
       expect(
         ok(await f.h.ledger.reads.operation({ ...first.access, operation: settle.operation })),
@@ -311,7 +311,7 @@ describe('original final settlement in one shared driver', () => {
         commit: input =>
           offline &&
           input.domain.kind === 'queue' &&
-          input.writes.some(write => write.kind === 'put' && write.record.kind === 'queue-release')
+          input.writes.some(write => write.kind === 'delete' && write.key.startsWith('entry:'))
             ? Promise.resolve({ kind: 'unavailable', diagnostic: 'queue offline' })
             : memory.commit(input),
       }),
@@ -355,7 +355,7 @@ describe('original final settlement in one shared driver', () => {
     expect(f.stats.loads - loads).toBeLessThanOrEqual(3)
     expect(f.h.host.scheduled).toEqual([])
     expect((await f.load(first.call)).tasks.some(task => task.kind === 'queue')).toBe(true)
-    expect(await f.h.released()).not.toContain(first.call)
+    expect(await f.h.released(first.call)).toBe(false)
     expect(f.h.binding.executions).toEqual([first.call])
     expect((await f.load(second.call)).state.phase).toBe('queued')
     // Discard the prior unavailable retry. The blocked run itself adds no immediate work.
@@ -494,7 +494,7 @@ describe('original final settlement in one shared driver', () => {
               if (
                 input.domain.kind !== 'queue' ||
                 !input.writes.some(
-                  write => write.kind === 'put' && write.record.kind === 'queue-release',
+                  write => write.kind === 'delete' && write.key.startsWith('entry:'),
                 )
               )
                 return false
@@ -523,7 +523,7 @@ describe('original final settlement in one shared driver', () => {
       expect(f.h.binding.executions).toEqual([first.call, second.call])
       expect(new Set(operations).size).toBe(1)
       expect(operations.length).toBeGreaterThanOrEqual(2)
-      expect(await f.h.released()).toContain(first.call)
+      expect(await f.h.released(first.call)).toBe(true)
       expect(releasedReads).toBe(0)
       await f.close()
     },
@@ -538,9 +538,7 @@ describe('original final settlement in one shared driver', () => {
           if (
             !allowRelease &&
             input.domain.kind === 'queue' &&
-            input.writes.some(
-              write => write.kind === 'put' && write.record.kind === 'queue-release',
-            )
+            input.writes.some(write => write.kind === 'delete' && write.key.startsWith('entry:'))
           )
             return Promise.resolve({ kind: 'unavailable', diagnostic: 'queue offline' })
           return memory.commit(input)
@@ -932,11 +930,11 @@ it.each(['cancelled', 'unavailable'] as const)(
       expect(saved.tasks).toContainEqual(
         expect.objectContaining({ kind: 'settle', state: 'pending' }),
       )
-      expect(await f.h.released()).not.toContain(first.call)
+      expect(await f.h.released(first.call)).toBe(false)
     } else {
       expect(saved.state.phase).toBe('settled')
       expect(saved.result).not.toBeNull()
-      expect(await f.h.released()).toContain(first.call)
+      expect(await f.h.released(first.call)).toBe(true)
     }
     expect((await f.load(second.call)).state.phase).toBe('queued')
     expect(f.h.binding.executions).toEqual([first.call])

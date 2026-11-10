@@ -59,7 +59,7 @@
 | 事务域 | 判别联合：call（tenant + call）、queue（tenant + FIFO key）、host（tenant + key） | call 域拥有一次原调用的全部记录；queue 域拥有同 key 的顺序与名额；host 域供宿主保存自己的耐久记录 | 域修订号每次提交加一；本包不解释 host 域内容 |
 | call / operation / result / environment-release / account / task 记录 | 判别联合记录，各有唯一键 | 原调用、已提交操作及其回执、结果版本及交付关系、账目修订、待办 | 与状态变化同提交；字段见 [architecture](architecture.md#本包的记录仓与决定器g1) |
 | exclusion 记录 | `exclusion:<operation>`，值是操作号与围栏提交的域修订号 | 否定答案的排除围栏，使按旧修订号准备的在途提交失败 | 该操作的提交删除它；只由否定答案写入 |
-| queue-entry / queue-counter / queue-release 记录 | queue 域内，`entry:<call>`、`counter` 与 `released:<call>` | 一个调用在该 key 下的序号、阶段、最后移动它的操作和固定的并发上限；下一个序号；已释放调用的墓碑与释放依据 | 条目删除即释放名额，删除与墓碑同提交；墓碑在 0.0.x 不剪枝，有墓碑的调用不再得到条目 |
+| queue-entry / queue-counter 记录 | queue 域内，`entry:<call>` 与 `counter` | 一个调用在该 key 下的序号、阶段、最后移动它的操作和固定的并发上限；下一个序号 | 条目删除即释放名额；队列域只保存活条目与计数器，已释放是调用域的事实，创建条目的提交断言调用域修订号 |
 | host 记录 | host 域内，`host:<key>` | 宿主提供者的一条记录 | 值由提供者自己校验 |
 | ToolLedgerGuards | 受信快照：access、sources、factAcknowledgements、grants、starts、results、policy、budgets | 资格、来源、范围授予、启动资格、文本结果、结果政策与参数解析预算 | 构造时由宿主固定；决定器只消费它们的结论 |
 | 证据铸造 | 每种证据各自铸造：state、result、delivery、operation、account | `record` 是种类加定位值的规范 JSON，`digest` 覆盖种类、定位值与内容 | 定位值总含租户与调用，两个租户的同号调用不共享证据 |
@@ -151,7 +151,7 @@ stateDiagram-v2
     held --> [*]: 启动前拒绝或可信原 final 收场后释放
 ```
 
-已启动调用从本域原 final 收场，确认独立保管后同提交原结果、delivery、ended 与全部后继责任。queue 删除 entry 与墓碑独立提交，call 最后关闭原 queue duty。环境资源释放另有 canonical 计划与核验，不由 slot 状态代替。`not-started` 与 `unknown` 的启动回执保存后，启动记录与 `start` 待办保留。名额只在条目删除时释放。
+已启动调用从本域原 final 收场，确认独立保管后同提交原结果、delivery、ended 与全部后继责任。queue 独立提交删除 entry，call 最后关闭原 queue duty。环境资源释放另有 canonical 计划与核验，不由 slot 状态代替。`not-started` 与 `unknown` 的启动回执保存后，启动记录与 `start` 待办保留。名额只在条目删除时释放。
 
 ## 值、参数与依赖
 
@@ -201,7 +201,7 @@ stateDiagram-v2
 | CAP-TL03 准入与启动 | 账本、ToolDriver、启动守卫、启动围栏 | 同身份异输入被拒；`recordStart` 回复丢失后执行者不被调用第二次 |
 | CAP-TL04 队列 | queue 域、queue-entry、ToolGrantVerifier | 同 key FIFO 与名额由一个队列事务裁定；两租户同 owner 同 key 不共队列 |
 | CAP-TL06、CAP-TL08 作者入口 | IndependentToolScope、executeTool | emit 按受理顺序到达；wait 的 key、容量与取消按 P11 处理 |
-| CAP-TL07 原结果 | ledger-settlement、ledger-environment-release、driver | 独立 retain 确认后原结果及后继责任同提交，queue 墓碑与清理计划分别保留原身份 |
+| CAP-TL07 原结果 | ledger-settlement、ledger-environment-release、driver | 独立 retain 确认后原结果及后继责任同提交，queue 释放与清理计划分别保留原身份 |
 | CAP-TL09 交付 | 读取投影、releaseDelivery 决定 | 结果按固定版本分页；内联材料承接后可释放，卸载正文只在固定期限内可读 |
 | CAP-TL12 账目 | 账目记录 | 逻辑终局账目取 SPEC 第 11 条列出的值。这是本包的读法，待契约拥有者确认，见 [SPEC](../SPEC.md#11-操作幂等p01) |
 

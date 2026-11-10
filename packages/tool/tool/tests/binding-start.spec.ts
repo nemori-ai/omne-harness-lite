@@ -444,7 +444,7 @@ for (const port of ['resolve', 'prepare', 'environment'] as const) {
     expect(recovery.result).toBeNull()
     expect(recovery.tasks.map(task => task.kind)).toEqual(['start'])
     expect(await harness.queue()).toEqual([{ call: 'c1', ordinal: '1', stage: 'held' }])
-    expect(await harness.released()).toEqual([])
+    expect(await harness.released('c1')).toBe(false)
     failing = false
     harness.environments.answer('c1', 'prepared')
     await harness.drive('c1')
@@ -545,7 +545,8 @@ it('21 marker: a committed failure with an unknown binding retains the original 
     { call: 'c1', ordinal: '1', stage: 'held' },
     { call: 'c2', ordinal: '2', stage: 'ready' },
   ])
-  expect(await harness.released()).toEqual([])
+  expect(await harness.released('c1')).toBe(false)
+  expect(await harness.released('c2')).toBe(false)
 })
 
 it('21 crash window: without a committed failure marker, a new driver can obtain only the original start first acceptance', async () => {

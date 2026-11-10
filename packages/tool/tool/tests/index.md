@@ -14,7 +14,7 @@
 - [runtime 工厂与后续增量测试](runtime-factory.spec.ts)。
 - [到启动为止的托管路径测试](managed-start.spec.ts)。
 - [启动路径的排除与已收场调用的队列条目测试](start-exclusion.spec.ts)。
-- [队列域的释放记忆、释放依据、认回与对账测试](queue-release.spec.ts)。
+- [队列域的释放、创建断言、释放依据、认回与对账测试](queue-release.spec.ts)。
 - [推进协程的重新推进测试](driver-retrigger.spec.ts)。
 - [绑定启动、失败与未知认回测试](binding-start.spec.ts)。
 - [绑定启动的并发交错测试](binding-races.spec.ts)。

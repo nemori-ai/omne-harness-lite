@@ -50,7 +50,6 @@ export type {
   OperationRecord,
   QueueCounterRecord,
   QueueEntryRecord,
-  QueueReleaseRecord,
   ReleaseBasis,
   ResultRecord,
   ResultCustody,

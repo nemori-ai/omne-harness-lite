@@ -1,8 +1,8 @@
-// The queue domain's own memory of released calls, the basis a release needs, the operation that
-// recalls an entry, and the reconcile of a waiting call (SPEC 22). A queue entry repeats a fact
-// that its call domain owns, so these tests look at the queue domain itself: a released call
-// holds no entry however the creation step and the settlement interleave, and nothing but a
-// release basis in the call domain deletes an entry.
+// The release of a queue place, the basis a release needs, the operation that recalls an entry,
+// and the reconcile of a waiting call (SPEC 22). A queue entry repeats a fact that its call
+// domain owns, so these tests look at the queue domain itself: a released call holds no entry
+// however the creation step and the settlement interleave, the queue domain keeps nothing for a
+// released call, and nothing but a release basis in the call domain deletes an entry.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LedgerCommitInput, ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from '@omne-harness/tool/testing'
@@ -23,6 +23,7 @@ import {
   auditQueues,
   landingAfterRead,
   losingCommits,
+  queueKey,
   startHarness,
   writeContext,
   type StartHarness,
@@ -133,13 +134,13 @@ function windowStore(
   return step === 'plan' ? losingCommits(racing, createsEntry, 'unavailable') : racing
 }
 
-describe('22 release memory: a released call never regains an entry', () => {
+describe('22 release: a released call never regains an entry', () => {
   const cases = (['admit', 'plan'] as const).flatMap(step =>
     (['applied', 'delayed', 'read-fails', 'crash'] as const).map(fault => [step, fault] as const),
   )
 
   it.each(cases)(
-    '22 release memory: a call that settles before the %s step creates its entry keeps no entry when that commit meets %s, and the next call starts',
+    '22 release: a call that settles before the %s step creates its entry keeps no entry when that commit meets %s, and the next call starts',
     async (step, fault) => {
       let settle: () => Promise<void> = () => Promise.resolve()
       const reads = { failing: 0 }
@@ -168,7 +169,7 @@ describe('22 release memory: a released call never regains an entry', () => {
       expect(await harness.queue()).toEqual([])
       if (fault === 'delayed') expect(harness.memory.landDelayed()).toEqual([{ kind: 'conflict' }])
       expect(await harness.queue()).toEqual([])
-      expect(await harness.released()).toEqual(['c1'])
+      expect(await harness.released('c1')).toBe(true)
       // A recalled admission does not make one either.
       const again = await harness.ledger.admissions.admit(
         admission('c1', 'op-c1', fixedOf(harness.internalRequests, 'c1')),
@@ -182,7 +183,7 @@ describe('22 release memory: a released call never regains an entry', () => {
     },
   )
 
-  it('22 release memory: the commit that deletes the entry writes the tombstone, with the exclusion as its basis', async () => {
+  it('22 release: the release commit deletes the entry and writes nothing else', async () => {
     const commits: Commit[] = []
     const harness = startHarness({
       environment: new Map([['c1', 'rejected']]),
@@ -201,29 +202,54 @@ describe('22 release memory: a released call never regains an entry', () => {
     await harness.drive('c1')
     const releases = commits.filter(releasesEntry('c1'))
     expect(releases).toHaveLength(1)
-    expect(releases[0]?.writes).toContainEqual({
-      kind: 'put',
-      record: {
-        kind: 'queue-release',
-        release: {
-          call: 'c1',
-          basis: { kind: 'pre-start-rejection', exclusion: evidence('call-excluded-c1') },
-        },
-      },
-    })
+    expect(releases[0]?.writes).toEqual([{ kind: 'delete', key: 'entry:c1' }])
     expect(await harness.queue()).toEqual([])
-    expect(await harness.released()).toEqual(['c1'])
+    expect(await harness.released('c1')).toBe(true)
   })
 
-  it('22 release memory: a call that never got an entry is released with its tombstone, so its entry cannot appear later', async () => {
+  it('22 release: a call that never got an entry is released without a queue commit, and a late plan for it makes no entry', async () => {
+    const commits: Commit[] = []
     const harness = startHarness({
-      store: memory => losingCommits(memory, createsEntry, 'unavailable'),
+      store: memory =>
+        losingCommits(
+          {
+            ...memory,
+            commit: input => {
+              commits.push(input)
+              return memory.commit(input)
+            },
+          },
+          createsEntry,
+          'unavailable',
+        ),
     })
     await admitCall(harness, 'c1')
     expect(await harness.queue()).toEqual([])
+    const plan = await writeContext(harness, 'c1', 'op-c1/plan')
     await settleElsewhere(harness)
-    expect(await harness.released()).toEqual(['c1'])
+    expect(commits.filter(input => input.domain.kind === 'queue')).toEqual([])
+    expect(await harness.released('c1')).toBe(true)
+    const refused = await harness.commands.planPreparation({
+      ...plan,
+      request: fixedOf(harness.internalRequests, 'c1'),
+      purpose: 'initial',
+      environmentAdoption: adoption('environment'),
+    })
+    expect(failure(refused)).toMatchObject({ kind: 'stale-revision' })
     expect(await harness.queue()).toEqual([])
+  })
+
+  it('22 release: the queue domain holds its counter and nothing else after many released calls', async () => {
+    const calls = ['c1', 'c2', 'c3', 'c4', 'c5']
+    const harness = startHarness({
+      environment: new Map(calls.map(call => [call, 'rejected'] as const)),
+    })
+    for (const call of calls) await admitCall(harness, call)
+    await harness.drive(...calls)
+    for (const call of calls) expect(await harness.released(call)).toBe(true)
+    const read = await harness.memory.read({ kind: 'queue', tenant: tenantA, key: queueKey() })
+    if (read.kind !== 'complete') throw new Error('the queue domain is unreadable')
+    expect(read.records).toEqual([{ kind: 'queue-counter', counter: { next: '6' } }])
   })
 })
 
@@ -241,7 +267,7 @@ describe('22 release basis: only a basis in the call domain releases a place', (
     expect(committed).toEqual({ kind: 'committed' })
   }
 
-  it('22 release basis: a call that only settled keeps its entry through a reconcile, and no tombstone is written', async () => {
+  it('22 release basis: a call that only settled keeps its entry through a reconcile', async () => {
     const harness = startHarness()
     await admitCall(harness, 'c1')
     await admitCall(harness, 'c2')
@@ -259,7 +285,7 @@ describe('22 release basis: only a basis in the call domain releases a place', (
       { call: 'c1', ordinal: '1', stage: 'preparing' },
       { call: 'c2', ordinal: '2', stage: 'preparing' },
     ])
-    expect(await harness.released()).toEqual([])
+    expect(await harness.released('c1')).toBe(false)
   })
 
   it('22 release basis: a waiter removes the entry of a call whose start was rejected but whose release the queue missed, and starts', async () => {
@@ -276,7 +302,7 @@ describe('22 release basis: only a basis in the call domain releases a place', (
     // c2 waits behind c1's entry; its reconcile removes the entry and the host runs c2 again.
     await harness.drive('c2')
     expect(harness.binding.executions).toEqual(['c2'])
-    expect(await harness.released()).toEqual(['c1'])
+    expect(await harness.released('c1')).toBe(true)
     expect(await harness.queue()).toEqual([{ call: 'c2', ordinal: '2', stage: 'held' }])
     // The reconcile also asked the host to run c1, and that run closed its queue task.
     const recovery = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
@@ -306,7 +332,7 @@ describe('22 reconcile: an entry on a basis goes whether or not its call owes a 
       }),
     ).toEqual({ kind: 'committed' })
     await harness.drive('c2')
-    expect(await harness.released()).toEqual(['c1'])
+    expect(await harness.released('c1')).toBe(true)
     expect(harness.binding.executions).toEqual(['c2'])
   })
 })

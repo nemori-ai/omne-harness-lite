@@ -3,8 +3,8 @@
 // queue domain cannot read that domain, so an entry can outlive the step that should have moved
 // or removed it. The reconcile reads the call domains of the entries that stand in the waiter's
 // way and repairs only what the call domain proves: an entry whose call holds a release basis is
-// deleted with its tombstone, and a call that still owes the queue domain a step is reported so
-// that the driver runs it. It never changes the stage of another call's entry, and it reads the
+// deleted, and a call that still owes the queue domain a step is reported so that the driver
+// runs it. It never changes the stage of another call's entry, and it reads the
 // call domains plainly: a fenced read would write an exclusion record and exclude the in-flight
 // redo of the call's owner.
 
@@ -19,7 +19,6 @@ import {
   queueKeyOf,
   releaseBasisOf,
   type QueueSnapshot,
-  type Release,
 } from './ledger-start.ts'
 import type { LedgerDomain, QueueEntryRecord } from './ledger-store.ts'
 
@@ -65,15 +64,14 @@ async function survey<P>(
   ops: QueueMaintenance<P>,
   tenant: CallInput<P>['tenant'],
   peers: readonly QueueEntryRecord[],
-): Promise<Outcome<Readonly<{ releases: Release[]; redrive: ToolCallId[] }>, ToolFailure>> {
-  const releases: Release[] = []
+): Promise<Outcome<Readonly<{ releases: ToolCallId[]; redrive: ToolCallId[] }>, ToolFailure>> {
+  const releases: ToolCallId[] = []
   const redrive: ToolCallId[] = []
   for (const peer of peers) {
     const owned = await ops.read({ kind: 'call', tenant, call: peer.call })
     if ('failure' in owned) return owned
     if (owned.ok.call === null) continue
-    const basis = releaseBasisOf(owned.ok)
-    if (basis !== null) releases.push({ call: peer.call, basis })
+    if (releaseBasisOf(owned.ok) !== null) releases.push(peer.call)
     if (owned.ok.tasks.some(task => task.kind === 'queue')) redrive.push(peer.call)
   }
   return succeed({ releases, redrive })

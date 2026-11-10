@@ -370,11 +370,7 @@ describe('atomic custody and recovery', () => {
     expect(recovery.state.phase).toBe('running')
     expect(recovery.state.queue.kind).toBe('held')
     expect(recovery.result).toBeNull()
-    expect(
-      (await records(harness)).some(
-        record => record.kind === 'queue-release' || record.kind === 'result',
-      ),
-    ).toBe(false)
+    expect((await records(harness)).some(record => record.kind === 'result')).toBe(false)
     expect(
       await rebuilt.facts.read({ ...access, basis: { ...task.basis, digest: 'forged' } }),
     ).toMatchObject({ failure: { kind: 'invalid', field: 'basis' } })

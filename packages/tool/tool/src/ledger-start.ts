@@ -73,10 +73,8 @@ export function queueKeyOf(request: FixedToolRequest): string {
 export type QueueSnapshot = Readonly<{
   domain: Extract<LedgerDomain, { kind: 'queue' }>
   revision: ToolRevision
-  /** The unreleased entries by call. */
+  /** The entries by call: every call that holds a place in this queue. */
   entries: ReadonlyMap<string, QueueEntryRecord>
-  /** The calls this queue released: their tombstones. A released call never gets an entry. */
-  released: ReadonlySet<string>
   /** The ordinal the next entry takes. */
   next: string
 }>
@@ -89,15 +87,13 @@ export function queueSnapshotOf(
   read: Extract<LedgerRead, { kind: 'complete' }>,
 ): QueueSnapshot {
   const entries = new Map<string, QueueEntryRecord>()
-  const released = new Set<string>()
   let next = FIRST_ORDINAL
   for (const record of read.records) {
     if (record.kind === 'queue-entry') entries.set(record.entry.call, record.entry)
-    else if (record.kind === 'queue-release') released.add(record.release.call)
     else if (record.kind === 'queue-counter') next = record.counter.next
     else throw new Error(`a ${record.kind} record does not belong to a queue domain`)
   }
-  return { domain, revision: read.revision, entries, released, next }
+  return { domain, revision: read.revision, entries, next }
 }
 
 function nextOrdinal(ordinal: string): string {
@@ -117,11 +113,6 @@ function entryWrite(entry: QueueEntryRecord): LedgerWrite {
   return put({ kind: 'queue-entry', entry })
 }
 
-/** What the queue answers a request for a place: the entry, or that the call was released. */
-export type OrderOutcome =
-  | Readonly<{ kind: 'ordered'; entry: QueueEntryRecord }>
-  | Readonly<{ kind: 'released' }>
-
 /**
  * The answer of a step on an entry that is past it: the operation that moved the entry recalls it,
  * another operation is a conflict (P01).
@@ -136,28 +127,25 @@ function recalledBy<T>(
 
 /**
  * Gives the call its place in the order (admit, planPreparation). The entry is created once, at
- * the next ordinal, in the `preparing` stage. A call this queue released never gets an entry
- * again, whatever step asks and whenever it asks: the tombstone is the queue domain's own memory,
- * so no ordering of the call domain's reads and the queue domain's commits can bring a settled
- * call back (SPEC 22). An entry that is still `preparing` is recalled by call: the two steps that
- * create it, the admission and the plan, are interchangeable, and this step never moves it. An
- * entry that is past `preparing` was moved by a later step, so only that step's own operation
- * recalls it; another operation answers `conflict`.
+ * the next ordinal, in the `preparing` stage. Whether the call may still take a place is not
+ * this domain's to know: the ledger judges the call domain before this decision and asserts the
+ * revision it judged in the commit that lands these writes (SPEC 22). An entry that is still
+ * `preparing` is recalled by call: the two steps that create it, the admission and the plan, are
+ * interchangeable, and this step never moves it. An entry that is past `preparing` was moved by
+ * a later step, so only that step's own operation recalls it; another operation answers
+ * `conflict`.
  */
 export function decideQueueOrder(
   snapshot: QueueSnapshot,
   command: Readonly<{ call: ToolCallId; operation: ToolOperationId; limit: number | null }>,
-): Decision<OrderOutcome> {
-  if (snapshot.released.has(command.call)) return reply(succeed({ kind: 'released' }))
+): Decision<QueueEntryRecord> {
   const existing = snapshot.entries.get(command.call)
-  if (existing !== undefined) {
-    const recalled = { kind: 'ordered', entry: existing } as const
+  if (existing !== undefined)
     return reply(
       existing.stage === 'preparing'
-        ? succeed(recalled)
-        : recalledBy(existing, command.operation, recalled),
+        ? succeed(existing)
+        : recalledBy(existing, command.operation, existing),
     )
-  }
   const entry: QueueEntryRecord = {
     call: command.call,
     ordinal: snapshot.next,
@@ -171,7 +159,7 @@ export function decideQueueOrder(
       entryWrite(entry),
       put({ kind: 'queue-counter', counter: { next: nextOrdinal(snapshot.next) } }),
     ],
-    value: { kind: 'ordered', entry },
+    value: entry,
   }
 }
 
@@ -236,9 +224,6 @@ export function decideQueueHold(
   return { kind: 'commit', writes: [entryWrite(entry)], value: { kind: 'held', entry } }
 }
 
-/** A call to release with the basis its call domain holds for it. */
-export type Release = Readonly<{ call: ToolCallId; basis: ReleaseBasis }>
-
 /**
  * The basis a call domain holds for releasing its call's queue place, or null: this is the one
  * place that says what releases a place. A start rejection is one (the fence excluded the whole
@@ -277,29 +262,24 @@ export function releaseBasisOf(snapshot: Snapshot): ReleaseBasis | null {
 }
 
 /**
- * Releases the places of the calls whose basis the caller names, in one commit: each entry is
- * deleted and each call gets its tombstone, so the same commit that frees the place also makes
- * the release permanent. A call without an entry still gets its tombstone, because its entry may
- * be created by a step that has not run yet. A call that is released already writes nothing; the
- * answer lists the calls whose entry this commit deleted.
+ * Releases the places of the calls the caller names, in one commit: each entry is deleted and
+ * nothing else is written, so the queue domain holds nothing for a released call. The caller
+ * names only calls whose call domain holds a release basis (`releaseBasisOf`). A call without an
+ * entry has nothing to release here: an entry that a step creates after this commit is kept out
+ * by that step's assertion on the call domain, not by a record of this domain. The answer lists
+ * the calls whose entry this commit deleted.
  */
 export function decideQueueRelease(
   snapshot: QueueSnapshot,
-  releases: readonly Release[],
+  calls: readonly ToolCallId[],
 ): Decision<readonly ToolCallId[]> {
-  const writes: LedgerWrite[] = []
-  const deleted: ToolCallId[] = []
-  for (const { call, basis } of releases) {
-    const present = snapshot.entries.has(call)
-    if (present) {
-      writes.push({ kind: 'delete', key: queueEntryKey(call) })
-      deleted.push(call)
-    }
-    if (!snapshot.released.has(call))
-      writes.push(put({ kind: 'queue-release', release: { call, basis } }))
+  const deleted = calls.filter(call => snapshot.entries.has(call))
+  if (deleted.length === 0) return reply(succeed([]))
+  return {
+    kind: 'commit',
+    writes: deleted.map(call => ({ kind: 'delete', key: queueEntryKey(call) })),
+    value: deleted,
   }
-  if (writes.length === 0) return reply(succeed([]))
-  return { kind: 'commit', writes, value: deleted }
 }
 
 // ---------------------------------------------------------------------------------------------

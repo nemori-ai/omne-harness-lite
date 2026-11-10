@@ -265,8 +265,8 @@ export type QueueCounterRecord = Readonly<{ next: string }>
 
 /**
  * What a call domain holds that lets the queue domain release the call's place (P02: a place is
- * released on a proof, never on a logical end alone). The queue domain cannot read the call
- * domain, so the caller names the basis and the tombstone keeps it.
+ * released on a proof, never on a logical end alone). It is a fact of the call and stays in the
+ * call domain; the queue domain never records it.
  */
 export type ReleaseBasis =
   /** The start fence excluded the whole invocation: it never started and never will. */
@@ -276,14 +276,6 @@ export type ReleaseBasis =
    * holds the confirmed result custody before this basis reaches the queue.
    */
   | Readonly<{ kind: 'physical-end'; proof: DurableEvidence }>
-
-/**
- * The tombstone of a released call (P02): the queue domain never gives this call an entry again.
- * It is written in the same commit that deletes the entry, and a call that had no entry yet gets
- * it too, so a creation step that runs after the release finds it. It is never pruned in 0.0.x:
- * a time bound may reclaim it later under the compaction of the recovery increment, but never as a safety rule.
- */
-export type QueueReleaseRecord = Readonly<{ call: ToolCallId; basis: ReleaseBasis }>
 
 /** A record of a host provider. The ledger stores it by key and never reads its value. */
 export type HostRecord = Readonly<{ key: string; value: unknown }>
@@ -305,7 +297,6 @@ export type LedgerRecord =
   | Readonly<{ kind: 'exclusion'; exclusion: ExclusionRecord }>
   | Readonly<{ kind: 'queue-entry'; entry: QueueEntryRecord }>
   | Readonly<{ kind: 'queue-counter'; counter: QueueCounterRecord }>
-  | Readonly<{ kind: 'queue-release'; release: QueueReleaseRecord }>
   | Readonly<{ kind: 'host'; host: HostRecord }>
 
 /** The unique key of a record inside its domain. A `put` with the same key replaces the record. */
@@ -349,17 +340,10 @@ export function recordKey(record: LedgerRecord): string {
   }
 }
 
-type QueueRecord = Extract<
-  LedgerRecord,
-  { kind: 'queue-entry' | 'queue-counter' | 'queue-release' }
->
+type QueueRecord = Extract<LedgerRecord, { kind: 'queue-entry' | 'queue-counter' }>
 
 function isQueueRecord(record: LedgerRecord): record is QueueRecord {
-  return (
-    record.kind === 'queue-entry' ||
-    record.kind === 'queue-counter' ||
-    record.kind === 'queue-release'
-  )
+  return record.kind === 'queue-entry' || record.kind === 'queue-counter'
 }
 
 /** The key of a record of a queue domain. */
@@ -369,8 +353,6 @@ function queueRecordKey(record: QueueRecord): string {
       return queueEntryKey(record.entry.call)
     case 'queue-counter':
       return QUEUE_COUNTER_KEY
-    case 'queue-release':
-      return queueReleaseKey(record.release.call)
     default: {
       const exhaustive: never = record
       return exhaustive
@@ -388,10 +370,6 @@ export function exclusionKey(operation: ToolOperationId): string {
 
 export function queueEntryKey(call: ToolCallId): string {
   return `entry:${call}`
-}
-
-export function queueReleaseKey(call: ToolCallId): string {
-  return `released:${call}`
 }
 
 export const QUEUE_COUNTER_KEY = 'counter'

@@ -48,7 +48,7 @@ describe('original execution settlement', () => {
     expect(f.lateClockSamples).toEqual([])
     if (f.before.state.timing.kind !== 'running') throw new Error('fixture timing')
     expect(settled.timing).toHaveProperty('segment', f.before.state.timing.segment)
-    expect(await f.harness.released()).toContain(f.access.call)
+    expect(await f.harness.released(f.access.call)).toBe(true)
     expect(await f.harness.queue()).not.toContainEqual(
       expect.objectContaining({ call: f.access.call }),
     )
@@ -141,7 +141,7 @@ describe('original execution settlement', () => {
       ).toBe('invalid')
       expect(put).not.toHaveBeenCalled()
       expect((await f.load()).state.phase).toBe('running')
-      expect(await f.harness.released()).not.toContain(f.access.call)
+      expect(await f.harness.released(f.access.call)).toBe(false)
     },
   )
 
@@ -195,7 +195,7 @@ describe('original execution settlement', () => {
       kind: 'invalid',
       reason: 'saved-final-required',
     })
-    expect(await f.harness.released()).not.toContain(f.access.call)
+    expect(await f.harness.released(f.access.call)).toBe(false)
   })
 })
 
@@ -266,7 +266,7 @@ describe('downstream custody closure', () => {
       diagnostic: 'process-output-independent-custody-required',
     })
     expect((await f.records()).some(record => record.kind === 'environment-release')).toBe(false)
-    expect(await f.harness.released()).toContain(f.access.call)
+    expect(await f.harness.released(f.access.call)).toBe(true)
     const originalResult = f.commits
       .find(commit =>
         commit.writes.some(write => write.kind === 'put' && write.record.kind === 'result'),
@@ -326,7 +326,7 @@ describe('queue repair after committed settlement', () => {
       ok(await f.preserve())
       expect((await f.records()).find(record => record.kind === 'result')).toEqual(result)
       expect((await f.load()).tasks.some(task => task.kind === 'queue')).toBe(false)
-      expect(await f.harness.released()).toContain(f.access.call)
+      expect(await f.harness.released(f.access.call)).toBe(true)
       if (fault === 'unknown-delayed')
         expect(f.harness.memory.landDelayed()).toEqual([{ kind: 'conflict' }])
     },
@@ -347,7 +347,7 @@ describe('queue repair after committed settlement', () => {
     expect((await f.harness.state('repair-waiter')).phase).toBe('running')
     ok(await f.preserve())
     expect((await f.load()).tasks.some(task => task.kind === 'queue')).toBe(false)
-    expect(await f.harness.released()).toContain(f.access.call)
+    expect(await f.harness.released(f.access.call)).toBe(true)
   })
 })
 
@@ -386,7 +386,7 @@ it('does not release a logical ended state that lacks the original saved final p
   })
   await admitCall(f.harness, 'still-waiting')
   await f.harness.drive('still-waiting')
-  expect(await f.harness.released()).not.toContain(f.access.call)
+  expect(await f.harness.released(f.access.call)).toBe(false)
   expect((await f.harness.state('still-waiting')).phase).toBe('queued')
 })
 
@@ -520,7 +520,7 @@ it('excludes an in-flight canonical plan commit and allows a fresh preserve with
   ).toBe(false)
   expect((await f.load()).state).toEqual(f.before.state)
   expect((await f.load()).tasks).toEqual(f.before.tasks)
-  expect(await f.harness.released()).not.toContain(f.access.call)
+  expect(await f.harness.released(f.access.call)).toBe(false)
   expect(ok(await f.ledger.reads.operation({ ...f.access, operation: f.input.operation }))).toEqual(
     { kind: 'not-committed' },
   )
@@ -531,7 +531,7 @@ it('excludes an in-flight canonical plan commit and allows a fresh preserve with
   expect(records.filter(record => record.kind === 'environment-release')).toHaveLength(1)
   expect(records.filter(record => record.kind === 'exclusion')).toEqual(originalFences)
   expect((await f.load()).tasks.filter(task => task.kind === 'release')).toHaveLength(1)
-  expect(await f.harness.released()).toContain(f.access.call)
+  expect(await f.harness.released(f.access.call)).toBe(true)
   const receipts = records.filter(
     record =>
       record.kind === 'operation' &&
@@ -613,7 +613,7 @@ it('keeps the original unknown timing evidence through settlement', async () => 
   expect((await f.load()).tasks).toContainEqual(
     expect.objectContaining({ kind: 'clock', state: 'blocked' }),
   )
-  expect(await f.harness.released()).toContain(f.access.call)
+  expect(await f.harness.released(f.access.call)).toBe(true)
   expect(f.lateClockSamples).toEqual([])
 })
 

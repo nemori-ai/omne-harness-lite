@@ -18,7 +18,7 @@ abort 关闭本连接并保留原任务。已在途的保管或来源命令可�
 
 收场由原 settle.basis 经 ledger.facts.read 取得完整 SavedFact，driver 使用原 task.operation 重送 preserveResult。账本核原 final 和执行身份，按稳定 retain 身份调用独立 custody。保管确认后，call CAS 同提交唯一原结果、delivery、真实 effect、可信 ended、操作回执及全部后继责任。保管 applied-unknown 保持未确认，call 未知用原 preserve operation 认回。
 
-随后 releaseQueue 重读 call 的可信结束依据，queue CAS 同提交 entry 删除与墓碑，call CAS 最后关闭原 queue duty。认回主回执仍执行这一 tail。driver 成功后再读原 queue 任务，确认任务消失才报告进展并 wake。同 key 等待者也能 reconcile queue；迟到入队不能越过墓碑。没有跨域共同事务。
+随后 releaseQueue 重读 call 的可信结束依据，queue CAS 删除 entry，call CAS 最后关闭原 queue duty。认回主回执仍执行这一 tail。driver 成功后再读原 queue 任务，确认任务消失才报告进展并 wake。同 key 等待者也能 reconcile queue；迟到的创建提交由它对调用域修订号的断言挡住。没有跨域共同事务。
 
 正常 completed 且全部历史输出已独立保管时，canonical 环境计划与终局同提交。planRelease 按 preparation 认回它，task 关闭后不重建。recordRelease 核完整记录，并由原环境 inspectRelease 确认 reported released 后闭合 release task。本路径不调用环境 release，slot 释放不能代替资源释放。
 

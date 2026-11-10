@@ -3,7 +3,7 @@ import type { Reply, ToolFailure, ToolOperationId } from '@omne-harness/tool-con
 import { nextRevision } from './evidence.ts'
 import { snapshotOf, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
 import { excluded, excludedSince, withExclusionsRemoved } from './ledger-exclusion.ts'
-import type { LedgerDomain, LedgerWrite, ToolLedgerStore } from './ledger-store.ts'
+import type { LedgerAssertion, LedgerDomain, LedgerWrite, ToolLedgerStore } from './ledger-store.ts'
 
 export type Decide<T> = (snapshot: Snapshot, mint: Mint) => Decision<T> | Promise<Decision<T>>
 
@@ -44,9 +44,10 @@ export function createLedgerTransactions(
     expected: Snapshot['revision'],
     revision: Snapshot['revision'],
     writes: readonly LedgerWrite[],
+    asserts: readonly LedgerAssertion[] = [],
   ): Promise<Awaited<ReturnType<typeof store.commit>>> => {
     try {
-      return await store.commit({ domain, expected, revision, writes })
+      return await store.commit({ domain, expected, revision, writes, asserts })
     } catch {
       return { kind: 'unknown', diagnostic: thrown('ledger-store') }
     }

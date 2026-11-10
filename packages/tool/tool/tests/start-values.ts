@@ -410,8 +410,11 @@ export type StartHarness = Readonly<{
   runOnce(call: string, signal?: AbortSignal): Promise<void>
   /** The queue maintenance entry of the ledger. */
   queues: ToolDependencies<Principal, Block, TestEnvironment>['queues']
-  /** The calls the queue domain of the default key holds a tombstone for. */
-  released(): Promise<readonly string[]>
+  /**
+   * Whether the place of a call admitted with `op-<call>` is released: its call domain shows the
+   * release, and the queue domain of the default key holds no entry for it.
+   */
+  released(call: string): Promise<boolean>
   /** The current state of a call admitted with `op-<call>`. */
   state(call: string): Promise<ToolState>
   /** The queue entries of the default request's FIFO key, as the queue domain holds them. */
@@ -524,12 +527,13 @@ export function startHarness(options: StartOptions = {}): StartHarness {
       instance: await host.instanceOf(callId(call)),
       signal,
     })
-  const released = async () => {
-    const read = await memory.read({ kind: 'queue', tenant: tenantA, key: queueKey() })
-    if (read.kind !== 'complete') throw new Error('the queue domain is unreadable')
-    return read.records.flatMap(record =>
-      record.kind === 'queue-release' ? [record.release.call as string] : [],
-    )
+  const released = async (call: string) => {
+    const read = await memory.read({ kind: 'call', tenant: tenantA, call: callId(call) })
+    if (read.kind !== 'complete') throw new Error('the call domain is unreadable')
+    const record = read.records.find(candidate => candidate.kind === 'call')
+    if (record?.kind !== 'call') throw new Error(`${call} was not admitted`)
+    const shown = record.call.startRejection !== null || record.call.state.queue.kind === 'released'
+    return shown && !(await queue()).some(entry => entry.call === call)
   }
   const state = async (call: string) => {
     const found = ok(
@@ -639,8 +643,8 @@ async function unaccounted(
 
 /**
  * The accounting invariant of the queue entries (SPEC 22), checked over every harness this test
- * built: every unreleased entry is accounted for by its call domain, and no call has both an
- * entry and a tombstone. A violation is an entry that nothing would ever move or remove.
+ * built: every entry is accounted for by its call domain, and the queue domain holds nothing but
+ * entries and its counter. A violation is an entry that nothing would ever move or remove.
  */
 export async function auditQueues(): Promise<void> {
   const harnesses = audited.splice(0)
@@ -652,13 +656,13 @@ export async function auditQueues(): Promise<void> {
       key: queueKey(),
     })
     if (read.kind !== 'complete') continue
-    const tombstones = new Set<string>()
-    for (const record of read.records)
-      if (record.kind === 'queue-release') tombstones.add(record.release.call as string)
     for (const record of read.records) {
-      if (record.kind !== 'queue-entry') continue
+      if (record.kind === 'queue-counter') continue
+      if (record.kind !== 'queue-entry') {
+        problems.push(`a ${record.kind} record in the queue domain`)
+        continue
+      }
       const { entry } = record
-      if (tombstones.has(entry.call)) problems.push(`${entry.call}: an entry beside its tombstone`)
       const why = await unaccounted(harness, { ...entry, operation: entry.operation })
       if (why !== null) problems.push(`${entry.call}: ${why}`)
     }
