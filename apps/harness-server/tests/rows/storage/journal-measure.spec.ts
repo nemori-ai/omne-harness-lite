@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
+import { packText } from '@omne-harness/sql-contract/worker'
 import {
   BOUNDED_PUBLICATION,
   judgeBoundedPublication,
@@ -240,12 +241,12 @@ function factsDatabase(rows: readonly (readonly [number, number, string, string]
   const file = join(tempDir(), 'world.sqlite')
   const db = new DatabaseSync(file)
   db.exec(
-    'create table er_fact (tenant text not null, session text not null, pub integer not null, ord integer not null, execution text not null, kind text not null, body text not null, primary key (tenant, session, pub, ord))',
+    'create table er_fact (tenant text not null, session text not null, pub integer not null, ord integer not null, execution text not null, kind text not null, body blob not null, primary key (tenant, session, pub, ord))',
   )
   const insert = db.prepare(
     "insert into er_fact (tenant, session, pub, ord, execution, kind, body) values ('t', 's', ?, ?, 'x', ?, ?)",
   )
-  for (const [pub, ord, kind, body] of rows) insert.run(pub, ord, kind, body)
+  for (const [pub, ord, kind, body] of rows) insert.run(pub, ord, kind, packText(body))
   db.close()
   return file
 }

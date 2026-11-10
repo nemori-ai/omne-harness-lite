@@ -13,6 +13,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import { unpackText } from '@omne-harness/sql-contract/worker'
 import {
   createRecorder,
   summarizeSteps,
@@ -196,13 +197,15 @@ function endedReasons(files: ReadonlySet<string>): string[] {
            WHERE kind IN ('finish.ended', 'finish.candidate', 'settlement.recorded', 'control.stage')
            ORDER BY pub DESC LIMIT 8`,
         )
-        .all() as unknown as readonly { pub: number; kind: string; body: string }[]
+        .all() as unknown as readonly { pub: number; kind: string; body: Uint8Array }[]
       if (rows.length === 0) {
         reasons.push(`${file}: no finishing fact recorded (the run did not reach an ended)`)
         continue
       }
       for (const row of rows)
-        reasons.push(`${file}: pub ${String(row.pub)} ${row.kind} ${row.body.slice(0, 600)}`)
+        reasons.push(
+          `${file}: pub ${String(row.pub)} ${row.kind} ${unpackText(row.body).slice(0, 600)}`,
+        )
     } catch (error) {
       reasons.push(`${file}: the records are not readable: ${String(error)}`)
     } finally {

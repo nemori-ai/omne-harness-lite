@@ -1,6 +1,7 @@
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import { unpackText } from '@omne-harness/sql-contract/worker'
 import type { LedgerRecord } from '@omne-harness/tool'
 
 /** One result record of the Tool ledger as the release leaves it (physical, read-only). */
@@ -28,7 +29,7 @@ export function observeToolResults(storageRoot: string): readonly ObservedResult
       const records = db
         .prepare('SELECT record FROM tl_record')
         .all()
-        .map(row => JSON.parse(String(row['record'])) as LedgerRecord)
+        .map(row => JSON.parse(unpackText(row['record'] as Uint8Array)) as LedgerRecord)
       found.push(
         records.flatMap(record =>
           record.kind === 'result'
