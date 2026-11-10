@@ -1155,6 +1155,41 @@ describe('the host lets go of the records of a call only when its acquisitions c
     expect(await remove(f)).toEqual({ ok: 'removed' })
   })
 
+  it('keeps the records of a forwarded call while the call that forwarded it has its record', async () => {
+    const f = await fixture()
+    const child = callId('forwarded')
+    const source = callHostDomain(tenantA, 'source', child)
+    await f.realCommit({
+      domain: source,
+      expected: revision('0'),
+      revision: revision('1'),
+      writes: [
+        {
+          kind: 'put',
+          record: {
+            kind: 'host',
+            host: {
+              key: 'source',
+              value: { origin: { kind: 'forwarded', parent: preparation.call } },
+            },
+          },
+        },
+      ],
+    })
+    const removeChild = () => createLocalCallRecords(f.store)(tenantA, child)
+    expect(await removeChild()).toEqual({ ok: 'held' })
+    expect(await records(f, source)).toEqual({ revision: '1', count: 1 })
+    const parent = { kind: 'call' as const, tenant: tenantA, call: preparation.call }
+    await f.realCommit({
+      domain: parent,
+      expected: (await records(f, parent)).revision,
+      revision: revision('0'),
+      writes: [{ kind: 'drop' }],
+    })
+    expect(await removeChild()).toEqual({ ok: 'removed' })
+    expect(await records(f, source)).toEqual({ revision: '0', count: 0 })
+  })
+
   it('answers held when the acquisition domain changed after the judgement read it', async () => {
     const f = await fixture()
     const state = createEnvironmentStateStore({ store: f.store, mode: 'test' })

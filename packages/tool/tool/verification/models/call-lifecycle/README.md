@@ -69,7 +69,7 @@ TLA2TOOLS_JAR=<TLC 1.7.4 的 jar> python3 check.py --out <输出目录>
 | `Admit` 撤销到期项 | `ledger-decider.ts` 的 `ADMITTED_NOT_DUE`，在两个受理写入集里 |
 | `Ack` 释放并排期 | `ledger-decider.ts` 的 `decideRelease` 与 `removalInstant`；确认时刻由 `ledger.ts` 的 `releaseDelivery` 从正文时钟读取 |
 | `~busy`（调用已静止） | `ledger-sweep.ts` 的 `quiet`：已结算、交付都已释放、除已阻塞的 `clock` 任务外没有任务 |
-| `Quiesce` 里宿主放开记录 | `tool-host-local` 的 `call-records.ts`（`createLocalCallRecords`）与 `environment-state.ts` 的 `callAcquisitions` |
+| `Quiesce` 里宿主放开记录 | `tool-host-local` 的 `call-records.ts`（`createLocalCallRecords`）与 `environment-state.ts` 的 `callAcquisitions`。被转发的调用在转发它的调用删除之前不放开，这在模型里同属“宿主还没放开” |
 | `Postpone` | `ledger-sweep.ts` 的 `postpone` |
 | `DeleteBytes` 与 `Sweep` | `ledger-sweep.ts` 的 `removeCall`；整域删除是 `ledger-store.ts` 的 `drop` 写 |
 | `LateOperation` 写排除记录并排期 | `ledger.ts` 的 `fenced`，域里没有调用记录时排 `now + G` |
