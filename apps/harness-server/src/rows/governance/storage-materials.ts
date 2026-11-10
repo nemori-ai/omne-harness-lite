@@ -1,6 +1,4 @@
 import { unmappedPermissionSnapshotParticipant } from './unmapped-permission-snapshot.ts'
-import { agentPermissionCurrentParticipant } from './agent-permission-current.ts'
-import { toolPermissionCurrentParticipant } from './tool-permission-current.ts'
 import { assetsSqlMaterials } from '@omne-harness/assets-local'
 import { governanceSqlMaterials } from '@omne-harness/governance-local'
 import {
@@ -73,9 +71,6 @@ export function governanceStorageMaterials(
     governanceCatalogCurrentParticipant(),
     targetSnapshotParticipant(),
     unmappedPermissionSnapshotParticipant(),
-    agentPermissionCurrentParticipant({ requiredConstraintIds: [] }),
-    toolPermissionCurrentParticipant({ requiredConstraintIds: [] }),
-    toolPermissionCurrentParticipant({ requiredConstraintIds: [] }, 'agent'),
     ...SESSION_PERMISSION_WRITE_MODES.map(sessionPermissionWriteBasis),
     sessionPermissionResultParticipant(),
     permissionBasisParticipant(),

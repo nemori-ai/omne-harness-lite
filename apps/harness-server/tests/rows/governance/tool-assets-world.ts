@@ -49,6 +49,8 @@ export async function toolAssetsWorld(
     initialize?: (storage: SqlStorage) => Promise<string>
     release?: Extract<ToolRelease, { kind: 'trusted' }>
     releaseParticipant?: SqlMaterialCatalog['participants'][number]
+    /** More read-only participants that the projection read of this world can run. */
+    projectionMembers?: readonly string[]
   } = {},
 ) {
   const release = options.release ?? (await loadProductionRelease())
@@ -90,9 +92,17 @@ export async function toolAssetsWorld(
     'harness.governance-catalog-current',
     'governance.catalog-snapshot',
   ])
-  const projection = projectionReadHandler(
+  const projectionRead = projectionReadHandler(
     'fixture.projection-read',
     all.participants.filter(participant => readMembers.has(participant.participant)),
+    all,
+  )
+  // A second handler for the extra members. The catalog handler does not depend on their
+  // migrations.
+  const extraMembers = new Set([...readMembers, ...(options.projectionMembers ?? [])])
+  const extendedRead = projectionReadHandler(
+    'fixture.extended-projection-read',
+    all.participants.filter(participant => extraMembers.has(participant.participant)),
     all,
   )
   const materials = {
@@ -101,7 +111,8 @@ export async function toolAssetsWorld(
     readHandlers: [
       ...baseMaterials.readHandlers,
       ...(options.extraMaterials?.readHandlers ?? []),
-      projection,
+      projectionRead,
+      extendedRead,
     ],
   }
   const domain = {
@@ -157,7 +168,8 @@ export async function toolAssetsWorld(
     root,
     storage: made.storage,
     materials,
-    projection,
+    projectionRead,
+    extendedRead,
     combination,
     domain,
     release,

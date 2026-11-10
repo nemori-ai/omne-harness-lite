@@ -58,6 +58,7 @@ export async function governanceAdoptionWorld(
     extraParticipants?: SqlMaterialCatalog['participants']
     extraMigrations?: SqlMaterialCatalog['migrations']
     extraReadHandlers?: SqlMaterialCatalog['readHandlers']
+    projectionMembers?: readonly string[]
     externalWrites?: (input: {
       register: (
         name: string,
@@ -90,6 +91,9 @@ export async function governanceAdoptionWorld(
   let disposeIdentity: (() => Promise<void>) | undefined
   const w = await toolAssetsWorld(undefined, {
     ...(options.release === undefined ? {} : { release: options.release }),
+    ...(options.projectionMembers === undefined
+      ? {}
+      : { projectionMembers: options.projectionMembers }),
     ...(options.releaseParticipant === undefined
       ? {}
       : { releaseParticipant: options.releaseParticipant }),
@@ -285,7 +289,7 @@ export async function governanceAdoptionWorld(
       combinations: { mutation, adoption },
       projection: {
         read: async commands => {
-          const read = await readProjection(observedStorage, w.domain, w.projection, commands)
+          const read = await readProjection(observedStorage, w.domain, w.projectionRead, commands)
           return read.kind === 'completed' ? read : { kind: 'unavailable' }
         },
       },
@@ -306,6 +310,7 @@ export async function governanceAdoptionWorld(
     ...w,
     coordination,
     service: made.service,
+    epoch: made.epoch,
     externalWrites: made.externalWrites,
     issuer: authority.issuer,
     identityOperations: ctx.identityOperations,

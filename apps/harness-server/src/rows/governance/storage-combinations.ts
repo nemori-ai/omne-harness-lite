@@ -1,10 +1,5 @@
 import { UNMAPPED_PERMISSION_SNAPSHOT } from './unmapped-permission-snapshot.ts'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
-import { AGENT_PERMISSION_CURRENT } from './agent-permission-current.ts'
-import {
-  TOOL_PERMISSION_CURRENT,
-  AGENT_TOOL_PERMISSION_CURRENT,
-} from './tool-permission-current.ts'
 import { SETTINGS_RECOVERY_PARTICIPANTS } from '@omne-harness/settings-local/preparation'
 import {
   combinationManifest,
@@ -34,14 +29,9 @@ const snapshot = [
   'settings.value-projection',
   TARGET_SNAPSHOT.participant,
 ]
-const permissionRead = [
-  ...snapshot,
-  ...SESSION_LOG_PARTICIPANTS,
-  'session-permission-guard',
-  'governance.permission-snapshot',
-  'governance.activation',
-]
-const unmappedPermissionRead = [
+/** The members that compute the permission basis of a mapped and of an unmapped target. */
+const basisRead = [...snapshot, ...SESSION_LOG_PARTICIPANTS, 'session-permission-guard']
+const unmappedBasisRead = [
   'assets.settings',
   'harness.tool-permission-release',
   SUPPORT_PARTICIPANT.participant,
@@ -49,8 +39,6 @@ const unmappedPermissionRead = [
   UNMAPPED_PERMISSION_SNAPSHOT.participant,
   ...SESSION_LOG_PARTICIPANTS,
   'session-permission-guard',
-  'governance.permission-snapshot',
-  'governance.activation',
 ]
 /**
  * The members of the projection read. Their commands compute the permission basis, in a read or
@@ -71,7 +59,8 @@ export const PROJECTION_READ_MEMBERS = [
  * The metadata planner is a member because the manifest needs a provider of the plan fact.
  */
 const startCondition = (read: readonly string[]) => [
-  ...read.filter(participant => participant !== 'governance.permission-snapshot'),
+  ...read,
+  'governance.activation',
   'governance.metadata-plan',
   PERMISSION_BASIS.participant,
   PERMISSION_BASIS_GUARD.participant,
@@ -89,36 +78,8 @@ const permissionWrite = [
 /** Each combination has one writer per table and one provider per required fact. */
 export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
   const definitions = {
-    permissionAgentUnmapped: [
-      ...unmappedPermissionRead,
-      'session-execution-guard',
-      AGENT_PERMISSION_CURRENT,
-    ],
-    permissionToolUnmapped: [
-      ...unmappedPermissionRead,
-      'tool',
-      'tool-record-current',
-      TOOL_PERMISSION_CURRENT,
-    ],
-    permissionAgentToolUnmapped: [
-      ...unmappedPermissionRead,
-      'tool',
-      'tool-record-current',
-      'session-execution-guard',
-      AGENT_TOOL_PERMISSION_CURRENT,
-    ],
-
-    permissionAgent: [...permissionRead, 'session-execution-guard', AGENT_PERMISSION_CURRENT],
-    permissionTool: [...permissionRead, 'tool', 'tool-record-current', TOOL_PERMISSION_CURRENT],
-    permissionAgentTool: [
-      ...permissionRead,
-      'tool',
-      'tool-record-current',
-      'session-execution-guard',
-      AGENT_TOOL_PERMISSION_CURRENT,
-    ],
-    toolStart: startCondition(permissionRead),
-    toolStartUnmapped: startCondition(unmappedPermissionRead),
+    toolStart: startCondition(basisRead),
+    toolStartUnmapped: startCondition(unmappedBasisRead),
     metadata: ['governance.metadata-plan', 'governance.activation'],
     mutation: ['governance.mutation-plan', 'governance.activation'],
     assets: [...publications, ADOPTION_CURRENT_PARTICIPANT.participant],
@@ -160,12 +121,6 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
     }
   }
   return {
-    permissionAgentUnmapped: build('permissionAgentUnmapped'),
-    permissionToolUnmapped: build('permissionToolUnmapped'),
-    permissionAgentToolUnmapped: build('permissionAgentToolUnmapped'),
-    permissionAgent: build('permissionAgent'),
-    permissionTool: build('permissionTool'),
-    permissionAgentTool: build('permissionAgentTool'),
     toolStart: build('toolStart'),
     toolStartUnmapped: build('toolStartUnmapped'),
     metadata: build('metadata'),
