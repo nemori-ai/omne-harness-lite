@@ -30,7 +30,7 @@
 | [P16](#p16-子代理写不了报告文件时内联交回) | 子代理写不了报告文件时内联交回 | [qa 角色](https://github.com/nemori-ai/omne-harness-lite/blob/454d1574ef9fe69bb99c95bc962c0dae4c21aaad/.meta_harness/agents/roles/qa/role.md)（已退役，链接指向固定提交） |
 | [P17](#p17-改动带宿主资格摘要的角色提示要在该宿主上重新取得资格) | 改动带宿主资格摘要的角色提示，要在该宿主上重新取得资格 | [Cursor 原生角色与资格](https://github.com/nemori-ai/omne-harness-lite/blob/454d1574ef9fe69bb99c95bc962c0dae4c21aaad/.meta_harness/agents/skills/design-subagents/canonical/references/cursor.md#生成前的角色资格门禁)（已退役，链接指向固定提交） |
 | [P18](#p18-子代理中途停下时按现场接续) | 子代理中途停下时按现场接续 | [成果保存与跨会话接续](../../docs/engineering/publication.md#成果保存与跨会话接续) |
-| [P20](#p20-写范围按被删形状的全仓命中来定) | 写范围按被删形状的全仓命中来定 | [派发命令](../../tools/dev-flow/src/delivery/README.md#派发命令) |
+| [P20](#p20-写范围按被删形状的全仓命中来定) | 写范围按被删形状的全仓命中来定 | [派发命令](https://github.com/nemori-ai/omne-harness-lite/blob/454d1574ef9fe69bb99c95bc962c0dae4c21aaad/tools/dev-flow/src/delivery/README.md#派发命令)（已退役，链接指向固定提交） |
 | [P23](#p23-审计带出的新问题另立小卡) | 审计带出的新问题另立小卡 | [整理需求并定位已有卡](../../docs/engineering/delivery.md#整理需求并定位已有卡) |
 | [P24](#p24-非交付决定的评论不写决定列表字段) | 非交付决定的评论不写「决定」列表字段 | [接受、取消与重开](../../docs/engineering/delivery.md#接受取消与重开) |
 | [P25](#p25-看似未决的实现先从产品正文往下核对) | 看似未决的实现，先从产品正文往下核对 | [冲突与验收](../../docs/context-map.md#冲突与验收) |
@@ -346,7 +346,7 @@ log="tmp/<任务>/<检查名>-$(date +%Y%m%dT%H%M%S).log"
 
 **反例形状：**一次新 attempt 只按类型检查的失败清单，列了适配器成员的源码与测试。登记之后才发现，契约成员的多处正文还写着被删的事件，只好立即再登记一个 attempt。
 
-**怎样核对：**登记 attempt 前的检查记录中，有对被删形状的全仓搜索命令与命中清单。搜索词包括代码标识、中文说法与别名。清单是未截断的完整输出，存在任务过程目录。清单中的每个命中或被写范围覆盖，或写明不改的理由（例如历史记录），或已回到分解。派发命令见[派发命令](../../tools/dev-flow/src/delivery/README.md#派发命令)。
+**怎样核对：**登记 attempt 前的检查记录中，有对被删形状的全仓搜索命令与命中清单。搜索词包括代码标识、中文说法与别名。清单是未截断的完整输出，存在任务过程目录。清单中的每个命中或被写范围覆盖，或写明不改的理由（例如历史记录），或已回到分解。派发命令已退役，原说明见[固定提交中的派发命令](https://github.com/nemori-ai/omne-harness-lite/blob/454d1574ef9fe69bb99c95bc962c0dae4c21aaad/tools/dev-flow/src/delivery/README.md#派发命令)。
 
 ### P23 审计带出的新问题另立小卡
 

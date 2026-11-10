@@ -3,7 +3,7 @@ name: 卡（交接信息包）
 about: 设计段过了交接点后发的卡，正文是交付会话的全部输入
 ---
 
-<!-- 准入的写范围检查与绑定退役之前，卡正文仍用 work-item.md 或 task.md；本模板的内容贴成卡上一条标题为「交接信息包」的评论。规则见 docs/engineering/delivery.md「卡就是交接信息包」，命令见 omne-card 技能。九个二级标题照抄、顺序不变，发卡前跑 check-plan --handoff。成卡时删除本说明，替换全部 <> 占位。 -->
+<!-- 规则见 docs/engineering/delivery.md「卡就是交接信息包」，命令见 omne-card 技能。九个二级标题照抄、顺序不变，发卡前跑 check-plan --handoff。成卡时删除本说明，替换全部 <> 占位。 -->
 
 # 交接信息包：<一程名>
 

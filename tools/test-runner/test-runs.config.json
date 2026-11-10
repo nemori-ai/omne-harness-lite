@@ -104,8 +104,6 @@
       {
         "paths": [
           "docs/engineering/github-delivery.json",
-          ".github/ISSUE_TEMPLATE/work-item.md",
-          ".github/ISSUE_TEMPLATE/task.md",
           ".meta_harness/design/product/*/README.md",
           ".meta_harness/design/product/*/design.md",
           ".meta_harness/design/product/*/acceptance.md"

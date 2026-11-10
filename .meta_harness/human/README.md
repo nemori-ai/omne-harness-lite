@@ -15,6 +15,4 @@
 | [以里程碑为终点倒排交付](milestone-planning.md) | 怎样以里程碑的结束标志为终点倒排卡，使交付快、风险点少 |
 | [交付中的常见失误与防范规则](delivery-pitfalls.md) | 交付中反复出现哪些失误，每条失误对应什么规则、为什么重要、反例是什么形状、怎样核对 |
 
-`map-reduce-delivery/templates/line-initial-dispatch.md` 是已退役的 Map-Reduce 式交付留下的一份模板。dev-flow 的派发命令与测试仍读它，它随这些命令一起退役，不作为学习材料。
-
 新建或修订本区文档时加载 pqw `clear-writing`，规则见[文档写作规则](../../docs/engineering/documentation.md#文档写作规则)。

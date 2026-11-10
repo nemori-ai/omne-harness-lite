@@ -20,7 +20,7 @@
 | 研发方法分层与外部技能钉版 | [三层分工](skills.md#三层分工)、[来源与项目采用](skills.md#来源与项目采用) |
 | 子代理的模型与档位 | [子代理的模型与档位](skills.md#子代理的模型与档位) |
 | 研发品味的项目补充 | [研发品味](../../.meta_harness/agents/roles/engineering-taste.md) |
-| 卡、交接信息包、卡属性 | [卡就是交接信息包](delivery.md#卡就是交接信息包)、[卡属性与合法组合](delivery.md#卡属性与合法组合) |
+| 卡、交接信息包、契约变更 | [卡就是交接信息包](delivery.md#卡就是交接信息包)、[契约变更](delivery.md#契约变更) |
 | 交付与接受 | [提交成果供接受](delivery.md#提交成果供接受)、[接受、取消与重开](delivery.md#接受取消与重开) |
 | 发卡、开工、开 PR、gate 确认与接受的命令 | [`omne-card`](../../.meta_harness/agents/skills/omne-card/canonical/SKILL.md) |
 | 写者约定（门禁、不跑的检查、禁用 stash、trailer） | [`omne-card` 的写者约定](../../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#写者约定) |
