@@ -170,18 +170,25 @@ describe('23 retrigger: a held slot whose start intent was excluded is redone by
   it('23 retrigger: a run that failed to read after the hold is run again after the retry delay, and not before', async () => {
     let armed = true
     let failing = 0
+    const down = (domain: { kind: string }): boolean => {
+      if (failing === 0 || domain.kind !== 'call') return false
+      failing -= 1
+      return failing === 0
+    }
     const harness: StartHarness = startHarness({
       store: memory => ({
         durability: 'none',
-        readRecord: memory.readRecord,
         due: memory.due,
-        read: async domain => {
-          if (failing > 0 && domain.kind === 'call') {
-            failing -= 1
-            if (failing === 0) return { kind: 'unavailable', diagnostic: 'the store is down' }
-          }
-          return memory.read(domain)
-        },
+        // A look at the call domain is a read of it or of its revision: the ledger asks for the
+        // revision when it keeps a snapshot of the domain.
+        readRecord: async (domain, key) =>
+          down(domain)
+            ? { kind: 'unavailable', diagnostic: 'the store is down' }
+            : memory.readRecord(domain, key),
+        read: async domain =>
+          down(domain)
+            ? { kind: 'unavailable', diagnostic: 'the store is down' }
+            : memory.read(domain),
         commit: async input => {
           if (armed && holdsSlot(input)) {
             armed = false

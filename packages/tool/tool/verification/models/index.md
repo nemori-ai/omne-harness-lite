@@ -17,3 +17,5 @@
 
 - [调用域生命周期模型](call-lifecycle/README.md)。
 - [调用域生命周期的 TLA+ 规格](call-lifecycle/CallLifecycle.tla)。
+- [账本事务快照模型](snapshot-cache/README.md)。
+- [账本事务快照的 TLA+ 规格](snapshot-cache/SnapshotCache.tla)。

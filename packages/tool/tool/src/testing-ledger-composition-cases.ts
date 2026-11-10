@@ -24,6 +24,9 @@ export function compositionCases(deps: LedgerAssemblyDependencies): readonly Led
         )
         const before = await complete(fixture.store, f.domain)
         const counts = f.counts()
+        // The retry goes to a ledger that starts over the same store, as after a restart: it has
+        // no snapshot of its own, so it recalls the admission from what the store reads back.
+        f.restart()
         const again = success(
           await f.ledger.admissions.admit(f.input),
           'same-input retry must recall admission',
@@ -59,6 +62,8 @@ export function compositionCases(deps: LedgerAssemblyDependencies): readonly Led
         const f = await ledgerAssembly(fixture, deps)
         success(await f.ledger.admissions.admit(f.input))
         const before = await complete(fixture.store, f.domain)
+        // A ledger that starts over the same store judges the retry on what the store reads back.
+        f.restart()
         const answer = await f.ledger.admissions.admit(f.changedInput())
         assert.ok('failure' in answer, 'different-input retry must fail')
         assert.equal(
@@ -109,6 +114,8 @@ export function compositionCases(deps: LedgerAssemblyDependencies): readonly Led
           admitted.state.revision,
           'fence must advance domain revision without changing state revision',
         )
+        // A ledger that starts over the same store reads the state revision the store gives back.
+        f.restart()
         const planned = success(
           await f.plan(admitted.state.revision),
           'valid state expected must succeed after domain revision advances',

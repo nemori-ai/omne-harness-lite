@@ -765,34 +765,46 @@ export function losingCommits(
 }
 
 /**
- * A store over `memory` that runs `land` once, right after the n-th read of a call domain that
- * follows `arm(n)`, as a reader that answered a negative between two reads of a command would.
- * What `land` reads or commits through this store is forwarded without a second interception.
- * The command under test reads its call domain first to decide whether it may touch the queue or
- * a port (read 1); the transaction then reads again (read 2, or 3 after a port's own re-read).
+ * A store over `memory` that runs `land` once, at the n-th look of a command at a call domain that
+ * follows `arm(n)`, as a reader that answered a negative while the command was under way would.
+ * A look is a read of the domain, a read of its revision, or a commit to it; `land` runs after a
+ * read answered and before a commit is sent. What `land` reads or commits through this store is
+ * forwarded without a second interception. A command looks at its call domain first to decide
+ * whether it may touch the queue or a port (look 1, a read of the revision once the ledger keeps a
+ * snapshot); the transaction then decides on the kept snapshot and commits (look 2, or 3 after a
+ * port's own look).
  */
 export function landingAfterRead(
   memory: ToolLedgerStore,
   land: () => Promise<unknown>,
 ): Readonly<{ store: ToolLedgerStore; arm(afterReads: number): void }> {
   let left = 0
+  const looked = async (domain: LedgerDomain): Promise<void> => {
+    if (left === 0 || domain.kind !== 'call') return
+    left -= 1
+    if (left === 0) await land()
+  }
   return {
     arm: afterReads => {
       left = afterReads
     },
     store: {
       durability: 'none',
-      readRecord: memory.readRecord,
       due: memory.due,
-      read: async domain => {
-        const result = await memory.read(domain)
-        if (left > 0 && domain.kind === 'call') {
-          left -= 1
-          if (left === 0) await land()
-        }
+      readRecord: async (domain, key) => {
+        const result = await memory.readRecord(domain, key)
+        await looked(domain)
         return result
       },
-      commit: input => memory.commit(input),
+      read: async domain => {
+        const result = await memory.read(domain)
+        await looked(domain)
+        return result
+      },
+      commit: async input => {
+        await looked(input.domain)
+        return memory.commit(input)
+      },
     },
   }
 }

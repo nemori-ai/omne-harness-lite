@@ -865,19 +865,22 @@ it.each(['cancelled', 'unavailable'] as const)(
     let readingFinal = false
     let armed = true
     let preserves = 0
+    const held = async (domain: { kind: string }) => {
+      if (!readingFinal || domain.kind !== 'call') return null
+      readingFinal = false
+      entered.resolve()
+      await resumed.promise
+      return mode === 'unavailable'
+        ? { kind: 'unavailable' as const, diagnostic: 'original-final-read-unavailable' }
+        : null
+    }
     const f = fixture({
       store: memory => ({
         ...memory,
-        read: async domain => {
-          if (readingFinal && domain.kind === 'call') {
-            readingFinal = false
-            entered.resolve()
-            await resumed.promise
-            if (mode === 'unavailable')
-              return { kind: 'unavailable', diagnostic: 'original-final-read-unavailable' }
-          }
-          return memory.read(domain)
-        },
+        // The read of the original final is a look at the call domain: a read of it, or of its
+        // revision when the ledger keeps a snapshot of the domain.
+        readRecord: async (domain, key) => (await held(domain)) ?? memory.readRecord(domain, key),
+        read: async domain => (await held(domain)) ?? memory.read(domain),
       }),
       commands: base => ({
         ...base,
