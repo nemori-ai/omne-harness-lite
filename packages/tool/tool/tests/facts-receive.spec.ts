@@ -1062,3 +1062,66 @@ it('refuses a rendered final with an invalid result before preparing custody', a
   })
   expect(f.harness.memory.commits).toBe(before)
 })
+
+describe('the final fact of a call (adoption at receipt)', () => {
+  async function otherFinal(f: Awaited<ReturnType<typeof running>>) {
+    const base = finalFact()
+    return ok(
+      await f.harness.ledger.finalPlanner.planFinal({
+        ...f.access,
+        start: f.batch.start,
+        source: f.batch.source,
+        operation: operationId('other-final'),
+        final: { ...base, result: { ...base.result, content: [text('answer', 'other')] } },
+      }),
+    )
+  }
+
+  it('fixes the final value at the first final and refuses a later final with another value', async () => {
+    const f = await running()
+    const first = await f.seal(finalFact())
+    ok(await f.receive())
+    const second = next(f.batch, [{ event: 'final-a', fact: first }])
+    ok(await f.receive(second))
+    const other = await otherFinal(f)
+    expect(await f.receive(next(second, [{ event: 'final-b', fact: other }], 'third'))).toEqual({
+      failure: { kind: 'invalid', field: 'batch.events.fact', reason: 'final-conflict' },
+    })
+    const saved = (await records(f.harness)).filter(
+      record => record.kind === 'fact-event' && record.fact.fact.kind === 'final',
+    )
+    expect(saved).toHaveLength(1)
+  })
+
+  it('refuses two finals with different values inside one batch and saves none of it', async () => {
+    const f = await running()
+    const first = await f.seal(finalFact())
+    const other = await otherFinal(f)
+    ok(await f.receive())
+    const before = (await records(f.harness)).length
+    expect(
+      await f.receive(
+        next(f.batch, [
+          { event: 'final-a', fact: first },
+          { event: 'final-b', fact: other },
+        ]),
+      ),
+    ).toEqual({
+      failure: { kind: 'invalid', field: 'batch.events.fact', reason: 'final-conflict' },
+    })
+    expect((await records(f.harness)).length).toBe(before)
+  })
+
+  it('adopts the same final again under a new event without a second final record', async () => {
+    const f = await running()
+    const first = await f.seal(finalFact())
+    ok(await f.receive())
+    const second = next(f.batch, [{ event: 'final-a', fact: first }])
+    ok(await f.receive(second))
+    ok(await f.receive(next(second, [{ event: 'final-again', fact: first }], 'third')))
+    const finals = (await records(f.harness)).flatMap(record =>
+      record.kind === 'fact-event' && record.fact.fact.kind === 'final' ? [record.fact.event] : [],
+    )
+    expect(finals).toEqual(['final-a', 'final-again'])
+  })
+})
