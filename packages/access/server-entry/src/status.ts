@@ -20,6 +20,7 @@ export const STATUS_BY_OUTCOME: Readonly<Record<PublicOutcome, number>> = Object
   archived: 409,
   frozen: 409,
   unsupported: 501,
+  'not-writable': 501,
   'stage-not-provided': 501,
   'basis-unavailable': 503,
   unknown: 500,

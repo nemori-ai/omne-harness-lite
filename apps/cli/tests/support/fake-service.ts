@@ -49,6 +49,7 @@ const statusOf: Record<string, number> = {
   'not-found': 404,
   conflict: 409,
   unsupported: 501,
+  'not-writable': 501,
   'basis-unavailable': 503,
   unknown: 500,
 }
@@ -98,6 +99,8 @@ export function defaultAnswer(seen: Seen): Answer {
 }
 
 const at = '2026-11-01T12:00:00Z'
+/** The configuration time the setting operations answer. */
+export const settingAt = '2026-11-09T08:00:00Z'
 const invitation = { invitationId: 'inv-1', state: 'open', expiresAt: at }
 const emptyOperations = new Set([
   'revoke-login',
@@ -143,6 +146,32 @@ function governanceAnswer(operation: string, body: Record<string, unknown>): Ans
         logins: [{ loginId: ownLoginId, issuedAt: at, maxDeadline: at, idleDeadline: at }],
         completeness: 'complete',
       })
+    case 'list-settings':
+      return succeeded({
+        items: [
+          {
+            asset: { category: 'tool', name: 'Web' },
+            item: 'exa.apiKey',
+            title: 'Exa API key',
+            sensitivity: 'secret',
+            state: { state: 'usable', tenantId: tenantText, configuredAt: settingAt },
+          },
+          {
+            asset: { category: 'tool', name: 'Web' },
+            item: 'maxResults',
+            title: 'Search results',
+            sensitivity: 'ordinary',
+            state: { state: 'not-writable' },
+          },
+        ],
+        completeness: 'complete',
+      })
+    case 'set-setting':
+      return succeeded({ configuredAt: settingAt })
+    case 'describe-setting':
+      return succeeded({ state: 'usable', tenantId: tenantText, configuredAt: settingAt })
+    case 'clear-setting':
+      return succeeded({})
     default:
       return undefined
   }

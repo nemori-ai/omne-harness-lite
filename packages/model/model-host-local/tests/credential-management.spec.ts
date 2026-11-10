@@ -86,6 +86,24 @@ describe('bind', () => {
     expect(shown(view)).not.toContain(SENTINEL)
   })
 
+  it('a text that is not a secret text is denied without a throw, and the file keeps its bytes', () => {
+    const { path, custodian } = store()
+    const before = readFileSync(path, 'utf8')
+    for (const text of ['', '   ', 'a\u0007b', 'k'.repeat(4097)]) {
+      expect(
+        custodian.bind({ reference: ref(), secret: text, configuredAt: AT }),
+        JSON.stringify(text.slice(0, 16)),
+      ).toEqual({ kind: 'denied' })
+    }
+    expect(readFileSync(path, 'utf8')).toBe(before)
+    expect(custodian.describe({ reference: ref() })).toEqual({ kind: 'unbound' })
+    // The whitespace around a secret text is not part of it: the binding holds the trimmed text.
+    expect(
+      custodian.bind({ reference: ref(), secret: ` ${SENTINEL}\t`, configuredAt: AT }),
+    ).toEqual({ kind: 'written' })
+    expect(custodian.resolveFor(query(ownId))).toMatchObject({ value: SENTINEL })
+  })
+
   it('binding again replaces the secret and the time', () => {
     const { custodian } = store()
     custodian.bind({ reference: ref(), secret: SENTINEL, configuredAt: AT })

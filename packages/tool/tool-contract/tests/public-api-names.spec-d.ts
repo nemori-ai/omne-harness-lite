@@ -2,6 +2,7 @@
 import type { BlockId, ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
+import type { SettingDefinitions } from '@omne-harness/settings'
 import type {
   Adoption,
   BackgroundSource,
@@ -13,6 +14,7 @@ import type {
   ResourceScope,
   ToolConsumerProfile,
   ToolControl,
+  ToolSettingsDeclaration,
   ToolTerminal,
   WaitState,
 } from '@omne-harness/tool-contract'
@@ -24,6 +26,7 @@ import {
   readToolOperationRef,
   resolveToolInvocationRef,
   resolveToolOperationRef,
+  toolSettingDefinitions,
 } from '@omne-harness/tool-contract'
 import {
   defineCommandTool,
@@ -118,6 +121,7 @@ export type {
   DecisionValue,
   ToolStartRecord,
   ToolDeclarations,
+  ToolSettingPresentation,
   ToolSettingsDeclaration,
   ToolConsumerProfile,
   ToolInspection,
@@ -363,6 +367,15 @@ it('resolves every implemented contract function from the package root with its 
   >()
   expectTypeOf(resolveToolOperationRef).toEqualTypeOf<
     (reference: unknown, tenant: TenantId) => Outcome<ToolOperationParts, ToolReferenceFailure>
+  >()
+  expectTypeOf(toolSettingDefinitions).toEqualTypeOf<
+    (
+      input: Readonly<{
+        adoption: Adoption
+        name: string
+        declaration: ToolSettingsDeclaration | null
+      }>,
+    ) => SettingDefinitions | null
   >()
   expectTypeOf(judgeToolArguments).returns.toEqualTypeOf<
     Outcome<ParsedToolArguments, ToolArgumentsRejection>

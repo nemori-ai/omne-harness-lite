@@ -2,8 +2,8 @@
 // identity's public operations without a login check; the four stage operations and the operations
 // this deployment declares not provided get `stage-not-provided` before any login check; the other
 // eighteen take steps 4 and 6 of the judgment order here and go to identity's governance port; the
-// three model credential operations take the same steps and go to the model credential port. A
-// thrown identity call leaves the entry with no trustworthy answer, except `create-organization`,
+// three model credential operations and the four setting operations take the same steps and go to
+// the model credential port and the settings port. A thrown identity call leaves the entry with no trustworthy answer, except `create-organization`,
 // whose result set has the wire `unknown`.
 import type { JsonLimits } from '@omne-harness/json-text'
 import type {
@@ -29,6 +29,7 @@ import { loginTextOf, tenantTextOf } from './derivation.ts'
 import { emit, type DiagnosticSink } from './diagnostics.ts'
 import { isRefusal, type Caller, type IdentitySteps } from './identity-steps.ts'
 import type { ModelCredentialAccess, ModelCredentialCustody } from './model-credentials.ts'
+import type { SettingsAccess, SettingsGovernance } from './settings.ts'
 import { STATUS_BY_OUTCOME, type PublicOutcome } from './status.ts'
 
 /**
@@ -67,7 +68,23 @@ export const MODEL_CREDENTIAL_OPERATIONS = Object.freeze([
 
 type CredentialOperation = (typeof MODEL_CREDENTIAL_OPERATIONS)[number]
 
-/** The operations this location answers itself: the two without a login, the eighteen governed ones and the three credential ones. */
+/**
+ * The setting operations (SPEC「设置项」). The entry provides them only when the assembly gives a
+ * `settings` port; without it they answer `stage-not-provided` like the declared ones.
+ */
+export const SETTING_OPERATIONS = Object.freeze([
+  'list-settings',
+  'set-setting',
+  'describe-setting',
+  'clear-setting',
+] as const) satisfies readonly GovernanceProvidedOperation[]
+
+type SettingOperation = (typeof SETTING_OPERATIONS)[number]
+
+/**
+ * The operations this location answers itself: the two without a login, the eighteen governed
+ * ones, the three credential ones and the four setting ones.
+ */
 type Handled = Exclude<GovernanceProvidedOperation, NotProvided>
 
 export type GovernanceContext = Readonly<{
@@ -78,6 +95,8 @@ export type GovernanceContext = Readonly<{
   endObservationsOf: (loginText: string) => void
   /** Absent: the three model credential operations are not provided by this deployment. */
   modelCredentials: ModelCredentialCustody | undefined
+  /** Absent: the four setting operations are not provided by this deployment. */
+  settings: SettingsGovernance | undefined
   readLimits: JsonLimits
   diagnostics: DiagnosticSink | undefined
 }>
@@ -87,6 +106,7 @@ type Reply = JsonAnswer | NoAnswer
 const VERSION = 'governance-public/1'
 const NOT_PROVIDED: ReadonlySet<string> = new Set(NOT_PROVIDED_GOVERNANCE_OPERATIONS)
 const CREDENTIAL: ReadonlySet<string> = new Set(MODEL_CREDENTIAL_OPERATIONS)
+const SETTING: ReadonlySet<string> = new Set(SETTING_OPERATIONS)
 
 /** The business responses of one operation without the head: the outcome and its body. */
 type Wire<O extends GovernanceProvidedOperation> =
@@ -268,6 +288,39 @@ async function credential(
     return answer(
       bare(request.operation === 'describe-model-credential' ? 'basis-unavailable' : 'unknown'),
     )
+  }
+}
+
+/** The setting operations whose rejected port call may have written. */
+const SETTING_WRITES: ReadonlySet<string> = new Set(['set-setting', 'clear-setting'])
+
+/**
+ * The setting operations: the same steps as the model credential operations, then the settings
+ * port. A rejected `set` or `clear` may have written, so it answers `unknown`; a rejected `list` or
+ * `describe` wrote nothing and answers `basis-unavailable`. The diagnostic names the operation
+ * only, never the item, the body or the port's error text.
+ */
+async function setting(
+  request: GovernanceRequest<SettingOperation>,
+  context: GovernanceContext,
+  call: (port: SettingsGovernance, access: SettingsAccess) => Promise<LooseWire>,
+): Promise<Reply> {
+  const answer = (wire: LooseWire): Reply =>
+    respond(request.operation, request.messageId, wire, context.diagnostics)
+  const port = context.settings
+  // Only a request for a provided operation reaches a handler; this guards the type.
+  if (port === undefined) return answer(bare('basis-unavailable'))
+  const caller = await context.steps.recognize(request.proof)
+  if (isRefusal(caller)) return answer(bare(caller.outcome))
+  const tenant = request.actingTenant
+  if (tenantTextOf(tenant) !== tenantTextOf(caller.tenant)) return answer(bare('denied'))
+  const principal = await context.steps.actingFor(caller, tenant)
+  if (isRefusal(principal)) return answer(bare(principal.outcome))
+  try {
+    return answer(await call(port, { principal, tenant }))
+  } catch {
+    emit(context.diagnostics, { code: 'settings.fault', operation: request.operation })
+    return answer(bare(SETTING_WRITES.has(request.operation) ? 'unknown' : 'basis-unavailable'))
   }
 }
 
@@ -572,6 +625,36 @@ const HANDLERS: { readonly [O in Handled]: Handler<O> } = {
       if (outcome.kind !== 'succeeded') return bare(outcome.kind)
       return { outcome: 'succeeded', body: outcome.credential }
     }),
+
+  'list-settings': (request, context) =>
+    setting(request, context, async (port, access) => {
+      const { asset } = request.body
+      const outcome = await port.list(asset === undefined ? { access } : { access, asset })
+      if (outcome.kind !== 'succeeded') return bare(outcome.kind)
+      return { outcome: 'succeeded', body: { items: outcome.items, completeness: 'complete' } }
+    }),
+
+  'set-setting': (request, context) =>
+    setting(request, context, async (port, access) => {
+      const { asset, item, secret } = request.body
+      const outcome = await port.set({ access, asset, item, secret })
+      if (outcome.kind !== 'succeeded') return bare(outcome.kind)
+      return { outcome: 'succeeded', body: { configuredAt: outcome.configuredAt } }
+    }),
+
+  'describe-setting': (request, context) =>
+    setting(request, context, async (port, access) => {
+      const { asset, item } = request.body
+      const outcome = await port.describe({ access, asset, item })
+      if (outcome.kind !== 'succeeded') return bare(outcome.kind)
+      return { outcome: 'succeeded', body: outcome.setting }
+    }),
+
+  'clear-setting': (request, context) =>
+    setting(request, context, async (port, access) => {
+      const { asset, item } = request.body
+      return bare((await port.clear({ access, asset, item })).kind)
+    }),
 }
 
 function isHandled(
@@ -579,7 +662,9 @@ function isHandled(
   context: GovernanceContext,
 ): request is GovernanceRequest<Handled> {
   if (NOT_PROVIDED.has(request.operation)) return false
-  return context.modelCredentials !== undefined || !CREDENTIAL.has(request.operation)
+  if (CREDENTIAL.has(request.operation)) return context.modelCredentials !== undefined
+  if (SETTING.has(request.operation)) return context.settings !== undefined
+  return true
 }
 
 function dispatch<O extends Handled>(

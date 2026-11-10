@@ -3,7 +3,7 @@
 // Without `--state-root` it uses the state directory. A host without `setup` gets one clear
 // sentence and the next command, not a failed row.
 import { mkdirSync, realpathSync, statSync } from 'node:fs'
-import { openLocalCustodian } from '@omne-harness/model-host-local'
+import { openSecretVault } from '@omne-harness/settings-local/secrets'
 import { LocalProfileError, localOperatorLayer, type OperatorLayer } from './operator-defaults.ts'
 import { resolveLocations, type LocationInput } from './locations.ts'
 import { readSettings, type ServerSettings } from './settings.ts'
@@ -66,9 +66,9 @@ function isFile(path: string): boolean {
  * fail the first model call. A missing vault means "not set up"; an unreadable one is refused.
  */
 function vaultProblem(path: string): LocalServe | undefined {
-  const opened = openLocalCustodian({ path })
+  const opened = openSecretVault({ path })
   if (opened.kind === 'open') {
-    opened.custodian.close()
+    opened.vault.close()
     return undefined
   }
   if (opened.cause === 'missing')

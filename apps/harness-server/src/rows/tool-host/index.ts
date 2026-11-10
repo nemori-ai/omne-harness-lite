@@ -36,6 +36,7 @@ export const toolHostConfig = z
           })
           .optional(),
         TodoItems: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Web: z.strictObject({ resultMaxBytes: positive, maxSearchResults: positive }).optional(),
         Tools: z
           .strictObject({
             resultMaxBytes: positive,

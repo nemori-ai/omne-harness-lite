@@ -140,6 +140,8 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         'model-profiles:real',
         'model-request-preparation:real',
         'model-credential:real',
+        'secret-custody:real',
+        'settings:real',
         'model-records:real',
         'tool-records:real',
         'tool-bindings:real',
@@ -165,9 +167,9 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         scope: 'serving',
         accepting: true,
         outcome: 'ready',
-        enabledRows: 50,
+        enabledRows: 52,
         barrierCalls: 1,
-        implementations: { real: 48, 'contract-double': 0, 's0-double': 2 },
+        implementations: { real: 50, 'contract-double': 0, 's0-double': 2 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])
