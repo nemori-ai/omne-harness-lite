@@ -10,7 +10,6 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 import compile_agents as compiler
 from projection import compile_sources
-from qualification_test_support import qualify_roles
 
 CLAUDE = Path(".claude/settings.json")
 CODEX = Path(".codex/hooks.json")
@@ -25,27 +24,18 @@ def declare(source: Path, hooks) -> None:
 
 @pytest.fixture
 def source(tmp_path):
-    """No skills; one complete role pair so that subagent_types can name it."""
+    """No skills; one hook that every host takes."""
     root = tmp_path / "agents"
     (root / "skills").mkdir(parents=True)
-    role = root / "roles/developer"
-    role.mkdir(parents=True)
-    (role / "role.md").write_text("实施。\n", encoding="utf-8")
-    (role / "codex.toml").write_text('name = "developer"\ndescription = "Implement"\n', encoding="utf-8")
-    (role / "claude.yaml").write_text("name: developer\ndescription: Implement\n", encoding="utf-8")
-    declare(root, [{"id": "facts", "events": ["Stop", "SubagentStop"],
-                    "subagent_types": ["developer"], "command": COMMAND, "timeout": 60}])
-    (role / "cursor.yaml").write_text("name: developer\ndescription: Implement\nmodel: claude-sonnet-5-5-high\nreadonly: false\nis_background: false\n")
+    declare(root, [{"id": "facts", "events": ["Stop", "SubagentStop"], "command": COMMAND, "timeout": 60}])
     (root / "hooks/cursor.yaml").write_text("version: 1\nloop_limit: 1\ntimeout_grace: 5\n")
-    qualify_roles(root)
     return root
 
 
 EXPECTED = {
     "hooks": {
         "Stop": [{"hooks": [{"command": COMMAND, "timeout": 60, "type": "command"}]}],
-        "SubagentStop": [{"hooks": [{"command": COMMAND, "timeout": 60, "type": "command"}],
-                          "matcher": "developer"}],
+        "SubagentStop": [{"hooks": [{"command": COMMAND, "timeout": 60, "type": "command"}]}],
     }
 }
 
@@ -85,8 +75,7 @@ def test_without_hooks_the_output_set_is_unchanged(source):
     ({"timeout": 0}, "hook timeout must be a positive integer"),
     ({"timeout": "60"}, "hook timeout must be a positive integer"),
     ({"timeout": True}, "hook timeout must be a positive integer"),
-    ({"subagent_types": ["no-such-role"]}, "subagent_types must name existing roles"),
-    ({"subagent_types": ["developer.*"]}, "subagent_types must name existing roles"),
+    ({"subagent_types": ["developer"]}, "unknown hook fields ['subagent_types']"),
     ({"magic": 1}, "unknown hook fields ['magic']"),
 ])
 def test_invalid_declaration_names_the_hook(source, change, message):
@@ -169,6 +158,19 @@ def test_check_reports_missing_or_different_hook_files(source, tmp_path, capsys)
 
 DECLARED = Path(__file__).parents[2] / "agents/hooks/hooks.yaml"
 TOOL = "tools/repo-toolchain"
+
+
+def test_the_declared_hooks_compile_and_stop_hooks_apply_to_every_agent(tmp_path):
+    """入库的 hooks.yaml 能编译；SubagentStop 对所有子代理生效，不带 matcher。"""
+    source = tmp_path / "agents"
+    (source / "skills").mkdir(parents=True)
+    (source / "hooks").mkdir()
+    (source / "hooks/hooks.yaml").write_bytes(DECLARED.read_bytes())
+    outputs = compile_sources(source, hosts=("claude-code", "codex"))
+    for path in (CLAUDE, CODEX):
+        groups = json.loads(outputs[path].content)["hooks"]
+        assert all("matcher" not in group for group in groups["SubagentStop"]), path
+        assert groups["SubagentStop"] == groups["Stop"], path
 # 替身脚本：印出「跑的是哪一份、标准输入收到了什么」。
 STAND_IN = "import { readFileSync } from 'node:fs'\nprocess.stdout.write(`${process.argv[1]}|${readFileSync(0, 'utf8')}`)\n"
 

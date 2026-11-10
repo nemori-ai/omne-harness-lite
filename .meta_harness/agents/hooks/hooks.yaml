@@ -1,13 +1,10 @@
 # 宿主无关的钩子声明；编译工具按宿主生成 .claude/settings.json 与 .codex/hooks.json。
 # 一条钩子：在哪些事件（Stop、SubagentStop、SessionStart）、给哪些宿主、跑什么命令、宿主侧超时几秒。
 # hosts 省略时给全部宿主。SessionStart 只为 Claude Code 生成，用它的钩子须写 hosts。
-# subagent_types 只收窄 SubagentStop（Stop 在两端都不认 matcher），须是 roles/ 下已有的角色名。
 # session_sources 只收窄 SessionStart，值是 Claude Code 输入里的 source（startup、resume、clear、compact、fork）。
 hooks:
   - id: loop-stop-facts
     events: [Stop, SubagentStop]
-    # 只对会改产品源码的角色。终端与验证设施实施都由 developer 承担。
-    subagent_types: [developer]
     # shell 形式、从 git 根解析：两端都以会话的当前目录运行钩子，Codex 没有项目根变量。
     # 跑哪一份脚本：当前工作树里有这份脚本且装了依赖，就跑它自己的（它可能正在改这套工具）；
     # 否则跑主检出里的那一份——刚建的工作树还没装依赖，脚本加载不了解析器，量的仍是会话所在的那棵工作树。

@@ -47,7 +47,6 @@
     "loop:status": "omne-loop-status",
     "loop:health": "omne-loop-health",
     "docs:inventory": "uv run --locked omne-documentation inventory --summary --out tmp/documentation-inventory",
-    "role-eval": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=.meta_harness/agents/evaluation/harness uv run --locked python -m roleeval",
     "package:template": "node --experimental-strip-types tools/dev-flow/src/package-template/cli.ts",
     "initial-dispatch": "node --experimental-strip-types tools/dev-flow/src/delivery/line-initial-dispatch-cli.ts"
   },

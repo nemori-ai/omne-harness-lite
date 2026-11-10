@@ -1,6 +1,6 @@
 # 设计与 Agent 工具入口
 
-本目录维护现行设计导航、领域对象对账，以及 skills／roles 的宿主生成和接入。模块接口、完整必要行为规格及验证资源由实际包／应用拥有，工具不建立另一份中央契约或实现映射。
+本目录维护现行设计导航、领域对象对账，以及 skills 的宿主生成和接入。模块接口、完整必要行为规格及验证资源由实际包／应用拥有，工具不建立另一份中央契约或实现映射。
 
 ## 现行源检查
 
@@ -84,36 +84,6 @@ uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_
 rev落后及topic内已声明修订不一致及其 report 模式、依据缺 rev 或指向非产品正文、
 形态缺失/非法/变体的父无效、未定词条须同时出现在 pending 与 conflicts、索引与分卷不一致、待裁缺 owner。
 
-## 保存只读子代理的交回
-
-design-reviewer 等只读角色没有写文件的工具，报告只存在于宿主记录里。`save_handback.py` 把它取出来存成文件：
-
-```sh
-uv run --locked python .meta_harness/tooling/src/save_handback.py --transcript <子代理记录.jsonl> --out <报告.md>
-```
-
-Claude Code 把每个子代理的记录写在 `~/.claude/projects/<项目>/<会话>/subagents/agent-<id>.jsonl`。`<项目>` 是检出路径的转写（例如 `D--dev-repos-omne-harness-lite`），`<会话>` 是派发它的会话 ID；`agent-<id>.meta.json` 在同一目录。
-
-报告只从当前这一轮取。一轮从最后一条提示开始：提示是一条 user 记录，它不只含工具结果，也不是宿主加的 `isMeta` 记录。报告正文按下面的次序取：
-
-1. 这一轮里最后一次 `SubagentHandback` 工具调用的 `input.message`。读取形状与 `agents/evaluation/harness/roleeval/claude_host.py` 一致。
-2. 没有这个调用时，取记录末尾那条 assistant 消息的文本，条件是它以 `end_turn` 结束。一条 API 消息按内容块拆成多条记录，共用 `message.id`，脚本把它们的文本块按次序接起来。已观察到的 Claude Code 2.1 子代理记录以 `end_turn` 消息结束，没有 `SubagentHandback` 调用。
-
-找不到报告时以 1 退出，说明原因，不写文件，已有的 `--out` 文件原样保留。以下情形都算找不到：
-
-- 记录停在工具调用上，或被中断。
-- 记录以宿主错误 `stop_sequence` 结束。
-- 报告为空白。
-- 末尾那条 assistant 消息之后还有 user 记录。这时那条消息答的是上一轮，这一轮的报告不在记录里。
-
-记录读不了或 `--out` 写不了以 2 退出。写入先写同目录临时文件再替换。
-
-脚本只在换行符（U+000A）处分行。JSON 字符串里可以不转义地出现 U+2028、U+2029 与 U+0085，脚本不在这些字符处分行。
-最后一行以前有任何一行不是 JSON 对象时，脚本以 2 退出，并写明第几行。
-仍在写入的记录可能以半行结尾：最后一行后面没有换行符、又读不成 JSON 时，脚本跳过它，并在标准错误写明跳过了第几行。
-
-脚本只证明「记录里这段文字就是交回的报告」。报告内容对不对，仍由评审流程判断。
-
 ## Agent 编译
 
 生成器从一个 `agents/` 源根按固定 host_layout 编译各宿主目录，源里有 `cloud/<host>/` 时一并编译该宿主的三份 Cloud Agent 运行时文件，并提供独立的相对软链接工具。
@@ -128,8 +98,7 @@ Claude Code 把每个子代理的记录写在 `~/.claude/projects/<项目>/<会�
 ```sh
 uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness
 uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness --check
-PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest -p no:cacheprovider \
-  .meta_harness/tooling/tests .meta_harness/agents/skills/design-subagents/canonical/scripts
+PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest -p no:cacheprovider .meta_harness/tooling/tests
 ```
 
 输出根必须显式指定，正常产物留在 `.meta_harness/`。可用 `--host codex` 或
@@ -180,7 +149,7 @@ slots:
 两端文件按各自宿主的声明生成，内容不必相同：没有声明给某个宿主时，不产出那个宿主的文件。
 每条声明有 `id`、`events`（认 `Stop`、`SubagentStop`、`SessionStart`）、`command`（shell 形式）、`timeout`（正整数秒），
 可选 `hosts`（`claude-code`、`codex`、`cursor`；省略为全部）只把这条给所列宿主，`SessionStart` 只为 Claude Code 生成，
-可选 `subagent_types`（须是 `agents/roles/` 下已有的角色名，只收窄 `SubagentStop`，生成为 `|` 连起来的 matcher），
+`Stop` 与 `SubagentStop` 不带 matcher，对所有子代理生效，
 可选 `session_sources`（`startup`、`resume`、`clear`、`compact`、`fork`，只收窄 `SessionStart`，生成为 `|` 连起来的 matcher）。
 未知事件或字段、空命令、非正整数超时、重复 id 都报错并带出那条的 id。输出确定（键排序、两空格缩进、末尾换行），
 `--check` 逐字节比对。没有 `hooks/` 或列表为空时不产出钩子文件，其余产物不变。
@@ -210,20 +179,12 @@ skills、agents 和 hooks 仍由 `.meta_harness/.gitignore` 排除，检出后�
 
 ## Cursor 原生包与项目视图
 
-Cursor 产物根是 `output/.cursor/`，包含 `.cursor-plugin/plugin.json`、skills、agents、hooks.json、plugin-hooks.json 和 runtime。
-manifest 明确组件路径，不把维护源目录当作插件。角色及精确资格归 [Cursor 适配](../agents/skills/design-subagents/canonical/references/cursor.md)。
-第三方 pstack/Matt 的宿主来源归执行仓库 `docs/engineering/skills.md`，本工具不安装或复制其正文。
-
-Cursor生成先核对全部角色的[资格记录](../agents/skills/design-subagents/canonical/references/cursor.md#生成前的角色资格门禁)。
-记录缺失或 unsupported 时，整个 Cursor 或混合构建在写入前失败，不产生文件。
-七个角色都投影到 `.cursor/agents/<name>.md`。源更新后的下一次编译改写这些文件。`--check` 按字节核对，和 Codex、Claude Code 的角色投影使用同一次编译。
-绑定过期不阻止结构投影，但该角色不进入合格摘要。pending 同样写出文件，并且不进入合格摘要。
-当前七个生产记录为 proved。它们可以在已记录的 CLI 与 IDE 项目视图中正式派发。`subagentStart` 按合格 agent 文件摘要放行。Cloud 不在派发范围内。
-旧宿主可分别用`--host codex`及`--host claude-code`生成和检查；它们不读Cursor资格。
+Cursor 产物根是 `output/.cursor/`，包含 `.cursor-plugin/plugin.json`、skills、hooks.json、plugin-hooks.json 和 runtime。
+manifest 明确组件路径，不把维护源目录当作插件。第三方 pstack/Matt 的宿主来源归执行仓库 `docs/engineering/skills.md`，本工具不安装或复制其正文。
 
 CLI 和 IDE 可用项目 `.cursor` 相对视图，也可安装物理原生包。CLI 的插件方式示例为 `agent --plugin-dir /absolute/package/.cursor`。
 外部安装先在新的物理目录生成，只搬运 `.cursor/` 包；不使用指向维护源的链接。安装位置变化不改变包内相对引用。
-同一宿主不得同时启用项目视图和同一插件包，否则角色名称和 hooks 可能重复。本工具不管理宿主已安装插件清单。
+同一宿主不得同时启用项目视图和同一插件包，否则 hooks 可能重复。本工具不管理宿主已安装插件清单。
 
 从完整仓库的 clean clone 初始化 CLI、IDE 或 Cloud 项目视图，在首个模型会话前执行：
 
@@ -235,18 +196,18 @@ uv run --locked python .meta_harness/tooling/src/initialize_agents.py --project-
 ```
 
 需要全部宿主时省略 `--host cursor`。Python/PyYAML 只用于生成，native bridge 运行需要 Node、Git 和 POSIX shell。
-Cloud 初始化由环境 setup 明确执行，不能等 SessionStart。命令 hooks 有 stop、subagentStop，以及按合格 agent 文件摘要把关的 subagentStart。
+Cloud 初始化由环境 setup 明确执行，不能等 SessionStart。命令 hooks 有 stop 与 subagentStop。
 Cloud 早期只读环境不会运行 hooks。本次未运行真实 IDE/Cloud 会话，clean clone 子进程检查只支持初始化与资源可达。
 初始化重复调用保持内容不变，存在不同字节/权限或真实项目目录时失败；更新仍须新 staging 比较后按任务授权更换生成物。
 
 ## Cursor hook 协议
 
-共享 hooks.yaml 拥有事件、参与角色、measurement command 与 timeout。hooks/cursor.yaml 只拥有协议版本、正整数 loop_limit 及 timeout_grace。
+共享 hooks.yaml 拥有事件、measurement command 与 timeout。hooks/cursor.yaml 只拥有协议版本、正整数 loop_limit 及 timeout_grace。
 生成的 bridge 从自身安装路径读取声明，按原命令执行测量，不重写测量、去重或政策规则。
 measurement timeout 仍由共享声明拥有；native timeout 增加配置的 timeout_grace，给 bridge 留出输出超时诊断的时间。
 原 Stop/SubagentStop 映射为 stop/subagentStop；Cursor stdout 只输出 JSON 对象，合法的新 block/reason 映射为 followup_message。
 
-bridge 要求 completed、非负整数 loop_count，SubagentStop 还要求非空且匹配的 subagent_type。
+bridge 要求 completed、非负整数 loop_count，SubagentStop 还要求非空的 subagent_type。
 loop_count 大于零或 stop_hook_active 已真时不再测量。native loop_limit 是宿主第二道限制；项目原测量 fingerprint 继续去重。
 错误和中断不声明测量通过。缺失身份/count、无效 JSON、工具异常、stderr、timeout、systemMessage 均产生结构化 stderr 诊断，stdout 无 followup。
 诊断是否在具体宿主界面可见须实际验证；stderr 记录本身不等于用户已读。
@@ -259,24 +220,5 @@ workspace_roots 或 event cwd 必须唯一确定真实目标。多根且 cwd 不
 manifest 指向 plugin-hooks.json；原生插件命令使用准确的 `${CURSOR_PLUGIN_ROOT}` 占位符，由宿主替换为本插件安装根。
 两份配置共享事件、限制和 runtime，不能用 shell 默认值表达式替代原生占位符；CLI 2026.08.04-aaa8809 只替换准确的占位符文本。
 
-## 真实 CLI 取证驱动
-
-`cursor_probe.py` 准备独立 observation plugin，记录 preToolUse、subagentStart、subagentStop、stop 原生输入与 stream-json。
-它不修改产品插件或目标项目。必须给独立输出目录，OMNE_METRICS_HOME 自动指向该目录，避免污染其他会话的去重记录。
-默认只准备；`--run` 才发真实模型请求，须在任务的模型/费用授权内使用正常 agent 模式。
-
-```sh
-uv run --locked python .meta_harness/tooling/src/cursor_probe.py \
-  --workspace /absolute/target-worktree --output /absolute/task/probe-1 \
-  --model claude-opus-5-5-high --prompt-file /absolute/task/probe-prompt.md \
-  --timeout 180 --run
-```
-
-项目视图已接入时不传产品 plugin-root。测试插件方式时在未暴露同一项目 assets 的目标添加 `--plugin-root /absolute/package/.cursor`。
-断言应核真实 Read/reference、Task 自定义角色身份、所选模型、stop/subagentStop 的实际 target cwd、过滤、一次反馈与停止及故障诊断。
-Task 可覆盖 model，common payload.model 不是子代理模型；subagentStart.subagent_model 仍不排除后端回退。
-模型自己声称发现或执行不算证据。退出零也不自动成为接受。过程超时会终止该进程组并报告 124。
-单次结果留任务 tmp，IDE/Cloud 真实执行、模型资格和完整付费评估分别报告。
-
-持续检查在 tests/test_cursor.py、test_compile_agents.py、test_compile_hooks.py、test_compile_cloud.py、test_link_agents.py、test_stale_skills.py、test_save_handback.py 与 test_readme_commands.py。
-它们覆盖文件、资源、路径、严格字段和子进程协议；真实模型与宿主事件仍由上面的驱动和独立验收取得。
+持续检查在 tests/test_cursor.py、test_compile_agents.py、test_compile_hooks.py、test_compile_cloud.py、test_link_agents.py、test_stale_skills.py 与 test_readme_commands.py。
+它们覆盖文件、资源、路径、严格字段和子进程协议；真实宿主事件仍须在宿主里独立验收。

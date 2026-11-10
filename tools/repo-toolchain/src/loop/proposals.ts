@@ -1,6 +1,6 @@
 // 清理草稿：超预算（又不是结构问题）的成员各一份，是填好的清理任务，等负责人批准后才派发。
 // 只陈述事实与边界——条目、行为锁、解除条件、不许动的——不写怎么改。
-// 章节与派发模板 `.meta_harness/agents/roles/cleanup-task.md` 同名同序。
+// 章节与派发模板 `docs/clean-loop-cleanup-task.md` 同名同序。
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describeFunction, type FunctionRow } from '../metrics/report.ts'
