@@ -7,6 +7,7 @@ import {
   ghCommand,
   ghProcess,
   GhReadError,
+  isIdempotentGet,
   REST_HEADERS,
   runGhCommand,
 } from '../src/shared/gh.ts'
@@ -225,5 +226,153 @@ describe('bounded retry of idempotent reads', () => {
     const h = harness([{ error: exit('', 'reset') }, ok])
     expect(h.command(['api', 'repos/owner/repo/issues/1'], 10_000)).toEqual({ number: 1 })
     expect(h.launches).toHaveLength(2)
+  })
+})
+
+describe('which gh commands count as idempotent reads', () => {
+  const retried = (argv: string[]) => {
+    const error = Object.assign(new Error('Command failed: gh'), {
+      status: 1,
+      signal: null,
+      stdout: '',
+      stderr: 'TLS handshake timeout',
+    })
+    let launches = 0
+    const command = ghCommand(
+      () => {
+        launches += 1
+        if (launches === 1) throw error
+        return '{}'
+      },
+      () => undefined,
+    )
+    try {
+      command(argv, 10_000)
+    } catch {
+      return false
+    }
+    return launches === 2
+  }
+
+  it.each([
+    ['--raw-field', ['api', 'repos/owner/repo/issues', '--raw-field', 'title=x']],
+    ['-F', ['api', 'repos/owner/repo/issues', '-F', 'title=x']],
+    ['--field', ['api', 'repos/owner/repo/issues', '--field', 'title=x']],
+    ['--input', ['api', 'repos/owner/repo/issues', '--input', 'body.json']],
+    ['a bare GraphQL call', ['api', 'graphql']],
+    ['-X POST without fields', ['api', '-X', 'POST', 'repos/owner/repo/issues/1/lock']],
+    ['--method POST without fields', ['api', '--method', 'POST', 'repos/owner/repo/issues/1/lock']],
+    ['--method=DELETE', ['api', '--method=DELETE', 'repos/owner/repo/issues/1/lock']],
+  ])('does not retry %s', (_, argv) => {
+    expect(isIdempotentGet(argv)).toBe(false)
+    expect(retried(argv)).toBe(false)
+  })
+
+  it.each([
+    ['--method=GET', ['api', '--method=GET', 'repos/owner/repo/issues/1']],
+    ['-X get in lower case', ['api', '-X', 'get', 'repos/owner/repo/issues/1']],
+    [
+      'an explicit GET followed by query fields',
+      ['api', '--method', 'GET', 'repos/owner/repo/issues', '-f', 'state=open'],
+    ],
+  ])('retries %s', (_, argv) => {
+    expect(isIdempotentGet(argv)).toBe(true)
+    expect(retried(argv)).toBe(true)
+  })
+})
+
+describe('what a failed launch says about the transport', () => {
+  const GET = ['api', '--method', 'GET', ...REST_HEADERS, 'repos/owner/repo/issues/1']
+  /** The failed launches of one GET, one after another; the read then succeeds. */
+  function launchesAfter(failure: unknown): { launches: number; thrown: unknown } {
+    let launches = 0
+    const command = ghCommand(
+      () => {
+        launches += 1
+        if (launches === 1) throw failure
+        return '{}'
+      },
+      () => undefined,
+    )
+    let thrown: unknown
+    try {
+      command(GET, 10_000)
+    } catch (caught) {
+      thrown = caught
+    }
+    return { launches, thrown }
+  }
+  const failed = (over: Record<string, unknown>): Error =>
+    Object.assign(new Error('Command failed: gh'), {
+      status: 1,
+      signal: null,
+      stdout: '',
+      stderr: '',
+      ...over,
+    })
+
+  it.each([
+    ['1502', 'a status with a leading digit before 5xx'],
+    ['5020', 'a four digit status that starts with 5xx'],
+    ['404', 'a 4xx status'],
+  ])('does not retry an API answer with the status %s (%s)', status => {
+    const { launches, thrown } = launchesAfter(failed({ stdout: JSON.stringify({ status }) }))
+    expect(launches).toBe(1)
+    expect(thrown).toBeInstanceOf(GhReadError)
+  })
+
+  it('does not retry an API answer whose body is JSON null, and still carries it', () => {
+    const { launches, thrown } = launchesAfter(failed({ stdout: 'null' }))
+    expect(launches).toBe(1)
+    expect(thrown).toBeInstanceOf(GhReadError)
+    expect((thrown as GhReadError).body).toBeNull()
+  })
+
+  it('retries a timeout whose partial output is an API answer, and does not report that answer', () => {
+    const timeout = failed({
+      code: 'ETIMEDOUT',
+      status: null,
+      signal: 'SIGTERM',
+      stdout: JSON.stringify({ status: '404' }),
+    })
+    const { launches, thrown } = launchesAfter(timeout)
+    expect(launches).toBe(2)
+    expect(thrown).toBeUndefined()
+  })
+
+  it('does not take JSON output as an API answer when the process has no exit code', () => {
+    const lost = failed({ status: null, signal: null, stdout: JSON.stringify({ status: '502' }) })
+    const { launches, thrown } = launchesAfter(lost)
+    expect(launches).toBe(1)
+    expect(thrown).toBe(lost)
+  })
+
+  it('does not take a missing standard output as an API answer', () => {
+    const { launches, thrown } = launchesAfter(failed({ stdout: null }))
+    expect(launches).toBe(2)
+    expect(thrown).toBeUndefined()
+  })
+
+  it('does not retry an exit code of 0', () => {
+    const odd = failed({ status: 0, stdout: JSON.stringify({ status: '502' }) })
+    const { launches, thrown } = launchesAfter(odd)
+    expect(launches).toBe(1)
+    expect(thrown).toBe(odd)
+  })
+
+  it('passes a thrown value that is no Error on as it is, without retrying', () => {
+    const value = { status: 1, signal: null, stdout: JSON.stringify({ status: '502' }) }
+    const { launches, thrown } = launchesAfter(value)
+    expect(launches).toBe(1)
+    expect(thrown).toBe(value)
+  })
+})
+
+describe('GhReadError', () => {
+  it('names itself and keeps the API output out of its message', () => {
+    const error = new GhReadError({ message: 'secret detail' })
+    expect(error.name).toBe('GhReadError')
+    expect(error.message).not.toContain('secret detail')
+    expect(error.message).not.toBe('')
   })
 })

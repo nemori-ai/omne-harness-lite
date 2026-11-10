@@ -37,6 +37,8 @@ describe('runContractApi', () => {
     expect(file).toBe('/node')
     expect(args).toEqual(['/cli.js', '--check', '--json', '--root', '/checkout'])
     expect(options).toMatchObject({ cwd: '/checkout', encoding: 'utf8', timeout: 1234 })
+    // The report of a repository with many members is far larger than the 1 MiB default.
+    expect(options?.maxBuffer).toBeGreaterThanOrEqual(64 * 1024 * 1024)
     expect(options?.env?.['OMNE_SUBJECT_ROOT']).toBe('/checkout')
     expect(options?.env?.['OMNE_RUNNER_ROOT']).toBe('/checkout')
   })
@@ -132,6 +134,13 @@ describe('toolchainManifest', () => {
         throw 'not an error'
       }),
     ).toThrow('not an error')
+    // A thrown value that is no Error is passed on even when it carries the code of a missing module.
+    const notAnError = { code: 'ERR_MODULE_NOT_FOUND' }
+    expect(() =>
+      toolchainManifest(() => {
+        throw notAnError
+      }),
+    ).toThrow(expect.objectContaining(notAnError))
   })
 })
 

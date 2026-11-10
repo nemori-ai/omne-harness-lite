@@ -138,6 +138,17 @@ describe('给了记录：只看那一份', () => {
     ])
   })
 
+  it('记录里没有 caches 时照常接受，缓存两项都展示为 unknown', () => {
+    const { caches: _dropped, ...withoutCaches } = passingRecord()
+    const record = writeRecord('explicit-pass-no-caches', withoutCaches)
+    const evidence = admissionEvidence(fixture.root, { for: fixture.f, record })
+    expect(evidence.kind).toBe('accepted')
+    expect(formatEvidence(evidence)).toEqual([
+      `F ${fixture.f} 采用 C ${fixture.c} 的全量准入，树 ${fixture.tree(fixture.c)} 相同；记录 ${record}；` +
+        '缓存 test=unknown, depGraph=unknown',
+    ])
+  })
+
   it('接续了一次带 FULL=1 的准入的记录算全量准入：输出写明是 H1 全量＋ C 上增量组成的', () => {
     const h1 = 'e'.repeat(40)
     const record = writeRecord('explicit-resume-of-full', {
@@ -404,6 +415,11 @@ describe('给了记录：只看那一份', () => {
   it.each([
     ['不是 JSON', () => '{ 半截'],
     ['缓存状态写错', () => JSON.stringify({ ...passingRecord(), caches: { test: 'yes' } })],
+    [
+      'depGraph 的缓存状态写错',
+      () => JSON.stringify({ ...passingRecord(), caches: { test: 'on', depGraph: 'yes' } }),
+    ],
+    ['缓存状态不是对象', () => JSON.stringify({ ...passingRecord(), caches: 'on' })],
   ])('记录读不出（%s）时拒绝', (_name, text) => {
     mkdirSync(join(fixture.root, 'tmp/admission'), { recursive: true })
     writeFileSync(join(fixture.root, 'tmp/admission/broken.json'), text())

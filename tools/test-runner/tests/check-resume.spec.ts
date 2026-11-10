@@ -513,6 +513,15 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     // 同一个头再跑一次、工作树干净：不是 dirty。trace.txt 与 tmp/ 被忽略，不算。
     await check()
     expect(runRecord(fx.root, head).dirty).toBe(false)
+    // OMNE_DEP_GRAPH_CACHE=0 记依赖图缓存 off，其余值与不设都记 on（上面几次运行没设，记的是 on）。
+    expect(runRecord(fx.root, head).caches.depGraph).toBe('on')
+    process.env['OMNE_DEP_GRAPH_CACHE'] = '0'
+    try {
+      await check()
+    } finally {
+      delete process.env['OMNE_DEP_GRAPH_CACHE']
+    }
+    expect(runRecord(fx.root, head).caches.depGraph).toBe('off')
   })
 
   it('test 步在计划旁留下定向重跑的报告：记录带 retried，准入日志写明哪个文件重跑才过', async () => {
