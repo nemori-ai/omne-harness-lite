@@ -39,7 +39,9 @@ async function binding(
 const textRepresentation = () => {
   const definition = functionDefinition()
   if (definition.kind !== 'function') throw new Error('fixture must define a function')
-  return { kind: 'text' as const, codec: definition.returns.body.codec }
+  const body = definition.returns.body
+  if (body.kind !== 'text') throw new Error('fixture must return a text body')
+  return { kind: 'text' as const, codec: body.codec }
 }
 
 async function openWriter(f: Fixture, key: string) {
@@ -63,7 +65,7 @@ async function openWriter(f: Fixture, key: string) {
       }),
     seal: (afterSequence: string) =>
       f.ledger.bodyWrites.seal({ ...bound, operation: op(), afterSequence }),
-    inspect: () => f.ledger.bodyWrites.inspect({ ...bound, operation: op() }),
+    inspect: () => f.ledger.bodyWrites.inspect(bound),
   }
 }
 

@@ -156,6 +156,47 @@ it('judges the page bound on the encoded block: equal stays inline, one byte mor
   expect((await over.resultPage()).value.original.kind).toBe('offloaded')
 })
 
+it('keeps an unshrinkable block of exactly one page beside an offloaded body and refuses one byte more', async () => {
+  const exact = 'x'.repeat(PAGE - encodedBytes(hidden('human', '')))
+  const settle = (value: string) =>
+    settlementFixture({
+      resultPageBytes: PAGE,
+      value: {
+        content: [text('answer', INDENTED_TEXT), hidden('human', value)],
+        data: { kind: 'none' },
+        original: { kind: 'none' },
+        attachments: [],
+      },
+    })
+  const equal = await settle(exact)
+  ok(await equal.preserve())
+  const first = await equal.resultPage()
+  expect(first.value.original.kind).toBe('offloaded')
+  expect(first.value.content.map(block => block.id)).toContain('answer')
+  expect((await settle(`${exact}y`)).planned).toEqual({
+    failure: { kind: 'invalid', field: 'content[1]', reason: 'block-exceeds-result-page' },
+  })
+})
+
+it('carries a first screen whose encoded block equals the page and refuses a page one byte smaller', async () => {
+  const value = {
+    content: [text('answer', 'line of body text\n'.repeat(4096))],
+    data: { kind: 'none' as const },
+    original: { kind: 'none' as const },
+    attachments: [],
+  }
+  const measured = await settlementFixture({ resultPageBytes: PAGE, value })
+  ok(await measured.preserve())
+  const [screen] = (await measured.resultPage()).value.content
+  const size = encodedBytes(screen)
+  const equal = await settlementFixture({ resultPageBytes: size, value })
+  ok(await equal.preserve())
+  expect((await equal.resultPage()).value.original.kind).toBe('offloaded')
+  expect((await settlementFixture({ resultPageBytes: size - 1, value })).planned).toEqual({
+    failure: { kind: 'invalid', field: 'content', reason: 'first-screen-exceeds-result-page' },
+  })
+})
+
 it('collapses every model text block into one first screen whose body is their concatenation', async () => {
   const f = await settlementFixture({
     resultPageBytes: PAGE,

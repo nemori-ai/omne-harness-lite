@@ -171,7 +171,8 @@ it('rebuilds a body stored in many small chunks byte for byte, across chunk and 
   let actual = ''
   let after: string | null = null
   for (let pages = 0; pages < 5000; pages++) {
-    const next = ok(await f.ledger.reads.body.read({ ...input, after }))
+    const reply = await f.ledger.reads.body.read({ ...input, after })
+    const next = ok(reply)
     if (next.kind !== 'text') throw new Error('text page expected')
     expect(Buffer.byteLength(next.text)).toBeLessThanOrEqual(7)
     actual += next.text
